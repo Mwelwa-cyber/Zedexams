@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import Logo from '../ui/Logo'
 
 const FRIENDLY = {
   'auth/email-already-in-use': 'This email is already registered. Try logging in.',
@@ -33,10 +34,10 @@ export default function Register() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-600 to-green-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 animate-scale-in">
-        <div className="text-center mb-6">
-          <div className="text-5xl mb-2">✏️</div>
-          <h1 className="text-2xl font-black text-green-700">Create Account</h1>
-          <p className="text-gray-500 text-sm mt-1">Join ExamPrep Zambia for free</p>
+        <div className="flex flex-col items-center mb-6">
+          <Logo size="md" variant="full" dark={true} />
+          <h1 className="text-lg font-black text-gray-700 mt-3">Create Account</h1>
+          <p className="text-gray-400 text-sm mt-0.5">Join ExamPrep Zambia for free</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">

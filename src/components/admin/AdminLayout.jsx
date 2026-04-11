@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import Logo from '../ui/Logo'
 
 const NAV = [
   { to: '/admin',          icon: '📊', label: 'Dashboard',      end: true },
@@ -25,14 +26,9 @@ export default function AdminLayout({ children }) {
       {/* ── Desktop Sidebar ─────────────────────────────── */}
       <aside className="hidden md:flex flex-col w-60 bg-white border-r border-gray-100 shadow-sm flex-shrink-0">
         {/* Logo */}
-        <div className="px-5 py-5 border-b border-gray-100">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-green-600 rounded-lg flex items-center justify-center text-white font-black text-sm">EP</div>
-            <div>
-              <p className="font-black text-gray-800 text-sm leading-none">ExamPrep</p>
-              <p className="text-green-600 text-xs font-bold">Admin Panel</p>
-            </div>
-          </div>
+        <div className="px-4 py-4 border-b border-gray-100">
+          <Logo size="sm" variant="full" dark={true} />
+          <p className="text-xs font-bold text-green-600 mt-1 ml-10">Admin Panel</p>
         </div>
 
         {/* Nav Links */}
@@ -72,7 +68,7 @@ export default function AdminLayout({ children }) {
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-100 shadow-sm">
         <div className="flex items-center justify-between px-4 h-14">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 bg-green-600 rounded-lg flex items-center justify-center text-white font-black text-xs">EP</div>
+            <Logo size="sm" variant="icon" dark={true} />
             <span className="font-black text-gray-800 text-sm">Admin Panel</span>
           </div>
           <button onClick={() => setMobileOpen(o => !o)}

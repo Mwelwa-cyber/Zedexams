@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import Logo from '../ui/Logo'
 
 const FRIENDLY = {
   'auth/invalid-credential':       'Wrong email or password. Please try again.',
@@ -36,11 +37,9 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-600 via-green-700 to-green-900 flex items-center justify-center p-4">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 animate-scale-in">
-        <div className="text-center mb-6">
-          <div className="text-6xl mb-2">📚</div>
-          <h1 className="text-3xl font-black text-green-700">ExamPrep</h1>
-          <p className="text-yellow-500 font-bold text-sm">🇿🇲 Zambia</p>
-          <p className="text-gray-500 text-sm mt-1">Grade 5 – 7 Learning Platform</p>
+        <div className="flex flex-col items-center mb-6">
+          <Logo size="lg" variant="full" dark={true} />
+          <p className="text-gray-400 text-sm mt-3">Grade 5 – 7 Learning Platform</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

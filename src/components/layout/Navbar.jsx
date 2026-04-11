@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSubscription } from '../../hooks/useSubscription'
+import Logo from '../ui/Logo'
 
 export default function Navbar() {
   const { userProfile, logout, isAdmin, isTeacher } = useAuth()
@@ -30,9 +31,8 @@ export default function Navbar() {
   return (
     <nav className="bg-gradient-to-r from-green-700 to-green-900 shadow-lg sticky top-0 z-40">
       <div className="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
-        <Link to="/dashboard" className="flex items-center gap-2 min-h-0">
-          <span className="text-2xl">📚</span>
-          <span className="text-white font-black text-lg leading-tight">ExamPrep<br /><span className="text-yellow-300 text-xs font-bold">Zambia</span></span>
+        <Link to="/dashboard" className="flex items-center min-h-0">
+          <Logo size="sm" variant="full" dark={false} />
         </Link>
 
         {/* Desktop links */}
