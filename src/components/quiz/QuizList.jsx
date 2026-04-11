@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useSubscription } from '../../hooks/useSubscription'
 import UpgradeModal from '../subscription/UpgradeModal'
 import { AttemptCounter } from '../subscription/PremiumGate'
+import ComingSoon from '../ui/ComingSoon'
 
 const SUBJECTS = ['Mathematics', 'English', 'Science', 'Social Studies']
 const GRADES   = ['5', '6', '7']
@@ -115,12 +116,19 @@ export default function QuizList() {
       <div className="mt-5 space-y-3">
         {loading ? (
           Array.from({length:4}).map((_,i) => <SkeletonCard key={i} />)
+        ) : quizzes.length === 0 ? (
+          // No quizzes in Firestore at all
+          <ComingSoon
+            title="Quizzes Coming Soon"
+            message="No quizzes have been published yet. Check back soon — your teacher is working on it!"
+            icon="✏️"
+            showQuizBtn={false}
+          />
         ) : filtered.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="text-5xl mb-3">🔍</div>
-            <p className="font-bold text-gray-600">No quizzes found</p>
-            <p className="text-gray-400 text-sm mt-1">Try clearing a filter or ask your teacher to add quizzes</p>
-          </div>
+          // Quizzes exist but none match the current filters
+          <ComingSoon
+            onClearFilters={() => { setSearch(''); setGradeF(''); setSubjectF(''); setTermF('') }}
+          />
         ) : filtered.map(quiz => {
           const s = subjectStyle[quiz.subject] ?? { bg:'bg-gray-100', text:'text-gray-700', icon:'📝' }
           return (

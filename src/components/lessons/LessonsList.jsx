@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useFirestore } from '../../hooks/useFirestore'
+import ComingSoon from '../ui/ComingSoon'
 
 const SUBJECTS = ['Mathematics', 'English', 'Science', 'Social Studies']
 const GRADES   = ['5', '6', '7']
@@ -115,22 +116,18 @@ export default function LessonsList() {
         <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => <LessonSkeleton key={i} />)}
         </div>
+      ) : lessons.length === 0 ? (
+        // No lessons in Firestore at all
+        <ComingSoon
+          title="Lessons Coming Soon"
+          message="Study notes haven't been published yet. Your teacher is busy preparing them — check back soon!"
+          icon="📚"
+        />
       ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 py-16 text-center">
-          <div className="text-5xl mb-3">📭</div>
-          <p className="font-black text-gray-700">No lessons found</p>
-          <p className="text-gray-400 text-sm mt-1 max-w-xs mx-auto">
-            {search || gradeF || subjectF || termF
-              ? 'Try adjusting your filters'
-              : 'Lessons will appear here once added by your teacher'}
-          </p>
-          {(search || gradeF || subjectF || termF) && (
-            <button onClick={() => { setSearch(''); setGradeF(''); setSubjectF(''); setTermF('') }}
-              className="mt-4 text-green-600 font-bold text-sm border border-green-200 px-4 py-2 rounded-full hover:bg-green-50 min-h-0">
-              Clear filters
-            </button>
-          )}
-        </div>
+        // Lessons exist but none match the current filters
+        <ComingSoon
+          onClearFilters={() => { setSearch(''); setGradeF(''); setSubjectF(''); setTermF('') }}
+        />
       ) : (
         <div className="space-y-3">
           {filtered.map(lesson => {

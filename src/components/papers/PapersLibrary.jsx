@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useSubscription } from '../../hooks/useSubscription'
 import UpgradeModal from '../subscription/UpgradeModal'
+import ComingSoon from '../ui/ComingSoon'
 
 const SUBJECTS = ['Mathematics', 'English', 'Science', 'Social Studies']
 const GRADES   = ['5', '6', '7']
@@ -123,20 +124,18 @@ export default function PapersLibrary() {
         <div className="space-y-3">
           {Array.from({ length: 4 }).map((_, i) => <PaperSkeleton key={i} />)}
         </div>
+      ) : papers.length === 0 && !gradeF && !subjectF ? (
+        // No papers at all
+        <ComingSoon
+          title="Past Papers Coming Soon"
+          message="Exam papers are being prepared and will be uploaded soon. In the meantime, try a quiz!"
+          icon="📄"
+        />
       ) : papers.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 py-16 text-center">
-          <div className="text-5xl mb-3">📁</div>
-          <p className="font-black text-gray-700 text-base">No papers found</p>
-          <p className="text-gray-400 text-sm mt-1 max-w-xs mx-auto">
-            {gradeF || subjectF ? 'Try clearing a filter' : 'Papers will appear here once uploaded by admin'}
-          </p>
-          {(gradeF || subjectF) && (
-            <button onClick={() => { setGradeF(''); setSubjectF('') }}
-              className="mt-4 text-green-600 font-bold text-sm border border-green-200 px-4 py-2 rounded-full hover:bg-green-50 min-h-0">
-              Clear filters
-            </button>
-          )}
-        </div>
+        // Papers exist but none match the current filters
+        <ComingSoon
+          onClearFilters={() => { setGradeF(''); setSubjectF('') }}
+        />
       ) : (
         <div className="space-y-3">
           {papers.map((p, idx) => {
