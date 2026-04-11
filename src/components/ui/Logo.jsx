@@ -12,9 +12,9 @@
  */
 export default function Logo({ variant = 'full', size = 'md', className = '' }) {
   // Heights for the full logo (wide image)
-  const fullH = { sm: 'h-9', md: 'h-14', lg: 'h-20', xl: 'h-32' }
+  const fullH = { sm: 'h-10', md: 'h-16', lg: 'h-24', xl: 'h-36' }
   // Heights for the icon (square image)
-  const iconH = { sm: 'h-8 w-8', md: 'h-10 w-10', lg: 'h-14 w-14', xl: 'h-20 w-20' }
+  const iconH = { sm: 'h-9 w-9', md: 'h-12 w-12', lg: 'h-16 w-16', xl: 'h-24 w-24' }
 
   if (variant === 'icon') {
     return (

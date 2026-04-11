@@ -28,11 +28,11 @@ export default function Navbar() {
 
   return (
     <nav className="bg-white border-b border-gray-100 shadow-sm sticky top-0 z-40">
-      <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
+      <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between gap-4">
 
         {/* Logo */}
         <Link to="/dashboard" className="flex items-center min-h-0 flex-shrink-0">
-          <Logo variant="full" size="sm" />
+          <Logo variant="full" size="md" />
         </Link>
 
         {/* Desktop nav links */}

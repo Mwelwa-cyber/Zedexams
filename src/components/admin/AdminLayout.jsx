@@ -26,9 +26,9 @@ export default function AdminLayout({ children }) {
       {/* ── Desktop Sidebar ─────────────────────────────── */}
       <aside className="hidden md:flex flex-col w-60 bg-white border-r border-gray-100 shadow-sm flex-shrink-0">
         {/* Logo */}
-        <div className="px-4 py-4 border-b border-gray-100">
-          <Logo variant="full" size="sm" />
-          <p className="text-xs font-bold text-green-600 mt-1 pl-1">Admin Panel</p>
+        <div className="px-4 py-5 border-b border-gray-100">
+          <Logo variant="full" size="md" />
+          <p className="text-xs font-bold text-green-600 mt-1.5 pl-1">Admin Panel</p>
         </div>
 
         {/* Nav Links */}
@@ -66,9 +66,9 @@ export default function AdminLayout({ children }) {
 
       {/* ── Mobile Header ───────────────────────────────── */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 bg-white border-b border-gray-100 shadow-sm">
-        <div className="flex items-center justify-between px-4 h-14">
-          <div className="flex items-center gap-2">
-            <Logo variant="icon" size="sm" />
+        <div className="flex items-center justify-between px-4 h-16">
+          <div className="flex items-center gap-2.5">
+            <Logo variant="icon" size="md" />
             <span className="font-black text-gray-800 text-sm">Admin Panel</span>
           </div>
           <button onClick={() => setMobileOpen(o => !o)}
