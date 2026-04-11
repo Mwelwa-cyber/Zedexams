@@ -9,7 +9,8 @@ html {
 }
 
 body {
-  @apply bg-gray-50 text-gray-800 antialiased;
+  @apply text-gray-800 antialiased;
+  background-color: #f1f5f9; /* slate-100 — warm off-white, never stark white */
   min-height: 100dvh;
 }
 
@@ -36,7 +37,31 @@ body {
   .badge {
     @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold;
   }
+  /* Page wrapper — each content page uses this for consistent spacing */
+  .page-wrapper {
+    @apply min-h-screen bg-slate-50;
+  }
+  /* Section card — white panel with soft shadow */
+  .section-card {
+    @apply bg-white rounded-2xl border border-gray-100 shadow-sm;
+  }
+  /* Content card with colored left accent border */
+  .content-card {
+    @apply bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200;
+  }
+  /* Filter chip */
+  .filter-chip {
+    @apply px-3 py-1.5 rounded-full text-sm font-bold border border-gray-200 bg-white
+           text-gray-600 hover:border-indigo-300 hover:text-indigo-700 transition-all min-h-0 whitespace-nowrap;
+  }
+  .filter-chip-active {
+    @apply bg-indigo-600 text-white border-indigo-600 shadow-sm;
+  }
 }
+
+/* ── No scrollbar (for horizontal filter rows) ──────────────── */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
 /* ── Animations ────────────────────────────────────────────── */
 @keyframes scale-in     { 0% { opacity:0; transform:scale(0.92) } 100% { opacity:1; transform:scale(1) } }

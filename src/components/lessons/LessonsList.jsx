@@ -3,55 +3,148 @@ import { Link } from 'react-router-dom'
 import { useFirestore } from '../../hooks/useFirestore'
 import ComingSoon from '../ui/ComingSoon'
 
-const SUBJECTS = ['Mathematics', 'English', 'Science', 'Social Studies']
-const GRADES   = ['5', '6', '7']
-const TERMS    = ['1', '2', '3']
+// ── Design tokens ──────────────────────────────────────────────────────────
+const GRADES = ['4', '5', '6']
+const TERMS  = ['1', '2', '3']
 
-const subjectStyle = {
-  Mathematics:      { bg: 'bg-blue-50',   text: 'text-blue-700',   border: 'border-blue-200',   badge: 'bg-blue-100 text-blue-700',   icon: '🔢' },
-  English:          { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', badge: 'bg-purple-100 text-purple-700', icon: '📖' },
-  Science:          { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200', badge: 'bg-orange-100 text-orange-700', icon: '🔬' },
-  'Social Studies': { bg: 'bg-teal-50',   text: 'text-teal-700',   border: 'border-teal-200',   badge: 'bg-teal-100 text-teal-700',   icon: '🌍' },
+const SUBJECTS = [
+  { id: 'Mathematics',        label: 'Mathematics',        icon: '➗', color: 'blue'   },
+  { id: 'English',            label: 'English',            icon: '📝', color: 'violet' },
+  { id: 'Integrated Science', label: 'Integrated Science', icon: '🔬', color: 'orange' },
+  { id: 'Social Studies',     label: 'Social Studies',     icon: '🌍', color: 'teal'   },
+  { id: 'Technology Studies', label: 'Technology Studies', icon: '⚙️', color: 'cyan'   },
+  { id: 'Home Economics',     label: 'Home Economics',     icon: '🏠', color: 'pink'   },
+  { id: 'Expressive Arts',    label: 'Expressive Arts',    icon: '🎨', color: 'rose'   },
+]
+
+const SUBJECT_STYLES = {
+  blue:   { bg: 'bg-blue-50',   badge: 'bg-blue-100 text-blue-700',    accent: 'border-l-blue-500',   icon: 'bg-blue-100 text-blue-700',   obj: 'bg-blue-50'   },
+  violet: { bg: 'bg-violet-50', badge: 'bg-violet-100 text-violet-700',accent: 'border-l-violet-500', icon: 'bg-violet-100 text-violet-700',obj: 'bg-violet-50' },
+  orange: { bg: 'bg-orange-50', badge: 'bg-orange-100 text-orange-700',accent: 'border-l-orange-500', icon: 'bg-orange-100 text-orange-700',obj: 'bg-orange-50' },
+  teal:   { bg: 'bg-teal-50',   badge: 'bg-teal-100 text-teal-700',    accent: 'border-l-teal-500',   icon: 'bg-teal-100 text-teal-700',   obj: 'bg-teal-50'   },
+  cyan:   { bg: 'bg-cyan-50',   badge: 'bg-cyan-100 text-cyan-700',    accent: 'border-l-cyan-500',   icon: 'bg-cyan-100 text-cyan-700',   obj: 'bg-cyan-50'   },
+  pink:   { bg: 'bg-pink-50',   badge: 'bg-pink-100 text-pink-700',    accent: 'border-l-pink-500',   icon: 'bg-pink-100 text-pink-700',   obj: 'bg-pink-50'   },
+  rose:   { bg: 'bg-rose-50',   badge: 'bg-rose-100 text-rose-700',    accent: 'border-l-rose-500',   icon: 'bg-rose-100 text-rose-700',   obj: 'bg-rose-50'   },
+  gray:   { bg: 'bg-gray-50',   badge: 'bg-gray-100 text-gray-700',    accent: 'border-l-gray-400',   icon: 'bg-gray-100 text-gray-700',   obj: 'bg-gray-50'   },
 }
 
-function Chip({ label, active, onClick }) {
+const GRADE_STYLES = {
+  '4': { badge: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' },
+  '5': { badge: 'bg-blue-100 text-blue-700',       dot: 'bg-blue-500'    },
+  '6': { badge: 'bg-purple-100 text-purple-700',   dot: 'bg-purple-500'  },
+}
+
+function getSubjectMeta(subjectId) {
+  const sub = SUBJECTS.find(s => s.id === subjectId)
+  if (!sub) return { icon: '📄', style: SUBJECT_STYLES.gray, label: subjectId ?? 'Unknown' }
+  return { icon: sub.icon, style: SUBJECT_STYLES[sub.color], label: sub.label }
+}
+
+// ── Filter chip ────────────────────────────────────────────────────────────
+function Chip({ label, active, onClick, icon }) {
   return (
     <button onClick={onClick}
-      className={`px-3 py-1.5 rounded-full text-sm font-bold transition-all min-h-0 whitespace-nowrap ${
-        active ? 'bg-green-600 text-white shadow-sm' : 'bg-white border border-gray-200 text-gray-600 hover:border-green-400 hover:text-green-700'
+      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold transition-all min-h-0 whitespace-nowrap ${
+        active
+          ? 'bg-purple-600 text-white shadow-md shadow-purple-200'
+          : 'bg-white border border-gray-200 text-gray-600 hover:border-purple-300 hover:text-purple-700 hover:bg-purple-50'
       }`}>
+      {icon && <span className="text-xs">{icon}</span>}
       {label}
     </button>
   )
 }
 
+// ── Skeleton ───────────────────────────────────────────────────────────────
 function LessonSkeleton() {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-4 animate-pulse">
-      <div className="flex items-start gap-3">
+    <div className="bg-white rounded-2xl border border-gray-100 border-l-4 border-l-gray-200 p-4 animate-pulse">
+      <div className="flex items-start gap-4">
         <div className="w-12 h-12 bg-gray-200 rounded-xl flex-shrink-0" />
-        <div className="flex-1 space-y-2 pt-1">
+        <div className="flex-1 space-y-2.5 pt-0.5">
           <div className="h-4 bg-gray-200 rounded-lg w-3/4" />
-          <div className="h-3 bg-gray-200 rounded-lg w-1/2" />
-          <div className="flex gap-2 mt-2">
-            <div className="h-5 bg-gray-200 rounded-full w-20" />
-            <div className="h-5 bg-gray-200 rounded-full w-14" />
+          <div className="h-3 bg-gray-200 rounded-lg w-2/5" />
+          <div className="flex gap-2">
+            <div className="h-5 bg-gray-200 rounded-full w-24" />
+            <div className="h-5 bg-gray-200 rounded-full w-16" />
           </div>
         </div>
+        <div className="w-6 h-6 bg-gray-200 rounded-full flex-shrink-0 mt-1" />
       </div>
     </div>
   )
 }
 
+// ── Lesson card ────────────────────────────────────────────────────────────
+function LessonCard({ lesson }) {
+  const { icon, style } = getSubjectMeta(lesson.subject)
+  const gradeStyle = GRADE_STYLES[lesson.grade] ?? GRADE_STYLES['6']
+  const wordCount  = lesson.content ? lesson.content.split(/\s+/).length : 0
+  const readMins   = Math.max(1, Math.round(wordCount / 200))
+
+  return (
+    <Link to={`/lessons/${lesson.id}`}
+      className={`block bg-white rounded-2xl border border-gray-100 border-l-4 ${style.accent} shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group`}>
+      <div className="p-4 flex items-start gap-4">
+        {/* Subject icon */}
+        <div className={`${style.icon} w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0 group-hover:scale-105 transition-transform`}>
+          {icon}
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <h3 className="font-black text-gray-900 text-sm leading-snug group-hover:text-purple-700 transition-colors line-clamp-2">
+            {lesson.title}
+          </h3>
+          {lesson.topic && (
+            <p className="text-gray-500 text-xs mt-0.5 truncate">{lesson.topic}</p>
+          )}
+          <div className="flex gap-1.5 mt-2 flex-wrap items-center">
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${style.badge}`}>{lesson.subject}</span>
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${gradeStyle.badge}`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${gradeStyle.dot}`} />
+              Grade {lesson.grade}
+            </span>
+            {lesson.term && (
+              <span className="bg-gray-100 text-gray-500 text-xs font-bold px-2 py-0.5 rounded-full">Term {lesson.term}</span>
+            )}
+            <span className="text-gray-400 text-xs flex items-center gap-1">
+              <span>⏱</span> {readMins} min read
+            </span>
+          </div>
+        </div>
+
+        {/* Arrow */}
+        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-50 group-hover:bg-purple-100 flex items-center justify-center text-gray-400 group-hover:text-purple-600 group-hover:translate-x-0.5 transition-all">
+          →
+        </div>
+      </div>
+
+      {/* Objectives preview */}
+      {lesson.objectives?.length > 0 && (
+        <div className={`mx-4 mb-4 ${style.obj} rounded-xl px-3 py-2`}>
+          <p className="text-xs font-black text-gray-500 mb-0.5">Learning objectives</p>
+          <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">
+            {Array.isArray(lesson.objectives)
+              ? lesson.objectives.slice(0, 2).join(' · ')
+              : lesson.objectives}
+          </p>
+        </div>
+      )}
+    </Link>
+  )
+}
+
+// ── Main ───────────────────────────────────────────────────────────────────
 export default function LessonsList() {
   const { getLessons } = useFirestore()
 
-  const [lessons, setLessons] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch]   = useState('')
-  const [gradeF, setGradeF]   = useState('')
+  const [lessons, setLessons]   = useState([])
+  const [loading, setLoading]   = useState(true)
+  const [search, setSearch]     = useState('')
+  const [gradeF, setGradeF]     = useState('')
   const [subjectF, setSubjectF] = useState('')
-  const [termF, setTermF]     = useState('')
+  const [termF, setTermF]       = useState('')
 
   useEffect(() => {
     async function load() {
@@ -64,120 +157,128 @@ export default function LessonsList() {
   }, [gradeF, subjectF])
 
   const filtered = lessons.filter(l =>
-    (!termF || l.term === termF) &&
-    (!search || l.title.toLowerCase().includes(search.toLowerCase()) ||
-                (l.topic || '').toLowerCase().includes(search.toLowerCase()))
+    (!termF   || l.term === termF) &&
+    (!search  || l.title.toLowerCase().includes(search.toLowerCase()) ||
+                 (l.topic ?? '').toLowerCase().includes(search.toLowerCase()))
   )
 
+  const hasActiveFilter = gradeF || subjectF || termF || search
+
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6">
-      {/* Header */}
-      <div className="mb-5">
-        <h1 className="text-2xl font-black text-gray-800">📚 Lessons</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Study lesson notes for all subjects and grades</p>
+    <div className="min-h-screen bg-slate-50">
+      {/* ── Hero banner ────────────────────────────────────────────────────── */}
+      <div className="bg-gradient-to-br from-purple-700 via-purple-600 to-fuchsia-600 px-4 pt-6 pb-8">
+        <div className="max-w-2xl mx-auto">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="bg-white/20 text-white text-xs font-black px-3 py-1 rounded-full backdrop-blur-sm">
+                  📚 Lessons
+                </span>
+              </div>
+              <h1 className="text-2xl font-black text-white leading-tight mt-2">
+                Study Notes & Lessons
+              </h1>
+              <p className="text-purple-200 text-sm mt-1">
+                Full study notes for Grades 4 · 5 · 6 — CBC aligned
+              </p>
+            </div>
+            {!loading && (
+              <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-4 py-3 text-center flex-shrink-0">
+                <p className="text-2xl font-black text-white">{lessons.length}</p>
+                <p className="text-purple-200 text-xs font-bold">Lessons</p>
+              </div>
+            )}
+          </div>
+
+          {/* Search */}
+          <div className="relative mt-4">
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-purple-300">🔍</span>
+            <input
+              value={search} onChange={e => setSearch(e.target.value)}
+              placeholder="Search lessons or topics…"
+              className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/15 backdrop-blur-sm text-white placeholder-purple-300 border border-white/20 focus:outline-none focus:bg-white/25 text-sm font-medium"
+            />
+          </div>
+        </div>
       </div>
 
-      {/* Search */}
-      <div className="relative mb-4">
-        <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 text-sm">🔍</span>
-        <input value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="Search lessons or topics…"
-          className="w-full pl-9 pr-4 py-2.5 border-2 border-gray-200 rounded-xl text-sm focus:border-green-500 focus:outline-none" />
+      <div className="max-w-2xl mx-auto px-4 -mt-3">
+        {/* ── Filters ────────────────────────────────────────────────────────── */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-5 space-y-3">
+          <div>
+            <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Grade</p>
+            <div className="flex gap-2 flex-wrap">
+              <Chip label="All" active={!gradeF} onClick={() => setGradeF('')} />
+              {GRADES.map(g => (
+                <Chip key={g} label={`Grade ${g}`} active={gradeF === g}
+                  onClick={() => setGradeF(g === gradeF ? '' : g)} />
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Subject</p>
+            <div className="flex gap-2 flex-wrap">
+              <Chip label="All" active={!subjectF} onClick={() => setSubjectF('')} />
+              {SUBJECTS.map(s => (
+                <Chip key={s.id} label={s.label} icon={s.icon} active={subjectF === s.id}
+                  onClick={() => setSubjectF(s.id === subjectF ? '' : s.id)} />
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Term</p>
+            <div className="flex gap-2 flex-wrap">
+              <Chip label="All Terms" active={!termF} onClick={() => setTermF('')} />
+              {TERMS.map(t => (
+                <Chip key={t} label={`Term ${t}`} active={termF === t}
+                  onClick={() => setTermF(t === termF ? '' : t)} />
+              ))}
+            </div>
+          </div>
+          {hasActiveFilter && (
+            <button
+              onClick={() => { setSearch(''); setGradeF(''); setSubjectF(''); setTermF('') }}
+              className="text-xs text-red-500 font-bold hover:text-red-700 min-h-0 bg-transparent shadow-none p-0">
+              ✕ Clear all filters
+            </button>
+          )}
+        </div>
+
+        {/* Results count */}
+        {!loading && filtered.length > 0 && (
+          <p className="text-xs text-gray-400 font-bold mb-3 px-1">
+            {filtered.length} lesson{filtered.length !== 1 ? 's' : ''} found
+            {hasActiveFilter && ' (filtered)'}
+          </p>
+        )}
+
+        {/* ── List ─────────────────────────────────────────────────────────── */}
+        <div className="space-y-3 pb-10">
+          {loading ? (
+            Array.from({ length: 4 }).map((_, i) => <LessonSkeleton key={i} />)
+          ) : lessons.length === 0 ? (
+            <ComingSoon
+              title="Lessons Coming Soon"
+              message="Study notes are being prepared and will be published soon. Try a quiz in the meantime!"
+              icon="📚"
+            />
+          ) : filtered.length === 0 ? (
+            <div className="bg-white rounded-2xl border border-gray-100 py-14 text-center shadow-sm">
+              <div className="text-4xl mb-3">🔍</div>
+              <p className="font-black text-gray-700">No lessons match your filters</p>
+              <p className="text-gray-400 text-sm mt-1">Try adjusting grade, subject, or term</p>
+              <button
+                onClick={() => { setSearch(''); setGradeF(''); setSubjectF(''); setTermF('') }}
+                className="mt-4 text-purple-600 font-black text-sm hover:underline min-h-0 bg-transparent shadow-none">
+                Clear filters →
+              </button>
+            </div>
+          ) : (
+            filtered.map(lesson => <LessonCard key={lesson.id} lesson={lesson} />)
+          )}
+        </div>
       </div>
-
-      {/* Filters */}
-      <div className="space-y-2 mb-5">
-        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-          <Chip label="All Grades" active={!gradeF} onClick={() => setGradeF('')} />
-          {GRADES.map(g => (
-            <Chip key={g} label={`Grade ${g}`} active={gradeF === g} onClick={() => setGradeF(g === gradeF ? '' : g)} />
-          ))}
-        </div>
-        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-          <Chip label="All Subjects" active={!subjectF} onClick={() => setSubjectF('')} />
-          {SUBJECTS.map(s => (
-            <Chip key={s} label={s} active={subjectF === s} onClick={() => setSubjectF(s === subjectF ? '' : s)} />
-          ))}
-        </div>
-        <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-          <Chip label="All Terms" active={!termF} onClick={() => setTermF('')} />
-          {TERMS.map(t => (
-            <Chip key={t} label={`Term ${t}`} active={termF === t} onClick={() => setTermF(t === termF ? '' : t)} />
-          ))}
-        </div>
-      </div>
-
-      {!loading && filtered.length > 0 && (
-        <p className="text-xs text-gray-400 font-bold mb-3">{filtered.length} lesson{filtered.length !== 1 ? 's' : ''} found</p>
-      )}
-
-      {/* List */}
-      {loading ? (
-        <div className="space-y-3">
-          {Array.from({ length: 4 }).map((_, i) => <LessonSkeleton key={i} />)}
-        </div>
-      ) : lessons.length === 0 ? (
-        // No lessons in Firestore at all
-        <ComingSoon
-          title="Lessons Coming Soon"
-          message="Study notes haven't been published yet. Your teacher is busy preparing them — check back soon!"
-          icon="📚"
-        />
-      ) : filtered.length === 0 ? (
-        // Lessons exist but none match the current filters
-        <ComingSoon
-          onClearFilters={() => { setSearch(''); setGradeF(''); setSubjectF(''); setTermF('') }}
-        />
-      ) : (
-        <div className="space-y-3">
-          {filtered.map(lesson => {
-            const s = subjectStyle[lesson.subject] ?? { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200', badge: 'bg-gray-100 text-gray-700', icon: '📄' }
-            const wordCount = lesson.content ? lesson.content.split(/\s+/).length : 0
-            const readMins  = Math.max(1, Math.round(wordCount / 200))
-
-            return (
-              <Link key={lesson.id} to={`/lessons/${lesson.id}`}
-                className="block bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-green-200 transition-all group">
-                <div className="flex items-start gap-3">
-                  {/* Subject icon */}
-                  <div className={`${s.bg} ${s.border} border w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0 group-hover:scale-105 transition-transform`}>
-                    {s.icon}
-                  </div>
-
-                  {/* Content */}
-                  <div className="flex-1 min-w-0">
-                    <p className="font-black text-gray-800 text-sm leading-snug group-hover:text-green-700 transition-colors">{lesson.title}</p>
-                    {lesson.topic && <p className="text-gray-500 text-xs mt-0.5">{lesson.topic}</p>}
-                    <div className="flex gap-1.5 mt-2 flex-wrap">
-                      <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${s.badge}`}>{lesson.subject}</span>
-                      <span className="bg-green-100 text-green-700 text-xs font-bold px-2 py-0.5 rounded-full">Grade {lesson.grade}</span>
-                      <span className="bg-gray-100 text-gray-600 text-xs font-bold px-2 py-0.5 rounded-full">Term {lesson.term}</span>
-                      <span className="text-gray-400 text-xs px-1 flex items-center gap-0.5">⏱ {readMins} min read</span>
-                    </div>
-                  </div>
-
-                  {/* Arrow */}
-                  <div className="flex-shrink-0 text-gray-300 group-hover:text-green-500 group-hover:translate-x-1 transition-all text-lg">→</div>
-                </div>
-
-                {/* Objectives preview */}
-                {lesson.objectives?.length > 0 && (
-                  <div className="mt-3 ml-15 pl-15">
-                    <div className={`${s.bg} rounded-xl px-3 py-2 ml-[60px]`}>
-                      <p className="text-xs font-bold text-gray-500 mb-1">Learning objectives:</p>
-                      <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">
-                        {Array.isArray(lesson.objectives)
-                          ? lesson.objectives.slice(0, 2).join(' · ')
-                          : lesson.objectives}
-                      </p>
-                    </div>
-                  </div>
-                )}
-              </Link>
-            )
-          })}
-        </div>
-      )}
     </div>
   )
 }
