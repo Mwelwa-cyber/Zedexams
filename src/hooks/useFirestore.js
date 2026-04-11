@@ -344,6 +344,67 @@ export function useFirestore() {
     await updateDoc(doc(db, 'papers', paperId), data)
   }
 
+  // ── Quiz editing ─────────────────────────────────────────────
+  /**
+   * Delete a single question from a quiz subcollection.
+   */
+  async function deleteQuestion(quizId, questionId) {
+    await deleteDoc(doc(db, 'quizzes', quizId, 'questions', questionId))
+  }
+
+  /**
+   * Atomically update a quiz's metadata + its questions.
+   * - Deletes questions whose IDs are in deletedIds
+   * - Updates questions that have a _id field (existing)
+   * - Adds questions without a _id field (new)
+   * Split into two batches (delete + upsert) to stay within the 500-op limit.
+   */
+  async function updateQuizWithQuestions(quizId, quizData, questions, deletedIds = []) {
+    const totalMarks = questions.reduce((s, q) => s + (q.marks || 1), 0)
+
+    // 1. Update quiz doc
+    await updateDoc(doc(db, 'quizzes', quizId), {
+      ...quizData,
+      questionCount: questions.length,
+      totalMarks,
+      updatedAt: serverTimestamp(),
+    })
+
+    // 2. Delete removed questions
+    if (deletedIds.length > 0) {
+      const delBatch = writeBatch(db)
+      deletedIds.forEach(id => delBatch.delete(doc(db, 'quizzes', quizId, 'questions', id)))
+      await delBatch.commit()
+    }
+
+    // 3. Upsert remaining questions in chunks of 490
+    const chunkSize = 490
+    for (let i = 0; i < questions.length; i += chunkSize) {
+      const chunk = questions.slice(i, i + chunkSize)
+      const upsertBatch = writeBatch(db)
+      chunk.forEach((q, offset) => {
+        const cleanQ = {
+          text:          q.text,
+          options:       q.options,
+          correctAnswer: q.correctAnswer,
+          explanation:   q.explanation  || '',
+          topic:         q.topic        || '',
+          marks:         q.marks        || 1,
+          type:          q.type         || 'mcq',
+          imageUrl:      q.imageUrl     || null,
+          diagramText:   q.diagramText  || null,
+          order:         i + offset + 1,
+        }
+        if (q._id) {
+          upsertBatch.update(doc(db, 'quizzes', quizId, 'questions', q._id), cleanQ)
+        } else {
+          upsertBatch.set(doc(collection(db, 'quizzes', quizId, 'questions')), cleanQ)
+        }
+      })
+      await upsertBatch.commit()
+    }
+  }
+
   return {
     getQuizzes, getAllQuizzes, getQuizzesByTeacher, getQuizById, createQuiz, updateQuiz, deleteQuiz,
     getQuestions, saveQuestions,
@@ -356,5 +417,6 @@ export function useFirestore() {
     getMyQuizzes, getMyLessons, getMyPapers,
     getPendingApprovals, submitForApproval, withdrawFromApproval, approveContent, rejectContent,
     getAllPapers, updatePaper,
+    deleteQuestion, updateQuizWithQuestions,
   }
 }

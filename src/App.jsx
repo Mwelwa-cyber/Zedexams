@@ -30,6 +30,9 @@ import TeacherDashboard from './components/teacher/TeacherDashboard'
 import TeacherContent from './components/teacher/TeacherContent'
 import TeacherPaperUpload from './components/teacher/TeacherPaperUpload'
 
+// Quiz editor (shared by admin + teacher)
+import EditQuiz from './components/quiz/EditQuiz'
+
 function RootRedirect() {
   const { currentUser, isAdmin, isTeacher } = useAuth()
   if (!currentUser) return <Navigate to="/login" replace />
@@ -79,19 +82,21 @@ export default function App() {
 
         {/* ── Admin routes (all wrapped in AdminLayout) ──────── */}
         <Route path="/admin"                 element={<AdminRoute><AdminDashboard /></AdminRoute>} />
-        <Route path="/admin/lessons/new"     element={<AdminRoute><CreateLesson /></AdminRoute>} />
-        <Route path="/admin/quizzes/new"     element={<AdminRoute><CreateQuiz /></AdminRoute>} />
-        <Route path="/admin/papers/upload"   element={<AdminRoute><TeacherPaperUpload /></AdminRoute>} />
-        <Route path="/admin/content"         element={<AdminRoute><ManageContent /></AdminRoute>} />
-        <Route path="/admin/approvals"       element={<AdminRoute><ContentApprovals /></AdminRoute>} />
-        <Route path="/admin/results"         element={<AdminRoute><AdminResults /></AdminRoute>} />
+        <Route path="/admin/lessons/new"              element={<AdminRoute><CreateLesson /></AdminRoute>} />
+        <Route path="/admin/quizzes/new"              element={<AdminRoute><CreateQuiz /></AdminRoute>} />
+        <Route path="/admin/quizzes/:quizId/edit"     element={<AdminRoute><EditQuiz /></AdminRoute>} />
+        <Route path="/admin/papers/upload"            element={<AdminRoute><TeacherPaperUpload /></AdminRoute>} />
+        <Route path="/admin/content"                  element={<AdminRoute><ManageContent /></AdminRoute>} />
+        <Route path="/admin/approvals"                element={<AdminRoute><ContentApprovals /></AdminRoute>} />
+        <Route path="/admin/results"                  element={<AdminRoute><AdminResults /></AdminRoute>} />
 
         {/* ── Teacher routes (all wrapped in TeacherLayout) ─── */}
-        <Route path="/teacher"               element={<TeacherRoute><TeacherDashboard /></TeacherRoute>} />
-        <Route path="/teacher/content"       element={<TeacherRoute><TeacherContent /></TeacherRoute>} />
-        <Route path="/teacher/quizzes/new"   element={<TeacherRoute><CreateQuiz /></TeacherRoute>} />
-        <Route path="/teacher/lessons/new"   element={<TeacherRoute><CreateLesson /></TeacherRoute>} />
-        <Route path="/teacher/papers/upload" element={<TeacherRoute><TeacherPaperUpload /></TeacherRoute>} />
+        <Route path="/teacher"                        element={<TeacherRoute><TeacherDashboard /></TeacherRoute>} />
+        <Route path="/teacher/content"               element={<TeacherRoute><TeacherContent /></TeacherRoute>} />
+        <Route path="/teacher/quizzes/new"           element={<TeacherRoute><CreateQuiz /></TeacherRoute>} />
+        <Route path="/teacher/quizzes/:quizId/edit"  element={<TeacherRoute><EditQuiz /></TeacherRoute>} />
+        <Route path="/teacher/lessons/new"           element={<TeacherRoute><CreateLesson /></TeacherRoute>} />
+        <Route path="/teacher/papers/upload"         element={<TeacherRoute><TeacherPaperUpload /></TeacherRoute>} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
