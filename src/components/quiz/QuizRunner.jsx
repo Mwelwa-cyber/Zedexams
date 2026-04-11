@@ -239,9 +239,22 @@ export default function QuizRunner() {
             className={`p-2 rounded-full transition-colors min-h-0 ${flagged[q.id]?'bg-yellow-100 text-yellow-600':'bg-gray-100 text-gray-400'}`}>🚩</button>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4 mb-4">
-          <p className="text-lg font-bold text-gray-800 leading-relaxed">{q.text}</p>
-          {q.marks>1&&<p className="text-xs text-gray-400 mt-1">[{q.marks} marks]</p>}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-4">
+          {/* Question image (optional) */}
+          {q.imageUrl && (
+            <div className="bg-gray-50 border-b border-gray-100 flex items-center justify-center p-2">
+              <img
+                src={q.imageUrl}
+                alt="Question illustration"
+                className="max-h-60 w-full object-contain rounded-lg"
+                loading="lazy"
+              />
+            </div>
+          )}
+          <div className="p-4">
+            <p className="text-lg font-bold text-gray-800 leading-relaxed">{q.text}</p>
+            {q.marks>1&&<p className="text-xs text-gray-400 mt-1">[{q.marks} marks]</p>}
+          </div>
         </div>
 
         <div className="space-y-3 mb-4">

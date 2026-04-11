@@ -1,7 +1,9 @@
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
+import { storage } from '../../firebase/config'
 
 const SUBJECTS = ['Mathematics', 'English', 'Science', 'Social Studies']
 const GRADES   = ['5', '6', '7']
@@ -10,11 +12,97 @@ const TERMS    = ['1', '2', '3']
 const FIELD  = 'w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:border-green-500 focus:outline-none'
 const SELECT = 'border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:border-green-500 focus:outline-none'
 
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+
 function emptyQuestion() {
-  return { text: '', options: ['', '', '', ''], correctAnswer: 0, explanation: '', topic: '', marks: 1, type: 'mcq' }
+  return {
+    text: '', options: ['', '', '', ''], correctAnswer: 0,
+    explanation: '', topic: '', marks: 1, type: 'mcq',
+    imageUrl: '', imageUploading: false,
+  }
 }
 
-function QuestionCard({ q, qi, total, onChange, onRemove, onMove }) {
+// ── Image upload widget ────────────────────────────────────────────────────
+function QuestionImageUpload({ imageUrl, uploading, onFileSelect, onRemove }) {
+  const inputRef = useRef(null)
+
+  function handleChange(e) {
+    const file = e.target.files[0]
+    if (file) onFileSelect(file)
+    // reset so the same file can be re-selected after removal
+    e.target.value = ''
+  }
+
+  if (uploading) {
+    return (
+      <div className="border-2 border-blue-200 bg-blue-50 rounded-xl p-4 text-center">
+        <div className="text-2xl mb-1 animate-spin inline-block">⏳</div>
+        <p className="text-blue-600 text-sm font-bold mt-1">Uploading image…</p>
+      </div>
+    )
+  }
+
+  if (imageUrl) {
+    return (
+      <div className="relative rounded-xl overflow-hidden border-2 border-green-200 bg-gray-50 group">
+        <img
+          src={imageUrl}
+          alt="Question image preview"
+          className="w-full max-h-52 object-contain py-2"
+        />
+        {/* Overlay buttons */}
+        <div className="absolute top-2 right-2 flex gap-1.5 opacity-90 group-hover:opacity-100 transition-opacity">
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="bg-white text-gray-700 text-xs font-bold px-3 py-1.5 rounded-lg shadow border border-gray-200 hover:bg-gray-50 min-h-0 transition-colors"
+          >
+            🔄 Replace
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            className="bg-red-500 hover:bg-red-600 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg shadow min-h-0 transition-colors"
+          >
+            ✕ Remove
+          </button>
+        </div>
+        <p className="text-xs text-gray-400 text-center pb-1">Question image (optional)</p>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={handleChange}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        className="w-full border-2 border-dashed border-gray-200 hover:border-green-400 hover:bg-green-50 rounded-xl p-5 text-center transition-all min-h-0 bg-transparent shadow-none group"
+      >
+        <div className="text-3xl mb-1.5 group-hover:scale-110 transition-transform inline-block">🖼️</div>
+        <p className="text-gray-500 font-bold text-sm">Upload Question Image</p>
+        <p className="text-gray-400 text-xs mt-0.5">Optional · JPG, PNG, WEBP · max 5 MB</p>
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={handleChange}
+      />
+    </div>
+  )
+}
+
+// ── Question card ──────────────────────────────────────────────────────────
+function QuestionCard({ q, qi, total, onChange, onRemove, onMove, onImageUpload, onImageRemove }) {
   function set(field, val) { onChange(qi, field, val) }
   function setOpt(oi, val) {
     const opts = [...q.options]
@@ -25,20 +113,26 @@ function QuestionCard({ q, qi, total, onChange, onRemove, onMove }) {
   const isTF = q.type === 'truefalse'
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4">
+    <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4 shadow-sm">
       {/* Card header */}
       <div className="flex items-center justify-between">
-        <span className="bg-green-100 text-green-700 font-black text-xs px-3 py-1 rounded-full">Q{qi + 1} of {total}</span>
+        <span className="bg-green-100 text-green-700 font-black text-xs px-3 py-1 rounded-full">
+          Q{qi + 1} of {total}
+        </span>
         <div className="flex items-center gap-2">
-          <select value={q.type} onChange={e => {
-            set('type', e.target.value)
-            if (e.target.value === 'truefalse') {
-              onChange(qi, 'options', ['True', 'False'])
-              onChange(qi, 'correctAnswer', 0)
-            } else if (q.options.length < 4) {
-              onChange(qi, 'options', ['', '', '', ''])
-            }
-          }} className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:border-green-500 focus:outline-none">
+          <select
+            value={q.type}
+            onChange={e => {
+              set('type', e.target.value)
+              if (e.target.value === 'truefalse') {
+                onChange(qi, 'options', ['True', 'False'])
+                onChange(qi, 'correctAnswer', 0)
+              } else if (q.options.length < 4) {
+                onChange(qi, 'options', ['', '', '', ''])
+              }
+            }}
+            className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:border-green-500 focus:outline-none"
+          >
             <option value="mcq">MCQ (4 options)</option>
             <option value="truefalse">True / False</option>
           </select>
@@ -53,43 +147,81 @@ function QuestionCard({ q, qi, total, onChange, onRemove, onMove }) {
         </div>
       </div>
 
+      {/* Image upload */}
+      <QuestionImageUpload
+        imageUrl={q.imageUrl}
+        uploading={q.imageUploading}
+        onFileSelect={file => onImageUpload(qi, file)}
+        onRemove={() => onImageRemove(qi)}
+      />
+
       {/* Question text */}
-      <textarea value={q.text} onChange={e => set('text', e.target.value)}
-        placeholder="Write your question here…"
+      <textarea
+        value={q.text}
+        onChange={e => set('text', e.target.value)}
+        placeholder={q.imageUrl ? 'Describe what is shown in the image above, or ask your question…' : 'Write your question here…'}
         rows={3}
-        className="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:border-green-500 focus:outline-none resize-none leading-relaxed" />
+        className="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:border-green-500 focus:outline-none resize-none leading-relaxed"
+      />
 
       {/* Options */}
       <div className="space-y-2">
-        <p className="text-xs font-bold text-gray-500">Options — select the correct answer</p>
+        <p className="text-xs font-bold text-gray-500">Answer choices — click the radio to mark the correct one</p>
         {q.options.map((opt, oi) => (
-          <label key={oi} className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-colors ${q.correctAnswer === oi ? 'border-green-400 bg-green-50' : 'border-gray-100 hover:border-gray-200'}`}>
-            <input type="radio" name={`correct-${qi}`} checked={q.correctAnswer === oi}
-              onChange={() => set('correctAnswer', oi)} className="accent-green-600 flex-shrink-0" />
-            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${q.correctAnswer === oi ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600'}`}>
+          <label
+            key={oi}
+            className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-colors ${
+              q.correctAnswer === oi ? 'border-green-400 bg-green-50' : 'border-gray-100 hover:border-gray-200'
+            }`}
+          >
+            <input
+              type="radio"
+              name={`correct-${qi}`}
+              checked={q.correctAnswer === oi}
+              onChange={() => set('correctAnswer', oi)}
+              className="accent-green-600 flex-shrink-0"
+            />
+            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${
+              q.correctAnswer === oi ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600'
+            }`}>
               {isTF ? (oi === 0 ? 'T' : 'F') : ['A', 'B', 'C', 'D'][oi]}
             </span>
-            <input value={opt} onChange={e => setOpt(oi, e.target.value)}
+            <input
+              value={opt}
+              onChange={e => setOpt(oi, e.target.value)}
               placeholder={isTF ? (oi === 0 ? 'True' : 'False') : `Option ${['A', 'B', 'C', 'D'][oi]}`}
               disabled={isTF}
-              className="flex-1 bg-transparent border-none outline-none text-sm text-gray-800 disabled:text-gray-500" />
+              className="flex-1 bg-transparent border-none outline-none text-sm text-gray-800 disabled:text-gray-500"
+            />
+            {q.correctAnswer === oi && (
+              <span className="text-green-500 text-xs font-black flex-shrink-0">✓ Correct</span>
+            )}
           </label>
         ))}
       </div>
 
       {/* Explanation + meta row */}
       <div className="space-y-2">
-        <input value={q.explanation} onChange={e => set('explanation', e.target.value)}
+        <input
+          value={q.explanation}
+          onChange={e => set('explanation', e.target.value)}
           placeholder="Explanation (optional) — shown after answering in practice mode"
-          className={FIELD} />
+          className={FIELD}
+        />
         <div className="flex gap-2">
-          <input value={q.topic} onChange={e => set('topic', e.target.value)}
+          <input
+            value={q.topic}
+            onChange={e => set('topic', e.target.value)}
             placeholder="Topic (e.g. Fractions)"
-            className="flex-1 border border-gray-200 rounded-lg px-2.5 py-2 text-xs focus:border-green-500 focus:outline-none" />
+            className="flex-1 border border-gray-200 rounded-lg px-2.5 py-2 text-xs focus:border-green-500 focus:outline-none"
+          />
           <div className="flex items-center gap-1.5 border border-gray-200 rounded-lg px-2.5 py-2">
             <span className="text-xs text-gray-500 font-bold">Marks:</span>
-            <input type="number" min={1} max={10} value={q.marks} onChange={e => set('marks', +e.target.value)}
-              className="w-10 text-xs font-black text-center focus:outline-none bg-transparent" />
+            <input
+              type="number" min={1} max={10} value={q.marks}
+              onChange={e => set('marks', +e.target.value)}
+              className="w-10 text-xs font-black text-center focus:outline-none bg-transparent"
+            />
           </div>
         </div>
       </div>
@@ -97,6 +229,7 @@ function QuestionCard({ q, qi, total, onChange, onRemove, onMove }) {
   )
 }
 
+// ── Main component ─────────────────────────────────────────────────────────
 export default function CreateQuiz() {
   const { createQuiz, saveQuestions } = useFirestore()
   const { currentUser } = useAuth()
@@ -110,15 +243,44 @@ export default function CreateQuiz() {
   const [toast, setToast]         = useState(null)
 
   function setF(field, val) { setForm(f => ({ ...f, [field]: val })) }
-  function show(msg)        { setToast(msg); setTimeout(() => setToast(null), 3500) }
+  function show(msg, isErr = false) {
+    setToast({ msg, isErr })
+    setTimeout(() => setToast(null), 3500)
+  }
 
   function handleQChange(qi, field, val) {
     setQuestions(qs => qs.map((q, i) => i === qi ? { ...q, [field]: val } : q))
   }
 
+  // ── Image upload ──────────────────────────────────────────────────────────
+  async function uploadQuestionImage(qi, file) {
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      show('❌ Only JPG, PNG, and WEBP images are allowed.', true); return
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      show('❌ Image must be under 5 MB.', true); return
+    }
+    setQuestions(qs => qs.map((q, i) => i === qi ? { ...q, imageUploading: true, imageUrl: '' } : q))
+    try {
+      const ext  = file.name.split('.').pop().toLowerCase() || 'jpg'
+      const path = `quiz-images/${currentUser.uid}/${Date.now()}-q${qi}.${ext}`
+      const snap = await uploadBytes(storageRef(storage, path), file)
+      const url  = await getDownloadURL(snap.ref)
+      setQuestions(qs => qs.map((q, i) => i === qi ? { ...q, imageUrl: url, imageUploading: false } : q))
+      show('✅ Image uploaded!')
+    } catch (e) {
+      setQuestions(qs => qs.map((q, i) => i === qi ? { ...q, imageUploading: false } : q))
+      show('❌ Upload failed: ' + e.message, true)
+    }
+  }
+
+  function removeQuestionImage(qi) {
+    handleQChange(qi, 'imageUrl', '')
+  }
+
+  // ── Question management ───────────────────────────────────────────────────
   function addQuestion() {
     setQuestions(qs => [...qs, emptyQuestion()])
-    // Scroll to bottom after a tick
     setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 50)
   }
 
@@ -130,119 +292,164 @@ export default function CreateQuiz() {
     setQuestions(qs => {
       const arr = [...qs]
       const target = qi + dir
-      if (target < 0 || target >= arr.length) return arr;
-      [arr[qi], arr[target]] = [arr[target], arr[qi]]
+      if (target < 0 || target >= arr.length) return arr
+      ;[arr[qi], arr[target]] = [arr[target], arr[qi]]
       return arr
     })
   }
 
+  // ── Validation ────────────────────────────────────────────────────────────
   function validate() {
-    if (!form.title.trim()) { show('❌ Please enter a quiz title.'); return false }
+    if (!form.title.trim()) { show('❌ Please enter a quiz title.', true); return false }
     for (let i = 0; i < questions.length; i++) {
       const q = questions[i]
-      if (!q.text.trim()) { show(`❌ Question ${i + 1} is missing question text.`); return false }
+      if (q.imageUploading) { show(`❌ Question ${i + 1} image is still uploading. Please wait.`, true); return false }
+      if (!q.text.trim())   { show(`❌ Question ${i + 1} is missing question text.`, true); return false }
       if (q.type === 'mcq' && q.options.some(o => !o.trim())) {
-        show(`❌ Question ${i + 1} has empty options.`); return false
+        show(`❌ Question ${i + 1} has empty options.`, true); return false
       }
     }
     return true
   }
 
+  // ── Save ──────────────────────────────────────────────────────────────────
   async function handleSave(publish = false) {
     if (!validate()) return
     setSaving(true)
     try {
-      const totalMarks  = questions.reduce((s, q) => s + (q.marks || 1), 0)
+      const totalMarks = questions.reduce((s, q) => s + (q.marks || 1), 0)
       const quizId = await createQuiz({
         ...form,
         totalMarks,
         questionCount: questions.length,
-        isPublished:   publish,
-        createdBy:     currentUser.uid,
+        isPublished: publish,
+        createdBy:   currentUser.uid,
       })
       await saveQuestions(quizId, questions.map(q => ({
-        text: q.text, options: q.options, correctAnswer: q.correctAnswer,
-        explanation: q.explanation, topic: q.topic, marks: q.marks || 1, type: q.type,
+        text:          q.text.trim(),
+        imageUrl:      q.imageUrl || null,
+        options:       q.options,
+        correctAnswer: q.correctAnswer,
+        explanation:   q.explanation.trim(),
+        topic:         q.topic.trim(),
+        marks:         q.marks || 1,
+        type:          q.type,
       })))
-      show(publish ? '✅ Quiz published!' : '✅ Quiz saved as draft!')
+      show(publish ? '✅ Quiz published!' : '✅ Saved as draft!')
       setTimeout(() => navigate('/admin/content'), 1200)
     } catch (e) {
       console.error(e)
-      show('❌ Failed to save: ' + e.message)
+      show('❌ Failed to save: ' + e.message, true)
       setSaving(false)
     }
   }
 
-  const totalMarks = questions.reduce((s, q) => s + (q.marks || 1), 0)
+  const totalMarks    = questions.reduce((s, q) => s + (q.marks || 1), 0)
+  const imagesCount   = questions.filter(q => q.imageUrl).length
+  const anyUploading  = questions.some(q => q.imageUploading)
 
   return (
     <div className="space-y-5">
+      {/* Toast */}
       {toast && (
-        <div className="fixed top-4 right-4 z-50 bg-green-700 text-white font-bold px-5 py-3 rounded-2xl shadow-lg text-sm max-w-xs animate-slide-up">
-          {toast}
+        <div className={`fixed top-4 right-4 z-50 font-bold px-5 py-3 rounded-2xl shadow-lg text-sm max-w-xs animate-slide-up ${
+          toast.isErr ? 'bg-red-600 text-white' : 'bg-green-700 text-white'
+        }`}>
+          {toast.msg}
         </div>
       )}
 
+      {/* Page header */}
       <div className="flex items-center gap-3">
-        <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-gray-600 p-1 min-h-0 bg-transparent shadow-none">←</button>
+        <button onClick={() => navigate(-1)}
+          className="text-gray-400 hover:text-gray-600 p-1 min-h-0 bg-transparent shadow-none">←</button>
         <div>
           <h1 className="text-2xl font-black text-gray-800">✏️ Create Quiz</h1>
-          <p className="text-gray-500 text-sm">Build a quiz for your learners</p>
+          <p className="text-gray-500 text-sm">Build a quiz with text and/or images per question</p>
         </div>
       </div>
 
       {/* Quiz metadata */}
       <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-3">
         <h2 className="font-black text-gray-700">Quiz Details</h2>
-        <input value={form.title} onChange={e => setF('title', e.target.value)}
+        <input
+          value={form.title}
+          onChange={e => setF('title', e.target.value)}
           placeholder="Quiz title (e.g. Grade 5 Mathematics — Fractions Test)"
-          className={FIELD} />
+          className={FIELD}
+        />
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <select value={form.grade} onChange={e => setF('grade', e.target.value)} className={SELECT}>
+          <select value={form.grade}    onChange={e => setF('grade', e.target.value)}    className={SELECT}>
             {GRADES.map(g => <option key={g} value={g}>Grade {g}</option>)}
           </select>
-          <select value={form.subject} onChange={e => setF('subject', e.target.value)} className={SELECT}>
+          <select value={form.subject}  onChange={e => setF('subject', e.target.value)}  className={SELECT}>
             {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
-          <select value={form.term} onChange={e => setF('term', e.target.value)} className={SELECT}>
+          <select value={form.term}     onChange={e => setF('term', e.target.value)}      className={SELECT}>
             {TERMS.map(t => <option key={t} value={t}>Term {t}</option>)}
           </select>
           <div className="flex items-center gap-2 border-2 border-gray-200 rounded-xl px-3 py-2.5">
             <span className="text-xs text-gray-500 font-bold whitespace-nowrap">⏱️ Mins</span>
-            <input type="number" min={5} max={180} value={form.duration}
+            <input
+              type="number" min={5} max={180} value={form.duration}
               onChange={e => setF('duration', +e.target.value)}
-              className="flex-1 text-sm font-black focus:outline-none bg-transparent" />
+              className="flex-1 text-sm font-black focus:outline-none bg-transparent"
+            />
           </div>
         </div>
-        <div className="flex gap-2 text-xs text-gray-500 pt-1">
+        <div className="flex gap-2 flex-wrap text-xs text-gray-500 pt-1">
           <span className="bg-gray-100 px-2 py-1 rounded-full font-bold">{questions.length} questions</span>
           <span className="bg-gray-100 px-2 py-1 rounded-full font-bold">{totalMarks} marks total</span>
+          {imagesCount > 0 && (
+            <span className="bg-blue-100 text-blue-700 px-2 py-1 rounded-full font-bold">
+              🖼️ {imagesCount} with images
+            </span>
+          )}
         </div>
       </div>
 
       {/* Questions */}
       <div className="space-y-4">
         {questions.map((q, qi) => (
-          <QuestionCard key={qi} q={q} qi={qi} total={questions.length}
-            onChange={handleQChange} onRemove={removeQuestion} onMove={moveQuestion} />
+          <QuestionCard
+            key={qi}
+            q={q} qi={qi} total={questions.length}
+            onChange={handleQChange}
+            onRemove={removeQuestion}
+            onMove={moveQuestion}
+            onImageUpload={uploadQuestionImage}
+            onImageRemove={removeQuestionImage}
+          />
         ))}
       </div>
 
-      {/* Add question button */}
+      {/* Add question */}
       <button onClick={addQuestion}
         className="w-full border-2 border-dashed border-green-300 text-green-600 font-black py-4 rounded-2xl hover:border-green-400 hover:bg-green-50 transition-all min-h-0">
         ＋ Add Question
       </button>
 
+      {/* Upload note */}
+      <div className="bg-blue-50 border border-blue-100 rounded-2xl px-4 py-3 text-xs text-blue-600 flex items-start gap-2">
+        <span className="text-base flex-shrink-0">ℹ️</span>
+        <span>Images are uploaded to Firebase Storage immediately when you select them. Questions without images are fine — images are always optional.</span>
+      </div>
+
       {/* Save actions */}
       <div className="flex gap-3 pb-6">
-        <button onClick={() => handleSave(false)} disabled={saving}
-          className="flex-1 border-2 border-green-600 text-green-600 font-black py-3.5 rounded-2xl disabled:opacity-50 min-h-0 hover:bg-green-50 transition-colors">
-          {saving ? '⏳ Saving…' : '💾 Save Draft'}
+        <button
+          onClick={() => handleSave(false)}
+          disabled={saving || anyUploading}
+          className="flex-1 border-2 border-green-600 text-green-600 font-black py-3.5 rounded-2xl disabled:opacity-50 min-h-0 hover:bg-green-50 transition-colors"
+        >
+          {saving ? '⏳ Saving…' : anyUploading ? '⏳ Uploading…' : '💾 Save Draft'}
         </button>
-        <button onClick={() => handleSave(true)} disabled={saving}
-          className="flex-1 bg-green-600 hover:bg-green-700 text-white font-black py-3.5 rounded-2xl disabled:opacity-50 min-h-0 transition-colors">
-          {saving ? '⏳ Publishing…' : '🚀 Publish Quiz'}
+        <button
+          onClick={() => handleSave(true)}
+          disabled={saving || anyUploading}
+          className="flex-1 bg-green-600 hover:bg-green-700 text-white font-black py-3.5 rounded-2xl disabled:opacity-50 min-h-0 transition-colors"
+        >
+          {saving ? '⏳ Publishing…' : anyUploading ? '⏳ Uploading…' : '🚀 Publish Quiz'}
         </button>
       </div>
     </div>
