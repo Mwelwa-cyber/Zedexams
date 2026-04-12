@@ -5,6 +5,7 @@ import {
   signOut,
   onAuthStateChanged,
   updateProfile,
+  sendPasswordResetEmail,
 } from 'firebase/auth'
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore'
 import { auth, db } from '../firebase/config'
@@ -47,6 +48,10 @@ export function AuthProvider({ children }) {
     return signInWithEmailAndPassword(auth, email, password)
   }
 
+  function resetPassword(email) {
+    return sendPasswordResetEmail(auth, email)
+  }
+
   async function logout() {
     setUserProfile(null)
     return signOut(auth)
@@ -74,15 +79,19 @@ export function AuthProvider({ children }) {
     setUserProfile(prev => ({ ...prev, ...fields }))
   }
 
-  const isLearner = userProfile?.role === ROLES.LEARNER
-  const isTeacher = userProfile?.role === ROLES.TEACHER || userProfile?.role === ROLES.ADMIN
-  const isAdmin   = userProfile?.role === ROLES.ADMIN
-  const isPremium = (() => {
+  const isLearner  = userProfile?.role === ROLES.LEARNER
+  const isTeacher  = userProfile?.role === ROLES.TEACHER || userProfile?.role === ROLES.ADMIN
+  const isAdmin    = userProfile?.role === ROLES.ADMIN
+  const isPremium  = (() => {
     if (!userProfile?.isPremium) return false
     if (!userProfile?.subscriptionExpiry) return true
     const expiry = userProfile.subscriptionExpiry?.toDate?.() ?? new Date(userProfile.subscriptionExpiry)
     return expiry > new Date()
   })()
+  // Paid teacher: has teacher role AND active premium subscription
+  const isPaidTeacher = (userProfile?.role === ROLES.TEACHER) && isPremium
+  // Full content access: admin always, or paid teacher
+  const canAccessFullContent = isAdmin || isPaidTeacher
 
   useEffect(() => {
     const timeout = setTimeout(() => setLoading(false), 2500)
@@ -99,9 +108,9 @@ export function AuthProvider({ children }) {
   return (
     <AuthContext.Provider value={{
       currentUser, userProfile, loading,
-      login, register, logout,
+      login, register, logout, resetPassword,
       fetchUserProfile, refreshProfile, updateProfileFields,
-      isLearner, isTeacher, isAdmin, isPremium,
+      isLearner, isTeacher, isAdmin, isPremium, isPaidTeacher, canAccessFullContent,
     }}>
       {!loading && children}
     </AuthContext.Provider>

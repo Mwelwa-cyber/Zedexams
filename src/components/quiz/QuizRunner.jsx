@@ -369,7 +369,7 @@ export default function QuizRunner() {
   const navigate     = useNavigate()
   const { currentUser }    = useAuth()
   const { getQuizById, getQuestions, saveResult } = useFirestore()
-  const { canUseExamMode } = useSubscription()
+  const { canUseExamMode, canAccessFullContent } = useSubscription()
 
   // ── Theme ─────────────────────────────────────────────────────────────────
   const [themeKey, setThemeKey] = useState(() => localStorage.getItem('quizTheme') || 'sky')
@@ -400,16 +400,21 @@ export default function QuizRunner() {
   const autoRef   = useRef(false)
   const submitRef = useRef(null)
 
-  // ── Load quiz ─────────────────────────────────────────────────────────────
+  // ── Load quiz + access gate ───────────────────────────────────────────────
   useEffect(() => {
     async function load() {
       const [q, qs] = await Promise.all([getQuizById(quizId), getQuestions(quizId)])
       if (!q) { setError('Quiz not found'); setLoading(false); return }
+      // Access gate: non-demo quizzes require full access
+      if (!q.isDemo && !canAccessFullContent) {
+        navigate('/quizzes', { replace: true, state: { blocked: true } })
+        return
+      }
       setQuiz(q); setQs(qs); setLoading(false)
     }
     load()
     return () => clearInterval(timerRef.current)
-  }, [quizId])
+  }, [quizId, canAccessFullContent])
 
   // ── Start ─────────────────────────────────────────────────────────────────
   function handleStart(m) {
@@ -784,34 +789,53 @@ export default function QuizRunner() {
         }}
       >
         <div className="max-w-2xl md:max-w-3xl mx-auto px-4 py-3">
-          {/* Question dot grid */}
-          <div className="flex gap-1.5 justify-center mb-3 overflow-x-auto pb-1 no-scrollbar">
-            {questions.map((q2, i) => {
-              const isCurr = i === idx
-              const isAns  = answers[q2.id] !== undefined
-              const isFl   = flagged[q2.id]
-              return (
-                <button
-                  key={q2.id}
-                  onClick={() => setIdx(i)}
-                  className="w-8 h-8 flex-shrink-0 rounded-lg text-xs font-black transition-all min-h-0"
-                  style={{
-                    background: isCurr ? theme.dotActive
-                      : isFl ? '#fbbf24'
-                      : isAns ? theme.dotAnswered
-                      : theme.dotDefault,
-                    color: isCurr ? theme.dotActiveText
-                      : isFl ? '#1c1917'
-                      : isAns ? theme.dotAnsweredText
-                      : theme.dotDefaultText,
-                    boxShadow: isCurr ? `0 0 0 2px ${theme.dotActive}55` : 'none',
-                  }}
-                >
-                  {isFl ? '🚩' : i + 1}
-                </button>
-              )
-            })}
+          {/* Question X of Y + compact progress dots (max 12 shown) */}
+          <div className="flex items-center justify-between mb-2 px-1">
+            <span className="text-xs font-black" style={{ color: theme.textSub }}>
+              Question <span style={{ color: theme.accent }}>{idx + 1}</span> of {questions.length}
+            </span>
+            <span className="text-xs font-bold" style={{ color: theme.textSub }}>
+              {answered}/{questions.length} answered
+            </span>
           </div>
+          {/* Compact segment progress bar */}
+          {questions.length <= 20 ? (
+            <div className="flex gap-1 mb-3">
+              {questions.map((q2, i) => {
+                const isCurr = i === idx
+                const isAns  = answers[q2.id] !== undefined
+                const isFl   = flagged[q2.id]
+                return (
+                  <button
+                    key={q2.id}
+                    onClick={() => setIdx(i)}
+                    title={`Q${i + 1}${isAns ? ' ✓' : ''}${isFl ? ' 🚩' : ''}`}
+                    className="flex-1 min-h-0 rounded transition-all"
+                    style={{
+                      height: 6,
+                      background: isCurr ? theme.dotActive
+                        : isFl ? '#fbbf24'
+                        : isAns ? theme.dotAnswered
+                        : theme.dotDefault,
+                      outline: isCurr ? `2px solid ${theme.dotActive}` : 'none',
+                      outlineOffset: 1,
+                    }}
+                  />
+                )
+              })}
+            </div>
+          ) : (
+            /* For long quizzes (>20 Qs): show a smooth progress bar instead */
+            <div className="mb-3 rounded-full overflow-hidden" style={{ height: 6, background: theme.dotDefault }}>
+              <div
+                className="h-full rounded-full transition-all duration-300"
+                style={{
+                  width: `${questions.length ? Math.round(((idx + 1) / questions.length) * 100) : 0}%`,
+                  background: theme.dotActive,
+                }}
+              />
+            </div>
+          )}
 
           {/* Prev / Next / Submit */}
           <div className="flex items-center justify-between gap-3">

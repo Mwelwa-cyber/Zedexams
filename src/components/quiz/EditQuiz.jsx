@@ -253,6 +253,7 @@ export default function EditQuiz() {
   // ── Form state ─────────────────────────────────────────────────────────
   const [form, setForm] = useState({
     title: '', subject: 'Mathematics', grade: '5', term: '1', duration: 30, type: 'quiz', topic: '',
+    isDemo: false,
   })
   const [quizStatus, setQuizStatus] = useState('draft')   // current Firestore status
   const [quizOwner,  setQuizOwner]  = useState(null)
@@ -290,6 +291,7 @@ export default function EditQuiz() {
         duration: quiz.duration ?? 30,
         type:     quiz.type     ?? 'quiz',
         topic:    quiz.topic    ?? '',
+        isDemo:   quiz.isDemo   ?? false,
       })
       setQuizStatus(quiz.status ?? (quiz.isPublished ? 'published' : 'draft'))
       setQuizOwner(quiz.createdBy)
@@ -572,15 +574,29 @@ export default function EditQuiz() {
           </div>
         </div>
 
-        {/* Stats row */}
-        <div className="flex gap-2 flex-wrap">
-          <StatPill label="questions" value={questions.length} color="bg-blue-100 text-blue-700" />
-          <StatPill label="marks"     value={totalMarks}       color="bg-purple-100 text-purple-700" />
-          <StatPill label="mins"      value={form.duration}    color="bg-orange-100 text-orange-700" />
-          {newCount > 0 && <StatPill label="new" value={newCount} color="bg-green-100 text-green-700" />}
-          {deletedIds.length > 0 && (
-            <StatPill label="queued for deletion" value={deletedIds.length} color="bg-red-100 text-red-600" />
-          )}
+        {/* Demo toggle + Stats row */}
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex gap-2 flex-wrap">
+            <StatPill label="questions" value={questions.length} color="bg-blue-100 text-blue-700" />
+            <StatPill label="marks"     value={totalMarks}       color="bg-purple-100 text-purple-700" />
+            <StatPill label="mins"      value={form.duration}    color="bg-orange-100 text-orange-700" />
+            {newCount > 0 && <StatPill label="new" value={newCount} color="bg-green-100 text-green-700" />}
+            {deletedIds.length > 0 && (
+              <StatPill label="queued for deletion" value={deletedIds.length} color="bg-red-100 text-red-600" />
+            )}
+          </div>
+          {/* isDemo toggle — admin only feature to mark quizzes accessible to free users */}
+          <label className="flex items-center gap-2 cursor-pointer select-none" title="Demo quizzes are visible to free users">
+            <span className="text-xs font-black text-gray-600">Mark as Demo</span>
+            <button
+              type="button"
+              onClick={() => setF('isDemo', !form.isDemo)}
+              className={`relative w-10 h-5 rounded-full transition-colors min-h-0 p-0 shadow-none ${form.isDemo ? 'bg-green-500' : 'bg-gray-300'}`}
+            >
+              <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white shadow transition-all ${form.isDemo ? 'left-5' : 'left-0.5'}`} />
+            </button>
+            {form.isDemo && <span className="bg-green-100 text-green-700 text-xs font-black px-2 py-0.5 rounded-full">Demo</span>}
+          </label>
         </div>
       </div>
 

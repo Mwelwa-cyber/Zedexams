@@ -33,12 +33,19 @@ export default function Register() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-600 to-green-900 flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm p-8 animate-scale-in">
+    <div className="min-h-screen theme-bg flex items-center justify-center p-4">
+      {/* Subtle decoration */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full opacity-10"
+          style={{ background: 'radial-gradient(circle, var(--accent) 0%, transparent 70%)' }} />
+        <div className="absolute -bottom-16 -left-16 w-56 h-56 rounded-full opacity-10"
+          style={{ background: 'radial-gradient(circle, var(--accent) 0%, transparent 70%)' }} />
+      </div>
+      <div className="theme-card rounded-3xl shadow-xl border theme-border w-full max-w-sm p-8 animate-scale-in relative z-10">
         <div className="flex flex-col items-center mb-6">
-          <Logo variant="full" size="md" />
-          <h1 className="text-lg font-black text-gray-700 mt-3">Create Account</h1>
-          <p className="text-gray-400 text-sm mt-0.5">Join ExamPrep Zambia for free</p>
+          <Logo variant="full" size="lg" />
+          <h1 className="text-lg font-black theme-text mt-3">Create Account</h1>
+          <p className="theme-text-muted text-sm mt-0.5">Join ExamPrep Zambia for free</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -50,26 +57,26 @@ export default function Register() {
             { label: 'School Name', field: 'school',    type: 'text', placeholder: 'e.g. Lusaka Academy' },
           ].map(f => (
             <div key={f.field}>
-              <label className="block text-xs font-bold text-gray-700 mb-1">{f.label}</label>
+              <label className="block text-xs font-bold theme-text mb-1">{f.label}</label>
               <input type={f.type} value={form[f.field]} onChange={set(f.field)} required placeholder={f.placeholder}
-                className="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-base focus:border-green-500 focus:outline-none" />
+                className="w-full border-2 rounded-xl px-3 py-2.5 text-base focus:border-green-500 focus:outline-none transition-colors theme-input" />
             </div>
           ))}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold text-gray-700 mb-1">I am a…</label>
+              <label className="block text-xs font-bold theme-text mb-1">I am a…</label>
               <select value={form.role} onChange={set('role')}
-                className="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:border-green-500 focus:outline-none">
+                className="w-full border-2 rounded-xl px-3 py-2.5 text-sm focus:border-green-500 focus:outline-none theme-input transition-colors">
                 <option value="learner">Learner</option>
                 <option value="teacher">Teacher</option>
               </select>
             </div>
             {form.role === 'learner' && (
               <div>
-                <label className="block text-xs font-bold text-gray-700 mb-1">Grade</label>
+                <label className="block text-xs font-bold theme-text mb-1">Grade</label>
                 <select value={form.grade} onChange={set('grade')}
-                  className="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:border-green-500 focus:outline-none">
+                  className="w-full border-2 rounded-xl px-3 py-2.5 text-sm focus:border-green-500 focus:outline-none theme-input transition-colors">
                   <option value="4">Grade 4</option>
                   <option value="5">Grade 5</option>
                   <option value="6">Grade 6</option>
@@ -82,11 +89,11 @@ export default function Register() {
 
           <button type="submit" disabled={loading}
             className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-black text-base py-3.5 rounded-2xl shadow-md transition-colors">
-            {loading ? '⏳ Creating account…' : '🎉 Create Free Account'}
+            {loading ? 'Creating account…' : 'Create Free Account'}
           </button>
         </form>
 
-        <p className="text-center text-sm text-gray-500 mt-4">
+        <p className="text-center text-sm theme-text-muted mt-4">
           Already registered?{' '}
           <Link to="/login" className="text-green-600 font-black hover:underline">Sign In</Link>
         </p>

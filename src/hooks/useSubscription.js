@@ -1,32 +1,58 @@
 import { useAuth } from '../contexts/AuthContext'
 import { useFirestore } from './useFirestore'
-import { getActivePlan, PLANS } from '../utils/subscriptionConfig'
+import { getActivePlan, ACCESS_LEVELS } from '../utils/subscriptionConfig'
 
 export function useSubscription() {
-  const { currentUser, userProfile, isPremium } = useAuth()
-  const { checkAndConsumeAttempt }              = useFirestore()
+  const { currentUser, userProfile, isPremium, isAdmin, isPaidTeacher } = useAuth()
+  const { checkAndConsumeAttempt } = useFirestore()
 
-  const plan         = getActivePlan(userProfile)
-  const dailyLimit   = isPremium ? Infinity : (plan.dailyQuizLimit ?? 5)
-  const todayStr     = new Date().toISOString().slice(0, 10)
-  const isNewDay     = (userProfile?.lastAttemptDate ?? '') !== todayStr
-  const usedToday    = isNewDay ? 0 : (userProfile?.dailyAttempts ?? 0)
-  const attemptsLeft = isPremium ? Infinity : Math.max(0, dailyLimit - usedToday)
-  const isAtLimit    = !isPremium && attemptsLeft <= 0
+  const plan = getActivePlan(userProfile)
 
-  const canUseExamMode         = isPremium || plan.examMode
-  const canUseWeaknessAnalysis = isPremium || plan.weaknessAnalysis
-  const paperLimit             = isPremium ? Infinity : (plan.paperLimit ?? 3)
+  // Access level: admin and paid teachers get full content; everyone else is demo-only
+  const canAccessFullContent = isAdmin || isPaidTeacher
+  const isDemoOnly           = !canAccessFullContent
+  const accessLevel          = canAccessFullContent ? ACCESS_LEVELS.FULL : ACCESS_LEVELS.DEMO_ONLY
 
+  // Feature flags (still gated by premium subscription for learners)
+  const canUseExamMode          = isPremium || plan.examMode
+  const canUseWeaknessAnalysis  = isPremium || plan.weaknessAnalysis
+  const paperLimit              = isAdmin || isPremium ? Infinity : (plan.paperLimit ?? 3)
+
+  // Access badge info for display
+  const accessBadge = isAdmin
+    ? { label: 'Admin Access',   color: 'green',  icon: '🛡️' }
+    : isPaidTeacher
+    ? { label: 'Teacher Plan',   color: 'blue',   icon: '🎓' }
+    : isPremium
+    ? { label: 'Premium',        color: 'yellow', icon: '⭐' }
+    : { label: 'Demo Access',    color: 'gray',   icon: '🔓' }
+
+  // Legacy: tryStartQuiz kept for backwards compat but no longer enforces daily limit
   async function tryStartQuiz() {
     if (!currentUser) return { allowed: false, reason: 'not_authenticated' }
-    const result = await checkAndConsumeAttempt(currentUser.uid, isPremium, dailyLimit)
-    return {
-      allowed: result.allowed,
-      attemptsLeft: isPremium ? Infinity : Math.max(0, dailyLimit - result.attemptsToday),
-      reason: result.allowed ? null : 'daily_limit_reached',
-    }
+    return { allowed: true, reason: null }
   }
 
-  return { isPremium, plan, planId: plan.id, planName: plan.name, dailyLimit, attemptsLeft, usedToday, isAtLimit, canUseExamMode, canUseWeaknessAnalysis, paperLimit, tryStartQuiz }
+  return {
+    isPremium,
+    isAdmin,
+    isPaidTeacher,
+    canAccessFullContent,
+    isDemoOnly,
+    accessLevel,
+    accessBadge,
+    plan,
+    planId: plan.id,
+    planName: plan.name,
+    canUseExamMode,
+    canUseWeaknessAnalysis,
+    paperLimit,
+    tryStartQuiz,
+    // Legacy fields kept so existing components don't break
+    attemptsLeft: Infinity,
+    usedToday: 0,
+    dailyLimit: Infinity,
+    isAtLimit: false,
+    checkAndConsumeAttempt,
+  }
 }

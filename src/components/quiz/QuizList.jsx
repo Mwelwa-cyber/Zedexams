@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSubscription } from '../../hooks/useSubscription'
 import UpgradeModal from '../subscription/UpgradeModal'
-import { AttemptCounter } from '../subscription/PremiumGate'
+import { AccessBadge } from '../subscription/PremiumGate'
 import ComingSoon from '../ui/ComingSoon'
 
 // ── Design tokens ──────────────────────────────────────────────────────────
@@ -81,7 +81,7 @@ function SkeletonCard() {
 }
 
 // ── Quiz card ──────────────────────────────────────────────────────────────
-function QuizCard({ quiz, onStart, isAtLimit }) {
+function QuizCard({ quiz, onStart, locked }) {
   const { icon, style } = getSubjectMeta(quiz.subject)
   const gradeStyle = GRADE_STYLES[quiz.grade] ?? GRADE_STYLES['6']
   const diffColor = quiz.questionCount > 30
@@ -89,7 +89,7 @@ function QuizCard({ quiz, onStart, isAtLimit }) {
     ? 'text-amber-500' : 'text-green-500'
 
   return (
-    <div className={`bg-white rounded-2xl border border-gray-100 border-l-4 ${style.accent} shadow-sm hover:shadow-md transition-all duration-200 group`}>
+    <div className={`theme-card rounded-2xl border theme-border border-l-4 ${style.accent} theme-shadow hover:shadow-md transition-all duration-200 group ${locked ? 'opacity-75' : ''}`}>
       <div className="p-4 flex items-start gap-4">
         {/* Subject icon */}
         <div className={`${style.icon} w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0 group-hover:scale-105 transition-transform`}>
@@ -98,11 +98,19 @@ function QuizCard({ quiz, onStart, isAtLimit }) {
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <h3 className="font-black text-gray-900 text-sm leading-snug group-hover:text-indigo-700 transition-colors line-clamp-2">
-            {quiz.title}
-          </h3>
+          <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+            <h3 className="font-black theme-text text-sm leading-snug group-hover:text-indigo-700 transition-colors line-clamp-2">
+              {quiz.title}
+            </h3>
+            {quiz.isDemo && (
+              <span className="bg-green-100 text-green-700 text-xs font-black px-2 py-0.5 rounded-full flex-shrink-0">Demo</span>
+            )}
+            {locked && !quiz.isDemo && (
+              <span className="bg-gray-100 text-gray-500 text-xs font-black px-2 py-0.5 rounded-full flex-shrink-0">🔒 Locked</span>
+            )}
+          </div>
           {quiz.topic && (
-            <p className="text-gray-500 text-xs mt-0.5 truncate">{quiz.topic}</p>
+            <p className="theme-text-muted text-xs mt-0.5 truncate">{quiz.topic}</p>
           )}
           <div className="flex gap-1.5 mt-2 flex-wrap items-center">
             <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${style.badge}`}>{quiz.subject}</span>
@@ -118,11 +126,11 @@ function QuizCard({ quiz, onStart, isAtLimit }) {
             <span className={`text-xs font-bold flex items-center gap-1 ${diffColor}`}>
               <span>◎</span> {quiz.questionCount ?? '?'} questions
             </span>
-            <span className="text-xs text-gray-400 flex items-center gap-1">
+            <span className="text-xs theme-text-muted flex items-center gap-1">
               <span>⏱</span> {quiz.duration} min
             </span>
             {quiz.totalMarks && (
-              <span className="text-xs text-gray-400 flex items-center gap-1">
+              <span className="text-xs theme-text-muted flex items-center gap-1">
                 <span>⭐</span> {quiz.totalMarks} marks
               </span>
             )}
@@ -131,17 +139,35 @@ function QuizCard({ quiz, onStart, isAtLimit }) {
 
         {/* CTA */}
         <button
-          onClick={() => onStart(quiz.id)}
-          disabled={isAtLimit}
+          onClick={() => onStart(quiz.id, locked)}
           className={`flex-shrink-0 flex flex-col items-center justify-center gap-0.5 px-4 py-2.5 rounded-xl font-black text-sm min-h-0 transition-all ${
-            isAtLimit
+            locked
               ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
               : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm shadow-indigo-200 hover:shadow-md hover:-translate-y-0.5'
           }`}>
-          {isAtLimit ? '🔒' : '▶'}
-          <span className="text-xs font-bold">{isAtLimit ? 'Locked' : 'Start'}</span>
+          {locked ? '🔒' : '▶'}
+          <span className="text-xs font-bold">{locked ? 'Locked' : 'Start'}</span>
         </button>
       </div>
+    </div>
+  )
+}
+
+// ── Locked content banner ──────────────────────────────────────────────────
+function LockedBanner({ onUpgrade }) {
+  return (
+    <div className="theme-card rounded-2xl border-2 border-dashed border-indigo-200 p-5 text-center mb-3">
+      <div className="text-3xl mb-2">🔒</div>
+      <p className="font-black theme-text text-base">Full Library Locked</p>
+      <p className="theme-text-muted text-sm mt-1 mb-4">
+        You're viewing demo quizzes only. Upgrade to access all quizzes.
+      </p>
+      <button
+        onClick={onUpgrade}
+        className="bg-indigo-600 hover:bg-indigo-700 text-white font-black text-sm py-2.5 px-6 rounded-full shadow-md transition-colors min-h-0"
+      >
+        Upgrade Now →
+      </button>
     </div>
   )
 }
@@ -149,9 +175,9 @@ function QuizCard({ quiz, onStart, isAtLimit }) {
 // ── Main ───────────────────────────────────────────────────────────────────
 export default function QuizList() {
   const { getQuizzes } = useFirestore()
-  const { refreshProfile } = useAuth()
-  const { isAtLimit, isPremium, tryStartQuiz } = useSubscription()
+  const { canAccessFullContent, isDemoOnly, accessBadge } = useSubscription()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const [quizzes, setQuizzes]         = useState([])
   const [loading, setLoading]         = useState(true)
@@ -159,11 +185,14 @@ export default function QuizList() {
   const [gradeF, setGradeF]           = useState('')
   const [subjectF, setSubjectF]       = useState('')
   const [termF, setTermF]             = useState('')
+  const [sortBy, setSortBy]           = useState('newest')
   const [showUpgrade, setShowUpgrade] = useState(false)
+  const [blockedToast, setBlockedToast] = useState(location.state?.blocked || false)
 
   useEffect(() => {
     async function load() {
       setLoading(true)
+      // For demo-only users, fetch all published quizzes (we'll show locked state on non-demo ones)
       const data = await getQuizzes({ grade: gradeF, subject: subjectF, term: termF })
       setQuizzes(data)
       setLoading(false)
@@ -171,53 +200,91 @@ export default function QuizList() {
     load()
   }, [gradeF, subjectF, termF])
 
-  const filtered = quizzes.filter(q =>
-    !search || q.title.toLowerCase().includes(search.toLowerCase()) ||
-    (q.topic ?? '').toLowerCase().includes(search.toLowerCase())
-  )
+  // Auto-dismiss blocked toast after 4s
+  useEffect(() => {
+    if (!blockedToast) return
+    const t = setTimeout(() => setBlockedToast(false), 4000)
+    return () => clearTimeout(t)
+  }, [blockedToast])
 
-  async function handleStart(quizId) {
-    if (isAtLimit) { setShowUpgrade(true); return }
-    const { allowed } = await tryStartQuiz()
-    if (!allowed) { setShowUpgrade(true); return }
-    await refreshProfile()
+  const filtered = quizzes
+    .filter(q =>
+      !search || q.title.toLowerCase().includes(search.toLowerCase()) ||
+      (q.topic ?? '').toLowerCase().includes(search.toLowerCase())
+    )
+    .sort((a, b) => {
+      if (sortBy === 'az')      return (a.title ?? '').localeCompare(b.title ?? '')
+      if (sortBy === 'grade')   return (a.grade ?? '').localeCompare(b.grade ?? '')
+      if (sortBy === 'subject') return (a.subject ?? '').localeCompare(b.subject ?? '')
+      // newest (default): use createdAt desc (already sorted from Firestore)
+      return 0
+    })
+
+  function handleStart(quizId, locked) {
+    if (locked) { setShowUpgrade(true); return }
     navigate(`/quiz/${quizId}`)
+  }
+
+  function isLocked(quiz) {
+    return isDemoOnly && !quiz.isDemo
   }
 
   const hasActiveFilter = gradeF || subjectF || termF || search
 
+  const demoCount = quizzes.filter(q => q.isDemo).length
+
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen theme-bg">
       {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
+
+      {/* Blocked toast */}
+      {blockedToast && (
+        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-orange-500 text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg animate-slide-up flex items-center gap-2">
+          🔒 Upgrade required to access that quiz
+          <button onClick={() => setBlockedToast(false)} className="text-white/70 hover:text-white min-h-0 p-0 bg-transparent shadow-none text-lg leading-none">×</button>
+        </div>
+      )}
 
       {/* ── Hero banner ────────────────────────────────────────────────────── */}
       <div className="bg-gradient-to-br from-indigo-700 via-indigo-600 to-violet-600 px-4 pt-6 pb-8">
-        <div className="max-w-2xl md:max-w-3xl mx-auto">
+        <div className="max-w-2xl md:max-w-4xl mx-auto">
           <div className="flex items-start justify-between gap-4">
             <div>
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-2 mb-1 flex-wrap">
                 <span className="bg-white/20 text-white text-xs font-black px-3 py-1 rounded-full backdrop-blur-sm">
                   📝 Quiz Library
+                </span>
+                {/* Access badge in header */}
+                <span className={`text-xs font-black px-3 py-1 rounded-full backdrop-blur-sm ${
+                  accessBadge.color === 'green'  ? 'bg-green-500/30 text-green-100' :
+                  accessBadge.color === 'blue'   ? 'bg-blue-500/30 text-blue-100' :
+                  accessBadge.color === 'yellow' ? 'bg-yellow-500/30 text-yellow-100' :
+                  'bg-white/20 text-white/70'
+                }`}>
+                  {accessBadge.icon} {accessBadge.label}
                 </span>
               </div>
               <h1 className="text-2xl font-black text-white leading-tight mt-2">
                 Test Your Knowledge
               </h1>
               <p className="text-indigo-200 text-sm mt-1">
-                Practice quizzes for Grades 4 · 5 · 6 — CBC aligned
+                {isDemoOnly
+                  ? `${demoCount} demo quiz${demoCount !== 1 ? 'zes' : ''} available · Upgrade for full access`
+                  : `${quizzes.length} quizzes · Grades 4 · 5 · 6 — CBC aligned`
+                }
               </p>
             </div>
             {!loading && (
               <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-4 py-3 text-center flex-shrink-0">
-                <p className="text-2xl font-black text-white">{quizzes.length}</p>
-                <p className="text-indigo-200 text-xs font-bold">Quizzes</p>
+                <p className="text-2xl font-black text-white">{isDemoOnly ? demoCount : quizzes.length}</p>
+                <p className="text-indigo-200 text-xs font-bold">{isDemoOnly ? 'Demo' : 'Quizzes'}</p>
               </div>
             )}
           </div>
 
           {/* Search bar */}
           <div className="relative mt-4">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-300">🔍</span>
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-indigo-300 text-base">🔍</span>
             <input
               type="search" value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search by title or topic…"
@@ -227,14 +294,17 @@ export default function QuizList() {
         </div>
       </div>
 
-      <div className="max-w-2xl md:max-w-3xl mx-auto px-4 -mt-3">
-        {/* Attempt counter (premium gate) */}
+      <div className="max-w-2xl md:max-w-4xl mx-auto px-4 -mt-3">
+        {/* Access badge */}
         <div className="mb-4">
-          <AttemptCounter onUpgradeClick={() => setShowUpgrade(true)} />
+          <AccessBadge onUpgradeClick={() => setShowUpgrade(true)} />
         </div>
 
+        {/* Locked banner for demo-only users */}
+        {isDemoOnly && <LockedBanner onUpgrade={() => setShowUpgrade(true)} />}
+
         {/* ── Filters ────────────────────────────────────────────────────────── */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-5 space-y-3">
+        <div className="theme-card rounded-2xl border theme-border theme-shadow p-4 mb-5 space-y-3">
           {/* Grade filter */}
           <div>
             <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Grade</p>
@@ -271,40 +341,58 @@ export default function QuizList() {
             </div>
           </div>
 
-          {/* Clear */}
-          {hasActiveFilter && (
-            <button
-              onClick={() => { setSearch(''); setGradeF(''); setSubjectF(''); setTermF('') }}
-              className="text-xs text-red-500 font-bold hover:text-red-700 min-h-0 bg-transparent shadow-none p-0 flex items-center gap-1">
-              ✕ Clear all filters
-            </button>
-          )}
+          {/* Sort + clear row */}
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <p className="text-xs font-black theme-text-muted uppercase tracking-wider">Sort</p>
+              <select
+                value={sortBy}
+                onChange={e => setSortBy(e.target.value)}
+                className="text-xs font-bold rounded-lg px-2 py-1.5 border theme-input focus:outline-none focus:border-indigo-400 transition-colors"
+              >
+                <option value="newest">Newest</option>
+                <option value="az">A–Z</option>
+                <option value="grade">Grade</option>
+                <option value="subject">Subject</option>
+              </select>
+            </div>
+            {hasActiveFilter && (
+              <button
+                onClick={() => { setSearch(''); setGradeF(''); setSubjectF(''); setTermF('') }}
+                className="text-xs text-red-500 font-bold hover:text-red-700 min-h-0 bg-transparent shadow-none p-0 flex items-center gap-1">
+                ✕ Clear all filters
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Results header */}
         {!loading && filtered.length > 0 && (
-          <p className="text-xs text-gray-400 font-bold mb-3 px-1">
+          <p className="text-xs theme-text-muted font-bold mb-3 px-1">
             {filtered.length} quiz{filtered.length !== 1 ? 'zes' : ''} found
             {hasActiveFilter && ' (filtered)'}
+            {isDemoOnly && ' (demo only)'}
           </p>
         )}
 
-        {/* ── Quiz list ─────────────────────────────────────────────────────── */}
-        <div className="space-y-3 pb-10">
+        {/* ── Quiz grid ─────────────────────────────────────────────────────── */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pb-10">
           {loading ? (
-            Array.from({ length: 5 }).map((_, i) => <SkeletonCard key={i} />)
+            Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
           ) : quizzes.length === 0 ? (
-            <ComingSoon
-              title="Quizzes Coming Soon"
-              message="No quizzes have been published yet. Check back soon!"
-              icon="📝"
-              showQuizBtn={false}
-            />
+            <div className="col-span-full">
+              <ComingSoon
+                title="Quizzes Coming Soon"
+                message="No quizzes have been published yet. Check back soon!"
+                icon="📝"
+                showQuizBtn={false}
+              />
+            </div>
           ) : filtered.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-gray-100 py-14 text-center shadow-sm">
+            <div className="col-span-full theme-card rounded-2xl border theme-border py-14 text-center theme-shadow">
               <div className="text-4xl mb-3">🔍</div>
-              <p className="font-black text-gray-700">No quizzes match your filters</p>
-              <p className="text-gray-400 text-sm mt-1">Try adjusting the grade, subject, or term</p>
+              <p className="font-black theme-text">No quizzes match your filters</p>
+              <p className="theme-text-muted text-sm mt-1">Try adjusting the grade, subject, or term</p>
               <button
                 onClick={() => { setSearch(''); setGradeF(''); setSubjectF(''); setTermF('') }}
                 className="mt-4 text-indigo-600 font-black text-sm hover:underline min-h-0 bg-transparent shadow-none">
@@ -317,7 +405,7 @@ export default function QuizList() {
                 key={quiz.id}
                 quiz={quiz}
                 onStart={handleStart}
-                isAtLimit={isAtLimit}
+                locked={isLocked(quiz)}
               />
             ))
           )}

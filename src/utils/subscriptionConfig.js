@@ -7,19 +7,27 @@ export const ROLES = {
   ADMIN:   'admin',
 }
 
+// Access levels for content gating.
+// - DEMO_ONLY: free learners + unpaid teachers (demo quizzes only)
+// - FULL:      admin + paid teachers (all quizzes)
+export const ACCESS_LEVELS = {
+  DEMO_ONLY: 'demo_only',
+  FULL:      'full',
+}
+
 export const PLANS = {
   free: {
     id: 'free',
     name: 'Free',
     tagline: 'Get started at no cost',
     priceZMW: 0,
-    dailyQuizLimit: 5,
+    dailyQuizLimit: Infinity,   // no longer enforced — demo-only access replaces daily limits
     paperLimit: 3,
     weaknessAnalysis: false,
     examMode: false,
     badge: null,
-    features: ['5 quizzes per day', '3 past papers', 'Basic results', 'Practice mode only'],
-    locked:   ['Unlimited quizzes', 'All past papers', 'Exam mode (timed)', 'Weakness analysis'],
+    features: ['Demo quizzes (one per subject)', '3 past papers', 'Basic results', 'Practice mode only'],
+    locked:   ['All quizzes', 'All past papers', 'Exam mode (timed)', 'Weakness analysis'],
   },
   monthly: {
     id: 'monthly',

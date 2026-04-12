@@ -2,6 +2,115 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Theme CSS custom properties ──────────────────────────── */
+/* Applied via body.theme-* classes set by ThemeContext        */
+
+:root, body.theme-light {
+  --bg:           #F1F5F9;
+  --bg-subtle:    #E2E8F0;
+  --card:         #FFFFFF;
+  --card-hover:   #F8FAFC;
+  --text:         #1E293B;
+  --text-muted:   #64748B;
+  --border:       #E2E8F0;
+  --accent:       #16A34A;
+  --accent-text:  #FFFFFF;
+  --accent-bg:    #DCFCE7;
+  --accent-fg:    #15803D;
+  --input-bg:     #FFFFFF;
+  --input-border: #E2E8F0;
+  --shadow:       rgba(0,0,0,0.06);
+}
+
+body.theme-warm {
+  --bg:           #FDF6EC;
+  --bg-subtle:    #FAE9D0;
+  --card:         #FFFBF4;
+  --card-hover:   #FEF3E2;
+  --text:         #2C1A0E;
+  --text-muted:   #8B6E52;
+  --border:       #F0D9BC;
+  --accent:       #D97706;
+  --accent-text:  #FFFFFF;
+  --accent-bg:    #FEF3C7;
+  --accent-fg:    #B45309;
+  --input-bg:     #FFFBF4;
+  --input-border: #F0D9BC;
+  --shadow:       rgba(180,83,9,0.08);
+}
+
+body.theme-sky {
+  --bg:           #EFF6FF;
+  --bg-subtle:    #DBEAFE;
+  --card:         #FFFFFF;
+  --card-hover:   #F0F9FF;
+  --text:         #0F2657;
+  --text-muted:   #3B6CB7;
+  --border:       #BFDBFE;
+  --accent:       #2563EB;
+  --accent-text:  #FFFFFF;
+  --accent-bg:    #DBEAFE;
+  --accent-fg:    #1D4ED8;
+  --input-bg:     #FFFFFF;
+  --input-border: #BFDBFE;
+  --shadow:       rgba(37,99,235,0.07);
+}
+
+body.theme-lavender {
+  --bg:           #F5F3FF;
+  --bg-subtle:    #EDE9FE;
+  --card:         #FDFCFF;
+  --card-hover:   #F0EEFF;
+  --text:         #1E1045;
+  --text-muted:   #6D4CAD;
+  --border:       #DDD6FE;
+  --accent:       #7C3AED;
+  --accent-text:  #FFFFFF;
+  --accent-bg:    #EDE9FE;
+  --accent-fg:    #6D28D9;
+  --input-bg:     #FDFCFF;
+  --input-border: #DDD6FE;
+  --shadow:       rgba(124,58,237,0.07);
+}
+
+body.theme-dark {
+  --bg:           #0F172A;
+  --bg-subtle:    #1E293B;
+  --card:         #1E293B;
+  --card-hover:   #263348;
+  --text:         #F1F5F9;
+  --text-muted:   #94A3B8;
+  --border:       #334155;
+  --accent:       #22C55E;
+  --accent-text:  #0F172A;
+  --accent-bg:    #14532D;
+  --accent-fg:    #4ADE80;
+  --input-bg:     #0F172A;
+  --input-border: #334155;
+  --shadow:       rgba(0,0,0,0.3);
+}
+
+/* ── Theme utility classes ─────────────────────────────────── */
+@layer utilities {
+  .theme-bg           { background-color: var(--bg); }
+  .theme-bg-subtle    { background-color: var(--bg-subtle); }
+  .theme-card         { background-color: var(--card); }
+  .theme-card-hover   { background-color: var(--card-hover); }
+  .theme-text         { color: var(--text); }
+  .theme-text-muted   { color: var(--text-muted); }
+  .theme-border       { border-color: var(--border); }
+  .theme-accent-bg    { background-color: var(--accent-bg); }
+  .theme-accent-text  { color: var(--accent-fg); }
+  .theme-input        { background-color: var(--input-bg); border-color: var(--input-border); color: var(--text); }
+  .theme-shadow       { box-shadow: 0 1px 6px var(--shadow); }
+  .theme-divider      { border-color: var(--border); }
+}
+
+/* Smooth theme transitions — only affect colour properties, not transforms/opacity */
+body {
+  transition: background-color 0.25s ease, color 0.15s ease;
+}
+
 /* ── Base ──────────────────────────────────────────────────── */
 html {
   font-family: 'Nunito', sans-serif;
@@ -9,8 +118,9 @@ html {
 }
 
 body {
-  @apply text-gray-800 antialiased;
-  background-color: #f1f5f9; /* slate-100 — warm off-white, never stark white */
+  @apply antialiased;
+  color: var(--text);
+  background-color: var(--bg);
   min-height: 100dvh;
 }
 
@@ -32,27 +142,40 @@ body {
            px-5 py-2.5 hover:bg-green-50 transition-colors min-h-0;
   }
   .card {
-    @apply bg-white rounded-2xl shadow-sm border border-gray-100 p-4;
+    @apply rounded-2xl shadow-sm p-4;
+    background-color: var(--card);
+    border: 1px solid var(--border);
   }
   .badge {
     @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold;
   }
   /* Page wrapper — each content page uses this for consistent spacing */
   .page-wrapper {
-    @apply min-h-screen bg-slate-50;
+    @apply min-h-screen;
+    background-color: var(--bg);
   }
-  /* Section card — white panel with soft shadow */
+  /* Section card — panel with soft shadow */
   .section-card {
-    @apply bg-white rounded-2xl border border-gray-100 shadow-sm;
+    @apply rounded-2xl shadow-sm;
+    background-color: var(--card);
+    border: 1px solid var(--border);
   }
-  /* Content card with colored left accent border */
+  /* Content card with hover */
   .content-card {
-    @apply bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-all duration-200;
+    @apply rounded-2xl shadow-sm hover:shadow-md transition-all duration-200;
+    background-color: var(--card);
+    border: 1px solid var(--border);
   }
   /* Filter chip */
   .filter-chip {
-    @apply px-3 py-1.5 rounded-full text-sm font-bold border border-gray-200 bg-white
-           text-gray-600 hover:border-indigo-300 hover:text-indigo-700 transition-all min-h-0 whitespace-nowrap;
+    @apply px-3 py-1.5 rounded-full text-sm font-bold transition-all min-h-0 whitespace-nowrap;
+    background-color: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+  }
+  .filter-chip:hover {
+    border-color: #6366f1;
+    color: #6366f1;
   }
   .filter-chip-active {
     @apply bg-indigo-600 text-white border-indigo-600 shadow-sm;

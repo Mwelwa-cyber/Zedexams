@@ -22,6 +22,9 @@ import ProfessorPako            from '../ui/ProfessorPako'
 import DataSaverToggle          from '../ui/DataSaverToggle'
 import BadgeCard                from '../ui/BadgeCard'
 import Logo                     from '../ui/Logo'
+import ThemeSelector            from '../ui/ThemeSelector'
+import OnboardingOverlay        from '../ui/OnboardingOverlay'
+import { useSubscription }      from '../../hooks/useSubscription'
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
@@ -42,7 +45,7 @@ function GradeCard({ grade, meta, active, onClick, quizCount = 0 }) {
       className={`relative w-full rounded-2xl p-4 sm:p-5 text-left transition-all duration-200 min-h-0 shadow-sm hover:shadow-md active:scale-95 overflow-hidden ${
         active
           ? `${meta.tailwind.bg} text-white ring-4 ${meta.tailwind.ring} scale-105`
-          : `bg-white border-2 ${meta.tailwind.border} text-gray-800 hover:${meta.tailwind.light}`
+          : `theme-card border-2 ${meta.tailwind.border} theme-text hover:opacity-90`
       }`}
     >
       {/* Background accent blob */}
@@ -82,13 +85,13 @@ function SubjectCard({ subject, grade }) {
   const paperPath   = `/papers?grade=${grade}&subject=${subject.id}`
 
   return (
-    <div className={`bg-white rounded-2xl border-2 ${subject.tailwind.border} p-4 hover:shadow-sm transition-all`}>
+    <div className={`theme-card rounded-2xl border-2 ${subject.tailwind.border} p-4 hover:shadow-sm transition-all`}>
       <div className="flex items-center gap-3 mb-3">
         <div className={`w-10 h-10 ${subject.tailwind.light} rounded-xl flex items-center justify-center text-xl flex-shrink-0`}>
           {subject.icon}
         </div>
         <div className="min-w-0">
-          <p className="font-black text-gray-800 text-sm leading-tight truncate">{subject.label}</p>
+          <p className="font-black theme-text text-sm leading-tight truncate">{subject.label}</p>
           <p className={`text-xs font-bold ${subject.tailwind.text} mt-0.5`}>Grade {grade}</p>
         </div>
       </div>
@@ -103,13 +106,13 @@ function SubjectCard({ subject, grade }) {
         </Link>
         <Link
           to={lessonPath}
-          className="flex-1 text-center text-xs font-bold py-1.5 rounded-lg bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors"
+          className="flex-1 text-center text-xs font-bold py-1.5 rounded-lg theme-bg-subtle theme-text-muted hover:opacity-80 transition-opacity"
         >
           📖 Notes
         </Link>
         <Link
           to={paperPath}
-          className="flex-1 text-center text-xs font-bold py-1.5 rounded-lg bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors"
+          className="flex-1 text-center text-xs font-bold py-1.5 rounded-lg theme-bg-subtle theme-text-muted hover:opacity-80 transition-opacity"
         >
           📄 Papers
         </Link>
@@ -130,17 +133,17 @@ function RecentResultRow({ result }) {
     return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
   }
   return (
-    <div className="flex items-center gap-3 py-3 border-b border-gray-50 last:border-0">
+    <div className="flex items-center gap-3 py-3 border-b theme-border last:border-0">
       <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
         📝
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-bold text-gray-800 text-sm truncate">{result.quizTitle || 'Quiz'}</p>
-        <p className="text-gray-400 text-xs">{result.subject} · Grade {result.grade} · {fmt(result.completedAt)}</p>
+        <p className="font-bold theme-text text-sm truncate">{result.quizTitle || 'Quiz'}</p>
+        <p className="theme-text-muted text-xs">{result.subject} · Grade {result.grade} · {fmt(result.completedAt)}</p>
       </div>
       <div className="text-right flex-shrink-0">
         <p className={`font-black text-lg ${pctColor(result.percentage)}`}>{result.percentage}%</p>
-        <p className="text-gray-400 text-xs">{result.score}/{result.totalMarks}</p>
+        <p className="theme-text-muted text-xs">{result.score}/{result.totalMarks}</p>
       </div>
     </div>
   )
@@ -165,7 +168,7 @@ function MobileNav() {
     { to: '/my-results',icon: '📊', label: 'Results', end: false },
   ]
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-gray-100 shadow-lg safe-area-bottom">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 theme-card border-t theme-border shadow-lg safe-area-bottom">
       <div className="flex">
         {items.map(item => (
           <NavLink
@@ -229,18 +232,21 @@ export default function GradeHub() {
     setSelectedGrade(prev => prev === grade ? null : grade)
   }
 
+  const { accessBadge, isDemoOnly } = useSubscription()
   const firstName = userProfile?.displayName?.split(' ')[0] ?? 'Learner'
   const pakoMood  = stats.streak >= 3 ? 'excited' : stats.quizzes > 0 ? 'happy' : 'normal'
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen theme-bg flex flex-col">
+      <OnboardingOverlay />
       {/* ──────────── HEADER ─────────────────────────────────── */}
-      <header className="sticky top-0 z-30 bg-white border-b border-gray-100 shadow-sm">
+      <header className="sticky top-0 z-30 theme-card border-b theme-border shadow-sm">
         <div className="max-w-4xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
           <Logo variant="full" size="sm" />
 
           <div className="flex items-center gap-2">
             <DataSaverToggle />
+            <ThemeSelector compact />
 
             {/* Notifications placeholder */}
             <button className="relative w-8 h-8 flex items-center justify-center text-gray-500 hover:text-gray-700 min-h-0 bg-transparent shadow-none">
@@ -261,12 +267,23 @@ export default function GradeHub() {
                 {(userProfile?.displayName?.[0] ?? '?').toUpperCase()}
               </button>
               {menuOpen && (
-                <div className="absolute right-0 top-10 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 min-w-[160px] z-50">
-                  <p className="px-4 py-2 text-xs font-black text-gray-800 border-b border-gray-100">{userProfile?.displayName}</p>
+                <div className="absolute right-0 top-10 theme-card rounded-2xl shadow-xl border theme-border py-2 min-w-[180px] z-50 animate-scale-in">
+                  <p className="px-4 py-2 text-xs font-black theme-text border-b theme-border">{userProfile?.displayName}</p>
+                  {/* Access badge in menu */}
+                  <div className="px-4 py-1.5">
+                    <span className={`text-xs font-black px-2 py-0.5 rounded-full ${
+                      accessBadge.color === 'green'  ? 'bg-green-100 text-green-700' :
+                      accessBadge.color === 'blue'   ? 'bg-blue-100 text-blue-700' :
+                      accessBadge.color === 'yellow' ? 'bg-yellow-100 text-yellow-700' :
+                      'bg-gray-100 text-gray-600'
+                    }`}>
+                      {accessBadge.icon} {accessBadge.label}
+                    </span>
+                  </div>
                   <Link to="/my-results" onClick={() => setMenuOpen(false)}
-                    className="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 font-bold">📊 My Results</Link>
+                    className="block px-4 py-2 text-sm theme-text hover:theme-bg-subtle font-bold">📊 My Results</Link>
                   <Link to="/my-badges" onClick={() => setMenuOpen(false)}
-                    className="block px-4 py-2 text-sm text-gray-600 hover:bg-gray-50 font-bold">🏆 My Badges</Link>
+                    className="block px-4 py-2 text-sm theme-text hover:theme-bg-subtle font-bold">🏆 My Badges</Link>
                   <button
                     onClick={() => { setMenuOpen(false); logout().then(() => navigate('/login')) }}
                     className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50 font-bold min-h-0 bg-transparent shadow-none rounded-none">
@@ -280,7 +297,7 @@ export default function GradeHub() {
       </header>
 
       {/* ──────────── MAIN CONTENT ───────────────────────────── */}
-      <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-5 pb-28 space-y-6">
+      <main className="flex-1 max-w-4xl mx-auto w-full px-4 py-5 pb-28 space-y-6 theme-text">
 
         {/* ── HERO / WELCOME BANNER ───────────────────────────── */}
         <section
@@ -355,7 +372,7 @@ export default function GradeHub() {
         {/* ── GRADE SELECTION ─────────────────────────────────── */}
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-black text-gray-800">🎓 Upper Primary Hub</h2>
+            <h2 className="text-lg font-black theme-text">🎓 Upper Primary Hub</h2>
             {selectedGrade && (
               <button
                 onClick={() => setSelectedGrade(null)}
@@ -386,7 +403,7 @@ export default function GradeHub() {
                 <div className={`w-6 h-6 ${GRADE_META[selectedGrade].tailwind.bg} rounded-lg flex items-center justify-center text-white text-xs font-black`}>
                   {selectedGrade}
                 </div>
-                <h3 className="font-black text-gray-700 text-sm">
+                <h3 className="font-black theme-text text-sm">
                   Grade {selectedGrade} — Choose a Learning Area
                 </h3>
               </div>
@@ -401,11 +418,11 @@ export default function GradeHub() {
 
           {/* Prompt when no grade selected */}
           {!selectedGrade && (
-            <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-center gap-3">
+            <div className="theme-card rounded-2xl border theme-border p-4 flex items-center gap-3">
               {!dataSaver && <ProfessorPako size={48} mood="tip" animate={false} />}
               <div>
-                <p className="font-black text-gray-800 text-sm">Select your grade above</p>
-                <p className="text-gray-500 text-xs mt-0.5">
+                <p className="font-black theme-text text-sm">Select your grade above</p>
+                <p className="theme-text-muted text-xs mt-0.5">
                   Choose Grade 4, 5, or 6 to see your subjects and start practising.
                 </p>
               </div>
@@ -416,13 +433,13 @@ export default function GradeHub() {
         {/* ── RECENT ACTIVITY ─────────────────────────────────── */}
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-black text-gray-800">📊 Recent Activity</h2>
+            <h2 className="text-lg font-black theme-text">📊 Recent Activity</h2>
             <Link to="/my-results" className="text-xs font-bold text-blue-600 hover:underline">
               View all →
             </Link>
           </div>
 
-          <div className="bg-white rounded-2xl border border-gray-100 px-4">
+          <div className="theme-card rounded-2xl border theme-border px-4">
             {loading ? (
               <div className="py-4 space-y-3">
                 {Array.from({ length: 3 }).map((_, i) => (
@@ -439,8 +456,8 @@ export default function GradeHub() {
             ) : recentResults.length === 0 ? (
               <div className="py-8 text-center">
                 <p className="text-3xl mb-2">📭</p>
-                <p className="font-bold text-gray-600 text-sm">No quizzes yet!</p>
-                <p className="text-gray-400 text-xs mt-1">Take your first quiz to see results here.</p>
+                <p className="font-bold theme-text text-sm">No quizzes yet!</p>
+                <p className="theme-text-muted text-xs mt-1">Take your first quiz to see results here.</p>
                 <Link
                   to="/quizzes"
                   className="inline-block mt-3 bg-blue-600 text-white font-black text-xs px-4 py-2 rounded-xl hover:bg-blue-700"
@@ -457,7 +474,7 @@ export default function GradeHub() {
         {/* ── BADGES ──────────────────────────────────────────── */}
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-black text-gray-800">🏆 Your Badges</h2>
+            <h2 className="text-lg font-black theme-text">🏆 Your Badges</h2>
             <Link to="/my-badges" className="text-xs font-bold text-blue-600 hover:underline">
               View all →
             </Link>
@@ -468,11 +485,11 @@ export default function GradeHub() {
               {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
             </div>
           ) : earnedBadges.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-gray-100 p-5 flex items-center gap-3">
+            <div className="theme-card rounded-2xl border theme-border p-5 flex items-center gap-3">
               {!dataSaver && <ProfessorPako size={52} mood="normal" animate={false} />}
               <div>
-                <p className="font-black text-gray-700 text-sm">No badges yet — go earn one!</p>
-                <p className="text-gray-400 text-xs mt-0.5">
+                <p className="font-black theme-text text-sm">No badges yet — go earn one!</p>
+                <p className="theme-text-muted text-xs mt-0.5">
                   Complete quizzes to unlock competency badges. Your first badge is just one quiz away!
                 </p>
               </div>

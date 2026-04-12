@@ -10,9 +10,11 @@ export function useFirestore() {
   async function getQuizzes(filters = {}) {
     try {
       let c = [where('isPublished', '==', true)]
-      if (filters.grade)   c.push(where('grade',   '==', filters.grade))
-      if (filters.subject) c.push(where('subject', '==', filters.subject))
-      if (filters.term)    c.push(where('term',    '==', filters.term))
+      if (filters.grade)    c.push(where('grade',   '==', filters.grade))
+      if (filters.subject)  c.push(where('subject', '==', filters.subject))
+      if (filters.term)     c.push(where('term',    '==', filters.term))
+      // When isDemoOnly=true, only return quizzes marked as demo
+      if (filters.isDemoOnly) c.push(where('isDemo', '==', true))
       c.push(orderBy('createdAt', 'desc'))
       const snap = await getDocs(query(collection(db, 'quizzes'), ...c))
       return snap.docs.map(d => ({ id: d.id, ...d.data() }))
