@@ -6,6 +6,7 @@ import { useSubscription } from '../../hooks/useSubscription'
 import UpgradeModal from '../subscription/UpgradeModal'
 import QuizTip from './QuizTip'
 import { getPakoTip } from '../../config/curriculum'
+import { checkAnswerWithAI } from '../../utils/geminiChecker'
 
 function fmt(s) { return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}` }
 
@@ -396,6 +397,10 @@ export default function QuizRunner() {
   const [showUpgrade, setShowUpgrade] = useState(false)
   const [feedbackType, setFeedbackType] = useState(null) // 'correct' | 'wrong'
   const [pakoTip, setPakoTip]           = useState({ visible: false, text: '', isCorrect: null })
+  // ── Short-answer / AI state ───────────────────────────────────────────────
+  const [shortText, setShortText]   = useState({})  // {qid: typed text}
+  const [aiChecking, setAiChecking] = useState({})  // {qid: boolean}
+  const [aiResults, setAiResults]   = useState({})  // {qid: {correct, feedback}}
   const timerRef  = useRef(null)
   const autoRef   = useRef(false)
   const submitRef = useRef(null)
@@ -453,6 +458,38 @@ export default function QuizRunner() {
     }
   }
 
+  // ── AI check for short-answer questions ──────────────────────────────────
+  async function checkShortAnswer(qid) {
+    const curQ = questions.find(qq => qq.id === qid)
+    const text = shortText[qid]?.trim()
+    if (!text || !curQ) return
+
+    setAiChecking(c => ({ ...c, [qid]: true }))
+    try {
+      const result = await checkAnswerWithAI({
+        question:      curQ.text,
+        correctAnswer: curQ.correctAnswer,
+        studentAnswer: text,
+        subject:       quiz?.subject ?? '',
+        grade:         quiz?.grade   ?? '',
+      })
+      setAiResults(r => ({ ...r, [qid]: result }))
+      // Store in answers so submit scoring can pick it up
+      setAnswers(a => ({ ...a, [qid]: { text, correct: result.correct } }))
+      if (mode === 'practice') {
+        setRevealed(r => ({ ...r, [qid]: true }))
+        setFeedbackType(result.correct ? 'correct' : 'wrong')
+        setTimeout(() => setFeedbackType(null), 1300)
+        setPakoTip({ visible: true, text: result.feedback, isCorrect: result.correct })
+      }
+    } catch (err) {
+      console.error('AI check failed:', err)
+      alert('AI check failed. Check your Gemini API key or try again.')
+    } finally {
+      setAiChecking(c => ({ ...c, [qid]: false }))
+    }
+  }
+
   // ── Submit ────────────────────────────────────────────────────────────────
   const handleSubmit = useCallback(async (auto = false) => {
     if (!auto) setShowSubmit(false)
@@ -462,7 +499,10 @@ export default function QuizRunner() {
       let score = 0, total = 0
       const topicScores = {}
       questions.forEach(q => {
-        const ok = answers[q.id] === q.correctAnswer
+        // short_answer stores {text, correct}; MCQ/TF store the option index
+        const ok = q.type === 'short_answer'
+          ? answers[q.id]?.correct === true
+          : answers[q.id] === q.correctAnswer
         total += q.marks || 1; if (ok) score += q.marks || 1
         const t = q.topic || 'General'
         topicScores[t] ??= { correct: 0, total: 0 }
@@ -711,71 +751,183 @@ export default function QuizRunner() {
           </div>
         </div>
 
-        {/* Answer options — 1-col mobile, 2-col on tablet+ */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-          {q.options.map((opt, i) => (
-            <OptionCard
-              key={i}
-              opt={opt}
-              optIdx={i}
-              isSelected={!isRev && ua === i}
-              isRevealed={isRev}
-              isCorrect={isRev && i === q.correctAnswer}
-              isWrong={isRev && ua === i && ua !== q.correctAnswer}
-              disabled={isRev}
-              onClick={() => !isRev && pick(q.id, i)}
-              theme={theme}
-            />
-          ))}
-        </div>
+        {/* ── SHORT ANSWER (AI-checked) ──────────────────────────────────── */}
+        {q.type === 'short_answer' ? (() => {
+          const aiRes     = aiResults[q.id]
+          const checking  = aiChecking[q.id]
+          const typed     = shortText[q.id] ?? ''
+          const checked   = !!aiRes
+          const saCorrect = aiRes?.correct
 
-        {/* Professor Pako tip */}
-        {isRev && (
-          <QuizTip
-            isCorrect={ua === q.correctAnswer ? true : ua === undefined ? null : false}
-            tipText={pakoTip.text}
-            visible={pakoTip.visible}
-            onDismiss={() => setPakoTip(p => ({ ...p, visible: false }))}
-          />
-        )}
+          return (
+            <div className="mb-4 space-y-3">
+              {/* Text input */}
+              <div
+                className="overflow-hidden transition-all"
+                style={{
+                  background: theme.card,
+                  border: `2px solid ${checked
+                    ? saCorrect ? '#22C55E' : '#f87171'
+                    : theme.accent}`,
+                  borderRadius: 16,
+                }}
+              >
+                <div className="flex items-center gap-2 px-4 py-2 border-b" style={{ borderColor: theme.cardBorder }}>
+                  <span className="text-sm" style={{ color: theme.textSub }}>🤖 AI-checked answer</span>
+                </div>
+                <div className="flex items-center gap-2 p-3">
+                  <input
+                    type="text"
+                    value={typed}
+                    onChange={e => {
+                      setShortText(s => ({ ...s, [q.id]: e.target.value }))
+                      // Reset result if they edit after checking
+                      if (checked) {
+                        setAiResults(r => { const n = { ...r }; delete n[q.id]; return n })
+                        setAnswers(a  => { const n = { ...a }; delete n[q.id]; return n })
+                        setRevealed(r => { const n = { ...r }; delete n[q.id]; return n })
+                      }
+                    }}
+                    onKeyDown={e => { if (e.key === 'Enter' && typed.trim() && !checking && !checked) checkShortAnswer(q.id) }}
+                    disabled={checking}
+                    placeholder="Type your answer here…"
+                    className="flex-1 bg-transparent outline-none text-base font-semibold"
+                    style={{ color: theme.text }}
+                  />
+                  {checking && (
+                    <div className="w-5 h-5 border-2 border-t-transparent rounded-full animate-spin flex-shrink-0"
+                      style={{ borderColor: theme.accent }} />
+                  )}
+                  {checked && (
+                    <span className="text-xl flex-shrink-0">{saCorrect ? '✅' : '❌'}</span>
+                  )}
+                </div>
+              </div>
 
-        {/* Result feedback banner */}
-        {isRev && (
-          <div
-            className="p-4 rounded-2xl mb-4 animate-slide-up"
-            style={{
-              background: ua === q.correctAnswer ? '#f0fdf4'
-                : ua === undefined ? theme.accentLight
-                : '#fff7ed',
-              border: `2px solid ${ua === q.correctAnswer ? '#86efac'
-                : ua === undefined ? theme.cardBorder
-                : '#fdba74'}`,
-            }}
-          >
-            {ua === q.correctAnswer ? (
-              <>
-                <p className="font-black text-green-700 text-lg flex items-center gap-2">🌟 Excellent! Well done!</p>
-                <p className="text-green-600 text-sm mt-1">The answer is <strong>{q.options[q.correctAnswer]}</strong></p>
-              </>
-            ) : ua === undefined ? (
-              <>
-                <p className="font-black flex items-center gap-2" style={{ color: theme.text }}>⏭️ Skipped</p>
-                <p className="text-sm mt-1" style={{ color: theme.textSub }}>
-                  Correct: <strong>{q.options[q.correctAnswer]}</strong>
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="font-black text-orange-700 text-lg flex items-center gap-2">💡 Not quite — you can do it!</p>
-                <p className="text-orange-600 text-sm mt-1">
-                  Correct answer: <strong>{q.options[q.correctAnswer]}</strong>
-                </p>
-                {q.explanation && (
-                  <p className="text-gray-500 text-xs mt-1.5 italic">{q.explanation}</p>
-                )}
-              </>
+              {/* Check Answer button */}
+              {!checked && (
+                <button
+                  onClick={() => checkShortAnswer(q.id)}
+                  disabled={!typed.trim() || checking}
+                  className="w-full font-black py-3.5 rounded-2xl transition-all min-h-0"
+                  style={{
+                    background: typed.trim() && !checking ? theme.btnPrimary : theme.accentLight,
+                    color: typed.trim() && !checking ? theme.btnPrimaryText : theme.textSub,
+                    opacity: !typed.trim() ? 0.5 : 1,
+                  }}
+                >
+                  {checking ? '🤖 AI is checking…' : '🤖 Check My Answer'}
+                </button>
+              )}
+
+              {/* AI result feedback */}
+              {checked && (
+                <div
+                  className="p-4 rounded-2xl animate-slide-up"
+                  style={{
+                    background: saCorrect ? '#f0fdf4' : '#fff7ed',
+                    border: `2px solid ${saCorrect ? '#86efac' : '#fdba74'}`,
+                  }}
+                >
+                  {saCorrect ? (
+                    <>
+                      <p className="font-black text-green-700 text-lg flex items-center gap-2">🌟 Correct! Well done!</p>
+                      <p className="text-green-600 text-sm mt-1">{aiRes.feedback}</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="font-black text-orange-700 text-lg flex items-center gap-2">💡 Not quite!</p>
+                      <p className="text-orange-600 text-sm mt-1">{aiRes.feedback}</p>
+                      {mode === 'practice' && q.correctAnswer && (
+                        <p className="text-gray-500 text-xs mt-1.5">
+                          Expected: <strong>{q.correctAnswer}</strong>
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Professor Pako tip (practice mode) */}
+              {checked && mode === 'practice' && (
+                <QuizTip
+                  isCorrect={saCorrect}
+                  tipText={pakoTip.text}
+                  visible={pakoTip.visible}
+                  onDismiss={() => setPakoTip(p => ({ ...p, visible: false }))}
+                />
+              )}
+            </div>
+          )
+        })() : (
+          <>
+            {/* ── MCQ / True-False options ──────────────────────────────────── */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+              {q.options.map((opt, i) => (
+                <OptionCard
+                  key={i}
+                  opt={opt}
+                  optIdx={i}
+                  isSelected={!isRev && ua === i}
+                  isRevealed={isRev}
+                  isCorrect={isRev && i === q.correctAnswer}
+                  isWrong={isRev && ua === i && ua !== q.correctAnswer}
+                  disabled={isRev}
+                  onClick={() => !isRev && pick(q.id, i)}
+                  theme={theme}
+                />
+              ))}
+            </div>
+
+            {/* Professor Pako tip */}
+            {isRev && (
+              <QuizTip
+                isCorrect={ua === q.correctAnswer ? true : ua === undefined ? null : false}
+                tipText={pakoTip.text}
+                visible={pakoTip.visible}
+                onDismiss={() => setPakoTip(p => ({ ...p, visible: false }))}
+              />
             )}
-          </div>
+
+            {/* Result feedback banner */}
+            {isRev && (
+              <div
+                className="p-4 rounded-2xl mb-4 animate-slide-up"
+                style={{
+                  background: ua === q.correctAnswer ? '#f0fdf4'
+                    : ua === undefined ? theme.accentLight
+                    : '#fff7ed',
+                  border: `2px solid ${ua === q.correctAnswer ? '#86efac'
+                    : ua === undefined ? theme.cardBorder
+                    : '#fdba74'}`,
+                }}
+              >
+                {ua === q.correctAnswer ? (
+                  <>
+                    <p className="font-black text-green-700 text-lg flex items-center gap-2">🌟 Excellent! Well done!</p>
+                    <p className="text-green-600 text-sm mt-1">The answer is <strong>{q.options[q.correctAnswer]}</strong></p>
+                  </>
+                ) : ua === undefined ? (
+                  <>
+                    <p className="font-black flex items-center gap-2" style={{ color: theme.text }}>⏭️ Skipped</p>
+                    <p className="text-sm mt-1" style={{ color: theme.textSub }}>
+                      Correct: <strong>{q.options[q.correctAnswer]}</strong>
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="font-black text-orange-700 text-lg flex items-center gap-2">💡 Not quite — you can do it!</p>
+                    <p className="text-orange-600 text-sm mt-1">
+                      Correct answer: <strong>{q.options[q.correctAnswer]}</strong>
+                    </p>
+                    {q.explanation && (
+                      <p className="text-gray-500 text-xs mt-1.5 italic">{q.explanation}</p>
+                    )}
+                  </>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
 

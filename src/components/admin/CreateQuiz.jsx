@@ -161,6 +161,7 @@ function QuestionCard({ q, qi, total, onChange, onRemove, onMove, onImageUpload,
   }
 
   const isTF = q.type === 'truefalse'
+  const isSA = q.type === 'short_answer'
 
   return (
     <div className="bg-white rounded-2xl border border-gray-100 p-5 space-y-4 shadow-sm">
@@ -173,10 +174,14 @@ function QuestionCard({ q, qi, total, onChange, onRemove, onMove, onImageUpload,
           <select
             value={q.type}
             onChange={e => {
-              set('type', e.target.value)
-              if (e.target.value === 'truefalse') {
+              const t = e.target.value
+              set('type', t)
+              if (t === 'truefalse') {
                 onChange(qi, 'options', ['True', 'False'])
                 onChange(qi, 'correctAnswer', 0)
+              } else if (t === 'short_answer') {
+                onChange(qi, 'options', [])
+                onChange(qi, 'correctAnswer', '')
               } else if (q.options.length < 4) {
                 onChange(qi, 'options', ['', '', '', ''])
               }
@@ -185,6 +190,7 @@ function QuestionCard({ q, qi, total, onChange, onRemove, onMove, onImageUpload,
           >
             <option value="mcq">MCQ (4 options)</option>
             <option value="truefalse">True / False</option>
+            <option value="short_answer">Short Answer (AI checked)</option>
           </select>
           <button onClick={() => onMove(qi, -1)} disabled={qi === 0}
             className="text-gray-400 hover:text-gray-600 disabled:opacity-30 text-sm min-h-0 bg-transparent shadow-none p-1">↑</button>
@@ -215,41 +221,61 @@ function QuestionCard({ q, qi, total, onChange, onRemove, onMove, onImageUpload,
         className="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:border-green-500 focus:outline-none resize-none leading-relaxed"
       />
 
-      {/* Options */}
-      <div className="space-y-2">
-        <p className="text-xs font-bold text-gray-500">Answer choices — click the radio to mark the correct one</p>
-        {q.options.map((opt, oi) => (
-          <label
-            key={oi}
-            className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-colors ${
-              q.correctAnswer === oi ? 'border-green-400 bg-green-50' : 'border-gray-100 hover:border-gray-200'
-            }`}
-          >
+      {/* Options / Answer field */}
+      {isSA ? (
+        <div className="space-y-2">
+          <p className="text-xs font-bold text-gray-500 flex items-center gap-1.5">
+            🤖 Short Answer — AI will check student responses against this answer
+          </p>
+          <div className="flex items-center gap-2 p-3 rounded-xl border-2 border-green-300 bg-green-50">
+            <span className="text-green-600 text-lg flex-shrink-0">✅</span>
             <input
-              type="radio"
-              name={`correct-${qi}`}
-              checked={q.correctAnswer === oi}
-              onChange={() => set('correctAnswer', oi)}
-              className="accent-green-600 flex-shrink-0"
+              value={typeof q.correctAnswer === 'string' ? q.correctAnswer : ''}
+              onChange={e => set('correctAnswer', e.target.value)}
+              placeholder="Type the correct answer (e.g. Photosynthesis)"
+              className="flex-1 bg-transparent border-none outline-none text-sm text-gray-800 font-semibold"
             />
-            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${
-              q.correctAnswer === oi ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600'
-            }`}>
-              {isTF ? (oi === 0 ? 'T' : 'F') : ['A', 'B', 'C', 'D'][oi]}
-            </span>
-            <input
-              value={opt}
-              onChange={e => setOpt(oi, e.target.value)}
-              placeholder={isTF ? (oi === 0 ? 'True' : 'False') : `Option ${['A', 'B', 'C', 'D'][oi]}`}
-              disabled={isTF}
-              className="flex-1 bg-transparent border-none outline-none text-sm text-gray-800 disabled:text-gray-500"
-            />
-            {q.correctAnswer === oi && (
-              <span className="text-green-500 text-xs font-black flex-shrink-0">✓ Correct</span>
-            )}
-          </label>
-        ))}
-      </div>
+          </div>
+          <p className="text-xs text-gray-400">
+            The AI will accept synonyms, minor spelling mistakes, and equivalent phrasings automatically.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-xs font-bold text-gray-500">Answer choices — click the radio to mark the correct one</p>
+          {q.options.map((opt, oi) => (
+            <label
+              key={oi}
+              className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-colors ${
+                q.correctAnswer === oi ? 'border-green-400 bg-green-50' : 'border-gray-100 hover:border-gray-200'
+              }`}
+            >
+              <input
+                type="radio"
+                name={`correct-${qi}`}
+                checked={q.correctAnswer === oi}
+                onChange={() => set('correctAnswer', oi)}
+                className="accent-green-600 flex-shrink-0"
+              />
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-black flex-shrink-0 ${
+                q.correctAnswer === oi ? 'bg-green-500 text-white' : 'bg-gray-100 text-gray-600'
+              }`}>
+                {isTF ? (oi === 0 ? 'T' : 'F') : ['A', 'B', 'C', 'D'][oi]}
+              </span>
+              <input
+                value={opt}
+                onChange={e => setOpt(oi, e.target.value)}
+                placeholder={isTF ? (oi === 0 ? 'True' : 'False') : `Option ${['A', 'B', 'C', 'D'][oi]}`}
+                disabled={isTF}
+                className="flex-1 bg-transparent border-none outline-none text-sm text-gray-800 disabled:text-gray-500"
+              />
+              {q.correctAnswer === oi && (
+                <span className="text-green-500 text-xs font-black flex-shrink-0">✓ Correct</span>
+              )}
+            </label>
+          ))}
+        </div>
+      )}
 
       {/* Explanation + meta row */}
       <div className="space-y-2">
