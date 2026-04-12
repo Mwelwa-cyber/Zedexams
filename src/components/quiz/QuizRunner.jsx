@@ -484,7 +484,7 @@ export default function QuizRunner() {
       }
     } catch (err) {
       console.error('AI check failed:', err)
-      alert('AI check failed. Check your Gemini API key or try again.')
+      alert(`AI check failed: ${err.message}\n\nMake sure VITE_OPENAI_API_KEY is set in your Netlify environment variables and the site has been redeployed.`)
     } finally {
       setAiChecking(c => ({ ...c, [qid]: false }))
     }

@@ -26,7 +26,7 @@ export async function checkAnswerWithAI({ question, correctAnswer, studentAnswer
   const apiKey = import.meta.env.VITE_OPENAI_API_KEY
 
   if (!apiKey) {
-    throw new Error('VITE_OPENAI_API_KEY is not set. Add it to your .env file.')
+    throw new Error('OpenAI API key is missing (VITE_OPENAI_API_KEY). Add it to Netlify environment variables and redeploy.')
   }
 
   if (!studentAnswer?.trim()) {
@@ -66,7 +66,14 @@ or
 
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err?.error?.message || `OpenAI API error ${res.status}`)
+    const msg = err?.error?.message || `OpenAI API error ${res.status}`
+    // Common errors:
+    // 401 = invalid API key
+    // 429 = rate limit or no credits
+    // 403 = key doesn't have access
+    if (res.status === 401) throw new Error('Invalid OpenAI API key (401). Check the key in Netlify env vars.')
+    if (res.status === 429) throw new Error('OpenAI rate limit or no credits (429). Add credits at platform.openai.com/billing.')
+    throw new Error(msg)
   }
 
   const data = await res.json()
