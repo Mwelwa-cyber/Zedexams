@@ -1,22 +1,65 @@
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // Past papers — any authenticated user can read
-    match /papers/{allPaths=**} {
-      allow read:  if request.auth != null;
-      allow write: if request.auth != null
-        && request.resource.size < 20 * 1024 * 1024   // 20 MB max
-        && (request.resource.contentType == 'application/pdf'
-            || request.resource.contentType.matches('image/.*'));
+    function isAuthed() {
+      return request.auth != null;
     }
-    // Quiz question images — authenticated users can read; only admins write
-    // (Storage can't query Firestore roles, so we enforce size + type here)
-    match /quiz-images/{allPaths=**} {
-      allow read:  if request.auth != null;
-      allow write: if request.auth != null
-        && request.resource.size < 5 * 1024 * 1024   // 5 MB max
+
+    function userDoc() {
+      return firestore.get(/databases/(default)/documents/users/$(request.auth.uid));
+    }
+
+    function isTeacherOrAdmin() {
+      return isAuthed()
+        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+        && (userDoc().data.role == 'teacher' || userDoc().data.role == 'admin');
+    }
+
+    function isAdmin() {
+      return isAuthed()
+        && firestore.exists(/databases/(default)/documents/users/$(request.auth.uid))
+        && userDoc().data.role == 'admin';
+    }
+
+    function ownsPath(ownerUid) {
+      return isAuthed() && request.auth.uid == ownerUid;
+    }
+
+    function validPaperUpload() {
+      return request.resource.size < 20 * 1024 * 1024
+        && request.resource.contentType == 'application/pdf';
+    }
+
+    function validQuizImageUpload() {
+      return request.resource.size < 5 * 1024 * 1024
         && request.resource.contentType.matches('image/(jpeg|png|webp)');
     }
+
+    // Past papers: learners can read, teachers/admins can only write under
+    // their own user folder. One-level legacy writes are admin-only.
+    match /papers/{ownerUid}/{fileName=**} {
+      allow read: if isAuthed();
+      allow create, update: if ownsPath(ownerUid)
+        && isTeacherOrAdmin()
+        && validPaperUpload();
+      allow delete: if ownsPath(ownerUid) && isTeacherOrAdmin();
+    }
+
+    match /papers/{fileName} {
+      allow read: if isAuthed();
+      allow create, update: if isAdmin() && validPaperUpload();
+      allow delete: if isAdmin();
+    }
+
+    // Quiz question images: teachers/admins can upload only to their own folder.
+    match /quiz-images/{ownerUid}/{fileName=**} {
+      allow read: if isAuthed();
+      allow create, update: if ownsPath(ownerUid)
+        && isTeacherOrAdmin()
+        && validQuizImageUpload();
+      allow delete: if ownsPath(ownerUid) && isTeacherOrAdmin();
+    }
+
     // Block all other paths
     match /{allPaths=**} {
       allow read, write: if false;

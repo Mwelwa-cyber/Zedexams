@@ -4,6 +4,33 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 
+function normalizeQuestionPayload(q, order) {
+  const type = q.type || 'mcq'
+  const isShortAnswer = type === 'short_answer'
+  const options = isShortAnswer
+    ? []
+    : Array.isArray(q.options)
+      ? q.options.map(opt => String(opt ?? '').trim())
+      : []
+
+  return {
+    text:          String(q.text ?? '').trim(),
+    options,
+    correctAnswer: isShortAnswer
+      ? String(q.correctAnswer ?? '').trim()
+      : Number.isInteger(q.correctAnswer)
+        ? q.correctAnswer
+        : Number(q.correctAnswer) || 0,
+    explanation:   String(q.explanation ?? '').trim(),
+    topic:         String(q.topic ?? '').trim(),
+    marks:         Number(q.marks) || 1,
+    type,
+    imageUrl:      q.imageUrl || null,
+    diagramText:   q.diagramText || null,
+    order,
+  }
+}
+
 export function useFirestore() {
 
   // ── Quizzes ──────────────────────────────────────────────────
@@ -67,7 +94,7 @@ export function useFirestore() {
     const batch = writeBatch(db)
     questions.forEach((q, idx) => {
       const ref = doc(collection(db, 'quizzes', quizId, 'questions'))
-      batch.set(ref, { ...q, order: idx + 1 })
+      batch.set(ref, normalizeQuestionPayload(q, idx + 1))
     })
     await batch.commit()
   }
@@ -385,18 +412,7 @@ export function useFirestore() {
       const chunk = questions.slice(i, i + chunkSize)
       const upsertBatch = writeBatch(db)
       chunk.forEach((q, offset) => {
-        const cleanQ = {
-          text:          q.text,
-          options:       q.options,
-          correctAnswer: q.correctAnswer,
-          explanation:   q.explanation  || '',
-          topic:         q.topic        || '',
-          marks:         q.marks        || 1,
-          type:          q.type         || 'mcq',
-          imageUrl:      q.imageUrl     || null,
-          diagramText:   q.diagramText  || null,
-          order:         i + offset + 1,
-        }
+        const cleanQ = normalizeQuestionPayload(q, i + offset + 1)
         if (q._id) {
           upsertBatch.update(doc(db, 'quizzes', quizId, 'questions', q._id), cleanQ)
         } else {

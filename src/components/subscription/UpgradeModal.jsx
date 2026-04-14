@@ -59,7 +59,9 @@ export default function UpgradeModal({ onClose }) {
                 )
               })}
             </div>
-            <div className="bg-gray-50 rounded-2xl p-3 mb-4 text-sm text-gray-500 text-center">Currently on <strong>Free plan</strong> — 5 quizzes/day</div>
+            <div className="bg-gray-50 rounded-2xl p-3 mb-4 text-sm text-gray-500 text-center">
+              Currently on <strong>Free plan</strong> — demo quizzes and 3 past papers
+            </div>
             <button onClick={() => sel && setStep('pay')} disabled={!sel}
               className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-40 text-white font-black text-base py-3.5 rounded-2xl">
               {sel ? `Continue → Pay K${plan.priceZMW}` : 'Select a Plan'}

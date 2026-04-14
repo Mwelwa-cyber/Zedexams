@@ -184,6 +184,7 @@ function QuestionCard({ q, qi, total, onChange, onRemove, onMove, onImageUpload,
                 onChange(qi, 'correctAnswer', '')
               } else if (q.options.length < 4) {
                 onChange(qi, 'options', ['', '', '', ''])
+                onChange(qi, 'correctAnswer', 0)
               }
             }}
             className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:border-green-500 focus:outline-none"
@@ -225,19 +226,19 @@ function QuestionCard({ q, qi, total, onChange, onRemove, onMove, onImageUpload,
       {isSA ? (
         <div className="space-y-2">
           <p className="text-xs font-bold text-gray-500 flex items-center gap-1.5">
-            🤖 Short Answer — AI will check student responses against this answer
+            🤖 Short Answer — expected answer recommended for accurate AI checking
           </p>
           <div className="flex items-center gap-2 p-3 rounded-xl border-2 border-green-300 bg-green-50">
             <span className="text-green-600 text-lg flex-shrink-0">✅</span>
             <input
               value={typeof q.correctAnswer === 'string' ? q.correctAnswer : ''}
               onChange={e => set('correctAnswer', e.target.value)}
-              placeholder="Type the correct answer (e.g. Photosynthesis)"
+              placeholder="Expected answer (recommended, e.g. Respiration)"
               className="flex-1 bg-transparent border-none outline-none text-sm text-gray-800 font-semibold"
             />
           </div>
           <p className="text-xs text-gray-400">
-            The AI will accept synonyms, minor spelling mistakes, and equivalent phrasings automatically.
+            If left blank, AI will judge from the question, subject, and grade.
           </p>
         </div>
       ) : (
@@ -423,8 +424,8 @@ export default function CreateQuiz() {
       await saveQuestions(quizId, questions.map(q => ({
         text:          q.text.trim(),
         imageUrl:      q.imageUrl || null,
-        options:       q.options,
-        correctAnswer: q.correctAnswer,
+        options:       q.type === 'short_answer' ? [] : q.options,
+        correctAnswer: q.type === 'short_answer' ? String(q.correctAnswer ?? '').trim() : q.correctAnswer,
         explanation:   q.explanation.trim(),
         topic:         q.topic.trim(),
         marks:         q.marks || 1,

@@ -395,6 +395,7 @@ export default function QuizRunner() {
   const [showSubmit, setShowSubmit]   = useState(false)
   const [submitting, setSubmitting]   = useState(false)
   const [showUpgrade, setShowUpgrade] = useState(false)
+  const [actionError, setActionError] = useState('')
   const [feedbackType, setFeedbackType] = useState(null) // 'correct' | 'wrong'
   const [pakoTip, setPakoTip]           = useState({ visible: false, text: '', isCorrect: null })
   // ── Short-answer / AI state ───────────────────────────────────────────────
@@ -463,12 +464,22 @@ export default function QuizRunner() {
     const curQ = questions.find(qq => qq.id === qid)
     const text = shortText[qid]?.trim()
     if (!text || !curQ) return
+    const questionText = [
+      String(curQ.text ?? '').trim(),
+      String(curQ.diagramText ?? '').trim(),
+    ].filter(Boolean).join('\n')
+    const expectedAnswer = String(curQ.correctAnswer ?? '').trim()
+    if (!questionText) {
+      setActionError('This question needs question text before AI can check it.')
+      return
+    }
 
     setAiChecking(c => ({ ...c, [qid]: true }))
+    setActionError('')
     try {
       const result = await checkAnswerWithAI({
-        question:      curQ.text,
-        correctAnswer: curQ.correctAnswer,
+        question:      questionText,
+        correctAnswer: expectedAnswer,
         studentAnswer: text,
         subject:       quiz?.subject ?? '',
         grade:         quiz?.grade   ?? '',
@@ -484,7 +495,7 @@ export default function QuizRunner() {
       }
     } catch (err) {
       console.error('AI check failed:', err)
-      alert(`AI check failed: ${err.message}\n\nMake sure VITE_OPENAI_API_KEY is set in your Netlify environment variables and the site has been redeployed.`)
+      setActionError(err?.message || 'AI marking is temporarily unavailable. Please try again.')
     } finally {
       setAiChecking(c => ({ ...c, [qid]: false }))
     }
@@ -517,7 +528,9 @@ export default function QuizRunner() {
       })
       navigate(`/results/${rid}`)
     } catch (e) {
-      console.error(e); setSubmitting(false); alert('Failed to save. Try again.')
+      console.error(e)
+      setSubmitting(false)
+      setActionError('Failed to save your results. Please check your connection and try again.')
     }
   }, [answers, questions, quiz, quizId, currentUser, mode, startTime, navigate, saveResult])
   submitRef.current = handleSubmit
@@ -582,6 +595,28 @@ export default function QuizRunner() {
 
   return (
     <div className="min-h-screen flex flex-col" style={pageStyle}>
+
+      {actionError && (
+        <div
+          role="alert"
+          className="fixed top-4 left-1/2 -translate-x-1/2 z-[60] w-[calc(100%-2rem)] max-w-md animate-slide-up"
+        >
+          <div
+            className="rounded-2xl px-4 py-3 shadow-xl flex items-start gap-3"
+            style={{ background: '#fff7ed', border: '2px solid #fdba74', color: '#9a3412' }}
+          >
+            <span className="text-lg leading-none mt-0.5">⚠️</span>
+            <p className="flex-1 text-sm font-bold leading-snug">{actionError}</p>
+            <button
+              onClick={() => setActionError('')}
+              className="text-orange-700/70 hover:text-orange-900 min-h-0 p-0 bg-transparent shadow-none text-lg leading-none"
+              aria-label="Dismiss message"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Correct/Wrong feedback overlay ────────────────────────────────── */}
       {feedbackType && (
@@ -781,6 +816,7 @@ export default function QuizRunner() {
                     value={typed}
                     onChange={e => {
                       setShortText(s => ({ ...s, [q.id]: e.target.value }))
+                      if (actionError) setActionError('')
                       // Reset result if they edit after checking
                       if (checked) {
                         setAiResults(r => { const n = { ...r }; delete n[q.id]; return n })
