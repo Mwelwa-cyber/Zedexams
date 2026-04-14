@@ -134,7 +134,7 @@ function RecentResultRow({ result }) {
   }
   return (
     <div className="flex items-center gap-3 py-3 border-b theme-border last:border-0">
-      <div className="w-10 h-10 bg-blue-50 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
+      <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
         📝
       </div>
       <div className="flex-1 min-w-0">
@@ -177,7 +177,7 @@ function MobileNav() {
             end={item.end}
             className={({ isActive }) =>
               `flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-colors ${
-                isActive ? 'text-blue-600' : 'text-gray-400 hover:text-blue-500'
+                isActive ? 'text-indigo-600' : 'text-gray-400 hover:text-indigo-500'
               }`
             }
           >
@@ -265,7 +265,7 @@ export default function GradeHub() {
             <div className="relative">
               <button
                 onClick={() => setMenuOpen(o => !o)}
-                className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center text-white font-black text-sm min-h-0 shadow-none hover:bg-blue-700"
+                className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white font-black text-sm min-h-0 shadow-none hover:bg-indigo-700"
               >
                 {(userProfile?.displayName?.[0] ?? '?').toUpperCase()}
               </button>
@@ -308,8 +308,8 @@ export default function GradeHub() {
         <section
           className={`relative overflow-hidden rounded-3xl ${
             dataSaver
-              ? 'bg-blue-700 p-5'
-              : 'bg-gradient-to-br from-blue-600 via-blue-700 to-blue-900 p-5 sm:p-6'
+              ? 'bg-indigo-700 p-5'
+              : 'bg-gradient-to-br from-indigo-700 via-indigo-600 to-violet-600 p-5 sm:p-6'
           }`}
         >
           {/* Floating star decorations */}
@@ -325,24 +325,24 @@ export default function GradeHub() {
           <div className="relative flex items-end justify-between gap-4">
             {/* Text content */}
             <div className="flex-1 min-w-0">
-              <p className="text-blue-200 text-sm font-bold mb-0.5">👋 Welcome back,</p>
+              <p className="text-indigo-200 text-sm font-bold mb-0.5">👋 Welcome back,</p>
               <h1 className="text-white text-2xl sm:text-3xl font-black leading-tight">{firstName}!</h1>
-              <p className="text-blue-100 text-sm mt-1 italic">"Practice smart." — Prof. Pako 🦉</p>
+              <p className="text-indigo-100 text-sm mt-1 italic">"Practice smart." — Prof. Pako 🦉</p>
 
               {/* Stats row */}
               <div className="flex items-center gap-4 mt-4 flex-wrap">
                 <div>
                   <p className="text-white font-black text-xl leading-none">{stats.quizzes}</p>
-                  <p className="text-blue-200 text-xs font-bold">Quizzes</p>
+                  <p className="text-indigo-200 text-xs font-bold">Quizzes</p>
                 </div>
-                <div className="w-px h-8 bg-blue-500" />
+                <div className="w-px h-8 bg-white/25" />
                 <div>
                   <p className="text-white font-black text-xl leading-none">{earnedBadges.length}</p>
-                  <p className="text-blue-200 text-xs font-bold">Badges</p>
+                  <p className="text-indigo-200 text-xs font-bold">Badges</p>
                 </div>
                 {stats.streak >= 2 && (
                   <>
-                    <div className="w-px h-8 bg-blue-500" />
+                    <div className="w-px h-8 bg-white/25" />
                     <StreakBadge streak={stats.streak} />
                   </>
                 )}
@@ -352,13 +352,13 @@ export default function GradeHub() {
               <div className="flex gap-2 mt-4 flex-wrap">
                 <Link
                   to="/quizzes"
-                  className="text-xs font-black bg-white text-blue-700 px-3 py-1.5 rounded-full hover:bg-blue-50 transition-colors"
+                  className="text-xs font-black bg-white text-indigo-700 px-3 py-1.5 rounded-full hover:bg-indigo-50 transition-colors"
                 >
                   ✏️ Start Quiz
                 </Link>
                 <Link
                   to="/my-results"
-                  className="text-xs font-black bg-blue-500/40 text-white px-3 py-1.5 rounded-full hover:bg-blue-500/60 transition-colors border border-blue-400/40"
+                  className="text-xs font-black bg-white/15 text-white px-3 py-1.5 rounded-full hover:bg-white/25 transition-colors border border-white/20"
                 >
                   📊 My Results
                 </Link>
@@ -381,7 +381,7 @@ export default function GradeHub() {
             {selectedGrade && (
               <button
                 onClick={() => setSelectedGrade(null)}
-                className="text-xs font-bold text-blue-600 hover:text-blue-700 min-h-0 bg-transparent shadow-none px-2 py-1"
+                className="text-xs font-bold text-indigo-600 hover:text-indigo-700 min-h-0 bg-transparent shadow-none px-2 py-1"
               >
                 ← All Grades
               </button>
@@ -439,7 +439,7 @@ export default function GradeHub() {
         <section>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-black theme-text">📊 Recent Activity</h2>
-            <Link to="/my-results" className="text-xs font-bold text-blue-600 hover:underline">
+            <Link to="/my-results" className="text-xs font-bold text-indigo-600 hover:underline">
               View all →
             </Link>
           </div>
@@ -465,7 +465,7 @@ export default function GradeHub() {
                 <p className="theme-text-muted text-xs mt-1">Take your first quiz to see results here.</p>
                 <Link
                   to="/quizzes"
-                  className="inline-block mt-3 bg-blue-600 text-white font-black text-xs px-4 py-2 rounded-xl hover:bg-blue-700"
+                  className="inline-block mt-3 bg-indigo-600 text-white font-black text-xs px-4 py-2 rounded-xl hover:bg-indigo-700"
                 >
                   Start a Quiz →
                 </Link>
@@ -480,7 +480,7 @@ export default function GradeHub() {
         <section>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-black theme-text">🏆 Your Badges</h2>
-            <Link to="/my-badges" className="text-xs font-bold text-blue-600 hover:underline">
+            <Link to="/my-badges" className="text-xs font-bold text-indigo-600 hover:underline">
               View all →
             </Link>
           </div>
