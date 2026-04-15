@@ -48,7 +48,7 @@ function Chip({ label, active, onClick, icon }) {
       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold transition-all min-h-0 whitespace-nowrap ${
         active
           ? 'bg-purple-600 text-white shadow-md shadow-purple-200'
-          : 'bg-white border border-gray-200 text-gray-600 hover:border-purple-300 hover:text-purple-700 hover:bg-purple-50'
+          : 'theme-card border theme-border theme-text-muted hover:theme-bg-subtle hover:theme-text'
       }`}>
       {icon && <span className="text-xs">{icon}</span>}
       {label}
@@ -59,18 +59,18 @@ function Chip({ label, active, onClick, icon }) {
 // ── Skeleton ───────────────────────────────────────────────────────────────
 function LessonSkeleton() {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 border-l-4 border-l-gray-200 p-4 animate-pulse">
+    <div className="theme-card rounded-2xl border theme-border border-l-4 border-l-gray-200 p-4 animate-pulse">
       <div className="flex items-start gap-4">
-        <div className="w-12 h-12 bg-gray-200 rounded-xl flex-shrink-0" />
+        <div className="w-12 h-12 theme-bg-subtle rounded-xl flex-shrink-0" />
         <div className="flex-1 space-y-2.5 pt-0.5">
-          <div className="h-4 bg-gray-200 rounded-lg w-3/4" />
-          <div className="h-3 bg-gray-200 rounded-lg w-2/5" />
+          <div className="h-4 theme-bg-subtle rounded-lg w-3/4" />
+          <div className="h-3 theme-bg-subtle rounded-lg w-2/5" />
           <div className="flex gap-2">
-            <div className="h-5 bg-gray-200 rounded-full w-24" />
-            <div className="h-5 bg-gray-200 rounded-full w-16" />
+            <div className="h-5 theme-bg-subtle rounded-full w-24" />
+            <div className="h-5 theme-bg-subtle rounded-full w-16" />
           </div>
         </div>
-        <div className="w-6 h-6 bg-gray-200 rounded-full flex-shrink-0 mt-1" />
+        <div className="w-6 h-6 theme-bg-subtle rounded-full flex-shrink-0 mt-1" />
       </div>
     </div>
   )
@@ -85,7 +85,7 @@ function LessonCard({ lesson }) {
 
   return (
     <Link to={`/lessons/${lesson.id}`}
-      className={`block bg-white rounded-2xl border border-gray-100 border-l-4 ${style.accent} shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group`}>
+      className={`block theme-card rounded-2xl border theme-border border-l-4 ${style.accent} theme-shadow hover:shadow-md hover:-translate-y-0.5 transition-all duration-200 group`}>
       <div className="p-4 flex items-start gap-4">
         {/* Subject icon */}
         <div className={`${style.icon} w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0 group-hover:scale-105 transition-transform`}>
@@ -94,11 +94,11 @@ function LessonCard({ lesson }) {
 
         {/* Content */}
         <div className="flex-1 min-w-0">
-          <h3 className="font-black text-gray-900 text-sm leading-snug group-hover:text-purple-700 transition-colors line-clamp-2">
+          <h3 className="font-black theme-text text-sm leading-snug group-hover:theme-accent-text transition-colors line-clamp-2">
             {lesson.title}
           </h3>
           {lesson.topic && (
-            <p className="text-gray-500 text-xs mt-0.5 truncate">{lesson.topic}</p>
+            <p className="theme-text-muted text-xs mt-0.5 truncate">{lesson.topic}</p>
           )}
           <div className="flex gap-1.5 mt-2 flex-wrap items-center">
             <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${style.badge}`}>{lesson.subject}</span>
@@ -107,16 +107,16 @@ function LessonCard({ lesson }) {
               Grade {lesson.grade}
             </span>
             {lesson.term && (
-              <span className="bg-gray-100 text-gray-500 text-xs font-bold px-2 py-0.5 rounded-full">Term {lesson.term}</span>
+              <span className="theme-bg-subtle theme-text-muted text-xs font-bold px-2 py-0.5 rounded-full">Term {lesson.term}</span>
             )}
-            <span className="text-gray-400 text-xs flex items-center gap-1">
+            <span className="theme-text-muted text-xs flex items-center gap-1">
               <span>⏱</span> {readMins} min read
             </span>
           </div>
         </div>
 
         {/* Arrow */}
-        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-gray-50 group-hover:bg-purple-100 flex items-center justify-center text-gray-400 group-hover:text-purple-600 group-hover:translate-x-0.5 transition-all">
+        <div className="flex-shrink-0 w-8 h-8 rounded-full theme-bg-subtle group-hover:theme-accent-bg flex items-center justify-center theme-text-muted group-hover:theme-accent-text group-hover:translate-x-0.5 transition-all">
           →
         </div>
       </div>
@@ -124,8 +124,8 @@ function LessonCard({ lesson }) {
       {/* Objectives preview */}
       {lesson.objectives?.length > 0 && (
         <div className={`mx-4 mb-4 ${style.obj} rounded-xl px-3 py-2`}>
-          <p className="text-xs font-black text-gray-500 mb-0.5">Learning objectives</p>
-          <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">
+          <p className="text-xs font-black theme-text-muted mb-0.5">Learning objectives</p>
+          <p className="text-xs theme-text-muted leading-relaxed line-clamp-2">
             {Array.isArray(lesson.objectives)
               ? lesson.objectives.slice(0, 2).join(' · ')
               : lesson.objectives}
@@ -166,7 +166,7 @@ export default function LessonsList() {
   const hasActiveFilter = gradeF || subjectF || termF || search
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen theme-bg">
       {/* ── Hero banner ────────────────────────────────────────────────────── */}
       <div className="bg-gradient-to-br from-purple-700 via-purple-600 to-fuchsia-600 px-4 pt-6 pb-8">
         <div className="max-w-2xl md:max-w-3xl mx-auto">
@@ -206,9 +206,9 @@ export default function LessonsList() {
 
       <div className="max-w-2xl md:max-w-3xl mx-auto px-4 -mt-3">
         {/* ── Filters ────────────────────────────────────────────────────────── */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-5 space-y-3">
+        <div className="theme-card rounded-2xl border theme-border theme-shadow p-4 mb-5 space-y-3">
           <div>
-            <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Grade</p>
+            <p className="text-xs font-black theme-text-muted uppercase tracking-wider mb-2">Grade</p>
             <div className="flex gap-2 flex-wrap">
               <Chip label="All" active={!gradeF} onClick={() => setGradeF('')} />
               {GRADES.map(g => (
@@ -218,7 +218,7 @@ export default function LessonsList() {
             </div>
           </div>
           <div>
-            <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Term</p>
+            <p className="text-xs font-black theme-text-muted uppercase tracking-wider mb-2">Term</p>
             <div className="flex gap-2 flex-wrap">
               <Chip label="All Terms" active={!termF} onClick={() => setTermF('')} />
               {TERMS.map(t => (
@@ -228,7 +228,7 @@ export default function LessonsList() {
             </div>
           </div>
           <div>
-            <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Subject</p>
+            <p className="text-xs font-black theme-text-muted uppercase tracking-wider mb-2">Subject</p>
             <SubjectScroller
               subjects={SUBJECTS}
               value={subjectF}
@@ -247,7 +247,7 @@ export default function LessonsList() {
 
         {/* Results count */}
         {!loading && filtered.length > 0 && (
-          <p className="text-xs text-gray-400 font-bold mb-3 px-1">
+          <p className="text-xs theme-text-muted font-bold mb-3 px-1">
             {filtered.length} lesson{filtered.length !== 1 ? 's' : ''} found
             {hasActiveFilter && ' (filtered)'}
           </p>
@@ -264,10 +264,10 @@ export default function LessonsList() {
               icon="📚"
             />
           ) : filtered.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-gray-100 py-14 text-center shadow-sm">
+            <div className="theme-card rounded-2xl border theme-border py-14 text-center theme-shadow">
               <div className="text-4xl mb-3">🔍</div>
-              <p className="font-black text-gray-700">No lessons match your filters</p>
-              <p className="text-gray-400 text-sm mt-1">Try adjusting grade, subject, or term</p>
+              <p className="font-black theme-text">No lessons match your filters</p>
+              <p className="theme-text-muted text-sm mt-1">Try adjusting grade, subject, or term</p>
               <button
                 onClick={() => { setSearch(''); setGradeF(''); setSubjectF(''); setTermF('') }}
                 className="mt-4 text-purple-600 font-black text-sm hover:underline min-h-0 bg-transparent shadow-none">

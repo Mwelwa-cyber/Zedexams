@@ -57,10 +57,10 @@ function GradeCard({ grade, meta, active, onClick, quizCount = 0 }) {
       <div className={`text-3xl sm:text-4xl font-black mb-1 ${active ? 'text-white' : meta.tailwind.text}`}>
         {grade}
       </div>
-      <div className={`text-xs font-black uppercase tracking-wide mb-0.5 ${active ? 'text-white/80' : 'text-gray-400'}`}>
+      <div className={`text-xs font-black uppercase tracking-wide mb-0.5 ${active ? 'text-white/80' : 'theme-text-muted'}`}>
         Grade
       </div>
-      <div className={`text-xs font-bold leading-snug ${active ? 'text-white/90' : 'text-gray-500'}`}>
+      <div className={`text-xs font-bold leading-snug ${active ? 'text-white/90' : 'theme-text-muted'}`}>
         {meta.tagline}
       </div>
 
@@ -134,7 +134,7 @@ function RecentResultRow({ result }) {
   }
   return (
     <div className="flex items-center gap-3 py-3 border-b theme-border last:border-0">
-      <div className="w-10 h-10 bg-indigo-50 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
+      <div className="w-10 h-10 theme-accent-bg rounded-xl flex items-center justify-center text-lg flex-shrink-0">
         📝
       </div>
       <div className="flex-1 min-w-0">
@@ -177,7 +177,7 @@ function MobileNav() {
             end={item.end}
             className={({ isActive }) =>
               `flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-colors ${
-                isActive ? 'text-indigo-600' : 'text-gray-400 hover:text-indigo-500'
+                isActive ? 'theme-accent-text' : 'theme-text-muted hover:theme-accent-text'
               }`
             }
           >
@@ -195,7 +195,7 @@ function MobileNav() {
 }
 
 function SkeletonCard() {
-  return <div className="bg-gray-100 rounded-2xl animate-pulse h-24" />
+  return <div className="theme-bg-subtle rounded-2xl animate-pulse h-24" />
 }
 
 // ── Main Component ─────────────────────────────────────────────────────────
@@ -251,7 +251,7 @@ export default function GradeHub() {
             <Link
               to="/my-badges"
               aria-label="View notifications and badges"
-              className="relative w-9 h-9 flex items-center justify-center text-gray-500 hover:text-gray-700 min-h-0 bg-transparent shadow-none rounded-lg hover:theme-bg-subtle"
+              className="relative w-9 h-9 flex items-center justify-center theme-text-muted hover:theme-text min-h-0 bg-transparent shadow-none rounded-lg hover:theme-bg-subtle"
             >
               🔔
               {earnedBadges.length > 0 && (
@@ -265,7 +265,7 @@ export default function GradeHub() {
             <div className="relative">
               <button
                 onClick={() => setMenuOpen(o => !o)}
-                className="w-8 h-8 bg-indigo-600 rounded-full flex items-center justify-center text-white font-black text-sm min-h-0 shadow-none hover:bg-indigo-700"
+                className="w-8 h-8 theme-accent-fill theme-on-accent rounded-full flex items-center justify-center font-black text-sm min-h-0 shadow-none hover:opacity-90"
               >
                 {(userProfile?.displayName?.[0] ?? '?').toUpperCase()}
               </button>
@@ -278,7 +278,7 @@ export default function GradeHub() {
                       accessBadge.color === 'green'  ? 'bg-green-100 text-green-700' :
                       accessBadge.color === 'blue'   ? 'bg-blue-100 text-blue-700' :
                       accessBadge.color === 'yellow' ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-gray-100 text-gray-600'
+                      'theme-bg-subtle theme-text-muted'
                     }`}>
                       {accessBadge.icon} {accessBadge.label}
                     </span>
@@ -316,9 +316,10 @@ export default function GradeHub() {
         <section
           className={`relative overflow-hidden rounded-3xl ${
             dataSaver
-              ? 'bg-indigo-700 p-5'
-              : 'bg-gradient-to-br from-indigo-700 via-indigo-600 to-violet-600 p-5 sm:p-6'
+              ? 'theme-accent-fill p-5'
+              : 'theme-hero p-5 sm:p-6'
           }`}
+          data-bg-gradient={!dataSaver ? 'true' : undefined}
         >
           {/* Floating star decorations */}
           {!dataSaver && (
@@ -333,20 +334,20 @@ export default function GradeHub() {
           <div className="relative flex items-end justify-between gap-4">
             {/* Text content */}
             <div className="flex-1 min-w-0">
-              <p className="text-indigo-200 text-sm font-bold mb-0.5">👋 Welcome back,</p>
+              <p className="theme-hero-muted text-sm font-bold mb-0.5">👋 Welcome back,</p>
               <h1 className="text-white text-2xl sm:text-3xl font-black leading-tight">{firstName}!</h1>
-              <p className="text-indigo-100 text-sm mt-1 italic">"Practice smart." — Prof. Pako 🦉</p>
+              <p className="theme-hero-muted text-sm mt-1 italic">"Practice smart." — Prof. Pako 🦉</p>
 
               {/* Stats row */}
               <div className="flex items-center gap-4 mt-4 flex-wrap">
                 <div>
                   <p className="text-white font-black text-xl leading-none">{stats.quizzes}</p>
-                  <p className="text-indigo-200 text-xs font-bold">Quizzes</p>
+                  <p className="theme-hero-muted text-xs font-bold">Quizzes</p>
                 </div>
                 <div className="w-px h-8 bg-white/25" />
                 <div>
                   <p className="text-white font-black text-xl leading-none">{earnedBadges.length}</p>
-                  <p className="text-indigo-200 text-xs font-bold">Badges</p>
+                  <p className="theme-hero-muted text-xs font-bold">Badges</p>
                 </div>
                 {stats.streak >= 2 && (
                   <>
@@ -360,7 +361,7 @@ export default function GradeHub() {
               <div className="flex gap-2 mt-4 flex-wrap">
                 <Link
                   to="/quizzes"
-                  className="text-xs font-black bg-white text-indigo-700 px-3 py-1.5 rounded-full hover:bg-indigo-50 transition-colors"
+                  className="text-xs font-black bg-white/95 theme-accent-text px-3 py-1.5 rounded-full hover:bg-white transition-colors"
                 >
                   ✏️ Start Quiz
                 </Link>
@@ -389,7 +390,7 @@ export default function GradeHub() {
             {selectedGrade && (
               <button
                 onClick={() => setSelectedGrade(null)}
-                className="text-xs font-bold text-indigo-600 hover:text-indigo-700 min-h-0 bg-transparent shadow-none px-2 py-1"
+                className="text-xs font-bold theme-accent-text hover:opacity-80 min-h-0 bg-transparent shadow-none px-2 py-1"
               >
                 ← All Grades
               </button>
@@ -447,7 +448,7 @@ export default function GradeHub() {
         <section>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-black theme-text">📊 Recent Activity</h2>
-            <Link to="/my-results" className="text-xs font-bold text-indigo-600 hover:underline">
+            <Link to="/my-results" className="text-xs font-bold theme-accent-text hover:underline">
               View all →
             </Link>
           </div>
@@ -457,12 +458,12 @@ export default function GradeHub() {
               <div className="py-4 space-y-3">
                 {Array.from({ length: 3 }).map((_, i) => (
                   <div key={i} className="flex gap-3 animate-pulse">
-                    <div className="w-10 h-10 bg-gray-200 rounded-xl flex-shrink-0" />
+                    <div className="w-10 h-10 theme-bg-subtle rounded-xl flex-shrink-0" />
                     <div className="flex-1 space-y-2 pt-1">
-                      <div className="h-3 bg-gray-200 rounded w-2/3" />
-                      <div className="h-2 bg-gray-200 rounded w-1/3" />
+                      <div className="h-3 theme-bg-subtle rounded w-2/3" />
+                      <div className="h-2 theme-bg-subtle rounded w-1/3" />
                     </div>
-                    <div className="w-12 h-8 bg-gray-200 rounded flex-shrink-0" />
+                    <div className="w-12 h-8 theme-bg-subtle rounded flex-shrink-0" />
                   </div>
                 ))}
               </div>
@@ -473,7 +474,7 @@ export default function GradeHub() {
                 <p className="theme-text-muted text-xs mt-1">Take your first quiz to see results here.</p>
                 <Link
                   to="/quizzes"
-                  className="inline-block mt-3 bg-indigo-600 text-white font-black text-xs px-4 py-2 rounded-xl hover:bg-indigo-700"
+                  className="inline-block mt-3 theme-accent-fill theme-on-accent font-black text-xs px-4 py-2 rounded-xl hover:opacity-90"
                 >
                   Start a Quiz →
                 </Link>
@@ -488,7 +489,7 @@ export default function GradeHub() {
         <section>
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-black theme-text">🏆 Your Badges</h2>
-            <Link to="/my-badges" className="text-xs font-bold text-indigo-600 hover:underline">
+            <Link to="/my-badges" className="text-xs font-bold theme-accent-text hover:underline">
               View all →
             </Link>
           </div>
@@ -521,7 +522,7 @@ export default function GradeHub() {
               {earnedBadges.length > 8 && (
                 <Link
                   to="/my-badges"
-                  className="flex-shrink-0 flex flex-col items-center justify-center gap-1 px-4 rounded-2xl bg-gray-50 border border-gray-200 text-gray-500 hover:bg-gray-100 transition-colors min-w-[64px]"
+                  className="flex-shrink-0 flex flex-col items-center justify-center gap-1 px-4 rounded-2xl theme-bg-subtle border theme-border theme-text-muted hover:theme-card-hover transition-colors min-w-[64px]"
                 >
                   <span className="text-xl">+{earnedBadges.length - 8}</span>
                   <span className="text-xs font-bold">More</span>

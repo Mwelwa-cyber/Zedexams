@@ -5,89 +5,99 @@
 /* ── Theme CSS custom properties ──────────────────────────── */
 /* Applied via body.theme-* classes set by ThemeContext        */
 
-:root, body.theme-light {
-  --bg:           #F1F5F9;
-  --bg-subtle:    #E2E8F0;
+:root, body.theme-sky {
+  --bg:           #F0F9FF;
+  --bg-subtle:    #E0F2FE;
   --card:         #FFFFFF;
-  --card-hover:   #F8FAFC;
-  --text:         #1E293B;
-  --text-muted:   #64748B;
-  --border:       #E2E8F0;
-  --accent:       #16A34A;
+  --card-hover:   #F8FCFF;
+  --text:         #0C1A2E;
+  --text-muted:   #4B6280;
+  --border:       #BAE6FD;
+  --accent:       #0EA5E9;
   --accent-text:  #FFFFFF;
-  --accent-bg:    #DCFCE7;
-  --accent-fg:    #15803D;
+  --accent-bg:    #E0F2FE;
+  --accent-fg:    #0284C7;
   --input-bg:     #FFFFFF;
-  --input-border: #E2E8F0;
-  --shadow:       rgba(0,0,0,0.06);
-}
-
-body.theme-warm {
-  --bg:           #FDF6EC;
-  --bg-subtle:    #FAE9D0;
-  --card:         #FFFBF4;
-  --card-hover:   #FEF3E2;
-  --text:         #2C1A0E;
-  --text-muted:   #8B6E52;
-  --border:       #F0D9BC;
-  --accent:       #D97706;
-  --accent-text:  #FFFFFF;
-  --accent-bg:    #FEF3C7;
-  --accent-fg:    #B45309;
-  --input-bg:     #FFFBF4;
-  --input-border: #F0D9BC;
-  --shadow:       rgba(180,83,9,0.08);
-}
-
-body.theme-sky {
-  --bg:           #EFF6FF;
-  --bg-subtle:    #DBEAFE;
-  --card:         #FFFFFF;
-  --card-hover:   #F0F9FF;
-  --text:         #0F2657;
-  --text-muted:   #3B6CB7;
-  --border:       #BFDBFE;
-  --accent:       #2563EB;
-  --accent-text:  #FFFFFF;
-  --accent-bg:    #DBEAFE;
-  --accent-fg:    #1D4ED8;
-  --input-bg:     #FFFFFF;
-  --input-border: #BFDBFE;
-  --shadow:       rgba(37,99,235,0.07);
+  --input-border: #BAE6FD;
+  --shadow:       rgba(14,165,233,0.08);
+  --hero-gradient: linear-gradient(135deg, #0369A1 0%, #1E40AF 100%);
+  --hero-muted:   #BAE6FD;
 }
 
 body.theme-lavender {
   --bg:           #F5F3FF;
   --bg-subtle:    #EDE9FE;
-  --card:         #FDFCFF;
-  --card-hover:   #F0EEFF;
-  --text:         #1E1045;
-  --text-muted:   #6D4CAD;
+  --card:         #FFFFFF;
+  --card-hover:   #FAF9FF;
+  --text:         #1E1B4B;
+  --text-muted:   #6B7280;
   --border:       #DDD6FE;
-  --accent:       #7C3AED;
+  --accent:       #8B5CF6;
   --accent-text:  #FFFFFF;
   --accent-bg:    #EDE9FE;
   --accent-fg:    #6D28D9;
-  --input-bg:     #FDFCFF;
+  --input-bg:     #FFFFFF;
   --input-border: #DDD6FE;
-  --shadow:       rgba(124,58,237,0.07);
+  --shadow:       rgba(139,92,246,0.08);
+  --hero-gradient: linear-gradient(135deg, #7C3AED 0%, #4C1D95 100%);
+  --hero-muted:   #DDD6FE;
 }
 
-body.theme-dark {
+body.theme-midnight {
   --bg:           #0F172A;
   --bg-subtle:    #1E293B;
   --card:         #1E293B;
-  --card-hover:   #263348;
+  --card-hover:   #263449;
   --text:         #F1F5F9;
   --text-muted:   #94A3B8;
   --border:       #334155;
-  --accent:       #22C55E;
+  --accent:       #38BDF8;
   --accent-text:  #0F172A;
-  --accent-bg:    #14532D;
-  --accent-fg:    #4ADE80;
+  --accent-bg:    rgba(56,189,248,0.12);
+  --accent-fg:    #7DD3FC;
   --input-bg:     #0F172A;
   --input-border: #334155;
-  --shadow:       rgba(0,0,0,0.3);
+  --shadow:       rgba(0,0,0,0.30);
+  --hero-gradient: linear-gradient(135deg, #020617 0%, #1E293B 100%);
+  --hero-muted:   #94A3B8;
+}
+
+body.theme-oatmeal {
+  --bg:           #FDF6EC;
+  --bg-subtle:    #FEF3C7;
+  --card:         #FFFDF7;
+  --card-hover:   #FFF7ED;
+  --text:         #1C1917;
+  --text-muted:   #78716C;
+  --border:       #E7D5C0;
+  --accent:       #D97706;
+  --accent-text:  #FFFFFF;
+  --accent-bg:    #FEF3C7;
+  --accent-fg:    #92400E;
+  --input-bg:     #FFFDF7;
+  --input-border: #E7D5C0;
+  --shadow:       rgba(217,119,6,0.08);
+  --hero-gradient: linear-gradient(135deg, #92400E 0%, #D97706 100%);
+  --hero-muted:   #FEF3C7;
+}
+
+body.theme-solar {
+  --bg:           #FFFBEB;
+  --bg-subtle:    #FEF3C7;
+  --card:         #FFFFFF;
+  --card-hover:   #FFFBEB;
+  --text:         #1C1917;
+  --text-muted:   #78716C;
+  --border:       #FDE68A;
+  --accent:       #F59E0B;
+  --accent-text:  #1C1917;
+  --accent-bg:    #FEF3C7;
+  --accent-fg:    #92400E;
+  --input-bg:     #FFFFFF;
+  --input-border: #FDE68A;
+  --shadow:       rgba(245,158,11,0.08);
+  --hero-gradient: linear-gradient(135deg, #D97706 0%, #F59E0B 100%);
+  --hero-muted:   #FEF3C7;
 }
 
 /* ── Theme utility classes ─────────────────────────────────── */
@@ -101,6 +111,10 @@ body.theme-dark {
   .theme-border       { border-color: var(--border); }
   .theme-accent-bg    { background-color: var(--accent-bg); }
   .theme-accent-text  { color: var(--accent-fg); }
+  .theme-accent-fill  { background-color: var(--accent); }
+  .theme-on-accent    { color: var(--accent-text); }
+  .theme-hero         { background: var(--hero-gradient); }
+  .theme-hero-muted   { color: var(--hero-muted); }
   .theme-input        { background-color: var(--input-bg); border-color: var(--input-border); color: var(--text); }
   .theme-shadow       { box-shadow: 0 1px 6px var(--shadow); }
   .theme-divider      { border-color: var(--border); }
@@ -174,11 +188,14 @@ body {
     color: var(--text-muted);
   }
   .filter-chip:hover {
-    border-color: #6366f1;
-    color: #6366f1;
+    border-color: var(--accent);
+    color: var(--accent-fg);
   }
   .filter-chip-active {
-    @apply bg-indigo-600 text-white border-indigo-600 shadow-sm;
+    @apply shadow-sm;
+    background-color: var(--accent);
+    border-color: var(--accent);
+    color: var(--accent-text);
   }
 }
 

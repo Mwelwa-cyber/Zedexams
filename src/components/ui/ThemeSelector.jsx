@@ -25,7 +25,7 @@ export default function ThemeSelector({ compact = false, onDark = false, quizSty
   const current = THEMES.find(t => t.id === theme) || THEMES[0]
 
   const triggerClass = quizStyle
-    ? 'bg-indigo-600 hover:bg-indigo-700 border-indigo-500 text-white shadow-md'
+    ? 'theme-accent-fill theme-on-accent border-transparent shadow-md hover:opacity-90'
     : onDark
     ? 'bg-white/20 hover:bg-white/30 border-white/30 text-white'
     : 'theme-bg-subtle hover:theme-card border theme-border theme-text'

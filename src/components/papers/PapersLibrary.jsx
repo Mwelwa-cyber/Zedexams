@@ -52,7 +52,7 @@ function Chip({ label, active, onClick, icon }) {
       className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold transition-all min-h-0 whitespace-nowrap ${
         active
           ? 'bg-amber-600 text-white shadow-md shadow-amber-200'
-          : 'bg-white border border-gray-200 text-gray-600 hover:border-amber-300 hover:text-amber-700 hover:bg-amber-50'
+          : 'theme-card border theme-border theme-text-muted hover:theme-bg-subtle hover:theme-text'
       }`}>
       {icon && <span className="text-xs">{icon}</span>}
       {label}
@@ -63,18 +63,18 @@ function Chip({ label, active, onClick, icon }) {
 // ── Skeleton ───────────────────────────────────────────────────────────────
 function PaperSkeleton() {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 border-l-4 border-l-gray-200 p-4 animate-pulse">
+    <div className="theme-card rounded-2xl border theme-border border-l-4 border-l-gray-200 p-4 animate-pulse">
       <div className="flex items-start gap-4">
-        <div className="w-12 h-14 bg-gray-200 rounded-xl flex-shrink-0" />
+        <div className="w-12 h-14 theme-bg-subtle rounded-xl flex-shrink-0" />
         <div className="flex-1 space-y-2.5 pt-0.5">
-          <div className="h-4 bg-gray-200 rounded-lg w-3/4" />
+          <div className="h-4 theme-bg-subtle rounded-lg w-3/4" />
           <div className="flex gap-2">
-            <div className="h-5 bg-gray-200 rounded-full w-24" />
-            <div className="h-5 bg-gray-200 rounded-full w-16" />
+            <div className="h-5 theme-bg-subtle rounded-full w-24" />
+            <div className="h-5 theme-bg-subtle rounded-full w-16" />
           </div>
-          <div className="h-3 bg-gray-200 rounded w-1/3" />
+          <div className="h-3 theme-bg-subtle rounded w-1/3" />
         </div>
-        <div className="w-24 h-10 bg-gray-200 rounded-xl flex-shrink-0" />
+        <div className="w-24 h-10 theme-bg-subtle rounded-xl flex-shrink-0" />
       </div>
     </div>
   )
@@ -89,7 +89,7 @@ function PaperCard({ paper, index, isPremium, paperLimit, onDownload, onUpgrade 
   const sizeMB = paper.fileSize ? (paper.fileSize / (1024 * 1024)).toFixed(1) : null
 
   return (
-    <div className={`bg-white rounded-2xl border border-gray-100 border-l-4 ${style.accent} shadow-sm transition-all duration-200 ${
+    <div className={`theme-card rounded-2xl border theme-border border-l-4 ${style.accent} theme-shadow transition-all duration-200 ${
       locked ? 'opacity-70' : 'hover:shadow-md hover:-translate-y-0.5'
     }`}>
       <div className="p-4 flex items-start gap-4">
@@ -106,7 +106,7 @@ function PaperCard({ paper, index, isPremium, paperLimit, onDownload, onUpgrade 
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <h3 className="font-black text-gray-900 text-sm leading-snug line-clamp-2">{paper.title}</h3>
+          <h3 className="font-black theme-text text-sm leading-snug line-clamp-2">{paper.title}</h3>
           <div className="flex gap-1.5 mt-2 flex-wrap items-center">
             <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${style.badge}`}>{paper.subject}</span>
             <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${gradeStyle.badge}`}>
@@ -114,20 +114,20 @@ function PaperCard({ paper, index, isPremium, paperLimit, onDownload, onUpgrade 
               Grade {paper.grade}
             </span>
             {paper.term && (
-              <span className="bg-gray-100 text-gray-500 text-xs font-bold px-2 py-0.5 rounded-full">Term {paper.term}</span>
+              <span className="theme-bg-subtle theme-text-muted text-xs font-bold px-2 py-0.5 rounded-full">Term {paper.term}</span>
             )}
             {paper.year && (
-              <span className="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full font-bold">{paper.year}</span>
+              <span className="theme-bg-subtle theme-text-muted text-xs px-2 py-0.5 rounded-full font-bold">{paper.year}</span>
             )}
           </div>
           <div className="flex items-center gap-3 mt-1.5">
             {paper.downloadCount > 0 && (
-              <span className="text-xs text-gray-400 flex items-center gap-1">
+              <span className="text-xs theme-text-muted flex items-center gap-1">
                 <span>⬇</span> {paper.downloadCount} download{paper.downloadCount !== 1 ? 's' : ''}
               </span>
             )}
             {sizeMB && (
-              <span className="text-xs text-gray-400">{sizeMB} MB</span>
+              <span className="text-xs theme-text-muted">{sizeMB} MB</span>
             )}
           </div>
         </div>
@@ -147,7 +147,7 @@ function PaperCard({ paper, index, isPremium, paperLimit, onDownload, onUpgrade 
               <span>Download</span>
             </button>
           ) : (
-            <span className="text-xs text-gray-400 font-bold px-3 py-2.5">Unavailable</span>
+            <span className="text-xs theme-text-muted font-bold px-3 py-2.5">Unavailable</span>
           )}
         </div>
       </div>
@@ -209,7 +209,7 @@ export default function PapersLibrary() {
   const hasActiveFilter = gradeF || subjectF || termF || yearF || search
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen theme-bg">
       {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
 
       {/* ── Hero banner ────────────────────────────────────────────────────── */}
@@ -267,9 +267,9 @@ export default function PapersLibrary() {
         )}
 
         {/* ── Filters ────────────────────────────────────────────────────────── */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 mb-5 space-y-3">
+        <div className="theme-card rounded-2xl border theme-border theme-shadow p-4 mb-5 space-y-3">
           <div>
-            <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Grade</p>
+            <p className="text-xs font-black theme-text-muted uppercase tracking-wider mb-2">Grade</p>
             <div className="flex gap-2 flex-wrap">
               <Chip label="All" active={!gradeF} onClick={() => setGradeF('')} />
               {GRADES.map(g => (
@@ -279,7 +279,7 @@ export default function PapersLibrary() {
             </div>
           </div>
           <div>
-            <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Term</p>
+            <p className="text-xs font-black theme-text-muted uppercase tracking-wider mb-2">Term</p>
             <div className="flex gap-2 flex-wrap">
               <Chip label="All Terms" active={!termF} onClick={() => setTermF('')} />
               {TERMS.map(t => (
@@ -289,7 +289,7 @@ export default function PapersLibrary() {
             </div>
           </div>
           <div>
-            <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Subject</p>
+            <p className="text-xs font-black theme-text-muted uppercase tracking-wider mb-2">Subject</p>
             <SubjectScroller
               subjects={SUBJECTS}
               value={subjectF}
@@ -298,7 +298,7 @@ export default function PapersLibrary() {
             />
           </div>
           <div>
-            <p className="text-xs font-black text-gray-400 uppercase tracking-wider mb-2">Year</p>
+            <p className="text-xs font-black theme-text-muted uppercase tracking-wider mb-2">Year</p>
             <div className="flex gap-2 flex-wrap">
               <Chip label="All Years" active={!yearF} onClick={() => setYearF('')} />
               {YEARS.map(y => (
@@ -318,7 +318,7 @@ export default function PapersLibrary() {
 
         {/* Results count */}
         {!loading && filtered.length > 0 && (
-          <p className="text-xs text-gray-400 font-bold mb-3 px-1">
+          <p className="text-xs theme-text-muted font-bold mb-3 px-1">
             {filtered.length} paper{filtered.length !== 1 ? 's' : ''} found
             {hasActiveFilter && ' (filtered)'}
           </p>
@@ -335,10 +335,10 @@ export default function PapersLibrary() {
               icon="📄"
             />
           ) : filtered.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-gray-100 py-14 text-center shadow-sm">
+            <div className="theme-card rounded-2xl border theme-border py-14 text-center theme-shadow">
               <div className="text-4xl mb-3">🔍</div>
-              <p className="font-black text-gray-700">No papers match your filters</p>
-              <p className="text-gray-400 text-sm mt-1">Try a different grade, term, subject, or year</p>
+              <p className="font-black theme-text">No papers match your filters</p>
+              <p className="theme-text-muted text-sm mt-1">Try a different grade, term, subject, or year</p>
               <button
                 onClick={() => { setSearch(''); setGradeF(''); setSubjectF(''); setTermF(''); setYearF('') }}
                 className="mt-4 text-amber-600 font-black text-sm hover:underline min-h-0 bg-transparent shadow-none">
