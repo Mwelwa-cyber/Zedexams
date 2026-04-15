@@ -398,7 +398,7 @@ async function extractPdf(file) {
 function metadataFromText(text, fileName) {
   const firstLines = splitLines(text).slice(0, 8)
   const title = firstLines.find(line => line.length > 6 && !QUESTION_RE.test(line) && !OPTION_RE.test(line)) || titleFromFileName(fileName)
-  const grade = text.match(/\bgrade\s*(4|5|6|7)\b/i)?.[1] || ''
+  const grade = text.match(/\bgrade\s*(4|5|6)\b/i)?.[1] || ''
   const subject = SUBJECTS.find(subject => new RegExp(`\\b${subject.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text)) || ''
   return {
     title: cleanText(title).slice(0, 90) || titleFromFileName(fileName),

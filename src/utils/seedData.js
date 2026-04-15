@@ -72,14 +72,14 @@ const grade6EnglishGrammarQs = [
   },
 ]
 
-// ── Grade 7 English 2023 — Paper 1 (60 questions) ─────────────────────────
-const grade7English2023 = {
-  title: 'Grade 7 English 2023 — Paper 1',
-  subject: 'English', grade: '7', term: '1', year: '2023',
+// ── Grade 6 English 2023 — Paper 1 (60 questions) ─────────────────────────
+const grade6English2023 = {
+  title: 'Grade 6 English 2023 — Paper 1',
+  subject: 'English', grade: '6', term: '1', year: '2023',
   type: 'quiz', duration: 60, totalMarks: 60, isPublished: true, questionCount: 60,
 }
 
-const grade7English2023Qs = [
+const grade6English2023Qs = [
   // ── Grammar (1–20) ───────────────────────────────────────────────────────
   { text: 'Zacchaeus climbed a tree to see Jesus ___ he was short.', options: ['and','because','but','yet'], correctAnswer: 1, topic: 'Grammar', marks: 1 },
   { text: 'The children are now old enough to look after ___.', options: ['himself','itself','ourselves','themselves'], correctAnswer: 3, topic: 'Grammar', marks: 1 },
@@ -170,7 +170,7 @@ const grade6ScienceQs = [
   { text: 'Study the following diagram. The process X is ...', options: ['cross pollination.','fertilisation.','germination.','self pollination.'], correctAnswer: 0, topic: 'Pollination', marks: 1, diagramText: '[Diagram: Two flowers are shown. A bee is flying from the flower on the left towards the flower on the right. The path of the bee between the two flowers is labeled X.]' },
   { text: 'The fish ban is practised in Zambia from 1st December to 31st March every year. This is done to ensure that fish is ...', options: ['given chance to breed.','protected from being eaten.','not sold on the market.','preferred to meat.'], correctAnswer: 0, topic: 'Environmental Conservation', marks: 1 },
   { text: 'Study the diagram of the flower below. Which of the parts numbered is female?', options: ['1','2','3','4'], correctAnswer: 1, topic: 'Parts of a Flower', marks: 1, diagramText: '[Diagram: A cross-section of a flower with four numbered parts. 1 points to the filament, 2 points to the style/pistil, 3 points to the anther, and 4 points to the petal.]' },
-  { text: 'Grade 7 learners recorded rainfall for four districts as shown below. Which district could have had its crops damaged due to floods?', options: ['Chinsali','Kitwe','Livingstone','Mwinilunga'], correctAnswer: 3, topic: 'Weather and Climate', marks: 1, diagramText: '[Diagram: A table showing District vs Rainfall (ml): Livingstone 20ml, Mwinilunga 56ml, Kitwe 41ml, Chinsali 29ml.]' },
+  { text: 'Grade 6 learners recorded rainfall for four districts as shown below. Which district could have had its crops damaged due to floods?', options: ['Chinsali','Kitwe','Livingstone','Mwinilunga'], correctAnswer: 3, topic: 'Weather and Climate', marks: 1, diagramText: '[Diagram: A table showing District vs Rainfall (ml): Livingstone 20ml, Mwinilunga 56ml, Kitwe 41ml, Chinsali 29ml.]' },
   { text: 'Syphilis and gonorrhea are all diseases which are transmitted through ...', options: ['eating together with an infected person.','unprotected sex with an infected person.','shaking hands with an infected person.','sleeping on the same bed with an infected person.'], correctAnswer: 1, topic: 'Sexually Transmitted Infections', marks: 1 },
   { text: 'Dissolved substances in the body are transported by the', options: ['blood.','heart.','intestines.','stomach.'], correctAnswer: 0, topic: 'Human Body', marks: 1 },
   { text: 'Which of the following is not an agent of pollination?', options: ['Fungus','Insect','Water','Wind'], correctAnswer: 0, topic: 'Pollination', marks: 1 },
@@ -241,18 +241,18 @@ export async function seedFirestore(db, uid) {
   })
   await batch3.commit()
 
-  // Quiz 4 — Grade 7 English 2023 Paper 1 (60 questions, split across 2 batches)
+  // Quiz 4 — Grade 6 English 2023 Paper 1 (60 questions, split across 2 batches)
   const q4Ref = doc(collection(db, 'quizzes'))
   const batch4a = writeBatch(db)
-  batch4a.set(q4Ref, { ...grade7English2023, createdBy: uid, createdAt: serverTimestamp() })
-  grade7English2023Qs.slice(0, 40).forEach((q, i) => {
+  batch4a.set(q4Ref, { ...grade6English2023, createdBy: uid, createdAt: serverTimestamp() })
+  grade6English2023Qs.slice(0, 40).forEach((q, i) => {
     const qRef = doc(collection(db, 'quizzes', q4Ref.id, 'questions'))
     batch4a.set(qRef, { ...q, order: i + 1 })
   })
   await batch4a.commit()
 
   const batch4b = writeBatch(db)
-  grade7English2023Qs.slice(40).forEach((q, i) => {
+  grade6English2023Qs.slice(40).forEach((q, i) => {
     const qRef = doc(collection(db, 'quizzes', q4Ref.id, 'questions'))
     batch4b.set(qRef, { ...q, order: i + 41 })
   })

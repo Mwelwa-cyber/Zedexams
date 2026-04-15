@@ -6,8 +6,16 @@ import { seedFirestore } from '../../utils/seedData'
 import { db, storage } from '../../firebase/config'
 import PaymentsPanel from '../admin/PaymentsPanel'
 
-const SUBJECTS = ['Mathematics', 'English', 'Science', 'Social Studies']
-const GRADES   = ['5', '6', '7']
+const SUBJECTS = [
+  'Mathematics',
+  'English',
+  'Integrated Science',
+  'Social Studies',
+  'Technology Studies',
+  'Home Economics',
+  'Expressive Arts',
+]
+const GRADES   = ['4', '5', '6']
 const TERMS    = ['1', '2', '3']
 const YEARS    = ['2024', '2023', '2022', '2021', '2020']
 
@@ -29,13 +37,13 @@ export default function AdminPanel() {
   const [toast, setToast]     = useState(null)
 
   // Quiz builder state
-  const [qf, setQf]           = useState({ title: '', subject: 'Mathematics', grade: '5', term: '1', year: '2024', type: 'quiz', duration: 30 })
+  const [qf, setQf]           = useState({ title: '', subject: 'Mathematics', grade: '4', term: '1', year: '2024', type: 'quiz', duration: 30 })
   const [questions, setQuestions] = useState([{ text: '', options: ['', '', '', ''], correctAnswer: 0, topic: '', marks: 1, type: 'mcq' }])
   const [saving, setSaving]   = useState(false)
 
   // Papers upload state
   const fileInputRef          = useRef(null)
-  const [pf, setPf]           = useState({ title: '', subject: 'Mathematics', grade: '5', term: '1', year: '2024' })
+  const [pf, setPf]           = useState({ title: '', subject: 'Mathematics', grade: '4', term: '1', year: '2024' })
   const [uploadFile, setUploadFile]     = useState(null)
   const [uploadProgress, setUploadProgress] = useState(0)
   const [uploading, setUploading]       = useState(false)
@@ -65,7 +73,7 @@ export default function AdminPanel() {
 
   async function handleSeed() {
     setSeeding(true)
-    try { await seedFirestore(db); show('✅ Sample data seeded!') } catch (e) { show('❌ ' + e.message) }
+    try { await seedFirestore(db, currentUser.uid); show('✅ Sample data seeded!') } catch (e) { show('❌ ' + e.message) }
     const q = await getAllQuizzes(); setQuizzes(q); setSeeding(false)
   }
 
@@ -93,7 +101,7 @@ export default function AdminPanel() {
         topic: q.topic, marks: q.marks || 1, type: q.type || 'mcq',
       })))
       show(publish ? '✅ Quiz published!' : '✅ Quiz saved as draft!')
-      setQf({ title: '', subject: 'Mathematics', grade: '5', term: '1', year: '2024', type: 'quiz', duration: 30 })
+      setQf({ title: '', subject: 'Mathematics', grade: '4', term: '1', year: '2024', type: 'quiz', duration: 30 })
       setQuestions([{ text: '', options: ['', '', '', ''], correctAnswer: 0, topic: '', marks: 1, type: 'mcq' }])
       const q = await getAllQuizzes(); setQuizzes(q)
     } catch (e) { show('❌ ' + e.message) }
@@ -149,7 +157,7 @@ export default function AdminPanel() {
         uploadedBy: currentUser.uid,
       })
       show('✅ Paper uploaded successfully!')
-      setPf({ title: '', subject: 'Mathematics', grade: '5', term: '1', year: '2024' })
+      setPf({ title: '', subject: 'Mathematics', grade: '4', term: '1', year: '2024' })
       setUploadFile(null)
       if (fileInputRef.current) fileInputRef.current.value = ''
       setUploadProgress(0)
@@ -223,7 +231,7 @@ export default function AdminPanel() {
           </div>
           <button onClick={handleSeed} disabled={seeding}
             className="w-full bg-yellow-400 hover:bg-yellow-500 text-gray-800 font-black py-3 rounded-2xl disabled:opacity-50 min-h-0">
-            {seeding ? '⏳ Seeding…' : '🌱 Seed Sample Data (2 quizzes)'}
+            {seeding ? '⏳ Seeding…' : '🌱 Seed Sample Data'}
           </button>
         </div>
       )}
@@ -377,7 +385,7 @@ export default function AdminPanel() {
 
             {/* Paper metadata */}
             <input value={pf.title} onChange={e => setPf(f => ({ ...f, title: e.target.value }))}
-              placeholder="Paper title (e.g. Grade 7 Mathematics 2023 Term 2)"
+              placeholder="Paper title (e.g. Grade 6 Mathematics 2023 Term 2)"
               className="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-base focus:border-green-500 focus:outline-none" />
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

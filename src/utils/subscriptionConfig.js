@@ -87,7 +87,7 @@ export const PAYMENT_DETAILS = {
   },
   contact: {
     whatsapp: '+260968310746',
-    email: 'admin@examprep.zm',
+    email: 'admin@zedexams.com',
   },
 }
 

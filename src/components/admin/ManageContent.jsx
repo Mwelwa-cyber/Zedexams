@@ -308,7 +308,7 @@ export default function ManageContent() {
         <select value={gradeF} onChange={e => setGradeF(e.target.value)}
           className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-green-500 focus:outline-none">
           <option value="">All Grades</option>
-          {['4','5','6','7'].map(g => <option key={g} value={g}>Grade {g}</option>)}
+          {['4','5','6'].map(g => <option key={g} value={g}>Grade {g}</option>)}
         </select>
         <select value={subjectF} onChange={e => setSubjectF(e.target.value)}
           className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-green-500 focus:outline-none">

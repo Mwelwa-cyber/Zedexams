@@ -3,8 +3,16 @@ import { useNavigate } from 'react-router-dom'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
 
-const SUBJECTS = ['Mathematics', 'English', 'Science', 'Social Studies']
-const GRADES   = ['5', '6', '7']
+const SUBJECTS = [
+  'Mathematics',
+  'English',
+  'Integrated Science',
+  'Social Studies',
+  'Technology Studies',
+  'Home Economics',
+  'Expressive Arts',
+]
+const GRADES   = ['4', '5', '6']
 const TERMS    = ['1', '2', '3']
 
 const FIELD = 'w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-base focus:border-green-500 focus:outline-none'
@@ -17,7 +25,7 @@ export default function CreateLesson() {
 
   const [form, setForm] = useState({
     title:   '',
-    grade:   '5',
+    grade:   '4',
     subject: 'Mathematics',
     topic:   '',
     term:    '1',
@@ -104,7 +112,7 @@ export default function CreateLesson() {
         <h2 className="font-black text-gray-700">Lesson Content</h2>
         <p className="text-xs text-gray-400">Write the full lesson text. Use blank lines to separate paragraphs.</p>
         <textarea value={form.content} onChange={e => set('content', e.target.value)}
-          placeholder="Write the lesson content here…&#10;&#10;You can use multiple paragraphs. Explain concepts clearly for Grade 5–7 learners."
+          placeholder="Write the lesson content here…&#10;&#10;You can use multiple paragraphs. Explain concepts clearly for Grade 4–6 learners."
           rows={12}
           className="w-full border-2 border-gray-200 rounded-xl px-3 py-3 text-base focus:border-green-500 focus:outline-none resize-y leading-relaxed" />
       </div>

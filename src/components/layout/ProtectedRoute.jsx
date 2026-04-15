@@ -10,7 +10,7 @@ export default function ProtectedRoute({ children, requiredRole }) {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="text-center animate-fade-in">
         <div className="text-6xl mb-4">📚</div>
-        <p className="text-green-600 font-bold text-xl">Loading ExamPrep…</p>
+        <p className="text-green-600 font-bold text-xl">Loading ZedExams…</p>
         <div className="mt-4 flex justify-center gap-1">
           {[0,150,300].map(d => (
             <div key={d} className="w-2.5 h-2.5 bg-green-500 rounded-full animate-bounce" style={{ animationDelay:`${d}ms` }} />

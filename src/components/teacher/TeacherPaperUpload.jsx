@@ -5,8 +5,16 @@ import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
 import { storage } from '../../firebase/config'
 
-const SUBJECTS = ['Mathematics', 'English', 'Science', 'Social Studies']
-const GRADES   = ['5', '6', '7']
+const SUBJECTS = [
+  'Mathematics',
+  'English',
+  'Integrated Science',
+  'Social Studies',
+  'Technology Studies',
+  'Home Economics',
+  'Expressive Arts',
+]
+const GRADES   = ['4', '5', '6']
 const TERMS    = ['1', '2', '3']
 const YEARS    = ['2024', '2023', '2022', '2021', '2020', '2019', '2018']
 
@@ -21,7 +29,7 @@ export default function TeacherPaperUpload() {
 
   const [form, setForm] = useState({
     title:   '',
-    grade:   '7',
+    grade:   '6',
     subject: 'Mathematics',
     term:    '1',
     year:    '2023',
@@ -116,7 +124,7 @@ export default function TeacherPaperUpload() {
         <h2 className="font-black text-gray-700">Paper Details</h2>
         <input
           value={form.title} onChange={e => set('title', e.target.value)}
-          placeholder="Paper title (e.g. Grade 7 Mathematics 2023 Paper 1)"
+          placeholder="Paper title (e.g. Grade 6 Mathematics 2023 Paper 1)"
           className={FIELD}
         />
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">

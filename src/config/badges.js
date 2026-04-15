@@ -265,7 +265,7 @@ export const BADGES = [
     name: 'First Steps',
     icon: '🌱',
     tier: 'bronze',
-    description: 'Completed your very first quiz on ExamPrep Zambia!',
+    description: 'Completed your very first quiz on ZedExams!',
     subject: 'any',
     topicHint: '',
     competency: 'Learning Journey',

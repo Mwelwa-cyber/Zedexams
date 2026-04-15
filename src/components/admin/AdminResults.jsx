@@ -1,7 +1,16 @@
 import { useState, useEffect } from 'react'
 import { useFirestore } from '../../hooks/useFirestore'
 
-const SUBJECTS = ['Mathematics', 'English', 'Science', 'Social Studies']
+const SUBJECTS = [
+  'Mathematics',
+  'English',
+  'Integrated Science',
+  'Social Studies',
+  'Technology Studies',
+  'Home Economics',
+  'Expressive Arts',
+]
+const GRADES = ['4', '5', '6']
 
 function pctColor(p) {
   if (p >= 70) return 'text-green-600'
@@ -96,7 +105,7 @@ export default function AdminResults() {
         <select value={gradeF} onChange={e => setGradeF(e.target.value)}
           className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-green-500 focus:outline-none">
           <option value="">All Grades</option>
-          {['5', '6', '7'].map(g => <option key={g} value={g}>Grade {g}</option>)}
+          {GRADES.map(g => <option key={g} value={g}>Grade {g}</option>)}
         </select>
         <select value={subjectF} onChange={e => setSubjectF(e.target.value)}
           className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-green-500 focus:outline-none">

@@ -124,7 +124,7 @@ export default function Register() {
         <div className="flex flex-col items-center mb-6">
           <Logo variant="full" size="lg" />
           <h1 className="text-lg font-black theme-text mt-3">Create Account</h1>
-          <p className="theme-text-muted text-sm mt-0.5">Join ExamPrep Zambia for free</p>
+          <p className="theme-text-muted text-sm mt-0.5">Join ZedExams for free</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">

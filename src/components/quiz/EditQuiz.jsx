@@ -16,7 +16,7 @@ const SUBJECTS = [
   'Mathematics', 'English', 'Integrated Science', 'Social Studies',
   'Technology Studies', 'Home Economics', 'Expressive Arts',
 ]
-const GRADES = ['4', '5', '6', '7']
+const GRADES = ['4', '5', '6']
 const TERMS  = ['1', '2', '3']
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 

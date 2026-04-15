@@ -107,7 +107,8 @@ export default function TeacherDashboard() {
         <h2 className="font-black text-gray-700 text-sm mb-3">Quick Actions</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <QuickAction to="/teacher/quizzes/new"   icon="✏️" label="Create Quiz"    sub="Build a new multiple-choice quiz" />
-          <QuickAction to="/teacher/quizzes/new"   icon="✦" label="AI Quiz Generator" sub="Draft questions with Zed" />
+          <QuickAction to="/teacher/quizzes/new?mode=import" icon="📄" label="Import Quiz" sub="Convert Word/PDF into editable questions" />
+          <QuickAction to="/teacher/quizzes/new?mode=ai" icon="✦" label="AI Quiz Generator" sub="Draft questions with Zed" />
           <QuickAction to="/teacher/lessons/new"   icon="📖" label="Create Lesson"  sub="Write lesson notes for learners" />
           <QuickAction to="/teacher/papers/upload" icon="📤" label="Upload Paper"   sub="Upload a past exam paper (PDF)" />
           <QuickAction to="/teacher/content"       icon="📁" label="My Content"     sub="View, edit, and submit for approval" />

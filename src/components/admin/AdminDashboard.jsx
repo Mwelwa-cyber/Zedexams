@@ -98,7 +98,7 @@ export default function AdminDashboard() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-black text-gray-800">📊 Dashboard</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Overview of your ExamPrep Zambia platform</p>
+        <p className="text-gray-500 text-sm mt-0.5">Overview of your ZedExams platform</p>
       </div>
 
       {/* Stats */}
@@ -114,10 +114,11 @@ export default function AdminDashboard() {
       {/* Quick Actions */}
       <div>
         <h2 className="font-black text-gray-700 text-sm mb-3">Quick Actions</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           <QuickAction to="/admin/lessons/new" icon="📖" label="Create Lesson" sub="Add a new lesson for learners" color="green" />
           <QuickAction to="/admin/quizzes/new" icon="✏️" label="Create Quiz"   sub="Build a new quiz or test"    color="blue"  />
-          <QuickAction to="/admin/quizzes/new" icon="✦" label="AI Quiz Generator" sub="Draft questions with Zed" color="blue" />
+          <QuickAction to="/admin/quizzes/new?mode=import" icon="📄" label="Import Quiz" sub="Convert Word/PDF into editable questions" color="green" />
+          <QuickAction to="/admin/quizzes/new?mode=ai" icon="✦" label="AI Quiz Generator" sub="Draft questions with Zed" color="blue" />
           <QuickAction to="/admin/content"     icon="📁" label="Manage Content" sub="Edit or delete existing content" color="orange" />
           <QuickAction to="/admin/teacher-applications" icon="🧑‍🏫" label="Review Teachers" sub="Approve verified teacher accounts" color="blue" />
         </div>
@@ -129,7 +130,7 @@ export default function AdminDashboard() {
           <div className="flex-1">
             <h2 className="font-black text-amber-800 text-sm">🌱 Seed Sample Data</h2>
             <p className="text-amber-700 text-xs mt-0.5">
-              Load Grade 5 Maths, Grade 6 English, and Grade 7 English 2023 quizzes into Firestore.
+              Load Grade 5 Mathematics, Grade 6 English, and Grade 6 Integrated Science sample quizzes into Firestore.
               Only run this once — it will create duplicate quizzes if run again.
             </p>
           </div>
