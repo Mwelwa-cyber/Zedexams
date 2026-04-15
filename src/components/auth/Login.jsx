@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { getRoleLandingPath } from '../../utils/navigation'
 import Logo from '../ui/Logo'
 
 const FRIENDLY = {
@@ -13,7 +14,7 @@ const FRIENDLY = {
 }
 
 export default function Login() {
-  const { login, resetPassword } = useAuth()
+  const { login, resetPassword, userProfile, fetchUserProfile } = useAuth()
   const navigate = useNavigate()
 
   const [email, setEmail]         = useState('')
@@ -34,8 +35,9 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
-      await login(email.trim(), password)
-      navigate('/dashboard')
+      const cred = await login(email.trim(), password)
+      const profile = userProfile ?? await fetchUserProfile(cred.user.uid)
+      navigate(getRoleLandingPath(profile, '/'), { replace: true })
     } catch (err) {
       setError(FRIENDLY[err.code] ?? 'Login failed. Please try again.')
     } finally { setLoading(false) }
@@ -111,18 +113,24 @@ export default function Login() {
             ) : (
               <form onSubmit={handleResetPassword} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-bold theme-text mb-1">Email Address</label>
+                  <label htmlFor="reset-email" className="block text-sm font-bold theme-text mb-1">Email Address</label>
                   <input
+                    id="reset-email"
+                    name="resetEmail"
                     type="email"
                     value={resetEmail}
                     onChange={e => setResetEmail(e.target.value)}
                     required
                     placeholder="your@email.com"
+                    autoComplete="email"
+                    inputMode="email"
+                    spellCheck={false}
+                    autoCapitalize="none"
                     className="w-full border-2 rounded-xl px-4 py-3 text-base focus:outline-none transition-colors theme-input focus:border-green-500"
                   />
                 </div>
                 {resetError && (
-                  <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                  <p aria-live="polite" className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl px-4 py-3">
                     {resetError}
                   </p>
                 )}
@@ -140,20 +148,26 @@ export default function Login() {
           /* ── Login Form ── */
           <form onSubmit={handleSubmit} className="space-y-4 animate-slide-up">
             <div>
-              <label className="block text-sm font-bold theme-text mb-1">Email</label>
+              <label htmlFor="login-email" className="block text-sm font-bold theme-text mb-1">Email</label>
               <input
+                id="login-email"
+                name="email"
                 type="email"
                 value={email}
                 onChange={e => setEmail(e.target.value)}
                 required
                 placeholder="your@email.com"
+                autoComplete="username"
+                inputMode="email"
+                spellCheck={false}
+                autoCapitalize="none"
                 className="w-full border-2 rounded-xl px-4 py-3 text-base focus:outline-none transition-colors theme-input focus:border-green-500"
               />
             </div>
 
             <div>
               <div className="flex items-center justify-between mb-1">
-                <label className="block text-sm font-bold theme-text">Password</label>
+                <label htmlFor="login-password" className="block text-sm font-bold theme-text">Password</label>
                 <button
                   type="button"
                   onClick={() => { setForgotMode(true); setResetEmail(email) }}
@@ -164,18 +178,20 @@ export default function Login() {
               </div>
               <div className="relative">
                 <input
+                  id="login-password"
+                  name="password"
                   type={showPw ? 'text' : 'password'}
                   value={password}
                   onChange={e => setPassword(e.target.value)}
                   required
                   placeholder="••••••••"
+                  autoComplete="current-password"
                   className="w-full border-2 rounded-xl px-4 py-3 pr-11 text-base focus:outline-none transition-colors theme-input focus:border-green-500"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPw(v => !v)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 theme-text-muted hover:theme-text transition-colors min-h-0 p-0 bg-transparent shadow-none"
-                  tabIndex={-1}
                   aria-label={showPw ? 'Hide password' : 'Show password'}
                 >
                   {showPw ? (
@@ -196,7 +212,7 @@ export default function Login() {
             </div>
 
             {error && (
-              <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+              <p aria-live="polite" className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl px-4 py-3">
                 {error}
               </p>
             )}

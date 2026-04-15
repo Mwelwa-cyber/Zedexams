@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import Navbar from './components/layout/Navbar'
+import { getRoleLandingPath } from './utils/navigation'
 
 const Login = lazy(() => import('./components/auth/Login'))
 const Register = lazy(() => import('./components/auth/Register'))
@@ -41,11 +42,15 @@ const TeacherPaperUpload = lazy(() => import('./components/teacher/TeacherPaperU
 const EditQuiz = lazy(() => import('./components/quiz/EditQuiz'))
 
 function RootRedirect() {
-  const { currentUser, isAdmin, isTeacher } = useAuth()
+  const { currentUser, userProfile, isAdmin, isTeacher } = useAuth()
   if (!currentUser) return <Navigate to="/login" replace />
-  if (isAdmin)   return <Navigate to="/admin"   replace />
-  if (isTeacher) return <Navigate to="/teacher" replace />
-  return <Navigate to="/dashboard" replace />
+  if (!userProfile) return <RouteFallback message="Loading your workspace…" />
+  return (
+    <Navigate
+      to={getRoleLandingPath({ role: userProfile.role, isAdmin, isTeacher })}
+      replace
+    />
+  )
 }
 
 function AdminRoute({ children }) {
@@ -64,12 +69,12 @@ function TeacherRoute({ children }) {
   )
 }
 
-function RouteFallback() {
+function RouteFallback({ message = 'Loading ZedExams…' }) {
   return (
     <div className="min-h-screen theme-bg flex items-center justify-center p-4">
       <div className="theme-card border theme-border rounded-2xl px-5 py-4 shadow-sm text-center">
         <div className="text-3xl mb-2 animate-bounce">📚</div>
-        <p className="theme-text font-black">Loading ZedExams...</p>
+        <p className="theme-text font-black">{message}</p>
       </div>
     </div>
   )

@@ -4,6 +4,7 @@ import { ref as storageRef, uploadBytes } from 'firebase/storage'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
 import { storage } from '../../firebase/config'
+import { getRoleLandingPath } from '../../utils/navigation'
 import Logo from '../ui/Logo'
 
 const FRIENDLY = {
@@ -99,9 +100,9 @@ export default function Register() {
           proofSize: proofFile.size,
         })
         setSuccess('Teacher application submitted. You can use learner features while an admin reviews it.')
-        setTimeout(() => navigate('/dashboard'), 1200)
+        setTimeout(() => navigate(getRoleLandingPath('learner'), { replace: true }), 1200)
       } else {
-        navigate('/')
+        navigate(getRoleLandingPath('learner'), { replace: true })
       }
     } catch (err) {
       const message = FRIENDLY[err.code] ?? err.message ?? 'Registration failed. Please try again.'
@@ -129,23 +130,24 @@ export default function Register() {
 
         <form onSubmit={handleSubmit} className="space-y-3">
           {[
-            { label: 'Full Name', field: 'displayName', type: 'text', placeholder: 'Your full name' },
-            { label: 'Email',     field: 'email',       type: 'email', placeholder: 'your@email.com' },
-            { label: 'Password',  field: 'password',    type: 'password', placeholder: 'Min 6 characters' },
-            { label: 'Confirm Password', field: 'confirm', type: 'password', placeholder: 'Repeat password' },
-            { label: 'School Name', field: 'school',    type: 'text', placeholder: 'e.g. Lusaka Academy' },
+            { label: 'Full Name', field: 'displayName', type: 'text', placeholder: 'Your full name', autoComplete: 'name' },
+            { label: 'Email', field: 'email', type: 'email', placeholder: 'your@email.com', autoComplete: 'email', inputMode: 'email', spellCheck: false, autoCapitalize: 'none' },
+            { label: 'Password', field: 'password', type: 'password', placeholder: 'Min 6 characters', autoComplete: 'new-password' },
+            { label: 'Confirm Password', field: 'confirm', type: 'password', placeholder: 'Repeat password', autoComplete: 'new-password' },
+            { label: 'School Name', field: 'school', type: 'text', placeholder: 'e.g. Lusaka Academy', autoComplete: 'organization' },
           ].map(f => (
             <div key={f.field}>
-              <label className="block text-xs font-bold theme-text mb-1">{f.label}</label>
-              <input type={f.type} value={form[f.field]} onChange={set(f.field)} required placeholder={f.placeholder}
+              <label htmlFor={f.field} className="block text-xs font-bold theme-text mb-1">{f.label}</label>
+              <input id={f.field} name={f.field} type={f.type} value={form[f.field]} onChange={set(f.field)} required placeholder={f.placeholder}
+                autoComplete={f.autoComplete} inputMode={f.inputMode} spellCheck={f.spellCheck} autoCapitalize={f.autoCapitalize}
                 className="w-full border-2 rounded-xl px-3 py-2.5 text-base focus:border-green-500 focus:outline-none transition-colors theme-input" />
             </div>
           ))}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-bold theme-text mb-1">I am a…</label>
-              <select value={form.role} onChange={set('role')}
+                <label htmlFor="role" className="block text-xs font-bold theme-text mb-1">I am a…</label>
+              <select id="role" name="role" value={form.role} onChange={set('role')}
                 className="w-full border-2 rounded-xl px-3 py-2.5 text-sm focus:border-green-500 focus:outline-none theme-input transition-colors">
                 <option value="learner">Learner</option>
                 <option value="teacher">Teacher</option>
@@ -153,8 +155,8 @@ export default function Register() {
             </div>
             {form.role === 'learner' && (
               <div>
-                <label className="block text-xs font-bold theme-text mb-1">Grade</label>
-                <select value={form.grade} onChange={set('grade')}
+                <label htmlFor="grade" className="block text-xs font-bold theme-text mb-1">Grade</label>
+                <select id="grade" name="grade" value={form.grade} onChange={set('grade')}
                   className="w-full border-2 rounded-xl px-3 py-2.5 text-sm focus:border-green-500 focus:outline-none theme-input transition-colors">
                   <option value="4">Grade 4</option>
                   <option value="5">Grade 5</option>
@@ -174,28 +176,30 @@ export default function Register() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-blue-900 mb-1">Phone Number</label>
-                <input type="tel" value={form.phone} onChange={set('phone')} required={form.role === 'teacher'} placeholder="e.g. 0968 123 456"
+                <label htmlFor="phone" className="block text-xs font-bold text-blue-900 mb-1">Phone Number</label>
+                <input id="phone" name="phone" type="tel" value={form.phone} onChange={set('phone')} required={form.role === 'teacher'} placeholder="e.g. 0968 123 456"
+                  autoComplete="tel" inputMode="tel"
                   className="w-full border-2 rounded-xl px-3 py-2.5 text-base focus:border-blue-500 focus:outline-none transition-colors theme-input" />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-blue-900 mb-1">NRC Number</label>
-                <input type="text" value={form.nrc} onChange={set('nrc')} required={form.role === 'teacher'} placeholder="e.g. 123456/78/9"
+                <label htmlFor="nrc" className="block text-xs font-bold text-blue-900 mb-1">NRC Number</label>
+                <input id="nrc" name="nrc" type="text" value={form.nrc} onChange={set('nrc')} required={form.role === 'teacher'} placeholder="e.g. 123456/78/9"
+                  autoComplete="off"
                   className="w-full border-2 rounded-xl px-3 py-2.5 text-base focus:border-blue-500 focus:outline-none transition-colors theme-input" />
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-blue-900 mb-1">Teaching Certificate or School Proof</label>
-                <input type="file" onChange={handleProofChange} required={form.role === 'teacher'} accept=".pdf,.jpg,.jpeg,.png,.webp,.docx"
+                <label htmlFor="proof-file" className="block text-xs font-bold text-blue-900 mb-1">Teaching Certificate or School Proof</label>
+                <input id="proof-file" name="proofFile" type="file" onChange={handleProofChange} required={form.role === 'teacher'} accept=".pdf,.jpg,.jpeg,.png,.webp,.docx"
                   className="w-full border-2 rounded-xl px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none transition-colors theme-input file:mr-3 file:rounded-lg file:border-0 file:bg-blue-100 file:px-3 file:py-1.5 file:text-xs file:font-black file:text-blue-700" />
                 <p className="text-xs text-blue-700 mt-1">PDF, image, or DOCX. Maximum 10MB.</p>
               </div>
             </div>
           )}
 
-          {error && <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</p>}
-          {success && <p className="text-green-700 text-sm bg-green-50 border border-green-200 rounded-xl px-3 py-2">{success}</p>}
+          {error && <p aria-live="polite" className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</p>}
+          {success && <p aria-live="polite" className="text-green-700 text-sm bg-green-50 border border-green-200 rounded-xl px-3 py-2">{success}</p>}
 
           <button type="submit" disabled={loading}
             className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-black text-base py-3.5 rounded-2xl shadow-md transition-colors">

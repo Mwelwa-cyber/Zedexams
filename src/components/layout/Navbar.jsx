@@ -2,22 +2,23 @@ import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSubscription } from '../../hooks/useSubscription'
+import { getRoleLandingPath } from '../../utils/navigation'
 import Logo from '../ui/Logo'
 import ThemeSelector from '../ui/ThemeSelector'
-
-const NAV_LINKS = [
-  { to: '/dashboard',  label: 'Home',        icon: '🏠' },
-  { to: '/lessons',    label: 'Lessons',     icon: '📚' },
-  { to: '/quizzes',    label: 'Quizzes',     icon: '✏️' },
-  { to: '/papers',     label: 'Past Papers', icon: '📄' },
-  { to: '/my-results', label: 'Results',     icon: '📊' },
-]
 
 export default function Navbar() {
   const { userProfile, logout, isAdmin, isTeacher } = useAuth()
   const { accessBadge } = useSubscription()
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
+  const homePath = getRoleLandingPath(userProfile)
+  const navLinks = [
+    { to: homePath, label: 'Home', icon: '🏠' },
+    { to: '/lessons', label: 'Lessons', icon: '📚' },
+    { to: '/quizzes', label: 'Quizzes', icon: '✏️' },
+    { to: '/papers', label: 'Past Papers', icon: '📄' },
+    { to: '/my-results', label: 'Results', icon: '📊' },
+  ]
 
   async function handleLogout() {
     await logout()
@@ -40,16 +41,16 @@ export default function Navbar() {
       <div className="max-w-5xl mx-auto px-4 h-20 flex items-center justify-between gap-4">
 
         {/* Logo */}
-        <Link to="/dashboard" className="flex items-center min-h-0 flex-shrink-0">
+        <Link to={homePath} className="flex items-center min-h-0 flex-shrink-0">
           <Logo variant="full" size="md" />
         </Link>
 
         {/* Desktop nav links */}
         <div className="hidden md:flex items-center gap-1 flex-1 justify-center">
-          {NAV_LINKS.map(l => (
+          {navLinks.map(l => (
             <NavLink key={l.to} to={l.to}
               className={({ isActive }) =>
-                `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${
+                `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${
                   isActive
                     ? 'bg-green-50 text-green-700'
                     : 'theme-text-muted hover:theme-bg-subtle hover:theme-text'
@@ -62,7 +63,7 @@ export default function Navbar() {
           {(isTeacher && !isAdmin) && (
             <NavLink to="/teacher"
               className={({ isActive }) =>
-                `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${
+                `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${
                   isActive ? 'bg-green-50 text-green-700' : 'theme-text-muted hover:theme-bg-subtle'
                 }`
               }>
@@ -72,7 +73,7 @@ export default function Navbar() {
           {isAdmin && (
             <NavLink to="/admin"
               className={({ isActive }) =>
-                `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${
+                `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${
                   isActive ? 'bg-green-50 text-green-700' : 'theme-text-muted hover:theme-bg-subtle'
                 }`
               }>
@@ -115,6 +116,7 @@ export default function Navbar() {
             {initials}
           </div>
           <button onClick={() => setOpen(o => !o)}
+            aria-label={open ? 'Close navigation menu' : 'Open navigation menu'}
             className="w-8 h-8 flex items-center justify-center theme-text-muted hover:theme-bg-subtle rounded-lg transition-colors min-h-0 bg-transparent shadow-none text-xl">
             {open ? '✕' : '☰'}
           </button>
@@ -144,10 +146,10 @@ export default function Navbar() {
 
             {/* Nav links */}
             <div className="space-y-0.5">
-              {NAV_LINKS.map(l => (
+              {navLinks.map(l => (
                 <NavLink key={l.to} to={l.to} onClick={() => setOpen(false)}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-colors ${
                       isActive ? 'bg-green-50 text-green-700' : 'theme-text hover:theme-bg-subtle'
                     }`
                   }>
@@ -158,7 +160,7 @@ export default function Navbar() {
               {(isTeacher && !isAdmin) && (
                 <NavLink to="/teacher" onClick={() => setOpen(false)}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-colors ${
                       isActive ? 'bg-green-50 text-green-700' : 'theme-text hover:theme-bg-subtle'
                     }`
                   }>
@@ -168,7 +170,7 @@ export default function Navbar() {
               {isAdmin && (
                 <NavLink to="/admin" onClick={() => setOpen(false)}
                   className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all ${
+                    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-colors ${
                       isActive ? 'bg-green-50 text-green-700' : 'theme-text hover:theme-bg-subtle'
                     }`
                   }>

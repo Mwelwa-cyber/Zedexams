@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useFirestore } from '../../hooks/useFirestore'
+import { useAuth } from '../../contexts/AuthContext'
+import { getRoleLandingPath } from '../../utils/navigation'
 import { explainQuizAnswer } from '../../utils/aiAssistant'
 
 function ScoreCircle({ percentage }) {
@@ -26,7 +28,9 @@ function ScoreCircle({ percentage }) {
 export default function QuizResults() {
   const { resultId } = useParams()
   const navigate = useNavigate()
+  const { userProfile } = useAuth()
   const { getResultById, getQuestions } = useFirestore()
+  const homePath = getRoleLandingPath(userProfile)
 
   const [result, setResult]     = useState(null)
   const [questions, setQuestions] = useState([])
@@ -56,7 +60,7 @@ export default function QuizResults() {
   if (!result) return (
     <div className="min-h-screen flex items-center justify-center p-4">
       <div className="text-center"><div className="text-5xl mb-3">😕</div><p className="text-red-600 font-bold">Result not found</p>
-        <button onClick={() => navigate('/dashboard')} className="mt-4 bg-green-600 text-white font-bold px-5 py-2 rounded-full">Dashboard</button></div>
+        <button onClick={() => navigate(homePath)} className="mt-4 bg-green-600 text-white font-bold px-5 py-2 rounded-full">Home</button></div>
     </div>
   )
 
@@ -191,7 +195,7 @@ export default function QuizResults() {
                         disabled={aiLoading[q.id]}
                         className="mt-3 inline-flex items-center gap-1.5 bg-sky-50 text-sky-700 border border-sky-100 font-black text-xs px-3 py-2 rounded-xl hover:bg-sky-100 disabled:opacity-60 min-h-0"
                       >
-                        ✦ {aiLoading[q.id] ? 'Explaining...' : 'Explain this answer'}
+                        ✦ {aiLoading[q.id] ? 'Explaining…' : 'Explain this answer'}
                       </button>
                       {aiExplanations[q.id] && (
                         <div className="mt-2 rounded-xl border border-sky-100 bg-sky-50 px-3 py-2 text-sm text-sky-900 leading-relaxed">

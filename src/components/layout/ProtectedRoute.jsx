@@ -1,5 +1,6 @@
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { getRoleLandingPath } from '../../utils/navigation'
 
 const ROLE_LEVEL = { admin: 3, teacher: 2, learner: 1, student: 1 }
 
@@ -31,7 +32,15 @@ export default function ProtectedRoute({ children, requiredRole }) {
   if (requiredRole && userProfile) {
     const userLevel     = ROLE_LEVEL[userProfile.role]   ?? 1
     const requiredLevel = ROLE_LEVEL[requiredRole]       ?? 1
-    if (userLevel < requiredLevel) return <Navigate to="/dashboard" replace state={{ accessDenied: true }} />
+    if (userLevel < requiredLevel) {
+      return (
+        <Navigate
+          to={getRoleLandingPath(userProfile)}
+          replace
+          state={{ accessDenied: true }}
+        />
+      )
+    }
   }
 
   return children

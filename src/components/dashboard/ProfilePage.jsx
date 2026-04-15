@@ -16,6 +16,7 @@ import { useAuth }             from '../../contexts/AuthContext'
 import { useFirestore }        from '../../hooks/useFirestore'
 import { useBadges }           from '../../hooks/useBadges'
 import { useSubscription }     from '../../hooks/useSubscription'
+import { getRoleLandingPath }  from '../../utils/navigation'
 import { daysUntilExpiry }     from '../../utils/subscriptionConfig'
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -40,10 +41,10 @@ function RoleChip({ role }) {
   )
 }
 
-function Field({ label, children }) {
+function Field({ label, htmlFor, children }) {
   return (
     <div>
-      <label className="block text-xs font-black theme-text-muted uppercase tracking-widest mb-1.5">
+      <label htmlFor={htmlFor} className="block text-xs font-black theme-text-muted uppercase tracking-widest mb-1.5">
         {label}
       </label>
       {children}
@@ -74,6 +75,12 @@ export default function ProfilePage() {
 
   const isLearner = userProfile?.role === 'learner'
   const daysLeft  = daysUntilExpiry(userProfile)
+  const homePath = getRoleLandingPath(userProfile)
+  const homeLabel = userProfile?.role === 'admin'
+    ? 'Back to Admin'
+    : userProfile?.role === 'teacher'
+      ? 'Back to Teacher'
+      : 'Back to Dashboard'
 
   // populate form from profile
   useEffect(() => {
@@ -122,13 +129,13 @@ export default function ProfilePage() {
       <div className="bg-gradient-to-br from-blue-600 to-blue-800 px-4 pt-8 pb-16">
         <div className="max-w-lg mx-auto">
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={() => navigate(homePath)}
             className="flex items-center gap-1.5 text-blue-200 text-sm font-bold mb-5 hover:text-white transition-colors min-h-0 p-0 bg-transparent shadow-none"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
             </svg>
-            Back to Dashboard
+            {homeLabel}
           </button>
 
           <div className="flex items-center gap-4">
@@ -195,7 +202,7 @@ export default function ProfilePage() {
           </div>
           {!isPremium && (
             <button
-              onClick={() => navigate('/dashboard')}
+              onClick={() => navigate(homePath)}
               className="flex-shrink-0 bg-green-600 hover:bg-green-700 text-white text-xs font-black px-3 py-1.5 rounded-xl transition-colors min-h-0 shadow-none"
             >
               Upgrade
@@ -208,29 +215,37 @@ export default function ProfilePage() {
           <h2 className="font-black theme-text text-base mb-4">Edit Profile</h2>
 
           <form onSubmit={handleSave} className="space-y-4">
-            <Field label="Full Name">
+            <Field label="Full Name" htmlFor="profile-display-name">
               <input
+                id="profile-display-name"
+                name="displayName"
                 type="text"
                 value={displayName}
                 onChange={e => setDisplayName(e.target.value)}
                 placeholder="Your full name"
+                autoComplete="name"
                 className="w-full border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-500 transition-colors theme-input"
               />
             </Field>
 
-            <Field label="School">
+            <Field label="School" htmlFor="profile-school">
               <input
+                id="profile-school"
+                name="school"
                 type="text"
                 value={school}
                 onChange={e => setSchool(e.target.value)}
                 placeholder="e.g. Lusaka Academy"
+                autoComplete="organization"
                 className="w-full border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-500 transition-colors theme-input"
               />
             </Field>
 
             {isLearner && (
-              <Field label="Grade">
+              <Field label="Grade" htmlFor="profile-grade">
                 <select
+                  id="profile-grade"
+                  name="grade"
                   value={grade}
                   onChange={e => setGrade(e.target.value)}
                   className="w-full border-2 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-green-500 transition-colors theme-input"
@@ -242,7 +257,7 @@ export default function ProfilePage() {
               </Field>
             )}
 
-            <Field label="Email">
+            <Field label="Email" htmlFor="profile-email">
               <div className="w-full border-2 rounded-xl px-4 py-3 text-sm theme-text-muted theme-bg-subtle border-transparent select-none">
                 {currentUser?.email}
               </div>

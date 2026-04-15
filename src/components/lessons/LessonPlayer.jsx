@@ -69,12 +69,13 @@ export default function LessonPlayer() {
 
   useEffect(() => {
     function handleKey(event) {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target?.tagName)) return
       if (event.key === 'ArrowRight') goNext()
       if (event.key === 'ArrowLeft') goPrevious()
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  })
+  }, [complete, index, slides.length])
 
   function goNext() {
     setShowAnswers(false)
