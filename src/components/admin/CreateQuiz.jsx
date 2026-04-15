@@ -40,8 +40,8 @@ const CREATION_MODES = [
   },
 ]
 
-const FIELD  = 'w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:border-green-500 focus:outline-none'
-const SELECT = 'border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:border-green-500 focus:outline-none'
+const FIELD  = 'w-full border-2 border-gray-200 rounded-xl bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-green-500 focus:outline-none'
+const SELECT = 'border-2 border-gray-200 rounded-xl bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-green-500 focus:outline-none'
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
@@ -238,7 +238,7 @@ function QuestionCard({ q, qi, total, onChange, onRemove, onMove, onImageUpload,
                 onChange(qi, 'correctAnswer', 0)
               }
             }}
-            className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:border-green-500 focus:outline-none"
+            className="rounded-lg border border-gray-200 bg-white px-2 py-1 text-xs text-gray-900 focus:border-green-500 focus:outline-none"
           >
             <option value="mcq">MCQ (4 options)</option>
             <option value="truefalse">True / False</option>
@@ -282,7 +282,7 @@ function QuestionCard({ q, qi, total, onChange, onRemove, onMove, onImageUpload,
         onChange={e => set('text', e.target.value)}
         placeholder={q.imageUrl ? 'Describe what is shown in the image above, or ask your question…' : 'Write your question here…'}
         rows={3}
-        className="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:border-green-500 focus:outline-none resize-none leading-relaxed"
+        className="w-full resize-none rounded-xl border-2 border-gray-200 bg-white px-3 py-2.5 text-sm leading-relaxed text-gray-900 placeholder-gray-400 focus:border-green-500 focus:outline-none"
       />
 
       {/* Options / Answer field */}
@@ -297,7 +297,7 @@ function QuestionCard({ q, qi, total, onChange, onRemove, onMove, onImageUpload,
               value={typeof q.correctAnswer === 'string' ? q.correctAnswer : ''}
               onChange={e => set('correctAnswer', e.target.value)}
               placeholder="Expected answer (recommended, e.g. Respiration)"
-              className="flex-1 bg-transparent border-none outline-none text-sm text-gray-800 font-semibold"
+              className="flex-1 border-none bg-transparent text-sm font-semibold text-gray-900 placeholder-gray-500 outline-none"
             />
           </div>
           <p className="text-xs text-gray-400">
@@ -331,7 +331,7 @@ function QuestionCard({ q, qi, total, onChange, onRemove, onMove, onImageUpload,
                 onChange={e => setOpt(oi, e.target.value)}
                 placeholder={isTF ? (oi === 0 ? 'True' : 'False') : `Option ${['A', 'B', 'C', 'D'][oi]}`}
                 disabled={isTF}
-                className="flex-1 bg-transparent border-none outline-none text-sm text-gray-800 disabled:text-gray-500"
+                className="flex-1 border-none bg-transparent text-sm text-gray-900 placeholder-gray-500 outline-none disabled:text-gray-700"
               />
               {q.correctAnswer === oi && (
                 <span className="text-green-500 text-xs font-black flex-shrink-0">✓ Correct</span>
@@ -348,7 +348,7 @@ function QuestionCard({ q, qi, total, onChange, onRemove, onMove, onImageUpload,
           onChange={e => set('diagramText', e.target.value)}
           placeholder="Diagram description (optional) — e.g. Imported image, page snapshot, or label instructions"
           rows={2}
-          className="w-full resize-none rounded-xl border border-gray-200 px-3 py-2 text-xs text-gray-600 outline-none focus:border-green-500"
+          className="w-full resize-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs text-gray-800 placeholder-gray-400 outline-none focus:border-green-500"
         />
         <input
           value={q.explanation}
@@ -361,14 +361,14 @@ function QuestionCard({ q, qi, total, onChange, onRemove, onMove, onImageUpload,
             value={q.topic}
             onChange={e => set('topic', e.target.value)}
             placeholder="Topic (e.g. Fractions)"
-            className="flex-1 border border-gray-200 rounded-lg px-2.5 py-2 text-xs focus:border-green-500 focus:outline-none"
+            className="flex-1 rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-xs text-gray-900 placeholder-gray-400 focus:border-green-500 focus:outline-none"
           />
           <div className="flex items-center gap-1.5 border border-gray-200 rounded-lg px-2.5 py-2">
             <span className="text-xs text-gray-500 font-bold">Marks:</span>
             <input
               type="number" min={1} max={10} value={q.marks}
               onChange={e => set('marks', +e.target.value)}
-              className="w-10 text-xs font-black text-center focus:outline-none bg-transparent"
+              className="w-10 bg-transparent text-center text-xs font-black text-gray-900 focus:outline-none"
             />
           </div>
         </div>
@@ -561,7 +561,10 @@ export default function CreateQuiz() {
       if (!form.title.trim()) {
         setF('title', `Grade ${form.grade} ${form.subject} — ${topic}`)
       }
-      show(`✦ Added ${nextQuestions.length} AI-generated question${nextQuestions.length !== 1 ? 's' : ''}. Review before saving.`)
+      const fastDraft = nextQuestions.some(q => q.generatedBy === 'fast_draft')
+      show(fastDraft
+        ? `⚡ Added ${nextQuestions.length} quick draft question${nextQuestions.length !== 1 ? 's' : ''}. Review before saving.`
+        : `✦ Added ${nextQuestions.length} AI-generated question${nextQuestions.length !== 1 ? 's' : ''}. Review before saving.`)
     } catch (error) {
       show('❌ ' + error.message, true)
     } finally {
@@ -885,7 +888,7 @@ export default function CreateQuiz() {
             value={aiForm.topic}
             onChange={e => setAi('topic', e.target.value)}
             placeholder="Topic, e.g. Fractions"
-            className="col-span-2 lg:col-span-1 border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:border-sky-500 focus:outline-none"
+            className="col-span-2 rounded-xl border-2 border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 focus:border-sky-500 focus:outline-none lg:col-span-1"
           />
           <input
             type="number"
@@ -893,7 +896,7 @@ export default function CreateQuiz() {
             max={10}
             value={aiForm.count}
             onChange={e => setAi('count', +e.target.value)}
-            className="border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:border-sky-500 focus:outline-none"
+            className="rounded-xl border-2 border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 focus:border-sky-500 focus:outline-none"
             aria-label="Number of questions"
           />
           <select value={aiForm.type} onChange={e => setAi('type', e.target.value)} className={SELECT}>

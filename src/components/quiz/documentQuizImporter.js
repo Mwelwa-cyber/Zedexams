@@ -40,12 +40,15 @@ const SUBJECTS = [
   'Expressive Arts',
 ]
 
-const QUESTION_RE = /^(?:q(?:uestion)?\s*)?(\d{1,3})[\).:\-]\s+(.+)$/i
-const OPTION_RE = /^(?:\(([A-D])\)|([A-D])\s*[\).:\-\]])\s+(.+)$/i
+const QUESTION_RE = /^(?:q(?:uestion)?\s*)?(\d{1,3})\s*[\).:\-]\s*(.+)$/i
+const QUESTION_NO_PUNCT_RE = /^(?:q(?:uestion)?\s*)?(\d{1,3})\s+(.+\?)$/i
+const OPTION_RE = /^(?:\(([A-D])\)|([A-D])\s*[\).:\-\]])\s*(.+)$/i
 const OPTION_LABEL_RE = /(^|\s)(?:\(([A-D])\)|([A-D])\s*[\).:\-\]])\s*/gi
 const ANSWER_RE = /^(?:answer|correct answer|ans|key)\s*[:\-]\s*(.+)$/i
 const EXPLANATION_RE = /^(?:explanation|reason|because)\s*[:\-]\s*(.+)$/i
 const IMAGE_HINT_RE = /\b(diagram|figure|picture|image|graph|chart|map|shown|label|observe|study the|look at)\b/i
+const ANSWER_KEY_HEADING_RE = /^(answers\b|answer\s+key|memorandum|marking scheme)\b/i
+const ANSWER_KEY_PAIR_RE = /(?:^|\s)(\d{1,3})\s*[\).:\-]?\s*(?:answer\s*)?([A-D]|true|false)\b/gi
 
 function makeImportId(prefix = 'import') {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
@@ -65,6 +68,17 @@ function splitLines(text) {
     .split(/\r?\n/)
     .map(line => cleanText(line))
     .filter(Boolean)
+}
+
+function questionMatch(line) {
+  const numbered = line.match(QUESTION_RE) || line.match(QUESTION_NO_PUNCT_RE)
+  if (!numbered) return null
+  const text = cleanText(numbered[2])
+  if (!text || ANSWER_KEY_HEADING_RE.test(text)) return null
+  return {
+    number: numbered[1],
+    text,
+  }
 }
 
 function extractOptionSegments(line) {
@@ -89,7 +103,7 @@ function extractOptionSegments(line) {
 
   const firstPrefix = cleanText(text.slice(0, matches[0].labelStart)).toLowerCase()
   const startsAsOptionLine = matches[0].labelStart <= 2 || /^(options?|choices?)[:\-]?$/.test(firstPrefix)
-  const hasQuestionThenInlineOptions = firstPrefix.includes('?') && matches.length >= 2
+  const hasQuestionThenInlineOptions = firstPrefix.length >= 8 && matches.length >= 2
   if (!startsAsOptionLine && !hasQuestionThenInlineOptions) return []
 
   return matches
@@ -397,7 +411,7 @@ async function extractPdf(file) {
 
 function metadataFromText(text, fileName) {
   const firstLines = splitLines(text).slice(0, 8)
-  const title = firstLines.find(line => line.length > 6 && !QUESTION_RE.test(line) && !OPTION_RE.test(line)) || titleFromFileName(fileName)
+  const title = firstLines.find(line => line.length > 6 && !questionMatch(line) && !OPTION_RE.test(line)) || titleFromFileName(fileName)
   const grade = text.match(/\bgrade\s*(4|5|6)\b/i)?.[1] || ''
   const subject = SUBJECTS.find(subject => new RegExp(`\\b${subject.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text)) || ''
   return {
@@ -406,6 +420,27 @@ function metadataFromText(text, fileName) {
     subject,
     topic: cleanText(title).slice(0, 80),
   }
+}
+
+function extractAnswerKey(blocks) {
+  const answers = new Map()
+  let inAnswerKey = false
+
+  blocks.forEach(block => {
+    splitLines(block.text).forEach(line => {
+      const startsAnswerKey = ANSWER_KEY_HEADING_RE.test(line)
+      if (startsAnswerKey) inAnswerKey = true
+      if (!inAnswerKey) return
+
+      ANSWER_KEY_PAIR_RE.lastIndex = 0
+      let match
+      while ((match = ANSWER_KEY_PAIR_RE.exec(line)) !== null) {
+        answers.set(match[1], match[2])
+      }
+    })
+  })
+
+  return answers
 }
 
 function parseAnswerIndex(rawAnswer, options) {
@@ -423,7 +458,7 @@ function parseAnswerIndex(rawAnswer, options) {
   return containedIndex >= 0 ? containedIndex : null
 }
 
-function questionFromCurrent(current) {
+function questionFromCurrent(current, answerKey = new Map()) {
   if (!current) return null
 
   const reviewNotes = [...current.reviewNotes]
@@ -436,7 +471,8 @@ function questionFromCurrent(current) {
   const isTrueFalse = options.length === 2 && lowerOptions.includes('true') && lowerOptions.includes('false')
 
   let type = 'short_answer'
-  let correctAnswer = cleanText(current.answerRaw)
+  const answerRaw = cleanText(current.answerRaw || (current.sourceNumber ? answerKey.get(String(current.sourceNumber)) : ''))
+  let correctAnswer = answerRaw
 
   if (imageHint || firstAsset) {
     type = 'diagram'
@@ -447,7 +483,7 @@ function questionFromCurrent(current) {
   }
 
   if (type === 'mcq' || type === 'truefalse') {
-    const index = parseAnswerIndex(current.answerRaw, options)
+    const index = parseAnswerIndex(answerRaw, options)
     correctAnswer = index ?? 0
     if (index === null) reviewNotes.push('Correct option was not clear.')
   } else if (!correctAnswer) {
@@ -484,6 +520,7 @@ function questionFromCurrent(current) {
     reviewNotes,
     importWarnings: reviewNotes,
     sourcePage: current.pageNumber || null,
+    sourceQuestionNumber: current.sourceNumber || null,
     imageUploading: false,
     imageUploadStep: '',
   }
@@ -491,11 +528,13 @@ function questionFromCurrent(current) {
 
 function parseQuestionsFromBlocks(blocks, warnings) {
   const questions = []
+  const answerKey = extractAnswerKey(blocks)
   let current = null
   let pendingAssets = []
+  let inAnswerKey = false
 
-  function startQuestion(text, block) {
-    const finalized = questionFromCurrent(current)
+  function startQuestion(text, block, sourceNumber = null) {
+    const finalized = questionFromCurrent(current, answerKey)
     if (finalized) questions.push(finalized)
     const inline = splitInlineOptionsFromQuestion(text)
     current = {
@@ -509,6 +548,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
       pageNumber: block.pageNumber || null,
       diagramText: '',
       tableFlattened: block.source === 'docx-table',
+      sourceNumber,
     }
     inline.options.forEach(option => {
       current.options[option.index] = option.text
@@ -527,14 +567,23 @@ function parseQuestionsFromBlocks(blocks, warnings) {
 
     lines.forEach((line, lineIndex) => {
       const lineAssets = lineIndex === 0 ? (block.assets || []) : []
-      const questionMatch = line.match(QUESTION_RE)
+      if (ANSWER_KEY_HEADING_RE.test(line)) {
+        inAnswerKey = true
+        return
+      }
+      if (inAnswerKey) {
+        ANSWER_KEY_PAIR_RE.lastIndex = 0
+        if (ANSWER_KEY_PAIR_RE.test(line) || /^[\d\sA-D).:\-]+$/i.test(line)) return
+      }
+
+      const detectedQuestion = questionMatch(line)
       const answerMatch = line.match(ANSWER_RE)
       const explanationMatch = line.match(EXPLANATION_RE)
       const optionSegments = extractOptionSegments(line)
       const imageOnlyHint = IMAGE_HINT_RE.test(line)
 
-      if (questionMatch) {
-        startQuestion(questionMatch[2], { ...block, assets: lineAssets })
+      if (detectedQuestion) {
+        startQuestion(detectedQuestion.text, { ...block, assets: lineAssets }, detectedQuestion.number)
         return
       }
 
@@ -582,7 +631,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
     })
   })
 
-  const finalized = questionFromCurrent(current)
+  const finalized = questionFromCurrent(current, answerKey)
   if (finalized) questions.push(finalized)
 
   if (!questions.length) {
