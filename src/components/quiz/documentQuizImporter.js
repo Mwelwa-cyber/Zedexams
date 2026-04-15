@@ -49,6 +49,7 @@ const EXPLANATION_RE = /^(?:explanation|reason|because)\s*[:\-]\s*(.+)$/i
 const IMAGE_HINT_RE = /\b(diagram|figure|picture|image|graph|chart|map|shown|label|observe|study the|look at)\b/i
 const ANSWER_KEY_HEADING_RE = /^(answers\b|answer\s+key|memorandum|marking scheme)\b/i
 const ANSWER_KEY_PAIR_RE = /(?:^|\s)(\d{1,3})\s*[\).:\-]?\s*(?:answer\s*)?([A-D]|true|false)\b/gi
+const SECTION_HEADING_RE = /^(?:spelling bee\b|elimination round\b|category\b|words\b|easy round\b|average level\b|round\s+\d+\b|tie[-\s]?breakers?\b|extra words?\b|oral recitation\b)/i
 
 function makeImportId(prefix = 'import') {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
@@ -68,6 +69,13 @@ function splitLines(text) {
     .split(/\r?\n/)
     .map(line => cleanText(line))
     .filter(Boolean)
+}
+
+function isSectionHeading(text) {
+  const line = cleanText(text)
+  if (!line) return false
+  if (SECTION_HEADING_RE.test(line)) return true
+  return /^[A-Z0-9\s():'".,&/-]{8,}$/.test(line) && !questionMatch(line)
 }
 
 function questionMatch(line) {
@@ -225,12 +233,44 @@ function makeImageAsset(bytesOrBlob, sourcePath, contentType, warnings) {
 
 function paragraphText(paragraph) {
   const pieces = []
-  descendantsByLocalName(paragraph, 't').forEach(node => {
-    if (node.textContent) pieces.push(node.textContent)
-  })
-  descendantsByLocalName(paragraph, 'tab').forEach(() => pieces.push(' '))
-  descendantsByLocalName(paragraph, 'br').forEach(() => pieces.push('\n'))
-  return cleanText(pieces.join(' '))
+  ;(function walk(node) {
+    Array.from(node?.childNodes || []).forEach(child => {
+      if (child.nodeType !== 1) return
+      if (child.localName === 't') {
+        if (child.textContent) pieces.push(child.textContent)
+        return
+      }
+      if (child.localName === 'tab') {
+        pieces.push(' ')
+        return
+      }
+      if (child.localName === 'br' || child.localName === 'cr') {
+        pieces.push('\n')
+        return
+      }
+      walk(child)
+    })
+  })(paragraph)
+  return cleanText(pieces.join(''))
+}
+
+function paragraphHasNumbering(paragraph) {
+  return descendantsByLocalName(paragraph, 'numPr').length > 0
+}
+
+function isLikelyDocxQuestionHeading(text, block) {
+  if (!block?.numberedList) return false
+
+  const line = cleanText(text)
+  if (!line || isSectionHeading(line)) return false
+  if (questionMatch(line)) return false
+  if (ANSWER_RE.test(line) || EXPLANATION_RE.test(line)) return false
+  if (/^(?:meaning|example|definition|sentence|clue|hint)\s*:/i.test(line)) return false
+  if (!/[a-z]/i.test(line) || line.length > 120) return false
+
+  const words = line.split(/\s+/)
+  return /\b(noun|verb|adjective|adverb|pronoun|conjunction|preposition|interjection)\b/i.test(line)
+    || words.length <= 6
 }
 
 function paragraphImages(paragraph, relationships, zipEntries, warnings) {
@@ -276,7 +316,14 @@ async function extractDocx(file) {
       const assets = paragraphImages(child, relationships, zipEntries, warnings)
       imageAssets.push(...assets)
       const text = paragraphText(child)
-      if (text || assets.length) blocks.push({ text, assets, source: 'docx' })
+      if (text || assets.length) {
+        blocks.push({
+          text,
+          assets,
+          source: 'docx',
+          numberedList: paragraphHasNumbering(child),
+        })
+      }
       return
     }
 
@@ -533,9 +580,14 @@ function parseQuestionsFromBlocks(blocks, warnings) {
   let pendingAssets = []
   let inAnswerKey = false
 
-  function startQuestion(text, block, sourceNumber = null) {
+  function finalizeCurrent() {
     const finalized = questionFromCurrent(current, answerKey)
     if (finalized) questions.push(finalized)
+    current = null
+  }
+
+  function startQuestion(text, block, sourceNumber = null) {
+    finalizeCurrent()
     const inline = splitInlineOptionsFromQuestion(text)
     current = {
       textParts: [inline.text],
@@ -582,8 +634,20 @@ function parseQuestionsFromBlocks(blocks, warnings) {
       const optionSegments = extractOptionSegments(line)
       const imageOnlyHint = IMAGE_HINT_RE.test(line)
 
+      if (isSectionHeading(line)) {
+        if (lineAssets.length) pendingAssets.push(...lineAssets)
+        finalizeCurrent()
+        return
+      }
+
       if (detectedQuestion) {
         startQuestion(detectedQuestion.text, { ...block, assets: lineAssets }, detectedQuestion.number)
+        return
+      }
+
+      if (isLikelyDocxQuestionHeading(line, block)) {
+        startQuestion(line, { ...block, assets: lineAssets })
+        current.reviewNotes.push('Word list numbering was inferred for this question. Review wording before publishing.')
         return
       }
 
@@ -631,8 +695,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
     })
   })
 
-  const finalized = questionFromCurrent(current, answerKey)
-  if (finalized) questions.push(finalized)
+  finalizeCurrent()
 
   if (!questions.length) {
     const fallbackText = cleanText(blocks.map(block => block.text).join('\n')).slice(0, 1200)
