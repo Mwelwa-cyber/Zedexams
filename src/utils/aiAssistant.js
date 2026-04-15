@@ -21,7 +21,7 @@ function messageFromError(error) {
   return error?.message || 'Zed is unavailable right now. Please try again.'
 }
 
-export async function sendAIChat({ message, context }) {
+export async function sendAIChat({ message, context, history = [] }) {
   try {
     const token = await auth.currentUser?.getIdToken()
     if (!token) throw new Error('Please sign in before using Zed.')
@@ -32,7 +32,7 @@ export async function sendAIChat({ message, context }) {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ message, context }),
+      body: JSON.stringify({ message, context, history }),
     })
     const data = await response.json().catch(() => ({}))
     if (!response.ok) {
@@ -42,7 +42,7 @@ export async function sendAIChat({ message, context }) {
   } catch (error) {
     if (import.meta.env.DEV && !error?.message?.includes('sign in')) {
       try {
-        const response = await aiChatCallable({ message, context })
+        const response = await aiChatCallable({ message, context, history })
         return String(response.data?.reply || '').trim()
       } catch (fallbackError) {
         throw new Error(messageFromError(fallbackError))

@@ -7,6 +7,8 @@ const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 const LIMITS = {
   message: 1600,
   context: 900,
+  historyItems: 6,
+  historyMessage: 600,
   question: 1200,
   answer: 700,
   subject: 80,
@@ -28,6 +30,7 @@ function cleanContext(context = {}) {
   const allowed = [
     "area",
     "path",
+    "pageTitle",
     "subject",
     "grade",
     "topic",
@@ -35,10 +38,16 @@ function cleanContext(context = {}) {
     "quizTitle",
     "paperTitle",
     "role",
+    "selectedText",
   ];
+  const lengths = {
+    selectedText: 500,
+    pageTitle: 160,
+    path: 160,
+  };
   const cleaned = {};
   allowed.forEach((key) => {
-    const value = cleanString(context[key], 120);
+    const value = cleanString(context[key], lengths[key] || 120);
     if (value) cleaned[key] = value;
   });
   return cleaned;
@@ -62,6 +71,20 @@ async function getUserRole(uid) {
 
 function isStaffRole(role) {
   return role === "teacher" || role === "admin";
+}
+
+function cleanChatHistory(history = []) {
+  if (!Array.isArray(history)) return [];
+  return history.slice(-LIMITS.historyItems).map((item) => {
+    const role = item?.role === "assistant" || item?.from === "assistant"
+      ? "assistant"
+      : "user";
+    const content = cleanString(
+      item?.content || item?.text || "",
+      LIMITS.historyMessage,
+    );
+    return content ? {role, content} : null;
+  }).filter(Boolean);
 }
 
 async function assertDailyLimit(uid, role, action) {
@@ -166,16 +189,22 @@ function educationSystemPrompt(role, context = {}) {
     "When explaining a topic, use this structure when it fits: Definition,",
     "Brief explanation, Example. When solving a question, use numbered",
     "steps. When generating quizzes, include clear wording, answer choices,",
-    "and correct answers. Do not invent facts; say when you are unsure.",
+    "and correct answers.",
+    "Use the page context, selected text, and recent chat history when they",
+    "help. If the learner says 'this question' but no question text is",
+    "available, ask them to paste or select the question. Do not invent facts;",
+    "say when you are unsure.",
     page,
     staff,
   ].join(" ");
 }
 
-function buildChatMessages({message, context, role}) {
+function buildChatMessages({message, context, role, history = []}) {
   const cleanedContext = cleanContext(context);
+  const cleanedHistory = cleanChatHistory(history);
   return [
     {role: "system", content: educationSystemPrompt(role, cleanedContext)},
+    ...cleanedHistory,
     {
       role: "user",
       content: [
@@ -313,6 +342,7 @@ module.exports = {
   buildQuizMessages,
   callOpenAI,
   cleanContext,
+  cleanChatHistory,
   cleanString,
   getApiKey,
   getUserRole,

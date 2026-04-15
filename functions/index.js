@@ -101,6 +101,7 @@ exports.aiChat = onCall(
       messages: buildChatMessages({
         message,
         context: request.data?.context || {},
+        history: request.data?.history || [],
         role,
       }),
       maxTokens: 650,
@@ -160,6 +161,7 @@ exports.apiAiChat = onRequest(
         messages: buildChatMessages({
           message,
           context: req.body?.context || {},
+          history: req.body?.history || [],
           role,
         }),
         maxTokens: 650,
