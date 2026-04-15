@@ -8,7 +8,7 @@ const explainAnswerCallable = httpsCallable(functions, 'explainAnswer')
 const generateQuizCallable = httpsCallable(functions, 'generateQuizQuestions')
 const AI_CHAT_TIMEOUT_MS = 12000
 const AI_EXPLAIN_TIMEOUT_MS = 8000
-const AI_QUIZ_TIMEOUT_MS = 7500
+const AI_QUIZ_TIMEOUT_MS = 4500
 
 function messageFromError(error) {
   const code = error?.code || ''
