@@ -40,16 +40,57 @@ const SUBJECTS = [
   'Expressive Arts',
 ]
 
+// ─── Core Patterns ───────────────────────────────────────────────────────────
 const QUESTION_RE = /^(?:q(?:uestion)?\s*)?(\d{1,3})\s*[\).:\-]\s*(.+)$/i
 const QUESTION_NO_PUNCT_RE = /^(?:q(?:uestion)?\s*)?(\d{1,3})\s+(.+\?)$/i
-const OPTION_RE = /^(?:\(([A-D])\)|([A-D])\s*[\).:\-\]])\s*(.+)$/i
-const OPTION_LABEL_RE = /(^|\s)(?:\(([A-D])\)|([A-D])\s*[\).:\-\]])\s*/gi
+
+// Options: handles A. A) (A) a. a) (a) and roman numerals i. ii. iii. iv.
+const OPTION_RE = /^(?:\(([A-Da-d])\)|([A-Da-d])\s*[\).:\-])\s*(.+)$/
+const OPTION_LABEL_RE = /(^|\s)(?:\(([A-Da-d])\)|([A-Da-d])\s*[\).:\-])\s*/g
+
 const ANSWER_RE = /^(?:answer|correct answer|ans|key)\s*[:\-]\s*(.+)$/i
 const EXPLANATION_RE = /^(?:explanation|reason|because)\s*[:\-]\s*(.+)$/i
 const IMAGE_HINT_RE = /\b(diagram|figure|picture|image|graph|chart|map|shown|label|observe|study the|look at)\b/i
 const ANSWER_KEY_HEADING_RE = /^(answers\b|answer\s+key|memorandum|marking scheme)\b/i
 const ANSWER_KEY_PAIR_RE = /(?:^|\s)(\d{1,3})\s*[\).:\-]?\s*(?:answer\s*)?([A-D]|true|false)\b/gi
+
+// Named spelling/word-game section headings
 const SECTION_HEADING_RE = /^(?:spelling bee\b|elimination round\b|category\b|words\b|easy round\b|average level\b|round\s+\d+\b|tie[-\s]?breakers?\b|extra words?\b|oral recitation\b)/i
+
+// ─── Paragraph-Ordering Question Patterns (e.g. PART 5, Qs 39-45) ───────────
+//
+// These questions present four multi-sentence paragraphs as options A-D.
+// The candidate picks the paragraph whose sentences are in the correct order.
+//
+// Raw document format (after XML extraction):
+//   [line1 of opt A]
+//   [line2 of opt A]
+//   [last sentence of opt A].B          ← period + letter = option boundary
+//   [line1 of opt B]
+//   [last sentence of opt B].C
+//   ...
+//   [last sentence of opt D].40A        ← period + next question number + A
+//
+// First question in section arrives embedded in the "Now do questions" line:
+//   "...Now do questions 39-4339A"      ← "now do questions N" triggers start
+//
+const PARA_ORDER_INSTRUCTION_RE = /each question has four paragraphs|sentences in the best order|choose the paragraph which has the sentences/i
+const PARA_ORDER_DO_Q_RE = /\bnow\s+do\s+questions?\s+(\d{1,3})/i
+
+// ─── Comprehension / Passage Patterns ─────────────────────────────────────────
+
+/**
+ * Detects instruction lines that introduce a comprehension / passage section.
+ * Must reference "passage", "story", "text", "extract", etc. or say
+ * "questions that follow" to avoid matching generic standalone-section instructions.
+ */
+const COMP_INSTRUCTION_RE = /\b(?:read\s+(?:the\s+)?(?:following|passage|story|text|extract|information|paragraph|article|poem|stories)|answer\s+the\s+(?:following\s+)?questions?\s+(?:that\s+follow|from\s+(?:the\s+)?(?:passage|story|text|extract)|based\s+on\s+(?:the\s+)?(?:passage|story|text)|using\s+(?:the\s+)?(?:passage|story|text))|use\s+(?:the\s+)?(?:passage|text|story|information|extract)(?:\s+(?:above|below|to\s+answer))?|choose\s+(?:the\s+)?(?:correct|best|right)\s+(?:answer|option|word)\s+from\s+(?:the\s+)?(?:passage|text|story|extract)|based\s+on\s+(?:the\s+)?(?:passage|story|text|extract)|refer\s+to\s+(?:the\s+)?(?:passage|story|text|extract)|questions?\s+that\s+follow|from\s+(?:the\s+)?(?:passage|story|text|extract)\s+(?:above|below)?)\b/i
+
+/**
+ * Detects lines that label a numbered story / passage block.
+ * Examples: "Story 1", "Story 2:", "Passage A", "Passage B:", "Text 1: The Fox"
+ */
+const PASSAGE_LABEL_RE = /^(?:story|passage|text|extract|article|reading|comprehension)\s*(?:\d+|[IVX]+|[A-Z])?\s*(?:[:.,-]\s*.*)?$/i
 
 function makeImportId(prefix = 'import') {
   return `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
@@ -71,11 +112,31 @@ function splitLines(text) {
     .filter(Boolean)
 }
 
+/**
+ * Conservative section-heading detector.
+ *
+ * Previously this matched ANY all-caps line with 8+ characters, which caused
+ * story titles like "THE CLEVER MONKEY" to be treated as section breaks and
+ * discarded, cutting off comprehension passages.
+ *
+ * Now it only matches:
+ *  - Named word-game / round headings (SECTION_HEADING_RE)
+ *  - Structural document markers: "SECTION A", "PART 1", "UNIT 3"
+ */
 function isSectionHeading(text) {
   const line = cleanText(text)
   if (!line) return false
   if (SECTION_HEADING_RE.test(line)) return true
-  return /^[A-Z0-9\s():'".,&/-]{8,}$/.test(line) && !questionMatch(line)
+  if (/^(?:section|part|unit)\s+[A-Z0-9]/i.test(line)) return true
+  return false
+}
+
+function isComprehensionInstruction(line) {
+  return COMP_INSTRUCTION_RE.test(line)
+}
+
+function isPassageLabel(line) {
+  return PASSAGE_LABEL_RE.test(line)
 }
 
 function questionMatch(line) {
@@ -83,10 +144,7 @@ function questionMatch(line) {
   if (!numbered) return null
   const text = cleanText(numbered[2])
   if (!text || ANSWER_KEY_HEADING_RE.test(text)) return null
-  return {
-    number: numbered[1],
-    text,
-  }
+  return { number: numbered[1], text }
 }
 
 function extractOptionSegments(line) {
@@ -97,7 +155,8 @@ function extractOptionSegments(line) {
   let match
   while ((match = OPTION_LABEL_RE.exec(text)) !== null) {
     const prefix = match[1] || ''
-    const label = (match[2] || match[3] || '').toUpperCase()
+    const raw = match[2] || match[3] || ''
+    const label = raw.toUpperCase()
     const labelStart = match.index + prefix.length
     matches.push({
       label,
@@ -254,6 +313,15 @@ function paragraphText(paragraph) {
   return cleanText(pieces.join(''))
 }
 
+/**
+ * Returns the paragraph style value (e.g. "Heading1", "Normal") or empty string.
+ * Used to detect document headings set via Word styles.
+ */
+function paragraphStyle(paragraph) {
+  const pStyle = descendantsByLocalName(paragraph, 'pStyle')[0]
+  return pStyle?.getAttribute('w:val') || ''
+}
+
 function paragraphHasNumbering(paragraph) {
   return descendantsByLocalName(paragraph, 'numPr').length > 0
 }
@@ -316,12 +384,17 @@ async function extractDocx(file) {
       const assets = paragraphImages(child, relationships, zipEntries, warnings)
       imageAssets.push(...assets)
       const text = paragraphText(child)
+      const style = paragraphStyle(child)
+      const isHeading = /^heading\d*$/i.test(style)
       if (text || assets.length) {
         blocks.push({
           text,
           assets,
           source: 'docx',
           numberedList: paragraphHasNumbering(child),
+          // Expose Word heading style so the parser can use it as a section signal
+          headingStyle: isHeading ? style.toLowerCase() : null,
+          styleVal: style,
         })
       }
       return
@@ -361,10 +434,19 @@ async function extractLegacyDoc(file) {
 
 function canvasToBlob(canvas, type = 'image/jpeg', quality = 0.82) {
   return new Promise((resolve, reject) => {
-    canvas.toBlob(blob => blob ? resolve(blob) : reject(new Error('Could not render a PDF page image.')), type, quality)
+    canvas.toBlob(
+      blob => blob ? resolve(blob) : reject(new Error('Could not render a PDF page image.')),
+      type,
+      quality,
+    )
   })
 }
 
+/**
+ * Groups PDF text items into logical lines using Y-coordinate proximity.
+ * Threshold increased from 3 → 5 px to handle slight baseline variations
+ * common in scanned or mixed-font PDFs.
+ */
 function textContentToLines(textContent) {
   const rows = []
   ;(textContent.items || []).forEach(item => {
@@ -373,7 +455,7 @@ function textContentToLines(textContent) {
     const transform = item.transform || []
     const x = Number(transform[4]) || 0
     const y = Math.round(Number(transform[5]) || 0)
-    let row = rows.find(existing => Math.abs(existing.y - y) <= 3)
+    let row = rows.find(existing => Math.abs(existing.y - y) <= 5)
     if (!row) {
       row = { y, items: [] }
       rows.push(row)
@@ -383,8 +465,7 @@ function textContentToLines(textContent) {
 
   return rows
     .sort((a, b) => b.y - a.y)
-    .map(row => row.items.sort((a, b) => a.x - b.x).map(item => item.str).join(' '))
-    .map(cleanText)
+    .map(row => cleanText(row.items.sort((a, b) => a.x - b.x).map(item => item.str).join(' ')))
     .filter(Boolean)
 }
 
@@ -426,7 +507,13 @@ async function extractPdf(file) {
     const textContent = await page.getTextContent()
     const lines = textContentToLines(textContent)
     const pageText = lines.join('\n')
-    const shouldSnapshot = pageNumber <= maxSnapshotPages && (IMAGE_HINT_RE.test(pageText) || pageText.length < 180)
+
+    // Only snapshot truly image-only pages (no extractable text) or pages
+    // with explicit diagram/figure references. Using < 50 instead of < 180
+    // prevents false-positives on pages with short but valid text content.
+    const hasNoText = pageText.length < 50
+    const hasImageHint = IMAGE_HINT_RE.test(pageText)
+    const shouldSnapshot = pageNumber <= maxSnapshotPages && (hasNoText || hasImageHint)
     const pageAsset = shouldSnapshot ? await renderPdfPageSnapshot(page, pageNumber, warnings) : null
     if (pageAsset) imageAssets.push(pageAsset)
 
@@ -459,8 +546,10 @@ async function extractPdf(file) {
 function metadataFromText(text, fileName) {
   const firstLines = splitLines(text).slice(0, 8)
   const title = firstLines.find(line => line.length > 6 && !questionMatch(line) && !OPTION_RE.test(line)) || titleFromFileName(fileName)
-  const grade = text.match(/\bgrade\s*(4|5|6)\b/i)?.[1] || ''
-  const subject = SUBJECTS.find(subject => new RegExp(`\\b${subject.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text)) || ''
+  // Support grades 1-12 (was previously restricted to 4-6, missing Grade 7+)
+  const gradeMatch = text.match(/\bgrade\s*(\d{1,2})\b/i)
+  const grade = gradeMatch ? gradeMatch[1] : ''
+  const subject = SUBJECTS.find(s => new RegExp(`\\b${s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text)) || ''
   return {
     title: cleanText(title).slice(0, 90) || titleFromFileName(fileName),
     grade,
@@ -501,7 +590,10 @@ function parseAnswerIndex(rawAnswer, options) {
   const normalized = answer.toLowerCase()
   const exactIndex = options.findIndex(option => cleanText(option).toLowerCase() === normalized)
   if (exactIndex >= 0) return exactIndex
-  const containedIndex = options.findIndex(option => cleanText(option).toLowerCase().includes(normalized) || normalized.includes(cleanText(option).toLowerCase()))
+  const containedIndex = options.findIndex(option =>
+    cleanText(option).toLowerCase().includes(normalized) ||
+    normalized.includes(cleanText(option).toLowerCase()),
+  )
   return containedIndex >= 0 ? containedIndex : null
 }
 
@@ -573,21 +665,281 @@ function questionFromCurrent(current, answerKey = new Map()) {
   }
 }
 
+/**
+ * Main document parser — comprehension-aware state machine.
+ *
+ * The parser distinguishes three document regions:
+ *  1. Preamble / metadata — discarded (title, grade, subject lines)
+ *  2. Comprehension blocks — instruction + passage text + numbered sub-questions
+ *  3. Standalone questions — numbered MCQ / short-answer / diagram questions
+ *
+ * Comprehension mode is triggered whenever a line matches COMP_INSTRUCTION_RE
+ * (e.g. "Read the following passage and answer the questions that follow.").
+ * Inside comprehension mode:
+ *  - All-caps or labelled passage headings (Story 1, Passage A) set the title.
+ *  - Non-question text accumulates as passage paragraphs.
+ *  - Numbered question lines start sub-questions linked to the passage.
+ *  - Seeing another instruction line OR a major section heading finalises the
+ *    current comprehension block and may start a new one.
+ *
+ * Multiple passages in one document (Story 1, Story 2, Story 3) each become
+ * their own comprehension block.
+ */
+
+// ─── Paragraph-Ordering Preprocessor ─────────────────────────────────────────
+
+/**
+ * Converts "paragraph ordering" question blocks into standard numbered MCQ
+ * blocks before the main parser runs.
+ *
+ * In this format A–D options are full multi-sentence paragraphs. The option
+ * boundaries are encoded as a single capital letter appended directly to the
+ * last sentence of the preceding option:
+ *
+ *   "People die within a short period after catching it.B"   ← end opt A
+ *   "Therefore, all the people must protect themselves.C"    ← end opt B
+ *   "...many lives.40A"                                      ← end Q39, start Q40
+ *
+ * The very first question in the section is signalled by
+ * "Now do questions 39-43" text in the same line as "39A".
+ *
+ * Output: blocks whose text is in standard "N. question\nA. opt\nB. opt\n..."
+ * format, which the main parser handles normally as MCQ questions.
+ */
+function preprocessParaOrdering(blocks) {
+  const allText = blocks.map(b => b.text).join('\n')
+  if (!PARA_ORDER_INSTRUCTION_RE.test(allText)) return blocks
+
+  const result = []
+  let inSection = false
+  let paraLines = [] // { line: string, block: object }
+  const instruction = 'Choose the paragraph with sentences in the correct order.'
+
+  function flushParaLines() {
+    if (!paraLines.length) return
+    result.push(...buildParaOrderBlocks(paraLines, instruction))
+    paraLines = []
+  }
+
+  for (const block of blocks) {
+    const lines = splitLines(block.text)
+
+    if (!inSection) {
+      // Look for the section instruction in this block
+      const instrIdx = lines.findIndex(l => PARA_ORDER_INSTRUCTION_RE.test(l))
+      if (instrIdx >= 0) {
+        inSection = true
+        // Pass the instruction block through unchanged (it becomes preamble text)
+        result.push({ ...block, text: lines[instrIdx] })
+        // Lines after the instruction in the same block feed into paraLines
+        for (let i = instrIdx + 1; i < lines.length; i++) {
+          paraLines.push({ line: lines[i], block })
+        }
+      } else {
+        result.push(block)
+      }
+      continue
+    }
+
+    // In section — process line by line so we can detect the exit condition
+    for (const line of lines) {
+      if (!inSection) {
+        // We exited mid-block; pass remaining lines through individually
+        result.push({ text: line, assets: [], source: block.source })
+        continue
+      }
+      // Section exit: reading comprehension or a major new section begins
+      if (/reading comprehension|section [A-Z]\b/i.test(line) &&
+          !PARA_ORDER_INSTRUCTION_RE.test(line)) {
+        flushParaLines()
+        inSection = false
+        result.push({ text: line, assets: [], source: block.source })
+        continue
+      }
+      paraLines.push({ line, block })
+    }
+  }
+
+  flushParaLines()
+  return result
+}
+
+/**
+ * Parses accumulated para-ordering lines into standard question blocks.
+ * Handles three transition signals:
+ *  1. "now do questions N"        → start question N, option A (first Q only)
+ *  2. line ends with [punct][B-D] → option boundary
+ *  3. line ends with [punct][N]A  → end of option D, start of question N
+ */
+function buildParaOrderBlocks(lineObjects, instruction) {
+  const output = []
+
+  let qNum = null
+  let currentOpt = null
+  let optTexts = { A: [], B: [], C: [], D: [] }
+  let firstBlock = null
+  const OPT_ORDER = ['A', 'B', 'C', 'D']
+
+  function flushQuestion() {
+    if (!qNum) return
+    const lines = [`${qNum}. ${instruction}`]
+    for (const letter of OPT_ORDER) {
+      const sentences = optTexts[letter] || []
+      if (sentences.length) lines.push(`${letter}. ${sentences.join(' ')}`)
+    }
+    output.push({
+      text: lines.join('\n'),
+      assets: firstBlock?.assets || [],
+      source: firstBlock?.source || 'docx',
+      numberedList: false,
+    })
+    qNum = null
+    currentOpt = null
+    optTexts = { A: [], B: [], C: [], D: [] }
+    firstBlock = null
+  }
+
+  function startQuestion(num, block) {
+    flushQuestion()
+    qNum = String(num)
+    currentOpt = 'A'
+    firstBlock = block
+  }
+
+  for (const { line, block } of lineObjects) {
+    // ── Signal 1: "Now do questions N" — locates the first question ──────────
+    const doQMatch = line.match(PARA_ORDER_DO_Q_RE)
+    if (doQMatch) {
+      startQuestion(doQMatch[1], block)
+      // The line may end with "NA" (e.g. "…39~4339A"); there is nothing
+      // meaningful after the question marker so we skip the rest of the line.
+      continue
+    }
+
+    // ── Signal 3: line ends with [punct][digits]A → Q boundary ──────────────
+    // e.g. "...many lives.40A" or "...coming back.43A"
+    // We require punctuation before the number to avoid false positives.
+    const nextQMatch = line.match(/^(.*[.!?'"\u2019\u201d])\s*(\d{1,3})A\s*$/)
+    if (nextQMatch && qNum) {
+      const textBefore = nextQMatch[1].trim()
+      const newQNum = nextQMatch[2]
+      if (currentOpt && textBefore) optTexts[currentOpt].push(textBefore)
+      startQuestion(newQNum, block)
+      continue
+    }
+
+    if (!qNum) continue // still in preamble / example — skip
+
+    // ── Signal 2: line ends with [punct][B-D] → option boundary ─────────────
+    const optTransMatch = line.match(/^(.*[.!?'"\u2019\u201d])\s*([B-D])\s*$/)
+    if (optTransMatch) {
+      const textBefore = optTransMatch[1].trim()
+      const nextLetter = optTransMatch[2]
+      const curIdx = OPT_ORDER.indexOf(currentOpt)
+      const nxtIdx = OPT_ORDER.indexOf(nextLetter)
+
+      if (nxtIdx === curIdx + 1) {
+        // Sequential option transition (A→B, B→C, C→D)
+        if (textBefore) optTexts[currentOpt].push(textBefore)
+        currentOpt = nextLetter
+        continue
+      }
+    }
+
+    // ── Regular sentence line — add to current option ────────────────────────
+    if (currentOpt) optTexts[currentOpt].push(line)
+  }
+
+  flushQuestion()
+  return output
+}
+
 function parseQuestionsFromBlocks(blocks, warnings) {
   const questions = []
   const answerKey = extractAnswerKey(blocks)
-  let current = null
   let pendingAssets = []
   let inAnswerKey = false
 
-  function finalizeCurrent() {
-    const finalized = questionFromCurrent(current, answerKey)
-    if (finalized) questions.push(finalized)
+  // ── Comprehension state ───────────────────────────────────────────────────
+  let compActive = false        // currently inside a comprehension section
+  let compInstructions = []     // instruction text lines collected
+  let compTitle = ''            // current passage label (e.g. "Story 1")
+  let compPassageParts = []     // narrative / passage paragraph lines
+  let compSubQuestions = []     // finalized sub-questions for current passage
+
+  // ── Per-question state ────────────────────────────────────────────────────
+  let current = null            // question object currently being assembled
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+
+  function finalizeSubQuestion() {
+    if (!current) return
+    const q = questionFromCurrent(current, answerKey)
+    if (q) compSubQuestions.push(q)
     current = null
   }
 
-  function startQuestion(text, block, sourceNumber = null) {
-    finalizeCurrent()
+  function finalizeStandaloneQuestion() {
+    if (!current) return
+    const q = questionFromCurrent(current, answerKey)
+    if (q) questions.push(q)
+    current = null
+  }
+
+  function pushComprehensionBlock() {
+    const passage = compPassageParts.join('\n\n').trim()
+    const instructions = compInstructions.join(' ').trim()
+    const reviewNotes = [
+      ...(!passage ? ['Passage text was not detected — please paste the passage manually.'] : []),
+      ...(compSubQuestions.length === 0 ? ['No sub-questions were found for this comprehension block.'] : []),
+    ]
+    const block = {
+      type: 'comprehension',
+      text: instructions || 'Read the passage and answer the questions that follow.',
+      instructions,
+      passageTitle: compTitle.trim(),
+      passage,
+      subQuestions: compSubQuestions,
+      options: [],
+      correctAnswer: '',
+      explanation: '',
+      topic: '',
+      marks: Math.max(1, compSubQuestions.reduce((s, q) => s + (q.marks || 1), 0)),
+      detectedType: 'comprehension',
+      imageUrl: '',
+      imageAssetId: '',
+      diagramText: '',
+      requiresReview: reviewNotes.length > 0 || compSubQuestions.some(q => q.requiresReview),
+      reviewNotes,
+      importWarnings: reviewNotes,
+      sourcePage: null,
+      sourceQuestionNumber: null,
+      imageUploading: false,
+      imageUploadStep: '',
+    }
+    questions.push(block)
+  }
+
+  function finalizeComprehension() {
+    finalizeSubQuestion()
+    if (!compActive) return
+    if (compPassageParts.length > 0 || compSubQuestions.length > 0 || compInstructions.length > 0) {
+      pushComprehensionBlock()
+    }
+    compActive = false
+    compInstructions = []
+    compTitle = ''
+    compPassageParts = []
+    compSubQuestions = []
+    current = null
+  }
+
+  function startQuestion(text, block, sourceNumber, isSubQuestion) {
+    if (isSubQuestion) {
+      finalizeSubQuestion()
+    } else {
+      finalizeStandaloneQuestion()
+    }
     const inline = splitInlineOptionsFromQuestion(text)
     current = {
       textParts: [inline.text],
@@ -601,12 +953,13 @@ function parseQuestionsFromBlocks(blocks, warnings) {
       diagramText: '',
       tableFlattened: block.source === 'docx-table',
       sourceNumber,
+      isSubQuestion,
     }
-    inline.options.forEach(option => {
-      current.options[option.index] = option.text
-    })
+    inline.options.forEach(opt => { current.options[opt.index] = opt.text })
     pendingAssets = []
   }
+
+  // ── Main loop ─────────────────────────────────────────────────────────────
 
   blocks.forEach(block => {
     const lines = splitLines(block.text)
@@ -619,13 +972,24 @@ function parseQuestionsFromBlocks(blocks, warnings) {
 
     lines.forEach((line, lineIndex) => {
       const lineAssets = lineIndex === 0 ? (block.assets || []) : []
+
+      // ── Answer key section ──────────────────────────────────────────────
       if (ANSWER_KEY_HEADING_RE.test(line)) {
+        finalizeComprehension()
+        finalizeStandaloneQuestion()
         inAnswerKey = true
         return
       }
       if (inAnswerKey) {
         ANSWER_KEY_PAIR_RE.lastIndex = 0
         if (ANSWER_KEY_PAIR_RE.test(line) || /^[\d\sA-D).:\-]+$/i.test(line)) return
+        // If we see a fresh instruction or section heading, leave answer-key mode
+        if (isComprehensionInstruction(line) || isSectionHeading(line)) {
+          inAnswerKey = false
+          // fall through to process the line normally
+        } else {
+          return
+        }
       }
 
       const detectedQuestion = questionMatch(line)
@@ -633,59 +997,143 @@ function parseQuestionsFromBlocks(blocks, warnings) {
       const explanationMatch = line.match(EXPLANATION_RE)
       const optionSegments = extractOptionSegments(line)
       const imageOnlyHint = IMAGE_HINT_RE.test(line)
+      const isInstruction = isComprehensionInstruction(line)
+      const isPassLabel = isPassageLabel(line)
+      const isSectionBreak = isSectionHeading(line)
 
-      if (isSectionHeading(line)) {
+      // ══════════════════════════════════════════════════════════════════════
+      // COMPREHENSION MODE
+      // ══════════════════════════════════════════════════════════════════════
+      if (compActive) {
+
+        // New instruction line — could begin a new passage section
+        if (isInstruction && !detectedQuestion) {
+          if (compPassageParts.length > 0 || compSubQuestions.length > 0 || current) {
+            // Finalise what we have and start fresh
+            finalizeComprehension()
+            compActive = true
+          }
+          compInstructions.push(line)
+          return
+        }
+
+        // Passage label (Story 1, Story 2, Passage A, …) inside comprehension
+        if (isPassLabel && !detectedQuestion) {
+          if (compPassageParts.length > 0 || compSubQuestions.length > 0 || current) {
+            // New story within same section — push current passage, start new
+            finalizeSubQuestion()
+            pushComprehensionBlock()
+            const savedInstructions = [...compInstructions]
+            compActive = true
+            compInstructions = savedInstructions
+            compTitle = ''
+            compPassageParts = []
+            compSubQuestions = []
+            current = null
+          }
+          compTitle = cleanText(line)
+          return
+        }
+
+        // Major section break exits comprehension mode entirely
+        if (isSectionBreak && !isInstruction) {
+          finalizeComprehension()
+          if (lineAssets.length) pendingAssets.push(...lineAssets)
+          return
+        }
+
+        // Numbered question inside comprehension → sub-question
+        if (detectedQuestion) {
+          startQuestion(detectedQuestion.text, { ...block, assets: lineAssets }, detectedQuestion.number, true)
+          return
+        }
+
+        // Inside an active sub-question
+        if (current) {
+          if (lineAssets.length) current.assets.push(...lineAssets)
+          if (block.pageAsset && !current.pageAsset) current.pageAsset = block.pageAsset
+
+          if (answerMatch) { current.answerRaw = answerMatch[1]; return }
+          if (explanationMatch) { current.explanationParts.push(explanationMatch[1]); return }
+          if (optionSegments.length) {
+            optionSegments.forEach(opt => { current.options[opt.index] = opt.text })
+            return
+          }
+          if (imageOnlyHint && !current.diagramText) current.diagramText = line
+          // Extra text after options → treat as explanation continuation
+          if (current.options.length && !/\?$/.test(line)) {
+            current.explanationParts.push(line)
+          } else {
+            current.textParts.push(line)
+          }
+          return
+        }
+
+        // No active sub-question → this is passage / story text
+        if (line.length >= 10 && !ANSWER_KEY_HEADING_RE.test(line)) {
+          compPassageParts.push(line)
+        }
         if (lineAssets.length) pendingAssets.push(...lineAssets)
-        finalizeCurrent()
         return
       }
 
+      // ══════════════════════════════════════════════════════════════════════
+      // NON-COMPREHENSION MODE
+      // ══════════════════════════════════════════════════════════════════════
+
+      // Instruction line → enter comprehension mode
+      if (isInstruction && !detectedQuestion) {
+        finalizeStandaloneQuestion()
+        compActive = true
+        compInstructions.push(line)
+        if (lineAssets.length) pendingAssets.push(...lineAssets)
+        return
+      }
+
+      // Section heading → finish current question, stay in standalone mode
+      if (isSectionBreak) {
+        if (lineAssets.length) pendingAssets.push(...lineAssets)
+        finalizeStandaloneQuestion()
+        return
+      }
+
+      // Numbered question
       if (detectedQuestion) {
-        startQuestion(detectedQuestion.text, { ...block, assets: lineAssets }, detectedQuestion.number)
+        startQuestion(detectedQuestion.text, { ...block, assets: lineAssets }, detectedQuestion.number, false)
         return
       }
 
+      // Docx word-list numbered items (spelling/vocabulary)
       if (isLikelyDocxQuestionHeading(line, block)) {
-        startQuestion(line, { ...block, assets: lineAssets })
+        startQuestion(line, { ...block, assets: lineAssets }, null, false)
         current.reviewNotes.push('Word list numbering was inferred for this question. Review wording before publishing.')
         return
       }
 
+      // Un-numbered question ending with ?
       if (!current && /\?$/.test(line)) {
-        startQuestion(line, { ...block, assets: lineAssets })
+        startQuestion(line, { ...block, assets: lineAssets }, null, false)
         current.reviewNotes.push('Question number was not found.')
         return
       }
 
+      // Nothing active — preamble / metadata text
       if (!current) {
         if (lineAssets.length) pendingAssets.push(...lineAssets)
         return
       }
 
+      // Continuing a standalone question
       if (lineAssets.length) current.assets.push(...lineAssets)
       if (block.pageAsset && !current.pageAsset) current.pageAsset = block.pageAsset
 
-      if (answerMatch) {
-        current.answerRaw = answerMatch[1]
-        return
-      }
-
-      if (explanationMatch) {
-        current.explanationParts.push(explanationMatch[1])
-        return
-      }
-
+      if (answerMatch) { current.answerRaw = answerMatch[1]; return }
+      if (explanationMatch) { current.explanationParts.push(explanationMatch[1]); return }
       if (optionSegments.length) {
-        optionSegments.forEach(option => {
-          current.options[option.index] = option.text
-        })
+        optionSegments.forEach(opt => { current.options[opt.index] = opt.text })
         return
       }
-
-      if (imageOnlyHint && !current.diagramText) {
-        current.diagramText = line
-      }
-
+      if (imageOnlyHint && !current.diagramText) current.diagramText = line
       if (current.options.length && !/\?$/.test(line)) {
         current.explanationParts.push(line)
         current.reviewNotes.push('Extra text after options was treated as explanation.')
@@ -695,12 +1143,18 @@ function parseQuestionsFromBlocks(blocks, warnings) {
     })
   })
 
-  finalizeCurrent()
+  // ── Flush any pending state ───────────────────────────────────────────────
+  if (compActive) {
+    finalizeComprehension()
+  } else {
+    finalizeStandaloneQuestion()
+  }
 
+  // ── Fallback — nothing was parsed ─────────────────────────────────────────
   if (!questions.length) {
-    const fallbackText = cleanText(blocks.map(block => block.text).join('\n')).slice(0, 1200)
+    const fallbackText = cleanText(blocks.map(b => b.text).join('\n')).slice(0, 1200)
     const fallbackAsset = blocks
-      .flatMap(block => [...(block.assets || []), ...(block.pageAsset ? [block.pageAsset] : [])])
+      .flatMap(b => [...(b.assets || []), ...(b.pageAsset ? [b.pageAsset] : [])])
       .filter(Boolean)[0] || null
     const fallbackType = fallbackAsset ? 'diagram' : 'short_answer'
     warnings.push('No numbered questions were detected. One editable review question was created from the extracted text.')
@@ -746,10 +1200,14 @@ export async function importQuizDocument(file) {
     throw new Error('Please upload a .doc, .docx, or .pdf file.')
   }
 
-  const allText = extracted.blocks.map(block => block.text).join('\n')
+  // Pre-process paragraph-ordering questions (e.g. "choose the paragraph with
+  // sentences in the best order") before the main parser runs.
+  const processedBlocks = preprocessParaOrdering(extracted.blocks)
+
+  const allText = processedBlocks.map(b => b.text).join('\n')
   const metadata = metadataFromText(allText, file.name)
-  const questions = parseQuestionsFromBlocks(extracted.blocks, extracted.warnings)
-  const importStatus = questions.some(question => question.requiresReview) || extracted.warnings.length
+  const questions = parseQuestionsFromBlocks(processedBlocks, extracted.warnings)
+  const importStatus = questions.some(q => q.requiresReview) || extracted.warnings.length
     ? 'needs_review'
     : 'success'
 
@@ -759,7 +1217,11 @@ export async function importQuizDocument(file) {
       mode: 'imported_document',
       importStatus,
       sourceFileName: file.name,
-      sourceContentType: file.type || (lowerName.endsWith('.pdf') ? 'application/pdf' : lowerName.endsWith('.docx') ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' : 'application/msword'),
+      sourceContentType: file.type || (
+        lowerName.endsWith('.pdf') ? 'application/pdf'
+          : lowerName.endsWith('.docx') ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            : 'application/msword'
+      ),
       importWarnings: extracted.warnings,
     },
     questions,
@@ -768,8 +1230,8 @@ export async function importQuizDocument(file) {
     warnings: extracted.warnings,
     summary: {
       questions: questions.length,
-      images: questions.filter(question => question.imageAssetId).length,
-      needsReview: questions.filter(question => question.requiresReview).length,
+      images: questions.filter(q => q.imageAssetId).length,
+      needsReview: questions.filter(q => q.requiresReview).length,
     },
   }
 }
