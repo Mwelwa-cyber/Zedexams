@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { buildQuizDisplaySections } from '../../utils/quizSections'
 import { getRoleLandingPath } from '../../utils/navigation'
 import { explainQuizAnswer } from '../../utils/aiAssistant'
+import RichContent, { getRichPlainText } from '../editor/RichContent'
 
 function ScoreCircle({ percentage }) {
   const radius = 54
@@ -88,7 +89,7 @@ export default function QuizResultsV2() {
     setAiLoading(current => ({ ...current, [question.id]: true }))
     try {
       const explanation = await explainQuizAnswer({
-        question: question.text,
+        question: getRichPlainText(question.text),
         learnerAnswer: answerToText(question, userAnswer),
         correctAnswer: answerToText(question, question.correctAnswer),
         subject: result.subject,
@@ -162,7 +163,7 @@ export default function QuizResultsV2() {
             {correct ? '✓' : '✗'}
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-bold leading-snug text-gray-800">Q{question.questionNumber}. {question.text}</p>
+            <div className="text-sm font-bold leading-snug text-gray-800"><span>Q{question.questionNumber}. </span><RichContent value={question.text} className="inline" /></div>
             {question.topic && <p className="mt-1 text-xs font-bold text-gray-400">{question.topic}</p>}
           </div>
         </div>
@@ -268,7 +269,7 @@ export default function QuizResultsV2() {
                       {section.passage.title && <p className="text-lg font-black text-gray-800">{section.passage.title}</p>}
                       {section.passage.instructions && <p className="mt-1 text-sm font-bold text-orange-700">{section.passage.instructions}</p>}
                       {section.passage.imageUrl && <img src={section.passage.imageUrl} alt="Passage illustration" className="mt-3 max-h-72 w-full rounded-2xl object-contain" />}
-                      <p className="mt-3 whitespace-pre-wrap text-sm leading-7 text-gray-700">{section.passage.passageText}</p>
+                      <RichContent value={section.passage.passageText} className="mt-3 text-sm leading-7 text-gray-700" />
                     </div>
                     {section.questions.map(renderQuestion)}
                   </div>

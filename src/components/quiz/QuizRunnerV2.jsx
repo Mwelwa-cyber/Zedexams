@@ -8,6 +8,7 @@ import UpgradeModal from '../subscription/UpgradeModal'
 import QuizTip from './QuizTip'
 import { getPakoTip } from '../../config/curriculum'
 import { checkAnswerWithAI } from '../../utils/geminiChecker'
+import RichContent, { getRichPlainText } from '../editor/RichContent'
 
 function fmt(seconds) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
@@ -204,7 +205,7 @@ export default function QuizRunnerV2() {
       const isCorrect = currentQuestion && optionIndex === currentQuestion.correctAnswer
       setFeedbackType(isCorrect ? 'correct' : 'wrong')
       setTimeout(() => setFeedbackType(null), 1300)
-      const tipText = currentQuestion?.explanation?.trim() || getPakoTip(currentQuestion?.topic, isCorrect)
+      const tipText = getRichPlainText(currentQuestion?.explanation).trim() || getPakoTip(currentQuestion?.topic, isCorrect)
       setPakoTip({ visible: true, text: tipText, isCorrect, questionId })
     }
   }
@@ -379,7 +380,7 @@ export default function QuizRunnerV2() {
         )}
 
         <div>
-          <p className="text-[17px] font-bold leading-relaxed text-slate-900">{question.text}</p>
+          <RichContent value={question.text} className="text-[17px] font-bold leading-relaxed text-slate-900" />
           {question.diagramText && (
             <p className="mt-2 rounded-xl bg-slate-50 px-3 py-2 text-xs font-bold leading-relaxed text-slate-500">{question.diagramText}</p>
           )}
@@ -509,7 +510,7 @@ export default function QuizRunnerV2() {
                     <>
                       <p className="text-lg font-black text-orange-700">💡 Not quite — you can do it!</p>
                       <p className="mt-1 text-sm text-orange-700">Correct answer: <strong>{question.options[question.correctAnswer]}</strong></p>
-                      {question.explanation && <p className="mt-1.5 text-xs italic text-slate-500">{question.explanation}</p>}
+                      {question.explanation && <RichContent value={question.explanation} className="mt-1.5 text-xs italic text-slate-500" />}
                     </>
                   )}
                 </div>
@@ -618,7 +619,7 @@ export default function QuizRunnerV2() {
                   </div>
                 )}
                 <div className="p-5">
-                  <p className="whitespace-pre-wrap text-sm leading-7 text-slate-700">{activeSection.passage.passageText}</p>
+                  <RichContent value={activeSection.passage.passageText} className="text-sm leading-7 text-slate-700" fallback={null} />
                 </div>
               </div>
             </div>

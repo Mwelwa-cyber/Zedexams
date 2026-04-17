@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react'
 import { QUESTION_LETTERS } from '../../utils/quizSections'
+import RichEditor from '../editor/RichEditor'
 
 const THEMES = {
   create: {
@@ -254,12 +255,14 @@ function StandaloneQuestionCard({
         theme={theme}
       />
 
-      <textarea
+      <RichEditor
         value={question.text}
-        onChange={event => set('text', event.target.value)}
+        onChange={v => set('text', v)}
         placeholder={question.imageUrl ? 'Describe what is shown in the image above, or ask your question...' : 'Write your question here...'}
-        rows={3}
-        className={joinClasses(fieldClass(theme), 'resize-none leading-relaxed')}
+        minHeight={80}
+        borderClass={theme === THEMES.edit ? 'border-blue-200' : 'border-gray-200'}
+        focusClass={theme === THEMES.edit ? 'focus-within:border-blue-500' : 'focus-within:border-green-500'}
+        focusColor={theme === THEMES.edit ? 'indigo' : 'green'}
       />
 
       {isTextAnswer ? (
@@ -321,11 +324,14 @@ function StandaloneQuestionCard({
           rows={2}
           className={joinClasses('w-full resize-none rounded-xl border border-gray-200 bg-white px-3 py-2 text-xs text-gray-800 placeholder-gray-400 outline-none', theme.focus)}
         />
-        <input
+        <RichEditor
           value={question.explanation}
-          onChange={event => set('explanation', event.target.value)}
-          placeholder="Explanation (optional) - shown after answering in practice mode"
-          className={fieldClass(theme)}
+          onChange={v => set('explanation', v)}
+          placeholder="Explanation (optional) — shown after answering in practice mode"
+          minHeight={60}
+          borderClass="border-gray-200"
+          focusClass={theme === THEMES.edit ? 'focus-within:border-blue-500' : 'focus-within:border-green-500'}
+          focusColor={theme === THEMES.edit ? 'indigo' : 'green'}
         />
         <div className="flex gap-2">
           <input
@@ -404,11 +410,14 @@ function PassageQuestionCard({
         </div>
       </div>
 
-      <input
+      <RichEditor
         value={question.text}
-        onChange={event => set('text', event.target.value)}
+        onChange={v => set('text', v)}
         placeholder="Write the question for this passage..."
-        className={joinClasses(SMALL_FIELD_BASE, 'border-2 px-3 py-2.5 text-sm focus:border-orange-500')}
+        minHeight={60}
+        borderClass="border-gray-200"
+        focusClass="focus-within:border-orange-500"
+        focusColor="orange"
       />
 
       <div className="space-y-2">
@@ -464,11 +473,14 @@ function PassageQuestionCard({
         </div>
       </div>
 
-      <input
+      <RichEditor
         value={question.explanation}
-        onChange={event => set('explanation', event.target.value)}
+        onChange={v => set('explanation', v)}
         placeholder="Explanation (optional)"
-        className="rounded-lg border border-gray-200 bg-white px-2.5 py-2 text-xs text-gray-900 placeholder-gray-400 outline-none focus:border-orange-500"
+        minHeight={50}
+        borderClass="border-gray-200"
+        focusClass="focus-within:border-orange-500"
+        focusColor="orange"
       />
     </div>
   )
@@ -570,12 +582,14 @@ function PassageSectionCard({
                 placeholder="Instructions (optional)"
                 className="w-full rounded-xl border-2 border-gray-200 bg-white px-3 py-2.5 text-sm text-gray-900 placeholder-gray-400 outline-none focus:border-orange-500"
               />
-              <textarea
+              <RichEditor
                 value={passage.passageText}
-                onChange={event => onPassageChange(sectionIndex, 'passageText', event.target.value)}
+                onChange={v => onPassageChange(sectionIndex, 'passageText', v)}
                 placeholder="Paste or type the passage / story here..."
-                rows={8}
-                className="w-full resize-none rounded-xl border-2 border-gray-200 bg-white px-3 py-2.5 text-sm leading-relaxed text-gray-900 placeholder-gray-400 outline-none focus:border-orange-500"
+                minHeight={180}
+                borderClass="border-gray-200"
+                focusClass="focus-within:border-orange-500"
+                focusColor="orange"
               />
               <ImageUpload
                 label="Upload Passage Image"

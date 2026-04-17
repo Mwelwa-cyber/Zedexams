@@ -252,6 +252,44 @@ body.data-saver [data-bg-gradient] {
 /* ── Safe-area bottom padding (iOS/Android notch) ───────────── */
 .safe-area-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
 
+/* ── Rich Editor (Tiptap) ───────────────────────────────────── */
+.rich-editor-prose {
+  outline: none;
+  padding: 10px 14px;
+  font-size: 14px;
+  line-height: 1.75;
+  color: #111827;
+  min-height: inherit;
+}
+.rich-editor-prose p { margin: 0 0 3px; }
+.rich-editor-prose p:last-child { margin: 0; }
+.rich-editor-prose ul, .rich-editor-prose ol { padding-left: 20px; margin: 4px 0; }
+.rich-editor-prose ul li { list-style: disc; }
+.rich-editor-prose ol li { list-style: decimal; }
+.rich-editor-prose h2 { font-size: 17px; font-weight: 700; margin: 8px 0 4px; }
+.rich-editor-prose h3 { font-size: 15px; font-weight: 600; margin: 6px 0 3px; }
+.rich-editor-prose blockquote { border-left: 3px solid #c7d2fe; padding-left: 12px; color: #6b7280; font-style: italic; margin: 6px 0; }
+.rich-editor-prose code { background: #f1f5f9; padding: 1px 4px; border-radius: 4px; font-size: 0.88em; font-family: monospace; }
+.rich-editor-prose table { border-collapse: collapse; width: 100%; margin: 6px 0; }
+.rich-editor-prose table td, .rich-editor-prose table th { border: 1.5px solid #cbd5e1; padding: 5px 8px; min-width: 50px; vertical-align: top; position: relative; }
+.rich-editor-prose table th { background: #f8fafc; font-weight: 700; }
+.rich-editor-prose .selectedCell::after { z-index: 2; position: absolute; content: ""; inset: 0; background: rgba(79,70,229,.1); pointer-events: none; }
+.rich-editor-prose .column-resize-handle { position: absolute; right: -2px; top: 0; bottom: -2px; width: 4px; background: #c7d2fe; pointer-events: none; }
+.rich-editor-prose p.is-editor-empty:first-child::before { content: attr(data-placeholder); color: #9ca3af; pointer-events: none; float: left; height: 0; }
+/* Math inline nodes */
+.math-inline-node { display: inline-flex; align-items: center; background: #eff4ff; border: 1px solid #c7d2fe; border-radius: 5px; padding: 1px 6px; margin: 0 2px; cursor: pointer; vertical-align: middle; user-select: none; transition: background .1s; }
+.math-inline-node:hover { background: #e0e7ff; border-color: #a5b4fc; }
+/* Rich content renderer (student view) */
+.rich-content p { margin: 0 0 4px; }
+.rich-content p:last-child { margin: 0; }
+.rich-content ul, .rich-content ol { padding-left: 20px; margin: 4px 0; }
+.rich-content ul li { list-style: disc; }
+.rich-content ol li { list-style: decimal; }
+.rich-content table { border-collapse: collapse; width: 100%; margin: 6px 0; }
+.rich-content table td, .rich-content table th { border: 1.5px solid #cbd5e1; padding: 5px 8px; }
+.rich-content table th { background: #f8fafc; font-weight: 700; }
+.rich-content .math-inline-node { display: inline-flex; align-items: center; vertical-align: middle; background: transparent; border: none; padding: 0; margin: 0 1px; }
+
 .animate-scale-in   { animation: scale-in  0.22s ease-out both; }
 .animate-slide-up   { animation: slide-up  0.25s ease-out both; }
 .animate-fade-in    { animation: fade-in   0.3s  ease-out both; }

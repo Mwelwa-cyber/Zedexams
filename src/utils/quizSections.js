@@ -92,14 +92,54 @@ export function createPassageSection(passageOverrides = {}) {
   }
 }
 
+function richFieldEmpty(value) {
+  if (!value) return true
+  if (typeof value === 'string') return !value.trim()
+  // Tiptap JSON object
+  if (typeof value === 'object' && value.type === 'doc') {
+    const content = value.content || []
+    if (content.length === 0) return true
+    if (content.length === 1 && content[0].type === 'paragraph') {
+      const inner = content[0].content || []
+      return inner.length === 0 || (inner.length === 1 && !inner[0].text?.trim())
+    }
+    return false
+  }
+  return true
+}
+
+function serializeRichField(value) {
+  if (!value) return ''
+  if (typeof value === 'string') return value
+  // Tiptap JSON object → store as JSON string
+  if (typeof value === 'object' && value.type === 'doc') return JSON.stringify(value)
+  return String(value)
+}
+
+function hydrateRichField(value) {
+  if (!value) return ''
+  if (typeof value === 'object') return value  // already Tiptap JSON
+  if (typeof value === 'string') {
+    // Try parsing as Tiptap JSON
+    try {
+      const parsed = JSON.parse(value)
+      if (parsed && parsed.type === 'doc') return parsed
+    } catch {
+      // plain string
+    }
+    return value
+  }
+  return value
+}
+
 export function isQuestionBlank(question = {}) {
   const options = Array.isArray(question.options) ? question.options : []
   const correctAnswer = typeof question.correctAnswer === 'string'
     ? question.correctAnswer.trim()
     : question.correctAnswer
 
-  return !String(question.text ?? '').trim() &&
-    !String(question.explanation ?? '').trim() &&
+  return richFieldEmpty(question.text) &&
+    richFieldEmpty(question.explanation) &&
     !String(question.topic ?? '').trim() &&
     !String(question.diagramText ?? '').trim() &&
     !String(question.imageUrl ?? '').trim() &&
@@ -145,8 +185,8 @@ export function serializeQuizSections(sections = []) {
       passages.push({
         id: passageId,
         title: String(passage.title ?? '').trim(),
-        instructions: String(passage.instructions ?? '').trim(),
-        passageText: String(passage.passageText ?? '').trim(),
+        instructions: serializeRichField(passage.instructions),
+        passageText: serializeRichField(passage.passageText),
         imageUrl: passage.imageUrl || null,
         order: startOrder,
       })
@@ -187,7 +227,7 @@ function hydrateStandaloneQuestion(question = {}) {
   return emptyQuestion({
     localId: question.id || question._id || question.localId || nextLocalId('question'),
     _id: question.id || question._id || null,
-    text: question.text ?? '',
+    text: hydrateRichField(question.text ?? ''),
     options: isTextAnswer
       ? []
       : Array.isArray(question.options) && question.options.length
@@ -196,7 +236,7 @@ function hydrateStandaloneQuestion(question = {}) {
     correctAnswer: isTextAnswer
       ? String(question.correctAnswer ?? '')
       : question.correctAnswer ?? 0,
-    explanation: question.explanation ?? '',
+    explanation: hydrateRichField(question.explanation ?? ''),
     topic: question.topic ?? '',
     marks: question.marks ?? 1,
     type,
@@ -218,12 +258,12 @@ function hydratePassageQuestion(question = {}, passageId) {
   return emptyPassageQuestion({
     localId: question.id || question._id || question.localId || nextLocalId('question'),
     _id: question.id || question._id || null,
-    text: question.text ?? '',
+    text: hydrateRichField(question.text ?? ''),
     options: Array.isArray(question.options) && question.options.length
       ? question.options
       : ['', '', '', ''],
     correctAnswer: question.correctAnswer ?? 0,
-    explanation: question.explanation ?? '',
+    explanation: hydrateRichField(question.explanation ?? ''),
     topic: question.topic ?? '',
     marks: question.marks ?? 1,
     requiresReview: Boolean(question.requiresReview),
@@ -244,8 +284,8 @@ export function hydrateQuizSections(questions = [], passages = []) {
     const section = createPassageSection({
       id: passage.id,
       title: passage.title ?? '',
-      instructions: passage.instructions ?? '',
-      passageText: passage.passageText ?? '',
+      instructions: hydrateRichField(passage.instructions ?? ''),
+      passageText: hydrateRichField(passage.passageText ?? ''),
       imageUrl: passage.imageUrl ?? '',
       questions: [],
     })
