@@ -340,9 +340,20 @@ function buildAnthropicChat({
     4000,
   ) || educationSystemPrompt(role, cleanedContext);
 
-  // Ensure history starts with a user message (Anthropic requirement).
-  // Drop leading assistant messages if present.
-  let trimmedHistory = cleanedHistory;
+  // Anthropic requires messages to alternate user/assistant and start with
+  // user. Our client history can violate this (two user turns in a row after
+  // a failed retry, duplicate sends, etc.) — so coalesce consecutive same-
+  // role messages into one combined turn, then drop any leading assistants.
+  const coalesced = [];
+  for (const m of cleanedHistory) {
+    const last = coalesced[coalesced.length - 1];
+    if (last && last.role === m.role) {
+      last.content = `${last.content}\n\n${m.content}`;
+    } else {
+      coalesced.push({role: m.role, content: m.content});
+    }
+  }
+  let trimmedHistory = coalesced;
   while (trimmedHistory.length && trimmedHistory[0].role !== "user") {
     trimmedHistory = trimmedHistory.slice(1);
   }
@@ -354,7 +365,15 @@ function buildAnthropicChat({
         `Student or staff message: ${message}`,
       ].join("\n");
 
-  const messages = [...trimmedHistory, {role: "user", content: userContent}];
+  // If the trimmed history ends with a user message, merge the new user
+  // message into it rather than creating two consecutive user turns.
+  const messages = [...trimmedHistory];
+  const tail = messages[messages.length - 1];
+  if (tail && tail.role === "user") {
+    tail.content = `${tail.content}\n\n${userContent}`;
+  } else {
+    messages.push({role: "user", content: userContent});
+  }
   return {systemPrompt, messages};
 }
 

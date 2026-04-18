@@ -65,7 +65,7 @@ const CBC = {
     { id: "advanced", label: "Advanced Secondary", tag: "Form 5–6" },
   ],
   gradesByLevel: {
-    primary: ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"],
+    primary: ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7"],
     ordinary: ["Form 1", "Form 2", "Form 3", "Form 4"],
     advanced: ["Form 5", "Form 6"],
   },
@@ -122,6 +122,7 @@ const TOPIC_BANK = {
   "Grade 4": ["Fractions & Decimals", "Creative Writing", "Health & Hygiene", "Financial Literacy", "Maps & Directions", "Local Governance"],
   "Grade 5": ["Percentages", "Civic Education", "The Human Body", "Zambian History", "Ecosystems", "Energy Sources"],
   "Grade 6": ["Ratios", "Expressive Writing", "Materials & Matter", "Governance in Zambia", "Climate & Weather", "Moral Development"],
+  "Grade 7": ["Algebraic Thinking", "Exam Preparation", "Scientific Method", "Active Citizenship", "Integrated Science", "Writing Essays"],
   "Form 1": ["Algebraic Expressions", "Pre-Colonial African History", "Cell Biology", "Commerce Basics", "Map Reading", "Civic Rights & Duties"],
   "Form 2": ["Linear Equations", "Colonial Zambia", "Photosynthesis", "Principles of Accounts", "Weathering & Erosion", "Business Studies"],
   "Form 3": ["Quadratic Equations", "Post-Independence Zambia", "Genetics & Heredity", "Economic Systems", "Victoria Falls Geography", "Entrepreneurship"],
@@ -157,7 +158,7 @@ function parseMessage(text) {
   if (tHits > lHits) { r.userType = "Teacher"; score += tHits * 15; }
   else if (lHits > 0) { r.userType = "Learner"; score += lHits * 10; }
 
-  const gm = text.match(/\bgrade\s*([1-6])\b/i);
+  const gm = text.match(/\bgrade\s*([1-7])\b/i);
   const fm = text.match(/\bform\s*([1-6])\b/i);
   if (gm) { r.grade = `Grade ${gm[1]}`; r.level = "primary"; score += 20; }
   else if (fm) {
@@ -493,10 +494,21 @@ function useStreaming() {
         onComplete?.(fullText);
         return;
       }
-      const n = Math.min(Math.floor(Math.random() * 4) + 2, chars.length - idx);
+      // Fake-typewriter speed. Claude already finished — just paint it out
+      // fast enough to feel animated but not slow. For very long replies
+      // (>1500 chars) we take bigger chunks so lesson notes don't drag.
+      const longReply = chars.length > 1500;
+      const chunkSize = longReply
+        ? Math.floor(Math.random() * 12) + 12     // 12–23 chars/tick
+        : Math.floor(Math.random() * 8) + 8;       // 8–15 chars/tick
+      const n = Math.min(chunkSize, chars.length - idx);
       setStreamText(prev => prev + chars.slice(idx, idx + n).join(""));
       idx += n;
-      timerRef.current = setTimeout(tick, chars[idx] === "\n" ? 28 : Math.random() * 9 + 6);
+      const baseDelay = longReply ? 3 : 5;
+      timerRef.current = setTimeout(
+        tick,
+        chars[idx] === "\n" ? baseDelay + 8 : baseDelay + Math.random() * 4,
+      );
     };
     tick();
   }, []);
@@ -511,6 +523,13 @@ function useStreaming() {
     cancel();
     setStreamText("");
   }, [cancel]);
+
+  // Cancel the fake-typewriter timer on unmount so it can't call setState
+  // on a dead component and leak warnings.
+  useEffect(() => () => {
+    cancelRef.current = true;
+    if (timerRef.current) clearTimeout(timerRef.current);
+  }, []);
 
   return { streamText, streaming, stream, cancel, reset };
 }
