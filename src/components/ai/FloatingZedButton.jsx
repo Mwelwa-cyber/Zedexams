@@ -28,8 +28,7 @@ const HIDDEN_PATTERNS = [
   /^\/register(\/|$)/,
   /^\/study(\/|$)/,
   /^\/quiz\/[^/]+/,          // quiz runner, not the listing
-  /^\/admin(\/|$)/,
-  /^\/teacher(\/|$)/,
+
 ]
 
 export default function FloatingZedButton() {
