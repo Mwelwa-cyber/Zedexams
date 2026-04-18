@@ -12,8 +12,11 @@ export default function Navbar() {
   const [open, setOpen] = useState(false)
   const navigate = useNavigate()
   const homePath = getRoleLandingPath(userProfile)
+  // Admins and teachers already see dedicated "Admin"/"Teacher" links below
+  // that point to their role home — adding a "Home" link here would duplicate them.
+  // Learners get a "Home" link that points to /dashboard.
   const navLinks = [
-    { to: homePath, label: 'Home', icon: '🏠' },
+    ...(!isAdmin && !isTeacher ? [{ to: homePath, label: 'Home', icon: '🏠' }] : []),
     { to: '/lessons', label: 'Lessons', icon: '📚' },
     { to: '/quizzes', label: 'Quizzes', icon: '✏️' },
     { to: '/papers', label: 'Past Papers', icon: '📄' },

@@ -561,7 +561,7 @@ export default function GradeHub() {
             <div className="flex-1 min-w-0">
               <p className="theme-hero-muted text-sm font-bold mb-0.5">👋 Welcome back,</p>
               <h1 className="text-white text-2xl sm:text-3xl font-black leading-tight">{firstName}!</h1>
-              <p className="theme-hero-muted text-sm mt-1 italic">"Practice smart." — Prof. Pako 🦉</p>
+              <p className="theme-hero-muted text-sm mt-1 italic">"Practise smart." — Prof. Pako 🦉</p>
 
               {/* Stats row */}
               <div className="flex items-center gap-4 mt-4 flex-wrap">
@@ -611,7 +611,7 @@ export default function GradeHub() {
         {/* ── GRADE SELECTION ─────────────────────────────────── */}
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-black theme-text">🎓 Upper Primary Hub</h2>
+            <h2 className="text-lg font-black theme-text">🎓 Primary Hub</h2>
             {selectedGrade && (
               <button
                 onClick={() => setSelectedGrade(null)}
@@ -662,7 +662,7 @@ export default function GradeHub() {
               <div>
                 <p className="font-black theme-text text-sm">Select your grade above</p>
                 <p className="theme-text-muted text-xs mt-0.5">
-                  Choose Grade 4, 5, or 6 to see your subjects and start practising.
+                  Choose Grade 4, 5, 6, or 7 to see your subjects and start practising.
                 </p>
               </div>
             </div>

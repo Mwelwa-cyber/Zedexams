@@ -21,6 +21,7 @@ const MyResults = lazy(() => import('./components/dashboard/MyResults'))
 const BadgesPage = lazy(() => import('./components/dashboard/BadgesPage'))
 const ProfilePage = lazy(() => import('./components/dashboard/ProfilePage'))
 const FloatingAIAssistant = lazy(() => import('./components/ai/FloatingAIAssistant'))
+const NotFound = lazy(() => import('./components/ui/NotFound'))
 
 // Admin section
 const AdminLayout = lazy(() => import('./components/admin/AdminLayout'))
@@ -102,7 +103,7 @@ export default function App() {
           <Route path="/lessons/:lessonId" element={<ProtectedRoute><Navbar /><LessonView /></ProtectedRoute>} />
           <Route path="/my-results"        element={<ProtectedRoute><Navbar /><MyResults /></ProtectedRoute>} />
           <Route path="/my-badges"         element={<ProtectedRoute><Navbar /><BadgesPage /></ProtectedRoute>} />
-          <Route path="/profile"           element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+          <Route path="/profile"           element={<ProtectedRoute><Navbar /><ProfilePage /></ProtectedRoute>} />
           {/* /teacher is now handled by the TeacherRoute block below */}
 
           {/* ── Admin routes (all wrapped in AdminLayout) ──────── */}
@@ -129,7 +130,7 @@ export default function App() {
           <Route path="/teacher/lessons/:lessonId/edit" element={<TeacherRoute><LessonEditor /></TeacherRoute>} />
           <Route path="/teacher/papers/upload"         element={<TeacherRoute><TeacherPaperUpload /></TeacherRoute>} />
 
-          <Route path="*" element={<Navigate to="/" replace />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
         <FloatingAIAssistant />
       </Suspense>

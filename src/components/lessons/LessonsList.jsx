@@ -186,7 +186,7 @@ export default function LessonsList() {
                 Study Notes & Lessons
               </h1>
               <p className="text-purple-200 text-sm mt-1">
-                Full study notes for Grades 4 · 5 · 6 — CBC aligned
+                Full study notes for Grades 4–7 — CBC aligned
               </p>
             </div>
             {!loading && (

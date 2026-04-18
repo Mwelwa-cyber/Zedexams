@@ -14,6 +14,10 @@ function LessonCard({ lesson }) {
   const isPresentation = lesson.mode === 'pptx_viewer' || lesson.creationMode === 'pptx_viewer'
   const slideCount = lesson.presentation?.slideCount || lesson.slides?.length || 0
   const readMins = getReadTime(lesson)
+  // Avoid showing the topic as a subtitle when it just repeats the title
+  // (case/whitespace-insensitive). Common in imported content.
+  const normalize = s => String(s ?? '').trim().toLowerCase()
+  const showTopic = lesson.topic && normalize(lesson.topic) !== normalize(lesson.title)
 
   return (
     <Link to={`/lessons/${lesson.id}`} className="group block rounded-3xl border border-gray-100 bg-white p-4 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md">
@@ -27,7 +31,7 @@ function LessonCard({ lesson }) {
             <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-black text-emerald-700">{lesson.subject}</span>
           </div>
           <h2 className="mt-2 text-lg font-black leading-tight text-gray-900 group-hover:text-emerald-700">{lesson.title}</h2>
-          {lesson.topic && <p className="mt-1 text-sm font-bold text-gray-500">{lesson.topic}</p>}
+          {showTopic && <p className="mt-1 text-sm font-bold text-gray-500">{lesson.topic}</p>}
           <div className="mt-3 flex flex-wrap gap-2">
             <span className="rounded-full bg-gray-50 px-2 py-0.5 text-xs font-black text-gray-600">{slideCount || 'Slide'} slides</span>
             {isPresentation && <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs font-black text-sky-700">PowerPoint viewer</span>}

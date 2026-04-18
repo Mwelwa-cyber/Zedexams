@@ -4,12 +4,11 @@ import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSubscription } from '../../hooks/useSubscription'
 import UpgradeModal from '../subscription/UpgradeModal'
-import { AccessBadge } from '../subscription/PremiumGate'
 import ComingSoon from '../ui/ComingSoon'
 import SubjectScroller from '../ui/SubjectScroller'
 
 // ── Design tokens ──────────────────────────────────────────────────────────
-const GRADES = ['4', '5', '6']
+const GRADES = ['4', '5', '6', '7']
 const TERMS  = ['1', '2', '3']
 
 const SUBJECTS = [
@@ -36,7 +35,8 @@ const SUBJECT_STYLES = {
 const GRADE_STYLES = {
   '4': { badge: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' },
   '5': { badge: 'bg-blue-100 text-blue-700',       dot: 'bg-blue-500'    },
-  '6': { badge: 'bg-purple-100 text-purple-700',   dot: 'bg-purple-500'  },
+  '6': { badge: 'bg-orange-100 text-orange-700',   dot: 'bg-orange-500'  },
+  '7': { badge: 'bg-purple-100 text-purple-700',   dot: 'bg-purple-500'  },
 }
 
 function getSubjectMeta(subjectId) {
@@ -271,7 +271,7 @@ export default function QuizList() {
               <p className="theme-hero-muted text-sm mt-1">
                 {isDemoOnly
                   ? `${demoCount} demo quiz${demoCount !== 1 ? 'zes' : ''} available · Upgrade for full access`
-                  : `${quizzes.length} quizzes · Grades 4 · 5 · 6 — CBC aligned`
+                  : `${quizzes.length} quizzes · Grades 4–7 — CBC aligned`
                 }
               </p>
             </div>
@@ -296,12 +296,7 @@ export default function QuizList() {
       </div>
 
       <div className="max-w-2xl md:max-w-4xl mx-auto px-4 -mt-3">
-        {/* Access badge */}
-        <div className="mb-4">
-          <AccessBadge onUpgradeClick={() => setShowUpgrade(true)} />
-        </div>
-
-        {/* Locked banner for demo-only users */}
+        {/* Locked banner for demo-only users (access badge already shown in hero) */}
         {isDemoOnly && <LockedBanner onUpgrade={() => setShowUpgrade(true)} />}
 
         {/* ── Filters ────────────────────────────────────────────────────────── */}

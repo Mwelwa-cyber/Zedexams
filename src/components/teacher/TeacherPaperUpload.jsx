@@ -14,7 +14,7 @@ const SUBJECTS = [
   'Home Economics',
   'Expressive Arts',
 ]
-const GRADES   = ['4', '5', '6']
+const GRADES   = ['4', '5', '6', '7']
 const TERMS    = ['1', '2', '3']
 const YEARS    = ['2024', '2023', '2022', '2021', '2020', '2019', '2018']
 

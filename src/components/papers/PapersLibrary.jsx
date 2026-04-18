@@ -6,7 +6,7 @@ import ComingSoon from '../ui/ComingSoon'
 import SubjectScroller from '../ui/SubjectScroller'
 
 // ── Design tokens ──────────────────────────────────────────────────────────
-const GRADES = ['4', '5', '6']
+const GRADES = ['4', '5', '6', '7']
 const TERMS  = ['1', '2', '3']
 
 const SUBJECTS = [
@@ -33,16 +33,41 @@ const SUBJECT_STYLES = {
 const GRADE_STYLES = {
   '4': { badge: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' },
   '5': { badge: 'bg-blue-100 text-blue-700',       dot: 'bg-blue-500'    },
-  '6': { badge: 'bg-purple-100 text-purple-700',   dot: 'bg-purple-500'  },
+  '6': { badge: 'bg-orange-100 text-orange-700',   dot: 'bg-orange-500'  },
+  '7': { badge: 'bg-purple-100 text-purple-700',   dot: 'bg-purple-500'  },
 }
 
-// Year range for filter
-const YEARS = ['2024', '2023', '2022', '2021', '2020']
+// Year range for filter — built from real paper data so older papers aren't hidden
+const DEFAULT_YEARS = ['2024', '2023', '2022', '2021', '2020']
 
 function getSubjectMeta(subjectId) {
   const sub = SUBJECTS.find(s => s.id === subjectId)
   if (!sub) return { icon: '📄', style: SUBJECT_STYLES.gray }
   return { icon: sub.icon, style: SUBJECT_STYLES[sub.color] }
+}
+
+/**
+ * Normalise a paper title for display. Older imports saved subject names
+ * with inconsistent casing (e.g. "2017 Social studies"). Fix them at the
+ * display layer so user-facing strings stay consistent regardless of how
+ * the underlying record was stored.
+ */
+function prettifyPaperTitle(title = '') {
+  const KNOWN_SUBJECTS = [
+    'Mathematics',
+    'English',
+    'Integrated Science',
+    'Social Studies',
+    'Technology Studies',
+    'Home Economics',
+    'Expressive Arts',
+  ]
+  let out = String(title)
+  for (const s of KNOWN_SUBJECTS) {
+    // Case-insensitive replace → canonical casing
+    out = out.replace(new RegExp(`\\b${s.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&')}\\b`, 'ig'), s)
+  }
+  return out
 }
 
 // ── Chip ───────────────────────────────────────────────────────────────────
@@ -106,7 +131,7 @@ function PaperCard({ paper, index, isPremium, paperLimit, onDownload, onUpgrade 
 
         {/* Info */}
         <div className="flex-1 min-w-0">
-          <h3 className="font-black theme-text text-sm leading-snug line-clamp-2">{paper.title}</h3>
+          <h3 className="font-black theme-text text-sm leading-snug line-clamp-2">{prettifyPaperTitle(paper.title)}</h3>
           <div className="flex gap-1.5 mt-2 flex-wrap items-center">
             <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${style.badge}`}>{paper.subject}</span>
             <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${gradeStyle.badge}`}>
@@ -197,6 +222,15 @@ export default function PapersLibrary() {
     (!search || p.title?.toLowerCase().includes(search.toLowerCase()))
   )
 
+  // Build the year filter list from real paper data, falling back to recent years
+  // so we never hide a paper because its year isn't in a hard-coded list.
+  const availableYears = Array.from(
+    new Set([
+      ...DEFAULT_YEARS,
+      ...papers.map(p => String(p.year ?? '').trim()).filter(Boolean),
+    ])
+  ).sort((a, b) => b.localeCompare(a))
+
   async function handleDownload(paper, idx) {
     if (!isPremium && idx >= paperLimit) { setShowUpgrade(true); return }
     const url = paper.fileURL || paper.fileUrl
@@ -226,7 +260,7 @@ export default function PapersLibrary() {
                 Exam Past Papers
               </h1>
               <p className="text-orange-200 text-sm mt-1">
-                Real exam papers for Grades 4 · 5 · 6 — download & practice
+                Real exam papers for Grades 4–7 — download & practise
               </p>
             </div>
             {!loading && (
@@ -301,7 +335,7 @@ export default function PapersLibrary() {
             <p className="text-xs font-black theme-text-muted uppercase tracking-wider mb-2">Year</p>
             <div className="flex gap-2 flex-wrap">
               <Chip label="All Years" active={!yearF} onClick={() => setYearF('')} />
-              {YEARS.map(y => (
+              {availableYears.map(y => (
                 <Chip key={y} label={y} active={yearF === y}
                   onClick={() => setYearF(y === yearF ? '' : y)} />
               ))}

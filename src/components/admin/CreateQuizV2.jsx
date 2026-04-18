@@ -30,7 +30,7 @@ const SUBJECTS = [
   'Home Economics',
   'Expressive Arts',
 ]
-const GRADES = ['4', '5', '6']
+const GRADES = ['4', '5', '6', '7']
 const TERMS = ['1', '2', '3']
 
 const CREATION_MODES = [

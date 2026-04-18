@@ -1,6 +1,6 @@
 /**
  * Zambia Competency-Based Curriculum (CBC) — Upper Primary
- * Grades 4, 5, and 6  |  Seven Learning Areas
+ * Grades 4, 5, 6, and 7  |  Seven Learning Areas
  *
  * SITE MAP
  * ─────────────────────────────────────────────────────────
@@ -24,7 +24,7 @@
  * FIRESTORE SCHEMA (recommended)
  * ─────────────────────────────────────────────────────────
  * quizzes/{id}
- *   grade: '4'|'5'|'6'
+ *   grade: '4'|'5'|'6'|'7'
  *   subject: SubjectId
  *   topic: string            ← from TOPICS below
  *   competency: string       ← from COMPETENCIES below
@@ -37,7 +37,7 @@
  *   grade, subject, year, term, isPublished, …
  *
  * users/{uid}
- *   grade: '4'|'5'|'6'
+ *   grade: '4'|'5'|'6'|'7'
  *   earnedBadges: [{badgeId, earnedAt}]
  *   currentStreak: number
  *   lastActiveDate: string   ← 'YYYY-MM-DD'
@@ -50,7 +50,7 @@
  * ─────────────────────────────────────────────────────────
  */
 
-export const GRADES = [4, 5, 6]
+export const GRADES = [4, 5, 6, 7]
 
 /** Learning Areas (subjects) — 7 as per CBC Upper Primary */
 export const SUBJECTS = [
@@ -209,36 +209,43 @@ export const TOPICS = {
     4: ['Whole Numbers', 'Addition & Subtraction', 'Multiplication & Division', 'Fractions', 'Measurement', 'Geometry Basics', 'Data Handling'],
     5: ['Large Numbers', 'Fractions & Decimals', 'Ratio & Proportion', 'Measurement & Units', 'Geometry & Area', 'Statistics & Graphs'],
     6: ['Integers', 'Algebra Basics', 'Percentages', 'Advanced Geometry', 'Probability', 'Advanced Statistics'],
+    7: ['Algebraic Expressions', 'Linear Equations', 'Rational Numbers', 'Area & Volume', 'Angles & Triangles', 'Data & Probability'],
   },
   english: {
     4: ['Phonics & Word Study', 'Reading Comprehension', 'Creative Writing', 'Parts of Speech', 'Punctuation', 'Oral Communication'],
     5: ['Reading Strategies', 'Essay Writing', 'Advanced Grammar', 'Vocabulary Building', 'Public Speaking', 'Letter Writing'],
     6: ['Critical Reading', 'Argumentative Writing', 'Complex Grammar', 'Literature Study', 'Debate Skills', 'Report Writing'],
+    7: ['Comprehension & Analysis', 'Composition & Essay Writing', 'Advanced Grammar & Syntax', 'Vocabulary in Context', 'Literary Devices', 'Formal Letters & Reports'],
   },
   science: {
     4: ['Living & Non-living Things', 'Plants', 'Animals', 'Matter & Materials', 'Forces & Motion', 'Light & Sound'],
     5: ['Plant Life Cycles', 'Animal Adaptations', 'States of Matter', 'Electricity Basics', 'Earth & Soil', 'Weather & Climate'],
     6: ['Human Body Systems', 'Ecosystems & Food Chains', 'Chemical Changes', 'Simple Machines', 'Energy Sources', 'Environmental Issues'],
+    7: ['Cells & Tissues', 'Classification of Organisms', 'Heat & Temperature', 'Magnetism & Electricity', 'Earth & Space', 'Environmental Science'],
   },
   'social-studies': {
     4: ['My Community', 'Local Government', 'Zambia — Our Country', 'Natural Environment', 'Traditions & Culture', 'Basic Economics'],
     5: ['Zambia — History & Heritage', 'Provinces of Zambia', 'African Countries', 'Civic Rights & Responsibilities', 'Transport & Communication', 'Economic Activities'],
     6: ['Zambia\'s Independence', 'Regional Geography', 'Democracy & Governance', 'Conflict Resolution', 'Trade & Development', 'Global Citizenship'],
+    7: ['Pre-colonial & Colonial History', 'Physical & Human Geography', 'Governance & Constitution', 'Economic Systems', 'Culture & Heritage', 'Regional & Global Affairs'],
   },
   technology: {
     4: ['Parts of a Computer', 'Using a Keyboard', 'Digital Safety', 'Simple Machines', 'Technology Around Us', 'Problem Solving'],
     5: ['Computer Applications', 'Internet Basics', 'Digital Communication', 'Technology Design', 'Coding Introduction', 'Media Literacy'],
     6: ['Spreadsheets & Data', 'Web Research Skills', 'Digital Citizenship', 'Programming Concepts', 'Technology & Society', 'Cybersecurity Basics'],
+    7: ['Productivity Software', 'Databases & Information', 'Programming Logic', 'Networks & Internet', 'Digital Ethics', 'Emerging Technology'],
   },
   'home-economics': {
     4: ['Personal Hygiene', 'Balanced Diet', 'Kitchen Safety', 'Cleaning & Tidying', 'Family & Home Care', 'Simple Cooking'],
     5: ['Nutrition & Meal Planning', 'Cooking Methods', 'Laundry & Clothing Care', 'Home Organisation', 'Consumer Skills', 'First Aid Basics'],
     6: ['Advanced Cooking', 'Clothing & Textiles', 'Home Design', 'Entrepreneurship Basics', 'Family Health', 'Budgeting & Finance'],
+    7: ['Food Science & Preservation', 'Garment Construction', 'Interior Design', 'Small Business Basics', 'Household Management', 'Consumer Rights'],
   },
   'expressive-arts': {
     4: ['Rhythm & Beats', 'Drawing & Colour', 'Storytelling & Drama', 'Folk Songs & Dance', 'Creative Play', 'Art Materials'],
     5: ['Music Theory Basics', 'Painting Techniques', 'Script & Performance', 'Traditional Dance', 'Sculpture & Craft', 'Cultural Expressions'],
     6: ['Music Composition', 'Advanced Visual Art', 'Theatre Production', 'Contemporary Dance', 'Multimedia Arts', 'Portfolio & Presentation'],
+    7: ['Music Notation & Composition', 'Mixed-Media Art', 'Dramatic Production', 'Choreography', 'Digital Creative Tools', 'Art Criticism'],
   },
 }
 
@@ -287,6 +294,21 @@ export const GRADE_META = {
       border:   'border-orange-200',
       ring:     'ring-orange-400',
       gradient: 'from-orange-500 to-orange-700',
+    },
+  },
+  7: {
+    label:    'Grade 7',
+    tagline:  'Exam Year',
+    color:    'purple',
+    emoji:    '🟣',
+    tailwind: {
+      bg:       'bg-purple-600',
+      hover:    'hover:bg-purple-700',
+      light:    'bg-purple-50',
+      text:     'text-purple-700',
+      border:   'border-purple-200',
+      ring:     'ring-purple-400',
+      gradient: 'from-purple-600 to-purple-800',
     },
   },
 }

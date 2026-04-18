@@ -23,8 +23,9 @@ import UpgradeModal            from '../subscription/UpgradeModal'
 // ── helpers ────────────────────────────────────────────────────────────────
 
 function fmtDate(ts) {
-  if (!ts) return '—'
+  if (!ts) return 'New'
   const d = ts?.toDate?.() ?? new Date(ts)
+  if (Number.isNaN(d?.getTime?.())) return 'New'
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
@@ -76,6 +77,7 @@ export default function ProfilePage() {
   const [showUpgrade, setShowUpgrade] = useState(false)
 
   const isLearner = userProfile?.role === 'learner'
+  const isAdmin   = userProfile?.role === 'admin'
   const daysLeft  = daysUntilExpiry(userProfile)
   const homePath = getRoleLandingPath(userProfile)
   const homeLabel = userProfile?.role === 'admin'
@@ -185,32 +187,34 @@ export default function ProfilePage() {
           ))}
         </div>
 
-        {/* Subscription status */}
-        <div className={`theme-card rounded-2xl border theme-border p-4 flex items-start gap-3 ${
-          isPremium ? 'border-yellow-300 bg-yellow-50' : ''
-        }`}>
-          <span className="text-2xl flex-shrink-0">{isPremium ? '⭐' : '🔓'}</span>
-          <div className="flex-1 min-w-0">
-            <p className={`font-black text-sm ${isPremium ? 'text-yellow-800' : 'theme-text'}`}>
-              {isPremium ? `${planName} Plan` : 'Free / Demo Access'}
-            </p>
-            <p className={`text-xs mt-0.5 ${isPremium ? 'text-yellow-700' : 'theme-text-muted'}`}>
-              {isPremium
-                ? daysLeft !== null
-                  ? `${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining`
-                  : 'Active subscription'
-                : 'Upgrade to unlock all quizzes, papers & exam mode'}
-            </p>
+        {/* Subscription status — hidden for admins, who have full access by role */}
+        {!isAdmin && (
+          <div className={`theme-card rounded-2xl border theme-border p-4 flex items-start gap-3 ${
+            isPremium ? 'border-yellow-300 bg-yellow-50' : ''
+          }`}>
+            <span className="text-2xl flex-shrink-0">{isPremium ? '⭐' : '🔓'}</span>
+            <div className="flex-1 min-w-0">
+              <p className={`font-black text-sm ${isPremium ? 'text-yellow-800' : 'theme-text'}`}>
+                {isPremium ? `${planName} Plan` : 'Free / Demo Access'}
+              </p>
+              <p className={`text-xs mt-0.5 ${isPremium ? 'text-yellow-700' : 'theme-text-muted'}`}>
+                {isPremium
+                  ? daysLeft !== null
+                    ? `${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining`
+                    : 'Active subscription'
+                  : 'Upgrade to unlock all quizzes, papers & exam mode'}
+              </p>
+            </div>
+            {!isPremium && (
+              <button
+                onClick={() => setShowUpgrade(true)}
+                className="flex-shrink-0 bg-green-600 hover:bg-green-700 text-white text-xs font-black px-3 py-1.5 rounded-xl transition-colors min-h-0 shadow-none"
+              >
+                Upgrade
+              </button>
+            )}
           </div>
-          {!isPremium && (
-            <button
-              onClick={() => setShowUpgrade(true)}
-              className="flex-shrink-0 bg-green-600 hover:bg-green-700 text-white text-xs font-black px-3 py-1.5 rounded-xl transition-colors min-h-0 shadow-none"
-            >
-              Upgrade
-            </button>
-          )}
-        </div>
+        )}
 
         {/* Edit profile form */}
         <div className="theme-card rounded-2xl border theme-border p-5">
@@ -255,6 +259,7 @@ export default function ProfilePage() {
                   <option value="4">Grade 4</option>
                   <option value="5">Grade 5</option>
                   <option value="6">Grade 6</option>
+                  <option value="7">Grade 7</option>
                 </select>
               </Field>
             )}

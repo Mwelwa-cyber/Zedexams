@@ -1,6 +1,6 @@
 export const LESSON_SCHEMA_VERSION = 1
 
-export const LESSON_GRADES = ['4', '5', '6']
+export const LESSON_GRADES = ['4', '5', '6', '7']
 export const LESSON_TERMS = ['1', '2', '3']
 
 export const LESSON_SUBJECTS = [
