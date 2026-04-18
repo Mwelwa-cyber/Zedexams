@@ -1,0 +1,12 @@
+[
+  {
+    "route": "/login",
+    "url": "http://127.0.0.1:4173/login",
+    "body": "Grade 4 · 5 · 6 Exam Preparation Email Password Forgot password? Sign In No account? Register free",
+    "errors": []
+  },
+  {
+    "fatal": "page.waitForURL: Timeout 60000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation until \"load\"\n  navigated to \"http://127.0.0.1:4173/\"\n============================================================",
+    "url": "http://127.0.0.1:4173/"
+  }
+]

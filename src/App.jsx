@@ -20,7 +20,7 @@ const LessonEditor = lazy(() => import('./components/lessons/LessonEditor'))
 const MyResults = lazy(() => import('./components/dashboard/MyResults'))
 const BadgesPage = lazy(() => import('./components/dashboard/BadgesPage'))
 const ProfilePage = lazy(() => import('./components/dashboard/ProfilePage'))
-const FloatingAIAssistant = lazy(() => import('./components/ai/FloatingAIAssistant'))
+const ZedStudyAssistant = lazy(() => import('./components/ai/ZedStudyAssistant'))
 const NotFound = lazy(() => import('./components/ui/NotFound'))
 
 // Admin section
@@ -104,6 +104,7 @@ export default function App() {
           <Route path="/my-results"        element={<ProtectedRoute><Navbar /><MyResults /></ProtectedRoute>} />
           <Route path="/my-badges"         element={<ProtectedRoute><Navbar /><BadgesPage /></ProtectedRoute>} />
           <Route path="/profile"           element={<ProtectedRoute><Navbar /><ProfilePage /></ProtectedRoute>} />
+          <Route path="/study"             element={<ProtectedRoute><ZedStudyAssistant /></ProtectedRoute>} />
           {/* /teacher is now handled by the TeacherRoute block below */}
 
           {/* ── Admin routes (all wrapped in AdminLayout) ──────── */}
@@ -132,7 +133,6 @@ export default function App() {
 
           <Route path="*" element={<NotFound />} />
         </Routes>
-        <FloatingAIAssistant />
       </Suspense>
     </BrowserRouter>
   )

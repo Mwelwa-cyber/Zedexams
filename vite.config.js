@@ -9,11 +9,29 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined
-          if (id.includes('pdfjs-dist')) return 'pdfjs'
-          if (id.includes('/react') || id.includes('\\react')) return 'react-vendor'
-          if (id.includes('/firebase') || id.includes('\\firebase')) return 'firebase-vendor'
+
+          const normalizedId = id.replace(/\\/g, '/')
+
+          if (normalizedId.includes('pdfjs-dist')) return 'pdfjs'
+          // Keep the React chunk limited to the core React runtime packages.
+          // Packages like @tiptap/react also include "/react" in their path and
+          // must stay out of this bucket or Rollup creates a circular vendor split.
+          if (
+            normalizedId.includes('/node_modules/react/') ||
+            normalizedId.includes('/node_modules/react-dom/') ||
+            normalizedId.includes('/node_modules/scheduler/')
+          ) {
+            return 'react-vendor'
+          }
+          if (normalizedId.includes('/node_modules/firebase/')) return 'firebase-vendor'
           // Let Vite auto-split @tiptap and katex — they are dynamically imported
-          if (id.includes('@tiptap') || id.includes('/katex') || id.includes('\\katex') || id.includes('/prosemirror') || id.includes('\\prosemirror')) return undefined
+          if (
+            normalizedId.includes('/node_modules/@tiptap/') ||
+            normalizedId.includes('/node_modules/katex/') ||
+            normalizedId.includes('/node_modules/prosemirror/')
+          ) {
+            return undefined
+          }
           return 'vendor'
         },
       },

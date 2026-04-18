@@ -21,6 +21,7 @@ export default function Navbar() {
     { to: '/quizzes', label: 'Quizzes', icon: '✏️' },
     { to: '/papers', label: 'Past Papers', icon: '📄' },
     { to: '/my-results', label: 'Results', icon: '📊' },
+    { to: '/study', label: 'Zed', icon: '🤖' },
   ]
 
   async function handleLogout() {

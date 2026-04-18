@@ -10,17 +10,19 @@ admin.initializeApp();
 const {
   LIMITS,
   assertDailyLimit,
-  buildChatMessages,
+  buildAnthropicChat,
   buildExplainMessages,
   buildImportStructureMessages,
   buildQuizMessages,
-  callOpenAI,
+  callAnthropic,
   cleanString: cleanAiString,
-  getApiKey,
+  getAnthropicApiKey,
   getUserRole,
   isStaffRole,
   parseGeneratedQuiz,
   parseStructuredImport,
+  stripJsonFences,
+  toAnthropicShape,
 } = require("./aiService");
 const {
   buildMtnConfig,
@@ -33,12 +35,11 @@ const {
   resolveCurrency,
 } = require("./momoService");
 
-const openAiApiKey = defineSecret("OPENAI_API_KEY");
+const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const mtnApiUser = defineSecret("MTN_API_USER");
 const mtnApiKey = defineSecret("MTN_API_KEY");
 const mtnSubscriptionKey = defineSecret("MTN_SUBSCRIPTION_KEY");
 const mtnEnv = defineSecret("MTN_ENV");
-const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const MAX_LEN = {
   question: 1200,
   correctAnswer: 600,
@@ -81,7 +82,7 @@ function cleanString(value, maxLength) {
 
 function parseMarkerResponse(raw) {
   try {
-    const parsed = JSON.parse(raw);
+    const parsed = JSON.parse(stripJsonFences(raw));
     return {
       correct: Boolean(parsed.correct),
       feedback: cleanString(parsed.feedback, 160) ||
@@ -153,7 +154,7 @@ exports.setUserRole = functions.auth.user().onCreate(async (user) => {
 });
 
 exports.aiChat = onCall(
-  {secrets: [openAiApiKey], region: "us-central1", timeoutSeconds: 30},
+  {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 30},
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Please sign in first.");
@@ -170,14 +171,17 @@ exports.aiChat = onCall(
     const role = await getUserRole(request.auth.uid);
     await assertDailyLimit(request.auth.uid, role, "chat");
 
-    const reply = await callOpenAI(getApiKey(openAiApiKey), {
-      messages: buildChatMessages({
-        message,
-        context: request.data?.context || {},
-        history: request.data?.history || [],
-        role,
-      }),
-      maxTokens: 650,
+    const {systemPrompt, messages} = buildAnthropicChat({
+      message,
+      context: request.data?.context || {},
+      history: request.data?.history || [],
+      role,
+      customSystemPrompt: request.data?.systemPrompt,
+    });
+    const reply = await callAnthropic(getAnthropicApiKey(anthropicApiKey), {
+      systemPrompt,
+      messages,
+      maxTokens: 1000,
       temperature: 0.35,
     });
 
@@ -420,7 +424,7 @@ async function refreshPaymentStatus(paymentId, {skipIfNotDue = false} = {}) {
 }
 
 exports.apiAiChat = onRequest(
-  {secrets: [openAiApiKey], region: "us-central1", timeoutSeconds: 30},
+  {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 30},
   async (req, res) => {
     res.set("Access-Control-Allow-Origin", "*");
     res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -452,14 +456,18 @@ exports.apiAiChat = onRequest(
 
       const role = await getUserRole(decoded.uid);
       await assertDailyLimit(decoded.uid, role, "chat");
-      const reply = await callOpenAI(getApiKey(openAiApiKey), {
-        messages: buildChatMessages({
-          message,
-          context: req.body?.context || {},
-          history: req.body?.history || [],
-          role,
-        }),
-        maxTokens: 650,
+
+      const {systemPrompt, messages} = buildAnthropicChat({
+        message,
+        context: req.body?.context || {},
+        history: req.body?.history || [],
+        role,
+        customSystemPrompt: req.body?.systemPrompt,
+      });
+      const reply = await callAnthropic(getAnthropicApiKey(anthropicApiKey), {
+        systemPrompt,
+        messages,
+        maxTokens: 1000,
         temperature: 0.35,
       });
 
@@ -659,7 +667,7 @@ exports.pollPendingMomoPayments = onSchedule(
 );
 
 exports.explainAnswer = onCall(
-  {secrets: [openAiApiKey], region: "us-central1", timeoutSeconds: 30},
+  {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 30},
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Please sign in first.");
@@ -680,13 +688,15 @@ exports.explainAnswer = onCall(
     const role = await getUserRole(request.auth.uid);
     await assertDailyLimit(request.auth.uid, role, "explain");
 
-    const explanation = await callOpenAI(getApiKey(openAiApiKey), {
-      messages: buildExplainMessages({
-        ...request.data,
-        question,
-        correctAnswer,
-      }),
-      maxTokens: 220,
+    const {systemPrompt, messages} = toAnthropicShape(buildExplainMessages({
+      ...request.data,
+      question,
+      correctAnswer,
+    }));
+    const explanation = await callAnthropic(getAnthropicApiKey(anthropicApiKey), {
+      systemPrompt,
+      messages,
+      maxTokens: 400,
       temperature: 0.25,
     });
 
@@ -695,7 +705,7 @@ exports.explainAnswer = onCall(
 );
 
 exports.generateQuizQuestions = onCall(
-  {secrets: [openAiApiKey], region: "us-central1", timeoutSeconds: 45},
+  {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 45},
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Please sign in first.");
@@ -720,15 +730,17 @@ exports.generateQuizQuestions = onCall(
     }
 
     await assertDailyLimit(request.auth.uid, role, "generateQuiz");
-    const {messages} = buildQuizMessages({
+    const {messages: rawMessages} = buildQuizMessages({
       ...request.data,
       subject,
       grade,
       topic,
     });
-    const raw = await callOpenAI(getApiKey(openAiApiKey), {
+    const {systemPrompt, messages} = toAnthropicShape(rawMessages);
+    const raw = await callAnthropic(getAnthropicApiKey(anthropicApiKey), {
+      systemPrompt,
       messages,
-      maxTokens: 1400,
+      maxTokens: 2000,
       temperature: 0.45,
       json: true,
     });
@@ -740,7 +752,7 @@ exports.generateQuizQuestions = onCall(
 );
 
 exports.structureImportedQuiz = onCall(
-  {secrets: [openAiApiKey], region: "us-central1", timeoutSeconds: 60},
+  {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 60},
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Please sign in first.");
@@ -775,13 +787,15 @@ exports.structureImportedQuiz = onCall(
     }
 
     await assertDailyLimit(request.auth.uid, role, "smartImport");
-    const raw = await callOpenAI(getApiKey(openAiApiKey), {
-      messages: buildImportStructureMessages({
-        fileName,
-        documentText,
-        localDraft,
-      }),
-      maxTokens: 3200,
+    const {systemPrompt, messages} = toAnthropicShape(buildImportStructureMessages({
+      fileName,
+      documentText,
+      localDraft,
+    }));
+    const raw = await callAnthropic(getAnthropicApiKey(anthropicApiKey), {
+      systemPrompt,
+      messages,
+      maxTokens: 4000,
       temperature: 0.2,
       json: true,
     });
@@ -791,7 +805,7 @@ exports.structureImportedQuiz = onCall(
 );
 
 exports.checkShortAnswer = onCall(
-  {secrets: [openAiApiKey], region: "us-central1", timeoutSeconds: 30},
+  {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 30},
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Please sign in first.");
@@ -816,14 +830,6 @@ exports.checkShortAnswer = onCall(
       );
     }
 
-    const apiKey = openAiApiKey.value() || process.env.OPENAI_API_KEY;
-    if (!apiKey) {
-      throw new HttpsError(
-        "failed-precondition",
-        "AI marking is not configured yet.",
-      );
-    }
-
     const context = [grade ? `Grade ${grade}` : "", subject]
       .filter(Boolean)
       .join(", ");
@@ -840,7 +846,7 @@ exports.checkShortAnswer = onCall(
           "answer is factually correct. If the question is ambiguous, mark it " +
           "incorrect and tell the learner to review the question. ") +
       MARKING_EQUIVALENCES +
-      "Always respond with only valid JSON.";
+      "Always respond with only valid JSON. No prose, no code fences, just the JSON object.";
 
     const userPrompt = `Question: "${question}"
 Expected answer: "${correctAnswer || "Not provided"}"
@@ -851,46 +857,13 @@ Respond in this exact JSON format:
 or
 {"correct": false, "feedback": "Short explanation of correct answer (max 15 words)"}`;
 
-    let res;
-    try {
-      res = await fetch(OPENAI_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "Authorization": `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            {role: "system", content: systemPrompt},
-            {role: "user", content: userPrompt},
-          ],
-          temperature: 0.1,
-          max_tokens: 120,
-          response_format: {type: "json_object"},
-        }),
-      });
-    } catch {
-      throw new HttpsError(
-        "unavailable",
-        "AI marking is temporarily unavailable. Please try again.",
-      );
-    }
-
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}));
-      console.error("OpenAI marker error", {
-        status: res.status,
-        message: body?.error?.message,
-      });
-      throw new HttpsError(
-        "unavailable",
-        "AI marking is temporarily unavailable. Please try again.",
-      );
-    }
-
-    const data = await res.json();
-    const raw = data?.choices?.[0]?.message?.content || "";
+    const raw = await callAnthropic(getAnthropicApiKey(anthropicApiKey), {
+      systemPrompt,
+      messages: [{role: "user", content: userPrompt}],
+      maxTokens: 200,
+      temperature: 0.1,
+      json: true,
+    });
     return parseMarkerResponse(raw);
   },
 );

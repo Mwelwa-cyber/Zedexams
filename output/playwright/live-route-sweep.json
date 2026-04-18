@@ -1,0 +1,36 @@
+[
+  {
+    "route": "/",
+    "url": "https://zedexams.com/",
+    "title": "ZedExams — Practise Smart. Pass Confidently.",
+    "loadingOnly": false,
+    "body": "",
+    "errors": [
+      "pageerror: Cannot read properties of undefined (reading 'useState')"
+    ]
+  },
+  {
+    "route": "/login",
+    "url": "https://zedexams.com/login",
+    "title": "ZedExams — Practise Smart. Pass Confidently.",
+    "loadingOnly": false,
+    "body": "",
+    "errors": [
+      "pageerror: Cannot read properties of undefined (reading 'useState')"
+    ]
+  },
+  {
+    "route": "/register",
+    "url": "https://zedexams.com/register",
+    "title": "ZedExams — Practise Smart. Pass Confidently.",
+    "loadingOnly": false,
+    "body": "",
+    "errors": [
+      "pageerror: Cannot read properties of undefined (reading 'useState')"
+    ]
+  },
+  {
+    "fatal": "locator.fill: Timeout 30000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('input[type=\"email\"]').first()\u001b[22m\n",
+    "url": "https://zedexams.com/login"
+  }
+]

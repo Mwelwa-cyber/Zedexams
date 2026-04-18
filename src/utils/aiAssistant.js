@@ -179,7 +179,10 @@ function makeLocalQuizQuestions(payload) {
   })
 }
 
-export async function sendAIChat({ message, context, history = [] }) {
+export async function sendAIChat({ message, context, history = [], systemPrompt }) {
+  const payload = { message, context, history }
+  if (systemPrompt) payload.systemPrompt = systemPrompt
+
   try {
     const token = await auth.currentUser?.getIdToken()
     if (!token) throw new Error('Please sign in before using Zed.')
@@ -191,7 +194,7 @@ export async function sendAIChat({ message, context, history = [] }) {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ message, context, history }),
+        body: JSON.stringify(payload),
       }),
       AI_CHAT_TIMEOUT_MS,
       'Zed is taking too long to reply. Please try again in a moment.',
@@ -205,7 +208,7 @@ export async function sendAIChat({ message, context, history = [] }) {
     if (import.meta.env.DEV && !error?.message?.includes('sign in')) {
       try {
         const response = await withTimeout(
-          aiChatCallable({ message, context, history }),
+          aiChatCallable(payload),
           AI_CHAT_TIMEOUT_MS,
           'Zed is taking too long to reply. Please try again in a moment.',
         )

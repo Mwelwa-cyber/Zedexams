@@ -4,6 +4,10 @@ const admin = require("firebase-admin");
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
+const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
+const ANTHROPIC_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5";
+const ANTHROPIC_VERSION = "2023-06-01";
+
 const LIMITS = {
   message: 1600,
   context: 900,
@@ -58,6 +62,17 @@ function cleanContext(context = {}) {
 
 function getApiKey(openAiApiKey) {
   const apiKey = openAiApiKey.value() || process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    throw new HttpsError(
+      "failed-precondition",
+      "AI is not configured yet.",
+    );
+  }
+  return apiKey;
+}
+
+function getAnthropicApiKey(anthropicApiKey) {
+  const apiKey = anthropicApiKey.value() || process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new HttpsError(
       "failed-precondition",
@@ -164,6 +179,97 @@ async function callOpenAI(apiKey, {
   return cleanString(data?.choices?.[0]?.message?.content, 4000);
 }
 
+// Strip markdown code fences (```json ... ```) that Claude sometimes emits
+// around JSON responses. Leaves plain JSON untouched.
+function stripJsonFences(raw) {
+  if (!raw) return "";
+  const fence = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/i);
+  return (fence ? fence[1] : raw).trim();
+}
+
+async function callAnthropic(apiKey, {
+  systemPrompt,
+  messages,
+  maxTokens = 800,
+  temperature = 0.35,
+  json = false,
+}) {
+  let res;
+  try {
+    res = await fetch(ANTHROPIC_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": ANTHROPIC_VERSION,
+      },
+      body: JSON.stringify({
+        model: ANTHROPIC_MODEL,
+        max_tokens: maxTokens,
+        temperature,
+        ...(systemPrompt ? {system: systemPrompt} : {}),
+        messages,
+      }),
+    });
+  } catch {
+    throw new HttpsError(
+      "unavailable",
+      "AI is temporarily unavailable. Please try again.",
+    );
+  }
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    console.error("Anthropic assistant error", {
+      status: res.status,
+      message: body?.error?.message,
+      type: body?.error?.type,
+    });
+    throw new HttpsError(
+      "unavailable",
+      "AI is temporarily unavailable. Please try again.",
+    );
+  }
+
+  const data = await res.json();
+  const blocks = Array.isArray(data?.content) ? data.content : [];
+  const text = blocks
+    .filter((block) => block?.type === "text" && block?.text)
+    .map((block) => block.text)
+    .join("\n")
+    .trim();
+  const cleaned = json ? stripJsonFences(text) : text;
+  // Anthropic has no native JSON mode — if the model still wrapped output
+  // in prose, try to extract the first JSON object as a last resort.
+  if (json && cleaned && !cleaned.startsWith("{") && !cleaned.startsWith("[")) {
+    const objMatch = cleaned.match(/\{[\s\S]*\}/);
+    if (objMatch) return cleanString(objMatch[0], 10000);
+  }
+  return cleanString(cleaned, 10000);
+}
+
+// Convert OpenAI-shaped messages ([{role:"system",...}, {role:"user",...}, ...])
+// to Anthropic shape ({systemPrompt, messages}). Multiple system messages get
+// joined. Messages array must start with a user turn.
+function toAnthropicShape(openAiMessages = []) {
+  const systemParts = [];
+  const rest = [];
+  for (const m of openAiMessages) {
+    if (!m) continue;
+    if (m.role === "system") {
+      if (m.content) systemParts.push(String(m.content));
+    } else if (m.role === "user" || m.role === "assistant") {
+      rest.push({role: m.role, content: String(m.content || "")});
+    }
+  }
+  // Drop any leading assistant messages (Anthropic requires user first).
+  while (rest.length && rest[0].role !== "user") rest.shift();
+  return {
+    systemPrompt: systemParts.join("\n\n"),
+    messages: rest,
+  };
+}
+
 function educationSystemPrompt(role, context = {}) {
   const page = context.area ? ` Current page: ${context.area}.` : "";
   const staff = isStaffRole(role)
@@ -216,6 +322,40 @@ function buildChatMessages({message, context, role, history = []}) {
       ].join("\n"),
     },
   ];
+}
+
+// Anthropic expects `system` as a top-level param (not in messages[]),
+// and the messages array must alternate user/assistant starting with user.
+function buildAnthropicChat({
+  message,
+  context,
+  role,
+  history = [],
+  customSystemPrompt,
+}) {
+  const cleanedContext = cleanContext(context);
+  const cleanedHistory = cleanChatHistory(history);
+  const systemPrompt = cleanString(
+    customSystemPrompt,
+    4000,
+  ) || educationSystemPrompt(role, cleanedContext);
+
+  // Ensure history starts with a user message (Anthropic requirement).
+  // Drop leading assistant messages if present.
+  let trimmedHistory = cleanedHistory;
+  while (trimmedHistory.length && trimmedHistory[0].role !== "user") {
+    trimmedHistory = trimmedHistory.slice(1);
+  }
+
+  const userContent = customSystemPrompt
+    ? message
+    : [
+        `Page context: ${JSON.stringify(cleanedContext)}`,
+        `Student or staff message: ${message}`,
+      ].join("\n");
+
+  const messages = [...trimmedHistory, {role: "user", content: userContent}];
+  return {systemPrompt, messages};
 }
 
 function buildExplainMessages(payload) {
@@ -371,7 +511,7 @@ function normalizeCorrectAnswer(value, options) {
 function parseGeneratedQuiz(raw, fallbackTopic) {
   let parsed;
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(stripJsonFences(raw));
   } catch {
     throw new HttpsError(
       "internal",
@@ -434,7 +574,7 @@ function normalizeImportedQuestion(question = {}) {
 function parseStructuredImport(raw) {
   let parsed;
   try {
-    parsed = JSON.parse(raw);
+    parsed = JSON.parse(stripJsonFences(raw));
   } catch {
     throw new HttpsError(
       "internal",
@@ -499,17 +639,22 @@ function parseStructuredImport(raw) {
 module.exports = {
   LIMITS,
   assertDailyLimit,
+  buildAnthropicChat,
   buildChatMessages,
   buildExplainMessages,
   buildImportStructureMessages,
   buildQuizMessages,
+  callAnthropic,
   callOpenAI,
   cleanContext,
   cleanChatHistory,
   cleanString,
+  getAnthropicApiKey,
   getApiKey,
   getUserRole,
   isStaffRole,
   parseStructuredImport,
   parseGeneratedQuiz,
+  stripJsonFences,
+  toAnthropicShape,
 };
