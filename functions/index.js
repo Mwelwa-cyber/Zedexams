@@ -35,6 +35,19 @@ const {
   resolveCurrency,
 } = require("./momoService");
 
+// Teacher Tools — Lesson Plan Generator (Zambian CBC).
+const {
+  createGenerateLessonPlan,
+} = require("./teacherTools/generateLessonPlan");
+// Teacher Tools — Worksheet Generator.
+const {
+  createGenerateWorksheet,
+} = require("./teacherTools/generateWorksheet");
+// Teacher Tools — Flashcard Generator.
+const {
+  createGenerateFlashcards,
+} = require("./teacherTools/generateFlashcards");
+
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const mtnApiUser = defineSecret("MTN_API_USER");
 const mtnApiKey = defineSecret("MTN_API_KEY");
@@ -867,3 +880,13 @@ or
     return parseMarkerResponse(raw);
   },
 );
+
+// Teacher Tools — Zambian CBC Lesson Plan Generator.
+exports.generateLessonPlan = createGenerateLessonPlan(anthropicApiKey);
+
+// Teacher Tools — Zambian CBC Worksheet Generator.
+exports.generateWorksheet = createGenerateWorksheet(anthropicApiKey);
+
+// Teacher Tools — Zambian CBC Flashcard Generator.
+exports.generateFlashcards = createGenerateFlashcards(anthropicApiKey);
+exports.apiTextToSpeech = require('./tts').apiTextToSpeech;
