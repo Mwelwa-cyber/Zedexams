@@ -7,10 +7,14 @@ const aiChatCallable = httpsCallable(functions, 'aiChat')
 const explainAnswerCallable = httpsCallable(functions, 'explainAnswer')
 const generateQuizCallable = httpsCallable(functions, 'generateQuizQuestions')
 const structureImportedQuizCallable = httpsCallable(functions, 'structureImportedQuiz')
-const AI_CHAT_TIMEOUT_MS = 12000
-const AI_EXPLAIN_TIMEOUT_MS = 8000
-const AI_QUIZ_TIMEOUT_MS = 20000
-const AI_IMPORT_TIMEOUT_MS = 18000
+// Client timeouts are intentionally a bit longer than the matching Cloud
+// Function timeoutSeconds — so the server's own error surfaces rather than
+// the client giving up first. Claude Sonnet can easily take 15–25s on a
+// cold start with a long CBC system prompt and ~1000-token output.
+const AI_CHAT_TIMEOUT_MS = 35000       // server: 30s
+const AI_EXPLAIN_TIMEOUT_MS = 35000    // server: 30s
+const AI_QUIZ_TIMEOUT_MS = 50000       // server: 45s
+const AI_IMPORT_TIMEOUT_MS = 65000     // server: 60s
 
 function messageFromError(error) {
   const code = error?.code || ''
