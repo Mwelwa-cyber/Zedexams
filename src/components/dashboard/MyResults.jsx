@@ -1,7 +1,11 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { X, ChevronRight } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
+import Button from '../ui/Button'
+import Icon from '../ui/Icon'
+import Skeleton from '../ui/Skeleton'
 
 const SUBJECTS = [
   'Mathematics', 'English', 'Integrated Science', 'Social Studies',
@@ -33,14 +37,14 @@ function pctBg(p) {
 
 function ResultSkeleton() {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-4 animate-pulse">
+    <div className="theme-card rounded-2xl border theme-border p-4 shadow-elev-sm">
       <div className="flex items-center gap-3">
-        <div className="w-12 h-12 bg-gray-200 rounded-full flex-shrink-0" />
+        <Skeleton shape="circle" size={48} />
         <div className="flex-1 space-y-2">
-          <div className="h-4 bg-gray-200 rounded w-3/4" />
-          <div className="h-3 bg-gray-200 rounded w-1/2" />
+          <Skeleton height={14} width="75%" />
+          <Skeleton height={10} width="50%" />
         </div>
-        <div className="w-8 h-8 bg-gray-200 rounded-lg" />
+        <Skeleton height={32} width={32} />
       </div>
     </div>
   )
@@ -85,22 +89,25 @@ export default function MyResults() {
   return (
     <div className="max-w-2xl md:max-w-3xl mx-auto px-4 py-6">
       <div className="mb-5">
-        <h1 className="text-2xl font-black text-gray-800">📊 My Results</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Your complete quiz history</p>
+        <p className="text-eyebrow">Your progress</p>
+        <h1 className="text-display-xl theme-text mt-1 flex items-center gap-2">
+          <span aria-hidden="true">📊</span> My results
+        </h1>
+        <p className="theme-text-muted text-body-sm mt-1">Your complete quiz history</p>
       </div>
 
       {/* Summary */}
       {!loading && results.length > 0 && (
-        <div className="grid grid-cols-3 gap-3 mb-5">
+        <div className="grid grid-cols-3 gap-3 mb-5 stagger">
           {[
             { icon: '📝', label: 'Total',   val: totalQuizzes },
             { icon: '🎯', label: 'Average', val: `${avgScore}%` },
             { icon: '✅', label: 'Passed',  val: passed },
           ].map(s => (
-            <div key={s.label} className="bg-white rounded-2xl border border-gray-100 p-4 text-center">
-              <div className="text-xl mb-1">{s.icon}</div>
-              <div className="font-black text-lg text-gray-800">{s.val}</div>
-              <div className="text-xs text-gray-500">{s.label}</div>
+            <div key={s.label} className="theme-card rounded-2xl border theme-border shadow-elev-sm p-4 text-center animate-slide-in-soft">
+              <div className="text-xl mb-1" aria-hidden="true">{s.icon}</div>
+              <div className="text-display-md theme-text" style={{ fontSize: 18 }}>{s.val}</div>
+              <div className="text-eyebrow mt-0.5">{s.label}</div>
             </div>
           ))}
         </div>
@@ -120,10 +127,14 @@ export default function MyResults() {
           <option value="exam">🏆 Exam</option>
         </select>
         {(subjectF || modeF) && (
-          <button onClick={() => { setSubjectF(''); setModeF('') }}
-            className="text-sm font-bold text-gray-500 border border-gray-200 px-3 py-2 rounded-xl hover:border-red-300 hover:text-red-500 transition-colors min-h-0">
-            ✕ Clear
-          </button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => { setSubjectF(''); setModeF('') }}
+            leadingIcon={<Icon as={X} size="sm" />}
+          >
+            Clear
+          </Button>
         )}
       </div>
 
@@ -133,26 +144,32 @@ export default function MyResults() {
           {Array.from({ length: 5 }).map((_, i) => <ResultSkeleton key={i} />)}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 py-16 text-center">
-          <div className="text-5xl mb-3">{results.length === 0 ? '🎯' : '🔍'}</div>
-          <p className="font-black text-gray-700">
+        <div className="theme-card rounded-2xl border theme-border shadow-elev-sm py-16 text-center">
+          <div className="text-5xl mb-3" aria-hidden="true">{results.length === 0 ? '🎯' : '🔍'}</div>
+          <p className="text-display-md theme-text">
             {results.length === 0 ? 'No results yet' : 'No results match your filters'}
           </p>
-          <p className="text-gray-400 text-sm mt-1">
+          <p className="theme-text-muted text-body-sm mt-1">
             {results.length === 0 ? 'Complete a quiz to see your results here' : 'Try clearing your filters'}
           </p>
           {results.length === 0 && (
-            <button onClick={() => navigate('/quizzes')}
-              className="mt-4 bg-green-600 text-white font-bold text-sm px-5 py-2.5 rounded-full hover:bg-green-700 transition-colors min-h-0">
-              Start a Quiz →
-            </button>
+            <div className="mt-4 inline-flex">
+              <Button
+                variant="primary"
+                size="md"
+                onClick={() => navigate('/quizzes')}
+                trailingIcon={<Icon as={ChevronRight} size="sm" />}
+              >
+                Start a quiz
+              </Button>
+            </div>
           )}
         </div>
       ) : (
         <div className="space-y-3">
           {filtered.map(r => (
             <button key={r.id} onClick={() => navigate(`/results/${r.id}`)}
-              className="w-full bg-white rounded-2xl border border-gray-100 p-4 hover:shadow-md hover:border-green-200 transition-all text-left group min-h-0">
+              className="w-full theme-card rounded-2xl border theme-border p-4 shadow-elev-sm hover:-translate-y-0.5 hover:shadow-elev-md hover:border-[var(--accent)] transition-all duration-base ease-out text-left group min-h-0">
               <div className="flex items-center gap-3">
                 {/* Score circle */}
                 <div className="relative w-12 h-12 flex-shrink-0">

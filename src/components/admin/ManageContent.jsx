@@ -1,6 +1,11 @@
 import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { Search, Plus, Download, X, ChevronRight } from 'lucide-react'
 import { useFirestore } from '../../hooks/useFirestore'
+import Button from '../ui/Button'
+import Icon from '../ui/Icon'
+import Skeleton from '../ui/Skeleton'
+import ConfirmDialog from '../ui/ConfirmDialog'
 
 const TABS = [
   { id: 'quizzes', label: '📝 Quizzes' },
@@ -156,6 +161,8 @@ export default function ManageContent() {
   const [statusF,   setStatusF]   = useState('')
 
   const [deleting, setDeleting] = useState(null)
+  // { kind: 'quiz' | 'lesson', item: Record } | null
+  const [pendingDelete, setPendingDelete] = useState(null)
 
   function show(msg, isErr = false) {
     setToast({ msg, isErr }); setTimeout(() => setToast(null), 3000)
@@ -182,14 +189,23 @@ export default function ManageContent() {
     show(next ? '✅ Lesson published!' : '📦 Lesson unpublished.')
   }
 
-  async function handleDeleteLesson(lesson) {
+  function handleDeleteLesson(lesson) {
     if (deleting) return
-    if (!window.confirm(`Delete "${lesson.title}"? This cannot be undone.`)) return
+    setPendingDelete({ kind: 'lesson', item: lesson })
+  }
+
+  async function confirmDeleteLesson(lesson) {
     setDeleting(lesson.id)
-    await deleteLesson(lesson.id)
-    setLessons(ls => ls.filter(l => l.id !== lesson.id))
-    setDeleting(null)
-    show('Lesson deleted.')
+    try {
+      await deleteLesson(lesson.id)
+      setLessons(ls => ls.filter(l => l.id !== lesson.id))
+      show('Lesson deleted.')
+    } catch (err) {
+      show('❌ ' + (err?.message || 'Failed to delete lesson.'), true)
+    } finally {
+      setDeleting(null)
+      setPendingDelete(null)
+    }
   }
 
   // ── Quiz actions ───────────────────────────────────────────────────────
@@ -204,14 +220,23 @@ export default function ManageContent() {
     show(next ? '✅ Quiz published!' : '📦 Quiz unpublished.')
   }
 
-  async function handleDeleteQuiz(quiz) {
+  function handleDeleteQuiz(quiz) {
     if (deleting) return
-    if (!window.confirm(`Delete "${quiz.title}"? All questions will also be deleted. This cannot be undone.`)) return
+    setPendingDelete({ kind: 'quiz', item: quiz })
+  }
+
+  async function confirmDeleteQuiz(quiz) {
     setDeleting(quiz.id)
-    await deleteQuiz(quiz.id)
-    setQuizzes(qs => qs.filter(q => q.id !== quiz.id))
-    setDeleting(null)
-    show('Quiz deleted.')
+    try {
+      await deleteQuiz(quiz.id)
+      setQuizzes(qs => qs.filter(q => q.id !== quiz.id))
+      show('Quiz deleted.')
+    } catch (err) {
+      show('❌ ' + (err?.message || 'Failed to delete quiz.'), true)
+    } finally {
+      setDeleting(null)
+      setPendingDelete(null)
+    }
   }
 
   // ── Filter logic ───────────────────────────────────────────────────────
@@ -253,40 +278,78 @@ export default function ManageContent() {
         </div>
       )}
 
+      {/* Delete confirmation */}
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title={pendingDelete?.kind === 'quiz' ? 'Delete this quiz?' : 'Delete this lesson?'}
+        message={
+          pendingDelete?.kind === 'quiz'
+            ? <>You're about to delete <strong className="theme-text">"{pendingDelete?.item?.title}"</strong>. All questions linked to it will be removed too. This cannot be undone.</>
+            : <>You're about to delete <strong className="theme-text">"{pendingDelete?.item?.title}"</strong>. This cannot be undone.</>
+        }
+        confirmLabel={pendingDelete?.kind === 'quiz' ? 'Delete quiz' : 'Delete lesson'}
+        variant="danger"
+        loading={Boolean(deleting) && pendingDelete?.item?.id === deleting}
+        onConfirm={() => {
+          if (!pendingDelete) return
+          if (pendingDelete.kind === 'quiz') confirmDeleteQuiz(pendingDelete.item)
+          else confirmDeleteLesson(pendingDelete.item)
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
+
       {/* Header */}
       <div className="flex items-start justify-between gap-3 flex-wrap">
         <div>
-          <h1 className="text-2xl font-black text-gray-800">📁 Manage Content</h1>
-          <p className="text-gray-500 text-sm">Edit, publish, or delete lessons and quizzes</p>
+          <p className="text-eyebrow">Library</p>
+          <h1 className="text-display-xl text-gray-800 mt-1 flex items-center gap-2">
+            <span aria-hidden="true">📁</span> Manage content
+          </h1>
+          <p className="text-body-sm text-gray-500 mt-1">Edit, publish, or delete lessons and quizzes</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <Link to="/admin/quizzes/new"
-            className="bg-green-600 hover:bg-green-700 text-white font-black text-sm px-4 py-2 rounded-xl transition-colors">
-            + Quiz
-          </Link>
-          <Link to="/admin/quizzes/new?mode=import"
-            className="border-2 border-emerald-600 text-emerald-700 font-black text-sm px-4 py-2 rounded-xl hover:bg-emerald-50 transition-colors">
+          <Button
+            as={Link}
+            to="/admin/quizzes/new"
+            variant="primary"
+            size="md"
+            leadingIcon={<Icon as={Plus} size="sm" />}
+          >
+            Quiz
+          </Button>
+          <Button
+            as={Link}
+            to="/admin/quizzes/new?mode=import"
+            variant="secondary"
+            size="md"
+            leadingIcon={<Icon as={Download} size="sm" />}
+          >
             Import Quiz
-          </Link>
-          <Link to="/admin/lessons/new"
-            className="border-2 border-green-600 text-green-600 font-black text-sm px-4 py-2 rounded-xl hover:bg-green-50 transition-colors">
-            + Lesson
-          </Link>
+          </Button>
+          <Button
+            as={Link}
+            to="/admin/lessons/new"
+            variant="secondary"
+            size="md"
+            leadingIcon={<Icon as={Plus} size="sm" />}
+          >
+            Lesson
+          </Button>
         </div>
       </div>
 
       {/* Quiz stats row */}
       {tab === 'quizzes' && !loading && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 stagger">
           {[
             { label: 'Total',     value: totalQuizzes,   color: 'bg-gray-50  border-gray-200', text: 'text-gray-700' },
             { label: 'Published', value: publishedCount, color: 'bg-green-50 border-green-200',text: 'text-green-700' },
             { label: 'Pending',   value: pendingCount,   color: 'bg-yellow-50 border-yellow-200',text: 'text-yellow-700' },
             { label: 'Drafts',    value: draftCount,     color: 'bg-blue-50 border-blue-200',  text: 'text-blue-700' },
           ].map(s => (
-            <div key={s.label} className={`${s.color} border rounded-2xl p-3 text-center`}>
-              <p className={`text-2xl font-black ${s.text}`}>{s.value}</p>
-              <p className={`text-xs font-bold ${s.text} opacity-70`}>{s.label}</p>
+            <div key={s.label} className={`${s.color} border rounded-2xl p-3 text-center shadow-elev-sm animate-slide-in-soft`}>
+              <p className={`text-display-md ${s.text}`} style={{ fontSize: 22 }}>{s.value}</p>
+              <p className="text-eyebrow mt-0.5" style={{ color: 'inherit', opacity: 0.75 }}>{s.label}</p>
             </div>
           ))}
         </div>
@@ -295,10 +358,16 @@ export default function ManageContent() {
       {/* Tabs */}
       <div className="flex gap-2">
         {TABS.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)}
-            className={`px-4 py-2 rounded-full text-sm font-bold transition-all min-h-0 ${
-              tab === t.id ? 'bg-green-600 text-white shadow-md' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-            }`}>
+          <button
+            key={t.id}
+            onClick={() => setTab(t.id)}
+            aria-pressed={tab === t.id}
+            className={`px-4 py-2 rounded-full text-sm font-bold transition-all duration-fast ease-out min-h-0 ${
+              tab === t.id
+                ? 'bg-green-600 text-white shadow-elev-md shadow-elev-inner-hl'
+                : 'bg-gray-100 text-gray-600 hover:bg-gray-200 hover:-translate-y-px'
+            }`}
+          >
             {t.label}
           </button>
         ))}
@@ -306,9 +375,18 @@ export default function ManageContent() {
 
       {/* Filters */}
       <div className="flex gap-2 flex-wrap">
-        <input value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="🔍 Search title, subject…"
-          className="flex-1 min-w-[160px] border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-green-500 focus:outline-none" />
+        <div className="relative flex-1 min-w-[160px]">
+          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
+            <Icon as={Search} size="sm" />
+          </span>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search title, subject…"
+            aria-label="Search content"
+            className="w-full border-2 border-gray-200 rounded-xl pl-9 pr-3 py-2 text-sm focus:border-green-500"
+          />
+        </div>
         <select value={gradeF} onChange={e => setGradeF(e.target.value)}
           className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-green-500 focus:outline-none">
           <option value="">All Grades</option>
@@ -323,10 +401,14 @@ export default function ManageContent() {
           {STATUSES.map(s => <option key={s} value={s}>{s ? s.charAt(0).toUpperCase() + s.slice(1) : 'All Status'}</option>)}
         </select>
         {(search || gradeF || subjectF || statusF) && (
-          <button onClick={() => { setSearch(''); setGradeF(''); setSubjectF(''); setStatusF('') }}
-            className="text-xs text-gray-500 hover:text-gray-700 font-bold px-2 min-h-0 bg-transparent shadow-none">
-            ✕ Clear
-          </button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => { setSearch(''); setGradeF(''); setSubjectF(''); setStatusF('') }}
+            leadingIcon={<Icon as={X} size="sm" />}
+          >
+            Clear
+          </Button>
         )}
       </div>
 
@@ -335,16 +417,23 @@ export default function ManageContent() {
         <div className="space-y-3">
           {loading ? (
             Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 animate-pulse h-20" />
+              <Skeleton key={i} height={80} className="rounded-2xl" />
             ))
           ) : filteredQuizzes.length === 0 ? (
-            <div className="text-center py-14 bg-white rounded-2xl border border-gray-100">
-              <div className="text-4xl mb-2">📭</div>
-              <p className="font-bold text-gray-600">No quizzes match your filters</p>
-              <Link to="/admin/quizzes/new"
-                className="inline-block mt-3 text-green-600 font-bold text-sm hover:underline">
-                Create a new quiz →
-              </Link>
+            <div className="text-center py-14 bg-white rounded-2xl border border-gray-100 shadow-elev-sm">
+              <div className="text-4xl mb-2" aria-hidden="true">📭</div>
+              <p className="text-display-md text-gray-700" style={{ fontSize: 16 }}>No quizzes match your filters</p>
+              <div className="inline-flex mt-3">
+                <Button
+                  as={Link}
+                  to="/admin/quizzes/new"
+                  variant="primary"
+                  size="sm"
+                  trailingIcon={<Icon as={ChevronRight} size="sm" />}
+                >
+                  Create a new quiz
+                </Button>
+              </div>
             </div>
           ) : (
             filteredQuizzes.map(quiz => (
@@ -365,16 +454,23 @@ export default function ManageContent() {
         <div className="space-y-3">
           {loading ? (
             Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 animate-pulse h-20" />
+              <Skeleton key={i} height={80} className="rounded-2xl" />
             ))
           ) : filteredLessons.length === 0 ? (
-            <div className="text-center py-14 bg-white rounded-2xl border border-gray-100">
-              <div className="text-4xl mb-2">📭</div>
-              <p className="font-bold text-gray-600">No lessons match your filters</p>
-              <Link to="/admin/lessons/new"
-                className="inline-block mt-3 text-green-600 font-bold text-sm hover:underline">
-                Create a new lesson →
-              </Link>
+            <div className="text-center py-14 bg-white rounded-2xl border border-gray-100 shadow-elev-sm">
+              <div className="text-4xl mb-2" aria-hidden="true">📭</div>
+              <p className="text-display-md text-gray-700" style={{ fontSize: 16 }}>No lessons match your filters</p>
+              <div className="inline-flex mt-3">
+                <Button
+                  as={Link}
+                  to="/admin/lessons/new"
+                  variant="primary"
+                  size="sm"
+                  trailingIcon={<Icon as={ChevronRight} size="sm" />}
+                >
+                  Create a new lesson
+                </Button>
+              </div>
             </div>
           ) : (
             filteredLessons.map(lesson => (

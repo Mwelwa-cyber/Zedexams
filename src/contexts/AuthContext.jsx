@@ -100,7 +100,11 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     let unsubProfile = null
-    const timeout = setTimeout(() => setLoading(false), 2500)
+    // Watchdog: if Firebase auth + Firestore profile snapshot don't resolve
+    // within this window, drop the loading gate so the user sees *something*.
+    // 5 s gives slower Zambian networks enough time to complete the round-trip
+    // before we fall back to the generic "loading your workspace…" screen.
+    const timeout = setTimeout(() => setLoading(false), 5000)
     const unsub = onAuthStateChanged(auth, (user) => {
       clearTimeout(timeout)
       if (unsubProfile) {

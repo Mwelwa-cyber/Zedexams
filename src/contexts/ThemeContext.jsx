@@ -24,6 +24,26 @@ function normalizeThemeId(id) {
   return THEME_IDS.includes(next) ? next : DEFAULT_THEME
 }
 
+/**
+ * Resolve the initial theme for a brand-new visitor.
+ * - If they've saved a choice → use that.
+ * - Otherwise, honour the OS preference (dark OS → midnight theme).
+ * - Otherwise, fall back to Sky.
+ * User-initiated changes still win once they touch the switcher.
+ */
+function resolveInitialTheme() {
+  try {
+    const saved = localStorage.getItem(LS_KEY)
+    if (saved) return normalizeThemeId(saved)
+    if (typeof window !== 'undefined'
+        && window.matchMedia
+        && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'midnight'
+    }
+  } catch { /* localStorage or matchMedia unavailable — fall through */ }
+  return DEFAULT_THEME
+}
+
 const ThemeContext = createContext(null)
 
 export function useTheme() {
@@ -33,9 +53,7 @@ export function useTheme() {
 }
 
 export function ThemeProvider({ children }) {
-  const [theme, setThemeState] = useState(() => {
-    try { return normalizeThemeId(localStorage.getItem(LS_KEY)) } catch { return DEFAULT_THEME }
-  })
+  const [theme, setThemeState] = useState(resolveInitialTheme)
 
   function setTheme(id) {
     const next = normalizeThemeId(id)

@@ -1,3 +1,5 @@
+import { sanitizeQuizRichHTML } from '../editor/utils/sanitize.js'
+
 const STRIP_TAGS = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'META', 'LINK'])
 const ALLOWED_TAGS = new Set([
   'P',
@@ -244,7 +246,12 @@ function normalizeSanitizedHtml(html) {
   const doc = new DOMParser().parseFromString(`<body>${String(html ?? '')}</body>`, 'text/html')
   Array.from(doc.body.childNodes).forEach(node => sanitizeDomNode(node, doc))
   const output = doc.body.innerHTML.trim()
-  return output === '<br>' ? '' : output
+  if (output === '<br>' || !output) return ''
+  // Final defensive pass: DOMPurify enforces the tag/attr allow-list on top of
+  // our own normalisation. If anything upstream ever leaks a tag or attribute
+  // we didn't expect (e.g. from pasted rich text or future refactors), the
+  // battle-tested library catches it — two layers instead of one.
+  return sanitizeQuizRichHTML(output)
 }
 
 export function isRichTextHtml(value) {

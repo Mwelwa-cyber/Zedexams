@@ -1,10 +1,24 @@
 import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
+import {
+  Home,
+  BookOpen,
+  PencilLine,
+  FileText,
+  BarChart3,
+  Bot,
+  GraduationCap,
+  Settings,
+  Menu,
+  X,
+  LogOut,
+} from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSubscription } from '../../hooks/useSubscription'
 import { getRoleLandingPath } from '../../utils/navigation'
 import Logo from '../ui/Logo'
 import ThemeSelector from '../ui/ThemeSelector'
+import Icon from '../ui/Icon'
 
 export default function Navbar() {
   const { userProfile, logout, isAdmin, isTeacher } = useAuth()
@@ -16,12 +30,12 @@ export default function Navbar() {
   // that point to their role home — adding a "Home" link here would duplicate them.
   // Learners get a "Home" link that points to /dashboard.
   const navLinks = [
-    ...(!isAdmin && !isTeacher ? [{ to: homePath, label: 'Home', icon: '🏠' }] : []),
-    { to: '/lessons', label: 'Lessons', icon: '📚' },
-    { to: '/quizzes', label: 'Quizzes', icon: '✏️' },
-    { to: '/papers', label: 'Past Papers', icon: '📄' },
-    { to: '/my-results', label: 'Results', icon: '📊' },
-    { to: '/study', label: 'Zed', icon: '🤖' },
+    ...(!isAdmin && !isTeacher ? [{ to: homePath, label: 'Home', icon: Home }] : []),
+    { to: '/lessons',    label: 'Lessons',     icon: BookOpen },
+    { to: '/quizzes',    label: 'Quizzes',     icon: PencilLine },
+    { to: '/papers',     label: 'Past Papers', icon: FileText },
+    { to: '/my-results', label: 'Results',     icon: BarChart3 },
+    { to: '/study',      label: 'Zed',         icon: Bot },
   ]
 
   async function handleLogout() {
@@ -40,8 +54,20 @@ export default function Navbar() {
   }
   const badgeClass = badgeColors[accessBadge.color] ?? badgeColors.gray
 
+  // Shared link styles — extracted so desktop and mobile renders stay in sync.
+  const linkClass = ({ isActive }) =>
+    `flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-sm font-bold transition-all duration-fast ease-out ${
+      isActive
+        ? 'theme-accent-bg theme-accent-text shadow-elev-inner-hl'
+        : 'theme-text-muted hover:theme-bg-subtle hover:theme-text'
+    }`
+  const mobileLinkClass = ({ isActive }) =>
+    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-colors animate-slide-in-soft ${
+      isActive ? 'theme-accent-bg theme-accent-text' : 'theme-text hover:theme-bg-subtle'
+    }`
+
   return (
-    <nav className="theme-card border-b theme-border shadow-sm sticky top-0 z-40">
+    <nav className="theme-card border-b theme-border shadow-elev-md sticky top-0 z-40 backdrop-blur-md" style={{ backgroundColor: 'color-mix(in srgb, var(--card) 92%, transparent)' }}>
       <div className="max-w-5xl mx-auto px-4 h-20 flex items-center justify-between gap-4">
 
         {/* Logo */}
@@ -52,36 +78,21 @@ export default function Navbar() {
         {/* Desktop nav links */}
         <div className="hidden md:flex items-center gap-1 flex-1 justify-center">
           {navLinks.map(l => (
-            <NavLink key={l.to} to={l.to}
-              className={({ isActive }) =>
-                `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${
-                  isActive
-                    ? 'theme-accent-bg theme-accent-text'
-                    : 'theme-text-muted hover:theme-bg-subtle hover:theme-text'
-                }`
-              }>
-              <span className="text-base">{l.icon}</span>
+            <NavLink key={l.to} to={l.to} className={linkClass}>
+              <Icon as={l.icon} size="sm" />
               <span>{l.label}</span>
             </NavLink>
           ))}
           {(isTeacher && !isAdmin) && (
-            <NavLink to="/teacher"
-              className={({ isActive }) =>
-                `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${
-                  isActive ? 'theme-accent-bg theme-accent-text' : 'theme-text-muted hover:theme-bg-subtle hover:theme-text'
-                }`
-              }>
-              <span>🎓</span><span>Teacher</span>
+            <NavLink to="/teacher" className={linkClass}>
+              <Icon as={GraduationCap} size="sm" />
+              <span>Teacher</span>
             </NavLink>
           )}
           {isAdmin && (
-            <NavLink to="/admin"
-              className={({ isActive }) =>
-                `flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-bold transition-colors ${
-                  isActive ? 'theme-accent-bg theme-accent-text' : 'theme-text-muted hover:theme-bg-subtle hover:theme-text'
-                }`
-              }>
-              <span>⚙️</span><span>Admin</span>
+            <NavLink to="/admin" className={linkClass}>
+              <Icon as={Settings} size="sm" />
+              <span>Admin</span>
             </NavLink>
           )}
         </div>
@@ -97,7 +108,7 @@ export default function Navbar() {
           <ThemeSelector compact />
 
           <div className="flex items-center gap-2 pl-2 border-l theme-border">
-            <div className="theme-accent-fill theme-on-accent flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-black">
+            <div className="theme-accent-fill theme-on-accent flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-black shadow-elev-inner-hl">
               {initials}
             </div>
             <div className="text-right hidden lg:block">
@@ -106,8 +117,12 @@ export default function Navbar() {
               </p>
               <p className="theme-text-muted text-xs capitalize">{userProfile?.role ?? 'learner'}</p>
             </div>
-            <button onClick={handleLogout}
-              className="text-xs font-bold text-red-500 hover:bg-red-50 px-3 py-1.5 rounded-lg transition-colors min-h-0">
+            <button
+              onClick={handleLogout}
+              aria-label="Sign out"
+              className="inline-flex items-center gap-1.5 text-xs font-bold text-danger hover:bg-danger-subtle px-3 py-1.5 rounded-lg transition-colors min-h-0"
+            >
+              <Icon as={LogOut} size="xs" />
               Logout
             </button>
           </div>
@@ -116,24 +131,27 @@ export default function Navbar() {
         {/* Mobile right — avatar + hamburger */}
         <div className="flex md:hidden items-center gap-2">
           <ThemeSelector compact />
-          <div className="theme-accent-fill theme-on-accent flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-black">
+          <div className="theme-accent-fill theme-on-accent flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-black shadow-elev-inner-hl">
             {initials}
           </div>
-          <button onClick={() => setOpen(o => !o)}
+          <button
+            onClick={() => setOpen(o => !o)}
             aria-label={open ? 'Close navigation menu' : 'Open navigation menu'}
-            className="w-8 h-8 flex items-center justify-center theme-text-muted hover:theme-bg-subtle rounded-lg transition-colors min-h-0 bg-transparent shadow-none text-xl">
-            {open ? '✕' : '☰'}
+            aria-expanded={open}
+            className="w-9 h-9 flex items-center justify-center theme-text-muted hover:theme-bg-subtle rounded-lg transition-colors min-h-0 bg-transparent shadow-none"
+          >
+            <Icon as={open ? X : Menu} size="md" />
           </button>
         </div>
       </div>
 
       {/* Mobile drawer */}
       {open && (
-        <div className="md:hidden border-t theme-border theme-card shadow-lg animate-slide-up">
+        <div className="md:hidden border-t theme-border theme-card shadow-elev-lg animate-slide-up">
           <div className="max-w-5xl mx-auto px-4 py-3">
             {/* User info */}
             <div className="flex items-center gap-3 py-3 mb-2 border-b theme-border">
-              <div className="theme-accent-fill theme-on-accent flex h-10 w-10 items-center justify-center rounded-full font-black">
+              <div className="theme-accent-fill theme-on-accent flex h-10 w-10 items-center justify-center rounded-full font-black shadow-elev-inner-hl">
                 {initials}
               </div>
               <div>
@@ -148,45 +166,40 @@ export default function Navbar() {
               </div>
             </div>
 
-            {/* Nav links */}
-            <div className="space-y-0.5">
+            {/* Nav links — staggered entrance from the .stagger helper in index.css */}
+            <div className="space-y-0.5 stagger">
               {navLinks.map(l => (
-                <NavLink key={l.to} to={l.to} onClick={() => setOpen(false)}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-colors ${
-                      isActive ? 'theme-accent-bg theme-accent-text' : 'theme-text hover:theme-bg-subtle'
-                    }`
-                  }>
-                  <span className="text-base w-6 text-center">{l.icon}</span>
+                <NavLink
+                  key={l.to}
+                  to={l.to}
+                  onClick={() => setOpen(false)}
+                  className={mobileLinkClass}
+                >
+                  <Icon as={l.icon} size="md" className="w-6" />
                   {l.label}
                 </NavLink>
               ))}
               {(isTeacher && !isAdmin) && (
-                <NavLink to="/teacher" onClick={() => setOpen(false)}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-colors ${
-                      isActive ? 'theme-accent-bg theme-accent-text' : 'theme-text hover:theme-bg-subtle'
-                    }`
-                  }>
-                  <span className="text-base w-6 text-center">🎓</span>Teacher
+                <NavLink to="/teacher" onClick={() => setOpen(false)} className={mobileLinkClass}>
+                  <Icon as={GraduationCap} size="md" className="w-6" />
+                  Teacher
                 </NavLink>
               )}
               {isAdmin && (
-                <NavLink to="/admin" onClick={() => setOpen(false)}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-colors ${
-                      isActive ? 'theme-accent-bg theme-accent-text' : 'theme-text hover:theme-bg-subtle'
-                    }`
-                  }>
-                  <span className="text-base w-6 text-center">⚙️</span>Admin Panel
+                <NavLink to="/admin" onClick={() => setOpen(false)} className={mobileLinkClass}>
+                  <Icon as={Settings} size="md" className="w-6" />
+                  Admin Panel
                 </NavLink>
               )}
             </div>
 
             <div className="mt-3 pt-3 border-t theme-border">
-              <button onClick={handleLogout}
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-red-500 hover:bg-red-50 transition-colors min-h-0">
-                <span className="text-base w-6 text-center">🚪</span>Sign Out
+              <button
+                onClick={handleLogout}
+                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold text-danger hover:bg-danger-subtle transition-colors min-h-0"
+              >
+                <Icon as={LogOut} size="md" className="w-6" />
+                Sign Out
               </button>
             </div>
           </div>

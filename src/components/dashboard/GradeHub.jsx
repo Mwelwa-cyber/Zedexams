@@ -13,6 +13,7 @@
  */
 import { useState, useEffect, useRef }  from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
+import { Home, PencilLine, BookOpen, FileText, BarChart3, Bell, ChevronRight, Bot, Sparkles } from 'lucide-react'
 import { useAuth }              from '../../contexts/AuthContext'
 import { useFirestore }         from '../../hooks/useFirestore'
 import { useBadges }            from '../../hooks/useBadges'
@@ -24,6 +25,9 @@ import BadgeCard                from '../ui/BadgeCard'
 import Logo                     from '../ui/Logo'
 import ThemeSelector            from '../ui/ThemeSelector'
 import OnboardingOverlay        from '../ui/OnboardingOverlay'
+import Icon                     from '../ui/Icon'
+import Button                   from '../ui/Button'
+import Skeleton                 from '../ui/Skeleton'
 import { useSubscription }      from '../../hooks/useSubscription'
 
 // ── Sub-components ─────────────────────────────────────────────────────────
@@ -189,14 +193,15 @@ function StreakBadge({ streak }) {
 
 function MobileNav() {
   const items = [
-    { to: '/dashboard', icon: '🏠', label: 'Home',    end: true },
-    { to: '/quizzes',   icon: '✏️', label: 'Quizzes', end: false },
-    { to: '/lessons',   icon: '📖', label: 'Lessons', end: false },
-    { to: '/papers',    icon: '📄', label: 'Papers',  end: false },
-    { to: '/my-results',icon: '📊', label: 'Results', end: false },
+    { to: '/dashboard', icon: Home,       label: 'Home',    end: true },
+    { to: '/quizzes',   icon: PencilLine, label: 'Quizzes', end: false },
+    { to: '/lessons',   icon: BookOpen,   label: 'Lessons', end: false },
+    { to: '/papers',    icon: FileText,   label: 'Papers',  end: false },
+    { to: '/my-results',icon: BarChart3,  label: 'Results', end: false },
+    { to: '/study',     icon: Bot,        label: 'Zed',     end: false },
   ]
   return (
-    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 theme-card border-t theme-border shadow-lg safe-area-bottom">
+    <nav className="md:hidden fixed bottom-0 left-0 right-0 z-30 theme-card border-t theme-border shadow-elev-lg safe-area-bottom">
       <div className="flex">
         {items.map(item => (
           <NavLink
@@ -204,14 +209,16 @@ function MobileNav() {
             to={item.to}
             end={item.end}
             className={({ isActive }) =>
-              `flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-colors ${
+              `flex-1 flex flex-col items-center gap-0.5 py-2.5 transition-all duration-base ease-out ${
                 isActive ? 'theme-accent-text' : 'theme-text-muted hover:theme-accent-text'
               }`
             }
           >
             {({ isActive }) => (
               <>
-                <span className={`text-xl leading-none transition-transform ${isActive ? 'scale-110' : ''}`}>{item.icon}</span>
+                <span className={`inline-flex items-center justify-center leading-none transition-transform duration-base ease-spring ${isActive ? 'scale-110' : ''}`}>
+                  <Icon as={item.icon} size="md" strokeWidth={isActive ? 2.5 : 2.25} />
+                </span>
                 <span className={`text-xs font-bold ${isActive ? 'font-black' : ''}`}>{item.label}</span>
               </>
             )}
@@ -223,7 +230,7 @@ function MobileNav() {
 }
 
 function SkeletonCard() {
-  return <div className="theme-bg-subtle rounded-2xl animate-pulse h-24" />
+  return <Skeleton height={96} width={'100%'} className="rounded-2xl" />
 }
 
 function NotificationPanel({ notifications, unreadCount, onClose }) {
@@ -559,9 +566,11 @@ export default function GradeHub() {
           <div className="relative flex items-end justify-between gap-4">
             {/* Text content */}
             <div className="flex-1 min-w-0">
-              <p className="theme-hero-muted text-sm font-bold mb-0.5">👋 Welcome back,</p>
-              <h1 className="text-white text-2xl sm:text-3xl font-black leading-tight">{firstName}!</h1>
-              <p className="theme-hero-muted text-sm mt-1 italic">"Practise smart." — Prof. Pako 🦉</p>
+              <p className="text-eyebrow text-white/75 mb-1.5" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                Welcome back <span aria-hidden="true">👋</span>
+              </p>
+              <h1 className="text-display-xl text-white">{firstName}!</h1>
+              <p className="theme-hero-muted text-body-sm mt-1 italic">"Practise smart." — Prof. Pako 🦉</p>
 
               {/* Stats row */}
               <div className="flex items-center gap-4 mt-4 flex-wrap">
@@ -608,10 +617,78 @@ export default function GradeHub() {
           </div>
         </section>
 
+        {/* ── ASK ZED CARD ────────────────────────────────────── */}
+        <section>
+          <Link
+            to="/study"
+            className="group relative block overflow-hidden rounded-3xl border border-[rgba(212,175,55,0.2)] shadow-elev-md transition-all duration-base ease-out hover:-translate-y-0.5 hover:shadow-elev-lg"
+            style={{ background: 'linear-gradient(135deg, #0A1128 0%, #1A2B48 60%, #132039 100%)' }}
+          >
+            {/* Decorative gold glow */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute -right-10 -top-10 h-36 w-36 rounded-full opacity-30 transition-opacity group-hover:opacity-50"
+              style={{ background: 'radial-gradient(circle, #D4AF37 0%, transparent 70%)' }}
+            />
+            <div className="relative flex items-center gap-4 p-4 sm:p-5">
+              <div
+                className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl overflow-hidden p-1.5 shadow-elev-inner-hl transition-transform duration-base ease-spring group-hover:scale-105"
+                style={{
+                  background: 'rgba(255,255,255,0.96)',
+                  boxShadow: '0 0 18px rgba(212, 175, 55, 0.4)',
+                }}
+              >
+                <img
+                  src="/zedexams-logo.png?v=4"
+                  alt=""
+                  aria-hidden="true"
+                  style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p
+                  className="text-eyebrow"
+                  style={{ color: '#D4AF37' }}
+                >
+                  Study assistant · Beta
+                </p>
+                <h3
+                  className="text-display-md mt-0.5"
+                  style={{ color: '#F8F9FA', fontSize: 17 }}
+                >
+                  Ask Zed anything
+                </h3>
+                <p
+                  className="text-body-sm mt-1 hidden sm:block"
+                  style={{ color: '#94A3B8' }}
+                >
+                  CBC-aligned explanations, practice questions, and study plans — tailored to your grade.
+                </p>
+              </div>
+              <div
+                className="flex items-center gap-1.5 rounded-full px-3 py-1.5 shrink-0 transition-transform duration-fast ease-out group-hover:translate-x-0.5"
+                style={{
+                  background: 'rgba(212,175,55,0.12)',
+                  border: '1px solid rgba(212,175,55,0.28)',
+                  color: '#D4AF37',
+                  fontWeight: 700,
+                  fontSize: 12,
+                }}
+              >
+                <Icon as={Sparkles} size="xs" />
+                <span className="hidden sm:inline">Start</span>
+                <Icon as={ChevronRight} size="xs" />
+              </div>
+            </div>
+          </Link>
+        </section>
+
         {/* ── GRADE SELECTION ─────────────────────────────────── */}
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-black theme-text">🎓 Primary Hub</h2>
+            <h2 className="text-display-md theme-text flex items-center gap-2">
+              <span aria-hidden="true">🎓</span> Primary Hub
+            </h2>
             {selectedGrade && (
               <button
                 onClick={() => setSelectedGrade(null)}
@@ -672,7 +749,9 @@ export default function GradeHub() {
         {/* ── RECENT ACTIVITY ─────────────────────────────────── */}
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-black theme-text">📊 Recent Activity</h2>
+            <h2 className="text-display-md theme-text flex items-center gap-2">
+              <span aria-hidden="true">📊</span> Recent Activity
+            </h2>
             <Link to="/my-results" className="text-xs font-bold theme-accent-text hover:underline">
               View all →
             </Link>
@@ -682,27 +761,32 @@ export default function GradeHub() {
             {loading ? (
               <div className="py-4 space-y-3">
                 {Array.from({ length: 3 }).map((_, i) => (
-                  <div key={i} className="flex gap-3 animate-pulse">
-                    <div className="w-10 h-10 theme-bg-subtle rounded-xl flex-shrink-0" />
-                    <div className="flex-1 space-y-2 pt-1">
-                      <div className="h-3 theme-bg-subtle rounded w-2/3" />
-                      <div className="h-2 theme-bg-subtle rounded w-1/3" />
+                  <div key={i} className="flex gap-3 items-center">
+                    <Skeleton shape="circle" size={40} />
+                    <div className="flex-1 space-y-2">
+                      <Skeleton height={12} width="66%" />
+                      <Skeleton height={10} width="33%" />
                     </div>
-                    <div className="w-12 h-8 theme-bg-subtle rounded flex-shrink-0" />
+                    <Skeleton height={28} width={48} />
                   </div>
                 ))}
               </div>
             ) : recentResults.length === 0 ? (
               <div className="py-8 text-center">
-                <p className="text-3xl mb-2">📭</p>
-                <p className="font-bold theme-text text-sm">No quizzes yet!</p>
-                <p className="theme-text-muted text-xs mt-1">Take your first quiz to see results here.</p>
-                <Link
-                  to="/quizzes"
-                  className="inline-block mt-3 theme-accent-fill theme-on-accent font-black text-xs px-4 py-2 rounded-xl hover:opacity-90"
-                >
-                  Start a Quiz →
-                </Link>
+                <p className="text-3xl mb-2" aria-hidden="true">📭</p>
+                <p className="text-display-md theme-text">No quizzes yet!</p>
+                <p className="theme-text-muted text-body-sm mt-1">Take your first quiz to see results here.</p>
+                <div className="mt-4 inline-flex">
+                  <Button
+                    as={Link}
+                    to="/quizzes"
+                    variant="primary"
+                    size="md"
+                    trailingIcon={<Icon as={ChevronRight} size="sm" />}
+                  >
+                    Start a Quiz
+                  </Button>
+                </div>
               </div>
             ) : (
               recentResults.map(r => <RecentResultRow key={r.id} result={r} />)
@@ -713,7 +797,9 @@ export default function GradeHub() {
         {/* ── BADGES ──────────────────────────────────────────── */}
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="text-lg font-black theme-text">🏆 Your Badges</h2>
+            <h2 className="text-display-md theme-text flex items-center gap-2">
+              <span aria-hidden="true">🏆</span> Your Badges
+            </h2>
             <Link to="/my-badges" className="text-xs font-bold theme-accent-text hover:underline">
               View all →
             </Link>

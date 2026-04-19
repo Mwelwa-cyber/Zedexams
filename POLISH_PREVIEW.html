@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>ZedExams — Premium Polish Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+<style>
+  /* ═══════════════════════════════════════════════════════════
+     THEME TOKENS — identical to your src/index.css
+     ═══════════════════════════════════════════════════════════ */
+  :root, body.theme-sky {
+    --bg: #F0F9FF;
+    --bg-subtle: #E0F2FE;
+    --card: #FFFFFF;
+    --card-hover: #F8FCFF;
+    --text: #0C1A2E;
+    --text-muted: #4B6280;
+    --border: #BAE6FD;
+    --accent: #0EA5E9;
+    --accent-text: #FFFFFF;
+    --accent-bg: #E0F2FE;
+    --accent-fg: #0284C7;
+    --hero-gradient: linear-gradient(135deg, #0369A1 0%, #1E40AF 100%);
+  }
+  body.theme-lavender {
+    --bg: #F5F3FF; --bg-subtle: #EDE9FE; --card: #FFFFFF; --card-hover: #FAF9FF;
+    --text: #1E1B4B; --text-muted: #6B7280; --border: #DDD6FE;
+    --accent: #8B5CF6; --accent-text: #FFFFFF; --accent-bg: #EDE9FE; --accent-fg: #6D28D9;
+    --hero-gradient: linear-gradient(135deg, #7C3AED 0%, #4C1D95 100%);
+  }
+  body.theme-midnight {
+    --bg: #0F172A; --bg-subtle: #1E293B; --card: #1E293B; --card-hover: #263449;
+    --text: #F1F5F9; --text-muted: #94A3B8; --border: #334155;
+    --accent: #38BDF8; --accent-text: #0F172A; --accent-bg: rgba(56,189,248,0.12); --accent-fg: #7DD3FC;
+    --hero-gradient: linear-gradient(135deg, #020617 0%, #1E293B 100%);
+  }
+  body.theme-oatmeal {
+    --bg: #FDF6EC; --bg-subtle: #FEF3C7; --card: #FFFDF7; --card-hover: #FFF7ED;
+    --text: #1C1917; --text-muted: #78716C; --border: #E7D5C0;
+    --accent: #D97706; --accent-text: #FFFFFF; --accent-bg: #FEF3C7; --accent-fg: #92400E;
+    --hero-gradient: linear-gradient(135deg, #92400E 0%, #D97706 100%);
+  }
+  body.theme-solar {
+    --bg: #FFFBEB; --bg-subtle: #FEF3C7; --card: #FFFFFF; --card-hover: #FFFBEB;
+    --text: #1C1917; --text-muted: #78716C; --border: #FDE68A;
+    --accent: #F59E0B; --accent-text: #1C1917; --accent-bg: #FEF3C7; --accent-fg: #92400E;
+    --hero-gradient: linear-gradient(135deg, #D97706 0%, #F59E0B 100%);
+  }
+
+  /* ═══════════════════════════════════════════════════════════
+     NEW TOKENS — Phase 0 additions proposed in POLISH_PLAN.md
+     ═══════════════════════════════════════════════════════════ */
+  :root, body.theme-sky, body.theme-lavender, body.theme-oatmeal, body.theme-solar {
+    --shadow-sm: 0 1px 2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.06);
+    --shadow-md: 0 2px 4px rgba(15, 23, 42, 0.06), 0 4px 12px rgba(15, 23, 42, 0.08);
+    --shadow-lg: 0 4px 6px rgba(15, 23, 42, 0.05), 0 10px 28px rgba(15, 23, 42, 0.10);
+    --shadow-xl: 0 12px 24px rgba(15, 23, 42, 0.08), 0 24px 48px rgba(15, 23, 42, 0.12);
+    --shadow-inner-hl: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+    --success: #15803D; --success-bg: #DCFCE7; --success-fg: #166534;
+    --warning: #D97706; --warning-bg: #FEF3C7; --warning-fg: #92400E;
+    --danger:  #DC2626; --danger-bg:  #FEE2E2; --danger-fg:  #991B1B;
+  }
+  body.theme-midnight {
+    --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
+    --shadow-md: 0 2px 6px rgba(0,0,0,0.4), 0 8px 16px rgba(0,0,0,0.3);
+    --shadow-lg: 0 6px 16px rgba(0,0,0,0.5), 0 16px 32px rgba(0,0,0,0.35);
+    --shadow-xl: 0 16px 40px rgba(0,0,0,0.6);
+    --shadow-inner-hl: inset 0 1px 0 rgba(255,255,255,0.05);
+    --success-bg: rgba(21,128,61,0.2); --success-fg: #4ADE80;
+    --warning-bg: rgba(217,119,6,0.2); --warning-fg: #FBBF24;
+    --danger-bg:  rgba(220,38,38,0.2); --danger-fg:  #F87171;
+  }
+  :root {
+    --radius-xs: 6px;
+    --radius-sm: 10px;
+    --radius-md: 16px;
+    --radius-lg: 24px;
+    --radius-xl: 32px;
+    --radius-pill: 999px;
+    --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    --duration-fast: 150ms;
+    --duration-base: 220ms;
+    --duration-slow: 400ms;
+  }
+
+  /* Base */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { font-family: 'Nunito', sans-serif; -webkit-font-smoothing: antialiased; }
+  body {
+    font-family: 'Nunito', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    transition: background-color 0.25s ease, color 0.15s ease;
+  }
+
+  /* Focus ring — proposed global a11y improvement */
+  *:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+    border-radius: 8px;
+  }
+
+  /* Typography — proposed type scale */
+  .font-display { font-family: 'Outfit', sans-serif; }
+  .font-body    { font-family: 'Nunito', sans-serif; }
+
+  .text-display-2xl { font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 48px; line-height: 1.05; letter-spacing: -0.02em; }
+  .text-display-xl  { font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 36px; line-height: 1.1;  letter-spacing: -0.02em; }
+  .text-display-lg  { font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 28px; line-height: 1.15; letter-spacing: -0.015em; }
+  .text-display-md  { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 22px; line-height: 1.2;  letter-spacing: -0.01em; }
+  .text-eyebrow     { font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); }
+  .text-body        { font-family: 'Nunito', sans-serif; font-size: 15px; line-height: 1.6; }
+  .text-body-sm     { font-family: 'Nunito', sans-serif; font-size: 13px; line-height: 1.55; }
+
+  /* Layout */
+  .page {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 40px 24px 120px;
+  }
+  .hero {
+    background: var(--hero-gradient);
+    color: white;
+    padding: 48px 40px;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-xl);
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 48px;
+  }
+  .hero::before {
+    content: ''; position: absolute; inset: 0;
+    background: radial-gradient(circle at top right, rgba(255,255,255,0.1), transparent 50%);
+    pointer-events: none;
+  }
+  .hero-eyebrow { color: rgba(255,255,255,0.75); font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 11px; letter-spacing: 0.15em; text-transform: uppercase; margin-bottom: 12px; }
+  .hero-title { font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 44px; line-height: 1.05; letter-spacing: -0.02em; margin-bottom: 12px; }
+  .hero-sub { font-family: 'Nunito', sans-serif; font-size: 17px; line-height: 1.55; color: rgba(255,255,255,0.92); max-width: 620px; }
+
+  /* Theme switcher */
+  .theme-switcher {
+    position: sticky; top: 16px; z-index: 20;
+    display: flex; gap: 8px; align-items: center;
+    background: var(--card); border: 1px solid var(--border);
+    padding: 8px 10px; border-radius: var(--radius-pill);
+    box-shadow: var(--shadow-md);
+    width: max-content; margin: 0 auto 32px;
+  }
+  .theme-switcher .label { font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 11px; text-transform: uppercase; letter-spacing: 0.12em; color: var(--text-muted); padding: 0 8px; }
+  .theme-swatch {
+    width: 28px; height: 28px; border-radius: 50%;
+    cursor: pointer; border: 2px solid transparent;
+    transition: transform var(--duration-base) var(--ease-spring), border-color var(--duration-base) var(--ease-out);
+    box-shadow: var(--shadow-sm);
+  }
+  .theme-swatch:hover { transform: scale(1.12); }
+  .theme-swatch.active { border-color: var(--accent); transform: scale(1.14); }
+
+  /* Section */
+  .section { margin-bottom: 64px; }
+  .section-header { margin-bottom: 24px; }
+  .section-header .eyebrow { color: var(--accent-fg); }
+  .section-header .title { margin-top: 6px; color: var(--text); }
+  .section-header .desc { color: var(--text-muted); margin-top: 8px; max-width: 720px; }
+
+  /* Compare grid: before | after */
+  .compare {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+  }
+  .compare-panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    padding: 24px;
+    position: relative;
+  }
+  .compare-tag {
+    position: absolute; top: 14px; right: 14px;
+    font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+    padding: 4px 10px; border-radius: var(--radius-pill);
+  }
+  .compare-tag.before { background: var(--bg-subtle); color: var(--text-muted); }
+  .compare-tag.after  { background: var(--accent); color: var(--accent-text); box-shadow: var(--shadow-sm); }
+
+  /* Shadow ladder demo */
+  .shadow-grid {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+  }
+  .shadow-box {
+    background: var(--card); border-radius: var(--radius-md);
+    padding: 32px 16px; text-align: center;
+    font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 13px;
+    transition: transform var(--duration-base) var(--ease-out);
+  }
+  .shadow-box:hover { transform: translateY(-3px); }
+  .shadow-box .size { color: var(--text-muted); font-weight: 600; font-size: 11px; margin-top: 4px; letter-spacing: 0.1em; text-transform: uppercase; }
+  .shadow-1 { box-shadow: var(--shadow-sm); }
+  .shadow-2 { box-shadow: var(--shadow-md); }
+  .shadow-3 { box-shadow: var(--shadow-lg); }
+  .shadow-4 { box-shadow: var(--shadow-xl); }
+
+  /* Button system */
+  .btn {
+    font-family: 'Nunito', sans-serif; font-weight: 900;
+    border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    transition: transform var(--duration-fast) var(--ease-out),
+                box-shadow var(--duration-fast) var(--ease-out),
+                background-color var(--duration-fast) var(--ease-out);
+    user-select: none;
+  }
+  .btn:hover { transform: translateY(-1px); }
+  .btn:active { transform: scale(0.97); }
+  .btn-sm { padding: 8px 14px; font-size: 13px; border-radius: var(--radius-sm); }
+  .btn-md { padding: 11px 20px; font-size: 14px; border-radius: var(--radius-sm); }
+  .btn-lg { padding: 14px 24px; font-size: 16px; border-radius: var(--radius-md); }
+  .btn-primary { background: var(--accent); color: var(--accent-text); box-shadow: var(--shadow-sm), var(--shadow-inner-hl); }
+  .btn-primary:hover { box-shadow: var(--shadow-md), var(--shadow-inner-hl); }
+  .btn-secondary { background: var(--card); color: var(--text); border: 1.5px solid var(--border); box-shadow: var(--shadow-sm); }
+  .btn-secondary:hover { border-color: var(--accent); color: var(--accent-fg); }
+  .btn-ghost { background: transparent; color: var(--text-muted); }
+  .btn-ghost:hover { background: var(--bg-subtle); color: var(--text); }
+  .btn-danger { background: var(--danger); color: white; box-shadow: var(--shadow-sm), var(--shadow-inner-hl); }
+
+  /* "Before" button — flat, boring */
+  .btn-old {
+    font-family: 'Nunito', sans-serif; font-weight: 900;
+    border: none; cursor: pointer; padding: 12px 20px;
+    font-size: 14px; border-radius: 14px;
+    background: var(--accent); color: var(--accent-text);
+    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
+    transition: background-color 0.15s ease;
+  }
+  .btn-old:hover { filter: brightness(0.95); }
+
+  .btn-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+  .btn-row + .btn-row { margin-top: 14px; }
+
+  /* Card variants */
+  .card-demo {
+    border-radius: var(--radius-md);
+    padding: 20px;
+    transition: transform var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out);
+  }
+  .card-flat { background: var(--card); border: 1px solid var(--border); }
+  .card-elevated { background: var(--card); border: 1px solid var(--border); box-shadow: var(--shadow-md); }
+  .card-elevated:hover { transform: translateY(-3px); box-shadow: var(--shadow-lg); }
+  .card-hero { background: var(--hero-gradient); color: white; box-shadow: var(--shadow-lg); }
+
+  /* Skeleton comparison */
+  .skeleton-old {
+    background: var(--bg-subtle); border-radius: var(--radius-sm);
+    height: 18px; animation: pulse-old 1.4s ease-in-out infinite;
+  }
+  @keyframes pulse-old { 0%,100% { opacity: 0.6; } 50% { opacity: 1; } }
+
+  .skeleton-new {
+    border-radius: var(--radius-sm); height: 18px;
+    background: linear-gradient(90deg, var(--bg-subtle) 0%, var(--card-hover) 50%, var(--bg-subtle) 100%);
+    background-size: 200% 100%;
+    animation: shimmer 1.4s linear infinite;
+  }
+  @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+
+  .skel-stack > * + * { margin-top: 10px; }
+  .skel-w-60 { width: 60%; }
+  .skel-w-80 { width: 80%; }
+  .skel-w-40 { width: 40%; }
+
+  /* Navbar comparison */
+  .nav-demo {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius-md); padding: 12px 16px;
+    box-shadow: var(--shadow-sm);
+  }
+  .nav-demo-brand { font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 17px; color: var(--accent-fg); }
+  .nav-demo-items { display: flex; gap: 4px; }
+  .nav-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 7px 11px; border-radius: var(--radius-sm);
+    font-family: 'Nunito', sans-serif; font-weight: 700; font-size: 13px; color: var(--text-muted);
+    cursor: pointer;
+    transition: background-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+  }
+  .nav-item:hover { background: var(--bg-subtle); color: var(--text); }
+  .nav-item.active { background: var(--accent-bg); color: var(--accent-fg); }
+  .nav-item svg { width: 16px; height: 16px; stroke-width: 2.25; }
+  .nav-item-emoji { font-size: 15px; line-height: 1; }
+
+  /* GradeHub mock */
+  .gradehub {
+    background: var(--hero-gradient); color: white;
+    border-radius: var(--radius-xl); padding: 40px 32px 90px;
+    box-shadow: var(--shadow-xl); position: relative; overflow: hidden;
+  }
+  .gradehub-title { font-family: 'Outfit', sans-serif; font-weight: 900; font-size: 32px; line-height: 1.05; letter-spacing: -0.02em; margin-bottom: 8px; }
+  .gradehub-sub { color: rgba(255,255,255,0.85); font-size: 15px; }
+  .gradehub-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px;
+    margin-top: -60px; position: relative; z-index: 2; padding: 0 18px;
+  }
+  .gradehub-card {
+    background: var(--card); border-radius: var(--radius-md);
+    padding: 20px; box-shadow: var(--shadow-md), var(--shadow-inner-hl);
+    transition: transform var(--duration-base) var(--ease-out), box-shadow var(--duration-base) var(--ease-out);
+    border: 1px solid var(--border); cursor: pointer;
+  }
+  .gradehub-card:hover { transform: translateY(-4px); box-shadow: var(--shadow-lg); }
+  .gradehub-card-icon {
+    width: 44px; height: 44px; border-radius: var(--radius-sm);
+    background: var(--accent-bg); color: var(--accent-fg);
+    display: flex; align-items: center; justify-content: center; margin-bottom: 12px;
+  }
+  .gradehub-card-icon svg { width: 22px; height: 22px; stroke-width: 2.25; }
+  .gradehub-card-title { font-family: 'Outfit', sans-serif; font-weight: 800; font-size: 17px; color: var(--text); }
+  .gradehub-card-meta { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+
+  /* Badge */
+  .badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 3px 10px; border-radius: var(--radius-pill);
+    font-family: 'Nunito', sans-serif; font-weight: 800; font-size: 11px;
+  }
+  .badge-success { background: var(--success-bg); color: var(--success-fg); }
+  .badge-warning { background: var(--warning-bg); color: var(--warning-fg); }
+  .badge-danger  { background: var(--danger-bg);  color: var(--danger-fg); }
+
+  /* Focus demo */
+  .focus-demo {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
+  }
+  .focus-target {
+    background: var(--card); border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+    padding: 16px 14px; font-family: 'Nunito', sans-serif; font-weight: 800; color: var(--text);
+    cursor: pointer; text-align: center; font-size: 13px;
+    transition: border-color var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out);
+  }
+  .focus-target:hover { border-color: var(--accent); background: var(--bg-subtle); }
+
+  /* Note cards */
+  .note {
+    background: var(--accent-bg);
+    border-left: 3px solid var(--accent);
+    border-radius: var(--radius-sm);
+    padding: 14px 18px;
+    font-family: 'Nunito', sans-serif; font-size: 14px;
+    color: var(--text);
+    margin-top: 20px;
+  }
+  .note b { color: var(--accent-fg); }
+
+  /* Entrance stagger */
+  .stagger > * {
+    opacity: 0; transform: translateY(12px);
+    animation: slide-in 0.4s var(--ease-out) forwards;
+  }
+  .stagger > *:nth-child(1) { animation-delay: 40ms; }
+  .stagger > *:nth-child(2) { animation-delay: 100ms; }
+  .stagger > *:nth-child(3) { animation-delay: 160ms; }
+  .stagger > *:nth-child(4) { animation-delay: 220ms; }
+  .stagger > *:nth-child(5) { animation-delay: 280ms; }
+  @keyframes slide-in { to { opacity: 1; transform: translateY(0); } }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+  @media (max-width: 860px) {
+    .compare, .two-col { grid-template-columns: 1fr; }
+    .shadow-grid { grid-template-columns: repeat(2, 1fr); }
+    .gradehub-grid { grid-template-columns: 1fr; padding: 0 10px; }
+    .hero-title { font-size: 32px; }
+    .focus-demo { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body class="theme-sky">
+
+<div class="theme-switcher" role="radiogroup" aria-label="Theme">
+  <span class="label">Theme</span>
+  <button class="theme-swatch active" style="background:#0EA5E9" data-theme="sky" aria-label="Sky Blue"></button>
+  <button class="theme-swatch" style="background:#8B5CF6" data-theme="lavender" aria-label="Lavender"></button>
+  <button class="theme-swatch" style="background:#1E293B" data-theme="midnight" aria-label="Midnight"></button>
+  <button class="theme-swatch" style="background:#D97706" data-theme="oatmeal" aria-label="Oatmeal"></button>
+  <button class="theme-swatch" style="background:#F59E0B" data-theme="solar" aria-label="Solar"></button>
+</div>
+
+<div class="page">
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-eyebrow">Premium polish preview</div>
+    <h1 class="hero-title">A tighter, quieter, more intentional ZedExams.</h1>
+    <p class="hero-sub">
+      Every token, typography change, motion curve, and icon swap from <b>POLISH_PLAN.md</b> — live. Click any theme swatch above to see it across all five themes. Tab with your keyboard to see the proposed focus ring.
+    </p>
+  </section>
+
+  <!-- TYPOGRAPHY -->
+  <section class="section">
+    <div class="section-header">
+      <div class="text-eyebrow">01 · Typography</div>
+      <h2 class="text-display-lg title">Display font for headlines, body font for reading.</h2>
+      <p class="text-body desc">
+        You're already loading Outfit alongside Nunito in <code>index.html</code> but only Nunito is wired up in Tailwind. Pairing them creates a clear headline/body distinction — premium feel without adding a single kilobyte.
+      </p>
+    </div>
+    <div class="compare">
+      <div class="compare-panel">
+        <span class="compare-tag before">Before</span>
+        <div style="font-family:'Nunito',sans-serif; font-weight:900; font-size:28px; line-height:1.2;">Your Grade 5 dashboard</div>
+        <div style="font-family:'Nunito',sans-serif; color:var(--text-muted); font-size:14px; margin-top:6px;">Pick up where you left off.</div>
+        <div style="margin-top:24px; font-family:'Nunito',sans-serif; font-weight:900; font-size:11px; color:var(--text-muted); letter-spacing:0.08em;">RECENT ACTIVITY</div>
+      </div>
+      <div class="compare-panel">
+        <span class="compare-tag after">After</span>
+        <div class="text-display-lg" style="color:var(--text);">Your Grade 5 dashboard</div>
+        <div class="text-body" style="color:var(--text-muted); margin-top:4px;">Pick up where you left off.</div>
+        <div class="text-eyebrow" style="margin-top:24px;">Recent activity</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SHADOW LADDER -->
+  <section class="section">
+    <div class="section-header">
+      <div class="text-eyebrow">02 · Elevation</div>
+      <h2 class="text-display-lg title">Four levels instead of one flat shadow.</h2>
+      <p class="text-body desc">
+        Right now there's one <code>theme-shadow</code> token (<code>0 1px 6px</code>). A premium feel comes from layered shadows — a subtle inner highlight plus a distance-based drop — so cards feel lifted, not painted on.
+      </p>
+    </div>
+    <div class="shadow-grid">
+      <div class="shadow-box shadow-1">
+        <div>sm</div>
+        <div class="size">resting</div>
+      </div>
+      <div class="shadow-box shadow-2">
+        <div>md</div>
+        <div class="size">card</div>
+      </div>
+      <div class="shadow-box shadow-3">
+        <div>lg</div>
+        <div class="size">hover lift</div>
+      </div>
+      <div class="shadow-box shadow-4">
+        <div>xl</div>
+        <div class="size">modal, hero</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- BUTTONS -->
+  <section class="section">
+    <div class="section-header">
+      <div class="text-eyebrow">03 · Buttons</div>
+      <h2 class="text-display-lg title">One button system, four variants, three sizes.</h2>
+      <p class="text-body desc">
+        Hover → lift. Press → compress. Focus → ring. Every button in the app funneled through one React primitive instead of repeated inline classes.
+      </p>
+    </div>
+    <div class="compare">
+      <div class="compare-panel">
+        <span class="compare-tag before">Before</span>
+        <div class="btn-row">
+          <button class="btn-old">Sign in</button>
+          <button class="btn-old" style="background:#fff; color:var(--text); border:1.5px solid var(--border);">Cancel</button>
+        </div>
+        <p class="text-body-sm" style="color:var(--text-muted); margin-top:14px;">Flat shadow. No hover motion. No press feedback. No focus ring.</p>
+      </div>
+      <div class="compare-panel">
+        <span class="compare-tag after">After</span>
+        <div class="btn-row">
+          <button class="btn btn-primary btn-md">Sign in</button>
+          <button class="btn btn-secondary btn-md">Cancel</button>
+          <button class="btn btn-ghost btn-md">Learn more</button>
+          <button class="btn btn-danger btn-md">Delete</button>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary btn-sm">Small</button>
+          <button class="btn btn-primary btn-md">Medium</button>
+          <button class="btn btn-primary btn-lg">Large</button>
+        </div>
+        <p class="text-body-sm" style="color:var(--text-muted); margin-top:14px;">Layered shadow with inner highlight. Hover lifts -1px. Active scales to 97%. Tab to focus — see the ring.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CARDS -->
+  <section class="section">
+    <div class="section-header">
+      <div class="text-eyebrow">04 · Cards</div>
+      <h2 class="text-display-lg title">Three consistent card variants.</h2>
+      <p class="text-body desc">Hover the middle card — lift + elevation upgrade on interactive surfaces.</p>
+    </div>
+    <div class="compare" style="grid-template-columns: repeat(3, 1fr);">
+      <div class="card-demo card-flat">
+        <div class="text-eyebrow" style="color:var(--text-muted);">Flat</div>
+        <div class="text-display-md" style="margin-top:6px;">Quiet surface</div>
+        <p class="text-body-sm" style="color:var(--text-muted); margin-top:8px;">For dense lists, secondary panels, anywhere elevation would feel noisy.</p>
+      </div>
+      <div class="card-demo card-elevated">
+        <div class="text-eyebrow" style="color:var(--accent-fg);">Elevated</div>
+        <div class="text-display-md" style="margin-top:6px;">Hover me</div>
+        <p class="text-body-sm" style="color:var(--text-muted); margin-top:8px;">Interactive surfaces — quiz cards, lesson cards, notifications.</p>
+      </div>
+      <div class="card-demo card-hero">
+        <div style="font-family:'Outfit',sans-serif; font-weight:900; font-size:10px; letter-spacing:0.14em; text-transform:uppercase; opacity:0.8;">Hero</div>
+        <div class="text-display-md" style="color:white; margin-top:6px;">Feature moment</div>
+        <p class="text-body-sm" style="color:rgba(255,255,255,0.85); margin-top:8px;">Dashboard heads, upgrade modal, empty-state CTAs.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- NAVBAR -->
+  <section class="section">
+    <div class="section-header">
+      <div class="text-eyebrow">05 · Navigation</div>
+      <h2 class="text-display-lg title">SVG icons for chrome, emoji for personality.</h2>
+      <p class="text-body desc">
+        <code>lucide-react</code> is already installed. This swaps the navigational emoji for crisp SVG (same size on every screen, works with stroke width, theme-color-aware) while keeping emoji for moments that actually benefit from it — celebrations, reactions, Pako.
+      </p>
+    </div>
+    <div class="compare">
+      <div class="compare-panel">
+        <span class="compare-tag before">Before</span>
+        <div class="nav-demo">
+          <div class="nav-demo-brand">ZedExams</div>
+          <div class="nav-demo-items">
+            <div class="nav-item active"><span class="nav-item-emoji">🏠</span> Home</div>
+            <div class="nav-item"><span class="nav-item-emoji">📚</span> Lessons</div>
+            <div class="nav-item"><span class="nav-item-emoji">✏️</span> Quizzes</div>
+            <div class="nav-item"><span class="nav-item-emoji">📄</span> Papers</div>
+            <div class="nav-item"><span class="nav-item-emoji">📊</span> Results</div>
+          </div>
+        </div>
+      </div>
+      <div class="compare-panel">
+        <span class="compare-tag after">After</span>
+        <div class="nav-demo">
+          <div class="nav-demo-brand">ZedExams</div>
+          <div class="nav-demo-items">
+            <div class="nav-item active">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12l9-9 9 9M5 10v10a1 1 0 0 0 1 1h3m10-11v10a1 1 0 0 1-1 1h-3m-6 0h6m-6 0v-6h6v6"/></svg>
+              Home
+            </div>
+            <div class="nav-item">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+              Lessons
+            </div>
+            <div class="nav-item">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+              Quizzes
+            </div>
+            <div class="nav-item">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+              Papers
+            </div>
+            <div class="nav-item">
+              <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6m3 6V5m3 14v-10"/></svg>
+              Results
+            </div>
+          </div>
+        </div>
+        <p class="text-body-sm" style="color:var(--text-muted); margin-top:14px;">Icons scale cleanly at any size, respect the theme color, don't clash with the text weight — and this is still the exact same emoji-warm product underneath.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- LOADING -->
+  <section class="section">
+    <div class="section-header">
+      <div class="text-eyebrow">06 · Loading states</div>
+      <h2 class="text-display-lg title">Shimmer sweeps instead of pulse flash.</h2>
+      <p class="text-body desc">Same CPU cost, feels faster and more intentional.</p>
+    </div>
+    <div class="compare">
+      <div class="compare-panel">
+        <span class="compare-tag before">Before · pulse</span>
+        <div class="skel-stack" style="margin-top:10px;">
+          <div class="skeleton-old skel-w-60"></div>
+          <div class="skeleton-old"></div>
+          <div class="skeleton-old skel-w-80"></div>
+          <div class="skeleton-old skel-w-40"></div>
+        </div>
+      </div>
+      <div class="compare-panel">
+        <span class="compare-tag after">After · shimmer</span>
+        <div class="skel-stack" style="margin-top:10px;">
+          <div class="skeleton-new skel-w-60"></div>
+          <div class="skeleton-new"></div>
+          <div class="skeleton-new skel-w-80"></div>
+          <div class="skeleton-new skel-w-40"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- GRADEHUB MOCK -->
+  <section class="section">
+    <div class="section-header">
+      <div class="text-eyebrow">07 · In context</div>
+      <h2 class="text-display-lg title">How the GradeHub would feel.</h2>
+      <p class="text-body desc">All of the above composed into the one surface learners see most.</p>
+    </div>
+    <div class="gradehub">
+      <div style="font-family:'Outfit',sans-serif; font-weight:900; font-size:10px; letter-spacing:0.15em; text-transform:uppercase; color:rgba(255,255,255,0.75); margin-bottom:10px;">Welcome back, Ruth 👋</div>
+      <div class="gradehub-title">Grade 5 · Term 2</div>
+      <div class="gradehub-sub">Keep your streak going — 3 lessons left this week.</div>
+    </div>
+    <div class="gradehub-grid stagger">
+      <div class="gradehub-card">
+        <div class="gradehub-card-icon">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+        </div>
+        <div class="gradehub-card-title">Continue lesson</div>
+        <div class="gradehub-card-meta">Integrated Science · Respiratory</div>
+        <div style="margin-top:12px;"><span class="badge badge-success">● In progress</span></div>
+      </div>
+      <div class="gradehub-card">
+        <div class="gradehub-card-icon">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+        </div>
+        <div class="gradehub-card-title">Daily quiz</div>
+        <div class="gradehub-card-meta">5 questions · 10 min</div>
+        <div style="margin-top:12px;"><span class="badge badge-warning">● Due today</span></div>
+      </div>
+      <div class="gradehub-card">
+        <div class="gradehub-card-icon">
+          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg>
+        </div>
+        <div class="gradehub-card-title">Badges</div>
+        <div class="gradehub-card-meta">7 earned · 3 almost there</div>
+        <div style="margin-top:12px;"><span class="badge badge-success">🏆 Level 3</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOCUS RING -->
+  <section class="section">
+    <div class="section-header">
+      <div class="text-eyebrow">08 · Accessibility</div>
+      <h2 class="text-display-lg title">A visible focus ring, everywhere.</h2>
+      <p class="text-body desc">Tab through the targets below. Premium apps look tight not just to the eye but to the fingertips.</p>
+    </div>
+    <div class="focus-demo">
+      <button class="focus-target">Tab to me</button>
+      <button class="focus-target">Then me</button>
+      <button class="focus-target">Then me</button>
+      <button class="focus-target">Then me</button>
+    </div>
+    <div class="note">
+      <b>Why it matters.</b> This single change — one line in <code>index.css</code> — is required for WCAG compliance and instantly signals "this product was made carefully" to every keyboard user, every screen-reader user, and anyone navigating on a chromebook.
+    </div>
+  </section>
+
+  <!-- SEMANTIC COLOR -->
+  <section class="section">
+    <div class="section-header">
+      <div class="text-eyebrow">09 · Semantic color</div>
+      <h2 class="text-display-lg title">Success, warning, danger — always the same.</h2>
+      <p class="text-body desc">No more picking <code>bg-green-100 text-green-800</code> in one file and <code>bg-emerald-50 text-emerald-700</code> in another.</p>
+    </div>
+    <div class="two-col">
+      <div class="compare-panel">
+        <div class="text-eyebrow">Status pills</div>
+        <div class="btn-row" style="margin-top:12px;">
+          <span class="badge badge-success">✓ Published</span>
+          <span class="badge badge-warning">● Pending review</span>
+          <span class="badge badge-danger">✕ Rejected</span>
+        </div>
+      </div>
+      <div class="compare-panel">
+        <div class="text-eyebrow">Tuned per theme</div>
+        <p class="text-body-sm" style="color:var(--text-muted); margin-top:8px;">Switch to Midnight ↑ — the success, warning, danger colors automatically shift to their dark-mode variants. No component code changes.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- FOOTER -->
+  <section class="section" style="text-align:center; margin-top:60px;">
+    <div class="text-eyebrow">That's the plan.</div>
+    <h2 class="text-display-xl" style="margin-top:10px; margin-bottom:8px;">Want me to start building it?</h2>
+    <p class="text-body" style="color:var(--text-muted); max-width:520px; margin:0 auto;">
+      Phase 0 (tokens) + focus ring + dark-mode default is ~2 hours, zero visible breakage, and unlocks everything above.
+    </p>
+  </section>
+
+</div>
+
+<script>
+  const body = document.body;
+  const swatches = document.querySelectorAll('.theme-swatch');
+  swatches.forEach(sw => {
+    sw.addEventListener('click', () => {
+      const next = sw.dataset.theme;
+      ['sky','lavender','midnight','oatmeal','solar'].forEach(t => body.classList.remove(`theme-${t}`));
+      body.classList.add(`theme-${next}`);
+      swatches.forEach(s => s.classList.toggle('active', s === sw));
+    });
+  });
+</script>
+
+</body>
+</html>

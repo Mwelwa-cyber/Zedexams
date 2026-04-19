@@ -822,13 +822,17 @@ export default function CreateQuizV2() {
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="theme-text-muted min-h-0 bg-transparent p-1 shadow-none hover:theme-text"
+          aria-label="Go back"
+          className="theme-text-muted min-h-0 bg-transparent p-1 shadow-none hover:theme-text transition-colors"
         >
-          ←
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
         </button>
         <div>
-          <h1 className="theme-text text-2xl font-black">✏️ Create Quiz</h1>
-          <p className="theme-text-muted text-sm">Build quizzes with standalone questions or comprehension passages.</p>
+          <p className="text-eyebrow">Authoring</p>
+          <h1 className="text-display-xl theme-text mt-1 flex items-center gap-2">
+            <span aria-hidden="true">✏️</span> Create quiz
+          </h1>
+          <p className="theme-text-muted text-body-sm mt-1">Build quizzes with standalone questions or comprehension passages.</p>
         </div>
       </div>
 
@@ -842,8 +846,8 @@ export default function CreateQuizV2() {
         />
       )}
 
-      <div className="theme-card theme-border space-y-3 rounded-2xl border p-5">
-        <h2 className="theme-text font-black">Quiz Details</h2>
+      <div className="theme-card theme-border space-y-3 rounded-2xl border p-5 shadow-elev-sm">
+        <h2 className="text-display-md theme-text" style={{ fontSize: 17 }}>Quiz details</h2>
         <input
           value={form.title}
           onChange={event => setF('title', event.target.value)}
@@ -922,8 +926,8 @@ export default function CreateQuizV2() {
               <option value="mcq">Multiple choice</option>
             </select>
           </div>
-          <button type="button" onClick={handleGenerateQuestions} disabled={aiGenerating || saving} className="theme-accent-fill theme-on-accent w-full rounded-xl px-5 py-3 font-black transition-colors hover:opacity-90 disabled:opacity-60 sm:w-auto">
-            {aiGenerating ? '✦ Generating...' : '✦ Generate Questions'}
+          <button type="button" onClick={handleGenerateQuestions} disabled={aiGenerating || saving} className="theme-accent-fill theme-on-accent w-full rounded-xl px-5 py-3 font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md disabled:opacity-60 disabled:pointer-events-none sm:w-auto">
+            {aiGenerating ? '✦ Generating…' : '✦ Generate questions'}
           </button>
         </div>
       )}
@@ -960,16 +964,16 @@ export default function CreateQuizV2() {
       </div>
 
       <div className="flex gap-3 pb-6">
-        <button type="button" onClick={() => handleSave({})} disabled={saving || anyUploading} className="theme-border theme-accent-text hover:theme-accent-bg flex-1 rounded-2xl border-2 py-3.5 font-black transition-colors disabled:opacity-50">
-          {saving ? 'Saving...' : anyUploading ? 'Uploading...' : '💾 Save Draft'}
+        <button type="button" onClick={() => handleSave({})} disabled={saving || anyUploading} className="theme-card theme-border theme-text hover:border-[var(--accent)] hover:theme-accent-text flex-1 rounded-2xl border-2 py-3.5 font-black transition-all duration-fast ease-out shadow-elev-sm hover:-translate-y-px hover:shadow-elev-md disabled:opacity-50 disabled:pointer-events-none">
+          {saving ? 'Saving…' : anyUploading ? 'Uploading…' : '💾 Save draft'}
         </button>
         {isAdmin ? (
-          <button type="button" onClick={() => handleSave({ publish: true })} disabled={saving || anyUploading} className="theme-accent-fill theme-on-accent flex-1 rounded-2xl py-3.5 font-black transition-colors hover:opacity-90 disabled:opacity-50">
-            {saving ? 'Publishing...' : anyUploading ? 'Uploading...' : '🚀 Publish Quiz'}
+          <button type="button" onClick={() => handleSave({ publish: true })} disabled={saving || anyUploading} className="theme-accent-fill theme-on-accent flex-1 rounded-2xl py-3.5 font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md disabled:opacity-50 disabled:pointer-events-none">
+            {saving ? 'Publishing…' : anyUploading ? 'Uploading…' : '🚀 Publish quiz'}
           </button>
         ) : (
-          <button type="button" onClick={() => handleSave({ submit: true })} disabled={saving || anyUploading} className="theme-accent-fill theme-on-accent flex-1 rounded-2xl py-3.5 font-black transition-colors hover:opacity-90 disabled:opacity-50">
-            {saving ? 'Submitting...' : anyUploading ? 'Uploading...' : '📤 Submit for Approval'}
+          <button type="button" onClick={() => handleSave({ submit: true })} disabled={saving || anyUploading} className="theme-accent-fill theme-on-accent flex-1 rounded-2xl py-3.5 font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md disabled:opacity-50 disabled:pointer-events-none">
+            {saving ? 'Submitting…' : anyUploading ? 'Uploading…' : '📤 Submit for approval'}
           </button>
         )}
       </div>

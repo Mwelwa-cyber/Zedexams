@@ -1,8 +1,11 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { ArrowLeft, Eye, EyeOff, Mail } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { getRoleLandingPath } from '../../utils/navigation'
 import Logo from '../ui/Logo'
+import Button from '../ui/Button'
+import Icon from '../ui/Icon'
 
 const FRIENDLY = {
   'auth/invalid-credential':     'Wrong email or password. Please try again.',
@@ -83,32 +86,36 @@ export default function Login() {
         {forgotMode ? (
           /* ── Forgot Password Flow ── */
           <div className="animate-slide-up">
-            <button
+            <Button
+              variant="ghost"
+              size="sm"
+              leadingIcon={<Icon as={ArrowLeft} size="sm" />}
               onClick={() => { setForgotMode(false); setResetSuccess(false); setResetError('') }}
-              className="flex items-center gap-1.5 theme-text-muted text-sm font-bold mb-5 hover:theme-text transition-colors min-h-0 p-0 bg-transparent shadow-none"
+              className="mb-5"
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
-              </svg>
               Back to login
-            </button>
+            </Button>
 
-            <h2 className="theme-text font-black text-xl mb-1">Reset Password</h2>
-            <p className="theme-text-muted text-sm mb-5">
+            <h2 className="text-display-md theme-text mb-1">Reset Password</h2>
+            <p className="theme-text-muted text-body-sm mb-5">
               Enter your email and we'll send you a reset link.
             </p>
 
             {resetSuccess ? (
-              <div className="bg-green-50 border border-green-200 rounded-2xl p-4 text-center">
-                <div className="text-3xl mb-2">📬</div>
-                <p className="text-green-800 font-black text-sm">Reset email sent!</p>
-                <p className="text-green-600 text-xs mt-1">Check your inbox and follow the link to reset your password.</p>
-                <button
+              <div className="bg-success-subtle border rounded-2xl p-5 text-center" style={{ borderColor: 'var(--success-fg)' }}>
+                <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-success-subtle">
+                  <Icon as={Mail} size="lg" className="text-success" label="Email sent" />
+                </div>
+                <p className="text-success text-display-md">Reset email sent!</p>
+                <p className="text-success text-body-sm mt-1 opacity-80">Check your inbox and follow the link to reset your password.</p>
+                <Button
+                  variant="ghost"
+                  size="sm"
                   onClick={() => { setForgotMode(false); setResetSuccess(false) }}
-                  className="mt-4 text-green-700 font-black text-sm underline min-h-0 p-0 bg-transparent shadow-none"
+                  className="mt-4"
                 >
                   Back to login
-                </button>
+                </Button>
               </div>
             ) : (
               <form onSubmit={handleResetPassword} className="space-y-4">
@@ -130,17 +137,19 @@ export default function Login() {
                   />
                 </div>
                 {resetError && (
-                  <p aria-live="polite" className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+                  <p aria-live="polite" className="text-danger bg-danger-subtle border rounded-xl px-4 py-3 text-body-sm" style={{ borderColor: 'var(--danger-fg)' }}>
                     {resetError}
                   </p>
                 )}
-                <button
+                <Button
                   type="submit"
-                  disabled={resetLoading}
-                  className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-black text-base py-3.5 rounded-2xl shadow-md transition-colors"
+                  variant="primary"
+                  size="lg"
+                  fullWidth
+                  loading={resetLoading}
                 >
                   {resetLoading ? 'Sending…' : 'Send Reset Link'}
-                </button>
+                </Button>
               </form>
             )}
           </div>
@@ -194,36 +203,26 @@ export default function Login() {
                   className="absolute right-3 top-1/2 -translate-y-1/2 theme-text-muted hover:theme-text transition-colors min-h-0 p-0 bg-transparent shadow-none"
                   aria-label={showPw ? 'Hide password' : 'Show password'}
                 >
-                  {showPw ? (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                    </svg>
-                  ) : (
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                    </svg>
-                  )}
+                  <Icon as={showPw ? EyeOff : Eye} size="md" />
                 </button>
               </div>
             </div>
 
             {error && (
-              <p aria-live="polite" className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl px-4 py-3">
+              <p aria-live="polite" className="text-danger bg-danger-subtle border rounded-xl px-4 py-3 text-body-sm" style={{ borderColor: 'var(--danger-fg)' }}>
                 {error}
               </p>
             )}
 
-            <button
+            <Button
               type="submit"
-              disabled={loading}
-              className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-black text-lg py-3.5 rounded-2xl shadow-md transition-colors"
+              variant="primary"
+              size="lg"
+              fullWidth
+              loading={loading}
             >
-              {loading ? '⏳ Signing in…' : 'Sign In'}
-            </button>
+              {loading ? 'Signing in…' : 'Sign In'}
+            </Button>
           </form>
         )}
 

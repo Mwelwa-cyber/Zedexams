@@ -597,12 +597,12 @@ export default function EditQuizV2() {
   if (notFound || !canEdit) {
     return (
       <div className="theme-text py-20 text-center">
-        <div className="mb-3 text-5xl">🔒</div>
-        <h2 className="mb-2 text-xl font-black">{notFound ? 'Quiz not found' : 'Access denied'}</h2>
-        <p className="theme-text-muted mb-5 text-sm">
+        <div className="mb-3 text-5xl" aria-hidden="true">🔒</div>
+        <h2 className="text-display-xl theme-text mb-2">{notFound ? 'Quiz not found' : 'Access denied'}</h2>
+        <p className="theme-text-muted text-body mb-5">
           {notFound ? 'This quiz does not exist or has been deleted.' : 'You can only edit quizzes you created.'}
         </p>
-        <button type="button" onClick={() => navigate(backPath)} className="theme-accent-fill theme-on-accent rounded-xl px-6 py-2.5 text-sm font-bold transition-colors hover:opacity-90">
+        <button type="button" onClick={() => navigate(backPath)} className="theme-accent-fill theme-on-accent rounded-xl px-6 py-2.5 text-sm font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md">
           ← Back to Content
         </button>
       </div>
@@ -621,21 +621,26 @@ export default function EditQuizV2() {
 
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
-          <button type="button" onClick={() => navigate(backPath)} className="theme-text-muted mt-1 min-h-0 bg-transparent p-1 shadow-none hover:theme-text">←</button>
+          <button type="button" onClick={() => navigate(backPath)} aria-label="Back" className="theme-text-muted mt-1 min-h-0 bg-transparent p-1 shadow-none hover:theme-text transition-colors">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
+          </button>
           <div>
-            <div className="flex flex-wrap items-center gap-2">
-              <h1 className="text-2xl font-black">✏️ Edit Quiz</h1>
+            <p className="text-eyebrow">Editing</p>
+            <div className="flex flex-wrap items-center gap-2 mt-1">
+              <h1 className="text-display-xl theme-text flex items-center gap-2">
+                <span aria-hidden="true">✏️</span> Edit quiz
+              </h1>
               <span className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${statusMeta.pill}`}>
                 <span className={`h-1.5 w-1.5 rounded-full ${statusMeta.dot}`} />
                 {statusMeta.label}
               </span>
               {dirty && <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-bold text-orange-600">● Unsaved changes</span>}
             </div>
-            <p className="theme-text-muted mt-0.5 text-sm">{form.title || 'Untitled quiz'} · {questionCount} questions</p>
+            <p className="theme-text-muted mt-1 text-body-sm">{form.title || 'Untitled quiz'} · {questionCount} questions</p>
           </div>
         </div>
         {isAdmin && (
-          <button type="button" onClick={handleTogglePublish} disabled={saving || anyUploading} className={`min-h-0 rounded-xl border-2 px-4 py-2 text-sm font-black transition-colors disabled:opacity-40 ${
+          <button type="button" onClick={handleTogglePublish} disabled={saving || anyUploading} className={`min-h-0 rounded-xl border-2 px-4 py-2 text-sm font-black transition-all duration-fast ease-out shadow-elev-sm hover:-translate-y-px hover:shadow-elev-md disabled:opacity-40 ${
             quizStatus === 'published' ? 'border-yellow-300 text-yellow-700 hover:bg-yellow-50' : 'border-green-300 text-green-700 hover:bg-green-50'
           }`}>
             {quizStatus === 'published' ? '📦 Unpublish' : '🚀 Publish'}
@@ -643,8 +648,10 @@ export default function EditQuizV2() {
         )}
       </div>
 
-      <div className="theme-card theme-border space-y-4 rounded-2xl border p-5 shadow-sm">
-        <h2 className="flex items-center gap-2 font-black">📋 Quiz Details</h2>
+      <div className="theme-card theme-border space-y-4 rounded-2xl border p-5 shadow-elev-sm">
+        <h2 className="text-display-md theme-text flex items-center gap-2" style={{ fontSize: 17 }}>
+          <span aria-hidden="true">📋</span> Quiz details
+        </h2>
         <div className="space-y-3">
           <input value={form.title} onChange={event => setF('title', event.target.value)} placeholder="Quiz title (e.g. Grade 6 Science - Human Body)" className={FIELD} />
           <input value={form.topic || ''} onChange={event => setF('topic', event.target.value)} placeholder="Topic (optional, e.g. Photosynthesis)" className={FIELD} />
@@ -722,33 +729,35 @@ export default function EditQuizV2() {
         </div>
       )}
 
-      <div className="theme-card theme-border space-y-3 rounded-2xl border p-4 shadow-sm">
-        <p className="theme-text-muted text-xs font-bold uppercase tracking-wide">Save Options</p>
+      <div className="theme-card theme-border space-y-3 rounded-2xl border p-4 shadow-elev-sm">
+        <p className="text-eyebrow">Save options</p>
         <div className="grid gap-3 sm:grid-cols-3">
-          <button type="button" onClick={() => handleSave('draft')} disabled={saving || anyUploading} className="theme-border theme-accent-text hover:theme-accent-bg flex min-h-0 items-center justify-center gap-2 rounded-2xl border-2 py-3 font-black transition-colors disabled:opacity-40">
-            <span>💾</span>
-            <span>{saving ? 'Saving...' : anyUploading ? 'Uploading...' : 'Save Draft'}</span>
+          <button type="button" onClick={() => handleSave('draft')} disabled={saving || anyUploading} className="theme-card theme-border theme-text hover:border-[var(--accent)] hover:theme-accent-text flex min-h-0 items-center justify-center gap-2 rounded-2xl border-2 py-3 font-black transition-all duration-fast ease-out shadow-elev-sm hover:-translate-y-px hover:shadow-elev-md disabled:opacity-40 disabled:pointer-events-none">
+            <span aria-hidden="true">💾</span>
+            <span>{saving ? 'Saving…' : anyUploading ? 'Uploading…' : 'Save draft'}</span>
           </button>
           {!isAdmin && (
-            <button type="button" onClick={() => handleSave('pending')} disabled={saving || anyUploading} className="theme-accent-fill theme-on-accent flex min-h-0 items-center justify-center gap-2 rounded-2xl py-3 font-black transition-colors hover:opacity-90 disabled:opacity-40">
-              <span>📤</span>
-              <span>{saving ? 'Submitting...' : 'Submit for Approval'}</span>
+            <button type="button" onClick={() => handleSave('pending')} disabled={saving || anyUploading} className="theme-accent-fill theme-on-accent flex min-h-0 items-center justify-center gap-2 rounded-2xl py-3 font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md disabled:opacity-40 disabled:pointer-events-none">
+              <span aria-hidden="true">📤</span>
+              <span>{saving ? 'Submitting…' : 'Submit for approval'}</span>
             </button>
           )}
           {isAdmin && (
             <>
-              <button type="button" onClick={() => handleSave('pending')} disabled={saving || anyUploading} className="flex min-h-0 items-center justify-center gap-2 rounded-2xl border-2 border-yellow-400 py-3 font-black text-yellow-700 transition-colors hover:bg-yellow-50 disabled:opacity-40">
-                <span>⏳</span>
-                <span>{saving ? 'Saving...' : 'Save as Pending'}</span>
+              <button type="button" onClick={() => handleSave('pending')} disabled={saving || anyUploading} className="flex min-h-0 items-center justify-center gap-2 rounded-2xl border-2 border-yellow-400 py-3 font-black text-yellow-700 transition-all duration-fast ease-out shadow-elev-sm hover:-translate-y-px hover:shadow-elev-md hover:bg-yellow-50 disabled:opacity-40 disabled:pointer-events-none">
+                <span aria-hidden="true">⏳</span>
+                <span>{saving ? 'Saving…' : 'Save as pending'}</span>
               </button>
-              <button type="button" onClick={() => handleSave('published')} disabled={saving || anyUploading} className="theme-accent-fill theme-on-accent flex min-h-0 items-center justify-center gap-2 rounded-2xl py-3 font-black shadow-sm transition-colors hover:opacity-90 disabled:opacity-40">
-                <span>🚀</span>
-                <span>{saving ? 'Publishing...' : 'Save & Publish'}</span>
+              <button type="button" onClick={() => handleSave('published')} disabled={saving || anyUploading} className="theme-accent-fill theme-on-accent flex min-h-0 items-center justify-center gap-2 rounded-2xl py-3 font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md disabled:opacity-40 disabled:pointer-events-none">
+                <span aria-hidden="true">🚀</span>
+                <span>{saving ? 'Publishing…' : 'Save & publish'}</span>
               </button>
             </>
           )}
         </div>
-        <p className="theme-text-muted text-center text-xs">{dirty ? '⚠️ You have unsaved changes.' : '✓ All changes saved.'}</p>
+        <p className={`text-center text-xs font-bold ${dirty ? 'text-warning' : 'text-success'}`}>
+          {dirty ? '⚠️ You have unsaved changes.' : '✓ All changes saved.'}
+        </p>
       </div>
     </div>
   )

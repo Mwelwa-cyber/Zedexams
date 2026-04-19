@@ -1,11 +1,14 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ref as storageRef, uploadBytes } from 'firebase/storage'
+import { ShieldCheck } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
 import { storage } from '../../firebase/config'
 import { getRoleLandingPath } from '../../utils/navigation'
 import Logo from '../ui/Logo'
+import Button from '../ui/Button'
+import Icon from '../ui/Icon'
 
 const FRIENDLY = {
   'auth/email-already-in-use': 'This email is already registered. Try logging in.',
@@ -124,8 +127,8 @@ export default function Register() {
       <div className="theme-card rounded-3xl shadow-xl border theme-border w-full max-w-sm p-8 animate-scale-in relative z-10">
         <div className="flex flex-col items-center mb-6">
           <Logo variant="full" size="lg" />
-          <h1 className="text-lg font-black theme-text mt-3">Create Account</h1>
-          <p className="theme-text-muted text-sm mt-0.5">Join ZedExams for free</p>
+          <h1 className="text-display-md theme-text mt-3">Create account</h1>
+          <p className="theme-text-muted text-body-sm mt-0.5">Join ZedExams for free</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-3">
@@ -168,12 +171,17 @@ export default function Register() {
           </div>
 
           {form.role === 'teacher' && (
-            <div className="rounded-2xl border-2 border-blue-100 bg-blue-50 p-4 space-y-3">
-              <div>
-                <p className="text-sm font-black text-blue-900">Teacher verification</p>
-                <p className="text-xs text-blue-700 mt-0.5">
-                  Teacher access starts after admin approval. Until then, your account stays as a learner.
-                </p>
+            <div className="rounded-2xl border-2 border-blue-100 bg-blue-50 p-4 space-y-4 animate-slide-in-soft shadow-elev-sm">
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
+                  <Icon as={ShieldCheck} size="md" />
+                </div>
+                <div>
+                  <p className="text-display-md text-blue-900" style={{ fontSize: 15 }}>Teacher verification</p>
+                  <p className="text-body-sm text-blue-700 mt-0.5">
+                    Teacher access starts after admin approval. Until then, your account stays as a learner.
+                  </p>
+                </div>
               </div>
 
               <div>
@@ -199,15 +207,28 @@ export default function Register() {
             </div>
           )}
 
-          {error && <p aria-live="polite" className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl px-3 py-2">{error}</p>}
-          {success && <p aria-live="polite" className="text-green-700 text-sm bg-green-50 border border-green-200 rounded-xl px-3 py-2">{success}</p>}
+          {error && (
+            <p aria-live="polite" className="text-danger bg-danger-subtle border rounded-xl px-3 py-2 text-body-sm" style={{ borderColor: 'var(--danger-fg)' }}>
+              {error}
+            </p>
+          )}
+          {success && (
+            <p aria-live="polite" className="text-success bg-success-subtle border rounded-xl px-3 py-2 text-body-sm" style={{ borderColor: 'var(--success-fg)' }}>
+              {success}
+            </p>
+          )}
 
-          <button type="submit" disabled={loading}
-            className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-60 text-white font-black text-base py-3.5 rounded-2xl shadow-md transition-colors">
+          <Button
+            type="submit"
+            variant="primary"
+            size="lg"
+            fullWidth
+            loading={loading}
+          >
             {loading
               ? form.role === 'teacher' ? 'Submitting application…' : 'Creating account…'
               : form.role === 'teacher' ? 'Submit Teacher Application' : 'Create Free Account'}
-          </button>
+          </Button>
         </form>
 
         <p className="text-center text-sm theme-text-muted mt-4">

@@ -13,6 +13,12 @@ const functions = getFunctions(app, 'us-central1')
 const generateLessonPlanCallable = httpsCallable(functions, 'generateLessonPlan', {
   timeout: 120_000, // server: 120s
 })
+const generateWorksheetCallable = httpsCallable(functions, 'generateWorksheet', {
+  timeout: 120_000, // server: 120s
+})
+const generateFlashcardsCallable = httpsCallable(functions, 'generateFlashcards', {
+  timeout: 90_000, // server: 90s
+})
 
 export const TEACHER_GRADES = [
   { value: 'ECE', label: 'Early Childhood Education' },
@@ -66,6 +72,34 @@ export const DURATION_PRESETS = [
   { value: 80, label: '80 min — extended' },
 ]
 
+export const WORKSHEET_DIFFICULTIES = [
+  { value: 'easy', label: 'Easy — recall and direct application' },
+  { value: 'medium', label: 'Medium — one-step reasoning' },
+  { value: 'hard', label: 'Hard — multi-step and word problems' },
+  { value: 'mixed', label: 'Mixed — easy → hard progression (recommended)' },
+]
+
+export const WORKSHEET_QUESTION_COUNTS = [
+  { value: 5, label: '5 questions — quick check' },
+  { value: 10, label: '10 questions — standard (recommended)' },
+  { value: 15, label: '15 questions — longer worksheet' },
+  { value: 20, label: '20 questions — full test' },
+]
+
+export const WORKSHEET_DURATIONS = [
+  { value: 15, label: '15 min' },
+  { value: 30, label: '30 min (recommended)' },
+  { value: 45, label: '45 min' },
+  { value: 60, label: '60 min' },
+]
+
+export const FLASHCARD_COUNTS = [
+  { value: 10, label: '10 cards — quick review' },
+  { value: 15, label: '15 cards — standard (recommended)' },
+  { value: 20, label: '20 cards — full topic' },
+  { value: 30, label: '30 cards — deep revision' },
+]
+
 function messageFromError(error) {
   const code = error?.code || ''
   const detail = error?.message || ''
@@ -115,6 +149,70 @@ function withTimeout(promise, ms, label = 'request') {
       (e) => { clearTimeout(t); reject(e) },
     )
   })
+}
+
+export async function generateFlashcards(inputs) {
+  console.info('[zedexams] generateFlashcards →', {
+    grade: inputs?.grade, subject: inputs?.subject, topic: inputs?.topic,
+    count: inputs?.count, difficulty: inputs?.difficulty,
+  })
+  const startedAt = Date.now()
+  try {
+    const result = await withTimeout(
+      generateFlashcardsCallable(inputs),
+      100_000, // generous: Haiku + small output, usually <20s
+      'generateFlashcards',
+    )
+    console.info(
+      '[zedexams] generateFlashcards ← ok in',
+      Date.now() - startedAt, 'ms',
+      { generationId: result?.data?.generationId, warning: result?.data?.warning },
+    )
+    return { ok: true, data: result.data }
+  } catch (error) {
+    console.error('[zedexams] generateFlashcards ← FAILED after',
+      Date.now() - startedAt, 'ms',
+      { code: error?.code, message: error?.message, details: error?.details },
+    )
+    return {
+      ok: false,
+      error: messageFromError(error),
+      code: error?.code || 'unknown',
+      rawMessage: error?.message || '',
+    }
+  }
+}
+
+export async function generateWorksheet(inputs) {
+  console.info('[zedexams] generateWorksheet →', {
+    grade: inputs?.grade, subject: inputs?.subject, topic: inputs?.topic,
+    count: inputs?.count, difficulty: inputs?.difficulty,
+  })
+  const startedAt = Date.now()
+  try {
+    const result = await withTimeout(
+      generateWorksheetCallable(inputs),
+      HARD_CLIENT_TIMEOUT_MS,
+      'generateWorksheet',
+    )
+    console.info(
+      '[zedexams] generateWorksheet ← ok in',
+      Date.now() - startedAt, 'ms',
+      { generationId: result?.data?.generationId, warning: result?.data?.warning },
+    )
+    return { ok: true, data: result.data }
+  } catch (error) {
+    console.error('[zedexams] generateWorksheet ← FAILED after',
+      Date.now() - startedAt, 'ms',
+      { code: error?.code, message: error?.message, details: error?.details },
+    )
+    return {
+      ok: false,
+      error: messageFromError(error),
+      code: error?.code || 'unknown',
+      rawMessage: error?.message || '',
+    }
+  }
 }
 
 export async function generateLessonPlan(inputs) {

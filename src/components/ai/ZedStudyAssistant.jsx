@@ -11,6 +11,9 @@ import {
   X,
   RotateCcw,
   Volume2,
+  VolumeX,
+  Play,
+  Square,
   User,
   Bot,
   Award,
@@ -27,6 +30,7 @@ import {
   BookMarked,
 } from "lucide-react";
 import { sendAIChat } from "../../utils/aiAssistant";
+import { useSpeech } from "./useSpeech";
 
 // ═══════════════════════════════════════════════════════════════════
 // DESIGN SYSTEM — ZedExams Dark Academic
@@ -43,9 +47,12 @@ const C = {
   goldGlow: "rgba(212,175,55,0.12)",
   goldText: "#E8C84B",
   text: "#F8F9FA",
-  muted: "#94A3B8",
-  dim: "#64748B",
-  dimmer: "#475569",
+  // Brightened muted/dim/dimmer for better readability on the dark navy
+  // background — previous values (#94A3B8 / #64748B / #475569) were
+  // noticeably squinty at the small font sizes used throughout.
+  muted: "#A8B6C9",
+  dim: "#8596AE",
+  dimmer: "#5F7491",
   emerald: "#10B981",
   blue: "#3B82F6",
   red: "#EF4444",
@@ -58,47 +65,90 @@ const EMERALD = C.emerald;
 // ═══════════════════════════════════════════════════════════════════
 // CBC CURRICULUM DATA
 // ═══════════════════════════════════════════════════════════════════
+// ── Zambian 2023 Competency-Based Curriculum ──────────────────────────
+// Sources cross-checked against the Ministry of Education framework and
+// Curriculum Development Centre (CDC) publications, April 2026.
+// Primary ENDS at Grade 6 — Grade 7 does not exist in the new framework.
+// Ordinary Secondary is Form 1–4. Advanced Secondary (A-Level) is Form 5–6.
 const CBC = {
   levels: [
-    { id: "primary", label: "Primary", tag: "G1–6" },
+    { id: "primary",  label: "Primary",            tag: "G1–6" },
     { id: "ordinary", label: "Ordinary Secondary", tag: "Form 1–4" },
     { id: "advanced", label: "Advanced Secondary", tag: "Form 5–6" },
   ],
   gradesByLevel: {
-    primary: ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6", "Grade 7"],
+    primary:  ["Grade 1", "Grade 2", "Grade 3", "Grade 4", "Grade 5", "Grade 6"],
     ordinary: ["Form 1", "Form 2", "Form 3", "Form 4"],
     advanced: ["Form 5", "Form 6"],
   },
+  // Primary learning areas (CBC groups by competency cluster, not single
+  // subjects). Each area carries the sub-subjects the Ministry groups under it.
   primaryAreas: [
-    { id: "math", label: "Mathematics" },
-    { id: "science", label: "Science" },
+    { id: "math",     label: "Mathematics" },
+    { id: "science",  label: "Science" },
     { id: "literacy", label: "Literacy and Languages" },
-    { id: "cts", label: "Creative & Technology Studies" },
-    { id: "sds", label: "Social Studies" },
+    { id: "cts",      label: "Creative & Technology Studies" },
+    { id: "sds",      label: "Social Studies" },
   ],
+  // The 2023 framework expanded Secondary pathways beyond the old 4. These
+  // seven are the ones the Ministry has published. Users still get a clean
+  // choice — we just no longer hide Agriculture, Home Economics, etc.
   pathways: [
-    { id: "stem", label: "STEM" },
-    { id: "social", label: "Social Sciences" },
-    { id: "business", label: "Business" },
-    { id: "arts", label: "Creative Arts" },
+    { id: "stem",        label: "Sciences (STEM)" },
+    { id: "business",    label: "Business & Finance" },
+    { id: "social",      label: "Social Sciences" },
+    { id: "arts",        label: "Performing & Creative Arts" },
+    { id: "agriculture", label: "Agriculture Science" },
+    { id: "home",        label: "Home Economics & Hospitality" },
+    { id: "pe",          label: "Physical Education & Sport" },
   ],
+  // Ordinary-level subjects per pathway. Social Studies was split into
+  // Geography, History and Civic Education under the new framework.
   subjectsByPathway: {
-    stem: ["Pure Physics", "Chemistry", "Biology", "Additional Mathematics", "Computer Science", "Design & Technology"],
-    social: ["History", "Geography", "Civic Education", "Literature in English", "Religious Education"],
-    business: ["Principles of Accounts", "Commerce", "Economics", "Entrepreneurship"],
-    arts: ["Visual Arts", "Music", "Drama", "Design"],
+    stem:        ["Pure Mathematics", "Additional Mathematics", "Physics", "Chemistry", "Biology", "Computer Science", "Design & Technology"],
+    business:    ["Principles of Accounts", "Commerce", "Economics", "Entrepreneurship", "Business Studies"],
+    social:      ["History", "Geography", "Civic Education", "Literature in English", "Religious Education"],
+    arts:        ["Visual Arts", "Music", "Drama & Theatre", "Dance", "Design"],
+    agriculture: ["Agricultural Science", "Crop Production", "Animal Husbandry"],
+    home:        ["Food & Nutrition", "Fashion & Textiles", "Hospitality Studies", "Home Management"],
+    pe:          ["Physical Education", "Sports Studies", "Health & Physical Development"],
   },
+  // Advanced (A-Level). The 2023 framework added A-Level offerings in
+  // Business, Social Sciences, and Performing & Creative Arts — previously
+  // A-Level was only offered in Natural Sciences.
   advancedByPathway: {
-    stem: ["A-Level Physics", "A-Level Chemistry", "A-Level Biology", "A-Level Mathematics", "A-Level Computer Science"],
-    social: ["A-Level History", "A-Level Geography", "A-Level Sociology", "A-Level Literature"],
-    business: ["A-Level Economics", "A-Level Business Studies", "A-Level Accounts"],
-    arts: ["A-Level Fine Art", "A-Level Music", "A-Level Drama & Theatre"],
+    stem:        ["A-Level Physics", "A-Level Chemistry", "A-Level Biology", "A-Level Mathematics", "A-Level Further Mathematics", "A-Level Computer Science"],
+    business:    ["A-Level Economics", "A-Level Business Studies", "A-Level Accounting"],
+    social:      ["A-Level History", "A-Level Geography", "A-Level Sociology", "A-Level Literature in English"],
+    arts:        ["A-Level Fine Art", "A-Level Music", "A-Level Drama & Theatre"],
+    agriculture: ["A-Level Agricultural Science"],
+    home:        ["A-Level Food Science & Nutrition"],
+    pe:          ["A-Level Physical Education"],
   },
+  // Competencies. Core set ({core: true}) matches the nine official CBC
+  // competencies published by the Ministry. Additional entries are CBC-
+  // compatible sub-competencies that teachers commonly assess against.
   competencies: [
-    "Critical Thinking", "Problem Solving", "Communication", "Financial Literacy",
-    "Ethical Reasoning", "Creativity", "Digital Literacy", "Active Citizenship",
-    "Scientific Inquiry", "Environmental Awareness", "Entrepreneurial Skills",
-    "Numeracy", "Reading Comprehension", "Collaborative Learning", "Self-Management",
+    // Official CBC core competencies
+    { label: "Critical Thinking",          core: true  },
+    { label: "Problem Solving",            core: true  },
+    { label: "Communication",              core: true  },
+    { label: "Collaboration",              core: true  },
+    { label: "Creativity & Innovation",    core: true  },
+    { label: "Analytical Thinking",        core: true  },
+    { label: "Citizenship",                core: true  },
+    { label: "Emotional Intelligence",     core: true  },
+    { label: "Environmental Sustainability", core: true },
+    // Supporting competencies (CBC-aligned, commonly assessed)
+    { label: "Active Citizenship"         },
+    { label: "Ethical Reasoning"          },
+    { label: "Financial Literacy"         },
+    { label: "Digital Literacy"           },
+    { label: "Scientific Inquiry"         },
+    { label: "Entrepreneurial Skills"     },
+    { label: "Numeracy"                   },
+    { label: "Reading Comprehension"      },
+    { label: "Self-Management"            },
   ],
 };
 
@@ -113,23 +163,97 @@ const RUBRIC = [
 ];
 
 // ═══════════════════════════════════════════════════════════════════
-// ZAMBIAN TOPIC BANK — suggested topics per grade
+// CBC TOPIC BANK
+//
+// Two layers:
+//   PRIMARY_TOPICS_BY_SUBJECT — the learning-area → topics map published
+//     with the Primary framework. Topics are distributed across G1–G6
+//     (CBC spirals concepts, not strict per-grade silos).
+//   SECONDARY_TOPICS_BY_SUBJECT — typical syllabus topics per Ordinary
+//     and Advanced Secondary subject.
+//   TOPIC_BANK — the flat {grade/form: [topics]} view kept for backwards
+//     compatibility with the existing TopicChips component. Grade 7
+//     removed (Primary now ends at Grade 6 under the 2023 CBC).
 // ═══════════════════════════════════════════════════════════════════
+
+const PRIMARY_TOPICS_BY_SUBJECT = {
+  Mathematics: ["Numeracy", "Measurements", "Geometry", "Data Handling", "Financial Literacy"],
+  Science: ["The Human Body", "Plants and Animals", "Materials and Energy", "Health and Hygiene"],
+  "Literacy and Languages": ["Phonics", "Reading", "Comprehension", "Sentence Construction", "Writing Skills", "Zambian Language Literacy"],
+  "Creative & Technology Studies": ["ICT / Digital Literacy", "Entrepreneurship", "Expressive Arts", "Home Economics"],
+  "Social Studies": ["Zambian History", "Governance", "Community Studies", "Climate Change", "Moral & Social Development"],
+};
+
+const SECONDARY_TOPICS_BY_SUBJECT = {
+  // STEM
+  "Pure Mathematics": ["Number Systems", "Algebra", "Geometry", "Trigonometry", "Statistics & Probability"],
+  "Additional Mathematics": ["Functions", "Differentiation", "Integration", "Vectors", "Matrices"],
+  "Physics": ["Forces & Motion", "Energy", "Electricity", "Waves", "Light & Sound"],
+  "Chemistry": ["Atomic Structure", "Acids & Bases", "Chemical Bonding", "Reactions", "Organic Chemistry"],
+  "Biology": ["Cell Biology", "Photosynthesis", "Human Body Systems", "Genetics", "Ecology"],
+  "Computer Science": ["Computer Systems", "Programming", "Databases", "Networks", "Cyber Safety"],
+  "Design & Technology": ["Design Process", "Materials", "Tools & Machines", "Prototyping", "Evaluation"],
+  // Business
+  "Principles of Accounts": ["Double-Entry", "Trial Balance", "Final Accounts", "Cash Flow", "Control Accounts"],
+  "Commerce": ["Trade", "Banking", "Communication", "Insurance", "Transport"],
+  "Economics": ["Scarcity & Choice", "Demand & Supply", "Market Structures", "Money & Banking", "National Income"],
+  "Entrepreneurship": ["Starting a Business", "Business Plan", "Marketing", "Financial Management", "Ethics"],
+  "Business Studies": ["Business Environment", "Business Operations", "Human Resources", "Finance", "Strategy"],
+  // Social Sciences
+  "History": ["Pre-Colonial Africa", "The Scramble for Africa", "Colonial Zambia", "Independence (1964)", "Post-Independence Zambia"],
+  "Geography": ["Map Reading", "Climate & Weather", "Landforms", "Population", "Zambia's Resources (Copperbelt, Zambezi)"],
+  "Civic Education": ["Constitution of Zambia", "Democracy & Governance", "Human Rights", "Active Citizenship", "Rule of Law"],
+  "Literature in English": ["Prose", "Poetry", "Drama", "Literary Devices", "Critical Analysis"],
+  "Religious Education": ["Zambian Religious Heritage", "Values & Ethics", "World Religions", "Moral Decision-Making"],
+  // Creative & Performing Arts
+  "Visual Arts": ["Drawing", "Painting", "Sculpture", "Zambian Visual Traditions", "Art Criticism"],
+  "Music": ["Notation", "Zambian Traditional Music", "Composition", "Performance", "Music Theory"],
+  "Drama & Theatre": ["Scriptwriting", "Acting", "Staging", "Zambian Theatre Traditions", "Theatre Analysis"],
+  "Dance": ["Traditional Zambian Dances", "Choreography", "Performance", "Movement Analysis"],
+  // Agriculture
+  "Agricultural Science": ["Soil Science", "Crop Production", "Animal Husbandry", "Farm Management", "Agribusiness"],
+  "Crop Production": ["Maize", "Cassava", "Vegetables", "Horticulture", "Post-Harvest Handling"],
+  "Animal Husbandry": ["Cattle", "Poultry", "Small Livestock", "Animal Nutrition", "Animal Health"],
+  // Home Economics & Hospitality
+  "Food & Nutrition": ["Nutrients", "Meal Planning", "Food Safety", "Zambian Cuisine", "Catering"],
+  "Fashion & Textiles": ["Fibres & Fabrics", "Design", "Construction", "Zambian Dress", "Fashion Business"],
+  "Hospitality Studies": ["Customer Service", "Accommodation", "Tourism", "Events", "Food Service"],
+  "Home Management": ["Household Finance", "Home Care", "Family Studies", "Consumer Awareness"],
+  // PE & Sport
+  "Physical Education": ["Athletics", "Team Sports", "Fitness", "Health & Wellness", "Movement Skills"],
+  "Sports Studies": ["Sports Science", "Coaching", "Sports Psychology", "Sports Administration"],
+  "Health & Physical Development": ["Healthy Lifestyle", "Injury Prevention", "Nutrition for Athletes"],
+};
+
+// Merged lookup (grade/form key → curated topic list). Used by TopicChips.
 const TOPIC_BANK = {
   "Grade 1": ["Counting 1–20", "Basic Addition", "Letter Sounds", "My Family", "Farm Animals", "Our School"],
-  "Grade 2": ["Subtraction", "Simple Sentences", "Community Helpers", "Plants Around Us", "Days & Months", "Sharing"],
+  "Grade 2": ["Subtraction", "Simple Sentences", "Community Helpers", "Plants Around Us", "Days & Months", "Sharing & Caring"],
   "Grade 3": ["Multiplication Tables", "Reading Stories", "Our Environment", "Zambian Heritage", "Basic Fractions", "Healthy Living"],
   "Grade 4": ["Fractions & Decimals", "Creative Writing", "Health & Hygiene", "Financial Literacy", "Maps & Directions", "Local Governance"],
   "Grade 5": ["Percentages", "Civic Education", "The Human Body", "Zambian History", "Ecosystems", "Energy Sources"],
-  "Grade 6": ["Ratios", "Expressive Writing", "Materials & Matter", "Governance in Zambia", "Climate & Weather", "Moral Development"],
-  "Grade 7": ["Algebraic Thinking", "Exam Preparation", "Scientific Method", "Active Citizenship", "Integrated Science", "Writing Essays"],
-  "Form 1": ["Algebraic Expressions", "Pre-Colonial African History", "Cell Biology", "Commerce Basics", "Map Reading", "Civic Rights & Duties"],
-  "Form 2": ["Linear Equations", "Colonial Zambia", "Photosynthesis", "Principles of Accounts", "Weathering & Erosion", "Business Studies"],
-  "Form 3": ["Quadratic Equations", "Post-Independence Zambia", "Genetics & Heredity", "Economic Systems", "Victoria Falls Geography", "Entrepreneurship"],
-  "Form 4": ["Trigonometry", "Geography of Zambia", "Ecology", "Supply & Demand", "Chemical Bonding", "Literary Analysis"],
-  "Form 5": ["Calculus", "A-Level World History", "Cell Biology Advanced", "Macroeconomics", "Organic Chemistry", "Research Statistics"],
-  "Form 6": ["Advanced Statistics", "Political Theory", "Evolutionary Biology", "Microeconomics", "Thermodynamics", "Research Methods"],
+  "Grade 6": ["Ratios & Proportion", "Expressive Writing", "Materials & Matter", "Governance in Zambia", "Climate Change", "Moral & Social Development"],
+  "Form 1":  ["Algebraic Expressions", "Cell Biology", "Pre-Colonial African History", "Commerce Basics", "Map Reading", "Civic Rights & Duties"],
+  "Form 2":  ["Linear Equations", "Photosynthesis", "Colonial Zambia", "Principles of Accounts", "Weathering & Erosion", "Business Studies"],
+  "Form 3":  ["Quadratic Equations", "Genetics & Heredity", "Post-Independence Zambia", "Demand & Supply", "Zambezi River Basin", "Entrepreneurship"],
+  "Form 4":  ["Trigonometry", "Ecology", "Geography of Zambia", "Market Structures", "Chemical Bonding", "Literary Analysis"],
+  "Form 5":  ["Calculus", "Advanced Cell Biology", "A-Level World History", "Macroeconomics", "Organic Chemistry", "Research & Statistics"],
+  "Form 6":  ["Advanced Statistics", "Evolutionary Biology", "Political Theory", "Microeconomics", "Thermodynamics", "Research Methods"],
 };
+
+// Helper — when a subject is known, surface subject-specific topics for the
+// current level instead of the flat grade list. Falls back to the flat map.
+function resolveTopicsFor({ level, grade, subject }) {
+  if (subject) {
+    if (level === "primary" && PRIMARY_TOPICS_BY_SUBJECT[subject]) {
+      return PRIMARY_TOPICS_BY_SUBJECT[subject];
+    }
+    if (SECONDARY_TOPICS_BY_SUBJECT[subject]) {
+      return SECONDARY_TOPICS_BY_SUBJECT[subject];
+    }
+  }
+  return TOPIC_BANK[grade] || [];
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // PARSER — confidence-scored, priority-ordered
@@ -158,7 +282,8 @@ function parseMessage(text) {
   if (tHits > lHits) { r.userType = "Teacher"; score += tHits * 15; }
   else if (lHits > 0) { r.userType = "Learner"; score += lHits * 10; }
 
-  const gm = text.match(/\bgrade\s*([1-7])\b/i);
+  // Primary is Grade 1–6 under the 2023 CBC (Grade 7 removed).
+  const gm = text.match(/\bgrade\s*([1-6])\b/i);
   const fm = text.match(/\bform\s*([1-6])\b/i);
   if (gm) { r.grade = `Grade ${gm[1]}`; r.level = "primary"; score += 20; }
   else if (fm) {
@@ -286,7 +411,9 @@ function buildSystemPrompt(ctx) {
     ctx.competency && `[Competency: ${ctx.competency}]`,
   ].filter(Boolean).join("\n");
 
-  return `You are Zed Study Assistant on ZedExams — a professional academic AI built for the Zambian 2023 Competency-Based Curriculum (CBC) Framework. You serve learners, teachers, and parents across Zambia.
+  return `You are an educator working under the Zambian 2023 Competency-Based Curriculum (CBC) Framework. Focus on competencies, observable skills, application of knowledge, problem-solving, ethical reasoning, and real-world relevance. Do not rely only on rote memorization or fact recall.
+
+You are Zed Study Assistant on ZedExams — a professional academic AI serving learners, teachers, and parents across Zambia.
 
 ACTIVE CONTEXT:
 ${ctxBlock}
@@ -658,13 +785,17 @@ function MarkdownRenderer({ text }) {
 const WAVE_BARS = [10, 16, 8, 18, 12, 14, 7, 20, 11, 17, 9, 15, 13, 19, 8, 16, 10, 14, 12, 18];
 const WAVE_DELAYS = [0, .05, .11, .03, .18, .08, .24, .02, .15, .09, .21, .06, .17, .13, .01, .22, .07, .16, .04, .19];
 
-function BannerWaveform() {
+function BannerWaveform({ active = true }) {
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 3, height: 18 }}>
       {[0, 1, 2, 3, 4, 5, 6].map(i => (
         <div key={i} style={{
           width: 3, borderRadius: 2, background: GOLD, height: "100%",
-          animation: `bwave 1s ${i * .12}s ease-in-out infinite`,
+          animation: active ? `bwave 1s ${i * .12}s ease-in-out infinite` : "none",
+          // Static "resting" height when no audio is playing so the bars don't
+          // disappear — just stop pulsing.
+          transform: active ? undefined : "scaleY(.45)",
+          opacity: active ? undefined : 0.55,
         }} />
       ))}
       <style>{`@keyframes bwave{0%,100%{transform:scaleY(.25);opacity:.4}50%{transform:scaleY(1);opacity:1}}`}</style>
@@ -754,13 +885,13 @@ function ContextPill({ level, grade, pathway, subject, competency }) {
   if (!parts.length) return null;
   return (
     <div style={{
-      background: C.goldGlow, border: `1px solid ${C.border}`, borderRadius: 8,
-      padding: "5px 12px", marginBottom: 8, fontSize: 11, color: C.muted,
-      display: "flex", alignItems: "center", gap: 5, flexWrap: "wrap",
+      background: C.goldGlow, border: `1px solid ${C.border}`, borderRadius: 9,
+      padding: "6px 13px", marginBottom: 10, fontSize: 12.5, color: C.muted,
+      display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap",
     }}>
-      <Target size={10} color={GOLD} style={{ flexShrink: 0 }} />
+      <Target size={12} color={GOLD} style={{ flexShrink: 0 }} />
       {parts.map((p, i) => (
-        <span key={i} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+        <span key={i} style={{ display: "flex", alignItems: "center", gap: 5 }}>
           <span style={{
             color: i === parts.length - 1 ? GOLD : C.text,
             fontWeight: i === parts.length - 1 ? 700 : 500,
@@ -786,7 +917,7 @@ function ParsedBadges({ parsed }) {
       {chips.map(([v, color, bg]) => (
         <span key={v} style={{
           background: bg, border: `1px solid ${color}40`, color,
-          padding: "1px 7px", borderRadius: 4, fontSize: 10,
+          padding: "2px 8px", borderRadius: 5, fontSize: 11,
           fontWeight: 600, letterSpacing: "0.4px",
         }}>
           {v}
@@ -796,28 +927,28 @@ function ParsedBadges({ parsed }) {
   );
 }
 
-function TopicChips({ grade, onSelect }) {
-  const topics = TOPIC_BANK[grade] || [];
+function TopicChips({ level, grade, subject, onSelect }) {
+  const topics = resolveTopicsFor({ level, grade, subject });
   if (!topics.length) return null;
   return (
-    <div style={{ marginBottom: 10 }}>
+    <div style={{ marginBottom: 12 }}>
       <div style={{
-        fontSize: 10, color: C.dim, letterSpacing: "0.6px",
-        textTransform: "uppercase", marginBottom: 6, fontWeight: 600,
-        display: "flex", alignItems: "center", gap: 5,
+        fontSize: 11, color: C.muted, letterSpacing: "0.12em",
+        textTransform: "uppercase", marginBottom: 8, fontWeight: 700,
+        display: "flex", alignItems: "center", gap: 6,
       }}>
-        <Lightbulb size={10} color={GOLD} />
+        <Lightbulb size={12} color={GOLD} />
         Suggested Topics
       </div>
-      <div style={{ display: "flex", flexWrap: "wrap", gap: 5 }}>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
         {topics.map(t => (
           <button
             key={t}
             onClick={() => onSelect(t)}
             style={{
               background: C.goldGlow, border: `1px solid ${C.border}`,
-              color: C.muted, padding: "3px 10px", borderRadius: 20,
-              fontSize: 11, cursor: "pointer", fontFamily: "inherit",
+              color: C.text, padding: "5px 12px", borderRadius: 999,
+              fontSize: 12.5, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
               transition: "all .18s",
             }}
             onMouseEnter={e => {
@@ -825,7 +956,7 @@ function TopicChips({ grade, onSelect }) {
               e.currentTarget.style.borderColor = C.borderMid;
             }}
             onMouseLeave={e => {
-              e.currentTarget.style.color = C.muted;
+              e.currentTarget.style.color = C.text;
               e.currentTarget.style.borderColor = C.border;
             }}
           >
@@ -846,16 +977,45 @@ function CopyButton({ text }) {
   };
   return (
     <button onClick={copy} style={{
-      display: "flex", alignItems: "center", gap: 4,
-      background: done ? "rgba(16,185,129,.12)" : C.goldGlow,
-      border: `1px solid ${done ? "rgba(16,185,129,.3)" : C.border}`,
-      color: done ? EMERALD : C.dim,
-      padding: "3px 9px", borderRadius: 5, fontSize: 10.5,
+      display: "flex", alignItems: "center", gap: 5,
+      background: done ? "rgba(16,185,129,.15)" : C.goldGlow,
+      border: `1px solid ${done ? "rgba(16,185,129,.35)" : C.border}`,
+      color: done ? EMERALD : C.muted,
+      padding: "4px 10px", borderRadius: 6, fontSize: 11.5,
       fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
       transition: "all .2s",
     }}>
-      {done ? <Check size={10} /> : <Copy size={10} />}
+      {done ? <Check size={12} /> : <Copy size={12} />}
       {done ? "Copied" : "Copy"}
+    </button>
+  );
+}
+
+/**
+ * SpeakButton — toggles TTS for a single assistant message. Shows a Play
+ * icon when idle, a Stop icon + subtle pulse when this message is being
+ * read aloud. Hidden entirely when the browser doesn't support
+ * speechSynthesis (parent should check speech.supported).
+ */
+function SpeakButton({ isActive, onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-label={isActive ? "Stop speaking this message" : "Listen to this message"}
+      aria-pressed={isActive}
+      style={{
+        display: "flex", alignItems: "center", gap: 5,
+        background: isActive ? C.goldGlow : C.goldGlow,
+        border: `1px solid ${isActive ? C.borderFull : C.border}`,
+        color: isActive ? GOLD : C.muted,
+        padding: "4px 10px", borderRadius: 6, fontSize: 11.5,
+        fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+        transition: "all .2s",
+        boxShadow: isActive ? `0 0 10px rgba(212,175,55,0.35)` : "none",
+      }}
+    >
+      {isActive ? <Square size={11} fill="currentColor" /> : <Play size={11} fill="currentColor" />}
+      {isActive ? "Stop" : "Listen"}
     </button>
   );
 }
@@ -906,6 +1066,33 @@ export default function ZedStudyAssistant() {
   const activeStreamId = useRef(null);
 
   const { streamText, streaming, stream, cancel: cancelStream, reset: resetStream } = useStreaming();
+
+  // Text-to-speech — Zed reads his responses aloud.
+  // Speech-to-text — learner dictates into the input field.
+  const speech = useSpeech();
+
+  // When dictation produces a final chunk, append it to the input field and
+  // clear it from the hook so it doesn't get re-appended on the next tick.
+  useEffect(() => {
+    if (!speech.finalTranscript) return;
+    setInput(prev => {
+      const trimmed = prev.trim();
+      return (trimmed ? trimmed + " " : "") + speech.finalTranscript;
+    });
+    speech.resetTranscript();
+  }, [speech.finalTranscript, speech.resetTranscript]);
+
+  // While listening, the textarea shows both the committed input and the
+  // interim in-progress transcript — so the learner sees their words land
+  // character by character.
+  const dictatingPreview = speech.listening && speech.interimTranscript
+    ? (input ? `${input} ${speech.interimTranscript}` : speech.interimTranscript)
+    : input;
+
+  function toggleDictation() {
+    if (speech.listening) speech.stopListening();
+    else speech.startListening();
+  }
 
   // Derived curriculum options
   const isSecondary = level === "ordinary" || level === "advanced";
@@ -980,6 +1167,8 @@ export default function ZedStudyAssistant() {
         ));
         if (activeStreamId.current === asstId) activeStreamId.current = null;
         setIsSending(false);
+        // Voice mode: when Zed finishes a reply, read it aloud.
+        if (voiceMode && speech.supported) speech.speak(final, asstId);
       });
     } catch (err) {
       const errMsg = err?.message || "Zed is having trouble responding right now. Please try again in a moment.";
@@ -991,7 +1180,7 @@ export default function ZedStudyAssistant() {
       activeStreamId.current = null;
       setIsSending(false);
     }
-  }, [stream]);
+  }, [stream, voiceMode, speech]);
 
   const sendMessage = useCallback(async (override) => {
     if (activeStreamId.current) return;
@@ -1035,6 +1224,8 @@ export default function ZedStudyAssistant() {
           ));
           if (activeStreamId.current === newId) activeStreamId.current = null;
           setIsSending(false);
+          // Voice mode: speak the retried reply too.
+          if (voiceMode && speech.supported) speech.speak(final, newId);
         });
       })
       .catch((err) => {
@@ -1049,15 +1240,25 @@ export default function ZedStudyAssistant() {
         activeStreamId.current = null;
         setIsSending(false);
       });
-  }, [retryPayload, isSending, stream]);
+  }, [retryPayload, isSending, stream, voiceMode, speech]);
 
   const clearChat = () => {
     cancelStream();
+    speech.stop();
     setMessages([]);
     resetStream();
     setError(null);
     setRetryPayload(null);
     activeStreamId.current = null;
+  };
+
+  // Toggle voice mode — stop any active speech when turning it off so the
+  // tab doesn't keep talking after the user disables it.
+  const toggleVoiceMode = () => {
+    setVoiceMode(v => {
+      if (v) speech.stop();
+      return !v;
+    });
   };
 
   const handleKey = e => {
@@ -1084,95 +1285,136 @@ export default function ZedStudyAssistant() {
   // ══════════════════════════════════════════════════════════════
   return (
     <div style={{
-      height: "100vh", display: "flex", flexDirection: "column",
+      // Use dvh so mobile address bars don't clip content; fall back to vh.
+      minHeight: "100dvh", height: "100dvh",
+      display: "flex", flexDirection: "column",
       background: C.bg, fontFamily: "'DM Sans','Segoe UI',sans-serif",
-      maxWidth: 520, margin: "0 auto", overflow: "hidden",
+      // Breathe on tablet/PC: phone-width on mobile, comfortable reading
+      // width on larger screens. Previous `520` meant a tiny centered strip
+      // on desktops with huge empty margins.
+      width: "100%",
+      maxWidth: 820,
+      margin: "0 auto",
+      overflow: "hidden",
+      // Subtle gold edge on wide screens so the dark column doesn't float
+      // alone in a sea of background
+      boxShadow: "0 0 48px rgba(212, 175, 55, 0.06)",
     }}>
-      {/* ── HEADER */}
+      {/* ── HEADER
+          flex-wraps onto a second row on narrow phones so the reset / new-chat
+          button is never clipped. The title+logo form one group that stays
+          together; the controls form the other and drop below when needed. */}
       <header style={{
         background: C.surface, borderBottom: `1px solid ${C.border}`,
-        padding: "11px 16px", display: "flex", alignItems: "center",
+        padding: "13px 18px", display: "flex", alignItems: "center",
         justifyContent: "space-between", flexShrink: 0, zIndex: 10,
+        flexWrap: "wrap", rowGap: 10, columnGap: 12,
         boxShadow: "0 2px 12px rgba(0,0,0,0.3)",
       }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 11 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
           <div style={{
-            width: 36, height: 36,
-            background: `linear-gradient(135deg,${GOLD},#B8960C)`,
-            borderRadius: 10, display: "flex", alignItems: "center",
-            justifyContent: "center", fontSize: 19, fontWeight: 700,
-            color: C.bg, fontFamily: "Georgia, serif", flexShrink: 0,
-            boxShadow: `0 0 16px rgba(212,175,55,0.4)`,
+            width: 42, height: 42,
+            background: C.surfaceAlt,
+            border: `1px solid ${C.borderMid}`,
+            borderRadius: 12, display: "flex", alignItems: "center",
+            justifyContent: "center", flexShrink: 0,
+            padding: 5,
+            boxShadow: `0 0 18px rgba(212,175,55,0.22)`,
           }}>
-            Z
+            <img
+              src="/zedexams-logo.png?v=4"
+              alt="ZedExams"
+              style={{ width: "100%", height: "100%", objectFit: "contain" }}
+            />
           </div>
           <div>
-            <div style={{ display: "flex", alignItems: "center", gap: 7 }}>
-              <span style={{ fontSize: 14, fontWeight: 700, color: C.text, letterSpacing: "-0.2px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 15, fontWeight: 700, color: C.text, letterSpacing: "-0.2px" }}>
                 Zed Study Assistant
               </span>
               <span style={{
                 background: C.goldGlow, border: `1px solid ${C.borderMid}`,
-                color: GOLD, fontSize: 8.5, padding: "1px 6px", borderRadius: 3,
+                color: GOLD, fontSize: 10, padding: "2px 7px", borderRadius: 4,
                 fontWeight: 700, letterSpacing: "1px", textTransform: "uppercase",
               }}>Beta</span>
             </div>
             <div style={{
-              fontSize: 10, color: C.dim, letterSpacing: "0.5px",
-              textTransform: "uppercase", fontWeight: 500, marginTop: 1,
+              fontSize: 11, color: C.muted, letterSpacing: "0.5px",
+              textTransform: "uppercase", fontWeight: 600, marginTop: 2,
             }}>
               CBC-Aligned · Zambian Learners &amp; Teachers
             </div>
           </div>
         </div>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-          <button onClick={() => setVoiceMode(v => !v)} title="Toggle voice mode"
+        <div style={{
+          display: "flex", alignItems: "center", gap: 6,
+          flexWrap: "wrap", rowGap: 8,
+          // When this drops to its own row, stretch across the full width so
+          // the controls sit evenly left-aligned instead of hanging to one side.
+          marginLeft: "auto",
+        }}>
+          {/* Learner / Teacher segmented pill — sits together as one unit */}
+          <div style={{
+            display: "inline-flex", background: C.surfaceAlt,
+            border: `1px solid ${C.border}`, borderRadius: 9, padding: 2,
+          }}>
+            {["Learner", "Teacher"].map(m => (
+              <button key={m} onClick={() => setUserMode(m)}
+                style={{
+                  padding: "5px 12px", borderRadius: 7, fontSize: 12, fontWeight: 600,
+                  border: "none",
+                  background: userMode === m ? C.goldGlow : "transparent",
+                  color: userMode === m ? GOLD : C.muted,
+                  cursor: "pointer", transition: "all .2s",
+                  fontFamily: "inherit",
+                }}>
+                {m}
+              </button>
+            ))}
+          </div>
+
+          {/* Icon controls */}
+          <button
+            onClick={toggleVoiceMode}
+            disabled={!speech.supported}
+            title={speech.supported ? "Toggle voice mode" : "Voice not supported on this browser"}
+            aria-label="Toggle voice mode"
+            aria-pressed={voiceMode}
             style={{
-              width: 32, height: 32, borderRadius: 8,
+              width: 34, height: 34, borderRadius: 9,
               border: `1px solid ${voiceMode ? GOLD : C.border}`,
               background: voiceMode ? C.goldGlow : C.surfaceAlt,
-              color: voiceMode ? GOLD : C.dim,
+              color: voiceMode ? GOLD : C.muted,
               display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "pointer", transition: "all .2s",
+              cursor: speech.supported ? "pointer" : "not-allowed",
+              opacity: speech.supported ? 1 : 0.5,
+              transition: "all .2s",
             }}>
-            {voiceMode ? <Volume2 size={14} /> : <MicOff size={14} />}
+            {voiceMode ? <Volume2 size={15} /> : <VolumeX size={15} />}
           </button>
 
-          {["Learner", "Teacher"].map(m => (
-            <button key={m} onClick={() => setUserMode(m)}
-              style={{
-                padding: "4px 10px", borderRadius: 7, fontSize: 11, fontWeight: 600,
-                border: `1px solid ${userMode === m ? GOLD : C.border}`,
-                background: userMode === m ? C.goldGlow : C.surfaceAlt,
-                color: userMode === m ? GOLD : C.dim,
-                cursor: "pointer", transition: "all .2s",
-              }}>
-              {m}
-            </button>
-          ))}
-
-          <button onClick={() => setPanelOpen(o => !o)} title="Toggle curriculum selectors"
+          <button onClick={() => setPanelOpen(o => !o)} title="Toggle curriculum selectors" aria-label="Toggle curriculum selectors"
             style={{
-              width: 32, height: 32, borderRadius: 8,
+              width: 34, height: 34, borderRadius: 9,
               border: `1px solid ${panelOpen ? GOLD : C.border}`,
               background: panelOpen ? C.goldGlow : C.surfaceAlt,
-              color: panelOpen ? GOLD : C.dim,
+              color: panelOpen ? GOLD : C.muted,
               display: "flex", alignItems: "center", justifyContent: "center",
               cursor: "pointer", transition: "all .2s",
             }}>
-            <Layers size={14} />
+            <Layers size={15} />
           </button>
 
           {hasMsg && (
-            <button onClick={clearChat} title="New chat"
+            <button onClick={clearChat} title="New chat" aria-label="Start new chat"
               style={{
-                width: 32, height: 32, borderRadius: 8,
+                width: 34, height: 34, borderRadius: 9,
                 border: `1px solid ${C.border}`, background: C.surfaceAlt,
-                color: C.dim, display: "flex", alignItems: "center",
-                justifyContent: "center", cursor: "pointer",
+                color: C.muted, display: "flex", alignItems: "center",
+                justifyContent: "center", cursor: "pointer", transition: "all .2s",
               }}>
-              <RotateCcw size={13} />
+              <RotateCcw size={14} />
             </button>
           )}
         </div>
@@ -1182,19 +1424,67 @@ export default function ZedStudyAssistant() {
       {voiceMode && (
         <div style={{
           background: C.goldGlow, borderBottom: `1px solid ${C.borderMid}`,
-          padding: "6px 16px", display: "flex", alignItems: "center",
+          padding: "9px 18px",
+          display: "flex", alignItems: "center", gap: 10,
           justifyContent: "space-between", flexShrink: 0,
+          flexWrap: "wrap", rowGap: 8,
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <BannerWaveform />
-            <span style={{ fontSize: 11, color: GOLD, fontWeight: 600 }}>
-              Voice Mode Active — TTS Output Ready
+          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+            <BannerWaveform active={speech.speaking} />
+            <span style={{ fontSize: 12, color: GOLD, fontWeight: 600 }}>
+              {speech.speaking ? "Zed is speaking…" : "Voice mode — Zed will read replies aloud"}
             </span>
           </div>
-          <button onClick={() => setVoiceMode(false)}
-            style={{ background: "none", border: "none", color: C.dim, cursor: "pointer", display: "flex" }}>
-            <X size={12} />
-          </button>
+
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {/* Voice picker */}
+            {speech.voices.length > 0 && (
+              <div style={{ position: "relative" }}>
+                <select
+                  value={speech.voice?.voiceURI || ""}
+                  onChange={e => speech.setVoice(e.target.value)}
+                  aria-label="Choose voice"
+                  style={{
+                    appearance: "none", WebkitAppearance: "none", MozAppearance: "none",
+                    background: C.surfaceAlt,
+                    border: `1px solid ${C.borderMid}`,
+                    color: C.text, fontFamily: "inherit", fontWeight: 600,
+                    fontSize: 11.5, padding: "5px 26px 5px 10px",
+                    borderRadius: 7, cursor: "pointer", outline: "none",
+                    maxWidth: 200, textOverflow: "ellipsis",
+                  }}
+                >
+                  {speech.voices.map(v => (
+                    <option key={v.voiceURI} value={v.voiceURI}>
+                      {`${v.name} (${v.lang})`}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown size={11} style={{
+                  position: "absolute", right: 8, top: "50%",
+                  transform: "translateY(-50%)", color: C.dim, pointerEvents: "none",
+                }} />
+              </div>
+            )}
+
+            {/* Stop current speech */}
+            {speech.speaking && (
+              <button onClick={speech.stop} aria-label="Stop speaking"
+                style={{
+                  display: "flex", alignItems: "center", gap: 5,
+                  background: C.surfaceAlt, border: `1px solid ${C.borderFull}`,
+                  color: GOLD, padding: "5px 11px", borderRadius: 7,
+                  fontSize: 11.5, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                }}>
+                <Square size={11} fill="currentColor" /> Stop
+              </button>
+            )}
+
+            <button onClick={toggleVoiceMode} aria-label="Turn voice mode off"
+              style={{ background: "none", border: "none", color: C.muted, cursor: "pointer", display: "flex" }}>
+              <X size={14} />
+            </button>
+          </div>
         </div>
       )}
 
@@ -1202,11 +1492,11 @@ export default function ZedStudyAssistant() {
       {panelOpen && (
         <div style={{
           background: C.panel, borderBottom: `1px solid ${C.border}`,
-          padding: "10px 14px", flexShrink: 0, transition: "opacity .3s",
+          padding: "14px 18px", flexShrink: 0, transition: "opacity .3s",
           opacity: focusMode ? 0.3 : 1,
           pointerEvents: focusMode ? "none" : "auto",
         }}>
-          <div style={{ display: "flex", gap: 7, marginBottom: 7 }}>
+          <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
             <Select value={level} onChange={v => setLevel(v)} options={CBC.levels} placeholder="Level" />
             <Select value={grade} onChange={setGrade} options={gradeOptions} placeholder="Grade / Form" disabled={!level} />
           </div>
@@ -1239,7 +1529,16 @@ export default function ZedStudyAssistant() {
               }}
             >
               <option value="">Competency Focus — e.g. Critical Thinking, Problem Solving</option>
-              {CBC.competencies.map(c => <option key={c} value={c}>{c}</option>)}
+              <optgroup label="Core CBC competencies">
+                {CBC.competencies.filter(c => c.core).map(c => (
+                  <option key={c.label} value={c.label}>{c.label}</option>
+                ))}
+              </optgroup>
+              <optgroup label="Supporting competencies">
+                {CBC.competencies.filter(c => !c.core).map(c => (
+                  <option key={c.label} value={c.label}>{c.label}</option>
+                ))}
+              </optgroup>
             </select>
             <ChevronDown size={11} style={{
               position: "absolute", right: 8, top: "50%",
@@ -1271,7 +1570,7 @@ export default function ZedStudyAssistant() {
             </div>
 
             {/* Topic chips if grade selected */}
-            {grade && <TopicChips grade={grade} onSelect={handleTopicSelect} />}
+            {grade && <TopicChips level={level} grade={grade} subject={subject} onSelect={handleTopicSelect} />}
 
             {/* Main quick action cards */}
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
@@ -1299,10 +1598,10 @@ export default function ZedStudyAssistant() {
                     }}>
                       <Icon size={15} color={a.color} />
                     </div>
-                    <div style={{ fontSize: 12.5, fontWeight: 700, color: C.text, marginBottom: 3 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 700, color: C.text, marginBottom: 4 }}>
                       {a.label}
                     </div>
-                    <div style={{ fontSize: 10.5, color: C.dim, lineHeight: 1.45 }}>
+                    <div style={{ fontSize: 12, color: C.muted, lineHeight: 1.5 }}>
                       {a.desc}
                     </div>
                   </button>
@@ -1313,8 +1612,8 @@ export default function ZedStudyAssistant() {
             {/* More tools — compact secondary row */}
             <div>
               <div style={{
-                fontSize: 9.5, color: C.dim, letterSpacing: "0.8px",
-                textTransform: "uppercase", fontWeight: 700, marginBottom: 7,
+                fontSize: 11, color: C.muted, letterSpacing: "0.12em",
+                textTransform: "uppercase", fontWeight: 700, marginBottom: 9,
               }}>
                 More Tools
               </div>
@@ -1338,8 +1637,8 @@ export default function ZedStudyAssistant() {
                       }}>
                       <Icon size={13} color={a.color} style={{ flexShrink: 0 }} />
                       <span style={{
-                        fontSize: 11.5, fontWeight: 600,
-                        color: active ? a.color : C.muted,
+                        fontSize: 12.5, fontWeight: 600,
+                        color: active ? a.color : C.text,
                       }}>{a.label}</span>
                     </button>
                   );
@@ -1350,27 +1649,27 @@ export default function ZedStudyAssistant() {
             {/* Compact rubric legend */}
             <div style={{
               background: C.surface, border: `1px solid ${C.border}`,
-              borderRadius: 14, padding: "11px 14px",
+              borderRadius: 14, padding: "12px 15px",
             }}>
               <div style={{
-                fontSize: 9.5, color: C.dim, letterSpacing: "0.9px",
-                textTransform: "uppercase", fontWeight: 700, marginBottom: 9,
+                fontSize: 11, color: C.muted, letterSpacing: "0.12em",
+                textTransform: "uppercase", fontWeight: 700, marginBottom: 10,
               }}>
                 CBC Competency Rubric
               </div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 7 }}>
                 {RUBRIC.map(r => (
                   <div key={r.id} style={{
                     background: r.bg, border: `1px solid ${r.color}28`,
-                    borderRadius: 8, padding: "5px 10px",
-                    display: "flex", alignItems: "center", gap: 7,
+                    borderRadius: 9, padding: "6px 11px",
+                    display: "flex", alignItems: "center", gap: 8,
                   }}>
                     <div style={{
                       width: 7, height: 7, borderRadius: "50%",
                       background: r.color, flexShrink: 0,
                     }} />
-                    <span style={{ fontSize: 11, fontWeight: 700, color: r.color }}>{r.label}</span>
-                    <span style={{ fontSize: 10, color: C.dim, marginLeft: "auto" }}>{r.range}</span>
+                    <span style={{ fontSize: 12, fontWeight: 700, color: r.color }}>{r.label}</span>
+                    <span style={{ fontSize: 11, color: C.muted, marginLeft: "auto" }}>{r.range}</span>
                   </div>
                 ))}
               </div>
@@ -1379,8 +1678,8 @@ export default function ZedStudyAssistant() {
             {/* Tip */}
             <div style={{
               background: C.goldGlow, border: `1px solid ${C.border}`,
-              borderRadius: 10, padding: "8px 13px",
-              fontSize: 11.5, color: C.dim, lineHeight: 1.65,
+              borderRadius: 12, padding: "10px 14px",
+              fontSize: 12.5, color: C.muted, lineHeight: 1.65,
             }}>
               <span style={{ color: GOLD, fontWeight: 700 }}>Tip: </span>
               Select your level and grade above, then choose a quick action or type your question.
@@ -1433,26 +1732,35 @@ export default function ZedStudyAssistant() {
                     justifyContent: "space-between", marginBottom: 8,
                   }}>
                     <span style={{
-                      display: "inline-flex", alignItems: "center", gap: 4,
+                      display: "inline-flex", alignItems: "center", gap: 5,
                       background: C.goldGlow, border: `1px solid ${C.borderMid}`,
-                      color: GOLD, padding: "2px 8px", borderRadius: 4,
-                      fontSize: 9.5, fontWeight: 700, letterSpacing: "0.7px",
+                      color: GOLD, padding: "3px 9px", borderRadius: 5,
+                      fontSize: 11, fontWeight: 700, letterSpacing: "0.08em",
                     }}>
-                      <Award size={9} /> ZedExams · CBC
+                      <Award size={11} /> ZedExams · CBC
                     </span>
                     {!msg.isStreaming && display && (
-                      <div style={{ display: "flex", gap: 6 }}>
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", rowGap: 6, justifyContent: "flex-end" }}>
+                        {speech.supported && (
+                          <SpeakButton
+                            isActive={speech.activeId === msg.id && speech.speaking}
+                            onClick={() => {
+                              if (speech.activeId === msg.id && speech.speaking) speech.stop();
+                              else speech.speak(display, msg.id);
+                            }}
+                          />
+                        )}
                         <CopyButton text={display} />
                         {isPrintable && (
                           <button onClick={() => printContent(display, msg.resolvedContext?.taskType)}
                             style={{
-                              display: "flex", alignItems: "center", gap: 4,
+                              display: "flex", alignItems: "center", gap: 5,
                               background: C.goldGlow, border: `1px solid ${C.border}`,
-                              color: C.dim, padding: "3px 9px", borderRadius: 5,
-                              fontSize: 10.5, fontWeight: 600, cursor: "pointer",
+                              color: C.muted, padding: "4px 10px", borderRadius: 6,
+                              fontSize: 11.5, fontWeight: 600, cursor: "pointer",
                               fontFamily: "inherit",
                             }}>
-                            <Printer size={10} /> PDF
+                            <Printer size={11} /> PDF
                           </button>
                         )}
                       </div>
@@ -1466,7 +1774,7 @@ export default function ZedStudyAssistant() {
                 {/* Content */}
                 {isUser ? (
                   <p style={{
-                    fontSize: 13.5, color: C.muted, lineHeight: 1.65,
+                    fontSize: 14, color: C.text, lineHeight: 1.65,
                     margin: 0, whiteSpace: "pre-wrap",
                   }}>{display}</p>
                 ) : msg.isError ? null : (
@@ -1510,7 +1818,7 @@ export default function ZedStudyAssistant() {
 
                 {/* Timestamp */}
                 <div style={{
-                  fontSize: 10, color: C.dimmer, marginTop: 6,
+                  fontSize: 10.5, color: C.dim, marginTop: 6,
                   textAlign: isUser ? "right" : "left",
                 }}>
                   {new Date(msg.createdAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
@@ -1525,7 +1833,8 @@ export default function ZedStudyAssistant() {
       {/* ── INPUT AREA */}
       <div style={{
         background: C.surface, borderTop: `1px solid ${C.border}`,
-        padding: "10px 14px 14px", flexShrink: 0,
+        padding: "12px 18px 16px", flexShrink: 0,
+        paddingBottom: "max(16px, env(safe-area-inset-bottom, 0))",
       }}>
         {/* Context pill */}
         <ContextPill level={level} grade={grade} pathway={pathway} subject={subject} competency={competency} />
@@ -1567,54 +1876,97 @@ export default function ZedStudyAssistant() {
           </div>
         )}
 
+        {/* Microphone error banner */}
+        {speech.recognitionError && (
+          <div style={{
+            display: "flex", alignItems: "center", gap: 7, marginBottom: 8,
+            background: "rgba(239,68,68,.08)",
+            border: "1px solid rgba(239,68,68,.25)",
+            borderRadius: 8, padding: "7px 11px",
+          }}>
+            <AlertCircle size={12} color={C.red} />
+            <span style={{ fontSize: 11.5, color: "#F87171", flex: 1, lineHeight: 1.5 }}>
+              {speech.recognitionError}
+            </span>
+            <button onClick={speech.resetTranscript} aria-label="Dismiss"
+              style={{ background: "none", border: "none", color: C.dim, cursor: "pointer", display: "flex" }}>
+              <X size={11} />
+            </button>
+          </div>
+        )}
+
         {/* Textarea row */}
         <div style={{ display: "flex", gap: 7, alignItems: "flex-end" }}>
           <textarea
             ref={inputRef}
-            value={input}
-            onChange={e => setInput(e.target.value)}
+            value={dictatingPreview}
+            onChange={e => {
+              // Ignore keyboard edits while actively listening — typing over
+              // a live transcript causes duplication and is confusing.
+              if (speech.listening) return;
+              setInput(e.target.value);
+            }}
             onKeyDown={handleKey}
-            placeholder="Ask Zed a question…"
+            placeholder={speech.listening ? "Listening…" : "Ask Zed a question…"}
             rows={1}
             disabled={isSending}
+            readOnly={speech.listening}
             maxLength={MAX_INPUT}
             style={{
               flex: 1, background: C.surfaceAlt,
               border: `1px solid ${
-                charWarn ? C.orange : (input ? C.borderMid : C.border)
+                speech.listening ? GOLD
+                : charWarn ? C.orange
+                : (input ? C.borderMid : C.border)
               }`,
-              borderRadius: 11, padding: "10px 13px",
-              color: C.text, fontSize: 13.5, resize: "none",
-              outline: "none", lineHeight: 1.5, fontFamily: "inherit",
-              maxHeight: 110, overflowY: "auto",
+              borderRadius: 12, padding: "12px 14px",
+              color: C.text, fontSize: 14, resize: "none",
+              outline: "none", lineHeight: 1.55, fontFamily: "inherit",
+              maxHeight: 140, overflowY: "auto",
               transition: "border-color .2s",
               opacity: isSending ? .55 : 1,
+              boxShadow: speech.listening ? `0 0 14px rgba(212,175,55,0.25)` : "none",
             }}
             onInput={e => {
               e.target.style.height = "auto";
               e.target.style.height = Math.min(e.target.scrollHeight, 110) + "px";
             }}
           />
-          <button onClick={() => setVoiceMode(v => !v)}
+          <button
+            onClick={toggleDictation}
+            disabled={!speech.recognitionSupported || isSending}
+            title={
+              !speech.recognitionSupported
+                ? "Voice input isn't supported on this browser. Try Chrome, Edge, or Safari."
+                : speech.listening ? "Stop dictation" : "Dictate your question"
+            }
+            aria-label={speech.listening ? "Stop dictation" : "Start dictation"}
+            aria-pressed={speech.listening}
             style={{
-              width: 40, height: 40, borderRadius: 10,
-              border: `1px solid ${voiceMode ? GOLD : C.border}`,
-              background: voiceMode ? C.goldGlow : C.surfaceAlt,
-              color: voiceMode ? GOLD : C.dim,
+              width: 44, height: 44, borderRadius: 11,
+              border: `1px solid ${speech.listening ? GOLD : C.border}`,
+              background: speech.listening ? C.goldGlow : C.surfaceAlt,
+              color: speech.listening ? GOLD : (speech.recognitionSupported ? C.muted : C.dimmer),
               display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "pointer", flexShrink: 0, transition: "all .2s",
+              flexShrink: 0, transition: "all .2s",
+              cursor: speech.recognitionSupported ? "pointer" : "not-allowed",
+              opacity: speech.recognitionSupported ? 1 : 0.5,
+              position: "relative",
+              animation: speech.listening ? "micpulse 1.2s ease-in-out infinite" : "none",
+              boxShadow: speech.listening ? `0 0 14px rgba(212,175,55,0.4)` : "none",
             }}>
-            <Mic size={15} />
+            {speech.listening ? <MicOff size={16} /> : <Mic size={16} />}
+            <style>{`@keyframes micpulse{0%,100%{box-shadow:0 0 0 0 rgba(212,175,55,.4)}50%{box-shadow:0 0 0 6px rgba(212,175,55,0)}}`}</style>
           </button>
-          <button onClick={() => sendMessage()} disabled={!canSend}
+          <button onClick={() => sendMessage()} disabled={!canSend} aria-label="Send message"
             style={{
-              width: 40, height: 40, borderRadius: 10, border: "none",
+              width: 44, height: 44, borderRadius: 11, border: "none",
               background: canSend ? `linear-gradient(135deg,${GOLD},#B8960C)` : C.surfaceAlt,
               color: canSend ? C.bg : C.dimmer,
               display: "flex", alignItems: "center", justifyContent: "center",
               cursor: canSend ? "pointer" : "not-allowed", flexShrink: 0,
               transition: "all .2s",
-              boxShadow: canSend ? `0 0 14px rgba(212,175,55,0.4)` : "none",
+              boxShadow: canSend ? `0 0 16px rgba(212,175,55,0.45)` : "none",
             }}>
             {isSending ? (
               <div style={{

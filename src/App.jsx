@@ -39,8 +39,20 @@ const TeacherLayout = lazy(() => import('./components/teacher/TeacherLayout'))
 const TeacherDashboard = lazy(() => import('./components/teacher/TeacherDashboard'))
 const TeacherContent = lazy(() => import('./components/teacher/TeacherContent'))
 const TeacherPaperUpload = lazy(() => import('./components/teacher/TeacherPaperUpload'))
+
+// Teacher — AI Generators
 const LessonPlanGenerator = lazy(() => import('./components/teacher/generate/LessonPlanGenerator'))
 const WorksheetGenerator = lazy(() => import('./components/teacher/generate/WorksheetGenerator'))
+const FlashcardGenerator = lazy(() => import('./components/teacher/generate/FlashcardGenerator'))
+
+// Teacher — Library
+const TeacherLibrary = lazy(() => import('./components/teacher/library/TeacherLibrary'))
+const LibraryItemDetail = lazy(() => import('./components/teacher/library/LibraryItemDetail'))
+
+// Public marketing pages (no auth)
+const TeacherLandingPage = lazy(() => import('./components/marketing/TeacherLandingPage'))
+const SamplesGallery = lazy(() => import('./components/marketing/SamplesGallery'))
+const SampleDetailPage = lazy(() => import('./components/marketing/SampleDetailPage'))
 
 // Quiz editor (shared by admin + teacher)
 const EditQuiz = lazy(() => import('./components/quiz/EditQuizV2'))
@@ -93,6 +105,11 @@ export default function App() {
           <Route path="/login"    element={<Login />} />
           <Route path="/register" element={<Register />} />
 
+          {/* ── Public marketing (no auth) ──────────────────────── */}
+          <Route path="/teachers"                 element={<TeacherLandingPage />} />
+          <Route path="/teachers/samples"         element={<SamplesGallery />} />
+          <Route path="/teachers/samples/:slug"   element={<SampleDetailPage />} />
+
           {/* ── Learner routes ─────────────────────────────────── */}
           {/* GradeHub is the new CBC-aligned primary dashboard */}
           <Route path="/dashboard"         element={<ProtectedRoute><GradeHub /></ProtectedRoute>} />
@@ -108,10 +125,9 @@ export default function App() {
           <Route path="/my-badges"         element={<ProtectedRoute><Navbar /><BadgesPage /></ProtectedRoute>} />
           <Route path="/profile"           element={<ProtectedRoute><Navbar /><ProfilePage /></ProtectedRoute>} />
           <Route path="/study"             element={<ProtectedRoute><ZedStudyAssistant /></ProtectedRoute>} />
-          {/* /teacher is now handled by the TeacherRoute block below */}
 
           {/* ── Admin routes (all wrapped in AdminLayout) ──────── */}
-          <Route path="/admin"                 element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+          <Route path="/admin"                          element={<AdminRoute><AdminDashboard /></AdminRoute>} />
           <Route path="/admin/lessons"                  element={<AdminRoute><LessonDashboard /></AdminRoute>} />
           <Route path="/admin/lessons/new"              element={<AdminRoute><LessonEditor /></AdminRoute>} />
           <Route path="/admin/lessons/:lessonId/edit"   element={<AdminRoute><LessonEditor /></AdminRoute>} />
@@ -125,18 +141,22 @@ export default function App() {
           <Route path="/admin/payments"                 element={<AdminRoute><PaymentsPanel /></AdminRoute>} />
           <Route path="/admin/generate/lesson-plan"     element={<AdminRoute><LessonPlanGenerator /></AdminRoute>} />
           <Route path="/admin/generate/worksheet"       element={<AdminRoute><WorksheetGenerator /></AdminRoute>} />
+          <Route path="/admin/generate/flashcards"      element={<AdminRoute><FlashcardGenerator /></AdminRoute>} />
 
           {/* ── Teacher routes (all wrapped in TeacherLayout) ─── */}
-          <Route path="/teacher"                        element={<TeacherRoute><TeacherDashboard /></TeacherRoute>} />
-          <Route path="/teacher/content"               element={<TeacherRoute><TeacherContent /></TeacherRoute>} />
-          <Route path="/teacher/quizzes/new"           element={<TeacherRoute><CreateQuiz /></TeacherRoute>} />
-          <Route path="/teacher/quizzes/:quizId/edit"  element={<TeacherRoute><EditQuiz /></TeacherRoute>} />
-          <Route path="/teacher/lessons"               element={<TeacherRoute><LessonDashboard /></TeacherRoute>} />
-          <Route path="/teacher/lessons/new"           element={<TeacherRoute><LessonEditor /></TeacherRoute>} />
-          <Route path="/teacher/lessons/:lessonId/edit" element={<TeacherRoute><LessonEditor /></TeacherRoute>} />
-          <Route path="/teacher/papers/upload"         element={<TeacherRoute><TeacherPaperUpload /></TeacherRoute>} />
-          <Route path="/teacher/generate/lesson-plan"  element={<TeacherRoute><LessonPlanGenerator /></TeacherRoute>} />
-          <Route path="/teacher/generate/worksheet"    element={<TeacherRoute><WorksheetGenerator /></TeacherRoute>} />
+          <Route path="/teacher"                         element={<TeacherRoute><TeacherDashboard /></TeacherRoute>} />
+          <Route path="/teacher/content"                 element={<TeacherRoute><TeacherContent /></TeacherRoute>} />
+          <Route path="/teacher/quizzes/new"             element={<TeacherRoute><CreateQuiz /></TeacherRoute>} />
+          <Route path="/teacher/quizzes/:quizId/edit"    element={<TeacherRoute><EditQuiz /></TeacherRoute>} />
+          <Route path="/teacher/lessons"                 element={<TeacherRoute><LessonDashboard /></TeacherRoute>} />
+          <Route path="/teacher/lessons/new"             element={<TeacherRoute><LessonEditor /></TeacherRoute>} />
+          <Route path="/teacher/lessons/:lessonId/edit"  element={<TeacherRoute><LessonEditor /></TeacherRoute>} />
+          <Route path="/teacher/papers/upload"           element={<TeacherRoute><TeacherPaperUpload /></TeacherRoute>} />
+          <Route path="/teacher/generate/lesson-plan"    element={<TeacherRoute><LessonPlanGenerator /></TeacherRoute>} />
+          <Route path="/teacher/generate/worksheet"      element={<TeacherRoute><WorksheetGenerator /></TeacherRoute>} />
+          <Route path="/teacher/generate/flashcards"     element={<TeacherRoute><FlashcardGenerator /></TeacherRoute>} />
+          <Route path="/teacher/library"                 element={<TeacherRoute><TeacherLibrary /></TeacherRoute>} />
+          <Route path="/teacher/library/:id"             element={<TeacherRoute><LibraryItemDetail /></TeacherRoute>} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>

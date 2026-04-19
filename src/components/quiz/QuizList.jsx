@@ -1,11 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { Search, Lock, Play, ChevronRight, Sparkles } from 'lucide-react'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSubscription } from '../../hooks/useSubscription'
 import UpgradeModal from '../subscription/UpgradeModal'
 import ComingSoon from '../ui/ComingSoon'
 import SubjectScroller from '../ui/SubjectScroller'
+import Button from '../ui/Button'
+import Icon from '../ui/Icon'
+import Skeleton from '../ui/Skeleton'
 
 // ── Design tokens ──────────────────────────────────────────────────────────
 const GRADES = ['4', '5', '6', '7']
@@ -63,19 +67,19 @@ function Chip({ label, active, onClick, icon }) {
 // ── Skeleton ───────────────────────────────────────────────────────────────
 function SkeletonCard() {
   return (
-    <div className="theme-card rounded-2xl border theme-border p-4 animate-pulse border-l-4 border-l-gray-200">
+    <div className="theme-card rounded-2xl border theme-border p-4 border-l-4 border-l-[var(--border)]">
       <div className="flex items-start gap-4">
-        <div className="w-12 h-12 theme-bg-subtle rounded-xl flex-shrink-0" />
+        <Skeleton shape="circle" size={48} />
         <div className="flex-1 space-y-2.5 pt-0.5">
-          <div className="h-4 theme-bg-subtle rounded-lg w-3/4" />
-          <div className="h-3 theme-bg-subtle rounded-lg w-1/2" />
+          <Skeleton height={16} width="75%" />
+          <Skeleton height={12} width="50%" />
           <div className="flex gap-2 mt-1">
-            <div className="h-5 theme-bg-subtle rounded-full w-20" />
-            <div className="h-5 theme-bg-subtle rounded-full w-14" />
-            <div className="h-5 theme-bg-subtle rounded-full w-16" />
+            <Skeleton height={20} width={80} className="rounded-full" />
+            <Skeleton height={20} width={56} className="rounded-full" />
+            <Skeleton height={20} width={64} className="rounded-full" />
           </div>
         </div>
-        <div className="w-20 h-9 theme-bg-subtle rounded-xl flex-shrink-0" />
+        <Skeleton height={36} width={80} />
       </div>
     </div>
   )
@@ -141,12 +145,13 @@ function QuizCard({ quiz, onStart, locked }) {
         {/* CTA */}
         <button
           onClick={() => onStart(quiz.id, locked)}
-          className={`flex-shrink-0 flex flex-col items-center justify-center gap-0.5 px-4 py-2.5 rounded-xl font-black text-sm min-h-0 transition-all ${
+          aria-label={locked ? 'Locked — upgrade to access' : `Start ${quiz.title}`}
+          className={`flex-shrink-0 flex flex-col items-center justify-center gap-0.5 px-4 py-2.5 rounded-xl font-black text-sm min-h-0 transition-all duration-fast ease-out ${
             locked
               ? 'theme-bg-subtle theme-text-muted cursor-not-allowed'
-              : 'theme-accent-fill theme-on-accent shadow-sm hover:shadow-md hover:-translate-y-0.5 hover:opacity-90'
+              : 'theme-accent-fill theme-on-accent shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-0.5 hover:shadow-elev-md active:scale-[0.97]'
           }`}>
-          {locked ? '🔒' : '▶'}
+          <Icon as={locked ? Lock : Play} size="sm" />
           <span className="text-xs font-bold">{locked ? 'Locked' : 'Start'}</span>
         </button>
       </div>
@@ -157,18 +162,25 @@ function QuizCard({ quiz, onStart, locked }) {
 // ── Locked content banner ──────────────────────────────────────────────────
 function LockedBanner({ onUpgrade }) {
   return (
-    <div className="theme-card rounded-2xl border-2 border-dashed theme-border p-5 text-center mb-3">
-      <div className="text-3xl mb-2">🔒</div>
-      <p className="font-black theme-text text-base">Full Library Locked</p>
-      <p className="theme-text-muted text-sm mt-1 mb-4">
+    <div className="theme-card rounded-2xl border-2 border-dashed theme-border p-5 text-center mb-3 shadow-elev-sm">
+      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full theme-bg-subtle theme-text-muted">
+        <Icon as={Lock} size="lg" />
+      </div>
+      <p className="text-display-md theme-text">Full library locked</p>
+      <p className="theme-text-muted text-body-sm mt-1 mb-4">
         You're viewing demo quizzes only. Upgrade to access all quizzes.
       </p>
-      <button
-        onClick={onUpgrade}
-        className="theme-accent-fill theme-on-accent font-black text-sm py-2.5 px-6 rounded-full shadow-md transition-colors min-h-0 hover:opacity-90"
-      >
-        Upgrade Now →
-      </button>
+      <div className="inline-flex">
+        <Button
+          variant="primary"
+          size="md"
+          onClick={onUpgrade}
+          leadingIcon={<Icon as={Sparkles} size="sm" />}
+          trailingIcon={<Icon as={ChevronRight} size="sm" />}
+        >
+          Upgrade now
+        </Button>
+      </div>
     </div>
   )
 }
@@ -252,8 +264,8 @@ export default function QuizList() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <span className="bg-white/20 text-white text-xs font-black px-3 py-1 rounded-full backdrop-blur-sm">
-                  📝 Quiz Library
+                <span className="text-eyebrow bg-white/20 text-white px-3 py-1 rounded-full backdrop-blur-sm" style={{ color: 'rgba(255,255,255,0.95)' }}>
+                  Quiz Library
                 </span>
                 {/* Access badge in header */}
                 <span className={`text-xs font-black px-3 py-1 rounded-full backdrop-blur-sm ${
@@ -265,10 +277,10 @@ export default function QuizList() {
                   {accessBadge.icon} {accessBadge.label}
                 </span>
               </div>
-              <h1 className="text-2xl font-black text-white leading-tight mt-2">
-                Test Your Knowledge
+              <h1 className="text-display-xl text-white mt-2">
+                Test your knowledge
               </h1>
-              <p className="theme-hero-muted text-sm mt-1">
+              <p className="theme-hero-muted text-body-sm mt-1">
                 {isDemoOnly
                   ? `${demoCount} demo quiz${demoCount !== 1 ? 'zes' : ''} available · Upgrade for full access`
                   : `${quizzes.length} quizzes · Grades 4–7 — CBC aligned`
@@ -285,11 +297,14 @@ export default function QuizList() {
 
           {/* Search bar */}
           <div className="relative mt-4">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 theme-hero-muted text-base">🔍</span>
+            <span className="absolute left-4 top-1/2 -translate-y-1/2 theme-hero-muted inline-flex items-center" style={{ color: 'rgba(255,255,255,0.75)' }}>
+              <Icon as={Search} size="sm" />
+            </span>
             <input
               type="search" value={search} onChange={e => setSearch(e.target.value)}
               placeholder="Search by title or topic…"
-              className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/15 backdrop-blur-sm text-white placeholder-white/70 border border-white/20 focus:outline-none focus:bg-white/25 text-sm font-medium"
+              aria-label="Search quizzes"
+              className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/15 backdrop-blur-sm text-white placeholder-white/70 border border-white/20 focus:bg-white/25 text-sm font-medium"
             />
           </div>
         </div>

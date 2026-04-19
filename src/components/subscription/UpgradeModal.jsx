@@ -98,7 +98,14 @@ export default function UpgradeModal({ onClose }) {
     <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 overflow-y-auto">
       <div className="bg-white rounded-3xl shadow-2xl w-full max-w-lg my-4 overflow-hidden animate-scale-in">
         <div className="bg-gradient-to-r from-yellow-400 to-orange-400 p-5 text-center relative">
-          <button onClick={onClose} className="absolute top-3 right-4 text-white/80 hover:text-white text-2xl font-black min-h-0 p-0 bg-transparent shadow-none">×</button>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Close upgrade dialog"
+            className="absolute top-3 right-4 text-white/80 hover:text-white text-2xl font-black min-h-0 p-0 bg-transparent shadow-none"
+          >
+            <span aria-hidden="true">×</span>
+          </button>
           <div className="text-4xl mb-1">⭐</div>
           <h2 className="text-2xl font-black text-white">Upgrade to Premium</h2>
           <p className="text-white/90 text-sm mt-1">Unlock unlimited learning</p>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { ChevronDown, ChevronUp, RotateCcw, ListChecks, Sparkles, Check, X } from 'lucide-react'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
 import { buildQuizDisplaySections } from '../../utils/quizSections.js'
@@ -7,6 +8,9 @@ import { richTextToPlainText } from '../../utils/quizRichText.js'
 import { getRoleLandingPath } from '../../utils/navigation'
 import { explainQuizAnswer } from '../../utils/aiAssistant'
 import { RichTextContent } from './QuizRichText'
+import Button from '../ui/Button'
+import Icon from '../ui/Icon'
+import Skeleton from '../ui/Skeleton'
 
 function ScoreCircle({ percentage }) {
   const radius = 54
@@ -109,10 +113,21 @@ export default function QuizResultsV2() {
 
   if (loading) {
     return (
-      <div className="theme-bg flex min-h-screen items-center justify-center">
-        <div className="text-center">
-          <div className="mb-3 animate-bounce text-5xl">📊</div>
-          <p className="theme-accent-text text-lg font-bold">Loading results...</p>
+      <div className="theme-bg min-h-screen px-4 py-10">
+        <div className="mx-auto max-w-xl space-y-4">
+          <div className="theme-card theme-border rounded-3xl border p-6 text-center shadow-elev-md">
+            <Skeleton shape="circle" size={144} className="mx-auto" />
+            <div className="mx-auto mt-4 max-w-[50%]"><Skeleton height={22} /></div>
+            <div className="mx-auto mt-2 max-w-[72%]"><Skeleton height={14} /></div>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="theme-card theme-border rounded-2xl border p-3">
+                <Skeleton height={16} />
+                <div className="mt-2"><Skeleton height={10} width="60%" /></div>
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     )
@@ -122,9 +137,11 @@ export default function QuizResultsV2() {
     return (
       <div className="theme-bg flex min-h-screen items-center justify-center p-4">
         <div className="theme-text text-center">
-          <div className="mb-3 text-5xl">😕</div>
-          <p className="font-bold text-red-600">Result not found</p>
-          <button type="button" onClick={() => navigate(homePath)} className="theme-accent-fill theme-on-accent mt-4 rounded-full px-5 py-2 font-bold">Home</button>
+          <div className="mb-3 text-5xl" aria-hidden="true">😕</div>
+          <p className="text-display-md text-danger">Result not found</p>
+          <div className="mt-4 inline-flex">
+            <Button variant="primary" size="md" onClick={() => navigate(homePath)}>Home</Button>
+          </div>
         </div>
       </div>
     )
@@ -198,14 +215,17 @@ export default function QuizResultsV2() {
             </div>
           )}
 
-          <button
-            type="button"
-            onClick={() => handleExplainAnswer(question, userAnswer)}
-            disabled={aiLoading[question.id]}
-            className="theme-accent-bg theme-accent-text theme-border mt-3 inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs font-black hover:opacity-90 disabled:opacity-60"
-          >
-            ✦ {aiLoading[question.id] ? 'Explaining...' : 'Explain this answer'}
-          </button>
+          <div className="mt-3">
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => handleExplainAnswer(question, userAnswer)}
+              loading={aiLoading[question.id]}
+              leadingIcon={<Icon as={Sparkles} size="sm" />}
+            >
+              {aiLoading[question.id] ? 'Explaining…' : 'Explain this answer'}
+            </Button>
+          </div>
           {aiExplanations[question.id] && (
             <div className="theme-accent-bg theme-border theme-text mt-2 rounded-xl border px-3 py-2 text-sm leading-relaxed">
               <p className="theme-accent-text mb-1 text-xs font-black">Zed explains</p>
@@ -218,31 +238,33 @@ export default function QuizResultsV2() {
   }
 
   return (
-    <div className="theme-text mx-auto max-w-4xl px-4 py-6">
-      <div className="theme-card theme-border mb-4 rounded-3xl border p-6 text-center shadow-md">
+    <div className="theme-text mx-auto max-w-4xl px-4 py-6 animate-slide-up">
+      <div className="theme-card theme-border mb-4 rounded-3xl border p-6 text-center shadow-elev-lg">
         <ScoreCircle percentage={percentage} />
-        <div className="mb-1 mt-3 text-4xl">{message.emoji}</div>
-        <h1 className="text-2xl font-black">{message.text}</h1>
-        <p className="theme-text-muted mt-1 text-sm">{message.sub}</p>
+        <div className="mb-1 mt-3 text-4xl animate-pop" aria-hidden="true">{message.emoji}</div>
+        <h1 className="text-display-xl theme-text">{message.text}</h1>
+        <p className="theme-text-muted text-body mt-1">{message.sub}</p>
       </div>
 
-      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+      <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4 stagger">
         {[
           { label: 'Score', value: `${result.score}/${result.totalMarks}` },
           { label: 'Mode', value: result.mode === 'exam' ? '🏆 Exam' : '🌱 Practice' },
           { label: 'Time', value: `${mins}m ${secs}s` },
           { label: 'Grade', value: `Grade ${result.grade}` },
         ].map(stat => (
-          <div key={stat.label} className="theme-card theme-border rounded-2xl border p-3 text-center shadow-sm">
-            <div className="text-sm font-black leading-tight">{stat.value}</div>
-            <div className="theme-text-muted mt-0.5 text-xs">{stat.label}</div>
+          <div key={stat.label} className="theme-card theme-border rounded-2xl border p-3 text-center shadow-elev-sm animate-slide-in-soft">
+            <div className="text-display-md theme-text leading-tight" style={{ fontSize: 16 }}>{stat.value}</div>
+            <div className="text-eyebrow mt-1">{stat.label}</div>
           </div>
         ))}
       </div>
 
       {topics.length > 0 && (
-        <div className="theme-card theme-border mb-4 rounded-2xl border p-4 shadow-sm">
-          <h2 className="mb-3 font-black">📊 Topic Breakdown</h2>
+        <div className="theme-card theme-border mb-4 rounded-2xl border p-4 shadow-elev-md">
+          <h2 className="text-display-md theme-text mb-3 flex items-center gap-2">
+            <span aria-hidden="true">📊</span> Topic breakdown
+          </h2>
           <div className="space-y-2.5">
             {topics.map(topic => (
               <div key={topic.topic}>
@@ -263,9 +285,16 @@ export default function QuizResultsV2() {
 
       {questions.length > 0 && (
         <div className="mb-4">
-          <button type="button" onClick={() => setShowReview(current => !current)} className="theme-card theme-border flex w-full items-center justify-between rounded-2xl border p-4 text-left font-black shadow-sm">
-            <span>📝 Review Answers ({questions.length})</span>
-            <span className="theme-text-muted">{showReview ? '▲' : '▼'}</span>
+          <button
+            type="button"
+            onClick={() => setShowReview(current => !current)}
+            aria-expanded={showReview}
+            className="theme-card theme-border flex w-full items-center justify-between rounded-2xl border p-4 text-left font-black shadow-elev-sm hover:shadow-elev-md transition-all duration-fast ease-out"
+          >
+            <span className="flex items-center gap-2 text-display-md theme-text" style={{ fontSize: 16 }}>
+              <Icon as={ListChecks} size="md" /> Review answers <span className="theme-text-muted text-sm font-bold">({questions.length})</span>
+            </span>
+            <Icon as={showReview ? ChevronUp : ChevronDown} size="md" className="theme-text-muted" />
           </button>
           {showReview && (
             <div className="mt-2 space-y-4 animate-slide-up">
@@ -294,15 +323,29 @@ export default function QuizResultsV2() {
       )}
 
       <div className="flex gap-3">
-        <button type="button" onClick={() => navigate(`/quiz/${result.quizId}`)} className="theme-border theme-accent-text hover:theme-accent-bg flex-1 rounded-2xl border-2 py-3 font-black">
-          🔄 Try Again
-        </button>
-        <button type="button" onClick={() => navigate('/quizzes')} className="theme-accent-fill theme-on-accent flex-1 rounded-2xl py-3 font-black hover:opacity-90">
-          📝 More Quizzes
-        </button>
+        <Button
+          variant="secondary"
+          size="lg"
+          fullWidth
+          onClick={() => navigate(`/quiz/${result.quizId}`)}
+          leadingIcon={<Icon as={RotateCcw} size="sm" />}
+        >
+          Try again
+        </Button>
+        <Button
+          variant="primary"
+          size="lg"
+          fullWidth
+          onClick={() => navigate('/quizzes')}
+          leadingIcon={<Icon as={ListChecks} size="sm" />}
+        >
+          More quizzes
+        </Button>
       </div>
-      <div className="mt-2 text-center">
-        <span className="theme-accent-bg theme-accent-text inline-flex items-center gap-1 rounded-full px-3 py-1.5 text-xs font-bold">✅ Result saved to your history</span>
+      <div className="mt-3 text-center">
+        <span className="bg-success-subtle text-success inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold">
+          <Icon as={Check} size="xs" /> Result saved to your history
+        </span>
       </div>
     </div>
   )

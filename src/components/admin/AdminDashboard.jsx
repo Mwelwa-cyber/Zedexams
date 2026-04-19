@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
+import { Sprout, ChevronRight } from 'lucide-react'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
 import { seedFirestore } from '../../utils/seedData'
 import { db } from '../../firebase/config'
+import Button from '../ui/Button'
+import Icon from '../ui/Icon'
+import Skeleton from '../ui/Skeleton'
 
 const StatCard_colors = {
   green:  'bg-green-50  text-green-600  border-green-100',
@@ -15,10 +19,12 @@ const StatCard_colors = {
 
 function StatCard({ icon, label, value, color, loading, linkTo }) {
   const inner = (
-    <div className={`rounded-2xl border p-5 ${StatCard_colors[color]} ${linkTo ? 'hover:shadow-md transition-shadow cursor-pointer' : ''}`}>
-      <div className="text-3xl mb-2">{icon}</div>
-      <div className="text-2xl font-black text-gray-800">{loading ? <span className="animate-pulse">…</span> : value}</div>
-      <div className="text-sm font-bold text-gray-500 mt-0.5">{label}</div>
+    <div className={`rounded-2xl border p-5 shadow-elev-sm transition-all duration-base ease-out ${StatCard_colors[color]} ${linkTo ? 'hover:-translate-y-0.5 hover:shadow-elev-md cursor-pointer' : ''}`}>
+      <div className="text-3xl mb-2" aria-hidden="true">{icon}</div>
+      <div className="text-display-md text-gray-800" style={{ fontSize: 22 }}>
+        {loading ? <Skeleton height={20} width={40} /> : value}
+      </div>
+      <div className="text-eyebrow mt-1" style={{ color: 'inherit' }}>{label}</div>
     </div>
   )
   return linkTo ? <Link to={linkTo}>{inner}</Link> : inner
@@ -31,11 +37,13 @@ function QuickAction({ to, icon, label, sub, color }) {
     orange: 'border-orange-200 hover:border-orange-400 hover:bg-orange-50',
   }
   return (
-    <Link to={to}
-      className={`flex items-start gap-3 p-4 rounded-2xl border-2 transition-all ${colors[color]}`}>
-      <span className="text-2xl">{icon}</span>
-      <div>
-        <p className="font-black text-gray-800 text-sm">{label}</p>
+    <Link
+      to={to}
+      className={`group flex items-start gap-3 p-4 rounded-2xl border-2 shadow-elev-sm transition-all duration-base ease-out hover:-translate-y-0.5 hover:shadow-elev-md ${colors[color]}`}
+    >
+      <span className="text-2xl" aria-hidden="true">{icon}</span>
+      <div className="flex-1 min-w-0">
+        <p className="font-black text-gray-800 text-sm group-hover:text-gray-900 transition-colors">{label}</p>
         <p className="text-xs text-gray-500 mt-0.5">{sub}</p>
       </div>
     </Link>
@@ -97,25 +105,35 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-black text-gray-800">📊 Dashboard</h1>
-        <p className="text-gray-500 text-sm mt-0.5">Overview of your ZedExams platform</p>
+        <p className="text-eyebrow">Admin overview</p>
+        <h1 className="text-display-xl text-gray-800 mt-1 flex items-center gap-2">
+          <span aria-hidden="true">📊</span> Dashboard
+        </h1>
+        <p className="text-body-sm text-gray-500 mt-1">Overview of your ZedExams platform</p>
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
-        <StatCard icon="📖" label="Lessons"  value={stats.lessons}  color="green"  loading={loading} />
-        <StatCard icon="📝" label="Quizzes"  value={stats.quizzes}  color="blue"   loading={loading} />
-        <StatCard icon="👥" label="Learners" value={stats.learners} color="orange" loading={loading} />
-        <StatCard icon="📊" label="Results"  value={stats.results}  color="purple" loading={loading} />
-        <StatCard icon="🔔" label="Content Pending" value={stats.pending}  color="yellow" loading={loading} linkTo="/admin/approvals" />
-        <StatCard icon="🧑‍🏫" label="Teacher Apps" value={stats.teacherApps} color="blue" loading={loading} linkTo="/admin/teacher-applications" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 stagger">
+        {[
+          { icon: '📖',   label: 'Lessons',          value: stats.lessons,     color: 'green'                                                     },
+          { icon: '📝',   label: 'Quizzes',          value: stats.quizzes,     color: 'blue'                                                      },
+          { icon: '👥',   label: 'Learners',         value: stats.learners,    color: 'orange'                                                    },
+          { icon: '📊',   label: 'Results',          value: stats.results,     color: 'purple'                                                    },
+          { icon: '🔔',   label: 'Content Pending',  value: stats.pending,     color: 'yellow',  linkTo: '/admin/approvals'                       },
+          { icon: '🧑‍🏫', label: 'Teacher Apps',     value: stats.teacherApps, color: 'blue',    linkTo: '/admin/teacher-applications'            },
+        ].map((s, i) => (
+          <div key={s.label} className="animate-slide-in-soft">
+            <StatCard icon={s.icon} label={s.label} value={s.value} color={s.color} loading={loading} linkTo={s.linkTo} />
+          </div>
+        ))}
       </div>
 
       {/* Quick Actions */}
       <div>
-        <h2 className="font-black text-gray-700 text-sm mb-3">Quick Actions</h2>
+        <h2 className="text-eyebrow mb-3">Quick actions</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
           <QuickAction to="/admin/lessons/new" icon="📖" label="Create Lesson" sub="Add a new lesson for learners" color="green" />
+          <QuickAction to="/admin/generate/lesson-plan" icon="✨" label="AI Lesson Plan" sub="Generate a CBC lesson plan in seconds" color="green" />
           <QuickAction to="/admin/quizzes/new" icon="✏️" label="Create Quiz"   sub="Build a new quiz or test"    color="blue"  />
           <QuickAction to="/admin/quizzes/new?mode=import" icon="📄" label="Import Quiz" sub="Convert Word/PDF into editable questions" color="green" />
           <QuickAction to="/admin/quizzes/new?mode=ai" icon="✦" label="AI Quiz Generator" sub="Draft questions with Zed" color="blue" />
@@ -125,48 +143,57 @@ export default function AdminDashboard() {
       </div>
 
       {/* Seed Data */}
-      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 shadow-elev-sm">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3">
           <div className="flex-1">
-            <h2 className="font-black text-amber-800 text-sm">🌱 Seed Sample Data</h2>
-            <p className="text-amber-700 text-xs mt-0.5">
+            <h2 className="text-display-md text-amber-900" style={{ fontSize: 16 }}>Seed sample data</h2>
+            <p className="text-amber-700 text-body-sm mt-0.5">
               Load Grade 5 Mathematics, Grade 6 English, and Grade 6 Integrated Science sample quizzes into Firestore.
               Only run this once — it will create duplicate quizzes if run again.
             </p>
           </div>
-          <button onClick={handleSeed} disabled={seeding}
-            className="shrink-0 bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-black text-sm px-5 py-2.5 rounded-xl transition-colors">
-            {seeding ? '⏳ Seeding…' : '🌱 Run Seed'}
-          </button>
+          <Button
+            variant="primary"
+            size="md"
+            onClick={handleSeed}
+            loading={seeding}
+            leadingIcon={<Icon as={Sprout} size="sm" />}
+            className="shrink-0"
+            style={{ backgroundColor: '#F59E0B', color: 'white' }}
+          >
+            {seeding ? 'Seeding…' : 'Run seed'}
+          </Button>
         </div>
-        {seedMsg && <p className="mt-3 text-sm font-bold text-amber-900 bg-amber-100 rounded-xl px-4 py-2">{seedMsg}</p>}
+        {seedMsg && <p className="mt-3 text-body-sm font-bold text-amber-900 bg-amber-100 rounded-xl px-4 py-2">{seedMsg}</p>}
       </div>
 
       {/* Recent Results */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="font-black text-gray-700 text-sm">Recent Activity</h2>
-          <Link to="/admin/results" className="text-green-600 text-xs font-bold hover:underline">View all →</Link>
+          <h2 className="text-eyebrow">Recent activity</h2>
+          <Link to="/admin/results" className="inline-flex items-center gap-0.5 text-green-600 text-xs font-black hover:underline">
+            View all <Icon as={ChevronRight} size="xs" />
+          </Link>
         </div>
         {loading ? (
           <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 animate-pulse">
-                <div className="flex gap-3">
-                  <div className="w-8 h-8 bg-gray-200 rounded-full" />
+              <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-elev-sm">
+                <div className="flex items-center gap-3">
+                  <Skeleton shape="circle" size={32} />
                   <div className="flex-1 space-y-2">
-                    <div className="h-3 bg-gray-200 rounded w-2/3" />
-                    <div className="h-3 bg-gray-200 rounded w-1/3" />
+                    <Skeleton height={12} width="66%" />
+                    <Skeleton height={10} width="33%" />
                   </div>
                 </div>
               </div>
             ))}
           </div>
         ) : recent.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 p-8 text-center">
-            <div className="text-4xl mb-2">📭</div>
-            <p className="text-gray-500 font-bold text-sm">No results yet</p>
-            <p className="text-gray-400 text-xs mt-1">Results will appear here once learners take quizzes</p>
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-elev-sm p-8 text-center">
+            <div className="text-4xl mb-2" aria-hidden="true">📭</div>
+            <p className="text-display-md text-gray-700" style={{ fontSize: 16 }}>No results yet</p>
+            <p className="text-body-sm text-gray-400 mt-1">Results will appear here once learners take quizzes</p>
           </div>
         ) : (
           <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
