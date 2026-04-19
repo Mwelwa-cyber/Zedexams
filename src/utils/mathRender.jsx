@@ -17,12 +17,25 @@ import React from 'react'
 export function Fraction({ numerator, denominator }) {
   return (
     <span
-      className="inline-flex flex-col items-center text-center align-middle mx-0.5 leading-[1]"
-      style={{ fontSize: '0.85em', verticalAlign: '-0.25em' }}
+      className="inline-flex flex-col items-center text-center mx-0.5 leading-[1.05]"
+      style={{
+        fontSize: '0.82em',
+        // `middle` aligns the centre of the fraction with the middle of the
+        // surrounding x-height, so adjacent operators like `+` and `=` sit
+        // at the visual centre of the stacked fraction instead of at the
+        // normal text baseline (which would be level with the denominator).
+        verticalAlign: 'middle',
+        // Nudge up by a fraction of an em so the fraction's centre matches
+        // the optical centre of "1 + 2" style text — `middle` aligns to
+        // x-height midpoint which is slightly below the visual centre of
+        // digits.
+        position: 'relative',
+        top: '-0.05em',
+      }}
       aria-label={`${numerator} over ${denominator}`}
     >
-      <span className="px-1 border-b border-current">{numerator}</span>
-      <span className="px-1">{denominator}</span>
+      <span className="px-1 border-b border-current leading-[1.05]">{numerator}</span>
+      <span className="px-1 leading-[1.05]">{denominator}</span>
     </span>
   )
 }
