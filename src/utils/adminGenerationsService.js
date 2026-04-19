@@ -197,4 +197,5 @@ export const TOOL_META = {
   scheme_of_work: { label: 'Scheme of Work',  icon: '🗓️' },
   worksheet:      { label: 'Worksheet',       icon: '📝' },
   flashcards:     { label: 'Flashcards',      icon: '🎴' },
+  rubric:         { label: 'Rubric',          icon: '📋' },
 }

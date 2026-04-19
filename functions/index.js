@@ -51,6 +51,10 @@ const {
 const {
   createGenerateSchemeOfWork,
 } = require("./teacherTools/generateSchemeOfWork");
+// Teacher Tools — Rubric Generator.
+const {
+  createGenerateRubric,
+} = require("./teacherTools/generateRubric");
 
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const mtnApiUser = defineSecret("MTN_API_USER");
@@ -896,4 +900,7 @@ exports.generateFlashcards = createGenerateFlashcards(anthropicApiKey);
 
 // Teacher Tools — Zambian CBC Scheme of Work Generator.
 exports.generateSchemeOfWork = createGenerateSchemeOfWork(anthropicApiKey);
+
+// Teacher Tools — Zambian CBC Rubric Generator.
+exports.generateRubric = createGenerateRubric(anthropicApiKey);
 exports.apiTextToSpeech = require('./tts').apiTextToSpeech;

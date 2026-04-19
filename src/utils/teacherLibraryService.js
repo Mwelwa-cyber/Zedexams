@@ -169,6 +169,12 @@ export const TOOL_META = {
     route: '/teacher/generate/flashcards',
     colour: 'amber',
   },
+  rubric: {
+    label: 'Rubric',
+    icon: '📋',
+    route: '/teacher/generate/rubric',
+    colour: 'rose',
+  },
 }
 
 export const TOOL_FILTER_OPTIONS = [
@@ -177,6 +183,7 @@ export const TOOL_FILTER_OPTIONS = [
   {value: 'scheme_of_work', label: 'Schemes of work'},
   {value: 'worksheet', label: 'Worksheets'},
   {value: 'flashcards', label: 'Flashcards'},
+  {value: 'rubric', label: 'Rubrics'},
 ]
 
 /**
@@ -201,6 +208,10 @@ export function titleForGeneration(gen) {
     const s = out?.header?.subject || gen.inputs?.subject || ''
     const t = out?.header?.term || gen.inputs?.term || ''
     return `${g} ${s} — Term ${t} Scheme of Work`.trim()
+  }
+  if (gen.tool === 'rubric') {
+    return out?.header?.title ||
+      `${gen.inputs?.grade || ''} ${gen.inputs?.subject || ''} — ${gen.inputs?.taskType || 'rubric'}`.trim()
   }
   return gen.inputs?.topic || 'Generation'
 }

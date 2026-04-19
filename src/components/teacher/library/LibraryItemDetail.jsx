@@ -12,10 +12,12 @@ import LessonPlanView from '../views/LessonPlanView'
 import WorksheetView from '../views/WorksheetView'
 import FlashcardsView from '../views/FlashcardsView'
 import SchemeOfWorkView from '../views/SchemeOfWorkView'
+import RubricView from '../views/RubricView'
 import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
 import { downloadWorksheetDocx } from '../../../utils/worksheetToDocx'
 import { downloadFlashcardsDocx } from '../../../utils/flashcardsToDocx'
 import { downloadSchemeOfWorkDocx } from '../../../utils/schemeOfWorkToDocx'
+import { downloadRubricDocx } from '../../../utils/rubricToDocx'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
 
 export default function LibraryItemDetail() {
@@ -74,6 +76,9 @@ export default function LibraryItemDetail() {
       recordExport(item.id, 'docx')
     } else if (item.tool === 'scheme_of_work') {
       await downloadSchemeOfWorkDocx(item.output, `${base}_scheme-of-work.docx`)
+      recordExport(item.id, 'docx')
+    } else if (item.tool === 'rubric') {
+      await downloadRubricDocx(item.output, `${base}_rubric.docx`)
       recordExport(item.id, 'docx')
     }
   }
@@ -240,6 +245,7 @@ export default function LibraryItemDetail() {
           )}
           {item.tool === 'flashcards' && <FlashcardsView flashcards={item.output} />}
           {item.tool === 'scheme_of_work' && <SchemeOfWorkView scheme={item.output} />}
+          {item.tool === 'rubric' && <RubricView rubric={item.output} />}
           {!item.output && (
             <p className="text-sm theme-text-secondary italic">
               This generation has no output to display.

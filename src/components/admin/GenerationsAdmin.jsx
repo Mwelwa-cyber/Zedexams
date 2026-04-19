@@ -149,6 +149,7 @@ export default function GenerationsAdmin() {
             { value: 'scheme_of_work', label: 'Schemes of work' },
             { value: 'worksheet',      label: 'Worksheets' },
             { value: 'flashcards',     label: 'Flashcards' },
+            { value: 'rubric',         label: 'Rubrics' },
           ]}
           onChange={(v) => setFilters((f) => ({ ...f, tool: v }))}
         />

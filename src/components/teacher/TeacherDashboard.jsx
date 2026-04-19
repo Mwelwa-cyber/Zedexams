@@ -198,6 +198,19 @@ export default function TeacherDashboard() {
             </div>
             <span className="text-amber-700 font-black text-sm group-hover:translate-x-1 transition-transform">→</span>
           </Link>
+          <Link
+            to="/teacher/generate/rubric"
+            className="group flex items-start gap-4 p-5 rounded-2xl border-2 border-rose-200 bg-gradient-to-br from-rose-50 to-pink-50 shadow-elev-sm transition-all duration-base ease-out hover:-translate-y-0.5 hover:shadow-elev-md hover:border-rose-400"
+          >
+            <span className="text-3xl" aria-hidden="true">📋</span>
+            <div className="flex-1 min-w-0">
+              <p className="font-black text-rose-900 text-base">Rubric</p>
+              <p className="text-sm text-rose-800/80 mt-1">
+                Consistent marking criteria for essays, projects and practicals.
+              </p>
+            </div>
+            <span className="text-rose-700 font-black text-sm group-hover:translate-x-1 transition-transform">→</span>
+          </Link>
         </div>
 
         <Link

@@ -22,6 +22,9 @@ const generateFlashcardsCallable = httpsCallable(functions, 'generateFlashcards'
 const generateSchemeOfWorkCallable = httpsCallable(functions, 'generateSchemeOfWork', {
   timeout: 180_000, // server: 180s — schemes are long
 })
+const generateRubricCallable = httpsCallable(functions, 'generateRubric', {
+  timeout: 90_000, // server: 90s
+})
 
 export const TEACHER_GRADES = [
   { value: 'ECE', label: 'Early Childhood Education' },
@@ -116,6 +119,31 @@ export const SCHEME_WEEK_COUNTS = [
   { value: 14, label: '14 weeks' },
 ]
 
+export const RUBRIC_TASK_TYPES = [
+  { value: 'essay',        label: 'Essay / composition' },
+  { value: 'project',      label: 'Project' },
+  { value: 'presentation', label: 'Oral presentation' },
+  { value: 'practical',    label: 'Practical / experiment' },
+  { value: 'oral',         label: 'Oral exam' },
+  { value: 'performance',  label: 'Performance (drama / music / PE)' },
+]
+
+export const RUBRIC_TOTAL_MARKS = [
+  { value: 10, label: '10 marks' },
+  { value: 20, label: '20 marks (recommended)' },
+  { value: 25, label: '25 marks' },
+  { value: 40, label: '40 marks' },
+  { value: 50, label: '50 marks' },
+  { value: 100, label: '100 marks' },
+]
+
+export const RUBRIC_CRITERIA_COUNTS = [
+  { value: 3, label: '3 criteria' },
+  { value: 4, label: '4 criteria (recommended)' },
+  { value: 5, label: '5 criteria' },
+  { value: 6, label: '6 criteria' },
+]
+
 function messageFromError(error) {
   const code = error?.code || ''
   const detail = error?.message || ''
@@ -165,6 +193,38 @@ function withTimeout(promise, ms, label = 'request') {
       (e) => { clearTimeout(t); reject(e) },
     )
   })
+}
+
+export async function generateRubric(inputs) {
+  console.info('[zedexams] generateRubric →', {
+    grade: inputs?.grade, subject: inputs?.subject,
+    taskType: inputs?.taskType, totalMarks: inputs?.totalMarks,
+  })
+  const startedAt = Date.now()
+  try {
+    const result = await withTimeout(
+      generateRubricCallable(inputs),
+      100_000,
+      'generateRubric',
+    )
+    console.info(
+      '[zedexams] generateRubric ← ok in',
+      Date.now() - startedAt, 'ms',
+      { generationId: result?.data?.generationId, warning: result?.data?.warning },
+    )
+    return { ok: true, data: result.data }
+  } catch (error) {
+    console.error('[zedexams] generateRubric ← FAILED after',
+      Date.now() - startedAt, 'ms',
+      { code: error?.code, message: error?.message, details: error?.details },
+    )
+    return {
+      ok: false,
+      error: messageFromError(error),
+      code: error?.code || 'unknown',
+      rawMessage: error?.message || '',
+    }
+  }
 }
 
 export async function generateSchemeOfWork(inputs) {
