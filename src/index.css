@@ -173,9 +173,26 @@ body.theme-solar {
   .theme-bg-subtle    { background-color: var(--bg-subtle); }
   .theme-card         { background-color: var(--card); }
   .theme-card-hover   { background-color: var(--card-hover); }
-  .theme-text         { color: var(--text); }
-  .theme-text-muted   { color: var(--text-muted); }
-  .theme-border       { border-color: var(--border); }
+  .theme-text           { color: var(--text); }
+  .theme-text-muted     { color: var(--text-muted); }
+  /* Alias for readability in new teacher-tools code. */
+  .theme-text-secondary { color: var(--text-muted); }
+  .theme-border         { border-color: var(--border); }
+
+  /*
+   * Force-light-theme container. Public marketing pages use this so the
+   * rendered content is readable regardless of which theme the user has
+   * stored in localStorage. Scoped to descendants via CSS variable override.
+   */
+  .force-light-theme {
+    --bg:              #FFFFFF;
+    --bg-subtle:       #F8FAFC;
+    --card:            #FFFFFF;
+    --card-hover:      #F1F5F9;
+    --text:            #0F172A;
+    --text-muted:      #475569;
+    --border:          #E2E8F0;
+  }
   .theme-accent-bg    { background-color: var(--accent-bg); }
   .theme-accent-text  { color: var(--accent-fg); }
   .theme-accent-fill  { background-color: var(--accent); }

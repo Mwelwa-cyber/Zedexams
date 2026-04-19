@@ -15,7 +15,7 @@ export default function SamplesGallery() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
+    <div className="force-light-theme min-h-screen bg-white text-slate-900">
       <NavBar />
       <header className="bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 border-b border-emerald-100">
         <div className="max-w-5xl mx-auto px-4 sm:px-6 py-12 sm:py-16">

@@ -51,7 +51,7 @@ export default function SampleDetailPage() {
   }
 
   return (
-    <div className="min-h-screen bg-white text-slate-900">
+    <div className="force-light-theme min-h-screen bg-white text-slate-900">
       <NavBar />
 
       {/* Page header */}
