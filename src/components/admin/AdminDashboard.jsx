@@ -4,6 +4,7 @@ import { Sprout, ChevronRight } from 'lucide-react'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
 import { seedFirestore } from '../../utils/seedData'
+import { getWaitlistSummary } from '../../utils/adminWaitlistService'
 import { db } from '../../firebase/config'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
@@ -54,7 +55,7 @@ export default function AdminDashboard() {
   const { currentUser } = useAuth()
   const { getAllLessons, getAllQuizzes, getAllUsers, getAllResults, getPendingApprovals, getPendingTeacherApplications } = useFirestore()
 
-  const [stats, setStats]     = useState({ lessons: 0, quizzes: 0, learners: 0, results: 0, pending: 0, teacherApps: 0 })
+  const [stats, setStats]     = useState({ lessons: 0, quizzes: 0, learners: 0, results: 0, pending: 0, teacherApps: 0, waitlist: 0, waitlistPending: 0 })
   const [recent, setRecent]   = useState([])
   const [loading, setLoading] = useState(true)
   const [seeding, setSeeding] = useState(false)
@@ -73,8 +74,9 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     async function load() {
-      const [lessons, quizzes, users, results, pending, teacherApps] = await Promise.all([
+      const [lessons, quizzes, users, results, pending, teacherApps, waitlist] = await Promise.all([
         getAllLessons(), getAllQuizzes(), getAllUsers(), getAllResults(), getPendingApprovals(), getPendingTeacherApplications(),
+        getWaitlistSummary().catch(() => ({ total: 0, uncontacted: 0 })),
       ])
       setStats({
         lessons:  lessons.length,
@@ -83,6 +85,8 @@ export default function AdminDashboard() {
         results:  results.length,
         pending:  pending.length,
         teacherApps: teacherApps.length,
+        waitlist: waitlist.total,
+        waitlistPending: waitlist.uncontacted,
       })
       setRecent(results.slice(0, 8))
       setLoading(false)
@@ -113,7 +117,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 stagger">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-7 gap-3 stagger">
         {[
           { icon: '📖',   label: 'Lessons',          value: stats.lessons,     color: 'green'                                                     },
           { icon: '📝',   label: 'Quizzes',          value: stats.quizzes,     color: 'blue'                                                      },
@@ -121,6 +125,7 @@ export default function AdminDashboard() {
           { icon: '📊',   label: 'Results',          value: stats.results,     color: 'purple'                                                    },
           { icon: '🔔',   label: 'Content Pending',  value: stats.pending,     color: 'yellow',  linkTo: '/admin/approvals'                       },
           { icon: '🧑‍🏫', label: 'Teacher Apps',     value: stats.teacherApps, color: 'blue',    linkTo: '/admin/teacher-applications'            },
+          { icon: '📋',   label: stats.waitlistPending > 0 ? `Waitlist · ${stats.waitlistPending} new` : 'Waitlist', value: stats.waitlist, color: 'green', linkTo: '/admin/waitlist'                    },
         ].map((s, i) => (
           <div key={s.label} className="animate-slide-in-soft">
             <StatCard icon={s.icon} label={s.label} value={s.value} color={s.color} loading={loading} linkTo={s.linkTo} />

@@ -1,0 +1,132 @@
+name: Deploy Firebase
+
+# Runs automatically on every push to main that touches any Firebase-related
+# file. Also supports manual runs from the Actions tab (workflow_dispatch).
+#
+# Requires one GitHub repository secret:
+#   FIREBASE_TOKEN — generated once locally with `firebase login:ci`
+#
+# The Netlify frontend deploys separately via Netlify's native GitHub
+# integration (triggered by the same push). This workflow only handles
+# Firebase: Firestore rules + indexes, Storage rules, and Cloud Functions.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "firestore.rules"
+      - "firestore.indexes.json"
+      - "storage.rules"
+      - "functions/**"
+      - "firebase.json"
+      - ".firebaserc"
+      - ".github/workflows/deploy-firebase.yml"
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "What to deploy"
+        required: true
+        default: "all"
+        type: choice
+        options:
+          - all
+          - firestore
+          - functions
+          - storage
+
+# Prevent two deploys running over each other.
+concurrency:
+  group: firebase-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # 20 min is plenty — function deploys usually finish in 3-6 min.
+    timeout-minutes: 20
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+          cache-dependency-path: functions/package-lock.json
+
+      - name: Install function dependencies
+        working-directory: functions
+        run: npm ci
+
+      # Work out what to deploy. On a push, we detect which files changed and
+      # deploy only the relevant targets. On workflow_dispatch we honour the
+      # user's `target` input.
+      - name: Decide what to deploy
+        id: decide
+        run: |
+          set -euo pipefail
+          TARGETS=""
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            case "${{ github.event.inputs.target }}" in
+              all)        TARGETS="firestore,storage,functions" ;;
+              firestore)  TARGETS="firestore" ;;
+              functions)  TARGETS="functions" ;;
+              storage)    TARGETS="storage" ;;
+            esac
+          else
+            # Push event — inspect the diff.
+            BEFORE="${{ github.event.before }}"
+            AFTER="${{ github.sha }}"
+            # Guard against the initial push where BEFORE is all zeros.
+            if [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+              CHANGED=$(git ls-tree -r --name-only "$AFTER")
+            else
+              CHANGED=$(git diff --name-only "$BEFORE" "$AFTER" || git ls-tree -r --name-only "$AFTER")
+            fi
+            echo "$CHANGED" | head -20
+
+            if echo "$CHANGED" | grep -qE '^(firestore\.rules|firestore\.indexes\.json)$'; then
+              TARGETS="$TARGETS,firestore"
+            fi
+            if echo "$CHANGED" | grep -qE '^storage\.rules$'; then
+              TARGETS="$TARGETS,storage"
+            fi
+            if echo "$CHANGED" | grep -qE '^functions/'; then
+              TARGETS="$TARGETS,functions"
+            fi
+            if echo "$CHANGED" | grep -qE '^(firebase\.json|\.firebaserc|\.github/workflows/deploy-firebase\.yml)$'; then
+              # Config changed — redeploy everything to be safe.
+              TARGETS="firestore,storage,functions"
+            fi
+            TARGETS="${TARGETS#,}"   # strip leading comma
+          fi
+
+          if [ -z "$TARGETS" ]; then
+            echo "No Firebase targets need deploying."
+            echo "targets=" >> "$GITHUB_OUTPUT"
+          else
+            echo "Will deploy: $TARGETS"
+            echo "targets=$TARGETS" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy to Firebase
+        if: steps.decide.outputs.targets != ''
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+        run: |
+          if [ -z "$FIREBASE_TOKEN" ]; then
+            echo "::error::FIREBASE_TOKEN secret is not set. Follow DEPLOY.md."
+            exit 1
+          fi
+          npx firebase-tools@latest deploy \
+            --only "${{ steps.decide.outputs.targets }}" \
+            --non-interactive \
+            --project examsprepzambia \
+            --force
+
+      - name: Skipped summary
+        if: steps.decide.outputs.targets == ''
+        run: |
+          echo "No Firebase-relevant files changed in this push — nothing to deploy."

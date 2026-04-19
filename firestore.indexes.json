@@ -234,6 +234,14 @@
         { "fieldPath": "ownerUid",    "order": "ASCENDING" },
         { "fieldPath": "createdAt",   "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "waitlist",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "contacted",   "order": "ASCENDING" },
+        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

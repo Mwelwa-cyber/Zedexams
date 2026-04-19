@@ -74,3 +74,15 @@ force = false
 [redirects.conditions]
 
 [redirects.headers]
+
+[[redirects]]
+from = "/api/tts"
+to = "https://us-central1-examsprepzambia.cloudfunctions.net/apiTextToSpeech"
+status = 200.0
+force = true
+
+[redirects.query]
+
+[redirects.conditions]
+
+[redirects.headers]
