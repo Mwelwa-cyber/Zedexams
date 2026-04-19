@@ -123,7 +123,7 @@ export function useSpeech() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           text:  text.slice(0, 3000), // backend cap
-          voice: voice?.voiceURI || 'en-GB-Neural2-A',
+          voice: readLatestVoiceURI() || voice?.voiceURI || 'en-GB-Neural2-A',
           rate:  0.98,                 // gentle teacher pacing
         }),
       })
@@ -312,4 +312,15 @@ function chunkBySentence(text, maxLen = 200) {
   }
   if (current.trim()) chunks.push(current.trim())
   return chunks
+}
+function readLatestVoiceURI() {
+  if (typeof localStorage === 'undefined') return null
+  try {
+    const saved = localStorage.getItem(LS_VOICE_KEY)
+    if (!saved) return null
+    const match = CLOUD_VOICES.find(v => v.voiceURI === saved)
+    return match ? match.voiceURI : null
+  } catch {
+    return null
+  }
 }
