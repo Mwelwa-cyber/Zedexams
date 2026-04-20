@@ -10,8 +10,10 @@ import Leaderboard from './Leaderboard'
  * Mechanics:
  *   1. The player sees a "Ready?" splash that explains the rules.
  *   2. On start, the global timer (`game.timer` seconds) begins counting
- *      down. Questions cycle through `game.questions` (shuffled order),
- *      looping if needed so the round always lasts the full timer.
+ *      down. Questions are drawn from a shuffled deck of game.questions.
+ *      When the deck runs out, it gets reshuffled — and we make sure the
+ *      first question of the new deck is NOT the same as the last question
+ *      of the old deck, so nothing ever feels like an immediate repeat.
  *   3. The score is points-per-correct (`game.points`) minus a small
  *      penalty for wrong answers, with a streak bonus.
  *   4. On time-up the player sees their stats, the leaderboard, and a
@@ -20,11 +22,13 @@ import Leaderboard from './Leaderboard'
 export default function TimedQuizGame({ game }) {
   const points = Number(game.points) || 10
   const duration = Number(game.timer) || 60
-  const questions = useMemo(() => shuffle(game.questions || [], Date.now()), [game.id])
+  const pool = useMemo(() => game.questions || [], [game.id])
 
   const [phase, setPhase] = useState('ready') // ready | playing | done
   const [seed, setSeed] = useState(0)
-  const [index, setIndex] = useState(0)
+  const [deck, setDeck] = useState(() => shuffle(pool, Date.now()))
+  const [pos, setPos] = useState(0)
+  const [questionNo, setQuestionNo] = useState(0) // total questions seen in this round
   const [picked, setPicked] = useState(null)
   const [revealedAt, setRevealedAt] = useState(0)
   const [correct, setCorrect] = useState(0)
@@ -49,16 +53,38 @@ export default function TimedQuizGame({ game }) {
   useEffect(() => {
     if (picked === null) return
     const t = setTimeout(() => {
-      setPicked(null)
-      setIndex((i) => i + 1)
+      advanceToNextQuestion()
     }, 700)
     return () => clearTimeout(t)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [revealedAt])
+
+  function advanceToNextQuestion() {
+    setPicked(null)
+    setQuestionNo((n) => n + 1)
+    const nextPos = pos + 1
+    if (nextPos >= deck.length) {
+      // Deck exhausted — reshuffle. If the freshly shuffled deck happens to
+      // start with the same question we just answered, rotate by one so we
+      // never see an immediate back-to-back repeat.
+      const justAsked = deck[pos]?.question
+      let fresh = shuffle(pool, Date.now() + Math.random() * 9999)
+      if (fresh.length > 1 && fresh[0]?.question === justAsked) {
+        fresh = [fresh[1], fresh[0], ...fresh.slice(2)]
+      }
+      setDeck(fresh)
+      setPos(0)
+    } else {
+      setPos(nextPos)
+    }
+  }
 
   function start() {
     setSeed((s) => s + 1)
     setPhase('playing')
-    setIndex(0)
+    setDeck(shuffle(pool, Date.now()))
+    setPos(0)
+    setQuestionNo(0)
     setPicked(null)
     setCorrect(0)
     setWrong(0)
@@ -143,15 +169,15 @@ export default function TimedQuizGame({ game }) {
 
       <div className="bg-white rounded-3xl border-2 border-slate-200 shadow-sm p-6 sm:p-8">
         <p className="text-xs font-black uppercase tracking-wide text-slate-500 mb-3">
-          Question #{index + 1}
+          Question #{questionNo + 1}
         </p>
         <h2 className="text-2xl sm:text-3xl font-black leading-tight mb-6">
           {q.question}
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" key={`${seed}-${index}`}>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3" key={`${seed}-${questionNo}`}>
           {q.options.map((opt, i) => (
             <Choice
-              key={`${seed}-${index}-${i}`}
+              key={`${seed}-${questionNo}-${i}`}
               label={opt}
               letter={String.fromCharCode(65 + i)}
               picked={picked}
@@ -176,7 +202,7 @@ export default function TimedQuizGame({ game }) {
   )
 
   function currentQuestion() {
-    return questions[index % questions.length]
+    return deck[pos] || { question: '', options: [], answer: '' }
   }
 }
 
