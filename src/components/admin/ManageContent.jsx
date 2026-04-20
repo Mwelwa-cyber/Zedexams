@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { Search, Plus, Download, X, ChevronRight } from 'lucide-react'
 import { useFirestore } from '../../hooks/useFirestore'
@@ -247,7 +247,8 @@ export default function ManageContent() {
   const [subjectF,   setSubjectF]   = useState('')
   const [quizTypeF,  setQuizTypeF]  = useState('')
 
-  const [deleting, setDeleting] = useState(null)
+  const [deleting,     setDeleting]     = useState(null)
+  const [migrating,    setMigrating]    = useState(false)
   // { kind: 'quiz' | 'lesson', item: Record } | null
   const [pendingDelete, setPendingDelete] = useState(null)
 
@@ -263,6 +264,27 @@ export default function ManageContent() {
     }
     load()
   }, [])
+
+  // ── Legacy migration ───────────────────────────────────────────────────
+  const legacyQuizzes = quizzes.filter(q => !q.quizType && q.isPublished)
+
+  async function migrateLegacyQuizzes() {
+    if (!legacyQuizzes.length) return
+    setMigrating(true)
+    try {
+      await Promise.all(
+        legacyQuizzes.map(q => updateQuiz(q.id, { quizType: 'practice' }))
+      )
+      setQuizzes(qs => qs.map(q =>
+        (!q.quizType && q.isPublished) ? { ...q, quizType: 'practice' } : q
+      ))
+      show(`✅ Migrated ${legacyQuizzes.length} published quizzes → Practice`)
+    } catch (e) {
+      show('❌ Migration failed: ' + e.message, true)
+    } finally {
+      setMigrating(false)
+    }
+  }
 
   // ── Lesson actions ─────────────────────────────────────────────────────
   async function toggleLessonPublish(lesson) {
@@ -376,7 +398,7 @@ export default function ManageContent() {
     return (
       (!gradeF   || l.grade   === gradeF) &&
       (!subjectF || l.subject === subjectF) &&
-      (!statusF  || ls        === statusF) &&
+
       (!term     || l.title?.toLowerCase().includes(term) || l.subject?.toLowerCase().includes(term) || l.topic?.toLowerCase().includes(term))
     )
   })
@@ -456,6 +478,27 @@ export default function ManageContent() {
           </Button>
         </div>
       </div>
+
+      {/* Legacy migration banner */}
+      {tab === 'quizzes' && !loading && legacyQuizzes.length > 0 && (
+        <div className="flex items-center justify-between gap-4 rounded-2xl border-2 border-orange-300 bg-orange-50 px-4 py-3">
+          <div>
+            <p className="font-black text-orange-800 text-sm">
+              ⚠ {legacyQuizzes.length} published quiz{legacyQuizzes.length !== 1 ? 'zes' : ''} not yet assigned
+            </p>
+            <p className="text-orange-700 text-xs mt-0.5">
+              These were published before the new system. Migrate them to Practice so students can still access them.
+            </p>
+          </div>
+          <button
+            onClick={migrateLegacyQuizzes}
+            disabled={migrating}
+            className="flex-shrink-0 bg-orange-500 hover:bg-orange-600 text-white font-black text-xs rounded-xl px-4 py-2 disabled:opacity-50 transition-colors whitespace-nowrap"
+          >
+            {migrating ? 'Migrating…' : '📝 Migrate all → Practice'}
+          </button>
+        </div>
+      )}
 
       {/* Quiz stats row */}
       {tab === 'quizzes' && !loading && (
