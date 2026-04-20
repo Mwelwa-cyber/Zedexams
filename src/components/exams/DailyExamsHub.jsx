@@ -151,8 +151,8 @@ export default function DailyExamsHub() {
       const rows = await Promise.all(
         SUBJECTS.map(async subject => {
           const [exam, lock] = await Promise.all([
-            getTodaysExam(subject.id, grade),
-            checkDailyLock(currentUser.uid, subject.id),
+            getTodaysExam(subject.label, grade),
+            checkDailyLock(currentUser.uid, subject.label),
           ])
           return { subject, exam, lock }
         }),

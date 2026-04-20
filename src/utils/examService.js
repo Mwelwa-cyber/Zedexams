@@ -32,7 +32,8 @@ import { buildQuizDisplaySections } from './quizSections'
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 export function todayString() {
-  return new Date().toISOString().slice(0, 10) // "YYYY-MM-DD" UTC
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 function lockId(userId, subject) {

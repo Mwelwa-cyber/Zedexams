@@ -637,6 +637,34 @@ export default function GradeHub() {
           </Link>
         </section>
 
+        {/* ── ZED GAMES CARD ──────────────────────────────────── */}
+        <section>
+          <Link
+            to="/games"
+            className="group relative block overflow-hidden rounded-3xl border-2 border-emerald-300 bg-gradient-to-br from-emerald-50 to-teal-50 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+          >
+            <div className="flex items-center gap-4 p-4 sm:p-5">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-500 text-2xl shadow-sm">
+                🎮
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-black uppercase tracking-widest text-emerald-600">
+                  CBC · Grades 1–6
+                </p>
+                <h3 className="mt-0.5 text-base font-black text-emerald-900 leading-tight">
+                  Zed Games
+                </h3>
+                <p className="mt-0.5 text-xs font-bold text-emerald-700 hidden sm:block">
+                  Maths, English, Science &amp; Social Studies — earn badges and climb the leaderboard
+                </p>
+              </div>
+              <div className="flex items-center gap-1 rounded-full bg-emerald-500 px-3 py-1.5 text-xs font-black text-white shadow-sm shrink-0 transition-transform group-hover:translate-x-0.5">
+                Play →
+              </div>
+            </div>
+          </Link>
+        </section>
+
         {/* ── ASK ZED CARD ────────────────────────────────────── */}
         <section>
           <Link

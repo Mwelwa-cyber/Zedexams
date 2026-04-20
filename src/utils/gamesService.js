@@ -67,9 +67,18 @@ export async function listGames({ grade, subject } = {}) {
   try {
     const parts = [where('active', '==', true)]
     if (grade != null) parts.push(where('grade', '==', Number(grade)))
-    if (subject) parts.push(where('subject', '==', subject))
     const snap = await getDocs(query(collection(db, 'games'), ...parts))
-    const rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    let rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    if (subject) {
+      const norm = subject.toLowerCase().trim()
+      const meta = SUBJECTS.find((s) => s.slug === norm || s.label.toLowerCase() === norm)
+      const slugMatch = meta?.slug ?? norm
+      const labelMatch = meta?.label.toLowerCase() ?? norm
+      rows = rows.filter((g) => {
+        const gs = (g.subject || '').toLowerCase().trim()
+        return gs === slugMatch || gs === labelMatch
+      })
+    }
     rows.sort((a, b) => (a.title || '').localeCompare(b.title || ''))
     return rows
   } catch (err) {

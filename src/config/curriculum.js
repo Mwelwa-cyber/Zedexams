@@ -65,7 +65,7 @@ export const SUBJECTS = [
   },
   {
     id: 'english',
-    label: 'English Language',
+    label: 'English',
     shortLabel: 'English',
     icon: '📖',
     color: 'green',

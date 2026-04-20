@@ -7,6 +7,8 @@ const HIDDEN_PATTERNS = [
   /^\/register(\/|$)/,
   /^\/study(\/|$)/,
   /^\/quiz\/[^/]+/,
+  /^\/exam\/[^/]+/,
+  /^\/teachers(\/|$)/,
 ]
 
 function useIsWide() {
