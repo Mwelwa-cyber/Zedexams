@@ -609,6 +609,34 @@ export default function GradeHub() {
           </div>
         </section>
 
+        {/* ── DAILY EXAMS CARD ────────────────────────────────── */}
+        <section>
+          <Link
+            to="/exams"
+            className="group relative block overflow-hidden rounded-3xl border-2 border-amber-300 bg-gradient-to-br from-amber-50 to-orange-50 shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+          >
+            <div className="flex items-center gap-4 p-4 sm:p-5">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-400 text-2xl shadow-sm">
+                🏆
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-black uppercase tracking-widest text-amber-600">
+                  Daily · Once per subject
+                </p>
+                <h3 className="mt-0.5 text-base font-black text-amber-900 leading-tight">
+                  Today's Exams
+                </h3>
+                <p className="mt-0.5 text-xs font-bold text-amber-700 hidden sm:block">
+                  Timed competitive exams · Live leaderboard · One attempt per subject per day
+                </p>
+              </div>
+              <div className="flex items-center gap-1 rounded-full bg-amber-400 px-3 py-1.5 text-xs font-black text-white shadow-sm shrink-0 transition-transform group-hover:translate-x-0.5">
+                Start →
+              </div>
+            </div>
+          </Link>
+        </section>
+
         {/* ── ASK ZED CARD ────────────────────────────────────── */}
         <section>
           <Link

@@ -58,6 +58,11 @@ const TeacherLandingPage = lazy(() => import('./components/marketing/TeacherLand
 const SamplesGallery = lazy(() => import('./components/marketing/SamplesGallery'))
 const SampleDetailPage = lazy(() => import('./components/marketing/SampleDetailPage'))
 
+// Daily Exams (auth required)
+const DailyExamsHub   = lazy(() => import('./components/exams/DailyExamsHub'))
+const DailyExamRunner = lazy(() => import('./components/exams/DailyExamRunner'))
+const ExamResultsPage = lazy(() => import('./components/exams/ExamResultsPage'))
+
 // Public games (no auth)
 const GamesHub = lazy(() => import('./components/games/GamesHub'))
 const SubjectSelector = lazy(() => import('./components/games/SubjectSelector'))
@@ -210,6 +215,9 @@ export default function App() {
           <Route path="/dashboard"         element={<ProtectedRoute><GradeHub /></ProtectedRoute>} />
           {/* Legacy stats page (kept for admin/teacher reference) */}
           <Route path="/my-stats"          element={<ProtectedRoute><Navbar /><StudentDashboard /></ProtectedRoute>} />
+          <Route path="/exams"                  element={<ProtectedRoute><DailyExamsHub /></ProtectedRoute>} />
+          <Route path="/exam/:examId"           element={<ProtectedRoute><DailyExamRunner /></ProtectedRoute>} />
+          <Route path="/exam-results/:attemptId" element={<ProtectedRoute><Navbar /><ExamResultsPage /></ProtectedRoute>} />
           <Route path="/quizzes"           element={<ProtectedRoute><Navbar /><QuizList /></ProtectedRoute>} />
           <Route path="/quiz/:quizId"      element={<ProtectedRoute><QuizRunner /></ProtectedRoute>} />
           <Route path="/results/:resultId" element={<ProtectedRoute><Navbar /><QuizResults /></ProtectedRoute>} />
