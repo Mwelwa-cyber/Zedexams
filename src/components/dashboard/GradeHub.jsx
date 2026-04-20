@@ -469,21 +469,47 @@ export default function GradeHub() {
             <DataSaverToggle />
             <ThemeSelector compact quizStyle />
 
-            <div ref={notificationsRef} className="relative">
+            {/* ── Notifications bell ──────────────────────────────── */}
+            {/* group/tt enables the CSS tooltip on hover/focus     */}
+            <div ref={notificationsRef} className="group/tt relative flex flex-col items-center">
               <button
                 type="button"
                 onClick={handleNotificationsToggle}
-                aria-label="View notifications"
+                aria-label={
+                  unreadNotifications.length > 0
+                    ? `Notifications, ${unreadNotifications.length} unread`
+                    : 'Notifications'
+                }
                 aria-expanded={notificationsOpen}
+                aria-haspopup="true"
                 className="relative flex h-9 w-9 items-center justify-center rounded-lg theme-text-muted hover:theme-bg-subtle hover:theme-text min-h-0 bg-transparent shadow-none"
               >
-                🔔
+                <span aria-hidden="true">🔔</span>
                 {unreadNotifications.length > 0 && (
-                  <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black leading-none text-white">
+                  <span
+                    aria-hidden="true"
+                    className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-black leading-none text-white"
+                  >
                     {unreadNotifications.length > 9 ? '9+' : unreadNotifications.length}
                   </span>
                 )}
               </button>
+
+              {/* CSS tooltip — desktop only */}
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute left-1/2 top-full z-50 mt-1.5 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-800/95 px-2 py-1 text-[11px] font-bold text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover/tt:opacity-100 group-focus-within/tt:opacity-100 sm:block"
+              >
+                {unreadNotifications.length > 0
+                  ? `${unreadNotifications.length} unread`
+                  : 'Notifications'}
+              </span>
+
+              {/* Mobile text label */}
+              <span aria-hidden="true" className="mt-0.5 text-[9px] font-bold leading-none theme-text-muted sm:hidden">
+                Alerts
+              </span>
+
               {notificationsOpen && (
                 <NotificationPanel
                   notifications={notifications}
@@ -493,17 +519,36 @@ export default function GradeHub() {
               )}
             </div>
 
-            {/* User avatar */}
-            <div className="relative">
+            {/* ── User avatar ──────────────────────────────────────── */}
+            <div className="group/tt relative flex flex-col items-center">
               <button
+                type="button"
                 onClick={() => {
                   closeNotifications(notificationsOpen)
                   setMenuOpen(o => !o)
                 }}
+                aria-label={`Account menu for ${userProfile?.displayName || 'your account'}`}
+                aria-expanded={menuOpen}
+                aria-haspopup="true"
                 className="w-8 h-8 theme-accent-fill theme-on-accent rounded-full flex items-center justify-center font-black text-sm min-h-0 shadow-none hover:opacity-90"
               >
-                {(userProfile?.displayName?.[0] ?? '?').toUpperCase()}
+                <span aria-hidden="true">
+                  {(userProfile?.displayName?.[0] ?? '?').toUpperCase()}
+                </span>
               </button>
+
+              {/* CSS tooltip — desktop only */}
+              <span
+                aria-hidden="true"
+                className="pointer-events-none absolute left-1/2 top-full z-50 mt-1.5 hidden -translate-x-1/2 whitespace-nowrap rounded-md bg-slate-800/95 px-2 py-1 text-[11px] font-bold text-white opacity-0 shadow-lg transition-opacity duration-150 group-hover/tt:opacity-100 group-focus-within/tt:opacity-100 sm:block"
+              >
+                My account
+              </span>
+
+              {/* Mobile text label */}
+              <span aria-hidden="true" className="mt-0.5 text-[9px] font-bold leading-none theme-text-muted sm:hidden">
+                Account
+              </span>
               {menuOpen && (
                 <div className="absolute right-0 top-10 theme-card rounded-2xl shadow-xl border theme-border py-2 min-w-[180px] z-50 animate-scale-in">
                   <p className="px-4 py-2 text-xs font-black theme-text border-b theme-border">{userProfile?.displayName}</p>
@@ -533,6 +578,8 @@ export default function GradeHub() {
                   <Link to="/my-badges" onClick={() => setMenuOpen(false)}
                     className="block px-4 py-2 text-sm theme-text hover:theme-bg-subtle font-bold">🏆 My Badges</Link>
                   <button
+                    type="button"
+                    aria-label="Sign out of your account"
                     onClick={() => { setMenuOpen(false); logout().then(() => navigate('/login')) }}
                     className="w-full text-left px-4 py-2 text-sm text-red-500 hover:bg-red-50 font-bold min-h-0 bg-transparent shadow-none rounded-none">
                     🚪 Sign Out
