@@ -7,11 +7,11 @@
  *   - Current user's rank highlighted
  */
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { getExamAttempt } from '../../utils/examService'
-import { getDailyLeaderboard, fmtDuration } from '../../utils/examLeaderboardService'
+import { subscribeToDailyLeaderboard, fmtDuration } from '../../utils/examLeaderboardService'
 import Navbar from '../layout/Navbar'
 
 function pctColor(p) {
@@ -103,8 +103,9 @@ export default function ExamResultsPage() {
   const [loading,     setLoading]     = useState(true)
   const [lbLoading,   setLbLoading]   = useState(true)
   const [error,       setError]       = useState('')
+  const unsubRef = useRef(null)
 
-  // Load attempt
+  // Load attempt first, then subscribe to its leaderboard
   useEffect(() => {
     if (!attemptId) return
     getExamAttempt(attemptId).then(data => {
@@ -112,12 +113,14 @@ export default function ExamResultsPage() {
       setAttempt(data)
       setLoading(false)
 
-      // Load leaderboard once we know the subject + date
-      getDailyLeaderboard(data.subject, data.attemptDate).then(rows => {
-        setLeaderboard(rows)
-        setLbLoading(false)
-      })
+      // Real-time leaderboard for this subject + date
+      if (unsubRef.current) unsubRef.current()
+      unsubRef.current = subscribeToDailyLeaderboard(
+        { subject: data.subject, date: data.attemptDate },
+        (rows) => { setLeaderboard(rows); setLbLoading(false) },
+      )
     })
+    return () => { if (unsubRef.current) unsubRef.current() }
   }, [attemptId])
 
   // Find current user's rank on the leaderboard
@@ -226,8 +229,14 @@ export default function ExamResultsPage() {
         {/* Action buttons */}
         <div className="flex flex-col gap-3">
           <Link
-            to="/exams"
+            to="/exams/leaderboard"
             className="theme-accent-fill theme-on-accent w-full rounded-2xl py-3.5 text-center text-sm font-black hover:opacity-90 transition-opacity"
+          >
+            📊 Full Leaderboard
+          </Link>
+          <Link
+            to="/exams"
+            className="theme-border theme-text w-full rounded-2xl border-2 py-3.5 text-center text-sm font-black hover:theme-bg-subtle transition-colors"
           >
             🏆 More Daily Exams
           </Link>

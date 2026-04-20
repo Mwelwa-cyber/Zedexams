@@ -59,9 +59,10 @@ const SamplesGallery = lazy(() => import('./components/marketing/SamplesGallery'
 const SampleDetailPage = lazy(() => import('./components/marketing/SampleDetailPage'))
 
 // Daily Exams (auth required)
-const DailyExamsHub   = lazy(() => import('./components/exams/DailyExamsHub'))
-const DailyExamRunner = lazy(() => import('./components/exams/DailyExamRunner'))
-const ExamResultsPage = lazy(() => import('./components/exams/ExamResultsPage'))
+const DailyExamsHub      = lazy(() => import('./components/exams/DailyExamsHub'))
+const DailyExamRunner    = lazy(() => import('./components/exams/DailyExamRunner'))
+const ExamResultsPage    = lazy(() => import('./components/exams/ExamResultsPage'))
+const ExamLeaderboardPage = lazy(() => import('./components/exams/ExamLeaderboardPage'))
 
 // Public games (no auth)
 const GamesHub = lazy(() => import('./components/games/GamesHub'))
@@ -215,9 +216,10 @@ export default function App() {
           <Route path="/dashboard"         element={<ProtectedRoute><GradeHub /></ProtectedRoute>} />
           {/* Legacy stats page (kept for admin/teacher reference) */}
           <Route path="/my-stats"          element={<ProtectedRoute><Navbar /><StudentDashboard /></ProtectedRoute>} />
-          <Route path="/exams"                  element={<ProtectedRoute><DailyExamsHub /></ProtectedRoute>} />
-          <Route path="/exam/:examId"           element={<ProtectedRoute><DailyExamRunner /></ProtectedRoute>} />
-          <Route path="/exam-results/:attemptId" element={<ProtectedRoute><Navbar /><ExamResultsPage /></ProtectedRoute>} />
+          <Route path="/exams"                        element={<ProtectedRoute><DailyExamsHub /></ProtectedRoute>} />
+          <Route path="/exams/leaderboard"           element={<ProtectedRoute><ExamLeaderboardPage /></ProtectedRoute>} />
+          <Route path="/exam/:examId"                element={<ProtectedRoute><DailyExamRunner /></ProtectedRoute>} />
+          <Route path="/exam-results/:attemptId"     element={<ProtectedRoute><ExamResultsPage /></ProtectedRoute>} />
           <Route path="/quizzes"           element={<ProtectedRoute><Navbar /><QuizList /></ProtectedRoute>} />
           <Route path="/quiz/:quizId"      element={<ProtectedRoute><QuizRunner /></ProtectedRoute>} />
           <Route path="/results/:resultId" element={<ProtectedRoute><Navbar /><QuizResults /></ProtectedRoute>} />

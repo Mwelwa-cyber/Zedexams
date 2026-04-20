@@ -338,6 +338,54 @@
       "collectionGroup": "exam_attempts",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "subject",     "order": "ASCENDING"  },
+        { "fieldPath": "attemptDate", "order": "ASCENDING"  },
+        { "fieldPath": "status",      "order": "ASCENDING"  },
+        { "fieldPath": "percentage",  "order": "DESCENDING" },
+        { "fieldPath": "score",       "order": "DESCENDING" },
+        { "fieldPath": "submittedAt", "order": "ASCENDING"  }
+      ]
+    },
+    {
+      "collectionGroup": "exam_attempts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "subject",     "order": "ASCENDING"  },
+        { "fieldPath": "grade",       "order": "ASCENDING"  },
+        { "fieldPath": "attemptDate", "order": "ASCENDING"  },
+        { "fieldPath": "status",      "order": "ASCENDING"  },
+        { "fieldPath": "percentage",  "order": "DESCENDING" },
+        { "fieldPath": "score",       "order": "DESCENDING" },
+        { "fieldPath": "submittedAt", "order": "ASCENDING"  }
+      ]
+    },
+    {
+      "collectionGroup": "exam_attempts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "grade",       "order": "ASCENDING"  },
+        { "fieldPath": "attemptDate", "order": "ASCENDING"  },
+        { "fieldPath": "status",      "order": "ASCENDING"  },
+        { "fieldPath": "percentage",  "order": "DESCENDING" },
+        { "fieldPath": "score",       "order": "DESCENDING" },
+        { "fieldPath": "submittedAt", "order": "ASCENDING"  }
+      ]
+    },
+    {
+      "collectionGroup": "exam_attempts",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "attemptDate", "order": "ASCENDING"  },
+        { "fieldPath": "status",      "order": "ASCENDING"  },
+        { "fieldPath": "percentage",  "order": "DESCENDING" },
+        { "fieldPath": "score",       "order": "DESCENDING" },
+        { "fieldPath": "submittedAt", "order": "ASCENDING"  }
+      ]
+    },
+    {
+      "collectionGroup": "exam_attempts",
+      "queryScope": "COLLECTION",
+      "fields": [
         { "fieldPath": "userId",      "order": "ASCENDING"  },
         { "fieldPath": "status",      "order": "ASCENDING"  },
         { "fieldPath": "submittedAt", "order": "DESCENDING" }

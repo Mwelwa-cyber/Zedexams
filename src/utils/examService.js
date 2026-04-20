@@ -291,17 +291,20 @@ async function _doSubmit(attemptId, attempt, questions, answers) {
   const startMs = attempt.startedAt?.toMillis?.() ?? (Date.now() - 60_000)
   const timeTakenSeconds = Math.round((Date.now() - startMs) / 1000)
 
+  const totalQuestions = questions.length || attempt.totalQuestions || 0
+
   await updateDoc(doc(db, 'exam_attempts', attemptId), {
     status: 'submitted',
     answers,
     score,
     totalMarks,
+    totalQuestions,
     percentage,
     timeTakenSeconds,
     submittedAt: serverTimestamp(),
   })
 
-  return { score, totalMarks, percentage, timeTakenSeconds, attemptId }
+  return { score, totalMarks, totalQuestions, percentage, timeTakenSeconds, attemptId }
 }
 
 async function _updateLockStatus(userId, subject, status) {

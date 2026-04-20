@@ -189,12 +189,20 @@ export default function DailyExamsHub() {
               </h1>
               <p className="theme-text-muted text-sm mt-0.5">{today}</p>
             </div>
-            <Link
-              to="/dashboard"
-              className="text-xs font-bold theme-accent-text hover:opacity-80"
-            >
-              ← Dashboard
-            </Link>
+            <div className="flex items-center gap-3">
+              <Link
+                to="/exams/leaderboard"
+                className="flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-black text-amber-700 hover:bg-amber-200 transition-colors"
+              >
+                📊 Leaderboard
+              </Link>
+              <Link
+                to="/dashboard"
+                className="text-xs font-bold theme-accent-text hover:opacity-80"
+              >
+                ← Dashboard
+              </Link>
+            </div>
           </div>
 
           {/* Summary banner */}
