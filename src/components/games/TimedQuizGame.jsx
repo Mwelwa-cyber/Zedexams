@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { saveScore, shuffle } from '../../utils/gamesService'
 import { evaluateAndAwardGameBadges } from '../../utils/gameBadgesService'
+import { getTodaysChallenge, recordDailyPlay } from '../../utils/dailyChallengeService'
 import Leaderboard from './Leaderboard'
 import BadgeToast from './BadgeToast'
 
@@ -41,6 +42,7 @@ export default function TimedQuizGame({ game }) {
   const [timeLeft, setTimeLeft] = useState(duration)
   const [saveResult, setSaveResult] = useState(null)
   const [newBadges, setNewBadges] = useState([])
+  const [streakResult, setStreakResult] = useState(null)
   const startedAtRef = useRef(null)
 
   // Countdown
@@ -97,6 +99,7 @@ export default function TimedQuizGame({ game }) {
     setTimeLeft(duration)
     setSaveResult(null)
     setNewBadges([])
+    setStreakResult(null)
     startedAtRef.current = Date.now()
   }
 
@@ -148,6 +151,20 @@ export default function TimedQuizGame({ game }) {
       } catch (err) {
         console.warn('badge evaluation failed', err)
       }
+
+      // Check if this game is today's daily challenge — if so, bump streak.
+      try {
+        const { game: todaysGame } = await getTodaysChallenge()
+        if (todaysGame?.id) {
+          const streakOutcome = await recordDailyPlay({
+            gameId: game.id,
+            dailyGameId: todaysGame.id,
+          })
+          if (streakOutcome.isDaily) setStreakResult(streakOutcome)
+        }
+      } catch (err) {
+        console.warn('daily streak update failed', err)
+      }
     }
   }
 
@@ -165,6 +182,7 @@ export default function TimedQuizGame({ game }) {
         bestStreak={bestStreak}
         saveResult={saveResult}
         newBadges={newBadges}
+        streakResult={streakResult}
         onRestart={start}
       />
     )
@@ -251,9 +269,10 @@ function ReadyCard({ game, onStart }) {
   )
 }
 
-function DoneCard({ game, score, correct, wrong, accuracy, bestStreak, saveResult, newBadges, onRestart }) {
+function DoneCard({ game, score, correct, wrong, accuracy, bestStreak, saveResult, newBadges, streakResult, onRestart }) {
   return (
     <div className="space-y-5">
+      {streakResult?.isDaily && <StreakBanner result={streakResult} />}
       {newBadges?.length > 0 && <BadgeToast badges={newBadges} />}
 
       <div className="bg-white rounded-3xl border-2 border-slate-200 shadow-sm p-8 text-center">
@@ -286,6 +305,46 @@ function DoneCard({ game, score, correct, wrong, accuracy, bestStreak, saveResul
       <Leaderboard gameId={game.id} />
     </div>
   )
+}
+
+function StreakBanner({ result }) {
+  const onFire = (result.streak || 0) >= 3
+  if (result.wasAlreadyCountedToday) {
+    return (
+      <div className="rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 sm:p-5 flex items-center gap-4">
+        <div className="text-4xl shrink-0" aria-hidden="true">⭐</div>
+        <div className="flex-1">
+          <p className="font-black text-amber-900 text-lg leading-tight">
+            Daily challenge already ticked today
+          </p>
+          <p className="text-sm text-amber-800">
+            Your streak is still <b>{result.streak} day{result.streak === 1 ? '' : 's'}</b>.
+            Come back tomorrow for the next challenge.
+          </p>
+        </div>
+      </div>
+    )
+  }
+  if (result.bumped) {
+    return (
+      <div className={`rounded-2xl border-2 p-4 sm:p-5 flex items-center gap-4 ${onFire ? 'border-rose-400 bg-rose-50' : 'border-amber-300 bg-amber-50'}`}>
+        <div className="text-5xl shrink-0" aria-hidden="true">{onFire ? '🔥' : '⭐'}</div>
+        <div className="flex-1">
+          <p className={`font-black text-lg leading-tight ${onFire ? 'text-rose-900' : 'text-amber-900'}`}>
+            Daily streak: {result.streak} day{result.streak === 1 ? '' : 's'}!
+          </p>
+          <p className={`text-sm ${onFire ? 'text-rose-800' : 'text-amber-800'}`}>
+            {result.streak === 1
+              ? 'A new streak has begun. Play again tomorrow to keep it alive.'
+              : onFire
+                ? `You're on fire! Longest streak ever: ${result.longestStreak} days.`
+                : `Nice run — longest streak ever: ${result.longestStreak} days.`}
+          </p>
+        </div>
+      </div>
+    )
+  }
+  return null
 }
 
 function SaveBanner({ saveResult }) {

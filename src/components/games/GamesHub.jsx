@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { GRADES } from '../../utils/gamesService'
 import GamesShell from './GamesShell'
+import DailyChallengeCard from './DailyChallengeCard'
 
 /**
  * /games — Step 1 in the Grade → Subject → Game list → Play flow.
@@ -22,6 +23,8 @@ export default function GamesHub() {
 
   return (
     <GamesShell crumbs={[]}>
+      <DailyChallengeCard />
+
       <section className="text-center mb-10">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-amber-200 text-xs font-black uppercase tracking-wide text-amber-800 mb-4">
           <span>🇿🇲</span><span>CBC-aligned · Grade 1 to 12</span>

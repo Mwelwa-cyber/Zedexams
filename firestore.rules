@@ -358,9 +358,19 @@ service cloud.firestore {
     }
 
     // ── daily_challenges (one featured game per day) ──────────
+    // Docs are keyed by ISO date (YYYY-MM-DD). Empty collection is fine
+    // — the client falls back to a deterministic rotation when no doc exists.
     match /daily_challenges/{dateId} {
       allow read:  if true;
       allow write: if isAdmin();
+    }
+
+    // ── dailyStreaks (per-user streak counter for the daily challenge) ──
+    // Single doc per user: { streak, longestStreak, lastPlayedDate, lastGameId }
+    match /dailyStreaks/{userId} {
+      allow read:          if isAuthed() && (isOwner(userId) || isAdmin());
+      allow create, update: if isAuthed() && isOwner(userId);
+      allow delete:        if isAdmin();
     }
 
     // ── waitlist (public create, admin-only read) ─────────────
