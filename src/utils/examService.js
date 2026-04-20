@@ -272,36 +272,90 @@ export async function autoSubmitExam(userId, attemptId, questions, answers) {
 async function _doSubmit(attemptId, attempt, questions, answers) {
   let score = 0
   let totalMarks = 0
+  const topicBreakdown = {}
 
   questions.forEach(q => {
-    const marks = q.marks ?? 1
-    totalMarks += marks
-    const isText = q.type === 'short_answer' || q.type === 'diagram'
-    const given = answers[q.id]
-    const correct = isText
-      ? given?.correct === true
-      : given === q.correctAnswer
+    const marks   = q.marks ?? 1
+    const topic   = (q.topic || 'General').trim()
+    totalMarks   += marks
+
+    const isText  = q.type === 'short_answer' || q.type === 'diagram'
+    const given   = answers[q.id]
+    const correct = isText ? given?.correct === true : given === q.correctAnswer
     if (correct) score += marks
+
+    if (!topicBreakdown[topic]) topicBreakdown[topic] = { correct: 0, total: 0, marks: 0, totalMarks: 0 }
+    topicBreakdown[topic].total    += 1
+    topicBreakdown[topic].totalMarks += marks
+    if (correct) {
+      topicBreakdown[topic].correct += 1
+      topicBreakdown[topic].marks   += marks
+    }
   })
 
-  // Fall back to the stored totalMarks if questions array was empty
+  // Compute percentage per topic
+  Object.values(topicBreakdown).forEach(t => {
+    t.percentage = t.total > 0 ? Math.round((t.correct / t.total) * 100) : 0
+  })
+
+  // Fall back to stored totalMarks if questions array was empty
   if (totalMarks === 0) totalMarks = attempt.totalMarks || 0
 
-  const percentage = totalMarks > 0 ? Math.round((score / totalMarks) * 100) : 0
-  const startMs = attempt.startedAt?.toMillis?.() ?? (Date.now() - 60_000)
+  const totalQuestions = questions.length || attempt.totalQuestions || 0
+  const percentage     = totalMarks > 0 ? Math.round((score / totalMarks) * 100) : 0
+  const startMs        = attempt.startedAt?.toMillis?.() ?? (Date.now() - 60_000)
   const timeTakenSeconds = Math.round((Date.now() - startMs) / 1000)
+
+  // Strengths ≥ 70 %, weaknesses < 50 %
+  const strengths  = Object.entries(topicBreakdown).filter(([, t]) => t.percentage >= 70).map(([k]) => k)
+  const weaknesses = Object.entries(topicBreakdown).filter(([, t]) => t.percentage <  50).map(([k]) => k)
+
+  const performanceLevel =
+    percentage >= 90 ? 'Excellent'
+    : percentage >= 75 ? 'Very Good'
+    : percentage >= 60 ? 'Good'
+    : percentage >= 50 ? 'Developing'
+    : 'Needs Improvement'
+
+  // CBC-aligned feedback (plain text, learner-friendly)
+  const feedbackCan = strengths.length > 0
+    ? `You can work confidently with ${_listify(strengths)}.`
+    : 'You are building your skills across all topics in this exam.'
+
+  const feedbackDeveloping = weaknesses.length > 0
+    ? `You are still developing your understanding of ${_listify(weaknesses)}.`
+    : 'You showed a solid understanding across all the topics covered.'
+
+  const feedbackPractice = weaknesses.length > 0
+    ? `Practise more questions on ${_listify(weaknesses)} to strengthen these areas.`
+    : 'Keep up the excellent work — try another exam to maintain your performance!'
 
   await updateDoc(doc(db, 'exam_attempts', attemptId), {
     status: 'submitted',
     answers,
     score,
     totalMarks,
+    totalQuestions,
     percentage,
     timeTakenSeconds,
     submittedAt: serverTimestamp(),
+    // topic analysis (private to the learner — only they read their own attempt detail)
+    topicBreakdown,
+    strengths,
+    weaknesses,
+    performanceLevel,
+    feedback: { can: feedbackCan, developing: feedbackDeveloping, practice: feedbackPractice },
   })
 
-  return { score, totalMarks, percentage, timeTakenSeconds, attemptId }
+  return { score, totalMarks, totalQuestions, percentage, timeTakenSeconds, attemptId,
+           topicBreakdown, strengths, weaknesses, performanceLevel,
+           feedback: { can: feedbackCan, developing: feedbackDeveloping, practice: feedbackPractice } }
+}
+
+function _listify(arr) {
+  if (arr.length === 0) return ''
+  if (arr.length === 1) return arr[0]
+  return arr.slice(0, -1).join(', ') + ' and ' + arr[arr.length - 1]
 }
 
 async function _updateLockStatus(userId, subject, status) {
