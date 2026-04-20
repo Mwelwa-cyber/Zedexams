@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { isMuted, toggleMute } from '../../utils/gameSounds'
+import { useAuth } from '../../contexts/AuthContext'
 
 /**
  * Shared chrome for every /games page. Provides the light-themed layout,
@@ -9,6 +10,9 @@ import { isMuted, toggleMute } from '../../utils/gameSounds'
  * `crumbs` is an array of { label, to? } — the last one is unlinked.
  */
 export default function GamesShell({ crumbs = [], children, maxW = 'max-w-5xl' }) {
+  const { currentUser, userProfile } = useAuth()
+  const firstName = userProfile?.displayName?.split(' ')[0] ?? null
+
   return (
     <div className="force-light-theme min-h-screen bg-slate-50 text-slate-900">
       <nav className="border-b border-slate-200 bg-white/95 backdrop-blur sticky top-0 z-20">
@@ -27,13 +31,25 @@ export default function GamesShell({ crumbs = [], children, maxW = 'max-w-5xl' }
             </Link>
             <MuteToggle />
             <Link to="/teachers" className="hidden sm:block text-sm font-bold text-slate-700 hover:text-slate-900">For Teachers</Link>
-            <Link to="/login" className="hidden sm:block text-sm font-bold text-slate-700 hover:text-slate-900">Sign in</Link>
-            <Link
-              to="/register"
-              className="px-3 py-2 sm:px-4 rounded-xl text-xs sm:text-sm font-black text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
-            >
-              Save scores
-            </Link>
+            {currentUser ? (
+              <Link
+                to="/dashboard"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-black text-white bg-emerald-500 hover:bg-emerald-600"
+              >
+                <span>👤</span>
+                <span>{firstName ?? 'Dashboard'}</span>
+              </Link>
+            ) : (
+              <>
+                <Link to="/login" className="hidden sm:block text-sm font-bold text-slate-700 hover:text-slate-900">Sign in</Link>
+                <Link
+                  to="/register"
+                  className="px-3 py-2 sm:px-4 rounded-xl text-xs sm:text-sm font-black text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+                >
+                  Save scores
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </nav>

@@ -205,10 +205,34 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ── exam_attempts (daily exam sessions) ──────────────────────
+    // Submitted attempts are readable by all signed-in users (powers leaderboard).
+    // In-progress attempts are private to the owner + admin.
+    match /exam_attempts/{attemptId} {
+      allow read:   if isAuthed() && (
+        resource.data.status == 'submitted'
+        || resource.data.userId == request.auth.uid
+        || isAdmin()
+      );
+      allow create: if isAuthed() && incoming().userId == request.auth.uid;
+      allow update: if isAuthed() && resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
+    // ── daily_exam_locks (one per user per subject per day) ───────
+    match /daily_exam_locks/{lockId} {
+      allow read:   if isAuthed() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthed() && incoming().userId == request.auth.uid;
+      allow update: if isAuthed() && resource.data.userId == request.auth.uid;
+      allow delete: if isAdmin();
+    }
+
     // ── quizzes ───────────────────────────────────────────────
     match /quizzes/{quizId} {
       allow read: if isAuthed() && (
-        resource.data.isPublished == true || isTeacherOrAbove()
+        resource.data.isPublished == true
+        || resource.data.get('quizType', '') == 'daily_exam'
+        || isTeacherOrAbove()
         || resource.data.createdBy == request.auth.uid
       );
       // Admin: create anything. Teacher: only draft/pending (cannot publish directly)
