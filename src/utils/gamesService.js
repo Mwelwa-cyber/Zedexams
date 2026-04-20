@@ -70,8 +70,14 @@ export async function listGames({ grade, subject } = {}) {
     const snap = await getDocs(query(collection(db, 'games'), ...parts))
     let rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
     if (subject) {
-      const norm = subject.toLowerCase()
-      rows = rows.filter((g) => (g.subject || '').toLowerCase() === norm)
+      const norm = subject.toLowerCase().trim()
+      const meta = SUBJECTS.find((s) => s.slug === norm || s.label.toLowerCase() === norm)
+      const slugMatch = meta?.slug ?? norm
+      const labelMatch = meta?.label.toLowerCase() ?? norm
+      rows = rows.filter((g) => {
+        const gs = (g.subject || '').toLowerCase().trim()
+        return gs === slugMatch || gs === labelMatch
+      })
     }
     rows.sort((a, b) => (a.title || '').localeCompare(b.title || ''))
     return rows
