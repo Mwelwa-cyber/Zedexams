@@ -1,6 +1,4 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { isMuted, toggleMute } from '../../utils/gameSounds'
 
 /**
  * Shared chrome for every /games page. Provides the light-themed layout,
@@ -20,12 +18,7 @@ export default function GamesShell({ crumbs = [], children, maxW = 'max-w-5xl' }
               Games
             </span>
           </Link>
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Link to="/games/leaderboard" className="text-xs sm:text-sm font-black text-amber-700 hover:text-amber-900 inline-flex items-center gap-1">
-              <span aria-hidden="true">🏆</span>
-              <span className="hidden sm:inline">Leaderboard</span>
-            </Link>
-            <MuteToggle />
+          <div className="flex items-center gap-3">
             <Link to="/teachers" className="hidden sm:block text-sm font-bold text-slate-700 hover:text-slate-900">For Teachers</Link>
             <Link to="/login" className="hidden sm:block text-sm font-bold text-slate-700 hover:text-slate-900">Sign in</Link>
             <Link
@@ -60,20 +53,5 @@ export default function GamesShell({ crumbs = [], children, maxW = 'max-w-5xl' }
         {children}
       </main>
     </div>
-  )
-}
-
-function MuteToggle() {
-  const [muted, setMuted] = useState(() => isMuted())
-  return (
-    <button
-      type="button"
-      onClick={() => setMuted(toggleMute())}
-      className="w-9 h-9 rounded-full border border-slate-200 bg-white text-lg flex items-center justify-center hover:bg-slate-50"
-      aria-label={muted ? 'Unmute game sounds' : 'Mute game sounds'}
-      title={muted ? 'Unmute' : 'Mute'}
-    >
-      <span aria-hidden="true">{muted ? '🔇' : '🔊'}</span>
-    </button>
   )
 }

@@ -312,14 +312,6 @@
         { "fieldPath": "subject",  "order": "ASCENDING" },
         { "fieldPath": "score",    "order": "DESCENDING" }
       ]
-    },
-    {
-      "collectionGroup": "scores",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "playedAt", "order": "DESCENDING" },
-        { "fieldPath": "score",    "order": "DESCENDING" }
-      ]
     }
   ],
   "fieldOverrides": []

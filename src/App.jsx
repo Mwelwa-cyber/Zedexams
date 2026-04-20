@@ -62,7 +62,6 @@ const GamesHub = lazy(() => import('./components/games/GamesHub'))
 const SubjectSelector = lazy(() => import('./components/games/SubjectSelector'))
 const GameList = lazy(() => import('./components/games/GameList'))
 const PlayGame = lazy(() => import('./components/games/PlayGame'))
-const GlobalLeaderboard = lazy(() => import('./components/games/GlobalLeaderboard'))
 
 // Admin — games seed importer
 const GamesSeedAdmin = lazy(() => import('./components/admin/GamesSeedAdmin'))
@@ -197,7 +196,6 @@ export default function App() {
           {/* ── Public games (no auth) ──────────────────────────── */}
           {/* Flow: /games → /games/g/:grade → /games/g/:grade/:subject → /games/play/:gameId */}
           <Route path="/games"                         element={<GamesHub />} />
-          <Route path="/games/leaderboard"             element={<GlobalLeaderboard />} />
           <Route path="/games/g/:grade"                element={<SubjectSelector />} />
           <Route path="/games/g/:grade/:subject"       element={<GameList />} />
           <Route path="/games/play/:gameId"            element={<PlayGame />} />

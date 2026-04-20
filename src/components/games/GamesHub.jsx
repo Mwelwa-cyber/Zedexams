@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { GRADES } from '../../utils/gamesService'
 import GamesShell from './GamesShell'
-import DailyChallengeCard from './DailyChallengeCard'
 
 /**
  * /games — Step 1 in the Grade → Subject → Game list → Play flow.
@@ -11,21 +10,21 @@ import DailyChallengeCard from './DailyChallengeCard'
 export default function GamesHub() {
   useEffect(() => {
     document.title = 'Free CBC Learning Games — ZedExams'
-    setMeta('Play free Zambian CBC-aligned primary school games (Grade 1 to Grade 6). Quizzes, memory match, spelling and live leaderboard.')
+    setMeta('Play free Zambian CBC-aligned games for Grade 1 to Grade 12. Quiz, memory, spelling and math sprints.')
   }, [])
 
   const bands = [
     { key: 'lower', label: 'Lower Primary',   note: 'Grades 1 – 3', tint: 'from-amber-100 to-rose-100',  ring: 'border-amber-200' },
     { key: 'middle', label: 'Middle Primary', note: 'Grades 4 – 6', tint: 'from-emerald-100 to-teal-100', ring: 'border-emerald-200' },
+    { key: 'upper', label: 'Upper Primary',   note: 'Grades 7 – 9', tint: 'from-sky-100 to-indigo-100',   ring: 'border-sky-200' },
+    { key: 'secondary', label: 'Secondary',   note: 'Grades 10 – 12', tint: 'from-violet-100 to-pink-100', ring: 'border-violet-200' },
   ]
 
   return (
     <GamesShell crumbs={[]}>
-      <DailyChallengeCard />
-
       <section className="text-center mb-10">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-amber-200 text-xs font-black uppercase tracking-wide text-amber-800 mb-4">
-          <span>🇿🇲</span><span>CBC-aligned · Grade 1 to 6</span>
+          <span>🇿🇲</span><span>CBC-aligned · Grade 1 to 12</span>
         </div>
         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight max-w-3xl mx-auto">
           Pick your grade and{' '}

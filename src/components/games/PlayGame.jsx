@@ -6,8 +6,6 @@ import {
 import { getFallbackGame } from '../../data/gamesSeed'
 import GamesShell from './GamesShell'
 import TimedQuizGame from './TimedQuizGame'
-import MemoryMatchGame from './MemoryMatchGame'
-import WordBuilderGame from './WordBuilderGame'
 
 /**
  * /games/play/:gameId — Step 4: the play surface.
@@ -99,20 +97,19 @@ function Chip({ children, tone = 'slate' }) {
 }
 
 /**
- * Dispatches to the right engine by game.type.
- * Supported:  timed_quiz  |  memory_match  |  word_builder
+ * Dispatches to the right engine. For now only `timed_quiz` is fully wired;
+ * other types fall through to a placeholder card so the nav still works.
  */
 function GameEngine({ game }) {
-  if (game.type === 'timed_quiz')   return <TimedQuizGame   game={game} />
-  if (game.type === 'memory_match') return <MemoryMatchGame game={game} />
-  if (game.type === 'word_builder') return <WordBuilderGame game={game} />
+  if (game.type === 'timed_quiz') return <TimedQuizGame game={game} />
   return (
     <div className="rounded-3xl border-2 border-dashed border-slate-300 bg-white p-10 text-center">
       <div className="text-5xl mb-3">🚧</div>
-      <h2 className="text-xl font-black mb-1">Unknown game type</h2>
+      <h2 className="text-xl font-black mb-1">Coming soon</h2>
       <p className="text-slate-600 max-w-md mx-auto mb-5">
-        This game is saved with <span className="font-mono">type="{game.type}"</span>
-        but no engine is registered for it yet.
+        The <span className="font-black">{game.type}</span> engine is in the
+        works. Speed Tables Challenge (timed_quiz) is fully playable — try
+        that one first.
       </p>
       <Link to="/games" className="inline-block px-5 py-3 rounded-xl font-black text-white bg-gradient-to-r from-amber-500 to-orange-500">
         Back to all games
