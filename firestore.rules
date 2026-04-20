@@ -114,6 +114,53 @@ service cloud.firestore {
         && (incoming().status == 'rejected' || incoming().rejectionReason == '');
     }
 
+    // ── content-field validators ─────────────────────────────
+    // These are data-integrity backstops, NOT authorization checks.
+    // They only constrain fields that are present in the incoming doc, so
+    // older documents without newer fields continue to pass. They defend
+    // against bad client code and tampered clients that bypass UI validation.
+    function _validGrade(value) { return value is string && value in ['4', '5', '6', '7']; }
+    function _validSubject(value) { return value is string && value.size() >= 1 && value.size() <= 80; }
+    function _validContentStatus(value) { return value is string && value in ['draft', 'pending', 'published', 'rejected']; }
+    function _validQuestionType(value) { return value is string && value in ['mcq', 'short_answer', 'diagram']; }
+
+    function validQuizFields() {
+      return (!('title' in incoming()) || (incoming().title is string && incoming().title.size() >= 1 && incoming().title.size() <= 200))
+        && (!('grade' in incoming()) || _validGrade(incoming().grade))
+        && (!('subject' in incoming()) || _validSubject(incoming().subject))
+        && (!('topic' in incoming()) || (incoming().topic is string && incoming().topic.size() <= 200))
+        && (!('duration' in incoming()) || (incoming().duration is int && incoming().duration >= 5 && incoming().duration <= 180))
+        && (!('totalMarks' in incoming()) || (incoming().totalMarks is int && incoming().totalMarks >= 0 && incoming().totalMarks <= 10000))
+        && (!('questionCount' in incoming()) || (incoming().questionCount is int && incoming().questionCount >= 0 && incoming().questionCount <= 1000))
+        && (!('status' in incoming()) || _validContentStatus(incoming().status))
+        && (!('isPublished' in incoming()) || incoming().isPublished is bool);
+    }
+
+    function validQuestionFields() {
+      return (!('type' in incoming()) || _validQuestionType(incoming().type))
+        && (!('marks' in incoming()) || (incoming().marks is int && incoming().marks >= 1 && incoming().marks <= 10))
+        && (!('options' in incoming()) || (incoming().options is list && incoming().options.size() <= 20))
+        && (!('order' in incoming()) || (incoming().order is int && incoming().order >= 0 && incoming().order <= 1000))
+        && (!('topic' in incoming()) || (incoming().topic is string && incoming().topic.size() <= 200));
+    }
+
+    function validLessonFields() {
+      return (!('title' in incoming()) || (incoming().title is string && incoming().title.size() >= 1 && incoming().title.size() <= 200))
+        && (!('grade' in incoming()) || _validGrade(incoming().grade))
+        && (!('subject' in incoming()) || _validSubject(incoming().subject))
+        && (!('topic' in incoming()) || (incoming().topic is string && incoming().topic.size() <= 200))
+        && (!('status' in incoming()) || _validContentStatus(incoming().status))
+        && (!('isPublished' in incoming()) || incoming().isPublished is bool);
+    }
+
+    function validResultFields() {
+      return (!('score' in incoming()) || (incoming().score is number && incoming().score >= 0))
+        && (!('percentage' in incoming()) || (incoming().percentage is number && incoming().percentage >= 0 && incoming().percentage <= 100))
+        && (!('totalMarks' in incoming()) || (incoming().totalMarks is int && incoming().totalMarks >= 0 && incoming().totalMarks <= 10000))
+        && (!('grade' in incoming()) || _validGrade(incoming().grade))
+        && (!('subject' in incoming()) || _validSubject(incoming().subject));
+    }
+
     // ── users ─────────────────────────────────────────────────
     match /users/{userId} {
       allow read: if isAuthed() && (isOwner(userId) || isTeacherOrAbove());
@@ -165,12 +212,16 @@ service cloud.firestore {
         || resource.data.createdBy == request.auth.uid
       );
       // Admin: create anything. Teacher: only draft/pending (cannot publish directly)
-      allow create: if isAdmin() && incoming().createdBy == request.auth.uid
-        || (isTeacherOrAbove() && incoming().createdBy == request.auth.uid && teacherNotPublishing());
+      allow create: if validQuizFields() && (
+        (isAdmin() && incoming().createdBy == request.auth.uid)
+        || (isTeacherOrAbove() && incoming().createdBy == request.auth.uid && teacherNotPublishing())
+      );
       // Admin: update anything. Teacher: only own non-published content, cannot publish.
-      allow update: if isAdmin()
+      allow update: if validQuizFields() && (
+        isAdmin()
         || (isTeacherOrAbove() && resource.data.createdBy == request.auth.uid
-            && resource.data.isPublished == false && teacherNotPublishing());
+            && resource.data.isPublished == false && teacherNotPublishing())
+      );
       // Admin can delete anything; teachers can only delete their own unpublished content
       allow delete: if isAdmin()
         || (isTeacherOrAbove() && resource.data.createdBy == request.auth.uid
@@ -178,8 +229,10 @@ service cloud.firestore {
 
       match /questions/{questionId} {
         allow read: if isAuthed();
-        allow create, update: if isAdmin()
-          || (isTeacherOrAbove() && get(/databases/$(database)/documents/quizzes/$(quizId)).data.createdBy == request.auth.uid);
+        allow create, update: if validQuestionFields() && (
+          isAdmin()
+          || (isTeacherOrAbove() && get(/databases/$(database)/documents/quizzes/$(quizId)).data.createdBy == request.auth.uid)
+        );
         allow delete: if isAdmin()
           || (isTeacherOrAbove() && get(/databases/$(database)/documents/quizzes/$(quizId)).data.createdBy == request.auth.uid);
       }
@@ -191,24 +244,9 @@ service cloud.firestore {
         resource.data.userId == request.auth.uid || isAdmin()
         || (isTeacherOrAbove() && get(/databases/$(database)/documents/quizzes/$(resource.data.quizId)).data.createdBy == request.auth.uid)
       );
-      allow create: if isAuthed() && incoming().userId == request.auth.uid;
-      allow update: if isAuthed() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthed() && incoming().userId == request.auth.uid && validResultFields();
+      allow update: if isAuthed() && resource.data.userId == request.auth.uid && validResultFields();
       allow delete: if isAdmin();
-    }
-
-    // ── papers ────────────────────────────────────────────────
-    match /papers/{paperId} {
-      allow read: if isAuthed();
-      // Admin: create anything. Teacher: only draft/pending (cannot publish directly)
-      allow create: if isAdmin() && incoming().uploadedBy == request.auth.uid
-        || (isTeacherOrAbove() && incoming().uploadedBy == request.auth.uid && teacherNotPublishing());
-      // Admin: update anything. Teacher: own non-published content only, cannot publish.
-      allow update: if isAdmin()
-        || (isTeacherOrAbove() && resource.data.uploadedBy == request.auth.uid
-            && resource.data.isPublished == false && teacherNotPublishing());
-      allow delete: if isAdmin()
-        || (isTeacherOrAbove() && resource.data.uploadedBy == request.auth.uid
-            && resource.data.isPublished == false);
     }
 
     // ── lessons ───────────────────────────────────────────────
@@ -219,12 +257,16 @@ service cloud.firestore {
         || (isTeacherOrAbove() && resource.data.createdBy == request.auth.uid)
       );
       // Admin: create anything. Teacher: only draft/pending.
-      allow create: if isAdmin() && incoming().createdBy == request.auth.uid
-        || (isTeacherOrAbove() && incoming().createdBy == request.auth.uid && teacherNotPublishing());
+      allow create: if validLessonFields() && (
+        (isAdmin() && incoming().createdBy == request.auth.uid)
+        || (isTeacherOrAbove() && incoming().createdBy == request.auth.uid && teacherNotPublishing())
+      );
       // Admin: update anything. Teacher: own non-published content only, cannot publish.
-      allow update: if isAdmin()
+      allow update: if validLessonFields() && (
+        isAdmin()
         || (isTeacherOrAbove() && resource.data.createdBy == request.auth.uid
-            && resource.data.isPublished == false && teacherNotPublishing());
+            && resource.data.isPublished == false && teacherNotPublishing())
+      );
       allow delete: if isAdmin()
         || (isTeacherOrAbove() && resource.data.createdBy == request.auth.uid
             && resource.data.isPublished == false);
@@ -321,7 +363,11 @@ service cloud.firestore {
     //     points, active, cbc_topic, questions[], generator?,
     //     createdAt, updatedAt, createdBy }
     match /games/{gameId} {
-      allow read:   if resource.data.get('active', true) == true || isAdmin();
+      // Public can read active games; admin can read anything (including inactive
+      // ones). We avoid `.get('active', true)` here because Firestore's static
+      // analyzer for LIST queries struggles to prove coverage when a default is
+      // used — that can silently turn list queries into empty results.
+      allow read:   if resource.data.active == true || isAdmin();
       allow create, update, delete: if isAdmin();
     }
 
@@ -371,6 +417,37 @@ service cloud.firestore {
       allow read:          if isAuthed() && (isOwner(userId) || isAdmin());
       allow create, update: if isAuthed() && isOwner(userId);
       allow delete:        if isAdmin();
+    }
+
+    // ── shares (public read-only snapshots of teacher generations) ─
+    // Teachers publish a plan to the web via a share button. The doc is
+    // keyed by a random token (doc ID = token) and contains a snapshot
+    // of the plan at share-time (so later edits don't change what the
+    // share URL shows). The token IS the share URL — knowing it is
+    // permission to read. Anyone with the link can view; only the
+    // owner (or admin) can update or unpublish.
+    //
+    // Document shape:
+    //   { tool, ownerUid, title, plan, subject, grade, topic, createdAt, revokedAt? }
+    match /shares/{token} {
+      // Always readable — the token IS the permission. Client checks
+      // `revokedAt` and shows the appropriate "revoked" / "not found"
+      // state instead of the read failing with permission-denied.
+      allow read: if true;
+      allow create: if isAuthed()
+        && incoming().ownerUid == request.auth.uid
+        && incoming().keys().hasAll(['tool', 'ownerUid', 'title', 'plan', 'createdAt'])
+        && incoming().tool is string
+        && incoming().tool.size() <= 40
+        && incoming().title is string
+        && incoming().title.size() <= 200
+        && incoming().plan is map
+        && incoming().createdAt == request.time;
+      allow update: if isAuthed()
+        && resource.data.ownerUid == request.auth.uid
+        && changedKeys().hasOnly(['revokedAt', 'title']);
+      allow update: if isAdmin();
+      allow delete: if isAuthed() && (resource.data.ownerUid == request.auth.uid || isAdmin());
     }
 
     // ── waitlist (public create, admin-only read) ─────────────
