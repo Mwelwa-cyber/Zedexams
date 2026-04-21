@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { X, ChevronRight } from 'lucide-react'
+import { BarChart3, CheckCircleIcon, ChevronRight, PencilLine, Search, Target, TrophyIcon, X } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
 import Button from '../ui/Button'
@@ -91,7 +91,7 @@ export default function MyResults() {
       <div className="mb-5">
         <p className="text-eyebrow">Your progress</p>
         <h1 className="text-display-xl theme-text mt-1 flex items-center gap-2">
-          <span aria-hidden="true">📊</span> My results
+          <Icon as={BarChart3} size="lg" strokeWidth={2.1} /> My results
         </h1>
         <p className="theme-text-muted text-body-sm mt-1">Your complete quiz history</p>
       </div>
@@ -100,12 +100,12 @@ export default function MyResults() {
       {!loading && results.length > 0 && (
         <div className="grid grid-cols-3 gap-3 mb-5 stagger">
           {[
-            { icon: '📝', label: 'Total',   val: totalQuizzes },
-            { icon: '🎯', label: 'Average', val: `${avgScore}%` },
-            { icon: '✅', label: 'Passed',  val: passed },
+            { icon: PencilLine, label: 'Total',   val: totalQuizzes },
+            { icon: Target, label: 'Average', val: `${avgScore}%` },
+            { icon: CheckCircleIcon, label: 'Passed',  val: passed },
           ].map(s => (
             <div key={s.label} className="theme-card rounded-2xl border theme-border shadow-elev-sm p-4 text-center animate-slide-in-soft">
-              <div className="text-xl mb-1" aria-hidden="true">{s.icon}</div>
+              <Icon as={s.icon} size="lg" strokeWidth={2.1} className="mx-auto mb-1 theme-accent-text" />
               <div className="text-display-md theme-text" style={{ fontSize: 18 }}>{s.val}</div>
               <div className="text-eyebrow mt-0.5">{s.label}</div>
             </div>
@@ -123,8 +123,8 @@ export default function MyResults() {
         <select value={modeF} onChange={e => setModeF(e.target.value)}
           className="border-2 theme-border rounded-xl px-3 py-2 text-sm focus:outline-none theme-input focus:border-[var(--accent)]">
           <option value="">All Modes</option>
-          <option value="practice">🌱 Practice</option>
-          <option value="exam">🏆 Exam</option>
+          <option value="practice">Practice</option>
+          <option value="exam">Exam</option>
         </select>
         {(subjectF || modeF) && (
           <Button
@@ -145,7 +145,7 @@ export default function MyResults() {
         </div>
       ) : filtered.length === 0 ? (
         <div className="theme-card rounded-2xl border theme-border shadow-elev-sm py-16 text-center">
-          <div className="text-5xl mb-3" aria-hidden="true">{results.length === 0 ? '🎯' : '🔍'}</div>
+          <Icon as={results.length === 0 ? Target : Search} size="xl" strokeWidth={2.1} className="mx-auto mb-3 theme-text-muted" />
           <p className="text-display-md theme-text">
             {results.length === 0 ? 'No results yet' : 'No results match your filters'}
           </p>
@@ -197,15 +197,17 @@ export default function MyResults() {
                       {r.subject}
                     </span>
                     <span className="text-gray-400 text-xs">G{r.grade}</span>
-                    <span className="theme-text-muted text-xs">{r.mode === 'exam' ? '🏆' : '🌱'} {r.mode}</span>
-                    <span className="theme-text-muted text-xs">{fmt(r.completedAt)}</span>
+                    <span className="flex items-center gap-1 text-gray-400 text-xs">
+                      <Icon as={r.mode === 'exam' ? TrophyIcon : PencilLine} size="xs" strokeWidth={2.1} /> {r.mode}
+                    </span>
+                    <span className="text-gray-400 text-xs">{fmt(r.completedAt)}</span>
                   </div>
                 </div>
 
                 {/* Score text + arrow */}
                 <div className="flex-shrink-0 text-right">
                   <p className={`font-black text-sm ${pctColor(r.percentage ?? 0)}`}>{r.score}/{r.totalMarks}</p>
-                  <p className="theme-text-muted text-xs opacity-50 group-hover:opacity-100 transition-opacity">→</p>
+                  <Icon as={ChevronRight} size="xs" strokeWidth={2.1} className="ml-auto text-gray-300 transition-colors group-hover:text-green-400" />
                 </div>
               </div>
 

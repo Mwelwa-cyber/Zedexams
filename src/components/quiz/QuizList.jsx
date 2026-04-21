@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { Search, Lock, Play, ChevronRight, Sparkles } from 'lucide-react'
+import { BarChart3, BeakerIcon, BookOpen, Clock, ClipboardList, Home, Lock, Palette, Play, Search, Settings, ChevronRight, Sparkles, PencilLine, StarIcon, X } from '../ui/icons'
 import { useFirestore } from '../../hooks/useFirestore'
-import { useAuth } from '../../contexts/AuthContext'
 import { useSubscription } from '../../hooks/useSubscription'
 import UpgradeModal from '../subscription/UpgradeModal'
 import ComingSoon from '../ui/ComingSoon'
@@ -16,13 +15,13 @@ const GRADES = ['4', '5', '6']
 const TERMS  = ['1', '2', '3']
 
 const SUBJECTS = [
-  { id: 'Mathematics',       label: 'Mathematics',       icon: '➗', color: 'blue'   },
-  { id: 'English',           label: 'English',           icon: '📝', color: 'violet' },
-  { id: 'Integrated Science',label: 'Integrated Science',icon: '🔬', color: 'orange' },
-  { id: 'Social Studies',    label: 'Social Studies',    icon: '🌍', color: 'teal'   },
-  { id: 'Technology Studies',label: 'Technology Studies',icon: '⚙️', color: 'cyan'   },
-  { id: 'Home Economics',    label: 'Home Economics',    icon: '🏠', color: 'pink'   },
-  { id: 'Expressive Arts',   label: 'Expressive Arts',   icon: '🎨', color: 'rose'   },
+  { id: 'Mathematics',       label: 'Mathematics',       icon: BarChart3,  color: 'blue'   },
+  { id: 'English',           label: 'English',           icon: PencilLine, color: 'violet' },
+  { id: 'Integrated Science',label: 'Integrated Science',icon: BeakerIcon, color: 'orange' },
+  { id: 'Social Studies',    label: 'Social Studies',    icon: BookOpen,   color: 'teal'   },
+  { id: 'Technology Studies',label: 'Technology Studies',icon: Settings,   color: 'cyan'   },
+  { id: 'Home Economics',    label: 'Home Economics',    icon: Home,       color: 'pink'   },
+  { id: 'Expressive Arts',   label: 'Expressive Arts',   icon: Palette,    color: 'rose'   },
 ]
 
 const SUBJECT_STYLES = {
@@ -44,7 +43,7 @@ const GRADE_STYLES = {
 
 function getSubjectMeta(subjectId) {
   const sub = SUBJECTS.find(s => s.id === subjectId)
-  if (!sub) return { icon: '📝', style: SUBJECT_STYLES.gray, label: subjectId }
+  if (!sub) return { icon: PencilLine, style: SUBJECT_STYLES.gray, label: subjectId }
   return { icon: sub.icon, style: SUBJECT_STYLES[sub.color], label: sub.label }
 }
 
@@ -57,7 +56,11 @@ function Chip({ label, active, onClick, icon }) {
           ? 'theme-accent-fill theme-on-accent shadow-md'
           : 'theme-card border theme-border theme-text-muted hover:theme-bg-subtle hover:theme-text'
       }`}>
-      {icon && <span className="text-xs">{icon}</span>}
+      {icon && (
+        <span className="text-xs">
+          {typeof icon === 'function' ? <Icon as={icon} size="xs" strokeWidth={2.1} /> : icon}
+        </span>
+      )}
       {label}
     </button>
   )
@@ -97,7 +100,7 @@ function QuizCard({ quiz, onStart, locked }) {
       <div className="p-4 flex items-start gap-4">
         {/* Subject icon */}
         <div className={`${style.icon} w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0 group-hover:scale-105 transition-transform`}>
-          {icon}
+          <Icon as={icon} size="lg" strokeWidth={2.1} />
         </div>
 
         {/* Content */}
@@ -110,7 +113,9 @@ function QuizCard({ quiz, onStart, locked }) {
               <span className="bg-green-100 text-green-700 text-xs font-black px-2 py-0.5 rounded-full flex-shrink-0">Demo</span>
             )}
             {locked && !quiz.isDemo && (
-              <span className="theme-bg-subtle theme-text-muted text-xs font-black px-2 py-0.5 rounded-full flex-shrink-0">🔒 Locked</span>
+              <span className="theme-bg-subtle theme-text-muted inline-flex items-center gap-1 text-xs font-black px-2 py-0.5 rounded-full flex-shrink-0">
+                <Icon as={Lock} size="xs" strokeWidth={2.1} /> Locked
+              </span>
             )}
           </div>
           {quiz.topic && (
@@ -128,14 +133,14 @@ function QuizCard({ quiz, onStart, locked }) {
           </div>
           <div className="flex items-center gap-3 mt-2">
             <span className={`text-xs font-bold flex items-center gap-1 ${diffColor}`}>
-              <span>◎</span> {quiz.questionCount ?? '?'} questions
+              <Icon as={ClipboardList} size="xs" strokeWidth={2.1} /> {quiz.questionCount ?? '?'} questions
             </span>
             <span className="text-xs theme-text-muted flex items-center gap-1">
-              <span>⏱</span> {quiz.duration} min
+              <Icon as={Clock} size="xs" strokeWidth={2.1} /> {quiz.duration} min
             </span>
             {quiz.totalMarks && (
               <span className="text-xs theme-text-muted flex items-center gap-1">
-                <span>⭐</span> {quiz.totalMarks} marks
+                <Icon as={StarIcon} size="xs" strokeWidth={2.1} /> {quiz.totalMarks} marks
               </span>
             )}
           </div>
@@ -187,7 +192,7 @@ function LockedBanner({ onUpgrade }) {
 // ── Main ───────────────────────────────────────────────────────────────────
 export default function QuizList() {
   const { getQuizzes } = useFirestore()
-  const { canAccessFullContent, isDemoOnly, accessBadge } = useSubscription()
+  const { isDemoOnly, accessBadge } = useSubscription()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -252,7 +257,7 @@ export default function QuizList() {
       {/* Blocked toast */}
       {blockedToast && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-orange-500 text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg animate-slide-up flex items-center gap-2">
-          🔒 Upgrade required to access that quiz
+          <Icon as={Lock} size="sm" strokeWidth={2.1} /> Upgrade required to access that quiz
           <button onClick={() => setBlockedToast(false)} className="text-white/70 hover:text-white min-h-0 p-0 bg-transparent shadow-none text-lg leading-none">×</button>
         </div>
       )}
@@ -267,13 +272,13 @@ export default function QuizList() {
                   Quiz Library
                 </span>
                 {/* Access badge in header */}
-                <span className={`text-xs font-black px-3 py-1 rounded-full backdrop-blur-sm ${
+                <span className={`inline-flex items-center gap-1 text-xs font-black px-3 py-1 rounded-full backdrop-blur-sm ${
                   accessBadge.color === 'green'  ? 'bg-green-500/30 text-green-100' :
                   accessBadge.color === 'blue'   ? 'bg-blue-500/30 text-blue-100' :
                   accessBadge.color === 'yellow' ? 'bg-yellow-500/30 text-yellow-100' :
                   'bg-white/20 text-white/70'
                 }`}>
-                  {accessBadge.icon} {accessBadge.label}
+                  <Icon as={Sparkles} size="xs" strokeWidth={2.1} /> {accessBadge.label}
                 </span>
               </div>
               <h1 className="text-display-xl text-white mt-2">
@@ -369,7 +374,7 @@ export default function QuizList() {
               <button
                 onClick={() => { setSearch(''); setGradeF(''); setSubjectF(''); setTermF('') }}
                 className="text-xs text-red-500 font-bold hover:text-red-700 min-h-0 bg-transparent shadow-none p-0 flex items-center gap-1">
-                ✕ Clear all filters
+                <Icon as={X} size="xs" strokeWidth={2.1} /> Clear all filters
               </button>
             )}
           </div>
@@ -393,13 +398,13 @@ export default function QuizList() {
               <ComingSoon
                 title="Quizzes Coming Soon"
                 message="No quizzes have been published yet. Check back soon!"
-                icon="📝"
+                icon={PencilLine}
                 showQuizBtn={false}
               />
             </div>
           ) : filtered.length === 0 ? (
             <div className="col-span-full theme-card rounded-2xl border theme-border py-14 text-center theme-shadow">
-              <div className="text-4xl mb-3">🔍</div>
+              <Icon as={Search} size="xl" strokeWidth={2.1} className="mx-auto mb-3 theme-text-muted" />
               <p className="font-black theme-text">No quizzes match your filters</p>
               <p className="theme-text-muted text-sm mt-1">Try adjusting the grade, subject, or term</p>
               <button

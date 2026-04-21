@@ -20,6 +20,8 @@ import { getRoleLandingPath }  from '../../utils/navigation'
 import { daysUntilExpiry }     from '../../utils/subscriptionConfig'
 import UpgradeModal            from '../subscription/UpgradeModal'
 import Button                  from '../ui/Button'
+import Icon                    from '../ui/Icon'
+import { CalendarDays, CheckCircleIcon, LockClosedIcon, LogOut, PencilLine, Sparkles, TrophyIcon } from '../ui/icons'
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -156,13 +158,13 @@ export default function ProfilePage() {
               <p className="text-white/70 text-sm mt-0.5 truncate">{currentUser?.email}</p>
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <RoleChip role={userProfile?.role} />
-                <span className={`text-xs font-black px-2.5 py-1 rounded-full ${
+                <span className={`inline-flex items-center gap-1 text-xs font-black px-2.5 py-1 rounded-full ${
                   accessBadge.color === 'green'  ? 'bg-green-100 text-green-700'   :
                   accessBadge.color === 'blue'   ? 'bg-blue-100  text-blue-700'    :
                   accessBadge.color === 'yellow' ? 'bg-yellow-100 text-yellow-700' :
                   'bg-white/20 text-white'
                 }`}>
-                  {accessBadge.icon} {accessBadge.label}
+                  <Icon as={Sparkles} size="xs" strokeWidth={2.1} /> {accessBadge.label}
                 </span>
               </div>
             </div>
@@ -176,12 +178,12 @@ export default function ProfilePage() {
         {/* Stats strip */}
         <div className="theme-card rounded-2xl border theme-border shadow-sm grid grid-cols-3 divide-x divide-[var(--border)]">
           {[
-            { icon: '✏️', value: loading ? '…' : quizCount, label: 'Quizzes' },
-            { icon: '🏆', value: earnedBadges.length,        label: 'Badges'  },
-            { icon: '📅', value: fmtDate(userProfile?.createdAt), label: 'Joined' },
+            { icon: PencilLine, value: loading ? '...' : quizCount, label: 'Quizzes' },
+            { icon: TrophyIcon, value: earnedBadges.length,        label: 'Badges'  },
+            { icon: CalendarDays, value: fmtDate(userProfile?.createdAt), label: 'Joined' },
           ].map(s => (
             <div key={s.label} className="flex flex-col items-center py-4 px-2 gap-0.5">
-              <span className="text-xl leading-none">{s.icon}</span>
+              <Icon as={s.icon} size="lg" strokeWidth={2.1} className="theme-accent-text" />
               <span className="text-base font-black theme-text leading-none mt-1">{s.value}</span>
               <span className="text-xs theme-text-muted font-bold">{s.label}</span>
             </div>
@@ -193,7 +195,7 @@ export default function ProfilePage() {
           <div className={`theme-card rounded-2xl border theme-border p-4 flex items-start gap-3 ${
             isPremium ? 'border-yellow-300 bg-yellow-50' : ''
           }`}>
-            <span className="text-2xl flex-shrink-0">{isPremium ? '⭐' : '🔓'}</span>
+            <Icon as={isPremium ? Sparkles : LockClosedIcon} size="lg" strokeWidth={2.1} className={`flex-shrink-0 ${isPremium ? 'text-yellow-700' : 'theme-text-muted'}`} />
             <div className="flex-1 min-w-0">
               <p className={`font-black text-sm ${isPremium ? 'text-yellow-800' : 'theme-text'}`}>
                 {isPremium ? `${planName} Plan` : 'Free / Demo Access'}
@@ -272,8 +274,8 @@ export default function ProfilePage() {
               <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl px-4 py-3">{error}</p>
             )}
             {saved && (
-              <p className="text-green-700 text-sm bg-green-50 border border-green-200 rounded-xl px-4 py-3">
-                ✅ Profile saved successfully!
+              <p className="flex items-center gap-2 text-green-700 text-sm bg-green-50 border border-green-200 rounded-xl px-4 py-3">
+                <Icon as={CheckCircleIcon} size="sm" strokeWidth={2.1} /> Profile saved successfully!
               </p>
             )}
 
@@ -291,7 +293,7 @@ export default function ProfilePage() {
               onClick={handleLogout}
               className="w-full text-left flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-bold text-red-500 hover:bg-red-50 transition-colors min-h-0 bg-transparent shadow-none"
             >
-              🚪 Sign Out
+              <Icon as={LogOut} size="sm" strokeWidth={2.1} /> Sign Out
             </button>
           </div>
         </div>

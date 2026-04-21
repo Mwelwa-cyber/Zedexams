@@ -3,6 +3,8 @@
  * When Data Saver is ON, images and heavy animations are disabled.
  */
 import { useDataSaver } from '../../contexts/DataSaverContext'
+import Icon from './Icon'
+import { Battery, Signal } from './icons'
 
 export default function DataSaverToggle({ showLabel = false }) {
   const { dataSaver, toggleDataSaver } = useDataSaver()
@@ -25,9 +27,7 @@ export default function DataSaverToggle({ showLabel = false }) {
       }`}
     >
       {/* Battery / signal icon */}
-      <span className="text-sm leading-none" aria-hidden="true">
-        {dataSaver ? '🔋' : '📶'}
-      </span>
+      <Icon as={dataSaver ? Battery : Signal} size="sm" strokeWidth={2.1} />
       {showLabel && (
         <span>{dataSaver ? 'Saver ON' : 'Data Saver'}</span>
       )}

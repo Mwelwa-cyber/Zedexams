@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ChevronDown, ChevronUp, RotateCcw, ListChecks, Sparkles, Check, X } from 'lucide-react'
+import { ChevronDown, ChevronUp, RotateCcw, ListChecks, Sparkles, Check } from '../ui/icons'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
 import { buildQuizDisplaySections } from '../../utils/quizSections.js'

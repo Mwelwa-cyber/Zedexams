@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { useTheme, THEMES } from '../../contexts/ThemeContext'
+import Icon from './Icon'
+import { ChevronDown, Palette } from './icons'
 
 /**
  * ThemeSelector button
@@ -8,13 +10,14 @@ import { useTheme, THEMES } from '../../contexts/ThemeContext'
  *   compact  — hide label text, show only swatch (default false)
  *   onDark   — use white text styling for placement on dark/gradient headers (default false)
  *   quizStyle — use the round palette button styling from the quiz screen (default false)
+ *   dashboardStyle — use the labelled dashboard icon treatment (default false)
  *
  * Accessibility:
  *   - Trigger has aria-label, aria-expanded, aria-haspopup
  *   - Dropdown has role="menu"; each option has role="menuitem" + aria-label
  *   - CSS tooltip (group-hover) on desktop; text label on mobile
  */
-export default function ThemeSelector({ compact = false, onDark = false, quizStyle = false }) {
+export default function ThemeSelector({ compact = false, onDark = false, quizStyle = false, dashboardStyle = false }) {
   const { theme, setTheme } = useTheme()
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
@@ -38,7 +41,9 @@ export default function ThemeSelector({ compact = false, onDark = false, quizSty
 
   const current = THEMES.find(t => t.id === theme) || THEMES[0]
 
-  const triggerClass = quizStyle
+  const triggerClass = dashboardStyle
+    ? 'theme-card theme-border theme-text-muted border shadow-elev-sm hover:theme-accent-bg hover:theme-accent-text'
+    : quizStyle
     ? 'theme-accent-fill theme-on-accent border-transparent shadow-md hover:opacity-90'
     : onDark
     ? 'bg-white/20 hover:bg-white/30 border-white/30 text-white'
@@ -55,11 +60,15 @@ export default function ThemeSelector({ compact = false, onDark = false, quizSty
         aria-haspopup="true"
         title="Change theme"
         className={`flex items-center justify-center gap-1.5 font-bold text-sm transition-all min-h-0 border ${
-          quizStyle ? 'w-9 h-9 rounded-full p-0 text-base' : 'px-2 py-1.5 rounded-lg'
+          dashboardStyle
+            ? 'h-11 w-11 rounded-2xl p-0'
+            : quizStyle
+              ? 'w-9 h-9 rounded-full p-0 text-base'
+              : 'px-2 py-1.5 rounded-lg'
         } ${triggerClass}`}
       >
-        {quizStyle ? (
-          <span aria-hidden="true">🎨</span>
+        {dashboardStyle || quizStyle ? (
+          <Icon as={Palette} size={dashboardStyle ? 'md' : 'sm'} strokeWidth={2.1} aria-hidden="true" />
         ) : (
           <span
             aria-hidden="true"
@@ -70,13 +79,11 @@ export default function ThemeSelector({ compact = false, onDark = false, quizSty
             }}
           />
         )}
-        {!compact && !quizStyle && (
+        {!compact && !quizStyle && !dashboardStyle && (
           <span className="hidden sm:inline text-xs">{current.label}</span>
         )}
-        {!quizStyle && (
-          <svg aria-hidden="true" className="w-3 h-3 opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M19 9l-7 7-7-7" />
-          </svg>
+        {!quizStyle && !dashboardStyle && (
+          <Icon as={ChevronDown} size="xs" strokeWidth={2.1} className="opacity-60" aria-hidden="true" />
         )}
       </button>
 
@@ -89,7 +96,7 @@ export default function ThemeSelector({ compact = false, onDark = false, quizSty
       </span>
 
       {/* Mobile text label — visible only on small screens where hover doesn't exist */}
-      <span aria-hidden="true" className="mt-0.5 text-[9px] font-bold leading-none theme-text-muted sm:hidden">
+      <span aria-hidden="true" className={`${dashboardStyle ? 'mt-1 text-[10px] font-black' : 'mt-0.5 text-[9px] font-bold sm:hidden'} leading-none theme-text-muted`}>
         Theme
       </span>
 

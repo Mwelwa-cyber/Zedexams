@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { X, ArrowLeft, Sparkles } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, Check, CheckCircleIcon, CreditCard, Sparkles, X } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import { PLANS, PAYMENT_DETAILS } from '../../utils/subscriptionConfig'
 import { initiateMomoPayment, pollMomoPayment } from '../../utils/momoPayments'
@@ -109,7 +109,9 @@ export default function UpgradeModal({ onClose }) {
           >
             <Icon as={X} size="md" />
           </button>
-          <div className="text-4xl mb-1">⭐</div>
+          <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 text-white">
+            <Icon as={Sparkles} size="lg" strokeWidth={2.1} />
+          </div>
           <h2 className="text-2xl font-black text-white">Upgrade to Premium</h2>
           <p className="text-white/90 text-sm mt-1">Unlock unlimited learning</p>
         </div>
@@ -140,7 +142,7 @@ export default function UpgradeModal({ onClose }) {
                       <ul className="mt-3 space-y-1">
                         {item.features.map((feature) => (
                           <li key={feature} className="text-sm text-gray-700 flex items-center gap-2">
-                            <span className="text-green-500 font-black">✓</span>
+                            <Icon as={Check} size="sm" strokeWidth={2.1} className="text-green-500" />
                             {feature}
                           </li>
                         ))}
@@ -197,7 +199,9 @@ export default function UpgradeModal({ onClose }) {
 
           {step === 'processing' && plan && (
             <div className="text-center py-4">
-              <div className="text-6xl mb-4 animate-bounce">📲</div>
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-yellow-50 text-yellow-700 animate-bounce">
+                <Icon as={CreditCard} size="xl" strokeWidth={2.1} />
+              </div>
               <h3 className="text-2xl font-black text-gray-800 mb-2">Approve the Prompt</h3>
               <p className="text-gray-600 mb-4">{statusText || 'We are waiting for MTN to confirm your payment.'}</p>
               <div className="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-4 mb-4 text-sm text-yellow-800">
@@ -211,7 +215,9 @@ export default function UpgradeModal({ onClose }) {
 
           {step === 'success' && (
             <div className="text-center py-4">
-              <div className="text-6xl mb-4">🎉</div>
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-green-50 text-green-700">
+                <Icon as={CheckCircleIcon} size="xl" strokeWidth={2.1} />
+              </div>
               <h3 className="text-2xl font-black text-gray-800 mb-2">Payment Successful!</h3>
               <p className="text-gray-600 mb-4">Your <strong>{plan?.name}</strong> plan is active now.</p>
               <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-4 mb-4 text-sm text-green-800">
@@ -224,7 +230,9 @@ export default function UpgradeModal({ onClose }) {
 
           {step === 'failed' && (
             <div className="text-center py-4">
-              <div className="text-6xl mb-4">⚠️</div>
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-red-50 text-red-700">
+                <Icon as={AlertTriangle} size="xl" strokeWidth={2.1} />
+              </div>
               <h3 className="text-2xl font-black text-gray-800 mb-2">Payment Not Completed</h3>
               <p className="text-gray-600 mb-4">{error || 'The payment did not complete this time.'}</p>
               <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-4 mb-4 text-sm text-green-800">

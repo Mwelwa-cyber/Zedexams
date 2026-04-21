@@ -16,7 +16,7 @@ import {
   LogOut,
   Sparkles,
   Users,
-} from 'lucide-react'
+} from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import Logo from '../ui/Logo'
 import ThemeSelector from '../ui/ThemeSelector'

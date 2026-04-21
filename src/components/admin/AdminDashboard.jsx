@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Sprout, ChevronRight } from 'lucide-react'
+import { Sprout, ChevronRight } from '../ui/icons'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
 import { clearSeedFirestore, seedFirestore } from '../../utils/seedData'
@@ -148,7 +148,7 @@ export default function AdminDashboard() {
           { icon: '🧑‍🏫', label: 'Teacher Apps',     value: stats.teacherApps, color: 'blue',    linkTo: '/admin/teacher-applications'            },
           { icon: '📋',   label: stats.waitlistPending > 0 ? `Waitlist · ${stats.waitlistPending} new` : 'Waitlist', value: stats.waitlist, color: 'green', linkTo: '/admin/waitlist'                    },
           { icon: '✨',   label: stats.gensFlagged > 0 ? `AI Gens · ${stats.gensFlagged} flagged` : `AI Gens · $${stats.gensCostUsd}`, value: stats.gens, color: stats.gensFlagged > 0 ? 'yellow' : 'purple', linkTo: '/admin/generations' },
-        ].map((s, i) => (
+        ].map(s => (
           <div key={s.label} className="animate-slide-in-soft">
             <StatCard icon={s.icon} label={s.label} value={s.value} color={s.color} loading={loading} linkTo={s.linkTo} />
           </div>

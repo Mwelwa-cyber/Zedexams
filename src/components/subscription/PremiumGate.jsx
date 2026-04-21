@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Lock, Sparkles, X } from 'lucide-react'
+import { Lock, Sparkles, X } from '../ui/icons'
 import { useSubscription } from '../../hooks/useSubscription'
 import UpgradeModal from './UpgradeModal'
 import Button from '../ui/Button'
@@ -52,7 +52,7 @@ export function AccessBadge({ onUpgradeClick }) {
       style={colors.border ? { borderColor: colors.border } : undefined}
     >
       <div className="flex items-center gap-2">
-        <span aria-hidden="true">{accessBadge.icon}</span>
+        <Icon as={Sparkles} size="sm" strokeWidth={2.1} />
         <span className={`font-black ${colors.text}`}>{accessBadge.label}</span>
         {isDemoOnly && (
           <span className="theme-text-muted text-xs font-bold">— Demo quizzes only</span>

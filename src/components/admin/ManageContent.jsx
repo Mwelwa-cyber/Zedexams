@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Plus, Download, X, ChevronRight } from 'lucide-react'
+import { Search, Plus, Download, X, ChevronRight } from '../ui/icons'
 import { useFirestore } from '../../hooks/useFirestore'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
@@ -393,15 +393,12 @@ export default function ManageContent() {
     )
   })
 
-  const filteredLessons = lessons.filter(l => {
-    const ls = l.status ?? (l.isPublished ? 'published' : 'draft')
-    return (
+  const filteredLessons = lessons.filter(l => (
       (!gradeF   || l.grade   === gradeF) &&
       (!subjectF || l.subject === subjectF) &&
 
       (!term     || l.title?.toLowerCase().includes(term) || l.subject?.toLowerCase().includes(term) || l.topic?.toLowerCase().includes(term))
-    )
-  })
+    ))
 
   const totalQuizzes    = quizzes.length
   const practiceCount   = quizzes.filter(q => q.quizType === 'practice').length

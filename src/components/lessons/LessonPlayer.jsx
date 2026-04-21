@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, ChevronLeft, ChevronRight, Maximize2, Volume2, Eye, EyeOff } from 'lucide-react'
+import { ArrowLeft, ChevronLeft, ChevronRight, Maximize2, Volume2, Eye, EyeOff } from '../ui/icons'
 import { useFirestore } from '../../hooks/useFirestore'
 import SlideRenderer from './SlideRenderer'
 import LessonCompleteScreen from './LessonCompleteScreen'

@@ -11,13 +11,15 @@ import {
   Menu,
   X,
   LogOut,
-} from 'lucide-react'
+  Sparkles,
+} from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSubscription } from '../../hooks/useSubscription'
 import { getRoleLandingPath } from '../../utils/navigation'
 import Logo from '../ui/Logo'
 import ThemeSelector from '../ui/ThemeSelector'
 import Icon from '../ui/Icon'
+import MobileBottomNav from './MobileBottomNav'
 
 export default function Navbar() {
   const { userProfile, logout, isAdmin, isTeacher } = useAuth()
@@ -65,6 +67,7 @@ export default function Navbar() {
     }`
 
   return (
+    <>
     <nav className="theme-card border-b theme-border shadow-elev-md sticky top-0 z-40 backdrop-blur-md" style={{ backgroundColor: 'color-mix(in srgb, var(--card) 92%, transparent)' }}>
       <div className="max-w-5xl mx-auto px-4 h-20 flex items-center justify-between gap-4">
 
@@ -98,8 +101,8 @@ export default function Navbar() {
         {/* Right side — desktop */}
         <div className="hidden md:flex items-center gap-2 flex-shrink-0">
           {/* Access badge */}
-          <span className={`font-black text-xs px-2.5 py-1 rounded-full border ${badgeClass}`}>
-            {accessBadge.icon} {accessBadge.label}
+          <span className={`inline-flex items-center gap-1 font-black text-xs px-2.5 py-1 rounded-full border ${badgeClass}`}>
+            <Icon as={Sparkles} size="xs" strokeWidth={2.1} /> {accessBadge.label}
           </span>
 
           {/* Theme selector */}
@@ -157,8 +160,8 @@ export default function Navbar() {
                 <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
                   <p className="theme-text-muted text-xs capitalize">{userProfile?.role ?? 'learner'}</p>
                   {userProfile?.grade && <p className="theme-text-muted text-xs">· Grade {userProfile.grade}</p>}
-                  <span className={`text-xs font-black px-2 py-0.5 rounded-full border ${badgeClass}`}>
-                    {accessBadge.icon} {accessBadge.label}
+                  <span className={`inline-flex items-center gap-1 text-xs font-black px-2 py-0.5 rounded-full border ${badgeClass}`}>
+                    <Icon as={Sparkles} size="xs" strokeWidth={2.1} /> {accessBadge.label}
                   </span>
                 </div>
               </div>
@@ -204,5 +207,7 @@ export default function Navbar() {
         </div>
       )}
     </nav>
+    <MobileBottomNav />
+    </>
   )
 }

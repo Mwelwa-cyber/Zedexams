@@ -24,6 +24,7 @@ import {
   addDoc, serverTimestamp, setDoc, Timestamp, onSnapshot,
 } from 'firebase/firestore'
 import { db, auth } from '../firebase/config'
+import { describeFirestoreReadError, withFirestoreReadTimeout } from './firestoreTimeout'
 
 /* ─────────────────────────────────────────────────────────────────
  *  Taxonomy used by the Grade → Subject → Games list UI
@@ -67,7 +68,10 @@ export async function listGames({ grade, subject } = {}) {
   try {
     const parts = [where('active', '==', true)]
     if (grade != null) parts.push(where('grade', '==', Number(grade)))
-    const snap = await getDocs(query(collection(db, 'games'), ...parts))
+    const snap = await withFirestoreReadTimeout(
+      getDocs(query(collection(db, 'games'), ...parts)),
+      'games list',
+    )
     let rows = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
     if (subject) {
       const norm = subject.toLowerCase().trim()
@@ -82,7 +86,7 @@ export async function listGames({ grade, subject } = {}) {
     rows.sort((a, b) => (a.title || '').localeCompare(b.title || ''))
     return rows
   } catch (err) {
-    console.error('listGames failed', err)
+    console.warn('listGames: using bundled fallback because live games could not be read', describeFirestoreReadError(err))
     return []
   }
 }
@@ -90,13 +94,16 @@ export async function listGames({ grade, subject } = {}) {
 /** Load a single game document. Returns null if missing or inactive. */
 export async function getGame(gameId) {
   try {
-    const snap = await getDoc(doc(db, 'games', gameId))
+    const snap = await withFirestoreReadTimeout(
+      getDoc(doc(db, 'games', gameId)),
+      `game ${gameId}`,
+    )
     if (!snap.exists()) return null
     const data = { id: snap.id, ...snap.data() }
     if (data.active === false) return null
     return data
   } catch (err) {
-    console.error('getGame failed', err)
+    console.warn('getGame: using bundled fallback because live game could not be read', describeFirestoreReadError(err))
     return null
   }
 }

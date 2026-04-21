@@ -24,6 +24,7 @@
     "*.{js,jsx,mjs,cjs,ts,tsx,json,md,mdx,html,css,scss}": "node scripts/check-file-integrity.mjs"
   },
   "dependencies": {
+    "@heroicons/react": "^2.2.0",
     "@tiptap/core": "^3.22.3",
     "@tiptap/extension-color": "^3.22.3",
     "@tiptap/extension-highlight": "^3.22.3",
@@ -45,7 +46,6 @@
     "file-saver": "^2.0.5",
     "firebase": "^10.14.1",
     "katex": "^0.16.45",
-    "lucide-react": "^0.454.0",
     "pdfjs-dist": "^4.10.38",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

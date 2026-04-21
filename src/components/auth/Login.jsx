@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ArrowLeft, Eye, EyeOff, Mail } from 'lucide-react'
+import { ArrowLeft, Eye, EyeOff, EnvelopeIcon as Mail } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import { getRoleLandingPath } from '../../utils/navigation'
 import Logo from '../ui/Logo'
@@ -33,6 +33,10 @@ export default function Login() {
   const [resetLoading, setResetLoading]   = useState(false)
   const [resetSuccess, setResetSuccess]   = useState(false)
   const [resetError, setResetError]       = useState('')
+
+  useEffect(() => {
+    document.title = 'Sign In — ZedExams'
+  }, [])
 
   async function handleSubmit(e) {
     e.preventDefault()

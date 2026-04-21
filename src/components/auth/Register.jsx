@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { ref as storageRef, uploadBytes } from 'firebase/storage'
-import { ShieldCheck } from 'lucide-react'
+import { ShieldCheck } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
 import { storage } from '../../firebase/config'
@@ -53,6 +53,10 @@ export default function Register() {
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
   const [success, setSuccess] = useState('')
+
+  useEffect(() => {
+    document.title = 'Create Account — ZedExams'
+  }, [])
 
   function set(field) { return e => setForm(f => ({ ...f, [field]: e.target.value })) }
 

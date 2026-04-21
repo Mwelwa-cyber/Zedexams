@@ -40,6 +40,10 @@ export default function PlayGame() {
     return () => { cancelled = true }
   }, [gameId])
 
+  useEffect(() => {
+    if (game?.title) document.title = `${game.title} — ZedExams Games`
+  }, [game?.title])
+
   if (notFound) return <Navigate to="/games" replace />
   if (loading || !game) {
     return (

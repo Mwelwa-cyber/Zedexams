@@ -1,5 +1,5 @@
 /**
- * Icon — consistent sizing + stroke width wrapper around lucide-react.
+ * Icon — consistent sizing + stroke width wrapper around Heroicons.
  *
  * Why this exists: the app currently uses emoji for most iconography,
  * which doesn't render consistently across OSes and can't adapt to the
@@ -8,7 +8,7 @@
  *
  * Usage
  *   import Icon from '@/components/ui/Icon'
- *   import { Home, BookOpen, ChevronRight } from 'lucide-react'
+ *   import { Home, BookOpen, ChevronRight } from './icons'
  *
  *   <Icon as={Home} />                    // md, stroke 2.25
  *   <Icon as={ChevronRight} size="sm" />
@@ -21,8 +21,8 @@
  *   lg — 24 px   (section headers)
  *   xl — 32 px   (feature cards, empty states)
  *
- * Stroke width is intentionally slightly heavier than Lucide's default
- * (2.0 → 2.25) to match the Nunito/Outfit weight rhythm.
+ * Stroke width is intentionally shared across every outline icon so the
+ * dashboard, nav, and page controls keep one visual weight.
  */
 
 const SIZE_PX = { xs: 12, sm: 16, md: 20, lg: 24, xl: 32 }

@@ -22,6 +22,7 @@ export default function SubjectSelector() {
 
   useEffect(() => {
     if (!gradeMeta) return
+    document.title = `${gradeMeta.label} Games — ZedExams`
     let cancelled = false
     async function load() {
       try {

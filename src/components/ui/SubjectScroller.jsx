@@ -1,3 +1,6 @@
+import Icon from './Icon'
+import { BookOpen } from './icons'
+
 const VARIANTS = {
   indigo: {
     active: 'border-transparent theme-accent-fill theme-on-accent theme-shadow',
@@ -25,7 +28,7 @@ export default function SubjectScroller({
   onChange,
   variant = 'indigo',
   allLabel = 'All Subjects',
-  allIcon = '📚',
+  allIcon = BookOpen,
 }) {
   const styles = VARIANTS[variant] ?? VARIANTS.indigo
   const items = [{ id: '', label: allLabel, icon: allIcon }, ...subjects]
@@ -38,6 +41,7 @@ export default function SubjectScroller({
       >
         {items.map(subject => {
           const active = value === subject.id
+          const SubjectIcon = subject.icon
           return (
             <button
               key={subject.id || 'all-subjects'}
@@ -54,7 +58,9 @@ export default function SubjectScroller({
                 }`}
                 aria-hidden="true"
               >
-                {subject.icon}
+                {typeof SubjectIcon === 'function'
+                  ? <Icon as={SubjectIcon} size="md" strokeWidth={2.1} />
+                  : SubjectIcon}
               </span>
               <span className="min-w-0">
                 <span className="block truncate text-sm font-black leading-tight">

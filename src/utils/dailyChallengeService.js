@@ -20,6 +20,11 @@ import {
 } from 'firebase/firestore'
 import { db, auth } from '../firebase/config'
 import { GAMES_SEED } from '../data/gamesSeed'
+import {
+  describeFirestoreReadError,
+  isFirestoreReadTimeout,
+  withFirestoreReadTimeout,
+} from './firestoreTimeout'
 
 /** Today's challenge date key in YYYY-MM-DD (UTC). */
 export function todaysDateId(d = new Date()) {
@@ -44,15 +49,22 @@ function dateKeyToInt(dateId) {
  */
 export async function getTodaysChallenge() {
   const dateId = todaysDateId()
+  let liveReadsTimedOut = false
 
   // 1. Firestore override?
   try {
-    const snap = await getDoc(doc(db, 'daily_challenges', dateId))
+    const snap = await withFirestoreReadTimeout(
+      getDoc(doc(db, 'daily_challenges', dateId)),
+      "today's challenge override",
+    )
     if (snap.exists()) {
       const data = snap.data()
       const gameId = data.gameId
       if (gameId) {
-        const gameSnap = await getDoc(doc(db, 'games', gameId))
+        const gameSnap = await withFirestoreReadTimeout(
+          getDoc(doc(db, 'games', gameId)),
+          "today's challenge game",
+        )
         if (gameSnap.exists()) {
           return {
             game: { id: gameSnap.id, ...gameSnap.data() },
@@ -63,16 +75,22 @@ export async function getTodaysChallenge() {
       }
     }
   } catch (err) {
-    console.warn('getTodaysChallenge: override lookup failed', err)
+    liveReadsTimedOut = isFirestoreReadTimeout(err)
+    console.warn('getTodaysChallenge: override lookup failed', describeFirestoreReadError(err))
   }
 
   // 2. Rotation over published games
   let available = []
-  try {
-    const snap = await getDocs(query(collection(db, 'games'), where('active', '==', true)))
-    available = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
-  } catch (err) {
-    console.warn('getTodaysChallenge: games list failed — using seed', err)
+  if (!liveReadsTimedOut) {
+    try {
+      const snap = await withFirestoreReadTimeout(
+        getDocs(query(collection(db, 'games'), where('active', '==', true))),
+        "today's challenge games list",
+      )
+      available = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    } catch (err) {
+      console.warn('getTodaysChallenge: games list failed — using seed', describeFirestoreReadError(err))
+    }
   }
 
   if (!available.length) available = GAMES_SEED // fallback to bundled seed

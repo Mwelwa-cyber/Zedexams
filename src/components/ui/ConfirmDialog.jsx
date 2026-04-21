@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { AlertTriangle } from 'lucide-react'
+import { AlertTriangle } from './icons'
 import Button from './Button'
 import Icon from './Icon'
 
@@ -16,7 +16,7 @@ import Icon from './Icon'
  *   confirmLabel — text for the confirm button (default "Confirm")
  *   cancelLabel  — text for the cancel button (default "Cancel")
  *   variant      — "primary" | "danger" (default). Controls the confirm button.
- *   icon         — optional Lucide component (default AlertTriangle for danger)
+ *   icon         — optional Heroicons component (default AlertTriangle for danger)
  *   loading      — renders the confirm button in loading state
  *   onConfirm    — async or sync handler; parent closes the dialog on success
  *   onCancel     — handler for cancel/backdrop/Escape

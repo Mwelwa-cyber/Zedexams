@@ -5,12 +5,18 @@
  * hid typos and broken links. This page gives users a clear message and a
  * way back to their role's home.
  */
+import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { getRoleLandingPath } from '../../utils/navigation'
 
 export default function NotFound() {
   const { userProfile } = useAuth()
+
+  useEffect(() => {
+    document.title = 'Page Not Found — ZedExams'
+  }, [])
+
   const homePath = getRoleLandingPath(userProfile, '/login')
   const homeLabel = userProfile?.role === 'admin'
     ? 'Back to Admin'

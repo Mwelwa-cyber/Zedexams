@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { ChevronRight, LayoutGrid, Presentation } from 'lucide-react'
+import { ChevronRight, LayoutGrid, Presentation } from '../ui/icons'
 import { useFirestore } from '../../hooks/useFirestore'
 import ComingSoon from '../ui/ComingSoon'
 import { LESSON_GRADES, LESSON_SUBJECTS } from './lessonConstants'

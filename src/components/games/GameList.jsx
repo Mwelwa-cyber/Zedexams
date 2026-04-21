@@ -25,6 +25,7 @@ export default function GameList() {
 
   useEffect(() => {
     if (!gradeMeta || !subjectMeta) return
+    document.title = `${gradeMeta.label} ${subjectMeta.label} Games — ZedExams`
     let cancelled = false
     async function load() {
       const live = await listGames({ grade: gradeMeta.value, subject: subjectMeta.slug })

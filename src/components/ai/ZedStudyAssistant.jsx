@@ -28,9 +28,10 @@ import {
   Zap,
   GraduationCap,
   BookMarked,
-} from "lucide-react";
+} from "../ui/icons";
 import { sendAIChatStream } from "../../utils/aiAssistant";
 import { useSpeech } from "./useSpeech";
+import MobileBottomNav from "../layout/MobileBottomNav";
 
 // ═══════════════════════════════════════════════════════════════════
 // DESIGN SYSTEM — ZedExams Dark Academic
@@ -1992,6 +1993,7 @@ export default function ZedStudyAssistant() {
           </span>
         </div>
       </div>
+      <MobileBottomNav mode="static" className="bg-[#0F1D3A] border-[rgba(212,175,55,0.12)]" />
     </div>
   );
 }

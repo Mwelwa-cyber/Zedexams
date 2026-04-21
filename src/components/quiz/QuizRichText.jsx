@@ -8,7 +8,7 @@ import {
   Palette, Highlighter,
   Sigma, Table as TableIcon,
   X,
-} from 'lucide-react'
+} from '../ui/icons'
 import {
   createMathNodeHtml,
   createTableHtml,
@@ -124,7 +124,6 @@ const TEMPLATE_GROUPS = [
 ]
 
 // Flat list retained for backwards-compat (some callers import it).
-const QUICK_TEMPLATES = TEMPLATE_GROUPS.flatMap(g => g.items)
 
 // ── Symbol palette ────────────────────────────────────────────────────
 // Each entry: { latex, glyph, label? }
@@ -235,7 +234,6 @@ const SYMBOL_GROUPS = [
 ]
 
 // Flat list retained for backwards-compat.
-const SYMBOLS = SYMBOL_GROUPS.flatMap(g => g.items.map(i => i.latex))
 
 function joinClasses(...parts) {
   return parts.filter(Boolean).join(' ')
@@ -1098,7 +1096,7 @@ export function RichTextEditor({
                 }
               }
             }}
-            onKeyUp={(event) => {
+            onKeyUp={() => {
               rememberSelection()
               // Refresh the table toolbar target when the caret moves with arrows.
               const sel = window.getSelection()

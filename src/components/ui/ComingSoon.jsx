@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom'
-import { PencilLine, ArrowLeft, Search } from 'lucide-react'
+import { PencilLine, ArrowLeft, Search, Sparkles } from './icons'
 import Button from './Button'
 import Icon from './Icon'
 
@@ -9,7 +9,7 @@ import Icon from './Icon'
  * Props:
  *   title       — override the heading (default: "Coming Soon")
  *   message     — override the body text
- *   icon        — emoji shown above the title (default: "🚀")
+ *   icon        — Heroicons component shown above the title
  *   showQuizBtn — show the "Start a Quiz" button (default: true)
  *   onClearFilters — if provided, shows a "Clear Filters" button instead of
  *                    the full Coming Soon UI (for filtered-empty states)
@@ -17,7 +17,7 @@ import Icon from './Icon'
 export default function ComingSoon({
   title         = 'Coming Soon',
   message       = 'This section is under development.',
-  icon          = '🚀',
+  icon          = Sparkles,
   showQuizBtn   = true,
   onClearFilters,
 }) {
@@ -47,8 +47,11 @@ export default function ComingSoon({
     <div className="flex items-center justify-center min-h-[60vh] px-4 animate-fade-in">
       <div className="theme-card border theme-border rounded-3xl shadow-elev-sm w-full max-w-sm p-8 text-center">
 
-        {/* Animated icon — kept as emoji for warmth on empty states */}
-        <div className="text-6xl mb-4 animate-bounce-slow inline-block" aria-hidden="true">{icon}</div>
+        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl theme-accent-bg theme-accent-text animate-bounce-slow">
+          {typeof icon === 'function'
+            ? <Icon as={icon} size="xl" strokeWidth={2.1} />
+            : icon}
+        </div>
 
         {/* Decorative dots */}
         <div className="flex justify-center gap-1.5 mb-5" aria-hidden="true">
