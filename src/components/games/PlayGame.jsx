@@ -25,16 +25,25 @@ export default function PlayGame() {
     let cancelled = false
     async function load() {
       setLoading(true)
-      const live = await getGame(gameId)
-      if (cancelled) return
-      if (live) {
-        setGame(live)
-      } else {
+      try {
+        const live = await getGame(gameId)
+        if (cancelled) return
+        if (live) {
+          setGame(live)
+          return
+        }
         const fb = getFallbackGame(gameId)
         if (fb) setGame(fb)
         else setNotFound(true)
+      } catch (err) {
+        if (cancelled) return
+        console.error('PlayGame load failed', err)
+        const fb = getFallbackGame(gameId)
+        if (fb) setGame(fb)
+        else setNotFound(true)
+      } finally {
+        if (!cancelled) setLoading(false)
       }
-      setLoading(false)
     }
     load()
     return () => { cancelled = true }

@@ -52,12 +52,21 @@ export default function LessonPlayer() {
   const [teacherMode, setTeacherMode] = useState(false)
 
   useEffect(() => {
+    let cancelled = false
     async function load() {
-      const data = await getLessonById(lessonId)
-      setLesson(data)
-      setLoading(false)
+      try {
+        const data = await getLessonById(lessonId)
+        if (cancelled) return
+        setLesson(data)
+      } catch (err) {
+        console.error('LessonPlayer load failed', err)
+        if (!cancelled) setLesson(null)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
     }
     load()
+    return () => { cancelled = true }
   }, [lessonId])
 
   const slides = useMemo(() => {

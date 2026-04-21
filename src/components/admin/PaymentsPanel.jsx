@@ -97,6 +97,14 @@ export default function PaymentsPanel() {
     <div className="space-y-4">
       {toast && <div className="fixed top-4 right-4 z-50 bg-green-700 text-white font-bold px-5 py-3 rounded-2xl shadow-lg animate-slide-up text-sm">{toast}</div>}
 
+      <div>
+        <p className="text-eyebrow">Admin overview</p>
+        <h1 className="text-display-xl text-gray-800 mt-1">💳 Payments</h1>
+        <p className="text-body-sm text-gray-500 mt-1">
+          Review pending MTN MoMo payments, grant premium manually, and manage roles.
+        </p>
+      </div>
+
       <div className="flex gap-2 flex-wrap">
         {[
           { id: 'pending', label: '⏳ Pending' },

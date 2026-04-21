@@ -328,11 +328,21 @@ export default function ExamResultsPage() {
 
   useEffect(() => {
     if (!attemptId) return
-    getExamAttempt(attemptId).then(data => {
-      if (!data) { setError('Result not found.'); setLoading(false); return }
-      setAttempt(data)
-      setLoading(false)
-    })
+    let cancelled = false
+    getExamAttempt(attemptId)
+      .then(data => {
+        if (cancelled) return
+        if (!data) { setError('Result not found.'); setLoading(false); return }
+        setAttempt(data)
+        setLoading(false)
+      })
+      .catch(err => {
+        if (cancelled) return
+        console.error('ExamResultsPage load failed', err)
+        setError('Could not load result. Please try again.')
+        setLoading(false)
+      })
+    return () => { cancelled = true }
   }, [attemptId])
 
   async function handleViewCorrections() {

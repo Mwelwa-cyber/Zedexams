@@ -151,40 +151,45 @@ export default function QuizRunnerV2() {
 
   useEffect(() => {
     async function load() {
-      const [quizDoc, questionDocs] = await Promise.all([getQuizById(quizId), getQuestions(quizId)])
-      if (!quizDoc) {
-        setError('Quiz not found')
-        setLoading(false)
-        return
-      }
-      if (!quizDoc.isDemo && !canAccessFullContent) {
-        navigate('/quizzes', { replace: true, state: { blocked: true } })
-        return
-      }
-
-      const built = buildQuizDisplaySections(questionDocs, quizDoc.passages || [])
-      setQuiz(quizDoc)
-      setSections(built.sections)
-      setQuestions(built.questions)
-
-      // Auto-resume any in-progress session saved in localStorage
-      if (currentUser) {
-        const saved = loadQuizSession(quizId, currentUser.uid)
-        if (saved) {
-          setMode(saved.mode)
-          setAnswers(saved.answers || {})
-          setFlagged(saved.flagged || {})
-          setRevealed(saved.revealed || {})
-          setShortText(saved.shortText || {})
-          setAiResults(saved.aiResults || {})
-          setActiveSectionIndex(Math.min(saved.activeSectionIndex || 0, built.sections.length - 1))
-          if (saved.endTime) setEndTime(saved.endTime)
-          setStartTime(saved.startTime || Date.now())
-          setStarted(true)
+      try {
+        const [quizDoc, questionDocs] = await Promise.all([getQuizById(quizId), getQuestions(quizId)])
+        if (!quizDoc) {
+          setError('Quiz not found')
+          setLoading(false)
+          return
         }
-      }
+        if (!quizDoc.isDemo && !canAccessFullContent) {
+          navigate('/quizzes', { replace: true, state: { blocked: true } })
+          return
+        }
 
-      setLoading(false)
+        const built = buildQuizDisplaySections(questionDocs, quizDoc.passages || [])
+        setQuiz(quizDoc)
+        setSections(built.sections)
+        setQuestions(built.questions)
+
+        // Auto-resume any in-progress session saved in localStorage
+        if (currentUser) {
+          const saved = loadQuizSession(quizId, currentUser.uid)
+          if (saved) {
+            setMode(saved.mode)
+            setAnswers(saved.answers || {})
+            setFlagged(saved.flagged || {})
+            setRevealed(saved.revealed || {})
+            setShortText(saved.shortText || {})
+            setAiResults(saved.aiResults || {})
+            setActiveSectionIndex(Math.min(saved.activeSectionIndex || 0, built.sections.length - 1))
+            if (saved.endTime) setEndTime(saved.endTime)
+            setStartTime(saved.startTime || Date.now())
+            setStarted(true)
+          }
+        }
+      } catch (err) {
+        console.error('QuizRunner load failed', err)
+        setError('Could not load quiz. Please try again.')
+      } finally {
+        setLoading(false)
+      }
     }
 
     load()
