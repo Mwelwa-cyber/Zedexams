@@ -12,6 +12,7 @@ import {
   TEACHER_GRADES,
   TEACHER_SUBJECTS,
 } from '../../../utils/teacherTools'
+import { downloadCSV } from '../../../utils/csvExport'
 
 /**
  * Teacher Library — every generation the user has created, filterable and
@@ -55,6 +56,23 @@ export default function TeacherLibrary() {
     })
   }, [items, filters])
 
+  function handleExportCsv() {
+    if (!filtered.length) return
+    const rows = filtered.map((r) => ({
+      title: titleForGeneration(r),
+      tool: TOOL_META[r.tool]?.label || r.tool || '',
+      grade: r.inputs?.grade || '',
+      subject: r.inputs?.subject || '',
+      topic: r.inputs?.topic || '',
+      subtopic: r.inputs?.subtopic || '',
+      difficulty: r.inputs?.difficulty || '',
+      status: r.status || '',
+      createdAt: formatDate(r.createdAt),
+      exportedFormats: (r.exportedFormats || []).join('; '),
+    }))
+    downloadCSV(`zedexams-library-${new Date().toISOString().slice(0, 10)}.csv`, rows)
+  }
+
   return (
     <div className="min-h-screen theme-bg p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
@@ -67,6 +85,21 @@ export default function TeacherLibrary() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={handleExportCsv}
+              disabled={status !== 'ready' || filtered.length === 0}
+              title={
+                status !== 'ready'
+                  ? 'Load your library first'
+                  : filtered.length === 0
+                    ? 'No items to export'
+                    : `Export ${filtered.length} item${filtered.length === 1 ? '' : 's'} as CSV`
+              }
+              className="px-3 py-2 rounded-xl text-sm font-bold border theme-border hover:bg-slate-50 dark:hover:bg-slate-800 transition disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              ⬇️ Export CSV
+            </button>
             <Link
               to="/teacher/generate/lesson-plan"
               className="px-3 py-2 rounded-xl text-sm font-bold border theme-border hover:bg-slate-50 dark:hover:bg-slate-800 transition"
