@@ -16,8 +16,8 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="ZedExams" />
 
-    <!-- Favicon -->
-    <link rel="icon" type="image/png" href="/zedexams-logo.png?v=4" />
+    <!-- Favicon (inline SVG to avoid a separate blocking request; OG image still uses PNG) -->
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2064%2064%22%3E%3Crect%20width%3D%2264%22%20height%3D%2264%22%20rx%3D%2214%22%20fill%3D%22%23059669%22%2F%3E%3Ctext%20x%3D%2250%25%22%20y%3D%2256%25%22%20text-anchor%3D%22middle%22%20dominant-baseline%3D%22middle%22%20font-family%3D%22system-ui%2C-apple-system%2CSegoe%20UI%2CRoboto%2Csans-serif%22%20font-weight%3D%22800%22%20font-size%3D%2232%22%20fill%3D%22white%22%3EZ%3C%2Ftext%3E%3C%2Fsvg%3E" />
     <link rel="apple-touch-icon" href="/zedexams-logo.png?v=4" />
 
     <!-- Open Graph (Facebook, WhatsApp, LinkedIn) -->
@@ -36,11 +36,18 @@
     <meta name="twitter:description" content="Generate full Zambian CBC lesson plans, worksheets and flashcards in 30 seconds." />
     <meta name="twitter:image" content="https://zedexams.com/zedexams-logo.png?v=4" />
 
-    <!-- Fonts -->
+    <!-- Fonts — single CSS request, trimmed weights. Uses display=swap so text paints immediately. -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Lora:wght@600;700&family=Plus+Jakarta+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Outfit:wght@400;600;700;800&family=Lora:wght@600;700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+    />
+
+    <!-- Warm up the Firebase connections we'll open during auth so TLS isn't in the critical path -->
+    <link rel="preconnect" href="https://firestore.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://identitytoolkit.googleapis.com" crossorigin />
+    <link rel="dns-prefetch" href="https://firebaseinstallations.googleapis.com" />
 
     <!--
       Analytics (inactive by default).

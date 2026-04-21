@@ -32,6 +32,10 @@ import Superscript     from '@tiptap/extension-superscript'
 import Subscript       from '@tiptap/extension-subscript'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { MathInline }  from './MathInline.js'
+// KaTeX stylesheet is loaded here (instead of the app root) so it only ships
+// in the editor/viewer chunks that actually render math. Every path that
+// renders a MathInline node goes through this module.
+import 'katex/dist/katex.min.css'
 
 /**
  * @param {object} options
