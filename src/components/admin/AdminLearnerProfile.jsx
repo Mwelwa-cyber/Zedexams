@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { ArrowLeft, Mail, School, Calendar, Download } from 'lucide-react'
+import { ArrowLeft, Mail, School, Calendar, Download } from '../ui/icons'
 import { doc, getDoc } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { useFirestore } from '../../hooks/useFirestore'

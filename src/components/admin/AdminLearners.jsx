@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Download, ChevronLeft, ChevronRight, Users } from 'lucide-react'
+import { Search, Download, ChevronLeft, ChevronRight, Users } from '../ui/icons'
 import { useFirestore } from '../../hooks/useFirestore'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'

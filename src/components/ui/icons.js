@@ -114,6 +114,7 @@ export function RobotIcon(props) {
 export {
   AcademicCapIcon as GraduationCap,
   AcademicCapIcon,
+  AcademicCapIcon as School,
   ArrowDownTrayIcon as Download,
   ArrowDownTrayIcon,
   ArrowLeftIcon,
@@ -140,6 +141,7 @@ export {
   BookOpenIcon,
   BookOpenIcon as BookOpen,
   BookmarkSquareIcon,
+  CalendarDaysIcon as Calendar,
   CalendarDaysIcon as CalendarDays,
   ChartBarIcon,
   ChartBarIcon as BarChart3,
