@@ -154,13 +154,14 @@ function createGenerateLessonPlan(anthropicApiKeySecret) {
         throw err;
       }
 
-      const userPrompt = buildUserPrompt(inputs, contextBlock);
+      const userPrompt = buildUserPrompt(inputs);
       let raw = "";
       let usageInfo = {inputTokens: 0, outputTokens: 0};
       let modelUsed = DEFAULT_MODEL;
       try {
         const response = await callClaude(apiKey, {
           systemPrompt: SYSTEM_PROMPT,
+          cbcContextBlock: contextBlock,
           messages: [{role: "user", content: userPrompt}],
           maxTokens: 4000,
           temperature: 0.3,

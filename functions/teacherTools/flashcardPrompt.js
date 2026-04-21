@@ -12,7 +12,7 @@ const SYSTEM_PROMPT = `You are an expert Zambian teacher who creates revision fl
 
 Every flashcard set MUST follow the schema you are given exactly. Output must be a single valid JSON object — no prose, no markdown fences, no commentary.`;
 
-function buildUserPrompt(inputs, cbcContextBlock) {
+function buildUserPrompt(inputs) {
   const {
     grade,
     subject,
@@ -25,8 +25,6 @@ function buildUserPrompt(inputs, cbcContextBlock) {
   } = inputs;
 
   return [
-    cbcContextBlock,
-    "",
     "Generate a set of Zambian CBC revision flashcards for:",
     "",
     `- Grade / Class: ${grade}`,

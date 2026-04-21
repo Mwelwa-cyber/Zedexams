@@ -19,7 +19,7 @@ const SYSTEM_PROMPT = `You are an expert Zambian teacher who designs assessment 
 
 Your output MUST be a single valid JSON object matching the schema given. No prose, no markdown fences, no commentary outside the JSON.`;
 
-function buildUserPrompt(inputs, cbcContextBlock) {
+function buildUserPrompt(inputs) {
   const {
     grade,
     subject,
@@ -41,8 +41,6 @@ function buildUserPrompt(inputs, cbcContextBlock) {
   }[taskType] || "Design criteria that match this task type.";
 
   return [
-    cbcContextBlock,
-    "",
     "Generate a Zambian CBC assessment rubric for the following task:",
     "",
     `- Grade / Class: ${grade}`,

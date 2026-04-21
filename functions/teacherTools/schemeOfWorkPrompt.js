@@ -24,9 +24,8 @@ Your output MUST be a single valid JSON object matching the schema given. No pro
  * @param {object} inputs
  *   grade, subject, term (1|2|3), numberOfWeeks, school, teacherName,
  *   language, instructions
- * @param {string} cbcContextBlock
  */
-function buildUserPrompt(inputs, cbcContextBlock) {
+function buildUserPrompt(inputs) {
   const {
     grade,
     subject,
@@ -39,8 +38,6 @@ function buildUserPrompt(inputs, cbcContextBlock) {
   } = inputs;
 
   return [
-    cbcContextBlock,
-    "",
     "Produce a Zambian CBC Scheme of Work for the following:",
     "",
     `- Grade / Class: ${grade}`,

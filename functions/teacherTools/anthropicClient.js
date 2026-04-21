@@ -16,6 +16,7 @@ const DEFAULT_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5";
 
 async function callClaude(apiKey, {
   systemPrompt,
+  cbcContextBlock = null,
   messages,
   maxTokens = 4000,
   temperature = 0.3,
@@ -23,6 +24,18 @@ async function callClaude(apiKey, {
 }) {
   let res;
   try {
+    // Build system array. The static system prompt is cached so Anthropic skips
+    // re-processing it on repeated calls (same prompt, within 5-min TTL).
+    // The CBC context block (600-1200 tokens per call) is appended as a second
+    // cached block — it changes only when grade/subject/topic changes, so it
+    // hits the cache on most repeated uses of the same generator.
+    const systemBlocks = systemPrompt ? [
+      {type: "text", text: systemPrompt, cache_control: {type: "ephemeral"}},
+      ...(cbcContextBlock ? [
+        {type: "text", text: cbcContextBlock, cache_control: {type: "ephemeral"}},
+      ] : []),
+    ] : undefined;
+
     res = await fetch(ANTHROPIC_URL, {
       method: "POST",
       headers: {
@@ -34,18 +47,7 @@ async function callClaude(apiKey, {
         model,
         max_tokens: maxTokens,
         temperature,
-        // System prompt as a cacheable block. Anthropic silently ignores
-        // cache_control on blocks under the 1024-token minimum, so this is
-        // always safe. On cache hits (same system prompt, within 5 min TTL)
-        // Anthropic skips re-processing ~the entire system prompt, which is
-        // the biggest latency win for repeat generator use.
-        ...(systemPrompt ? {
-          system: [{
-            type: "text",
-            text: systemPrompt,
-            cache_control: {type: "ephemeral"},
-          }],
-        } : {}),
+        ...(systemBlocks ? {system: systemBlocks} : {}),
         messages,
       }),
     });
