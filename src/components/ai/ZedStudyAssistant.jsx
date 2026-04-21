@@ -29,7 +29,7 @@ import {
   GraduationCap,
   BookMarked,
 } from "lucide-react";
-import { sendAIChat } from "../../utils/aiAssistant";
+import { sendAIChatStream } from "../../utils/aiAssistant";
 import { useSpeech } from "./useSpeech";
 
 // ═══════════════════════════════════════════════════════════════════
@@ -507,17 +507,16 @@ RULES:
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// API — routes through the Firebase-authed /api/ai/chat proxy.
-// sendAIChat handles auth tokens, Netlify rewrite, rate limits, errors.
+// API — routes through the Firebase-authed /api/ai/chat proxy (SSE).
+// sendAIChatStream calls onToken for each chunk and onDone on completion.
+// Returns a cancel() function to abort the stream on unmount/retry.
 // ═══════════════════════════════════════════════════════════════════
-async function callAPI(systemPrompt, history, resolvedContext) {
-  // history is [{role, content}, ...] ending with the current user message.
+function callAPIStream(systemPrompt, history, resolvedContext, { onToken, onDone, onError }) {
   const last = history[history.length - 1];
   const priorHistory = history.slice(0, -1).map((m) => ({
     role: m.role,
     content: String(m.content || ""),
   }));
-  // Flatten resolved CBC context into the context field for server logging.
   const context = {
     area: "study",
     role: resolvedContext?.userType || "Learner",
@@ -525,11 +524,14 @@ async function callAPI(systemPrompt, history, resolvedContext) {
     subject: resolvedContext?.subject || "",
     topic: resolvedContext?.taskType || "",
   };
-  return sendAIChat({
+  return sendAIChatStream({
     message: String(last?.content || ""),
     history: priorHistory,
     context,
     systemPrompt,
+    onToken,
+    onDone,
+    onError,
   });
 }
 
@@ -600,49 +602,36 @@ strong{color:#0A1128;font-weight:700}em{color:#444;font-style:italic}
 
 // ═══════════════════════════════════════════════════════════════════
 // STREAMING HOOK
+// Real token streaming: appendToken() is called per SSE chunk.
+// cancel() aborts the network stream (via the cancel fn returned by
+// sendAIChatStream). reset() clears state between messages.
 // ═══════════════════════════════════════════════════════════════════
 function useStreaming() {
   const [streamText, setStreamText] = useState("");
   const [streaming, setStreaming] = useState(false);
-  const cancelRef = useRef(false);
-  const timerRef = useRef(null);
+  const cancelFnRef = useRef(null);
 
-  const stream = useCallback((fullText, onComplete) => {
-    if (timerRef.current) clearTimeout(timerRef.current);
+  const startStream = useCallback(() => {
     setStreamText("");
     setStreaming(true);
-    cancelRef.current = false;
-    const chars = fullText.split("");
-    let idx = 0;
-    const tick = () => {
-      if (cancelRef.current) { setStreaming(false); return; }
-      if (idx >= chars.length) {
-        setStreaming(false);
-        onComplete?.(fullText);
-        return;
-      }
-      // Fake-typewriter speed. Claude already finished — just paint it out
-      // fast enough to feel animated but not slow. For very long replies
-      // (>1500 chars) we take bigger chunks so lesson notes don't drag.
-      const longReply = chars.length > 1500;
-      const chunkSize = longReply
-        ? Math.floor(Math.random() * 12) + 12     // 12–23 chars/tick
-        : Math.floor(Math.random() * 8) + 8;       // 8–15 chars/tick
-      const n = Math.min(chunkSize, chars.length - idx);
-      setStreamText(prev => prev + chars.slice(idx, idx + n).join(""));
-      idx += n;
-      const baseDelay = longReply ? 3 : 5;
-      timerRef.current = setTimeout(
-        tick,
-        chars[idx] === "\n" ? baseDelay + 8 : baseDelay + Math.random() * 4,
-      );
-    };
-    tick();
+  }, []);
+
+  const appendToken = useCallback((token) => {
+    setStreamText((prev) => prev + token);
+  }, []);
+
+  const finishStream = useCallback(() => {
+    setStreaming(false);
+    cancelFnRef.current = null;
+  }, []);
+
+  const setCancelFn = useCallback((fn) => {
+    cancelFnRef.current = fn;
   }, []);
 
   const cancel = useCallback(() => {
-    cancelRef.current = true;
-    if (timerRef.current) clearTimeout(timerRef.current);
+    cancelFnRef.current?.();
+    cancelFnRef.current = null;
     setStreaming(false);
   }, []);
 
@@ -651,14 +640,11 @@ function useStreaming() {
     setStreamText("");
   }, [cancel]);
 
-  // Cancel the fake-typewriter timer on unmount so it can't call setState
-  // on a dead component and leak warnings.
   useEffect(() => () => {
-    cancelRef.current = true;
-    if (timerRef.current) clearTimeout(timerRef.current);
+    cancelFnRef.current?.();
   }, []);
 
-  return { streamText, streaming, stream, cancel, reset };
+  return { streamText, streaming, startStream, appendToken, finishStream, setCancelFn, cancel, reset };
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -1065,7 +1051,7 @@ export default function ZedStudyAssistant() {
   const inputRef = useRef(null);
   const activeStreamId = useRef(null);
 
-  const { streamText, streaming, stream, cancel: cancelStream, reset: resetStream } = useStreaming();
+  const { streamText, streaming, startStream, appendToken, finishStream, setCancelFn, cancel: cancelStream, reset: resetStream } = useStreaming();
 
   // Text-to-speech — Zed reads his responses aloud.
   // Speech-to-text — learner dictates into the input field.
@@ -1159,28 +1145,34 @@ export default function ZedStudyAssistant() {
     setMessages(prev => [...prev, userMsg, asstMsg]);
     setError(null);
 
-    try {
-      const reply = await callAPI(sysPrompt, apiHistory, resolved);
-      stream(reply, final => {
+    startStream();
+    const cancelFn = callAPIStream(sysPrompt, apiHistory, resolved, {
+      onToken: (token) => {
+        appendToken(token);
+      },
+      onDone: (final) => {
+        finishStream();
         setMessages(prev => prev.map(m =>
           m.id === asstId ? { ...m, text: final, isStreaming: false } : m
         ));
         if (activeStreamId.current === asstId) activeStreamId.current = null;
         setIsSending(false);
-        // Voice mode: when Zed finishes a reply, read it aloud.
         if (voiceMode && speech.supported) speech.speak(final, asstId);
-      });
-    } catch (err) {
-      const errMsg = err?.message || "Zed is having trouble responding right now. Please try again in a moment.";
-      setMessages(prev => prev.map(m =>
-        m.id === asstId ? { ...m, text: errMsg, isStreaming: false, isError: true } : m
-      ));
-      setError(err?.message || "Connection failed. Please check your internet and try again.");
-      setRetryPayload({ sysPrompt, apiHistory, resolved, asstIdFailed: asstId });
-      activeStreamId.current = null;
-      setIsSending(false);
-    }
-  }, [stream, voiceMode, speech]);
+      },
+      onError: (err) => {
+        finishStream();
+        const errMsg = err?.message || "Zed is having trouble responding right now. Please try again in a moment.";
+        setMessages(prev => prev.map(m =>
+          m.id === asstId ? { ...m, text: errMsg, isStreaming: false, isError: true } : m
+        ));
+        setError(err?.message || "Connection failed. Please check your internet and try again.");
+        setRetryPayload({ sysPrompt, apiHistory, resolved, asstIdFailed: asstId });
+        activeStreamId.current = null;
+        setIsSending(false);
+      },
+    });
+    setCancelFn(cancelFn);
+  }, [startStream, appendToken, finishStream, setCancelFn, voiceMode, speech]);
 
   const sendMessage = useCallback(async (override) => {
     if (activeStreamId.current) return;
@@ -1216,19 +1208,22 @@ export default function ZedStudyAssistant() {
     setIsSending(true);
     activeStreamId.current = newId;
 
-    callAPI(sysPrompt, apiHistory, resolved)
-      .then(reply => {
-        stream(reply, final => {
-          setMessages(prev => prev.map(m =>
-            m.id === newId ? { ...m, text: final, isStreaming: false } : m
-          ));
-          if (activeStreamId.current === newId) activeStreamId.current = null;
-          setIsSending(false);
-          // Voice mode: speak the retried reply too.
-          if (voiceMode && speech.supported) speech.speak(final, newId);
-        });
-      })
-      .catch((err) => {
+    startStream();
+    const cancelFn = callAPIStream(sysPrompt, apiHistory, resolved, {
+      onToken: (token) => {
+        appendToken(token);
+      },
+      onDone: (final) => {
+        finishStream();
+        setMessages(prev => prev.map(m =>
+          m.id === newId ? { ...m, text: final, isStreaming: false } : m
+        ));
+        if (activeStreamId.current === newId) activeStreamId.current = null;
+        setIsSending(false);
+        if (voiceMode && speech.supported) speech.speak(final, newId);
+      },
+      onError: (err) => {
+        finishStream();
         const errMsg = err?.message || "Zed is still having trouble responding. Please check your connection and try again.";
         setMessages(prev => prev.map(m =>
           m.id === newId
@@ -1239,8 +1234,10 @@ export default function ZedStudyAssistant() {
         setRetryPayload({ sysPrompt, apiHistory, resolved, asstIdFailed: newId });
         activeStreamId.current = null;
         setIsSending(false);
-      });
-  }, [retryPayload, isSending, stream, voiceMode, speech]);
+      },
+    });
+    setCancelFn(cancelFn);
+  }, [retryPayload, isSending, startStream, appendToken, finishStream, setCancelFn, voiceMode, speech]);
 
   const clearChat = () => {
     cancelStream();

@@ -15,6 +15,7 @@ const {
   buildImportStructureMessages,
   buildQuizMessages,
   callAnthropic,
+  callAnthropicStream,
   cleanString: cleanAiString,
   getAnthropicApiKey,
   getUserRole,
@@ -557,7 +558,7 @@ async function refreshPaymentStatus(paymentId, {skipIfNotDue = false} = {}) {
 }
 
 exports.apiAiChat = onRequest(
-  {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 30},
+  {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 60},
   async (req, res) => {
     res.set("Access-Control-Allow-Origin", "*");
     res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
@@ -572,47 +573,73 @@ exports.apiAiChat = onRequest(
       return;
     }
 
+    // ── Auth + validation (before any headers are sent) ─────────────
+    let decoded;
+    let systemPrompt;
+    let messages;
+    let apiKey;
     try {
       const token = (req.get("authorization") || "").replace(/^Bearer\s+/i, "");
       if (!token) {
         throw new HttpsError("unauthenticated", "Please sign in first.");
       }
+      decoded = await admin.auth().verifyIdToken(token);
 
-      const decoded = await admin.auth().verifyIdToken(token);
       const message = cleanAiString(req.body?.message, LIMITS.message);
       if (!message) {
-        throw new HttpsError(
-          "invalid-argument",
-          "Please enter a question for Zed.",
-        );
+        throw new HttpsError("invalid-argument", "Please enter a question for Zed.");
       }
 
       const role = await getUserRole(decoded.uid);
       await assertDailyLimit(decoded.uid, role, "chat");
 
-      const {systemPrompt, messages} = buildAnthropicChat({
+      ({systemPrompt, messages} = buildAnthropicChat({
         message,
         context: req.body?.context || {},
         history: req.body?.history || [],
         role,
         customSystemPrompt: req.body?.systemPrompt,
-      });
-      const reply = await callAnthropic(getAnthropicApiKey(anthropicApiKey), {
-        systemPrompt,
-        messages,
-        maxTokens: 1000,
-        temperature: 0.35,
-      });
-
-      res.status(200).json({reply});
+      }));
+      apiKey = getAnthropicApiKey(anthropicApiKey);
     } catch (error) {
-      console.error("apiAiChat error", {
+      console.error("apiAiChat auth/validation error", {
         code: error?.code,
         message: error?.message,
       });
       res.status(httpStatusForError(error)).json({
         error: error?.message || "Zed is unavailable right now.",
       });
+      return;
+    }
+
+    // ── Stream SSE to the client ──────────────────────────────────────
+    res.set("Content-Type", "text/event-stream; charset=utf-8");
+    res.set("Cache-Control", "no-cache");
+    res.set("Connection", "keep-alive");
+    res.set("X-Accel-Buffering", "no"); // disable Nginx buffering if present
+    res.status(200);
+    // Flush an initial keep-alive comment so the client knows the connection opened.
+    res.write(": connected\n\n");
+
+    try {
+      await callAnthropicStream(
+        apiKey,
+        {systemPrompt, messages, maxTokens: 1000, temperature: 0.35},
+        (token) => {
+          res.write(`data: ${JSON.stringify({text: token})}\n\n`);
+        },
+      );
+      res.write("data: [DONE]\n\n");
+    } catch (error) {
+      console.error("apiAiChat stream error", {
+        code: error?.code,
+        message: error?.message,
+      });
+      // Best-effort: send error event then close. The client uses [ERROR] to
+      // surface a user-facing message and fall back gracefully.
+      res.write(`data: [ERROR] ${JSON.stringify({error: error?.message || "Zed is unavailable right now."})}\n\n`);
+    } finally {
+      res.end();
     }
   },
 );

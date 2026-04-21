@@ -910,6 +910,96 @@ function parseStructuredImport(raw) {
   return {sections, warnings};
 }
 
+/**
+ * Streams a Claude response token-by-token. Calls onToken(text) for each
+ * text_delta event, then returns the full concatenated text.
+ *
+ * Prompt caching is included: the system prompt is sent as a structured
+ * cacheable block. Use this for all streaming chat paths.
+ */
+async function callAnthropicStream(apiKey, {
+  systemPrompt,
+  messages,
+  maxTokens = 1000,
+  temperature = 0.35,
+}, onToken) {
+  let res;
+  try {
+    res = await fetch(ANTHROPIC_URL, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": ANTHROPIC_VERSION,
+      },
+      body: JSON.stringify({
+        model: ANTHROPIC_MODEL,
+        max_tokens: maxTokens,
+        temperature,
+        stream: true,
+        ...(systemPrompt ? {
+          system: [{
+            type: "text",
+            text: systemPrompt,
+            cache_control: {type: "ephemeral"},
+          }],
+        } : {}),
+        messages,
+      }),
+    });
+  } catch (err) {
+    console.error("callAnthropicStream fetch failed", err);
+    throw new HttpsError("unavailable", "AI is temporarily unavailable. Please try again.");
+  }
+
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    console.error("callAnthropicStream API error", {
+      status: res.status,
+      type: body?.error?.type,
+      message: body?.error?.message,
+    });
+    if (res.status === 429) {
+      throw new HttpsError("resource-exhausted", "AI is busy. Please wait a moment and try again.");
+    }
+    throw new HttpsError("unavailable", "AI is temporarily unavailable. Please try again.");
+  }
+
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let fullText = "";
+
+  while (true) {
+    const {done, value} = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, {stream: true});
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+    for (const line of lines) {
+      if (!line.startsWith("data: ")) continue;
+      const raw = line.slice(6).trim();
+      if (raw === "[DONE]") continue;
+      try {
+        const parsed = JSON.parse(raw);
+        if (
+          parsed.type === "content_block_delta" &&
+          parsed.delta?.type === "text_delta" &&
+          typeof parsed.delta.text === "string"
+        ) {
+          const token = parsed.delta.text;
+          fullText += token;
+          onToken(token);
+        }
+      } catch {
+        // ignore malformed SSE lines
+      }
+    }
+  }
+
+  return fullText;
+}
+
 module.exports = {
   LIMITS,
   assertDailyLimit,
@@ -919,6 +1009,7 @@ module.exports = {
   buildImportStructureMessages,
   buildQuizMessages,
   callAnthropic,
+  callAnthropicStream,
   callOpenAI,
   cleanContext,
   cleanChatHistory,

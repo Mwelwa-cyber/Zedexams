@@ -183,6 +183,121 @@ function makeLocalQuizQuestions(payload) {
   })
 }
 
+/**
+ * Streaming version of sendAIChat. Connects to the SSE endpoint and calls
+ * onToken(text) for each text chunk as it arrives. Calls onDone(fullText)
+ * when the stream completes, or onError(err) on failure.
+ *
+ * Falls back to the buffered callable path in DEV so the dev server works
+ * without needing a running Cloud Functions emulator.
+ */
+export function sendAIChatStream({ message, context, history = [], systemPrompt, onToken, onDone, onError }) {
+  const payload = { message, context, history }
+  if (systemPrompt) payload.systemPrompt = systemPrompt
+
+  let cancelled = false
+
+  async function run() {
+    let token
+    try {
+      token = await auth.currentUser?.getIdToken()
+      if (!token) throw new Error('Please sign in before using Zed.')
+    } catch (err) {
+      onError?.(new Error(messageFromError(err)))
+      return
+    }
+
+    // DEV fallback: callable doesn't stream so we get the full reply and
+    // pass it through onToken in one shot, then onDone.
+    if (import.meta.env.DEV) {
+      try {
+        const response = await withTimeout(
+          aiChatCallable(payload),
+          AI_CHAT_TIMEOUT_MS,
+          'Zed is taking too long to reply. Please try again in a moment.',
+        )
+        const reply = String(response.data?.reply || '').trim()
+        if (!cancelled) {
+          onToken?.(reply)
+          onDone?.(reply)
+        }
+        return
+      } catch (err) {
+        if (!cancelled) onError?.(new Error(messageFromError(err)))
+        return
+      }
+    }
+
+    let fullText = ''
+    try {
+      const response = await withTimeout(
+        fetch('/api/ai/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify(payload),
+        }),
+        AI_CHAT_TIMEOUT_MS,
+        'Zed is taking too long to reply. Please try again in a moment.',
+      )
+
+      if (!response.ok || !response.body) {
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.error || 'Zed is unavailable right now. Please try again.')
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done || cancelled) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() ?? ''
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue
+          const raw = line.slice(6).trim()
+          if (raw === '[DONE]') {
+            if (!cancelled) onDone?.(fullText)
+            return
+          }
+          if (raw.startsWith('[ERROR]')) {
+            try {
+              const { error } = JSON.parse(raw.slice(7).trim())
+              throw new Error(error || 'Zed is unavailable right now.')
+            } catch (parseErr) {
+              throw new Error('Zed is unavailable right now. Please try again.')
+            }
+          }
+          try {
+            const { text } = JSON.parse(raw)
+            if (typeof text === 'string') {
+              fullText += text
+              if (!cancelled) onToken?.(text)
+            }
+          } catch {
+            // ignore malformed SSE lines
+          }
+        }
+      }
+
+      // Stream ended without [DONE] — treat accumulated text as complete.
+      if (!cancelled) onDone?.(fullText)
+    } catch (err) {
+      if (!cancelled) onError?.(new Error(err?.message || messageFromError(err)))
+    }
+  }
+
+  run()
+
+  // Return a cancel function so the component can stop the stream on unmount.
+  return () => { cancelled = true }
+}
+
 export async function sendAIChat({ message, context, history = [], systemPrompt }) {
   const payload = { message, context, history }
   if (systemPrompt) payload.systemPrompt = systemPrompt
