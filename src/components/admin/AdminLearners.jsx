@@ -4,6 +4,7 @@ import { Search, Download, ChevronLeft, ChevronRight, Users } from 'lucide-react
 import { useFirestore } from '../../hooks/useFirestore'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
+import { downloadCSV } from '../../utils/csvExport'
 
 const GRADES = ['4', '5', '6', '7', '8', '9', '10', '11', '12']
 const PAGE_SIZE = 20
@@ -44,28 +45,6 @@ function fmtDate(ts) {
   const d = ts.toDate ? ts.toDate() : new Date(ts)
   if (Number.isNaN(d.getTime())) return '—'
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
-}
-
-function toCSV(rows) {
-  if (!rows.length) return ''
-  const headers = Object.keys(rows[0])
-  const escape = (v) => {
-    const s = String(v ?? '')
-    if (/[",\n]/.test(s)) return `"${s.replace(/"/g, '""')}"`
-    return s
-  }
-  return [headers.join(','), ...rows.map(r => headers.map(h => escape(r[h])).join(','))].join('\n')
-}
-
-function downloadCSV(filename, rows) {
-  const csv = toCSV(rows)
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
 }
 
 export default function AdminLearners() {
