@@ -20,9 +20,8 @@ Every worksheet MUST follow the schema you are given exactly. Output must be a s
  * @param {object} inputs
  *   grade, subject, topic, subtopic, count (num questions), difficulty,
  *   durationMinutes, includeAnswerKey, language, instructions
- * @param {string} cbcContextBlock - rendered <cbc_context>...</cbc_context>
  */
-function buildUserPrompt(inputs, cbcContextBlock) {
+function buildUserPrompt(inputs) {
   const {
     grade,
     subject,
@@ -44,8 +43,6 @@ function buildUserPrompt(inputs, cbcContextBlock) {
   }[difficulty] || "Progress from easy to harder.";
 
   return [
-    cbcContextBlock,
-    "",
     "Generate a Zambian CBC worksheet for this lesson:",
     "",
     `- Grade / Class: ${grade}`,

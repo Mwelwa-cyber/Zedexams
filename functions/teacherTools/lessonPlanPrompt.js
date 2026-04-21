@@ -40,9 +40,8 @@ Your output MUST be a single valid JSON object matching the exact schema given. 
  *   grade, subject, topic, subtopic, durationMinutes, language,
  *   teacherName, school, numberOfPupils, boysPresent, girlsPresent,
  *   instructions (optional)
- * @param {string} cbcContextBlock - rendered <cbc_context>...</cbc_context>
  */
-function buildUserPrompt(inputs, cbcContextBlock) {
+function buildUserPrompt(inputs) {
   const {
     grade,
     subject,
@@ -59,8 +58,6 @@ function buildUserPrompt(inputs, cbcContextBlock) {
   } = inputs;
 
   return [
-    cbcContextBlock,
-    "",
     "Generate a Zambian CBC lesson plan for the following lesson:",
     "",
     `- Grade / Class: ${grade}`,
