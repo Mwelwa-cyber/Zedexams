@@ -4,6 +4,7 @@ import { useAuth } from './contexts/AuthContext'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import Navbar from './components/layout/Navbar'
 import { getRoleLandingPath } from './utils/navigation'
+import PageLoader from './components/ui/PageLoader'
 
 const Login = lazy(() => import('./components/auth/Login'))
 const Register = lazy(() => import('./components/auth/Register'))
@@ -81,7 +82,7 @@ function RootRedirect() {
   const { currentUser, userProfile, isAdmin, isTeacher, profileIssue } = useAuth()
   if (!currentUser) return <Navigate to="/teachers" replace />
   if (profileIssue) return <MissingProfileRecovery />
-  if (!userProfile) return <RouteFallback message="Loading your workspace…" />
+  if (!userProfile) return <PageLoader />
   return (
     <Navigate
       to={getRoleLandingPath({ role: userProfile.role, isAdmin, isTeacher })}
@@ -106,16 +107,6 @@ function TeacherRoute({ children }) {
   )
 }
 
-function RouteFallback({ message = 'Loading ZedExams…' }) {
-  return (
-    <div className="min-h-screen theme-bg flex items-center justify-center p-4">
-      <div className="theme-card border theme-border rounded-2xl px-5 py-4 shadow-sm text-center">
-        <div className="text-3xl mb-2 animate-bounce">📚</div>
-        <p className="theme-text font-black">{message}</p>
-      </div>
-    </div>
-  )
-}
 
 function MissingProfileRecovery() {
   const { currentUser, profileIssue, ensureUserProfile, logout } = useAuth()
@@ -190,7 +181,7 @@ function MissingProfileRecovery() {
 export default function App() {
   return (
     <BrowserRouter>
-      <Suspense fallback={<RouteFallback />}>
+      <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<RootRedirect />} />
           <Route path="/login"    element={<Login />} />

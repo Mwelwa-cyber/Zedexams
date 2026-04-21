@@ -467,7 +467,7 @@ export default function GradeHub() {
 
           <div className="flex items-center gap-2">
             <DataSaverToggle />
-            <ThemeSelector compact quizStyle />
+            <ThemeSelector compact />
 
             {/* ── Notifications bell ──────────────────────────────── */}
             {/* group/tt enables the CSS tooltip on hover/focus     */}
@@ -622,8 +622,15 @@ export default function GradeHub() {
               <h1 className="text-display-xl text-white">{firstName}!</h1>
               <p className="theme-hero-muted text-body-sm mt-1 italic">"Practise smart." — Prof. Pako 🦉</p>
 
+              {/* Grade pill */}
+              {userProfile?.grade && (
+                <div className="inline-flex items-center gap-1 bg-white/20 border border-white/30 text-white text-xs font-black px-2.5 py-1 rounded-full mt-2">
+                  📚 Grade {userProfile.grade}
+                </div>
+              )}
+
               {/* Stats row */}
-              <div className="flex items-center gap-4 mt-4 flex-wrap">
+              <div className="flex items-center gap-4 mt-3 flex-wrap">
                 <div>
                   <p className="text-white font-black text-xl leading-none">{stats.quizzes}</p>
                   <p className="theme-hero-muted text-xs font-bold">Quizzes</p>

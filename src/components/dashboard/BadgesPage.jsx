@@ -38,8 +38,8 @@ export default function BadgesPage() {
       <div className="flex items-center gap-4">
         {!dataSaver && <ProfessorPako size={60} mood={totalEarned > 3 ? 'excited' : 'normal'} animate={false} />}
         <div>
-          <h1 className="text-2xl font-black text-gray-800">🏆 My Badges</h1>
-          <p className="text-gray-500 text-sm mt-0.5">
+          <h1 className="text-2xl font-black theme-text">🏆 My Badges</h1>
+          <p className="theme-text-muted text-sm mt-0.5">
             {totalEarned} of {totalPossible} badges earned
           </p>
         </div>
@@ -49,7 +49,7 @@ export default function BadgesPage() {
       {gameBadges && (
         <section>
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-black text-gray-700 text-sm">🎮 Game Badges ({earnedGameBadgeIds.size}/{GAME_BADGES.length})</h2>
+            <h2 className="font-black theme-text text-sm">🎮 Game Badges ({earnedGameBadgeIds.size}/{GAME_BADGES.length})</h2>
             <Link to="/games" className="text-xs font-black text-amber-700 hover:text-amber-900">Play games →</Link>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -68,7 +68,7 @@ export default function BadgesPage() {
       {/* Earned */}
       {earned.length > 0 && (
         <section>
-          <h2 className="font-black text-gray-700 mb-3 text-sm">✅ Earned ({earned.length})</h2>
+          <h2 className="font-black theme-text mb-3 text-sm">✅ Earned ({earned.length})</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {earned.map(b => (
               <BadgeCard key={b.id} badge={b} earned earnedAt={b.earnedAt} size="md" />
@@ -80,7 +80,7 @@ export default function BadgesPage() {
       {/* In Progress */}
       {progress.length > 0 && (
         <section>
-          <h2 className="font-black text-gray-700 mb-3 text-sm">🔄 In Progress ({progress.length})</h2>
+          <h2 className="font-black theme-text mb-3 text-sm">🔄 In Progress ({progress.length})</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {progress
               .sort((a, b) => b.progress - a.progress)
@@ -103,7 +103,7 @@ export default function BadgesPage() {
         const locked = BADGES.filter(b => !earnedIds.has(b.id) && !progressMap[b.id])
         return locked.length > 0 ? (
           <section>
-            <h2 className="font-black text-gray-700 mb-3 text-sm">🔒 Locked ({locked.length})</h2>
+            <h2 className="font-black theme-text mb-3 text-sm">🔒 Locked ({locked.length})</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {locked.map(b => (
                 <BadgeCard key={b.id} badge={b} earned={false} progress={0} size="md" />
@@ -117,7 +117,7 @@ export default function BadgesPage() {
       {loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 animate-pulse h-24" />
+            <div key={i} className="theme-card rounded-2xl border theme-border p-4 animate-pulse h-24" />
           ))}
         </div>
       )}
@@ -136,13 +136,13 @@ function GameBadgeCard({ badge, earned, awardedAt }) {
           <div className="text-4xl shrink-0" aria-hidden="true">{badge.icon}</div>
           <div className="flex-1 min-w-0">
             <h3 className={`font-black leading-tight ${tier.text}`}>{badge.name}</h3>
-            <p className="text-xs text-gray-700 mt-0.5 line-clamp-2">{badge.description}</p>
+            <p className="text-xs theme-text-muted mt-0.5 line-clamp-2">{badge.description}</p>
             <div className="mt-1.5 flex items-center gap-2">
               <span className={`px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${tier.text} bg-white/70`}>
                 {tier.label}
               </span>
               {awardedAt && (
-                <span className="text-[10px] font-bold text-gray-500">
+                <span className="text-[10px] font-bold theme-text-muted">
                   earned {formatAwardedAt(awardedAt)}
                 </span>
               )}
@@ -153,13 +153,13 @@ function GameBadgeCard({ badge, earned, awardedAt }) {
     )
   }
   return (
-    <div className="relative rounded-2xl border-2 border-dashed border-gray-200 bg-white p-4 opacity-80">
+    <div className="relative rounded-2xl border-2 border-dashed theme-border theme-card p-4 opacity-80">
       <div className="flex items-start gap-3">
         <div className="text-4xl shrink-0 grayscale opacity-50" aria-hidden="true">{badge.icon}</div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-black text-gray-700 leading-tight">{badge.name}</h3>
-          <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{badge.hint}</p>
-          <span className="inline-block mt-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider text-gray-500 bg-gray-100">
+          <h3 className="font-black theme-text leading-tight">{badge.name}</h3>
+          <p className="text-xs theme-text-muted mt-0.5 line-clamp-2">{badge.hint}</p>
+          <span className="inline-block mt-1.5 px-1.5 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider theme-text-muted theme-bg-subtle">
             🔒 Locked
           </span>
         </div>

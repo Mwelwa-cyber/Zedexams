@@ -32,9 +32,9 @@ function fmtDate(ts) {
 
 function RoleChip({ role }) {
   const map = {
-    admin:   { label: 'Admin',   cls: 'bg-green-100 text-green-700'  },
-    teacher: { label: 'Teacher', cls: 'bg-blue-100  text-blue-700'   },
-    learner: { label: 'Learner', cls: 'bg-gray-100  text-gray-700'   },
+    admin:   { label: 'Admin',   cls: 'bg-white/25 text-white'  },
+    teacher: { label: 'Teacher', cls: 'bg-white/25 text-white'  },
+    learner: { label: 'Learner', cls: 'bg-white/20 text-white'  },
   }
   const r = map[role] ?? map.learner
   return (
@@ -131,11 +131,11 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen theme-bg pb-28">
       {/* ── Page Header ───────────────────────────────────────── */}
-      <div className="bg-gradient-to-br from-blue-600 to-blue-800 px-4 pt-8 pb-16">
+      <div className="theme-hero px-4 pt-8 pb-16" data-bg-gradient="true">
         <div className="max-w-lg mx-auto">
           <button
             onClick={() => navigate(homePath)}
-            className="flex items-center gap-1.5 text-blue-200 text-sm font-bold mb-5 hover:text-white transition-colors min-h-0 p-0 bg-transparent shadow-none"
+            className="flex items-center gap-1.5 text-white/70 text-sm font-bold mb-5 hover:text-white transition-colors min-h-0 p-0 bg-transparent shadow-none"
           >
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M15 19l-7-7 7-7" />
@@ -153,7 +153,7 @@ export default function ProfilePage() {
               <h1 className="text-white text-xl font-black leading-tight truncate">
                 {userProfile?.displayName ?? 'My Profile'}
               </h1>
-              <p className="text-blue-200 text-sm mt-0.5 truncate">{currentUser?.email}</p>
+              <p className="text-white/70 text-sm mt-0.5 truncate">{currentUser?.email}</p>
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <RoleChip role={userProfile?.role} />
                 <span className={`text-xs font-black px-2.5 py-1 rounded-full ${
@@ -174,7 +174,7 @@ export default function ProfilePage() {
       <div className="max-w-lg mx-auto px-4 -mt-8 space-y-4">
 
         {/* Stats strip */}
-        <div className="theme-card rounded-2xl border theme-border shadow-sm grid grid-cols-3 divide-x divide-gray-100">
+        <div className="theme-card rounded-2xl border theme-border shadow-sm grid grid-cols-3 divide-x divide-[var(--border)]">
           {[
             { icon: '✏️', value: loading ? '…' : quizCount, label: 'Quizzes' },
             { icon: '🏆', value: earnedBadges.length,        label: 'Badges'  },

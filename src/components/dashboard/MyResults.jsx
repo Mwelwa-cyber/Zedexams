@@ -116,12 +116,12 @@ export default function MyResults() {
       {/* Filters */}
       <div className="flex gap-2 flex-wrap mb-5">
         <select value={subjectF} onChange={e => setSubjectF(e.target.value)}
-          className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-green-500 focus:outline-none">
+          className="border-2 theme-border rounded-xl px-3 py-2 text-sm focus:outline-none theme-input focus:border-[var(--accent)]">
           <option value="">All Subjects</option>
           {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         <select value={modeF} onChange={e => setModeF(e.target.value)}
-          className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-green-500 focus:outline-none">
+          className="border-2 theme-border rounded-xl px-3 py-2 text-sm focus:outline-none theme-input focus:border-[var(--accent)]">
           <option value="">All Modes</option>
           <option value="practice">🌱 Practice</option>
           <option value="exam">🏆 Exam</option>
@@ -189,7 +189,7 @@ export default function MyResults() {
 
                 {/* Info */}
                 <div className="flex-1 min-w-0">
-                  <p className="font-black text-gray-800 text-sm leading-snug truncate group-hover:text-green-700 transition-colors">
+                  <p className="font-black theme-text text-sm leading-snug truncate group-hover:text-[var(--accent-fg)] transition-colors">
                     {r.quizTitle ?? 'Quiz'}
                   </p>
                   <div className="flex items-center gap-1.5 mt-1 flex-wrap">
@@ -197,20 +197,20 @@ export default function MyResults() {
                       {r.subject}
                     </span>
                     <span className="text-gray-400 text-xs">G{r.grade}</span>
-                    <span className="text-gray-400 text-xs">{r.mode === 'exam' ? '🏆' : '🌱'} {r.mode}</span>
-                    <span className="text-gray-400 text-xs">{fmt(r.completedAt)}</span>
+                    <span className="theme-text-muted text-xs">{r.mode === 'exam' ? '🏆' : '🌱'} {r.mode}</span>
+                    <span className="theme-text-muted text-xs">{fmt(r.completedAt)}</span>
                   </div>
                 </div>
 
                 {/* Score text + arrow */}
                 <div className="flex-shrink-0 text-right">
                   <p className={`font-black text-sm ${pctColor(r.percentage ?? 0)}`}>{r.score}/{r.totalMarks}</p>
-                  <p className="text-gray-300 text-xs group-hover:text-green-400 transition-colors">→</p>
+                  <p className="theme-text-muted text-xs opacity-50 group-hover:opacity-100 transition-opacity">→</p>
                 </div>
               </div>
 
               {/* Progress bar */}
-              <div className="mt-2.5 w-full bg-gray-100 rounded-full h-1.5">
+              <div className="mt-2.5 w-full theme-bg-subtle rounded-full h-1.5">
                 <div className={`h-1.5 rounded-full transition-all ${pctBg(r.percentage ?? 0)}`}
                   style={{ width: `${r.percentage ?? 0}%` }} />
               </div>

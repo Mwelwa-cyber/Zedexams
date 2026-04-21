@@ -9,6 +9,7 @@ import PremiumGate from '../subscription/PremiumGate'
 import Mascot from '../ui/Mascot'
 import Button from '../ui/Button'
 import Skeleton from '../ui/Skeleton'
+import ProgressWidget from './ProgressWidget'
 
 const STARS = [
   { top: '10%', left:  '7%',  delay: '0s',    dur: '3.2s', emoji: '⭐', cls: 'text-xl opacity-70' },
@@ -76,7 +77,7 @@ export default function StudentDashboard() {
     async function load() {
       if (!userProfile?.id) return
       const [r, w] = await Promise.all([
-        getUserResults(userProfile.id, 10),
+        getUserResults(userProfile.id, 30),
         canUseWeaknessAnalysis ? getWeaknessAnalysis(userProfile.id) : Promise.resolve([]),
       ])
       setResults(r); setWeakness(w); setLoading(false)
@@ -154,14 +155,21 @@ export default function StudentDashboard() {
           { icon: '🎯', label: 'Avg Score',    val: loading ? '…' : totalQuizzes > 0 ? `${avgScore}%` : '—', delay: '80ms'  },
           { icon: '🏆', label: 'Passed',       val: loading ? '…' : passed,                               delay: '160ms' },
         ].map(s => (
-          <div key={s.label} className="bg-white rounded-2xl border border-gray-100 p-3.5 text-center animate-pop"
+          <div key={s.label} className="theme-card rounded-2xl border theme-border p-3.5 text-center animate-pop"
             style={{ animationDelay: s.delay }}>
             <div className="text-2xl mb-1 animate-bounce-slow" style={{ animationDelay: s.delay }}>{s.icon}</div>
-            <div className="font-black text-xl text-gray-800">{s.val}</div>
+            <div className="font-black text-xl theme-text">{s.val}</div>
             <div className="text-xs text-gray-500 font-bold mt-0.5">{s.label}</div>
           </div>
         ))}
       </div>
+
+      {/* Progress tracking */}
+      <ProgressWidget
+        results={results}
+        streak={userProfile?.currentStreak ?? 0}
+        loading={loading}
+      />
 
       {/* Quick actions */}
       <div>
@@ -181,10 +189,10 @@ export default function StudentDashboard() {
 
       {/* Weakness analysis (premium) */}
       <PremiumGate feature="weaknessAnalysis">
-        <div className="bg-white rounded-2xl border border-gray-100 p-4">
+        <div className="theme-card rounded-2xl border theme-border p-4">
           <div className="flex items-center justify-between mb-3">
-            <h2 className="font-black text-gray-800 text-sm">🔍 Weak Topics</h2>
-            <span className="text-xs text-gray-400">Areas to improve</span>
+            <h2 className="font-black theme-text text-sm">🔍 Weak Topics</h2>
+            <span className="text-xs theme-text-muted">Areas to improve</span>
           </div>
           {weakness.length === 0 ? (
             <div className="text-center py-6">
