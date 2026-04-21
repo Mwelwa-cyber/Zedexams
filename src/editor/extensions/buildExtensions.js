@@ -19,7 +19,10 @@
 //   Using default imports for those produces a "default is not exported"
 //   build error. Do NOT swap these to default imports.
 import StarterKit      from '@tiptap/starter-kit'
-import Underline       from '@tiptap/extension-underline'
+// Underline is bundled in StarterKit as of Tiptap v3 — do NOT import it
+// separately. The old explicit Underline import produced "Duplicate extension
+// names found: ['underline']" warnings on every editor mount (one per quiz
+// question × several editor instances = 500+ console entries).
 import { TextStyle }   from '@tiptap/extension-text-style'
 import { Color }       from '@tiptap/extension-color'
 import TextAlign       from '@tiptap/extension-text-align'
@@ -48,9 +51,8 @@ export function buildExtensions({ placeholder = '', readOnly = false } = {}) {
     StarterKit.configure({
       heading:   { levels: [1, 2, 3] },
       codeBlock: false,  // not needed in a quiz editor
-      // History is included in StarterKit — keep it for undo/redo
+      // History + Underline are included in StarterKit — keep them.
     }),
-    Underline,
     TextStyle,   // required by Color
     Color,
     TextAlign.configure({ types: ['heading', 'paragraph'] }),
