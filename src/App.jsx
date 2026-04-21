@@ -33,6 +33,8 @@ const AdminResults = lazy(() => import('./components/admin/AdminResults'))
 const ContentApprovals = lazy(() => import('./components/admin/ContentApprovals'))
 const PaymentsPanel = lazy(() => import('./components/admin/PaymentsPanel'))
 const TeacherApplications = lazy(() => import('./components/admin/TeacherApplications'))
+const AdminLearners = lazy(() => import('./components/admin/AdminLearners'))
+const AdminLearnerProfile = lazy(() => import('./components/admin/AdminLearnerProfile'))
 const WaitlistAdmin = lazy(() => import('./components/admin/WaitlistAdmin'))
 const GenerationsAdmin = lazy(() => import('./components/admin/GenerationsAdmin'))
 const CbcKbAdmin = lazy(() => import('./components/admin/CbcKbAdmin'))
@@ -236,6 +238,8 @@ export default function App() {
           <Route path="/admin/generations/:id"          element={<AdminRoute><LibraryItemDetail /></AdminRoute>} />
           <Route path="/admin/cbc-kb"                   element={<AdminRoute><CbcKbAdmin /></AdminRoute>} />
           <Route path="/admin/games-seed"               element={<AdminRoute><GamesSeedAdmin /></AdminRoute>} />
+          <Route path="/admin/learners"                 element={<AdminRoute><AdminLearners /></AdminRoute>} />
+          <Route path="/admin/learners/:learnerId"      element={<AdminRoute><AdminLearnerProfile /></AdminRoute>} />
           <Route path="/admin/results"                  element={<AdminRoute><AdminResults /></AdminRoute>} />
           <Route path="/admin/payments"                 element={<AdminRoute><PaymentsPanel /></AdminRoute>} />
           <Route path="/admin/generate/lesson-plan"     element={<AdminRoute><LessonPlanGenerator /></AdminRoute>} />

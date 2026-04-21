@@ -142,7 +142,7 @@ export default function AdminDashboard() {
         {[
           { icon: '📖',   label: 'Lessons',          value: stats.lessons,     color: 'green'                                                     },
           { icon: '📝',   label: 'Quizzes',          value: stats.quizzes,     color: 'blue'                                                      },
-          { icon: '👥',   label: 'Learners',         value: stats.learners,    color: 'orange'                                                    },
+          { icon: '👥',   label: 'Learners',         value: stats.learners,    color: 'orange', linkTo: '/admin/learners'                         },
           { icon: '📊',   label: 'Results',          value: stats.results,     color: 'purple'                                                    },
           { icon: '🔔',   label: 'Content Pending',  value: stats.pending,     color: 'yellow',  linkTo: '/admin/approvals'                       },
           { icon: '🧑‍🏫', label: 'Teacher Apps',     value: stats.teacherApps, color: 'blue',    linkTo: '/admin/teacher-applications'            },
@@ -165,6 +165,7 @@ export default function AdminDashboard() {
           <QuickAction to="/admin/quizzes/new?mode=import" icon="📄" label="Import Quiz" sub="Convert Word/PDF into editable questions" color="green" />
           <QuickAction to="/admin/quizzes/new?mode=ai" icon="✦" label="AI Quiz Generator" sub="Draft questions with Zed" color="blue" />
           <QuickAction to="/admin/content"     icon="📁" label="Manage Content" sub="Edit or delete existing content" color="orange" />
+          <QuickAction to="/admin/learners" icon="👥" label="View Learners" sub="Monitor learner activity and progress" color="orange" />
           <QuickAction to="/admin/teacher-applications" icon="🧑‍🏫" label="Review Teachers" sub="Approve verified teacher accounts" color="blue" />
           <QuickAction to="/admin/cbc-kb" icon="📚" label="CBC Knowledge Base" sub="Add custom curriculum topics (esp. G10–12)" color="green" />
         </div>

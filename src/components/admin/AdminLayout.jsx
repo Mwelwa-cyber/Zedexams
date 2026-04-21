@@ -15,6 +15,7 @@ import {
   X,
   LogOut,
   Sparkles,
+  Users,
 } from 'lucide-react'
 import { useAuth } from '../../contexts/AuthContext'
 import Logo from '../ui/Logo'
@@ -23,6 +24,7 @@ import Icon from '../ui/Icon'
 
 const NAV = [
   { to: '/admin',                        icon: LayoutDashboard, label: 'Dashboard',       end: true },
+  { to: '/admin/learners',               icon: Users,           label: 'Learners'                  },
   { to: '/admin/lessons',                icon: Presentation,    label: 'Lessons'                   },
   { to: '/admin/lessons/new',            icon: BookOpen,        label: 'Create Lesson'             },
   { to: '/admin/generate/lesson-plan',   icon: Sparkles,        label: 'AI Lesson Plan'            },
