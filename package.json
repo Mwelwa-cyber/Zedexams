@@ -16,10 +16,6 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "prepare": "husky",
-    "deploy": "npm run deploy:netlify",
-    "deploy:netlify": "npm run build && npx -y netlify-cli deploy --prod --dir=dist --site=5a7c0fa9-62b2-4137-a109-8a7478bf6148",
-    "deploy:netlify:preview": "npm run build && npx -y netlify-cli deploy --dir=dist --site=5a7c0fa9-62b2-4137-a109-8a7478bf6148",
-    "deploy:firebase:hosting": "npm run build && npx -y firebase-tools@latest deploy --only hosting",
     "deploy:firebase:functions": "npx -y firebase-tools@latest deploy --only functions",
     "deploy:firebase:firestore": "npx -y firebase-tools@latest deploy --only firestore",
     "preview": "vite preview"
