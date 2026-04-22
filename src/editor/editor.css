@@ -530,3 +530,150 @@
   from { opacity: 0; transform: translateX(-50%) translateY(8px); }
   to   { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
+
+/* ══════════════════════════════════════════════════════════════
+   MATH MODAL — categorised symbols + search
+   ══════════════════════════════════════════════════════════════ */
+
+.math-modal { max-width: 560px; }
+
+.math-search {
+  margin-bottom: 12px;
+  font-size: 13px;
+}
+
+.math-latex {
+  font-family: ui-monospace, 'Cascadia Code', Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  margin-bottom: 12px;
+}
+
+.sym-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 0 0 8px 0;
+  padding: 3px;
+  background: var(--vi3, #ede9fe);
+  border-radius: 10px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.sym-tab {
+  flex: 1 0 auto;
+  min-width: 64px;
+  padding: 6px 12px;
+  font: 600 12px 'Plus Jakarta Sans', sans-serif;
+  color: var(--ink2, #2d2548);
+  background: transparent;
+  border: none;
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background .12s, color .12s;
+}
+.sym-tab:hover { background: rgba(255,255,255,0.6); }
+.sym-tab.on {
+  background: #fff;
+  color: var(--vi, #5b21b6);
+  box-shadow: 0 1px 3px rgba(91,33,182,0.18);
+}
+
+.math-empty {
+  padding: 14px;
+  color: var(--sl4, #64748b);
+  font-size: 13px;
+  text-align: center;
+  background: var(--vi3, #ede9fe);
+  border-radius: 8px;
+  margin-bottom: 8px;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   MOBILE RESPONSIVENESS — phones + small tablets
+   ══════════════════════════════════════════════════════════════
+   The editor was desktop-only. These rules keep it usable on
+   screens down to ~360 px without touching the desktop experience.
+*/
+
+/* ── Tablets and small desktops (≤ 900 px) ── */
+@media (max-width: 900px) {
+  .qe-page { padding: 8px; }
+  .qe-body { max-width: 100%; }
+
+  /* Toolbar: horizontal scroll when buttons overflow instead of
+     cramped two-row layouts. */
+  .toolbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    scrollbar-width: thin;
+    -webkit-overflow-scrolling: touch;
+    padding: 6px 4px;
+  }
+  .toolbar .tbb { flex: 0 0 auto; }
+
+  /* Settings grid stacks on narrow viewports */
+  .qe-row { flex-direction: column; gap: 8px; }
+  .qe-row > .qe-field {
+    flex: 1 1 auto !important;
+    width: 100%;
+  }
+}
+
+/* ── Phones (≤ 640 px) ── */
+@media (max-width: 640px) {
+  /* Bigger tap targets — 36 px minimum for comfortable finger use. */
+  .tbb, .sym-tab, .sbtn, .tc { min-height: 36px; }
+  .tbb { padding: 8px 10px; }
+
+  /* Math modal takes most of the viewport */
+  .math-modal {
+    max-width: 96vw;
+    max-height: 92vh;
+  }
+  .modal .mbd {
+    max-height: 70vh;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Tighter grids on small screens */
+  .sgrid {
+    grid-template-columns: repeat(auto-fill, minmax(42px, 1fr)) !important;
+  }
+  .tgrid {
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr)) !important;
+  }
+
+  /* Editor/Preview tab buttons: equal width, larger tap area */
+  .qe-tabs .qe-tab {
+    flex: 1 1 0;
+    padding: 10px 6px;
+    font-size: 13px;
+  }
+
+  /* Save bar stacks so buttons don't squish */
+  .savebar {
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .savebar .btn { flex: 1 1 auto; min-width: 110px; }
+
+  /* Contextual table strip scrolls horizontally on phones */
+  .tblstrip {
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    -webkit-overflow-scrolling: touch;
+  }
+  .tblstrip .tbb { flex: 0 0 auto; }
+}
+
+/* ── Touch-specific polish ── */
+@media (hover: none) and (pointer: coarse) {
+  /* Kill hover-only affordances on touch devices. Active/pressed
+     states carry the visual feedback instead. */
+  .tbb:hover { background: inherit; }
+  .tbb:active { background: var(--vi3, #ede9fe); }
+  .sym-tab:hover { background: transparent; }
+  .sym-tab:active { background: rgba(255,255,255,0.6); }
+}
