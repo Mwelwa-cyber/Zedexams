@@ -99,14 +99,44 @@ function runCommand(editor, cmd, args) {
   }
 }
 
+// Touch-safe handler pair for toolbar buttons.
+//
+// Calling e.preventDefault() inside onMouseDown blocks the subsequent click
+// on mobile browsers ("like pictures — not working" symptom). The fix is
+// to split the two responsibilities:
+//   onMouseDown → prevent editor blur only
+//   onClick     → actually run the command (works on mouse AND touch)
+//
+// Spread the returned object into any <button>:
+//   <button {...tap(() => run('addRowBefore'))} />
+function tap(fn, disabled = false) {
+  return {
+    onMouseDown: (e) => e.preventDefault(),
+    onClick: (e) => { e.preventDefault(); if (!disabled) fn() },
+  }
+}
+
 function TBtn({
-  editor, cmd, args, title, active = false, disabled = false, children, extraClass = '', onMouseDown,
+  editor, cmd, args, title, active = false, disabled = false, children, extraClass = '', onAction,
 }) {
-  const handleMouseDown = (e) => {
-    e.preventDefault()
+  // TOUCH FIX — separate preventDefault from the action.
+  //
+  // Previous version did `e.preventDefault()` AND the command run inside
+  // the same `onMouseDown` handler. On mobile browsers, preventDefault
+  // in mousedown BLOCKS the subsequent click from firing. Result: buttons
+  // looked right but didn't activate — user described this as "like pictures."
+  //
+  // Fix: onMouseDown only prevents the editor blur (necessary to keep the
+  // selection). onClick runs the command — this fires for both mouse clicks
+  // and touch taps reliably across all browsers.
+
+  const preventBlur = (e) => e.preventDefault()
+
+  const handleClick = (e) => {
     if (disabled) return
-    if (onMouseDown) {
-      onMouseDown(e)
+    e.preventDefault()
+    if (onAction) {
+      onAction(e)
       return
     }
     runCommand(editor, cmd, args)
@@ -117,7 +147,8 @@ function TBtn({
       type="button"
       className={`tbb${active ? ' on' : ''}${extraClass ? ' ' + extraClass : ''}`}
       title={title}
-      onMouseDown={handleMouseDown}
+      onMouseDown={preventBlur}
+      onClick={handleClick}
       aria-pressed={active}
       disabled={disabled}
     >
@@ -183,7 +214,7 @@ export default function EditorToolbar({ editor, onMath, onTable }) {
           editor={editor}
           title="Undo (Ctrl+Z)"
           disabled={!toolbarState.canUndo}
-          onMouseDown={(e) => { e.preventDefault(); run('undo') }}
+          onAction={() => run('undo')}
         >
           <Undo2 size={15} strokeWidth={2.25} />
         </TBtn>
@@ -191,7 +222,7 @@ export default function EditorToolbar({ editor, onMath, onTable }) {
           editor={editor}
           title="Redo (Ctrl+Y)"
           disabled={!toolbarState.canRedo}
-          onMouseDown={(e) => { e.preventDefault(); run('redo') }}
+          onAction={() => run('redo')}
         >
           <Redo2 size={15} strokeWidth={2.25} />
         </TBtn>
@@ -256,11 +287,14 @@ export default function EditorToolbar({ editor, onMath, onTable }) {
         </TBtn>
         <div className="tbsep" />
 
-        {/* -- Text colour -- */}
+        {/* -- Text colour --
+            onMouseDown only prevents editor blur; onClick is what actually
+            runs (required for touch, see TBtn comment above). */}
         <div className="crel">
           <button
             type="button" className="tbb" title="Text colour"
-            onMouseDown={(e) => { e.preventDefault(); setShowHlColor(false); setShowTxColor((v) => !v) }}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={(e) => { e.preventDefault(); setShowHlColor(false); setShowTxColor((v) => !v) }}
           >
             <span style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '2px' }}>
               <span style={{ fontWeight: 900, fontSize: '12px', lineHeight: 1 }}>A</span>
@@ -270,9 +304,14 @@ export default function EditorToolbar({ editor, onMath, onTable }) {
           {showTxColor && (
             <div className="cpop">
               {TX_COLORS.map((c) => (
-                <div
-                  key={c} className="sw" style={{ background: c }}
-                  onMouseDown={(e) => {
+                <button
+                  key={c}
+                  type="button"
+                  className="sw"
+                  style={{ background: c }}
+                  aria-label={`Set text colour ${c}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={(e) => {
                     e.preventDefault()
                     editor.chain().focus().setColor(c).run()
                     setShowTxColor(false)
@@ -287,16 +326,31 @@ export default function EditorToolbar({ editor, onMath, onTable }) {
         <div className="crel">
           <button
             type="button" className="tbb" title="Highlight"
-            onMouseDown={(e) => { e.preventDefault(); setShowTxColor(false); setShowHlColor((v) => !v) }}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={(e) => { e.preventDefault(); setShowTxColor(false); setShowHlColor((v) => !v) }}
+            style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}
           >
-            🖌
+            {/* Highlighter glyph drawn with inline SVG so we don't need
+                an emoji that renders inconsistently across OSes. */}
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"
+              aria-hidden="true">
+              <path d="M9 11l-4 4h4l4-4" />
+              <path d="M15 5l4 4-9 9H6v-4l9-9z" />
+              <path d="M3 21h18" />
+            </svg>
           </button>
           {showHlColor && (
             <div className="cpop" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
               {HL_COLORS.map((c) => (
-                <div
-                  key={c} className="sw" style={{ background: c }}
-                  onMouseDown={(e) => {
+                <button
+                  key={c}
+                  type="button"
+                  className="sw"
+                  style={{ background: c }}
+                  aria-label={`Highlight ${c}`}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={(e) => {
                     e.preventDefault()
                     editor.chain().focus().toggleHighlight({ color: c }).run()
                     setShowHlColor(false)
@@ -308,10 +362,12 @@ export default function EditorToolbar({ editor, onMath, onTable }) {
         </div>
         <div className="tbsep" />
 
-        {/* -- Math + Table -- */}
+        {/* -- Math + Table --
+            Same touch-safe pattern: blur-prevention on mousedown, action on click. */}
         <button
           type="button" className="tbb tbm" title="Insert Math"
-          onMouseDown={(e) => { e.preventDefault(); onMath() }}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={(e) => { e.preventDefault(); onMath() }}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
         >
           <span style={{ fontWeight: 900, fontSize: '14px', lineHeight: 1 }}>Σ</span>
@@ -319,7 +375,8 @@ export default function EditorToolbar({ editor, onMath, onTable }) {
         </button>
         <button
           type="button" className="tbb tbt" title="Insert Table"
-          onMouseDown={(e) => { e.preventDefault(); onTable() }}
+          onMouseDown={(e) => e.preventDefault()}
+          onClick={(e) => { e.preventDefault(); onTable() }}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
         >
           <TableIcon size={14} strokeWidth={2.25} />
@@ -327,35 +384,31 @@ export default function EditorToolbar({ editor, onMath, onTable }) {
         </button>
       </div>
 
-      {/* -- Contextual table controls -- */}
+      {/* -- Contextual table controls --
+          Every button here uses the touch-safe tap(fn, disabled) helper
+          so taps register on mobile. See tap() definition above. */}
       {toolbarState.inTable && (
         <div className="tblstrip">
           <span className="tblslbl">Table:</span>
 
           <button
-            type="button"
-            className="tbb"
+            type="button" className="tbb" title="Add row before"
             disabled={!toolbarState.canAddRowBefore}
-            onMouseDown={(e) => { e.preventDefault(); run('addRowBefore') }}
-            title="Add row before"
+            {...tap(() => run('addRowBefore'), !toolbarState.canAddRowBefore)}
           >
             +Row↑
           </button>
           <button
-            type="button"
-            className="tbb"
+            type="button" className="tbb" title="Add row after"
             disabled={!toolbarState.canAddRowAfter}
-            onMouseDown={(e) => { e.preventDefault(); run('addRowAfter') }}
-            title="Add row after"
+            {...tap(() => run('addRowAfter'), !toolbarState.canAddRowAfter)}
           >
             +Row↓
           </button>
           <button
-            type="button"
-            className="tbb tbd"
+            type="button" className="tbb tbd" title="Delete row"
             disabled={!toolbarState.canDeleteRow}
-            onMouseDown={(e) => { e.preventDefault(); run('deleteRow') }}
-            title="Delete row"
+            {...tap(() => run('deleteRow'), !toolbarState.canDeleteRow)}
           >
             −Row
           </button>
@@ -363,29 +416,23 @@ export default function EditorToolbar({ editor, onMath, onTable }) {
           <div className="tbsep" />
 
           <button
-            type="button"
-            className="tbb"
+            type="button" className="tbb" title="Add column before"
             disabled={!toolbarState.canAddColumnBefore}
-            onMouseDown={(e) => { e.preventDefault(); run('addColumnBefore') }}
-            title="Add column before"
+            {...tap(() => run('addColumnBefore'), !toolbarState.canAddColumnBefore)}
           >
             +Col←
           </button>
           <button
-            type="button"
-            className="tbb"
+            type="button" className="tbb" title="Add column after"
             disabled={!toolbarState.canAddColumnAfter}
-            onMouseDown={(e) => { e.preventDefault(); run('addColumnAfter') }}
-            title="Add column after"
+            {...tap(() => run('addColumnAfter'), !toolbarState.canAddColumnAfter)}
           >
             +Col→
           </button>
           <button
-            type="button"
-            className="tbb tbd"
+            type="button" className="tbb tbd" title="Delete column"
             disabled={!toolbarState.canDeleteColumn}
-            onMouseDown={(e) => { e.preventDefault(); run('deleteColumn') }}
-            title="Delete column"
+            {...tap(() => run('deleteColumn'), !toolbarState.canDeleteColumn)}
           >
             −Col
           </button>
@@ -393,29 +440,25 @@ export default function EditorToolbar({ editor, onMath, onTable }) {
           <div className="tbsep" />
 
           <button
-            type="button"
-            className="tbb"
+            type="button" className="tbb" title="Merge selected cells"
             disabled={!toolbarState.canMergeCells}
-            onMouseDown={(e) => { e.preventDefault(); run('mergeCells') }}
-            title="Merge selected cells"
+            {...tap(() => run('mergeCells'), !toolbarState.canMergeCells)}
           >
             ⊞Merge
           </button>
           <button
-            type="button"
-            className="tbb"
+            type="button" className="tbb" title="Split merged cell"
             disabled={!toolbarState.canSplitCell}
-            onMouseDown={(e) => { e.preventDefault(); run('splitCell') }}
-            title="Split merged cell"
+            {...tap(() => run('splitCell'), !toolbarState.canSplitCell)}
           >
             ⊡Split
           </button>
           <button
             type="button"
             className={`tbb${toolbarState.headerCell ? ' on' : ''}`}
-            disabled={!toolbarState.canToggleHeaderRow}
-            onMouseDown={(e) => { e.preventDefault(); run('toggleHeaderRow') }}
             title="Toggle header row"
+            disabled={!toolbarState.canToggleHeaderRow}
+            {...tap(() => run('toggleHeaderRow'), !toolbarState.canToggleHeaderRow)}
           >
             Header
           </button>
@@ -423,11 +466,9 @@ export default function EditorToolbar({ editor, onMath, onTable }) {
           <div className="tbsep" />
 
           <button
-            type="button"
-            className="tbb tbd"
+            type="button" className="tbb tbd" title="Delete this table"
             disabled={!toolbarState.canDeleteTable}
-            onMouseDown={(e) => { e.preventDefault(); run('deleteTable') }}
-            title="Delete this table"
+            {...tap(() => run('deleteTable'), !toolbarState.canDeleteTable)}
           >
             ✕ Table
           </button>

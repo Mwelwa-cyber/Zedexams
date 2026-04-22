@@ -279,7 +279,9 @@ export default function MathModal({ editor, editState, onClose }) {
                   <div
                     key={t.label}
                     className={`tc${selTpl === i ? ' sel' : ''}`}
-                    onMouseDown={(e) => { e.preventDefault(); setSelTpl(i); setLatex(t.latex) }}
+                    // Touch-safe: mousedown only prevents focus loss; click fires on tap.
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => { setSelTpl(i); setLatex(t.latex) }}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
@@ -307,7 +309,8 @@ export default function MathModal({ editor, editState, onClose }) {
                     role="tab"
                     aria-selected={activeCat === cat.id}
                     className={`sym-tab${activeCat === cat.id ? ' on' : ''}`}
-                    onMouseDown={(e) => { e.preventDefault(); setActiveCat(cat.id) }}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => setActiveCat(cat.id)}
                   >
                     {cat.label}
                   </button>
@@ -333,7 +336,8 @@ export default function MathModal({ editor, editState, onClose }) {
                   type="button"
                   className="sbtn"
                   title={`${s.n} — ${s.l}`}
-                  onMouseDown={(e) => { e.preventDefault(); appendSym(s.l) }}
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => appendSym(s.l)}
                 >
                   {s.g}
                 </button>
