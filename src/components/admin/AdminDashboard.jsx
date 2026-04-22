@@ -4,7 +4,6 @@ import { Sprout, ChevronRight } from '../ui/icons'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
 import { clearSeedFirestore, seedFirestore } from '../../utils/seedData'
-import { getWaitlistSummary } from '../../utils/adminWaitlistService'
 import { getGenerationsSummary } from '../../utils/adminGenerationsService'
 import { db } from '../../firebase/config'
 import Button from '../ui/Button'
@@ -56,7 +55,7 @@ export default function AdminDashboard() {
   const { currentUser } = useAuth()
   const { getAllLessons, getAllQuizzes, getAllUsers, getAllResults, getPendingApprovals, getPendingTeacherApplications } = useFirestore()
 
-  const [stats, setStats]     = useState({ lessons: 0, quizzes: 0, learners: 0, results: 0, pending: 0, teacherApps: 0, waitlist: 0, waitlistPending: 0, gens: 0, gensFlagged: 0, gensCostUsd: '0.00' })
+  const [stats, setStats]     = useState({ lessons: 0, quizzes: 0, learners: 0, results: 0, pending: 0, teacherApps: 0, gens: 0, gensFlagged: 0, gensCostUsd: '0.00' })
   const [recent, setRecent]   = useState([])
   const [loading, setLoading] = useState(true)
   const [seeding, setSeeding] = useState(false)
@@ -91,9 +90,8 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     async function load() {
-      const [lessons, quizzes, users, results, pending, teacherApps, waitlist, gens] = await Promise.all([
+      const [lessons, quizzes, users, results, pending, teacherApps, gens] = await Promise.all([
         getAllLessons(), getAllQuizzes(), getAllUsers(), getAllResults(), getPendingApprovals(), getPendingTeacherApplications(),
-        getWaitlistSummary().catch(() => ({ total: 0, uncontacted: 0 })),
         getGenerationsSummary().catch(() => ({ total: 0, flagged: 0, totalCostUsd: '0.00' })),
       ])
       setStats({
@@ -103,8 +101,6 @@ export default function AdminDashboard() {
         results:  results.length,
         pending:  pending.length,
         teacherApps: teacherApps.length,
-        waitlist: waitlist.total,
-        waitlistPending: waitlist.uncontacted,
         gens: gens.total,
         gensFlagged: gens.flagged,
         gensCostUsd: gens.totalCostUsd,
@@ -146,7 +142,6 @@ export default function AdminDashboard() {
           { icon: '📊',   label: 'Results',          value: stats.results,     color: 'purple'                                                    },
           { icon: '🔔',   label: 'Content Pending',  value: stats.pending,     color: 'yellow',  linkTo: '/admin/approvals'                       },
           { icon: '🧑‍🏫', label: 'Teacher Apps',     value: stats.teacherApps, color: 'blue',    linkTo: '/admin/teacher-applications'            },
-          { icon: '📋',   label: stats.waitlistPending > 0 ? `Waitlist · ${stats.waitlistPending} new` : 'Waitlist', value: stats.waitlist, color: 'green', linkTo: '/admin/waitlist'                    },
           { icon: '✨',   label: stats.gensFlagged > 0 ? `AI Gens · ${stats.gensFlagged} flagged` : `AI Gens · $${stats.gensCostUsd}`, value: stats.gens, color: stats.gensFlagged > 0 ? 'yellow' : 'purple', linkTo: '/admin/generations' },
         ].map(s => (
           <div key={s.label} className="animate-slide-in-soft">

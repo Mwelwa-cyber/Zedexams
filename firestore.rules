@@ -493,46 +493,5 @@ service cloud.firestore {
       allow delete: if isAuthed() && (resource.data.ownerUid == request.auth.uid || isAdmin());
     }
 
-    // ── waitlist (public create, admin-only read) ─────────────
-    // Anyone — even unauthenticated visitors — can submit one entry. Strict
-    // field validation prevents junk; admin dashboard consumes reads.
-    //
-    // Admin updates are limited to two operational fields: `contacted` (bool)
-    // and `notes` (string, ≤500 chars). This prevents accidental corruption
-    // of the original submission data.
-    match /waitlist/{entryId} {
-      allow read:   if isAdmin();
-      allow delete: if isAdmin();
-      allow update: if isAdmin()
-        && changedKeys().hasOnly(['contacted', 'notes', 'contactedAt'])
-        && (!('contacted' in incoming()) || incoming().contacted is bool)
-        && (!('notes' in incoming()) ||
-            (incoming().notes is string && incoming().notes.size() <= 500));
-      allow create: if
-           incoming().keys().hasOnly([
-             'email', 'fullName', 'schoolName', 'role',
-             'grade', 'subject', 'source',
-             'createdAt', 'userAgent'
-           ])
-        && incoming().keys().hasAll(['email', 'createdAt'])
-        && incoming().email is string
-        && incoming().email.matches('^[^@\\s]+@[^@\\s]+\\.[^@\\s]+$')
-        && incoming().email.size() <= 254
-        && (!('fullName' in incoming()) ||
-            (incoming().fullName is string && incoming().fullName.size() <= 120))
-        && (!('schoolName' in incoming()) ||
-            (incoming().schoolName is string && incoming().schoolName.size() <= 160))
-        && (!('role' in incoming()) ||
-            (incoming().role is string && incoming().role.size() <= 40))
-        && (!('grade' in incoming()) ||
-            (incoming().grade is string && incoming().grade.size() <= 20))
-        && (!('subject' in incoming()) ||
-            (incoming().subject is string && incoming().subject.size() <= 40))
-        && (!('source' in incoming()) ||
-            (incoming().source is string && incoming().source.size() <= 60))
-        && (!('userAgent' in incoming()) ||
-            (incoming().userAgent is string && incoming().userAgent.size() <= 500))
-        && incoming().createdAt == request.time;
-    }
   }
 }
