@@ -8,7 +8,7 @@ import ErrorBoundary from './components/ui/ErrorBoundary'
 import './index.css'
 // editor.css and katex CSS are imported from the editor/viewer entry modules
 // (QuizEditor, QuizViewer, QuizPreview via safeRender). Keeping them out of the
-// root entry trims ~50 KB of parse-time CSS on public/marketing pages.
+// root entry trims ~50 KB of parse-time CSS on public pages.
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

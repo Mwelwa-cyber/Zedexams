@@ -185,7 +185,7 @@ body.theme-solar {
   .theme-border         { border-color: var(--border); }
 
   /*
-   * Force-light-theme container. Public marketing pages use this so the
+   * Force-light-theme container. Public pages (e.g. games) use this so the
    * rendered content is readable regardless of which theme the user has
    * stored in localStorage. Scoped to descendants via CSS variable override.
    */

@@ -252,14 +252,6 @@
       ]
     },
     {
-      "collectionGroup": "waitlist",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "contacted",   "order": "ASCENDING" },
-        { "fieldPath": "createdAt",   "order": "DESCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "games",
       "queryScope": "COLLECTION",
       "fields": [
