@@ -113,18 +113,21 @@ export default function RichEditor({
   // useEditor() destroys the editor automatically; we just need to remove
   // the listener before that happens.
   useEffect(() => {
-    if (!editor) return
+    // Tiptap v3: `editor` can be truthy before its view is mounted
+    // (ueberdosis/tiptap#7346). Accessing editor.view then throws
+    // "The editor view is not available", which hard-crashes the page
+    // on hard-refresh when several editors mount at once.
+    if (!editor?.isInitialized) return
     const dom = editor.view.dom
 
     const handleMathClick = (e) => {
-      // e.detail = { latex: string, pos: number | null }
       setMathEdit({ latex: e.detail.latex, pos: e.detail.pos })
       setShowMath(true)
     }
 
     dom.addEventListener('tiptap-math-click', handleMathClick)
     return () => dom.removeEventListener('tiptap-math-click', handleMathClick)
-  }, [editor])
+  }, [editor, editor?.isInitialized])
 
   // ── Handlers ─────────────────────────────────────────────────
   const handleOpenMath  = useCallback(() => { setMathEdit(null); setShowMath(true) }, [])

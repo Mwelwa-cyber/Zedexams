@@ -24,7 +24,7 @@ import {
   Bold, Italic, Underline, Strikethrough,
   List, ListOrdered,
   AlignLeft, AlignCenter, AlignRight,
-  Sigma, TableIcon,
+  TableIcon,
 } from '../../components/ui/icons'
 
 const TX_COLORS = [
@@ -132,7 +132,11 @@ export default function EditorToolbar({ editor, onMath, onTable }) {
   const toolbarState = useEditorState({
     editor,
     selector: ({ editor: currentEditor }) => {
-      if (!currentEditor) return EMPTY_TOOLBAR_STATE
+      // Tiptap v3 can run this selector against an editor whose view
+      // hasn't mounted yet (ueberdosis/tiptap#7346). Calling isActive /
+      // editor.can() in that state throws "The editor view is not
+      // available" and unmounts the whole page on hard refresh.
+      if (!currentEditor?.isInitialized) return EMPTY_TOOLBAR_STATE
 
       return {
         inTable: safeIsActive(currentEditor, 'table'),
@@ -166,7 +170,7 @@ export default function EditorToolbar({ editor, onMath, onTable }) {
     },
   }) || EMPTY_TOOLBAR_STATE
 
-  if (!editor) return <div className="toolbar" />
+  if (!editor?.isInitialized) return <div className="toolbar" />
 
   const run = (cmd, args) => runCommand(editor, cmd, args)
 
@@ -310,7 +314,7 @@ export default function EditorToolbar({ editor, onMath, onTable }) {
           onMouseDown={(e) => { e.preventDefault(); onMath() }}
           style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
         >
-          <Sigma size={14} strokeWidth={2.5} />
+          <span style={{ fontWeight: 900, fontSize: '14px', lineHeight: 1 }}>Σ</span>
           Math
         </button>
         <button
