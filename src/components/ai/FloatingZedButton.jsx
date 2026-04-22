@@ -60,6 +60,29 @@ export default function FloatingZedButton() {
   const bottom = isLearnerHome ? (wide ? 32 : 80) : (wide ? 32 : 20)
   const right  = wide ? 32 : 16
 
+  // Bot avatar size. Tweak these two numbers to resize everywhere safely.
+  const avatarSize        = wide ? 56 : 48   // collapsed floating bot
+  const avatarSizeInline  = wide ? 40 : 32   // inline bot in the expanded pill
+
+  const botImg = (size) => (
+    <img
+      src="/images/characters/zedbot-help.png"
+      alt=""
+      width={size}
+      height={size}
+      draggable={false}
+      style={{
+        width: size,
+        height: size,
+        objectFit: 'contain',
+        display: 'block',
+        userSelect: 'none',
+        pointerEvents: 'none',
+        filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.25))',
+      }}
+    />
+  )
+
   return (
     <div
       style={{
@@ -104,7 +127,7 @@ export default function FloatingZedButton() {
       )}
 
       {collapsed ? (
-        /* Icon-only pill */
+        /* Icon-only bot */
         <button
           onClick={() => setCollapsed(false)}
           aria-label="Open Ask Zed study assistant"
@@ -112,20 +135,16 @@ export default function FloatingZedButton() {
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: wide ? 52 : 44,
-            height: wide ? 52 : 44,
-            borderRadius: '50%',
-            background: '#10B981',
-            color: '#fff',
+            width: avatarSize,
+            height: avatarSize,
+            padding: 0,
+            background: 'transparent',
             border: 'none',
             cursor: 'pointer',
-            boxShadow: '0 6px 20px rgba(0,0,0,0.25)',
-            fontSize: wide ? 22 : 18,
-            fontWeight: 900,
-            fontFamily: 'system-ui, -apple-system, sans-serif',
+            lineHeight: 0,
           }}
         >
-          Z
+          {botImg(avatarSize)}
         </button>
       ) : (
         /* Expanded link */
@@ -136,8 +155,8 @@ export default function FloatingZedButton() {
           style={{
             display: 'inline-flex',
             alignItems: 'center',
-            gap:       wide ? 12 : 8,
-            padding:   wide ? '16px 26px' : '12px 18px',
+            gap:       wide ? 10 : 8,
+            padding:   wide ? '10px 20px 10px 10px' : '8px 14px 8px 8px',
             borderRadius: 9999,
             background: '#10B981',
             color: '#ffffff',
@@ -153,17 +172,13 @@ export default function FloatingZedButton() {
               display: 'inline-flex',
               alignItems: 'center',
               justifyContent: 'center',
-              width:    wide ? 36 : 28,
-              height:   wide ? 36 : 28,
-              borderRadius: '50%',
-              background: 'rgba(255,255,255,0.95)',
-              color: '#10B981',
+              width:  avatarSizeInline,
+              height: avatarSizeInline,
               flexShrink: 0,
-              fontSize: wide ? 20 : 16,
-              fontWeight: 900,
+              lineHeight: 0,
             }}
           >
-            Z
+            {botImg(avatarSizeInline)}
           </span>
           <span>Ask Zed</span>
         </Link>
