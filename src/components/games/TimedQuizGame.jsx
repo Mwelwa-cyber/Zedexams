@@ -9,6 +9,7 @@ import Leaderboard from './Leaderboard'
 import BadgeToast from './BadgeToast'
 import ShareButton from './ShareButton'
 import Confetti from './Confetti'
+import SmartFeedback from './SmartFeedback'
 
 /**
  * Engine for any `type: "timed_quiz"` game document.
@@ -318,6 +319,11 @@ function DoneCard({ game, score, correct, wrong, accuracy, bestStreak, saveResul
           <Stat label="Best streak" value={bestStreak} tone="rose" />
         </div>
         <SaveBanner saveResult={saveResult} />
+        <SmartFeedback
+          game={game}
+          result={{ score, accuracy, correct, wrong, bestStreak }}
+          saveResult={saveResult}
+        />
         <div className="mt-6 flex flex-wrap gap-3 justify-center">
           <button
             type="button"

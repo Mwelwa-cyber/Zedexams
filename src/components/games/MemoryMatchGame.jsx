@@ -9,6 +9,7 @@ import BadgeToast from './BadgeToast'
 import ShareButton from './ShareButton'
 import Confetti from './Confetti'
 import Leaderboard from './Leaderboard'
+import SmartFeedback from './SmartFeedback'
 
 /**
  * Engine for any `type: "memory_match"` game document.
@@ -243,6 +244,11 @@ function DoneCard({ game, score, moves, mismatches, elapsed, efficiency, saveRes
           <DoneStat label="Time"     value={formatTime(elapsed)} tone="sky" />
         </div>
         <SaveBanner saveResult={saveResult} />
+        <SmartFeedback
+          game={game}
+          result={{ score, accuracy: efficiency, correct: moves, wrong: mismatches, bestStreak: 0 }}
+          saveResult={saveResult}
+        />
         <div className="mt-6 flex flex-wrap gap-3 justify-center">
           <button type="button" onClick={onRestart} className="px-5 py-3 rounded-xl font-black text-white bg-gradient-to-r from-amber-500 to-orange-500">
             Play again 🔁

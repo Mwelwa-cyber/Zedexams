@@ -138,7 +138,20 @@ export async function saveScore({ game, score, accuracy, timeSpent, correct, wro
 
   try {
     const ref = await addDoc(collection(db, 'scores'), payload)
-    return { ok: true, id: ref.id }
+    // Fire-and-forget: update the learner intelligence profile. Any failure
+    // here must NOT break the score save — so we dynamic-import + swallow
+    // errors. The score is already persisted; intelligence is additive.
+    let intelligence = null
+    try {
+      const { updateLearnerProfileAfterGame } = await import('./gamesIntelligence')
+      intelligence = await updateLearnerProfileAfterGame({
+        game,
+        result: { score, accuracy, correct, wrong, timeSpent, bestStreak },
+      })
+    } catch (err) {
+      console.warn('learner intelligence update skipped', err?.code || err?.message)
+    }
+    return { ok: true, id: ref.id, intelligence }
   } catch (err) {
     console.error('saveScore failed', err)
     return { ok: false, reason: err?.code || 'write_failed' }

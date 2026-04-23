@@ -8,6 +8,7 @@ import BadgeToast from './BadgeToast'
 import ShareButton from './ShareButton'
 import Confetti from './Confetti'
 import Leaderboard from './Leaderboard'
+import SmartFeedback from './SmartFeedback'
 
 /**
  * Engine for any `type: "word_builder"` game document.
@@ -292,6 +293,11 @@ function DoneCard({ game, score, solved, total, accuracy, mistakes, saveResult, 
           <DoneStat label="Mistakes"  value={mistakes} tone="rose" />
         </div>
         <SaveBanner saveResult={saveResult} />
+        <SmartFeedback
+          game={game}
+          result={{ score, accuracy, correct: solved, wrong: total - solved, bestStreak: solved }}
+          saveResult={saveResult}
+        />
         <div className="mt-6 flex flex-wrap gap-3 justify-center">
           <button type="button" onClick={onRestart} className="px-5 py-3 rounded-xl font-black text-white bg-gradient-to-r from-sky-500 to-cyan-500">
             Play again 🔁

@@ -462,6 +462,17 @@ service cloud.firestore {
       allow delete:        if isAdmin();
     }
 
+    // ── learner_profiles (per-user learning intelligence snapshot) ──
+    // Single doc per user holding totals, per-subject stats, per-topic
+    // stats, weak topics, recent games, last session, and today's goal.
+    // Owner-only read/write — this is a derived personal record, not
+    // leaderboard data. Admin may moderate/delete.
+    match /learner_profiles/{userId} {
+      allow read:          if isAuthed() && (isOwner(userId) || isAdmin());
+      allow create, update: if isAuthed() && isOwner(userId);
+      allow delete:        if isAdmin();
+    }
+
     // ── shares (public read-only snapshots of teacher generations) ─
     // Teachers publish a plan to the web via a share button. The doc is
     // keyed by a random token (doc ID = token) and contains a snapshot

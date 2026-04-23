@@ -12,9 +12,13 @@ import { useAuth } from '../../contexts/AuthContext'
 import GamesShell from './GamesShell'
 import DailyChallengeCard from './DailyChallengeCard'
 import {
+  getLearnerProfile, computeRecommendations, computeSubjectProgress,
+  ensureTodayGoal, MASTERY_LEVELS,
+} from '../../utils/gamesIntelligence'
+import {
   subjectTheme, gameTypeMeta, STAT_ICON,
-  ClockIcon, PlayIcon, LockClosedIcon, StarIcon, TrophyIcon,
-  ArrowRightIcon, RocketLaunchIcon, AcademicCapIcon, SparklesIcon,
+  ClockIcon, PlayIcon, LockClosedIcon, StarIcon, TrophyIcon, CheckBadgeIcon,
+  ArrowRightIcon, RocketLaunchIcon, AcademicCapIcon, SparklesIcon, FireIcon,
 } from './gameIcons'
 
 /**
@@ -33,6 +37,7 @@ export default function GamesHub() {
   const [streak, setStreak] = useState({ streak: 0, longestStreak: 0, signedIn: false })
   const [badges, setBadges] = useState({ byId: {} })
   const [topScorers, setTopScorers] = useState([])
+  const [profile, setProfile] = useState(null)
 
   useEffect(() => {
     document.title = 'Free CBC Learning Games — ZedExams'
@@ -51,7 +56,7 @@ export default function GamesHub() {
     return () => { cancelled = true }
   }, [])
 
-  // Signed-in user data (history, streak, badges). Silent on failure.
+  // Signed-in user data (history, streak, badges, learner profile). Silent on failure.
   useEffect(() => {
     if (!currentUser) return
     let cancelled = false
@@ -59,11 +64,13 @@ export default function GamesHub() {
       getMyHistory(10),
       getMyStreak(),
       getMyGameBadges(),
-    ]).then(([h, s, b]) => {
+      getLearnerProfile(currentUser.uid),
+    ]).then(([h, s, b, p]) => {
       if (cancelled) return
       setHistory(h || [])
       setStreak(s || { streak: 0, longestStreak: 0, signedIn: true })
       setBadges(b || { byId: {} })
+      setProfile(p || null)
     }).catch(() => {})
     return () => { cancelled = true }
   }, [currentUser])
@@ -83,10 +90,33 @@ export default function GamesHub() {
   }, [])
 
   const stats = useMemo(() => computeStats({ history, streak, badges }), [history, streak, badges])
-  const continueItem = useMemo(() => pickContinue(history, games), [history, games])
-  const recommended  = useMemo(() => pickRecommended({ games, history, userProfile }), [games, history, userProfile])
-  const popular      = useMemo(() => pickPopular(games), [games])
+  const popular       = useMemo(() => pickPopular(games), [games])
   const subjectCounts = useMemo(() => countBySubject(games), [games])
+
+  const fallbackGrade = Number(userProfile?.grade) || null
+  const intel = useMemo(
+    () => computeRecommendations({ profile, games, fallbackGrade }),
+    [profile, games, fallbackGrade],
+  )
+  const continueItem = useMemo(() => {
+    if (intel.continueLearning) {
+      return {
+        ...intel.continueLearning.game,
+        gameId: intel.continueLearning.game.id,
+        accuracy: intel.continueLearning.accuracy,
+      }
+    }
+    return pickContinue(history, games)
+  }, [intel, history, games])
+  const recommended = useMemo(() => {
+    if (intel.recommended.length) return intel.recommended.map((r) => r.game)
+    return pickRecommendedFallback({ games, history, userProfile })
+  }, [intel, games, history, userProfile])
+  const dailyGoal      = useMemo(() => ensureTodayGoal(profile), [profile])
+  const subjectProgress = useMemo(
+    () => computeSubjectProgress(profile, subjectCounts || {}),
+    [profile, subjectCounts],
+  )
 
   return (
     <GamesShell crumbs={[]}>
@@ -98,10 +128,28 @@ export default function GamesHub() {
 
       <div className="grid lg:grid-cols-[1.4fr_1fr] gap-4 sm:gap-6 mt-6">
         <ContinueLearning item={continueItem} signedIn={!!currentUser} />
-        <LeaderboardPreview rows={topScorers} />
+        <DailyGoalCard goal={dailyGoal} signedIn={!!currentUser} />
       </div>
 
+      {!!currentUser && intel.practiceAgain.length > 0 && (
+        <PracticeAgainRow items={intel.practiceAgain} />
+      )}
+
+      {!!currentUser && (profile?.weakTopics?.length || 0) > 0 && (
+        <WeakAreasStrip topics={profile.weakTopics} />
+      )}
+
       <RecommendedGames games={recommended} />
+
+      {!!currentUser && intel.moveForward.length > 0 && (
+        <MoveForwardRow items={intel.moveForward} />
+      )}
+
+      {!!currentUser && hasSubjectPlays(subjectProgress) && (
+        <SubjectProgressStrip rows={subjectProgress} />
+      )}
+
+      <LeaderboardPreview rows={topScorers} />
 
       <SubjectsStrip counts={subjectCounts} />
 
@@ -727,6 +775,260 @@ function MotivationalFooter() {
   )
 }
 
+/* ───────────── Intelligence sections ───────────── */
+
+function DailyGoalCard({ goal, signedIn }) {
+  if (!signedIn) {
+    return (
+      <section className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm">
+        <SectionHeading title="Daily Goal" note="Sign in to unlock" />
+        <div className="flex items-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 p-4 text-slate-600">
+          <span className="w-11 h-11 rounded-2xl bg-gradient-to-br from-slate-200 to-slate-300 text-white flex items-center justify-center shrink-0">
+            <CheckBadgeIcon className="w-5 h-5" />
+          </span>
+          <div className="flex-1">
+            <p className="font-bold text-slate-700">A little challenge every day</p>
+            <p className="text-xs text-slate-500">Sign in to pick today's goal.</p>
+          </div>
+        </div>
+      </section>
+    )
+  }
+  if (!goal) return null
+  const progress = Math.min(100, Math.round(((goal.progress || 0) / (goal.target || 1)) * 100))
+  const done = !!goal.completed
+  return (
+    <section className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm">
+      <SectionHeading title="Today's Goal" note={done ? 'Completed' : 'In progress'} />
+      <div className={`flex items-center gap-3 rounded-2xl border p-4 ${done ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
+        <span className={`w-12 h-12 rounded-2xl text-white flex items-center justify-center shadow-sm shrink-0 ${done ? 'bg-gradient-to-br from-emerald-400 to-teal-500' : 'bg-gradient-to-br from-amber-400 to-orange-500'}`}>
+          {done ? <CheckBadgeIcon className="w-6 h-6" /> : <StarIcon className="w-6 h-6" />}
+        </span>
+        <div className="flex-1 min-w-0">
+          <p className={`font-black text-sm leading-tight ${done ? 'text-emerald-900' : 'text-amber-900'}`}>
+            {goal.label}
+          </p>
+          <div className="mt-2">
+            <div className="flex items-center justify-between text-[11px] font-black mb-1">
+              <span className={done ? 'text-emerald-800' : 'text-amber-800'}>{goal.progress || 0} / {goal.target}</span>
+              <span className={done ? 'text-emerald-700' : 'text-amber-700'}>{progress}%</span>
+            </div>
+            <div className="h-2 rounded-full bg-white/70 overflow-hidden">
+              <div
+                className={`h-full rounded-full transition-[width] duration-700 ${done ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : 'bg-gradient-to-r from-amber-400 to-orange-500'}`}
+                style={{ width: `${Math.max(5, progress)}%` }}
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+      {done && (
+        <p className="mt-3 text-xs font-bold text-emerald-700 text-center">Awesome — come back tomorrow for a new goal.</p>
+      )}
+    </section>
+  )
+}
+
+function PracticeAgainRow({ items }) {
+  return (
+    <section className="mt-6 sm:mt-8">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-display text-xl font-black flex items-center gap-2">
+          <FireIcon className="w-5 h-5 text-rose-500" />
+          Practice Again
+        </h3>
+        <span className="text-xs font-bold text-slate-500 hidden sm:inline">Keep building confidence</span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        {items.map((p) => (
+          <PracticeCard key={p.game.id} item={p} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function PracticeCard({ item }) {
+  const { game, weakTopic, label, reason } = item
+  const theme = subjectTheme(game.subject)
+  return (
+    <Link
+      to={`/games/play/${game.id}`}
+      className={`group relative rounded-[20px] border border-rose-200 bg-gradient-to-br from-rose-50 via-white to-orange-50 p-4 shadow-sm hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.99] transition overflow-hidden`}
+    >
+      <div aria-hidden="true" className="absolute -top-10 -right-10 w-36 h-36 rounded-full opacity-30 bg-rose-300 blur-2xl" />
+      <div className="relative flex items-start gap-3">
+        <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${theme.gradient} text-white flex items-center justify-center shadow-md shrink-0`}>
+          <theme.icon className="w-6 h-6" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full border bg-rose-100 text-rose-800 border-rose-200">
+            <FireIcon className="w-2.5 h-2.5" />
+            Weak topic
+          </span>
+          <h4 className="font-black text-slate-900 text-sm leading-tight mt-1 line-clamp-2">{game.title}</h4>
+          <p className="text-[11px] font-bold text-rose-800 mt-0.5">{label}</p>
+          {weakTopic && (
+            <div className="mt-1.5 flex items-center gap-1 text-[10px] font-black text-slate-500">
+              <span>Avg {weakTopic.avgAccuracy}%</span>
+              <span>·</span>
+              <span className="capitalize">{weakTopic.mastery}</span>
+            </div>
+          )}
+          <p className="text-xs text-slate-600 mt-1 line-clamp-2">{reason}</p>
+        </div>
+      </div>
+      <div className="relative mt-3 flex items-center justify-between text-[11px] font-black">
+        <span className="inline-flex items-center gap-2 text-slate-500">
+          <span className="inline-flex items-center gap-0.5"><ClockIcon className="w-3 h-3" />{game.timer}s</span>
+          <span className="inline-flex items-center gap-0.5"><StarIcon className="w-3 h-3 text-amber-500" />{game.points}</span>
+        </span>
+        <span className="text-rose-700 group-hover:translate-x-1 transition inline-flex items-center gap-0.5">
+          Practice <ArrowRightIcon className="w-3 h-3" />
+        </span>
+      </div>
+    </Link>
+  )
+}
+
+function WeakAreasStrip({ topics }) {
+  return (
+    <section className="mt-6 rounded-[20px] border border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-5 shadow-sm">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-display text-lg font-black flex items-center gap-2">
+          <SparklesIcon className="w-5 h-5 text-amber-600" />
+          Topics to Improve
+        </h3>
+        <span className="text-xs font-bold text-amber-800 hidden sm:inline">A little practice makes a big difference</span>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {topics.map((t) => {
+          const theme = subjectTheme(t.subject)
+          return (
+            <span
+              key={t.key}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-black border ${theme.chip} shadow-sm`}
+              title={`${t.plays} ${t.plays === 1 ? 'play' : 'plays'} · ${t.avgAccuracy}% avg accuracy`}
+            >
+              <theme.icon className="w-3.5 h-3.5" />
+              <span className="capitalize">{t.topic}</span>
+              <span className="opacity-70">· {t.avgAccuracy}%</span>
+            </span>
+          )
+        })}
+      </div>
+      <p className="text-xs text-slate-600 mt-3">
+        These topics could use a little more practice — you're already on your way.
+      </p>
+    </section>
+  )
+}
+
+function MoveForwardRow({ items }) {
+  return (
+    <section className="mt-6 sm:mt-8">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-display text-xl font-black flex items-center gap-2">
+          <RocketLaunchIcon className="w-5 h-5 text-emerald-500" />
+          Ready for More
+        </h3>
+        <span className="text-xs font-bold text-slate-500 hidden sm:inline">You're doing great — try something new</span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+        {items.map((m) => (
+          <Link
+            key={m.game.id}
+            to={`/games/play/${m.game.id}`}
+            className="group relative rounded-[20px] border border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-4 shadow-sm hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.99] transition overflow-hidden"
+          >
+            <div aria-hidden="true" className="absolute -top-10 -right-10 w-36 h-36 rounded-full opacity-30 bg-emerald-300 blur-2xl" />
+            <div className="relative flex items-start gap-3">
+              <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${subjectTheme(m.game.subject).gradient} text-white flex items-center justify-center shadow-md shrink-0`}>
+                <RocketLaunchIcon className="w-6 h-6" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full border bg-emerald-100 text-emerald-800 border-emerald-200">
+                  <CheckBadgeIcon className="w-2.5 h-2.5" />
+                  Mastered the basics
+                </span>
+                <h4 className="font-black text-slate-900 text-sm leading-tight mt-1 line-clamp-2">{m.game.title}</h4>
+                <p className="text-xs text-slate-700 mt-1 font-bold">{m.label}</p>
+                <p className="text-xs text-slate-600 line-clamp-2">{m.reason}</p>
+              </div>
+              <ArrowRightIcon className="w-5 h-5 text-emerald-600 group-hover:translate-x-1 transition shrink-0 mt-1" />
+            </div>
+          </Link>
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function SubjectProgressStrip({ rows }) {
+  return (
+    <section className="mt-6 sm:mt-8 rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="font-display text-lg font-black flex items-center gap-2">
+          <AcademicCapIcon className="w-5 h-5 text-indigo-500" />
+          Your Subject Progress
+        </h3>
+        <span className="text-xs font-bold text-slate-500 hidden sm:inline">Based on your recent plays</span>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+        {rows.map((r) => {
+          const theme = subjectTheme(r.subject)
+          const label = subjectBySlug(r.subject)?.label || r.subject
+          const hasPlays = r.plays > 0
+          const masteryIdx = MASTERY_LEVELS.indexOf(r.mastery)
+          const masteryStyle = [
+            'bg-slate-100 text-slate-700 border-slate-200',
+            'bg-amber-100 text-amber-800 border-amber-200',
+            'bg-sky-100 text-sky-800 border-sky-200',
+            'bg-emerald-100 text-emerald-800 border-emerald-200',
+          ][Math.max(0, masteryIdx)]
+          return (
+            <div
+              key={r.subject}
+              className={`rounded-2xl border ${theme.ring} bg-gradient-to-br ${theme.soft} p-4 shadow-sm`}
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <span className={`w-9 h-9 rounded-xl bg-gradient-to-br ${theme.gradient} text-white flex items-center justify-center shadow-sm`}>
+                  <theme.icon className="w-5 h-5" />
+                </span>
+                <div className="flex-1 min-w-0">
+                  <p className="font-black text-slate-900 text-sm truncate">{label}</p>
+                  <p className="text-[10px] font-black uppercase tracking-wider text-slate-500">
+                    {hasPlays ? `${r.plays} ${r.plays === 1 ? 'play' : 'plays'}` : 'Not played yet'}
+                  </p>
+                </div>
+              </div>
+              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider border ${masteryStyle}`}>
+                {r.mastery}
+              </span>
+              <div className="mt-2">
+                <div className="flex items-center justify-between text-[10px] font-black text-slate-500 mb-1">
+                  <span>Accuracy</span>
+                  <span>{r.avgAccuracy}%</span>
+                </div>
+                <div className="h-1.5 rounded-full bg-white/70 overflow-hidden">
+                  <div
+                    className={`h-full ${theme.bar} rounded-full transition-[width] duration-700`}
+                    style={{ width: `${Math.max(5, r.avgAccuracy || 0)}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
+function hasSubjectPlays(rows) {
+  return (rows || []).some((r) => r.plays > 0)
+}
+
 /* ───────────── Small helpers ───────────── */
 
 function SectionHeading({ title, note }) {
@@ -785,7 +1087,7 @@ function pickContinue(history, games) {
   return { ...match, gameId: match.id, accuracy: last.accuracy }
 }
 
-function pickRecommended({ games, history, userProfile }) {
+function pickRecommendedFallback({ games, history, userProfile }) {
   if (!games || games.length === 0) return []
   const playedIds = new Set((history || []).map((h) => h.gameId))
   const playedSubjects = new Set((history || []).map((h) => h.subject))
