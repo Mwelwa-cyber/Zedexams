@@ -336,19 +336,10 @@
 }
 .editor-area .mnode:hover { background: var(--vi3); border-color: #a78bfa; }
 
-/* Tiptap v3 wraps every table in <div class="tableWrapper">. Make it the
-   horizontal-scroll container so wide tables don't break the field layout
-   on narrow viewports. */
-.editor-area .tableWrapper {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  margin: 6px 0;
-  max-width: 100%;
-}
 .editor-area table {
   border-collapse: collapse;
   width: 100%;
-  margin: 0;
+  margin: 6px 0;
   table-layout: fixed;
 }
 .editor-area table td,
@@ -358,7 +349,6 @@
   min-width: 50px;
   vertical-align: top;
   position: relative;
-  word-break: break-word;
 }
 .editor-area table th { background: var(--sl2); font-weight: 700; }
 .editor-area .selectedCell::after {
@@ -518,14 +508,8 @@
 }
 .pexpl-hd { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .6px; color: #92400e; margin-bottom: 5px; }
 .pempty   { text-align: center; color: var(--sl4); font-size: 14px; padding: 40px; font-style: italic; }
-.pcard .tableWrapper, .viewer .tableWrapper {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  margin: 6px 0;
-  border-radius: 6px;
-}
-.pcard table, .viewer table { border-collapse: collapse; width: 100%; margin: 0; table-layout: fixed; }
-.pcard td, .pcard th, .viewer td, .viewer th { border: 1.5px solid var(--sl3); padding: 5px 8px; word-break: break-word; }
+.pcard table, .viewer table { border-collapse: collapse; width: 100%; margin: 6px 0; }
+.pcard td, .pcard th, .viewer td, .viewer th { border: 1.5px solid var(--sl3); padding: 5px 8px; }
 .pcard th, .viewer th { background: var(--sl2); font-weight: 700; }
 .pcard .mnode, .viewer .mnode { display: inline-flex; align-items: center; vertical-align: middle; }
 
@@ -645,25 +629,6 @@
   .qe-row > .qe-field {
     flex: 1 1 auto !important;
     width: 100%;
-  }
-
-  /* Tables: drop fixed layout so cells size to their content and the
-     .tableWrapper handles horizontal scroll. Fixed-layout tables stay
-     stuck at 100% width and squish columns into unreadable slivers on
-     a phone — auto layout lets wide tables actually be wide and scroll. */
-  .editor-area table,
-  .pcard table,
-  .viewer table {
-    width: auto;
-    min-width: 100%;
-    table-layout: auto;
-  }
-  .editor-area table td,
-  .editor-area table th,
-  .pcard td, .pcard th,
-  .viewer td, .viewer th {
-    min-width: 90px;
-    white-space: normal;
   }
 }
 
