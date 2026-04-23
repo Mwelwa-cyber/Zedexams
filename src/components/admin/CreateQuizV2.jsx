@@ -1,8 +1,13 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
+import {
+  clearCreateQuizDraft,
+  loadCreateQuizDraft,
+  saveCreateQuizDraft,
+} from '../../hooks/useCreateQuizDraft'
 import { storage } from '../../firebase/config'
 import { generateAIQuizQuestions } from '../../utils/aiAssistant'
 import {
@@ -312,6 +317,44 @@ export default function CreateQuizV2() {
   const termOptions = withCurrentOption(TERMS, form.term)
 
   useEffect(() => () => revokeImportedQuizAssets(importedAssets), [importedAssets])
+
+  // Draft auto-save: restore any previously typed work on mount so a page
+  // refresh no longer wipes the editor clean.
+  const draftRestoredRef = useRef(false)
+  useEffect(() => {
+    if (draftRestoredRef.current) return
+    if (!currentUser?.uid) return
+    draftRestoredRef.current = true
+
+    const draft = loadCreateQuizDraft(currentUser.uid)
+    if (!draft) return
+    // Only restore into a pristine editor so we never clobber state that
+    // the component has already populated (e.g. a fresh AI/import flow).
+    if (!hasOnlyEmptyStarterSection(sections)) return
+
+    if (draft.form) setForm(current => ({ ...current, ...draft.form }))
+    if (Array.isArray(draft.sections) && draft.sections.length) {
+      setSections(draft.sections)
+    }
+    if (draft.creationMode) setCreationMode(draft.creationMode)
+    show('Restored your unsaved draft.')
+    // Intentional: this effect should only fire once per mount per user.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentUser?.uid])
+
+  // Debounced write-through so typing stays cheap.
+  useEffect(() => {
+    if (!currentUser?.uid) return
+    if (!draftRestoredRef.current) return
+    if (hasOnlyEmptyStarterSection(sections) && !form.title.trim()) {
+      // Nothing worth saving yet.
+      return
+    }
+    const timer = setTimeout(() => {
+      saveCreateQuizDraft(currentUser.uid, { form, sections, creationMode })
+    }, 800)
+    return () => clearTimeout(timer)
+  }, [form, sections, creationMode, currentUser?.uid])
 
   function setF(field, value) {
     setForm(current => ({ ...current, [field]: value }))
@@ -837,6 +880,7 @@ export default function CreateQuizV2() {
 
       await saveQuestions(quizId, questionsForSave)
       setImportedAssets({})
+      clearCreateQuizDraft(currentUser.uid)
 
       show(publish ? 'Quiz published!' : submit ? 'Submitted for approval!' : 'Saved as draft!')
       const returnPath = isAdmin ? '/admin/content' : '/teacher/content'
