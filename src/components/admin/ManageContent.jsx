@@ -56,11 +56,15 @@ function DailyExamModal({ quiz, onSave, onClose }) {
   const today = new Date().toISOString().slice(0, 10)
   const [date,     setDate]     = useState(quiz.dailyExamDate || today)
   const [duration, setDuration] = useState(quiz.durationMinutes || quiz.duration || 45)
+  // `isDemo` preserves whatever is already on the quiz — admins can flip it
+  // here when turning a quiz into a Daily Exam so that free-tier learners
+  // can sit a sample exam without a paid subscription.
+  const [isDemo,   setIsDemo]   = useState(!!quiz.isDemo)
   const [saving,   setSaving]   = useState(false)
 
   async function handleSave() {
     setSaving(true)
-    await onSave(quiz, { date, duration: Number(duration) })
+    await onSave(quiz, { date, duration: Number(duration), isDemo })
     setSaving(false)
     onClose()
   }
@@ -86,6 +90,23 @@ function DailyExamModal({ quiz, onSave, onClose }) {
               onChange={e => setDuration(e.target.value)}
               className="w-full border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-amber-500 focus:outline-none" />
             <p className="text-xs text-gray-400 mt-1">Tip: 45–60 min for 50+ question papers</p>
+          </div>
+          <div className="rounded-xl border-2 border-gray-100 bg-gray-50 px-3 py-2.5">
+            <label className="flex cursor-pointer items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="text-xs font-black text-gray-700">Mark as Demo Exam</p>
+                <p className="mt-0.5 text-[11px] font-bold text-gray-500 leading-snug">Visible to learners on free/Demo Access so they can try a sample exam.</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={isDemo}
+                onClick={() => setIsDemo(v => !v)}
+                className={`relative h-5 w-10 flex-shrink-0 rounded-full p-0 shadow-none transition-colors ${isDemo ? 'bg-amber-500' : 'bg-gray-300'}`}
+              >
+                <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${isDemo ? 'left-5' : 'left-0.5'}`} />
+              </button>
+            </label>
           </div>
         </div>
         <div className="flex gap-2 mt-5">
@@ -147,6 +168,9 @@ function QuizRow({ quiz, onSetPractice, onSetDailyExam, onUnassign, onDelete, de
             )}
             {!quizType && (
               <Pill color="bg-gray-100 text-gray-500">⚠ Unassigned</Pill>
+            )}
+            {quiz.isDemo && (
+              <Pill color="bg-sky-100 text-sky-700">🎁 Demo · free-tier</Pill>
             )}
           </div>
           {quiz.rejectionReason && (
@@ -332,7 +356,11 @@ export default function ManageContent() {
     show('📝 Set as Practice Quiz — students can access it now.')
   }
 
-  async function setAsDailyExam(quiz, { date, duration }) {
+  async function setAsDailyExam(quiz, { date, duration, isDemo }) {
+    // `isDemo` may be undefined if called from older code paths — only write
+    // the field when the modal explicitly supplied a value, so we don't
+    // accidentally clear a flag the admin set elsewhere.
+    const demoPatch = typeof isDemo === 'boolean' ? { isDemo } : {}
     await updateQuiz(quiz.id, {
       quizType: 'daily_exam',
       isDailyExam: true,
@@ -340,11 +368,12 @@ export default function ManageContent() {
       durationMinutes: duration,
       isPublished: true,
       status: 'published',
+      ...demoPatch,
     })
     setQuizzes(qs => qs.map(q => q.id === quiz.id
-      ? { ...q, quizType: 'daily_exam', isDailyExam: true, dailyExamDate: date, durationMinutes: duration, isPublished: true, status: 'published' }
+      ? { ...q, quizType: 'daily_exam', isDailyExam: true, dailyExamDate: date, durationMinutes: duration, isPublished: true, status: 'published', ...demoPatch }
       : q))
-    show(`🏆 Set as Daily Exam on ${date}`)
+    show(`🏆 Set as Daily Exam on ${date}${isDemo ? ' · Demo' : ''}`)
   }
 
   async function unassignQuiz(quiz) {

@@ -290,6 +290,10 @@ export default function CreateQuizV2() {
     duration: 30,
     type: 'quiz',
     topic: '',
+    // When true, this quiz is visible to learners on Demo Access (free tier).
+    // When false (default), it's premium/full-access only. Admins flip this
+    // here during creation, and can still toggle it later in EditQuizV2.
+    isDemo: false,
     mode: '',
     importStatus: '',
     sourceFileName: '',
@@ -959,6 +963,21 @@ export default function CreateQuizV2() {
               className="flex-1 bg-transparent text-sm font-black outline-none"
             />
           </div>
+        </div>
+        {/*
+          Access toggle. "Demo" means the quiz is visible to learners on the
+          free/Demo Access tier; when off, the quiz is premium-only. The same
+          toggle exists in EditQuizV2 — setting it here just saves a round
+          trip through Edit after creation.
+        */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+          <label className="flex cursor-pointer select-none items-center gap-2" title="Demo quizzes are visible to learners on free/Demo Access. Leave off for premium-only quizzes.">
+            <span className="theme-text-muted text-xs font-black">Mark as Demo</span>
+            <button type="button" onClick={() => setF('isDemo', !form.isDemo)} className={`relative h-5 w-10 min-h-0 rounded-full p-0 shadow-none transition-colors ${form.isDemo ? 'theme-accent-fill' : 'theme-border theme-bg-subtle border'}`}>
+              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${form.isDemo ? 'left-5' : 'left-0.5'}`} />
+            </button>
+            {form.isDemo && <span className="theme-accent-bg theme-accent-text rounded-full px-2 py-0.5 text-xs font-black">Demo · free-tier visible</span>}
+          </label>
         </div>
         <div className="theme-text-muted flex flex-wrap gap-2 pt-1 text-xs">
           <span className="theme-bg-subtle rounded-full px-2 py-1 font-bold">{questionCount} questions</span>
