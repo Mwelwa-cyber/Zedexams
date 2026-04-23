@@ -6,9 +6,9 @@ name: Deploy Firebase
 # Requires one GitHub repository secret:
 #   FIREBASE_TOKEN — generated once locally with `firebase login:ci`
 #
-# The Netlify frontend deploys separately via Netlify's native GitHub
-# integration (triggered by the same push). This workflow only handles
-# Firebase: Firestore rules + indexes, Storage rules, and Cloud Functions.
+# The Vite frontend deploys separately via the sibling `deploy-hosting.yml`
+# workflow. This one only handles Firebase: Firestore rules + indexes,
+# Storage rules, and Cloud Functions.
 
 on:
   push:
