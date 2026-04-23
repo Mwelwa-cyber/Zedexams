@@ -171,6 +171,10 @@
   overflow: visible;
   transition: .15s;
   position: relative;
+  background: #fff;
+}
+.re-wrap:hover:not(:focus-within) {
+  border-color: var(--sl4);
 }
 .re-wrap:focus-within {
   border-color: var(--vi2);
@@ -183,10 +187,10 @@
   flex-wrap: wrap;
   gap: 2px;
   padding: 5px 6px;
-  background: var(--sl1);
+  background: var(--sl2);
   border-bottom: 1px solid var(--sl3);
   align-items: center;
-  border-radius: 8px 8px 0 0;
+  border-radius: 7px 7px 0 0;
 }
 .tbsep {
   width: 1px;
@@ -277,20 +281,29 @@
 /* ── Tiptap ProseMirror area ─────────────────────────────────── */
 .editor-area {
   outline: none;
-  padding: 11px 14px;
+  padding: 12px 14px;
   font-size: 14px;
   line-height: 1.8;
   font-family: 'Plus Jakarta Sans', sans-serif;
   color: var(--ink);
   cursor: text;
+  background: #fff;
+  border-radius: 0 0 7px 7px;
 }
 .editor-area p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
-  color: var(--sl4);
+  color: var(--sl5);
+  opacity: .75;
   pointer-events: none;
   float: left;
   height: 0;
+  font-style: italic;
 }
+/* Compact variant used for the Instructions field (shorter, tighter). */
+.qrf-compact .editor-area { padding: 9px 12px; line-height: 1.65; }
+.qrf-compact .toolbar     { padding: 4px 5px; }
+.qrf-compact .tbb         { height: 23px; min-width: 24px; font-size: 12px; }
+
 .editor-area b, .editor-area strong { font-weight: 700; }
 .editor-area i, .editor-area em     { font-style: italic; }
 .editor-area u  { text-decoration: underline; }
