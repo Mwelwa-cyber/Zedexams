@@ -90,31 +90,52 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     async function load() {
-      const [lessons, quizzes, users, results, pending, teacherApps, gens] = await Promise.all([
-        getAllLessons(), getAllQuizzes(), getAllUsers(), getAllResults(), getPendingApprovals(), getPendingTeacherApplications(),
-        getGenerationsSummary().catch(() => ({ total: 0, flagged: 0, totalCostUsd: '0.00' })),
-      ])
-      setStats({
-        lessons:  lessons.length,
-        quizzes:  quizzes.length,
-        learners: users.filter(u => u.role === 'learner' || u.role === 'student').length,
-        results:  results.length,
-        pending:  pending.length,
-        teacherApps: teacherApps.length,
-        gens: gens.total,
-        gensFlagged: gens.flagged,
-        gensCostUsd: gens.totalCostUsd,
-      })
-      setRecent(results.slice(0, 8))
-      setLoading(false)
+      try {
+        const [lessons, quizzes, users, results, pending, teacherApps, gens] = await Promise.all([
+          getAllLessons(), getAllQuizzes(), getAllUsers(), getAllResults(), getPendingApprovals(), getPendingTeacherApplications(),
+          getGenerationsSummary().catch(() => ({ total: 0, flagged: 0, totalCostUsd: '0.00' })),
+        ])
+        const safe = (value, fallback = []) => (Array.isArray(value) ? value : fallback)
+        const safeLessons = safe(lessons)
+        const safeQuizzes = safe(quizzes)
+        const safeUsers = safe(users)
+        const safeResults = safe(results)
+        const safePending = safe(pending)
+        const safeTeacherApps = safe(teacherApps)
+        const safeGens = gens && typeof gens === 'object' ? gens : {}
+        setStats({
+          lessons:  safeLessons.length,
+          quizzes:  safeQuizzes.length,
+          learners: safeUsers.filter(u => u?.role === 'learner' || u?.role === 'student').length,
+          results:  safeResults.length,
+          pending:  safePending.length,
+          teacherApps: safeTeacherApps.length,
+          gens: safeGens.total ?? 0,
+          gensFlagged: safeGens.flagged ?? 0,
+          gensCostUsd: safeGens.totalCostUsd ?? '0.00',
+        })
+        setRecent(safeResults.slice(0, 8))
+      } catch (error) {
+        // Keep the dashboard mounted with zeroed stats rather than
+        // bubbling the reject up to the error boundary — the shell
+        // and quick-actions are still useful without the counts.
+        console.error('AdminDashboard load failed:', error)
+      } finally {
+        setLoading(false)
+      }
     }
     load()
   }, [])
 
   function fmt(ts) {
     if (!ts) return '—'
-    const d = ts.toDate ? ts.toDate() : new Date(ts)
-    return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    try {
+      const d = typeof ts?.toDate === 'function' ? ts.toDate() : new Date(ts)
+      if (!d || Number.isNaN(d.getTime?.())) return '—'
+      return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
+    } catch {
+      return '—'
+    }
   }
 
   function pctColor(p) {

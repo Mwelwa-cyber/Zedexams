@@ -21,6 +21,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import Logo from '../ui/Logo'
 import ThemeSelector from '../ui/ThemeSelector'
 import Icon from '../ui/Icon'
+import ErrorBoundary from '../ui/ErrorBoundary'
 
 const NAV = [
   { to: '/admin',                        icon: LayoutDashboard, label: 'Dashboard',       end: true },
@@ -175,7 +176,12 @@ export default function AdminLayout({ children }) {
       {/* ── Main Content ────────────────────────────────── */}
       <main className="flex-1 min-w-0 md:pt-0 pt-20">
         <div className={`${isLessonWorkspace ? 'max-w-7xl' : 'max-w-4xl'} mx-auto px-4 py-6`}>
-          {children}
+          {/* Route-keyed boundary: a render crash on one admin page no
+              longer trashes the whole shell — the sidebar stays, and
+              navigating to a different page clears the error. */}
+          <ErrorBoundary inline resetKey={location.pathname}>
+            {children}
+          </ErrorBoundary>
         </div>
       </main>
     </div>

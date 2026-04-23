@@ -7,6 +7,14 @@ import { Component } from 'react'
  * Wrapped around <App /> in main.jsx so a lazy-chunk load failure, a malformed
  * Firestore payload, or any unexpected render throw still leaves the user with
  * a clear way to recover (reload or jump home).
+ *
+ * Props:
+ *   resetKey — when this value changes the boundary drops its error state so
+ *              the next render can succeed (handy for a route-keyed reset so
+ *              navigating away from a broken page recovers without a full
+ *              page reload).
+ *   inline   — render a compact recovery card instead of the full-screen one,
+ *              so nested boundaries don't blow away the surrounding shell.
  */
 export default class ErrorBoundary extends Component {
   constructor(props) {
@@ -23,6 +31,16 @@ export default class ErrorBoundary extends Component {
     console.error('ErrorBoundary caught:', error, info?.componentStack)
   }
 
+  componentDidUpdate(prevProps) {
+    if (this.state.hasError && prevProps.resetKey !== this.props.resetKey) {
+      this.setState({ hasError: false, error: null })
+    }
+  }
+
+  handleRetry = () => {
+    this.setState({ hasError: false, error: null })
+  }
+
   handleReload = () => {
     // Hard reload so any broken lazy chunk gets a fresh network fetch.
     window.location.reload()
@@ -36,9 +54,14 @@ export default class ErrorBoundary extends Component {
     if (!this.state.hasError) return this.props.children
 
     const message = this.state.error?.message || 'An unexpected error occurred.'
+    const inline = !!this.props.inline
+
+    const containerClass = inline
+      ? 'w-full flex items-center justify-center py-10 px-4'
+      : 'min-h-screen theme-bg flex items-center justify-center p-4'
 
     return (
-      <div className="min-h-screen theme-bg flex items-center justify-center p-4">
+      <div className={containerClass}>
         <div className="theme-card border theme-border rounded-3xl px-6 py-10 max-w-md w-full text-center shadow-sm">
           <div className="text-5xl mb-3">😕</div>
           <p className="theme-text-muted font-black text-xs uppercase tracking-widest mb-2">
@@ -48,24 +71,33 @@ export default class ErrorBoundary extends Component {
             We hit a snag loading this page.
           </h1>
           <p className="theme-text-muted text-sm mb-6">
-            Try reloading — this usually fixes it. If it keeps happening, head back home and try again from there.
+            Try again — this usually fixes it. If it keeps happening, head back home and try from there.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-2 justify-center">
             <button
               type="button"
-              onClick={this.handleReload}
+              onClick={this.handleRetry}
               className="inline-flex items-center justify-center gap-2 theme-accent-fill theme-on-accent font-black text-sm px-5 py-3 rounded-2xl shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
             >
-              ↻ Reload page
+              ↻ Try again
             </button>
             <button
               type="button"
-              onClick={this.handleHome}
+              onClick={this.handleReload}
               className="inline-flex items-center justify-center gap-2 theme-card border theme-border theme-text font-black text-sm px-5 py-3 rounded-2xl hover:theme-bg-subtle transition-colors"
             >
-              ← Go home
+              Reload page
             </button>
+            {!inline && (
+              <button
+                type="button"
+                onClick={this.handleHome}
+                className="inline-flex items-center justify-center gap-2 theme-card border theme-border theme-text font-black text-sm px-5 py-3 rounded-2xl hover:theme-bg-subtle transition-colors"
+              >
+                ← Go home
+              </button>
+            )}
           </div>
 
           {import.meta.env.DEV && (
