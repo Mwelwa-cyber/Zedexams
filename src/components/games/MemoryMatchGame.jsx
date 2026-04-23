@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../../contexts/AuthContext'
 import { shuffle } from '../../utils/gamesService'
 import { playCorrect, playWrong, playWin, playTick, primeSounds } from '../../utils/gameSounds'
 import { useGameFinish } from './useGameFinish'
@@ -199,6 +200,7 @@ export default function MemoryMatchGame({ game }) {
 }
 
 function ReadyCard({ game, pairs, onStart }) {
+  const { currentUser } = useAuth()
   return (
     <div className="bg-white rounded-3xl border-2 border-slate-200 shadow-sm p-8 sm:p-10 text-center">
       <div className="text-6xl mb-3">🧠</div>
@@ -207,7 +209,9 @@ function ReadyCard({ game, pairs, onStart }) {
       <ul className="text-sm text-slate-700 max-w-sm mx-auto text-left mb-7 space-y-1.5">
         <li>🎴 {pairs} pairs to find ({pairs * 2} cards)</li>
         <li>🏆 Fewer moves = bigger bonus</li>
-        <li>🏅 Sign in to save your score and climb the leaderboard</li>
+        {currentUser
+          ? <li>🏅 Your score saves automatically to the leaderboard</li>
+          : <li>🏅 Sign in to save your score and climb the leaderboard</li>}
       </ul>
       <button
         type="button"

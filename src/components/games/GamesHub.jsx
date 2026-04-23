@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { GRADES } from '../../utils/gamesService'
+import { useAuth } from '../../contexts/AuthContext'
 import GamesShell from './GamesShell'
 import DailyChallengeCard from './DailyChallengeCard'
 
@@ -9,6 +10,8 @@ import DailyChallengeCard from './DailyChallengeCard'
  * Public landing where the pupil picks their grade.
  */
 export default function GamesHub() {
+  const { currentUser, userProfile } = useAuth()
+  const firstName = userProfile?.displayName?.split(' ')[0] ?? null
   useEffect(() => {
     document.title = 'Free CBC Learning Games — ZedExams'
     setMeta('Play free Zambian CBC-aligned primary school games (Grade 1 to Grade 6). Quizzes, memory match, spelling and live leaderboard.')
@@ -28,11 +31,14 @@ export default function GamesHub() {
           <span>🇿🇲</span><span>CBC-aligned · Grade 1 to 6</span>
         </div>
         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black leading-tight max-w-3xl mx-auto">
-          Pick your grade and{' '}
-          <span className="text-amber-600">start playing</span>.
+          {currentUser && firstName
+            ? <>Welcome back, <span className="text-amber-600">{firstName}</span> — pick a grade.</>
+            : <>Pick your grade and <span className="text-amber-600">start playing</span>.</>}
         </h1>
         <p className="mt-3 text-base text-slate-700 max-w-xl mx-auto">
-          Free CBC games for Zambian pupils. No sign-up to play, sign in to save your scores and climb the leaderboard.
+          {currentUser
+            ? 'Every score you earn is saved to your history and counts on the leaderboard.'
+            : 'Free CBC games for Zambian pupils. No sign-up to play — sign in to save your scores and climb the leaderboard.'}
         </p>
       </section>
 

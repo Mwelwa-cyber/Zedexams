@@ -30,7 +30,11 @@ export default function Leaderboard({ gameId, limit = 10 }) {
       <div className="bg-white rounded-3xl border-2 border-dashed border-slate-300 p-8 text-center">
         <div className="text-4xl mb-2">🏆</div>
         <h3 className="text-lg font-black mb-1">Be the first on the board</h3>
-        <p className="text-slate-600 text-sm">Sign in and play this game to claim the top spot.</p>
+        <p className="text-slate-600 text-sm">
+          {currentUser
+            ? 'Play this game to claim the top spot.'
+            : 'Sign in and play this game to claim the top spot.'}
+        </p>
       </div>
     )
   }

@@ -274,6 +274,7 @@ export default function TimedQuizGame({ game }) {
 /* ── Sub-components ─────────────────────────────────────────────── */
 
 function ReadyCard({ game, onStart }) {
+  const { currentUser } = useAuth()
   return (
     <div className="bg-white rounded-3xl border-2 border-slate-200 shadow-sm p-8 sm:p-10 text-center">
       <div className="text-6xl mb-3">⚡</div>
@@ -285,7 +286,9 @@ function ReadyCard({ game, onStart }) {
         <li>⏱️ <b>{game.timer}s</b> on the clock</li>
         <li>🎯 <b>+{game.points}</b> per correct, plus a streak bonus</li>
         <li>❌ Small penalty for wrong answers</li>
-        <li>🏅 Sign in to save your score and climb the leaderboard</li>
+        {currentUser
+          ? <li>🏅 Your score saves automatically to the leaderboard</li>
+          : <li>🏅 Sign in to save your score and climb the leaderboard</li>}
       </ul>
       <button
         type="button"
