@@ -27,20 +27,21 @@ function normalizeThemeId(id) {
 /**
  * Resolve the initial theme for a brand-new visitor.
  * - If they've saved a choice → use that.
- * - Otherwise, honour the OS preference (dark OS → midnight theme).
- * - Otherwise, fall back to Sky.
- * User-initiated changes still win once they touch the switcher.
+ * - Otherwise → Sky (the light default).
+ *
+ * We intentionally do NOT read `prefers-color-scheme` here. The site's
+ * content (including the quiz editor, rich-text areas, tables, and native
+ * form controls) is designed for a light palette, and honouring the OS
+ * dark preference would auto-flip visitors into Midnight — which many
+ * users flagged as "a bit too dark" because not every surface is fully
+ * dark-theme-ready yet. Users who want Midnight can still pick it from
+ * the theme switcher and the choice persists via localStorage.
  */
 function resolveInitialTheme() {
   try {
     const saved = localStorage.getItem(LS_KEY)
     if (saved) return normalizeThemeId(saved)
-    if (typeof window !== 'undefined'
-        && window.matchMedia
-        && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      return 'midnight'
-    }
-  } catch { /* localStorage or matchMedia unavailable — fall through */ }
+  } catch { /* localStorage unavailable — fall through */ }
   return DEFAULT_THEME
 }
 

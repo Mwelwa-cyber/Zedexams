@@ -11,6 +11,15 @@
     <link rel="canonical" href="https://zedexams.com/" />
 
     <!-- Viewport + theme -->
+    <!--
+      color-scheme:light opts the site OUT of the browser's auto-dark behaviour.
+      Without this, form controls (<select>, date pickers, scrollbars, the pre-
+      React paint, etc.) pick up the OS dark-mode palette and clash with the
+      in-app ThemeProvider — the page reads as "a bit too dark" on dark-mode
+      browsers. Users who want a dark palette can still pick Midnight from the
+      theme switcher; OS preference just stops forcing it.
+    -->
+    <meta name="color-scheme" content="light" />
     <meta name="theme-color" content="#059669" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="ZedExams" />
