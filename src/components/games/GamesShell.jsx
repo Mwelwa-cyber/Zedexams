@@ -18,11 +18,14 @@ export default function GamesShell({ crumbs = [], children, maxW = 'max-w-5xl' }
       <nav className="border-b border-slate-200 bg-white/95 backdrop-blur sticky top-0 z-20">
         <div className={`${maxW} mx-auto px-4 sm:px-6 py-3 flex items-center justify-between`}>
           <Link to="/" className="flex items-center gap-2">
-            <img
-              src="/zedexams-logo.png?v=4"
-              alt="ZedExams"
-              className="h-9 w-auto object-contain flex-shrink-0"
-            />
+            <picture>
+              <source type="image/webp" srcSet="/zedexams-logo.webp?v=1" />
+              <img
+                src="/zedexams-logo.png?v=4"
+                alt="ZedExams"
+                className="h-9 w-auto object-contain flex-shrink-0"
+              />
+            </picture>
             <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wide bg-amber-100 text-amber-800">
               Games
             </span>

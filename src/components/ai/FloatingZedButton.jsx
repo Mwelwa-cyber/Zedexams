@@ -65,22 +65,25 @@ export default function FloatingZedButton() {
   const avatarSizeInline  = wide ? 40 : 32   // inline bot in the expanded pill
 
   const botImg = (size) => (
-    <img
-      src="/images/characters/zedbot-help.png"
-      alt=""
-      width={size}
-      height={size}
-      draggable={false}
-      style={{
-        width: size,
-        height: size,
-        objectFit: 'contain',
-        display: 'block',
-        userSelect: 'none',
-        pointerEvents: 'none',
-        filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.25))',
-      }}
-    />
+    <picture>
+      <source type="image/webp" srcSet="/images/characters/zedbot-help.webp?v=1" />
+      <img
+        src="/images/characters/zedbot-help.png"
+        alt=""
+        width={size}
+        height={size}
+        draggable={false}
+        style={{
+          width: size,
+          height: size,
+          objectFit: 'contain',
+          display: 'block',
+          userSelect: 'none',
+          pointerEvents: 'none',
+          filter: 'drop-shadow(0 4px 10px rgba(0,0,0,0.25))',
+        }}
+      />
+    </picture>
   )
 
   return (

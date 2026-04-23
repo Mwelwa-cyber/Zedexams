@@ -52,11 +52,15 @@ import { useSubscription }      from '../../hooks/useSubscription'
 // ── Sub-components ─────────────────────────────────────────────────────────
 
 const NOTIFICATION_STORAGE_PREFIX = 'zedexams:notifications:seen:v1'
+// Dashboard character art. Each entry ships WebP (≈90% smaller than the
+// original PNG, ~5 MB → ~500 KB total) with the PNG kept as a <picture>
+// fallback for legacy browsers. Intrinsic pixel dimensions are passed to
+// the <img> so the browser can reserve space and avoid CLS as images load.
 const DASHBOARD_CHARACTERS = {
-  hero: '/images/characters/zed-zara-reading.png?v=transparent-1',
-  exams: '/images/characters/lina-study.png?v=transparent-1',
-  games: '/images/characters/max-gaming.png?v=transparent-1',
-  zed: '/images/characters/zedbot-help.png?v=transparent-1',
+  hero:  { png: '/images/characters/zed-zara-reading.png?v=transparent-1', webp: '/images/characters/zed-zara-reading.webp?v=1', width: 1402, height: 1122 },
+  exams: { png: '/images/characters/lina-study.png?v=transparent-1',       webp: '/images/characters/lina-study.webp?v=1',       width: 1313, height: 1198 },
+  games: { png: '/images/characters/max-gaming.png?v=transparent-1',       webp: '/images/characters/max-gaming.webp?v=1',       width: 1254, height: 1254 },
+  zed:   { png: '/images/characters/zedbot-help.png?v=transparent-1',      webp: '/images/characters/zedbot-help.webp?v=1',      width: 1254, height: 1254 },
 }
 
 function getNotificationStorageKey(userId) {
@@ -94,7 +98,7 @@ function FloatingStar({ style }) {
   )
 }
 
-function DashboardCharacter({ src, alt, variant = 'card', loading = 'lazy', className = '' }) {
+function DashboardCharacter({ image, alt, variant = 'card', loading = 'lazy', className = '' }) {
   const sizeClass = {
     hero: 'h-40 sm:h-52 md:h-[220px]',
     card: 'h-24 sm:h-28',
@@ -102,14 +106,24 @@ function DashboardCharacter({ src, alt, variant = 'card', loading = 'lazy', clas
     zed: 'h-28 sm:h-32',
   }[variant] || 'h-24 sm:h-28'
 
+  // <picture> lets modern browsers fetch the WebP (≈90% smaller) while
+  // older browsers fall back to the PNG. width/height attributes give the
+  // browser the aspect ratio up-front so the page doesn't jump when the
+  // image finishes loading (CLS). <picture> itself is a layout-transparent
+  // shell — all sizing/positioning classes stay on the <img>.
   return (
-    <img
-      src={src}
-      alt={alt}
-      loading={loading}
-      decoding="async"
-      className={`pointer-events-none select-none object-contain drop-shadow-[0_14px_18px_rgba(15,23,42,0.16)] ${sizeClass} ${className}`}
-    />
+    <picture>
+      <source type="image/webp" srcSet={image.webp} />
+      <img
+        src={image.png}
+        alt={alt}
+        width={image.width}
+        height={image.height}
+        loading={loading}
+        decoding="async"
+        className={`pointer-events-none select-none object-contain drop-shadow-[0_14px_18px_rgba(15,23,42,0.16)] ${sizeClass} ${className}`}
+      />
+    </picture>
   )
 }
 
@@ -126,7 +140,7 @@ function DashboardActionCard({
   bodyClassName = '',
   action,
   actionClassName,
-  imageSrc,
+  image,
   imageAlt,
   imageVariant = 'card',
 }) {
@@ -157,7 +171,7 @@ function DashboardActionCard({
           </div>
         </div>
         <DashboardCharacter
-          src={imageSrc}
+          image={image}
           alt={imageAlt}
           variant={imageVariant}
           className="absolute bottom-0 right-1 z-0 sm:right-3"
@@ -760,7 +774,7 @@ export default function GradeHub() {
             </div>
 
             <DashboardCharacter
-              src={DASHBOARD_CHARACTERS.hero}
+              image={DASHBOARD_CHARACTERS.hero}
               alt="Zed and Zara reading together"
               variant="hero"
               loading="eager"
@@ -782,7 +796,7 @@ export default function GradeHub() {
           bodyClassName="text-amber-700"
           action="Start"
           actionClassName="bg-amber-400"
-          imageSrc={DASHBOARD_CHARACTERS.exams}
+          image={DASHBOARD_CHARACTERS.exams}
           imageAlt="Lina studying"
           imageVariant="card"
         />
@@ -800,7 +814,7 @@ export default function GradeHub() {
           bodyClassName="text-emerald-700"
           action="Play"
           actionClassName="bg-emerald-500"
-          imageSrc={DASHBOARD_CHARACTERS.games}
+          image={DASHBOARD_CHARACTERS.games}
           imageAlt="Max playing a learning game"
           imageVariant="games"
         />
@@ -818,7 +832,7 @@ export default function GradeHub() {
           bodyClassName="text-[#A8B6C9]"
           action="Start"
           actionClassName="border border-[rgba(212,175,55,0.28)] bg-[rgba(212,175,55,0.12)] text-[#D4AF37]"
-          imageSrc={DASHBOARD_CHARACTERS.zed}
+          image={DASHBOARD_CHARACTERS.zed}
           imageAlt="ZedBot ready to help"
           imageVariant="zed"
         />

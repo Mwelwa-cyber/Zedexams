@@ -1319,11 +1319,14 @@ export default function ZedStudyAssistant() {
             padding: 5,
             boxShadow: `0 0 18px rgba(212,175,55,0.22)`,
           }}>
-            <img
-              src="/zedexams-logo.png?v=4"
-              alt="ZedExams"
-              style={{ width: "100%", height: "100%", objectFit: "contain" }}
-            />
+            <picture>
+              <source type="image/webp" srcSet="/zedexams-logo.webp?v=1" />
+              <img
+                src="/zedexams-logo.png?v=4"
+                alt="ZedExams"
+                style={{ width: "100%", height: "100%", objectFit: "contain" }}
+              />
+            </picture>
           </div>
           <div>
             <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
