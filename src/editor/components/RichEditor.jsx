@@ -49,6 +49,12 @@ import TableModal from './modals/TableModal.jsx'
 // KaTeX stylesheet — side-effect import kept at the component level so the
 // extensions factory stays pure-JS (importable by Node migration scripts).
 import 'katex/dist/katex.min.css'
+// Editor design system — side-effect import so every consumer of RichEditor
+// picks up the .re-wrap / .toolbar / .editor-area styles. Previously only
+// QuizEditor/QuizViewer imported this, which meant pages using RichEditor
+// directly (e.g. the CreateQuizV2 admin flow via QuizRichField) rendered
+// without editor styles on the deployed build.
+import '../editor.css'
 
 export default function RichEditor({
   label,
