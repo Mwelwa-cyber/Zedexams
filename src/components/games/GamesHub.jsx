@@ -90,7 +90,6 @@ export default function GamesHub() {
   }, [])
 
   const stats = useMemo(() => computeStats({ history, streak, badges }), [history, streak, badges])
-  const popular       = useMemo(() => pickPopular(games), [games])
   const subjectCounts = useMemo(() => countBySubject(games), [games])
 
   const fallbackGrade = Number(userProfile?.grade) || null
@@ -120,11 +119,11 @@ export default function GamesHub() {
 
   return (
     <GamesShell crumbs={[]}>
+      <HeroGreeting name={firstName} signedIn={!!currentUser} />
+
       <DailyChallengeCard />
 
-      <WelcomeBar name={firstName} signedIn={!!currentUser} />
-
-      <StatsRow stats={stats} signedIn={!!currentUser} />
+      {!!currentUser && <StatsRow stats={stats} signedIn={true} />}
 
       <div className="grid lg:grid-cols-[1.4fr_1fr] gap-4 sm:gap-6 mt-6">
         <ContinueLearning item={continueItem} signedIn={!!currentUser} />
@@ -149,15 +148,13 @@ export default function GamesHub() {
         <SubjectProgressStrip rows={subjectProgress} />
       )}
 
-      <LeaderboardPreview rows={topScorers} />
+      <GradePicker />
 
       <SubjectsStrip counts={subjectCounts} />
 
+      <LeaderboardPreview rows={topScorers} />
+
       <BadgesStrip earnedIds={Object.keys(badges.byId || {})} signedIn={!!currentUser} />
-
-      <GradePicker />
-
-      <PopularGames games={popular} />
 
       <MotivationalFooter />
     </GamesShell>
@@ -166,25 +163,28 @@ export default function GamesHub() {
 
 /* ───────────── Sections ───────────── */
 
-function WelcomeBar({ name, signedIn }) {
+function HeroGreeting({ name, signedIn }) {
   return (
-    <section className="text-center mb-6 mt-2">
-      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white border border-amber-200 text-[11px] font-black uppercase tracking-wider text-amber-800 mb-3 shadow-sm">
-        <SparklesIcon className="w-3.5 h-3.5" />
-        <span>CBC-aligned · Grade 1 to 6</span>
+    <section className="relative mt-2 mb-4 sm:mb-6 rounded-[28px] bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 border-2 border-amber-100 p-5 sm:p-6 overflow-hidden shadow-[0_10px_40px_-12px_rgba(251,146,60,0.35)]">
+      <div aria-hidden="true" className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-amber-200/40 blur-2xl" />
+      <div aria-hidden="true" className="absolute -bottom-10 -left-8 w-36 h-36 rounded-full bg-rose-200/40 blur-2xl" />
+      <div className="relative flex items-center gap-4 sm:gap-5">
+        <div className="shrink-0 w-16 h-16 sm:w-20 sm:h-20 rounded-[22px] bg-gradient-to-br from-amber-400 to-orange-500 shadow-[0_8px_24px_-6px_rgba(249,115,22,0.55)] flex items-center justify-center text-4xl sm:text-5xl">
+          <span aria-hidden="true">🦁</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-amber-700">
+            {signedIn ? 'Hey friend' : 'Welcome'}
+          </p>
+          <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-black leading-tight text-slate-900">
+            {signedIn && name ? (
+              <>Hi <span className="text-amber-600">{name}</span>! Let's play 🎉</>
+            ) : (
+              <>Let's play and learn! <span aria-hidden="true">✨</span></>
+            )}
+          </h1>
+        </div>
       </div>
-      <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl font-black leading-tight max-w-3xl mx-auto">
-        {signedIn && name ? (
-          <>Welcome back, <span className="text-amber-600">{name}</span> — ready to level up?</>
-        ) : (
-          <>Learn, Practice, Compete &amp; <span className="text-amber-600">Achieve</span></>
-        )}
-      </h1>
-      <p className="mt-2 text-sm sm:text-base text-slate-600 max-w-xl mx-auto">
-        {signedIn
-          ? 'Every score is saved to your history and powers your streaks, badges and leaderboard rank.'
-          : 'Free CBC games for Zambian pupils. Sign in to save your scores, earn badges and climb the leaderboard.'}
-      </p>
     </section>
   )
 }
@@ -239,20 +239,20 @@ function StatsRow({ stats, signedIn }) {
     },
   ]
   return (
-    <section className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+    <section className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3 mt-4">
       {cards.map((c) => (
         <div
           key={c.key}
-          className={`rounded-2xl border ${c.ring} bg-gradient-to-br ${c.tint} p-4 shadow-sm hover:shadow-md transition`}
+          className={`rounded-[22px] border-2 ${c.ring} bg-gradient-to-br ${c.tint} p-3 sm:p-4 shadow-[0_6px_20px_-10px_rgba(15,23,42,0.18)] hover:-translate-y-0.5 hover:shadow-[0_10px_26px_-10px_rgba(15,23,42,0.25)] transition`}
         >
-          <div className="flex items-center justify-between">
-            <span className={`w-10 h-10 rounded-2xl ${c.tileBg} text-white flex items-center justify-center shadow-sm`}>
-              <c.Icon className="w-5 h-5" />
+          <div className="flex items-center gap-2">
+            <span className={`w-9 h-9 rounded-2xl ${c.tileBg} text-white flex items-center justify-center shadow-[0_4px_12px_-3px_rgba(15,23,42,0.25)]`}>
+              <c.Icon className="w-4 h-4" />
             </span>
             <span className="text-[10px] font-black uppercase tracking-wider text-slate-500">{c.label}</span>
           </div>
-          <p className="font-display text-2xl sm:text-3xl font-black mt-3 text-slate-900">{c.value}</p>
-          <p className={`text-[11px] font-bold mt-0.5 ${c.accent}`}>{c.sub}</p>
+          <p className="font-display text-2xl sm:text-3xl font-black mt-2 text-slate-900 leading-none">{c.value}</p>
+          <p className={`text-[10px] sm:text-[11px] font-bold mt-1 ${c.accent}`}>{c.sub}</p>
           {c.progress != null && (
             <div className="mt-2 h-1.5 rounded-full bg-white/70 overflow-hidden">
               <div
@@ -270,19 +270,24 @@ function StatsRow({ stats, signedIn }) {
 function ContinueLearning({ item, signedIn }) {
   if (!item) {
     return (
-      <section className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm">
-        <SectionHeading title="Continue Learning" note="Pick up where you left off" />
-        <div className="flex items-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 p-5 text-slate-600">
-          <span className="w-12 h-12 rounded-2xl bg-gradient-to-br from-slate-200 to-slate-300 text-white flex items-center justify-center shrink-0">
-            <PlayIcon className="w-6 h-6" />
-          </span>
-          <div className="flex-1">
-            <p className="font-bold text-slate-700">
-              {signedIn ? 'No recent games yet — try a daily challenge!' : 'Sign in to keep your progress across devices.'}
-            </p>
-            <p className="text-xs text-slate-500">Your last game will appear here.</p>
+      <section className="relative rounded-[26px] border-2 border-emerald-100 bg-gradient-to-br from-emerald-50 via-white to-teal-50 p-5 sm:p-6 shadow-[0_10px_30px_-14px_rgba(16,185,129,0.3)] overflow-hidden">
+        <div aria-hidden="true" className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-emerald-200/40 blur-2xl" />
+        <div className="relative flex items-center gap-3">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-[20px] bg-gradient-to-br from-emerald-400 to-teal-500 shadow-[0_6px_18px_-4px_rgba(16,185,129,0.55)] flex items-center justify-center text-3xl sm:text-4xl shrink-0">
+            <span aria-hidden="true">🚀</span>
           </div>
-          <Link to="/games#grades" className="hidden sm:inline-flex px-3 py-2 rounded-xl text-xs font-black text-white bg-slate-900 hover:bg-slate-800 transition">Browse</Link>
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] font-black uppercase tracking-wider text-emerald-700">Keep going</p>
+            <p className="font-display font-black text-lg text-slate-900 leading-tight">
+              {signedIn ? 'No games yet — jump in!' : 'Your progress lives here'}
+            </p>
+            <p className="text-xs sm:text-sm text-slate-600 mt-0.5">
+              {signedIn ? 'Pick a game and your progress will show up here.' : 'Sign in to save your play across devices.'}
+            </p>
+          </div>
+          <Link to="/games#grades" className="shrink-0 inline-flex items-center gap-1 px-3 sm:px-4 py-2 sm:py-2.5 rounded-2xl text-xs sm:text-sm font-black text-white bg-gradient-to-br from-emerald-500 to-teal-500 shadow-[0_6px_16px_-4px_rgba(16,185,129,0.55)] active:translate-y-0.5 transition">
+            Browse
+          </Link>
         </div>
       </section>
     )
@@ -292,51 +297,48 @@ function ContinueLearning({ item, signedIn }) {
   const theme = subjectTheme(item.subject)
   const progress = Math.min(100, Math.max(5, Math.round(item.accuracy || item.progress || 60)))
   return (
-    <section className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm">
-      <SectionHeading title="Continue Learning" note="Last played" />
-      <div className="flex items-center gap-3 sm:gap-4">
-        <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-gradient-to-br ${theme.gradient} text-white flex items-center justify-center shadow-md`}>
-          <theme.icon className="w-7 h-7 sm:w-8 sm:h-8" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className="font-black text-slate-900 truncate">{item.title || item.gameTitle || 'Game'}</p>
-          <div className="flex flex-wrap gap-1.5 mt-1">
-            {grade && <MiniChip>{grade.label}</MiniChip>}
-            {subject && <MiniChip tone={theme.chip}>{subject.label}</MiniChip>}
+    <section className={`relative rounded-[26px] border-2 ${theme.ring} bg-gradient-to-br ${theme.soft} p-5 sm:p-6 shadow-[0_10px_30px_-14px_rgba(15,23,42,0.25)] overflow-hidden`}>
+      <div aria-hidden="true" className={`absolute -top-10 -right-10 w-36 h-36 rounded-full opacity-40 ${theme.blob} blur-2xl`} />
+      <div className="relative">
+        <div className="flex items-center gap-3 sm:gap-4">
+          <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-[20px] bg-gradient-to-br ${theme.gradient} text-white flex items-center justify-center shadow-[0_8px_20px_-4px_rgba(15,23,42,0.3)] shrink-0`}>
+            <theme.icon className="w-7 h-7 sm:w-8 sm:h-8" />
           </div>
-          <div className="mt-2">
-            <div className="flex items-center justify-between text-[11px] font-black text-slate-500 mb-1">
-              <span>You're {progress}% there</span>
-              <span>{progress}%</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] font-black uppercase tracking-wider text-slate-600">Pick up where you left off</p>
+            <p className="font-display font-black text-lg sm:text-xl text-slate-900 truncate leading-tight">{item.title || item.gameTitle || 'Game'}</p>
+            <div className="flex flex-wrap gap-1.5 mt-1.5">
+              {grade && <MiniChip>{grade.label}</MiniChip>}
+              {subject && <MiniChip tone={theme.chip}>{subject.label}</MiniChip>}
             </div>
-            <div className="h-2 rounded-full bg-slate-100 overflow-hidden">
-              <div
-                className={`h-full bg-gradient-to-r ${theme.gradient} rounded-full transition-[width] duration-700`}
-                style={{ width: `${progress}%` }}
-              />
-            </div>
+          </div>
+        </div>
+        <div className="mt-4">
+          <div className="flex items-center justify-between text-[11px] font-black text-slate-600 mb-1">
+            <span>You're {progress}% there 💪</span>
+            <span>{progress}%</span>
+          </div>
+          <div className="h-2.5 rounded-full bg-white/80 overflow-hidden">
+            <div
+              className={`h-full bg-gradient-to-r ${theme.gradient} rounded-full transition-[width] duration-700`}
+              style={{ width: `${progress}%` }}
+            />
           </div>
         </div>
         <Link
           to={`/games/play/${item.gameId || item.id}`}
-          className="shrink-0 hidden sm:inline-flex items-center gap-1 px-4 py-2.5 rounded-xl text-sm font-black text-white bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 shadow-md transition"
+          className="mt-4 inline-flex w-full items-center justify-center gap-1.5 px-5 py-3 rounded-2xl text-base font-black text-white bg-gradient-to-br from-emerald-500 to-teal-500 shadow-[0_8px_20px_-4px_rgba(16,185,129,0.55)] hover:-translate-y-0.5 active:translate-y-0.5 transition"
         >
-          Continue <ArrowRightIcon className="w-4 h-4" />
+          Continue playing <ArrowRightIcon className="w-4 h-4" />
         </Link>
       </div>
-      <Link
-        to={`/games/play/${item.gameId || item.id}`}
-        className="sm:hidden mt-3 inline-flex w-full items-center justify-center gap-1 px-4 py-2.5 rounded-xl text-sm font-black text-white bg-gradient-to-r from-emerald-500 to-teal-500"
-      >
-        Continue <ArrowRightIcon className="w-4 h-4" />
-      </Link>
     </section>
   )
 }
 
 function LeaderboardPreview({ rows }) {
   return (
-    <section className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="rounded-[24px] border-2 border-slate-100 bg-white p-5 shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)]">
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-display text-lg font-black flex items-center gap-2">
           <TrophyIcon className="w-5 h-5 text-amber-500" />
@@ -435,10 +437,10 @@ function RecommendedCard({ game, badge, featured }) {
     return (
       <Link
         to={`/games/play/${game.id}`}
-        className={`group relative sm:col-span-2 rounded-[20px] border ${theme.ring} bg-gradient-to-br ${theme.soft} p-5 shadow-sm hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.99] transition overflow-hidden`}
+        className={`group relative sm:col-span-2 rounded-[26px] border-2 ${theme.ring} bg-gradient-to-br ${theme.soft} p-5 sm:p-6 shadow-[0_10px_30px_-14px_rgba(15,23,42,0.25)] hover:shadow-[0_16px_40px_-14px_rgba(15,23,42,0.3)] hover:-translate-y-0.5 active:translate-y-0.5 transition overflow-hidden`}
       >
-        <div aria-hidden="true" className={`absolute -top-16 -right-16 w-56 h-56 rounded-full opacity-30 ${theme.blob} blur-2xl`} />
-        <div aria-hidden="true" className={`absolute -bottom-10 -left-10 w-40 h-40 rounded-full opacity-20 ${theme.blob} blur-2xl`} />
+        <div aria-hidden="true" className={`absolute -top-16 -right-16 w-56 h-56 rounded-full opacity-40 ${theme.blob} blur-2xl`} />
+        <div aria-hidden="true" className={`absolute -bottom-10 -left-10 w-40 h-40 rounded-full opacity-30 ${theme.blob} blur-2xl`} />
         <div className="relative flex flex-col sm:flex-row sm:items-start gap-4">
           <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${theme.gradient} text-white flex items-center justify-center shadow-md shrink-0`}>
             <theme.icon className="w-8 h-8" />
@@ -477,11 +479,11 @@ function RecommendedCard({ game, badge, featured }) {
   return (
     <Link
       to={`/games/play/${game.id}`}
-      className="group relative rounded-[20px] border border-slate-200 bg-white p-4 shadow-sm hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.99] transition overflow-hidden"
+      className="group relative rounded-[22px] border-2 border-slate-100 bg-white p-4 shadow-[0_6px_20px_-10px_rgba(15,23,42,0.18)] hover:shadow-[0_12px_30px_-10px_rgba(15,23,42,0.25)] hover:-translate-y-0.5 active:translate-y-0.5 transition overflow-hidden"
     >
-      <div aria-hidden="true" className={`absolute -top-10 -right-10 w-36 h-36 rounded-full opacity-20 ${theme.blob} blur-2xl`} />
+      <div aria-hidden="true" className={`absolute -top-10 -right-10 w-36 h-36 rounded-full opacity-25 ${theme.blob} blur-2xl`} />
       <div className="relative flex items-start gap-3">
-        <div className={`w-12 h-12 rounded-2xl bg-gradient-to-br ${theme.gradient} text-white flex items-center justify-center shadow-sm shrink-0`}>
+        <div className={`w-12 h-12 rounded-[18px] bg-gradient-to-br ${theme.gradient} text-white flex items-center justify-center shadow-[0_6px_14px_-3px_rgba(15,23,42,0.3)] shrink-0`}>
           <theme.icon className="w-6 h-6" />
         </div>
         <div className="flex-1 min-w-0">
@@ -526,7 +528,7 @@ function SubjectsStrip({ counts }) {
           return (
             <div
               key={s.slug}
-              className={`group relative rounded-[20px] border ${theme.ring} bg-gradient-to-br ${theme.soft} p-4 shadow-sm hover:shadow-md hover:-translate-y-0.5 transition overflow-hidden`}
+              className={`group relative rounded-[22px] border-2 ${theme.ring} bg-gradient-to-br ${theme.soft} p-4 shadow-[0_6px_20px_-10px_rgba(15,23,42,0.18)] hover:-translate-y-0.5 hover:shadow-[0_12px_28px_-10px_rgba(15,23,42,0.25)] transition overflow-hidden`}
             >
               <div aria-hidden="true" className={`absolute -top-8 -right-8 w-28 h-28 rounded-full opacity-25 ${theme.blob} blur-2xl`} />
               <div className="relative">
@@ -558,7 +560,7 @@ function BadgesStrip({ earnedIds, signedIn }) {
   const ids = new Set(earnedIds)
   const show = GAME_BADGES.slice(0, 6)
   return (
-    <section className="mt-6 sm:mt-8 rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="mt-6 sm:mt-8 rounded-[24px] border-2 border-slate-100 bg-white p-5 shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)]">
       <div className="flex items-center justify-between mb-3">
         <h3 className="font-display text-lg font-black flex items-center gap-2">
           <SparklesIcon className="w-5 h-5 text-amber-500" />
@@ -635,7 +637,7 @@ function GradePicker() {
           return (
             <div
               key={band.key}
-              className={`rounded-[20px] border ${band.ring} bg-gradient-to-br ${band.tint} p-4 sm:p-5 shadow-sm`}
+              className={`rounded-[26px] border-2 ${band.ring} bg-gradient-to-br ${band.tint} p-4 sm:p-5 shadow-[0_10px_28px_-14px_rgba(15,23,42,0.22)]`}
             >
               <div className="flex items-center justify-between mb-3">
                 <div>
@@ -671,78 +673,6 @@ function GradePicker() {
   )
 }
 
-function PopularGames({ games }) {
-  if (!games || games.length === 0) return null
-  return (
-    <section className="mt-6 sm:mt-8">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="font-display text-xl font-black flex items-center gap-2">
-          <StarIcon className="w-5 h-5 text-amber-500" />
-          Popular Games
-        </h3>
-        <span className="text-xs font-bold text-slate-500 hidden sm:inline">Loved by learners this week</span>
-      </div>
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
-        {games.map((g, i) => (
-          <PopularCard key={g.id} game={g} variant={i % 3} />
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function PopularCard({ game, variant = 0 }) {
-  const subject = subjectBySlug(game.subject)
-  const grade = gradeByValue(game.grade)
-  const theme = subjectTheme(game.subject)
-  const type = gameTypeMeta(game.type)
-  const ratingOffset = (game.id?.length || 0) % 3
-  const rating = 4 + (ratingOffset === 0 ? 0.6 : ratingOffset === 1 ? 0.8 : 0.9)
-  const patterns = [
-    `bg-gradient-to-br ${theme.soft}`,
-    `bg-gradient-to-tr ${theme.soft}`,
-    `bg-gradient-to-b ${theme.soft}`,
-  ]
-  return (
-    <Link
-      to={`/games/play/${game.id}`}
-      className="group rounded-[20px] border border-slate-200 bg-white shadow-sm hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.98] transition overflow-hidden flex flex-col"
-    >
-      <div className={`relative aspect-[4/3] ${patterns[variant]} flex items-center justify-center overflow-hidden`}>
-        <div aria-hidden="true" className={`absolute -top-6 -right-6 w-24 h-24 rounded-full opacity-40 ${theme.blob} blur-xl`} />
-        <div aria-hidden="true" className={`absolute -bottom-4 -left-4 w-20 h-20 rounded-full opacity-30 ${theme.blob} blur-xl`} />
-        <div className={`relative w-16 h-16 rounded-2xl bg-gradient-to-br ${theme.gradient} text-white flex items-center justify-center shadow-md`}>
-          <theme.icon className="w-8 h-8" />
-        </div>
-        <span className="absolute top-2 right-2 inline-flex items-center gap-0.5 text-[10px] font-black px-1.5 py-0.5 rounded-full bg-white/95 text-amber-800 shadow-sm border border-amber-100">
-          <StarIcon className="w-3 h-3 text-amber-500" />
-          {rating.toFixed(1)}
-        </span>
-        <span className="absolute top-2 left-2 inline-flex items-center gap-0.5 text-[9px] font-black uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-white/95 text-slate-700 shadow-sm border border-white">
-          <type.icon className="w-2.5 h-2.5" />
-          {type.label}
-        </span>
-      </div>
-      <div className="p-3 flex-1 flex flex-col">
-        <h4 className="font-black text-sm leading-tight text-slate-900 line-clamp-2">{game.title}</h4>
-        <div className="flex gap-1 mt-1.5 flex-wrap">
-          {grade && <MiniChip>{grade.label}</MiniChip>}
-          {subject && <MiniChip tone={theme.chip}>{subject.label}</MiniChip>}
-        </div>
-        <div className="mt-auto pt-2 flex items-center justify-between text-[11px] font-black">
-          <span className="inline-flex items-center gap-0.5 text-slate-500">
-            <StarIcon className="w-3 h-3 text-amber-500" />
-            {game.points} pts
-          </span>
-          <span className={`${theme.text} group-hover:translate-x-0.5 transition inline-flex items-center gap-0.5`}>
-            Play <ArrowRightIcon className="w-3 h-3" />
-          </span>
-        </div>
-      </div>
-    </Link>
-  )
-}
-
 function MotivationalFooter() {
   const pillars = [
     { label: 'Learn',    Icon: AcademicCapIcon, tint: 'from-sky-400 to-blue-500' },
@@ -751,7 +681,7 @@ function MotivationalFooter() {
     { label: 'Achieve',  Icon: StarIcon,        tint: 'from-emerald-400 to-teal-500' },
   ]
   return (
-    <section className="mt-8 rounded-[20px] border border-slate-200 bg-gradient-to-r from-indigo-50 via-white to-amber-50 p-5 sm:p-6 shadow-sm">
+    <section className="mt-8 rounded-[26px] border-2 border-indigo-100 bg-gradient-to-r from-indigo-50 via-white to-amber-50 p-5 sm:p-6 shadow-[0_10px_28px_-14px_rgba(79,70,229,0.28)]">
       <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-6">
         <div className="flex-1">
           <p className="text-[11px] font-black uppercase tracking-wider text-indigo-600 mb-1">Daily Motto</p>
@@ -780,15 +710,16 @@ function MotivationalFooter() {
 function DailyGoalCard({ goal, signedIn }) {
   if (!signedIn) {
     return (
-      <section className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm">
-        <SectionHeading title="Daily Goal" note="Sign in to unlock" />
-        <div className="flex items-center gap-3 rounded-2xl border-2 border-dashed border-slate-200 p-4 text-slate-600">
-          <span className="w-11 h-11 rounded-2xl bg-gradient-to-br from-slate-200 to-slate-300 text-white flex items-center justify-center shrink-0">
-            <CheckBadgeIcon className="w-5 h-5" />
-          </span>
-          <div className="flex-1">
-            <p className="font-bold text-slate-700">A little challenge every day</p>
-            <p className="text-xs text-slate-500">Sign in to pick today's goal.</p>
+      <section className="relative rounded-[26px] border-2 border-sky-100 bg-gradient-to-br from-sky-50 via-white to-indigo-50 p-5 sm:p-6 shadow-[0_10px_30px_-14px_rgba(59,130,246,0.3)] overflow-hidden">
+        <div aria-hidden="true" className="absolute -bottom-8 -right-8 w-32 h-32 rounded-full bg-sky-200/40 blur-2xl" />
+        <div className="relative flex items-center gap-3">
+          <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-[20px] bg-gradient-to-br from-sky-400 to-indigo-500 shadow-[0_6px_18px_-4px_rgba(79,70,229,0.55)] flex items-center justify-center text-3xl sm:text-4xl shrink-0">
+            <span aria-hidden="true">🎯</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[11px] font-black uppercase tracking-wider text-sky-700">Daily goal</p>
+            <p className="font-display font-black text-lg text-slate-900 leading-tight">A little each day!</p>
+            <p className="text-xs sm:text-sm text-slate-600 mt-0.5">Sign in to pick today's fun challenge.</p>
           </div>
         </div>
       </section>
@@ -797,34 +728,44 @@ function DailyGoalCard({ goal, signedIn }) {
   if (!goal) return null
   const progress = Math.min(100, Math.round(((goal.progress || 0) / (goal.target || 1)) * 100))
   const done = !!goal.completed
+  const wrap = done
+    ? 'border-emerald-200 bg-gradient-to-br from-emerald-50 via-white to-teal-50 shadow-[0_10px_30px_-14px_rgba(16,185,129,0.4)]'
+    : 'border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 shadow-[0_10px_30px_-14px_rgba(251,146,60,0.4)]'
+  const blob = done ? 'bg-emerald-200/40' : 'bg-amber-200/40'
+  const tileGrad = done ? 'from-emerald-400 to-teal-500' : 'from-amber-400 to-orange-500'
+  const tileShadow = done ? 'shadow-[0_6px_18px_-4px_rgba(16,185,129,0.55)]' : 'shadow-[0_6px_18px_-4px_rgba(249,115,22,0.55)]'
+  const emoji = done ? '🎉' : '🎯'
   return (
-    <section className="rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm">
-      <SectionHeading title="Today's Goal" note={done ? 'Completed' : 'In progress'} />
-      <div className={`flex items-center gap-3 rounded-2xl border p-4 ${done ? 'border-emerald-200 bg-emerald-50' : 'border-amber-200 bg-amber-50'}`}>
-        <span className={`w-12 h-12 rounded-2xl text-white flex items-center justify-center shadow-sm shrink-0 ${done ? 'bg-gradient-to-br from-emerald-400 to-teal-500' : 'bg-gradient-to-br from-amber-400 to-orange-500'}`}>
-          {done ? <CheckBadgeIcon className="w-6 h-6" /> : <StarIcon className="w-6 h-6" />}
-        </span>
-        <div className="flex-1 min-w-0">
-          <p className={`font-black text-sm leading-tight ${done ? 'text-emerald-900' : 'text-amber-900'}`}>
-            {goal.label}
-          </p>
-          <div className="mt-2">
-            <div className="flex items-center justify-between text-[11px] font-black mb-1">
-              <span className={done ? 'text-emerald-800' : 'text-amber-800'}>{goal.progress || 0} / {goal.target}</span>
-              <span className={done ? 'text-emerald-700' : 'text-amber-700'}>{progress}%</span>
-            </div>
-            <div className="h-2 rounded-full bg-white/70 overflow-hidden">
-              <div
-                className={`h-full rounded-full transition-[width] duration-700 ${done ? 'bg-gradient-to-r from-emerald-400 to-teal-500' : 'bg-gradient-to-r from-amber-400 to-orange-500'}`}
-                style={{ width: `${Math.max(5, progress)}%` }}
-              />
-            </div>
+    <section className={`relative rounded-[26px] border-2 ${wrap} p-5 sm:p-6 overflow-hidden`}>
+      <div aria-hidden="true" className={`absolute -bottom-8 -right-8 w-32 h-32 rounded-full ${blob} blur-2xl`} />
+      <div className="relative">
+        <div className="flex items-center gap-3">
+          <div className={`w-14 h-14 sm:w-16 sm:h-16 rounded-[20px] bg-gradient-to-br ${tileGrad} ${tileShadow} flex items-center justify-center text-3xl sm:text-4xl shrink-0`}>
+            <span aria-hidden="true">{emoji}</span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className={`text-[11px] font-black uppercase tracking-wider ${done ? 'text-emerald-700' : 'text-amber-700'}`}>
+              {done ? "You did it!" : "Today's goal"}
+            </p>
+            <p className="font-display font-black text-lg text-slate-900 leading-tight">{goal.label}</p>
           </div>
         </div>
+        <div className="mt-4">
+          <div className="flex items-center justify-between text-[11px] font-black mb-1">
+            <span className={done ? 'text-emerald-800' : 'text-amber-800'}>{goal.progress || 0} / {goal.target}</span>
+            <span className={done ? 'text-emerald-700' : 'text-amber-700'}>{progress}%</span>
+          </div>
+          <div className="h-2.5 rounded-full bg-white/80 overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-[width] duration-700 bg-gradient-to-r ${tileGrad}`}
+              style={{ width: `${Math.max(5, progress)}%` }}
+            />
+          </div>
+        </div>
+        {done && (
+          <p className="mt-3 text-xs font-bold text-emerald-700 text-center">Amazing — come back tomorrow for a new goal!</p>
+        )}
       </div>
-      {done && (
-        <p className="mt-3 text-xs font-bold text-emerald-700 text-center">Awesome — come back tomorrow for a new goal.</p>
-      )}
     </section>
   )
 }
@@ -966,7 +907,7 @@ function MoveForwardRow({ items }) {
 
 function SubjectProgressStrip({ rows }) {
   return (
-    <section className="mt-6 sm:mt-8 rounded-[20px] border border-slate-200 bg-white p-5 shadow-sm">
+    <section className="mt-6 sm:mt-8 rounded-[24px] border-2 border-slate-100 bg-white p-5 shadow-[0_8px_24px_-12px_rgba(15,23,42,0.18)]">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-display text-lg font-black flex items-center gap-2">
           <AcademicCapIcon className="w-5 h-5 text-indigo-500" />
@@ -1106,15 +1047,6 @@ function pickRecommendedFallback({ games, history, userProfile }) {
     .sort((a, b) => b.score - a.score)
 
   return scored.slice(0, 3).map((x) => x.g)
-}
-
-function pickPopular(games) {
-  if (!games || games.length === 0) return []
-  return games
-    .filter((g) => g.active !== false)
-    .slice()
-    .sort((a, b) => (a.id || '').localeCompare(b.id || ''))
-    .slice(0, 5)
 }
 
 function setMeta(content) {
