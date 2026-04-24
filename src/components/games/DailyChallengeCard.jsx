@@ -10,7 +10,6 @@ import {
 } from '@heroicons/react/24/solid'
 import { gradeByValue } from '../../utils/gamesService'
 import {
-  IconBubble,
   MetaPill,
   getGameTypeTheme,
   getSubjectTheme,
@@ -80,24 +79,24 @@ export default function DailyChallengeCard({ challenge, streak, loading }) {
           <div className="mt-6 grid gap-3 sm:grid-cols-2">
             <StatusCard
               icon={FireIcon}
-              title={streak?.signedIn ? `${streak.streak || 0}-day streak` : 'Track your streak'}
+              title={streak?.signedIn ? `${streak.streak || 0}-day streak 🔥` : 'Start a streak!'}
               description={
                 streak?.signedIn
                   ? playedToday
-                    ? 'Challenge completed today. Come back tomorrow to keep the run alive.'
+                    ? 'Nice work today! See you tomorrow.'
                     : streak?.streak
-                      ? `One more win extends your best run of ${streak.longestStreak || streak.streak} days.`
-                      : 'A fresh streak starts the moment you clear today’s challenge.'
-                  : 'Sign in to save progress, badges, and streaks across every game.'
+                      ? `One win keeps your ${streak.streak}-day fire alive!`
+                      : 'Win today to start your streak!'
+                  : 'Sign in to save your wins and streaks.'
               }
             />
             <StatusCard
               icon={TrophyIcon}
-              title={playedToday ? 'Already cleared today' : 'Ready for today'}
+              title={playedToday ? 'Done for today! ✅' : 'Today’s game!'}
               description={
                 playedToday
-                  ? 'Replay it for extra practice and sharpen your speed.'
-                  : 'Beat the daily spotlight to push your points, rank, and badges forward.'
+                  ? 'Play again to beat your best time!'
+                  : 'Win to earn points and badges!'
               }
             />
           </div>
@@ -142,56 +141,25 @@ function StatusCard({ icon, title, description }) {
 
 function HeroArtwork({ subjectTheme }) {
   return (
-    <div className="relative mx-auto flex w-full max-w-[23rem] items-center justify-center self-stretch">
-      <div className={`absolute inset-8 rounded-full bg-gradient-to-br ${subjectTheme.strongGradient} opacity-18 blur-3xl`} />
-      <div className="relative aspect-[4/4.2] w-full overflow-hidden rounded-[28px] border border-white/70 bg-white/72 p-6 shadow-[0_24px_70px_-34px_rgba(15,23,42,0.22)] backdrop-blur-xl">
+    <div className="relative mx-auto hidden w-full max-w-[23rem] items-center justify-center self-stretch lg:flex">
+      <div className={`absolute inset-8 rounded-full bg-gradient-to-br ${subjectTheme.strongGradient} opacity-20 blur-3xl`} />
+      <div className="relative aspect-[4/4.2] w-full overflow-hidden rounded-[28px] border-2 border-white/80 bg-white/80 p-6 shadow-[0_24px_70px_-34px_rgba(15,23,42,0.25)] backdrop-blur-xl">
         <div className="absolute -right-6 top-6 h-28 w-28 rounded-full bg-amber-200/55 blur-2xl" />
         <div className="absolute left-0 top-16 h-24 w-24 rounded-full bg-sky-200/40 blur-2xl" />
         <div className="absolute bottom-0 right-6 h-28 w-28 rounded-full bg-emerald-200/45 blur-2xl" />
 
-        <div className="relative flex h-full flex-col justify-between">
-          <div className="flex items-center justify-between">
-            <IconBubble icon={subjectTheme.icon} theme={subjectTheme} size="h-14 w-14" iconClassName="h-7 w-7" />
-            <span className="inline-flex items-center gap-2 rounded-full bg-slate-900 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-white">
-              <FireIcon className="h-4 w-4 text-amber-300" />
-              Daily streak
-            </span>
+        <div className="relative flex h-full flex-col items-center justify-center gap-4 text-center">
+          <div className="text-[6rem] leading-none" aria-hidden="true">🎮</div>
+          <div>
+            <p className="text-xl font-black text-slate-900">Ready to play?</p>
+            <p className="mt-1 text-sm font-medium text-slate-600">
+              Tap the button and have fun!
+            </p>
           </div>
-
-          <div className="grid gap-3">
-            <IllustrationStat
-              icon={SparklesIcon}
-              label="Boost learning"
-              note="Short, focused challenge"
-            />
-            <IllustrationStat
-              icon={TrophyIcon}
-              label="Earn leaderboard points"
-              note="Fast wins feel rewarding"
-            />
-            <IllustrationStat
-              icon={PlayIcon}
-              label="One tap to jump in"
-              note="Built for quick mobile play"
-            />
+          <div className="flex items-center gap-2 text-2xl" aria-hidden="true">
+            <span>⭐</span><span>🏆</span><span>🔥</span>
           </div>
         </div>
-      </div>
-    </div>
-  )
-}
-
-function IllustrationStat({ icon, label, note }) {
-  const Icon = icon
-
-  return (
-    <div className="flex items-center gap-3 rounded-2xl bg-white/78 p-3">
-      <span className="inline-flex h-10 w-10 items-center justify-center rounded-full bg-slate-900 text-white">
-        <Icon className="h-5 w-5" />
-      </span>
-      <div>
-        <p className="text-sm font-black text-slate-900">{label}</p>
-        <p className="text-xs font-medium text-slate-500">{note}</p>
       </div>
     </div>
   )

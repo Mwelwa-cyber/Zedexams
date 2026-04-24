@@ -126,24 +126,31 @@ export default function GamesHub() {
       />
 
       <section className="mb-10">
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div className="max-w-3xl">
-            <p className="mb-2 text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
-              Premium learning flow
-            </p>
-            <h2 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
-              Follow your momentum across every game.
-            </h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600 sm:text-base">
-              Quick daily wins, subject progress, badges, and live leaderboard energy — all in one calm, touch-friendly space.
-            </p>
+        <div className="relative mb-6 overflow-hidden rounded-[28px] border-2 border-amber-100 bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 p-5 shadow-[0_18px_50px_-24px_rgba(251,146,60,0.45)] sm:p-6">
+          <div aria-hidden="true" className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-amber-200/40 blur-2xl" />
+          <div aria-hidden="true" className="absolute -bottom-10 -left-8 h-36 w-36 rounded-full bg-rose-200/40 blur-2xl" />
+          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-center gap-4 sm:gap-5">
+              <div aria-hidden="true" className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] bg-gradient-to-br from-amber-400 to-orange-500 text-4xl shadow-[0_10px_26px_-8px_rgba(249,115,22,0.55)] sm:h-20 sm:w-20 sm:text-5xl">
+                🦁
+              </div>
+              <div>
+                <h2 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+                  {currentUser ? 'Welcome back, champion!' : 'Hey there, player!'}
+                </h2>
+                <p className="mt-1 text-sm font-medium text-slate-700 sm:text-base">
+                  Pick a game below. Tap. Play. Win. 🎉
+                </p>
+              </div>
+            </div>
+            <Link
+              to="/games/leaderboard"
+              className="inline-flex items-center justify-center gap-2 self-start rounded-full bg-white px-4 py-2.5 text-sm font-black text-slate-900 shadow-sm ring-2 ring-white transition hover:-translate-y-0.5 active:scale-[0.98] sm:self-auto"
+            >
+              <TrophyIcon className="h-4 w-4 text-amber-500" />
+              Leaderboard
+            </Link>
           </div>
-          <Link
-            to="/games/leaderboard"
-            className="inline-flex items-center justify-center rounded-full bg-white px-4 py-2 text-sm font-black text-slate-900 ring-1 ring-slate-200 transition hover:-translate-y-0.5 hover:bg-slate-50 active:scale-[0.98]"
-          >
-            See live leaderboard
-          </Link>
         </div>
 
         <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -152,7 +159,7 @@ export default function GamesHub() {
             title="Level"
             value={`Lv ${level}`}
             accent="from-amber-500 to-orange-500"
-            support={currentUser ? `${levelProgress}% to level ${level + 1}` : 'Sign in to keep leveling up'}
+            support={currentUser ? `${levelProgress}% to Lv ${level + 1}` : 'Sign in to level up!'}
             progress={currentUser ? levelProgress : 18}
           />
           <StatCard
@@ -163,9 +170,9 @@ export default function GamesHub() {
             support={
               state.streak.signedIn
                 ? state.streak.streak
-                  ? 'Keep it up! Today’s challenge keeps the fire going.'
-                  : 'Your next win starts a new streak.'
-                : 'Sign in to save your daily streak.'
+                  ? 'On fire! Play today to keep it.'
+                  : 'Win once to start a streak!'
+                : 'Sign in to save your streak.'
             }
           />
           <StatCard
@@ -173,7 +180,7 @@ export default function GamesHub() {
             title="Points"
             value={totalPoints.toLocaleString()}
             accent="from-sky-500 to-cyan-500"
-            support={currentUser ? 'Saved points from your finished rounds.' : 'Guest play works, but signed-in points stay with you.'}
+            support={currentUser ? 'Earn more in every round!' : 'Sign in to keep points.'}
           />
           <StatCard
             icon={TrophyIcon}
@@ -183,9 +190,9 @@ export default function GamesHub() {
             support={
               currentUser
                 ? currentRank
-                  ? 'You are currently showing on the live board.'
-                  : 'Finish a round to break onto the leaderboard.'
-                : 'Sign in to appear on the live leaderboard.'
+                  ? 'You’re on the board!'
+                  : 'Finish a round to join!'
+                : 'Sign in to climb the board.'
             }
           />
         </div>
@@ -193,9 +200,9 @@ export default function GamesHub() {
 
       <section className="mb-12">
         <GamesSectionHeading
-          eyebrow="Recommended"
-          title="Jump into the next best games"
-          description="Curated picks based on the daily spotlight, your recent play history, and the strongest subject mix for quick wins."
+          eyebrow="⭐ Just for you"
+          title="Play these next!"
+          description="Fresh games picked for you to try today."
         />
         {state.loading ? (
           <SkeletonCardGrid featured />
@@ -216,9 +223,9 @@ export default function GamesHub() {
 
       <section className="mb-12">
         <GamesSectionHeading
-          eyebrow="Subjects"
-          title="Pick a subject track"
-          description="Every subject has its own colour, icon, and progress trail so children can scan quickly and jump straight into the right practice."
+          eyebrow="🎨 Subjects"
+          title="What do you want to play?"
+          description="Tap a subject to see all its games."
         />
         {state.loading ? (
           <SkeletonSubjectGrid />
@@ -242,12 +249,12 @@ export default function GamesHub() {
       <section className="mb-12 grid gap-8 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         <div>
           <GamesSectionHeading
-            eyebrow="Badges"
-            title="Collect bright rewards"
-            description="Earned badges glow, locked badges stay softly muted, and every reward hints at the next achievement path."
+            eyebrow="🏆 Badges"
+            title="Collect them all!"
+            description="Win games to unlock shiny badges."
             action={
               <Link to="/my-badges" className="text-sm font-black text-slate-700 transition hover:text-slate-900">
-                Open badge gallery
+                See all badges
               </Link>
             }
           />
@@ -265,9 +272,9 @@ export default function GamesHub() {
 
         <div>
           <GamesSectionHeading
-            eyebrow="Popular"
-            title="Popular game picks"
-            description="Fast favourites with varied colours, different game types, and easy scanability on both mobile and desktop."
+            eyebrow="🔥 Hot right now"
+            title="Loved by players"
+            description="Everyone’s playing these!"
           />
           {state.loading ? (
             <SkeletonCardGrid />
@@ -288,9 +295,9 @@ export default function GamesHub() {
 
       <section className="mb-10">
         <GamesSectionHeading
-          eyebrow="Grades"
-          title="Choose a grade level"
-          description="Large tap targets, strong numbering, and clear groupings for lower and middle primary learners."
+          eyebrow="🎒 Your grade"
+          title="What grade are you in?"
+          description="Tap your grade to see just-right games."
         />
         <div className="grid gap-4 xl:grid-cols-2">
           {[
