@@ -19,7 +19,7 @@ import {
  * Featured hero for the Games hub. Purely presentational — the data is
  * loaded by GamesHub so we can reuse it across stats and recommendations.
  */
-export default function DailyChallengeCard({ challenge, streak, loading }) {
+export default function DailyChallengeCard({ challenge, streak, loading, hideGrade = false }) {
   const [timeLeft, setTimeLeft] = useState(() => formatCountdown(getMsUntilNextUtcMidnight()))
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export default function DailyChallengeCard({ challenge, streak, loading }) {
   if (!challenge?.game) return null
 
   const game = challenge.game
-  const grade = gradeByValue(game.grade)
+  const grade = hideGrade ? null : gradeByValue(game.grade)
   const subjectTheme = getSubjectTheme(game.subject)
   const typeTheme = getGameTypeTheme(game.type)
   const playedToday = streak?.lastPlayedDate === challenge.dateId

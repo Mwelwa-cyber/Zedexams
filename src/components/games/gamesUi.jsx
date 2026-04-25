@@ -272,10 +272,11 @@ export function GameDiscoveryCard({
   href = null,
   cta = 'Play now',
   showRating = false,
+  hideGrade = false,
 }) {
   const subjectTheme = getSubjectTheme(game.subject)
   const typeTheme = getGameTypeTheme(game.type)
-  const grade = gradeByValue(game.grade)
+  const grade = hideGrade ? null : gradeByValue(game.grade)
   const filledStars = getGameStars(game)
   const Icon = typeTheme.icon
   const target = href || `/games/play/${game.id}`

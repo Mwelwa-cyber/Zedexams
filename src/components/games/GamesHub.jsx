@@ -12,7 +12,6 @@ import { getFallbackGames } from '../../data/gamesSeed'
 import { getTodaysChallenge, getMyStreak } from '../../utils/dailyChallengeService'
 import { getMyGameBadges } from '../../utils/gameBadgesService'
 import {
-  GRADES,
   SUBJECTS,
   getMyHistory,
   listGames,
@@ -133,6 +132,7 @@ export default function GamesHub() {
         challenge={state.challenge}
         streak={state.streak}
         loading={state.loading}
+        hideGrade
       />
 
       <section className="mb-10">
@@ -225,6 +225,7 @@ export default function GamesHub() {
                 badge={getGameStatusBadge(game, index, featuredGameId)}
                 variant={index === 0 ? 'featured' : 'standard'}
                 showRating
+                hideGrade
               />
             ))}
           </div>
@@ -296,6 +297,7 @@ export default function GamesHub() {
                   game={game}
                   badge={getGameStatusBadge(game, index + 1, featuredGameId)}
                   showRating
+                  hideGrade
                 />
               ))}
             </div>
@@ -303,40 +305,6 @@ export default function GamesHub() {
         </div>
       </section>
 
-      <section className="mb-10">
-        <GamesSectionHeading
-          eyebrow="🎒 Your grade"
-          title="What grade are you in?"
-          description="Tap your grade to see just-right games."
-        />
-        <div className="grid gap-4 xl:grid-cols-2">
-          {[
-            { key: 'lower', title: 'Lower Primary', note: 'Grades 1 – 3', accent: 'from-amber-200 via-orange-100 to-rose-100' },
-            { key: 'middle', title: 'Middle Primary', note: 'Grades 4 – 6', accent: 'from-emerald-200 via-teal-100 to-sky-100' },
-          ].map((band) => (
-            <div key={band.key} className={`rounded-[20px] border border-white/80 bg-gradient-to-br ${band.accent} p-5 shadow-[0_24px_60px_-34px_rgba(15,23,42,0.22)]`}>
-              <div className="mb-4 flex items-center justify-between gap-3">
-                <div>
-                  <h3 className="text-xl font-black text-slate-900">{band.title}</h3>
-                  <p className="mt-1 text-sm text-slate-600">{band.note}</p>
-                </div>
-                <span className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-white/85">
-                  <SparklesIcon className="h-6 w-6 text-slate-900" />
-                </span>
-              </div>
-              <div className="grid grid-cols-3 gap-3">
-                {GRADES.filter((grade) => grade.band === band.key).map((grade) => (
-                  <GradeCard
-                    key={grade.value}
-                    grade={grade}
-                    gamesCount={state.games.filter((game) => Number(game.grade) === grade.value).length}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
     </GamesShell>
   )
 }
@@ -366,23 +334,6 @@ function StatCard({ icon, title, value, support, accent, progress = null }) {
         </div>
       )}
     </div>
-  )
-}
-
-function GradeCard({ grade, gamesCount }) {
-  return (
-    <Link
-      to={`/games/g/${grade.value}`}
-      className="group rounded-2xl bg-white/82 p-4 text-center shadow-[0_18px_36px_-28px_rgba(15,23,42,0.2)] transition hover:-translate-y-1 hover:bg-white active:scale-[0.98]"
-    >
-      <div className="mx-auto inline-flex h-12 w-12 items-center justify-center rounded-full bg-slate-900 text-white">
-        <span className="text-lg font-black">{grade.value}</span>
-      </div>
-      <h4 className="mt-3 text-lg font-black text-slate-900">{grade.label}</h4>
-      <p className="mt-1 text-sm text-slate-600">
-        {gamesCount} {gamesCount === 1 ? 'game' : 'games'} ready
-      </p>
-    </Link>
   )
 }
 
