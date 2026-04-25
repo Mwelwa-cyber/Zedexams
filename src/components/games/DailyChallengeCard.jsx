@@ -100,9 +100,9 @@ export default function DailyChallengeCard({ challenge, streak, loading, hideGra
           <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
             <Link
               to={`/games/play/${game.id}`}
-              className={`inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-r ${subjectTheme.strongGradient} px-6 py-3.5 text-base font-black text-white shadow-[0_20px_40px_-24px_rgba(15,23,42,0.45)] transition hover:-translate-y-0.5 active:scale-[0.98]`}
+              className={`inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-b ${subjectTheme.strongGradient} px-5 py-3 text-sm font-black text-white ring-1 ring-white/40 shadow-[0_16px_30px_-12px_rgba(15,23,42,0.45),inset_0_1px_0_rgba(255,255,255,0.4)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_36px_-14px_rgba(15,23,42,0.5),inset_0_1px_0_rgba(255,255,255,0.45)] active:translate-y-0 active:shadow-[0_10px_20px_-10px_rgba(15,23,42,0.4),inset_0_1px_0_rgba(255,255,255,0.3)] sm:text-base`}
             >
-              <PlayIcon className="h-5 w-5" />
+              <PlayIcon className="h-4 w-4" />
               {playedToday ? 'Play again' : 'Play now'}
             </Link>
             <p className="text-sm font-medium text-slate-600">

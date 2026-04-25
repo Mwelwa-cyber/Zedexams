@@ -306,9 +306,9 @@ function ReadyCard({ game, onStart }) {
       <button
         type="button"
         onClick={onStart}
-        className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-black text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 shadow-md text-lg"
+        className="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-base font-black text-white bg-gradient-to-b from-amber-400 to-orange-500 ring-1 ring-amber-300/60 shadow-[0_14px_28px_-12px_rgba(249,115,22,0.55),inset_0_1px_0_rgba(255,255,255,0.4)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_32px_-14px_rgba(249,115,22,0.6),inset_0_1px_0_rgba(255,255,255,0.45)] active:translate-y-0 active:shadow-[0_8px_16px_-10px_rgba(249,115,22,0.5),inset_0_1px_0_rgba(255,255,255,0.3)]"
       >
-        <BoltIcon className="h-5 w-5" />
+        <BoltIcon className="h-4 w-4" />
         Start sprint
       </button>
       <p className="mt-5 text-xs text-slate-500">Tip: tap the answer or use the A / B / C / D keys.</p>
@@ -347,15 +347,15 @@ function DoneCard({ game, score, correct, wrong, accuracy, bestStreak, saveResul
           <button
             type="button"
             onClick={onRestart}
-            className="inline-flex items-center gap-2 px-5 py-3 rounded-xl font-black text-white bg-gradient-to-r from-amber-500 to-orange-500"
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black text-white bg-gradient-to-b from-amber-400 to-orange-500 ring-1 ring-amber-300/60 shadow-[0_12px_24px_-10px_rgba(249,115,22,0.5),inset_0_1px_0_rgba(255,255,255,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_28px_-12px_rgba(249,115,22,0.55),inset_0_1px_0_rgba(255,255,255,0.4)] active:translate-y-0"
           >
-            <ArrowPathIcon className="h-5 w-5" />
+            <ArrowPathIcon className="h-4 w-4" />
             Play again
           </button>
           <ShareButton game={game} score={score} accuracy={accuracy} bestStreak={bestStreak} />
           <Link
             to={`/games/g/${game.grade}/${game.subject}`}
-            className="px-5 py-3 rounded-xl font-black text-slate-900 bg-white border-2 border-slate-200 hover:border-slate-400"
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 bg-white border border-slate-200 shadow-[0_8px_18px_-10px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_24px_-12px_rgba(15,23,42,0.22)] active:translate-y-0"
           >
             More {game.subject} games
           </Link>

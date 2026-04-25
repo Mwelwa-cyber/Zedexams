@@ -257,7 +257,7 @@ export default function WordBuilderGame({ game }) {
           type="button"
           onClick={clearAll}
           disabled={solvedThisWord}
-          className="px-4 py-3 rounded-xl font-bold text-slate-700 bg-white border-2 border-slate-200 hover:border-slate-400 disabled:opacity-50"
+          className="rounded-xl px-3.5 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 shadow-[0_8px_18px_-10px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_24px_-12px_rgba(15,23,42,0.22)] active:translate-y-0 disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none"
         >
           Clear
         </button>
@@ -265,7 +265,7 @@ export default function WordBuilderGame({ game }) {
           type="button"
           onClick={nextWord}
           disabled={!solvedThisWord && !isWrong}
-          className="px-5 py-3 rounded-xl font-black text-white bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black text-white bg-gradient-to-b from-sky-400 to-cyan-500 ring-1 ring-sky-300/60 shadow-[0_12px_24px_-10px_rgba(14,165,233,0.5),inset_0_1px_0_rgba(255,255,255,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_28px_-12px_rgba(14,165,233,0.55),inset_0_1px_0_rgba(255,255,255,0.4)] active:translate-y-0 disabled:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
         >
           {pos + 1 >= order.length ? 'Finish round' : 'Next word'}
         </button>
@@ -291,9 +291,9 @@ function ReadyCard({ game, wordCount, onStart }) {
       <button
         type="button"
         onClick={onStart}
-        className="inline-flex items-center gap-2 px-6 py-3.5 rounded-xl font-black text-white bg-gradient-to-r from-sky-500 to-cyan-500 hover:from-sky-600 hover:to-cyan-600 shadow-md text-lg"
+        className="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-base font-black text-white bg-gradient-to-b from-sky-400 to-cyan-500 ring-1 ring-sky-300/60 shadow-[0_14px_28px_-12px_rgba(14,165,233,0.55),inset_0_1px_0_rgba(255,255,255,0.4)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_32px_-14px_rgba(14,165,233,0.6),inset_0_1px_0_rgba(255,255,255,0.45)] active:translate-y-0 active:shadow-[0_8px_16px_-10px_rgba(14,165,233,0.5),inset_0_1px_0_rgba(255,255,255,0.3)]"
       >
-        <BookOpenIcon className="h-5 w-5" />
+        <BookOpenIcon className="h-4 w-4" />
         Start spelling
       </button>
     </div>
@@ -327,12 +327,19 @@ function DoneCard({ game, score, solved, total, accuracy, mistakes, saveResult, 
           saveResult={saveResult}
         />
         <div className="mt-6 flex flex-wrap gap-3 justify-center">
-          <button type="button" onClick={onRestart} className="inline-flex items-center gap-2 px-5 py-3 rounded-xl font-black text-white bg-gradient-to-r from-sky-500 to-cyan-500">
-            <ArrowPathIcon className="h-5 w-5" />
+          <button
+            type="button"
+            onClick={onRestart}
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black text-white bg-gradient-to-b from-sky-400 to-cyan-500 ring-1 ring-sky-300/60 shadow-[0_12px_24px_-10px_rgba(14,165,233,0.5),inset_0_1px_0_rgba(255,255,255,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_28px_-12px_rgba(14,165,233,0.55),inset_0_1px_0_rgba(255,255,255,0.4)] active:translate-y-0"
+          >
+            <ArrowPathIcon className="h-4 w-4" />
             Play again
           </button>
           <ShareButton game={game} score={score} accuracy={accuracy} bestStreak={solved} />
-          <Link to={`/games/g/${game.grade}/${game.subject}`} className="px-5 py-3 rounded-xl font-black text-slate-900 bg-white border-2 border-slate-200 hover:border-slate-400">
+          <Link
+            to={`/games/g/${game.grade}/${game.subject}`}
+            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 bg-white border border-slate-200 shadow-[0_8px_18px_-10px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_24px_-12px_rgba(15,23,42,0.22)] active:translate-y-0"
+          >
             More games
           </Link>
         </div>

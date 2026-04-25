@@ -155,7 +155,7 @@ function EmptyCard() {
       </p>
       <Link
         to="/games"
-        className="mt-6 inline-flex items-center justify-center rounded-full bg-slate-900 px-5 py-3 text-sm font-black text-white transition hover:-translate-y-0.5 hover:bg-slate-800 active:scale-[0.98]"
+        className="mt-6 inline-flex items-center justify-center rounded-full bg-gradient-to-b from-slate-800 to-slate-950 px-4 py-2.5 text-sm font-black text-white ring-1 ring-slate-700/60 shadow-[0_14px_28px_-12px_rgba(15,23,42,0.55),inset_0_1px_0_rgba(255,255,255,0.18)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_32px_-14px_rgba(15,23,42,0.6),inset_0_1px_0_rgba(255,255,255,0.22)] active:translate-y-0"
       >
         Play a game
       </Link>
