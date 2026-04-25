@@ -14,6 +14,7 @@ import Leaderboard from './Leaderboard'
 import BadgeToast from './BadgeToast'
 import ShareButton from './ShareButton'
 import Confetti from './Confetti'
+import MascotCelebration from './MascotCelebration'
 import SmartFeedback from './SmartFeedback'
 import { DoneStat, SaveBanner, StreakBanner } from './DoneBanners'
 import { RatingStars } from './gamesUi'
@@ -320,6 +321,7 @@ function DoneCard({ game, score, correct, wrong, accuracy, bestStreak, saveResul
       {newBadges?.length > 0 && <BadgeToast badges={newBadges} />}
 
       <div className="bg-white rounded-3xl border-2 border-slate-200 shadow-sm p-8 text-center">
+        <MascotCelebration game={game} accuracy={accuracy} score={score} />
         <span className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full bg-slate-900 text-white shadow-[0_20px_40px_-24px_rgba(15,23,42,0.4)]">
           <TrophyIcon className="h-8 w-8 text-amber-300" />
         </span>

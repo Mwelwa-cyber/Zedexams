@@ -12,6 +12,7 @@ import { gradeByValue } from '../../utils/gamesService'
 import {
   MetaPill,
   getGameTypeTheme,
+  getSubjectMascot,
   getSubjectTheme,
 } from './gamesUi'
 
@@ -110,7 +111,7 @@ export default function DailyChallengeCard({ challenge, streak, loading, hideGra
           </div>
         </div>
 
-        <HeroArtwork subjectTheme={subjectTheme} />
+        <HeroArtwork subjectTheme={subjectTheme} mascot={getSubjectMascot(game.subject)} />
       </div>
     </section>
   )
@@ -134,21 +135,32 @@ function StatusCard({ icon, title, description }) {
   )
 }
 
-function HeroArtwork({ subjectTheme }) {
+function HeroArtwork({ subjectTheme, mascot }) {
   return (
-    <div className="relative mx-auto hidden w-full max-w-[23rem] items-center justify-center self-stretch lg:flex">
-      <div className={`absolute inset-8 rounded-full bg-gradient-to-br ${subjectTheme.strongGradient} opacity-20 blur-3xl`} />
-      <div className="relative aspect-[4/4.2] w-full overflow-hidden rounded-[28px] border-2 border-white/80 bg-white/80 p-6 shadow-[0_24px_70px_-34px_rgba(15,23,42,0.25)] backdrop-blur-xl">
-        <div className="absolute -right-6 top-6 h-28 w-28 rounded-full bg-amber-200/55 blur-2xl" />
-        <div className="absolute left-0 top-16 h-24 w-24 rounded-full bg-sky-200/40 blur-2xl" />
-        <div className="absolute bottom-0 right-6 h-28 w-28 rounded-full bg-emerald-200/45 blur-2xl" />
+    <div className="zx-hero-mascot relative mx-auto hidden w-full max-w-[23rem] items-center justify-center self-stretch lg:flex">
+      <div className={`absolute inset-8 rounded-full bg-gradient-to-br ${subjectTheme.strongGradient} opacity-25 blur-3xl`} />
+      <div className="relative aspect-[4/4.2] w-full overflow-hidden rounded-[28px] border-2 border-white/80 bg-white/85 p-6 shadow-[0_24px_70px_-34px_rgba(15,23,42,0.25)] backdrop-blur-xl">
+        <div aria-hidden="true" className="absolute -right-6 top-6 h-28 w-28 rounded-full bg-amber-200/55 blur-2xl" />
+        <div aria-hidden="true" className="absolute left-0 top-16 h-24 w-24 rounded-full bg-sky-200/40 blur-2xl" />
+        <div aria-hidden="true" className="absolute bottom-0 right-6 h-28 w-28 rounded-full bg-emerald-200/45 blur-2xl" />
 
         <div className="relative flex h-full flex-col items-center justify-center gap-4 text-center">
-          <div className="text-[6rem] leading-none" aria-hidden="true">🎮</div>
+          {/* Sparkle particles around the mascot */}
+          <span aria-hidden="true" className="zx-spark zx-spark-1">✨</span>
+          <span aria-hidden="true" className="zx-spark zx-spark-2">⭐</span>
+          <span aria-hidden="true" className="zx-spark zx-spark-3">💫</span>
+
+          <span
+            role="img"
+            aria-label={mascot.name}
+            className="zx-hero-emoji relative inline-flex h-32 w-32 items-center justify-center rounded-full bg-white text-[5.2rem] leading-none ring-4 ring-white shadow-[0_22px_44px_-18px_rgba(15,23,42,0.4)]"
+          >
+            {mascot.emoji}
+          </span>
           <div>
-            <p className="text-xl font-black text-slate-900">Ready to play?</p>
-            <p className="mt-1 text-sm font-medium text-slate-600">
-              Tap the button and have fun!
+            <p className="text-xl font-black text-slate-900">{mascot.name}</p>
+            <p className="mt-1 max-w-[16rem] text-sm font-medium text-slate-600">
+              {mascot.tagline}
             </p>
           </div>
           <div className="flex items-center gap-2 text-2xl" aria-hidden="true">
@@ -156,6 +168,35 @@ function HeroArtwork({ subjectTheme }) {
           </div>
         </div>
       </div>
+
+      <style>{`
+        .zx-hero-mascot .zx-hero-emoji {
+          animation: zx-hero-bob 5s ease-in-out infinite;
+          transform-origin: center;
+        }
+        @keyframes zx-hero-bob {
+          0%, 100% { transform: translateY(0) rotate(-3deg); }
+          50%      { transform: translateY(-8px) rotate(3deg); }
+        }
+        .zx-hero-mascot .zx-spark {
+          position: absolute;
+          font-size: 1.5rem;
+          opacity: 0.7;
+          pointer-events: none;
+          animation: zx-spark-twinkle 3s ease-in-out infinite;
+        }
+        .zx-hero-mascot .zx-spark-1 { top: 14%; left: 18%; animation-delay: 0s; }
+        .zx-hero-mascot .zx-spark-2 { top: 22%; right: 16%; animation-delay: 1s; font-size: 1.25rem; }
+        .zx-hero-mascot .zx-spark-3 { bottom: 30%; left: 14%; animation-delay: 2s; font-size: 1.1rem; }
+        @keyframes zx-spark-twinkle {
+          0%, 100% { transform: scale(0.85); opacity: 0.35; }
+          50%      { transform: scale(1.1);  opacity: 0.85; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .zx-hero-mascot .zx-hero-emoji,
+          .zx-hero-mascot .zx-spark { animation: none !important; }
+        }
+      `}</style>
     </div>
   )
 }
