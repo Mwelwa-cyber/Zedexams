@@ -237,7 +237,7 @@ export default function GamesHub() {
                 subject={subject}
                 gamesCount={progress.totalGames}
                 progress={progress.progress}
-                href={`/games/g/${pickGradeForSubject(state.games, subject.slug)}`}
+                href={`/games/g/${pickGradeForSubject(state.games, subject.slug)}/${subject.slug}`}
                 showComingSoon={progress.totalGames === 0}
                 helperText={helperText}
               />
