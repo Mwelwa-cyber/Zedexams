@@ -192,11 +192,11 @@ export default function App() {
 
           {/* ── Public games (no auth) ──────────────────────────── */}
           {/* Flow: /games → /games/g/:grade → /games/g/:grade/:subject → /games/play/:gameId */}
-          <Route path="/games"                         element={<GamesHub />} />
-          <Route path="/games/leaderboard"             element={<GlobalLeaderboard />} />
-          <Route path="/games/g/:grade"                element={<SubjectSelector />} />
-          <Route path="/games/g/:grade/:subject"       element={<GameList />} />
-          <Route path="/games/play/:gameId"            element={<PlayGame />} />
+          <Route path="/games"                         element={<ProtectedRoute><GamesHub /></ProtectedRoute>} />
+          <Route path="/games/leaderboard"             element={<ProtectedRoute><GlobalLeaderboard /></ProtectedRoute>} />
+          <Route path="/games/g/:grade"                element={<ProtectedRoute><SubjectSelector /></ProtectedRoute>} />
+          <Route path="/games/g/:grade/:subject"       element={<ProtectedRoute><GameList /></ProtectedRoute>} />
+          <Route path="/games/play/:gameId"            element={<ProtectedRoute><PlayGame /></ProtectedRoute>} />
 
           {/* ── Learner routes ─────────────────────────────────── */}
           {/* GradeHub is the new CBC-aligned primary dashboard */}
