@@ -93,7 +93,10 @@ export async function getTodaysChallenge() {
     }
   }
 
-  if (!available.length) available = GAMES_SEED // fallback to bundled seed
+  // Fallback to bundled seed when live reads are unavailable. Respect the
+  // `active` flag so deactivated/out-of-scope seed entries are never chosen
+  // as the daily challenge.
+  if (!available.length) available = GAMES_SEED.filter((g) => g.active !== false)
 
   // Deterministic pick keyed by the UTC date integer
   const idx = ((dateKeyToInt(dateId) % available.length) + available.length) % available.length

@@ -32,11 +32,15 @@ export default function SubjectSelector() {
     let cancelled = false
     async function load() {
       setState((prev) => ({ ...prev, loading: true }))
-      const [liveGames, history] = await Promise.all([
+      // allSettled so one failed read (e.g. signed-out history) cannot keep
+      // the subject selector stuck on its skeleton.
+      const [liveResult, historyResult] = await Promise.allSettled([
         listGames({ grade: gradeMeta.value }),
         getMyHistory(40),
       ])
       if (cancelled) return
+      const liveGames = liveResult.status === 'fulfilled' ? liveResult.value : []
+      const history = historyResult.status === 'fulfilled' ? historyResult.value : []
       setState({
         loading: false,
         games: liveGames.length ? liveGames : getFallbackGames({ grade: gradeMeta.value }),

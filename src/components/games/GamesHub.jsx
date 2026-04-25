@@ -57,7 +57,10 @@ export default function GamesHub() {
 
     async function load() {
       setState((prev) => ({ ...prev, loading: true }))
-      const [liveGames, challenge, history, badgeState, streak] = await Promise.all([
+      // Use allSettled so a single Firestore failure (e.g. badges read denied,
+      // streak doc missing, leaderboard index still building) cannot freeze
+      // the whole hub on the loading skeleton.
+      const results = await Promise.allSettled([
         listGames(),
         getTodaysChallenge(),
         getMyHistory(40),
@@ -65,6 +68,13 @@ export default function GamesHub() {
         getMyStreak(),
       ])
       if (cancelled) return
+
+      const value = (i, fallback) => (results[i].status === 'fulfilled' ? results[i].value : fallback)
+      const liveGames  = value(0, [])
+      const challenge  = value(1, null)
+      const history    = value(2, [])
+      const badgeState = value(3, { byId: {} })
+      const streak     = value(4, { streak: 0, longestStreak: 0, signedIn: !!currentUser })
 
       setState((prev) => ({
         ...prev,

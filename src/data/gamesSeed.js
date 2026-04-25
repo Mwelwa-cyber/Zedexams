@@ -267,14 +267,14 @@ const SIGHT_WORDS_G2 = {
   cbc_topic: 'High-Frequency Words',
   questions: [
     { question: 'Pick the correct word:', options: ['sed',  'said',  'saed',  'seid'],  answer: 'said' },
-    { question: 'Pick the correct word:', options: ['mek',  'mak',   'make',  'mak'],   answer: 'make' },
+    { question: 'Pick the correct word:', options: ['mek',  'mak',   'make',  'mayke'],  answer: 'make' },
     { question: 'Pick the correct word:', options: ['mani', 'many',  'meny',  'mayny'], answer: 'many' },
     { question: 'Pick the correct word:', options: ['luk',  'loke',  'look',  'luuk'],  answer: 'look' },
     { question: 'Pick the correct word:', options: ['kom',  'come',  'kum',   'coome'], answer: 'come' },
     { question: 'Pick the correct word:', options: ['som',  'sume',  'some',  'sum'],   answer: 'some' },
     { question: 'Pick the correct word:', options: ['wus',  'was',   'waz',   'woz'],   answer: 'was'  },
     { question: 'Pick the correct word:', options: ['went', 'wnt',   'wennt', 'wnet'],  answer: 'went' },
-    { question: 'Pick the correct word:', options: ['hav',  'hav',   'have',  'haif'],  answer: 'have' },
+    { question: 'Pick the correct word:', options: ['hav',  'heve',  'have',  'haif'],  answer: 'have' },
     { question: 'Pick the correct word:', options: ['goin', 'going', 'goeing','gowing'], answer: 'going' },
   ],
 }
@@ -611,7 +611,7 @@ const SPELL_IT_RIGHT_G1 = {
     { question: 'Choose the correct spelling:', options: ['bad',  'bed',  'bede', 'bid'],  answer: 'bed'  },
     { question: 'Choose the correct spelling:', options: ['boi',  'boye', 'boy',  'bou'],  answer: 'boy'  },
     { question: 'Choose the correct spelling:', options: ['mam',  'man',  'min',  'mane'], answer: 'man'  },
-    { question: 'Choose the correct spelling:', options: ['phis', 'fhis', 'fish', 'phis'], answer: 'fish' },
+    { question: 'Choose the correct spelling:', options: ['phis', 'fhis', 'fish', 'fysh'], answer: 'fish' },
     { question: 'Choose the correct spelling:', options: ['book', 'buk',  'booc', 'booke'], answer: 'book' },
     { question: 'Choose the correct spelling:', options: ['tri',  'tree', 'trea', 'tre'],  answer: 'tree' },
     { question: 'Choose the correct spelling:', options: ['star', 'stur', 'stir', 'stare'], answer: 'star' },
@@ -738,8 +738,8 @@ const SPELL_IT_RIGHT_G6 = {
     { question: 'Choose the correct spelling:', options: ['embarass',    'embarras',    'embarrass',   'embarris'],    answer: 'embarrass'   },
     { question: 'Choose the correct spelling:', options: ['independant', 'independent', 'indapendent', 'indpendent'],  answer: 'independent' },
     { question: 'Choose the correct spelling:', options: ['priviledge',  'privilege',   'privlege',    'priviage'],    answer: 'privilege'   },
-    { question: 'Choose the correct spelling:', options: ['existance',   'existense',   'existence',   'existance'],   answer: 'existence'   },
-    { question: 'Choose the correct spelling:', options: ['argueing',    'argueing',    'arguing',     'arguin'],      answer: 'arguing'     },
+    { question: 'Choose the correct spelling:', options: ['existance',   'existense',   'existence',   'existince'],   answer: 'existence'   },
+    { question: 'Choose the correct spelling:', options: ['argueing',    'arguying',    'arguing',     'arguin'],      answer: 'arguing'     },
   ],
 }
 
@@ -850,14 +850,20 @@ export const GAMES_SEED = [
  * A "fallback" games list for the UI when Firestore is empty / unreachable.
  * Lets the site render meaningful content before the admin seeds the DB.
  * The ids match the seed so deep-links keep working after seeding.
+ *
+ * Mirrors `listGames()` by hiding any seed entry with `active: false` so
+ * out-of-scope games (G7+ placeholders, deactivated packs) never leak into
+ * the player UI when Firestore reads time out.
  */
 export function getFallbackGames(filter = {}) {
-  let games = GAMES_SEED.slice()
+  let games = GAMES_SEED.filter((g) => g.active !== false)
   if (filter.grade != null) games = games.filter((g) => g.grade === Number(filter.grade))
   if (filter.subject) games = games.filter((g) => g.subject === filter.subject)
   return games
 }
 
 export function getFallbackGame(id) {
-  return GAMES_SEED.find((g) => g.id === id) || null
+  const found = GAMES_SEED.find((g) => g.id === id) || null
+  if (!found || found.active === false) return null
+  return found
 }
