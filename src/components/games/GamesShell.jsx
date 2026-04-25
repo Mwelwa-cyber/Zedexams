@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  BookOpenIcon,
   ChevronRightIcon,
   SpeakerWaveIcon,
   SpeakerXMarkIcon,
@@ -47,13 +46,6 @@ export default function GamesShell({ crumbs = [], children, maxW = 'max-w-6xl' }
             <div className="flex items-center gap-2 sm:gap-3">
               <NavLink to="/games/leaderboard" icon={TrophyIcon} label="Leaderboard" />
               <MuteToggle />
-              <Link
-                to="/teachers"
-                className="hidden items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-bold text-slate-700 ring-1 ring-slate-200 transition hover:bg-white hover:text-slate-900 sm:inline-flex"
-              >
-                <BookOpenIcon className="h-4 w-4 text-sky-500" />
-                Teachers
-              </Link>
               {currentUser ? (
                 <Link
                   to="/dashboard"
