@@ -55,11 +55,6 @@ export default function DailyChallengeCard({ challenge, streak, loading }) {
               <ClockIcon className="h-4 w-4" />
               Refreshes in {timeLeft}
             </span>
-            {challenge.source && (
-              <span className="inline-flex rounded-full bg-white/70 px-3 py-1.5 text-xs font-bold text-slate-600">
-                {challenge.source === 'firestore-override' ? 'Teacher pick' : 'Daily rotation'}
-              </span>
-            )}
           </div>
 
           <div className="mt-5 flex flex-wrap gap-2">
