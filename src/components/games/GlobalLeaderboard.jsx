@@ -9,7 +9,7 @@ import {
 import { useAuth } from '../../contexts/AuthContext'
 import { subscribeToGlobalLeaderboard, formatWhen } from '../../utils/gamesService'
 import GamesShell from './GamesShell'
-import { GamesSectionHeading, MetaPill } from './gamesUi'
+import { GamesSectionHeading, MetaPill, getSubjectMascot, getSubjectTheme } from './gamesUi'
 
 /**
  * /games/leaderboard — live cross-game leaderboard.
@@ -50,11 +50,14 @@ export default function GlobalLeaderboard() {
       {!state.error && state.rows == null && <Skeleton />}
       {!state.error && state.rows != null && state.rows.length === 0 && <EmptyCard />}
       {!state.error && state.rows != null && state.rows.length > 0 && (
-        <ol className="overflow-hidden rounded-[20px] border border-white/80 bg-white/88 shadow-[0_24px_60px_-34px_rgba(15,23,42,0.16)] backdrop-blur-sm">
-          {state.rows.map((row, index) => (
-            <Row key={row.id} row={row} rank={index + 1} isMe={currentUser && row.userId === currentUser.uid} />
-          ))}
-        </ol>
+        <div className="overflow-hidden rounded-[20px] border border-white/80 bg-white/88 shadow-[0_24px_60px_-34px_rgba(15,23,42,0.16)] backdrop-blur-sm">
+          <LeaderCheer topRow={state.rows[0]} />
+          <ol>
+            {state.rows.map((row, index) => (
+              <Row key={row.id} row={row} rank={index + 1} isMe={currentUser && row.userId === currentUser.uid} />
+            ))}
+          </ol>
+        </div>
       )}
 
       {!currentUser && (
@@ -152,6 +155,41 @@ function EmptyCard() {
       >
         Play a game
       </Link>
+    </div>
+  )
+}
+
+function LeaderCheer({ topRow }) {
+  const mascot = getSubjectMascot(topRow.subject)
+  const theme = getSubjectTheme(topRow.subject)
+  const name = topRow.displayName || 'Anonymous'
+  return (
+    <div className={`zx-leader-cheer relative flex items-center gap-3 border-b border-slate-100 bg-gradient-to-r ${theme.gradient} px-4 py-3 sm:px-5`}>
+      <span
+        role="img"
+        aria-label={mascot.name}
+        className="zx-leader-mascot inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-2xl ring-2 ring-white/80 shadow-sm"
+      >
+        {mascot.emoji}
+      </span>
+      <p className="min-w-0 flex-1 text-sm leading-snug text-slate-800">
+        <span className="font-black">{mascot.name}</span> cheers:{' '}
+        <span className="font-black text-slate-900">“{name}</span>
+        <span className="text-slate-700">{` is leading the board!”`}</span>
+      </p>
+      <style>{`
+        .zx-leader-cheer .zx-leader-mascot {
+          animation: zx-global-leader-bob 4s ease-in-out infinite;
+          transform-origin: center;
+        }
+        @keyframes zx-global-leader-bob {
+          0%, 100% { transform: translateY(0)   rotate(-3deg); }
+          50%      { transform: translateY(-2px) rotate(3deg); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .zx-leader-cheer .zx-leader-mascot { animation: none !important; }
+        }
+      `}</style>
     </div>
   )
 }

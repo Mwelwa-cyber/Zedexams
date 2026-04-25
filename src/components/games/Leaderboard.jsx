@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { TrophyIcon, FireIcon, SparklesIcon } from '@heroicons/react/24/solid'
 import { useAuth } from '../../contexts/AuthContext'
 import { formatWhen, getLeaderboard } from '../../utils/gamesService'
-import { MetaPill } from './gamesUi'
+import { MetaPill, getSubjectMascot, getSubjectTheme } from './gamesUi'
 
 /**
  * Top-N scores for a single game.
@@ -37,6 +37,8 @@ export default function Leaderboard({ gameId, limit = 10 }) {
     )
   }
 
+  const topRow = rows[0]
+
   return (
     <div className="overflow-hidden rounded-[20px] border border-white/80 bg-white/88 shadow-[0_24px_60px_-34px_rgba(15,23,42,0.16)]">
       <header className="border-b border-slate-100 px-5 py-4">
@@ -50,6 +52,7 @@ export default function Leaderboard({ gameId, limit = 10 }) {
           </div>
         </div>
       </header>
+      {topRow && <LeaderCheer topRow={topRow} />}
       <ol>
         {rows.map((row, index) => {
           const isMe = currentUser && row.userId === currentUser.uid
@@ -81,6 +84,41 @@ export default function Leaderboard({ gameId, limit = 10 }) {
           )
         })}
       </ol>
+    </div>
+  )
+}
+
+function LeaderCheer({ topRow }) {
+  const mascot = getSubjectMascot(topRow.subject)
+  const theme = getSubjectTheme(topRow.subject)
+  const name = topRow.displayName || 'Anonymous'
+  return (
+    <div className={`zx-leader-cheer relative flex items-center gap-3 border-b border-slate-100 bg-gradient-to-r ${theme.gradient} px-5 py-3`}>
+      <span
+        role="img"
+        aria-label={mascot.name}
+        className="zx-leader-mascot inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-2xl ring-2 ring-white/80 shadow-sm"
+      >
+        {mascot.emoji}
+      </span>
+      <p className="min-w-0 flex-1 text-sm leading-snug text-slate-800">
+        <span className="font-black">{mascot.name}</span> cheers:{' '}
+        <span className="font-black text-slate-900">“{name}</span>
+        <span className="text-slate-700">{` is leading the pack!”`}</span>
+      </p>
+      <style>{`
+        .zx-leader-cheer .zx-leader-mascot {
+          animation: zx-leader-bob 4s ease-in-out infinite;
+          transform-origin: center;
+        }
+        @keyframes zx-leader-bob {
+          0%, 100% { transform: translateY(0)   rotate(-3deg); }
+          50%      { transform: translateY(-2px) rotate(3deg); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .zx-leader-cheer .zx-leader-mascot { animation: none !important; }
+        }
+      `}</style>
     </div>
   )
 }
