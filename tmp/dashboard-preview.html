@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ZedExams — Dashboard preview (before / after)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" />
+  <style>
+    body { font-family: 'Plus Jakarta Sans', system-ui, sans-serif; background: #f6f7f5; }
+
+    @keyframes float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-6px) } }
+    .float { animation: float 3s ease-in-out infinite; }
+    @keyframes pop  { 0% { transform: scale(.92); opacity: 0 } 100% { transform: scale(1); opacity: 1 } }
+    .pop { animation: pop .35s ease-out both; }
+
+    .pill { @apply inline-flex items-center gap-1 rounded-full text-[11px] font-bold px-2.5 py-1; }
+  </style>
+</head>
+<body class="min-h-screen text-slate-800">
+
+<!-- Toggle -->
+<div class="sticky top-0 z-40 bg-white/85 backdrop-blur border-b border-slate-200">
+  <div class="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+    <div class="flex items-center gap-2">
+      <div class="w-8 h-8 rounded-lg bg-emerald-600 grid place-items-center text-white font-black">Z</div>
+      <div>
+        <p class="text-xs text-slate-500 font-bold leading-none">ZedExams · learner dashboard preview</p>
+        <p class="text-sm font-black leading-tight">Proposed change — "Today's plan" hero</p>
+      </div>
+    </div>
+    <div class="flex bg-slate-100 rounded-full p-1 text-xs font-bold">
+      <button id="btn-before" class="px-4 py-1.5 rounded-full bg-white shadow text-slate-900">Before</button>
+      <button id="btn-after"  class="px-4 py-1.5 rounded-full text-slate-500">After</button>
+    </div>
+  </div>
+</div>
+
+<div class="max-w-6xl mx-auto px-4 py-6 grid lg:grid-cols-2 gap-6">
+
+  <!-- ─────────────── BEFORE ─────────────── -->
+  <section id="view-before" class="space-y-5">
+    <div class="flex items-center gap-2">
+      <span class="pill bg-slate-200 text-slate-700">BEFORE — what's live now</span>
+    </div>
+
+    <!-- Hero (current) -->
+    <div class="relative overflow-hidden rounded-3xl p-5 text-white min-h-[140px] bg-gradient-to-br from-emerald-600 via-emerald-700 to-emerald-900">
+      <span class="absolute text-xl opacity-70 float" style="top:10%;left:7%;animation-delay:0s">⭐</span>
+      <span class="absolute text-sm opacity-50 float" style="top:68%;left:88%;animation-delay:.6s">✨</span>
+      <span class="absolute text-base opacity-55 float" style="top:22%;left:80%;animation-delay:1.1s">🌟</span>
+      <span class="absolute text-xs opacity-45 float" style="top:78%;left:11%;animation-delay:.3s">⭐</span>
+      <span class="absolute text-sm opacity-40 float" style="top:42%;left:93%;animation-delay:1.7s">✨</span>
+      <span class="absolute text-base opacity-50 float" style="top:55%;left:3%;animation-delay:.9s">🌟</span>
+      <div class="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2"></div>
+      <div class="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2"></div>
+      <div class="absolute bottom-1 right-2 text-6xl">🦉</div>
+      <div class="relative pr-24">
+        <p class="text-emerald-200 text-sm font-bold">Good afternoon 👋</p>
+        <h1 class="text-2xl font-black mt-0.5 leading-tight">Mwila Banda!</h1>
+        <p class="text-emerald-200 text-xs mt-1 font-medium">Ready to ace your exams today?</p>
+        <div class="flex gap-2 mt-2 flex-wrap">
+          <span class="bg-white/20 text-white/90 text-xs font-bold px-2.5 py-1 rounded-full">Grade 8</span>
+          <span class="bg-white/20 text-white/90 text-xs px-2.5 py-1 rounded-full truncate max-w-[150px]">Lusaka Secondary</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="grid grid-cols-3 gap-3">
+      <div class="bg-white rounded-2xl border border-slate-200 p-3.5 text-center pop">
+        <div class="text-2xl mb-1">📝</div>
+        <div class="font-black text-xl">12</div>
+        <div class="text-xs text-slate-500 font-bold mt-0.5">Quizzes Done</div>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-200 p-3.5 text-center pop" style="animation-delay:80ms">
+        <div class="text-2xl mb-1">🎯</div>
+        <div class="font-black text-xl">63%</div>
+        <div class="text-xs text-slate-500 font-bold mt-0.5">Avg Score</div>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-200 p-3.5 text-center pop" style="animation-delay:160ms">
+        <div class="text-2xl mb-1">🏆</div>
+        <div class="font-black text-xl">7</div>
+        <div class="text-xs text-slate-500 font-bold mt-0.5">Passed</div>
+      </div>
+    </div>
+
+    <!-- Quick Actions (current — large, generic) -->
+    <div>
+      <h2 class="font-black text-slate-700 text-sm mb-3">⚡ Quick Actions</h2>
+      <div class="grid grid-cols-2 gap-3">
+        <a class="rounded-2xl p-4 text-white bg-gradient-to-br from-emerald-500 to-emerald-700 pop">
+          <div class="text-3xl mb-2">✏️</div>
+          <div class="font-black text-sm">Take a Quiz</div>
+          <div class="text-white/70 text-xs mt-0.5">Test your knowledge</div>
+        </a>
+        <a class="rounded-2xl p-4 text-white bg-gradient-to-br from-blue-500 to-blue-700 pop" style="animation-delay:60ms">
+          <div class="text-3xl mb-2">📚</div>
+          <div class="font-black text-sm">Lessons</div>
+          <div class="text-white/70 text-xs mt-0.5">Read study notes</div>
+        </a>
+        <a class="rounded-2xl p-4 text-white bg-gradient-to-br from-orange-500 to-orange-600 pop" style="animation-delay:120ms">
+          <div class="text-3xl mb-2">📊</div>
+          <div class="font-black text-sm">My Results</div>
+          <div class="text-white/70 text-xs mt-0.5">View your history</div>
+        </a>
+        <a class="rounded-2xl p-4 text-white bg-gradient-to-br from-violet-500 to-violet-700 pop" style="animation-delay:180ms">
+          <div class="text-3xl mb-2">🎮</div>
+          <div class="font-black text-sm">Games</div>
+          <div class="text-white/70 text-xs mt-0.5">Learn while playing</div>
+        </a>
+      </div>
+    </div>
+
+    <!-- Floating Zed FAB hint -->
+    <div class="relative h-14">
+      <div class="absolute right-2 bottom-0 w-14 h-14 rounded-full bg-emerald-500 grid place-items-center text-white text-2xl shadow-xl">🤖</div>
+      <p class="absolute right-20 bottom-3 text-[11px] font-bold text-slate-500 bg-white/80 rounded-full px-2 py-1">visible during exams too</p>
+    </div>
+  </section>
+
+  <!-- ─────────────── AFTER ─────────────── -->
+  <section id="view-after" class="space-y-5 hidden">
+    <div class="flex items-center gap-2">
+      <span class="pill bg-emerald-100 text-emerald-700">AFTER — proposed</span>
+      <span class="pill bg-amber-50 text-amber-700">focus-first</span>
+    </div>
+
+    <!-- Hero (calmer — no floating stars, tighter copy, single accent) -->
+    <div class="relative overflow-hidden rounded-3xl p-5 text-white min-h-[120px] bg-gradient-to-br from-emerald-700 to-emerald-900">
+      <div class="absolute -bottom-3 right-3 text-6xl opacity-90">🦉</div>
+      <div class="relative pr-24">
+        <p class="text-emerald-200 text-xs font-bold tracking-wide uppercase">Good afternoon</p>
+        <h1 class="text-2xl font-black leading-tight mt-1">Mwila</h1>
+        <p class="text-emerald-100/90 text-sm mt-1">You're <span class="font-black">7 % away</span> from a passing average — let's close it.</p>
+        <div class="flex gap-2 mt-3 flex-wrap">
+          <span class="bg-white/15 text-white/90 text-xs font-bold px-2.5 py-1 rounded-full">Grade 8</span>
+          <span class="bg-white/15 text-white/90 text-xs px-2.5 py-1 rounded-full">3-day streak 🔥</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ⭐ NEW: Today's plan -->
+    <div class="bg-white rounded-3xl border-2 border-emerald-200 shadow-[0_8px_30px_rgba(5,150,105,0.08)] overflow-hidden pop">
+      <div class="flex items-center justify-between px-5 pt-4">
+        <div>
+          <p class="text-[11px] font-black tracking-widest text-emerald-700 uppercase">Your plan for today</p>
+          <p class="text-xs text-slate-500 font-medium mt-0.5">Built from your last 12 quizzes · ~25 min total</p>
+        </div>
+        <span class="pill bg-emerald-50 text-emerald-700">3 steps</span>
+      </div>
+
+      <ol class="divide-y divide-slate-100 mt-3">
+        <li class="flex items-center gap-4 px-5 py-3.5">
+          <div class="w-9 h-9 rounded-xl bg-emerald-600 text-white grid place-items-center font-black">1</div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-black text-slate-800">Practise: Fractions &amp; Decimals</p>
+            <p class="text-xs text-slate-500 mt-0.5">
+              <span class="pill bg-blue-100 text-blue-700 mr-1">Maths</span>
+              Your weakest topic · 42 % · 10 quick questions
+            </p>
+          </div>
+          <button class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black px-3.5 py-2 rounded-xl shadow-sm">
+            Start →
+          </button>
+        </li>
+
+        <li class="flex items-center gap-4 px-5 py-3.5">
+          <div class="w-9 h-9 rounded-xl bg-slate-200 text-slate-700 grid place-items-center font-black">2</div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-black text-slate-800">Read: Photosynthesis</p>
+            <p class="text-xs text-slate-500 mt-0.5">
+              <span class="pill bg-orange-100 text-orange-700 mr-1">Science</span>
+              Linked to your last weak quiz · 6 min lesson
+            </p>
+          </div>
+          <button class="text-slate-500 text-xs font-bold px-3 py-2">Open</button>
+        </li>
+
+        <li class="flex items-center gap-4 px-5 py-3.5">
+          <div class="w-9 h-9 rounded-xl bg-slate-200 text-slate-700 grid place-items-center font-black">3</div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-black text-slate-800">Today's daily exam: Social Studies</p>
+            <p class="text-xs text-slate-500 mt-0.5">
+              <span class="pill bg-teal-100 text-teal-700 mr-1">Soc. St.</span>
+              Locks at midnight · 20 min
+            </p>
+          </div>
+          <button class="text-slate-500 text-xs font-bold px-3 py-2">Open</button>
+        </li>
+      </ol>
+
+      <div class="bg-slate-50 px-5 py-2.5 text-[11px] text-slate-500 font-bold flex items-center justify-between">
+        <span>Updated when you finish a quiz</span>
+        <button class="text-emerald-700 hover:underline">Skip today's plan</button>
+      </div>
+    </div>
+
+    <!-- Stats (kept, but slightly muted so the plan leads) -->
+    <div class="grid grid-cols-3 gap-3">
+      <div class="bg-white rounded-2xl border border-slate-200 p-3 text-center">
+        <div class="font-black text-xl text-slate-800">12</div>
+        <div class="text-[11px] text-slate-500 font-bold">Quizzes</div>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-200 p-3 text-center">
+        <div class="font-black text-xl text-amber-600">63%</div>
+        <div class="text-[11px] text-slate-500 font-bold">Avg score</div>
+      </div>
+      <div class="bg-white rounded-2xl border border-slate-200 p-3 text-center">
+        <div class="font-black text-xl text-emerald-600">7</div>
+        <div class="text-[11px] text-slate-500 font-bold">Passed</div>
+      </div>
+    </div>
+
+    <!-- More (demoted Quick Actions — small chips, no gradients) -->
+    <div>
+      <h2 class="font-black text-slate-500 text-[11px] tracking-widest uppercase mb-2">More</h2>
+      <div class="flex flex-wrap gap-2">
+        <a class="bg-white border border-slate-200 hover:border-emerald-400 rounded-full px-3.5 py-2 text-xs font-bold text-slate-700">📚 Lesson library</a>
+        <a class="bg-white border border-slate-200 hover:border-emerald-400 rounded-full px-3.5 py-2 text-xs font-bold text-slate-700">📊 My results</a>
+        <a class="bg-white border border-slate-200 hover:border-emerald-400 rounded-full px-3.5 py-2 text-xs font-bold text-slate-700">🏅 Badges</a>
+        <a class="bg-white border border-slate-200 hover:border-emerald-400 rounded-full px-3.5 py-2 text-xs font-bold text-slate-700">🎮 Games</a>
+        <a class="bg-white border border-slate-200 hover:border-emerald-400 rounded-full px-3.5 py-2 text-xs font-bold text-slate-700">🤖 Ask Zed</a>
+      </div>
+    </div>
+
+    <!-- Exam-runner FAB note -->
+    <div class="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+      <p class="font-black mb-1">Inside a daily exam:</p>
+      <p class="text-emerald-900/80">Floating Zed button is hidden. Bottom nav is already gone. Only the question, the timer, and the section dots remain — no nudges, no chat, no leaderboard popups.</p>
+    </div>
+  </section>
+</div>
+
+<!-- Comparison footer -->
+<div class="max-w-6xl mx-auto px-4 pb-12">
+  <div class="bg-white rounded-2xl border border-slate-200 p-5 text-sm leading-relaxed">
+    <p class="font-black text-slate-800 mb-2">What changes for the learner</p>
+    <ul class="space-y-1.5 text-slate-600">
+      <li><span class="font-black text-slate-800">→ Decision removed.</span> The dashboard tells them what to do next instead of asking them to choose.</li>
+      <li><span class="font-black text-slate-800">→ Less visual noise.</span> Floating stars, four big gradient buttons, and bouncing emojis are demoted to a single chip row.</li>
+      <li><span class="font-black text-slate-800">→ Weakness-driven.</span> Step 1 is always the worst topic — the same data we already compute for the premium "Weak Topics" card.</li>
+      <li><span class="font-black text-slate-800">→ Distraction-free runner.</span> Zed FAB hidden on <code class="text-xs bg-slate-100 px-1.5 py-0.5 rounded">/exam/:id</code>. Re-enabled on results.</li>
+    </ul>
+  </div>
+</div>
+
+<script>
+  const before = document.getElementById('view-before');
+  const after  = document.getElementById('view-after');
+  const bb = document.getElementById('btn-before');
+  const ba = document.getElementById('btn-after');
+  function show(which) {
+    const isAfter = which === 'after';
+    after.classList.toggle('hidden',  !isAfter);
+    before.classList.toggle('hidden', isAfter);
+    ba.classList.toggle('bg-white',     isAfter);
+    ba.classList.toggle('shadow',       isAfter);
+    ba.classList.toggle('text-slate-900', isAfter);
+    ba.classList.toggle('text-slate-500', !isAfter);
+    bb.classList.toggle('bg-white',     !isAfter);
+    bb.classList.toggle('shadow',       !isAfter);
+    bb.classList.toggle('text-slate-900', !isAfter);
+    bb.classList.toggle('text-slate-500', isAfter);
+  }
+  // default: side-by-side on desktop, stacked on mobile
+  function applyResponsive() {
+    if (window.innerWidth >= 1024) {
+      before.classList.remove('hidden');
+      after.classList.remove('hidden');
+    } else {
+      show('before');
+    }
+  }
+  bb.addEventListener('click', () => { show('before'); });
+  ba.addEventListener('click', () => { show('after');  });
+  window.addEventListener('resize', applyResponsive);
+  applyResponsive();
+</script>
+</body>
+</html>
