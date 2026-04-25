@@ -142,10 +142,15 @@ async function handleTelegramUpdate(update, {token, anthropicKey}) {
   }
 
   if (!isAuthorizedSender({chatId, username})) {
-    await telegram.sendMessage(token, chatId, chatIdHint({chatId, username}));
-    console.warn("zedAssistant: rejected unauthorized sender", {
+    // Silent rejection. We log the chat ID server-side (so the founder can
+    // recover it from logs if they ever need to bootstrap a new device),
+    // but the bot does NOT reply. Strangers who find the bot's username get
+    // no signal that it's responsive or even configured. The chatIdHint
+    // helper is still wired up for the bootstrap path — see logs.
+    console.warn("zedAssistant: ignored unauthorized sender", {
       chatId,
       username,
+      hint: chatIdHint({chatId, username}),
     });
     return {handled: true, ignored: "unauthorized"};
   }
