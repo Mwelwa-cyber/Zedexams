@@ -25,14 +25,31 @@ export default function Leaderboard({ gameId, limit = 10 }) {
 
   if (rows.length === 0) {
     return (
-      <div className="rounded-[20px] border border-dashed border-slate-300 bg-white/88 p-8 text-center shadow-[0_24px_60px_-34px_rgba(15,23,42,0.14)]">
-        <span className="mx-auto inline-flex h-14 w-14 items-center justify-center rounded-full bg-slate-900 text-white">
-          <TrophyIcon className="h-7 w-7" />
+      <div className="zx-empty-leader rounded-[20px] border border-dashed border-slate-300 bg-white/88 p-8 text-center shadow-[0_24px_60px_-34px_rgba(15,23,42,0.14)]">
+        <span
+          role="img"
+          aria-label="Game Pal"
+          className="zx-empty-leader-mascot mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full bg-white text-[2.6rem] leading-none ring-4 ring-white shadow-[0_14px_28px_-12px_rgba(15,23,42,0.32)]"
+        >
+          🏆
         </span>
         <h3 className="mt-4 text-xl font-black text-slate-900">Be the first on this board</h3>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          Sign in, finish the round, and claim the opening spot.
+          Finish a round and claim the opening spot — your mascot will cheer!
         </p>
+        <style>{`
+          .zx-empty-leader .zx-empty-leader-mascot {
+            animation: zx-empty-leader-bob 3.6s ease-in-out infinite;
+            transform-origin: center;
+          }
+          @keyframes zx-empty-leader-bob {
+            0%, 100% { transform: translateY(0)   rotate(-4deg); }
+            50%      { transform: translateY(-4px) rotate(4deg); }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .zx-empty-leader .zx-empty-leader-mascot { animation: none !important; }
+          }
+        `}</style>
       </div>
     )
   }

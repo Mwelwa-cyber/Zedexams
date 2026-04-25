@@ -141,13 +141,17 @@ function Row({ row, rank, isMe }) {
 
 function EmptyCard() {
   return (
-    <div className="rounded-[20px] border border-dashed border-slate-300 bg-white/88 p-10 text-center shadow-[0_24px_60px_-34px_rgba(15,23,42,0.14)]">
-      <span className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full bg-slate-900 text-white">
-        <TrophyIcon className="h-8 w-8" />
+    <div className="zx-empty-global rounded-[20px] border border-dashed border-slate-300 bg-white/88 p-10 text-center shadow-[0_24px_60px_-34px_rgba(15,23,42,0.14)]">
+      <span
+        role="img"
+        aria-label="Trophy"
+        className="zx-empty-global-mascot mx-auto inline-flex h-20 w-20 items-center justify-center rounded-full bg-white text-[3rem] leading-none ring-4 ring-white shadow-[0_16px_36px_-14px_rgba(15,23,42,0.32)]"
+      >
+        🏆
       </span>
-      <h3 className="mt-5 text-2xl font-black text-slate-900">No scores yet</h3>
+      <h3 className="mt-5 text-2xl font-black text-slate-900">The board is wide open</h3>
       <p className="mt-3 text-base leading-7 text-slate-600">
-        Start a round and claim the first place spot.
+        Play a round and you’ll be the first name our mascots cheer for.
       </p>
       <Link
         to="/games"
@@ -155,6 +159,19 @@ function EmptyCard() {
       >
         Play a game
       </Link>
+      <style>{`
+        .zx-empty-global .zx-empty-global-mascot {
+          animation: zx-empty-global-bob 3.6s ease-in-out infinite;
+          transform-origin: center;
+        }
+        @keyframes zx-empty-global-bob {
+          0%, 100% { transform: translateY(0)   rotate(-4deg); }
+          50%      { transform: translateY(-5px) rotate(4deg); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .zx-empty-global .zx-empty-global-mascot { animation: none !important; }
+        }
+      `}</style>
     </div>
   )
 }

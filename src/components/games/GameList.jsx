@@ -10,6 +10,7 @@ import {
   IconBubble,
   MetaPill,
   getGameStatusBadge,
+  getSubjectMascot,
   getSubjectTheme,
 } from './gamesUi'
 
@@ -148,15 +149,21 @@ function SkeletonGrid() {
 }
 
 function EmptyState({ gradeMeta, subjectMeta }) {
-  const subjectTheme = getSubjectTheme(subjectMeta.slug)
+  const mascot = getSubjectMascot(subjectMeta.slug)
 
   return (
-    <div className="rounded-[20px] border border-dashed border-slate-300 bg-white/82 p-10 text-center shadow-[0_24px_60px_-34px_rgba(15,23,42,0.16)]">
+    <div className="zx-empty-card rounded-[20px] border border-dashed border-slate-300 bg-white/82 p-10 text-center shadow-[0_24px_60px_-34px_rgba(15,23,42,0.16)]">
       <div className="mx-auto flex w-full max-w-md flex-col items-center">
-        <IconBubble icon={subjectTheme.icon} theme={subjectTheme} size="h-16 w-16" iconClassName="h-8 w-8" />
-        <h2 className="mt-5 text-2xl font-black text-slate-900">No games are published here yet</h2>
+        <span
+          role="img"
+          aria-label={mascot.name}
+          className="zx-empty-mascot inline-flex h-20 w-20 items-center justify-center rounded-full bg-white text-[3rem] leading-none ring-4 ring-white shadow-[0_16px_36px_-14px_rgba(15,23,42,0.32)]"
+        >
+          {mascot.emoji}
+        </span>
+        <h2 className="mt-5 text-2xl font-black text-slate-900">No games here yet — but {mascot.name} is on it!</h2>
         <p className="mt-3 text-base leading-7 text-slate-600">
-          {subjectMeta.label} for {gradeMeta.label} will appear here as soon as the next pack is published.
+          {subjectMeta.label} for {gradeMeta.label} will land here as soon as the next pack is published.
         </p>
         <Link
           to={`/games/g/${gradeMeta.value}`}
@@ -165,6 +172,19 @@ function EmptyState({ gradeMeta, subjectMeta }) {
           Pick a different subject
         </Link>
       </div>
+      <style>{`
+        .zx-empty-card .zx-empty-mascot {
+          animation: zx-empty-bob 4.4s ease-in-out infinite;
+          transform-origin: center;
+        }
+        @keyframes zx-empty-bob {
+          0%, 100% { transform: translateY(0)   rotate(-3deg); }
+          50%      { transform: translateY(-5px) rotate(3deg); }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .zx-empty-card .zx-empty-mascot { animation: none !important; }
+        }
+      `}</style>
     </div>
   )
 }
