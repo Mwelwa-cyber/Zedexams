@@ -1070,3 +1070,9 @@ exports.generateRubric = createGenerateRubric(anthropicApiKey);
 // Teacher Tools — admin-only: import the built-in G1-9 topics into Firestore.
 exports.importBuiltInCbcTopics = importBuiltInCbcTopics;
 exports.apiTextToSpeech = require('./tts').apiTextToSpeech;
+
+// Zed assistant — Telegram bot for the founder to manage ZedExams from chat.
+const zedAssistant = require("./zedAssistant");
+exports.telegramWebhook = zedAssistant.telegramWebhook;
+exports.zedSetTelegramWebhook = zedAssistant.zedSetTelegramWebhook;
+exports.zedTelegramWebhookInfo = zedAssistant.zedTelegramWebhookInfo;

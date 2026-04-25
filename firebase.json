@@ -43,6 +43,13 @@
         }
       },
       {
+        "source": "/api/telegram/webhook",
+        "function": {
+          "functionId": "telegramWebhook",
+          "region": "us-central1"
+        }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }

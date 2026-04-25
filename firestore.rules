@@ -473,6 +473,29 @@ service cloud.firestore {
       allow delete:        if isAdmin();
     }
 
+    // ── zedAssistant (founder's private Telegram assistant) ───────────
+    // Two collections used by functions/zedAssistant/*. The Cloud Function
+    // bypasses these rules via the admin SDK, so client-side access is
+    // closed entirely — these aren't user-facing collections.
+    //
+    //   zedAssistantTasks/{taskId}
+    //     Persisted "what's left" tracker (games / quiz_editor / leaderboard
+    //     / cbc_weakness / etc.). Written by the assistant via add_task.
+    //
+    //   zedAssistantChats/{chatId}/turns/{turnId}
+    //     Last few message turns per Telegram chat — used so the assistant
+    //     has continuity across messages.
+    match /zedAssistantTasks/{taskId} {
+      allow read:  if isAdmin();
+      allow write: if false;
+    }
+    match /zedAssistantChats/{chatId} {
+      allow read, write: if false;
+      match /turns/{turnId} {
+        allow read, write: if false;
+      }
+    }
+
     // ── shares (public read-only snapshots of teacher generations) ─
     // Teachers publish a plan to the web via a share button. The doc is
     // keyed by a random token (doc ID = token) and contains a snapshot
