@@ -12,6 +12,8 @@ import { useAuth } from '../../contexts/AuthContext'
 import { getExamAttempt, getExamWithQuestions } from '../../utils/examService'
 import { subscribeToDailyLeaderboard, fmtDuration } from '../../utils/examLeaderboardService'
 import Navbar from '../layout/Navbar'
+import useSoundEffects from '../../hooks/useSoundEffects'
+import { Volume2, VolumeX } from '../ui/icons'
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -325,6 +327,7 @@ export default function ExamResultsPage() {
   const [tab,       setTab]       = useState('My Results')
   const [showCorrections, setShowCorrections] = useState(false)
   const [loadingQs, setLoadingQs] = useState(false)
+  const { isMuted, toggleMute, playSuccess, playClick, playWarning, primeSounds } = useSoundEffects()
 
   useEffect(() => {
     if (!attemptId) return
@@ -345,7 +348,16 @@ export default function ExamResultsPage() {
     return () => { cancelled = true }
   }, [attemptId])
 
+  // Soft success / warning chime once the result is on screen.
+  useEffect(() => {
+    if (!attempt) return
+    const pct = attempt.percentage ?? 0
+    if (pct < 50) playWarning()
+    else playSuccess()
+  }, [attempt, playSuccess, playWarning])
+
   async function handleViewCorrections() {
+    playClick()
     if (questions.length) { setShowCorrections(true); return }
     setLoadingQs(true)
     try {
@@ -396,9 +408,23 @@ export default function ExamResultsPage() {
               {attempt.subject} · Grade {attempt.grade}
             </p>
           </div>
-          <Link to="/exams" className="text-xs font-bold theme-accent-text hover:opacity-80">
-            ← All Exams
-          </Link>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => { primeSounds(); toggleMute() }}
+              aria-label={isMuted ? 'Unmute sound effects' : 'Mute sound effects'}
+              aria-pressed={isMuted}
+              title={isMuted ? 'Unmute sound effects' : 'Mute sound effects'}
+              className="theme-text-muted hover:theme-text inline-flex h-8 w-8 items-center justify-center rounded-full border theme-border transition-colors"
+            >
+              {isMuted
+                ? <VolumeX className="h-4 w-4" aria-hidden="true" />
+                : <Volume2 className="h-4 w-4" aria-hidden="true" />}
+            </button>
+            <Link to="/exams" onClick={() => playClick()} className="text-xs font-bold theme-accent-text hover:opacity-80">
+              ← All Exams
+            </Link>
+          </div>
         </div>
 
         {/* Score card (always visible) */}
@@ -410,7 +436,7 @@ export default function ExamResultsPage() {
             <button
               key={t}
               type="button"
-              onClick={() => setTab(t)}
+              onClick={() => { playClick(); setTab(t) }}
               className={`flex-1 rounded-xl py-2 text-xs font-black transition-all ${
                 tab === t
                   ? 'theme-accent-fill theme-on-accent shadow-sm'
@@ -457,6 +483,7 @@ export default function ExamResultsPage() {
                 {attempt.weaknesses?.length > 0 && (
                   <Link
                     to={weakSubjectLink}
+                    onClick={() => playClick()}
                     className="theme-accent-fill theme-on-accent w-full rounded-2xl py-3 text-center text-sm font-black hover:opacity-90 transition-opacity"
                   >
                     📚 Practice Weak Areas
@@ -471,6 +498,7 @@ export default function ExamResultsPage() {
                 </button>
                 <Link
                   to="/exams"
+                  onClick={() => playClick()}
                   className="w-full rounded-2xl border-2 theme-border py-3 text-center text-sm font-black theme-text hover:theme-bg-subtle transition-colors"
                 >
                   🏆 Back to Exams

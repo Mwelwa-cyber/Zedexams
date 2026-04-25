@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ChevronDown, ChevronUp, RotateCcw, ListChecks, Sparkles, Check } from '../ui/icons'
+import { ChevronDown, ChevronUp, RotateCcw, ListChecks, Sparkles, Check, Volume2, VolumeX } from '../ui/icons'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
 import { buildQuizDisplaySections } from '../../utils/quizSections.js'
 import { getRoleLandingPath } from '../../utils/navigation'
 import { explainQuizAnswer } from '../../utils/aiAssistant'
+import useSoundEffects from '../../hooks/useSoundEffects'
 // Format-aware renderer + plain-text extractor. Works for both legacy HTML
 // quizzes and Tiptap JSON quizzes saved by the new editor.
 import RichContent, { getRichPlainText } from '../../editor/RichContent'
@@ -70,6 +71,7 @@ export default function QuizResultsV2() {
   const [showReview, setShowReview] = useState(false)
   const [aiExplanations, setAiExplanations] = useState({})
   const [aiLoading, setAiLoading] = useState({})
+  const { isMuted, toggleMute, playSuccess, playClick, playWarning, primeSounds } = useSoundEffects()
 
   useEffect(() => {
     async function load() {
@@ -90,6 +92,18 @@ export default function QuizResultsV2() {
     }
     load()
   }, [resultId, getResultById, getQuizById, getQuestions])
+
+  // Play a soft success / warning chime once the result is on screen.
+  // Wrapped in try/catch upstream — autoplay blocks fail silently.
+  useEffect(() => {
+    if (!result) return
+    const pct = result.percentage ?? 0
+    if (pct < 50) {
+      playWarning()
+    } else {
+      playSuccess()
+    }
+  }, [result, playSuccess, playWarning])
 
   async function handleExplainAnswer(question, userAnswer) {
     setAiLoading(current => ({ ...current, [question.id]: true }))
@@ -240,7 +254,17 @@ export default function QuizResultsV2() {
 
   return (
     <div className="theme-text mx-auto max-w-4xl px-4 py-6 animate-slide-up">
-      <div className="theme-card theme-border mb-4 rounded-3xl border p-6 text-center shadow-elev-lg">
+      <div className="theme-card theme-border relative mb-4 rounded-3xl border p-6 text-center shadow-elev-lg">
+        <button
+          type="button"
+          onClick={() => { primeSounds(); toggleMute() }}
+          aria-label={isMuted ? 'Unmute sound effects' : 'Mute sound effects'}
+          aria-pressed={isMuted}
+          title={isMuted ? 'Unmute sound effects' : 'Mute sound effects'}
+          className="theme-text-muted hover:theme-text absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full border theme-border transition-colors duration-fast"
+        >
+          <Icon as={isMuted ? VolumeX : Volume2} size="sm" />
+        </button>
         <ScoreCircle percentage={percentage} />
         <div className="mb-1 mt-3 text-4xl animate-pop" aria-hidden="true">{message.emoji}</div>
         <h1 className="text-display-xl theme-text">{message.text}</h1>
@@ -328,7 +352,7 @@ export default function QuizResultsV2() {
           variant="secondary"
           size="lg"
           fullWidth
-          onClick={() => navigate(`/quiz/${result.quizId}`)}
+          onClick={() => { playClick(); navigate(`/quiz/${result.quizId}`) }}
           leadingIcon={<Icon as={RotateCcw} size="sm" />}
         >
           Try again
@@ -337,7 +361,7 @@ export default function QuizResultsV2() {
           variant="primary"
           size="lg"
           fullWidth
-          onClick={() => navigate('/quizzes')}
+          onClick={() => { playClick(); navigate('/quizzes') }}
           leadingIcon={<Icon as={ListChecks} size="sm" />}
         >
           More quizzes
