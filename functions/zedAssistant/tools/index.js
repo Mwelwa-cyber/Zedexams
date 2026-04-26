@@ -31,6 +31,23 @@ const WEB_SEARCH_TOOL = {
   max_uses: 5,
 };
 
+// web_fetch loads a specific URL's contents (web_search only returns
+// snippets). Required for "go look at zedexams.com/about and tell me
+// what's on it" — the URL must come from the user's message or from
+// a prior search/fetch result; the model can't fabricate URLs.
+//
+// citations.enabled forces the model to cite the URL inline so the
+// founder always knows what the bot read. max_content_tokens caps how
+// much of a page we'll load — 30k is enough for any normal page and
+// keeps token usage predictable. max_uses limits per-message fetches.
+const WEB_FETCH_TOOL = {
+  type: "web_fetch_20250910",
+  name: "web_fetch",
+  max_uses: 5,
+  max_content_tokens: 30000,
+  citations: {enabled: true},
+};
+
 function buildToolDefinitions() {
   return [
     firestoreSummarize.definition,
@@ -40,6 +57,7 @@ function buildToolDefinitions() {
     generateContent.definition,
     reviewFirebase.definition,
     WEB_SEARCH_TOOL,
+    WEB_FETCH_TOOL,
   ];
 }
 
