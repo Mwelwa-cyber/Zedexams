@@ -62,6 +62,12 @@ export default function ZedVoice() {
   const callStateRef = useRef(callState)
   useEffect(() => { callStateRef.current = callState }, [callState])
 
+  // useSpeech returns a fresh object every render. Pin the latest copy in a
+  // ref so effects that genuinely only care about a primitive (e.g. the new
+  // finalTranscript chunk) don't re-fire on every re-render and double-append.
+  const speechRef = useRef(speech)
+  useEffect(() => { speechRef.current = speech })
+
   const clearSilenceTimer = () => {
     if (silenceTimerRef.current) {
       clearTimeout(silenceTimerRef.current)
@@ -92,7 +98,7 @@ export default function ZedVoice() {
       const reply = String(data?.reply || '').trim() || "I didn't catch that — try again."
       setTranscript((prev) => [...prev, { role: 'assistant', text: reply }])
       setCallState(STATES.SPEAKING)
-      speech.speak(reply, 'zed-voice-reply')
+      speechRef.current.speak(reply, 'zed-voice-reply')
       // The `speech.speaking → false` effect below resumes listening.
     } catch (err) {
       console.error('[ZedVoice] /api/zed/chat failed', err)
@@ -104,47 +110,49 @@ export default function ZedVoice() {
       // eslint-disable-next-line require-atomic-updates
       inFlightRef.current = false
     }
-  }, [speech])
+  }, [])
+  const sendTurnRef = useRef(sendTurn)
+  useEffect(() => { sendTurnRef.current = sendTurn })
+
+  const fireTurnAfterSilence = useCallback(() => {
+    const turn = pendingRef.current.trim()
+    pendingRef.current = ''
+    if (!turn) return
+    speechRef.current.stopListening()
+    sendTurnRef.current(turn)
+  }, [])
 
   // Accumulate final transcript chunks → schedule a send after SILENCE_MS.
+  // Depend ONLY on the primitive value. Including the whole speech object
+  // would make this re-fire on every useSpeech render and double-append the
+  // same chunk into pendingRef before resetTranscript clears it.
   useEffect(() => {
-    if (!speech.finalTranscript) return
+    const chunk = speech.finalTranscript
+    if (!chunk) return
     pendingRef.current = pendingRef.current
-      ? `${pendingRef.current} ${speech.finalTranscript}`
-      : speech.finalTranscript
-    speech.resetTranscript()
+      ? `${pendingRef.current} ${chunk}`
+      : chunk
+    speechRef.current.resetTranscript()
     clearSilenceTimer()
-    silenceTimerRef.current = setTimeout(() => {
-      const turn = pendingRef.current.trim()
-      pendingRef.current = ''
-      if (turn) {
-        speech.stopListening()
-        sendTurn(turn)
-      }
-    }, SILENCE_MS)
-  }, [speech.finalTranscript, speech, sendTurn])
+    silenceTimerRef.current = setTimeout(fireTurnAfterSilence, SILENCE_MS)
+  }, [speech.finalTranscript, fireTurnAfterSilence])
 
   // Reset silence timer on each interim update (user is still talking).
   useEffect(() => {
     if (!speech.interimTranscript) return
     clearSilenceTimer()
-    silenceTimerRef.current = setTimeout(() => {
-      const turn = pendingRef.current.trim()
-      pendingRef.current = ''
-      if (turn) {
-        speech.stopListening()
-        sendTurn(turn)
-      }
-    }, SILENCE_MS)
-  }, [speech.interimTranscript, speech, sendTurn])
+    silenceTimerRef.current = setTimeout(fireTurnAfterSilence, SILENCE_MS)
+  }, [speech.interimTranscript, fireTurnAfterSilence])
 
   // After Zed finishes speaking, resume listening if we're still on the call.
   useEffect(() => {
     if (callStateRef.current !== STATES.SPEAKING) return
     if (speech.speaking) return
     setCallState(STATES.LISTENING)
-    if (speech.recognitionSupported) speech.startListening()
-  }, [speech.speaking, speech])
+    if (speechRef.current.recognitionSupported) {
+      speechRef.current.startListening()
+    }
+  }, [speech.speaking])
 
   // Surface STT errors from the hook.
   useEffect(() => {
@@ -154,7 +162,7 @@ export default function ZedVoice() {
   }, [speech.recognitionError])
 
   const startCall = useCallback(() => {
-    if (!speech.recognitionSupported) {
+    if (!speechRef.current.recognitionSupported) {
       setErrorMsg('Voice input is not supported in this browser. Try Chrome on desktop.')
       setCallState(STATES.ERROR)
       return
@@ -164,23 +172,22 @@ export default function ZedVoice() {
     pendingRef.current = ''
     clearSilenceTimer()
     setCallState(STATES.LISTENING)
-    speech.startListening()
-  }, [speech])
+    speechRef.current.startListening()
+  }, [])
 
   const endCall = useCallback(() => {
     clearSilenceTimer()
     pendingRef.current = ''
-    speech.stopListening()
-    speech.stop()
+    speechRef.current.stopListening()
+    speechRef.current.stop()
     setCallState(STATES.IDLE)
-  }, [speech])
+  }, [])
 
   // Cleanup on unmount.
   useEffect(() => () => {
     clearSilenceTimer()
-    speech.stopListening()
-    speech.stop()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    speechRef.current.stopListening()
+    speechRef.current.stop()
   }, [])
 
   const isCalling = callState !== STATES.IDLE && callState !== STATES.ERROR
