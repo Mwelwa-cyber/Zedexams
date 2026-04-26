@@ -16,6 +16,21 @@ const draftCodexPrompt = require("./draftCodexPrompt");
 const generateContent = require("./generateContent");
 const reviewFirebase = require("./reviewFirebase");
 
+// Anthropic-hosted server tool. Anthropic executes web_search and inlines
+// results in the assistant turn — our agent loop and runTool dispatcher
+// don't need to know about it. max_uses caps per-message search count so a
+// runaway prompt can't run up the Anthropic-side search bill.
+//
+// We intentionally do NOT set user_location: Zambia (ZM) is not in
+// Anthropic's supported country list and including it 400s the request.
+// The model can bias toward Zambian sources by mentioning "Zambia" in
+// the query string instead.
+const WEB_SEARCH_TOOL = {
+  type: "web_search_20250305",
+  name: "web_search",
+  max_uses: 5,
+};
+
 function buildToolDefinitions() {
   return [
     firestoreSummarize.definition,
@@ -24,6 +39,7 @@ function buildToolDefinitions() {
     draftCodexPrompt.definition,
     generateContent.definition,
     reviewFirebase.definition,
+    WEB_SEARCH_TOOL,
   ];
 }
 
