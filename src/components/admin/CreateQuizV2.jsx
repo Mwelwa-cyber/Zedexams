@@ -11,6 +11,7 @@ import {
 import { storage } from '../../firebase/config'
 import { generateAIQuizQuestions } from '../../utils/aiAssistant'
 import {
+  createPartGroup,
   createPassageSection,
   createStandaloneSection,
   getQuestionKey,
@@ -301,6 +302,7 @@ export default function CreateQuizV2() {
     importWarnings: [],
   })
   const [sections, setSections] = useState([createStandaloneSection()])
+  const [parts, setParts] = useState([])
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState(null)
   const [aiForm, setAiForm] = useState({ topic: '', count: 5, type: 'mcq' })
@@ -309,7 +311,7 @@ export default function CreateQuizV2() {
   const [importSummary, setImportSummary] = useState(null)
   const [importedAssets, setImportedAssets] = useState({})
 
-  const serializedPreview = serializeQuizSections(sections)
+  const serializedPreview = serializeQuizSections(sections, parts)
   const questionNumbers = buildQuestionNumberMap(serializedPreview.questions)
   const questionCount = serializedPreview.questionCount
   const totalMarks = serializedPreview.totalMarks
@@ -340,6 +342,9 @@ export default function CreateQuizV2() {
     if (Array.isArray(draft.sections) && draft.sections.length) {
       setSections(draft.sections)
     }
+    if (Array.isArray(draft.parts)) {
+      setParts(draft.parts)
+    }
     if (draft.creationMode) setCreationMode(draft.creationMode)
     show('Restored your unsaved draft.')
     // Intentional: this effect should only fire once per mount per user.
@@ -355,10 +360,10 @@ export default function CreateQuizV2() {
       return
     }
     const timer = setTimeout(() => {
-      saveCreateQuizDraft(currentUser.uid, { form, sections, creationMode })
+      saveCreateQuizDraft(currentUser.uid, { form, sections, parts, creationMode })
     }, 800)
     return () => clearTimeout(timer)
-  }, [form, sections, creationMode, currentUser?.uid])
+  }, [form, sections, parts, creationMode, currentUser?.uid])
 
   function setF(field, value) {
     setForm(current => ({ ...current, [field]: value }))
@@ -409,6 +414,72 @@ export default function CreateQuizV2() {
       ;[nextSections[sectionIndex], nextSections[targetIndex]] = [nextSections[targetIndex], nextSections[sectionIndex]]
       return nextSections
     })
+  }
+
+  // ── Parts (PRISCA mock-paper section groups) ─────────────────────
+  function addPart() {
+    setParts(currentParts => [
+      ...currentParts,
+      createPartGroup({ order: currentParts.length, title: '' }),
+    ])
+  }
+
+  function updatePart(partId, field, value) {
+    setParts(currentParts => currentParts.map(part => (
+      part.id === partId ? { ...part, [field]: value } : part
+    )))
+  }
+
+  function movePart(partId, direction) {
+    setParts(currentParts => {
+      const sorted = [...currentParts].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      const index = sorted.findIndex(part => part.id === partId)
+      const target = index + direction
+      if (index < 0 || target < 0 || target >= sorted.length) return currentParts
+      ;[sorted[index], sorted[target]] = [sorted[target], sorted[index]]
+      return sorted.map((part, i) => ({ ...part, order: i }))
+    })
+  }
+
+  function removePart(partId) {
+    setParts(currentParts => currentParts
+      .filter(part => part.id !== partId)
+      .map((part, i) => ({ ...part, order: i })))
+    setSections(currentSections => currentSections.map(section => {
+      if (section.kind === 'passage' && section.partId === partId) {
+        return {
+          ...section,
+          partId: null,
+          passage: {
+            ...section.passage,
+            questions: (section.passage.questions || []).map(q => (
+              q.partId === partId ? { ...q, partId: null } : q
+            )),
+          },
+        }
+      }
+      if (section.kind === 'standalone' && section.question?.partId === partId) {
+        return { ...section, question: { ...section.question, partId: null } }
+      }
+      return section
+    }))
+  }
+
+  function assignSectionToPart(sectionId, partId) {
+    setSections(currentSections => currentSections.map(section => {
+      if (section.id !== sectionId) return section
+      if (section.kind === 'passage') {
+        return {
+          ...section,
+          partId: partId || null,
+          passage: {
+            ...section.passage,
+            questions: (section.passage.questions || []).map(q => ({ ...q, partId: partId || null })),
+          },
+        }
+      }
+      return { ...section, question: { ...section.question, partId: partId || null } }
+    }))
   }
 
   function removeStandaloneSection(sectionIndex) {
@@ -827,6 +898,21 @@ export default function CreateQuizV2() {
       return false
     }
 
+    for (const part of parts) {
+      if (!String(part.title ?? '').trim()) {
+        show('Every Part needs a title (e.g. "QUESTIONS 1-15").', true)
+        return false
+      }
+      const hasMembers = sections.some(section => {
+        if (section.kind === 'passage') return section.partId === part.id
+        return section.question?.partId === part.id
+      })
+      if (!hasMembers) {
+        show(`Part "${part.title}" has no questions assigned. Move at least one section into it or delete the Part.`, true)
+        return false
+      }
+    }
+
     for (const section of sections) {
       if (section.kind === 'passage') {
         const passage = section.passage
@@ -862,7 +948,7 @@ export default function CreateQuizV2() {
     setSaving(true)
 
     try {
-      const serializedSections = serializeQuizSections(sections)
+      const serializedSections = serializeQuizSections(sections, parts)
       const questionsForSave = await uploadImportedQuestionImages(serializedSections.questions)
       const totalMarksForSave = questionsForSave.reduce((sum, question) => sum + (question.marks || 1), 0)
       const status = publish ? 'published' : submit ? 'pending' : 'draft'
@@ -870,6 +956,7 @@ export default function CreateQuizV2() {
       const quizId = await createQuiz({
         ...form,
         passages: serializedSections.passages,
+        parts: serializedSections.parts,
         passageCount: serializedSections.passages.length,
         totalMarks: totalMarksForSave,
         questionCount: questionsForSave.length,
@@ -1038,6 +1125,7 @@ export default function CreateQuizV2() {
       <QuizSectionsEditor
         variant="create"
         sections={sections}
+        parts={parts}
         questionNumbers={questionNumbers}
         totalQuestions={questionCount}
         onStandaloneChange={updateStandaloneQuestion}
@@ -1057,6 +1145,11 @@ export default function CreateQuizV2() {
         onPassageAddQuestion={addPassageQuestion}
         onAddStandalone={addStandaloneSectionHandler}
         onAddPassage={addPassageSectionHandler}
+        onAddPart={addPart}
+        onPartChange={updatePart}
+        onPartMove={movePart}
+        onPartRemove={removePart}
+        onAssignSectionToPart={assignSectionToPart}
       />
 
       <QuizEditorPreviewPanel form={form} serializedSections={serializedPreview} />

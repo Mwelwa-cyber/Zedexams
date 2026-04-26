@@ -77,6 +77,9 @@ export const tiptapDoc = z
 
 const QUESTION_TYPES = ['mcq', 'tf', 'short_answer', 'diagram', 'fill', 'short']
 const DIFFICULTIES = ['easy', 'medium', 'hard']
+// MCQ subtypes mirror the Zambian PRISCA exam-paper categories. They are a
+// PURE display/preset hint — the underlying answer model is still 4-option MCQ.
+const SUBTYPES = ['vocab', 'spelling', 'punctuation', 'sentence_ordering']
 
 /**
  * The question record AFTER normalisation, ready to persist.
@@ -120,6 +123,14 @@ export const questionSchema = z
     options: z.array(z.string().max(1000)).max(20).default([]),
     correctAnswer: z.union([z.string().max(1000), z.number()]).default(0),
 
+    // ── Grouping & subtype (PRISCA mock-paper format) ──
+    // `partId` mirrors `passageId` — points at an entry in the quiz doc's
+    // `parts[]` array when the question belongs to a numbered Part.
+    // `subtype` narrows the MCQ flavour for editor-side presets (vocab,
+    // spelling, punctuation, sentence-ordering). Unknown to the runner.
+    subtype: z.enum(SUBTYPES).nullable().default(null),
+    partId: z.string().max(64).nullable().default(null),
+
     // ── Misc ──
     passageId: z.string().nullable().default(null),
     imageUrl: z.string().nullable().default(null),
@@ -150,3 +161,4 @@ export const questionWriteSchema = questionSchema
 
 export const QUESTION_TYPES_LIST = QUESTION_TYPES
 export const DIFFICULTIES_LIST = DIFFICULTIES
+export const SUBTYPES_LIST = SUBTYPES

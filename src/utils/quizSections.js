@@ -31,6 +31,8 @@ export function emptyQuestion(overrides = {}) {
     marks: 1,
     type: 'mcq',
     detectedType: 'mcq',
+    subtype: null,
+    partId: null,
     imageUrl: '',
     imageUploading: false,
     imageUploadStep: '',
@@ -76,6 +78,22 @@ export function createStandaloneSection(questionOverrides = {}) {
     id: nextLocalId('section'),
     kind: 'standalone',
     question: emptyQuestion(questionOverrides),
+  }
+}
+
+// A "Part" is a numbered grouping (e.g. "QUESTIONS 1-15") that wraps any
+// number of standalone or passage sections. Parts live in a parallel array
+// alongside `sections[]`; section membership is tracked via `question.partId`,
+// not by nesting. This mirrors how `passages[]` is stored and keeps the
+// section list flat for existing reorder/render code.
+export function createPartGroup(overrides = {}) {
+  const partId = overrides.id || nextLocalId('part')
+  return {
+    id: partId,
+    title: overrides.title ?? '',
+    instructions: hydrateRichField(overrides.instructions ?? ''),
+    example: hydrateRichField(overrides.example ?? ''),
+    order: overrides.order ?? 0,
   }
 }
 
@@ -159,6 +177,15 @@ export function isQuestionBlank(question = {}) {
     ? question.correctAnswer.trim()
     : question.correctAnswer
 
+  // For text-answer types (short_answer, fill) a non-empty correctAnswer
+  // alone is enough to consider the question started, even if every other
+  // field is empty. Otherwise the existing heuristic applies.
+  const type = question.type ?? 'mcq'
+  const isTextAnswerType = type === 'short_answer' || type === 'fill' || type === 'short' || type === 'diagram'
+  if (isTextAnswerType && typeof correctAnswer === 'string' && correctAnswer.length > 0) {
+    return false
+  }
+
   // richFieldEmpty is format-aware (HTML string OR Tiptap JSON); the legacy
   // richTextHasContent only recognises HTML, so it would mark every Tiptap
   // JSON field as "blank" — which would make every new quiz fail validation.
@@ -196,7 +223,7 @@ export function countQuizMarks(sections = []) {
   }, 0)
 }
 
-export function serializeQuizSections(sections = []) {
+export function serializeQuizSections(sections = [], parts = []) {
   // Dual-format safe: serializeRichField writes Tiptap JSON as a JSON string
   // (keeps objects out of Firestore document fields) and passes HTML strings
   // through untouched. Legacy quizzes still save as HTML until a teacher
@@ -205,11 +232,22 @@ export function serializeQuizSections(sections = []) {
   const questions = []
   let questionOrder = 1
 
+  // Allow-list of valid Part IDs. Any partId on a question that doesn't match
+  // gets dropped — defensive against stale references after a Part deletion.
+  const validPartIds = new Set((parts || []).map(part => part.id).filter(Boolean))
+  const resolvePartId = candidate => (candidate && validPartIds.has(candidate) ? candidate : null)
+
   sections.forEach(section => {
     if (section.kind === 'passage') {
       const passage = section.passage || {}
       const passageId = passage.id || nextLocalId('passage')
       const startOrder = questionOrder
+      // All children of a passage share the same Part membership. Read it
+      // off the passage section itself (set by assignSectionToPart) and fall
+      // back to the first child's stored partId for round-trip compatibility.
+      const passagePartId = resolvePartId(
+        section.partId ?? passage.partId ?? (passage.questions?.[0]?.partId)
+      )
 
       passages.push({
         id: passageId,
@@ -218,6 +256,7 @@ export function serializeQuizSections(sections = []) {
         passageText: serializeRichField(passage.passageText),
         imageUrl: passage.imageUrl || null,
         order: startOrder,
+        partId: passagePartId,
       })
 
       ;(passage.questions || []).forEach(question => {
@@ -229,6 +268,8 @@ export function serializeQuizSections(sections = []) {
           passageId,
           type: 'mcq',
           detectedType: 'mcq',
+          subtype: question.subtype ?? null,
+          partId: passagePartId,
           order: questionOrder,
         })
         questionOrder += 1
@@ -236,19 +277,31 @@ export function serializeQuizSections(sections = []) {
       return
     }
 
+    const question = section.question || emptyQuestion()
     questions.push({
-      ...(section.question || emptyQuestion()),
-      sharedInstruction: serializeRichField(section.question?.sharedInstruction),
-      text: serializeRichField(section.question?.text),
-      explanation: serializeRichField(section.question?.explanation),
+      ...question,
+      sharedInstruction: serializeRichField(question.sharedInstruction),
+      text: serializeRichField(question.text),
+      explanation: serializeRichField(question.explanation),
       passageId: null,
+      subtype: question.subtype ?? null,
+      partId: resolvePartId(question.partId),
       order: questionOrder,
     })
     questionOrder += 1
   })
 
+  const serializedParts = (parts || []).map((part, index) => ({
+    id: part.id,
+    title: String(part.title ?? '').trim(),
+    instructions: serializeRichField(part.instructions),
+    example: serializeRichField(part.example),
+    order: typeof part.order === 'number' ? part.order : index,
+  }))
+
   return {
     passages,
+    parts: serializedParts,
     questions,
     questionCount: questions.length,
     totalMarks: questions.reduce((sum, question) => sum + (question.marks || 1), 0),
@@ -257,7 +310,9 @@ export function serializeQuizSections(sections = []) {
 
 function hydrateStandaloneQuestion(question = {}) {
   const type = question.type ?? 'mcq'
-  const isTextAnswer = type === 'short_answer' || type === 'diagram'
+  // `fill` answers are stored as a comma-separated string and behave like
+  // short_answer/diagram for the purpose of options/correctAnswer shape.
+  const isTextAnswer = type === 'short_answer' || type === 'diagram' || type === 'fill' || type === 'short'
 
   return emptyQuestion({
     localId: question.id || question._id || question.localId || nextLocalId('question'),
@@ -277,6 +332,8 @@ function hydrateStandaloneQuestion(question = {}) {
     marks: question.marks ?? 1,
     type,
     detectedType: question.detectedType ?? type,
+    subtype: question.subtype ?? null,
+    partId: question.partId ?? null,
     imageUrl: question.imageUrl ?? '',
     imageAssetId: question.imageAssetId ?? '',
     diagramText: question.diagramText ?? '',
@@ -290,7 +347,7 @@ function hydrateStandaloneQuestion(question = {}) {
   })
 }
 
-function hydratePassageQuestion(question = {}, passageId) {
+function hydratePassageQuestion(question = {}, passageId, partId = null) {
   return emptyPassageQuestion({
     localId: question.id || question._id || question.localId || nextLocalId('question'),
     _id: question.id || question._id || null,
@@ -303,6 +360,8 @@ function hydratePassageQuestion(question = {}, passageId) {
     explanation: hydrateRichField(question.explanation ?? ''),
     topic: question.topic ?? '',
     marks: question.marks ?? 1,
+    subtype: question.subtype ?? null,
+    partId: partId ?? question.partId ?? null,
     requiresReview: Boolean(question.requiresReview),
     reviewNotes: question.reviewNotes ?? [],
     importWarnings: question.importWarnings ?? [],
@@ -313,9 +372,17 @@ function hydratePassageQuestion(question = {}, passageId) {
   })
 }
 
-export function hydrateQuizSections(questions = [], passages = []) {
+export function hydrateQuizSections(questions = [], passages = [], parts = []) {
+  // Returns `{ sections, parts }`. Pre-PRISCA-format callers passed only
+  // questions+passages; the new return shape is a breaking change consumed by
+  // EditQuizV2/CreateQuizV2 which both treat `parts` as opt-in state. Empty
+  // `parts[]` keeps legacy quizzes behaving identically.
   const sortedQuestions = [...questions].sort((left, right) => (left.order ?? 0) - (right.order ?? 0))
   const passageSections = new Map()
+  // Look up Part membership by passage id when we hydrate child questions.
+  const passagePartIdById = new Map(
+    (passages || []).map(passage => [passage.id, passage.partId ?? null])
+  )
 
   passages.forEach(passage => {
     const section = createPassageSection({
@@ -326,6 +393,7 @@ export function hydrateQuizSections(questions = [], passages = []) {
       imageUrl: passage.imageUrl ?? '',
       questions: [],
     })
+    section.partId = passage.partId ?? null
     passageSections.set(passage.id, {
       order: passage.order ?? Number.MAX_SAFE_INTEGER,
       section,
@@ -337,15 +405,24 @@ export function hydrateQuizSections(questions = [], passages = []) {
   sortedQuestions.forEach(question => {
     if (question.passageId) {
       const existing = passageSections.get(question.passageId)
+      const inheritedPartId = passagePartIdById.has(question.passageId)
+        ? passagePartIdById.get(question.passageId)
+        : (question.partId ?? null)
       const container = existing || {
         order: question.order ?? Number.MAX_SAFE_INTEGER,
-        section: createPassageSection({
-          id: question.passageId,
-          questions: [],
-        }),
+        section: (() => {
+          const created = createPassageSection({
+            id: question.passageId,
+            questions: [],
+          })
+          created.partId = inheritedPartId
+          return created
+        })(),
       }
 
-      container.section.passage.questions.push(hydratePassageQuestion(question, question.passageId))
+      container.section.passage.questions.push(
+        hydratePassageQuestion(question, question.passageId, inheritedPartId)
+      )
       if (!existing) {
         passageSections.set(question.passageId, container)
       }
@@ -362,7 +439,9 @@ export function hydrateQuizSections(questions = [], passages = []) {
     ...standaloneSections,
     ...Array.from(passageSections.values()).map(entry => {
       if (!entry.section.passage.questions.length) {
-        entry.section.passage.questions = [emptyPassageQuestion({ passageId: entry.section.passage.id })]
+        entry.section.passage.questions = [
+          emptyPassageQuestion({ passageId: entry.section.passage.id, partId: entry.section.partId ?? null }),
+        ]
       }
       return entry
     }),
@@ -370,7 +449,19 @@ export function hydrateQuizSections(questions = [], passages = []) {
     .sort((left, right) => left.order - right.order)
     .map(entry => entry.section)
 
-  return combined.length ? combined : [createStandaloneSection()]
+  const sections = combined.length ? combined : [createStandaloneSection()]
+
+  const hydratedParts = (parts || [])
+    .map((part, index) => createPartGroup({
+      id: part.id,
+      title: part.title ?? '',
+      instructions: part.instructions ?? '',
+      example: part.example ?? '',
+      order: typeof part.order === 'number' ? part.order : index,
+    }))
+    .sort((left, right) => (left.order ?? 0) - (right.order ?? 0))
+
+  return { sections, parts: hydratedParts }
 }
 
 export function buildQuizDisplaySections(questions = [], passages = []) {

@@ -5,6 +5,7 @@ import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
 import { storage } from '../../firebase/config'
 import {
+  createPartGroup,
   createPassageSection,
   createStandaloneSection,
   getQuestionKey,
@@ -130,12 +131,13 @@ export default function EditQuizV2() {
   const [quizStatus, setQuizStatus] = useState('draft')
   const [quizOwner, setQuizOwner] = useState(null)
   const [sections, setSections] = useState([])
+  const [parts, setParts] = useState([])
   const [deletedIds, setDeletedIds] = useState([])
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState(null)
   const [dirty, setDirty] = useState(false)
 
-  const serializedPreview = serializeQuizSections(sections)
+  const serializedPreview = serializeQuizSections(sections, parts)
   const questionNumbers = buildQuestionNumberMap(serializedPreview.questions)
   const questionCount = serializedPreview.questionCount
   const totalMarks = serializedPreview.totalMarks
@@ -197,7 +199,9 @@ export default function EditQuizV2() {
       })
       setQuizStatus(quiz.status ?? (quiz.isPublished ? 'published' : 'draft'))
       setQuizOwner(quiz.createdBy)
-      setSections(hydrateQuizSections(questions, quiz.passages || []))
+      const hydrated = hydrateQuizSections(questions, quiz.passages || [], quiz.parts || [])
+      setSections(hydrated.sections)
+      setParts(hydrated.parts)
       setDeletedIds([])
       setDirty(false)
       setLoading(false)
@@ -234,6 +238,78 @@ export default function EditQuizV2() {
       ;[nextSections[sectionIndex], nextSections[targetIndex]] = [nextSections[targetIndex], nextSections[sectionIndex]]
       return nextSections
     })
+    setDirty(true)
+  }
+
+  // ── Parts (PRISCA mock-paper section groups) ─────────────────────
+  function addPart() {
+    setParts(currentParts => [
+      ...currentParts,
+      createPartGroup({ order: currentParts.length, title: '' }),
+    ])
+    setDirty(true)
+  }
+
+  function updatePart(partId, field, value) {
+    setParts(currentParts => currentParts.map(part => (
+      part.id === partId ? { ...part, [field]: value } : part
+    )))
+    setDirty(true)
+  }
+
+  function movePart(partId, direction) {
+    setParts(currentParts => {
+      const sorted = [...currentParts].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      const index = sorted.findIndex(part => part.id === partId)
+      const target = index + direction
+      if (index < 0 || target < 0 || target >= sorted.length) return currentParts
+      ;[sorted[index], sorted[target]] = [sorted[target], sorted[index]]
+      return sorted.map((part, i) => ({ ...part, order: i }))
+    })
+    setDirty(true)
+  }
+
+  function removePart(partId) {
+    setParts(currentParts => currentParts
+      .filter(part => part.id !== partId)
+      .map((part, i) => ({ ...part, order: i })))
+    // Detach any sections that pointed at the deleted Part.
+    setSections(currentSections => currentSections.map(section => {
+      if (section.kind === 'passage' && section.partId === partId) {
+        return {
+          ...section,
+          partId: null,
+          passage: {
+            ...section.passage,
+            questions: (section.passage.questions || []).map(q => (
+              q.partId === partId ? { ...q, partId: null } : q
+            )),
+          },
+        }
+      }
+      if (section.kind === 'standalone' && section.question?.partId === partId) {
+        return { ...section, question: { ...section.question, partId: null } }
+      }
+      return section
+    }))
+    setDirty(true)
+  }
+
+  function assignSectionToPart(sectionId, partId) {
+    setSections(currentSections => currentSections.map(section => {
+      if (section.id !== sectionId) return section
+      if (section.kind === 'passage') {
+        return {
+          ...section,
+          partId: partId || null,
+          passage: {
+            ...section.passage,
+            questions: (section.passage.questions || []).map(q => ({ ...q, partId: partId || null })),
+          },
+        }
+      }
+      return { ...section, question: { ...section.question, partId: partId || null } }
+    }))
     setDirty(true)
   }
 
@@ -482,6 +558,21 @@ export default function EditQuizV2() {
       return false
     }
 
+    for (const part of parts) {
+      if (!String(part.title ?? '').trim()) {
+        show('Every Part needs a title (e.g. "QUESTIONS 1-15").', true)
+        return false
+      }
+      const hasMembers = sections.some(section => {
+        if (section.kind === 'passage') return section.partId === part.id
+        return section.question?.partId === part.id
+      })
+      if (!hasMembers) {
+        show(`Part "${part.title}" has no questions assigned. Move at least one section into it or delete the Part.`, true)
+        return false
+      }
+    }
+
     for (const section of sections) {
       if (section.kind === 'passage') {
         const passage = section.passage
@@ -517,13 +608,14 @@ export default function EditQuizV2() {
     setSaving(true)
 
     try {
-      const serializedSections = serializeQuizSections(sections)
+      const serializedSections = serializeQuizSections(sections, parts)
       const isPublished = mode === 'published'
       await updateQuizWithQuestions(
         quizId,
         {
           ...form,
           passages: serializedSections.passages,
+          parts: serializedSections.parts,
           passageCount: serializedSections.passages.length,
           status: mode,
           isPublished,
@@ -552,12 +644,13 @@ export default function EditQuizV2() {
     setSaving(true)
     try {
       const nextStatus = quizStatus === 'published' ? 'draft' : 'published'
-      const serializedSections = serializeQuizSections(sections)
+      const serializedSections = serializeQuizSections(sections, parts)
       await updateQuizWithQuestions(
         quizId,
         {
           ...form,
           passages: serializedSections.passages,
+          parts: serializedSections.parts,
           passageCount: serializedSections.passages.length,
           status: nextStatus,
           isPublished: nextStatus === 'published',
@@ -692,6 +785,7 @@ export default function EditQuizV2() {
       <QuizSectionsEditor
         variant="edit"
         sections={sections}
+        parts={parts}
         questionNumbers={questionNumbers}
         totalQuestions={questionCount}
         onStandaloneChange={updateStandaloneQuestion}
@@ -711,6 +805,11 @@ export default function EditQuizV2() {
         onPassageAddQuestion={addPassageQuestion}
         onAddStandalone={addStandaloneSectionHandler}
         onAddPassage={addPassageSectionHandler}
+        onAddPart={addPart}
+        onPartChange={updatePart}
+        onPartMove={movePart}
+        onPartRemove={removePart}
+        onAssignSectionToPart={assignSectionToPart}
       />
 
       <QuizEditorPreviewPanel form={form} serializedSections={serializedPreview} />

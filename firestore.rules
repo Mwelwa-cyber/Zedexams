@@ -122,7 +122,8 @@ service cloud.firestore {
     function _validGrade(value) { return value is string && value in ['4', '5', '6', '7']; }
     function _validSubject(value) { return value is string && value.size() >= 1 && value.size() <= 80; }
     function _validContentStatus(value) { return value is string && value in ['draft', 'pending', 'published', 'rejected']; }
-    function _validQuestionType(value) { return value is string && value in ['mcq', 'short_answer', 'diagram']; }
+    function _validQuestionType(value) { return value is string && value in ['mcq', 'short_answer', 'diagram', 'fill', 'short', 'tf']; }
+    function _validQuestionSubtype(value) { return value == null || (value is string && value in ['vocab', 'spelling', 'punctuation', 'sentence_ordering']); }
 
     function validQuizFields() {
       return (!('title' in incoming()) || (incoming().title is string && incoming().title.size() >= 1 && incoming().title.size() <= 200))
@@ -133,7 +134,10 @@ service cloud.firestore {
         && (!('totalMarks' in incoming()) || (incoming().totalMarks is int && incoming().totalMarks >= 0 && incoming().totalMarks <= 10000))
         && (!('questionCount' in incoming()) || (incoming().questionCount is int && incoming().questionCount >= 0 && incoming().questionCount <= 1000))
         && (!('status' in incoming()) || _validContentStatus(incoming().status))
-        && (!('isPublished' in incoming()) || incoming().isPublished is bool);
+        && (!('isPublished' in incoming()) || incoming().isPublished is bool)
+        // Optional Parts grouping (PRISCA mock-paper layout). Cap list size;
+        // per-element shape is enforced by the Zod schema client-side.
+        && (!('parts' in incoming()) || (incoming().parts is list && incoming().parts.size() <= 20));
     }
 
     // Defence-in-depth on rich-text fields. Limits mirror the Zod schema in
@@ -164,7 +168,10 @@ service cloud.firestore {
         // Review flags (written by the AI importer).
         && (!('requiresReview' in incoming()) || incoming().requiresReview is bool)
         && (!('reviewNotes' in incoming()) || (incoming().reviewNotes is list && incoming().reviewNotes.size() <= 50))
-        && (!('importWarnings' in incoming()) || (incoming().importWarnings is list && incoming().importWarnings.size() <= 50));
+        && (!('importWarnings' in incoming()) || (incoming().importWarnings is list && incoming().importWarnings.size() <= 50))
+        // PRISCA mock-paper format: optional MCQ subtype + Part membership.
+        && (!('subtype' in incoming()) || _validQuestionSubtype(incoming().subtype))
+        && (!('partId' in incoming()) || incoming().partId == null || (incoming().partId is string && incoming().partId.size() <= 64));
     }
 
     function validLessonFields() {
