@@ -38,6 +38,7 @@ const AdminLearners = lazy(() => import('./components/admin/AdminLearners'))
 const AdminLearnerProfile = lazy(() => import('./components/admin/AdminLearnerProfile'))
 const GenerationsAdmin = lazy(() => import('./components/admin/GenerationsAdmin'))
 const CbcKbAdmin = lazy(() => import('./components/admin/CbcKbAdmin'))
+const ZedVoice = lazy(() => import('./components/admin/ZedVoice'))
 
 // Teacher section
 const TeacherLayout = lazy(() => import('./components/teacher/TeacherLayout'))
@@ -232,6 +233,7 @@ export default function App() {
           <Route path="/admin/generations"              element={<AdminRoute><GenerationsAdmin /></AdminRoute>} />
           <Route path="/admin/generations/:id"          element={<AdminRoute><LibraryItemDetail /></AdminRoute>} />
           <Route path="/admin/cbc-kb"                   element={<AdminRoute><CbcKbAdmin /></AdminRoute>} />
+          <Route path="/admin/zed-voice"                element={<AdminRoute><ZedVoice /></AdminRoute>} />
           <Route path="/admin/games-seed"               element={<AdminRoute><GamesSeedAdmin /></AdminRoute>} />
           <Route path="/admin/learners"                 element={<AdminRoute><AdminLearners /></AdminRoute>} />
           <Route path="/admin/learners/:learnerId"      element={<AdminRoute><AdminLearnerProfile /></AdminRoute>} />

@@ -94,6 +94,50 @@ async function getMe(token) {
   return tgRequest(token, "getMe", {});
 }
 
+async function getFile(token, fileId) {
+  const result = await tgRequest(token, "getFile", {file_id: fileId});
+  if (!result?.file_path) {
+    throw new Error("Telegram getFile returned no file_path");
+  }
+  return result;
+}
+
+async function downloadFile(token, filePath) {
+  const url = `${TELEGRAM_API}/file/bot${token}/${filePath}`;
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Telegram file download failed: HTTP ${res.status}`);
+  }
+  const buf = await res.arrayBuffer();
+  return Buffer.from(buf);
+}
+
+async function sendVoice(token, chatId, oggBuffer, opts = {}) {
+  // sendVoice requires multipart/form-data — JSON does not work for binary
+  // uploads. Node 22 ships Blob/FormData/fetch globally, so no deps needed.
+  const form = new FormData();
+  form.append("chat_id", String(chatId));
+  const blob = new Blob([oggBuffer], {type: "audio/ogg"});
+  form.append("voice", blob, "zed.ogg");
+  if (opts.caption) form.append("caption", String(opts.caption).slice(0, 1024));
+  if (opts.replyToMessageId) {
+    form.append("reply_to_message_id", String(opts.replyToMessageId));
+  }
+  if (typeof opts.duration === "number") {
+    form.append("duration", String(Math.round(opts.duration)));
+  }
+  const res = await fetch(tgUrl(token, "sendVoice"), {method: "POST", body: form});
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok || data?.ok === false) {
+    const description = data?.description || `HTTP ${res.status}`;
+    const err = new Error(`Telegram sendVoice failed: ${description}`);
+    err.telegramResponse = data;
+    err.status = res.status;
+    throw err;
+  }
+  return data.result;
+}
+
 module.exports = {
   sendMessage,
   sendChatAction,
@@ -101,6 +145,9 @@ module.exports = {
   deleteWebhook,
   getWebhookInfo,
   getMe,
+  getFile,
+  downloadFile,
+  sendVoice,
   chunkText,
   MAX_MESSAGE_LENGTH,
 };

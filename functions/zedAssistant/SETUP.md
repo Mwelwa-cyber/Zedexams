@@ -22,6 +22,10 @@ firebase functions:secrets:set TELEGRAM_WEBHOOK_SECRET
 
 # Anthropic key — already set if other AI features work, skip otherwise
 firebase functions:secrets:set ANTHROPIC_API_KEY
+
+# OpenAI key — required for voice messages (Whisper STT). Optional:
+# without it, text still works and voice notes get a friendly fallback.
+firebase functions:secrets:set OPENAI_API_KEY
 ```
 
 ## 3. Set the allowlist env vars
@@ -109,6 +113,11 @@ Add a task: leaderboard tie-breaker is broken.
   inline in chat.
 - **Firebase review** — read-only doc samples from quizzes / games / scores
   / users with PII redacted.
+- **Voice in / voice out** — tap-and-hold the mic in Telegram, speak (up to
+  120 seconds), Zed transcribes with Whisper, replies with both a text
+  message and a real Telegram voice note synthesized by Google Cloud TTS
+  (en-GB-Neural2-B by default). Set `OPENAI_API_KEY` to enable; without
+  it, voice messages get a friendly text-only fallback.
 
 ## What it explicitly cannot do
 

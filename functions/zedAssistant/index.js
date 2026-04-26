@@ -25,6 +25,7 @@ const {defineSecret} = require("firebase-functions/params");
 const admin = require("firebase-admin");
 
 const telegram = require("./telegram");
+const voice = require("./voice");
 const {runAgent} = require("./agent");
 const {buildToolDefinitions, buildToolRunner} = require("./tools");
 const {SYSTEM_PROMPT} = require("./systemPrompt");
@@ -32,12 +33,21 @@ const {SYSTEM_PROMPT} = require("./systemPrompt");
 const telegramBotToken = defineSecret("TELEGRAM_BOT_TOKEN");
 const telegramWebhookSecret = defineSecret("TELEGRAM_WEBHOOK_SECRET");
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
+const openaiApiKey = defineSecret("OPENAI_API_KEY");
 
-const ZED_SECRETS = [telegramBotToken, telegramWebhookSecret, anthropicApiKey];
+const ZED_SECRETS = [
+  telegramBotToken,
+  telegramWebhookSecret,
+  anthropicApiKey,
+  openaiApiKey,
+];
 
 const TELEGRAM_HEADER = "x-telegram-bot-api-secret-token";
 const MAX_INCOMING_TEXT = 2000;
 const RECENT_TURNS = 6;
+const MAX_VOICE_DURATION_S = 120;
+const VOICE_OVERFLOW_NOTE =
+  "\n\n(voice cut at 3000 chars — full reply above)";
 
 function getEnv(key) {
   const value = process.env[key];
@@ -150,37 +160,80 @@ function buildUserMessage(messageText) {
   ].join("\n");
 }
 
-async function handleTelegramUpdate(update, {token, anthropicKey}) {
+async function transcribeIncomingVoice(message, {token, openaiKey}) {
+  const v = message.voice;
+  if (!v?.file_id) return {ok: false, reason: "no_file_id"};
+  if (typeof v.duration === "number" && v.duration > MAX_VOICE_DURATION_S) {
+    return {ok: false, reason: "too_long", duration: v.duration};
+  }
+  if (!openaiKey) return {ok: false, reason: "no_openai_key"};
+  try {
+    const fileMeta = await telegram.getFile(token, v.file_id);
+    const audio = await telegram.downloadFile(token, fileMeta.file_path);
+    const transcript = await voice.transcribeOgg(openaiKey, audio);
+    if (!transcript) return {ok: false, reason: "empty_transcript"};
+    return {ok: true, transcript, durationS: v.duration || 0};
+  } catch (err) {
+    console.error("zedAssistant: transcribe failed", err?.message);
+    return {ok: false, reason: "stt_error", error: err?.message};
+  }
+}
+
+async function speakReply(token, chatId, replyText) {
+  // Synthesize a voice note and post it. Failures here should never block
+  // the text reply that already shipped — caller invokes us best-effort.
+  try {
+    const {audio, truncated} = await voice.synthesizeOgg(replyText);
+    await telegram.sendVoice(token, chatId, audio);
+    return {ok: true, truncated};
+  } catch (err) {
+    console.warn("zedAssistant: TTS/sendVoice failed", err?.message);
+    return {ok: false, error: err?.message};
+  }
+}
+
+async function handleTelegramUpdate(update, {token, anthropicKey, openaiKey}) {
   const message = update?.message || update?.edited_message;
   if (!message) return {handled: false, reason: "no_message"};
 
   const chatId = message.chat?.id;
   const fromUser = message.from || {};
   const username = fromUser.username || "";
-  const text = String(message.text || "").trim();
+  let text = String(message.text || "").trim();
+  const isVoiceMessage = Boolean(message.voice?.file_id);
 
   if (!chatId) return {handled: false, reason: "no_chat_id"};
-  if (!text) {
-    await telegram.sendMessage(
-      token,
-      chatId,
-      "I only handle text messages right now.",
-    );
-    return {handled: true, ignored: "non_text"};
-  }
 
+  // Allowlist gate runs BEFORE we spend tokens or hit Whisper. Strangers
+  // shouldn't be able to drain our Whisper quota by sending voice notes.
+  // Silent rejection: we log the chat ID server-side (so the founder can
+  // recover it from logs to bootstrap a new device), but the bot does NOT
+  // reply. The chatIdHint helper is still wired up for the bootstrap path.
   if (!isAuthorizedSender({chatId, username})) {
-    // Silent rejection. We log the chat ID server-side (so the founder can
-    // recover it from logs if they ever need to bootstrap a new device),
-    // but the bot does NOT reply. Strangers who find the bot's username get
-    // no signal that it's responsive or even configured. The chatIdHint
-    // helper is still wired up for the bootstrap path — see logs.
     console.warn("zedAssistant: ignored unauthorized sender", {
       chatId,
       username,
       hint: chatIdHint({chatId, username}),
     });
     return {handled: true, ignored: "unauthorized"};
+  }
+
+  if (isVoiceMessage) {
+    await telegram.sendChatAction(token, chatId, "typing");
+    const stt = await transcribeIncomingVoice(message, {token, openaiKey});
+    if (!stt.ok) {
+      const friendly = sttFriendlyError(stt);
+      await telegram.sendMessage(token, chatId, friendly);
+      return {handled: true, ignored: "voice_failed", reason: stt.reason};
+    }
+    text = stt.transcript;
+  } else if (!text) {
+    await telegram.sendMessage(
+      token,
+      chatId,
+      "I only handle text and voice messages right now.",
+    );
+    return {handled: true, ignored: "non_text"};
   }
 
   if (text === "/start" || text === "/help") {
@@ -241,11 +294,35 @@ async function handleTelegramUpdate(update, {token, anthropicKey}) {
   await telegram.sendMessage(token, chatId, reply);
   await appendTurn(chatId, "assistant", reply);
 
+  // Voice reply runs best-effort after the text reply has shipped. If TTS
+  // or sendVoice fails, the user still has the full text answer above.
+  const tts = await speakReply(token, chatId, reply);
+  if (tts.ok && tts.truncated) {
+    await telegram.sendMessage(token, chatId, VOICE_OVERFLOW_NOTE.trim());
+  }
+
   return {
     handled: true,
     toolCalls: result.toolCalls.map((c) => c.name),
     stopReason: result.stopReason,
+    inputMode: isVoiceMessage ? "voice" : "text",
+    voiceReply: tts.ok ? "sent" : "skipped",
   };
+}
+
+function sttFriendlyError(stt) {
+  switch (stt.reason) {
+    case "too_long":
+      return `I only listen to clips up to ${MAX_VOICE_DURATION_S} seconds — ` +
+        "try again with a shorter recording.";
+    case "no_openai_key":
+      return "Voice transcription isn't configured yet — please type instead.";
+    case "empty_transcript":
+      return "Couldn't catch any words in that — say it again or type.";
+    case "stt_error":
+    default:
+      return "Couldn't transcribe that — say it again or type.";
+  }
 }
 
 exports.telegramWebhook = onRequest(
@@ -276,6 +353,11 @@ exports.telegramWebhook = onRequest(
     const token = telegramBotToken.value() || process.env.TELEGRAM_BOT_TOKEN;
     const anthropicKey = anthropicApiKey.value() ||
       process.env.ANTHROPIC_API_KEY;
+    // OPENAI_API_KEY is optional — without it, voice messages get a
+    // friendly text reply asking the user to type. Text messages still
+    // work normally.
+    const openaiKey = openaiApiKey.value() ||
+      process.env.OPENAI_API_KEY || "";
     if (!token || !anthropicKey) {
       console.error("zedAssistant: missing secrets", {
         hasToken: Boolean(token),
@@ -291,6 +373,7 @@ exports.telegramWebhook = onRequest(
       const summary = await handleTelegramUpdate(req.body || {}, {
         token,
         anthropicKey,
+        openaiKey,
       });
       res.status(200).json({ok: true, ...summary});
     } catch (err) {
@@ -362,3 +445,5 @@ exports.zedTelegramWebhookInfo = onCall(
     return {info, bot};
   },
 );
+
+exports.apiZedAssistantChat = require("./web").apiZedAssistantChat;

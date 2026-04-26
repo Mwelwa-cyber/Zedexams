@@ -50,6 +50,13 @@
         }
       },
       {
+        "source": "/api/zed/chat",
+        "function": {
+          "functionId": "apiZedAssistantChat",
+          "region": "us-central1"
+        }
+      },
+      {
         "source": "**",
         "destination": "/index.html"
       }
