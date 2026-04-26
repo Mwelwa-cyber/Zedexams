@@ -11,6 +11,12 @@ import { getFunctions, httpsCallable } from 'firebase/functions'
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
 import app, { auth, db } from '../firebase/config'
 import { ROLES, hasPremiumAccess } from '../utils/subscriptionConfig'
+import { useIdleTimeout } from '../hooks/useIdleTimeout'
+
+// Sign learners/teachers/admins out after this much idle time, with a short
+// countdown beforehand so an active user can keep their session.
+const IDLE_TIMEOUT_MS = 15 * 60 * 1000
+const IDLE_WARNING_MS = 60 * 1000
 
 const AuthContext = createContext(null)
 const functions = getFunctions(app, 'us-central1')
@@ -31,6 +37,8 @@ export function AuthProvider({ children }) {
   const [userProfile, setUserProfile] = useState(null)
   const [loading, setLoading]         = useState(true)
   const [profileIssue, setProfileIssue] = useState(null)
+  const [showIdleWarning, setShowIdleWarning] = useState(false)
+  const [idleSecondsLeft, setIdleSecondsLeft] = useState(Math.ceil(IDLE_WARNING_MS / 1000))
   const bootstrapInFlightRef = useRef(new Map())
 
   async function register(email, password, displayName, grade, school, role = ROLES.LEARNER) {
@@ -74,8 +82,30 @@ export function AuthProvider({ children }) {
   async function logout() {
     setUserProfile(null)
     setProfileIssue(null)
+    setShowIdleWarning(false)
     return signOut(auth)
   }
+
+  const { stayActive: resetIdle } = useIdleTimeout({
+    enabled: !!currentUser,
+    idleMs: IDLE_TIMEOUT_MS,
+    warnMs: IDLE_WARNING_MS,
+    onWarn: (secondsLeft) => {
+      setIdleSecondsLeft(secondsLeft)
+      setShowIdleWarning(true)
+    },
+    onTick: (secondsLeft) => setIdleSecondsLeft(secondsLeft),
+    onResumeActivity: () => setShowIdleWarning(false),
+    onTimeout: () => {
+      setShowIdleWarning(false)
+      logout().catch((e) => console.error('Idle logout failed:', e))
+    },
+  })
+
+  const stayActive = useCallback(() => {
+    setShowIdleWarning(false)
+    resetIdle()
+  }, [resetIdle])
 
   const fetchUserProfile = useCallback(async (uid, { updateState = true } = {}) => {
     try {
@@ -228,6 +258,7 @@ export function AuthProvider({ children }) {
       login, register, logout, resetPassword,
       fetchUserProfile, ensureUserProfile, refreshProfile, updateProfileFields,
       isLearner, isTeacher, isAdmin, isPremium, isPaidTeacher, canAccessFullContent,
+      showIdleWarning, idleSecondsLeft, stayActive,
     }}>
       {!loading && children}
     </AuthContext.Provider>

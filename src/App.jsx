@@ -22,6 +22,7 @@ const BadgesPage = lazy(() => import('./components/dashboard/BadgesPage'))
 const ProfilePage = lazy(() => import('./components/dashboard/ProfilePage'))
 const ZedStudyAssistant = lazy(() => import('./components/ai/ZedStudyAssistant'))
 const FloatingZedButton = lazy(() => import('./components/ai/FloatingZedButton'))
+const IdleWarningModal = lazy(() => import('./components/auth/IdleWarningModal'))
 const NotFound = lazy(() => import('./components/ui/NotFound'))
 
 // Admin section
@@ -262,6 +263,8 @@ export default function App() {
         </Routes>
         {/* Floating "Ask Zed" button — self-gates visibility per route */}
         <FloatingZedButton />
+        {/* Inactivity warning + auto-logout (driven by AuthContext) */}
+        <IdleWarningModal />
       </Suspense>
     </BrowserRouter>
   )
