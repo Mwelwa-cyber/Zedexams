@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getAuth } from 'firebase/auth'
+import { getAuth, setPersistence, browserSessionPersistence } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 import { getStorage } from 'firebase/storage'
 
@@ -18,4 +18,12 @@ const app = initializeApp(firebaseConfig)
 export const auth    = getAuth(app)
 export const db      = getFirestore(app)
 export const storage = getStorage(app)
+
+// Session-only auth persistence: closing the last tab/window ends the session.
+// Combined with the idle timeout in AuthContext, this protects accounts on
+// shared or stolen devices (a refresh in the same tab still keeps the user in).
+setPersistence(auth, browserSessionPersistence).catch((e) => {
+  console.error('Failed to set auth persistence:', e)
+})
+
 export default app
