@@ -114,7 +114,7 @@ export default function GenerationsAdmin() {
         <div className="flex gap-2">
           <button
             onClick={load}
-            className="px-3 py-2 rounded-xl text-sm font-bold border-2 border-slate-200 hover:bg-slate-50"
+            className="px-3 py-2 rounded-xl text-sm font-bold border-2 theme-border hover:bg-slate-50"
           >
             ↻ Refresh
           </button>
@@ -139,7 +139,7 @@ export default function GenerationsAdmin() {
       </div>
 
       {/* Filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 bg-white border-2 border-slate-200 rounded-2xl p-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2 bg-white border-2 theme-border rounded-2xl p-3">
         <FilterSelect
           label="Tool"
           value={filters.tool}
@@ -182,7 +182,7 @@ export default function GenerationsAdmin() {
           value={filters.search}
           onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
           placeholder="Search topic / user id…"
-          className="px-3 py-2 rounded-lg border-2 border-slate-200 focus:outline-none focus:border-emerald-400"
+          className="px-3 py-2 rounded-lg border-2 theme-border focus:outline-none focus:border-emerald-400"
         />
       </div>
 
@@ -191,10 +191,10 @@ export default function GenerationsAdmin() {
       {status === 'empty' && <Empty />}
       {status === 'ready' && filtered.length === 0 && <NoResults />}
       {status === 'ready' && filtered.length > 0 && (
-        <div className="bg-white border-2 border-slate-200 rounded-2xl overflow-hidden">
+        <div className="bg-white border-2 theme-border rounded-2xl overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
-              <thead className="bg-slate-50 border-b border-slate-200 text-xs font-black uppercase tracking-wide text-slate-500">
+              <thead className="bg-slate-50 border-b theme-border text-xs font-black uppercase tracking-wide text-slate-500">
                 <tr>
                   <th className="text-left px-3 py-2">When</th>
                   <th className="text-left px-3 py-2">Tool</th>
@@ -215,7 +215,7 @@ export default function GenerationsAdmin() {
                   return (
                     <tr
                       key={row.id}
-                      className={`border-b border-slate-100 last:border-0 hover:bg-slate-50/50 ${
+                      className={`border-b theme-border last:border-0 hover:bg-slate-50/50 ${
                         isFailed ? 'bg-rose-50/30' : isFlagged ? 'bg-amber-50/30' : ''
                       }`}
                     >
@@ -290,7 +290,7 @@ function Stat({ label, value, colour }) {
     rose:    'bg-rose-50    border-rose-100    text-rose-700',
     amber:   'bg-amber-50   border-amber-100   text-amber-700',
     indigo:  'bg-indigo-50  border-indigo-100  text-indigo-700',
-    default: 'bg-white      border-slate-200   text-slate-700',
+    default: 'bg-white      theme-border   text-slate-700',
   }
   const cls = palette[colour] || palette.default
   return (
@@ -307,7 +307,7 @@ function FilterSelect({ label, value, options, onChange }) {
       aria-label={label}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="px-3 py-2 rounded-lg border-2 border-slate-200 focus:outline-none focus:border-emerald-400 bg-white"
+      className="px-3 py-2 rounded-lg border-2 theme-border focus:outline-none focus:border-emerald-400 bg-white"
     >
       {options.map((o) => (
         <option key={o.value} value={o.value}>{o.label}</option>
@@ -318,7 +318,7 @@ function FilterSelect({ label, value, options, onChange }) {
 
 function Loading() {
   return (
-    <div className="bg-white border-2 border-slate-200 rounded-2xl p-12 text-center">
+    <div className="bg-white border-2 theme-border rounded-2xl p-12 text-center">
       <div className="text-4xl mb-3 animate-bounce">🔎</div>
       <p className="text-slate-500">Loading generations…</p>
     </div>
@@ -327,7 +327,7 @@ function Loading() {
 
 function Empty() {
   return (
-    <div className="bg-white border-2 border-slate-200 rounded-2xl p-12 text-center">
+    <div className="bg-white border-2 theme-border rounded-2xl p-12 text-center">
       <div className="text-5xl mb-3">✨</div>
       <p className="font-black text-slate-800 mb-1">No generations yet</p>
       <p className="text-sm text-slate-500 max-w-md mx-auto">
@@ -339,7 +339,7 @@ function Empty() {
 
 function NoResults() {
   return (
-    <div className="bg-white border-2 border-slate-200 rounded-2xl p-10 text-center">
+    <div className="bg-white border-2 theme-border rounded-2xl p-10 text-center">
       <p className="text-slate-600">No generations match these filters.</p>
     </div>
   )

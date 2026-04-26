@@ -18,7 +18,7 @@ function ApprovalCard({ item, onApprove, onReject, busy }) {
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
+    <div className="bg-white rounded-2xl border theme-border p-4 space-y-3">
       <div className="flex items-start gap-3">
         <div className="w-11 h-11 bg-yellow-50 border border-yellow-200 rounded-xl flex items-center justify-center text-xl flex-shrink-0">
           {TYPE_ICONS[item.contentType] ?? '📄'}

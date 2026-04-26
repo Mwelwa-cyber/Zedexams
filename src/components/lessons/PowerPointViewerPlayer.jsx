@@ -5,7 +5,7 @@ import LessonCompleteScreen from './LessonCompleteScreen'
 function AnswersPanel({ answers }) {
   if (!answers.length) {
     return (
-      <div className="rounded-3xl border border-gray-100 bg-white p-5 text-center shadow-sm">
+      <div className="rounded-3xl border theme-border bg-white p-5 text-center shadow-sm">
         <p className="font-black text-gray-800">No linked answers have been added yet.</p>
         <p className="mt-1 text-sm font-bold text-gray-500">The teacher can add presentation answers in PowerPoint Viewer Mode.</p>
       </div>
@@ -13,7 +13,7 @@ function AnswersPanel({ answers }) {
   }
 
   return (
-    <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+    <div className="rounded-3xl border theme-border bg-white p-5 shadow-sm">
       <h2 className="text-xl font-black text-gray-900">Linked Answers</h2>
       <div className="mt-4 space-y-3">
         {answers.map((answer, index) => (
@@ -163,7 +163,7 @@ export default function PowerPointViewerPlayer({ lesson }) {
   if (!slides.length) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center px-4">
-        <div className="max-w-lg rounded-3xl border border-gray-100 bg-white p-6 text-center shadow-sm">
+        <div className="max-w-lg rounded-3xl border theme-border bg-white p-6 text-center shadow-sm">
           <h1 className="text-2xl font-black text-gray-900">Presentation preview is not ready</h1>
           <p className="mt-2 text-sm font-bold leading-relaxed text-gray-500">
             This PowerPoint lesson has the original file saved, but no web slide images are available yet.

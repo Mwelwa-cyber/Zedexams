@@ -41,20 +41,65 @@ export default function BadgesPage() {
   const earnedGameBadgeIds = new Set(Object.keys(gameBadges || {}))
   const totalEarned = earned.length + earnedGameBadgeIds.size
   const totalPossible = BADGES.length + GAME_BADGES.length
+  const completionPct = totalPossible
+    ? Math.round((totalEarned / totalPossible) * 100)
+    : 0
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center gap-4">
-        {!dataSaver && <ProfessorPako size={60} mood={totalEarned > 3 ? 'excited' : 'normal'} animate={false} />}
-        <div>
-          <h1 className="inline-flex items-center gap-2 text-2xl font-black theme-text">
-            <TrophyIcon className="h-7 w-7 text-amber-500" />
-            My Badges
-          </h1>
-          <p className="theme-text-muted text-sm mt-0.5">
-            {totalEarned} of {totalPossible} badges earned
-          </p>
+      {/* Hero — gradient surface with Pako, big counter, and a progress
+          ring. Replaces the old flat header so the page opens with a
+          sense of accomplishment instead of a list. */}
+      <div className="relative overflow-hidden rounded-radius-lg theme-hero shadow-elev-lg shadow-elev-inner-hl px-5 py-6 sm:px-7 sm:py-7">
+        <div
+          aria-hidden
+          className="pointer-events-none absolute -right-10 -top-10 h-44 w-44 rounded-full bg-white/15 blur-2xl"
+        />
+        <div className="relative flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            {!dataSaver && (
+              <ProfessorPako
+                size={68}
+                mood={totalEarned > 3 ? 'excited' : 'normal'}
+                animate={false}
+              />
+            )}
+            <div className="text-white">
+              <p className="text-eyebrow text-white/80">Achievements</p>
+              <h1 className="inline-flex items-center gap-2 text-display-xl mt-0.5">
+                <TrophyIcon className="h-7 w-7 text-amber-300" />
+                My Badges
+              </h1>
+              <p className="text-white/85 text-body-sm mt-1">
+                {totalEarned} of {totalPossible} badges earned
+              </p>
+            </div>
+          </div>
+          {/* Progress ring + numeric — gives a glanceable completion read. */}
+          <div className="flex items-center gap-3 self-start sm:self-center">
+            <div className="relative h-20 w-20 shrink-0">
+              <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
+                <circle
+                  cx="50" cy="50" r="42"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.25)"
+                  strokeWidth="8"
+                />
+                <circle
+                  cx="50" cy="50" r="42"
+                  fill="none"
+                  stroke="white"
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  strokeDasharray={`${(completionPct / 100) * 263.89} 263.89`}
+                  className="transition-all duration-slow ease-out"
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center text-white font-display font-black text-base">
+                {completionPct}%
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -68,7 +113,7 @@ export default function BadgesPage() {
             </h2>
             <Link to="/games" className="text-xs font-black text-amber-700 hover:text-amber-900">Play games →</Link>
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 stagger">
             {GAME_BADGES.map((b) => (
               <GamesBadgeCard
                 key={b.id}
@@ -94,7 +139,7 @@ export default function BadgesPage() {
             <CheckBadgeIcon className="h-4 w-4 text-emerald-500" />
             Earned ({earned.length})
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 stagger">
             {earned.map(b => (
               <BadgeCard key={b.id} badge={b} earned earnedAt={b.earnedAt} size="md" />
             ))}
@@ -109,7 +154,7 @@ export default function BadgesPage() {
             <ArrowPathIcon className="h-4 w-4 text-sky-500" />
             In Progress ({progress.length})
           </h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 stagger">
             {progress
               .sort((a, b) => b.progress - a.progress)
               .slice(0, 6)
@@ -135,7 +180,7 @@ export default function BadgesPage() {
               <LockClosedIcon className="h-4 w-4 text-slate-500" />
               Locked ({locked.length})
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 stagger">
               {locked.map(b => (
                 <BadgeCard key={b.id} badge={b} earned={false} progress={0} size="md" />
               ))}
@@ -148,7 +193,7 @@ export default function BadgesPage() {
       {loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="theme-card rounded-2xl border theme-border p-4 animate-pulse h-24" />
+            <div key={i} className="theme-card rounded-2xl border theme-border shadow-elev-sm p-4 animate-pulse h-24" />
           ))}
         </div>
       )}

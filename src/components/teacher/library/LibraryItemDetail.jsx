@@ -426,7 +426,7 @@ function EditHeaderModal({ tool, header, saving, onCancel, onSave }) {
         onSubmit={onSubmit}
         className="bg-white rounded-2xl max-w-xl w-full my-8 shadow-2xl"
       >
-        <div className="sticky top-0 bg-white border-b border-slate-200 px-5 py-3 flex items-center justify-between rounded-t-2xl">
+        <div className="sticky top-0 bg-white border-b theme-border px-5 py-3 flex items-center justify-between rounded-t-2xl">
           <h2 className="font-black text-lg">Edit details</h2>
           <button type="button" onClick={onCancel} className="text-slate-500 hover:text-slate-900">✕</button>
         </div>
@@ -442,7 +442,7 @@ function EditHeaderModal({ tool, header, saving, onCancel, onSave }) {
                   onChange={(e) => set(f.key, e.target.value)}
                   placeholder={f.placeholder || ''}
                   rows={3}
-                  className="w-full px-3 py-2 rounded-lg border-2 border-slate-200 focus:outline-none focus:border-emerald-400 resize-none"
+                  className="w-full px-3 py-2 rounded-lg border-2 theme-border focus:outline-none focus:border-emerald-400 resize-none"
                 />
               ) : (
                 <input
@@ -450,7 +450,7 @@ function EditHeaderModal({ tool, header, saving, onCancel, onSave }) {
                   value={draft[f.key] ?? ''}
                   onChange={(e) => set(f.key, e.target.value)}
                   placeholder={f.placeholder || ''}
-                  className="w-full px-3 py-2 rounded-lg border-2 border-slate-200 focus:outline-none focus:border-emerald-400"
+                  className="w-full px-3 py-2 rounded-lg border-2 theme-border focus:outline-none focus:border-emerald-400"
                 />
               )}
             </div>
@@ -460,11 +460,11 @@ function EditHeaderModal({ tool, header, saving, onCancel, onSave }) {
             To change the lesson's topic or content, use <b>Generate similar</b> instead.
           </p>
         </div>
-        <div className="sticky bottom-0 bg-white border-t border-slate-200 px-5 py-3 flex items-center justify-end gap-2 rounded-b-2xl">
+        <div className="sticky bottom-0 bg-white border-t theme-border px-5 py-3 flex items-center justify-end gap-2 rounded-b-2xl">
           <button
             type="button"
             onClick={onCancel}
-            className="px-4 py-2 rounded-xl text-sm font-bold border-2 border-slate-200 hover:bg-slate-50"
+            className="px-4 py-2 rounded-xl text-sm font-bold border-2 theme-border hover:bg-slate-50"
           >
             Cancel
           </button>

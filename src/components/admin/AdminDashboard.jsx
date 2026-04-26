@@ -9,6 +9,8 @@ import { db } from '../../firebase/config'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
+import PageHeader from '../ui/PageHeader'
+import EmptyState from '../ui/EmptyState'
 
 const StatCard_colors = {
   green:  'bg-green-50  text-green-600  border-green-100',
@@ -20,7 +22,7 @@ const StatCard_colors = {
 
 function StatCard({ icon, label, value, color, loading, linkTo }) {
   const inner = (
-    <div className={`rounded-2xl border p-5 shadow-elev-sm transition-all duration-base ease-out ${StatCard_colors[color]} ${linkTo ? 'hover:-translate-y-0.5 hover:shadow-elev-md cursor-pointer' : ''}`}>
+    <div className={`rounded-2xl border p-5 shadow-elev-md shadow-elev-inner-hl transition-all duration-base ease-out ${StatCard_colors[color]} ${linkTo ? 'hover-lift press-feedback cursor-pointer' : ''}`}>
       <div className="text-3xl mb-2" aria-hidden="true">{icon}</div>
       <div className="text-display-md text-gray-800" style={{ fontSize: 22 }}>
         {loading ? <Skeleton height={20} width={40} /> : value}
@@ -32,20 +34,23 @@ function StatCard({ icon, label, value, color, loading, linkTo }) {
 }
 
 function QuickAction({ to, icon, label, sub, color }) {
-  const colors = {
-    green:  'border-green-200  hover:border-green-400  hover:bg-green-50',
-    blue:   'border-blue-200   hover:border-blue-400   hover:bg-blue-50',
-    orange: 'border-orange-200 hover:border-orange-400 hover:bg-orange-50',
+  // Coloured accent rail on the left edge — gives each action a touch of
+  // identity without making the card itself a full pastel block. Resting
+  // state stays on theme tokens so the panel reads in every theme.
+  const accents = {
+    green:  'before:bg-emerald-400',
+    blue:   'before:bg-sky-400',
+    orange: 'before:bg-orange-400',
   }
   return (
     <Link
       to={to}
-      className={`group flex items-start gap-3 p-4 rounded-2xl border-2 shadow-elev-sm transition-all duration-base ease-out hover:-translate-y-0.5 hover:shadow-elev-md ${colors[color]}`}
+      className={`group relative flex items-start gap-3 p-4 rounded-2xl theme-card border theme-border shadow-elev-sm hover-lift press-feedback overflow-hidden before:absolute before:inset-y-0 before:left-0 before:w-1 ${accents[color] || 'before:bg-emerald-400'}`}
     >
-      <span className="text-2xl" aria-hidden="true">{icon}</span>
+      <span className="text-2xl pl-1" aria-hidden="true">{icon}</span>
       <div className="flex-1 min-w-0">
-        <p className="font-black text-gray-800 text-sm group-hover:text-gray-900 transition-colors">{label}</p>
-        <p className="text-xs text-gray-500 mt-0.5">{sub}</p>
+        <p className="font-black theme-text text-sm transition-colors">{label}</p>
+        <p className="text-xs theme-text-muted mt-0.5">{sub}</p>
       </div>
     </Link>
   )
@@ -146,13 +151,11 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <p className="text-eyebrow">Admin overview</p>
-        <h1 className="text-display-xl text-gray-800 mt-1 flex items-center gap-2">
-          <span aria-hidden="true">📊</span> Dashboard
-        </h1>
-        <p className="text-body-sm text-gray-500 mt-1">Overview of your ZedExams platform</p>
-      </div>
+      <PageHeader
+        eyebrow="Admin overview"
+        title="Dashboard"
+        description="Overview of your ZedExams platform — at a glance."
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 stagger">
@@ -236,7 +239,7 @@ export default function AdminDashboard() {
         {loading ? (
           <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-elev-sm">
+              <div key={i} className="bg-white rounded-2xl border theme-border p-4 shadow-elev-sm">
                 <div className="flex items-center gap-3">
                   <Skeleton shape="circle" size={32} />
                   <div className="flex-1 space-y-2">
@@ -248,17 +251,18 @@ export default function AdminDashboard() {
             ))}
           </div>
         ) : recent.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-elev-sm p-8 text-center">
-            <div className="text-4xl mb-2" aria-hidden="true">📭</div>
-            <p className="text-display-md text-gray-700" style={{ fontSize: 16 }}>No results yet</p>
-            <p className="text-body-sm text-gray-400 mt-1">Results will appear here once learners take quizzes</p>
+          <div className="theme-card rounded-2xl border theme-border shadow-elev-sm">
+            <EmptyState
+              title="No results yet"
+              description="Results will appear here once learners take quizzes."
+            />
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+          <div className="bg-white rounded-2xl border theme-border shadow-elev-md overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100">
+                  <tr className="bg-gray-50 border-b theme-border">
                     <th className="text-left px-4 py-3 font-black text-gray-600 text-xs">Learner</th>
                     <th className="text-left px-4 py-3 font-black text-gray-600 text-xs">Quiz</th>
                     <th className="text-left px-4 py-3 font-black text-gray-600 text-xs">Score</th>

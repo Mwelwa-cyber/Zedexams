@@ -55,15 +55,17 @@ export default function Navbar() {
   const badgeClass = badgeColors[accessBadge.color] ?? badgeColors.gray
 
   // Shared link styles — extracted so desktop and mobile renders stay in sync.
+  // Desktop active link gets a 2-px accent underline so the current section
+  // reads at a glance without leaning solely on the tinted background.
   const linkClass = ({ isActive }) =>
-    `flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-sm font-bold transition-all duration-fast ease-out ${
+    `relative flex items-center gap-1.5 px-3 py-1.5 rounded-[10px] text-sm font-bold transition-all duration-fast ease-out ${
       isActive
-        ? 'theme-accent-bg theme-accent-text shadow-elev-inner-hl'
+        ? 'theme-accent-bg theme-accent-text shadow-elev-inner-hl after:absolute after:left-3 after:right-3 after:-bottom-[2px] after:h-[2px] after:rounded-full after:theme-accent-fill'
         : 'theme-text-muted hover:theme-bg-subtle hover:theme-text'
     }`
   const mobileLinkClass = ({ isActive }) =>
-    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-colors animate-slide-in-soft ${
-      isActive ? 'theme-accent-bg theme-accent-text' : 'theme-text hover:theme-bg-subtle'
+    `relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-colors animate-slide-in-soft ${
+      isActive ? 'theme-accent-bg theme-accent-text shadow-elev-inner-hl pl-4 before:absolute before:left-1 before:top-2 before:bottom-2 before:w-1 before:rounded-full before:theme-accent-fill' : 'theme-text hover:theme-bg-subtle'
     }`
 
   return (

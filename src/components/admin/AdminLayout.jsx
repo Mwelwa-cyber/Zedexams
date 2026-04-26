@@ -42,7 +42,6 @@ export default function AdminLayout({ children }) {
   const navigate = useNavigate()
   const location = useLocation()
   const [mobileOpen, setMobileOpen] = useState(false)
-  const isLessonWorkspace = location.pathname.startsWith('/admin/lessons')
 
   async function handleLogout() {
     await logout()
@@ -50,16 +49,24 @@ export default function AdminLayout({ children }) {
   }
 
   // Shared link style — desktop sidebar + mobile drawer stay in sync.
+  // Active state shows a 3px left accent bar + accent-tinted bg so the
+  // current page reads at a glance without scanning the icon.
   const navClass = ({ isActive }) =>
-    `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all duration-fast ease-out ${
+    `relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-bold transition-all duration-fast ease-out ${
       isActive
-        ? 'theme-accent-bg theme-accent-text shadow-elev-inner-hl'
+        ? 'theme-accent-bg theme-accent-text shadow-elev-inner-hl pl-4'
         : 'theme-text-muted hover:theme-bg-subtle hover:theme-text'
     }`
   const mobileNavClass = ({ isActive }) =>
-    `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-colors animate-slide-in-soft ${
-      isActive ? 'theme-accent-bg theme-accent-text shadow-elev-inner-hl' : 'theme-text-muted hover:theme-bg-subtle hover:theme-text'
+    `relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-colors animate-slide-in-soft ${
+      isActive ? 'theme-accent-bg theme-accent-text shadow-elev-inner-hl pl-5' : 'theme-text-muted hover:theme-bg-subtle hover:theme-text'
     }`
+  const ActiveBar = () => (
+    <span
+      aria-hidden
+      className="absolute left-1 top-2 bottom-2 w-1 rounded-full theme-accent-fill"
+    />
+  )
 
   return (
     <div className="theme-bg theme-text min-h-screen flex">
@@ -88,8 +95,13 @@ export default function AdminLayout({ children }) {
           <div className="theme-border my-2 border-t" />
           {NAV.map(item => (
             <NavLink key={item.to} to={item.to} end={item.end} className={navClass}>
-              <Icon as={item.icon} size="sm" />
-              {item.label}
+              {({ isActive }) => (
+                <>
+                  {isActive && <ActiveBar />}
+                  <Icon as={item.icon} size="sm" />
+                  {item.label}
+                </>
+              )}
             </NavLink>
           ))}
         </nav>
@@ -160,7 +172,12 @@ export default function AdminLayout({ children }) {
                 onClick={() => setMobileOpen(false)}
                 className={mobileNavClass}
               >
-                <Icon as={item.icon} size="sm" />{item.label}
+                {({ isActive }) => (
+                  <>
+                    {isActive && <ActiveBar />}
+                    <Icon as={item.icon} size="sm" />{item.label}
+                  </>
+                )}
               </NavLink>
             ))}
             <button
@@ -175,7 +192,10 @@ export default function AdminLayout({ children }) {
 
       {/* ── Main Content ────────────────────────────────── */}
       <main className="flex-1 min-w-0 md:pt-0 pt-20">
-        <div className={`${isLessonWorkspace ? 'max-w-7xl' : 'max-w-4xl'} mx-auto px-4 py-6`}>
+        {/* Single 1280px container — no per-route width gymnastics. Tables
+            and dashboards have room to breathe; reading-heavy editors can
+            opt into a narrower wrapper themselves. */}
+        <div className="app-container py-6">
           {/* Route-keyed boundary: a render crash on one admin page no
               longer trashes the whole shell — the sidebar stays, and
               navigating to a different page clears the error. */}

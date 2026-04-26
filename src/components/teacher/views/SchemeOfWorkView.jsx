@@ -25,11 +25,11 @@ export default function SchemeOfWorkView({ scheme }) {
             </thead>
             <tbody>
               {(scheme.weeks || []).map((w) => (
-                <tr key={w.weekNumber} className="align-top border-b border-slate-200">
-                  <td className="px-3 py-2 border border-slate-200 font-black text-slate-700">
+                <tr key={w.weekNumber} className="align-top border-b theme-border">
+                  <td className="px-3 py-2 border theme-border font-black text-slate-700">
                     {w.weekNumber}
                   </td>
-                  <td className="px-3 py-2 border border-slate-200">
+                  <td className="px-3 py-2 border theme-border">
                     <div className="font-bold theme-text">{renderText(w.topic)}</div>
                     {w.subtopics?.length > 0 && (
                       <ul className="mt-1 text-xs theme-text-secondary list-disc list-inside">
@@ -42,7 +42,7 @@ export default function SchemeOfWorkView({ scheme }) {
                       </div>
                     )}
                   </td>
-                  <td className="px-3 py-2 border border-slate-200">
+                  <td className="px-3 py-2 border theme-border">
                     <CellList items={w.specificOutcomes} />
                     {(w.keyCompetencies?.length > 0 || w.values?.length > 0) && (
                       <div className="mt-2 text-[10px] theme-text-secondary">
@@ -61,13 +61,13 @@ export default function SchemeOfWorkView({ scheme }) {
                       </div>
                     )}
                   </td>
-                  <td className="px-3 py-2 border border-slate-200">
+                  <td className="px-3 py-2 border theme-border">
                     <CellList items={w.teachingLearningActivities} />
                   </td>
-                  <td className="px-3 py-2 border border-slate-200">
+                  <td className="px-3 py-2 border theme-border">
                     <CellList items={w.materials} />
                   </td>
-                  <td className="px-3 py-2 border border-slate-200 text-xs">
+                  <td className="px-3 py-2 border theme-border text-xs">
                     {renderText(w.assessment) || '—'}
                   </td>
                 </tr>

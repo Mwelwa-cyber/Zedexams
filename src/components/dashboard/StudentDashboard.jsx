@@ -229,7 +229,7 @@ export default function StudentDashboard() {
       </PremiumGate>
 
       {/* Recent results */}
-      <div className="bg-white rounded-2xl border border-gray-100 p-4">
+      <div className="bg-white rounded-2xl border theme-border p-4">
         <div className="flex items-center justify-between mb-3">
           <h2 className="font-black text-gray-800 text-sm">📋 Recent Results</h2>
           {results.length > 0 && (

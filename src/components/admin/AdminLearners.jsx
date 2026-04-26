@@ -235,7 +235,7 @@ export default function AdminLearners() {
       </div>
 
       {/* Filter bar */}
-      <div className="bg-white border border-gray-100 rounded-2xl p-3 shadow-elev-sm">
+      <div className="bg-white border theme-border rounded-2xl p-3 shadow-elev-sm">
         <div className="flex flex-wrap gap-2 items-stretch">
           <div className="flex-1 min-w-[200px] relative">
             <Icon as={Search} size="sm" className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -294,11 +294,11 @@ export default function AdminLearners() {
       {loading ? (
         <div className="space-y-2">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-elev-sm h-16" />
+            <div key={i} className="bg-white rounded-2xl border theme-border p-4 shadow-elev-sm h-16" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-elev-sm p-10 text-center">
+        <div className="bg-white rounded-2xl border theme-border shadow-elev-sm p-10 text-center">
           <div className="text-5xl mb-3" aria-hidden="true">🔍</div>
           <p className="font-black text-gray-700">No learners found</p>
           <p className="text-gray-400 text-sm mt-1">
@@ -307,11 +307,11 @@ export default function AdminLearners() {
         </div>
       ) : (
         <>
-          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-elev-sm">
+          <div className="bg-white rounded-2xl border theme-border overflow-hidden shadow-elev-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100">
+                  <tr className="bg-gray-50 border-b theme-border">
                     <th className="text-left px-4 py-3 font-black text-gray-600 text-xs">Learner</th>
                     <th className="text-left px-4 py-3 font-black text-gray-600 text-xs">Grade</th>
                     <th className="text-left px-4 py-3 font-black text-gray-600 text-xs">Registered</th>

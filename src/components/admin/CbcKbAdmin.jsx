@@ -181,7 +181,7 @@ export default function CbcKbAdmin() {
       )}
 
       {/* Filters */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-white border-2 border-slate-200 rounded-2xl p-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 bg-white border-2 theme-border rounded-2xl p-3">
         <FilterSelect
           label="Grade"
           value={filters.grade}
@@ -199,7 +199,7 @@ export default function CbcKbAdmin() {
           value={filters.search}
           onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
           placeholder="Search topic / sub-topic…"
-          className="px-3 py-2 rounded-lg border-2 border-slate-200 focus:outline-none focus:border-emerald-400"
+          className="px-3 py-2 rounded-lg border-2 theme-border focus:outline-none focus:border-emerald-400"
         />
       </div>
 
@@ -223,7 +223,7 @@ export default function CbcKbAdmin() {
       {status === 'ready' && filtered.length > 0 && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {filtered.map((topic) => (
-            <div key={topic.id} className="bg-white border-2 border-slate-200 rounded-2xl p-4">
+            <div key={topic.id} className="bg-white border-2 theme-border rounded-2xl p-4">
               <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wide text-slate-500 mb-2">
                 <span>{topic.grade}</span>
                 <span>·</span>
@@ -285,24 +285,24 @@ function TopicFormModal({ form, setForm, editing, saving, onSave, onCancel }) {
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/70 flex items-start justify-center overflow-y-auto p-4">
       <div className="bg-white rounded-2xl max-w-3xl w-full my-8 shadow-2xl">
-        <div className="sticky top-0 bg-white border-b border-slate-200 px-5 py-3 flex items-center justify-between rounded-t-2xl">
+        <div className="sticky top-0 bg-white border-b theme-border px-5 py-3 flex items-center justify-between rounded-t-2xl">
           <h2 className="font-black text-lg">{editing ? 'Edit topic' : 'Add a new CBC topic'}</h2>
           <button onClick={onCancel} className="text-slate-500 hover:text-slate-900">✕</button>
         </div>
         <div className="p-5 space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <Labelled label="Grade">
-              <select value={form.grade} onChange={(e) => update('grade', e.target.value)} className="w-full px-3 py-2 rounded-lg border-2 border-slate-200 bg-white">
+              <select value={form.grade} onChange={(e) => update('grade', e.target.value)} className="w-full px-3 py-2 rounded-lg border-2 theme-border bg-white">
                 {TEACHER_GRADES.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
               </select>
             </Labelled>
             <Labelled label="Subject">
-              <select value={form.subject} onChange={(e) => update('subject', e.target.value)} className="w-full px-3 py-2 rounded-lg border-2 border-slate-200 bg-white">
+              <select value={form.subject} onChange={(e) => update('subject', e.target.value)} className="w-full px-3 py-2 rounded-lg border-2 theme-border bg-white">
                 {TEACHER_SUBJECTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
             </Labelled>
             <Labelled label="Term">
-              <select value={form.term} onChange={(e) => update('term', Number(e.target.value))} className="w-full px-3 py-2 rounded-lg border-2 border-slate-200 bg-white">
+              <select value={form.term} onChange={(e) => update('term', Number(e.target.value))} className="w-full px-3 py-2 rounded-lg border-2 theme-border bg-white">
                 <option value={1}>Term 1</option>
                 <option value={2}>Term 2</option>
                 <option value={3}>Term 3</option>
@@ -317,7 +317,7 @@ function TopicFormModal({ form, setForm, editing, saving, onSave, onCancel }) {
               onChange={(e) => update('topic', e.target.value)}
               placeholder="e.g. Cell Division (Mitosis & Meiosis)"
               maxLength={200}
-              className="w-full px-3 py-2 rounded-lg border-2 border-slate-200 focus:outline-none focus:border-emerald-400"
+              className="w-full px-3 py-2 rounded-lg border-2 theme-border focus:outline-none focus:border-emerald-400"
             />
           </Labelled>
 
@@ -356,10 +356,10 @@ function TopicFormModal({ form, setForm, editing, saving, onSave, onCancel }) {
             onChange={(v) => update('suggestedMaterials', v)}
           />
         </div>
-        <div className="sticky bottom-0 bg-white border-t border-slate-200 px-5 py-3 flex items-center justify-end gap-2 rounded-b-2xl">
+        <div className="sticky bottom-0 bg-white border-t theme-border px-5 py-3 flex items-center justify-end gap-2 rounded-b-2xl">
           <button
             onClick={onCancel}
-            className="px-4 py-2 rounded-xl text-sm font-bold border-2 border-slate-200 hover:bg-slate-50"
+            className="px-4 py-2 rounded-xl text-sm font-bold border-2 theme-border hover:bg-slate-50"
           >
             Cancel
           </button>
@@ -404,7 +404,7 @@ function ArrayEditor({ label, hint, values, onChange }) {
               value={v}
               onChange={(e) => update(i, e.target.value)}
               placeholder={`${label.replace(/s$/, '')} ${i + 1}`}
-              className="flex-1 px-3 py-2 rounded-lg border-2 border-slate-200 focus:outline-none focus:border-emerald-400"
+              className="flex-1 px-3 py-2 rounded-lg border-2 theme-border focus:outline-none focus:border-emerald-400"
             />
             {values.length > 1 && (
               <button
@@ -435,7 +435,7 @@ function FilterSelect({ label, value, options, onChange }) {
       aria-label={label}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="px-3 py-2 rounded-lg border-2 border-slate-200 focus:outline-none focus:border-emerald-400 bg-white"
+      className="px-3 py-2 rounded-lg border-2 theme-border focus:outline-none focus:border-emerald-400 bg-white"
     >
       {options.map((o) => (
         <option key={o.value} value={o.value}>{o.label}</option>
@@ -446,7 +446,7 @@ function FilterSelect({ label, value, options, onChange }) {
 
 function Msg({ icon, title, text }) {
   return (
-    <div className="bg-white border-2 border-slate-200 rounded-2xl p-10 text-center">
+    <div className="bg-white border-2 theme-border rounded-2xl p-10 text-center">
       <div className="text-4xl mb-3">{icon}</div>
       {title && <p className="font-black text-slate-800 mb-1">{title}</p>}
       <p className="text-sm text-slate-500 max-w-md mx-auto">{text}</p>

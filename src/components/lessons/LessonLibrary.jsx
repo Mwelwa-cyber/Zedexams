@@ -26,7 +26,7 @@ function LessonCard({ lesson }) {
   return (
     <Link
       to={`/lessons/${lesson.id}`}
-      className="group block rounded-3xl border border-gray-100 bg-white p-4 shadow-elev-sm transition-all duration-base ease-out hover:-translate-y-0.5 hover:shadow-elev-md"
+      className="group block rounded-3xl border theme-border bg-white p-4 shadow-elev-sm transition-all duration-base ease-out hover:-translate-y-0.5 hover:shadow-elev-md"
     >
       <div className="flex gap-4">
         <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-700">
@@ -127,7 +127,7 @@ export default function LessonLibrary() {
               icon="▦"
             />
           ) : filtered.length === 0 ? (
-            <div className="rounded-3xl border border-gray-100 bg-white py-16 text-center shadow-elev-sm">
+            <div className="rounded-3xl border theme-border bg-white py-16 text-center shadow-elev-sm">
               <h2 className="text-display-lg text-gray-900">No lessons match those filters</h2>
               <div className="mt-3 inline-flex">
                 <Button

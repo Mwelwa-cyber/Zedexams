@@ -91,7 +91,7 @@ function DailyExamModal({ quiz, onSave, onClose }) {
               className="w-full border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-amber-500 focus:outline-none" />
             <p className="text-xs text-gray-400 mt-1">Tip: 45–60 min for 50+ question papers</p>
           </div>
-          <div className="rounded-xl border-2 border-gray-100 bg-gray-50 px-3 py-2.5">
+          <div className="rounded-xl border-2 theme-border bg-gray-50 px-3 py-2.5">
             <label className="flex cursor-pointer items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-xs font-black text-gray-700">Mark as Demo Exam</p>
@@ -140,7 +140,7 @@ function QuizRow({ quiz, onSetPractice, onSetDailyExam, onUnassign, onDelete, de
         <DailyExamModal quiz={quiz} onSave={onSetDailyExam} onClose={() => setShowDailyModal(false)} />
       )}
       <div className={`bg-white rounded-2xl border p-4 flex items-start gap-3 hover:shadow-sm transition-shadow ${
-        quizType === 'daily_exam' ? 'border-amber-200' : quizType === 'practice' ? 'border-green-100' : 'border-gray-100 opacity-75'
+        quizType === 'daily_exam' ? 'border-amber-200' : quizType === 'practice' ? 'border-green-100' : 'theme-border opacity-75'
       }`}>
         <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${
           SUBJECT_COLORS[quiz.subject] ?? 'bg-gray-100 text-gray-500'
@@ -220,7 +220,7 @@ function LessonRow({ lesson, onTogglePublish, onDelete, deleting }) {
   const lessonId = lesson.id || lesson._id || ''
   const status = lesson.status ?? (lesson.isPublished ? 'published' : 'draft')
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-4 flex items-start gap-3 hover:shadow-sm transition-shadow">
+    <div className="bg-white rounded-2xl border theme-border p-4 flex items-start gap-3 hover:shadow-sm transition-shadow">
       <div className="bg-green-100 text-green-700 w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0">📖</div>
       <div className="flex-1 min-w-0">
         <p className="font-black text-gray-800 text-sm leading-snug line-clamp-2">{lesson.title}</p>
@@ -611,7 +611,7 @@ export default function ManageContent() {
               <Skeleton key={i} height={80} className="rounded-2xl" />
             ))
           ) : filteredQuizzes.length === 0 ? (
-            <div className="text-center py-14 bg-white rounded-2xl border border-gray-100 shadow-elev-sm">
+            <div className="text-center py-14 bg-white rounded-2xl border theme-border shadow-elev-sm">
               <div className="text-4xl mb-2" aria-hidden="true">📭</div>
               <p className="text-display-md text-gray-700" style={{ fontSize: 16 }}>No quizzes match your filters</p>
               <div className="inline-flex mt-3">
@@ -650,7 +650,7 @@ export default function ManageContent() {
               <Skeleton key={i} height={80} className="rounded-2xl" />
             ))
           ) : filteredLessons.length === 0 ? (
-            <div className="text-center py-14 bg-white rounded-2xl border border-gray-100 shadow-elev-sm">
+            <div className="text-center py-14 bg-white rounded-2xl border theme-border shadow-elev-sm">
               <div className="text-4xl mb-2" aria-hidden="true">📭</div>
               <p className="text-display-md text-gray-700" style={{ fontSize: 16 }}>No lessons match your filters</p>
               <div className="inline-flex mt-3">

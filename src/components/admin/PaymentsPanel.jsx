@@ -123,7 +123,7 @@ export default function PaymentsPanel() {
         : payments.length === 0 ? <div className="text-center py-12 text-gray-400"><div className="text-5xl mb-3">🎉</div><p className="font-bold">No payments</p></div>
         : <div className="space-y-3">
           {payments.map(p => (
-            <div key={p.id} className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+            <div key={p.id} className="bg-white rounded-2xl shadow-sm border theme-border p-4">
               <div className="flex items-start justify-between gap-3 flex-wrap">
                 <div>
                   <div className="flex items-center gap-2 flex-wrap mb-1">
@@ -176,7 +176,7 @@ export default function PaymentsPanel() {
               </thead>
               <tbody>
                 {users.map(u => (
-                  <tr key={u.id} className="border-b border-gray-100 hover:bg-gray-50">
+                  <tr key={u.id} className="border-b theme-border hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <div className="font-bold text-gray-800">{u.displayName || '—'}</div>
                       <div className="text-xs text-gray-400">{u.id.slice(0, 10)}…</div>

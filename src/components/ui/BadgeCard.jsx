@@ -68,8 +68,8 @@ export default function BadgeCard({ badge, earned = false, earnedAt = null, prog
     <div
       className={`relative border transition-all ${sizeClasses} ${
         earned
-          ? `bg-white border-gray-100 shadow-sm hover:shadow-md`
-          : 'bg-gray-50 border-gray-100 opacity-75'
+          ? `bg-white theme-border shadow-sm hover:shadow-md`
+          : 'bg-gray-50 theme-border opacity-75'
       }`}
     >
       {/* Tier ribbon */}

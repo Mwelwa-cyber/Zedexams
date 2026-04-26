@@ -190,7 +190,7 @@ function CorrectionsView({ attempt, questions }) {
               key={q.id}
               className={`rounded-2xl border-2 p-4 ${
                 isCorrect ? 'border-green-200 bg-green-50'
-                : skipped  ? 'border-slate-200 bg-slate-50'
+                : skipped  ? 'theme-border bg-slate-50'
                 : 'border-red-200 bg-red-50'
               }`}
             >

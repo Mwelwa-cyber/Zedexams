@@ -14,7 +14,7 @@ import Skeleton from '../ui/Skeleton'
 function AnswersPanel({ answers }) {
   if (!answers.length) {
     return (
-      <div className="rounded-3xl border border-gray-100 bg-white p-5 text-center shadow-sm">
+      <div className="rounded-3xl border theme-border bg-white p-5 text-center shadow-sm">
         <p className="font-black text-gray-800">No activity answers have been added yet.</p>
         <p className="mt-1 text-sm font-bold text-gray-500">The teacher can add answers inside question/activity slides.</p>
       </div>
@@ -22,7 +22,7 @@ function AnswersPanel({ answers }) {
   }
 
   return (
-    <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+    <div className="rounded-3xl border theme-border bg-white p-5 shadow-sm">
       <h2 className="text-xl font-black text-gray-900">Activity Answers</h2>
       <div className="mt-4 space-y-3">
         {answers.map((answer, index) => (

@@ -320,6 +320,36 @@ select option {
     @apply min-h-screen;
     background-color: var(--bg);
   }
+  /* Shared content containers — cap content width on large monitors so admin
+     pages stop stretching edge-to-edge. Use `app-container` for dashboards
+     and tables, `app-container-narrow` for forms and reading flows. */
+  .app-container {
+    @apply mx-auto w-full px-4 sm:px-6 lg:px-8;
+    max-width: 1280px;
+  }
+  .app-container-narrow {
+    @apply mx-auto w-full px-4 sm:px-6 lg:px-8;
+    max-width: 1024px;
+  }
+
+  /* Form input — picks up theme-aware border, gives a visible focus state.
+     Used across editors and admin forms so inputs stop feeling flat. */
+  .input-field {
+    @apply w-full rounded-radius-sm px-3 py-2 transition-colors;
+    background-color: var(--input-bg);
+    border: 1px solid var(--input-border);
+    color: var(--text);
+  }
+  .input-field::placeholder { color: var(--text-muted); opacity: 0.7; }
+  .input-field:hover  { border-color: var(--accent); }
+  .input-field:focus  { outline: none; border-color: var(--accent); }
+
+  /* Page header pattern — eyebrow + display title + helper + actions.
+     Used by the PageHeader primitive; raw class is here so non-React
+     surfaces (e.g. iframe previews) can opt in. */
+  .page-header {
+    @apply flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between mb-6;
+  }
   /* Section card — panel with soft shadow */
   .section-card {
     @apply rounded-2xl shadow-sm;

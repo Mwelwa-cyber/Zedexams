@@ -33,7 +33,7 @@ function QuickAction({ to, icon, label, sub }) {
   return (
     <Link
       to={to}
-      className="group flex items-start gap-3 p-4 rounded-2xl border-2 border-gray-100 shadow-elev-sm transition-all duration-base ease-out hover:-translate-y-0.5 hover:shadow-elev-md hover:border-blue-300 hover:bg-blue-50"
+      className="group flex items-start gap-3 p-4 rounded-2xl border-2 theme-border shadow-elev-sm transition-all duration-base ease-out hover:-translate-y-0.5 hover:shadow-elev-md hover:border-blue-300 hover:bg-blue-50"
     >
       <span className="text-2xl" aria-hidden="true">{icon}</span>
       <div className="flex-1 min-w-0">
@@ -212,7 +212,7 @@ export default function TeacherDashboard() {
 
         <Link
           to="/teacher/library"
-          className="mt-3 group flex items-center justify-between gap-4 p-4 rounded-2xl border-2 border-slate-200 bg-white/70 dark:bg-slate-800/50 shadow-elev-sm transition-all duration-base ease-out hover:-translate-y-0.5 hover:shadow-elev-md hover:border-slate-400"
+          className="mt-3 group flex items-center justify-between gap-4 p-4 rounded-2xl border-2 theme-border bg-white/70 dark:bg-slate-800/50 shadow-elev-sm transition-all duration-base ease-out hover:-translate-y-0.5 hover:shadow-elev-md hover:border-slate-400"
         >
           <div className="flex items-center gap-3">
             <span className="text-2xl" aria-hidden="true">📚</span>

@@ -114,7 +114,7 @@ function ModeChoice({ onChoose, onSample }) {
           <button
             key={mode.id}
             onClick={() => onChoose(mode.id)}
-            className="rounded-3xl border-2 border-gray-100 bg-white p-6 text-left shadow-elev-sm transition-all duration-base ease-out hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-elev-md animate-slide-in-soft"
+            className="rounded-3xl border-2 theme-border bg-white p-6 text-left shadow-elev-sm transition-all duration-base ease-out hover:-translate-y-0.5 hover:border-emerald-300 hover:shadow-elev-md animate-slide-in-soft"
           >
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-50 text-xl font-black text-emerald-700 shadow-elev-inner-hl">
               {mode.icon}
@@ -142,7 +142,7 @@ function ModeChoice({ onChoose, onSample }) {
 
 function MetadataForm({ form, quizzes, onPatch }) {
   return (
-    <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-elev-sm">
+    <div className="rounded-3xl border theme-border bg-white p-5 shadow-elev-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-display-md text-gray-900" style={{ fontSize: 17 }}>Lesson details</h2>
@@ -210,7 +210,7 @@ function QuickLessonForm({ form, notes, onPatch, onNotes, onConvert, onLoadSampl
   return (
     <div className="space-y-5">
       <MetadataForm form={form} quizzes={[]} onPatch={onPatch} />
-      <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+      <div className="rounded-3xl border theme-border bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h2 className="text-lg font-black text-gray-900">Quick lesson notes</h2>
@@ -239,7 +239,7 @@ function ImportPowerPointForm({ form, onPatch, onImport, importing, onPreserveMo
   return (
     <div className="space-y-5">
       <MetadataForm form={form} quizzes={[]} onPatch={onPatch} />
-      <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+      <div className="rounded-3xl border theme-border bg-white p-5 shadow-sm">
         <div>
           <p className="text-sm font-black uppercase tracking-wide text-emerald-700">Import PowerPoint</p>
           <h2 className="mt-1 text-xl font-black text-gray-900">Convert .pptx slides into editable lesson slides</h2>
@@ -317,7 +317,7 @@ function PresentationPreview({ presentation }) {
   }
 
   return (
-    <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+    <div className="rounded-3xl border theme-border bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="text-lg font-black text-gray-900">Presentation preview</h2>
@@ -327,7 +327,7 @@ function PresentationPreview({ presentation }) {
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {slides.slice(0, 8).map(slide => (
-          <div key={slide.id || slide.order} className="overflow-hidden rounded-2xl border border-gray-100 bg-gray-50">
+          <div key={slide.id || slide.order} className="overflow-hidden rounded-2xl border theme-border bg-gray-50">
             <img src={slide.imageUrl} alt={slide.alt || `Slide ${slide.order}`} className="aspect-video w-full object-contain" />
             <p className="px-3 py-2 text-xs font-black text-gray-500">Slide {slide.order}</p>
           </div>
@@ -353,7 +353,7 @@ function PowerPointViewerForm({ form, quizzes, answersText, onPatch, onAnswers, 
     <div className="space-y-5">
       <MetadataForm form={form} quizzes={quizzes} onPatch={onPatch} />
 
-      <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+      <div className="rounded-3xl border theme-border bg-white p-5 shadow-sm">
         <div>
           <p className="text-sm font-black uppercase tracking-wide text-sky-700">PowerPoint Viewer Mode</p>
           <h2 className="mt-1 text-xl font-black text-gray-900">Preserve the original slide design</h2>
@@ -395,7 +395,7 @@ function PowerPointViewerForm({ form, quizzes, answersText, onPatch, onAnswers, 
         </div>
       </div>
 
-      <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+      <div className="rounded-3xl border theme-border bg-white p-5 shadow-sm">
         <h2 className="text-lg font-black text-gray-900">Linked answers</h2>
         <p className="mt-1 text-xs font-bold text-gray-500">Add one answer per line for any activities inside the PowerPoint.</p>
         <textarea
@@ -414,7 +414,7 @@ function PowerPointViewerForm({ form, quizzes, answersText, onPatch, onAnswers, 
 
 function SlideStrip({ slides, activeIndex, onSelect, onAdd, onMove, draggedIndex, setDraggedIndex }) {
   return (
-    <div className="rounded-3xl border border-gray-100 bg-white p-4 shadow-sm">
+    <div className="rounded-3xl border theme-border bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-black text-gray-900">Slides</h2>
         <select onChange={event => event.target.value && onAdd(event.target.value)} value="" className="rounded-xl border border-gray-200 bg-white px-2 py-1.5 text-xs font-black text-gray-700">
@@ -442,7 +442,7 @@ function SlideStrip({ slides, activeIndex, onSelect, onAdd, onMove, draggedIndex
             }}
             onClick={() => onSelect(index)}
             className={`w-full rounded-2xl border-2 p-3 text-left transition-all ${
-              activeIndex === index ? 'border-emerald-500 bg-emerald-50' : 'border-gray-100 bg-gray-50 hover:border-emerald-200'
+              activeIndex === index ? 'border-emerald-500 bg-emerald-50' : 'theme-border bg-gray-50 hover:border-emerald-200'
             }`}
           >
             <div className="flex items-start gap-2">
@@ -1242,7 +1242,7 @@ export default function LessonEditor() {
         />
 
         <div className="grid min-w-0 gap-5 2xl:grid-cols-[minmax(0,1fr)_420px]">
-          <div className="rounded-3xl border border-gray-100 bg-white p-5 shadow-sm">
+          <div className="rounded-3xl border theme-border bg-white p-5 shadow-sm">
             {activeSlide && (
               <SlideEditor
                 slide={activeSlide}

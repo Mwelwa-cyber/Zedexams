@@ -151,7 +151,7 @@ export default function AdminLearnerProfile() {
     return (
       <div className="space-y-5">
         <Skeleton height={30} width={200} />
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-elev-sm">
+        <div className="bg-white rounded-2xl border theme-border p-6 shadow-elev-sm">
           <div className="flex items-center gap-4">
             <Skeleton shape="circle" size={64} />
             <div className="flex-1 space-y-2">
@@ -162,7 +162,7 @@ export default function AdminLearnerProfile() {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 h-24" />
+            <div key={i} className="bg-white rounded-2xl border theme-border p-4 h-24" />
           ))}
         </div>
       </div>
@@ -175,7 +175,7 @@ export default function AdminLearnerProfile() {
         <Link to="/admin/learners" className="inline-flex items-center gap-1 text-green-600 text-sm font-black hover:underline">
           <Icon as={ArrowLeft} size="sm" /> Back to Learners
         </Link>
-        <div className="bg-white border border-gray-100 rounded-2xl p-10 text-center shadow-elev-sm">
+        <div className="bg-white border theme-border rounded-2xl p-10 text-center shadow-elev-sm">
           <div className="text-5xl mb-3" aria-hidden="true">🤷</div>
           <p className="font-black text-gray-700">Learner not found</p>
           <p className="text-gray-400 text-sm mt-1">This account may have been deleted.</p>
@@ -193,7 +193,7 @@ export default function AdminLearnerProfile() {
       </Link>
 
       {/* Header card */}
-      <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-elev-sm">
+      <div className="bg-white border theme-border rounded-2xl p-5 shadow-elev-sm">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-black text-xl flex-shrink-0">
             {(user.displayName || user.email || 'L')[0].toUpperCase()}
@@ -243,7 +243,7 @@ export default function AdminLearnerProfile() {
 
       {/* Subject breakdown */}
       {stats.subjects && stats.subjects.length > 0 && (
-        <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-elev-sm">
+        <div className="bg-white border theme-border rounded-2xl p-4 shadow-elev-sm">
           <h2 className="text-eyebrow mb-3">Performance by subject</h2>
           <div className="space-y-2">
             {stats.subjects.slice().sort((a, b) => b.avg - a.avg).map(s => (
@@ -279,17 +279,17 @@ export default function AdminLearnerProfile() {
           )}
         </div>
         {results.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-elev-sm p-8 text-center">
+          <div className="bg-white rounded-2xl border theme-border shadow-elev-sm p-8 text-center">
             <div className="text-4xl mb-2" aria-hidden="true">📭</div>
             <p className="font-black text-gray-700" style={{ fontSize: 15 }}>No tests yet</p>
             <p className="text-sm text-gray-400 mt-1">This learner hasn't written any tests.</p>
           </div>
         ) : (
-          <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden shadow-elev-sm">
+          <div className="bg-white rounded-2xl border theme-border overflow-hidden shadow-elev-sm">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100">
+                  <tr className="bg-gray-50 border-b theme-border">
                     <th className="text-left px-4 py-3 font-black text-gray-600 text-xs">Test / Subject</th>
                     <th className="text-left px-4 py-3 font-black text-gray-600 text-xs">Mode</th>
                     <th className="text-left px-4 py-3 font-black text-gray-600 text-xs">Score</th>

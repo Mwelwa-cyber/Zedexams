@@ -44,8 +44,8 @@ export default function RubricView({ rubric }) {
             </thead>
             <tbody>
               {(rubric.criteria || []).map((c, idx) => (
-                <tr key={idx} className="align-top border-b border-slate-200">
-                  <td className="px-3 py-2 border border-slate-200 font-bold theme-text">
+                <tr key={idx} className="align-top border-b theme-border">
+                  <td className="px-3 py-2 border theme-border font-bold theme-text">
                     {c.name}
                     {c.keyCompetencies?.length > 0 && (
                       <div className="mt-1 text-[10px] theme-text-secondary">
@@ -53,13 +53,13 @@ export default function RubricView({ rubric }) {
                       </div>
                     )}
                   </td>
-                  <td className="px-3 py-2 border border-slate-200 text-center font-black text-slate-700">
+                  <td className="px-3 py-2 border theme-border text-center font-black text-slate-700">
                     {c.maxMarks}
                   </td>
                   {(c.levels || []).map((lvl) => (
                     <td
                       key={lvl.levelName}
-                      className={`px-3 py-2 border border-slate-200 text-xs ${LEVEL_COLOURS[lvl.levelName] || ''}`}
+                      className={`px-3 py-2 border theme-border text-xs ${LEVEL_COLOURS[lvl.levelName] || ''}`}
                     >
                       <div className="font-black mb-0.5">
                         {lvl.marks} {lvl.marks === 1 ? 'mark' : 'marks'}

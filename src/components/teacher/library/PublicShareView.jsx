@@ -50,7 +50,7 @@ export default function PublicShareView() {
   return (
     <div className="min-h-screen bg-slate-50 print:bg-white">
       {/* Minimal header — logo + "view on ZedExams" link */}
-      <header className="bg-white border-b border-slate-200 print:hidden">
+      <header className="bg-white border-b theme-border print:hidden">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
             <Logo />
@@ -85,13 +85,13 @@ export default function PublicShareView() {
           </div>
         )}
         {status === 'ready' && share && (
-          <article className="bg-white rounded-2xl border border-slate-200 shadow-sm p-6 sm:p-8 print:rounded-none print:border-0 print:shadow-none print:p-0">
-            <header className="mb-6 pb-4 border-b border-slate-200 print:hidden">
+          <article className="bg-white rounded-2xl border theme-border shadow-sm p-6 sm:p-8 print:rounded-none print:border-0 print:shadow-none print:p-0">
+            <header className="mb-6 pb-4 border-b theme-border print:hidden">
               <p className="text-xs font-black uppercase tracking-wider text-emerald-700">{share.tool?.replace(/_/g, ' ') || 'Teacher resource'}</p>
               <h1 className="text-2xl font-black text-slate-800 mt-1">{share.title}</h1>
             </header>
             <RenderPlanByTool tool={share.tool} plan={share.plan} />
-            <footer className="mt-8 pt-4 border-t border-slate-200 text-xs text-slate-400 text-center print:hidden">
+            <footer className="mt-8 pt-4 border-t theme-border text-xs text-slate-400 text-center print:hidden">
               Generated with the <Link to="/" className="font-bold text-emerald-700 hover:underline">ZedExams Teacher Suite</Link>.
             </footer>
           </article>

@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react'
+import { ClipboardList } from '../ui/icons'
 import { useFirestore } from '../../hooks/useFirestore'
+import PageHeader from '../ui/PageHeader'
+import EmptyState from '../ui/EmptyState'
 
 const SUBJECTS = [
   'Mathematics',
@@ -75,10 +78,11 @@ export default function AdminResults() {
 
   return (
     <div className="space-y-5">
-      <div>
-        <h1 className="text-2xl font-black text-gray-800">📈 Learner Results</h1>
-        <p className="text-gray-500 text-sm">View all quiz results across your platform</p>
-      </div>
+      <PageHeader
+        eyebrow="Reporting"
+        title="Learner Results"
+        description="View all quiz results across your platform."
+      />
 
       {/* Summary banner */}
       {!loading && filtered.length > 0 && (
@@ -88,27 +92,27 @@ export default function AdminResults() {
             { label: 'Average Score', val: avg + '%',       icon: '🎯' },
             { label: 'Pass Rate',     val: Math.round((passed / filtered.length) * 100) + '%', icon: '✅' },
           ].map(s => (
-            <div key={s.label} className="bg-white rounded-2xl border border-gray-100 p-4 text-center">
+            <div key={s.label} className="theme-card rounded-2xl border theme-border shadow-elev-md shadow-elev-inner-hl p-4 text-center">
               <div className="text-xl mb-1">{s.icon}</div>
-              <div className="font-black text-lg text-gray-800">{s.val}</div>
-              <div className="text-xs text-gray-500 font-bold">{s.label}</div>
+              <div className="font-black text-lg theme-text">{s.val}</div>
+              <div className="text-xs theme-text-muted font-bold">{s.label}</div>
             </div>
           ))}
         </div>
       )}
 
-      {/* Filters */}
-      <div className="flex gap-2 flex-wrap">
+      {/* Filters — own card so the toolbar reads as a unit */}
+      <div className="theme-card rounded-2xl border theme-border shadow-elev-sm p-3 flex gap-2 flex-wrap">
         <input value={search} onChange={e => setSearch(e.target.value)}
           placeholder="🔍 Search learner name or quiz…"
-          className="flex-1 min-w-[180px] border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-green-500 focus:outline-none" />
+          className="input-field flex-1 min-w-[180px] text-sm" />
         <select value={gradeF} onChange={e => setGradeF(e.target.value)}
-          className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-green-500 focus:outline-none">
+          className="input-field text-sm w-auto">
           <option value="">All Grades</option>
           {GRADES.map(g => <option key={g} value={g}>Grade {g}</option>)}
         </select>
         <select value={subjectF} onChange={e => setSubjectF(e.target.value)}
-          className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-green-500 focus:outline-none">
+          className="input-field text-sm w-auto">
           <option value="">All Subjects</option>
           {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
@@ -118,21 +122,23 @@ export default function AdminResults() {
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 animate-pulse h-24" />
+            <div key={i} className="theme-card rounded-2xl border theme-border p-4 animate-pulse h-24" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16">
-          <div className="text-5xl mb-3">📭</div>
-          <p className="font-bold text-gray-600">No results found</p>
-          <p className="text-gray-400 text-sm mt-1">
-            {results.length === 0 ? 'Results will appear here once learners complete quizzes' : 'Try clearing your filters'}
-          </p>
+        <div className="theme-card rounded-2xl border theme-border shadow-elev-sm">
+          <EmptyState
+            icon={ClipboardList}
+            title="No results found"
+            description={results.length === 0
+              ? 'Results will appear here once learners complete quizzes.'
+              : 'Try clearing your filters.'}
+          />
         </div>
       ) : (
         <div className="space-y-3">
           {filtered.map(r => (
-            <div key={r.id} className={`bg-white rounded-2xl border ${pctBg(r.percentage ?? 0)} overflow-hidden transition-all`}>
+            <div key={r.id} className={`theme-card rounded-2xl border ${pctBg(r.percentage ?? 0)} shadow-elev-sm hover:shadow-elev-md transition-all duration-base ease-out overflow-hidden`}>
               <button
                 onClick={() => setExpanded(expanded === r.id ? null : r.id)}
                 className="w-full text-left p-4 min-h-0 bg-transparent shadow-none rounded-none">
@@ -162,7 +168,7 @@ export default function AdminResults() {
 
               {/* Expanded detail */}
               {expanded === r.id && (
-                <div className="px-4 pb-4 border-t border-gray-100 pt-3 space-y-3">
+                <div className="px-4 pb-4 border-t theme-border pt-3 space-y-3">
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                     {[
                       { label: 'Score',     val: `${r.score ?? 0} / ${r.totalMarks ?? 0}` },
@@ -170,7 +176,7 @@ export default function AdminResults() {
                       { label: 'Mode',      val: r.mode === 'exam' ? 'Exam Mode' : 'Practice' },
                       { label: 'Date',      val: fmt(r.completedAt) },
                     ].map(item => (
-                      <div key={item.label} className="bg-white rounded-xl border border-gray-100 p-2 text-center">
+                      <div key={item.label} className="bg-white rounded-xl border theme-border p-2 text-center">
                         <p className="font-black text-gray-800">{item.val}</p>
                         <p className="text-gray-400">{item.label}</p>
                       </div>

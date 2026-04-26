@@ -49,7 +49,7 @@ function TeacherApplicationCard({
   const actionBusy = busy === app.id
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 space-y-4">
+    <div className="bg-white rounded-2xl border theme-border shadow-sm p-4 space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
         <div className="min-w-0">
           <div className="flex items-center gap-2 flex-wrap">
@@ -70,7 +70,7 @@ function TeacherApplicationCard({
       </div>
 
       {expanded && (
-        <div className="space-y-4 border-t border-gray-100 pt-4">
+        <div className="space-y-4 border-t theme-border pt-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Detail label="Full name" value={app.fullName} />
             <Detail label="Email" value={app.email} />
@@ -266,11 +266,11 @@ export default function TeacherApplications() {
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-36 animate-pulse rounded-2xl border border-gray-100 bg-white" />
+            <div key={i} className="h-36 animate-pulse rounded-2xl border theme-border bg-white" />
           ))}
         </div>
       ) : applications.length === 0 ? (
-        <div className="rounded-2xl border border-gray-100 bg-white py-16 text-center">
+        <div className="rounded-2xl border theme-border bg-white py-16 text-center">
           <p className="font-black text-gray-700">No pending teacher applications</p>
           <p className="mt-1 text-sm text-gray-400">New submissions will appear here for review.</p>
         </div>

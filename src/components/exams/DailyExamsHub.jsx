@@ -54,7 +54,7 @@ function SubjectExamCard({ subject, exam, lock, onStart }) {
 
   return (
     <div className={`theme-card rounded-2xl border-2 p-5 transition-all ${
-      exam ? 'theme-border hover:shadow-md' : 'border-dashed border-slate-200 opacity-60'
+      exam ? 'theme-border hover:shadow-md' : 'border-dashed theme-border opacity-60'
     }`}>
       {/* Header row */}
       <div className="mb-3 flex items-start justify-between gap-2">
@@ -128,7 +128,7 @@ function SubjectExamCard({ subject, exam, lock, onStart }) {
           🚀 Start Exam
         </button>
       ) : (
-        <div className="w-full rounded-xl border border-dashed border-slate-200 py-2.5 text-center text-xs font-bold text-slate-400">
+        <div className="w-full rounded-xl border border-dashed theme-border py-2.5 text-center text-xs font-bold text-slate-400">
           No exam scheduled
         </div>
       )}

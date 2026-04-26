@@ -22,7 +22,7 @@ function ContentRow({ item, onSubmit, onWithdraw, onDelete, busy }) {
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 p-4 space-y-3">
+    <div className="bg-white rounded-2xl border theme-border p-4 space-y-3">
       <div className="flex items-start gap-3">
         {/* Type icon */}
         <div className="w-10 h-10 bg-gray-50 border border-gray-200 rounded-xl flex items-center justify-center text-lg flex-shrink-0">
@@ -210,11 +210,11 @@ export default function TeacherContent() {
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="bg-white rounded-2xl border border-gray-100 p-4 animate-pulse h-24" />
+            <div key={i} className="bg-white rounded-2xl border theme-border p-4 animate-pulse h-24" />
           ))}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="bg-white rounded-2xl border border-gray-100 py-16 text-center">
+        <div className="bg-white rounded-2xl border theme-border py-16 text-center">
           <div className="text-5xl mb-3">📭</div>
           <p className="font-black text-gray-700">
             {filter === 'all' ? 'No content yet' : `No ${filter} content`}
