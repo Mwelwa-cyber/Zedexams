@@ -98,6 +98,34 @@ async function loadRecentHistory(chatId) {
   }
 }
 
+async function clearChatHistory(chatId) {
+  // Deletes every turn for this chat. Used by /reset when stale context
+  // (e.g. an old "I can't browse" reply) is poisoning current behavior.
+  // Batched delete — Firestore caps at 500 ops per batch, so we loop.
+  let total = 0;
+  try {
+    const turns = admin.firestore()
+      .collection("zedAssistantChats")
+      .doc(String(chatId))
+      .collection("turns");
+    // Iterate in pages of 400 (well under the 500 batch limit) until empty.
+    // 100 turns per chat is a lot already, so this almost always exits in
+    // one pass.
+    for (let i = 0; i < 20; i++) {
+      const snap = await turns.limit(400).get();
+      if (snap.empty) break;
+      const batch = admin.firestore().batch();
+      snap.docs.forEach((doc) => batch.delete(doc.ref));
+      await batch.commit();
+      total += snap.size;
+      if (snap.size < 400) break;
+    }
+  } catch (err) {
+    console.warn("clearChatHistory failed", err?.message);
+  }
+  return total;
+}
+
 async function appendTurn(chatId, role, text) {
   try {
     await admin.firestore()
@@ -163,9 +191,21 @@ async function handleTelegramUpdate(update, {token, anthropicKey}) {
       "  • What's left on games?\n" +
       "  • Summarize today's learner activity\n" +
       "  • Draft a Claude prompt to fix the quiz editor\n" +
-      "  • Make 5 Grade 5 Maths questions on fractions",
+      "  • Make 5 Grade 5 Maths questions on fractions\n\n" +
+      "Commands:\n" +
+      "  /reset — wipe my memory of this chat",
     );
     return {handled: true};
+  }
+
+  if (text === "/reset") {
+    const cleared = await clearChatHistory(chatId);
+    await telegram.sendMessage(
+      token,
+      chatId,
+      `Memory wiped (${cleared} turns cleared). Fresh slate.`,
+    );
+    return {handled: true, cleared};
   }
 
   await telegram.sendChatAction(token, chatId, "typing");
