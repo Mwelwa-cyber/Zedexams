@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -23,6 +23,8 @@ import Logo from '../ui/Logo'
 import ThemeSelector from '../ui/ThemeSelector'
 import Icon from '../ui/Icon'
 import ErrorBoundary from '../ui/ErrorBoundary'
+
+const ZedAdminChat = lazy(() => import('./ZedAdminChat'))
 
 const NAV = [
   { to: '/admin',                        icon: LayoutDashboard, label: 'Dashboard',       end: true },
@@ -206,6 +208,10 @@ export default function AdminLayout({ children }) {
           </ErrorBoundary>
         </div>
       </main>
+
+      <Suspense fallback={null}>
+        <ZedAdminChat />
+      </Suspense>
     </div>
   )
 }
