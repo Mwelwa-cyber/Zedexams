@@ -118,8 +118,8 @@ export default function ZedAdminChat() {
   }
 
   const fab = useMemo(() => narrow
-    ? { size: 48, bottom: 16, right: 16 }
-    : { size: 56, bottom: 24, right: 24 },
+    ? { size: 48, bottom: 16, left: 16 }
+    : { size: 56, bottom: 24, left: 24 },
   [narrow])
 
   if (!currentUser || !isAdmin) return null
@@ -134,7 +134,7 @@ export default function ZedAdminChat() {
           style={{
             position: 'fixed',
             bottom: fab.bottom,
-            right: fab.right,
+            left: fab.left,
             width: fab.size,
             height: fab.size,
             padding: 0,
@@ -177,8 +177,8 @@ export default function ZedAdminChat() {
           style={{
             position: 'fixed',
             bottom: narrow ? 0 : 24,
-            right: narrow ? 0 : 24,
-            left: narrow ? 0 : 'auto',
+            left: narrow ? 0 : 24,
+            right: narrow ? 0 : 'auto',
             top: narrow ? 0 : 'auto',
             width: narrow ? '100%' : 380,
             height: narrow ? '100%' : 540,
