@@ -11,7 +11,6 @@ import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
 import PageHeader from '../ui/PageHeader'
 import EmptyState from '../ui/EmptyState'
-import ZedDashboardPanel from './ZedDashboardPanel'
 
 const StatCard_colors = {
   green:  'bg-green-50  text-green-600  border-green-100',
@@ -174,8 +173,6 @@ export default function AdminDashboard() {
           </div>
         ))}
       </div>
-
-      <ZedDashboardPanel />
 
       {/* Quick Actions */}
       <div>
