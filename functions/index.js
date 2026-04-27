@@ -1071,9 +1071,10 @@ exports.generateRubric = createGenerateRubric(anthropicApiKey);
 exports.importBuiltInCbcTopics = importBuiltInCbcTopics;
 exports.apiTextToSpeech = require('./tts').apiTextToSpeech;
 
-// Zed assistant — Telegram bot + admin web voice client for the founder.
+// Zed assistant — Telegram bot, WhatsApp bot, and admin web voice client.
 const zedAssistant = require("./zedAssistant");
 exports.telegramWebhook = zedAssistant.telegramWebhook;
 exports.zedSetTelegramWebhook = zedAssistant.zedSetTelegramWebhook;
 exports.zedTelegramWebhookInfo = zedAssistant.zedTelegramWebhookInfo;
 exports.apiZedAssistantChat = zedAssistant.apiZedAssistantChat;
+exports.whatsappWebhook = zedAssistant.whatsappWebhook;
