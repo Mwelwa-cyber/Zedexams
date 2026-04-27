@@ -1,5 +1,24 @@
 import { Component } from 'react'
 
+// After a Firebase Hosting release, the previous build's hashed JS chunks stop
+// resolving on zedexams.com. Any user mid-session who triggers a lazy import
+// then sees this boundary's recovery card. Detecting that specific failure and
+// hard-reloading once turns the bug into a silent refresh to the new build.
+const RELOAD_FLAG = 'zedexams:chunk-reload-at'
+const RELOAD_COOLDOWN_MS = 30_000
+
+function isChunkLoadError(err) {
+  if (!err) return false
+  if (err.name === 'ChunkLoadError') return true
+  const msg = String(err.message || err)
+  return (
+    /Failed to fetch dynamically imported module/i.test(msg) ||
+    /error loading dynamically imported module/i.test(msg) ||
+    /Importing a module script failed/i.test(msg) ||
+    /Loading chunk .* failed/i.test(msg)
+  )
+}
+
 /**
  * ErrorBoundary — catches render-time exceptions anywhere in the React tree
  * and shows a friendly recovery card instead of a blank white screen.
@@ -29,6 +48,21 @@ export default class ErrorBoundary extends Component {
   componentDidCatch(error, info) {
     // Surface the full stack for devs; kept out of the UI for learners.
     console.error('ErrorBoundary caught:', error, info?.componentStack)
+
+    if (isChunkLoadError(error)) {
+      // The cooldown stamp prevents an infinite reload loop if a real bug
+      // happens to throw a chunk-shaped message — after a single retry inside
+      // 30 s the boundary falls through to the normal recovery card.
+      try {
+        const last = Number(sessionStorage.getItem(RELOAD_FLAG) || 0)
+        if (Date.now() - last > RELOAD_COOLDOWN_MS) {
+          sessionStorage.setItem(RELOAD_FLAG, String(Date.now()))
+          window.location.reload()
+        }
+      } catch {
+        window.location.reload()
+      }
+    }
   }
 
   componentDidUpdate(prevProps) {
