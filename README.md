@@ -14,7 +14,7 @@ CBC-aligned learning platform for Zambian learners, teachers, and administrators
 - **Backend**: Firebase Cloud Functions v2 (Node 20), Firestore, Firebase Auth, Firebase Storage.
 - **AI**: Anthropic Claude Sonnet 4.5 for generators and Zed chat (server-side via Cloud Functions, SSE streaming for chat, prompt caching + CBC-context caching for generators). OpenAI GPT for short-answer quiz marking.
 - **Payments**: MTN MoMo (Zambia live + sandbox environments).
-- **Hosting**: Netlify for the frontend at `zedexams.com`; Firebase for Functions/Firestore/Auth/Storage. Netlify forwards `/api/*` to Cloud Function URLs per [netlify.toml](./netlify.toml).
+- **Hosting**: Firebase Hosting for the frontend at `zedexams.com`; Firebase for Functions/Firestore/Auth/Storage. Hosting forwards `/api/*` to Cloud Functions per the `rewrites` block in [firebase.json](./firebase.json).
 
 ## Repo layout
 
@@ -106,22 +106,16 @@ Optional override: `ANTHROPIC_MODEL` — defaults to `claude-sonnet-4-5`. Set in
 
 ## Deployment
 
-**App deploys go through GitHub — never run `firebase deploy --only hosting` directly.** The live site is Netlify-hosted. Open a PR, get it merged to `main`, and Netlify's GitHub integration publishes `zedexams.com` automatically.
+**App deploys go through GitHub — never run `firebase deploy --only hosting` directly.** The live site is on Firebase Hosting. Open a PR, get it merged to `main`, and the `Deploy Hosting` GitHub Actions workflow (`.github/workflows/deploy-hosting.yml`) builds the Vite frontend and publishes `zedexams.com` automatically. The sibling `Deploy Firebase` workflow handles Firestore rules, Storage rules, and Cloud Functions on the same trigger.
 
 Useful npm scripts:
 
 | Script | What it does |
 |--------|--------------|
-| `npm run deploy` | Build + push to Netlify production (advanced; prefer merging to `main`) |
-| `npm run deploy:netlify:preview` | Create a throwaway Netlify preview deploy |
+| `npm run build` | Build the Vite frontend into `dist/` |
+| `npm run preview` | Preview the production build locally |
 | `npm run deploy:firebase:functions` | Deploy only Cloud Functions (use when backend code changes but the app doesn't need a release) |
 | `npm run deploy:firebase:firestore` | Deploy Firestore rules + indexes |
-
-First time using the Netlify CLI locally:
-
-```bash
-npx -y netlify-cli login
-```
 
 ## Testing & linting
 
