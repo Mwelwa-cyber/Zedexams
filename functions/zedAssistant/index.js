@@ -309,10 +309,52 @@ async function handleTelegramUpdate(update, {token, anthropicKey, openaiKey}) {
       "  • Draft a Claude prompt to fix the quiz editor\n" +
       "  • Make 5 Grade 5 Maths questions on fractions\n\n" +
       "Commands:\n" +
+      "  /code <task> — write code for me; opens a draft PR\n" +
       "  /voice — list and pick a voice for Zed\n" +
       "  /reset — wipe my memory of this chat",
     );
     return {handled: true};
+  }
+
+  if (text === "/code") {
+    await telegram.sendMessage(
+      token,
+      chatId,
+      "Usage: /code <what you want changed>\n\n" +
+      "Example:\n" +
+      "  /code add a 'share my score' button to QuizResultsV2 that " +
+      "copies a link to clipboard\n\n" +
+      "I'll open a draft PR and ping you back here when it's ready. " +
+      "I can't touch security rules, secrets, CI, or package.json.",
+    );
+    return {handled: true, command: "code", action: "usage"};
+  }
+
+  if (text.startsWith("/code ")) {
+    const taskText = text.slice("/code ".length).trim();
+    if (!taskText) {
+      await telegram.sendMessage(
+        token,
+        chatId,
+        "Empty /code task. Send /code on its own to see usage.",
+      );
+      return {handled: true, command: "code", action: "empty"};
+    }
+    const queueRef = await admin.firestore()
+      .collection("zedAssistantCoderTasks")
+      .add({
+        task: taskText.slice(0, 1500),
+        channel: "telegram",
+        chatId: String(chatId),
+        status: "queued",
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+    await telegram.sendMessage(
+      token,
+      chatId,
+      "On it. I'll ping back here when the draft PR is ready.",
+    );
+    return {handled: true, command: "code", taskId: queueRef.id};
   }
 
   if (text === "/voice" || text.startsWith("/voice ")) {
@@ -518,3 +560,4 @@ exports.zedTelegramWebhookInfo = onCall(
 
 exports.apiZedAssistantChat = require("./web").apiZedAssistantChat;
 exports.whatsappWebhook = require("./whatsappWebhook").whatsappWebhook;
+exports.zedCoderTaskRunner = require("./coder/runner").zedCoderTaskRunner;

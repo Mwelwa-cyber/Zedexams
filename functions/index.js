@@ -1078,3 +1078,4 @@ exports.zedSetTelegramWebhook = zedAssistant.zedSetTelegramWebhook;
 exports.zedTelegramWebhookInfo = zedAssistant.zedTelegramWebhookInfo;
 exports.apiZedAssistantChat = zedAssistant.apiZedAssistantChat;
 exports.whatsappWebhook = zedAssistant.whatsappWebhook;
+exports.zedCoderTaskRunner = zedAssistant.zedCoderTaskRunner;

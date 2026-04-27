@@ -268,3 +268,171 @@ Common failures:
   almost never happens (you're the one initiating); if it does, the user
   just sends one message first.
 
+---
+
+# Coder mode (`/code`) — Zed opens draft PRs
+
+Zed can take a one-line task and open a draft PR for you to review. He
+edits files via the GitHub REST API (no local checkout), enforces a hard
+**red line** for paths/branches/operations, and posts the PR URL back in
+the same chat thread.
+
+## Architecture
+
+```
+/code msg → webhook (Telegram or WhatsApp)
+              ├─ replies "On it." (instant)
+              ├─ writes zedAssistantCoderTasks/{taskId}, status: "queued"
+              └─ returns 200 to Telegram/Meta in <2s
+                                 │
+                                 ▼  (Firestore trigger fires)
+                          zedCoderTaskRunner (540s timeout)
+                                 │
+                                 ├─ create branch zed/<slug>-<ts>
+                                 ├─ run coder agent (Claude tool loop)
+                                 ├─ open draft PR
+                                 └─ reply in chat with PR URL
+```
+
+The webhook stays at 60s; the runner is the only function that needs the
+long timeout. Telegram/Meta don't see anything slow.
+
+## The red line — what Zed cannot do
+
+Source of truth: `functions/zedAssistant/coder/redLine.js`. Every
+write/delete passes through `assertPathAllowed` before the GitHub API is
+hit; every branch operation passes through `assertBranchAllowed`.
+
+- **Branch policy**: only fresh branches matching `zed/<slug>-<10-digit-ts>`.
+  Cannot push to `main`, cannot push to any pre-existing branch.
+- **PR policy**: always opened as draft. Tool surface has no merge tool.
+- **Forbidden paths** (write or delete throws `RedLineError`):
+  - `firestore.rules`, `storage.rules`, `firestore.indexes.json`
+  - `firebase.json`, `.firebaserc`
+  - any `.env` / `.env.*` file, `*.key`, `*.pem`, service-account JSON
+  - anything under `.github/`
+  - `package.json`, `package-lock.json`, `yarn.lock`, `pnpm-lock.yaml`
+  - any `secrets/` or `credentials/` directory
+- **Scope cap**: 50 file changes per task max.
+- **No shell**: there's no `run_command` tool. No npm install, no scripts,
+  no migrations.
+- **Repo lock**: Octokit owner/repo are pinned to `Mwelwa-cyber/Zedexams`
+  in code. The agent cannot redirect to another repo.
+
+If you want to change the red line, edit `redLine.js` and update this
+list together.
+
+## Setup (one-time)
+
+### 1. Create a fine-grained GitHub PAT
+
+Go to **github.com/settings/personal-access-tokens/new**:
+
+- **Token name**: `zed-coder` (any name; only you see it)
+- **Resource owner**: your GitHub user
+- **Repository access** → **Only select repositories** → pick
+  `Mwelwa-cyber/Zedexams` only
+- **Repository permissions**:
+  - **Contents**: Read and write
+  - **Pull requests**: Read and write
+  - **Metadata**: Read (auto-selected)
+- Leave all other permissions as **No access**. In particular:
+  - **Workflows**: No access (so even if the red line failed, the token
+    couldn't change CI)
+  - **Secrets**: No access
+- **Expiration**: 90 days is fine; rotate before then.
+
+Click **Generate token**. Copy the `github_pat_…` string.
+
+### 2. Set the Firebase secret
+
+```bash
+firebase functions:secrets:set ZED_GITHUB_TOKEN
+```
+
+Paste the PAT, Enter. (Hidden input.)
+
+### 3. Deploy
+
+```bash
+firebase deploy --only \
+  functions:zedCoderTaskRunner,functions:telegramWebhook,functions:whatsappWebhook \
+  --project examsprepzambia
+```
+
+Three functions: the new runner plus both webhooks (which gained the
+`/code` dispatch).
+
+## Using `/code`
+
+From either Telegram or WhatsApp:
+
+```
+/code add a "share my score" button to QuizResultsV2 that copies a
+deep-link to the clipboard, with a small "Copied!" toast
+```
+
+Within a few seconds you'll get **"On it. I'll ping back here when the
+draft PR is ready."**
+
+A minute or two later (depending on how many files Zed needs to read
+and write), you'll get the follow-up:
+
+```
+Done.
+
+Draft PR opened: https://github.com/Mwelwa-cyber/Zedexams/pull/123
+Branch: `zed/add-share-button-1714234567`
+Files: 2
+
+I added a Share button to QuizResultsV2 that builds a deep-link to the
+quiz result page and copies it to the clipboard, with a 2-second
+toast.
+```
+
+Open the PR, review, merge.
+
+If Zed bounced off the red line or ran out of steps, you'll get
+**"Couldn't finish that."** with a reason instead.
+
+## Audit log
+
+Every `/code` task writes to **`zedAssistantCoderTasks/{taskId}`**:
+
+- `task` — the original text
+- `requestedBy` — `telegram:<chatId>` or `whatsapp:<phone>`
+- `branch` — the fresh branch name
+- `status` — `queued` → `running` → `completed` / `completed_with_warnings`
+  / `no_changes` / `failed`
+- `writes` — array of `{op, path, sha, message}` for each file change
+- `prUrl`, `prNumber`
+- `iterations` — how many tool-loop steps the agent used
+- `toolCalls` — `[{name, ok, path}]` summary
+- `summary` — Zed's own write-up
+- `finishReason` — agent stop reason (`finish` / `max_iterations` /
+  `agent_error` / etc.)
+
+Use this to audit what Zed did, especially before merging.
+
+## Rotation
+
+If the PAT leaks: **github.com/settings/personal-access-tokens** →
+revoke → generate a new one → `firebase functions:secrets:set
+ZED_GITHUB_TOKEN` → redeploy. Branches and PRs from the old token stay
+intact.
+
+## Common failures
+
+- **"GitHub token missing"**: `ZED_GITHUB_TOKEN` not set or not picked
+  up. Confirm with `firebase functions:secrets:access ZED_GITHUB_TOKEN`,
+  then redeploy.
+- **`Couldn't create branch zed/...: Resource not accessible by
+  personal access token`**: PAT missing **Contents: Read and write**
+  on this repo. Regenerate with the right scopes.
+- **"No PR opened — agent finished without writing any files"**: the
+  task was unworkable, or Zed decided he needed something on the red
+  line. Check the audit doc for the full tool-call trace.
+- **`max_iterations`**: 25-step budget exhausted. Either the task was
+  too big, or Zed got stuck in a read/search loop. Break the task down
+  and resend.
+
