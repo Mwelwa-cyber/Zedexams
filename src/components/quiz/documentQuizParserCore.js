@@ -354,18 +354,67 @@ export function metadataFromText(text, fileName) {
 function extractAnswerKey(blocks) {
   const answers = new Map()
   let inAnswerKey = false
+  // For 2-column answer-key tables (PRISCA / ECZ style) the question number
+  // and the letter live in SEPARATE paragraphs/cells, so the inline
+  // ANSWER_KEY_PAIR_RE never matches. We stitch them together by remembering
+  // the most recent stand-alone number line and pairing it with the next
+  // stand-alone letter line (and vice versa).
+  let pendingNumber = null
+  let pendingLetter = null
 
   blocks.forEach(block => {
     splitLines(block.text).forEach(line => {
       const startsAnswerKey = ANSWER_KEY_HEADING_RE.test(line)
-      if (startsAnswerKey) inAnswerKey = true
+      if (startsAnswerKey) {
+        inAnswerKey = true
+        pendingNumber = null
+        pendingLetter = null
+      }
       if (!inAnswerKey) return
 
       ANSWER_KEY_PAIR_RE.lastIndex = 0
       let match
+      let foundInline = false
       while ((match = ANSWER_KEY_PAIR_RE.exec(line)) !== null) {
         answers.set(match[1], match[2])
+        foundInline = true
       }
+      if (foundInline) {
+        pendingNumber = null
+        pendingLetter = null
+        return
+      }
+
+      // Skip likely header cells (Q#, Answer, No., #, Number).
+      if (/^(?:q\s*#|q\s*no\.?|no\.?|number|answer|key|#)$/i.test(line)) return
+
+      const trimmed = line.trim()
+      const numberOnly = trimmed.match(/^(\d{1,3})\.?$/)
+      const letterOnly = trimmed.match(/^([A-D])$/i)
+
+      if (numberOnly) {
+        if (pendingLetter) {
+          answers.set(numberOnly[1], pendingLetter.toUpperCase())
+          pendingLetter = null
+        } else {
+          pendingNumber = numberOnly[1]
+        }
+        return
+      }
+      if (letterOnly) {
+        if (pendingNumber) {
+          answers.set(pendingNumber, letterOnly[1].toUpperCase())
+          pendingNumber = null
+        } else {
+          pendingLetter = letterOnly[1]
+        }
+        return
+      }
+
+      // Any other content inside the answer-key block resets the pending
+      // pairing — prevents accidentally pairing across unrelated rows.
+      pendingNumber = null
+      pendingLetter = null
     })
   })
 
@@ -407,12 +456,15 @@ function questionFromCurrent(current, answerKey = new Map()) {
   const answerRaw = cleanImportedText(current.answerRaw || (current.sourceNumber ? answerKey.get(String(current.sourceNumber)) : ''))
   let correctAnswer = answerRaw
 
-  if (imageHint || firstAsset) {
-    type = 'diagram'
-  } else if (isTrueFalse) {
+  // Prefer MCQ when 4 valid options were extracted, even if the stem mentions
+  // an image ("shown below", "study the picture") — the image just gets
+  // attached to the question alongside its multiple-choice options.
+  if (isTrueFalse) {
     type = 'truefalse'
   } else if (options.length >= 2) {
     type = 'mcq'
+  } else if (imageHint || firstAsset) {
+    type = 'diagram'
   }
 
   if (type === 'mcq' || type === 'truefalse') {
@@ -461,7 +513,38 @@ function questionFromCurrent(current, answerKey = new Map()) {
   }
 }
 
+// Match a whole line that is just a bracketed image-description placeholder.
+// Examples:
+//   [Image Description: A black silhouette of an athlete mid-air ...]
+//   [Image: a flower with stigma labelled X]
+//   [refer to image in original]
+const BRACKETED_IMAGE_LINE_RE = /^\s*[\[(]\s*(?:image(?:\s+description)?|figure|diagram|picture|refer\s+to\s+image|see\s+image)\b[^\]\)]*[\]\)]\s*$/i
+
+function stripBracketedImageDescriptions(blocks) {
+  return blocks.map(block => {
+    const text = String(block?.text || '')
+    if (!text) return block
+    const lines = text.split(/\r?\n/)
+    let mutated = false
+    const filtered = lines.filter(line => {
+      if (BRACKETED_IMAGE_LINE_RE.test(line)) {
+        mutated = true
+        return false
+      }
+      return true
+    })
+    if (!mutated) return block
+    return { ...block, text: filtered.join('\n').trim() }
+  })
+}
+
 function preprocessParaOrdering(blocks) {
+  // First strip bracketed image-description placeholders that the AI doc
+  // generators insert between a question stem and its options. Lines like
+  // `[Image Description: A high-jumping athlete...]` would otherwise be
+  // appended to the question stem and (because they contain "image") flip
+  // the question type to `diagram`, dropping the A-D options.
+  blocks = stripBracketedImageDescriptions(blocks)
   const output = []
   let collecting = false
   let instruction = ''
