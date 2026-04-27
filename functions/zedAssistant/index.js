@@ -517,3 +517,4 @@ exports.zedTelegramWebhookInfo = onCall(
 );
 
 exports.apiZedAssistantChat = require("./web").apiZedAssistantChat;
+exports.whatsappWebhook = require("./whatsappWebhook").whatsappWebhook;

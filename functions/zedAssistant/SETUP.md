@@ -151,3 +151,120 @@ Common failures:
 If the token leaks, message @BotFather → `/revoke` → `/token`. Re-run
 `firebase functions:secrets:set TELEGRAM_BOT_TOKEN` with the new value and
 redeploy. The webhook stays valid; only the token changes.
+
+---
+
+# WhatsApp setup
+
+Same agent, second messaging channel. Founder-only via phone-number
+allowlist. Text + voice (Whisper STT + Google TTS) work the same as
+Telegram. Conversation memory is partitioned at
+`zedAssistantChats/wa:{phone}/turns`.
+
+## 1. Create a Meta WhatsApp Business app
+
+1. Go to [developers.facebook.com](https://developers.facebook.com/apps/) →
+   **Create App** → **Business** → **Next**.
+2. Add the **WhatsApp** product.
+3. Under WhatsApp → API Setup, copy:
+   - **Phone number ID** (numeric)
+   - **Temporary access token** (24-hour, fine for first test) OR generate
+     a long-lived **System User token** under Business Settings → Users →
+     System Users (recommended for production).
+4. Add a recipient phone number under the same panel and verify it via
+   the OTP — that's the founder's phone for testing.
+
+## 2. Set Firebase Functions secrets
+
+```bash
+# Long-lived System User access token (or 24h temp token to start)
+firebase functions:secrets:set WHATSAPP_ACCESS_TOKEN
+
+# The numeric phone-number-id from the API Setup panel
+firebase functions:secrets:set WHATSAPP_PHONE_NUMBER_ID
+
+# Random secret used to verify Meta's webhook handshake
+openssl rand -hex 32   # copy the output, then:
+firebase functions:secrets:set WHATSAPP_VERIFY_TOKEN
+```
+
+`OPENAI_API_KEY` and `ANTHROPIC_API_KEY` already exist from Telegram —
+nothing else to set.
+
+## 3. Set the allowlist env var
+
+In `functions/.env` (gitignored):
+
+```
+# Comma-separated E.164 numbers without leading +. Empty = no one allowed.
+ZED_WHATSAPP_ALLOWED_NUMBERS=260971234567
+```
+
+You can list multiple numbers if needed (e.g. a backup phone).
+
+## 4. Deploy
+
+```bash
+firebase deploy --only functions:whatsappWebhook,hosting
+```
+
+The function ships to
+`https://us-central1-examsprepzambia.cloudfunctions.net/whatsappWebhook`,
+also reachable at `https://zedexams.com/api/whatsapp/webhook` via the
+hosting rewrite.
+
+## 5. Register the webhook with Meta
+
+In the Meta app dashboard → WhatsApp → Configuration → Webhook:
+
+- **Callback URL**: `https://zedexams.com/api/whatsapp/webhook`
+- **Verify token**: paste the value of `WHATSAPP_VERIFY_TOKEN`
+- Click **Verify and save** — Meta sends a GET request; the function
+  echoes back `hub.challenge` if the verify token matches.
+- Subscribe to webhook fields: at minimum **`messages`**.
+
+## 6. Try it
+
+From the verified WhatsApp recipient phone, send the bot a message:
+
+```
+What's left on games?
+```
+
+Or hold the mic to send a voice note. Replies come back as text + voice
+note (same pattern as Telegram).
+
+Commands:
+
+- `/start` or `/help` — usage hints
+- `/voice` — list / pick voice
+- `/voice 3` — switch voice for this chat
+- `/reset` — wipe my memory of this chat
+
+## 7. Going to production
+
+The "From" phone number you tested with is a Meta-issued sandbox number.
+For real use, register your own business phone number in the WhatsApp
+Manager — that adds a per-message cost (very small, free tier covers
+1,000 service conversations/month) and requires Meta Business
+verification. Until then, only verified test recipients can message the
+bot.
+
+## Debugging
+
+```bash
+# Tail logs
+firebase functions:log --only whatsappWebhook
+```
+
+Common failures:
+
+- **403 on the verify request from Meta**: `WHATSAPP_VERIFY_TOKEN`
+  mismatch. Re-set it as a secret, redeploy, and retry "Verify and save".
+- **"not_configured"**: a secret isn't deployed. Check Secret Manager.
+- **Bot sends nothing**: sender isn't on `ZED_WHATSAPP_ALLOWED_NUMBERS`.
+- **24-hour window error** when initiating outbound message: the user
+  hasn't messaged the bot in the last 24h. For founder-only use this
+  almost never happens (you're the one initiating); if it does, the user
+  just sends one message first.
+
