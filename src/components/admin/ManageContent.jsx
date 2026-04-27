@@ -6,6 +6,7 @@ import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
 import ConfirmDialog from '../ui/ConfirmDialog'
+import { todayString } from '../../utils/examService'
 
 const TABS = [
   { id: 'quizzes', label: '📝 Quizzes' },
@@ -53,7 +54,11 @@ function StatusPill({ status }) {
 // ── Schedule Daily Exam modal ──────────────────────────────────────────────
 // ── Assign-to-Daily-Exam modal ─────────────────────────────────────────────
 function DailyExamModal({ quiz, onSave, onClose }) {
-  const today = new Date().toISOString().slice(0, 10)
+  // Use local-time date so it matches the student-side todayString() check.
+  // toISOString() returns UTC and can be off-by-one near midnight in any
+  // non-UTC timezone, which would cause the saved dailyExamDate to never
+  // equal "today" on the /exams page.
+  const today = todayString()
   const [date,     setDate]     = useState(quiz.dailyExamDate || today)
   const [duration, setDuration] = useState(quiz.durationMinutes || quiz.duration || 45)
   // `isDemo` preserves whatever is already on the quiz — admins can flip it
