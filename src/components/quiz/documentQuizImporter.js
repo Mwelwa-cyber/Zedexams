@@ -391,7 +391,10 @@ function paragraphText(paragraph) {
         return
       }
       if (child.localName === 'tab') {
-        pieces.push(' ')
+        // Preserve a real tab so we can detect tab-separated question /
+        // option formats (`1\tStem`, `A\tAnswer`) before cleanText() strips
+        // them. Replaced with a space inside normalizeTabbedQuestionLine().
+        pieces.push('\t')
         return
       }
       if (child.localName === 'br' || child.localName === 'cr') {
@@ -401,7 +404,24 @@ function paragraphText(paragraph) {
       walk(child)
     })
   })(paragraph)
-  return cleanText(pieces.join(''))
+  return normalizeTabbedQuestionLine(pieces.join(''))
+}
+
+// PRISCA / ECZ Word docs lay out questions in a 2-column table-less format:
+//   `1\tWhich of the following...`  (no `.` or `)` after the number)
+//   `A\tDifferent flowers`         (no `.` or `)` after the letter)
+//
+// Without this rewrite, only questions whose stem ends with `?` survive
+// (via QUESTION_NO_PUNCT_RE), so any "Name the joint shown below." style
+// stem would be silently dropped. We promote the tab into a `.` so the
+// existing QUESTION_RE / OPTION_RE patterns match unchanged.
+function normalizeTabbedQuestionLine(text) {
+  let normalized = String(text || '')
+  // `1\t…` → `1. …`
+  normalized = normalized.replace(/^(\d{1,3})\t/gm, '$1. ')
+  // `A\t…` → `A. …` (only single capital A-D at line start)
+  normalized = normalized.replace(/^([A-Da-d])\t/gm, '$1. ')
+  return cleanText(normalized)
 }
 
 /**
@@ -1573,7 +1593,7 @@ export async function importQuizDocument(file) {
     throw new Error('Please upload a .doc, .docx, or .pdf file.')
   }
 
-  const { processedBlocks, questions, sections, summary } = processImportedQuestionBlocks(
+  const { processedBlocks, questions, sections, parts, summary } = processImportedQuestionBlocks(
     extracted.blocks,
     extracted.warnings,
   )
@@ -1599,6 +1619,7 @@ export async function importQuizDocument(file) {
       importWarnings: extracted.warnings,
     },
     sections,
+    parts: parts || [],
     questions,
     imageAssets: extracted.imageAssets,
     importStatus,

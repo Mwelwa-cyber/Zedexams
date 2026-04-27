@@ -120,19 +120,73 @@ function createBlock(text, assets = [], source = 'docx') {
   }
 }
 
+// Recognises the ECZ "ANSWER SHEET" table format where each row carries a
+// question number followed by four cells (one per option A-D), and the
+// chosen answer is marked with a check mark / shading character. The four
+// columns may repeat across the row (e.g. 5 columns of (No, A, B, C, D)
+// per row). Returns an array of {number, letter} pairs or null.
+//
+// Critical: this runs on the RAW cell list (not the empty-cell-filtered
+// list) so column positions survive — empty cells convey "this option was
+// NOT chosen" and we need them.
+const ANSWER_MARKER_RE = /^[✓✔☑■●★xX✓✔✖]+$/
+const NUMBER_CELL_RE = /^\d{1,3}\.?$/
+
+function extractAnswerSheetRow(rawCells) {
+  if (!rawCells || rawCells.length < 5) return null
+  const texts = rawCells.map(cell => cleanText(cell?.text || ''))
+  const pairs = []
+
+  // Walk the row in 5-cell windows: [number, A?, B?, C?, D?]
+  for (let i = 0; i + 4 < texts.length; i += 5) {
+    const numberCell = texts[i]
+    const optionCells = texts.slice(i + 1, i + 5)
+    if (!NUMBER_CELL_RE.test(numberCell)) return null
+    // Find which of the 4 cells carries an answer marker. Allow plain "A"
+    // text in a cell (some answer sheets just write the letter inline).
+    let chosenIndex = -1
+    let conflict = false
+    optionCells.forEach((cellText, columnIndex) => {
+      const trimmed = cellText.trim()
+      if (!trimmed) return
+      if (ANSWER_MARKER_RE.test(trimmed) || /^[A-D]$/i.test(trimmed)) {
+        if (chosenIndex >= 0) conflict = true
+        chosenIndex = columnIndex
+      }
+    })
+    if (conflict || chosenIndex < 0) return null
+    const number = String(parseInt(numberCell, 10))
+    const letter = String.fromCharCode(65 + chosenIndex)
+    pairs.push({ number, letter })
+  }
+
+  return pairs.length > 0 ? pairs : null
+}
+
 export function buildDocxTableBlocks(rows = []) {
   const blocks = []
   let fallbackRowCount = 0
+  // Collected check-mark answer-sheet rows. Synthesised into an "ANSWER KEY"
+  // block at the end so the regular extractAnswerKey() pipeline picks them up
+  // and applies them to every numbered question that lacks an inline answer.
+  const answerSheetPairs = []
 
   rows.forEach((row, index) => {
-    const cells = (row?.cells || [])
-      .map(cell => ({
-        ...cell,
-        text: cleanText(cell?.text),
-        assets: Array.isArray(cell?.assets) ? cell.assets : [],
-      }))
-      .filter(cell => cell.text || cell.assets.length)
+    const rawCells = (row?.cells || []).map(cell => ({
+      ...cell,
+      text: cleanText(cell?.text),
+      assets: Array.isArray(cell?.assets) ? cell.assets : [],
+    }))
 
+    // ECZ-style answer-sheet rows: detect on raw cells so column positions
+    // (which carry the meaning of "this option was chosen") survive.
+    const sheetPairs = extractAnswerSheetRow(rawCells)
+    if (sheetPairs) {
+      answerSheetPairs.push(...sheetPairs)
+      return
+    }
+
+    const cells = rawCells.filter(cell => cell.text || cell.assets.length)
     if (!cells.length) return
 
     const texts = cells.map(cell => cell.text).filter(Boolean)
@@ -161,6 +215,14 @@ export function buildDocxTableBlocks(rows = []) {
     blocks.push(createBlock(mergedText, assets, texts.length > 1 ? 'docx-table' : 'docx'))
     if (texts.length > 1) fallbackRowCount += 1
   })
+
+  if (answerSheetPairs.length > 0) {
+    const synthesised = ['ANSWER KEY']
+    answerSheetPairs.forEach(({ number, letter }) => {
+      synthesised.push(`${number}. ${letter}`)
+    })
+    blocks.push(createBlock(synthesised.join('\n'), [], 'docx-answer-sheet'))
+  }
 
   const warnings = fallbackRowCount > 0
     ? ['A complex Word table row was flattened into text. Review those questions before publishing.']

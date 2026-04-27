@@ -1,4 +1,4 @@
-import { createPassageSection, createStandaloneSection } from '../../utils/quizSections.js'
+import { createPartGroup, createPassageSection, createStandaloneSection } from '../../utils/quizSections.js'
 
 const SUBJECTS = [
   'Mathematics',
@@ -24,7 +24,7 @@ const SECTION_HEADING_RE = /^(?:spelling bee\b|elimination round\b|category\b|wo
 const PARA_ORDER_INSTRUCTION_RE = /each question has four paragraphs|sentences in the best order|choose the paragraph which has the sentences/i
 const PARA_ORDER_DO_Q_RE = /\bnow\s+do\s+questions?\s+(\d{1,3})/i
 const PARA_ORDER_QUESTION_ONLY_RE = /^\d{1,3}$/
-const QUESTION_RANGE_HEADING_RE = /^(?:questions?\s+\d{1,3}\s*[–-]\s*\d{1,3}|now\s+do\s+questions?\s+\d{1,3}\s*[–-]\s*\d{1,3}|look\s+at\s+questions?\s+\d{1,3}(?:\s*[–-]\s*\d{1,3})?)$/i
+const QUESTION_RANGE_HEADING_RE = /^(?:(?:comprehension\s+)?questions?\s+\d{1,3}\s*[–-]\s*\d{1,3}|now\s+do\s+questions?\s+\d{1,3}\s*[–-]\s*\d{1,3}|look\s+at\s+questions?\s+\d{1,3}(?:\s*[–-]\s*\d{1,3})?)$/i
 // Verbs that, when they lead a non-numbered line, almost always mean the line
 // is a teacher instruction rather than a question stem or an answer/explanation.
 // Kept conservative — common question stems like "Find the value of x" stay
@@ -232,6 +232,26 @@ function extractOptionSegments(line) {
     .filter(item => item.index >= 0 && item.index <= 3 && item.text)
 }
 
+// PRISCA / ECZ Word docs often render options as `A\tText` — after the
+// universal tab→space normalisation in cleanImportedText() this becomes
+// `A Text`, which OPTION_LABEL_RE rejects (it requires a punctuation marker
+// like `A.`/`A)`/`A:`). Fall back to a bare-letter detector that ONLY runs
+// when (a) the line starts with a single capital A-D and a space, (b) the
+// caller is already accumulating a question, and (c) the rest of the line
+// is short (< 240 chars — long lines are almost certainly question stems).
+function extractBareLetterOption(line) {
+  const text = String(line || '').trim()
+  if (text.length === 0 || text.length > 240) return null
+  const match = text.match(/^([A-D])\s+(\S.*)$/)
+  if (!match) return null
+  const label = match[1].toUpperCase()
+  return {
+    label,
+    index: label.charCodeAt(0) - 65,
+    text: cleanImportedText(match[2]),
+  }
+}
+
 function splitInlineOptionsFromQuestion(rawText, fallbackQuestionText = '') {
   const text = cleanImportedText(rawText)
   const options = extractOptionSegments(text)
@@ -435,6 +455,7 @@ function questionFromCurrent(current, answerKey = new Map()) {
     importWarnings: reviewNotes,
     sourcePage: current.pageNumber || null,
     sourceQuestionNumber: current.sourceNumber || null,
+    partTitle: current.partTitle || '',
     imageUploading: false,
     imageUploadStep: '',
   }
@@ -681,6 +702,12 @@ function parseQuestionsFromBlocks(blocks, warnings) {
   let compPassageParts = []
   let compSubQuestions = []
   let current = null
+  // Active SECTION/PART heading. Stamped onto every question started while
+  // this is non-null so processImportedQuestionBlocks can group questions
+  // into parts[] downstream. Cleared by ANSWER_KEY_HEADING (no further
+  // questions follow) but not by passage labels (a passage can live inside
+  // a Part).
+  let currentPartTitle = ''
 
   function finalizeSubQuestion() {
     if (!current) return
@@ -772,6 +799,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
       sourceNumber,
       isSubQuestion,
       sharedInstruction: block.sharedInstruction || (!isSubQuestion ? sharedInstruction : ''),
+      partTitle: currentPartTitle || '',
     }
     inline.options.forEach(opt => {
       current.options[opt.index] = opt.text
@@ -796,6 +824,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         finalizeStandaloneQuestion()
         inAnswerKey = true
         sharedInstruction = ''
+        currentPartTitle = ''
         return
       }
 
@@ -854,6 +883,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
 
         if (isSectionBreak && !isInstruction) {
           finalizeComprehension()
+          currentPartTitle = cleanImportedText(line)
           if (lineAssets.length) pendingAssets.push(...lineAssets)
           return
         }
@@ -874,6 +904,13 @@ function parseQuestionsFromBlocks(blocks, warnings) {
               current.options[opt.index] = opt.text
               current.lastOptionIndex = opt.index
             })
+            return
+          }
+          // Bare-letter fallback for tab-separated DOCX options (`A\tText`).
+          const bareOption = extractBareLetterOption(line)
+          if (bareOption) {
+            current.options[bareOption.index] = bareOption.text
+            current.lastOptionIndex = bareOption.index
             return
           }
           // Trailing instruction text after this sub-question's options belongs
@@ -918,6 +955,12 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         if (lineAssets.length) pendingAssets.push(...lineAssets)
         finalizeStandaloneQuestion()
         sharedInstruction = ''
+        // Section heading (PART A / SECTION B / UNIT 3 / etc.) opens a new
+        // Part group. Passage labels ("Story 1") do NOT — those belong to
+        // a comprehension passage that may live inside the active Part.
+        if (isSectionBreak) {
+          currentPartTitle = cleanImportedText(line)
+        }
         return
       }
 
@@ -992,6 +1035,13 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         })
         return
       }
+      // Bare-letter fallback for tab-separated DOCX options (`A\tText`).
+      const bareOption = extractBareLetterOption(line)
+      if (bareOption && !numberOnlyQuestion) {
+        current.options[bareOption.index] = bareOption.text
+        current.lastOptionIndex = bareOption.index
+        return
+      }
       if (current.sharedInstruction && PARA_ORDER_INSTRUCTION_RE.test(current.sharedInstruction) && paraOrderOption) {
         current.lastOptionIndex = paraOrderOption.label.charCodeAt(0) - 65
         current.options[current.lastOptionIndex] = paraOrderOption.text
@@ -1060,10 +1110,33 @@ function parseQuestionsFromBlocks(blocks, warnings) {
   return questions
 }
 
+// Builds the editor's `sections[]` AND the matching `parts[]` array.
+// PRISCA / ECZ exam papers that include "PART A: …", "SECTION B" or
+// "UNIT 3" headings get an entry per unique heading, and every section
+// belonging to that heading is stamped with the part's id.
 function buildImportedSections(questions = []) {
-  return questions.map(question => {
+  const partsByTitle = new Map()
+  const orderedParts = []
+
+  function ensurePart(rawTitle) {
+    const title = String(rawTitle || '').trim()
+    if (!title) return null
+    if (partsByTitle.has(title)) return partsByTitle.get(title)
+    const part = createPartGroup({ title, order: orderedParts.length })
+    partsByTitle.set(title, part)
+    orderedParts.push(part)
+    return part
+  }
+
+  const sections = questions.map(question => {
+    const partTitle = question.passageTitle && question.partTitle
+      ? question.partTitle
+      : question.partTitle || ''
+    const part = ensurePart(partTitle)
+    const partId = part?.id ?? null
+
     if (question.type === 'comprehension' || question.detectedType === 'comprehension') {
-      return createPassageSection({
+      const passageSection = createPassageSection({
         title: question.passageTitle ?? '',
         instructions: question.instructions ?? question.text ?? '',
         passageText: question.passage ?? '',
@@ -1073,12 +1146,18 @@ function buildImportedSections(questions = []) {
           type: 'mcq',
           detectedType: 'mcq',
           passageId: null,
+          partId,
         })),
       })
+      passageSection.partId = partId
+      return passageSection
     }
 
-    return createStandaloneSection(question)
+    const section = createStandaloneSection({ ...question, partId })
+    return section
   })
+
+  return { sections, parts: orderedParts }
 }
 
 function summarizeImportedSections(sections = []) {
@@ -1117,13 +1196,14 @@ export function processImportedQuestionBlocks(blocks = [], warnings = []) {
     preprocessParaOrdering(blocks),
   )
   const questions = parseQuestionsFromBlocks(processedBlocks, warnings)
-  const sections = buildImportedSections(questions)
+  const { sections, parts } = buildImportedSections(questions)
   const summary = summarizeImportedSections(sections)
 
   return {
     processedBlocks,
     questions,
     sections,
+    parts,
     summary,
   }
 }

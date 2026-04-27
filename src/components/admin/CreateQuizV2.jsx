@@ -679,6 +679,9 @@ export default function CreateQuizV2() {
       setSections(imported.sections?.length
         ? imported.sections
         : imported.questions.map(question => buildStandaloneSection(question)))
+      // Imported PRISCA / ECZ papers can carry SECTION A / PART B headings —
+      // surface them as Parts so questions land inside the right group.
+      setParts(Array.isArray(imported.parts) ? imported.parts : [])
       setImportSummary({
         ...imported.summary,
         fileName: file.name,
