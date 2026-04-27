@@ -107,7 +107,10 @@ export async function checkAnswerWithAI({ question, correctAnswer, studentAnswer
     if (cleanAnswer) {
       return { correct: false, feedback: `Review the expected answer: ${cleanAnswer}.` }
     }
-    throw error
+    // No expected answer was provided AND the AI call failed. There is
+    // nothing we can compare against, so fail closed rather than crashing
+    // the quiz/exam runner.
+    return { correct: false, feedback: 'Could not check this answer right now. Please try again.' }
   }
 
   return {

@@ -53,10 +53,10 @@ export function validateStandaloneQuestion(question, label, { onError } = {}) {
   }
 
   if (qType === SHORT_ANSWER || qType === DIAGRAM) {
-    if (!String(question.correctAnswer ?? '').trim()) {
-      notify(`${label} is missing the correct answer.`)
-      return false
-    }
+    // An empty expected answer is intentional: it tells the runner to ask
+    // the AI to judge the student's response from the question text, subject,
+    // and grade alone. The editor surfaces this with the
+    // "If left blank, AI will judge…" hint.
     return true
   }
 
