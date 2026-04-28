@@ -21,6 +21,7 @@ const github = require("./github");
 const {makeBranchName, RedLineError} = require("./redLine");
 const {runCoderAgent} = require("./agent");
 const {buildToolDefinitions, buildToolRunner} = require("./tools");
+const {isRateLimitError} = require("../../anthropicFetch");
 
 const SLUG_FROM_TASK_LIMIT = 60;
 
@@ -185,19 +186,25 @@ async function handleCodeTask({
     });
   } catch (err) {
     const state = getState();
+    const rateLimited = isRateLimitError(err);
     await persistAudit(auditRef, {
       status: "failed",
-      finishReason: "agent_error",
+      finishReason: rateLimited ? "rate_limited" : "agent_error",
       error: err?.message,
       branch,
       writes: state.writes,
     });
+    const message = rateLimited ?
+      "Hit the AI rate limit while working on that — the org-level " +
+      "tokens-per-minute quota was exhausted and retries didn't recover. " +
+      "Try a smaller task, or wait a minute and run /code again." :
+      `Agent crashed: ${err?.message}`;
     return {
       ok: false,
       taskId,
       writes: state.writes,
-      stopReason: "agent_error",
-      message: `Agent crashed: ${err?.message}`,
+      stopReason: rateLimited ? "rate_limited" : "agent_error",
+      message,
     };
   }
 

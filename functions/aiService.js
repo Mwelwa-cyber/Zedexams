@@ -1,5 +1,6 @@
 const {HttpsError} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
+const {anthropicFetch} = require("./anthropicFetch");
 
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
 const MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
@@ -196,7 +197,7 @@ async function callAnthropic(apiKey, {
 }) {
   let res;
   try {
-    res = await fetch(ANTHROPIC_URL, {
+    res = await anthropicFetch(ANTHROPIC_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -220,7 +221,7 @@ async function callAnthropic(apiKey, {
         } : {}),
         messages,
       }),
-    });
+    }, {label: "aiService"});
   } catch {
     throw new HttpsError(
       "unavailable",
@@ -235,6 +236,12 @@ async function callAnthropic(apiKey, {
       message: body?.error?.message,
       type: body?.error?.type,
     });
+    if (res.status === 429) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "AI is busy right now. Please wait a moment and try again.",
+      );
+    }
     throw new HttpsError(
       "unavailable",
       "AI is temporarily unavailable. Please try again.",
@@ -935,7 +942,7 @@ async function callAnthropicStream(apiKey, {
 }, onToken) {
   let res;
   try {
-    res = await fetch(ANTHROPIC_URL, {
+    res = await anthropicFetch(ANTHROPIC_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -956,7 +963,7 @@ async function callAnthropicStream(apiKey, {
         } : {}),
         messages,
       }),
-    });
+    }, {label: "aiService:stream"});
   } catch (err) {
     console.error("callAnthropicStream fetch failed", err);
     throw new HttpsError("unavailable", "AI is temporarily unavailable. Please try again.");

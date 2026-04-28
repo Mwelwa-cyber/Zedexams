@@ -29,6 +29,7 @@ const {
   MAX_WRITES_PER_TASK,
   FORBIDDEN_PATH_PATTERNS,
 } = require("./redLine");
+const {anthropicFetch} = require("../../anthropicFetch");
 
 function describeForbidden() {
   // Convert the regex array into a human-readable bullet list for the
@@ -85,7 +86,7 @@ const CODER_SYSTEM_PROMPT = [
 ].join("\n");
 
 async function postAnthropic(apiKey, body) {
-  const res = await fetch(ANTHROPIC_URL, {
+  const res = await anthropicFetch(ANTHROPIC_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -93,7 +94,7 @@ async function postAnthropic(apiKey, body) {
       "anthropic-version": ANTHROPIC_VERSION,
     },
     body: JSON.stringify(body),
-  });
+  }, {label: "coder"});
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const message = data?.error?.message || `HTTP ${res.status}`;

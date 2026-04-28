@@ -9,6 +9,7 @@
  */
 
 const {HttpsError} = require("firebase-functions/v2/https");
+const {anthropicFetch} = require("../anthropicFetch");
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
@@ -36,7 +37,7 @@ async function callClaude(apiKey, {
       ] : []),
     ] : undefined;
 
-    res = await fetch(ANTHROPIC_URL, {
+    res = await anthropicFetch(ANTHROPIC_URL, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -50,7 +51,7 @@ async function callClaude(apiKey, {
         ...(systemBlocks ? {system: systemBlocks} : {}),
         messages,
       }),
-    });
+    }, {label: "teacherTools"});
   } catch (err) {
     console.error("Claude fetch failed", err);
     throw new HttpsError(

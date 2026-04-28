@@ -13,6 +13,8 @@
  *   - We loop on tool_use, which callAnthropic doesn't.
  */
 
+const {anthropicFetch} = require("../anthropicFetch");
+
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
 const DEFAULT_MODEL = process.env.ZED_ASSISTANT_MODEL ||
@@ -22,7 +24,7 @@ const MAX_TOOL_ITERATIONS = 6;
 const MAX_OUTPUT_TOKENS = 1500;
 
 async function postAnthropic(apiKey, body) {
-  const res = await fetch(ANTHROPIC_URL, {
+  const res = await anthropicFetch(ANTHROPIC_URL, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -30,7 +32,7 @@ async function postAnthropic(apiKey, body) {
       "anthropic-version": ANTHROPIC_VERSION,
     },
     body: JSON.stringify(body),
-  });
+  }, {label: "zedAssistant"});
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const message = data?.error?.message || `HTTP ${res.status}`;
