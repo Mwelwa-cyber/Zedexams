@@ -30,6 +30,10 @@ function getApiKey() {
  * @param {'roadmap'|'satellite'|'terrain'|'hybrid'} [opts.mapType='roadmap']
  * @param {Array<{lat:number,lng:number,color?:string,label?:string}>} [opts.markers=[]]
  *        Markers to drop on the map. `label` must be a single A–Z or 0–9 char.
+ * @param {Array<{color?:string,weight?:number,fillcolor?:string,points:Array<{lat:number,lng:number}>}>} [opts.paths=[]]
+ *        Polygon/polyline paths to draw on the map. Provide `fillcolor` to
+ *        render a filled polygon (e.g. province silhouette). Colors accept
+ *        named values ("red") or 0xRRGGBB / 0xRRGGBBAA hex.
  * @returns {string} A fully-formed `https://maps.googleapis.com/maps/api/staticmap?...` URL.
  */
 export function buildStaticMapUrl({
@@ -40,6 +44,7 @@ export function buildStaticMapUrl({
   scale = 2,
   mapType = 'roadmap',
   markers = [],
+  paths = [],
 }) {
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     throw new Error('buildStaticMapUrl: lat/lng must be finite numbers')
@@ -59,6 +64,21 @@ export function buildStaticMapUrl({
     if (m.label) parts.push(`label:${m.label}`)
     parts.push(`${m.lat},${m.lng}`)
     params.append('markers', parts.join('|'))
+  }
+  for (const p of paths) {
+    if (!p?.points?.length) continue
+    const parts = []
+    if (p.color) parts.push(`color:${p.color}`)
+    if (Number.isFinite(p.weight)) parts.push(`weight:${p.weight}`)
+    if (p.fillcolor) parts.push(`fillcolor:${p.fillcolor}`)
+    for (const pt of p.points) parts.push(`${pt.lat},${pt.lng}`)
+    // Explicitly close the ring so filled polygons render reliably.
+    const first = p.points[0]
+    const last = p.points[p.points.length - 1]
+    if (first.lat !== last.lat || first.lng !== last.lng) {
+      parts.push(`${first.lat},${first.lng}`)
+    }
+    params.append('path', parts.join('|'))
   }
   return `${STATIC_MAP_BASE}?${params.toString()}`
 }
