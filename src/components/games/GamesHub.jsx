@@ -122,17 +122,21 @@ export default function GamesHub() {
     <GamesShell crumbs={[]}>
       <RedesignStyles />
 
-      <div className="mx-auto w-full max-w-[440px] space-y-7 pb-4">
+      <div className="mx-auto w-full max-w-md space-y-7 pb-4 sm:max-w-3xl sm:space-y-9 lg:max-w-5xl lg:space-y-12">
         {/* Stats strip */}
-        <section className="zx-card flex items-center justify-between rounded-[18px] bg-slate-900 px-3.5 py-2.5 text-white">
+        <section className="zx-card flex items-center justify-between gap-2 rounded-[18px] bg-slate-900 px-3.5 py-2.5 text-white sm:gap-4 sm:rounded-[22px] sm:px-6 sm:py-4">
           {stats.map((stat, i) => (
-            <div key={stat.label} className="flex items-center gap-2">
-              <span className={`text-lg leading-none ${stat.animate === 'flame' ? 'zx-flame' : ''}`}>{stat.emoji}</span>
+            <div key={stat.label} className="flex flex-1 items-center gap-2 sm:gap-3">
+              <span className={`text-lg leading-none sm:text-2xl ${stat.animate === 'flame' ? 'zx-flame' : ''}`}>
+                {stat.emoji}
+              </span>
               <div className="leading-tight">
-                <div className="font-display text-[18px] font-bold leading-none">{stat.value}</div>
-                <div className="mt-0.5 text-[10px] uppercase tracking-[0.12em] text-white/65">{stat.label}</div>
+                <div className="font-display text-[18px] font-bold leading-none sm:text-[22px] lg:text-2xl">{stat.value}</div>
+                <div className="mt-0.5 text-[10px] uppercase tracking-[0.12em] text-white/65 sm:text-[11px] sm:tracking-[0.16em]">
+                  {stat.label}
+                </div>
               </div>
-              {i < stats.length - 1 && <span aria-hidden="true" className="ml-2 hidden h-5 w-px bg-white/20 sm:block" />}
+              {i < stats.length - 1 && <span aria-hidden="true" className="h-5 w-px bg-white/20 sm:h-8" />}
             </div>
           ))}
         </section>
@@ -150,7 +154,7 @@ export default function GamesHub() {
           {state.loading ? (
             <SubjectGridSkeleton />
           ) : (
-            <div className="grid grid-cols-2 gap-3.5">
+            <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-5">
               {subjectCards.map(({ subject, progress }) => (
                 <SubjectTile
                   key={subject.slug}
@@ -163,12 +167,12 @@ export default function GamesHub() {
           )}
         </Section>
 
-        {/* Hot games — horizontal scroller */}
+        {/* Hot games — horizontal scroller (becomes a grid on desktop) */}
         <Section eyebrow="🔥 Hot right now" title="Loved by players" actionLabel="All ›" actionTo="/games">
           {state.loading ? (
             <HotGamesSkeleton />
           ) : (
-            <div className="zx-hscroll -mx-[18px] flex gap-3.5 overflow-x-auto px-[18px] pb-3 pt-1">
+            <div className="zx-hscroll -mx-4 flex gap-3.5 overflow-x-auto px-4 pb-3 pt-1 sm:-mx-6 sm:gap-4 sm:px-6 lg:mx-0 lg:grid lg:grid-cols-3 lg:gap-5 lg:overflow-visible lg:px-0 lg:pb-0">
               {hotGames.map((entry) => (
                 <HotGameCard key={entry.game.id} game={entry.game} badge={entry.badge} />
               ))}
@@ -176,9 +180,9 @@ export default function GamesHub() {
           )}
         </Section>
 
-        {/* Badges */}
+        {/* Badges — horizontal scroller everywhere; just wider on desktop */}
         <Section eyebrow="🏆 Badges" title="Collect them all" actionLabel="All ›" actionTo="/my-badges">
-          <div className="zx-hscroll -mx-[18px] flex gap-2.5 overflow-x-auto px-[18px] pb-1">
+          <div className="zx-hscroll -mx-4 flex gap-2.5 overflow-x-auto px-4 pb-1 sm:-mx-6 sm:gap-3 sm:px-6 lg:mx-0 lg:px-0">
             {GAME_BADGES.slice(0, 6).map((badge) => (
               <BadgeChip key={badge.id} badge={badge} earned={earnedBadgeIds.has(badge.id)} />
             ))}
@@ -194,13 +198,15 @@ export default function GamesHub() {
 function Section({ eyebrow, title, actionLabel, actionTo, children }) {
   return (
     <section>
-      <div className="mb-3 flex items-end justify-between">
+      <div className="mb-3 flex items-end justify-between sm:mb-4">
         <div>
           <span className="zx-eyebrow">{eyebrow}</span>
-          <h2 className="font-display mt-1 text-[26px] font-bold leading-none tracking-tight text-slate-900">{title}</h2>
+          <h2 className="font-display mt-1 text-[26px] font-bold leading-none tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
+            {title}
+          </h2>
         </div>
         {actionTo && (
-          <Link to={actionTo} className="text-xs font-extrabold text-[#0E5E70] transition hover:text-[#053541]">
+          <Link to={actionTo} className="text-xs font-extrabold text-[#0E5E70] transition hover:text-[#053541] sm:text-sm">
             {actionLabel}
           </Link>
         )}
@@ -225,27 +231,27 @@ function SubjectTile({ subject, progress, href }) {
   return (
     <Link
       to={href}
-      className="zx-card group relative flex flex-col rounded-[22px] bg-white p-4 transition active:translate-y-[2px] active:shadow-none"
+      className="zx-card group relative flex flex-col rounded-[22px] bg-white p-4 transition active:translate-y-[2px] active:shadow-none sm:p-5"
     >
       <span className="absolute right-3 top-3 rounded-full bg-slate-900 px-2 py-1 text-[9.5px] font-extrabold uppercase tracking-[0.08em] text-white">
         {progress.totalGames} {progress.totalGames === 1 ? 'game' : 'games'}
       </span>
 
-      <div className={`zx-mascot-tile mb-3 grid h-16 w-16 place-items-center rounded-[18px] border-2 border-slate-900 text-[36px] leading-none ${skin.tile}`}>
+      <div className={`zx-mascot-tile mb-3 grid h-16 w-16 place-items-center rounded-[18px] border-2 border-slate-900 text-[36px] leading-none sm:h-20 sm:w-20 sm:text-[44px] ${skin.tile}`}>
         <span aria-hidden="true">{mascot.emoji}</span>
       </div>
 
-      <h3 className="font-display text-[19px] font-bold leading-none text-slate-900">{subject.label}</h3>
-      <p className="mt-1 text-[11.5px] font-semibold text-slate-500">{mascot.name}</p>
+      <h3 className="font-display text-[19px] font-bold leading-none text-slate-900 sm:text-xl lg:text-[22px]">{subject.label}</h3>
+      <p className="mt-1 text-[11.5px] font-semibold text-slate-500 sm:text-xs">{mascot.name}</p>
 
-      <div className="mt-3 h-2 overflow-hidden rounded-full border-[1.5px] border-slate-900 bg-[#EFE9DB]">
+      <div className="mt-3 h-2 overflow-hidden rounded-full border-[1.5px] border-slate-900 bg-[#EFE9DB] sm:h-2.5">
         <div className={`h-full rounded-full ${skin.bar}`} style={{ width: `${empty ? 0 : progress.progress}%` }} />
       </div>
-      <div className="mt-1.5 flex items-center justify-between">
-        <span className="text-[11px] font-extrabold text-slate-900">
+      <div className="mt-1.5 flex items-center justify-between gap-2">
+        <span className="text-[11px] font-extrabold text-slate-900 sm:text-xs">
           {empty ? 'Soon' : progress.progress === 100 ? '100% ✓' : `${progress.progress}%`}
         </span>
-        <span className="text-[10.5px] uppercase tracking-[0.06em] text-slate-500">
+        <span className="truncate text-right text-[10.5px] uppercase tracking-[0.06em] text-slate-500 sm:text-[11px]">
           {empty
             ? 'Coming soon'
             : `${progress.plays} of ${progress.totalGames} played`}
@@ -278,7 +284,7 @@ function HotGameCard({ game, badge }) {
   return (
     <Link
       to={`/games/play/${game.id}`}
-      className="zx-card relative flex w-[230px] shrink-0 snap-start flex-col rounded-[22px] bg-white p-4 transition active:translate-y-[2px] active:shadow-none"
+      className="zx-card relative flex w-[230px] shrink-0 snap-start flex-col rounded-[22px] bg-white p-4 transition active:translate-y-[2px] active:shadow-none sm:w-[260px] sm:p-5 lg:w-auto lg:shrink"
     >
       {badge && (
         <span className={`absolute right-3 top-3 rounded-full border-[1.5px] border-slate-900 px-2 py-1 text-[9.5px] font-extrabold uppercase tracking-[0.08em] ${HOT_BADGE_SKIN[badge] || HOT_BADGE_SKIN.Popular}`}>

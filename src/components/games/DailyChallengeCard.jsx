@@ -39,7 +39,7 @@ export default function DailyChallengeCard({ challenge, streak, loading, hideGra
 
   return (
     <section
-      className="zx-hero relative overflow-hidden rounded-[26px] border-2 border-slate-900 bg-[#0E5E70] p-5 text-white shadow-[0_6px_0_#0F1B2D]"
+      className="zx-hero relative overflow-hidden rounded-[26px] border-2 border-slate-900 bg-[#0E5E70] p-5 text-white shadow-[0_6px_0_#0F1B2D] sm:p-7 lg:p-9"
     >
       <div
         aria-hidden="true"
@@ -50,45 +50,71 @@ export default function DailyChallengeCard({ challenge, streak, loading, hideGra
         }}
       />
 
-      <div className="relative flex items-start justify-between gap-3">
-        <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-slate-900 bg-[#FF7A1A] px-2.5 py-1 text-[11.5px] font-bold uppercase tracking-[0.08em] text-white shadow-[0_2px_0_#0F1B2D]">
-          <SparklesIcon className="h-3.5 w-3.5" />
-          Daily Challenge
-        </span>
-        <span className="inline-flex items-center gap-1 text-[11px] tabular-nums text-white/85">
-          <ClockIcon className="h-3.5 w-3.5" />
-          Refresh in {timeLeft}
-        </span>
+      {/* Phone-only mascot floats from the top-right corner. */}
+      <div className="sm:hidden">
+        <HeroMascot emoji={mascot.emoji} label={mascot.name} variant="float" />
       </div>
 
-      <h1 className="font-display relative mt-3.5 max-w-[230px] text-[38px] font-bold leading-[0.95] tracking-tight">
-        {game.title}
-      </h1>
-      {game.description && (
-        <p className="relative mt-1.5 max-w-[230px] text-[14px] font-semibold text-white/88">
-          {game.description}
-        </p>
-      )}
+      <div className="relative grid items-center gap-6 sm:grid-cols-[minmax(0,1fr)_auto] sm:gap-8">
+        <div className="relative">
+          <div className="flex items-start justify-between gap-3 sm:justify-start sm:gap-4">
+            <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-slate-900 bg-[#FF7A1A] px-2.5 py-1 text-[11.5px] font-bold uppercase tracking-[0.08em] text-white shadow-[0_2px_0_#0F1B2D] sm:px-3 sm:py-1.5 sm:text-xs">
+              <SparklesIcon className="h-3.5 w-3.5" />
+              Daily Challenge
+            </span>
+            <span className="inline-flex items-center gap-1 text-[11px] tabular-nums text-white/85 sm:text-xs">
+              <ClockIcon className="h-3.5 w-3.5" />
+              Refresh in {timeLeft}
+            </span>
+          </div>
 
-      <HeroMascot emoji={mascot.emoji} label={mascot.name} />
+          <h1 className="font-display relative mt-3.5 max-w-[230px] text-[38px] font-bold leading-[0.95] tracking-tight sm:mt-5 sm:max-w-none sm:text-5xl lg:text-6xl">
+            {game.title}
+          </h1>
+          {game.description && (
+            <p className="relative mt-1.5 max-w-[230px] text-[14px] font-semibold text-white/88 sm:mt-3 sm:max-w-xl sm:text-base lg:text-lg">
+              {game.description}
+            </p>
+          )}
 
-      <div className="relative mt-3.5 flex flex-wrap gap-x-3.5 gap-y-1 text-[11.5px] font-semibold text-white/85">
-        <span className="inline-flex items-center gap-1">📖 {subjectTheme.label}</span>
-        <span className="inline-flex items-center gap-1">📋 {typeTheme.label}</span>
-        <span className="inline-flex items-center gap-1"><StarIcon className="h-3.5 w-3.5" /> {Number(game.points) || 0} pts</span>
+          <div className="relative mt-3.5 flex flex-wrap gap-x-3.5 gap-y-1 text-[11.5px] font-semibold text-white/85 sm:mt-5 sm:gap-x-5 sm:text-sm">
+            <span className="inline-flex items-center gap-1">📖 {subjectTheme.label}</span>
+            <span className="inline-flex items-center gap-1">📋 {typeTheme.label}</span>
+            <span className="inline-flex items-center gap-1"><StarIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" /> {Number(game.points) || 0} pts</span>
+          </div>
+
+          <HeroCTA
+            gameId={game.id}
+            playedToday={playedToday}
+            streakLine={streakLine}
+            gradeLabel={hideGrade ? null : game.grade ? `Grade ${game.grade}` : null}
+          />
+        </div>
+
+        {/* Tablet+ mascot lives in its own column. */}
+        <div className="hidden sm:block">
+          <HeroMascot emoji={mascot.emoji} label={mascot.name} variant="inline" />
+        </div>
       </div>
-
-      <HeroCTA
-        gameId={game.id}
-        playedToday={playedToday}
-        streakLine={streakLine}
-        gradeLabel={hideGrade ? null : game.grade ? `Grade ${game.grade}` : null}
-      />
     </section>
   )
 }
 
-function HeroMascot({ emoji, label }) {
+function HeroMascot({ emoji, label, variant = 'float' }) {
+  if (variant === 'inline') {
+    return (
+      <div
+        role="img"
+        aria-label={label}
+        className="relative grid h-36 w-36 place-items-center rounded-full border-2 border-slate-900 bg-white text-[88px] leading-none shadow-[0_2px_0_#0F1B2D] lg:h-44 lg:w-44 lg:text-[110px]"
+      >
+        <span aria-hidden="true" className="absolute -left-2 -top-3 text-[24px] lg:text-[28px]">⭐</span>
+        <span aria-hidden="true" className="absolute -bottom-1 -right-1 text-[20px] lg:text-[22px]">✨</span>
+        <span aria-hidden="true" className="zx-hero-bob inline-block">{emoji}</span>
+      </div>
+    )
+  }
+
   return (
     <div
       role="img"
