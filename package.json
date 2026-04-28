@@ -18,13 +18,20 @@
     "prepare": "husky",
     "deploy:firebase:functions": "npx -y firebase-tools@latest deploy --only functions",
     "deploy:firebase:firestore": "npx -y firebase-tools@latest deploy --only firestore",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "android:sync": "vite build && cap sync android",
+    "android:open": "cap open android",
+    "android:run": "vite build && cap run android",
+    "android:apk:debug": "npm run android:sync && cd android && ./gradlew assembleDebug",
+    "android:apk:release": "npm run android:sync && cd android && ./gradlew assembleRelease"
   },
   "lint-staged": {
     "src/**/*.{js,jsx}": "eslint --fix",
     "*.{js,jsx,mjs,cjs,ts,tsx,json,md,mdx,html,css,scss}": "node scripts/check-file-integrity.mjs"
   },
   "dependencies": {
+    "@capacitor/android": "^7.6.2",
+    "@capacitor/core": "^7.6.2",
     "@heroicons/react": "^2.2.0",
     "@tiptap/core": "^3.22.3",
     "@tiptap/extension-color": "^3.22.3",
@@ -54,6 +61,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@capacitor/cli": "^7.6.2",
     "@eslint/js": "^9.39.4",
     "@vitejs/plugin-react": "^4.2.0",
     "autoprefixer": "^10.4.16",

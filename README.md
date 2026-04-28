@@ -120,6 +120,43 @@ Useful npm scripts:
 | `npm run deploy:firebase:functions` | Deploy only Cloud Functions (use when backend code changes but the app doesn't need a release) |
 | `npm run deploy:firebase:firestore` | Deploy Firestore rules + indexes |
 
+## Android wrapper (Capacitor) + Firebase App Distribution
+
+The web app is wrapped with [Capacitor](https://capacitorjs.com) so we can ship pre-release Android builds to testers via [Firebase App Distribution](https://firebase.google.com/docs/app-distribution). Config lives in [`capacitor.config.json`](./capacitor.config.json) (`appId: com.zedexams.app`) and the generated native project is in [`android/`](./android).
+
+### Prerequisites (one-time)
+
+- **JDK 21** and **Android SDK 35+** — easiest via [Android Studio](https://developer.android.com/studio).
+- `firebase-tools` (already used by the project) for App Distribution uploads.
+- An Android app registered in the Firebase console under *App Distribution* — copy its App ID (looks like `1:123…:android:abc…`).
+
+### Build a debug APK
+
+```bash
+npm run android:apk:debug
+# → android/app/build/outputs/apk/debug/app-debug.apk
+```
+
+`android:apk:debug` runs `vite build`, syncs `dist/` into the Android project, and shells into Gradle. Use `npm run android:open` to inspect or run on an emulator from Android Studio, or `npm run android:run` to launch on a connected device.
+
+### Upload to App Distribution
+
+```bash
+npx -y firebase-tools@latest appdistribution:distribute \
+  android/app/build/outputs/apk/debug/app-debug.apk \
+  --app <FIREBASE_ANDROID_APP_ID> \
+  --groups testers \
+  --release-notes "Capacitor wrapper smoke test"
+```
+
+For release-signed builds run `npm run android:apk:release` after configuring a keystore in `android/app/build.gradle` (`signingConfigs.release`).
+
+### Known caveats before wider beta
+
+- **Auth persistence** — `src/firebase/config.js` uses `browserSessionPersistence`, which logs the user out every time the wrapper is killed. Switch to `indexedDBLocalPersistence` for the native shell only (detect via `Capacitor.isNativePlatform()`).
+- **Google sign-in** — popup auth doesn't work in Android WebView. Use `signInWithRedirect` or the [`@capacitor-firebase/authentication`](https://github.com/capawesome-team/capacitor-firebase) plugin.
+- **App Check** — the web reCAPTCHA provider won't work in the WebView. Configure the Play Integrity provider on the Android app before enabling enforcement on Firebase AI Logic / Functions.
+
 ## Testing & linting
 
 ```bash

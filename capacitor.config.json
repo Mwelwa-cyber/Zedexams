@@ -1,0 +1,11 @@
+{
+  "appId": "com.zedexams.app",
+  "appName": "ZedExams",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false
+  },
+  "server": {
+    "androidScheme": "https"
+  }
+}

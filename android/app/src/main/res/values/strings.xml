@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">ZedExams</string>
+    <string name="title_activity_main">ZedExams</string>
+    <string name="package_name">com.zedexams.app</string>
+    <string name="custom_url_scheme">com.zedexams.app</string>
+</resources>
