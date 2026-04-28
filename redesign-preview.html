@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>ZedExams — Redesign</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/@lottiefiles/dotlottie-wc@0.6.2/dist/dotlottie-wc.js" type="module"></script>
+<style>
+  :root{
+    --bg: #FAF6EC;
+    --ink: #0F1B2D;
+    --ink-soft: #4A5568;
+    --line: #1a2440;
+    --paper: #FFFFFF;
+    --brand: #0E5E70;     /* deep teal — calm primary */
+    --brand-ink: #053541;
+    --accent: #FF7A1A;    /* punchy orange (the logo) */
+    --math: #F97316;
+    --english: #2563EB;
+    --science: #16A34A;
+    --social: #EAB308;
+    --shadow: 0 2px 0 var(--ink);
+    --shadow-lg: 0 6px 0 var(--ink);
+    --radius: 22px;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color: transparent;}
+  html,body{margin:0; padding:0;}
+  body{
+    font-family: 'Nunito', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    font-weight: 600;
+    line-height: 1.4;
+    overflow-x: hidden;
+    background-image:
+      radial-gradient(circle at 12% 8%, rgba(255,122,26,.10) 0%, transparent 40%),
+      radial-gradient(circle at 92% 32%, rgba(14,94,112,.10) 0%, transparent 38%),
+      radial-gradient(circle at 50% 90%, rgba(234,179,8,.08) 0%, transparent 45%);
+    background-attachment: fixed;
+  }
+  .display{font-family:'Fredoka', sans-serif; letter-spacing:-0.01em;}
+  .app{
+    max-width: 440px;
+    margin: 0 auto;
+    padding: 14px 18px 96px;
+    position: relative;
+  }
+
+  /* ===== Top bar ===== */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom: 18px;
+  }
+  .brand{display:flex; align-items:center; gap:10px;}
+  .brand-mark{
+    width:42px; height:42px; border-radius:12px;
+    background: linear-gradient(135deg, #FF9A3E, #FF6A1A);
+    display:grid; place-items:center;
+    border: 2px solid var(--ink);
+    box-shadow: var(--shadow);
+    color:white;
+    font-family:'Fredoka', sans-serif; font-weight:700; font-size:22px;
+  }
+  .brand-name{font-family:'Fredoka', sans-serif; font-weight:700; font-size:20px;}
+  .brand-tag{font-size:10.5px; color:var(--ink-soft); letter-spacing:0.14em; text-transform:uppercase; margin-top:-2px;}
+  .icon-btn{
+    width:42px; height:42px; border-radius:12px;
+    background: var(--paper);
+    border:2px solid var(--ink);
+    box-shadow: var(--shadow);
+    display:grid; place-items:center;
+    cursor:pointer;
+  }
+
+  /* ===== Stats strip (was: 4 huge cards) ===== */
+  .stats-strip{
+    background: var(--ink);
+    color: white;
+    border-radius: 18px;
+    padding: 10px 14px;
+    display:flex; align-items:center; justify-content:space-between;
+    border:2px solid var(--ink);
+    box-shadow: var(--shadow);
+    margin-bottom: 22px;
+  }
+  .stat{display:flex; align-items:center; gap:8px;}
+  .stat-val{font-family:'Fredoka', sans-serif; font-weight:700; font-size:18px; line-height:1;}
+  .stat-label{font-size:10px; text-transform:uppercase; letter-spacing:0.12em; opacity:0.65;}
+  .stat-emoji{font-size:18px;}
+  .stat-divider{width:1px; height:22px; background: rgba(255,255,255,0.2);}
+
+  /* ===== Section heads ===== */
+  .section{margin-bottom: 28px;}
+  .section-head{
+    display:flex; align-items:flex-end; justify-content:space-between;
+    margin-bottom: 12px;
+  }
+  .eyebrow{
+    display:inline-flex; align-items:center; gap:6px;
+    font-size:10.5px; letter-spacing:0.16em; text-transform:uppercase;
+    color: var(--brand-ink); font-weight:800;
+  }
+  .eyebrow::before{content:''; width:18px; height:2px; background:var(--accent); border-radius:2px;}
+  h2.section-title{
+    font-family:'Fredoka', sans-serif; font-weight:700;
+    font-size: 26px;
+    margin: 4px 0 0; line-height:1.05;
+  }
+  .see-all{
+    font-size:12px; color: var(--brand); font-weight:800;
+    text-decoration: none; display:flex; align-items:center; gap:4px;
+  }
+
+  /* ===== Daily Challenge HERO ===== */
+  .hero{
+    position: relative;
+    background: var(--brand);
+    color: white;
+    border-radius: 26px;
+    padding: 22px 22px 20px;
+    border: 2px solid var(--ink);
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+    margin-bottom: 28px;
+  }
+  .hero::before{
+    content:''; position:absolute; inset:0;
+    background-image:
+      radial-gradient(circle at 88% 14%, rgba(255,255,255,0.14) 0, transparent 28%),
+      radial-gradient(circle at 12% 95%, rgba(255,154,62,0.32) 0, transparent 38%);
+    pointer-events:none;
+  }
+  .hero-row{display:flex; align-items:flex-start; justify-content:space-between; position:relative; gap:12px;}
+  .hero-tag{
+    display:inline-flex; align-items:center; gap:6px;
+    background: var(--accent);
+    color:white;
+    border:2px solid var(--ink);
+    font-family:'Fredoka', sans-serif; font-weight:600;
+    font-size:11.5px; letter-spacing:0.08em; text-transform:uppercase;
+    padding: 5px 10px; border-radius: 100px;
+    box-shadow: 0 2px 0 var(--ink);
+  }
+  .hero-timer{
+    font-size:11px; opacity:0.85; font-variant-numeric: tabular-nums;
+    display:flex; align-items:center; gap:5px;
+  }
+  .hero-meta{display:flex; gap:14px; margin-top:14px; font-size:11.5px; opacity:0.85;}
+  .hero-meta span{display:flex; align-items:center; gap:5px;}
+  h1.hero-title{
+    font-family:'Fredoka', sans-serif; font-weight:700;
+    font-size: 38px; line-height: 0.95;
+    margin: 14px 0 6px;
+    letter-spacing: -0.02em;
+  }
+  .hero-sub{font-size:14px; opacity:0.88; max-width: 230px;}
+  .hero-mascot{
+    position: absolute;
+    right: -8px; top: 38px;
+    width: 124px; height: 124px;
+    background: white;
+    border: 2px solid var(--ink);
+    border-radius: 50%;
+    display:grid; place-items:center;
+    font-size: 70px;
+    box-shadow: var(--shadow);
+    transform: rotate(6deg);
+  }
+  .hero-mascot::after{
+    content:'⭐'; position:absolute; top:-10px; left:-6px; font-size:22px;
+  }
+  .hero-mascot::before{
+    content:'✨'; position:absolute; bottom:-2px; right:-2px; font-size:18px;
+  }
+  .hero-cta{
+    margin-top: 18px;
+    display:flex; align-items:center; gap:12px;
+    position: relative;
+  }
+  .play-btn{
+    background: var(--accent);
+    color: white;
+    border: 2px solid var(--ink);
+    border-radius: 100px;
+    padding: 13px 22px;
+    font-family:'Fredoka', sans-serif; font-weight:700;
+    font-size: 16px;
+    box-shadow: var(--shadow);
+    cursor:pointer;
+    display:flex; align-items:center; gap:8px;
+    transition: transform .15s ease, box-shadow .15s ease;
+  }
+  .play-btn:active{transform: translateY(2px); box-shadow: 0 0 0 var(--ink);}
+  .play-streak{
+    display:flex; align-items:center; gap:6px;
+    font-size:12px; font-weight:700; opacity:0.92;
+  }
+
+  /* ===== Subjects grid ===== */
+  .subjects{
+    display:grid; grid-template-columns: 1fr 1fr; gap: 14px;
+  }
+  .subject{
+    position:relative;
+    background: var(--paper);
+    border:2px solid var(--ink);
+    border-radius: var(--radius);
+    padding: 18px 16px 16px;
+    box-shadow: var(--shadow);
+    overflow:hidden;
+    cursor: pointer;
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .subject:active{transform: translateY(2px); box-shadow: 0 0 0 var(--ink);}
+  .subject .pill{
+    position:absolute; top:12px; right:12px;
+    background: var(--ink); color:white;
+    border-radius:100px;
+    font-size:9.5px; font-weight:800; letter-spacing:0.08em;
+    padding: 4px 8px;
+    text-transform:uppercase;
+  }
+  .subject-mascot{
+    width: 64px; height:64px; border-radius:18px;
+    display:grid; place-items:center;
+    font-size: 38px;
+    border: 2px solid var(--ink);
+    margin-bottom: 12px;
+  }
+  .subject-name{
+    font-family:'Fredoka', sans-serif; font-weight:700;
+    font-size: 19px; line-height:1; margin:0 0 4px;
+  }
+  .subject-meta{
+    font-size: 11.5px; color: var(--ink-soft); margin-bottom: 12px;
+  }
+  .progress-track{
+    height: 8px; border-radius:100px; background:#EFE9DB;
+    border:1.5px solid var(--ink);
+    overflow:hidden;
+  }
+  .progress-fill{height:100%; border-radius:100px;}
+  .progress-row{display:flex; justify-content:space-between; align-items:center; margin-top:6px;}
+  .progress-pct{font-size:11px; font-weight:800;}
+  .progress-games{font-size:10.5px; color: var(--ink-soft); text-transform:uppercase; letter-spacing:0.06em;}
+
+  /* subject color variants */
+  .s-math .subject-mascot{background:#FFE3CC;}
+  .s-math .progress-fill{background:var(--math);}
+  .s-eng  .subject-mascot{background:#DBE7FF;}
+  .s-eng  .progress-fill{background:var(--english);}
+  .s-sci  .subject-mascot{background:#D2F0DC;}
+  .s-sci  .progress-fill{background:var(--science);}
+  .s-soc  .subject-mascot{background:#FFF1B8;}
+  .s-soc  .progress-fill{background:var(--social);}
+
+  /* ===== Hot games scroller ===== */
+  .scroller{
+    display:flex; gap:14px; overflow-x:auto;
+    padding: 4px 18px 14px;
+    margin: 0 -18px;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .scroller::-webkit-scrollbar{display:none;}
+  .game-card{
+    flex: 0 0 230px;
+    scroll-snap-align: start;
+    background: var(--paper);
+    border:2px solid var(--ink);
+    border-radius: var(--radius);
+    padding: 16px;
+    box-shadow: var(--shadow);
+    position:relative;
+    display:flex; flex-direction:column;
+  }
+  .game-card .badge{
+    position:absolute; top:12px; right:12px;
+    font-size:9.5px; font-weight:800; letter-spacing:0.08em;
+    padding:4px 8px; border-radius:100px;
+    background: var(--accent); color:white;
+    border:1.5px solid var(--ink);
+  }
+  .game-card .badge.new{background: var(--english);}
+  .game-icon{
+    width: 44px; height:44px; border-radius:12px;
+    background: #F4EEDD; border:2px solid var(--ink);
+    display:grid; place-items:center; font-size:22px;
+    margin-bottom: 12px;
+  }
+  .game-subj{
+    font-size:10.5px; letter-spacing:0.1em; text-transform:uppercase;
+    font-weight: 800; color: var(--brand-ink);
+    margin-bottom: 4px;
+  }
+  .game-title{
+    font-family:'Fredoka', sans-serif; font-weight:700;
+    font-size: 18px; line-height:1.05; margin: 0 0 6px;
+  }
+  .game-desc{font-size:12px; color: var(--ink-soft); margin-bottom:12px; min-height: 32px;}
+  .game-meta{
+    display:flex; gap:10px; font-size:11px; color: var(--ink-soft);
+    margin-top: auto;
+    padding-top: 10px;
+    border-top: 1.5px dashed #D8D0BC;
+  }
+  .game-meta span{display:flex; align-items:center; gap:4px;}
+
+  /* ===== Badges strip ===== */
+  .badges-strip{
+    display:flex; gap:10px; overflow-x:auto;
+    padding-bottom: 6px; margin: 0 -18px;
+    padding-left:18px; padding-right:18px;
+    scrollbar-width:none;
+  }
+  .badges-strip::-webkit-scrollbar{display:none;}
+  .badge-card{
+    flex: 0 0 auto;
+    background: var(--paper);
+    border: 2px solid var(--ink);
+    border-radius: 18px;
+    padding: 10px 12px 10px 10px;
+    display:flex; align-items:center; gap:10px;
+    box-shadow: var(--shadow);
+    min-width: 178px;
+  }
+  .badge-card.locked{opacity: 0.5;}
+  .medal{
+    width:40px; height:40px; border-radius:12px;
+    display:grid; place-items:center; font-size:20px;
+    border:2px solid var(--ink);
+  }
+  .medal.bronze{background:#F0C690;}
+  .medal.silver{background:#D8D8E0;}
+  .medal.gold{background:#FFD964;}
+  .badge-name{font-family:'Fredoka', sans-serif; font-weight:600; font-size:13px; line-height:1;}
+  .badge-tier{font-size:9.5px; letter-spacing:0.1em; text-transform:uppercase; color: var(--ink-soft); margin-top:3px; font-weight:700;}
+
+  /* ===== Bottom nav ===== */
+  .tabbar{
+    position: fixed; bottom: 12px; left: 50%; transform: translateX(-50%);
+    background: var(--ink);
+    border-radius: 100px;
+    display:flex; gap:4px;
+    padding: 6px;
+    box-shadow: 0 6px 0 rgba(0,0,0,0.18), 0 12px 30px rgba(0,0,0,0.18);
+    z-index: 50;
+  }
+  .tab{
+    width: 52px; height:48px; border-radius:100px;
+    display:grid; place-items:center;
+    color: rgba(255,255,255,0.55);
+    font-size: 22px;
+    cursor:pointer;
+    transition: background .2s ease, color .2s ease;
+  }
+  .tab.active{background: var(--accent); color: white;}
+
+  /* tiny inline icons */
+  .ico{display:inline-flex; vertical-align:middle;}
+
+  /* ===== Motion (CSS placeholders for Lottie slots) ===== */
+  @keyframes bob {
+    0%,100%{ transform: translateY(0) rotate(0deg); }
+    50%   { transform: translateY(-6px) rotate(-3deg); }
+  }
+  @keyframes wiggle {
+    0%,100%{ transform: rotate(0deg); }
+    25%   { transform: rotate(-6deg); }
+    75%   { transform: rotate(6deg); }
+  }
+  @keyframes flicker {
+    0%,100%{ transform: scale(1) rotate(-2deg); filter: drop-shadow(0 0 4px rgba(255,140,0,0.4)); }
+    50%   { transform: scale(1.15) rotate(2deg); filter: drop-shadow(0 0 8px rgba(255,140,0,0.7)); }
+  }
+  @keyframes pulse {
+    0%,100%{ transform: scale(1); }
+    50%   { transform: scale(1.04); }
+  }
+  @keyframes confetti-fall {
+    0%   { transform: translateY(-20px) rotate(0deg);   opacity: 1; }
+    100% { transform: translateY(180px) rotate(720deg); opacity: 0; }
+  }
+  .mascot-emoji{ display:inline-block; }
+  .bob{ animation: bob 2.4s ease-in-out infinite; }
+  .subject:hover .subject-mascot > .mascot-emoji,
+  .subject:active .subject-mascot > .mascot-emoji{ animation: wiggle 0.5s ease-in-out; }
+  .flame{ display:inline-block; animation: flicker 1.4s ease-in-out infinite; }
+  .play-btn{ animation: pulse 2s ease-in-out infinite; }
+
+  /* Confetti burst when Play is tapped */
+  .confetti-host{ position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+  .confetti-piece{
+    position:absolute; top:-12px;
+    width:8px; height:14px; border-radius:2px;
+    animation: confetti-fall 1.2s ease-out forwards;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Top bar -->
+  <header class="topbar">
+    <div class="brand">
+      <div class="brand-mark">Z</div>
+      <div>
+        <div class="brand-name">ZedExams</div>
+        <div class="brand-tag">Play • Learn • Level up</div>
+      </div>
+    </div>
+    <button class="icon-btn" aria-label="Sound">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#0F1B2D" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+    </button>
+  </header>
+
+  <!-- Stats strip (replaces 4 giant cards) -->
+  <div class="stats-strip">
+    <div class="stat">
+      <span class="stat-emoji">⚡</span>
+      <div>
+        <div class="stat-val">Lv 9</div>
+        <div class="stat-label">Level</div>
+      </div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat">
+      <span class="stat-emoji flame">🔥</span>
+      <div>
+        <div class="stat-val">1 day</div>
+        <div class="stat-label">Streak</div>
+      </div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat">
+      <span class="stat-emoji">⭐</span>
+      <div>
+        <div class="stat-val">968</div>
+        <div class="stat-label">Points</div>
+      </div>
+    </div>
+    <div class="stat-divider"></div>
+    <div class="stat">
+      <span class="stat-emoji">🏆</span>
+      <div>
+        <div class="stat-val">#2</div>
+        <div class="stat-label">Rank</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Daily Challenge HERO -->
+  <section class="hero">
+    <div class="hero-row">
+      <span class="hero-tag">✨ Daily Challenge</span>
+      <span class="hero-timer">⏱ Refresh in 03:14:34</span>
+    </div>
+
+    <h1 class="hero-title display">Spell<br/>It Right</h1>
+    <p class="hero-sub">Pick the correct spelling of simple everyday words.</p>
+
+    <div class="hero-mascot"><span class="mascot-emoji bob">🦉</span></div>
+
+    <div class="hero-meta">
+      <span>📖 English</span>
+      <span>📋 Quiz</span>
+      <span>⭐ 10 pts</span>
+    </div>
+
+    <div class="hero-cta">
+      <button class="play-btn" onclick="celebrate(this)">Play now ▸</button>
+      <span class="play-streak">🔥 Keep your 1-day streak alive</span>
+    </div>
+    <div class="confetti-host" id="confettiHost"></div>
+  </section>
+
+  <script>
+    function celebrate(btn){
+      const host = document.getElementById('confettiHost');
+      if(!host) return;
+      const colors = ['#FF7A1A','#0E5E70','#EAB308','#16A34A','#2563EB','#FFFFFF'];
+      for(let i=0; i<28; i++){
+        const p = document.createElement('span');
+        p.className = 'confetti-piece';
+        p.style.left = (Math.random()*100) + '%';
+        p.style.background = colors[i % colors.length];
+        p.style.animationDelay = (Math.random()*0.25) + 's';
+        p.style.transform = `rotate(${Math.random()*360}deg)`;
+        host.appendChild(p);
+        setTimeout(()=> p.remove(), 1500);
+      }
+    }
+  </script>
+
+  <!-- Subjects -->
+  <section class="section">
+    <div class="section-head">
+      <div>
+        <span class="eyebrow">Subjects</span>
+        <h2 class="section-title">Pick your quest</h2>
+      </div>
+      <a class="see-all" href="#">All ›</a>
+    </div>
+
+    <div class="subjects">
+      <div class="subject s-math">
+        <span class="pill">8 games</span>
+        <div class="subject-mascot"><span class="mascot-emoji">🦊</span></div>
+        <h3 class="subject-name">Mathematics</h3>
+        <div class="subject-meta">Maths Fox</div>
+        <div class="progress-track"><div class="progress-fill" style="width:25%"></div></div>
+        <div class="progress-row">
+          <span class="progress-pct">25%</span>
+          <span class="progress-games">2 of 8 played</span>
+        </div>
+      </div>
+
+      <div class="subject s-eng">
+        <span class="pill">10 games</span>
+        <div class="subject-mascot"><span class="mascot-emoji">🦉</span></div>
+        <h3 class="subject-name">English</h3>
+        <div class="subject-meta">Story Owl</div>
+        <div class="progress-track"><div class="progress-fill" style="width:20%"></div></div>
+        <div class="progress-row">
+          <span class="progress-pct">20%</span>
+          <span class="progress-games">2 of 10 played</span>
+        </div>
+      </div>
+
+      <div class="subject s-sci">
+        <span class="pill">2 games</span>
+        <div class="subject-mascot"><span class="mascot-emoji">🐢</span></div>
+        <h3 class="subject-name">Science</h3>
+        <div class="subject-meta">Science Turtle</div>
+        <div class="progress-track"><div class="progress-fill" style="width:100%"></div></div>
+        <div class="progress-row">
+          <span class="progress-pct">100% ✓</span>
+          <span class="progress-games">2 of 2 done</span>
+        </div>
+      </div>
+
+      <div class="subject s-soc">
+        <span class="pill">4 games</span>
+        <div class="subject-mascot"><span class="mascot-emoji">🦁</span></div>
+        <h3 class="subject-name">Social Studies</h3>
+        <div class="subject-meta">Adventure Lion</div>
+        <div class="progress-track"><div class="progress-fill" style="width:100%"></div></div>
+        <div class="progress-row">
+          <span class="progress-pct">100% ✓</span>
+          <span class="progress-games">5 plays · 4 of 4</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Hot games scroller -->
+  <section class="section">
+    <div class="section-head">
+      <div>
+        <span class="eyebrow">🔥 Hot right now</span>
+        <h2 class="section-title">Loved by players</h2>
+      </div>
+      <a class="see-all" href="#">All ›</a>
+    </div>
+
+    <div class="scroller">
+      <article class="game-card">
+        <span class="badge">Popular</span>
+        <div class="game-icon">📋</div>
+        <div class="game-subj">English</div>
+        <h3 class="game-title">Spell It Right</h3>
+        <p class="game-desc">Advanced spellings — silent letters, double consonants.</p>
+        <div class="game-meta">
+          <span>⏱ 100s</span>
+          <span>⭐ 15 pts</span>
+        </div>
+      </article>
+
+      <article class="game-card">
+        <span class="badge new">New</span>
+        <div class="game-icon" style="background:#FFF1B8;">🗺️</div>
+        <div class="game-subj">Social Studies</div>
+        <h3 class="game-title">Zambia Province Shapes</h3>
+        <p class="game-desc">Identify each Zambian province from its outline.</p>
+        <div class="game-meta">
+          <span>⏱ 90s</span>
+          <span>⭐ 15 pts</span>
+        </div>
+      </article>
+
+      <article class="game-card">
+        <span class="badge new">New</span>
+        <div class="game-icon" style="background:#FFE3CC;">🧮</div>
+        <div class="game-subj">Mathematics</div>
+        <h3 class="game-title">Decimal Drills</h3>
+        <p class="game-desc">Add, compare and round decimal numbers.</p>
+        <div class="game-meta">
+          <span>⏱ 90s</span>
+          <span>⭐ 12 pts</span>
+        </div>
+      </article>
+    </div>
+  </section>
+
+  <!-- Badges -->
+  <section class="section">
+    <div class="section-head">
+      <div>
+        <span class="eyebrow">🏆 Badges</span>
+        <h2 class="section-title">Collect them all</h2>
+      </div>
+      <a class="see-all" href="#">All ›</a>
+    </div>
+
+    <div class="badges-strip">
+      <div class="badge-card">
+        <div class="medal bronze">🎮</div>
+        <div>
+          <div class="badge-name">First Game</div>
+          <div class="badge-tier">Bronze</div>
+        </div>
+      </div>
+      <div class="badge-card">
+        <div class="medal silver">⭐</div>
+        <div>
+          <div class="badge-name">Centurion</div>
+          <div class="badge-tier">Silver</div>
+        </div>
+      </div>
+      <div class="badge-card locked">
+        <div class="medal silver">🔥</div>
+        <div>
+          <div class="badge-name">On Fire</div>
+          <div class="badge-tier">Locked</div>
+        </div>
+      </div>
+      <div class="badge-card locked">
+        <div class="medal gold">🎯</div>
+        <div>
+          <div class="badge-name">Sharp Shooter</div>
+          <div class="badge-tier">Locked</div>
+        </div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<!-- Floating bottom nav -->
+<nav class="tabbar">
+  <div class="tab active" title="Home">🏠</div>
+  <div class="tab" title="Games">🎮</div>
+  <div class="tab" title="Leaderboard">🏆</div>
+  <div class="tab" title="Profile">👤</div>
+</nav>
+
+</body>
+</html>

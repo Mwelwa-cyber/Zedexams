@@ -1,24 +1,21 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
   ClockIcon,
-  FireIcon,
   PlayIcon,
   SparklesIcon,
   StarIcon,
-  TrophyIcon,
 } from '@heroicons/react/24/solid'
-import { gradeByValue } from '../../utils/gamesService'
 import {
-  MetaPill,
   getGameTypeTheme,
   getSubjectMascot,
   getSubjectTheme,
 } from './gamesUi'
 
 /**
- * Featured hero for the Games hub. Purely presentational — the data is
- * loaded by GamesHub so we can reuse it across stats and recommendations.
+ * Featured hero for the Games hub. Mockup-faithful teal slab with an orange
+ * "Play now" pill, mascot circle, and on-tap confetti burst. Data is
+ * loaded by GamesHub so this component stays purely presentational.
  */
 export default function DailyChallengeCard({ challenge, streak, loading, hideGrade = false }) {
   const [timeLeft, setTimeLeft] = useState(() => formatCountdown(getMsUntilNextUtcMidnight()))
@@ -34,190 +31,177 @@ export default function DailyChallengeCard({ challenge, streak, loading, hideGra
   if (!challenge?.game) return null
 
   const game = challenge.game
-  const grade = hideGrade ? null : gradeByValue(game.grade)
   const subjectTheme = getSubjectTheme(game.subject)
   const typeTheme = getGameTypeTheme(game.type)
+  const mascot = getSubjectMascot(game.subject)
   const playedToday = streak?.lastPlayedDate === challenge.dateId
+  const streakLine = buildStreakLine(streak, playedToday)
 
   return (
-    <section className={`relative mb-10 overflow-hidden rounded-[20px] border ${subjectTheme.border} bg-gradient-to-br ${subjectTheme.gradient} p-6 shadow-[0_28px_80px_-36px_rgba(15,23,42,0.28)] sm:p-8`}>
-      <div className="absolute inset-y-0 right-0 w-48 bg-[radial-gradient(circle_at_top_right,_rgba(255,255,255,0.8),_transparent_64%)]" />
-      <div className="absolute -top-12 right-10 h-36 w-36 rounded-full bg-white/35 blur-3xl" />
-      <div className="absolute bottom-0 left-0 h-32 w-32 rounded-full bg-white/25 blur-3xl" />
+    <section
+      className="zx-hero relative overflow-hidden rounded-[26px] border-2 border-slate-900 bg-[#0E5E70] p-5 text-white shadow-[0_6px_0_#0F1B2D]"
+    >
+      <div
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0"
+        style={{
+          backgroundImage:
+            'radial-gradient(circle at 88% 14%, rgba(255,255,255,0.14) 0, transparent 28%), radial-gradient(circle at 12% 95%, rgba(255,154,62,0.32) 0, transparent 38%)',
+        }}
+      />
 
-      <div className="relative grid gap-8 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.9fr)] lg:items-center">
-        <div>
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-2 rounded-full bg-white/88 px-4 py-2 text-[11px] font-black uppercase tracking-[0.22em] text-slate-700">
-              <SparklesIcon className="h-4 w-4 text-amber-500" />
-              Daily challenge
-            </span>
-            <span className="inline-flex items-center gap-2 rounded-full bg-white/70 px-3 py-1.5 text-xs font-bold text-slate-600">
-              <ClockIcon className="h-4 w-4" />
-              Refreshes in {timeLeft}
-            </span>
-          </div>
-
-          <div className="mt-5 flex flex-wrap gap-2">
-            {grade && <MetaPill icon={SparklesIcon} label={grade.label} />}
-            <MetaPill icon={subjectTheme.icon} label={subjectTheme.label} />
-            <MetaPill icon={typeTheme.icon} label={typeTheme.label} />
-            <MetaPill icon={StarIcon} label={`${Number(game.points) || 0} pts`} />
-          </div>
-
-          <h1 className="mt-5 max-w-2xl text-3xl font-black tracking-tight text-slate-900 sm:text-4xl lg:text-[2.8rem] lg:leading-[1.02]">
-            {game.title}
-          </h1>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-slate-700 sm:text-lg">
-            {game.description}
-          </p>
-
-          <div className="mt-6 grid gap-3 sm:grid-cols-2">
-            <StatusCard
-              icon={FireIcon}
-              title={streak?.signedIn ? `${streak.streak || 0}-day streak 🔥` : 'Start a streak!'}
-              description={
-                streak?.signedIn
-                  ? playedToday
-                    ? 'Nice work today! See you tomorrow.'
-                    : streak?.streak
-                      ? `One win keeps your ${streak.streak}-day fire alive!`
-                      : 'Win today to start your streak!'
-                  : 'Sign in to save your wins and streaks.'
-              }
-            />
-            <StatusCard
-              icon={TrophyIcon}
-              title={playedToday ? 'Done for today! ✅' : 'Today’s game!'}
-              description={
-                playedToday
-                  ? 'Play again to beat your best time!'
-                  : 'Win to earn points and badges!'
-              }
-            />
-          </div>
-
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <Link
-              to={`/games/play/${game.id}`}
-              className={`inline-flex items-center justify-center gap-2 rounded-full bg-gradient-to-b ${subjectTheme.strongGradient} px-5 py-3 text-sm font-black text-white ring-1 ring-white/40 shadow-[0_16px_30px_-12px_rgba(15,23,42,0.45),inset_0_1px_0_rgba(255,255,255,0.4)] transition hover:-translate-y-0.5 hover:shadow-[0_20px_36px_-14px_rgba(15,23,42,0.5),inset_0_1px_0_rgba(255,255,255,0.45)] active:translate-y-0 active:shadow-[0_10px_20px_-10px_rgba(15,23,42,0.4),inset_0_1px_0_rgba(255,255,255,0.3)] sm:text-base`}
-            >
-              <PlayIcon className="h-4 w-4" />
-              {playedToday ? 'Play again' : 'Play now'}
-            </Link>
-            <p className="text-sm font-medium text-slate-600">
-              {streak?.signedIn ? 'Scores save automatically after each finished round.' : 'You can play without signing in and save later.'}
-            </p>
-          </div>
-        </div>
-
-        <HeroArtwork subjectTheme={subjectTheme} mascot={getSubjectMascot(game.subject)} />
+      <div className="relative flex items-start justify-between gap-3">
+        <span className="inline-flex items-center gap-1.5 rounded-full border-2 border-slate-900 bg-[#FF7A1A] px-2.5 py-1 text-[11.5px] font-bold uppercase tracking-[0.08em] text-white shadow-[0_2px_0_#0F1B2D]">
+          <SparklesIcon className="h-3.5 w-3.5" />
+          Daily Challenge
+        </span>
+        <span className="inline-flex items-center gap-1 text-[11px] tabular-nums text-white/85">
+          <ClockIcon className="h-3.5 w-3.5" />
+          Refresh in {timeLeft}
+        </span>
       </div>
+
+      <h1 className="font-display relative mt-3.5 max-w-[230px] text-[38px] font-bold leading-[0.95] tracking-tight">
+        {game.title}
+      </h1>
+      {game.description && (
+        <p className="relative mt-1.5 max-w-[230px] text-[14px] font-semibold text-white/88">
+          {game.description}
+        </p>
+      )}
+
+      <HeroMascot emoji={mascot.emoji} label={mascot.name} />
+
+      <div className="relative mt-3.5 flex flex-wrap gap-x-3.5 gap-y-1 text-[11.5px] font-semibold text-white/85">
+        <span className="inline-flex items-center gap-1">📖 {subjectTheme.label}</span>
+        <span className="inline-flex items-center gap-1">📋 {typeTheme.label}</span>
+        <span className="inline-flex items-center gap-1"><StarIcon className="h-3.5 w-3.5" /> {Number(game.points) || 0} pts</span>
+      </div>
+
+      <HeroCTA
+        gameId={game.id}
+        playedToday={playedToday}
+        streakLine={streakLine}
+        gradeLabel={hideGrade ? null : game.grade ? `Grade ${game.grade}` : null}
+      />
     </section>
   )
 }
 
-function StatusCard({ icon, title, description }) {
-  const Icon = icon
-
+function HeroMascot({ emoji, label }) {
   return (
-    <div className="rounded-2xl bg-white/72 p-4 shadow-[0_18px_36px_-30px_rgba(15,23,42,0.25)] backdrop-blur-sm">
-      <div className="flex items-start gap-3">
-        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-slate-900 text-white">
-          <Icon className="h-5 w-5" />
-        </span>
-        <div>
-          <h2 className="text-sm font-black uppercase tracking-wide text-slate-900">{title}</h2>
-          <p className="mt-1 text-sm leading-6 text-slate-600">{description}</p>
-        </div>
-      </div>
+    <div
+      role="img"
+      aria-label={label}
+      className="absolute right-[-8px] top-[42px] grid h-[124px] w-[124px] place-items-center rounded-full border-2 border-slate-900 bg-white text-[70px] leading-none shadow-[0_2px_0_#0F1B2D]"
+      style={{ transform: 'rotate(6deg)' }}
+    >
+      <span aria-hidden="true" className="absolute -left-1.5 -top-2.5 text-[22px]">⭐</span>
+      <span aria-hidden="true" className="absolute -bottom-0.5 -right-0.5 text-[18px]">✨</span>
+      <span aria-hidden="true" className="zx-hero-bob inline-block">{emoji}</span>
     </div>
   )
 }
 
-function HeroArtwork({ subjectTheme, mascot }) {
+function HeroCTA({ gameId, playedToday, streakLine, gradeLabel }) {
+  const hostRef = useRef(null)
+  const linkRef = useRef(null)
+
+  function celebrate() {
+    const host = hostRef.current
+    if (!host) return
+    const colors = ['#FF7A1A', '#0E5E70', '#EAB308', '#16A34A', '#2563EB', '#FFFFFF']
+    for (let i = 0; i < 28; i += 1) {
+      const piece = document.createElement('span')
+      piece.className = 'zx-confetti-piece'
+      piece.style.left = `${Math.random() * 100}%`
+      piece.style.background = colors[i % colors.length]
+      piece.style.animationDelay = `${Math.random() * 0.25}s`
+      piece.style.transform = `rotate(${Math.random() * 360}deg)`
+      host.appendChild(piece)
+      setTimeout(() => piece.remove(), 1500)
+    }
+  }
+
   return (
-    <div className="zx-hero-mascot relative mx-auto hidden w-full max-w-[23rem] items-center justify-center self-stretch lg:flex">
-      <div className={`absolute inset-8 rounded-full bg-gradient-to-br ${subjectTheme.strongGradient} opacity-25 blur-3xl`} />
-      <div className="relative aspect-[4/4.2] w-full overflow-hidden rounded-[28px] border-2 border-white/80 bg-white/85 p-6 shadow-[0_24px_70px_-34px_rgba(15,23,42,0.25)] backdrop-blur-xl">
-        <div aria-hidden="true" className="absolute -right-6 top-6 h-28 w-28 rounded-full bg-amber-200/55 blur-2xl" />
-        <div aria-hidden="true" className="absolute left-0 top-16 h-24 w-24 rounded-full bg-sky-200/40 blur-2xl" />
-        <div aria-hidden="true" className="absolute bottom-0 right-6 h-28 w-28 rounded-full bg-emerald-200/45 blur-2xl" />
-
-        <div className="relative flex h-full flex-col items-center justify-center gap-4 text-center">
-          {/* Sparkle particles around the mascot */}
-          <span aria-hidden="true" className="zx-spark zx-spark-1">✨</span>
-          <span aria-hidden="true" className="zx-spark zx-spark-2">⭐</span>
-          <span aria-hidden="true" className="zx-spark zx-spark-3">💫</span>
-
-          <span
-            role="img"
-            aria-label={mascot.name}
-            className="zx-hero-emoji relative inline-flex h-32 w-32 items-center justify-center rounded-full bg-white text-[5.2rem] leading-none ring-4 ring-white shadow-[0_22px_44px_-18px_rgba(15,23,42,0.4)]"
-          >
-            {mascot.emoji}
-          </span>
-          <div>
-            <p className="text-xl font-black text-slate-900">{mascot.name}</p>
-            <p className="mt-1 max-w-[16rem] text-sm font-medium text-slate-600">
-              {mascot.tagline}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 text-2xl" aria-hidden="true">
-            <span>⭐</span><span>🏆</span><span>🔥</span>
-          </div>
-        </div>
-      </div>
+    <div className="relative mt-4 flex flex-wrap items-center gap-3">
+      <Link
+        to={`/games/play/${gameId}`}
+        ref={linkRef}
+        onClick={celebrate}
+        className="zx-play-btn inline-flex items-center gap-1.5 rounded-full border-2 border-slate-900 bg-[#FF7A1A] px-5 py-3 text-[15px] font-bold text-white shadow-[0_2px_0_#0F1B2D] transition active:translate-y-[2px] active:shadow-none"
+      >
+        <PlayIcon className="h-4 w-4" />
+        {playedToday ? 'Play again' : 'Play now ▸'}
+      </Link>
+      {streakLine && (
+        <span className="text-[12px] font-bold text-white/92">{streakLine}</span>
+      )}
+      {gradeLabel && (
+        <span className="ml-auto rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.08em] text-white/85">
+          {gradeLabel}
+        </span>
+      )}
+      <div
+        ref={hostRef}
+        aria-hidden="true"
+        className="pointer-events-none absolute inset-0 overflow-hidden"
+      />
 
       <style>{`
-        .zx-hero-mascot .zx-hero-emoji {
-          animation: zx-hero-bob 5s ease-in-out infinite;
-          transform-origin: center;
+        @keyframes zx-confetti-fall {
+          0%   { transform: translateY(-20px) rotate(0deg);   opacity: 1; }
+          100% { transform: translateY(220px) rotate(720deg); opacity: 0; }
         }
-        @keyframes zx-hero-bob {
-          0%, 100% { transform: translateY(0) rotate(-3deg); }
-          50%      { transform: translateY(-8px) rotate(3deg); }
-        }
-        .zx-hero-mascot .zx-spark {
+        .zx-confetti-piece {
           position: absolute;
-          font-size: 1.5rem;
-          opacity: 0.7;
-          pointer-events: none;
-          animation: zx-spark-twinkle 3s ease-in-out infinite;
+          top: -12px;
+          width: 8px;
+          height: 14px;
+          border-radius: 2px;
+          animation: zx-confetti-fall 1.2s ease-out forwards;
         }
-        .zx-hero-mascot .zx-spark-1 { top: 14%; left: 18%; animation-delay: 0s; }
-        .zx-hero-mascot .zx-spark-2 { top: 22%; right: 16%; animation-delay: 1s; font-size: 1.25rem; }
-        .zx-hero-mascot .zx-spark-3 { bottom: 30%; left: 14%; animation-delay: 2s; font-size: 1.1rem; }
-        @keyframes zx-spark-twinkle {
-          0%, 100% { transform: scale(0.85); opacity: 0.35; }
-          50%      { transform: scale(1.1);  opacity: 0.85; }
+        @keyframes zx-pulse {
+          0%, 100% { transform: scale(1); }
+          50%      { transform: scale(1.04); }
         }
+        .zx-play-btn { animation: zx-pulse 2s ease-in-out infinite; }
+        @keyframes zx-hero-bob {
+          0%, 100% { transform: translateY(0) rotate(0deg); }
+          50%      { transform: translateY(-6px) rotate(-3deg); }
+        }
+        .zx-hero-bob { animation: zx-hero-bob 2.4s ease-in-out infinite; transform-origin: center; }
         @media (prefers-reduced-motion: reduce) {
-          .zx-hero-mascot .zx-hero-emoji,
-          .zx-hero-mascot .zx-spark { animation: none !important; }
+          .zx-play-btn, .zx-hero-bob { animation: none !important; }
         }
       `}</style>
     </div>
   )
 }
 
+function buildStreakLine(streak, playedToday) {
+  if (!streak?.signedIn) return 'Sign in to save your streak'
+  if (playedToday) return '🔥 Streak saved for today!'
+  const n = streak.streak || 0
+  if (n <= 0) return '🔥 Win once to start a streak'
+  return `🔥 Keep your ${n}-day streak alive`
+}
+
 function Skeleton() {
   return (
-    <section className="mb-10 overflow-hidden rounded-[20px] border border-amber-100 bg-gradient-to-br from-amber-100 via-orange-50 to-white p-6 sm:p-8">
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1.4fr)_minmax(280px,0.9fr)]">
-        <div className="space-y-4">
-          <div className="h-8 w-40 rounded-full bg-white/80 animate-pulse" />
-          <div className="h-6 w-52 rounded-full bg-white/70 animate-pulse" />
-          <div className="h-14 w-full max-w-xl rounded-3xl bg-white/70 animate-pulse" />
-          <div className="h-6 w-full max-w-2xl rounded-full bg-white/65 animate-pulse" />
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="h-28 rounded-2xl bg-white/70 animate-pulse" />
-            <div className="h-28 rounded-2xl bg-white/70 animate-pulse" />
-          </div>
-          <div className="h-12 w-40 rounded-full bg-white/80 animate-pulse" />
-        </div>
-        <div className="h-80 rounded-[28px] bg-white/75 animate-pulse" />
+    <section className="relative overflow-hidden rounded-[26px] border-2 border-slate-900 bg-[#0E5E70]/85 p-5 text-white shadow-[0_6px_0_#0F1B2D]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="h-7 w-36 animate-pulse rounded-full bg-white/25" />
+        <div className="h-4 w-28 animate-pulse rounded-full bg-white/20" />
       </div>
+      <div className="mt-4 h-10 w-2/3 animate-pulse rounded-2xl bg-white/25" />
+      <div className="mt-2 h-4 w-3/4 animate-pulse rounded-full bg-white/20" />
+      <div className="mt-3 flex gap-3">
+        <div className="h-4 w-16 animate-pulse rounded bg-white/20" />
+        <div className="h-4 w-16 animate-pulse rounded bg-white/20" />
+        <div className="h-4 w-16 animate-pulse rounded bg-white/20" />
+      </div>
+      <div className="mt-4 h-11 w-32 animate-pulse rounded-full bg-white/30" />
     </section>
   )
 }

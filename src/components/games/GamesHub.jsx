@@ -1,10 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import {
-  FireIcon,
-  SparklesIcon,
+  ClockIcon,
+  LockClosedIcon,
   StarIcon,
-  TrophyIcon,
 } from '@heroicons/react/24/solid'
 import { useAuth } from '../../contexts/AuthContext'
 import { GAME_BADGES } from '../../data/gameBadges'
@@ -20,19 +19,20 @@ import {
 import DailyChallengeCard from './DailyChallengeCard'
 import GamesShell from './GamesShell'
 import {
-  GameBadgeCard,
-  GameDiscoveryCard,
-  GamesSectionHeading,
-  ProgressBar,
-  SubjectProgressCard,
   buildSubjectProgress,
-  getGameStatusBadge,
+  getDurationLabel,
+  getGameTypeTheme,
+  getSubjectMascot,
 } from './gamesUi'
 
 /**
- * /games — main discovery hub for the public Games experience.
- * Keeps the existing read-only data flow and reorganises the UI around
- * challenge, progress, recommendations, and playful discovery.
+ * /games — playful mobile-first hub. Mockup-faithful 440px column with a
+ * dark stats strip, the daily challenge hero, a 2×2 subjects grid, and
+ * horizontal scrollers for hot games + badges.
+ *
+ * Data flow is unchanged: listGames + history + badges + streak +
+ * leaderboard, all via Promise.allSettled so a single Firestore failure
+ * never freezes the hub.
  */
 export default function GamesHub() {
   const { currentUser } = useAuth()
@@ -56,9 +56,6 @@ export default function GamesHub() {
 
     async function load() {
       setState((prev) => ({ ...prev, loading: true }))
-      // Use allSettled so a single Firestore failure (e.g. badges read denied,
-      // streak doc missing, leaderboard index still building) cannot freeze
-      // the whole hub on the loading skeleton.
       const results = await Promise.allSettled([
         listGames(),
         getTodaysChallenge(),
@@ -95,7 +92,6 @@ export default function GamesHub() {
       setState((prev) => ({ ...prev, leaderboardRows: [] }))
       return undefined
     }
-
     const unsub = subscribeToGlobalLeaderboard({ window: 'all', max: 25 }, (next) => {
       setState((prev) => ({ ...prev, leaderboardRows: next?.rows || [] }))
     })
@@ -104,277 +100,276 @@ export default function GamesHub() {
 
   const totalPoints = state.history.reduce((sum, row) => sum + (Number(row.score) || 0), 0)
   const level = Math.max(1, Math.floor(totalPoints / 120) + 1)
-  const levelProgress = Math.round(((totalPoints % 120) / 120) * 100)
   const currentRank = currentUser
     ? state.leaderboardRows.findIndex((row) => row.userId === currentUser.uid) + 1
     : 0
   const earnedBadgeIds = new Set(Object.keys(state.badgesById || {}))
-  const recommendedGames = buildRecommendedGames(state.games, state.challenge?.game, state.history)
-  const featuredGameId = recommendedGames[0]?.id || state.challenge?.game?.id || null
-  const popularGames = buildPopularGames(state.games, new Set(recommendedGames.map((game) => game.id)))
+  const hotGames = buildHotGames(state.games, state.history, state.challenge?.game)
 
   const subjectCards = SUBJECTS.map((subject) => {
     const progress = buildSubjectProgress(subject.slug, state.games, state.history)
-    return {
-      subject,
-      progress,
-      helperText: progress.totalGames
-        ? progress.plays
-          ? `${progress.plays} plays recorded across ${progress.totalGames} game${progress.totalGames === 1 ? '' : 's'}.`
-          : `Start here with ${progress.totalGames} game${progress.totalGames === 1 ? '' : 's'} ready to play.`
-        : 'This subject card is ready for the next game pack.',
-    }
+    return { subject, progress }
   })
+
+  const stats = [
+    { emoji: '⚡',  label: 'Level',  value: `Lv ${level}` },
+    { emoji: '🔥', label: 'Streak', value: `${state.streak.streak || 0} day${state.streak.streak === 1 ? '' : 's'}`, animate: 'flame' },
+    { emoji: '⭐', label: 'Points', value: totalPoints.toLocaleString() },
+    { emoji: '🏆', label: 'Rank',   value: currentUser ? (currentRank ? `#${currentRank}` : '—') : 'Guest' },
+  ]
 
   return (
     <GamesShell crumbs={[]}>
-      <DailyChallengeCard
-        challenge={state.challenge}
-        streak={state.streak}
-        loading={state.loading}
-        hideGrade
-      />
+      <RedesignStyles />
 
-      <section className="mb-10">
-        <div className="relative mb-6 overflow-hidden rounded-[28px] border-2 border-amber-100 bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 p-5 shadow-[0_18px_50px_-24px_rgba(251,146,60,0.45)] sm:p-6">
-          <div aria-hidden="true" className="absolute -top-10 -right-10 h-40 w-40 rounded-full bg-amber-200/40 blur-2xl" />
-          <div aria-hidden="true" className="absolute -bottom-10 -left-8 h-36 w-36 rounded-full bg-rose-200/40 blur-2xl" />
-          <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex items-center gap-4 sm:gap-5">
-              <div aria-hidden="true" className="flex h-16 w-16 shrink-0 items-center justify-center rounded-[22px] bg-gradient-to-br from-amber-400 to-orange-500 text-4xl shadow-[0_10px_26px_-8px_rgba(249,115,22,0.55)] sm:h-20 sm:w-20 sm:text-5xl">
-                🦁
+      <div className="mx-auto w-full max-w-[440px] space-y-7 pb-4">
+        {/* Stats strip */}
+        <section className="zx-card flex items-center justify-between rounded-[18px] bg-slate-900 px-3.5 py-2.5 text-white">
+          {stats.map((stat, i) => (
+            <div key={stat.label} className="flex items-center gap-2">
+              <span className={`text-lg leading-none ${stat.animate === 'flame' ? 'zx-flame' : ''}`}>{stat.emoji}</span>
+              <div className="leading-tight">
+                <div className="font-display text-[18px] font-bold leading-none">{stat.value}</div>
+                <div className="mt-0.5 text-[10px] uppercase tracking-[0.12em] text-white/65">{stat.label}</div>
               </div>
-              <div>
-                <h2 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
-                  {currentUser ? 'Welcome back, champion!' : 'Hey there, player!'}
-                </h2>
-                <p className="mt-1 text-sm font-medium text-slate-700 sm:text-base">
-                  Pick a game below. Tap. Play. Win. 🎉
-                </p>
-              </div>
+              {i < stats.length - 1 && <span aria-hidden="true" className="ml-2 hidden h-5 w-px bg-white/20 sm:block" />}
             </div>
-            <Link
-              to="/games/leaderboard"
-              className="inline-flex items-center justify-center gap-2 self-start rounded-full bg-white px-4 py-2.5 text-sm font-black text-slate-900 shadow-sm ring-2 ring-white transition hover:-translate-y-0.5 active:scale-[0.98] sm:self-auto"
-            >
-              <TrophyIcon className="h-4 w-4 text-amber-500" />
-              Leaderboard
-            </Link>
-          </div>
-        </div>
+          ))}
+        </section>
 
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <StatCard
-            icon={SparklesIcon}
-            title="Level"
-            value={`Lv ${level}`}
-            accent="from-amber-500 to-orange-500"
-            support={currentUser ? `${levelProgress}% to Lv ${level + 1}` : 'Sign in to level up!'}
-            progress={currentUser ? levelProgress : 18}
-          />
-          <StatCard
-            icon={FireIcon}
-            title="Streak"
-            value={`${state.streak.streak || 0} day${state.streak.streak === 1 ? '' : 's'}`}
-            accent="from-rose-500 to-orange-500"
-            support={
-              state.streak.signedIn
-                ? state.streak.streak
-                  ? 'On fire! Play today to keep it.'
-                  : 'Win once to start a streak!'
-                : 'Sign in to save your streak.'
-            }
-          />
-          <StatCard
-            icon={StarIcon}
-            title="Points"
-            value={totalPoints.toLocaleString()}
-            accent="from-sky-500 to-cyan-500"
-            support={currentUser ? 'Earn more in every round!' : 'Sign in to keep points.'}
-          />
-          <StatCard
-            icon={TrophyIcon}
-            title="Rank"
-            value={currentUser ? (currentRank ? `#${currentRank}` : 'Rising') : 'Guest'}
-            accent="from-emerald-500 to-teal-500"
-            support={
-              currentUser
-                ? currentRank
-                  ? 'You’re on the board!'
-                  : 'Finish a round to join!'
-                : 'Sign in to climb the board.'
-            }
-          />
-        </div>
-      </section>
-
-      <section className="mb-12">
-        <GamesSectionHeading
-          eyebrow="⭐ Just for you"
-          title="Play these next!"
-          description="Fresh games picked for you to try today."
+        {/* Hero — Daily Challenge */}
+        <DailyChallengeCard
+          challenge={state.challenge}
+          streak={state.streak}
+          loading={state.loading}
+          hideGrade
         />
-        {state.loading ? (
-          <SkeletonCardGrid featured />
-        ) : (
-          <div className="grid gap-4 lg:grid-cols-3">
-            {recommendedGames.map((game, index) => (
-              <GameDiscoveryCard
-                key={game.id}
-                game={game}
-                badge={getGameStatusBadge(game, index, featuredGameId)}
-                variant={index === 0 ? 'featured' : 'standard'}
-                showRating
-                hideGrade
-              />
-            ))}
-          </div>
-        )}
-      </section>
 
-      <section className="mb-12">
-        <GamesSectionHeading
-          eyebrow="🎨 Subjects"
-          title="What do you want to play?"
-          description="Tap a subject to see all its games."
-        />
-        {state.loading ? (
-          <SkeletonSubjectGrid />
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-            {subjectCards.map(({ subject, progress, helperText }) => (
-              <SubjectProgressCard
-                key={subject.slug}
-                subject={subject}
-                gamesCount={progress.totalGames}
-                progress={progress.progress}
-                href={`/games/g/${pickGradeForSubject(state.games, subject.slug)}/${subject.slug}`}
-                showComingSoon={progress.totalGames === 0}
-                helperText={helperText}
-              />
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section className="mb-12 grid gap-8 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
-        <div>
-          <GamesSectionHeading
-            eyebrow="🏆 Badges"
-            title="Collect them all!"
-            description="Win games to unlock shiny badges."
-            action={
-              <Link to="/my-badges" className="text-sm font-black text-slate-700 transition hover:text-slate-900">
-                See all badges
-              </Link>
-            }
-          />
-          <div className="grid gap-4 sm:grid-cols-2">
-            {(state.loading ? GAME_BADGES.slice(0, 4) : GAME_BADGES.slice(0, 4)).map((badge) => (
-              <GameBadgeCard
-                key={badge.id}
-                badge={badge}
-                earned={!state.loading && earnedBadgeIds.has(badge.id)}
-                compact
-              />
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <GamesSectionHeading
-            eyebrow="🔥 Hot right now"
-            title="Loved by players"
-            description="Everyone’s playing these!"
-          />
+        {/* Subjects */}
+        <Section eyebrow="Subjects" title="Pick your quest" actionLabel="All ›" actionTo="/games">
           {state.loading ? (
-            <SkeletonCardGrid />
+            <SubjectGridSkeleton />
           ) : (
-            <div className="grid gap-4">
-              {popularGames.map((game, index) => (
-                <GameDiscoveryCard
-                  key={game.id}
-                  game={game}
-                  badge={getGameStatusBadge(game, index + 1, featuredGameId)}
-                  showRating
-                  hideGrade
+            <div className="grid grid-cols-2 gap-3.5">
+              {subjectCards.map(({ subject, progress }) => (
+                <SubjectTile
+                  key={subject.slug}
+                  subject={subject}
+                  progress={progress}
+                  href={`/games/g/${pickGradeForSubject(state.games, subject.slug)}/${subject.slug}`}
                 />
               ))}
             </div>
           )}
-        </div>
-      </section>
+        </Section>
 
+        {/* Hot games — horizontal scroller */}
+        <Section eyebrow="🔥 Hot right now" title="Loved by players" actionLabel="All ›" actionTo="/games">
+          {state.loading ? (
+            <HotGamesSkeleton />
+          ) : (
+            <div className="zx-hscroll -mx-[18px] flex gap-3.5 overflow-x-auto px-[18px] pb-3 pt-1">
+              {hotGames.map((entry) => (
+                <HotGameCard key={entry.game.id} game={entry.game} badge={entry.badge} />
+              ))}
+            </div>
+          )}
+        </Section>
+
+        {/* Badges */}
+        <Section eyebrow="🏆 Badges" title="Collect them all" actionLabel="All ›" actionTo="/my-badges">
+          <div className="zx-hscroll -mx-[18px] flex gap-2.5 overflow-x-auto px-[18px] pb-1">
+            {GAME_BADGES.slice(0, 6).map((badge) => (
+              <BadgeChip key={badge.id} badge={badge} earned={earnedBadgeIds.has(badge.id)} />
+            ))}
+          </div>
+        </Section>
+      </div>
     </GamesShell>
   )
 }
 
-function StatCard({ icon, title, value, support, accent, progress = null }) {
-  const Icon = icon
+/* ───────────────────────── Pieces ───────────────────────── */
+
+function Section({ eyebrow, title, actionLabel, actionTo, children }) {
+  return (
+    <section>
+      <div className="mb-3 flex items-end justify-between">
+        <div>
+          <span className="zx-eyebrow">{eyebrow}</span>
+          <h2 className="font-display mt-1 text-[26px] font-bold leading-none tracking-tight text-slate-900">{title}</h2>
+        </div>
+        {actionTo && (
+          <Link to={actionTo} className="text-xs font-extrabold text-[#0E5E70] transition hover:text-[#053541]">
+            {actionLabel}
+          </Link>
+        )}
+      </div>
+      {children}
+    </section>
+  )
+}
+
+const SUBJECT_TILE_SKIN = {
+  mathematics: { tile: 'bg-orange-100', bar: 'bg-orange-500' },
+  english:     { tile: 'bg-blue-100',   bar: 'bg-blue-600' },
+  science:     { tile: 'bg-green-100',  bar: 'bg-green-600' },
+  social:      { tile: 'bg-yellow-100', bar: 'bg-yellow-500' },
+}
+
+function SubjectTile({ subject, progress, href }) {
+  const skin = SUBJECT_TILE_SKIN[subject.slug] || SUBJECT_TILE_SKIN.mathematics
+  const mascot = getSubjectMascot(subject.slug)
+  const empty = progress.totalGames === 0
 
   return (
-    <div className="rounded-[20px] border border-white/80 bg-white/88 p-5 shadow-[0_24px_60px_-34px_rgba(15,23,42,0.18)] backdrop-blur-sm">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">{title}</p>
-          <h3 className="mt-3 text-3xl font-black tracking-tight text-slate-900">{value}</h3>
-        </div>
-        <span className={`inline-flex h-12 w-12 items-center justify-center rounded-full bg-gradient-to-br ${accent} text-white shadow-[0_20px_40px_-24px_rgba(15,23,42,0.32)]`}>
-          <Icon className="h-6 w-6" />
+    <Link
+      to={href}
+      className="zx-card group relative flex flex-col rounded-[22px] bg-white p-4 transition active:translate-y-[2px] active:shadow-none"
+    >
+      <span className="absolute right-3 top-3 rounded-full bg-slate-900 px-2 py-1 text-[9.5px] font-extrabold uppercase tracking-[0.08em] text-white">
+        {progress.totalGames} {progress.totalGames === 1 ? 'game' : 'games'}
+      </span>
+
+      <div className={`zx-mascot-tile mb-3 grid h-16 w-16 place-items-center rounded-[18px] border-2 border-slate-900 text-[36px] leading-none ${skin.tile}`}>
+        <span aria-hidden="true">{mascot.emoji}</span>
+      </div>
+
+      <h3 className="font-display text-[19px] font-bold leading-none text-slate-900">{subject.label}</h3>
+      <p className="mt-1 text-[11.5px] font-semibold text-slate-500">{mascot.name}</p>
+
+      <div className="mt-3 h-2 overflow-hidden rounded-full border-[1.5px] border-slate-900 bg-[#EFE9DB]">
+        <div className={`h-full rounded-full ${skin.bar}`} style={{ width: `${empty ? 0 : progress.progress}%` }} />
+      </div>
+      <div className="mt-1.5 flex items-center justify-between">
+        <span className="text-[11px] font-extrabold text-slate-900">
+          {empty ? 'Soon' : progress.progress === 100 ? '100% ✓' : `${progress.progress}%`}
+        </span>
+        <span className="text-[10.5px] uppercase tracking-[0.06em] text-slate-500">
+          {empty
+            ? 'Coming soon'
+            : `${progress.plays} of ${progress.totalGames} played`}
         </span>
       </div>
-      <p className="mt-4 text-sm leading-6 text-slate-600">{support}</p>
-      {progress != null && (
-        <div className="mt-4 space-y-2">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-500">
-            <span>Progress</span>
-            <span>{progress}%</span>
-          </div>
-          <ProgressBar value={progress} gradient={accent} />
-        </div>
+    </Link>
+  )
+}
+
+const HOT_BADGE_SKIN = {
+  Popular:     'bg-[#FF7A1A] text-white',
+  New:         'bg-blue-600 text-white',
+  Recommended: 'bg-emerald-500 text-white',
+}
+
+const HOT_ICON_BG = {
+  mathematics: 'bg-orange-100',
+  english:     'bg-blue-100',
+  science:     'bg-green-100',
+  social:      'bg-yellow-100',
+}
+
+function HotGameCard({ game, badge }) {
+  const typeTheme = getGameTypeTheme(game.type)
+  const TypeIcon = typeTheme.icon
+  const subjectKey = String(game.subject || '').toLowerCase()
+  const iconBg = HOT_ICON_BG[subjectKey] || 'bg-amber-100'
+  const subjectLabel = SUBJECTS.find((s) => s.slug === subjectKey)?.label || 'Game'
+
+  return (
+    <Link
+      to={`/games/play/${game.id}`}
+      className="zx-card relative flex w-[230px] shrink-0 snap-start flex-col rounded-[22px] bg-white p-4 transition active:translate-y-[2px] active:shadow-none"
+    >
+      {badge && (
+        <span className={`absolute right-3 top-3 rounded-full border-[1.5px] border-slate-900 px-2 py-1 text-[9.5px] font-extrabold uppercase tracking-[0.08em] ${HOT_BADGE_SKIN[badge] || HOT_BADGE_SKIN.Popular}`}>
+          {badge}
+        </span>
       )}
+
+      <div className={`mb-3 grid h-11 w-11 place-items-center rounded-[12px] border-2 border-slate-900 ${iconBg} text-slate-900`}>
+        <TypeIcon className="h-5 w-5" />
+      </div>
+
+      <div className="text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-[#053541]">{subjectLabel}</div>
+      <h3 className="font-display mt-1 text-[18px] font-bold leading-tight tracking-tight text-slate-900">
+        {game.title}
+      </h3>
+      <p className="mt-1.5 line-clamp-2 min-h-[32px] text-[12px] font-medium text-slate-500">
+        {game.description}
+      </p>
+
+      <div className="mt-auto flex gap-2.5 border-t border-dashed border-[#D8D0BC] pt-2.5 text-[11px] text-slate-500">
+        <span className="inline-flex items-center gap-1"><ClockIcon className="h-3.5 w-3.5" /> {getDurationLabel(game)}</span>
+        <span className="inline-flex items-center gap-1"><StarIcon className="h-3.5 w-3.5 text-amber-500" /> {Number(game.points) || 0} pts</span>
+      </div>
+    </Link>
+  )
+}
+
+const TIER_MEDAL = {
+  bronze: 'bg-amber-300',
+  silver: 'bg-slate-200',
+  gold:   'bg-yellow-400',
+}
+
+function BadgeChip({ badge, earned }) {
+  const medal = TIER_MEDAL[badge.tier] || TIER_MEDAL.bronze
+
+  return (
+    <div
+      title={!earned ? badge.hint : badge.description}
+      className={`zx-card flex min-w-[178px] shrink-0 items-center gap-2.5 rounded-[18px] bg-white p-2.5 ${earned ? '' : 'opacity-50'}`}
+    >
+      <span className={`grid h-10 w-10 place-items-center rounded-[12px] border-2 border-slate-900 text-[20px] ${medal}`}>
+        {earned ? badge.icon : <LockClosedIcon className="h-5 w-5 text-slate-700" />}
+      </span>
+      <div className="min-w-0">
+        <div className="font-display text-[13px] font-semibold leading-none text-slate-900">{badge.name}</div>
+        <div className="mt-1 text-[9.5px] font-extrabold uppercase tracking-[0.1em] text-slate-500">
+          {earned ? badge.tier : 'Locked'}
+        </div>
+      </div>
     </div>
   )
 }
 
-function SkeletonCardGrid({ featured = false }) {
+/* ───────────────────────── Skeletons ───────────────────────── */
+
+function SubjectGridSkeleton() {
   return (
-    <div className={`grid gap-4 ${featured ? 'lg:grid-cols-3' : ''}`}>
-      {Array.from({ length: featured ? 3 : 3 }).map((_, index) => (
-        <div
-          key={index}
-          className={`rounded-[20px] border border-slate-100 bg-white/80 p-5 shadow-[0_24px_60px_-34px_rgba(15,23,42,0.16)] ${featured && index === 0 ? 'lg:col-span-2 sm:p-7' : ''}`}
-        >
-          <div className="h-12 w-12 rounded-full bg-slate-100 animate-pulse" />
-          <div className="mt-5 h-7 w-3/4 rounded-2xl bg-slate-100 animate-pulse" />
-          <div className="mt-3 h-4 w-full rounded-full bg-slate-100 animate-pulse" />
-          <div className="mt-2 h-4 w-5/6 rounded-full bg-slate-100 animate-pulse" />
-          <div className="mt-5 flex gap-2">
-            <div className="h-8 w-24 rounded-full bg-slate-100 animate-pulse" />
-            <div className="h-8 w-24 rounded-full bg-slate-100 animate-pulse" />
-          </div>
+    <div className="grid grid-cols-2 gap-3.5">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <div key={i} className="zx-card animate-pulse rounded-[22px] bg-white p-4">
+          <div className="mb-3 h-16 w-16 rounded-[18px] border-2 border-slate-900 bg-slate-100" />
+          <div className="h-4 w-2/3 rounded bg-slate-100" />
+          <div className="mt-2 h-3 w-1/2 rounded bg-slate-100" />
+          <div className="mt-3 h-2 rounded-full border-[1.5px] border-slate-900 bg-slate-100" />
         </div>
       ))}
     </div>
   )
 }
 
-function SkeletonSubjectGrid() {
+function HotGamesSkeleton() {
   return (
-    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      {Array.from({ length: 4 }).map((_, index) => (
-        <div key={index} className="rounded-[20px] border border-slate-100 bg-white/80 p-5 shadow-[0_24px_60px_-34px_rgba(15,23,42,0.16)]">
-          <div className="h-12 w-12 rounded-full bg-slate-100 animate-pulse" />
-          <div className="mt-5 h-7 w-2/3 rounded-2xl bg-slate-100 animate-pulse" />
-          <div className="mt-3 h-4 w-full rounded-full bg-slate-100 animate-pulse" />
-          <div className="mt-5 h-2.5 w-full rounded-full bg-slate-100 animate-pulse" />
+    <div className="zx-hscroll -mx-[18px] flex gap-3.5 overflow-hidden px-[18px] pb-3 pt-1">
+      {Array.from({ length: 3 }).map((_, i) => (
+        <div key={i} className="zx-card w-[230px] shrink-0 animate-pulse rounded-[22px] bg-white p-4">
+          <div className="mb-3 h-11 w-11 rounded-[12px] border-2 border-slate-900 bg-slate-100" />
+          <div className="h-3 w-1/2 rounded bg-slate-100" />
+          <div className="mt-2 h-4 w-3/4 rounded bg-slate-100" />
+          <div className="mt-2 h-3 w-full rounded bg-slate-100" />
         </div>
       ))}
     </div>
   )
 }
 
-function buildRecommendedGames(games, challengeGame, history) {
+/* ───────────────────────── Helpers ───────────────────────── */
+
+function buildHotGames(games, history, challengeGame) {
+  if (!games.length) return []
+
   const playedIds = new Set(history.map((row) => row.gameId))
   const subjectCounts = history.reduce((acc, row) => {
     const key = String(row.subject || '').toLowerCase()
@@ -390,31 +385,33 @@ function buildRecommendedGames(games, challengeGame, history) {
     if (!playedIds.has(game.id)) total += 18
     if (favouriteSubject && game.subject === favouriteSubject) total += 8
     if ((game.difficulty || '').toLowerCase() === 'easy') total += 6
-    if ((game.type || '').toLowerCase() === 'memory_match') total += 4
     total += Number(game.points) || 0
     return total
   }
 
-  return games
-    .slice()
-    .sort((a, b) => score(b) - score(a))
-    .slice(0, 3)
-}
-
-function buildPopularGames(games, excludeIds) {
-  const pool = games.filter((game) => !excludeIds.has(game.id))
-  const selected = []
-  const usedSubjects = new Set()
-
-  for (const game of pool.sort((a, b) => (Number(b.points) || 0) - (Number(a.points) || 0))) {
-    const subject = String(game.subject || '').toLowerCase()
-    if (selected.length >= 3) break
-    if (usedSubjects.has(subject) && selected.length < 2) continue
-    selected.push(game)
-    usedSubjects.add(subject)
+  const ranked = games.slice().sort((a, b) => score(b) - score(a))
+  // Spread across subjects so the scroller shows variety.
+  const seen = new Set()
+  const picks = []
+  for (const game of ranked) {
+    const key = String(game.subject || '').toLowerCase()
+    if (picks.length < 2 || !seen.has(key)) {
+      picks.push(game)
+      seen.add(key)
+    }
+    if (picks.length >= 4) break
   }
 
-  return selected.length ? selected : games.slice(0, 3)
+  return picks.map((game, index) => ({ game, badge: badgeFor(game, index) }))
+}
+
+function badgeFor(game, index) {
+  const created = game.createdAt?.toMillis?.() || game.createdAt || 0
+  const isRecent = created && Date.now() - created < 1000 * 60 * 60 * 24 * 30
+  if (isRecent) return 'New'
+  if (index === 0) return 'Popular'
+  if ((game.difficulty || '').toLowerCase() === 'easy') return 'New'
+  return 'Popular'
 }
 
 function pickGradeForSubject(games, subjectSlug) {
@@ -430,4 +427,51 @@ function setMeta(content) {
     document.head.appendChild(tag)
   }
   tag.content = content
+}
+
+/**
+ * Hard-bordered "sticker" card style + horizontal scroller hide-scrollbar.
+ * Scoped to GamesHub so other /games pages keep their existing visual
+ * language while we evaluate the redesign.
+ */
+function RedesignStyles() {
+  return (
+    <style>{`
+      .zx-card {
+        border: 2px solid #0F1B2D;
+        box-shadow: 0 2px 0 #0F1B2D;
+      }
+      .zx-eyebrow {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 10.5px;
+        font-weight: 800;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: #053541;
+      }
+      .zx-eyebrow::before {
+        content: '';
+        width: 18px;
+        height: 2px;
+        border-radius: 2px;
+        background: #FF7A1A;
+      }
+      .zx-hscroll {
+        scroll-snap-type: x mandatory;
+        scrollbar-width: none;
+      }
+      .zx-hscroll::-webkit-scrollbar { display: none; }
+      .zx-mascot-tile span { display: inline-block; }
+      @keyframes zx-flame {
+        0%, 100% { transform: scale(1) rotate(-2deg); filter: drop-shadow(0 0 4px rgba(255,140,0,0.4)); }
+        50%      { transform: scale(1.15) rotate(2deg); filter: drop-shadow(0 0 8px rgba(255,140,0,0.7)); }
+      }
+      .zx-flame { animation: zx-flame 1.4s ease-in-out infinite; display: inline-block; }
+      @media (prefers-reduced-motion: reduce) {
+        .zx-flame { animation: none !important; }
+      }
+    `}</style>
+  )
 }
