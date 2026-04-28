@@ -497,9 +497,12 @@ function relTime(ts) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// RESPONSIVE — narrow viewport detection (phones)
+// RESPONSIVE — narrow viewport detection (phones + small tablets).
+// Aligned with the rest of the codebase's `md:hidden` breakpoint
+// (Tailwind's md = 768px), which is also where MobileBottomNav appears.
 // ═══════════════════════════════════════════════════════════════════
-function useIsNarrow(query = "(max-width: 480px)") {
+const NARROW_QUERY = "(max-width: 767px)";
+function useIsNarrow(query = NARROW_QUERY) {
   const get = () =>
     typeof window !== "undefined" && window.matchMedia?.(query).matches;
   const [narrow, setNarrow] = useState(get);
@@ -642,7 +645,7 @@ export default function ZedStudyAssistant() {
     // On narrow phones the chat scrolls with the page (the messages list
     // doesn't have its own overflow), so scroll the window instead of the
     // inner container.
-    if (typeof window !== "undefined" && window.matchMedia?.("(max-width: 480px)").matches) {
+    if (typeof window !== "undefined" && window.matchMedia?.(NARROW_QUERY).matches) {
       const top = document.documentElement.scrollHeight;
       if (force) window.scrollTo({ top, behavior: "smooth" });
       else window.scrollTo(0, top);
@@ -912,7 +915,6 @@ export default function ZedStudyAssistant() {
         display: "flex",
         flexDirection: "column",
         background: palette.paper,
-        minHeight: isNarrow ? 0 : undefined,
       }}>
         {activeTab === "chat" && (
           <ChatView
