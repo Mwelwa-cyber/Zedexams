@@ -2,6 +2,7 @@ import { useDeferredValue, useMemo, useState } from 'react'
 import { buildQuizDisplaySections } from '../../utils/quizSections.js'
 // Format-aware renderer: handles both legacy HTML and Tiptap JSON quizzes.
 import RichContent from '../../editor/RichContent'
+import ZoomableImage from './ZoomableImage'
 
 function joinClasses(...parts) {
   return parts.filter(Boolean).join(' ')
@@ -28,7 +29,11 @@ function PreviewQuestion({ question }) {
 
       {question.imageUrl && (
         <div className="theme-border theme-bg-subtle overflow-hidden rounded-2xl border p-3">
-          <img src={question.imageUrl} alt="Question illustration" className="max-h-64 w-full rounded-xl object-contain" />
+          <ZoomableImage
+            src={question.imageUrl}
+            alt="Question illustration"
+            className="mx-auto max-h-[80vh] w-full rounded-xl object-contain"
+          />
         </div>
       )}
 
@@ -164,7 +169,11 @@ export default function QuizEditorPreviewPanel({ form, serializedSections }) {
                     )}
                     {section.passage.imageUrl && (
                       <div className="theme-border theme-bg-subtle mt-4 overflow-hidden rounded-2xl border p-3">
-                        <img src={section.passage.imageUrl} alt="Passage illustration" className="max-h-72 w-full rounded-xl object-contain" />
+                        <ZoomableImage
+                          src={section.passage.imageUrl}
+                          alt="Passage illustration"
+                          className="mx-auto max-h-[80vh] w-full rounded-xl object-contain"
+                        />
                       </div>
                     )}
                     <RichContent value={section.passage.passageText} className="mt-4 text-sm leading-7" />

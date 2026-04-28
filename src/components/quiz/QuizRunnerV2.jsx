@@ -6,6 +6,7 @@ import { useSubscription } from '../../hooks/useSubscription'
 import { buildQuizDisplaySections } from '../../utils/quizSections.js'
 import UpgradeModal from '../subscription/UpgradeModal'
 import QuizTip from './QuizTip'
+import ZoomableImage from './ZoomableImage'
 import { getPakoTip } from '../../config/curriculum'
 import { checkAnswerWithAI } from '../../utils/geminiChecker'
 // RichContent renders legacy HTML strings AND Tiptap JSON; getRichPlainText
@@ -448,7 +449,11 @@ export default function QuizRunnerV2() {
 
         {question.imageUrl && (
           <div className="theme-border theme-bg-subtle overflow-hidden rounded-2xl border p-3">
-            <img src={question.imageUrl} alt="Question illustration" className="max-h-72 w-full rounded-xl object-contain" loading="lazy" />
+            <ZoomableImage
+              src={question.imageUrl}
+              alt="Question illustration"
+              className="mx-auto max-h-[80vh] w-full rounded-xl object-contain"
+            />
           </div>
         )}
 
@@ -706,7 +711,11 @@ export default function QuizRunnerV2() {
                 </div>
                 {activeSection.passage.imageUrl && (
                   <div className="theme-border theme-bg-subtle border-b p-4">
-                    <img src={activeSection.passage.imageUrl} alt="Passage illustration" className="max-h-72 w-full rounded-2xl object-contain" loading="lazy" />
+                    <ZoomableImage
+                      src={activeSection.passage.imageUrl}
+                      alt="Passage illustration"
+                      className="mx-auto max-h-[80vh] w-full rounded-2xl object-contain"
+                    />
                   </div>
                 )}
                 <div className="p-5">

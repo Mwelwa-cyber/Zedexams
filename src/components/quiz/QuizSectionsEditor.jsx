@@ -121,7 +121,7 @@ function ImageUpload({
   if (imageUrl) {
     return (
       <div className={joinClasses('group theme-bg-subtle relative overflow-hidden rounded-xl border-2', theme.cardBorder)}>
-        <img src={imageUrl} alt={label} className="max-h-56 w-full object-contain py-2" />
+        <img src={imageUrl} alt={label} className="mx-auto max-h-[60vh] w-full object-contain py-2" />
         <div className="absolute right-2 top-2 flex gap-1.5 opacity-90 transition-opacity group-hover:opacity-100">
           <button
             type="button"
