@@ -2,6 +2,21 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Safe-area insets — viewport-fit=cover lets the WebView extend under the
+ * Android status bar and gesture/home-indicator regions. The Capacitor
+ * native shell pulls the status bar back out on initialisation, but on
+ * notched/curved devices we still need to keep fixed bottom elements above
+ * the gesture pill and any rotated landscape side cutouts. The .safe-*
+ * helpers can be opted-in by future fixed-position elements as needed.
+ */
+body {
+  padding-left:  env(safe-area-inset-left, 0);
+  padding-right: env(safe-area-inset-right, 0);
+}
+
+.safe-top    { padding-top:    env(safe-area-inset-top, 0); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0); }
+
 @keyframes zed-page-load {
   0%   { background-position: 200% center; }
   100% { background-position: -200% center; }

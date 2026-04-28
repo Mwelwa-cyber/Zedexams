@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { apiUrl } from '../../utils/runtime'
 
 /**
  * useSpeech — Cloud-TTS-powered (Google Cloud Text-to-Speech via /api/tts)
@@ -118,7 +119,7 @@ export function useSpeech() {
     activeIdRef.current = id
 
     try {
-      const res = await fetch(TTS_ENDPOINT, {
+      const res = await fetch(apiUrl(TTS_ENDPOINT), {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

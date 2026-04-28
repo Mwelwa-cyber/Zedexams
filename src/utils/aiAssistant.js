@@ -1,5 +1,6 @@
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app, { auth } from '../firebase/config'
+import { apiUrl } from './runtime'
 
 const functions = getFunctions(app, 'us-central1')
 
@@ -231,7 +232,7 @@ export function sendAIChatStream({ message, context, history = [], systemPrompt,
     let fullText = ''
     try {
       const response = await withTimeout(
-        fetch('/api/ai/chat', {
+        fetch(apiUrl('/api/ai/chat'), {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -307,7 +308,7 @@ export async function sendAIChat({ message, context, history = [], systemPrompt 
     if (!token) throw new Error('Please sign in before using Zed.')
 
     const response = await withTimeout(
-      fetch('/api/ai/chat', {
+      fetch(apiUrl('/api/ai/chat'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
