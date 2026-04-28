@@ -1,10 +1,34 @@
 import { useDeferredValue, useMemo, useState } from 'react'
-import { buildQuizDisplaySections } from '../../utils/quizSections.js'
+import { buildQuizDisplaySections, hydrateMapLocation } from '../../utils/quizSections.js'
+import { buildStaticMapUrl } from '../../utils/staticMap'
 // Format-aware renderer: handles both legacy HTML and Tiptap JSON quizzes.
 import RichContent from '../../editor/RichContent'
 
 function joinClasses(...parts) {
   return parts.filter(Boolean).join(' ')
+}
+
+function PassageMapPreview({ map }) {
+  const hydrated = hydrateMapLocation(map)
+  if (!hydrated) return null
+  let url = ''
+  try {
+    url = buildStaticMapUrl({
+      lat: hydrated.lat,
+      lng: hydrated.lng,
+      zoom: hydrated.zoom,
+      mapType: hydrated.mapType,
+      markers: hydrated.markers,
+      size: [600, 320],
+    })
+  } catch {
+    return null
+  }
+  return (
+    <div className="theme-border theme-bg-subtle mt-4 overflow-hidden rounded-2xl border p-3">
+      <img src={url} alt="Passage map" className="w-full rounded-xl object-contain" loading="lazy" />
+    </div>
+  )
 }
 
 function PreviewQuestion({ question }) {
@@ -167,6 +191,7 @@ export default function QuizEditorPreviewPanel({ form, serializedSections }) {
                         <img src={section.passage.imageUrl} alt="Passage illustration" className="max-h-72 w-full rounded-xl object-contain" />
                       </div>
                     )}
+                    <PassageMapPreview map={section.passage.mapLocation} />
                     <RichContent value={section.passage.passageText} className="mt-4 text-sm leading-7" />
                   </div>
                   {section.questions.map(question => <PreviewQuestion key={question.id || question.localId} question={question} />)}

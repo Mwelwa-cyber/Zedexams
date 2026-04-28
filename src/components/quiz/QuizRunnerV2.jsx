@@ -3,7 +3,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSubscription } from '../../hooks/useSubscription'
-import { buildQuizDisplaySections } from '../../utils/quizSections.js'
+import { buildQuizDisplaySections, hydrateMapLocation } from '../../utils/quizSections.js'
+import { buildStaticMapUrl } from '../../utils/staticMap'
 import UpgradeModal from '../subscription/UpgradeModal'
 import QuizTip from './QuizTip'
 import { getPakoTip } from '../../config/curriculum'
@@ -420,6 +421,25 @@ export default function QuizRunnerV2() {
   const progress = questions.length ? Math.round((answered / questions.length) * 100) : 0
   const warn = mode === 'exam' && timeLeft <= 60
 
+  let passageMapUrl = ''
+  if (activeSection.kind === 'passage') {
+    const map = hydrateMapLocation(activeSection.passage?.mapLocation)
+    if (map) {
+      try {
+        passageMapUrl = buildStaticMapUrl({
+          lat: map.lat,
+          lng: map.lng,
+          zoom: map.zoom,
+          mapType: map.mapType,
+          markers: map.markers,
+          size: [640, 360],
+        })
+      } catch {
+        passageMapUrl = ''
+      }
+    }
+  }
+
   function renderQuestion(question) {
     const isRevealed = mode === 'practice' && revealed[question.id]
     const userAnswer = answers[question.id]
@@ -707,6 +727,11 @@ export default function QuizRunnerV2() {
                 {activeSection.passage.imageUrl && (
                   <div className="theme-border theme-bg-subtle border-b p-4">
                     <img src={activeSection.passage.imageUrl} alt="Passage illustration" className="max-h-72 w-full rounded-2xl object-contain" loading="lazy" />
+                  </div>
+                )}
+                {passageMapUrl && (
+                  <div className="theme-border theme-bg-subtle border-b p-4">
+                    <img src={passageMapUrl} alt="Passage map" className="w-full rounded-2xl object-contain" loading="lazy" />
                   </div>
                 )}
                 <div className="p-5">

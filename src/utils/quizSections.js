@@ -112,6 +112,7 @@ export function createPassageSection(passageOverrides = {}) {
     imageUploadStep: '',
     collapsed: false,
     ...passageOverrides,
+    mapLocation: hydrateMapLocation(passageOverrides.mapLocation),
   }
 
   return {
@@ -129,6 +130,42 @@ export function createPassageSection(passageOverrides = {}) {
         })),
     },
   }
+}
+
+// Map location helpers — passages can attach a Google Static Maps image with
+// labelled markers (e.g. "Name the province at X."). Stored as a plain object
+// so it round-trips through Firestore without conversion.
+const MAP_TYPES = new Set(['roadmap', 'satellite', 'terrain', 'hybrid'])
+
+export function hydrateMapLocation(value) {
+  if (!value || typeof value !== 'object') return null
+  const lat = Number(value.lat)
+  const lng = Number(value.lng)
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null
+  const zoom = Number.isFinite(Number(value.zoom)) ? Number(value.zoom) : 6
+  const mapType = MAP_TYPES.has(value.mapType) ? value.mapType : 'roadmap'
+  const rawMarkers = Array.isArray(value.markers) ? value.markers : []
+  const markers = rawMarkers
+    .map(marker => {
+      if (!marker || typeof marker !== 'object') return null
+      const mLat = Number(marker.lat)
+      const mLng = Number(marker.lng)
+      if (!Number.isFinite(mLat) || !Number.isFinite(mLng)) return null
+      const label = String(marker.label ?? '').trim().slice(0, 1).toUpperCase()
+      const color = String(marker.color ?? '').trim() || 'red'
+      return { label, lat: mLat, lng: mLng, color }
+    })
+    .filter(Boolean)
+  return { lat, lng, zoom, mapType, markers }
+}
+
+export function serializeMapLocation(value) {
+  const hydrated = hydrateMapLocation(value)
+  return hydrated // already a plain object or null — Firestore-safe
+}
+
+export function isMapLocationEmpty(value) {
+  return !hydrateMapLocation(value)
 }
 
 function richFieldEmpty(value) {
@@ -327,6 +364,7 @@ export function serializeQuizSections(sections = [], parts = []) {
         instructions: serializeRichField(passage.instructions),
         passageText: serializeRichField(passage.passageText),
         imageUrl: passage.imageUrl || null,
+        mapLocation: serializeMapLocation(passage.mapLocation),
         order: startOrder,
         partId: passagePartId,
       })
@@ -463,6 +501,7 @@ export function hydrateQuizSections(questions = [], passages = [], parts = []) {
       instructions: hydrateRichField(passage.instructions ?? ''),
       passageText: hydrateRichField(passage.passageText ?? ''),
       imageUrl: passage.imageUrl ?? '',
+      mapLocation: passage.mapLocation ?? null,
       questions: [],
     })
     section.partId = passage.partId ?? null
@@ -551,6 +590,7 @@ export function buildQuizDisplaySections(questions = [], passages = []) {
         instructions: passage.instructions ?? '',
         passageText: passage.passageText ?? '',
         imageUrl: passage.imageUrl ?? '',
+        mapLocation: hydrateMapLocation(passage.mapLocation),
       },
       questions: [],
     })
@@ -573,6 +613,7 @@ export function buildQuizDisplaySections(questions = [], passages = []) {
           instructions: '',
           passageText: '',
           imageUrl: '',
+          mapLocation: null,
         },
         questions: [],
       }
