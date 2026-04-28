@@ -497,6 +497,24 @@ function relTime(ts) {
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// RESPONSIVE — narrow viewport detection (phones)
+// ═══════════════════════════════════════════════════════════════════
+function useIsNarrow(query = "(max-width: 480px)") {
+  const get = () =>
+    typeof window !== "undefined" && window.matchMedia?.(query).matches;
+  const [narrow, setNarrow] = useState(get);
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const mq = window.matchMedia?.(query);
+    if (!mq) return undefined;
+    const handler = (e) => setNarrow(e.matches);
+    mq.addEventListener?.("change", handler);
+    return () => mq.removeEventListener?.("change", handler);
+  }, [query]);
+  return narrow;
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════
 export default function ZedStudyAssistant() {
@@ -521,6 +539,7 @@ export default function ZedStudyAssistant() {
   }, []);
   const isDark = settings.theme === "dark" || (settings.theme === "auto" && systemDark);
   const palette = isDark ? TOKENS.dark : TOKENS.light;
+  const isNarrow = useIsNarrow();
 
   // ── Sessions (multi-session storage) ────────────────────────────
   const [sessions, setSessions] = useState(() => {
@@ -860,6 +879,7 @@ export default function ZedStudyAssistant() {
         }}
         onNew={() => { newSession(); setActiveTab("chat"); toast("New session started"); }}
         isDark={isDark}
+        isNarrow={isNarrow}
       />
 
       {/* SCOPE PILL ROW */}
@@ -868,6 +888,7 @@ export default function ZedStudyAssistant() {
         scope={scope}
         onOpenScope={() => setScopeOpen(true)}
         onMode={setMode}
+        isNarrow={isNarrow}
       />
 
       {/* MAIN VIEW SWITCHER */}
@@ -895,6 +916,7 @@ export default function ZedStudyAssistant() {
             speech={speech}
             settings={settings}
             messagesRef={messagesRef}
+            isNarrow={isNarrow}
           />
         )}
         {activeTab === "practice" && (
@@ -938,11 +960,12 @@ export default function ZedStudyAssistant() {
           onSend={send}
           onCancel={() => { cancelRef.current?.(); cancelRef.current = null; setStreaming(false); }}
           onMic={toggleDictation}
+          isNarrow={isNarrow}
         />
       )}
 
       {/* IN-APP TABS */}
-      <TabBar palette={palette} activeTab={activeTab} onTab={setActiveTab} />
+      <TabBar palette={palette} activeTab={activeTab} onTab={setActiveTab} isNarrow={isNarrow} />
 
       {/* GLOBAL APP NAV (across other ZedExams routes) — static mode so it
           stacks below the in-app TabBar instead of floating over it */}
@@ -1039,19 +1062,23 @@ function ZedStyles({ palette, isDark }) {
 // ═══════════════════════════════════════════════════════════════════
 // TOP BAR
 // ═══════════════════════════════════════════════════════════════════
-function TopBar({ palette, streak, onTheme, onSettings, onExport, onNew, isDark }) {
+function TopBar({ palette, streak, onTheme, onSettings, onExport, onNew, isDark, isNarrow }) {
+  const logoSize = isNarrow ? 32 : 40;
+  const titleSize = isNarrow ? 15 : 16;
+  const metaSize = isNarrow ? 10 : 10.5;
+  const gap = isNarrow ? 8 : 12;
   return (
     <header style={{
       display: "flex",
       alignItems: "center",
-      gap: 12,
-      padding: "14px 16px 12px",
+      gap,
+      padding: isNarrow ? "10px 12px 8px" : "14px 16px 12px",
       borderBottom: `1px solid ${palette.line}`,
       background: palette.paper,
       position: "relative",
       flexShrink: 0,
     }}>
-      <div style={{ position: "relative", width: 40, height: 40, flexShrink: 0 }}>
+      <div style={{ position: "relative", width: logoSize, height: logoSize, flexShrink: 0 }}>
         <picture>
           <source type="image/webp" srcSet="/zedexams-logo.webp?v=1" />
           <img src="/zedexams-logo.png?v=4" alt="Zed" style={{ width: "100%", height: "100%", objectFit: "contain", display: "block" }} />
@@ -1059,25 +1086,28 @@ function TopBar({ palette, streak, onTheme, onSettings, onExport, onNew, isDark 
         <span style={{
           position: "absolute",
           right: -2, bottom: -2,
-          width: 11, height: 11,
+          width: isNarrow ? 9 : 11, height: isNarrow ? 9 : 11,
           borderRadius: "50%",
           background: "#4ADE80",
           border: `2px solid ${palette.paper}`,
           animation: "zed-status-pulse 2.4s infinite",
         }} />
       </div>
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
+      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2, overflow: "hidden" }}>
         <div style={{
           fontFamily: "Outfit, system-ui, sans-serif",
           fontWeight: 700,
-          fontSize: 16,
+          fontSize: titleSize,
           letterSpacing: "-0.01em",
           color: palette.navy,
+          whiteSpace: "nowrap",
+          overflow: "hidden",
+          textOverflow: "ellipsis",
         }}>
           Zed Study
         </div>
         <div style={{
-          fontSize: 10.5,
+          fontSize: metaSize,
           color: palette.inkMuted,
           marginTop: 1,
           display: "flex",
@@ -1086,57 +1116,68 @@ function TopBar({ palette, streak, onTheme, onSettings, onExport, onNew, isDark 
           textTransform: "uppercase",
           letterSpacing: "0.08em",
           fontWeight: 600,
+          minWidth: 0,
+          overflow: "hidden",
+          whiteSpace: "nowrap",
+          textOverflow: "ellipsis",
         }}>
-          <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#4ADE80", animation: "zed-blink 2s infinite" }} />
-          2023 ZECF · Practise smart.
+          <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#4ADE80", animation: "zed-blink 2s infinite", flexShrink: 0 }} />
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>
+            {isNarrow ? "2023 ZECF" : "2023 ZECF · Practise smart."}
+          </span>
           {streak >= 2 && (
             <span style={{
               display: "inline-flex",
               alignItems: "center",
               gap: 4,
-              padding: "3px 8px 3px 6px",
+              padding: isNarrow ? "2px 6px 2px 5px" : "3px 8px 3px 6px",
               borderRadius: 999,
               background: `linear-gradient(135deg, ${palette.orange} 0%, ${palette.orange2} 100%)`,
               color: "#fff",
-              fontSize: 10.5,
+              fontSize: metaSize,
               fontWeight: 700,
               letterSpacing: "0.02em",
-              marginLeft: 6,
+              marginLeft: isNarrow ? 4 : 6,
               textTransform: "none",
+              flexShrink: 0,
             }}>
               <span style={{ fontSize: 11 }}>🔥</span> {streak}
             </span>
           )}
         </div>
       </div>
-      <IconBtn onClick={onTheme} title="Toggle theme" palette={palette}>
+      <IconBtn onClick={onTheme} title="Toggle theme" palette={palette} compact={isNarrow}>
         {isDark ? (
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
+          <svg viewBox="0 0 24 24" width={isNarrow ? "16" : "18"} height={isNarrow ? "16" : "18"} fill="currentColor"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z" /></svg>
         ) : (
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <svg viewBox="0 0 24 24" width={isNarrow ? "16" : "18"} height={isNarrow ? "16" : "18"} fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="12" cy="12" r="4" />
             <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
           </svg>
         )}
       </IconBtn>
-      <IconBtn onClick={onSettings} title="Settings" palette={palette}>
-        <Settings size={18} />
+      <IconBtn onClick={onSettings} title="Settings" palette={palette} compact={isNarrow}>
+        <Settings size={isNarrow ? 16 : 18} />
       </IconBtn>
-      <IconBtn onClick={onExport} title="Export chat as Markdown" palette={palette}>
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-          <polyline points="7 10 12 15 17 10" />
-          <line x1="12" y1="15" x2="12" y2="3" />
-        </svg>
-      </IconBtn>
-      <IconBtn onClick={onNew} title="New chat" palette={palette}>
-        <Plus size={18} />
+      {/* Export is moved into Settings sheet on narrow phones to free up topbar space */}
+      {!isNarrow && (
+        <IconBtn onClick={onExport} title="Export chat as Markdown" palette={palette}>
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="7 10 12 15 17 10" />
+            <line x1="12" y1="15" x2="12" y2="3" />
+          </svg>
+        </IconBtn>
+      )}
+      <IconBtn onClick={onNew} title="New chat" palette={palette} compact={isNarrow}>
+        <Plus size={isNarrow ? 16 : 18} />
       </IconBtn>
     </header>
   );
 }
 
-function IconBtn({ children, onClick, title, palette }) {
+function IconBtn({ children, onClick, title, palette, compact = false }) {
+  const size = compact ? 30 : 36;
   return (
     <button
       onClick={onClick}
@@ -1144,8 +1185,8 @@ function IconBtn({ children, onClick, title, palette }) {
       aria-label={title}
       className="zed-icon-btn"
       style={{
-        width: 36,
-        height: 36,
+        width: size,
+        height: size,
         borderRadius: "50%",
         border: 0,
         background: "transparent",
@@ -1166,17 +1207,17 @@ function IconBtn({ children, onClick, title, palette }) {
 // ═══════════════════════════════════════════════════════════════════
 // SCOPE PILL ROW
 // ═══════════════════════════════════════════════════════════════════
-function ScopeRow({ palette, scope, onOpenScope, onMode }) {
+function ScopeRow({ palette, scope, onOpenScope, onMode, isNarrow }) {
   const modes = [
-    { id: "exam", label: "📝 Exam Mode" },
-    { id: "explain", label: "💡 Explain Like I'm 14" },
-    { id: "paper", label: "📄 Past Papers" },
+    { id: "exam", label: isNarrow ? "📝 Exam" : "📝 Exam Mode" },
+    { id: "explain", label: isNarrow ? "💡 ELI14" : "💡 Explain Like I'm 14" },
+    { id: "paper", label: isNarrow ? "📄 Papers" : "📄 Past Papers" },
   ];
   return (
     <div className="zed-scroll" style={{
       display: "flex",
-      gap: 8,
-      padding: "10px 16px 12px",
+      gap: isNarrow ? 6 : 8,
+      padding: isNarrow ? "6px 12px 8px" : "10px 16px 12px",
       overflowX: "auto",
       borderBottom: `1px solid ${palette.line}`,
       background: palette.paper,
@@ -1244,7 +1285,7 @@ function ScopeRow({ palette, scope, onOpenScope, onMode }) {
 // ═══════════════════════════════════════════════════════════════════
 // CHAT VIEW
 // ═══════════════════════════════════════════════════════════════════
-function ChatView({ palette, scope, messages, streaming, streamText, pendingBotIdx, starterCards, onUsePrompt, onUseFollowup, onCopy, onRegenerate, onSpeak, speech, settings, messagesRef }) {
+function ChatView({ palette, scope, messages, streaming, streamText, pendingBotIdx, starterCards, onUsePrompt, onUseFollowup, onCopy, onRegenerate, onSpeak, speech, settings, messagesRef, isNarrow }) {
   const showGreeting = messages.length === 0;
   return (
     <div
@@ -1253,14 +1294,14 @@ function ChatView({ palette, scope, messages, streaming, streamText, pendingBotI
       style={{
         flex: 1,
         overflowY: "auto",
-        padding: "20px 16px 8px",
+        padding: isNarrow ? "12px 12px 6px" : "20px 16px 8px",
         display: "flex",
         flexDirection: "column",
-        gap: 18,
+        gap: isNarrow ? 12 : 18,
         scrollBehavior: "smooth",
       }}
     >
-      {showGreeting && <GreetingCard palette={palette} scope={scope} starterCards={starterCards} onUsePrompt={onUsePrompt} />}
+      {showGreeting && <GreetingCard palette={palette} scope={scope} starterCards={starterCards} onUsePrompt={onUsePrompt} isNarrow={isNarrow} />}
       {messages.map((m, i) => {
         const isStreamingThis = streaming && i === pendingBotIdx && !m.content;
         const content = isStreamingThis ? streamText : m.content;
@@ -1349,14 +1390,14 @@ function ChatView({ palette, scope, messages, streaming, streamText, pendingBotI
   );
 }
 
-function GreetingCard({ palette, scope, starterCards, onUsePrompt }) {
+function GreetingCard({ palette, scope, starterCards, onUsePrompt, isNarrow }) {
   return (
     <div style={{
       margin: "8px 0 0",
-      padding: "24px 22px",
+      padding: isNarrow ? "16px 16px" : "24px 22px",
       background: palette.paper2,
       border: `1px solid ${palette.line}`,
-      borderRadius: 20,
+      borderRadius: isNarrow ? 16 : 20,
       boxShadow: palette.shadowSm,
       position: "relative",
       overflow: "hidden",
@@ -1374,27 +1415,27 @@ function GreetingCard({ palette, scope, starterCards, onUsePrompt }) {
         pointerEvents: "none",
       }} />
       <div style={{
-        fontSize: 11,
+        fontSize: isNarrow ? 10 : 11,
         fontWeight: 600,
         letterSpacing: "0.12em",
         textTransform: "uppercase",
         color: palette.orange,
-        marginBottom: 8,
+        marginBottom: isNarrow ? 6 : 8,
       }}>
         Mwabuka · {scope.grade} · {scope.subject}
       </div>
       <h1 style={{
         fontFamily: "Outfit, system-ui, sans-serif",
-        fontSize: 28,
-        lineHeight: 1.1,
+        fontSize: isNarrow ? 22 : 28,
+        lineHeight: 1.15,
         fontWeight: 500,
         letterSpacing: "-0.025em",
         color: palette.ink,
         margin: "0 0 8px",
       }}>
-        I'm <em style={{ fontFamily: "Lora, Georgia, serif", fontStyle: "italic", color: palette.cobalt, fontWeight: 500 }}>Zed</em>. <br />What shall we study?
+        I'm <em style={{ fontFamily: "Lora, Georgia, serif", fontStyle: "italic", color: palette.cobalt, fontWeight: 500 }}>Zed</em>.{isNarrow ? " " : <br />}What shall we study?
       </h1>
-      <p style={{ fontSize: 13.5, color: palette.inkSoft, margin: "0 0 16px", lineHeight: 1.55 }}>
+      <p style={{ fontSize: isNarrow ? 12.5 : 13.5, color: palette.inkSoft, margin: isNarrow ? "0 0 12px" : "0 0 16px", lineHeight: 1.55 }}>
         I follow the new <strong>2023 Zambia Education Curriculum Framework</strong> — from ECE through Form 6 A-Levels. Pick a starter or just ask me anything.
       </p>
       <div style={{ display: "grid", gridTemplateColumns: "1fr", gap: 8 }}>
@@ -1562,7 +1603,7 @@ function ActionBtn({ children, onClick, title, palette, active = false }) {
 // ═══════════════════════════════════════════════════════════════════
 // COMPOSER
 // ═══════════════════════════════════════════════════════════════════
-function Composer({ palette, input, rawInput, dictating, listening, recognitionSupported, voiceEnabled, streaming, canSend, inputRef, onChange, onSend, onCancel, onMic }) {
+function Composer({ palette, input, rawInput, dictating, listening, recognitionSupported, voiceEnabled, streaming, canSend, inputRef, onChange, onSend, onCancel, onMic, isNarrow }) {
   const onKey = (e) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -1571,10 +1612,10 @@ function Composer({ palette, input, rawInput, dictating, listening, recognitionS
   };
   return (
     <div style={{
-      padding: "10px 12px 14px",
+      padding: isNarrow ? "6px 10px 8px" : "10px 12px 14px",
       borderTop: `1px solid ${palette.line}`,
       background: palette.paper,
-      paddingBottom: "max(14px, env(safe-area-inset-bottom))",
+      paddingBottom: isNarrow ? "max(8px, env(safe-area-inset-bottom))" : "max(14px, env(safe-area-inset-bottom))",
       flexShrink: 0,
     }}>
       <div style={{
@@ -1680,15 +1721,17 @@ function Composer({ palette, input, rawInput, dictating, listening, recognitionS
           )}
         </div>
       </div>
-      <div style={{
-        textAlign: "center",
-        fontSize: 10.5,
-        color: palette.inkMuted,
-        marginTop: 8,
-        letterSpacing: "0.04em",
-      }}>
-        Powered by <span style={{ color: palette.orange, fontWeight: 600, fontFamily: "Lora, Georgia, serif", fontStyle: "italic" }}>ZedExams</span> · Enter to send · Shift+Enter for new line
-      </div>
+      {!isNarrow && (
+        <div style={{
+          textAlign: "center",
+          fontSize: 10.5,
+          color: palette.inkMuted,
+          marginTop: 8,
+          letterSpacing: "0.04em",
+        }}>
+          Powered by <span style={{ color: palette.orange, fontWeight: 600, fontFamily: "Lora, Georgia, serif", fontStyle: "italic" }}>ZedExams</span> · Enter to send · Shift+Enter for new line
+        </div>
+      )}
     </div>
   );
 }
@@ -1696,7 +1739,7 @@ function Composer({ palette, input, rawInput, dictating, listening, recognitionS
 // ═══════════════════════════════════════════════════════════════════
 // IN-APP TAB BAR
 // ═══════════════════════════════════════════════════════════════════
-function TabBar({ palette, activeTab, onTab }) {
+function TabBar({ palette, activeTab, onTab, isNarrow }) {
   const tabs = [
     { id: "chat", label: "Chat", Icon: ChatIcon },
     { id: "practice", label: "Practise", Icon: Award },
@@ -1707,7 +1750,7 @@ function TabBar({ palette, activeTab, onTab }) {
       display: "flex",
       borderTop: `1px solid ${palette.line}`,
       background: palette.paper,
-      padding: "6px 8px",
+      padding: isNarrow ? "2px 6px" : "6px 8px",
       gap: 4,
       flexShrink: 0,
     }}>
@@ -1724,10 +1767,11 @@ function TabBar({ palette, activeTab, onTab }) {
             style={{
               flex: 1,
               display: "flex",
-              flexDirection: "column",
+              flexDirection: isNarrow ? "row" : "column",
               alignItems: "center",
-              gap: 2,
-              padding: "8px 4px",
+              justifyContent: "center",
+              gap: isNarrow ? 6 : 2,
+              padding: isNarrow ? "5px 4px" : "8px 4px",
               border: 0,
               background: "transparent",
               color: isActive ? palette.cobalt : palette.inkMuted,
@@ -1745,7 +1789,7 @@ function TabBar({ palette, activeTab, onTab }) {
             {isActive && (
               <span style={{
                 position: "absolute",
-                top: 2,
+                top: isNarrow ? 0 : 2,
                 left: "50%",
                 transform: "translateX(-50%)",
                 width: 22,
@@ -1754,7 +1798,7 @@ function TabBar({ palette, activeTab, onTab }) {
                 borderRadius: "0 0 3px 3px",
               }} />
             )}
-            <Ico size={20} />
+            <Ico size={isNarrow ? 16 : 20} />
             <span>{t.label}</span>
           </button>
         );
