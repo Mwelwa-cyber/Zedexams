@@ -12,7 +12,7 @@ CBC-aligned learning platform for Zambian learners, teachers, and administrators
 
 - **Frontend**: React 18 + Vite 5, Tailwind CSS, React Router 6, lazy-loaded routes, TipTap rich-text editor, KaTeX for math.
 - **Backend**: Firebase Cloud Functions v2 (Node 20), Firestore, Firebase Auth, Firebase Storage.
-- **AI**: Anthropic Claude Sonnet 4.5 for generators and Zed chat (server-side via Cloud Functions, SSE streaming for chat, prompt caching + CBC-context caching for generators). OpenAI GPT for short-answer quiz marking.
+- **AI**: Anthropic Claude Sonnet 4.5 for generators and Zed chat (server-side via Cloud Functions, SSE streaming for chat, prompt caching + CBC-context caching for generators). OpenAI GPT for short-answer quiz marking. Firebase AI Logic (`firebase/ai`) is wired up in [src/firebase/ai.js](./src/firebase/ai.js) for client-side Gemini calls — see [src/utils/aiLogic.js](./src/utils/aiLogic.js) for the `generateText` / `streamText` / `generateJSON` helpers.
 - **Payments**: MTN MoMo (Zambia live + sandbox environments).
 - **Hosting**: Firebase Hosting for the frontend at `zedexams.com`; Firebase for Functions/Firestore/Auth/Storage. Hosting forwards `/api/*` to Cloud Functions per the `rewrites` block in [firebase.json](./firebase.json).
 
@@ -83,6 +83,9 @@ Required for the React app to reach Firebase. All must start with `VITE_` so Vit
 | `VITE_FIREBASE_MESSAGING_SENDER_ID` | FCM sender ID |
 | `VITE_FIREBASE_APP_ID` | Firebase web app ID |
 | `VITE_FIREBASE_MEASUREMENT_ID` | Google Analytics measurement ID (optional) |
+| `VITE_FIREBASE_AI_MODEL` | Override the Firebase AI Logic Gemini model (optional, defaults to `gemini-2.5-flash`) |
+
+> **Firebase AI Logic** — Enable it in the Firebase console under *Firebase AI Logic*, register the web app, and turn on App Check (reCAPTCHA Enterprise) before flipping enforcement on. Without App Check enforcement, the API quota is exposed to anyone with your public web config.
 
 ### Backend (Firebase Functions secrets)
 
