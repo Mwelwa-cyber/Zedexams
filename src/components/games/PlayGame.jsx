@@ -11,6 +11,7 @@ import GamesShell from './GamesShell'
 import TimedQuizGame from './TimedQuizGame'
 import MemoryMatchGame from './MemoryMatchGame'
 import WordBuilderGame from './WordBuilderGame'
+import ProvinceShapesGame from './ProvinceShapesGame'
 import {
   MetaPill,
   getGameTypeTheme,
@@ -166,6 +167,7 @@ function GameEngine({ game }) {
   if (game.type === 'timed_quiz') return <TimedQuizGame game={game} />
   if (game.type === 'memory_match') return <MemoryMatchGame game={game} />
   if (game.type === 'word_builder') return <WordBuilderGame game={game} />
+  if (game.type === 'province_shapes') return <ProvinceShapesGame game={game} />
 
   return (
     <div className="rounded-[20px] border border-dashed border-slate-300 bg-white/88 p-10 text-center shadow-[0_24px_60px_-34px_rgba(15,23,42,0.16)]">

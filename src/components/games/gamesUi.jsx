@@ -117,6 +117,7 @@ export const GAME_TYPE_THEMES = {
   reading: { label: 'Reading', icon: BookOpenIcon },
   true_false: { label: 'True / False', icon: CheckBadgeIcon },
   map_explorer: { label: 'Map Explorer', icon: MapIcon },
+  province_shapes: { label: 'Map Quiz', icon: MapIcon },
 }
 
 const DEFAULT_TYPE_THEME = { label: 'Game', icon: PuzzlePieceIcon }

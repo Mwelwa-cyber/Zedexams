@@ -775,6 +775,32 @@ const ZAMBIA_PROVINCES_G5 = {
   ],
 }
 
+const ZAMBIA_PROVINCE_SHAPES_G5 = {
+  id: 'social_zambia_province_shapes_g5',
+  title: 'Zambia Province Shapes',
+  subject: 'social',
+  grade: 5,
+  type: 'province_shapes',
+  difficulty: 'medium',
+  description: 'Identify each Zambian province from its outline on the map.',
+  timer: 90,
+  points: 15,
+  active: true,
+  cbc_topic: 'Zambia',
+  questions: [
+    { provinceId: 'central',       question: 'Which province is shown on the map?', options: ['Copperbelt', 'Central', 'Lusaka', 'Eastern'],            answer: 'Central' },
+    { provinceId: 'copperbelt',    question: 'Which province is shown on the map?', options: ['Copperbelt', 'North-Western', 'Central', 'Luapula'],     answer: 'Copperbelt' },
+    { provinceId: 'eastern',       question: 'Which province is shown on the map?', options: ['Muchinga', 'Central', 'Eastern', 'Lusaka'],              answer: 'Eastern' },
+    { provinceId: 'luapula',       question: 'Which province is shown on the map?', options: ['Northern', 'Copperbelt', 'Muchinga', 'Luapula'],         answer: 'Luapula' },
+    { provinceId: 'lusaka',        question: 'Which province is shown on the map?', options: ['Central', 'Lusaka', 'Eastern', 'Southern'],              answer: 'Lusaka' },
+    { provinceId: 'muchinga',      question: 'Which province is shown on the map?', options: ['Northern', 'Muchinga', 'Luapula', 'Eastern'],            answer: 'Muchinga' },
+    { provinceId: 'northern',      question: 'Which province is shown on the map?', options: ['Luapula', 'Muchinga', 'Northern', 'Eastern'],            answer: 'Northern' },
+    { provinceId: 'north-western', question: 'Which province is shown on the map?', options: ['Copperbelt', 'North-Western', 'Central', 'Western'],    answer: 'North-Western' },
+    { provinceId: 'southern',      question: 'Which province is shown on the map?', options: ['Western', 'Central', 'Southern', 'Lusaka'],              answer: 'Southern' },
+    { provinceId: 'western',       question: 'Which province is shown on the map?', options: ['North-Western', 'Western', 'Southern', 'Central'],      answer: 'Western' },
+  ],
+}
+
 const ZAMBIA_HISTORY_G6 = {
   id: 'social_zambia_history_g6',
   title: 'Zambia — History & Heroes',
@@ -831,6 +857,7 @@ export const GAMES_SEED = [
   DECIMALS_G5,
   SPELL_IT_RIGHT_G5,
   ZAMBIA_PROVINCES_G5,
+  ZAMBIA_PROVINCE_SHAPES_G5,
   AFRICA_CAPITALS_G5,        // active:false in the const above (deactivated)
   // G6
   MATH_MEMORY_G6,
