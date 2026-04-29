@@ -74,6 +74,7 @@ const PRICING = [
     price: 'Free demo',
     note: 'No card needed to start',
     bullets: ['Try daily exams & quizzes', 'Play selected games', 'Upgrade for full access'],
+    upgradeIncludes: 'Upgrade unlocks every daily exam, the full quiz & lesson library, all games, leaderboards, and unlimited Ask Zed.',
     cta: { label: 'Create account', to: '/register' },
     primary: true,
   },
@@ -92,6 +93,41 @@ const PRICING = [
     bullets: ['Learner monitoring', 'Teacher verification', 'Private CBC KB'],
     cta: { label: 'Open contact form', kind: 'contact' },
     primary: false,
+  },
+]
+
+const FAQ = [
+  {
+    q: 'What is included in the free demo?',
+    a: "A taste of daily exams, selected quizzes and lessons, and a few curriculum games. Sign up and you'll see exactly what's available for your grade.",
+  },
+  {
+    q: 'What does upgrading unlock?',
+    a: 'Full access to all daily exams, every quiz and lesson, all curriculum games and leaderboards, plus unlimited Ask Zed AI study help across subjects.',
+  },
+  {
+    q: 'How much does it cost?',
+    a: "Pricing for learners is being finalised — message us on WhatsApp and we'll let you know the moment paid plans launch. Teachers in beta use the full AI toolset free with fair-use limits.",
+  },
+  {
+    q: 'Is ZedExams safe for children?',
+    a: 'Yes. Accounts use email and password, idle sessions sign out automatically, and we never sell or share learner data. See our Privacy Policy for the full detail.',
+  },
+  {
+    q: 'Do teachers get verified?',
+    a: "Yes. Teachers submit their school name and proof of teaching status before they can publish content to learners. Until they're verified, their account works in private mode.",
+  },
+  {
+    q: 'Does it work on slow internet or basic phones?',
+    a: 'Yes. Pages are light, there is a data-saver mode in your profile, and most things still work on slower 3G. We test on common Zambian network conditions.',
+  },
+  {
+    q: 'Can I print worksheets and lesson plans?',
+    a: 'Every teacher generation downloads as DOCX (editable in Word) or PDF (ready to print). No copying-and-pasting from a chat window.',
+  },
+  {
+    q: 'What grades are supported?',
+    a: "Today: Grades 4 through 6 with full CBC alignment. Earlier and later grades are on the roadmap — WhatsApp us if you'd like to be notified when your grade is ready.",
   },
 ]
 
@@ -461,7 +497,7 @@ export default function Marketing() {
               </div>
               <p className="font-display font-black text-3xl mb-1">{tier.price}</p>
               <p className="theme-text-muted text-sm mb-5">{tier.note}</p>
-              <ul className="space-y-2.5 mb-6 theme-text-muted text-sm">
+              <ul className="space-y-2.5 mb-4 theme-text-muted text-sm">
                 {tier.bullets.map((b) => (
                   <li key={b} className="flex gap-2.5">
                     <Icon as={CheckCircleIcon} size="sm" className="mt-0.5 shrink-0 text-[color:var(--accent)]" />
@@ -469,6 +505,11 @@ export default function Marketing() {
                   </li>
                 ))}
               </ul>
+              {tier.upgradeIncludes && (
+                <p className="mb-5 text-xs leading-relaxed theme-text-muted/90 italic border-l-2 pl-3" style={{ borderColor: 'var(--accent)' }}>
+                  {tier.upgradeIncludes}
+                </p>
+              )}
               <div className="mt-auto">
                 {tier.cta.to ? (
                   <Button as={Link} to={tier.cta.to} variant={tier.primary ? 'primary' : 'secondary'} fullWidth>
@@ -528,6 +569,46 @@ export default function Marketing() {
         </div>
       </Section>
 
+      {/* FAQ — answers the questions visitors ask before signing up */}
+      <Section className="py-16 sm:py-20">
+        <div className="text-center mb-12">
+          <p className="text-sm font-black uppercase tracking-wider theme-accent-text mb-2">
+            Common questions
+          </p>
+          <h2 className="font-display font-black text-3xl sm:text-4xl mb-3">
+            Frequently asked
+          </h2>
+          <p className="theme-text-muted text-lg max-w-2xl mx-auto">
+            Don't see your question? <button
+              type="button"
+              onClick={() => openContact('faq')}
+              className="underline underline-offset-4 theme-accent-text hover:opacity-80"
+            >Send it through the contact form</button> and we'll get back to you.
+          </p>
+        </div>
+        <div className="max-w-3xl mx-auto space-y-3">
+          {FAQ.map(({ q, a }) => (
+            <details
+              key={q}
+              className="group theme-card border theme-border rounded-2xl px-5 py-4 transition-all open:shadow-elev-md"
+            >
+              <summary className="flex items-center justify-between gap-4 cursor-pointer list-none font-display font-black text-base sm:text-lg theme-text">
+                <span>{q}</span>
+                <span
+                  className="shrink-0 inline-flex h-7 w-7 items-center justify-center rounded-full theme-bg-subtle theme-text-muted transition-transform group-open:rotate-45"
+                  aria-hidden="true"
+                >
+                  +
+                </span>
+              </summary>
+              <p className="mt-3 theme-text-muted text-sm sm:text-base leading-relaxed">
+                {a}
+              </p>
+            </details>
+          ))}
+        </div>
+      </Section>
+
       {/* Final CTA banner — high-contrast white pill on hero gradient */}
       <Section className="pb-20">
         <Card variant="hero" size="lg" className="text-center">
@@ -561,7 +642,7 @@ export default function Marketing() {
       {/* Footer with visible contact */}
       <footer className="border-t theme-border">
         <Section className="py-10">
-          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <Logo size="sm" />
               <p className="mt-3 text-sm theme-text-muted max-w-xs">
@@ -576,6 +657,15 @@ export default function Marketing() {
               <ul className="space-y-2 text-sm theme-text-muted">
                 <li><Link to="/register" className="hover:theme-text">Create a free account</Link></li>
                 <li><Link to="/login" className="hover:theme-text">Sign in</Link></li>
+              </ul>
+            </div>
+            <div>
+              <p className="font-display font-black text-sm uppercase tracking-wider theme-text mb-3">
+                Legal
+              </p>
+              <ul className="space-y-2 text-sm theme-text-muted">
+                <li><Link to="/privacy" className="hover:theme-text">Privacy Policy</Link></li>
+                <li><Link to="/terms" className="hover:theme-text">Terms &amp; Conditions</Link></li>
               </ul>
             </div>
             <div>
@@ -613,9 +703,14 @@ export default function Marketing() {
               </ul>
             </div>
           </div>
-          <div className="mt-8 pt-6 border-t theme-border text-xs theme-text-muted flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+          <div className="mt-8 pt-6 border-t theme-border text-xs theme-text-muted flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <span>© {new Date().getFullYear()} ZedExams. All rights reserved.</span>
-            <span>Made in Zambia.</span>
+            <nav className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <Link to="/privacy" className="hover:theme-text">Privacy</Link>
+              <Link to="/terms"   className="hover:theme-text">Terms</Link>
+              <span aria-hidden="true">·</span>
+              <span>Made in Zambia.</span>
+            </nav>
           </div>
         </Section>
       </footer>
