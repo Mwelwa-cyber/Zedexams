@@ -187,6 +187,7 @@ export default function App() {
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<RootRedirect />} />
+          <Route path="/welcome"  element={<Marketing />} />
           <Route path="/login"    element={<Login />} />
           <Route path="/register" element={<Register />} />
 
