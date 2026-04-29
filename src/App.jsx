@@ -25,6 +25,8 @@ const FloatingZedButton = lazy(() => import('./components/ai/FloatingZedButton')
 const IdleWarningModal = lazy(() => import('./components/auth/IdleWarningModal'))
 const NotFound = lazy(() => import('./components/ui/NotFound'))
 const Marketing = lazy(() => import('./components/marketing/Marketing'))
+const PrivacyPolicy = lazy(() => import('./components/marketing/PrivacyPolicy'))
+const Terms = lazy(() => import('./components/marketing/Terms'))
 
 // Admin section
 const AdminLayout = lazy(() => import('./components/admin/AdminLayout'))
@@ -188,6 +190,8 @@ export default function App() {
         <Routes>
           <Route path="/" element={<RootRedirect />} />
           <Route path="/welcome"  element={<Marketing />} />
+          <Route path="/privacy"  element={<PrivacyPolicy />} />
+          <Route path="/terms"    element={<Terms />} />
           <Route path="/login"    element={<Login />} />
           <Route path="/register" element={<Register />} />
 
