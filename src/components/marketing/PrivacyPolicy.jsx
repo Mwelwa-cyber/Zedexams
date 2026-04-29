@@ -12,6 +12,8 @@ import LegalLayout from './LegalLayout'
  */
 
 const CONTACT_WHATSAPP_HREF = 'https://wa.me/260977740465'
+const CONTACT_EMAIL = 'support@zedexams.com'
+const CONTACT_EMAIL_HREF = `mailto:${CONTACT_EMAIL}`
 
 function H2({ children }) {
   return (
@@ -41,11 +43,15 @@ export default function PrivacyPolicy() {
       <H2>1. Who we are</H2>
       <P>
         ZedExams is operated from Zambia. If you have any questions about this policy or
-        about your data, you can reach us on WhatsApp at{' '}
+        about your data, you can reach us by email at{' '}
+        <a className="underline theme-accent-text" href={CONTACT_EMAIL_HREF}>
+          {CONTACT_EMAIL}
+        </a>
+        , on WhatsApp at{' '}
         <a className="underline theme-accent-text" href={CONTACT_WHATSAPP_HREF} target="_blank" rel="noopener noreferrer">
           +260 977 740 465
-        </a>{' '}
-        or via the contact form on our home page.
+        </a>
+        , or via the contact form on our home page.
       </P>
 
       <H2>2. Information we collect</H2>
@@ -154,11 +160,15 @@ export default function PrivacyPolicy() {
         <li>Object to certain uses of your data.</li>
       </UL>
       <P>
-        To exercise any of these rights, contact us on WhatsApp at{' '}
+        To exercise any of these rights, contact us by email at{' '}
+        <a className="underline theme-accent-text" href={CONTACT_EMAIL_HREF}>
+          {CONTACT_EMAIL}
+        </a>
+        , on WhatsApp at{' '}
         <a className="underline theme-accent-text" href={CONTACT_WHATSAPP_HREF} target="_blank" rel="noopener noreferrer">
           +260 977 740 465
-        </a>{' '}
-        or via the contact form. We may need to verify your identity before we act on a request.
+        </a>
+        , or via the contact form. We may need to verify your identity before we act on a request.
       </P>
 
       <H2>8. Security</H2>

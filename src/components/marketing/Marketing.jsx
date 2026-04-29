@@ -17,6 +17,7 @@ import {
   Lock,
   FileText,
   Send,
+  Mail,
   ChevronRight,
 } from '../ui/icons'
 
@@ -25,6 +26,8 @@ import {
 // an in-app modal that writes to the `contactMessages` Firestore collection.
 const CONTACT_WHATSAPP_NUMBER = '+260 977 740 465'
 const CONTACT_WHATSAPP_HREF = 'https://wa.me/260977740465'
+const CONTACT_EMAIL = 'support@zedexams.com'
+const CONTACT_EMAIL_HREF = `mailto:${CONTACT_EMAIL}`
 
 // Small inline brand-mark SVG for WhatsApp — heroicons doesn't ship one.
 function WhatsAppIcon({ size = 16, className = '' }) {
@@ -107,7 +110,7 @@ const FAQ = [
   },
   {
     q: 'How much does it cost?',
-    a: "Pricing for learners is being finalised — message us on WhatsApp and we'll let you know the moment paid plans launch. Teachers in beta use the full AI toolset free with fair-use limits.",
+    a: "Pricing for learners is being finalised — message us on WhatsApp or email support@zedexams.com and we'll let you know the moment paid plans launch. Teachers in beta use the full AI toolset free with fair-use limits.",
   },
   {
     q: 'Is ZedExams safe for children?',
@@ -421,6 +424,15 @@ export default function Marketing() {
                 >
                   Contact form
                 </Button>
+                <Button
+                  as="a"
+                  href={CONTACT_EMAIL_HREF}
+                  variant="secondary"
+                  size="md"
+                  leadingIcon={<Icon as={Mail} size="sm" />}
+                >
+                  Email
+                </Button>
               </div>
             </div>
           </Card>
@@ -682,6 +694,15 @@ export default function Marketing() {
                   >
                     <WhatsAppIcon size={16} />
                     WhatsApp {CONTACT_WHATSAPP_NUMBER}
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href={CONTACT_EMAIL_HREF}
+                    className="inline-flex items-center gap-2 hover:theme-text"
+                  >
+                    <Icon as={Mail} size="sm" />
+                    {CONTACT_EMAIL}
                   </a>
                 </li>
                 <li>
