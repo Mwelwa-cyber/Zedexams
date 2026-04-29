@@ -252,6 +252,14 @@ export default function ContactDialog({ open, onClose, source = 'marketing-page'
                 Send message
               </Button>
             </div>
+
+            <p className="pt-3 text-center text-xs theme-text-muted">
+              Prefer email? Write to{' '}
+              <a className="underline theme-accent-text" href="mailto:support@zedexams.com">
+                support@zedexams.com
+              </a>
+              .
+            </p>
           </form>
         )}
       </div>

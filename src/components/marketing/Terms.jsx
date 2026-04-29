@@ -12,6 +12,8 @@ import LegalLayout from './LegalLayout'
  */
 
 const CONTACT_WHATSAPP_HREF = 'https://wa.me/260977740465'
+const CONTACT_EMAIL = 'support@zedexams.com'
+const CONTACT_EMAIL_HREF = `mailto:${CONTACT_EMAIL}`
 
 function H2({ children }) {
   return (
@@ -148,11 +150,15 @@ export default function Terms() {
 
       <H2>14. Contact</H2>
       <P>
-        Questions about these Terms? Reach us on WhatsApp at{' '}
+        Questions about these Terms? Reach us by email at{' '}
+        <a className="underline theme-accent-text" href={CONTACT_EMAIL_HREF}>
+          {CONTACT_EMAIL}
+        </a>
+        , on WhatsApp at{' '}
         <a className="underline theme-accent-text" href={CONTACT_WHATSAPP_HREF} target="_blank" rel="noopener noreferrer">
           +260 977 740 465
-        </a>{' '}
-        or via the contact form on our home page.
+        </a>
+        , or via the contact form on our home page.
       </P>
     </LegalLayout>
   )
