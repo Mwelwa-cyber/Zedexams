@@ -64,16 +64,16 @@ const AUDIENCES = [
       'Build rubrics aligned to the CBC syllabus in seconds',
       'Export everything to DOCX or PDF — print and go',
     ],
-    cta: { label: 'Try teacher tools', to: '/register' },
+    cta: { label: 'Try teacher beta', to: '/register' },
   },
 ]
 
 const PRICING = [
   {
     title: 'Learners',
-    price: 'Free',
-    note: 'No card needed',
-    bullets: ['Daily exams', 'Quizzes & lessons', 'Games & Ask Zed'],
+    price: 'Free demo',
+    note: 'No card needed to start',
+    bullets: ['Try daily exams & quizzes', 'Play selected games', 'Upgrade for full access'],
     cta: { label: 'Create account', to: '/register' },
     primary: true,
   },
@@ -82,7 +82,7 @@ const PRICING = [
     price: 'Free in beta',
     note: 'Fair-use limits',
     bullets: ['AI lesson plans', 'Worksheets & rubrics', 'DOCX / PDF export'],
-    cta: { label: 'Join the beta', to: '/register' },
+    cta: { label: 'Try teacher beta', to: '/register' },
     primary: false,
   },
   {
@@ -275,9 +275,9 @@ export default function Marketing() {
             </div>
             <ul className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-sm theme-text-muted">
               {[
-                'Free for learners',
-                'Free for teachers in beta',
-                'No credit card needed',
+                'Free demo available',
+                'Teacher beta with fair-use limits',
+                'No card needed to start',
               ].map((line) => (
                 <li key={line} className="inline-flex items-center gap-2">
                   <Icon as={CheckCircleIcon} size="sm" className="text-[color:var(--accent)]" />
@@ -394,7 +394,7 @@ export default function Marketing() {
       {/* Teacher proof — realistic worksheet output preview */}
       <Section className="py-16 sm:py-20">
         <div className="grid gap-10 lg:grid-cols-12 lg:gap-12 items-center">
-          <div className="lg:col-span-5 order-2 lg:order-1">
+          <div className="lg:col-span-5">
             <p className="text-sm font-black uppercase tracking-wider theme-accent-text mb-2">
               For teachers
             </p>
@@ -418,10 +418,10 @@ export default function Marketing() {
               ))}
             </ul>
             <Button as={Link} to="/register" variant="primary" size="lg">
-              Try teacher tools free
+              Try teacher beta
             </Button>
           </div>
-          <div className="lg:col-span-7 order-1 lg:order-2">
+          <div className="lg:col-span-7">
             <WorksheetPreview />
           </div>
         </div>
@@ -434,10 +434,11 @@ export default function Marketing() {
             Pricing
           </p>
           <h2 className="font-display font-black text-3xl sm:text-4xl mb-3">
-            Free to start. Clear from day one.
+            Free demo. Clear from day one.
           </h2>
           <p className="theme-text-muted text-lg max-w-2xl mx-auto">
-            Learners use ZedExams free. Teachers get full AI tools free during the beta.
+            Learners can start with a free demo and selected practice. Teachers can try AI tools
+            during beta with fair-use limits.
             Schools work with us on a custom plan.
           </p>
         </div>
