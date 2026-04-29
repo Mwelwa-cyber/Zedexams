@@ -110,7 +110,6 @@ export default function PlayGame() {
 
   return (
     <GamesShell crumbs={crumbs} maxW="max-w-4xl">
-      <GameStickerStyles />
       <GameHeader game={game} subjectMeta={subjectMeta} gradeMeta={gradeMeta} />
       <GameEngine game={game} />
     </GamesShell>
