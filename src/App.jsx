@@ -24,6 +24,7 @@ const ZedStudyAssistant = lazy(() => import('./components/ai/ZedStudyAssistant')
 const FloatingZedButton = lazy(() => import('./components/ai/FloatingZedButton'))
 const IdleWarningModal = lazy(() => import('./components/auth/IdleWarningModal'))
 const NotFound = lazy(() => import('./components/ui/NotFound'))
+const Marketing = lazy(() => import('./components/marketing/Marketing'))
 
 // Admin section
 const AdminLayout = lazy(() => import('./components/admin/AdminLayout'))
@@ -78,7 +79,7 @@ const EditQuiz = lazy(() => import('./components/quiz/EditQuizV2'))
 
 function RootRedirect() {
   const { currentUser, userProfile, isAdmin, isTeacher, profileIssue } = useAuth()
-  if (!currentUser) return <Navigate to="/login" replace />
+  if (!currentUser) return <Marketing />
   if (profileIssue) return <MissingProfileRecovery />
   if (!userProfile) return <PageLoader />
   return (
