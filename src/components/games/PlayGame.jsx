@@ -1,18 +1,23 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { PuzzlePieceIcon, SparklesIcon } from '@heroicons/react/24/solid'
+import { LockClosedIcon, PuzzlePieceIcon, SparklesIcon } from '@heroicons/react/24/solid'
 import {
   getGame,
   gradeByValue,
   subjectBySlug,
 } from '../../utils/gamesService'
-import { getFallbackGame } from '../../data/gamesSeed'
+import { getFallbackGame, isDemoGame } from '../../data/gamesSeed'
+import { useAuth } from '../../contexts/AuthContext'
+import { useSubscription } from '../../hooks/useSubscription'
+import UpgradeModal from '../subscription/UpgradeModal'
+import Button from '../ui/Button'
 import GamesShell from './GamesShell'
 import TimedQuizGame from './TimedQuizGame'
 import MemoryMatchGame from './MemoryMatchGame'
 import WordBuilderGame from './WordBuilderGame'
 import ProvinceShapesGame from './ProvinceShapesGame'
 import {
+  getGameAccessMeta,
   getGameTypeTheme,
   getSubjectMascot,
 } from './gamesUi'
@@ -29,9 +34,12 @@ const SUBJECT_TILE_BG = {
  */
 export default function PlayGame() {
   const { gameId } = useParams()
+  const { currentUser } = useAuth()
+  const { canAccessFullContent } = useSubscription()
   const [game, setGame] = useState(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const [showUpgrade, setShowUpgrade] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -107,11 +115,20 @@ export default function PlayGame() {
     gradeMeta && subjectMeta && { label: subjectMeta.label, to: `/games/g/${gradeMeta.value}/${subjectMeta.slug}` },
     { label: game.title },
   ].filter(Boolean)
+  const locked = !isDemoGame(game) && !canAccessFullContent
 
   return (
     <GamesShell crumbs={crumbs} maxW="max-w-4xl">
+      {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
       <GameHeader game={game} subjectMeta={subjectMeta} gradeMeta={gradeMeta} />
-      <GameEngine game={game} />
+      {locked ? (
+        <PremiumLockedState
+          currentUser={currentUser}
+          onUpgrade={() => setShowUpgrade(true)}
+        />
+      ) : (
+        <GameEngine game={game} />
+      )}
     </GamesShell>
   )
 }
@@ -122,6 +139,8 @@ function GameHeader({ game, subjectMeta, gradeMeta }) {
   const subjectKey = String(subjectMeta?.slug || game.subject || '').toLowerCase()
   const tileBg = SUBJECT_TILE_BG[subjectKey] || 'bg-orange-100'
   const TypeIcon = typeTheme.icon
+  const accessMeta = getGameAccessMeta(game)
+  const AccessIcon = accessMeta.icon
 
   return (
     <header className="zx-card zx-game-header relative mb-6 rounded-[22px] bg-white p-5 sm:p-6">
@@ -140,6 +159,10 @@ function GameHeader({ game, subjectMeta, gradeMeta }) {
             <span className="zx-chip">
               <TypeIcon className="h-3.5 w-3.5" />
               {typeTheme.label}
+            </span>
+            <span className={`zx-chip ${accessMeta.className}`}>
+              <AccessIcon className="h-3.5 w-3.5" />
+              {accessMeta.label}
             </span>
             {game.cbc_topic && (
               <span className="zx-chip">
@@ -171,6 +194,28 @@ function GameHeader({ game, subjectMeta, gradeMeta }) {
         }
       `}</style>
     </header>
+  )
+}
+
+function PremiumLockedState({ currentUser, onUpgrade }) {
+  return (
+    <div className="zx-card rounded-[22px] bg-white p-8 text-center sm:p-10">
+      <span className="mx-auto grid h-16 w-16 place-items-center rounded-[18px] border-2 border-slate-900 bg-slate-900 text-white">
+        <LockClosedIcon className="h-8 w-8 text-amber-300" />
+      </span>
+      <h2 className="font-display mt-5 text-2xl font-bold text-slate-900">This game is part of Premium</h2>
+      <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
+        Foundational demo games stay free, while deeper revision packs unlock with a premium plan.
+      </p>
+      <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+        {currentUser ? (
+          <Button size="lg" onClick={onUpgrade}>Upgrade to play</Button>
+        ) : (
+          <Button as={Link} to="/login" size="lg">Log in to unlock</Button>
+        )}
+        <Button as={Link} to="/games" variant="secondary" size="lg">Back to games</Button>
+      </div>
+    </div>
   )
 }
 
