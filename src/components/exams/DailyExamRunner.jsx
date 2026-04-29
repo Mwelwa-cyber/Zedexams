@@ -450,7 +450,7 @@ export default function DailyExamRunner() {
 
       {/* Action error toast */}
       {actionError && (
-        <div className="fixed left-1/2 top-4 z-[60] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 animate-slide-up">
+        <div className="fixed inset-x-4 top-4 z-[60] mx-auto max-w-md animate-slide-up">
           <div className="flex items-start gap-3 rounded-2xl border-2 border-orange-300 bg-orange-50 px-4 py-3 text-orange-900 shadow-xl">
             <span className="mt-0.5 text-lg">⚠️</span>
             <p className="flex-1 text-sm font-bold leading-snug">{actionError}</p>
