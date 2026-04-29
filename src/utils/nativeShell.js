@@ -17,11 +17,13 @@ export function initNativeShell() {
   StatusBar.setBackgroundColor({ color: '#ffffff' }).catch(() => {})
   StatusBar.setOverlaysWebView({ overlay: false }).catch(() => {})
 
-  // Android hardware back button: walk the SPA history first, only exit when
-  // we're already at the root entry. Without this the OS back button kills
-  // the app, which is what users were hitting on the first beta.
-  CapacitorApp.addListener('backButton', () => {
-    if (window.history.length > 1) {
+  // Android hardware back button: rely on Capacitor's own canGoBack
+  // signal (it tracks the WebView's history) — window.history.length is
+  // unreliable because the SPA's initial entry can read as length 1 even
+  // after several pushState calls. Without this, every back press
+  // hit the "no history → exit" branch.
+  CapacitorApp.addListener('backButton', ({ canGoBack }) => {
+    if (canGoBack) {
       window.history.back()
     } else {
       CapacitorApp.exitApp()

@@ -1,6 +1,6 @@
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app, { auth } from '../firebase/config'
-import { apiUrl } from './runtime'
+import { apiUrl, isNativePlatform } from './runtime'
 
 const functions = getFunctions(app, 'us-central1')
 
@@ -208,9 +208,13 @@ export function sendAIChatStream({ message, context, history = [], systemPrompt,
       return
     }
 
-    // DEV fallback: callable doesn't stream so we get the full reply and
-    // pass it through onToken in one shot, then onDone.
-    if (import.meta.env.DEV) {
+    // DEV + Capacitor wrapper: callable doesn't stream so we get the full
+    // reply and pass it through onToken in one shot, then onDone. On Android
+    // WebView the SSE ReadableStream is unreliable (some versions buffer
+    // until the connection closes, which kills "live typing"), so the
+    // wrapper takes the same path as DEV — no streaming, but Zed actually
+    // replies.
+    if (import.meta.env.DEV || isNativePlatform()) {
       try {
         const response = await withTimeout(
           aiChatCallable(payload),
