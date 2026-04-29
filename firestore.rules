@@ -534,5 +534,23 @@ service cloud.firestore {
       allow delete: if isAuthed() && (resource.data.ownerUid == request.auth.uid || isAdmin());
     }
 
+    // Public marketing contact form. Visitors are unauthenticated, so we
+    // only allow create with strict shape + size validation. Reads,
+    // updates, and deletes are admin-only (use the Firebase console).
+    match /contactMessages/{messageId} {
+      allow read, update, delete: if isAdmin();
+      allow create: if incoming().keys().hasOnly([
+            'name', 'email', 'phone', 'role', 'message', 'source', 'createdAt'
+          ])
+        && incoming().keys().hasAll(['name', 'email', 'message', 'source', 'createdAt'])
+        && incoming().name is string && incoming().name.size() > 0 && incoming().name.size() <= 100
+        && incoming().email is string && incoming().email.size() > 0 && incoming().email.size() <= 200
+        && incoming().message is string && incoming().message.size() > 0 && incoming().message.size() <= 2000
+        && incoming().source is string && incoming().source.size() <= 60
+        && incoming().createdAt == request.time
+        && (!('phone' in incoming()) || (incoming().phone is string && incoming().phone.size() <= 30))
+        && (!('role'  in incoming()) || (incoming().role  is string && incoming().role  in ['parent', 'teacher', 'school', 'learner', 'other']));
+    }
+
   }
 }
