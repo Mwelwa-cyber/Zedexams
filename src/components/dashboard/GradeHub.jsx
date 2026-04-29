@@ -351,7 +351,7 @@ function SkeletonCard() {
 
 function NotificationPanel({ notifications, unreadCount, onClose }) {
   return (
-    <div className="absolute right-0 top-16 z-50 w-[min(92vw,22rem)] theme-card rounded-2xl border theme-border p-3 shadow-xl animate-scale-in">
+    <div className="fixed right-3 top-20 z-50 w-[min(92vw,22rem)] theme-card rounded-2xl border theme-border p-3 shadow-xl animate-scale-in">
       <div className="flex items-center justify-between gap-3 border-b theme-border px-1 pb-2">
         <div>
           <p className="theme-text text-sm font-black">Notifications</p>
