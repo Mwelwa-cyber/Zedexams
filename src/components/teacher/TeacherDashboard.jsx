@@ -5,6 +5,7 @@ import { useFirestore } from '../../hooks/useFirestore'
 import { useSubscription } from '../../hooks/useSubscription'
 import { getLibrarySummary } from '../../utils/teacherLibraryService'
 import UpgradeModal from '../subscription/UpgradeModal'
+import { SYLLABI_TOTAL_COUNT } from '../../data/syllabiCatalog'
 
 const STUDIOS = [
   {
@@ -59,8 +60,8 @@ const STUDIOS = [
     badge: 'FREE',
     title: 'Syllabi',
     tagline: 'Official CDC syllabi — view all Zambian curricula in one place.',
-    to: null,
-    mascot: 'Memory Elephant',
+    to: '/teacher/syllabi',
+    mascot: `${SYLLABI_TOTAL_COUNT} docs`,
   },
 ]
 

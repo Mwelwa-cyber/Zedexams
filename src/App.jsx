@@ -47,6 +47,7 @@ const ZedVoice = lazy(() => import('./components/admin/ZedVoice'))
 const TeacherLayout = lazy(() => import('./components/teacher/TeacherLayout'))
 const TeacherDashboard = lazy(() => import('./components/teacher/TeacherDashboard'))
 const TeacherContent = lazy(() => import('./components/teacher/TeacherContent'))
+const SyllabiLibrary = lazy(() => import('./components/teacher/SyllabiLibrary'))
 
 // Teacher — AI Generators
 const LessonPlanGenerator = lazy(() => import('./components/teacher/generate/LessonPlanGenerator'))
@@ -266,6 +267,7 @@ export default function App() {
           <Route path="/teacher/generate/rubric"          element={<TeacherRoute><RubricGenerator /></TeacherRoute>} />
           <Route path="/teacher/library"                 element={<TeacherRoute><TeacherLibrary /></TeacherRoute>} />
           <Route path="/teacher/library/:id"             element={<TeacherRoute><LibraryItemDetail /></TeacherRoute>} />
+          <Route path="/teacher/syllabi"                 element={<TeacherRoute><SyllabiLibrary /></TeacherRoute>} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>
