@@ -56,6 +56,10 @@ const {
 const {
   createGenerateRubric,
 } = require("./teacherTools/generateRubric");
+// Teacher Tools — Lesson Plan Studio (vanilla JS studio, free-form prompts).
+const {
+  createStudioGenerateLessonPlan,
+} = require("./teacherTools/studioLessonPlan");
 // Teacher Tools — import built-in CBC topics into Firestore (admin-only).
 const {
   importBuiltInCbcTopics,
@@ -1090,6 +1094,9 @@ exports.generateRubric = createGenerateRubric(anthropicApiKey);
 
 // Teacher Tools — admin-only: import the built-in G1-9 topics into Firestore.
 exports.importBuiltInCbcTopics = importBuiltInCbcTopics;
+
+// Teacher Tools — Lesson Plan Studio (vanilla JS studio endpoint).
+exports.studioGenerateLessonPlan = createStudioGenerateLessonPlan(anthropicApiKey);
 exports.apiTextToSpeech = require('./tts').apiTextToSpeech;
 
 // Zed assistant — Telegram bot, WhatsApp bot, and admin web voice client.
