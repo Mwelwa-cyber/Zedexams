@@ -143,7 +143,10 @@ export default function LessonPlanStudio() {
         <div className="app">
           <aside className="sidebar" id="sidebar">
             <div className="brand">
-              <img src="" className="brand-mark-img" alt="ZedExams" />
+              <picture>
+                <source type="image/webp" srcSet="/zedexams-logo.webp?v=1" />
+                <img src="/zedexams-logo.png?v=4" className="brand-mark-img" alt="ZedExams" />
+              </picture>
               <div className="brand-text">
                 <h1>ZedExams</h1>
                 <div className="sub">Lesson Plan Studio</div>
