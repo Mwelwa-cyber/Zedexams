@@ -174,6 +174,116 @@ export function useFirestore() {
     }
   }
 
+  // ── Assessments (teacher-private) ────────────────────────────
+  async function getMyAssessments(uid) {
+    try {
+      const snap = await getDocs(query(
+        collection(db, 'assessments'),
+        where('createdBy', '==', uid),
+        orderBy('createdAt', 'desc'),
+      ))
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    } catch (e) { console.error('getMyAssessments:', e); return [] }
+  }
+
+  async function getAssessmentById(assessmentId) {
+    try {
+      const snap = await getDoc(doc(db, 'assessments', assessmentId))
+      return snap.exists() ? { id: snap.id, ...snap.data() } : null
+    } catch (e) { console.error('getAssessmentById:', e); return null }
+  }
+
+  async function createAssessment(data) {
+    const ref = await addDoc(collection(db, 'assessments'), {
+      ...data,
+      createdAt: serverTimestamp(),
+    })
+    return ref.id
+  }
+
+  async function updateAssessment(assessmentId, data) {
+    await updateDoc(doc(db, 'assessments', assessmentId), {
+      ...data,
+      updatedAt: serverTimestamp(),
+    })
+  }
+
+  async function deleteAssessment(assessmentId) {
+    // Mirror deleteQuizWithQuestions cascade: remove all questions in the
+    // subcollection first, then the parent doc. Chunk to stay under the 500
+    // batch-op limit.
+    const qSnap = await getDocs(collection(db, 'assessments', assessmentId, 'questions'))
+    const questionIds = qSnap.docs.map(d => d.id)
+    const chunkSize = 490
+    for (let i = 0; i < questionIds.length; i += chunkSize) {
+      const batch = writeBatch(db)
+      questionIds.slice(i, i + chunkSize).forEach(qId => {
+        batch.delete(doc(db, 'assessments', assessmentId, 'questions', qId))
+      })
+      await batch.commit()
+    }
+    await deleteDoc(doc(db, 'assessments', assessmentId))
+  }
+
+  async function getAssessmentQuestions(assessmentId) {
+    try {
+      const snap = await getDocs(query(
+        collection(db, 'assessments', assessmentId, 'questions'),
+        orderBy('order', 'asc'),
+      ))
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    } catch (e) { console.error('getAssessmentQuestions:', e); return [] }
+  }
+
+  async function saveAssessmentQuestions(assessmentId, questions) {
+    const chunkSize = 490
+    for (let i = 0; i < questions.length; i += chunkSize) {
+      const chunk = questions.slice(i, i + chunkSize)
+      const batch = writeBatch(db)
+      chunk.forEach((q, offset) => {
+        const ref = doc(collection(db, 'assessments', assessmentId, 'questions'))
+        batch.set(ref, normalizeQuestionPayload(q, i + offset + 1))
+      })
+      await batch.commit()
+    }
+  }
+
+  /**
+   * Atomically update an assessment's metadata + its questions.
+   * Mirrors updateQuizWithQuestions but writes to the `assessments` collection.
+   */
+  async function updateAssessmentWithQuestions(assessmentId, assessmentData, questions, deletedIds = []) {
+    const totalMarks = questions.reduce((s, q) => s + (q.marks || 1), 0)
+
+    await updateDoc(doc(db, 'assessments', assessmentId), {
+      ...assessmentData,
+      questionCount: questions.length,
+      totalMarks,
+      updatedAt: serverTimestamp(),
+    })
+
+    if (deletedIds.length > 0) {
+      const delBatch = writeBatch(db)
+      deletedIds.forEach(id => delBatch.delete(doc(db, 'assessments', assessmentId, 'questions', id)))
+      await delBatch.commit()
+    }
+
+    const chunkSize = 490
+    for (let i = 0; i < questions.length; i += chunkSize) {
+      const chunk = questions.slice(i, i + chunkSize)
+      const upsertBatch = writeBatch(db)
+      chunk.forEach((q, offset) => {
+        const cleanQ = normalizeQuestionPayload(q, i + offset + 1)
+        if (q._id) {
+          upsertBatch.update(doc(db, 'assessments', assessmentId, 'questions', q._id), cleanQ)
+        } else {
+          upsertBatch.set(doc(collection(db, 'assessments', assessmentId, 'questions')), cleanQ)
+        }
+      })
+      await upsertBatch.commit()
+    }
+  }
+
   // ── Results ──────────────────────────────────────────────────
   async function saveResult(data) {
     const ref = await addDoc(collection(db, 'results'), { ...data, completedAt: serverTimestamp() })
@@ -505,6 +615,8 @@ export function useFirestore() {
     getMyQuizzes, getMyLessons,
     getPendingApprovals, submitForApproval, withdrawFromApproval, approveContent, rejectContent,
     deleteQuestion, updateQuizWithQuestions,
+    getMyAssessments, getAssessmentById, createAssessment, updateAssessment, deleteAssessment,
+    getAssessmentQuestions, saveAssessmentQuestions, updateAssessmentWithQuestions,
   }), [])
 }
 

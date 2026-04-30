@@ -46,8 +46,10 @@ const ZedVoice = lazy(() => import('./components/admin/ZedVoice'))
 // Teacher section
 const TeacherLayout = lazy(() => import('./components/teacher/TeacherLayout'))
 const TeacherDashboard = lazy(() => import('./components/teacher/TeacherDashboard'))
-const TeacherContent = lazy(() => import('./components/teacher/TeacherContent'))
 const SyllabiLibrary = lazy(() => import('./components/teacher/SyllabiLibrary'))
+const AssessmentStudio = lazy(() => import('./components/teacher/AssessmentStudio'))
+const EditAssessment = lazy(() => import('./components/teacher/EditAssessment'))
+const AssessmentList = lazy(() => import('./components/teacher/AssessmentList'))
 
 // Teacher — AI Generators
 const LessonPlanGenerator = lazy(() => import('./components/teacher/generate/LessonPlanGenerator'))
@@ -254,9 +256,11 @@ export default function App() {
 
           {/* ── Teacher routes (all wrapped in TeacherLayout) ─── */}
           <Route path="/teacher"                         element={<TeacherRoute><TeacherDashboard /></TeacherRoute>} />
-          <Route path="/teacher/content"                 element={<TeacherRoute><TeacherContent /></TeacherRoute>} />
-          <Route path="/teacher/quizzes/new"             element={<TeacherRoute><CreateQuiz /></TeacherRoute>} />
-          <Route path="/teacher/quizzes/:quizId/edit"    element={<TeacherRoute><EditQuiz /></TeacherRoute>} />
+          {/* Assessment Studio — teacher-only, private. Replaces the old
+              teacher-side quiz creator and `/teacher/content` workflow. */}
+          <Route path="/teacher/assessments"                          element={<TeacherRoute><AssessmentList /></TeacherRoute>} />
+          <Route path="/teacher/assessments/new"                      element={<TeacherRoute><AssessmentStudio /></TeacherRoute>} />
+          <Route path="/teacher/assessments/:assessmentId/edit"       element={<TeacherRoute><EditAssessment /></TeacherRoute>} />
           <Route path="/teacher/lessons"                 element={<TeacherRoute><LessonDashboard /></TeacherRoute>} />
           <Route path="/teacher/lessons/new"             element={<TeacherRoute><LessonEditor /></TeacherRoute>} />
           <Route path="/teacher/lessons/:lessonId/edit"  element={<TeacherRoute><LessonEditor /></TeacherRoute>} />

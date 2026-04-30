@@ -4,10 +4,10 @@ import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
 import {
-  clearCreateQuizDraft,
-  loadCreateQuizDraft,
-  saveCreateQuizDraft,
-} from '../../hooks/useCreateQuizDraft'
+  clearAssessmentDraft,
+  loadAssessmentDraft,
+  saveAssessmentDraft,
+} from '../../hooks/useAssessmentDraft'
 import { storage } from '../../firebase/config'
 import { generateAIQuizQuestions } from '../../utils/aiAssistant'
 import {
@@ -40,8 +40,33 @@ const SUBJECTS = [
   'Home Economics',
   'Expressive Arts',
 ]
-const GRADES = ['4', '5', '6']
+const GRADES = ['4', '5', '6', '7']
 const TERMS = ['1', '2', '3']
+
+// Assessment types — every kind that falls under teacher-made assessments.
+// Stored as machine-friendly enums; rendered with ASSESSMENT_TYPE_LABELS.
+const ASSESSMENT_TYPES = [
+  'weekly', 'monthly', 'mid_term', 'end_of_term', 'topic',
+  'mock', 'diagnostic', 'pre_test', 'post_test', 'revision',
+  'continuous', 'summative', 'practical', 'oral', 'project',
+]
+const ASSESSMENT_TYPE_LABELS = {
+  weekly: 'Weekly test',
+  monthly: 'Monthly test',
+  mid_term: 'Mid-term test',
+  end_of_term: 'End-of-term test',
+  topic: 'Topic test',
+  mock: 'Mock exam',
+  diagnostic: 'Diagnostic / baseline',
+  pre_test: 'Pre-test',
+  post_test: 'Post-test',
+  revision: 'Revision test',
+  continuous: 'Continuous assessment',
+  summative: 'Summative assessment',
+  practical: 'Practical assessment',
+  oral: 'Oral assessment',
+  project: 'Project-based assessment',
+}
 
 const CREATION_MODES = [
   {
@@ -52,7 +77,7 @@ const CREATION_MODES = [
   },
   {
     id: 'import',
-    title: 'Import Quiz (Word/PDF)',
+    title: 'Import Assessment (Word/PDF)',
     body: 'Upload .doc, .docx, or .pdf and convert it into editable questions.',
     accent: 'theme-border theme-accent-bg theme-accent-text',
   },
@@ -181,7 +206,7 @@ function ImportQuizPanel({ importing, importSummary, onImport }) {
     <div className="theme-accent-bg theme-border space-y-4 rounded-2xl border p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="theme-text font-black">Import Quiz (Word/PDF)</h2>
+          <h2 className="theme-text font-black">Import Assessment (Word/PDF)</h2>
           <p className="theme-text mt-1 max-w-3xl text-sm font-bold leading-relaxed">
             Upload a .doc, .docx, or .pdf file. ZedExams will extract questions, options, short answers, and image-based questions into editable cards, then use smart cleanup on tricky formatting when available.
           </p>
@@ -246,7 +271,7 @@ function ImportQuizPanel({ importing, importSummary, onImport }) {
 function CreationModeSelector({ activeMode, onSelect }) {
   return (
     <div className="theme-card theme-border rounded-2xl border p-4 shadow-sm">
-      <p className="theme-text-muted text-xs font-black uppercase tracking-wide">Choose how to create this quiz</p>
+      <p className="theme-text-muted text-xs font-black uppercase tracking-wide">Choose how to create this assessment</p>
       <div className="mt-3 grid gap-3 lg:grid-cols-3">
         {CREATION_MODES.map(mode => {
           const active = activeMode === mode.id
@@ -274,9 +299,9 @@ function CreationModeSelector({ activeMode, onSelect }) {
   )
 }
 
-export default function CreateQuizV2() {
-  const { createQuiz, saveQuestions } = useFirestore()
-  const { currentUser, isAdmin } = useAuth()
+export default function AssessmentStudio() {
+  const { createAssessment, saveAssessmentQuestions } = useFirestore()
+  const { currentUser } = useAuth()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedMode = searchParams.get('mode')
@@ -289,13 +314,15 @@ export default function CreateQuizV2() {
     subject: 'Mathematics',
     grade: '5',
     term: '1',
-    duration: 30,
-    type: 'quiz',
+    duration: 60,
+    type: 'assessment',
     topic: '',
-    // When true, this quiz is visible to learners on Demo Access (free tier).
-    // When false (default), it's premium/full-access only. Admins flip this
-    // here during creation, and can still toggle it later in EditQuizV2.
-    isDemo: false,
+    assessmentType: 'end_of_term',
+    // Cover-page fields (printed at the top of the assessment paper).
+    schoolName: '',
+    className: '',
+    assessmentDate: '',
+    coverInstructions: '',
     mode: '',
     importStatus: '',
     sourceFileName: '',
@@ -333,7 +360,7 @@ export default function CreateQuizV2() {
     if (!currentUser?.uid) return
     draftRestoredRef.current = true
 
-    const draft = loadCreateQuizDraft(currentUser.uid)
+    const draft = loadAssessmentDraft(currentUser.uid)
     if (!draft) return
     // Only restore into a pristine editor so we never clobber state that
     // the component has already populated (e.g. a fresh AI/import flow).
@@ -361,7 +388,7 @@ export default function CreateQuizV2() {
       return
     }
     const timer = setTimeout(() => {
-      saveCreateQuizDraft(currentUser.uid, { form, sections, parts, creationMode })
+      saveAssessmentDraft(currentUser.uid, { form, sections, parts, creationMode })
     }, 800)
     return () => clearTimeout(timer)
   }, [form, sections, parts, creationMode, currentUser?.uid])
@@ -734,7 +761,7 @@ export default function CreateQuizV2() {
     try {
       const compressed = await compressImage(file)
       updateStandaloneQuestion(sectionIndex, 'imageUploadStep', 'uploading')
-      const path = `quiz-images/${currentUser.uid}/${Date.now()}-standalone-${sectionIndex}.jpg`
+      const path = `assessment-images/${currentUser.uid}/${Date.now()}-standalone-${sectionIndex}.jpg`
       const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType: 'image/jpeg' })
       const imageUrl = await getDownloadURL(snapshot.ref)
 
@@ -802,7 +829,7 @@ export default function CreateQuizV2() {
           imageUploadStep: 'uploading',
         },
       }))
-      const path = `quiz-images/${currentUser.uid}/${Date.now()}-passage-${sectionIndex}.jpg`
+      const path = `assessment-images/${currentUser.uid}/${Date.now()}-passage-${sectionIndex}.jpg`
       const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType: 'image/jpeg' })
       const imageUrl = await getDownloadURL(snapshot.ref)
 
@@ -857,7 +884,7 @@ export default function CreateQuizV2() {
           type: asset.contentType || 'image/jpeg',
         })
         const uploadBlob = await compressImage(sourceFile)
-        const path = `quiz-images/${currentUser.uid}/imports/${Date.now()}-${safeStorageName(assetId)}.jpg`
+        const path = `assessment-images/${currentUser.uid}/imports/${Date.now()}-${safeStorageName(assetId)}.jpg`
         const ref = storageRef(storage, path)
         const snapshot = await uploadBytes(ref, uploadBlob, {
           contentType: 'image/jpeg',
@@ -898,7 +925,7 @@ export default function CreateQuizV2() {
 
   function validate() {
     if (!form.title.trim()) {
-      show('Please enter a quiz title.', true)
+      show('Please enter an assessment title.', true)
       return false
     }
     if (questionCount === 0) {
@@ -951,7 +978,7 @@ export default function CreateQuizV2() {
     return true
   }
 
-  async function handleSave({ publish = false, submit = false } = {}) {
+  async function handleSave() {
     if (!validate()) return
     setSaving(true)
 
@@ -959,33 +986,43 @@ export default function CreateQuizV2() {
       const serializedSections = serializeQuizSections(sections, parts)
       const questionsForSave = await uploadImportedQuestionImages(serializedSections.questions)
       const totalMarksForSave = questionsForSave.reduce((sum, question) => sum + (question.marks || 1), 0)
-      const status = publish ? 'published' : submit ? 'pending' : 'draft'
 
-      const quizId = await createQuiz({
-        ...form,
+      // Assessments are teacher-private — there is no publish/approval flow.
+      // We persist the cover-page fields alongside the quiz-shaped payload so
+      // the DOCX/PDF exporters can render them on the printed cover page.
+      const assessmentId = await createAssessment({
+        title: form.title,
+        subject: form.subject,
+        grade: form.grade,
+        term: form.term,
+        duration: form.duration,
+        topic: form.topic,
+        assessmentType: form.assessmentType,
+        schoolName: form.schoolName,
+        className: form.className,
+        assessmentDate: form.assessmentDate,
+        coverInstructions: form.coverInstructions,
         passages: serializedSections.passages,
         parts: serializedSections.parts,
         passageCount: serializedSections.passages.length,
         totalMarks: totalMarksForSave,
         questionCount: questionsForSave.length,
+        mode: form.mode,
         importStatus: form.mode === 'imported_document'
           ? (questionsForSave.some(question => question.requiresReview) ? 'needs_review' : (form.importStatus || 'success'))
           : form.importStatus,
-        isPublished: publish,
-        status,
+        sourceFileName: form.sourceFileName,
+        sourceContentType: form.sourceContentType,
+        importWarnings: form.importWarnings,
         createdBy: currentUser.uid,
-        ...(submit && { submittedAt: new Date() }),
       })
 
-      await saveQuestions(quizId, questionsForSave)
+      await saveAssessmentQuestions(assessmentId, questionsForSave)
       setImportedAssets({})
-      clearCreateQuizDraft(currentUser.uid)
+      clearAssessmentDraft(currentUser.uid)
 
-      show(publish ? 'Quiz published!' : submit ? 'Submitted for approval!' : 'Saved as draft!')
-      // CreateQuizV2 is admin-only now (the teacher-side quiz creator was
-      // replaced by the Assessment Studio). Always return to admin content.
-      const returnPath = '/admin/content'
-      setTimeout(() => navigate(returnPath), 1200)
+      show('Assessment saved to your library!')
+      setTimeout(() => navigate('/teacher/assessments'), 1000)
     } catch (error) {
       console.error(error)
       show(`Failed to save: ${getErrorMessage(error, 'unexpected error')}`, true)
@@ -1013,11 +1050,11 @@ export default function CreateQuizV2() {
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
         </button>
         <div>
-          <p className="text-eyebrow">Authoring</p>
+          <p className="text-eyebrow">Assessment Studio</p>
           <h1 className="text-display-xl theme-text mt-1 flex items-center gap-2">
-            <span aria-hidden="true">✏️</span> Create quiz
+            <span aria-hidden="true">📝</span> Create assessment
           </h1>
-          <p className="theme-text-muted text-body-sm mt-1">Build quizzes with standalone questions or comprehension passages.</p>
+          <p className="theme-text-muted text-body-sm mt-1">Build exam-style assessments for your class — saved privately to your library and ready to print.</p>
         </div>
       </div>
 
@@ -1032,13 +1069,26 @@ export default function CreateQuizV2() {
       )}
 
       <div className="theme-card theme-border space-y-3 rounded-2xl border p-5 shadow-elev-sm">
-        <h2 className="text-display-md theme-text" style={{ fontSize: 17 }}>Quiz details</h2>
+        <h2 className="text-display-md theme-text" style={{ fontSize: 17 }}>Assessment details</h2>
         <input
           value={form.title}
           onChange={event => setF('title', event.target.value)}
-          placeholder="Quiz title (e.g. Grade 5 Mathematics - Fractions Test)"
+          placeholder="Assessment title (e.g. Grade 5 Mathematics — End of Term 2)"
           className={FIELD}
         />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <select value={form.assessmentType} onChange={event => setF('assessmentType', event.target.value)} className={SELECT} aria-label="Assessment type">
+            {ASSESSMENT_TYPES.map(t => (
+              <option key={t} value={t}>{ASSESSMENT_TYPE_LABELS[t]}</option>
+            ))}
+          </select>
+          <input
+            value={form.topic}
+            onChange={event => setF('topic', event.target.value)}
+            placeholder="Topic / focus (optional)"
+            className={FIELD}
+          />
+        </div>
         <div className="grid gap-3 sm:grid-cols-4">
           <select value={form.grade} onChange={event => setF('grade', event.target.value)} className={SELECT}>
             {gradeOptions.map(grade => <option key={grade} value={grade}>Grade {grade}</option>)}
@@ -1054,27 +1104,12 @@ export default function CreateQuizV2() {
             <input
               type="number"
               min={5}
-              max={180}
+              max={600}
               value={form.duration}
-              onChange={event => setF('duration', clampInt(event.target.value, 5, 180, 30))}
+              onChange={event => setF('duration', clampInt(event.target.value, 5, 600, 60))}
               className="flex-1 bg-transparent text-sm font-black outline-none"
             />
           </div>
-        </div>
-        {/*
-          Access toggle. "Demo" means the quiz is visible to learners on the
-          free/Demo Access tier; when off, the quiz is premium-only. The same
-          toggle exists in EditQuizV2 — setting it here just saves a round
-          trip through Edit after creation.
-        */}
-        <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
-          <label className="flex cursor-pointer select-none items-center gap-2" title="Demo quizzes are visible to learners on free/Demo Access. Leave off for premium-only quizzes.">
-            <span className="theme-text-muted text-xs font-black">Mark as Demo</span>
-            <button type="button" onClick={() => setF('isDemo', !form.isDemo)} className={`relative h-5 w-10 min-h-0 rounded-full p-0 shadow-none transition-colors ${form.isDemo ? 'theme-accent-fill' : 'theme-border theme-bg-subtle border'}`}>
-              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${form.isDemo ? 'left-5' : 'left-0.5'}`} />
-            </button>
-            {form.isDemo && <span className="theme-accent-bg theme-accent-text rounded-full px-2 py-0.5 text-xs font-black">Demo · free-tier visible</span>}
-          </label>
         </div>
         <div className="theme-text-muted flex flex-wrap gap-2 pt-1 text-xs">
           <span className="theme-bg-subtle rounded-full px-2 py-1 font-bold">{questionCount} questions</span>
@@ -1091,11 +1126,47 @@ export default function CreateQuizV2() {
         </div>
       </div>
 
+      {/* Cover page — printed at the top of the assessment paper */}
+      <div className="theme-card theme-border space-y-3 rounded-2xl border p-5 shadow-elev-sm">
+        <div>
+          <h2 className="text-display-md theme-text" style={{ fontSize: 17 }}>Cover page</h2>
+          <p className="theme-text-muted text-xs mt-1">These appear on the printed paper. Leave any field blank to omit it from the cover.</p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <input
+            value={form.schoolName}
+            onChange={event => setF('schoolName', event.target.value)}
+            placeholder="School name"
+            className={FIELD}
+          />
+          <input
+            value={form.className}
+            onChange={event => setF('className', event.target.value)}
+            placeholder="Class (e.g. 5A)"
+            className={FIELD}
+          />
+          <input
+            type="date"
+            value={form.assessmentDate}
+            onChange={event => setF('assessmentDate', event.target.value)}
+            className={FIELD}
+            aria-label="Assessment date"
+          />
+        </div>
+        <textarea
+          value={form.coverInstructions}
+          onChange={event => setF('coverInstructions', event.target.value)}
+          placeholder="Instructions to pupils (e.g. Answer all questions. Show your working clearly.)"
+          rows={3}
+          className={FIELD}
+        />
+      </div>
+
       {creationMode === 'ai' && (
         <div className="theme-accent-bg theme-border space-y-3 rounded-2xl border p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <h2 className="theme-text font-black">✦ AI Quiz Generator</h2>
+              <h2 className="theme-text font-black">✦ AI Assessment Generator</h2>
               <p className="theme-text mt-0.5 text-sm">Generate draft multiple-choice questions, then edit them below before saving.</p>
             </div>
             <span className="theme-card theme-border theme-accent-text hidden rounded-full border px-3 py-1 text-xs font-black sm:inline-flex">Teacher tool</span>
@@ -1171,18 +1242,22 @@ export default function CreateQuizV2() {
       </div>
 
       <div className="flex gap-3 pb-6">
-        <button type="button" onClick={() => handleSave({})} disabled={saving || anyUploading} className="theme-card theme-border theme-text hover:border-[var(--accent)] hover:theme-accent-text flex-1 rounded-2xl border-2 py-3.5 font-black transition-all duration-fast ease-out shadow-elev-sm hover:-translate-y-px hover:shadow-elev-md disabled:opacity-50 disabled:pointer-events-none">
-          {saving ? 'Saving…' : anyUploading ? 'Uploading…' : '💾 Save draft'}
+        <button
+          type="button"
+          onClick={() => navigate(-1)}
+          disabled={saving}
+          className="theme-card theme-border theme-text hover:border-[var(--accent)] hover:theme-accent-text rounded-2xl border-2 px-6 py-3.5 font-black transition-all duration-fast ease-out shadow-elev-sm hover:-translate-y-px hover:shadow-elev-md disabled:opacity-50 disabled:pointer-events-none"
+        >
+          Cancel
         </button>
-        {isAdmin ? (
-          <button type="button" onClick={() => handleSave({ publish: true })} disabled={saving || anyUploading} className="theme-accent-fill theme-on-accent flex-1 rounded-2xl py-3.5 font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md disabled:opacity-50 disabled:pointer-events-none">
-            {saving ? 'Publishing…' : anyUploading ? 'Uploading…' : '🚀 Publish quiz'}
-          </button>
-        ) : (
-          <button type="button" onClick={() => handleSave({ submit: true })} disabled={saving || anyUploading} className="theme-accent-fill theme-on-accent flex-1 rounded-2xl py-3.5 font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md disabled:opacity-50 disabled:pointer-events-none">
-            {saving ? 'Submitting…' : anyUploading ? 'Uploading…' : '📤 Submit for approval'}
-          </button>
-        )}
+        <button
+          type="button"
+          onClick={() => handleSave()}
+          disabled={saving || anyUploading}
+          className="theme-accent-fill theme-on-accent flex-1 rounded-2xl py-3.5 font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md disabled:opacity-50 disabled:pointer-events-none"
+        >
+          {saving ? 'Saving…' : anyUploading ? 'Uploading…' : '💾 Save to my library'}
+        </button>
       </div>
     </div>
   )

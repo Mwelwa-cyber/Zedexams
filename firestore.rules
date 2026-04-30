@@ -147,6 +147,63 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ── assessments (teacher-private) ─────────────────────────
+    // Assessments are exam-style papers a teacher creates for their own
+    // class. Unlike quizzes, they are NEVER shown to learners through the
+    // app — teachers print/download them. So reads, writes, and deletes are
+    // restricted to the owner. Admins can also read for support.
+    function _validAssessmentType(value) {
+      return value is string && value in [
+        'weekly', 'monthly', 'mid_term', 'end_of_term', 'topic',
+        'mock', 'diagnostic', 'pre_test', 'post_test', 'revision',
+        'continuous', 'summative', 'practical', 'oral', 'project'
+      ];
+    }
+    function validAssessmentFields() {
+      return (!('title' in incoming()) || (incoming().title is string && incoming().title.size() >= 1 && incoming().title.size() <= 200))
+        && (!('grade' in incoming()) || _validGrade(incoming().grade))
+        && (!('subject' in incoming()) || _validSubject(incoming().subject))
+        && (!('topic' in incoming()) || (incoming().topic is string && incoming().topic.size() <= 200))
+        && (!('assessmentType' in incoming()) || _validAssessmentType(incoming().assessmentType))
+        && (!('duration' in incoming()) || (incoming().duration is int && incoming().duration >= 5 && incoming().duration <= 600))
+        && (!('totalMarks' in incoming()) || (incoming().totalMarks is int && incoming().totalMarks >= 0 && incoming().totalMarks <= 10000))
+        && (!('questionCount' in incoming()) || (incoming().questionCount is int && incoming().questionCount >= 0 && incoming().questionCount <= 1000))
+        && (!('schoolName' in incoming()) || (incoming().schoolName is string && incoming().schoolName.size() <= 200))
+        && (!('className' in incoming()) || (incoming().className is string && incoming().className.size() <= 100))
+        && (!('term' in incoming()) || (incoming().term is string && incoming().term.size() <= 20))
+        && (!('assessmentDate' in incoming()) || (incoming().assessmentDate is string && incoming().assessmentDate.size() <= 40))
+        && (!('coverInstructions' in incoming()) || (incoming().coverInstructions is string && incoming().coverInstructions.size() <= 4000))
+        && (!('parts' in incoming()) || (incoming().parts is list && incoming().parts.size() <= 20));
+    }
+    match /assessments/{assessmentId} {
+      allow read: if isAuthed() && (
+        isAdmin() || resource.data.createdBy == request.auth.uid
+      );
+      allow create: if validAssessmentFields()
+        && isTeacherOrAbove()
+        && incoming().createdBy == request.auth.uid;
+      allow update: if validAssessmentFields()
+        && isTeacherOrAbove()
+        && resource.data.createdBy == request.auth.uid
+        && incoming().createdBy == request.auth.uid;
+      allow delete: if isAuthed() && (
+        isAdmin() || (isTeacherOrAbove() && resource.data.createdBy == request.auth.uid)
+      );
+
+      match /questions/{questionId} {
+        allow read: if isAuthed() && (
+          isAdmin()
+          || get(/databases/$(database)/documents/assessments/$(assessmentId)).data.createdBy == request.auth.uid
+        );
+        allow create, update: if validQuestionFields() && isTeacherOrAbove()
+          && get(/databases/$(database)/documents/assessments/$(assessmentId)).data.createdBy == request.auth.uid;
+        allow delete: if isAuthed() && (
+          isAdmin()
+          || (isTeacherOrAbove() && get(/databases/$(database)/documents/assessments/$(assessmentId)).data.createdBy == request.auth.uid)
+        );
+      }
+    }
+
     // ── quizzes ───────────────────────────────────────────────
     match /quizzes/{quizId} {
       allow read: if isAuthed() && (
