@@ -17,8 +17,8 @@ import { richTextHasContent } from '../../utils/quizRichText.js'
 import { clampInt } from '../../utils/inputs.js'
 import { getErrorMessage } from '../../utils/errors.js'
 import { validateStandaloneQuestion as sharedValidateStandaloneQuestion } from '../../utils/quizValidation.js'
-import QuizSectionsEditor from './QuizSectionsEditor'
-import QuizEditorPreviewPanel from './QuizEditorPreviewPanel'
+import QuizSectionsEditor from '../quiz/QuizSectionsEditor'
+import QuizEditorPreviewPanel from '../quiz/QuizEditorPreviewPanel'
 
 const SUBJECTS = [
   'Mathematics',
@@ -29,15 +29,31 @@ const SUBJECTS = [
   'Home Economics',
   'Expressive Arts',
 ]
-const GRADES = ['4', '5', '6']
+const GRADES = ['4', '5', '6', '7']
 const TERMS = ['1', '2', '3']
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
-const STATUS_META = {
-  draft: { label: 'Draft', dot: 'bg-[var(--text-muted)]', pill: 'theme-bg-subtle theme-text-muted theme-border border' },
-  pending: { label: 'Pending', dot: 'bg-yellow-400', pill: 'bg-yellow-100 text-yellow-700' },
-  published: { label: 'Published', dot: 'bg-green-500', pill: 'bg-green-100 text-green-700' },
-  rejected: { label: 'Rejected', dot: 'bg-red-500', pill: 'bg-red-100 text-red-600' },
+const ASSESSMENT_TYPES = [
+  'weekly', 'monthly', 'mid_term', 'end_of_term', 'topic',
+  'mock', 'diagnostic', 'pre_test', 'post_test', 'revision',
+  'continuous', 'summative', 'practical', 'oral', 'project',
+]
+const ASSESSMENT_TYPE_LABELS = {
+  weekly: 'Weekly test',
+  monthly: 'Monthly test',
+  mid_term: 'Mid-term test',
+  end_of_term: 'End-of-term test',
+  topic: 'Topic test',
+  mock: 'Mock exam',
+  diagnostic: 'Diagnostic / baseline',
+  pre_test: 'Pre-test',
+  post_test: 'Post-test',
+  revision: 'Revision test',
+  continuous: 'Continuous assessment',
+  summative: 'Summative assessment',
+  practical: 'Practical assessment',
+  oral: 'Oral assessment',
+  project: 'Project-based assessment',
 }
 
 const FIELD = 'theme-input w-full rounded-xl border-2 px-3 py-2.5 text-sm placeholder:text-gray-400 outline-none transition-colors focus:border-[var(--accent)]'
@@ -111,11 +127,11 @@ function StatPill({ label, value, color }) {
   return <span className={`rounded-full px-2.5 py-1 text-xs font-bold ${color}`}>{value} {label}</span>
 }
 
-export default function EditQuizV2() {
-  const { quizId } = useParams()
+export default function EditAssessment() {
+  const { assessmentId } = useParams()
   const navigate = useNavigate()
-  const { getQuizById, getQuestions, updateQuizWithQuestions } = useFirestore()
-  const { currentUser, isAdmin } = useAuth()
+  const { getAssessmentById, getAssessmentQuestions, updateAssessmentWithQuestions } = useFirestore()
+  const { currentUser } = useAuth()
 
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
@@ -124,13 +140,16 @@ export default function EditQuizV2() {
     subject: 'Mathematics',
     grade: '5',
     term: '1',
-    duration: 30,
-    type: 'quiz',
+    duration: 60,
+    type: 'assessment',
     topic: '',
-    isDemo: false,
+    assessmentType: 'end_of_term',
+    schoolName: '',
+    className: '',
+    assessmentDate: '',
+    coverInstructions: '',
   })
-  const [quizStatus, setQuizStatus] = useState('draft')
-  const [quizOwner, setQuizOwner] = useState(null)
+  const [assessmentOwner, setAssessmentOwner] = useState(null)
   const [sections, setSections] = useState([])
   const [parts, setParts] = useState([])
   const [deletedIds, setDeletedIds] = useState([])
@@ -146,12 +165,8 @@ export default function EditQuizV2() {
   const newCount = serializedPreview.questions.filter(question => !question._id).length
   const imagesCount = countImages(sections)
   const anyUploading = hasUploadingAssets(sections)
-  const statusMeta = STATUS_META[quizStatus] ?? STATUS_META.draft
-  // Admin-only flow: teacher quiz creation was replaced by the Assessment
-  // Studio. Non-admins shouldn't reach this route, but we still gate access
-  // below; the back link is the admin content list.
-  const backPath = '/admin/content'
-  const canEdit = isAdmin || quizOwner === currentUser?.uid
+  const backPath = '/teacher/assessments'
+  const canEdit = assessmentOwner === currentUser?.uid
   const gradeOptions = withCurrentOption(GRADES, form.grade)
   const subjectOptions = withCurrentOption(SUBJECTS, form.subject)
   const termOptions = withCurrentOption(TERMS, form.term)
@@ -167,43 +182,49 @@ export default function EditQuizV2() {
   }
 
   useEffect(() => {
-    if (!quizId || !currentUser?.uid) return
+    if (!assessmentId || !currentUser?.uid) return
     let cancelled = false
 
     async function load() {
       setLoading(true)
       setNotFound(false)
-      const [quiz, questions] = await Promise.all([getQuizById(quizId), getQuestions(quizId)])
+      const [assessment, questions] = await Promise.all([
+        getAssessmentById(assessmentId),
+        getAssessmentQuestions(assessmentId),
+      ])
       if (cancelled) return
-      if (!quiz) {
+      if (!assessment) {
         setNotFound(true)
         setLoading(false)
         return
       }
-      if (!isAdmin && quiz.createdBy !== currentUser.uid) {
+      if (assessment.createdBy !== currentUser.uid) {
         setNotFound(true)
         setLoading(false)
         return
       }
 
       setForm({
-        title: quiz.title ?? '',
-        subject: quiz.subject ?? 'Mathematics',
-        grade: quiz.grade ?? '5',
-        term: quiz.term ?? '1',
-        duration: quiz.duration ?? 30,
-        type: quiz.type ?? 'quiz',
-        topic: quiz.topic ?? '',
-        isDemo: quiz.isDemo ?? false,
-        mode: quiz.mode ?? '',
-        importStatus: quiz.importStatus ?? '',
-        sourceFileName: quiz.sourceFileName ?? '',
-        sourceContentType: quiz.sourceContentType ?? '',
-        importWarnings: quiz.importWarnings ?? [],
+        title: assessment.title ?? '',
+        subject: assessment.subject ?? 'Mathematics',
+        grade: assessment.grade ?? '5',
+        term: assessment.term ?? '1',
+        duration: assessment.duration ?? 60,
+        type: assessment.type ?? 'assessment',
+        topic: assessment.topic ?? '',
+        assessmentType: assessment.assessmentType ?? 'end_of_term',
+        schoolName: assessment.schoolName ?? '',
+        className: assessment.className ?? '',
+        assessmentDate: assessment.assessmentDate ?? '',
+        coverInstructions: assessment.coverInstructions ?? '',
+        mode: assessment.mode ?? '',
+        importStatus: assessment.importStatus ?? '',
+        sourceFileName: assessment.sourceFileName ?? '',
+        sourceContentType: assessment.sourceContentType ?? '',
+        importWarnings: assessment.importWarnings ?? [],
       })
-      setQuizStatus(quiz.status ?? (quiz.isPublished ? 'published' : 'draft'))
-      setQuizOwner(quiz.createdBy)
-      const hydrated = hydrateQuizSections(questions, quiz.passages || [], quiz.parts || [])
+      setAssessmentOwner(assessment.createdBy)
+      const hydrated = hydrateQuizSections(questions, assessment.passages || [], assessment.parts || [])
       setSections(hydrated.sections)
       setParts(hydrated.parts)
       setDeletedIds([])
@@ -215,7 +236,7 @@ export default function EditQuizV2() {
     return () => {
       cancelled = true
     }
-  }, [quizId, getQuizById, getQuestions, currentUser?.uid, isAdmin])
+  }, [assessmentId, getAssessmentById, getAssessmentQuestions, currentUser?.uid])
 
   function updateSection(sectionIndex, updater) {
     setSections(currentSections => currentSections.map((section, index) => (
@@ -448,7 +469,7 @@ export default function EditQuizV2() {
     try {
       const compressed = await compressImage(file)
       updateStandaloneQuestion(sectionIndex, 'imageUploadStep', 'uploading')
-      const path = `quiz-images/${currentUser.uid}/${Date.now()}-standalone-${sectionIndex}.jpg`
+      const path = `assessment-images/${currentUser.uid}/${Date.now()}-standalone-${sectionIndex}.jpg`
       const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType: 'image/jpeg' })
       const imageUrl = await getDownloadURL(snapshot.ref)
       updateSection(sectionIndex, section => ({
@@ -515,7 +536,7 @@ export default function EditQuizV2() {
           imageUploadStep: 'uploading',
         },
       }))
-      const path = `quiz-images/${currentUser.uid}/${Date.now()}-passage-${sectionIndex}.jpg`
+      const path = `assessment-images/${currentUser.uid}/${Date.now()}-passage-${sectionIndex}.jpg`
       const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType: 'image/jpeg' })
       const imageUrl = await getDownloadURL(snapshot.ref)
       updateSection(sectionIndex, section => ({
@@ -559,7 +580,7 @@ export default function EditQuizV2() {
 
   function validate() {
     if (!form.title.trim()) {
-      show('Quiz title is required.', true)
+      show('Assessment title is required.', true)
       return false
     }
     if (questionCount === 0) {
@@ -612,69 +633,47 @@ export default function EditQuizV2() {
     return true
   }
 
-  async function handleSave(mode = 'draft') {
+  async function handleSave() {
     if (!validate()) return
     setSaving(true)
 
     try {
       const serializedSections = serializeQuizSections(sections, parts)
-      const isPublished = mode === 'published'
-      await updateQuizWithQuestions(
-        quizId,
+      await updateAssessmentWithQuestions(
+        assessmentId,
         {
-          ...form,
+          title: form.title,
+          subject: form.subject,
+          grade: form.grade,
+          term: form.term,
+          duration: form.duration,
+          topic: form.topic,
+          assessmentType: form.assessmentType,
+          schoolName: form.schoolName,
+          className: form.className,
+          assessmentDate: form.assessmentDate,
+          coverInstructions: form.coverInstructions,
           passages: serializedSections.passages,
           parts: serializedSections.parts,
           passageCount: serializedSections.passages.length,
-          status: mode,
-          isPublished,
+          mode: form.mode,
+          importStatus: form.importStatus,
+          sourceFileName: form.sourceFileName,
+          sourceContentType: form.sourceContentType,
+          importWarnings: form.importWarnings,
           updatedBy: currentUser.uid,
-          ...(mode === 'pending' && { submittedAt: new Date() }),
-          ...(mode === 'published' && { approvedBy: currentUser.uid }),
         },
         serializedSections.questions,
         deletedIds,
       )
 
-      setQuizStatus(mode)
       setDeletedIds([])
       setDirty(false)
-      show(mode === 'published' ? 'Quiz published!' : mode === 'pending' ? 'Submitted for approval!' : 'Changes saved as draft.')
-      setTimeout(() => navigate(backPath), 1400)
+      show('Changes saved.')
+      setTimeout(() => navigate(backPath), 1200)
     } catch (error) {
-      console.error('EditQuiz save error:', error)
+      console.error('EditAssessment save error:', error)
       show(`Save failed: ${getErrorMessage(error, 'unexpected error')}`, true)
-      setSaving(false)
-    }
-  }
-
-  async function handleTogglePublish() {
-    if (!isAdmin) return
-    setSaving(true)
-    try {
-      const nextStatus = quizStatus === 'published' ? 'draft' : 'published'
-      const serializedSections = serializeQuizSections(sections, parts)
-      await updateQuizWithQuestions(
-        quizId,
-        {
-          ...form,
-          passages: serializedSections.passages,
-          parts: serializedSections.parts,
-          passageCount: serializedSections.passages.length,
-          status: nextStatus,
-          isPublished: nextStatus === 'published',
-          updatedBy: currentUser.uid,
-        },
-        serializedSections.questions,
-        deletedIds,
-      )
-      setQuizStatus(nextStatus)
-      setDeletedIds([])
-      setDirty(false)
-      show(nextStatus === 'published' ? 'Quiz published!' : 'Quiz unpublished.')
-    } catch (error) {
-      show(getErrorMessage(error, 'Failed to update publish status.'), true)
-    } finally {
       setSaving(false)
     }
   }
@@ -693,12 +692,12 @@ export default function EditQuizV2() {
     return (
       <div className="theme-text py-20 text-center">
         <div className="mb-3 text-5xl" aria-hidden="true">🔒</div>
-        <h2 className="text-display-xl theme-text mb-2">{notFound ? 'Quiz not found' : 'Access denied'}</h2>
+        <h2 className="text-display-xl theme-text mb-2">{notFound ? 'Assessment not found' : 'Access denied'}</h2>
         <p className="theme-text-muted text-body mb-5">
-          {notFound ? 'This quiz does not exist or has been deleted.' : 'You can only edit quizzes you created.'}
+          {notFound ? 'This assessment does not exist or has been deleted.' : 'You can only edit assessments you created.'}
         </p>
         <button type="button" onClick={() => navigate(backPath)} className="theme-accent-fill theme-on-accent rounded-xl px-6 py-2.5 text-sm font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md">
-          ← Back to Content
+          ← Back to assessments
         </button>
       </div>
     )
@@ -723,61 +722,60 @@ export default function EditQuizV2() {
             <p className="text-eyebrow">Editing</p>
             <div className="flex flex-wrap items-center gap-2 mt-1">
               <h1 className="text-display-xl theme-text flex items-center gap-2">
-                <span aria-hidden="true">✏️</span> Edit quiz
+                <span aria-hidden="true">✏️</span> Edit assessment
               </h1>
-              <span className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${statusMeta.pill}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${statusMeta.dot}`} />
-                {statusMeta.label}
-              </span>
               {dirty && <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-bold text-orange-600">● Unsaved changes</span>}
             </div>
-            <p className="theme-text-muted mt-1 text-body-sm">{form.title || 'Untitled quiz'} · {questionCount} questions</p>
+            <p className="theme-text-muted mt-1 text-body-sm">{form.title || 'Untitled assessment'} · {questionCount} questions</p>
           </div>
         </div>
-        {isAdmin && (
-          <button type="button" onClick={handleTogglePublish} disabled={saving || anyUploading} className={`min-h-0 rounded-xl border-2 px-4 py-2 text-sm font-black transition-all duration-fast ease-out shadow-elev-sm hover:-translate-y-px hover:shadow-elev-md disabled:opacity-40 ${
-            quizStatus === 'published' ? 'border-yellow-300 text-yellow-700 hover:bg-yellow-50' : 'border-green-300 text-green-700 hover:bg-green-50'
-          }`}>
-            {quizStatus === 'published' ? '📦 Unpublish' : '🚀 Publish'}
-          </button>
-        )}
       </div>
 
       <div className="theme-card theme-border space-y-4 rounded-2xl border p-5 shadow-elev-sm">
         <h2 className="text-display-md theme-text flex items-center gap-2" style={{ fontSize: 17 }}>
-          <span aria-hidden="true">📋</span> Quiz details
+          <span aria-hidden="true">📋</span> Assessment details
         </h2>
         <div className="space-y-3">
-          <input value={form.title} onChange={event => setF('title', event.target.value)} placeholder="Quiz title (e.g. Grade 6 Science - Human Body)" className={FIELD} />
-          <input value={form.topic || ''} onChange={event => setF('topic', event.target.value)} placeholder="Topic (optional, e.g. Photosynthesis)" className={FIELD} />
+          <input value={form.title} onChange={event => setF('title', event.target.value)} placeholder="Assessment title (e.g. Grade 5 Mathematics — End of Term 2)" className={FIELD} />
+          <div className="grid gap-3 sm:grid-cols-2">
+            <select value={form.assessmentType} onChange={event => setF('assessmentType', event.target.value)} className={SELECT} aria-label="Assessment type">
+              {ASSESSMENT_TYPES.map(t => <option key={t} value={t}>{ASSESSMENT_TYPE_LABELS[t]}</option>)}
+            </select>
+            <input value={form.topic || ''} onChange={event => setF('topic', event.target.value)} placeholder="Topic / focus (optional)" className={FIELD} />
+          </div>
           <div className="grid gap-3 sm:grid-cols-4">
             <select value={form.grade} onChange={event => setF('grade', event.target.value)} className={SELECT}>{gradeOptions.map(grade => <option key={grade} value={grade}>Grade {grade}</option>)}</select>
             <select value={form.subject} onChange={event => setF('subject', event.target.value)} className={SELECT}>{subjectOptions.map(subject => <option key={subject} value={subject}>{subject}</option>)}</select>
             <select value={form.term} onChange={event => setF('term', event.target.value)} className={SELECT}>{termOptions.map(term => <option key={term} value={term}>Term {term}</option>)}</select>
             <div className="theme-border flex items-center gap-2 rounded-xl border-2 px-3 py-2.5">
               <span className="theme-text-muted whitespace-nowrap text-xs font-bold">⏱️ Mins</span>
-              <input type="number" min={5} max={180} value={form.duration} onChange={event => setF('duration', clampInt(event.target.value, 5, 180, 30))} className="flex-1 bg-transparent text-sm font-black outline-none" />
+              <input type="number" min={5} max={600} value={form.duration} onChange={event => setF('duration', clampInt(event.target.value, 5, 600, 60))} className="flex-1 bg-transparent text-sm font-black outline-none" />
             </div>
           </div>
         </div>
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex flex-wrap gap-2">
-            <StatPill label="questions" value={questionCount} color="theme-accent-bg theme-accent-text" />
-            <StatPill label="marks" value={totalMarks} color="theme-bg-subtle theme-text" />
-            <StatPill label="mins" value={form.duration} color="bg-orange-100 text-orange-700" />
-            {passageCount > 0 && <StatPill label="passages" value={passageCount} color="bg-orange-100 text-orange-700" />}
-            {newCount > 0 && <StatPill label="new" value={newCount} color="theme-accent-bg theme-accent-text" />}
-            {deletedIds.length > 0 && <StatPill label="queued for deletion" value={deletedIds.length} color="bg-red-100 text-red-600" />}
-            {imagesCount > 0 && <StatPill label="images" value={imagesCount} color="theme-accent-bg theme-accent-text" />}
-          </div>
-          <label className="flex cursor-pointer select-none items-center gap-2" title="Demo quizzes are visible to free users">
-            <span className="theme-text-muted text-xs font-black">Mark as Demo</span>
-            <button type="button" onClick={() => setF('isDemo', !form.isDemo)} className={`relative h-5 w-10 min-h-0 rounded-full p-0 shadow-none transition-colors ${form.isDemo ? 'theme-accent-fill' : 'theme-border theme-bg-subtle border'}`}>
-              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${form.isDemo ? 'left-5' : 'left-0.5'}`} />
-            </button>
-            {form.isDemo && <span className="theme-accent-bg theme-accent-text rounded-full px-2 py-0.5 text-xs font-black">Demo</span>}
-          </label>
+        <div className="flex flex-wrap gap-2">
+          <StatPill label="questions" value={questionCount} color="theme-accent-bg theme-accent-text" />
+          <StatPill label="marks" value={totalMarks} color="theme-bg-subtle theme-text" />
+          <StatPill label="mins" value={form.duration} color="bg-orange-100 text-orange-700" />
+          {passageCount > 0 && <StatPill label="passages" value={passageCount} color="bg-orange-100 text-orange-700" />}
+          {newCount > 0 && <StatPill label="new" value={newCount} color="theme-accent-bg theme-accent-text" />}
+          {deletedIds.length > 0 && <StatPill label="queued for deletion" value={deletedIds.length} color="bg-red-100 text-red-600" />}
+          {imagesCount > 0 && <StatPill label="images" value={imagesCount} color="theme-accent-bg theme-accent-text" />}
         </div>
+      </div>
+
+      {/* Cover page */}
+      <div className="theme-card theme-border space-y-3 rounded-2xl border p-5 shadow-elev-sm">
+        <div>
+          <h2 className="text-display-md theme-text" style={{ fontSize: 17 }}>Cover page</h2>
+          <p className="theme-text-muted text-xs mt-1">These appear on the printed paper. Leave any field blank to omit it from the cover.</p>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <input value={form.schoolName || ''} onChange={event => setF('schoolName', event.target.value)} placeholder="School name" className={FIELD} />
+          <input value={form.className || ''} onChange={event => setF('className', event.target.value)} placeholder="Class (e.g. 5A)" className={FIELD} />
+          <input type="date" value={form.assessmentDate || ''} onChange={event => setF('assessmentDate', event.target.value)} className={FIELD} aria-label="Assessment date" />
+        </div>
+        <textarea value={form.coverInstructions || ''} onChange={event => setF('coverInstructions', event.target.value)} placeholder="Instructions to pupils (e.g. Answer all questions. Show your working clearly.)" rows={3} className={FIELD} />
       </div>
 
       {form.mode === 'imported_document' && (
@@ -786,7 +784,7 @@ export default function EditQuizV2() {
         }`}>
           <p className={`text-sm font-black ${form.importStatus === 'needs_review' ? 'text-amber-900' : 'text-emerald-900'}`}>Imported from Word/PDF</p>
           <p className={`mt-1 text-xs font-bold leading-relaxed ${form.importStatus === 'needs_review' ? 'text-amber-800' : 'text-emerald-800'}`}>
-            Source: {form.sourceFileName || 'document'} · Status: {form.importStatus || 'success'} · Check all marked questions before publishing.
+            Source: {form.sourceFileName || 'document'} · Status: {form.importStatus || 'success'} · Check all marked questions before saving.
           </p>
         </div>
       )}
@@ -832,30 +830,24 @@ export default function EditQuizV2() {
       )}
 
       <div className="theme-card theme-border space-y-3 rounded-2xl border p-4 shadow-elev-sm">
-        <p className="text-eyebrow">Save options</p>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <button type="button" onClick={() => handleSave('draft')} disabled={saving || anyUploading} className="theme-card theme-border theme-text hover:border-[var(--accent)] hover:theme-accent-text flex min-h-0 items-center justify-center gap-2 rounded-2xl border-2 py-3 font-black transition-all duration-fast ease-out shadow-elev-sm hover:-translate-y-px hover:shadow-elev-md disabled:opacity-40 disabled:pointer-events-none">
-            <span aria-hidden="true">💾</span>
-            <span>{saving ? 'Saving…' : anyUploading ? 'Uploading…' : 'Save draft'}</span>
+        <div className="grid gap-3 sm:grid-cols-2">
+          <button
+            type="button"
+            onClick={() => navigate(backPath)}
+            disabled={saving}
+            className="theme-card theme-border theme-text hover:border-[var(--accent)] hover:theme-accent-text flex min-h-0 items-center justify-center gap-2 rounded-2xl border-2 py-3 font-black transition-all duration-fast ease-out shadow-elev-sm hover:-translate-y-px hover:shadow-elev-md disabled:opacity-40 disabled:pointer-events-none"
+          >
+            <span>Cancel</span>
           </button>
-          {!isAdmin && (
-            <button type="button" onClick={() => handleSave('pending')} disabled={saving || anyUploading} className="theme-accent-fill theme-on-accent flex min-h-0 items-center justify-center gap-2 rounded-2xl py-3 font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md disabled:opacity-40 disabled:pointer-events-none">
-              <span aria-hidden="true">📤</span>
-              <span>{saving ? 'Submitting…' : 'Submit for approval'}</span>
-            </button>
-          )}
-          {isAdmin && (
-            <>
-              <button type="button" onClick={() => handleSave('pending')} disabled={saving || anyUploading} className="flex min-h-0 items-center justify-center gap-2 rounded-2xl border-2 border-yellow-400 py-3 font-black text-yellow-700 transition-all duration-fast ease-out shadow-elev-sm hover:-translate-y-px hover:shadow-elev-md hover:bg-yellow-50 disabled:opacity-40 disabled:pointer-events-none">
-                <span aria-hidden="true">⏳</span>
-                <span>{saving ? 'Saving…' : 'Save as pending'}</span>
-              </button>
-              <button type="button" onClick={() => handleSave('published')} disabled={saving || anyUploading} className="theme-accent-fill theme-on-accent flex min-h-0 items-center justify-center gap-2 rounded-2xl py-3 font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md disabled:opacity-40 disabled:pointer-events-none">
-                <span aria-hidden="true">🚀</span>
-                <span>{saving ? 'Publishing…' : 'Save & publish'}</span>
-              </button>
-            </>
-          )}
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={saving || anyUploading}
+            className="theme-accent-fill theme-on-accent flex min-h-0 items-center justify-center gap-2 rounded-2xl py-3 font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md disabled:opacity-40 disabled:pointer-events-none"
+          >
+            <span aria-hidden="true">💾</span>
+            <span>{saving ? 'Saving…' : anyUploading ? 'Uploading…' : 'Save changes'}</span>
+          </button>
         </div>
         <p className={`text-center text-xs font-bold ${dirty ? 'text-warning' : 'text-success'}`}>
           {dirty ? '⚠️ You have unsaved changes.' : '✓ All changes saved.'}

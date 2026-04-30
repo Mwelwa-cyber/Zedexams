@@ -75,6 +75,16 @@ service firebase.storage {
       allow delete: if ownsPath(ownerUid) && isTeacherOrAdmin();
     }
 
+    // Teacher-private assessment question images. Only the owning teacher
+    // and admins can read these (assessments are not learner-facing).
+    match /assessment-images/{ownerUid}/{fileName=**} {
+      allow read: if ownsPath(ownerUid) || isAdmin();
+      allow create, update: if ownsPath(ownerUid)
+        && isTeacherOrAdmin()
+        && validQuizImageUpload();
+      allow delete: if ownsPath(ownerUid) && isTeacherOrAdmin();
+    }
+
     // Imported lesson images: teachers/admins upload into their own folder.
     // Learners can read them as part of playable lessons.
     match /lesson-images/{ownerUid}/{assetBatchId}/{fileName=**} {

@@ -2,7 +2,6 @@ import { lazy, Suspense, useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
-  FolderOpen,
   Presentation,
   PencilLine,
   BookOpen,
@@ -19,11 +18,10 @@ import Icon from '../ui/Icon'
 const UpgradeModal = lazy(() => import('../subscription/UpgradeModal'))
 
 const NAV = [
-  { to: '/teacher',               icon: LayoutDashboard, label: 'My Dashboard', end: true },
-  { to: '/teacher/content',       icon: FolderOpen,      label: 'My Content'              },
-  { to: '/teacher/lessons',       icon: Presentation,    label: 'My Lessons'              },
-  { to: '/teacher/quizzes/new',   icon: PencilLine,      label: 'Create Quiz'             },
-  { to: '/teacher/lessons/new',   icon: BookOpen,        label: 'Create Lesson'           },
+  { to: '/teacher',                  icon: LayoutDashboard, label: 'My Dashboard', end: true },
+  { to: '/teacher/assessments',      icon: PencilLine,      label: 'Assessments'             },
+  { to: '/teacher/lessons',          icon: Presentation,    label: 'My Lessons'              },
+  { to: '/teacher/lessons/new',      icon: BookOpen,        label: 'Create Lesson'           },
 ]
 
 export default function TeacherLayout({ children }) {
