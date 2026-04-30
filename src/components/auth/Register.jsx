@@ -1,14 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { ref as storageRef, uploadBytes } from 'firebase/storage'
-import { ShieldCheck } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
-import { useFirestore } from '../../hooks/useFirestore'
-import { storage } from '../../firebase/config'
 import { getRoleLandingPath } from '../../utils/navigation'
 import Logo from '../ui/Logo'
 import Button from '../ui/Button'
-import Icon from '../ui/Icon'
 
 const FRIENDLY = {
   'auth/email-already-in-use': 'This email is already registered. Try logging in.',
@@ -16,27 +11,21 @@ const FRIENDLY = {
   'auth/invalid-email':        'Please enter a valid email address.',
 }
 
-const MAX_PROOF_SIZE = 10 * 1024 * 1024
-const ALLOWED_PROOF_TYPES = new Set([
-  'application/pdf',
-  'image/jpeg',
-  'image/png',
-  'image/webp',
-  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-])
-
-function safeFileName(name) {
-  const cleaned = String(name || 'teacher-proof')
-    .toLowerCase()
-    .replace(/[^a-z0-9._-]+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '')
-  return cleaned.slice(0, 90) || 'teacher-proof'
-}
+const ZAMBIAN_PROVINCES = [
+  'Central',
+  'Copperbelt',
+  'Eastern',
+  'Luapula',
+  'Lusaka',
+  'Muchinga',
+  'Northern',
+  'North-Western',
+  'Southern',
+  'Western',
+]
 
 export default function Register() {
   const { register } = useAuth()
-  const { submitTeacherApplication } = useFirestore()
   const navigate     = useNavigate()
   const [form, setForm] = useState({
     displayName: '',
@@ -46,13 +35,10 @@ export default function Register() {
     grade: '4',
     school: '',
     role: 'learner',
-    phone: '',
-    nrc: '',
+    province: '',
   })
-  const [proofFile, setProofFile] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError]     = useState('')
-  const [success, setSuccess] = useState('')
 
   useEffect(() => {
     document.title = 'Create Account — ZedExams'
@@ -60,21 +46,10 @@ export default function Register() {
 
   function set(field) { return e => setForm(f => ({ ...f, [field]: e.target.value })) }
 
-  function handleProofChange(e) {
-    const file = e.target.files?.[0] || null
-    setProofFile(file)
-  }
-
   function validateTeacherFields() {
     if (!form.displayName.trim()) return 'Full name is required.'
     if (!form.school.trim()) return 'School name is required.'
-    if (!form.phone.trim()) return 'Phone number is required.'
-    if (!/^[+0-9()\s-]{7,24}$/.test(form.phone.trim())) return 'Enter a valid phone number.'
-    if (!form.nrc.trim()) return 'NRC number is required.'
-    if (!/^[0-9/\-\s]{6,24}$/.test(form.nrc.trim())) return 'Enter a valid NRC number.'
-    if (!proofFile) return 'Upload a teaching certificate or school proof document.'
-    if (!ALLOWED_PROOF_TYPES.has(proofFile.type)) return 'Upload a PDF, image, or DOCX proof document.'
-    if (proofFile.size > MAX_PROOF_SIZE) return 'Proof document must be 10MB or smaller.'
+    if (!form.province.trim()) return 'Please select a province.'
     return ''
   }
 
@@ -86,36 +61,21 @@ export default function Register() {
     const teacherError = isTeacherSignup ? validateTeacherFields() : ''
     if (teacherError) { setError(teacherError); return }
 
-    setError(''); setSuccess(''); setLoading(true)
-    let accountCreated = false
+    setError(''); setLoading(true)
     try {
-      const cred = await register(form.email.trim(), form.password, form.displayName.trim(), form.grade, form.school.trim(), form.role)
-      accountCreated = true
-
-      if (isTeacherSignup) {
-        const proofPath = `teacher-verification/${cred.user.uid}/${Date.now()}-${safeFileName(proofFile.name)}`
-        await uploadBytes(storageRef(storage, proofPath), proofFile, { contentType: proofFile.type })
-        await submitTeacherApplication(cred.user.uid, {
-          email: form.email.trim(),
-          fullName: form.displayName.trim(),
-          phoneNumber: form.phone.trim(),
-          schoolName: form.school.trim(),
-          nrcNumber: form.nrc.trim(),
-          proofPath,
-          proofFileName: proofFile.name,
-          proofContentType: proofFile.type,
-          proofSize: proofFile.size,
-        })
-        setSuccess('Teacher application submitted. You can use learner features while an admin reviews it.')
-        setTimeout(() => navigate(getRoleLandingPath('learner'), { replace: true }), 1200)
-      } else {
-        navigate(getRoleLandingPath('learner'), { replace: true })
-      }
+      await register(
+        form.email.trim(),
+        form.password,
+        form.displayName.trim(),
+        form.grade,
+        form.school.trim(),
+        form.role,
+        isTeacherSignup ? { province: form.province } : {},
+      )
+      navigate(getRoleLandingPath(form.role), { replace: true })
     } catch (err) {
       const message = FRIENDLY[err.code] ?? err.message ?? 'Registration failed. Please try again.'
-      setError(accountCreated && isTeacherSignup
-        ? `${message} Your account was created as a learner, but the teacher application was not completed.`
-        : message)
+      setError(message)
     } finally { setLoading(false) }
   }
 
@@ -168,57 +128,27 @@ export default function Register() {
                   <option value="4">Grade 4</option>
                   <option value="5">Grade 5</option>
                   <option value="6">Grade 6</option>
-                  
                 </select>
               </div>
             )}
           </div>
 
           {form.role === 'teacher' && (
-            <div className="rounded-2xl border-2 border-blue-100 bg-blue-50 p-4 space-y-4 animate-slide-in-soft shadow-elev-sm">
-              <div className="flex items-start gap-3">
-                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-blue-100 text-blue-700">
-                  <Icon as={ShieldCheck} size="md" />
-                </div>
-                <div>
-                  <p className="text-display-md text-blue-900" style={{ fontSize: 15 }}>Teacher verification</p>
-                  <p className="text-body-sm text-blue-700 mt-0.5">
-                    Teacher access starts after admin approval. Until then, your account stays as a learner.
-                  </p>
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="phone" className="block text-xs font-bold text-blue-900 mb-1">Phone Number</label>
-                <input id="phone" name="phone" type="tel" value={form.phone} onChange={set('phone')} required={form.role === 'teacher'} placeholder="e.g. 0968 123 456"
-                  autoComplete="tel" inputMode="tel"
-                  className="w-full border-2 rounded-xl px-3 py-2.5 text-base focus:border-blue-500 focus:outline-none transition-colors theme-input" />
-              </div>
-
-              <div>
-                <label htmlFor="nrc" className="block text-xs font-bold text-blue-900 mb-1">NRC Number</label>
-                <input id="nrc" name="nrc" type="text" value={form.nrc} onChange={set('nrc')} required={form.role === 'teacher'} placeholder="e.g. 123456/78/9"
-                  autoComplete="off"
-                  className="w-full border-2 rounded-xl px-3 py-2.5 text-base focus:border-blue-500 focus:outline-none transition-colors theme-input" />
-              </div>
-
-              <div>
-                <label htmlFor="proof-file" className="block text-xs font-bold text-blue-900 mb-1">Teaching Certificate or School Proof</label>
-                <input id="proof-file" name="proofFile" type="file" onChange={handleProofChange} required={form.role === 'teacher'} accept=".pdf,.jpg,.jpeg,.png,.webp,.docx"
-                  className="w-full border-2 rounded-xl px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none transition-colors theme-input file:mr-3 file:rounded-lg file:border-0 file:bg-blue-100 file:px-3 file:py-1.5 file:text-xs file:font-black file:text-blue-700" />
-                <p className="text-xs text-blue-700 mt-1">PDF, image, or DOCX. Maximum 10MB.</p>
-              </div>
+            <div>
+              <label htmlFor="province" className="block text-xs font-bold theme-text mb-1">Province</label>
+              <select id="province" name="province" value={form.province} onChange={set('province')} required
+                className="w-full border-2 rounded-xl px-3 py-2.5 text-sm focus:border-green-500 focus:outline-none theme-input transition-colors">
+                <option value="">Select your province</option>
+                {ZAMBIAN_PROVINCES.map(p => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
             </div>
           )}
 
           {error && (
             <p aria-live="polite" className="text-danger bg-danger-subtle border rounded-xl px-3 py-2 text-body-sm" style={{ borderColor: 'var(--danger-fg)' }}>
               {error}
-            </p>
-          )}
-          {success && (
-            <p aria-live="polite" className="text-success bg-success-subtle border rounded-xl px-3 py-2 text-body-sm" style={{ borderColor: 'var(--success-fg)' }}>
-              {success}
             </p>
           )}
 
@@ -229,9 +159,7 @@ export default function Register() {
             fullWidth
             loading={loading}
           >
-            {loading
-              ? form.role === 'teacher' ? 'Submitting application…' : 'Creating account…'
-              : form.role === 'teacher' ? 'Submit Teacher Application' : 'Create Free Account'}
+            {loading ? 'Creating account…' : 'Create Free Account'}
           </Button>
         </form>
 

@@ -54,9 +54,9 @@ function QuickAction({ to, icon, label, sub, color }) {
 
 export default function AdminDashboard() {
   const { currentUser } = useAuth()
-  const { getAllLessons, getAllQuizzes, getAllUsers, getAllResults, getPendingApprovals, getPendingTeacherApplications } = useFirestore()
+  const { getAllLessons, getAllQuizzes, getAllUsers, getAllResults, getPendingApprovals } = useFirestore()
 
-  const [stats, setStats]     = useState({ lessons: 0, quizzes: 0, learners: 0, results: 0, pending: 0, teacherApps: 0, gens: 0, gensFlagged: 0, gensCostUsd: '0.00' })
+  const [stats, setStats]     = useState({ lessons: 0, quizzes: 0, learners: 0, results: 0, pending: 0, gens: 0, gensFlagged: 0, gensCostUsd: '0.00' })
   const [recent, setRecent]   = useState([])
   const [loading, setLoading] = useState(true)
   const [seeding, setSeeding] = useState(false)
@@ -92,8 +92,8 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function load() {
       try {
-        const [lessons, quizzes, users, results, pending, teacherApps, gens] = await Promise.all([
-          getAllLessons(), getAllQuizzes(), getAllUsers(), getAllResults(), getPendingApprovals(), getPendingTeacherApplications(),
+        const [lessons, quizzes, users, results, pending, gens] = await Promise.all([
+          getAllLessons(), getAllQuizzes(), getAllUsers(), getAllResults(), getPendingApprovals(),
           getGenerationsSummary().catch(() => ({ total: 0, flagged: 0, totalCostUsd: '0.00' })),
         ])
         const safe = (value, fallback = []) => (Array.isArray(value) ? value : fallback)
@@ -102,7 +102,6 @@ export default function AdminDashboard() {
         const safeUsers = safe(users)
         const safeResults = safe(results)
         const safePending = safe(pending)
-        const safeTeacherApps = safe(teacherApps)
         const safeGens = gens && typeof gens === 'object' ? gens : {}
         setStats({
           lessons:  safeLessons.length,
@@ -110,7 +109,6 @@ export default function AdminDashboard() {
           learners: safeUsers.filter(u => u?.role === 'learner' || u?.role === 'student').length,
           results:  safeResults.length,
           pending:  safePending.length,
-          teacherApps: safeTeacherApps.length,
           gens: safeGens.total ?? 0,
           gensFlagged: safeGens.flagged ?? 0,
           gensCostUsd: safeGens.totalCostUsd ?? '0.00',
@@ -161,7 +159,6 @@ export default function AdminDashboard() {
           { icon: '👥',   label: 'Learners',         value: stats.learners,    color: 'orange', linkTo: '/admin/learners'                         },
           { icon: '📊',   label: 'Results',          value: stats.results,     color: 'purple'                                                    },
           { icon: '🔔',   label: 'Content Pending',  value: stats.pending,     color: 'yellow',  linkTo: '/admin/approvals'                       },
-          { icon: '🧑‍🏫', label: 'Teacher Apps',     value: stats.teacherApps, color: 'blue',    linkTo: '/admin/teacher-applications'            },
           { icon: '✨',   label: stats.gensFlagged > 0 ? `AI Gens · ${stats.gensFlagged} flagged` : `AI Gens · $${stats.gensCostUsd}`, value: stats.gens, color: stats.gensFlagged > 0 ? 'yellow' : 'purple', linkTo: '/admin/generations' },
         ].map(s => (
           <div key={s.label} className="animate-slide-in-soft">
@@ -181,7 +178,6 @@ export default function AdminDashboard() {
           <QuickAction to="/admin/quizzes/new?mode=ai" icon="✦" label="AI Quiz Generator" sub="Draft questions with Zed" color="blue" />
           <QuickAction to="/admin/content"     icon="📁" label="Manage Content" sub="Edit or delete existing content" color="orange" />
           <QuickAction to="/admin/learners" icon="👥" label="View Learners" sub="Monitor learner activity and progress" color="orange" />
-          <QuickAction to="/admin/teacher-applications" icon="🧑‍🏫" label="Review Teachers" sub="Approve verified teacher accounts" color="blue" />
           <QuickAction to="/admin/cbc-kb" icon="📚" label="CBC Knowledge Base" sub="Add custom curriculum topics (esp. G10–12)" color="green" />
         </div>
       </div>

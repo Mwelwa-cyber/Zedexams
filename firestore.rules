@@ -15,105 +15,6 @@ service cloud.firestore {
       return incoming().isPublished == false
         && incoming().get('status', 'draft') != 'published';
     }
-    function approvedTeacherApplicationAfter(userId) {
-      return getAfter(/databases/$(database)/documents/teacherApplications/$(userId)).data.status == 'approved';
-    }
-    function validTeacherStatus(value) {
-      return value in ['not_submitted', 'pending'];
-    }
-    function userSelfTeacherApplicationUpdate(userId) {
-      return !changedKeys().hasAny(['teacherApplicationStatus', 'teacherApplicationId', 'teacherApplicationSubmittedAt'])
-        || (
-          changedKeys().hasOnly(['teacherApplicationStatus', 'teacherApplicationId', 'teacherApplicationSubmittedAt'])
-          && incoming().teacherApplicationStatus == 'pending'
-          && incoming().teacherApplicationId == userId
-          && incoming().teacherApplicationSubmittedAt == request.time
-          && getAfter(/databases/$(database)/documents/teacherApplications/$(userId)).data.status == 'pending'
-        );
-    }
-    function adminUserUpdateAllowed(userId) {
-      return !changedKeys().hasAny(['role'])
-        || incoming().role != 'teacher'
-        || approvedTeacherApplicationAfter(userId);
-    }
-    function validTeacherProofType(value) {
-      return value in [
-        'application/pdf',
-        'image/jpeg',
-        'image/png',
-        'image/webp',
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-      ];
-    }
-    function validTeacherApplicationCreate(userId) {
-      return incoming().keys().hasOnly([
-          'userId', 'email', 'fullName', 'phoneNumber', 'schoolName', 'nrcNumber',
-          'proofPath', 'proofFileName', 'proofContentType', 'proofSize',
-          'status', 'submittedAt', 'reviewedBy', 'reviewedAt', 'rejectionReason'
-        ])
-        && incoming().keys().hasAll([
-          'userId', 'email', 'fullName', 'phoneNumber', 'schoolName', 'nrcNumber',
-          'proofPath', 'proofFileName', 'proofContentType', 'proofSize',
-          'status', 'submittedAt', 'reviewedBy', 'reviewedAt', 'rejectionReason'
-        ])
-        && userId == request.auth.uid
-        && incoming().userId == userId
-        && incoming().email is string
-        && incoming().email.size() <= 254
-        && incoming().fullName is string
-        && incoming().fullName.size() >= 2
-        && incoming().fullName.size() <= 120
-        && incoming().phoneNumber is string
-        && incoming().phoneNumber.size() >= 7
-        && incoming().phoneNumber.size() <= 24
-        && incoming().schoolName is string
-        && incoming().schoolName.size() >= 2
-        && incoming().schoolName.size() <= 160
-        && incoming().nrcNumber is string
-        && incoming().nrcNumber.size() >= 6
-        && incoming().nrcNumber.size() <= 24
-        && incoming().proofPath is string
-        && incoming().proofPath.matches('teacher-verification/' + userId + '/.+')
-        && incoming().proofFileName is string
-        && incoming().proofFileName.size() >= 1
-        && incoming().proofFileName.size() <= 140
-        && incoming().proofContentType is string
-        && validTeacherProofType(incoming().proofContentType)
-        && incoming().proofSize is int
-        && incoming().proofSize > 0
-        && incoming().proofSize <= 10 * 1024 * 1024
-        && incoming().status == 'pending'
-        && incoming().submittedAt == request.time
-        && incoming().reviewedBy == null
-        && incoming().reviewedAt == null
-        && incoming().rejectionReason == '';
-    }
-    function validTeacherApplicationReview() {
-      return resource.data.status == 'pending'
-        && incoming().keys().hasOnly([
-          'userId', 'email', 'fullName', 'phoneNumber', 'schoolName', 'nrcNumber',
-          'proofPath', 'proofFileName', 'proofContentType', 'proofSize',
-          'status', 'submittedAt', 'reviewedBy', 'reviewedAt', 'rejectionReason'
-        ])
-        && incoming().userId == resource.data.userId
-        && incoming().email == resource.data.email
-        && incoming().fullName == resource.data.fullName
-        && incoming().phoneNumber == resource.data.phoneNumber
-        && incoming().schoolName == resource.data.schoolName
-        && incoming().nrcNumber == resource.data.nrcNumber
-        && incoming().proofPath == resource.data.proofPath
-        && incoming().proofFileName == resource.data.proofFileName
-        && incoming().proofContentType == resource.data.proofContentType
-        && incoming().proofSize == resource.data.proofSize
-        && incoming().submittedAt == resource.data.submittedAt
-        && incoming().status in ['approved', 'rejected']
-        && incoming().reviewedBy == request.auth.uid
-        && incoming().reviewedAt == request.time
-        && incoming().rejectionReason is string
-        && incoming().rejectionReason.size() <= 500
-        && (incoming().status == 'rejected' || incoming().rejectionReason == '');
-    }
-
     // ── content-field validators ─────────────────────────────
     // These are data-integrity backstops, NOT authorization checks.
     // They only constrain fields that are present in the incoming doc, so
@@ -195,7 +96,7 @@ service cloud.firestore {
     match /users/{userId} {
       allow read: if isAuthed() && (isOwner(userId) || isTeacherOrAbove());
       allow create: if isAuthed() && isOwner(userId)
-        && incoming().role == 'learner'
+        && incoming().role in ['learner', 'teacher']
         && incoming().get('plan', 'free') == 'free'
         && incoming().get('premium', false) == false
         && incoming().isPremium == false
@@ -208,30 +109,16 @@ service cloud.firestore {
         && incoming().get('premiumActivatedAt', null) == null
         && incoming().get('subscriptionProvider', null) == null
         && incoming().get('subscriptionPaymentId', null) == null
-        && incoming().get('subscriptionPhoneNumber', null) == null
-        && (!('teacherApplicationStatus' in incoming()) || validTeacherStatus(incoming().teacherApplicationStatus));
+        && incoming().get('subscriptionPhoneNumber', null) == null;
       // Self-update: cannot change role or subscription fields
       allow update: if isAuthed() && isOwner(userId)
         && !changedKeys().hasAny([
           'role', 'plan', 'premium', 'isPremium', 'paymentStatus', 'subscriptionStatus',
           'premiumActivatedAt', 'subscriptionPlan', 'subscriptionExpiry', 'subscriptionActivatedBy',
           'subscriptionActivatedAt', 'subscriptionProvider', 'subscriptionPaymentId',
-          'subscriptionPhoneNumber',
-          'teacherApprovedBy', 'teacherApprovedAt', 'teacherRejectedBy', 'teacherRejectedAt',
-          'teacherRejectionReason'
-        ])
-        && userSelfTeacherApplicationUpdate(userId);
-      allow update: if isAdmin() && adminUserUpdateAllowed(userId);
-      allow delete: if isAdmin();
-    }
-
-    // ── teacher verification applications ─────────────────────
-    match /teacherApplications/{applicationId} {
-      allow read: if isAuthed() && (applicationId == request.auth.uid || isAdmin());
-      allow create: if isAuthed()
-        && applicationId == request.auth.uid
-        && validTeacherApplicationCreate(applicationId);
-      allow update: if isAdmin() && validTeacherApplicationReview();
+          'subscriptionPhoneNumber'
+        ]);
+      allow update: if isAdmin();
       allow delete: if isAdmin();
     }
 

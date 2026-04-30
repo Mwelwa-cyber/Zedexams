@@ -178,7 +178,6 @@ function resolveInitialUserRole(email) {
 function buildBootstrappedUserProfile({
   authUser,
   tokenRole,
-  teacherApplication,
 }) {
   const email = cleanString(authUser?.email || "", 254);
   const fallbackName =
@@ -187,20 +186,16 @@ function buildBootstrappedUserProfile({
     authUser?.displayName || fallbackName,
     120,
   ) || "ZedExams User";
-  const teacherStatus = cleanString(teacherApplication?.status || "", 30);
-  const baseRole = tokenRole === "admin" ?
+  const role = tokenRole === "admin" ?
     "admin" :
     resolveInitialUserRole(email);
-  const role = baseRole === "admin" ?
-    "admin" :
-    teacherStatus === "approved" ? "teacher" : "learner";
 
-  const profile = {
+  return {
     displayName,
     email,
     role,
     grade: null,
-    school: cleanString(teacherApplication?.schoolName || "", 160),
+    school: "",
     plan: "free",
     premium: false,
     isPremium: false,
@@ -218,16 +213,6 @@ function buildBootstrappedUserProfile({
     lastAttemptDate: "",
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   };
-
-  if (teacherStatus) {
-    profile.teacherApplicationStatus = teacherStatus;
-    profile.teacherApplicationId = authUser.uid;
-    if (teacherApplication?.submittedAt) {
-      profile.teacherApplicationSubmittedAt = teacherApplication.submittedAt;
-    }
-  }
-
-  return profile;
 }
 
 function toDate(value) {
@@ -262,15 +247,10 @@ exports.bootstrapUserProfile = onCall(
     }
 
     try {
-      const [authUser, teacherApplicationSnap] = await Promise.all([
-        admin.auth().getUser(uid),
-        admin.firestore().doc(`teacherApplications/${uid}`).get(),
-      ]);
+      const authUser = await admin.auth().getUser(uid);
       const profile = buildBootstrappedUserProfile({
         authUser,
         tokenRole: cleanString(request.auth.token?.role || "", 30),
-        teacherApplication:
-          teacherApplicationSnap.exists ? teacherApplicationSnap.data() : null,
       });
 
       await userRef.set(profile);

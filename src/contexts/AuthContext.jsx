@@ -41,15 +41,15 @@ export function AuthProvider({ children }) {
   const [idleSecondsLeft, setIdleSecondsLeft] = useState(Math.ceil(IDLE_WARNING_MS / 1000))
   const bootstrapInFlightRef = useRef(new Map())
 
-  async function register(email, password, displayName, grade, school, role = ROLES.LEARNER) {
-    const wantsTeacherAccess = role === ROLES.TEACHER
+  async function register(email, password, displayName, grade, school, role = ROLES.LEARNER, extras = {}) {
+    const isTeacherSignup = role === ROLES.TEACHER
     const cred = await createUserWithEmailAndPassword(auth, email, password)
     await updateProfile(cred.user, { displayName })
     const userRecord = {
       displayName,
       email,
-      role: ROLES.LEARNER,
-      grade: grade ?? null,
+      role: isTeacherSignup ? ROLES.TEACHER : ROLES.LEARNER,
+      grade: isTeacherSignup ? null : (grade ?? null),
       school: school ?? '',
       plan: 'free',
       premium: false,
@@ -64,8 +64,8 @@ export function AuthProvider({ children }) {
       lastAttemptDate: '',
       createdAt: serverTimestamp(),
     }
-    if (wantsTeacherAccess) {
-      userRecord.teacherApplicationStatus = 'not_submitted'
+    if (isTeacherSignup) {
+      userRecord.province = String(extras.province || '').trim()
     }
     await setDoc(doc(db, 'users', cred.user.uid), userRecord)
     return cred

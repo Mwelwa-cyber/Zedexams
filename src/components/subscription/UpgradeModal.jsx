@@ -23,7 +23,23 @@ function toFriendlyPaymentMessage(message, fallback = 'The payment did not compl
     : text
 }
 
-export default function UpgradeModal({ onClose }) {
+const PORTAL_COPY = {
+  learner: {
+    title: 'Subscribe to Learner Portal',
+    subtitle: 'Unlock the learner dashboard, quizzes, lessons & exams',
+  },
+  teacher: {
+    title: 'Subscribe to Teacher Portal',
+    subtitle: 'Unlock premium teacher tools',
+  },
+  generic: {
+    title: 'Upgrade to Premium',
+    subtitle: 'Unlock unlimited learning',
+  },
+}
+
+export default function UpgradeModal({ onClose, portal }) {
+  const copy = PORTAL_COPY[portal] || PORTAL_COPY.generic
   const { refreshProfile } = useAuth()
   const [step, setStep] = useState('plans')
   const [selectedPlanId, setSelectedPlanId] = useState(null)
@@ -112,8 +128,8 @@ export default function UpgradeModal({ onClose }) {
           <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/20 text-white">
             <Icon as={Sparkles} size="lg" strokeWidth={2.1} />
           </div>
-          <h2 className="text-2xl font-black text-white">Upgrade to Premium</h2>
-          <p className="text-white/90 text-sm mt-1">Unlock unlimited learning</p>
+          <h2 className="text-2xl font-black text-white">{copy.title}</h2>
+          <p className="text-white/90 text-sm mt-1">{copy.subtitle}</p>
         </div>
 
         <div className="p-5">
