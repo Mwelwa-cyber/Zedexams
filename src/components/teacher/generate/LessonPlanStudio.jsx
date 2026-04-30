@@ -10,6 +10,10 @@ const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerat
   timeout: 120_000,
 })
 
+// Bump this when /public/studio/* is changed so phones / CDNs refetch
+// instead of serving the cached old file.
+const STUDIO_ASSET_VERSION = 'v2'
+
 // Sequential script loader — each script must finish before the next starts
 // because the studio scripts rely on globals set by earlier ones.
 function loadScriptsSequentially(srcs) {
@@ -70,7 +74,7 @@ export default function LessonPlanStudio() {
     if (!document.querySelector('link[href*="/studio/lesson.css"]')) {
       const link = document.createElement('link')
       link.rel = 'stylesheet'
-      link.href = '/studio/lesson.css'
+      link.href = `/studio/lesson.css?${STUDIO_ASSET_VERSION}`
       document.head.appendChild(link)
     }
 
@@ -91,17 +95,18 @@ export default function LessonPlanStudio() {
     }
 
     // ---- Load scripts in dependency order ----
+    const v = `?${STUDIO_ASSET_VERSION}`
     const scripts = [
-      '/studio/01-ui-setup.js',
-      '/studio/02-syllabus-new.js',
-      '/studio/03-syllabus-old.js',
-      '/studio/04-syllabus-router.js',
-      '/studio/05-system-prompts.js',
-      '/studio/06-generate.js',
-      '/studio/08-edit-mode.js',
-      '/studio/09-symbols.js',
-      '/studio/10-export.js',
-      '/studio/11-diagrams.js',
+      `/studio/01-ui-setup.js${v}`,
+      `/studio/02-syllabus-new.js${v}`,
+      `/studio/03-syllabus-old.js${v}`,
+      `/studio/04-syllabus-router.js${v}`,
+      `/studio/05-system-prompts.js${v}`,
+      `/studio/06-generate.js${v}`,
+      `/studio/08-edit-mode.js${v}`,
+      `/studio/09-symbols.js${v}`,
+      `/studio/10-export.js${v}`,
+      `/studio/11-diagrams.js${v}`,
     ]
 
     loadScriptsSequentially(scripts).catch(err => {
