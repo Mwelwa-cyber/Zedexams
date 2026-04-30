@@ -1,0 +1,481 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+<title>CBC Lesson Plan Studio — Zambia</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Inter:wght@400;500;600;700&family=Lora:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&family=Source+Serif+4:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="./shell/shell.css"/>
+<link rel="stylesheet" href="./studios/lesson/lesson.css"/>
+<link rel="stylesheet" href="./studios/syllabi/syllabi.css"/>
+<link rel="stylesheet" href="./studios/schemes/schemes.css"/>
+</head>
+<body>
+<div class="loader-bar" id="loader"></div>
+<div class="scrim" id="scrim"></div>
+
+<!-- ============ HOME HUB ============ -->
+<div id="view-home" class="view active">
+  <div class="hub">
+    <div class="hub-nav">
+      <a href="#" class="hub-brand" data-go-view="home" style="text-decoration:none">
+        <img src="" class="hub-logo" alt="ZedExams"/>
+        <div class="hub-brand-text"><div class="hub-brand-name">ZedExams</div><div class="hub-brand-product">Lesson Plan Studio</div></div>
+      </a>
+      <div class="hub-nav-actions">
+        <button class="hub-nav-btn" data-go-view="library"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Library</button>
+      </div>
+    </div>
+    <div class="hub-container">
+      <div class="hub-hero" id="hub-hero">
+        <div class="hub-hero-text">
+          <span class="hub-hero-pill">✨ Today's Workspace</span>
+          <h1 id="hero-title">Plan with confidence</h1>
+          <p class="hub-hero-sub" id="hero-sub">Build CBC-aligned lesson plans, schemes of work, teaching notes, and worksheets — all from one place.</p>
+          <div class="hub-hero-meta" id="hero-meta">
+            <span>📚 Zambian CBC</span><span>📋 New & Old syllabi</span><span>⭐ 7 grades</span>
+          </div>
+          <button class="hub-hero-cta" id="hero-cta">▶ Start a new plan</button>
+        </div>
+        <div class="hub-hero-mascot">🦊</div>
+      </div>
+
+      <div class="hub-section-label">Studios</div>
+      <div class="hub-section-row"><h2>Pick your studio</h2></div>
+      <div class="studio-grid">
+        <div class="studio-card" data-go-view="schemes">
+          <div class="studio-card-mascot mascot-yellow">🦁</div>
+          <span class="studio-card-count" id="count-schemes">0 SAVED</span>
+          <div class="studio-card-title">Schemes of Work</div>
+          <div class="studio-card-tagline">Plan your whole term — week-by-week subject pacing.</div>
+          <div class="studio-card-stats"><span>Adventure Lion</span></div>
+        </div>
+        <div class="studio-card" data-go-view="plans">
+          <div class="studio-card-mascot mascot-orange">🦊</div>
+          <span class="studio-card-count" id="count-plans">0 SAVED</span>
+          <div class="studio-card-title">Lesson Plans</div>
+          <div class="studio-card-tagline">Day-by-day CBC plans with stages, materials, and assessment.</div>
+          <div class="studio-card-progress"><div class="studio-card-progress-fill" id="prog-plans" style="width:0%"></div></div>
+          <div class="studio-card-stats"><span>Plan Fox</span><span id="stat-plans">0 plans</span></div>
+        </div>
+        <div class="studio-card" data-go-view="notes">
+          <div class="studio-card-mascot mascot-blue">🦉</div>
+          <span class="studio-card-count" id="count-notes">SOON</span>
+          <div class="studio-card-title">Notes Studio</div>
+          <div class="studio-card-tagline">Teacher delivery notes built from your lesson plans.</div>
+          <div class="studio-card-stats"><span>Story Owl</span></div>
+        </div>
+        <div class="studio-card" data-go-view="worksheets">
+          <div class="studio-card-mascot mascot-green">🐢</div>
+          <span class="studio-card-count" id="count-worksheets">SOON</span>
+          <div class="studio-card-title">Worksheets</div>
+          <div class="studio-card-tagline">Practice activities and exercises for pupils.</div>
+          <div class="studio-card-stats"><span>Practice Turtle</span></div>
+        </div>
+        <div class="studio-card" data-go-view="tests">
+          <div class="studio-card-mascot mascot-purple">🦅</div>
+          <span class="studio-card-count" id="count-tests">SOON</span>
+          <div class="studio-card-title">Tests</div>
+          <div class="studio-card-tagline">Topic, weekly, monthly, mid-term &amp; end-of-term tests.</div>
+          <div class="studio-card-stats"><span>Sharp Eagle</span></div>
+        </div>
+        <div class="studio-card" data-go-view="syllabi">
+          <div class="studio-card-mascot mascot-peach">🐘</div>
+          <span class="studio-card-count free" id="count-syllabi">FREE</span>
+          <div class="studio-card-title">Syllabi</div>
+          <div class="studio-card-tagline">Official CDC syllabi — view all Zambian curricula in one place.</div>
+          <div class="studio-card-stats"><span>Memory Elephant</span><span id="stat-syllabi">70 docs</span></div>
+        </div>
+      </div>
+
+      <div class="hub-section-label">📚 Recent</div>
+      <div class="hub-section-row"><h2>Continue where you left off</h2><a class="all-link" data-go-view="library">View all ›</a></div>
+      <div id="recent-grid" class="library-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ LIBRARY ============ -->
+<div id="view-library" class="view">
+  <div class="hub">
+    <div class="hub-nav">
+      <div class="hub-brand">
+        <button class="hub-nav-btn" data-go-view="home" style="margin-right:14px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>Home</button>
+        <img src="" class="hub-logo" alt="ZedExams"/>
+        <div class="hub-brand-text"><div class="hub-brand-name">ZedExams</div><div class="hub-brand-product">Library</div></div>
+      </div>
+      <div class="hub-nav-actions">
+        <button class="hub-nav-btn primary" data-go-view="plans">+ New Plan</button>
+      </div>
+    </div>
+    <div class="hub-container">
+      <div class="hub-section-row" style="margin-top:32px"><h2>Your saved lesson plans</h2><span id="lib-count" style="color:#566f76;font:600 14px system-ui"></span></div>
+      <div id="library-grid" class="library-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ SYLLABI ============ -->
+<div id="view-syllabi" class="view">
+  <div class="hub">
+    <div class="hub-nav">
+      <div class="hub-brand">
+        <button class="hub-nav-btn" data-go-view="home" style="margin-right:14px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>Home</button>
+        <img src="" class="hub-logo" alt="ZedExams"/>
+        <div class="hub-brand-text"><div class="hub-brand-name">ZedExams</div><div class="hub-brand-product">Syllabi</div></div>
+      </div>
+    </div>
+    <div class="hub-container">
+      <div class="hub-section-row" style="margin-top:24px"><h2 style="display:flex;align-items:center;gap:14px"><span style="font-size:34px">🐘</span>Syllabi Library</h2></div>
+      <p style="font:400 15px/1.55 system-ui;color:#566f76;margin:6px 0 0;max-width:680px">Browse the official Zambian Curriculum Development Centre syllabi — both the new 2023 framework and the 2013 syllabi for grades still using them.</p>
+      <div class="syl-banner">
+        <div class="syl-banner-icon">✓</div>
+        <div class="syl-banner-text"><strong>Free for all teachers</strong>View-only access — no subscription required.</div>
+      </div>
+      <div class="syllabi-toggle" id="syllabi-toggle">
+        <button data-syl-version="new" class="active">New Syllabus (2023)</button>
+        <button data-syl-version="old">Old Syllabus (2013)</button>
+      </div>
+      <div class="syllabi-filters" id="syllabi-filters"></div>
+      <div id="syllabi-grid" class="syllabi-grid"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PDF VIEWER MODAL ============ -->
+<div id="pdf-viewer" class="pdf-viewer-scrim" oncontextmenu="return false">
+  <div class="pdf-viewer-bar">
+    <h3 id="pdf-viewer-title">Syllabus<span class="badge">VIEW ONLY</span></h3>
+    <button class="pdf-viewer-close" id="pdf-viewer-close"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>Close</button>
+  </div>
+  <div class="pdf-viewer-body" id="pdf-viewer-body"></div>
+</div>
+
+<!-- ============ SCHEMES OF WORK STUDIO ============ -->
+<div id="view-schemes" class="view view-app">
+<div class="schemes-app">
+  <aside class="schemes-sidebar" id="schemes-sidebar">
+    <div class="sch-brand">
+      <img src="" class="hub-logo" alt="ZedExams"/>
+      <div class="sch-brand-text">
+        <h2>Schemes of Work</h2>
+        <div class="sub">CBC Term Planner</div>
+      </div>
+    </div>
+    <button class="sch-back" data-go-view="home">← Home</button>
+
+    <div class="sch-label">Class</div>
+    <div class="sch-field">
+      <label>Grade / Form</label>
+      <select id="sch-grade"></select>
+    </div>
+    <div class="sch-field">
+      <label>Subject</label>
+      <select id="sch-subject"></select>
+    </div>
+
+    <div class="sch-label">Term</div>
+    <div class="sch-row">
+      <div class="sch-field">
+        <label>Term</label>
+        <select id="sch-term">
+          <option value="1">Term 1</option>
+          <option value="2" selected>Term 2</option>
+          <option value="3">Term 3</option>
+        </select>
+      </div>
+      <div class="sch-field">
+        <label>Teaching weeks</label>
+        <select id="sch-weeks">
+          <option value="10">10 weeks</option>
+          <option value="11">11 weeks</option>
+          <option value="12" selected>12 weeks</option>
+          <option value="13">13 weeks</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="sch-label">Teacher</div>
+    <div class="sch-field">
+      <label>Teacher name</label>
+      <input type="text" id="sch-teacher" placeholder="Mr / Mrs …" />
+    </div>
+    <div class="sch-field">
+      <label>School</label>
+      <input type="text" id="sch-school" placeholder="School name" />
+    </div>
+
+    <div class="sch-label">Options</div>
+    <div class="sch-field">
+      <label>Extra instructions <span style="font-style:italic;font-weight:400;color:#5e6a6e">(optional)</span></label>
+      <textarea id="sch-instructions" rows="3" placeholder="e.g. Emphasise revision in the last two weeks. Include a mock exam in Week 11."></textarea>
+    </div>
+
+    <button class="sch-btn-gen" id="sch-btn-gen" onclick="onGenerateScheme()">
+      🗓️ Generate Scheme of Work
+    </button>
+    <p class="sch-hint">Usually takes 30–60 seconds for a full 12-week scheme</p>
+  </aside>
+
+  <main class="schemes-main">
+    <div class="sch-topbar">
+      <div class="sch-topbar-title" id="sch-topbar-title">🗓️ Schemes of Work</div>
+      <div class="sch-export" id="sch-export-row" style="display:none">
+        <button class="sch-tb-btn" onclick="window.print()">🖨️ Print / PDF</button>
+        <button class="sch-tb-btn primary" onclick="onGenerateScheme()">✨ Generate Another</button>
+      </div>
+    </div>
+    <div class="sch-workspace" id="sch-workspace"></div>
+  </main>
+</div>
+</div>
+<!-- /view-schemes -->
+
+<!-- ============ COMING SOON (Notes / Worksheets / Tests) ============ -->
+<div id="view-coming-soon" class="view">
+  <div class="hub">
+    <div class="hub-nav">
+      <div class="hub-brand">
+        <button class="hub-nav-btn" data-go-view="home" style="margin-right:14px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>Home</button>
+        <img src="" class="hub-logo" alt="ZedExams"/>
+        <div class="hub-brand-text"><div class="hub-brand-name">ZedExams</div><div class="hub-brand-product" id="cs-name">Schemes of Work</div></div>
+      </div>
+    </div>
+    <div class="coming-soon">
+      <div class="coming-soon-card">
+        <div class="coming-soon-mascot" id="cs-mascot">🦁</div>
+        <h2 id="cs-title">Coming Soon</h2>
+        <p id="cs-desc">This studio is being crafted carefully. For now, the Lesson Plan Studio is fully functional — try it out!</p>
+        <button class="hub-hero-cta" data-go-view="plans">Open Lesson Plan Studio →</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ PLAN STUDIO (existing app) ============ -->
+<div id="view-plans" class="view view-app">
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">
+      <img src="" class="brand-mark-img" alt="ZedExams"/>
+      <div class="brand-text">
+        <h1>ZedExams</h1>
+        <div class="sub">Lesson Plan Studio</div>
+      </div>
+    </div>
+    <div class="tabs"><div class="tab active" data-tab="generate">Generate</div><div class="tab" data-tab="style">Style</div></div>
+
+    <div class="tab-pane" id="pane-generate">
+      <div class="section-label">School Identity</div>
+      <div class="field"><label>Header line <span class="opt">(optional)</span></label><input type="text" id="f-header" placeholder="e.g. Ministry of Education" /><div class="helper">Leave blank if it doesn't apply.</div></div>
+      <div class="field"><label>School name</label><input type="text" id="f-school" placeholder="e.g. Jemareen Primary School" /></div>
+      <div class="field"><label>Department / sub-line <span class="opt">(optional)</span></label><input type="text" id="f-department" placeholder="e.g. Mathematics Department" /></div>
+
+      <div class="section-label">Lesson Details</div>
+      <div class="field"><label>Syllabus Version <span class="hint-inline">— grades 5, 6, 7, 10, 11, 12 still use the old syllabus</span></label>
+        <div class="seg-toggle" id="syllabus-toggle">
+          <button type="button" class="seg active" data-version="new">New (2023)</button>
+          <button type="button" class="seg" data-version="old">Old (2013)</button>
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Class</label><select id="f-class"></select></div>
+        <div class="field"><label>Duration (min)</label><input type="number" id="f-duration" value="40" min="20" max="120" /></div>
+      </div>
+      <div class="field"><label>Subject</label><select id="f-subject"></select></div>
+      <div class="field-row">
+        <div class="field"><label>Term</label><select id="f-term">
+          <option>1</option><option selected>2</option><option>3</option>
+        </select></div>
+        <div class="field"><label>Week</label><select id="f-week">
+          <option>1</option><option>2</option><option>3</option><option>4</option>
+          <option selected>5</option><option>6</option><option>7</option><option>8</option>
+          <option>9</option><option>10</option><option>11</option><option>12</option><option>13</option>
+        </select></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><label>Date <span class="opt">(auto)</span></label><input type="text" id="f-date" placeholder="29 April 2026" /></div>
+        <div class="field"><label>Time <span class="opt">(opt.)</span></label><input type="text" id="f-time" placeholder="08:00" /></div>
+      </div>
+
+      <div class="section-label">Topic <span class="opt" style="text-transform:none;letter-spacing:0;color:#6e6253;font-style:italic">— from CBC syllabus</span></div>
+      <div class="field"><label>Topic</label><input type="text" id="f-topic" list="topic-list" placeholder="Pick from syllabus or type your own" autocomplete="off" /><datalist id="topic-list"></datalist></div>
+      <div class="field"><label>Sub-topic</label><input type="text" id="f-subtopic" list="subtopic-list" placeholder="Pick from syllabus or type your own" autocomplete="off" /><datalist id="subtopic-list"></datalist></div>
+
+      <div class="section-label">Teacher</div>
+      <div class="field"><label>Name <span class="opt">(optional)</span></label><input type="text" id="f-teacher" placeholder="e.g. Mwelwa" /></div>
+      <div class="field"><label>TS / ID <span class="opt">(optional)</span></label><input type="text" id="f-tsno" placeholder="e.g. 20158502" /></div>
+
+      <div class="section-label">Format &amp; Options</div>
+      <div class="format-grid" id="format-cards" style="grid-template-columns:1fr">
+        <div class="format-card active" data-format="modern"><div class="name">Modern Clean</div><div class="desc">Per-stage tables · Specific Outcomes, Assessment, Differentiation, Reflection sections.</div></div>
+        <div class="format-card" data-format="classic2"><div class="name">Classic 2</div><div class="desc">Per-stage tables (Modern look) with three columns — Teacher's Role, Learners' Role, Assessment Criteria. Includes Teacher's and Learners' Evaluation.</div></div>
+        <div class="format-card" data-format="classic"><div class="name">Classic CBC</div><div class="desc">Single progression table — Stages, Teacher, Learner, Assessment Criteria.</div></div>
+      </div>
+
+      <div class="toggle-row on" id="t-compact" data-on="true">
+        <div class="lbl">Compact metadata layout<small>Horizontal "Label: Value" pairs (saves space)</small></div>
+        <div class="toggle-switch"></div>
+      </div>
+      <div class="toggle-row" id="t-enrolment" data-on="false">
+        <div class="lbl">Include Enrolment row<small>Boys / Girls headcount on roll</small></div>
+        <div class="toggle-switch"></div>
+      </div>
+      <div class="toggle-row on" id="t-attendance" data-on="true">
+        <div class="lbl">Include Attendance row<small>Boys / Girls present today</small></div>
+        <div class="toggle-switch"></div>
+      </div>
+      <div class="toggle-row on" id="t-reflection" data-on="true">
+        <div class="lbl">Include Teacher's Reflection<small>Modern Clean format only</small></div>
+        <div class="toggle-switch"></div>
+      </div>
+
+      <button class="btn btn-primary" id="btn-generate">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/><path d="M9.6 5.6 8 8 5.6 6.4 4 9l2.4 1.6L5 13l3.4-1.4L10 14l1.6-3.4L15 12l-1.6-3.4L17 7l-3.4 1.4L12 5l-1.6 2.4z"/></svg>
+        Generate Lesson Plan
+      </button>
+      <div class="helper" style="margin-top:10px">Builds a CBC-aligned plan in your chosen format. Edit, restyle, and export when ready.</div>
+    </div>
+
+    <div class="tab-pane" id="pane-style" style="display:none">
+      <div class="section-label">Typography</div>
+      <div class="style-grid" id="font-pairs">
+        <div class="style-card active" data-fontpair="classic"><div style="font:600 16px/1 'Fraunces',serif">Aa</div><div style="margin-top:4px">Classic<br/><span style="opacity:.6">Fraunces × Lora</span></div></div>
+        <div class="style-card" data-fontpair="modern"><div style="font:600 16px/1 'DM Sans',sans-serif">Aa</div><div style="margin-top:4px">Modern<br/><span style="opacity:.6">DM Sans</span></div></div>
+        <div class="style-card" data-fontpair="academic"><div style="font:600 16px/1 'Source Serif 4',serif">Aa</div><div style="margin-top:4px">Academic<br/><span style="opacity:.6">Source Serif</span></div></div>
+      </div>
+      <div class="section-label" style="margin-top:18px">Body Size</div>
+      <div class="range-row"><input type="range" id="font-size" min="9" max="14" step="0.5" value="11" /><div class="val" id="font-size-val">11pt</div></div>
+      <div class="section-label">Classic Table Style <span style="font-size:10px;color:#6e6253;font-weight:400;text-transform:none;letter-spacing:0;font-style:italic">(Classic CBC only)</span></div>
+      <div class="style-grid" id="table-styles">
+        <div class="style-card active" data-tablestyle="bordered">Bordered</div>
+        <div class="style-card" data-tablestyle="simple">Simple</div>
+        <div class="style-card" data-tablestyle="modern">Modern</div>
+        <div class="style-card" data-tablestyle="minimal">Minimal</div>
+      </div>
+      <div class="section-label">Accent Colour</div>
+      <div class="style-grid" style="grid-template-columns:repeat(4,1fr);gap:6px" id="accent-colors">
+        <div class="style-card active" data-accent="#0a5454" style="background:#0a5454;height:30px;padding:0"></div>
+        <div class="style-card" data-accent="#7c2d12" style="background:#7c2d12;height:30px;padding:0"></div>
+        <div class="style-card" data-accent="#1e3a8a" style="background:#1e3a8a;height:30px;padding:0"></div>
+        <div class="style-card" data-accent="#365314" style="background:#365314;height:30px;padding:0"></div>
+        <div class="style-card" data-accent="#581c87" style="background:#581c87;height:30px;padding:0"></div>
+        <div class="style-card" data-accent="#831843" style="background:#831843;height:30px;padding:0"></div>
+        <div class="style-card" data-accent="#1c1612" style="background:#1c1612;height:30px;padding:0"></div>
+        <div class="style-card" data-accent="#a16207" style="background:#a16207;height:30px;padding:0"></div>
+      </div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <div class="topbar">
+      <button class="menu-btn" id="menu-btn" aria-label="Menu"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg></button>
+      <button class="tb-btn" data-go-view="home" title="Back to home" style="margin-right:6px"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><span class="advanced-only">Home</span></button>
+      <div class="tb-group">
+        <button class="tb-btn" id="btn-edit" title="Toggle edit mode"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg><span>Edit</span></button>
+      </div>
+      <div class="tb-group" id="format-tools" style="display:none">
+        <button class="tb-btn" data-cmd="bold" title="Bold"><b>B</b></button>
+        <button class="tb-btn" data-cmd="italic" title="Italic"><i>I</i></button>
+        <button class="tb-btn" data-cmd="underline" title="Underline"><u>U</u></button>
+        <button class="tb-btn advanced-only" data-cmd="strikeThrough" title="Strike"><s>S</s></button>
+      </div>
+      <div class="tb-group advanced-only" id="format-tools-2" style="display:none">
+        <button class="tb-btn" data-cmd="insertUnorderedList" title="Bullets"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><circle cx="3.5" cy="6" r="1.2" fill="currentColor"/><circle cx="3.5" cy="12" r="1.2" fill="currentColor"/><circle cx="3.5" cy="18" r="1.2" fill="currentColor"/></svg></button>
+        <button class="tb-btn" data-cmd="insertOrderedList" title="Numbered"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/></svg></button>
+        <button class="tb-btn" data-cmd="justifyLeft" title="Align left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="17" y1="10" x2="3" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="17" y1="18" x2="3" y2="18"/></svg></button>
+        <button class="tb-btn" data-cmd="justifyCenter" title="Align center"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="10" x2="6" y2="10"/><line x1="21" y1="6" x2="3" y2="6"/><line x1="21" y1="14" x2="3" y2="14"/><line x1="18" y1="18" x2="6" y2="18"/></svg></button>
+      </div>
+      <div class="tb-group" id="insert-tools" style="display:none">
+        <button class="tb-btn" id="btn-diagram" title="Insert diagram"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="6"/><circle cx="15" cy="12" r="6"/></svg><span class="advanced-only">Diagram</span></button>
+        <button class="tb-btn" id="btn-symbols" title="Insert math symbol"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h18M12 3v18M5 5l14 14M19 5L5 19"/></svg><span class="advanced-only">∑ Symbols</span></button>
+        <button class="tb-btn advanced-only" data-cmd="superscript" title="Superscript (x²)">x²</button>
+        <button class="tb-btn advanced-only" data-cmd="subscript" title="Subscript (x₂)">x₂</button>
+        <div class="export-menu" style="position:relative">
+          <button class="tb-btn advanced-only" id="btn-table" title="Table tools"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="1"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="15" y1="3" x2="15" y2="21"/></svg><span>Table</span></button>
+          <div class="tt-pop" id="tt-pop">
+            <button data-tt="insertTable">Insert new table…</button>
+            <hr>
+            <button data-tt="rowAbove">Insert row above</button>
+            <button data-tt="rowBelow">Insert row below</button>
+            <button data-tt="colLeft">Insert column left</button>
+            <button data-tt="colRight">Insert column right</button>
+            <hr>
+            <button class="danger" data-tt="delRow">Delete row</button>
+            <button class="danger" data-tt="delCol">Delete column</button>
+            <button class="danger" data-tt="delTable">Delete table</button>
+          </div>
+        </div>
+      </div>
+      <div class="tb-spacer"></div>
+      <div class="export-menu">
+        <button class="tb-btn" id="btn-export" style="background:var(--accent);color:#faf6ef;border-color:var(--accent)"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg><span>Export</span></button>
+        <div class="export-pop" id="export-pop">
+          <button data-export="pdf"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>PDF (A4 via Print)</button>
+          <button data-export="word"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 8 9.5 16 12 10 14.5 16 17 8" stroke-width="1.7"/></svg>Microsoft Word (.docx)</button>
+          <button data-export="html"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>HTML File</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="workspace">
+      <div class="doc-wrap" id="doc-wrap">
+        <div class="doc" id="doc">
+          <div class="empty-state">
+            <div class="glyph"><svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#7a6d5d" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg></div>
+            <h2>An empty page is waiting</h2>
+            <p>Fill in your school identity and lesson details on the left, choose a format, then hit <strong>Generate Lesson Plan</strong>. You'll get a clean, A4-ready draft you can edit, illustrate, and export.</p>
+            <div class="hint"><strong>Two formats:</strong> <em>Modern Clean</em> uses separate stage tables and dedicated Assessment / Differentiation sections. <em>Classic CBC</em> uses one unified progression table.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+</div>
+<!-- /view-plans -->
+<div class="modal-scrim" id="modal-diagram">
+  <div class="modal">
+    <div class="modal-head"><h3>Insert Diagram</h3><button class="close" data-close-modal><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="modal-body" id="diagram-modal-body"></div>
+  </div>
+</div>
+<div class="modal-scrim" id="modal-symbols">
+  <div class="modal">
+    <div class="modal-head"><h3>Math Symbols</h3><button class="close" data-close-modal><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div>
+    <div class="modal-body" id="symbols-modal-body"></div>
+  </div>
+</div>
+<div class="toast" id="toast">Saved</div>
+
+<!-- Shell (used by all studios) -->
+<script src="./shell/01-helpers.js"></script>
+<script src="./shell/02-views-router.js"></script>
+<script src="./shell/03-library.js"></script>
+<script src="./shell/04-hub-render.js"></script>
+
+<!-- Lesson Plan Studio -->
+<script src="./studios/lesson/01-ui-setup.js"></script>
+<script src="./studios/lesson/02-syllabus-new.js"></script>
+<script src="./studios/lesson/03-syllabus-old.js"></script>
+<script src="./studios/lesson/04-syllabus-router.js"></script>
+<script src="./studios/lesson/05-system-prompts.js"></script>
+<script src="./studios/lesson/06-generate.js"></script>
+<script src="./studios/lesson/07-renderers.js"></script>
+<script src="./studios/lesson/08-edit-mode.js"></script>
+<script src="./studios/lesson/09-symbols.js"></script>
+<script src="./studios/lesson/10-export.js"></script>
+<script src="./studios/lesson/11-diagrams.js"></script>
+
+<!-- Syllabi Studio -->
+<script src="./studios/syllabi/syllabi.js"></script>
+
+<!-- Schemes of Work Studio -->
+<script src="./studios/schemes/schemes.js"></script>
+
+<!-- Boot (must be last) -->
+<script src="./shell/05-init.js"></script>
+</body>
+</html>
