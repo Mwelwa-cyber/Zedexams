@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
   listMyGenerations,
@@ -23,7 +23,13 @@ export default function TeacherLibrary() {
   const [items, setItems] = useState([])
   const [status, setStatus] = useState('loading') // loading | ready | error | empty
   const [errorMessage, setErrorMessage] = useState('')
-  const [filters, setFilters] = useState({ tool: '', grade: '', subject: '', search: '' })
+  const [searchParams] = useSearchParams()
+  const [filters, setFilters] = useState({
+    tool: searchParams.get('tool') || '',
+    grade: searchParams.get('grade') || '',
+    subject: searchParams.get('subject') || '',
+    search: '',
+  })
 
   useEffect(() => {
     if (!currentUser) return
