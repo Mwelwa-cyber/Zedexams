@@ -21,6 +21,7 @@ import GamesShell from './GamesShell'
 import {
   buildSubjectProgress,
   getDurationLabel,
+  getGameAccessMeta,
   getGameTypeTheme,
   getSubjectMascot,
 } from './gamesUi'
@@ -278,6 +279,8 @@ function HotGameCard({ game, badge }) {
   const subjectKey = String(game.subject || '').toLowerCase()
   const iconBg = HOT_ICON_BG[subjectKey] || 'bg-amber-100'
   const subjectLabel = SUBJECTS.find((s) => s.slug === subjectKey)?.label || 'Game'
+  const accessMeta = getGameAccessMeta(game, { compact: true })
+  const AccessIcon = accessMeta.icon
 
   return (
     <Link
@@ -294,7 +297,13 @@ function HotGameCard({ game, badge }) {
         <TypeIcon className="h-5 w-5" />
       </div>
 
-      <div className="text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-[#053541]">{subjectLabel}</div>
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-[#053541]">{subjectLabel}</div>
+        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[9.5px] font-extrabold uppercase tracking-[0.08em] ${accessMeta.className}`}>
+          <AccessIcon className={`h-3.5 w-3.5 ${accessMeta.iconClassName}`} />
+          {accessMeta.label}
+        </span>
+      </div>
       <h3 className="font-display mt-1 text-[18px] font-bold leading-tight tracking-tight text-slate-900">
         {game.title}
       </h3>

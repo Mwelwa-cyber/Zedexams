@@ -21,6 +21,7 @@ import {
   TrophyIcon,
   UserCircleIcon,
 } from '@heroicons/react/24/solid'
+import { isDemoGame } from '../../data/gamesSeed'
 import { gradeByValue } from '../../utils/gamesService'
 
 export const NAV_ICON_MAP = {
@@ -199,6 +200,23 @@ export function getGameStatusBadge(game, index = 0, featuredId = null) {
   return { label: 'New', className: 'bg-sky-500/90 text-white' }
 }
 
+export function getGameAccessMeta(game, { compact = false } = {}) {
+  const demo = isDemoGame(game)
+  return demo
+    ? {
+        label: compact ? 'Free' : 'Free demo',
+        icon: SparklesIcon,
+        className: 'bg-emerald-100 text-emerald-800',
+        iconClassName: 'text-emerald-700',
+      }
+    : {
+        label: 'Premium',
+        icon: LockClosedIcon,
+        className: 'bg-slate-900 text-white border-slate-900',
+        iconClassName: 'text-white',
+      }
+}
+
 export function getGameStars(game) {
   let filled = 4
   if ((game?.difficulty || '').toLowerCase() === 'easy') filled = 5
@@ -320,6 +338,8 @@ export function GameDiscoveryCard({
   const badgeSkin = badge?.label
     ? HOT_BADGE_SKIN[badge.label] || HOT_BADGE_SKIN.Popular
     : null
+  const accessMeta = getGameAccessMeta(game)
+  const AccessIcon = accessMeta.icon
 
   return (
     <Link
@@ -340,6 +360,7 @@ export function GameDiscoveryCard({
       <div className="mt-3 flex flex-wrap gap-2">
         {grade && <MetaPill icon={SparklesIcon} label={grade.label} />}
         <MetaPill icon={subjectTheme.icon} label={subjectTheme.label} />
+        <MetaPill icon={AccessIcon} label={accessMeta.label} className={accessMeta.className} />
       </div>
 
       <div className={`mt-4 ${featured ? 'max-w-lg' : ''}`}>
