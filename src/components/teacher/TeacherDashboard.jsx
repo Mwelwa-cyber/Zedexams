@@ -9,6 +9,7 @@ import {
   formatDate,
 } from '../../utils/teacherLibraryService'
 import UpgradeModal from '../subscription/UpgradeModal'
+import Logo from '../ui/Logo'
 import { SYLLABI_TOTAL_COUNT } from '../../data/syllabiCatalog'
 
 const STUDIOS = [
@@ -69,68 +70,20 @@ const STUDIOS = [
   },
 ]
 
-const LIBRARY_SECTIONS = [
-  {
-    key: 'lesson_plan',
-    label: 'Lesson Plans',
-    icon: '🦊',
-    accent: '#fde2c4',
-    createTo: '/teacher/generate/lesson-plan',
-    emptyHint: 'Generate your first lesson plan to see it here.',
-  },
-  {
-    key: 'assessments',
-    label: 'Assessments',
-    icon: '🦅',
-    accent: '#e8d8f0',
-    createTo: '/teacher/quizzes/new',
-    emptyHint: 'Create a topic, monthly or end-of-term assessment.',
-  },
-  {
-    key: 'scheme_of_work',
-    label: 'Schemes of Work',
-    icon: '🦁',
-    accent: '#faecb8',
-    createTo: '/teacher/generate/scheme-of-work',
-    emptyHint: 'Plan a whole term with a scheme of work.',
-  },
-  {
-    key: 'worksheet',
-    label: 'Worksheets',
-    icon: '🐢',
-    accent: '#d8ecd0',
-    createTo: '/teacher/generate/worksheet',
-    emptyHint: 'Generate practice worksheets aligned to your lesson.',
-  },
-  {
-    key: 'notes',
-    label: 'Notes',
-    icon: '🦉',
-    accent: '#dbe7f4',
-    createTo: null,
-    emptyHint: 'Teacher delivery notes — coming soon.',
-  },
-]
+const TOOL_META = {
+  lesson_plan: { icon: '🦊', accent: '#fde2c4', label: 'Lesson Plan' },
+  scheme_of_work: { icon: '🦁', accent: '#faecb8', label: 'Scheme of Work' },
+  worksheet: { icon: '🐢', accent: '#d8ecd0', label: 'Worksheet' },
+  flashcards: { icon: '🎴', accent: '#fde9b8', label: 'Flashcards' },
+  rubric: { icon: '📋', accent: '#f0d6e0', label: 'Rubric' },
+  assessments: { icon: '🦅', accent: '#e8d8f0', label: 'Assessment' },
+}
 
 function SectionLabel({ children }) {
   return (
     <div className="flex items-center gap-2.5 mb-2" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#ff7a2e' }}>
       <span style={{ width: 32, height: 3, background: '#ff7a2e', borderRadius: 2, display: 'inline-block', flexShrink: 0 }} />
       {children}
-    </div>
-  )
-}
-
-function SectionHeader({ kicker, title, action }) {
-  return (
-    <div className="mb-4">
-      <SectionLabel>{kicker}</SectionLabel>
-      <div className="flex justify-between items-end gap-3 flex-wrap">
-        <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 28, color: '#0e2a32', margin: 0 }}>
-          {title}
-        </h2>
-        {action}
-      </div>
     </div>
   )
 }
@@ -188,123 +141,6 @@ function StudioCard({ emoji, mascotBg, badge, libraryKey, title, tagline, mascot
   )
 }
 
-function LibraryCard({ icon, accent, title, subtitle, meta, to }) {
-  const card = (
-    <div
-      className="flex flex-col h-full p-4 rounded-2xl border-2 transition-all"
-      style={{ background: '#fff', borderColor: '#0e2a32', minHeight: 150 }}
-    >
-      <div style={{ width: 44, height: 44, borderRadius: 12, background: accent, display: 'grid', placeItems: 'center', fontSize: 22, marginBottom: 10, flexShrink: 0 }}>
-        {icon}
-      </div>
-      <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 15, color: '#0e2a32', margin: '0 0 4px', lineHeight: 1.25 }} className="line-clamp-2">
-        {title}
-      </p>
-      {subtitle && (
-        <p style={{ fontSize: 12, color: '#566f76', margin: 0, lineHeight: 1.4 }} className="line-clamp-2">
-          {subtitle}
-        </p>
-      )}
-      <p style={{ fontSize: 11, color: '#8a9aa1', margin: '10px 0 0', fontWeight: 600 }}>
-        {meta}
-      </p>
-    </div>
-  )
-
-  if (to) {
-    return (
-      <Link
-        to={to}
-        className="block no-underline transition-transform hover:-translate-y-0.5"
-        onMouseEnter={e => { e.currentTarget.firstChild.style.boxShadow = '0 8px 20px rgba(14,42,50,.1)' }}
-        onMouseLeave={e => { e.currentTarget.firstChild.style.boxShadow = 'none' }}
-      >
-        {card}
-      </Link>
-    )
-  }
-  return card
-}
-
-function LibrarySection({ section, items, totalCount }) {
-  const meta = section
-  const remaining = Math.max(0, totalCount - items.length)
-
-  return (
-    <div className="mb-8">
-      <div className="flex items-center justify-between mb-3 gap-3">
-        <div className="flex items-center gap-2.5">
-          <div style={{ width: 36, height: 36, borderRadius: 10, background: meta.accent, display: 'grid', placeItems: 'center', fontSize: 20, flexShrink: 0 }}>
-            {meta.icon}
-          </div>
-          <div>
-            <h3 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 18, color: '#0e2a32', margin: 0, lineHeight: 1.1 }}>
-              {meta.label}
-            </h3>
-            <p style={{ fontSize: 11, color: '#8a9aa1', margin: '2px 0 0', fontWeight: 600 }}>
-              {totalCount} saved
-            </p>
-          </div>
-        </div>
-        <Link
-          to={`/teacher/library?tool=${meta.key}`}
-          style={{ fontSize: 13, fontWeight: 600, color: '#0e2a32', opacity: 0.6, textDecoration: 'none', whiteSpace: 'nowrap' }}
-        >
-          View all ›
-        </Link>
-      </div>
-
-      {items.length === 0 ? (
-        <div
-          className="flex items-center justify-between gap-3 py-4 px-4 rounded-2xl border-2 border-dashed flex-wrap"
-          style={{ background: '#fff', borderColor: '#d4cab2' }}
-        >
-          <p style={{ fontSize: 13, color: '#8a9aa1', margin: 0 }}>
-            {meta.emptyHint}
-          </p>
-          {meta.createTo && (
-            <Link
-              to={meta.createTo}
-              className="rounded-xl font-bold transition-colors no-underline"
-              style={{ background: '#0e2a32', color: '#fff', padding: '7px 14px', fontSize: 12 }}
-            >
-              + Create
-            </Link>
-          )}
-        </div>
-      ) : (
-        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
-          {items.map(item => (
-            <LibraryCard
-              key={item.id}
-              icon={meta.icon}
-              accent={meta.accent}
-              title={item.title}
-              subtitle={item.subtitle}
-              meta={item.metaLabel}
-              to={item.to}
-            />
-          ))}
-          {remaining > 0 && (
-            <Link
-              to={`/teacher/library?tool=${meta.key}`}
-              className="flex items-center justify-center rounded-2xl border-2 border-dashed no-underline transition-all hover:-translate-y-0.5"
-              style={{ background: '#fff', borderColor: '#0e2a32', minHeight: 150, color: '#0e2a32' }}
-            >
-              <div className="text-center px-4">
-                <div style={{ fontSize: 22, marginBottom: 6 }}>+{remaining}</div>
-                <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 13, margin: 0 }}>
-                  View all
-                </p>
-              </div>
-            </Link>
-          )}
-        </div>
-      )}
-    </div>
-  )
-}
-
 function quizSubtitle(q) {
   const grade = q.grade || q.targetGrade || ''
   const subject = q.subject ? String(q.subject).replace(/_/g, ' ') : ''
@@ -319,6 +155,10 @@ function genSubtitle(g) {
   const grade = g.inputs?.grade || ''
   const subject = g.inputs?.subject ? String(g.inputs.subject).replace(/_/g, ' ') : ''
   return [grade, subject].filter(Boolean).join(' · ')
+}
+
+function formatSubject(s) {
+  return String(s || '').replace(/_/g, ' ')
 }
 
 export default function TeacherDashboard() {
@@ -358,42 +198,10 @@ export default function TeacherDashboard() {
     return { total: generations.length, byTool }
   }, [generations])
 
-  const sectionedItems = useMemo(() => {
-    const result = {}
-    LIBRARY_SECTIONS.forEach(s => { result[s.key] = { items: [], total: 0 } })
-
-    generations.forEach(g => {
-      const bucket = result[g.tool]
-      if (!bucket) return
-      bucket.total += 1
-      if (bucket.items.length < 3) {
-        bucket.items.push({
-          id: g.id,
-          title: titleForGeneration(g),
-          subtitle: genSubtitle(g),
-          metaLabel: formatDate(g.createdAt),
-          to: `/teacher/library/${g.id}`,
-        })
-      }
-    })
-
-    quizzes.forEach(q => {
-      const bucket = result.assessments
-      if (!bucket) return
-      bucket.total += 1
-      if (bucket.items.length < 3) {
-        bucket.items.push({
-          id: q.id,
-          title: quizTitle(q),
-          subtitle: quizSubtitle(q),
-          metaLabel: q.createdAt ? formatDate(q.createdAt) : '',
-          to: `/teacher/quizzes/${q.id}`,
-        })
-      }
-    })
-
-    return result
-  }, [generations, quizzes])
+  const lastLessonPlan = useMemo(
+    () => generations.find(g => g.tool === 'lesson_plan'),
+    [generations],
+  )
 
   const recentItems = useMemo(() => {
     const all = [
@@ -426,10 +234,32 @@ export default function TeacherDashboard() {
       .slice(0, 4)
   }, [generations, quizzes])
 
-  const totalSaved = librarySummary.total + quizzes.length
-
   return (
     <div>
+      {/* Page header — brand on the left, Library button on the right */}
+      <div className="flex items-center justify-between gap-3 mb-5">
+        <Link to="/teacher" className="flex items-center gap-2.5 no-underline" style={{ color: '#0e2a32' }}>
+          <Logo variant="icon" size="md" />
+          <div className="leading-tight">
+            <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 16, margin: 0, color: '#0e2a32' }}>
+              ZedExams <span style={{ color: '#ff7a2e' }}>•</span>
+            </p>
+            <p style={{ fontSize: 11.5, color: '#566f76', margin: 0, fontWeight: 600 }}>
+              Lesson Plan Studio
+            </p>
+          </div>
+        </Link>
+        <Link
+          to="/teacher/library"
+          className="inline-flex items-center gap-2 rounded-xl border-2 font-bold no-underline transition-colors"
+          style={{ background: '#fff', borderColor: '#0e2a32', color: '#0e2a32', padding: '8px 14px', fontSize: 13 }}
+          onMouseEnter={e => { e.currentTarget.style.background = '#f5efe1' }}
+          onMouseLeave={e => { e.currentTarget.style.background = '#fff' }}
+        >
+          📚 Library
+        </Link>
+      </div>
+
       {/* Subscription banner */}
       {!isPremium && (
         <div
@@ -467,24 +297,47 @@ export default function TeacherDashboard() {
             ✨ Today's Workspace
           </span>
           <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 36, lineHeight: 1.05, margin: '0 0 8px', letterSpacing: '-.3px' }}>
-            Plan with confidence
+            {lastLessonPlan ? 'Welcome back' : 'Plan with confidence'}
           </h1>
-          <p style={{ fontSize: 14.5, opacity: .88, marginBottom: 16, maxWidth: 500, lineHeight: 1.55 }}>
-            Build CBC-aligned lesson plans, schemes of work, teaching notes, and worksheets — all from one place.
+          <p style={{ fontSize: 14.5, opacity: .88, marginBottom: 16, maxWidth: 520, lineHeight: 1.55 }}>
+            {lastLessonPlan ? (
+              <>
+                Pick up where you left off — your last plan was{' '}
+                <strong style={{ fontWeight: 700 }}>
+                  {lastLessonPlan.inputs?.subject ? formatSubject(lastLessonPlan.inputs.subject) : 'a lesson plan'}
+                </strong>
+                {lastLessonPlan.inputs?.grade && (
+                  <> for <strong style={{ fontWeight: 700 }}>{lastLessonPlan.inputs.grade}</strong></>
+                )}
+                {lastLessonPlan.output?.header?.topic && (
+                  <>: {lastLessonPlan.output.header.topic}</>
+                )}.
+              </>
+            ) : (
+              <>Build CBC-aligned lesson plans, schemes of work, teaching notes, and worksheets — all from one place.</>
+            )}
           </p>
-          <div className="flex gap-4 flex-wrap mb-5" style={{ fontSize: 13, opacity: .78, fontWeight: 500 }}>
-            <span>📚 Zambian CBC</span>
-            <span>📋 New &amp; Old syllabi</span>
-            <span>⭐ 7 grades</span>
-          </div>
+          {lastLessonPlan ? (
+            <div className="flex gap-4 flex-wrap mb-5" style={{ fontSize: 13, opacity: .78, fontWeight: 500 }}>
+              <span>🕐 {formatDate(lastLessonPlan.createdAt)}</span>
+              {lastLessonPlan.inputs?.subject && <span>📘 {formatSubject(lastLessonPlan.inputs.subject)}</span>}
+              {lastLessonPlan.inputs?.grade && <span>🎓 {lastLessonPlan.inputs.grade}</span>}
+            </div>
+          ) : (
+            <div className="flex gap-4 flex-wrap mb-5" style={{ fontSize: 13, opacity: .78, fontWeight: 500 }}>
+              <span>📚 Zambian CBC</span>
+              <span>📋 New &amp; Old syllabi</span>
+              <span>⭐ 7 grades</span>
+            </div>
+          )}
           <Link
-            to="/teacher/generate/lesson-plan"
+            to={lastLessonPlan ? `/teacher/library/${lastLessonPlan.id}` : '/teacher/generate/lesson-plan'}
             className="inline-flex items-center gap-2.5 rounded-2xl font-bold no-underline transition-colors"
             style={{ background: '#ff7a2e', color: '#fff', padding: '13px 22px', fontSize: 14.5 }}
             onMouseEnter={e => { e.currentTarget.style.background = '#e6651a' }}
             onMouseLeave={e => { e.currentTarget.style.background = '#ff7a2e' }}
           >
-            ▶ Start a new plan
+            ▶ {lastLessonPlan ? 'Continue your latest plan' : 'Start a new plan'}
           </Link>
         </div>
         <div
@@ -495,50 +348,11 @@ export default function TeacherDashboard() {
         </div>
       </div>
 
-      {/* Library — at the top, organised by tool type */}
-      <SectionHeader
-        kicker="📚 Library"
-        title="Your library"
-        action={(
-          <Link
-            to="/teacher/library"
-            style={{ fontSize: 13, fontWeight: 600, color: '#0e2a32', opacity: 0.6, textDecoration: 'none' }}
-          >
-            View all ›
-          </Link>
-        )}
-      />
-
-      {loading ? (
-        <div className="rounded-2xl border-2 border-dashed p-10 text-center mb-10" style={{ background: '#fff', borderColor: '#d4cab2' }}>
-          <div style={{ fontSize: 28, marginBottom: 10 }}>📚</div>
-          <p style={{ fontSize: 13, color: '#8a9aa1', margin: 0 }}>Loading your library…</p>
-        </div>
-      ) : totalSaved === 0 ? (
-        <div className="rounded-2xl border-2 border-dashed p-10 text-center mb-10" style={{ background: '#fff', borderColor: '#d4cab2' }}>
-          <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.5 }}>📂</div>
-          <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 17, color: '#0e2a32', marginBottom: 6 }}>
-            Nothing saved yet
-          </p>
-          <p style={{ fontSize: 13, color: '#8a9aa1', margin: 0 }}>
-            Pick a studio below — your saved items will appear here organised by type.
-          </p>
-        </div>
-      ) : (
-        <div className="mb-10">
-          {LIBRARY_SECTIONS.map(section => (
-            <LibrarySection
-              key={section.key}
-              section={section}
-              items={sectionedItems[section.key].items}
-              totalCount={sectionedItems[section.key].total}
-            />
-          ))}
-        </div>
-      )}
-
       {/* Studios */}
-      <SectionHeader kicker="Studios" title="Pick your studio" />
+      <SectionLabel>Studios</SectionLabel>
+      <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 28, color: '#0e2a32', margin: '0 0 16px' }}>
+        Pick your studio
+      </h2>
       <div className="grid gap-4 mb-10" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
         {STUDIOS.map(s => (
           <StudioCard key={s.title} {...s} librarySummary={librarySummary} />
@@ -546,15 +360,17 @@ export default function TeacherDashboard() {
       </div>
 
       {/* Recents — at the bottom */}
-      <SectionHeader
-        kicker="🕒 Recents"
-        title="Continue where you left off"
-        action={recentItems.length > 0 && (
-          <Link to="/teacher/library" style={{ fontSize: 13, fontWeight: 600, color: '#0e2a32', opacity: 0.6, textDecoration: 'none' }}>
+      <SectionLabel>🕒 Recents</SectionLabel>
+      <div className="flex justify-between items-end mb-4">
+        <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 28, color: '#0e2a32', margin: 0 }}>
+          Continue where you left off
+        </h2>
+        {recentItems.length > 0 && (
+          <Link to="/teacher/library" style={{ fontSize: 13, fontWeight: 600, color: '#0e2a32', opacity: .6, textDecoration: 'none' }}>
             View all ›
           </Link>
         )}
-      />
+      </div>
 
       {loading ? (
         <div style={{ height: 80 }} />
@@ -568,15 +384,13 @@ export default function TeacherDashboard() {
             Nothing recent yet
           </p>
           <p style={{ fontSize: 13, color: '#8a9aa1', margin: 0 }}>
-            Once you create a plan or assessment it'll show up here.
+            Pick a studio above — your most recent items will appear here.
           </p>
         </div>
       ) : (
         <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
           {recentItems.map(item => {
-            const sectionMeta = LIBRARY_SECTIONS.find(s => s.key === item.tool) || {
-              icon: '📄', accent: '#f0eee8', label: 'Item',
-            }
+            const meta = TOOL_META[item.tool] || { icon: '📄', accent: '#f0eee8', label: 'Item' }
             return (
               <Link
                 key={`${item.kind}-${item.id}`}
@@ -586,15 +400,15 @@ export default function TeacherDashboard() {
                 onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 20px rgba(14,42,50,.1)' }}
                 onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none' }}
               >
-                <div style={{ width: 44, height: 44, borderRadius: 12, background: sectionMeta.accent, display: 'grid', placeItems: 'center', fontSize: 22, flexShrink: 0 }}>
-                  {sectionMeta.icon}
+                <div style={{ width: 44, height: 44, borderRadius: 12, background: meta.accent, display: 'grid', placeItems: 'center', fontSize: 22, flexShrink: 0 }}>
+                  {meta.icon}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 14, color: '#0e2a32', margin: '0 0 3px', lineHeight: 1.25 }} className="line-clamp-1">
                     {item.title}
                   </p>
                   <p style={{ fontSize: 11.5, color: '#566f76', margin: 0 }} className="line-clamp-1">
-                    {sectionMeta.label}{item.subtitle ? ` · ${item.subtitle}` : ''} · {formatDate(item.timestamp)}
+                    {meta.label}{item.subtitle ? ` · ${item.subtitle}` : ''} · {formatDate(item.timestamp)}
                   </p>
                 </div>
                 <span style={{ fontSize: 18, color: '#566f76', flexShrink: 0 }}>→</span>

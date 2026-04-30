@@ -1,177 +1,205 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
+import { useFirestore } from '../../../hooks/useFirestore'
 import {
   listMyGenerations,
-  TOOL_META,
-  TOOL_FILTER_OPTIONS,
   titleForGeneration,
   formatDate,
 } from '../../../utils/teacherLibraryService'
-import {
-  TEACHER_GRADES,
-  TEACHER_SUBJECTS,
-} from '../../../utils/teacherTools'
-import { downloadCSV } from '../../../utils/csvExport'
 
-/**
- * Teacher Library — every generation the user has created, filterable and
- * clickable through to the detail view.
- */
+const SECTIONS = [
+  {
+    key: 'lesson_plan',
+    label: 'Lesson Plans',
+    icon: '🦊',
+    accent: '#fde2c4',
+    createTo: '/teacher/generate/lesson-plan',
+    emptyHint: 'Generate your first lesson plan to see it here.',
+    source: 'generations',
+  },
+  {
+    key: 'assessments',
+    label: 'Assessments',
+    icon: '🦅',
+    accent: '#e8d8f0',
+    createTo: '/teacher/quizzes/new',
+    emptyHint: 'Create a topic, monthly or end-of-term assessment.',
+    source: 'quizzes',
+  },
+  {
+    key: 'scheme_of_work',
+    label: 'Schemes of Work',
+    icon: '🦁',
+    accent: '#faecb8',
+    createTo: '/teacher/generate/scheme-of-work',
+    emptyHint: 'Plan a whole term with a scheme of work.',
+    source: 'generations',
+  },
+  {
+    key: 'worksheet',
+    label: 'Worksheets',
+    icon: '🐢',
+    accent: '#d8ecd0',
+    createTo: '/teacher/generate/worksheet',
+    emptyHint: 'Generate practice worksheets aligned to your lesson.',
+    source: 'generations',
+  },
+  {
+    key: 'notes',
+    label: 'Notes',
+    icon: '🦉',
+    accent: '#dbe7f4',
+    createTo: null,
+    emptyHint: 'Teacher delivery notes — coming soon.',
+    source: 'none',
+  },
+]
+
+function formatSubject(s) {
+  return String(s || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+function genSubtitle(g) {
+  const parts = [g.inputs?.grade, g.inputs?.subject ? formatSubject(g.inputs.subject) : ''].filter(Boolean)
+  return parts.join(' · ')
+}
+
+function quizSubtitle(q) {
+  const parts = [q.grade || q.targetGrade, q.subject ? formatSubject(q.subject) : ''].filter(Boolean)
+  return parts.join(' · ')
+}
+
 export default function TeacherLibrary() {
   const { currentUser } = useAuth()
-  const [items, setItems] = useState([])
-  const [status, setStatus] = useState('loading') // loading | ready | error | empty
-  const [errorMessage, setErrorMessage] = useState('')
+  const { getMyQuizzes } = useFirestore()
   const [searchParams] = useSearchParams()
-  const [filters, setFilters] = useState({
-    tool: searchParams.get('tool') || '',
-    grade: searchParams.get('grade') || '',
-    subject: searchParams.get('subject') || '',
-    search: '',
-  })
+  const initialFocus = searchParams.get('tool') || ''
+
+  const [generations, setGenerations] = useState([])
+  const [quizzes, setQuizzes] = useState([])
+  const [status, setStatus] = useState('loading') // loading | ready | error
+  const [errorMessage, setErrorMessage] = useState('')
+  const [search, setSearch] = useState('')
 
   useEffect(() => {
     if (!currentUser) return
+    let cancelled = false
     setStatus('loading')
-    listMyGenerations({ uid: currentUser.uid })
-      .then((rows) => {
-        setItems(rows)
-        setStatus(rows.length === 0 ? 'empty' : 'ready')
+    Promise.all([
+      listMyGenerations({ uid: currentUser.uid }),
+      getMyQuizzes(currentUser.uid).catch(() => []),
+    ])
+      .then(([gens, qs]) => {
+        if (cancelled) return
+        setGenerations(gens)
+        setQuizzes(qs)
+        setStatus('ready')
       })
       .catch((err) => {
+        if (cancelled) return
         setErrorMessage(err?.message || 'Could not load your library.')
         setStatus('error')
       })
+    return () => { cancelled = true }
   }, [currentUser])
 
-  const filtered = useMemo(() => {
-    const term = filters.search.trim().toLowerCase()
-    return items.filter((r) => {
-      if (filters.tool && r.tool !== filters.tool) return false
-      if (filters.grade && r.inputs?.grade !== filters.grade) return false
-      if (filters.subject && r.inputs?.subject !== filters.subject) return false
-      if (term) {
-        const haystack = [
-          r.inputs?.topic, r.inputs?.subtopic,
-          titleForGeneration(r), r.inputs?.grade, r.inputs?.subject,
-        ].filter(Boolean).join(' ').toLowerCase()
-        if (!haystack.includes(term)) return false
-      }
-      return true
-    })
-  }, [items, filters])
+  const term = search.trim().toLowerCase()
 
-  function handleExportCsv() {
-    if (!filtered.length) return
-    const rows = filtered.map((r) => ({
-      title: titleForGeneration(r),
-      tool: TOOL_META[r.tool]?.label || r.tool || '',
-      grade: r.inputs?.grade || '',
-      subject: r.inputs?.subject || '',
-      topic: r.inputs?.topic || '',
-      subtopic: r.inputs?.subtopic || '',
-      difficulty: r.inputs?.difficulty || '',
-      status: r.status || '',
-      createdAt: formatDate(r.createdAt),
-      exportedFormats: (r.exportedFormats || []).join('; '),
-    }))
-    downloadCSV(`zedexams-library-${new Date().toISOString().slice(0, 10)}.csv`, rows)
-  }
+  const filteredGenerations = useMemo(() => {
+    if (!term) return generations
+    return generations.filter((r) => {
+      const haystack = [
+        r.inputs?.topic, r.inputs?.subtopic,
+        titleForGeneration(r), r.inputs?.grade, r.inputs?.subject,
+      ].filter(Boolean).join(' ').toLowerCase()
+      return haystack.includes(term)
+    })
+  }, [generations, term])
+
+  const filteredQuizzes = useMemo(() => {
+    if (!term) return quizzes
+    return quizzes.filter((q) => {
+      const haystack = [q.title, q.topic, q.subject, q.grade].filter(Boolean).join(' ').toLowerCase()
+      return haystack.includes(term)
+    })
+  }, [quizzes, term])
+
+  const sectionData = useMemo(() => {
+    const result = {}
+    SECTIONS.forEach((s) => { result[s.key] = [] })
+    filteredGenerations.forEach((g) => {
+      if (result[g.tool]) {
+        result[g.tool].push({
+          id: g.id,
+          title: titleForGeneration(g),
+          subtitle: genSubtitle(g),
+          metaLabel: formatDate(g.createdAt),
+          to: `/teacher/library/${g.id}`,
+        })
+      }
+    })
+    filteredQuizzes.forEach((q) => {
+      result.assessments.push({
+        id: q.id,
+        title: q.title || q.topic || 'Untitled assessment',
+        subtitle: quizSubtitle(q),
+        metaLabel: q.createdAt ? formatDate(q.createdAt) : '',
+        to: `/teacher/quizzes/${q.id}`,
+      })
+    })
+    return result
+  }, [filteredGenerations, filteredQuizzes])
+
+  const totalSaved = generations.length + quizzes.length
 
   return (
     <div className="min-h-screen theme-bg p-4 sm:p-6 lg:p-8">
-      <div className="max-w-7xl mx-auto">
-        <header className="mb-6 flex flex-wrap items-end justify-between gap-3">
+      <div className="max-w-6xl mx-auto">
+        {/* Header */}
+        <div className="flex flex-wrap items-end justify-between gap-3 mb-6">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-black theme-text">My Library</h1>
-            <p className="text-sm theme-text-secondary mt-1">
-              Every lesson plan, worksheet and flashcard set you've generated.
-              {status === 'ready' && ` Showing ${filtered.length} of ${items.length}.`}
+            <Link
+              to="/teacher"
+              className="inline-flex items-center gap-1.5 mb-3 no-underline text-sm font-bold rounded-xl border-2 px-3 py-1.5 transition-colors"
+              style={{ borderColor: '#0e2a32', color: '#0e2a32', background: '#fff' }}
+              onMouseEnter={e => { e.currentTarget.style.background = '#f5efe1' }}
+              onMouseLeave={e => { e.currentTarget.style.background = '#fff' }}
+            >
+              ← Home
+            </Link>
+            <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 32, color: '#0e2a32', margin: 0, letterSpacing: '-.3px' }}>
+              Library
+            </h1>
+            <p style={{ fontSize: 13, color: '#566f76', margin: '4px 0 0' }}>
+              {status === 'ready'
+                ? `${totalSaved} saved item${totalSaved === 1 ? '' : 's'} across all studios`
+                : 'Everything you have saved across studios.'}
             </p>
           </div>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={handleExportCsv}
-              disabled={status !== 'ready' || filtered.length === 0}
-              title={
-                status !== 'ready'
-                  ? 'Load your library first'
-                  : filtered.length === 0
-                    ? 'No items to export'
-                    : `Export ${filtered.length} item${filtered.length === 1 ? '' : 's'} as CSV`
-              }
-              className="px-3 py-2 rounded-xl text-sm font-bold border theme-border hover:bg-slate-50 dark:hover:bg-slate-800 transition disabled:opacity-40 disabled:cursor-not-allowed"
-            >
-              ⬇️ Export CSV
-            </button>
-            <Link
-              to="/teacher/generate/lesson-plan"
-              className="px-3 py-2 rounded-xl text-sm font-bold border theme-border hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-            >
-              ✨ New lesson plan
-            </Link>
-            <Link
-              to="/teacher/generate/worksheet"
-              className="px-3 py-2 rounded-xl text-sm font-bold border theme-border hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-            >
-              📝 New worksheet
-            </Link>
-            <Link
-              to="/teacher/generate/flashcards"
-              className="px-3 py-2 rounded-xl text-sm font-bold border theme-border hover:bg-slate-50 dark:hover:bg-slate-800 transition"
-            >
-              🎴 New flashcards
-            </Link>
-          </div>
-        </header>
-
-        {/* Filter bar */}
-        <div className="theme-card border theme-border rounded-2xl p-3 mb-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
-          <FieldSelect
-            ariaLabel="Filter by tool"
-            value={filters.tool}
-            options={TOOL_FILTER_OPTIONS}
-            onChange={(v) => setFilters((f) => ({ ...f, tool: v }))}
-          />
-          <FieldSelect
-            ariaLabel="Filter by grade"
-            value={filters.grade}
-            options={[{ value: '', label: 'All grades' }, ...TEACHER_GRADES]}
-            onChange={(v) => setFilters((f) => ({ ...f, grade: v }))}
-          />
-          <FieldSelect
-            ariaLabel="Filter by subject"
-            value={filters.subject}
-            options={[{ value: '', label: 'All subjects' }, ...TEACHER_SUBJECTS]}
-            onChange={(v) => setFilters((f) => ({ ...f, subject: v }))}
-          />
           <input
             type="search"
-            value={filters.search}
-            onChange={(e) => setFilters((f) => ({ ...f, search: e.target.value }))}
-            placeholder="Search by topic…"
-            className="px-3 py-2 rounded-lg border theme-border bg-transparent theme-text focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search your library…"
+            className="px-4 py-2.5 rounded-xl border-2 text-sm focus:outline-none w-full sm:w-72"
+            style={{ borderColor: '#0e2a32', background: '#fff', color: '#0e2a32' }}
           />
         </div>
 
-        {status === 'loading' && (
-          <LoadingState />
-        )}
-        {status === 'error' && (
-          <ErrorState message={errorMessage} />
-        )}
-        {status === 'empty' && (
-          <EmptyState />
-        )}
-        {status === 'ready' && filtered.length === 0 && (
-          <NoResults onClear={() => setFilters({ tool: '', grade: '', subject: '', search: '' })} />
-        )}
-        {status === 'ready' && filtered.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {filtered.map((item) => (
-              <ItemCard key={item.id} item={item} />
+        {/* Body */}
+        {status === 'loading' && <LoadingState />}
+        {status === 'error' && <ErrorState message={errorMessage} />}
+
+        {status === 'ready' && (
+          <div>
+            {SECTIONS.map((section) => (
+              <LibrarySection
+                key={section.key}
+                section={section}
+                items={sectionData[section.key]}
+                initialFocus={initialFocus}
+              />
             ))}
           </div>
         )}
@@ -180,128 +208,113 @@ export default function TeacherLibrary() {
   )
 }
 
-function ItemCard({ item }) {
-  const meta = TOOL_META[item.tool] || { label: item.tool, icon: '📄', colour: 'slate' }
-  const title = titleForGeneration(item)
-  const isKbFallback = !item.kbVersion || (item.errorMessage || '').includes('general CBC')
+function LibrarySection({ section, items, initialFocus }) {
+  const isFocused = initialFocus === section.key
+  return (
+    <section
+      id={`section-${section.key}`}
+      className="mb-8 rounded-2xl"
+      style={isFocused ? { background: 'rgba(255,122,46,.06)', padding: 12, marginInline: -12 } : undefined}
+    >
+      <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div style={{ width: 42, height: 42, borderRadius: 12, background: section.accent, display: 'grid', placeItems: 'center', fontSize: 22, flexShrink: 0 }}>
+            {section.icon}
+          </div>
+          <div>
+            <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 20, color: '#0e2a32', margin: 0, lineHeight: 1.1 }}>
+              {section.label}
+            </h2>
+            <p style={{ fontSize: 12, color: '#8a9aa1', margin: '3px 0 0', fontWeight: 600 }}>
+              {items.length} saved
+            </p>
+          </div>
+        </div>
+        {section.createTo && (
+          <Link
+            to={section.createTo}
+            className="inline-flex items-center gap-1.5 rounded-xl font-bold no-underline transition-colors"
+            style={{ background: '#0e2a32', color: '#fff', padding: '8px 14px', fontSize: 12.5 }}
+          >
+            + New
+          </Link>
+        )}
+      </div>
+
+      {items.length === 0 ? (
+        <div
+          className="rounded-2xl border-2 border-dashed py-6 px-4 text-center"
+          style={{ background: '#fff', borderColor: '#d4cab2' }}
+        >
+          <p style={{ fontSize: 13, color: '#8a9aa1', margin: 0 }}>
+            {section.emptyHint}
+          </p>
+        </div>
+      ) : (
+        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
+          {items.map((item) => (
+            <LibraryCard
+              key={item.id}
+              icon={section.icon}
+              accent={section.accent}
+              title={item.title}
+              subtitle={item.subtitle}
+              meta={item.metaLabel}
+              to={item.to}
+            />
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function LibraryCard({ icon, accent, title, subtitle, meta, to }) {
   return (
     <Link
-      to={`/teacher/library/${item.id}`}
-      className="group block rounded-2xl border-2 theme-border p-4 shadow-elev-sm transition-all duration-base ease-out hover:-translate-y-0.5 hover:shadow-elev-md hover:border-emerald-400"
+      to={to}
+      className="block no-underline rounded-2xl border-2 p-4 transition-all hover:-translate-y-0.5"
+      style={{ background: '#fff', borderColor: '#0e2a32', minHeight: 140, color: '#0e2a32' }}
+      onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 20px rgba(14,42,50,.1)' }}
+      onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none' }}
     >
-      <div className="flex items-center gap-2 mb-2">
-        <span className="text-xl" aria-hidden="true">{meta.icon}</span>
-        <span className="text-[10px] font-black uppercase tracking-wide theme-text-secondary">
-          {meta.label}
-        </span>
-        {item.status === 'flagged' && (
-          <span className="ml-auto text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
-            Review
-          </span>
-        )}
-        {item.status === 'failed' && (
-          <span className="ml-auto text-[10px] font-black uppercase tracking-wide px-2 py-0.5 rounded-full bg-rose-100 text-rose-800">
-            Failed
-          </span>
-        )}
+      <div style={{ width: 40, height: 40, borderRadius: 11, background: accent, display: 'grid', placeItems: 'center', fontSize: 20, marginBottom: 10, flexShrink: 0 }}>
+        {icon}
       </div>
-      <h3 className="font-black theme-text text-base leading-snug mb-1 line-clamp-2">
+      <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 15, color: '#0e2a32', margin: '0 0 4px', lineHeight: 1.25 }} className="line-clamp-2">
         {title}
-      </h3>
-      <div className="flex flex-wrap gap-2 text-xs theme-text-secondary">
-        {item.inputs?.grade && <Pill>{item.inputs.grade}</Pill>}
-        {item.inputs?.subject && <Pill>{formatSubject(item.inputs.subject)}</Pill>}
-        {item.inputs?.difficulty && <Pill>{item.inputs.difficulty}</Pill>}
-      </div>
-      <div className="flex items-center justify-between mt-3 text-xs theme-text-secondary">
-        <span>{formatDate(item.createdAt)}</span>
-        {item.exportedFormats?.length > 0 && (
-          <span>Exported: {item.exportedFormats.join(', ')}</span>
-        )}
-      </div>
+      </p>
+      {subtitle && (
+        <p style={{ fontSize: 12, color: '#566f76', margin: 0, lineHeight: 1.4 }} className="line-clamp-1">
+          {subtitle}
+        </p>
+      )}
+      {meta && (
+        <p style={{ fontSize: 11, color: '#8a9aa1', margin: '10px 0 0', fontWeight: 600 }}>
+          {meta}
+        </p>
+      )}
     </Link>
-  )
-}
-
-function Pill({ children }) {
-  return (
-    <span className="px-2 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800">
-      {children}
-    </span>
-  )
-}
-
-function FieldSelect({ value, options, onChange, ariaLabel }) {
-  return (
-    <select
-      aria-label={ariaLabel}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className="px-3 py-2 rounded-lg border theme-border bg-transparent theme-text focus:outline-none focus:ring-2 focus:ring-emerald-500"
-    >
-      {options.map((o) => (
-        <option key={o.value} value={o.value}>{o.label}</option>
-      ))}
-    </select>
   )
 }
 
 function LoadingState() {
   return (
-    <div className="theme-card border theme-border rounded-2xl p-12 text-center">
+    <div className="rounded-2xl border-2 border-dashed p-12 text-center" style={{ background: '#fff', borderColor: '#d4cab2' }}>
       <div className="text-4xl mb-3 animate-bounce">📚</div>
-      <p className="theme-text-secondary">Loading your library…</p>
+      <p style={{ fontSize: 13, color: '#8a9aa1' }}>Loading your library…</p>
     </div>
   )
 }
 
 function ErrorState({ message }) {
   return (
-    <div className="theme-card border theme-border rounded-2xl p-12 text-center">
+    <div className="rounded-2xl border-2 border-dashed p-12 text-center" style={{ background: '#fff', borderColor: '#d4cab2' }}>
       <div className="text-4xl mb-3">⚠️</div>
-      <p className="theme-text font-bold mb-1">Could not load your library</p>
-      <p className="text-sm theme-text-secondary">{message}</p>
-    </div>
-  )
-}
-
-function EmptyState() {
-  return (
-    <div className="theme-card border theme-border rounded-2xl p-12 text-center">
-      <div className="text-5xl mb-3">🗂️</div>
-      <h3 className="text-lg font-black theme-text mb-2">Your library is empty</h3>
-      <p className="text-sm theme-text-secondary max-w-md mx-auto mb-5">
-        Once you generate a lesson plan, worksheet, or flashcard set, it'll
-        save here automatically — and you can re-export it any time.
+      <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 16, color: '#0e2a32', marginBottom: 6 }}>
+        Could not load your library
       </p>
-      <Link
-        to="/teacher/generate/lesson-plan"
-        className="inline-block px-5 py-3 rounded-xl font-black text-white bg-gradient-to-r from-emerald-500 to-teal-500"
-      >
-        ✨ Generate your first lesson plan
-      </Link>
+      <p style={{ fontSize: 13, color: '#8a9aa1', margin: 0 }}>{message}</p>
     </div>
   )
-}
-
-function NoResults({ onClear }) {
-  return (
-    <div className="theme-card border theme-border rounded-2xl p-12 text-center">
-      <div className="text-4xl mb-3">🔍</div>
-      <p className="theme-text font-bold mb-1">No matches</p>
-      <p className="text-sm theme-text-secondary mb-4">
-        Try clearing your filters to see everything.
-      </p>
-      <button
-        onClick={onClear}
-        className="px-4 py-2 rounded-xl text-sm font-bold border theme-border"
-      >
-        Clear filters
-      </button>
-    </div>
-  )
-}
-
-function formatSubject(s) {
-  return String(s || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
