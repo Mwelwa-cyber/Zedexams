@@ -1,5 +1,4 @@
 /* ============ SCHEMES OF WORK STUDIO ============ */
-#view-schemes.view-app { display: block; }
 #view-schemes .schemes-app {
   display: grid;
   grid-template-columns: 360px 1fr;
