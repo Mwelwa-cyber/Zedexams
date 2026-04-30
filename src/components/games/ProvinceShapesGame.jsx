@@ -219,21 +219,19 @@ export default function ProvinceShapesGame({ game }) {
     <div className="space-y-5">
       <TimerBar timeLeft={timeLeft} pct={pct} />
 
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-2 sm:gap-3">
         <Pill label="Score"  value={score}   tone="amber" />
         <Pill label="Streak" value={streak}  tone="emerald" />
-        <Pill label="Wrong"  value={wrong}   tone="slate" />
+        <Pill label="Wrong"  value={wrong}   tone="rose" />
       </div>
 
       <div
         key={`card-${seed}-${pos}`}
-        className="bg-white rounded-3xl border-2 border-slate-200 shadow-sm p-6 sm:p-8"
+        className="zx-card rounded-[22px] bg-white p-6 sm:p-8"
         style={{ animation: 'zx-question-in 0.3s ease-out both' }}
       >
-        <p className="text-xs font-black uppercase tracking-wide text-slate-500 mb-3">
-          Province {pos + 1} of {totalQuestions}
-        </p>
-        <h2 className="text-xl sm:text-2xl font-black leading-tight mb-4">
+        <p className="zx-eyebrow mb-3">Province {pos + 1} of {totalQuestions}</p>
+        <h2 className="font-display text-xl sm:text-2xl font-bold leading-tight mb-4 text-slate-900">
           {q.question || 'Which province is this?'}
         </h2>
         <Silhouette url={silhouetteUrl} provinceName={q.answer} />
@@ -261,13 +259,6 @@ export default function ProvinceShapesGame({ game }) {
           End round early
         </button>
       </div>
-
-      <style>{`
-        @keyframes zx-question-in {
-          0%   { transform: translateY(8px) scale(0.98); opacity: 0; }
-          100% { transform: translateY(0)    scale(1);    opacity: 1; }
-        }
-      `}</style>
     </div>
   )
 
@@ -315,7 +306,7 @@ function Silhouette({ url, provinceName }) {
 
   if (!url || errored) {
     return (
-      <div className="aspect-[3/2] w-full rounded-2xl bg-slate-100 border-2 border-dashed border-slate-300 flex items-center justify-center">
+      <div className="aspect-[3/2] w-full rounded-[18px] bg-slate-100 border-2 border-dashed border-slate-900 flex items-center justify-center">
         <div className="text-center text-slate-500 text-sm px-6">
           <MapPinIcon className="h-10 w-10 mx-auto mb-2 text-slate-400" />
           Map preview unavailable. Check that <span className="font-mono text-xs">VITE_GOOGLE_MAPS_STATIC_KEY</span> is set.
@@ -325,10 +316,10 @@ function Silhouette({ url, provinceName }) {
   }
 
   return (
-    <div className="relative aspect-[3/2] w-full overflow-hidden rounded-2xl bg-slate-100 border-2 border-slate-200">
+    <div className="relative aspect-[3/2] w-full overflow-hidden rounded-[18px] bg-slate-100 border-2 border-slate-900">
       {!loaded && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <div className="h-10 w-10 rounded-full border-4 border-slate-200 border-t-slate-600 animate-spin" />
+          <div className="h-10 w-10 rounded-full border-4 border-slate-200 border-t-slate-900 animate-spin" />
         </div>
       )}
       <img
@@ -346,12 +337,12 @@ function Silhouette({ url, provinceName }) {
 function ReadyCard({ game, totalQuestions, onStart }) {
   const { currentUser } = useAuth()
   return (
-    <div className="bg-white rounded-3xl border-2 border-slate-200 shadow-sm p-8 sm:p-10 text-center">
+    <div className="zx-card rounded-[22px] bg-white p-8 sm:p-10 text-center">
       <MascotGreeting game={game} intro={`Ready for ${game.title}?`} />
-      <span className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full bg-amber-500 text-white shadow-[0_20px_40px_-24px_rgba(245,158,11,0.55)]">
+      <span className="mx-auto grid h-16 w-16 place-items-center rounded-[18px] border-2 border-slate-900 bg-yellow-100 text-slate-900">
         <MapPinIcon className="h-8 w-8" />
       </span>
-      <h2 className="text-3xl font-black mb-2">{game.title}</h2>
+      <h2 className="font-display text-3xl font-bold mb-2 mt-4 text-slate-900">{game.title}</h2>
       <p className="text-slate-700 max-w-md mx-auto mb-6">
         {game.description}
       </p>
@@ -367,7 +358,7 @@ function ReadyCard({ game, totalQuestions, onStart }) {
       <button
         type="button"
         onClick={onStart}
-        className="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-base font-black text-white bg-gradient-to-b from-amber-400 to-orange-500 ring-1 ring-amber-300/60 shadow-[0_14px_28px_-12px_rgba(249,115,22,0.55),inset_0_1px_0_rgba(255,255,255,0.4)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_32px_-14px_rgba(249,115,22,0.6),inset_0_1px_0_rgba(255,255,255,0.45)] active:translate-y-0"
+        className="zx-sticker-btn zx-sticker-btn-primary rounded-[14px] px-5 py-3 text-base"
       >
         <BoltIcon className="h-4 w-4" />
         Start map quiz
@@ -383,12 +374,12 @@ function DoneCard({ game, score, correct, wrong, accuracy, bestStreak, saveResul
       {streakResult?.isDaily && <StreakBanner result={streakResult} />}
       {newBadges?.length > 0 && <BadgeToast badges={newBadges} />}
 
-      <div className="bg-white rounded-3xl border-2 border-slate-200 shadow-sm p-8 text-center">
+      <div className="zx-card rounded-[22px] bg-white p-8 text-center">
         <MascotCelebration game={game} accuracy={accuracy} score={score} />
-        <span className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full bg-slate-900 text-white shadow-[0_20px_40px_-24px_rgba(15,23,42,0.4)]">
+        <span className="mx-auto grid h-16 w-16 place-items-center rounded-[18px] border-2 border-slate-900 bg-slate-900 text-white">
           <TrophyIcon className="h-8 w-8 text-amber-300" />
         </span>
-        <h2 className="text-3xl font-black mb-1">{score} pts</h2>
+        <h2 className="font-display text-3xl font-bold mb-1 mt-4 text-slate-900">{score} pts</h2>
         <p className="text-slate-600 mb-6">Final score</p>
         <div className="grid grid-cols-3 gap-3 max-w-md mx-auto mb-6">
           <DoneStat label="Correct" value={correct} tone="emerald" />
@@ -408,7 +399,7 @@ function DoneCard({ game, score, correct, wrong, accuracy, bestStreak, saveResul
           <button
             type="button"
             onClick={onRestart}
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black text-white bg-gradient-to-b from-amber-400 to-orange-500 ring-1 ring-amber-300/60 shadow-[0_12px_24px_-10px_rgba(249,115,22,0.5),inset_0_1px_0_rgba(255,255,255,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_28px_-12px_rgba(249,115,22,0.55),inset_0_1px_0_rgba(255,255,255,0.4)] active:translate-y-0"
+            className="zx-sticker-btn zx-sticker-btn-primary rounded-[14px] px-4 py-2.5 text-sm"
           >
             <ArrowPathIcon className="h-4 w-4" />
             Play again
@@ -416,7 +407,7 @@ function DoneCard({ game, score, correct, wrong, accuracy, bestStreak, saveResul
           <ShareButton game={game} score={score} accuracy={accuracy} bestStreak={bestStreak} />
           <Link
             to={`/games/g/${game.grade}/${game.subject}`}
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 bg-white border border-slate-200 shadow-[0_8px_18px_-10px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_24px_-12px_rgba(15,23,42,0.22)] active:translate-y-0"
+            className="zx-sticker-btn zx-sticker-btn-secondary rounded-[14px] px-4 py-2.5 text-sm"
           >
             More {game.subject} games
           </Link>
@@ -431,51 +422,51 @@ function DoneCard({ game, score, correct, wrong, accuracy, bestStreak, saveResul
 function TimerBar({ timeLeft, pct }) {
   const danger = timeLeft <= 10
   return (
-    <div className="flex items-center gap-3">
-      <div className="flex-1 h-3 rounded-full bg-slate-200 overflow-hidden">
+    <div className="zx-card-dark flex items-center gap-3 rounded-[22px] px-4 py-3">
+      <div className="flex-1 h-3 rounded-full bg-white/15 overflow-hidden border border-white/10">
         <div
-          className={`h-full transition-all ${danger ? 'bg-rose-500' : 'bg-gradient-to-r from-emerald-500 to-teal-500'}`}
+          className={`h-full transition-all ${danger ? 'bg-rose-500' : 'bg-gradient-to-r from-amber-400 to-orange-500'}`}
           style={{ width: `${pct}%` }}
         />
       </div>
-      <div className={`w-16 text-center font-black text-2xl tabular-nums ${danger ? 'text-rose-600 animate-pulse' : 'text-slate-900'}`}>
+      <div className={`w-16 text-center font-display font-bold text-2xl tabular-nums ${danger ? 'text-rose-300 animate-pulse' : 'text-white'}`}>
         {timeLeft}s
       </div>
     </div>
   )
 }
 
-const TONE = {
-  emerald: 'bg-emerald-50 text-emerald-900 border-emerald-200',
-  amber:   'bg-amber-50 text-amber-900 border-amber-200',
-  rose:    'bg-rose-50 text-rose-900 border-rose-200',
-  slate:   'bg-slate-50 text-slate-900 border-slate-200',
+const PILL_TONE = {
+  emerald: 'bg-emerald-100',
+  amber:   'bg-amber-100',
+  rose:    'bg-rose-100',
+  slate:   'bg-slate-100',
 }
 
 function Pill({ label, value, tone = 'slate' }) {
   return (
-    <div className={`rounded-xl border-2 px-3 py-2 text-center ${TONE[tone]}`}>
-      <div className="text-[10px] font-black uppercase tracking-wide opacity-70">{label}</div>
-      <div className="text-xl font-black">{value}</div>
+    <div className={`zx-card rounded-[14px] px-3 py-2 text-center text-slate-900 ${PILL_TONE[tone]}`}>
+      <div className="text-[10px] font-extrabold uppercase tracking-[0.12em] opacity-70">{label}</div>
+      <div className="font-display text-xl font-bold leading-none mt-1">{value}</div>
     </div>
   )
 }
 
 function Choice({ label, letter, picked, isPicked, isAnswer, onClick }) {
-  let cls = 'border-slate-200 bg-white hover:border-slate-400 hover:bg-slate-50'
+  let cls = 'bg-white text-slate-900'
   if (picked !== null) {
-    if (isAnswer) cls = 'border-emerald-400 bg-emerald-50 text-emerald-900'
-    else if (isPicked) cls = 'border-rose-400 bg-rose-50 text-rose-900'
-    else cls = 'border-slate-200 bg-slate-50 opacity-60'
+    if (isAnswer) cls = 'bg-emerald-100 text-emerald-900'
+    else if (isPicked) cls = 'bg-rose-100 text-rose-900'
+    else cls = 'bg-slate-50 text-slate-500 opacity-70'
   }
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={picked !== null}
-      className={`w-full flex items-center gap-3 text-left p-4 rounded-xl border-2 font-bold text-lg transition ${cls}`}
+      className={`zx-card w-full flex items-center gap-3 text-left p-4 rounded-[14px] font-bold text-lg transition active:translate-y-[2px] active:shadow-none ${cls}`}
     >
-      <span className="shrink-0 w-9 h-9 rounded-lg bg-slate-100 flex items-center justify-center font-black text-slate-700">
+      <span className="shrink-0 w-9 h-9 rounded-[10px] border-2 border-slate-900 bg-white flex items-center justify-center font-black text-slate-900">
         {letter}
       </span>
       <span className="flex-1 leading-tight">{label}</span>

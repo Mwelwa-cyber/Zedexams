@@ -5,31 +5,36 @@
  *   import './editor/editor.css'
  */
 
-/* ── Editor design tokens — scoped to .qe-page to avoid app conflicts ── */
+/* ── Editor design tokens — bridged onto unified app tokens ─────
+ * Editor canvas stays light across all themes (color-scheme: light
+ * + literal --white/--sl1/--sl2). Brand purple accents follow the
+ * active app theme. Teal kept literal — it's a contrasting secondary
+ * action colour, functional rather than branded.
+ */
 .qe-page, .overlay, .modal, .re-wrap, .editor-area,
 .toolbar, .tblstrip, .alist, .pcard, .savebar, .qe-toast {
-  --ink:  #1a1523;
-  --ink2: #2d2548;
-  --vi:   #5b21b6;
-  --vi2:  #7c3aed;
-  --vi3:  #ede9fe;
-  --vi4:  #ddd6fe;
+  --ink:  var(--text);
+  --ink2: var(--text);
+  --vi:   var(--accent-fg);
+  --vi2:  var(--accent);
+  --vi3:  var(--accent-bg);
+  --vi4:  var(--border);
   --tl:   #0d9488;
   --tl2:  #ccfbf1;
   --tl3:  #99f6e4;
-  --ro:   #be123c;
-  --ro2:  #ffe4e6;
-  --am:   #b45309;
-  --am2:  #fef3c7;
+  --ro:   var(--danger);
+  --ro2:  var(--danger-bg);
+  --am:   var(--warning);
+  --am2:  var(--warning-bg);
   --sl1:  #f8f7ff;
   --sl2:  #f0effe;
-  --sl3:  #e4dffa;
-  --sl4:  #b8afd8;
-  --sl5:  #6e6498;
-  --sl6:  #3d3660;
+  --sl3:  var(--border);
+  --sl4:  var(--text-muted);
+  --sl5:  color-mix(in srgb, var(--text-muted) 80%, var(--text));
+  --sl6:  var(--text);
   --white: #fff;
-  --r:    10px;
-  --sh:   0 1px 3px rgba(91,33,182,.09), 0 4px 16px rgba(91,33,182,.07);
+  --r:    var(--radius-sm);
+  --sh:   var(--shadow-md);
 }
 
 /* ── Quiz editor page shell ──────────────────────────────────── */
@@ -39,6 +44,8 @@
   color: var(--ink);
   -webkit-font-smoothing: antialiased;
   min-height: 100vh;
+  /* Editor canvas is light-only — keeps it usable when app theme is dark. */
+  color-scheme: light;
 }
 .qe-body {
   max-width: 940px;
@@ -48,7 +55,8 @@
 }
 
 /* ── Cards ───────────────────────────────────────────────────── */
-.card {
+/* Scoped to .qe-page so it doesn't collide with the app-wide .card. */
+.qe-page .card {
   background: var(--white);
   border-radius: var(--r);
   border: 1px solid var(--sl3);
@@ -114,7 +122,7 @@
 .qe-inp:focus,
 .qe-sel:focus {
   border-color: var(--vi2);
-  box-shadow: 0 0 0 3px rgba(124,58,237,.12);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 .qe-inp[type="number"] { width: 72px; }
 
@@ -178,7 +186,7 @@
 }
 .re-wrap:focus-within {
   border-color: var(--vi2);
-  box-shadow: 0 0 0 3px rgba(124,58,237,.12);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
 }
 
 /* ── Toolbar ─────────────────────────────────────────────────── */
@@ -521,7 +529,7 @@
   border-top: 1px solid var(--sl3);
   padding: 10px 22px;
   display: flex; align-items: center; gap: 10px; justify-content: flex-end;
-  box-shadow: 0 -3px 14px rgba(91,33,182,.08);
+  box-shadow: 0 -3px 14px color-mix(in srgb, var(--accent) 12%, transparent);
   z-index: 50;
 }
 .savestatus { font-size: 12px; color: var(--sl4); margin-right: auto; }

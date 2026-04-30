@@ -6,7 +6,6 @@ import {
   BoltIcon,
   CalculatorIcon,
   CheckBadgeIcon,
-  ChevronRightIcon,
   ClipboardDocumentListIcon,
   ClockIcon,
   FireIcon,
@@ -22,6 +21,7 @@ import {
   TrophyIcon,
   UserCircleIcon,
 } from '@heroicons/react/24/solid'
+import { isDemoGame } from '../../data/gamesSeed'
 import { gradeByValue } from '../../utils/gamesService'
 
 export const NAV_ICON_MAP = {
@@ -200,6 +200,23 @@ export function getGameStatusBadge(game, index = 0, featuredId = null) {
   return { label: 'New', className: 'bg-sky-500/90 text-white' }
 }
 
+export function getGameAccessMeta(game, { compact = false } = {}) {
+  const demo = isDemoGame(game)
+  return demo
+    ? {
+        label: compact ? 'Free' : 'Free demo',
+        icon: SparklesIcon,
+        className: 'bg-emerald-100 text-emerald-800',
+        iconClassName: 'text-emerald-700',
+      }
+    : {
+        label: 'Premium',
+        icon: LockClosedIcon,
+        className: 'bg-slate-900 text-white border-slate-900',
+        iconClassName: 'text-white',
+      }
+}
+
 export function getGameStars(game) {
   let filled = 4
   if ((game?.difficulty || '').toLowerCase() === 'easy') filled = 5
@@ -224,12 +241,8 @@ export function GamesSectionHeading({ eyebrow, title, description, action = null
   return (
     <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
       <div className="max-w-2xl">
-        {eyebrow && (
-          <p className="mb-2 text-[11px] font-black uppercase tracking-[0.24em] text-slate-500">
-            {eyebrow}
-          </p>
-        )}
-        <h2 className="text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+        {eyebrow && <span className="zx-eyebrow mb-2">{eyebrow}</span>}
+        <h2 className="font-display mt-1 text-[26px] font-bold tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
           {title}
         </h2>
         {description && (
@@ -243,9 +256,24 @@ export function GamesSectionHeading({ eyebrow, title, description, action = null
   )
 }
 
-export function IconBubble({ icon: Icon, theme, size = 'h-12 w-12', className = '', iconClassName = 'h-6 w-6' }) {
+const SUBJECT_TILE_BG = {
+  mathematics: 'bg-orange-100',
+  english:     'bg-blue-100',
+  science:     'bg-green-100',
+  social:      'bg-yellow-100',
+}
+
+function tileBgForSubject(subject) {
+  return SUBJECT_TILE_BG[String(subject || '').toLowerCase()] || 'bg-amber-100'
+}
+
+export function IconBubble({ icon: Icon, theme, size = 'h-12 w-12', className = '', iconClassName = 'h-6 w-6', subjectSlug }) {
+  // Square pastel tile with hard navy border, matching the hub's subject tiles.
+  // `theme` is kept in the API so existing call sites still work; we derive
+  // the background from the subject slug when available.
+  const bg = subjectSlug ? tileBgForSubject(subjectSlug) : tileBgForSubject(theme?.label?.toLowerCase())
   return (
-    <span className={`inline-flex ${size} items-center justify-center rounded-full ${theme.iconWrap} ring-1 ${theme.ring} ${className}`}>
+    <span className={`grid ${size} place-items-center rounded-[14px] border-2 border-slate-900 text-slate-900 ${bg} ${className}`}>
       <Icon className={iconClassName} />
     </span>
   )
@@ -253,8 +281,8 @@ export function IconBubble({ icon: Icon, theme, size = 'h-12 w-12', className = 
 
 export function MetaPill({ icon: Icon, label, className = '' }) {
   return (
-    <span className={`inline-flex items-center gap-2 rounded-full bg-white/72 px-3 py-1.5 text-xs font-bold text-slate-700 ${className}`}>
-      <Icon className="h-4 w-4 shrink-0 text-slate-500" />
+    <span className={`zx-chip ${className}`}>
+      {Icon && <Icon className="h-3.5 w-3.5" />}
       <span>{label}</span>
     </span>
   )
@@ -284,6 +312,12 @@ export function ProgressBar({ value, gradient, className = '' }) {
   )
 }
 
+const HOT_BADGE_SKIN = {
+  Popular:     'bg-[#FF7A1A] text-white',
+  New:         'bg-blue-600 text-white',
+  Recommended: 'bg-emerald-500 text-white',
+}
+
 export function GameDiscoveryCard({
   game,
   badge,
@@ -300,59 +334,67 @@ export function GameDiscoveryCard({
   const Icon = typeTheme.icon
   const target = href || `/games/play/${game.id}`
   const featured = variant === 'featured'
+  const tileBg = tileBgForSubject(game.subject)
+  const badgeSkin = badge?.label
+    ? HOT_BADGE_SKIN[badge.label] || HOT_BADGE_SKIN.Popular
+    : null
+  const accessMeta = getGameAccessMeta(game)
+  const AccessIcon = accessMeta.icon
 
   return (
     <Link
       to={target}
-      className={`group relative flex h-full flex-col overflow-hidden rounded-[20px] border border-white/80 bg-gradient-to-br ${subjectTheme.gradient} p-5 text-left transition duration-200 ease-out hover:-translate-y-1 hover:shadow-[0_24px_70px_-34px_rgba(15,23,42,0.28)] active:scale-[0.985] ${subjectTheme.glow} ${featured ? 'sm:p-7' : ''}`}
+      className={`zx-card group relative flex h-full flex-col rounded-[22px] bg-white p-5 text-left transition active:translate-y-[2px] active:shadow-none ${featured ? 'sm:p-7' : ''}`}
     >
-      <div className="absolute inset-y-0 right-0 w-36 bg-[radial-gradient(circle_at_top,_rgba(255,255,255,0.72),_transparent_68%)]" />
-      <div className="absolute -right-6 top-10 h-24 w-24 rounded-full bg-white/35 blur-2xl" />
-      <div className="absolute bottom-0 left-0 h-20 w-20 rounded-full bg-white/25 blur-2xl" />
-
-      <div className="relative flex h-full flex-col">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-3">
-            <IconBubble icon={Icon} theme={subjectTheme} size={featured ? 'h-14 w-14' : 'h-12 w-12'} iconClassName={featured ? 'h-7 w-7' : 'h-6 w-6'} />
-            <div className="flex flex-wrap gap-2">
-              {grade && <MetaPill icon={SparklesIcon} label={grade.label} />}
-              <MetaPill icon={getSubjectTheme(game.subject).icon} label={subjectTheme.label} />
-            </div>
-          </div>
-          {badge && (
-            <span className={`inline-flex items-center rounded-full px-3 py-1 text-[11px] font-black uppercase tracking-wide shadow-sm ${badge.className}`}>
-              {badge.label}
-            </span>
-          )}
+      <div className="flex items-start justify-between gap-3">
+        <div className={`grid ${featured ? 'h-14 w-14' : 'h-12 w-12'} place-items-center rounded-[14px] border-2 border-slate-900 text-slate-900 ${tileBg}`}>
+          <Icon className={featured ? 'h-7 w-7' : 'h-6 w-6'} />
         </div>
-
-        <div className={`relative mt-5 ${featured ? 'max-w-lg' : ''}`}>
-          <h3 className={`font-black tracking-tight text-slate-900 ${featured ? 'text-2xl sm:text-3xl' : 'text-xl'}`}>
-            {game.title}
-          </h3>
-          <p className={`mt-2 text-sm leading-6 text-slate-700 ${featured ? 'sm:text-base' : ''}`}>
-            {game.description}
-          </p>
-        </div>
-
-        <div className="relative mt-5 flex flex-wrap gap-2">
-          <MetaPill icon={ClockIcon} label={getDurationLabel(game)} />
-          <MetaPill icon={StarIcon} label={`${Number(game.points) || 0} pts`} />
-          <MetaPill icon={Icon} label={typeTheme.label} />
-        </div>
-
-        <div className="relative mt-auto flex items-center justify-between gap-3 pt-6">
-          <div className="min-h-[20px]">
-            {showRating && <RatingStars filled={filledStars} />}
-          </div>
-          <span className="inline-flex items-center gap-2 text-sm font-black text-slate-900">
-            {cta}
-            <PlayIcon className="h-4 w-4 transition duration-200 group-hover:translate-x-0.5" />
+        {badge && (
+          <span className={`rounded-full border-[1.5px] border-slate-900 px-2 py-1 text-[9.5px] font-extrabold uppercase tracking-[0.08em] ${badgeSkin}`}>
+            {badge.label}
           </span>
-        </div>
+        )}
       </div>
+
+      <div className="mt-3 flex flex-wrap gap-2">
+        {grade && <MetaPill icon={SparklesIcon} label={grade.label} />}
+        <MetaPill icon={subjectTheme.icon} label={subjectTheme.label} />
+        <MetaPill icon={AccessIcon} label={accessMeta.label} className={accessMeta.className} />
+      </div>
+
+      <div className={`mt-4 ${featured ? 'max-w-lg' : ''}`}>
+        <h3 className={`font-display font-bold tracking-tight text-slate-900 ${featured ? 'text-2xl sm:text-3xl' : 'text-xl'}`}>
+          {game.title}
+        </h3>
+        <p className={`mt-2 text-sm leading-6 text-slate-600 ${featured ? 'sm:text-base' : ''}`}>
+          {game.description}
+        </p>
+      </div>
+
+      <div className="mt-auto flex items-center justify-between gap-3 border-t border-dashed border-[#D8D0BC] pt-4 text-[11px] text-slate-500">
+        <div className="flex flex-wrap gap-3">
+          <span className="inline-flex items-center gap-1"><ClockIcon className="h-3.5 w-3.5" /> {getDurationLabel(game)}</span>
+          <span className="inline-flex items-center gap-1"><StarIcon className="h-3.5 w-3.5 text-amber-500" /> {Number(game.points) || 0} pts</span>
+          <span className="inline-flex items-center gap-1"><Icon className="h-3.5 w-3.5" /> {typeTheme.label}</span>
+        </div>
+        <span className="inline-flex items-center gap-1 text-sm font-black text-slate-900">
+          {cta}
+          <PlayIcon className="h-4 w-4 transition duration-200 group-hover:translate-x-0.5" />
+        </span>
+      </div>
+      {showRating && (
+        <div className="mt-3"><RatingStars filled={filledStars} /></div>
+      )}
     </Link>
   )
+}
+
+const SUBJECT_BAR_BG = {
+  mathematics: 'bg-orange-500',
+  english:     'bg-blue-600',
+  science:     'bg-green-600',
+  social:      'bg-yellow-500',
 }
 
 export function SubjectProgressCard({
@@ -363,117 +405,59 @@ export function SubjectProgressCard({
   showComingSoon = false,
   helperText,
 }) {
-  const theme = getSubjectTheme(subject.slug)
   const mascot = getSubjectMascot(subject.slug)
+  const tileBg = tileBgForSubject(subject.slug)
+  const barBg = SUBJECT_BAR_BG[subject.slug] || 'bg-orange-500'
 
   return (
     <Link
       to={href}
       aria-label={`${subject.label} games — meet ${mascot.name}`}
-      className={`zx-mascot-card group relative overflow-hidden rounded-[24px] border-2 ${theme.border} bg-gradient-to-br ${theme.gradient} p-5 transition duration-200 ease-out hover:-translate-y-1 hover:shadow-[0_28px_70px_-30px_rgba(15,23,42,0.32)] active:scale-[0.985] ${theme.glow}`}
+      className="zx-card group relative flex flex-col rounded-[22px] bg-white p-5 transition active:translate-y-[2px] active:shadow-none"
     >
-      {/* Soft decorative blobs to give the card depth without extra assets. */}
-      <div aria-hidden="true" className="pointer-events-none absolute -top-10 -right-8 h-28 w-28 rounded-full bg-white/45 blur-2xl" />
-      <div aria-hidden="true" className="pointer-events-none absolute -bottom-10 -left-6 h-24 w-24 rounded-full bg-white/35 blur-2xl" />
+      <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-slate-900 px-2 py-1 text-[9.5px] font-extrabold uppercase tracking-[0.08em] text-white">
+        {showComingSoon ? (
+          <>
+            <LockClosedIcon className="h-3 w-3" />
+            Coming soon
+          </>
+        ) : (
+          <>{gamesCount} {gamesCount === 1 ? 'game' : 'games'}</>
+        )}
+      </span>
 
-      <div className="relative">
-        {/* Top row: status pill */}
-        <div className="flex justify-end">
-          {showComingSoon ? (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/90 px-3 py-1 text-[11px] font-black uppercase tracking-wide text-slate-700 shadow-sm">
-              <LockClosedIcon className="h-3.5 w-3.5" />
-              Coming soon
-            </span>
-          ) : (
-            <span className={`rounded-full bg-white/90 px-3 py-1 text-[11px] font-black uppercase tracking-wide ${theme.accentText} shadow-sm`}>
-              {gamesCount} {gamesCount === 1 ? 'game' : 'games'}
-            </span>
-          )}
-        </div>
-
-        {/* Mascot stage */}
-        <div className="mt-1 flex flex-col items-center text-center">
-          <div className="relative">
-            {/* Halo behind the mascot for a lifted, sticker-like feel. */}
-            <span
-              aria-hidden="true"
-              className={`absolute inset-0 rounded-full bg-gradient-to-br ${theme.strongGradient} opacity-25 blur-xl transition group-hover:opacity-40`}
-            />
-            <span
-              role="img"
-              aria-label={mascot.name}
-              className="zx-mascot-emoji relative inline-flex h-24 w-24 items-center justify-center rounded-full bg-white/85 text-[3.6rem] leading-none ring-4 ring-white/70 shadow-[0_20px_36px_-18px_rgba(15,23,42,0.35)] sm:h-28 sm:w-28 sm:text-[4rem]"
-            >
-              {mascot.emoji}
-            </span>
-          </div>
-
-          <h3 className="mt-4 text-2xl font-black tracking-tight text-slate-900">{subject.label}</h3>
-
-          {/* Speech bubble carrying the mascot's voice line */}
-          <div className="zx-speech relative mt-3 inline-block max-w-[240px] rounded-2xl bg-white/92 px-4 py-2 text-sm font-bold text-slate-700 shadow-sm">
-            <span className="block leading-snug">{mascot.tagline}</span>
-            <span aria-hidden="true" className="zx-speech-tail" />
-          </div>
-
-          {helperText && (
-            <p className="mt-3 text-sm leading-6 text-slate-700/90">
-              {helperText}
-            </p>
-          )}
-        </div>
-
-        {/* Progress + CTA */}
-        <div className="mt-5 space-y-2">
-          <div className="flex items-center justify-between text-xs font-bold text-slate-600">
-            <span>Progress</span>
-            <span>{progress}%</span>
-          </div>
-          <ProgressBar value={progress} gradient={theme.progress} />
-        </div>
-
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <span className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">
-            {mascot.name}
-          </span>
-          <span className={`inline-flex items-center gap-2 rounded-full bg-white/90 px-3.5 py-1.5 text-sm font-black text-slate-900 shadow-sm transition group-hover:bg-white`}>
-            Let’s play
-            <ChevronRightIcon className="h-4 w-4 transition group-hover:translate-x-0.5" />
-          </span>
-        </div>
+      <div className={`zx-mascot-tile mb-3 grid h-16 w-16 place-items-center rounded-[18px] border-2 border-slate-900 text-[36px] leading-none sm:h-20 sm:w-20 sm:text-[44px] ${tileBg}`}>
+        <span aria-hidden="true">{mascot.emoji}</span>
       </div>
 
-      {/* Mascot animation + speech-bubble tail. Local to this card. */}
-      <style>{`
-        .zx-mascot-card .zx-mascot-emoji {
-          animation: zx-mascot-bob 4.4s ease-in-out infinite;
-          transform-origin: center;
-        }
-        .zx-mascot-card:hover .zx-mascot-emoji,
-        .zx-mascot-card:focus-visible .zx-mascot-emoji {
-          animation-duration: 1.6s;
-        }
-        @keyframes zx-mascot-bob {
-          0%, 100% { transform: translateY(0) rotate(-2deg); }
-          50%      { transform: translateY(-6px) rotate(2deg); }
-        }
-        @media (prefers-reduced-motion: reduce) {
-          .zx-mascot-card .zx-mascot-emoji { animation: none !important; }
-        }
-        .zx-mascot-card .zx-speech-tail {
-          position: absolute;
-          left: 50%;
-          top: -6px;
-          width: 14px;
-          height: 14px;
-          background: rgba(255, 255, 255, 0.92);
-          transform: translateX(-50%) rotate(45deg);
-          border-radius: 3px;
-          box-shadow: -2px -2px 4px -2px rgba(15, 23, 42, 0.08);
-        }
-      `}</style>
+      <h3 className="font-display text-[19px] font-bold leading-none text-slate-900 sm:text-xl lg:text-[22px]">{subject.label}</h3>
+      <p className="mt-1 text-[11.5px] font-semibold text-slate-500 sm:text-xs">{mascot.name}</p>
+
+      <div className="mt-3 h-2 overflow-hidden rounded-full border-[1.5px] border-slate-900 bg-[#EFE9DB] sm:h-2.5">
+        <div className={`h-full rounded-full ${barBg}`} style={{ width: `${showComingSoon ? 0 : progress}%` }} />
+      </div>
+      <div className="mt-1.5 flex items-center justify-between gap-2">
+        <span className="text-[11px] font-extrabold text-slate-900 sm:text-xs">
+          {showComingSoon ? 'Soon' : progress === 100 ? '100% ✓' : `${progress}%`}
+        </span>
+        <span className="truncate text-right text-[10.5px] uppercase tracking-[0.06em] text-slate-500 sm:text-[11px]">
+          {helperText || (showComingSoon ? 'Coming soon' : `${gamesCount} games ready`)}
+        </span>
+      </div>
     </Link>
   )
+}
+
+const BADGE_TIER_BG = {
+  bronze: 'bg-amber-100',
+  silver: 'bg-slate-100',
+  gold:   'bg-yellow-100',
+}
+
+const BADGE_TIER_TILE = {
+  bronze: 'bg-amber-300',
+  silver: 'bg-slate-200',
+  gold:   'bg-yellow-300',
 }
 
 export function GameBadgeCard({
@@ -482,22 +466,23 @@ export function GameBadgeCard({
   subtitle,
   compact = false,
 }) {
-  const { Icon, tierStyle } = getGameBadgeMeta(badge)
+  const { Icon } = getGameBadgeMeta(badge)
+  const wrapBg = earned ? (BADGE_TIER_BG[badge?.tier] || BADGE_TIER_BG.bronze) : 'bg-white'
+  const tileBg = earned ? (BADGE_TIER_TILE[badge?.tier] || BADGE_TIER_TILE.bronze) : 'bg-slate-100'
 
   return (
     <div
       title={!earned ? badge.hint : undefined}
-      className={`relative overflow-hidden rounded-[20px] border p-4 ${tierStyle.shell} ${earned ? tierStyle.glow : 'opacity-85'} ${compact ? '' : 'sm:p-5'}`}
+      className={`zx-card rounded-[18px] p-4 ${wrapBg} ${earned ? '' : 'opacity-70'} ${compact ? '' : 'sm:p-5'}`}
     >
-      <div className="absolute inset-y-0 right-0 w-20 bg-[radial-gradient(circle_at_center,_rgba(255,255,255,0.65),_transparent_72%)]" />
-      <div className="relative flex items-start gap-4">
-        <span className={`inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-full ${earned ? tierStyle.icon : 'bg-white/70 text-slate-400'}`}>
+      <div className="flex items-start gap-4">
+        <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-[12px] border-2 border-slate-900 text-slate-900 ${tileBg}`}>
           {earned ? <Icon className="h-6 w-6" /> : <LockClosedIcon className="h-6 w-6" />}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h3 className="truncate text-base font-black text-slate-900">{badge.name}</h3>
-            <span className={`rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${earned ? tierStyle.badge : 'bg-slate-200 text-slate-600'}`}>
+            <h3 className="font-display truncate text-base font-bold text-slate-900">{badge.name}</h3>
+            <span className="zx-chip">
               {earned ? badge.tier : 'Locked'}
             </span>
           </div>

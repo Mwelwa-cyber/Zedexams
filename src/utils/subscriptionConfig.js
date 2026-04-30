@@ -101,6 +101,26 @@ export function hasPremiumAccess(userProfile) {
   return expiry > new Date()
 }
 
+// Whether the user can enter the learner-side dashboard / quizzes / lessons.
+// - Admins: always.
+// - Learners: their existing premium subscription IS their learner-portal
+//   subscription, so we fall back to hasPremiumAccess().
+// - Teachers: must have a SEPARATE active learner-portal subscription. Their
+//   teacher-portal premium does NOT grant learner access.
+export function hasLearnerPortalAccess(userProfile) {
+  if (!userProfile) return false
+  if (userProfile.role === ROLES.ADMIN) return true
+  if (userProfile.role === ROLES.TEACHER) {
+    if (userProfile.learnerPortalActive !== true) return false
+    const expiry = toDateValue(userProfile.learnerPortalExpiry)
+    if (!expiry) return true
+    return expiry > new Date()
+  }
+  // Learners (and anyone unknown) use the legacy premium gate so existing
+  // free-tier rules (demo-only) still apply for non-premium learners.
+  return hasPremiumAccess(userProfile)
+}
+
 export function getActivePlan(userProfile) {
   if (!hasPremiumAccess(userProfile)) return PLANS.free
   return PLANS[userProfile.subscriptionPlan] ?? PLANS.monthly

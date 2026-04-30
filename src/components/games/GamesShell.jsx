@@ -8,6 +8,7 @@ import {
 import { isMuted, toggleMute } from '../../utils/gameSounds'
 import { useAuth } from '../../contexts/AuthContext'
 import { NAV_ICON_MAP } from './gamesUi'
+import GameStickerStyles from './GameStickerStyles'
 
 /**
  * Shared chrome for every /games page. Keeps the Games experience cohesive
@@ -24,6 +25,7 @@ export default function GamesShell({ crumbs = [], children, maxW = 'max-w-6xl' }
 
   return (
     <div className="force-light-theme min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#fff7ed_0%,#f8fafc_38%,#ffffff_100%)] text-slate-900">
+      <GameStickerStyles />
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.18),_transparent_36%),radial-gradient(circle_at_top_right,_rgba(14,165,233,0.14),_transparent_32%),radial-gradient(circle_at_center,_rgba(16,185,129,0.12),_transparent_42%)]" />
 
       <div className="relative">

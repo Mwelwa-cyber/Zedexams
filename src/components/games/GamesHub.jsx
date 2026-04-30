@@ -21,6 +21,7 @@ import GamesShell from './GamesShell'
 import {
   buildSubjectProgress,
   getDurationLabel,
+  getGameAccessMeta,
   getGameTypeTheme,
   getSubjectMascot,
 } from './gamesUi'
@@ -120,8 +121,6 @@ export default function GamesHub() {
 
   return (
     <GamesShell crumbs={[]}>
-      <RedesignStyles />
-
       <div className="mx-auto w-full max-w-md space-y-7 pb-4 sm:max-w-3xl sm:space-y-9 lg:max-w-5xl lg:space-y-12">
         {/* Stats strip */}
         <section className="zx-card flex items-center justify-between gap-2 rounded-[18px] bg-slate-900 px-3.5 py-2.5 text-white sm:gap-4 sm:rounded-[22px] sm:px-6 sm:py-4">
@@ -280,6 +279,8 @@ function HotGameCard({ game, badge }) {
   const subjectKey = String(game.subject || '').toLowerCase()
   const iconBg = HOT_ICON_BG[subjectKey] || 'bg-amber-100'
   const subjectLabel = SUBJECTS.find((s) => s.slug === subjectKey)?.label || 'Game'
+  const accessMeta = getGameAccessMeta(game, { compact: true })
+  const AccessIcon = accessMeta.icon
 
   return (
     <Link
@@ -296,7 +297,13 @@ function HotGameCard({ game, badge }) {
         <TypeIcon className="h-5 w-5" />
       </div>
 
-      <div className="text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-[#053541]">{subjectLabel}</div>
+      <div className="flex items-center justify-between gap-2">
+        <div className="text-[10.5px] font-extrabold uppercase tracking-[0.1em] text-[#053541]">{subjectLabel}</div>
+        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-1 text-[9.5px] font-extrabold uppercase tracking-[0.08em] ${accessMeta.className}`}>
+          <AccessIcon className={`h-3.5 w-3.5 ${accessMeta.iconClassName}`} />
+          {accessMeta.label}
+        </span>
+      </div>
       <h3 className="font-display mt-1 text-[18px] font-bold leading-tight tracking-tight text-slate-900">
         {game.title}
       </h3>
@@ -435,49 +442,3 @@ function setMeta(content) {
   tag.content = content
 }
 
-/**
- * Hard-bordered "sticker" card style + horizontal scroller hide-scrollbar.
- * Scoped to GamesHub so other /games pages keep their existing visual
- * language while we evaluate the redesign.
- */
-function RedesignStyles() {
-  return (
-    <style>{`
-      .zx-card {
-        border: 2px solid #0F1B2D;
-        box-shadow: 0 2px 0 #0F1B2D;
-      }
-      .zx-eyebrow {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        font-size: 10.5px;
-        font-weight: 800;
-        letter-spacing: 0.16em;
-        text-transform: uppercase;
-        color: #053541;
-      }
-      .zx-eyebrow::before {
-        content: '';
-        width: 18px;
-        height: 2px;
-        border-radius: 2px;
-        background: #FF7A1A;
-      }
-      .zx-hscroll {
-        scroll-snap-type: x mandatory;
-        scrollbar-width: none;
-      }
-      .zx-hscroll::-webkit-scrollbar { display: none; }
-      .zx-mascot-tile span { display: inline-block; }
-      @keyframes zx-flame {
-        0%, 100% { transform: scale(1) rotate(-2deg); filter: drop-shadow(0 0 4px rgba(255,140,0,0.4)); }
-        50%      { transform: scale(1.15) rotate(2deg); filter: drop-shadow(0 0 8px rgba(255,140,0,0.7)); }
-      }
-      .zx-flame { animation: zx-flame 1.4s ease-in-out infinite; display: inline-block; }
-      @media (prefers-reduced-motion: reduce) {
-        .zx-flame { animation: none !important; }
-      }
-    `}</style>
-  )
-}

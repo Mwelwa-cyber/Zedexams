@@ -4,7 +4,8 @@
  * Shape matches the agreed document schema exactly:
  *   {
  *     title, subject, grade, type, difficulty, description, timer,
- *     points, active, cbc_topic, questions[]
+ *     points, active, cbc_topic, questions[],
+ *     isDemo?
  *   }
  *
  * Import these into Firestore using the admin button at /admin/games-seed
@@ -833,6 +834,26 @@ const ZAMBIA_HISTORY_G6 = {
 /* ────────────────────────────────────────────────────────────────────
  *  Manifest
  * ──────────────────────────────────────────────────────────────────── */
+const DEFAULT_DEMO_GAME_IDS = new Set([
+  'math_counting_g1',
+  'english_abc_words_g1',
+  'english_spell_it_right_g1',
+  'math_add_sub_g2',
+  'english_spell_it_right_g2',
+  'math_times_tables_g3',
+  'science_plant_parts_g4',
+  'social_zambia_basics_g4',
+])
+
+function applyGameAccessDefaults(game) {
+  return {
+    ...game,
+    isDemo: typeof game?.isDemo === 'boolean'
+      ? game.isDemo
+      : DEFAULT_DEMO_GAME_IDS.has(game?.id),
+  }
+}
+
 export const GAMES_SEED = [
   // ── Lower primary (G1-G3) ──
   COUNTING_G1,
@@ -871,7 +892,14 @@ export const GAMES_SEED = [
   VOCAB_SPRINT_G8,
   CELLS_G8,
   ALGEBRA_G9,
-]
+].map(applyGameAccessDefaults)
+
+export function isDemoGame(game) {
+  if (!game) return false
+  return typeof game.isDemo === 'boolean'
+    ? game.isDemo
+    : DEFAULT_DEMO_GAME_IDS.has(game.id)
+}
 
 /**
  * A "fallback" games list for the UI when Firestore is empty / unreachable.

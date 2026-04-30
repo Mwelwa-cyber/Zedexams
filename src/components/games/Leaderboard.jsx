@@ -2,7 +2,14 @@ import { useEffect, useState } from 'react'
 import { TrophyIcon, FireIcon, SparklesIcon } from '@heroicons/react/24/solid'
 import { useAuth } from '../../contexts/AuthContext'
 import { formatWhen, getLeaderboard } from '../../utils/gamesService'
-import { MetaPill, getSubjectMascot, getSubjectTheme } from './gamesUi'
+import { MetaPill, getSubjectMascot } from './gamesUi'
+
+const TILE_BG = {
+  mathematics: 'bg-orange-100',
+  english:     'bg-blue-100',
+  science:     'bg-green-100',
+  social:      'bg-yellow-100',
+}
 
 /**
  * Top-N scores for a single game.
@@ -25,15 +32,15 @@ export default function Leaderboard({ gameId, limit = 10 }) {
 
   if (rows.length === 0) {
     return (
-      <div className="zx-empty-leader rounded-[20px] border border-dashed border-slate-300 bg-white/88 p-8 text-center shadow-[0_24px_60px_-34px_rgba(15,23,42,0.14)]">
+      <div className="zx-empty-leader zx-card rounded-[22px] bg-white p-8 text-center">
         <span
           role="img"
           aria-label="Game Pal"
-          className="zx-empty-leader-mascot mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full bg-white text-[2.6rem] leading-none ring-4 ring-white shadow-[0_14px_28px_-12px_rgba(15,23,42,0.32)]"
+          className="zx-empty-leader-mascot mx-auto grid h-16 w-16 place-items-center rounded-[14px] border-2 border-slate-900 bg-orange-100 text-[2.6rem] leading-none"
         >
           🏆
         </span>
-        <h3 className="mt-4 text-xl font-black text-slate-900">Be the first on this board</h3>
+        <h3 className="font-display mt-4 text-xl font-bold text-slate-900">Be the first on this board</h3>
         <p className="mt-2 text-sm leading-6 text-slate-600">
           Finish a round and claim the opening spot — your mascot will cheer!
         </p>
@@ -57,15 +64,15 @@ export default function Leaderboard({ gameId, limit = 10 }) {
   const topRow = rows[0]
 
   return (
-    <div className="overflow-hidden rounded-[20px] border border-white/80 bg-white/88 shadow-[0_24px_60px_-34px_rgba(15,23,42,0.16)]">
-      <header className="border-b border-slate-100 px-5 py-4">
+    <div className="zx-card overflow-hidden rounded-[22px] bg-white">
+      <header className="border-b-2 border-slate-900 px-5 py-4">
         <div className="flex items-center gap-3">
-          <span className="inline-flex h-11 w-11 items-center justify-center rounded-full bg-slate-900 text-white">
+          <span className="grid h-11 w-11 place-items-center rounded-[12px] border-2 border-slate-900 bg-slate-900 text-white">
             <TrophyIcon className="h-6 w-6 text-amber-300" />
           </span>
           <div>
-            <h3 className="text-lg font-black text-slate-900">Top {Math.min(rows.length, limit)} scores</h3>
-            <p className="text-sm text-slate-500">Fastest points, best accuracy, biggest streaks.</p>
+            <p className="zx-eyebrow">Leaderboard</p>
+            <h3 className="font-display text-lg font-bold text-slate-900">Top {Math.min(rows.length, limit)} scores</h3>
           </div>
         </div>
       </header>
@@ -76,19 +83,13 @@ export default function Leaderboard({ gameId, limit = 10 }) {
           return (
             <li
               key={row.id}
-              className={`flex items-center gap-4 border-b border-slate-100 px-5 py-4 last:border-b-0 ${isMe ? 'bg-amber-50/70' : ''}`}
+              className={`flex items-center gap-4 border-b border-slate-100 px-5 py-4 last:border-b-0 ${isMe ? 'bg-amber-50' : ''}`}
             >
-              <span className={`inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl font-black ${index === 0 ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white' : index === 1 ? 'bg-slate-200 text-slate-900' : index === 2 ? 'bg-gradient-to-br from-orange-700 to-amber-700 text-white' : 'bg-slate-100 text-slate-700'}`}>
-                {index + 1}
-              </span>
+              <RankTile rank={index + 1} />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
-                  <p className="truncate font-black text-slate-900">{row.displayName || 'Anonymous'}</p>
-                  {isMe && (
-                    <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-700">
-                      You
-                    </span>
-                  )}
+                  <p className="truncate font-display font-bold text-slate-900">{row.displayName || 'Anonymous'}</p>
+                  {isMe && <span className="zx-chip">You</span>}
                 </div>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <MetaPill icon={SparklesIcon} label={`${row.accuracy ?? 0}% accuracy`} />
@@ -96,7 +97,7 @@ export default function Leaderboard({ gameId, limit = 10 }) {
                   <MetaPill icon={TrophyIcon} label={formatWhen(row.playedAt)} />
                 </div>
               </div>
-              <span className="text-2xl font-black tracking-tight text-slate-900">{row.score}</span>
+              <span className="font-display text-2xl font-bold tracking-tight text-slate-900">{row.score}</span>
             </li>
           )
         })}
@@ -105,16 +106,29 @@ export default function Leaderboard({ gameId, limit = 10 }) {
   )
 }
 
+function RankTile({ rank }) {
+  const tone =
+    rank === 1 ? 'bg-yellow-300' :
+    rank === 2 ? 'bg-slate-200' :
+    rank === 3 ? 'bg-orange-300' :
+    'bg-white'
+  return (
+    <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-[10px] border-2 border-slate-900 font-display text-base font-bold text-slate-900 ${tone}`}>
+      {rank}
+    </span>
+  )
+}
+
 function LeaderCheer({ topRow }) {
   const mascot = getSubjectMascot(topRow.subject)
-  const theme = getSubjectTheme(topRow.subject)
+  const tileBg = TILE_BG[String(topRow.subject || '').toLowerCase()] || 'bg-orange-100'
   const name = topRow.displayName || 'Anonymous'
   return (
-    <div className={`zx-leader-cheer relative flex items-center gap-3 border-b border-slate-100 bg-gradient-to-r ${theme.gradient} px-5 py-3`}>
+    <div className="zx-leader-cheer relative flex items-center gap-3 border-b border-slate-100 bg-amber-50 px-5 py-3">
       <span
         role="img"
         aria-label={mascot.name}
-        className="zx-leader-mascot inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-2xl ring-2 ring-white/80 shadow-sm"
+        className={`zx-leader-mascot grid h-10 w-10 shrink-0 place-items-center rounded-[10px] border-2 border-slate-900 text-2xl ${tileBg}`}
       >
         {mascot.emoji}
       </span>
@@ -142,16 +156,16 @@ function LeaderCheer({ topRow }) {
 
 function Skeleton() {
   return (
-    <div className="rounded-[20px] border border-white/80 bg-white/88 p-5 shadow-[0_24px_60px_-34px_rgba(15,23,42,0.16)]">
-      <div className="h-6 w-36 rounded-full bg-slate-100 animate-pulse" />
+    <div className="zx-card rounded-[22px] bg-white p-5">
+      <div className="h-6 w-36 rounded bg-slate-100 animate-pulse" />
       {Array.from({ length: 4 }).map((_, index) => (
         <div key={index} className="mt-4 flex items-center gap-4">
-          <div className="h-10 w-10 rounded-2xl bg-slate-100 animate-pulse" />
+          <div className="h-10 w-10 rounded-[10px] border-2 border-slate-900 bg-slate-100 animate-pulse" />
           <div className="flex-1">
-            <div className="h-4 w-1/2 rounded-full bg-slate-100 animate-pulse" />
-            <div className="mt-2 h-3 w-2/3 rounded-full bg-slate-100 animate-pulse" />
+            <div className="h-4 w-1/2 rounded bg-slate-100 animate-pulse" />
+            <div className="mt-2 h-3 w-2/3 rounded bg-slate-100 animate-pulse" />
           </div>
-          <div className="h-6 w-12 rounded-full bg-slate-100 animate-pulse" />
+          <div className="h-6 w-12 rounded bg-slate-100 animate-pulse" />
         </div>
       ))}
     </div>

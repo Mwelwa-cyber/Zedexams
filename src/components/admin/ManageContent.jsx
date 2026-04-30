@@ -144,13 +144,13 @@ function QuizRow({ quiz, onSetPractice, onSetDailyExam, onUnassign, onDelete, de
       {showDailyModal && (
         <DailyExamModal quiz={quiz} onSave={onSetDailyExam} onClose={() => setShowDailyModal(false)} />
       )}
-      <div className={`bg-white rounded-2xl border p-4 flex items-start gap-3 hover:shadow-sm transition-shadow ${
-        quizType === 'daily_exam' ? 'border-amber-200' : quizType === 'practice' ? 'border-green-100' : 'theme-border opacity-75'
+      <div className={`content-card ${
+        quizType === 'daily_exam' ? 'border-amber-200' : quizType === 'practice' ? 'border-green-100' : 'opacity-75'
       }`}>
-        <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0 ${
-          SUBJECT_COLORS[quiz.subject] ?? 'bg-gray-100 text-gray-500'
+        <div className={`cc-icon ${
+          quizType === 'daily_exam' ? 't-amber' : quizType === 'practice' ? 't-mint' : 't-purple'
         }`}>
-          {typeIcon}
+          <span className="text-base">{typeIcon}</span>
         </div>
 
         <div className="flex-1 min-w-0">
@@ -186,7 +186,7 @@ function QuizRow({ quiz, onSetPractice, onSetDailyExam, onUnassign, onDelete, de
         <div className="flex flex-col gap-1.5 flex-shrink-0 mt-0.5">
           <Link to={quizId ? `/admin/quizzes/${quizId}/edit` : '/admin/content'}
             aria-disabled={!quizId}
-            className="text-xs font-black px-3 py-1.5 rounded-full border-2 border-blue-300 text-blue-700 hover:bg-blue-50 transition-colors text-center">
+            className="btn-edit justify-center">
             ✏️ Edit
           </Link>
 
@@ -225,8 +225,8 @@ function LessonRow({ lesson, onTogglePublish, onDelete, deleting }) {
   const lessonId = lesson.id || lesson._id || ''
   const status = lesson.status ?? (lesson.isPublished ? 'published' : 'draft')
   return (
-    <div className="bg-white rounded-2xl border theme-border p-4 flex items-start gap-3 hover:shadow-sm transition-shadow">
-      <div className="bg-green-100 text-green-700 w-10 h-10 rounded-xl flex items-center justify-center text-lg flex-shrink-0">📖</div>
+    <div className="content-card">
+      <div className="cc-icon t-mint"><span className="text-base">📖</span></div>
       <div className="flex-1 min-w-0">
         <p className="font-black text-gray-800 text-sm leading-snug line-clamp-2">{lesson.title}</p>
         <div className="flex gap-1.5 mt-1.5 flex-wrap items-center">
@@ -240,7 +240,7 @@ function LessonRow({ lesson, onTogglePublish, onDelete, deleting }) {
       <div className="flex flex-col sm:flex-row gap-1.5 flex-shrink-0 mt-0.5">
         <Link to={lessonId ? `/admin/lessons/${lessonId}/edit` : '/admin/content'}
           aria-disabled={!lessonId}
-          className="text-xs font-black px-3 py-1.5 rounded-full border-2 border-blue-300 text-blue-700 hover:bg-blue-50 transition-colors">
+          className="btn-edit justify-center">
           ✏️ Edit
         </Link>
         <button onClick={() => onTogglePublish(lesson)}
@@ -533,16 +533,16 @@ export default function ManageContent() {
 
       {/* Quiz stats row */}
       {tab === 'quizzes' && !loading && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 stagger">
+        <div className="stats-row stagger">
           {[
-            { label: 'Total',      value: totalQuizzes,   color: 'bg-gray-50   border-gray-200',   text: 'text-gray-700'  },
-            { label: '📝 Practice', value: practiceCount,  color: 'bg-green-50  border-green-200',  text: 'text-green-700' },
-            { label: '🏆 Daily',    value: dailyExamCount, color: 'bg-amber-50  border-amber-200',  text: 'text-amber-700' },
-            { label: '⚠ Unassigned',value: unassignedCount,color: 'bg-red-50    border-red-200',    text: 'text-red-600'   },
+            { label: 'Total',        value: totalQuizzes,    t: 't-purple' },
+            { label: '📝 Practice',  value: practiceCount,   t: 't-mint'   },
+            { label: '🏆 Daily',     value: dailyExamCount,  t: 't-amber'  },
+            { label: '⚠ Unassigned', value: unassignedCount, t: 't-pink'   },
           ].map(s => (
-            <div key={s.label} className={`${s.color} border rounded-2xl p-3 text-center shadow-elev-sm animate-slide-in-soft`}>
-              <p className={`text-display-md ${s.text}`} style={{ fontSize: 22 }}>{s.value}</p>
-              <p className="text-eyebrow mt-0.5" style={{ color: 'inherit', opacity: 0.75 }}>{s.label}</p>
+            <div key={s.label} className={`stat-tile ${s.t} animate-slide-in-soft`}>
+              <span className="stat-num">{s.value}</span>
+              <span className="stat-label">{s.label}</span>
             </div>
           ))}
         </div>

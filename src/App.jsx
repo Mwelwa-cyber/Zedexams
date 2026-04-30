@@ -2,6 +2,7 @@ import { lazy, Suspense, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
 import ProtectedRoute from './components/layout/ProtectedRoute'
+import LearnerOnlyRoute from './components/auth/LearnerOnlyRoute'
 import Navbar from './components/layout/Navbar'
 import { getRoleLandingPath } from './utils/navigation'
 import PageLoader from './components/ui/PageLoader'
@@ -24,6 +25,9 @@ const ZedStudyAssistant = lazy(() => import('./components/ai/ZedStudyAssistant')
 const FloatingZedButton = lazy(() => import('./components/ai/FloatingZedButton'))
 const IdleWarningModal = lazy(() => import('./components/auth/IdleWarningModal'))
 const NotFound = lazy(() => import('./components/ui/NotFound'))
+const Marketing = lazy(() => import('./components/marketing/Marketing'))
+const PrivacyPolicy = lazy(() => import('./components/marketing/PrivacyPolicy'))
+const Terms = lazy(() => import('./components/marketing/Terms'))
 
 // Admin section
 const AdminLayout = lazy(() => import('./components/admin/AdminLayout'))
@@ -33,7 +37,6 @@ const ManageContent = lazy(() => import('./components/admin/ManageContent'))
 const AdminResults = lazy(() => import('./components/admin/AdminResults'))
 const ContentApprovals = lazy(() => import('./components/admin/ContentApprovals'))
 const PaymentsPanel = lazy(() => import('./components/admin/PaymentsPanel'))
-const TeacherApplications = lazy(() => import('./components/admin/TeacherApplications'))
 const AdminLearners = lazy(() => import('./components/admin/AdminLearners'))
 const AdminLearnerProfile = lazy(() => import('./components/admin/AdminLearnerProfile'))
 const GenerationsAdmin = lazy(() => import('./components/admin/GenerationsAdmin'))
@@ -78,7 +81,7 @@ const EditQuiz = lazy(() => import('./components/quiz/EditQuizV2'))
 
 function RootRedirect() {
   const { currentUser, userProfile, isAdmin, isTeacher, profileIssue } = useAuth()
-  if (!currentUser) return <Navigate to="/login" replace />
+  if (!currentUser) return <Marketing />
   if (profileIssue) return <MissingProfileRecovery />
   if (!userProfile) return <PageLoader />
   return (
@@ -186,6 +189,9 @@ export default function App() {
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<RootRedirect />} />
+          <Route path="/welcome"  element={<Marketing />} />
+          <Route path="/privacy"  element={<PrivacyPolicy />} />
+          <Route path="/terms"    element={<Terms />} />
           <Route path="/login"    element={<Login />} />
           <Route path="/register" element={<Register />} />
 
@@ -194,31 +200,31 @@ export default function App() {
 
           {/* ── Public games (no auth) ──────────────────────────── */}
           {/* Flow: /games → /games/g/:grade → /games/g/:grade/:subject → /games/play/:gameId */}
-          <Route path="/games"                         element={<ProtectedRoute><GamesHub /></ProtectedRoute>} />
-          <Route path="/games/leaderboard"             element={<ProtectedRoute><GlobalLeaderboard /></ProtectedRoute>} />
-          <Route path="/games/g/:grade"                element={<ProtectedRoute><SubjectSelector /></ProtectedRoute>} />
-          <Route path="/games/g/:grade/:subject"       element={<ProtectedRoute><GameList /></ProtectedRoute>} />
-          <Route path="/games/play/:gameId"            element={<ProtectedRoute><PlayGame /></ProtectedRoute>} />
+          <Route path="/games"                         element={<GamesHub />} />
+          <Route path="/games/leaderboard"             element={<GlobalLeaderboard />} />
+          <Route path="/games/g/:grade"                element={<SubjectSelector />} />
+          <Route path="/games/g/:grade/:subject"       element={<GameList />} />
+          <Route path="/games/play/:gameId"            element={<PlayGame />} />
 
           {/* ── Learner routes ─────────────────────────────────── */}
           {/* GradeHub is the new CBC-aligned primary dashboard */}
-          <Route path="/dashboard"         element={<ProtectedRoute><GradeHub /></ProtectedRoute>} />
+          <Route path="/dashboard"         element={<ProtectedRoute><LearnerOnlyRoute><GradeHub /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/dashboard-preview" element={<GradeHub />} />
           {/* Legacy stats page (kept for admin/teacher reference) */}
-          <Route path="/my-stats"          element={<ProtectedRoute><Navbar /><StudentDashboard /></ProtectedRoute>} />
-          <Route path="/exams"                        element={<ProtectedRoute><DailyExamsHub /></ProtectedRoute>} />
-          <Route path="/exams/leaderboard"           element={<ProtectedRoute><ExamLeaderboardPage /></ProtectedRoute>} />
-          <Route path="/exam/:examId"                element={<ProtectedRoute><DailyExamRunner /></ProtectedRoute>} />
-          <Route path="/exam-results/:attemptId"     element={<ProtectedRoute><ExamResultsPage /></ProtectedRoute>} />
-          <Route path="/quizzes"           element={<ProtectedRoute><Navbar /><QuizList /></ProtectedRoute>} />
-          <Route path="/quiz/:quizId"      element={<ProtectedRoute><QuizRunner /></ProtectedRoute>} />
-          <Route path="/results/:resultId" element={<ProtectedRoute><Navbar /><QuizResults /></ProtectedRoute>} />
-          <Route path="/lessons"           element={<ProtectedRoute><Navbar /><LessonsList /></ProtectedRoute>} />
-          <Route path="/lessons/:lessonId" element={<ProtectedRoute><Navbar /><LessonView /></ProtectedRoute>} />
-          <Route path="/my-results"        element={<ProtectedRoute><Navbar /><MyResults /></ProtectedRoute>} />
-          <Route path="/my-badges"         element={<ProtectedRoute><Navbar /><BadgesPage /></ProtectedRoute>} />
+          <Route path="/my-stats"          element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><StudentDashboard /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/exams"                        element={<ProtectedRoute><LearnerOnlyRoute><DailyExamsHub /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/exams/leaderboard"           element={<ProtectedRoute><LearnerOnlyRoute><ExamLeaderboardPage /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/exam/:examId"                element={<ProtectedRoute><LearnerOnlyRoute><DailyExamRunner /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/exam-results/:attemptId"     element={<ProtectedRoute><LearnerOnlyRoute><ExamResultsPage /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/quizzes"           element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><QuizList /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/quiz/:quizId"      element={<ProtectedRoute><LearnerOnlyRoute><QuizRunner /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/results/:resultId" element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><QuizResults /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/lessons"           element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LessonsList /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/lessons/:lessonId" element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LessonView /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/my-results"        element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><MyResults /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/my-badges"         element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><BadgesPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/profile"           element={<ProtectedRoute><Navbar /><ProfilePage /></ProtectedRoute>} />
-          <Route path="/study"             element={<ProtectedRoute><ZedStudyAssistant /></ProtectedRoute>} />
+          <Route path="/study"             element={<ProtectedRoute><LearnerOnlyRoute><ZedStudyAssistant /></LearnerOnlyRoute></ProtectedRoute>} />
 
           {/* ── Admin routes (all wrapped in AdminLayout) ──────── */}
           <Route path="/admin"                          element={<AdminRoute><AdminDashboard /></AdminRoute>} />
@@ -229,7 +235,6 @@ export default function App() {
           <Route path="/admin/quizzes/:quizId/edit"     element={<AdminRoute><EditQuiz /></AdminRoute>} />
           <Route path="/admin/content"                  element={<AdminRoute><ManageContent /></AdminRoute>} />
           <Route path="/admin/approvals"                element={<AdminRoute><ContentApprovals /></AdminRoute>} />
-          <Route path="/admin/teacher-applications"     element={<AdminRoute><TeacherApplications /></AdminRoute>} />
           <Route path="/admin/generations"              element={<AdminRoute><GenerationsAdmin /></AdminRoute>} />
           <Route path="/admin/generations/:id"          element={<AdminRoute><LibraryItemDetail /></AdminRoute>} />
           <Route path="/admin/cbc-kb"                   element={<AdminRoute><CbcKbAdmin /></AdminRoute>} />

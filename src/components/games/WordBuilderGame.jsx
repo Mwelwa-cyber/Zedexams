@@ -175,17 +175,17 @@ export default function WordBuilderGame({ game }) {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between">
-        <span className="text-xs font-black uppercase tracking-wide text-sky-700">
+      <div className="zx-card-dark flex items-center justify-between rounded-[22px] px-4 py-3">
+        <span className="text-[10.5px] font-extrabold uppercase tracking-[0.16em] text-amber-300">
           Word {pos + 1} of {order.length}
         </span>
-        <span className="text-sm font-black text-slate-700">
-          Solved: <span className="text-sky-700">{solvedCount}</span>
+        <span className="text-sm font-black text-white">
+          Solved: <span className="text-amber-300">{solvedCount}</span>
         </span>
       </div>
 
-      <div className="bg-white rounded-3xl border-2 border-slate-200 shadow-sm p-6 sm:p-8">
-        <span className="mx-auto mb-3 inline-flex h-12 w-12 items-center justify-center rounded-full bg-sky-100 text-sky-600">
+      <div className="zx-card rounded-[22px] bg-white p-6 sm:p-8">
+        <span className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-[14px] border-2 border-slate-900 bg-blue-100 text-slate-900">
           <BookOpenIcon className="h-6 w-6" />
         </span>
         <p className="text-center text-slate-700 font-bold mb-6">
@@ -195,20 +195,20 @@ export default function WordBuilderGame({ game }) {
         <div className="flex flex-wrap justify-center gap-2 mb-6">
           {slots.map((tileIdx, i) => {
             const letter = tileIdx !== null ? tiles[tileIdx].letter : ''
+            const base = 'w-12 h-14 sm:w-14 sm:h-16 rounded-[12px] border-2 border-slate-900 font-black text-2xl sm:text-3xl flex items-center justify-center transition'
+            const tone = solvedThisWord
+              ? 'bg-emerald-100 text-emerald-900'
+              : isWrong
+              ? 'bg-rose-100 text-rose-900'
+              : letter
+              ? 'bg-blue-100 text-slate-900'
+              : 'bg-slate-50 border-dashed text-slate-400'
             return (
               <button
                 key={i}
                 type="button"
                 onClick={() => removeFromSlot(i)}
-                className={`w-12 h-14 sm:w-14 sm:h-16 rounded-xl border-2 font-black text-2xl sm:text-3xl flex items-center justify-center transition ${
-                  solvedThisWord
-                    ? 'bg-emerald-50 border-emerald-400 text-emerald-900'
-                    : isWrong
-                    ? 'bg-rose-50 border-rose-400 text-rose-900'
-                    : letter
-                    ? 'bg-sky-50 border-sky-400 text-sky-900 hover:border-sky-500'
-                    : 'bg-slate-50 border-slate-300 border-dashed text-slate-400'
-                }`}
+                className={`${base} ${tone}`}
               >
                 {letter || '_'}
               </button>
@@ -223,10 +223,10 @@ export default function WordBuilderGame({ game }) {
               type="button"
               onClick={() => placeTile(i)}
               disabled={t.placed || solvedThisWord}
-              className={`w-12 h-12 sm:w-14 sm:h-14 rounded-xl border-2 font-black text-xl sm:text-2xl shadow-sm transition ${
+              className={`zx-card w-12 h-12 sm:w-14 sm:h-14 rounded-[12px] font-black text-xl sm:text-2xl transition active:translate-y-[2px] active:shadow-none ${
                 t.placed
-                  ? 'bg-slate-100 border-slate-200 text-slate-300'
-                  : 'bg-white border-slate-300 text-slate-900 hover:border-sky-500 hover:bg-sky-50 active:scale-95'
+                  ? 'bg-slate-100 text-slate-300 opacity-60'
+                  : 'bg-white text-slate-900'
               }`}
             >
               {t.letter}
@@ -235,7 +235,7 @@ export default function WordBuilderGame({ game }) {
         </div>
 
         {solvedThisWord && (
-          <div className="mt-6 rounded-xl p-4 bg-emerald-50 border border-emerald-200 text-emerald-900 font-bold text-center">
+          <div className="zx-card mt-6 rounded-[14px] p-4 bg-emerald-100 text-emerald-900 font-bold text-center">
             <span className="inline-flex items-center gap-2">
               <CheckBadgeIcon className="h-5 w-5" />
               Great! That spells <b>{target}</b>.
@@ -243,7 +243,7 @@ export default function WordBuilderGame({ game }) {
           </div>
         )}
         {isWrong && (
-          <div className="mt-6 rounded-xl p-4 bg-rose-50 border border-rose-200 text-rose-900 font-bold text-center">
+          <div className="zx-card mt-6 rounded-[14px] p-4 bg-rose-100 text-rose-900 font-bold text-center">
             <span className="inline-flex items-center gap-2">
               <XCircleIcon className="h-5 w-5" />
               Not quite. Tap a letter above to take it back and try again.
@@ -257,7 +257,7 @@ export default function WordBuilderGame({ game }) {
           type="button"
           onClick={clearAll}
           disabled={solvedThisWord}
-          className="rounded-xl px-3.5 py-2.5 text-sm font-bold text-slate-700 bg-white border border-slate-200 shadow-[0_8px_18px_-10px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_24px_-12px_rgba(15,23,42,0.22)] active:translate-y-0 disabled:opacity-50 disabled:translate-y-0 disabled:shadow-none"
+          className="zx-sticker-btn zx-sticker-btn-secondary rounded-[14px] px-3.5 py-2.5 text-sm"
         >
           Clear
         </button>
@@ -265,7 +265,7 @@ export default function WordBuilderGame({ game }) {
           type="button"
           onClick={nextWord}
           disabled={!solvedThisWord && !isWrong}
-          className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black text-white bg-gradient-to-b from-sky-400 to-cyan-500 ring-1 ring-sky-300/60 shadow-[0_12px_24px_-10px_rgba(14,165,233,0.5),inset_0_1px_0_rgba(255,255,255,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_28px_-12px_rgba(14,165,233,0.55),inset_0_1px_0_rgba(255,255,255,0.4)] active:translate-y-0 disabled:translate-y-0 disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none"
+          className="zx-sticker-btn zx-sticker-btn-primary rounded-[14px] px-4 py-2.5 text-sm"
         >
           {pos + 1 >= order.length ? 'Finish round' : 'Next word'}
         </button>
@@ -276,12 +276,12 @@ export default function WordBuilderGame({ game }) {
 
 function ReadyCard({ game, wordCount, onStart }) {
   return (
-    <div className="bg-white rounded-3xl border-2 border-slate-200 shadow-sm p-8 sm:p-10 text-center">
+    <div className="zx-card rounded-[22px] bg-white p-8 sm:p-10 text-center">
       <MascotGreeting game={game} intro={`Ready for ${game.title}?`} />
-      <span className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full bg-sky-500 text-white shadow-[0_20px_40px_-24px_rgba(14,165,233,0.55)]">
+      <span className="mx-auto grid h-16 w-16 place-items-center rounded-[18px] border-2 border-slate-900 bg-blue-100 text-slate-900">
         <BookOpenIcon className="h-8 w-8" />
       </span>
-      <h2 className="text-3xl font-black mb-2">{game.title}</h2>
+      <h2 className="font-display text-3xl font-bold mb-2 mt-4 text-slate-900">{game.title}</h2>
       <p className="text-slate-700 max-w-md mx-auto mb-6">{game.description}</p>
       <ul className="text-sm text-slate-700 max-w-sm mx-auto text-left mb-7 space-y-1.5">
         <li>{wordCount} words to spell</li>
@@ -291,7 +291,7 @@ function ReadyCard({ game, wordCount, onStart }) {
       <button
         type="button"
         onClick={onStart}
-        className="inline-flex items-center gap-2 rounded-xl px-5 py-3 text-base font-black text-white bg-gradient-to-b from-sky-400 to-cyan-500 ring-1 ring-sky-300/60 shadow-[0_14px_28px_-12px_rgba(14,165,233,0.55),inset_0_1px_0_rgba(255,255,255,0.4)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_32px_-14px_rgba(14,165,233,0.6),inset_0_1px_0_rgba(255,255,255,0.45)] active:translate-y-0 active:shadow-[0_8px_16px_-10px_rgba(14,165,233,0.5),inset_0_1px_0_rgba(255,255,255,0.3)]"
+        className="zx-sticker-btn zx-sticker-btn-primary rounded-[14px] px-5 py-3 text-base"
       >
         <BookOpenIcon className="h-4 w-4" />
         Start spelling
@@ -306,12 +306,12 @@ function DoneCard({ game, score, solved, total, accuracy, mistakes, saveResult, 
       {streakResult?.isDaily && <StreakBanner result={streakResult} />}
       {newBadges?.length > 0 && <BadgeToast badges={newBadges} />}
 
-      <div className="bg-white rounded-3xl border-2 border-slate-200 shadow-sm p-8 text-center">
+      <div className="zx-card rounded-[22px] bg-white p-8 text-center">
         <MascotCelebration game={game} accuracy={accuracy} score={score} />
-        <span className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full bg-slate-900 text-white shadow-[0_20px_40px_-24px_rgba(15,23,42,0.4)]">
-          <TrophyIcon className="h-8 w-8 text-sky-300" />
+        <span className="mx-auto grid h-16 w-16 place-items-center rounded-[18px] border-2 border-slate-900 bg-slate-900 text-white">
+          <TrophyIcon className="h-8 w-8 text-amber-300" />
         </span>
-        <h2 className="text-3xl font-black mb-1">{score} pts</h2>
+        <h2 className="font-display text-3xl font-bold mb-1 mt-4 text-slate-900">{score} pts</h2>
         <div className="my-4 flex justify-center">
           <RatingStars filled={accuracy >= 90 ? 5 : accuracy >= 70 ? 4 : accuracy >= 50 ? 3 : 2} />
         </div>
@@ -330,7 +330,7 @@ function DoneCard({ game, score, solved, total, accuracy, mistakes, saveResult, 
           <button
             type="button"
             onClick={onRestart}
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black text-white bg-gradient-to-b from-sky-400 to-cyan-500 ring-1 ring-sky-300/60 shadow-[0_12px_24px_-10px_rgba(14,165,233,0.5),inset_0_1px_0_rgba(255,255,255,0.35)] transition hover:-translate-y-0.5 hover:shadow-[0_16px_28px_-12px_rgba(14,165,233,0.55),inset_0_1px_0_rgba(255,255,255,0.4)] active:translate-y-0"
+            className="zx-sticker-btn zx-sticker-btn-primary rounded-[14px] px-4 py-2.5 text-sm"
           >
             <ArrowPathIcon className="h-4 w-4" />
             Play again
@@ -338,7 +338,7 @@ function DoneCard({ game, score, solved, total, accuracy, mistakes, saveResult, 
           <ShareButton game={game} score={score} accuracy={accuracy} bestStreak={solved} />
           <Link
             to={`/games/g/${game.grade}/${game.subject}`}
-            className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 bg-white border border-slate-200 shadow-[0_8px_18px_-10px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_24px_-12px_rgba(15,23,42,0.22)] active:translate-y-0"
+            className="zx-sticker-btn zx-sticker-btn-secondary rounded-[14px] px-4 py-2.5 text-sm"
           >
             More games
           </Link>

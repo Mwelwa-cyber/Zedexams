@@ -14,23 +14,23 @@ import Skeleton from '../ui/Skeleton'
 function AnswersPanel({ answers }) {
   if (!answers.length) {
     return (
-      <div className="rounded-3xl border theme-border bg-white p-5 text-center shadow-sm">
-        <p className="font-black text-gray-800">No activity answers have been added yet.</p>
-        <p className="mt-1 text-sm font-bold text-gray-500">The teacher can add answers inside question/activity slides.</p>
+      <div className="surface rounded-radius-lg p-5 text-center">
+        <p className="font-black theme-text">No activity answers have been added yet.</p>
+        <p className="mt-1 text-sm font-bold theme-text-muted">The teacher can add answers inside question/activity slides.</p>
       </div>
     )
   }
 
   return (
-    <div className="rounded-3xl border theme-border bg-white p-5 shadow-sm">
-      <h2 className="text-xl font-black text-gray-900">Activity Answers</h2>
+    <div className="surface rounded-radius-lg p-5">
+      <h2 className="text-xl font-black theme-text">Activity Answers</h2>
       <div className="mt-4 space-y-3">
         {answers.map((answer, index) => (
-          <div key={answer.id || answer.slideId || index} className="rounded-2xl border border-sky-100 bg-sky-50 p-4">
-            <p className="text-xs font-black uppercase tracking-wide text-sky-700">Activity {index + 1}</p>
-            <p className="mt-2 text-sm font-black text-gray-900">{answer.prompt}</p>
-            <p className="mt-3 text-sm font-bold text-emerald-800"><span className="font-black">Answer:</span> {answer.answer}</p>
-            {answer.explanation && <p className="mt-2 text-sm font-bold leading-relaxed text-gray-600">{answer.explanation}</p>}
+          <div key={answer.id || answer.slideId || index} className="surface--tight rounded-radius-md p-4 bg-info-subtle">
+            <p className="text-xs font-black uppercase tracking-wide text-info">Activity {index + 1}</p>
+            <p className="mt-2 text-sm font-black theme-text">{answer.prompt}</p>
+            <p className="mt-3 text-sm font-bold text-success"><span className="font-black">Answer:</span> {answer.answer}</p>
+            {answer.explanation && <p className="mt-2 text-sm font-bold leading-relaxed theme-text-muted">{answer.explanation}</p>}
           </div>
         ))}
       </div>
@@ -225,15 +225,15 @@ export default function LessonPlayer() {
             <div className="animate-fade-in">
               <SlideRenderer lesson={lesson} slide={activeSlide} index={index} total={slides.length} showAnswer={showAnswers} />
               {teacherMode && activeSlide?.teacherNotes && (
-                <div className="mt-3 rounded-2xl bg-white p-4">
-                  <p className="text-xs font-black uppercase tracking-wide text-gray-400">Teacher notes</p>
-                  <p className="mt-1 text-sm font-bold leading-relaxed text-gray-700">{activeSlide.teacherNotes}</p>
+                <div className="mt-3 surface--tight rounded-radius-md p-4">
+                  <p className="text-xs font-black uppercase tracking-wide theme-text-muted">Teacher notes</p>
+                  <p className="mt-1 text-sm font-bold leading-relaxed theme-text">{activeSlide.teacherNotes}</p>
                 </div>
               )}
             </div>
           )}
 
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-3 shadow-elev-sm">
+          <div className="mt-3 surface--tight flex flex-wrap items-center justify-between gap-3 rounded-radius-md p-3">
             <Button
               variant="secondary"
               size="md"

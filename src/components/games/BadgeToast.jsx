@@ -31,19 +31,17 @@ export default function BadgeToast({ badges }) {
           <button
             type="button"
             onClick={() => setDismissed((current) => new Set(current).add(badge.id))}
-            className="absolute right-3 top-3 z-10 inline-flex h-8 w-8 items-center justify-center rounded-full bg-white/85 text-slate-500 shadow-sm transition hover:bg-white hover:text-slate-900"
+            className="absolute right-3 top-3 z-10 grid h-8 w-8 place-items-center rounded-full border-2 border-slate-900 bg-white text-slate-700 transition hover:bg-slate-100 hover:text-slate-900"
             aria-label="Dismiss badge toast"
           >
             <XMarkIcon className="h-4 w-4" />
           </button>
-          <div className="rounded-[20px] bg-white/60 p-1 shadow-[0_24px_60px_-34px_rgba(15,23,42,0.22)] backdrop-blur-sm">
-            <div className="rounded-[18px] bg-white/86 p-4">
-              <div className="mb-3 flex items-center gap-2 text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">
-                <SparklesIcon className="h-4 w-4 text-amber-500" />
-                New badge unlocked
-              </div>
-              <GameBadgeCard badge={badge} earned subtitle={badge.description} />
-            </div>
+          <div className="zx-card rounded-[18px] bg-white p-4">
+            <p className="zx-eyebrow mb-3">
+              <SparklesIcon className="h-4 w-4 text-amber-500" />
+              New badge unlocked
+            </p>
+            <GameBadgeCard badge={badge} earned subtitle={badge.description} />
           </div>
         </div>
       ))}

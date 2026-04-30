@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import {
-  collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc, setDoc,
+  collection, doc, getDoc, getDocs, addDoc, updateDoc, deleteDoc,
   query, where, orderBy, limit, serverTimestamp, increment, writeBatch, Timestamp,
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
@@ -236,95 +236,6 @@ export function useFirestore() {
 
   async function updateUserRole(userId, role) {
     await updateDoc(doc(db, 'users', userId), { role })
-  }
-
-  // ── Teacher applications ────────────────────────────────────
-  async function submitTeacherApplication(userId, data) {
-    const appRef = doc(db, 'teacherApplications', userId)
-    const existing = await getDoc(appRef)
-    if (existing.exists()) {
-      const status = existing.data()?.status
-      throw new Error(
-        status === 'pending'
-          ? 'You already have a pending teacher application.'
-          : 'A teacher application already exists for this account. Please contact an admin.',
-      )
-    }
-
-    const batch = writeBatch(db)
-    batch.set(appRef, {
-      userId,
-      email: String(data.email ?? '').trim().toLowerCase(),
-      fullName: String(data.fullName ?? '').trim(),
-      phoneNumber: String(data.phoneNumber ?? '').trim(),
-      schoolName: String(data.schoolName ?? '').trim(),
-      nrcNumber: String(data.nrcNumber ?? '').trim(),
-      proofPath: String(data.proofPath ?? '').trim(),
-      proofFileName: String(data.proofFileName ?? '').trim(),
-      proofContentType: String(data.proofContentType ?? '').trim(),
-      proofSize: Number(data.proofSize) || 0,
-      status: 'pending',
-      submittedAt: serverTimestamp(),
-      reviewedBy: null,
-      reviewedAt: null,
-      rejectionReason: '',
-    })
-    batch.update(doc(db, 'users', userId), {
-      teacherApplicationStatus: 'pending',
-      teacherApplicationId: userId,
-      teacherApplicationSubmittedAt: serverTimestamp(),
-    })
-    await batch.commit()
-    return userId
-  }
-
-  async function getPendingTeacherApplications() {
-    try {
-      const snap = await getDocs(query(collection(db, 'teacherApplications'), where('status', '==', 'pending'), orderBy('submittedAt', 'asc')))
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
-    } catch (e) { console.error('getPendingTeacherApplications:', e); return [] }
-  }
-
-  async function getTeacherApplication(userId) {
-    try {
-      const snap = await getDoc(doc(db, 'teacherApplications', userId))
-      return snap.exists() ? { id: snap.id, ...snap.data() } : null
-    } catch (e) { console.error('getTeacherApplication:', e); return null }
-  }
-
-  async function approveTeacherApplication(applicationId, userId, adminId) {
-    const batch = writeBatch(db)
-    batch.update(doc(db, 'teacherApplications', applicationId), {
-      status: 'approved',
-      reviewedBy: adminId,
-      reviewedAt: serverTimestamp(),
-      rejectionReason: '',
-    })
-    batch.update(doc(db, 'users', userId), {
-      role: 'teacher',
-      teacherApplicationStatus: 'approved',
-      teacherApprovedBy: adminId,
-      teacherApprovedAt: serverTimestamp(),
-    })
-    await batch.commit()
-  }
-
-  async function rejectTeacherApplication(applicationId, userId, adminId, reason = '') {
-    const batch = writeBatch(db)
-    batch.update(doc(db, 'teacherApplications', applicationId), {
-      status: 'rejected',
-      reviewedBy: adminId,
-      reviewedAt: serverTimestamp(),
-      rejectionReason: String(reason ?? '').trim(),
-    })
-    batch.update(doc(db, 'users', userId), {
-      role: 'learner',
-      teacherApplicationStatus: 'rejected',
-      teacherRejectedBy: adminId,
-      teacherRejectedAt: serverTimestamp(),
-      teacherRejectionReason: String(reason ?? '').trim(),
-    })
-    await batch.commit()
   }
 
   // ── Subscription / daily limit ───────────────────────────────
@@ -588,7 +499,6 @@ export function useFirestore() {
     getQuestions, saveQuestions,
     saveResult, getResultById, getUserResults, getResultsForQuiz, getAllResults, getWeaknessAnalysis,
     getAllUsers, updateUserRole,
-    submitTeacherApplication, getPendingTeacherApplications, getTeacherApplication, approveTeacherApplication, rejectTeacherApplication,
     checkAndConsumeAttempt,
     submitPaymentRequest, getPendingPayments, getAllPayments, confirmPayment, rejectPayment, grantPremium, revokePremium,
     getLessons, getAllLessons, getLessonById, createLesson, updateLesson, deleteLesson,

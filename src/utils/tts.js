@@ -1,3 +1,5 @@
+import { apiUrl } from './runtime';
+
 const TTS_ENDPOINT = '/api/tts';
 
 let currentAudio = null;
@@ -26,7 +28,7 @@ export async function speak(rawText, options = {}) {
   const { voice = 'en-GB-Neural2-A', rate = 1.0, pitch = 0 } = options;
 
   try {
-    const res = await fetch(TTS_ENDPOINT, {
+    const res = await fetch(apiUrl(TTS_ENDPOINT), {
       method:  'POST',
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({ text, voice, rate, pitch }),

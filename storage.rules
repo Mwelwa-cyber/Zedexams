@@ -50,24 +50,6 @@ service firebase.storage {
         );
     }
 
-    function validTeacherProofUpload() {
-      return request.resource.size <= 10 * 1024 * 1024
-        && (
-          request.resource.contentType == 'application/pdf'
-          || request.resource.contentType.matches('image/(jpeg|png|webp)')
-          || request.resource.contentType == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        );
-    }
-
-    // Teacher verification proofs: applicants can upload only to their own
-    // folder; admins can read them during review.
-    match /teacher-verification/{ownerUid}/{fileName=**} {
-      allow read: if ownsPath(ownerUid) || isAdmin();
-      allow create: if ownsPath(ownerUid) && validTeacherProofUpload();
-      allow update: if false;
-      allow delete: if isAdmin();
-    }
-
     // Past papers: learners can read, teachers/admins can only write under
     // their own user folder. One-level legacy writes are admin-only.
     match /papers/{ownerUid}/{fileName=**} {

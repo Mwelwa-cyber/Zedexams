@@ -98,16 +98,18 @@ export default function MyResults() {
 
       {/* Summary */}
       {!loading && results.length > 0 && (
-        <div className="grid grid-cols-3 gap-3 mb-5 stagger">
+        <div className="stats-row stats-row-3 mb-5 stagger">
           {[
-            { icon: PencilLine, label: 'Total',   val: totalQuizzes },
-            { icon: Target, label: 'Average', val: `${avgScore}%` },
-            { icon: CheckCircleIcon, label: 'Passed',  val: passed },
+            { icon: PencilLine,      label: 'Total',   val: totalQuizzes,    t: 't-purple' },
+            { icon: Target,          label: 'Average', val: `${avgScore}%`,  t: 't-mint'   },
+            { icon: CheckCircleIcon, label: 'Passed',  val: passed,          t: 't-amber'  },
           ].map(s => (
-            <div key={s.label} className="theme-card rounded-2xl border theme-border shadow-elev-sm p-4 text-center animate-slide-in-soft">
-              <Icon as={s.icon} size="lg" strokeWidth={2.1} className="mx-auto mb-1 theme-accent-text" />
-              <div className="text-display-md theme-text" style={{ fontSize: 18 }}>{s.val}</div>
-              <div className="text-eyebrow mt-0.5">{s.label}</div>
+            <div key={s.label} className={`stat-tile ${s.t} animate-slide-in-soft`}>
+              <div className="stat-tile-icon" aria-hidden="true">
+                <Icon as={s.icon} size="md" strokeWidth={2.2} />
+              </div>
+              <div className="stat-num">{s.val}</div>
+              <div className="stat-label">{s.label}</div>
             </div>
           ))}
         </div>
@@ -144,7 +146,7 @@ export default function MyResults() {
           {Array.from({ length: 5 }).map((_, i) => <ResultSkeleton key={i} />)}
         </div>
       ) : filtered.length === 0 ? (
-        <div className="theme-card rounded-2xl border theme-border shadow-elev-sm py-16 text-center">
+        <div className="surface rounded-radius-lg py-16 text-center">
           <Icon as={results.length === 0 ? Target : Search} size="xl" strokeWidth={2.1} className="mx-auto mb-3 theme-text-muted" />
           <p className="text-display-md theme-text">
             {results.length === 0 ? 'No results yet' : 'No results match your filters'}

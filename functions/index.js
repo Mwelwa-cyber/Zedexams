@@ -178,7 +178,6 @@ function resolveInitialUserRole(email) {
 function buildBootstrappedUserProfile({
   authUser,
   tokenRole,
-  teacherApplication,
 }) {
   const email = cleanString(authUser?.email || "", 254);
   const fallbackName =
@@ -187,20 +186,16 @@ function buildBootstrappedUserProfile({
     authUser?.displayName || fallbackName,
     120,
   ) || "ZedExams User";
-  const teacherStatus = cleanString(teacherApplication?.status || "", 30);
-  const baseRole = tokenRole === "admin" ?
+  const role = tokenRole === "admin" ?
     "admin" :
     resolveInitialUserRole(email);
-  const role = baseRole === "admin" ?
-    "admin" :
-    teacherStatus === "approved" ? "teacher" : "learner";
 
-  const profile = {
+  return {
     displayName,
     email,
     role,
     grade: null,
-    school: cleanString(teacherApplication?.schoolName || "", 160),
+    school: "",
     plan: "free",
     premium: false,
     isPremium: false,
@@ -218,16 +213,6 @@ function buildBootstrappedUserProfile({
     lastAttemptDate: "",
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   };
-
-  if (teacherStatus) {
-    profile.teacherApplicationStatus = teacherStatus;
-    profile.teacherApplicationId = authUser.uid;
-    if (teacherApplication?.submittedAt) {
-      profile.teacherApplicationSubmittedAt = teacherApplication.submittedAt;
-    }
-  }
-
-  return profile;
 }
 
 function toDate(value) {
@@ -262,15 +247,10 @@ exports.bootstrapUserProfile = onCall(
     }
 
     try {
-      const [authUser, teacherApplicationSnap] = await Promise.all([
-        admin.auth().getUser(uid),
-        admin.firestore().doc(`teacherApplications/${uid}`).get(),
-      ]);
+      const authUser = await admin.auth().getUser(uid);
       const profile = buildBootstrappedUserProfile({
         authUser,
         tokenRole: cleanString(request.auth.token?.role || "", 30),
-        teacherApplication:
-          teacherApplicationSnap.exists ? teacherApplicationSnap.data() : null,
       });
 
       await userRef.set(profile);
@@ -378,6 +358,26 @@ function buildActiveSubscriptionData({
   };
 }
 
+// When a TEACHER buys a learner-portal subscription, write to a separate set
+// of fields so it does not collide with their (future) teacher-portal premium.
+function buildLearnerPortalAccessData({
+  plan,
+  paymentId = null,
+  phoneNumber = null,
+  provider,
+  expiryDate,
+}) {
+  return {
+    learnerPortalActive: true,
+    learnerPortalPlan: plan.id,
+    learnerPortalProvider: provider,
+    learnerPortalPhoneNumber: phoneNumber,
+    learnerPortalPaymentId: paymentId,
+    learnerPortalActivatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    learnerPortalExpiry: admin.firestore.Timestamp.fromDate(expiryDate),
+  };
+}
+
 function paymentClientMessage(status) {
   if (status === "successful") {
     return "Payment received. Your subscription is now active.";
@@ -423,7 +423,11 @@ async function markPaymentSuccessful(paymentRef, paymentData, statusResult) {
     }
 
     const userData = userSnap.exists ? userSnap.data() : {};
-    const currentExpiry = toDate(userData.subscriptionExpiry);
+    const isTeacherLearnerPortal =
+      paymentData.portal === "learner" && userData.role === "teacher";
+    const currentExpiry = isTeacherLearnerPortal ?
+      toDate(userData.learnerPortalExpiry) :
+      toDate(userData.subscriptionExpiry);
     const baseDate = currentExpiry && currentExpiry > new Date() ?
       currentExpiry :
       new Date();
@@ -443,8 +447,14 @@ async function markPaymentSuccessful(paymentRef, paymentData, statusResult) {
       rawStatusResponse: statusResult.raw || null,
     }, {merge: true});
 
-    tx.set(
-      admin.firestore().doc(`users/${paymentData.userId}`),
+    const userUpdate = isTeacherLearnerPortal ?
+      buildLearnerPortalAccessData({
+        plan,
+        paymentId: paymentRef.id,
+        phoneNumber: paymentData.phoneNumber,
+        provider: "mtn_momo",
+        expiryDate: nextExpiry,
+      }) :
       buildActiveSubscriptionData({
         plan,
         paymentId: paymentRef.id,
@@ -452,7 +462,11 @@ async function markPaymentSuccessful(paymentRef, paymentData, statusResult) {
         activatedBy: "mtn_momo",
         provider: "mtn_momo",
         expiryDate: nextExpiry,
-      }),
+      });
+
+    tx.set(
+      admin.firestore().doc(`users/${paymentData.userId}`),
+      userUpdate,
       {merge: true},
     );
   });
@@ -668,6 +682,12 @@ exports.apiCreateMomoPayment = onRequest(
         req.body?.phoneNumber,
         config.targetEnvironment,
       );
+      // `portal` lets teachers buy a learner-portal subscription independently
+      // of any future teacher-portal subscription. Learner-role users always
+      // get the legacy premium activation regardless of this field.
+      const requestedPortal = cleanString(req.body?.portal || "", 20)
+        .toLowerCase();
+      const portal = requestedPortal === "learner" ? "learner" : "default";
       const paymentId = crypto.randomUUID();
       const externalId = `${decoded.uid}-${Date.now()}`;
 
@@ -685,6 +705,7 @@ exports.apiCreateMomoPayment = onRequest(
         displayName: userProfile.displayName || "",
         email: userProfile.email || decoded.email || "",
         userRole: userProfile.role || "learner",
+        portal,
         planId: plan.id,
         planName: plan.name,
         amountZMW: plan.amountZMW,

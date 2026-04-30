@@ -24,23 +24,18 @@ function isTextAnswerType(type) {
 }
 
 function OptionButton({ label, selected, revealed, correct, wrong, onClick, children }) {
-  let classes = 'theme-card theme-text flex w-full items-center gap-3 rounded-2xl border-2 px-4 py-3 text-left transition-all '
-  if (revealed && correct) classes += 'border-green-400 bg-green-50 text-green-800'
-  else if (revealed && wrong) classes += 'border-red-300 bg-red-50 text-red-700'
-  else if (selected) classes += 'border-[var(--accent)] theme-accent-bg theme-accent-text'
-  else classes += 'theme-border hover:border-[var(--accent)] hover:theme-bg-subtle'
+  // Map state to the design-system .opt[data-state] variants. The CSS
+  // handles theme-derived hover/selected colours and semantic correct/wrong
+  // colours, so we only emit the right state value here.
+  const state = revealed && correct ? 'correct'
+              : revealed && wrong   ? 'wrong'
+              : selected            ? 'selected'
+              : undefined
 
   return (
-    <button type="button" onClick={onClick} disabled={revealed} className={classes}>
-      <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-black ${
-        revealed && correct ? 'bg-green-500 text-white'
-          : revealed && wrong ? 'bg-red-500 text-white'
-          : selected ? 'theme-accent-fill theme-on-accent'
-          : 'theme-bg-subtle theme-text-muted'
-      }`}>
-        {label}
-      </span>
-      <span className="flex-1 text-sm font-semibold leading-snug">{children}</span>
+    <button type="button" onClick={onClick} disabled={revealed} data-state={state} className="opt">
+      <span className="opt-letter">{label}</span>
+      <span className="opt-text flex-1 leading-snug">{children}</span>
       {revealed && correct && <span className="text-lg">✅</span>}
     </button>
   )
@@ -430,17 +425,32 @@ export default function QuizRunnerV2() {
     const typed = shortText[question.id] ?? ''
 
     return (
-      <div key={question.id} className="theme-card theme-border theme-text space-y-4 rounded-[24px] border p-5 shadow-sm">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="theme-accent-bg theme-accent-text rounded-full px-3 py-1 text-xs font-black">Q{question.questionNumber}</span>
-            {question.topic && <span className="theme-bg-subtle theme-text-muted rounded-full px-2.5 py-1 text-xs font-bold">{question.topic}</span>}
-            {question.marks > 1 && <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-bold text-orange-700">{question.marks} marks</span>}
-          </div>
+      <div
+        key={question.id}
+        className="theme-text space-y-4 p-5"
+        style={{
+          background: 'var(--surface)',
+          border: '1px solid var(--line-medium)',
+          borderTopColor: 'var(--surface-tint-top)',
+          borderRadius: 'var(--r-xl)',
+          boxShadow: 'var(--shadow-card)',
+        }}
+      >
+        <div className="q-tag-row">
+          <span className="q-num">Q{question.questionNumber}</span>
+          {question.topic && <span className="q-topic">{question.topic}</span>}
+          {question.marks > 1 && (
+            <span
+              className="rounded px-1.5 py-0.5 text-[10px] font-semibold"
+              style={{ background: 'var(--warning-bg)', color: 'var(--warning-fg)' }}
+            >
+              {question.marks} marks
+            </span>
+          )}
           <button
             type="button"
             onClick={() => setFlagged(current => ({ ...current, [question.id]: !current[question.id] }))}
-            className={`rounded-full p-2 transition-colors ${flagged[question.id] ? 'bg-amber-100 text-amber-700' : 'theme-bg-subtle theme-text-muted'}`}
+            className={`q-flag rounded-full p-1.5 transition-colors ${flagged[question.id] ? 'bg-amber-100 text-amber-700' : ''}`}
             title={flagged[question.id] ? 'Unflag' : 'Flag for review'}
           >
             🚩
@@ -556,7 +566,7 @@ export default function QuizRunnerV2() {
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="opt-grid">
               {question.options.map((option, optionIndex) => (
                 <OptionButton
                   key={`${question.id}-${optionIndex}`}
@@ -629,7 +639,7 @@ export default function QuizRunnerV2() {
   return (
     <div className="theme-bg theme-text min-h-screen">
       {actionError && (
-        <div className="fixed left-1/2 top-4 z-[60] w-[calc(100%-2rem)] max-w-md -translate-x-1/2 animate-slide-up">
+        <div className="fixed inset-x-4 top-4 z-[60] mx-auto max-w-md animate-slide-up">
           <div className="flex items-start gap-3 rounded-2xl border-2 border-orange-300 bg-orange-50 px-4 py-3 text-orange-900 shadow-xl">
             <span className="mt-0.5 text-lg">⚠️</span>
             <p className="flex-1 text-sm font-bold leading-snug">{actionError}</p>
@@ -734,7 +744,7 @@ export default function QuizRunnerV2() {
         )}
       </div>
 
-      <div className="theme-card theme-border fixed bottom-0 left-0 right-0 z-30 border-t backdrop-blur">
+      <div className="theme-card theme-border fixed bottom-0 left-0 right-0 z-30 border-t backdrop-blur safe-area-bottom">
         <div className="mx-auto max-w-5xl px-4 py-3">
           <div className="mb-2 flex items-center justify-between px-1">
             <span className="theme-text-muted text-xs font-black">Section <span className="theme-accent-text">{activeSectionIndex + 1}</span> of {sections.length}</span>

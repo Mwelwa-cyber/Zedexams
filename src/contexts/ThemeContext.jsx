@@ -8,6 +8,7 @@ export const THEMES = [
   { id: 'midnight', label: 'Midnight Tech', swatch: '#1E293B' },
   { id: 'oatmeal',  label: 'Warm Oatmeal',  swatch: '#D97706' },
   { id: 'solar',    label: 'Solar Yellow',  swatch: '#F59E0B' },
+  { id: 'vivid',    label: 'Vivid (Canva)', swatch: '#EC4899' },
 ]
 
 const DEFAULT_THEME = 'sky'

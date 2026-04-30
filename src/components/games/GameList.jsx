@@ -7,12 +7,17 @@ import GamesShell from './GamesShell'
 import {
   GameDiscoveryCard,
   GamesSectionHeading,
-  IconBubble,
   MetaPill,
   getGameStatusBadge,
   getSubjectMascot,
-  getSubjectTheme,
 } from './gamesUi'
+
+const SUBJECT_TILE_BG = {
+  mathematics: 'bg-orange-100',
+  english:     'bg-blue-100',
+  science:     'bg-green-100',
+  social:      'bg-yellow-100',
+}
 
 /**
  * /games/g/:grade/:subject — discovery page for the chosen grade + subject.
@@ -49,7 +54,9 @@ export default function GameList() {
   if (!gradeMeta) return <Navigate to="/games" replace />
   if (!subjectMeta) return <Navigate to={`/games/g/${gradeMeta.value}`} replace />
 
-  const subjectTheme = getSubjectTheme(subjectMeta.slug)
+  const subjectKey = String(subjectMeta.slug || '').toLowerCase()
+  const tileBg = SUBJECT_TILE_BG[subjectKey] || 'bg-orange-100'
+  const mascot = getSubjectMascot(subjectMeta.slug)
 
   return (
     <GamesShell
@@ -58,15 +65,21 @@ export default function GameList() {
         { label: subjectMeta.label },
       ]}
     >
-      <section className={`mb-8 overflow-hidden rounded-[20px] border ${subjectTheme.border} bg-gradient-to-br ${subjectTheme.gradient} p-6 shadow-[0_24px_60px_-34px_rgba(15,23,42,0.2)] sm:p-7`}>
+      <section className="zx-card mb-8 rounded-[22px] bg-white p-6 sm:p-7">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <div className="flex flex-wrap items-center gap-2">
               <MetaPill icon={SparklesIcon} label={gradeMeta.label} />
-              <MetaPill icon={subjectTheme.icon} label={subjectMeta.label} />
+              <MetaPill label={subjectMeta.label} />
             </div>
             <div className="mt-5 flex items-start gap-4">
-              <IconBubble icon={subjectTheme.icon} theme={subjectTheme} size="h-14 w-14" iconClassName="h-7 w-7" />
+              <span
+                role="img"
+                aria-label={mascot.name}
+                className={`grid h-14 w-14 shrink-0 place-items-center rounded-[14px] border-2 border-slate-900 text-3xl leading-none ${tileBg}`}
+              >
+                {mascot.emoji}
+              </span>
               <div>
                 <GamesSectionHeading
                   eyebrow="Discover games"
@@ -78,9 +91,9 @@ export default function GameList() {
           </div>
 
           {games && games.length > 0 && (
-            <div className="rounded-2xl bg-white/75 px-4 py-3 text-sm font-bold text-slate-700 shadow-[0_18px_40px_-32px_rgba(15,23,42,0.25)]">
+            <span className="zx-chip">
               {games.length} game{games.length === 1 ? '' : 's'} ready now
-            </div>
+            </span>
           )}
         </div>
       </section>
@@ -94,7 +107,7 @@ export default function GameList() {
       {games != null && games.length > 0 && (
         <>
           {source === 'fallback' && (
-            <div className="mb-5 rounded-[20px] border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 px-5 py-4 text-sm text-amber-900 shadow-[0_18px_40px_-30px_rgba(245,158,11,0.22)]">
+            <div className="zx-card mb-5 rounded-[18px] bg-amber-100 px-5 py-4 text-sm text-amber-900">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="font-black">Preview mode is active.</p>
@@ -109,7 +122,7 @@ export default function GameList() {
             </div>
           )}
 
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {games.map((game, index) => (
               <GameDiscoveryCard
                 key={game.id}
@@ -128,19 +141,19 @@ export default function GameList() {
 
 function SkeletonGrid() {
   return (
-    <div className="grid gap-4 lg:grid-cols-3">
+    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
       {Array.from({ length: 3 }).map((_, index) => (
         <div
           key={index}
-          className={`rounded-[20px] border border-slate-100 bg-white/82 p-5 shadow-[0_24px_60px_-34px_rgba(15,23,42,0.16)] ${index === 0 ? 'lg:col-span-2 sm:p-7' : ''}`}
+          className={`zx-card animate-pulse rounded-[22px] bg-white p-5 ${index === 0 ? 'lg:col-span-2 sm:p-7' : ''}`}
         >
-          <div className="h-12 w-12 rounded-full bg-slate-100 animate-pulse" />
-          <div className="mt-5 h-7 w-3/4 rounded-2xl bg-slate-100 animate-pulse" />
-          <div className="mt-3 h-4 w-full rounded-full bg-slate-100 animate-pulse" />
-          <div className="mt-2 h-4 w-5/6 rounded-full bg-slate-100 animate-pulse" />
+          <div className="h-12 w-12 rounded-[14px] border-2 border-slate-900 bg-slate-100" />
+          <div className="mt-5 h-7 w-3/4 rounded bg-slate-100" />
+          <div className="mt-3 h-4 w-full rounded bg-slate-100" />
+          <div className="mt-2 h-4 w-5/6 rounded bg-slate-100" />
           <div className="mt-5 flex gap-2">
-            <div className="h-8 w-24 rounded-full bg-slate-100 animate-pulse" />
-            <div className="h-8 w-24 rounded-full bg-slate-100 animate-pulse" />
+            <div className="h-8 w-24 rounded-full bg-slate-100" />
+            <div className="h-8 w-24 rounded-full bg-slate-100" />
           </div>
         </div>
       ))}
@@ -148,26 +161,34 @@ function SkeletonGrid() {
   )
 }
 
+const EMPTY_TILE_BG = {
+  mathematics: 'bg-orange-100',
+  english:     'bg-blue-100',
+  science:     'bg-green-100',
+  social:      'bg-yellow-100',
+}
+
 function EmptyState({ gradeMeta, subjectMeta }) {
   const mascot = getSubjectMascot(subjectMeta.slug)
+  const tileBg = EMPTY_TILE_BG[String(subjectMeta.slug || '').toLowerCase()] || 'bg-orange-100'
 
   return (
-    <div className="zx-empty-card rounded-[20px] border border-dashed border-slate-300 bg-white/82 p-10 text-center shadow-[0_24px_60px_-34px_rgba(15,23,42,0.16)]">
+    <div className="zx-empty-card zx-card rounded-[22px] bg-white p-10 text-center">
       <div className="mx-auto flex w-full max-w-md flex-col items-center">
         <span
           role="img"
           aria-label={mascot.name}
-          className="zx-empty-mascot inline-flex h-20 w-20 items-center justify-center rounded-full bg-white text-[3rem] leading-none ring-4 ring-white shadow-[0_16px_36px_-14px_rgba(15,23,42,0.32)]"
+          className={`zx-empty-mascot grid h-20 w-20 place-items-center rounded-[18px] border-2 border-slate-900 text-[3rem] leading-none ${tileBg}`}
         >
           {mascot.emoji}
         </span>
-        <h2 className="mt-5 text-2xl font-black text-slate-900">No games here yet — but {mascot.name} is on it!</h2>
+        <h2 className="font-display mt-5 text-2xl font-bold text-slate-900">No games here yet — but {mascot.name} is on it!</h2>
         <p className="mt-3 text-base leading-7 text-slate-600">
           {subjectMeta.label} for {gradeMeta.label} will land here as soon as the next pack is published.
         </p>
         <Link
           to={`/games/g/${gradeMeta.value}`}
-          className="mt-6 inline-flex items-center justify-center rounded-full bg-gradient-to-b from-slate-800 to-slate-950 px-4 py-2.5 text-sm font-black text-white ring-1 ring-slate-700/60 shadow-[0_14px_28px_-12px_rgba(15,23,42,0.55),inset_0_1px_0_rgba(255,255,255,0.18)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_32px_-14px_rgba(15,23,42,0.6),inset_0_1px_0_rgba(255,255,255,0.22)] active:translate-y-0"
+          className="zx-sticker-btn zx-sticker-btn-dark mt-6 rounded-[14px] px-4 py-2.5 text-sm"
         >
           Pick a different subject
         </Link>

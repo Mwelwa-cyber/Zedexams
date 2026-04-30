@@ -70,10 +70,10 @@ async function authorizedFetch(url, options = {}) {
   return data
 }
 
-export async function initiateMomoPayment({ phoneNumber, planId }) {
+export async function initiateMomoPayment({ phoneNumber, planId, portal }) {
   return authorizedFetch(endpointUrl('initiate'), {
     method: 'POST',
-    body: JSON.stringify({ phoneNumber, planId }),
+    body: JSON.stringify({ phoneNumber, planId, portal }),
   })
 }
 

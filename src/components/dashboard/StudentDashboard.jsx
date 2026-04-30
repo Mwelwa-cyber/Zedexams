@@ -57,9 +57,9 @@ function pctColor(p) {
 }
 
 const QUICK_ACTIONS = [
-  { icon: '✏️', label: 'Take a Quiz',  sub: 'Test your knowledge',   to: '/quizzes',  color: 'from-green-500 to-green-700' },
-  { icon: '📚', label: 'Lessons',      sub: 'Read study notes',      to: '/lessons',  color: 'from-blue-500 to-blue-700'  },
-  { icon: '📊', label: 'My Results',   sub: 'View your history',     to: '/my-results', color: 'from-orange-500 to-orange-600' },
+  { icon: '✏️', label: 'Take a Quiz',  sub: 'Test your knowledge',   to: '/quizzes',  accent: 'accent-mint'  },
+  { icon: '📚', label: 'Lessons',      sub: 'Read study notes',      to: '/lessons',  accent: 'accent-blue'  },
+  { icon: '📊', label: 'My Results',   sub: 'View your history',     to: '/my-results', accent: 'accent-amber' },
 ]
 
 export default function StudentDashboard() {
@@ -108,7 +108,7 @@ export default function StudentDashboard() {
       {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
 
       {/* Welcome hero */}
-      <div className="bg-gradient-to-br from-green-600 via-green-700 to-green-900 rounded-3xl p-5 text-white relative overflow-hidden min-h-[130px]">
+      <section className="hero min-h-[130px]">
         <FloatingStars />
         <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
         <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
@@ -117,12 +117,10 @@ export default function StudentDashboard() {
           <Mascot size={100} mood={avgScore >= 70 ? 'star' : 'happy'} />
         </div>
         <div className="relative pr-24 sm:pr-28">
-          <p className="text-green-200 text-sm font-bold">{greeting} 👋</p>
-          <h1 className="text-2xl font-black mt-0.5 leading-tight">
-            {userProfile?.displayName ?? 'Learner'}!
-          </h1>
-          <p className="text-green-200 text-xs mt-1 font-medium">Ready to ace your exams today?</p>
-          <div className="flex items-center gap-2 mt-2 flex-wrap">
+          <p className="hero-eyebrow">{greeting} 👋</p>
+          <h1 className="hero-title">{userProfile?.displayName ?? 'Learner'}!</h1>
+          <p className="hero-sub">Ready to ace your exams today?</p>
+          <div className="relative flex items-center gap-2 mt-2 flex-wrap">
             {userProfile?.grade && (
               <span className="bg-white/20 text-white/90 text-xs font-bold px-2.5 py-1 rounded-full">
                 Grade {userProfile.grade}
@@ -140,7 +138,7 @@ export default function StudentDashboard() {
             )}
           </div>
         </div>
-      </div>
+      </section>
 
       {/* Upgrade banner */}
       <UpgradeBanner onUpgradeClick={() => setShowUpgrade(true)} />
@@ -149,17 +147,16 @@ export default function StudentDashboard() {
       <AttemptCounter onUpgradeClick={() => setShowUpgrade(true)} />
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="stats-row stats-row-3">
         {[
-          { icon: '📝', label: 'Quizzes Done', val: loading ? '…' : totalQuizzes,                         delay: '0ms'   },
-          { icon: '🎯', label: 'Avg Score',    val: loading ? '…' : totalQuizzes > 0 ? `${avgScore}%` : '—', delay: '80ms'  },
-          { icon: '🏆', label: 'Passed',       val: loading ? '…' : passed,                               delay: '160ms' },
+          { icon: '📝', label: 'Quizzes Done', val: loading ? '…' : totalQuizzes,                         t: 't-purple', delay: '0ms'   },
+          { icon: '🎯', label: 'Avg Score',    val: loading ? '…' : totalQuizzes > 0 ? `${avgScore}%` : '—', t: 't-mint',   delay: '80ms'  },
+          { icon: '🏆', label: 'Passed',       val: loading ? '…' : passed,                               t: 't-amber',  delay: '160ms' },
         ].map(s => (
-          <div key={s.label} className="theme-card rounded-2xl border theme-border p-3.5 text-center animate-pop"
-            style={{ animationDelay: s.delay }}>
-            <div className="text-2xl mb-1 animate-bounce-slow" style={{ animationDelay: s.delay }}>{s.icon}</div>
-            <div className="font-black text-xl theme-text">{s.val}</div>
-            <div className="text-xs text-gray-500 font-bold mt-0.5">{s.label}</div>
+          <div key={s.label} className={`stat-tile ${s.t} animate-pop`} style={{ animationDelay: s.delay }}>
+            <div className="stat-tile-icon" aria-hidden="true"><span className="text-base">{s.icon}</span></div>
+            <div className="stat-num">{s.val}</div>
+            <div className="stat-label">{s.label}</div>
           </div>
         ))}
       </div>
@@ -173,15 +170,17 @@ export default function StudentDashboard() {
 
       {/* Quick actions */}
       <div>
-        <h2 className="font-black text-gray-700 text-sm mb-3">⚡ Quick Actions</h2>
-        <div className="grid grid-cols-2 gap-3">
+        <h2 className="qa-title">⚡ Quick Actions</h2>
+        <div className="qa-grid">
           {QUICK_ACTIONS.map((a, i) => (
             <Link key={a.to} to={a.to}
-              className={`bg-gradient-to-br ${a.color} text-white rounded-2xl p-4 hover:scale-105 active:scale-95 transition-transform block animate-pop`}
+              className={`qa-card ${a.accent} hover-lift press-feedback animate-pop`}
               style={{ animationDelay: `${i * 60}ms` }}>
-              <div className="text-3xl mb-2 animate-float" style={{ animationDelay: `${i * 0.4}s` }}>{a.icon}</div>
-              <div className="font-black text-sm leading-tight">{a.label}</div>
-              <div className="text-white/70 text-xs mt-0.5">{a.sub}</div>
+              <span className="qa-icon" aria-hidden="true"><span className="text-base">{a.icon}</span></span>
+              <div className="qa-text">
+                <p className="qa-name">{a.label}</p>
+                <p className="qa-desc">{a.sub}</p>
+              </div>
             </Link>
           ))}
         </div>
@@ -229,11 +228,11 @@ export default function StudentDashboard() {
       </PremiumGate>
 
       {/* Recent results */}
-      <div className="bg-white rounded-2xl border theme-border p-4">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="font-black text-gray-800 text-sm">📋 Recent Results</h2>
+      <div className="surface rounded-radius-lg p-4">
+        <div className="ra-title">
+          <span>📋 Recent Results</span>
           {results.length > 0 && (
-            <Link to="/my-results" className="text-green-600 text-xs font-black hover:underline">View all →</Link>
+            <Link to="/my-results">View all →</Link>
           )}
         </div>
         {loading ? (

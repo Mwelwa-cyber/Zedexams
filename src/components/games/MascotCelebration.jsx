@@ -1,35 +1,37 @@
-import { getSubjectMascot, getSubjectTheme } from './gamesUi'
+import { getSubjectMascot } from './gamesUi'
+
+const TILE_BG = {
+  mathematics: 'bg-orange-100',
+  english:     'bg-blue-100',
+  science:     'bg-green-100',
+  social:      'bg-yellow-100',
+}
 
 /**
  * Celebrating subject mascot shown on every game-end "Done" screen.
- *
- * The mascot matches the subject of the game just played (so winning a
- * Maths round shows the Maths Fox, etc.) and the cheer line is tuned to
- * the player's accuracy so the message always feels earned.
+ * Uses the hub's sticker style: white card with hard navy border + offset
+ * shadow, square pastel mascot tile.
  */
 export default function MascotCelebration({ game, accuracy = 0, score = 0 }) {
   const mascot = getSubjectMascot(game?.subject)
-  const theme = getSubjectTheme(game?.subject)
+  const tileBg = TILE_BG[String(game?.subject || '').toLowerCase()] || 'bg-orange-100'
   const tier = pickTier(accuracy, score)
 
   return (
-    <div className={`zx-celebrate relative mx-auto mb-5 flex max-w-md items-center gap-4 overflow-hidden rounded-[20px] border ${theme.border} bg-gradient-to-br ${theme.gradient} px-4 py-4 text-left shadow-[0_18px_44px_-30px_rgba(15,23,42,0.28)]`}>
-      <div aria-hidden="true" className="pointer-events-none absolute -top-6 -right-6 h-20 w-20 rounded-full bg-white/45 blur-2xl" />
+    <div className="zx-celebrate zx-card relative mx-auto mb-5 flex max-w-md items-center gap-4 rounded-[18px] bg-white px-4 py-4 text-left">
       <span aria-hidden="true" className="zx-celebrate-spark zx-celebrate-spark-1">✨</span>
       <span aria-hidden="true" className="zx-celebrate-spark zx-celebrate-spark-2">⭐</span>
 
       <span
         role="img"
         aria-label={mascot.name}
-        className="zx-celebrate-emoji relative inline-flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-white text-[2.4rem] leading-none ring-4 ring-white/70 shadow-[0_14px_28px_-12px_rgba(15,23,42,0.32)]"
+        className={`zx-celebrate-emoji grid h-16 w-16 shrink-0 place-items-center rounded-[14px] border-2 border-slate-900 text-[2.4rem] leading-none ${tileBg}`}
       >
         {mascot.emoji}
       </span>
-      <div className="relative min-w-0">
-        <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">
-          {mascot.name} says
-        </p>
-        <p className="mt-1 text-base font-black leading-tight text-slate-900 sm:text-lg">
+      <div className="min-w-0">
+        <p className="zx-eyebrow">{mascot.name} says</p>
+        <p className="font-display mt-1 text-base font-bold leading-tight text-slate-900 sm:text-lg">
           {tier.cheer}
         </p>
         <p className="mt-1 text-sm font-medium leading-snug text-slate-700">

@@ -10,7 +10,7 @@ import {
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
 import app, { auth, db } from '../firebase/config'
-import { ROLES, hasPremiumAccess } from '../utils/subscriptionConfig'
+import { ROLES, hasPremiumAccess, hasLearnerPortalAccess } from '../utils/subscriptionConfig'
 import { useIdleTimeout } from '../hooks/useIdleTimeout'
 
 // Sign learners/teachers/admins out after this much idle time, with a short
@@ -41,15 +41,15 @@ export function AuthProvider({ children }) {
   const [idleSecondsLeft, setIdleSecondsLeft] = useState(Math.ceil(IDLE_WARNING_MS / 1000))
   const bootstrapInFlightRef = useRef(new Map())
 
-  async function register(email, password, displayName, grade, school, role = ROLES.LEARNER) {
-    const wantsTeacherAccess = role === ROLES.TEACHER
+  async function register(email, password, displayName, grade, school, role = ROLES.LEARNER, extras = {}) {
+    const isTeacherSignup = role === ROLES.TEACHER
     const cred = await createUserWithEmailAndPassword(auth, email, password)
     await updateProfile(cred.user, { displayName })
     const userRecord = {
       displayName,
       email,
-      role: ROLES.LEARNER,
-      grade: grade ?? null,
+      role: isTeacherSignup ? ROLES.TEACHER : ROLES.LEARNER,
+      grade: isTeacherSignup ? null : (grade ?? null),
       school: school ?? '',
       plan: 'free',
       premium: false,
@@ -64,8 +64,8 @@ export function AuthProvider({ children }) {
       lastAttemptDate: '',
       createdAt: serverTimestamp(),
     }
-    if (wantsTeacherAccess) {
-      userRecord.teacherApplicationStatus = 'not_submitted'
+    if (isTeacherSignup) {
+      userRecord.province = String(extras.province || '').trim()
     }
     await setDoc(doc(db, 'users', cred.user.uid), userRecord)
     return cred
@@ -181,6 +181,7 @@ export function AuthProvider({ children }) {
   const isTeacher  = userProfile?.role === ROLES.TEACHER || userProfile?.role === ROLES.ADMIN
   const isAdmin    = userProfile?.role === ROLES.ADMIN
   const isPremium  = hasPremiumAccess(userProfile)
+  const canAccessLearnerPortal = hasLearnerPortalAccess(userProfile)
   // Paid teacher: has teacher role AND active premium subscription
   const isPaidTeacher = (userProfile?.role === ROLES.TEACHER) && isPremium
   // Full content access: admin always, paid teachers, or premium learners.
@@ -257,7 +258,7 @@ export function AuthProvider({ children }) {
       currentUser, userProfile, loading, profileIssue,
       login, register, logout, resetPassword,
       fetchUserProfile, ensureUserProfile, refreshProfile, updateProfileFields,
-      isLearner, isTeacher, isAdmin, isPremium, isPaidTeacher, canAccessFullContent,
+      isLearner, isTeacher, isAdmin, isPremium, isPaidTeacher, canAccessFullContent, canAccessLearnerPortal,
       showIdleWarning, idleSecondsLeft, stayActive,
     }}>
       {!loading && children}

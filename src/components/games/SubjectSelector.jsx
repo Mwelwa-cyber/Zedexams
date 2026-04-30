@@ -58,12 +58,10 @@ export default function SubjectSelector() {
 
   return (
     <GamesShell crumbs={[{ label: gradeMeta.label }]}>
-      <section className="mb-8 rounded-[20px] border border-white/80 bg-white/82 p-6 shadow-[0_24px_60px_-34px_rgba(15,23,42,0.18)] sm:p-7">
+      <section className="zx-card mb-8 rounded-[22px] bg-white p-6 sm:p-7">
         <div className="flex flex-wrap items-center gap-2">
           <MetaPill icon={SparklesIcon} label={gradeMeta.label} />
-          <span className="inline-flex rounded-full bg-slate-100 px-3 py-1.5 text-xs font-bold text-slate-600">
-            {totalGames} games available
-          </span>
+          <span className="zx-chip">{totalGames} games available</span>
         </div>
         <GamesSectionHeading
           eyebrow="Pick a subject"
@@ -73,18 +71,18 @@ export default function SubjectSelector() {
       </section>
 
       {state.loading ? (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 grid-cols-2 sm:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, index) => (
-            <div key={index} className="rounded-[20px] border border-slate-100 bg-white/82 p-5 shadow-[0_24px_60px_-34px_rgba(15,23,42,0.16)]">
-              <div className="h-12 w-12 rounded-full bg-slate-100 animate-pulse" />
-              <div className="mt-5 h-7 w-2/3 rounded-2xl bg-slate-100 animate-pulse" />
-              <div className="mt-3 h-4 w-full rounded-full bg-slate-100 animate-pulse" />
-              <div className="mt-5 h-2.5 w-full rounded-full bg-slate-100 animate-pulse" />
+            <div key={index} className="zx-card animate-pulse rounded-[22px] bg-white p-4">
+              <div className="mb-3 h-16 w-16 rounded-[18px] border-2 border-slate-900 bg-slate-100" />
+              <div className="h-4 w-2/3 rounded bg-slate-100" />
+              <div className="mt-2 h-3 w-1/2 rounded bg-slate-100" />
+              <div className="mt-3 h-2 rounded-full border-[1.5px] border-slate-900 bg-slate-100" />
             </div>
           ))}
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-3.5 grid-cols-2 sm:gap-4 sm:grid-cols-3 lg:grid-cols-4 lg:gap-5">
           {SUBJECTS.map((subject) => {
             const progress = buildSubjectProgress(subject.slug, state.games, state.history)
             return (
@@ -98,9 +96,9 @@ export default function SubjectSelector() {
                 helperText={
                   progress.totalGames
                     ? progress.plays
-                      ? `${progress.plays} saved play${progress.plays === 1 ? '' : 's'} in this subject.`
-                      : `Start with ${progress.totalGames} game${progress.totalGames === 1 ? '' : 's'} waiting for you.`
-                    : 'This pack is reserved for the next release.'
+                      ? `${progress.plays} of ${progress.totalGames} played`
+                      : `${progress.totalGames} games ready`
+                    : 'Coming soon'
                 }
               />
             )

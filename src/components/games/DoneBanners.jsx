@@ -38,14 +38,14 @@ export function SaveBanner({ saveResult }) {
 
   if (saveResult.skipped && saveResult.reason === 'not_signed_in') {
     return (
-      <div className="rounded-[20px] border border-amber-200 bg-amber-50/92 p-4 shadow-[0_18px_40px_-30px_rgba(245,158,11,0.2)]">
+      <div className="zx-card rounded-[18px] bg-amber-100 p-4 text-amber-900">
         <div className="flex items-start gap-3">
-          <span className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-amber-600">
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] border-2 border-slate-900 bg-white text-amber-600">
             <SparklesIcon className="h-6 w-6" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-black text-amber-900">Sign in to save this score.</p>
-            <p className="mt-1 text-sm leading-6 text-amber-800">
+            <p className="text-sm font-black">Sign in to save this score.</p>
+            <p className="mt-1 text-sm leading-6">
               Save your history, keep streaks, and appear on the leaderboard.{' '}
               <Link to={`/login?redirect=${encodeURIComponent(window.location.pathname)}`} className="font-black underline">
                 Sign in
@@ -108,17 +108,17 @@ export function StreakBanner({ result }) {
  */
 export function DoneStat({ label, value, tone = 'slate' }) {
   const TONE = {
-    emerald: 'border-emerald-200 bg-emerald-50/90 text-emerald-900',
-    amber: 'border-amber-200 bg-amber-50/90 text-amber-900',
-    rose: 'border-rose-200 bg-rose-50/90 text-rose-900',
-    sky: 'border-sky-200 bg-sky-50/90 text-sky-900',
-    slate: 'border-slate-200 bg-slate-50/90 text-slate-900',
+    emerald: 'bg-emerald-100 text-emerald-900',
+    amber:   'bg-amber-100 text-amber-900',
+    rose:    'bg-rose-100 text-rose-900',
+    sky:     'bg-sky-100 text-sky-900',
+    slate:   'bg-slate-100 text-slate-900',
   }
 
   return (
-    <div className={`rounded-2xl border p-4 ${TONE[tone] || TONE.slate}`}>
-      <div className="text-[10px] font-black uppercase tracking-[0.22em] opacity-70">{label}</div>
-      <div className="mt-2 text-2xl font-black">{value}</div>
+    <div className={`zx-card rounded-[14px] p-4 ${TONE[tone] || TONE.slate}`}>
+      <div className="text-[10px] font-extrabold uppercase tracking-[0.16em] opacity-70">{label}</div>
+      <div className="font-display mt-2 text-2xl font-bold leading-none">{value}</div>
     </div>
   )
 }
@@ -126,22 +126,22 @@ export function DoneStat({ label, value, tone = 'slate' }) {
 function Banner({ icon, title, description, tone = 'slate' }) {
   const Icon = icon
   const toneClass = {
-    emerald: 'border-emerald-200 bg-emerald-50/92 text-emerald-900',
-    amber: 'border-amber-200 bg-amber-50/92 text-amber-900',
-    rose: 'border-rose-200 bg-rose-50/92 text-rose-900',
-    slate: 'border-slate-200 bg-white/92 text-slate-900',
+    emerald: 'bg-emerald-100 text-emerald-900',
+    amber:   'bg-amber-100 text-amber-900',
+    rose:    'bg-rose-100 text-rose-900',
+    slate:   'bg-white text-slate-900',
   }
   const iconTone = {
     emerald: 'bg-white text-emerald-600',
-    amber: 'bg-white text-amber-600',
-    rose: 'bg-white text-rose-600',
-    slate: 'bg-slate-900 text-white',
+    amber:   'bg-white text-amber-600',
+    rose:    'bg-white text-rose-600',
+    slate:   'bg-slate-900 text-white',
   }
 
   return (
-    <div className={`rounded-[20px] border p-4 shadow-[0_18px_40px_-30px_rgba(15,23,42,0.16)] ${toneClass[tone] || toneClass.slate}`}>
+    <div className={`zx-card rounded-[18px] p-4 ${toneClass[tone] || toneClass.slate}`}>
       <div className="flex items-start gap-3">
-        <span className={`inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${iconTone[tone] || iconTone.slate}`}>
+        <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-[12px] border-2 border-slate-900 ${iconTone[tone] || iconTone.slate}`}>
           <Icon className="h-6 w-6" />
         </span>
         <div className="min-w-0 flex-1">

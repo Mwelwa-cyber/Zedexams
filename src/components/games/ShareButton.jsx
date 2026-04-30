@@ -46,7 +46,7 @@ export default function ShareButton({ game, score, accuracy, bestStreak }) {
       <button
         type="button"
         onClick={handleShare}
-        className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-black text-slate-900 bg-white border border-slate-200 shadow-[0_8px_18px_-10px_rgba(15,23,42,0.18)] transition hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-[0_12px_24px_-12px_rgba(15,23,42,0.22)] active:translate-y-0"
+        className="zx-sticker-btn zx-sticker-btn-secondary rounded-[14px] px-4 py-2.5 text-sm"
       >
         <ShareIcon className="h-4 w-4" />
         <span>Challenge a friend</span>

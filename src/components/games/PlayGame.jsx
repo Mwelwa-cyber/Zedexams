@@ -1,32 +1,45 @@
 import { useEffect, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
-import { PuzzlePieceIcon, SparklesIcon } from '@heroicons/react/24/solid'
+import { LockClosedIcon, PuzzlePieceIcon, SparklesIcon } from '@heroicons/react/24/solid'
 import {
   getGame,
   gradeByValue,
   subjectBySlug,
 } from '../../utils/gamesService'
-import { getFallbackGame } from '../../data/gamesSeed'
+import { getFallbackGame, isDemoGame } from '../../data/gamesSeed'
+import { useAuth } from '../../contexts/AuthContext'
+import { useSubscription } from '../../hooks/useSubscription'
+import UpgradeModal from '../subscription/UpgradeModal'
+import Button from '../ui/Button'
 import GamesShell from './GamesShell'
 import TimedQuizGame from './TimedQuizGame'
 import MemoryMatchGame from './MemoryMatchGame'
 import WordBuilderGame from './WordBuilderGame'
 import ProvinceShapesGame from './ProvinceShapesGame'
 import {
-  MetaPill,
+  getGameAccessMeta,
   getGameTypeTheme,
   getSubjectMascot,
-  getSubjectTheme,
 } from './gamesUi'
+
+const SUBJECT_TILE_BG = {
+  mathematics: 'bg-orange-100',
+  english:     'bg-blue-100',
+  science:     'bg-green-100',
+  social:      'bg-yellow-100',
+}
 
 /**
  * /games/play/:gameId — play surface.
  */
 export default function PlayGame() {
   const { gameId } = useParams()
+  const { currentUser } = useAuth()
+  const { canAccessFullContent } = useSubscription()
   const [game, setGame] = useState(null)
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const [showUpgrade, setShowUpgrade] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -67,15 +80,15 @@ export default function PlayGame() {
   if (loading || !game) {
     return (
       <GamesShell crumbs={[{ label: 'Loading…' }]} maxW="max-w-4xl">
-        <div className="zx-loading-card rounded-[20px] border border-white/80 bg-white/88 p-10 text-center shadow-[0_24px_60px_-34px_rgba(15,23,42,0.16)]">
+        <div className="zx-card zx-loading-card mx-auto max-w-md rounded-[22px] bg-white p-10 text-center">
           <span
             role="img"
             aria-label="Game Pal"
-            className="zx-loading-mascot mx-auto inline-flex h-20 w-20 items-center justify-center rounded-full bg-white text-[3rem] leading-none ring-4 ring-white shadow-[0_16px_36px_-14px_rgba(15,23,42,0.32)]"
+            className="zx-loading-mascot mx-auto inline-flex h-20 w-20 items-center justify-center rounded-[18px] border-2 border-slate-900 bg-orange-100 text-[3rem] leading-none"
           >
             🎮
           </span>
-          <p className="mt-5 text-xl font-black text-slate-900">Setting up your game…</p>
+          <p className="font-display mt-5 text-xl font-bold text-slate-900">Setting up your game…</p>
           <p className="mt-2 text-sm leading-6 text-slate-600">Pulling the latest game data. This will only take a moment!</p>
           <style>{`
             .zx-loading-card .zx-loading-mascot {
@@ -102,46 +115,67 @@ export default function PlayGame() {
     gradeMeta && subjectMeta && { label: subjectMeta.label, to: `/games/g/${gradeMeta.value}/${subjectMeta.slug}` },
     { label: game.title },
   ].filter(Boolean)
+  const locked = !isDemoGame(game) && !canAccessFullContent
 
   return (
     <GamesShell crumbs={crumbs} maxW="max-w-4xl">
+      {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
       <GameHeader game={game} subjectMeta={subjectMeta} gradeMeta={gradeMeta} />
-      <GameEngine game={game} />
+      {locked ? (
+        <PremiumLockedState
+          currentUser={currentUser}
+          onUpgrade={() => setShowUpgrade(true)}
+        />
+      ) : (
+        <GameEngine game={game} />
+      )}
     </GamesShell>
   )
 }
 
 function GameHeader({ game, subjectMeta, gradeMeta }) {
-  const subjectTheme = getSubjectTheme(subjectMeta?.slug || game.subject)
   const typeTheme = getGameTypeTheme(game.type)
   const mascot = getSubjectMascot(subjectMeta?.slug || game.subject)
+  const subjectKey = String(subjectMeta?.slug || game.subject || '').toLowerCase()
+  const tileBg = SUBJECT_TILE_BG[subjectKey] || 'bg-orange-100'
+  const TypeIcon = typeTheme.icon
+  const accessMeta = getGameAccessMeta(game)
+  const AccessIcon = accessMeta.icon
 
   return (
-    <header className={`zx-game-header relative mb-6 overflow-hidden rounded-[20px] border ${subjectTheme.border} bg-gradient-to-br ${subjectTheme.gradient} p-6 shadow-[0_24px_60px_-34px_rgba(15,23,42,0.18)] sm:p-7`}>
-      <div aria-hidden="true" className="pointer-events-none absolute -top-12 -right-10 h-36 w-36 rounded-full bg-white/45 blur-3xl" />
-      <div aria-hidden="true" className="pointer-events-none absolute -bottom-10 -left-10 h-32 w-32 rounded-full bg-white/30 blur-3xl" />
-      <div className="relative flex flex-col gap-5 sm:flex-row sm:items-start">
+    <header className="zx-card zx-game-header relative mb-6 rounded-[22px] bg-white p-5 sm:p-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:gap-5">
         <span
           role="img"
           aria-label={mascot.name}
-          className="zx-game-header-mascot relative inline-flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-white text-[3rem] leading-none ring-4 ring-white/80 shadow-[0_16px_36px_-14px_rgba(15,23,42,0.4)] sm:h-24 sm:w-24 sm:text-[3.4rem]"
+          className={`zx-game-header-mascot grid h-20 w-20 shrink-0 place-items-center rounded-[18px] border-2 border-slate-900 text-[3rem] leading-none sm:h-24 sm:w-24 sm:text-[3.4rem] ${tileBg}`}
         >
           {mascot.emoji}
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap gap-2">
-            {gradeMeta && <MetaPill icon={SparklesIcon} label={gradeMeta.label} />}
-            {subjectMeta && <MetaPill icon={subjectTheme.icon} label={subjectMeta.label} />}
-            <MetaPill icon={typeTheme.icon} label={typeTheme.label} />
-            {game.cbc_topic && <MetaPill icon={SparklesIcon} label={game.cbc_topic} />}
+            {gradeMeta && <span className="zx-chip">{gradeMeta.label}</span>}
+            {subjectMeta && <span className="zx-chip">{subjectMeta.label}</span>}
+            <span className="zx-chip">
+              <TypeIcon className="h-3.5 w-3.5" />
+              {typeTheme.label}
+            </span>
+            <span className={`zx-chip ${accessMeta.className}`}>
+              <AccessIcon className="h-3.5 w-3.5" />
+              {accessMeta.label}
+            </span>
+            {game.cbc_topic && (
+              <span className="zx-chip">
+                <SparklesIcon className="h-3.5 w-3.5" />
+                {game.cbc_topic}
+              </span>
+            )}
           </div>
-          <p className="mt-3 text-[11px] font-black uppercase tracking-[0.22em] text-slate-500">
-            With {mascot.name}
-          </p>
-          <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl">
+          <p className="zx-eyebrow mt-3">With {mascot.name}</p>
+          <h1 className="font-display mt-1 text-2xl font-bold leading-tight tracking-tight text-slate-900 sm:text-3xl">
             {game.title}
           </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-700 sm:text-base">
+          <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-700 sm:text-base">
             {game.description}
           </p>
         </div>
@@ -163,6 +197,28 @@ function GameHeader({ game, subjectMeta, gradeMeta }) {
   )
 }
 
+function PremiumLockedState({ currentUser, onUpgrade }) {
+  return (
+    <div className="zx-card rounded-[22px] bg-white p-8 text-center sm:p-10">
+      <span className="mx-auto grid h-16 w-16 place-items-center rounded-[18px] border-2 border-slate-900 bg-slate-900 text-white">
+        <LockClosedIcon className="h-8 w-8 text-amber-300" />
+      </span>
+      <h2 className="font-display mt-5 text-2xl font-bold text-slate-900">This game is part of Premium</h2>
+      <p className="mx-auto mt-3 max-w-2xl text-sm leading-7 text-slate-600 sm:text-base">
+        Foundational demo games stay free, while deeper revision packs unlock with a premium plan.
+      </p>
+      <div className="mt-6 flex flex-col justify-center gap-3 sm:flex-row">
+        {currentUser ? (
+          <Button size="lg" onClick={onUpgrade}>Upgrade to play</Button>
+        ) : (
+          <Button as={Link} to="/login" size="lg">Log in to unlock</Button>
+        )}
+        <Button as={Link} to="/games" variant="secondary" size="lg">Back to games</Button>
+      </div>
+    </div>
+  )
+}
+
 function GameEngine({ game }) {
   if (game.type === 'timed_quiz') return <TimedQuizGame game={game} />
   if (game.type === 'memory_match') return <MemoryMatchGame game={game} />
@@ -170,17 +226,17 @@ function GameEngine({ game }) {
   if (game.type === 'province_shapes') return <ProvinceShapesGame game={game} />
 
   return (
-    <div className="rounded-[20px] border border-dashed border-slate-300 bg-white/88 p-10 text-center shadow-[0_24px_60px_-34px_rgba(15,23,42,0.16)]">
-      <span className="mx-auto inline-flex h-16 w-16 items-center justify-center rounded-full bg-slate-900 text-white">
+    <div className="zx-card rounded-[22px] bg-white p-10 text-center">
+      <span className="mx-auto grid h-16 w-16 place-items-center rounded-[18px] border-2 border-slate-900 bg-slate-900 text-white">
         <PuzzlePieceIcon className="h-8 w-8 text-amber-300" />
       </span>
-      <h2 className="mt-5 text-2xl font-black text-slate-900">This game type is not wired yet</h2>
+      <h2 className="font-display mt-5 text-2xl font-bold text-slate-900">This game type is not wired yet</h2>
       <p className="mt-3 text-base leading-7 text-slate-600">
         The saved document uses <span className="font-mono">type=&quot;{game.type}&quot;</span>, but no matching play engine is registered.
       </p>
       <Link
         to="/games"
-        className="mt-6 inline-flex items-center justify-center rounded-full bg-gradient-to-b from-slate-800 to-slate-950 px-4 py-2.5 text-sm font-black text-white ring-1 ring-slate-700/60 shadow-[0_14px_28px_-12px_rgba(15,23,42,0.55),inset_0_1px_0_rgba(255,255,255,0.18)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_32px_-14px_rgba(15,23,42,0.6),inset_0_1px_0_rgba(255,255,255,0.22)] active:translate-y-0"
+        className="zx-sticker-btn zx-sticker-btn-dark mt-6 rounded-[14px] px-4 py-2.5 text-sm"
       >
         Back to games
       </Link>

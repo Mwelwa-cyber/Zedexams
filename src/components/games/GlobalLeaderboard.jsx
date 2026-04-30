@@ -9,11 +9,17 @@ import {
 import { useAuth } from '../../contexts/AuthContext'
 import { subscribeToGlobalLeaderboard, formatWhen } from '../../utils/gamesService'
 import GamesShell from './GamesShell'
-import { GamesSectionHeading, MetaPill, getSubjectMascot, getSubjectTheme } from './gamesUi'
+import { GamesSectionHeading, MetaPill, getSubjectMascot } from './gamesUi'
+
+const TILE_BG = {
+  mathematics: 'bg-orange-100',
+  english:     'bg-blue-100',
+  science:     'bg-green-100',
+  social:      'bg-yellow-100',
+}
 
 /**
  * /games/leaderboard — live cross-game leaderboard.
- * Same live subscription, upgraded presentation.
  */
 export default function GlobalLeaderboard() {
   const [win, setWin] = useState('all')
@@ -29,7 +35,7 @@ export default function GlobalLeaderboard() {
 
   return (
     <GamesShell crumbs={[{ label: 'Live Leaderboard' }]}>
-      <section className="mb-8 rounded-[20px] border border-white/80 bg-gradient-to-br from-amber-100 via-orange-50 to-white p-6 shadow-[0_24px_60px_-34px_rgba(15,23,42,0.18)] sm:p-7">
+      <section className="zx-card mb-8 rounded-[22px] bg-white p-6 sm:p-7">
         <div className="flex flex-wrap items-center gap-2">
           <MetaPill icon={TrophyIcon} label="Live scores" />
           <MetaPill icon={SparklesIcon} label="Top 25 players" />
@@ -50,7 +56,7 @@ export default function GlobalLeaderboard() {
       {!state.error && state.rows == null && <Skeleton />}
       {!state.error && state.rows != null && state.rows.length === 0 && <EmptyCard />}
       {!state.error && state.rows != null && state.rows.length > 0 && (
-        <div className="overflow-hidden rounded-[20px] border border-white/80 bg-white/88 shadow-[0_24px_60px_-34px_rgba(15,23,42,0.16)] backdrop-blur-sm">
+        <div className="zx-card overflow-hidden rounded-[22px] bg-white">
           <LeaderCheer topRow={state.rows[0]} />
           <ol>
             {state.rows.map((row, index) => (
@@ -61,8 +67,8 @@ export default function GlobalLeaderboard() {
       )}
 
       {!currentUser && (
-        <div className="mt-6 rounded-[20px] border border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 p-5 text-center shadow-[0_18px_40px_-30px_rgba(245,158,11,0.2)]">
-          <p className="text-sm leading-6 text-amber-900">
+        <div className="zx-card mt-6 rounded-[18px] bg-amber-100 p-5 text-center text-amber-900">
+          <p className="text-sm leading-6">
             Sign in to save scores and appear on the live board.{' '}
             <Link to="/login?redirect=/games/leaderboard" className="font-black underline">
               Sign in
@@ -90,7 +96,7 @@ function WindowTabs({ value, onChange }) {
             key={tab.key}
             type="button"
             onClick={() => onChange(tab.key)}
-            className={`rounded-full px-4 py-2 text-sm font-black transition ${active ? 'bg-slate-900 text-white shadow-[0_18px_40px_-26px_rgba(15,23,42,0.45)]' : 'bg-white text-slate-700 ring-1 ring-slate-200 hover:bg-slate-50'}`}
+            className={`zx-sticker-btn rounded-[14px] px-4 py-2 text-sm ${active ? 'zx-sticker-btn-dark' : 'zx-sticker-btn-secondary'}`}
           >
             {tab.label}
           </button>
@@ -100,30 +106,29 @@ function WindowTabs({ value, onChange }) {
   )
 }
 
-function Row({ row, rank, isMe }) {
-  const trophyTone = rank === 1
-    ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white'
-    : rank === 2
-      ? 'bg-gradient-to-br from-slate-300 to-slate-400 text-slate-900'
-      : rank === 3
-        ? 'bg-gradient-to-br from-orange-700 to-amber-700 text-white'
-        : 'bg-slate-100 text-slate-700'
-
+function RankTile({ rank }) {
+  const tone =
+    rank === 1 ? 'bg-yellow-300' :
+    rank === 2 ? 'bg-slate-200' :
+    rank === 3 ? 'bg-orange-300' :
+    'bg-white'
   return (
-    <li className={`flex items-center gap-4 border-b border-slate-100 px-4 py-4 last:border-b-0 sm:px-5 ${isMe ? 'bg-amber-50/70' : ''}`}>
-      <span className={`inline-flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl font-black shadow-[0_18px_36px_-24px_rgba(15,23,42,0.24)] ${trophyTone}`}>
-        {rank}
-      </span>
+    <span className={`grid h-12 w-12 shrink-0 place-items-center rounded-[12px] border-2 border-slate-900 font-display text-lg font-bold text-slate-900 ${tone}`}>
+      {rank}
+    </span>
+  )
+}
+
+function Row({ row, rank, isMe }) {
+  return (
+    <li className={`flex items-center gap-4 border-b border-slate-100 px-4 py-4 last:border-b-0 sm:px-5 ${isMe ? 'bg-amber-50' : ''}`}>
+      <RankTile rank={rank} />
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-center gap-2">
-          <p className="truncate text-base font-black text-slate-900">
+          <p className="truncate font-display text-base font-bold text-slate-900">
             {row.displayName || 'Anonymous'}
           </p>
-          {isMe && (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-amber-700">
-              You
-            </span>
-          )}
+          {isMe && <span className="zx-chip">You</span>}
         </div>
         <div className="mt-2 flex flex-wrap gap-2">
           {row.accuracy != null && <MetaPill icon={SparklesIcon} label={`${row.accuracy}% accuracy`} />}
@@ -132,8 +137,8 @@ function Row({ row, rank, isMe }) {
         </div>
       </div>
       <div className="text-right">
-        <p className="text-2xl font-black tracking-tight text-slate-900">{row.score}</p>
-        <p className="text-[11px] font-black uppercase tracking-[0.22em] text-slate-400">pts</p>
+        <p className="font-display text-2xl font-bold tracking-tight text-slate-900">{row.score}</p>
+        <p className="text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-400">pts</p>
       </div>
     </li>
   )
@@ -141,21 +146,21 @@ function Row({ row, rank, isMe }) {
 
 function EmptyCard() {
   return (
-    <div className="zx-empty-global rounded-[20px] border border-dashed border-slate-300 bg-white/88 p-10 text-center shadow-[0_24px_60px_-34px_rgba(15,23,42,0.14)]">
+    <div className="zx-empty-global zx-card rounded-[22px] bg-white p-10 text-center">
       <span
         role="img"
         aria-label="Trophy"
-        className="zx-empty-global-mascot mx-auto inline-flex h-20 w-20 items-center justify-center rounded-full bg-white text-[3rem] leading-none ring-4 ring-white shadow-[0_16px_36px_-14px_rgba(15,23,42,0.32)]"
+        className="zx-empty-global-mascot mx-auto grid h-20 w-20 place-items-center rounded-[18px] border-2 border-slate-900 bg-yellow-100 text-[3rem] leading-none"
       >
         🏆
       </span>
-      <h3 className="mt-5 text-2xl font-black text-slate-900">The board is wide open</h3>
+      <h3 className="font-display mt-5 text-2xl font-bold text-slate-900">The board is wide open</h3>
       <p className="mt-3 text-base leading-7 text-slate-600">
         Play a round and you’ll be the first name our mascots cheer for.
       </p>
       <Link
         to="/games"
-        className="mt-6 inline-flex items-center justify-center rounded-full bg-gradient-to-b from-slate-800 to-slate-950 px-4 py-2.5 text-sm font-black text-white ring-1 ring-slate-700/60 shadow-[0_14px_28px_-12px_rgba(15,23,42,0.55),inset_0_1px_0_rgba(255,255,255,0.18)] transition hover:-translate-y-0.5 hover:shadow-[0_18px_32px_-14px_rgba(15,23,42,0.6),inset_0_1px_0_rgba(255,255,255,0.22)] active:translate-y-0"
+        className="zx-sticker-btn zx-sticker-btn-dark mt-6 rounded-[14px] px-4 py-2.5 text-sm"
       >
         Play a game
       </Link>
@@ -178,14 +183,14 @@ function EmptyCard() {
 
 function LeaderCheer({ topRow }) {
   const mascot = getSubjectMascot(topRow.subject)
-  const theme = getSubjectTheme(topRow.subject)
+  const tileBg = TILE_BG[String(topRow.subject || '').toLowerCase()] || 'bg-orange-100'
   const name = topRow.displayName || 'Anonymous'
   return (
-    <div className={`zx-leader-cheer relative flex items-center gap-3 border-b border-slate-100 bg-gradient-to-r ${theme.gradient} px-4 py-3 sm:px-5`}>
+    <div className="zx-leader-cheer relative flex items-center gap-3 border-b border-slate-100 bg-amber-50 px-4 py-3 sm:px-5">
       <span
         role="img"
         aria-label={mascot.name}
-        className="zx-leader-mascot inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white text-2xl ring-2 ring-white/80 shadow-sm"
+        className={`zx-leader-mascot grid h-11 w-11 shrink-0 place-items-center rounded-[12px] border-2 border-slate-900 text-2xl ${tileBg}`}
       >
         {mascot.emoji}
       </span>
@@ -215,9 +220,9 @@ function ErrorCard({ error }) {
   const isIndex = /index|inadequate|FAILED_PRECONDITION/i.test(String(error))
 
   return (
-    <div className="rounded-[20px] border border-rose-200 bg-rose-50/90 p-6 shadow-[0_20px_40px_-30px_rgba(244,63,94,0.16)]">
-      <p className="text-base font-black text-rose-700">Live leaderboard is temporarily unavailable.</p>
-      <p className="mt-2 text-sm leading-6 text-rose-900/80">
+    <div className="zx-card rounded-[18px] bg-rose-100 p-6 text-rose-900">
+      <p className="text-base font-black">Live leaderboard is temporarily unavailable.</p>
+      <p className="mt-2 text-sm leading-6 opacity-90">
         {isIndex
           ? 'The Firestore index is still building after the latest deploy. Try again in a couple of minutes.'
           : 'A temporary read error interrupted the board. Refresh shortly and it should be back.'}
@@ -228,15 +233,15 @@ function ErrorCard({ error }) {
 
 function Skeleton() {
   return (
-    <div className="overflow-hidden rounded-[20px] border border-white/80 bg-white/88 shadow-[0_24px_60px_-34px_rgba(15,23,42,0.16)]">
+    <div className="zx-card overflow-hidden rounded-[22px] bg-white">
       {Array.from({ length: 8 }).map((_, index) => (
         <div key={index} className="flex items-center gap-4 border-b border-slate-100 px-4 py-4 last:border-b-0 sm:px-5">
-          <div className="h-12 w-12 rounded-2xl bg-slate-100 animate-pulse" />
+          <div className="h-12 w-12 rounded-[12px] border-2 border-slate-900 bg-slate-100 animate-pulse" />
           <div className="flex-1">
-            <div className="h-4 w-1/3 rounded-full bg-slate-100 animate-pulse" />
-            <div className="mt-2 h-3 w-1/2 rounded-full bg-slate-100 animate-pulse" />
+            <div className="h-4 w-1/3 rounded bg-slate-100 animate-pulse" />
+            <div className="mt-2 h-3 w-1/2 rounded bg-slate-100 animate-pulse" />
           </div>
-          <div className="h-7 w-12 rounded-full bg-slate-100 animate-pulse" />
+          <div className="h-7 w-12 rounded bg-slate-100 animate-pulse" />
         </div>
       ))}
     </div>

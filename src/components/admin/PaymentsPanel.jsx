@@ -185,9 +185,7 @@ export default function PaymentsPanel() {
                       <select value={u.role} onChange={e => handleRoleChange(u.id, e.target.value)}
                         className="border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold focus:border-green-500 focus:outline-none">
                         <option value="learner">learner</option>
-                        <option value="teacher" disabled={u.role !== 'teacher' && u.teacherApplicationStatus !== 'approved'}>
-                          {u.role === 'teacher' || u.teacherApplicationStatus === 'approved' ? 'teacher' : 'teacher (approval required)'}
-                        </option>
+                        <option value="teacher">teacher</option>
                         <option value="admin">admin</option>
                       </select>
                     </td>

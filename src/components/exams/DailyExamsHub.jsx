@@ -4,9 +4,9 @@
  * Shows today's available daily exams, one card per subject.
  * Each card reflects the user's current status for that subject:
  *
- *   ● No exam scheduled  → greyed-out card
+ *   ● No exam scheduled  → placeholder card
  *   ● Not yet attempted  → "Start Exam" CTA
- *   ● In progress        → "Resume Exam" CTA + time remaining
+ *   ● In progress        → "Resume Exam" CTA
  *   ● Completed          → score badge + "View Results" link
  */
 
@@ -14,14 +14,8 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { SUBJECTS } from '../../config/curriculum'
-import { getTodaysExam, checkDailyLock, todayString } from '../../utils/examService'
+import { getTodaysExam, checkDailyLock } from '../../utils/examService'
 import Navbar from '../layout/Navbar'
-
-function fmt(seconds) {
-  const m = Math.floor(seconds / 60)
-  const s = String(seconds % 60).padStart(2, '0')
-  return `${m}:${s}`
-}
 
 function pctColor(p) {
   if (p >= 70) return 'text-green-600'
@@ -29,108 +23,133 @@ function pctColor(p) {
   return 'text-red-500'
 }
 
-function StatusPill({ lock, exam }) {
-  if (!exam) return <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-500">No exam today</span>
-  if (!lock) return <span className="theme-accent-bg theme-accent-text rounded-full px-2.5 py-1 text-xs font-bold">Available</span>
-  if (lock.status === 'submitted') return <span className="rounded-full bg-green-100 px-2.5 py-1 text-xs font-bold text-green-700">Completed ✓</span>
-  return <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-bold text-amber-700">In Progress</span>
+function StatusBadge({ lock, exam }) {
+  if (!exam) return <span className="daily-status-badge">None</span>
+  if (!lock) {
+    return (
+      <span
+        className="daily-status-badge"
+        style={{ background: 'var(--accent-bg)', color: 'var(--accent-fg)' }}
+      >
+        Available
+      </span>
+    )
+  }
+  if (lock.status === 'submitted') {
+    return (
+      <span
+        className="daily-status-badge"
+        style={{ background: 'var(--success-bg)', color: 'var(--success-fg)' }}
+      >
+        Completed
+      </span>
+    )
+  }
+  return (
+    <span
+      className="daily-status-badge"
+      style={{ background: 'var(--warning-bg)', color: 'var(--warning-fg)' }}
+    >
+      In progress
+    </span>
+  )
 }
 
-function SubjectExamCard({ subject, exam, lock, onStart }) {
+function SubjectExamCard({ subject, exam, lock }) {
   const navigate = useNavigate()
+
+  const isCompleted = lock?.status === 'submitted'
+  const isInProgress = lock?.status === 'in_progress'
+  const isAvailable = exam && !lock
 
   const handleCTA = () => {
     if (!exam) return
-    if (lock?.status === 'submitted') {
+    if (isCompleted) {
       navigate(`/exam-results/${lock.attemptId}`)
       return
     }
     navigate(`/exam/${exam.id}`)
   }
 
-  const isCompleted = lock?.status === 'submitted'
-  const isInProgress = lock?.status === 'in_progress'
-  const isAvailable = exam && !lock
-
   return (
-    <div className={`theme-card rounded-2xl border-2 p-5 transition-all ${
-      exam ? 'theme-border hover:shadow-md' : 'border-dashed theme-border opacity-60'
-    }`}>
-      {/* Header row */}
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <div className="flex items-center gap-3">
-          <div className={`flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl text-2xl ${subject.tailwind.light}`}>
-            {subject.icon}
-          </div>
-          <div>
-            <p className="font-black theme-text text-sm leading-tight">{subject.label}</p>
-            {exam && (
-              <p className="theme-text-muted mt-0.5 text-xs font-bold truncate max-w-[140px]">{exam.title}</p>
-            )}
-          </div>
-        </div>
-        <StatusPill lock={lock} exam={exam} />
+    <div className="daily-card">
+      <div className="daily-head">
+        <div className="daily-icon" aria-hidden>{subject.icon}</div>
+        <div className="daily-name">{subject.label}</div>
+        <StatusBadge lock={lock} exam={exam} />
       </div>
 
-      {/* Stats row (when exam exists) */}
+      {!exam && (
+        <div className="placeholder">No exam scheduled</div>
+      )}
+
       {exam && (
-        <div className="mb-4 flex gap-3 text-xs">
-          <span className="theme-bg-subtle theme-text-muted rounded-lg px-2 py-1 font-bold">
-            ⏱️ {exam.durationMinutes || 30} min
-          </span>
-          <span className="theme-bg-subtle theme-text-muted rounded-lg px-2 py-1 font-bold">
-            ❓ {exam.questionCount ?? '—'} Qs
-          </span>
-          <span className="theme-bg-subtle theme-text-muted rounded-lg px-2 py-1 font-bold">
-            ⭐ {exam.totalMarks ?? '—'} marks
-          </span>
-        </div>
-      )}
+        <>
+          {exam.title && (
+            <p className="mb-2 truncate text-[11px] font-semibold theme-text-muted">{exam.title}</p>
+          )}
 
-      {/* Score (completed) */}
-      {isCompleted && lock && (
-        <div className="mb-4 flex items-center gap-3 rounded-xl bg-green-50 border border-green-200 px-3 py-2">
-          <span className="text-xl">🏆</span>
-          <div>
-            <p className={`text-lg font-black ${pctColor(lock.percentage ?? 0)}`}>
-              {lock.percentage ?? '—'}%
-            </p>
-            <p className="text-xs font-bold text-green-700">
-              {lock.score ?? '—'}/{lock.totalMarks ?? '—'} marks
-            </p>
+          <div className="mb-3 flex flex-wrap gap-1.5 text-[10px] font-semibold">
+            <span
+              className="rounded px-1.5 py-0.5"
+              style={{ background: 'color-mix(in srgb, var(--accent) 6%, var(--card))', color: 'var(--muted)' }}
+            >
+              {exam.durationMinutes || 30} min
+            </span>
+            <span
+              className="rounded px-1.5 py-0.5"
+              style={{ background: 'color-mix(in srgb, var(--accent) 6%, var(--card))', color: 'var(--muted)' }}
+            >
+              {exam.questionCount ?? '—'} Qs
+            </span>
+            <span
+              className="rounded px-1.5 py-0.5"
+              style={{ background: 'color-mix(in srgb, var(--accent) 6%, var(--card))', color: 'var(--muted)' }}
+            >
+              {exam.totalMarks ?? '—'} marks
+            </span>
           </div>
-        </div>
-      )}
 
-      {/* CTA button */}
-      {isCompleted ? (
-        <button
-          type="button"
-          onClick={handleCTA}
-          className="w-full rounded-xl border-2 theme-border py-2.5 text-sm font-black theme-text hover:theme-bg-subtle transition-colors"
-        >
-          📊 View Results & Leaderboard
-        </button>
-      ) : isInProgress ? (
-        <button
-          type="button"
-          onClick={handleCTA}
-          className="w-full rounded-xl bg-amber-400 py-2.5 text-sm font-black text-slate-900 shadow-sm hover:bg-amber-500 transition-colors"
-        >
-          ▶ Resume Exam
-        </button>
-      ) : isAvailable ? (
-        <button
-          type="button"
-          onClick={handleCTA}
-          className="theme-accent-fill theme-on-accent w-full rounded-xl py-2.5 text-sm font-black shadow-sm hover:opacity-90 transition-opacity"
-        >
-          🚀 Start Exam
-        </button>
-      ) : (
-        <div className="w-full rounded-xl border border-dashed theme-border py-2.5 text-center text-xs font-bold text-slate-400">
-          No exam scheduled
-        </div>
+          {isCompleted && lock && (
+            <div className="mb-3 flex items-center gap-2 rounded-[var(--r-md)] border border-green-200 bg-green-50 px-2.5 py-1.5">
+              <span className="text-base">🏆</span>
+              <div className="leading-none">
+                <p className={`text-sm font-black ${pctColor(lock.percentage ?? 0)}`}>
+                  {lock.percentage ?? '—'}%
+                </p>
+                <p className="mt-0.5 text-[10px] font-bold text-green-700">
+                  {lock.score ?? '—'}/{lock.totalMarks ?? '—'} marks
+                </p>
+              </div>
+            </div>
+          )}
+
+          {isCompleted ? (
+            <button
+              type="button"
+              onClick={handleCTA}
+              className="w-full rounded-[var(--r-md)] border border-[var(--line-medium)] bg-[var(--surface)] py-1.5 text-[11px] font-bold theme-text shadow-[var(--shadow-tight)] transition-colors hover:bg-[var(--bg-subtle)]"
+            >
+              View results
+            </button>
+          ) : isInProgress ? (
+            <button
+              type="button"
+              onClick={handleCTA}
+              className="w-full rounded-[var(--r-md)] bg-amber-400 py-1.5 text-[11px] font-black text-slate-900 shadow-[var(--shadow-tight)] transition-colors hover:bg-amber-500"
+            >
+              Resume exam
+            </button>
+          ) : isAvailable ? (
+            <button
+              type="button"
+              onClick={handleCTA}
+              className="theme-accent-fill theme-on-accent w-full rounded-[var(--r-md)] py-1.5 text-[11px] font-black shadow-[var(--shadow-tight)] transition-opacity hover:opacity-90"
+            >
+              Start exam
+            </button>
+          ) : null}
+        </>
       )}
     </div>
   )
@@ -140,7 +159,7 @@ export default function DailyExamsHub() {
   const { currentUser, userProfile } = useAuth()
   const grade = userProfile?.grade || '5'
 
-  const [items, setItems]   = useState([])
+  const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -173,75 +192,71 @@ export default function DailyExamsHub() {
 
   const completedCount = items.filter(r => r.lock?.status === 'submitted').length
   const availableCount = items.filter(r => r.exam && !r.lock).length
+  const notScheduledCount = SUBJECTS.length - completedCount - availableCount
 
   return (
-    <div className="min-h-screen theme-bg theme-text">
+    <div className="theme-bg theme-text min-h-screen">
       <Navbar />
 
-      <div className="mx-auto max-w-4xl px-4 py-6 pb-24">
-
-        {/* Page header */}
-        <div className="mb-6">
-          <div className="flex items-center justify-between gap-3">
+      <div className="mx-auto max-w-3xl px-4 pb-24 pt-6">
+        <div className="daily-header">
+          <div className="flex items-start justify-between gap-3">
             <div>
-              <h1 className="text-2xl font-black theme-text flex items-center gap-2">
-                🏆 Daily Exams
-              </h1>
-              <p className="theme-text-muted text-sm mt-0.5">{today}</p>
+              <h3>
+                <span aria-hidden className="text-[var(--amber)]">🏆</span>
+                Daily Exams
+              </h3>
+              <p>{today}</p>
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <Link
                 to="/exams/leaderboard"
-                className="flex items-center gap-1 rounded-full bg-amber-100 px-3 py-1.5 text-xs font-black text-amber-700 hover:bg-amber-200 transition-colors"
+                className="rounded-full bg-amber-100 px-3 py-1 text-[11px] font-black text-amber-700 transition-colors hover:bg-amber-200"
               >
-                📊 Leaderboard
+                Leaderboard
               </Link>
               <Link
                 to="/dashboard"
-                className="text-xs font-bold theme-accent-text hover:opacity-80"
+                className="text-[11px] font-bold theme-accent-text hover:opacity-80"
               >
                 ← Dashboard
               </Link>
             </div>
           </div>
-
-          {/* Summary banner */}
-          {!loading && (
-            <div className="mt-4 flex gap-3 flex-wrap">
-              <div className="theme-card rounded-xl border theme-border px-4 py-2.5 text-center">
-                <p className="text-xl font-black theme-text">{completedCount}</p>
-                <p className="theme-text-muted text-xs font-bold">Completed</p>
-              </div>
-              <div className="theme-card rounded-xl border theme-border px-4 py-2.5 text-center">
-                <p className="text-xl font-black theme-text">{availableCount}</p>
-                <p className="theme-text-muted text-xs font-bold">Available</p>
-              </div>
-              <div className="theme-card rounded-xl border theme-border px-4 py-2.5 text-center">
-                <p className="text-xl font-black theme-text">{SUBJECTS.length - completedCount - availableCount}</p>
-                <p className="theme-text-muted text-xs font-bold">Not scheduled</p>
-              </div>
-            </div>
-          )}
         </div>
 
-        {/* Rule callout */}
-        <div className="mb-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3">
-          <span className="text-lg mt-0.5">⚠️</span>
-          <p className="text-sm font-bold text-amber-800">
-            Each subject can only be attempted <strong>once per day</strong>. The timer cannot be
-            paused or reset — even if you refresh the page.
+        {!loading && (
+          <div className="stats-row stats-row-3">
+            <div className="stat-compact">
+              <p className="stat-num">{completedCount}</p>
+              <p className="stat-label">Completed</p>
+            </div>
+            <div className="stat-compact">
+              <p className="stat-num">{availableCount}</p>
+              <p className="stat-label">Available</p>
+            </div>
+            <div className="stat-compact">
+              <p className="stat-num">{notScheduledCount}</p>
+              <p className="stat-label">Not scheduled</p>
+            </div>
+          </div>
+        )}
+
+        <div className="alert-strip">
+          <span aria-hidden className="text-base leading-none">⚠️</span>
+          <p>
+            Each subject can be attempted <strong>once per day</strong>. The timer can&apos;t be paused — even if you refresh.
           </p>
         </div>
 
-        {/* Cards grid */}
         {loading ? (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="daily-grid">
             {Array.from({ length: SUBJECTS.length }).map((_, i) => (
-              <div key={i} className="theme-card rounded-2xl border theme-border p-5 animate-pulse h-44" />
+              <div key={i} className="daily-card animate-pulse" style={{ minHeight: 132 }} />
             ))}
           </div>
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2">
+          <div className="daily-grid">
             {items.map(({ subject, exam, lock }) => (
               <SubjectExamCard
                 key={subject.id}
