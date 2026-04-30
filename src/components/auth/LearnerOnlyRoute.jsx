@@ -7,7 +7,7 @@ import Icon from '../ui/Icon'
 import { Sparkles, ArrowLeft } from '../ui/icons'
 
 export default function LearnerOnlyRoute({ children }) {
-  const { userProfile, isAdmin, isLearner, isPremium } = useAuth()
+  const { userProfile, isAdmin, isLearner, canAccessLearnerPortal } = useAuth()
   const navigate = useNavigate()
   const [showUpgrade, setShowUpgrade] = useState(true)
 
@@ -16,8 +16,9 @@ export default function LearnerOnlyRoute({ children }) {
   // Admins and learners always pass through.
   if (isAdmin || isLearner) return children
 
-  // Teachers (and any non-learner) need an active learner-portal subscription.
-  if (isPremium) return children
+  // Teachers must have a SEPARATE active learner-portal subscription. Their
+  // teacher-portal premium does NOT grant learner access.
+  if (canAccessLearnerPortal) return children
 
   return (
     <>

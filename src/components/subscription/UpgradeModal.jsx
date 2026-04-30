@@ -77,6 +77,7 @@ export default function UpgradeModal({ onClose, portal }) {
       const started = await initiateMomoPayment({
         planId: selectedPlanId,
         phoneNumber: phone.trim(),
+        portal,
       })
 
       if (!mountedRef.current) return

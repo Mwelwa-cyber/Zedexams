@@ -116,7 +116,10 @@ service cloud.firestore {
           'role', 'plan', 'premium', 'isPremium', 'paymentStatus', 'subscriptionStatus',
           'premiumActivatedAt', 'subscriptionPlan', 'subscriptionExpiry', 'subscriptionActivatedBy',
           'subscriptionActivatedAt', 'subscriptionProvider', 'subscriptionPaymentId',
-          'subscriptionPhoneNumber'
+          'subscriptionPhoneNumber',
+          'learnerPortalActive', 'learnerPortalPlan', 'learnerPortalProvider',
+          'learnerPortalPhoneNumber', 'learnerPortalPaymentId',
+          'learnerPortalActivatedAt', 'learnerPortalExpiry'
         ]);
       allow update: if isAdmin();
       allow delete: if isAdmin();

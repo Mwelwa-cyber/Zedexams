@@ -27,7 +27,7 @@ const NAV = [
 ]
 
 export default function TeacherLayout({ children }) {
-  const { logout, userProfile, isPremium } = useAuth()
+  const { logout, userProfile, canAccessLearnerPortal } = useAuth()
   const navigate = useNavigate()
   const [mobileOpen, setMobileOpen] = useState(false)
   const [showSubscribe, setShowSubscribe] = useState(false)
@@ -40,7 +40,7 @@ export default function TeacherLayout({ children }) {
   function handleLearnerDashboardClick(event) {
     event.preventDefault()
     setMobileOpen(false)
-    if (isPremium) {
+    if (canAccessLearnerPortal) {
       navigate('/dashboard')
     } else {
       setShowSubscribe(true)

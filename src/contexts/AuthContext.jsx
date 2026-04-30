@@ -10,7 +10,7 @@ import {
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
 import app, { auth, db } from '../firebase/config'
-import { ROLES, hasPremiumAccess } from '../utils/subscriptionConfig'
+import { ROLES, hasPremiumAccess, hasLearnerPortalAccess } from '../utils/subscriptionConfig'
 import { useIdleTimeout } from '../hooks/useIdleTimeout'
 
 // Sign learners/teachers/admins out after this much idle time, with a short
@@ -181,6 +181,7 @@ export function AuthProvider({ children }) {
   const isTeacher  = userProfile?.role === ROLES.TEACHER || userProfile?.role === ROLES.ADMIN
   const isAdmin    = userProfile?.role === ROLES.ADMIN
   const isPremium  = hasPremiumAccess(userProfile)
+  const canAccessLearnerPortal = hasLearnerPortalAccess(userProfile)
   // Paid teacher: has teacher role AND active premium subscription
   const isPaidTeacher = (userProfile?.role === ROLES.TEACHER) && isPremium
   // Full content access: admin always, paid teachers, or premium learners.
@@ -257,7 +258,7 @@ export function AuthProvider({ children }) {
       currentUser, userProfile, loading, profileIssue,
       login, register, logout, resetPassword,
       fetchUserProfile, ensureUserProfile, refreshProfile, updateProfileFields,
-      isLearner, isTeacher, isAdmin, isPremium, isPaidTeacher, canAccessFullContent,
+      isLearner, isTeacher, isAdmin, isPremium, isPaidTeacher, canAccessFullContent, canAccessLearnerPortal,
       showIdleWarning, idleSecondsLeft, stayActive,
     }}>
       {!loading && children}
