@@ -1650,7 +1650,11 @@ body.data-saver [data-bg-gradient] {
   --learner-shell-glow-3: rgba(249, 115, 22, 0.11);
 }
 
-.learner-game-theme {
+/* Light themes: leave the page-level --bg/--card/--text tokens alone so
+   subject cards, recent-activity rows, and the bottom nav inherit the
+   user's chosen palette (e.g. white card on Sky's #F0F9FF page). The
+   dark slate remap is scoped to Midnight below. */
+body.theme-midnight .learner-game-theme {
   --bg: var(--learner-shell-bg);
   --bg-subtle: var(--learner-shell-bg-subtle);
   --card: var(--learner-shell-card);
@@ -1686,12 +1690,14 @@ body.data-saver [data-bg-gradient] {
   -webkit-backdrop-filter: blur(22px) saturate(1.25);
 }
 
-.learner-game-theme .surface,
-.learner-game-theme .theme-card {
+/* Heavy slate shadow + translucent subtle bg only in Midnight; light
+   themes use the default --shadow-sm so cards stay airy. */
+body.theme-midnight .learner-game-theme .surface,
+body.theme-midnight .learner-game-theme .theme-card {
   box-shadow: var(--shadow-md);
 }
 
-.learner-game-theme .theme-bg-subtle {
+body.theme-midnight .learner-game-theme .theme-bg-subtle {
   background-color: rgba(148, 163, 184, 0.1);
 }
 
