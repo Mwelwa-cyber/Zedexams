@@ -474,8 +474,11 @@ service cloud.firestore {
     // in their own collection so they can be searched, edited, and turned
     // into other artifacts (tests, schemes, etc.) independently.
     match /generatedContent/{contentId} {
+      // Saved generated content is private to its owner. Admins retain
+      // read access for support. (Earlier `|| isTeacherOrAbove()` clause
+      // leaked every teacher's saved AI content to every other teacher.)
       allow read: if isAuthed()
-        && (resource.data.ownerUid == request.auth.uid || isAdmin() || isTeacherOrAbove());
+        && (resource.data.ownerUid == request.auth.uid || isAdmin());
       allow create: if isAuthed()
         && incoming().ownerUid == request.auth.uid
         && incoming().keys().hasAll(['ownerUid', 'contentType', 'content', 'createdAt'])
@@ -495,13 +498,22 @@ service cloud.firestore {
     // when they record offline observations). Read by the owning learner,
     // by a teacher of that learner's class, and by admins.
     match /learnerProgress/{progressId} {
+      // Read by the owning learner, by the teacher recorded on the doc, or
+      // by an admin. The previous `|| isTeacherOrAbove()` clause let any
+      // teacher read every learner's progress regardless of class
+      // membership; teachers get access only via `teacherUid` ownership.
       allow read: if isAuthed()
         && (resource.data.learnerUid == request.auth.uid
             || resource.data.teacherUid == request.auth.uid
-            || isTeacherOrAbove());
+            || isAdmin());
+      // Create is restricted to the learner writing their own progress
+      // record. Teacher-side observations should flow through a Cloud
+      // Function so the teacher↔learner relationship can be verified
+      // server-side; allowing teacherUid==self at the rule layer let any
+      // signed-in user fabricate "teacher observation" records about
+      // arbitrary learners.
       allow create: if isAuthed()
-        && (incoming().learnerUid == request.auth.uid
-            || incoming().teacherUid == request.auth.uid)
+        && incoming().learnerUid == request.auth.uid
         && incoming().keys().hasAll(['learnerUid', 'createdAt'])
         && incoming().learnerUid is string && incoming().learnerUid.size() <= 64
         && (!('subject' in incoming()) || (incoming().subject is string && incoming().subject.size() <= 80))
