@@ -14,6 +14,7 @@ import { ArrowLeft, Calendar, Download, FileType, Loader2, Layout } from '../../
 import { useNote }            from '../hooks/useNote'
 import { NOTE_FORMAT }        from '../../../config/curriculum'
 import { formatDate }         from '../lib/format'
+import { sanitizeNoteHTML }   from '../../../editor/utils/sanitize.js'
 import '../styles/notes.css'
 
 const SUBJECT_STYLES = {
@@ -111,7 +112,7 @@ export function LearnerNoteRead() {
           ) : (
             <div
               className="prose-note"
-              dangerouslySetInnerHTML={{ __html: note.content || '<p>This note has no content yet.</p>' }}
+              dangerouslySetInnerHTML={{ __html: sanitizeNoteHTML(note.content) || '<p>This note has no content yet.</p>' }}
             />
           )}
 

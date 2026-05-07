@@ -105,3 +105,42 @@ export function sanitizeQuizRichHTML(html) {
     FORCE_BODY: false,
   })
 }
+
+/* ────────────────────────────────────────────────────────────────────────────
+ * Notes Studio output (learner-facing renderer)
+ *
+ * Used by:
+ *   • src/features/notes/pages/LearnerNoteRead.jsx
+ *
+ * Notes share the Tiptap editor pipeline (so the editor allow-list applies)
+ * but additionally permit inline `<img>` nodes inserted by the admin via the
+ * NoteEditor image-upload toolbar (Tiptap @tiptap/extension-image, configured
+ * with allowBase64:false so srcs are always Firebase Storage URLs). Also
+ * permits `<hr>` from StarterKit's HorizontalRule.
+ * ──────────────────────────────────────────────────────────────────────────── */
+
+const NOTE_ALLOWED_TAGS = [
+  ...EDITOR_ALLOWED_TAGS,
+  'img',
+  'hr',
+]
+
+const NOTE_ALLOWED_ATTR = [
+  ...EDITOR_ALLOWED_ATTR,
+  'src',
+  'alt',
+]
+
+export function sanitizeNoteHTML(html) {
+  if (!html || typeof html !== 'string') return ''
+  return DOMPurify.sanitize(html, {
+    ALLOWED_TAGS: NOTE_ALLOWED_TAGS,
+    ALLOWED_ATTR: NOTE_ALLOWED_ATTR,
+    // DOMPurify defaults reject javascript:, vbscript:, and other unsafe
+    // schemes on src/href, so http(s):, mailto:, tel:, and relative URLs
+    // are accepted while inline-script vectors are blocked.
+    ALLOW_DATA_ATTR: false,
+    KEEP_CONTENT: true,
+    FORCE_BODY: false,
+  })
+}
