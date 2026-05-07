@@ -324,6 +324,47 @@ function buildSlideSvg({ slideDoc, relationships, zipEntries, width, height, sca
   `
 }
 
+// Rasterize the generated SVG to PNG via a canvas before upload. Storing SVGs
+// in Firebase Storage exposed two attack surfaces — a malicious .pptx whose
+// shape attributes inject `" onload="..."` into the SVG (the generator escapes
+// text but not numeric attribute values), and direct-URL navigation to the
+// stored .svg which would execute scripts cross-origin against
+// firebasestorage.googleapis.com. PNGs cannot carry script. Canvas rasterizes
+// `<foreignObject>` HTML in modern browsers; the SVG references only data:
+// URIs internally, so the canvas never goes tainted.
+async function svgToPngBlob(svg, width, height) {
+  if (typeof window === 'undefined' || typeof document === 'undefined') {
+    throw new Error('Slide rasterization requires a browser environment.')
+  }
+  const svgBlob  = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' })
+  const objectUrl = URL.createObjectURL(svgBlob)
+  try {
+    const img = new Image()
+    img.decoding = 'async'
+    await new Promise((resolve, reject) => {
+      img.onload  = () => resolve()
+      img.onerror = () => reject(new Error('Browser could not rasterize a slide image.'))
+      img.src = objectUrl
+    })
+    const canvas = document.createElement('canvas')
+    canvas.width  = width
+    canvas.height = height
+    const ctx = canvas.getContext('2d')
+    if (!ctx) throw new Error('Canvas 2D context unavailable.')
+    ctx.fillStyle = '#ffffff'
+    ctx.fillRect(0, 0, width, height)
+    ctx.drawImage(img, 0, 0, width, height)
+    return await new Promise((resolve, reject) => {
+      canvas.toBlob(blob => {
+        if (blob) resolve(blob)
+        else reject(new Error('Canvas could not produce a PNG for this slide.'))
+      }, 'image/png')
+    })
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
+}
+
 export async function renderPowerPointToImages(file) {
   if (!file) throw new Error('Choose a PowerPoint file first.')
   if (!file.name.toLowerCase().endsWith('.pptx')) throw new Error('Please upload a .pptx PowerPoint file.')
@@ -354,7 +395,7 @@ export async function renderPowerPointToImages(file) {
       scale,
       warnings: slideWarnings,
     })
-    const blob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' })
+    const blob = await svgToPngBlob(svg, width, height)
     const objectUrl = URL.createObjectURL(blob)
 
     slideWarnings.forEach(warning => conversionWarnings.push(`Slide ${index + 1}: ${warning}`))
@@ -366,8 +407,8 @@ export async function renderPowerPointToImages(file) {
       blob,
       width,
       height,
-      extension: 'svg',
-      contentType: 'image/svg+xml',
+      extension: 'png',
+      contentType: 'image/png',
       alt: `PowerPoint slide ${index + 1}`,
       sourceSlidePath: slidePath,
       warnings: slideWarnings,
