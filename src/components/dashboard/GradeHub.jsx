@@ -143,6 +143,10 @@ function FloatingStar({ style }) {
 }
 
 function DashboardCharacter({ image, alt, variant = 'card', loading = 'lazy', className = '' }) {
+  // Some callers omit the character image (text-only cards). Render nothing
+  // rather than crashing on `image.webp` / `image.png`.
+  if (!image) return null
+
   const sizeClass = {
     hero: 'h-40 sm:h-52 md:h-[220px]',
     card: 'h-24 sm:h-28',
