@@ -247,7 +247,15 @@ service cloud.firestore {
             && resource.data.isPublished == false);
 
       match /questions/{questionId} {
-        allow read: if isAuthed();
+        // Mirror the parent quiz read rule. The earlier `if isAuthed()` let
+        // every signed-in user (incl. learners) read every teacher's draft
+        // questions, including answer keys and explanations.
+        allow read: if isAuthed() && (
+          get(/databases/$(database)/documents/quizzes/$(quizId)).data.isPublished == true
+          || get(/databases/$(database)/documents/quizzes/$(quizId)).data.get('quizType', '') == 'daily_exam'
+          || get(/databases/$(database)/documents/quizzes/$(quizId)).data.createdBy == request.auth.uid
+          || isAdmin()
+        );
         allow create, update: if validQuestionFields() && (
           isAdmin()
           || (isTeacherOrAbove() && get(/databases/$(database)/documents/quizzes/$(quizId)).data.createdBy == request.auth.uid)
