@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
+import { fetchSignInMethodsForEmail } from 'firebase/auth'
 import { ArrowLeft, EnvelopeIcon as Mail } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
+import { auth } from '../../firebase/config'
 import { getRoleLandingPath } from '../../utils/navigation'
 import Logo from '../ui/Logo'
 import Button from '../ui/Button'
@@ -20,6 +22,34 @@ const FRIENDLY = {
   'auth/popup-blocked':          'Your browser blocked the Google sign-in popup. Please allow popups and try again.',
   'auth/account-exists-with-different-credential':
                                  'An account already exists with this email. Sign in with the original method.',
+}
+
+// Firebase silently replaces an email/password account's password provider
+// with Google's when the email was unverified and the same Google email is
+// later used to sign in. After that, the password no longer works. When a
+// password sign-in fails, look up which providers actually exist for the
+// email so we can tell the user to use Google or reset to set a new password.
+const PASSWORD_FAILURE_CODES = new Set([
+  'auth/invalid-credential',
+  'auth/wrong-password',
+  'auth/user-not-found',
+])
+
+async function diagnosePasswordFailure(email) {
+  const trimmed = email.trim()
+  if (!trimmed) return null
+  try {
+    const methods = await fetchSignInMethodsForEmail(auth, trimmed)
+    if (!methods || methods.length === 0) return null
+    const hasPassword = methods.includes('password')
+    const hasGoogle = methods.includes('google.com')
+    if (hasGoogle && !hasPassword) {
+      return 'This email signs in with Google. Use "Continue with Google" above, or click "Forgot password?" to set up a password.'
+    }
+  } catch {
+    /* enumeration protection or network error — fall back to default copy */
+  }
+  return null
 }
 
 const INPUT_CLASS =
@@ -65,7 +95,12 @@ export default function Login() {
       }
       navigate(getRoleLandingPath(profile, '/'), { replace: true })
     } catch (err) {
-      setError(FRIENDLY[err.code] ?? 'Login failed. Please try again.')
+      let message = FRIENDLY[err.code] ?? 'Login failed. Please try again.'
+      if (PASSWORD_FAILURE_CODES.has(err.code)) {
+        const hint = await diagnosePasswordFailure(email)
+        if (hint) message = hint
+      }
+      setError(message)
     } finally { setLoading(false) }
   }
 
