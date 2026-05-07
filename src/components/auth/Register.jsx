@@ -136,7 +136,7 @@ export default function Register() {
 
     setError(''); setLoading(true)
     try {
-      await register(
+      const cred = await register(
         form.email.trim(),
         form.password,
         form.displayName.trim(),
@@ -145,7 +145,16 @@ export default function Register() {
         form.role,
         isTeacher ? { province: form.province, subject: form.subject } : {},
       )
-      navigate(getRoleLandingPath(form.role), { replace: true })
+      // Wait for the profile we just wrote to be picked up into context state
+      // before navigating, so the landing page sees a populated userProfile
+      // instead of racing the onAuthStateChanged listener.
+      const profile = await ensureUserProfile(cred.user)
+      if (!profile) {
+        try { await logout() } catch { /* ignore secondary failure */ }
+        setError('Account created, but we could not finish loading your ZedExams profile. Please sign in again.')
+        return
+      }
+      navigate(getRoleLandingPath(profile, '/'), { replace: true })
     } catch (err) {
       const friendly = FRIENDLY[err.code] ?? err.message ?? 'Registration failed. Please try again.'
       setError(friendly)

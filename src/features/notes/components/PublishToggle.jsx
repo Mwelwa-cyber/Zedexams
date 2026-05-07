@@ -20,6 +20,9 @@ export function PublishToggle({ noteId, status, disabled, onChange }) {
     try {
       await publishNote(noteId)
       onChange?.(NOTE_STATUS.PUBLISHED)
+    } catch (err) {
+      console.error('publishNote failed', err)
+      window.alert('Could not publish this note. Please try again.')
     } finally { setBusy(false) }
   }
 
@@ -31,6 +34,9 @@ export function PublishToggle({ noteId, status, disabled, onChange }) {
       await unpublishNote(noteId)
       onChange?.(NOTE_STATUS.DRAFT)
       setConfirm(false)
+    } catch (err) {
+      console.error('unpublishNote failed', err)
+      window.alert('Could not unpublish this note. Please try again.')
     } finally { setBusy(false) }
   }
 
