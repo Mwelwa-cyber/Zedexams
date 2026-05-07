@@ -14,7 +14,7 @@
 //     array) are read-only here — the new editor doesn't render slide
 //     builders. They stay viewable for learners via LessonPlayer.
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Save, FileText, Upload, Trash2, Check, Clock, Loader2, Layout,
@@ -60,7 +60,10 @@ export function AdminNoteEditor() {
   const [content,      setContent]      = useState('')
   const [fileMeta,     setFileMeta]     = useState(null)
   const [status,       setStatus]       = useState(NOTE_STATUS.DRAFT)
-  const [assetBatchId, setAssetBatchId] = useState(null)
+  // Generate the asset batch eagerly for new notes so inline image uploads
+  // work before the first save. The same id is persisted on the doc on
+  // first save so subsequent edits reuse the same Storage folder.
+  const [assetBatchId, setAssetBatchId] = useState(() => isNew ? makeAssetBatchId() : null)
 
   const [saveState,  setSaveState]  = useState('idle')   // idle | saving | saved | error
   const [saveError,  setSaveError]  = useState(null)
@@ -89,7 +92,9 @@ export function AdminNoteEditor() {
       updatedAt: note.updatedAt,
     } : null)
     setStatus(note.status || NOTE_STATUS.DRAFT)
-    setAssetBatchId(note.assetBatchId || null)
+    // Reuse the doc's existing batch id; only generate one if this is an
+    // older lesson that never had inline assets (rare).
+    setAssetBatchId(note.assetBatchId || makeAssetBatchId())
   }, [note])
 
   // ── save logic ──────────────────────────────────────────────────────
@@ -104,8 +109,9 @@ export function AdminNoteEditor() {
     setSaveError(null)
 
     try {
-      // Generate the asset batch on first save so subsequent uploads have
-      // a stable folder. Once stored on the doc we keep using the same one.
+      // assetBatchId is generated on mount for new notes (so inline image
+      // uploads work pre-save). Worst case we still defensively generate
+      // one here.
       const batchId = assetBatchId || makeAssetBatchId()
       if (!assetBatchId) setAssetBatchId(batchId)
 
@@ -253,6 +259,8 @@ export function AdminNoteEditor() {
               <NoteEditor
                 value={content}
                 onChange={(v) => { setContent(v); markDirty() }}
+                ownerUid={currentUser?.uid}
+                assetBatchId={assetBatchId}
               />
             ) : (
               <NoteUploader
