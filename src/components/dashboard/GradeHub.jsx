@@ -49,6 +49,7 @@ import ThemeSelector            from '../ui/ThemeSelector'
 import MobileBottomNav          from '../layout/MobileBottomNav'
 import { useSubscription }      from '../../hooks/useSubscription'
 import GameStickerStyles        from '../games/GameStickerStyles'
+import { getTodaysExam, checkDailyLock } from '../../utils/examService'
 
 // ── Sub-components ─────────────────────────────────────────────────────────
 
@@ -63,41 +64,45 @@ const DASHBOARD_CHARACTERS = {
   games: { png: '/images/characters/max-gaming.png?v=transparent-1',       webp: '/images/characters/max-gaming.webp?v=1',       width: 1254, height: 1254 },
 }
 
-const SUBJECT_DARK_TONES = {
+// Subject palette tuned for the light surfaces shown in the product
+// screenshot: subtle tinted backgrounds + bold subject-coloured text +
+// matching practise CTA. Midnight pulls in a darker remap below via
+// the body.theme-midnight selector.
+const SUBJECT_TONES = {
   mathematics: {
-    text: 'text-blue-200',
-    tile: 'bg-blue-500/15 text-blue-100 ring-1 ring-blue-400/35',
-    action: 'bg-blue-500/15 text-blue-100 ring-1 ring-blue-400/35 hover:bg-blue-500/25',
+    text: 'text-blue-700',
+    tile: 'bg-blue-50 text-blue-700 ring-1 ring-blue-100',
+    action: 'bg-blue-50 text-blue-700 ring-1 ring-blue-100 hover:bg-blue-100',
   },
   english: {
-    text: 'text-green-200',
-    tile: 'bg-green-500/15 text-green-100 ring-1 ring-green-400/35',
-    action: 'bg-green-500/15 text-green-100 ring-1 ring-green-400/35 hover:bg-green-500/25',
+    text: 'text-green-700',
+    tile: 'bg-green-50 text-green-700 ring-1 ring-green-100',
+    action: 'bg-green-50 text-green-700 ring-1 ring-green-100 hover:bg-green-100',
   },
   science: {
-    text: 'text-purple-200',
-    tile: 'bg-purple-500/15 text-purple-100 ring-1 ring-purple-400/35',
-    action: 'bg-purple-500/15 text-purple-100 ring-1 ring-purple-400/35 hover:bg-purple-500/25',
+    text: 'text-purple-700',
+    tile: 'bg-purple-50 text-purple-700 ring-1 ring-purple-100',
+    action: 'bg-purple-50 text-purple-700 ring-1 ring-purple-100 hover:bg-purple-100',
   },
   'social-studies': {
-    text: 'text-orange-200',
-    tile: 'bg-orange-500/15 text-orange-100 ring-1 ring-orange-400/35',
-    action: 'bg-orange-500/15 text-orange-100 ring-1 ring-orange-400/35 hover:bg-orange-500/25',
+    text: 'text-orange-700',
+    tile: 'bg-orange-50 text-orange-700 ring-1 ring-orange-100',
+    action: 'bg-orange-50 text-orange-700 ring-1 ring-orange-100 hover:bg-orange-100',
   },
   technology: {
-    text: 'text-slate-200',
-    tile: 'bg-slate-500/20 text-slate-100 ring-1 ring-slate-300/30',
-    action: 'bg-slate-500/20 text-slate-100 ring-1 ring-slate-300/30 hover:bg-slate-500/30',
+    text: 'text-slate-700',
+    tile: 'bg-slate-100 text-slate-700 ring-1 ring-slate-200',
+    action: 'bg-slate-100 text-slate-700 ring-1 ring-slate-200 hover:bg-slate-200',
   },
   'home-economics': {
-    text: 'text-pink-200',
-    tile: 'bg-pink-500/15 text-pink-100 ring-1 ring-pink-400/35',
-    action: 'bg-pink-500/15 text-pink-100 ring-1 ring-pink-400/35 hover:bg-pink-500/25',
+    text: 'text-pink-700',
+    tile: 'bg-pink-50 text-pink-700 ring-1 ring-pink-100',
+    action: 'bg-pink-50 text-pink-700 ring-1 ring-pink-100 hover:bg-pink-100',
   },
   'expressive-arts': {
-    text: 'text-amber-200',
-    tile: 'bg-amber-500/15 text-amber-100 ring-1 ring-amber-400/35',
-    action: 'bg-amber-500/15 text-amber-100 ring-1 ring-amber-400/35 hover:bg-amber-500/25',
+    text: 'text-amber-700',
+    tile: 'bg-amber-50 text-amber-700 ring-1 ring-amber-100',
+    action: 'bg-amber-50 text-amber-700 ring-1 ring-amber-100 hover:bg-amber-100',
   },
 }
 
@@ -272,7 +277,7 @@ function HeaderIconButton({ label, icon: ActionIcon, active = false, important =
 // quiz count is optional — passes through `quizCount` when known.
 function SubjectCardRich({ subject, grade, perf, quizCount, dimmed = false, locked = false, ctaHref, ctaLabel = 'Practise' }) {
   const topicCount = getTopics(subject.id, grade).length
-  const tone = SUBJECT_DARK_TONES[subject.id] || SUBJECT_DARK_TONES.mathematics
+  const tone = SUBJECT_TONES[subject.id] || SUBJECT_TONES.mathematics
   const score = typeof perf === 'number' ? perf : 0
   const quizPath = ctaHref || `/quizzes?grade=${grade}&subject=${subject.id}`
 
@@ -321,32 +326,40 @@ function SubjectCardRich({ subject, grade, perf, quizCount, dimmed = false, lock
   )
 }
 
-// Tab nav matching the mockup: text + icon, blue underline on the active
-// tab, optional subtitle line below. No background pill — the underline
-// carries the state. `accentClass` is a tailwind text-color class so the
-// underline can match the learner's grade theme.
-function TabButton({ active, onClick, icon, label, subtitle, accentClass = 'text-blue-300', locked = false, disabled = false }) {
-  const underline = active ? `border-b-2 ${accentClass.replace('text-', 'border-')} ${accentClass}` : 'border-b-2 border-transparent theme-text-muted'
+// Tab nav matching the screenshot: filled accent pill on the active tab,
+// flat muted text on the others. Whole row sits inside a soft track so
+// it reads as a segmented control. `accentClass` is unused for now — the
+// active pill picks up the user's chosen theme via theme-accent-bg /
+// theme-accent-text — but kept in the signature for future grade-tinted
+// tabs.
+function TabButton({ active, onClick, icon, label, subtitle, accentClass: _accentClass, locked = false, disabled = false }) {
+  const tabSurface = active
+    ? 'theme-accent-fill theme-on-accent shadow-sm'
+    : disabled
+      ? 'bg-transparent theme-text-muted'
+      : 'bg-transparent theme-text-muted hover:theme-text hover:theme-bg-subtle'
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`min-h-0 flex-1 flex flex-col items-center gap-0.5 px-2 pb-2 pt-1 bg-transparent shadow-none rounded-none transition-colors ${underline} ${disabled ? 'opacity-60 cursor-not-allowed' : 'hover:theme-text'}`}
+      className={`min-h-0 flex-1 flex flex-col items-center justify-center gap-0.5 px-3 py-2 rounded-full transition-colors ${tabSurface} ${disabled ? 'opacity-60 cursor-not-allowed' : ''}`}
     >
-      <span className={`inline-flex items-center gap-1.5 text-xs sm:text-sm font-black ${active ? accentClass : ''}`}>
+      <span className="inline-flex items-center gap-1.5 text-xs sm:text-sm font-black">
         {locked ? <Icon as={Lock} size="xs" strokeWidth={2.4} /> : <Icon as={icon} size="xs" strokeWidth={2.4} />}
         {label}
       </span>
       {subtitle && (
-        <span className="text-[10px] font-bold theme-text-muted leading-tight truncate max-w-full">{subtitle}</span>
+        <span className={`text-[10px] font-bold leading-tight truncate max-w-full ${active ? 'opacity-80' : ''}`}>
+          {subtitle}
+        </span>
       )}
     </button>
   )
 }
 
 function RecentResultRow({ result }) {
-  const pctColor = p => p >= 70 ? 'text-green-300' : p >= 50 ? 'text-amber-300' : 'text-red-300'
+  const pctColor = p => p >= 70 ? 'text-green-600' : p >= 50 ? 'text-amber-600' : 'text-red-500'
   function fmt(ts) {
     if (!ts) return ''
     const d = ts.toDate ? ts.toDate() : new Date(ts)
@@ -373,12 +386,26 @@ function RecentResultRow({ result }) {
   )
 }
 
-function StreakBadge({ streak }) {
+function StreakBadge({ streak, tone = 'page' }) {
   if (!streak || streak < 2) return null
+  // The hero is always a dark gradient, so the badge keeps the
+  // translucent-white look there. Anywhere on a light surface we use a
+  // warm orange tile that reads on white cards.
+  const heroPalette = {
+    wrap: 'bg-orange-500/15 border-orange-300/40',
+    icon: 'text-orange-200',
+    text: 'text-orange-100',
+  }
+  const pagePalette = {
+    wrap: 'bg-orange-50 border-orange-200',
+    icon: 'text-orange-600',
+    text: 'text-orange-700',
+  }
+  const p = tone === 'hero' ? heroPalette : pagePalette
   return (
-    <div className="flex items-center gap-1 bg-orange-500/15 border border-orange-300/40 rounded-full px-2.5 py-1">
-      <Icon as={FireIcon} size="sm" strokeWidth={2.1} className="text-orange-200" />
-      <span className="text-xs font-black text-orange-100">{streak} day streak!</span>
+    <div className={`flex items-center gap-1 border rounded-full px-2.5 py-1 ${p.wrap}`}>
+      <Icon as={FireIcon} size="sm" strokeWidth={2.1} className={p.icon} />
+      <span className={`text-xs font-black ${p.text}`}>{streak} day streak!</span>
     </div>
   )
 }
@@ -482,6 +509,11 @@ export default function GradeHub() {
   const notificationsRef = useRef(null)
   const notificationUserId = currentUser?.uid || userProfile?.id || 'guest'
 
+  // Today's Goal pill — counts daily-exam progress across the learner's
+  // grade. `total` = subjects with an exam scheduled today; `done` = how
+  // many of those have been submitted. Hidden when total === 0.
+  const [dailyGoal, setDailyGoal] = useState({ done: 0, total: 0 })
+
   useEffect(() => {
     document.title = currentUser ? 'Dashboard — ZedExams' : 'Dashboard Preview — ZedExams'
   }, [currentUser])
@@ -568,6 +600,34 @@ export default function GradeHub() {
   useEffect(() => {
     setSeenNotificationIds(readSeenNotificationIds(notificationUserId))
   }, [notificationUserId])
+
+  // Today's Goal — fan out across the 7 CBC subjects to pull each one's
+  // scheduled exam + lock status, identical to DailyExamsHub. The pill in
+  // the hero shows X/Y where Y is "subjects with an exam today" and X is
+  // "of those, how many you've already submitted." We re-run when the
+  // learner's grade changes (parents may switch profiles) and every time
+  // the page mounts so a freshly-submitted exam reflects on return.
+  useEffect(() => {
+    if (!currentUser) {
+      setDailyGoal({ done: 0, total: 0 })
+      return undefined
+    }
+    let cancelled = false
+    const grade = userProfile?.grade || '5'
+    Promise.all(SUBJECTS.map(async subject => {
+      const [exam, lock] = await Promise.all([
+        getTodaysExam(subject.label, grade),
+        checkDailyLock(currentUser.uid, subject.label),
+      ])
+      return { exam, lock }
+    })).then(rows => {
+      if (cancelled) return
+      const scheduled = rows.filter(r => r.exam)
+      const submitted = scheduled.filter(r => r.lock?.status === 'submitted')
+      setDailyGoal({ done: submitted.length, total: scheduled.length })
+    }).catch(() => { if (!cancelled) setDailyGoal({ done: 0, total: 0 }) })
+    return () => { cancelled = true }
+  }, [currentUser, userProfile?.grade])
 
   // ── Grade-personalised derived values ────────────────────────────────────
   // userGrade is the learner's own grade (number); nextGrade is +1, capped
@@ -867,12 +927,23 @@ export default function GradeHub() {
               <h1 className="text-display-xl text-white">{firstName}!</h1>
               <p className="theme-hero-muted mt-1 text-body-sm italic">Practise smart with ZedExams.</p>
 
-              {userProfile?.grade && (
-                <div className="mt-2 inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/20 px-2.5 py-1 text-xs font-black text-white">
-                  <Icon as={BookOpen} size="xs" strokeWidth={2.1} />
-                  Grade {userProfile.grade}
-                </div>
-              )}
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {userProfile?.grade && (
+                  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/20 px-2.5 py-1 text-xs font-black text-white">
+                    <Icon as={BookOpen} size="xs" strokeWidth={2.1} />
+                    Grade {userProfile.grade}
+                  </span>
+                )}
+                {dailyGoal.total > 0 && (
+                  <Link
+                    to="/exams"
+                    className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/50 bg-amber-400/20 px-2.5 py-1 text-xs font-black text-amber-50 transition-colors hover:bg-amber-400/30"
+                  >
+                    <Icon as={TrophyIcon} size="xs" strokeWidth={2.1} />
+                    Today&rsquo;s Goal · {dailyGoal.done}/{dailyGoal.total} activities
+                  </Link>
+                )}
+              </div>
 
               <div className="mt-4 flex flex-wrap items-center gap-4">
                 <div>
@@ -887,7 +958,7 @@ export default function GradeHub() {
                 {stats.streak >= 2 && (
                   <>
                     <div className="h-8 w-px bg-white/25" />
-                    <StreakBadge streak={stats.streak} />
+                    <StreakBadge streak={stats.streak} tone="hero" />
                   </>
                 )}
               </div>
@@ -922,17 +993,17 @@ export default function GradeHub() {
 
         <DashboardActionCard
           to="/exams"
-          className="border-amber-400/80 bg-[linear-gradient(135deg,rgba(120,53,15,0.92)_0%,rgba(67,33,13,0.86)_38%,rgba(15,23,42,0.96)_100%)]"
+          className="border-amber-300 bg-[linear-gradient(135deg,#FEF3C7_0%,#FCD34D_55%,#F59E0B_100%)]"
           icon={TrophyIcon}
-          iconClassName="bg-amber-400 text-white"
+          iconClassName="bg-amber-500 text-white"
           kicker="Daily · Once per subject"
-          kickerClassName="text-amber-200"
+          kickerClassName="text-amber-800"
           title="Today's Exams"
-          titleClassName="text-amber-50"
+          titleClassName="text-amber-950"
           body="Timed competitive exams · Live leaderboard · One attempt per subject per day"
-          bodyClassName="text-amber-100/75"
+          bodyClassName="text-amber-900/80"
           action="Start"
-          actionClassName="bg-amber-400 text-slate-950"
+          actionClassName="bg-amber-600 text-white"
           image={DASHBOARD_CHARACTERS.exams}
           imageAlt="Lina studying"
           imageVariant="card"
@@ -940,17 +1011,17 @@ export default function GradeHub() {
 
         <DashboardActionCard
           to="/games"
-          className="border-emerald-400/80 bg-[linear-gradient(135deg,rgba(6,95,70,0.92)_0%,rgba(20,83,45,0.82)_42%,rgba(15,23,42,0.96)_100%)]"
+          className="border-emerald-300 bg-[linear-gradient(135deg,#D1FAE5_0%,#6EE7B7_55%,#10B981_100%)]"
           icon={Gamepad2}
-          iconClassName="bg-emerald-500 text-white"
+          iconClassName="bg-emerald-600 text-white"
           kicker="CBC · Grades 1-6"
-          kickerClassName="text-emerald-200"
+          kickerClassName="text-emerald-800"
           title="Zed Games"
-          titleClassName="text-emerald-50"
+          titleClassName="text-emerald-950"
           body="Maths, English, Science & Social Studies - earn badges and climb the leaderboard"
-          bodyClassName="text-emerald-100/75"
+          bodyClassName="text-emerald-900/80"
           action="Play"
-          actionClassName="bg-emerald-400 text-slate-950"
+          actionClassName="bg-emerald-600 text-white"
           image={DASHBOARD_CHARACTERS.games}
           imageAlt="Max playing a learning game"
           imageVariant="games"
@@ -974,8 +1045,9 @@ export default function GradeHub() {
             </h2>
           </div>
 
-          {/* Underline-style tab nav */}
-          <div className="flex items-stretch gap-1 mb-4 border-b theme-border">
+          {/* Segmented-pill tab nav (active tab is the theme accent fill,
+              the row sits in a soft theme-bg-subtle track). */}
+          <div className="flex items-stretch gap-1 mb-4 p-1 rounded-full theme-bg-subtle border theme-border">
             <TabButton
               active={activeTab === 'myGrade'}
               accentClass={gradeAccentText}
@@ -1014,7 +1086,7 @@ export default function GradeHub() {
                     <h3 className="learner-page-heading text-sm font-black">
                       My Grade {userGrade}
                     </h3>
-                    <span className="rounded-full bg-emerald-500/20 ring-1 ring-emerald-300/40 px-2 py-0.5 text-[10px] font-black text-emerald-100">
+                    <span className="rounded-full bg-emerald-100 ring-1 ring-emerald-200 px-2 py-0.5 text-[10px] font-black text-emerald-700">
                       Current
                     </span>
                   </div>
@@ -1094,7 +1166,7 @@ export default function GradeHub() {
               <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2">
                   <h3 className="learner-page-heading text-sm font-black">Challenge Subjects</h3>
-                  <span className="rounded-full bg-amber-500/20 ring-1 ring-amber-300/40 px-2 py-0.5 text-[10px] font-black text-amber-100">
+                  <span className="rounded-full bg-amber-100 ring-1 ring-amber-200 px-2 py-0.5 text-[10px] font-black text-amber-700">
                     For You
                   </span>
                 </div>
@@ -1121,7 +1193,7 @@ export default function GradeHub() {
           {hasNextGrade && (
             <div className="zx-card theme-card rounded-2xl border theme-border p-4 mb-3">
               <div className="flex items-center gap-3 mb-2">
-                <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${nextLevelUnlocked ? 'bg-emerald-500/20 ring-1 ring-emerald-300/40 text-emerald-200' : 'theme-bg-subtle theme-text-muted'}`}>
+                <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${nextLevelUnlocked ? 'bg-emerald-100 ring-1 ring-emerald-200 text-emerald-700' : 'theme-bg-subtle theme-text-muted'}`}>
                   <Icon as={nextLevelUnlocked ? CheckCircleIcon : Lock} size="lg" strokeWidth={2.2} />
                 </div>
                 <div className="min-w-0 flex-1">
@@ -1160,13 +1232,13 @@ export default function GradeHub() {
           {/* ── Always-visible: Challenge Mode summary card ──── */}
           <div className="zx-card theme-card rounded-2xl border theme-border p-4 mb-3 relative overflow-hidden">
             <div className="flex items-center gap-3">
-              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${showChallenge ? 'bg-amber-500/20 ring-1 ring-amber-300/40 text-amber-200' : 'theme-bg-subtle theme-text-muted'}`}>
+              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${showChallenge ? 'bg-amber-100 ring-1 ring-amber-200 text-amber-700' : 'theme-bg-subtle theme-text-muted'}`}>
                 <Icon as={TrophyIcon} size="lg" strokeWidth={2.2} />
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <p className="font-black theme-text text-sm">Challenge Mode</p>
-                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${showChallenge ? 'bg-amber-500/20 ring-1 ring-amber-300/40 text-amber-100' : 'theme-bg-subtle theme-text-muted'}`}>
+                  <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${showChallenge ? 'bg-amber-100 ring-1 ring-amber-200 text-amber-700' : 'theme-bg-subtle theme-text-muted'}`}>
                     {showChallenge ? 'For You' : 'Locked'}
                   </span>
                 </div>
@@ -1205,7 +1277,7 @@ export default function GradeHub() {
               </p>
               <div className="flex flex-wrap gap-2">
                 {weakTopics.map(topic => {
-                  const tone = SUBJECT_DARK_TONES[topic.subject] || SUBJECT_DARK_TONES.mathematics
+                  const tone = SUBJECT_TONES[topic.subject] || SUBJECT_TONES.mathematics
                   return (
                     <Link
                       key={`${topic.subject}:${topic.topic}`}
@@ -1323,13 +1395,13 @@ export default function GradeHub() {
 
         {/* ── DATA SAVER INFO BANNER (only shown when on) ─────── */}
         {dataSaver && (
-          <div className="zx-card bg-green-500/15 border border-green-300/40 rounded-2xl p-4 flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-green-300/40 bg-green-500/20 text-green-100">
+          <div className="zx-card bg-green-50 border border-green-200 rounded-2xl p-4 flex items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-green-200 bg-green-100 text-green-700">
               <Icon as={Battery} size="lg" strokeWidth={2.1} />
             </div>
             <div>
-              <p className="font-black text-green-100 text-sm">Data Saver is ON</p>
-              <p className="text-green-100/75 text-xs mt-0.5">
+              <p className="font-black text-green-800 text-sm">Data Saver is ON</p>
+              <p className="text-green-700/80 text-xs mt-0.5">
                 Larger motion is reduced to save mobile data. Use the control below to turn it off.
               </p>
               <div className="mt-2">

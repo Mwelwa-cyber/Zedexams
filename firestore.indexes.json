@@ -247,6 +247,17 @@
         { "fieldPath": "subject",     "order": "ASCENDING"  },
         { "fieldPath": "publishedAt", "order": "DESCENDING" }
     ]},
+    { "collectionGroup": "lessons", "queryScope": "COLLECTION", "fields": [
+        { "fieldPath": "isPublished", "order": "ASCENDING"  },
+        { "fieldPath": "grade",       "order": "ASCENDING"  },
+        { "fieldPath": "publishedAt", "order": "DESCENDING" }
+    ]},
+    { "collectionGroup": "lessons", "queryScope": "COLLECTION", "fields": [
+        { "fieldPath": "isPublished", "order": "ASCENDING"  },
+        { "fieldPath": "grade",       "order": "ASCENDING"  },
+        { "fieldPath": "subject",     "order": "ASCENDING"  },
+        { "fieldPath": "publishedAt", "order": "DESCENDING" }
+    ]},
     {
       "collectionGroup": "quizzes",
       "queryScope": "COLLECTION",
