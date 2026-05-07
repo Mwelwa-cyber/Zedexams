@@ -3,6 +3,7 @@ import { Link, NavLink, useNavigate } from 'react-router-dom'
 import {
   Home,
   BookOpen,
+  FileText,
   PencilLine,
   BarChart3,
   GraduationCap,
@@ -30,6 +31,7 @@ export default function Navbar() {
   // Learners get a "Home" link that points to /dashboard.
   const navLinks = [
     ...(!isAdmin && !isTeacher ? [{ to: homePath, label: 'Home', icon: Home }] : []),
+    { to: '/notes',      label: 'Notes',       icon: FileText },
     { to: '/lessons',    label: 'Lessons',     icon: BookOpen },
     { to: '/quizzes',    label: 'Quizzes',     icon: PencilLine },
     { to: '/my-results', label: 'Results',     icon: BarChart3 },

@@ -21,6 +21,7 @@ import {
   BookOpen,
   CheckCircleIcon,
   ChevronRight,
+  FileText,
   FireIcon,
   Gamepad2,
   GraduationCap,
@@ -1025,6 +1026,21 @@ export default function GradeHub() {
           image={DASHBOARD_CHARACTERS.games}
           imageAlt="Max playing a learning game"
           imageVariant="games"
+        />
+
+        <DashboardActionCard
+          to="/notes"
+          className="border-sky-300 bg-[linear-gradient(135deg,#E0F2FE_0%,#7DD3FC_55%,#0EA5E9_100%)]"
+          icon={FileText}
+          iconClassName="bg-sky-600 text-white"
+          kicker={userGrade ? `Grade ${userGrade} · CBC` : 'CBC notes'}
+          kickerClassName="text-sky-800"
+          title="Notes Studio"
+          titleClassName="text-sky-950"
+          body="Read teacher-written notes and study guides for every subject in your grade"
+          bodyClassName="text-sky-900/80"
+          action="Read"
+          actionClassName="bg-sky-600 text-white"
         />
 
         {/* ── GRADE-PERSONALISED HUB ──────────────────────────────
