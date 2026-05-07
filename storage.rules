@@ -41,11 +41,15 @@ service firebase.storage {
     }
 
     function validLessonPresentationUpload() {
+      // SVG is intentionally excluded — pptxPresentationRenderer.js used to
+      // upload programmatically-built SVG slides, but a malicious .pptx could
+      // inject script-bearing attributes that would execute on direct-URL
+      // navigation against firebasestorage.googleapis.com. The renderer now
+      // rasterizes to PNG via canvas before upload.
       return request.resource.size <= 50 * 1024 * 1024
         && (
           request.resource.contentType == 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
           || request.resource.contentType == 'application/pdf'
-          || request.resource.contentType == 'image/svg+xml'
           || request.resource.contentType.matches('image/(jpeg|png|webp)')
         );
     }

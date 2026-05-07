@@ -919,8 +919,8 @@ export default function LessonEditor() {
     const sourceUrl = await getDownloadURL(sourceSnapshot.ref)
 
     const slidePairs = await Promise.all((pendingPresentation.slideImages || []).map(async (slide, index) => {
-      const contentType = slide.contentType || slide.blob?.type || 'image/svg+xml'
-      const extension = slide.extension || (contentType === 'image/svg+xml' ? 'svg' : contentType.split('/')[1]?.replace('jpeg', 'jpg')) || 'svg'
+      const contentType = slide.contentType || slide.blob?.type || 'image/png'
+      const extension = slide.extension || contentType.split('/')[1]?.replace('jpeg', 'jpg') || 'png'
       const slidePath = `lesson-presentations/${currentUser.uid}/${assetBatchId}/slides/slide-${String(index + 1).padStart(3, '0')}.${extension}`
       const snapshot = await uploadBytes(storageRef(storage, slidePath), slide.blob, {
         contentType,
