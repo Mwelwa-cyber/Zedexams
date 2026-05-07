@@ -1,4 +1,5 @@
 const { onRequest } = require('firebase-functions/v2/https');
+const admin         = require('firebase-admin');
 const textToSpeech  = require('@google-cloud/text-to-speech');
 
 const client = new textToSpeech.TextToSpeechClient();
@@ -16,6 +17,13 @@ function languageCodeFor(voice) {
   return voice.split('-').slice(0, 2).join('-');
 }
 
+async function verifyIdToken(req) {
+  const token = (req.get('authorization') || '').replace(/^Bearer\s+/i, '');
+  if (!token) return null;
+  try { return await admin.auth().verifyIdToken(token); }
+  catch { return null; }
+}
+
 exports.apiTextToSpeech = onRequest(
   {
     region:         'us-central1',
@@ -26,6 +34,11 @@ exports.apiTextToSpeech = onRequest(
   async (req, res) => {
     if (req.method === 'OPTIONS') return res.status(204).send('');
     if (req.method !== 'POST')    return res.status(405).json({ error: 'POST only' });
+
+    // Gate synthesis behind a valid Firebase ID token. Studio voices cost
+    // ~$160/1M chars; an unauthenticated endpoint is a financial-DoS surface.
+    const decoded = await verifyIdToken(req);
+    if (!decoded) return res.status(401).json({ error: 'Sign in required.' });
 
     const { text, voice = 'en-GB-Neural2-A', rate = 1.0, pitch = 0 } = req.body || {};
 
