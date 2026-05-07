@@ -276,9 +276,9 @@ export default function App() {
           <Route path="/lessons"           element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LessonsList /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/lessons/:lessonId" element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LessonView /></LearnerOnlyRoute></ProtectedRoute>} />
 
-          {/* Notes Studio learner reader — own header, no Navbar */}
-          <Route path="/notes"             element={<ProtectedRoute><LearnerOnlyRoute><LearnerGate><LearnerNotesList /></LearnerGate></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/notes/:id"         element={<ProtectedRoute><LearnerOnlyRoute><LearnerGate><LearnerNoteRead /></LearnerGate></LearnerOnlyRoute></ProtectedRoute>} />
+          {/* Notes Studio learner */}
+          <Route path="/notes"             element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerGate><LearnerNotesList /></LearnerGate></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/notes/:id"         element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerGate><LearnerNoteRead /></LearnerGate></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/my-results"        element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><MyResults /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/my-badges"         element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><BadgesPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/profile"           element={<ProtectedRoute><Navbar /><ProfilePage /></ProtectedRoute>} />

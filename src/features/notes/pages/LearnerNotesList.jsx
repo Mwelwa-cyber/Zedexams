@@ -4,13 +4,15 @@
 // Auto-filtered to their grade (from their profile). Subject chips at the top
 // let them narrow further; search box for title lookup.
 // Coming-soon banner reminds learners that 8-12 are on the way.
+//
+// Mounted under the standard <Navbar /> in App.jsx so learners can navigate
+// back to /dashboard, /quizzes, /lessons, etc. without browser back.
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Lock } from '../../../components/ui/icons'
 import { useLearnerProfile }   from '../hooks/useLearnerProfile'
 import { useLearnerNotes }     from '../hooks/useLearnerNotes'
-import { LearnerHeader }       from '../components/LearnerHeader'
 import { LearnerNoteCard }     from '../components/LearnerNoteCard'
 import { getSubjectsForGrade } from '../../../config/curriculum'
 import '../styles/notes.css'
@@ -38,9 +40,7 @@ export function LearnerNotesList() {
     : { [activeSubject]: notes }
 
   return (
-    <div className="notes-studio min-h-screen" style={{ backgroundColor: '#FAFAF7' }}>
-      <LearnerHeader user={user} profile={profile} />
-
+    <div className="notes-studio min-h-screen pb-24 md:pb-8" style={{ backgroundColor: '#FAFAF7' }}>
       <main className="max-w-5xl mx-auto px-5 py-8">
         <div className="mb-6">
           <div className="text-xs tracking-[0.2em] uppercase text-neutral-500 mb-2">Your notes</div>

@@ -12,8 +12,6 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { ArrowLeft, Calendar, Download, FileType, Loader2, Layout } from '../../../components/ui/icons'
 
 import { useNote }            from '../hooks/useNote'
-import { useLearnerProfile }  from '../hooks/useLearnerProfile'
-import { LearnerHeader }      from '../components/LearnerHeader'
 import { NOTE_FORMAT }        from '../../../config/curriculum'
 import { formatDate }         from '../lib/format'
 import '../styles/notes.css'
@@ -34,13 +32,11 @@ const subjectStyle = (subject) =>
 export function LearnerNoteRead() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { user, profile } = useLearnerProfile()
   const { note, loading, error } = useNote(id)
 
   if (loading) {
     return (
-      <div className="notes-studio min-h-screen" style={{ backgroundColor: '#FAFAF7' }}>
-        <LearnerHeader user={user} profile={profile} />
+      <div className="notes-studio min-h-screen pb-24 md:pb-8" style={{ backgroundColor: '#FAFAF7' }}>
         <div className="min-h-[50vh] flex items-center justify-center text-neutral-500">
           <Loader2 size={20} className="animate-spin" />
         </div>
@@ -50,8 +46,7 @@ export function LearnerNoteRead() {
 
   if (error || !note) {
     return (
-      <div className="notes-studio min-h-screen" style={{ backgroundColor: '#FAFAF7' }}>
-        <LearnerHeader user={user} profile={profile} />
+      <div className="notes-studio min-h-screen pb-24 md:pb-8" style={{ backgroundColor: '#FAFAF7' }}>
         <div className="max-w-xl mx-auto px-5 py-16 text-center">
           <h1 className="font-display text-3xl mb-2 text-neutral-900">Note not found</h1>
           <p className="text-sm text-neutral-500 mb-6">
@@ -72,9 +67,7 @@ export function LearnerNoteRead() {
   const isLegacySlides = !note.noteFormat && Array.isArray(note.slides) && note.slides.length > 0
 
   return (
-    <div className="notes-studio min-h-screen" style={{ backgroundColor: '#FAFAF7' }}>
-      <LearnerHeader user={user} profile={profile} />
-
+    <div className="notes-studio min-h-screen pb-24 md:pb-8" style={{ backgroundColor: '#FAFAF7' }}>
       <main className="max-w-2xl mx-auto px-5 py-8">
         <button
           onClick={() => navigate('/notes')}
