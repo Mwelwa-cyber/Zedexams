@@ -55,14 +55,21 @@ export function subscribeAdminNotes({ subject, grade, status } = {}, onChange, o
   )
 }
 
-/** Subscribe to published notes for a specific grade (used by the learner side). */
+/** Subscribe to published notes for a specific grade (used by the learner side).
+ *
+ * NOTE: must filter by `isPublished` (boolean), not `status`. The Firestore
+ * rule for the lessons collection grants learner reads via
+ * `resource.data.isPublished == true`, and Firestore requires the query
+ * to include that exact field. publishNote / unpublishNote write both
+ * fields in lock-step so they always agree.
+ */
 export function subscribeLearnerNotes({ grade, subject }, onChange, onError) {
   if (!grade) {
     onChange([])
     return () => {}
   }
   const constraints = [
-    where('status', '==', NOTE_STATUS.PUBLISHED),
+    where('isPublished', '==', true),
     where('grade', '==', String(grade)),
   ]
   if (subject) constraints.push(where('subject', '==', subject))
