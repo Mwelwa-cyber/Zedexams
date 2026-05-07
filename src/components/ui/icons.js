@@ -91,6 +91,7 @@ import {
   TrashIcon,
   ViewColumnsIcon,
   DocumentIcon,
+  PhotoIcon,
 } from '@heroicons/react/24/outline'
 
 // Size-token map matches components/ui/Icon.jsx so tokens (xs/sm/md/lg/xl)
@@ -266,6 +267,7 @@ const FileType = withSize(DocumentIcon)
 const Save = withSize(BookmarkSquareIcon)
 const Loader2 = withSize(ArrowPathIcon)
 const ArrowRight = withSize(ArrowRightIcon)
+const ImageIcon = withSize(PhotoIcon)
 
 export {
   GraduationCap,
@@ -383,4 +385,5 @@ export {
   Save,
   Loader2,
   ArrowRight,
+  ImageIcon,
 }
