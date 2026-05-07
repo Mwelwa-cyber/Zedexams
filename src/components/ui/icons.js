@@ -5,6 +5,7 @@ import {
   ArrowLeftIcon,
   ArrowPathIcon,
   ArrowRightStartOnRectangleIcon,
+  ArrowRightIcon,
   ArrowTrendingUpIcon,
   ArrowsPointingOutIcon,
   ArrowUpTrayIcon,
@@ -264,6 +265,7 @@ const Layout = withSize(ViewColumnsIcon)
 const FileType = withSize(DocumentIcon)
 const Save = withSize(BookmarkSquareIcon)
 const Loader2 = withSize(ArrowPathIcon)
+const ArrowRight = withSize(ArrowRightIcon)
 
 export {
   GraduationCap,
@@ -380,4 +382,5 @@ export {
   FileType,
   Save,
   Loader2,
+  ArrowRight,
 }
