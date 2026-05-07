@@ -105,7 +105,10 @@ service cloud.firestore {
 
     // ── users ─────────────────────────────────────────────────
     match /users/{userId} {
-      allow read: if isAuthed() && (isOwner(userId) || isTeacherOrAbove());
+      // Self + admin only. The earlier `|| isTeacherOrAbove()` clause let
+      // any teacher read any other user's profile, including subscription
+      // phone numbers, payment IDs, and plan/billing fields.
+      allow read: if isAuthed() && (isOwner(userId) || isAdmin());
       allow create: if isAuthed() && isOwner(userId)
         && incoming().role in ['learner', 'teacher']
         && incoming().get('plan', 'free') == 'free'
@@ -217,11 +220,15 @@ service cloud.firestore {
 
     // ── quizzes ───────────────────────────────────────────────
     match /quizzes/{quizId} {
+      // Anyone signed in can read published quizzes and daily exams; the
+      // creating teacher can read their own drafts. Admins read everything
+      // for support. Earlier `|| isTeacherOrAbove()` clause let any
+      // teacher read every other teacher's unpublished drafts.
       allow read: if isAuthed() && (
         resource.data.isPublished == true
         || resource.data.get('quizType', '') == 'daily_exam'
-        || isTeacherOrAbove()
         || resource.data.createdBy == request.auth.uid
+        || isAdmin()
       );
       // Admin: create anything. Teacher: only draft/pending (cannot publish directly)
       allow create: if validQuizFields() && (
