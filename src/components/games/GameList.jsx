@@ -11,6 +11,7 @@ import {
   getGameStatusBadge,
   getSubjectMascot,
 } from './gamesUi'
+import SeoHelmet from '../seo/SeoHelmet'
 
 const SUBJECT_TILE_BG = {
   mathematics: 'bg-orange-100',
@@ -32,7 +33,6 @@ export default function GameList() {
 
   useEffect(() => {
     if (!gradeMeta || !subjectMeta) return
-    document.title = `${gradeMeta.label} ${subjectMeta.label} Games — ZedExams`
 
     let cancelled = false
     async function load() {
@@ -65,6 +65,11 @@ export default function GameList() {
         { label: subjectMeta.label },
       ]}
     >
+      <SeoHelmet
+        title={`${gradeMeta.label} ${subjectMeta.label} Games`}
+        description={`Browse ${subjectMeta.label} learning games for ${gradeMeta.label} on ZedExams. CBC-aligned, scored, and mobile-friendly.`}
+        path={`/games/g/${gradeMeta.value}/${subjectMeta.slug}`}
+      />
       <section className="zx-card mb-8 rounded-[22px] bg-white p-6 sm:p-7">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
           <div>

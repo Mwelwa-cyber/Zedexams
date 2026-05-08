@@ -15,6 +15,7 @@ import {
   SubjectProgressCard,
   buildSubjectProgress,
 } from './gamesUi'
+import SeoHelmet from '../seo/SeoHelmet'
 
 /**
  * /games/g/:grade — choose a subject inside the selected grade.
@@ -27,7 +28,6 @@ export default function SubjectSelector() {
 
   useEffect(() => {
     if (!gradeMeta) return
-    document.title = `${gradeMeta.label} Games — ZedExams`
 
     let cancelled = false
     async function load() {
@@ -58,6 +58,11 @@ export default function SubjectSelector() {
 
   return (
     <GamesShell crumbs={[{ label: gradeMeta.label }]}>
+      <SeoHelmet
+        title={`${gradeMeta.label} Games`}
+        description={`Pick a subject lane for ${gradeMeta.label} on ZedExams. CBC-aligned learning games with progress tracking and quick mobile-friendly play.`}
+        path={`/games/g/${gradeMeta.value}`}
+      />
       <section className="zx-card mb-8 rounded-[22px] bg-white p-6 sm:p-7">
         <div className="flex flex-wrap items-center gap-2">
           <MetaPill icon={SparklesIcon} label={gradeMeta.label} />

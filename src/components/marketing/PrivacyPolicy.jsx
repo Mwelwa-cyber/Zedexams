@@ -1,4 +1,5 @@
 import LegalLayout from './LegalLayout'
+import SeoHelmet from '../seo/SeoHelmet'
 
 /*
  * NOTE TO MAINTAINERS
@@ -31,7 +32,13 @@ function UL({ children }) {
 
 export default function PrivacyPolicy() {
   return (
-    <LegalLayout title="Privacy Policy" lastUpdated="29 April 2026">
+    <>
+      <SeoHelmet
+        title="Privacy Policy"
+        description="How ZedExams collects, uses and protects learner, teacher and school data, including children's-data handling under the Zambia Data Protection Act."
+        path="/privacy"
+      />
+      <LegalLayout title="Privacy Policy" lastUpdated="29 April 2026">
       <P>
         ZedExams ("we", "us", "our") provides an online learning platform for Zambian
         Grade 4–6 learners, their teachers, and schools. This Privacy Policy explains what
@@ -192,5 +199,6 @@ export default function PrivacyPolicy() {
         at the top and, where appropriate, notify you in the app or by email.
       </P>
     </LegalLayout>
+    </>
   )
 }

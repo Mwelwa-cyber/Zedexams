@@ -1,4 +1,5 @@
 import LegalLayout from './LegalLayout'
+import SeoHelmet from '../seo/SeoHelmet'
 
 /*
  * NOTE TO MAINTAINERS
@@ -31,7 +32,13 @@ function UL({ children }) {
 
 export default function Terms() {
   return (
-    <LegalLayout title="Terms & Conditions" lastUpdated="29 April 2026">
+    <>
+      <SeoHelmet
+        title="Terms & Conditions"
+        description="The terms governing how learners, teachers and schools use ZedExams, including AI-output disclaimers and how to cancel."
+        path="/terms"
+      />
+      <LegalLayout title="Terms & Conditions" lastUpdated="29 April 2026">
       <P>
         Welcome to ZedExams. These Terms & Conditions ("Terms") govern your use of
         zedexams.com and any associated mobile or desktop apps (the "Service"). By creating
@@ -161,5 +168,6 @@ export default function Terms() {
         , or via the contact form on our home page.
       </P>
     </LegalLayout>
+    </>
   )
 }
