@@ -13,6 +13,7 @@ import {
 import { downloadWorksheetDocx } from '../../../utils/worksheetToDocx'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
+import SeoHelmet from '../../seo/SeoHelmet'
 
 /**
  * Worksheet Generator — pupil-facing worksheet + separate answer-key export.
@@ -130,6 +131,7 @@ export default function WorksheetGenerator() {
 
   return (
     <div className="min-h-screen p-4 sm:p-6 lg:p-8" style={{ background: '#f5efe1' }}>
+      <SeoHelmet title="Worksheet studio" noIndex />
       <div className="max-w-7xl mx-auto">
         <StudioPageHeader
           eyebrow="Worksheet Studio"

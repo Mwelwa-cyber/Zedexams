@@ -14,6 +14,7 @@ import { downloadRubricDocx } from '../../../utils/rubricToDocx'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import RubricView from '../views/RubricView'
 import StudioPageHeader from '../StudioPageHeader'
+import SeoHelmet from '../../seo/SeoHelmet'
 
 export default function RubricGenerator() {
   const urlDefaults = useFormDefaultsFromUrl()
@@ -96,6 +97,7 @@ export default function RubricGenerator() {
 
   return (
     <div className="min-h-screen p-4 sm:p-6 lg:p-8" style={{ background: '#f5efe1' }}>
+      <SeoHelmet title="Rubric studio" noIndex />
       <div className="max-w-7xl mx-auto">
         <StudioPageHeader
           eyebrow="Rubric Studio"

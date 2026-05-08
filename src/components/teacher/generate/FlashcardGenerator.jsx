@@ -12,6 +12,7 @@ import {
 import { downloadFlashcardsDocx } from '../../../utils/flashcardsToDocx'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
+import SeoHelmet from '../../seo/SeoHelmet'
 
 /**
  * Flashcard Generator — grid preview + keyboard-driven study mode + DOCX
@@ -138,6 +139,7 @@ export default function FlashcardGenerator() {
 
   return (
     <div className="min-h-screen p-4 sm:p-6 lg:p-8" style={{ background: '#f5efe1' }}>
+      <SeoHelmet title="Flashcard generator" noIndex />
       <div className="max-w-7xl mx-auto">
         <StudioPageHeader
           eyebrow="Flashcards"
