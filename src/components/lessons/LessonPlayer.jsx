@@ -10,6 +10,7 @@ import { ensureEndSlide, getSlideAnswers } from './lessonConstants'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
+import SeoHelmet from '../seo/SeoHelmet'
 
 function AnswersPanel({ answers }) {
   if (!answers.length) {
@@ -130,6 +131,7 @@ export default function LessonPlayer() {
   if (loading) {
     return (
       <div className="mx-auto max-w-5xl space-y-4 px-4 py-6">
+        <SeoHelmet title="Lesson" path={`/lessons/${lessonId}`} noIndex />
         <Skeleton height={32} width="66%" className="rounded-xl" />
         <Skeleton height={520} className="rounded-3xl" />
       </div>
@@ -139,6 +141,7 @@ export default function LessonPlayer() {
   if (!lesson) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center px-4">
+        <SeoHelmet title="Lesson not found" path={`/lessons/${lessonId}`} noIndex />
         <div className="text-center">
           <h1 className="text-display-xl text-gray-900">Lesson not found</h1>
           <div className="mt-4 inline-flex">
@@ -158,11 +161,17 @@ export default function LessonPlayer() {
   }
 
   if (lesson.mode === 'pptx_viewer' || lesson.creationMode === 'pptx_viewer') {
-    return <PowerPointViewerPlayer lesson={lesson} />
+    return (
+      <>
+        <SeoHelmet title={lesson.title || 'Lesson'} path={`/lessons/${lessonId}`} noIndex />
+        <PowerPointViewerPlayer lesson={lesson} />
+      </>
+    )
   }
 
   return (
     <div className="min-h-screen bg-gray-50">
+      <SeoHelmet title={lesson.title || 'Lesson'} path={`/lessons/${lessonId}`} noIndex />
       <div className="mx-auto max-w-6xl space-y-4 px-4 py-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
