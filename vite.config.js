@@ -37,6 +37,22 @@ export default defineConfig({
           // re-download them when other deps change.
           if (normalizedId.includes('/node_modules/lucide-react/')) return 'icons-vendor'
 
+          // Heroicons ships solid + outline + mini SVG modules — large enough
+          // to dominate the vendor chunk if they fall into the catch-all.
+          if (normalizedId.includes('/node_modules/@heroicons/')) return 'heroicons-vendor'
+
+          // DOCX export + file-saver are only reached from the teacher export
+          // flows (worksheet/lesson-plan/scheme-of-work/rubric/notes/assessment
+          // toDocx utilities), all behind lazy teacher routes. Keep them in
+          // their own chunk so a learner never pays for the docx assembler.
+          if (normalizedId.includes('/node_modules/docx/')) return 'docx-vendor'
+          if (normalizedId.includes('/node_modules/file-saver/')) return 'docx-vendor'
+
+          // Capacitor's native shell only matters inside the Android wrapper
+          // but ships to the web too via initNativeShell(). Splitting it keeps
+          // the web vendor bundle from carrying ~100 kB of unused plugin glue.
+          if (normalizedId.includes('/node_modules/@capacitor/')) return 'capacitor-vendor'
+
           // DOMPurify + fflate are only used inside the authoring flows.
           if (normalizedId.includes('/node_modules/dompurify/')) return 'sanitize-vendor'
           if (normalizedId.includes('/node_modules/fflate/')) return 'fflate-vendor'
