@@ -5,6 +5,7 @@ import { useFirestore } from '../../hooks/useFirestore'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
 import { downloadCSV } from '../../utils/csvExport'
+import SeoHelmet from '../seo/SeoHelmet'
 
 const GRADES = ['4', '5', '6', '7', '8', '9', '10', '11', '12']
 const PAGE_SIZE = 20
@@ -214,6 +215,7 @@ export default function AdminLearners() {
 
   return (
     <div className="space-y-5">
+      <SeoHelmet title="Learners" noIndex />
       <div>
         <p className="text-eyebrow">Admin overview</p>
         <h1 className="text-display-xl text-gray-800 mt-1 flex items-center gap-2">

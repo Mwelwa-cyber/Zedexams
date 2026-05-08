@@ -3,6 +3,7 @@ import { ClipboardList } from '../ui/icons'
 import { useFirestore } from '../../hooks/useFirestore'
 import PageHeader from '../ui/PageHeader'
 import EmptyState from '../ui/EmptyState'
+import SeoHelmet from '../seo/SeoHelmet'
 
 const SUBJECTS = [
   'Mathematics',
@@ -78,6 +79,7 @@ export default function AdminResults() {
 
   return (
     <div className="space-y-5">
+      <SeoHelmet title="Learner results" noIndex />
       <PageHeader
         eyebrow="Reporting"
         title="Learner Results"
