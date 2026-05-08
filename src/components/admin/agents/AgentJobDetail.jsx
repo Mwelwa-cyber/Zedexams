@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { doc, onSnapshot } from 'firebase/firestore'
+import { doc, onSnapshot, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
+import { useAuth } from '../../../contexts/AuthContext'
 import { AGENTS_BY_ID } from '../../../config/agents'
 import SeoHelmet from '../../seo/SeoHelmet'
 import Skeleton from '../../ui/Skeleton'
+import Button from '../../ui/Button'
 
 const STATUS_STYLES = {
   queued:             { cls: 'bg-gray-100 text-gray-600',     label: 'Queued'             },
@@ -40,6 +42,99 @@ function JsonBlock({ label, value }) {
         {formatted}
       </pre>
     </section>
+  )
+}
+
+function ApprovalPanel({ job }) {
+  const { currentUser } = useAuth()
+  const [busy, setBusy]         = useState(false)
+  const [rejecting, setRejecting] = useState(false)
+  const [reason, setReason]     = useState('')
+  const [errMsg, setErrMsg]     = useState(null)
+
+  async function update(fields) {
+    setBusy(true)
+    setErrMsg(null)
+    try {
+      await updateDoc(doc(db, `agentJobs/${job.id}`), {
+        ...fields,
+        reviewedBy: currentUser?.uid || null,
+        reviewedAt: serverTimestamp(),
+      })
+    } catch (e) {
+      setErrMsg(e.message || 'Update failed.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4 space-y-3">
+      <div>
+        <p className="text-sm font-black text-yellow-800">Awaiting your approval</p>
+        <p className="text-xs text-yellow-700 mt-0.5">
+          Approve to let Pubo publish the artifact, or reject with a reason.
+        </p>
+      </div>
+
+      {rejecting ? (
+        <div className="space-y-2">
+          <label className="block text-xs font-black text-yellow-900">Rejection reason</label>
+          <textarea
+            value={reason}
+            onChange={e => setReason(e.target.value)}
+            placeholder="Explain what needs to be fixed…"
+            rows={2}
+            className="w-full border border-yellow-300 rounded-lg px-3 py-2 text-xs focus:outline-none focus:border-yellow-500 resize-none bg-white"
+          />
+          <div className="flex gap-2">
+            <Button
+              variant="danger"
+              size="sm"
+              disabled={busy}
+              className="flex-1"
+              onClick={() => update({ status: 'rejected', reviewNotes: reason || null })}
+            >
+              Confirm reject
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              className="flex-1"
+              disabled={busy}
+              onClick={() => { setRejecting(false); setReason('') }}
+            >
+              Cancel
+            </Button>
+          </div>
+        </div>
+      ) : (
+        <div className="flex gap-2">
+          <Button
+            variant="primary"
+            size="md"
+            disabled={busy}
+            className="flex-1"
+            onClick={() => update({ status: 'approved' })}
+          >
+            Approve & publish
+          </Button>
+          <Button
+            variant="secondary"
+            size="md"
+            disabled={busy}
+            className="flex-1"
+            onClick={() => setRejecting(true)}
+          >
+            Reject
+          </Button>
+        </div>
+      )}
+
+      {errMsg && (
+        <p className="text-xs text-red-700">{errMsg}</p>
+      )}
+    </div>
   )
 }
 
@@ -124,17 +219,7 @@ export default function AgentJobDetail() {
         )}
       </header>
 
-      {/* Phase 1: read-only. Approve/Reject ships in Phase 2 alongside the
-          dispatcher Cloud Function. */}
-      {job.status === 'awaiting_approval' && (
-        <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-4">
-          <p className="text-sm font-black text-yellow-800">Awaiting your approval</p>
-          <p className="text-xs text-yellow-700 mt-1">
-            Approve & Reject controls land in Phase 2. For now, review the
-            input and output below.
-          </p>
-        </div>
-      )}
+      {job.status === 'awaiting_approval' && <ApprovalPanel job={job} />}
 
       {job.error && (
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">

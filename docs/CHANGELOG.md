@@ -6,6 +6,13 @@ on every push to `main`. Newest entries at the top.
 ## Unreleased
 
 ### Added
+- AI agents Phase 2: Cloud Function dispatcher wires the Content
+  pipeline end-to-end. Aria → Cala → Reva run on `agentJobs` create
+  (Aria currently supports `lesson_plan` and `worksheet`); after Reva
+  the job sits in `awaiting_approval`. Admin clicks Approve in
+  `/admin/agents`; Pubo flips the reserved `aiGenerations` doc from
+  private to public. Per-agent circuit breaker via
+  `agentControl/{agentId}.paused`.
 - AI agent operating model (Phase 1 skeleton): `ORG.md`, runbook in
   `docs/AGENTS.md`, seven Claude Code subagent definitions in
   `.claude/agents/`, `/admin/agents` dashboard, `agentJobs` Firestore
