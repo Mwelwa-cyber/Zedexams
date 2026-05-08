@@ -76,6 +76,134 @@ function validateInputs(inputs) {
   return errs;
 }
 
+async function runSchemeOfWork({uid, rawInputs, apiKey}) {
+  const inputs = sanitizeInputs(rawInputs || {});
+  const inputErrors = validateInputs(inputs);
+  if (inputErrors.length > 0) {
+    throw new HttpsError("invalid-argument", inputErrors.join(" "));
+  }
+
+  // CBC context — scheme-of-work uses the broad grade+subject context,
+  // not a specific topic, so we pass the term as the topic anchor.
+  const {contextBlock, kbMatch, kbWarning} = await resolveCbcContext({
+    grade: inputs.grade,
+    subject: inputs.subject,
+    topic: `Term ${inputs.term} overview`,
+    subtopic: "",
+  });
+
+  const usage = await assertAndIncrement(uid, "scheme_of_work");
+
+  const genRef = admin.firestore().collection("aiGenerations").doc();
+  await genRef.set({
+    ownerUid: uid,
+    tool: "scheme_of_work",
+    inputs,
+    output: null,
+    outputText: "",
+    modelUsed: "claude-sonnet-4-5",
+    promptVersion: PROMPT_VERSION,
+    kbVersion: KB_VERSION,
+    tokensIn: 0,
+    tokensOut: 0,
+    costUsdCents: 0,
+    status: "generating",
+    errorMessage: null,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    completedAt: null,
+    teacherEdited: false,
+    exportedFormats: [],
+    visibility: "private",
+  });
+
+  const userPrompt = buildUserPrompt(inputs);
+  let raw = "";
+  let usageInfo = {inputTokens: 0, outputTokens: 0};
+  let modelUsed = DEFAULT_MODEL;
+  try {
+    const response = await callClaude(apiKey, {
+      systemPrompt: SYSTEM_PROMPT,
+      cbcContextBlock: contextBlock,
+      messages: [{role: "user", content: userPrompt}],
+      maxTokens: 8000,   // schemes are long
+      temperature: 0.3,
+    });
+    raw = response.text || "";
+    usageInfo = response.usage || usageInfo;
+    modelUsed = response.model || modelUsed;
+  } catch (err) {
+    await genRef.update({
+      status: "failed",
+      errorMessage: String(err && err.message || err).slice(0, 500),
+    });
+    throw err;
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(stripJsonFences(raw));
+  } catch {
+    await genRef.update({
+      status: "failed",
+      errorMessage: "AI returned non-JSON output",
+      outputText: String(raw || "").slice(0, 12000),
+    });
+    throw new HttpsError(
+      "internal",
+      "The AI returned an unexpected response. Please try again.",
+    );
+  }
+
+  const validation = validateSchemeOfWork(parsed);
+  const scheme = validation.value;
+  if (!validation.ok) {
+    await genRef.update({
+      status: "flagged",
+      errorMessage: `Schema errors: ${validation.errors.join("; ")}`,
+      output: scheme,
+      outputText: String(raw || "").slice(0, 20000),
+      completedAt: admin.firestore.FieldValue.serverTimestamp(),
+      tokensIn: Number(usageInfo.inputTokens || 0),
+      tokensOut: Number(usageInfo.outputTokens || 0),
+      modelUsed,
+    });
+    return {
+      generationId: genRef.id,
+      schemeOfWork: scheme,
+      usage,
+      warning: [
+        "Some fields were incomplete — please review.",
+        kbWarning,
+      ].filter(Boolean).join(" "),
+      kbGrounded: Boolean(kbMatch),
+    };
+  }
+
+  const tokensIn = Number(usageInfo.inputTokens || 0);
+  const tokensOut = Number(usageInfo.outputTokens || 0);
+  const costUsdCents = Math.round(
+    ((tokensIn / 1e6) * 300) + ((tokensOut / 1e6) * 1500),
+  );
+  await genRef.update({
+    status: "complete",
+    output: scheme,
+    outputText: String(raw || "").slice(0, 20000),
+    tokensIn,
+    tokensOut,
+    costUsdCents,
+    modelUsed,
+    completedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return {
+    generationId: genRef.id,
+    schemeOfWork: scheme,
+    usage,
+    warning: kbWarning || null,
+    kbGrounded: Boolean(kbMatch),
+  };
+}
+
 function createGenerateSchemeOfWork(anthropicApiKeySecret) {
   return onCall(
     {secrets: [anthropicApiKeySecret], timeoutSeconds: 180, memory: "512MiB"},
@@ -89,142 +217,10 @@ function createGenerateSchemeOfWork(anthropicApiKeySecret) {
           "Teacher tools are available to approved teachers only.",
         );
       }
-
-      const inputs = sanitizeInputs(request.data || {});
-      const inputErrors = validateInputs(inputs);
-      if (inputErrors.length > 0) {
-        throw new HttpsError("invalid-argument", inputErrors.join(" "));
-      }
-
-      // CBC context — scheme-of-work uses the broad grade+subject context,
-      // not a specific topic, so we pass the term as the topic anchor.
-      const {contextBlock, kbMatch, kbWarning} = await resolveCbcContext({
-        grade: inputs.grade,
-        subject: inputs.subject,
-        topic: `Term ${inputs.term} overview`,
-        subtopic: "",
-      });
-
-      const usage = await assertAndIncrement(uid, "scheme_of_work");
-
-      const genRef = admin.firestore().collection("aiGenerations").doc();
-      await genRef.set({
-        ownerUid: uid,
-        tool: "scheme_of_work",
-        inputs,
-        output: null,
-        outputText: "",
-        modelUsed: "claude-sonnet-4-5",
-        promptVersion: PROMPT_VERSION,
-        kbVersion: KB_VERSION,
-        tokensIn: 0,
-        tokensOut: 0,
-        costUsdCents: 0,
-        status: "generating",
-        errorMessage: null,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        completedAt: null,
-        teacherEdited: false,
-        exportedFormats: [],
-        visibility: "private",
-      });
-
-      let apiKey;
-      try {
-        apiKey = getAnthropicApiKey(anthropicApiKeySecret);
-      } catch (err) {
-        await genRef.update({status: "failed", errorMessage: "AI key missing"});
-        throw err;
-      }
-
-      const userPrompt = buildUserPrompt(inputs);
-      let raw = "";
-      let usageInfo = {inputTokens: 0, outputTokens: 0};
-      let modelUsed = DEFAULT_MODEL;
-      try {
-        const response = await callClaude(apiKey, {
-          systemPrompt: SYSTEM_PROMPT,
-          cbcContextBlock: contextBlock,
-          messages: [{role: "user", content: userPrompt}],
-          maxTokens: 8000,   // schemes are long
-          temperature: 0.3,
-        });
-        raw = response.text || "";
-        usageInfo = response.usage || usageInfo;
-        modelUsed = response.model || modelUsed;
-      } catch (err) {
-        await genRef.update({
-          status: "failed",
-          errorMessage: String(err && err.message || err).slice(0, 500),
-        });
-        throw err;
-      }
-
-      let parsed;
-      try {
-        parsed = JSON.parse(stripJsonFences(raw));
-      } catch {
-        await genRef.update({
-          status: "failed",
-          errorMessage: "AI returned non-JSON output",
-          outputText: String(raw || "").slice(0, 12000),
-        });
-        throw new HttpsError(
-          "internal",
-          "The AI returned an unexpected response. Please try again.",
-        );
-      }
-
-      const validation = validateSchemeOfWork(parsed);
-      const scheme = validation.value;
-      if (!validation.ok) {
-        await genRef.update({
-          status: "flagged",
-          errorMessage: `Schema errors: ${validation.errors.join("; ")}`,
-          output: scheme,
-          outputText: String(raw || "").slice(0, 20000),
-          completedAt: admin.firestore.FieldValue.serverTimestamp(),
-          tokensIn: Number(usageInfo.inputTokens || 0),
-          tokensOut: Number(usageInfo.outputTokens || 0),
-          modelUsed,
-        });
-        return {
-          generationId: genRef.id,
-          schemeOfWork: scheme,
-          usage,
-          warning: [
-            "Some fields were incomplete — please review.",
-            kbWarning,
-          ].filter(Boolean).join(" "),
-          kbGrounded: Boolean(kbMatch),
-        };
-      }
-
-      const tokensIn = Number(usageInfo.inputTokens || 0);
-      const tokensOut = Number(usageInfo.outputTokens || 0);
-      const costUsdCents = Math.round(
-        ((tokensIn / 1e6) * 300) + ((tokensOut / 1e6) * 1500),
-      );
-      await genRef.update({
-        status: "complete",
-        output: scheme,
-        outputText: String(raw || "").slice(0, 20000),
-        tokensIn,
-        tokensOut,
-        costUsdCents,
-        modelUsed,
-        completedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      return {
-        generationId: genRef.id,
-        schemeOfWork: scheme,
-        usage,
-        warning: kbWarning || null,
-        kbGrounded: Boolean(kbMatch),
-      };
+      const apiKey = getAnthropicApiKey(anthropicApiKeySecret);
+      return runSchemeOfWork({uid, rawInputs: request.data, apiKey});
     },
   );
 }
 
-module.exports = {createGenerateSchemeOfWork};
+module.exports = {createGenerateSchemeOfWork, runSchemeOfWork};

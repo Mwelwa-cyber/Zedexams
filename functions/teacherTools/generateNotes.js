@@ -131,6 +131,161 @@ function deriveInputsFromLessonPlan(plan, base) {
   };
 }
 
+async function runNotes({uid, rawInputs, apiKey}) {
+  let inputs = sanitizeInputs(rawInputs || {});
+
+  // If a lesson plan is referenced, load it and use it to fill in any
+  // missing fields. This makes the from-plan flow as little as
+  // `{ lessonPlanId }`.
+  let sourcePlan = null;
+  if (inputs.lessonPlanId) {
+    sourcePlan = await loadLessonPlan(uid, inputs.lessonPlanId);
+    inputs = deriveInputsFromLessonPlan(sourcePlan, inputs);
+    // Re-sanitise grade/subject after pulling from the plan.
+    inputs.grade = String(inputs.grade || "").toUpperCase().replace(/\s+/g, "");
+    inputs.subject = String(inputs.subject || "").toLowerCase().replace(/[^a-z_]/g, "_");
+  }
+
+  const inputErrors = validateInputs(inputs);
+  if (inputErrors.length > 0) {
+    throw new HttpsError("invalid-argument", inputErrors.join(" "));
+  }
+
+  const {contextBlock, kbMatch, kbWarning} = await resolveCbcContext({
+    grade: inputs.grade,
+    subject: inputs.subject,
+    topic: inputs.topic,
+    subtopic: inputs.subtopic,
+  });
+
+  const usage = await assertAndIncrement(uid, "notes");
+
+  const genRef = admin.firestore().collection("aiGenerations").doc();
+  await genRef.set({
+    ownerUid: uid,
+    tool: "notes",
+    inputs,
+    output: null,
+    outputText: "",
+    modelUsed: NOTES_MODEL,
+    promptVersion: PROMPT_VERSION,
+    kbVersion: KB_VERSION,
+    tokensIn: 0,
+    tokensOut: 0,
+    costUsdCents: 0,
+    status: "generating",
+    errorMessage: null,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    completedAt: null,
+    teacherEdited: false,
+    exportedFormats: [],
+    visibility: "private",
+    ...(inputs.lessonPlanId ? {lessonPlanId: inputs.lessonPlanId} : {}),
+  });
+
+  const userPrompt = buildUserPrompt({
+    ...inputs,
+    lessonPlan: sourcePlan && sourcePlan.output,
+  });
+
+  let raw = "";
+  let usageInfo = {inputTokens: 0, outputTokens: 0};
+  let modelUsed = NOTES_MODEL;
+  try {
+    const response = await callClaude(apiKey, {
+      systemPrompt: SYSTEM_PROMPT,
+      cbcContextBlock: contextBlock,
+      messages: [{role: "user", content: userPrompt}],
+      maxTokens: 6000,
+      temperature: 0.4,
+      model: NOTES_MODEL,
+    });
+    raw = response.text || "";
+    usageInfo = response.usage || usageInfo;
+    modelUsed = response.model || modelUsed;
+  } catch (err) {
+    await genRef.update({
+      status: "failed",
+      errorMessage: String(err && err.message || err).slice(0, 500),
+    });
+    throw err;
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(stripJsonFences(raw));
+  } catch {
+    await genRef.update({
+      status: "failed",
+      errorMessage: "AI returned non-JSON output",
+      outputText: String(raw || "").slice(0, 12000),
+    });
+    throw new HttpsError(
+      "internal",
+      "The AI returned an unexpected response. Please try again.",
+    );
+  }
+
+  // Make sure the lessonPlanId is reflected inside header.lessonPlanId so
+  // the viewer can show "Built from lesson plan ↗" without an extra read.
+  if (inputs.lessonPlanId && parsed && parsed.header) {
+    parsed.header.lessonPlanId = inputs.lessonPlanId;
+  }
+
+  const validation = validateNotes(parsed);
+  const notes = validation.value;
+
+  const tokensIn = Number(usageInfo.inputTokens || 0);
+  const tokensOut = Number(usageInfo.outputTokens || 0);
+  // Sonnet pricing: ~$3/M input, $15/M output.
+  const costUsdCents = Math.round(
+    ((tokensIn / 1e6) * 300) + ((tokensOut / 1e6) * 1500),
+  );
+
+  if (!validation.ok) {
+    await genRef.update({
+      status: "flagged",
+      errorMessage: `Schema errors: ${validation.errors.join("; ")}`,
+      output: notes,
+      outputText: String(raw || "").slice(0, 20000),
+      completedAt: admin.firestore.FieldValue.serverTimestamp(),
+      tokensIn,
+      tokensOut,
+      costUsdCents,
+      modelUsed,
+    });
+    return {
+      generationId: genRef.id,
+      notes,
+      usage,
+      warning: [
+        "Some fields were incomplete — please review.",
+        kbWarning,
+      ].filter(Boolean).join(" "),
+      kbGrounded: Boolean(kbMatch),
+    };
+  }
+
+  await genRef.update({
+    status: "complete",
+    output: notes,
+    outputText: String(raw || "").slice(0, 20000),
+    tokensIn,
+    tokensOut,
+    costUsdCents,
+    modelUsed,
+    completedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return {
+    generationId: genRef.id,
+    notes,
+    usage,
+    warning: kbWarning || null,
+    kbGrounded: Boolean(kbMatch),
+  };
+}
+
 function createGenerateNotes(anthropicApiKeySecret) {
   return onCall(
     {secrets: [anthropicApiKeySecret], timeoutSeconds: 120, memory: "512MiB"},
@@ -144,169 +299,10 @@ function createGenerateNotes(anthropicApiKeySecret) {
           "Teacher tools are available to approved teachers only.",
         );
       }
-
-      let inputs = sanitizeInputs(request.data || {});
-
-      // If a lesson plan is referenced, load it and use it to fill in any
-      // missing fields. This makes the from-plan flow as little as
-      // `{ lessonPlanId }`.
-      let sourcePlan = null;
-      if (inputs.lessonPlanId) {
-        sourcePlan = await loadLessonPlan(uid, inputs.lessonPlanId);
-        inputs = deriveInputsFromLessonPlan(sourcePlan, inputs);
-        // Re-sanitise grade/subject after pulling from the plan.
-        inputs.grade = String(inputs.grade || "").toUpperCase().replace(/\s+/g, "");
-        inputs.subject = String(inputs.subject || "").toLowerCase().replace(/[^a-z_]/g, "_");
-      }
-
-      const inputErrors = validateInputs(inputs);
-      if (inputErrors.length > 0) {
-        throw new HttpsError("invalid-argument", inputErrors.join(" "));
-      }
-
-      const {contextBlock, kbMatch, kbWarning} = await resolveCbcContext({
-        grade: inputs.grade,
-        subject: inputs.subject,
-        topic: inputs.topic,
-        subtopic: inputs.subtopic,
-      });
-
-      const usage = await assertAndIncrement(uid, "notes");
-
-      const genRef = admin.firestore().collection("aiGenerations").doc();
-      await genRef.set({
-        ownerUid: uid,
-        tool: "notes",
-        inputs,
-        output: null,
-        outputText: "",
-        modelUsed: NOTES_MODEL,
-        promptVersion: PROMPT_VERSION,
-        kbVersion: KB_VERSION,
-        tokensIn: 0,
-        tokensOut: 0,
-        costUsdCents: 0,
-        status: "generating",
-        errorMessage: null,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        completedAt: null,
-        teacherEdited: false,
-        exportedFormats: [],
-        visibility: "private",
-        ...(inputs.lessonPlanId ? {lessonPlanId: inputs.lessonPlanId} : {}),
-      });
-
-      let apiKey;
-      try {
-        apiKey = getAnthropicApiKey(anthropicApiKeySecret);
-      } catch (err) {
-        await genRef.update({status: "failed", errorMessage: "AI key missing"});
-        throw err;
-      }
-
-      const userPrompt = buildUserPrompt({
-        ...inputs,
-        lessonPlan: sourcePlan && sourcePlan.output,
-      });
-
-      let raw = "";
-      let usageInfo = {inputTokens: 0, outputTokens: 0};
-      let modelUsed = NOTES_MODEL;
-      try {
-        const response = await callClaude(apiKey, {
-          systemPrompt: SYSTEM_PROMPT,
-          cbcContextBlock: contextBlock,
-          messages: [{role: "user", content: userPrompt}],
-          maxTokens: 6000,
-          temperature: 0.4,
-          model: NOTES_MODEL,
-        });
-        raw = response.text || "";
-        usageInfo = response.usage || usageInfo;
-        modelUsed = response.model || modelUsed;
-      } catch (err) {
-        await genRef.update({
-          status: "failed",
-          errorMessage: String(err && err.message || err).slice(0, 500),
-        });
-        throw err;
-      }
-
-      let parsed;
-      try {
-        parsed = JSON.parse(stripJsonFences(raw));
-      } catch {
-        await genRef.update({
-          status: "failed",
-          errorMessage: "AI returned non-JSON output",
-          outputText: String(raw || "").slice(0, 12000),
-        });
-        throw new HttpsError(
-          "internal",
-          "The AI returned an unexpected response. Please try again.",
-        );
-      }
-
-      // Make sure the lessonPlanId is reflected inside header.lessonPlanId so
-      // the viewer can show "Built from lesson plan ↗" without an extra read.
-      if (inputs.lessonPlanId && parsed && parsed.header) {
-        parsed.header.lessonPlanId = inputs.lessonPlanId;
-      }
-
-      const validation = validateNotes(parsed);
-      const notes = validation.value;
-
-      const tokensIn = Number(usageInfo.inputTokens || 0);
-      const tokensOut = Number(usageInfo.outputTokens || 0);
-      // Sonnet pricing: ~$3/M input, $15/M output.
-      const costUsdCents = Math.round(
-        ((tokensIn / 1e6) * 300) + ((tokensOut / 1e6) * 1500),
-      );
-
-      if (!validation.ok) {
-        await genRef.update({
-          status: "flagged",
-          errorMessage: `Schema errors: ${validation.errors.join("; ")}`,
-          output: notes,
-          outputText: String(raw || "").slice(0, 20000),
-          completedAt: admin.firestore.FieldValue.serverTimestamp(),
-          tokensIn,
-          tokensOut,
-          costUsdCents,
-          modelUsed,
-        });
-        return {
-          generationId: genRef.id,
-          notes,
-          usage,
-          warning: [
-            "Some fields were incomplete — please review.",
-            kbWarning,
-          ].filter(Boolean).join(" "),
-          kbGrounded: Boolean(kbMatch),
-        };
-      }
-
-      await genRef.update({
-        status: "complete",
-        output: notes,
-        outputText: String(raw || "").slice(0, 20000),
-        tokensIn,
-        tokensOut,
-        costUsdCents,
-        modelUsed,
-        completedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      return {
-        generationId: genRef.id,
-        notes,
-        usage,
-        warning: kbWarning || null,
-        kbGrounded: Boolean(kbMatch),
-      };
+      const apiKey = getAnthropicApiKey(anthropicApiKeySecret);
+      return runNotes({uid, rawInputs: request.data, apiKey});
     },
   );
 }
 
-module.exports = {createGenerateNotes};
+module.exports = {createGenerateNotes, runNotes};
