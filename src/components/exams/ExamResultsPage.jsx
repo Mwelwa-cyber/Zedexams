@@ -12,6 +12,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { getExamAttempt, getExamWithQuestions } from '../../utils/examService'
 import { subscribeToDailyLeaderboard, fmtDuration } from '../../utils/examLeaderboardService'
 import Navbar from '../layout/Navbar'
+import SeoHelmet from '../seo/SeoHelmet'
 import useSoundEffects from '../../hooks/useSoundEffects'
 import { Volume2, VolumeX } from '../ui/icons'
 
@@ -371,6 +372,7 @@ export default function ExamResultsPage() {
 
   if (loading) return (
     <div className="theme-bg flex min-h-screen items-center justify-center">
+      <SeoHelmet title="Exam results" path={`/exam-results/${attemptId}`} noIndex />
       <div className="text-center">
         <div className="mb-3 text-5xl animate-bounce">📊</div>
         <p className="theme-accent-text text-lg font-bold">Loading results…</p>
@@ -380,6 +382,7 @@ export default function ExamResultsPage() {
 
   if (error || !attempt) return (
     <div className="theme-bg flex min-h-screen items-center justify-center px-4">
+      <SeoHelmet title="Exam results" path={`/exam-results/${attemptId}`} noIndex />
       <div className="theme-card theme-border w-full max-w-sm rounded-3xl border p-8 text-center">
         <p className="text-4xl mb-3">😕</p>
         <p className="font-bold text-red-600">{error || 'Result not found.'}</p>
@@ -396,6 +399,11 @@ export default function ExamResultsPage() {
 
   return (
     <div className="min-h-screen theme-bg theme-text">
+      <SeoHelmet
+        title={`${attempt.percentage ?? 0}% on ${attempt.subject || 'exam'}`}
+        path={`/exam-results/${attemptId}`}
+        noIndex
+      />
       <Navbar />
 
       <div className="mx-auto max-w-2xl px-4 py-6 pb-28 space-y-5">
