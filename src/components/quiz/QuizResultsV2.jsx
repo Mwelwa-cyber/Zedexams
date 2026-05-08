@@ -375,10 +375,23 @@ export default function QuizResultsV2() {
           More quizzes
         </Button>
       </div>
-      <div className="mt-3 text-center">
+      <div className="mt-3 flex flex-col items-center gap-2">
         <span className="bg-success-subtle text-success inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold">
           <Icon as={Check} size="xs" /> Result saved to your history
         </span>
+        {/* WhatsApp share — opens the user's WhatsApp with a templated
+            message that links to the homepage (not the auth-protected
+            result page), so the recipient can sign up and try a quiz too.
+            wa.me deep links work on mobile + desktop WhatsApp Web. */}
+        <a
+          href={`https://wa.me/?text=${encodeURIComponent(`I just scored ${percentage}% on ${result.subject || 'a ZedExams quiz'}! 🎓 Try ZedExams for CBC exam prep: https://zedexams.com`)}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => playClick()}
+          className="inline-flex items-center gap-2 rounded-full bg-green-500 hover:bg-green-600 px-4 py-2 text-sm font-bold text-white transition-colors"
+        >
+          <span aria-hidden="true">💬</span> Share on WhatsApp
+        </a>
       </div>
     </div>
   )
