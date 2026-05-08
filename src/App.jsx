@@ -7,6 +7,7 @@ import LearnerOnlyRoute from './components/auth/LearnerOnlyRoute'
 import Navbar from './components/layout/Navbar'
 import { getRoleLandingPath } from './utils/navigation'
 import PageLoader from './components/ui/PageLoader'
+import OfflineBanner from './components/ui/OfflineBanner'
 
 // Public marketing/auth routes always render in the brand-default Sky theme
 // so a visitor's previously-saved preference (e.g. Vivid's deep violet bg)
@@ -249,6 +250,10 @@ export default function App() {
           some routes (e.g. PublicShareView) render their own <main>, and
           the spec only allows one main landmark per document. */}
       <a href="#main" className="skip-link">Skip to main content</a>
+      {/* Offline banner — slides in at the top when navigator.onLine flips
+          false. Firestore queues writes locally so the user's progress
+          survives the network drop; this is the visible reassurance. */}
+      <OfflineBanner />
       <ThemeApplicator />
       <div id="main" tabIndex={-1}>
         <Suspense fallback={<PageLoader />}>
