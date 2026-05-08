@@ -7,6 +7,7 @@ import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { todayString } from '../../utils/examService'
+import SeoHelmet from '../seo/SeoHelmet'
 
 const TABS = [
   { id: 'quizzes', label: '📝 Quizzes' },
@@ -441,6 +442,7 @@ export default function ManageContent() {
 
   return (
     <div className="space-y-5">
+      <SeoHelmet title="Manage content" noIndex />
       {/* Toast */}
       {toast && (
         <div className={`fixed top-4 right-4 z-50 font-bold px-5 py-3 rounded-2xl shadow-lg text-sm max-w-xs ${

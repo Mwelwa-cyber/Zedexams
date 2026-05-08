@@ -13,6 +13,7 @@ import {
   TEACHER_GRADES,
   TEACHER_SUBJECTS,
 } from '../../utils/teacherTools'
+import SeoHelmet from '../seo/SeoHelmet'
 
 /**
  * Admin-only ops page at /admin/generations.
@@ -103,6 +104,7 @@ export default function GenerationsAdmin() {
 
   return (
     <div className="space-y-5">
+      <SeoHelmet title="AI generations" noIndex />
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-eyebrow">Admin</p>

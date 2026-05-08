@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import StatusBadge from '../ui/StatusBadge'
 import Button from '../ui/Button'
 import Skeleton from '../ui/Skeleton'
+import SeoHelmet from '../seo/SeoHelmet'
 
 const TYPE_ICONS = { quiz: '✏️', lesson: '📖' }
 
@@ -120,6 +121,7 @@ export default function ContentApprovals() {
 
   return (
     <div className="space-y-5">
+      <SeoHelmet title="Content approvals" noIndex />
       {toast && (
         <div className="fixed top-4 right-4 z-50 bg-gray-800 text-white font-bold px-5 py-3 rounded-2xl shadow-lg text-sm max-w-xs">
           {toast}

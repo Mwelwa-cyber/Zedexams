@@ -9,6 +9,7 @@ import { Plus } from '../../../components/ui/icons'
 import { useAdminNotes } from '../hooks/useAdminNotes'
 import { NoteFilters } from '../components/NoteFilters'
 import { NoteCard } from '../components/NoteCard'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
 import '../styles/notes.css'
 
 export function AdminNotesList() {
@@ -22,6 +23,7 @@ export function AdminNotesList() {
 
   return (
     <div className="notes-studio min-h-full" style={{ backgroundColor: '#FAFAF7' }}>
+      <SeoHelmet title="Admin notes" noIndex />
       <main className="max-w-6xl mx-auto px-5 py-8">
         <div className="flex items-end justify-between mb-8 flex-wrap gap-4">
           <div>
