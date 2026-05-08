@@ -21,6 +21,7 @@ import {
   getGameTypeTheme,
   getSubjectMascot,
 } from './gamesUi'
+import SeoHelmet from '../seo/SeoHelmet'
 
 const SUBJECT_TILE_BG = {
   mathematics: 'bg-orange-100',
@@ -72,10 +73,6 @@ export default function PlayGame() {
     return () => { cancelled = true }
   }, [gameId])
 
-  useEffect(() => {
-    if (game?.title) document.title = `${game.title} — ZedExams Games`
-  }, [game?.title])
-
   if (notFound) return <Navigate to="/games" replace />
   if (loading || !game) {
     return (
@@ -119,6 +116,11 @@ export default function PlayGame() {
 
   return (
     <GamesShell crumbs={crumbs} maxW="max-w-4xl">
+      <SeoHelmet
+        title={game.title}
+        description={game.description || `Play ${game.title} on ZedExams. CBC-aligned learning game for ${gradeMeta?.label || 'Zambian learners'}.`}
+        path={`/games/play/${game.id || gameId}`}
+      />
       {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
       <GameHeader game={game} subjectMeta={subjectMeta} gradeMeta={gradeMeta} />
       {locked ? (
