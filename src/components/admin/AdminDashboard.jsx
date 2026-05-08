@@ -11,6 +11,7 @@ import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
 import PageHeader from '../ui/PageHeader'
 import EmptyState from '../ui/EmptyState'
+import SeoHelmet from '../seo/SeoHelmet'
 
 const STAT_TINT = {
   green:  't-mint',
@@ -140,6 +141,7 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-6">
+      <SeoHelmet title="Admin dashboard" noIndex />
       <PageHeader
         eyebrow="Admin overview"
         title="Dashboard"
