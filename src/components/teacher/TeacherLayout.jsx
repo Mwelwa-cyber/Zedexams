@@ -8,6 +8,7 @@ import {
   X,
   LogOut,
   Settings,
+  Bot,
 } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import Logo from '../ui/Logo'
@@ -18,6 +19,7 @@ const NAV = [
   { to: '/teacher',                  icon: LayoutDashboard, label: 'My Dashboard', end: true },
   { to: '/teacher/assessments',      icon: PencilLine,      label: 'Assessments'             },
   { to: '/teacher/lessons/new',      icon: BookOpen,        label: 'Create Lesson'           },
+  { to: '/teacher/agents',           icon: Bot,             label: 'Agent Submissions'       },
   { to: '/settings',                 icon: Settings,        label: 'Settings'                },
 ]
 

@@ -336,8 +336,10 @@ service cloud.firestore {
 
       // Clients create a job by setting agentId, department, input only.
       // Status is forced to 'queued'; output, error, reviewedBy stay
-      // empty until the dispatcher / admin acts.
-      allow create: if isAuthed()
+      // empty until the dispatcher / admin acts. Restricted to teachers
+      // and admins because the dispatcher invokes server-side runners
+      // (e.g. runLessonPlan) that are paid teacher tools.
+      allow create: if isTeacherOrAbove()
                        && incoming().agentId is string
                        && incoming().agentId.size() <= 64
                        && incoming().department is string

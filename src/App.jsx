@@ -84,6 +84,11 @@ const AgentsAllJobs   = lazy(() => import('./components/admin/agents/AgentsHome'
 const AgentProfile    = lazy(() => import('./components/admin/agents/AgentsHome').then(m => ({ default: m.AgentProfile })))
 const AgentJobDetail  = lazy(() => import('./components/admin/agents/AgentJobDetail'))
 
+// Teacher — Agent submissions
+const AgentBriefForm       = lazy(() => import('./components/teacher/AgentBriefForm'))
+const TeacherAgentJobsList = lazy(() => import('./components/teacher/AgentJobsList').then(m => ({ default: m.AgentJobsList })))
+const TeacherAgentJobView  = lazy(() => import('./components/teacher/AgentJobsList').then(m => ({ default: m.AgentJobView })))
+
 // Teacher section
 const TeacherLayout = lazy(() => import('./components/teacher/TeacherLayout'))
 const TeacherDashboard = lazy(() => import('./components/teacher/TeacherDashboard'))
@@ -345,6 +350,9 @@ export default function App() {
           <Route path="/teacher/library"                 element={<TeacherRoute><TeacherLibrary /></TeacherRoute>} />
           <Route path="/teacher/library/:id"             element={<TeacherRoute><LibraryItemDetail /></TeacherRoute>} />
           <Route path="/teacher/syllabi"                 element={<TeacherRoute><SyllabiLibrary /></TeacherRoute>} />
+          <Route path="/teacher/agents"                  element={<TeacherRoute><TeacherAgentJobsList /></TeacherRoute>} />
+          <Route path="/teacher/agents/new"              element={<TeacherRoute><AgentBriefForm /></TeacherRoute>} />
+          <Route path="/teacher/agents/:jobId"           element={<TeacherRoute><TeacherAgentJobView /></TeacherRoute>} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>

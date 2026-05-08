@@ -6,6 +6,12 @@ on every push to `main`. Newest entries at the top.
 ## Unreleased
 
 ### Added
+- AI agents Phase 4: teacher-facing brief form. Teachers can submit a
+  CBC lesson plan or worksheet brief at `/teacher/agents/new`; the
+  job runs Aria → Cala → Reva and lands in `awaiting_approval` for
+  admin review. A live status page (`/teacher/agents/:jobId`) shows
+  pipeline phase, output from each agent, and the final published
+  artifact. `agentJobs` create rule tightened to teachers and admins.
 - AI agents Phase 3: nightly Quill QA smoke (Cloud Function cron,
   Africa/Lusaka 02:00) walks Firestore for stuck jobs, recent
   failures, and KB freshness — writes a summary `agentJobs` doc.
