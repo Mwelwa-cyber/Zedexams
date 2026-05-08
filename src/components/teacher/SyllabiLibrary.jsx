@@ -5,6 +5,7 @@ import {
   formatSyllabusSize,
   syllabusIcon,
 } from '../../data/syllabiCatalog'
+import SeoHelmet from '../seo/SeoHelmet'
 
 const COLORS = {
   ink: '#0e2a32',
@@ -380,6 +381,7 @@ export default function SyllabiLibrary() {
 
   return (
     <div>
+      <SeoHelmet title="Syllabi" noIndex />
       <div className="flex items-center gap-3 mb-2">
         <div
           style={{

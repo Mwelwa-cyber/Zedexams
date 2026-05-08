@@ -5,6 +5,7 @@ import { useFirestore } from '../../hooks/useFirestore'
 import { LESSON_GRADES, LESSON_SUBJECTS } from './lessonConstants'
 import Button from '../ui/Button'
 import Skeleton from '../ui/Skeleton'
+import SeoHelmet from '../seo/SeoHelmet'
 
 const STATUS = {
   published: 'bg-emerald-100 text-emerald-700',
@@ -233,6 +234,7 @@ export default function LessonDashboard() {
 
   return (
     <div className="space-y-5">
+      <SeoHelmet title="My lessons" noIndex />
       {toast && (
         <div className={`fixed right-4 top-4 z-50 max-w-sm rounded-2xl px-5 py-3 text-sm font-black text-white shadow-lg ${toast.error ? 'bg-red-600' : 'bg-emerald-700'}`}>
           {toast.message}

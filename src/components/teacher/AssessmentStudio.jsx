@@ -25,6 +25,7 @@ import { getErrorMessage } from '../../utils/errors.js'
 import { validateStandaloneQuestion as sharedValidateStandaloneQuestion } from '../../utils/quizValidation.js'
 import QuizSectionsEditor from '../quiz/QuizSectionsEditor'
 import QuizEditorPreviewPanel from '../quiz/QuizEditorPreviewPanel'
+import SeoHelmet from '../seo/SeoHelmet'
 import {
   QUIZ_DOCUMENT_ACCEPT,
   importQuizDocument,
@@ -1032,6 +1033,7 @@ export default function AssessmentStudio() {
 
   return (
     <div className="theme-text space-y-5">
+      <SeoHelmet title="New assessment" noIndex />
       {toast && (
         <div className={`fixed right-4 top-4 z-50 max-w-xs rounded-2xl px-5 py-3 text-sm font-bold text-white shadow-lg ${
           toast.isErr ? 'bg-red-600' : 'theme-accent-fill theme-on-accent'

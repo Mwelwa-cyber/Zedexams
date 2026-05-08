@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { PLANS, getActivePlan } from '../../utils/subscriptionConfig'
 import { ensureProFonts } from '../../utils/proFonts'
+import SeoHelmet from '../seo/SeoHelmet'
 
 const CONFETTI_COLORS = ['#F36A2A', '#FBE4D5', '#F2C49B', '#FFFFFF', '#9DB1AE']
 
@@ -70,6 +71,7 @@ export default function WelcomeToPro() {
 
   return (
     <>
+      <SeoHelmet title="Welcome to Pro" noIndex />
       <style>{styles}</style>
       <div className="zwp-page">
         <div className="zwp-wrap">
