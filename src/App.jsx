@@ -8,6 +8,7 @@ import Navbar from './components/layout/Navbar'
 import { getRoleLandingPath } from './utils/navigation'
 import PageLoader from './components/ui/PageLoader'
 import OfflineBanner from './components/ui/OfflineBanner'
+import UpdatePrompt from './components/ui/UpdatePrompt'
 
 // Public marketing/auth routes always render in the brand-default Sky theme
 // so a visitor's previously-saved preference (e.g. Vivid's deep violet bg)
@@ -254,6 +255,9 @@ export default function App() {
           false. Firestore queues writes locally so the user's progress
           survives the network drop; this is the visible reassurance. */}
       <OfflineBanner />
+      {/* PWA update prompt — registers the service worker on mount, then
+          shows a small toast at the bottom when a new SW is waiting. */}
+      <UpdatePrompt />
       <ThemeApplicator />
       <div id="main" tabIndex={-1}>
         <Suspense fallback={<PageLoader />}>

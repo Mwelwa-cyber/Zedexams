@@ -50,6 +50,14 @@ export default class ErrorBoundary extends Component {
     console.error('ErrorBoundary caught:', error, info?.componentStack)
 
     if (isChunkLoadError(error)) {
+      // Don't auto-reload while offline — the network fetch will fail
+      // again and the user gets stuck in a reload loop. Fall through
+      // to the normal recovery card; the OfflineBanner already tells
+      // them what's going on, and "Try again" works once they're back.
+      // (audit A1.2)
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+        return
+      }
       // The cooldown stamp prevents an infinite reload loop if a real bug
       // happens to throw a chunk-shaped message — after a single retry inside
       // 30 s the boundary falls through to the normal recovery card.
