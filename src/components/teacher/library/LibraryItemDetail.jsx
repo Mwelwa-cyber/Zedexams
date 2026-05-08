@@ -15,6 +15,7 @@ import FlashcardsView from '../views/FlashcardsView'
 import SchemeOfWorkView from '../views/SchemeOfWorkView'
 import RubricView from '../views/RubricView'
 import NotesView from '../views/NotesView'
+import SeoHelmet from '../../seo/SeoHelmet'
 import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
 import { downloadWorksheetDocx } from '../../../utils/worksheetToDocx'
 import { downloadFlashcardsDocx } from '../../../utils/flashcardsToDocx'
@@ -203,6 +204,7 @@ export default function LibraryItemDetail() {
 
   return (
     <div className="min-h-screen p-4 sm:p-6 lg:p-8" style={{ background: '#f5efe1' }}>
+      <SeoHelmet title={item?.title || meta.label || 'Library item'} noIndex />
       <div className="max-w-5xl mx-auto">
         {/* Breadcrumb */}
         <nav className="mb-4 text-sm" style={{ color: '#566f76' }}>

@@ -30,6 +30,7 @@ import { NoteMetaPanel } from '../components/NoteMetaPanel'
 import { NoteEditor }    from '../components/NoteEditor'
 import { NoteUploader }  from '../components/NoteUploader'
 import { PublishToggle } from '../components/PublishToggle'
+import SeoHelmet         from '../../../components/seo/SeoHelmet'
 import '../styles/notes.css'
 
 const AUTOSAVE_DELAY_MS = 1500
@@ -196,6 +197,7 @@ export function AdminNoteEditor() {
 
   return (
     <div className="notes-studio min-h-full" style={{ backgroundColor: '#FAFAF7' }}>
+      <SeoHelmet title={title || (isNew ? 'New note' : 'Edit note')} noIndex />
       <main className="max-w-5xl mx-auto px-5 py-6">
         <div className="flex items-center justify-between mb-6 flex-wrap gap-3">
           <button
