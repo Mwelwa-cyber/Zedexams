@@ -6,6 +6,7 @@ import { useFirestore } from '../../hooks/useFirestore'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
+import SeoHelmet from '../seo/SeoHelmet'
 
 const SUBJECTS = [
   'Mathematics', 'English', 'Integrated Science', 'Social Studies',
@@ -88,6 +89,7 @@ export default function MyResults() {
 
   return (
     <div className="max-w-2xl md:max-w-3xl mx-auto px-4 py-6">
+      <SeoHelmet title="My results" path="/my-results" noIndex />
       <div className="mb-5">
         <p className="text-eyebrow">Your progress</p>
         <h1 className="text-display-xl theme-text mt-1 flex items-center gap-2">
