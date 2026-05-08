@@ -522,6 +522,10 @@ service cloud.firestore {
       allow create: if isAuthed()
         && incoming().learnerUid == request.auth.uid
         && incoming().keys().hasAll(['learnerUid', 'createdAt'])
+        // Pin createdAt to the server clock so clients can't backdate or
+        // post-date observation records (skews analytics + ordering).
+        // Mirrors the pattern used by /shares and /generatedContent.
+        && incoming().createdAt == request.time
         && incoming().learnerUid is string && incoming().learnerUid.size() <= 64
         && (!('subject' in incoming()) || (incoming().subject is string && incoming().subject.size() <= 80))
         && (!('topic'   in incoming()) || (incoming().topic   is string && incoming().topic.size() <= 200))
