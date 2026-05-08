@@ -51,6 +51,7 @@ import MobileBottomNav          from '../layout/MobileBottomNav'
 import { useSubscription }      from '../../hooks/useSubscription'
 import GameStickerStyles        from '../games/GameStickerStyles'
 import SeoHelmet                from '../seo/SeoHelmet'
+import { computeStreak }        from '../../utils/streak'
 import { getTodaysExam, checkDailyLock } from '../../utils/examService'
 
 // ── Sub-components ─────────────────────────────────────────────────────────
@@ -531,11 +532,18 @@ export default function GradeHub() {
     let cancelled = false
     setLoading(true)
 
-    getUserResults(currentUser.uid, 5).then(results => {
+    // Fetch 30 most recent so the streak count is accurate up to a 30-day
+    // run; the recent-results section below slices to the first 5 for
+    // display. The total payload is still small (~30 result docs).
+    getUserResults(currentUser.uid, 30).then(results => {
       if (cancelled) return
       setRecentResults(results)
-      // Calculate streak from lastActiveDate pattern
-      const streak = userProfile?.currentStreak ?? 0
+      // Streak is computed client-side from the loaded attempt timestamps;
+      // userProfile.currentStreak isn't written by the app today, so this
+      // replaces the previous always-0 fallback. Once a Cloud Function /
+      // user document field is added (audit A5), prefer that and keep this
+      // as the offline / first-load fallback.
+      const streak = computeStreak(results.map(r => r.completedAt ?? r.createdAt))
       setStats({ quizzes: results.length, streak })
       setLoading(false)
     }).catch(err => {
@@ -1361,7 +1369,9 @@ export default function GradeHub() {
                 </div>
               </div>
             ) : (
-              recentResults.map(r => <RecentResultRow key={r.id} result={r} />)
+              // Display only the 5 most recent; the full 30 stay loaded
+              // for the streak compute above.
+              recentResults.slice(0, 5).map(r => <RecentResultRow key={r.id} result={r} />)
             )}
           </div>
         </section>
