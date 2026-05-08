@@ -9,6 +9,7 @@ import SubjectScroller from '../ui/SubjectScroller'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
+import SeoHelmet from '../seo/SeoHelmet'
 
 // ── Design tokens ──────────────────────────────────────────────────────────
 const GRADES = ['4', '5', '6']
@@ -252,6 +253,7 @@ export default function QuizList() {
 
   return (
     <div className="min-h-screen theme-bg">
+      <SeoHelmet title="Quizzes" path="/quizzes" noIndex />
       {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
 
       {/* Blocked toast */}

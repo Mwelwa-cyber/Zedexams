@@ -15,6 +15,7 @@ import { useLearnerProfile }   from '../hooks/useLearnerProfile'
 import { useLearnerNotes }     from '../hooks/useLearnerNotes'
 import { LearnerNoteCard }     from '../components/LearnerNoteCard'
 import { getSubjectsForGrade } from '../../../config/curriculum'
+import SeoHelmet               from '../../../components/seo/SeoHelmet'
 import '../styles/notes.css'
 
 export function LearnerNotesList() {
@@ -41,6 +42,7 @@ export function LearnerNotesList() {
 
   return (
     <div className="notes-studio min-h-screen pb-24 md:pb-8" style={{ backgroundColor: '#FAFAF7' }}>
+      <SeoHelmet title="Notes" path="/notes" noIndex />
       <main className="max-w-5xl mx-auto px-5 py-8">
         <div className="mb-6">
           <div className="text-xs tracking-[0.2em] uppercase text-neutral-500 mb-2">Your notes</div>

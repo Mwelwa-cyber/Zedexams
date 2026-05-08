@@ -16,6 +16,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { SUBJECTS } from '../../config/curriculum'
 import { getTodaysExam, checkDailyLock } from '../../utils/examService'
 import Navbar from '../layout/Navbar'
+import SeoHelmet from '../seo/SeoHelmet'
 
 function pctColor(p) {
   if (p >= 70) return 'text-green-600'
@@ -196,6 +197,7 @@ export default function DailyExamsHub() {
 
   return (
     <div className="theme-bg theme-text min-h-screen">
+      <SeoHelmet title="Daily exams" path="/exams" noIndex />
       <Navbar />
 
       <div className="mx-auto max-w-3xl px-4 pb-24 pt-6">
