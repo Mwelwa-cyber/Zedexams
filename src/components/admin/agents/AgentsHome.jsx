@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
-import { doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore'
+import {
+  collection, doc, getDocs, limit as fsLimit, onSnapshot, orderBy, query,
+  serverTimestamp, setDoc, where,
+} from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
 import SeoHelmet from '../../seo/SeoHelmet'
@@ -8,6 +11,183 @@ import { AGENTS_BY_ID, DEPARTMENTS } from '../../../config/agents'
 import AgentDirectory from './AgentDirectory'
 import AgentJobsQueue from './AgentJobsQueue'
 import AgentRunHistory from './AgentRunHistory'
+
+function AgentCostMeter({ agentId }) {
+  // Aggregate over the most recent 50 jobs for this agent. For agents that
+  // produce aiGenerations (Aria via runX runners), join via
+  // publishedRefs[0].docId to pull tokensIn/tokensOut/costUsdCents. Other
+  // agents (Cala, Reva, Quill) typically have no aiGenerations doc; we
+  // fall back to a job count + a note.
+  const [stats, setStats] = useState(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    if (!agentId) return
+    let cancelled = false
+
+    async function load() {
+      setLoading(true)
+      try {
+        const jobsSnap = await getDocs(query(
+          collection(db, 'agentJobs'),
+          where('agentId', '==', agentId),
+          orderBy('createdAt', 'desc'),
+          fsLimit(50),
+        ))
+        const jobs = jobsSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+
+        // De-dupe + bound aiGenerations reads at one per job (≤50 total).
+        const genIds = [...new Set(
+          jobs
+            .map(j => j.publishedRefs?.[0]?.docId)
+            .filter(Boolean),
+        )]
+        const genSnaps = await Promise.all(
+          genIds.map(id => getDocs(query(
+            collection(db, 'aiGenerations'),
+            where('__name__', '==', id),
+            fsLimit(1),
+          )).catch(() => null)),
+        )
+        const gens = {}
+        genSnaps.forEach((snap, i) => {
+          if (snap && !snap.empty) gens[genIds[i]] = snap.docs[0].data()
+        })
+
+        const counts = { done: 0, failed: 0, awaiting_approval: 0, other: 0 }
+        let totalCostCents = 0
+        let totalTokensIn  = 0
+        let totalTokensOut = 0
+        let lastRun = null
+        jobs.forEach(j => {
+          if (counts[j.status] !== undefined) counts[j.status] += 1
+          else counts.other += 1
+          if (!lastRun || (j.createdAt && j.createdAt.seconds > (lastRun.seconds || 0))) {
+            lastRun = j.createdAt
+          }
+          const genId = j.publishedRefs?.[0]?.docId
+          const gen = genId && gens[genId]
+          if (gen) {
+            totalCostCents += Number(gen.costUsdCents || 0)
+            totalTokensIn  += Number(gen.tokensIn || 0)
+            totalTokensOut += Number(gen.tokensOut || 0)
+          }
+        })
+
+        if (cancelled) return
+        setStats({
+          counts,
+          totalCostCents,
+          totalTokensIn,
+          totalTokensOut,
+          totalJobs: jobs.length,
+          jobsWithCost: genIds.length,
+          lastRun,
+        })
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    load()
+    return () => { cancelled = true }
+  }, [agentId])
+
+  if (loading || !stats) {
+    return (
+      <section className="theme-card theme-border rounded-2xl border p-4">
+        <p className="text-sm font-black theme-text">Activity & cost</p>
+        <p className="text-xs theme-text-muted mt-0.5">Loading…</p>
+      </section>
+    )
+  }
+
+  if (stats.totalJobs === 0) {
+    return (
+      <section className="theme-card theme-border rounded-2xl border p-4">
+        <p className="text-sm font-black theme-text">Activity & cost</p>
+        <p className="text-xs theme-text-muted mt-0.5">
+          No runs yet. Stats land here once this agent runs.
+        </p>
+      </section>
+    )
+  }
+
+  const dollars = (stats.totalCostCents / 100).toFixed(2)
+  const lastRunFmt = stats.lastRun
+    ? (stats.lastRun.toDate
+        ? stats.lastRun.toDate()
+        : new Date(stats.lastRun)
+      ).toLocaleString('en-GB', {
+        day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+      })
+    : '—'
+
+  return (
+    <section className="theme-card theme-border rounded-2xl border p-4">
+      <header className="flex items-baseline justify-between mb-3">
+        <p className="text-sm font-black theme-text">Activity & cost</p>
+        <span className="text-[10px] theme-text-muted">last 50 runs</span>
+      </header>
+
+      <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4 text-xs">
+        <div>
+          <dt className="font-black uppercase tracking-wide text-gray-500">Runs</dt>
+          <dd className="theme-text mt-0.5 text-lg font-black">{stats.totalJobs}</dd>
+        </div>
+        <div>
+          <dt className="font-black uppercase tracking-wide text-gray-500">Cost</dt>
+          <dd className="theme-text mt-0.5 text-lg font-black">
+            {stats.jobsWithCost > 0 ? `$${dollars}` : '—'}
+          </dd>
+          {stats.jobsWithCost > 0 && (
+            <p className="theme-text-muted text-[10px] mt-0.5">
+              from {stats.jobsWithCost} aiGenerations
+            </p>
+          )}
+        </div>
+        <div>
+          <dt className="font-black uppercase tracking-wide text-gray-500">Tokens in</dt>
+          <dd className="theme-text mt-0.5 font-bold">{stats.totalTokensIn.toLocaleString()}</dd>
+        </div>
+        <div>
+          <dt className="font-black uppercase tracking-wide text-gray-500">Tokens out</dt>
+          <dd className="theme-text mt-0.5 font-bold">{stats.totalTokensOut.toLocaleString()}</dd>
+        </div>
+      </dl>
+
+      <div className="mt-3 flex flex-wrap gap-1.5">
+        {stats.counts.done > 0 && (
+          <span className="bg-green-100 text-green-700 text-[10px] font-black px-2 py-0.5 rounded-full">
+            {stats.counts.done} done
+          </span>
+        )}
+        {stats.counts.failed > 0 && (
+          <span className="bg-red-100 text-red-700 text-[10px] font-black px-2 py-0.5 rounded-full">
+            {stats.counts.failed} failed
+          </span>
+        )}
+        {stats.counts.awaiting_approval > 0 && (
+          <span className="bg-yellow-100 text-yellow-700 text-[10px] font-black px-2 py-0.5 rounded-full">
+            {stats.counts.awaiting_approval} awaiting approval
+          </span>
+        )}
+        {stats.counts.other > 0 && (
+          <span className="bg-gray-100 text-gray-600 text-[10px] font-black px-2 py-0.5 rounded-full">
+            {stats.counts.other} other
+          </span>
+        )}
+      </div>
+
+      <p className="theme-text-muted text-[10px] mt-3">
+        Last run {lastRunFmt}
+        {stats.jobsWithCost === 0 && stats.totalJobs > 0 && (
+          <> · cost only surfaces for agents that produce aiGenerations (Aria)</>
+        )}
+      </p>
+    </section>
+  )
+}
 
 function AgentControlToggle({ agentId }) {
   const { currentUser } = useAuth()
@@ -246,6 +426,8 @@ export function AgentProfile() {
       </header>
 
       <AgentControlToggle agentId={agent.id} />
+
+      <AgentCostMeter agentId={agent.id} />
 
       <AgentRunHistory agentId={agent.id} />
     </div>
