@@ -1,0 +1,42 @@
+name: Agent — Rex PR review
+
+# Rex (Code Reviewer) reads the PR diff and posts a single review comment
+# with verdict + findings. Runs on every PR open / sync.
+#
+# Required repository secret:
+#   ANTHROPIC_API_KEY — same Anthropic key used by the runtime stack.
+#
+# Skips draft PRs by default, and skips when the title says [skip rex].
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: rex-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    if: github.event.pull_request.draft == false && !contains(github.event.pull_request.title, '[skip rex]')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Octokit
+        run: npm install --no-save --no-audit --no-fund @octokit/rest@22
+
+      - name: Run Rex
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: node scripts/agents/pr-review.mjs

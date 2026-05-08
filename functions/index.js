@@ -78,6 +78,14 @@ const {
   resolveCbcContext,
 } = require("./teacherTools/cbcKnowledge");
 
+// AI agents — Phase 2 dispatcher (Content department: Aria → Cala → Reva → Pubo).
+const {
+  createAgentJobsOnCreate,
+  createAgentJobsOnApproved,
+} = require("./agents/dispatcher");
+// AI agents — Phase 3 cron (QA/Eng: nightly Quill smoke).
+const {nightlyQaSmoke: nightlyQaSmokeCron} = require("./agents/cron");
+
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const mtnApiUser = defineSecret("MTN_API_USER");
 const mtnApiKey = defineSecret("MTN_API_KEY");
@@ -1412,4 +1420,14 @@ exports.importBuiltInCbcTopics = importBuiltInCbcTopics;
 
 // Teacher Tools — Lesson Plan Studio (vanilla JS studio endpoint).
 exports.studioGenerateLessonPlan = createStudioGenerateLessonPlan(anthropicApiKey);
+
+// AI agents — runs the Content pipeline whenever a queued agentJobs doc
+// lands (Aria → Cala → Reva → awaiting_approval), and runs Pubo when an
+// admin flips status to "approved".
+exports.agentJobsOnCreate = createAgentJobsOnCreate(anthropicApiKey);
+exports.agentJobsOnApproved = createAgentJobsOnApproved();
+
+// Quill — nightly QA smoke (Africa/Lusaka 02:00). Writes a summary
+// agentJobs doc the /admin/agents dashboard surfaces in QA / Eng.
+exports.nightlyQaSmoke = nightlyQaSmokeCron;
 exports.apiTextToSpeech = require('./tts').apiTextToSpeech;
