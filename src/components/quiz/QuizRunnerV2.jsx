@@ -14,6 +14,7 @@ import { checkAnswerWithAI } from '../../utils/geminiChecker'
 // only HTML-aware, so we prefer getRichPlainText wherever we have a choice.
 import RichContent, { getRichPlainText } from '../../editor/RichContent'
 import { saveQuizSession, loadQuizSession, clearQuizSession } from '../../hooks/useQuizPersistence'
+import SeoHelmet from '../seo/SeoHelmet'
 
 function fmt(seconds) {
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, '0')}`
@@ -390,6 +391,7 @@ export default function QuizRunnerV2() {
   if (loading) {
     return (
       <div className="theme-bg flex min-h-screen items-center justify-center">
+        <SeoHelmet title="Quiz" path={`/quiz/${quizId}`} noIndex />
         <div className="text-center">
           <div className="mb-3 text-5xl animate-bounce">📝</div>
           <p className="theme-accent-text text-lg font-bold">Loading quiz...</p>
@@ -401,6 +403,7 @@ export default function QuizRunnerV2() {
   if (error) {
     return (
       <div className="theme-bg flex min-h-screen items-center justify-center px-4">
+        <SeoHelmet title="Quiz" path={`/quiz/${quizId}`} noIndex />
         <div className="theme-card theme-border rounded-3xl border p-8 text-center shadow-sm">
           <div className="mb-3 text-4xl">😕</div>
           <p className="font-bold text-red-600">{error}</p>
@@ -415,6 +418,7 @@ export default function QuizRunnerV2() {
   if (!started) {
     return (
       <>
+        <SeoHelmet title={quiz?.title || 'Quiz'} path={`/quiz/${quizId}`} noIndex />
         {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
         <PreQuizCard quiz={quiz} canExam={canUseExamMode} onStart={handleStart} />
       </>
@@ -424,6 +428,7 @@ export default function QuizRunnerV2() {
   if (submitting) {
     return (
       <div className="theme-bg flex min-h-screen items-center justify-center">
+        <SeoHelmet title="Saving quiz" path={`/quiz/${quizId}`} noIndex />
         <div className="text-center">
           <div className="mb-3 text-5xl animate-spin">⏳</div>
           <p className="theme-accent-text text-xl font-black">Saving results...</p>
@@ -661,6 +666,7 @@ export default function QuizRunnerV2() {
 
   return (
     <div className="theme-bg theme-text min-h-screen">
+      <SeoHelmet title={quiz?.title || 'Quiz'} path={`/quiz/${quizId}`} noIndex />
       {actionError && (
         <div className="fixed inset-x-4 top-4 z-[60] mx-auto max-w-md animate-slide-up">
           <div className="flex items-start gap-3 rounded-2xl border-2 border-orange-300 bg-orange-50 px-4 py-3 text-orange-900 shadow-xl">
