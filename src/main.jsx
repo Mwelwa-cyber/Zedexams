@@ -7,9 +7,15 @@ import { DataSaverProvider } from './contexts/DataSaverContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 import { initNativeShell } from './utils/nativeShell'
+import { initSentry } from './utils/sentry'
 import './index.css'
 
 initNativeShell()
+// Fire-and-forget — initSentry resolves to a no-op when VITE_SENTRY_DSN
+// is unset, and dynamically imports @sentry/react only when it is. The
+// promise is intentionally not awaited so a slow Sentry CDN can never
+// delay the React mount.
+initSentry()
 // editor.css and katex CSS are imported from the editor/viewer entry modules
 // (QuizEditor, QuizViewer, QuizPreview via safeRender). Keeping them out of the
 // root entry trims ~50 KB of parse-time CSS on public pages.
