@@ -2016,3 +2016,19 @@ body.theme-vivid .learner-game-theme .learner-bottom-nav {
   outline: 2px solid #ffffff;
   outline-offset: -4px;
 }
+
+/* ── Global focus ring (POLISH_PLAN.md Phase 1D) ─────────────
+ * Replaces the browser default outline with a brand-coloured ring
+ * for every keyboard-focused element. :focus-visible only triggers on
+ * keyboard navigation, so mouse / touch users don't see this — pure
+ * a11y win + premium feel. The double box-shadow creates a 2 px white
+ * gap then a 2 px brand ring, which reads cleanly on every theme.
+ *
+ * More-specific :focus-visible selectors (e.g. .skip-link) override
+ * this naturally by CSS specificity. The print stylesheet above
+ * already strips box-shadow, so this never appears on paper. */
+*:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
+  border-radius: 6px;
+}
