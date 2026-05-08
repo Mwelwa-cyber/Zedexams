@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { fetchSignInMethodsForEmail } from 'firebase/auth'
 import { ArrowLeft, EnvelopeIcon as Mail } from '../ui/icons'
@@ -9,6 +9,7 @@ import Logo from '../ui/Logo'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import GoogleSignInButton from './GoogleSignInButton'
+import SeoHelmet from '../seo/SeoHelmet'
 
 const FRIENDLY = {
   'auth/invalid-credential':     'Wrong email or password. Please try again.',
@@ -77,10 +78,6 @@ export default function Login() {
   const [resetSuccess, setResetSuccess]   = useState(false)
   const [resetError, setResetError]       = useState('')
 
-  useEffect(() => {
-    document.title = 'Sign In — ZedExams'
-  }, [])
-
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
@@ -148,6 +145,12 @@ export default function Login() {
         '--accent-fg': '#9A3412',
       }}
     >
+      <SeoHelmet
+        title="Sign in"
+        description="Sign in to your ZedExams account."
+        path="/login"
+        noIndex
+      />
       {/* Subtle background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full opacity-10"

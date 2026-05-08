@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { getRoleLandingPath } from '../../utils/navigation'
 import Logo from '../ui/Logo'
 import Button from '../ui/Button'
 import GoogleSignInButton from './GoogleSignInButton'
+import SeoHelmet from '../seo/SeoHelmet'
 
 const FRIENDLY = {
   'auth/email-already-in-use': 'This email is already registered. Try logging in.',
@@ -76,10 +77,6 @@ export default function Register() {
   const [loading, setLoading]         = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError]             = useState('')
-
-  useEffect(() => {
-    document.title = 'Create Account — ZedExams'
-  }, [])
 
   const isTeacher = form.role === 'teacher'
   const score = useMemo(() => passwordScore(form.password), [form.password])
@@ -171,6 +168,12 @@ export default function Register() {
         '--accent-fg': '#9A3412',
       }}
     >
+      <SeoHelmet
+        title="Create account"
+        description="Create your free ZedExams account to start practising."
+        path="/register"
+        noIndex
+      />
       {/* Subtle background decoration */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full opacity-10"

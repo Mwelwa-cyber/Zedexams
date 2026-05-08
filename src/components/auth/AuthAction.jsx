@@ -9,6 +9,7 @@ import {
 import { auth } from '../../firebase/config'
 import Logo from '../ui/Logo'
 import Button from '../ui/Button'
+import SeoHelmet from '../seo/SeoHelmet'
 
 const INPUT_CLASS =
   'w-full h-[46px] rounded-[10px] border-[1.5px] border-[#2A2A3C] bg-white ' +
@@ -44,10 +45,6 @@ export default function AuthAction() {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [submitting, setSubmitting]   = useState(false)
-
-  useEffect(() => {
-    document.title = 'Account Action — ZedExams'
-  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -133,6 +130,12 @@ export default function AuthAction() {
         '--accent-fg': '#9A3412',
       }}
     >
+      <SeoHelmet
+        title="Account action"
+        description="Confirming your email or password reset link."
+        path="/auth/action"
+        noIndex
+      />
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute -top-24 -right-24 w-72 h-72 rounded-full opacity-10"
           style={{ background: 'radial-gradient(circle, var(--accent) 0%, transparent 70%)' }} />
