@@ -1926,7 +1926,13 @@ body.theme-vivid .learner-game-theme .learner-bottom-nav {
     display: none !important;
   }
 
-  /* 5. Avoid awkward mid-card breaks and orphan headings */
+  /* 5. The skip-to-content link is absolute-positioned (not fixed/sticky)
+   *    so rule 3 doesn't catch it. Hide it explicitly on paper. */
+  .skip-link {
+    display: none !important;
+  }
+
+  /* 6. Avoid awkward mid-card breaks and orphan headings */
   article,
   section,
   table,
@@ -1940,7 +1946,7 @@ body.theme-vivid .learner-game-theme .learner-bottom-nav {
     page-break-after: avoid;
   }
 
-  /* 6. Print external link URLs after the link text so the printed
+  /* 7. Print external link URLs after the link text so the printed
    *    page is still useful as a reference. Internal anchors,
    *    mailto:, tel:, and javascript: links keep clean. */
   a[href^="http"]::after,
@@ -1951,7 +1957,7 @@ body.theme-vivid .learner-game-theme .learner-bottom-nav {
     word-break: break-all;
   }
 
-  /* 7. Paper margin + base size, and keep colour adjust on so brand
+  /* 8. Paper margin + base size, and keep colour adjust on so brand
    *    accents (success/warn callouts) still print legibly. */
   @page {
     margin: 0.75in;
@@ -1962,14 +1968,14 @@ body.theme-vivid .learner-game-theme .learner-bottom-nav {
     print-color-adjust: exact;
   }
 
-  /* 8. Tables: ensure borders survive even when shadow/border styling
+  /* 9. Tables: ensure borders survive even when shadow/border styling
    *    relied on theme tokens. */
   table { border-collapse: collapse; }
   table, th, td {
     border: 1px solid #999 !important;
   }
 
-  /* 9. Images and KaTeX/SVG figures shouldn't bleed across pages. */
+  /* 10. Images and KaTeX/SVG figures shouldn't bleed across pages. */
   img,
   svg,
   .katex-display {
@@ -1977,4 +1983,36 @@ body.theme-vivid .learner-game-theme .learner-bottom-nav {
     height:       auto !important;
     page-break-inside: avoid;
   }
+}
+
+/* ── Skip to main content ─────────────────────────────────────
+ * The very first focusable element on every page. Visually hidden by
+ * default, slides into view when keyboard-focused, lets screen-reader
+ * and keyboard users jump past the navbar / chrome straight to the
+ * route's content. Targets #main, the wrapper around <Routes> in
+ * App.jsx (which is a div, not a <main>, so routes that render their
+ * own <main> — e.g. PublicShareView — don't end up nested-landmark).
+ * The print rule above hides this on paper.
+ */
+.skip-link {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  padding: 10px 16px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-family: inherit;
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+  border-radius: 0 0 8px 0;
+  transform: translateY(-110%);
+  transition: transform 150ms ease-out;
+}
+.skip-link:focus,
+.skip-link:focus-visible {
+  transform: translateY(0);
+  outline: 2px solid #ffffff;
+  outline-offset: -4px;
 }

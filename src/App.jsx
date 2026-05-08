@@ -232,9 +232,16 @@ export default function App() {
         v7_relativeSplatPath: true,
       }}
     >
+      {/* First focusable element on every page — keyboard users press Tab
+          once and can jump past the navbar straight into route content.
+          Wrapper div uses id="main" rather than a <main> element because
+          some routes (e.g. PublicShareView) render their own <main>, and
+          the spec only allows one main landmark per document. */}
+      <a href="#main" className="skip-link">Skip to main content</a>
       <ThemeApplicator />
-      <Suspense fallback={<PageLoader />}>
-        <Routes>
+      <div id="main" tabIndex={-1}>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
           <Route path="/" element={<RootRedirect />} />
           <Route path="/welcome"  element={<Marketing />} />
           <Route path="/pricing"  element={<Plans />} />
@@ -334,8 +341,9 @@ export default function App() {
         {/* Inactivity warning + auto-logout (driven by AuthContext) */}
         <IdleWarningModal />
         {/* Paywall — listens for paywall.show(reason, ctx) from anywhere */}
-        <PaywallHost />
-      </Suspense>
+          <PaywallHost />
+        </Suspense>
+      </div>
     </BrowserRouter>
   )
 }
