@@ -1858,3 +1858,123 @@ body.theme-vivid .learner-game-theme .learner-bottom-nav {
     inset 0 1px 0 rgba(255, 255, 255, 0.5),
     0 -14px 32px -30px rgba(15, 23, 42, 0.18);
 }
+
+/* ── Print rules ──────────────────────────────────────────────
+ * Zambian classrooms still print quizzes, lesson plans, and notes,
+ * and parents print quiz results to review with their kids. The app
+ * was designed for screen, so without these rules the printed page
+ * keeps the dark theme, sticky navbar, mobile bottom nav, modals,
+ * and decorative shadows — wasting toner and clipping content.
+ *
+ * Approach: force a light palette regardless of the saved theme,
+ * strip motion + decorative shadows, and hide every fixed/sticky
+ * element by default. A surface that legitimately needs to print
+ * a sticky/fixed element can opt out with .print-keep or
+ * data-print="keep". Anything that should be hidden on paper but
+ * isn't fixed/sticky can opt in with data-print="hide".
+ */
+@media print {
+  /* 1. Force a clean white-on-black palette — overrides every theme */
+  :root,
+  body,
+  body[class*="theme-"] {
+    --bg:           #ffffff !important;
+    --bg-subtle:    #ffffff !important;
+    --card:         #ffffff !important;
+    --card-hover:   #ffffff !important;
+    --text:         #000000 !important;
+    --text-muted:   #333333 !important;
+    --border:       #cccccc !important;
+    --accent:       #0369A1 !important;
+    --accent-text:  #FFFFFF !important;
+    --accent-bg:    #ffffff !important;
+    --accent-fg:    #0369A1 !important;
+    --input-bg:     #ffffff !important;
+    --input-border: #999999 !important;
+    --shadow:          transparent !important;
+    --shadow-sm:       none !important;
+    --shadow-md:       none !important;
+    --shadow-lg:       none !important;
+    --shadow-xl:       none !important;
+    --shadow-inner-hl: none !important;
+    --hero-gradient:   #0369A1 !important;
+    background: #ffffff !important;
+    color:      #000000 !important;
+  }
+
+  /* 2. Strip animations / transitions / decorative shadows */
+  *,
+  *::before,
+  *::after {
+    animation:   none !important;
+    transition:  none !important;
+    box-shadow:  none !important;
+    text-shadow: none !important;
+  }
+
+  /* 3. Hide sticky / fixed chrome — Navbar, MobileBottomNav, modals,
+   *    FABs, toasts. Surfaces that legitimately need to keep something
+   *    fixed in print can opt out with .print-keep or data-print="keep". */
+  .fixed:not(.print-keep):not([data-print="keep"]),
+  .sticky:not(.print-keep):not([data-print="keep"]) {
+    display: none !important;
+  }
+
+  /* 4. Marketing/dev chrome that isn't fixed/sticky can opt in by
+   *    adding data-print="hide" rather than touching this stylesheet. */
+  [data-print="hide"] {
+    display: none !important;
+  }
+
+  /* 5. Avoid awkward mid-card breaks and orphan headings */
+  article,
+  section,
+  table,
+  figure,
+  .theme-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  h1, h2, h3, h4 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+
+  /* 6. Print external link URLs after the link text so the printed
+   *    page is still useful as a reference. Internal anchors,
+   *    mailto:, tel:, and javascript: links keep clean. */
+  a[href^="http"]::after,
+  a[href^="//"]::after {
+    content: " <" attr(href) ">";
+    font-size: 0.85em;
+    color: #555;
+    word-break: break-all;
+  }
+
+  /* 7. Paper margin + base size, and keep colour adjust on so brand
+   *    accents (success/warn callouts) still print legibly. */
+  @page {
+    margin: 0.75in;
+  }
+  html {
+    font-size: 11pt;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* 8. Tables: ensure borders survive even when shadow/border styling
+   *    relied on theme tokens. */
+  table { border-collapse: collapse; }
+  table, th, td {
+    border: 1px solid #999 !important;
+  }
+
+  /* 9. Images and KaTeX/SVG figures shouldn't bleed across pages. */
+  img,
+  svg,
+  .katex-display {
+    max-width:    100% !important;
+    height:       auto !important;
+    page-break-inside: avoid;
+  }
+}
