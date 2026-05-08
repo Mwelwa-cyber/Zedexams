@@ -13,6 +13,7 @@ import { SUBJECTS, GRADES } from '../../config/curriculum'
 import { subscribeToDailyLeaderboard, fmtDuration, fmtDate } from '../../utils/examLeaderboardService'
 import { todayString } from '../../utils/examService'
 import Navbar from '../layout/Navbar'
+import SeoHelmet from '../seo/SeoHelmet'
 
 // ── sub-components ────────────────────────────────────────────────────────────
 
@@ -133,6 +134,7 @@ export default function ExamLeaderboardPage() {
 
   return (
     <div className="min-h-screen theme-bg theme-text">
+      <SeoHelmet title="Exam leaderboard" path="/exams/leaderboard" noIndex />
       <Navbar />
 
       <div className="mx-auto max-w-3xl px-4 py-6 pb-28 space-y-5">

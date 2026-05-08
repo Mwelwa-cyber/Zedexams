@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTheme, THEMES } from '../../contexts/ThemeContext';
+import SeoHelmet from '../seo/SeoHelmet';
 
 /* ============================================================================
  * ZedExams — Settings module
@@ -1425,6 +1426,7 @@ export default function ZedExamsSettings({ role = 'admin' }) {
         boxSizing: 'border-box',
       }}
     >
+      <SeoHelmet title="Settings" path="/settings" noIndex />
       {/* Header */}
       <header style={{
         display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between',

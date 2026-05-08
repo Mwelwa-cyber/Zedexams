@@ -9,6 +9,7 @@ import PremiumGate from '../subscription/PremiumGate'
 import Mascot from '../ui/Mascot'
 import Button from '../ui/Button'
 import Skeleton from '../ui/Skeleton'
+import SeoHelmet from '../seo/SeoHelmet'
 import ProgressWidget from './ProgressWidget'
 
 const STARS = [
@@ -105,6 +106,7 @@ export default function StudentDashboard() {
 
   return (
     <div className="max-w-2xl md:max-w-3xl mx-auto px-4 py-5 space-y-5">
+      <SeoHelmet title="My stats" path="/my-stats" noIndex />
       {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
 
       {/* Welcome hero */}
