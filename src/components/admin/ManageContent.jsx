@@ -130,13 +130,24 @@ function DailyExamModal({ quiz, onSave, onClose }) {
   )
 }
 
+// Long quizzes (≥ 50 questions) are exam-only — they never appear in the
+// /quizzes practice library and the daily auto-picker skips them. Admins
+// pin them as Daily Exam manually whenever they want a formal sit-down.
+const EXAM_ONLY_QUESTION_THRESHOLD = 50
+
+function isExamOnly(quiz) {
+  if (typeof quiz?.examOnly === 'boolean') return quiz.examOnly
+  return Number(quiz?.questionCount) >= EXAM_ONLY_QUESTION_THRESHOLD
+}
+
 // ── Quiz row ───────────────────────────────────────────────────────────────
-function QuizRow({ quiz, onSetPractice, onSetDailyExam, onUnassign, onDelete, deleting }) {
+function QuizRow({ quiz, onPublish, onSetDailyExam, onUnassign, onDelete, deleting }) {
   const quizId   = quiz.id || quiz._id || ''
   const quizType = quiz.quizType  // 'practice' | 'daily_exam' | undefined
+  const examOnly = isExamOnly(quiz)
   const [showDailyModal, setShowDailyModal] = useState(false)
 
-  const typeIcon  = quizType === 'daily_exam' ? '🏆' : quizType === 'practice' ? '📝' : '📦'
+  const typeIcon  = quizType === 'daily_exam' ? '🏆' : examOnly ? '🏆' : quizType === 'practice' ? '📝' : '📦'
   const qCount    = quiz.questionCount ?? '?'
   const duration  = quiz.durationMinutes || quiz.duration || '?'
 
@@ -169,11 +180,17 @@ function QuizRow({ quiz, onSetPractice, onSetDailyExam, onUnassign, onDelete, de
             {quizType === 'daily_exam' && (
               <Pill color="bg-amber-100 text-amber-700">🏆 Daily Exam · {quiz.dailyExamDate}</Pill>
             )}
-            {quizType === 'practice' && (
-              <Pill color="bg-green-100 text-green-700">📝 Practice Quiz</Pill>
+            {quizType !== 'daily_exam' && examOnly && quiz.isPublished && (
+              <Pill color="bg-amber-100 text-amber-700">🏆 Exam only · {qCount}Q</Pill>
             )}
-            {!quizType && (
+            {quizType === 'practice' && !examOnly && (
+              <Pill color="bg-green-100 text-green-700">📝 Practice</Pill>
+            )}
+            {!quizType && !examOnly && (
               <Pill color="bg-gray-100 text-gray-500">⚠ Unassigned</Pill>
+            )}
+            {!quizType && examOnly && !quiz.isPublished && (
+              <Pill color="bg-gray-100 text-gray-500">⚠ Unpublished</Pill>
             )}
             {quiz.isDemo && (
               <Pill color="bg-sky-100 text-sky-700">🎁 Demo · free-tier</Pill>
@@ -192,10 +209,10 @@ function QuizRow({ quiz, onSetPractice, onSetDailyExam, onUnassign, onDelete, de
           </Link>
 
           {/* Assignment controls */}
-          {quizType !== 'practice' && (
-            <button onClick={() => onSetPractice(quiz)}
+          {!quiz.isPublished && (
+            <button onClick={() => onPublish(quiz)}
               className="text-xs font-bold px-3 py-1.5 rounded-full border border-green-300 text-green-700 hover:bg-green-50 min-h-0 transition-colors">
-              📝 Practice
+              ✅ Publish
             </button>
           )}
           {quizType !== 'daily_exam' && (
@@ -204,7 +221,7 @@ function QuizRow({ quiz, onSetPractice, onSetDailyExam, onUnassign, onDelete, de
               🏆 Daily Exam
             </button>
           )}
-          {quizType && (
+          {(quizType || quiz.isPublished) && (
             <button onClick={() => onUnassign(quiz)}
               className="text-xs font-bold px-3 py-1.5 rounded-full border border-gray-200 text-gray-500 hover:bg-gray-50 min-h-0 transition-colors">
               Unassign
@@ -296,19 +313,32 @@ export default function ManageContent() {
   }, [])
 
   // ── Legacy migration ───────────────────────────────────────────────────
-  const legacyQuizzes = quizzes.filter(q => !q.quizType && q.isPublished)
+  // Published quizzes that haven't been classified yet. Long quizzes
+  // (≥ 50 questions) become exam-only; short quizzes go to Practice.
+  const legacyQuizzes = quizzes.filter(q => q.isPublished && (!q.quizType || typeof q.examOnly !== 'boolean'))
 
   async function migrateLegacyQuizzes() {
     if (!legacyQuizzes.length) return
     setMigrating(true)
     try {
       await Promise.all(
-        legacyQuizzes.map(q => updateQuiz(q.id, { quizType: 'practice' }))
+        legacyQuizzes.map(q => {
+          const long = isExamOnly(q)
+          const patch = { examOnly: long }
+          if (!q.quizType) patch.quizType = long ? null : 'practice'
+          return updateQuiz(q.id, patch)
+        })
       )
-      setQuizzes(qs => qs.map(q =>
-        (!q.quizType && q.isPublished) ? { ...q, quizType: 'practice' } : q
-      ))
-      show(`✅ Migrated ${legacyQuizzes.length} published quizzes → Practice`)
+      setQuizzes(qs => qs.map(q => {
+        if (!q.isPublished || (q.quizType && typeof q.examOnly === 'boolean')) return q
+        const long = isExamOnly(q)
+        return {
+          ...q,
+          examOnly: long,
+          quizType: q.quizType || (long ? null : 'practice'),
+        }
+      }))
+      show(`✅ Migrated ${legacyQuizzes.length} quiz${legacyQuizzes.length === 1 ? '' : 'zes'}`)
     } catch (e) {
       show('❌ Migration failed: ' + e.message, true)
     } finally {
@@ -348,18 +378,24 @@ export default function ManageContent() {
   }
 
   // ── Quiz assignment actions ────────────────────────────────────────────
-  async function setAsPractice(quiz) {
-    await updateQuiz(quiz.id, {
-      quizType: 'practice',
+  // Publishing classifies the quiz automatically: short quizzes go straight
+  // into the practice library; long quizzes (≥ 50 Q) become exam-only and
+  // wait for an admin to pin them as Daily Exam (the auto-picker skips them).
+  async function publishQuiz(quiz) {
+    const long = isExamOnly(quiz)
+    const patch = {
       isPublished: true,
       status: 'published',
+      examOnly: long,
+      quizType: long ? null : 'practice',
       isDailyExam: false,
       dailyExamDate: null,
-    })
-    setQuizzes(qs => qs.map(q => q.id === quiz.id
-      ? { ...q, quizType: 'practice', isPublished: true, status: 'published', isDailyExam: false, dailyExamDate: null }
-      : q))
-    show('📝 Set as Practice Quiz — students can access it now.')
+    }
+    await updateQuiz(quiz.id, patch)
+    setQuizzes(qs => qs.map(q => q.id === quiz.id ? { ...q, ...patch } : q))
+    show(long
+      ? '🏆 Published as Exam-only — pin it as Daily Exam when you want to use it.'
+      : '📝 Published — students can practice it now.')
   }
 
   async function setAsDailyExam(quiz, { date, duration, isDemo }) {
@@ -420,10 +456,17 @@ export default function ManageContent() {
 
   const filteredQuizzes = quizzes.filter(q => {
     const qt = q.quizType ?? ''
+    const matchesType = (() => {
+      if (!quizTypeF) return true
+      if (quizTypeF === 'unpublished') return !q.isPublished
+      if (quizTypeF === 'exam_only')  return isExamOnly(q) && q.isPublished && qt !== 'daily_exam'
+      if (quizTypeF === 'practice')   return qt === 'practice' && !isExamOnly(q)
+      return qt === quizTypeF
+    })()
     return (
       (!gradeF      || q.grade   === gradeF) &&
       (!subjectF    || q.subject === subjectF) &&
-      (!quizTypeF   || (quizTypeF === 'unassigned' ? !q.quizType : qt === quizTypeF)) &&
+      matchesType &&
       (!term        || q.title?.toLowerCase().includes(term) || q.subject?.toLowerCase().includes(term))
     )
   })
@@ -436,9 +479,10 @@ export default function ManageContent() {
     ))
 
   const totalQuizzes    = quizzes.length
-  const practiceCount   = quizzes.filter(q => q.quizType === 'practice').length
+  const practiceCount   = quizzes.filter(q => q.quizType === 'practice' && !isExamOnly(q)).length
+  const examOnlyCount   = quizzes.filter(q => isExamOnly(q) && q.isPublished && q.quizType !== 'daily_exam').length
   const dailyExamCount  = quizzes.filter(q => q.quizType === 'daily_exam').length
-  const unassignedCount = quizzes.filter(q => !q.quizType).length
+  const unpublishedCount = quizzes.filter(q => !q.isPublished).length
 
   return (
     <div className="space-y-5">
@@ -512,15 +556,27 @@ export default function ManageContent() {
         </div>
       </div>
 
+      {/* Auto-picker explainer */}
+      {tab === 'quizzes' && !loading && (
+        <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 px-4 py-3">
+          <p className="font-black text-amber-800 text-sm">
+            🤖 Daily Exam auto-picker is on
+          </p>
+          <p className="text-amber-700 text-xs mt-0.5 leading-snug">
+            Every morning (Lusaka time) one short quiz per grade is promoted to today's Daily Exam, then sent back to Practice the next day. Quizzes with {EXAM_ONLY_QUESTION_THRESHOLD}+ questions are exam-only — they never auto-rotate, you pin those manually with 🏆 Daily Exam.
+          </p>
+        </div>
+      )}
+
       {/* Legacy migration banner */}
       {tab === 'quizzes' && !loading && legacyQuizzes.length > 0 && (
         <div className="flex items-center justify-between gap-4 rounded-2xl border-2 border-orange-300 bg-orange-50 px-4 py-3">
           <div>
             <p className="font-black text-orange-800 text-sm">
-              ⚠ {legacyQuizzes.length} published quiz{legacyQuizzes.length !== 1 ? 'zes' : ''} not yet assigned
+              ⚠ {legacyQuizzes.length} quiz{legacyQuizzes.length !== 1 ? 'zes' : ''} need classification
             </p>
             <p className="text-orange-700 text-xs mt-0.5">
-              These were published before the new system. Migrate them to Practice so students can still access them.
+              Tag each one as Practice or Exam-only based on its question count so the auto-picker knows what to do.
             </p>
           </div>
           <button
@@ -528,7 +584,7 @@ export default function ManageContent() {
             disabled={migrating}
             className="flex-shrink-0 bg-orange-500 hover:bg-orange-600 text-white font-black text-xs rounded-xl px-4 py-2 disabled:opacity-50 transition-colors whitespace-nowrap"
           >
-            {migrating ? 'Migrating…' : '📝 Migrate all → Practice'}
+            {migrating ? 'Migrating…' : '📝 Classify all'}
           </button>
         </div>
       )}
@@ -537,10 +593,11 @@ export default function ManageContent() {
       {tab === 'quizzes' && !loading && (
         <div className="stats-row stagger">
           {[
-            { label: 'Total',        value: totalQuizzes,    t: 't-purple' },
-            { label: '📝 Practice',  value: practiceCount,   t: 't-mint'   },
-            { label: '🏆 Daily',     value: dailyExamCount,  t: 't-amber'  },
-            { label: '⚠ Unassigned', value: unassignedCount, t: 't-pink'   },
+            { label: 'Total',         value: totalQuizzes,     t: 't-purple' },
+            { label: '📝 Practice',   value: practiceCount,    t: 't-mint'   },
+            { label: '🏆 Exam-only',  value: examOnlyCount,    t: 't-amber'  },
+            { label: '🏆 Daily',      value: dailyExamCount,   t: 't-amber'  },
+            { label: '⚠ Unpublished', value: unpublishedCount, t: 't-pink'   },
           ].map(s => (
             <div key={s.label} className={`stat-tile ${s.t} animate-slide-in-soft`}>
               <span className="stat-num">{s.value}</span>
@@ -595,8 +652,9 @@ export default function ManageContent() {
           className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-green-500 focus:outline-none">
           <option value="">All Types</option>
           <option value="practice">📝 Practice</option>
+          <option value="exam_only">🏆 Exam only</option>
           <option value="daily_exam">🏆 Daily Exam</option>
-          <option value="unassigned">⚠ Unassigned</option>
+          <option value="unpublished">⚠ Unpublished</option>
         </select>
         {(search || gradeF || subjectF || quizTypeF) && (
           <Button
@@ -638,7 +696,7 @@ export default function ManageContent() {
               <QuizRow
                 key={quiz.id}
                 quiz={quiz}
-                onSetPractice={setAsPractice}
+                onPublish={publishQuiz}
                 onSetDailyExam={setAsDailyExam}
                 onUnassign={unassignQuiz}
                 onDelete={handleDeleteQuiz}

@@ -77,6 +77,10 @@ const {
 const {
   resolveCbcContext,
 } = require("./teacherTools/cbcKnowledge");
+// Daily Exam auto-picker — promotes one short-quiz per grade into the
+// day's Daily Exam slot every morning so the admin no longer has to
+// click "Daily Exam" by hand for routine rotation.
+const {autoPickDailyExams} = require("./dailyExamPicker");
 
 // AI agents — Phase 2 dispatcher (Content department: Aria → Cala → Reva → Pubo).
 const {
@@ -987,6 +991,8 @@ exports.apiMomoPaymentStatus = onRequest(
     }
   },
 );
+
+exports.autoPickDailyExams = autoPickDailyExams;
 
 exports.pollPendingMomoPayments = onSchedule(
   {
