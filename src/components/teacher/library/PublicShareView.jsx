@@ -113,8 +113,21 @@ export default function PublicShareView() {
               <h1 className="text-2xl font-black text-slate-800 mt-1">{share.title}</h1>
             </header>
             <RenderPlanByTool tool={share.tool} plan={share.plan} />
-            <footer className="mt-8 pt-4 border-t theme-border text-xs text-slate-400 text-center print:hidden">
-              Generated with the <Link to="/" className="font-bold text-orange-600 hover:underline">ZedExams Teacher Suite</Link>.
+            <footer className="mt-8 pt-4 border-t theme-border flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-slate-400 print:hidden">
+              <span>
+                Generated with the <Link to="/" className="font-bold text-orange-600 hover:underline">ZedExams Teacher Suite</Link>.
+              </span>
+              {/* WhatsApp forward — lets a teacher who received this share
+                  link push it onward to a colleague with one tap. The link
+                  itself stays the same (signed token, no auth needed). */}
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(`${share.title || 'Teacher resource'} — ${typeof window !== 'undefined' ? window.location.href : 'https://zedexams.com'}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full bg-green-500 hover:bg-green-600 px-3 py-1.5 text-xs font-bold text-white transition-colors"
+              >
+                <span aria-hidden="true">💬</span> Forward on WhatsApp
+              </a>
             </footer>
           </article>
         )}
