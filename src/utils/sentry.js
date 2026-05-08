@@ -31,6 +31,17 @@ const RELEASE =
   // build it came from without needing a separate release tag.
   `zedexams@${import.meta.env.VITE_APP_VERSION ?? 'dev'}-${import.meta.env.MODE}`
 
+// Module reference, captured once Sentry has finished its async load.
+// Stays null when VITE_SENTRY_DSN isn't set, in which case all the
+// helpers below are no-ops.
+let sentryModule = null
+
+// AuthContext can call setSentryUser/clearSentryUser before initSentry
+// has resolved (signed-in user on first page load). Stash the latest
+// state and apply it once Sentry is ready. Sentinel `undefined` means
+// "no state set yet"; `null` means "explicitly cleared".
+let pendingUserId
+
 export async function initSentry() {
   const dsn = import.meta.env.VITE_SENTRY_DSN
   if (!dsn) return
@@ -65,8 +76,46 @@ export async function initSentry() {
         /ResizeObserver loop limit exceeded/i,
       ],
     })
+    sentryModule = Sentry
+    // Apply any user state that arrived before Sentry finished loading.
+    if (pendingUserId !== undefined) {
+      Sentry.setUser(pendingUserId === null ? null : { id: pendingUserId })
+      pendingUserId = undefined
+    }
   } catch (err) {
     // Don't let a Sentry init failure block the app from booting.
     console.warn('[sentry] init failed:', err)
+  }
+}
+
+/**
+ * Tag the current Sentry session with the signed-in user's UID. Called
+ * from AuthContext when onAuthStateChanged fires with a user. Only the
+ * UID is sent — no email, displayName, or other PII — because learners
+ * are minors and we want the smallest possible PII surface for a
+ * support-triage tool.
+ *
+ * Safe to call before initSentry has resolved; the UID is stashed and
+ * applied once Sentry is ready. Safe to call when DSN is unset; this
+ * is a no-op.
+ */
+export function setSentryUser(uid) {
+  if (!uid) return
+  if (sentryModule) {
+    sentryModule.setUser({ id: uid })
+  } else {
+    pendingUserId = uid
+  }
+}
+
+/**
+ * Drop the Sentry user tag. Called from AuthContext on sign-out so the
+ * next anonymous error isn't bucketed under the previous user.
+ */
+export function clearSentryUser() {
+  if (sentryModule) {
+    sentryModule.setUser(null)
+  } else {
+    pendingUserId = null
   }
 }

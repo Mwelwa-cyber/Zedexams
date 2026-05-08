@@ -13,6 +13,7 @@ import { doc, setDoc, getDoc, updateDoc, serverTimestamp, onSnapshot } from 'fir
 import app, { auth, db, googleProvider, applyAuthPersistence } from '../firebase/config'
 import { ROLES, hasPremiumAccess, hasLearnerPortalAccess } from '../utils/subscriptionConfig'
 import { useIdleTimeout } from '../hooks/useIdleTimeout'
+import { setSentryUser, clearSentryUser } from '../utils/sentry'
 
 // Sign learners/teachers/admins out after this much idle time, with a short
 // countdown beforehand so an active user can keep their session.
@@ -256,6 +257,15 @@ export function AuthProvider({ children }) {
       }
       setCurrentUser(user)
       setProfileIssue(null)
+      // Tag Sentry with the signed-in UID so an error can be traced to a
+      // specific learner/teacher for support triage. Only the UID is
+      // sent — no email or displayName — to keep the PII surface tiny.
+      // No-op if Sentry isn't configured (DSN unset).
+      if (user) {
+        setSentryUser(user.uid)
+      } else {
+        clearSentryUser()
+      }
       if (user) {
         setLoading(true)
         unsubProfile = onSnapshot(
