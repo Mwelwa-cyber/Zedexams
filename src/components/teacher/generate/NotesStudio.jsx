@@ -12,6 +12,7 @@ import {
 } from '../../../utils/teacherTools'
 import { downloadNotesDocx } from '../../../utils/notesToDocx'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
+import SeoHelmet from '../../seo/SeoHelmet'
 import {
   listMyGenerations,
   titleForGeneration,
@@ -148,6 +149,7 @@ export default function NotesStudio() {
 
   return (
     <div className="min-h-screen p-4 sm:p-6 lg:p-8" style={{ background: '#f5efe1' }}>
+      <SeoHelmet title="Notes studio" noIndex />
       <div className="max-w-7xl mx-auto">
         <StudioPageHeader
           eyebrow="Notes Studio"

@@ -14,6 +14,7 @@ import { downloadSchemeOfWorkDocx } from '../../../utils/schemeOfWorkToDocx'
 import SchemeOfWorkView from '../views/SchemeOfWorkView'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
+import SeoHelmet from '../../seo/SeoHelmet'
 
 export default function SchemeOfWorkGenerator() {
   const { userProfile } = useAuth()
@@ -93,6 +94,7 @@ export default function SchemeOfWorkGenerator() {
 
   return (
     <div className="min-h-screen p-4 sm:p-6 lg:p-8" style={{ background: '#f5efe1' }}>
+      <SeoHelmet title="Scheme of work" noIndex />
       <div className="max-w-7xl mx-auto">
         <StudioPageHeader
           eyebrow="Scheme of Work"
