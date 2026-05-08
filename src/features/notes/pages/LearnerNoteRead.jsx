@@ -125,7 +125,7 @@ export function LearnerNoteRead() {
                 href={note.fileUrl}
                 download={note.fileName}
                 target="_blank"
-                rel="noreferrer"
+                rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-neutral-200 hover:bg-neutral-50 transition text-neutral-900"
               >
                 <Download size={14} /> Save offline
@@ -151,7 +151,7 @@ function FileDownload({ note }) {
       <a
         href={note.fileUrl}
         target="_blank"
-        rel="noreferrer"
+        rel="noopener noreferrer"
         className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-white text-sm font-medium hover:opacity-90 transition"
         style={{ backgroundColor: '#059669' }}
       >
