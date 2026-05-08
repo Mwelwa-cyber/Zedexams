@@ -1,5 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import { HelmetProvider } from 'react-helmet-async'
 import App from './App'
 import { AuthProvider } from './contexts/AuthContext'
 import { DataSaverProvider } from './contexts/DataSaverContext'
@@ -16,13 +17,15 @@ initNativeShell()
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <ErrorBoundary>
-      <ThemeProvider>
-        <DataSaverProvider>
-          <AuthProvider>
-            <App />
-          </AuthProvider>
-        </DataSaverProvider>
-      </ThemeProvider>
+      <HelmetProvider>
+        <ThemeProvider>
+          <DataSaverProvider>
+            <AuthProvider>
+              <App />
+            </AuthProvider>
+          </DataSaverProvider>
+        </ThemeProvider>
+      </HelmetProvider>
     </ErrorBoundary>
   </React.StrictMode>
 )

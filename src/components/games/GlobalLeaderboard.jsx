@@ -10,6 +10,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { subscribeToGlobalLeaderboard, formatWhen } from '../../utils/gamesService'
 import GamesShell from './GamesShell'
 import { GamesSectionHeading, MetaPill, getSubjectMascot } from './gamesUi'
+import SeoHelmet from '../seo/SeoHelmet'
 
 const TILE_BG = {
   mathematics: 'bg-orange-100',
@@ -27,7 +28,6 @@ export default function GlobalLeaderboard() {
   const { currentUser } = useAuth()
 
   useEffect(() => {
-    document.title = 'Live Leaderboard — ZedExams Games'
     setState({ rows: null, error: null })
     const unsub = subscribeToGlobalLeaderboard({ window: win, max: 25 }, (next) => setState(next))
     return () => unsub()
@@ -35,6 +35,11 @@ export default function GlobalLeaderboard() {
 
   return (
     <GamesShell crumbs={[{ label: 'Live Leaderboard' }]}>
+      <SeoHelmet
+        title="Live Leaderboard"
+        description="See who's climbing the ZedExams Games leaderboard right now across grades, subjects, and game types."
+        path="/games/leaderboard"
+      />
       <section className="zx-card mb-8 rounded-[22px] bg-white p-6 sm:p-7">
         <div className="flex flex-wrap items-center gap-2">
           <MetaPill icon={TrophyIcon} label="Live scores" />

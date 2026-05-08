@@ -8,6 +8,15 @@ import FlashcardsView from '../views/FlashcardsView'
 import SchemeOfWorkView from '../views/SchemeOfWorkView'
 import RubricView from '../views/RubricView'
 import Logo from '../../ui/Logo'
+import SeoHelmet from '../../seo/SeoHelmet'
+
+const TOOL_LABEL = {
+  lesson_plan:    'Lesson plan',
+  worksheet:      'Worksheet',
+  flashcards:     'Flashcards',
+  scheme_of_work: 'Scheme of work',
+  rubric:         'Rubric',
+}
 
 /**
  * PublicShareView — public, read-only viewer for a teacher-published plan.
@@ -47,8 +56,21 @@ export default function PublicShareView() {
     return () => { cancelled = true }
   }, [token])
 
+  const seoReady = status === 'ready' && share
+  const seoTitle = seoReady ? share.title : 'Shared teacher resource'
+  const seoDescription = seoReady
+    ? `${TOOL_LABEL[share.tool] || 'Teacher resource'} shared from ZedExams. Open the link to view the full plan.`
+    : 'A teacher resource shared from ZedExams.'
+
   return (
     <div className="min-h-screen bg-slate-50 print:bg-white">
+      <SeoHelmet
+        title={seoTitle}
+        description={seoDescription}
+        path={`/share/${token || ''}`}
+        type="article"
+        noIndex={!seoReady}
+      />
       {/* Minimal header — logo + "view on ZedExams" link */}
       <header className="bg-white border-b theme-border print:hidden">
         <div className="max-w-4xl mx-auto px-4 py-3 flex items-center justify-between">

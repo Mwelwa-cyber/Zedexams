@@ -25,6 +25,7 @@ import {
   getGameTypeTheme,
   getSubjectMascot,
 } from './gamesUi'
+import SeoHelmet from '../seo/SeoHelmet'
 
 /**
  * /games — playful mobile-first hub. Mockup-faithful 440px column with a
@@ -46,11 +47,6 @@ export default function GamesHub() {
     streak: { streak: 0, longestStreak: 0, signedIn: false },
     leaderboardRows: [],
   })
-
-  useEffect(() => {
-    document.title = 'Games — ZedExams'
-    setMeta('Play Zambian CBC-aligned learning games with daily challenges, subject progress, badges, and live leaderboard climbing.')
-  }, [])
 
   useEffect(() => {
     let cancelled = false
@@ -121,6 +117,11 @@ export default function GamesHub() {
 
   return (
     <GamesShell crumbs={[]}>
+      <SeoHelmet
+        title="Games"
+        description="Play Zambian CBC-aligned learning games with daily challenges, subject progress, badges, and live leaderboard climbing."
+        path="/games"
+      />
       <div className="mx-auto w-full max-w-md space-y-7 pb-4 sm:max-w-3xl sm:space-y-9 lg:max-w-5xl lg:space-y-12">
         {/* Stats strip */}
         <section className="zx-card flex items-center justify-between gap-2 rounded-[18px] bg-slate-900 px-3.5 py-2.5 text-white sm:gap-4 sm:rounded-[22px] sm:px-6 sm:py-4">
@@ -430,15 +431,5 @@ function badgeFor(game, index) {
 function pickGradeForSubject(games, subjectSlug) {
   const first = games.find((game) => String(game.subject || '').toLowerCase() === subjectSlug)
   return first?.grade || 1
-}
-
-function setMeta(content) {
-  let tag = document.querySelector('meta[name="description"]')
-  if (!tag) {
-    tag = document.createElement('meta')
-    tag.name = 'description'
-    document.head.appendChild(tag)
-  }
-  tag.content = content
 }
 
