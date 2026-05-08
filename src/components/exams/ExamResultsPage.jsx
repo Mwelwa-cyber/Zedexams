@@ -505,6 +505,21 @@ export default function ExamResultsPage() {
                 </Link>
               </div>
             </section>
+
+            {/* WhatsApp share — same viral CTA as the quiz results page.
+                Targets the homepage (not the auth-protected attempt URL)
+                so recipients can sign up and try a daily exam themselves. */}
+            <div className="text-center">
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(`I just scored ${attempt.percentage ?? 0}% on the ${attempt.subject || 'ZedExams'} daily exam! 🏆 Try ZedExams: https://zedexams.com`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => playClick()}
+                className="inline-flex items-center gap-2 rounded-full bg-green-500 hover:bg-green-600 px-4 py-2 text-sm font-bold text-white transition-colors"
+              >
+                <span aria-hidden="true">💬</span> Share on WhatsApp
+              </a>
+            </div>
           </>
         )}
 
