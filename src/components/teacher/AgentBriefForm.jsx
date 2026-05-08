@@ -8,12 +8,14 @@ import { useAuth } from '../../contexts/AuthContext'
 import SeoHelmet from '../seo/SeoHelmet'
 import Button from '../ui/Button'
 
-// Aria currently drives the existing teacherTools runners that export a
-// run* helper. Other tools fall back to the existing /teacher/generate/*
-// pages until Phase 4b lands.
+// Mirrors functions/agents/runners/aria.js SUPPORTED_TOOLS — keep in sync.
 const TOOLS = [
-  { id: 'lesson_plan', label: 'Lesson plan' },
-  { id: 'worksheet',   label: 'Worksheet'   },
+  { id: 'lesson_plan',    label: 'Lesson plan'    },
+  { id: 'worksheet',      label: 'Worksheet'      },
+  { id: 'flashcards',     label: 'Flashcards'     },
+  { id: 'rubric',         label: 'Rubric'         },
+  { id: 'scheme_of_work', label: 'Scheme of work' },
+  { id: 'notes',          label: 'Lesson notes'   },
 ]
 
 const GRADES = ['4', '5', '6', '7', '8', '9', '10', '11', '12']
