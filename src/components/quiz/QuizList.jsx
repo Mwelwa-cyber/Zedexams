@@ -1,181 +1,214 @@
-import { useState, useEffect } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import { BarChart3, BeakerIcon, BookOpen, Clock, ClipboardList, Home, Lock, Palette, Play, Search, Settings, ChevronRight, Sparkles, PencilLine, StarIcon, X } from '../ui/icons'
+import {
+  ChevronDown,
+  ChevronRight,
+  ClipboardList,
+  Clock,
+  Lock,
+  PencilLine,
+  Play,
+  Search,
+  Sparkles,
+  StarIcon,
+  X,
+} from '../ui/icons'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useSubscription } from '../../hooks/useSubscription'
+import { useAuth } from '../../contexts/AuthContext'
 import UpgradeModal from '../subscription/UpgradeModal'
 import ComingSoon from '../ui/ComingSoon'
-import SubjectScroller from '../ui/SubjectScroller'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
 import SeoHelmet from '../seo/SeoHelmet'
+import GameStickerStyles from '../games/GameStickerStyles'
 
-// ── Design tokens ──────────────────────────────────────────────────────────
+// ── Config ────────────────────────────────────────────────────────────────
 const GRADES = ['4', '5', '6']
 const TERMS  = ['1', '2', '3']
 
+// Each CBC subject is presented as a mascot tile, mirroring the /games hub.
+// `slug` matches the keys in gamesUi SUBJECT_MASCOTS and SUBJECT_TILE_BG.
 const SUBJECTS = [
-  { id: 'Mathematics',       label: 'Mathematics',       icon: BarChart3,  color: 'blue'   },
-  { id: 'English',           label: 'English',           icon: PencilLine, color: 'violet' },
-  { id: 'Integrated Science',label: 'Integrated Science',icon: BeakerIcon, color: 'orange' },
-  { id: 'Social Studies',    label: 'Social Studies',    icon: BookOpen,   color: 'teal'   },
-  { id: 'Technology Studies',label: 'Technology Studies',icon: Settings,   color: 'cyan'   },
-  { id: 'Home Economics',    label: 'Home Economics',    icon: Home,       color: 'pink'   },
-  { id: 'Expressive Arts',   label: 'Expressive Arts',   icon: Palette,    color: 'rose'   },
+  { id: 'Mathematics',         slug: 'mathematics', tile: 'bg-orange-100', bar: 'bg-orange-500',  mascot: '🦊', mascotName: 'Maths Fox' },
+  { id: 'English',             slug: 'english',     tile: 'bg-blue-100',   bar: 'bg-blue-600',    mascot: '🦉', mascotName: 'Story Owl' },
+  { id: 'Integrated Science',  slug: 'science',     tile: 'bg-green-100',  bar: 'bg-green-600',   mascot: '🐢', mascotName: 'Science Turtle' },
+  { id: 'Social Studies',      slug: 'social',      tile: 'bg-yellow-100', bar: 'bg-yellow-500',  mascot: '🦁', mascotName: 'Adventure Lion' },
+  { id: 'Technology Studies',  slug: 'technology',  tile: 'bg-cyan-100',   bar: 'bg-cyan-500',    mascot: '🤖', mascotName: 'Tech Robot' },
+  { id: 'Home Economics',      slug: 'home',        tile: 'bg-pink-100',   bar: 'bg-pink-500',    mascot: '🐝', mascotName: 'Home Bee' },
+  { id: 'Expressive Arts',     slug: 'arts',        tile: 'bg-rose-100',   bar: 'bg-rose-500',    mascot: '🎨', mascotName: 'Art Parrot' },
 ]
 
-const SUBJECT_STYLES = {
-  blue:   { bg: 'bg-blue-50',   border: 'border-blue-200',   badge: 'bg-blue-100 text-blue-700',   accent: 'border-l-blue-500',   icon: 'bg-blue-100 text-blue-600',   ring: 'ring-blue-400'   },
-  violet: { bg: 'bg-violet-50', border: 'border-violet-200', badge: 'bg-violet-100 text-violet-700',accent: 'border-l-violet-500', icon: 'bg-violet-100 text-violet-600', ring: 'ring-violet-400' },
-  orange: { bg: 'bg-orange-50', border: 'border-orange-200', badge: 'bg-orange-100 text-orange-700',accent: 'border-l-orange-500', icon: 'bg-orange-100 text-orange-600', ring: 'ring-orange-400' },
-  teal:   { bg: 'bg-teal-50',   border: 'border-teal-200',   badge: 'bg-teal-100 text-teal-700',   accent: 'border-l-teal-500',   icon: 'bg-teal-100 text-teal-600',   ring: 'ring-teal-400'   },
-  cyan:   { bg: 'bg-cyan-50',   border: 'border-cyan-200',   badge: 'bg-cyan-100 text-cyan-700',   accent: 'border-l-cyan-500',   icon: 'bg-cyan-100 text-cyan-600',   ring: 'ring-cyan-400'   },
-  pink:   { bg: 'bg-pink-50',   border: 'border-pink-200',   badge: 'bg-pink-100 text-pink-700',   accent: 'border-l-pink-500',   icon: 'bg-pink-100 text-pink-600',   ring: 'ring-pink-400'   },
-  rose:   { bg: 'bg-rose-50',   border: 'border-rose-200',   badge: 'bg-rose-100 text-rose-700',   accent: 'border-l-rose-500',   icon: 'bg-rose-100 text-rose-600',   ring: 'ring-rose-400'   },
-  gray:   { bg: 'bg-gray-50',   border: 'border-gray-200',   badge: 'bg-gray-100 text-gray-700',   accent: 'border-l-gray-400',   icon: 'bg-gray-100 text-gray-600',   ring: 'ring-gray-300'   },
+function difficultyColor(count = 0) {
+  if (count > 30) return 'text-red-500'
+  if (count > 15) return 'text-amber-500'
+  return 'text-emerald-600'
 }
 
-const GRADE_STYLES = {
-  '4': { badge: 'bg-emerald-100 text-emerald-700', dot: 'bg-emerald-500' },
-  '5': { badge: 'bg-blue-100 text-blue-700',       dot: 'bg-blue-500'    },
-  '6': { badge: 'bg-orange-100 text-orange-700',   dot: 'bg-orange-500'  },
+function resolveDefaultGrade(profileGrade) {
+  const value = profileGrade == null ? '' : String(profileGrade)
+  return GRADES.includes(value) ? value : GRADES[0]
 }
 
-function getSubjectMeta(subjectId) {
-  const sub = SUBJECTS.find(s => s.id === subjectId)
-  if (!sub) return { icon: PencilLine, style: SUBJECT_STYLES.gray, label: subjectId }
-  return { icon: sub.icon, style: SUBJECT_STYLES[sub.color], label: sub.label }
-}
-
-// ── Filter chip ────────────────────────────────────────────────────────────
-function Chip({ label, active, onClick, icon }) {
+// ── Inline quiz row (revealed inside an expanded subject card) ─────────────
+function QuizRow({ quiz, locked, onStart }) {
   return (
-    <button onClick={onClick}
-      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-bold transition-all min-h-0 whitespace-nowrap ${
-        active
-          ? 'theme-accent-fill theme-on-accent shadow-md'
-          : 'theme-card border theme-border theme-text-muted hover:theme-bg-subtle hover:theme-text'
-      }`}>
-      {icon && (
-        <span className="text-xs">
-          {typeof icon === 'string' ? icon : <Icon as={icon} size="xs" strokeWidth={2.1} />}
-        </span>
-      )}
-      {label}
-    </button>
-  )
-}
-
-// ── Skeleton ───────────────────────────────────────────────────────────────
-function SkeletonCard() {
-  return (
-    <div className="theme-card rounded-2xl border theme-border p-4 border-l-4 border-l-[var(--border)]">
-      <div className="flex items-start gap-4">
-        <Skeleton shape="circle" size={48} />
-        <div className="flex-1 space-y-2.5 pt-0.5">
-          <Skeleton height={16} width="75%" />
-          <Skeleton height={12} width="50%" />
-          <div className="flex gap-2 mt-1">
-            <Skeleton height={20} width={80} className="rounded-full" />
-            <Skeleton height={20} width={56} className="rounded-full" />
-            <Skeleton height={20} width={64} className="rounded-full" />
-          </div>
+    <button
+      type="button"
+      onClick={() => onStart(quiz.id, locked)}
+      aria-label={locked ? 'Locked — upgrade to access' : `Start ${quiz.title}`}
+      className="zx-card group flex w-full items-center justify-between gap-3 rounded-[18px] bg-white px-3.5 py-3 text-left transition active:translate-y-[2px] active:shadow-none sm:px-4 sm:py-3.5"
+    >
+      <div className="flex min-w-0 items-start gap-3">
+        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border-2 border-slate-900 bg-amber-100 text-slate-900 sm:h-10 sm:w-10">
+          <Icon as={locked ? Lock : Play} size="sm" />
         </div>
-        <Skeleton height={36} width={80} />
-      </div>
-    </div>
-  )
-}
-
-// ── Quiz card ──────────────────────────────────────────────────────────────
-function QuizCard({ quiz, onStart, locked }) {
-  const { icon, style } = getSubjectMeta(quiz.subject)
-  const gradeStyle = GRADE_STYLES[quiz.grade] ?? GRADE_STYLES['6']
-  const diffColor = quiz.questionCount > 30
-    ? 'text-red-500' : quiz.questionCount > 15
-    ? 'text-amber-500' : 'text-green-500'
-
-  return (
-    <div className={`theme-card rounded-2xl border theme-border border-l-4 ${style.accent} theme-shadow hover:shadow-md transition-all duration-200 group ${locked ? 'opacity-75' : ''}`}>
-      <div className="p-4 flex items-start gap-4">
-        {/* Subject icon */}
-        <div className={`${style.icon} w-12 h-12 rounded-xl flex items-center justify-center text-xl flex-shrink-0 group-hover:scale-105 transition-transform`}>
-          <Icon as={icon} size="lg" strokeWidth={2.1} />
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-            <h3 className="font-black theme-text text-sm leading-snug group-hover:theme-accent-text transition-colors line-clamp-2">
+        <div className="min-w-0">
+          <div className="flex items-center gap-1.5">
+            <h4 className="font-display truncate text-[14px] font-bold leading-snug text-slate-900 sm:text-[15px]">
               {quiz.title}
-            </h3>
+            </h4>
             {quiz.isDemo && (
-              <span className="bg-green-100 text-green-700 text-xs font-black px-2 py-0.5 rounded-full flex-shrink-0">Demo</span>
+              <span className="shrink-0 rounded-full border-[1.5px] border-slate-900 bg-emerald-400 px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-[0.08em] text-slate-900">
+                Demo
+              </span>
             )}
             {locked && !quiz.isDemo && (
-              <span className="theme-bg-subtle theme-text-muted inline-flex items-center gap-1 text-xs font-black px-2 py-0.5 rounded-full flex-shrink-0">
-                <Icon as={Lock} size="xs" strokeWidth={2.1} /> Locked
+              <span className="inline-flex shrink-0 items-center gap-1 rounded-full border-[1.5px] border-slate-900 bg-slate-900 px-1.5 py-0.5 text-[9px] font-extrabold uppercase tracking-[0.08em] text-white">
+                <Icon as={Lock} size="xs" /> Locked
               </span>
             )}
           </div>
           {quiz.topic && (
-            <p className="theme-text-muted text-xs mt-0.5 truncate">{quiz.topic}</p>
+            <p className="mt-0.5 truncate text-[11.5px] font-semibold text-slate-500">{quiz.topic}</p>
           )}
-          <div className="flex gap-1.5 mt-2 flex-wrap items-center">
-            <span className={`text-xs font-bold px-2 py-0.5 rounded-full ${style.badge}`}>{quiz.subject}</span>
-            <span className={`text-xs font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${gradeStyle.badge}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${gradeStyle.dot}`} />
-              Grade {quiz.grade}
+          <div className="mt-1.5 flex flex-wrap items-center gap-2 text-[11px] font-semibold text-slate-600">
+            <span className={`inline-flex items-center gap-1 ${difficultyColor(quiz.questionCount)}`}>
+              <Icon as={ClipboardList} size="xs" /> {quiz.questionCount ?? '?'} qs
+            </span>
+            <span className="inline-flex items-center gap-1">
+              <Icon as={Clock} size="xs" /> {quiz.duration} min
             </span>
             {quiz.term && (
-              <span className="theme-bg-subtle theme-text-muted text-xs font-bold px-2 py-0.5 rounded-full">Term {quiz.term}</span>
+              <span className="rounded-full border-[1.5px] border-slate-900 bg-white px-2 py-0.5 text-[9.5px] font-extrabold uppercase tracking-[0.08em] text-slate-900">
+                Term {quiz.term}
+              </span>
+            )}
+            {quiz.totalMarks && (
+              <span className="inline-flex items-center gap-1">
+                <Icon as={StarIcon} size="xs" /> {quiz.totalMarks}
+              </span>
             )}
           </div>
-          <div className="flex items-center gap-3 mt-2">
-            <span className={`text-xs font-bold flex items-center gap-1 ${diffColor}`}>
-              <Icon as={ClipboardList} size="xs" strokeWidth={2.1} /> {quiz.questionCount ?? '?'} questions
+        </div>
+      </div>
+      <span className="inline-flex shrink-0 items-center gap-1 rounded-full border-2 border-slate-900 bg-[#FF7A1A] px-3 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.08em] text-white shadow-[0_2px_0_#0F1B2D] transition group-hover:translate-y-[1px] group-hover:shadow-[0_1px_0_#0F1B2D]">
+        {locked ? 'Unlock' : 'Start'}
+        <Icon as={locked ? Lock : ChevronRight} size="xs" />
+      </span>
+    </button>
+  )
+}
+
+// ── Subject tile (mascot card that expands inline to reveal its quizzes) ───
+function SubjectCard({ subject, quizzes, expanded, onToggle, onStart, isLocked }) {
+  const total = quizzes.length
+  const empty = total === 0
+  const demoCount = quizzes.filter(q => q.isDemo).length
+
+  return (
+    <div className="zx-card overflow-hidden rounded-[22px] bg-white">
+      <button
+        type="button"
+        disabled={empty}
+        onClick={() => !empty && onToggle(subject.id)}
+        aria-expanded={expanded}
+        aria-controls={`quizzes-${subject.slug}`}
+        className={`flex w-full items-center gap-4 p-4 text-left transition sm:p-5 ${empty ? 'cursor-not-allowed opacity-65' : 'active:translate-y-[1px]'}`}
+      >
+        <div
+          className={`zx-mascot-tile grid h-16 w-16 shrink-0 place-items-center rounded-[18px] border-2 border-slate-900 text-[34px] leading-none sm:h-20 sm:w-20 sm:text-[42px] ${subject.tile}`}
+        >
+          <span aria-hidden="true">{subject.mascot}</span>
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <h3 className="font-display text-[19px] font-bold leading-none text-slate-900 sm:text-xl lg:text-[22px]">
+            {subject.id}
+          </h3>
+          <p className="mt-1 text-[11.5px] font-semibold text-slate-500 sm:text-xs">
+            {subject.mascotName}
+          </p>
+          <div className="mt-2 flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1 rounded-full border-[1.5px] border-slate-900 bg-slate-900 px-2 py-1 text-[9.5px] font-extrabold uppercase tracking-[0.08em] text-white">
+              {empty ? 'Coming soon' : `${total} ${total === 1 ? 'quiz' : 'quizzes'}`}
             </span>
-            <span className="text-xs theme-text-muted flex items-center gap-1">
-              <Icon as={Clock} size="xs" strokeWidth={2.1} /> {quiz.duration} min
-            </span>
-            {quiz.totalMarks && (
-              <span className="text-xs theme-text-muted flex items-center gap-1">
-                <Icon as={StarIcon} size="xs" strokeWidth={2.1} /> {quiz.totalMarks} marks
+            {demoCount > 0 && (
+              <span className="inline-flex items-center gap-1 rounded-full border-[1.5px] border-slate-900 bg-emerald-400 px-2 py-1 text-[9.5px] font-extrabold uppercase tracking-[0.08em] text-slate-900">
+                <Icon as={Sparkles} size="xs" /> {demoCount} demo
               </span>
             )}
           </div>
         </div>
 
-        {/* CTA */}
-        <button
-          onClick={() => onStart(quiz.id, locked)}
-          aria-label={locked ? 'Locked — upgrade to access' : `Start ${quiz.title}`}
-          className={`flex-shrink-0 flex flex-col items-center justify-center gap-0.5 px-4 py-2.5 rounded-xl font-black text-sm min-h-0 transition-all duration-fast ease-out ${
-            locked
-              ? 'theme-bg-subtle theme-text-muted cursor-not-allowed'
-              : 'theme-accent-fill theme-on-accent shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-0.5 hover:shadow-elev-md active:scale-[0.97]'
-          }`}>
-          <Icon as={locked ? Lock : Play} size="sm" />
-          <span className="text-xs font-bold">{locked ? 'Locked' : 'Start'}</span>
-        </button>
+        {!empty && (
+          <span
+            aria-hidden="true"
+            className={`grid h-9 w-9 shrink-0 place-items-center rounded-full border-2 border-slate-900 bg-white text-slate-900 transition-transform sm:h-10 sm:w-10 ${expanded ? 'rotate-180' : ''}`}
+          >
+            <Icon as={ChevronDown} size="sm" />
+          </span>
+        )}
+      </button>
+
+      {expanded && !empty && (
+        <div
+          id={`quizzes-${subject.slug}`}
+          className="space-y-2.5 border-t-2 border-dashed border-slate-300 bg-[#FFF7ED]/60 p-3.5 sm:p-5"
+        >
+          {quizzes.map(quiz => (
+            <QuizRow
+              key={quiz.id}
+              quiz={quiz}
+              locked={isLocked(quiz)}
+              onStart={onStart}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Skeletons ──────────────────────────────────────────────────────────────
+function SubjectSkeleton() {
+  return (
+    <div className="zx-card animate-pulse rounded-[22px] bg-white p-4 sm:p-5">
+      <div className="flex items-center gap-4">
+        <Skeleton shape="circle" size={64} />
+        <div className="flex-1 space-y-2">
+          <Skeleton height={16} width="55%" />
+          <Skeleton height={12} width="35%" />
+          <Skeleton height={20} width={80} className="rounded-full" />
+        </div>
       </div>
     </div>
   )
 }
 
-// ── Locked content banner ──────────────────────────────────────────────────
+// ── Locked banner (premium nudge) ──────────────────────────────────────────
 function LockedBanner({ onUpgrade }) {
   return (
-    <div className="theme-card rounded-2xl border-2 border-dashed theme-border p-5 text-center mb-3 shadow-elev-sm">
-      <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full theme-bg-subtle theme-text-muted">
+    <div className="zx-card mb-4 rounded-[22px] bg-white p-5 text-center">
+      <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-[14px] border-2 border-slate-900 bg-amber-100">
         <Icon as={Lock} size="lg" />
       </div>
-      <p className="text-display-md theme-text">Full library locked</p>
-      <p className="theme-text-muted text-body-sm mt-1 mb-4">
-        You're viewing demo quizzes only. Upgrade to access all quizzes.
+      <p className="font-display text-[18px] font-bold text-slate-900">Full library locked</p>
+      <p className="mx-auto mt-1 max-w-md text-sm font-medium text-slate-500">
+        You're viewing demo quizzes only. Upgrade to unlock every quiz across all subjects and grades.
       </p>
-      <div className="inline-flex">
+      <div className="mt-4 inline-flex">
         <Button
           variant="primary"
           size="md"
@@ -194,49 +227,80 @@ function LockedBanner({ onUpgrade }) {
 export default function QuizList() {
   const { getQuizzes } = useFirestore()
   const { isDemoOnly, accessBadge } = useSubscription()
+  const { userProfile } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
-  const [quizzes, setQuizzes]         = useState([])
-  const [loading, setLoading]         = useState(true)
-  const [search, setSearch]           = useState('')
-  const [gradeF, setGradeF]           = useState('')
-  const [subjectF, setSubjectF]       = useState('')
-  const [termF, setTermF]             = useState('')
-  const [sortBy, setSortBy]           = useState('newest')
-  const [showUpgrade, setShowUpgrade] = useState(false)
+  const profileGrade = userProfile?.grade
+  const [gradeF, setGradeF]             = useState(() => resolveDefaultGrade(profileGrade))
+  const [termF, setTermF]               = useState('')
+  const [search, setSearch]             = useState('')
+  const [expandedSubject, setExpanded]  = useState(null)
+  const [quizzes, setQuizzes]           = useState([])
+  const [loading, setLoading]           = useState(true)
+  const [showUpgrade, setShowUpgrade]   = useState(false)
   const [blockedToast, setBlockedToast] = useState(location.state?.blocked || false)
 
+  // Sync the chip when the user's profile grade loads/changes after mount.
   useEffect(() => {
+    if (!profileGrade) return
+    const next = resolveDefaultGrade(profileGrade)
+    setGradeF(prev => (prev ? prev : next))
+  }, [profileGrade])
+
+  useEffect(() => {
+    let cancelled = false
     async function load() {
       setLoading(true)
-      // For demo-only users, fetch all published quizzes (we'll show locked state on non-demo ones)
-      const data = await getQuizzes({ grade: gradeF, subject: subjectF, term: termF })
-      setQuizzes(data)
-      setLoading(false)
+      const data = await getQuizzes({ grade: gradeF, term: termF })
+      if (!cancelled) {
+        setQuizzes(data)
+        setLoading(false)
+      }
     }
     load()
-  }, [gradeF, subjectF, termF])
+    return () => { cancelled = true }
+  }, [gradeF, termF])
 
-  // Auto-dismiss blocked toast after 4s
+  // Auto-dismiss the "blocked" toast that the upgrade flow forwards in.
   useEffect(() => {
     if (!blockedToast) return
     const t = setTimeout(() => setBlockedToast(false), 4000)
     return () => clearTimeout(t)
   }, [blockedToast])
 
-  const filtered = quizzes
-    .filter(q =>
-      !search || q.title.toLowerCase().includes(search.toLowerCase()) ||
-      (q.topic ?? '').toLowerCase().includes(search.toLowerCase())
+  const filteredQuizzes = useMemo(() => {
+    const needle = search.trim().toLowerCase()
+    if (!needle) return quizzes
+    return quizzes.filter(q =>
+      (q.title ?? '').toLowerCase().includes(needle) ||
+      (q.topic ?? '').toLowerCase().includes(needle)
     )
-    .sort((a, b) => {
-      if (sortBy === 'az')      return (a.title ?? '').localeCompare(b.title ?? '')
-      if (sortBy === 'grade')   return (a.grade ?? '').localeCompare(b.grade ?? '')
-      if (sortBy === 'subject') return (a.subject ?? '').localeCompare(b.subject ?? '')
-      // newest (default): use createdAt desc (already sorted from Firestore)
-      return 0
-    })
+  }, [quizzes, search])
+
+  // Group filtered quizzes by subject. Subjects without any matching quizzes
+  // still appear in the grid as "Coming soon" so the layout stays predictable.
+  const grouped = useMemo(() => {
+    const map = new Map()
+    for (const subject of SUBJECTS) map.set(subject.id, [])
+    for (const quiz of filteredQuizzes) {
+      const list = map.get(quiz.subject)
+      if (list) list.push(quiz)
+    }
+    return SUBJECTS.map(subject => ({ subject, items: map.get(subject.id) || [] }))
+  }, [filteredQuizzes])
+
+  // Auto-open a single subject when search narrows the results so learners
+  // immediately see what matched, instead of having to tap to reveal it.
+  useEffect(() => {
+    if (!search.trim()) return
+    const populated = grouped.filter(g => g.items.length > 0)
+    if (populated.length === 1) setExpanded(populated[0].subject.id)
+  }, [search, grouped])
+
+  function handleToggle(subjectId) {
+    setExpanded(prev => (prev === subjectId ? null : subjectId))
+  }
 
   function handleStart(quizId, locked) {
     if (locked) { setShowUpgrade(true); return }
@@ -247,185 +311,224 @@ export default function QuizList() {
     return isDemoOnly && !quiz.isDemo
   }
 
-  const hasActiveFilter = gradeF || subjectF || termF || search
+  function handleClearSearch() {
+    setSearch('')
+    setTermF('')
+  }
 
-  const demoCount = quizzes.filter(q => q.isDemo).length
+  const totalForGrade = filteredQuizzes.length
+  const demoForGrade  = filteredQuizzes.filter(q => q.isDemo).length
 
   return (
-    <div className="min-h-screen theme-bg">
+    <div className="force-light-theme min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#fff7ed_0%,#f8fafc_38%,#ffffff_100%)] text-slate-900">
+      <GameStickerStyles />
       <SeoHelmet title="Quizzes" path="/quizzes" noIndex />
       {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
 
-      {/* Blocked toast */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.18),_transparent_36%),radial-gradient(circle_at_top_right,_rgba(14,165,233,0.14),_transparent_32%),radial-gradient(circle_at_center,_rgba(16,185,129,0.12),_transparent_42%)]" />
+
       {blockedToast && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-orange-500 text-white font-black text-sm px-5 py-3 rounded-2xl shadow-lg animate-slide-up flex items-center gap-2">
-          <Icon as={Lock} size="sm" strokeWidth={2.1} /> Upgrade required to access that quiz
-          <button onClick={() => setBlockedToast(false)} className="text-white/70 hover:text-white min-h-0 p-0 bg-transparent shadow-none text-lg leading-none">×</button>
+        <div className="fixed left-1/2 top-4 z-50 flex -translate-x-1/2 items-center gap-2 rounded-2xl bg-[#FF7A1A] px-5 py-3 text-sm font-black text-white shadow-lg">
+          <Icon as={Lock} size="sm" /> Upgrade required to access that quiz
+          <button
+            onClick={() => setBlockedToast(false)}
+            className="ml-1 rounded-full p-0 text-lg leading-none text-white/80 hover:text-white"
+            aria-label="Dismiss"
+          >
+            ×
+          </button>
         </div>
       )}
 
-      {/* ── Hero banner ────────────────────────────────────────────────────── */}
-      <div className="theme-hero px-4 pt-6 pb-8">
-        <div className="max-w-2xl md:max-w-4xl mx-auto">
-          <div className="flex items-start justify-between gap-4">
+      <div className="relative mx-auto w-full max-w-md space-y-7 px-4 pb-12 pt-6 sm:max-w-3xl sm:space-y-9 sm:px-6 sm:pt-8 lg:max-w-5xl lg:space-y-10">
+        {/* Hero */}
+        <section className="zx-card flex flex-col gap-4 rounded-[22px] bg-slate-900 p-5 text-white sm:p-7">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="zx-chip border-white/30 bg-white/15 text-white">Quiz Library</span>
+            <span className={`inline-flex items-center gap-1 rounded-full border-2 border-white/30 px-2 py-1 text-[9.5px] font-extrabold uppercase tracking-[0.08em] ${
+              accessBadge.color === 'green'  ? 'bg-emerald-500/30 text-emerald-100' :
+              accessBadge.color === 'blue'   ? 'bg-sky-500/30 text-sky-100' :
+              accessBadge.color === 'yellow' ? 'bg-amber-500/30 text-amber-100' :
+              'bg-white/15 text-white/80'
+            }`}>
+              <Icon as={Sparkles} size="xs" /> {accessBadge.label}
+            </span>
+          </div>
+          <div className="flex flex-wrap items-end justify-between gap-3">
             <div>
-              <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <span className="text-eyebrow bg-white/20 text-white px-3 py-1 rounded-full backdrop-blur-sm" style={{ color: 'rgba(255,255,255,0.95)' }}>
-                  Quiz Library
-                </span>
-                {/* Access badge in header */}
-                <span className={`inline-flex items-center gap-1 text-xs font-black px-3 py-1 rounded-full backdrop-blur-sm ${
-                  accessBadge.color === 'green'  ? 'bg-green-500/30 text-green-100' :
-                  accessBadge.color === 'blue'   ? 'bg-blue-500/30 text-blue-100' :
-                  accessBadge.color === 'yellow' ? 'bg-yellow-500/30 text-yellow-100' :
-                  'bg-white/20 text-white/70'
-                }`}>
-                  <Icon as={Sparkles} size="xs" strokeWidth={2.1} /> {accessBadge.label}
-                </span>
-              </div>
-              <h1 className="text-display-xl text-white mt-2">
+              <h1 className="font-display text-[28px] font-bold leading-none tracking-tight sm:text-4xl">
                 Test your knowledge
               </h1>
-              <p className="theme-hero-muted text-body-sm mt-1">
+              <p className="mt-2 text-[12.5px] font-semibold text-white/75 sm:text-sm">
                 {isDemoOnly
-                  ? `${demoCount} demo quiz${demoCount !== 1 ? 'zes' : ''} available · Upgrade for full access`
-                  : `${quizzes.length} quizzes · Grades 4–6 — CBC aligned`
-                }
+                  ? `${demoForGrade} demo quiz${demoForGrade === 1 ? '' : 'zes'} for Grade ${gradeF} · Upgrade for full access`
+                  : `${totalForGrade} quiz${totalForGrade === 1 ? '' : 'zes'} for Grade ${gradeF} · CBC aligned`}
               </p>
             </div>
-            {!loading && (
-              <div className="bg-white/15 backdrop-blur-sm rounded-2xl px-4 py-3 text-center flex-shrink-0">
-                <p className="text-2xl font-black text-white">{isDemoOnly ? demoCount : quizzes.length}</p>
-                <p className="theme-hero-muted text-xs font-bold">{isDemoOnly ? 'Demo' : 'Quizzes'}</p>
-              </div>
-            )}
+            <div className="rounded-[18px] border-2 border-white/20 bg-white/10 px-4 py-3 text-center">
+              <p className="font-display text-2xl font-bold leading-none">
+                {isDemoOnly ? demoForGrade : totalForGrade}
+              </p>
+              <p className="mt-1 text-[10px] font-extrabold uppercase tracking-[0.16em] text-white/70">
+                {isDemoOnly ? 'Demo' : 'Quizzes'}
+              </p>
+            </div>
           </div>
-
-          {/* Search bar */}
-          <div className="relative mt-4">
-            <span className="absolute left-4 top-1/2 -translate-y-1/2 theme-hero-muted inline-flex items-center" style={{ color: 'rgba(255,255,255,0.75)' }}>
+          <label className="relative block">
+            <span className="sr-only">Search quizzes</span>
+            <span className="pointer-events-none absolute left-4 top-1/2 inline-flex -translate-y-1/2 items-center text-white/70">
               <Icon as={Search} size="sm" />
             </span>
             <input
-              type="search" value={search} onChange={e => setSearch(e.target.value)}
+              type="search"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
               placeholder="Search by title or topic…"
-              aria-label="Search quizzes"
-              className="w-full pl-10 pr-4 py-3 rounded-xl bg-white/15 backdrop-blur-sm text-white placeholder-white/70 border border-white/20 focus:bg-white/25 text-sm font-medium"
+              className="w-full rounded-[14px] border-2 border-white/20 bg-white/15 px-10 py-3 text-sm font-semibold text-white placeholder-white/65 outline-none transition focus:border-white/60 focus:bg-white/25"
             />
-          </div>
-        </div>
-      </div>
+            {search && (
+              <button
+                type="button"
+                onClick={() => setSearch('')}
+                className="absolute right-3 top-1/2 inline-flex -translate-y-1/2 items-center justify-center rounded-full bg-white/15 p-1 text-white/80 transition hover:bg-white/25 hover:text-white"
+                aria-label="Clear search"
+              >
+                <Icon as={X} size="xs" />
+              </button>
+            )}
+          </label>
+        </section>
 
-      <div className="max-w-2xl md:max-w-4xl mx-auto px-4 -mt-3">
-        {/* Locked banner for demo-only users (access badge already shown in hero) */}
+        {/* Locked banner for demo-only learners */}
         {isDemoOnly && <LockedBanner onUpgrade={() => setShowUpgrade(true)} />}
 
-        {/* ── Filters ────────────────────────────────────────────────────────── */}
-        <div className="theme-card rounded-2xl border theme-border theme-shadow p-4 mb-5 space-y-3">
-          {/* Grade filter */}
-          <div>
-            <p className="text-xs font-black theme-text-muted uppercase tracking-wider mb-2">Grade</p>
-            <div className="flex gap-2 flex-wrap">
-              <Chip label="All" active={!gradeF} onClick={() => setGradeF('')} />
-              {GRADES.map(g => (
-                <Chip key={g} label={`Grade ${g}`} active={gradeF === g}
-                  onClick={() => setGradeF(g === gradeF ? '' : g)} />
-              ))}
+        {/* Grade picker (single-select — only one grade is visible at a time) */}
+        <section>
+          <div className="mb-2 flex items-end justify-between">
+            <div>
+              <span className="zx-eyebrow">Pick your grade</span>
+              <h2 className="font-display mt-1 text-[22px] font-bold leading-none tracking-tight text-slate-900 sm:text-2xl">
+                Grade {gradeF}
+              </h2>
             </div>
+            <p className="hidden text-[11px] font-bold uppercase tracking-[0.12em] text-slate-500 sm:block">
+              Switch grade to see its quizzes
+            </p>
           </div>
-
-          {/* Term filter */}
-          <div>
-            <p className="text-xs font-black theme-text-muted uppercase tracking-wider mb-2">Term</p>
-            <div className="flex gap-2 flex-wrap">
-              <Chip label="All Terms" active={!termF} onClick={() => setTermF('')} />
-              {TERMS.map(t => (
-                <Chip key={t} label={`Term ${t}`} active={termF === t}
-                  onClick={() => setTermF(t === termF ? '' : t)} />
-              ))}
-            </div>
+          <div className="flex flex-wrap gap-2">
+            {GRADES.map(g => {
+              const active = gradeF === g
+              return (
+                <button
+                  key={g}
+                  type="button"
+                  onClick={() => { setGradeF(g); setExpanded(null) }}
+                  aria-pressed={active}
+                  className={`zx-card rounded-full px-4 py-2 text-[12px] font-extrabold uppercase tracking-[0.08em] transition ${
+                    active
+                      ? 'bg-slate-900 text-white'
+                      : 'bg-white text-slate-900 hover:bg-amber-50'
+                  }`}
+                >
+                  Grade {g}
+                </button>
+              )
+            })}
           </div>
+        </section>
 
-          {/* Subject filter */}
-          <div>
-            <p className="text-xs font-black theme-text-muted uppercase tracking-wider mb-2">Subject</p>
-            <SubjectScroller
-              subjects={SUBJECTS}
-              value={subjectF}
-              onChange={setSubjectF}
-              variant="indigo"
-            />
+        {/* Term filter */}
+        <section>
+          <div className="mb-2">
+            <span className="zx-eyebrow">Filter by term</span>
           </div>
-
-          {/* Sort + clear row */}
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
-              <p className="text-xs font-black theme-text-muted uppercase tracking-wider">Sort</p>
-              <select
-                value={sortBy}
-                onChange={e => setSortBy(e.target.value)}
-                className="text-xs font-bold rounded-lg px-2 py-1.5 border theme-input focus:outline-none focus:border-[var(--accent)] transition-colors"
-              >
-                <option value="newest">Newest</option>
-                <option value="az">A–Z</option>
-                <option value="grade">Grade</option>
-                <option value="subject">Subject</option>
-              </select>
-            </div>
-            {hasActiveFilter && (
+          <div className="flex flex-wrap gap-2">
+            {[{ id: '', label: 'All terms' }, ...TERMS.map(t => ({ id: t, label: `Term ${t}` }))].map(opt => {
+              const active = termF === opt.id
+              return (
+                <button
+                  key={opt.id || 'all'}
+                  type="button"
+                  onClick={() => setTermF(opt.id)}
+                  aria-pressed={active}
+                  className={`zx-card rounded-full px-3.5 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.08em] transition ${
+                    active
+                      ? 'bg-[#FF7A1A] text-white'
+                      : 'bg-white text-slate-900 hover:bg-amber-50'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              )
+            })}
+            {(termF || search) && (
               <button
-                onClick={() => { setSearch(''); setGradeF(''); setSubjectF(''); setTermF('') }}
-                className="text-xs text-red-500 font-bold hover:text-red-700 min-h-0 bg-transparent shadow-none p-0 flex items-center gap-1">
-                <Icon as={X} size="xs" strokeWidth={2.1} /> Clear all filters
+                type="button"
+                onClick={handleClearSearch}
+                className="inline-flex items-center gap-1 rounded-full px-2 py-1.5 text-[11px] font-extrabold uppercase tracking-[0.08em] text-rose-600 hover:text-rose-700"
+              >
+                <Icon as={X} size="xs" /> Clear
               </button>
             )}
           </div>
-        </div>
+        </section>
 
-        {/* Results header */}
-        {!loading && filtered.length > 0 && (
-          <p className="text-xs theme-text-muted font-bold mb-3 px-1">
-            {filtered.length} quiz{filtered.length !== 1 ? 'zes' : ''} found
-            {hasActiveFilter && ' (filtered)'}
-            {isDemoOnly && ' (demo only)'}
-          </p>
-        )}
-
-        {/* ── Quiz grid ─────────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 pb-10">
-          {loading ? (
-            Array.from({ length: 6 }).map((_, i) => <SkeletonCard key={i} />)
-          ) : quizzes.length === 0 ? (
-            <div className="col-span-full">
-              <ComingSoon
-                title="Quizzes Coming Soon"
-                message="No quizzes have been published yet. Check back soon!"
-                icon={PencilLine}
-                showQuizBtn={false}
-              />
+        {/* Subjects (mascot tiles, tap to expand inline) */}
+        <section>
+          <div className="mb-3 flex items-end justify-between sm:mb-4">
+            <div>
+              <span className="zx-eyebrow">Subjects</span>
+              <h2 className="font-display mt-1 text-[26px] font-bold leading-none tracking-tight text-slate-900 sm:text-3xl lg:text-4xl">
+                Pick a subject
+              </h2>
             </div>
-          ) : filtered.length === 0 ? (
-            <div className="col-span-full theme-card rounded-2xl border theme-border py-14 text-center theme-shadow">
-              <Icon as={Search} size="xl" strokeWidth={2.1} className="mx-auto mb-3 theme-text-muted" />
-              <p className="font-black theme-text">No quizzes match your filters</p>
-              <p className="theme-text-muted text-sm mt-1">Try adjusting the grade, subject, or term</p>
+            <p className="text-xs font-bold text-slate-500 sm:text-sm">
+              {loading ? 'Loading…' : `${filteredQuizzes.length} match${filteredQuizzes.length === 1 ? '' : 'es'}`}
+            </p>
+          </div>
+
+          {loading ? (
+            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2 sm:gap-4 lg:grid-cols-3 lg:gap-5">
+              {Array.from({ length: 4 }).map((_, i) => <SubjectSkeleton key={i} />)}
+            </div>
+          ) : quizzes.length === 0 ? (
+            <ComingSoon
+              title="Quizzes Coming Soon"
+              message={`No quizzes have been published for Grade ${gradeF} yet. Try a different grade or check back soon.`}
+              icon={PencilLine}
+              showQuizBtn={false}
+            />
+          ) : (
+            <div className="grid grid-cols-1 gap-3.5 sm:gap-4 lg:gap-5">
+              {grouped.map(({ subject, items }) => (
+                <SubjectCard
+                  key={subject.id}
+                  subject={subject}
+                  quizzes={items}
+                  expanded={expandedSubject === subject.id}
+                  onToggle={handleToggle}
+                  onStart={handleStart}
+                  isLocked={isLocked}
+                />
+              ))}
+            </div>
+          )}
+
+          {!loading && quizzes.length > 0 && filteredQuizzes.length === 0 && (
+            <div className="zx-card mt-4 rounded-[22px] bg-white p-6 text-center">
+              <Icon as={Search} size="xl" className="mx-auto mb-2 text-slate-400" />
+              <p className="font-display text-[16px] font-bold text-slate-900">No quizzes match your search</p>
+              <p className="mt-1 text-sm text-slate-500">Try clearing the term filter or your search query.</p>
               <button
-                onClick={() => { setSearch(''); setGradeF(''); setSubjectF(''); setTermF('') }}
-                className="mt-4 theme-accent-text font-black text-sm hover:underline min-h-0 bg-transparent shadow-none">
+                type="button"
+                onClick={handleClearSearch}
+                className="mt-3 text-sm font-extrabold text-[#0E5E70] hover:text-[#053541]"
+              >
                 Clear filters →
               </button>
             </div>
-          ) : (
-            filtered.map(quiz => (
-              <QuizCard
-                key={quiz.id}
-                quiz={quiz}
-                onStart={handleStart}
-                locked={isLocked(quiz)}
-              />
-            ))
           )}
-        </div>
+        </section>
       </div>
     </div>
   )
