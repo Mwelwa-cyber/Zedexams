@@ -5,17 +5,13 @@
  * hid typos and broken links. This page gives users a clear message and a
  * way back to their role's home.
  */
-import { useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { getRoleLandingPath } from '../../utils/navigation'
+import SeoHelmet from '../seo/SeoHelmet'
 
 export default function NotFound() {
   const { userProfile } = useAuth()
-
-  useEffect(() => {
-    document.title = 'Page Not Found — ZedExams'
-  }, [])
 
   const homePath = getRoleLandingPath(userProfile, '/login')
   const homeLabel = userProfile?.role === 'admin'
@@ -28,6 +24,7 @@ export default function NotFound() {
 
   return (
     <div className="min-h-screen theme-bg flex items-center justify-center p-4">
+      <SeoHelmet title="Page not found" noIndex />
       <div className="theme-card border theme-border rounded-3xl px-6 py-10 max-w-md w-full text-center shadow-sm">
         <div className="text-5xl mb-3">🧭</div>
         <p className="theme-text-muted font-black text-xs uppercase tracking-widest mb-2">404 — Page not found</p>
