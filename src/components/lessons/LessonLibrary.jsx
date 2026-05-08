@@ -7,6 +7,7 @@ import { LESSON_GRADES, LESSON_SUBJECTS } from './lessonConstants'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
+import SeoHelmet from '../seo/SeoHelmet'
 
 function getReadTime(lesson) {
   const words = String(lesson.content || '').split(/\s+/).filter(Boolean).length
@@ -76,6 +77,7 @@ export default function LessonLibrary() {
 
   return (
     <div className="theme-bg theme-text min-h-screen">
+      <SeoHelmet title="Lessons" path="/lessons" noIndex />
       <div className="mx-auto max-w-3xl px-4 pb-16 pt-6">
         <section className="hero">
           <div className="hero-eyebrow">Lessons</div>
