@@ -1,10 +1,96 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
+import { doc, onSnapshot, serverTimestamp, setDoc } from 'firebase/firestore'
+import { db } from '../../../firebase/config'
+import { useAuth } from '../../../contexts/AuthContext'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { AGENTS_BY_ID, DEPARTMENTS } from '../../../config/agents'
 import AgentDirectory from './AgentDirectory'
 import AgentJobsQueue from './AgentJobsQueue'
 import AgentRunHistory from './AgentRunHistory'
+
+function AgentControlToggle({ agentId }) {
+  const { currentUser } = useAuth()
+  const [control, setControl] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [busy, setBusy]       = useState(false)
+  const [errMsg, setErrMsg]   = useState(null)
+
+  useEffect(() => {
+    if (!agentId) return
+    const ref = doc(db, `agentControl/${agentId}`)
+    const unsub = onSnapshot(
+      ref,
+      (snap) => {
+        setControl(snap.exists() ? snap.data() : { paused: false })
+        setLoading(false)
+      },
+      () => setLoading(false),
+    )
+    return () => unsub()
+  }, [agentId])
+
+  async function setPaused(next) {
+    setBusy(true)
+    setErrMsg(null)
+    try {
+      await setDoc(doc(db, `agentControl/${agentId}`), {
+        paused: next,
+        updatedBy: currentUser?.uid || null,
+        updatedAt: serverTimestamp(),
+      }, { merge: true })
+    } catch (e) {
+      setErrMsg(e.message || 'Update failed.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  if (loading) return null
+
+  const paused = Boolean(control?.paused)
+  return (
+    <section className={`rounded-2xl border p-4 ${
+      paused ? 'border-yellow-200 bg-yellow-50' : 'theme-card theme-border'
+    }`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className={`text-sm font-black ${paused ? 'text-yellow-800' : 'theme-text'}`}>
+            {paused ? 'Paused' : 'Running'}
+          </p>
+          <p className="text-xs theme-text-muted mt-0.5">
+            {paused
+              ? 'The dispatcher refuses new work for this agent. Existing in-flight jobs continue.'
+              : 'The dispatcher will route new agentJobs to this agent normally.'}
+          </p>
+          {control?.updatedAt && (
+            <p className="text-[10px] theme-text-muted mt-1">
+              Last changed {(control.updatedAt.toDate
+                ? control.updatedAt.toDate()
+                : new Date(control.updatedAt)
+              ).toLocaleString('en-GB', {
+                day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
+              })}
+              {control.updatedBy && <> · by {control.updatedBy.slice(0, 8)}</>}
+            </p>
+          )}
+        </div>
+        <button
+          onClick={() => setPaused(!paused)}
+          disabled={busy}
+          className={`shrink-0 rounded-xl px-3 py-1.5 text-xs font-black transition-colors ${
+            paused
+              ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+              : 'bg-gray-200 text-gray-700 hover:bg-yellow-100 hover:text-yellow-800'
+          } disabled:opacity-50`}
+        >
+          {paused ? 'Resume' : 'Pause'}
+        </button>
+      </div>
+      {errMsg && <p className="text-xs text-red-700 mt-2">{errMsg}</p>}
+    </section>
+  )
+}
 
 const TABS = [
   { id: 'all',     label: 'All',          deptFilter: null    },
@@ -158,6 +244,8 @@ export function AgentProfile() {
           </div>
         </dl>
       </header>
+
+      <AgentControlToggle agentId={agent.id} />
 
       <AgentRunHistory agentId={agent.id} />
     </div>
