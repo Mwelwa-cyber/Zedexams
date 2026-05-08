@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { GAMES_SEED } from '../../data/gamesSeed'
 import { upsertGame } from '../../utils/gamesService'
+import SeoHelmet from '../seo/SeoHelmet'
 
 /**
  * Admin → /admin/games-seed — one-click import of the curated games seed
@@ -36,6 +37,7 @@ export default function GamesSeedAdmin() {
 
   return (
     <div className="max-w-3xl mx-auto p-6">
+      <SeoHelmet title="Games seed importer" noIndex />
       <h1 className="text-2xl font-black mb-1">Games Seed Importer</h1>
       <p className="theme-text-muted text-sm mb-6">
         Pushes the curated games library into Firestore at <code>games/&lt;id&gt;</code>.

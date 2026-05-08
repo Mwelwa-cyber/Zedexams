@@ -5,6 +5,7 @@ import {
 import {
   TEACHER_GRADES, TEACHER_SUBJECTS,
 } from '../../utils/teacherTools'
+import SeoHelmet from '../seo/SeoHelmet'
 
 const EMPTY_FORM = {
   grade: 'G10',
@@ -133,6 +134,7 @@ export default function CbcKbAdmin() {
 
   return (
     <div className="space-y-5">
+      <SeoHelmet title="CBC knowledge base" noIndex />
       <header className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-eyebrow">Admin</p>
