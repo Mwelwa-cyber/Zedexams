@@ -34,6 +34,7 @@ import {
   autoSubmitExam,
 } from '../../utils/examService'
 import RichContent from '../../editor/RichContent'
+import SeoHelmet from '../seo/SeoHelmet'
 
 // ── Tiny utilities ─────────────────────────────────────────────────────────────
 
@@ -401,6 +402,7 @@ export default function DailyExamRunner() {
   if (status === 'loading') {
     return (
       <div className="theme-bg flex min-h-screen items-center justify-center">
+        <SeoHelmet title="Exam" path={`/exam/${examId}`} noIndex />
         <div className="text-center">
           <div className="mb-3 text-5xl animate-bounce">📝</div>
           <p className="theme-accent-text text-lg font-bold">Loading exam…</p>
@@ -412,6 +414,7 @@ export default function DailyExamRunner() {
   if (status === 'error') {
     return (
       <div className="theme-bg flex min-h-screen items-center justify-center px-4">
+        <SeoHelmet title="Exam" path={`/exam/${examId}`} noIndex />
         <div className="theme-card theme-border w-full max-w-sm rounded-3xl border p-8 text-center shadow-xl">
           <div className="mb-3 text-4xl">😕</div>
           <p className="font-bold text-red-600 mb-4">{error}</p>
@@ -424,12 +427,18 @@ export default function DailyExamRunner() {
   }
 
   if (alreadyDone) {
-    return <AlreadyDoneScreen attemptId={attemptId} timeExpired={timeExpiredDone} />
+    return (
+      <>
+        <SeoHelmet title="Exam already submitted" path={`/exam/${examId}`} noIndex />
+        <AlreadyDoneScreen attemptId={attemptId} timeExpired={timeExpiredDone} />
+      </>
+    )
   }
 
   if (submitting) {
     return (
       <div className="theme-bg flex min-h-screen items-center justify-center">
+        <SeoHelmet title="Submitting exam" path={`/exam/${examId}`} noIndex />
         <div className="text-center">
           <div className="mb-3 text-5xl animate-spin">⏳</div>
           <p className="theme-accent-text text-xl font-black">Submitting exam…</p>
@@ -447,6 +456,7 @@ export default function DailyExamRunner() {
 
   return (
     <div className="theme-bg theme-text min-h-screen">
+      <SeoHelmet title={quiz?.title || 'Exam'} path={`/exam/${examId}`} noIndex />
 
       {/* Action error toast */}
       {actionError && (
