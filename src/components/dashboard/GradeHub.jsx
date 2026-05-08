@@ -50,6 +50,7 @@ import ThemeSelector            from '../ui/ThemeSelector'
 import MobileBottomNav          from '../layout/MobileBottomNav'
 import { useSubscription }      from '../../hooks/useSubscription'
 import GameStickerStyles        from '../games/GameStickerStyles'
+import SeoHelmet                from '../seo/SeoHelmet'
 import { getTodaysExam, checkDailyLock } from '../../utils/examService'
 
 // ── Sub-components ─────────────────────────────────────────────────────────
@@ -520,10 +521,6 @@ export default function GradeHub() {
   const [dailyGoal, setDailyGoal] = useState({ done: 0, total: 0 })
 
   useEffect(() => {
-    document.title = currentUser ? 'Dashboard — ZedExams' : 'Dashboard Preview — ZedExams'
-  }, [currentUser])
-
-  useEffect(() => {
     if (!currentUser) {
       setRecentResults([])
       setStats({ quizzes: 0, streak: 0 })
@@ -800,6 +797,11 @@ export default function GradeHub() {
 
   return (
     <div className="learner-game-theme min-h-screen theme-bg flex flex-col">
+      <SeoHelmet
+        title={currentUser ? 'Dashboard' : 'Dashboard Preview'}
+        path="/dashboard"
+        noIndex
+      />
       <GameStickerStyles />
       <OnboardingOverlay />
       {/* ──────────── HEADER ─────────────────────────────────── */}
