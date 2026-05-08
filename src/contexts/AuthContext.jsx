@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react'
 import {
   createUserWithEmailAndPassword,
+  sendEmailVerification,
   signInWithEmailAndPassword,
   signInWithPopup,
   signOut,
@@ -82,6 +83,15 @@ export function AuthProvider({ children }) {
       userRecord.subject  = String(extras.subject  || '').trim()
     }
     await setDoc(doc(db, 'users', cred.user.uid), userRecord)
+    // Fire the verification email but don't fail signup if delivery hiccups
+    // (e.g. rate-limited, transient Firebase Auth outage). The user lands on
+    // their dashboard and the email arrives shortly after; if it doesn't, the
+    // /auth/action handler can still resend on demand.
+    try {
+      await sendEmailVerification(cred.user)
+    } catch (err) {
+      console.warn('sendEmailVerification failed:', err)
+    }
     return cred
   }
 
