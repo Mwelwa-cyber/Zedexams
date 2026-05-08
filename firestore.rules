@@ -327,6 +327,47 @@ service cloud.firestore {
       allow delete: if isAuthed() && (resource.data.ownerUid == request.auth.uid || isAdmin());
     }
 
+    // ── agentJobs (AI agent operating model) ──────────────────
+    // Single bus for all agent work. Clients can create jobs (teacher
+    // briefs) and read their own; admins can read all and approve/reject.
+    // Output and status transitions are written by Cloud Functions only.
+    match /agentJobs/{jobId} {
+      allow read: if isAuthed() && (resource.data.createdBy == request.auth.uid || isAdmin());
+
+      // Clients create a job by setting agentId, department, input only.
+      // Status is forced to 'queued'; output, error, reviewedBy stay
+      // empty until the dispatcher / admin acts.
+      allow create: if isAuthed()
+                       && incoming().agentId is string
+                       && incoming().agentId.size() <= 64
+                       && incoming().department is string
+                       && incoming().department.size() <= 32
+                       && incoming().status == 'queued'
+                       && incoming().createdBy == request.auth.uid
+                       && (!('output' in incoming()))
+                       && (!('error' in incoming()))
+                       && (!('reviewedBy' in incoming()))
+                       && (!('publishedRefs' in incoming()));
+
+      // Admin updates: only the review fields. Output / status transitions
+      // beyond approve/reject come from the Cloud Function (admin SDK).
+      allow update: if isAdmin()
+                       && changedKeys().hasOnly(['status', 'reviewedBy', 'reviewedAt', 'reviewNotes'])
+                       && (incoming().status == 'approved'
+                           || incoming().status == 'rejected'
+                           || incoming().status == resource.data.status);
+
+      allow delete: if isAdmin();
+    }
+
+    // ── agentControl (per-agent circuit breaker) ──────────────
+    // Admins toggle paused:true to halt an agent; the dispatcher checks
+    // this before enqueueing or running.
+    match /agentControl/{agentId} {
+      allow read:   if isAuthed();
+      allow write:  if isAdmin();
+    }
+
     // ── teacherLibraries ──────────────────────────────────────
     match /teacherLibraries/{uid} {
       allow read: if isAuthed() && (isOwner(uid) || isAdmin());

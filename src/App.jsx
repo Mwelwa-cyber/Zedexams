@@ -78,6 +78,12 @@ const AdminLearnerProfile = lazy(() => import('./components/admin/AdminLearnerPr
 const GenerationsAdmin = lazy(() => import('./components/admin/GenerationsAdmin'))
 const CbcKbAdmin = lazy(() => import('./components/admin/CbcKbAdmin'))
 
+// Admin — Agents (operating-model dashboard)
+const AgentsHome      = lazy(() => import('./components/admin/agents/AgentsHome').then(m => ({ default: m.AgentsHome })))
+const AgentsAllJobs   = lazy(() => import('./components/admin/agents/AgentsHome').then(m => ({ default: m.AgentsAllJobs })))
+const AgentProfile    = lazy(() => import('./components/admin/agents/AgentsHome').then(m => ({ default: m.AgentProfile })))
+const AgentJobDetail  = lazy(() => import('./components/admin/agents/AgentJobDetail'))
+
 // Teacher section
 const TeacherLayout = lazy(() => import('./components/teacher/TeacherLayout'))
 const TeacherDashboard = lazy(() => import('./components/teacher/TeacherDashboard'))
@@ -313,6 +319,10 @@ export default function App() {
           <Route path="/admin/generate/scheme-of-work"  element={<AdminRoute><SchemeOfWorkGenerator /></AdminRoute>} />
           <Route path="/admin/generate/rubric"          element={<AdminRoute><RubricGenerator /></AdminRoute>} />
           <Route path="/admin/generate/notes"           element={<AdminRoute><NotesStudio /></AdminRoute>} />
+          <Route path="/admin/agents"                   element={<AdminRoute><AgentsHome /></AdminRoute>} />
+          <Route path="/admin/agents/jobs"              element={<AdminRoute><AgentsAllJobs /></AdminRoute>} />
+          <Route path="/admin/agents/jobs/:jobId"       element={<AdminRoute><AgentJobDetail /></AdminRoute>} />
+          <Route path="/admin/agents/:agentId"          element={<AdminRoute><AgentProfile /></AdminRoute>} />
 
           {/* ── Teacher routes (all wrapped in TeacherLayout) ─── */}
           {/* Post-upgrade celebration page — full-bleed, outside TeacherLayout chrome */}

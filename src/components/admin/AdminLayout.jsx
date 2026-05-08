@@ -16,6 +16,7 @@ import {
   Users,
   GraduationCap,
   Settings,
+  Bot,
 } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import Logo from '../ui/Logo'
@@ -30,6 +31,7 @@ const NAV = [
   { to: '/admin/quizzes/new',            icon: PencilLine,      label: 'Create Quiz'               },
   { to: '/admin/content',                icon: FolderOpen,      label: 'Manage Content'            },
   { to: '/admin/approvals',              icon: BellRing,        label: 'Approvals'                 },
+  { to: '/admin/agents',                 icon: Bot,             label: 'Agents'                    },
   { to: '/admin/results',                icon: TrendingUp,      label: 'Results'                   },
   { to: '/admin/payments',               icon: CreditCard,      label: 'Payments'                  },
   { to: '/settings',                     icon: Settings,        label: 'Settings'                  },
