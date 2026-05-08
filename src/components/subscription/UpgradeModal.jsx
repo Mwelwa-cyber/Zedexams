@@ -59,7 +59,12 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
   const [statusText, setStatusText] = useState('')
   const [error, setError] = useState('')
   const [paymentId, setPaymentId] = useState('')
-  const mountedRef = useRef(true)
+  const mountedRef    = useRef(true)
+  // Synchronous double-submit guard. The `submitting` state alone isn't
+  // enough — two rapid clicks can both observe `submitting === false`
+  // before React has a chance to commit the `setSubmitting(true)` from
+  // the first call, resulting in two parallel payment intents.
+  const submittingRef = useRef(false)
 
   const plan = selectedPlanId ? PLANS[selectedPlanId] : null
 
@@ -70,6 +75,7 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
   }, [])
 
   async function handlePay() {
+    if (submittingRef.current) return
     if (!plan) {
       setError('Choose a plan first.')
       return
@@ -79,6 +85,7 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
       return
     }
 
+    submittingRef.current = true
     setError('')
     setStatusText('')
     setSubmitting(true)
@@ -120,9 +127,14 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
       console.error(err)
       setError(toFriendlyPaymentMessage(err.message, 'Could not start the MTN payment.'))
       setStep('failed')
+    } finally {
+      // The entry guard at the top of handlePay prevents a parallel call
+      // from racing with this assignment, so eslint's atomic-update warning
+      // here is a false positive.
+      // eslint-disable-next-line require-atomic-updates
+      submittingRef.current = false
+      if (mountedRef.current) setSubmitting(false)
     }
-
-    setSubmitting(false)
   }
 
   return (
