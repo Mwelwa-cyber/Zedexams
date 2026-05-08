@@ -29,6 +29,11 @@
     <link rel="icon" type="image/png" href="/zedexams-logo.png?v=4" />
     <link rel="apple-touch-icon" href="/zedexams-logo.png?v=4" />
 
+    <!-- PWA manifest — makes the site installable as a home-screen app on
+         Android. No service worker yet, so it doesn't work offline; that
+         lands separately as part of the full PWA work (audit A1). -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+
     <!-- Open Graph (Facebook, WhatsApp, LinkedIn) -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="ZedExams" />

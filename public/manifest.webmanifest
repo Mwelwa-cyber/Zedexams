@@ -1,0 +1,27 @@
+{
+  "name": "ZedExams",
+  "short_name": "ZedExams",
+  "description": "Zambian CBC exam prep — daily exams, quizzes, lessons, games and AI study help for Grade 1–12 learners, plus printable lesson tools for teachers.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FDF6EC",
+  "theme_color": "#059669",
+  "lang": "en-ZM",
+  "categories": ["education", "productivity"],
+  "icons": [
+    {
+      "src": "/zedexams-logo.png?v=4",
+      "type": "image/png",
+      "sizes": "any",
+      "purpose": "any"
+    },
+    {
+      "src": "/zedexams-logo.png?v=4",
+      "type": "image/png",
+      "sizes": "any",
+      "purpose": "maskable"
+    }
+  ]
+}
