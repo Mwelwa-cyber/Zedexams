@@ -142,7 +142,7 @@ export default function PowerPointViewerPlayer({ lesson }) {
             )}
 
             <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-3">
-              <a href={sourceUrl} target="_blank" rel="noreferrer" className="rounded-xl border-2 border-gray-200 px-4 py-2 text-sm font-black text-gray-700">
+              <a href={sourceUrl} target="_blank" rel="noopener noreferrer" className="rounded-xl border-2 border-gray-200 px-4 py-2 text-sm font-black text-gray-700">
                 Open File
               </a>
               <span className="rounded-full bg-sky-50 px-3 py-1 text-xs font-black text-sky-700">
@@ -170,7 +170,7 @@ export default function PowerPointViewerPlayer({ lesson }) {
           </p>
           <div className="mt-5 flex flex-wrap justify-center gap-2">
             {lesson?.presentation?.sourceUrl && (
-              <a href={lesson.presentation.sourceUrl} target="_blank" rel="noreferrer" className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-black text-white">
+              <a href={lesson.presentation.sourceUrl} target="_blank" rel="noopener noreferrer" className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-black text-white">
                 Open Original File
               </a>
             )}

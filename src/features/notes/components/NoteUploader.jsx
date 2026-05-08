@@ -57,7 +57,7 @@ export function NoteUploader({ ownerUid, assetBatchId, currentFile, onUploaded, 
             <a
               href={currentFile.url}
               target="_blank"
-              rel="noreferrer"
+              rel="noopener noreferrer"
               className="text-sm px-3 py-1.5 rounded-lg border border-neutral-200 hover:bg-neutral-50 transition inline-flex items-center gap-1.5 text-neutral-900"
             >
               <Eye size={13} /> Preview
