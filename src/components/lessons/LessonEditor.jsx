@@ -10,6 +10,7 @@ import { convertQuickLessonToSlides } from './quickLessonConverter'
 import { importPowerPointLesson } from './pptxImporter'
 import { renderPowerPointToImages } from './pptxPresentationRenderer'
 import { SAMPLE_QUICK_NOTES, SAMPLE_RESPIRATORY_LESSON } from './sampleLesson'
+import SeoHelmet from '../seo/SeoHelmet'
 import {
   CREATION_MODES,
   LESSON_GRADES,
@@ -1176,6 +1177,7 @@ export default function LessonEditor() {
 
   return (
     <div className="space-y-5">
+      <SeoHelmet title="Lesson editor" noIndex />
       <Toast toast={toast} />
       {previewOpen && <PreviewModal lesson={lessonForPreview} slideIndex={activeIndex} onClose={() => setPreviewOpen(false)} />}
 

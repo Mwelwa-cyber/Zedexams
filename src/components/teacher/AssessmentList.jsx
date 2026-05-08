@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
 import { downloadAssessmentDocx } from '../../utils/assessmentToDocx'
 import { printAssessmentAsPdf } from '../../utils/assessmentToPdf'
+import SeoHelmet from '../seo/SeoHelmet'
 
 const ASSESSMENT_TYPE_LABELS = {
   weekly: 'Weekly test',
@@ -199,6 +200,7 @@ export default function AssessmentList() {
 
   return (
     <div>
+      <SeoHelmet title="Assessments" noIndex />
       {/* Page header — brand on the left, action on the right */}
       <div className="flex items-center justify-between gap-3 mb-5">
         <Link to="/teacher" className="flex items-center gap-2.5 no-underline" style={{ color: '#0e2a32' }}>

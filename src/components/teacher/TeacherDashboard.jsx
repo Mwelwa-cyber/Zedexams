@@ -11,6 +11,7 @@ import {
 import UpgradeModal from '../subscription/UpgradeModal'
 import UsageMeter from './UsageMeter'
 import { SYLLABI_TOTAL_COUNT } from '../../data/syllabiCatalog'
+import SeoHelmet from '../seo/SeoHelmet'
 
 const STUDIOS = [
   {
@@ -322,6 +323,7 @@ export default function TeacherDashboard() {
 
   return (
     <div>
+      <SeoHelmet title="Teacher dashboard" noIndex />
       {/* Subscription banner */}
       {!isPremium && (
         <div

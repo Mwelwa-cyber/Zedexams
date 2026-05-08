@@ -8,6 +8,7 @@ import {
 } from 'firebase/firestore'
 import app from '../../../firebase/config'
 import { KB_VERSION } from '../../../utils/adminCbcKbService'
+import SeoHelmet from '../../seo/SeoHelmet'
 
 const functions = getFunctions(app, 'us-central1')
 const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerateLessonPlan', {
@@ -196,6 +197,7 @@ export default function LessonPlanStudio() {
 
   return (
     <>
+      <SeoHelmet title="Lesson plan studio" noIndex />
       {/* Mobile sidebar scrim */}
       <div className="scrim" id="scrim"></div>
 

@@ -7,6 +7,7 @@ import {
   titleForGeneration,
   formatDate,
 } from '../../../utils/teacherLibraryService'
+import SeoHelmet from '../../seo/SeoHelmet'
 
 const SECTIONS = [
   {
@@ -191,6 +192,7 @@ export default function TeacherLibrary() {
 
   return (
     <div className="min-h-screen p-4 sm:p-6 lg:p-8" style={{ background: '#f5efe1' }}>
+      <SeoHelmet title="Teacher library" noIndex />
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="flex flex-wrap items-end justify-between gap-3 mb-6">
