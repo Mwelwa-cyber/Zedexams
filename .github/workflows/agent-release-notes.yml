@@ -1,0 +1,48 @@
+name: Agent — Ledger release notes
+
+# Ledger drafts a CHANGELOG entry for any merge commits since the last
+# dated section in docs/CHANGELOG.md, then opens a draft PR with the
+# patch. Runs on every push to main, and supports manual dispatch.
+#
+# Required repository secret:
+#   ANTHROPIC_API_KEY — same Anthropic key used by the runtime stack.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Print the patch instead of opening a PR"
+        required: false
+        default: "false"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: ledger-release-notes
+  cancel-in-progress: false
+
+jobs:
+  draft:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Ledger walks git log, needs full history.
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Octokit
+        run: npm install --no-save --no-audit --no-fund @octokit/rest@22
+
+      - name: Run Ledger
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ github.token }}
+          DRY_RUN: ${{ inputs.dry_run || 'false' }}
+        run: node scripts/agents/release-notes.mjs

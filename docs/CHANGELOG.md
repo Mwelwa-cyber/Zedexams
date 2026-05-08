@@ -6,6 +6,11 @@ on every push to `main`. Newest entries at the top.
 ## Unreleased
 
 ### Added
+- AI agents Phase 3: nightly Quill QA smoke (Cloud Function cron,
+  Africa/Lusaka 02:00) walks Firestore for stuck jobs, recent
+  failures, and KB freshness — writes a summary `agentJobs` doc.
+  GitHub Actions: Rex reviews every PR (open/sync) and posts a single
+  comment; Ledger drafts a CHANGELOG PR on every push to `main`.
 - AI agents Phase 2: Cloud Function dispatcher wires the Content
   pipeline end-to-end. Aria → Cala → Reva run on `agentJobs` create
   (Aria currently supports `lesson_plan` and `worksheet`); after Reva

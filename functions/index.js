@@ -83,6 +83,8 @@ const {
   createAgentJobsOnCreate,
   createAgentJobsOnApproved,
 } = require("./agents/dispatcher");
+// AI agents — Phase 3 cron (QA/Eng: nightly Quill smoke).
+const {nightlyQaSmoke: nightlyQaSmokeCron} = require("./agents/cron");
 
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const mtnApiUser = defineSecret("MTN_API_USER");
@@ -1424,4 +1426,8 @@ exports.studioGenerateLessonPlan = createStudioGenerateLessonPlan(anthropicApiKe
 // admin flips status to "approved".
 exports.agentJobsOnCreate = createAgentJobsOnCreate(anthropicApiKey);
 exports.agentJobsOnApproved = createAgentJobsOnApproved();
+
+// Quill — nightly QA smoke (Africa/Lusaka 02:00). Writes a summary
+// agentJobs doc the /admin/agents dashboard surfaces in QA / Eng.
+exports.nightlyQaSmoke = nightlyQaSmokeCron;
 exports.apiTextToSpeech = require('./tts').apiTextToSpeech;
