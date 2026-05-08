@@ -7,6 +7,7 @@ import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
 import SeoHelmet from '../seo/SeoHelmet'
+import { computeStreak } from '../../utils/streak'
 
 const SUBJECTS = [
   'Mathematics', 'English', 'Integrated Science', 'Social Studies',
@@ -86,6 +87,10 @@ export default function MyResults() {
   const avgScore = totalQuizzes > 0
     ? Math.round(filtered.reduce((s, r) => s + (r.percentage ?? 0), 0) / totalQuizzes) : 0
   const passed = filtered.filter(r => (r.percentage ?? 0) >= 50).length
+  // Streak is computed against the full unfiltered history — filters are a
+  // view of "show me only Maths in exam mode," they shouldn't break the
+  // overall day-by-day streak count.
+  const streak = computeStreak(results.map(r => r.completedAt ?? r.createdAt))
 
   return (
     <div className="max-w-2xl md:max-w-3xl mx-auto px-4 py-6">
@@ -100,21 +105,34 @@ export default function MyResults() {
 
       {/* Summary */}
       {!loading && results.length > 0 && (
-        <div className="stats-row stats-row-3 mb-5 stagger">
-          {[
-            { icon: PencilLine,      label: 'Total',   val: totalQuizzes,    t: 't-purple' },
-            { icon: Target,          label: 'Average', val: `${avgScore}%`,  t: 't-mint'   },
-            { icon: CheckCircleIcon, label: 'Passed',  val: passed,          t: 't-amber'  },
-          ].map(s => (
-            <div key={s.label} className={`stat-tile ${s.t} animate-slide-in-soft`}>
-              <div className="stat-tile-icon" aria-hidden="true">
-                <Icon as={s.icon} size="md" strokeWidth={2.2} />
+        <>
+          <div className="stats-row stats-row-3 mb-3 stagger">
+            {[
+              { icon: PencilLine,      label: 'Total',   val: totalQuizzes,    t: 't-purple' },
+              { icon: Target,          label: 'Average', val: `${avgScore}%`,  t: 't-mint'   },
+              { icon: CheckCircleIcon, label: 'Passed',  val: passed,          t: 't-amber'  },
+            ].map(s => (
+              <div key={s.label} className={`stat-tile ${s.t} animate-slide-in-soft`}>
+                <div className="stat-tile-icon" aria-hidden="true">
+                  <Icon as={s.icon} size="md" strokeWidth={2.2} />
+                </div>
+                <div className="stat-num">{s.val}</div>
+                <div className="stat-label">{s.label}</div>
               </div>
-              <div className="stat-num">{s.val}</div>
-              <div className="stat-label">{s.label}</div>
+            ))}
+          </div>
+          {/* Streak chip — only shows when the learner has practised today
+              or yesterday. Hidden once the streak breaks so it never reads
+              "0 day streak" (which is a discouraging non-message). */}
+          {streak > 0 && (
+            <div className="mb-5 inline-flex items-center gap-2 rounded-full bg-orange-100 text-orange-700 px-4 py-2 text-sm font-bold animate-slide-in-soft">
+              <span aria-hidden="true" className="text-base leading-none">🔥</span>
+              {streak === 1
+                ? '1-day streak — start of something!'
+                : `${streak}-day streak — keep it up!`}
             </div>
-          ))}
-        </div>
+          )}
+        </>
       )}
 
       {/* Filters */}
