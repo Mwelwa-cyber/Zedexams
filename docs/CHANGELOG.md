@@ -6,6 +6,14 @@ on every push to `main`. Newest entries at the top.
 ## Unreleased
 
 ### Added
+- AI agents Phase 5: completes the operating model.
+  - Admin pause toggle on `/admin/agents/:agentId` flips
+    `agentControl/{agentId}.paused`. Dispatcher already honors this;
+    no Firestore-console writes needed.
+  - Weekly Cala audit (`weeklyCbcAlignmentAudit`, Sunday 03:00
+    Africa/Lusaka). Samples up to 20 recent `aiGenerations` and
+    re-runs Cala on each. Summary `agentJobs` doc lands in
+    `awaiting_approval` if drift is detected, otherwise `done`.
 - AI agents Phase 4b: Aria now drives all six teacher tools (lesson
   plan, worksheet, flashcards, rubric, scheme of work, lesson notes).
   Refactored each generator to expose a `run*` helper alongside the
