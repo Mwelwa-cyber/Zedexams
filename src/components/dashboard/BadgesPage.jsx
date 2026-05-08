@@ -19,6 +19,7 @@ import { useDataSaver } from '../../contexts/DataSaverContext'
 import { GAME_BADGES } from '../../data/gameBadges'
 import { getMyGameBadges, formatAwardedAt } from '../../utils/gameBadgesService'
 import { GameBadgeCard as GamesBadgeCard } from '../games/gamesUi'
+import SeoHelmet from '../seo/SeoHelmet'
 
 export default function BadgesPage() {
   const { currentUser }       = useAuth()
@@ -47,6 +48,7 @@ export default function BadgesPage() {
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-6 space-y-6">
+      <SeoHelmet title="Badges" path="/my-badges" noIndex />
       {/* Hero — gradient surface with Pako, big counter, and a progress
           ring. Replaces the old flat header so the page opens with a
           sense of accomplishment instead of a list. */}

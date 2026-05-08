@@ -21,6 +21,7 @@ import { daysUntilExpiry }     from '../../utils/subscriptionConfig'
 import UpgradeModal            from '../subscription/UpgradeModal'
 import Button                  from '../ui/Button'
 import Icon                    from '../ui/Icon'
+import SeoHelmet               from '../seo/SeoHelmet'
 import { CalendarDays, CheckCircleIcon, LockClosedIcon, LogOut, PencilLine, Sparkles, TrophyIcon } from '../ui/icons'
 
 // ── helpers ────────────────────────────────────────────────────────────────
@@ -132,6 +133,7 @@ export default function ProfilePage() {
 
   return (
     <div className="min-h-screen theme-bg pb-28">
+      <SeoHelmet title="Profile" path="/profile" noIndex />
       {/* ── Page Header ───────────────────────────────────────── */}
       <div className="theme-hero px-4 pt-8 pb-16" data-bg-gradient="true">
         <div className="max-w-lg mx-auto">
