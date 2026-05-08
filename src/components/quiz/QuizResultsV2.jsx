@@ -13,6 +13,7 @@ import RichContent, { getRichPlainText } from '../../editor/RichContent'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
+import SeoHelmet from '../seo/SeoHelmet'
 
 function ScoreCircle({ percentage }) {
   const radius = 54
@@ -129,6 +130,7 @@ export default function QuizResultsV2() {
   if (loading) {
     return (
       <div className="theme-bg min-h-screen px-4 py-10">
+        <SeoHelmet title="Quiz results" path={`/results/${resultId}`} noIndex />
         <div className="mx-auto max-w-xl space-y-4">
           <div className="theme-card theme-border rounded-3xl border p-6 text-center shadow-elev-md">
             <Skeleton shape="circle" size={144} className="mx-auto" />
@@ -151,6 +153,7 @@ export default function QuizResultsV2() {
   if (!result) {
     return (
       <div className="theme-bg flex min-h-screen items-center justify-center p-4">
+        <SeoHelmet title="Result not found" path={`/results/${resultId}`} noIndex />
         <div className="theme-text text-center">
           <div className="mb-3 text-5xl" aria-hidden="true">😕</div>
           <p className="text-display-md text-danger">Result not found</p>
@@ -254,6 +257,11 @@ export default function QuizResultsV2() {
 
   return (
     <div className="theme-text mx-auto max-w-4xl px-4 py-6 animate-slide-up">
+      <SeoHelmet
+        title={`${result.percentage ?? 0}% on ${result.subject || 'a quiz'}`}
+        path={`/results/${resultId}`}
+        noIndex
+      />
       <div className="theme-card theme-border relative mb-4 rounded-3xl border p-6 text-center shadow-elev-lg">
         <button
           type="button"
