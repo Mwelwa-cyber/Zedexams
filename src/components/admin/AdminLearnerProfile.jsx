@@ -6,6 +6,7 @@ import { db } from '../../firebase/config'
 import { useFirestore } from '../../hooks/useFirestore'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
+import SeoHelmet from '../seo/SeoHelmet'
 
 function pctColor(p) {
   if (p >= 70) return 'text-green-600'
@@ -188,6 +189,7 @@ export default function AdminLearnerProfile() {
 
   return (
     <div className="space-y-5">
+      <SeoHelmet title={user?.displayName || 'Learner profile'} noIndex />
       <Link to="/admin/learners" className="inline-flex items-center gap-1 text-green-600 text-sm font-black hover:underline">
         <Icon as={ArrowLeft} size="sm" /> Back to Learners
       </Link>
