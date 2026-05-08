@@ -103,6 +103,14 @@ export function AdminNoteEditor() {
 
   const canSave = title.trim() && subject && grade && currentUser?.uid && !isLegacySlides
 
+  // Refs that mirror canSave / performSave so the autosave timer reads the
+  // latest values when it fires, not the snapshot from when it was scheduled.
+  // Without this, logging out within the 1.5 s debounce window leaves canSave
+  // stale-true, and the timer calls performSave against a logged-out user.
+  const canSaveRef     = useRef(canSave)
+  const performSaveRef = useRef()
+  canSaveRef.current = canSave
+
   const performSave = async () => {
     if (!canSave) return
     setSaveState('saving')
@@ -150,15 +158,18 @@ export function AdminNoteEditor() {
     }
   }
 
-  // Autosave: debounce 1.5 s after the last edit.
+  performSaveRef.current = performSave
+
+  // Autosave: debounce 1.5 s after the last edit. The timer body reads from
+  // refs so a logout (or any other canSave change) within the debounce window
+  // is honored, not papered over with the value captured at schedule time.
   useEffect(() => {
     if (!dirtyRef.current) return
     clearTimeout(saveTimeoutRef.current)
     saveTimeoutRef.current = setTimeout(() => {
-      if (canSave) performSave()
+      if (canSaveRef.current) performSaveRef.current?.()
     }, AUTOSAVE_DELAY_MS)
     return () => clearTimeout(saveTimeoutRef.current)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title, subject, grade, term, week, content, noteFormat, fileMeta])
 
   const markDirty = () => { dirtyRef.current = true; setSaveState('idle') }
