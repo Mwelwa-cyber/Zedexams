@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app'
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check'
 import {
   getAuth,
   setPersistence,
@@ -54,6 +55,55 @@ export function applyAuthPersistence(remember) {
 }
 
 applyAuthPersistence(false)
+
+// ── App Check (audit B3) ──────────────────────────────────────────────
+// Mints a short-lived attestation token the SDK forwards to Firestore,
+// Storage, and callable Cloud Functions on every request. Server side
+// rejects (or, for now, just logs) calls without one — closes the
+// scraping vector on AI endpoints that cost real money.
+//
+// Web: reCAPTCHA v3 with a public site key. Silent — no checkbox or
+// challenge — unless the score drops below the configured threshold,
+// at which point the token mint fails and the gated call falls back
+// to whatever the server's enforce mode is.
+//
+// Native (Capacitor): skipped here. Play Integrity needs the
+// firebase-android-sdk + a Play Console-issued integrity API key,
+// which lives outside the JS bundle. Capacitor support lands in a
+// follow-up PR alongside the Android wrapper config.
+//
+// DEV: setting `self.FIREBASE_APPCHECK_DEBUG_TOKEN = true` BEFORE
+// initializeAppCheck logs a debug token to the console; that token
+// must be registered in Firebase Console → App Check → Apps → manage
+// debug tokens. Without that, the dev server can't mint legitimate
+// attestation tokens.
+//
+// All gated on VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY being set so a
+// build that hasn't been configured silently no-ops rather than
+// crashing on init.
+const APPCHECK_RECAPTCHA_KEY = import.meta.env.VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY
+if (
+  typeof window !== 'undefined'
+  && !isNativePlatform()
+  && APPCHECK_RECAPTCHA_KEY
+) {
+  if (import.meta.env.DEV) {
+    // Must be set before initializeAppCheck to take effect.
+    // eslint-disable-next-line no-self-assign
+    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true
+  }
+  try {
+    initializeAppCheck(app, {
+      provider: new ReCaptchaV3Provider(APPCHECK_RECAPTCHA_KEY),
+      // Auto-refresh tokens behind the scenes; the SDK handles it.
+      isTokenAutoRefreshEnabled: true,
+    })
+  } catch (err) {
+    // initializeAppCheck throws if called twice (HMR + StrictMode);
+    // safe to swallow.
+    console.warn('[appCheck] init failed (probably double-init):', err?.message || err)
+  }
+}
 
 // Firestore offline persistence (audit A1.1). Cached reads survive
 // reload/refresh, writes queue while offline and replay on reconnect.

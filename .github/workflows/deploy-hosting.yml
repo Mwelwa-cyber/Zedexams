@@ -89,6 +89,7 @@ jobs:
           VITE_SENTRY_DSN:                  ${{ secrets.VITE_SENTRY_DSN }}
           VITE_APP_VERSION:                 ${{ secrets.VITE_APP_VERSION }}
           VITE_FIREBASE_VAPID_KEY:          ${{ secrets.VITE_FIREBASE_VAPID_KEY }}
+          VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY: ${{ secrets.VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY }}
         run: npm run build
 
       - name: Deploy to Firebase Hosting
