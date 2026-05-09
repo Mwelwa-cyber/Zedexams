@@ -25,6 +25,7 @@ function isPublicThemePath(pathname) {
   if (pathname.startsWith('/share/')) return true
   if (pathname.startsWith('/papers/')) return true
   if (pathname.startsWith('/parent/')) return true
+  if (pathname === '/blog' || pathname.startsWith('/blog/')) return true
   return false
 }
 
@@ -78,6 +79,9 @@ const AdminPastPapers = lazy(() => import('./components/admin/AdminPastPapers'))
 const AdminPastPaperEditor = lazy(() => import('./components/admin/AdminPastPaperEditor'))
 const ZedChatPage = lazy(() => import('./components/ai/ZedChatPage'))
 const StatusPage = lazy(() => import('./components/marketing/StatusPage'))
+// Audit C5 — SEO blog. Markdown-driven, posts ship in the bundle.
+const BlogIndex = lazy(() => import('./components/blog/BlogIndex'))
+const BlogPost = lazy(() => import('./components/blog/BlogPost'))
 
 // Admin section
 const AdminLayout = lazy(() => import('./components/admin/AdminLayout'))
@@ -301,6 +305,9 @@ export default function App() {
               PDF viewer at /papers/:id requires sign-in to download. */}
           <Route path="/papers"            element={<PastPapersHub />} />
           <Route path="/papers/:paperId"   element={<PastPaperViewer />} />
+          {/* Audit C5 — SEO blog. Public, indexable. */}
+          <Route path="/blog"              element={<BlogIndex />} />
+          <Route path="/blog/:slug"        element={<BlogPost />} />
           <Route path="/status"   element={<StatusPage />} />
           <Route path="/login"    element={<Login />} />
           <Route path="/register" element={<Register />} />
