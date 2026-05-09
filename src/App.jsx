@@ -8,6 +8,7 @@ import Navbar from './components/layout/Navbar'
 import { getRoleLandingPath } from './utils/navigation'
 import PageLoader from './components/ui/PageLoader'
 import OfflineBanner from './components/ui/OfflineBanner'
+import UpdatePrompt from './components/ui/UpdatePrompt'
 
 // Public marketing/auth routes always render in the brand-default Sky theme
 // so a visitor's previously-saved preference (e.g. Vivid's deep violet bg)
@@ -15,7 +16,7 @@ import OfflineBanner from './components/ui/OfflineBanner'
 // applies again as soon as they land on an authenticated route.
 const PUBLIC_THEME_PATHS = new Set([
   '/', '/welcome', '/login', '/register', '/auth/action',
-  '/pricing', '/plans', '/privacy', '/terms',
+  '/pricing', '/plans', '/privacy', '/terms', '/status',
 ])
 function isPublicThemePath(pathname) {
   return PUBLIC_THEME_PATHS.has(pathname) || pathname.startsWith('/share/')
@@ -65,6 +66,7 @@ const Marketing = lazy(() => import('./components/marketing/Marketing'))
 const Plans = lazy(() => import('./components/marketing/Plans'))
 const PrivacyPolicy = lazy(() => import('./components/marketing/PrivacyPolicy'))
 const Terms = lazy(() => import('./components/marketing/Terms'))
+const StatusPage = lazy(() => import('./components/marketing/StatusPage'))
 
 // Admin section
 const AdminLayout = lazy(() => import('./components/admin/AdminLayout'))
@@ -254,6 +256,10 @@ export default function App() {
           false. Firestore queues writes locally so the user's progress
           survives the network drop; this is the visible reassurance. */}
       <OfflineBanner />
+      {/* PWA update prompt (audit A1.2) — toast appears bottom-right
+          when a new SW version is waiting to take over. Self-hides on
+          Capacitor + when no update is pending. */}
+      <UpdatePrompt />
       <ThemeApplicator />
       <div id="main" tabIndex={-1}>
         <Suspense fallback={<PageLoader />}>
@@ -264,6 +270,7 @@ export default function App() {
           <Route path="/plans"    element={<Plans />} />
           <Route path="/privacy"  element={<PrivacyPolicy />} />
           <Route path="/terms"    element={<Terms />} />
+          <Route path="/status"   element={<StatusPage />} />
           <Route path="/login"    element={<Login />} />
           <Route path="/register" element={<Register />} />
           {/* Custom Firebase email action handler — branded ZedExams URL for

@@ -44,6 +44,7 @@ import BadgeCard                from '../ui/BadgeCard'
 import Logo                     from '../ui/Logo'
 import OnboardingOverlay        from '../ui/OnboardingOverlay'
 import PushPermissionPrompt     from '../ui/PushPermissionPrompt'
+import VerifyEmailBanner        from '../ui/VerifyEmailBanner'
 import Icon                     from '../ui/Icon'
 import Button                   from '../ui/Button'
 import Skeleton                 from '../ui/Skeleton'
@@ -1007,6 +1008,9 @@ export default function GradeHub() {
           </div>
         </section>
 
+        {/* Audit A8 — verify-email reminder. Self-hides for already-
+            verified accounts (incl. Google sign-in) and dismissed sessions. */}
+        <VerifyEmailBanner />
         {/* Audit A5.1 — daily-reminder push opt-in. Self-gated to learners
             with streak ≥ 2; renders nothing otherwise. */}
         <PushPermissionPrompt streak={stats.streak} />
