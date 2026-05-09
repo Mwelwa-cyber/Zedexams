@@ -26,6 +26,17 @@
  *                               initiated window in production
  *                               WhatsApp Business API.
  *
+ *                               Read via `process.env.TWILIO_CONTENT_SID`
+ *                               rather than `defineSecret()` so the
+ *                               deploy doesn't fail when it's unset
+ *                               (Firebase requires every defineSecret
+ *                               to have a value at deploy time, and
+ *                               this one is genuinely optional).
+ *                               Populate it via .env.examsprepzambia
+ *                               or the Functions Console once you've
+ *                               registered a Content Template — no
+ *                               redeploy needed.
+ *
  * Sandbox vs production:
  *   - In Twilio's WhatsApp sandbox you can send free-form text to any
  *     number that has joined the sandbox via `join <code>`. Use this
@@ -46,7 +57,17 @@ const {defineSecret} = require("firebase-functions/params");
 const twilioAccountSid = defineSecret("TWILIO_ACCOUNT_SID");
 const twilioAuthToken = defineSecret("TWILIO_AUTH_TOKEN");
 const twilioWhatsAppFrom = defineSecret("TWILIO_WHATSAPP_FROM");
-const twilioContentSid = defineSecret("TWILIO_CONTENT_SID");
+
+// TWILIO_CONTENT_SID is intentionally NOT a defineSecret — Firebase
+// requires every declared secret to have a value at deploy time, but
+// this one is genuinely optional (only needed once you go production
+// with an approved WhatsApp Business sender + Content Template).
+// Reading it via process.env lets the deploy succeed without it set,
+// and you can populate it later via .env.examsprepzambia or the
+// Functions Console without redeploying any code.
+function readContentSid() {
+  return String(process.env.TWILIO_CONTENT_SID || "").trim();
+}
 
 // Exported so the consuming function can declare them in its
 // `secrets: [...]` block. Keeping them ordered matches the cron's
@@ -55,7 +76,6 @@ const TWILIO_SECRETS = [
   twilioAccountSid,
   twilioAuthToken,
   twilioWhatsAppFrom,
-  twilioContentSid,
 ];
 
 function readSecret(secret) {
@@ -126,7 +146,7 @@ async function sendWhatsAppDigest({to, body, contentVariables}) {
   const sid = readSecret(twilioAccountSid);
   const token = readSecret(twilioAuthToken);
   const fromRaw = readSecret(twilioWhatsAppFrom);
-  const contentSid = readSecret(twilioContentSid);
+  const contentSid = readContentSid();
 
   if (!sid || !token || !fromRaw) {
     return {status: "skipped", reason: "twilio-not-configured"};
