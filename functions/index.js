@@ -1191,6 +1191,7 @@ exports.verifyQuiz = onCall(
 
     const data = request.data || {};
     const questions = Array.isArray(data.questions) ? data.questions : [];
+    const passages = Array.isArray(data.passages) ? data.passages : [];
     if (!questions.length) {
       throw new HttpsError(
         "invalid-argument",
@@ -1205,16 +1206,33 @@ exports.verifyQuiz = onCall(
     }
     let payloadSize;
     try {
-      payloadSize = JSON.stringify(questions).length;
+      payloadSize = JSON.stringify(questions).length +
+        JSON.stringify(passages).length;
     } catch {
       throw new HttpsError("invalid-argument", "Quiz payload is not serialisable.");
     }
-    if (payloadSize > 30_000) {
+    if (payloadSize > 60_000) {
       throw new HttpsError(
         "invalid-argument",
         "Quiz payload too large — trim long questions before verifying.",
       );
     }
+
+    // Sanitise passages. Image URLs must be https — Anthropic fetches them
+    // server-side, and any non-https reference is ignored. We deliberately
+    // do not download images here; passing the URL keeps the payload small.
+    const cleanedPassages = passages.slice(0, 20).map((p) => {
+      const rawUrl = typeof p?.imageUrl === "string" ? p.imageUrl.trim() : "";
+      const imageUrl = /^https:\/\//i.test(rawUrl) ? rawUrl : null;
+      return {
+        id: cleanAiString(p?.id, 80),
+        title: cleanAiString(p?.title, 200),
+        passageKind: p?.passageKind === "map" ? "map" : "comprehension",
+        instructions: cleanAiString(p?.instructions, 1500),
+        passageText: cleanAiString(p?.passageText, 4000),
+        imageUrl,
+      };
+    }).filter((p) => p.id);
 
     const meta = data.meta || {};
     const grade = cleanAiString(meta.grade, LIMITS.grade);
@@ -1235,6 +1253,7 @@ exports.verifyQuiz = onCall(
       input: {
         quizId: cleanAiString(data.quizId, 80),
         questions,
+        passages: cleanedPassages,
         meta: {grade, subject, topic, subtopic, difficulty},
         cbcContextBlock,
       },
