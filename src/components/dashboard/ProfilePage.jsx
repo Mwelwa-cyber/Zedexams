@@ -12,6 +12,8 @@
  */
 import { useState, useEffect } from 'react'
 import { useNavigate }         from 'react-router-dom'
+import { getFunctions, httpsCallable } from 'firebase/functions'
+import app                     from '../../firebase/config'
 import { useAuth }             from '../../contexts/AuthContext'
 import { useFirestore }        from '../../hooks/useFirestore'
 import { useBadges }           from '../../hooks/useBadges'
@@ -23,6 +25,13 @@ import Button                  from '../ui/Button'
 import Icon                    from '../ui/Icon'
 import SeoHelmet               from '../seo/SeoHelmet'
 import { CalendarDays, CheckCircleIcon, LockClosedIcon, LogOut, PencilLine, Sparkles, TrophyIcon } from '../ui/icons'
+
+// Single shared callable instance for the cancel/reactivate flow.
+// Defined at module scope so a re-render of ProfilePage doesn't churn
+// a new httpsCallable each time.
+const fns = getFunctions(app, 'us-central1')
+const setSubscriptionCancellationCallable =
+  httpsCallable(fns, 'setSubscriptionCancellation')
 
 // ── helpers ────────────────────────────────────────────────────────────────
 
@@ -80,6 +89,15 @@ export default function ProfilePage() {
   const [loading, setLoading]   = useState(true)
   const [showUpgrade, setShowUpgrade] = useState(false)
 
+  // Audit D4 — self-serve cancellation flow.
+  // Two states for the confirmation step ('cancel' or 'reactivate'),
+  // plus a busy flag so the buttons can't double-fire while the
+  // callable is in flight.
+  const [confirmAction, setConfirmAction] = useState(null) // 'cancel' | 'reactivate' | null
+  const [cancelBusy, setCancelBusy]       = useState(false)
+  const [cancelError, setCancelError]     = useState('')
+  const cancelAtPeriodEnd = Boolean(userProfile?.cancelAtPeriodEnd)
+
   const isLearner = userProfile?.role === 'learner'
   const isAdmin   = userProfile?.role === 'admin'
   const daysLeft  = daysUntilExpiry(userProfile)
@@ -127,6 +145,28 @@ export default function ProfilePage() {
   async function handleLogout() {
     await logout()
     navigate('/login')
+  }
+
+  // Audit D4 — self-serve cancellation toggle.
+  // The Cloud Function writes the flag with the admin SDK; the
+  // userProfile snapshot in AuthContext picks up the change via
+  // onSnapshot, so the UI flips without an extra read here.
+  async function handleSubscriptionCancellationToggle(cancel) {
+    setCancelBusy(true)
+    setCancelError('')
+    try {
+      await setSubscriptionCancellationCallable({ cancel })
+      setConfirmAction(null)
+    } catch (err) {
+      // Surface the Cloud Function error message — it'll typically be
+      // "No active subscription to cancel" if the user somehow got here
+      // without premium, or a network message if MoMo is mid-flight.
+      const message = err?.message?.replace(/^[A-Z]+:\s*/, '') ||
+        'Could not update subscription. Please try again.'
+      setCancelError(message)
+    } finally {
+      setCancelBusy(false)
+    }
   }
 
   const initials = (userProfile?.displayName ?? '?').slice(0, 2).toUpperCase()
@@ -194,26 +234,127 @@ export default function ProfilePage() {
 
         {/* Subscription status — hidden for admins, who have full access by role */}
         {!isAdmin && (
-          <div className={`theme-card rounded-2xl border theme-border p-4 flex items-start gap-3 ${
+          <div className={`theme-card rounded-2xl border theme-border p-4 ${
             isPremium ? 'border-yellow-300 bg-yellow-50' : ''
           }`}>
-            <Icon as={isPremium ? Sparkles : LockClosedIcon} size="lg" strokeWidth={2.1} className={`flex-shrink-0 ${isPremium ? 'text-yellow-700' : 'theme-text-muted'}`} />
-            <div className="flex-1 min-w-0">
-              <p className={`font-black text-sm ${isPremium ? 'text-yellow-800' : 'theme-text'}`}>
-                {isPremium ? `${planName} Plan` : 'Free / Demo Access'}
-              </p>
-              <p className={`text-xs mt-0.5 ${isPremium ? 'text-yellow-700' : 'theme-text-muted'}`}>
-                {isPremium
-                  ? daysLeft !== null
-                    ? `${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining`
-                    : 'Active subscription'
-                  : 'Upgrade to unlock all quizzes & exam mode'}
-              </p>
+            <div className="flex items-start gap-3">
+              <Icon as={isPremium ? Sparkles : LockClosedIcon} size="lg" strokeWidth={2.1} className={`flex-shrink-0 ${isPremium ? 'text-yellow-700' : 'theme-text-muted'}`} />
+              <div className="flex-1 min-w-0">
+                <p className={`font-black text-sm ${isPremium ? 'text-yellow-800' : 'theme-text'}`}>
+                  {isPremium ? `${planName} Plan` : 'Free / Demo Access'}
+                  {/* Audit D4 — cancellation badge. Tells the user at a
+                      glance the plan won't auto-renew (and gives them
+                      somewhere to undo from). */}
+                  {isPremium && cancelAtPeriodEnd && (
+                    <span className="ml-2 inline-flex items-center text-[10px] font-black uppercase tracking-wider bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full align-middle">
+                      Cancellation scheduled
+                    </span>
+                  )}
+                </p>
+                <p className={`text-xs mt-0.5 ${isPremium ? 'text-yellow-700' : 'theme-text-muted'}`}>
+                  {isPremium
+                    ? cancelAtPeriodEnd
+                      ? daysLeft !== null
+                        ? `Plan ends in ${daysLeft} day${daysLeft !== 1 ? 's' : ''} — you keep full access until then.`
+                        : 'Plan will end at expiry — full access until then.'
+                      : daysLeft !== null
+                        ? `${daysLeft} day${daysLeft !== 1 ? 's' : ''} remaining`
+                        : 'Active subscription'
+                    : 'Upgrade to unlock all quizzes & exam mode'}
+                </p>
+              </div>
+              {!isPremium && (
+                <Button variant="primary" size="sm" onClick={() => setShowUpgrade(true)} className="flex-shrink-0">
+                  Upgrade
+                </Button>
+              )}
             </div>
-            {!isPremium && (
-              <Button variant="primary" size="sm" onClick={() => setShowUpgrade(true)} className="flex-shrink-0">
-                Upgrade
-              </Button>
+
+            {/* Audit D4 — cancel / reactivate row. Inline confirmation
+                step instead of a separate modal so the entire interaction
+                stays inside the subscription card. */}
+            {isPremium && (
+              <div className="mt-3 pt-3 border-t border-current/10 flex flex-col gap-2">
+                {confirmAction === 'cancel' && (
+                  <div className="text-xs theme-text-muted">
+                    <p className="font-bold text-yellow-800 mb-2">Cancel your subscription?</p>
+                    <p className="leading-snug mb-3">
+                      You&apos;ll keep full access until your plan ends
+                      {daysLeft !== null ? ` in ${daysLeft} day${daysLeft !== 1 ? 's' : ''}` : ''}
+                      . We won&apos;t prompt you to renew. You can change your mind any time before then.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => handleSubscriptionCancellationToggle(true)}
+                        disabled={cancelBusy}
+                        className="bg-rose-600 hover:bg-rose-700"
+                      >
+                        {cancelBusy ? 'Cancelling…' : 'Yes, cancel'}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setConfirmAction(null); setCancelError('') }}
+                        disabled={cancelBusy}
+                      >
+                        Keep my plan
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {confirmAction === 'reactivate' && (
+                  <div className="text-xs theme-text-muted">
+                    <p className="font-bold text-yellow-800 mb-2">Reactivate your subscription?</p>
+                    <p className="leading-snug mb-3">
+                      We&apos;ll clear the cancellation flag and you&apos;ll keep your plan as normal.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={() => handleSubscriptionCancellationToggle(false)}
+                        disabled={cancelBusy}
+                      >
+                        {cancelBusy ? 'Reactivating…' : 'Yes, reactivate'}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => { setConfirmAction(null); setCancelError('') }}
+                        disabled={cancelBusy}
+                      >
+                        Not now
+                      </Button>
+                    </div>
+                  </div>
+                )}
+                {!confirmAction && (
+                  <div className="flex justify-end">
+                    {cancelAtPeriodEnd ? (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmAction('reactivate')}
+                        className="text-xs font-bold theme-accent-text hover:underline"
+                      >
+                        Reactivate plan
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => setConfirmAction('cancel')}
+                        className="text-xs font-bold text-rose-700 hover:underline"
+                      >
+                        Cancel subscription
+                      </button>
+                    )}
+                  </div>
+                )}
+                {cancelError && (
+                  <p role="alert" className="text-xs font-bold text-rose-700">{cancelError}</p>
+                )}
+              </div>
             )}
           </div>
         )}

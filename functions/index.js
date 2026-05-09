@@ -1452,4 +1452,10 @@ exports.weeklyCbcAlignmentAudit = weeklyCbcAlignmentAuditCron;
 // Reads users.fcmTokens populated by A5.1's client-side registerToken.
 exports.dailyStreakReminders = dailyStreakRemindersCron;
 
+// Audit D4 — self-serve subscription cancellation. Toggles
+// users.{uid}.cancelAtPeriodEnd via admin SDK so the field stays
+// server-only (firestore rules block self-update on subscription
+// fields). Used by the Cancel/Reactivate buttons on ProfilePage.
+exports.setSubscriptionCancellation = require("./subscriptionLifecycle").setSubscriptionCancellation;
+
 exports.apiTextToSpeech = require('./tts').apiTextToSpeech;
