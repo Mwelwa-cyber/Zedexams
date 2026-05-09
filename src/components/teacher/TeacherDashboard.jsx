@@ -12,6 +12,7 @@ import UpgradeModal from '../subscription/UpgradeModal'
 import UsageMeter from './UsageMeter'
 import { SYLLABI_TOTAL_COUNT } from '../../data/syllabiCatalog'
 import SeoHelmet from '../seo/SeoHelmet'
+import TeacherOnboardingTour from './TeacherOnboardingTour'
 
 const STUDIOS = [
   {
@@ -324,6 +325,9 @@ export default function TeacherDashboard() {
   return (
     <div>
       <SeoHelmet title="Teacher dashboard" noIndex />
+      {/* Audit A8 PR 2 — first-session tour. Self-suppresses after
+          dismissal via localStorage; safe to render unconditionally. */}
+      <TeacherOnboardingTour />
       {/* Subscription banner */}
       {!isPremium && (
         <div
