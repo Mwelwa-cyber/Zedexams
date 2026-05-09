@@ -666,6 +666,56 @@ function buildPaymentResponse(paymentId, data) {
   };
 }
 
+// Audit D3 follow-up — admin / owner-gated invoice resend. Runs
+// the email-only step against the existing PDF in Storage so the
+// receipt the parent receives matches the original invoice number
+// and total exactly.
+exports.resendInvoiceEmail = onCall({
+  secrets: [emailSmtpUser, emailSmtpPassword],
+  region: "us-central1",
+  timeoutSeconds: 30,
+}, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+  const invoiceId = String(request.data?.invoiceId || "").trim();
+  if (!invoiceId) throw new HttpsError("invalid-argument", "invoiceId is required.");
+
+  // Authorization: admin always; otherwise the buyer of this
+  // invoice. (A teacher viewing /admin/payments has admin role
+  // already; a parent should never reach this callable but the
+  // ownership check costs us nothing extra.)
+  const db = admin.firestore();
+  const callerSnap = await db.collection("users").doc(uid).get();
+  const callerRole = callerSnap.exists ? (callerSnap.data() || {}).role : null;
+  const isAdmin = callerRole === "admin";
+
+  const invoiceSnap = await db.collection("invoices").doc(invoiceId).get();
+  if (!invoiceSnap.exists) {
+    throw new HttpsError("not-found", "Invoice not found.");
+  }
+  const invoice = invoiceSnap.data() || {};
+  if (!isAdmin && invoice.userId !== uid) {
+    throw new HttpsError("permission-denied", "Only the buyer or an admin can resend this invoice.");
+  }
+
+  const {resendInvoiceEmail: resendInvoiceEmailHelper} = require("./invoiceGenerator");
+  const result = await resendInvoiceEmailHelper({
+    invoiceId,
+    senderEmail: emailSmtpUser.value() || process.env.EMAIL_SMTP_USER || "",
+    senderPassword: emailSmtpPassword.value() || process.env.EMAIL_SMTP_PASSWORD || "",
+    requestedByUid: uid,
+  });
+
+  if (!result.ok) {
+    throw new HttpsError(
+        "failed-precondition",
+        result.reason || "Could not resend the invoice.",
+    );
+  }
+  return {ok: true, emailedTo: result.emailedTo};
+});
+
 async function emitInvoiceIfMissing(paymentRef, paymentData) {
   // Audit D3 — fire-and-forget invoice generation. Runs after the
   // success transaction has committed so accounting failures (PDF

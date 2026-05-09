@@ -10,7 +10,11 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
-import { listInvoicesForUser, resolveInvoicePdfUrl } from '../../utils/invoices'
+import {
+  listInvoicesForUser,
+  resendInvoiceEmail,
+  resolveInvoicePdfUrl,
+} from '../../utils/invoices'
 
 function fmtDate(ts) {
   if (!ts) return '—'
@@ -26,10 +30,12 @@ function fmtMoney(amount, currency) {
 
 function InvoiceRow({ invoice }) {
   const [busy, setBusy] = useState(false)
+  const [resending, setResending] = useState(false)
   const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
 
   async function handleDownload() {
-    setBusy(true); setError('')
+    setBusy(true); setError(''); setInfo('')
     try {
       const url = await resolveInvoicePdfUrl(invoice.storagePath)
       if (!url) { setError('Could not load this receipt.'); return }
@@ -42,31 +48,58 @@ function InvoiceRow({ invoice }) {
     }
   }
 
+  async function handleResend() {
+    setResending(true); setError(''); setInfo('')
+    try {
+      const result = await resendInvoiceEmail(invoice.id)
+      setInfo(result?.emailedTo
+        ? `Sent to ${result.emailedTo}`
+        : 'Receipt sent.')
+    } catch (err) {
+      console.warn('[InvoiceRow] resend failed', err)
+      setError(err?.message || 'Could not resend the receipt.')
+    } finally {
+      setResending(false)
+    }
+  }
+
   return (
-    <li className="flex items-center gap-3 py-3">
-      <div className="flex-shrink-0 w-9 h-9 rounded-lg theme-bg-subtle flex items-center justify-center text-base">
-        <span aria-hidden="true">🧾</span>
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="theme-text font-bold text-sm truncate">{invoice.planName || 'Subscription'}</p>
-        <p className="theme-text-muted text-xs">
-          {invoice.number} · {fmtDate(invoice.issuedAt)}
+    <li className="py-3 space-y-1">
+      <div className="flex items-center gap-3">
+        <div className="flex-shrink-0 w-9 h-9 rounded-lg theme-bg-subtle flex items-center justify-center text-base">
+          <span aria-hidden="true">🧾</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="theme-text font-bold text-sm truncate">{invoice.planName || 'Subscription'}</p>
+          <p className="theme-text-muted text-xs">
+            {invoice.number} · {fmtDate(invoice.issuedAt)}
+          </p>
+        </div>
+        <p className="theme-text font-black text-sm tabular-nums whitespace-nowrap">
+          {fmtMoney(invoice.amount, invoice.currency)}
         </p>
-        {error && (
-          <p role="alert" className="text-xs font-bold text-rose-700 mt-0.5">{error}</p>
-        )}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            type="button"
+            onClick={handleDownload}
+            disabled={busy}
+            className="text-xs font-bold theme-accent-text hover:underline disabled:opacity-50"
+          >
+            {busy ? '…' : 'PDF'}
+          </button>
+          <button
+            type="button"
+            onClick={handleResend}
+            disabled={resending}
+            className="text-xs font-bold theme-text-muted hover:theme-text disabled:opacity-50"
+            title="Email me a fresh copy"
+          >
+            {resending ? '…' : 'Email'}
+          </button>
+        </div>
       </div>
-      <p className="theme-text font-black text-sm tabular-nums whitespace-nowrap">
-        {fmtMoney(invoice.amount, invoice.currency)}
-      </p>
-      <button
-        type="button"
-        onClick={handleDownload}
-        disabled={busy}
-        className="text-xs font-bold theme-accent-text hover:underline disabled:opacity-50"
-      >
-        {busy ? '…' : 'PDF'}
-      </button>
+      {info && <p role="status" className="text-[11px] font-bold text-emerald-700 ml-12">{info}</p>}
+      {error && <p role="alert" className="text-[11px] font-bold text-rose-700 ml-12">{error}</p>}
     </li>
   )
 }

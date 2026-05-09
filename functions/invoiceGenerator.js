@@ -341,4 +341,118 @@ async function emitInvoice({payment, plan, senderEmail, senderPassword}) {
   }
 }
 
-module.exports = {emitInvoice, buildInvoicePdf, shortInvoiceNumber};
+/**
+ * Re-send a previously-generated invoice email. Used by the
+ * /admin/payments → "Resend invoice" support action (audit D3
+ * follow-up). Pulls the existing PDF from Storage rather than
+ * regenerating, so the receipt the parent receives matches the
+ * original invoice number + total exactly.
+ *
+ * Returns:
+ *   { ok: true, emailedTo } on success
+ *   { ok: false, reason }   on graceful skip (no invoice doc, no
+ *                            user email, SMTP unconfigured)
+ *
+ * Throws on hard infrastructure failures so the caller can surface
+ * a clear error.
+ */
+async function resendInvoiceEmail({invoiceId, senderEmail, senderPassword, requestedByUid}) {
+  if (!invoiceId) return {ok: false, reason: "Missing invoiceId"};
+  const db = admin.firestore();
+  const invoiceSnap = await db.collection("invoices").doc(invoiceId).get();
+  if (!invoiceSnap.exists) {
+    return {ok: false, reason: "Invoice not found"};
+  }
+  const invoice = invoiceSnap.data() || {};
+  const userSnap = await db.collection("users").doc(invoice.userId).get();
+  if (!userSnap.exists) return {ok: false, reason: "Buyer profile missing"};
+  const user = {uid: userSnap.id, ...(userSnap.data() || {})};
+  if (!user.email) return {ok: false, reason: "Buyer has no email on file"};
+
+  const transporter = getTransporter(senderEmail, senderPassword);
+  if (!transporter) return {ok: false, reason: "SMTP not configured"};
+
+  // Fetch the original PDF from Storage. If it's missing (rare —
+  // would mean a Storage cleanup hit it), regenerate from the
+  // doc's recorded amount + plan.
+  let pdfBuffer = null;
+  try {
+    const bucket = admin.storage().bucket();
+    const file = bucket.file(invoice.storagePath);
+    const [exists] = await file.exists();
+    if (exists) {
+      const [data] = await file.download();
+      pdfBuffer = data;
+    }
+  } catch (err) {
+    console.warn("[invoiceGenerator] resend: storage fetch failed", err);
+  }
+
+  if (!pdfBuffer) {
+    // Regenerate. Best-effort; loses any subtle formatting the
+    // original might have had if PDFKit changed since.
+    const plan = {
+      id: invoice.planId,
+      name: invoice.planName || invoice.planId || "Subscription",
+      durationDays: 30,
+    };
+    const issuedAtMs = invoice.issuedAt?.toMillis ? invoice.issuedAt.toMillis() : Date.now();
+    pdfBuffer = await buildInvoicePdf({
+      invoice: {number: invoice.number, issuedAtMs},
+      plan,
+      payment: {
+        id: invoice.paymentId,
+        amount: invoice.amount,
+        currency: invoice.currency,
+        phoneNumber: invoice.phoneNumber || null,
+        provider: invoice.provider || "mtn_momo",
+      },
+      user,
+    });
+  }
+
+  const senderDomain = senderEmail.split("@")[1] || "zedexams.com";
+  await transporter.sendMail({
+    from: `${COMPANY_NAME} <${senderEmail}>`,
+    sender: senderEmail,
+    to: user.email,
+    replyTo: senderEmail,
+    subject: `Your ${COMPANY_NAME} receipt — ${invoice.number} (resent)`,
+    text: [
+      `Hi${user.displayName ? ` ${user.displayName}` : ""},`,
+      "",
+      `As requested, here's a fresh copy of your receipt.`,
+      "",
+      `Invoice: ${invoice.number}`,
+      `Amount:  ${fmtMoney(invoice.amount, invoice.currency)}`,
+      "",
+      "Your receipt is attached as a PDF.",
+      "",
+      "— ZedExams",
+    ].join("\n"),
+    html: `<p>Hi${user.displayName ? ` ${user.displayName}` : ""},</p>
+<p>As requested, here&rsquo;s a fresh copy of your receipt.</p>
+<p><strong>Invoice:</strong> ${invoice.number}<br />
+<strong>Amount:</strong> ${fmtMoney(invoice.amount, invoice.currency)}</p>
+<p>Your receipt is attached as a PDF.</p>
+<p>— ZedExams</p>`,
+    attachments: [{
+      filename: `${invoice.number}.pdf`,
+      content: pdfBuffer,
+      contentType: "application/pdf",
+    }],
+    messageId: `<invoice-resend-${invoice.paymentId}-${crypto.randomUUID()}@${senderDomain}>`,
+    headers: {"X-Auto-Response-Suppress": "All"},
+  });
+
+  await invoiceSnap.ref.update({
+    emailedTo: user.email,
+    emailedAt: admin.firestore.FieldValue.serverTimestamp(),
+    lastResentAt: admin.firestore.FieldValue.serverTimestamp(),
+    lastResentBy: requestedByUid || null,
+  }).catch((err) => console.warn("[invoiceGenerator] resend stamp failed", err));
+
+  return {ok: true, emailedTo: user.email};
+}
+
+module.exports = {emitInvoice, buildInvoicePdf, shortInvoiceNumber, resendInvoiceEmail};

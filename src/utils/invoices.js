@@ -20,9 +20,21 @@ import {
   where,
 } from 'firebase/firestore'
 import { getDownloadURL, ref as storageRef } from 'firebase/storage'
-import { db, storage } from '../firebase/config'
+import { getFunctions, httpsCallable } from 'firebase/functions'
+import app, { db, storage } from '../firebase/config'
 
 const COLLECTION = 'invoices'
+const fns = getFunctions(app, 'us-central1')
+const resendInvoiceEmailCallable = httpsCallable(fns, 'resendInvoiceEmail')
+
+/**
+ * Re-send the receipt email for an existing invoice. Admin-or-owner
+ * gated server-side. Returns `{ ok, emailedTo }` on success.
+ */
+export async function resendInvoiceEmail(invoiceId) {
+  const result = await resendInvoiceEmailCallable({ invoiceId })
+  return result.data
+}
 
 export async function listInvoicesForUser(uid, { limit = 50 } = {}) {
   const q = query(
