@@ -156,6 +156,10 @@ export default function QuizVerifyModal({
   const blockers = Array.isArray(result?.blockers) ? result.blockers : []
   const warnings = Array.isArray(result?.warnings) ? result.warnings : []
   const overall = Number(result?.overallScore) || 0
+  const verdict = result?.verdict || ''
+  const lowQuality = !!result && !result.aiUnreadable && overall > 0 && overall < 80
+  const cleanPass = !!result && !blockers.length && !warnings.length &&
+    !result.aiUnreadable && !lowQuality && verdict === 'pass'
   const canPublish = !loading && !blockers.length
 
   return (
@@ -278,7 +282,19 @@ export default function QuizVerifyModal({
                 </div>
               )}
 
-              {!blockers.length && !warnings.length && !result.aiUnreadable && (
+              {!blockers.length && !warnings.length && !result.aiUnreadable && lowQuality && (
+                <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-4 text-amber-800">
+                  <p className="font-black">Quality score is below 80%.</p>
+                  <p className="mt-1 text-sm">
+                    Vex didn&apos;t flag specific issues, but the overall
+                    quality score ({overall}%) is mediocre. Review the
+                    category bars above and re-read each question before
+                    publishing.
+                  </p>
+                </div>
+              )}
+
+              {cleanPass && (
                 <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 text-emerald-800">
                   <p className="font-black">No issues detected.</p>
                   <p className="mt-1 text-sm">This quiz looks ready to publish.</p>
