@@ -90,6 +90,12 @@ export default class ErrorBoundary extends Component {
     const message = this.state.error?.message || 'An unexpected error occurred.'
     const inline = !!this.props.inline
 
+    // Audit A1.2 — when the browser reports it's offline, the failure was
+    // almost certainly a network drop (Firestore call timed out, lazy
+    // chunk couldn't load, etc.). Show a more accurate message so the
+    // learner doesn't think the app itself is broken.
+    const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false
+
     const containerClass = inline
       ? 'w-full flex items-center justify-center py-10 px-4'
       : 'min-h-screen theme-bg flex items-center justify-center p-4'
@@ -97,15 +103,19 @@ export default class ErrorBoundary extends Component {
     return (
       <div className={containerClass}>
         <div className="theme-card border theme-border rounded-3xl px-6 py-10 max-w-md w-full text-center shadow-sm">
-          <div className="text-5xl mb-3">😕</div>
+          <div className="text-5xl mb-3">{isOffline ? '📡' : '😕'}</div>
           <p className="theme-text-muted font-black text-xs uppercase tracking-widest mb-2">
-            Something went wrong
+            {isOffline ? "You're offline" : 'Something went wrong'}
           </p>
           <h1 className="theme-text text-2xl font-black leading-tight mb-2">
-            We hit a snag loading this page.
+            {isOffline
+              ? "We can't reach the network right now."
+              : 'We hit a snag loading this page.'}
           </h1>
           <p className="theme-text-muted text-sm mb-6">
-            Try again — this usually fixes it. If it keeps happening, head back home and try from there.
+            {isOffline
+              ? "Most pages you've already visited still work offline — try going back, or wait for your connection to return."
+              : 'Try again — this usually fixes it. If it keeps happening, head back home and try from there.'}
           </p>
 
           <div className="flex flex-col sm:flex-row gap-2 justify-center">

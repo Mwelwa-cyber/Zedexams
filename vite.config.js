@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
+import { VitePWA } from 'vite-plugin-pwa'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
@@ -57,7 +58,95 @@ function firebaseMessagingSwConfig(env) {
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), 'VITE_')
   return {
-    plugins: [react(), firebaseMessagingSwConfig(env)],
+    plugins: [
+      react(),
+      // ── PWA ────────────────────────────────────────────────────────────
+      // First half of audit A1 (full PWA + offline). The manifest already
+      // ships from public/manifest.webmanifest (#274) so VitePWA is told
+      // not to inject its own — `manifest: false`. The plugin's job here is
+      // to generate a service worker that pre-caches the app shell and
+      // applies sensible runtime caching to fonts + Firebase Storage assets.
+      //
+      // registerType: 'prompt' means a new SW waits for the user to confirm
+      // an update via <UpdatePrompt /> instead of force-claiming open tabs.
+      // The first visit installs the SW silently; subsequent updates ask.
+      //
+      // Capacitor: src/main.jsx skips registerSW() on native platforms
+      // because Capacitor already serves bundled assets locally — a SW
+      // there is dead weight and the file:// protocol blocks it anyway.
+      VitePWA({
+        strategies: 'generateSW',
+        registerType: 'prompt',
+        manifest: false,            // already shipped at /manifest.webmanifest
+        injectRegister: false,      // we register manually from main.jsx
+        workbox: {
+          // Pre-cache every shipped asset so the app shell works offline
+          // after the first successful load. globPatterns are scoped to
+          // dist/ at build time, not the public/ directory at runtime.
+          globPatterns: ['**/*.{js,css,html,svg,woff,woff2,ttf,png,webmanifest,ico}'],
+          // Don't cache the PDF.js worker (2.3 MB) by default — it's only
+          // ever loaded when a learner opens a past paper, and pre-caching
+          // it would balloon the install size for everyone else.
+          globIgnores: ['**/pdf.worker*.{js,mjs}'],
+          // Default is 2 MB. Bump so our largest hashed chunks (vendor,
+          // index, react-vendor) all fit under the cache-eligible cap.
+          maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+          // SPA fallback — any navigation that 404s on the network falls
+          // back to the cached index.html, which then router-handles the
+          // route client-side. Keeps deep links working offline.
+          navigateFallback: '/index.html',
+          // ...except for Firebase / Cloud Functions / auth domains; we
+          // never want the SW to hijack those — Firestore handles its own
+          // offline persistence (enabled in src/firebase/config.js) and
+          // Cloud Functions calls must always reach the network.
+          navigateFallbackDenylist: [
+            /^\/__\//,                                 // Firebase reserved
+            /^https?:\/\/.*googleapis\.com/,
+            /^https?:\/\/.*firebaseio\.com/,
+            /^https?:\/\/identitytoolkit\.googleapis\.com/,
+          ],
+          runtimeCaching: [
+            // Google Fonts — short cache for the CSS (font URLs change
+            // when Google rolls fonts) and long cache for the woff2 files.
+            {
+              urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
+              handler: 'StaleWhileRevalidate',
+              options: {
+                cacheName: 'google-fonts-css',
+                expiration: { maxEntries: 16, maxAgeSeconds: 60 * 60 * 24 * 7 },
+              },
+            },
+            {
+              urlPattern: /^https:\/\/fonts\.gstatic\.com\/.*/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'google-fonts-files',
+                expiration: { maxEntries: 32, maxAgeSeconds: 60 * 60 * 24 * 365 },
+                cacheableResponse: { statuses: [0, 200] },
+              },
+            },
+            // Firebase Storage assets (uploaded teacher images, lesson
+            // attachments). Cache-first means a learner who's seen a
+            // lesson once can re-open it offline without re-downloading
+            // its images.
+            {
+              urlPattern: /^https:\/\/firebasestorage\.googleapis\.com\/.*/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'firebase-storage',
+                expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
+                cacheableResponse: { statuses: [0, 200] },
+              },
+            },
+          ],
+          // Don't bother claiming clients on activate — the prompt-style
+          // update flow above asks the user when to switch.
+          clientsClaim: false,
+          skipWaiting: false,
+        },
+      }),
+      firebaseMessagingSwConfig(env),
+    ],
     build: {
       outDir: 'dist',
       // The previous 500 kB warning was firing on the catch-all vendor chunk;

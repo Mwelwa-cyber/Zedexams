@@ -7,7 +7,10 @@ import {
   indexedDBLocalPersistence,
   GoogleAuthProvider,
 } from 'firebase/auth'
-import { getFirestore } from 'firebase/firestore'
+import {
+  getFirestore,
+  enableMultiTabIndexedDbPersistence,
+} from 'firebase/firestore'
 import { getMessaging } from 'firebase/messaging'
 import { getStorage } from 'firebase/storage'
 import { isNativePlatform } from '../utils/runtime'
@@ -51,6 +54,27 @@ export function applyAuthPersistence(remember) {
 }
 
 applyAuthPersistence(false)
+
+// Firestore offline persistence (audit A1.1). Cached reads survive
+// reload/refresh, writes queue while offline and replay on reconnect.
+// Multi-tab variant lets learners with several tabs open share the
+// same cache instead of fighting over a "primary" tab.
+//
+// Failures are non-fatal — Safari < 15, browser private modes, and
+// quota-exceeded all surface here. The app still works, just without
+// the cache-backed offline experience.
+enableMultiTabIndexedDbPersistence(db).catch((err) => {
+  if (err?.code === 'failed-precondition') {
+    // Another tab already has persistence — multi-tab variant should
+    // prevent this, but fall through gracefully if the browser is old.
+    console.warn('Firestore persistence: multiple tabs without multi-tab support')
+  } else if (err?.code === 'unimplemented') {
+    // Browser doesn't support IndexedDB persistence (Safari < 15, etc.)
+    console.warn('Firestore persistence: browser unsupported')
+  } else {
+    console.warn('Firestore persistence init failed:', err)
+  }
+})
 
 // Firebase Cloud Messaging — initialised only when the browser actually
 // supports web push (Service Worker + PushManager APIs) and we're not

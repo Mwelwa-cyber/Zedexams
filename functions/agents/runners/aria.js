@@ -1,24 +1,37 @@
 /**
  * Aria — Content Author runner.
  *
- * Wraps the existing teacher-tool runners (currently lesson_plan, worksheet)
- * so an admin or scheduled job can enqueue a brief in `agentJobs` and have
- * the existing pipeline produce a private `aiGenerations` doc. The
- * `aiGenerations` doc is created with `visibility: 'private'` by the
- * underlying runner; Pubo flips it to `public` after admin approval.
- *
- * For other tools (flashcards/rubric/scheme/notes) Aria currently throws —
- * those generators only export an HTTPS callable factory, not a `run*`
- * helper, so they need a small refactor before the dispatcher can drive
- * them. Tracked in docs/AGENTS.md.
+ * Thin router over the existing teacher-tool runners. Each underlying
+ * runX wraps the same pipeline shape (sanitize inputs → CBC resolve →
+ * usage metering → reserve aiGenerations → callClaude → validate →
+ * finalise). The aiGenerations doc is created with
+ * `visibility: 'private'` by every runner; Pubo flips it to `public`
+ * after admin approval.
  */
 
 const admin = require("firebase-admin");
 const {runLessonPlan} = require("../../teacherTools/generateLessonPlan");
 const {runWorksheet} = require("../../teacherTools/generateWorksheet");
+const {runFlashcards} = require("../../teacherTools/generateFlashcards");
+const {runRubric} = require("../../teacherTools/generateRubric");
+const {runSchemeOfWork} = require("../../teacherTools/generateSchemeOfWork");
+const {runNotes} = require("../../teacherTools/generateNotes");
 const {getAnthropicApiKey} = require("../../aiService");
 
-const SUPPORTED_TOOLS = new Set(["lesson_plan", "worksheet"]);
+// Maps the agentJobs `input.tool` value to {runner, draftKey}. The draft
+// key tells Aria which field on the runner's return value carries the
+// teacher-facing artifact (every runner uses a different key today; we
+// accept that and just look them up).
+const RUNNERS = {
+  lesson_plan:    {run: runLessonPlan,    draftKey: "lessonPlan"},
+  worksheet:      {run: runWorksheet,     draftKey: "worksheet"},
+  flashcards:     {run: runFlashcards,    draftKey: "flashcards"},
+  rubric:         {run: runRubric,        draftKey: "rubric"},
+  scheme_of_work: {run: runSchemeOfWork,  draftKey: "schemeOfWork"},
+  notes:          {run: runNotes,         draftKey: "notes"},
+};
+
+const SUPPORTED_TOOLS = new Set(Object.keys(RUNNERS));
 
 /**
  * @param {object} args
@@ -29,10 +42,11 @@ const SUPPORTED_TOOLS = new Set(["lesson_plan", "worksheet"]);
 async function runAria({job, anthropicApiKeySecret}) {
   const input = job.input || {};
   const tool = String(input.tool || "").toLowerCase();
-  if (!SUPPORTED_TOOLS.has(tool)) {
+  const runner = RUNNERS[tool];
+  if (!runner) {
     throw new Error(
-      `Aria does not yet drive the "${tool || "<missing>"}" generator. ` +
-      `Phase 2 supports: ${[...SUPPORTED_TOOLS].join(", ")}.`,
+      `Aria does not drive the "${tool || "<missing>"}" generator. ` +
+      `Supported: ${[...SUPPORTED_TOOLS].join(", ")}.`,
     );
   }
 
@@ -45,19 +59,11 @@ async function runAria({job, anthropicApiKeySecret}) {
   }
 
   const apiKey = getAnthropicApiKey(anthropicApiKeySecret);
+  const result = await runner.run({uid, rawInputs: input, apiKey});
 
-  let result;
-  if (tool === "lesson_plan") {
-    result = await runLessonPlan({uid, rawInputs: input, apiKey});
-  } else {
-    result = await runWorksheet({uid, rawInputs: input, apiKey});
-  }
-
-  // Both runners return { generationId, lessonPlan|worksheet, usage, ... }.
-  const draft = result.lessonPlan || result.worksheet || null;
   return {
     generationId: result.generationId,
-    draft,
+    draft: result[runner.draftKey] || null,
     warning: result.warning || null,
     kbGrounded: Boolean(result.kbGrounded),
     ranAt: admin.firestore.FieldValue.serverTimestamp(),

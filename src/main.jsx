@@ -16,6 +16,12 @@ initNativeShell()
 // promise is intentionally not awaited so a slow Sentry CDN can never
 // delay the React mount.
 initSentry()
+
+// Service worker registration moved to src/hooks/usePwaUpdate.js so the
+// "new version available" UX (audit A1.2) can wire registerSW's
+// onNeedRefresh callback into React state. The hook is consumed by
+// <UpdatePrompt /> mounted inside <App />. Capacitor still skips the SW
+// entirely — the hook returns no-ops on native.
 // editor.css and katex CSS are imported from the editor/viewer entry modules
 // (QuizEditor, QuizViewer, QuizPreview via safeRender). Keeping them out of the
 // root entry trims ~50 KB of parse-time CSS on public pages.

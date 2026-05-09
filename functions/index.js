@@ -77,14 +77,23 @@ const {
 const {
   resolveCbcContext,
 } = require("./teacherTools/cbcKnowledge");
+// Daily Exam auto-picker — promotes one short-quiz per grade into the
+// day's Daily Exam slot every morning so the admin no longer has to
+// click "Daily Exam" by hand for routine rotation.
+const {autoPickDailyExams} = require("./dailyExamPicker");
 
 // AI agents — Phase 2 dispatcher (Content department: Aria → Cala → Reva → Pubo).
 const {
   createAgentJobsOnCreate,
   createAgentJobsOnApproved,
 } = require("./agents/dispatcher");
-// AI agents — Phase 3 cron (QA/Eng: nightly Quill smoke).
-const {nightlyQaSmoke: nightlyQaSmokeCron} = require("./agents/cron");
+// AI agents — Phase 3 + Phase 5 cron (QA/Eng: nightly Quill, weekly Cala).
+const {
+  nightlyQaSmoke: nightlyQaSmokeCron,
+  weeklyCbcAlignmentAudit: weeklyCbcAlignmentAuditCron,
+} = require("./agents/cron");
+// Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
+const {dailyStreakReminders: dailyStreakRemindersCron} = require("./dailyReminders");
 
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const mtnApiUser = defineSecret("MTN_API_USER");
@@ -985,6 +994,8 @@ exports.apiMomoPaymentStatus = onRequest(
   },
 );
 
+exports.autoPickDailyExams = autoPickDailyExams;
+
 exports.pollPendingMomoPayments = onSchedule(
   {
     schedule: "every 5 minutes",
@@ -1430,4 +1441,15 @@ exports.agentJobsOnApproved = createAgentJobsOnApproved();
 // Quill — nightly QA smoke (Africa/Lusaka 02:00). Writes a summary
 // agentJobs doc the /admin/agents dashboard surfaces in QA / Eng.
 exports.nightlyQaSmoke = nightlyQaSmokeCron;
+
+// Cala — weekly CBC-alignment audit (Africa/Lusaka Sunday 03:00).
+// Re-runs Cala over a sample of recent aiGenerations to catch drift.
+exports.weeklyCbcAlignmentAudit = weeklyCbcAlignmentAuditCron;
+
+// Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
+// Targets learners who practised yesterday but not today, sends a friendly
+// "keep your streak alive" FCM push, and prunes dead tokens in-flight.
+// Reads users.fcmTokens populated by A5.1's client-side registerToken.
+exports.dailyStreakReminders = dailyStreakRemindersCron;
+
 exports.apiTextToSpeech = require('./tts').apiTextToSpeech;
