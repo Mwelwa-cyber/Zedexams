@@ -100,6 +100,10 @@ const AgentJobDetail  = lazy(() => import('./components/admin/agents/AgentJobDet
 // Teacher — Agent submissions
 const AgentBriefForm       = lazy(() => import('./components/teacher/AgentBriefForm'))
 const TeacherAgentJobsList = lazy(() => import('./components/teacher/AgentJobsList').then(m => ({ default: m.AgentJobsList })))
+// Audit A10 — teacher classroom roster (foundation PR; quiz assignment + class analytics stack later).
+const TeacherClassesList = lazy(() => import('./components/teacher/classes/TeacherClassesList'))
+const TeacherClassEditor = lazy(() => import('./components/teacher/classes/TeacherClassEditor'))
+const TeacherClassDetail = lazy(() => import('./components/teacher/classes/TeacherClassDetail'))
 const TeacherAgentJobView  = lazy(() => import('./components/teacher/AgentJobsList').then(m => ({ default: m.AgentJobView })))
 
 // Teacher section
@@ -392,6 +396,11 @@ export default function App() {
           <Route path="/teacher/agents"                  element={<TeacherRoute><TeacherAgentJobsList /></TeacherRoute>} />
           <Route path="/teacher/agents/new"              element={<TeacherRoute><AgentBriefForm /></TeacherRoute>} />
           <Route path="/teacher/agents/:jobId"           element={<TeacherRoute><TeacherAgentJobView /></TeacherRoute>} />
+          {/* Audit A10 — class roster foundation. Quiz-assignment +
+              class analytics surfaces stack onto these in follow-ups. */}
+          <Route path="/teacher/classes"                 element={<TeacherRoute><TeacherClassesList /></TeacherRoute>} />
+          <Route path="/teacher/classes/new"             element={<TeacherRoute><TeacherClassEditor /></TeacherRoute>} />
+          <Route path="/teacher/classes/:classId"        element={<TeacherRoute><TeacherClassDetail /></TeacherRoute>} />
 
           <Route path="*" element={<NotFound />} />
         </Routes>

@@ -598,6 +598,72 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ── classes + classInvites (audit A10 — teacher classroom roster) ──
+    //
+    // A class is a teacher-owned roster of learners. Schema:
+    //   name, description (optional), grade ('4'|'5'|'6'|'7'),
+    //   subject (optional slug — class can span subjects),
+    //   teacherUid (owner), school (optional),
+    //   inviteCode (denormalised — the live code, also keyed in
+    //                classInvites/{code} for fast lookup),
+    //   learners: array<uid> (max 200 per class),
+    //   active: bool, createdAt, updatedAt
+    //
+    // Read access widens to any class member so a learner can see the
+    // roster + class info for classes they belong to. Other learners
+    // see nothing — privacy-first; classmate emails / uids must not
+    // leak across schools.
+    //
+    // Write access is the teacher owner OR a Cloud Function (admin
+    // SDK bypasses these rules). The "join-by-code" flow goes through
+    // the joinClassByCode callable so a learner can never directly
+    // mutate someone else's class doc — that's the security promise.
+    function _validClassGrade(value) { return value is string && value in ['4', '5', '6', '7']; }
+    function validClassFields() {
+      return (!('name' in incoming()) || (incoming().name is string && incoming().name.size() >= 1 && incoming().name.size() <= 200))
+        && (!('description' in incoming()) || incoming().description == null || (incoming().description is string && incoming().description.size() <= 1000))
+        && (!('grade' in incoming()) || _validClassGrade(incoming().grade))
+        && (!('subject' in incoming()) || incoming().subject == null || _validSubject(incoming().subject))
+        && (!('school' in incoming()) || incoming().school == null || (incoming().school is string && incoming().school.size() <= 200))
+        && (!('inviteCode' in incoming()) || (incoming().inviteCode is string && incoming().inviteCode.size() >= 6 && incoming().inviteCode.size() <= 16))
+        && (!('learners' in incoming()) || (incoming().learners is list && incoming().learners.size() <= 200))
+        && (!('active' in incoming()) || incoming().active is bool);
+    }
+    match /classes/{classId} {
+      allow read: if isAuthed() && (
+        resource.data.teacherUid == request.auth.uid
+        || (resource.data.learners is list && request.auth.uid in resource.data.learners)
+        || isAdmin()
+      );
+      allow create: if isTeacherOrAbove()
+        && validClassFields()
+        && incoming().teacherUid == request.auth.uid
+        && incoming().get('learners', []) is list
+        && incoming().get('learners', []).size() == 0;
+      allow update: if isAuthed()
+        && resource.data.teacherUid == request.auth.uid
+        && validClassFields()
+        && incoming().teacherUid == resource.data.teacherUid;
+      allow delete: if isAuthed() && (
+        resource.data.teacherUid == request.auth.uid || isAdmin()
+      );
+    }
+
+    // Invite codes — keyed by the code string itself for O(1) lookup
+    // when a learner joins. Public-readable so an anonymous-but-
+    // signed-in learner can resolve a code → classId before the
+    // joinClassByCode Cloud Function authenticates them in.
+    match /classInvites/{inviteCode} {
+      allow read: if isAuthed();
+      allow create, update: if isTeacherOrAbove()
+        && incoming().createdBy == request.auth.uid
+        && incoming().classId is string
+        && incoming().expiresAt is timestamp;
+      allow delete: if isAuthed() && (
+        resource.data.createdBy == request.auth.uid || isAdmin()
+      );
+    }
+
     // ── pastPapers (audit A2 — ECZ past-paper archive) ──────────────
     // Public read for published papers (the archive is a marketing /
     // SEO draw — anonymous visitors browse the list, sign in to

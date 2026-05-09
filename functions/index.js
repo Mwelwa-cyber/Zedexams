@@ -96,6 +96,12 @@ const {
 const {dailyStreakReminders: dailyStreakRemindersCron} = require("./dailyReminders");
 // Audit C4 — public marketing-page stats aggregator (every 30 minutes).
 const {updatePublicStats: updatePublicStatsCron} = require("./publicStats");
+// Audit A10 — teacher classroom roster (invite codes + join + remove).
+const {
+  generateClassInvite,
+  joinClassByCode,
+  removeLearnerFromClass,
+} = require("./classManagement");
 
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const mtnApiUser = defineSecret("MTN_API_USER");
@@ -1459,6 +1465,15 @@ exports.dailyStreakReminders = dailyStreakRemindersCron;
 // games played this week) to anonymous visitors. Aggregate counts via
 // admin SDK; rules expose the resulting doc as public-read.
 exports.updatePublicStats = updatePublicStatsCron;
+
+// Audit A10 — teacher classroom roster.
+// generateClassInvite mints + rotates an 8-char join code (admin SDK).
+// joinClassByCode adds the calling learner to classes/{classId}.learners
+// after validating the code; bypasses the teacher-owner-only update rule.
+// removeLearnerFromClass is the teacher-side counterpart for kicking.
+exports.generateClassInvite = generateClassInvite;
+exports.joinClassByCode = joinClassByCode;
+exports.removeLearnerFromClass = removeLearnerFromClass;
 
 // Audit D4 — self-serve subscription cancellation. Toggles
 // users.{uid}.cancelAtPeriodEnd via admin SDK so the field stays
