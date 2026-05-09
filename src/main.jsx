@@ -8,6 +8,10 @@ import { ThemeProvider } from './contexts/ThemeContext'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 import { initNativeShell } from './utils/nativeShell'
 import { initSentry } from './utils/sentry'
+// Audit A7 — initialise the i18n runtime before <App /> mounts so the
+// detected language is in place for the first render. Side-effect
+// import; the singleton is consumed via useTranslation() in components.
+import './i18n'
 import './index.css'
 
 initNativeShell()
