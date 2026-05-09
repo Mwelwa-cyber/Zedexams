@@ -1,0 +1,28 @@
+{
+  "hero": {
+    "greeting": "Welcome back, {{name}}!",
+    "greetingFallback": "Welcome back!",
+    "stats": {
+      "badges": "Badges",
+      "quizzes": "Quizzes"
+    }
+  },
+  "actions": {
+    "myResults": "My Results",
+    "startQuiz": "Start Quiz"
+  },
+  "cards": {
+    "exams": {
+      "title": "Today's Exams",
+      "body": "Timed competitive exams · Live leaderboard · One attempt per subject per day"
+    },
+    "games": {
+      "title": "Zed Games",
+      "body": "Maths, English, Science & Social Studies — earn badges and climb the leaderboard"
+    },
+    "notes": {
+      "title": "Notes Studio",
+      "body": "Read teacher-written notes and study guides for every subject in your grade"
+    }
+  }
+}

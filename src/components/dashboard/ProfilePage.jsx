@@ -22,6 +22,7 @@ import { getRoleLandingPath }  from '../../utils/navigation'
 import { daysUntilExpiry }     from '../../utils/subscriptionConfig'
 import UpgradeModal            from '../subscription/UpgradeModal'
 import ParentShareManager      from '../parent/ParentShareManager'
+import LanguageToggle          from '../ui/LanguageToggle'
 import Button                  from '../ui/Button'
 import Icon                    from '../ui/Icon'
 import SeoHelmet               from '../seo/SeoHelmet'
@@ -363,6 +364,19 @@ export default function ProfilePage() {
         {/* Audit A3 PR 1 — share-progress-with-parent. Learners only;
             teachers/admins don't have a "parent". */}
         {isLearner && <ParentShareManager />}
+
+        {/* Audit A7 — language toggle. Visible to every signed-in user.
+            Nyanja is shipped as a placeholder until a native speaker
+            fills the ny/* JSON files; English keys fall through. */}
+        <div className="theme-card rounded-2xl border theme-border p-4 flex items-center justify-between gap-3">
+          <div>
+            <p className="theme-text font-black text-sm">Language</p>
+            <p className="theme-text-muted text-xs mt-0.5">
+              Pick the language for menus and buttons.
+            </p>
+          </div>
+          <LanguageToggle compact />
+        </div>
 
         {/* Edit profile form */}
         <div className="theme-card rounded-2xl border theme-border p-5">
