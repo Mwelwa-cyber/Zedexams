@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app from '../../firebase/config'
 import { serializeQuizSections } from '../../utils/quizSections.js'
-import { richTextToPlainText } from '../../utils/quizRichText.js'
+import { extractRichTextPlain } from '../../utils/quizRichText.js'
 
 const functions = getFunctions(app, 'us-central1')
 const verifyQuizCallable = httpsCallable(functions, 'verifyQuiz', {
@@ -22,14 +22,14 @@ function flattenQuestionsForVerify(sections, parts) {
   const { questions } = serializeQuizSections(sections, parts)
   return questions.map(q => ({
     type: q.type || 'mcq',
-    text: richTextToPlainText(q.text || '').slice(0, 1200),
+    text: extractRichTextPlain(q.text).slice(0, 1200),
     options: Array.isArray(q.options)
-      ? q.options.map(o => String(o ?? '').slice(0, 400))
+      ? q.options.map(o => extractRichTextPlain(o).slice(0, 400))
       : [],
     correctAnswer: q.correctAnswer,
     marks: q.marks ?? 1,
     expectedAnswer: q.expectedAnswer
-      ? String(q.expectedAnswer).slice(0, 400)
+      ? extractRichTextPlain(q.expectedAnswer).slice(0, 400)
       : undefined,
   }))
 }
@@ -268,7 +268,17 @@ export default function QuizVerifyModal({
                 </div>
               )}
 
-              {!blockers.length && !warnings.length && (
+              {!blockers.length && !warnings.length && result.aiUnreadable && (
+                <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-4 text-amber-800">
+                  <p className="font-black">AI response was unreadable.</p>
+                  <p className="mt-1 text-sm">
+                    Vex couldn&apos;t parse a verdict — only structural checks
+                    ran. Review the quiz manually before publishing.
+                  </p>
+                </div>
+              )}
+
+              {!blockers.length && !warnings.length && !result.aiUnreadable && (
                 <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 p-4 text-emerald-800">
                   <p className="font-black">No issues detected.</p>
                   <p className="mt-1 text-sm">This quiz looks ready to publish.</p>
