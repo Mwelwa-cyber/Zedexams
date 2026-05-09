@@ -179,6 +179,16 @@ function hydrateRichField(value) {
   return value
 }
 
+// When a question has both an HTML mirror (e.g. `text`) and a JSON mirror
+// (e.g. `textJSON`), prefer the JSON. This rescues quizzes saved by an
+// earlier build whose normaliser corrupted the HTML mirror by escaping the
+// stringified Tiptap doc into <p>{&quot;type&quot;:&quot;doc&quot;...}</p>.
+// The JSON mirror was always written via migrateContent so it's intact.
+function pickRichField(jsonValue, htmlValue) {
+  if (jsonValue && typeof jsonValue === 'object' && jsonValue.type === 'doc') return jsonValue
+  return htmlValue ?? ''
+}
+
 export function isQuestionBlank(question = {}) {
   const options = Array.isArray(question.options) ? question.options : []
   const correctAnswer = typeof question.correctAnswer === 'string'
@@ -398,8 +408,8 @@ function hydrateStandaloneQuestion(question = {}) {
   return emptyQuestion({
     localId: question.id || question._id || question.localId || nextLocalId('question'),
     _id: question.id || question._id || null,
-    sharedInstruction: question.sharedInstruction ?? '',
-    text: question.text ?? '',
+    sharedInstruction: pickRichField(question.sharedInstructionJSON, question.sharedInstruction),
+    text: pickRichField(question.textJSON, question.text),
     options: isTextAnswer
       ? []
       : Array.isArray(question.options) && question.options.length
@@ -408,7 +418,7 @@ function hydrateStandaloneQuestion(question = {}) {
     correctAnswer: isTextAnswer
       ? String(question.correctAnswer ?? '')
       : question.correctAnswer ?? 0,
-    explanation: hydrateRichField(question.explanation ?? ''),
+    explanation: hydrateRichField(pickRichField(question.explanationJSON, question.explanation)),
     topic: question.topic ?? '',
     marks: question.marks ?? 1,
     type,
@@ -432,13 +442,13 @@ function hydratePassageQuestion(question = {}, passageId, partId = null) {
   return emptyPassageQuestion({
     localId: question.id || question._id || question.localId || nextLocalId('question'),
     _id: question.id || question._id || null,
-    sharedInstruction: question.sharedInstruction ?? '',
-    text: question.text ?? '',
+    sharedInstruction: pickRichField(question.sharedInstructionJSON, question.sharedInstruction),
+    text: pickRichField(question.textJSON, question.text),
     options: Array.isArray(question.options) && question.options.length
       ? question.options
       : ['', '', '', ''],
     correctAnswer: question.correctAnswer ?? 0,
-    explanation: hydrateRichField(question.explanation ?? ''),
+    explanation: hydrateRichField(pickRichField(question.explanationJSON, question.explanation)),
     topic: question.topic ?? '',
     marks: question.marks ?? 1,
     subtype: question.subtype ?? null,
