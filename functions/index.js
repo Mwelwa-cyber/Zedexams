@@ -503,6 +503,7 @@ exports.aiChat = onCall(
       messages,
       maxTokens: 1000,
       temperature: 0.35,
+      track: {uid: request.auth.uid, tool: "aiChat"},
     });
 
     return {reply};
@@ -844,7 +845,13 @@ exports.apiAiChat = onRequest(
     try {
       await callAnthropicStream(
         apiKey,
-        {systemPrompt, messages, maxTokens: 1000, temperature: 0.35},
+        {
+          systemPrompt,
+          messages,
+          maxTokens: 1000,
+          temperature: 0.35,
+          track: {uid: decoded.uid, tool: "apiAiChat"},
+        },
         (token) => {
           res.write(`data: ${JSON.stringify({text: token})}\n\n`);
         },
@@ -1087,6 +1094,7 @@ exports.explainAnswer = onCall(
       messages,
       maxTokens: 400,
       temperature: 0.25,
+      track: {uid: request.auth.uid, tool: "explainAnswer"},
     });
 
     return {explanation};
@@ -1150,6 +1158,7 @@ exports.generateQuizQuestions = onCall(
       maxTokens: 2000,
       temperature: 0.3,
       json: true,
+      track: {uid: request.auth.uid, tool: "generateQuizQuestions"},
     });
 
     return {
@@ -1211,6 +1220,7 @@ exports.structureImportedQuiz = onCall(
       maxTokens: 4000,
       temperature: 0.2,
       json: true,
+      track: {uid: request.auth.uid, tool: "structureImportedQuiz"},
     });
 
     return parseStructuredImport(raw);
@@ -1276,6 +1286,7 @@ or
       maxTokens: 200,
       temperature: 0.1,
       json: true,
+      track: {uid: request.auth.uid, tool: "markAnswer"},
     });
     return parseMarkerResponse(raw);
   },

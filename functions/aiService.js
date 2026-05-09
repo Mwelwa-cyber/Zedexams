@@ -194,6 +194,10 @@ async function callAnthropic(apiKey, {
   maxTokens = 800,
   temperature = 0.35,
   json = false,
+  // Audit B4 — cost tracking. When `track.uid` and/or `track.tool`
+  // are passed, the response's usage block fans out to the
+  // aiUsage/{date} rollup via recordAiUsage. Optional + non-blocking.
+  track = null,
 }) {
   let res;
   try {
@@ -255,6 +259,20 @@ async function callAnthropic(apiKey, {
     .map((block) => block.text)
     .join("\n")
     .trim();
+  // Audit B4 — fire-and-forget usage rollup. Never throws; never awaited.
+  if (track && data?.usage) {
+    try {
+      const {recordAiUsage} = require("./aiCostTracking");
+      recordAiUsage({
+        uid: track.uid || null,
+        tool: track.tool || null,
+        model: data.model || ANTHROPIC_MODEL,
+        usage: data.usage,
+      });
+    } catch (err) {
+      console.warn("[aiService] cost track failed", err);
+    }
+  }
   const cleaned = json ? stripJsonFences(text) : text;
   // Anthropic has no native JSON mode — if the model still wrapped output
   // in prose, try to extract the first JSON object as a last resort.
@@ -939,6 +957,10 @@ async function callAnthropicStream(apiKey, {
   messages,
   maxTokens = 1000,
   temperature = 0.35,
+  // Audit B4 — same opt-in tracking as callAnthropic. The stream's
+  // final `message_delta` event carries cumulative usage; we capture
+  // it and fire recordAiUsage after the stream completes.
+  track = null,
 }, onToken) {
   let res;
   try {
@@ -986,6 +1008,11 @@ async function callAnthropicStream(apiKey, {
   const decoder = new TextDecoder();
   let buffer = "";
   let fullText = "";
+  // Anthropic streams cumulative usage on `message_start` (input
+  // tokens incl. cache reads / writes) and again on `message_delta`
+  // (output tokens). Merge the two into one usage object for tracking.
+  let streamUsage = null;
+  let streamModel = ANTHROPIC_MODEL;
 
   while (true) {
     const {done, value} = await reader.read();
@@ -1007,10 +1034,30 @@ async function callAnthropicStream(apiKey, {
           const token = parsed.delta.text;
           fullText += token;
           onToken(token);
+        } else if (parsed.type === "message_start" && parsed.message?.usage) {
+          streamUsage = {...streamUsage, ...parsed.message.usage};
+          if (parsed.message.model) streamModel = parsed.message.model;
+        } else if (parsed.type === "message_delta" && parsed.usage) {
+          streamUsage = {...streamUsage, ...parsed.usage};
         }
       } catch {
         // ignore malformed SSE lines
       }
+    }
+  }
+
+  // Audit B4 — record streaming usage.
+  if (track && streamUsage) {
+    try {
+      const {recordAiUsage} = require("./aiCostTracking");
+      recordAiUsage({
+        uid: track.uid || null,
+        tool: track.tool || null,
+        model: streamModel,
+        usage: streamUsage,
+      });
+    } catch (err) {
+      console.warn("[aiService] stream cost track failed", err);
     }
   }
 
