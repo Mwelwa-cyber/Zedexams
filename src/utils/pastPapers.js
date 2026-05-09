@@ -33,6 +33,7 @@ import {
   uploadBytes,
 } from 'firebase/storage'
 import { db, storage } from '../firebase/config'
+import { capture } from './analytics'
 
 export const PAPER_GRADES = ['7', '9', '12']
 
@@ -210,12 +211,20 @@ export async function startPaperAttempt({ uid, paper, durationMinutes }) {
  * time and an optional reflection note. Idempotent — re-calling on a
  * doc that's already submitted just no-ops the timestamp updates.
  */
-export async function submitPaperAttempt({ attemptId, elapsedSeconds, reflection }) {
+export async function submitPaperAttempt({ attemptId, elapsedSeconds, reflection, paperGrade, paperSubject }) {
   await updateDoc(doc(db, ATTEMPTS_COLLECTION, attemptId), {
     status: 'submitted',
     elapsedSeconds: Math.max(0, Math.min(60 * 60 * 12, Math.round(elapsedSeconds || 0))),
     reflection: reflection ? String(reflection).slice(0, 1000) : null,
     submittedAt: serverTimestamp(),
+  })
+  // Audit B2 — analytics. Aggregate stats only; we never send the
+  // reflection text (it's free-form learner content).
+  capture('paper_practice_completed', {
+    elapsedSeconds: Math.round(elapsedSeconds || 0),
+    grade: paperGrade ?? null,
+    subject: paperSubject ?? null,
+    hasReflection: Boolean(reflection),
   })
 }
 

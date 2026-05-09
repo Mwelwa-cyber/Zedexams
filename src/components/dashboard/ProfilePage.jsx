@@ -25,6 +25,7 @@ import ParentShareManager      from '../parent/ParentShareManager'
 import LanguageToggle          from '../ui/LanguageToggle'
 import InvoicesCard            from './InvoicesCard'
 import ReplayTourCard          from '../ui/ReplayTourCard'
+import AnalyticsConsentToggle  from '../ui/AnalyticsConsentToggle'
 import Button                  from '../ui/Button'
 import Icon                    from '../ui/Icon'
 import SeoHelmet               from '../seo/SeoHelmet'
@@ -388,6 +389,11 @@ export default function ProfilePage() {
             inside the component so learners and teachers see only
             their own surfaces. */}
         <ReplayTourCard />
+
+        {/* Audit D2 — change the cookie / analytics consent decision
+            after the first-visit banner. Self-reflects on the
+            localStorage decision in real time. */}
+        <AnalyticsConsentToggle />
 
         {/* Edit profile form */}
         <div className="theme-card rounded-2xl border theme-border p-5">
