@@ -43,6 +43,7 @@ import DataSaverToggle          from '../ui/DataSaverToggle'
 import BadgeCard                from '../ui/BadgeCard'
 import Logo                     from '../ui/Logo'
 import OnboardingOverlay        from '../ui/OnboardingOverlay'
+import VerifyEmailBanner        from '../ui/VerifyEmailBanner'
 import Icon                     from '../ui/Icon'
 import Button                   from '../ui/Button'
 import Skeleton                 from '../ui/Skeleton'
@@ -1005,6 +1006,10 @@ export default function GradeHub() {
             />
           </div>
         </section>
+
+        {/* Audit A8 — verify-email reminder. Self-hides for already-
+            verified accounts (incl. Google sign-in) and dismissed sessions. */}
+        <VerifyEmailBanner />
 
         <DashboardActionCard
           to="/exams"
