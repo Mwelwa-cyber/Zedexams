@@ -195,6 +195,8 @@ async function callAnthropic(apiKey, {
   temperature = 0.35,
   json = false,
   model,
+  tools,
+  toolChoice,
 }) {
   let res;
   try {
@@ -221,6 +223,8 @@ async function callAnthropic(apiKey, {
           }],
         } : {}),
         messages,
+        ...(Array.isArray(tools) && tools.length ? {tools} : {}),
+        ...(toolChoice ? {tool_choice: toolChoice} : {}),
       }),
     }, {label: "aiService"});
   } catch {
@@ -251,6 +255,21 @@ async function callAnthropic(apiKey, {
 
   const data = await res.json();
   const blocks = Array.isArray(data?.content) ? data.content : [];
+
+  // Tool-use callers (e.g. Vex) want schema-enforced structured output.
+  // Return the first tool_use block's input as JSON-stringified text so
+  // existing JSON.parse pipelines keep working.
+  if (Array.isArray(tools) && tools.length) {
+    const toolUse = blocks.find((b) => b?.type === "tool_use");
+    if (toolUse && toolUse.input) {
+      try {
+        return JSON.stringify(toolUse.input);
+      } catch {
+        // fall through to text handling
+      }
+    }
+  }
+
   const text = blocks
     .filter((block) => block?.type === "text" && block?.text)
     .map((block) => block.text)

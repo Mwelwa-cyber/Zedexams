@@ -60,30 +60,82 @@ const SYSTEM_PROMPT = [
   "certainly missed something. Re-read first. Honest scores reflect",
   "honest critique — do not inflate scores to be polite.",
   "",
-  "Output ONLY a single JSON object matching this shape (no prose). All",
-  "six score fields and the issues array are REQUIRED, even if empty:",
-  "{",
-  "  \"scores\": {",
-  "    \"answerAccuracy\": 0-100,",
-  "    \"gradeMatch\": 0-100,",
-  "    \"clarity\": 0-100,",
-  "    \"grammar\": 0-100,",
-  "    \"optionsQuality\": 0-100,",
-  "    \"cbcAlignment\": 0-100",
-  "  },",
-  "  \"summary\": \"one or two sentences\",",
-  "  \"issues\": [",
-  "    {",
-  "      \"questionIndex\": <0-based int>,",
-  "      \"severity\": \"blocker\" | \"warning\",",
-  "      \"category\": \"answer\" | \"options\" | \"clarity\" | \"grammar\" | \"curriculum\" | \"difficulty\",",
-  "      \"field\": \"text\" | \"options\" | \"correctAnswer\" | \"meta\",",
-  "      \"message\": \"plain-English description of the issue\",",
-  "      \"suggestion\": \"concrete fix the teacher can apply\"",
-  "    }",
-  "  ]",
-  "}",
+  "You MUST submit your verdict by calling the submit_verdict tool.",
+  "Do not write prose, do not write JSON in your reply — only call the",
+  "tool. All six scores and the issues array are required (issues may",
+  "be empty if you are genuinely certain nothing is wrong).",
 ].join("\n");
+
+// Tool-enforced schema for the verdict. Forcing Claude to call this
+// tool guarantees the response matches the shape — no prose drift, no
+// missing fields, no truncated JSON. Mirrors the validation in
+// buildScores / normaliseIssue below.
+const VERDICT_TOOL = {
+  name: "submit_verdict",
+  description:
+    "Submit your quiz quality verdict. Call this exactly once with all " +
+    "six category scores, a short summary, and the list of issues found.",
+  input_schema: {
+    type: "object",
+    required: ["scores", "summary", "issues"],
+    properties: {
+      scores: {
+        type: "object",
+        required: [
+          "answerAccuracy",
+          "gradeMatch",
+          "clarity",
+          "grammar",
+          "optionsQuality",
+          "cbcAlignment",
+        ],
+        properties: {
+          answerAccuracy: {type: "integer", minimum: 0, maximum: 100},
+          gradeMatch: {type: "integer", minimum: 0, maximum: 100},
+          clarity: {type: "integer", minimum: 0, maximum: 100},
+          grammar: {type: "integer", minimum: 0, maximum: 100},
+          optionsQuality: {type: "integer", minimum: 0, maximum: 100},
+          cbcAlignment: {type: "integer", minimum: 0, maximum: 100},
+        },
+      },
+      summary: {
+        type: "string",
+        description: "One or two sentences summarising the verdict.",
+      },
+      issues: {
+        type: "array",
+        items: {
+          type: "object",
+          required: [
+            "questionIndex",
+            "severity",
+            "category",
+            "field",
+            "message",
+            "suggestion",
+          ],
+          properties: {
+            questionIndex: {type: "integer", minimum: 0},
+            severity: {type: "string", enum: ["blocker", "warning"]},
+            category: {
+              type: "string",
+              enum: [
+                "answer", "options", "clarity",
+                "grammar", "curriculum", "difficulty",
+              ],
+            },
+            field: {
+              type: "string",
+              enum: ["text", "options", "correctAnswer", "meta"],
+            },
+            message: {type: "string"},
+            suggestion: {type: "string"},
+          },
+        },
+      },
+    },
+  },
+};
 
 function safeParseJson(text) {
   if (!text || typeof text !== "string") return null;
@@ -345,9 +397,19 @@ async function runVex({input, anthropicApiKeySecret}) {
       systemPrompt: SYSTEM_PROMPT,
       messages: [{role: "user", content: userPrompt}],
       model: MODEL,
-      maxTokens: 1500,
+      // 4000 (up from 1500) gives room for a full verdict on a 10+ question
+      // quiz with several issues each. The previous 1500 cap was truncating
+      // mid-JSON and producing the "AI response unreadable" verdict.
+      maxTokens: 4000,
       temperature: 0.1,
-      json: true,
+      tools: [VERDICT_TOOL],
+      // Force the model to call submit_verdict — guarantees structured
+      // output that matches the schema, no prose drift.
+      toolChoice: {
+        type: "tool",
+        name: "submit_verdict",
+        disable_parallel_tool_use: true,
+      },
     });
   } catch (err) {
     console.error("Vex Anthropic call failed", err);
@@ -391,6 +453,21 @@ async function runVex({input, anthropicApiKeySecret}) {
   // looks good to publish" with all bars at 0%.
   const allScoresZero = Object.values(scores).every((v) => v === 0);
   const aiUnreadable = !parsedOk || allScoresZero;
+
+  if (aiUnreadable) {
+    // Surface the failure mode in logs so we can tell whether we're
+    // losing responses to truncation, prose drift, or a schema-skipping
+    // model. Without this, the modal just says "unreadable" and there's
+    // no way to debug.
+    console.warn("Vex: AI response unreadable", {
+      parsedOk,
+      allScoresZero,
+      hasScoresObject: Boolean(parsed && parsed.scores),
+      hasIssuesArray: Array.isArray(parsed && parsed.issues),
+      rawLength: typeof raw === "string" ? raw.length : 0,
+      rawPreview: clampStr(raw, 500),
+    });
+  }
 
   let verdict;
   if (blockers.length > 0) verdict = "fail";
