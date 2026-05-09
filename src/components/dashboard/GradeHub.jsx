@@ -152,7 +152,7 @@ function DashboardCharacter({ image, alt, variant = 'card', loading = 'lazy', cl
   if (!image) return null
 
   const sizeClass = {
-    hero: 'h-40 sm:h-52 md:h-[220px]',
+    hero: 'h-52 sm:h-64 md:h-[260px]',
     card: 'h-24 sm:h-28',
     games: 'h-24 sm:h-[118px]',
   }[variant] || 'h-24 sm:h-28'
@@ -918,7 +918,7 @@ export default function GradeHub() {
       </header>
 
       {/* ──────────── MAIN CONTENT ───────────────────────────── */}
-      <main className="relative z-10 flex-1 max-w-4xl mx-auto w-full px-4 py-5 pb-28 space-y-6 theme-text">
+      <main className="relative z-10 flex-1 max-w-4xl mx-auto w-full px-4 py-5 pb-28 space-y-4 theme-text">
 
         {/* ── HERO / WELCOME BANNER ───────────────────────────── */}
         <section
@@ -964,7 +964,7 @@ export default function GradeHub() {
                 )}
               </div>
 
-              <div className="mt-4 flex flex-wrap items-center gap-4">
+              <div className="mt-3 flex flex-wrap items-center gap-4">
                 <div>
                   <p className="text-xl font-black leading-none text-white">{stats.quizzes}</p>
                   <p className="theme-hero-muted text-xs font-bold">Quizzes</p>
@@ -982,7 +982,7 @@ export default function GradeHub() {
                 )}
               </div>
 
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-3 flex flex-wrap gap-2">
                 <Link
                   to="/quizzes"
                   className="flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs font-black theme-accent-text transition-colors hover:bg-white"
@@ -1005,7 +1005,7 @@ export default function GradeHub() {
               alt="Zed and Zara reading together"
               variant="hero"
               loading="eager"
-              className="absolute bottom-0 right-0 z-0 max-w-[48%] sm:max-w-none"
+              className="absolute bottom-0 right-0 z-0 max-w-[55%] sm:max-w-none"
             />
           </div>
         </section>
