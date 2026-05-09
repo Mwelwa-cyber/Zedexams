@@ -152,7 +152,7 @@ function DashboardCharacter({ image, alt, variant = 'card', loading = 'lazy', cl
   if (!image) return null
 
   const sizeClass = {
-    hero: 'h-52 sm:h-64 md:h-[260px]',
+    hero: 'h-40 sm:h-52 md:h-[220px]',
     card: 'h-24 sm:h-28',
     games: 'h-24 sm:h-[118px]',
   }[variant] || 'h-24 sm:h-28'
@@ -922,7 +922,7 @@ export default function GradeHub() {
 
         {/* ── HERO / WELCOME BANNER ───────────────────────────── */}
         <section
-          className={`zx-card relative min-h-[230px] overflow-hidden rounded-3xl ${
+          className={`zx-card relative overflow-hidden rounded-3xl ${
             dataSaver
               ? 'theme-accent-fill p-5'
               : 'theme-hero p-5 sm:p-6'
@@ -938,75 +938,75 @@ export default function GradeHub() {
             </>
           )}
 
-          <div className="relative flex min-h-[198px] items-end">
-            <div className="relative z-10 max-w-[58%] min-w-0 pb-1 sm:max-w-[56%]">
-              <p className="mb-1.5 text-eyebrow text-white/75" style={{ color: 'rgba(255,255,255,0.75)' }}>
-                Welcome back
-              </p>
-              <h1 className="text-display-xl text-white">{firstName}!</h1>
-              <p className="theme-hero-muted mt-1 text-body-sm italic">Practise smart with ZedExams.</p>
-
-              <div className="mt-2 flex flex-wrap items-center gap-2">
-                {userProfile?.grade && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/20 px-2.5 py-1 text-xs font-black text-white">
-                    <Icon as={BookOpen} size="xs" strokeWidth={2.1} />
-                    Grade {userProfile.grade}
-                  </span>
-                )}
-                {dailyGoal.total > 0 && (
-                  <Link
-                    to="/exams"
-                    className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/50 bg-amber-400/20 px-2.5 py-1 text-xs font-black text-amber-50 transition-colors hover:bg-amber-400/30"
-                  >
-                    <Icon as={TrophyIcon} size="xs" strokeWidth={2.1} />
-                    Today&rsquo;s Goal · {dailyGoal.done}/{dailyGoal.total} activities
-                  </Link>
-                )}
-              </div>
-
-              <div className="mt-3 flex flex-wrap items-center gap-4">
-                <div>
-                  <p className="text-xl font-black leading-none text-white">{stats.quizzes}</p>
-                  <p className="theme-hero-muted text-xs font-bold">Quizzes</p>
-                </div>
-                <div className="h-8 w-px bg-white/25" />
-                <div>
-                  <p className="text-xl font-black leading-none text-white">{earnedBadges.length}</p>
-                  <p className="theme-hero-muted text-xs font-bold">Badges</p>
-                </div>
-                {stats.streak >= 2 && (
-                  <>
-                    <div className="h-8 w-px bg-white/25" />
-                    <StreakBadge streak={stats.streak} tone="hero" />
-                  </>
-                )}
-              </div>
-
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Link
-                  to="/quizzes"
-                  className="flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs font-black theme-accent-text transition-colors hover:bg-white"
-                >
-                  <Icon as={PencilLine} size="xs" strokeWidth={2.1} />
-                  Start Quiz
-                </Link>
-                <Link
-                  to="/my-results"
-                  className="flex items-center gap-1.5 rounded-full border border-white/40 bg-white/30 px-3 py-1.5 text-xs font-black text-white transition-colors hover:bg-white/40"
-                >
-                  <Icon as={BarChart3} size="xs" strokeWidth={2.1} />
-                  My Results
-                </Link>
-              </div>
-            </div>
-
+          <div className="relative">
             <DashboardCharacter
               image={DASHBOARD_CHARACTERS.hero}
               alt="Zed and Zara reading together"
               variant="hero"
               loading="eager"
-              className="absolute bottom-0 right-0 z-0 max-w-[55%] sm:max-w-none"
+              className="absolute -top-1 right-0 z-0 max-w-[42%] sm:max-w-[40%]"
             />
+
+            <div className="relative z-10 max-w-[58%] min-w-0 sm:max-w-[60%]">
+              <p className="mb-1.5 text-eyebrow text-white/75" style={{ color: 'rgba(255,255,255,0.75)' }}>
+                Welcome back
+              </p>
+              <h1 className="text-display-xl text-white">{firstName}!</h1>
+              <p className="theme-hero-muted mt-1 text-body-sm italic">Practise smart with ZedExams.</p>
+            </div>
+
+            <div className="relative z-10 mt-3 flex flex-wrap items-center gap-4">
+              <div>
+                <p className="text-xl font-black leading-none text-white">{stats.quizzes}</p>
+                <p className="theme-hero-muted text-xs font-bold">Quizzes</p>
+              </div>
+              <div className="h-8 w-px bg-white/25" />
+              <div>
+                <p className="text-xl font-black leading-none text-white">{earnedBadges.length}</p>
+                <p className="theme-hero-muted text-xs font-bold">Badges</p>
+              </div>
+              {stats.streak >= 2 && (
+                <>
+                  <div className="h-8 w-px bg-white/25" />
+                  <StreakBadge streak={stats.streak} tone="hero" />
+                </>
+              )}
+            </div>
+
+            <div className="relative z-10 mt-3 flex flex-wrap gap-2">
+              <Link
+                to="/quizzes"
+                className="flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs font-black theme-accent-text transition-colors hover:bg-white"
+              >
+                <Icon as={PencilLine} size="xs" strokeWidth={2.1} />
+                Start Quiz
+              </Link>
+              <Link
+                to="/my-results"
+                className="flex items-center gap-1.5 rounded-full border border-white/40 bg-white/30 px-3 py-1.5 text-xs font-black text-white transition-colors hover:bg-white/40"
+              >
+                <Icon as={BarChart3} size="xs" strokeWidth={2.1} />
+                My Results
+              </Link>
+            </div>
+
+            <div className="relative z-10 mt-3 flex flex-wrap items-center gap-2">
+              {userProfile?.grade && (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/20 px-2.5 py-1 text-xs font-black text-white">
+                  <Icon as={BookOpen} size="xs" strokeWidth={2.1} />
+                  Grade {userProfile.grade}
+                </span>
+              )}
+              {dailyGoal.total > 0 && (
+                <Link
+                  to="/exams"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-amber-300/50 bg-amber-400/20 px-2.5 py-1 text-xs font-black text-amber-50 transition-colors hover:bg-amber-400/30"
+                >
+                  <Icon as={TrophyIcon} size="xs" strokeWidth={2.1} />
+                  Today&rsquo;s Goal · {dailyGoal.done}/{dailyGoal.total} activities
+                </Link>
+              )}
+            </div>
           </div>
         </section>
 
