@@ -601,12 +601,18 @@ export default function AssessmentStudio() {
   }
 
   function addPassageSectionHandler() {
-    setSections(currentSections => [...currentSections, createPassageSection()])
+    const nextSection = createPassageSection()
+    setSections(currentSections => hasOnlyEmptyStarterSection(currentSections)
+      ? [nextSection]
+      : [...currentSections, nextSection])
     scrollToBottom()
   }
 
   function addMapSectionHandler() {
-    setSections(currentSections => [...currentSections, createPassageSection({ passageKind: 'map' })])
+    const nextSection = createPassageSection({ passageKind: 'map' })
+    setSections(currentSections => hasOnlyEmptyStarterSection(currentSections)
+      ? [nextSection]
+      : [...currentSections, nextSection])
     scrollToBottom()
   }
 
