@@ -15,7 +15,7 @@ import OfflineBanner from './components/ui/OfflineBanner'
 // applies again as soon as they land on an authenticated route.
 const PUBLIC_THEME_PATHS = new Set([
   '/', '/welcome', '/login', '/register', '/auth/action',
-  '/pricing', '/plans', '/privacy', '/terms',
+  '/pricing', '/plans', '/privacy', '/terms', '/status',
 ])
 function isPublicThemePath(pathname) {
   return PUBLIC_THEME_PATHS.has(pathname) || pathname.startsWith('/share/')
@@ -65,6 +65,7 @@ const Marketing = lazy(() => import('./components/marketing/Marketing'))
 const Plans = lazy(() => import('./components/marketing/Plans'))
 const PrivacyPolicy = lazy(() => import('./components/marketing/PrivacyPolicy'))
 const Terms = lazy(() => import('./components/marketing/Terms'))
+const StatusPage = lazy(() => import('./components/marketing/StatusPage'))
 
 // Admin section
 const AdminLayout = lazy(() => import('./components/admin/AdminLayout'))
@@ -264,6 +265,7 @@ export default function App() {
           <Route path="/plans"    element={<Plans />} />
           <Route path="/privacy"  element={<PrivacyPolicy />} />
           <Route path="/terms"    element={<Terms />} />
+          <Route path="/status"   element={<StatusPage />} />
           <Route path="/login"    element={<Login />} />
           <Route path="/register" element={<Register />} />
           {/* Custom Firebase email action handler — branded ZedExams URL for
