@@ -30,7 +30,10 @@ const SYSTEM_PROMPT = [
   "  2. Grade match — Is the vocabulary, cognitive load, and reading level",
   "     appropriate for the stated grade?",
   "  3. Clarity — Is the question understandable? Ambiguous wording?",
-  "  4. Grammar — Spelling, punctuation, subject-verb agreement.",
+  "  4. Grammar — Spelling, punctuation, subject-verb agreement. Flag",
+  "     ANY obvious typos in the question stem or options as a warning",
+  "     (e.g. \"Nae\" instead of \"Name\", \"recieve\" instead of \"receive\").",
+  "     Do not silently ignore typos.",
   "  5. Options quality — Plausible distractors, no near-duplicates, not",
   "     too obvious, not misleading.",
   "  6. CBC alignment — Does it match the stated subject, grade, topic,",
@@ -94,17 +97,58 @@ function clampStr(value, max) {
   return String(value || "").slice(0, max);
 }
 
+// Walk a Tiptap document to plain text. Defense in depth for the
+// structural checks below in case a caller forgets to flatten rich text
+// client-side. Mirrors src/utils/quizRichText.js#extractRichTextPlain.
+function walkTiptapNode(node, out) {
+  if (!node || typeof node !== "object") return;
+  const type = node.type;
+  if (type === "text") {
+    if (typeof node.text === "string") out.push(node.text);
+    return;
+  }
+  if (type === "hardBreak" || type === "hard_break") {
+    out.push("\n");
+    return;
+  }
+  const isBlock = type === "paragraph" || type === "heading" ||
+    type === "blockquote" || type === "bulletList" ||
+    type === "orderedList" || type === "listItem" || type === "codeBlock";
+  if (isBlock) out.push("\n");
+  (node.content || []).forEach((child) => walkTiptapNode(child, out));
+  if (isBlock) out.push("\n");
+}
+
+function tiptapDocToPlain(doc) {
+  if (!doc || doc.type !== "doc") return "";
+  const out = [];
+  (doc.content || []).forEach((child) => walkTiptapNode(child, out));
+  return out.join("").replace(/\s+/g, " ").trim();
+}
+
 function extractPlainText(text) {
-  if (!text) return "";
-  if (typeof text === "string") return text;
+  if (text === null || text === undefined) return "";
   if (typeof text === "object") {
+    if (text.type === "doc") return tiptapDocToPlain(text);
     try {
       return JSON.stringify(text);
     } catch {
       return "";
     }
   }
-  return "";
+  if (typeof text !== "string") return "";
+  const trimmed = text.trim();
+  if (trimmed.startsWith("{") &&
+      trimmed.includes("\"type\"") &&
+      trimmed.includes("\"doc\"")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && parsed.type === "doc") return tiptapDocToPlain(parsed);
+    } catch {
+      /* fall through to raw string */
+    }
+  }
+  return trimmed;
 }
 
 /**
@@ -308,11 +352,13 @@ async function runVex({input, anthropicApiKeySecret}) {
     };
   }
 
-  const parsed = safeParseJson(raw) || {};
-  const scores = buildScores(parsed);
+  const parsed = safeParseJson(raw);
+  const parsedOk = parsed && typeof parsed === "object" &&
+    (parsed.scores || Array.isArray(parsed.issues));
+  const scores = buildScores(parsed || {});
   const overallScore = overallFromScores(scores);
 
-  const llmIssues = Array.isArray(parsed.issues) ?
+  const llmIssues = Array.isArray(parsed?.issues) ?
     parsed.issues.slice(0, 100).map(normaliseIssue) :
     [];
   const llmBlockers = llmIssues.filter((i) => i.severity === "blocker");
@@ -321,24 +367,43 @@ async function runVex({input, anthropicApiKeySecret}) {
   const blockers = [...structuralBlockers, ...llmBlockers];
   const warnings = llmWarnings;
 
+  // Distinguish a clean pass from a parse failure that returned all zeros
+  // and no issues. Without this, the modal cheerfully says "Quiz looks
+  // good to publish" whenever Claude's response is malformed.
+  const aiUnreadable = !parsedOk || (
+    overallScore === 0 && llmIssues.length === 0 &&
+    !clampStr(parsed?.summary, 600)
+  );
+
   let verdict;
   if (blockers.length > 0) verdict = "fail";
+  else if (aiUnreadable) verdict = "warn";
   else if (overallScore < 80 || warnings.length > 0) verdict = "warn";
   else verdict = "pass";
+
+  let summary = clampStr(parsed?.summary, 600);
+  if (!summary) {
+    if (blockers.length) {
+      summary = "Quiz has critical issues that must be fixed before publishing.";
+    } else if (aiUnreadable) {
+      summary = "AI verifier returned an unreadable response — only " +
+        "structural checks ran. Review the quiz manually before publishing.";
+    } else if (warnings.length) {
+      summary = "Quiz is publishable but has minor issues to consider.";
+    } else {
+      summary = "Quiz looks good to publish.";
+    }
+  }
 
   return {
     verdict,
     overallScore,
     scores,
-    summary: clampStr(parsed.summary, 600) ||
-      (blockers.length ?
-        "Quiz has critical issues that must be fixed before publishing." :
-        warnings.length ?
-          "Quiz is publishable but has minor issues to consider." :
-          "Quiz looks good to publish."),
+    summary,
     blockers,
     warnings,
     modelUsed: MODEL,
+    aiUnreadable: aiUnreadable || undefined,
   };
 }
 
