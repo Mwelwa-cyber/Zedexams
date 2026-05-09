@@ -8,6 +8,7 @@ import {
   createPartGroup,
   createPassageSection,
   createStandaloneSection,
+  emptyPassageQuestion,
   getQuestionKey,
   hydrateQuizSections,
   serializeQuizSections,
@@ -362,10 +363,7 @@ export default function EditQuizV2() {
         ...section.passage,
         questions: [
           ...section.passage.questions,
-          {
-            ...createPassageSection({ id: section.passage.id, questions: [] }).passage.questions[0],
-            passageId: section.passage.id,
-          },
+          emptyPassageQuestion({ passageId: section.passage.id }),
         ],
       },
     }))
