@@ -166,10 +166,13 @@ export function getSubjectTheme(subject) {
  * cast of guides rather than a list of links.
  */
 export const SUBJECT_MASCOTS = {
-  mathematics: { emoji: '🦊', name: 'Maths Fox',     tagline: 'Numbers are my game!' },
-  english:     { emoji: '🦉', name: 'Story Owl',     tagline: 'Word adventures await.' },
+  mathematics: { emoji: '🦊', name: 'Maths Fox',      tagline: 'Numbers are my game!' },
+  english:     { emoji: '🦉', name: 'Story Owl',      tagline: 'Word adventures await.' },
   science:     { emoji: '🐢', name: 'Science Turtle', tagline: 'Let’s explore the world.' },
   social:      { emoji: '🦁', name: 'Adventure Lion', tagline: 'Every place has a story.' },
+  technology:  { emoji: '🤖', name: 'Tech Robot',     tagline: 'Tinker, build, repeat.' },
+  home:        { emoji: '🐝', name: 'Home Bee',       tagline: 'Care, cook, create.' },
+  arts:        { emoji: '🎨', name: 'Art Parrot',     tagline: 'Colour your ideas!' },
 }
 
 const DEFAULT_MASCOT = { emoji: '🎮', name: 'Game Pal', tagline: 'Pick a game and play!' }
@@ -261,6 +264,9 @@ const SUBJECT_TILE_BG = {
   english:     'bg-blue-100',
   science:     'bg-green-100',
   social:      'bg-yellow-100',
+  technology:  'bg-cyan-100',
+  home:        'bg-pink-100',
+  arts:        'bg-rose-100',
 }
 
 function tileBgForSubject(subject) {

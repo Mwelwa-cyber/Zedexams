@@ -86,6 +86,136 @@ function validateInputs(inputs) {
   return errs;
 }
 
+async function runRubric({uid, rawInputs, apiKey}) {
+  const inputs = sanitizeInputs(rawInputs || {});
+  const inputErrors = validateInputs(inputs);
+  if (inputErrors.length > 0) {
+    throw new HttpsError("invalid-argument", inputErrors.join(" "));
+  }
+
+  // Rubrics don't need a curated-topic grounding (they're about assessment
+  // not content), but we still provide grade+subject context for style.
+  const {contextBlock, kbMatch, kbWarning} = await resolveCbcContext({
+    grade: inputs.grade,
+    subject: inputs.subject,
+    topic: `${inputs.taskType} assessment`,
+    subtopic: "",
+  });
+
+  const usage = await assertAndIncrement(uid, "rubric");
+
+  const genRef = admin.firestore().collection("aiGenerations").doc();
+  await genRef.set({
+    ownerUid: uid,
+    tool: "rubric",
+    inputs,
+    output: null,
+    outputText: "",
+    modelUsed: RUBRIC_MODEL,
+    promptVersion: PROMPT_VERSION,
+    kbVersion: KB_VERSION,
+    tokensIn: 0,
+    tokensOut: 0,
+    costUsdCents: 0,
+    status: "generating",
+    errorMessage: null,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    completedAt: null,
+    teacherEdited: false,
+    exportedFormats: [],
+    visibility: "private",
+  });
+
+  const userPrompt = buildUserPrompt(inputs);
+  let raw = "";
+  let usageInfo = {inputTokens: 0, outputTokens: 0};
+  let modelUsed = RUBRIC_MODEL;
+  try {
+    const response = await callClaude(apiKey, {
+      systemPrompt: SYSTEM_PROMPT,
+      cbcContextBlock: contextBlock,
+      messages: [{role: "user", content: userPrompt}],
+      maxTokens: 4000,
+      temperature: 0.3,
+      model: RUBRIC_MODEL,
+    });
+    raw = response.text || "";
+    usageInfo = response.usage || usageInfo;
+    modelUsed = response.model || modelUsed;
+  } catch (err) {
+    await genRef.update({
+      status: "failed",
+      errorMessage: String(err && err.message || err).slice(0, 500),
+    });
+    throw err;
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(stripJsonFences(raw));
+  } catch {
+    await genRef.update({
+      status: "failed",
+      errorMessage: "AI returned non-JSON output",
+      outputText: String(raw || "").slice(0, 12000),
+    });
+    throw new HttpsError(
+      "internal",
+      "The AI returned an unexpected response. Please try again.",
+    );
+  }
+
+  const validation = validateRubric(parsed);
+  const rubric = validation.value;
+  if (!validation.ok) {
+    await genRef.update({
+      status: "flagged",
+      errorMessage: `Schema errors: ${validation.errors.join("; ")}`,
+      output: rubric,
+      outputText: String(raw || "").slice(0, 20000),
+      completedAt: admin.firestore.FieldValue.serverTimestamp(),
+      tokensIn: Number(usageInfo.inputTokens || 0),
+      tokensOut: Number(usageInfo.outputTokens || 0),
+      modelUsed,
+    });
+    return {
+      generationId: genRef.id,
+      rubric,
+      usage,
+      warning: [
+        "Some fields were incomplete — please review.",
+        kbWarning,
+      ].filter(Boolean).join(" "),
+      kbGrounded: Boolean(kbMatch),
+    };
+  }
+
+  const tokensIn = Number(usageInfo.inputTokens || 0);
+  const tokensOut = Number(usageInfo.outputTokens || 0);
+  // Haiku pricing: ~$1/M input, $5/M output.
+  const costUsdCents = Math.round(
+    ((tokensIn / 1e6) * 100) + ((tokensOut / 1e6) * 500),
+  );
+  await genRef.update({
+    status: "complete",
+    output: rubric,
+    outputText: String(raw || "").slice(0, 20000),
+    tokensIn,
+    tokensOut,
+    costUsdCents,
+    modelUsed,
+    completedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return {
+    generationId: genRef.id,
+    rubric,
+    usage,
+    warning: kbWarning || null,
+    kbGrounded: Boolean(kbMatch),
+  };
+}
+
 function createGenerateRubric(anthropicApiKeySecret) {
   return onCall(
     {secrets: [anthropicApiKeySecret], timeoutSeconds: 90, memory: "512MiB"},
@@ -99,144 +229,10 @@ function createGenerateRubric(anthropicApiKeySecret) {
           "Teacher tools are available to approved teachers only.",
         );
       }
-
-      const inputs = sanitizeInputs(request.data || {});
-      const inputErrors = validateInputs(inputs);
-      if (inputErrors.length > 0) {
-        throw new HttpsError("invalid-argument", inputErrors.join(" "));
-      }
-
-      // Rubrics don't need a curated-topic grounding (they're about assessment
-      // not content), but we still provide grade+subject context for style.
-      const {contextBlock, kbMatch, kbWarning} = await resolveCbcContext({
-        grade: inputs.grade,
-        subject: inputs.subject,
-        topic: `${inputs.taskType} assessment`,
-        subtopic: "",
-      });
-
-      const usage = await assertAndIncrement(uid, "rubric");
-
-      const genRef = admin.firestore().collection("aiGenerations").doc();
-      await genRef.set({
-        ownerUid: uid,
-        tool: "rubric",
-        inputs,
-        output: null,
-        outputText: "",
-        modelUsed: RUBRIC_MODEL,
-        promptVersion: PROMPT_VERSION,
-        kbVersion: KB_VERSION,
-        tokensIn: 0,
-        tokensOut: 0,
-        costUsdCents: 0,
-        status: "generating",
-        errorMessage: null,
-        createdAt: admin.firestore.FieldValue.serverTimestamp(),
-        completedAt: null,
-        teacherEdited: false,
-        exportedFormats: [],
-        visibility: "private",
-      });
-
-      let apiKey;
-      try {
-        apiKey = getAnthropicApiKey(anthropicApiKeySecret);
-      } catch (err) {
-        await genRef.update({status: "failed", errorMessage: "AI key missing"});
-        throw err;
-      }
-
-      const userPrompt = buildUserPrompt(inputs);
-      let raw = "";
-      let usageInfo = {inputTokens: 0, outputTokens: 0};
-      let modelUsed = RUBRIC_MODEL;
-      try {
-        const response = await callClaude(apiKey, {
-          systemPrompt: SYSTEM_PROMPT,
-          cbcContextBlock: contextBlock,
-          messages: [{role: "user", content: userPrompt}],
-          maxTokens: 4000,
-          temperature: 0.3,
-          model: RUBRIC_MODEL,
-        });
-        raw = response.text || "";
-        usageInfo = response.usage || usageInfo;
-        modelUsed = response.model || modelUsed;
-      } catch (err) {
-        await genRef.update({
-          status: "failed",
-          errorMessage: String(err && err.message || err).slice(0, 500),
-        });
-        throw err;
-      }
-
-      let parsed;
-      try {
-        parsed = JSON.parse(stripJsonFences(raw));
-      } catch {
-        await genRef.update({
-          status: "failed",
-          errorMessage: "AI returned non-JSON output",
-          outputText: String(raw || "").slice(0, 12000),
-        });
-        throw new HttpsError(
-          "internal",
-          "The AI returned an unexpected response. Please try again.",
-        );
-      }
-
-      const validation = validateRubric(parsed);
-      const rubric = validation.value;
-      if (!validation.ok) {
-        await genRef.update({
-          status: "flagged",
-          errorMessage: `Schema errors: ${validation.errors.join("; ")}`,
-          output: rubric,
-          outputText: String(raw || "").slice(0, 20000),
-          completedAt: admin.firestore.FieldValue.serverTimestamp(),
-          tokensIn: Number(usageInfo.inputTokens || 0),
-          tokensOut: Number(usageInfo.outputTokens || 0),
-          modelUsed,
-        });
-        return {
-          generationId: genRef.id,
-          rubric,
-          usage,
-          warning: [
-            "Some fields were incomplete — please review.",
-            kbWarning,
-          ].filter(Boolean).join(" "),
-          kbGrounded: Boolean(kbMatch),
-        };
-      }
-
-      const tokensIn = Number(usageInfo.inputTokens || 0);
-      const tokensOut = Number(usageInfo.outputTokens || 0);
-      // Haiku pricing: ~$1/M input, $5/M output.
-      const costUsdCents = Math.round(
-        ((tokensIn / 1e6) * 100) + ((tokensOut / 1e6) * 500),
-      );
-      await genRef.update({
-        status: "complete",
-        output: rubric,
-        outputText: String(raw || "").slice(0, 20000),
-        tokensIn,
-        tokensOut,
-        costUsdCents,
-        modelUsed,
-        completedAt: admin.firestore.FieldValue.serverTimestamp(),
-      });
-
-      return {
-        generationId: genRef.id,
-        rubric,
-        usage,
-        warning: kbWarning || null,
-        kbGrounded: Boolean(kbMatch),
-      };
+      const apiKey = getAnthropicApiKey(anthropicApiKeySecret);
+      return runRubric({uid, rawInputs: request.data, apiKey});
     },
   );
 }
 
-module.exports = {createGenerateRubric};
+module.exports = {createGenerateRubric, runRubric};
