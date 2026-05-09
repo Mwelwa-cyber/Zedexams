@@ -24,6 +24,7 @@ function isPublicThemePath(pathname) {
   if (PUBLIC_THEME_PATHS.has(pathname)) return true
   if (pathname.startsWith('/share/')) return true
   if (pathname.startsWith('/papers/')) return true
+  if (pathname.startsWith('/parent/')) return true
   return false
 }
 
@@ -109,6 +110,12 @@ const TeacherAgentJobsList = lazy(() => import('./components/teacher/AgentJobsLi
 const TeacherClassesList = lazy(() => import('./components/teacher/classes/TeacherClassesList'))
 const TeacherClassEditor = lazy(() => import('./components/teacher/classes/TeacherClassEditor'))
 const TeacherClassDetail = lazy(() => import('./components/teacher/classes/TeacherClassDetail'))
+// Audit A10 PR 2 — learner-side join + view classes.
+const LearnerClassesList = lazy(() => import('./components/classes/LearnerClassesList'))
+const LearnerClassJoin = lazy(() => import('./components/classes/LearnerClassJoin'))
+const LearnerClassDetail = lazy(() => import('./components/classes/LearnerClassDetail'))
+// Audit A3 PR 1 — parent portal (public read-only progress view).
+const ParentProgressView = lazy(() => import('./components/parent/ParentProgressView'))
 const TeacherAgentJobView  = lazy(() => import('./components/teacher/AgentJobsList').then(m => ({ default: m.AgentJobView })))
 
 // Teacher section
@@ -309,6 +316,8 @@ export default function App() {
 
           {/* Public share link — no auth, read-only viewer of a frozen snapshot */}
           <Route path="/share/:token"             element={<PublicShareView />} />
+          {/* Audit A3 — parent portal. Public token-based read; no auth. */}
+          <Route path="/parent/:token"            element={<ParentProgressView />} />
 
           {/* ── Public games (no auth) ──────────────────────────── */}
           {/* Flow: /games → /games/g/:grade → /games/g/:grade/:subject → /games/play/:gameId */}
@@ -345,6 +354,10 @@ export default function App() {
           <Route path="/notes/:id"         element={<NotesIdRedirect />} />
           <Route path="/my-results"        element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><MyResults /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/my-badges"         element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><BadgesPage /></LearnerOnlyRoute></ProtectedRoute>} />
+          {/* Audit A10 PR 2 — learner-side classroom views. */}
+          <Route path="/classes"           element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerClassesList /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/classes/join"      element={<ProtectedRoute><LearnerOnlyRoute><LearnerClassJoin /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/classes/:classId"  element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerClassDetail /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/profile"           element={<ProtectedRoute><Navbar /><ProfilePage /></ProtectedRoute>} />
           <Route path="/settings"          element={<ProtectedRoute><Navbar /><SettingsPage /></ProtectedRoute>} />
           {/* Audit A6 — full-page Zed AI study chat. Auth-gated; the

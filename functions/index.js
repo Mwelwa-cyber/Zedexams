@@ -98,12 +98,30 @@ const {
 const {dailyStreakReminders: dailyStreakRemindersCron} = require("./dailyReminders");
 // Audit C4 — public marketing-page stats aggregator (every 30 minutes).
 const {updatePublicStats: updatePublicStatsCron} = require("./publicStats");
-// Audit A10 — teacher classroom roster (invite codes + join + remove).
+// Audit A10 — teacher classroom roster (invite codes + join + remove + leave + assignments).
 const {
   generateClassInvite,
   joinClassByCode,
   removeLearnerFromClass,
+  leaveClass,
+  createClassAssignment,
+  removeClassAssignment,
 } = require("./classManagement");
+// Audit A10 PR 4 — per-class analytics (admin SDK, bypasses results read rules).
+const {getClassStats} = require("./classAnalytics");
+// Audit A3 PR 1 — parent portal share-link infrastructure.
+const {
+  createProgressShare,
+  revokeProgressShare,
+  getProgressShare,
+} = require("./parentPortal");
+// Audit A3 PR 2 — weekly digest cron (Sunday 09:00 Africa/Lusaka).
+// Audit A3 PR 3 — admin-only manual trigger to verify Twilio WhatsApp
+// wiring without waiting for the Sunday tick.
+const {
+  weeklyParentDigest,
+  triggerWeeklyParentDigest,
+} = require("./weeklyParentDigest");
 
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const mtnApiUser = defineSecret("MTN_API_USER");
@@ -1548,6 +1566,41 @@ exports.updatePublicStats = updatePublicStatsCron;
 exports.generateClassInvite = generateClassInvite;
 exports.joinClassByCode = joinClassByCode;
 exports.removeLearnerFromClass = removeLearnerFromClass;
+exports.leaveClass = leaveClass;
+// A10 PR 3 — assignments. Validate caller owns the class, denormalise
+// resource title / subject onto the assignment doc so the learner-side
+// "From your teacher" card renders without a second read per row.
+exports.createClassAssignment = createClassAssignment;
+exports.removeClassAssignment = removeClassAssignment;
+// A10 PR 4 — per-class stats for the teacher dashboard. Bounded reads
+// (30-day window, first 200 learners, 25 most-recent assignments) with
+// graceful index-fallback so the first deploy still renders something.
+exports.getClassStats = getClassStats;
+
+// A3 PR 1 — parent portal. Learner self-issues a share link that
+// renders a 30-day progress summary at /parent/:token (no parent
+// account required). getProgressShare is intentionally PUBLIC —
+// the token IS the permission, mirroring the existing /shares
+// pattern.
+exports.createProgressShare = createProgressShare;
+exports.revokeProgressShare = revokeProgressShare;
+exports.getProgressShare = getProgressShare;
+
+// A3 PR 2 — weekly digest cron. Sunday 09:00 Africa/Lusaka. Fans out
+// a 7-day email summary to every progressShare with parentEmail set,
+// skips revoked / expired / already-sent-this-week, and skips empty
+// weeks (no point training parents to ignore us). Audit ledger lives
+// in parentDigestEvents/{eventId}. PR 3 also runs a parallel WhatsApp
+// channel via Twilio (soft-fails when TWILIO_* secrets aren't set).
+exports.weeklyParentDigest = weeklyParentDigest;
+
+// A3 PR 3 — admin-only callable that runs the same digest body on
+// demand. Useful for verifying Twilio WhatsApp wiring without waiting
+// for the Sunday cron. Accepts { force, targetTokens } so an admin
+// can target a specific test share and bypass the 5-day idempotency
+// stamp. Returns the summary so the caller can see exactly what
+// happened.
+exports.triggerWeeklyParentDigest = triggerWeeklyParentDigest;
 
 // Audit D4 — self-serve subscription cancellation. Toggles
 // users.{uid}.cancelAtPeriodEnd via admin SDK so the field stays
