@@ -8,6 +8,7 @@ import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
 import SeoHelmet from '../seo/SeoHelmet'
+import { LessonsHubTour } from '../ui/learnerTours'
 
 function getReadTime(lesson) {
   const words = String(lesson.content || '').split(/\s+/).filter(Boolean).length
@@ -78,6 +79,8 @@ export default function LessonLibrary() {
   return (
     <div className="theme-bg theme-text min-h-screen">
       <SeoHelmet title="Lessons" path="/lessons" noIndex />
+      {/* Audit A8 PR 3 — first-session tour, self-suppressing. */}
+      <LessonsHubTour />
       <div className="mx-auto max-w-3xl px-4 pb-16 pt-6">
         <section className="hero">
           <div className="hero-eyebrow">Lessons</div>

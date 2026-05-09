@@ -23,6 +23,7 @@ import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
 import SeoHelmet from '../seo/SeoHelmet'
 import GameStickerStyles from '../games/GameStickerStyles'
+import { QuizzesHubTour } from '../ui/learnerTours'
 
 // ── Config ────────────────────────────────────────────────────────────────
 const GRADES = ['4', '5', '6']
@@ -323,6 +324,9 @@ export default function QuizList() {
     <div className="force-light-theme min-h-screen overflow-x-hidden bg-[linear-gradient(180deg,#fff7ed_0%,#f8fafc_38%,#ffffff_100%)] text-slate-900">
       <GameStickerStyles />
       <SeoHelmet title="Quizzes" path="/quizzes" noIndex />
+      {/* Audit A8 PR 3 — first-session tour. Self-suppresses via
+          localStorage; safe to render unconditionally. */}
+      <QuizzesHubTour />
       {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
 
       <div className="pointer-events-none absolute inset-x-0 top-0 h-[28rem] bg-[radial-gradient(circle_at_top_left,_rgba(251,191,36,0.18),_transparent_36%),radial-gradient(circle_at_top_right,_rgba(14,165,233,0.14),_transparent_32%),radial-gradient(circle_at_center,_rgba(16,185,129,0.12),_transparent_42%)]" />
