@@ -26,6 +26,9 @@ function isPublicThemePath(pathname) {
   if (pathname.startsWith('/papers/')) return true
   if (pathname.startsWith('/parent/')) return true
   if (pathname === '/blog' || pathname.startsWith('/blog/')) return true
+  // /my-papers is auth-only but visually shares the past-paper
+  // theme so we keep it on the brand-default Sky.
+  if (pathname === '/my-papers') return true
   return false
 }
 
@@ -75,6 +78,8 @@ const PrivacyPolicy = lazy(() => import('./components/marketing/PrivacyPolicy'))
 const Terms = lazy(() => import('./components/marketing/Terms'))
 const PastPapersHub = lazy(() => import('./components/papers/PastPapersHub'))
 const PastPaperViewer = lazy(() => import('./components/papers/PastPaperViewer'))
+const PastPaperPractice = lazy(() => import('./components/papers/PastPaperPractice'))
+const MyPapersHistory = lazy(() => import('./components/papers/MyPapersHistory'))
 const AdminPastPapers = lazy(() => import('./components/admin/AdminPastPapers'))
 const AdminPastPaperEditor = lazy(() => import('./components/admin/AdminPastPaperEditor'))
 const ZedChatPage = lazy(() => import('./components/ai/ZedChatPage'))
@@ -305,6 +310,11 @@ export default function App() {
               PDF viewer at /papers/:id requires sign-in to download. */}
           <Route path="/papers"            element={<PastPapersHub />} />
           <Route path="/papers/:paperId"   element={<PastPaperViewer />} />
+          {/* Audit A2 PR 3 — timed practice runner. Auth-gated inside
+              the component so the redirect carries the original target. */}
+          <Route path="/papers/:paperId/practice" element={<PastPaperPractice />} />
+          {/* Audit A2 PR 4 — learner's history of past-paper runs. */}
+          <Route path="/my-papers"          element={<ProtectedRoute><MyPapersHistory /></ProtectedRoute>} />
           {/* Audit C5 — SEO blog. Public, indexable. */}
           <Route path="/blog"              element={<BlogIndex />} />
           <Route path="/blog/:slug"        element={<BlogPost />} />

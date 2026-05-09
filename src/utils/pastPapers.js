@@ -176,3 +176,72 @@ export function paperYearsFromList(papers) {
   }
   return [...years].sort((a, b) => b - a)
 }
+
+// ── Audit A2 PR 3 — timed practice attempts ─────────────────────────
+
+const ATTEMPTS_COLLECTION = 'paperAttempts'
+
+/**
+ * Start a timed practice run for `paper`. Writes a paperAttempts/{id}
+ * doc with status='in_progress' and the paper's metadata snapshotted
+ * inline so the attempt remains readable even if the underlying
+ * paper is later unpublished.
+ *
+ * Returns the new attemptId for the runner to update on submit.
+ */
+export async function startPaperAttempt({ uid, paper, durationMinutes }) {
+  const ref = await addDoc(collection(db, ATTEMPTS_COLLECTION), {
+    userId: uid,
+    paperId: paper.id,
+    paperTitle: paper.title,
+    paperGrade: paper.grade ?? null,
+    paperSubject: paper.subject ?? null,
+    paperYear: paper.year ?? null,
+    durationMinutes: Number(durationMinutes) || null,
+    elapsedSeconds: 0,
+    status: 'in_progress',
+    startedAt: serverTimestamp(),
+  })
+  return ref.id
+}
+
+/**
+ * Mark an in-flight attempt as submitted. Records the actual elapsed
+ * time and an optional reflection note. Idempotent — re-calling on a
+ * doc that's already submitted just no-ops the timestamp updates.
+ */
+export async function submitPaperAttempt({ attemptId, elapsedSeconds, reflection }) {
+  await updateDoc(doc(db, ATTEMPTS_COLLECTION, attemptId), {
+    status: 'submitted',
+    elapsedSeconds: Math.max(0, Math.min(60 * 60 * 12, Math.round(elapsedSeconds || 0))),
+    reflection: reflection ? String(reflection).slice(0, 1000) : null,
+    submittedAt: serverTimestamp(),
+  })
+}
+
+/**
+ * The user navigated away or closed the tab without submitting. Best-
+ * effort flip to status='abandoned' so admin can tell the difference
+ * between "still studying" and "ghosted" on the analytics later.
+ */
+export async function abandonPaperAttempt(attemptId) {
+  try {
+    await updateDoc(doc(db, ATTEMPTS_COLLECTION, attemptId), {
+      status: 'abandoned',
+    })
+  } catch (err) {
+    // Network drop on close, expected — don't bother surfacing.
+    console.warn('[pastPapers] abandon mark failed', err)
+  }
+}
+
+export async function listMyPaperAttempts(uid, { limit = 30 } = {}) {
+  const q = query(
+    collection(db, ATTEMPTS_COLLECTION),
+    where('userId', '==', uid),
+    orderBy('submittedAt', 'desc'),
+    fsLimit(limit),
+  )
+  const snap = await getDocs(q)
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+}
