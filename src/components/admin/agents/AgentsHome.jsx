@@ -8,9 +8,9 @@ import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { AGENTS_BY_ID, DEPARTMENTS } from '../../../config/agents'
-import AgentDirectory from './AgentDirectory'
 import AgentJobsQueue from './AgentJobsQueue'
 import AgentRunHistory from './AgentRunHistory'
+import AgentsDashboard from './AgentsDashboard'
 
 function AgentCostMeter({ agentId }) {
   // Aggregate over the most recent 50 jobs for this agent. For agents that
@@ -272,78 +272,8 @@ function AgentControlToggle({ agentId }) {
   )
 }
 
-const TABS = [
-  { id: 'all',     label: 'All',          deptFilter: null    },
-  { id: 'content', label: 'Content',      deptFilter: 'content' },
-  { id: 'qaEng',   label: 'QA / Eng',     deptFilter: 'qaEng' },
-]
-
 export function AgentsHome() {
-  const [tab, setTab] = useState('all')
-  const active = TABS.find(t => t.id === tab) || TABS[0]
-
-  return (
-    <div className="space-y-6">
-      <SeoHelmet title="Agents" noIndex />
-
-      <header className="flex flex-wrap items-baseline justify-between gap-2">
-        <div>
-          <h1 className="text-2xl font-black text-gray-800">Agents</h1>
-          <p className="text-gray-500 text-sm mt-0.5">
-            The ZedExams operating model — Content + QA/Engineering departments,
-            human-in-the-loop.
-          </p>
-        </div>
-        <Link
-          to="/admin/agents/jobs"
-          className="text-xs font-black theme-text-muted hover:theme-text underline"
-        >
-          View all jobs →
-        </Link>
-      </header>
-
-      {/* Tabs */}
-      <div className="theme-border flex gap-1 border-b">
-        {TABS.map(t => (
-          <button
-            key={t.id}
-            onClick={() => setTab(t.id)}
-            className={`px-4 py-2 text-sm font-black transition-colors border-b-2 -mb-px ${
-              tab === t.id
-                ? 'theme-accent-text border-current'
-                : 'theme-text-muted border-transparent hover:theme-text'
-            }`}
-          >
-            {t.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Roster */}
-      <AgentDirectory departmentId={active.deptFilter} />
-
-      {/* Awaiting approval */}
-      <section>
-        <header className="mb-3 flex items-baseline justify-between">
-          <h2 className="text-lg font-black text-gray-800">Awaiting approval</h2>
-          <span className="text-xs theme-text-muted">human-in-the-loop</span>
-        </header>
-        <AgentJobsQueue
-          departmentId={active.deptFilter}
-          statusFilter="awaiting_approval"
-          max={20}
-        />
-      </section>
-
-      {/* Recent activity */}
-      <section>
-        <header className="mb-3">
-          <h2 className="text-lg font-black text-gray-800">Recent activity</h2>
-        </header>
-        <AgentJobsQueue departmentId={active.deptFilter} max={20} />
-      </section>
-    </div>
-  )
+  return <AgentsDashboard />
 }
 
 export function AgentsAllJobs() {
