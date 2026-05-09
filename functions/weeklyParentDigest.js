@@ -16,9 +16,9 @@
  *   1. Email — via the existing SMTP transport (EMAIL_SMTP_USER /
  *      EMAIL_SMTP_PASSWORD). Same rig that sends password resets.
  *
- *   2. WhatsApp — via Twilio (audit A3 PR 3). Soft-fails when the
- *      TWILIO_* secrets aren't set, so this same cron file works in
- *      both pre-Twilio and post-Twilio states.
+ *   2. WhatsApp — via Meta WhatsApp Business Cloud API (audit A3 PR 3).
+ *      Soft-fails when the META_WHATSAPP_* secrets aren't set, so this
+ *      same cron file works in both pre-Meta and post-Meta states.
  *
  * Each channel has its own idempotency stamp on the share doc so a
  * brief SMTP outage can't suppress the WhatsApp send (and vice versa):
@@ -46,12 +46,12 @@ const crypto = require("node:crypto");
 
 const {aggregateProgress, ONE_DAY_MS} = require("./parentPortalShared");
 const {
-  TWILIO_SECRETS,
-  isConfigured: isTwilioConfigured,
+  WHATSAPP_SECRETS,
+  isConfigured: isWhatsAppConfigured,
   normalizeToWhatsApp,
   sendWhatsAppDigest,
   buildWhatsAppDigestBody,
-} = require("./twilioWhatsApp");
+} = require("./metaWhatsApp");
 
 const REGION = "us-central1";
 const WINDOW_DAYS = 7;
@@ -337,9 +337,9 @@ async function deliverEmail({db, shareDoc, share, token, stats, learnerName, lea
   }
 }
 
-async function deliverWhatsApp({db, shareDoc, share, token, stats, learnerName, learnerGrade, shareUrl, twilioReady, now, summary, force = false}) {
+async function deliverWhatsApp({db, shareDoc, share, token, stats, learnerName, learnerGrade, shareUrl, whatsAppReady, now, summary, force = false}) {
   if (!share.parentPhone) return;                    // no phone recipient
-  if (!twilioReady) return;                          // soft-fail when Twilio unset
+  if (!whatsAppReady) return;                          // soft-fail when Meta WhatsApp unset
 
   const lastSentMs = share.lastWeeklyDigestWhatsAppSentAt?.toMillis
       ? share.lastWeeklyDigestWhatsAppSentAt.toMillis()
@@ -370,8 +370,10 @@ async function deliverWhatsApp({db, shareDoc, share, token, stats, learnerName, 
     shareUrl,
   });
 
-  // Provide variables for an approved Twilio Content Template if one
-  // is configured. Order is fixed: 1=name, 2=summaryLine, 3=shareUrl.
+  // Provide variables for an approved Meta Message Template if one
+  // is configured (META_WHATSAPP_TEMPLATE_NAME). Order is fixed:
+  // 1=name, 2=summaryLine, 3=shareUrl. The template body must use
+  // {{1}}, {{2}}, {{3}} in that order.
   const summaryLine = stats.summary.totalAttempts === 0
       ? "no quizzes this week"
       : `${stats.summary.totalAttempts} quizzes${stats.summary.averagePercentage != null ? `, avg ${stats.summary.averagePercentage}%` : ""}`;
@@ -402,16 +404,19 @@ async function deliverWhatsApp({db, shareDoc, share, token, stats, learnerName, 
       channel: "whatsapp",
       parentPhone: String(share.parentPhone).slice(0, 30),
       status: "sent",
-      twilioMessageSid: result.sid || null,
-      twilioStatus: result.twilioStatus || null,
+      // Meta returns a `wamid.…` ID per outbound message. Field name
+      // is provider-agnostic so a future swap (or A/B between Meta
+      // and a fallback) doesn't change the schema.
+      whatsAppMessageId: result.messageId || null,
+      whatsAppMessageStatus: result.messageStatus || null,
       forced: force || false,
     });
     summary.sent.whatsapp += 1;
   } else if (result.status === "skipped") {
     summary.skipped.whatsapp += 1;
-    // No audit row for the soft-fail case (twilio-not-configured) —
+    // No audit row for the soft-fail case (meta-not-configured) —
     // would just spam the collection during pre-rollout.
-    if (result.reason && result.reason !== "twilio-not-configured") {
+    if (result.reason && result.reason !== "meta-not-configured") {
       await logEvent(db, {
         token,
         learnerUid: share.learnerUid,
@@ -446,8 +451,8 @@ async function deliverWhatsApp({db, shareDoc, share, token, stats, learnerName, 
  *   - createdBy:      string written to agentJobs.createdBy. The cron
  *                     uses "system"; the manual trigger uses the admin uid.
  *   - force:          when true, both channels bypass the 5-day idempotency
- *                     stamp. Useful for verifying Twilio wiring without
- *                     waiting for the next cron tick.
+ *                     stamp. Useful for verifying Meta WhatsApp wiring
+ *                     without waiting for the next cron tick.
  *   - targetTokens:   when set, the runner only processes those share
  *                     tokens (rather than the full union of email/phone
  *                     candidates). Other gates (revoked / expired / empty
@@ -464,21 +469,21 @@ async function runWeeklyDigest({
   const senderEmail = String(emailSmtpUser.value() || "").trim();
   const senderDomain = senderEmail.split("@")[1] || "zedexams.com";
   const transporter = getTransporter();
-  const twilioReady = isTwilioConfigured();
+  const whatsAppReady = isWhatsAppConfigured();
   const summary = {
     sharesScanned: 0,
     sent: {email: 0, whatsapp: 0},
     skipped: {email: 0, whatsapp: 0, share: 0},
     failed: {email: 0, whatsapp: 0},
     errors: [],
-    twilioReady,
+    whatsAppReady,
     smtpReady: Boolean(transporter && senderEmail),
     force,
     runType,
   };
 
-  if (!summary.smtpReady && !twilioReady) {
-    console.warn("[weeklyParentDigest] neither SMTP nor Twilio configured — nothing to do");
+  if (!summary.smtpReady && !whatsAppReady) {
+    console.warn("[weeklyParentDigest] neither SMTP nor Meta WhatsApp configured — nothing to do");
     return summary;
   }
 
@@ -529,7 +534,7 @@ async function runWeeklyDigest({
     // Don't pester parents when there's literally no activity. Empty-
     // week messages train recipients to ignore us across both channels.
     // Manual triggers can override this gate via force=true so an admin
-    // can prove the Twilio path without waiting for fresh quiz attempts.
+    // can prove the WhatsApp path without waiting for fresh quiz attempts.
     if (stats.summary.totalAttempts === 0 && !force) {
       summary.skipped.share += 1;
       continue;
@@ -556,7 +561,7 @@ async function runWeeklyDigest({
       deliverWhatsApp({
         db, shareDoc, share, token, stats,
         learnerName, learnerGrade, shareUrl,
-        twilioReady, now, summary, force,
+        whatsAppReady, now, summary, force,
       }),
     ]);
   }
@@ -583,7 +588,7 @@ const weeklyParentDigest = onSchedule({
   region: REGION,
   timeoutSeconds: 540,
   memory: "512MiB",
-  secrets: [emailSmtpUser, emailSmtpPassword, ...TWILIO_SECRETS],
+  secrets: [emailSmtpUser, emailSmtpPassword, ...WHATSAPP_SECRETS],
 }, async () => {
   await runWeeklyDigest({runType: "weekly-parent-digest", createdBy: "system"});
 });
@@ -603,7 +608,7 @@ const triggerWeeklyParentDigest = onCall({
   region: REGION,
   timeoutSeconds: 540,
   memory: "512MiB",
-  secrets: [emailSmtpUser, emailSmtpPassword, ...TWILIO_SECRETS],
+  secrets: [emailSmtpUser, emailSmtpPassword, ...WHATSAPP_SECRETS],
 }, async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
