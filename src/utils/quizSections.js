@@ -408,8 +408,8 @@ function hydrateStandaloneQuestion(question = {}) {
   return emptyQuestion({
     localId: question.id || question._id || question.localId || nextLocalId('question'),
     _id: question.id || question._id || null,
-    sharedInstruction: pickRichField(question.sharedInstructionJSON, question.sharedInstruction),
-    text: pickRichField(question.textJSON, question.text),
+    sharedInstruction: hydrateRichField(pickRichField(question.sharedInstructionJSON, question.sharedInstruction)),
+    text: hydrateRichField(pickRichField(question.textJSON, question.text)),
     options: isTextAnswer
       ? []
       : Array.isArray(question.options) && question.options.length
@@ -442,8 +442,8 @@ function hydratePassageQuestion(question = {}, passageId, partId = null) {
   return emptyPassageQuestion({
     localId: question.id || question._id || question.localId || nextLocalId('question'),
     _id: question.id || question._id || null,
-    sharedInstruction: pickRichField(question.sharedInstructionJSON, question.sharedInstruction),
-    text: pickRichField(question.textJSON, question.text),
+    sharedInstruction: hydrateRichField(pickRichField(question.sharedInstructionJSON, question.sharedInstruction)),
+    text: hydrateRichField(pickRichField(question.textJSON, question.text)),
     options: Array.isArray(question.options) && question.options.length
       ? question.options
       : ['', '', '', ''],
