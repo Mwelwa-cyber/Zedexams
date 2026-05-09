@@ -113,6 +113,8 @@ const {
   revokeProgressShare,
   getProgressShare,
 } = require("./parentPortal");
+// Audit A3 PR 2 — weekly digest cron (Sunday 09:00 Africa/Lusaka).
+const {weeklyParentDigest} = require("./weeklyParentDigest");
 
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const mtnApiUser = defineSecret("MTN_API_USER");
@@ -1504,6 +1506,13 @@ exports.getClassStats = getClassStats;
 exports.createProgressShare = createProgressShare;
 exports.revokeProgressShare = revokeProgressShare;
 exports.getProgressShare = getProgressShare;
+
+// A3 PR 2 — weekly digest cron. Sunday 09:00 Africa/Lusaka. Fans out
+// a 7-day email summary to every progressShare with parentEmail set,
+// skips revoked / expired / already-sent-this-week, and skips empty
+// weeks (no point training parents to ignore us). Audit ledger lives
+// in parentDigestEvents/{eventId}.
+exports.weeklyParentDigest = weeklyParentDigest;
 
 // Audit D4 — self-serve subscription cancellation. Toggles
 // users.{uid}.cancelAtPeriodEnd via admin SDK so the field stays
