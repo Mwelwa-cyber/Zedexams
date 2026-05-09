@@ -9,6 +9,7 @@ import { getRoleLandingPath } from './utils/navigation'
 import PageLoader from './components/ui/PageLoader'
 import OfflineBanner from './components/ui/OfflineBanner'
 import UpdatePrompt from './components/ui/UpdatePrompt'
+import ZedChatLauncher from './components/ai/ZedChatLauncher'
 
 // Public marketing/auth routes always render in the brand-default Sky theme
 // so a visitor's previously-saved preference (e.g. Vivid's deep violet bg)
@@ -74,6 +75,7 @@ const PastPapersHub = lazy(() => import('./components/papers/PastPapersHub'))
 const PastPaperViewer = lazy(() => import('./components/papers/PastPaperViewer'))
 const AdminPastPapers = lazy(() => import('./components/admin/AdminPastPapers'))
 const AdminPastPaperEditor = lazy(() => import('./components/admin/AdminPastPaperEditor'))
+const ZedChatPage = lazy(() => import('./components/ai/ZedChatPage'))
 const StatusPage = lazy(() => import('./components/marketing/StatusPage'))
 
 // Admin section
@@ -268,6 +270,10 @@ export default function App() {
           when a new SW version is waiting to take over. Self-hides on
           Capacitor + when no update is pending. */}
       <UpdatePrompt />
+      {/* Zed AI study chat launcher (audit A6) — floating bubble
+          bottom-right that opens a slide-over chat. Self-hides on
+          marketing/auth/admin routes and during quiz / exam runs. */}
+      <ZedChatLauncher />
       <ThemeApplicator />
       <div id="main" tabIndex={-1}>
         <Suspense fallback={<PageLoader />}>
@@ -326,6 +332,10 @@ export default function App() {
           <Route path="/my-badges"         element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><BadgesPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/profile"           element={<ProtectedRoute><Navbar /><ProfilePage /></ProtectedRoute>} />
           <Route path="/settings"          element={<ProtectedRoute><Navbar /><SettingsPage /></ProtectedRoute>} />
+          {/* Audit A6 — full-page Zed AI study chat. Auth-gated; the
+              floating launcher in App handles the in-context entry
+              point but a direct /ask-zed URL is useful for shares. */}
+          <Route path="/ask-zed"           element={<ProtectedRoute><ZedChatPage /></ProtectedRoute>} />
 
           {/* ── Admin routes (all wrapped in AdminLayout) ──────── */}
           <Route path="/admin"                          element={<AdminRoute><AdminDashboard /></AdminRoute>} />

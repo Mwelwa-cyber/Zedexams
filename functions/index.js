@@ -94,6 +94,8 @@ const {
 } = require("./agents/cron");
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 const {dailyStreakReminders: dailyStreakRemindersCron} = require("./dailyReminders");
+// Audit C4 — public marketing-page stats aggregator (every 30 minutes).
+const {updatePublicStats: updatePublicStatsCron} = require("./publicStats");
 
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const mtnApiUser = defineSecret("MTN_API_USER");
@@ -1451,5 +1453,11 @@ exports.weeklyCbcAlignmentAudit = weeklyCbcAlignmentAuditCron;
 // "keep your streak alive" FCM push, and prunes dead tokens in-flight.
 // Reads users.fcmTokens populated by A5.1's client-side registerToken.
 exports.dailyStreakReminders = dailyStreakRemindersCron;
+
+// Audit C4 — refresh publicStats/global every 30 minutes so the
+// marketing page can render real numbers (learners, quizzes taken,
+// games played this week) to anonymous visitors. Aggregate counts via
+// admin SDK; rules expose the resulting doc as public-read.
+exports.updatePublicStats = updatePublicStatsCron;
 
 exports.apiTextToSpeech = require('./tts').apiTextToSpeech;

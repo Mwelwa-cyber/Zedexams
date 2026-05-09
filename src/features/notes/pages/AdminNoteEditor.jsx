@@ -18,6 +18,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   ArrowLeft, Save, FileText, Upload, Trash2, Check, Clock, Loader2, Layout,
+  Sparkles,
 } from '../../../components/ui/icons'
 import { useAuth } from '../../../contexts/AuthContext'
 import { NOTE_FORMAT, NOTE_STATUS } from '../../../config/curriculum'
@@ -175,6 +176,17 @@ export function AdminNoteEditor() {
 
   const markDirty = () => { dirtyRef.current = true; setSaveState('idle') }
 
+  const handleCreateQuizFromNote = () => {
+    const params = new URLSearchParams()
+    if (title.trim())  params.set('title',   `${title.trim()} — Quiz`)
+    if (subject)       params.set('subject', subject)
+    if (grade)         params.set('grade',   String(grade))
+    // The note's title doubles as the quiz's topic seed when the AI/import
+    // flows look for one — tweakable in the editor afterwards.
+    if (title.trim())  params.set('topic',   title.trim())
+    navigate(`/admin/quizzes/new?${params.toString()}`)
+  }
+
   const handleDelete = async () => {
     if (!docId) { navigate('/admin/lessons'); return }
     if (!window.confirm('Delete this note? This cannot be undone.')) return
@@ -227,6 +239,17 @@ export function AdminNoteEditor() {
                 disabled={!canSave}
                 onChange={setStatus}
               />
+            )}
+
+            {!isNew && !isLegacySlides && (
+              <button
+                onClick={handleCreateQuizFromNote}
+                disabled={!canSave}
+                className="text-sm px-3 py-1.5 rounded-lg bg-[var(--accent)] text-white hover:opacity-90 transition inline-flex items-center gap-1.5 disabled:opacity-50"
+                title="Open the quiz creator pre-filled with this note's grade and subject"
+              >
+                <Sparkles size={14} /> Create quiz from these notes
+              </button>
             )}
 
             {!isNew && (

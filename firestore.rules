@@ -83,16 +83,20 @@ service cloud.firestore {
         && (!('status' in incoming()) || _validContentStatus(incoming().status))
         && (!('isPublished' in incoming()) || incoming().isPublished is bool)
         // Notes Studio fields. Optional/gate-on-presence so legacy
-        // slide-built lessons remain valid.
+        // slide-built lessons remain valid. The file* and term/week fields
+        // are explicitly allowed to be null because the editor writes them
+        // as null whenever the note is in rich-text mode (or when the
+        // teacher hasn't picked a term/week yet) — matching the same
+        // null-or-string pattern used for question imageUrl/diagramText.
         && (!('noteFormat' in incoming()) || (incoming().noteFormat is string && incoming().noteFormat in ['slides', 'rich_text', 'file']))
         && (!('content' in incoming()) || (incoming().content is string && incoming().content.size() <= 200000))
         && (!('excerpt' in incoming()) || (incoming().excerpt is string && incoming().excerpt.size() <= 500))
-        && (!('fileUrl' in incoming()) || (incoming().fileUrl is string && incoming().fileUrl.size() <= 2000))
-        && (!('fileName' in incoming()) || (incoming().fileName is string && incoming().fileName.size() <= 200))
-        && (!('storagePath' in incoming()) || (incoming().storagePath is string && incoming().storagePath.size() <= 500))
-        && (!('fileSize' in incoming()) || (incoming().fileSize is int && incoming().fileSize >= 0 && incoming().fileSize <= 26214400))
-        && (!('term' in incoming()) || (incoming().term is string && incoming().term.size() <= 20))
-        && (!('week' in incoming()) || (incoming().week is string && incoming().week.size() <= 20));
+        && (!('fileUrl' in incoming()) || incoming().fileUrl == null || (incoming().fileUrl is string && incoming().fileUrl.size() <= 2000))
+        && (!('fileName' in incoming()) || incoming().fileName == null || (incoming().fileName is string && incoming().fileName.size() <= 200))
+        && (!('storagePath' in incoming()) || incoming().storagePath == null || (incoming().storagePath is string && incoming().storagePath.size() <= 500))
+        && (!('fileSize' in incoming()) || incoming().fileSize == null || (incoming().fileSize is int && incoming().fileSize >= 0 && incoming().fileSize <= 26214400))
+        && (!('term' in incoming()) || incoming().term == null || (incoming().term is string && incoming().term.size() <= 20))
+        && (!('week' in incoming()) || incoming().week == null || (incoming().week is string && incoming().week.size() <= 20));
     }
 
     function validResultFields() {
@@ -589,7 +593,6 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Public marketing contact form. Visitors are unauthenticated, so we
     // ── pastPapers (audit A2 — ECZ past-paper archive) ──────────────
     // Public read for published papers (the archive is a marketing /
     // SEO draw — anonymous visitors browse the list, sign in to
@@ -636,6 +639,17 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ── publicStats (audit C4 — marketing-page social proof) ──────────
+    // One document (publicStats/global) refreshed every 30 minutes by
+    // the updatePublicStats Cloud Function (admin SDK). Public-read so
+    // the marketing surface can render learner / quiz / game counts to
+    // anonymous visitors without auth. No client writes.
+    match /publicStats/{docId} {
+      allow read: if true;
+      allow create, update, delete: if false;
+    }
+
+    // Public marketing contact form. Visitors are unauthenticated, so we
     // only allow create with strict shape + size validation. Reads,
     // updates, and deletes are admin-only (use the Firebase console).
     match /contactMessages/{messageId} {

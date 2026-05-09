@@ -6,6 +6,7 @@ import Button from '../ui/Button'
 import Card from '../ui/Card'
 import Icon from '../ui/Icon'
 import ContactDialog from './ContactDialog'
+import LiveStats from './LiveStats'
 import {
   AcademicCapIcon,
   Sparkles,
@@ -587,6 +588,11 @@ export default function Marketing() {
           ))}
         </div>
       </Section>
+
+      {/* Audit C4 — live activity numbers from publicStats/global. Self-
+          hides when the cron hasn't populated the doc yet, so an empty
+          dev environment doesn't render a row of zeros. */}
+      <LiveStats />
 
       {/* FAQ — answers the questions visitors ask before signing up */}
       <Section className="py-16 sm:py-20">
