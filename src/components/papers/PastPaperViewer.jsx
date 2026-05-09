@@ -16,7 +16,7 @@
  *   - View / download counts are best-effort incremented for analytics.
  */
 
-import { useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { getPaper, recordPaperEvent, resolvePaperUrl } from '../../utils/pastPapers'
@@ -24,6 +24,11 @@ import { SUBJECTS } from '../../config/curriculum'
 import SeoHelmet from '../seo/SeoHelmet'
 import Logo from '../ui/Logo'
 import Skeleton from '../ui/Skeleton'
+
+// Audit A2 PR 2 — PDF.js viewer is heavy (the worker + the lib add
+// ~400 kB gzipped). Lazy-load so a learner browsing /papers without
+// opening one doesn't pay the cost.
+const PdfJsViewer = lazy(() => import('./PdfJsViewer'))
 
 function formatBytes(bytes) {
   if (!bytes || bytes < 1024) return `${bytes || 0} B`
@@ -207,21 +212,25 @@ export default function PastPaperViewer() {
           <p role="alert" className="text-sm font-bold text-rose-700">{downloadError}</p>
         )}
 
-        {/* Inline viewer (signed-in only) */}
+        {/* Inline viewer (signed-in only). Audit A2 PR 2 — PDF.js
+            replaces the iframe. iOS Safari refuses inline iframe PDFs
+            on most pages and falls back to "tap to download"; PDF.js
+            renders consistently across Safari, Chrome, Edge, Firefox,
+            and the Capacitor WebView. */}
         {currentUser && (
-          <section className="theme-card border theme-border rounded-radius-md overflow-hidden">
-            {paperUrlLoading || !paperUrl ? (
-              <div className="h-[70vh] flex items-center justify-center theme-text-muted text-sm">
-                Loading paper…
+          paperUrlLoading || !paperUrl ? (
+            <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex items-center justify-center theme-text-muted text-sm">
+              Loading paper…
+            </div>
+          ) : (
+            <Suspense fallback={
+              <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex items-center justify-center theme-text-muted text-sm">
+                Loading viewer…
               </div>
-            ) : (
-              <iframe
-                src={paperUrl}
-                title={paper.title}
-                className="block w-full h-[80vh]"
-              />
-            )}
-          </section>
+            }>
+              <PdfJsViewer url={paperUrl} title={paper.title} />
+            </Suspense>
+          )
         )}
 
         {!currentUser && (
