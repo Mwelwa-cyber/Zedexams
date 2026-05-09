@@ -746,7 +746,9 @@ export default function QuizRunnerV2() {
               <div className="theme-card theme-border overflow-hidden rounded-[24px] border shadow-sm">
                 <div className="theme-accent-bg theme-border border-b px-5 py-4">
                   <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <span className="theme-card theme-border theme-accent-text rounded-full border px-3 py-1 text-xs font-black">Comprehension Passage</span>
+                    <span className="theme-card theme-border theme-accent-text rounded-full border px-3 py-1 text-xs font-black">
+                      {activeSection.passage.passageKind === 'map' ? 'Map Questions' : 'Comprehension Passage'}
+                    </span>
                     <span className="theme-bg-subtle theme-text-muted rounded-full px-2.5 py-1 text-xs font-bold">{activeSection.questions.length} question{activeSection.questions.length === 1 ? '' : 's'}</span>
                   </div>
                   {activeSection.passage.title && <h2 className="theme-text text-lg font-black">{activeSection.passage.title}</h2>}

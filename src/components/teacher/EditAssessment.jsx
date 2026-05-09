@@ -446,6 +446,12 @@ export default function EditAssessment() {
     setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 50)
   }
 
+  function addMapSectionHandler() {
+    setSections(currentSections => [...currentSections, createPassageSection({ passageKind: 'map' })])
+    setDirty(true)
+    setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 50)
+  }
+
   async function uploadStandaloneQuestionImage(sectionIndex, file) {
     if (!ALLOWED_TYPES.includes(file.type)) {
       show('Only JPG, PNG, and WEBP images are allowed.', true)
@@ -854,6 +860,7 @@ export default function EditAssessment() {
         onPassageAddQuestion={addPassageQuestion}
         onAddStandalone={addStandaloneSectionHandler}
         onAddPassage={addPassageSectionHandler}
+        onAddMap={addMapSectionHandler}
         onAddPart={addPart}
         onPartChange={updatePart}
         onPartMove={movePart}

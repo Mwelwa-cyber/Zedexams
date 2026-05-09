@@ -589,6 +589,11 @@ export default function CreateQuizV2() {
     scrollToBottom()
   }
 
+  function addMapSectionHandler() {
+    setSections(currentSections => [...currentSections, createPassageSection({ passageKind: 'map' })])
+    scrollToBottom()
+  }
+
   async function handleGenerateQuestions() {
     const topic = aiForm.topic.trim()
     if (!topic) {
@@ -1205,6 +1210,7 @@ export default function CreateQuizV2() {
         onPassageAddQuestion={addPassageQuestion}
         onAddStandalone={addStandaloneSectionHandler}
         onAddPassage={addPassageSectionHandler}
+        onAddMap={addMapSectionHandler}
         onAddPart={addPart}
         onPartChange={updatePart}
         onPartMove={movePart}

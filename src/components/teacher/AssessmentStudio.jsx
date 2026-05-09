@@ -607,6 +607,11 @@ export default function AssessmentStudio() {
     scrollToBottom()
   }
 
+  function addMapSectionHandler() {
+    setSections(currentSections => [...currentSections, createPassageSection({ passageKind: 'map' })])
+    scrollToBottom()
+  }
+
   async function handleGenerateQuestions() {
     const topic = aiForm.topic.trim()
     if (!topic) {
@@ -1266,6 +1271,7 @@ export default function AssessmentStudio() {
         onPassageAddQuestion={addPassageQuestion}
         onAddStandalone={addStandaloneSectionHandler}
         onAddPassage={addPassageSectionHandler}
+        onAddMap={addMapSectionHandler}
         onAddPart={addPart}
         onPartChange={updatePart}
         onPartMove={movePart}
