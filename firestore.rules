@@ -594,6 +594,16 @@ service cloud.firestore {
     }
 
     // Public marketing contact form. Visitors are unauthenticated, so we
+    // ── publicStats (audit C4 — marketing-page social proof) ──────────
+    // One document (publicStats/global) refreshed every 30 minutes by
+    // the updatePublicStats Cloud Function (admin SDK). Public-read so
+    // the marketing surface can render learner / quiz / game counts to
+    // anonymous visitors without auth. No client writes.
+    match /publicStats/{docId} {
+      allow read: if true;
+      allow create, update, delete: if false;
+    }
+
     // only allow create with strict shape + size validation. Reads,
     // updates, and deletes are admin-only (use the Firebase console).
     match /contactMessages/{messageId} {
