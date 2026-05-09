@@ -158,7 +158,9 @@ export default function QuizEditorPreviewPanel({ form, serializedSections }) {
                 <div key={section.id} className="theme-accent-bg theme-border space-y-4 rounded-3xl border p-5">
                   <div className="theme-card theme-border rounded-3xl border p-5">
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="theme-accent-bg theme-accent-text rounded-full px-3 py-1 text-xs font-black">Comprehension Passage</span>
+                      <span className="theme-accent-bg theme-accent-text rounded-full px-3 py-1 text-xs font-black">
+                        {section.passage.passageKind === 'map' ? 'Map Questions' : 'Comprehension Passage'}
+                      </span>
                       <span className="theme-bg-subtle theme-text-muted rounded-full px-2.5 py-1 text-xs font-bold">
                         {section.questions.length} question{section.questions.length === 1 ? '' : 's'}
                       </span>

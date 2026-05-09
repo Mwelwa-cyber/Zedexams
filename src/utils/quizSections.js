@@ -97,6 +97,13 @@ export function createPartGroup(overrides = {}) {
   }
 }
 
+export const PASSAGE_KIND_COMPREHENSION = 'comprehension'
+export const PASSAGE_KIND_MAP = 'map'
+
+function normalizePassageKind(value) {
+  return value === PASSAGE_KIND_MAP ? PASSAGE_KIND_MAP : PASSAGE_KIND_COMPREHENSION
+}
+
 export function createPassageSection(passageOverrides = {}) {
   const passageId = passageOverrides.id || nextLocalId('passage')
   const questionOverrides = Array.isArray(passageOverrides.questions)
@@ -112,6 +119,7 @@ export function createPassageSection(passageOverrides = {}) {
     imageUploadStep: '',
     collapsed: false,
     ...passageOverrides,
+    passageKind: normalizePassageKind(passageOverrides.passageKind),
   }
 
   return {
@@ -327,6 +335,7 @@ export function serializeQuizSections(sections = [], parts = []) {
         instructions: serializeRichField(passage.instructions),
         passageText: serializeRichField(passage.passageText),
         imageUrl: passage.imageUrl || null,
+        passageKind: normalizePassageKind(passage.passageKind),
         order: startOrder,
         partId: passagePartId,
       })
@@ -463,6 +472,7 @@ export function hydrateQuizSections(questions = [], passages = [], parts = []) {
       instructions: hydrateRichField(passage.instructions ?? ''),
       passageText: hydrateRichField(passage.passageText ?? ''),
       imageUrl: passage.imageUrl ?? '',
+      passageKind: passage.passageKind,
       questions: [],
     })
     section.partId = passage.partId ?? null
@@ -551,6 +561,7 @@ export function buildQuizDisplaySections(questions = [], passages = []) {
         instructions: passage.instructions ?? '',
         passageText: passage.passageText ?? '',
         imageUrl: passage.imageUrl ?? '',
+        passageKind: normalizePassageKind(passage.passageKind),
       },
       questions: [],
     })
@@ -573,6 +584,7 @@ export function buildQuizDisplaySections(questions = [], passages = []) {
           instructions: '',
           passageText: '',
           imageUrl: '',
+          passageKind: PASSAGE_KIND_COMPREHENSION,
         },
         questions: [],
       }
