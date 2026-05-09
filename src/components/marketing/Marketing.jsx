@@ -685,6 +685,7 @@ export default function Marketing() {
               <ul className="space-y-2 text-sm theme-text-muted">
                 <li><Link to="/privacy" className="hover:theme-text">Privacy Policy</Link></li>
                 <li><Link to="/terms" className="hover:theme-text">Terms &amp; Conditions</Link></li>
+                <li><Link to="/status" className="hover:theme-text">Service Status</Link></li>
               </ul>
             </div>
             <div>
@@ -736,6 +737,7 @@ export default function Marketing() {
             <nav className="flex flex-wrap items-center gap-x-4 gap-y-1">
               <Link to="/privacy" className="hover:theme-text">Privacy</Link>
               <Link to="/terms"   className="hover:theme-text">Terms</Link>
+              <Link to="/status"  className="hover:theme-text">Status</Link>
               <span aria-hidden="true">·</span>
               <span>Made in Zambia.</span>
             </nav>
