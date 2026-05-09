@@ -9,6 +9,7 @@ import { getRoleLandingPath } from './utils/navigation'
 import PageLoader from './components/ui/PageLoader'
 import OfflineBanner from './components/ui/OfflineBanner'
 import UpdatePrompt from './components/ui/UpdatePrompt'
+import ZedChatLauncher from './components/ai/ZedChatLauncher'
 
 // Public marketing/auth routes always render in the brand-default Sky theme
 // so a visitor's previously-saved preference (e.g. Vivid's deep violet bg)
@@ -17,9 +18,13 @@ import UpdatePrompt from './components/ui/UpdatePrompt'
 const PUBLIC_THEME_PATHS = new Set([
   '/', '/welcome', '/login', '/register', '/auth/action',
   '/pricing', '/plans', '/privacy', '/terms', '/status',
+  '/papers',
 ])
 function isPublicThemePath(pathname) {
-  return PUBLIC_THEME_PATHS.has(pathname) || pathname.startsWith('/share/')
+  if (PUBLIC_THEME_PATHS.has(pathname)) return true
+  if (pathname.startsWith('/share/')) return true
+  if (pathname.startsWith('/papers/')) return true
+  return false
 }
 
 function ThemeApplicator() {
@@ -66,6 +71,11 @@ const Marketing = lazy(() => import('./components/marketing/Marketing'))
 const Plans = lazy(() => import('./components/marketing/Plans'))
 const PrivacyPolicy = lazy(() => import('./components/marketing/PrivacyPolicy'))
 const Terms = lazy(() => import('./components/marketing/Terms'))
+const PastPapersHub = lazy(() => import('./components/papers/PastPapersHub'))
+const PastPaperViewer = lazy(() => import('./components/papers/PastPaperViewer'))
+const AdminPastPapers = lazy(() => import('./components/admin/AdminPastPapers'))
+const AdminPastPaperEditor = lazy(() => import('./components/admin/AdminPastPaperEditor'))
+const ZedChatPage = lazy(() => import('./components/ai/ZedChatPage'))
 const StatusPage = lazy(() => import('./components/marketing/StatusPage'))
 
 // Admin section
@@ -260,6 +270,10 @@ export default function App() {
           when a new SW version is waiting to take over. Self-hides on
           Capacitor + when no update is pending. */}
       <UpdatePrompt />
+      {/* Zed AI study chat launcher (audit A6) — floating bubble
+          bottom-right that opens a slide-over chat. Self-hides on
+          marketing/auth/admin routes and during quiz / exam runs. */}
+      <ZedChatLauncher />
       <ThemeApplicator />
       <div id="main" tabIndex={-1}>
         <Suspense fallback={<PageLoader />}>
@@ -270,6 +284,11 @@ export default function App() {
           <Route path="/plans"    element={<Plans />} />
           <Route path="/privacy"  element={<PrivacyPolicy />} />
           <Route path="/terms"    element={<Terms />} />
+          {/* Audit A2 — public ECZ past-paper archive. Hub is no-auth so
+              search engines and signed-out visitors can browse; the actual
+              PDF viewer at /papers/:id requires sign-in to download. */}
+          <Route path="/papers"            element={<PastPapersHub />} />
+          <Route path="/papers/:paperId"   element={<PastPaperViewer />} />
           <Route path="/status"   element={<StatusPage />} />
           <Route path="/login"    element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -313,6 +332,10 @@ export default function App() {
           <Route path="/my-badges"         element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><BadgesPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/profile"           element={<ProtectedRoute><Navbar /><ProfilePage /></ProtectedRoute>} />
           <Route path="/settings"          element={<ProtectedRoute><Navbar /><SettingsPage /></ProtectedRoute>} />
+          {/* Audit A6 — full-page Zed AI study chat. Auth-gated; the
+              floating launcher in App handles the in-context entry
+              point but a direct /ask-zed URL is useful for shares. */}
+          <Route path="/ask-zed"           element={<ProtectedRoute><ZedChatPage /></ProtectedRoute>} />
 
           {/* ── Admin routes (all wrapped in AdminLayout) ──────── */}
           <Route path="/admin"                          element={<AdminRoute><AdminDashboard /></AdminRoute>} />
@@ -326,6 +349,10 @@ export default function App() {
           <Route path="/admin/generations"              element={<AdminRoute><GenerationsAdmin /></AdminRoute>} />
           <Route path="/admin/generations/:id"          element={<AdminRoute><LibraryItemDetail /></AdminRoute>} />
           <Route path="/admin/cbc-kb"                   element={<AdminRoute><CbcKbAdmin /></AdminRoute>} />
+          {/* Audit A2 — past-paper management (upload + edit + status) */}
+          <Route path="/admin/papers"                   element={<AdminRoute><AdminPastPapers /></AdminRoute>} />
+          <Route path="/admin/papers/new"               element={<AdminRoute><AdminPastPaperEditor /></AdminRoute>} />
+          <Route path="/admin/papers/:paperId/edit"     element={<AdminRoute><AdminPastPaperEditor /></AdminRoute>} />
           <Route path="/admin/games-seed"               element={<AdminRoute><GamesSeedAdmin /></AdminRoute>} />
           <Route path="/admin/learners"                 element={<AdminRoute><AdminLearners /></AdminRoute>} />
           <Route path="/admin/learners/:learnerId"      element={<AdminRoute><AdminLearnerProfile /></AdminRoute>} />

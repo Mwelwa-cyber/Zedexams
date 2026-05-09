@@ -15,6 +15,7 @@ Disallow: /profile
 Disallow: /study
 Disallow: /register
 Disallow: /login
+Disallow: /ask-zed
 
 # Primary sitemap.
 Sitemap: https://zedexams.com/sitemap.xml

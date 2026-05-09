@@ -285,14 +285,23 @@ export default function CreateQuizV2() {
   const [creationMode, setCreationMode] = useState(
     CREATION_MODES.some(mode => mode.id === requestedMode) ? requestedMode : 'manual',
   )
+
+  // Optional deep-link prefill — used by the Notes Studio "Create quiz from
+  // these notes" button so the new quiz inherits the note's metadata. Falls
+  // back to the historical defaults when a param is missing.
+  const prefillTitle   = searchParams.get('title')   || ''
+  const prefillSubject = searchParams.get('subject') || 'Mathematics'
+  const prefillGrade   = searchParams.get('grade')   || '5'
+  const prefillTopic   = searchParams.get('topic')   || ''
+
   const [form, setForm] = useState({
-    title: '',
-    subject: 'Mathematics',
-    grade: '5',
+    title: prefillTitle,
+    subject: prefillSubject,
+    grade: prefillGrade,
     term: '1',
     duration: 30,
     type: 'quiz',
-    topic: '',
+    topic: prefillTopic,
     // When true, this quiz is visible to learners on Demo Access (free tier).
     // When false (default), it's premium/full-access only. Admins flip this
     // here during creation, and can still toggle it later in EditQuizV2.

@@ -6,6 +6,7 @@ import Button from '../ui/Button'
 import Card from '../ui/Card'
 import Icon from '../ui/Icon'
 import ContactDialog from './ContactDialog'
+import LiveStats from './LiveStats'
 import {
   AcademicCapIcon,
   Sparkles,
@@ -588,6 +589,11 @@ export default function Marketing() {
         </div>
       </Section>
 
+      {/* Audit C4 — live activity numbers from publicStats/global. Self-
+          hides when the cron hasn't populated the doc yet, so an empty
+          dev environment doesn't render a row of zeros. */}
+      <LiveStats />
+
       {/* FAQ — answers the questions visitors ask before signing up */}
       <Section className="py-16 sm:py-20">
         <div className="text-center mb-12">
@@ -676,6 +682,8 @@ export default function Marketing() {
               <ul className="space-y-2 text-sm theme-text-muted">
                 <li><Link to="/register" className="hover:theme-text">Create a free account</Link></li>
                 <li><Link to="/login" className="hover:theme-text">Sign in</Link></li>
+                <li><Link to="/papers" className="hover:theme-text">ECZ past papers</Link></li>
+                <li><Link to="/games" className="hover:theme-text">CBC games</Link></li>
               </ul>
             </div>
             <div>
