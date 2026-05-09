@@ -9,6 +9,7 @@ import { getRoleLandingPath } from './utils/navigation'
 import PageLoader from './components/ui/PageLoader'
 import OfflineBanner from './components/ui/OfflineBanner'
 import UpdatePrompt from './components/ui/UpdatePrompt'
+import CookieConsentBanner from './components/ui/CookieConsentBanner'
 import ZedChatLauncher from './components/ai/ZedChatLauncher'
 
 // Public marketing/auth routes always render in the brand-default Sky theme
@@ -295,6 +296,9 @@ export default function App() {
           bottom-right that opens a slide-over chat. Self-hides on
           marketing/auth/admin routes and during quiz / exam runs. */}
       <ZedChatLauncher />
+      {/* Cookie consent (audit D2) — first-visit banner, decline-by-
+          default. Self-hides once a decision is recorded. */}
+      <CookieConsentBanner />
       <ThemeApplicator />
       <div id="main" tabIndex={-1}>
         <Suspense fallback={<PageLoader />}>

@@ -14,6 +14,7 @@ import app, { auth, db, googleProvider, applyAuthPersistence } from '../firebase
 import { ROLES, hasPremiumAccess, hasLearnerPortalAccess } from '../utils/subscriptionConfig'
 import { useIdleTimeout } from '../hooks/useIdleTimeout'
 import { setSentryUser, clearSentryUser } from '../utils/sentry'
+import { capture, identifyUser, resetAnalytics } from '../utils/analytics'
 import { refreshTokenIfGranted } from '../utils/fcm'
 
 // Sign learners/teachers/admins out after this much idle time, with a short
@@ -94,6 +95,13 @@ export function AuthProvider({ children }) {
     } catch (err) {
       console.warn('sendEmailVerification failed:', err)
     }
+    // Audit B2 — capture signup. Role + grade only; no email / no
+    // displayName / no school in the event payload.
+    capture('signup_completed', {
+      role: isTeacherSignup ? 'teacher' : 'learner',
+      grade: isTeacherSignup ? null : (grade ?? null),
+      provider: 'email',
+    })
     return cred
   }
 
@@ -117,6 +125,9 @@ export function AuthProvider({ children }) {
         email: cred.user.email ?? '',
         role: targetRole,
       }))
+      // Audit B2 — only emit on the first-time path so Google
+      // sign-IN by an existing user doesn't get counted as a signup.
+      capture('signup_completed', { role: targetRole, provider: 'google' })
     }
     return cred
   }
@@ -275,6 +286,9 @@ export function AuthProvider({ children }) {
         })
       } else {
         clearSentryUser()
+        // Audit B2 — clear analytics identity so the next user (e.g.
+        // shared phone) doesn't inherit the previous distinct_id.
+        resetAnalytics()
       }
       if (user) {
         setLoading(true)
@@ -283,9 +297,13 @@ export function AuthProvider({ children }) {
           (snap) => {
             if (disposed) return
             if (snap.exists()) {
-              setUserProfile(toUserProfile(user.uid, snap.data()))
+              const profile = toUserProfile(user.uid, snap.data())
+              setUserProfile(profile)
               setProfileIssue(null)
               setLoading(false)
+              // Audit B2 — identify with uid + role only (no email).
+              // Safe to call repeatedly; PostHog dedupes on uid.
+              identifyUser(user.uid, profile?.role)
               return
             }
 
@@ -295,6 +313,7 @@ export function AuthProvider({ children }) {
               if (repairedProfile) {
                 setUserProfile(repairedProfile)
                 setProfileIssue(null)
+                identifyUser(user.uid, repairedProfile?.role)
               } else {
                 setUserProfile(null)
                 setProfileIssue('missing')

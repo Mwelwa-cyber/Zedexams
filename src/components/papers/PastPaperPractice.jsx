@@ -168,6 +168,8 @@ export default function PastPaperPractice() {
         attemptId,
         elapsedSeconds: Math.max(0, elapsedSeconds),
         reflection: reflection || (auto ? '(auto-submitted at time-up)' : ''),
+        paperGrade: paper?.grade ?? null,
+        paperSubject: paper?.subject ?? null,
       })
       finalisedRef.current = true
       setDone(true)
