@@ -17,6 +17,7 @@ import {
   GraduationCap,
   Settings,
   Bot,
+  FileText,
 } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import Logo from '../ui/Logo'
@@ -30,6 +31,7 @@ const NAV = [
   { to: '/admin/lessons/new',            icon: BookOpen,        label: 'Create Note'               },
   { to: '/admin/quizzes/new',            icon: PencilLine,      label: 'Create Quiz'               },
   { to: '/admin/content',                icon: FolderOpen,      label: 'Manage Content'            },
+  { to: '/admin/papers',                 icon: FileText,        label: 'Past Papers'               },
   { to: '/admin/approvals',              icon: BellRing,        label: 'Approvals'                 },
   { to: '/admin/agents',                 icon: Bot,             label: 'Agents'                    },
   { to: '/admin/results',                icon: TrendingUp,      label: 'Results'                   },

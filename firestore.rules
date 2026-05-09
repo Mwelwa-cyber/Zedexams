@@ -593,7 +593,52 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Public marketing contact form. Visitors are unauthenticated, so we
+    // ── pastPapers (audit A2 — ECZ past-paper archive) ──────────────
+    // Public read for published papers (the archive is a marketing /
+    // SEO draw — anonymous visitors browse the list, sign in to
+    // download/view the actual PDF). Drafts and archived papers are
+    // admin-only. Writes admin-only too.
+    //
+    // Field shape (validated on write):
+    //   title, grade ('7'|'9'|'12'), subject (slug), year (int),
+    //   examBoard ('ECZ' default), paperNumber (int 1-3, optional),
+    //   pdfPath (Storage path), pdfFilename, pdfSize (bytes),
+    //   markSchemePath, markSchemeFilename (optional, separate PDF),
+    //   description (optional), durationMinutes, totalMarks (optional),
+    //   status ('draft'|'published'|'archived'),
+    //   uploadedBy (uid), uploadedAt, updatedAt,
+    //   views, downloads (server-incremented counters)
+    function _validPaperGrade(value) { return value is string && value in ['7', '9', '12']; }
+    function _validPaperStatus(value) { return value is string && value in ['draft', 'published', 'archived']; }
+    function validPastPaperFields() {
+      return (!('title' in incoming()) || (incoming().title is string && incoming().title.size() >= 1 && incoming().title.size() <= 200))
+        && (!('grade' in incoming()) || _validPaperGrade(incoming().grade))
+        && (!('subject' in incoming()) || _validSubject(incoming().subject))
+        && (!('year' in incoming()) || (incoming().year is int && incoming().year >= 1990 && incoming().year <= 2100))
+        && (!('paperNumber' in incoming()) || (incoming().paperNumber is int && incoming().paperNumber >= 1 && incoming().paperNumber <= 5))
+        && (!('examBoard' in incoming()) || (incoming().examBoard is string && incoming().examBoard.size() <= 20))
+        && (!('pdfPath' in incoming()) || (incoming().pdfPath is string && incoming().pdfPath.size() <= 500))
+        && (!('pdfFilename' in incoming()) || (incoming().pdfFilename is string && incoming().pdfFilename.size() <= 200))
+        && (!('pdfSize' in incoming()) || (incoming().pdfSize is int && incoming().pdfSize >= 0 && incoming().pdfSize <= 26214400))
+        && (!('markSchemePath' in incoming()) || incoming().markSchemePath == null || (incoming().markSchemePath is string && incoming().markSchemePath.size() <= 500))
+        && (!('markSchemeFilename' in incoming()) || incoming().markSchemeFilename == null || (incoming().markSchemeFilename is string && incoming().markSchemeFilename.size() <= 200))
+        && (!('description' in incoming()) || incoming().description == null || (incoming().description is string && incoming().description.size() <= 1000))
+        && (!('durationMinutes' in incoming()) || incoming().durationMinutes == null || (incoming().durationMinutes is int && incoming().durationMinutes >= 5 && incoming().durationMinutes <= 480))
+        && (!('totalMarks' in incoming()) || incoming().totalMarks == null || (incoming().totalMarks is int && incoming().totalMarks >= 0 && incoming().totalMarks <= 1000))
+        && (!('status' in incoming()) || _validPaperStatus(incoming().status));
+    }
+    match /pastPapers/{paperId} {
+      // Anonymous-readable index: published papers list freely so
+      // search engines can index them and signed-out visitors can
+      // browse before sign-up. Drafts + archived are admin-only.
+      allow read: if resource.data.get('status', 'draft') == 'published' || isAdmin();
+      allow create: if isAdmin()
+        && validPastPaperFields()
+        && incoming().uploadedBy == request.auth.uid;
+      allow update: if isAdmin() && validPastPaperFields();
+      allow delete: if isAdmin();
+    }
+
     // ── publicStats (audit C4 — marketing-page social proof) ──────────
     // One document (publicStats/global) refreshed every 30 minutes by
     // the updatePublicStats Cloud Function (admin SDK). Public-read so
@@ -604,6 +649,7 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
+    // Public marketing contact form. Visitors are unauthenticated, so we
     // only allow create with strict shape + size validation. Reads,
     // updates, and deletes are admin-only (use the Firebase console).
     match /contactMessages/{messageId} {
