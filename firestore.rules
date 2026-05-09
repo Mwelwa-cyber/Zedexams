@@ -803,6 +803,49 @@ service cloud.firestore {
       );
     }
 
+    // ── paperAttempts (audit A2 PR 3 — timed practice runs) ──────────
+    //
+    // A learner can practise any published past paper under a timer.
+    // Each run records when they started, when they submitted, the
+    // elapsed seconds, and an optional self-reflection note. We don't
+    // auto-grade — past papers are PDFs and the mark scheme is the
+    // teacher / parent step. The attempt is for the learner's own
+    // tracking and the future "your second attempt was 12 minutes
+    // faster" UX.
+    //
+    // Schema:
+    //   paperAttempts/{attemptId} {
+    //     userId, paperId, paperTitle, paperGrade, paperSubject,
+    //     paperYear, durationMinutes (target), elapsedSeconds (actual),
+    //     startedAt, submittedAt?, reflection? (string),
+    //     status: 'in_progress' | 'submitted' | 'abandoned'
+    //   }
+    function _validAttemptStatus(value) { return value is string && value in ['in_progress', 'submitted', 'abandoned']; }
+    function validPaperAttemptFields() {
+      return (!('userId' in incoming()) || (incoming().userId is string && incoming().userId.size() <= 100))
+        && (!('paperId' in incoming()) || (incoming().paperId is string && incoming().paperId.size() <= 100))
+        && (!('paperTitle' in incoming()) || (incoming().paperTitle is string && incoming().paperTitle.size() <= 200))
+        && (!('durationMinutes' in incoming()) || incoming().durationMinutes == null || (incoming().durationMinutes is int && incoming().durationMinutes >= 1 && incoming().durationMinutes <= 480))
+        && (!('elapsedSeconds' in incoming()) || incoming().elapsedSeconds == null || (incoming().elapsedSeconds is int && incoming().elapsedSeconds >= 0 && incoming().elapsedSeconds <= 60 * 60 * 12))
+        && (!('reflection' in incoming()) || incoming().reflection == null || (incoming().reflection is string && incoming().reflection.size() <= 1000))
+        && (!('status' in incoming()) || _validAttemptStatus(incoming().status));
+    }
+    match /paperAttempts/{attemptId} {
+      allow read: if isAuthed() && (resource.data.userId == request.auth.uid || isAdmin());
+      // Owner-create only, with their own uid stamped on.
+      allow create: if isAuthed()
+        && validPaperAttemptFields()
+        && incoming().userId == request.auth.uid;
+      // Owner can update only the fields needed to mark complete.
+      // The userId / paperId / startedAt are immutable once written.
+      allow update: if isAuthed()
+        && resource.data.userId == request.auth.uid
+        && validPaperAttemptFields()
+        && incoming().userId == resource.data.userId
+        && incoming().paperId == resource.data.paperId;
+      allow delete: if isAdmin();
+    }
+
     // ── pastPapers (audit A2 — ECZ past-paper archive) ──────────────
     // Public read for published papers (the archive is a marketing /
     // SEO draw — anonymous visitors browse the list, sign in to

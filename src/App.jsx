@@ -75,6 +75,7 @@ const PrivacyPolicy = lazy(() => import('./components/marketing/PrivacyPolicy'))
 const Terms = lazy(() => import('./components/marketing/Terms'))
 const PastPapersHub = lazy(() => import('./components/papers/PastPapersHub'))
 const PastPaperViewer = lazy(() => import('./components/papers/PastPaperViewer'))
+const PastPaperPractice = lazy(() => import('./components/papers/PastPaperPractice'))
 const AdminPastPapers = lazy(() => import('./components/admin/AdminPastPapers'))
 const AdminPastPaperEditor = lazy(() => import('./components/admin/AdminPastPaperEditor'))
 const ZedChatPage = lazy(() => import('./components/ai/ZedChatPage'))
@@ -305,6 +306,9 @@ export default function App() {
               PDF viewer at /papers/:id requires sign-in to download. */}
           <Route path="/papers"            element={<PastPapersHub />} />
           <Route path="/papers/:paperId"   element={<PastPaperViewer />} />
+          {/* Audit A2 PR 3 — timed practice runner. Auth-gated inside
+              the component so the redirect carries the original target. */}
+          <Route path="/papers/:paperId/practice" element={<PastPaperPractice />} />
           {/* Audit C5 — SEO blog. Public, indexable. */}
           <Route path="/blog"              element={<BlogIndex />} />
           <Route path="/blog/:slug"        element={<BlogPost />} />
