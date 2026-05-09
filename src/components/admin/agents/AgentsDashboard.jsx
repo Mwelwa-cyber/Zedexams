@@ -96,10 +96,10 @@ function fmtAbs(ts) {
 
 function StatTile({ label, value, hint, accent }) {
   return (
-    <div className="rounded-2xl border border-slate-700/50 bg-slate-800/40 p-4 shadow-lg shadow-slate-950/30">
-      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">{label}</p>
-      <p className={`mt-1 text-2xl font-black ${accent || 'text-slate-100'}`}>{value}</p>
-      {hint && <p className="mt-0.5 text-[10px] text-slate-500">{hint}</p>}
+    <div className="min-w-0 rounded-xl border border-slate-700/50 bg-slate-800/40 p-3 sm:rounded-2xl sm:p-4 shadow-lg shadow-slate-950/30">
+      <p className="text-[10px] font-black uppercase tracking-wider text-slate-400 truncate">{label}</p>
+      <p className={`mt-1 text-xl sm:text-2xl font-black truncate ${accent || 'text-slate-100'}`}>{value}</p>
+      {hint && <p className="mt-0.5 text-[10px] text-slate-500 truncate">{hint}</p>}
     </div>
   )
 }
@@ -177,41 +177,43 @@ function PipelineFlow({ jobs }) {
   }, [jobs])
 
   return (
-    <section className="rounded-2xl border border-slate-700/50 bg-slate-800/40 p-5 shadow-lg shadow-slate-950/30">
-      <header className="mb-4 flex items-baseline justify-between">
+    <section className="rounded-2xl border border-slate-700/50 bg-slate-800/40 p-4 sm:p-5 shadow-lg shadow-slate-950/30">
+      <header className="mb-3 sm:mb-4 flex items-baseline justify-between">
         <p className="text-sm font-black text-slate-100">Agent pipeline</p>
         <span className="text-[10px] uppercase tracking-wider text-slate-400">live</span>
       </header>
-      <ol className="flex items-center gap-2 overflow-x-auto pb-1">
+      <ol className="grid grid-cols-4 gap-1.5 sm:flex sm:items-center sm:gap-2 sm:overflow-x-auto sm:pb-1">
         {CONTENT_PHASES.map((phase, i) => {
           const n = counts[phase.id] || 0
           const dot = AGENT_DOT[phase.id]
           const active = n > 0
           return (
-            <li key={phase.id} className="flex items-center gap-2">
+            <li key={phase.id} className="flex items-center gap-1.5 sm:gap-2">
               <Link
                 to={`/admin/agents/${phase.id}`}
-                className={`flex min-w-[140px] flex-col items-center rounded-xl border px-3 py-3 text-center no-underline transition-all ${
+                className={`flex w-full sm:min-w-[140px] flex-col items-center rounded-xl border px-1.5 py-2 sm:px-3 sm:py-3 text-center no-underline transition-all ${
                   active
                     ? 'border-slate-500 bg-slate-700/40 shadow-lg shadow-slate-950/40'
                     : 'border-slate-700 bg-slate-800/30 hover:bg-slate-700/30'
                 }`}
               >
                 <span
-                  className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-black text-slate-900 ${
+                  className={`flex h-7 w-7 sm:h-8 sm:w-8 items-center justify-center rounded-full text-[10px] sm:text-xs font-black text-slate-900 ${
                     active ? 'animate-pulse' : ''
                   }`}
                   style={{ backgroundColor: dot }}
                 >
                   {phase.emoji}
                 </span>
-                <p className="mt-1.5 text-[11px] font-black text-slate-200">{phase.label}</p>
+                <p className="mt-1 sm:mt-1.5 text-[10px] sm:text-[11px] font-black text-slate-200 leading-tight">
+                  {phase.label}
+                </p>
                 <p className={`text-[10px] ${active ? 'text-slate-200' : 'text-slate-500'}`}>
                   {n} active
                 </p>
               </Link>
               {i < CONTENT_PHASES.length - 1 && (
-                <span className="text-slate-600" aria-hidden>→</span>
+                <span className="hidden sm:inline text-slate-600" aria-hidden>→</span>
               )}
             </li>
           )
@@ -224,7 +226,7 @@ function PipelineFlow({ jobs }) {
 function ActivityFeed({ jobs }) {
   const recent = jobs.slice(0, 12)
   return (
-    <section className="rounded-2xl border border-slate-700/50 bg-slate-800/40 p-5 shadow-lg shadow-slate-950/30">
+    <section className="rounded-2xl border border-slate-700/50 bg-slate-800/40 p-4 sm:p-5 shadow-lg shadow-slate-950/30">
       <header className="mb-3 flex items-baseline justify-between">
         <p className="text-sm font-black text-slate-100">Activity</p>
         <span className="text-[10px] uppercase tracking-wider text-slate-400">live</span>
@@ -281,12 +283,56 @@ function AgentsTable({ jobs }) {
   }, [jobs])
 
   return (
-    <section className="rounded-2xl border border-slate-700/50 bg-slate-800/40 p-5 shadow-lg shadow-slate-950/30">
+    <section className="rounded-2xl border border-slate-700/50 bg-slate-800/40 p-4 sm:p-5 shadow-lg shadow-slate-950/30">
       <header className="mb-3 flex items-baseline justify-between">
         <p className="text-sm font-black text-slate-100">All AI agents</p>
         <span className="text-[10px] uppercase tracking-wider text-slate-400">{AGENTS.length} agents</span>
       </header>
-      <div className="overflow-x-auto">
+
+      {/* Mobile: card list. Reads cleanly on a phone instead of a 5-col
+          horizontal-scroll table. */}
+      <ul className="space-y-2 md:hidden">
+        {AGENTS.map(a => {
+          const s = stats[a.id] || { total: 0, done: 0, failed: 0, last: null }
+          const successDenom = s.done + s.failed
+          const successPct = successDenom > 0 ? Math.round((s.done / successDenom) * 100) : null
+          const dot = AGENT_DOT[a.id] || '#94a3b8'
+          return (
+            <li key={a.id}>
+              <Link
+                to={`/admin/agents/${a.id}`}
+                className="flex items-center gap-2 rounded-xl border border-slate-700/50 bg-slate-800/30 p-2.5 no-underline transition-colors hover:bg-slate-700/30"
+              >
+                <span className="h-8 w-8 flex-shrink-0 rounded-full text-[11px] font-black text-slate-900 grid place-items-center" style={{ backgroundColor: dot }}>
+                  {a.name[0]}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-xs font-black text-slate-100">
+                    {a.name} <span className="font-bold text-slate-400">· {a.role}</span>
+                  </p>
+                  <p className="truncate text-[10px] text-slate-500">
+                    {a.department === 'qaEng' ? 'QA / Eng' : 'Content'} ·
+                    {' '}{s.total} jobs ·
+                    {' '}{s.last ? fmtRel(s.last) : 'no runs'}
+                  </p>
+                </div>
+                {successPct != null && (
+                  <span className={`flex-shrink-0 text-xs font-black ${
+                    successPct >= 80 ? 'text-emerald-300' :
+                    successPct >= 50 ? 'text-yellow-300' :
+                    'text-rose-300'
+                  }`}>
+                    {successPct}%
+                  </span>
+                )}
+              </Link>
+            </li>
+          )
+        })}
+      </ul>
+
+      {/* Desktop / tablet: full table. */}
+      <div className="hidden md:block overflow-x-auto">
         <table className="w-full text-xs">
           <thead>
             <tr className="text-left text-[10px] uppercase tracking-wider text-slate-400">
@@ -373,7 +419,7 @@ function WorkloadDonut({ jobs }) {
   }
 
   return (
-    <section className="rounded-2xl border border-slate-700/50 bg-slate-800/40 p-5 shadow-lg shadow-slate-950/30">
+    <section className="rounded-2xl border border-slate-700/50 bg-slate-800/40 p-4 sm:p-5 shadow-lg shadow-slate-950/30">
       <header className="mb-3 flex items-baseline justify-between">
         <p className="text-sm font-black text-slate-100">Workload</p>
         <span className="text-[10px] uppercase tracking-wider text-slate-400">7d</span>
@@ -415,7 +461,7 @@ function WorkloadDonut({ jobs }) {
 
 function ScheduledJobs() {
   return (
-    <section className="rounded-2xl border border-slate-700/50 bg-slate-800/40 p-5 shadow-lg shadow-slate-950/30">
+    <section className="rounded-2xl border border-slate-700/50 bg-slate-800/40 p-4 sm:p-5 shadow-lg shadow-slate-950/30">
       <header className="mb-3 flex items-baseline justify-between">
         <p className="text-sm font-black text-slate-100">Scheduled jobs</p>
         <span className="text-[10px] uppercase tracking-wider text-slate-400">cron</span>
@@ -444,7 +490,7 @@ function ScheduledJobs() {
 function RecentPublishedGrid({ jobs }) {
   const completed = jobs.filter(j => j.status === 'done').slice(0, 8)
   return (
-    <section className="rounded-2xl border border-slate-700/50 bg-slate-800/40 p-5 shadow-lg shadow-slate-950/30">
+    <section className="rounded-2xl border border-slate-700/50 bg-slate-800/40 p-4 sm:p-5 shadow-lg shadow-slate-950/30">
       <header className="mb-3 flex items-baseline justify-between">
         <p className="text-sm font-black text-slate-100">Recent completed jobs</p>
         <Link to="/admin/agents/jobs" className="text-[10px] font-black uppercase tracking-wider text-slate-400 hover:text-slate-200">
@@ -519,13 +565,13 @@ export default function AgentsDashboard() {
   }, [])
 
   return (
-    <div className="rounded-2xl bg-slate-900 p-5 text-slate-100 shadow-2xl">
+    <div className="rounded-2xl bg-slate-900 p-3 sm:p-5 text-slate-100 shadow-2xl overflow-hidden">
       <SeoHelmet title="AI Agents Dashboard" noIndex />
 
-      <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div>
+      <header className="mb-4 sm:mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
           <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">ZedExams</p>
-          <h1 className="text-2xl font-black text-slate-50">AI Agents Dashboard</h1>
+          <h1 className="text-xl sm:text-2xl font-black text-slate-50">AI Agents Dashboard</h1>
           <p className="mt-0.5 text-xs text-slate-400">
             Monitor, manage, and inspect every agent powering ZedExams.
           </p>
