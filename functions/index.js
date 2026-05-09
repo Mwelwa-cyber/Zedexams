@@ -105,6 +105,14 @@ const {
   createClassAssignment,
   removeClassAssignment,
 } = require("./classManagement");
+// Audit A10 PR 4 — per-class analytics (admin SDK, bypasses results read rules).
+const {getClassStats} = require("./classAnalytics");
+// Audit A3 PR 1 — parent portal share-link infrastructure.
+const {
+  createProgressShare,
+  revokeProgressShare,
+  getProgressShare,
+} = require("./parentPortal");
 
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const mtnApiUser = defineSecret("MTN_API_USER");
@@ -1483,6 +1491,19 @@ exports.leaveClass = leaveClass;
 // "From your teacher" card renders without a second read per row.
 exports.createClassAssignment = createClassAssignment;
 exports.removeClassAssignment = removeClassAssignment;
+// A10 PR 4 — per-class stats for the teacher dashboard. Bounded reads
+// (30-day window, first 200 learners, 25 most-recent assignments) with
+// graceful index-fallback so the first deploy still renders something.
+exports.getClassStats = getClassStats;
+
+// A3 PR 1 — parent portal. Learner self-issues a share link that
+// renders a 30-day progress summary at /parent/:token (no parent
+// account required). getProgressShare is intentionally PUBLIC —
+// the token IS the permission, mirroring the existing /shares
+// pattern.
+exports.createProgressShare = createProgressShare;
+exports.revokeProgressShare = revokeProgressShare;
+exports.getProgressShare = getProgressShare;
 
 // Audit D4 — self-serve subscription cancellation. Toggles
 // users.{uid}.cancelAtPeriodEnd via admin SDK so the field stays
