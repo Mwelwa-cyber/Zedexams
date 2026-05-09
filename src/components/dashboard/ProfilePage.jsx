@@ -24,6 +24,7 @@ import UpgradeModal            from '../subscription/UpgradeModal'
 import ParentShareManager      from '../parent/ParentShareManager'
 import LanguageToggle          from '../ui/LanguageToggle'
 import InvoicesCard            from './InvoicesCard'
+import ReplayTourCard          from '../ui/ReplayTourCard'
 import Button                  from '../ui/Button'
 import Icon                    from '../ui/Icon'
 import SeoHelmet               from '../seo/SeoHelmet'
@@ -382,6 +383,11 @@ export default function ProfilePage() {
           </div>
           <LanguageToggle compact />
         </div>
+
+        {/* Audit A8 PR 4 — replay any first-session tour. Role-aware
+            inside the component so learners and teachers see only
+            their own surfaces. */}
+        <ReplayTourCard />
 
         {/* Edit profile form */}
         <div className="theme-card rounded-2xl border theme-border p-5">
