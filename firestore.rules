@@ -598,6 +598,48 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ── progressShares (audit A3 — parent portal + weekly digest) ─────
+    //
+    // A learner issues a "share my progress with my parent" link from
+    // their profile. The doc is keyed by a random token and the token
+    // IS the permission to read — same pattern as /shares above.
+    //
+    // Schema:
+    //   learnerUid (the child), createdBy (always the learner uid),
+    //   parentEmail?, parentPhone?, parentDisplayName?,
+    //   createdAt, expiresAt, revokedAt?,
+    //   lastViewedAt?, viewCount? (server-bumped via Cloud Function)
+    //
+    // We expose only the metadata via direct Firestore read; the
+    // actual rendered summary (recent scores, weak subjects, streak)
+    // comes from getProgressShare (Cloud Function), which uses
+    // admin SDK to bypass results read rules.
+    function validProgressShareFields() {
+      return (!('learnerUid' in incoming()) || (incoming().learnerUid is string && incoming().learnerUid.size() <= 100))
+        && (!('createdBy' in incoming()) || (incoming().createdBy is string && incoming().createdBy.size() <= 100))
+        && (!('parentEmail' in incoming()) || incoming().parentEmail == null || (incoming().parentEmail is string && incoming().parentEmail.size() <= 200))
+        && (!('parentPhone' in incoming()) || incoming().parentPhone == null || (incoming().parentPhone is string && incoming().parentPhone.size() <= 30))
+        && (!('parentDisplayName' in incoming()) || incoming().parentDisplayName == null || (incoming().parentDisplayName is string && incoming().parentDisplayName.size() <= 80))
+        && (!('expiresAt' in incoming()) || incoming().expiresAt is timestamp);
+    }
+    match /progressShares/{token} {
+      // Token IS the permission — anyone with the link can read.
+      // Client + Cloud Function check revokedAt / expiresAt and show
+      // the "revoked" / "expired" state rather than 404.
+      allow read: if true;
+      allow create: if isAuthed()
+        && validProgressShareFields()
+        && incoming().learnerUid == request.auth.uid
+        && incoming().createdBy == request.auth.uid;
+      allow update: if isAuthed()
+        && validProgressShareFields()
+        && resource.data.learnerUid == request.auth.uid
+        && incoming().learnerUid == resource.data.learnerUid;
+      allow delete: if isAuthed() && (
+        resource.data.learnerUid == request.auth.uid || isAdmin()
+      );
+    }
+
     // ── assignments (audit A10 PR 3 — teacher assigns work to a class) ──
     //
     // Each doc points one resource (quiz or daily exam) at one class.
