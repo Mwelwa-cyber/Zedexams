@@ -1,4 +1,5 @@
 import { sanitizeQuizRichHTML } from '../editor/utils/sanitize.js'
+import { toHTML as tiptapJsonToHtml } from '../editor/utils/safeRender.js'
 
 const STRIP_TAGS = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'META', 'LINK'])
 const ALLOWED_TAGS = new Set([
@@ -273,7 +274,33 @@ export function isRichTextHtml(value) {
   return HTML_RE.test(String(value ?? ''))
 }
 
+// Detect a Tiptap doc — either the live object or its JSON-stringified form.
+// Returns the doc object if recognised, otherwise null. Without this guard
+// ensureRichTextHtml would treat the JSON literal as plain text and escape it
+// into <p>{&quot;type&quot;:&quot;doc&quot;...}</p> at save time.
+function asTiptapDoc(value) {
+  if (value && typeof value === 'object' && value.type === 'doc' && Array.isArray(value.content)) {
+    return value
+  }
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (trimmed.startsWith('{') && trimmed.endsWith('}')) {
+      try {
+        const parsed = JSON.parse(trimmed)
+        if (parsed && parsed.type === 'doc' && Array.isArray(parsed.content)) return parsed
+      } catch { /* not JSON */ }
+    }
+  }
+  return null
+}
+
 export function ensureRichTextHtml(value) {
+  const tiptapDoc = asTiptapDoc(value)
+  if (tiptapDoc) {
+    const html = normalizeSanitizedHtml(tiptapJsonToHtml(tiptapDoc))
+    return html
+  }
+
   const input = String(value ?? '')
   if (!input.trim()) return ''
   const normalized = normalizeSanitizedHtml(isRichTextHtml(input) ? input : plainTextToHtml(input))

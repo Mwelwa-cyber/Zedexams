@@ -39,7 +39,7 @@ while a human owner approves what reaches learners and teachers.
    │  Aria   (Author) │                       │  Quill  (QA Smoke) │
    │  Cala   (CBC)    │                       │  Rex    (Code Rev) │
    │  Reva   (Review) │                       │  Ledger (Releases) │
-   │  Pubo   (Publish)│                       │                    │
+   │  Pubo   (Publish)│                       │  Vex    (Quiz QA)  │
    └──────────────────┘                       └────────────────────┘
 ```
 
@@ -111,6 +111,22 @@ scope until the queue and approval flow are proven.
   `docs/CHANGELOG.md`.
 - **Wraps:** `@octokit/rest` (already a `functions/` dep).
 
+#### Vex — Quiz Verifier
+- **Mission:** Pre-publish quality check on quizzes — answer accuracy,
+  grade fit, clarity, grammar, options quality, and CBC alignment.
+  Returns a 0–100 Quality Score with a tiered blockers / warnings list.
+- **Trigger:** Synchronous callable `verifyQuiz`, invoked by the quiz
+  editor when an admin clicks **Verify & publish**.
+- **Outputs:** `{ verdict, overallScore, scores, summary, blockers[], warnings[] }`
+  returned directly to the caller — no Firestore writes, no audit doc.
+- **Wraps:** `functions/agents/runners/vex.js` (Anthropic Haiku 4.5)
+  layered on top of deterministic structural checks (empty / duplicate
+  / out-of-range options).
+- **Notable exception:** Vex is the **only** agent that does not flow
+  through the `agentJobs` queue. Quiz authors expect Grammarly-style
+  instant feedback; queueing breaks that loop. Cost is metered through
+  the existing `aiUsage/{uid}_{day}` per-user daily limit.
+
 ## Handoff: Lesson-Plan Pipeline
 
 ```
@@ -177,6 +193,7 @@ teacher submits brief
 | Quill | 50,000 / 10,000 tokens | Mostly script orchestration |
 | Rex | 200,000 / 50,000 tokens | One review per PR |
 | Ledger | 50,000 / 20,000 tokens | One run per push to main |
+| Vex | 100,000 / 30,000 tokens | One Haiku call per Verify & publish |
 
 Caps are enforced via `functions/teacherTools/usageMeter.js` keyed by a
 synthetic ownerUid `agent:<id>` so per-agent spend is auditable in
@@ -186,3 +203,6 @@ synthetic ownerUid `agent:<id>` so per-agent spend is auditable in
 
 - **2026-05-08** — Operating model bootstrapped. Roster: Aria, Cala, Reva,
   Pubo, Quill, Rex, Ledger. Phase 1 skeleton landed.
+- **2026-05-09** — Vex (Quiz Verifier) added to QA / Eng. Synchronous
+  pre-publish quality check on quizzes; explicitly off the `agentJobs`
+  pipeline so teachers get Grammarly-style instant feedback.

@@ -8,6 +8,7 @@ import {
   createPartGroup,
   createPassageSection,
   createStandaloneSection,
+  emptyPassageQuestion,
   getQuestionKey,
   hydrateQuizSections,
   serializeQuizSections,
@@ -19,6 +20,7 @@ import { getErrorMessage } from '../../utils/errors.js'
 import { validateStandaloneQuestion as sharedValidateStandaloneQuestion } from '../../utils/quizValidation.js'
 import QuizSectionsEditor from './QuizSectionsEditor'
 import QuizEditorPreviewPanel from './QuizEditorPreviewPanel'
+import QuizVerifyModal from './QuizVerifyModal'
 import SeoHelmet from '../seo/SeoHelmet'
 
 const SUBJECTS = [
@@ -138,6 +140,7 @@ export default function EditQuizV2() {
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState(null)
   const [dirty, setDirty] = useState(false)
+  const [verifyOpen, setVerifyOpen] = useState(false)
 
   const serializedPreview = serializeQuizSections(sections, parts)
   const questionNumbers = buildQuestionNumberMap(serializedPreview.questions)
@@ -362,10 +365,7 @@ export default function EditQuizV2() {
         ...section.passage,
         questions: [
           ...section.passage.questions,
-          {
-            ...createPassageSection({ id: section.passage.id, questions: [] }).passage.questions[0],
-            passageId: section.passage.id,
-          },
+          emptyPassageQuestion({ passageId: section.passage.id }),
         ],
       },
     }))
@@ -421,6 +421,12 @@ export default function EditQuizV2() {
 
   function addPassageSectionHandler() {
     setSections(currentSections => [...currentSections, createPassageSection()])
+    setDirty(true)
+    setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 50)
+  }
+
+  function addMapSectionHandler() {
+    setSections(currentSections => [...currentSections, createPassageSection({ passageKind: 'map' })])
     setDirty(true)
     setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 50)
   }
@@ -586,16 +592,26 @@ export default function EditQuizV2() {
     for (const section of sections) {
       if (section.kind === 'passage') {
         const passage = section.passage
+        const isMap = passage.passageKind === 'map'
         if (passage.imageUploading) {
-          show('A passage image is still uploading. Please wait.', true)
+          show(isMap
+            ? 'A map image is still uploading. Please wait.'
+            : 'A passage image is still uploading. Please wait.', true)
           return false
         }
-        if (!richTextHasContent(passage.passageText)) {
+        if (isMap) {
+          if (!passage.imageUrl) {
+            show('Each map section needs a map image before saving.', true)
+            return false
+          }
+        } else if (!richTextHasContent(passage.passageText)) {
           show('Each comprehension passage needs passage text before saving.', true)
           return false
         }
         if (!passage.questions.length) {
-          show('Each comprehension passage needs at least one linked question.', true)
+          show(isMap
+            ? 'Each map section needs at least one linked question.'
+            : 'Each comprehension passage needs at least one linked question.', true)
           return false
         }
         for (const question of passage.questions) {
@@ -816,6 +832,7 @@ export default function EditQuizV2() {
         onPassageAddQuestion={addPassageQuestion}
         onAddStandalone={addStandaloneSectionHandler}
         onAddPassage={addPassageSectionHandler}
+        onAddMap={addMapSectionHandler}
         onAddPart={addPart}
         onPartChange={updatePart}
         onPartMove={movePart}
@@ -852,9 +869,9 @@ export default function EditQuizV2() {
                 <span aria-hidden="true">⏳</span>
                 <span>{saving ? 'Saving…' : 'Save as pending'}</span>
               </button>
-              <button type="button" onClick={() => handleSave('published')} disabled={saving || anyUploading} className="theme-accent-fill theme-on-accent flex min-h-0 items-center justify-center gap-2 rounded-2xl py-3 font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md disabled:opacity-40 disabled:pointer-events-none">
+              <button type="button" onClick={() => { if (validate()) setVerifyOpen(true) }} disabled={saving || anyUploading} className="theme-accent-fill theme-on-accent flex min-h-0 items-center justify-center gap-2 rounded-2xl py-3 font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md disabled:opacity-40 disabled:pointer-events-none">
                 <span aria-hidden="true">🚀</span>
-                <span>{saving ? 'Publishing…' : 'Save & publish'}</span>
+                <span>{saving ? 'Publishing…' : 'Verify & publish'}</span>
               </button>
             </>
           )}
@@ -863,6 +880,17 @@ export default function EditQuizV2() {
           {dirty ? '⚠️ You have unsaved changes.' : '✓ All changes saved.'}
         </p>
       </div>
+
+      <QuizVerifyModal
+        open={verifyOpen}
+        quizId={quizId}
+        form={form}
+        sections={sections}
+        parts={parts}
+        onClose={() => setVerifyOpen(false)}
+        onFixIssues={() => setVerifyOpen(false)}
+        onPublish={() => { setVerifyOpen(false); handleSave('published') }}
+      />
     </div>
   )
 }
