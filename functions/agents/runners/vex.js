@@ -24,6 +24,14 @@ const SYSTEM_PROMPT = [
   "but fair Zambian teacher who has seen too many bad answer keys reach",
   "learners. Your job is a pre-publish quality check.",
   "",
+  "Your default stance is suspicion, not trust. Silence is the worst",
+  "outcome — a quiz that ships with bad answers or typos hurts learners.",
+  "If you are unsure, raise a warning. Empty issues lists are almost",
+  "always wrong: a real, multi-question quiz nearly always has at least",
+  "one thing worth flagging (a slightly weak distractor, an awkward",
+  "phrasing, a borderline difficulty). Re-read every question twice",
+  "before deciding nothing is wrong.",
+  "",
   "Six checks:",
   "  1. Answer accuracy — Is the option marked as correct actually correct?",
   "     Are there two correct options? Is the keyed answer wrong?",
@@ -47,10 +55,13 @@ const SYSTEM_PROMPT = [
   "  - warning: spelling, grammar, wording suggestions, difficulty",
   "    mismatch, mildly weak distractor, mild curriculum drift.",
   "",
-  "Be confident only when you are sure. Prefer warning over blocker if",
-  "you have any reasonable doubt about the keyed answer.",
+  "Calibration: if you would give every category a score of 95+ AND",
+  "return zero issues for a quiz with 5 or more questions, you almost",
+  "certainly missed something. Re-read first. Honest scores reflect",
+  "honest critique — do not inflate scores to be polite.",
   "",
-  "Output ONLY a single JSON object matching this shape (no prose):",
+  "Output ONLY a single JSON object matching this shape (no prose). All",
+  "six score fields and the issues array are REQUIRED, even if empty:",
   "{",
   "  \"scores\": {",
   "    \"answerAccuracy\": 0-100,",
@@ -353,8 +364,14 @@ async function runVex({input, anthropicApiKeySecret}) {
   }
 
   const parsed = safeParseJson(raw);
-  const parsedOk = parsed && typeof parsed === "object" &&
-    (parsed.scores || Array.isArray(parsed.issues));
+  // Both scores object AND issues array are required for a usable
+  // verdict. A response with only one half is a malformed answer that
+  // would silently default the missing half to zeros / empties and
+  // produce a falsely-clean verdict.
+  const hasScoresObject = parsed && typeof parsed === "object" &&
+    parsed.scores && typeof parsed.scores === "object";
+  const hasIssuesArray = parsed && Array.isArray(parsed.issues);
+  const parsedOk = Boolean(hasScoresObject && hasIssuesArray);
   const scores = buildScores(parsed || {});
   const overallScore = overallFromScores(scores);
 
@@ -367,13 +384,13 @@ async function runVex({input, anthropicApiKeySecret}) {
   const blockers = [...structuralBlockers, ...llmBlockers];
   const warnings = llmWarnings;
 
-  // Distinguish a clean pass from a parse failure that returned all zeros
-  // and no issues. Without this, the modal cheerfully says "Quiz looks
-  // good to publish" whenever Claude's response is malformed.
-  const aiUnreadable = !parsedOk || (
-    overallScore === 0 && llmIssues.length === 0 &&
-    !clampStr(parsed?.summary, 600)
-  );
+  // Distinguish a clean pass from a parse failure or a stripped response.
+  // If parsedOk is false, the response was malformed. If every score
+  // defaulted to 0 (because the scores object was missing fields), treat
+  // that as unreadable too — otherwise the modal cheerfully says "Quiz
+  // looks good to publish" with all bars at 0%.
+  const allScoresZero = Object.values(scores).every((v) => v === 0);
+  const aiUnreadable = !parsedOk || allScoresZero;
 
   let verdict;
   if (blockers.length > 0) verdict = "fail";
