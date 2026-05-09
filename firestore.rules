@@ -622,6 +622,23 @@ service cloud.firestore {
         && (!('parentDisplayName' in incoming()) || incoming().parentDisplayName == null || (incoming().parentDisplayName is string && incoming().parentDisplayName.size() <= 80))
         && (!('expiresAt' in incoming()) || incoming().expiresAt is timestamp);
     }
+    // ── aiUsage (audit B4 — Claude API cost tracking) ─────────────────
+    // Daily rollups written exclusively by aiCostTracking.recordAiUsage
+    // (Cloud Functions, admin SDK). Admin-only reads — the data
+    // exposes per-user spend which is sensitive operational info.
+    // Schema:
+    //   aiUsage/{date} { totalCostUsd, callCount, totalInput/Output... }
+    //   aiUsage/{date}/users/{uid} { costUsd, callCount, ... }
+    //   aiUsage/{date}/tools/{tool} { costUsd, callCount, ... }
+    match /aiUsage/{date} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+      match /{subColl}/{docId} {
+        allow read: if isAdmin();
+        allow create, update, delete: if false;
+      }
+    }
+
     // ── parentDigestEvents (audit A3 PR 2 — weekly digest audit log) ──
     // Append-only ledger written exclusively by the weekly digest
     // cron (admin SDK). The owning learner can read their own rows
