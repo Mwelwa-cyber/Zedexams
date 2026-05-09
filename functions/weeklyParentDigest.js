@@ -39,6 +39,7 @@
 
 const admin = require("firebase-admin");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
+const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
 const nodemailer = require("nodemailer");
 const crypto = require("node:crypto");
@@ -260,14 +261,14 @@ async function logEvent(db, payload) {
   }).catch((err) => console.warn("[weeklyParentDigest] audit log failed", err));
 }
 
-async function deliverEmail({db, shareDoc, share, token, stats, learnerName, learnerGrade, shareUrl, senderEmail, senderDomain, transporter, now, summary}) {
+async function deliverEmail({db, shareDoc, share, token, stats, learnerName, learnerGrade, shareUrl, senderEmail, senderDomain, transporter, now, summary, force = false}) {
   if (!transporter || !senderEmail) return;          // SMTP not configured
   if (!share.parentEmail) return;                    // no email recipient
 
   const lastSentMs = share.lastWeeklyDigestSentAt?.toMillis
       ? share.lastWeeklyDigestSentAt.toMillis()
       : 0;
-  if (lastSentMs && (now - lastSentMs) < RESEND_GUARD_MS) {
+  if (!force && lastSentMs && (now - lastSentMs) < RESEND_GUARD_MS) {
     summary.skipped.email += 1;
     return;
   }
@@ -304,15 +305,21 @@ async function deliverEmail({db, shareDoc, share, token, stats, learnerName, lea
 
   try {
     await transporter.sendMail(emailPayload);
-    await shareDoc.ref.update({
-      lastWeeklyDigestSentAt: admin.firestore.FieldValue.serverTimestamp(),
-    }).catch((err) => console.warn("[weeklyParentDigest] email stamp update failed", err));
+    // Skip the idempotency stamp on forced (admin-test) runs so a
+    // Saturday verification doesn't push the next Sunday's send past
+    // the 5-day guard for real parents.
+    if (!force) {
+      await shareDoc.ref.update({
+        lastWeeklyDigestSentAt: admin.firestore.FieldValue.serverTimestamp(),
+      }).catch((err) => console.warn("[weeklyParentDigest] email stamp update failed", err));
+    }
     await logEvent(db, {
       token,
       learnerUid: share.learnerUid,
       channel: "email",
       parentEmail: share.parentEmail,
       status: "sent",
+      forced: force || false,
     });
     summary.sent.email += 1;
   } catch (err) {
@@ -330,14 +337,14 @@ async function deliverEmail({db, shareDoc, share, token, stats, learnerName, lea
   }
 }
 
-async function deliverWhatsApp({db, shareDoc, share, token, stats, learnerName, learnerGrade, shareUrl, twilioReady, now, summary}) {
+async function deliverWhatsApp({db, shareDoc, share, token, stats, learnerName, learnerGrade, shareUrl, twilioReady, now, summary, force = false}) {
   if (!share.parentPhone) return;                    // no phone recipient
   if (!twilioReady) return;                          // soft-fail when Twilio unset
 
   const lastSentMs = share.lastWeeklyDigestWhatsAppSentAt?.toMillis
       ? share.lastWeeklyDigestWhatsAppSentAt.toMillis()
       : 0;
-  if (lastSentMs && (now - lastSentMs) < RESEND_GUARD_MS) {
+  if (!force && lastSentMs && (now - lastSentMs) < RESEND_GUARD_MS) {
     summary.skipped.whatsapp += 1;
     return;
   }
@@ -382,9 +389,13 @@ async function deliverWhatsApp({db, shareDoc, share, token, stats, learnerName, 
   }
 
   if (result.status === "sent") {
-    await shareDoc.ref.update({
-      lastWeeklyDigestWhatsAppSentAt: admin.firestore.FieldValue.serverTimestamp(),
-    }).catch((err) => console.warn("[weeklyParentDigest] whatsapp stamp update failed", err));
+    // Same rationale as the email stamp — forced (admin-test) runs
+    // don't bump the idempotency clock so Sunday's tick still fires.
+    if (!force) {
+      await shareDoc.ref.update({
+        lastWeeklyDigestWhatsAppSentAt: admin.firestore.FieldValue.serverTimestamp(),
+      }).catch((err) => console.warn("[weeklyParentDigest] whatsapp stamp update failed", err));
+    }
     await logEvent(db, {
       token,
       learnerUid: share.learnerUid,
@@ -393,6 +404,7 @@ async function deliverWhatsApp({db, shareDoc, share, token, stats, learnerName, 
       status: "sent",
       twilioMessageSid: result.sid || null,
       twilioStatus: result.twilioStatus || null,
+      forced: force || false,
     });
     summary.sent.whatsapp += 1;
   } else if (result.status === "skipped") {
@@ -424,14 +436,29 @@ async function deliverWhatsApp({db, shareDoc, share, token, stats, learnerName, 
   }
 }
 
-const weeklyParentDigest = onSchedule({
-  schedule: "every sunday 09:00",
-  timeZone: "Africa/Lusaka",
-  region: REGION,
-  timeoutSeconds: 540,
-  memory: "512MiB",
-  secrets: [emailSmtpUser, emailSmtpPassword, ...TWILIO_SECRETS],
-}, async () => {
+/**
+ * Reusable digest runner — same body powers both the Sunday cron and
+ * the admin-only manual trigger.
+ *
+ * Options (all optional):
+ *   - runType:        free-form label that lands in agentJobs.input.runType.
+ *                     Defaults to "weekly-parent-digest".
+ *   - createdBy:      string written to agentJobs.createdBy. The cron
+ *                     uses "system"; the manual trigger uses the admin uid.
+ *   - force:          when true, both channels bypass the 5-day idempotency
+ *                     stamp. Useful for verifying Twilio wiring without
+ *                     waiting for the next cron tick.
+ *   - targetTokens:   when set, the runner only processes those share
+ *                     tokens (rather than the full union of email/phone
+ *                     candidates). Other gates (revoked / expired / empty
+ *                     week / no-contact) still apply.
+ */
+async function runWeeklyDigest({
+  runType = "weekly-parent-digest",
+  createdBy = "system",
+  force = false,
+  targetTokens = null,
+} = {}) {
   const db = admin.firestore();
   const now = Date.now();
   const senderEmail = String(emailSmtpUser.value() || "").trim();
@@ -446,17 +473,38 @@ const weeklyParentDigest = onSchedule({
     errors: [],
     twilioReady,
     smtpReady: Boolean(transporter && senderEmail),
+    force,
+    runType,
   };
 
   if (!summary.smtpReady && !twilioReady) {
     console.warn("[weeklyParentDigest] neither SMTP nor Twilio configured — nothing to do");
-    return;
+    return summary;
   }
 
-  const shareDocs = await loadCandidateShares(db);
+  let shareDocs;
+  if (Array.isArray(targetTokens) && targetTokens.length > 0) {
+    // Direct fetches when an admin asks for specific tokens. Bounded
+    // at 10 to keep manual triggers cheap and bounded.
+    const tokens = targetTokens
+        .filter((t) => typeof t === "string" && t.trim())
+        .map((t) => t.trim().toUpperCase())
+        .slice(0, 10);
+    const fetched = await Promise.all(
+        tokens.map((token) => db.collection("progressShares").doc(token).get()
+            .catch((err) => {
+              console.warn(`[weeklyParentDigest] target token fetch failed: ${token}`, err);
+              return null;
+            })),
+    );
+    shareDocs = fetched.filter((snap) => snap && snap.exists);
+  } else {
+    shareDocs = await loadCandidateShares(db);
+  }
+
   if (shareDocs.length === 0) {
     console.info("[weeklyParentDigest] no parent-contact shares to process");
-    return;
+    return summary;
   }
 
   for (const shareDoc of shareDocs) {
@@ -480,7 +528,9 @@ const weeklyParentDigest = onSchedule({
 
     // Don't pester parents when there's literally no activity. Empty-
     // week messages train recipients to ignore us across both channels.
-    if (stats.summary.totalAttempts === 0) {
+    // Manual triggers can override this gate via force=true so an admin
+    // can prove the Twilio path without waiting for fresh quiz attempts.
+    if (stats.summary.totalAttempts === 0 && !force) {
       summary.skipped.share += 1;
       continue;
     }
@@ -501,12 +551,12 @@ const weeklyParentDigest = onSchedule({
       deliverEmail({
         db, shareDoc, share, token, stats,
         learnerName, learnerGrade, shareUrl,
-        senderEmail, senderDomain, transporter, now, summary,
+        senderEmail, senderDomain, transporter, now, summary, force,
       }),
       deliverWhatsApp({
         db, shareDoc, share, token, stats,
         learnerName, learnerGrade, shareUrl,
-        twilioReady, now, summary,
+        twilioReady, now, summary, force,
       }),
     ]);
   }
@@ -518,11 +568,71 @@ const weeklyParentDigest = onSchedule({
     agentId: "weekly-parent-digest",
     department: "growth",
     status: totalFailed > 0 ? "awaiting_approval" : "done",
-    input: {runType: "weekly-parent-digest", timezone: "Africa/Lusaka"},
+    input: {runType, timezone: "Africa/Lusaka", force, targetTokens: targetTokens || null},
     output: {digest: {...summary, errors: summary.errors.slice(0, 10)}},
-    createdBy: "system",
+    createdBy,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   }).catch((err) => console.warn("[weeklyParentDigest] rollup write failed", err));
+
+  return summary;
+}
+
+const weeklyParentDigest = onSchedule({
+  schedule: "every sunday 09:00",
+  timeZone: "Africa/Lusaka",
+  region: REGION,
+  timeoutSeconds: 540,
+  memory: "512MiB",
+  secrets: [emailSmtpUser, emailSmtpPassword, ...TWILIO_SECRETS],
+}, async () => {
+  await runWeeklyDigest({runType: "weekly-parent-digest", createdBy: "system"});
 });
 
-module.exports = {weeklyParentDigest};
+/**
+ * Manual trigger — admin-only. Re-uses runWeeklyDigest with optional
+ * force and targetTokens so an admin can verify the WhatsApp wiring
+ * without waiting for Sunday's cron tick.
+ *
+ * Request shape (all optional):
+ *   { force?: boolean, targetTokens?: string[] }
+ *
+ * Returns the summary so the admin can see exactly how many sends went
+ * out per channel and what (if anything) failed.
+ */
+const triggerWeeklyParentDigest = onCall({
+  region: REGION,
+  timeoutSeconds: 540,
+  memory: "512MiB",
+  secrets: [emailSmtpUser, emailSmtpPassword, ...TWILIO_SECRETS],
+}, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+  const db = admin.firestore();
+  const userSnap = await db.collection("users").doc(uid).get();
+  const role = userSnap.exists ? (userSnap.data()?.role || "") : "";
+  if (role !== "admin") {
+    throw new HttpsError("permission-denied", "Admin only.");
+  }
+
+  const force = Boolean(request.data?.force);
+  const rawTokens = request.data?.targetTokens;
+  const targetTokens = Array.isArray(rawTokens)
+      ? rawTokens.filter((t) => typeof t === "string").slice(0, 10)
+      : null;
+
+  const summary = await runWeeklyDigest({
+    runType: "manual-admin-trigger",
+    createdBy: uid,
+    force,
+    targetTokens,
+  });
+
+  return summary;
+});
+
+module.exports = {
+  weeklyParentDigest,
+  triggerWeeklyParentDigest,
+  runWeeklyDigest,
+};

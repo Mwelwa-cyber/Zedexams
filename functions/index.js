@@ -114,7 +114,12 @@ const {
   getProgressShare,
 } = require("./parentPortal");
 // Audit A3 PR 2 — weekly digest cron (Sunday 09:00 Africa/Lusaka).
-const {weeklyParentDigest} = require("./weeklyParentDigest");
+// Audit A3 PR 3 — admin-only manual trigger to verify Twilio WhatsApp
+// wiring without waiting for the Sunday tick.
+const {
+  weeklyParentDigest,
+  triggerWeeklyParentDigest,
+} = require("./weeklyParentDigest");
 
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const mtnApiUser = defineSecret("MTN_API_USER");
@@ -1511,8 +1516,17 @@ exports.getProgressShare = getProgressShare;
 // a 7-day email summary to every progressShare with parentEmail set,
 // skips revoked / expired / already-sent-this-week, and skips empty
 // weeks (no point training parents to ignore us). Audit ledger lives
-// in parentDigestEvents/{eventId}.
+// in parentDigestEvents/{eventId}. PR 3 also runs a parallel WhatsApp
+// channel via Twilio (soft-fails when TWILIO_* secrets aren't set).
 exports.weeklyParentDigest = weeklyParentDigest;
+
+// A3 PR 3 — admin-only callable that runs the same digest body on
+// demand. Useful for verifying Twilio WhatsApp wiring without waiting
+// for the Sunday cron. Accepts { force, targetTokens } so an admin
+// can target a specific test share and bypass the 5-day idempotency
+// stamp. Returns the summary so the caller can see exactly what
+// happened.
+exports.triggerWeeklyParentDigest = triggerWeeklyParentDigest;
 
 // Audit D4 — self-serve subscription cancellation. Toggles
 // users.{uid}.cancelAtPeriodEnd via admin SDK so the field stays
