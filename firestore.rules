@@ -598,6 +598,45 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ── assignments (audit A10 PR 3 — teacher assigns work to a class) ──
+    //
+    // Each doc points one resource (quiz or daily exam) at one class.
+    // Schema:
+    //   classId, teacherUid (denormalised owner uid),
+    //   resourceType ('quiz'|'exam'), resourceId,
+    //   resourceTitle, subject, grade (denormalised display fields),
+    //   dueAt? (timestamp), assignedAt, active
+    //
+    // Read access intentionally wide-open to signed-in users — the
+    // payload is just a pointer at content already gated by its own
+    // collection's rules. Writes are routed through Cloud Functions
+    // (createClassAssignment / deleteClassAssignment) so a tampered
+    // client can't mint an assignment for a class they don't own.
+    function _validResourceType(value) { return value is string && value in ['quiz', 'exam']; }
+    function validAssignmentFields() {
+      return (!('classId' in incoming()) || (incoming().classId is string && incoming().classId.size() <= 100))
+        && (!('teacherUid' in incoming()) || (incoming().teacherUid is string && incoming().teacherUid.size() <= 100))
+        && (!('resourceType' in incoming()) || _validResourceType(incoming().resourceType))
+        && (!('resourceId' in incoming()) || (incoming().resourceId is string && incoming().resourceId.size() <= 100))
+        && (!('resourceTitle' in incoming()) || (incoming().resourceTitle is string && incoming().resourceTitle.size() <= 200))
+        && (!('subject' in incoming()) || incoming().subject == null || _validSubject(incoming().subject))
+        && (!('grade' in incoming()) || incoming().grade == null || (incoming().grade is string && incoming().grade.size() <= 5))
+        && (!('dueAt' in incoming()) || incoming().dueAt == null || incoming().dueAt is timestamp)
+        && (!('active' in incoming()) || incoming().active is bool);
+    }
+    match /assignments/{assignmentId} {
+      allow read: if isAuthed();
+      allow create: if isTeacherOrAbove()
+        && validAssignmentFields()
+        && incoming().teacherUid == request.auth.uid;
+      allow update: if isAuthed()
+        && validAssignmentFields()
+        && resource.data.teacherUid == request.auth.uid;
+      allow delete: if isAuthed() && (
+        resource.data.teacherUid == request.auth.uid || isAdmin()
+      );
+    }
+
     // ── classes + classInvites (audit A10 — teacher classroom roster) ──
     //
     // A class is a teacher-owned roster of learners. Schema:

@@ -31,9 +31,14 @@ import {
   removeLearnerFromClassFallback,
   unarchiveClass,
 } from '../../../utils/classes'
+import {
+  listAssignmentsForClass,
+  removeClassAssignment,
+} from '../../../utils/assignments'
 import { SUBJECTS } from '../../../config/curriculum'
 import SeoHelmet from '../../seo/SeoHelmet'
 import Skeleton from '../../ui/Skeleton'
+import AssignWorkModal from './AssignWorkModal'
 
 function fmtExpiry(ts) {
   if (!ts) return ''
@@ -84,6 +89,8 @@ export default function TeacherClassDetail() {
 
   const [klass, setKlass] = useState(null)
   const [members, setMembers] = useState([])
+  const [assignments, setAssignments] = useState([])
+  const [showAssignModal, setShowAssignModal] = useState(false)
   const [loading, setLoading] = useState(true)
   const [errored, setErrored] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -94,8 +101,17 @@ export default function TeacherClassDetail() {
       const row = await getClass(classId)
       if (!row) { setErrored(true); return }
       setKlass(row)
-      const summaries = await fetchMemberSummaries(row.learners || [])
+      const [summaries, classAssignments] = await Promise.all([
+        fetchMemberSummaries(row.learners || []),
+        listAssignmentsForClass(classId).catch((err) => {
+          // Index might not be deployed yet — degrade quietly to no
+          // assignments so the rest of the page still renders.
+          console.warn('[TeacherClassDetail] assignments load failed', err)
+          return []
+        }),
+      ])
       setMembers(summaries)
+      setAssignments(classAssignments)
     } catch (err) {
       console.warn('[TeacherClassDetail] load failed', err)
       setErrored(true)
@@ -103,6 +119,21 @@ export default function TeacherClassDetail() {
       setLoading(false)
     }
   }, [classId])
+
+  async function handleRemoveAssignment(assignmentId) {
+    if (!window.confirm('Remove this assignment from the class? Learners will no longer see it.')) return
+    setBusy(true); setFeedback(null)
+    try {
+      await removeClassAssignment(assignmentId)
+      setFeedback({ kind: 'ok', text: 'Assignment removed.' })
+      await refresh()
+    } catch (err) {
+      console.error('[TeacherClassDetail] remove assignment failed', err)
+      setFeedback({ kind: 'err', text: err?.message || 'Could not remove the assignment.' })
+    } finally {
+      setBusy(false)
+    }
+  }
 
   useEffect(() => { refresh() }, [refresh])
 
@@ -262,6 +293,61 @@ export default function TeacherClassDetail() {
         )}
       </section>
 
+      {/* Assignments */}
+      <section className="theme-card border theme-border rounded-radius-md overflow-hidden">
+        <div className="p-4 border-b theme-border flex items-center justify-between gap-3">
+          <div>
+            <p className="theme-text font-black text-sm">Assigned work ({assignments.length})</p>
+            <p className="theme-text-muted text-xs mt-0.5">Active quizzes shared with this class.</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowAssignModal(true)}
+            disabled={busy || archived}
+            className="theme-accent-fill theme-on-accent rounded-full px-3 py-1.5 text-xs font-black hover:opacity-90 disabled:opacity-50 flex-shrink-0"
+          >
+            + Assign quiz
+          </button>
+        </div>
+        {assignments.length === 0 ? (
+          <div className="p-6 text-center text-sm theme-text-muted">
+            No work assigned yet. Click <span className="theme-text font-bold">Assign quiz</span> to share a published quiz with this class.
+          </div>
+        ) : (
+          <ul className="divide-y divide-current/10">
+            {assignments.map((a) => {
+              const subjectMeta = SUBJECTS.find((s) => s.id === a.subject)
+              const dueLabel = a.dueAt
+                ? `due ${(a.dueAt.toDate?.() || new Date(a.dueAt)).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`
+                : null
+              return (
+                <li key={a.id} className="flex items-start gap-3 p-4">
+                  <div className="flex-shrink-0 w-9 h-9 rounded-lg theme-bg-subtle flex items-center justify-center text-base">
+                    <span aria-hidden="true">{subjectMeta?.icon || '📝'}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="theme-text font-bold text-sm truncate">{a.resourceTitle}</p>
+                    <p className="theme-text-muted text-xs mt-0.5">
+                      {a.resourceType === 'exam' ? 'Daily exam' : 'Quiz'}
+                      {subjectMeta ? ` · ${subjectMeta.label}` : ''}
+                      {dueLabel ? ` · ${dueLabel}` : ''}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveAssignment(a.id)}
+                    disabled={busy}
+                    className="text-xs font-bold text-rose-700 hover:underline disabled:opacity-50"
+                  >
+                    Remove
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        )}
+      </section>
+
       {/* Roster */}
       <section className="theme-card border theme-border rounded-radius-md overflow-hidden">
         <div className="p-4 border-b theme-border flex items-center justify-between">
@@ -318,6 +404,19 @@ export default function TeacherClassDetail() {
           Permanently delete
         </button>
       </section>
+
+      {/* Assign-quiz modal — lazy renders only while open. */}
+      <AssignWorkModal
+        open={showAssignModal}
+        classId={classId}
+        classGrade={klass.grade}
+        classSubject={klass.subject}
+        onClose={() => setShowAssignModal(false)}
+        onAssigned={() => {
+          setFeedback({ kind: 'ok', text: 'Assignment shared with the class.' })
+          refresh()
+        }}
+      />
     </div>
   )
 }

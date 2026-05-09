@@ -559,6 +559,24 @@
         { "fieldPath": "active",    "order": "ASCENDING"  },
         { "fieldPath": "updatedAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "assignments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "classId",    "order": "ASCENDING"  },
+        { "fieldPath": "active",     "order": "ASCENDING"  },
+        { "fieldPath": "assignedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "assignments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "teacherUid", "order": "ASCENDING"  },
+        { "fieldPath": "active",     "order": "ASCENDING"  },
+        { "fieldPath": "assignedAt", "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

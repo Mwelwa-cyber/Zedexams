@@ -96,12 +96,14 @@ const {
 const {dailyStreakReminders: dailyStreakRemindersCron} = require("./dailyReminders");
 // Audit C4 — public marketing-page stats aggregator (every 30 minutes).
 const {updatePublicStats: updatePublicStatsCron} = require("./publicStats");
-// Audit A10 — teacher classroom roster (invite codes + join + remove + leave).
+// Audit A10 — teacher classroom roster (invite codes + join + remove + leave + assignments).
 const {
   generateClassInvite,
   joinClassByCode,
   removeLearnerFromClass,
   leaveClass,
+  createClassAssignment,
+  removeClassAssignment,
 } = require("./classManagement");
 
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
@@ -1476,6 +1478,11 @@ exports.generateClassInvite = generateClassInvite;
 exports.joinClassByCode = joinClassByCode;
 exports.removeLearnerFromClass = removeLearnerFromClass;
 exports.leaveClass = leaveClass;
+// A10 PR 3 — assignments. Validate caller owns the class, denormalise
+// resource title / subject onto the assignment doc so the learner-side
+// "From your teacher" card renders without a second read per row.
+exports.createClassAssignment = createClassAssignment;
+exports.removeClassAssignment = removeClassAssignment;
 
 // Audit D4 — self-serve subscription cancellation. Toggles
 // users.{uid}.cancelAtPeriodEnd via admin SDK so the field stays
