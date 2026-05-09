@@ -7,7 +7,7 @@ import Icon from '../ui/Icon'
 const MOBILE_NAV_ITEMS = [
   { to: '/dashboard', icon: Home,       label: 'Home',    end: true },
   { to: '/notes',     icon: FileText,   label: 'Notes',   end: false },
-  { to: '/quizzes',   icon: PencilLine, label: 'Quizzes', end: false },
+  { to: '/quizzes',   icon: PencilLine, label: 'Practise', end: false },
   { to: '/lessons',   icon: BookOpen,   label: 'Lessons', end: false },
   { to: '/my-results',icon: BarChart3,  label: 'Results', end: false },
 ]

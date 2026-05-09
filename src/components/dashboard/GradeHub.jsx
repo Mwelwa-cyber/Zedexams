@@ -288,7 +288,9 @@ function SubjectCardRich({ subject, grade, perf, quizCount, dimmed = false, lock
   const topicCount = getTopics(subject.id, grade).length
   const tone = SUBJECT_TONES[subject.id] || SUBJECT_TONES.mathematics
   const score = typeof perf === 'number' ? perf : 0
-  const quizPath = ctaHref || `/quizzes?grade=${grade}&subject=${subject.id}`
+  // Drill-down course map — opens a dedicated page for the subject with
+  // quizzes grouped by Topic (audit: SubjectDrillDown).
+  const quizPath = ctaHref || `/practise/${grade}/${subject.id}`
 
   return (
     <div className={`zx-card theme-card rounded-2xl p-4 transition-all hover:shadow-md ${dimmed ? 'opacity-70' : ''}`}>
@@ -1221,7 +1223,7 @@ export default function GradeHub() {
                     grade={userGrade}
                     perf={perfBySubject[subject.id]}
                     ctaLabel="Start Challenge"
-                    ctaHref={`/quizzes?grade=${userGrade}&subject=${subject.id}&difficulty=hard`}
+                    ctaHref={`/practise/${userGrade}/${subject.id}`}
                   />
                 ))}
               </div>
@@ -1317,10 +1319,13 @@ export default function GradeHub() {
               <div className="flex flex-wrap gap-2">
                 {weakTopics.map(topic => {
                   const tone = SUBJECT_TONES[topic.subject] || SUBJECT_TONES.mathematics
+                  const chipHref = userGrade
+                    ? `/practise/${userGrade}/${topic.subject}`
+                    : '/quizzes'
                   return (
                     <Link
                       key={`${topic.subject}:${topic.topic}`}
-                      to={`/quizzes?grade=${userGrade || ''}&subject=${topic.subject}`}
+                      to={chipHref}
                       className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-black ${tone.tile} hover:opacity-90 transition-opacity`}
                     >
                       {topic.topic}

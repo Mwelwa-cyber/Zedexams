@@ -33,7 +33,7 @@ export default function Navbar() {
     ...(!isAdmin && !isTeacher ? [{ to: homePath, label: 'Home', icon: Home }] : []),
     { to: '/notes',      label: 'Notes',       icon: FileText },
     { to: '/lessons',    label: 'Lessons',     icon: BookOpen },
-    { to: '/quizzes',    label: 'Quizzes',     icon: PencilLine },
+    { to: '/quizzes',    label: 'Practise',    icon: PencilLine },
     { to: '/my-results', label: 'Results',     icon: BarChart3 },
   ]
 
