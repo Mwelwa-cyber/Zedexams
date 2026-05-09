@@ -622,6 +622,21 @@ service cloud.firestore {
         && (!('parentDisplayName' in incoming()) || incoming().parentDisplayName == null || (incoming().parentDisplayName is string && incoming().parentDisplayName.size() <= 80))
         && (!('expiresAt' in incoming()) || incoming().expiresAt is timestamp);
     }
+    // ── appCheckHealth (audit B3 — soft-verify observability) ─────────
+    // Per-day rollups of App Check verification attempts. Schema:
+    //   appCheckHealth/{YYYY-MM-DD}: {
+    //     date,
+    //     {label}_attempts, {label}_valid,
+    //     {label}_missing, {label}_invalid,
+    //     updatedAt
+    //   }
+    // Admin-read only — leaks per-day attestation telemetry that
+    // shouldn't be surfaced to users. Server-only writes.
+    match /appCheckHealth/{date} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
     // ── invoices (audit D3 — MoMo receipts / accounting) ──────────────
     // Server-issued receipts for successful payments. Schema:
     //   paymentId, userId, number ('ZE-YYYYMMDD-XXXXXX'),

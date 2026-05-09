@@ -210,6 +210,50 @@ async function requireHttpAuth(req) {
   return admin.auth().verifyIdToken(token);
 }
 
+// Audit B3 — soft App Check verification for HTTP endpoints.
+//
+// In rollout mode (the default while clients are propagating the
+// App Check SDK init), missing or invalid tokens are logged to a
+// per-day counter doc but the call is NOT rejected. The
+// /admin/ai-costs surface (or a future App Check dashboard) reads
+// these counters to gauge readiness for hard enforcement.
+//
+// To flip to hard enforcement: set process.env.APPCHECK_ENFORCE=1
+// on the Cloud Functions deploy. The function then 401s any HTTP
+// request without a verified App Check token. No code change
+// needed.
+async function softVerifyAppCheckHttp(req, label) {
+  const token = req.get("X-Firebase-AppCheck") || "";
+  let verified = null;
+  if (token) {
+    try {
+      verified = await admin.appCheck().verifyToken(token);
+    } catch (err) {
+      console.warn(`[appCheck:${label}] verifyToken failed`, err?.message || err);
+    }
+  }
+  // Best-effort observability — counts attempts vs. valid tokens by day.
+  try {
+    const date = new Date().toISOString().slice(0, 10);
+    const ref = admin.firestore().collection("appCheckHealth").doc(date);
+    const inc = (n) => admin.firestore.FieldValue.increment(n);
+    await ref.set({
+      date,
+      [`${label}_attempts`]: inc(1),
+      [`${label}_valid`]: inc(verified ? 1 : 0),
+      [`${label}_missing`]: inc(token ? 0 : 1),
+      [`${label}_invalid`]: inc(token && !verified ? 1 : 0),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+  } catch (err) {
+    console.warn(`[appCheck:${label}] health write failed`, err?.message || err);
+  }
+  if (process.env.APPCHECK_ENFORCE === "1" && !verified) {
+    throw new HttpsError("permission-denied", "App Check verification failed.");
+  }
+  return verified;
+}
+
 async function getUserProfileOrThrow(uid) {
   const snap = await admin.firestore().doc(`users/${uid}`).get();
   if (!snap.exists) {
@@ -828,7 +872,9 @@ exports.apiAiChat = onRequest(
   {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 60},
   async (req, res) => {
     res.set("Access-Control-Allow-Origin", "*");
-    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    // Audit B3 — accept the App Check token header alongside the
+    // existing Authorization bearer + content-type list.
+    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Firebase-AppCheck");
     res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
 
     if (req.method === "OPTIONS") {
@@ -851,6 +897,9 @@ exports.apiAiChat = onRequest(
         throw new HttpsError("unauthenticated", "Please sign in first.");
       }
       decoded = await admin.auth().verifyIdToken(token);
+      // Audit B3 — observability + opt-in enforcement gate. Throws
+      // permission-denied only when APPCHECK_ENFORCE=1 is set.
+      await softVerifyAppCheckHttp(req, "apiAiChat");
 
       const message = cleanAiString(req.body?.message, LIMITS.message);
       if (!message) {
