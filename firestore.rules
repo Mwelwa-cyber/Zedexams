@@ -622,6 +622,15 @@ service cloud.firestore {
         && (!('parentDisplayName' in incoming()) || incoming().parentDisplayName == null || (incoming().parentDisplayName is string && incoming().parentDisplayName.size() <= 80))
         && (!('expiresAt' in incoming()) || incoming().expiresAt is timestamp);
     }
+    // ── parentDigestEvents (audit A3 PR 2 — weekly digest audit log) ──
+    // Append-only ledger written exclusively by the weekly digest
+    // cron (admin SDK). The owning learner can read their own rows
+    // to verify a digest went out; admins can read everything.
+    match /parentDigestEvents/{eventId} {
+      allow read: if isAuthed() && (resource.data.learnerUid == request.auth.uid || isAdmin());
+      allow create, update, delete: if false;
+    }
+
     match /progressShares/{token} {
       // Token IS the permission — anyone with the link can read.
       // Client + Cloud Function check revokedAt / expiresAt and show

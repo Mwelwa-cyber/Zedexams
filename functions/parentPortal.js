@@ -27,13 +27,12 @@
 
 const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {aggregateProgress, ONE_DAY_MS} = require("./parentPortalShared");
 
 const REGION = "us-central1";
 const TOKEN_LENGTH = 12;
 const SHARE_TTL_DAYS = 90;
 const STATS_WINDOW_DAYS = 30;
-const MAX_RECENT_RESULTS = 12;
-const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 // Same alphabet as class invite codes — readable + voice-friendly,
 // though parent share tokens are link-only so this is just defensive.
@@ -126,92 +125,6 @@ const revokeProgressShare = onCall({
   return {ok: true};
 });
 
-/**
- * Aggregate the learner's last 30 days of activity into a parent-
- * friendly shape. Mirrors getClassStats's bounded-read approach.
- */
-async function aggregateProgress(db, learnerUid) {
-  const now = Date.now();
-  const sinceTs = admin.firestore.Timestamp.fromMillis(now - STATS_WINDOW_DAYS * ONE_DAY_MS);
-
-  // results in window
-  const resultsSnap = await db.collection("results")
-      .where("userId", "==", learnerUid)
-      .where("completedAt", ">=", sinceTs)
-      .orderBy("completedAt", "desc")
-      .get()
-      .catch((err) => {
-        console.warn("[parentPortal] results read failed", err);
-        return null;
-      });
-  const results = resultsSnap ? resultsSnap.docs.map((d) => d.data()) : [];
-
-  let percentageSum = 0;
-  let percentageCount = 0;
-  const subjectBuckets = new Map();
-  const dayKeys = new Set(); // for streak calculation
-  for (const r of results) {
-    if (typeof r.percentage === "number") {
-      percentageSum += r.percentage;
-      percentageCount += 1;
-    }
-    if (r.subject) {
-      const b = subjectBuckets.get(r.subject) || {count: 0, sum: 0};
-      b.count += 1;
-      if (typeof r.percentage === "number") b.sum += r.percentage;
-      subjectBuckets.set(r.subject, b);
-    }
-    const ms = r.completedAt?.toMillis ? r.completedAt.toMillis() : 0;
-    if (ms > 0) {
-      const d = new Date(ms);
-      d.setUTCHours(0, 0, 0, 0);
-      dayKeys.add(d.getTime());
-    }
-  }
-
-  // Streak — count back from today (or yesterday) for consecutive days
-  // with at least one result.
-  let streak = 0;
-  const today = new Date();
-  today.setUTCHours(0, 0, 0, 0);
-  let cursor = today.getTime();
-  if (!dayKeys.has(cursor)) {
-    cursor -= ONE_DAY_MS;
-  }
-  while (dayKeys.has(cursor)) {
-    streak += 1;
-    cursor -= ONE_DAY_MS;
-  }
-
-  return {
-    summary: {
-      totalAttempts: results.length,
-      averagePercentage: percentageCount > 0
-          ? Math.round(percentageSum / percentageCount)
-          : null,
-      currentStreak: streak,
-      windowDays: STATS_WINDOW_DAYS,
-    },
-    subjectBreakdown: [...subjectBuckets.entries()]
-        .map(([subject, b]) => ({
-          subject,
-          count: b.count,
-          averagePercentage: b.count > 0 ? Math.round(b.sum / b.count) : null,
-        }))
-        .sort((a, b) => b.count - a.count),
-    recentResults: results.slice(0, MAX_RECENT_RESULTS).map((r) => ({
-      quizId: r.quizId || null,
-      quizTitle: r.quizTitle || r.title || null,
-      subject: r.subject || null,
-      grade: r.grade || null,
-      percentage: typeof r.percentage === "number" ? r.percentage : null,
-      score: typeof r.score === "number" ? r.score : null,
-      totalMarks: typeof r.totalMarks === "number" ? r.totalMarks : null,
-      completedAtMs: r.completedAt?.toMillis ? r.completedAt.toMillis() : null,
-    })),
-  };
-}
-
 const getProgressShare = onCall({
   region: REGION,
   timeoutSeconds: 60,
@@ -249,7 +162,7 @@ const getProgressShare = onCall({
   const learnerSnap = await db.collection("users").doc(share.learnerUid).get();
   const learner = learnerSnap.exists ? (learnerSnap.data() || {}) : {};
 
-  const stats = await aggregateProgress(db, share.learnerUid);
+  const stats = await aggregateProgress(db, share.learnerUid, {windowDays: STATS_WINDOW_DAYS});
 
   return {
     learnerDisplayName: learner.displayName || "your learner",
