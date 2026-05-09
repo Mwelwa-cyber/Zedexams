@@ -105,8 +105,8 @@ const {
   createClassAssignment,
   removeClassAssignment,
 } = require("./classManagement");
-// Audit A10 PR 4 — per-class analytics (admin SDK, bypasses results read rules).
-const {getClassStats} = require("./classAnalytics");
+// Audit A10 PR 4 + PR 5 — per-class analytics + per-assignment drill-down.
+const {getClassStats, getAssignmentCompletion} = require("./classAnalytics");
 // Audit A3 PR 1 — parent portal share-link infrastructure.
 const {
   createProgressShare,
@@ -1603,6 +1603,13 @@ exports.removeClassAssignment = removeClassAssignment;
 // (30-day window, first 200 learners, 25 most-recent assignments) with
 // graceful index-fallback so the first deploy still renders something.
 exports.getClassStats = getClassStats;
+
+// A10 PR 5 — per-assignment drill-down. Returns a roster with each
+// learner's completion status + best score for one specific
+// assignment. Owner-gated; admin SDK bypasses results-read + user-doc
+// rules so a teacher can see who hasn't started a published quiz
+// they didn't author.
+exports.getAssignmentCompletion = getAssignmentCompletion;
 
 // A3 PR 1 — parent portal. Learner self-issues a share link that
 // renders a 30-day progress summary at /parent/:token (no parent
