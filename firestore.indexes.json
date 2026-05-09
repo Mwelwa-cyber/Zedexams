@@ -514,6 +514,33 @@
         { "fieldPath": "agentId",   "order": "ASCENDING"  },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "pastPapers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status",  "order": "ASCENDING"  },
+        { "fieldPath": "grade",   "order": "ASCENDING"  },
+        { "fieldPath": "year",    "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "pastPapers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status",  "order": "ASCENDING"  },
+        { "fieldPath": "grade",   "order": "ASCENDING"  },
+        { "fieldPath": "subject", "order": "ASCENDING"  },
+        { "fieldPath": "year",    "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "pastPapers",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status",  "order": "ASCENDING"  },
+        { "fieldPath": "year",    "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []
