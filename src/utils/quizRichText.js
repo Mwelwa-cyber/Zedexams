@@ -370,6 +370,78 @@ export function richTextHasContent(value) {
   return Boolean(richTextToPlainText(html).replace(/\s+/g, '').trim())
 }
 
+// Walk a Tiptap document object and concatenate its visible text. Mirrors the
+// block/inline rules of richTextToPlainText (paragraph → newline, hard_break
+// → newline, table cells separated by tabs, math nodes by their LaTeX source).
+function walkTiptapNode(node, out) {
+  if (!node || typeof node !== 'object') return
+  const type = node.type
+  if (type === 'text') {
+    if (typeof node.text === 'string') out.push(node.text)
+    return
+  }
+  if (type === 'hardBreak' || type === 'hard_break') {
+    out.push('\n')
+    return
+  }
+  if (type === 'math' || type === 'inlineMath' || type === 'mathBlock') {
+    const latex = node.attrs?.latex || node.attrs?.['data-latex'] || ''
+    if (latex) out.push(`${latex} `)
+    return
+  }
+  const isBlock =
+    type === 'paragraph' || type === 'heading' || type === 'blockquote' ||
+    type === 'bulletList' || type === 'orderedList' || type === 'listItem' ||
+    type === 'codeBlock'
+  const isCell = type === 'tableCell' || type === 'tableHeader'
+  const isRow = type === 'tableRow'
+
+  if (isBlock) out.push('\n')
+  ;(node.content || []).forEach(child => walkTiptapNode(child, out))
+  if (isCell) out.push('\t')
+  if (isRow) out.push('\n')
+  if (isBlock) out.push('\n')
+}
+
+/**
+ * Extract plain text from any of the rich-text shapes used by the editor:
+ *   - HTML string (legacy quizzes)
+ *   - Tiptap JSON object { type: 'doc', content: [...] }
+ *   - Tiptap JSON serialised as a string (current quizzes — see
+ *     serializeRichField in quizSections.js)
+ *   - plain string
+ *
+ * `richTextToPlainText` alone only handles the first case — passing it a
+ * stringified Tiptap JSON dumps the raw JSON into output, which is
+ * useless for downstream consumers like the AI quiz verifier.
+ */
+export function extractRichTextPlain(value) {
+  if (value == null) return ''
+  if (typeof value === 'object' && value.type === 'doc') {
+    const out = []
+    ;(value.content || []).forEach(child => walkTiptapNode(child, out))
+    return out
+      .join('')
+      .replace(/ /g, ' ')
+      .replace(/[ \t]+\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/[ \t]{2,}/g, ' ')
+      .trim()
+  }
+  const str = String(value)
+  if (!str.trim()) return ''
+  // Stringified Tiptap doc — cheap pre-check before JSON.parse.
+  if (str.startsWith('{') && str.includes('"type"') && str.includes('"doc"')) {
+    try {
+      const parsed = JSON.parse(str)
+      if (parsed && parsed.type === 'doc') return extractRichTextPlain(parsed)
+    } catch {
+      /* fall through to HTML/plain handling */
+    }
+  }
+  return richTextToPlainText(str)
+}
+
 export function createMathNodeHtml(latex, displayMode = false) {
   const normalized = String(latex ?? '').trim()
   if (!normalized) return ''
