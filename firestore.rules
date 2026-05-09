@@ -622,6 +622,23 @@ service cloud.firestore {
         && (!('parentDisplayName' in incoming()) || incoming().parentDisplayName == null || (incoming().parentDisplayName is string && incoming().parentDisplayName.size() <= 80))
         && (!('expiresAt' in incoming()) || incoming().expiresAt is timestamp);
     }
+    // ── invoices (audit D3 — MoMo receipts / accounting) ──────────────
+    // Server-issued receipts for successful payments. Schema:
+    //   paymentId, userId, number ('ZE-YYYYMMDD-XXXXXX'),
+    //   planId, planName, amount, currency,
+    //   provider, phoneNumber, storagePath ('invoices/{uid}/{paymentId}.pdf'),
+    //   emailedTo?, emailedAt?, issuedAt
+    // The doc is keyed by paymentId so the success-path retry guard
+    // ("if the invoice already exists, don't double-emit") is a single
+    // get(). Read access is the owning learner + admin; writes are
+    // server-only via the invoiceGenerator module (admin SDK bypass).
+    match /invoices/{invoiceId} {
+      allow read: if isAuthed() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow create, update, delete: if false;
+    }
+
     // ── aiUsage (audit B4 — Claude API cost tracking) ─────────────────
     // Daily rollups written exclusively by aiCostTracking.recordAiUsage
     // (Cloud Functions, admin SDK). Admin-only reads — the data

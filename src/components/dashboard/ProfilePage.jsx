@@ -23,6 +23,7 @@ import { daysUntilExpiry }     from '../../utils/subscriptionConfig'
 import UpgradeModal            from '../subscription/UpgradeModal'
 import ParentShareManager      from '../parent/ParentShareManager'
 import LanguageToggle          from '../ui/LanguageToggle'
+import InvoicesCard            from './InvoicesCard'
 import Button                  from '../ui/Button'
 import Icon                    from '../ui/Icon'
 import SeoHelmet               from '../seo/SeoHelmet'
@@ -360,6 +361,10 @@ export default function ProfilePage() {
             )}
           </div>
         )}
+
+        {/* Audit D3 — MoMo receipts. Self-hides if the user has no
+            invoices yet (most accounts), so free-tier UX is unchanged. */}
+        <InvoicesCard />
 
         {/* Audit A3 PR 1 — share-progress-with-parent. Learners only;
             teachers/admins don't have a "parent". */}
