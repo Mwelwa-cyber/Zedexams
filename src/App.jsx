@@ -104,6 +104,10 @@ const TeacherAgentJobsList = lazy(() => import('./components/teacher/AgentJobsLi
 const TeacherClassesList = lazy(() => import('./components/teacher/classes/TeacherClassesList'))
 const TeacherClassEditor = lazy(() => import('./components/teacher/classes/TeacherClassEditor'))
 const TeacherClassDetail = lazy(() => import('./components/teacher/classes/TeacherClassDetail'))
+// Audit A10 PR 2 — learner-side join + view classes.
+const LearnerClassesList = lazy(() => import('./components/classes/LearnerClassesList'))
+const LearnerClassJoin = lazy(() => import('./components/classes/LearnerClassJoin'))
+const LearnerClassDetail = lazy(() => import('./components/classes/LearnerClassDetail'))
 const TeacherAgentJobView  = lazy(() => import('./components/teacher/AgentJobsList').then(m => ({ default: m.AgentJobView })))
 
 // Teacher section
@@ -334,6 +338,10 @@ export default function App() {
           <Route path="/notes/:id"         element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerGate><LearnerNoteRead /></LearnerGate></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/my-results"        element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><MyResults /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/my-badges"         element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><BadgesPage /></LearnerOnlyRoute></ProtectedRoute>} />
+          {/* Audit A10 PR 2 — learner-side classroom views. */}
+          <Route path="/classes"           element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerClassesList /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/classes/join"      element={<ProtectedRoute><LearnerOnlyRoute><LearnerClassJoin /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/classes/:classId"  element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerClassDetail /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/profile"           element={<ProtectedRoute><Navbar /><ProfilePage /></ProtectedRoute>} />
           <Route path="/settings"          element={<ProtectedRoute><Navbar /><SettingsPage /></ProtectedRoute>} />
           {/* Audit A6 — full-page Zed AI study chat. Auth-gated; the

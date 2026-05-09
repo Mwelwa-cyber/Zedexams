@@ -33,6 +33,7 @@ const fns = getFunctions(app, 'us-central1')
 const generateClassInviteCallable = httpsCallable(fns, 'generateClassInvite')
 const joinClassByCodeCallable = httpsCallable(fns, 'joinClassByCode')
 const removeLearnerFromClassCallable = httpsCallable(fns, 'removeLearnerFromClass')
+const leaveClassCallable = httpsCallable(fns, 'leaveClass')
 
 /** List the classes a given teacher owns (active first, newest first). */
 export async function listTeacherClasses(teacherUid, { includeArchived = false, limit = 100 } = {}) {
@@ -165,4 +166,14 @@ export async function removeLearnerFromClassFallback({ classId, learnerUid }) {
     console.warn('[classes] direct remove failed; trying callable', err)
     await removeLearnerFromClass({ classId, learnerUid })
   }
+}
+
+/**
+ * Learner self-removes from a class. Goes through the leaveClass
+ * Cloud Function because Firestore rules block any non-teacher
+ * update of classes/{classId}. Returns { ok: true } on success.
+ */
+export async function leaveClass(classId) {
+  const result = await leaveClassCallable({ classId })
+  return result.data
 }

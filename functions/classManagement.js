@@ -214,8 +214,39 @@ const removeLearnerFromClass = onCall({
   return {ok: true};
 });
 
+const leaveClass = onCall({
+  region: REGION,
+  timeoutSeconds: 30,
+  memory: "256MiB",
+}, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+  const classId = String(request.data?.classId || "").trim();
+  if (!classId) throw new HttpsError("invalid-argument", "classId is required.");
+
+  // No owner check — a learner self-removing is the whole point. We
+  // do require they actually be a member, otherwise the call is a
+  // no-op-but-counted abuse vector against the daily quota.
+  const db = admin.firestore();
+  const classRef = db.collection("classes").doc(classId);
+  const snap = await classRef.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Class not found.");
+  const data = snap.data() || {};
+  const learners = Array.isArray(data.learners) ? data.learners : [];
+  if (!learners.includes(uid)) {
+    throw new HttpsError("failed-precondition", "You are not a member of this class.");
+  }
+  await classRef.update({
+    learners: admin.firestore.FieldValue.arrayRemove(uid),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return {ok: true};
+});
+
 module.exports = {
   generateClassInvite,
   joinClassByCode,
   removeLearnerFromClass,
+  leaveClass,
 };
