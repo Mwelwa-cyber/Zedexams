@@ -585,6 +585,14 @@
         { "fieldPath": "userId",      "order": "ASCENDING"  },
         { "fieldPath": "completedAt", "order": "DESCENDING" }
       ]
+    },
+    {
+      "collectionGroup": "progressShares",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "learnerUid", "order": "ASCENDING"  },
+        { "fieldPath": "createdAt",  "order": "DESCENDING" }
+      ]
     }
   ],
   "fieldOverrides": []

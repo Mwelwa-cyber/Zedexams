@@ -21,6 +21,7 @@ import { useSubscription }     from '../../hooks/useSubscription'
 import { getRoleLandingPath }  from '../../utils/navigation'
 import { daysUntilExpiry }     from '../../utils/subscriptionConfig'
 import UpgradeModal            from '../subscription/UpgradeModal'
+import ParentShareManager      from '../parent/ParentShareManager'
 import Button                  from '../ui/Button'
 import Icon                    from '../ui/Icon'
 import SeoHelmet               from '../seo/SeoHelmet'
@@ -358,6 +359,10 @@ export default function ProfilePage() {
             )}
           </div>
         )}
+
+        {/* Audit A3 PR 1 — share-progress-with-parent. Learners only;
+            teachers/admins don't have a "parent". */}
+        {isLearner && <ParentShareManager />}
 
         {/* Edit profile form */}
         <div className="theme-card rounded-2xl border theme-border p-5">

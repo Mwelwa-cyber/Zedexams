@@ -24,6 +24,7 @@ function isPublicThemePath(pathname) {
   if (PUBLIC_THEME_PATHS.has(pathname)) return true
   if (pathname.startsWith('/share/')) return true
   if (pathname.startsWith('/papers/')) return true
+  if (pathname.startsWith('/parent/')) return true
   return false
 }
 
@@ -108,6 +109,8 @@ const TeacherClassDetail = lazy(() => import('./components/teacher/classes/Teach
 const LearnerClassesList = lazy(() => import('./components/classes/LearnerClassesList'))
 const LearnerClassJoin = lazy(() => import('./components/classes/LearnerClassJoin'))
 const LearnerClassDetail = lazy(() => import('./components/classes/LearnerClassDetail'))
+// Audit A3 PR 1 — parent portal (public read-only progress view).
+const ParentProgressView = lazy(() => import('./components/parent/ParentProgressView'))
 const TeacherAgentJobView  = lazy(() => import('./components/teacher/AgentJobsList').then(m => ({ default: m.AgentJobView })))
 
 // Teacher section
@@ -308,6 +311,8 @@ export default function App() {
 
           {/* Public share link — no auth, read-only viewer of a frozen snapshot */}
           <Route path="/share/:token"             element={<PublicShareView />} />
+          {/* Audit A3 — parent portal. Public token-based read; no auth. */}
+          <Route path="/parent/:token"            element={<ParentProgressView />} />
 
           {/* ── Public games (no auth) ──────────────────────────── */}
           {/* Flow: /games → /games/g/:grade → /games/g/:grade/:subject → /games/play/:gameId */}
