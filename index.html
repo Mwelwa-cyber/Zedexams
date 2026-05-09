@@ -54,17 +54,40 @@
     <meta name="twitter:image" content="https://zedexams.com/zedexams-logo.png?v=4" />
 
     <!-- Structured data — helps Google show rich results for queries
-         like "Zambian CBC exam prep" or "Grade 7 ECZ revision". -->
+         like "Zambian CBC exam prep" or "Grade 7 ECZ revision". The
+         richer the EducationalOrganization profile, the more likely
+         brand queries get the knowledge-panel treatment with the
+         logo, contact, and audience pulled in. -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
       "@type": "EducationalOrganization",
       "name": "ZedExams",
+      "alternateName": "ZedExams.com",
       "url": "https://zedexams.com/",
       "logo": "https://zedexams.com/zedexams-logo.png?v=4",
       "description": "Zambian CBC exam prep — daily exams, quizzes, lessons, games and AI study help for Grade 1–12 learners, plus printable lesson tools for Zambian teachers.",
       "areaServed": { "@type": "Country", "name": "Zambia" },
       "inLanguage": "en-ZM",
+      "address": {
+        "@type": "PostalAddress",
+        "addressCountry": "ZM"
+      },
+      "contactPoint": [
+        {
+          "@type": "ContactPoint",
+          "contactType": "customer support",
+          "telephone": "+260977740465",
+          "email": "support@zedexams.com",
+          "availableLanguage": ["en"],
+          "areaServed": "ZM"
+        }
+      ],
+      "audience": {
+        "@type": "EducationalAudience",
+        "educationalRole": "student",
+        "audienceType": "Zambian CBC learners (Grade 1–12) and teachers"
+      },
       "sameAs": []
     }
     </script>
