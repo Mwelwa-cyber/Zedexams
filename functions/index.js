@@ -96,6 +96,8 @@ const {
 const {dailyStreakReminders: dailyStreakRemindersCron} = require("./dailyReminders");
 // Audit C4 — public marketing-page stats aggregator (every 30 minutes).
 const {updatePublicStats: updatePublicStatsCron} = require("./publicStats");
+// Audit B4 follow-up — daily AI-cost summary cron (Africa/Lusaka 02:00).
+const {aiCostDailySummary} = require("./aiCostDailySummary");
 // Audit A10 — teacher classroom roster (invite codes + join + remove + leave + assignments).
 const {
   generateClassInvite,
@@ -1653,6 +1655,12 @@ exports.removeClassAssignment = removeClassAssignment;
 // (30-day window, first 200 learners, 25 most-recent assignments) with
 // graceful index-fallback so the first deploy still renders something.
 exports.getClassStats = getClassStats;
+
+// B4 follow-up — daily AI cost summary. Runs 02:00 Africa/Lusaka,
+// summarises yesterday's spend, and emails ADMIN_EMAILS when
+// yesterday > 2× the 7-day median. Always writes an agentJobs
+// rollup so /admin/agents shows the run alongside the other crons.
+exports.aiCostDailySummary = aiCostDailySummary;
 
 // A10 PR 5 — per-assignment drill-down. Returns a roster with each
 // learner's completion status + best score for one specific
