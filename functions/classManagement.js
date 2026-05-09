@@ -214,6 +214,137 @@ const removeLearnerFromClass = onCall({
   return {ok: true};
 });
 
+/**
+ * Teacher creates an assignment that points one resource (quiz or
+ * daily exam) at one of their classes.
+ *
+ * Why a Cloud Function instead of a direct client write:
+ *   - We need to verify the caller actually owns the class before
+ *     letting them mint an assignment under that classId. Doing that
+ *     in Firestore rules would require a `get()` per write — slow.
+ *   - We denormalise the resource title / subject / grade onto the
+ *     assignment doc so the learner side can render the card without
+ *     a second Firestore read per row. The function does that fetch
+ *     once.
+ *
+ * Validation:
+ *   - classId required; class must exist, be active, and be owned by
+ *     the caller.
+ *   - resourceType ∈ {'quiz', 'exam'}; resourceId required.
+ *   - For quizzes: must be published OR the caller must be admin /
+ *     the quiz creator (drafts can be assigned by their author).
+ *   - dueAt optional; must be in the future if present.
+ */
+const createClassAssignment = onCall({
+  region: REGION,
+  timeoutSeconds: 30,
+  memory: "256MiB",
+}, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+  const classId = String(request.data?.classId || "").trim();
+  const resourceType = String(request.data?.resourceType || "").trim();
+  const resourceId = String(request.data?.resourceId || "").trim();
+  const dueAtMs = Number(request.data?.dueAtMs || 0) || null;
+
+  if (!classId) throw new HttpsError("invalid-argument", "classId is required.");
+  if (!["quiz", "exam"].includes(resourceType)) {
+    throw new HttpsError("invalid-argument", "resourceType must be 'quiz' or 'exam'.");
+  }
+  if (!resourceId) throw new HttpsError("invalid-argument", "resourceId is required.");
+  if (dueAtMs && dueAtMs < Date.now() - 60000) {
+    throw new HttpsError("invalid-argument", "Due date must be in the future.");
+  }
+
+  const db = admin.firestore();
+  const {data: classData} = await loadClassOrThrow(db, classId, uid);
+  if (classData.active === false) {
+    throw new HttpsError("failed-precondition", "Cannot assign work to an archived class.");
+  }
+
+  // Resource fetch + permission gate
+  let resourceTitle = "Assigned work";
+  let resourceSubject = classData.subject || null;
+  let resourceGrade = classData.grade || null;
+  if (resourceType === "quiz") {
+    const quizSnap = await db.collection("quizzes").doc(resourceId).get();
+    if (!quizSnap.exists) throw new HttpsError("not-found", "Quiz not found.");
+    const quiz = quizSnap.data() || {};
+    const callerIsCreator = quiz.createdBy === uid;
+    const callerIsAdmin = (await db.collection("users").doc(uid).get()).data()?.role === "admin";
+    if (!quiz.isPublished && !callerIsCreator && !callerIsAdmin) {
+      throw new HttpsError("permission-denied", "You can only assign published quizzes or your own drafts.");
+    }
+    resourceTitle = quiz.title || resourceTitle;
+    if (quiz.subject) resourceSubject = quiz.subject;
+    if (quiz.grade) resourceGrade = String(quiz.grade);
+  } else {
+    // 'exam' — daily exam quiz docs share the quizzes collection but
+    // are flagged with quizType == 'daily_exam'. Treat the same.
+    const examSnap = await db.collection("quizzes").doc(resourceId).get();
+    if (!examSnap.exists) throw new HttpsError("not-found", "Exam not found.");
+    const exam = examSnap.data() || {};
+    if (exam.quizType !== "daily_exam") {
+      throw new HttpsError("invalid-argument", "That is not a daily exam.");
+    }
+    resourceTitle = exam.title || resourceTitle;
+    if (exam.subject) resourceSubject = exam.subject;
+    if (exam.grade) resourceGrade = String(exam.grade);
+  }
+
+  const dueAt = dueAtMs ? admin.firestore.Timestamp.fromMillis(dueAtMs) : null;
+  const ref = await db.collection("assignments").add({
+    classId,
+    teacherUid: uid,
+    resourceType,
+    resourceId,
+    resourceTitle: String(resourceTitle).slice(0, 200),
+    subject: resourceSubject,
+    grade: resourceGrade,
+    dueAt,
+    active: true,
+    assignedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
+  return {
+    assignmentId: ref.id,
+    classId,
+    resourceTitle,
+  };
+});
+
+/**
+ * Teacher unassigns work — soft-delete via active=false. Hard delete
+ * is reserved for admin (mirror of how class archive vs. delete works).
+ */
+const removeClassAssignment = onCall({
+  region: REGION,
+  timeoutSeconds: 30,
+  memory: "256MiB",
+}, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+  const assignmentId = String(request.data?.assignmentId || "").trim();
+  if (!assignmentId) throw new HttpsError("invalid-argument", "assignmentId is required.");
+
+  const db = admin.firestore();
+  const ref = db.collection("assignments").doc(assignmentId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new HttpsError("not-found", "Assignment not found.");
+  const data = snap.data() || {};
+  if (data.teacherUid !== uid) {
+    throw new HttpsError("permission-denied", "Only the assigning teacher can remove it.");
+  }
+
+  await ref.update({
+    active: false,
+    deactivatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return {ok: true};
+});
+
 const leaveClass = onCall({
   region: REGION,
   timeoutSeconds: 30,
@@ -249,4 +380,6 @@ module.exports = {
   joinClassByCode,
   removeLearnerFromClass,
   leaveClass,
+  createClassAssignment,
+  removeClassAssignment,
 };
