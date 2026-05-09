@@ -256,6 +256,49 @@ async function softVerifyAppCheckHttp(req, label) {
   return verified;
 }
 
+// Audit B3 follow-up — App Check coverage on AI callables.
+//
+// Read once at module load. Toggling enforcement is a redeploy with
+// APPCHECK_ENFORCE=1 set; no code change needed. Defaults OFF so the
+// next deploy doesn't break existing clients before they propagate
+// the App Check init from #317.
+const APPCHECK_ENFORCE_CALLABLE = process.env.APPCHECK_ENFORCE === "1";
+
+/**
+ * Mirror of softVerifyAppCheckHttp for v2 onCall handlers — bumps
+ * appCheckHealth/{date}.{label}_* counters so /admin gets per-
+ * callable telemetry, not just apiAiChat.
+ *
+ * v2 onCall populates `request.app` with the verified token claims
+ * when a token was sent; absent when not. We don't re-verify here
+ * (that's already done by the runtime); we just record the outcome.
+ *
+ * Always best-effort. Never throws — accounting must not block the
+ * AI flow.
+ */
+async function recordAppCheckCallable(request, label) {
+  const verified = !!request.app;
+  // The runtime already rejected unverified calls when
+  // enforceAppCheck is on, so a missing request.app on an
+  // enforce-on callable means we're in observability-only mode.
+  // Treat absent token as "missing" rather than "invalid" — there's
+  // no way to distinguish the two at this layer.
+  try {
+    const date = new Date().toISOString().slice(0, 10);
+    const ref = admin.firestore().collection("appCheckHealth").doc(date);
+    const inc = (n) => admin.firestore.FieldValue.increment(n);
+    await ref.set({
+      date,
+      [`${label}_attempts`]: inc(1),
+      [`${label}_valid`]: inc(verified ? 1 : 0),
+      [`${label}_missing`]: inc(verified ? 0 : 1),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+  } catch (err) {
+    console.warn(`[appCheck:${label}] callable health write failed`, err?.message || err);
+  }
+}
+
 async function getUserProfileOrThrow(uid) {
   const snap = await admin.firestore().doc(`users/${uid}`).get();
   if (!snap.exists) {
@@ -527,11 +570,18 @@ exports.sendPasswordResetEmail = onCall(
 );
 
 exports.aiChat = onCall(
-  {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 30},
+  {
+    secrets: [anthropicApiKey],
+    region: "us-central1",
+    timeoutSeconds: 30,
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Please sign in first.");
     }
+    recordAppCheckCallable(request, "aiChat");
 
     const message = cleanAiString(request.data?.message, LIMITS.message);
     if (!message) {
@@ -1210,11 +1260,18 @@ exports.pollPendingMomoPayments = onSchedule(
 );
 
 exports.explainAnswer = onCall(
-  {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 30},
+  {
+    secrets: [anthropicApiKey],
+    region: "us-central1",
+    timeoutSeconds: 30,
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Please sign in first.");
     }
+    recordAppCheckCallable(request, "explainAnswer");
 
     const question = cleanAiString(request.data?.question, LIMITS.question);
     const correctAnswer = cleanAiString(
@@ -1249,11 +1306,18 @@ exports.explainAnswer = onCall(
 );
 
 exports.generateQuizQuestions = onCall(
-  {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 45},
+  {
+    secrets: [anthropicApiKey],
+    region: "us-central1",
+    timeoutSeconds: 45,
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Please sign in first.");
     }
+    recordAppCheckCallable(request, "generateQuizQuestions");
 
     const role = await getUserRole(request.auth.uid);
     if (!isStaffRole(role)) {
@@ -1321,11 +1385,18 @@ exports.generateQuizQuestions = onCall(
 );
 
 exports.structureImportedQuiz = onCall(
-  {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 60},
+  {
+    secrets: [anthropicApiKey],
+    region: "us-central1",
+    timeoutSeconds: 60,
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Please sign in first.");
     }
+    recordAppCheckCallable(request, "structureImportedQuiz");
 
     const role = await getUserRole(request.auth.uid);
     if (!isStaffRole(role)) {
@@ -1375,11 +1446,18 @@ exports.structureImportedQuiz = onCall(
 );
 
 exports.checkShortAnswer = onCall(
-  {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 30},
+  {
+    secrets: [anthropicApiKey],
+    region: "us-central1",
+    timeoutSeconds: 30,
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Please sign in first.");
     }
+    recordAppCheckCallable(request, "checkShortAnswer");
 
     const question = cleanString(request.data?.question, MAX_LEN.question);
     const correctAnswer = cleanString(
