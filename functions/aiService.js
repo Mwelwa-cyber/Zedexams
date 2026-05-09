@@ -194,6 +194,7 @@ async function callAnthropic(apiKey, {
   maxTokens = 800,
   temperature = 0.35,
   json = false,
+  model,
 }) {
   let res;
   try {
@@ -205,7 +206,7 @@ async function callAnthropic(apiKey, {
         "anthropic-version": ANTHROPIC_VERSION,
       },
       body: JSON.stringify({
-        model: ANTHROPIC_MODEL,
+        model: model || ANTHROPIC_MODEL,
         max_tokens: maxTokens,
         temperature,
         // System prompt as a cacheable block. Anthropic silently ignores

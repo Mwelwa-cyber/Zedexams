@@ -20,6 +20,7 @@ import { getErrorMessage } from '../../utils/errors.js'
 import { validateStandaloneQuestion as sharedValidateStandaloneQuestion } from '../../utils/quizValidation.js'
 import QuizSectionsEditor from './QuizSectionsEditor'
 import QuizEditorPreviewPanel from './QuizEditorPreviewPanel'
+import QuizVerifyModal from './QuizVerifyModal'
 import SeoHelmet from '../seo/SeoHelmet'
 
 const SUBJECTS = [
@@ -139,6 +140,7 @@ export default function EditQuizV2() {
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState(null)
   const [dirty, setDirty] = useState(false)
+  const [verifyOpen, setVerifyOpen] = useState(false)
 
   const serializedPreview = serializeQuizSections(sections, parts)
   const questionNumbers = buildQuestionNumberMap(serializedPreview.questions)
@@ -867,9 +869,9 @@ export default function EditQuizV2() {
                 <span aria-hidden="true">⏳</span>
                 <span>{saving ? 'Saving…' : 'Save as pending'}</span>
               </button>
-              <button type="button" onClick={() => handleSave('published')} disabled={saving || anyUploading} className="theme-accent-fill theme-on-accent flex min-h-0 items-center justify-center gap-2 rounded-2xl py-3 font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md disabled:opacity-40 disabled:pointer-events-none">
+              <button type="button" onClick={() => { if (validate()) setVerifyOpen(true) }} disabled={saving || anyUploading} className="theme-accent-fill theme-on-accent flex min-h-0 items-center justify-center gap-2 rounded-2xl py-3 font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md disabled:opacity-40 disabled:pointer-events-none">
                 <span aria-hidden="true">🚀</span>
-                <span>{saving ? 'Publishing…' : 'Save & publish'}</span>
+                <span>{saving ? 'Publishing…' : 'Verify & publish'}</span>
               </button>
             </>
           )}
@@ -878,6 +880,17 @@ export default function EditQuizV2() {
           {dirty ? '⚠️ You have unsaved changes.' : '✓ All changes saved.'}
         </p>
       </div>
+
+      <QuizVerifyModal
+        open={verifyOpen}
+        quizId={quizId}
+        form={form}
+        sections={sections}
+        parts={parts}
+        onClose={() => setVerifyOpen(false)}
+        onFixIssues={() => setVerifyOpen(false)}
+        onPublish={() => { setVerifyOpen(false); handleSave('published') }}
+      />
     </div>
   )
 }
