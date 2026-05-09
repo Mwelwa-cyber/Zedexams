@@ -163,14 +163,40 @@ function serializeRichField(value) {
   return String(value)
 }
 
+// A previous bug stored Tiptap docs as JSON strings in fields that the editor
+// then re-opened as plain text. Each subsequent edit wrapped the visible JSON
+// inside another doc as a text node, producing nested stringified docs in
+// Firestore. We peel those layers off on read so the editor and previews see
+// the underlying content. Bounded depth prevents pathological loops.
+function unwrapNestedTiptapDoc(doc, depth = 0) {
+  if (depth > 8) return doc
+  if (!doc || typeof doc !== 'object' || doc.type !== 'doc') return doc
+  if (!Array.isArray(doc.content) || doc.content.length !== 1) return doc
+  const para = doc.content[0]
+  if (!para || para.type !== 'paragraph' || !Array.isArray(para.content) || para.content.length !== 1) return doc
+  const textNode = para.content[0]
+  if (!textNode || textNode.type !== 'text' || typeof textNode.text !== 'string') return doc
+  const trimmed = textNode.text.trim()
+  if (!trimmed.startsWith('{') || !trimmed.includes('"type"')) return doc
+  try {
+    const parsed = JSON.parse(trimmed)
+    if (parsed && typeof parsed === 'object' && parsed.type === 'doc') {
+      return unwrapNestedTiptapDoc(parsed, depth + 1)
+    }
+  } catch {
+    // Not JSON — leave as-is so legitimate user text starting with `{` survives.
+  }
+  return doc
+}
+
 function hydrateRichField(value) {
   if (!value) return ''
-  if (typeof value === 'object') return value  // already Tiptap JSON
+  if (typeof value === 'object') return unwrapNestedTiptapDoc(value)
   if (typeof value === 'string') {
     // Try parsing as Tiptap JSON
     try {
       const parsed = JSON.parse(value)
-      if (parsed && parsed.type === 'doc') return parsed
+      if (parsed && parsed.type === 'doc') return unwrapNestedTiptapDoc(parsed)
     } catch {
       // plain string
     }
