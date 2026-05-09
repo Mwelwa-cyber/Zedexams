@@ -1,14 +1,11 @@
 import { NavLink } from 'react-router-dom'
-import { BarChart3, BookOpen, FileText, Home, PencilLine } from '../ui/icons'
+import { BarChart3, BookOpen, Home, PencilLine } from '../ui/icons'
 import Icon from '../ui/Icon'
 
-// 5 items at ~20% width each. Notes Studio replaces the slide-builder for new
-// content; Lessons stays for legacy slide-built lessons until those are gone.
 const MOBILE_NAV_ITEMS = [
   { to: '/dashboard', icon: Home,       label: 'Home',    end: true },
-  { to: '/notes',     icon: FileText,   label: 'Notes',   end: false },
-  { to: '/quizzes',   icon: PencilLine, label: 'Practise', end: false },
   { to: '/lessons',   icon: BookOpen,   label: 'Lessons', end: false },
+  { to: '/quizzes',   icon: PencilLine, label: 'Practise', end: false },
   { to: '/my-results',icon: BarChart3,  label: 'Results', end: false },
 ]
 

@@ -1054,7 +1054,7 @@ export default function GradeHub() {
         />
 
         <DashboardActionCard
-          to="/notes"
+          to="/lessons"
           className="border-sky-300 bg-[linear-gradient(135deg,#E0F2FE_0%,#7DD3FC_55%,#0EA5E9_100%)]"
           icon={FileText}
           iconClassName="bg-sky-600 text-white"

@@ -9,6 +9,6 @@ import { LearnerNotesList } from '../pages/LearnerNotesList'
 import { LearnerNoteRead }  from '../pages/LearnerNoteRead'
 
 export const learnerNoteRouteDefs = [
-  { path: '/notes',     element: <LearnerNotesList /> },
-  { path: '/notes/:id', element: <LearnerNoteRead /> },
+  { path: '/lessons',     element: <LearnerNotesList /> },
+  { path: '/lessons/:id', element: <LearnerNoteRead /> },
 ]
