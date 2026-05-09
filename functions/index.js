@@ -130,11 +130,18 @@ const MAX_LEN = {
   subject: 80,
   grade: 20,
 };
+// Audit D3 — payment functions pull SMTP credentials too so the
+// success path can email the receipt. emailSmtp* default to empty
+// strings if the secret isn't set; emitInvoice silently skips the
+// email step in that case (PDF still saved + Firestore doc still
+// written).
 const MOMO_PAYMENT_SECRETS = [
   mtnApiUser,
   mtnApiKey,
   mtnSubscriptionKey,
   mtnEnv,
+  emailSmtpUser,
+  emailSmtpPassword,
 ];
 const MOMO_MAX_STATUS_CHECKS = 8;
 const MOMO_MAX_PENDING_MINUTES = 15;
@@ -615,6 +622,40 @@ function buildPaymentResponse(paymentId, data) {
   };
 }
 
+async function emitInvoiceIfMissing(paymentRef, paymentData) {
+  // Audit D3 — fire-and-forget invoice generation. Runs after the
+  // success transaction has committed so accounting failures (PDF
+  // build, Storage hiccup, SMTP outage) NEVER block subscription
+  // activation. The invoices/{paymentId} doc gates double-emission
+  // — a re-entered markPaymentSuccessful (cron retry) is a no-op
+  // if the invoice already exists.
+  try {
+    const invoiceSnap = await admin.firestore()
+        .collection("invoices")
+        .doc(paymentRef.id)
+        .get();
+    if (invoiceSnap.exists) return;
+    const {emitInvoice} = require("./invoiceGenerator");
+    const plan = getPlanConfig(paymentData.planId);
+    await emitInvoice({
+      payment: {
+        id: paymentRef.id,
+        userId: paymentData.userId,
+        amount: Number(paymentData.amountZMW || plan.amountZMW || 0),
+        currency: paymentData.currency || "ZMW",
+        planId: paymentData.planId,
+        phoneNumber: paymentData.phoneNumber || null,
+        provider: "mtn_momo",
+      },
+      plan,
+      senderEmail: emailSmtpUser.value() || process.env.EMAIL_SMTP_USER || "",
+      senderPassword: emailSmtpPassword.value() || process.env.EMAIL_SMTP_PASSWORD || "",
+    });
+  } catch (err) {
+    console.warn("[index] emitInvoiceIfMissing failed", err);
+  }
+}
+
 async function markPaymentSuccessful(paymentRef, paymentData, statusResult) {
   const plan = getPlanConfig(paymentData.planId);
   await admin.firestore().runTransaction(async (tx) => {
@@ -677,6 +718,11 @@ async function markPaymentSuccessful(paymentRef, paymentData, statusResult) {
       {merge: true},
     );
   });
+
+  // Audit D3 — invoice + receipt email. Fire-and-forget; never
+  // blocks the user-facing success path. The transaction above
+  // already committed the activation by the time we get here.
+  emitInvoiceIfMissing(paymentRef, paymentData).catch(() => {});
 }
 
 async function markPaymentFinal(
