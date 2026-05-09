@@ -39,6 +39,7 @@ import { SUBJECTS } from '../../../config/curriculum'
 import SeoHelmet from '../../seo/SeoHelmet'
 import Skeleton from '../../ui/Skeleton'
 import AssignWorkModal from './AssignWorkModal'
+import ClassAnalytics from './ClassAnalytics'
 
 function fmtExpiry(ts) {
   if (!ts) return ''
@@ -292,6 +293,9 @@ export default function TeacherClassDetail() {
           <p className="theme-text-muted text-sm">No active code yet. Click <span className="theme-text font-bold">Generate code</span> to mint one.</p>
         )}
       </section>
+
+      {/* Class analytics — bounded server-side to a 30-day window. */}
+      <ClassAnalytics classId={classId} />
 
       {/* Assignments */}
       <section className="theme-card border theme-border rounded-radius-md overflow-hidden">

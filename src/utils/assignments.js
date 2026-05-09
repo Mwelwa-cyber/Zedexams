@@ -23,6 +23,18 @@ const COLLECTION = 'assignments'
 const fns = getFunctions(app, 'us-central1')
 const createClassAssignmentCallable = httpsCallable(fns, 'createClassAssignment')
 const removeClassAssignmentCallable = httpsCallable(fns, 'removeClassAssignment')
+const getClassStatsCallable = httpsCallable(fns, 'getClassStats')
+
+/**
+ * Per-class analytics for the teacher dashboard. Bounded server-side
+ * (30-day window, ≤200 learners, ≤25 active assignments) so a single
+ * call is cheap. Returns the rendered shape — see classAnalytics.js
+ * for the full schema.
+ */
+export async function getClassStats(classId) {
+  const result = await getClassStatsCallable({ classId })
+  return result.data
+}
 
 /** Active assignments for a single class, newest first. */
 export async function listAssignmentsForClass(classId, { limit = 50 } = {}) {
