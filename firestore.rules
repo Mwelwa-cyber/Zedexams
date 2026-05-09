@@ -128,7 +128,11 @@ service cloud.firestore {
         && incoming().get('subscriptionProvider', null) == null
         && incoming().get('subscriptionPaymentId', null) == null
         && incoming().get('subscriptionPhoneNumber', null) == null;
-      // Self-update: cannot change role or subscription fields
+      // Self-update: cannot change role or subscription fields. The
+      // cancelAtPeriodEnd flag is in this list too (audit D4) — only
+      // the setSubscriptionCancellation Cloud Function (admin SDK) is
+      // allowed to toggle it, so a tampered client can't grant itself
+      // a cancellation that wasn't logged in subscriptionEvents.
       allow update: if isAuthed() && isOwner(userId)
         && !changedKeys().hasAny([
           'role', 'plan', 'premium', 'isPremium', 'paymentStatus', 'subscriptionStatus',
@@ -137,7 +141,8 @@ service cloud.firestore {
           'subscriptionPhoneNumber',
           'learnerPortalActive', 'learnerPortalPlan', 'learnerPortalProvider',
           'learnerPortalPhoneNumber', 'learnerPortalPaymentId',
-          'learnerPortalActivatedAt', 'learnerPortalExpiry'
+          'learnerPortalActivatedAt', 'learnerPortalExpiry',
+          'cancelAtPeriodEnd', 'cancelAtPeriodEndUpdatedAt', 'cancelAtPeriodEndReason'
         ]);
       allow update: if isAdmin();
       allow delete: if isAdmin();
@@ -652,6 +657,16 @@ service cloud.firestore {
     // Public marketing contact form. Visitors are unauthenticated, so we
     // only allow create with strict shape + size validation. Reads,
     // updates, and deletes are admin-only (use the Firebase console).
+    // ── subscriptionEvents (audit log for D4 self-serve cancel/reactivate) ──
+    // Append-only ledger written exclusively by the
+    // setSubscriptionCancellation Cloud Function (admin SDK). The
+    // owning user can read their own row to verify the action took
+    // effect; admins can read everything for support triage.
+    match /subscriptionEvents/{eventId} {
+      allow read: if isAuthed() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create, update, delete: if false;
+    }
+
     match /contactMessages/{messageId} {
       allow read, update, delete: if isAdmin();
       allow create: if incoming().keys().hasOnly([
