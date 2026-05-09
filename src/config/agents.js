@@ -99,6 +99,18 @@ export const AGENTS = [
     runtime: ['subagent', 'github-action'],
     invocation: 'Auto on push to main. Manually: invoke the release-notes subagent.',
   },
+  {
+    id: 'vex',
+    name: 'Vex',
+    role: 'Quiz Verifier',
+    department: 'qaEng',
+    mission: 'Synchronous pre-publish quality check on quizzes — answer accuracy, grade fit, clarity, grammar, options, and CBC alignment. Blocks publishing on critical errors, warns on minor issues.',
+    inputs: 'quizId, questions[], meta { grade, subject, topic, subtopic, difficulty }',
+    outputs: '{ verdict, overallScore, scores, summary, blockers[], warnings[] }',
+    wraps: 'functions/agents/runners/vex.js (Anthropic Haiku, synchronous callable)',
+    runtime: ['subagent', 'cloud-function'],
+    invocation: 'Auto when an admin clicks Verify & publish in the quiz editor. Not queued — direct callable, no agentJobs writes.',
+  },
 ]
 
 export const AGENTS_BY_ID = Object.fromEntries(AGENTS.map(a => [a.id, a]))

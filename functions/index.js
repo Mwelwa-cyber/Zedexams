@@ -77,6 +77,8 @@ const {
 const {
   resolveCbcContext,
 } = require("./teacherTools/cbcKnowledge");
+// Vex — Quiz Verifier runner (synchronous, not part of the agentJobs pipeline).
+const {runVex} = require("./agents/runners/vex");
 // Daily Exam auto-picker — promotes one short-quiz per grade into the
 // day's Daily Exam slot every morning so the admin no longer has to
 // click "Daily Exam" by hand for routine rotation.
@@ -1148,6 +1150,78 @@ exports.generateQuizQuestions = onCall(
       }),
       warning: kbWarning || null,
     };
+  },
+);
+
+// Vex — pre-publish quiz verifier. Synchronous: the editor calls this and
+// blocks the publish flow on its result. No agentJobs / aiGenerations writes.
+exports.verifyQuiz = onCall(
+  {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 60,
+    memory: "512MiB"},
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Please sign in first.");
+    }
+    const role = await getUserRole(request.auth.uid);
+    if (!isStaffRole(role)) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only teachers and admins can verify quizzes.",
+      );
+    }
+    await assertDailyLimit(request.auth.uid, role, "verifyQuiz");
+
+    const data = request.data || {};
+    const questions = Array.isArray(data.questions) ? data.questions : [];
+    if (!questions.length) {
+      throw new HttpsError(
+        "invalid-argument",
+        "No questions to verify.",
+      );
+    }
+    if (questions.length > 50) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Quiz too large to verify (max 50 questions).",
+      );
+    }
+    let payloadSize;
+    try {
+      payloadSize = JSON.stringify(questions).length;
+    } catch {
+      throw new HttpsError("invalid-argument", "Quiz payload is not serialisable.");
+    }
+    if (payloadSize > 30_000) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Quiz payload too large — trim long questions before verifying.",
+      );
+    }
+
+    const meta = data.meta || {};
+    const grade = cleanAiString(meta.grade, LIMITS.grade);
+    const subject = cleanAiString(meta.subject, LIMITS.subject);
+    const topic = cleanAiString(meta.topic, LIMITS.topic);
+    const subtopic = cleanAiString(meta.subtopic, LIMITS.topic);
+    const difficulty = cleanAiString(meta.difficulty, 24);
+
+    let cbcContextBlock = "";
+    try {
+      const cbc = await resolveCbcContext({grade, subject, topic, subtopic});
+      cbcContextBlock = cbc?.contextBlock || "";
+    } catch (err) {
+      console.warn("verifyQuiz: CBC context unavailable", err?.message);
+    }
+
+    return await runVex({
+      input: {
+        quizId: cleanAiString(data.quizId, 80),
+        questions,
+        meta: {grade, subject, topic, subtopic, difficulty},
+        cbcContextBlock,
+      },
+      anthropicApiKeySecret: anthropicApiKey,
+    });
   },
 );
 
