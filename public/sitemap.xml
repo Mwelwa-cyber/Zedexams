@@ -33,6 +33,30 @@
     <priority>0.9</priority>
   </url>
 
+  <!-- Revision blog (audit C5). Per-post URLs are indexable; we list
+       the index here. Individual posts get added as the catalogue
+       grows — generate dynamically at build time when scale demands. -->
+  <url>
+    <loc>https://zedexams.com/blog</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  <url>
+    <loc>https://zedexams.com/blog/grade-7-ecz-maths-revision-guide</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://zedexams.com/blog/how-to-revise-week-by-week</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://zedexams.com/blog/top-mistakes-grade-9-english</loc>
+    <changefreq>monthly</changefreq>
+    <priority>0.6</priority>
+  </url>
+
   <!-- Public games hub (no auth required) -->
   <url>
     <loc>https://zedexams.com/games</loc>
