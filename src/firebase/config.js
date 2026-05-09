@@ -8,6 +8,7 @@ import {
   GoogleAuthProvider,
 } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
+import { getMessaging } from 'firebase/messaging'
 import { getStorage } from 'firebase/storage'
 import { isNativePlatform } from '../utils/runtime'
 
@@ -50,5 +51,27 @@ export function applyAuthPersistence(remember) {
 }
 
 applyAuthPersistence(false)
+
+// Firebase Cloud Messaging — initialised only when the browser actually
+// supports web push (Service Worker + PushManager APIs) and we're not
+// inside the Capacitor wrapper. The wrapper uses the native push plugin
+// in a separate code path. `messaging` stays null on iOS Safari < 16.4,
+// private-mode browsers, and Capacitor — callers in src/utils/fcm.js
+// guard on the null and degrade gracefully (the permission prompt
+// simply never renders).
+let messagingInstance = null
+try {
+  if (
+    typeof window !== 'undefined'
+    && 'serviceWorker' in navigator
+    && 'PushManager' in window
+    && !isNativePlatform()
+  ) {
+    messagingInstance = getMessaging(app)
+  }
+} catch (err) {
+  console.warn('Firebase Messaging init failed:', err)
+}
+export const messaging = messagingInstance
 
 export default app

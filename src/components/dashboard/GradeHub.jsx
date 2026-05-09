@@ -43,6 +43,7 @@ import DataSaverToggle          from '../ui/DataSaverToggle'
 import BadgeCard                from '../ui/BadgeCard'
 import Logo                     from '../ui/Logo'
 import OnboardingOverlay        from '../ui/OnboardingOverlay'
+import PushPermissionPrompt     from '../ui/PushPermissionPrompt'
 import Icon                     from '../ui/Icon'
 import Button                   from '../ui/Button'
 import Skeleton                 from '../ui/Skeleton'
@@ -1005,6 +1006,10 @@ export default function GradeHub() {
             />
           </div>
         </section>
+
+        {/* Audit A5.1 — daily-reminder push opt-in. Self-gated to learners
+            with streak ≥ 2; renders nothing otherwise. */}
+        <PushPermissionPrompt streak={stats.streak} />
 
         <DashboardActionCard
           to="/exams"

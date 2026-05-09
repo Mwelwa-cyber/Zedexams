@@ -14,6 +14,7 @@ import app, { auth, db, googleProvider, applyAuthPersistence } from '../firebase
 import { ROLES, hasPremiumAccess, hasLearnerPortalAccess } from '../utils/subscriptionConfig'
 import { useIdleTimeout } from '../hooks/useIdleTimeout'
 import { setSentryUser, clearSentryUser } from '../utils/sentry'
+import { refreshTokenIfGranted } from '../utils/fcm'
 
 // Sign learners/teachers/admins out after this much idle time, with a short
 // countdown beforehand so an active user can keep their session.
@@ -263,6 +264,15 @@ export function AuthProvider({ children }) {
       // No-op if Sentry isn't configured (DSN unset).
       if (user) {
         setSentryUser(user.uid)
+        // Audit A5.1 — opportunistically refresh the FCM token if the
+        // user has previously granted permission. Silent no-op on
+        // first-ever sign-in (permission still 'default'), on iOS
+        // Safari < 16.4, and inside the Capacitor wrapper. The
+        // explicit opt-in card lives in <PushPermissionPrompt /> on
+        // the dashboard.
+        refreshTokenIfGranted(user.uid).catch((err) => {
+          console.warn('[push] refresh on sign-in failed:', err)
+        })
       } else {
         clearSentryUser()
       }

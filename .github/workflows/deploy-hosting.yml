@@ -15,6 +15,7 @@ name: Deploy Hosting
 #   VITE_GOOGLE_MAPS_STATIC_KEY          — optional (Maps Static API; map-based games show a fallback if missing)
 #   VITE_SENTRY_DSN                      — optional (error monitoring; without it the @sentry/react package is tree-shaken out of the build)
 #   VITE_APP_VERSION                     — optional (release tag for Sentry; falls back to "dev")
+#   VITE_FIREBASE_VAPID_KEY              — optional (web-push public key from Firebase Console → Cloud Messaging → Web Push certificates; without it the in-app permission prompt no-ops and no FCM tokens are minted)
 #
 # The sibling `deploy-firebase.yml` workflow handles Firestore rules,
 # Storage rules, and Cloud Functions. This one is hosting-only.
@@ -87,6 +88,7 @@ jobs:
           VITE_GOOGLE_MAPS_STATIC_KEY:      ${{ secrets.VITE_GOOGLE_MAPS_STATIC_KEY }}
           VITE_SENTRY_DSN:                  ${{ secrets.VITE_SENTRY_DSN }}
           VITE_APP_VERSION:                 ${{ secrets.VITE_APP_VERSION }}
+          VITE_FIREBASE_VAPID_KEY:          ${{ secrets.VITE_FIREBASE_VAPID_KEY }}
         run: npm run build
 
       - name: Deploy to Firebase Hosting
