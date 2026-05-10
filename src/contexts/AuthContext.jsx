@@ -16,6 +16,7 @@ import { useIdleTimeout } from '../hooks/useIdleTimeout'
 import { setSentryUser, clearSentryUser } from '../utils/sentry'
 import { capture, identifyUser, resetAnalytics } from '../utils/analytics'
 import { refreshTokenIfGranted } from '../utils/fcm'
+import { mintAndPersistReferralCode, readPendingReferral, clearPendingReferral } from '../utils/referrals'
 
 // Sign learners/teachers/admins out after this much idle time, with a short
 // countdown beforehand so an active user can keep their session.
@@ -39,7 +40,7 @@ function toUserProfile(uid, data) {
 
 // Defaults that satisfy the create-user firestore rule. Used by both the
 // email/password register flow and the first-time Google sign-in flow.
-function defaultUserRecord({ displayName, email, role = ROLES.LEARNER, grade = null, school = '' }) {
+function defaultUserRecord({ displayName, email, role = ROLES.LEARNER, grade = null, school = '', referralCode = null, referredBy = null }) {
   return {
     displayName: displayName ?? '',
     email: email ?? '',
@@ -57,6 +58,15 @@ function defaultUserRecord({ displayName, email, role = ROLES.LEARNER, grade = n
     premiumActivatedAt: null,
     dailyAttempts: 0,
     lastAttemptDate: '',
+    // Audit C7 — referrals foundation. referralCode is minted at
+    // create-time (immutable thereafter); referredBy is captured from
+    // ?ref=… and is also once-write. referralCount + referralCredits
+    // are server-incremented by the redemption flow (PR 2) so they
+    // start at zero here.
+    referralCode,
+    referredBy,
+    referralCount: 0,
+    referralCredits: 0,
     createdAt: serverTimestamp(),
   }
 }
@@ -74,18 +84,35 @@ export function AuthProvider({ children }) {
     const isTeacherSignup = role === ROLES.TEACHER
     const cred = await createUserWithEmailAndPassword(auth, email, password)
     await updateProfile(cred.user, { displayName })
+
+    // Audit C7 — mint a fresh referral code + write the lookup doc.
+    // Wrapped in try/catch so a Firestore hiccup here doesn't fail
+    // signup; the Cloud Function backfill (future) can mint a code
+    // for any user whose record was created without one.
+    let referralCode = null
+    try {
+      referralCode = await mintAndPersistReferralCode(cred.user.uid)
+    } catch (err) {
+      console.warn('[register] referral code mint failed', err)
+    }
+    // Pull any pending referredBy stashed by /register?ref=… handler.
+    const referredBy = readPendingReferral()
+
     const userRecord = defaultUserRecord({
       displayName,
       email,
       role: isTeacherSignup ? ROLES.TEACHER : ROLES.LEARNER,
       grade: isTeacherSignup ? null : (grade ?? null),
       school: school ?? '',
+      referralCode,
+      referredBy,
     })
     if (isTeacherSignup) {
       userRecord.province = String(extras.province || '').trim()
       userRecord.subject  = String(extras.subject  || '').trim()
     }
     await setDoc(doc(db, 'users', cred.user.uid), userRecord)
+    if (referredBy) clearPendingReferral()
     // Fire the verification email but don't fail signup if delivery hiccups
     // (e.g. rate-limited, transient Firebase Auth outage). The user lands on
     // their dashboard and the email arrives shortly after; if it doesn't, the
@@ -120,11 +147,22 @@ export function AuthProvider({ children }) {
     const userRef = doc(db, 'users', cred.user.uid)
     const snap = await getDoc(userRef)
     if (!snap.exists()) {
+      // Audit C7 — same referral mint + capture as the email path.
+      let referralCode = null
+      try {
+        referralCode = await mintAndPersistReferralCode(cred.user.uid)
+      } catch (err) {
+        console.warn('[loginWithGoogle] referral code mint failed', err)
+      }
+      const referredBy = readPendingReferral()
       await setDoc(userRef, defaultUserRecord({
         displayName: cred.user.displayName ?? '',
         email: cred.user.email ?? '',
         role: targetRole,
+        referralCode,
+        referredBy,
       }))
+      if (referredBy) clearPendingReferral()
       // Audit B2 — only emit on the first-time path so Google
       // sign-IN by an existing user doesn't get counted as a signup.
       capture('signup_completed', { role: targetRole, provider: 'google' })
