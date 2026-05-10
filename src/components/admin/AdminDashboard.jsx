@@ -12,6 +12,7 @@ import Skeleton from '../ui/Skeleton'
 import PageHeader from '../ui/PageHeader'
 import EmptyState from '../ui/EmptyState'
 import SeoHelmet from '../seo/SeoHelmet'
+import ParentDigestTester from './ParentDigestTester'
 
 const STAT_TINT = {
   green:  't-mint',
@@ -177,6 +178,9 @@ export default function AdminDashboard() {
           <QuickAction to="/admin/cbc-kb" icon="📚" label="CBC Knowledge Base" sub="Add custom curriculum topics (esp. G10–12)" color="green" />
         </div>
       </div>
+
+      {/* Audit A3 PR 3 — admin-only on-demand parent digest tester. */}
+      <ParentDigestTester />
 
       {/* Seed Data */}
       <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 shadow-elev-sm">

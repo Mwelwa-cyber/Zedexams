@@ -28,6 +28,12 @@ const fns = getFunctions(app, 'us-central1')
 const createProgressShareCallable = httpsCallable(fns, 'createProgressShare')
 const revokeProgressShareCallable = httpsCallable(fns, 'revokeProgressShare')
 const getProgressShareCallable = httpsCallable(fns, 'getProgressShare')
+const triggerWeeklyParentDigestCallable = httpsCallable(fns, 'triggerWeeklyParentDigest', {
+  // The cron body can run for up to 9 minutes when iterating 200 shares;
+  // a one-share manual run finishes in seconds, but pad the timeout so
+  // a slow Meta response doesn't abort.
+  timeout: 540000,
+})
 
 const COLLECTION = 'progressShares'
 
@@ -51,6 +57,31 @@ export async function revokeProgressShare(token) {
  */
 export async function getProgressShare(token) {
   const result = await getProgressShareCallable({ token })
+  return result.data
+}
+
+/**
+ * Admin-only: run the weekly digest cron body on demand. Used to
+ * verify Twilio/Meta wiring without waiting for Sunday's tick.
+ *
+ * @param {Object} opts
+ * @param {boolean} [opts.force]            Bypass the 5-day idempotency
+ *                                          stamp (the stamp itself is
+ *                                          NOT bumped on forced runs so
+ *                                          Sunday's real cron still fires).
+ * @param {string[]} [opts.targetTokens]    Limit to specific share tokens
+ *                                          (cap 10). When omitted the run
+ *                                          processes the full union of
+ *                                          email + phone candidates.
+ * @returns {Promise<Object>} The cron's run summary — sharesScanned,
+ *                            sent.{email|whatsapp}, skipped.*, failed.*,
+ *                            errors[], whatsAppReady, smtpReady.
+ */
+export async function triggerWeeklyParentDigest({ force = false, targetTokens = null } = {}) {
+  const result = await triggerWeeklyParentDigestCallable({
+    force: Boolean(force),
+    targetTokens: Array.isArray(targetTokens) && targetTokens.length > 0 ? targetTokens : null,
+  })
   return result.data
 }
 
