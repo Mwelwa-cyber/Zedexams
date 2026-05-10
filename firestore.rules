@@ -133,6 +133,13 @@ service cloud.firestore {
       // the setSubscriptionCancellation Cloud Function (admin SDK) is
       // allowed to toggle it, so a tampered client can't grant itself
       // a cancellation that wasn't logged in subscriptionEvents.
+      //
+      // Audit C7 — referralCode + referredBy are also blocklisted:
+      // referralCode is once-write at create-time (immutable thereafter),
+      // referredBy is captured from ?ref=… at signup and must never be
+      // re-attributed to a different referrer. referralCount and
+      // referralCredits are server-incremented by the future redemption
+      // Cloud Function, so they're blocked from self-mutation too.
       allow update: if isAuthed() && isOwner(userId)
         && !changedKeys().hasAny([
           'role', 'plan', 'premium', 'isPremium', 'paymentStatus', 'subscriptionStatus',
@@ -142,7 +149,8 @@ service cloud.firestore {
           'learnerPortalActive', 'learnerPortalPlan', 'learnerPortalProvider',
           'learnerPortalPhoneNumber', 'learnerPortalPaymentId',
           'learnerPortalActivatedAt', 'learnerPortalExpiry',
-          'cancelAtPeriodEnd', 'cancelAtPeriodEndUpdatedAt', 'cancelAtPeriodEndReason'
+          'cancelAtPeriodEnd', 'cancelAtPeriodEndUpdatedAt', 'cancelAtPeriodEndReason',
+          'referralCode', 'referredBy', 'referralCount', 'referralCredits'
         ]);
       allow update: if isAdmin();
       allow delete: if isAdmin();
@@ -950,6 +958,30 @@ service cloud.firestore {
     match /newsletterSignupRateLimit/{key} {
       allow read: if isAdmin();
       allow create, update, delete: if false;
+    }
+
+    // ── referralCodes (audit C7 — code → uid lookup) ──────────────────
+    //
+    // The doc id IS the 8-char referral code. Each doc maps a code
+    // to the uid of the user who owns it, enabling O(1) referrer
+    // resolution at signup + at redemption time (PR 2).
+    //
+    // Read access is signed-in users so the future redeem-at-checkout
+    // path can resolve a code → uid without going through a Cloud
+    // Function. The lookup payload is just { uid, createdAt } — no
+    // sensitive fields, and the uid is also exposed via the user's
+    // own user doc.
+    //
+    // Create-only by the owner (a tampered client cannot mint a code
+    // pointing at someone else's uid). Once-write — no updates ever,
+    // so a referrer can never silently re-point their code.
+    match /referralCodes/{code} {
+      allow read: if isAuthed();
+      allow create: if isAuthed()
+        && incoming().keys().hasOnly(['uid', 'createdAt'])
+        && incoming().uid == request.auth.uid
+        && incoming().uid is string && incoming().uid.size() <= 100;
+      allow update, delete: if false;
     }
 
   }

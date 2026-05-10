@@ -26,6 +26,7 @@ import LanguageToggle          from '../ui/LanguageToggle'
 import InvoicesCard            from './InvoicesCard'
 import ReplayTourCard          from '../ui/ReplayTourCard'
 import AnalyticsConsentToggle  from '../ui/AnalyticsConsentToggle'
+import ReferralCard            from './ReferralCard'
 import Button                  from '../ui/Button'
 import Icon                    from '../ui/Icon'
 import SeoHelmet               from '../seo/SeoHelmet'
@@ -371,6 +372,12 @@ export default function ProfilePage() {
         {/* Audit A3 PR 1 — share-progress-with-parent. Learners only;
             teachers/admins don't have a "parent". */}
         {isLearner && <ParentShareManager />}
+
+        {/* Audit C7 PR 1 — referral code, copy, and WhatsApp share.
+            Self-hides if the user record is missing referralCode (e.g.
+            mint failed at signup); the future Cloud Function backfill
+            will repair those accounts. */}
+        <ReferralCard />
 
         {/* Audit A7 — language toggle. Visible to every signed-in user.
             Nyanja is shipped as a placeholder until a native speaker

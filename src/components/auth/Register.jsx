@@ -1,7 +1,8 @@
-import { useMemo, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { getRoleLandingPath } from '../../utils/navigation'
+import { captureReferralFromUrl } from '../../utils/referrals'
 import Logo from '../ui/Logo'
 import Button from '../ui/Button'
 import GoogleSignInButton from './GoogleSignInButton'
@@ -61,6 +62,17 @@ const SELECT_CLASS = INPUT_CLASS + ' appearance-none pr-8 cursor-pointer'
 export default function Register() {
   const { register, loginWithGoogle, logout, ensureUserProfile } = useAuth()
   const navigate     = useNavigate()
+  const [searchParams] = useSearchParams()
+  // Audit C7 — capture ?ref= once on mount and stash in localStorage.
+  // The actual write into users/{uid}.referredBy happens inside
+  // register() / loginWithGoogle() because the user doc is created
+  // there. localStorage survives the OAuth round-trip if Google sign-in
+  // bounces through accounts.google.com.
+  const [referralCode, setReferralCode] = useState(null)
+  useEffect(() => {
+    const captured = captureReferralFromUrl(searchParams)
+    if (captured) setReferralCode(captured)
+  }, [searchParams])
   const [form, setForm] = useState({
     displayName: '',
     email: '',
@@ -253,6 +265,16 @@ export default function Register() {
             <span className="h-px flex-1 bg-[#E4E9F0]" />
           </div>
         </div>
+
+        {referralCode && (
+          <div
+            className="rounded-radius-md border border-emerald-200 bg-emerald-50 px-3 py-2 mb-3 text-xs text-emerald-900"
+            role="status"
+          >
+            🎁 Joining with referral code <strong className="font-mono">{referralCode}</strong> — both
+            you and the friend who invited you get a free month of Pro after signup.
+          </div>
+        )}
 
         <form onSubmit={handleSubmit} className="space-y-3.5">
           <Field
