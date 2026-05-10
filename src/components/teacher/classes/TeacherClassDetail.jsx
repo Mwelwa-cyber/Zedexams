@@ -39,7 +39,6 @@ import { SUBJECTS } from '../../../config/curriculum'
 import SeoHelmet from '../../seo/SeoHelmet'
 import Skeleton from '../../ui/Skeleton'
 import AssignWorkModal from './AssignWorkModal'
-import AssignmentDrilldown from './AssignmentDrilldown'
 import ClassAnalytics from './ClassAnalytics'
 
 function fmtExpiry(ts) {
@@ -93,10 +92,6 @@ export default function TeacherClassDetail() {
   const [members, setMembers] = useState([])
   const [assignments, setAssignments] = useState([])
   const [showAssignModal, setShowAssignModal] = useState(false)
-  // Audit A10 PR 5 — which assignment row is expanded for the
-  // per-learner drill-down. Only one expanded at a time so the
-  // page doesn't grow huge for classes with many assignments.
-  const [expandedAssignmentId, setExpandedAssignmentId] = useState(null)
   const [loading, setLoading] = useState(true)
   const [errored, setErrored] = useState(false)
   const [busy, setBusy] = useState(false)
@@ -329,48 +324,27 @@ export default function TeacherClassDetail() {
               const dueLabel = a.dueAt
                 ? `due ${(a.dueAt.toDate?.() || new Date(a.dueAt)).toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })}`
                 : null
-              const isExpanded = expandedAssignmentId === a.id
               return (
-                <li key={a.id}>
-                  <div className="flex items-start gap-3 p-4">
-                    <div className="flex-shrink-0 w-9 h-9 rounded-lg theme-bg-subtle flex items-center justify-center text-base">
-                      <span aria-hidden="true">{subjectMeta?.icon || '📝'}</span>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="theme-text font-bold text-sm truncate">{a.resourceTitle}</p>
-                      <p className="theme-text-muted text-xs mt-0.5">
-                        {a.resourceType === 'exam' ? 'Daily exam' : 'Quiz'}
-                        {subjectMeta ? ` · ${subjectMeta.label}` : ''}
-                        {dueLabel ? ` · ${dueLabel}` : ''}
-                      </p>
-                    </div>
-                    {/* Audit A10 PR 5 — expandable drill-down. */}
-                    <button
-                      type="button"
-                      onClick={() => setExpandedAssignmentId(isExpanded ? null : a.id)}
-                      aria-expanded={isExpanded}
-                      aria-controls={`assignment-drill-${a.id}`}
-                      className="text-xs font-bold theme-accent-text hover:underline flex-shrink-0"
-                    >
-                      {isExpanded ? 'Hide' : 'Details'}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveAssignment(a.id)}
-                      disabled={busy}
-                      className="text-xs font-bold text-rose-700 hover:underline disabled:opacity-50 flex-shrink-0"
-                    >
-                      Remove
-                    </button>
+                <li key={a.id} className="flex items-start gap-3 p-4">
+                  <div className="flex-shrink-0 w-9 h-9 rounded-lg theme-bg-subtle flex items-center justify-center text-base">
+                    <span aria-hidden="true">{subjectMeta?.icon || '📝'}</span>
                   </div>
-                  {isExpanded && (
-                    <div id={`assignment-drill-${a.id}`}>
-                      <AssignmentDrilldown
-                        assignmentId={a.id}
-                        assignmentTitle={a.resourceTitle}
-                      />
-                    </div>
-                  )}
+                  <div className="flex-1 min-w-0">
+                    <p className="theme-text font-bold text-sm truncate">{a.resourceTitle}</p>
+                    <p className="theme-text-muted text-xs mt-0.5">
+                      {a.resourceType === 'exam' ? 'Daily exam' : 'Quiz'}
+                      {subjectMeta ? ` · ${subjectMeta.label}` : ''}
+                      {dueLabel ? ` · ${dueLabel}` : ''}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveAssignment(a.id)}
+                    disabled={busy}
+                    className="text-xs font-bold text-rose-700 hover:underline disabled:opacity-50"
+                  >
+                    Remove
+                  </button>
                 </li>
               )
             })}

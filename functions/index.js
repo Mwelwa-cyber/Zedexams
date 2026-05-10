@@ -77,6 +77,8 @@ const {
 const {
   resolveCbcContext,
 } = require("./teacherTools/cbcKnowledge");
+// Vex — Quiz Verifier runner (synchronous, not part of the agentJobs pipeline).
+const {runVex} = require("./agents/runners/vex");
 // Daily Exam auto-picker — promotes one short-quiz per grade into the
 // day's Daily Exam slot every morning so the admin no longer has to
 // click "Daily Exam" by hand for routine rotation.
@@ -116,7 +118,12 @@ const {
   getProgressShare,
 } = require("./parentPortal");
 // Audit A3 PR 2 — weekly digest cron (Sunday 09:00 Africa/Lusaka).
-const {weeklyParentDigest} = require("./weeklyParentDigest");
+// Audit A3 PR 3 — admin-only manual trigger to verify Meta WhatsApp
+// wiring without waiting for the Sunday tick.
+const {
+  weeklyParentDigest,
+  triggerWeeklyParentDigest,
+} = require("./weeklyParentDigest");
 
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const mtnApiUser = defineSecret("MTN_API_USER");
@@ -1384,6 +1391,97 @@ exports.generateQuizQuestions = onCall(
   },
 );
 
+// Vex — pre-publish quiz verifier. Synchronous: the editor calls this and
+// blocks the publish flow on its result. No agentJobs / aiGenerations writes.
+exports.verifyQuiz = onCall(
+  {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 60,
+    memory: "512MiB"},
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Please sign in first.");
+    }
+    const role = await getUserRole(request.auth.uid);
+    if (!isStaffRole(role)) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only teachers and admins can verify quizzes.",
+      );
+    }
+    await assertDailyLimit(request.auth.uid, role, "verifyQuiz");
+
+    const data = request.data || {};
+    const questions = Array.isArray(data.questions) ? data.questions : [];
+    const passages = Array.isArray(data.passages) ? data.passages : [];
+    if (!questions.length) {
+      throw new HttpsError(
+        "invalid-argument",
+        "No questions to verify.",
+      );
+    }
+    if (questions.length > 50) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Quiz too large to verify (max 50 questions).",
+      );
+    }
+    let payloadSize;
+    try {
+      payloadSize = JSON.stringify(questions).length +
+        JSON.stringify(passages).length;
+    } catch {
+      throw new HttpsError("invalid-argument", "Quiz payload is not serialisable.");
+    }
+    if (payloadSize > 60_000) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Quiz payload too large — trim long questions before verifying.",
+      );
+    }
+
+    // Sanitise passages. Image URLs must be https — Anthropic fetches them
+    // server-side, and any non-https reference is ignored. We deliberately
+    // do not download images here; passing the URL keeps the payload small.
+    const cleanedPassages = passages.slice(0, 20).map((p) => {
+      const rawUrl = typeof p?.imageUrl === "string" ? p.imageUrl.trim() : "";
+      const imageUrl = /^https:\/\//i.test(rawUrl) ? rawUrl : null;
+      return {
+        id: cleanAiString(p?.id, 80),
+        title: cleanAiString(p?.title, 200),
+        passageKind: p?.passageKind === "map" ? "map" : "comprehension",
+        instructions: cleanAiString(p?.instructions, 1500),
+        passageText: cleanAiString(p?.passageText, 4000),
+        imageUrl,
+      };
+    }).filter((p) => p.id);
+
+    const meta = data.meta || {};
+    const grade = cleanAiString(meta.grade, LIMITS.grade);
+    const subject = cleanAiString(meta.subject, LIMITS.subject);
+    const topic = cleanAiString(meta.topic, LIMITS.topic);
+    const subtopic = cleanAiString(meta.subtopic, LIMITS.topic);
+    const difficulty = cleanAiString(meta.difficulty, 24);
+
+    let cbcContextBlock = "";
+    try {
+      const cbc = await resolveCbcContext({grade, subject, topic, subtopic});
+      cbcContextBlock = cbc?.contextBlock || "";
+    } catch (err) {
+      console.warn("verifyQuiz: CBC context unavailable", err?.message);
+    }
+
+    return await runVex({
+      input: {
+        quizId: cleanAiString(data.quizId, 80),
+        questions,
+        passages: cleanedPassages,
+        meta: {grade, subject, topic, subtopic, difficulty},
+        cbcContextBlock,
+      },
+      anthropicApiKeySecret: anthropicApiKey,
+    });
+  },
+);
+
 exports.structureImportedQuiz = onCall(
   {
     secrets: [anthropicApiKey],
@@ -1760,8 +1858,18 @@ exports.getProgressShare = getProgressShare;
 // a 7-day email summary to every progressShare with parentEmail set,
 // skips revoked / expired / already-sent-this-week, and skips empty
 // weeks (no point training parents to ignore us). Audit ledger lives
-// in parentDigestEvents/{eventId}.
+// in parentDigestEvents/{eventId}. PR 3 also runs a parallel WhatsApp
+// channel via Meta WhatsApp Cloud API (soft-fails when META_WHATSAPP_*
+// secrets aren't set).
 exports.weeklyParentDigest = weeklyParentDigest;
+
+// A3 PR 3 — admin-only callable that runs the same digest body on
+// demand. Useful for verifying Meta WhatsApp wiring without waiting
+// for the Sunday cron. Accepts { force, targetTokens } so an admin
+// can target a specific test share and bypass the 5-day idempotency
+// stamp. Returns the summary so the caller can see exactly what
+// happened.
+exports.triggerWeeklyParentDigest = triggerWeeklyParentDigest;
 
 // Audit D4 — self-serve subscription cancellation. Toggles
 // users.{uid}.cancelAtPeriodEnd via admin SDK so the field stays

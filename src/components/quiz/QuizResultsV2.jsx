@@ -336,7 +336,9 @@ export default function QuizResultsV2() {
                   <div key={section.id} className="theme-accent-bg theme-border space-y-3 rounded-[28px] border p-4">
                     <div className="theme-card theme-border rounded-2xl border p-4">
                       <div className="mb-2 flex flex-wrap items-center gap-2">
-                        <span className="theme-accent-bg theme-accent-text rounded-full px-3 py-1 text-xs font-black">Comprehension Passage</span>
+                        <span className="theme-accent-bg theme-accent-text rounded-full px-3 py-1 text-xs font-black">
+                          {section.passage.passageKind === 'map' ? 'Map Questions' : 'Comprehension Passage'}
+                        </span>
                         <span className="theme-bg-subtle theme-text-muted rounded-full px-2.5 py-1 text-xs font-bold">{section.questions.length} question{section.questions.length === 1 ? '' : 's'}</span>
                       </div>
                       {section.passage.title && <p className="text-lg font-black">{section.passage.title}</p>}

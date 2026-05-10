@@ -39,7 +39,7 @@ export function LearnerNoteRead() {
   if (loading) {
     return (
       <div className="notes-studio min-h-screen pb-24 md:pb-8" style={{ backgroundColor: '#FAFAF7' }}>
-        <SeoHelmet title="Note" path={`/notes/${id}`} noIndex />
+        <SeoHelmet title="Lesson" path={`/lessons/${id}`} noIndex />
         <div className="min-h-[50vh] flex items-center justify-center text-neutral-500">
           <Loader2 size={20} className="animate-spin" />
         </div>
@@ -50,14 +50,14 @@ export function LearnerNoteRead() {
   if (error || !note) {
     return (
       <div className="notes-studio min-h-screen pb-24 md:pb-8" style={{ backgroundColor: '#FAFAF7' }}>
-        <SeoHelmet title="Note not found" path={`/notes/${id}`} noIndex />
+        <SeoHelmet title="Lesson not found" path={`/lessons/${id}`} noIndex />
         <div className="max-w-xl mx-auto px-5 py-16 text-center">
           <h1 className="font-display text-3xl mb-2 text-neutral-900">Note not found</h1>
           <p className="text-sm text-neutral-500 mb-6">
             This note may have been unpublished or removed.
           </p>
           <button
-            onClick={() => navigate('/notes')}
+            onClick={() => navigate('/lessons')}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-neutral-900 text-white text-sm hover:opacity-90 transition"
           >
             <ArrowLeft size={14} /> Back to all notes
@@ -72,13 +72,13 @@ export function LearnerNoteRead() {
 
   return (
     <div className="notes-studio min-h-screen pb-24 md:pb-8" style={{ backgroundColor: '#FAFAF7' }}>
-      <SeoHelmet title={note.title || 'Note'} path={`/notes/${id}`} noIndex />
+      <SeoHelmet title={note.title || 'Lesson'} path={`/lessons/${id}`} noIndex />
       <main className="max-w-2xl mx-auto px-5 py-8">
         <button
-          onClick={() => navigate('/notes')}
+          onClick={() => navigate('/lessons')}
           className="inline-flex items-center gap-1.5 text-sm text-neutral-600 hover:text-neutral-900 transition mb-8"
         >
-          <ArrowLeft size={15} /> All notes
+          <ArrowLeft size={15} /> All lessons
         </button>
 
         <article>
@@ -110,7 +110,7 @@ export function LearnerNoteRead() {
           <hr className="my-8 border-neutral-100" />
 
           {isLegacySlides ? (
-            <LegacySlidesPointer noteId={note.id} />
+            <LegacySlidesPointer />
           ) : note.noteFormat === NOTE_FORMAT.FILE ? (
             <FileDownload note={note} />
           ) : (
@@ -165,23 +165,16 @@ function FileDownload({ note }) {
   )
 }
 
-function LegacySlidesPointer({ noteId }) {
+function LegacySlidesPointer() {
   return (
     <div className="bg-white rounded-2xl border border-neutral-200 p-8 text-center my-6">
       <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center bg-amber-100">
         <Layout size={28} className="text-amber-700" />
       </div>
-      <h3 className="font-display text-2xl mb-1 text-neutral-900">Slide-built lesson</h3>
-      <p className="text-sm text-neutral-500 mb-5 max-w-sm mx-auto">
-        This note uses our older slide format. Open it in the lesson player for the full experience.
+      <h3 className="font-display text-2xl mb-1 text-neutral-900">Older lesson format</h3>
+      <p className="text-sm text-neutral-500 max-w-sm mx-auto">
+        This lesson was built in the old slide format and hasn't been migrated yet. Ask your teacher to republish it as notes.
       </p>
-      <a
-        href={`/lessons/${noteId}`}
-        className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full text-white text-sm font-medium hover:opacity-90 transition"
-        style={{ backgroundColor: '#059669' }}
-      >
-        Open in lesson player
-      </a>
     </div>
   )
 }

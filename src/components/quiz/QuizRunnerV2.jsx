@@ -24,6 +24,36 @@ function isTextAnswerType(type) {
   return type === 'short_answer' || type === 'diagram'
 }
 
+// Maps the subject string stored on a quiz (e.g. "Integrated Science",
+// "social-studies") to the mascot palette used on the /quizzes discovery page.
+// The slug feeds the `quiz-theme-{slug}` CSS class so each quiz takes on its
+// subject's colours, and the emoji/name show up in the quiz hero.
+const SUBJECT_MASCOT_MAP = {
+  mathematics:           { slug: 'mathematics', emoji: '🦊', name: 'Maths Fox' },
+  maths:                 { slug: 'mathematics', emoji: '🦊', name: 'Maths Fox' },
+  english:               { slug: 'english',     emoji: '🦉', name: 'Story Owl' },
+  science:               { slug: 'science',     emoji: '🐢', name: 'Science Turtle' },
+  'integrated science':  { slug: 'science',     emoji: '🐢', name: 'Science Turtle' },
+  social:                { slug: 'social',      emoji: '🦁', name: 'Adventure Lion' },
+  'social studies':      { slug: 'social',      emoji: '🦁', name: 'Adventure Lion' },
+  'social-studies':      { slug: 'social',      emoji: '🦁', name: 'Adventure Lion' },
+  technology:            { slug: 'technology',  emoji: '🤖', name: 'Tech Robot' },
+  'technology studies':  { slug: 'technology',  emoji: '🤖', name: 'Tech Robot' },
+  home:                  { slug: 'home',        emoji: '🐝', name: 'Home Bee' },
+  'home economics':      { slug: 'home',        emoji: '🐝', name: 'Home Bee' },
+  'home-economics':      { slug: 'home',        emoji: '🐝', name: 'Home Bee' },
+  arts:                  { slug: 'arts',        emoji: '🎨', name: 'Art Parrot' },
+  'expressive arts':     { slug: 'arts',        emoji: '🎨', name: 'Art Parrot' },
+  'expressive-arts':     { slug: 'arts',        emoji: '🎨', name: 'Art Parrot' },
+}
+
+const DEFAULT_QUIZ_MASCOT = { slug: '', emoji: '🎓', name: 'Quiz Buddy' }
+
+function getQuizSubjectMascot(subject) {
+  const key = String(subject || '').trim().toLowerCase()
+  return SUBJECT_MASCOT_MAP[key] || DEFAULT_QUIZ_MASCOT
+}
+
 function OptionButton({ label, selected, revealed, correct, wrong, onClick, children }) {
   // Map state to the design-system .opt[data-state] variants. The CSS
   // handles theme-derived hover/selected colours and semantic correct/wrong
@@ -44,16 +74,21 @@ function OptionButton({ label, selected, revealed, correct, wrong, onClick, chil
 
 function PreQuizCard({ quiz, canExam, onStart }) {
   const [mode, setMode] = useState('practice')
+  const mascot = getQuizSubjectMascot(quiz.subject)
+  const themeClass = mascot.slug ? `quiz-theme-${mascot.slug}` : ''
 
   return (
-    <div className="theme-bg theme-text min-h-screen px-4 py-10">
+    <div className={`${themeClass} theme-bg theme-text min-h-screen px-4 py-10`}>
       <div className="theme-card theme-border theme-shadow mx-auto max-w-md overflow-hidden rounded-[28px] border shadow-[0_24px_64px_var(--shadow)]">
         <div className="theme-hero px-6 py-5 text-white">
-          <div className="mb-1.5 flex flex-wrap items-center gap-2 text-xs font-bold text-white/75">
-            <span>{quiz.subject}</span>
-            <span>·</span>
-            <span className="rounded-full bg-white/15 px-2 py-0.5">Grade {quiz.grade}</span>
-            <span className="rounded-full bg-white/15 px-2 py-0.5">Term {quiz.term}</span>
+          <div className="mb-2 flex items-center gap-3">
+            <span aria-hidden="true" className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-2xl bg-white/20 text-2xl ring-1 ring-white/30">
+              {mascot.emoji}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-black uppercase tracking-wider text-white/70">{mascot.name}</p>
+              <p className="truncate text-xs font-bold text-white/80">{quiz.subject} · Grade {quiz.grade} · Term {quiz.term}</p>
+            </div>
           </div>
           <h1 className="text-xl font-black leading-tight">{quiz.title}</h1>
         </div>
@@ -664,8 +699,11 @@ export default function QuizRunnerV2() {
     return items.some(question => flagged[question.id])
   }
 
+  const mascot = getQuizSubjectMascot(quiz?.subject)
+  const themeClass = mascot.slug ? `quiz-theme-${mascot.slug}` : ''
+
   return (
-    <div className="theme-bg theme-text min-h-screen">
+    <div className={`${themeClass} theme-bg theme-text min-h-screen`}>
       <SeoHelmet title={quiz?.title || 'Quiz'} path={`/quiz/${quizId}`} noIndex />
       {actionError && (
         <div className="fixed inset-x-4 top-4 z-[60] mx-auto max-w-md animate-slide-up">
@@ -714,7 +752,11 @@ export default function QuizRunnerV2() {
       <div className="theme-hero sticky top-0 z-30 text-white shadow-sm">
         <div className="mx-auto max-w-5xl px-4 py-3">
           <div className="mb-3 flex items-center justify-between gap-3">
+            <span aria-hidden="true" className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl bg-white/20 text-xl ring-1 ring-white/30">
+              {mascot.emoji}
+            </span>
             <div className="min-w-0 flex-1">
+              <p className="truncate text-[11px] font-black uppercase tracking-wider text-white/65">{mascot.name}</p>
               <p className="truncate text-xs font-bold text-white/70">{quiz.subject} · Grade {quiz.grade}</p>
               <p className="truncate text-sm font-black leading-tight">{quiz.title}</p>
             </div>
@@ -746,7 +788,9 @@ export default function QuizRunnerV2() {
               <div className="theme-card theme-border overflow-hidden rounded-[24px] border shadow-sm">
                 <div className="theme-accent-bg theme-border border-b px-5 py-4">
                   <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <span className="theme-card theme-border theme-accent-text rounded-full border px-3 py-1 text-xs font-black">Comprehension Passage</span>
+                    <span className="theme-card theme-border theme-accent-text rounded-full border px-3 py-1 text-xs font-black">
+                      {activeSection.passage.passageKind === 'map' ? 'Map Questions' : 'Comprehension Passage'}
+                    </span>
                     <span className="theme-bg-subtle theme-text-muted rounded-full px-2.5 py-1 text-xs font-bold">{activeSection.questions.length} question{activeSection.questions.length === 1 ? '' : 's'}</span>
                   </div>
                   {activeSection.passage.title && <h2 className="theme-text text-lg font-black">{activeSection.passage.title}</h2>}

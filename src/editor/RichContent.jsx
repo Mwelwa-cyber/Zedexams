@@ -1,12 +1,35 @@
 import { useState, useEffect } from 'react'
 
+// Recursively peel off layers of stringified Tiptap docs that earlier save
+// bugs left in Firestore (a doc whose only paragraph holds a single text node
+// containing another stringified doc). Bounded so we never loop on adversarial
+// data, and the start-of-text sniff keeps legitimate user content intact.
+function unwrapNestedTiptapDoc(doc, depth = 0) {
+  if (depth > 8) return doc
+  if (!doc || typeof doc !== 'object' || doc.type !== 'doc') return doc
+  if (!Array.isArray(doc.content) || doc.content.length !== 1) return doc
+  const para = doc.content[0]
+  if (!para || para.type !== 'paragraph' || !Array.isArray(para.content) || para.content.length !== 1) return doc
+  const textNode = para.content[0]
+  if (!textNode || textNode.type !== 'text' || typeof textNode.text !== 'string') return doc
+  const trimmed = textNode.text.trim()
+  if (!trimmed.startsWith('{') || !trimmed.includes('"type"')) return doc
+  try {
+    const parsed = JSON.parse(trimmed)
+    if (parsed && typeof parsed === 'object' && parsed.type === 'doc') {
+      return unwrapNestedTiptapDoc(parsed, depth + 1)
+    }
+  } catch { /* not JSON, leave as-is */ }
+  return doc
+}
+
 function parseTiptapValue(value) {
   if (!value) return null
-  if (typeof value === 'object' && value.type === 'doc') return value
+  if (typeof value === 'object' && value.type === 'doc') return unwrapNestedTiptapDoc(value)
   if (typeof value === 'string') {
     try {
       const parsed = JSON.parse(value)
-      if (parsed && parsed.type === 'doc') return parsed
+      if (parsed && parsed.type === 'doc') return unwrapNestedTiptapDoc(parsed)
     } catch { /* not JSON */ }
     return value  // return raw string for legacy rendering
   }
@@ -18,11 +41,11 @@ function extractPlainText(value) {
   if (typeof value === 'string') {
     try {
       const parsed = JSON.parse(value)
-      if (parsed?.type === 'doc') return extractFromDoc(parsed)
+      if (parsed?.type === 'doc') return extractFromDoc(unwrapNestedTiptapDoc(parsed))
     } catch { /* not JSON */ }
     return value
   }
-  if (typeof value === 'object' && value.type === 'doc') return extractFromDoc(value)
+  if (typeof value === 'object' && value.type === 'doc') return extractFromDoc(unwrapNestedTiptapDoc(value))
   return ''
 }
 

@@ -579,6 +579,14 @@
       ]
     },
     {
+      "collectionGroup": "results",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "userId",      "order": "ASCENDING"  },
+        { "fieldPath": "completedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "progressShares",
       "queryScope": "COLLECTION",
       "fields": [

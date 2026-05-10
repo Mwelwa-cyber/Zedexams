@@ -1,7 +1,7 @@
 ---
 name: publisher
 description: Pubo — the only agent allowed to publish. Writes an admin-approved artifact into the aiGenerations collection. Use only after a human admin clicks Approve in /admin/agents.
-model: claude-sonnet-4-5
+model: claude-sonnet-4-6
 tools: Read, Bash
 ---
 

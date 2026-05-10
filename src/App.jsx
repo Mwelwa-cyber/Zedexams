@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useParams } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
 import { useTheme, applyThemeToBody, DEFAULT_THEME } from './contexts/ThemeContext'
 import ProtectedRoute from './components/layout/ProtectedRoute'
@@ -42,19 +42,24 @@ function ThemeApplicator() {
   return null
 }
 
+function NotesIdRedirect() {
+  const { id } = useParams()
+  return <Navigate to={`/lessons/${id}`} replace />
+}
+
 const Login = lazy(() => import('./components/auth/Login'))
 const Register = lazy(() => import('./components/auth/Register'))
 const AuthAction = lazy(() => import('./components/auth/AuthAction'))
 const StudentDashboard = lazy(() => import('./components/dashboard/StudentDashboard'))
 const GradeHub = lazy(() => import('./components/dashboard/GradeHub'))
+const SubjectDrillDown = lazy(() => import('./components/dashboard/SubjectDrillDown'))
 const QuizList = lazy(() => import('./components/quiz/QuizList'))
 const QuizRunner = lazy(() => import('./components/quiz/QuizRunnerV2'))
 const QuizResults = lazy(() => import('./components/quiz/QuizResultsV2'))
-const LessonsList = lazy(() => import('./components/lessons/LessonLibrary'))
-const LessonView = lazy(() => import('./components/lessons/LessonPlayer'))
-// Slide-builder admin (LessonDashboard/LessonEditor) replaced by Notes Studio.
-// Kept on disk under src/components/lessons/ for one release in case revert
-// is needed; teacher panel still uses LessonEditor for /teacher/lessons.
+// Slide-builder learner viewer (LessonLibrary/LessonPlayer) replaced by
+// Notes Studio. /lessons now mounts the LearnerNotesList / LearnerNoteRead
+// components below. Files kept on disk for one release in case revert is
+// needed; teacher panel still uses LessonEditor for /teacher/lessons.
 const LessonEditor = lazy(() => import('./components/lessons/LessonEditor'))
 const LessonDashboard = lazy(() => import('./components/lessons/LessonDashboard'))
 
@@ -355,14 +360,20 @@ export default function App() {
           <Route path="/exam/:examId"                element={<ProtectedRoute><LearnerOnlyRoute><DailyExamRunner /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/exam-results/:attemptId"     element={<ProtectedRoute><LearnerOnlyRoute><ExamResultsPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/quizzes"           element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><QuizList /></LearnerOnlyRoute></ProtectedRoute>} />
+          {/* Course-map drill-down — clicking Practise on a subject card
+              lands the learner here, with quizzes grouped by topic. */}
+          <Route path="/practise/:grade/:subjectId" element={<ProtectedRoute><LearnerOnlyRoute><SubjectDrillDown /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/quiz/:quizId"      element={<ProtectedRoute><LearnerOnlyRoute><QuizRunner /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/results/:resultId" element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><QuizResults /></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/lessons"           element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LessonsList /></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/lessons/:lessonId" element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LessonView /></LearnerOnlyRoute></ProtectedRoute>} />
+          {/* Lessons — Notes Studio is now the canonical /lessons experience.
+              The old slide-based viewer has been retired; published notes
+              render here via LearnerNotesList / LearnerNoteRead. */}
+          <Route path="/lessons"           element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerGate><LearnerNotesList /></LearnerGate></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/lessons/:id"       element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerGate><LearnerNoteRead /></LearnerGate></LearnerOnlyRoute></ProtectedRoute>} />
 
-          {/* Notes Studio learner */}
-          <Route path="/notes"             element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerGate><LearnerNotesList /></LearnerGate></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/notes/:id"         element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerGate><LearnerNoteRead /></LearnerGate></LearnerOnlyRoute></ProtectedRoute>} />
+          {/* Legacy /notes URLs redirect to /lessons */}
+          <Route path="/notes"             element={<Navigate to="/lessons" replace />} />
+          <Route path="/notes/:id"         element={<NotesIdRedirect />} />
           <Route path="/my-results"        element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><MyResults /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/my-badges"         element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><BadgesPage /></LearnerOnlyRoute></ProtectedRoute>} />
           {/* Audit A10 PR 2 — learner-side classroom views. */}

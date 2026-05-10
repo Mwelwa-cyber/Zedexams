@@ -24,7 +24,6 @@ const fns = getFunctions(app, 'us-central1')
 const createClassAssignmentCallable = httpsCallable(fns, 'createClassAssignment')
 const removeClassAssignmentCallable = httpsCallable(fns, 'removeClassAssignment')
 const getClassStatsCallable = httpsCallable(fns, 'getClassStats')
-const getAssignmentCompletionCallable = httpsCallable(fns, 'getAssignmentCompletion')
 
 /**
  * Per-class analytics for the teacher dashboard. Bounded server-side
@@ -34,17 +33,6 @@ const getAssignmentCompletionCallable = httpsCallable(fns, 'getAssignmentComplet
  */
 export async function getClassStats(classId) {
   const result = await getClassStatsCallable({ classId })
-  return result.data
-}
-
-/**
- * Per-assignment completion roster. Returns each learner's status
- * (completed / not_started), best percentage, attempts, and last
- * attempt timestamp. Used by the inline drill-down on the assignment
- * list — see <AssignmentDrilldown />.
- */
-export async function getAssignmentCompletion(assignmentId) {
-  const result = await getAssignmentCompletionCallable({ assignmentId })
   return result.data
 }
 

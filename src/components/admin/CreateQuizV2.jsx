@@ -14,6 +14,7 @@ import {
   createPartGroup,
   createPassageSection,
   createStandaloneSection,
+  emptyPassageQuestion,
   getQuestionKey,
   hasOnlyEmptyStarterSection,
   serializeQuizSections,
@@ -532,10 +533,7 @@ export default function CreateQuizV2() {
         ...section.passage,
         questions: [
           ...section.passage.questions,
-          {
-            ...createPassageSection({ id: section.passage.id, questions: [] }).passage.questions[0],
-            passageId: section.passage.id,
-          },
+          emptyPassageQuestion({ passageId: section.passage.id }),
         ],
       },
     }))
@@ -585,7 +583,23 @@ export default function CreateQuizV2() {
   }
 
   function addPassageSectionHandler() {
-    setSections(currentSections => [...currentSections, createPassageSection()])
+    const nextSection = createPassageSection()
+    setSections(currentSections => hasOnlyEmptyStarterSection(currentSections)
+      ? [nextSection]
+      : [...currentSections, nextSection])
+    scrollToBottom()
+  }
+
+  function addMapSectionHandler() {
+    const nextSection = createPassageSection({ passageKind: 'map' })
+    setSections(currentSections => hasOnlyEmptyStarterSection(currentSections)
+      ? [nextSection]
+      : [...currentSections, nextSection])
+    scrollToBottom()
+  }
+
+  function addMapSectionHandler() {
+    setSections(currentSections => [...currentSections, createPassageSection({ passageKind: 'map' })])
     scrollToBottom()
   }
 
@@ -934,16 +948,26 @@ export default function CreateQuizV2() {
     for (const section of sections) {
       if (section.kind === 'passage') {
         const passage = section.passage
+        const isMap = passage.passageKind === 'map'
         if (passage.imageUploading) {
-          show('A passage image is still uploading. Please wait.', true)
+          show(isMap
+            ? 'A map image is still uploading. Please wait.'
+            : 'A passage image is still uploading. Please wait.', true)
           return false
         }
-        if (!richTextHasContent(passage.passageText)) {
+        if (isMap) {
+          if (!passage.imageUrl) {
+            show('Each map section needs a map image before saving.', true)
+            return false
+          }
+        } else if (!richTextHasContent(passage.passageText)) {
           show('Each comprehension passage needs passage text before saving.', true)
           return false
         }
         if (!passage.questions.length) {
-          show('Each comprehension passage needs at least one linked question.', true)
+          show(isMap
+            ? 'Each map section needs at least one linked question.'
+            : 'Each comprehension passage needs at least one linked question.', true)
           return false
         }
         for (const question of passage.questions) {
@@ -1205,6 +1229,7 @@ export default function CreateQuizV2() {
         onPassageAddQuestion={addPassageQuestion}
         onAddStandalone={addStandaloneSectionHandler}
         onAddPassage={addPassageSectionHandler}
+        onAddMap={addMapSectionHandler}
         onAddPart={addPart}
         onPartChange={updatePart}
         onPartMove={movePart}

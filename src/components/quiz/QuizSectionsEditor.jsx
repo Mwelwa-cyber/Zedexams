@@ -665,6 +665,38 @@ function PassageSectionCard({
   onAssignToPart,
 }) {
   const passage = section.passage
+  const isMap = passage.passageKind === 'map'
+  const labels = isMap
+    ? {
+      kindBadge: 'Map Questions',
+      storyPrefix: 'Map',
+      tagline: 'Upload the map once, then attach all related questions below it.',
+      collapsedFallback: 'Untitled map',
+      cardHeading: 'Map',
+      titlePlaceholder: 'Map title (optional)',
+      passageFieldTitle: 'Map description',
+      passageFieldBadge: 'Optional',
+      passageFieldPlaceholder: 'Add optional notes describing this map (locations, scale, key features)...',
+      imageLabel: 'Upload Map Image',
+      imageHint: 'Required for maps · JPG, PNG, WEBP · max 5 MB',
+      addQuestionButton: '+ Add Question to Map',
+      noQuestionsText: 'Add at least one question before saving this quiz.',
+    }
+    : {
+      kindBadge: 'Comprehension Passage',
+      storyPrefix: 'Story',
+      tagline: 'Add the passage once, then attach all related questions below it.',
+      collapsedFallback: 'Untitled passage',
+      cardHeading: 'Passage',
+      titlePlaceholder: 'Title (optional)',
+      passageFieldTitle: 'Passage / Story',
+      passageFieldBadge: 'Required',
+      passageFieldPlaceholder: 'Paste or type the passage / story here...',
+      imageLabel: 'Upload Passage Image',
+      imageHint: 'Optional · JPG, PNG, WEBP · max 5 MB',
+      addQuestionButton: '+ Add Question to Passage',
+      noQuestionsText: 'Add at least one question before saving this quiz.',
+    }
   const isCollapsed = Boolean(passage.collapsed)
   const childNumbers = (passage.questions || [])
     .map(question => questionNumbers[question.localId])
@@ -682,11 +714,11 @@ function PassageSectionCard({
           <div className="flex flex-wrap items-center gap-2">
             {storyNumber ? (
               <span className="theme-card theme-border theme-accent-text rounded-full border px-3 py-1 text-xs font-black uppercase tracking-wide">
-                Story {storyNumber}
+                {labels.storyPrefix} {storyNumber}
               </span>
             ) : (
               <span className="theme-card theme-border theme-accent-text rounded-full border px-3 py-1 text-xs font-black">
-                Comprehension Passage
+                {labels.kindBadge}
               </span>
             )}
             {questionRangeLabel && (
@@ -700,7 +732,7 @@ function PassageSectionCard({
           </div>
           {!isCollapsed && (
             <p className="theme-text mt-2 text-sm font-bold leading-relaxed">
-              Add the passage once, then attach all related questions below it.
+              {labels.tagline}
             </p>
           )}
         </div>
@@ -753,22 +785,24 @@ function PassageSectionCard({
 
       {isCollapsed ? (
         <div className="theme-card theme-border rounded-xl border px-4 py-3">
-          <p className="theme-text text-sm font-black">{passage.title || 'Untitled passage'}</p>
+          <p className="theme-text text-sm font-black">{passage.title || labels.collapsedFallback}</p>
           {passage.passageText ? (
             <RichContent value={passage.passageText} className="theme-text-muted mt-2 line-clamp-3 text-sm leading-relaxed" />
           ) : (
-            <p className="theme-text-muted mt-1 text-sm leading-relaxed">No passage text yet.</p>
+            <p className="theme-text-muted mt-1 text-sm leading-relaxed">
+              {isMap ? 'No map description yet.' : 'No passage text yet.'}
+            </p>
           )}
         </div>
       ) : (
         <>
           <div className="grid gap-4 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
             <div className="theme-card theme-border space-y-3 rounded-2xl border p-4">
-              <h3 className="theme-text text-sm font-black">Passage</h3>
+              <h3 className="theme-text text-sm font-black">{labels.cardHeading}</h3>
               <input
                 value={passage.title}
                 onChange={event => onPassageChange(sectionIndex, 'title', event.target.value)}
-                placeholder="Title (optional)"
+                placeholder={labels.titlePlaceholder}
                 className="theme-input w-full rounded-xl border-2 px-3 py-2.5 text-sm placeholder:text-gray-400 outline-none focus:border-[var(--accent)]"
               />
               <div className="space-y-2">
@@ -776,23 +810,25 @@ function PassageSectionCard({
                 <QuizRichField
                   value={passage.instructions}
                   onChange={nextValue => onPassageChange(sectionIndex, 'instructions', nextValue)}
-                  placeholder="Add optional instructions for this passage..."
+                  placeholder={isMap
+                    ? 'Add optional instructions for this map...'
+                    : 'Add optional instructions for this passage...'}
                   minHeight={96}
                   compact
                 />
               </div>
               <div className="space-y-2">
-                <FieldHeader title="Passage / Story" badge="Required" />
+                <FieldHeader title={labels.passageFieldTitle} badge={labels.passageFieldBadge} />
                 <QuizRichField
                   value={passage.passageText}
                   onChange={nextValue => onPassageChange(sectionIndex, 'passageText', nextValue)}
-                  placeholder="Paste or type the passage / story here..."
-                  minHeight={256}
+                  placeholder={labels.passageFieldPlaceholder}
+                  minHeight={isMap ? 160 : 256}
                 />
               </div>
               <ImageUpload
-                label="Upload Passage Image"
-                hint="Optional · JPG, PNG, WEBP · max 5 MB"
+                label={labels.imageLabel}
+                hint={labels.imageHint}
                 imageUrl={passage.imageUrl}
                 uploading={passage.imageUploading}
                 uploadStep={passage.imageUploadStep}
@@ -806,15 +842,21 @@ function PassageSectionCard({
               <div className="theme-card theme-border rounded-2xl border p-4">
                 <div className="flex flex-wrap items-center justify-between gap-2">
                   <div>
-                    <h3 className="theme-text text-sm font-black">Questions Under Passage</h3>
-                    <p className="theme-text-muted mt-1 text-xs font-bold">Each question stays linked to this passage.</p>
+                    <h3 className="theme-text text-sm font-black">
+                      {isMap ? 'Questions About This Map' : 'Questions Under Passage'}
+                    </h3>
+                    <p className="theme-text-muted mt-1 text-xs font-bold">
+                      {isMap
+                        ? 'Each question stays linked to this map.'
+                        : 'Each question stays linked to this passage.'}
+                    </p>
                   </div>
                   <button
                     type="button"
                     onClick={() => onPassageAddQuestion(sectionIndex)}
                     className="theme-accent-fill theme-on-accent min-h-0 rounded-xl px-4 py-2 text-sm font-black hover:opacity-90"
                   >
-                    + Add Question to Passage
+                    {labels.addQuestionButton}
                   </button>
                 </div>
               </div>
@@ -848,7 +890,7 @@ function PassageSectionCard({
   )
 }
 
-function AddQuestionMenu({ onAddStandalone, onAddPassage, variant }) {
+function AddQuestionMenu({ onAddStandalone, onAddPassage, onAddMap, variant }) {
   const [open, setOpen] = useState(false)
   const theme = THEMES[variant] || THEMES.create
 
@@ -870,7 +912,7 @@ function AddQuestionMenu({ onAddStandalone, onAddPassage, variant }) {
         + Add Question
       </button>
       {open && (
-        <div className="theme-card theme-border grid gap-3 rounded-2xl border p-4 shadow-sm md:grid-cols-2">
+        <div className="theme-card theme-border grid gap-3 rounded-2xl border p-4 shadow-sm md:grid-cols-3">
           <button
             type="button"
             onClick={() => choose(onAddStandalone)}
@@ -891,6 +933,18 @@ function AddQuestionMenu({ onAddStandalone, onAddPassage, variant }) {
               Add one passage or story, then attach multiple linked questions under it.
             </p>
           </button>
+          {onAddMap && (
+            <button
+              type="button"
+              onClick={() => choose(onAddMap)}
+              className="theme-accent-bg theme-border hover:theme-card min-h-0 rounded-2xl border-2 p-4 text-left transition-colors"
+            >
+              <p className="theme-accent-text text-sm font-black">Map Questions</p>
+              <p className="theme-text-muted mt-1 text-xs font-bold leading-relaxed">
+                Upload one map image, then attach multiple questions that refer to it. Same layout as a passage.
+              </p>
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -1019,6 +1073,7 @@ export default function QuizSectionsEditor({
   onPassageAddQuestion,
   onAddStandalone,
   onAddPassage,
+  onAddMap,
   onAddPart,
   onPartChange,
   onPartMove,
@@ -1189,6 +1244,7 @@ export default function QuizSectionsEditor({
       <AddQuestionMenu
         onAddStandalone={onAddStandalone}
         onAddPassage={onAddPassage}
+        onAddMap={onAddMap}
         variant={variant}
       />
 

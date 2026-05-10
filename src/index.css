@@ -297,6 +297,99 @@ body.theme-solar {
    * components using theme-* classes render in the studio look without
    * needing per-component changes.
    */
+  /*
+   * Quiz subject-mascot themes — applied to the QuizRunner root via
+   * `quiz-theme-{slug}` so each subject's quiz takes on the colour palette
+   * that matches its mascot on the discovery page (Maths Fox / Story Owl
+   * / Science Turtle / Adventure Lion / Tech Robot / Home Bee / Art Parrot).
+   * Scopes the theme custom properties so all existing theme-* utilities
+   * pick up the subject-specific palette without per-component changes.
+   */
+  .quiz-theme-mathematics {
+    --bg:              #fff7ed;
+    --bg-subtle:       #ffedd5;
+    --border:          #fed7aa;
+    --accent:          #ea580c;
+    --accent-text:     #ffffff;
+    --accent-bg:       #ffedd5;
+    --accent-fg:       #c2410c;
+    --shadow:          rgba(249,115,22,0.18);
+    --hero-gradient:   linear-gradient(135deg, #c2410c 0%, #f97316 100%);
+    --hero-muted:      #fed7aa;
+  }
+  .quiz-theme-english {
+    --bg:              #eff6ff;
+    --bg-subtle:       #dbeafe;
+    --border:          #bfdbfe;
+    --accent:          #2563eb;
+    --accent-text:     #ffffff;
+    --accent-bg:       #dbeafe;
+    --accent-fg:       #1d4ed8;
+    --shadow:          rgba(37,99,235,0.18);
+    --hero-gradient:   linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+    --hero-muted:      #bfdbfe;
+  }
+  .quiz-theme-science {
+    --bg:              #ecfdf5;
+    --bg-subtle:       #d1fae5;
+    --border:          #a7f3d0;
+    --accent:          #059669;
+    --accent-text:     #ffffff;
+    --accent-bg:       #d1fae5;
+    --accent-fg:       #047857;
+    --shadow:          rgba(16,185,129,0.20);
+    --hero-gradient:   linear-gradient(135deg, #047857 0%, #10b981 100%);
+    --hero-muted:      #a7f3d0;
+  }
+  .quiz-theme-social {
+    --bg:              #fffbeb;
+    --bg-subtle:       #fef3c7;
+    --border:          #fde68a;
+    --accent:          #d97706;
+    --accent-text:     #ffffff;
+    --accent-bg:       #fef3c7;
+    --accent-fg:       #b45309;
+    --shadow:          rgba(245,158,11,0.18);
+    --hero-gradient:   linear-gradient(135deg, #b45309 0%, #f59e0b 100%);
+    --hero-muted:      #fde68a;
+  }
+  .quiz-theme-technology {
+    --bg:              #ecfeff;
+    --bg-subtle:       #cffafe;
+    --border:          #a5f3fc;
+    --accent:          #0891b2;
+    --accent-text:     #ffffff;
+    --accent-bg:       #cffafe;
+    --accent-fg:       #0e7490;
+    --shadow:          rgba(8,145,178,0.18);
+    --hero-gradient:   linear-gradient(135deg, #155e75 0%, #06b6d4 100%);
+    --hero-muted:      #a5f3fc;
+  }
+  .quiz-theme-home {
+    --bg:              #fdf2f8;
+    --bg-subtle:       #fce7f3;
+    --border:          #fbcfe8;
+    --accent:          #db2777;
+    --accent-text:     #ffffff;
+    --accent-bg:       #fce7f3;
+    --accent-fg:       #be185d;
+    --shadow:          rgba(219,39,119,0.18);
+    --hero-gradient:   linear-gradient(135deg, #be185d 0%, #ec4899 100%);
+    --hero-muted:      #fbcfe8;
+  }
+  .quiz-theme-arts {
+    --bg:              #fff1f2;
+    --bg-subtle:       #ffe4e6;
+    --border:          #fecdd3;
+    --accent:          #e11d48;
+    --accent-text:     #ffffff;
+    --accent-bg:       #ffe4e6;
+    --accent-fg:       #be123c;
+    --shadow:          rgba(244,63,94,0.18);
+    --hero-gradient:   linear-gradient(135deg, #be123c 0%, #f43f5e 100%);
+    --hero-muted:      #fecdd3;
+  }
+
   .studio-theme {
     --bg:              #f5efe1;
     --bg-subtle:       #ece4d2;
@@ -1135,7 +1228,7 @@ select option {
 
   .opt-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 10px;
   }
   .opt {

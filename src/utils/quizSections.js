@@ -97,6 +97,13 @@ export function createPartGroup(overrides = {}) {
   }
 }
 
+export const PASSAGE_KIND_COMPREHENSION = 'comprehension'
+export const PASSAGE_KIND_MAP = 'map'
+
+function normalizePassageKind(value) {
+  return value === PASSAGE_KIND_MAP ? PASSAGE_KIND_MAP : PASSAGE_KIND_COMPREHENSION
+}
+
 export function createPassageSection(passageOverrides = {}) {
   const passageId = passageOverrides.id || nextLocalId('passage')
   const questionOverrides = Array.isArray(passageOverrides.questions)
@@ -112,6 +119,7 @@ export function createPassageSection(passageOverrides = {}) {
     imageUploadStep: '',
     collapsed: false,
     ...passageOverrides,
+    passageKind: normalizePassageKind(passageOverrides.passageKind),
   }
 
   return {
@@ -155,20 +163,56 @@ function serializeRichField(value) {
   return String(value)
 }
 
+// A previous bug stored Tiptap docs as JSON strings in fields that the editor
+// then re-opened as plain text. Each subsequent edit wrapped the visible JSON
+// inside another doc as a text node, producing nested stringified docs in
+// Firestore. We peel those layers off on read so the editor and previews see
+// the underlying content. Bounded depth prevents pathological loops.
+function unwrapNestedTiptapDoc(doc, depth = 0) {
+  if (depth > 8) return doc
+  if (!doc || typeof doc !== 'object' || doc.type !== 'doc') return doc
+  if (!Array.isArray(doc.content) || doc.content.length !== 1) return doc
+  const para = doc.content[0]
+  if (!para || para.type !== 'paragraph' || !Array.isArray(para.content) || para.content.length !== 1) return doc
+  const textNode = para.content[0]
+  if (!textNode || textNode.type !== 'text' || typeof textNode.text !== 'string') return doc
+  const trimmed = textNode.text.trim()
+  if (!trimmed.startsWith('{') || !trimmed.includes('"type"')) return doc
+  try {
+    const parsed = JSON.parse(trimmed)
+    if (parsed && typeof parsed === 'object' && parsed.type === 'doc') {
+      return unwrapNestedTiptapDoc(parsed, depth + 1)
+    }
+  } catch {
+    // Not JSON — leave as-is so legitimate user text starting with `{` survives.
+  }
+  return doc
+}
+
 function hydrateRichField(value) {
   if (!value) return ''
-  if (typeof value === 'object') return value  // already Tiptap JSON
+  if (typeof value === 'object') return unwrapNestedTiptapDoc(value)
   if (typeof value === 'string') {
     // Try parsing as Tiptap JSON
     try {
       const parsed = JSON.parse(value)
-      if (parsed && parsed.type === 'doc') return parsed
+      if (parsed && parsed.type === 'doc') return unwrapNestedTiptapDoc(parsed)
     } catch {
       // plain string
     }
     return value
   }
   return value
+}
+
+// When a question has both an HTML mirror (e.g. `text`) and a JSON mirror
+// (e.g. `textJSON`), prefer the JSON. This rescues quizzes saved by an
+// earlier build whose normaliser corrupted the HTML mirror by escaping the
+// stringified Tiptap doc into <p>{&quot;type&quot;:&quot;doc&quot;...}</p>.
+// The JSON mirror was always written via migrateContent so it's intact.
+function pickRichField(jsonValue, htmlValue) {
+  if (jsonValue && typeof jsonValue === 'object' && jsonValue.type === 'doc') return jsonValue
+  return htmlValue ?? ''
 }
 
 export function isQuestionBlank(question = {}) {
@@ -327,6 +371,7 @@ export function serializeQuizSections(sections = [], parts = []) {
         instructions: serializeRichField(passage.instructions),
         passageText: serializeRichField(passage.passageText),
         imageUrl: passage.imageUrl || null,
+        passageKind: normalizePassageKind(passage.passageKind),
         order: startOrder,
         partId: passagePartId,
       })
@@ -389,8 +434,8 @@ function hydrateStandaloneQuestion(question = {}) {
   return emptyQuestion({
     localId: question.id || question._id || question.localId || nextLocalId('question'),
     _id: question.id || question._id || null,
-    sharedInstruction: question.sharedInstruction ?? '',
-    text: question.text ?? '',
+    sharedInstruction: hydrateRichField(pickRichField(question.sharedInstructionJSON, question.sharedInstruction)),
+    text: hydrateRichField(pickRichField(question.textJSON, question.text)),
     options: isTextAnswer
       ? []
       : Array.isArray(question.options) && question.options.length
@@ -399,7 +444,7 @@ function hydrateStandaloneQuestion(question = {}) {
     correctAnswer: isTextAnswer
       ? String(question.correctAnswer ?? '')
       : question.correctAnswer ?? 0,
-    explanation: hydrateRichField(question.explanation ?? ''),
+    explanation: hydrateRichField(pickRichField(question.explanationJSON, question.explanation)),
     topic: question.topic ?? '',
     marks: question.marks ?? 1,
     type,
@@ -423,13 +468,13 @@ function hydratePassageQuestion(question = {}, passageId, partId = null) {
   return emptyPassageQuestion({
     localId: question.id || question._id || question.localId || nextLocalId('question'),
     _id: question.id || question._id || null,
-    sharedInstruction: question.sharedInstruction ?? '',
-    text: question.text ?? '',
+    sharedInstruction: hydrateRichField(pickRichField(question.sharedInstructionJSON, question.sharedInstruction)),
+    text: hydrateRichField(pickRichField(question.textJSON, question.text)),
     options: Array.isArray(question.options) && question.options.length
       ? question.options
       : ['', '', '', ''],
     correctAnswer: question.correctAnswer ?? 0,
-    explanation: hydrateRichField(question.explanation ?? ''),
+    explanation: hydrateRichField(pickRichField(question.explanationJSON, question.explanation)),
     topic: question.topic ?? '',
     marks: question.marks ?? 1,
     subtype: question.subtype ?? null,
@@ -463,6 +508,7 @@ export function hydrateQuizSections(questions = [], passages = [], parts = []) {
       instructions: hydrateRichField(passage.instructions ?? ''),
       passageText: hydrateRichField(passage.passageText ?? ''),
       imageUrl: passage.imageUrl ?? '',
+      passageKind: passage.passageKind,
       questions: [],
     })
     section.partId = passage.partId ?? null
@@ -551,6 +597,7 @@ export function buildQuizDisplaySections(questions = [], passages = []) {
         instructions: passage.instructions ?? '',
         passageText: passage.passageText ?? '',
         imageUrl: passage.imageUrl ?? '',
+        passageKind: normalizePassageKind(passage.passageKind),
       },
       questions: [],
     })
@@ -573,6 +620,7 @@ export function buildQuizDisplaySections(questions = [], passages = []) {
           instructions: '',
           passageText: '',
           imageUrl: '',
+          passageKind: PASSAGE_KIND_COMPREHENSION,
         },
         questions: [],
       }

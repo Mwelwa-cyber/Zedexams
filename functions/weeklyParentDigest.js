@@ -1,28 +1,35 @@
 /**
- * Weekly parent digest cron (audit A3 PR 2).
+ * Weekly parent digest cron (audit A3 PR 2 + PR 3).
  *
- * Every Sunday 09:00 Africa/Lusaka, fan out an email summary to every
+ * Every Sunday 09:00 Africa/Lusaka, fan out a progress summary to every
  * progressShares/{token} that:
- *   - has a parentEmail set
+ *   - has a parentEmail and/or parentPhone set
  *   - is not revoked
  *   - is not expired
- *   - has not had a digest sent in the last 5 days (idempotency
- *     guard against double-sends if the cron retries)
+ *   - has not had a digest sent (per channel) in the last 5 days —
+ *     idempotency guard against double-sends if the cron retries
  *   - belongs to a learner who actually practised in the last 7 days
  *     (no point sending an empty digest)
  *
- * SMS / WhatsApp delivery is intentionally out of scope here — those
- * require a Meta Business API or Twilio account that's a separate
- * setup decision. Email uses the same SMTP transport already wired
- * for password reset (mail.privateemail.com / EMAIL_SMTP_*).
+ * Two delivery channels run independently per share:
+ *
+ *   1. Email — via the existing SMTP transport (EMAIL_SMTP_USER /
+ *      EMAIL_SMTP_PASSWORD). Same rig that sends password resets.
+ *
+ *   2. WhatsApp — via Meta WhatsApp Business Cloud API (audit A3 PR 3).
+ *      Soft-fails when the META_WHATSAPP_* secrets aren't set, so this
+ *      same cron file works in both pre-Meta and post-Meta states.
+ *
+ * Each channel has its own idempotency stamp on the share doc so a
+ * brief SMTP outage can't suppress the WhatsApp send (and vice versa):
+ *
+ *   - lastWeeklyDigestSentAt           — email
+ *   - lastWeeklyDigestWhatsAppSentAt   — whatsapp
  *
  * Audit log:
  *   - parentDigestEvents/{eventId}: one doc per send attempt with
- *     {token, learnerUid, parentEmail, status, error?, sentAt}
- *
- * Idempotency:
- *   - On successful send we stamp lastWeeklyDigestSentAt on the
- *     progressShares doc. The next cron pass uses that field to skip.
+ *     {token, learnerUid, channel, parentEmail?, parentPhone?,
+ *      status, error?, sentAt}
  *
  * Caps:
  *   - At most 200 shares per run — if the install grows past that,
@@ -32,11 +39,19 @@
 
 const admin = require("firebase-admin");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
+const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {defineSecret} = require("firebase-functions/params");
 const nodemailer = require("nodemailer");
 const crypto = require("node:crypto");
 
 const {aggregateProgress, ONE_DAY_MS} = require("./parentPortalShared");
+const {
+  WHATSAPP_SECRETS,
+  isConfigured: isWhatsAppConfigured,
+  normalizeToWhatsApp,
+  sendWhatsAppDigest,
+  buildWhatsAppDigestBody,
+} = require("./metaWhatsApp");
 
 const REGION = "us-central1";
 const WINDOW_DAYS = 7;
@@ -200,153 +215,429 @@ function getTransporter() {
   return cachedTransporter;
 }
 
+/**
+ * Pull the union of shares with a parentEmail or parentPhone. Two
+ * queries because Firestore doesn't support OR across fields without
+ * `in [...]`, and we don't want to scan every share unconditionally.
+ *
+ * Result is deduped by document id and capped at MAX_SHARES_PER_RUN.
+ */
+async function loadCandidateShares(db) {
+  const queries = [
+    db.collection("progressShares")
+        .where("parentEmail", "!=", null)
+        .limit(MAX_SHARES_PER_RUN)
+        .get()
+        .catch((err) => {
+          console.error("[weeklyParentDigest] parentEmail query failed", err);
+          return null;
+        }),
+    db.collection("progressShares")
+        .where("parentPhone", "!=", null)
+        .limit(MAX_SHARES_PER_RUN)
+        .get()
+        .catch((err) => {
+          console.error("[weeklyParentDigest] parentPhone query failed", err);
+          return null;
+        }),
+  ];
+  const [emailSnap, phoneSnap] = await Promise.all(queries);
+
+  const seen = new Map();
+  for (const snap of [emailSnap, phoneSnap]) {
+    if (!snap || snap.empty) continue;
+    for (const doc of snap.docs) {
+      if (seen.size >= MAX_SHARES_PER_RUN) break;
+      if (!seen.has(doc.id)) seen.set(doc.id, doc);
+    }
+  }
+  return [...seen.values()];
+}
+
+async function logEvent(db, payload) {
+  await db.collection("parentDigestEvents").add({
+    ...payload,
+    sentAt: admin.firestore.FieldValue.serverTimestamp(),
+  }).catch((err) => console.warn("[weeklyParentDigest] audit log failed", err));
+}
+
+async function deliverEmail({db, shareDoc, share, token, stats, learnerName, learnerGrade, shareUrl, senderEmail, senderDomain, transporter, now, summary, force = false}) {
+  if (!transporter || !senderEmail) return;          // SMTP not configured
+  if (!share.parentEmail) return;                    // no email recipient
+
+  const lastSentMs = share.lastWeeklyDigestSentAt?.toMillis
+      ? share.lastWeeklyDigestSentAt.toMillis()
+      : 0;
+  if (!force && lastSentMs && (now - lastSentMs) < RESEND_GUARD_MS) {
+    summary.skipped.email += 1;
+    return;
+  }
+
+  const emailPayload = {
+    from: `ZedExams <${senderEmail}>`,
+    sender: senderEmail,
+    to: share.parentEmail,
+    replyTo: senderEmail,
+    subject: `${learnerName}'s ZedExams week`,
+    text: buildEmailText({
+      learnerName, learnerGrade,
+      summary: stats.summary,
+      subjectBreakdown: stats.subjectBreakdown,
+      recentResults: stats.recentResults,
+      shareUrl,
+    }),
+    html: buildEmailHtml({
+      learnerName, learnerGrade,
+      summary: stats.summary,
+      subjectBreakdown: stats.subjectBreakdown,
+      recentResults: stats.recentResults,
+      shareUrl,
+    }),
+    envelope: {
+      from: senderEmail,
+      to: [share.parentEmail],
+    },
+    messageId: `<weekly-digest-${token}-${crypto.randomUUID()}@${senderDomain}>`,
+    headers: {
+      "X-Auto-Response-Suppress": "All",
+    },
+  };
+
+  try {
+    await transporter.sendMail(emailPayload);
+    // Skip the idempotency stamp on forced (admin-test) runs so a
+    // Saturday verification doesn't push the next Sunday's send past
+    // the 5-day guard for real parents.
+    if (!force) {
+      await shareDoc.ref.update({
+        lastWeeklyDigestSentAt: admin.firestore.FieldValue.serverTimestamp(),
+      }).catch((err) => console.warn("[weeklyParentDigest] email stamp update failed", err));
+    }
+    await logEvent(db, {
+      token,
+      learnerUid: share.learnerUid,
+      channel: "email",
+      parentEmail: share.parentEmail,
+      status: "sent",
+      forced: force || false,
+    });
+    summary.sent.email += 1;
+  } catch (err) {
+    console.error(`[weeklyParentDigest] email send failed for ${token}`, err);
+    summary.failed.email += 1;
+    summary.errors.push(`email/${token}: ${String(err?.message || err).slice(0, 160)}`);
+    await logEvent(db, {
+      token,
+      learnerUid: share.learnerUid,
+      channel: "email",
+      parentEmail: share.parentEmail,
+      status: "failed",
+      error: String(err?.message || err).slice(0, 500),
+    });
+  }
+}
+
+async function deliverWhatsApp({db, shareDoc, share, token, stats, learnerName, learnerGrade, shareUrl, whatsAppReady, now, summary, force = false}) {
+  if (!share.parentPhone) return;                    // no phone recipient
+  if (!whatsAppReady) return;                          // soft-fail when Meta WhatsApp unset
+
+  const lastSentMs = share.lastWeeklyDigestWhatsAppSentAt?.toMillis
+      ? share.lastWeeklyDigestWhatsAppSentAt.toMillis()
+      : 0;
+  if (!force && lastSentMs && (now - lastSentMs) < RESEND_GUARD_MS) {
+    summary.skipped.whatsapp += 1;
+    return;
+  }
+
+  const toAddress = normalizeToWhatsApp(share.parentPhone);
+  if (!toAddress) {
+    summary.skipped.whatsapp += 1;
+    await logEvent(db, {
+      token,
+      learnerUid: share.learnerUid,
+      channel: "whatsapp",
+      parentPhone: String(share.parentPhone).slice(0, 30),
+      status: "skipped",
+      error: "phone-malformed",
+    });
+    return;
+  }
+
+  const body = buildWhatsAppDigestBody({
+    learnerName, learnerGrade,
+    summary: stats.summary,
+    subjectBreakdown: stats.subjectBreakdown,
+    shareUrl,
+  });
+
+  // Provide variables for an approved Meta Message Template if one
+  // is configured (META_WHATSAPP_TEMPLATE_NAME). Order is fixed:
+  // 1=name, 2=summaryLine, 3=shareUrl. The template body must use
+  // {{1}}, {{2}}, {{3}} in that order.
+  const summaryLine = stats.summary.totalAttempts === 0
+      ? "no quizzes this week"
+      : `${stats.summary.totalAttempts} quizzes${stats.summary.averagePercentage != null ? `, avg ${stats.summary.averagePercentage}%` : ""}`;
+  const contentVariables = {
+    1: learnerName.slice(0, 60),
+    2: summaryLine.slice(0, 120),
+    3: shareUrl,
+  };
+
+  let result;
+  try {
+    result = await sendWhatsAppDigest({to: toAddress, body, contentVariables});
+  } catch (err) {
+    result = {status: "failed", error: String(err?.message || err).slice(0, 500)};
+  }
+
+  if (result.status === "sent") {
+    // Same rationale as the email stamp — forced (admin-test) runs
+    // don't bump the idempotency clock so Sunday's tick still fires.
+    if (!force) {
+      await shareDoc.ref.update({
+        lastWeeklyDigestWhatsAppSentAt: admin.firestore.FieldValue.serverTimestamp(),
+      }).catch((err) => console.warn("[weeklyParentDigest] whatsapp stamp update failed", err));
+    }
+    await logEvent(db, {
+      token,
+      learnerUid: share.learnerUid,
+      channel: "whatsapp",
+      parentPhone: String(share.parentPhone).slice(0, 30),
+      status: "sent",
+      // Meta returns a `wamid.…` ID per outbound message. Field name
+      // is provider-agnostic so a future swap (or A/B between Meta
+      // and a fallback) doesn't change the schema.
+      whatsAppMessageId: result.messageId || null,
+      whatsAppMessageStatus: result.messageStatus || null,
+      forced: force || false,
+    });
+    summary.sent.whatsapp += 1;
+  } else if (result.status === "skipped") {
+    summary.skipped.whatsapp += 1;
+    // No audit row for the soft-fail case (meta-not-configured) —
+    // would just spam the collection during pre-rollout.
+    if (result.reason && result.reason !== "meta-not-configured") {
+      await logEvent(db, {
+        token,
+        learnerUid: share.learnerUid,
+        channel: "whatsapp",
+        parentPhone: String(share.parentPhone).slice(0, 30),
+        status: "skipped",
+        error: result.reason,
+      });
+    }
+  } else {
+    summary.failed.whatsapp += 1;
+    summary.errors.push(`whatsapp/${token}: ${(result.error || "unknown").slice(0, 160)}`);
+    await logEvent(db, {
+      token,
+      learnerUid: share.learnerUid,
+      channel: "whatsapp",
+      parentPhone: String(share.parentPhone).slice(0, 30),
+      status: "failed",
+      httpStatus: result.httpStatus || null,
+      error: (result.error || "unknown").slice(0, 500),
+    });
+  }
+}
+
+/**
+ * Reusable digest runner — same body powers both the Sunday cron and
+ * the admin-only manual trigger.
+ *
+ * Options (all optional):
+ *   - runType:        free-form label that lands in agentJobs.input.runType.
+ *                     Defaults to "weekly-parent-digest".
+ *   - createdBy:      string written to agentJobs.createdBy. The cron
+ *                     uses "system"; the manual trigger uses the admin uid.
+ *   - force:          when true, both channels bypass the 5-day idempotency
+ *                     stamp. Useful for verifying Meta WhatsApp wiring
+ *                     without waiting for the next cron tick.
+ *   - targetTokens:   when set, the runner only processes those share
+ *                     tokens (rather than the full union of email/phone
+ *                     candidates). Other gates (revoked / expired / empty
+ *                     week / no-contact) still apply.
+ */
+async function runWeeklyDigest({
+  runType = "weekly-parent-digest",
+  createdBy = "system",
+  force = false,
+  targetTokens = null,
+} = {}) {
+  const db = admin.firestore();
+  const now = Date.now();
+  const senderEmail = String(emailSmtpUser.value() || "").trim();
+  const senderDomain = senderEmail.split("@")[1] || "zedexams.com";
+  const transporter = getTransporter();
+  const whatsAppReady = isWhatsAppConfigured();
+  const summary = {
+    sharesScanned: 0,
+    sent: {email: 0, whatsapp: 0},
+    skipped: {email: 0, whatsapp: 0, share: 0},
+    failed: {email: 0, whatsapp: 0},
+    errors: [],
+    whatsAppReady,
+    smtpReady: Boolean(transporter && senderEmail),
+    force,
+    runType,
+  };
+
+  if (!summary.smtpReady && !whatsAppReady) {
+    console.warn("[weeklyParentDigest] neither SMTP nor Meta WhatsApp configured — nothing to do");
+    return summary;
+  }
+
+  let shareDocs;
+  if (Array.isArray(targetTokens) && targetTokens.length > 0) {
+    // Direct fetches when an admin asks for specific tokens. Bounded
+    // at 10 to keep manual triggers cheap and bounded.
+    const tokens = targetTokens
+        .filter((t) => typeof t === "string" && t.trim())
+        .map((t) => t.trim().toUpperCase())
+        .slice(0, 10);
+    const fetched = await Promise.all(
+        tokens.map((token) => db.collection("progressShares").doc(token).get()
+            .catch((err) => {
+              console.warn(`[weeklyParentDigest] target token fetch failed: ${token}`, err);
+              return null;
+            })),
+    );
+    shareDocs = fetched.filter((snap) => snap && snap.exists);
+  } else {
+    shareDocs = await loadCandidateShares(db);
+  }
+
+  if (shareDocs.length === 0) {
+    console.info("[weeklyParentDigest] no parent-contact shares to process");
+    return summary;
+  }
+
+  for (const shareDoc of shareDocs) {
+    summary.sharesScanned += 1;
+    const share = shareDoc.data() || {};
+    const token = shareDoc.id;
+
+    // Per-share gates that apply to BOTH channels.
+    if (share.revokedAt) { summary.skipped.share += 1; continue; }
+    if (share.expiresAt && share.expiresAt.toMillis() < now) { summary.skipped.share += 1; continue; }
+    if (!share.parentEmail && !share.parentPhone) { summary.skipped.share += 1; continue; }
+
+    let stats;
+    try {
+      stats = await aggregateProgress(db, share.learnerUid, {windowDays: WINDOW_DAYS});
+    } catch (err) {
+      console.error(`[weeklyParentDigest] aggregateProgress failed for ${token}`, err);
+      summary.skipped.share += 1;
+      continue;
+    }
+
+    // Don't pester parents when there's literally no activity. Empty-
+    // week messages train recipients to ignore us across both channels.
+    // Manual triggers can override this gate via force=true so an admin
+    // can prove the WhatsApp path without waiting for fresh quiz attempts.
+    if (stats.summary.totalAttempts === 0 && !force) {
+      summary.skipped.share += 1;
+      continue;
+    }
+
+    let learner = {};
+    try {
+      const learnerSnap = await db.collection("users").doc(share.learnerUid).get();
+      learner = learnerSnap.exists ? (learnerSnap.data() || {}) : {};
+    } catch (err) {
+      console.warn(`[weeklyParentDigest] learner lookup failed for ${share.learnerUid}`, err);
+    }
+    const learnerName = learner.displayName || "your learner";
+    const learnerGrade = learner.grade ? String(learner.grade) : null;
+    const shareUrl = `https://zedexams.com/parent/${token}`;
+
+    // Run channels independently — one failing must not block the other.
+    await Promise.all([
+      deliverEmail({
+        db, shareDoc, share, token, stats,
+        learnerName, learnerGrade, shareUrl,
+        senderEmail, senderDomain, transporter, now, summary, force,
+      }),
+      deliverWhatsApp({
+        db, shareDoc, share, token, stats,
+        learnerName, learnerGrade, shareUrl,
+        whatsAppReady, now, summary, force,
+      }),
+    ]);
+  }
+
+  // Single rollup doc so /admin can see how many digests went out in
+  // the run (matches the agentJobs pattern other crons use).
+  const totalFailed = summary.failed.email + summary.failed.whatsapp;
+  await db.collection("agentJobs").add({
+    agentId: "weekly-parent-digest",
+    department: "growth",
+    status: totalFailed > 0 ? "awaiting_approval" : "done",
+    input: {runType, timezone: "Africa/Lusaka", force, targetTokens: targetTokens || null},
+    output: {digest: {...summary, errors: summary.errors.slice(0, 10)}},
+    createdBy,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  }).catch((err) => console.warn("[weeklyParentDigest] rollup write failed", err));
+
+  return summary;
+}
+
 const weeklyParentDigest = onSchedule({
   schedule: "every sunday 09:00",
   timeZone: "Africa/Lusaka",
   region: REGION,
   timeoutSeconds: 540,
   memory: "512MiB",
-  secrets: [emailSmtpUser, emailSmtpPassword],
+  secrets: [emailSmtpUser, emailSmtpPassword, ...WHATSAPP_SECRETS],
 }, async () => {
-  const db = admin.firestore();
-  const now = Date.now();
-  const senderEmail = String(emailSmtpUser.value() || "").trim();
-  const senderDomain = senderEmail.split("@")[1] || "zedexams.com";
-  const transporter = getTransporter();
-  const summary = {sharesScanned: 0, sent: 0, skipped: 0, failed: 0, errors: []};
-
-  if (!transporter || !senderEmail) {
-    console.warn("[weeklyParentDigest] SMTP not configured — skipping run");
-    return;
-  }
-
-  // Pull the most recent active shares with parentEmail set. Cap to
-  // MAX_SHARES_PER_RUN per run; growing past that splits naturally.
-  const sharesSnap = await db.collection("progressShares")
-      .where("parentEmail", "!=", null)
-      .limit(MAX_SHARES_PER_RUN)
-      .get()
-      .catch((err) => {
-        console.error("[weeklyParentDigest] shares query failed", err);
-        return null;
-      });
-
-  if (!sharesSnap || sharesSnap.empty) {
-    console.info("[weeklyParentDigest] no parent-contact shares to process");
-    return;
-  }
-
-  for (const shareDoc of sharesSnap.docs) {
-    summary.sharesScanned += 1;
-    const share = shareDoc.data() || {};
-    const token = shareDoc.id;
-
-    try {
-      // Skip revoked / expired
-      if (share.revokedAt) { summary.skipped += 1; continue; }
-      if (share.expiresAt && share.expiresAt.toMillis() < now) { summary.skipped += 1; continue; }
-      if (!share.parentEmail) { summary.skipped += 1; continue; }
-
-      // Idempotency: skip if we sent within the last 5 days
-      const lastSentMs = share.lastWeeklyDigestSentAt?.toMillis ? share.lastWeeklyDigestSentAt.toMillis() : 0;
-      if (lastSentMs && (now - lastSentMs) < RESEND_GUARD_MS) {
-        summary.skipped += 1;
-        continue;
-      }
-
-      // Aggregate the past 7 days
-      const stats = await aggregateProgress(db, share.learnerUid, {windowDays: WINDOW_DAYS});
-
-      // Don't pester parents when there's literally no activity.
-      // (Empty-week emails train recipients to ignore us.)
-      if (stats.summary.totalAttempts === 0) {
-        summary.skipped += 1;
-        continue;
-      }
-
-      // Learner display name
-      const learnerSnap = await db.collection("users").doc(share.learnerUid).get();
-      const learner = learnerSnap.exists ? (learnerSnap.data() || {}) : {};
-      const learnerName = learner.displayName || "your learner";
-      const learnerGrade = learner.grade ? String(learner.grade) : null;
-      const shareUrl = `https://zedexams.com/parent/${token}`;
-
-      const emailPayload = {
-        from: `ZedExams <${senderEmail}>`,
-        sender: senderEmail,
-        to: share.parentEmail,
-        replyTo: senderEmail,
-        subject: `${learnerName}'s ZedExams week`,
-        text: buildEmailText({
-          learnerName, learnerGrade,
-          summary: stats.summary,
-          subjectBreakdown: stats.subjectBreakdown,
-          recentResults: stats.recentResults,
-          shareUrl,
-        }),
-        html: buildEmailHtml({
-          learnerName, learnerGrade,
-          summary: stats.summary,
-          subjectBreakdown: stats.subjectBreakdown,
-          recentResults: stats.recentResults,
-          shareUrl,
-        }),
-        envelope: {
-          from: senderEmail,
-          to: [share.parentEmail],
-        },
-        messageId: `<weekly-digest-${token}-${crypto.randomUUID()}@${senderDomain}>`,
-        headers: {
-          "X-Auto-Response-Suppress": "All",
-        },
-      };
-
-      await transporter.sendMail(emailPayload);
-
-      // Stamp the doc + audit row. Both best-effort — a stamp failure
-      // is recoverable (the worst case is we send a duplicate next week).
-      await shareDoc.ref.update({
-        lastWeeklyDigestSentAt: admin.firestore.FieldValue.serverTimestamp(),
-      }).catch((err) => console.warn("[weeklyParentDigest] stamp update failed", err));
-
-      await db.collection("parentDigestEvents").add({
-        token,
-        learnerUid: share.learnerUid,
-        parentEmail: share.parentEmail,
-        status: "sent",
-        sentAt: admin.firestore.FieldValue.serverTimestamp(),
-      }).catch((err) => console.warn("[weeklyParentDigest] audit log failed", err));
-
-      summary.sent += 1;
-    } catch (err) {
-      console.error(`[weeklyParentDigest] send failed for ${token}`, err);
-      summary.failed += 1;
-      summary.errors.push(String(err?.message || err).slice(0, 200));
-      // Audit a failure too so support can tell the user when a digest
-      // was dropped on the floor.
-      await db.collection("parentDigestEvents").add({
-        token,
-        learnerUid: share.learnerUid,
-        parentEmail: share.parentEmail,
-        status: "failed",
-        error: String(err?.message || err).slice(0, 500),
-        sentAt: admin.firestore.FieldValue.serverTimestamp(),
-      }).catch(() => {/* ignore */});
-    }
-  }
-
-  // Optional: write a single rollup doc so /admin can see how many
-  // digests went out in the run (matches the agentJobs pattern other
-  // crons use).
-  await db.collection("agentJobs").add({
-    agentId: "weekly-parent-digest",
-    department: "growth",
-    status: summary.failed > 0 ? "awaiting_approval" : "done",
-    input: {runType: "weekly-parent-digest", timezone: "Africa/Lusaka"},
-    output: {digest: {...summary, errors: summary.errors.slice(0, 10)}},
-    createdBy: "system",
-    createdAt: admin.firestore.FieldValue.serverTimestamp(),
-  }).catch((err) => console.warn("[weeklyParentDigest] rollup write failed", err));
+  await runWeeklyDigest({runType: "weekly-parent-digest", createdBy: "system"});
 });
 
-module.exports = {weeklyParentDigest};
+/**
+ * Manual trigger — admin-only. Re-uses runWeeklyDigest with optional
+ * force and targetTokens so an admin can verify the WhatsApp wiring
+ * without waiting for Sunday's cron tick.
+ *
+ * Request shape (all optional):
+ *   { force?: boolean, targetTokens?: string[] }
+ *
+ * Returns the summary so the admin can see exactly how many sends went
+ * out per channel and what (if anything) failed.
+ */
+const triggerWeeklyParentDigest = onCall({
+  region: REGION,
+  timeoutSeconds: 540,
+  memory: "512MiB",
+  secrets: [emailSmtpUser, emailSmtpPassword, ...WHATSAPP_SECRETS],
+}, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+  const db = admin.firestore();
+  const userSnap = await db.collection("users").doc(uid).get();
+  const role = userSnap.exists ? (userSnap.data()?.role || "") : "";
+  if (role !== "admin") {
+    throw new HttpsError("permission-denied", "Admin only.");
+  }
+
+  const force = Boolean(request.data?.force);
+  const rawTokens = request.data?.targetTokens;
+  const targetTokens = Array.isArray(rawTokens)
+      ? rawTokens.filter((t) => typeof t === "string").slice(0, 10)
+      : null;
+
+  const summary = await runWeeklyDigest({
+    runType: "manual-admin-trigger",
+    createdBy: uid,
+    force,
+    targetTokens,
+  });
+
+  return summary;
+});
+
+module.exports = {
+  weeklyParentDigest,
+  triggerWeeklyParentDigest,
+  runWeeklyDigest,
+};
