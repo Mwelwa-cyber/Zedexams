@@ -43,8 +43,10 @@ const SUBJECT_TONES = {
   science:          { ring: 'ring-purple-100', bg: 'bg-purple-50', text: 'text-purple-700', bar: 'bg-purple-600' },
   'social-studies': { ring: 'ring-orange-100', bg: 'bg-orange-50', text: 'text-orange-700', bar: 'bg-orange-500' },
   technology:       { ring: 'ring-slate-200',  bg: 'bg-slate-100', text: 'text-slate-700',  bar: 'bg-slate-600'  },
-  'home-economics': { ring: 'ring-pink-100',   bg: 'bg-pink-50',   text: 'text-pink-700',   bar: 'bg-pink-500'   },
   'expressive-arts':{ ring: 'ring-amber-100',  bg: 'bg-amber-50',  text: 'text-amber-700',  bar: 'bg-amber-500'  },
+  cinyanja:         { ring: 'ring-pink-100',   bg: 'bg-pink-50',   text: 'text-pink-700',   bar: 'bg-pink-500'   },
+  // legacy
+  'home-economics': { ring: 'ring-pink-100',   bg: 'bg-pink-50',   text: 'text-pink-700',   bar: 'bg-pink-500'   },
 }
 
 function difficultyColor(count = 0) {

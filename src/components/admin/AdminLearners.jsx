@@ -7,7 +7,7 @@ import Skeleton from '../ui/Skeleton'
 import { downloadCSV } from '../../utils/csvExport'
 import SeoHelmet from '../seo/SeoHelmet'
 
-const GRADES = ['4', '5', '6', '7', '8', '9', '10', '11', '12']
+const GRADES = ['4', '5', '6', '7']
 const PAGE_SIZE = 20
 
 function pctColor(p) {

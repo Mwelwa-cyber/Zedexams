@@ -10,20 +10,22 @@ import SeoHelmet from '../seo/SeoHelmet'
 import { computeStreak } from '../../utils/streak'
 
 const SUBJECTS = [
-  'Mathematics', 'English', 'Integrated Science', 'Social Studies',
-  'Technology Studies', 'Home Economics', 'Expressive Arts',
+  'English', 'Integrated Science', 'Mathematics', 'Social Studies',
+  'Expressive Art', 'Technology Studies', 'Cinyanja',
 ]
 
 const subjectBadge = {
-  Mathematics:           'bg-blue-100 text-blue-700',
   English:               'bg-violet-100 text-violet-700',
   'Integrated Science':  'bg-orange-100 text-orange-700',
+  Mathematics:           'bg-blue-100 text-blue-700',
   'Social Studies':      'bg-teal-100 text-teal-700',
+  'Expressive Art':      'bg-rose-100 text-rose-700',
   'Technology Studies':  'bg-cyan-100 text-cyan-700',
-  'Home Economics':      'bg-pink-100 text-pink-700',
-  'Expressive Arts':     'bg-rose-100 text-rose-700',
+  Cinyanja:              'bg-pink-100 text-pink-700',
   // legacy
   Science:               'bg-orange-100 text-orange-700',
+  'Expressive Arts':     'bg-rose-100 text-rose-700',
+  'Home Economics':      'bg-pink-100 text-pink-700',
 }
 
 function pctColor(p) {

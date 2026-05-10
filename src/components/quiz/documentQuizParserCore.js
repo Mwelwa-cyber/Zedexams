@@ -1,14 +1,15 @@
 import { createPartGroup, createPassageSection, createStandaloneSection } from '../../utils/quizSections.js'
 
 const SUBJECTS = [
-  'Mathematics',
   'English',
   'Integrated Science',
   'Science',
+  'Mathematics',
   'Social Studies',
-  'Technology Studies',
-  'Home Economics',
+  'Expressive Art',
   'Expressive Arts',
+  'Technology Studies',
+  'Cinyanja',
 ]
 
 const QUESTION_RE = /^(?:q(?:uestion)?\s*)?(\d{1,3})\s*[\).:\-]\s*(.+)$/i

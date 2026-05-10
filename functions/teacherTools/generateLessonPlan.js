@@ -98,7 +98,8 @@ const ALLOWED_GRADES = new Set([
 // Every subject the dropdown can select must be accepted here, otherwise the
 // frontend silently fails with "Please select a supported subject."
 const ALLOWED_SUBJECTS = new Set([
-  "mathematics", "numeracy", "english", "literacy", "zambian_language",
+  "mathematics", "numeracy", "english", "literacy",
+  "cinyanja", "zambian_language",
   "integrated_science", "environmental_science",
   "biology", "chemistry", "physics",
   "social_studies", "history", "geography", "civic_education",

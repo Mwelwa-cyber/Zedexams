@@ -100,15 +100,21 @@ const SUBJECT_TONES = {
     tile: 'bg-slate-100 text-slate-700 ring-1 ring-slate-200',
     action: 'bg-slate-100 text-slate-700 ring-1 ring-slate-200 hover:bg-slate-200',
   },
-  'home-economics': {
-    text: 'text-pink-700',
-    tile: 'bg-pink-50 text-pink-700 ring-1 ring-pink-100',
-    action: 'bg-pink-50 text-pink-700 ring-1 ring-pink-100 hover:bg-pink-100',
-  },
   'expressive-arts': {
     text: 'text-amber-700',
     tile: 'bg-amber-50 text-amber-700 ring-1 ring-amber-100',
     action: 'bg-amber-50 text-amber-700 ring-1 ring-amber-100 hover:bg-amber-100',
+  },
+  cinyanja: {
+    text: 'text-pink-700',
+    tile: 'bg-pink-50 text-pink-700 ring-1 ring-pink-100',
+    action: 'bg-pink-50 text-pink-700 ring-1 ring-pink-100 hover:bg-pink-100',
+  },
+  // legacy
+  'home-economics': {
+    text: 'text-pink-700',
+    tile: 'bg-pink-50 text-pink-700 ring-1 ring-pink-100',
+    action: 'bg-pink-50 text-pink-700 ring-1 ring-pink-100 hover:bg-pink-100',
   },
 }
 
@@ -497,7 +503,7 @@ export default function GradeHub() {
   // Null when the profile has no grade (e.g. teacher/admin viewing the
   // dashboard) — the My Grade panel renders a "set your grade" prompt.
   const defaultGrade = userProfile?.grade ? parseInt(userProfile.grade, 10) : null
-  const validGrade   = [4, 5, 6].includes(defaultGrade) ? defaultGrade : null
+  const validGrade   = [4, 5, 6, 7].includes(defaultGrade) ? defaultGrade : null
 
   // Grade-personalised tabs: My Grade (default), Next Level, Challenge.
   // No routing — local state only, content swaps in place.

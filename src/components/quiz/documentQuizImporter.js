@@ -36,14 +36,15 @@ const IMAGE_MIME = {
 }
 
 const SUBJECTS = [
-  'Mathematics',
   'English',
   'Integrated Science',
   'Science',
+  'Mathematics',
   'Social Studies',
-  'Technology Studies',
-  'Home Economics',
+  'Expressive Art',
   'Expressive Arts',
+  'Technology Studies',
+  'Cinyanja',
 ]
 
 // ─── Core Patterns ───────────────────────────────────────────────────────────

@@ -29,14 +29,12 @@ import { describeFirestoreReadError, withFirestoreReadTimeout } from './firestor
 /* ─────────────────────────────────────────────────────────────────
  *  Taxonomy used by the Grade → Subject → Games list UI
  * ───────────────────────────────────────────────────────────────── */
-// Zambian CBC primary scope — Grades 1-6 only.
+// Zambian CBC upper-primary scope — Grades 4-7.
 export const GRADES = [
-  { value: 1, label: 'Grade 1', band: 'lower' },
-  { value: 2, label: 'Grade 2', band: 'lower' },
-  { value: 3, label: 'Grade 3', band: 'lower' },
   { value: 4, label: 'Grade 4', band: 'middle' },
   { value: 5, label: 'Grade 5', band: 'middle' },
   { value: 6, label: 'Grade 6', band: 'middle' },
+  { value: 7, label: 'Grade 7', band: 'middle' },
 ]
 
 // Keep subject slugs stable — they become URL segments.

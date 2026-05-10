@@ -41,7 +41,8 @@ const ALLOWED_GRADES = new Set([
 ]);
 const ALLOWED_SUBJECTS = new Set([
   "mathematics", "english", "integrated_science", "social_studies",
-  "literacy", "numeracy", "zambian_language", "creative_and_technology_studies",
+  "literacy", "numeracy", "cinyanja", "zambian_language",
+  "creative_and_technology_studies",
   "physical_education", "religious_education", "civic_education",
   "biology", "chemistry", "physics", "geography", "history",
   "environmental_science", "technology_studies", "home_economics",

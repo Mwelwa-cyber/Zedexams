@@ -1,6 +1,6 @@
 /**
  * Zambia Competency-Based Curriculum (CBC) — Upper Primary
- * Grades 4, 5, and 6  |  Seven Learning Areas
+ * Grades 4, 5, 6, and 7  |  Seven Learning Areas
  *
  * SITE MAP
  * ─────────────────────────────────────────────────────────
@@ -23,7 +23,7 @@
  * FIRESTORE SCHEMA (recommended)
  * ─────────────────────────────────────────────────────────
  * quizzes/{id}
- *   grade: '4'|'5'|'6'
+ *   grade: '4'|'5'|'6'|'7'
  *   subject: SubjectId
  *   topic: string            ← from TOPICS below
  *   competency: string       ← from COMPETENCIES below
@@ -33,7 +33,7 @@
  * lessons/{id}  — same fields as quizzes
  *
  * users/{uid}
- *   grade: '4'|'5'|'6'
+ *   grade: '4'|'5'|'6'|'7'
  *   earnedBadges: [{badgeId, earnedAt}]
  *   currentStreak: number
  *   lastActiveDate: string   ← 'YYYY-MM-DD'
@@ -46,23 +46,10 @@
  * ─────────────────────────────────────────────────────────
  */
 
-export const GRADES = [4, 5, 6]
+export const GRADES = [4, 5, 6, 7]
 
 /** Learning Areas (subjects) — 7 as per CBC Upper Primary */
 export const SUBJECTS = [
-  {
-    id: 'mathematics',
-    label: 'Mathematics',
-    shortLabel: 'Maths',
-    icon: '📐',
-    color: 'blue',
-    tailwind: {
-      bg:     'bg-blue-600',
-      light:  'bg-blue-50',
-      text:   'text-blue-700',
-      border: 'border-blue-200',
-    },
-  },
   {
     id: 'english',
     label: 'English',
@@ -90,6 +77,19 @@ export const SUBJECTS = [
     },
   },
   {
+    id: 'mathematics',
+    label: 'Mathematics',
+    shortLabel: 'Maths',
+    icon: '📐',
+    color: 'blue',
+    tailwind: {
+      bg:     'bg-blue-600',
+      light:  'bg-blue-50',
+      text:   'text-blue-700',
+      border: 'border-blue-200',
+    },
+  },
+  {
     id: 'social-studies',
     label: 'Social Studies',
     shortLabel: 'Social',
@@ -100,6 +100,19 @@ export const SUBJECTS = [
       light:  'bg-orange-50',
       text:   'text-orange-700',
       border: 'border-orange-200',
+    },
+  },
+  {
+    id: 'expressive-arts',
+    label: 'Expressive Art',
+    shortLabel: 'Art',
+    icon: '🎨',
+    color: 'yellow',
+    tailwind: {
+      bg:     'bg-amber-500',
+      light:  'bg-amber-50',
+      text:   'text-amber-700',
+      border: 'border-amber-200',
     },
   },
   {
@@ -116,29 +129,16 @@ export const SUBJECTS = [
     },
   },
   {
-    id: 'home-economics',
-    label: 'Home Economics',
-    shortLabel: 'Home Ec.',
-    icon: '🏡',
+    id: 'cinyanja',
+    label: 'Cinyanja',
+    shortLabel: 'Cinyanja',
+    icon: '🗣️',
     color: 'pink',
     tailwind: {
       bg:     'bg-pink-500',
       light:  'bg-pink-50',
       text:   'text-pink-700',
       border: 'border-pink-200',
-    },
-  },
-  {
-    id: 'expressive-arts',
-    label: 'Expressive Arts',
-    shortLabel: 'Arts',
-    icon: '🎨',
-    color: 'yellow',
-    tailwind: {
-      bg:     'bg-amber-500',
-      light:  'bg-amber-50',
-      text:   'text-amber-700',
-      border: 'border-amber-200',
     },
   },
 ]
@@ -148,13 +148,6 @@ export const SUBJECT_MAP = Object.fromEntries(SUBJECTS.map(s => [s.id, s]))
 
 /** Competencies per subject — CBC strands */
 export const COMPETENCIES = {
-  mathematics: [
-    'Number & Operations',
-    'Measurement',
-    'Geometry & Spatial Reasoning',
-    'Data Handling & Statistics',
-    'Patterns & Algebra',
-  ],
   english: [
     'Reading & Comprehension',
     'Writing Skills',
@@ -169,26 +162,19 @@ export const COMPETENCIES = {
     'Scientific Inquiry',
     'Energy & Forces',
   ],
+  mathematics: [
+    'Number & Operations',
+    'Measurement',
+    'Geometry & Spatial Reasoning',
+    'Data Handling & Statistics',
+    'Patterns & Algebra',
+  ],
   'social-studies': [
     'History & Heritage',
     'Civic Education',
     'Geography & Environment',
     'Culture & Society',
     'Economics & Livelihoods',
-  ],
-  technology: [
-    'Digital Literacy',
-    'Computer Applications',
-    'Problem Solving & Design',
-    'Internet Safety',
-    'Technology in Society',
-  ],
-  'home-economics': [
-    'Food & Nutrition',
-    'Personal & Family Health',
-    'Home Management',
-    'Clothing & Textiles',
-    'Consumer Education',
   ],
   'expressive-arts': [
     'Music & Performance',
@@ -197,44 +183,65 @@ export const COMPETENCIES = {
     'Dance & Movement',
     'Creative Expression',
   ],
+  technology: [
+    'Digital Literacy',
+    'Computer Applications',
+    'Problem Solving & Design',
+    'Internet Safety',
+    'Technology in Society',
+  ],
+  cinyanja: [
+    'Kuwerenga (Reading)',
+    'Kulemba (Writing)',
+    'Kulankhula & Kumvera (Speaking & Listening)',
+    'Galamala (Grammar)',
+    'Chikhalidwe (Culture & Heritage)',
+  ],
 }
 
 /** Topics per grade per subject */
 export const TOPICS = {
-  mathematics: {
-    4: ['Whole Numbers', 'Addition & Subtraction', 'Multiplication & Division', 'Fractions', 'Measurement', 'Geometry Basics', 'Data Handling'],
-    5: ['Large Numbers', 'Fractions & Decimals', 'Ratio & Proportion', 'Measurement & Units', 'Geometry & Area', 'Statistics & Graphs'],
-    6: ['Integers', 'Algebra Basics', 'Percentages', 'Advanced Geometry', 'Probability', 'Advanced Statistics'],
-  },
   english: {
     4: ['Phonics & Word Study', 'Reading Comprehension', 'Creative Writing', 'Parts of Speech', 'Punctuation', 'Oral Communication'],
     5: ['Reading Strategies', 'Essay Writing', 'Advanced Grammar', 'Vocabulary Building', 'Public Speaking', 'Letter Writing'],
     6: ['Critical Reading', 'Argumentative Writing', 'Complex Grammar', 'Literature Study', 'Debate Skills', 'Report Writing'],
+    7: ['Comprehension & Summary', 'Composition Writing', 'Functional Writing', 'Literature Appreciation', 'Tenses & Sentence Structure', 'Exam Skills & Revision'],
   },
   science: {
     4: ['Living & Non-living Things', 'Plants', 'Animals', 'Matter & Materials', 'Forces & Motion', 'Light & Sound'],
     5: ['Plant Life Cycles', 'Animal Adaptations', 'States of Matter', 'Electricity Basics', 'Earth & Soil', 'Weather & Climate'],
     6: ['Human Body Systems', 'Ecosystems & Food Chains', 'Chemical Changes', 'Simple Machines', 'Energy Sources', 'Environmental Issues'],
+    7: ['Cells & Body Systems', 'Reproduction in Plants & Animals', 'Mixtures & Separation', 'Electricity & Magnetism', 'Energy Transfer', 'Health & Diseases'],
+  },
+  mathematics: {
+    4: ['Whole Numbers', 'Addition & Subtraction', 'Multiplication & Division', 'Fractions', 'Measurement', 'Geometry Basics', 'Data Handling'],
+    5: ['Large Numbers', 'Fractions & Decimals', 'Ratio & Proportion', 'Measurement & Units', 'Geometry & Area', 'Statistics & Graphs'],
+    6: ['Integers', 'Algebra Basics', 'Percentages', 'Advanced Geometry', 'Probability', 'Advanced Statistics'],
+    7: ['Real Numbers & Operations', 'Algebraic Expressions', 'Equations & Inequalities', 'Mensuration & Area', 'Coordinate Geometry', 'Statistics & Probability'],
   },
   'social-studies': {
     4: ['My Community', 'Local Government', 'Zambia — Our Country', 'Natural Environment', 'Traditions & Culture', 'Basic Economics'],
     5: ['Zambia — History & Heritage', 'Provinces of Zambia', 'African Countries', 'Civic Rights & Responsibilities', 'Transport & Communication', 'Economic Activities'],
     6: ['Zambia\'s Independence', 'Regional Geography', 'Democracy & Governance', 'Conflict Resolution', 'Trade & Development', 'Global Citizenship'],
-  },
-  technology: {
-    4: ['Parts of a Computer', 'Using a Keyboard', 'Digital Safety', 'Simple Machines', 'Technology Around Us', 'Problem Solving'],
-    5: ['Computer Applications', 'Internet Basics', 'Digital Communication', 'Technology Design', 'Coding Introduction', 'Media Literacy'],
-    6: ['Spreadsheets & Data', 'Web Research Skills', 'Digital Citizenship', 'Programming Concepts', 'Technology & Society', 'Cybersecurity Basics'],
-  },
-  'home-economics': {
-    4: ['Personal Hygiene', 'Balanced Diet', 'Kitchen Safety', 'Cleaning & Tidying', 'Family & Home Care', 'Simple Cooking'],
-    5: ['Nutrition & Meal Planning', 'Cooking Methods', 'Laundry & Clothing Care', 'Home Organisation', 'Consumer Skills', 'First Aid Basics'],
-    6: ['Advanced Cooking', 'Clothing & Textiles', 'Home Design', 'Entrepreneurship Basics', 'Family Health', 'Budgeting & Finance'],
+    7: ['Pre-colonial & Colonial Zambia', 'Map Reading & Africa', 'Constitution & Human Rights', 'Sustainable Development', 'Population & Migration', 'Global Issues'],
   },
   'expressive-arts': {
     4: ['Rhythm & Beats', 'Drawing & Colour', 'Storytelling & Drama', 'Folk Songs & Dance', 'Creative Play', 'Art Materials'],
     5: ['Music Theory Basics', 'Painting Techniques', 'Script & Performance', 'Traditional Dance', 'Sculpture & Craft', 'Cultural Expressions'],
     6: ['Music Composition', 'Advanced Visual Art', 'Theatre Production', 'Contemporary Dance', 'Multimedia Arts', 'Portfolio & Presentation'],
+    7: ['Notation & Performance', 'Drawing & Painting', 'Drama & Improvisation', 'Choreography', 'Crafts & Design', 'Arts in Society'],
+  },
+  technology: {
+    4: ['Parts of a Computer', 'Using a Keyboard', 'Digital Safety', 'Simple Machines', 'Technology Around Us', 'Problem Solving'],
+    5: ['Computer Applications', 'Internet Basics', 'Digital Communication', 'Technology Design', 'Coding Introduction', 'Media Literacy'],
+    6: ['Spreadsheets & Data', 'Web Research Skills', 'Digital Citizenship', 'Programming Concepts', 'Technology & Society', 'Cybersecurity Basics'],
+    7: ['Word Processing & Documents', 'Spreadsheets & Charts', 'Online Research & Safety', 'Block Programming', 'Hardware & Networks', 'Tech Project Design'],
+  },
+  cinyanja: {
+    4: ['Zilembo & Mawu (Letters & Words)', 'Kuwerenga Nkhani (Reading Stories)', 'Kulemba Mawu (Writing Words)', 'Mawu Otsutsana (Opposites)', 'Miyambi (Proverbs)', 'Nyimbo & Ndakatulo (Songs & Poems)'],
+    5: ['Kuwerenga ndi Kumvetsa (Reading Comprehension)', 'Kalembedwe ka Makalata (Letter Writing)', 'Galamala (Grammar)', 'Mauthenga (Messages)', 'Nthano (Folk Tales)', 'Chikhalidwe cha Zambia'],
+    6: ['Kuwerenga Kwapamwamba (Advanced Reading)', 'Kufotokoza Nkhani (Composition)', 'Galamala Yapamwamba (Advanced Grammar)', 'Ndakatulo Zatsopano', 'Sewero (Drama)', 'Miyambo & Mwambo'],
+    7: ['Kuunika Nkhani (Critical Reading)', 'Maganizo & Mtsutso (Opinion & Debate)', 'Galamala ya Pamlingo Wapamwamba', 'Ntchito ya Cinyanja Pagulu', 'Mabuku a Cinyanja', 'Kukonzekera Mayeso'],
   },
 }
 
@@ -272,7 +279,7 @@ export const GRADE_META = {
   },
   6: {
     label:    'Grade 6',
-    tagline:  'Ready for Secondary',
+    tagline:  'Mastering the Basics',
     color:    'orange',
     emoji:    '🟠',
     tailwind: {
@@ -283,6 +290,21 @@ export const GRADE_META = {
       border:   'border-orange-200',
       ring:     'ring-orange-400',
       gradient: 'from-orange-500 to-orange-700',
+    },
+  },
+  7: {
+    label:    'Grade 7',
+    tagline:  'Ready for Secondary',
+    color:    'purple',
+    emoji:    '🟣',
+    tailwind: {
+      bg:       'bg-purple-600',
+      hover:    'hover:bg-purple-700',
+      light:    'bg-purple-50',
+      text:     'text-purple-700',
+      border:   'border-purple-200',
+      ring:     'ring-purple-400',
+      gradient: 'from-purple-600 to-purple-800',
     },
   },
 }
@@ -346,8 +368,8 @@ export function getPakoTip(topic = '', isCorrect = null) {
  * ───────────────────────────────────────────────────────────────── */
 
 export const GRADE_BANDS = {
-  primary:          [4, 5, 6],
-  junior_secondary: [7, 8, 9],
+  primary:          [4, 5, 6, 7],
+  junior_secondary: [8, 9],
   senior_secondary: [10, 11, 12],
 }
 
@@ -355,7 +377,7 @@ export const ALL_GRADES = [
   { value: 4,  band: 'primary',          active: true  },
   { value: 5,  band: 'primary',          active: true  },
   { value: 6,  band: 'primary',          active: true  },
-  { value: 7,  band: 'junior_secondary', active: false },
+  { value: 7,  band: 'primary',          active: true  },
   { value: 8,  band: 'junior_secondary', active: false },
   { value: 9,  band: 'junior_secondary', active: false },
   { value: 10, band: 'senior_secondary', active: false },

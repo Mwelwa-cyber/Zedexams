@@ -445,7 +445,7 @@ export default function ProfilePage() {
                   <option value="4">Grade 4</option>
                   <option value="5">Grade 5</option>
                   <option value="6">Grade 6</option>
-                  
+                  <option value="7">Grade 7</option>
                 </select>
               </Field>
             )}

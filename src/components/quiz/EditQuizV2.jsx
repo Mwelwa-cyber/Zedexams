@@ -24,15 +24,15 @@ import QuizVerifyModal from './QuizVerifyModal'
 import SeoHelmet from '../seo/SeoHelmet'
 
 const SUBJECTS = [
-  'Mathematics',
   'English',
   'Integrated Science',
+  'Mathematics',
   'Social Studies',
+  'Expressive Art',
   'Technology Studies',
-  'Home Economics',
-  'Expressive Arts',
+  'Cinyanja',
 ]
-const GRADES = ['4', '5', '6']
+const GRADES = ['4', '5', '6', '7']
 const TERMS = ['1', '2', '3']
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 

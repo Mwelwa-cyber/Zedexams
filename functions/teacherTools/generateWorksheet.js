@@ -96,7 +96,8 @@ const ALLOWED_GRADES = new Set([
 ]);
 // Mirrors the frontend TEACHER_SUBJECTS list in src/utils/teacherTools.js.
 const ALLOWED_SUBJECTS = new Set([
-  "mathematics", "numeracy", "english", "literacy", "zambian_language",
+  "mathematics", "numeracy", "english", "literacy",
+  "cinyanja", "zambian_language",
   "integrated_science", "environmental_science",
   "biology", "chemistry", "physics",
   "social_studies", "history", "geography", "civic_education",

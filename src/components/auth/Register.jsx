@@ -32,10 +32,13 @@ const ZAMBIAN_PROVINCES = [
 ]
 
 const TEACHER_SUBJECTS = [
-  'Mathematics',
   'English',
-  'Science',
+  'Integrated Science',
+  'Mathematics',
   'Social Studies',
+  'Expressive Art',
+  'Technology Studies',
+  'Cinyanja',
   'Other',
 ]
 
@@ -216,7 +219,7 @@ export default function Register() {
             onClick={() => pickRole('learner')}
             emoji="🎓"
             name="Learner"
-            hint={<>Grades 4–6<br />Exam practice</>}
+            hint={<>Grades 4–7<br />Exam practice</>}
           />
           <RoleCard
             active={isTeacher}
@@ -243,7 +246,7 @@ export default function Register() {
           >
             {isTeacher
               ? 'Access lesson plans, schemes of work & teaching tools'
-              : "You'll get access to Grade 4–6 quizzes & exam practice"}
+              : "You'll get access to Grade 4–7 quizzes & exam practice"}
           </span>
         </div>
 
@@ -376,6 +379,7 @@ export default function Register() {
                   <option value="4">Grade 4</option>
                   <option value="5">Grade 5</option>
                   <option value="6">Grade 6</option>
+                  <option value="7">Grade 7</option>
                 </select>
                 <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[#aaa] text-[13px] pointer-events-none" aria-hidden="true">▾</span>
               </div>

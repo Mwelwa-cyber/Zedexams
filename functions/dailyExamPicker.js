@@ -4,7 +4,7 @@
  * Practice. Long quizzes (questionCount >= 50) are exam-only and are never
  * auto-picked here; admins still pin those manually from Manage Content.
  *
- * Daily flow (per grade in [4, 5, 6]):
+ * Daily flow (per grade in [4, 5, 6, 7]):
  *   1. Demote: any quiz with quizType == "daily_exam" whose
  *      dailyExamDate < today is moved back to quizType "practice"
  *      (isDailyExam=false, dailyExamDate=null). lastDailyExamDate is kept
@@ -26,7 +26,7 @@
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const admin = require("firebase-admin");
 
-const GRADES = ["4", "5", "6"];
+const GRADES = ["4", "5", "6", "7"];
 const EXAM_QUESTION_THRESHOLD = 50;
 
 function todayString(date = new Date()) {

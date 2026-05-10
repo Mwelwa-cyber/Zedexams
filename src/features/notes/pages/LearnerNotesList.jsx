@@ -120,9 +120,9 @@ export function LearnerNotesList() {
 
         <div className="mt-12 p-6 rounded-2xl border-2 border-dashed border-neutral-200 text-center bg-white">
           <Lock size={20} className="mx-auto mb-3 text-neutral-400" />
-          <h3 className="font-display text-2xl mb-1 text-neutral-900">Grades 7–12</h3>
+          <h3 className="font-display text-2xl mb-1 text-neutral-900">Grades 8–12</h3>
           <p className="text-sm text-neutral-500 max-w-sm mx-auto">
-            Junior and senior secondary notes coming soon. We're building Grades 4–6 first.
+            Junior and senior secondary notes coming soon. We're building Grades 4–7 first.
           </p>
         </div>
       </main>
