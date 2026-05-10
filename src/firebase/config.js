@@ -67,26 +67,66 @@ applyAuthPersistence(false)
 // at which point the token mint fails and the gated call falls back
 // to whatever the server's enforce mode is.
 //
-// Native (Capacitor): skipped here. Play Integrity needs the
-// firebase-android-sdk + a Play Console-issued integrity API key,
-// which lives outside the JS bundle. Capacitor support lands in a
-// follow-up PR alongside the Android wrapper config.
+// Native (Capacitor / Android, audit B3 follow-up): Play Integrity via
+// `@capacitor-firebase/app-check`. The native plugin handles the
+// integrity-check round-trip with Google Play Services and surfaces
+// tokens through the Firebase JS SDK's CustomProvider hook so all
+// outbound Firestore/Storage/Functions calls from the WebView are
+// attested without any JS-level token plumbing.
+//
+// IMPORTANT: this PR ships the wiring; the npm package is NOT added
+// here. To activate Play Integrity, the operator runs:
+//   npm install @capacitor-firebase/app-check
+//   npx cap sync android
+// + completes the Firebase Console / Play Console setup steps
+// documented in docs/B3-PLAY-INTEGRITY-SETUP.md. Until then the
+// dynamic import fails silently and native traffic stays unattested
+// — the same soft-fail pattern as Sentry's DSN gating.
+//
+// iOS support (DeviceCheck / App Attest) lands in a future PR if
+// the iOS wrapper ever ships.
 //
 // DEV: setting `self.FIREBASE_APPCHECK_DEBUG_TOKEN = true` BEFORE
 // initializeAppCheck logs a debug token to the console; that token
 // must be registered in Firebase Console → App Check → Apps → manage
 // debug tokens. Without that, the dev server can't mint legitimate
 // attestation tokens.
-//
-// All gated on VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY being set so a
-// build that hasn't been configured silently no-ops rather than
-// crashing on init.
 const APPCHECK_RECAPTCHA_KEY = import.meta.env.VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY
-if (
-  typeof window !== 'undefined'
-  && !isNativePlatform()
-  && APPCHECK_RECAPTCHA_KEY
-) {
+
+async function initAppCheck() {
+  if (typeof window === 'undefined') return
+
+  // Native (Capacitor) path — Play Integrity via the Capacitor plugin.
+  if (isNativePlatform()) {
+    try {
+      // The Capacitor App Check plugin is optional — listed in
+      // .env.example as a step the operator runs (`npm install
+      // @capacitor-firebase/app-check`). Constructing the module
+      // specifier at runtime keeps Rollup from trying to resolve it
+      // at build time, so the web build doesn't fail when the
+      // package isn't installed. The `/* @vite-ignore */` is
+      // belt-and-braces.
+      const moduleId = ['@capacitor-firebase', 'app-check'].join('/')
+      const mod = await import(/* @vite-ignore */ moduleId).catch(() => null)
+      if (!mod?.FirebaseAppCheck) {
+        // Plugin not installed yet — soft-fail. Native traffic continues
+        // unattested until the operator completes the setup steps.
+        console.info('[appCheck] @capacitor-firebase/app-check not installed; native traffic unattested')
+        return
+      }
+      await mod.FirebaseAppCheck.initialize({
+        isTokenAutoRefreshEnabled: true,
+      })
+    } catch (err) {
+      console.warn('[appCheck] native init failed:', err?.message || err)
+    }
+    return
+  }
+
+  // Web path — reCAPTCHA v3. Gated on the public site key being set
+  // so a build that hasn't been configured silently no-ops rather
+  // than crashing on init.
+  if (!APPCHECK_RECAPTCHA_KEY) return
   if (import.meta.env.DEV) {
     // Must be set before initializeAppCheck to take effect.
     // eslint-disable-next-line no-self-assign
@@ -104,6 +144,10 @@ if (
     console.warn('[appCheck] init failed (probably double-init):', err?.message || err)
   }
 }
+
+// Fire-and-forget. Failures inside initAppCheck never reject because
+// we catch every path internally.
+initAppCheck()
 
 // Firestore offline persistence (audit A1.1). Cached reads survive
 // reload/refresh, writes queue while offline and replay on reconnect.
