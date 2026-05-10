@@ -11,7 +11,7 @@ import { computeStreak } from '../../utils/streak'
 
 const SUBJECTS = [
   'English', 'Integrated Science', 'Mathematics', 'Social Studies',
-  'Expressive Art', 'Technology Studies', 'Cinyanja',
+  'Expressive Art', 'Technology Studies', 'Cinyanja', 'Home Economics',
 ]
 
 const subjectBadge = {
