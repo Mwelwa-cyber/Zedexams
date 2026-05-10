@@ -204,7 +204,12 @@ service cloud.firestore {
         && (!('term' in incoming()) || (incoming().term is string && incoming().term.size() <= 20))
         && (!('assessmentDate' in incoming()) || (incoming().assessmentDate is string && incoming().assessmentDate.size() <= 40))
         && (!('coverInstructions' in incoming()) || (incoming().coverInstructions is string && incoming().coverInstructions.size() <= 4000))
-        && (!('parts' in incoming()) || (incoming().parts is list && incoming().parts.size() <= 20));
+        && (!('parts' in incoming()) || (incoming().parts is list && incoming().parts.size() <= 20))
+        // Library coords ({ libraryType, syllabus, gradeForm, term, subject,
+        // assessmentType, path }) populated by AssessmentStudio so the saved
+        // doc lands in the canonical /Assessments/<syllabus>/<grade>/<term>/
+        // <subject>/<assessmentType>/ folder. All optional, all strings.
+        && (!('library' in incoming()) || (incoming().library is map && incoming().library.size() <= 16));
     }
     match /assessments/{assessmentId} {
       allow read: if isAuthed() && (
@@ -328,14 +333,17 @@ service cloud.firestore {
       allow read:   if isAuthed() && (resource.data.ownerUid == request.auth.uid || isAdmin());
       // Client never creates these — only the Cloud Function does (admin SDK bypasses rules).
       allow create: if false;
-      // Teachers can update their own generations' output (in-place editing)
-      // and the teacherEdited / visibility / exportedFormats metadata fields.
+      // Teachers can update their own generations' output (in-place editing),
+      // the teacherEdited / visibility / exportedFormats metadata fields, and
+      // the `library` map (canonical Schemes/Forecasts/Lesson Plans/Notes/
+      // Assessments classification — see src/config/library.js).
       // Structural fields (tool, ownerUid, inputs, tokens, etc.) remain
       // immutable from the client.
       allow update: if isAuthed()
                        && resource.data.ownerUid == request.auth.uid
                        && changedKeys().hasOnly([
                          'output', 'teacherEdited', 'visibility', 'exportedFormats',
+                         'library',
                        ])
                        && incoming().ownerUid == resource.data.ownerUid
                        && incoming().tool == resource.data.tool;

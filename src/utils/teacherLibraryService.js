@@ -13,6 +13,8 @@ import {
   query, where, orderBy, limit,
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { LIBRARY_SECTION_BY_ID, LIBRARY_TYPES } from '../config/library'
+import { TOOL_TO_LIBRARY_TYPE, classifyForLibrary } from './libraryClassification'
 
 const GENERATIONS_PAGE_SIZE = 60
 
@@ -125,6 +127,39 @@ export async function updateGenerationOutput(id, output) {
     console.error('updateGenerationOutput failed', err)
     return false
   }
+}
+
+/**
+ * Attach the library coordinates ({syllabus, gradeForm, term, subject,
+ * assessmentType, path, libraryType}) to a saved generation. Called by
+ * studios immediately after generation succeeds so the doc lands in the
+ * correct library folder. Idempotent.
+ *
+ * Firestore rules permit only `output | teacherEdited | visibility |
+ * exportedFormats | library` to be updated by the owner — keep this set
+ * in sync with `firestore.rules` if you change it.
+ */
+export async function setGenerationLibrary(id, library) {
+  if (!id || !library || typeof library !== 'object') return false
+  try {
+    await updateDoc(doc(db, 'aiGenerations', id), { library })
+    return true
+  } catch (err) {
+    console.error('setGenerationLibrary failed', err)
+    return false
+  }
+}
+
+/**
+ * One-shot helper used by studios: classify the studio's raw inputs into
+ * canonical library coords, then patch the saved generation. Silent
+ * no-op when classification fails or the row isn't owned by the user.
+ */
+export async function attachLibraryToGeneration(generationId, classification) {
+  const lib = classifyForLibrary(classification)
+  if (!generationId || !lib) return null
+  await setGenerationLibrary(generationId, lib)
+  return lib
 }
 
 /**
@@ -247,6 +282,141 @@ export function titleForGeneration(gen) {
   }
   return gen.inputs?.topic || 'Generation'
 }
+
+/* ── Library bucketing & access control ─────────────────────── */
+
+/**
+ * Bucket a generation into a library section. Prefers the saved
+ * `library.libraryType` (set by `setGenerationLibrary`) and falls back
+ * to deriving it from the legacy `tool` field for un-backfilled rows.
+ */
+export function libraryTypeForGeneration(gen) {
+  if (!gen) return null
+  if (gen.library?.libraryType) return gen.library.libraryType
+  return TOOL_TO_LIBRARY_TYPE[gen.tool] || null
+}
+
+/**
+ * Returns the LIBRARY_SECTIONS entry for an item, or null if unknown.
+ */
+export function librarySectionForGeneration(gen) {
+  const t = libraryTypeForGeneration(gen)
+  return t ? LIBRARY_SECTION_BY_ID[t] : null
+}
+
+/**
+ * Bucket the user's generations + assessments into the canonical library
+ * folder tree. Returns a map keyed by libraryType → syllabus → gradeForm
+ * → term → subject → [items]. For Syllabi the term level is omitted; for
+ * Assessments an extra `assessmentType` level is added beneath subject.
+ *
+ *   tree.lesson_plans.CBC['Grade 4']['Term 2'].Mathematics  // [item, ...]
+ */
+export function bucketIntoTree(rows = []) {
+  const tree = {}
+  for (const row of rows) {
+    const section = librarySectionForGeneration(row)
+    if (!section) continue
+    const lib = row.library || {}
+    const path = [
+      section.id,
+      lib.syllabus || 'Unsorted',
+      lib.gradeForm || 'Unsorted',
+      ...(section.hasTerm ? [lib.term || 'Unsorted'] : []),
+      lib.subject || 'Unsorted',
+      ...(section.hasAssessmentType ? [lib.assessmentType || 'Unsorted'] : []),
+    ]
+    let cursor = tree
+    for (let i = 0; i < path.length - 1; i++) {
+      const key = path[i]
+      if (!cursor[key]) cursor[key] = {}
+      cursor = cursor[key]
+    }
+    const leafKey = path[path.length - 1]
+    if (!cursor[leafKey]) cursor[leafKey] = []
+    cursor[leafKey].push(row)
+  }
+  return tree
+}
+
+/* ── Pro vs Premium access control ──────────────────────────── */
+//
+// Rule (per spec):
+//   PRO     — view, preview, download ONLY their own generations.
+//             Cannot download platform/admin-supplied library docs.
+//   PREMIUM — view, download, print, export everything.
+//   FREE    — view only (no download).
+//
+// "Premium" maps to the `max` subscription tier (or admin role).
+// "Pro" maps to the `pro` tier or any other active premium subscriber.
+
+export const LIBRARY_ACCESS = {
+  FREE:    'free',
+  PRO:     'pro',
+  PREMIUM: 'premium',
+}
+
+/**
+ * Resolve the access level of the current viewer relative to a saved
+ * library item. Pass the user's profile and the item; returns one of
+ * LIBRARY_ACCESS values.
+ */
+export function getLibraryAccessLevel({ userProfile, isAdmin = false } = {}) {
+  if (isAdmin) return LIBRARY_ACCESS.PREMIUM
+  if (!userProfile) return LIBRARY_ACCESS.FREE
+
+  const tier = String(
+    userProfile.subscriptionTier ||
+    userProfile.tier ||
+    userProfile.subscriptionPlan ||
+    userProfile.plan ||
+    '',
+  ).toLowerCase()
+
+  // 'max' / 'premium' / 'unlimited' → premium.
+  if (tier.startsWith('max') || tier === 'premium' || tier === 'unlimited') {
+    return LIBRARY_ACCESS.PREMIUM
+  }
+  // 'pro_*' or any active subscription → pro.
+  if (tier.startsWith('pro') ||
+      userProfile.premium === true ||
+      userProfile.isPremium === true ||
+      userProfile.subscriptionStatus === 'active' ||
+      userProfile.paymentStatus === 'active') {
+    return LIBRARY_ACCESS.PRO
+  }
+  return LIBRARY_ACCESS.FREE
+}
+
+/**
+ * Decides what the viewer can do with a single library item.
+ *
+ *   { canView, canDownload, canPrint, canExport }
+ */
+export function getItemPermissions({ userProfile, isAdmin = false, item }) {
+  const level = getLibraryAccessLevel({ userProfile, isAdmin })
+  const ownsIt = !!item && !!userProfile && item.ownerUid === userProfile.uid
+
+  if (level === LIBRARY_ACCESS.PREMIUM) {
+    return { canView: true, canDownload: true, canPrint: true, canExport: true, level }
+  }
+  if (level === LIBRARY_ACCESS.PRO) {
+    // Pro: download own generations only. Library-supplied/admin docs are
+    // view-only for pro users.
+    return {
+      canView:     true,
+      canDownload: ownsIt,
+      canPrint:    ownsIt,
+      canExport:   ownsIt,
+      level,
+    }
+  }
+  return { canView: true, canDownload: false, canPrint: false, canExport: false, level }
+}
+
+/* ── Library section meta passthrough ───────────────────────── */
+
+export { LIBRARY_TYPES, LIBRARY_SECTION_BY_ID }
 
 /**
  * Format a Firestore Timestamp as a short relative date.

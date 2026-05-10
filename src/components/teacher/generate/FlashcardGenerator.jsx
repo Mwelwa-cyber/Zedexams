@@ -13,6 +13,8 @@ import { downloadFlashcardsDocx } from '../../../utils/flashcardsToDocx'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
+import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
+import { LIBRARY_TYPES } from '../../../config/library'
 
 /**
  * Flashcard Generator — grid preview + keyboard-driven study mode + DOCX
@@ -87,6 +89,16 @@ export default function FlashcardGenerator() {
     setUsage(res.data.usage)
     setWarning(res.data.warning || '')
     setStatus('success')
+
+    if (res.data.generationId) {
+      // Flashcards live alongside Notes — they're a study aid, not an
+      // assessment.
+      attachLibraryToGeneration(res.data.generationId, {
+        libraryType: LIBRARY_TYPES.NOTES,
+        grade:       form.grade,
+        subject:     form.subject,
+      }).catch(() => {})
+    }
   }
 
   const cards = flashcards?.cards || []

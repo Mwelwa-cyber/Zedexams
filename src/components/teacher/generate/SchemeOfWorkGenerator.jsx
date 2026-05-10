@@ -15,6 +15,8 @@ import SchemeOfWorkView from '../views/SchemeOfWorkView'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
+import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
+import { LIBRARY_TYPES } from '../../../config/library'
 
 export default function SchemeOfWorkGenerator() {
   const { userProfile } = useAuth()
@@ -76,6 +78,15 @@ export default function SchemeOfWorkGenerator() {
     setUsage(res.data.usage)
     setWarning(res.data.warning || '')
     setStatus('success')
+
+    if (res.data.generationId) {
+      attachLibraryToGeneration(res.data.generationId, {
+        libraryType: LIBRARY_TYPES.SCHEMES_OF_WORK,
+        grade:       form.grade,
+        term:        form.term,
+        subject:     form.subject,
+      }).catch(() => { /* non-fatal — doc still readable via legacy path */ })
+    }
   }
 
   function onExportDocx() {

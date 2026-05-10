@@ -17,7 +17,9 @@ import {
   listMyGenerations,
   titleForGeneration,
   formatDate,
+  attachLibraryToGeneration,
 } from '../../../utils/teacherLibraryService'
+import { LIBRARY_TYPES } from '../../../config/library'
 import NotesView from '../views/NotesView'
 import StudioPageHeader from '../StudioPageHeader'
 
@@ -131,6 +133,21 @@ export default function NotesStudio() {
     setUsage(res.data.usage)
     setWarning(res.data.warning || '')
     setStatus('success')
+
+    if (res.data.generationId) {
+      // For from-plan mode, the term hint may not be in the form — fall
+      // back to the source plan's term (best-effort).
+      const sourcePlan = mode === MODE_FROM_PLAN ? selectedPlan : null
+      const grade   = res.data.notes?.header?.grade   || form.grade   || sourcePlan?.inputs?.grade
+      const subject = res.data.notes?.header?.subject || form.subject || sourcePlan?.inputs?.subject
+      const term    = sourcePlan?.inputs?.term || sourcePlan?.library?.term
+      attachLibraryToGeneration(res.data.generationId, {
+        libraryType: LIBRARY_TYPES.NOTES,
+        grade,
+        term,
+        subject,
+      }).catch(() => {})
+    }
   }
 
   function onExportDocx() {

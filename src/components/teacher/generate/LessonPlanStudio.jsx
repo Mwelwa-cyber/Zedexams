@@ -9,6 +9,8 @@ import {
 import app from '../../../firebase/config'
 import { KB_VERSION } from '../../../utils/adminCbcKbService'
 import SeoHelmet from '../../seo/SeoHelmet'
+import { LIBRARY_TYPES, SYLLABUS_TYPES } from '../../../config/library'
+import { classifyForLibrary } from '../../../utils/libraryClassification'
 
 const functions = getFunctions(app, 'us-central1')
 const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerateLessonPlan', {
@@ -50,14 +52,36 @@ export default function LessonPlanStudio() {
     window.saveToLibrary = async ({ meta, data, html, studioFormat }) => {
       const uid = currentUser && currentUser.uid
       if (!uid) throw new Error('Not signed in')
+      // Classify the studio meta into canonical library coords so the saved
+      // doc lands in the correct /Lesson Plans/<syllabus>/<grade>/<term>/
+      // <subject>/ folder. studioFormat is the hardcoded "new" / "old"
+      // version flag — we map it to CBC vs CDC so old-syllabus plans go
+      // into the CDC tree.
+      const m = meta || {}
+      const syllabusHint = m.syllabusVersion === 'old'
+        ? SYLLABUS_TYPES.CDC
+        : SYLLABUS_TYPES.CBC
+      const termOnly = (() => {
+        const tw = String(m.termWeek || '')
+        const match = tw.match(/Term\s*(\d)/i)
+        return match ? `Term ${match[1]}` : null
+      })()
+      const library = classifyForLibrary({
+        libraryType:  LIBRARY_TYPES.LESSON_PLANS,
+        syllabusHint,
+        grade:        m.klass,
+        term:         termOnly,
+        subject:      m.subject,
+      })
       const ref = await addDoc(collection(db, 'aiGenerations'), {
         ownerUid: uid,
         tool: 'lesson-plan',
         createdAt: serverTimestamp(),
-        meta: meta || {},
+        meta: m,
         data: data || {},
         html: html || '',
         studioFormat: studioFormat || 'modern',
+        library: library || null,
       })
       return ref.id
     }
