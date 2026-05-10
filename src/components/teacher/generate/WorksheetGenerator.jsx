@@ -14,6 +14,8 @@ import { downloadWorksheetDocx } from '../../../utils/worksheetToDocx'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
+import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
+import { LIBRARY_TYPES } from '../../../config/library'
 
 /**
  * Worksheet Generator — pupil-facing worksheet + separate answer-key export.
@@ -89,6 +91,16 @@ export default function WorksheetGenerator() {
         setWarning(data.warning || '')
         setStatus('success')
         cancelRef.current = null
+        if (data.generationId) {
+          // Worksheets surface in the Assessments section of the library —
+          // they're the "Topic Test" of a teacher's day-to-day routine.
+          attachLibraryToGeneration(data.generationId, {
+            libraryType:    LIBRARY_TYPES.ASSESSMENTS,
+            grade:          form.grade,
+            subject:        form.subject,
+            assessmentType: 'topic',
+          }).catch(() => {})
+        }
       },
       onError: (err) => {
         setStatus('error')

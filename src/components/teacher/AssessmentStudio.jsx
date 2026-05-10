@@ -32,6 +32,38 @@ import {
   importQuizDocument,
   revokeImportedQuizAssets,
 } from '../quiz/documentQuizImporter'
+import { LIBRARY_TYPES } from '../../config/library'
+import { classifyForLibrary } from '../../utils/libraryClassification'
+
+// Maps the AssessmentStudio's internal subject + assessment-type values onto
+// the canonical academic taxonomy in src/config/library.js.
+const STUDIO_TO_LIBRARY_SUBJECT = {
+  'English':            'English Language',
+  'Integrated Science': 'Integrated Science',
+  'Mathematics':        'Mathematics',
+  'Social Studies':     'Social Studies',
+  'Expressive Art':     'Expressive Arts',
+  'Technology Studies': 'Technology Studies',
+  'Cinyanja':           'Zambian Language',
+  'Home Economics':     'Home Economics',
+}
+const STUDIO_TO_LIBRARY_ASSESSMENT_TYPE = {
+  weekly:      'monthly',     // closest canonical bucket
+  monthly:     'monthly',
+  mid_term:    'midterm',
+  end_of_term: 'end_of_term',
+  topic:       'topic',
+  mock:        'end_of_term',
+  diagnostic:  'topic',
+  pre_test:    'topic',
+  post_test:   'topic',
+  revision:    'topic',
+  continuous:  'topic',
+  summative:   'end_of_term',
+  practical:   'topic',
+  oral:        'topic',
+  project:     'topic',
+}
 
 const SUBJECTS = [
   'English',
@@ -1016,6 +1048,17 @@ export default function AssessmentStudio() {
       // Assessments are teacher-private — there is no publish/approval flow.
       // We persist the cover-page fields alongside the quiz-shaped payload so
       // the DOCX/PDF exporters can render them on the printed cover page.
+      // Compute canonical library coords so the assessment lands in
+      // /Assessments/<syllabus>/<grade>/<term>/<subject>/<type>/.
+      const library = classifyForLibrary({
+        libraryType:    LIBRARY_TYPES.ASSESSMENTS,
+        grade:          `Grade ${form.grade}`,
+        term:           form.term,
+        subject:        STUDIO_TO_LIBRARY_SUBJECT[form.subject] || form.subject,
+        assessmentType: STUDIO_TO_LIBRARY_ASSESSMENT_TYPE[form.assessmentType]
+                          || form.assessmentType,
+      })
+
       const assessmentId = await createAssessment({
         title: form.title,
         subject: form.subject,
@@ -1041,6 +1084,7 @@ export default function AssessmentStudio() {
         sourceContentType: form.sourceContentType,
         importWarnings: form.importWarnings,
         createdBy: currentUser.uid,
+        library,
       })
 
       await saveAssessmentQuestions(assessmentId, questionsForSave)

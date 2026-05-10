@@ -8,6 +8,8 @@ import {
   TOOL_META,
   titleForGeneration,
   formatDate,
+  getItemPermissions,
+  LIBRARY_ACCESS,
 } from '../../../utils/teacherLibraryService'
 import LessonPlanView from '../views/LessonPlanView'
 import WorksheetView from '../views/WorksheetView'
@@ -29,7 +31,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 export default function LibraryItemDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { currentUser } = useAuth()
+  const { currentUser, userProfile, isAdmin } = useAuth()
   const [item, setItem] = useState(null)
   const [status, setStatus] = useState('loading')
   const [showAnswers, setShowAnswers] = useState(false)
@@ -38,6 +40,14 @@ export default function LibraryItemDetail() {
   const [sharing, setSharing] = useState(false)
   const [shareInfo, setShareInfo] = useState(null)
   const [shareError, setShareError] = useState('')
+
+  // Pro vs Premium access — Pro can download own generations only,
+  // Premium can download / print / export everything.
+  const permissions = getItemPermissions({
+    userProfile: userProfile ? { ...userProfile, uid: currentUser?.uid } : null,
+    isAdmin,
+    item,
+  })
 
   async function onShare() {
     if (!item?.output || !currentUser?.uid) return
@@ -100,6 +110,14 @@ export default function LibraryItemDetail() {
 
   async function onExport() {
     if (!item?.output) return
+    if (!permissions.canDownload) {
+      window.alert(
+        permissions.level === LIBRARY_ACCESS.PRO
+          ? 'Downloads of library documents you didn\'t create are reserved for Premium accounts.'
+          : 'Sign in to a paid plan to download library documents.',
+      )
+      return
+    }
     const slug = (s) => String(s || '')
       .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
     const base = [
@@ -132,6 +150,7 @@ export default function LibraryItemDetail() {
 
   async function onExportAnswerKey() {
     if (item?.tool !== 'worksheet' || !item.output) return
+    if (!permissions.canDownload) return
     const slug = (s) => String(s || '')
       .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
     const base = [
@@ -256,7 +275,14 @@ export default function LibraryItemDetail() {
                 Show answers
               </label>
             )}
-            <button onClick={onExport} className="studio-btn-ghost">
+            <button
+              onClick={onExport}
+              disabled={!permissions.canDownload}
+              className="studio-btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
+              title={permissions.canDownload
+                ? 'Download a Word .docx copy'
+                : 'Premium only — upgrade to download library documents'}
+            >
               📄 Export .docx
             </button>
             <button
@@ -267,7 +293,14 @@ export default function LibraryItemDetail() {
               {sharing ? '🔗 Publishing…' : '🔗 Share link'}
             </button>
             {item.tool === 'worksheet' && (
-              <button onClick={onExportAnswerKey} className="studio-btn-primary">
+              <button
+                onClick={onExportAnswerKey}
+                disabled={!permissions.canDownload}
+                className="studio-btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                title={permissions.canDownload
+                  ? 'Download the answer key'
+                  : 'Premium only — upgrade to download answer keys'}
+              >
                 🔑 Answer Key .docx
               </button>
             )}
@@ -319,6 +352,21 @@ export default function LibraryItemDetail() {
         {shareError && (
           <div className="mb-4 rounded-xl border border-rose-300 bg-rose-50 text-rose-900 px-4 py-3 text-sm">
             ⚠️ {shareError}
+          </div>
+        )}
+
+        {/* Pro vs Premium access notice — Pro users can only download docs
+            they generated themselves. Library-supplied docs are view-only
+            unless they upgrade to Premium. */}
+        {permissions.level === LIBRARY_ACCESS.PRO && !permissions.canDownload && (
+          <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 px-4 py-3 text-sm">
+            🔒 You're on the Pro plan. You can preview this document, but
+            downloads of library-supplied documents are reserved for Premium.
+          </div>
+        )}
+        {permissions.level === LIBRARY_ACCESS.FREE && (
+          <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 text-amber-900 px-4 py-3 text-sm">
+            🔒 View-only on the free plan — upgrade to download, print, or export.
           </div>
         )}
 

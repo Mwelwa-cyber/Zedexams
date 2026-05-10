@@ -15,6 +15,8 @@ import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import RubricView from '../views/RubricView'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
+import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
+import { LIBRARY_TYPES } from '../../../config/library'
 
 export default function RubricGenerator() {
   const urlDefaults = useFormDefaultsFromUrl()
@@ -80,6 +82,16 @@ export default function RubricGenerator() {
     setUsage(res.data.usage)
     setWarning(res.data.warning || '')
     setStatus('success')
+
+    if (res.data.generationId) {
+      // Rubrics file under Assessments — they're scoring guides for tests.
+      attachLibraryToGeneration(res.data.generationId, {
+        libraryType:    LIBRARY_TYPES.ASSESSMENTS,
+        grade:          form.grade,
+        subject:        form.subject,
+        assessmentType: 'topic',
+      }).catch(() => {})
+    }
   }
 
   function onExport() {

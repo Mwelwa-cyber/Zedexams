@@ -13,6 +13,8 @@ import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import { printLessonPlanAsPdf } from '../../../utils/lessonPlanToPdf'
 import StudioPageHeader from '../StudioPageHeader'
+import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
+import { LIBRARY_TYPES } from '../../../config/library'
 
 /**
  * Zambian CBC Lesson Plan Generator — teacher-facing MVP.
@@ -102,6 +104,14 @@ export default function LessonPlanGenerator() {
         setWarning(data.warning || '')
         setStatus('success')
         cancelRef.current = null
+        if (data.generationId) {
+          attachLibraryToGeneration(data.generationId, {
+            libraryType: LIBRARY_TYPES.LESSON_PLANS,
+            grade:       form.grade,
+            term:        data.lessonPlan?.header?.termAndWeek || form.term,
+            subject:     form.subject,
+          }).catch(() => {})
+        }
       },
       onError: (err) => {
         setStatus('error')
