@@ -3,16 +3,24 @@ User-agent: *
 Allow: /
 
 # Keep authenticated/operational areas out of search indexes.
+# Some entries match a single route (`/dashboard`), others use a
+# trailing slash to match every nested path (`/admin/`, `/quiz/`).
 Disallow: /admin/
 Disallow: /teacher/
 Disallow: /quiz/
+Disallow: /quizzes
+Disallow: /lessons
+Disallow: /notes
+Disallow: /exams
+Disallow: /exam/
 Disallow: /results/
 Disallow: /dashboard
 Disallow: /my-stats
 Disallow: /my-results
 Disallow: /my-badges
+Disallow: /my-papers
 Disallow: /profile
-Disallow: /study
+Disallow: /settings
 Disallow: /register
 Disallow: /login
 Disallow: /ask-zed

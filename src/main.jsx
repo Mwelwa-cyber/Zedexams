@@ -8,6 +8,11 @@ import { ThemeProvider } from './contexts/ThemeContext'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 import { initNativeShell } from './utils/nativeShell'
 import { initSentry } from './utils/sentry'
+import { initAnalytics } from './utils/analytics'
+// Audit A7 — initialise the i18n runtime before <App /> mounts so the
+// detected language is in place for the first render. Side-effect
+// import; the singleton is consumed via useTranslation() in components.
+import './i18n'
 import './index.css'
 
 initNativeShell()
@@ -16,6 +21,10 @@ initNativeShell()
 // promise is intentionally not awaited so a slow Sentry CDN can never
 // delay the React mount.
 initSentry()
+// Audit B2 — wire the PostHog consent listener. Silent no-op without
+// VITE_POSTHOG_KEY. When the user accepts the cookie banner, the SDK
+// dynamically imports + initialises; when they decline, it tears down.
+initAnalytics()
 
 // Service worker registration moved to src/hooks/usePwaUpdate.js so the
 // "new version available" UX (audit A1.2) can wire registerSW's

@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
 import { PLANS, hasPremiumAccess } from '../../utils/subscriptionConfig'
+import { resendInvoiceEmail } from '../../utils/invoices'
 import Button from '../ui/Button'
 import Skeleton from '../ui/Skeleton'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -85,6 +86,21 @@ export default function PaymentsPanel() {
     catch (e) { show('❌ ' + e.message) }
   }
 
+  async function handleResendInvoice(p) {
+    // Audit D3 follow-up — invoice doc is keyed by paymentId, so the
+    // resend callable takes the same id directly.
+    setActionId(p.id)
+    try {
+      const result = await resendInvoiceEmail(p.id)
+      show(result?.emailedTo
+        ? `📧 Receipt resent to ${result.emailedTo}`
+        : '📧 Receipt resent.')
+    } catch (e) {
+      show('❌ ' + (e?.message || 'Could not resend the receipt.'))
+    }
+    setActionId(null)
+  }
+
   async function handleGrant(e) {
     e.preventDefault()
     if (!grantUid.trim()) return
@@ -143,6 +159,18 @@ export default function PaymentsPanel() {
                   <div className="flex gap-2 flex-shrink-0">
                     <Button variant="primary" size="sm" disabled={actionId === p.id} onClick={() => handleConfirm(p)}>✅ Confirm</Button>
                     <Button variant="danger" size="sm" disabled={actionId === p.id} onClick={() => handleReject(p)}>❌ Reject</Button>
+                  </div>
+                )}
+                {(p.status === 'successful' || p.status === 'confirmed') && (
+                  <div className="flex gap-2 flex-shrink-0">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={actionId === p.id}
+                      onClick={() => handleResendInvoice(p)}
+                    >
+                      {actionId === p.id ? 'Sending…' : '📧 Resend invoice'}
+                    </Button>
                   </div>
                 )}
               </div>

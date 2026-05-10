@@ -26,6 +26,7 @@ import {
   getSubjectMascot,
 } from './gamesUi'
 import SeoHelmet from '../seo/SeoHelmet'
+import { GamesHubTour } from '../ui/learnerTours'
 
 /**
  * /games — playful mobile-first hub. Mockup-faithful 440px column with a
@@ -122,6 +123,8 @@ export default function GamesHub() {
         description="Play Zambian CBC-aligned learning games with daily challenges, subject progress, badges, and live leaderboard climbing."
         path="/games"
       />
+      {/* Audit A8 PR 3 — first-session tour, self-suppressing. */}
+      <GamesHubTour />
       <div className="mx-auto w-full max-w-md space-y-7 pb-4 sm:max-w-3xl sm:space-y-9 lg:max-w-5xl lg:space-y-12">
         {/* Stats strip */}
         <section className="zx-card flex items-center justify-between gap-2 rounded-[18px] bg-slate-900 px-3.5 py-2.5 text-white sm:gap-4 sm:rounded-[22px] sm:px-6 sm:py-4">

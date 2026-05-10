@@ -148,6 +148,16 @@ service firebase.storage {
       allow delete: if ownsPath(ownerUid) && isTeacherOrAdmin();
     }
 
+    // Audit D3 — MoMo invoice PDFs. Writes are admin-only (the
+    // invoiceGenerator Cloud Function uses the admin SDK so this
+    // doesn't block legitimate generation). Reads are owner +
+    // admin; the path's own segment carries the userId so a
+    // tampered client can't enumerate someone else's receipts.
+    match /invoices/{userId}/{fileName} {
+      allow read: if isAuthed() && (request.auth.uid == userId || isAdmin());
+      allow write: if false;
+    }
+
     // Block all other paths
     match /{allPaths=**} {
       allow read, write: if false;

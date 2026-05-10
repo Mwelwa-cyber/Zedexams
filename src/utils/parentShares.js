@@ -23,6 +23,7 @@ import {
 } from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app, { db } from '../firebase/config'
+import { capture } from './analytics'
 
 const fns = getFunctions(app, 'us-central1')
 const createProgressShareCallable = httpsCallable(fns, 'createProgressShare')
@@ -43,6 +44,12 @@ export async function createProgressShare({ parentEmail, parentPhone, parentDisp
     parentPhone: parentPhone || null,
     parentDisplayName: parentDisplayName || null,
   })
+  // Audit B2 — analytics event. Booleans only; we never send the
+  // parent's actual email or phone in the analytics payload.
+  capture('parent_link_created', {
+    hasEmail: Boolean(parentEmail),
+    hasPhone: Boolean(parentPhone),
+  })
   return result.data
 }
 
@@ -62,7 +69,7 @@ export async function getProgressShare(token) {
 
 /**
  * Admin-only: run the weekly digest cron body on demand. Used to
- * verify Twilio/Meta wiring without waiting for Sunday's tick.
+ * verify Meta WhatsApp wiring without waiting for Sunday's tick.
  *
  * @param {Object} opts
  * @param {boolean} [opts.force]            Bypass the 5-day idempotency

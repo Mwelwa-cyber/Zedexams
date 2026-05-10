@@ -9,6 +9,7 @@ import { getRoleLandingPath } from './utils/navigation'
 import PageLoader from './components/ui/PageLoader'
 import OfflineBanner from './components/ui/OfflineBanner'
 import UpdatePrompt from './components/ui/UpdatePrompt'
+import CookieConsentBanner from './components/ui/CookieConsentBanner'
 import ZedChatLauncher from './components/ai/ZedChatLauncher'
 
 // Public marketing/auth routes always render in the brand-default Sky theme
@@ -25,6 +26,10 @@ function isPublicThemePath(pathname) {
   if (pathname.startsWith('/share/')) return true
   if (pathname.startsWith('/papers/')) return true
   if (pathname.startsWith('/parent/')) return true
+  if (pathname === '/blog' || pathname.startsWith('/blog/')) return true
+  // /my-papers is auth-only but visually shares the past-paper
+  // theme so we keep it on the brand-default Sky.
+  if (pathname === '/my-papers') return true
   return false
 }
 
@@ -79,10 +84,15 @@ const PrivacyPolicy = lazy(() => import('./components/marketing/PrivacyPolicy'))
 const Terms = lazy(() => import('./components/marketing/Terms'))
 const PastPapersHub = lazy(() => import('./components/papers/PastPapersHub'))
 const PastPaperViewer = lazy(() => import('./components/papers/PastPaperViewer'))
+const PastPaperPractice = lazy(() => import('./components/papers/PastPaperPractice'))
+const MyPapersHistory = lazy(() => import('./components/papers/MyPapersHistory'))
 const AdminPastPapers = lazy(() => import('./components/admin/AdminPastPapers'))
 const AdminPastPaperEditor = lazy(() => import('./components/admin/AdminPastPaperEditor'))
 const ZedChatPage = lazy(() => import('./components/ai/ZedChatPage'))
 const StatusPage = lazy(() => import('./components/marketing/StatusPage'))
+// Audit C5 — SEO blog. Markdown-driven, posts ship in the bundle.
+const BlogIndex = lazy(() => import('./components/blog/BlogIndex'))
+const BlogPost = lazy(() => import('./components/blog/BlogPost'))
 
 // Admin section
 const AdminLayout = lazy(() => import('./components/admin/AdminLayout'))
@@ -96,6 +106,7 @@ const AdminLearners = lazy(() => import('./components/admin/AdminLearners'))
 const AdminLearnerProfile = lazy(() => import('./components/admin/AdminLearnerProfile'))
 const GenerationsAdmin = lazy(() => import('./components/admin/GenerationsAdmin'))
 const CbcKbAdmin = lazy(() => import('./components/admin/CbcKbAdmin'))
+const AdminAiCosts = lazy(() => import('./components/admin/AdminAiCosts'))
 
 // Admin — Agents (operating-model dashboard)
 const AgentsHome      = lazy(() => import('./components/admin/agents/AgentsHome').then(m => ({ default: m.AgentsHome })))
@@ -290,6 +301,9 @@ export default function App() {
           bottom-right that opens a slide-over chat. Self-hides on
           marketing/auth/admin routes and during quiz / exam runs. */}
       <ZedChatLauncher />
+      {/* Cookie consent (audit D2) — first-visit banner, decline-by-
+          default. Self-hides once a decision is recorded. */}
+      <CookieConsentBanner />
       <ThemeApplicator />
       <div id="main" tabIndex={-1}>
         <Suspense fallback={<PageLoader />}>
@@ -305,6 +319,14 @@ export default function App() {
               PDF viewer at /papers/:id requires sign-in to download. */}
           <Route path="/papers"            element={<PastPapersHub />} />
           <Route path="/papers/:paperId"   element={<PastPaperViewer />} />
+          {/* Audit A2 PR 3 — timed practice runner. Auth-gated inside
+              the component so the redirect carries the original target. */}
+          <Route path="/papers/:paperId/practice" element={<PastPaperPractice />} />
+          {/* Audit A2 PR 4 — learner's history of past-paper runs. */}
+          <Route path="/my-papers"          element={<ProtectedRoute><MyPapersHistory /></ProtectedRoute>} />
+          {/* Audit C5 — SEO blog. Public, indexable. */}
+          <Route path="/blog"              element={<BlogIndex />} />
+          <Route path="/blog/:slug"        element={<BlogPost />} />
           <Route path="/status"   element={<StatusPage />} />
           <Route path="/login"    element={<Login />} />
           <Route path="/register" element={<Register />} />
@@ -377,6 +399,9 @@ export default function App() {
           <Route path="/admin/generations"              element={<AdminRoute><GenerationsAdmin /></AdminRoute>} />
           <Route path="/admin/generations/:id"          element={<AdminRoute><LibraryItemDetail /></AdminRoute>} />
           <Route path="/admin/cbc-kb"                   element={<AdminRoute><CbcKbAdmin /></AdminRoute>} />
+          {/* Audit B4 — AI cost dashboard. Admin-only per route +
+              Firestore rules. */}
+          <Route path="/admin/ai-costs"                 element={<AdminRoute><AdminAiCosts /></AdminRoute>} />
           {/* Audit A2 — past-paper management (upload + edit + status) */}
           <Route path="/admin/papers"                   element={<AdminRoute><AdminPastPapers /></AdminRoute>} />
           <Route path="/admin/papers/new"               element={<AdminRoute><AdminPastPaperEditor /></AdminRoute>} />

@@ -622,6 +622,55 @@ service cloud.firestore {
         && (!('parentDisplayName' in incoming()) || incoming().parentDisplayName == null || (incoming().parentDisplayName is string && incoming().parentDisplayName.size() <= 80))
         && (!('expiresAt' in incoming()) || incoming().expiresAt is timestamp);
     }
+    // ── appCheckHealth (audit B3 — soft-verify observability) ─────────
+    // Per-day rollups of App Check verification attempts. Schema:
+    //   appCheckHealth/{YYYY-MM-DD}: {
+    //     date,
+    //     {label}_attempts, {label}_valid,
+    //     {label}_missing, {label}_invalid,
+    //     updatedAt
+    //   }
+    // Admin-read only — leaks per-day attestation telemetry that
+    // shouldn't be surfaced to users. Server-only writes.
+    match /appCheckHealth/{date} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    // ── invoices (audit D3 — MoMo receipts / accounting) ──────────────
+    // Server-issued receipts for successful payments. Schema:
+    //   paymentId, userId, number ('ZE-YYYYMMDD-XXXXXX'),
+    //   planId, planName, amount, currency,
+    //   provider, phoneNumber, storagePath ('invoices/{uid}/{paymentId}.pdf'),
+    //   emailedTo?, emailedAt?, issuedAt
+    // The doc is keyed by paymentId so the success-path retry guard
+    // ("if the invoice already exists, don't double-emit") is a single
+    // get(). Read access is the owning learner + admin; writes are
+    // server-only via the invoiceGenerator module (admin SDK bypass).
+    match /invoices/{invoiceId} {
+      allow read: if isAuthed() && (
+        resource.data.userId == request.auth.uid || isAdmin()
+      );
+      allow create, update, delete: if false;
+    }
+
+    // ── aiUsage (audit B4 — Claude API cost tracking) ─────────────────
+    // Daily rollups written exclusively by aiCostTracking.recordAiUsage
+    // (Cloud Functions, admin SDK). Admin-only reads — the data
+    // exposes per-user spend which is sensitive operational info.
+    // Schema:
+    //   aiUsage/{date} { totalCostUsd, callCount, totalInput/Output... }
+    //   aiUsage/{date}/users/{uid} { costUsd, callCount, ... }
+    //   aiUsage/{date}/tools/{tool} { costUsd, callCount, ... }
+    match /aiUsage/{date} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+      match /{subColl}/{docId} {
+        allow read: if isAdmin();
+        allow create, update, delete: if false;
+      }
+    }
+
     // ── parentDigestEvents (audit A3 PR 2 — weekly digest audit log) ──
     // Append-only ledger written exclusively by the weekly digest
     // cron (admin SDK). The owning learner can read their own rows
@@ -752,6 +801,49 @@ service cloud.firestore {
       allow delete: if isAuthed() && (
         resource.data.createdBy == request.auth.uid || isAdmin()
       );
+    }
+
+    // ── paperAttempts (audit A2 PR 3 — timed practice runs) ──────────
+    //
+    // A learner can practise any published past paper under a timer.
+    // Each run records when they started, when they submitted, the
+    // elapsed seconds, and an optional self-reflection note. We don't
+    // auto-grade — past papers are PDFs and the mark scheme is the
+    // teacher / parent step. The attempt is for the learner's own
+    // tracking and the future "your second attempt was 12 minutes
+    // faster" UX.
+    //
+    // Schema:
+    //   paperAttempts/{attemptId} {
+    //     userId, paperId, paperTitle, paperGrade, paperSubject,
+    //     paperYear, durationMinutes (target), elapsedSeconds (actual),
+    //     startedAt, submittedAt?, reflection? (string),
+    //     status: 'in_progress' | 'submitted' | 'abandoned'
+    //   }
+    function _validAttemptStatus(value) { return value is string && value in ['in_progress', 'submitted', 'abandoned']; }
+    function validPaperAttemptFields() {
+      return (!('userId' in incoming()) || (incoming().userId is string && incoming().userId.size() <= 100))
+        && (!('paperId' in incoming()) || (incoming().paperId is string && incoming().paperId.size() <= 100))
+        && (!('paperTitle' in incoming()) || (incoming().paperTitle is string && incoming().paperTitle.size() <= 200))
+        && (!('durationMinutes' in incoming()) || incoming().durationMinutes == null || (incoming().durationMinutes is int && incoming().durationMinutes >= 1 && incoming().durationMinutes <= 480))
+        && (!('elapsedSeconds' in incoming()) || incoming().elapsedSeconds == null || (incoming().elapsedSeconds is int && incoming().elapsedSeconds >= 0 && incoming().elapsedSeconds <= 60 * 60 * 12))
+        && (!('reflection' in incoming()) || incoming().reflection == null || (incoming().reflection is string && incoming().reflection.size() <= 1000))
+        && (!('status' in incoming()) || _validAttemptStatus(incoming().status));
+    }
+    match /paperAttempts/{attemptId} {
+      allow read: if isAuthed() && (resource.data.userId == request.auth.uid || isAdmin());
+      // Owner-create only, with their own uid stamped on.
+      allow create: if isAuthed()
+        && validPaperAttemptFields()
+        && incoming().userId == request.auth.uid;
+      // Owner can update only the fields needed to mark complete.
+      // The userId / paperId / startedAt are immutable once written.
+      allow update: if isAuthed()
+        && resource.data.userId == request.auth.uid
+        && validPaperAttemptFields()
+        && incoming().userId == resource.data.userId
+        && incoming().paperId == resource.data.paperId;
+      allow delete: if isAdmin();
     }
 
     // ── pastPapers (audit A2 — ECZ past-paper archive) ──────────────

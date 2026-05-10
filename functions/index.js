@@ -98,6 +98,8 @@ const {
 const {dailyStreakReminders: dailyStreakRemindersCron} = require("./dailyReminders");
 // Audit C4 — public marketing-page stats aggregator (every 30 minutes).
 const {updatePublicStats: updatePublicStatsCron} = require("./publicStats");
+// Audit B4 follow-up — daily AI-cost summary cron (Africa/Lusaka 02:00).
+const {aiCostDailySummary} = require("./aiCostDailySummary");
 // Audit A10 — teacher classroom roster (invite codes + join + remove + leave + assignments).
 const {
   generateClassInvite,
@@ -107,8 +109,8 @@ const {
   createClassAssignment,
   removeClassAssignment,
 } = require("./classManagement");
-// Audit A10 PR 4 — per-class analytics (admin SDK, bypasses results read rules).
-const {getClassStats} = require("./classAnalytics");
+// Audit A10 PR 4 + PR 5 — per-class analytics + per-assignment drill-down.
+const {getClassStats, getAssignmentCompletion} = require("./classAnalytics");
 // Audit A3 PR 1 — parent portal share-link infrastructure.
 const {
   createProgressShare,
@@ -116,7 +118,7 @@ const {
   getProgressShare,
 } = require("./parentPortal");
 // Audit A3 PR 2 — weekly digest cron (Sunday 09:00 Africa/Lusaka).
-// Audit A3 PR 3 — admin-only manual trigger to verify Twilio WhatsApp
+// Audit A3 PR 3 — admin-only manual trigger to verify Meta WhatsApp
 // wiring without waiting for the Sunday tick.
 const {
   weeklyParentDigest,
@@ -137,11 +139,18 @@ const MAX_LEN = {
   subject: 80,
   grade: 20,
 };
+// Audit D3 — payment functions pull SMTP credentials too so the
+// success path can email the receipt. emailSmtp* default to empty
+// strings if the secret isn't set; emitInvoice silently skips the
+// email step in that case (PDF still saved + Firestore doc still
+// written).
 const MOMO_PAYMENT_SECRETS = [
   mtnApiUser,
   mtnApiKey,
   mtnSubscriptionKey,
   mtnEnv,
+  emailSmtpUser,
+  emailSmtpPassword,
 ];
 const MOMO_MAX_STATUS_CHECKS = 8;
 const MOMO_MAX_PENDING_MINUTES = 15;
@@ -208,6 +217,93 @@ async function requireHttpAuth(req) {
     throw new HttpsError("unauthenticated", "Please sign in first.");
   }
   return admin.auth().verifyIdToken(token);
+}
+
+// Audit B3 — soft App Check verification for HTTP endpoints.
+//
+// In rollout mode (the default while clients are propagating the
+// App Check SDK init), missing or invalid tokens are logged to a
+// per-day counter doc but the call is NOT rejected. The
+// /admin/ai-costs surface (or a future App Check dashboard) reads
+// these counters to gauge readiness for hard enforcement.
+//
+// To flip to hard enforcement: set process.env.APPCHECK_ENFORCE=1
+// on the Cloud Functions deploy. The function then 401s any HTTP
+// request without a verified App Check token. No code change
+// needed.
+async function softVerifyAppCheckHttp(req, label) {
+  const token = req.get("X-Firebase-AppCheck") || "";
+  let verified = null;
+  if (token) {
+    try {
+      verified = await admin.appCheck().verifyToken(token);
+    } catch (err) {
+      console.warn(`[appCheck:${label}] verifyToken failed`, err?.message || err);
+    }
+  }
+  // Best-effort observability — counts attempts vs. valid tokens by day.
+  try {
+    const date = new Date().toISOString().slice(0, 10);
+    const ref = admin.firestore().collection("appCheckHealth").doc(date);
+    const inc = (n) => admin.firestore.FieldValue.increment(n);
+    await ref.set({
+      date,
+      [`${label}_attempts`]: inc(1),
+      [`${label}_valid`]: inc(verified ? 1 : 0),
+      [`${label}_missing`]: inc(token ? 0 : 1),
+      [`${label}_invalid`]: inc(token && !verified ? 1 : 0),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+  } catch (err) {
+    console.warn(`[appCheck:${label}] health write failed`, err?.message || err);
+  }
+  if (process.env.APPCHECK_ENFORCE === "1" && !verified) {
+    throw new HttpsError("permission-denied", "App Check verification failed.");
+  }
+  return verified;
+}
+
+// Audit B3 follow-up — App Check coverage on AI callables.
+//
+// Read once at module load. Toggling enforcement is a redeploy with
+// APPCHECK_ENFORCE=1 set; no code change needed. Defaults OFF so the
+// next deploy doesn't break existing clients before they propagate
+// the App Check init from #317.
+const APPCHECK_ENFORCE_CALLABLE = process.env.APPCHECK_ENFORCE === "1";
+
+/**
+ * Mirror of softVerifyAppCheckHttp for v2 onCall handlers — bumps
+ * appCheckHealth/{date}.{label}_* counters so /admin gets per-
+ * callable telemetry, not just apiAiChat.
+ *
+ * v2 onCall populates `request.app` with the verified token claims
+ * when a token was sent; absent when not. We don't re-verify here
+ * (that's already done by the runtime); we just record the outcome.
+ *
+ * Always best-effort. Never throws — accounting must not block the
+ * AI flow.
+ */
+async function recordAppCheckCallable(request, label) {
+  const verified = !!request.app;
+  // The runtime already rejected unverified calls when
+  // enforceAppCheck is on, so a missing request.app on an
+  // enforce-on callable means we're in observability-only mode.
+  // Treat absent token as "missing" rather than "invalid" — there's
+  // no way to distinguish the two at this layer.
+  try {
+    const date = new Date().toISOString().slice(0, 10);
+    const ref = admin.firestore().collection("appCheckHealth").doc(date);
+    const inc = (n) => admin.firestore.FieldValue.increment(n);
+    await ref.set({
+      date,
+      [`${label}_attempts`]: inc(1),
+      [`${label}_valid`]: inc(verified ? 1 : 0),
+      [`${label}_missing`]: inc(verified ? 0 : 1),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+  } catch (err) {
+    console.warn(`[appCheck:${label}] callable health write failed`, err?.message || err);
+  }
 }
 
 async function getUserProfileOrThrow(uid) {
@@ -481,11 +577,18 @@ exports.sendPasswordResetEmail = onCall(
 );
 
 exports.aiChat = onCall(
-  {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 30},
+  {
+    secrets: [anthropicApiKey],
+    region: "us-central1",
+    timeoutSeconds: 30,
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Please sign in first.");
     }
+    recordAppCheckCallable(request, "aiChat");
 
     const message = cleanAiString(request.data?.message, LIMITS.message);
     if (!message) {
@@ -510,6 +613,7 @@ exports.aiChat = onCall(
       messages,
       maxTokens: 1000,
       temperature: 0.35,
+      track: {uid: request.auth.uid, tool: "aiChat"},
     });
 
     return {reply};
@@ -621,6 +725,90 @@ function buildPaymentResponse(paymentId, data) {
   };
 }
 
+// Audit D3 follow-up — admin / owner-gated invoice resend. Runs
+// the email-only step against the existing PDF in Storage so the
+// receipt the parent receives matches the original invoice number
+// and total exactly.
+exports.resendInvoiceEmail = onCall({
+  secrets: [emailSmtpUser, emailSmtpPassword],
+  region: "us-central1",
+  timeoutSeconds: 30,
+}, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+  const invoiceId = String(request.data?.invoiceId || "").trim();
+  if (!invoiceId) throw new HttpsError("invalid-argument", "invoiceId is required.");
+
+  // Authorization: admin always; otherwise the buyer of this
+  // invoice. (A teacher viewing /admin/payments has admin role
+  // already; a parent should never reach this callable but the
+  // ownership check costs us nothing extra.)
+  const db = admin.firestore();
+  const callerSnap = await db.collection("users").doc(uid).get();
+  const callerRole = callerSnap.exists ? (callerSnap.data() || {}).role : null;
+  const isAdmin = callerRole === "admin";
+
+  const invoiceSnap = await db.collection("invoices").doc(invoiceId).get();
+  if (!invoiceSnap.exists) {
+    throw new HttpsError("not-found", "Invoice not found.");
+  }
+  const invoice = invoiceSnap.data() || {};
+  if (!isAdmin && invoice.userId !== uid) {
+    throw new HttpsError("permission-denied", "Only the buyer or an admin can resend this invoice.");
+  }
+
+  const {resendInvoiceEmail: resendInvoiceEmailHelper} = require("./invoiceGenerator");
+  const result = await resendInvoiceEmailHelper({
+    invoiceId,
+    senderEmail: emailSmtpUser.value() || process.env.EMAIL_SMTP_USER || "",
+    senderPassword: emailSmtpPassword.value() || process.env.EMAIL_SMTP_PASSWORD || "",
+    requestedByUid: uid,
+  });
+
+  if (!result.ok) {
+    throw new HttpsError(
+        "failed-precondition",
+        result.reason || "Could not resend the invoice.",
+    );
+  }
+  return {ok: true, emailedTo: result.emailedTo};
+});
+
+async function emitInvoiceIfMissing(paymentRef, paymentData) {
+  // Audit D3 — fire-and-forget invoice generation. Runs after the
+  // success transaction has committed so accounting failures (PDF
+  // build, Storage hiccup, SMTP outage) NEVER block subscription
+  // activation. The invoices/{paymentId} doc gates double-emission
+  // — a re-entered markPaymentSuccessful (cron retry) is a no-op
+  // if the invoice already exists.
+  try {
+    const invoiceSnap = await admin.firestore()
+        .collection("invoices")
+        .doc(paymentRef.id)
+        .get();
+    if (invoiceSnap.exists) return;
+    const {emitInvoice} = require("./invoiceGenerator");
+    const plan = getPlanConfig(paymentData.planId);
+    await emitInvoice({
+      payment: {
+        id: paymentRef.id,
+        userId: paymentData.userId,
+        amount: Number(paymentData.amountZMW || plan.amountZMW || 0),
+        currency: paymentData.currency || "ZMW",
+        planId: paymentData.planId,
+        phoneNumber: paymentData.phoneNumber || null,
+        provider: "mtn_momo",
+      },
+      plan,
+      senderEmail: emailSmtpUser.value() || process.env.EMAIL_SMTP_USER || "",
+      senderPassword: emailSmtpPassword.value() || process.env.EMAIL_SMTP_PASSWORD || "",
+    });
+  } catch (err) {
+    console.warn("[index] emitInvoiceIfMissing failed", err);
+  }
+}
+
 async function markPaymentSuccessful(paymentRef, paymentData, statusResult) {
   const plan = getPlanConfig(paymentData.planId);
   await admin.firestore().runTransaction(async (tx) => {
@@ -683,6 +871,11 @@ async function markPaymentSuccessful(paymentRef, paymentData, statusResult) {
       {merge: true},
     );
   });
+
+  // Audit D3 — invoice + receipt email. Fire-and-forget; never
+  // blocks the user-facing success path. The transaction above
+  // already committed the activation by the time we get here.
+  emitInvoiceIfMissing(paymentRef, paymentData).catch(() => {});
 }
 
 async function markPaymentFinal(
@@ -788,7 +981,9 @@ exports.apiAiChat = onRequest(
   {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 60},
   async (req, res) => {
     res.set("Access-Control-Allow-Origin", "*");
-    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
+    // Audit B3 — accept the App Check token header alongside the
+    // existing Authorization bearer + content-type list.
+    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Firebase-AppCheck");
     res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
 
     if (req.method === "OPTIONS") {
@@ -811,6 +1006,9 @@ exports.apiAiChat = onRequest(
         throw new HttpsError("unauthenticated", "Please sign in first.");
       }
       decoded = await admin.auth().verifyIdToken(token);
+      // Audit B3 — observability + opt-in enforcement gate. Throws
+      // permission-denied only when APPCHECK_ENFORCE=1 is set.
+      await softVerifyAppCheckHttp(req, "apiAiChat");
 
       const message = cleanAiString(req.body?.message, LIMITS.message);
       if (!message) {
@@ -851,7 +1049,13 @@ exports.apiAiChat = onRequest(
     try {
       await callAnthropicStream(
         apiKey,
-        {systemPrompt, messages, maxTokens: 1000, temperature: 0.35},
+        {
+          systemPrompt,
+          messages,
+          maxTokens: 1000,
+          temperature: 0.35,
+          track: {uid: decoded.uid, tool: "apiAiChat"},
+        },
         (token) => {
           res.write(`data: ${JSON.stringify({text: token})}\n\n`);
         },
@@ -1063,11 +1267,18 @@ exports.pollPendingMomoPayments = onSchedule(
 );
 
 exports.explainAnswer = onCall(
-  {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 30},
+  {
+    secrets: [anthropicApiKey],
+    region: "us-central1",
+    timeoutSeconds: 30,
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Please sign in first.");
     }
+    recordAppCheckCallable(request, "explainAnswer");
 
     const question = cleanAiString(request.data?.question, LIMITS.question);
     const correctAnswer = cleanAiString(
@@ -1094,6 +1305,7 @@ exports.explainAnswer = onCall(
       messages,
       maxTokens: 400,
       temperature: 0.25,
+      track: {uid: request.auth.uid, tool: "explainAnswer"},
     });
 
     return {explanation};
@@ -1101,11 +1313,18 @@ exports.explainAnswer = onCall(
 );
 
 exports.generateQuizQuestions = onCall(
-  {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 45},
+  {
+    secrets: [anthropicApiKey],
+    region: "us-central1",
+    timeoutSeconds: 45,
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Please sign in first.");
     }
+    recordAppCheckCallable(request, "generateQuizQuestions");
 
     const role = await getUserRole(request.auth.uid);
     if (!isStaffRole(role)) {
@@ -1157,6 +1376,7 @@ exports.generateQuizQuestions = onCall(
       maxTokens: 2000,
       temperature: 0.3,
       json: true,
+      track: {uid: request.auth.uid, tool: "generateQuizQuestions"},
     });
 
     return {
@@ -1263,11 +1483,18 @@ exports.verifyQuiz = onCall(
 );
 
 exports.structureImportedQuiz = onCall(
-  {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 60},
+  {
+    secrets: [anthropicApiKey],
+    region: "us-central1",
+    timeoutSeconds: 60,
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Please sign in first.");
     }
+    recordAppCheckCallable(request, "structureImportedQuiz");
 
     const role = await getUserRole(request.auth.uid);
     if (!isStaffRole(role)) {
@@ -1309,6 +1536,7 @@ exports.structureImportedQuiz = onCall(
       maxTokens: 4000,
       temperature: 0.2,
       json: true,
+      track: {uid: request.auth.uid, tool: "structureImportedQuiz"},
     });
 
     return parseStructuredImport(raw);
@@ -1316,11 +1544,18 @@ exports.structureImportedQuiz = onCall(
 );
 
 exports.checkShortAnswer = onCall(
-  {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 30},
+  {
+    secrets: [anthropicApiKey],
+    region: "us-central1",
+    timeoutSeconds: 30,
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
   async (request) => {
     if (!request.auth) {
       throw new HttpsError("unauthenticated", "Please sign in first.");
     }
+    recordAppCheckCallable(request, "checkShortAnswer");
 
     const question = cleanString(request.data?.question, MAX_LEN.question);
     const correctAnswer = cleanString(
@@ -1374,6 +1609,7 @@ or
       maxTokens: 200,
       temperature: 0.1,
       json: true,
+      track: {uid: request.auth.uid, tool: "markAnswer"},
     });
     return parseMarkerResponse(raw);
   },
@@ -1596,6 +1832,19 @@ exports.removeClassAssignment = removeClassAssignment;
 // graceful index-fallback so the first deploy still renders something.
 exports.getClassStats = getClassStats;
 
+// B4 follow-up — daily AI cost summary. Runs 02:00 Africa/Lusaka,
+// summarises yesterday's spend, and emails ADMIN_EMAILS when
+// yesterday > 2× the 7-day median. Always writes an agentJobs
+// rollup so /admin/agents shows the run alongside the other crons.
+exports.aiCostDailySummary = aiCostDailySummary;
+
+// A10 PR 5 — per-assignment drill-down. Returns a roster with each
+// learner's completion status + best score for one specific
+// assignment. Owner-gated; admin SDK bypasses results-read + user-doc
+// rules so a teacher can see who hasn't started a published quiz
+// they didn't author.
+exports.getAssignmentCompletion = getAssignmentCompletion;
+
 // A3 PR 1 — parent portal. Learner self-issues a share link that
 // renders a 30-day progress summary at /parent/:token (no parent
 // account required). getProgressShare is intentionally PUBLIC —
@@ -1610,11 +1859,12 @@ exports.getProgressShare = getProgressShare;
 // skips revoked / expired / already-sent-this-week, and skips empty
 // weeks (no point training parents to ignore us). Audit ledger lives
 // in parentDigestEvents/{eventId}. PR 3 also runs a parallel WhatsApp
-// channel via Twilio (soft-fails when TWILIO_* secrets aren't set).
+// channel via Meta WhatsApp Cloud API (soft-fails when META_WHATSAPP_*
+// secrets aren't set).
 exports.weeklyParentDigest = weeklyParentDigest;
 
 // A3 PR 3 — admin-only callable that runs the same digest body on
-// demand. Useful for verifying Twilio WhatsApp wiring without waiting
+// demand. Useful for verifying Meta WhatsApp wiring without waiting
 // for the Sunday cron. Accepts { force, targetTokens } so an admin
 // can target a specific test share and bypass the 5-day idempotency
 // stamp. Returns the summary so the caller can see exactly what

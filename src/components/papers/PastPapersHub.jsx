@@ -21,6 +21,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
+import { useAuth } from '../../contexts/AuthContext'
 import {
   PAPER_GRADES,
   listPublishedPapers,
@@ -113,6 +114,7 @@ function EmptyState() {
 }
 
 export default function PastPapersHub() {
+  const { currentUser } = useAuth()
   const [papers, setPapers] = useState([])
   const [loading, setLoading] = useState(true)
   const [errored, setErrored] = useState(false)
@@ -187,11 +189,23 @@ export default function PastPapersHub() {
           <Link to="/welcome" className="inline-flex items-center gap-1.5 text-white/80 hover:text-white text-xs font-bold mb-4">
             <Logo className="h-6 w-auto" />
           </Link>
-          <p className="text-white/80 font-black text-xs uppercase tracking-widest">ECZ archive</p>
-          <h1 className="text-white text-3xl sm:text-4xl font-black mt-1">Past papers</h1>
-          <p className="text-white/85 text-sm sm:text-base mt-2 max-w-2xl">
-            Grade 7, 9 and 12 papers from the Examinations Council of Zambia, organised by year and subject.
-          </p>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <p className="text-white/80 font-black text-xs uppercase tracking-widest">ECZ archive</p>
+              <h1 className="text-white text-3xl sm:text-4xl font-black mt-1">Past papers</h1>
+              <p className="text-white/85 text-sm sm:text-base mt-2 max-w-2xl">
+                Grade 7, 9 and 12 papers from the Examinations Council of Zambia, organised by year and subject.
+              </p>
+            </div>
+            {currentUser && (
+              <Link
+                to="/my-papers"
+                className="flex-shrink-0 inline-flex items-center gap-1.5 rounded-full bg-white/15 hover:bg-white/25 text-white text-xs font-black px-3 py-1.5"
+              >
+                ⏱️ My runs
+              </Link>
+            )}
+          </div>
         </div>
       </header>
 

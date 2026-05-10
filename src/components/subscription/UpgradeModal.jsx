@@ -4,6 +4,7 @@ import { AlertTriangle, ArrowLeft, Check, CheckCircleIcon, CreditCard, Sparkles,
 import { useAuth } from '../../contexts/AuthContext'
 import { PLANS, PAYMENT_DETAILS } from '../../utils/subscriptionConfig'
 import { initiateMomoPayment, pollMomoPayment } from '../../utils/momoPayments'
+import { capture } from '../../utils/analytics'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 
@@ -116,6 +117,13 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
         await refreshProfile?.()
         setStatusText(finalStatus.message || 'Payment received.')
         setStep('success')
+        // Audit B2 — capture subscription_purchased. Plan + amount
+        // (ZMW) only; never the phone number or paymentId.
+        capture('subscription_purchased', {
+          planId: selectedPlanId,
+          amountZmw: plan?.amountZMW ?? null,
+          durationDays: plan?.durationDays ?? null,
+        })
       } else if (finalStatus.status === 'pending') {
         setStatusText(finalStatus.message || 'Still waiting for MTN confirmation.')
       } else {

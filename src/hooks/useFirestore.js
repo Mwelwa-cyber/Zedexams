@@ -10,6 +10,7 @@ import {
 // need more should paginate or use count aggregations instead.
 const ADMIN_QUERY_LIMIT = 500
 import { db } from '../firebase/config'
+import { capture as captureAnalytics } from '../utils/analytics.js'
 import { normalizeRichTextPayload } from '../utils/quizRichText.js'
 import { deleteQuizWithQuestions } from '../utils/deleteQuizWithQuestions.js'
 import { migrateContent } from '../editor/utils/migration.js'
@@ -293,6 +294,17 @@ export function useFirestore() {
   // ── Results ──────────────────────────────────────────────────
   async function saveResult(data) {
     const ref = await addDoc(collection(db, 'results'), { ...data, completedAt: serverTimestamp() })
+    // Audit B2 — capture quiz_completed. Aggregate fields only; no
+    // student answer text, no question content. Funnels around
+    // "completion → second attempt" use percentage + grade.
+    captureAnalytics('quiz_completed', {
+      grade: data.grade ?? null,
+      subject: data.subject ?? null,
+      percentage: typeof data.percentage === 'number' ? data.percentage : null,
+      score: typeof data.score === 'number' ? data.score : null,
+      totalMarks: typeof data.totalMarks === 'number' ? data.totalMarks : null,
+      isDailyExam: data.quizType === 'daily_exam',
+    })
     return ref.id
   }
 

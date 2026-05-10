@@ -1,15 +1,21 @@
 import { NavLink } from 'react-router-dom'
-import { BarChart3, BookOpen, Home, PencilLine } from '../ui/icons'
+import { useTranslation } from 'react-i18next'
+import { BarChart3, BookOpen, FileText, Home, PencilLine } from '../ui/icons'
 import Icon from '../ui/Icon'
 
+// 5 items at ~20% width each. Notes Studio replaces the slide-builder for new
+// content; Lessons stays for legacy slide-built lessons until those are gone.
+// Labels resolve via i18n (audit A7) — `nav.*` keys, English fallback.
 const MOBILE_NAV_ITEMS = [
-  { to: '/dashboard', icon: Home,       label: 'Home',    end: true },
-  { to: '/lessons',   icon: BookOpen,   label: 'Lessons', end: false },
-  { to: '/quizzes',   icon: PencilLine, label: 'Practise', end: false },
-  { to: '/my-results',icon: BarChart3,  label: 'Results', end: false },
+  { to: '/dashboard', icon: Home,       labelKey: 'nav.dashboard', end: true },
+  { to: '/notes',     icon: FileText,   labelKey: 'nav.notes',     end: false },
+  { to: '/quizzes',   icon: PencilLine, labelKey: 'nav.quizzes',   end: false },
+  { to: '/lessons',   icon: BookOpen,   labelKey: 'nav.lessons',   end: false },
+  { to: '/my-results',icon: BarChart3,  labelKey: 'nav.results',   end: false },
 ]
 
 export default function MobileBottomNav({ mode = 'fixed', className = '' }) {
+  const { t } = useTranslation()
   const positionClass = mode === 'static'
     ? 'md:hidden theme-card border-t theme-border shadow-elev-lg safe-area-bottom'
     : 'md:hidden fixed bottom-0 left-0 right-0 z-30 theme-card border-t theme-border shadow-elev-lg safe-area-bottom'
@@ -37,7 +43,7 @@ export default function MobileBottomNav({ mode = 'fixed', className = '' }) {
                 }`}>
                   <Icon as={item.icon} size="md" strokeWidth={2.1} />
                 </span>
-                <span className={`text-xs font-bold ${isActive ? 'font-black' : ''}`}>{item.label}</span>
+                <span className={`text-xs font-bold ${isActive ? 'font-black' : ''}`}>{t(item.labelKey)}</span>
               </>
             )}
           </NavLink>

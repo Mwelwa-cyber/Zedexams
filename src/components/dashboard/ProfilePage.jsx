@@ -22,6 +22,10 @@ import { getRoleLandingPath }  from '../../utils/navigation'
 import { daysUntilExpiry }     from '../../utils/subscriptionConfig'
 import UpgradeModal            from '../subscription/UpgradeModal'
 import ParentShareManager      from '../parent/ParentShareManager'
+import LanguageToggle          from '../ui/LanguageToggle'
+import InvoicesCard            from './InvoicesCard'
+import ReplayTourCard          from '../ui/ReplayTourCard'
+import AnalyticsConsentToggle  from '../ui/AnalyticsConsentToggle'
 import Button                  from '../ui/Button'
 import Icon                    from '../ui/Icon'
 import SeoHelmet               from '../seo/SeoHelmet'
@@ -360,9 +364,36 @@ export default function ProfilePage() {
           </div>
         )}
 
+        {/* Audit D3 — MoMo receipts. Self-hides if the user has no
+            invoices yet (most accounts), so free-tier UX is unchanged. */}
+        <InvoicesCard />
+
         {/* Audit A3 PR 1 — share-progress-with-parent. Learners only;
             teachers/admins don't have a "parent". */}
         {isLearner && <ParentShareManager />}
+
+        {/* Audit A7 — language toggle. Visible to every signed-in user.
+            Nyanja is shipped as a placeholder until a native speaker
+            fills the ny/* JSON files; English keys fall through. */}
+        <div className="theme-card rounded-2xl border theme-border p-4 flex items-center justify-between gap-3">
+          <div>
+            <p className="theme-text font-black text-sm">Language</p>
+            <p className="theme-text-muted text-xs mt-0.5">
+              Pick the language for menus and buttons.
+            </p>
+          </div>
+          <LanguageToggle compact />
+        </div>
+
+        {/* Audit A8 PR 4 — replay any first-session tour. Role-aware
+            inside the component so learners and teachers see only
+            their own surfaces. */}
+        <ReplayTourCard />
+
+        {/* Audit D2 — change the cookie / analytics consent decision
+            after the first-visit banner. Self-reflects on the
+            localStorage decision in real time. */}
+        <AnalyticsConsentToggle />
 
         {/* Edit profile form */}
         <div className="theme-card rounded-2xl border theme-border p-5">

@@ -1,0 +1,35 @@
+{
+  "actions": {
+    "back": "Back",
+    "cancel": "Cancel",
+    "close": "Close",
+    "continue": "Continue",
+    "next": "Next",
+    "retry": "Try again",
+    "save": "Save",
+    "signIn": "Sign in",
+    "signOut": "Sign out",
+    "start": "Start"
+  },
+  "errors": {
+    "generic": "Something went wrong. Please try again.",
+    "offline": "You're offline. Pages you've visited still work."
+  },
+  "footer": {
+    "madeIn": "Made in Zambia."
+  },
+  "loading": "Loading…",
+  "language": {
+    "label": "Language"
+  },
+  "nav": {
+    "dashboard": "Home",
+    "lessons": "Lessons",
+    "notes": "Notes",
+    "quizzes": "Quizzes",
+    "results": "Results",
+    "profile": "Profile",
+    "settings": "Settings"
+  },
+  "welcome": "Welcome"
+}

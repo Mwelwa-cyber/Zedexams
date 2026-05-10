@@ -26,6 +26,7 @@ import {
 } from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app, { db } from '../firebase/config'
+import { capture } from './analytics'
 
 const COLLECTION = 'classes'
 const fns = getFunctions(app, 'us-central1')
@@ -85,6 +86,15 @@ export async function createClass({ teacherUid, fields }) {
     active: true,
     createdAt: now,
     updatedAt: now,
+  })
+  // Audit B2 — analytics event. Only the structural fields (grade,
+  // subject, hasSchool boolean) are sent — never the class name or
+  // school name. Funnels around "teachers who create vs don't" rely
+  // on grade / subject distribution, not identifiable values.
+  capture('class_created', {
+    grade: fields.grade,
+    subject: fields.subject ?? null,
+    hasSchool: Boolean(fields.school),
   })
   return ref.id
 }
