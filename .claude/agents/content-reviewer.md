@@ -1,7 +1,7 @@
 ---
 name: content-reviewer
 description: Reva — reviews aligned content drafts for pedagogy, tone, and age-appropriateness. Suggests edits, never auto-applies. Use after cbc-alignment marks a draft aligned.
-model: claude-sonnet-4-5
+model: claude-sonnet-4-6
 tools: Read, Grep, Glob
 ---
 
