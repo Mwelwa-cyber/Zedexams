@@ -7,6 +7,7 @@ import Card from '../ui/Card'
 import Icon from '../ui/Icon'
 import ContactDialog from './ContactDialog'
 import LiveStats from './LiveStats'
+import NewsletterSignup from './NewsletterSignup'
 import {
   AcademicCapIcon,
   Sparkles,
@@ -667,6 +668,10 @@ export default function Marketing() {
       {/* Footer with visible contact */}
       <footer className="border-t theme-border">
         <Section className="py-10">
+          {/* Newsletter signup — audit C6, list builder. */}
+          <div className="mb-10 pb-8 border-b theme-border">
+            <NewsletterSignup source="marketing-footer" />
+          </div>
           <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4">
             <div>
               <Logo size="sm" />

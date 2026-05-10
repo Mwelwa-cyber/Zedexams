@@ -838,5 +838,27 @@ service cloud.firestore {
         && (!('role'  in incoming()) || (incoming().role  is string && incoming().role  in ['parent', 'teacher', 'school', 'learner', 'other']));
     }
 
+    // ── newsletterSubscribers (audit C6 — list builder) ───────────────
+    //
+    // Writes are routed exclusively through the subscribeToNewsletter
+    // Cloud Function so we can enforce email validation, dedupe, IP
+    // rate limit, and a honeypot — none of which we can do from
+    // Firestore rules. Direct client writes are blocked.
+    //
+    // Reads admin-only — the list is operationally sensitive (it's a
+    // raw email list of people interested in a Zambian education
+    // brand; misuse would burn future deliverability).
+    match /newsletterSubscribers/{email} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    // ── newsletterSignupRateLimit (per-IP daily counter) ──────────────
+    // Internal counter the Cloud Function maintains. Not for client eyes.
+    match /newsletterSignupRateLimit/{key} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
   }
 }
