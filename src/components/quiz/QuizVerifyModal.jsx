@@ -18,9 +18,23 @@ const SCORE_ROWS = [
   { key: 'cbcAlignment',   label: 'CBC Alignment' },
 ]
 
-function flattenQuestionsForVerify(sections, parts) {
-  const { questions } = serializeQuizSections(sections, parts)
-  return questions.map(q => ({
+// Vex needs both the questions AND the passage/map context that surrounds
+// them. Without the passages, an MCQ like "Name the National Park marked A"
+// looks unanswerable to the verifier and every map-based question gets
+// flagged as a blocker. Pass passage metadata (instructions, kind,
+// imageUrl) and link each question via passageId so the runner can attach
+// the correct image to its multimodal call.
+function buildVerifyPayload(sections, parts) {
+  const { questions, passages } = serializeQuizSections(sections, parts)
+  const passagesPayload = passages.map(p => ({
+    id: p.id,
+    title: (p.title || '').slice(0, 200),
+    passageKind: p.passageKind || 'comprehension',
+    instructions: extractRichTextPlain(p.instructions).slice(0, 1500),
+    passageText: extractRichTextPlain(p.passageText).slice(0, 4000),
+    imageUrl: p.imageUrl || null,
+  }))
+  const questionsPayload = questions.map(q => ({
     type: q.type || 'mcq',
     text: extractRichTextPlain(q.text).slice(0, 1200),
     options: Array.isArray(q.options)
@@ -31,7 +45,10 @@ function flattenQuestionsForVerify(sections, parts) {
     expectedAnswer: q.expectedAnswer
       ? extractRichTextPlain(q.expectedAnswer).slice(0, 400)
       : undefined,
+    passageId: q.passageId || null,
+    imageUrl: q.imageUrl || null,
   }))
+  return { questions: questionsPayload, passages: passagesPayload }
 }
 
 function scoreColor(score) {
@@ -109,9 +126,11 @@ export default function QuizVerifyModal({
   const payload = useMemo(() => {
     if (!open) return null
     try {
+      const { questions, passages } = buildVerifyPayload(sections || [], parts || [])
       return {
         quizId: quizId || '',
-        questions: flattenQuestionsForVerify(sections || [], parts || []),
+        questions,
+        passages,
         meta: {
           grade: form?.grade || '',
           subject: form?.subject || '',

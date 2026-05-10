@@ -32,9 +32,20 @@ const SYSTEM_PROMPT = [
   "phrasing, a borderline difficulty). Re-read every question twice",
   "before deciding nothing is wrong.",
   "",
+  "Some quizzes attach a passage (a reading passage, a map, or a diagram)",
+  "that the learner sees alongside the questions. When a passage's image",
+  "is attached to your message, the learner sees that same image in the",
+  "quiz. Treat questions referring to letters, numbers, or shapes on the",
+  "image (e.g. 'the river marked X', 'the lake marked I', 'the National",
+  "Park marked A') as fully answerable from the image — do NOT flag them",
+  "as unanswerable, do NOT demand the map be re-attached. Use the image",
+  "to verify the keyed answer is correct.",
+  "",
   "Six checks:",
   "  1. Answer accuracy — Is the option marked as correct actually correct?",
-  "     Are there two correct options? Is the keyed answer wrong?",
+  "     Are there two correct options? Is the keyed answer wrong? When a",
+  "     passage image is attached, read the image to verify map / diagram",
+  "     answers (which lake is marked I, which river is X, etc.).",
   "  2. Grade match — Is the vocabulary, cognitive load, and reading level",
   "     appropriate for the stated grade?",
   "  3. Clarity — Is the question understandable? Ambiguous wording?",
@@ -303,9 +314,80 @@ function runStructuralChecks(questions) {
   return blockers;
 }
 
-function buildUserPrompt({input}) {
+/**
+ * Build the user-turn content for the Anthropic call. Returns an array of
+ * content blocks: each passage that has an image url is rendered as an
+ * image block (Anthropic fetches the URL server-side) preceded by a label
+ * block so the model can map images to passage ids. A trailing text block
+ * carries the metadata, CBC context, passage list, and the question JSON.
+ *
+ * Without this, Vex sees only the question stems and flags every map /
+ * diagram question as "unanswerable — no visual reference provided" even
+ * though the learner does see the image in the quiz.
+ */
+function buildUserContent({input}) {
   const meta = input.meta || {};
-  const parts = [
+  const passages = Array.isArray(input.passages) ? input.passages : [];
+
+  const blocks = [];
+  // Hard cap on attached images. Vision tokens are expensive and the
+  // verdict tool gives the model a tight, structured target — we don't
+  // need to attach every image. 12 covers the largest map-based quizzes
+  // we ship today.
+  const MAX_IMAGES = 12;
+  let imageCount = 0;
+
+  passages.forEach((p) => {
+    if (imageCount >= MAX_IMAGES) return;
+    const url = typeof p?.imageUrl === "string" ? p.imageUrl.trim() : "";
+    if (!/^https:\/\//i.test(url)) return;
+    blocks.push({
+      type: "text",
+      text: `The next image belongs to passage id="${p.id}" ` +
+        `(${p.passageKind || "comprehension"})` +
+        (p.title ? ` — "${clampStr(p.title, 160)}"` : "") +
+        ". Questions whose passageId matches this id refer to this image.",
+    });
+    blocks.push({
+      type: "image",
+      source: {type: "url", url},
+    });
+    imageCount += 1;
+  });
+
+  // Also attach standalone-question images (per-question diagrams). These
+  // are referenced by questionIndex rather than passageId.
+  const questions = Array.isArray(input.questions) ? input.questions : [];
+  questions.forEach((q, idx) => {
+    if (imageCount >= MAX_IMAGES) return;
+    if (q?.passageId) return; // image is already attached via the passage
+    const url = typeof q?.imageUrl === "string" ? q.imageUrl.trim() : "";
+    if (!/^https:\/\//i.test(url)) return;
+    blocks.push({
+      type: "text",
+      text: `The next image belongs to question index ${idx} ` +
+        `(question ${idx + 1}). The learner sees this image with the ` +
+        "question.",
+    });
+    blocks.push({
+      type: "image",
+      source: {type: "url", url},
+    });
+    imageCount += 1;
+  });
+
+  const passageSummary = passages.map((p) => ({
+    id: p.id,
+    title: clampStr(p.title, 200),
+    passageKind: p.passageKind || "comprehension",
+    instructions: clampStr(extractPlainText(p.instructions), 1500),
+    passageText: clampStr(extractPlainText(p.passageText), 4000),
+    hasImage: Boolean(p.imageUrl &&
+      typeof p.imageUrl === "string" &&
+      /^https:\/\//i.test(p.imageUrl)),
+  }));
+
+  const textPrompt = [
     `Grade: ${meta.grade || "?"}`,
     `Subject: ${meta.subject || "?"}`,
     `Topic: ${meta.topic || "?"}`,
@@ -315,11 +397,24 @@ function buildUserPrompt({input}) {
     "CBC context (authoritative — questions should align with this):",
     String(input.cbcContextBlock || "(no CBC context resolved)").slice(0, 4000),
     "",
+    passages.length ?
+      "Passages (questions referencing a passageId share this passage's " +
+      "instructions and — when hasImage is true — the image attached above " +
+      "in matching order):" :
+      "Passages: (none)",
+    passages.length ?
+      JSON.stringify(passageSummary, null, 2).slice(0, 8000) :
+      "",
+    "",
     "Quiz questions (0-indexed). For MCQ, correctAnswer is the 0-based",
-    "index of the option marked correct.",
+    "index of the option marked correct. A non-null passageId means the",
+    "learner sees the matching passage (and its image, if any) alongside",
+    "the question.",
     JSON.stringify(input.questions || [], null, 2).slice(0, 28000),
-  ];
-  return parts.join("\n");
+  ].join("\n");
+
+  blocks.push({type: "text", text: textPrompt});
+  return blocks;
 }
 
 function normaliseIssue(raw) {
@@ -389,13 +484,13 @@ async function runVex({input, anthropicApiKeySecret}) {
     };
   }
 
-  const userPrompt = buildUserPrompt({input});
+  const userContent = buildUserContent({input});
 
   let raw;
   try {
     raw = await callAnthropic(apiKey, {
       systemPrompt: SYSTEM_PROMPT,
-      messages: [{role: "user", content: userPrompt}],
+      messages: [{role: "user", content: userContent}],
       model: MODEL,
       // 4000 (up from 1500) gives room for a full verdict on a 10+ question
       // quiz with several issues each. The previous 1500 cap was truncating
