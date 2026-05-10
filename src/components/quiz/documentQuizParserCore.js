@@ -10,6 +10,7 @@ const SUBJECTS = [
   'Expressive Arts',
   'Technology Studies',
   'Cinyanja',
+  'Home Economics',
 ]
 
 const QUESTION_RE = /^(?:q(?:uestion)?\s*)?(\d{1,3})\s*[\).:\-]\s*(.+)$/i

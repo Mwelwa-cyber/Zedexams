@@ -141,6 +141,19 @@ export const SUBJECTS = [
       border: 'border-pink-200',
     },
   },
+  {
+    id: 'home-economics',
+    label: 'Home Economics',
+    shortLabel: 'Home Ec.',
+    icon: '🏡',
+    color: 'rose',
+    tailwind: {
+      bg:     'bg-rose-500',
+      light:  'bg-rose-50',
+      text:   'text-rose-700',
+      border: 'border-rose-200',
+    },
+  },
 ]
 
 /** Subject ID → Subject object lookup */
@@ -197,6 +210,13 @@ export const COMPETENCIES = {
     'Galamala (Grammar)',
     'Chikhalidwe (Culture & Heritage)',
   ],
+  'home-economics': [
+    'Food & Nutrition',
+    'Personal & Family Health',
+    'Home Management',
+    'Clothing & Textiles',
+    'Consumer Education',
+  ],
 }
 
 /** Topics per grade per subject */
@@ -242,6 +262,12 @@ export const TOPICS = {
     5: ['Kuwerenga ndi Kumvetsa (Reading Comprehension)', 'Kalembedwe ka Makalata (Letter Writing)', 'Galamala (Grammar)', 'Mauthenga (Messages)', 'Nthano (Folk Tales)', 'Chikhalidwe cha Zambia'],
     6: ['Kuwerenga Kwapamwamba (Advanced Reading)', 'Kufotokoza Nkhani (Composition)', 'Galamala Yapamwamba (Advanced Grammar)', 'Ndakatulo Zatsopano', 'Sewero (Drama)', 'Miyambo & Mwambo'],
     7: ['Kuunika Nkhani (Critical Reading)', 'Maganizo & Mtsutso (Opinion & Debate)', 'Galamala ya Pamlingo Wapamwamba', 'Ntchito ya Cinyanja Pagulu', 'Mabuku a Cinyanja', 'Kukonzekera Mayeso'],
+  },
+  'home-economics': {
+    4: ['Personal Hygiene', 'Balanced Diet', 'Kitchen Safety', 'Cleaning & Tidying', 'Family & Home Care', 'Simple Cooking'],
+    5: ['Nutrition & Meal Planning', 'Cooking Methods', 'Laundry & Clothing Care', 'Home Organisation', 'Consumer Skills', 'First Aid Basics'],
+    6: ['Advanced Cooking', 'Clothing & Textiles', 'Home Design', 'Entrepreneurship Basics', 'Family Health', 'Budgeting & Finance'],
+    7: ['Food Preservation', 'Sewing & Garment Care', 'Hospitality Skills', 'Home Economics Enterprise', 'Health & First Aid', 'Consumer Rights'],
   },
 }
 

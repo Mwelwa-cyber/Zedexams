@@ -39,6 +39,7 @@ const TEACHER_SUBJECTS = [
   'Expressive Art',
   'Technology Studies',
   'Cinyanja',
+  'Home Economics',
   'Other',
 ]
 

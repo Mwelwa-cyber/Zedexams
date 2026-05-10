@@ -39,6 +39,7 @@ const SUBJECTS = [
   { id: 'Expressive Art',      slug: 'arts',        tile: 'bg-rose-100',   bar: 'bg-rose-500',    mascot: '🎨', mascotName: 'Art Parrot' },
   { id: 'Technology Studies',  slug: 'technology',  tile: 'bg-cyan-100',   bar: 'bg-cyan-500',    mascot: '🤖', mascotName: 'Tech Robot' },
   { id: 'Cinyanja',            slug: 'cinyanja',    tile: 'bg-pink-100',   bar: 'bg-pink-500',    mascot: '🦜', mascotName: 'Nyanja Parrot' },
+  { id: 'Home Economics',      slug: 'home',        tile: 'bg-rose-100',   bar: 'bg-rose-500',    mascot: '🐝', mascotName: 'Home Bee' },
 ]
 
 function difficultyColor(count = 0) {
