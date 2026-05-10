@@ -1,7 +1,7 @@
 ---
 name: qa-smoke
 description: Quill — refreshes the auth + authoring QA reports and flags regressions. Use to manually run a smoke pass, or invoke from CI on demand.
-model: claude-sonnet-4-5
+model: claude-sonnet-4-6
 tools: Read, Grep, Glob, Bash
 ---
 

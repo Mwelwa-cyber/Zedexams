@@ -1,7 +1,7 @@
 ---
 name: cbc-alignment
 description: Cala — verifies a content draft against the verified Zambian CBC knowledge base. Flags drift, attaches outcome citations, lists gaps. Use after content-author produces a draft.
-model: claude-sonnet-4-5
+model: claude-sonnet-4-6
 tools: Read, Grep, Glob
 ---
 

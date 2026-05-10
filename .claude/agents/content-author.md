@@ -1,7 +1,7 @@
 ---
 name: content-author
 description: Aria — drafts CBC-aligned lesson plans, worksheets, schemes of work, rubrics, flashcards, and notes from a brief. Use proactively when the user asks for new teaching material for a Zambian CBC topic.
-model: claude-sonnet-4-5
+model: claude-sonnet-4-6
 tools: Read, Grep, Glob
 ---
 
