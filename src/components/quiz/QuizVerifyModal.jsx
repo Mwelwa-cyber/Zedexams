@@ -89,7 +89,7 @@ function ScoreBar({ score }) {
 function IssueRow({ issue }) {
   return (
     <li className={`rounded-xl border-2 p-3 text-sm ${severityBadge(issue.severity)}`}>
-      <div className="flex items-start gap-2">
+      <div className="flex flex-wrap items-start gap-2">
         <span className="rounded-full border bg-white/70 px-2 py-0.5 text-xs font-black uppercase">
           {issue.severity}
         </span>
@@ -100,9 +100,9 @@ function IssueRow({ issue }) {
           {issue.category}
         </span>
       </div>
-      <p className="mt-2 font-semibold leading-snug">{issue.message}</p>
+      <p className="mt-2 break-words font-semibold leading-snug">{issue.message}</p>
       {issue.suggestion ? (
-        <p className="mt-1 text-xs italic opacity-90">Fix: {issue.suggestion}</p>
+        <p className="mt-1 break-words text-xs italic opacity-90">Fix: {issue.suggestion}</p>
       ) : null}
     </li>
   )
@@ -182,25 +182,25 @@ export default function QuizVerifyModal({
   const canPublish = !loading && !blockers.length
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4">
       <div className="theme-card theme-border w-full max-w-2xl overflow-hidden rounded-3xl border-2 shadow-elev-md">
-        <div className="theme-accent-fill theme-on-accent flex items-center justify-between px-5 py-3">
-          <div className="flex items-center gap-2">
+        <div className="theme-accent-fill theme-on-accent flex items-center justify-between gap-2 px-4 py-3 sm:px-5">
+          <div className="flex min-w-0 items-center gap-2">
             <span className="rounded-full bg-white/20 px-2 py-0.5 text-xs font-black uppercase tracking-wide">
               Vex
             </span>
-            <h2 className="text-lg font-black">Quiz Quality Check</h2>
+            <h2 className="truncate text-base font-black sm:text-lg">Quiz Quality Check</h2>
           </div>
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full bg-white/20 px-3 py-1 text-sm font-bold hover:bg-white/30"
+            className="shrink-0 rounded-full bg-white/20 px-3 py-1 text-sm font-bold hover:bg-white/30"
           >
             Close
           </button>
         </div>
 
-        <div className="max-h-[70vh] space-y-5 overflow-y-auto px-5 py-5">
+        <div className="max-h-[70vh] space-y-4 overflow-y-auto px-4 py-4 sm:space-y-5 sm:px-5 sm:py-5">
           {loading && (
             <div className="theme-text flex flex-col items-center gap-3 py-10">
               <div className="theme-accent-fill h-3 w-3 animate-ping rounded-full" />
@@ -221,8 +221,8 @@ export default function QuizVerifyModal({
 
           {!loading && result && (
             <>
-              <div className="theme-bg-subtle theme-border flex items-center gap-4 rounded-2xl border-2 p-4">
-                <div className="flex flex-col items-center">
+              <div className="theme-bg-subtle theme-border flex flex-col items-stretch gap-3 rounded-2xl border-2 p-4 sm:flex-row sm:items-center sm:gap-4">
+                <div className="flex shrink-0 flex-row items-baseline justify-center gap-2 sm:flex-col sm:items-center sm:gap-0">
                   <span className={`text-4xl font-black tabular-nums ${scoreText(overall)}`}>
                     {overall}%
                   </span>
@@ -230,12 +230,12 @@ export default function QuizVerifyModal({
                     Quality Score
                   </span>
                 </div>
-                <div className="flex-1">
-                  <p className="theme-text font-semibold leading-snug">
+                <div className="min-w-0 flex-1">
+                  <p className="theme-text break-words font-semibold leading-snug">
                     {result.summary || 'No summary returned.'}
                   </p>
                   {result.modelUsed ? (
-                    <p className="theme-text-muted mt-1 text-xs">
+                    <p className="theme-text-muted mt-1 break-words text-xs">
                       Model: {result.modelUsed}
                     </p>
                   ) : null}
@@ -246,8 +246,8 @@ export default function QuizVerifyModal({
                 <h3 className="theme-text font-black">Category breakdown</h3>
                 <ul className="space-y-2">
                   {SCORE_ROWS.map(row => (
-                    <li key={row.key} className="grid grid-cols-[160px_1fr] items-center gap-3">
-                      <span className="theme-text text-sm font-semibold">{row.label}</span>
+                    <li key={row.key} className="grid grid-cols-[7rem_1fr] items-center gap-2 sm:grid-cols-[10rem_1fr] sm:gap-3">
+                      <span className="theme-text truncate text-sm font-semibold">{row.label}</span>
                       <ScoreBar score={result.scores?.[row.key] ?? 0} />
                     </li>
                   ))}
@@ -323,11 +323,11 @@ export default function QuizVerifyModal({
           )}
         </div>
 
-        <div className="theme-border flex flex-wrap items-center justify-end gap-2 border-t-2 px-5 py-3">
+        <div className="theme-border flex flex-wrap items-center justify-end gap-2 border-t-2 px-4 py-3 sm:px-5">
           <button
             type="button"
             onClick={onClose}
-            className="theme-card theme-border theme-text rounded-xl border-2 px-4 py-2 font-black hover:border-[var(--accent)]"
+            className="theme-card theme-border theme-text rounded-xl border-2 px-3 py-2 text-sm font-black hover:border-[var(--accent)] sm:px-4 sm:text-base"
           >
             Cancel
           </button>
@@ -335,7 +335,7 @@ export default function QuizVerifyModal({
             type="button"
             onClick={onFixIssues}
             disabled={loading}
-            className="rounded-xl border-2 border-amber-400 bg-amber-50 px-4 py-2 font-black text-amber-800 hover:bg-amber-100 disabled:opacity-40"
+            className="rounded-xl border-2 border-amber-400 bg-amber-50 px-3 py-2 text-sm font-black text-amber-800 hover:bg-amber-100 disabled:opacity-40 sm:px-4 sm:text-base"
           >
             Fix Issues
           </button>
@@ -344,7 +344,7 @@ export default function QuizVerifyModal({
             onClick={onPublish}
             disabled={!canPublish}
             title={blockers.length ? 'Resolve blockers before publishing.' : ''}
-            className="theme-accent-fill theme-on-accent rounded-xl px-4 py-2 font-black shadow-elev-sm disabled:cursor-not-allowed disabled:opacity-40"
+            className="theme-accent-fill theme-on-accent rounded-xl px-3 py-2 text-sm font-black shadow-elev-sm disabled:cursor-not-allowed disabled:opacity-40 sm:px-4 sm:text-base"
           >
             {loading ? 'Verifying…' : blockers.length ? 'Blocked' : 'Publish anyway'}
           </button>
