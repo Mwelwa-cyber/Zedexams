@@ -66,6 +66,13 @@ const SYSTEM_PROMPT = [
   "  - warning: spelling, grammar, wording suggestions, difficulty",
   "    mismatch, mildly weak distractor, mild curriculum drift.",
   "",
+  "  Never raise a blocker whose own message or suggestion confirms the",
+  "  keyed answer is correct. If on re-reading you decide the answer is",
+  "  fine, do NOT add an issue at all (or use 'warning' if a clarity /",
+  "  grammar nit remains). Phrases like \"answer is correct\", \"no",
+  "  change needed\", or \"upon re-check this is correct\" must never",
+  "  appear inside a blocker — they belong in warnings or be omitted.",
+  "",
   "Calibration: if you would give every category a score of 95+ AND",
   "return zero issues for a quiz with 5 or more questions, you almost",
   "certainly missed something. Re-read first. Honest scores reflect",
@@ -535,8 +542,44 @@ async function runVex({input, anthropicApiKeySecret}) {
   const llmIssues = Array.isArray(parsed?.issues) ?
     parsed.issues.slice(0, 100).map(normaliseIssue) :
     [];
-  const llmBlockers = llmIssues.filter((i) => i.severity === "blocker");
-  const llmWarnings = llmIssues.filter((i) => i.severity === "warning");
+
+  // Defensive downgrade: Vex sometimes emits a "blocker" whose own
+  // suggestion text says the keyed answer is correct ("No change needed —
+  // answer is correct"). Those self-contradictions blocked publish in the
+  // editor for quizzes that were actually fine. Demote any blocker whose
+  // message or suggestion confirms the keyed answer rather than refuting
+  // it; surface it as a warning so the teacher still sees the ambiguity.
+  const SELF_CONFIRM_PATTERNS = [
+    /no\s+change(s)?\s+needed/i,
+    /\banswer\s+is\s+correct\b/i,
+    /\bkeyed\s+answer\s+is\s+correct\b/i,
+    /\bcorrect\s+answer\s+is\s+correct\b/i,
+    /\bis\s+correct\.?$/i,
+    /\bwhich\s+is\s+correct\b/i,
+    /upon\s+re-?check[,.]?\s+this\s+is\s+correct/i,
+  ];
+  const looksSelfConfirming = (issue) => {
+    const haystack = `${issue.message || ""} ${issue.suggestion || ""}`;
+    return SELF_CONFIRM_PATTERNS.some((re) => re.test(haystack));
+  };
+  const reconciledLlmIssues = llmIssues.map((issue) => {
+    if (issue.severity === "blocker" && looksSelfConfirming(issue)) {
+      return {
+        ...issue,
+        severity: "warning",
+        suggestion: issue.suggestion ||
+          "Vex flagged this as a blocker but its own note confirmed the " +
+          "keyed answer. Treat as a warning and re-check manually.",
+      };
+    }
+    return issue;
+  });
+  const llmBlockers = reconciledLlmIssues.filter(
+    (i) => i.severity === "blocker",
+  );
+  const llmWarnings = reconciledLlmIssues.filter(
+    (i) => i.severity === "warning",
+  );
 
   const blockers = [...structuralBlockers, ...llmBlockers];
   const warnings = llmWarnings;

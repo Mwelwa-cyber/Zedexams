@@ -179,7 +179,11 @@ export default function QuizVerifyModal({
   const lowQuality = !!result && !result.aiUnreadable && overall > 0 && overall < 80
   const cleanPass = !!result && !blockers.length && !warnings.length &&
     !result.aiUnreadable && !lowQuality && verdict === 'pass'
-  const canPublish = !loading && !blockers.length
+  // Vex is an aide, not a gate. We've seen it flag questions whose keyed
+  // answers are demonstrably correct, so we never lock the publish button
+  // on its verdict — only on the loading state. The blocker list is still
+  // shown for the teacher to consider before clicking through.
+  const canPublish = !loading
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-2 sm:p-4">
@@ -343,10 +347,12 @@ export default function QuizVerifyModal({
             type="button"
             onClick={onPublish}
             disabled={!canPublish}
-            title={blockers.length ? 'Resolve blockers before publishing.' : ''}
+            title={blockers.length
+              ? 'Vex flagged blockers. Review them, but you can still publish.'
+              : ''}
             className="theme-accent-fill theme-on-accent rounded-xl px-3 py-2 text-sm font-black shadow-elev-sm disabled:cursor-not-allowed disabled:opacity-40 sm:px-4 sm:text-base"
           >
-            {loading ? 'Verifying…' : blockers.length ? 'Blocked' : 'Publish anyway'}
+            {loading ? 'Verifying…' : 'Publish anyway'}
           </button>
         </div>
       </div>
