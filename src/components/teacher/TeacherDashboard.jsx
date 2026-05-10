@@ -73,6 +73,16 @@ const STUDIOS = [
     to: '/teacher/syllabi',
     mascot: `${SYLLABI_TOTAL_COUNT} docs`,
   },
+  {
+    emoji: '📚',
+    mascotBg: '#e3dcc8',
+    badge: null,
+    isLibrary: true,
+    title: 'Library',
+    tagline: 'All your saved lesson plans, schemes, notes, worksheets, and assessments.',
+    to: '/teacher/library',
+    mascot: 'Your saved work',
+  },
 ]
 
 const TOOL_META = {
@@ -94,9 +104,13 @@ function SectionLabel({ children }) {
   )
 }
 
-function StudioCard({ emoji, mascotBg, badge, libraryKey, title, tagline, mascot, to, librarySummary }) {
+function StudioCard({ emoji, mascotBg, badge, libraryKey, isLibrary, title, tagline, mascot, to, librarySummary }) {
   const isSoon = badge === 'SOON'
-  const count = libraryKey ? (librarySummary?.byTool?.[libraryKey] ?? 0) : null
+  const count = libraryKey
+    ? (librarySummary?.byTool?.[libraryKey] ?? 0)
+    : isLibrary
+    ? (librarySummary?.total ?? 0)
+    : null
   const badgeText = badge !== null ? badge : `${count} SAVED`
   const badgeStyle = badge === 'FREE'
     ? { background: '#10864e', color: '#fff' }
@@ -439,11 +453,6 @@ export default function TeacherDashboard() {
         <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 28, color: '#0e2a32', margin: 0 }}>
           Continue where you left off
         </h2>
-        {recentItems.length > 0 && (
-          <Link to="/teacher/library" style={{ fontSize: 13, fontWeight: 600, color: '#0e2a32', opacity: .6, textDecoration: 'none' }}>
-            View all ›
-          </Link>
-        )}
       </div>
 
       {loading ? (

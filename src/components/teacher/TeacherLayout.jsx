@@ -4,6 +4,7 @@ import {
   LayoutDashboard,
   PencilLine,
   BookOpen,
+  FolderOpen,
   Menu,
   X,
   LogOut,
@@ -18,6 +19,7 @@ import TeacherTopBar from './TeacherTopBar'
 
 const NAV = [
   { to: '/teacher',                  icon: LayoutDashboard, label: 'My Dashboard', end: true },
+  { to: '/teacher/library',          icon: FolderOpen,      label: 'Library'                 },
   { to: '/teacher/assessments',      icon: PencilLine,      label: 'Assessments'             },
   { to: '/teacher/lessons/new',      icon: BookOpen,        label: 'Create Lesson'           },
   { to: '/teacher/classes',          icon: Users,           label: 'Classes'                 },
