@@ -71,6 +71,11 @@ import {
   PuzzlePieceIcon,
   QueueListIcon,
   RectangleStackIcon,
+  GlobeAltIcon,
+  ComputerDesktopIcon,
+  CalculatorIcon,
+  LanguageIcon,
+  MusicalNoteIcon,
   ShieldCheckIcon,
   SignalIcon,
   SparklesIcon,
@@ -268,6 +273,11 @@ const Save = withSize(BookmarkSquareIcon)
 const Loader2 = withSize(ArrowPathIcon)
 const ArrowRight = withSize(ArrowRightIcon)
 const ImageIcon = withSize(PhotoIcon)
+const Globe = withSize(GlobeAltIcon)
+const ComputerDesktop = withSize(ComputerDesktopIcon)
+const Calculator = withSize(CalculatorIcon)
+const Language = withSize(LanguageIcon)
+const MusicalNote = withSize(MusicalNoteIcon)
 
 export {
   GraduationCap,
@@ -386,4 +396,9 @@ export {
   Loader2,
   ArrowRight,
   ImageIcon,
+  Globe,
+  ComputerDesktop,
+  Calculator,
+  Language,
+  MusicalNote,
 }

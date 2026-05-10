@@ -19,6 +19,7 @@ import { db } from '../../../firebase/config'
 import { createClassAssignment } from '../../../utils/assignments'
 import { SUBJECTS } from '../../../config/curriculum'
 import Skeleton from '../../ui/Skeleton'
+import SubjectIcon from '../../ui/SubjectIcon'
 
 async function fetchAssignableQuizzes({ grade, subject }) {
   // Pull recent published quizzes that match the class's grade.
@@ -192,9 +193,7 @@ export default function AssignWorkModal({ open, classId, classGrade, classSubjec
                         isSelected ? 'theme-accent-bg' : 'hover:theme-bg-subtle'
                       }`}
                     >
-                      <div className="flex-shrink-0 w-8 h-8 rounded-lg theme-bg-subtle flex items-center justify-center text-base">
-                        <span aria-hidden="true">{subjectMeta?.icon || '📝'}</span>
-                      </div>
+                      <SubjectIcon subject={subjectMeta} size="sm" className="flex-shrink-0" />
                       <div className="flex-1 min-w-0">
                         <p className="theme-text font-bold text-sm truncate">{q.title || 'Untitled quiz'}</p>
                         <p className="theme-text-muted text-xs mt-0.5 truncate">

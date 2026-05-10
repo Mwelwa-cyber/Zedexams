@@ -22,6 +22,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { listLearnerClasses } from '../../utils/classes'
 import { listAssignmentsForLearner } from '../../utils/assignments'
 import { SUBJECTS } from '../../config/curriculum'
+import SubjectIcon from '../ui/SubjectIcon'
 
 const MAX_ROWS = 5
 
@@ -106,9 +107,7 @@ export default function AssignmentsCard() {
                 to={targetPath}
                 className="flex items-start gap-3 py-3 hover:theme-bg-subtle -mx-2 px-2 rounded-radius-md transition-colors"
               >
-                <div className="flex-shrink-0 w-9 h-9 rounded-lg theme-bg-subtle flex items-center justify-center text-base">
-                  <span aria-hidden="true">{subjectMeta?.icon || '📝'}</span>
-                </div>
+                <SubjectIcon subject={subjectMeta} size="sm" className="flex-shrink-0" />
                 <div className="flex-1 min-w-0">
                   <p className="theme-text font-bold text-sm truncate">{a.resourceTitle}</p>
                   <p className="theme-text-muted text-xs mt-0.5 truncate">

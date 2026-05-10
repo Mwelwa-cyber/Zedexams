@@ -48,13 +48,22 @@
 
 export const GRADES = [4, 5, 6, 7]
 
-/** Learning Areas (subjects) — 7 as per CBC Upper Primary */
+/** Learning Areas (subjects) — 8 as per CBC Upper Primary.
+ *
+ * Each subject carries:
+ *  - icon         legacy single-emoji fallback (still consumed by older
+ *                 callers that expect a string)
+ *  - iconKey      identifier for the SVG renderer in <SubjectIcon>
+ *  - pastel       soft pastel background colour matching the friendly
+ *                 illustration palette in the design reference */
 export const SUBJECTS = [
   {
     id: 'english',
     label: 'English',
     shortLabel: 'English',
     icon: '📖',
+    iconKey: 'BookOpen',
+    pastel: '#fbe7c8',
     color: 'green',
     tailwind: {
       bg:     'bg-green-600',
@@ -68,6 +77,8 @@ export const SUBJECTS = [
     label: 'Integrated Science',
     shortLabel: 'Science',
     icon: '🔬',
+    iconKey: 'Beaker',
+    pastel: '#dfeadd',
     color: 'purple',
     tailwind: {
       bg:     'bg-purple-600',
@@ -81,6 +92,8 @@ export const SUBJECTS = [
     label: 'Mathematics',
     shortLabel: 'Maths',
     icon: '📐',
+    iconKey: 'Calculator',
+    pastel: '#e3dcf5',
     color: 'blue',
     tailwind: {
       bg:     'bg-blue-600',
@@ -94,6 +107,8 @@ export const SUBJECTS = [
     label: 'Social Studies',
     shortLabel: 'Social',
     icon: '🌍',
+    iconKey: 'Globe',
+    pastel: '#dbe7f4',
     color: 'orange',
     tailwind: {
       bg:     'bg-orange-500',
@@ -107,6 +122,8 @@ export const SUBJECTS = [
     label: 'Expressive Art',
     shortLabel: 'Art',
     icon: '🎨',
+    iconKey: 'PaintBrush',
+    pastel: '#fde2c4',
     color: 'yellow',
     tailwind: {
       bg:     'bg-amber-500',
@@ -120,6 +137,8 @@ export const SUBJECTS = [
     label: 'Technology Studies',
     shortLabel: 'Technology',
     icon: '💻',
+    iconKey: 'ComputerDesktop',
+    pastel: '#e1e8ee',
     color: 'gray',
     tailwind: {
       bg:     'bg-slate-600',
@@ -133,6 +152,8 @@ export const SUBJECTS = [
     label: 'Cinyanja',
     shortLabel: 'Cinyanja',
     icon: '🗣️',
+    iconKey: 'Language',
+    pastel: '#f4d6e2',
     color: 'pink',
     tailwind: {
       bg:     'bg-pink-500',
@@ -146,6 +167,8 @@ export const SUBJECTS = [
     label: 'Home Economics',
     shortLabel: 'Home Ec.',
     icon: '🏡',
+    iconKey: 'Home',
+    pastel: '#f9d8c8',
     color: 'rose',
     tailwind: {
       bg:     'bg-rose-500',

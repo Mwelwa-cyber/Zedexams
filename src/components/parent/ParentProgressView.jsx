@@ -23,6 +23,7 @@ import { SUBJECTS } from '../../config/curriculum'
 import SeoHelmet from '../seo/SeoHelmet'
 import Logo from '../ui/Logo'
 import Skeleton from '../ui/Skeleton'
+import SubjectIcon from '../ui/SubjectIcon'
 
 function formatRelative(ms) {
   if (!ms) return ''
@@ -206,7 +207,7 @@ export default function ParentProgressView() {
                     key={row.subject}
                     className="flex items-center gap-2 theme-bg-subtle rounded-radius-md px-3 py-2"
                   >
-                    <span aria-hidden="true">{meta?.icon || '📚'}</span>
+                    <SubjectIcon subject={meta} size="sm" />
                     <span className="theme-text font-bold text-sm flex-1 min-w-0 truncate">
                       {meta?.shortLabel || meta?.label || row.subject}
                     </span>

@@ -38,6 +38,7 @@ import {
 import { SUBJECTS } from '../../../config/curriculum'
 import SeoHelmet from '../../seo/SeoHelmet'
 import Skeleton from '../../ui/Skeleton'
+import SubjectIcon from '../../ui/SubjectIcon'
 import AssignWorkModal from './AssignWorkModal'
 import ClassAnalytics from './ClassAnalytics'
 
@@ -326,9 +327,7 @@ export default function TeacherClassDetail() {
                 : null
               return (
                 <li key={a.id} className="flex items-start gap-3 p-4">
-                  <div className="flex-shrink-0 w-9 h-9 rounded-lg theme-bg-subtle flex items-center justify-center text-base">
-                    <span aria-hidden="true">{subjectMeta?.icon || '📝'}</span>
-                  </div>
+                  <SubjectIcon subject={subjectMeta} size="sm" className="flex-shrink-0" />
                   <div className="flex-1 min-w-0">
                     <p className="theme-text font-bold text-sm truncate">{a.resourceTitle}</p>
                     <p className="theme-text-muted text-xs mt-0.5">

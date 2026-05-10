@@ -13,6 +13,7 @@ import { listLearnerClasses } from '../../utils/classes'
 import { SUBJECTS } from '../../config/curriculum'
 import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
+import SubjectIcon from '../ui/SubjectIcon'
 
 function ClassCard({ klass }) {
   const subjectMeta = SUBJECTS.find((s) => s.id === klass.subject)
@@ -22,9 +23,7 @@ function ClassCard({ klass }) {
       to={`/classes/${klass.id}`}
       className="theme-card border theme-border rounded-radius-md p-4 flex items-start gap-3 hover:theme-bg-subtle transition-colors"
     >
-      <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-xl theme-bg-subtle">
-        <span aria-hidden="true">{subjectMeta?.icon || '🎒'}</span>
-      </div>
+      <SubjectIcon subject={subjectMeta} size="sm" className="flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <p className="theme-text font-black text-sm truncate">{klass.name}</p>
         <p className="theme-text-muted text-xs mt-1">
