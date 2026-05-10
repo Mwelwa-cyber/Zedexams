@@ -15,14 +15,17 @@ const TABS = [
 ]
 
 const SUBJECT_COLORS = {
-  Mathematics:         'bg-blue-100   text-blue-700',
   English:             'bg-purple-100 text-purple-700',
   'Integrated Science':'bg-orange-100 text-orange-700',
-  Science:             'bg-orange-100 text-orange-700',
+  Mathematics:         'bg-blue-100   text-blue-700',
   'Social Studies':    'bg-teal-100   text-teal-700',
+  'Expressive Art':    'bg-rose-100   text-rose-700',
   'Technology Studies':'bg-cyan-100   text-cyan-700',
-  'Home Economics':    'bg-pink-100   text-pink-700',
+  Cinyanja:            'bg-pink-100   text-pink-700',
+  // legacy
+  Science:             'bg-orange-100 text-orange-700',
   'Expressive Arts':   'bg-rose-100   text-rose-700',
+  'Home Economics':    'bg-pink-100   text-pink-700',
 }
 
 const STATUS_CFG = {
@@ -33,8 +36,8 @@ const STATUS_CFG = {
 }
 
 const SUBJECTS = [
-  '', 'Mathematics', 'English', 'Integrated Science', 'Social Studies',
-  'Technology Studies', 'Home Economics', 'Expressive Arts',
+  '', 'English', 'Integrated Science', 'Mathematics', 'Social Studies',
+  'Expressive Art', 'Technology Studies', 'Cinyanja',
 ]
 
 
@@ -642,7 +645,7 @@ export default function ManageContent() {
         <select value={gradeF} onChange={e => setGradeF(e.target.value)}
           className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-green-500 focus:outline-none">
           <option value="">All Grades</option>
-          {['4','5','6'].map(g => <option key={g} value={g}>Grade {g}</option>)}
+          {['4','5','6','7'].map(g => <option key={g} value={g}>Grade {g}</option>)}
         </select>
         <select value={subjectF} onChange={e => setSubjectF(e.target.value)}
           className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-green-500 focus:outline-none">

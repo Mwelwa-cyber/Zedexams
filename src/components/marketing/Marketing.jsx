@@ -53,7 +53,7 @@ const AUDIENCES = [
   {
     icon: AcademicCapIcon,
     title: 'Learners',
-    tag: 'Grades 4–6',
+    tag: 'Grades 4–7',
     bullets: [
       'Daily CBC exams and curriculum-mapped quizzes',
       'Lessons, games, and Ask Zed AI study help',
@@ -133,7 +133,7 @@ const FAQ = [
   },
   {
     q: 'What grades are supported?',
-    a: "Today: Grades 4 through 6 with full CBC alignment. Earlier and later grades are on the roadmap — WhatsApp us if you'd like to be notified when your grade is ready.",
+    a: "Today: Grades 4 through 7 with full CBC alignment. Earlier and later grades are on the roadmap — WhatsApp us if you'd like to be notified when your grade is ready.",
   },
 ]
 
@@ -181,10 +181,10 @@ function DailyExamPreview() {
       </div>
       <div className="space-y-3">
         {[
-          { subject: 'Mathematics',    score: '8 / 10' },
-          { subject: 'English',        score: '9 / 10' },
-          { subject: 'Science',        score: '7 / 10' },
-          { subject: 'Social Studies', score: '10 / 10' },
+          { subject: 'English',             score: '9 / 10' },
+          { subject: 'Integrated Science',  score: '7 / 10' },
+          { subject: 'Mathematics',         score: '8 / 10' },
+          { subject: 'Social Studies',      score: '10 / 10' },
         ].map((row) => (
           <div
             key={row.subject}
@@ -273,7 +273,7 @@ export default function Marketing() {
     <div className="min-h-screen theme-bg theme-text font-body">
       <SeoHelmet
         title="Zambian CBC exam prep that fits the classroom"
-        description="Daily CBC exams, quizzes, lessons, games and AI study help for Grade 1–12 learners. Printable lesson tools for Zambian teachers, all in one place."
+        description="Daily CBC exams, quizzes, lessons, games and AI study help for Grade 4–7 learners. Printable lesson tools for Zambian teachers, all in one place."
         path={pathname === '/welcome' ? '/welcome' : '/'}
       />
       {/* Top nav */}
@@ -310,7 +310,7 @@ export default function Marketing() {
               <span style={{ color: '#2E7D32' }}>Zambian classrooms</span>.
             </h1>
             <p className="text-lg sm:text-xl theme-text-muted mb-8 max-w-2xl">
-              Daily CBC exams, quizzes, games, and AI study help for Grade 4–6 learners — plus
+              Daily CBC exams, quizzes, games, and AI study help for Grade 4–7 learners — plus
               printable lesson tools for Zambian teachers.
             </p>
             <div className="flex flex-wrap gap-3">
@@ -676,7 +676,7 @@ export default function Marketing() {
             <div>
               <Logo size="sm" />
               <p className="mt-3 text-sm theme-text-muted max-w-xs">
-                CBC exam prep and AI teacher tools, built in Zambia for Zambian Grade 4–6
+                CBC exam prep and AI teacher tools, built in Zambia for Zambian Grade 4–7
                 classrooms.
               </p>
             </div>

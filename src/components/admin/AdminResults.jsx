@@ -6,15 +6,15 @@ import EmptyState from '../ui/EmptyState'
 import SeoHelmet from '../seo/SeoHelmet'
 
 const SUBJECTS = [
-  'Mathematics',
   'English',
   'Integrated Science',
+  'Mathematics',
   'Social Studies',
+  'Expressive Art',
   'Technology Studies',
-  'Home Economics',
-  'Expressive Arts',
+  'Cinyanja',
 ]
-const GRADES = ['4', '5', '6']
+const GRADES = ['4', '5', '6', '7']
 
 function pctColor(p) {
   if (p >= 70) return 'text-green-600'

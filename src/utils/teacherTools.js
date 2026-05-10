@@ -61,7 +61,8 @@ export const TEACHER_SUBJECTS = [
   { group: 'Languages' },
   { value: 'english',          label: 'English' },
   { value: 'literacy',         label: 'Literacy' },
-  { value: 'zambian_language', label: 'Zambian Language' },
+  { value: 'cinyanja',         label: 'Cinyanja' },
+  { value: 'zambian_language', label: 'Zambian Language (other)' },
   { group: 'STEM' },
   { value: 'mathematics',          label: 'Mathematics' },
   { value: 'numeracy',             label: 'Numeracy' },
@@ -93,6 +94,7 @@ const SUBJECT_GRADE_MAP = {
   // the lower-primary reading-and-writing strand that gives way to English.
   english:           ['ECE','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
   literacy:          ['ECE','G1','G2','G3','G4'],
+  cinyanja:          ['ECE','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
   zambian_language:  ['ECE','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
 
   // STEM — Numeracy is the early-grade pre-Mathematics strand. Integrated

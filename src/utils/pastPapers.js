@@ -35,7 +35,7 @@ import {
 import { db, storage } from '../firebase/config'
 import { capture } from './analytics'
 
-export const PAPER_GRADES = ['7', '9', '12']
+export const PAPER_GRADES = ['7']
 
 export const PAPER_STATUSES = {
   DRAFT:     'draft',

@@ -79,7 +79,7 @@ const DEFAULT_PROFILE = {
   },
   learner: {
     name: 'Learner User', email: 'learner@zedexams.com', phone: '+260 97 2222222',
-    grade: 'Grade 10',
+    grade: 'Grade 5',
     password: '', newPassword: '', twoFactor: false,
   },
 };
@@ -114,7 +114,7 @@ const ACCENT_PALETTE = [
 ];
 
 const GRADE_OPTIONS = [
-  'Grade 8', 'Grade 9', 'Grade 10', 'Grade 11', 'Grade 12',
+  'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7',
 ];
 
 /* ── Validation helpers ───────────────────────────────────────────────────── */

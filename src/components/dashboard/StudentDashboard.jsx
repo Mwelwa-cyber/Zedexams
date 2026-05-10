@@ -35,20 +35,25 @@ function FloatingStars() {
 }
 
 const subjectBadge = {
-  Mathematics:           'bg-blue-100 text-blue-700',
   English:               'bg-violet-100 text-violet-700',
   'Integrated Science':  'bg-orange-100 text-orange-700',
+  Mathematics:           'bg-blue-100 text-blue-700',
   'Social Studies':      'bg-teal-100 text-teal-700',
+  'Expressive Art':      'bg-rose-100 text-rose-700',
   'Technology Studies':  'bg-cyan-100 text-cyan-700',
-  'Home Economics':      'bg-pink-100 text-pink-700',
-  'Expressive Arts':     'bg-rose-100 text-rose-700',
+  Cinyanja:              'bg-pink-100 text-pink-700',
+  // legacy
   Science:               'bg-orange-100 text-orange-700',
+  'Expressive Arts':     'bg-rose-100 text-rose-700',
+  'Home Economics':      'bg-pink-100 text-pink-700',
 }
 const subjectShort = {
-  Mathematics: 'Maths', English: 'English',
-  'Integrated Science': 'Science', 'Social Studies': 'Soc. St.',
-  'Technology Studies': 'Tech', 'Home Economics': 'Home Ec.', 'Expressive Arts': 'Exp. Arts',
-  Science: 'Science',
+  English: 'English', 'Integrated Science': 'Science',
+  Mathematics: 'Maths', 'Social Studies': 'Soc. St.',
+  'Expressive Art': 'Art', 'Technology Studies': 'Tech',
+  Cinyanja: 'Cinyanja',
+  // legacy
+  Science: 'Science', 'Expressive Arts': 'Exp. Arts', 'Home Economics': 'Home Ec.',
 }
 
 function pctColor(p) {

@@ -43,8 +43,12 @@ const SUBJECT_MASCOT_MAP = {
   'home economics':      { slug: 'home',        emoji: '🐝', name: 'Home Bee' },
   'home-economics':      { slug: 'home',        emoji: '🐝', name: 'Home Bee' },
   arts:                  { slug: 'arts',        emoji: '🎨', name: 'Art Parrot' },
+  'expressive art':      { slug: 'arts',        emoji: '🎨', name: 'Art Parrot' },
   'expressive arts':     { slug: 'arts',        emoji: '🎨', name: 'Art Parrot' },
   'expressive-arts':     { slug: 'arts',        emoji: '🎨', name: 'Art Parrot' },
+  cinyanja:              { slug: 'cinyanja',    emoji: '🦜', name: 'Nyanja Parrot' },
+  chinyanja:             { slug: 'cinyanja',    emoji: '🦜', name: 'Nyanja Parrot' },
+  nyanja:                { slug: 'cinyanja',    emoji: '🦜', name: 'Nyanja Parrot' },
 }
 
 const DEFAULT_QUIZ_MASCOT = { slug: '', emoji: '🎓', name: 'Quiz Buddy' }

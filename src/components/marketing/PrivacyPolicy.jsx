@@ -41,7 +41,7 @@ export default function PrivacyPolicy() {
       <LegalLayout title="Privacy Policy" lastUpdated="29 April 2026">
       <P>
         ZedExams ("we", "us", "our") provides an online learning platform for Zambian
-        Grade 4–6 learners, their teachers, and schools. This Privacy Policy explains what
+        Grade 4–7 learners, their teachers, and schools. This Privacy Policy explains what
         information we collect, how we use it, who we share it with, and the choices you
         have. It applies to <strong>zedexams.com</strong> and any associated mobile or
         desktop apps.
@@ -112,7 +112,7 @@ export default function PrivacyPolicy() {
 
       <H2>4. Children's privacy</H2>
       <P>
-        ZedExams is designed for Zambian Grade 4–6 learners (typically aged 9–12). If you
+        ZedExams is designed for Zambian Grade 4–7 learners (typically aged 9–12). If you
         are a learner under 18, please use ZedExams with the awareness of your parent,
         guardian, or teacher. We rely on schools and parents/guardians to confirm that a
         learner is permitted to create an account.

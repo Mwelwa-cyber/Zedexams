@@ -26,19 +26,19 @@ import GameStickerStyles from '../games/GameStickerStyles'
 import { QuizzesHubTour } from '../ui/learnerTours'
 
 // ── Config ────────────────────────────────────────────────────────────────
-const GRADES = ['4', '5', '6']
+const GRADES = ['4', '5', '6', '7']
 const TERMS  = ['1', '2', '3']
 
 // Each CBC subject is presented as a mascot tile, mirroring the /games hub.
 // `slug` matches the keys in gamesUi SUBJECT_MASCOTS and SUBJECT_TILE_BG.
 const SUBJECTS = [
-  { id: 'Mathematics',         slug: 'mathematics', tile: 'bg-orange-100', bar: 'bg-orange-500',  mascot: '🦊', mascotName: 'Maths Fox' },
   { id: 'English',             slug: 'english',     tile: 'bg-blue-100',   bar: 'bg-blue-600',    mascot: '🦉', mascotName: 'Story Owl' },
   { id: 'Integrated Science',  slug: 'science',     tile: 'bg-green-100',  bar: 'bg-green-600',   mascot: '🐢', mascotName: 'Science Turtle' },
+  { id: 'Mathematics',         slug: 'mathematics', tile: 'bg-orange-100', bar: 'bg-orange-500',  mascot: '🦊', mascotName: 'Maths Fox' },
   { id: 'Social Studies',      slug: 'social',      tile: 'bg-yellow-100', bar: 'bg-yellow-500',  mascot: '🦁', mascotName: 'Adventure Lion' },
+  { id: 'Expressive Art',      slug: 'arts',        tile: 'bg-rose-100',   bar: 'bg-rose-500',    mascot: '🎨', mascotName: 'Art Parrot' },
   { id: 'Technology Studies',  slug: 'technology',  tile: 'bg-cyan-100',   bar: 'bg-cyan-500',    mascot: '🤖', mascotName: 'Tech Robot' },
-  { id: 'Home Economics',      slug: 'home',        tile: 'bg-pink-100',   bar: 'bg-pink-500',    mascot: '🐝', mascotName: 'Home Bee' },
-  { id: 'Expressive Arts',     slug: 'arts',        tile: 'bg-rose-100',   bar: 'bg-rose-500',    mascot: '🎨', mascotName: 'Art Parrot' },
+  { id: 'Cinyanja',            slug: 'cinyanja',    tile: 'bg-pink-100',   bar: 'bg-pink-500',    mascot: '🦜', mascotName: 'Nyanja Parrot' },
 ]
 
 function difficultyColor(count = 0) {
