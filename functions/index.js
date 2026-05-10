@@ -124,6 +124,9 @@ const {
   weeklyParentDigest,
   triggerWeeklyParentDigest,
 } = require("./weeklyParentDigest");
+// Audit C6 — public newsletter signup. List builder; export to a real
+// sending platform (Buttondown / Mailchimp / Beehiiv) when ready.
+const {subscribeToNewsletter} = require("./newsletter");
 
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const mtnApiUser = defineSecret("MTN_API_USER");
@@ -1870,6 +1873,11 @@ exports.weeklyParentDigest = weeklyParentDigest;
 // stamp. Returns the summary so the caller can see exactly what
 // happened.
 exports.triggerWeeklyParentDigest = triggerWeeklyParentDigest;
+
+// C6 — public newsletter signup. Validated + deduped + rate-limited
+// + honeypot-protected. Public (no auth) so the marketing-page form
+// can call it; abuse vectors mitigated server-side.
+exports.subscribeToNewsletter = subscribeToNewsletter;
 
 // Audit D4 — self-serve subscription cancellation. Toggles
 // users.{uid}.cancelAtPeriodEnd via admin SDK so the field stays
