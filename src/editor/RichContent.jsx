@@ -95,12 +95,12 @@ export default function RichContent({ value, className = '', fallback = null }) 
   if (!html) {
     const plain = extractPlainText(value)
     if (!plain) return fallback
-    return <span className={className}>{plain}</span>
+    return <span className={`rich-content ${className}`.trim()}>{plain}</span>
   }
 
   return (
     <div
-      className={className}
+      className={`rich-content ${className}`.trim()}
       data-rich-content-pending=""
       dangerouslySetInnerHTML={{ __html: html }}
       ref={(el) => {

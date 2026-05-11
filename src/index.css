@@ -955,11 +955,18 @@ select option {
   /* — Stat tiles — */
   .stats-row {
     display: grid;
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(2, 1fr);
     gap: 8px;
     margin-bottom: 16px;
   }
-  .stats-row.stats-row-3 { grid-template-columns: repeat(3, 1fr); }
+  .stats-row.stats-row-3 { grid-template-columns: 1fr; }
+  @media (min-width: 480px) {
+    .stats-row { grid-template-columns: repeat(2, 1fr); }
+    .stats-row.stats-row-3 { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (min-width: 640px) {
+    .stats-row { grid-template-columns: repeat(4, 1fr); }
+  }
   .stat-tile {
     background: var(--surface);
     border: 1px solid var(--line-medium);
@@ -1797,15 +1804,20 @@ body.data-saver [data-bg-gradient] {
 .math-inline-node { display: inline-flex; align-items: center; background: #eff4ff; border: 1px solid #c7d2fe; border-radius: 5px; padding: 1px 6px; margin: 0 2px; cursor: pointer; vertical-align: middle; user-select: none; transition: background .1s; }
 .math-inline-node:hover { background: #e0e7ff; border-color: #a5b4fc; }
 /* Rich content renderer (student view) */
+.rich-content { overflow-wrap: anywhere; word-break: break-word; }
 .rich-content p { margin: 0 0 4px; }
 .rich-content p:last-child { margin: 0; }
 .rich-content ul, .rich-content ol { padding-left: 20px; margin: 4px 0; }
 .rich-content ul li { list-style: disc; }
 .rich-content ol li { list-style: decimal; }
-.rich-content table { border-collapse: collapse; width: 100%; margin: 6px 0; }
+.rich-content img { max-width: 100%; height: auto; }
+.rich-content pre, .rich-content code { max-width: 100%; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; }
+.rich-content table { border-collapse: collapse; width: 100%; margin: 6px 0; display: block; max-width: 100%; overflow-x: auto; }
 .rich-content table td, .rich-content table th { border: 1.5px solid #cbd5e1; padding: 5px 8px; }
 .rich-content table th { background: #f8fafc; font-weight: 700; }
 .rich-content .math-inline-node { display: inline-flex; align-items: center; vertical-align: middle; background: transparent; border: none; padding: 0; margin: 0 1px; }
+/* KaTeX equations can be wider than the viewport on phones; let them scroll inside their card */
+.rich-content .katex-display { max-width: 100%; overflow-x: auto; overflow-y: hidden; }
 
 .animate-scale-in   { animation: scale-in  0.22s ease-out both; }
 .animate-slide-up   { animation: slide-up  0.25s ease-out both; }

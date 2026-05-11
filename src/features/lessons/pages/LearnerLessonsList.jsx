@@ -1,25 +1,21 @@
-// src/features/notes/pages/LearnerNotesList.jsx
+// src/features/lessons/pages/LearnerLessonsList.jsx
 //
-// /notes — the learner's reading library.
-// Auto-filtered to their grade (from their profile). Subject chips at the top
-// let them narrow further; search box for title lookup. Sibling of /lessons
-// (interactive slide-based lessons) — the two surfaces share the underlying
-// Firestore collection but are presented as distinct menu items.
-//
-// Mounted under the standard <Navbar /> in App.jsx so learners can navigate
-// back to /dashboard, /quizzes, /lessons, etc. without browser back.
+// /lessons — interactive slide-based lessons for the learner. Sibling of
+// /notes (reading material) and a separate menu item in the navbar. The
+// two surfaces share the underlying Firestore collection today but are
+// presented as distinct learner experiences.
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Lock } from '../../../components/ui/icons'
-import { useLearnerProfile }   from '../hooks/useLearnerProfile'
-import { useLearnerNotes }     from '../hooks/useLearnerNotes'
-import { LearnerNoteCard }     from '../components/LearnerNoteCard'
+import { useLearnerProfile } from '../../notes/hooks/useLearnerProfile'
+import { useLearnerLessons } from '../hooks/useLearnerLessons'
+import { LearnerLessonCard } from '../components/LearnerLessonCard'
 import { getSubjectsForGrade } from '../../../config/curriculum'
-import SeoHelmet               from '../../../components/seo/SeoHelmet'
-import '../styles/notes.css'
+import SeoHelmet from '../../../components/seo/SeoHelmet'
+import '../../notes/styles/notes.css'
 
-export function LearnerNotesList() {
+export function LearnerLessonsList() {
   const navigate = useNavigate()
   const { user, profile } = useLearnerProfile()
   const grade = profile?.grade
@@ -27,37 +23,37 @@ export function LearnerNotesList() {
   const [activeSubject, setActiveSubject] = useState('all')
   const [search, setSearch] = useState('')
 
-  const { notes, allNotes, countsBySubject, loading } =
-    useLearnerNotes({ grade, subject: activeSubject, search })
+  const { lessons, allLessons, countsBySubject, loading } =
+    useLearnerLessons({ grade, subject: activeSubject, search })
 
   const subjects = getSubjectsForGrade(grade)
   const firstName = user?.displayName?.split(' ')[0] || 'there'
 
   const grouped = activeSubject === 'all'
     ? subjects.reduce((acc, s) => {
-        const list = notes.filter(n => n.subject === s)
+        const list = lessons.filter(l => l.subject === s)
         if (list.length) acc[s] = list
         return acc
       }, {})
-    : { [activeSubject]: notes }
+    : { [activeSubject]: lessons }
 
   return (
     <div className="notes-studio min-h-screen pb-24 md:pb-8" style={{ backgroundColor: '#FAFAF7' }}>
-      <SeoHelmet title="Notes" path="/notes" noIndex />
+      <SeoHelmet title="Lessons" path="/lessons" noIndex />
       <main className="max-w-5xl mx-auto px-4 sm:px-5 py-8">
         <div className="mb-6">
-          <div className="text-xs tracking-[0.2em] uppercase text-neutral-500 mb-2">Your notes</div>
+          <div className="text-xs tracking-[0.2em] uppercase text-neutral-500 mb-2">Interactive lessons</div>
           <h1 className="font-display text-4xl sm:text-5xl tracking-tight mb-2 text-neutral-900">
-            Welcome back, <span className="font-display-italic">{firstName}.</span>
+            Ready to learn, <span className="font-display-italic">{firstName}.</span>
           </h1>
           <p className="text-base text-neutral-600">
-            {allNotes.length === 0
-              ? `Notes for Grade ${grade} are on the way.`
-              : `${allNotes.length} note${allNotes.length === 1 ? '' : 's'} published for Grade ${grade}.`}
+            {allLessons.length === 0
+              ? `Interactive lessons for Grade ${grade} are on the way.`
+              : `${allLessons.length} lesson${allLessons.length === 1 ? '' : 's'} ready for Grade ${grade}.`}
           </p>
         </div>
 
-        {allNotes.length > 0 && (
+        {allLessons.length > 0 && (
           <div className="relative mb-4 max-w-md">
             <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-neutral-400" />
             <input
@@ -70,10 +66,10 @@ export function LearnerNotesList() {
           </div>
         )}
 
-        {allNotes.length > 0 && (
+        {allLessons.length > 0 && (
           <div className="flex gap-2 overflow-x-auto pb-3 mb-6 scrollbar-hide -mx-4 px-4 sm:mx-0 sm:px-0">
             <SubjectChip active={activeSubject === 'all'} onClick={() => setActiveSubject('all')}>
-              All <span className="opacity-60">· {allNotes.length}</span>
+              All <span className="opacity-60">· {allLessons.length}</span>
             </SubjectChip>
             {subjects
               .filter(s => countsBySubject[s])
@@ -85,9 +81,9 @@ export function LearnerNotesList() {
           </div>
         )}
 
-        {loading && allNotes.length === 0 && <SkeletonGrid />}
+        {loading && allLessons.length === 0 && <SkeletonGrid />}
 
-        {!loading && allNotes.length === 0 && (
+        {!loading && allLessons.length === 0 && (
           <EmptyState grade={grade} />
         )}
 
@@ -97,14 +93,14 @@ export function LearnerNotesList() {
               <section key={subject}>
                 <div className="flex items-center gap-3 mb-4">
                   <h2 className="font-display text-2xl tracking-tight text-neutral-900">{subject}</h2>
-                  <span className="text-xs text-neutral-400">{list.length} note{list.length === 1 ? '' : 's'}</span>
+                  <span className="text-xs text-neutral-400">{list.length} lesson{list.length === 1 ? '' : 's'}</span>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {list.map(note => (
-                    <LearnerNoteCard
-                      key={note.id}
-                      note={note}
-                      onClick={() => navigate(`/notes/${note.id}`)}
+                  {list.map(lesson => (
+                    <LearnerLessonCard
+                      key={lesson.id}
+                      lesson={lesson}
+                      onClick={() => navigate(`/lessons/${lesson.id}`)}
                     />
                   ))}
                 </div>
@@ -113,9 +109,9 @@ export function LearnerNotesList() {
           </div>
         )}
 
-        {!loading && allNotes.length > 0 && Object.keys(grouped).length === 0 && (
+        {!loading && allLessons.length > 0 && Object.keys(grouped).length === 0 && (
           <div className="text-center py-16 text-neutral-500 text-sm">
-            {search ? `No notes match "${search}".` : 'No notes yet for this subject.'}
+            {search ? `No lessons match "${search}".` : 'No lessons yet for this subject.'}
           </div>
         )}
 
@@ -123,7 +119,7 @@ export function LearnerNotesList() {
           <Lock size={20} className="mx-auto mb-3 text-neutral-400" />
           <h3 className="font-display text-2xl mb-1 text-neutral-900">Grades 8–12</h3>
           <p className="text-sm text-neutral-500 max-w-sm mx-auto">
-            Junior and senior secondary notes coming soon. We're building Grades 4–7 first.
+            Junior and senior secondary lessons coming soon. We're building Grades 4–7 first.
           </p>
         </div>
       </main>
@@ -169,7 +165,8 @@ function EmptyState({ grade }) {
     <div className="text-center py-16">
       <h3 className="font-display text-3xl text-neutral-900 mb-2">Nothing here yet</h3>
       <p className="text-sm text-neutral-500 max-w-sm mx-auto">
-        Your teacher hasn't published any Grade {grade} notes yet. Check back soon — they'll appear here as soon as they're ready.
+        Your teacher hasn't published any Grade {grade} interactive lessons yet.
+        Check back soon — they'll appear here as soon as they're ready.
       </p>
     </div>
   )

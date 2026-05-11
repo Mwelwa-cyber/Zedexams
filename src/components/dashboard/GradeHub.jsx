@@ -826,10 +826,10 @@ export default function GradeHub() {
       <OnboardingOverlay />
       {/* ──────────── HEADER ─────────────────────────────────── */}
       <header className="learner-dashboard-header sticky top-0 z-30 theme-card border-b theme-border shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 h-20 flex items-center justify-between gap-3">
+        <div className="max-w-4xl mx-auto px-3 sm:px-4 min-h-16 sm:min-h-20 py-2 flex items-center justify-between gap-2 sm:gap-3 flex-wrap">
           <Logo variant="full" size="sm" />
 
-          <div className="flex items-center gap-1.5 sm:gap-2">
+          <div className="flex items-center gap-1 sm:gap-2">
             <HeaderIconLink to="/my-results" label="Progress" icon={BarChart3} />
 
             <ThemeSelector dashboardStyle={true} />
@@ -932,7 +932,7 @@ export default function GradeHub() {
       </header>
 
       {/* ──────────── MAIN CONTENT ───────────────────────────── */}
-      <main className="relative z-10 flex-1 max-w-4xl mx-auto w-full px-4 py-5 pb-28 space-y-4 theme-text">
+      <main className="relative z-10 flex-1 max-w-4xl mx-auto w-full px-3 sm:px-4 py-5 pb-28 space-y-4 theme-text">
 
         {/* ── HERO / WELCOME BANNER ───────────────────────────── */}
         <section
@@ -1423,7 +1423,7 @@ export default function GradeHub() {
           </div>
 
           {badgesLoading ? (
-            <div className="flex gap-3 overflow-x-auto pb-1">
+            <div className="-mx-3 flex gap-3 overflow-x-auto px-3 pb-1 sm:mx-0 sm:px-0">
               {Array.from({ length: 4 }).map((_, i) => <SkeletonCard key={i} />)}
             </div>
           ) : earnedBadges.length === 0 ? (
@@ -1437,7 +1437,7 @@ export default function GradeHub() {
               </div>
             </div>
           ) : (
-            <div className="flex gap-3 overflow-x-auto pb-2" style={{ scrollbarWidth: 'thin' }}>
+            <div className="-mx-3 flex gap-3 overflow-x-auto px-3 pb-2 sm:mx-0 sm:px-0" style={{ scrollbarWidth: 'thin' }}>
               {earnedBadges.slice(0, 8).map(badge => (
                 <BadgeCard
                   key={badge.id}
@@ -1450,7 +1450,7 @@ export default function GradeHub() {
               {earnedBadges.length > 8 && (
                 <Link
                   to="/my-badges"
-                  className="flex-shrink-0 flex flex-col items-center justify-center gap-1 px-4 rounded-2xl theme-bg-subtle border theme-border theme-text-muted hover:theme-card-hover transition-colors min-w-[64px]"
+                  className="flex-shrink-0 flex flex-col items-center justify-center gap-1 px-3 py-2 rounded-2xl theme-bg-subtle border theme-border theme-text-muted hover:theme-card-hover transition-colors"
                 >
                   <span className="text-xl">+{earnedBadges.length - 8}</span>
                   <span className="text-xs font-bold">More</span>
