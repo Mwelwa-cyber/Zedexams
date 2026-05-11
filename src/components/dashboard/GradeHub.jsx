@@ -5,7 +5,7 @@
  * Structure:
  *   Header (logo, data-saver, user avatar)
  *   Hero   (Professor Pako + welcome + streak/stats)
- *   Grade Selection Cards (4, 5, 6)
+ *   Grade Selection Cards (4, 5, 6, 7)
  *   Subject Grid (expands when a grade is selected)
  *   Recent Activity
  *   Badges Strip
@@ -652,10 +652,10 @@ export default function GradeHub() {
 
   // ── Grade-personalised derived values ────────────────────────────────────
   // userGrade is the learner's own grade (number); nextGrade is +1, capped
-  // at 6 (CBC Upper Primary tops out there).
+  // at 7 (CBC Upper Primary tops out there).
   const userGrade = validGrade
   const nextGrade = userGrade ? userGrade + 1 : null
-  const hasNextGrade = nextGrade !== null && nextGrade <= 6
+  const hasNextGrade = nextGrade !== null && nextGrade <= 7
 
   // Average across the 7 CBC subjects, using only those with recorded scores.
   const subjectScoreList = SUBJECTS
@@ -1166,7 +1166,7 @@ export default function GradeHub() {
                 <div className="min-w-0 flex-1">
                   <p className="font-black theme-text text-sm">Set your grade to personalise your hub</p>
                   <p className="theme-text-muted text-xs mt-0.5">
-                    Update your profile so we can show your Grade 4, 5, or 6 subjects.
+                    Update your profile so we can show your Grade 4, 5, 6, or 7 subjects.
                   </p>
                 </div>
                 <Link
@@ -1207,7 +1207,7 @@ export default function GradeHub() {
               <div>
                 <p className="font-black theme-text text-sm">You&rsquo;ve completed CBC Upper Primary!</p>
                 <p className="theme-text-muted text-xs mt-0.5">
-                  Grade 6 is the top grade in this hub. Keep practising to maintain mastery.
+                  Grade 7 is the top grade in this hub. Keep practising to maintain mastery.
                 </p>
               </div>
             </div>
