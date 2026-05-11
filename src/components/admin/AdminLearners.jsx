@@ -69,7 +69,7 @@ export default function AdminLearners() {
       setLoading(false)
     }
     load()
-  }, [])
+  }, [getAllUsers, getAllResults])
 
   // Map: userId → { count, avg, best, weakest, last }
   const perLearner = useMemo(() => {
@@ -346,7 +346,7 @@ export default function AdminLearners() {
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-2.5">
                             <div className="w-8 h-8 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-black text-xs flex-shrink-0">
-                              {(l.displayName || l.email || 'L')[0].toUpperCase()}
+                              {((l.displayName || l.email || 'L').charAt(0) || 'L').toUpperCase()}
                             </div>
                             <div className="min-w-0">
                               <p className="font-black text-gray-800 text-xs truncate max-w-[180px]">{l.displayName || 'Learner'}</p>

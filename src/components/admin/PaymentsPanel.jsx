@@ -50,12 +50,16 @@ export default function PaymentsPanel() {
 
   const load = useCallback(async () => {
     setLoading(true)
-    const [p, u] = await Promise.all([
-      tab === 'pending' ? getPendingPayments() : getAllPayments(),
-      tab === 'users' ? getAllUsers() : Promise.resolve(users),
-    ])
+    // Only the active tab's queries fire; we don't refetch users when
+    // switching back to a non-users tab. The previous version did
+    // `Promise.resolve(users)` here, which captured `users` in the
+    // useCallback closure and could go stale if `users` changed.
+    const p = await (tab === 'pending' ? getPendingPayments() : getAllPayments())
     setPayments(p)
-    if (tab === 'users') setUsers(u)
+    if (tab === 'users') {
+      const u = await getAllUsers()
+      setUsers(u)
+    }
     setLoading(false)
   }, [tab])
 

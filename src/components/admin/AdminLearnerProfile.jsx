@@ -70,10 +70,13 @@ export default function AdminLearnerProfile() {
   const [results, setResults]   = useState([])
   const [loading, setLoading]   = useState(true)
   const [notFound, setNotFound] = useState(false)
+  const [loadError, setLoadError] = useState(null)
+  const [reloadKey, setReloadKey] = useState(0)
 
   useEffect(() => {
     let cancelled = false
     async function load() {
+      setLoadError(null)
       try {
         const snap = await getDoc(doc(db, 'users', learnerId))
         if (cancelled) return
@@ -88,13 +91,14 @@ export default function AdminLearnerProfile() {
         setResults(r)
       } catch (e) {
         console.error('AdminLearnerProfile load:', e)
+        if (!cancelled) setLoadError(e?.message || 'Could not load this learner.')
       } finally {
         if (!cancelled) setLoading(false)
       }
     }
     load()
     return () => { cancelled = true }
-  }, [learnerId])
+  }, [learnerId, reloadKey])
 
   const stats = useMemo(() => {
     if (!results.length) return { count: 0, avg: 0, pass: 0, best: null, weakest: null }
@@ -170,6 +174,28 @@ export default function AdminLearnerProfile() {
     )
   }
 
+  if (loadError && !user) {
+    return (
+      <div className="space-y-4">
+        <Link to="/admin/learners" className="inline-flex items-center gap-1 text-green-600 text-sm font-black hover:underline">
+          <Icon as={ArrowLeft} size="sm" /> Back to Learners
+        </Link>
+        <div className="bg-white border theme-border rounded-2xl p-10 text-center shadow-elev-sm">
+          <div className="text-5xl mb-3" aria-hidden="true">⚠️</div>
+          <p className="font-black text-gray-700">Could not load this learner</p>
+          <p className="text-gray-500 text-sm mt-1">{loadError}</p>
+          <button
+            type="button"
+            onClick={() => { setLoading(true); setReloadKey(k => k + 1) }}
+            className="mt-4 inline-flex items-center gap-1.5 border-2 border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50"
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   if (notFound || !user) {
     return (
       <div className="space-y-4">
@@ -198,7 +224,7 @@ export default function AdminLearnerProfile() {
       <div className="bg-white border theme-border rounded-2xl p-5 shadow-elev-sm">
         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
           <div className="w-16 h-16 rounded-full bg-green-100 text-green-700 flex items-center justify-center font-black text-xl flex-shrink-0">
-            {(user.displayName || user.email || 'L')[0].toUpperCase()}
+            {((user.displayName || user.email || 'L').charAt(0) || 'L').toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
             <h1 className="text-display-xl text-gray-800" style={{ fontSize: 22 }}>{user.displayName || 'Learner'}</h1>
