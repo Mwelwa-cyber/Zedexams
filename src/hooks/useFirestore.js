@@ -55,9 +55,25 @@ function normalizeQuestionPayload(q, order) {
       ? q.options.map(opt => String(opt ?? '').trim())
       : []
 
+  // Align optionMedia to options.length: short-answer/diagram → []; otherwise
+  // truncate or pad with nulls so the parallel arrays stay in lock-step.
+  // Empty/missing imageUrl on an entry collapses to null (= text-only option).
+  const rawMedia = Array.isArray(q.optionMedia) ? q.optionMedia : []
+  const optionMedia = isShortAnswer
+    ? []
+    : options.map((_, i) => {
+        const m = rawMedia[i]
+        if (!m || typeof m !== 'object' || !m.imageUrl) return null
+        return {
+          imageUrl: String(m.imageUrl).trim(),
+          alt: String(m.alt ?? '').trim(),
+        }
+      })
+
   const candidate = {
     sharedInstruction: normalizeRichTextPayload(q.sharedInstruction),
     options,
+    optionMedia,
     passageId:     q.passageId || null,
     correctAnswer: isShortAnswer
       ? String(q.correctAnswer ?? '').trim()
@@ -71,6 +87,7 @@ function normalizeQuestionPayload(q, order) {
     type,
     detectedType:  q.detectedType || type,
     imageUrl:      q.imageUrl || null,
+    imagePosition: q.imagePosition || null,
     diagramText:   q.diagramText || null,
     requiresReview: Boolean(q.requiresReview),
     reviewNotes:   Array.isArray(q.reviewNotes) ? q.reviewNotes.map(note => String(note ?? '').trim()).filter(Boolean) : [],

@@ -904,6 +904,149 @@ export default function AssessmentStudio() {
     }
   }
 
+  function buildOptionMediaSlots(question) {
+    const existing = Array.isArray(question.optionMedia) ? question.optionMedia : []
+    const optionCount = Array.isArray(question.options) ? question.options.length : 0
+    return Array.from({ length: optionCount }, (_, i) => existing[i] ?? null)
+  }
+
+  async function uploadStandaloneOptionImage(sectionIndex, optionIndex, file) {
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      show('Only JPG, PNG, and WEBP images are allowed.', true)
+      return
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      show('Image must be under 15 MB.', true)
+      return
+    }
+
+    updateSection(sectionIndex, section => ({
+      ...section,
+      question: {
+        ...section.question,
+        optionImageUploadingIndex: optionIndex,
+        optionImageUploadStep: 'compressing',
+      },
+    }))
+
+    try {
+      const compressed = await compressImage(file)
+      updateStandaloneQuestion(sectionIndex, 'optionImageUploadStep', 'uploading')
+      const path = `assessment-images/${currentUser.uid}/${Date.now()}-standalone-${sectionIndex}-opt-${optionIndex}.jpg`
+      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType: 'image/jpeg' })
+      const imageUrl = await getDownloadURL(snapshot.ref)
+
+      updateSection(sectionIndex, section => {
+        const next = buildOptionMediaSlots(section.question)
+        const prevAlt = next[optionIndex]?.alt ?? ''
+        next[optionIndex] = { imageUrl, alt: prevAlt }
+        return {
+          ...section,
+          question: {
+            ...section.question,
+            optionMedia: next,
+            optionImageUploadingIndex: null,
+            optionImageUploadStep: '',
+          },
+        }
+      })
+      show(`Option image ready (${Math.round(compressed.size / 1024)} KB)`)
+    } catch (error) {
+      updateSection(sectionIndex, section => ({
+        ...section,
+        question: {
+          ...section.question,
+          optionImageUploadingIndex: null,
+          optionImageUploadStep: '',
+        },
+      }))
+      show(`Upload failed: ${error.message}`, true)
+    }
+  }
+
+  function removeStandaloneOptionImage(sectionIndex, optionIndex) {
+    updateSection(sectionIndex, section => {
+      const next = buildOptionMediaSlots(section.question)
+      next[optionIndex] = null
+      return {
+        ...section,
+        question: {
+          ...section.question,
+          optionMedia: next,
+        },
+      }
+    })
+  }
+
+  async function uploadPassageQuestionOptionImage(sectionIndex, questionIndex, optionIndex, file) {
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      show('Only JPG, PNG, and WEBP images are allowed.', true)
+      return
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      show('Image must be under 15 MB.', true)
+      return
+    }
+
+    const patchQuestion = (patch) =>
+      updateSection(sectionIndex, section => ({
+        ...section,
+        passage: {
+          ...section.passage,
+          questions: section.passage.questions.map((question, index) =>
+            index === questionIndex ? { ...question, ...patch(question) } : question
+          ),
+        },
+      }))
+
+    patchQuestion(() => ({
+      optionImageUploadingIndex: optionIndex,
+      optionImageUploadStep: 'compressing',
+    }))
+
+    try {
+      const compressed = await compressImage(file)
+      patchQuestion(() => ({ optionImageUploadStep: 'uploading' }))
+      const path = `assessment-images/${currentUser.uid}/${Date.now()}-passage-${sectionIndex}-q-${questionIndex}-opt-${optionIndex}.jpg`
+      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType: 'image/jpeg' })
+      const imageUrl = await getDownloadURL(snapshot.ref)
+
+      patchQuestion(question => {
+        const next = buildOptionMediaSlots(question)
+        while (next.length < 4) next.push(null)
+        const prevAlt = next[optionIndex]?.alt ?? ''
+        next[optionIndex] = { imageUrl, alt: prevAlt }
+        return {
+          optionMedia: next,
+          optionImageUploadingIndex: null,
+          optionImageUploadStep: '',
+        }
+      })
+      show(`Option image ready (${Math.round(compressed.size / 1024)} KB)`)
+    } catch (error) {
+      patchQuestion(() => ({
+        optionImageUploadingIndex: null,
+        optionImageUploadStep: '',
+      }))
+      show(`Upload failed: ${error.message}`, true)
+    }
+  }
+
+  function removePassageQuestionOptionImage(sectionIndex, questionIndex, optionIndex) {
+    updateSection(sectionIndex, section => ({
+      ...section,
+      passage: {
+        ...section.passage,
+        questions: section.passage.questions.map((question, index) => {
+          if (index !== questionIndex) return question
+          const next = buildOptionMediaSlots(question)
+          if (next.length > optionIndex) next[optionIndex] = null
+          return { ...question, optionMedia: next }
+        }),
+      },
+    }))
+  }
+
   function removePassageImage(sectionIndex) {
     updateSection(sectionIndex, section => ({
       ...section,
@@ -1323,6 +1466,8 @@ export default function AssessmentStudio() {
         onStandaloneMove={moveSection}
         onStandaloneImageUpload={uploadStandaloneQuestionImage}
         onStandaloneImageRemove={removeStandaloneQuestionImage}
+        onStandaloneOptionImageUpload={uploadStandaloneOptionImage}
+        onStandaloneOptionImageRemove={removeStandaloneOptionImage}
         onPassageChange={updatePassage}
         onPassageToggle={togglePassage}
         onPassageRemove={removePassageSection}
@@ -1332,6 +1477,8 @@ export default function AssessmentStudio() {
         onPassageQuestionChange={updatePassageQuestion}
         onPassageQuestionRemove={removePassageQuestion}
         onPassageQuestionMove={movePassageQuestion}
+        onPassageQuestionOptionImageUpload={uploadPassageQuestionOptionImage}
+        onPassageQuestionOptionImageRemove={removePassageQuestionOptionImage}
         onPassageAddQuestion={addPassageQuestion}
         onAddStandalone={addStandaloneSectionHandler}
         onAddPassage={addPassageSectionHandler}

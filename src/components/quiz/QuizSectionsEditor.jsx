@@ -175,6 +175,100 @@ function ImageUpload({
   )
 }
 
+// Compact per-option image picker. Visually smaller than the question-level
+// ImageUpload (an answer choice is narrower than the whole card), but reuses
+// the same accept-list and the same compress→upload state machine via props.
+function OptionImageUpload({
+  imageUrl,
+  uploading,
+  uploadStep,
+  onFileSelect,
+  onRemove,
+  theme,
+}) {
+  const inputRef = useRef(null)
+
+  function handleChange(event) {
+    const file = event.target.files?.[0]
+    if (file) onFileSelect(file)
+    event.target.value = ''
+  }
+
+  if (uploading) {
+    const isCompressing = uploadStep === 'compressing'
+    return (
+      <div className={joinClasses('flex items-center gap-2 rounded-lg border-2 px-3 py-2 text-xs font-bold', theme.uploadFrame)}>
+        <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+        <span className={theme.accentText}>
+          {isCompressing ? 'Compressing image…' : 'Uploading…'}
+        </span>
+      </div>
+    )
+  }
+
+  if (imageUrl) {
+    return (
+      <div className={joinClasses('group theme-bg-subtle relative overflow-hidden rounded-lg border-2', theme.cardBorder)}>
+        <img src={imageUrl} alt="" className="mx-auto max-h-32 w-full object-contain py-1" />
+        <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-90 transition-opacity group-hover:opacity-100">
+          <button
+            type="button"
+            onClick={() => inputRef.current?.click()}
+            className="theme-card theme-border theme-text hover:theme-card-hover min-h-0 rounded-md border px-2 py-0.5 text-[10px] font-bold shadow"
+          >
+            Replace
+          </button>
+          <button
+            type="button"
+            onClick={onRemove}
+            className="min-h-0 rounded-md bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow hover:bg-red-600"
+          >
+            Remove
+          </button>
+        </div>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={handleChange}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div>
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        className={joinClasses(
+          'group w-full min-h-0 rounded-lg border-2 border-dashed px-3 py-2 text-xs font-bold transition-all bg-transparent shadow-none',
+          theme.uploadBorder,
+        )}
+      >
+        <span className="mr-1.5">🖼️</span>
+        Add image to this option
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        className="hidden"
+        onChange={handleChange}
+      />
+    </div>
+  )
+}
+
+const IMAGE_POSITION_OPTIONS = [
+  { value: 'above', label: 'Image above text (default)' },
+  { value: 'below', label: 'Image below text' },
+  { value: 'left', label: 'Image left of text' },
+  { value: 'right', label: 'Image right of text' },
+  { value: 'inline', label: 'Image inline with text' },
+]
+
 function StandaloneQuestionCard({
   question,
   questionNumber,
@@ -189,6 +283,8 @@ function StandaloneQuestionCard({
   onMove,
   onImageUpload,
   onImageRemove,
+  onOptionImageUpload,
+  onOptionImageRemove,
   onAssignToPart,
   theme,
 }) {
@@ -200,6 +296,23 @@ function StandaloneQuestionCard({
     const nextOptions = [...question.options]
     nextOptions[optionIndex] = value
     onChange(sectionIndex, 'options', nextOptions)
+  }
+
+  // Patch one slot of the parallel optionMedia array. Pads with `null` so the
+  // array stays index-aligned with options[]; the normaliser will trim/align
+  // again on save.
+  function setOptionMedia(optionIndex, mediaPatch) {
+    const existing = Array.isArray(question.optionMedia) ? question.optionMedia : []
+    const next = question.options.map((_, i) => existing[i] ?? null)
+    if (mediaPatch === null) {
+      next[optionIndex] = null
+    } else {
+      next[optionIndex] = {
+        imageUrl: mediaPatch.imageUrl ?? next[optionIndex]?.imageUrl ?? '',
+        alt: mediaPatch.alt ?? next[optionIndex]?.alt ?? '',
+      }
+    }
+    onChange(sectionIndex, 'optionMedia', next)
   }
 
   const isTrueFalse = question.type === 'truefalse'
@@ -331,6 +444,21 @@ function StandaloneQuestionCard({
         theme={theme}
       />
 
+      {question.imageUrl && (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="theme-text-muted text-xs font-black uppercase tracking-wide">Image position</span>
+          <select
+            value={question.imagePosition ?? 'above'}
+            onChange={event => set('imagePosition', event.target.value === 'above' ? null : event.target.value)}
+            className={joinClasses('theme-input rounded-lg border px-2 py-1 text-xs outline-none', theme.focus)}
+          >
+            {IMAGE_POSITION_OPTIONS.map(option => (
+              <option key={option.value} value={option.value}>{option.label}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
       <div className="space-y-2">
         <FieldHeader title="Instructions" badge="Optional" />
         <QuizRichField
@@ -381,52 +509,87 @@ function StandaloneQuestionCard({
               ? 'Sentence-ordering — paste each candidate paragraph variant as one option'
               : 'Answer choices - click the radio to mark the correct one'}
           </p>
-          {question.options.map((option, optionIndex) => (
-            <label
-              key={`${question.localId}-${optionIndex}`}
-              className={joinClasses(
-                'flex cursor-pointer gap-3 rounded-xl border-2 p-3 transition-colors',
-                optionsAsTextarea ? 'items-start' : 'items-center',
-                question.correctAnswer === optionIndex ? theme.radioBorder : 'theme-border hover:border-[var(--accent)]',
-              )}
-            >
-              <input
-                type="radio"
-                name={`standalone-correct-${question.localId}`}
-                checked={question.correctAnswer === optionIndex}
-                onChange={() => set('correctAnswer', optionIndex)}
-                className={joinClasses('accent-[var(--accent)] flex-shrink-0', optionsAsTextarea && 'mt-2')}
-              />
-              <span className={joinClasses(
-                'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-black',
-                optionsAsTextarea && 'mt-1',
-                question.correctAnswer === optionIndex ? 'theme-accent-fill theme-on-accent' : 'theme-bg-subtle theme-text-muted',
-              )}>
-                {isTrueFalse ? (optionIndex === 0 ? 'T' : 'F') : QUESTION_LETTERS[optionIndex]}
-              </span>
-              {optionsAsTextarea ? (
-                <textarea
-                  value={typeof option === 'string' ? option : ''}
-                  onChange={event => setOption(optionIndex, event.target.value)}
-                  placeholder={`Paragraph ordering ${QUESTION_LETTERS[optionIndex]}`}
-                  rows={4}
-                  className="theme-text flex-1 resize-y border-none bg-transparent text-sm leading-relaxed outline-none"
-                />
-              ) : (
-                <input
-                  value={typeof option === 'string' ? option : ''}
-                  onChange={event => setOption(optionIndex, event.target.value)}
-                  placeholder={isTrueFalse ? (optionIndex === 0 ? 'True' : 'False') : `Option ${QUESTION_LETTERS[optionIndex]}`}
-                  disabled={isTrueFalse}
-                  className="theme-text flex-1 border-none bg-transparent text-sm outline-none disabled:opacity-80"
-                  spellCheck={!optionsAsPlainText}
-                />
-              )}
-              {question.correctAnswer === optionIndex && (
-                <span className={joinClasses('flex-shrink-0 text-xs font-black', optionsAsTextarea && 'mt-2', theme.accentText)}>✓ Correct</span>
-              )}
-            </label>
-          ))}
+          {question.options.map((option, optionIndex) => {
+            const optionMedia = Array.isArray(question.optionMedia) ? question.optionMedia[optionIndex] : null
+            const showOptionImage = !isTrueFalse && !optionsAsTextarea
+            const optionUploading = question.optionImageUploadingIndex === optionIndex
+            const optionUploadStep = optionUploading ? question.optionImageUploadStep : null
+            return (
+              <div key={`${question.localId}-${optionIndex}`} className="space-y-2">
+                <label
+                  className={joinClasses(
+                    'flex cursor-pointer gap-3 rounded-xl border-2 p-3 transition-colors',
+                    optionsAsTextarea ? 'items-start' : 'items-center',
+                    question.correctAnswer === optionIndex ? theme.radioBorder : 'theme-border hover:border-[var(--accent)]',
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name={`standalone-correct-${question.localId}`}
+                    checked={question.correctAnswer === optionIndex}
+                    onChange={() => set('correctAnswer', optionIndex)}
+                    className={joinClasses('accent-[var(--accent)] flex-shrink-0', optionsAsTextarea && 'mt-2')}
+                  />
+                  <span className={joinClasses(
+                    'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-black',
+                    optionsAsTextarea && 'mt-1',
+                    question.correctAnswer === optionIndex ? 'theme-accent-fill theme-on-accent' : 'theme-bg-subtle theme-text-muted',
+                  )}>
+                    {isTrueFalse ? (optionIndex === 0 ? 'T' : 'F') : QUESTION_LETTERS[optionIndex]}
+                  </span>
+                  {optionsAsTextarea ? (
+                    <textarea
+                      value={typeof option === 'string' ? option : ''}
+                      onChange={event => setOption(optionIndex, event.target.value)}
+                      placeholder={`Paragraph ordering ${QUESTION_LETTERS[optionIndex]}`}
+                      rows={4}
+                      className="theme-text flex-1 resize-y border-none bg-transparent text-sm leading-relaxed outline-none"
+                    />
+                  ) : (
+                    <input
+                      value={typeof option === 'string' ? option : ''}
+                      onChange={event => setOption(optionIndex, event.target.value)}
+                      placeholder={isTrueFalse ? (optionIndex === 0 ? 'True' : 'False') : `Option ${QUESTION_LETTERS[optionIndex]}`}
+                      disabled={isTrueFalse}
+                      className="theme-text flex-1 border-none bg-transparent text-sm outline-none disabled:opacity-80"
+                      spellCheck={!optionsAsPlainText}
+                    />
+                  )}
+                  {question.correctAnswer === optionIndex && (
+                    <span className={joinClasses('flex-shrink-0 text-xs font-black', optionsAsTextarea && 'mt-2', theme.accentText)}>✓ Correct</span>
+                  )}
+                </label>
+                {showOptionImage && onOptionImageUpload && (
+                  <div className="pl-12 space-y-1.5">
+                    <OptionImageUpload
+                      imageUrl={optionMedia?.imageUrl}
+                      uploading={optionUploading}
+                      uploadStep={optionUploadStep}
+                      onFileSelect={file => onOptionImageUpload(sectionIndex, optionIndex, file)}
+                      onRemove={() => {
+                        setOptionMedia(optionIndex, null)
+                        if (onOptionImageRemove) onOptionImageRemove(sectionIndex, optionIndex)
+                      }}
+                      theme={theme}
+                    />
+                    {optionMedia?.imageUrl && (
+                      <input
+                        required
+                        value={optionMedia.alt ?? ''}
+                        onChange={event => setOptionMedia(optionIndex, { alt: event.target.value })}
+                        placeholder="Describe this image (required for accessibility)"
+                        aria-label={`Alt text for option ${QUESTION_LETTERS[optionIndex]} image`}
+                        className={joinClasses(
+                          smallFieldClass(theme),
+                          !optionMedia.alt?.trim() && 'border-red-300',
+                        )}
+                      />
+                    )}
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
       )}
 
@@ -482,6 +645,9 @@ function PassageQuestionCard({
   onChange,
   onRemove,
   onMove,
+  onOptionImageUpload,
+  onOptionImageRemove,
+  theme,
 }) {
   function set(field, value) {
     onChange(sectionIndex, questionIndex, field, value)
@@ -491,6 +657,20 @@ function PassageQuestionCard({
     const nextOptions = [...question.options]
     nextOptions[optionIndex] = value
     onChange(sectionIndex, questionIndex, 'options', nextOptions)
+  }
+
+  function setOptionMedia(optionIndex, mediaPatch) {
+    const existing = Array.isArray(question.optionMedia) ? question.optionMedia : []
+    const next = (question.options.length ? question.options : QUESTION_LETTERS).map((_, i) => existing[i] ?? null)
+    if (mediaPatch === null) {
+      next[optionIndex] = null
+    } else {
+      next[optionIndex] = {
+        imageUrl: mediaPatch.imageUrl ?? next[optionIndex]?.imageUrl ?? '',
+        alt: mediaPatch.alt ?? next[optionIndex]?.alt ?? '',
+      }
+    }
+    onChange(sectionIndex, questionIndex, 'optionMedia', next)
   }
 
   const subtype = question.subtype ?? null
@@ -565,48 +745,85 @@ function PassageQuestionCard({
             ? 'Sentence-ordering — paste each candidate paragraph variant as one option'
             : 'Answer choices'}
         </p>
-        {QUESTION_LETTERS.map((letter, optionIndex) => (
-          <label
-            key={`${question.localId}-${letter}`}
-            className={joinClasses(
-              'flex cursor-pointer gap-3 rounded-xl border-2 p-3 transition-colors',
-              optionsAsTextarea ? 'items-start' : 'items-center',
-              question.correctAnswer === optionIndex ? 'border-[var(--accent)] theme-accent-bg' : 'theme-border hover:border-[var(--accent)]',
-            )}
-          >
-            <input
-              type="radio"
-              name={`passage-correct-${question.localId}`}
-              checked={question.correctAnswer === optionIndex}
-              onChange={() => set('correctAnswer', optionIndex)}
-              className={joinClasses('accent-[var(--accent)] flex-shrink-0', optionsAsTextarea && 'mt-2')}
-            />
-            <span className={joinClasses(
-              'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-black',
-              optionsAsTextarea && 'mt-1',
-              question.correctAnswer === optionIndex ? 'theme-accent-fill theme-on-accent' : 'theme-bg-subtle theme-text-muted',
-            )}>
-              {letter}
-            </span>
-            {optionsAsTextarea ? (
-              <textarea
-                value={question.options[optionIndex] || ''}
-                onChange={event => setOption(optionIndex, event.target.value)}
-                placeholder={`Paragraph ordering ${letter}`}
-                rows={4}
-                className="theme-text flex-1 resize-y border-none bg-transparent text-sm leading-relaxed outline-none"
-              />
-            ) : (
-              <input
-                value={question.options[optionIndex] || ''}
-                onChange={event => setOption(optionIndex, event.target.value)}
-                placeholder={`Option ${letter}`}
-                className="theme-text flex-1 border-none bg-transparent text-sm outline-none"
-                spellCheck={!optionsAsPlainText}
-              />
-            )}
-          </label>
-        ))}
+        {QUESTION_LETTERS.map((letter, optionIndex) => {
+          const optionMedia = Array.isArray(question.optionMedia) ? question.optionMedia[optionIndex] : null
+          const optionUploading = question.optionImageUploadingIndex === optionIndex
+          const optionUploadStep = optionUploading ? question.optionImageUploadStep : null
+          const showOptionImage = !optionsAsTextarea
+          // Passage cards use a default theme; we fall back to THEMES.create when none provided.
+          const cardTheme = theme || THEMES.create
+          return (
+            <div key={`${question.localId}-${letter}`} className="space-y-2">
+              <label
+                className={joinClasses(
+                  'flex cursor-pointer gap-3 rounded-xl border-2 p-3 transition-colors',
+                  optionsAsTextarea ? 'items-start' : 'items-center',
+                  question.correctAnswer === optionIndex ? 'border-[var(--accent)] theme-accent-bg' : 'theme-border hover:border-[var(--accent)]',
+                )}
+              >
+                <input
+                  type="radio"
+                  name={`passage-correct-${question.localId}`}
+                  checked={question.correctAnswer === optionIndex}
+                  onChange={() => set('correctAnswer', optionIndex)}
+                  className={joinClasses('accent-[var(--accent)] flex-shrink-0', optionsAsTextarea && 'mt-2')}
+                />
+                <span className={joinClasses(
+                  'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-black',
+                  optionsAsTextarea && 'mt-1',
+                  question.correctAnswer === optionIndex ? 'theme-accent-fill theme-on-accent' : 'theme-bg-subtle theme-text-muted',
+                )}>
+                  {letter}
+                </span>
+                {optionsAsTextarea ? (
+                  <textarea
+                    value={question.options[optionIndex] || ''}
+                    onChange={event => setOption(optionIndex, event.target.value)}
+                    placeholder={`Paragraph ordering ${letter}`}
+                    rows={4}
+                    className="theme-text flex-1 resize-y border-none bg-transparent text-sm leading-relaxed outline-none"
+                  />
+                ) : (
+                  <input
+                    value={question.options[optionIndex] || ''}
+                    onChange={event => setOption(optionIndex, event.target.value)}
+                    placeholder={`Option ${letter}`}
+                    className="theme-text flex-1 border-none bg-transparent text-sm outline-none"
+                    spellCheck={!optionsAsPlainText}
+                  />
+                )}
+              </label>
+              {showOptionImage && onOptionImageUpload && (
+                <div className="pl-12 space-y-1.5">
+                  <OptionImageUpload
+                    imageUrl={optionMedia?.imageUrl}
+                    uploading={optionUploading}
+                    uploadStep={optionUploadStep}
+                    onFileSelect={file => onOptionImageUpload(sectionIndex, questionIndex, optionIndex, file)}
+                    onRemove={() => {
+                      setOptionMedia(optionIndex, null)
+                      if (onOptionImageRemove) onOptionImageRemove(sectionIndex, questionIndex, optionIndex)
+                    }}
+                    theme={cardTheme}
+                  />
+                  {optionMedia?.imageUrl && (
+                    <input
+                      required
+                      value={optionMedia.alt ?? ''}
+                      onChange={event => setOptionMedia(optionIndex, { alt: event.target.value })}
+                      placeholder="Describe this image (required for accessibility)"
+                      aria-label={`Alt text for option ${letter} image`}
+                      className={joinClasses(
+                        smallFieldClass(cardTheme),
+                        !optionMedia.alt?.trim() && 'border-red-300',
+                      )}
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
 
       <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
@@ -661,6 +878,8 @@ function PassageSectionCard({
   onPassageQuestionChange,
   onPassageQuestionRemove,
   onPassageQuestionMove,
+  onPassageQuestionOptionImageUpload,
+  onPassageQuestionOptionImageRemove,
   onPassageAddQuestion,
   onAssignToPart,
 }) {
@@ -879,6 +1098,9 @@ function PassageSectionCard({
                     onChange={onPassageQuestionChange}
                     onRemove={onPassageQuestionRemove}
                     onMove={onPassageQuestionMove}
+                    onOptionImageUpload={onPassageQuestionOptionImageUpload}
+                    onOptionImageRemove={onPassageQuestionOptionImageRemove}
+                    theme={theme}
                   />
                 ))
               )}
@@ -1061,6 +1283,8 @@ export default function QuizSectionsEditor({
   onStandaloneMove,
   onStandaloneImageUpload,
   onStandaloneImageRemove,
+  onStandaloneOptionImageUpload,
+  onStandaloneOptionImageRemove,
   onPassageChange,
   onPassageToggle,
   onPassageRemove,
@@ -1070,6 +1294,8 @@ export default function QuizSectionsEditor({
   onPassageQuestionChange,
   onPassageQuestionRemove,
   onPassageQuestionMove,
+  onPassageQuestionOptionImageUpload,
+  onPassageQuestionOptionImageRemove,
   onPassageAddQuestion,
   onAddStandalone,
   onAddPassage,
@@ -1142,6 +1368,8 @@ export default function QuizSectionsEditor({
           onPassageQuestionChange={onPassageQuestionChange}
           onPassageQuestionRemove={onPassageQuestionRemove}
           onPassageQuestionMove={onPassageQuestionMove}
+          onPassageQuestionOptionImageUpload={onPassageQuestionOptionImageUpload}
+          onPassageQuestionOptionImageRemove={onPassageQuestionOptionImageRemove}
           onPassageAddQuestion={onPassageAddQuestion}
           onAssignToPart={onAssignSectionToPart}
         />
@@ -1163,6 +1391,8 @@ export default function QuizSectionsEditor({
         onMove={onStandaloneMove}
         onImageUpload={onStandaloneImageUpload}
         onImageRemove={onStandaloneImageRemove}
+        onOptionImageUpload={onStandaloneOptionImageUpload}
+        onOptionImageRemove={onStandaloneOptionImageRemove}
         onAssignToPart={onAssignSectionToPart}
         theme={theme}
       />

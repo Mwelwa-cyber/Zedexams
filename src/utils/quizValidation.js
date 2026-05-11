@@ -28,21 +28,40 @@ export function validateStandaloneQuestion(question, label, { onError } = {}) {
     notify(`${label} image is still uploading. Please wait.`)
     return false
   }
+  if (question?.optionImageUploadingIndex != null) {
+    notify(`${label} option image is still uploading. Please wait.`)
+    return false
+  }
   if (!richTextHasContent(question?.text)) {
     notify(`${label} is missing question text.`)
     return false
   }
 
   const qType = question?.type || MCQ
+  const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
 
   if (qType === MCQ) {
     if (!Array.isArray(question.options) || question.options.length < 2) {
       notify(`${label} needs at least two options.`)
       return false
     }
-    if (question.options.some(option => !String(option || '').trim())) {
-      notify(`${label} has empty options.`)
-      return false
+    const media = Array.isArray(question.optionMedia) ? question.optionMedia : []
+    for (let i = 0; i < question.options.length; i++) {
+      const text = String(question.options[i] || '').trim()
+      const slot = media[i]
+      const hasImage = Boolean(slot && slot.imageUrl)
+      const hasAlt = hasImage && String(slot.alt || '').trim().length > 0
+      // An option is valid if it has text, OR an image with alt text.
+      // Alt text is mandatory when an image is present — both for screen
+      // readers and so the AI grader knows what the image represents.
+      if (!text && !hasImage) {
+        notify(`${label} has empty options.`)
+        return false
+      }
+      if (hasImage && !hasAlt) {
+        notify(`${label} option ${OPTION_LETTERS[i] || i + 1} has an image — add an alt-text description.`)
+        return false
+      }
     }
     const correctIdx = Number(question.correctAnswer)
     if (!Number.isInteger(correctIdx) || correctIdx < 0 || correctIdx >= question.options.length) {
