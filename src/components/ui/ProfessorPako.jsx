@@ -1,11 +1,13 @@
 /**
- * ProfessorPako — academic owl mascot for ExamPrep Zambia.
+ * Zed — friendly robot mascot for ZedExams ("Ask Zed").
  *
  * Props:
  *   size    — pixel width/height of the SVG (default 100)
  *   mood    — 'normal' | 'happy' | 'thinking' | 'excited' | 'tip'
  *   animate — true = floating animation (respects data-saver)
  *   className — additional wrapper classes
+ *
+ * Component name kept as ProfessorPako to preserve existing imports.
  */
 import { useDataSaver } from '../../contexts/DataSaverContext'
 
@@ -13,17 +15,22 @@ export default function ProfessorPako({ size = 100, mood = 'normal', animate = t
   const { dataSaver } = useDataSaver()
   const shouldAnimate = animate && !dataSaver
 
-  // Mouth / beak position varies by mood
-  const beakPath = {
-    normal:  'M53 63 L67 63 L60 71Z',
-    happy:   'M53 61 Q60 70 67 61 L67 63 Q60 73 53 63Z',
-    thinking:'M55 64 L65 62',
-    excited: 'M51 61 Q60 72 69 61 L69 64 Q60 76 51 64Z',
-    tip:     'M53 63 L67 63 L60 71Z',
-  }[mood] ?? 'M53 63 L67 63 L60 71Z'
+  const bubbleSymbol = {
+    normal:  '?',
+    happy:   '!',
+    thinking:'…',
+    excited: '★',
+    tip:     'i',
+  }[mood] ?? '?'
 
-  // Eye direction varies slightly
-  const eyeOffset = mood === 'thinking' ? 2 : 0
+  // A slightly wider grin when excited or happy
+  const mouthPath = {
+    normal:  'M52 65 Q64 76 76 65 Q64 72 52 65Z',
+    happy:   'M50 64 Q64 79 78 64 Q64 73 50 64Z',
+    thinking:'M58 68 Q64 72 70 68 Q64 70 58 68Z',
+    excited: 'M48 63 Q64 82 80 63 Q64 75 48 63Z',
+    tip:     'M52 65 Q64 76 76 65 Q64 72 52 65Z',
+  }[mood] ?? 'M52 65 Q64 76 76 65 Q64 72 52 65Z'
 
   return (
     <div
@@ -31,162 +38,132 @@ export default function ProfessorPako({ size = 100, mood = 'normal', animate = t
       style={{ width: size, height: size }}
     >
       <svg
-        viewBox="0 0 120 170"
+        viewBox="0 0 140 140"
         width={size}
         height={size}
         xmlns="http://www.w3.org/2000/svg"
-        aria-label="Professor Pako the owl mascot"
+        aria-label="Zed the robot mascot"
         role="img"
       >
-        {/* ── GRADUATION GOWN (behind body) ─────────────────── */}
+        {/* ── BODY (torso) ─────────────────────────────────── */}
+        <rect x="34" y="94" width="60" height="38" rx="14" fill="#FAFAFA" stroke="#1F2937" strokeWidth="2" />
+        {/* Lower-belly soft blue shading */}
         <path
-          d="M28 85 Q20 112 22 155 L60 159 L98 155 Q100 112 92 85 Q76 96 60 96 Q44 96 28 85Z"
-          fill="#1E3A8A"
-        />
-        {/* Gown front panels / lapels */}
-        <path
-          d="M44 85 L52 104 L60 98 L68 104 L76 85"
-          fill="#1D4ED8"
+          d="M34 116 L94 116 L94 122 Q94 132 80 132 L48 132 Q34 132 34 122Z"
+          fill="#DBEAFE"
           opacity="0.55"
         />
+        {/* Belly badge */}
+        <rect x="58" y="114" width="12" height="8" rx="2" fill="#F59E0B" stroke="#B45309" strokeWidth="1" />
+
+        {/* ── NECK (between head and body) ─────────────────── */}
+        <rect x="54" y="86" width="20" height="10" rx="3" fill="#1F2937" />
+        <rect x="54" y="86" width="20" height="3" rx="1.5" fill="#374151" />
+
+        {/* ── HEAD (white dome) ────────────────────────────── */}
+        <ellipse cx="64" cy="56" rx="42" ry="34" fill="#FAFAFA" stroke="#1F2937" strokeWidth="2" />
+        {/* Soft blue under-shading on head */}
+        <ellipse cx="64" cy="78" rx="38" ry="11" fill="#DBEAFE" opacity="0.5" />
+
+        {/* ── VISOR / FACE SCREEN ──────────────────────────── */}
+        <rect x="28" y="46" width="72" height="30" rx="14" fill="#1F2937" />
+        <rect x="28" y="46" width="72" height="6" rx="3" fill="#374151" opacity="0.7" />
+        {/* Subtle screen highlight */}
+        <ellipse cx="44" cy="54" rx="10" ry="2.5" fill="#4B5563" opacity="0.55" />
+
+        {/* ── EYES (closed smile arcs ^_^) ─────────────────── */}
         <path
-          d="M44 85 L52 104 L60 98 L68 104 L76 85"
-          stroke="#3B82F6"
-          strokeWidth="0.8"
+          d="M40 60 Q48 52 56 60"
+          stroke="#FBBF24"
+          strokeWidth="3.2"
           fill="none"
+          strokeLinecap="round"
         />
-        {/* Gold buttons on gown */}
-        <circle cx="60" cy="108" r="2.2" fill="#F59E0B" />
-        <circle cx="60" cy="118" r="2.2" fill="#F59E0B" />
-        <circle cx="60" cy="128" r="2.2" fill="#F59E0B" />
-
-        {/* ── BODY ─────────────────────────────────────────── */}
-        <ellipse cx="60" cy="85" rx="27" ry="29" fill="#B45309" />
-
-        {/* Belly / chest (cream) */}
-        <ellipse cx="60" cy="91" rx="16" ry="20" fill="#FEF3C7" />
-        {/* Belly feather lines */}
-        <path d="M50 82 Q60 84 70 82" stroke="#D97706" strokeWidth="1.3" fill="none" />
-        <path d="M48 89 Q60 91 72 89" stroke="#D97706" strokeWidth="1.3" fill="none" />
-        <path d="M50 96 Q60 98 70 96" stroke="#D97706" strokeWidth="1.3" fill="none" />
-
-        {/* ── WINGS ────────────────────────────────────────── */}
-        <path d="M33 78 Q14 90 16 118 Q30 106 38 88Z" fill="#92400E" />
-        <path d="M87 78 Q106 90 104 118 Q90 106 82 88Z" fill="#92400E" />
-        {/* Wing feather texture */}
-        <path d="M18 96 Q23 92 28 97"  stroke="#78350F" strokeWidth="1.1" fill="none" />
-        <path d="M17 107 Q22 103 27 108" stroke="#78350F" strokeWidth="1.1" fill="none" />
-        <path d="M102 96 Q97 92 92 97"  stroke="#78350F" strokeWidth="1.1" fill="none" />
-        <path d="M103 107 Q98 103 93 108" stroke="#78350F" strokeWidth="1.1" fill="none" />
-
-        {/* ── HEAD ─────────────────────────────────────────── */}
-        <circle cx="60" cy="48" r="25" fill="#B45309" />
-
-        {/* Forehead feather texture */}
-        <path d="M46 36 L48 28 L52 36" stroke="#92400E" strokeWidth="1.1" fill="none" />
-        <path d="M56 31 L58 23 L62 31" stroke="#92400E" strokeWidth="1.1" fill="none" />
-        <path d="M68 36 L72 28 L74 36" stroke="#92400E" strokeWidth="1.1" fill="none" />
-
-        {/* ── EAR TUFTS ────────────────────────────────────── */}
-        <path d="M40 32 L35 16 L48 28Z" fill="#92400E" />
-        <path d="M40 32 L37 20 L46 28Z" fill="#B45309" />
-        <path d="M80 32 L85 16 L72 28Z" fill="#92400E" />
-        <path d="M80 32 L83 20 L74 28Z" fill="#B45309" />
-
-        {/* ── GRADUATION CAP ───────────────────────────────── */}
-        {/* Skull cap */}
-        <ellipse cx="60" cy="25" rx="21" ry="7" fill="#111827" />
-        {/* Flat board */}
-        <rect x="36" y="18" width="48" height="7" rx="0.5" fill="#111827" />
-        {/* Board top highlight */}
-        <rect x="36" y="18" width="48" height="2.5" rx="0.5" fill="#374151" />
-        {/* Top button */}
-        <circle cx="60" cy="18" r="2.5" fill="#4B5563" />
-        {/* Tassel cord */}
         <path
-          d="M84 20 Q96 15 93 35"
-          stroke="#F59E0B"
+          d="M72 60 Q80 52 88 60"
+          stroke="#FBBF24"
+          strokeWidth="3.2"
+          fill="none"
+          strokeLinecap="round"
+        />
+
+        {/* ── MOUTH (smile inside visor) ───────────────────── */}
+        <path d={mouthPath} fill="#FAFAFA" />
+
+        {/* ── ROSY CHEEKS (on white head, below visor) ─────── */}
+        <ellipse cx="30" cy="80" rx="4" ry="2.8" fill="#FCA5A5" opacity="0.85" />
+        <ellipse cx="98" cy="80" rx="4" ry="2.8" fill="#FCA5A5" opacity="0.85" />
+
+        {/* ── ANTENNA (drawn after head so stalk attaches) ─── */}
+        <line x1="60" y1="11" x2="60" y2="24" stroke="#4B5563" strokeWidth="2.4" strokeLinecap="round" />
+        <circle cx="60" cy="9" r="5.5" fill="#F59E0B" stroke="#B45309" strokeWidth="1.2" />
+        <circle cx="58.4" cy="7.4" r="1.7" fill="#FCD34D" />
+
+        {/* ── LEFT ARM (resting at side) ───────────────────── */}
+        <ellipse cx="28" cy="110" rx="9" ry="12" fill="#FAFAFA" stroke="#1F2937" strokeWidth="2" />
+
+        {/* ── RIGHT ARM (waving up) ────────────────────────── */}
+        <path
+          d="M92 98 Q106 90 110 76"
+          stroke="#1F2937"
+          strokeWidth="2.4"
+          fill="none"
+          strokeLinecap="round"
+        />
+        <ellipse cx="112" cy="72" rx="9.5" ry="10.5" fill="#FAFAFA" stroke="#1F2937" strokeWidth="2" />
+        {/* Tiny thumb detail on the mitten hand */}
+        <path
+          d="M104 74 Q102 78 105 81"
+          stroke="#1F2937"
           strokeWidth="2"
           fill="none"
           strokeLinecap="round"
         />
-        {/* Tassel knot */}
-        <circle cx="93" cy="34" r="3" fill="#FBBF24" />
-        {/* Tassel strands */}
-        <path d="M90 37 L87 47" stroke="#F59E0B" strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M93 37 L91 48" stroke="#F59E0B" strokeWidth="1.8" strokeLinecap="round" />
-        <path d="M96 37 L95 47" stroke="#F59E0B" strokeWidth="1.8" strokeLinecap="round" />
 
-        {/* ── GLASSES ──────────────────────────────────────── */}
-        {/* Left lens */}
-        <circle cx="48" cy="50" r="10.5" fill="white" fillOpacity="0.92" />
-        <circle cx="48" cy="50" r="10.5" stroke="#374151" strokeWidth="2" fill="none" />
-        {/* Right lens */}
-        <circle cx="72" cy="50" r="10.5" fill="white" fillOpacity="0.92" />
-        <circle cx="72" cy="50" r="10.5" stroke="#374151" strokeWidth="2" fill="none" />
-        {/* Bridge */}
-        <path d="M58.5 50 L61.5 50" stroke="#374151" strokeWidth="2" strokeLinecap="round" />
-        {/* Temple arms */}
-        <path d="M37.5 48 L35 46" stroke="#374151" strokeWidth="2" strokeLinecap="round" />
-        <path d="M82.5 48 L85 46" stroke="#374151" strokeWidth="2" strokeLinecap="round" />
+        {/* ── LEGS / FEET ──────────────────────────────────── */}
+        <rect x="46" y="130" width="14" height="10" rx="3.5" fill="#1F2937" />
+        <rect x="68" y="130" width="14" height="10" rx="3.5" fill="#1F2937" />
 
-        {/* ── EYES ─────────────────────────────────────────── */}
-        {/* Left iris */}
-        <circle cx={48 + eyeOffset} cy="51" r="6.5" fill="#1E40AF" />
-        {/* Left pupil */}
-        <circle cx={49 + eyeOffset} cy="51" r="4" fill="#0F172A" />
-        {/* Left highlight */}
-        <circle cx={51 + eyeOffset} cy="48.5" r="2" fill="white" />
-        {/* Right iris */}
-        <circle cx={72 + eyeOffset} cy="51" r="6.5" fill="#1E40AF" />
-        {/* Right pupil */}
-        <circle cx={73 + eyeOffset} cy="51" r="4" fill="#0F172A" />
-        {/* Right highlight */}
-        <circle cx={75 + eyeOffset} cy="48.5" r="2" fill="white" />
-
-        {/* ── BEAK ─────────────────────────────────────────── */}
-        <path d={beakPath} fill="#FBBF24" />
-        <path d={`M53 63 L67 63 L60 66Z`} fill="#F59E0B" />
-
-        {/* ── FEET / TALONS ─────────────────────────────────── */}
+        {/* ── SPEECH BUBBLE (signature "Ask Zed" cue) ──────── */}
+        <ellipse cx="118" cy="26" rx="14" ry="11" fill="#FAFAFA" stroke="#1F2937" strokeWidth="2" />
         <path
-          d="M46 151 L42 163 M46 151 L47 163 M46 151 L51 161"
-          stroke="#FBBF24"
-          strokeWidth="2.8"
-          strokeLinecap="round"
+          d="M108 32 L100 40 L112 35Z"
+          fill="#FAFAFA"
+          stroke="#1F2937"
+          strokeWidth="2"
+          strokeLinejoin="round"
         />
-        <path
-          d="M74 151 L69 163 M74 151 L74 163 M74 151 L79 161"
-          stroke="#FBBF24"
-          strokeWidth="2.8"
-          strokeLinecap="round"
-        />
-
-        {/* ── SCROLL (right wing) ───────────────────────────── */}
-        <rect x="96" y="92" width="20" height="26" rx="2.5" fill="#FEF3C7" stroke="#D97706" strokeWidth="1.3" />
-        <rect x="96" y="92" width="20" height="6"  rx="1.5" fill="#FDE68A" />
-        <rect x="96" y="112" width="20" height="6" rx="1.5" fill="#FDE68A" />
-        <path d="M99 101 L113 101" stroke="#D97706" strokeWidth="1" strokeLinecap="round" />
-        <path d="M99 105 L113 105" stroke="#D97706" strokeWidth="1" strokeLinecap="round" />
-        <path d="M99 109 L111 109" stroke="#D97706" strokeWidth="1" strokeLinecap="round" />
+        {/* Cover bubble outline where tail joins, so it reads as one shape */}
+        <path d="M109 33 L112 35" stroke="#FAFAFA" strokeWidth="2.4" strokeLinecap="round" />
+        <text
+          x="118"
+          y="31"
+          textAnchor="middle"
+          fontSize="14"
+          fontWeight="700"
+          fill="#F59E0B"
+          fontFamily="system-ui, -apple-system, Segoe UI, Roboto, sans-serif"
+        >
+          {bubbleSymbol}
+        </text>
 
         {/* ── MOOD ACCESSORIES ─────────────────────────────── */}
         {mood === 'excited' && (
           <>
-            <path d="M18 50 L14 44 M16 56 L10 56" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" />
-            <path d="M102 50 L106 44 M104 56 L110 56" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" />
+            <path d="M14 50 L10 46 M14 56 L8 56 M14 62 L10 66" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" />
+            <path d="M132 100 L136 96 M134 106 L138 106" stroke="#F59E0B" strokeWidth="2" strokeLinecap="round" />
+            {/* Extra sparkle near antenna */}
+            <path d="M76 12 L80 8 M78 16 L82 16" stroke="#FBBF24" strokeWidth="1.8" strokeLinecap="round" />
           </>
         )}
         {mood === 'thinking' && (
           <>
-            <circle cx="105" cy="30" r="4" fill="#E0E7FF" stroke="#6366F1" strokeWidth="1.5" />
-            <circle cx="113" cy="22" r="3" fill="#E0E7FF" stroke="#6366F1" strokeWidth="1.5" />
-            <circle cx="119" cy="16" r="5" fill="#E0E7FF" stroke="#6366F1" strokeWidth="1.5" />
-            <text x="115.5" y="19.5" textAnchor="middle" fontSize="6" fill="#6366F1" fontWeight="bold">?</text>
+            <circle cx="22" cy="34" r="3" fill="#E0E7FF" stroke="#6366F1" strokeWidth="1.4" />
+            <circle cx="14" cy="26" r="2.2" fill="#E0E7FF" stroke="#6366F1" strokeWidth="1.4" />
           </>
         )}
         {mood === 'tip' && (
-          <circle cx="110" cy="28" r="8" fill="#FEF3C7" stroke="#D97706" strokeWidth="1.5" />
+          <circle cx="60" cy="9" r="9" fill="#FBBF24" opacity="0.25" />
         )}
       </svg>
     </div>
