@@ -86,6 +86,15 @@ export default function PaymentsPanel() {
   }
 
   async function handleRoleChange(uid, role) {
+    // Promotion to / demotion from admin is one-click and irreversible
+    // without a second admin available — confirm before applying.
+    const current = users.find(u => u.id === uid)?.role
+    const touchesAdmin = role === 'admin' || current === 'admin'
+    if (touchesAdmin) {
+      const name = users.find(u => u.id === uid)?.displayName || uid
+      const verb = role === 'admin' ? `promote ${name} to admin` : `change ${name} from admin to ${role}`
+      if (!window.confirm(`Are you sure you want to ${verb}?`)) return
+    }
     try { await updateUserRole(uid, role); setUsers(u => u.map(x => x.id === uid ? { ...x, role } : x)); show('Role updated.') }
     catch (e) { show('❌ ' + e.message) }
   }

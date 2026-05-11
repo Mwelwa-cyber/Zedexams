@@ -15,9 +15,11 @@ import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
 import SubjectIcon from '../ui/SubjectIcon'
 
-function ClassCard({ klass }) {
+function ClassCard({ klass, currentUid }) {
   const subjectMeta = SUBJECTS.find((s) => s.id === klass.subject)
-  const memberCount = Array.isArray(klass.learners) ? klass.learners.length : 0
+  const learners = Array.isArray(klass.learners) ? klass.learners : []
+  const memberCount = learners.length
+  const isOnlyMember = memberCount === 1 && currentUid && learners[0] === currentUid
   return (
     <Link
       to={`/classes/${klass.id}`}
@@ -31,7 +33,9 @@ function ClassCard({ klass }) {
           {subjectMeta ? ` · ${subjectMeta.label}` : ''}
           {klass.school ? ` · ${klass.school}` : ''}
         </p>
-        <p className="theme-text-muted text-[11px] mt-1">{memberCount} learner{memberCount === 1 ? '' : 's'}</p>
+        <p className="theme-text-muted text-[11px] mt-1">
+          {isOnlyMember ? 'Just you so far' : `${memberCount} learner${memberCount === 1 ? '' : 's'}`}
+        </p>
       </div>
       <span className="theme-accent-text text-xs font-black uppercase tracking-wider self-center">Open →</span>
     </Link>
@@ -109,7 +113,7 @@ export default function LearnerClassesList() {
           </div>
         ) : (
           <div className="grid gap-3 sm:grid-cols-2">
-            {classes.map((k) => <ClassCard key={k.id} klass={k} />)}
+            {classes.map((k) => <ClassCard key={k.id} klass={k} currentUid={currentUser?.uid} />)}
           </div>
         )}
       </div>

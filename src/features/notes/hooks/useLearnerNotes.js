@@ -44,7 +44,11 @@ export function useLearnerNotes({ grade, subject = 'all', search = '' }) {
     if (subject !== 'all') list = list.filter(n => n.subject === subject)
     if (search.trim()) {
       const q = search.toLowerCase()
-      list = list.filter(n => n.title?.toLowerCase().includes(q))
+      list = list.filter(n =>
+        n.title?.toLowerCase().includes(q) ||
+        n.excerpt?.toLowerCase().includes(q) ||
+        n.topic?.toLowerCase().includes(q),
+      )
     }
     return list
   }, [notes, subject, search])

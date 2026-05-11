@@ -260,12 +260,14 @@ export default function AdminLearners() {
               value={search}
               onChange={e => setSearch(e.target.value)}
               placeholder="Search by name, email, ID, school…"
+              aria-label="Search learners"
               className="w-full border-2 border-gray-200 rounded-xl pl-9 pr-3 py-2 text-sm focus:border-green-500 focus:outline-none"
             />
           </div>
           <select
             value={gradeF}
             onChange={e => setGradeF(e.target.value)}
+            aria-label="Filter by grade"
             className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-green-500 focus:outline-none"
           >
             <option value="">All Grades</option>
@@ -274,6 +276,7 @@ export default function AdminLearners() {
           <select
             value={statusF}
             onChange={e => setStatusF(e.target.value)}
+            aria-label="Filter by status"
             className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-green-500 focus:outline-none"
           >
             <option value="">All Status</option>
@@ -285,6 +288,7 @@ export default function AdminLearners() {
           <select
             value={sortBy}
             onChange={e => setSortBy(e.target.value)}
+            aria-label="Sort learners"
             className="border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-green-500 focus:outline-none"
           >
             <option value="registered_desc">Newest first</option>
@@ -299,9 +303,10 @@ export default function AdminLearners() {
             type="button"
             onClick={handleExport}
             disabled={loading || !filtered.length}
+            title="Exports the rows currently visible after filters and search"
             className="inline-flex items-center gap-2 border-2 border-gray-200 rounded-xl px-3 py-2 text-sm font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            <Icon as={Download} size="sm" /> Export CSV
+            <Icon as={Download} size="sm" /> Export filtered ({filtered.length}) CSV
           </button>
         </div>
       </div>
