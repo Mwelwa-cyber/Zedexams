@@ -59,18 +59,18 @@ function getQuizSubjectMascot(subject) {
 }
 
 function OptionButton({ label, selected, revealed, correct, wrong, onClick, children }) {
-  // Map state to the design-system .opt[data-state] variants. The CSS
-  // handles theme-derived hover/selected colours and semantic correct/wrong
-  // colours, so we only emit the right state value here.
-  const state = revealed && correct ? 'correct'
-              : revealed && wrong   ? 'wrong'
-              : selected            ? 'selected'
-              : undefined
-
   return (
-    <button type="button" onClick={onClick} disabled={revealed} data-state={state} className="opt">
-      <span className="opt-letter">{label}</span>
-      <span className="opt-text flex-1 leading-snug">{children}</span>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={revealed}
+      data-selected={selected ? 'true' : 'false'}
+      data-correct={revealed && correct ? 'true' : 'false'}
+      data-wrong={revealed && wrong ? 'true' : 'false'}
+      className="zx-opt"
+    >
+      <span className="zx-opt-letter">{label}</span>
+      <span className="flex-1 text-sm font-semibold leading-snug">{children}</span>
       {revealed && correct && <span className="text-lg">✅</span>}
     </button>
   )
@@ -82,19 +82,19 @@ function PreQuizCard({ quiz, canExam, onStart }) {
   const themeClass = mascot.slug ? `quiz-theme-${mascot.slug}` : ''
 
   return (
-    <div className={`${themeClass} theme-bg theme-text min-h-screen px-4 py-10`}>
-      <div className="theme-card theme-border theme-shadow mx-auto max-w-md overflow-hidden rounded-[28px] border shadow-[0_24px_64px_var(--shadow)]">
-        <div className="theme-hero px-6 py-5 text-white">
+    <div className="theme-bg theme-text min-h-screen px-4 py-10">
+      <div className="zx-card-shared mx-auto max-w-md overflow-hidden">
+        <div className="border-b-2 border-slate-900 bg-orange-50 px-6 py-5">
           <div className="mb-2 flex items-center gap-3">
-            <span aria-hidden="true" className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-2xl bg-white/20 text-2xl ring-1 ring-white/30">
+            <span aria-hidden="true" className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-[14px] border-2 border-slate-900 bg-orange-100 text-2xl">
               {mascot.emoji}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-black uppercase tracking-wider text-white/70">{mascot.name}</p>
-              <p className="truncate text-xs font-bold text-white/80">{quiz.subject} · Grade {quiz.grade} · Term {quiz.term}</p>
+              <span className="zx-eyebrow-shared">{mascot.name}</span>
+              <p className="truncate text-xs font-semibold text-slate-700">{quiz.subject} · Grade {quiz.grade} · Term {quiz.term}</p>
             </div>
           </div>
-          <h1 className="text-xl font-black leading-tight">{quiz.title}</h1>
+          <h1 className="text-xl font-black leading-tight text-slate-900">{quiz.title}</h1>
         </div>
         <div className="p-6">
           <div className="mb-6 grid grid-cols-3 gap-3">
@@ -103,15 +103,15 @@ function PreQuizCard({ quiz, canExam, onStart }) {
               ['⏱️', quiz.duration ?? '—', 'Minutes'],
               ['⭐', quiz.totalMarks ?? '—', 'Marks'],
             ].map(([icon, value, label]) => (
-              <div key={label} className="theme-accent-bg rounded-2xl py-4 text-center">
+              <div key={label} className="rounded-[14px] border-2 border-slate-900 bg-orange-50 py-3 text-center shadow-[0_2px_0_#0F1B2D]">
                 <div className="mb-1 text-2xl">{icon}</div>
-                <div className="theme-text text-lg font-black">{value}</div>
-                <div className="theme-text-muted text-xs font-bold">{label}</div>
+                <div className="text-lg font-black text-slate-900">{value}</div>
+                <div className="text-[10px] font-bold uppercase tracking-wide text-slate-600">{label}</div>
               </div>
             ))}
           </div>
 
-          <p className="theme-text-muted mb-3 text-center text-xs font-black uppercase tracking-[0.18em]">Choose Mode</p>
+          <p className="mb-3 text-center text-xs font-black uppercase tracking-[0.18em] text-slate-600">Choose Mode</p>
           <div className="mb-6 grid grid-cols-2 gap-3">
             {[
               { id: 'practice', icon: '🌱', label: 'Practice', sub: 'See answers live', locked: false },
@@ -123,24 +123,20 @@ function PreQuizCard({ quiz, canExam, onStart }) {
                   key={item.id}
                   type="button"
                   onClick={() => !item.locked && setMode(item.id)}
-                  className={`relative rounded-2xl border-2 p-4 text-left transition-all ${
-                    active ? 'border-[var(--accent)] theme-accent-bg' : 'theme-border theme-card'
+                  className={`relative rounded-[14px] border-2 border-slate-900 p-4 text-left shadow-[0_2px_0_#0F1B2D] transition-all ${
+                    active ? 'bg-orange-500 text-white' : 'bg-white text-slate-900'
                   } ${item.locked ? 'opacity-55' : ''}`}
                 >
                   {item.locked && <span className="absolute right-3 top-3 text-xs">🔒</span>}
                   <div className="mb-1 text-2xl">{item.icon}</div>
-                  <div className="theme-text text-sm font-black">{item.label}</div>
-                  <div className="theme-text-muted mt-0.5 text-xs">{item.sub}</div>
+                  <div className="text-sm font-black">{item.label}</div>
+                  <div className={`mt-0.5 text-xs ${active ? 'text-white/85' : 'text-slate-600'}`}>{item.sub}</div>
                 </button>
               )
             })}
           </div>
 
-          <button
-            type="button"
-            onClick={() => onStart(mode)}
-            className="theme-accent-fill theme-on-accent w-full rounded-2xl py-4 text-lg font-black shadow-[0_12px_28px_var(--shadow)] transition-colors hover:opacity-90"
-          >
+          <button type="button" onClick={() => onStart(mode)} className="zx-sb zx-sb-primary w-full text-base">
             🚀 Start {mode === 'practice' ? 'Practice' : 'Exam'}
           </button>
         </div>
@@ -443,10 +439,10 @@ export default function QuizRunnerV2() {
     return (
       <div className="theme-bg flex min-h-screen items-center justify-center px-4">
         <SeoHelmet title="Quiz" path={`/quiz/${quizId}`} noIndex />
-        <div className="theme-card theme-border rounded-3xl border p-8 text-center shadow-sm">
+        <div className="zx-card-shared p-8 text-center">
           <div className="mb-3 text-4xl">😕</div>
           <p className="font-bold text-red-600">{error}</p>
-          <button type="button" onClick={() => navigate('/quizzes')} className="theme-accent-fill theme-on-accent mt-4 rounded-full px-5 py-2 font-bold">
+          <button type="button" onClick={() => navigate('/quizzes')} className="zx-sb zx-sb-primary mt-4 text-sm">
             ← Back
           </button>
         </div>
@@ -492,32 +488,23 @@ export default function QuizRunnerV2() {
     const typed = shortText[question.id] ?? ''
 
     return (
-      <div
-        key={question.id}
-        className="theme-text space-y-4 p-5"
-        style={{
-          background: 'var(--surface)',
-          border: '1px solid var(--line-medium)',
-          borderTopColor: 'var(--surface-tint-top)',
-          borderRadius: 'var(--r-xl)',
-          boxShadow: 'var(--shadow-card)',
-        }}
-      >
-        <div className="q-tag-row">
-          <span className="q-num">Q{question.questionNumber}</span>
-          {question.topic && <span className="q-topic">{question.topic}</span>}
-          {question.marks > 1 && (
-            <span
-              className="rounded px-1.5 py-0.5 text-[10px] font-semibold"
-              style={{ background: 'var(--warning-bg)', color: 'var(--warning-fg)' }}
-            >
-              {question.marks} marks
-            </span>
-          )}
+      <div key={question.id} className="zx-card-shared space-y-4 p-5 text-slate-900">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="zx-pill-dark">Q{question.questionNumber}</span>
+            {question.topic && (
+              <span className="zx-pill-dark zx-pill-light">{question.topic}</span>
+            )}
+            {question.marks > 1 && (
+              <span className="zx-pill-dark zx-pill-orange">{question.marks} marks</span>
+            )}
+          </div>
           <button
             type="button"
             onClick={() => setFlagged(current => ({ ...current, [question.id]: !current[question.id] }))}
-            className={`q-flag rounded-full p-1.5 transition-colors ${flagged[question.id] ? 'bg-amber-100 text-amber-700' : ''}`}
+            className={`grid h-9 w-9 place-items-center rounded-full border-2 border-slate-900 shadow-[0_2px_0_#0F1B2D] transition-colors ${
+              flagged[question.id] ? 'bg-amber-300' : 'bg-white'
+            }`}
             title={flagged[question.id] ? 'Unflag' : 'Flag for review'}
           >
             🚩
@@ -525,7 +512,7 @@ export default function QuizRunnerV2() {
         </div>
 
         {question.imageUrl && (
-          <div className="theme-border theme-bg-subtle overflow-hidden rounded-2xl border p-3">
+          <div className="overflow-hidden rounded-2xl border-2 border-slate-900 bg-slate-50 p-3">
             <ZoomableImage
               src={question.imageUrl}
               alt="Question illustration"
@@ -536,22 +523,22 @@ export default function QuizRunnerV2() {
 
         <div>
           {question.sharedInstruction && (
-            <div className="theme-accent-bg theme-border theme-accent-text mb-3 rounded-2xl border px-3 py-2 text-sm font-bold leading-relaxed">
-              <RichContent value={question.sharedInstruction} className="theme-accent-text text-sm font-bold leading-relaxed" />
+            <div className="mb-3 rounded-2xl border-2 border-slate-900 bg-orange-50 px-3 py-2 text-sm font-bold leading-relaxed text-slate-900">
+              <RichContent value={question.sharedInstruction} className="text-sm font-bold leading-relaxed text-slate-900" />
             </div>
           )}
-          <RichContent value={question.text} className="text-[17px] font-bold leading-relaxed" />
+          <RichContent value={question.text} className="text-[17px] font-bold leading-relaxed text-slate-900" />
           {question.diagramText && (
-            <p className="theme-bg-subtle theme-text-muted mt-2 rounded-xl px-3 py-2 text-xs font-bold leading-relaxed">{question.diagramText}</p>
+            <p className="mt-2 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold leading-relaxed text-slate-700">{question.diagramText}</p>
           )}
         </div>
 
         {isTextAnswerType(question.type) ? (
           <div className="space-y-3">
-            <div className={`overflow-hidden rounded-2xl border-2 ${checked && mode === 'practice'
-              ? aiResult.correct ? 'border-green-300' : 'border-orange-300'
-              : 'theme-border'}`}>
-              <div className="theme-border theme-bg-subtle theme-text-muted border-b px-4 py-2 text-sm">🤖 AI-checked answer</div>
+            <div className={`overflow-hidden rounded-2xl border-2 bg-white shadow-[0_2px_0_#0F1B2D] ${checked && mode === 'practice'
+              ? aiResult.correct ? 'border-emerald-600' : 'border-orange-500'
+              : 'border-slate-900'}`}>
+              <div className="border-b-2 border-slate-900 bg-orange-50 px-4 py-2 text-sm font-bold text-slate-900">🤖 AI-checked answer</div>
               <div className="flex items-center gap-2 p-3">
                 <input
                   type="text"
@@ -582,9 +569,9 @@ export default function QuizRunnerV2() {
                   }}
                   disabled={checking}
                   placeholder="Type your answer here..."
-                  className="theme-text flex-1 bg-transparent text-base font-semibold outline-none"
+                  className="flex-1 bg-transparent text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
                 />
-                {checking && <div className="h-5 w-5 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent" />}
+                {checking && <div className="h-5 w-5 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />}
                 {checked && mode === 'practice' && <span className="text-xl">{aiResult.correct ? '✅' : '❌'}</span>}
               </div>
             </div>
@@ -594,7 +581,7 @@ export default function QuizRunnerV2() {
                 type="button"
                 onClick={() => checkShortAnswer(question.id)}
                 disabled={!typed.trim() || checking}
-                className="theme-accent-fill theme-on-accent w-full rounded-2xl py-3.5 font-black transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:bg-[var(--border)] disabled:text-[var(--text-muted)]"
+                className="zx-sb zx-sb-primary w-full text-sm"
               >
                 {checking ? '🤖 AI is checking...' : mode === 'exam' ? '🤖 Save Answer' : '🤖 Check My Answer'}
               </button>
@@ -711,10 +698,10 @@ export default function QuizRunnerV2() {
       <SeoHelmet title={quiz?.title || 'Quiz'} path={`/quiz/${quizId}`} noIndex />
       {actionError && (
         <div className="fixed inset-x-4 top-4 z-[60] mx-auto max-w-md animate-slide-up">
-          <div className="flex items-start gap-3 rounded-2xl border-2 border-orange-300 bg-orange-50 px-4 py-3 text-orange-900 shadow-xl">
+          <div className="zx-card-shared flex items-start gap-3 bg-amber-50 px-4 py-3 text-slate-900">
             <span className="mt-0.5 text-lg">⚠️</span>
             <p className="flex-1 text-sm font-bold leading-snug">{actionError}</p>
-            <button type="button" onClick={() => setActionError('')} className="min-h-0 bg-transparent p-0 text-lg text-orange-700 shadow-none">×</button>
+            <button type="button" onClick={() => setActionError('')} className="min-h-0 bg-transparent p-0 text-lg text-slate-700 shadow-none">×</button>
           </div>
         </div>
       )}
@@ -737,48 +724,48 @@ export default function QuizRunnerV2() {
 
       {showSubmit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="theme-card theme-border w-full max-w-sm rounded-3xl border p-6 text-center shadow-2xl">
+          <div className="zx-card-shared w-full max-w-sm p-6 text-center">
             <div className="mb-3 text-5xl">📤</div>
-            <h2 className="mb-2 text-xl font-black">Submit Quiz?</h2>
+            <h2 className="mb-2 text-xl font-black text-slate-900">Submit Quiz?</h2>
             {questions.length - answered > 0 ? (
-              <p className="theme-text-muted mb-5 text-sm">You have <span className="font-black text-orange-500">{questions.length - answered} unanswered</span> — they&apos;ll be marked incorrect.</p>
+              <p className="mb-5 text-sm font-semibold text-slate-600">You have <span className="font-black text-orange-600">{questions.length - answered} unanswered</span> — they&apos;ll be marked incorrect.</p>
             ) : (
-              <p className="theme-text-muted mb-5 text-sm">All {questions.length} questions answered. Ready!</p>
+              <p className="mb-5 text-sm font-semibold text-slate-600">All {questions.length} questions answered. Ready!</p>
             )}
             <div className="flex gap-3">
-              <button type="button" onClick={() => setShowSubmit(false)} className="theme-border theme-text-muted flex-1 rounded-2xl border-2 py-3 font-bold">← Keep Going</button>
-              <button type="button" onClick={() => handleSubmit(false)} className="theme-accent-fill theme-on-accent flex-1 rounded-2xl py-3 font-black">Submit ✓</button>
+              <button type="button" onClick={() => setShowSubmit(false)} className="zx-sb zx-sb-secondary flex-1">← Keep Going</button>
+              <button type="button" onClick={() => handleSubmit(false)} className="zx-sb zx-sb-primary flex-1">Submit ✓</button>
             </div>
           </div>
         </div>
       )}
 
-      <div className="theme-hero sticky top-0 z-30 text-white shadow-sm">
+      <div className="zx-hero-strip sticky top-0 z-30">
         <div className="mx-auto max-w-5xl px-4 py-3">
           <div className="mb-3 flex items-center justify-between gap-3">
-            <span aria-hidden="true" className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-xl bg-white/20 text-xl ring-1 ring-white/30">
+            <span aria-hidden="true" className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-[14px] border-2 border-slate-900 bg-orange-100 text-xl">
               {mascot.emoji}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[11px] font-black uppercase tracking-wider text-white/65">{mascot.name}</p>
-              <p className="truncate text-xs font-bold text-white/70">{quiz.subject} · Grade {quiz.grade}</p>
-              <p className="truncate text-sm font-black leading-tight">{quiz.title}</p>
+              <span className="zx-eyebrow-shared">{mascot.name}</span>
+              <p className="truncate text-[11px] font-semibold text-slate-600">{quiz.subject} · Grade {quiz.grade}</p>
+              <p className="truncate text-sm font-black leading-tight text-slate-900">{quiz.title}</p>
             </div>
             <div className="flex items-center gap-2">
               {difficultyState === 'active' && (
-                <span className="rounded-full bg-amber-500/30 px-2.5 py-1 text-xs font-bold ring-1 ring-amber-200/40">🔥 Hard only</span>
+                <span className="zx-pill-dark zx-pill-orange">🔥 Hard only</span>
               )}
               {difficultyState === 'fallback' && (
-                <span className="rounded-full bg-white/20 px-2.5 py-1 text-xs font-bold ring-1 ring-white/30" title="No hard questions in this quiz — running the full quiz instead.">🔥 Full quiz</span>
+                <span className="zx-pill-dark zx-pill-light" title="No hard questions in this quiz — running the full quiz instead.">🔥 Full quiz</span>
               )}
-              {mode === 'exam' && <div className={`rounded-full px-3 py-1.5 text-sm font-black tabular-nums ${warn ? 'bg-red-500' : 'bg-white/20'}`}>⏱️ {fmt(timeLeft)}</div>}
-              {mode === 'practice' && <span className="rounded-full bg-white/20 px-2.5 py-1 text-xs font-bold">🌱 Practice</span>}
+              {mode === 'exam' && <div className={`zx-timer ${warn ? 'zx-timer-warn' : ''}`}>⏱️ {fmt(timeLeft)}</div>}
+              {mode === 'practice' && <span className="zx-pill-dark zx-pill-green">🌱 Practice</span>}
             </div>
           </div>
-          <div className="h-2 overflow-hidden rounded-full bg-white/20">
-            <div className="h-full rounded-full bg-[linear-gradient(90deg,#22c55e,#a3e635)] transition-all duration-500" style={{ width: `${progress}%` }} />
+          <div className="h-3 overflow-hidden rounded-full border-2 border-slate-900 bg-white">
+            <div className="h-full rounded-full bg-orange-500 transition-all duration-500" style={{ width: `${progress}%` }} />
           </div>
-          <div className="mt-1 flex justify-between text-[11px] font-bold text-white/65">
+          <div className="mt-1 flex justify-between text-[11px] font-bold text-slate-600">
             <span>{answered} answered</span>
             <span>{questions.length - answered} left</span>
           </div>
@@ -789,21 +776,21 @@ export default function QuizRunnerV2() {
         {activeSection.kind === 'passage' ? (
           <div className="grid gap-4 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
             <div className="lg:sticky lg:top-24 lg:self-start">
-              <div className="theme-card theme-border overflow-hidden rounded-[24px] border shadow-sm">
-                <div className="theme-accent-bg theme-border border-b px-5 py-4">
+              <div className="zx-card-shared overflow-hidden">
+                <div className="border-b-2 border-slate-900 bg-orange-50 px-5 py-4">
                   <div className="mb-2 flex flex-wrap items-center gap-2">
-                    <span className="theme-card theme-border theme-accent-text rounded-full border px-3 py-1 text-xs font-black">
+                    <span className="zx-pill-dark zx-pill-orange">
                       {activeSection.passage.passageKind === 'map' ? 'Map Questions' : 'Comprehension Passage'}
                     </span>
-                    <span className="theme-bg-subtle theme-text-muted rounded-full px-2.5 py-1 text-xs font-bold">{activeSection.questions.length} question{activeSection.questions.length === 1 ? '' : 's'}</span>
+                    <span className="zx-pill-dark zx-pill-light">{activeSection.questions.length} question{activeSection.questions.length === 1 ? '' : 's'}</span>
                   </div>
-                  {activeSection.passage.title && <h2 className="theme-text text-lg font-black">{activeSection.passage.title}</h2>}
+                  {activeSection.passage.title && <h2 className="text-lg font-black text-slate-900">{activeSection.passage.title}</h2>}
                   {activeSection.passage.instructions && (
-                    <RichContent value={activeSection.passage.instructions} className="theme-accent-text mt-2 text-sm font-bold" />
+                    <RichContent value={activeSection.passage.instructions} className="mt-2 text-sm font-bold text-slate-700" />
                   )}
                 </div>
                 {activeSection.passage.imageUrl && (
-                  <div className="theme-border theme-bg-subtle border-b p-4">
+                  <div className="border-b-2 border-slate-900 bg-slate-50 p-4">
                     <ZoomableImage
                       src={activeSection.passage.imageUrl}
                       alt="Passage illustration"
@@ -812,7 +799,7 @@ export default function QuizRunnerV2() {
                   </div>
                 )}
                 <div className="p-5">
-                  <RichContent value={activeSection.passage.passageText} className="text-sm leading-7" />
+                  <RichContent value={activeSection.passage.passageText} className="text-sm leading-7 text-slate-900" />
                 </div>
               </div>
             </div>
@@ -827,11 +814,11 @@ export default function QuizRunnerV2() {
         )}
       </div>
 
-      <div className="theme-card theme-border fixed bottom-0 left-0 right-0 z-30 border-t backdrop-blur safe-area-bottom">
+      <div className="zx-glass-bottom fixed bottom-0 left-0 right-0 z-30 safe-area-bottom">
         <div className="mx-auto max-w-5xl px-4 py-3">
           <div className="mb-2 flex items-center justify-between px-1">
-            <span className="theme-text-muted text-xs font-black">Section <span className="theme-accent-text">{activeSectionIndex + 1}</span> of {sections.length}</span>
-            <span className="theme-text-muted text-xs font-bold">{answered}/{questions.length} answered</span>
+            <span className="zx-pill-dark zx-pill-light">Section {activeSectionIndex + 1} / {sections.length}</span>
+            <span className="text-xs font-bold text-slate-700">{answered}/{questions.length} answered</span>
           </div>
           {sections.length <= 20 ? (
             <div className="mb-3 flex gap-1.5">
@@ -851,25 +838,24 @@ export default function QuizRunnerV2() {
                       setActiveSectionIndex(index)
                     }}
                     title={`Section ${index + 1}${complete ? ' ✓' : ''}${flaggedSection ? ' 🚩' : ''}`}
-                    className="min-h-0 flex-1 rounded-full transition-all"
+                    className="min-h-0 flex-1 rounded-full border-2 border-slate-900 transition-all"
                     style={{
-                      height: 8,
-                      background: current ? 'var(--accent)' : flaggedSection ? '#f59e0b' : complete ? 'var(--accent-bg)' : 'var(--border)',
-                      outline: current ? '2px solid var(--accent)' : 'none',
-                      outlineOffset: 1,
+                      height: 10,
+                      background: current ? '#FF7A1A' : flaggedSection ? '#FBBF24' : complete ? '#10B981' : '#fff',
+                      boxShadow: current ? '0 2px 0 #0F1B2D' : 'none',
                     }}
                   />
                 )
               })}
             </div>
           ) : (
-            <div className="theme-border mb-3 h-2 overflow-hidden rounded-full bg-[var(--border)]">
-              <div className="theme-accent-fill h-full rounded-full transition-all duration-300" style={{ width: `${sections.length ? Math.round(((activeSectionIndex + 1) / sections.length) * 100) : 0}%` }} />
+            <div className="mb-3 h-3 overflow-hidden rounded-full border-2 border-slate-900 bg-white">
+              <div className="h-full rounded-full bg-orange-500 transition-all duration-300" style={{ width: `${sections.length ? Math.round(((activeSectionIndex + 1) / sections.length) * 100) : 0}%` }} />
             </div>
           )}
 
           <div className="flex items-center justify-between gap-3">
-            <button type="button" onClick={() => setActiveSectionIndex(index => Math.max(0, index - 1))} disabled={activeSectionIndex === 0} className="theme-border theme-text-muted rounded-2xl border-2 px-5 py-2.5 text-sm font-bold disabled:opacity-35">
+            <button type="button" onClick={() => setActiveSectionIndex(index => Math.max(0, index - 1))} disabled={activeSectionIndex === 0} className="zx-sb zx-sb-secondary text-sm">
               ← Prev
             </button>
             {activeSectionIndex < sections.length - 1 ? (
@@ -882,12 +868,12 @@ export default function QuizRunnerV2() {
                   }
                   setActiveSectionIndex(index => index + 1)
                 }}
-                className="theme-accent-fill theme-on-accent rounded-2xl px-7 py-2.5 text-sm font-black shadow-[0_4px_14px_var(--shadow)]"
+                className="zx-sb zx-sb-primary text-sm"
               >
                 Next →
               </button>
             ) : (
-              <button type="button" onClick={() => setShowSubmit(true)} className="rounded-2xl bg-amber-400 px-7 py-2.5 text-sm font-black text-slate-900 shadow-[0_4px_14px_rgba(245,158,11,0.35)]">
+              <button type="button" onClick={() => setShowSubmit(true)} className="zx-sb zx-sb-amber text-sm">
                 Submit 🏁
               </button>
             )}

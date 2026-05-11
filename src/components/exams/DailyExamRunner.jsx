@@ -56,17 +56,10 @@ function OptionButton({ label, selected, onClick, disabled, children }) {
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`flex w-full items-center gap-3 rounded-2xl border-2 px-4 py-3 text-left transition-all ${
-        selected
-          ? 'border-[var(--accent)] theme-accent-bg theme-accent-text'
-          : 'theme-card theme-border theme-text hover:border-[var(--accent)] hover:theme-bg-subtle'
-      }`}
+      data-selected={selected ? 'true' : 'false'}
+      className="zx-opt"
     >
-      <span className={`flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-black ${
-        selected ? 'theme-accent-fill theme-on-accent' : 'theme-bg-subtle theme-text-muted'
-      }`}>
-        {label}
-      </span>
+      <span className="zx-opt-letter">{label}</span>
       <span className="flex-1 text-sm font-semibold leading-snug">{children}</span>
     </button>
   )
@@ -77,29 +70,23 @@ function OptionButton({ label, selected, onClick, disabled, children }) {
 function AlreadyDoneScreen({ attemptId, timeExpired }) {
   return (
     <div className="theme-bg flex min-h-screen items-center justify-center px-4">
-      <div className="theme-card theme-border w-full max-w-sm rounded-3xl border p-8 text-center shadow-xl">
+      <div className="zx-card-shared w-full max-w-sm p-8 text-center">
         <div className="mb-3 text-5xl">{timeExpired ? '⏰' : '✅'}</div>
-        <h2 className="mb-2 text-xl font-black theme-text">
+        <h2 className="mb-2 text-xl font-black text-slate-900">
           {timeExpired ? 'Time Expired' : 'Exam Submitted'}
         </h2>
-        <p className="theme-text-muted mb-6 text-sm">
+        <p className="mb-6 text-sm font-semibold text-slate-600">
           {timeExpired
             ? 'Your time ran out and the exam was auto-submitted.'
             : 'You have already completed today\'s exam for this subject.'}
         </p>
         <div className="flex flex-col gap-3">
           {attemptId && (
-            <Link
-              to={`/exam-results/${attemptId}`}
-              className="theme-accent-fill theme-on-accent w-full rounded-2xl py-3 text-sm font-black text-center hover:opacity-90 transition-opacity"
-            >
+            <Link to={`/exam-results/${attemptId}`} className="zx-sb zx-sb-primary w-full text-sm">
               📊 View Results & Leaderboard
             </Link>
           )}
-          <Link
-            to="/exams"
-            className="theme-border theme-text-muted w-full rounded-2xl border-2 py-3 text-sm font-black text-center hover:theme-bg-subtle transition-colors"
-          >
+          <Link to="/exams" className="zx-sb zx-sb-secondary w-full text-sm">
             ← All Daily Exams
           </Link>
         </div>
@@ -301,29 +288,23 @@ export default function DailyExamRunner() {
     const typed = shortText[question.id] ?? ''
 
     return (
-      <div key={question.id} className="theme-card theme-border theme-text space-y-4 rounded-[24px] border p-5 shadow-sm">
+      <div key={question.id} className="zx-card-shared space-y-4 p-5 text-slate-900">
         {/* Question header */}
         <div className="flex items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="theme-accent-bg theme-accent-text rounded-full px-3 py-1 text-xs font-black">
-              Q{question.questionNumber}
-            </span>
+            <span className="zx-pill-dark">Q{question.questionNumber}</span>
             {question.topic && (
-              <span className="theme-bg-subtle theme-text-muted rounded-full px-2.5 py-1 text-xs font-bold">
-                {question.topic}
-              </span>
+              <span className="zx-pill-dark zx-pill-light">{question.topic}</span>
             )}
             {question.marks > 1 && (
-              <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-bold text-orange-700">
-                {question.marks} marks
-              </span>
+              <span className="zx-pill-dark zx-pill-orange">{question.marks} marks</span>
             )}
           </div>
           <button
             type="button"
             onClick={() => setFlagged(prev => ({ ...prev, [question.id]: !prev[question.id] }))}
-            className={`rounded-full p-2 transition-colors ${
-              flagged[question.id] ? 'bg-amber-100 text-amber-700' : 'theme-bg-subtle theme-text-muted'
+            className={`grid h-9 w-9 place-items-center rounded-full border-2 border-slate-900 shadow-[0_2px_0_#0F1B2D] transition-colors ${
+              flagged[question.id] ? 'bg-amber-300' : 'bg-white'
             }`}
             title={flagged[question.id] ? 'Unflag' : 'Flag for review'}
           >
@@ -346,13 +327,13 @@ export default function DailyExamRunner() {
         {/* Question text */}
         <div>
           {question.sharedInstruction && (
-            <div className="theme-accent-bg theme-border theme-accent-text mb-3 rounded-2xl border px-3 py-2 text-sm font-bold leading-relaxed">
-              <RichContent value={question.sharedInstruction} className="theme-accent-text text-sm font-bold leading-relaxed" />
+            <div className="mb-3 rounded-2xl border-2 border-slate-900 bg-orange-50 px-3 py-2 text-sm font-bold leading-relaxed text-slate-900">
+              <RichContent value={question.sharedInstruction} className="text-sm font-bold leading-relaxed text-slate-900" />
             </div>
           )}
-          <RichContent value={question.text} className="text-[17px] font-bold leading-relaxed" />
+          <RichContent value={question.text} className="text-[17px] font-bold leading-relaxed text-slate-900" />
           {question.diagramText && (
-            <p className="theme-bg-subtle theme-text-muted mt-2 rounded-xl px-3 py-2 text-xs font-bold leading-relaxed">
+            <p className="mt-2 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold leading-relaxed text-slate-700">
               {question.diagramText}
             </p>
           )}
@@ -360,8 +341,8 @@ export default function DailyExamRunner() {
 
         {/* Answer input */}
         {isTextType(question.type) ? (
-          <div className="overflow-hidden rounded-2xl border-2 theme-border">
-            <div className="theme-border theme-bg-subtle theme-text-muted border-b px-4 py-2 text-sm font-bold">
+          <div className="overflow-hidden rounded-2xl border-2 border-slate-900 bg-white shadow-[0_2px_0_#0F1B2D]">
+            <div className="border-b-2 border-slate-900 bg-orange-50 px-4 py-2 text-sm font-bold text-slate-900">
               ✍️ Write your answer
             </div>
             <div className="p-3">
@@ -375,7 +356,7 @@ export default function DailyExamRunner() {
                   setAnswers(prev => ({ ...prev, [question.id]: val || undefined }))
                 }}
                 placeholder="Type your answer here…"
-                className="theme-text w-full bg-transparent text-base font-semibold outline-none"
+                className="w-full bg-transparent text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
               />
             </div>
           </div>
@@ -415,10 +396,10 @@ export default function DailyExamRunner() {
     return (
       <div className="theme-bg flex min-h-screen items-center justify-center px-4">
         <SeoHelmet title="Exam" path={`/exam/${examId}`} noIndex />
-        <div className="theme-card theme-border w-full max-w-sm rounded-3xl border p-8 text-center shadow-xl">
+        <div className="zx-card-shared w-full max-w-sm p-8 text-center">
           <div className="mb-3 text-4xl">😕</div>
           <p className="font-bold text-red-600 mb-4">{error}</p>
-          <Link to="/exams" className="theme-accent-fill theme-on-accent rounded-2xl px-5 py-2.5 font-bold text-sm inline-block">
+          <Link to="/exams" className="zx-sb zx-sb-primary text-sm">
             ← Back to Exams
           </Link>
         </div>
@@ -461,10 +442,10 @@ export default function DailyExamRunner() {
       {/* Action error toast */}
       {actionError && (
         <div className="fixed inset-x-4 top-4 z-[60] mx-auto max-w-md animate-slide-up">
-          <div className="flex items-start gap-3 rounded-2xl border-2 border-orange-300 bg-orange-50 px-4 py-3 text-orange-900 shadow-xl">
+          <div className="zx-card-shared flex items-start gap-3 bg-amber-50 px-4 py-3 text-slate-900">
             <span className="mt-0.5 text-lg">⚠️</span>
             <p className="flex-1 text-sm font-bold leading-snug">{actionError}</p>
-            <button type="button" onClick={() => setActionError('')} className="min-h-0 bg-transparent p-0 text-lg text-orange-700 shadow-none">×</button>
+            <button type="button" onClick={() => setActionError('')} className="min-h-0 bg-transparent p-0 text-lg text-slate-700 shadow-none">×</button>
           </div>
         </div>
       )}
@@ -472,33 +453,25 @@ export default function DailyExamRunner() {
       {/* Submit confirmation modal */}
       {showConfirm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="theme-card theme-border w-full max-w-sm rounded-3xl border p-6 text-center shadow-2xl">
+          <div className="zx-card-shared w-full max-w-sm p-6 text-center">
             <div className="mb-3 text-5xl">📤</div>
-            <h2 className="mb-2 text-xl font-black">Submit Exam?</h2>
+            <h2 className="mb-2 text-xl font-black text-slate-900">Submit Exam?</h2>
             {questions.length - answered > 0 ? (
-              <p className="theme-text-muted mb-5 text-sm">
+              <p className="mb-5 text-sm font-semibold text-slate-600">
                 You have{' '}
-                <span className="font-black text-orange-500">{questions.length - answered} unanswered</span>{' '}
+                <span className="font-black text-orange-600">{questions.length - answered} unanswered</span>{' '}
                 — they will be marked incorrect.
               </p>
             ) : (
-              <p className="theme-text-muted mb-5 text-sm">
+              <p className="mb-5 text-sm font-semibold text-slate-600">
                 All {questions.length} questions answered. Ready to submit?
               </p>
             )}
             <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setShowConfirm(false)}
-                className="theme-border theme-text-muted flex-1 rounded-2xl border-2 py-3 font-bold"
-              >
+              <button type="button" onClick={() => setShowConfirm(false)} className="zx-sb zx-sb-secondary flex-1">
                 ← Keep Going
               </button>
-              <button
-                type="button"
-                onClick={() => handleSubmit(false)}
-                className="theme-accent-fill theme-on-accent flex-1 rounded-2xl py-3 font-black"
-              >
+              <button type="button" onClick={() => handleSubmit(false)} className="zx-sb zx-sb-primary flex-1">
                 Submit ✓
               </button>
             </div>
@@ -506,30 +479,30 @@ export default function DailyExamRunner() {
         </div>
       )}
 
-      {/* Sticky header */}
-      <div className="theme-hero sticky top-0 z-30 text-white shadow-sm">
+      {/* Sticky header — game-themed white strip with navy border */}
+      <div className="zx-hero-strip sticky top-0 z-30">
         <div className="mx-auto max-w-5xl px-4 py-3">
           <div className="mb-3 flex items-center justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-bold text-white/70">
+              <span className="zx-eyebrow-shared">
                 {quiz?.subject} · Grade {quiz?.grade} · Daily Exam
-              </p>
-              <p className="truncate text-sm font-black leading-tight">{quiz?.title}</p>
+              </span>
+              <p className="truncate text-sm font-black leading-tight text-slate-900">{quiz?.title}</p>
             </div>
             {/* Timer — red when ≤ 60 s */}
-            <div className={`rounded-full px-3 py-1.5 text-sm font-black tabular-nums ${warn ? 'bg-red-500 animate-pulse' : 'bg-white/20'}`}>
+            <div className={`zx-timer ${warn ? 'zx-timer-warn' : ''}`}>
               ⏱️ {fmt(timeLeft)}
             </div>
           </div>
 
           {/* Progress bar */}
-          <div className="h-2 overflow-hidden rounded-full bg-white/20">
+          <div className="h-3 overflow-hidden rounded-full border-2 border-slate-900 bg-white">
             <div
-              className="h-full rounded-full bg-[linear-gradient(90deg,#22c55e,#a3e635)] transition-all duration-500"
+              className="h-full rounded-full bg-orange-500 transition-all duration-500"
               style={{ width: `${progress}%` }}
             />
           </div>
-          <div className="mt-1 flex justify-between text-[11px] font-bold text-white/65">
+          <div className="mt-1 flex justify-between text-[11px] font-bold text-slate-600">
             <span>{answered} answered</span>
             <span>{questions.length - answered} left</span>
           </div>
@@ -541,22 +514,22 @@ export default function DailyExamRunner() {
         {activeSection.kind === 'passage' ? (
           <div className="grid gap-4 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
             <div className="lg:sticky lg:top-24 lg:self-start">
-              <div className="theme-card theme-border overflow-hidden rounded-[24px] border shadow-sm">
-                <div className="theme-accent-bg theme-border border-b px-5 py-4">
+              <div className="zx-card-shared overflow-hidden">
+                <div className="border-b-2 border-slate-900 bg-orange-50 px-5 py-4">
                   {activeSection.passage.title && (
-                    <h2 className="theme-text text-lg font-black">{activeSection.passage.title}</h2>
+                    <h2 className="text-lg font-black text-slate-900">{activeSection.passage.title}</h2>
                   )}
                   {activeSection.passage.instructions && (
-                    <RichContent value={activeSection.passage.instructions} className="theme-accent-text mt-2 text-sm font-bold" />
+                    <RichContent value={activeSection.passage.instructions} className="mt-2 text-sm font-bold text-slate-700" />
                   )}
                 </div>
                 {activeSection.passage.imageUrl && (
-                  <div className="theme-border theme-bg-subtle border-b p-4">
+                  <div className="border-b-2 border-slate-900 bg-slate-50 p-4">
                     <img src={activeSection.passage.imageUrl} alt="Passage" className="max-h-72 w-full rounded-2xl object-contain" loading="lazy" />
                   </div>
                 )}
                 <div className="p-5">
-                  <RichContent value={activeSection.passage.passageText} className="text-sm leading-7" />
+                  <RichContent value={activeSection.passage.passageText} className="text-sm leading-7 text-slate-900" />
                 </div>
               </div>
             </div>
@@ -571,15 +544,15 @@ export default function DailyExamRunner() {
         )}
       </div>
 
-      {/* Fixed bottom nav */}
-      <div className="theme-card theme-border fixed bottom-0 left-0 right-0 z-30 border-t backdrop-blur safe-area-bottom">
+      {/* Fixed bottom action bar — glass strip */}
+      <div className="zx-glass-bottom fixed bottom-0 left-0 right-0 z-30 safe-area-bottom">
         <div className="mx-auto max-w-5xl px-4 py-3">
           {/* Section dots */}
           <div className="mb-2 flex items-center justify-between px-1">
-            <span className="theme-text-muted text-xs font-black">
-              Section <span className="theme-accent-text">{activeSectionIndex + 1}</span> of {sections.length}
+            <span className="zx-pill-dark zx-pill-light">
+              Section {activeSectionIndex + 1} / {sections.length}
             </span>
-            <span className="theme-text-muted text-xs font-bold">{answered}/{questions.length} answered</span>
+            <span className="text-xs font-bold text-slate-700">{answered}/{questions.length} answered</span>
           </div>
 
           {sections.length <= 20 ? (
@@ -601,21 +574,20 @@ export default function DailyExamRunner() {
                       }
                       setActiveSectionIndex(idx)
                     }}
-                    className="min-h-0 flex-1 rounded-full transition-all"
+                    className="min-h-0 flex-1 rounded-full border-2 border-slate-900 transition-all"
                     style={{
-                      height: 8,
-                      background: current ? 'var(--accent)' : isFlagged ? '#f59e0b' : complete ? 'var(--accent-bg)' : 'var(--border)',
-                      outline: current ? '2px solid var(--accent)' : 'none',
-                      outlineOffset: 1,
+                      height: 10,
+                      background: current ? '#FF7A1A' : isFlagged ? '#FBBF24' : complete ? '#10B981' : '#fff',
+                      boxShadow: current ? '0 2px 0 #0F1B2D' : 'none',
                     }}
                   />
                 )
               })}
             </div>
           ) : (
-            <div className="theme-border mb-3 h-2 overflow-hidden rounded-full bg-[var(--border)]">
+            <div className="mb-3 h-3 overflow-hidden rounded-full border-2 border-slate-900 bg-white">
               <div
-                className="theme-accent-fill h-full rounded-full transition-all duration-300"
+                className="h-full rounded-full bg-orange-500 transition-all duration-300"
                 style={{ width: `${sections.length ? Math.round(((activeSectionIndex + 1) / sections.length) * 100) : 0}%` }}
               />
             </div>
@@ -626,25 +598,17 @@ export default function DailyExamRunner() {
               type="button"
               onClick={() => setActiveSectionIndex(i => Math.max(0, i - 1))}
               disabled={activeSectionIndex === 0}
-              className="theme-border theme-text-muted rounded-2xl border-2 px-5 py-2.5 text-sm font-bold disabled:opacity-35"
+              className="zx-sb zx-sb-secondary text-sm"
             >
               ← Prev
             </button>
 
             {activeSectionIndex < sections.length - 1 ? (
-              <button
-                type="button"
-                onClick={tryNext}
-                className="theme-accent-fill theme-on-accent rounded-2xl px-7 py-2.5 text-sm font-black shadow-[0_4px_14px_var(--shadow)]"
-              >
+              <button type="button" onClick={tryNext} className="zx-sb zx-sb-primary text-sm">
                 Next →
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={() => setShowConfirm(true)}
-                className="rounded-2xl bg-amber-400 px-7 py-2.5 text-sm font-black text-slate-900 shadow-[0_4px_14px_rgba(245,158,11,0.35)]"
-              >
+              <button type="button" onClick={() => setShowConfirm(true)} className="zx-sb zx-sb-amber text-sm">
                 Submit 🏁
               </button>
             )}

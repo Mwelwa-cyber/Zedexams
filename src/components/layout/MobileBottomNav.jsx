@@ -17,8 +17,8 @@ const MOBILE_NAV_ITEMS = [
 export default function MobileBottomNav({ mode = 'fixed', className = '' }) {
   const { t } = useTranslation()
   const positionClass = mode === 'static'
-    ? 'md:hidden theme-card border-t theme-border shadow-elev-lg safe-area-bottom'
-    : 'md:hidden fixed bottom-0 left-0 right-0 z-30 theme-card border-t theme-border shadow-elev-lg safe-area-bottom'
+    ? 'md:hidden zx-glass-bottom safe-area-bottom'
+    : 'md:hidden fixed bottom-0 left-0 right-0 z-30 zx-glass-bottom safe-area-bottom'
 
   return (
     <nav className={`${positionClass} ${className}`} aria-label="Primary mobile navigation">
@@ -30,20 +30,16 @@ export default function MobileBottomNav({ mode = 'fixed', className = '' }) {
             end={item.end}
             className={({ isActive }) =>
               `flex-1 flex flex-col items-center gap-1 py-2 transition-all duration-base ease-out ${
-                isActive ? 'theme-accent-text' : 'learner-chrome-label hover:theme-accent-text'
+                isActive ? 'text-slate-900' : 'text-slate-700 hover:text-slate-900'
               }`
             }
           >
             {({ isActive }) => (
               <>
-                <span className={`inline-flex h-10 w-10 items-center justify-center rounded-2xl border leading-none shadow-elev-sm transition-all duration-base ease-spring ${
-                  isActive
-                    ? 'border-blue-200 bg-blue-50 text-blue-700'
-                    : 'border-transparent learner-chrome-icon'
-                }`}>
-                  <Icon as={item.icon} size="md" strokeWidth={2.1} />
+                <span className={isActive ? 'zx-nav-pill-active' : 'zx-nav-pill-idle'}>
+                  <Icon as={item.icon} size="md" strokeWidth={2.2} />
                 </span>
-                <span className={`text-xs font-bold ${isActive ? 'font-black' : ''}`}>{t(item.labelKey)}</span>
+                <span className={`text-[11px] font-bold ${isActive ? 'font-black' : ''}`}>{t(item.labelKey)}</span>
               </>
             )}
           </NavLink>

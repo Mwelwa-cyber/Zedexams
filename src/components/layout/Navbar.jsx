@@ -68,11 +68,11 @@ export default function Navbar() {
 
   return (
     <>
-    <nav className="theme-card border-b theme-border shadow-elev-md sticky top-0 z-40 backdrop-blur-md" style={{ backgroundColor: 'color-mix(in srgb, var(--card) 92%, transparent)' }}>
+    <nav className="zx-glass-nav sticky top-0 z-40">
       <div className="max-w-5xl mx-auto px-4 h-20 flex items-center justify-between gap-4">
 
-        {/* Logo */}
-        <Link to={homePath} className="flex items-center min-h-0 flex-shrink-0">
+        {/* Logo (glass pill) */}
+        <Link to={homePath} className="zx-logo-pill flex-shrink-0">
           <Logo variant="full" size="md" />
         </Link>
 
