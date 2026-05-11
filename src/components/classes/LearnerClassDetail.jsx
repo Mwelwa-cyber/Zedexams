@@ -71,11 +71,13 @@ export default function LearnerClassDetail() {
       if (!row) { setErrored(true); return }
       // Membership check (defence-in-depth — rules already block but a
       // teacher visiting their own class via this learner route should
-      // bounce too).
-      const isMember = Array.isArray(row.learners) && row.learners.includes(currentUser?.uid)
-      if (!isMember) { setRedirectAway(true); return }
-      setKlass(row)
-      const summaries = await fetchMemberDisplayNames(row.learners || [])
+      // bounce too). Pending learners are allowed through to see the
+      // "awaiting approval" state.
+      const isApproved = Array.isArray(row.learners) && row.learners.includes(currentUser?.uid)
+      const isPending = Array.isArray(row.pendingLearners) && row.pendingLearners.includes(currentUser?.uid)
+      if (!isApproved && !isPending) { setRedirectAway(true); return }
+      setKlass({ ...row, _membership: isApproved ? 'approved' : 'pending' })
+      const summaries = isApproved ? await fetchMemberDisplayNames(row.learners || []) : []
       setMembers(summaries)
       // Best-effort teacher displayName lookup. Fails silently if
       // rules block (which they will for non-admin learners reading
@@ -177,6 +179,19 @@ export default function LearnerClassDetail() {
           </div>
         )}
 
+        {klass._membership === 'pending' && (
+          <section className="theme-card border-2 border-amber-300 bg-amber-50 rounded-radius-md p-4">
+            <p className="text-amber-900 font-black text-sm flex items-center gap-2">
+              <span aria-hidden="true">⏳</span> Awaiting teacher approval
+            </p>
+            <p className="text-amber-900/80 text-sm mt-1.5 leading-relaxed">
+              You&apos;ve been added to the join queue for this class.
+              {teacher?.displayName ? ` ${teacher.displayName}` : ' Your teacher'} will see your request and approve it. Class
+              assignments will show up here once you&apos;re approved.
+            </p>
+          </section>
+        )}
+
         {klass.description && (
           <section className="theme-card border theme-border rounded-radius-md p-4">
             <p className="theme-text-muted text-xs font-black uppercase tracking-widest mb-1.5">From your teacher</p>
@@ -184,35 +199,39 @@ export default function LearnerClassDetail() {
           </section>
         )}
 
-        {/* Classmates — names only, no emails (privacy). */}
-        <section className="theme-card border theme-border rounded-radius-md overflow-hidden">
-          <div className="p-4 border-b theme-border">
-            <p className="theme-text font-black text-sm">Classmates ({members.length})</p>
-          </div>
-          {members.length === 0 ? (
-            <div className="p-6 text-center text-sm theme-text-muted">No classmates yet — you&apos;re first in!</div>
-          ) : (
-            <ul className="divide-y divide-current/10">
-              {members.map((m) => (
-                <li key={m.uid} className="flex items-center gap-3 p-4">
-                  <div className="flex-shrink-0 w-9 h-9 rounded-full theme-bg-subtle flex items-center justify-center text-sm font-black theme-text">
-                    {(m.displayName || '?').slice(0, 1).toUpperCase()}
-                  </div>
-                  <p className="theme-text font-bold text-sm">
-                    {m.displayName || (
-                      m.uid === currentUser?.uid ? 'You' : <span className="theme-text-muted italic">Classmate</span>
-                    )}
-                    {m.uid === currentUser?.uid && m.displayName && (
-                      <span className="ml-2 text-[10px] font-black uppercase tracking-wider theme-bg-subtle theme-text-muted px-2 py-0.5 rounded-full">
-                        You
-                      </span>
-                    )}
-                  </p>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        {/* Classmates — names only, no emails (privacy). Hidden while
+            the learner is pending approval (they're not in the class
+            yet, so they shouldn't see the roster). */}
+        {klass._membership === 'approved' && (
+          <section className="theme-card border theme-border rounded-radius-md overflow-hidden">
+            <div className="p-4 border-b theme-border">
+              <p className="theme-text font-black text-sm">Classmates ({members.length})</p>
+            </div>
+            {members.length === 0 ? (
+              <div className="p-6 text-center text-sm theme-text-muted">No classmates yet — you&apos;re first in!</div>
+            ) : (
+              <ul className="divide-y divide-current/10">
+                {members.map((m) => (
+                  <li key={m.uid} className="flex items-center gap-3 p-4">
+                    <div className="flex-shrink-0 w-9 h-9 rounded-full theme-bg-subtle flex items-center justify-center text-sm font-black theme-text">
+                      {(m.displayName || '?').slice(0, 1).toUpperCase()}
+                    </div>
+                    <p className="theme-text font-bold text-sm">
+                      {m.displayName || (
+                        m.uid === currentUser?.uid ? 'You' : <span className="theme-text-muted italic">Classmate</span>
+                      )}
+                      {m.uid === currentUser?.uid && m.displayName && (
+                        <span className="ml-2 text-[10px] font-black uppercase tracking-wider theme-bg-subtle theme-text-muted px-2 py-0.5 rounded-full">
+                          You
+                        </span>
+                      )}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+        )}
 
         {/* Leave action */}
         <section className="border-t theme-border pt-4 flex justify-end">
@@ -222,7 +241,7 @@ export default function LearnerClassDetail() {
             disabled={busy}
             className="text-xs font-bold text-rose-700 hover:underline disabled:opacity-50"
           >
-            {busy ? 'Leaving…' : 'Leave this class'}
+            {busy ? 'Leaving…' : klass._membership === 'pending' ? 'Cancel request' : 'Leave this class'}
           </button>
         </section>
       </div>

@@ -33,6 +33,8 @@ const fns = getFunctions(app, 'us-central1')
 
 const generateClassInviteCallable = httpsCallable(fns, 'generateClassInvite')
 const joinClassByCodeCallable = httpsCallable(fns, 'joinClassByCode')
+const approveLearnerCallable = httpsCallable(fns, 'approveLearner')
+const declineLearnerCallable = httpsCallable(fns, 'declineLearner')
 const removeLearnerFromClassCallable = httpsCallable(fns, 'removeLearnerFromClass')
 const leaveClassCallable = httpsCallable(fns, 'leaveClass')
 
@@ -50,17 +52,54 @@ export async function listTeacherClasses(teacherUid, { includeArchived = false, 
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
 }
 
-/** List the active classes a learner belongs to. */
+/**
+ * List the active classes a learner belongs to. Includes both
+ * approved memberships (`learners` array) and pending memberships
+ * (`pendingLearners` array) so a learner can see the "awaiting
+ * approval" status without losing track of the class. Each row gets
+ * a synthetic `membership` field: 'approved' | 'pending'.
+ *
+ * Firestore doesn't support OR across array-contains on two fields
+ * in a single query, so we run two parallel queries and merge.
+ */
 export async function listLearnerClasses(learnerUid, { limit = 50 } = {}) {
-  const q = query(
+  const baseFilters = [where('active', '==', true), orderBy('updatedAt', 'desc'), fsLimit(limit)]
+  const approvedQ = query(
     collection(db, COLLECTION),
     where('learners', 'array-contains', learnerUid),
-    where('active', '==', true),
-    orderBy('updatedAt', 'desc'),
-    fsLimit(limit),
+    ...baseFilters,
   )
-  const snap = await getDocs(q)
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+  const pendingQ = query(
+    collection(db, COLLECTION),
+    where('pendingLearners', 'array-contains', learnerUid),
+    ...baseFilters,
+  )
+  const [approvedSnap, pendingSnap] = await Promise.all([
+    getDocs(approvedQ),
+    getDocs(pendingQ).catch((err) => {
+      // The composite index for pendingLearners may not be deployed
+      // yet. Degrade gracefully — approved classes still render, and
+      // pending learners can still navigate to the class detail page
+      // directly via the join confirmation.
+      console.warn('[classes] pending listing failed (index missing?)', err)
+      return { docs: [] }
+    }),
+  ])
+  const seen = new Set()
+  const rows = []
+  for (const d of approvedSnap.docs) {
+    seen.add(d.id)
+    rows.push({ id: d.id, ...d.data(), membership: 'approved' })
+  }
+  for (const d of pendingSnap.docs) {
+    if (seen.has(d.id)) continue
+    rows.push({ id: d.id, ...d.data(), membership: 'pending' })
+  }
+  return rows.sort((a, b) => {
+    const at = a.updatedAt?.toMillis?.() || 0
+    const bt = b.updatedAt?.toMillis?.() || 0
+    return bt - at
+  })
 }
 
 export async function getClass(classId) {
@@ -140,11 +179,35 @@ export async function generateClassInvite(classId) {
  * Learner submits an invite code. The Cloud Function:
  *   - resolves classInvites/{code} → classId (or rejects)
  *   - checks the class is active and under the 200-learner cap
- *   - adds the learner uid to classes/{classId}.learners via admin SDK
- * Returns `{ classId, name, teacherDisplayName }` on success.
+ *   - adds the learner uid to classes/{classId}.pendingLearners via
+ *     admin SDK; the teacher must call approveLearner before the
+ *     learner appears in the live roster
+ * Returns `{ classId, name, teacherDisplayName, status }` on success
+ * where status is 'pending' or 'approved' (the latter when the
+ * learner was already approved on a prior join).
  */
 export async function joinClassByCode(code) {
   const result = await joinClassByCodeCallable({ code })
+  return result.data
+}
+
+/**
+ * Teacher approves a pending learner — Cloud Function moves the uid
+ * from pendingLearners → learners atomically. Owner-only.
+ */
+export async function approveLearner({ classId, learnerUid }) {
+  const result = await approveLearnerCallable({ classId, learnerUid })
+  return result.data
+}
+
+/**
+ * Teacher declines a pending learner — Cloud Function removes the
+ * uid from pendingLearners without adding it to learners. The
+ * learner can re-join later if the teacher shares the code again.
+ * Owner-only.
+ */
+export async function declineLearner({ classId, learnerUid }) {
+  const result = await declineLearnerCallable({ classId, learnerUid })
   return result.data
 }
 

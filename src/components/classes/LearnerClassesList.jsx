@@ -20,21 +20,35 @@ function ClassCard({ klass, currentUid }) {
   const learners = Array.isArray(klass.learners) ? klass.learners : []
   const memberCount = learners.length
   const isOnlyMember = memberCount === 1 && currentUid && learners[0] === currentUid
+  const isPending = klass.membership === 'pending'
   return (
     <Link
       to={`/classes/${klass.id}`}
-      className="theme-card border theme-border rounded-radius-md p-4 flex items-start gap-3 hover:theme-bg-subtle transition-colors"
+      className={`theme-card border rounded-radius-md p-4 flex items-start gap-3 hover:theme-bg-subtle transition-colors ${
+        isPending ? 'border-amber-300 bg-amber-50/40' : 'theme-border'
+      }`}
     >
       <SubjectIcon subject={subjectMeta} size="sm" className="flex-shrink-0" />
       <div className="flex-1 min-w-0">
-        <p className="theme-text font-black text-sm truncate">{klass.name}</p>
+        <p className="theme-text font-black text-sm truncate flex items-center gap-2">
+          {klass.name}
+          {isPending && (
+            <span className="text-[10px] font-black uppercase tracking-wider bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full">
+              Pending
+            </span>
+          )}
+        </p>
         <p className="theme-text-muted text-xs mt-1">
           Grade {klass.grade}
           {subjectMeta ? ` · ${subjectMeta.label}` : ''}
           {klass.school ? ` · ${klass.school}` : ''}
         </p>
         <p className="theme-text-muted text-[11px] mt-1">
-          {isOnlyMember ? 'Just you so far' : `${memberCount} learner${memberCount === 1 ? '' : 's'}`}
+          {isPending
+            ? 'Waiting for teacher approval'
+            : isOnlyMember
+              ? 'Just you so far'
+              : `${memberCount} learner${memberCount === 1 ? '' : 's'}`}
         </p>
       </div>
       <span className="theme-accent-text text-xs font-black uppercase tracking-wider self-center">Open →</span>
