@@ -69,9 +69,13 @@ service cloud.firestore {
         // Where the question image sits ('above' | 'below' | 'left' | 'right' | 'inline').
         // Null/absent on legacy docs → renderer falls back to 'above'.
         && (!('imagePosition' in incoming()) || incoming().imagePosition == null || (incoming().imagePosition is string && incoming().imagePosition.size() <= 16))
+        // Library-diagram reference for the question image slot. Per-element
+        // shape ({ libraryKey, params }) is enforced by the Zod schema
+        // client-side, same convention used by `parts` and `optionMedia`.
+        && (!('imageDiagram' in incoming()) || incoming().imageDiagram == null || incoming().imageDiagram is map)
         // Parallel media array aligned with options[i]. Per-element shape
-        // ({ imageUrl, alt }) is enforced by the Zod schema client-side, same
-        // convention used by `parts` above.
+        // ({ imageUrl?, diagram?, alt }) is enforced by the Zod schema
+        // client-side, same convention used by `parts` above.
         && (!('optionMedia' in incoming()) || (incoming().optionMedia is list && incoming().optionMedia.size() <= 20))
         // Review flags (written by the AI importer).
         && (!('requiresReview' in incoming()) || incoming().requiresReview is bool)

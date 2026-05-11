@@ -50,16 +50,19 @@ export function validateStandaloneQuestion(question, label, { onError } = {}) {
       const text = String(question.options[i] || '').trim()
       const slot = media[i]
       const hasImage = Boolean(slot && slot.imageUrl)
-      const hasAlt = hasImage && String(slot.alt || '').trim().length > 0
-      // An option is valid if it has text, OR an image with alt text.
-      // Alt text is mandatory when an image is present — both for screen
-      // readers and so the AI grader knows what the image represents.
-      if (!text && !hasImage) {
+      const hasDiagram = Boolean(slot && slot.diagram && slot.diagram.libraryKey)
+      const hasMedia = hasImage || hasDiagram
+      const hasAlt = hasMedia && String(slot.alt || '').trim().length > 0
+      // An option is valid if it has text, OR media (image / library diagram)
+      // with alt text. Alt text is mandatory when any media is present — both
+      // for screen readers and so the AI grader knows what it represents.
+      if (!text && !hasMedia) {
         notify(`${label} has empty options.`)
         return false
       }
-      if (hasImage && !hasAlt) {
-        notify(`${label} option ${OPTION_LETTERS[i] || i + 1} has an image — add an alt-text description.`)
+      if (hasMedia && !hasAlt) {
+        const kind = hasDiagram && !hasImage ? 'diagram' : 'image'
+        notify(`${label} option ${OPTION_LETTERS[i] || i + 1} has ${kind === 'diagram' ? 'a diagram' : 'an image'} — add an alt-text description.`)
         return false
       }
     }

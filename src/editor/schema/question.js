@@ -73,6 +73,30 @@ export const tiptapDoc = z
   })
   .nullable()
 
+// ── Diagram-library reference shape ───────────────────────────────
+
+/**
+ * A reference to a parametrised diagram in the catalog
+ * (src/components/diagrams/diagramCatalog.js). The renderer looks up the
+ * entry by `libraryKey` and merges these `params` on top of the entry's
+ * defaults. Stored as pure data so the teacher can re-open the picker
+ * later and tweak labels.
+ *
+ * Why not store an SVG string? Two reasons:
+ *   1. Catalog entries can be improved (better strokes, fixed bugs in the
+ *      SVG markup) and every saved diagram benefits without a re-save.
+ *   2. The teacher can re-edit labels without re-picking the shape.
+ */
+export const diagramRef = z
+  .object({
+    libraryKey: z.string().min(1).max(40),
+    // Param values are free-form strings — the catalog render functions
+    // coerce numerics as needed (e.g. parseFloat for number-line bounds).
+    // Cap each value so a pasted essay can't bloat the doc.
+    params: z.record(z.string().max(64), z.string().max(2000)).default({}),
+  })
+  .strict()
+
 // ── Question shape ────────────────────────────────────────────────
 
 const QUESTION_TYPES = ['mcq', 'tf', 'short_answer', 'diagram', 'fill', 'short']
@@ -127,18 +151,26 @@ export const questionSchema = z
     // option is text-only (the original shape). Stored as a separate array so
     // every existing reader of `options[i]` (the AI grader, Firestore rules,
     // the editor's text inputs) keeps working untouched. Renderers that opt
-    // into image options read `optionMedia[i]` alongside `options[i]`.
+    // into media options read `optionMedia[i]` alongside `options[i]`.
     //
-    // `alt` is required whenever an image is set — accessibility plus the
-    // grader uses it to know what the option represents.
+    // Each slot may hold an uploaded `imageUrl` (PR1), a library `diagram`
+    // (PR2), or both (the renderer prefers the diagram if present). `alt` is
+    // required whenever any media is set — accessibility plus the grader
+    // uses it to know what the option represents.
     optionMedia: z
       .array(
         z.union([
           z.null(),
           z.object({
-            imageUrl: z.string().min(1).max(2000),
+            imageUrl: z.string().min(1).max(2000).optional(),
+            diagram: diagramRef.optional(),
             alt: z.string().min(1).max(2000),
-          }).strict(),
+          })
+            .strict()
+            .refine(
+              o => Boolean(o.imageUrl) || Boolean(o.diagram),
+              { message: 'Option media needs either an imageUrl or a diagram' },
+            ),
         ])
       )
       .max(20)
@@ -155,6 +187,11 @@ export const questionSchema = z
     // ── Misc ──
     passageId: z.string().nullable().default(null),
     imageUrl: z.string().nullable().default(null),
+    // A library-diagram alternative to `imageUrl`. The two are not mutually
+    // exclusive at the schema level — the renderer prefers the diagram when
+    // both are set. Legacy docs have no `imageDiagram` field; renderer falls
+    // back to `imageUrl`-only behaviour.
+    imageDiagram: diagramRef.nullable().default(null),
     // Where the question's image sits relative to the question text.
     // `null` (or absent on legacy docs) → renderer falls back to 'above',
     // which is the only behaviour that existed before this field was added.
