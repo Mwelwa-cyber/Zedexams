@@ -4,14 +4,18 @@ import { useAuth } from '../../contexts/AuthContext'
 import UpgradeModal from '../subscription/UpgradeModal'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
+import PageLoader from '../ui/PageLoader'
 import { Sparkles, ArrowLeft } from '../ui/icons'
 
 export default function LearnerOnlyRoute({ children }) {
-  const { userProfile, isAdmin, isLearner, canAccessLearnerPortal } = useAuth()
+  const { userProfile, loading, isAdmin, isLearner, canAccessLearnerPortal } = useAuth()
   const navigate = useNavigate()
   const [showUpgrade, setShowUpgrade] = useState(true)
 
-  if (!userProfile) return children
+  // Wait for the profile to load before evaluating role — otherwise a teacher
+  // (or any non-learner) briefly renders the learner-only children while
+  // userProfile is still null.
+  if (loading || !userProfile) return <PageLoader />
 
   // Admins and learners always pass through.
   if (isAdmin || isLearner) return children

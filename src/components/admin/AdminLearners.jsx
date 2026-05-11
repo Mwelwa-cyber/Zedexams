@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
 import { Search, Download, ChevronLeft, ChevronRight, Users } from '../ui/icons'
-import { useFirestore } from '../../hooks/useFirestore'
+import { useFirestore, ADMIN_QUERY_LIMIT } from '../../hooks/useFirestore'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
 import { downloadCSV } from '../../utils/csvExport'
@@ -104,7 +104,7 @@ export default function AdminLearners() {
   }, [results])
 
   const learners = useMemo(
-    () => users.filter(u => u.role === 'learner' || u.role === 'student' || !u.role),
+    () => users.filter(u => u.role === 'learner' || u.role === 'student'),
     [users],
   )
 
@@ -225,6 +225,20 @@ export default function AdminLearners() {
           Registered learners, their tests, and performance at a glance.
         </p>
       </div>
+
+      {/* Capped-result warning — totals and pagination only reflect the first
+          ADMIN_QUERY_LIMIT rows once either collection hits the cap. */}
+      {!loading && (users.length >= ADMIN_QUERY_LIMIT || results.length >= ADMIN_QUERY_LIMIT) && (
+        <div className="rounded-2xl border border-yellow-200 bg-yellow-50 text-yellow-800 p-3 text-xs font-bold">
+          Showing only the most recent {ADMIN_QUERY_LIMIT.toLocaleString()}{' '}
+          {users.length >= ADMIN_QUERY_LIMIT && results.length >= ADMIN_QUERY_LIMIT
+            ? 'users and results'
+            : users.length >= ADMIN_QUERY_LIMIT
+              ? 'users'
+              : 'results'}.
+          Summary stats, search and pagination only reflect this window.
+        </div>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
