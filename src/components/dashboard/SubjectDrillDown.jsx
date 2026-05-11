@@ -273,6 +273,26 @@ export default function SubjectDrillDown() {
   const profileGrade = userProfile?.grade ? String(userProfile.grade) : null
   const isOwnGrade = profileGrade && profileGrade === grade
 
+  // CBC exam policy: a learner may revise their own grade and grades below,
+  // but never above. If the URL points to a higher grade, send them back to
+  // their own dashboard rather than leak quizzes from a future grade.
+  if (profileGrade && Number(grade) > Number(profileGrade)) {
+    return (
+      <div className="min-h-screen theme-bg flex items-center justify-center p-4">
+        <div className="zx-card theme-card rounded-3xl border theme-border p-6 max-w-md text-center">
+          <div className="text-3xl mb-2">🔒</div>
+          <p className="font-black theme-text mb-1">Grade {grade} isn&rsquo;t open yet</p>
+          <p className="theme-text-muted text-sm mb-4">
+            You can revise your own grade and any grade below. Grade {grade} quizzes unlock once you move up.
+          </p>
+          <Link to="/dashboard" className="inline-flex items-center gap-1 rounded-full theme-accent-fill theme-on-accent px-4 py-2 text-sm font-black">
+            <Icon as={ArrowLeftIcon} size="xs" /> Back to dashboard
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="learner-game-theme min-h-screen theme-bg flex flex-col">
       <SeoHelmet
