@@ -28,6 +28,8 @@ import {
   CheckBadgeIcon,
   CheckCircleIcon,
   CheckIcon,
+  ChevronDoubleLeftIcon,
+  ChevronDoubleRightIcon,
   ChevronDownIcon,
   ChevronLeftIcon,
   ChevronRightIcon,
@@ -199,6 +201,8 @@ const ChevronDown = withSize(ChevronDownIcon)
 const ChevronLeft = withSize(ChevronLeftIcon)
 const ChevronRight = withSize(ChevronRightIcon)
 const ChevronUp = withSize(ChevronUpIcon)
+const ChevronsLeft = withSize(ChevronDoubleLeftIcon)
+const ChevronsRight = withSize(ChevronDoubleRightIcon)
 const Sprout = withSize(CircleStackIcon)
 const Clock = withSize(ClockIcon)
 const ListChecks = withSize(ClipboardDocumentCheckIcon)
@@ -321,6 +325,8 @@ export {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
+  ChevronsLeft,
+  ChevronsRight,
   Sprout,
   Clock,
   ListChecks,
