@@ -55,12 +55,21 @@ export default function LearnerClassJoin() {
     setFeedback(null)
     try {
       const result = await joinClassByCode(cleaned)
-      const message = result?.alreadyMember
-        ? `You were already in ${result.name}.`
-        : `Welcome to ${result.name}!${result.teacherDisplayName ? ` ${result.teacherDisplayName} can now share class quizzes with you.` : ''}`
+      const teacherLabel = result?.teacherDisplayName || 'your teacher'
+      let message
+      if (result?.status === 'approved') {
+        message = result.alreadyMember
+          ? `You were already in ${result.name}.`
+          : `Welcome to ${result.name}! ${teacherLabel} can now share class quizzes with you.`
+      } else {
+        // status === 'pending' (the default for a fresh join)
+        message = result?.alreadyMember
+          ? `Your request to join ${result.name} is still waiting on ${teacherLabel}.`
+          : `Request sent! ${teacherLabel} will approve you for ${result.name} shortly.`
+      }
       setFeedback({ kind: 'ok', text: message })
       // Brief delay so the success toast is readable before the route change.
-      setTimeout(() => navigate(`/classes/${result.classId}`), 700)
+      setTimeout(() => navigate(`/classes/${result.classId}`), 1100)
     } catch (err) {
       console.warn('[LearnerClassJoin] join failed', err)
       setFeedback({ kind: 'err', text: err?.message || 'We couldn\'t join you to that class. Check the code and try again.' })

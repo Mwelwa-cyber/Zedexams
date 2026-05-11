@@ -104,6 +104,8 @@ const {aiCostDailySummary} = require("./aiCostDailySummary");
 const {
   generateClassInvite,
   joinClassByCode,
+  approveLearner,
+  declineLearner,
   removeLearnerFromClass,
   leaveClass,
   createClassAssignment,
@@ -1818,11 +1820,14 @@ exports.updatePublicStats = updatePublicStatsCron;
 
 // Audit A10 — teacher classroom roster.
 // generateClassInvite mints + rotates an 8-char join code (admin SDK).
-// joinClassByCode adds the calling learner to classes/{classId}.learners
-// after validating the code; bypasses the teacher-owner-only update rule.
+// joinClassByCode adds the calling learner to classes/{classId}.pendingLearners
+// after validating the code; teacher then promotes via approveLearner /
+// rejects via declineLearner. Bypasses the teacher-owner-only update rule.
 // removeLearnerFromClass is the teacher-side counterpart for kicking.
 exports.generateClassInvite = generateClassInvite;
 exports.joinClassByCode = joinClassByCode;
+exports.approveLearner = approveLearner;
+exports.declineLearner = declineLearner;
 exports.removeLearnerFromClass = removeLearnerFromClass;
 exports.leaveClass = leaveClass;
 // A10 PR 3 — assignments. Validate caller owns the class, denormalise

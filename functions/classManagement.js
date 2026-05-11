@@ -1,7 +1,7 @@
 /**
  * Teacher classroom roster — server-side flows (audit A10).
  *
- * Three callables:
+ * Callables:
  *
  *   generateClassInvite({ classId })
  *     - Owner-only. Rotates the previous code (if any), mints a fresh
@@ -13,9 +13,19 @@
  *   joinClassByCode({ code })
  *     - Any signed-in learner. Resolves the code, validates that the
  *       class is active and under the 200-learner cap, then writes
- *       the learner's uid into classes/{classId}.learners via admin
- *       SDK so a tampered client can't add someone else.
- *     - Returns { classId, name, teacherDisplayName }.
+ *       the learner's uid into classes/{classId}.pendingLearners via
+ *       admin SDK so a tampered client can't add someone else. The
+ *       teacher must then approve via approveLearner before the
+ *       learner is moved into the live `learners` roster.
+ *     - Returns { classId, name, teacherDisplayName, status }.
+ *
+ *   approveLearner({ classId, learnerUid })
+ *     - Owner-only. Moves a learner uid from pendingLearners → learners.
+ *
+ *   declineLearner({ classId, learnerUid })
+ *     - Owner-only. Removes a learner uid from pendingLearners (no
+ *       move to learners). The learner can re-join later if the
+ *       teacher shares the code again.
  *
  *   removeLearnerFromClass({ classId, learnerUid })
  *     - Owner-only. Removes a learner from the roster. Mostly a
@@ -157,21 +167,7 @@ const joinClassByCode = onCall({
   }
 
   const learners = Array.isArray(classData.learners) ? classData.learners : [];
-  if (learners.includes(uid)) {
-    return {
-      classId: classRef.id,
-      name: classData.name || "Class",
-      alreadyMember: true,
-    };
-  }
-  if (learners.length >= MAX_LEARNERS_PER_CLASS) {
-    throw new HttpsError("resource-exhausted", "This class is full. Ask your teacher for help.");
-  }
-
-  await classRef.update({
-    learners: admin.firestore.FieldValue.arrayUnion(uid),
-    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-  });
+  const pendingLearners = Array.isArray(classData.pendingLearners) ? classData.pendingLearners : [];
 
   // Best-effort lookup of the teacher's display name to surface in
   // the success toast. Falls back gracefully if the read fails.
@@ -183,12 +179,97 @@ const joinClassByCode = onCall({
     console.warn("[classManagement] teacher displayName lookup failed", err);
   }
 
+  if (learners.includes(uid)) {
+    return {
+      classId: classRef.id,
+      name: classData.name || "Class",
+      teacherDisplayName,
+      status: "approved",
+      alreadyMember: true,
+    };
+  }
+  if (pendingLearners.includes(uid)) {
+    return {
+      classId: classRef.id,
+      name: classData.name || "Class",
+      teacherDisplayName,
+      status: "pending",
+      alreadyMember: true,
+    };
+  }
+  if (learners.length + pendingLearners.length >= MAX_LEARNERS_PER_CLASS) {
+    throw new HttpsError("resource-exhausted", "This class is full. Ask your teacher for help.");
+  }
+
+  await classRef.update({
+    pendingLearners: admin.firestore.FieldValue.arrayUnion(uid),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+
   return {
     classId: classRef.id,
     name: classData.name || "Class",
     teacherDisplayName,
+    status: "pending",
     alreadyMember: false,
   };
+});
+
+const approveLearner = onCall({
+  region: REGION,
+  timeoutSeconds: 30,
+  memory: "256MiB",
+}, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+  const classId = String(request.data?.classId || "").trim();
+  const learnerUid = String(request.data?.learnerUid || "").trim();
+  if (!classId || !learnerUid) {
+    throw new HttpsError("invalid-argument", "classId and learnerUid are required.");
+  }
+
+  const db = admin.firestore();
+  const {ref: classRef, data: classData} = await loadClassOrThrow(db, classId, uid);
+  const pendingLearners = Array.isArray(classData.pendingLearners) ? classData.pendingLearners : [];
+  const learners = Array.isArray(classData.learners) ? classData.learners : [];
+
+  if (!pendingLearners.includes(learnerUid)) {
+    throw new HttpsError("failed-precondition", "That learner is not awaiting approval.");
+  }
+  if (learners.length >= MAX_LEARNERS_PER_CLASS) {
+    throw new HttpsError("resource-exhausted", "This class is full. Remove an inactive learner before approving another.");
+  }
+
+  await classRef.update({
+    pendingLearners: admin.firestore.FieldValue.arrayRemove(learnerUid),
+    learners: admin.firestore.FieldValue.arrayUnion(learnerUid),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return {ok: true};
+});
+
+const declineLearner = onCall({
+  region: REGION,
+  timeoutSeconds: 30,
+  memory: "256MiB",
+}, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+  const classId = String(request.data?.classId || "").trim();
+  const learnerUid = String(request.data?.learnerUid || "").trim();
+  if (!classId || !learnerUid) {
+    throw new HttpsError("invalid-argument", "classId and learnerUid are required.");
+  }
+
+  const db = admin.firestore();
+  const {ref: classRef} = await loadClassOrThrow(db, classId, uid);
+  await classRef.update({
+    pendingLearners: admin.firestore.FieldValue.arrayRemove(learnerUid),
+    updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+  });
+  return {ok: true};
 });
 
 const removeLearnerFromClass = onCall({
@@ -209,6 +290,7 @@ const removeLearnerFromClass = onCall({
   const {ref: classRef} = await loadClassOrThrow(db, classId, uid);
   await classRef.update({
     learners: admin.firestore.FieldValue.arrayRemove(learnerUid),
+    pendingLearners: admin.firestore.FieldValue.arrayRemove(learnerUid),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
   return {ok: true};
@@ -365,11 +447,13 @@ const leaveClass = onCall({
   if (!snap.exists) throw new HttpsError("not-found", "Class not found.");
   const data = snap.data() || {};
   const learners = Array.isArray(data.learners) ? data.learners : [];
-  if (!learners.includes(uid)) {
+  const pendingLearners = Array.isArray(data.pendingLearners) ? data.pendingLearners : [];
+  if (!learners.includes(uid) && !pendingLearners.includes(uid)) {
     throw new HttpsError("failed-precondition", "You are not a member of this class.");
   }
   await classRef.update({
     learners: admin.firestore.FieldValue.arrayRemove(uid),
+    pendingLearners: admin.firestore.FieldValue.arrayRemove(uid),
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
   return {ok: true};
@@ -378,6 +462,8 @@ const leaveClass = onCall({
 module.exports = {
   generateClassInvite,
   joinClassByCode,
+  approveLearner,
+  declineLearner,
   removeLearnerFromClass,
   leaveClass,
   createClassAssignment,

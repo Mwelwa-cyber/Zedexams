@@ -24,7 +24,9 @@ import { collection, getDocs, query, where } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
+  approveLearner,
   archiveClass,
+  declineLearner,
   generateClassInvite,
   getClass,
   hardDeleteClass,
@@ -91,6 +93,7 @@ export default function TeacherClassDetail() {
 
   const [klass, setKlass] = useState(null)
   const [members, setMembers] = useState([])
+  const [pendingMembers, setPendingMembers] = useState([])
   const [assignments, setAssignments] = useState([])
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -103,8 +106,9 @@ export default function TeacherClassDetail() {
       const row = await getClass(classId)
       if (!row) { setErrored(true); return }
       setKlass(row)
-      const [summaries, classAssignments] = await Promise.all([
+      const [summaries, pendingSummaries, classAssignments] = await Promise.all([
         fetchMemberSummaries(row.learners || []),
+        fetchMemberSummaries(row.pendingLearners || []),
         listAssignmentsForClass(classId).catch((err) => {
           // Index might not be deployed yet — degrade quietly to no
           // assignments so the rest of the page still renders.
@@ -113,6 +117,7 @@ export default function TeacherClassDetail() {
         }),
       ])
       setMembers(summaries)
+      setPendingMembers(pendingSummaries)
       setAssignments(classAssignments)
     } catch (err) {
       console.warn('[TeacherClassDetail] load failed', err)
@@ -148,6 +153,35 @@ export default function TeacherClassDetail() {
     } catch (err) {
       console.error('[TeacherClassDetail] generate code failed', err)
       setFeedback({ kind: 'err', text: err?.message || 'Could not generate a new invite code.' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleApproveLearner(learnerUid) {
+    setBusy(true); setFeedback(null)
+    try {
+      await approveLearner({ classId, learnerUid })
+      setFeedback({ kind: 'ok', text: 'Learner approved and added to the class.' })
+      await refresh()
+    } catch (err) {
+      console.error('[TeacherClassDetail] approve learner failed', err)
+      setFeedback({ kind: 'err', text: err?.message || 'Could not approve the learner.' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function handleDeclineLearner(learnerUid) {
+    if (!window.confirm('Decline this join request? The learner will be removed from the pending list.')) return
+    setBusy(true); setFeedback(null)
+    try {
+      await declineLearner({ classId, learnerUid })
+      setFeedback({ kind: 'ok', text: 'Join request declined.' })
+      await refresh()
+    } catch (err) {
+      console.error('[TeacherClassDetail] decline learner failed', err)
+      setFeedback({ kind: 'err', text: err?.message || 'Could not decline the request.' })
     } finally {
       setBusy(false)
     }
@@ -350,6 +384,57 @@ export default function TeacherClassDetail() {
           </ul>
         )}
       </section>
+
+      {/* Pending approvals — learners who joined via the code and are
+          waiting for the teacher to admit them to the class. */}
+      {pendingMembers.length > 0 && (
+        <section className="theme-card border-2 border-amber-300 bg-amber-50/40 rounded-radius-md overflow-hidden">
+          <div className="p-4 border-b border-amber-200 flex items-center justify-between gap-3">
+            <div>
+              <p className="theme-text font-black text-sm flex items-center gap-2">
+                Pending approval ({pendingMembers.length})
+                <span className="text-[10px] font-black uppercase tracking-wider bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full">Action needed</span>
+              </p>
+              <p className="theme-text-muted text-xs mt-0.5">
+                These learners used your invite code. Approve to add them to the class, or decline to remove the request.
+              </p>
+            </div>
+          </div>
+          <ul className="divide-y divide-amber-200/60">
+            {pendingMembers.map((m) => (
+              <li key={m.uid} className="flex flex-wrap items-center gap-3 p-4">
+                <div className="flex-shrink-0 w-9 h-9 rounded-full bg-amber-200 flex items-center justify-center text-sm font-black text-amber-900">
+                  {(m.displayName || m.email || '?').slice(0, 1).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="theme-text font-bold text-sm truncate">
+                    {m.displayName || <span className="theme-text-muted italic">Pending profile</span>}
+                  </p>
+                  <p className="theme-text-muted text-xs truncate">{m.email || m.uid}</p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => handleApproveLearner(m.uid)}
+                    disabled={busy || archived}
+                    className="bg-emerald-600 text-white rounded-full px-3 py-1.5 text-xs font-black hover:bg-emerald-700 disabled:opacity-50"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeclineLearner(m.uid)}
+                    disabled={busy}
+                    className="border border-rose-300 text-rose-700 rounded-full px-3 py-1.5 text-xs font-black hover:bg-rose-50 disabled:opacity-50"
+                  >
+                    Decline
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {/* Roster */}
       <section className="theme-card border theme-border rounded-radius-md overflow-hidden">
