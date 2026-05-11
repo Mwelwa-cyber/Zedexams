@@ -215,17 +215,27 @@ export default function QuizResultsV2() {
         </div>
         <div className="ml-9 space-y-1">
           {(question.options || []).length ? (
-            question.options.map((option, optionIndex) => (
-              <div key={`${question.id}-${optionIndex}`} className={`rounded-lg px-2 py-1 text-sm ${
-                optionIndex === question.correctAnswer ? 'bg-green-50 font-bold text-green-700'
-                  : optionIndex === userAnswer && !correct ? 'bg-red-50 text-red-600 line-through'
-                  : 'theme-text-muted'
-              }`}>
-                {['A', 'B', 'C', 'D'][optionIndex]}. {option}
-                {optionIndex === question.correctAnswer && ' ✅'}
-                {optionIndex === userAnswer && !correct && ' (your answer)'}
-              </div>
-            ))
+            question.options.map((option, optionIndex) => {
+              const media = Array.isArray(question.optionMedia) ? question.optionMedia[optionIndex] : null
+              return (
+                <div key={`${question.id}-${optionIndex}`} className={`rounded-lg px-2 py-1 text-sm ${
+                  optionIndex === question.correctAnswer ? 'bg-green-50 font-bold text-green-700'
+                    : optionIndex === userAnswer && !correct ? 'bg-red-50 text-red-600 line-through'
+                    : 'theme-text-muted'
+                }`}>
+                  <span>{['A', 'B', 'C', 'D'][optionIndex]}. {option}</span>
+                  {media?.imageUrl && (
+                    <img
+                      src={media.imageUrl}
+                      alt={media.alt || ''}
+                      className="mt-1 max-h-24 rounded object-contain"
+                    />
+                  )}
+                  {optionIndex === question.correctAnswer && ' ✅'}
+                  {optionIndex === userAnswer && !correct && ' (your answer)'}
+                </div>
+              )
+            })
           ) : (
             <div className="space-y-1 text-sm">
               <p className="theme-text-muted">Your answer: <span className="font-bold">{answerToText(question, userAnswer)}</span></p>

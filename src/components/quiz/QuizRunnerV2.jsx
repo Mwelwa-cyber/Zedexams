@@ -58,7 +58,7 @@ function getQuizSubjectMascot(subject) {
   return SUBJECT_MASCOT_MAP[key] || DEFAULT_QUIZ_MASCOT
 }
 
-function OptionButton({ label, selected, revealed, correct, wrong, onClick, children }) {
+function OptionButton({ label, selected, revealed, correct, wrong, onClick, imageUrl, imageAlt, children }) {
   return (
     <button
       type="button"
@@ -70,10 +70,33 @@ function OptionButton({ label, selected, revealed, correct, wrong, onClick, chil
       className="zx-opt"
     >
       <span className="zx-opt-letter">{label}</span>
-      <span className="flex-1 text-sm font-semibold leading-snug">{children}</span>
+      <span className="flex-1 text-sm font-semibold leading-snug">
+        {imageUrl && (
+          <img
+            src={imageUrl}
+            alt={imageAlt || ''}
+            className="mb-1 max-h-40 w-full rounded-lg object-contain"
+          />
+        )}
+        {children}
+      </span>
       {revealed && correct && <span className="text-lg">✅</span>}
     </button>
   )
+}
+
+// Layout class for the question image + text pair based on the saved
+// imagePosition. Null/absent → 'above' (the only layout that existed before
+// this field was added).
+const IMAGE_POSITION_CLASSES = {
+  above:  'flex flex-col gap-3',
+  below:  'flex flex-col-reverse gap-3',
+  left:   'flex flex-col gap-3 sm:flex-row sm:items-start',
+  right:  'flex flex-col gap-3 sm:flex-row-reverse sm:items-start',
+  inline: 'flex flex-col gap-3',
+}
+function imagePositionClasses(value) {
+  return IMAGE_POSITION_CLASSES[value] || IMAGE_POSITION_CLASSES.above
 }
 
 function PreQuizCard({ quiz, canExam, onStart }) {
@@ -511,27 +534,50 @@ export default function QuizRunnerV2() {
           </button>
         </div>
 
-        {question.imageUrl && (
-          <div className="overflow-hidden rounded-2xl border-2 border-slate-900 bg-slate-50 p-3">
-            <ZoomableImage
-              src={question.imageUrl}
-              alt="Question illustration"
-              className="mx-auto max-h-[80vh] w-full rounded-xl object-contain"
-            />
-          </div>
-        )}
-
-        <div>
-          {question.sharedInstruction && (
-            <div className="mb-3 rounded-2xl border-2 border-slate-900 bg-orange-50 px-3 py-2 text-sm font-bold leading-relaxed text-slate-900">
-              <RichContent value={question.sharedInstruction} className="text-sm font-bold leading-relaxed text-slate-900" />
+        {/* Legacy / null / 'above' renders the image and text as two direct
+            children of the `space-y-4` card root — preserving the exact DOM
+            and spacing every learner saw before this field was added. The
+            non-default positions wrap them in a flex container that overrides
+            the parent's vertical rhythm. */}
+        {(() => {
+          const pos = question.imagePosition
+          const imageBlock = question.imageUrl ? (
+            <div className="overflow-hidden rounded-2xl border-2 border-slate-900 bg-slate-50 p-3">
+              <ZoomableImage
+                src={question.imageUrl}
+                alt="Question illustration"
+                className="mx-auto max-h-[80vh] w-full rounded-xl object-contain"
+              />
             </div>
-          )}
-          <RichContent value={question.text} className="text-[15px] font-bold leading-relaxed text-slate-900 sm:text-[17px]" />
-          {question.diagramText && (
-            <p className="mt-2 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold leading-relaxed text-slate-700">{question.diagramText}</p>
-          )}
-        </div>
+          ) : null
+          const textBlock = (
+            <div>
+              {question.sharedInstruction && (
+                <div className="mb-3 rounded-2xl border-2 border-slate-900 bg-orange-50 px-3 py-2 text-sm font-bold leading-relaxed text-slate-900">
+                  <RichContent value={question.sharedInstruction} className="text-sm font-bold leading-relaxed text-slate-900" />
+                </div>
+              )}
+              <RichContent value={question.text} className="text-[15px] font-bold leading-relaxed text-slate-900 sm:text-[17px]" />
+              {question.diagramText && (
+                <p className="mt-2 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold leading-relaxed text-slate-700">{question.diagramText}</p>
+              )}
+            </div>
+          )
+          if (!pos || pos === 'above' || pos === 'inline') {
+            return (
+              <>
+                {imageBlock}
+                {textBlock}
+              </>
+            )
+          }
+          return (
+            <div className={imagePositionClasses(pos)}>
+              {imageBlock}
+              {textBlock}
+            </div>
+          )
+        })()}
 
         {isTextAnswerType(question.type) ? (
           <div className="space-y-3">
@@ -621,19 +667,24 @@ export default function QuizRunnerV2() {
         ) : (
           <div className="space-y-4">
             <div className="opt-grid">
-              {question.options.map((option, optionIndex) => (
-                <OptionButton
-                  key={`${question.id}-${optionIndex}`}
-                  label={['A', 'B', 'C', 'D'][optionIndex]}
-                  selected={!isRevealed && userAnswer === optionIndex}
-                  revealed={isRevealed}
-                  correct={isRevealed && optionIndex === question.correctAnswer}
-                  wrong={isRevealed && userAnswer === optionIndex && userAnswer !== question.correctAnswer}
-                  onClick={() => !isRevealed && pick(question.id, optionIndex)}
-                >
-                  {option}
-                </OptionButton>
-              ))}
+              {question.options.map((option, optionIndex) => {
+                const media = Array.isArray(question.optionMedia) ? question.optionMedia[optionIndex] : null
+                return (
+                  <OptionButton
+                    key={`${question.id}-${optionIndex}`}
+                    label={['A', 'B', 'C', 'D'][optionIndex]}
+                    selected={!isRevealed && userAnswer === optionIndex}
+                    revealed={isRevealed}
+                    correct={isRevealed && optionIndex === question.correctAnswer}
+                    wrong={isRevealed && userAnswer === optionIndex && userAnswer !== question.correctAnswer}
+                    onClick={() => !isRevealed && pick(question.id, optionIndex)}
+                    imageUrl={media?.imageUrl}
+                    imageAlt={media?.alt}
+                  >
+                    {option}
+                  </OptionButton>
+                )
+              })}
             </div>
 
             {isRevealed && (

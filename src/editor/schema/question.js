@@ -123,6 +123,27 @@ export const questionSchema = z
     options: z.array(z.string().max(1000)).max(20).default([]),
     correctAnswer: z.union([z.string().max(1000), z.number()]).default(0),
 
+    // Parallel, index-aligned media for each option. A `null` entry means the
+    // option is text-only (the original shape). Stored as a separate array so
+    // every existing reader of `options[i]` (the AI grader, Firestore rules,
+    // the editor's text inputs) keeps working untouched. Renderers that opt
+    // into image options read `optionMedia[i]` alongside `options[i]`.
+    //
+    // `alt` is required whenever an image is set — accessibility plus the
+    // grader uses it to know what the option represents.
+    optionMedia: z
+      .array(
+        z.union([
+          z.null(),
+          z.object({
+            imageUrl: z.string().min(1).max(2000),
+            alt: z.string().min(1).max(2000),
+          }).strict(),
+        ])
+      )
+      .max(20)
+      .default([]),
+
     // ── Grouping & subtype (PRISCA mock-paper format) ──
     // `partId` mirrors `passageId` — points at an entry in the quiz doc's
     // `parts[]` array when the question belongs to a numbered Part.
@@ -134,6 +155,10 @@ export const questionSchema = z
     // ── Misc ──
     passageId: z.string().nullable().default(null),
     imageUrl: z.string().nullable().default(null),
+    // Where the question's image sits relative to the question text.
+    // `null` (or absent on legacy docs) → renderer falls back to 'above',
+    // which is the only behaviour that existed before this field was added.
+    imagePosition: z.enum(['above', 'below', 'left', 'right', 'inline']).nullable().default(null),
     diagramText: z.string().max(2000).nullable().default(null),
     requiresReview: z.boolean().default(false),
     reviewNotes: z.array(z.string().max(2000)).default([]),
@@ -146,6 +171,17 @@ export const questionSchema = z
   // Forbid stray fields so a typo (e.g. `teext` instead of `text`) never reaches
   // Firestore. If a legitimate new field is needed, add it to the schema.
   .strict()
+  // optionMedia must never be longer than options — they're index-aligned.
+  // (A shorter optionMedia is fine; missing entries read as text-only.)
+  .superRefine((q, ctx) => {
+    if (q.optionMedia.length > q.options.length) {
+      ctx.addIssue({
+        code: 'custom',
+        path: ['optionMedia'],
+        message: 'optionMedia must not be longer than options',
+      })
+    }
+  })
   // Size sanity check: after stringification the whole record must fit comfortably
   // under Firestore's 1 MiB doc limit. 500 KiB leaves room for server overhead.
   .refine(
