@@ -108,15 +108,24 @@ export function LearnerOnboarding({ user, onDone }) {
 function GradeButton({ grade, selected, disabled, onClick }) {
   if (disabled) {
     return (
-      <div className="text-center py-3 rounded-lg border border-dashed border-neutral-200 text-neutral-400">
+      <button
+        type="button"
+        disabled
+        aria-disabled="true"
+        aria-label={`Grade ${grade} — coming soon`}
+        title="Coming soon"
+        className="text-center py-3 rounded-lg border border-dashed border-neutral-200 text-neutral-400 cursor-not-allowed"
+      >
         <div className="text-[10px] uppercase tracking-wider">Grade</div>
         <div className="font-display text-2xl">{grade}</div>
-      </div>
+      </button>
     )
   }
   return (
     <button
+      type="button"
       onClick={onClick}
+      aria-pressed={selected}
       className={`text-center py-3 rounded-lg border transition ${
         selected
           ? 'border-neutral-900 bg-neutral-900 text-white shadow-sm'

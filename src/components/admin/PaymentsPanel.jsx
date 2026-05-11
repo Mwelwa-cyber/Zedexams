@@ -213,11 +213,12 @@ export default function PaymentsPanel() {
                   <tr key={u.id} className="border-b theme-border hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <div className="font-bold text-gray-800">{u.displayName || '—'}</div>
-                      <div className="text-xs text-gray-400">{u.id.slice(0, 10)}…</div>
+                      <div className="text-xs text-gray-400">{u.id?.slice(0, 10) || '—'}…</div>
                     </td>
                     <td className="px-4 py-3">
-                      <select value={u.role} onChange={e => handleRoleChange(u.id, e.target.value)}
+                      <select value={u.role || ''} onChange={e => handleRoleChange(u.id, e.target.value)}
                         className="border border-gray-200 rounded-lg px-2 py-1 text-xs font-bold focus:border-green-500 focus:outline-none">
+                        <option value="" disabled>— no role —</option>
                         <option value="learner">learner</option>
                         <option value="teacher">teacher</option>
                         <option value="admin">admin</option>

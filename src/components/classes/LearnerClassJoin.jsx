@@ -33,6 +33,7 @@ export default function LearnerClassJoin() {
   const navigate = useNavigate()
   const [params] = useSearchParams()
   const inputRef = useRef(null)
+  const autoSubmittedRef = useRef(false)
 
   const [code, setCode] = useState(() => normalise(params.get('code') || ''))
   const [busy, setBusy] = useState(false)
@@ -83,14 +84,18 @@ export default function LearnerClassJoin() {
   }
 
   // Auto-submit pre-filled code (e.g. a teacher shares a "join my class"
-  // link with ?code=... in the URL).
+  // link with ?code=... in the URL). Fires at most once per mount —
+  // without the ref, a flip in `currentUser` or `params` after the
+  // join completes could fire a second submission.
   useEffect(() => {
+    if (autoSubmittedRef.current) return
     const seeded = normalise(params.get('code') || '')
     if (seeded && seeded.length === CODE_LENGTH && currentUser) {
+      autoSubmittedRef.current = true
       submit(seeded)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser])
+  }, [currentUser, params])
 
   return (
     <div className="min-h-screen theme-bg flex flex-col items-center justify-center px-4 py-12">

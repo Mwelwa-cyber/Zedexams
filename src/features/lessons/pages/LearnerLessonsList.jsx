@@ -5,7 +5,7 @@
 // two surfaces share the underlying Firestore collection today but are
 // presented as distinct learner experiences.
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Lock } from '../../../components/ui/icons'
 import { useLearnerProfile } from '../../notes/hooks/useLearnerProfile'
@@ -26,16 +26,18 @@ export function LearnerLessonsList() {
   const { lessons, allLessons, countsBySubject, loading } =
     useLearnerLessons({ grade, subject: activeSubject, search })
 
-  const subjects = getSubjectsForGrade(grade)
+  const subjects = useMemo(() => getSubjectsForGrade(grade), [grade])
   const firstName = user?.displayName?.split(' ')[0] || 'there'
 
-  const grouped = activeSubject === 'all'
-    ? subjects.reduce((acc, s) => {
-        const list = lessons.filter(l => l.subject === s)
-        if (list.length) acc[s] = list
-        return acc
-      }, {})
-    : { [activeSubject]: lessons }
+  const grouped = useMemo(() => (
+    activeSubject === 'all'
+      ? subjects.reduce((acc, s) => {
+          const list = lessons.filter(l => l.subject === s)
+          if (list.length) acc[s] = list
+          return acc
+        }, {})
+      : { [activeSubject]: lessons }
+  ), [activeSubject, lessons, subjects])
 
   return (
     <div className="notes-studio min-h-screen pb-24 md:pb-8" style={{ backgroundColor: '#FAFAF7' }}>
