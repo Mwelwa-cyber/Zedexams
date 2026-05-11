@@ -7,6 +7,7 @@ import { buildQuizDisplaySections } from '../../utils/quizSections.js'
 import UpgradeModal from '../subscription/UpgradeModal'
 import QuizTip from './QuizTip'
 import ZoomableImage from './ZoomableImage'
+import DiagramSvg from '../diagrams/DiagramSvg'
 import { getPakoTip } from '../../config/curriculum'
 import { checkAnswerWithAI } from '../../utils/geminiChecker'
 // RichContent renders legacy HTML strings AND Tiptap JSON; getRichPlainText
@@ -58,7 +59,7 @@ function getQuizSubjectMascot(subject) {
   return SUBJECT_MASCOT_MAP[key] || DEFAULT_QUIZ_MASCOT
 }
 
-function OptionButton({ label, selected, revealed, correct, wrong, onClick, imageUrl, imageAlt, children }) {
+function OptionButton({ label, selected, revealed, correct, wrong, onClick, imageUrl, imageAlt, diagram, children }) {
   return (
     <button
       type="button"
@@ -71,13 +72,20 @@ function OptionButton({ label, selected, revealed, correct, wrong, onClick, imag
     >
       <span className="zx-opt-letter">{label}</span>
       <span className="flex-1 text-sm font-semibold leading-snug">
-        {imageUrl && (
+        {diagram ? (
+          <DiagramSvg
+            libraryKey={diagram.libraryKey}
+            params={diagram.params}
+            alt={imageAlt || ''}
+            className="mb-1 flex max-h-40 w-full items-center justify-center"
+          />
+        ) : imageUrl ? (
           <img
             src={imageUrl}
             alt={imageAlt || ''}
             className="mb-1 max-h-40 w-full rounded-lg object-contain"
           />
-        )}
+        ) : null}
         {children}
       </span>
       {revealed && correct && <span className="text-lg">✅</span>}
@@ -541,7 +549,20 @@ export default function QuizRunnerV2() {
             the parent's vertical rhythm. */}
         {(() => {
           const pos = question.imagePosition
-          const imageBlock = question.imageUrl ? (
+          // Library diagram takes precedence over uploaded image when both
+          // are set (which shouldn't happen — the editor enforces mutual
+          // exclusivity — but the renderer is defensive in case stale data
+          // arrives from Firestore).
+          const imageBlock = question.imageDiagram?.libraryKey ? (
+            <div className="overflow-hidden rounded-2xl border-2 border-slate-900 bg-slate-50 p-3">
+              <DiagramSvg
+                libraryKey={question.imageDiagram.libraryKey}
+                params={question.imageDiagram.params}
+                alt="Question diagram"
+                className="mx-auto flex max-h-[80vh] w-full items-center justify-center"
+              />
+            </div>
+          ) : question.imageUrl ? (
             <div className="overflow-hidden rounded-2xl border-2 border-slate-900 bg-slate-50 p-3">
               <ZoomableImage
                 src={question.imageUrl}
@@ -680,6 +701,7 @@ export default function QuizRunnerV2() {
                     onClick={() => !isRevealed && pick(question.id, optionIndex)}
                     imageUrl={media?.imageUrl}
                     imageAlt={media?.alt}
+                    diagram={media?.diagram}
                   >
                     {option}
                   </OptionButton>

@@ -10,6 +10,7 @@ import useSoundEffects from '../../hooks/useSoundEffects'
 // Format-aware renderer + plain-text extractor. Works for both legacy HTML
 // quizzes and Tiptap JSON quizzes saved by the new editor.
 import RichContent, { getRichPlainText } from '../../editor/RichContent'
+import DiagramSvg from '../diagrams/DiagramSvg'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
@@ -224,7 +225,14 @@ export default function QuizResultsV2() {
                     : 'theme-text-muted'
                 }`}>
                   <span>{['A', 'B', 'C', 'D'][optionIndex]}. {option}</span>
-                  {media?.imageUrl && (
+                  {media?.diagram ? (
+                    <DiagramSvg
+                      libraryKey={media.diagram.libraryKey}
+                      params={media.diagram.params}
+                      alt={media.alt || ''}
+                      className="mt-1 flex max-h-24 items-center justify-center"
+                    />
+                  ) : media?.imageUrl && (
                     <img
                       src={media.imageUrl}
                       alt={media.alt || ''}

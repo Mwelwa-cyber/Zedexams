@@ -36,6 +36,24 @@ function toRichTextJSON(value) {
 }
 
 /**
+ * Coerce a diagram-ref `params` bag into the shape Zod expects: a record of
+ * `string -> string`. Anything not stringifiable is dropped; absurdly long
+ * values are truncated to the schema cap so we fail loudly on the form, not
+ * silently on the write.
+ */
+function normalizeDiagramParams(params) {
+  if (!params || typeof params !== 'object') return {}
+  const out = {}
+  for (const [key, value] of Object.entries(params)) {
+    if (typeof key !== 'string' || !key) continue
+    if (value == null) continue
+    const stringValue = typeof value === 'string' ? value : String(value)
+    out[key.slice(0, 64)] = stringValue.slice(0, 2000)
+  }
+  return out
+}
+
+/**
  * Normalise a question for Firestore, emitting the dual HTML+JSON format
  * (contentVersion: 3).
  *
@@ -57,18 +75,36 @@ function normalizeQuestionPayload(q, order) {
 
   // Align optionMedia to options.length: short-answer/diagram → []; otherwise
   // truncate or pad with nulls so the parallel arrays stay in lock-step.
-  // Empty/missing imageUrl on an entry collapses to null (= text-only option).
+  // A slot collapses to null when it has neither an imageUrl nor a diagram.
   const rawMedia = Array.isArray(q.optionMedia) ? q.optionMedia : []
   const optionMedia = isShortAnswer
     ? []
     : options.map((_, i) => {
         const m = rawMedia[i]
-        if (!m || typeof m !== 'object' || !m.imageUrl) return null
-        return {
-          imageUrl: String(m.imageUrl).trim(),
-          alt: String(m.alt ?? '').trim(),
+        if (!m || typeof m !== 'object') return null
+        const hasImage = !!m.imageUrl
+        const hasDiagram = !!(m.diagram && m.diagram.libraryKey)
+        if (!hasImage && !hasDiagram) return null
+        // Build the slot one key at a time — Zod's .strict() will reject
+        // stray fields, and Firestore rejects `undefined`. Including the
+        // optional keys only when set keeps both gates happy.
+        const slot = { alt: String(m.alt ?? '').trim() }
+        if (hasImage) slot.imageUrl = String(m.imageUrl).trim()
+        if (hasDiagram) {
+          slot.diagram = {
+            libraryKey: String(m.diagram.libraryKey).trim(),
+            params: normalizeDiagramParams(m.diagram.params),
+          }
         }
+        return slot
       })
+
+  const imageDiagram = q.imageDiagram && q.imageDiagram.libraryKey
+    ? {
+        libraryKey: String(q.imageDiagram.libraryKey).trim(),
+        params: normalizeDiagramParams(q.imageDiagram.params),
+      }
+    : null
 
   const candidate = {
     sharedInstruction: normalizeRichTextPayload(q.sharedInstruction),
@@ -87,6 +123,7 @@ function normalizeQuestionPayload(q, order) {
     type,
     detectedType:  q.detectedType || type,
     imageUrl:      q.imageUrl || null,
+    imageDiagram,
     imagePosition: q.imagePosition || null,
     diagramText:   q.diagramText || null,
     requiresReview: Boolean(q.requiresReview),

@@ -1,6 +1,9 @@
 import { useRef, useState } from 'react'
 import { QUESTION_LETTERS } from '../../utils/quizSections.js'
 import { clampInt } from '../../utils/inputs.js'
+import DiagramSvg from '../diagrams/DiagramSvg.jsx'
+import DiagramPicker from '../diagrams/DiagramPicker.jsx'
+import { getDiagram } from '../diagrams/diagramCatalog.js'
 
 // PRISCA mock-paper question subtypes. Storage shape stays as 4-option MCQ;
 // these labels just drive the editor preset — option input style, badge text.
@@ -85,10 +88,13 @@ function ImageUpload({
   label,
   hint,
   imageUrl,
+  diagram,
   uploading,
   uploadStep,
   onFileSelect,
   onRemove,
+  onPickDiagram,
+  onRemoveDiagram,
   theme,
 }) {
   const inputRef = useRef(null)
@@ -114,6 +120,41 @@ function ImageUpload({
           <span>→</span>
           <span className={isCompressing ? 'opacity-60' : 'font-bold'}>{isCompressing ? 'Upload' : 'Uploading'}</span>
         </div>
+      </div>
+    )
+  }
+
+  if (diagram) {
+    const entry = getDiagram(diagram.libraryKey)
+    return (
+      <div className={joinClasses('group theme-bg-subtle relative overflow-hidden rounded-xl border-2', theme.cardBorder)}>
+        <DiagramSvg
+          libraryKey={diagram.libraryKey}
+          params={diagram.params}
+          alt={entry?.name || 'Diagram'}
+          className="mx-auto flex max-h-[60vh] w-full items-center justify-center py-3"
+        />
+        <div className="absolute right-2 top-2 flex gap-1.5 opacity-90 transition-opacity group-hover:opacity-100">
+          {onPickDiagram && (
+            <button
+              type="button"
+              onClick={onPickDiagram}
+              className="theme-card theme-border theme-text hover:theme-card-hover min-h-0 rounded-lg border px-3 py-1.5 text-xs font-bold shadow"
+            >
+              Edit
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onRemoveDiagram || onRemove}
+            className="min-h-0 rounded-lg bg-red-500 px-2.5 py-1.5 text-xs font-bold text-white shadow hover:bg-red-600"
+          >
+            Remove
+          </button>
+        </div>
+        <p className="theme-text-muted pb-1 text-center text-xs">
+          {entry?.name ? `${entry.name} from the diagram library` : 'Library diagram'}
+        </p>
       </div>
     )
   }
@@ -151,7 +192,7 @@ function ImageUpload({
   }
 
   return (
-    <div>
+    <div className="space-y-2">
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
@@ -164,6 +205,18 @@ function ImageUpload({
         <p className="theme-text text-sm font-bold">{label}</p>
         <p className="theme-text-muted mt-0.5 text-xs">{hint}</p>
       </button>
+      {onPickDiagram && (
+        <button
+          type="button"
+          onClick={onPickDiagram}
+          className={joinClasses(
+            'w-full min-h-0 rounded-xl border-2 border-dashed px-4 py-2.5 text-sm font-bold transition-all bg-transparent shadow-none',
+            theme.uploadBorder,
+          )}
+        >
+          📐 Pick a diagram from the library
+        </button>
+      )}
       <input
         ref={inputRef}
         type="file"
@@ -180,10 +233,13 @@ function ImageUpload({
 // the same accept-list and the same compress→upload state machine via props.
 function OptionImageUpload({
   imageUrl,
+  diagram,
   uploading,
   uploadStep,
   onFileSelect,
   onRemove,
+  onPickDiagram,
+  onRemoveDiagram,
   theme,
 }) {
   const inputRef = useRef(null)
@@ -202,6 +258,38 @@ function OptionImageUpload({
         <span className={theme.accentText}>
           {isCompressing ? 'Compressing image…' : 'Uploading…'}
         </span>
+      </div>
+    )
+  }
+
+  if (diagram) {
+    const entry = getDiagram(diagram.libraryKey)
+    return (
+      <div className={joinClasses('group theme-bg-subtle relative overflow-hidden rounded-lg border-2', theme.cardBorder)}>
+        <DiagramSvg
+          libraryKey={diagram.libraryKey}
+          params={diagram.params}
+          alt={entry?.name || 'Diagram'}
+          className="mx-auto flex max-h-32 w-full items-center justify-center py-1"
+        />
+        <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-90 transition-opacity group-hover:opacity-100">
+          {onPickDiagram && (
+            <button
+              type="button"
+              onClick={onPickDiagram}
+              className="theme-card theme-border theme-text hover:theme-card-hover min-h-0 rounded-md border px-2 py-0.5 text-[10px] font-bold shadow"
+            >
+              Edit
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onRemoveDiagram || onRemove}
+            className="min-h-0 rounded-md bg-red-500 px-1.5 py-0.5 text-[10px] font-bold text-white shadow hover:bg-red-600"
+          >
+            Remove
+          </button>
+        </div>
       </div>
     )
   }
@@ -238,18 +326,31 @@ function OptionImageUpload({
   }
 
   return (
-    <div>
+    <div className="flex flex-wrap gap-1.5">
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
         className={joinClasses(
-          'group w-full min-h-0 rounded-lg border-2 border-dashed px-3 py-2 text-xs font-bold transition-all bg-transparent shadow-none',
+          'group min-h-0 flex-1 rounded-lg border-2 border-dashed px-3 py-2 text-xs font-bold transition-all bg-transparent shadow-none',
           theme.uploadBorder,
         )}
       >
         <span className="mr-1.5">🖼️</span>
-        Add image to this option
+        Add image
       </button>
+      {onPickDiagram && (
+        <button
+          type="button"
+          onClick={onPickDiagram}
+          className={joinClasses(
+            'group min-h-0 flex-1 rounded-lg border-2 border-dashed px-3 py-2 text-xs font-bold transition-all bg-transparent shadow-none',
+            theme.uploadBorder,
+          )}
+        >
+          <span className="mr-1.5">📐</span>
+          Pick diagram
+        </button>
+      )}
       <input
         ref={inputRef}
         type="file"
@@ -288,6 +389,11 @@ function StandaloneQuestionCard({
   onAssignToPart,
   theme,
 }) {
+  // Diagram-picker state. `target` is either { kind: 'question' } or
+  // { kind: 'option', optionIndex }. Lives on the card so multiple cards on
+  // the same page don't fight over a shared modal.
+  const [diagramTarget, setDiagramTarget] = useState(null)
+
   function set(field, value) {
     onChange(sectionIndex, field, value)
   }
@@ -300,16 +406,19 @@ function StandaloneQuestionCard({
 
   // Patch one slot of the parallel optionMedia array. Pads with `null` so the
   // array stays index-aligned with options[]; the normaliser will trim/align
-  // again on save.
+  // again on save. The patch is merged on top of any existing slot so an alt
+  // edit doesn't clobber an existing imageUrl / diagram.
   function setOptionMedia(optionIndex, mediaPatch) {
     const existing = Array.isArray(question.optionMedia) ? question.optionMedia : []
     const next = question.options.map((_, i) => existing[i] ?? null)
     if (mediaPatch === null) {
       next[optionIndex] = null
     } else {
+      const prev = next[optionIndex] && typeof next[optionIndex] === 'object' ? next[optionIndex] : {}
       next[optionIndex] = {
-        imageUrl: mediaPatch.imageUrl ?? next[optionIndex]?.imageUrl ?? '',
-        alt: mediaPatch.alt ?? next[optionIndex]?.alt ?? '',
+        ...prev,
+        ...mediaPatch,
+        alt: mediaPatch.alt ?? prev.alt ?? '',
       }
     }
     onChange(sectionIndex, 'optionMedia', next)
@@ -437,14 +546,21 @@ function StandaloneQuestionCard({
         label="Upload Question Image"
         hint="Optional · JPG, PNG, WEBP · max 5 MB"
         imageUrl={question.imageUrl}
+        diagram={question.imageDiagram}
         uploading={question.imageUploading}
         uploadStep={question.imageUploadStep}
-        onFileSelect={file => onImageUpload(sectionIndex, file)}
+        onFileSelect={file => {
+          // Picking an upload clears any prior library diagram in the same slot.
+          if (question.imageDiagram) set('imageDiagram', null)
+          onImageUpload(sectionIndex, file)
+        }}
         onRemove={() => onImageRemove(sectionIndex)}
+        onPickDiagram={() => setDiagramTarget({ kind: 'question' })}
+        onRemoveDiagram={() => set('imageDiagram', null)}
         theme={theme}
       />
 
-      {question.imageUrl && (
+      {(question.imageUrl || question.imageDiagram) && (
         <div className="flex flex-wrap items-center gap-2">
           <span className="theme-text-muted text-xs font-black uppercase tracking-wide">Image position</span>
           <select
@@ -563,16 +679,23 @@ function StandaloneQuestionCard({
                   <div className="pl-12 space-y-1.5">
                     <OptionImageUpload
                       imageUrl={optionMedia?.imageUrl}
+                      diagram={optionMedia?.diagram}
                       uploading={optionUploading}
                       uploadStep={optionUploadStep}
-                      onFileSelect={file => onOptionImageUpload(sectionIndex, optionIndex, file)}
+                      onFileSelect={file => {
+                        // Picking an upload clears any prior library diagram in the same slot.
+                        if (optionMedia?.diagram) setOptionMedia(optionIndex, { diagram: undefined })
+                        onOptionImageUpload(sectionIndex, optionIndex, file)
+                      }}
                       onRemove={() => {
                         setOptionMedia(optionIndex, null)
                         if (onOptionImageRemove) onOptionImageRemove(sectionIndex, optionIndex)
                       }}
+                      onPickDiagram={() => setDiagramTarget({ kind: 'option', optionIndex })}
+                      onRemoveDiagram={() => setOptionMedia(optionIndex, null)}
                       theme={theme}
                     />
-                    {optionMedia?.imageUrl && (
+                    {(optionMedia?.imageUrl || optionMedia?.diagram) && (
                       <input
                         required
                         value={optionMedia.alt ?? ''}
@@ -592,6 +715,34 @@ function StandaloneQuestionCard({
           })}
         </div>
       )}
+
+      <DiagramPicker
+        open={Boolean(diagramTarget)}
+        initial={
+          diagramTarget?.kind === 'question'
+            ? question.imageDiagram
+            : diagramTarget?.kind === 'option'
+              ? Array.isArray(question.optionMedia) && question.optionMedia[diagramTarget.optionIndex]?.diagram
+              : null
+        }
+        onClose={() => setDiagramTarget(null)}
+        onConfirm={diagram => {
+          if (!diagramTarget) return
+          if (diagramTarget.kind === 'question') {
+            // Library diagrams are mutually exclusive with uploaded images.
+            // Pick one clears the other so the renderer never has to choose.
+            if (question.imageUrl) set('imageUrl', null)
+            set('imageDiagram', diagram)
+          } else if (diagramTarget.kind === 'option') {
+            const i = diagramTarget.optionIndex
+            const existing = Array.isArray(question.optionMedia) && question.optionMedia[i]
+            // Clear any prior uploaded image on the same slot so a future
+            // saved doc has at most one of imageUrl / diagram per option.
+            setOptionMedia(i, { diagram, imageUrl: undefined, alt: existing?.alt ?? '' })
+          }
+          setDiagramTarget(null)
+        }}
+      />
 
       <div className="space-y-2">
         <textarea
@@ -649,6 +800,9 @@ function PassageQuestionCard({
   onOptionImageRemove,
   theme,
 }) {
+  // Diagram-picker state local to this passage question.
+  const [diagramTarget, setDiagramTarget] = useState(null)
+
   function set(field, value) {
     onChange(sectionIndex, questionIndex, field, value)
   }
@@ -665,9 +819,11 @@ function PassageQuestionCard({
     if (mediaPatch === null) {
       next[optionIndex] = null
     } else {
+      const prev = next[optionIndex] && typeof next[optionIndex] === 'object' ? next[optionIndex] : {}
       next[optionIndex] = {
-        imageUrl: mediaPatch.imageUrl ?? next[optionIndex]?.imageUrl ?? '',
-        alt: mediaPatch.alt ?? next[optionIndex]?.alt ?? '',
+        ...prev,
+        ...mediaPatch,
+        alt: mediaPatch.alt ?? prev.alt ?? '',
       }
     }
     onChange(sectionIndex, questionIndex, 'optionMedia', next)
@@ -797,16 +953,22 @@ function PassageQuestionCard({
                 <div className="pl-12 space-y-1.5">
                   <OptionImageUpload
                     imageUrl={optionMedia?.imageUrl}
+                    diagram={optionMedia?.diagram}
                     uploading={optionUploading}
                     uploadStep={optionUploadStep}
-                    onFileSelect={file => onOptionImageUpload(sectionIndex, questionIndex, optionIndex, file)}
+                    onFileSelect={file => {
+                      if (optionMedia?.diagram) setOptionMedia(optionIndex, { diagram: undefined })
+                      onOptionImageUpload(sectionIndex, questionIndex, optionIndex, file)
+                    }}
                     onRemove={() => {
                       setOptionMedia(optionIndex, null)
                       if (onOptionImageRemove) onOptionImageRemove(sectionIndex, questionIndex, optionIndex)
                     }}
+                    onPickDiagram={() => setDiagramTarget({ kind: 'option', optionIndex })}
+                    onRemoveDiagram={() => setOptionMedia(optionIndex, null)}
                     theme={cardTheme}
                   />
-                  {optionMedia?.imageUrl && (
+                  {(optionMedia?.imageUrl || optionMedia?.diagram) && (
                     <input
                       required
                       value={optionMedia.alt ?? ''}
@@ -825,6 +987,24 @@ function PassageQuestionCard({
           )
         })}
       </div>
+
+      <DiagramPicker
+        open={Boolean(diagramTarget)}
+        initial={
+          diagramTarget?.kind === 'option' && Array.isArray(question.optionMedia)
+            ? question.optionMedia[diagramTarget.optionIndex]?.diagram
+            : null
+        }
+        onClose={() => setDiagramTarget(null)}
+        onConfirm={diagram => {
+          if (diagramTarget?.kind === 'option') {
+            const i = diagramTarget.optionIndex
+            const existing = Array.isArray(question.optionMedia) && question.optionMedia[i]
+            setOptionMedia(i, { diagram, imageUrl: undefined, alt: existing?.alt ?? '' })
+          }
+          setDiagramTarget(null)
+        }}
+      />
 
       <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
         <input
