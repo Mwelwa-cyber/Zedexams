@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useLocation } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import Logo from '../ui/Logo'
 import SeoHelmet from '../seo/SeoHelmet'
 import Button from '../ui/Button'
@@ -264,7 +264,6 @@ function WorksheetPreview() {
 export default function Marketing() {
   const [contactOpen, setContactOpen] = useState(false)
   const [contactSource, setContactSource] = useState('marketing-page')
-  const { pathname } = useLocation()
   function openContact(source = 'marketing-page') {
     setContactSource(source)
     setContactOpen(true)
@@ -274,7 +273,7 @@ export default function Marketing() {
       <SeoHelmet
         title="Zambian CBC exam prep that fits the classroom"
         description="Daily CBC exams, quizzes, lessons, games and AI study help for Grade 4–7 learners. Printable lesson tools for Zambian teachers, all in one place."
-        path={pathname === '/welcome' ? '/welcome' : '/'}
+        path="/"
       />
       {/* Top nav */}
       <header className="sticky top-0 z-30 backdrop-blur-md bg-[color:var(--bg)]/85 border-b theme-border">

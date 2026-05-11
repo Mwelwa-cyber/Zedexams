@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
-import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { ensureProFonts } from '../../utils/proFonts'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -53,7 +53,6 @@ function Price({ planKey, billing }) {
 export default function Plans() {
   const { currentUser, isTeacher } = useAuth()
   const navigate = useNavigate()
-  const { pathname } = useLocation()
   const [billing, setBilling] = useState('monthly')
   const [showUpgrade, setShowUpgrade] = useState(null) // 'pro' | 'max' | null
 
@@ -83,7 +82,7 @@ export default function Plans() {
       <SeoHelmet
         title="Pricing — Free, Pro and Max plans"
         description="ZedExams Pro and Max plans for Zambian teachers and learners. Pay with MTN MoMo or Airtel Money. Cancel anytime."
-        path={pathname === '/plans' ? '/plans' : '/pricing'}
+        path="/pricing"
       />
       <style>{styles}</style>
       <div className="zpl-page">
