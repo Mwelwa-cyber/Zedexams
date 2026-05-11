@@ -201,7 +201,29 @@ export async function restoreExam(userId, attemptId) {
 
   // If the deadline already passed, auto-submit with whatever was saved
   if (Date.now() >= attempt.endTime) {
-    await _doSubmit(attemptId, attempt, attempt.answers || [], attempt.answers || {})
+    // Fetch the real questions so partial answers still score. The previous
+    // version passed `attempt.answers || []` as the questions argument, but
+    // `attempt.answers` is `{}` (an object, not an array). _doSubmit then
+    // ran `questions.forEach(...)` on an object and crashed with
+    // `forEach is not a function`, blanking the page into the
+    // ErrorBoundary whenever a learner revisited an expired-but-not-yet-
+    // submitted attempt.
+    let questions = []
+    try {
+      const qSnap = await getDocs(
+        query(
+          collection(db, 'quizzes', attempt.examId, 'questions'),
+          orderBy('order', 'asc'),
+        ),
+      )
+      questions = qSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+    } catch (e) {
+      console.error('restoreExam questions read for auto-submit failed:', e)
+      // Fall through with []; _doSubmit handles that by falling back to
+      // `attempt.totalMarks` and produces a 0-score submission rather than
+      // throwing.
+    }
+    await _doSubmit(attemptId, attempt, questions, attempt.answers || {})
     await _updateLockStatus(userId, attempt.subject, 'submitted')
     localStorage.removeItem(LS_KEY(userId, attempt.examId))
     return { alreadySubmitted: true, attemptId, timeExpired: true }
@@ -270,11 +292,17 @@ export async function autoSubmitExam(userId, attemptId, questions, answers) {
 // ── Private helpers ───────────────────────────────────────────────────────────
 
 async function _doSubmit(attemptId, attempt, questions, answers) {
+  // Defensive coercion — see restoreExam where a wrong-shape `questions`
+  // arg used to take down the runner with `forEach is not a function`.
+  // _doSubmit already falls back to attempt.totalMarks / totalQuestions
+  // when the array is empty, so a non-array input degrades to a 0-score
+  // submission rather than blanking the page.
+  const safeQuestions = Array.isArray(questions) ? questions : []
   let score = 0
   let totalMarks = 0
   const topicBreakdown = {}
 
-  questions.forEach(q => {
+  safeQuestions.forEach(q => {
     const marks   = q.marks ?? 1
     const topic   = (q.topic || 'General').trim()
     totalMarks   += marks
@@ -301,7 +329,7 @@ async function _doSubmit(attemptId, attempt, questions, answers) {
   // Fall back to stored totalMarks if questions array was empty
   if (totalMarks === 0) totalMarks = attempt.totalMarks || 0
 
-  const totalQuestions = questions.length || attempt.totalQuestions || 0
+  const totalQuestions = safeQuestions.length || attempt.totalQuestions || 0
   const percentage     = totalMarks > 0 ? Math.round((score / totalMarks) * 100) : 0
   const startMs        = attempt.startedAt?.toMillis?.() ?? (Date.now() - 60_000)
   const timeTakenSeconds = Math.round((Date.now() - startMs) / 1000)
