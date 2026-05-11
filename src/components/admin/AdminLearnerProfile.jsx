@@ -266,7 +266,19 @@ export default function AdminLearnerProfile() {
         <StatBlock label="Total Tests"   value={stats.count}                             color="blue"   />
         <StatBlock label="Average Score" value={stats.count ? `${stats.avg}%` : '—'}     color={stats.avg >= 70 ? 'green' : stats.avg >= 50 ? 'orange' : 'red'} />
         <StatBlock label="Best Subject"  value={stats.best ? stats.best.subject : '—'}   sub={stats.best ? `${stats.best.avg}% avg · ${stats.best.count} tests` : undefined} color="green" />
-        <StatBlock label="Weakest Subject" value={stats.weakest && stats.weakest !== stats.best ? stats.weakest.subject : (stats.best ? '—' : '—')} sub={stats.weakest && stats.weakest !== stats.best ? `${stats.weakest.avg}% avg · ${stats.weakest.count} tests` : undefined} color="red" />
+        {(() => {
+          const hasWeakest = stats.weakest && stats.weakest !== stats.best
+          return (
+            <StatBlock
+              label="Weakest Subject"
+              value={hasWeakest ? stats.weakest.subject : '—'}
+              sub={hasWeakest ? `${stats.weakest.avg}% avg · ${stats.weakest.count} tests` : undefined}
+              // Red only signals "weak"; show a neutral tile when there
+              // isn't a second subject to compare against.
+              color={hasWeakest ? 'red' : 'blue'}
+            />
+          )
+        })()}
       </div>
 
       {/* Subject breakdown */}

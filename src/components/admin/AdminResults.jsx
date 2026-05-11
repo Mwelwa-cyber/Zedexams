@@ -39,6 +39,7 @@ export default function AdminResults() {
   const [results, setResults]   = useState([])
   const [loading, setLoading]   = useState(true)
   const [search, setSearch]     = useState('')
+  const [debouncedSearch, setDebouncedSearch] = useState('')
   const [gradeF, setGradeF]     = useState('')
   const [subjectF, setSubjectF] = useState('')
   const [expanded, setExpanded] = useState(null)
@@ -51,6 +52,13 @@ export default function AdminResults() {
     }
     load()
   }, [getAllResults])
+
+  // Debounce the search input so we don't re-filter the whole result
+  // window on every keystroke when there are hundreds of rows.
+  useEffect(() => {
+    const id = setTimeout(() => setDebouncedSearch(search), 150)
+    return () => clearTimeout(id)
+  }, [search])
 
   function fmt(ts) {
     if (!ts) return '—'
@@ -66,12 +74,14 @@ export default function AdminResults() {
     return m > 0 ? `${m}m ${sec}s` : `${sec}s`
   }
 
-  const filtered = results.filter(r =>
-    (!gradeF    || r.grade   === gradeF) &&
-    (!subjectF  || r.subject === subjectF) &&
-    (!search    || (r.quizTitle || '').toLowerCase().includes(search.toLowerCase()) ||
-                   (r.userName  || '').toLowerCase().includes(search.toLowerCase()))
-  )
+  const filtered = results.filter(r => {
+    if (gradeF   && r.grade   !== gradeF)   return false
+    if (subjectF && r.subject !== subjectF) return false
+    if (!debouncedSearch) return true
+    const q = debouncedSearch.toLowerCase()
+    return (r.quizTitle || '').toLowerCase().includes(q)
+        || (r.userName  || '').toLowerCase().includes(q)
+  })
 
   // Summary stats
   const avg = filtered.length

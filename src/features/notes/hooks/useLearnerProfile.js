@@ -19,12 +19,18 @@ import { useAuth } from '../../../contexts/AuthContext'
 export function useLearnerProfile() {
   const { currentUser, userProfile, loading, refreshProfile } = useAuth()
 
+  // Treat the profile as "ready" only when `grade` is a real grade
+  // (the supported range is 4–7 today). Strings and `0` are normalised
+  // back to 'needs-onboarding' so onboarding always shows real options.
+  const gradeNum = Number(userProfile?.grade)
+  const hasValidGrade = Number.isFinite(gradeNum) && gradeNum >= 4
+
   let status
   if (loading) {
     status = 'checking'
   } else if (!currentUser) {
     status = 'unauthenticated'
-  } else if (!userProfile || userProfile.grade == null || userProfile.grade === '') {
+  } else if (!userProfile || !hasValidGrade) {
     status = 'needs-onboarding'
   } else {
     status = 'ready'

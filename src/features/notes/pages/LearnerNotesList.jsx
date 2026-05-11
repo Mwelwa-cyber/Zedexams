@@ -9,7 +9,7 @@
 // Mounted under the standard <Navbar /> in App.jsx so learners can navigate
 // back to /dashboard, /quizzes, /lessons, etc. without browser back.
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Lock } from '../../../components/ui/icons'
 import { useLearnerProfile }   from '../hooks/useLearnerProfile'
@@ -30,16 +30,18 @@ export function LearnerNotesList() {
   const { notes, allNotes, countsBySubject, loading } =
     useLearnerNotes({ grade, subject: activeSubject, search })
 
-  const subjects = getSubjectsForGrade(grade)
+  const subjects = useMemo(() => getSubjectsForGrade(grade), [grade])
   const firstName = user?.displayName?.split(' ')[0] || 'there'
 
-  const grouped = activeSubject === 'all'
-    ? subjects.reduce((acc, s) => {
-        const list = notes.filter(n => n.subject === s)
-        if (list.length) acc[s] = list
-        return acc
-      }, {})
-    : { [activeSubject]: notes }
+  const grouped = useMemo(() => (
+    activeSubject === 'all'
+      ? subjects.reduce((acc, s) => {
+          const list = notes.filter(n => n.subject === s)
+          if (list.length) acc[s] = list
+          return acc
+        }, {})
+      : { [activeSubject]: notes }
+  ), [activeSubject, notes, subjects])
 
   return (
     <div className="notes-studio min-h-screen pb-24 md:pb-8" style={{ backgroundColor: '#FAFAF7' }}>
