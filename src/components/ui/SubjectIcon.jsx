@@ -1,7 +1,7 @@
 import Icon from './Icon'
 import {
   BookOpen,
-  Beaker as BeakerIcon,
+  BeakerIcon,
   Calculator,
   Globe,
   PaintBrushIcon,
