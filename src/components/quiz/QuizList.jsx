@@ -53,6 +53,16 @@ function resolveDefaultGrade(profileGrade) {
   return GRADES.includes(value) ? value : GRADES[0]
 }
 
+// CBC exam policy: a learner's grade builds on the grades below it, so
+// quizzes from lower grades stay visible for revision. Grade 4 sees only
+// Grade 4; Grade 5 sees 4–5; Grade 6 sees 4–6; Grade 7 sees everything.
+function resolveAllowedGrades(profileGrade) {
+  const value = profileGrade == null ? '' : String(profileGrade)
+  if (!GRADES.includes(value)) return GRADES
+  const ceiling = GRADES.indexOf(value)
+  return GRADES.slice(0, ceiling + 1)
+}
+
 // ── Inline quiz row (revealed inside an expanded subject card) ─────────────
 function QuizRow({ quiz, locked, onStart }) {
   return (
@@ -234,6 +244,7 @@ export default function QuizList() {
   const location = useLocation()
 
   const profileGrade = userProfile?.grade
+  const allowedGrades = useMemo(() => resolveAllowedGrades(profileGrade), [profileGrade])
   const [gradeF, setGradeF]             = useState(() => resolveDefaultGrade(profileGrade))
   const [termF, setTermF]               = useState('')
   const [search, setSearch]             = useState('')
@@ -244,11 +255,13 @@ export default function QuizList() {
   const [blockedToast, setBlockedToast] = useState(location.state?.blocked || false)
 
   // Sync the chip when the user's profile grade loads/changes after mount.
+  // If the current selection is no longer allowed (e.g. a stale Grade 7 chip
+  // for a Grade 5 learner), fall back to the learner's own grade.
   useEffect(() => {
     if (!profileGrade) return
     const next = resolveDefaultGrade(profileGrade)
-    setGradeF(prev => (prev ? prev : next))
-  }, [profileGrade])
+    setGradeF(prev => (prev && allowedGrades.includes(prev) ? prev : next))
+  }, [profileGrade, allowedGrades])
 
   useEffect(() => {
     let cancelled = false
@@ -421,7 +434,7 @@ export default function QuizList() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            {GRADES.map(g => {
+            {allowedGrades.map(g => {
               const active = gradeF === g
               return (
                 <button
