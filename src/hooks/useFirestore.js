@@ -113,8 +113,15 @@ export function useFirestore() {
   // ── Quizzes ──────────────────────────────────────────────────
   async function getQuizzes(filters = {}) {
     try {
-      // Only quizzes explicitly assigned as practice by admin are visible to students
-      const c = [where('quizType', '==', 'practice')]
+      // Only quizzes explicitly assigned as practice by admin are visible to students.
+      // `isPublished == true` is required to stay inside firestore.rules: without it,
+      // a single orphan (practice but unpublished — e.g. after EditQuizV2's
+      // handleTogglePublish) would cause Firestore to deny the whole query and
+      // blank the library for every learner.
+      const c = [
+        where('isPublished', '==', true),
+        where('quizType', '==', 'practice'),
+      ]
       if (filters.grade)    c.push(where('grade',   '==', filters.grade))
       if (filters.subject)  c.push(where('subject', '==', filters.subject))
       if (filters.term)     c.push(where('term',    '==', filters.term))
