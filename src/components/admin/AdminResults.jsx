@@ -50,11 +50,12 @@ export default function AdminResults() {
       setLoading(false)
     }
     load()
-  }, [])
+  }, [getAllResults])
 
   function fmt(ts) {
     if (!ts) return '—'
     const d = ts.toDate ? ts.toDate() : new Date(ts)
+    if (Number.isNaN(d.getTime())) return '—'
     return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
   }
 

@@ -69,6 +69,11 @@ export default function LearnerClassDetail() {
     try {
       const row = await getClass(classId)
       if (!row) { setErrored(true); return }
+      // Membership check (defence-in-depth — rules already block but a
+      // teacher visiting their own class via this learner route should
+      // bounce too).
+      const isMember = Array.isArray(row.learners) && row.learners.includes(currentUser?.uid)
+      if (!isMember) { setRedirectAway(true); return }
       setKlass(row)
       const summaries = await fetchMemberDisplayNames(row.learners || [])
       setMembers(summaries)
@@ -89,7 +94,7 @@ export default function LearnerClassDetail() {
     } finally {
       setLoading(false)
     }
-  }, [classId])
+  }, [classId, currentUser?.uid])
 
   useEffect(() => { refresh() }, [refresh])
 
@@ -141,14 +146,6 @@ export default function LearnerClassDetail() {
         </div>
       </div>
     )
-  }
-
-  // Not a member (defence-in-depth — rules already block but a teacher
-  // visiting their own class via this learner route should bounce too).
-  const isMember = Array.isArray(klass.learners) && klass.learners.includes(currentUser?.uid)
-  if (!isMember) {
-    setTimeout(() => setRedirectAway(true), 0)
-    return null
   }
 
   const subjectMeta = SUBJECTS.find((s) => s.id === klass.subject)

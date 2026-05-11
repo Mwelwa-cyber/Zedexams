@@ -26,7 +26,7 @@ const SUBJECT_STYLES = {
   'English':             { bg: '#FFF1F2', fg: '#9F1239', border: '#FECDD3' },
   'Technology Studies':  { bg: '#F5F3FF', fg: '#5B21B6', border: '#DDD6FE' },
   'Home Economics':      { bg: '#FDF2F8', fg: '#9D174D', border: '#FBCFE8' },
-  'Expressive Arts':     { bg: '#FFF7ED', fg: '#9A3412', border: '#FED7AA' },
+  'Expressive Art':      { bg: '#FFF7ED', fg: '#9A3412', border: '#FED7AA' },
 }
 
 const subjectStyle = (subject) =>
