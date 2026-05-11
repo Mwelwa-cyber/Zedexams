@@ -583,10 +583,17 @@ export function hydrateQuizSections(questions = [], passages = [], parts = []) {
 }
 
 export function buildQuizDisplaySections(questions = [], passages = []) {
-  const sortedQuestions = [...questions].sort((left, right) => (left.order ?? 0) - (right.order ?? 0))
+  // Defensive coercion: a quiz doc written with a non-array `passages` field
+  // (e.g. an object map from an older import path) used to crash the exam
+  // and quiz runners with `s.forEach is not a function`. Same applies if
+  // `questions` arrives as something non-iterable. Coerce both at the
+  // boundary so a single bad doc cannot blank the runner.
+  const safeQuestions = Array.isArray(questions) ? questions : []
+  const safePassages = Array.isArray(passages) ? passages : []
+  const sortedQuestions = [...safeQuestions].sort((left, right) => (left.order ?? 0) - (right.order ?? 0))
   const passageBlocks = new Map()
 
-  passages.forEach(passage => {
+  safePassages.forEach(passage => {
     passageBlocks.set(passage.id, {
       id: passage.id,
       kind: 'passage',
