@@ -637,6 +637,12 @@ export default function EditQuizV2() {
     try {
       const serializedSections = serializeQuizSections(sections, parts)
       const isPublished = mode === 'published'
+      // Saving as draft/pending must clear the assignment so the quiz can't
+      // sit in the orphan state (quizType: 'practice', isPublished: false)
+      // that trips firestore rules-as-filters in getQuizzes.
+      const assignmentPatch = isPublished
+        ? {}
+        : { quizType: null, isDailyExam: false, dailyExamDate: null }
       await updateQuizWithQuestions(
         quizId,
         {
@@ -647,6 +653,7 @@ export default function EditQuizV2() {
           status: mode,
           isPublished,
           updatedBy: currentUser.uid,
+          ...assignmentPatch,
           ...(mode === 'pending' && { submittedAt: new Date() }),
           ...(mode === 'published' && { approvedBy: currentUser.uid }),
         },
@@ -672,6 +679,14 @@ export default function EditQuizV2() {
     try {
       const nextStatus = quizStatus === 'published' ? 'draft' : 'published'
       const serializedSections = serializeQuizSections(sections, parts)
+      // Unpublishing must also clear the assignment fields. Otherwise the
+      // quiz keeps quizType: 'practice' with isPublished: false — the orphan
+      // state that trips firestore rules-as-filters and blanks the learner
+      // library. Re-publishing routes through ManageContent's "Make practice"
+      // flow, which sets quizType correctly.
+      const assignmentPatch = nextStatus === 'published'
+        ? {}
+        : { quizType: null, isDailyExam: false, dailyExamDate: null }
       await updateQuizWithQuestions(
         quizId,
         {
@@ -682,6 +697,7 @@ export default function EditQuizV2() {
           status: nextStatus,
           isPublished: nextStatus === 'published',
           updatedBy: currentUser.uid,
+          ...assignmentPatch,
         },
         serializedSections.questions,
         deletedIds,

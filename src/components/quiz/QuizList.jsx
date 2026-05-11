@@ -295,12 +295,23 @@ export default function QuizList() {
 
   // Group filtered quizzes by subject. Subjects without any matching quizzes
   // still appear in the grid as "Coming soon" so the layout stays predictable.
+  // A quiz with a subject string that doesn't match any SUBJECTS.id would be
+  // silently dropped (e.g. legacy "Maths" vs "Mathematics"); log it so the
+  // mismatch surfaces in the console instead of vanishing from the library.
   const grouped = useMemo(() => {
     const map = new Map()
     for (const subject of SUBJECTS) map.set(subject.id, [])
+    const orphans = []
     for (const quiz of filteredQuizzes) {
       const list = map.get(quiz.subject)
       if (list) list.push(quiz)
+      else orphans.push(quiz)
+    }
+    if (orphans.length) {
+      console.warn(
+        `[QuizList] ${orphans.length} quiz(zes) dropped from grid — subject does not match any SUBJECTS.id:`,
+        orphans.map(q => ({ id: q.id, title: q.title, subject: q.subject })),
+      )
     }
     return SUBJECTS.map(subject => ({ subject, items: map.get(subject.id) || [] }))
   }, [filteredQuizzes])
