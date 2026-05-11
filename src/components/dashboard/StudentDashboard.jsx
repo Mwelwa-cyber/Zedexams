@@ -134,7 +134,7 @@ export default function StudentDashboard() {
               </span>
             )}
             {userProfile?.school && (
-              <span className="bg-white/20 text-white/90 text-xs px-2.5 py-1 rounded-full truncate max-w-[150px]">
+              <span className="bg-white/20 text-white/90 text-xs px-2.5 py-1 rounded-full truncate max-w-[180px] sm:max-w-[220px]">
                 {userProfile.school}
               </span>
             )}

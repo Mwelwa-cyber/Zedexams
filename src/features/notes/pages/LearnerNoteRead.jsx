@@ -5,11 +5,12 @@
 // Two render modes based on the note's noteFormat:
 //   • 'rich_text' (default for new notes) → renders HTML content in a prose container
 //   • 'file'                              → shows a download card (no inline PDF preview)
-//   • legacy slide-built lessons (no noteFormat, has slides[]) → friendly fallback
-//     pointing learners back to the existing /lessons/:id viewer
+// Slide-based docs (no noteFormat, has slides[]) belong on /lessons/:id —
+// if a learner lands here with a slide-based id we redirect to the
+// lessons viewer instead of showing a fallback message.
 
-import { useNavigate, useParams } from 'react-router-dom'
-import { ArrowLeft, Calendar, Download, FileType, Loader2, Layout } from '../../../components/ui/icons'
+import { useNavigate, useParams, Navigate } from 'react-router-dom'
+import { ArrowLeft, Calendar, Download, FileType, Loader2 } from '../../../components/ui/icons'
 
 import { useNote }            from '../hooks/useNote'
 import { NOTE_FORMAT }        from '../../../config/curriculum'
@@ -39,7 +40,7 @@ export function LearnerNoteRead() {
   if (loading) {
     return (
       <div className="notes-studio min-h-screen pb-24 md:pb-8" style={{ backgroundColor: '#FAFAF7' }}>
-        <SeoHelmet title="Lesson" path={`/lessons/${id}`} noIndex />
+        <SeoHelmet title="Note" path={`/notes/${id}`} noIndex />
         <div className="min-h-[50vh] flex items-center justify-center text-neutral-500">
           <Loader2 size={20} className="animate-spin" />
         </div>
@@ -50,14 +51,14 @@ export function LearnerNoteRead() {
   if (error || !note) {
     return (
       <div className="notes-studio min-h-screen pb-24 md:pb-8" style={{ backgroundColor: '#FAFAF7' }}>
-        <SeoHelmet title="Lesson not found" path={`/lessons/${id}`} noIndex />
-        <div className="max-w-xl mx-auto px-5 py-16 text-center">
+        <SeoHelmet title="Note not found" path={`/notes/${id}`} noIndex />
+        <div className="max-w-xl mx-auto px-4 sm:px-5 py-16 text-center">
           <h1 className="font-display text-3xl mb-2 text-neutral-900">Note not found</h1>
           <p className="text-sm text-neutral-500 mb-6">
             This note may have been unpublished or removed.
           </p>
           <button
-            onClick={() => navigate('/lessons')}
+            onClick={() => navigate('/notes')}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-neutral-900 text-white text-sm hover:opacity-90 transition"
           >
             <ArrowLeft size={14} /> Back to all notes
@@ -67,18 +68,24 @@ export function LearnerNoteRead() {
     )
   }
 
-  const s = subjectStyle(note.subject)
+  // Slide-based docs landed here from an old bookmark — hand them off to
+  // the lessons viewer so they don't render as broken notes.
   const isLegacySlides = !note.noteFormat && Array.isArray(note.slides) && note.slides.length > 0
+  if (isLegacySlides) {
+    return <Navigate to={`/lessons/${id}`} replace />
+  }
+
+  const s = subjectStyle(note.subject)
 
   return (
     <div className="notes-studio min-h-screen pb-24 md:pb-8" style={{ backgroundColor: '#FAFAF7' }}>
-      <SeoHelmet title={note.title || 'Lesson'} path={`/lessons/${id}`} noIndex />
-      <main className="max-w-2xl mx-auto px-5 py-8">
+      <SeoHelmet title={note.title || 'Note'} path={`/notes/${id}`} noIndex />
+      <main className="max-w-2xl mx-auto px-4 sm:px-5 py-8">
         <button
-          onClick={() => navigate('/lessons')}
+          onClick={() => navigate('/notes')}
           className="inline-flex items-center gap-1.5 text-sm text-neutral-600 hover:text-neutral-900 transition mb-8"
         >
-          <ArrowLeft size={15} /> All lessons
+          <ArrowLeft size={15} /> All notes
         </button>
 
         <article>
@@ -97,7 +104,7 @@ export function LearnerNoteRead() {
             </span>
           </div>
 
-          <h1 className="font-display text-5xl md:text-6xl tracking-tight leading-[1.05] mb-6 text-neutral-900">
+          <h1 className="font-display text-3xl sm:text-5xl md:text-6xl tracking-tight leading-[1.05] mb-6 text-neutral-900">
             {note.title}
           </h1>
 
@@ -109,9 +116,7 @@ export function LearnerNoteRead() {
 
           <hr className="my-8 border-neutral-100" />
 
-          {isLegacySlides ? (
-            <LegacySlidesPointer />
-          ) : note.noteFormat === NOTE_FORMAT.FILE ? (
+          {note.noteFormat === NOTE_FORMAT.FILE ? (
             <FileDownload note={note} />
           ) : (
             <div
@@ -165,16 +170,3 @@ function FileDownload({ note }) {
   )
 }
 
-function LegacySlidesPointer() {
-  return (
-    <div className="bg-white rounded-2xl border border-neutral-200 p-8 text-center my-6">
-      <div className="w-16 h-16 rounded-2xl mx-auto mb-4 flex items-center justify-center bg-amber-100">
-        <Layout size={28} className="text-amber-700" />
-      </div>
-      <h3 className="font-display text-2xl mb-1 text-neutral-900">Older lesson format</h3>
-      <p className="text-sm text-neutral-500 max-w-sm mx-auto">
-        This lesson was built in the old slide format and hasn't been migrated yet. Ask your teacher to republish it as notes.
-      </p>
-    </div>
-  )
-}

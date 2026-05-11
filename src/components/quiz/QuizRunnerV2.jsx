@@ -82,9 +82,9 @@ function PreQuizCard({ quiz, canExam, onStart }) {
   const themeClass = mascot.slug ? `quiz-theme-${mascot.slug}` : ''
 
   return (
-    <div className="theme-bg theme-text min-h-screen px-4 py-10">
+    <div className="theme-bg theme-text min-h-screen px-3 py-8 sm:px-4 sm:py-10">
       <div className="zx-card-shared mx-auto max-w-md overflow-hidden">
-        <div className="border-b-2 border-slate-900 bg-orange-50 px-6 py-5">
+        <div className="border-b-2 border-slate-900 bg-orange-50 px-4 py-4 sm:px-6 sm:py-5">
           <div className="mb-2 flex items-center gap-3">
             <span aria-hidden="true" className="grid h-12 w-12 flex-shrink-0 place-items-center rounded-[14px] border-2 border-slate-900 bg-orange-100 text-2xl">
               {mascot.emoji}
@@ -94,18 +94,18 @@ function PreQuizCard({ quiz, canExam, onStart }) {
               <p className="truncate text-xs font-semibold text-slate-700">{quiz.subject} · Grade {quiz.grade} · Term {quiz.term}</p>
             </div>
           </div>
-          <h1 className="text-xl font-black leading-tight text-slate-900">{quiz.title}</h1>
+          <h1 className="text-lg font-black leading-tight text-slate-900 sm:text-xl">{quiz.title}</h1>
         </div>
-        <div className="p-6">
-          <div className="mb-6 grid grid-cols-3 gap-3">
+        <div className="p-4 sm:p-6">
+          <div className="mb-6 grid grid-cols-3 gap-2 sm:gap-3">
             {[
               ['❓', quiz.questionCount ?? '—', 'Questions'],
               ['⏱️', quiz.duration ?? '—', 'Minutes'],
               ['⭐', quiz.totalMarks ?? '—', 'Marks'],
             ].map(([icon, value, label]) => (
-              <div key={label} className="rounded-[14px] border-2 border-slate-900 bg-orange-50 py-3 text-center shadow-[0_2px_0_#0F1B2D]">
-                <div className="mb-1 text-2xl">{icon}</div>
-                <div className="text-lg font-black text-slate-900">{value}</div>
+              <div key={label} className="rounded-[14px] border-2 border-slate-900 bg-orange-50 px-1 py-3 text-center shadow-[0_2px_0_#0F1B2D]">
+                <div className="mb-1 text-xl sm:text-2xl">{icon}</div>
+                <div className="text-base font-black text-slate-900 sm:text-lg">{value}</div>
                 <div className="text-[10px] font-bold uppercase tracking-wide text-slate-600">{label}</div>
               </div>
             ))}
@@ -488,7 +488,7 @@ export default function QuizRunnerV2() {
     const typed = shortText[question.id] ?? ''
 
     return (
-      <div key={question.id} className="zx-card-shared space-y-4 p-5 text-slate-900">
+      <div key={question.id} className="zx-card-shared space-y-4 p-4 text-slate-900 sm:p-5">
         <div className="flex items-center justify-between gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <span className="zx-pill-dark">Q{question.questionNumber}</span>
@@ -527,7 +527,7 @@ export default function QuizRunnerV2() {
               <RichContent value={question.sharedInstruction} className="text-sm font-bold leading-relaxed text-slate-900" />
             </div>
           )}
-          <RichContent value={question.text} className="text-[17px] font-bold leading-relaxed text-slate-900" />
+          <RichContent value={question.text} className="text-[15px] font-bold leading-relaxed text-slate-900 sm:text-[17px]" />
           {question.diagramText && (
             <p className="mt-2 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold leading-relaxed text-slate-700">{question.diagramText}</p>
           )}
@@ -741,7 +741,7 @@ export default function QuizRunnerV2() {
       )}
 
       <div className="zx-hero-strip sticky top-0 z-30">
-        <div className="mx-auto max-w-5xl px-4 py-3">
+        <div className="mx-auto max-w-5xl px-3 py-3 sm:px-4">
           <div className="mb-3 flex items-center justify-between gap-3">
             <span aria-hidden="true" className="grid h-10 w-10 flex-shrink-0 place-items-center rounded-[14px] border-2 border-slate-900 bg-orange-100 text-xl">
               {mascot.emoji}
@@ -772,25 +772,25 @@ export default function QuizRunnerV2() {
         </div>
       </div>
 
-      <div className="mx-auto flex min-h-[calc(100vh-10rem)] max-w-5xl flex-1 flex-col px-4 py-4 pb-44">
+      <div className="mx-auto flex min-h-[calc(100vh-10rem)] w-full max-w-5xl flex-1 flex-col px-3 py-4 pb-44 sm:px-4">
         {activeSection.kind === 'passage' ? (
           <div className="grid gap-4 lg:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
-            <div className="lg:sticky lg:top-24 lg:self-start">
+            <div className="min-w-0 lg:sticky lg:top-24 lg:self-start">
               <div className="zx-card-shared overflow-hidden">
-                <div className="border-b-2 border-slate-900 bg-orange-50 px-5 py-4">
+                <div className="border-b-2 border-slate-900 bg-orange-50 px-4 py-4 sm:px-5">
                   <div className="mb-2 flex flex-wrap items-center gap-2">
                     <span className="zx-pill-dark zx-pill-orange">
                       {activeSection.passage.passageKind === 'map' ? 'Map Questions' : 'Comprehension Passage'}
                     </span>
                     <span className="zx-pill-dark zx-pill-light">{activeSection.questions.length} question{activeSection.questions.length === 1 ? '' : 's'}</span>
                   </div>
-                  {activeSection.passage.title && <h2 className="text-lg font-black text-slate-900">{activeSection.passage.title}</h2>}
+                  {activeSection.passage.title && <h2 className="text-base font-black text-slate-900 sm:text-lg">{activeSection.passage.title}</h2>}
                   {activeSection.passage.instructions && (
                     <RichContent value={activeSection.passage.instructions} className="mt-2 text-sm font-bold text-slate-700" />
                   )}
                 </div>
                 {activeSection.passage.imageUrl && (
-                  <div className="border-b-2 border-slate-900 bg-slate-50 p-4">
+                  <div className="border-b-2 border-slate-900 bg-slate-50 p-3 sm:p-4">
                     <ZoomableImage
                       src={activeSection.passage.imageUrl}
                       alt="Passage illustration"
@@ -798,12 +798,12 @@ export default function QuizRunnerV2() {
                     />
                   </div>
                 )}
-                <div className="p-5">
+                <div className="p-4 sm:p-5">
                   <RichContent value={activeSection.passage.passageText} className="text-sm leading-7 text-slate-900" />
                 </div>
               </div>
             </div>
-            <div className="space-y-4">
+            <div className="min-w-0 space-y-4">
               {activeSection.questions.map(renderQuestion)}
             </div>
           </div>
@@ -815,7 +815,7 @@ export default function QuizRunnerV2() {
       </div>
 
       <div className="zx-glass-bottom fixed bottom-0 left-0 right-0 z-30 safe-area-bottom">
-        <div className="mx-auto max-w-5xl px-4 py-3">
+        <div className="mx-auto max-w-3xl px-3 py-3 sm:px-4">
           <div className="mb-2 flex items-center justify-between px-1">
             <span className="zx-pill-dark zx-pill-light">Section {activeSectionIndex + 1} / {sections.length}</span>
             <span className="text-xs font-bold text-slate-700">{answered}/{questions.length} answered</span>
@@ -854,8 +854,8 @@ export default function QuizRunnerV2() {
             </div>
           )}
 
-          <div className="flex items-center justify-between gap-3">
-            <button type="button" onClick={() => setActiveSectionIndex(index => Math.max(0, index - 1))} disabled={activeSectionIndex === 0} className="zx-sb zx-sb-secondary text-sm">
+          <div className="flex flex-wrap items-center justify-between gap-2 sm:gap-3">
+            <button type="button" onClick={() => setActiveSectionIndex(index => Math.max(0, index - 1))} disabled={activeSectionIndex === 0} className="zx-sb zx-sb-secondary flex-1 px-3 text-sm sm:flex-none sm:px-4">
               ← Prev
             </button>
             {activeSectionIndex < sections.length - 1 ? (
@@ -868,12 +868,12 @@ export default function QuizRunnerV2() {
                   }
                   setActiveSectionIndex(index => index + 1)
                 }}
-                className="zx-sb zx-sb-primary text-sm"
+                className="zx-sb zx-sb-primary flex-1 px-3 text-sm sm:flex-none sm:px-4"
               >
                 Next →
               </button>
             ) : (
-              <button type="button" onClick={() => setShowSubmit(true)} className="zx-sb zx-sb-amber text-sm">
+              <button type="button" onClick={() => setShowSubmit(true)} className="zx-sb zx-sb-amber flex-1 px-3 text-sm sm:flex-none sm:px-4">
                 Submit 🏁
               </button>
             )}
