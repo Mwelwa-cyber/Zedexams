@@ -35,6 +35,7 @@ import {
 } from '../../utils/examService'
 import RichContent from '../../editor/RichContent'
 import SeoHelmet from '../seo/SeoHelmet'
+import ErrorBoundary from '../ui/ErrorBoundary'
 
 // ── Tiny utilities ─────────────────────────────────────────────────────────────
 
@@ -95,9 +96,56 @@ function AlreadyDoneScreen({ attemptId, timeExpired }) {
   )
 }
 
+// ── Friendly error card ────────────────────────────────────────────────────────
+// Replaces the legacy screen that printed raw exception messages like
+// "s.forEach is not a function" at learners. Whatever the underlying cause —
+// a malformed Firestore field, a flaky network, a transient render throw —
+// the recovery surface stays the same: try again in place, or back out to
+// the exams list. The technical message is preserved for devs in DEV builds
+// only, so we still get a fast diagnostic loop without scaring learners.
+function ExamRecoveryCard({ examId, onRetry, technicalMessage }) {
+  return (
+    <div className="theme-bg flex min-h-screen items-center justify-center px-4">
+      <SeoHelmet title="Exam" path={`/exam/${examId}`} noIndex />
+      <div className="zx-card-shared w-full max-w-sm p-8 text-center">
+        <div className="mb-3 text-4xl">😕</div>
+        <h2 className="mb-2 text-xl font-black text-slate-900">We hit a snag loading this exam</h2>
+        <p className="mb-6 text-sm font-semibold text-slate-600">
+          This usually clears with a quick retry. Your timer and answers are
+          saved on our side — nothing is lost.
+        </p>
+        <div className="flex flex-col gap-3">
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="zx-sb zx-sb-primary w-full text-sm"
+            >
+              ↻ Try again
+            </button>
+          )}
+          <Link to="/exams" className="zx-sb zx-sb-secondary w-full text-sm">
+            ← Back to Exams
+          </Link>
+        </div>
+        {import.meta.env.DEV && technicalMessage && (
+          <details className="mt-6 text-left">
+            <summary className="cursor-pointer text-xs font-bold text-slate-500">
+              Developer details
+            </summary>
+            <pre className="mt-2 whitespace-pre-wrap break-words text-xs text-slate-500">
+              {technicalMessage}
+            </pre>
+          </details>
+        )}
+      </div>
+    </div>
+  )
+}
+
 // ── Main component ─────────────────────────────────────────────────────────────
 
-export default function DailyExamRunner() {
+function DailyExamRunnerInner() {
   const { examId } = useParams()
   const navigate   = useNavigate()
   const { currentUser, userProfile } = useAuth()
@@ -113,6 +161,10 @@ export default function DailyExamRunner() {
   const [submitting, setSubmitting] = useState(false)
   const [showConfirm, setShowConfirm] = useState(false)
   const [actionError, setActionError] = useState('')
+  // Bumped by the recovery card's "Try again" button so the init effect
+  // re-runs from scratch without forcing a full page reload (which would
+  // restart the timer fetch and re-flash the loading screen needlessly).
+  const [initAttempt, setInitAttempt] = useState(0)
 
   // Exam session
   const [attemptId, setAttemptId]               = useState(null)
@@ -174,16 +226,34 @@ export default function DailyExamRunner() {
         }
 
         setAttemptId(session.attemptId)
-        setAnswers(session.answers || {})
-        setFlagged(session.flagged || {})
+        // Coerce to plain objects/arrays at the boundary so a malformed
+        // session payload (e.g. session.answers landing as null/array)
+        // can't throw later via `Object.keys(answers)` or `flagged[q.id]`.
+        const safeAnswers = (session.answers && typeof session.answers === 'object' && !Array.isArray(session.answers))
+          ? session.answers
+          : {}
+        const safeFlagged = (session.flagged && typeof session.flagged === 'object')
+          ? session.flagged
+          : {}
+        setAnswers(safeAnswers)
+        setFlagged(safeFlagged)
+        const safeSectionLen = Array.isArray(data.sections) ? data.sections.length : 0
+        const requestedIdx = Number.isFinite(session.currentSectionIndex) ? session.currentSectionIndex : 0
         setActiveSectionIndex(
-          Math.min(session.currentSectionIndex || 0, data.sections.length - 1),
+          safeSectionLen > 0 ? Math.min(requestedIdx, safeSectionLen - 1) : 0,
         )
         setEndTime(session.endTime)
         setStatus('ready')
       } catch (e) {
+        // Whatever the underlying cause, learners see ExamRecoveryCard's
+        // friendly text + Retry button. The raw `e.message` is kept in
+        // local state so the DEV-only details panel can still surface it
+        // for diagnostics; production builds never render it.
         console.error('DailyExamRunner init:', e)
-        if (!cancelled) { setError(e.message || 'Failed to load exam.'); setStatus('error') }
+        if (!cancelled) {
+          setError(e?.message ? `${e.message}` : 'Failed to load exam.')
+          setStatus('error')
+        }
       }
     }
 
@@ -192,7 +262,7 @@ export default function DailyExamRunner() {
       cancelled = true
       clearInterval(timerRef.current)
     }
-  }, [currentUser, examId, userProfile])
+  }, [currentUser, examId, userProfile, initAttempt])
 
   // ── Timer — driven by endTime, not decremented seconds ────────────────────
 
@@ -394,16 +464,15 @@ export default function DailyExamRunner() {
 
   if (status === 'error') {
     return (
-      <div className="theme-bg flex min-h-screen items-center justify-center px-4">
-        <SeoHelmet title="Exam" path={`/exam/${examId}`} noIndex />
-        <div className="zx-card-shared w-full max-w-sm p-8 text-center">
-          <div className="mb-3 text-4xl">😕</div>
-          <p className="font-bold text-red-600 mb-4">{error}</p>
-          <Link to="/exams" className="zx-sb zx-sb-primary text-sm">
-            ← Back to Exams
-          </Link>
-        </div>
-      </div>
+      <ExamRecoveryCard
+        examId={examId}
+        onRetry={() => {
+          setError('')
+          setStatus('loading')
+          setInitAttempt(n => n + 1)
+        }}
+        technicalMessage={error}
+      />
     )
   }
 
@@ -616,5 +685,33 @@ export default function DailyExamRunner() {
         </div>
       </div>
     </div>
+  )
+}
+
+// Outer wrapper exists for one reason: render-time exceptions inside the
+// runner (e.g. a question with an unexpected shape that slips past the
+// data-layer coercions) used to escape to the global ErrorBoundary, which
+// shows a generic full-page "Something went wrong" card with no exam-aware
+// recovery. The local ErrorBoundary here keeps the recovery surface
+// consistent with the async-init failure mode: a friendly retry / back-out
+// card. Pair this with the data-shape coercions in examService +
+// quizSections so the path from "bad Firestore doc" to "blank page
+// mid-exam" stays closed end-to-end.
+export default function DailyExamRunner() {
+  const { examId } = useParams()
+  return (
+    <ErrorBoundary
+      inline
+      resetKey={examId}
+      fallback={({ retry, error }) => (
+        <ExamRecoveryCard
+          examId={examId}
+          onRetry={retry}
+          technicalMessage={error?.message}
+        />
+      )}
+    >
+      <DailyExamRunnerInner />
+    </ErrorBoundary>
   )
 }

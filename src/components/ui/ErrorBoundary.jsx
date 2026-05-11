@@ -34,6 +34,14 @@ function isChunkLoadError(err) {
  *              page reload).
  *   inline   — render a compact recovery card instead of the full-screen one,
  *              so nested boundaries don't blow away the surrounding shell.
+ *   fallback — optional ReactNode (or function returning one) rendered in
+ *              place of the default recovery card. Lets a feature owner
+ *              show a context-aware UI (e.g. the exam runner's "Try again"
+ *              card with the exam id baked in) instead of the generic
+ *              "Something went wrong" surface. Receives no args when a node;
+ *              when a function, called with `({ error, retry })` so the
+ *              fallback can wire its own retry button to the boundary's
+ *              clear-state handler without hoisting state into the parent.
  */
 export default class ErrorBoundary extends Component {
   constructor(props) {
@@ -86,6 +94,15 @@ export default class ErrorBoundary extends Component {
 
   render() {
     if (!this.state.hasError) return this.props.children
+
+    // Feature-specific fallback wins over the generic recovery card so a
+    // caller (e.g. the exam runner) can show an exam-aware retry card
+    // without losing the boundary's catch-and-reset machinery.
+    if (this.props.fallback !== undefined) {
+      return typeof this.props.fallback === 'function'
+        ? this.props.fallback({ error: this.state.error, retry: this.handleRetry })
+        : this.props.fallback
+    }
 
     const message = this.state.error?.message || 'An unexpected error occurred.'
     const inline = !!this.props.inline
