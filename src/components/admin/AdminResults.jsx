@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { ClipboardList } from '../ui/icons'
-import { useFirestore } from '../../hooks/useFirestore'
+import { useFirestore, ADMIN_QUERY_LIMIT } from '../../hooks/useFirestore'
 import PageHeader from '../ui/PageHeader'
 import EmptyState from '../ui/EmptyState'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -86,6 +86,15 @@ export default function AdminResults() {
         title="Learner Results"
         description="View all quiz results across your platform."
       />
+
+      {/* Capped-result warning — pass rate and averages only reflect the first
+          ADMIN_QUERY_LIMIT rows once the collection hits the cap. */}
+      {!loading && results.length >= ADMIN_QUERY_LIMIT && (
+        <div className="rounded-2xl border border-yellow-200 bg-yellow-50 text-yellow-800 p-3 text-xs font-bold">
+          Showing only the most recent {ADMIN_QUERY_LIMIT.toLocaleString()} results.
+          Summary stats and filters only reflect this window.
+        </div>
+      )}
 
       {/* Summary banner */}
       {!loading && filtered.length > 0 && (

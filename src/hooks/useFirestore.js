@@ -8,7 +8,7 @@ import {
 // Safety cap on every "get all X" admin query — keeps a single mistaken
 // dashboard reload from reading the entire collection. Admin pages that
 // need more should paginate or use count aggregations instead.
-const ADMIN_QUERY_LIMIT = 500
+export const ADMIN_QUERY_LIMIT = 500
 import { db } from '../firebase/config'
 import { capture as captureAnalytics } from '../utils/analytics.js'
 import { normalizeRichTextPayload } from '../utils/quizRichText.js'
