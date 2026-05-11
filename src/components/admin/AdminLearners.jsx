@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Download, ChevronLeft, ChevronRight, Users } from '../ui/icons'
+import { Search, Download, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Users } from '../ui/icons'
 import { useFirestore, ADMIN_QUERY_LIMIT } from '../../hooks/useFirestore'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
@@ -8,7 +8,8 @@ import { downloadCSV } from '../../utils/csvExport'
 import SeoHelmet from '../seo/SeoHelmet'
 
 const GRADES = ['4', '5', '6', '7']
-const PAGE_SIZE = 20
+const PAGE_SIZE_OPTIONS = [20, 50, 100]
+const DEFAULT_PAGE_SIZE = 20
 
 function pctColor(p) {
   if (p >= 70) return 'text-green-600'
@@ -60,6 +61,7 @@ export default function AdminLearners() {
   const [statusF, setStatusF] = useState('')
   const [sortBy, setSortBy]   = useState('registered_desc')
   const [page, setPage]       = useState(1)
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE)
 
   useEffect(() => {
     async function load() {
@@ -188,11 +190,13 @@ export default function AdminLearners() {
     return rows
   }, [learners, perLearner, search, gradeF, statusF, sortBy])
 
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE))
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize))
   const safePage   = Math.min(page, totalPages)
-  const pageRows   = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE)
+  const pageRows   = filtered.slice((safePage - 1) * pageSize, safePage * pageSize)
 
-  useEffect(() => { setPage(1) }, [search, gradeF, statusF, sortBy])
+  // Reset to page 1 whenever the filter or page size changes — otherwise
+  // the user can end up parked on an empty page beyond the new last page.
+  useEffect(() => { setPage(1) }, [search, gradeF, statusF, sortBy, pageSize])
 
   function handleExport() {
     const rows = filtered.map(l => {
@@ -401,15 +405,38 @@ export default function AdminLearners() {
 
           {/* Pagination */}
           <div className="flex items-center justify-between flex-wrap gap-2">
-            <p className="text-xs text-gray-500">
-              Showing <span className="font-black text-gray-700">{(safePage - 1) * PAGE_SIZE + 1}</span>
-              –<span className="font-black text-gray-700">{Math.min(safePage * PAGE_SIZE, filtered.length)}</span>
-              {' '}of <span className="font-black text-gray-700">{filtered.length}</span> learners
-            </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-3 flex-wrap">
+              <p className="text-xs text-gray-500">
+                Showing <span className="font-black text-gray-700">{(safePage - 1) * pageSize + 1}</span>
+                –<span className="font-black text-gray-700">{Math.min(safePage * pageSize, filtered.length)}</span>
+                {' '}of <span className="font-black text-gray-700">{filtered.length}</span> learners
+              </p>
+              <label className="text-xs text-gray-500 flex items-center gap-1.5">
+                <span className="sr-only sm:not-sr-only">Per page</span>
+                <select
+                  value={pageSize}
+                  onChange={e => setPageSize(Number(e.target.value))}
+                  aria-label="Rows per page"
+                  className="border-2 border-gray-200 rounded-lg px-2 py-1 text-xs font-bold text-gray-700 focus:border-green-500 focus:outline-none"
+                >
+                  {PAGE_SIZE_OPTIONS.map(n => <option key={n} value={n}>{n} / page</option>)}
+                </select>
+              </label>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setPage(1)}
+                disabled={safePage <= 1}
+                aria-label="First page"
+                title="First page"
+                className="inline-flex items-center gap-1 border-2 border-gray-200 rounded-xl px-2 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Icon as={ChevronsLeft} size="xs" />
+              </button>
               <button
                 onClick={() => setPage(p => Math.max(1, p - 1))}
                 disabled={safePage <= 1}
+                aria-label="Previous page"
                 className="inline-flex items-center gap-1 border-2 border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 <Icon as={ChevronLeft} size="xs" /> Prev
@@ -418,9 +445,19 @@ export default function AdminLearners() {
               <button
                 onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                 disabled={safePage >= totalPages}
+                aria-label="Next page"
                 className="inline-flex items-center gap-1 border-2 border-gray-200 rounded-xl px-3 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 Next <Icon as={ChevronRight} size="xs" />
+              </button>
+              <button
+                onClick={() => setPage(totalPages)}
+                disabled={safePage >= totalPages}
+                aria-label="Last page"
+                title="Last page"
+                className="inline-flex items-center gap-1 border-2 border-gray-200 rounded-xl px-2 py-1.5 text-xs font-bold text-gray-700 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Icon as={ChevronsRight} size="xs" />
               </button>
             </div>
           </div>
