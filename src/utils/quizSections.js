@@ -588,8 +588,12 @@ export function buildQuizDisplaySections(questions = [], passages = []) {
   // and quiz runners with `s.forEach is not a function`. Same applies if
   // `questions` arrives as something non-iterable. Coerce both at the
   // boundary so a single bad doc cannot blank the runner.
-  const safeQuestions = Array.isArray(questions) ? questions : []
-  const safePassages = Array.isArray(passages) ? passages : []
+  const safeQuestions = (Array.isArray(questions) ? questions : []).filter(
+    question => question && typeof question === 'object',
+  )
+  const safePassages = (Array.isArray(passages) ? passages : []).filter(
+    passage => passage && typeof passage === 'object' && passage.id,
+  )
   const sortedQuestions = [...safeQuestions].sort((left, right) => (left.order ?? 0) - (right.order ?? 0))
   const passageBlocks = new Map()
 

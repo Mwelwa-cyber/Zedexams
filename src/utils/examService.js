@@ -47,6 +47,11 @@ const LS_KEY = (userId, examId) => `zedexams:exam:${userId}:${examId}`
 /**
  * Fetch the quiz document + all questions for a given examId.
  * Returns { quiz, questions, sections } ready for the runner.
+ *
+ * Defensive shape rules: quiz.passages is coerced to an array before it
+ * touches buildQuizDisplaySections (which already coerces internally — this
+ * is belt-and-braces so a future caller can't accidentally re-introduce the
+ * "s.forEach is not a function" crash that bit /exam/:id loaders).
  */
 export async function getExamWithQuestions(examId) {
   const [quizSnap, qSnap] = await Promise.all([
@@ -63,7 +68,8 @@ export async function getExamWithQuestions(examId) {
 
   const quiz = { id: quizSnap.id, ...quizSnap.data() }
   const questions = qSnap.docs.map(d => ({ id: d.id, ...d.data() }))
-  const { sections } = buildQuizDisplaySections(questions, quiz.passages || [])
+  const safePassages = Array.isArray(quiz.passages) ? quiz.passages : []
+  const { sections } = buildQuizDisplaySections(questions, safePassages)
 
   return { quiz, questions, sections }
 }
@@ -229,13 +235,28 @@ export async function restoreExam(userId, attemptId) {
     return { alreadySubmitted: true, attemptId, timeExpired: true }
   }
 
+  // Coerce the persisted shapes to what the runner expects. A historical
+  // quiz attempt could have `flagged` written as either an array (legacy)
+  // or an object (current); the runner's setFlagged uses object spread so
+  // both pass through, but we normalise here so downstream code never has
+  // to branch. Same for `answers` — if a stale doc somehow has a non-object
+  // value we degrade to {} rather than letting `answers[q.id]` throw later.
+  const safeAnswers = (attempt.answers && typeof attempt.answers === 'object' && !Array.isArray(attempt.answers))
+    ? attempt.answers
+    : {}
+  const safeFlagged = Array.isArray(attempt.flagged)
+    ? attempt.flagged
+    : (attempt.flagged && typeof attempt.flagged === 'object')
+      ? attempt.flagged
+      : []
+
   const session = {
     attemptId,
     examId: attempt.examId,
     endTime: attempt.endTime, // Firestore is authoritative
-    answers: attempt.answers || {},
-    flagged: attempt.flagged || [],
-    currentSectionIndex: attempt.currentSectionIndex || 0,
+    answers: safeAnswers,
+    flagged: safeFlagged,
+    currentSectionIndex: Number.isFinite(attempt.currentSectionIndex) ? attempt.currentSectionIndex : 0,
   }
 
   _writeLocalSession(userId, attempt.examId, session)
