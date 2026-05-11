@@ -10,7 +10,7 @@
 import { useState } from 'react'
 import { GraduationCap, Lock, Loader2, BookOpen } from '../../../components/ui/icons'
 import { useAuth } from '../../../contexts/AuthContext'
-import { ALL_GRADES } from '../../../config/curriculum'
+import { ALL_GRADES, BAND_LABELS } from '../../../config/curriculum'
 import '../styles/notes.css'
 
 export function LearnerOnboarding({ user, onDone }) {
@@ -51,7 +51,7 @@ export function LearnerOnboarding({ user, onDone }) {
 
         <div className="bg-white rounded-2xl border border-neutral-200 p-5">
           <div className="text-[10px] tracking-[0.15em] uppercase text-neutral-500 mb-3 inline-flex items-center gap-1.5">
-            <GraduationCap size={12} /> Active grades
+            <GraduationCap size={12} /> Active grades · {BAND_LABELS.primary}
           </div>
           <div className="grid grid-cols-2 gap-2 mb-5">
             {ALL_GRADES.filter(g => g.active).map(g => (
@@ -65,7 +65,7 @@ export function LearnerOnboarding({ user, onDone }) {
           </div>
 
           <div className="text-[10px] tracking-[0.15em] uppercase text-neutral-500 mb-3 inline-flex items-center gap-1.5">
-            <Lock size={12} /> Coming soon
+            <Lock size={12} /> Coming soon · {BAND_LABELS.junior_secondary} & {BAND_LABELS.senior_secondary}
           </div>
           <div className="grid grid-cols-3 gap-2 mb-2">
             {ALL_GRADES.filter(g => !g.active).map(g => (

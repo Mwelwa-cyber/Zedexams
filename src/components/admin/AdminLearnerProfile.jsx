@@ -77,8 +77,16 @@ export default function AdminLearnerProfile() {
     let cancelled = false
     async function load() {
       setLoadError(null)
+      // Empty / whitespace ids would throw "Invalid document reference"
+      // from getDoc() and land in the silent catch — surface as 404.
+      const safeId = String(learnerId || '').trim()
+      if (!safeId) {
+        setNotFound(true)
+        setLoading(false)
+        return
+      }
       try {
-        const snap = await getDoc(doc(db, 'users', learnerId))
+        const snap = await getDoc(doc(db, 'users', safeId))
         if (cancelled) return
         if (!snap.exists()) {
           setNotFound(true)
@@ -86,7 +94,7 @@ export default function AdminLearnerProfile() {
           return
         }
         setUser({ id: snap.id, ...snap.data() })
-        const r = await getUserResults(learnerId, 200)
+        const r = await getUserResults(safeId, 200)
         if (cancelled) return
         setResults(r)
       } catch (e) {
@@ -237,9 +245,12 @@ export default function AdminLearnerProfile() {
             </div>
             <div className="flex flex-wrap gap-3 mt-3 text-xs text-gray-600">
               {user.email && (
-                <span className="inline-flex items-center gap-1.5">
+                <a
+                  href={`mailto:${user.email}`}
+                  className="inline-flex items-center gap-1.5 hover:text-green-700 hover:underline"
+                >
                   <Icon as={Mail} size="xs" /> {user.email}
-                </span>
+                </a>
               )}
               {user.school && (
                 <span className="inline-flex items-center gap-1.5">
@@ -250,12 +261,20 @@ export default function AdminLearnerProfile() {
                 <Icon as={Calendar} size="xs" /> Registered {fmt(user.createdAt)}
               </span>
             </div>
-            {(user.parentContact || user.guardianContact || user.phoneNumber) && (
-              <p className="mt-2 text-xs text-gray-500">
-                <span className="font-bold">Guardian contact:</span>{' '}
-                {user.parentContact || user.guardianContact || user.phoneNumber}
-              </p>
-            )}
+            {(user.parentContact || user.guardianContact || user.phoneNumber) && (() => {
+              const phone = user.parentContact || user.guardianContact || user.phoneNumber
+              return (
+                <p className="mt-2 text-xs text-gray-500">
+                  <span className="font-bold">Guardian contact:</span>{' '}
+                  <a
+                    href={`tel:${String(phone).replace(/\s+/g, '')}`}
+                    className="hover:text-green-700 hover:underline"
+                  >
+                    {phone}
+                  </a>
+                </p>
+              )
+            })()}
             <p className="mt-1 text-xs text-gray-400 font-mono">ID: {user.id}</p>
           </div>
         </div>
@@ -307,7 +326,9 @@ export default function AdminLearnerProfile() {
       {/* Tests list */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-eyebrow">All tests written ({results.length})</h2>
+          <h2 className="text-eyebrow">
+            {results.length >= 200 ? 'Most recent tests (200)' : `All tests written (${results.length})`}
+          </h2>
           {results.length > 0 && (
             <button
               type="button"

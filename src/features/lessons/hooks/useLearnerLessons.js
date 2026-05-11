@@ -32,7 +32,11 @@ export function useLearnerLessons({ grade, subject = 'all', search = '' }) {
     if (subject !== 'all') list = list.filter(l => l.subject === subject)
     if (search.trim()) {
       const q = search.toLowerCase()
-      list = list.filter(l => l.title?.toLowerCase().includes(q))
+      list = list.filter(l =>
+        l.title?.toLowerCase().includes(q) ||
+        l.excerpt?.toLowerCase().includes(q) ||
+        l.topic?.toLowerCase().includes(q),
+      )
     }
     return list
   }, [lessons, subject, search])

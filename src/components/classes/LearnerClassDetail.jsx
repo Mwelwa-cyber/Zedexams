@@ -17,7 +17,7 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
-import { collection, getDocs, query, where } from 'firebase/firestore'
+import { collection, doc, getDoc, getDocs, query, where } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { useAuth } from '../../contexts/AuthContext'
 import { getClass, leaveClass } from '../../utils/classes'
@@ -80,14 +80,13 @@ export default function LearnerClassDetail() {
       // Best-effort teacher displayName lookup. Fails silently if
       // rules block (which they will for non-admin learners reading
       // a teacher's user doc).
-      try {
-        const tSnap = await getDocs(query(
-          collection(db, 'users'),
-          where('__name__', '==', row.teacherUid),
-        ))
-        const t = tSnap.docs[0]?.data()
-        if (t?.displayName) setTeacher({ displayName: t.displayName })
-      } catch { /* expected for non-admin */ }
+      if (row.teacherUid) {
+        try {
+          const tSnap = await getDoc(doc(db, 'users', row.teacherUid))
+          const t = tSnap.exists() ? tSnap.data() : null
+          if (t?.displayName) setTeacher({ displayName: t.displayName })
+        } catch { /* expected for non-admin */ }
+      }
     } catch (err) {
       console.warn('[LearnerClassDetail] load failed', err)
       setErrored(true)

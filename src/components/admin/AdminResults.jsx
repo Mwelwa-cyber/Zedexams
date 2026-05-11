@@ -81,6 +81,8 @@ export default function AdminResults() {
     const q = debouncedSearch.toLowerCase()
     return (r.quizTitle || '').toLowerCase().includes(q)
         || (r.userName  || '').toLowerCase().includes(q)
+        || (r.subject   || '').toLowerCase().includes(q)
+        || (r.userId    || '').toLowerCase().includes(q)
   })
 
   // Summary stats
@@ -127,7 +129,7 @@ export default function AdminResults() {
       {/* Filters — own card so the toolbar reads as a unit */}
       <div className="theme-card rounded-2xl border theme-border shadow-elev-sm p-3 flex gap-2 flex-wrap">
         <input value={search} onChange={e => setSearch(e.target.value)}
-          placeholder="🔍 Search learner name or quiz…"
+          placeholder="🔍 Search learner, quiz, subject, or user ID…"
           className="input-field flex-1 min-w-[180px] text-sm" />
         <select value={gradeF} onChange={e => setGradeF(e.target.value)}
           className="input-field text-sm w-auto">
