@@ -26,6 +26,7 @@ import { normalizeRichTextPayload } from '../utils/quizRichText.js'
 import { deleteQuizWithQuestions } from '../utils/deleteQuizWithQuestions.js'
 import { migrateContent } from '../editor/utils/migration.js'
 import { questionWriteSchema } from '../editor/schema/question.js'
+import { quizWriteSchema, quizUpdateSchema } from '../schemas/quiz.js'
 
 /**
  * Convert a rich-text field to its Tiptap JSON representation for persistence.
@@ -219,12 +220,32 @@ export function useFirestore() {
   }
 
   async function createQuiz(data) {
-    const ref = await addDoc(collection(db, 'quizzes'), { ...data, createdAt: serverTimestamp() })
+    // Validate the full payload before it hits Firestore. quizWriteSchema is
+    // permissive on unknown fields (passthrough) but strict on the ones we
+    // know — a typo or wrong-type value fails loudly on the form instead of
+    // silently writing garbage that later blanks the learner runner.
+    const parsed = quizWriteSchema.safeParse(data)
+    if (!parsed.success) {
+      const first = parsed.error.issues?.[0]
+      const path = first?.path?.join('.') || '(root)'
+      throw new Error(`Invalid quiz payload at "${path}": ${first?.message || 'schema violation'}`)
+    }
+    const ref = await addDoc(collection(db, 'quizzes'), { ...parsed.data, createdAt: serverTimestamp() })
     return ref.id
   }
 
   async function updateQuiz(quizId, data) {
-    await updateDoc(doc(db, 'quizzes', quizId), data)
+    // updateDoc is a PATCH — only the supplied fields are touched, so we
+    // validate against the partial schema. Unknown fields still pass through
+    // unchanged thanks to passthrough; the gain is catching e.g. a stray
+    // `status: 'archived'` (not in the enum) before it lands.
+    const parsed = quizUpdateSchema.safeParse(data)
+    if (!parsed.success) {
+      const first = parsed.error.issues?.[0]
+      const path = first?.path?.join('.') || '(root)'
+      throw new Error(`Invalid quiz update at "${path}": ${first?.message || 'schema violation'}`)
+    }
+    await updateDoc(doc(db, 'quizzes', quizId), parsed.data)
   }
 
   async function deleteQuiz(quizId) {

@@ -28,6 +28,8 @@ import {
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { buildQuizDisplaySections } from './quizSections'
+import { coerceQuiz } from '../schemas/quiz.js'
+import { attemptStartSchema, coerceAttempt } from '../schemas/attempt.js'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -66,9 +68,15 @@ export async function getExamWithQuestions(examId) {
 
   if (!quizSnap.exists()) return null
 
-  const quiz = { id: quizSnap.id, ...quizSnap.data() }
+  // Normalise the quiz at the read boundary. coerceQuiz guarantees
+  // `passages` and `parts` are well-shaped arrays, so the downstream
+  // builder + every UI reader can stop branching defensively. The local
+  // `Array.isArray(quiz.passages)` guard below is left in place for now
+  // as a second line of defence; safe to remove once every reader is on
+  // coerceQuiz.
+  const quiz = coerceQuiz({ id: quizSnap.id, ...quizSnap.data() })
   const questions = qSnap.docs.map(d => ({ id: d.id, ...d.data() }))
-  const safePassages = Array.isArray(quiz.passages) ? quiz.passages : []
+  const safePassages = Array.isArray(quiz?.passages) ? quiz.passages : []
   const { sections } = buildQuizDisplaySections(questions, safePassages)
 
   return { quiz, questions, sections }
@@ -146,7 +154,12 @@ export async function startExam(userId, displayName, exam) {
   const endTime = now + (durationMinutes || 30) * 60 * 1000
   const today = todayString()
 
-  const attemptRef = await addDoc(collection(db, 'exam_attempts'), {
+  // Validate the new-attempt payload before it reaches Firestore so a
+  // typo in this codebase or an upstream caller passing a malformed exam
+  // doc fails loudly here, with a clear field-level error, instead of
+  // succeeding now and crashing the runner later when /exam/:id reads it
+  // back. See PR #379 for the failure mode this prevents.
+  const attemptPayload = attemptStartSchema.parse({
     userId,
     displayName: displayName || 'Student',
     examId,
@@ -165,6 +178,7 @@ export async function startExam(userId, displayName, exam) {
     percentage: null,
     timeTakenSeconds: null,
   })
+  const attemptRef = await addDoc(collection(db, 'exam_attempts'), attemptPayload)
 
   await setDoc(doc(db, 'daily_exam_locks', lockId(userId, subject)), {
     userId,
@@ -199,7 +213,12 @@ export async function restoreExam(userId, attemptId) {
   const snap = await getDoc(doc(db, 'exam_attempts', attemptId))
   if (!snap.exists()) throw new Error('Attempt not found.')
 
-  const attempt = snap.data()
+  // coerceAttempt normalises the persisted shape — answers becomes a
+  // plain object even if a stale doc has it as an array (PR #379), flagged
+  // becomes a string[] even when the legacy object-map form is stored,
+  // currentSectionIndex is always a finite int. The local safeAnswers /
+  // safeFlagged blocks below remain as a second line of defence.
+  const attempt = coerceAttempt(snap.data()) || {}
 
   if (attempt.status === 'submitted') {
     return { alreadySubmitted: true, attemptId }
@@ -427,7 +446,8 @@ function _writeLocalSession(userId, examId, session) {
 export async function getExamAttempt(attemptId) {
   try {
     const snap = await getDoc(doc(db, 'exam_attempts', attemptId))
-    return snap.exists() ? { id: snap.id, ...snap.data() } : null
+    if (!snap.exists()) return null
+    return coerceAttempt({ id: snap.id, ...snap.data() })
   } catch (e) {
     console.error('getExamAttempt:', e)
     return null
@@ -445,7 +465,9 @@ export async function getMyExamHistory(userId, limitCount = 10) {
         limit(limitCount),
       ),
     )
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    return snap.docs
+      .map(d => coerceAttempt({ id: d.id, ...d.data() }))
+      .filter(Boolean)
   } catch (e) {
     console.error('getMyExamHistory:', e)
     return []
