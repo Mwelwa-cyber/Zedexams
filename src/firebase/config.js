@@ -74,14 +74,23 @@ applyAuthPersistence(false)
 // outbound Firestore/Storage/Functions calls from the WebView are
 // attested without any JS-level token plumbing.
 //
-// IMPORTANT: this PR ships the wiring; the npm package is NOT added
-// here. To activate Play Integrity, the operator runs:
+// IMPORTANT: the npm package is intentionally NOT bundled here. To
+// activate Play Integrity, the operator runs:
 //   npm install @capacitor-firebase/app-check
 //   npx cap sync android
-// + completes the Firebase Console / Play Console setup steps
-// documented in docs/B3-PLAY-INTEGRITY-SETUP.md. Until then the
-// dynamic import fails silently and native traffic stays unattested
-// — the same soft-fail pattern as Sentry's DSN gating.
+// + completes the Firebase Console / Play Console setup documented
+// in docs/B3-PLAY-INTEGRITY-SETUP.md. Until then the runtime lookup
+// returns null and native traffic stays unattested — the same
+// soft-fail pattern as Sentry's DSN gating.
+//
+// Plugin lookup uses `Capacitor.Plugins.FirebaseAppCheck` (runtime
+// registry) rather than `await import('@capacitor-firebase/app-check')`
+// because the latter forces Rollup to resolve the specifier at build
+// time and runs the plugin's module-load code — both of which caused
+// real problems (build failures when the package was missing, white-
+// screen on phone when it was present but had a peer-dep mismatch).
+// The runtime registry is what Capacitor populates from the native
+// side after `cap sync`, so it's the source of truth anyway.
 //
 // iOS support (DeviceCheck / App Attest) lands in a future PR if
 // the iOS wrapper ever ships.
@@ -97,24 +106,39 @@ async function initAppCheck() {
   if (typeof window === 'undefined') return
 
   // Native (Capacitor) path — Play Integrity via the Capacitor plugin.
+  //
+  // Instead of `await import('@capacitor-firebase/app-check')` — which
+  // requires the npm package to be in node_modules for the web build to
+  // even resolve the specifier — we look the plugin up at runtime in
+  // Capacitor's `Plugins` registry. The native side (`npx cap sync
+  // android`) auto-registers `FirebaseAppCheck` there when the package
+  // is installed, and the registry is undefined-safe when it isn't.
+  // This lets the web build stay package-agnostic AND avoids running
+  // the plugin's web-shim module-load code (which caused a white
+  // screen earlier — possibly a Capacitor 7 / 8 peer-dep clash with
+  // the codex branch).
   if (isNativePlatform()) {
+    let FirebaseAppCheck = null
     try {
-      // The Capacitor App Check plugin is optional — listed in
-      // .env.example as a step the operator runs (`npm install
-      // @capacitor-firebase/app-check`). Constructing the module
-      // specifier at runtime keeps Rollup from trying to resolve it
-      // at build time, so the web build doesn't fail when the
-      // package isn't installed. The `/* @vite-ignore */` is
-      // belt-and-braces.
-      const moduleId = ['@capacitor-firebase', 'app-check'].join('/')
-      const mod = await import(/* @vite-ignore */ moduleId).catch(() => null)
-      if (!mod?.FirebaseAppCheck) {
-        // Plugin not installed yet — soft-fail. Native traffic continues
-        // unattested until the operator completes the setup steps.
-        console.info('[appCheck] @capacitor-firebase/app-check not installed; native traffic unattested')
-        return
-      }
-      await mod.FirebaseAppCheck.initialize({
+      // Capacitor exposes registered plugins via `Capacitor.Plugins`.
+      // We import the runtime object lazily inside the conditional so
+      // a fresh web tab doesn't pay the import cost.
+      const { Capacitor } = await import('@capacitor/core').catch(() => ({}))
+      FirebaseAppCheck = Capacitor?.Plugins?.FirebaseAppCheck || null
+    } catch (err) {
+      console.warn('[appCheck] @capacitor/core import failed:', err?.message || err)
+      return
+    }
+    if (!FirebaseAppCheck) {
+      // Plugin not registered — operator hasn't run `npm install
+      // @capacitor-firebase/app-check && npx cap sync android` yet,
+      // or the package isn't in node_modules for this build. Native
+      // traffic continues unattested. See docs/B3-PLAY-INTEGRITY-SETUP.md.
+      console.info('[appCheck] FirebaseAppCheck plugin not registered; native traffic unattested')
+      return
+    }
+    try {
+      await FirebaseAppCheck.initialize({
         isTokenAutoRefreshEnabled: true,
       })
     } catch (err) {
