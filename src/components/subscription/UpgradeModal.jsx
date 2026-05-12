@@ -52,6 +52,12 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
   // success (server-side). Surface that here so the user knows their
   // subscription period will actually be longer than the plan duration.
   const pendingReferralCredits = Number(userProfile?.referralCredits || 0)
+  // Audit C7 PR 4 — snapshot the credits-at-time-of-payment so the
+  // success card can confirm what was consumed. We can't read
+  // referralCredits after success because it gets zeroed by the
+  // server-side consumeReferralCredits transaction and refreshProfile
+  // pulls down the new state.
+  const [appliedReferralCredits, setAppliedReferralCredits] = useState(0)
   const navigate = useNavigate()
   const visiblePlanIds = (planIds && planIds.length ? planIds : DEFAULT_PLAN_ORDER)
     .filter((id) => PLANS[id])
@@ -95,6 +101,11 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
     setStatusText('')
     setSubmitting(true)
     setStep('processing')
+    // Audit C7 PR 4 — capture pre-payment credit balance for the
+    // success-card confirmation. The server zeros referralCredits in
+    // the consumption transaction; without snapshotting here we'd lose
+    // the number before we can show it.
+    setAppliedReferralCredits(pendingReferralCredits)
 
     try {
       const started = await initiateMomoPayment({
@@ -295,6 +306,26 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
                 <p className="font-bold mb-1">Account activated</p>
                 <p>{statusText || 'You now have full subscription access.'}</p>
               </div>
+              {/* Audit C7 PR 4 — confirm referral credits were applied.
+                  Self-hides when none were consumed. The actual
+                  +bonusDays mutation happened server-side in
+                  consumeReferralCredits during markPaymentSuccessful. */}
+              {appliedReferralCredits > 0 && (
+                <div
+                  className="bg-emerald-50 border-2 border-emerald-200 rounded-2xl p-4 mb-4 text-sm text-emerald-900"
+                  role="status"
+                >
+                  <p className="font-bold mb-1">
+                    🎁 {appliedReferralCredits} referral
+                    {' '}month{appliedReferralCredits === 1 ? '' : 's'} added
+                  </p>
+                  <p>
+                    {appliedReferralCredits * 30} bonus day
+                    {appliedReferralCredits === 1 ? ' was' : 's were'} stacked on top of your {plan?.name} period.
+                    Thanks for inviting friends!
+                  </p>
+                </div>
+              )}
               {portal === 'teacher' ? (
                 <Button
                   variant="primary"
