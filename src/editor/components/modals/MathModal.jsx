@@ -23,6 +23,8 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import katex from 'katex'
+// Chemistry-formula extension (see safeRender.js for context).
+import 'katex/contrib/mhchem'
 
 // ── Templates: ready-to-insert structures with argument placeholders ──
 const TEMPLATES = [

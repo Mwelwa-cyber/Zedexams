@@ -79,7 +79,11 @@ function normalizeDiagramParams(params) {
 function normalizeQuestionPayload(q, order) {
   const type = q.type || 'mcq'
   const isShortAnswer = type === 'short_answer' || type === 'diagram'
-  const options = isShortAnswer
+  // Numeric questions also have no options array — they collect a single
+  // typed number from the learner instead. Treated alongside short-answer
+  // for option-clearing; correctAnswer normalisation diverges below.
+  const isNumeric = type === 'numeric'
+  const options = isShortAnswer || isNumeric
     ? []
     : Array.isArray(q.options)
       ? q.options.map(opt => String(opt ?? '').trim())
@@ -89,7 +93,7 @@ function normalizeQuestionPayload(q, order) {
   // truncate or pad with nulls so the parallel arrays stay in lock-step.
   // A slot collapses to null when it has neither an imageUrl nor a diagram.
   const rawMedia = Array.isArray(q.optionMedia) ? q.optionMedia : []
-  const optionMedia = isShortAnswer
+  const optionMedia = isShortAnswer || isNumeric
     ? []
     : options.map((_, i) => {
         const m = rawMedia[i]
@@ -125,9 +129,20 @@ function normalizeQuestionPayload(q, order) {
     passageId:     q.passageId || null,
     correctAnswer: isShortAnswer
       ? String(q.correctAnswer ?? '').trim()
-      : Number.isInteger(q.correctAnswer)
-        ? q.correctAnswer
-        : Number(q.correctAnswer) || 0,
+      : isNumeric
+        // Numeric questions store a real number — Number() converts strings
+        // typed by the teacher in the editor. NaN falls back to 0 so the
+        // schema's required-finite-number check fires loudly instead of
+        // silently writing `NaN`, which Firestore would reject in any case.
+        ? (Number.isFinite(Number(q.correctAnswer)) ? Number(q.correctAnswer) : 0)
+        : Number.isInteger(q.correctAnswer)
+          ? q.correctAnswer
+          : Number(q.correctAnswer) || 0,
+    // Tolerance only matters for numeric. Stored as null on every other type
+    // so the schema's union-with-null lines up across the board.
+    tolerance:    isNumeric
+      ? (Number.isFinite(Number(q.tolerance)) && Number(q.tolerance) >= 0 ? Number(q.tolerance) : 0)
+      : null,
     text:          normalizeRichTextPayload(q.text),
     explanation:   normalizeRichTextPayload(q.explanation),
     topic:         String(q.topic ?? '').trim(),

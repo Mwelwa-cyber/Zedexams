@@ -8,6 +8,7 @@
 
 const { quizWriteSchema, quizUpdateSchema, coerceQuiz } = await import('../src/schemas/quiz.js')
 const { attemptStartSchema, attemptSubmitSchema, coerceAttempt } = await import('../src/schemas/attempt.js')
+const { numericMatches } = await import('../src/utils/numericGrading.js')
 
 let pass = 0
 let fail = 0
@@ -340,6 +341,58 @@ test('preserves passthrough fields', () => {
   assert(out.examId === 'e1')
   assert(out.score === 99)
   assert(out.status === 'submitted')
+})
+
+// ── numericMatches (server-authoritative grading) ───────────────
+
+console.log('\nnumericMatches')
+
+test('exact match passes with tolerance=0', () => {
+  assert(numericMatches(3.14, 3.14, 0) === true)
+})
+
+test('within ±tolerance passes', () => {
+  assert(numericMatches(3.15, 3.14, 0.01) === true)
+  assert(numericMatches(3.13, 3.14, 0.01) === true)
+})
+
+test('outside ±tolerance fails', () => {
+  assert(numericMatches(3.2, 3.14, 0.01) === false)
+  assert(numericMatches(3.0, 3.14, 0.05) === false)
+})
+
+test('parses numeric strings', () => {
+  assert(numericMatches('3.14', 3.14, 0) === true)
+  assert(numericMatches('3.15', 3.14, 0.01) === true)
+})
+
+test('unwraps { value } object form (runner local-check shape)', () => {
+  assert(numericMatches({ value: 3.14 }, 3.14, 0) === true)
+  assert(numericMatches({ value: 3.15 }, 3.14, 0.01) === true)
+})
+
+test('rejects non-numeric input', () => {
+  assert(numericMatches('hello', 3.14, 0) === false)
+  assert(numericMatches(null, 3.14, 0) === false)
+  assert(numericMatches(undefined, 3.14, 0) === false)
+  assert(numericMatches(NaN, 3.14, 0) === false)
+})
+
+test('negative tolerance clamps to 0 (exact match only)', () => {
+  assert(numericMatches(3.15, 3.14, -1) === false)
+  assert(numericMatches(3.14, 3.14, -1) === true)
+})
+
+test('undefined tolerance treated as 0', () => {
+  assert(numericMatches(3.14, 3.14, undefined) === true)
+  assert(numericMatches(3.15, 3.14, undefined) === false)
+})
+
+test('handles integer answers correctly', () => {
+  assert(numericMatches(42, 42, 0) === true)
+  assert(numericMatches('42', 42, 0) === true)
+  assert(numericMatches(43, 42, 1) === true)
+  assert(numericMatches(44, 42, 1) === false)
 })
 
 // ── Summary ─────────────────────────────────────────────────────

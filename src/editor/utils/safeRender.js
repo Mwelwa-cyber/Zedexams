@@ -19,6 +19,12 @@
 
 import { generateHTML } from '@tiptap/core'
 import katex from 'katex'
+// mhchem — chemistry formula extension for KaTeX. Side-effect import:
+// registers \ce{} / \pu{} commands on the global katex instance so a
+// Chemistry question with `\ce{H_2SO_4}` or `\ce{2H_2 + O_2 -> 2H_2O}`
+// renders correctly. Must be imported before any katex.render() call;
+// every renderer (this file, MathInline.js, MathModal.jsx) imports it.
+import 'katex/contrib/mhchem'
 import { renderExtensions } from '../extensions/buildExtensions.js'
 import { sanitizeHTML } from './sanitize.js'
 import { isTiptapJSON } from './migration.js'

@@ -10,6 +10,7 @@ import ZoomableImage from './ZoomableImage'
 import DiagramSvg from '../diagrams/DiagramSvg'
 import { getPakoTip } from '../../config/curriculum'
 import { checkAnswerWithAI } from '../../utils/geminiChecker'
+import { numericMatches } from '../../utils/examService'
 // RichContent renders legacy HTML strings AND Tiptap JSON; getRichPlainText
 // extracts plain text from either format. Legacy richTextToPlainText is
 // only HTML-aware, so we prefer getRichPlainText wherever we have a choice.
@@ -23,6 +24,10 @@ function fmt(seconds) {
 
 function isTextAnswerType(type) {
   return type === 'short_answer' || type === 'diagram'
+}
+
+function isNumericType(type) {
+  return type === 'numeric'
 }
 
 // Maps the subject string stored on a quiz (e.g. "Integrated Science",
@@ -418,7 +423,11 @@ export default function QuizRunnerV2() {
       questions.forEach(question => {
         const correct = isTextAnswerType(question.type)
           ? answers[question.id]?.correct === true
-          : answers[question.id] === question.correctAnswer
+          : isNumericType(question.type)
+            // Server-authoritative re-grade — never trust the client's stored
+            // `correct` flag; recompute from persisted correctAnswer + tolerance.
+            ? numericMatches(answers[question.id], question.correctAnswer, question.tolerance)
+            : answers[question.id] === question.correctAnswer
         total += question.marks || 1
         if (correct) score += question.marks || 1
         const topic = question.topic || 'General'
@@ -599,7 +608,106 @@ export default function QuizRunnerV2() {
           )
         })()}
 
-        {isTextAnswerType(question.type) ? (
+        {isNumericType(question.type) ? (() => {
+          // Numeric branch — local, synchronous check via numericMatches.
+          // No AI call, no network round-trip. The submit pipeline re-grades
+          // authoritatively from `correctAnswer + tolerance` on the
+          // server-side _doSubmit path (for daily exams) or via the same
+          // numericMatches helper here in handleSubmit (for practice quizzes).
+          const numericResult = aiResults[question.id]
+          const numericChecked = !!numericResult
+          function checkNumeric(qid) {
+            const q = questions.find(qq => qq.id === qid)
+            if (!q) return
+            const raw = shortText[qid] ?? ''
+            if (raw.trim() === '') return
+            const parsed = Number(raw)
+            if (!Number.isFinite(parsed)) {
+              setActionError('Please type a valid number.')
+              return
+            }
+            const correct = numericMatches(parsed, q.correctAnswer, q.tolerance)
+            setAiResults(current => ({
+              ...current,
+              [qid]: {
+                correct,
+                feedback: correct
+                  ? '✓ That matches the correct answer.'
+                  : `The accepted range is ${q.correctAnswer}${(q.tolerance ?? 0) > 0 ? ` ± ${q.tolerance}` : ''}.`,
+              },
+            }))
+            setAnswers(current => ({ ...current, [qid]: { value: parsed, correct } }))
+            if (mode === 'practice') {
+              setRevealed(current => ({ ...current, [qid]: true }))
+              setFeedbackType(correct ? 'correct' : 'wrong')
+              setTimeout(() => setFeedbackType(null), 1300)
+            }
+          }
+          return (
+          <div className="space-y-3">
+            <div className={`overflow-hidden rounded-2xl border-2 bg-white shadow-[0_2px_0_#0F1B2D] ${numericChecked && mode === 'practice'
+              ? numericResult.correct ? 'border-emerald-600' : 'border-orange-500'
+              : 'border-slate-900'}`}>
+              <div className="border-b-2 border-slate-900 bg-orange-50 px-4 py-2 text-sm font-bold text-slate-900">🔢 Numeric answer</div>
+              <div className="flex items-center gap-2 p-3">
+                <input
+                  type="number"
+                  step="any"
+                  inputMode="decimal"
+                  value={typed}
+                  onChange={event => {
+                    setShortText(current => ({ ...current, [question.id]: event.target.value }))
+                    if (actionError) setActionError('')
+                    if (numericChecked) {
+                      setAiResults(current => {
+                        const next = { ...current }
+                        delete next[question.id]
+                        return next
+                      })
+                      setAnswers(current => {
+                        const next = { ...current }
+                        delete next[question.id]
+                        return next
+                      })
+                      setRevealed(current => {
+                        const next = { ...current }
+                        delete next[question.id]
+                        return next
+                      })
+                    }
+                  }}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter' && typed.trim() && !numericChecked) checkNumeric(question.id)
+                  }}
+                  placeholder="Type a number…"
+                  className="flex-1 bg-transparent text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
+                />
+                {numericChecked && mode === 'practice' && <span className="text-xl">{numericResult.correct ? '✅' : '❌'}</span>}
+              </div>
+            </div>
+
+            {!numericChecked && (
+              <button
+                type="button"
+                onClick={() => checkNumeric(question.id)}
+                disabled={!typed.trim()}
+                className="zx-sb zx-sb-primary w-full text-sm"
+              >
+                {mode === 'exam' ? 'Save answer' : 'Check my answer'}
+              </button>
+            )}
+
+            {numericChecked && mode === 'practice' && (
+              <div className={`rounded-2xl border-2 p-4 ${numericResult.correct ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
+                <p className={`text-sm font-bold ${numericResult.correct ? 'text-green-900' : 'text-orange-900'}`}>
+                  {numericResult.correct ? '✅ Correct!' : '❌ Not quite.'}
+                </p>
+                <p className={`mt-1 text-sm ${numericResult.correct ? 'text-green-700' : 'text-orange-700'}`}>{numericResult.feedback}</p>
+              </div>
+            )}
+          </div>
+          )
+        })() : isTextAnswerType(question.type) ? (
           <div className="space-y-3">
             <div className={`overflow-hidden rounded-2xl border-2 bg-white shadow-[0_2px_0_#0F1B2D] ${checked && mode === 'practice'
               ? aiResult.correct ? 'border-emerald-600' : 'border-orange-500'

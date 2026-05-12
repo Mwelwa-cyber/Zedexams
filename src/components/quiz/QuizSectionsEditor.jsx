@@ -421,6 +421,7 @@ function StandaloneQuestionCard({
 
   const isTrueFalse = question.type === 'truefalse'
   const isFill = question.type === 'fill'
+  const isNumeric = question.type === 'numeric'
   const isTextAnswer = question.type === 'short_answer' || question.type === 'diagram' || isFill
   const subtype = question.subtype ?? null
   const subtypeBadge = subtype ? SUBTYPE_LABEL[subtype] : null
@@ -462,6 +463,18 @@ function StandaloneQuestionCard({
                 onChange(sectionIndex, 'correctAnswer', typeof question.correctAnswer === 'string' ? question.correctAnswer : '')
                 // Subtype only makes sense for MCQ — clear it on type change.
                 if (question.subtype) onChange(sectionIndex, 'subtype', null)
+              } else if (nextType === 'numeric') {
+                // Numeric questions have no options and store correctAnswer
+                // as a real number. The runner accepts any typed answer
+                // within ±tolerance.
+                onChange(sectionIndex, 'options', [])
+                onChange(sectionIndex, 'correctAnswer',
+                  typeof question.correctAnswer === 'number' && Number.isFinite(question.correctAnswer)
+                    ? question.correctAnswer : 0)
+                onChange(sectionIndex, 'tolerance',
+                  typeof question.tolerance === 'number' && question.tolerance >= 0
+                    ? question.tolerance : 0)
+                if (question.subtype) onChange(sectionIndex, 'subtype', null)
               } else if (question.options.length < 4) {
                 onChange(sectionIndex, 'options', ['', '', '', ''])
                 onChange(sectionIndex, 'correctAnswer', 0)
@@ -473,6 +486,7 @@ function StandaloneQuestionCard({
             <option value="truefalse">True / False</option>
             <option value="short_answer">Short Answer</option>
             <option value="fill">Fill in the blank</option>
+            <option value="numeric">Numeric (±tolerance)</option>
             <option value="diagram">Diagram / Image</option>
           </select>
           {question.type === 'mcq' && (
@@ -591,7 +605,51 @@ function StandaloneQuestionCard({
         />
       </div>
 
-      {isTextAnswer ? (
+      {isNumeric ? (
+        <div className="space-y-2">
+          <p className="theme-text-muted text-xs font-bold">
+            Numeric answer — accepted within ±tolerance of the correct value
+          </p>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+            <div className="theme-accent-bg flex items-center gap-2 rounded-xl border-2 border-[var(--accent)] p-3">
+              <span className={joinClasses('text-lg', theme.accentText)}>=</span>
+              <input
+                type="number"
+                step="any"
+                value={typeof question.correctAnswer === 'number' ? question.correctAnswer : Number(question.correctAnswer) || 0}
+                onChange={event => {
+                  // Allow blank → 0 fallback (the schema will reject NaN
+                  // on save anyway; we want a finite number in the field).
+                  const raw = event.target.value
+                  const parsed = raw === '' ? 0 : Number(raw)
+                  set('correctAnswer', Number.isFinite(parsed) ? parsed : 0)
+                }}
+                placeholder="Correct answer (e.g. 3.14)"
+                className="theme-text flex-1 border-none bg-transparent text-sm font-semibold outline-none"
+              />
+            </div>
+            <div className="theme-bg-subtle flex items-center gap-2 rounded-xl border-2 theme-border p-3">
+              <span className="text-lg theme-text-muted">±</span>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                value={typeof question.tolerance === 'number' ? question.tolerance : 0}
+                onChange={event => {
+                  const raw = event.target.value
+                  const parsed = raw === '' ? 0 : Number(raw)
+                  set('tolerance', Number.isFinite(parsed) && parsed >= 0 ? parsed : 0)
+                }}
+                placeholder="Tolerance (0 = exact match)"
+                className="theme-text flex-1 border-none bg-transparent text-sm font-semibold outline-none"
+              />
+            </div>
+          </div>
+          <p className="theme-text-muted text-xs">
+            Worked example: correct answer <span className="font-bold theme-text">3.14</span>, tolerance <span className="font-bold theme-text">0.01</span> accepts any typed answer between 3.13 and 3.15.
+          </p>
+        </div>
+      ) : isTextAnswer ? (
         <div className="space-y-2">
           <p className="theme-text-muted text-xs font-bold">
             {isFill

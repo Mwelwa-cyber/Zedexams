@@ -99,7 +99,7 @@ export const diagramRef = z
 
 // ── Question shape ────────────────────────────────────────────────
 
-const QUESTION_TYPES = ['mcq', 'tf', 'short_answer', 'diagram', 'fill', 'short']
+const QUESTION_TYPES = ['mcq', 'tf', 'short_answer', 'diagram', 'fill', 'short', 'numeric']
 const DIFFICULTIES = ['easy', 'medium', 'hard']
 // MCQ subtypes mirror the Zambian PRISCA exam-paper categories. They are a
 // PURE display/preset hint — the underlying answer model is still 4-option MCQ.
@@ -146,6 +146,16 @@ export const questionSchema = z
     // ── Answer fields ──
     options: z.array(z.string().max(1000)).max(20).default([]),
     correctAnswer: z.union([z.string().max(1000), z.number()]).default(0),
+
+    // ── Numeric-answer fields ──
+    // `tolerance` is the maximum absolute difference accepted as a correct
+    // answer for `type: 'numeric'`. Set to 0 for exact-match. Ignored
+    // entirely for all other question types — kept optional + nullable so
+    // legacy docs without the field still parse cleanly.
+    //
+    // Worked example: `correctAnswer: 3.14`, `tolerance: 0.01` accepts any
+    // typed answer in the range [3.13, 3.15].
+    tolerance: z.number().min(0).max(1_000_000).nullable().default(null),
 
     // Parallel, index-aligned media for each option. A `null` entry means the
     // option is text-only (the original shape). Stored as a separate array so
@@ -217,6 +227,28 @@ export const questionSchema = z
         path: ['optionMedia'],
         message: 'optionMedia must not be longer than options',
       })
+    }
+
+    // Numeric questions need a finite numeric correctAnswer (so the grader
+    // can take an absolute difference) and conventionally have no options.
+    // A string correctAnswer here would silently fail to grade anything,
+    // which is exactly the kind of "feels broken in production" failure
+    // we want to catch at write time.
+    if (q.type === 'numeric') {
+      if (typeof q.correctAnswer !== 'number' || !Number.isFinite(q.correctAnswer)) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['correctAnswer'],
+          message: 'numeric question requires a finite numeric correctAnswer',
+        })
+      }
+      if (q.options.length > 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['options'],
+          message: 'numeric questions should not have options — set type to mcq for that',
+        })
+      }
     }
   })
   // Size sanity check: after stringification the whole record must fit comfortably
