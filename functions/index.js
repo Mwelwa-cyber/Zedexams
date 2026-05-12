@@ -126,6 +126,11 @@ const {
   weeklyParentDigest,
   triggerWeeklyParentDigest,
 } = require("./weeklyParentDigest");
+// Audit C7 PR 1 follow-up — admin-only backfill for users who signed
+// up before referralCode minting shipped. Runnable from the Firebase
+// Console "test function" panel; iterates in 500-user batches and is
+// idempotent so the operator can run it repeatedly until drained.
+const {backfillReferralCodes} = require("./referralBackfill");
 // Audit C6 — public newsletter signup. List builder; export to a real
 // sending platform (Buttondown / Mailchimp / Beehiiv) when ready.
 const {subscribeToNewsletter} = require("./newsletter");
@@ -1883,6 +1888,13 @@ exports.triggerWeeklyParentDigest = triggerWeeklyParentDigest;
 // + honeypot-protected. Public (no auth) so the marketing-page form
 // can call it; abuse vectors mitigated server-side.
 exports.subscribeToNewsletter = subscribeToNewsletter;
+
+// C7 PR 1 follow-up — admin-only one-shot backfill. Mints
+// referralCode + writes referralCodes/{code} for every user signed
+// up before PR #354. Idempotent: skips users that already have a
+// code. Operator runs repeatedly (Firebase Console test panel)
+// until summary.scanned === summary.skipped.
+exports.backfillReferralCodes = backfillReferralCodes;
 
 // Audit D4 — self-serve subscription cancellation. Toggles
 // users.{uid}.cancelAtPeriodEnd via admin SDK so the field stays
