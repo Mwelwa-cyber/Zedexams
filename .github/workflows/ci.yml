@@ -1,0 +1,56 @@
+name: CI
+
+# Runs lint + the existing unit test suite on every pull request and on
+# every push to main. Deploy workflows (deploy-hosting.yml, deploy-firebase.yml)
+# run the same checks again before they ship — this workflow is the
+# pre-merge gate, the deploy workflows are the post-merge belt-and-braces.
+#
+# Make these two jobs required status checks on `main` in
+# Settings → Branches → Branch protection rules to actually block
+# merges on failure.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+
+  tests:
+    name: Tests (importer + sanitize + schema)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: "npm"
+      - name: Install dependencies
+        run: npm ci
+      - name: Tests
+        run: npm run test:all
