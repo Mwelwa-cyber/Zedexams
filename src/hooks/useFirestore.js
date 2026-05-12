@@ -8,7 +8,18 @@ import {
 // Safety cap on every "get all X" admin query — keeps a single mistaken
 // dashboard reload from reading the entire collection. Admin pages that
 // need more should paginate or use count aggregations instead.
-export const ADMIN_QUERY_LIMIT = 500
+//
+// Tuned down from 500 → 200 after observing that the Admin Learners page
+// reads users + results on every mount; at 500/500 a single admin reload
+// burned ~1k document reads, which was a noticeable chunk of the overload
+// signal. 200 is enough to show "recent activity" for any realistic class
+// load; admins who need a longer view should use the dedicated reports.
+export const ADMIN_QUERY_LIMIT = 200
+
+// How far back the admin "recent activity" queries reach. 90 days is the
+// rolling window the dashboards visualise; reading the entire history on
+// every admin reload was a major Firestore read-amplifier.
+const ADMIN_RECENT_WINDOW_DAYS = 90
 import { db } from '../firebase/config'
 import { capture as captureAnalytics } from '../utils/analytics.js'
 import { normalizeRichTextPayload } from '../utils/quizRichText.js'
@@ -397,6 +408,23 @@ export function useFirestore() {
     } catch (e) { console.error('getAllResults:', e); return [] }
   }
 
+  // Admin-page variant of getAllResults that filters server-side to the last
+  // ADMIN_RECENT_WINDOW_DAYS days. Reading 90 days of activity instead of the
+  // whole collection is the single biggest read-volume win on the admin
+  // dashboard; older results are still reachable via the reports section.
+  async function getResultsInWindow(limitCount = ADMIN_QUERY_LIMIT, windowDays = ADMIN_RECENT_WINDOW_DAYS) {
+    try {
+      const since = Timestamp.fromMillis(Date.now() - windowDays * 24 * 60 * 60 * 1000)
+      const snap = await getDocs(query(
+        collection(db, 'results'),
+        where('completedAt', '>=', since),
+        orderBy('completedAt', 'desc'),
+        limit(limitCount),
+      ))
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    } catch (e) { console.error('getResultsInWindow:', e); return [] }
+  }
+
   // Cheap dashboard counts via Firestore aggregation. Each call costs
   // ~1 read regardless of collection size — use this instead of
   // getAll*().length when you only need totals.
@@ -455,6 +483,22 @@ export function useFirestore() {
       const snap = await getDocs(query(collection(db, 'users'), limit(limitCount)))
       return snap.docs.map(d => ({ id: d.id, ...d.data() }))
     } catch (e) { console.error('getAllUsers:', e); return [] }
+  }
+
+  // Role-scoped variant of getAllUsers. The Admin Learners page only renders
+  // learner/student rows but was pulling every user (admins, teachers,
+  // pending sign-ups …) and filtering client-side, which doubled the read
+  // count on a teacher-heavy tenant. Firestore's `in` accepts up to 30
+  // values so two roles fit comfortably.
+  async function getAllLearners(limitCount = ADMIN_QUERY_LIMIT) {
+    try {
+      const snap = await getDocs(query(
+        collection(db, 'users'),
+        where('role', 'in', ['learner', 'student']),
+        limit(limitCount),
+      ))
+      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+    } catch (e) { console.error('getAllLearners:', e); return [] }
   }
 
   async function updateUserRole(userId, role) {
@@ -720,8 +764,8 @@ export function useFirestore() {
   return useMemo(() => ({
     getQuizzes, getAllQuizzes, getQuizzesByTeacher, getQuizById, createQuiz, updateQuiz, deleteQuiz,
     getQuestions, saveQuestions,
-    saveResult, getResultById, getUserResults, getResultsForQuiz, getAllResults, getRecentResults, getDashboardCounts, getWeaknessAnalysis,
-    getAllUsers, updateUserRole,
+    saveResult, getResultById, getUserResults, getResultsForQuiz, getAllResults, getResultsInWindow, getRecentResults, getDashboardCounts, getWeaknessAnalysis,
+    getAllUsers, getAllLearners, updateUserRole,
     checkAndConsumeAttempt,
     submitPaymentRequest, getPendingPayments, getAllPayments, confirmPayment, rejectPayment, grantPremium, revokePremium,
     getLessons, getAllLessons, getLessonById, createLesson, updateLesson, deleteLesson,
