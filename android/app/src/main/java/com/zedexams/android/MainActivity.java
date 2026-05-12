@@ -1,4 +1,4 @@
-package com.zedexams.app;
+package com.zedexams.android;
 
 import android.os.Bundle;
 import androidx.core.splashscreen.SplashScreen;
