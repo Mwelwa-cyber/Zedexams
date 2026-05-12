@@ -18,6 +18,7 @@ import {
   Settings,
   Bot,
   FileText,
+  Sparkles,
 } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import Logo from '../ui/Logo'
@@ -36,6 +37,7 @@ const NAV = [
   { to: '/admin/agents',                 icon: Bot,             label: 'Agents'                    },
   { to: '/admin/results',                icon: TrendingUp,      label: 'Results'                   },
   { to: '/admin/payments',               icon: CreditCard,      label: 'Payments'                  },
+  { to: '/admin/demo-trials',            icon: Sparkles,        label: 'Demo Trials'               },
   { to: '/admin/ai-costs',               icon: TrendingUp,      label: 'AI Costs'                  },
   { to: '/settings',                     icon: Settings,        label: 'Settings'                  },
   { to: '/teacher',                      icon: GraduationCap,   label: 'Teacher Panel'             },
