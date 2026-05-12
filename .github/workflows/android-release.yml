@@ -1,0 +1,224 @@
+name: Android Release (App Distribution)
+
+# Builds a SIGNED release Capacitor APK and ships it to Firebase App
+# Distribution. Replaces the old debug-beta workflow.
+#
+# Triggers
+#   - Push of a release tag matching v*.*.*  (e.g. v1.1.2)
+#   - Manual run from the Actions tab (workflow_dispatch) with a
+#     release-notes input — useful for a hotfix without bumping the tag
+#
+# Required repository secrets
+#   FIREBASE_TOKEN                       — `firebase login:ci` (reused
+#                                           from deploy-hosting.yml)
+#   FIREBASE_ANDROID_APP_ID              — App ID for the Android app in
+#                                           Firebase, looks like
+#                                           1:NNNNNNNNNN:android:HEX.
+#   VITE_FIREBASE_API_KEY                — same .env values used by the
+#   VITE_FIREBASE_AUTH_DOMAIN              hosting build; baked into the
+#   VITE_FIREBASE_PROJECT_ID               JS bundle that runs inside
+#   VITE_FIREBASE_STORAGE_BUCKET           the Capacitor WebView
+#   VITE_FIREBASE_MESSAGING_SENDER_ID
+#   VITE_FIREBASE_APP_ID
+#   VITE_FIREBASE_MEASUREMENT_ID         — optional
+#   VITE_GOOGLE_MAPS_STATIC_KEY          — optional
+#
+#   ZED_RELEASE_KEYSTORE_BASE64          — base64 of your release
+#                                           keystore (.keystore / .jks).
+#                                           See docs/ANDROID-RELEASE.md.
+#   ZED_RELEASE_STORE_PASSWORD           — keystore password
+#   ZED_RELEASE_KEY_ALIAS                — key alias inside the keystore
+#                                           (typically "zedexams")
+#   ZED_RELEASE_KEY_PASSWORD             — password for that key
+#
+# Optional repository variables
+#   APP_DISTRIBUTION_GROUPS              — comma-separated tester groups
+#                                           (defaults to `testers`).
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      release_notes:
+        description: "Release notes shown to testers"
+        required: false
+        default: "Release build from manual workflow dispatch"
+
+concurrency:
+  group: android-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-distribute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          # Full history so android/app/build.gradle can derive
+          # versionCode from `git rev-list --count HEAD`.
+          fetch-depth: 0
+
+      - name: Verify required secrets
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_ANDROID_APP_ID: ${{ secrets.FIREBASE_ANDROID_APP_ID }}
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          ZED_RELEASE_KEYSTORE_BASE64: ${{ secrets.ZED_RELEASE_KEYSTORE_BASE64 }}
+          ZED_RELEASE_STORE_PASSWORD: ${{ secrets.ZED_RELEASE_STORE_PASSWORD }}
+          ZED_RELEASE_KEY_ALIAS: ${{ secrets.ZED_RELEASE_KEY_ALIAS }}
+          ZED_RELEASE_KEY_PASSWORD: ${{ secrets.ZED_RELEASE_KEY_PASSWORD }}
+        run: |
+          missing=()
+          [ -z "$FIREBASE_TOKEN" ] && missing+=("FIREBASE_TOKEN")
+          [ -z "$FIREBASE_ANDROID_APP_ID" ] && missing+=("FIREBASE_ANDROID_APP_ID")
+          [ -z "$VITE_FIREBASE_API_KEY" ] && missing+=("VITE_FIREBASE_API_KEY")
+          [ -z "$VITE_FIREBASE_PROJECT_ID" ] && missing+=("VITE_FIREBASE_PROJECT_ID")
+          [ -z "$ZED_RELEASE_KEYSTORE_BASE64" ] && missing+=("ZED_RELEASE_KEYSTORE_BASE64")
+          [ -z "$ZED_RELEASE_STORE_PASSWORD" ] && missing+=("ZED_RELEASE_STORE_PASSWORD")
+          [ -z "$ZED_RELEASE_KEY_ALIAS" ] && missing+=("ZED_RELEASE_KEY_ALIAS")
+          [ -z "$ZED_RELEASE_KEY_PASSWORD" ] && missing+=("ZED_RELEASE_KEY_PASSWORD")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing repository secrets: ${missing[*]}"
+            echo "::error::Add them at Settings ▸ Secrets and variables ▸ Actions."
+            echo "::error::See docs/ANDROID-RELEASE.md \"Releasing via CI\" for setup."
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-35 build-tools;35.0.0"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Decode release keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ZED_RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          keystore="$RUNNER_TEMP/zedexams-release.keystore"
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$keystore"
+          # Sanity-check: a valid JKS/PKCS12 file is at least a few hundred
+          # bytes. A tiny file usually means the secret got truncated or the
+          # value wasn't base64.
+          size=$(stat -c%s "$keystore")
+          if [ "$size" -lt 256 ]; then
+            echo "::error::Decoded keystore is only ${size} bytes — ZED_RELEASE_KEYSTORE_BASE64 looks invalid."
+            exit 1
+          fi
+          echo "ZED_RELEASE_STORE_FILE=$keystore" >> "$GITHUB_ENV"
+
+      - name: Compute release version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            version="${GITHUB_REF_NAME#v}"
+            echo "ZED_VERSION_NAME=$version" >> "$GITHUB_ENV"
+            echo "Release versionName: $version"
+          else
+            echo "Manual dispatch — leaving ZED_VERSION_NAME at the build.gradle default."
+          fi
+
+      - name: Build web bundle
+        env:
+          VITE_FIREBASE_API_KEY:            ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN:        ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID:         ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET:     ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID:             ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_MEASUREMENT_ID:     ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
+          VITE_GOOGLE_MAPS_STATIC_KEY:      ${{ secrets.VITE_GOOGLE_MAPS_STATIC_KEY }}
+        run: npm run build
+
+      - name: Sync Capacitor Android assets
+        run: npx cap sync android
+
+      - name: Build release APK
+        working-directory: android
+        env:
+          ZED_RELEASE_STORE_FILE: ${{ env.ZED_RELEASE_STORE_FILE }}
+          ZED_RELEASE_STORE_PASSWORD: ${{ secrets.ZED_RELEASE_STORE_PASSWORD }}
+          ZED_RELEASE_KEY_ALIAS: ${{ secrets.ZED_RELEASE_KEY_ALIAS }}
+          ZED_RELEASE_KEY_PASSWORD: ${{ secrets.ZED_RELEASE_KEY_PASSWORD }}
+        run: |
+          chmod +x ./gradlew
+          ./gradlew assembleRelease --no-daemon --stacktrace
+
+      - name: Verify APK signature
+        run: |
+          set -euo pipefail
+          apk="android/app/build/outputs/apk/release/app-release.apk"
+          if [ ! -f "$apk" ]; then
+            echo "::error::Expected APK not found at $apk"
+            exit 1
+          fi
+          apksigner="$ANDROID_SDK_ROOT/build-tools/35.0.0/apksigner"
+          if [ ! -x "$apksigner" ]; then
+            # Fallback: pick whichever build-tools version is installed.
+            apksigner="$(ls -d "$ANDROID_SDK_ROOT"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1)"
+          fi
+          "$apksigner" verify --print-certs "$apk"
+
+      - name: Upload APK as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-${{ github.ref_name }}-${{ github.sha }}
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Compose release notes
+        id: notes
+        env:
+          INPUT_NOTES: ${{ github.event.inputs.release_notes }}
+          COMMIT_MSG: ${{ github.event.head_commit.message }}
+          REF_NAME: ${{ github.ref_name }}
+          SHORT_SHA: ${{ github.sha }}
+        run: |
+          if [ -n "$INPUT_NOTES" ]; then
+            notes="$INPUT_NOTES"
+          else
+            short_sha="${SHORT_SHA:0:7}"
+            first_line="$(printf '%s' "$COMMIT_MSG" | head -n1)"
+            notes="${REF_NAME} @ ${short_sha} — ${first_line}"
+          fi
+          {
+            echo "value<<EOF"
+            echo "$notes"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Distribute to Firebase App Distribution
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_ANDROID_APP_ID: ${{ secrets.FIREBASE_ANDROID_APP_ID }}
+          GROUPS: ${{ vars.APP_DISTRIBUTION_GROUPS || 'testers' }}
+          RELEASE_NOTES: ${{ steps.notes.outputs.value }}
+        run: |
+          npx -y firebase-tools@latest appdistribution:distribute \
+            android/app/build/outputs/apk/release/app-release.apk \
+            --app "$FIREBASE_ANDROID_APP_ID" \
+            --groups "$GROUPS" \
+            --release-notes "$RELEASE_NOTES" \
+            --token "$FIREBASE_TOKEN"
