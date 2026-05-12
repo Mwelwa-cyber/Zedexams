@@ -108,9 +108,15 @@ export default function AdminCsvImport() {
       // columns) leaves us with nothing to preview. Keep `parsed` null
       // so the upload form stays on screen — otherwise the user would
       // be stuck looking at a blank page after a bad upload.
+      //
+      // Also clear the file input's value: in Chromium, selecting the
+      // same filename twice in a row doesn't fire `onChange`, so the
+      // common retry path (teacher fixes the CSV in Excel, re-saves
+      // with the same name, re-uploads) would appear frozen.
       if (result.headerError) {
         setParsed(null)
         setTopLevelError(result.headerError)
+        if (fileInputRef.current) fileInputRef.current.value = ''
         return
       }
       setParsed(result)
