@@ -22,9 +22,14 @@ import katex from 'katex'
 import { renderExtensions } from '../extensions/buildExtensions.js'
 import { sanitizeHTML } from './sanitize.js'
 import { isTiptapJSON } from './migration.js'
-// KaTeX stylesheet — side-effect import at the render layer so the Tiptap
-// extensions factory can be imported by Node scripts without a CSS loader.
-import 'katex/dist/katex.min.css'
+// KaTeX stylesheet — only pulled in inside a browser. Vite intercepts the
+// dynamic CSS import at build time and inlines the styles; under a plain
+// `node` test runner there's no window, the import never fires, and the
+// `.css` file no longer trips Node's ESM loader.
+if (typeof window !== 'undefined') {
+  // eslint-disable-next-line promise/catch-or-return -- fire-and-forget
+  import('katex/dist/katex.min.css').catch(() => {})
+}
 
 /**
  * Convert Tiptap JSON (or legacy HTML/text string) to a safe HTML string.

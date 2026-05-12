@@ -5,7 +5,6 @@ import { useFirestore } from '../../hooks/useFirestore'
 import {
   listMyGenerations,
   titleForGeneration,
-  formatDate,
 } from '../../utils/teacherLibraryService'
 import {
   Search,

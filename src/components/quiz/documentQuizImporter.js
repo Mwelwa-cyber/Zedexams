@@ -577,6 +577,10 @@ async function extractLegacyDoc(file) {
   const buffer = await file.arrayBuffer()
   const text = new TextDecoder('windows-1252').decode(buffer)
   const cleaned = text
+    // Legacy .doc files contain raw byte sequences outside the printable
+    // ASCII range; we keep tab/LF/CR (\x09/\x0a/\x0d) intact and normalise
+    // everything else to a newline.
+    // eslint-disable-next-line no-control-regex
     .replace(/[^\x09\x0a\x0d\x20-\x7e]+/g, '\n')
     .replace(/[ \t]{2,}/g, ' ')
     .replace(/\n{3,}/g, '\n\n')
@@ -701,6 +705,8 @@ async function extractPdf(file) {
   return { blocks, imageAssets, warnings }
 }
 
+// TODO(stop-the-bleeding 2026-05): wired up to importer? Delete or call.
+// eslint-disable-next-line no-unused-vars
 function metadataFromText(text, fileName) {
   const firstLines = splitLines(text).slice(0, 8)
   const title = firstLines.find(line => line.length > 6 && !questionMatch(line) && !OPTION_RE.test(line)) || titleFromFileName(fileName)
@@ -869,6 +875,8 @@ function questionFromCurrent(current, answerKey = new Map()) {
  * Output: blocks whose text is in standard "N. question\nA. opt\nB. opt\n..."
  * format, which the main parser handles normally as MCQ questions.
  */
+// TODO(stop-the-bleeding 2026-05): wired up to importer? Delete or call.
+// eslint-disable-next-line no-unused-vars
 function preprocessParaOrdering(blocks) {
   const output = []
   let collecting = false
@@ -1056,6 +1064,8 @@ function normalizeOptionOnlyQuestionBlock(block, instruction) {
   }
 }
 
+// TODO(stop-the-bleeding 2026-05): wired up to importer? Delete or call.
+// eslint-disable-next-line no-unused-vars
 function preprocessStandaloneInstructions(blocks) {
   const output = []
   let currentInstruction = ''
@@ -1110,6 +1120,8 @@ function preprocessStandaloneInstructions(blocks) {
   return output
 }
 
+// TODO(stop-the-bleeding 2026-05): wired up to importer? Delete or call.
+// eslint-disable-next-line no-unused-vars
 function parseQuestionsFromBlocks(blocks, warnings) {
   const questions = []
   const answerKey = extractAnswerKey(blocks)
@@ -1527,6 +1539,8 @@ function parseQuestionsFromBlocks(blocks, warnings) {
   return questions
 }
 
+// TODO(stop-the-bleeding 2026-05): wired up to importer? Delete or call.
+// eslint-disable-next-line no-unused-vars
 function buildImportedSections(questions = []) {
   return questions.map(question => {
     if (question.type === 'comprehension' || question.detectedType === 'comprehension') {
@@ -1548,6 +1562,8 @@ function buildImportedSections(questions = []) {
   })
 }
 
+// TODO(stop-the-bleeding 2026-05): wired up to importer? Delete or call.
+// eslint-disable-next-line no-unused-vars
 function summarizeImportedSections(sections = []) {
   let questionCount = 0
   let images = 0

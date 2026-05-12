@@ -79,7 +79,7 @@ export async function getExamWithQuestions(examId) {
  * A quiz qualifies when: isDailyExam == true, dailyExamDate == today,
  * subject matches, and isPublished == true.
  */
-export async function getTodaysExam(subject, grade) {
+export async function getTodaysExam(subject, _grade) {
   try {
     const snap = await getDocs(
       query(

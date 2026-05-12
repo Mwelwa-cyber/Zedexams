@@ -85,6 +85,17 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # Stability gates — added 2026-05. The same lint + test suite a
+      # contributor would run locally now blocks every production deploy.
+      # If either step fails the build never runs and nothing reaches
+      # examsprepzambia.web.app. To run the same checks locally before
+      # pushing: `npm run lint && npm run test:all`.
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests (importer + sanitize + schema)
+        run: npm run test:all
+
       - name: Build
         env:
           VITE_FIREBASE_API_KEY:            ${{ secrets.VITE_FIREBASE_API_KEY }}

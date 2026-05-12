@@ -22,7 +22,7 @@
 
 import {
   collection, doc, deleteDoc, getDocs, limit, orderBy, query,
-  serverTimestamp, updateDoc, where,
+  updateDoc,
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 

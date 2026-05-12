@@ -109,16 +109,6 @@ function plainTextToHtml(value) {
     .join('')
 }
 
-function unwrapElement(element) {
-  const parent = element.parentNode
-  if (!parent) return
-
-  while (element.firstChild) {
-    parent.insertBefore(element.firstChild, element)
-  }
-  parent.removeChild(element)
-}
-
 function replaceElement(element, tagName, doc) {
   const replacement = doc.createElement(tagName)
 
@@ -422,7 +412,7 @@ export function extractRichTextPlain(value) {
     ;(value.content || []).forEach(child => walkTiptapNode(child, out))
     return out
       .join('')
-      .replace(/ /g, ' ')
+      .replace(/\u00A0/g, ' ')
       .replace(/[ \t]+\n/g, '\n')
       .replace(/\n{3,}/g, '\n\n')
       .replace(/[ \t]{2,}/g, ' ')

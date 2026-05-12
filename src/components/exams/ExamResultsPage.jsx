@@ -7,7 +7,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react'
-import { Link, useParams, useNavigate } from 'react-router-dom'
+import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { getExamAttempt, getExamWithQuestions } from '../../utils/examService'
 import { subscribeToDailyLeaderboard, fmtDuration } from '../../utils/examLeaderboardService'
@@ -319,7 +319,6 @@ const TABS = ['My Results', 'Leaderboard']
 export default function ExamResultsPage() {
   const { attemptId } = useParams()
   const { currentUser } = useAuth()
-  const navigate = useNavigate()
 
   const [attempt,   setAttempt]   = useState(null)
   const [questions, setQuestions] = useState([])

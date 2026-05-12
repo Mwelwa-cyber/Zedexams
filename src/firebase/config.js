@@ -153,7 +153,7 @@ async function initAppCheck() {
   if (!APPCHECK_RECAPTCHA_KEY) return
   if (import.meta.env.DEV) {
     // Must be set before initializeAppCheck to take effect.
-    // eslint-disable-next-line no-self-assign
+     
     self.FIREBASE_APPCHECK_DEBUG_TOKEN = true
   }
   try {

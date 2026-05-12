@@ -7,7 +7,7 @@
 
 import {
   collection, deleteDoc, doc, getDocs, query, orderBy,
-  serverTimestamp, setDoc, updateDoc,
+  serverTimestamp, setDoc,
 } from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app, { db } from '../firebase/config'

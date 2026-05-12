@@ -110,7 +110,6 @@ function imagePositionClasses(value) {
 function PreQuizCard({ quiz, canExam, onStart }) {
   const [mode, setMode] = useState('practice')
   const mascot = getQuizSubjectMascot(quiz.subject)
-  const themeClass = mascot.slug ? `quiz-theme-${mascot.slug}` : ''
 
   return (
     <div className="theme-bg theme-text min-h-screen px-3 py-8 sm:px-4 sm:py-10">

@@ -38,7 +38,7 @@ export default function QuizRichField({
   placeholder = 'Start typing…',
   minHeight = 120,
   compact = false,
-  resetKey,
+  resetKey: _resetKey,
 }) {
   // When the value object identity changes (parent switched to a different
   // question), remount RichEditor so it re-reads initialContent. We don't

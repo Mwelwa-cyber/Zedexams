@@ -77,14 +77,22 @@ export default [
       'promise/no-nesting': 'warn',
 
       // ---- Rules that would have caught bugs we shipped ----
+      // Caught-error bindings are exempted (`caughtErrors: 'none'`) — too
+      // many `catch (err)` blocks intentionally discard the error (audio
+      // playback failures, sessionStorage quota, third-party SDK noise)
+      // and forcing `_err` everywhere is churn without bug payoff.
       'no-unused-vars': ['error', {
         argsIgnorePattern: '^_',
         varsIgnorePattern: '^_',
-        caughtErrorsIgnorePattern: '^_',
+        caughtErrors: 'none',
         ignoreRestSiblings: true,
       }],
       'no-undef': 'error',
-      'no-empty': ['error', { allowEmptyCatch: false }],
+      // Allow `catch {}` and `catch (err) {}` empty bodies. Several call
+      // sites in this codebase deliberately swallow non-critical errors
+      // (e.g. `audio.play().catch(() => {})` for browsers that block
+      // autoplay). Re-tightening this is a future cleanup pass.
+      'no-empty': ['error', { allowEmptyCatch: true }],
       'no-unreachable': 'error',
       'no-dupe-keys': 'error',
       'no-dupe-else-if': 'error',
@@ -101,6 +109,10 @@ export default [
       eqeqeq: ['warn', 'smart'],
       'no-var': 'error',
       'prefer-const': 'warn',
+      // Pure stylistic — over-escaped regex chars don't cause bugs but the
+      // signal is useful for cleanup, so it stays as a warning rather than
+      // blocking deploys.
+      'no-useless-escape': 'warn',
     },
   },
 

@@ -59,15 +59,10 @@ const THEMES = {
   },
 }
 
-const FIELD_BASE = 'theme-input w-full rounded-xl border-2 px-3 py-2.5 text-sm placeholder:text-gray-400 outline-none transition-colors'
 const SMALL_FIELD_BASE = 'theme-input w-full rounded-lg border px-2.5 py-2 text-xs placeholder:text-gray-400 outline-none transition-colors'
 
 function joinClasses(...parts) {
   return parts.filter(Boolean).join(' ')
-}
-
-function fieldClass(theme) {
-  return joinClasses(FIELD_BASE, theme.focus)
 }
 
 function smallFieldClass(theme) {
@@ -791,7 +786,7 @@ function PassageQuestionCard({
   questionIndex,
   questionNumber,
   totalPassageQuestions,
-  totalQuestions,
+  totalQuestions: _totalQuestions,
   sectionIndex,
   onChange,
   onRemove,
