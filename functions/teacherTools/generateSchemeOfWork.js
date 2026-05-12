@@ -16,7 +16,6 @@ const {
   getAnthropicApiKey,
   getUserRole,
   isStaffRole,
-  stripJsonFences,
 } = require("../aiService");
 const {callClaude, DEFAULT_MODEL} = require("./anthropicClient");
 
@@ -25,6 +24,15 @@ const {validateSchemeOfWork} = require("./schemeOfWorkSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
   require("./schemeOfWorkPrompt");
 const {assertAndIncrement} = require("./usageMeter");
+
+// Permissive top-level shape — validateSchemeOfWork() does the strict
+// checking. Tool mode forces an object response and removes "AI returned
+// non-JSON output" parse failures.
+const SCHEME_TOOL_SCHEMA = {
+  type: "object",
+  description: "A Zambian CBC scheme of work spanning the requested term.",
+  additionalProperties: true,
+};
 
 const ALLOWED_GRADES = new Set([
   "ECE", "G1", "G2", "G3", "G4", "G5", "G6", "G7",
@@ -118,6 +126,7 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
   });
 
   const userPrompt = buildUserPrompt(inputs);
+  let parsed = null;
   let raw = "";
   let usageInfo = {inputTokens: 0, outputTokens: 0};
   let modelUsed = DEFAULT_MODEL;
@@ -128,7 +137,14 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
       messages: [{role: "user", content: userPrompt}],
       maxTokens: 8000,   // schemes are long
       temperature: 0.3,
+      mode: "tool",
+      toolName: "emit_scheme_of_work",
+      toolDescription:
+        "Emit the complete scheme of work as a single structured object. " +
+        "Do not include any prose or commentary outside this tool call.",
+      toolInputSchema: SCHEME_TOOL_SCHEMA,
     });
+    parsed = response.parsed;
     raw = response.text || "";
     usageInfo = response.usage || usageInfo;
     modelUsed = response.model || modelUsed;
@@ -138,21 +154,6 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
       errorMessage: String(err && err.message || err).slice(0, 500),
     });
     throw err;
-  }
-
-  let parsed;
-  try {
-    parsed = JSON.parse(stripJsonFences(raw));
-  } catch {
-    await genRef.update({
-      status: "failed",
-      errorMessage: "AI returned non-JSON output",
-      outputText: String(raw || "").slice(0, 12000),
-    });
-    throw new HttpsError(
-      "internal",
-      "The AI returned an unexpected response. Please try again.",
-    );
   }
 
   const validation = validateSchemeOfWork(parsed);

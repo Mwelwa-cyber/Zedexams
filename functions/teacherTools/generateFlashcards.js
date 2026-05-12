@@ -17,7 +17,6 @@ const {
   getAnthropicApiKey,
   getUserRole,
   isStaffRole,
-  stripJsonFences,
 } = require("../aiService");
 const {callClaude} = require("./anthropicClient");
 
@@ -28,6 +27,15 @@ const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
 const {assertAndIncrement} = require("./usageMeter");
 
 const FLASHCARDS_MODEL = process.env.FLASHCARDS_MODEL || "claude-haiku-4-5";
+
+// Permissive top-level shape — validateFlashcards() does the strict checking.
+// Tool mode forces an object response and removes "AI returned non-JSON
+// output" parse failures.
+const FLASHCARDS_TOOL_SCHEMA = {
+  type: "object",
+  description: "A deck of CBC-aligned flashcards for the requested topic.",
+  additionalProperties: true,
+};
 
 const ALLOWED_GRADES = new Set([
   "ECE", "G1", "G2", "G3", "G4", "G5", "G6", "G7",
@@ -124,6 +132,7 @@ async function runFlashcards({uid, rawInputs, apiKey}) {
   });
 
   const userPrompt = buildUserPrompt(inputs);
+  let parsed = null;
   let raw = "";
   let usageInfo = {inputTokens: 0, outputTokens: 0};
   let modelUsed = FLASHCARDS_MODEL;
@@ -135,7 +144,14 @@ async function runFlashcards({uid, rawInputs, apiKey}) {
       maxTokens: 3000,
       temperature: 0.4,
       model: FLASHCARDS_MODEL,
+      mode: "tool",
+      toolName: "emit_flashcards",
+      toolDescription:
+        "Emit the complete flashcard deck as a single structured object. " +
+        "Do not include any prose or commentary outside this tool call.",
+      toolInputSchema: FLASHCARDS_TOOL_SCHEMA,
     });
+    parsed = response.parsed;
     raw = response.text || "";
     usageInfo = response.usage || usageInfo;
     modelUsed = response.model || modelUsed;
@@ -145,21 +161,6 @@ async function runFlashcards({uid, rawInputs, apiKey}) {
       errorMessage: String(err && err.message || err).slice(0, 500),
     });
     throw err;
-  }
-
-  let parsed;
-  try {
-    parsed = JSON.parse(stripJsonFences(raw));
-  } catch (err) {
-    await genRef.update({
-      status: "failed",
-      errorMessage: "AI returned non-JSON output",
-      outputText: String(raw || "").slice(0, 12000),
-    });
-    throw new HttpsError(
-      "internal",
-      "The AI returned an unexpected response. Please try again.",
-    );
   }
 
   const validation = validateFlashcards(parsed);
