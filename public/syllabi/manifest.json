@@ -1,0 +1,330 @@
+[
+  {
+    "id": "2023-approved-national-school-curriculum",
+    "title": "2023 Approved National School Curriculum",
+    "phase": "Curriculum Framework",
+    "subject": null,
+    "file": "/syllabi/2023-approved-national-school-curriculum.pdf",
+    "sizeBytes": 1336532
+  },
+  {
+    "id": "early-childhood-education-syllabi-3-to-5-year-corrected",
+    "title": "Early Childhood Education Syllabi 3 to 5 Year Corrected",
+    "phase": "Early Childhood",
+    "subject": null,
+    "file": "/syllabi/early-childhood-education-syllabi-3-to-5-year-corrected.pdf",
+    "sizeBytes": 791294
+  },
+  {
+    "id": "ece-5-6-mathematics",
+    "title": "ECE 5-6 Mathematics",
+    "phase": "Early Childhood",
+    "subject": "Mathematics",
+    "file": "/syllabi/ece-5-6-mathematics.pdf",
+    "sizeBytes": 2756061
+  },
+  {
+    "id": "finalised-ece-syllabus-jan-2025",
+    "title": "Finalised ECE Syllabus, Jan. 2025",
+    "phase": "Early Childhood",
+    "subject": null,
+    "file": "/syllabi/finalised-ece-syllabus-jan-2025.pdf",
+    "sizeBytes": 3706262
+  },
+  {
+    "id": "intellectual-disability-ece-syllabus-1",
+    "title": "Intellectual Disability ECE Syllabus 1",
+    "phase": "Early Childhood",
+    "subject": null,
+    "file": "/syllabi/intellectual-disability-ece-syllabus-1.pdf",
+    "sizeBytes": 972799
+  },
+  {
+    "id": "art-and-design-syllabus-final",
+    "title": "Art and Design Syllabus Final",
+    "phase": "General",
+    "subject": "Art and Design",
+    "file": "/syllabi/art-and-design-syllabus-final.pdf",
+    "sizeBytes": 1610614
+  },
+  {
+    "id": "chemistry-syllabus",
+    "title": "Chemistry Syllabus",
+    "phase": "General",
+    "subject": "Chemistry",
+    "file": "/syllabi/chemistry-syllabus.pdf",
+    "sizeBytes": 731338
+  },
+  {
+    "id": "design-and-technology-studies",
+    "title": "Design and Technology Studies",
+    "phase": "General",
+    "subject": "Design and Technology",
+    "file": "/syllabi/design-and-technology-studies.pdf",
+    "sizeBytes": 883567
+  },
+  {
+    "id": "expressive-arts-upper-primary-finalised-31-01-25",
+    "title": "Expressive Arts Upper Primary Finalised 31-01-25",
+    "phase": "General",
+    "subject": "Expressive Arts",
+    "file": "/syllabi/expressive-arts-upper-primary-finalised-31-01-25.pdf",
+    "sizeBytes": 547725
+  },
+  {
+    "id": "food-and-nutrition-syllabus-final-07-02-2024",
+    "title": "Food and Nutrition Syllabus Final 07-02-2024",
+    "phase": "General",
+    "subject": "Food and Nutrition",
+    "file": "/syllabi/food-and-nutrition-syllabus-final-07-02-2024.pdf",
+    "sizeBytes": 649185
+  },
+  {
+    "id": "french-language",
+    "title": "French Language",
+    "phase": "General",
+    "subject": "French Language",
+    "file": "/syllabi/french-language.pdf",
+    "sizeBytes": 1015461
+  },
+  {
+    "id": "geography-syllabus",
+    "title": "Geography Syllabus",
+    "phase": "General",
+    "subject": "Geography",
+    "file": "/syllabi/geography-syllabus.pdf",
+    "sizeBytes": 1568271
+  },
+  {
+    "id": "hospitality-management",
+    "title": "Hospitality Management",
+    "phase": "General",
+    "subject": "Hospitality Management",
+    "file": "/syllabi/hospitality-management.pdf",
+    "sizeBytes": 620887
+  },
+  {
+    "id": "mathematics-ii-syllabus",
+    "title": "Mathematics II Syllabus",
+    "phase": "General",
+    "subject": "Mathematics",
+    "file": "/syllabi/mathematics-ii-syllabus.pdf",
+    "sizeBytes": 844866
+  },
+  {
+    "id": "physical-education-syllabus-form-1-4",
+    "title": "Physical Education Syllabus Forms 1-4",
+    "phase": "General",
+    "subject": "Physical Education",
+    "file": "/syllabi/physical-education-syllabus-form-1-4.pdf",
+    "sizeBytes": 2354896
+  },
+  {
+    "id": "religious-education-syllabus",
+    "title": "Religious Education Syllabus",
+    "phase": "General",
+    "subject": "Religious Education",
+    "file": "/syllabi/religious-education-syllabus.pdf",
+    "sizeBytes": 911427
+  },
+  {
+    "id": "travel-and-tourism-syllabus",
+    "title": "Travel and Tourism Syllabus",
+    "phase": "General",
+    "subject": "Travel and Tourism",
+    "file": "/syllabi/travel-and-tourism-syllabus.pdf",
+    "sizeBytes": 631524
+  },
+  {
+    "id": "lower-primary-syllabi-grade-1-3-final-camera-redy-1",
+    "title": "Lower Primary Syllabi Grade 1-3 Final Camera Ready 1",
+    "phase": "Lower Primary",
+    "subject": null,
+    "file": "/syllabi/lower-primary-syllabi-grade-1-3-final-camera-redy-1.pdf",
+    "sizeBytes": 1913157
+  },
+  {
+    "id": "zambian-sign-languages-grades-1-3",
+    "title": "Zambian Sign Languages Grades 1-3",
+    "phase": "Lower Primary",
+    "subject": "Zambian Sign Languages",
+    "file": "/syllabi/zambian-sign-languages-grades-1-3.pdf",
+    "sizeBytes": 916594
+  },
+  {
+    "id": "agricultural-science-o-level-syllabus-form-1-4",
+    "title": "Agricultural Science O-Level Syllabus Forms 1-4",
+    "phase": "Secondary",
+    "subject": "Agricultural Science",
+    "file": "/syllabi/agricultural-science-o-level-syllabus-form-1-4.pdf",
+    "sizeBytes": 1033424
+  },
+  {
+    "id": "biology-sylabus-o-level-form-1-4",
+    "title": "Biology Syllabus O-Level Forms 1-4",
+    "phase": "Secondary",
+    "subject": "Biology",
+    "file": "/syllabi/biology-sylabus-o-level-form-1-4.pdf",
+    "sizeBytes": 870477
+  },
+  {
+    "id": "civic-education-syllabus-science-o-level-syllabus-form-1-4",
+    "title": "Civic Education Syllabus Science O-Level Syllabus Forms 1-4",
+    "phase": "Secondary",
+    "subject": "Civic Education",
+    "file": "/syllabi/civic-education-syllabus-science-o-level-syllabus-form-1-4.pdf",
+    "sizeBytes": 895123
+  },
+  {
+    "id": "commerce-and-principles-of-accounts-sylabus-camera-ready-o-level-form-1-4",
+    "title": "Commerce and Principles Of Accounts Syllabus Camera Ready O-Level Forms 1-4",
+    "phase": "Secondary",
+    "subject": "Commerce and Principles of Accounts",
+    "file": "/syllabi/commerce-and-principles-of-accounts-sylabus-camera-ready-o-level-form-1-4.pdf",
+    "sizeBytes": 534037
+  },
+  {
+    "id": "computer-science-ordinary-syllabi-form-1-4",
+    "title": "Computer Science Ordinary Syllabi Forms 1-4",
+    "phase": "Secondary",
+    "subject": "Computer Science",
+    "file": "/syllabi/computer-science-ordinary-syllabi-form-1-4.pdf",
+    "sizeBytes": 871754
+  },
+  {
+    "id": "english-sylabus-form-1-4-o-levelcamera-ready",
+    "title": "English Syllabus Forms 1-4 O-Level Camera Ready",
+    "phase": "Secondary",
+    "subject": "English",
+    "file": "/syllabi/english-sylabus-form-1-4-o-levelcamera-ready.pdf",
+    "sizeBytes": 1758301
+  },
+  {
+    "id": "fashion-and-fabrics-sylabus-o-level-form-1-4",
+    "title": "Fashion and Fabrics Syllabus O-Level Forms 1-4",
+    "phase": "Secondary",
+    "subject": "Fashion and Fabrics",
+    "file": "/syllabi/fashion-and-fabrics-sylabus-o-level-form-1-4.pdf",
+    "sizeBytes": 1173727
+  },
+  {
+    "id": "history-syllabus-forms-1-4",
+    "title": "History Syllabus Forms 1-4",
+    "phase": "Secondary",
+    "subject": "History",
+    "file": "/syllabi/history-syllabus-forms-1-4.pdf",
+    "sizeBytes": 1142375
+  },
+  {
+    "id": "ict-ordinary-level-syllabus-forms-1-4",
+    "title": "ICT Ordinary Level Syllabus Forms 1-4",
+    "phase": "Secondary",
+    "subject": "ICT",
+    "file": "/syllabi/ict-ordinary-level-syllabus-forms-1-4.pdf",
+    "sizeBytes": 1205223
+  },
+  {
+    "id": "literature-in-english-sylabus-o-level-form-1-4",
+    "title": "Literature In English Syllabus O-Level Forms 1-4",
+    "phase": "Secondary",
+    "subject": "Literature in English",
+    "file": "/syllabi/literature-in-english-sylabus-o-level-form-1-4.pdf",
+    "sizeBytes": 993543
+  },
+  {
+    "id": "mathematics-o-level-forms-1-4",
+    "title": "Mathematics O-Level Forms 1-4",
+    "phase": "Secondary",
+    "subject": "Mathematics",
+    "file": "/syllabi/mathematics-o-level-forms-1-4.pdf",
+    "sizeBytes": 868348
+  },
+  {
+    "id": "music-arts-o-level-syllabus-form-1-4-camera-ready-1",
+    "title": "Music Arts O-Level Syllabus Forms 1-4 Camera Ready 1",
+    "phase": "Secondary",
+    "subject": "Music Arts",
+    "file": "/syllabi/music-arts-o-level-syllabus-form-1-4-camera-ready-1.pdf",
+    "sizeBytes": 1432141
+  },
+  {
+    "id": "physics-syllabus-o-level-form-1-4",
+    "title": "Physics Syllabus O-Level Forms 1-4",
+    "phase": "Secondary",
+    "subject": "Physics",
+    "file": "/syllabi/physics-syllabus-o-level-form-1-4.pdf",
+    "sizeBytes": 1899208
+  },
+  {
+    "id": "zambian-languages-ordinary-level-syllabus-form-1-4-final",
+    "title": "Zambian Languages Ordinary Level Syllabus Forms 1-4 Final",
+    "phase": "Secondary",
+    "subject": "Zambian Languages",
+    "file": "/syllabi/zambian-languages-ordinary-level-syllabus-form-1-4-final.pdf",
+    "sizeBytes": 1246466
+  },
+  {
+    "id": "intellectual-disability-english-language-syllabus-level-i-3",
+    "title": "Intellectual Disability English Language Syllabus Level I-3",
+    "phase": "Special Education",
+    "subject": "English",
+    "file": "/syllabi/intellectual-disability-english-language-syllabus-level-i-3.pdf",
+    "sizeBytes": 323108
+  },
+  {
+    "id": "expressive-arts-upper-primary-2",
+    "title": "Expressive Arts Upper Primary 2",
+    "phase": "Upper Primary",
+    "subject": "Expressive Arts",
+    "file": "/syllabi/expressive-arts-upper-primary-2.pdf",
+    "sizeBytes": 1243664
+  },
+  {
+    "id": "home-economics-and-hospitality-g4-6-upper-primary",
+    "title": "Home Economics and Hospitality (G4-6) Upper Primary",
+    "phase": "Upper Primary",
+    "subject": "Home Economics and Hospitality",
+    "file": "/syllabi/home-economics-and-hospitality-g4-6-upper-primary.pdf",
+    "sizeBytes": 1457802
+  },
+  {
+    "id": "mathematics-syllabus-for-upper-primary-g4-6",
+    "title": "Mathematics Syllabus For Upper Primary (G4-6)",
+    "phase": "Upper Primary",
+    "subject": "Mathematics",
+    "file": "/syllabi/mathematics-syllabus-for-upper-primary-g4-6.pdf",
+    "sizeBytes": 1393181
+  },
+  {
+    "id": "science-upper-primary-syllabus-g4-5",
+    "title": "Science Upper Primary Syllabus (G4-5)",
+    "phase": "Upper Primary",
+    "subject": "Science",
+    "file": "/syllabi/science-upper-primary-syllabus-g4-5.pdf",
+    "sizeBytes": 1468816
+  },
+  {
+    "id": "social-studies-upper-primary-g4-6",
+    "title": "Social Studies Upper Primary (G4-6)",
+    "phase": "Upper Primary",
+    "subject": "Social Studies",
+    "file": "/syllabi/social-studies-upper-primary-g4-6.pdf",
+    "sizeBytes": 1465143
+  },
+  {
+    "id": "technology-studies-upper-primary",
+    "title": "Technology Studies Upper Primary",
+    "phase": "Upper Primary",
+    "subject": "Technology Studies",
+    "file": "/syllabi/technology-studies-upper-primary.pdf",
+    "sizeBytes": 799080
+  },
+  {
+    "id": "technology-studies-upper-primary-g4-6",
+    "title": "Technology Studies Upper Primary (G4-6)",
+    "phase": "Upper Primary",
+    "subject": "Technology Studies",
+    "file": "/syllabi/technology-studies-upper-primary-g4-6.pdf",
+    "sizeBytes": 2297876
+  }
+]

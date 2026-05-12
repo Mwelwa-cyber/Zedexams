@@ -34,6 +34,13 @@
         "headers": [
           { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
         ]
+      },
+      {
+        "source": "/syllabi/**",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=3600" },
+          { "key": "Content-Disposition", "value": "inline" }
+        ]
       }
     ],
     "rewrites": [

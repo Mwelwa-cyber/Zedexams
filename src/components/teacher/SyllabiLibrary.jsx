@@ -1,497 +1,548 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import pdfWorkerUrl from 'pdfjs-dist/legacy/build/pdf.worker.mjs?url'
 import {
-  SYLLABI_CATALOG,
-  SYLLABI_TOTAL_COUNT,
-  formatSyllabusSize,
-  syllabusIcon,
-} from '../../data/syllabiCatalog'
+  ChevronLeft,
+  ChevronRight,
+  FileText,
+  Lock,
+  RefreshCw,
+  Search,
+} from '../ui/icons'
+import Icon from '../ui/Icon'
 import SeoHelmet from '../seo/SeoHelmet'
 
-const COLORS = {
-  ink: '#0e2a32',
-  inkMuted: '#566f76',
-  faintInk: '#8a9aa1',
-  paper: '#fdf8ed',
-  card: '#fff',
-  border: '#b8ad96',
-  borderSoft: '#f0e8d8',
-  orange: '#ff7a2e',
-  orangeSoft: '#fff5e6',
-  peach: '#fcd9c4',
-  green: '#10864e',
-  greenDark: '#0e6b3f',
-}
+let pdfjsLoader = null
 
-// Bucket comes from the same env var the Firebase SDK uses (src/firebase/config.js)
-// so the URL can't drift from the project the rest of the app talks to.
-const STORAGE_BUCKET = import.meta.env.VITE_FIREBASE_STORAGE_BUCKET
-const PDF_BASE_URL = `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o/syllabi`
-function getPdfUrl(item) {
-  const file = item?.file
-  if (file) {
-    if (/^https?:/.test(file)) return file
-    return `${PDF_BASE_URL}%2F${encodeURIComponent(file)}?alt=media`
+async function loadPdfjs() {
+  if (!pdfjsLoader) {
+    pdfjsLoader = import('pdfjs-dist/legacy/build/pdf.mjs').then(module => {
+      module.GlobalWorkerOptions.workerSrc = pdfWorkerUrl
+      return module
+    })
   }
-  return `${PDF_BASE_URL}%2F${encodeURIComponent(item?.k || '')}.pdf?alt=media`
+  return pdfjsLoader
 }
 
-function SectionLabel({ children }) {
-  return (
-    <div
-      className="flex items-center gap-2.5 mb-2"
-      style={{
-        fontSize: 11,
-        fontWeight: 700,
-        letterSpacing: '1.4px',
-        textTransform: 'uppercase',
-        color: COLORS.orange,
-      }}
-    >
-      <span
-        style={{
-          width: 32,
-          height: 3,
-          background: COLORS.orange,
-          borderRadius: 2,
-          display: 'inline-block',
-          flexShrink: 0,
-        }}
-      />
-      {children}
-    </div>
-  )
+function formatBytes(bytes) {
+  if (!Number.isFinite(bytes) || bytes <= 0) return ''
+  const mb = bytes / (1024 * 1024)
+  if (mb >= 1) return `${mb >= 10 ? mb.toFixed(0) : mb.toFixed(1)} MB`
+  return `${Math.ceil(bytes / 1024)} KB`
 }
 
-function VersionToggle({ value, onChange }) {
-  const tabBase = {
-    padding: '9px 18px',
-    border: 'none',
-    background: 'transparent',
-    color: COLORS.ink,
-    font: "700 13px/1 system-ui",
-    borderRadius: 10,
-    cursor: 'pointer',
-    letterSpacing: '.02em',
+function phaseTone(phase) {
+  const tones = {
+    'Curriculum Framework': 'bg-amber-500/15 text-amber-100 ring-1 ring-amber-300/30',
+    'Early Childhood': 'bg-pink-500/15 text-pink-100 ring-1 ring-pink-300/30',
+    'Lower Primary': 'bg-sky-500/15 text-sky-100 ring-1 ring-sky-300/30',
+    'Upper Primary': 'bg-emerald-500/15 text-emerald-100 ring-1 ring-emerald-300/30',
+    Secondary: 'bg-violet-500/15 text-violet-100 ring-1 ring-violet-300/30',
+    General: 'bg-cyan-500/15 text-cyan-100 ring-1 ring-cyan-300/30',
+    'Special Education': 'bg-orange-500/15 text-orange-100 ring-1 ring-orange-300/30',
   }
-  const activeTab = { ...tabBase, background: COLORS.orange, color: '#fff' }
-
-  return (
-    <div
-      style={{
-        display: 'inline-flex',
-        background: COLORS.card,
-        border: `2px solid ${COLORS.ink}`,
-        borderRadius: 14,
-        padding: 4,
-        gap: 4,
-        margin: '14px 0 6px',
-      }}
-    >
-      <button type="button" onClick={() => onChange('new')} style={value === 'new' ? activeTab : tabBase}>
-        New Syllabus (2023)
-      </button>
-      <button type="button" onClick={() => onChange('old')} style={value === 'old' ? activeTab : tabBase}>
-        Old Syllabus (2013)
-      </button>
-    </div>
-  )
+  return tones[phase] || 'theme-bg-subtle theme-text-muted ring-1 ring-white/10'
 }
 
-function FilterChip({ active, onClick, children }) {
+function ReaderButton({ children, disabled, ...props }) {
   return (
     <button
       type="button"
-      onClick={onClick}
-      style={{
-        padding: '7px 14px',
-        background: active ? COLORS.ink : COLORS.card,
-        color: active ? COLORS.paper : COLORS.inkMuted,
-        border: `1.5px solid ${active ? COLORS.ink : COLORS.border}`,
-        borderRadius: 99,
-        font: "600 12px/1 system-ui",
-        cursor: 'pointer',
-        transition: 'all .15s',
-        whiteSpace: 'nowrap',
-      }}
-      onMouseEnter={e => {
-        if (!active) {
-          e.currentTarget.style.borderColor = COLORS.ink
-          e.currentTarget.style.color = COLORS.ink
-        }
-      }}
-      onMouseLeave={e => {
-        if (!active) {
-          e.currentTarget.style.borderColor = COLORS.border
-          e.currentTarget.style.color = COLORS.inkMuted
-        }
-      }}
+      disabled={disabled}
+      className="inline-flex min-h-0 items-center justify-center gap-1.5 rounded-xl border theme-border theme-card px-3 py-2 text-xs font-black theme-text shadow-sm transition hover:theme-card-hover disabled:cursor-not-allowed disabled:opacity-45"
+      {...props}
     >
       {children}
     </button>
   )
 }
 
-function SyllabusCard({ item, onOpen }) {
-  const isEmbedded = !!item.e
-  return (
-    <button
-      type="button"
-      onClick={() => onOpen(item)}
-      style={{
-        background: COLORS.card,
-        border: `2px solid ${COLORS.border}`,
-        borderRadius: 14,
-        padding: 16,
-        cursor: 'pointer',
-        transition: 'all .18s',
-        display: 'flex',
-        flexDirection: 'column',
-        minHeight: 170,
-        textAlign: 'left',
-        position: 'relative',
-      }}
-      onMouseEnter={e => {
-        e.currentTarget.style.transform = 'translateY(-2px)'
-        e.currentTarget.style.boxShadow = '0 8px 22px rgba(14,42,50,.12)'
-        e.currentTarget.style.borderColor = COLORS.ink
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.transform = 'translateY(0)'
-        e.currentTarget.style.boxShadow = 'none'
-        e.currentTarget.style.borderColor = COLORS.border
-      }}
-    >
-      <div
-        style={{
-          width: 42,
-          height: 42,
-          borderRadius: 10,
-          background: COLORS.peach,
-          display: 'grid',
-          placeItems: 'center',
-          fontSize: 22,
-          marginBottom: 10,
-        }}
-      >
-        {syllabusIcon(item.t)}
-      </div>
-      <div
-        style={{
-          font: "700 10.5px/1 system-ui",
-          color: COLORS.orange,
-          letterSpacing: '.6px',
-          textTransform: 'uppercase',
-          marginBottom: 5,
-        }}
-      >
-        {item.l}
-      </div>
-      <div
-        style={{
-          font: "700 15px/1.25 'Fraunces',serif",
-          color: COLORS.ink,
-          marginBottom: 6,
-          flex: 1,
-        }}
-      >
-        {item.t}
-      </div>
-      <div style={{ font: "600 11.5px/1.3 system-ui", color: COLORS.inkMuted, marginBottom: 10 }}>
-        {item.g}
-      </div>
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          font: "500 10.5px/1 system-ui",
-          color: COLORS.faintInk,
-          borderTop: `1px solid ${COLORS.borderSoft}`,
-          paddingTop: 9,
-          marginTop: 'auto',
-        }}
-      >
-        <span>{formatSyllabusSize(item.s)}</span>
-        <span
-          style={{
-            padding: '5px 12px',
-            background: isEmbedded ? COLORS.green : COLORS.ink,
-            color: COLORS.paper,
-            borderRadius: 99,
-            font: "700 10.5px/1 system-ui",
-            letterSpacing: '.4px',
-            textTransform: 'uppercase',
-          }}
-        >
-          {isEmbedded ? 'View ›' : 'Preview'}
-        </span>
-      </div>
-    </button>
-  )
-}
-
-function PdfViewer({ item, onClose }) {
-  // 'checking' while we HEAD-probe the cloud URL; 'available' renders the
-  // iframe; 'missing' falls back to the placeholder card so a 404 (or CORS
-  // failure) never bleeds the raw Firebase JSON into the viewer.
-  const [status, setStatus] = useState('checking')
+function SyllabusReader({ syllabus }) {
+  const leftCanvasRef = useRef(null)
+  const rightCanvasRef = useRef(null)
+  const [pdfDoc, setPdfDoc] = useState(null)
+  const [spreadStart, setSpreadStart] = useState(1)
+  const [pageCount, setPageCount] = useState(0)
+  const [scale, setScale] = useState(0.95)
+  const [loading, setLoading] = useState(false)
+  const [rendering, setRendering] = useState(false)
+  const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!item) return
-    if (!item.e) { setStatus('missing'); return }
-    let cancelled = false
-    setStatus('checking')
-    fetch(getPdfUrl(item), { method: 'HEAD' })
-      .then(r => { if (!cancelled) setStatus(r.ok ? 'available' : 'missing') })
-      .catch(() => { if (!cancelled) setStatus('missing') })
-    return () => { cancelled = true }
-  }, [item])
+    if (!syllabus?.file) return undefined
 
-  if (!item) return null
-  return (
-    <div
-      onClick={e => { if (e.target === e.currentTarget) onClose() }}
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(14,42,50,.85)',
-        zIndex: 1000,
-        display: 'flex',
-        flexDirection: 'column',
-        backdropFilter: 'blur(6px)',
-        WebkitBackdropFilter: 'blur(6px)',
-      }}
-    >
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '12px 18px',
-          background: COLORS.ink,
-          color: COLORS.paper,
-          borderBottom: '2px solid #16505d',
-        }}
-      >
-        <h3 style={{ margin: 0, font: "700 15px/1.2 'Fraunces',serif", display: 'flex', alignItems: 'center', gap: 10 }}>
-          {item.t} — {item.g}
-          <span
-            style={{
-              background: COLORS.orange,
-              color: '#fff',
-              padding: '3px 9px',
-              borderRadius: 99,
-              font: "700 10px/1 system-ui",
-              letterSpacing: '.5px',
-            }}
-          >
-            VIEW ONLY
-          </span>
-        </h3>
-        <button
-          type="button"
-          onClick={onClose}
-          style={{
-            background: COLORS.paper,
-            color: COLORS.ink,
-            border: 'none',
-            borderRadius: 10,
-            padding: '8px 14px',
-            font: "700 13px/1 system-ui",
-            cursor: 'pointer',
-          }}
-          onMouseEnter={e => { e.currentTarget.style.background = COLORS.orange; e.currentTarget.style.color = '#fff' }}
-          onMouseLeave={e => { e.currentTarget.style.background = COLORS.paper; e.currentTarget.style.color = COLORS.ink }}
-        >
-          ✕ Close
-        </button>
+    let cancelled = false
+    let loadedDoc = null
+    let loadingTask = null
+
+    setLoading(true)
+    setError('')
+    setPdfDoc(null)
+    setSpreadStart(1)
+    setPageCount(0)
+
+    async function loadDocument() {
+      try {
+        const pdfjsLib = await loadPdfjs()
+        const response = await fetch(syllabus.file, { cache: 'no-store' })
+        if (!response.ok) throw new Error(`PDF request failed: ${response.status}`)
+        const fileBytes = new Uint8Array(await response.arrayBuffer())
+        if (cancelled) return
+        loadingTask = pdfjsLib.getDocument({ data: fileBytes })
+        loadedDoc = await loadingTask.promise
+        if (cancelled) {
+          await loadedDoc.destroy()
+          return
+        }
+        setPdfDoc(loadedDoc)
+        setPageCount(loadedDoc.numPages)
+      } catch (err) {
+        if (!cancelled) setError(err?.message || 'Could not open this syllabus.')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    loadDocument()
+
+    return () => {
+      cancelled = true
+      loadingTask?.destroy?.()
+      loadedDoc?.destroy?.()
+    }
+  }, [syllabus?.file])
+
+  useEffect(() => {
+    if (!pdfDoc || !rightCanvasRef.current) return undefined
+
+    let cancelled = false
+    const renderTasks = []
+
+    async function renderCanvasPage(canvas, page) {
+      const context = canvas.getContext('2d', { alpha: false })
+      const viewport = page.getViewport({ scale })
+      const pixelRatio = Math.min(window.devicePixelRatio || 1, 2)
+
+      canvas.width = Math.floor(viewport.width * pixelRatio)
+      canvas.height = Math.floor(viewport.height * pixelRatio)
+      canvas.style.width = `${viewport.width}px`
+      canvas.style.height = `${viewport.height}px`
+
+      context.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)
+      context.fillStyle = '#ffffff'
+      context.fillRect(0, 0, viewport.width, viewport.height)
+
+      const task = page.render({ canvasContext: context, viewport })
+      renderTasks.push(task)
+      await task.promise
+    }
+
+    function clearCanvas(canvas) {
+      const context = canvas.getContext('2d', { alpha: false })
+      canvas.width = 1
+      canvas.height = 1
+      canvas.style.width = '0px'
+      canvas.style.height = '0px'
+      context.fillStyle = '#f8fafc'
+      context.fillRect(0, 0, 1, 1)
+    }
+
+    async function renderSpread() {
+      setRendering(true)
+      setError('')
+      try {
+        const leftNumber = spreadStart <= 1 ? null : spreadStart
+        const rightNumber = spreadStart <= 1 ? 1 : Math.min(pageCount, spreadStart + 1)
+
+        if (leftNumber) {
+          const leftPage = await pdfDoc.getPage(leftNumber)
+          if (!cancelled) await renderCanvasPage(leftCanvasRef.current, leftPage)
+        } else {
+          clearCanvas(leftCanvasRef.current)
+        }
+
+        if (cancelled) return
+
+        if (rightNumber) {
+          const rightPage = await pdfDoc.getPage(rightNumber)
+          if (!cancelled) await renderCanvasPage(rightCanvasRef.current, rightPage)
+        } else {
+          clearCanvas(rightCanvasRef.current)
+        }
+      } catch (err) {
+        if (!cancelled && err?.name !== 'RenderingCancelledException') {
+          setError(err?.message || 'Could not render this page.')
+        }
+      } finally {
+        if (!cancelled) setRendering(false)
+      }
+    }
+
+    renderSpread()
+
+    return () => {
+      cancelled = true
+      renderTasks.forEach(task => task?.cancel?.())
+    }
+  }, [pageCount, pdfDoc, scale, spreadStart])
+
+  useEffect(() => {
+    function blockViewerShortcuts(event) {
+      const key = event.key?.toLowerCase?.()
+      if ((event.ctrlKey || event.metaKey) && (key === 's' || key === 'p')) {
+        event.preventDefault()
+      }
+    }
+
+    window.addEventListener('keydown', blockViewerShortcuts)
+    return () => window.removeEventListener('keydown', blockViewerShortcuts)
+  }, [])
+
+  const hasPreviousSpread = spreadStart > 1
+  const hasNextSpread = spreadStart <= 1 ? pageCount > 1 : spreadStart + 1 < pageCount
+  const visiblePages = spreadStart <= 1
+    ? [1]
+    : [spreadStart, Math.min(pageCount, spreadStart + 1)].filter(Boolean)
+  const pageLabel = visiblePages.length > 1
+    ? `${visiblePages[0]}-${visiblePages[1]}`
+    : `${visiblePages[0] || '-'}`
+
+  function goToPreviousSpread() {
+    setSpreadStart(current => {
+      if (current <= 1) return 1
+      const next = current - 2
+      return next <= 1 ? 1 : next
+    })
+  }
+
+  function goToNextSpread() {
+    setSpreadStart(current => {
+      if (current <= 1) return pageCount > 1 ? 2 : 1
+      const next = current + 2
+      return next > pageCount ? current : next
+    })
+  }
+
+  if (!syllabus) {
+    return (
+      <div className="flex min-h-[420px] items-center justify-center rounded-3xl border theme-border theme-card p-8 text-center">
+        <div>
+          <Icon as={FileText} size="xl" className="mx-auto theme-text-muted" />
+          <p className="mt-3 text-sm font-black theme-text">No syllabus selected</p>
+        </div>
       </div>
-      <div style={{ flex: 1, background: '#1a1410', position: 'relative', overflow: 'hidden' }}>
-        {status === 'available' ? (
-          <iframe
-            title={item.t}
-            src={`${getPdfUrl(item)}#toolbar=0&navpanes=0&scrollbar=1`}
-            sandbox="allow-same-origin allow-scripts"
-            onContextMenu={e => e.preventDefault()}
-            style={{ width: '100%', height: '100%', border: 'none', background: '#fff' }}
-          />
-        ) : status === 'checking' ? (
-          <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: COLORS.paper, font: "600 13px/1 system-ui", letterSpacing: '.4px' }}>
-            Loading syllabus…
+    )
+  }
+
+  return (
+    <section className="zx-card theme-card overflow-hidden rounded-3xl border theme-border shadow-sm">
+      <div className="border-b theme-border p-4 sm:p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <span className={`rounded-full px-2.5 py-1 text-xs font-black ${phaseTone(syllabus.phase)}`}>
+                {syllabus.phase}
+              </span>
+              <span className="inline-flex items-center gap-1 rounded-full border theme-border theme-bg-subtle px-2.5 py-1 text-xs font-black theme-text-muted">
+                <Icon as={Lock} size="xs" strokeWidth={2.1} />
+                View only
+              </span>
+            </div>
+            <h1 className="mt-3 break-words text-2xl font-black leading-tight theme-text sm:text-3xl">
+              {syllabus.title}
+            </h1>
+            <p className="mt-1 text-sm font-bold theme-text-muted">
+              {formatBytes(syllabus.sizeBytes)} PDF
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <ReaderButton
+              onClick={goToPreviousSpread}
+              disabled={loading || rendering || !hasPreviousSpread}
+              aria-label="Previous spread"
+            >
+              <Icon as={ChevronLeft} size="xs" strokeWidth={2.1} />
+              Prev
+            </ReaderButton>
+            <div className="rounded-xl border theme-border theme-bg-subtle px-3 py-2 text-xs font-black theme-text">
+              Pages {pageCount ? pageLabel : '-'} / {pageCount || '-'}
+            </div>
+            <ReaderButton
+              onClick={goToNextSpread}
+              disabled={loading || rendering || !pageCount || !hasNextSpread}
+              aria-label="Next spread"
+            >
+              Next
+              <Icon as={ChevronRight} size="xs" strokeWidth={2.1} />
+            </ReaderButton>
+            <ReaderButton
+              onClick={() => setScale(value => Math.max(0.75, Number((value - 0.1).toFixed(2))))}
+              disabled={loading || rendering || scale <= 0.75}
+              aria-label="Zoom out"
+            >
+              -
+            </ReaderButton>
+            <ReaderButton
+              onClick={() => setScale(value => Math.min(1.5, Number((value + 0.1).toFixed(2))))}
+              disabled={loading || rendering || scale >= 1.5}
+              aria-label="Zoom in"
+            >
+              +
+            </ReaderButton>
+          </div>
+        </div>
+      </div>
+
+      <div className="relative min-h-[520px] theme-bg-subtle p-3 sm:p-5">
+        {(loading || rendering) && (
+          <div className="absolute right-5 top-5 z-10 inline-flex items-center gap-2 rounded-full border theme-border theme-card px-3 py-1.5 text-xs font-black theme-text shadow-sm">
+            <Icon as={RefreshCw} size="xs" className="animate-spin" />
+            {loading ? 'Opening' : 'Rendering'}
+          </div>
+        )}
+
+        {error ? (
+          <div className="flex min-h-[420px] items-center justify-center text-center">
+            <div className="max-w-sm rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700">
+              <p className="font-black">Could not load syllabus</p>
+              <p className="mt-1 text-sm font-bold">{error}</p>
+            </div>
           </div>
         ) : (
-          <div style={{ position: 'absolute', inset: 0, display: 'grid', placeItems: 'center', color: COLORS.paper, textAlign: 'center', padding: 40 }}>
-            <div
-              style={{
-                maxWidth: 480,
-                background: COLORS.paper,
-                color: COLORS.ink,
-                padding: 36,
-                borderRadius: 18,
-              }}
-            >
-              <div style={{ fontSize: 48, marginBottom: 14 }}>{syllabusIcon(item.t)}</div>
-              <h2 style={{ font: "800 24px/1.2 'Fraunces',serif", margin: '0 0 10px', color: COLORS.ink }}>
-                {item.t}
-              </h2>
-              <p style={{ margin: '0 0 14px', font: "600 13px/1 system-ui" }}>
-                <span style={chipStyle}>{item.l}</span>
-                <span style={chipStyle}>{item.g}</span>
-              </p>
-              <p style={{ margin: '0 0 14px', color: COLORS.inkMuted, lineHeight: 1.5 }}>
-                This syllabus PDF is hosted in the ZedExams secure cloud library. Once it is published it will load
-                directly here for view-only access.
-              </p>
-              <p style={{ fontSize: 13, color: COLORS.faintInk, margin: 0 }}>
-                A small set of sample syllabi is already embedded for preview; the rest of the catalogue activates as
-                each PDF is uploaded.
-              </p>
+          <div
+            className="overflow-auto rounded-2xl border theme-border bg-slate-200/70 p-3 shadow-inner"
+            onContextMenu={event => event.preventDefault()}
+            onDragStart={event => event.preventDefault()}
+          >
+            <div className="mx-auto flex min-w-fit justify-center">
+              <div className="flex flex-col items-center gap-4 rounded-[2rem] bg-[linear-gradient(180deg,rgba(15,23,42,0.08),rgba(15,23,42,0.02))] p-4 shadow-[inset_0_0_0_1px_rgba(255,255,255,0.35)] sm:p-5">
+                <div className="flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-[0.24em] theme-text-muted">
+                  <span>Book Reader</span>
+                  <span className="h-1 w-1 rounded-full bg-current opacity-40" />
+                  <span>Protected View</span>
+                </div>
+                <div className="flex flex-col gap-4 lg:flex-row lg:gap-0">
+                  <div className="flex min-h-[420px] min-w-[280px] items-center justify-center rounded-[1.6rem] border border-slate-300/70 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] p-3 shadow-[inset_-14px_0_20px_rgba(15,23,42,0.05)] sm:min-w-[320px]">
+                    {spreadStart <= 1 ? (
+                      <div className="text-center text-xs font-black uppercase tracking-[0.22em] text-slate-400">
+                        Book cover
+                      </div>
+                    ) : (
+                      <canvas
+                        ref={leftCanvasRef}
+                        className="block max-w-full bg-white shadow-xl"
+                      />
+                    )}
+                  </div>
+                  <div className="hidden w-6 shrink-0 bg-[radial-gradient(circle_at_center,rgba(15,23,42,0.14)_0%,rgba(15,23,42,0.04)_35%,transparent_75%)] lg:block" />
+                  <div className="flex min-h-[420px] min-w-[280px] items-center justify-center rounded-[1.6rem] border border-slate-300/70 bg-[linear-gradient(180deg,#f8fafc_0%,#eef2f7_100%)] p-3 shadow-[inset_14px_0_20px_rgba(15,23,42,0.05)] sm:min-w-[320px]">
+                    <canvas
+                      ref={rightCanvasRef}
+                      className="block max-w-full bg-white shadow-xl"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
       </div>
-    </div>
+    </section>
   )
-}
-
-const chipStyle = {
-  display: 'inline-block',
-  background: COLORS.orangeSoft,
-  color: COLORS.orange,
-  padding: '6px 12px',
-  borderRadius: 8,
-  font: "700 12px/1 system-ui",
-  margin: '4px 4px 4px 0',
 }
 
 export default function SyllabiLibrary() {
-  const [version, setVersion] = useState('new')
-  const [filter, setFilter] = useState('all')
-  const [active, setActive] = useState(null)
+  const [syllabi, setSyllabi] = useState([])
+  const [query, setQuery] = useState('')
+  const [phase, setPhase] = useState('All')
+  const [subject, setSubject] = useState('All')
+  const [selectedId, setSelectedId] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  const list = useMemo(() => SYLLABI_CATALOG[version] || [], [version])
+  useEffect(() => {
+    let cancelled = false
 
-  const categories = useMemo(() => {
-    const seen = []
-    for (const item of list) if (!seen.includes(item.l)) seen.push(item.l)
-    return seen.map(name => ({ name, count: list.filter(x => x.l === name).length }))
-  }, [list])
+    async function loadManifest() {
+      try {
+        const response = await fetch('/syllabi/manifest.json', { cache: 'no-store' })
+        if (!response.ok) throw new Error(`Manifest request failed: ${response.status}`)
+        const data = await response.json()
+        if (cancelled) return
+        const list = Array.isArray(data) ? data : []
+        setSyllabi(list)
+        setSelectedId(list[0]?.id || '')
+      } catch (err) {
+        if (!cancelled) setError(err?.message || 'Could not load syllabi.')
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
 
-  const visible = useMemo(
-    () => (filter === 'all' ? list : list.filter(x => x.l === filter)),
-    [list, filter],
-  )
+    loadManifest()
 
-  function handleVersionChange(next) {
-    setVersion(next)
-    setFilter('all')
-  }
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  const phases = useMemo(() => {
+    const unique = Array.from(new Set(syllabi.map(item => item.phase).filter(Boolean)))
+    return ['All', ...unique]
+  }, [syllabi])
+
+  const subjects = useMemo(() => {
+    const unique = Array.from(new Set(syllabi.map(item => item.subject).filter(Boolean)))
+    return ['All', ...unique.sort()]
+  }, [syllabi])
+
+  const filtered = useMemo(() => {
+    const term = query.trim().toLowerCase()
+    return syllabi.filter(item => {
+      const matchesPhase = phase === 'All' || item.phase === phase
+      const matchesSubject = subject === 'All' || item.subject === subject
+      const matchesQuery = !term
+        || item.title.toLowerCase().includes(term)
+        || item.phase.toLowerCase().includes(term)
+        || (item.subject && item.subject.toLowerCase().includes(term))
+      return matchesPhase && matchesSubject && matchesQuery
+    })
+  }, [phase, subject, query, syllabi])
+
+  const selected = useMemo(() => {
+    return filtered.find(item => item.id === selectedId) || filtered[0] || null
+  }, [filtered, selectedId])
+
+  useEffect(() => {
+    if (filtered.length && !filtered.some(item => item.id === selectedId)) {
+      setSelectedId(filtered[0].id)
+    }
+  }, [filtered, selectedId])
 
   return (
-    <div>
+    <main className="mx-auto w-full max-w-7xl px-4 py-6 pb-28 sm:px-6 lg:px-8">
       <SeoHelmet title="Syllabi" noIndex />
-      <div className="flex items-center gap-3 mb-2">
-        <div
-          style={{
-            width: 56,
-            height: 56,
-            borderRadius: 14,
-            background: COLORS.peach,
-            display: 'grid',
-            placeItems: 'center',
-            fontSize: 30,
-            flexShrink: 0,
-          }}
-        >
-          🐘
+      <section className="mb-5 overflow-hidden rounded-3xl border theme-border bg-[linear-gradient(135deg,rgba(6,78,59,0.95)_0%,rgba(15,23,42,0.96)_58%,rgba(30,41,59,0.96)_100%)] p-5 text-white shadow-elev-md sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+          <div className="max-w-3xl">
+            <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-white/12 ring-1 ring-white/20">
+              <Icon as={FileText} size="lg" strokeWidth={2.1} />
+            </div>
+            <h1 className="text-3xl font-black leading-tight sm:text-4xl">Syllabi</h1>
+            <p className="mt-2 max-w-2xl text-sm font-bold leading-relaxed text-white/72 sm:text-base">
+              Official curriculum PDFs uploaded to the new syllabus archive.
+            </p>
+          </div>
+          <div className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 text-left sm:text-right">
+            <p className="text-2xl font-black leading-none">{syllabi.length || '-'}</p>
+            <p className="mt-1 text-xs font-black uppercase tracking-wide text-white/65">View-only files</p>
+          </div>
         </div>
-        <h1 style={{ font: "800 32px/1.05 'Fraunces',serif", color: COLORS.ink, margin: 0, letterSpacing: '-.3px' }}>
-          Syllabi Library
-        </h1>
-      </div>
-      <p style={{ color: COLORS.inkMuted, fontSize: 14, margin: '0 0 14px', maxWidth: 720, lineHeight: 1.55 }}>
-        Browse the official Zambian Curriculum Development Centre syllabi — both the new 2023 framework and the 2013
-        syllabus for grades still using them.
-      </p>
+      </section>
 
-      <div
-        style={{
-          background: `linear-gradient(135deg, ${COLORS.green} 0%, ${COLORS.greenDark} 100%)`,
-          color: '#fff',
-          borderRadius: 14,
-          padding: '14px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 14,
-          margin: '14px 0 6px',
-        }}
-      >
-        <div
-          style={{
-            width: 38,
-            height: 38,
-            borderRadius: '50%',
-            background: 'rgba(255,255,255,.18)',
-            display: 'grid',
-            placeItems: 'center',
-            fontSize: 20,
-            flexShrink: 0,
-          }}
-        >
-          🎁
-        </div>
-        <div style={{ font: "600 13.5px/1.4 system-ui" }}>
-          <strong style={{ display: 'block', font: "800 15px/1.2 'Fraunces',serif", marginBottom: 2 }}>
-            Free for all teachers
-          </strong>
-          View-only access — no subscription required.
-        </div>
-      </div>
-
-      <VersionToggle value={version} onChange={handleVersionChange} />
-
-      <div className="flex flex-wrap gap-2" style={{ margin: '10px 0 22px' }}>
-        <FilterChip active={filter === 'all'} onClick={() => setFilter('all')}>
-          All ({list.length})
-        </FilterChip>
-        {categories.map(c => (
-          <FilterChip key={c.name} active={filter === c.name} onClick={() => setFilter(c.name)}>
-            {c.name} ({c.count})
-          </FilterChip>
-        ))}
-      </div>
-
-      <SectionLabel>{visible.length} {visible.length === 1 ? 'syllabus' : 'syllabi'}</SectionLabel>
-
-      {visible.length === 0 ? (
-        <div
-          className="text-center py-10 rounded-2xl border-2 border-dashed"
-          style={{ background: COLORS.card, borderColor: COLORS.border }}
-        >
-          <div style={{ fontSize: 40, marginBottom: 12, opacity: 0.5 }}>🐘</div>
-          <p style={{ font: "800 17px/1.2 'Fraunces',serif", color: COLORS.ink, marginBottom: 6 }}>
-            No syllabi in this category
-          </p>
-          <p style={{ fontSize: 13, color: COLORS.faintInk, margin: 0 }}>
-            Try the other version or another filter.
-          </p>
+      {error ? (
+        <div className="rounded-2xl border border-red-200 bg-red-50 p-5 text-red-700">
+          <p className="font-black">Could not load syllabi</p>
+          <p className="mt-1 text-sm font-bold">{error}</p>
         </div>
       ) : (
-        <div
-          className="grid gap-3.5"
-          style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}
-        >
-          {visible.map(item => (
-            <SyllabusCard key={item.k} item={item} onOpen={setActive} />
-          ))}
+        <div className="grid gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
+          <aside className="zx-card theme-card h-fit rounded-3xl border theme-border p-4 shadow-sm lg:sticky lg:top-24">
+            <label className="relative block">
+              <span className="sr-only">Search syllabi</span>
+              <Icon as={Search} size="sm" className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 theme-text-muted" />
+              <input
+                value={query}
+                onChange={event => setQuery(event.target.value)}
+                placeholder="Search syllabi"
+                className="w-full rounded-2xl border theme-border theme-bg-subtle py-3 pl-10 pr-3 text-sm font-bold theme-text outline-none transition focus:ring-2 focus:ring-emerald-400/50"
+              />
+            </label>
+
+            <div className="mt-4 flex flex-wrap gap-2">
+              {phases.map(item => (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setPhase(item)}
+                  className={`min-h-0 rounded-full px-3 py-1.5 text-xs font-black transition ${
+                    phase === item
+                      ? 'bg-emerald-600 text-white shadow-sm'
+                      : 'theme-bg-subtle theme-text-muted hover:theme-card-hover'
+                  }`}
+                >
+                  {item}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-4">
+              <p className="mb-2 text-xs font-black uppercase tracking-wide theme-text-muted">Subject</p>
+              <div className="flex flex-wrap gap-2">
+                {subjects.map(item => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => setSubject(item)}
+                    className={`min-h-0 rounded-full px-3 py-1.5 text-xs font-black transition ${
+                      subject === item
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'theme-bg-subtle theme-text-muted hover:theme-card-hover'
+                    }`}
+                  >
+                    {item}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="mt-4 max-h-[62vh] space-y-2 overflow-y-auto pr-1">
+              {loading ? (
+                Array.from({ length: 6 }).map((_, index) => (
+                  <div key={index} className="h-20 animate-pulse rounded-2xl theme-bg-subtle" />
+                ))
+              ) : filtered.length === 0 ? (
+                <div className="rounded-2xl border theme-border theme-bg-subtle p-4 text-center">
+                  <p className="text-sm font-black theme-text">No matches</p>
+                </div>
+              ) : filtered.map(item => {
+                const active = item.id === selected?.id
+                return (
+                  <button
+                    key={item.id}
+                    type="button"
+                    aria-current={active ? 'true' : undefined}
+                    onClick={() => setSelectedId(item.id)}
+                    className={`w-full min-h-0 rounded-2xl border p-3 text-left transition ${
+                      active
+                        ? 'border-emerald-400 bg-emerald-500/15 shadow-sm'
+                        : 'theme-border theme-bg-subtle hover:theme-card-hover'
+                    }`}
+                  >
+                    <div className="flex items-start gap-3">
+                      <span className={`mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl ${
+                        active ? 'bg-emerald-600 text-white' : 'theme-card theme-text-muted'
+                      }`}>
+                        <Icon as={FileText} size="sm" strokeWidth={2.1} />
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block break-words text-sm font-black leading-snug theme-text">
+                          {item.title}
+                        </span>
+                        <span className="mt-1 block text-xs font-bold theme-text-muted">
+                          {item.phase} · {formatBytes(item.sizeBytes)}
+                        </span>
+                      </span>
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          </aside>
+
+          <SyllabusReader syllabus={selected} />
         </div>
       )}
-
-      <p style={{ marginTop: 22, fontSize: 12, color: COLORS.faintInk, textAlign: 'center' }}>
-        {SYLLABI_TOTAL_COUNT} official CDC syllabi · view-only · sourced from the Zambian Curriculum Development Centre
-      </p>
-
-      <PdfViewer item={active} onClose={() => setActive(null)} />
-    </div>
+    </main>
   )
 }

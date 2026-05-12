@@ -10,9 +10,10 @@ import {
 } from '../../utils/teacherLibraryService'
 import UpgradeModal from '../subscription/UpgradeModal'
 import UsageMeter from './UsageMeter'
-import { SYLLABI_TOTAL_COUNT } from '../../data/syllabiCatalog'
 import SeoHelmet from '../seo/SeoHelmet'
 import TeacherOnboardingTour from './TeacherOnboardingTour'
+
+const TEACHER_SYLLABI_TOTAL_COUNT = 41
 
 const STUDIOS = [
   {
@@ -71,7 +72,7 @@ const STUDIOS = [
     title: 'Syllabi',
     tagline: 'Official CDC syllabi — view all Zambian curricula in one place.',
     to: '/teacher/syllabi',
-    mascot: `${SYLLABI_TOTAL_COUNT} docs`,
+    mascot: `${TEACHER_SYLLABI_TOTAL_COUNT} docs`,
   },
   {
     emoji: '📚',
@@ -339,10 +340,7 @@ export default function TeacherDashboard() {
   return (
     <div>
       <SeoHelmet title="Teacher dashboard" noIndex />
-      {/* Audit A8 PR 2 — first-session tour. Self-suppresses after
-          dismissal via localStorage; safe to render unconditionally. */}
       <TeacherOnboardingTour />
-      {/* Subscription banner */}
       {!isPremium && (
         <div
           className="flex items-center justify-between gap-4 mb-5 px-5 py-3.5 rounded-2xl"
@@ -366,7 +364,6 @@ export default function TeacherDashboard() {
         </div>
       )}
 
-      {/* Hero */}
       <div
         className="rounded-3xl p-7 sm:p-9 mb-8 flex items-center gap-6 flex-wrap"
         style={{ background: 'linear-gradient(135deg, #0e2a32 0%, #16505d 100%)', color: '#fff', boxShadow: '0 12px 32px rgba(14,42,50,.18)' }}
@@ -430,13 +427,10 @@ export default function TeacherDashboard() {
         </div>
       </div>
 
-      {/* Live monthly usage meter — reads usageMeters/{uid}/periods/{yyyymm} */}
       <UsageMeter />
 
-      {/* Progress / Stats */}
       {!loading && <ProgressWidget generations={generations} quizzes={quizzes} />}
 
-      {/* Studios */}
       <SectionLabel>Studios</SectionLabel>
       <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 28, color: '#0e2a32', margin: '0 0 16px' }}>
         Pick your studio
@@ -447,7 +441,6 @@ export default function TeacherDashboard() {
         ))}
       </div>
 
-      {/* Recents — at the bottom */}
       <SectionLabel>🕒 Recents</SectionLabel>
       <div className="flex justify-between items-end mb-4">
         <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 28, color: '#0e2a32', margin: 0 }}>
