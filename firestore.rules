@@ -161,7 +161,8 @@ service cloud.firestore {
           'learnerPortalPhoneNumber', 'learnerPortalPaymentId',
           'learnerPortalActivatedAt', 'learnerPortalExpiry',
           'cancelAtPeriodEnd', 'cancelAtPeriodEndUpdatedAt', 'cancelAtPeriodEndReason',
-          'referralCode', 'referredBy', 'referralCount', 'referralCredits'
+          'referralCode', 'referredBy', 'referralCount', 'referralCredits',
+          'referralCreditRedeemed'
         ]);
       allow update: if isAdmin();
       allow delete: if isAdmin();
@@ -1008,6 +1009,23 @@ service cloud.firestore {
         && incoming().uid == request.auth.uid
         && incoming().uid is string && incoming().uid.size() <= 100;
       allow update, delete: if false;
+    }
+
+    // ── referralRedemptions (audit C7 PR 2 — credit ledger) ───────────
+    //
+    // Server-only writes via the redeemReferralCredit helper (admin
+    // SDK). Each doc captures one redemption event: who referred whom,
+    // which payment triggered it, what the bonus was. /admin can read
+    // everything for reconciliation; the referee + referrer can read
+    // their own rows so a future ReferralActivity panel could surface
+    // "your friend Alice signed up — you earned a free month".
+    match /referralRedemptions/{redemptionId} {
+      allow read: if isAuthed() && (
+        resource.data.refereeUid == request.auth.uid
+        || resource.data.referrerUid == request.auth.uid
+        || isAdmin()
+      );
+      allow create, update, delete: if false;
     }
 
   }
