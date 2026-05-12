@@ -43,7 +43,7 @@ function CompletedRow({ row }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="theme-text font-bold text-xs truncate">
-          {row.displayName || <span className="theme-text-muted italic">Pending profile</span>}
+          {row.displayName || <span className="theme-text-muted italic">(name not set)</span>}
         </p>
         <p className="theme-text-muted text-[10px] truncate">
           {row.email || row.uid}
@@ -75,7 +75,7 @@ function NudgeRow({ row, assignmentTitle }) {
       </div>
       <div className="flex-1 min-w-0">
         <p className="theme-text font-bold text-xs truncate">
-          {row.displayName || <span className="theme-text-muted italic">Pending profile</span>}
+          {row.displayName || <span className="theme-text-muted italic">(name not set)</span>}
         </p>
         <p className="theme-text-muted text-[10px] truncate">{row.email || row.uid}</p>
       </div>

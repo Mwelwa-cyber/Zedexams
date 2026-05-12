@@ -305,6 +305,10 @@ export default function TeacherClassDetail() {
               Share this with learners — they paste it into <code className="text-xs">/classes/join</code> from
               their dashboard to enrol. Codes rotate when you generate a new one.
             </p>
+            <p className="theme-text-muted text-xs mt-1 max-w-prose">
+              Learners who use the code appear under <span className="theme-text font-bold">Pending approval</span> below
+              for you to approve before they join the class.
+            </p>
           </div>
           <button
             type="button"
@@ -386,20 +390,37 @@ export default function TeacherClassDetail() {
       </section>
 
       {/* Pending approvals — learners who joined via the code and are
-          waiting for the teacher to admit them to the class. */}
-      {pendingMembers.length > 0 && (
-        <section className="theme-card border-2 border-amber-300 bg-amber-50/40 rounded-radius-md overflow-hidden">
-          <div className="p-4 border-b border-amber-200 flex items-center justify-between gap-3">
-            <div>
-              <p className="theme-text font-black text-sm flex items-center gap-2">
-                Pending approval ({pendingMembers.length})
+          waiting for the teacher to admit them to the class. Rendered
+          even when empty so the teacher can see where pending requests
+          will surface and doesn't go hunting for the Approve button. */}
+      <section className={`theme-card rounded-radius-md overflow-hidden border-2 ${
+        pendingMembers.length > 0 ? 'border-amber-300 bg-amber-50/40' : 'theme-border'
+      }`}>
+        <div className={`p-4 flex items-center justify-between gap-3 ${
+          pendingMembers.length > 0 ? 'border-b border-amber-200' : 'border-b theme-border'
+        }`}>
+          <div>
+            <p className="theme-text font-black text-sm flex items-center gap-2">
+              Pending approval ({pendingMembers.length})
+              {pendingMembers.length > 0 && (
                 <span className="text-[10px] font-black uppercase tracking-wider bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full">Action needed</span>
-              </p>
-              <p className="theme-text-muted text-xs mt-0.5">
-                These learners used your invite code. Approve to add them to the class, or decline to remove the request.
-              </p>
-            </div>
+              )}
+            </p>
+            <p className="theme-text-muted text-xs mt-0.5">
+              {pendingMembers.length > 0
+                ? 'These learners used your invite code. Approve to add them to the class, or decline to remove the request.'
+                : 'Learners who use your invite code will appear here for approval. Once you approve, they move into the Learners list below.'}
+            </p>
           </div>
+        </div>
+        {pendingMembers.length === 0 ? (
+          <div className="p-6 text-center text-sm theme-text-muted">
+            No requests waiting.
+            {klass.inviteCode && (
+              <> Share the code <span className="font-mono font-bold theme-text">{klass.inviteCode}</span> with learners and their requests will land here.</>
+            )}
+          </div>
+        ) : (
           <ul className="divide-y divide-amber-200/60">
             {pendingMembers.map((m) => (
               <li key={m.uid} className="flex flex-wrap items-center gap-3 p-4">
@@ -407,8 +428,9 @@ export default function TeacherClassDetail() {
                   {(m.displayName || m.email || '?').slice(0, 1).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="theme-text font-bold text-sm truncate">
-                    {m.displayName || <span className="theme-text-muted italic">Pending profile</span>}
+                  <p className="theme-text font-bold text-sm truncate flex items-center gap-2">
+                    {m.displayName || <span className="theme-text-muted italic">(name not set)</span>}
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full">Pending</span>
                   </p>
                   <p className="theme-text-muted text-xs truncate">{m.email || m.uid}</p>
                 </div>
@@ -433,8 +455,8 @@ export default function TeacherClassDetail() {
               </li>
             ))}
           </ul>
-        </section>
-      )}
+        )}
+      </section>
 
       {/* Roster */}
       <section className="theme-card border theme-border rounded-radius-md overflow-hidden">
@@ -454,8 +476,9 @@ export default function TeacherClassDetail() {
                   {(m.displayName || m.email || '?').slice(0, 1).toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="theme-text font-bold text-sm truncate">
-                    {m.displayName || <span className="theme-text-muted italic">Pending profile</span>}
+                  <p className="theme-text font-bold text-sm truncate flex items-center gap-2">
+                    {m.displayName || <span className="theme-text-muted italic">(name not set)</span>}
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">Approved</span>
                   </p>
                   <p className="theme-text-muted text-xs truncate">{m.email || m.uid}</p>
                 </div>
