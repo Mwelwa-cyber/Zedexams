@@ -47,7 +47,11 @@ const PORTAL_COPY = {
 
 export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
   const copy = PORTAL_COPY[portal] || PORTAL_COPY.generic
-  const { refreshProfile } = useAuth()
+  const { refreshProfile, userProfile } = useAuth()
+  // Audit C7 PR 3 — referral credits will be auto-applied at payment
+  // success (server-side). Surface that here so the user knows their
+  // subscription period will actually be longer than the plan duration.
+  const pendingReferralCredits = Number(userProfile?.referralCredits || 0)
   const navigate = useNavigate()
   const visiblePlanIds = (planIds && planIds.length ? planIds : DEFAULT_PLAN_ORDER)
     .filter((id) => PLANS[id])
@@ -166,6 +170,24 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
 
         <div className="p-5">
           {step === 'plans' && <>
+            {/* Audit C7 PR 3 — referral credit pre-payment banner.
+                Self-hides when credits === 0. The actual credit
+                consumption happens server-side in
+                markPaymentSuccessful → consumeReferralCredits. */}
+            {pendingReferralCredits > 0 && (
+              <div
+                className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
+                role="status"
+              >
+                <p className="font-bold">
+                  🎁 {pendingReferralCredits} free month{pendingReferralCredits === 1 ? '' : 's'} from referrals will be applied
+                </p>
+                <p className="text-xs mt-1 text-emerald-800/90">
+                  Pick a plan and pay the regular price — we'll add
+                  {' '}{pendingReferralCredits * 30} bonus day{pendingReferralCredits === 1 ? '' : 's'} on top automatically.
+                </p>
+              </div>
+            )}
             <div className="grid gap-3 mb-4">
               {visiblePlanIds.map((planId) => {
                 const item = PLANS[planId]
