@@ -9,6 +9,7 @@
  *   editor    {object|null}   The Tiptap editor instance from useEditor()
  *   onMath    {function}      Open the math modal
  *   onTable   {function}      Open the table modal
+ *   onDiagram {function}      Open the diagram-library picker (optional)
  *
  * Re-renders automatically through useEditorState subscriptions.
  */
@@ -157,7 +158,7 @@ function TBtn({
   )
 }
 
-export default function EditorToolbar({ editor, onMath, onTable }) {
+export default function EditorToolbar({ editor, onMath, onTable, onDiagram }) {
   const [showTxColor, setShowTxColor] = useState(false)
   const [showHlColor, setShowHlColor] = useState(false)
   const toolbarState = useEditorState({
@@ -382,6 +383,20 @@ export default function EditorToolbar({ editor, onMath, onTable }) {
           <TableIcon size={14} strokeWidth={2.25} />
           Table
         </button>
+        {/* Diagram-library picker. Optional — only renders the button when
+            the host passes onDiagram. Same touch-safe pattern as Math/Table:
+            blur-prevention on mousedown, action on click. */}
+        {onDiagram && (
+          <button
+            type="button" className="tbb tbd-lib" title="Insert Diagram"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={(e) => { e.preventDefault(); onDiagram() }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+          >
+            <span style={{ fontWeight: 900, fontSize: '13px', lineHeight: 1 }}>📐</span>
+            Diagram
+          </button>
+        )}
       </div>
 
       {/* -- Contextual table controls --

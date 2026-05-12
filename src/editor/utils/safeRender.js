@@ -22,6 +22,7 @@ import katex from 'katex'
 import { renderExtensions } from '../extensions/buildExtensions.js'
 import { sanitizeHTML } from './sanitize.js'
 import { isTiptapJSON } from './migration.js'
+import { renderDiagramSvg } from '../../components/diagrams/diagramCatalog.js'
 // KaTeX stylesheet — side-effect import at the render layer so the Tiptap
 // extensions factory can be imported by Node scripts without a CSS loader.
 import 'katex/dist/katex.min.css'
@@ -79,6 +80,51 @@ export function toHTML(content) {
  *
  * @param {HTMLElement} container  The DOM element containing the HTML
  */
+/**
+ * Hydrate diagram-reference placeholders inside a mounted DOM container.
+ *
+ * The DiagramRef Tiptap extension serialises to an empty
+ *   <div class="zx-diagram-ref" data-diagram-key="…" data-diagram-params='…'></div>
+ * placeholder (we deliberately don't store the SVG in HTML — it would bloat
+ * the doc and freeze catalog markup at write time). Call this after the HTML
+ * mounts to swap each placeholder's innerHTML for the rendered SVG.
+ *
+ * Usage mirrors hydrateKatex:
+ *   const containerRef = useRef(null)
+ *   useEffect(() => {
+ *     if (containerRef.current) hydrateDiagrams(containerRef.current)
+ *   }, [html])
+ *
+ * @param {HTMLElement} container  The DOM element containing the HTML
+ */
+export function hydrateDiagrams(container) {
+  if (!container) return
+  const nodes = container.querySelectorAll('div[data-diagram-key]')
+  nodes.forEach(div => {
+    // Skip if already hydrated (carries an <svg> child).
+    if (div.querySelector('svg')) return
+    const libraryKey = div.getAttribute('data-diagram-key') || ''
+    if (!libraryKey) return
+    let params = {}
+    const raw = div.getAttribute('data-diagram-params')
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw)
+        if (parsed && typeof parsed === 'object') params = parsed
+      } catch {
+        // Bad JSON → fall back to catalog defaults rather than rejecting.
+      }
+    }
+    const svg = renderDiagramSvg(libraryKey, params)
+    if (svg) {
+      div.innerHTML = svg
+    } else {
+      // Unknown key — show a clear placeholder so the teacher can replace it.
+      div.innerHTML = '<div style="border:2px dashed #f59e0b;background:#fef3c7;color:#92400e;padding:6px 10px;font-size:12px;font-weight:700;border-radius:8px">Unknown diagram</div>'
+    }
+  })
+}
+
 export function hydrateKatex(container) {
   if (!container) return
   // Match every shape a math span could have in stored HTML:
