@@ -138,6 +138,7 @@ async function redeemReferralCredit({userId, paymentId = null, planId = null}) {
       // referenced so /admin can reconcile complaints later.
       const redemptionRef = db.collection("referralRedemptions").doc();
       tx.set(redemptionRef, {
+        type: "signup_redemption",
         refereeUid: userId,
         referrerUid,
         referralCode: referredBy,
@@ -157,4 +158,89 @@ async function redeemReferralCredit({userId, paymentId = null, planId = null}) {
   }
 }
 
-module.exports = {redeemReferralCredit, REFERRAL_BONUS_DAYS};
+/**
+ * Consume any accumulated `referralCredits` on the payer's user doc
+ * (audit C7 PR 3). PR 2 awards credits to the referrer when their
+ * referee subscribes; this function applies those accumulated credits
+ * the next time the referrer themselves pays for a subscription.
+ *
+ * One credit = 30 bonus days. All available credits are consumed in
+ * one shot — partial redemption ("save some for later") isn't worth
+ * the UX complexity at our scale.
+ *
+ * Idempotent by construction: after consumption, `referralCredits`
+ * is 0 so subsequent runs no-op. No flag needed.
+ *
+ * Order of operations relative to PR 2 in markPaymentSuccessful:
+ *   1. emitInvoiceIfMissing  (invoice generation)
+ *   2. redeemReferralCredit  (PR 2 — extends referee's expiry if THIS
+ *                              user is a referee whose referrer pays)
+ *   3. consumeReferralCredits (PR 3 — applies accumulated credits to
+ *                              THIS user's just-activated period)
+ *
+ * @param {Object} args
+ * @param {string} args.userId      Payer uid.
+ * @param {string} [args.paymentId] Payment ref id (for audit).
+ * @param {string} [args.planId]    Plan that was just activated.
+ * @returns {Promise<{status:'consumed'|'skipped',creditsApplied?:number,bonusDays?:number,reason?:string}>}
+ */
+async function consumeReferralCredits({userId, paymentId = null, planId = null}) {
+  if (!userId) return {status: "skipped", reason: "no-user-id"};
+
+  const db = admin.firestore();
+  const userRef = db.collection("users").doc(userId);
+
+  try {
+    return await db.runTransaction(async (tx) => {
+      const userSnap = await tx.get(userRef);
+      if (!userSnap.exists) {
+        return {status: "skipped", reason: "user-not-found"};
+      }
+      const userData = userSnap.data() || {};
+
+      const credits = Number(userData.referralCredits || 0);
+      if (credits <= 0) {
+        return {status: "skipped", reason: "no-credits"};
+      }
+
+      // Extend the just-activated period by credits * 30 days.
+      const currentExpiry = toDate(userData.subscriptionExpiry);
+      const baseDate = currentExpiry && currentExpiry > new Date()
+        ? currentExpiry
+        : new Date();
+      const bonusDays = credits * REFERRAL_BONUS_DAYS;
+      const newExpiry = new Date(baseDate);
+      newExpiry.setDate(newExpiry.getDate() + bonusDays);
+
+      tx.update(userRef, {
+        referralCredits: 0,
+        subscriptionExpiry: admin.firestore.Timestamp.fromDate(newExpiry),
+      });
+
+      // Write audit row. Differentiated from PR 2's signup-redemption
+      // rows via the `type` field so /admin can filter.
+      const auditRef = db.collection("referralRedemptions").doc();
+      tx.set(auditRef, {
+        type: "credit_consumption",
+        userUid: userId,
+        creditsConsumed: credits,
+        bonusDays,
+        paymentId,
+        planId,
+        newExpiry: admin.firestore.Timestamp.fromDate(newExpiry),
+        consumedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+
+      return {status: "consumed", creditsApplied: credits, bonusDays};
+    });
+  } catch (err) {
+    console.error("[referralRedemption] credit consumption failed for", userId, err);
+    return {status: "skipped", reason: "error", error: String(err?.message || err).slice(0, 200)};
+  }
+}
+
+module.exports = {
+  redeemReferralCredit,
+  consumeReferralCredits,
+  REFERRAL_BONUS_DAYS,
+};

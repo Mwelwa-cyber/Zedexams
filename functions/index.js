@@ -892,12 +892,25 @@ async function markPaymentSuccessful(paymentRef, paymentData, statusResult) {
   // is on top and a failure here must not undo what the user paid
   // for. Idempotent on its own (checks users/{referee}.referralCredit
   // Redeemed) so re-runs from a retry never double-credit.
+  //
+  // Audit C7 PR 3 — credit consumption. Same fire-and-forget pattern.
+  // Applies any accumulated referralCredits to the payer's just-
+  // activated period (one credit = 30 bonus days). Naturally
+  // idempotent: after consumption referralCredits is 0.
   if (!paymentData.portal || paymentData.portal !== "learner") {
     // Teacher → learner-portal payments don't trigger referral
     // credits — the audit's growth loop is around the learner-side
     // free month, not teacher cross-portal upgrades.
-    const {redeemReferralCredit} = require("./referralRedemption");
+    const {
+      redeemReferralCredit,
+      consumeReferralCredits,
+    } = require("./referralRedemption");
     redeemReferralCredit({
+      userId: paymentData.userId,
+      paymentId: paymentRef.id,
+      planId: paymentData.planId,
+    }).catch(() => {});
+    consumeReferralCredits({
       userId: paymentData.userId,
       paymentId: paymentRef.id,
       planId: paymentData.planId,
