@@ -58,6 +58,10 @@ export default function ReferralCard() {
   }
 
   const referralCount = userProfile.referralCount || 0
+  // Audit C7 PR 2 — server increments referralCredits on every
+  // successful redemption. Today the credits show as "free months
+  // earned"; PR 3 will let the user redeem them at next checkout.
+  const referralCredits = userProfile.referralCredits || 0
 
   return (
     <div className="theme-card rounded-2xl border theme-border p-5">
@@ -71,12 +75,24 @@ export default function ReferralCard() {
             Word-of-mouth in WhatsApp groups is how most ZedExams accounts find us.
           </p>
         </div>
-        {referralCount > 0 && (
-          <div className="text-right flex-shrink-0">
-            <p className="theme-text font-black text-2xl leading-none">{referralCount}</p>
-            <p className="theme-text-muted text-[10px] uppercase tracking-wider mt-1">
-              friend{referralCount === 1 ? '' : 's'} joined
-            </p>
+        {(referralCount > 0 || referralCredits > 0) && (
+          <div className="flex gap-4 sm:gap-5 flex-shrink-0">
+            {referralCount > 0 && (
+              <div className="text-right">
+                <p className="theme-text font-black text-2xl leading-none">{referralCount}</p>
+                <p className="theme-text-muted text-[10px] uppercase tracking-wider mt-1">
+                  friend{referralCount === 1 ? '' : 's'} joined
+                </p>
+              </div>
+            )}
+            {referralCredits > 0 && (
+              <div className="text-right">
+                <p className="theme-text font-black text-2xl leading-none">{referralCredits}</p>
+                <p className="theme-text-muted text-[10px] uppercase tracking-wider mt-1">
+                  free month{referralCredits === 1 ? '' : 's'} earned
+                </p>
+              </div>
+            )}
           </div>
         )}
       </div>
