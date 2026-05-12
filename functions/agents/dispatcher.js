@@ -36,13 +36,33 @@ const TRIGGER_OPTS = {
   memory: "512MiB",
 };
 
-async function isAgentPaused(agentId) {
+// Cached snapshot of paused agentIds. Each content job triggers 3 pause
+// checks (aria, cala, reva); without a cache that's 3 sequential Firestore
+// reads per job in a hot path. Refresh the cache every 60s — agentControl
+// only changes when an admin pauses an agent, so a minute of staleness is
+// safe and saves ~95% of reads at burst.
+const PAUSED_CACHE_TTL_MS = 60_000;
+let pausedCache = {expiresAt: 0, paused: new Set()};
+
+async function refreshPausedCache() {
   const snap = await admin.firestore()
-    .doc(`agentControl/${agentId}`)
+    .collection("agentControl")
+    .where("paused", "==", true)
     .get()
     .catch(() => null);
-  if (!snap || !snap.exists) return false;
-  return Boolean((snap.data() || {}).paused);
+  const paused = new Set();
+  if (snap && !snap.empty) {
+    snap.forEach((doc) => paused.add(doc.id));
+  }
+  pausedCache = {expiresAt: Date.now() + PAUSED_CACHE_TTL_MS, paused};
+  return pausedCache;
+}
+
+async function isAgentPaused(agentId) {
+  if (Date.now() >= pausedCache.expiresAt) {
+    await refreshPausedCache();
+  }
+  return pausedCache.paused.has(agentId);
 }
 
 async function setJobFields(jobRef, fields) {

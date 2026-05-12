@@ -50,7 +50,11 @@ function fmtDate(ts) {
 }
 
 export default function AdminLearners() {
-  const { getAllUsers, getAllResults } = useFirestore()
+  // Scoped admin reads — getAllLearners filters by role server-side and
+  // getResultsInWindow caps results to the last 90 days. Previously this
+  // page pulled `users` + the full `results` collection on every mount,
+  // which was a top contributor to Firestore overload during admin hours.
+  const { getAllLearners, getResultsInWindow } = useFirestore()
 
   const [users, setUsers]     = useState([])
   const [results, setResults] = useState([])
@@ -65,13 +69,13 @@ export default function AdminLearners() {
 
   useEffect(() => {
     async function load() {
-      const [u, r] = await Promise.all([getAllUsers(), getAllResults()])
+      const [u, r] = await Promise.all([getAllLearners(), getResultsInWindow()])
       setUsers(u)
       setResults(r)
       setLoading(false)
     }
     load()
-  }, [getAllUsers, getAllResults])
+  }, [getAllLearners, getResultsInWindow])
 
   // Map: userId → { count, avg, best, weakest, last }
   const perLearner = useMemo(() => {

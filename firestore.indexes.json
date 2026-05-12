@@ -560,6 +560,14 @@
       ]
     },
     {
+      "collectionGroup": "agentJobs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "createdBy", "order": "ASCENDING"  },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "pastPapers",
       "queryScope": "COLLECTION",
       "fields": [
