@@ -1,5 +1,10 @@
 # scripts/demo-names.txt
 # One learner name per line. Lines starting with # are ignored.
-# After populating with 20 names, run:
-#   node scripts/create-demo-trials.mjs --names scripts/demo-names.txt
-# (add --live once you've set GOOGLE_APPLICATION_CREDENTIALS)
+#
+# This file is a template — keep real learner names out of git.
+# Either edit a local copy (e.g. scripts/demo-names.local.txt, which is
+# gitignored) or pass --names <path> at the command line.
+#
+# Usage:
+#   node scripts/create-demo-trials.mjs --names scripts/demo-names.local.txt
+#   node scripts/create-demo-trials.mjs --names scripts/demo-names.local.txt --live
