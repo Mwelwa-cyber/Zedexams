@@ -104,8 +104,16 @@ export default function AdminCsvImport() {
     reader.onload = event => {
       const text = String(event.target?.result ?? '')
       const result = parseCsvImport(text)
+      // A header-level failure (empty file, header-only file, reordered
+      // columns) leaves us with nothing to preview. Keep `parsed` null
+      // so the upload form stays on screen — otherwise the user would
+      // be stuck looking at a blank page after a bad upload.
+      if (result.headerError) {
+        setParsed(null)
+        setTopLevelError(result.headerError)
+        return
+      }
       setParsed(result)
-      if (result.headerError) setTopLevelError(result.headerError)
     }
     reader.onerror = () => {
       setTopLevelError('Could not read the file. Please try again.')
