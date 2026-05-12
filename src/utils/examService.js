@@ -31,10 +31,12 @@ import { buildQuizDisplaySections } from './quizSections'
 import { coerceQuiz } from '../schemas/quiz.js'
 import { attemptStartSchema, coerceAttempt } from '../schemas/attempt.js'
 import { numericMatches } from './numericGrading.js'
+import { hotspotMatches } from './hotspotGrading.js'
 
 // Re-export so callers that already import { numericMatches } from
-// './examService' (QuizRunnerV2) keep working unchanged.
-export { numericMatches }
+// './examService' (QuizRunnerV2) keep working unchanged. Same shape for
+// the hotspot helper added later.
+export { numericMatches, hotspotMatches }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -354,16 +356,19 @@ async function _doSubmit(attemptId, attempt, questions, answers) {
 
     const isText    = q.type === 'short_answer' || q.type === 'diagram'
     const isNumeric = q.type === 'numeric'
+    const isHotspot = q.type === 'hotspot'
     const given     = answers[q.id]
-    // Server-authoritative grading for numeric — we re-derive correctness
-    // from the persisted correctAnswer + tolerance, not the client's
-    // self-reported `correct` flag. A tampered client can't grant itself
-    // marks; a buggy client can't accidentally award them either.
+    // Server-authoritative grading — re-derive correctness from the
+    // persisted question fields, not the client's self-reported `correct`
+    // flag. A tampered client can't grant itself marks; a buggy client
+    // can't accidentally award them either.
     const correct = isText
       ? given?.correct === true
       : isNumeric
         ? numericMatches(given, q.correctAnswer, q.tolerance)
-        : given === q.correctAnswer
+        : isHotspot
+          ? hotspotMatches(given, q.correctRegion)
+          : given === q.correctAnswer
     if (correct) score += marks
 
     if (!topicBreakdown[topic]) topicBreakdown[topic] = { correct: 0, total: 0, marks: 0, totalMarks: 0 }

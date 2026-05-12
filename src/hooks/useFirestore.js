@@ -83,7 +83,11 @@ function normalizeQuestionPayload(q, order) {
   // typed number from the learner instead. Treated alongside short-answer
   // for option-clearing; correctAnswer normalisation diverges below.
   const isNumeric = type === 'numeric'
-  const options = isShortAnswer || isNumeric
+  // Hotspot questions present an image and capture a click — also no
+  // options array. The "answer" is a normalised (x, y) coordinate, graded
+  // against the teacher-placed correctRegion at submit time.
+  const isHotspot = type === 'hotspot'
+  const options = isShortAnswer || isNumeric || isHotspot
     ? []
     : Array.isArray(q.options)
       ? q.options.map(opt => String(opt ?? '').trim())
@@ -93,7 +97,7 @@ function normalizeQuestionPayload(q, order) {
   // truncate or pad with nulls so the parallel arrays stay in lock-step.
   // A slot collapses to null when it has neither an imageUrl nor a diagram.
   const rawMedia = Array.isArray(q.optionMedia) ? q.optionMedia : []
-  const optionMedia = isShortAnswer || isNumeric
+  const optionMedia = isShortAnswer || isNumeric || isHotspot
     ? []
     : options.map((_, i) => {
         const m = rawMedia[i]
@@ -142,6 +146,17 @@ function normalizeQuestionPayload(q, order) {
     // so the schema's union-with-null lines up across the board.
     tolerance:    isNumeric
       ? (Number.isFinite(Number(q.tolerance)) && Number(q.tolerance) >= 0 ? Number(q.tolerance) : 0)
+      : null,
+    // correctRegion only matters for hotspot. Coerce x/y to [0, 1] and
+    // radius to a sensible cap. A teacher who never clicked the image
+    // ends up with null here, and the schema's superRefine rejects the
+    // write loudly so the form can prompt them.
+    correctRegion: isHotspot && q.correctRegion && typeof q.correctRegion === 'object'
+      ? {
+          x: Math.max(0, Math.min(1, Number(q.correctRegion.x) || 0)),
+          y: Math.max(0, Math.min(1, Number(q.correctRegion.y) || 0)),
+          radius: Math.max(0, Math.min(0.5, Number(q.correctRegion.radius) || 0.05)),
+        }
       : null,
     text:          normalizeRichTextPayload(q.text),
     explanation:   normalizeRichTextPayload(q.explanation),

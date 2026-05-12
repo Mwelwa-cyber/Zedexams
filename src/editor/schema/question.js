@@ -99,7 +99,7 @@ export const diagramRef = z
 
 // ── Question shape ────────────────────────────────────────────────
 
-const QUESTION_TYPES = ['mcq', 'tf', 'short_answer', 'diagram', 'fill', 'short', 'numeric']
+const QUESTION_TYPES = ['mcq', 'tf', 'short_answer', 'diagram', 'fill', 'short', 'numeric', 'hotspot']
 const DIFFICULTIES = ['easy', 'medium', 'hard']
 // MCQ subtypes mirror the Zambian PRISCA exam-paper categories. They are a
 // PURE display/preset hint — the underlying answer model is still 4-option MCQ.
@@ -156,6 +156,29 @@ export const questionSchema = z
     // Worked example: `correctAnswer: 3.14`, `tolerance: 0.01` accepts any
     // typed answer in the range [3.13, 3.15].
     tolerance: z.number().min(0).max(1_000_000).nullable().default(null),
+
+    // ── Hotspot-answer field ──
+    // Normalised coordinates of the target region on the question's image
+    // (or library diagram). x, y, radius are all in [0, 1] where (0, 0) is
+    // top-left of the image and (1, 1) is bottom-right. Normalising means
+    // the grading works correctly regardless of the screen size the
+    // learner is on. Radius is normalised to the image's WIDTH (and the
+    // editor renders it on the displayed image at the same proportion).
+    //
+    // Worked example: a heart-diagram labelling question targets the
+    // right ventricle at the centre of the image with a 10% radius:
+    //   { x: 0.5, y: 0.5, radius: 0.1 }
+    //
+    // Required for `type: 'hotspot'` (enforced in the superRefine below);
+    // null on every other type.
+    correctRegion: z
+      .object({
+        x: z.number().min(0).max(1),
+        y: z.number().min(0).max(1),
+        radius: z.number().min(0).max(0.5),
+      })
+      .nullable()
+      .default(null),
 
     // Parallel, index-aligned media for each option. A `null` entry means the
     // option is text-only (the original shape). Stored as a separate array so
@@ -247,6 +270,33 @@ export const questionSchema = z
           code: 'custom',
           path: ['options'],
           message: 'numeric questions should not have options — set type to mcq for that',
+        })
+      }
+    }
+
+    // Hotspot questions need a target region AND an image — without one
+    // the learner has nothing to click on. Reject loudly so the editor
+    // can surface a clear error instead of writing a useless quiz.
+    if (q.type === 'hotspot') {
+      if (!q.correctRegion) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['correctRegion'],
+          message: 'hotspot question requires a correctRegion (place a target on the image first)',
+        })
+      }
+      if (!q.imageUrl && !q.imageDiagram) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['imageUrl'],
+          message: 'hotspot question requires an image (upload or pick a diagram from the library)',
+        })
+      }
+      if (q.options.length > 0) {
+        ctx.addIssue({
+          code: 'custom',
+          path: ['options'],
+          message: 'hotspot questions should not have options',
         })
       }
     }

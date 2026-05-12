@@ -9,6 +9,7 @@
 const { quizWriteSchema, quizUpdateSchema, coerceQuiz } = await import('../src/schemas/quiz.js')
 const { attemptStartSchema, attemptSubmitSchema, coerceAttempt } = await import('../src/schemas/attempt.js')
 const { numericMatches } = await import('../src/utils/numericGrading.js')
+const { hotspotMatches } = await import('../src/utils/hotspotGrading.js')
 
 let pass = 0
 let fail = 0
@@ -393,6 +394,64 @@ test('handles integer answers correctly', () => {
   assert(numericMatches('42', 42, 0) === true)
   assert(numericMatches(43, 42, 1) === true)
   assert(numericMatches(44, 42, 1) === false)
+})
+
+// ── hotspotMatches (server-authoritative grading) ──────────────
+
+console.log('\nhotspotMatches')
+
+const HOTSPOT_REGION = { x: 0.5, y: 0.5, radius: 0.1 }
+
+test('tap at exact centre passes', () => {
+  assert(hotspotMatches({ x: 0.5, y: 0.5 }, HOTSPOT_REGION) === true)
+})
+
+test('tap within radius passes', () => {
+  assert(hotspotMatches({ x: 0.55, y: 0.52 }, HOTSPOT_REGION) === true)
+  assert(hotspotMatches({ x: 0.45, y: 0.48 }, HOTSPOT_REGION) === true)
+})
+
+test('tap just inside the radius passes', () => {
+  // distance = √(0.07² + 0.07²) ≈ 0.099 < 0.1
+  assert(hotspotMatches({ x: 0.57, y: 0.57 }, HOTSPOT_REGION) === true)
+})
+
+test('tap just outside the radius fails', () => {
+  // distance = √(0.08² + 0.08²) ≈ 0.113 > 0.1
+  assert(hotspotMatches({ x: 0.58, y: 0.58 }, HOTSPOT_REGION) === false)
+})
+
+test('tap well outside fails', () => {
+  assert(hotspotMatches({ x: 0.0, y: 0.0 }, HOTSPOT_REGION) === false)
+  assert(hotspotMatches({ x: 1.0, y: 1.0 }, HOTSPOT_REGION) === false)
+})
+
+test('missing tap returns false', () => {
+  assert(hotspotMatches(null, HOTSPOT_REGION) === false)
+  assert(hotspotMatches(undefined, HOTSPOT_REGION) === false)
+  assert(hotspotMatches({}, HOTSPOT_REGION) === false)
+  assert(hotspotMatches({ x: 0.5 }, HOTSPOT_REGION) === false)
+})
+
+test('missing region returns false', () => {
+  assert(hotspotMatches({ x: 0.5, y: 0.5 }, null) === false)
+  assert(hotspotMatches({ x: 0.5, y: 0.5 }, {}) === false)
+})
+
+test('out-of-range tap coords return false', () => {
+  // A bad legacy doc with x = -0.1 or 1.2 should not silently pass.
+  assert(hotspotMatches({ x: -0.1, y: 0.5 }, HOTSPOT_REGION) === false)
+  assert(hotspotMatches({ x: 1.2,  y: 0.5 }, HOTSPOT_REGION) === false)
+})
+
+test('negative radius returns false', () => {
+  assert(hotspotMatches({ x: 0.5, y: 0.5 }, { x: 0.5, y: 0.5, radius: -0.1 }) === false)
+})
+
+test('zero radius requires exact tap', () => {
+  const exact = { x: 0.5, y: 0.5, radius: 0 }
+  assert(hotspotMatches({ x: 0.5, y: 0.5 }, exact) === true)
+  assert(hotspotMatches({ x: 0.51, y: 0.5 }, exact) === false)
 })
 
 // ── Summary ─────────────────────────────────────────────────────

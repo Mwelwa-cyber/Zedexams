@@ -10,7 +10,7 @@ import ZoomableImage from './ZoomableImage'
 import DiagramSvg from '../diagrams/DiagramSvg'
 import { getPakoTip } from '../../config/curriculum'
 import { checkAnswerWithAI } from '../../utils/geminiChecker'
-import { numericMatches } from '../../utils/examService'
+import { numericMatches, hotspotMatches } from '../../utils/examService'
 // RichContent renders legacy HTML strings AND Tiptap JSON; getRichPlainText
 // extracts plain text from either format. Legacy richTextToPlainText is
 // only HTML-aware, so we prefer getRichPlainText wherever we have a choice.
@@ -28,6 +28,10 @@ function isTextAnswerType(type) {
 
 function isNumericType(type) {
   return type === 'numeric'
+}
+
+function isHotspotType(type) {
+  return type === 'hotspot'
 }
 
 // Maps the subject string stored on a quiz (e.g. "Integrated Science",
@@ -427,7 +431,11 @@ export default function QuizRunnerV2() {
             // Server-authoritative re-grade — never trust the client's stored
             // `correct` flag; recompute from persisted correctAnswer + tolerance.
             ? numericMatches(answers[question.id], question.correctAnswer, question.tolerance)
-            : answers[question.id] === question.correctAnswer
+            : isHotspotType(question.type)
+              // Same server-authoritative principle for hotspot: re-derive
+              // from persisted correctRegion + the learner's stored (x, y).
+              ? hotspotMatches(answers[question.id], question.correctRegion)
+              : answers[question.id] === question.correctAnswer
         total += question.marks || 1
         if (correct) score += question.marks || 1
         const topic = question.topic || 'General'
@@ -608,7 +616,111 @@ export default function QuizRunnerV2() {
           )
         })()}
 
-        {isNumericType(question.type) ? (() => {
+        {isHotspotType(question.type) ? (() => {
+          // Hotspot branch — learner clicks on the image, we record the
+          // normalised (x, y) into answers, then "Check" runs hotspotMatches
+          // locally for immediate feedback. The submit pipeline re-grades
+          // server-authoritatively from the persisted correctRegion.
+          const hotspotResult = aiResults[question.id]
+          const hotspotChecked = !!hotspotResult
+          const tap = answers[question.id]
+          const hasTap = tap && Number.isFinite(tap.x) && Number.isFinite(tap.y)
+          function checkHotspot(qid) {
+            const q = questions.find(qq => qq.id === qid)
+            const t = answers[qid]
+            if (!q || !t || !Number.isFinite(t.x)) return
+            const correct = hotspotMatches(t, q.correctRegion)
+            setAiResults(current => ({
+              ...current,
+              [qid]: {
+                correct,
+                feedback: correct
+                  ? '✓ Spot on.'
+                  : 'Not quite — try a different spot next time.',
+              },
+            }))
+            if (mode === 'practice') {
+              setRevealed(current => ({ ...current, [qid]: true }))
+              setFeedbackType(correct ? 'correct' : 'wrong')
+              setTimeout(() => setFeedbackType(null), 1300)
+            }
+          }
+          return (
+          <div className="space-y-3">
+            <div className={`overflow-hidden rounded-2xl border-2 bg-white shadow-[0_2px_0_#0F1B2D] ${hotspotChecked && mode === 'practice'
+              ? hotspotResult.correct ? 'border-emerald-600' : 'border-orange-500'
+              : 'border-slate-900'}`}>
+              <div className="border-b-2 border-slate-900 bg-orange-50 px-4 py-2 text-sm font-bold text-slate-900">👆 Tap the correct spot</div>
+              <div className="p-3">
+                {question.imageUrl ? (
+                  <div
+                    className={`relative w-full overflow-hidden rounded-xl border-2 border-slate-200 ${hotspotChecked ? 'cursor-default' : 'cursor-crosshair'}`}
+                    onPointerDown={event => {
+                      if (hotspotChecked) return
+                      const rect = event.currentTarget.getBoundingClientRect()
+                      if (rect.width <= 0 || rect.height <= 0) return
+                      const x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width))
+                      const y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height))
+                      setAnswers(current => ({ ...current, [question.id]: { x, y } }))
+                      if (actionError) setActionError('')
+                    }}
+                  >
+                    <img
+                      src={question.imageUrl}
+                      alt="Click the answer"
+                      draggable={false}
+                      className="block w-full select-none object-contain"
+                    />
+                    {hasTap && (
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-orange-500 shadow"
+                        style={{ left: `${tap.x * 100}%`, top: `${tap.y * 100}%` }}
+                      />
+                    )}
+                    {/* In practice mode, reveal the correct region after
+                        the learner has checked their answer. */}
+                    {hotspotChecked && mode === 'practice' && question.correctRegion && Number.isFinite(question.correctRegion.x) && (
+                      <span
+                        aria-hidden="true"
+                        className="pointer-events-none absolute rounded-full border-2 border-emerald-500 bg-emerald-500/20"
+                        style={{
+                          left: `${(question.correctRegion.x - question.correctRegion.radius) * 100}%`,
+                          top: `${(question.correctRegion.y - question.correctRegion.radius) * 100}%`,
+                          width: `${question.correctRegion.radius * 2 * 100}%`,
+                          paddingTop: `${question.correctRegion.radius * 2 * 100}%`,
+                        }}
+                      />
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm font-bold text-orange-600">This hotspot question is missing its image.</p>
+                )}
+              </div>
+            </div>
+
+            {!hotspotChecked && (
+              <button
+                type="button"
+                onClick={() => checkHotspot(question.id)}
+                disabled={!hasTap}
+                className="zx-sb zx-sb-primary w-full text-sm"
+              >
+                {mode === 'exam' ? 'Save answer' : 'Check my answer'}
+              </button>
+            )}
+
+            {hotspotChecked && mode === 'practice' && (
+              <div className={`rounded-2xl border-2 p-4 ${hotspotResult.correct ? 'border-green-200 bg-green-50' : 'border-orange-200 bg-orange-50'}`}>
+                <p className={`text-sm font-bold ${hotspotResult.correct ? 'text-green-900' : 'text-orange-900'}`}>
+                  {hotspotResult.correct ? '✅ Correct!' : '❌ Not quite.'}
+                </p>
+                <p className={`mt-1 text-sm ${hotspotResult.correct ? 'text-green-700' : 'text-orange-700'}`}>{hotspotResult.feedback}</p>
+              </div>
+            )}
+          </div>
+          )
+        })() : isNumericType(question.type) ? (() => {
           // Numeric branch — local, synchronous check via numericMatches.
           // No AI call, no network round-trip. The submit pipeline re-grades
           // authoritatively from `correctAnswer + tolerance` on the

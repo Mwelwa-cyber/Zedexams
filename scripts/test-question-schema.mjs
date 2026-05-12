@@ -191,6 +191,50 @@ test('numeric type rejects options array', () => {
   assert(!result.success, 'numeric must have no options')
 })
 
+test('hotspot type with correctRegion + imageUrl passes', () => {
+  const d = validDoc()
+  d.type = 'hotspot'
+  d.detectedType = 'hotspot'
+  d.options = []
+  d.correctAnswer = 0
+  d.correctRegion = { x: 0.5, y: 0.5, radius: 0.1 }
+  d.imageUrl = 'https://example.com/heart.png'
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+})
+
+test('hotspot type rejects missing correctRegion', () => {
+  const d = validDoc()
+  d.type = 'hotspot'
+  d.detectedType = 'hotspot'
+  d.options = []
+  d.imageUrl = 'https://example.com/heart.png'
+  const result = questionWriteSchema.safeParse(d)
+  assert(!result.success, 'hotspot without correctRegion should reject')
+})
+
+test('hotspot type rejects missing image', () => {
+  const d = validDoc()
+  d.type = 'hotspot'
+  d.detectedType = 'hotspot'
+  d.options = []
+  d.correctRegion = { x: 0.5, y: 0.5, radius: 0.1 }
+  // imageUrl deliberately left null
+  const result = questionWriteSchema.safeParse(d)
+  assert(!result.success, 'hotspot without image should reject')
+})
+
+test('hotspot type rejects out-of-range coords', () => {
+  const d = validDoc()
+  d.type = 'hotspot'
+  d.detectedType = 'hotspot'
+  d.options = []
+  d.correctRegion = { x: 1.5, y: 0.5, radius: 0.1 }
+  d.imageUrl = 'https://example.com/heart.png'
+  const result = questionWriteSchema.safeParse(d)
+  assert(!result.success, 'hotspot x > 1 should reject')
+})
+
 test('rejects options list larger than 20', () => {
   const d = validDoc()
   d.options = Array.from({ length: 21 }, (_, i) => `opt${i}`)

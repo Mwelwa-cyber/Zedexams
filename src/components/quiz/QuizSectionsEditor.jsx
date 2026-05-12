@@ -422,6 +422,7 @@ function StandaloneQuestionCard({
   const isTrueFalse = question.type === 'truefalse'
   const isFill = question.type === 'fill'
   const isNumeric = question.type === 'numeric'
+  const isHotspot = question.type === 'hotspot'
   const isTextAnswer = question.type === 'short_answer' || question.type === 'diagram' || isFill
   const subtype = question.subtype ?? null
   const subtypeBadge = subtype ? SUBTYPE_LABEL[subtype] : null
@@ -475,6 +476,15 @@ function StandaloneQuestionCard({
                   typeof question.tolerance === 'number' && question.tolerance >= 0
                     ? question.tolerance : 0)
                 if (question.subtype) onChange(sectionIndex, 'subtype', null)
+              } else if (nextType === 'hotspot') {
+                // Hotspot questions have no options either; the answer
+                // is a normalised (x, y) on the question image. correctRegion
+                // starts null — the schema rejects writes without it so the
+                // teacher is forced to click on the image to place the target
+                // before publishing.
+                onChange(sectionIndex, 'options', [])
+                if (question.subtype) onChange(sectionIndex, 'subtype', null)
+                if (!question.correctRegion) onChange(sectionIndex, 'correctRegion', null)
               } else if (question.options.length < 4) {
                 onChange(sectionIndex, 'options', ['', '', '', ''])
                 onChange(sectionIndex, 'correctAnswer', 0)
@@ -487,6 +497,7 @@ function StandaloneQuestionCard({
             <option value="short_answer">Short Answer</option>
             <option value="fill">Fill in the blank</option>
             <option value="numeric">Numeric (±tolerance)</option>
+            <option value="hotspot">Hotspot (click on image)</option>
             <option value="diagram">Diagram / Image</option>
           </select>
           {question.type === 'mcq' && (
@@ -605,7 +616,85 @@ function StandaloneQuestionCard({
         />
       </div>
 
-      {isNumeric ? (
+      {isHotspot ? (
+        <div className="space-y-2">
+          <p className="theme-text-muted text-xs font-bold">
+            Hotspot — upload an image above, then click on it to place the target
+          </p>
+          {!(question.imageUrl) ? (
+            <div className="theme-bg-subtle theme-text-muted rounded-xl border-2 border-dashed theme-border p-4 text-center text-xs font-bold">
+              Upload an image first to place a hotspot target.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {/* Click-to-place picker.
+                  pointerdown handler converts the click offset to normalised
+                  (x, y) in [0, 1] using the rendered element rect. Stores
+                  with the existing radius (default 0.05). */}
+              <div
+                className={joinClasses('relative cursor-crosshair overflow-hidden rounded-xl border-2', theme.cardBorder)}
+                onPointerDown={event => {
+                  const rect = event.currentTarget.getBoundingClientRect()
+                  if (rect.width <= 0 || rect.height <= 0) return
+                  const x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width))
+                  const y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height))
+                  const r = (question.correctRegion && Number.isFinite(question.correctRegion.radius))
+                    ? question.correctRegion.radius
+                    : 0.05
+                  set('correctRegion', { x, y, radius: r })
+                }}
+              >
+                <img
+                  src={question.imageUrl}
+                  alt=""
+                  draggable={false}
+                  className="block w-full select-none object-contain"
+                />
+                {question.correctRegion && Number.isFinite(question.correctRegion.x) && (
+                  <span
+                    aria-hidden="true"
+                    className="theme-accent-bg pointer-events-none absolute rounded-full border-2 border-[var(--accent)] opacity-60"
+                    style={{
+                      left:   `${(question.correctRegion.x - question.correctRegion.radius) * 100}%`,
+                      top:    `${(question.correctRegion.y - question.correctRegion.radius) * 100}%`,
+                      width:  `${question.correctRegion.radius * 2 * 100}%`,
+                      // Use width for height so the on-screen circle is a true
+                      // circle even on landscape images (radius is normalised
+                      // to width, see hotspotGrading.js).
+                      paddingTop: `${question.correctRegion.radius * 2 * 100}%`,
+                    }}
+                  />
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                <label className="theme-text-muted text-xs font-bold">Target radius</label>
+                <input
+                  type="range"
+                  min="0.02"
+                  max="0.3"
+                  step="0.01"
+                  value={question.correctRegion?.radius ?? 0.05}
+                  onChange={event => {
+                    const radius = Number(event.target.value)
+                    if (!Number.isFinite(radius)) return
+                    const existing = question.correctRegion ?? { x: 0.5, y: 0.5 }
+                    set('correctRegion', { x: existing.x, y: existing.y, radius })
+                  }}
+                  className="flex-1"
+                />
+                <span className="theme-text text-xs font-bold">
+                  {((question.correctRegion?.radius ?? 0.05) * 100).toFixed(0)}%
+                </span>
+              </div>
+              {!question.correctRegion && (
+                <p className="text-xs font-bold text-orange-600">
+                  Click on the image to place the target.
+                </p>
+              )}
+            </div>
+          )}
+        </div>
+      ) : isNumeric ? (
         <div className="space-y-2">
           <p className="theme-text-muted text-xs font-bold">
             Numeric answer — accepted within ±tolerance of the correct value
