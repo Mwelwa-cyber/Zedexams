@@ -104,8 +104,16 @@ export default function AdminCsvImport() {
     reader.onload = event => {
       const text = String(event.target?.result ?? '')
       const result = parseCsvImport(text)
+      // Header-level failure: keep parsed=null so the upload form stays
+      // visible. Clear the file input so re-uploading the same filename
+      // (common after fixing in Excel) triggers onChange in Chromium.
+      if (result.headerError) {
+        setParsed(null)
+        setTopLevelError(result.headerError)
+        if (fileInputRef.current) fileInputRef.current.value = ''
+        return
+      }
       setParsed(result)
-      if (result.headerError) setTopLevelError(result.headerError)
     }
     reader.onerror = () => {
       setTopLevelError('Could not read the file. Please try again.')
