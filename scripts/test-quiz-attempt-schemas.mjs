@@ -396,6 +396,38 @@ test('handles integer answers correctly', () => {
   assert(numericMatches(44, 42, 1) === false)
 })
 
+test('empty/whitespace string does NOT grade as 0 (no silent credit)', () => {
+  // Number('') === 0 would otherwise hand a learner free marks on any
+  // numeric question whose correctAnswer is 0.
+  assert(numericMatches('', 0, 0) === false)
+  assert(numericMatches('   ', 0, 0) === false)
+  assert(numericMatches({ value: '' }, 0, 0) === false)
+  // But '0' should still grade correctly — it's a real answer.
+  assert(numericMatches('0', 0, 0) === true)
+})
+
+test('classic FP trap: 0.1 + 0.2 grades as 0.3 with zero tolerance', () => {
+  // 0.1 + 0.2 === 0.30000000000000004 in IEEE 754. The slack lets the
+  // teacher set tolerance=0 without learners getting penalised for it.
+  assert(numericMatches(0.1 + 0.2, 0.3, 0) === true)
+})
+
+test('whitespace around numeric strings is tolerated', () => {
+  assert(numericMatches('  3.14  ', 3.14, 0) === true)
+  assert(numericMatches('\t-2.5\n', -2.5, 0) === true)
+})
+
+test('scientific notation strings parse correctly', () => {
+  assert(numericMatches('1e2', 100, 0) === true)
+  assert(numericMatches('1.5e-3', 0.0015, 0) === true)
+})
+
+test('negative numbers grade with tolerance correctly', () => {
+  assert(numericMatches(-3.14, -3.14, 0) === true)
+  assert(numericMatches(-3.13, -3.14, 0.01) === true)
+  assert(numericMatches(-3.2, -3.14, 0.01) === false)
+})
+
 // ── hotspotMatches (server-authoritative grading) ──────────────
 
 console.log('\nhotspotMatches')
@@ -452,6 +484,30 @@ test('zero radius requires exact tap', () => {
   const exact = { x: 0.5, y: 0.5, radius: 0 }
   assert(hotspotMatches({ x: 0.5, y: 0.5 }, exact) === true)
   assert(hotspotMatches({ x: 0.51, y: 0.5 }, exact) === false)
+})
+
+test('numeric-string coords are coerced', () => {
+  // The runner stores tap coords as numbers, but a doc round-tripped
+  // through a JSON layer that strings everything (some legacy CSVs)
+  // should still grade correctly.
+  assert(hotspotMatches({ x: '0.5', y: '0.5' }, HOTSPOT_REGION) === true)
+  assert(hotspotMatches({ x: 0.5, y: 0.5 }, { x: '0.5', y: '0.5', radius: '0.1' }) === true)
+})
+
+test('tap distance exactly equal to radius is inclusive (≤)', () => {
+  // Tap is radius=0.1 to the right of centre — should be inside.
+  assert(hotspotMatches({ x: 0.6, y: 0.5 }, HOTSPOT_REGION) === true)
+})
+
+test('NaN coords fail rather than throw', () => {
+  assert(hotspotMatches({ x: NaN, y: 0.5 }, HOTSPOT_REGION) === false)
+  assert(hotspotMatches({ x: 0.5, y: NaN }, HOTSPOT_REGION) === false)
+})
+
+test('region at image corner with tap at corner grades correctly', () => {
+  const corner = { x: 0, y: 0, radius: 0.1 }
+  assert(hotspotMatches({ x: 0, y: 0 }, corner) === true)
+  assert(hotspotMatches({ x: 0.05, y: 0.05 }, corner) === true)
 })
 
 // ── Summary ─────────────────────────────────────────────────────

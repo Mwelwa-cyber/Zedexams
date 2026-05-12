@@ -36,6 +36,10 @@ export function numericMatches(given, correctAnswer, tolerance) {
   const rawGiven = (given !== null && typeof given === 'object' && 'value' in given)
     ? given.value
     : given
+  // An empty (or whitespace-only) string means "the learner didn't answer."
+  // Without this guard Number('') === 0, so a blank submission would silently
+  // grade correct on any question whose correctAnswer is 0.
+  if (typeof rawGiven === 'string' && rawGiven.trim() === '') return false
   const a = typeof rawGiven === 'number' ? rawGiven : Number(rawGiven)
   const b = typeof correctAnswer === 'number' ? correctAnswer : Number(correctAnswer)
   const t = Number.isFinite(Number(tolerance)) ? Math.max(0, Number(tolerance)) : 0
