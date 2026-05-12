@@ -34,6 +34,8 @@
  *   --domain <d>     Email domain. Default 'zedexams.com'.
  *   --out <file>     Where to write the credentials CSV. Default 'scripts/demo-credentials.csv'.
  *   --school <name>  School name to set on each learner. Default 'Demo School'.
+ *   --password <pw>  Use this password for every account (skips random per-account
+ *                    generation). Must be 6+ chars (Firebase Auth minimum).
  *
  * Audit:
  *   Each user doc is tagged demo: true so it can be queried/cleaned up later.
@@ -55,6 +57,7 @@ function parseArgs(argv) {
     else if (a === '--domain') args.domain = argv[++i]
     else if (a === '--out') args.out = argv[++i]
     else if (a === '--school') args.school = argv[++i]
+    else if (a === '--password') args.password = argv[++i]
     else if (a === '--help' || a === '-h') args.help = true
   }
   return args
@@ -161,15 +164,24 @@ async function main() {
     process.exit(1)
   }
 
+  // Shared-password mode skips per-account generation. Firebase Auth requires
+  // a minimum of 6 chars; reject anything shorter up-front rather than at
+  // createUser time.
+  if (args.password && args.password.length < 6) {
+    console.error(`--password must be at least 6 characters (Firebase Auth minimum).`)
+    process.exit(1)
+  }
+
   // Pre-compute emails + passwords up-front so dry-run shows the same plan
-  // we would execute live.
+  // we would execute live (passwords are still freshly generated on --live
+  // unless --password was supplied).
   const plan_rows = names.map(name => {
     const slug = slugifyName(name)
     if (!slug) throw new Error(`Could not slugify name: "${name}"`)
     return {
       name,
       email: `${slug}@${domain}`,
-      password: generatePassword(),
+      password: args.password || generatePassword(),
     }
   })
 
