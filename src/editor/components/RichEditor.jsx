@@ -46,6 +46,7 @@ import { sanitizePastedHTML } from '../utils/sanitize.js'
 import EditorToolbar from './EditorToolbar.jsx'
 import MathModal from './modals/MathModal.jsx'
 import TableModal from './modals/TableModal.jsx'
+import DiagramPicker from '../../components/diagrams/DiagramPicker.jsx'
 // KaTeX stylesheet — side-effect import kept at the component level so the
 // extensions factory stays pure-JS (importable by Node migration scripts).
 import 'katex/dist/katex.min.css'
@@ -67,9 +68,13 @@ export default function RichEditor({
   readOnly = false,
 }) {
   // ── Modals ────────────────────────────────────────────────────
-  const [showMath,  setShowMath]  = useState(false)
-  const [showTable, setShowTable] = useState(false)
-  const [mathEdit,  setMathEdit]  = useState(null)  // { latex, pos } | null
+  const [showMath,    setShowMath]    = useState(false)
+  const [showTable,   setShowTable]   = useState(false)
+  const [showDiagram, setShowDiagram] = useState(false)
+  const [mathEdit,    setMathEdit]    = useState(null)  // { latex, pos } | null
+  // diagramEdit = null  → fresh insert at the current selection
+  // diagramEdit = { libraryKey, params, pos } → edit the node at `pos`
+  const [diagramEdit, setDiagramEdit] = useState(null)
 
   // ── Stable onChange ref ───────────────────────────────────────
   // Storing onChange in a ref prevents useEditor from re-creating the
@@ -111,9 +116,10 @@ export default function RichEditor({
     },
   })
 
-  // ── Math node click-to-edit ───────────────────────────────────
-  // The MathInline NodeView dispatches a 'tiptap-math-click' CustomEvent
-  // that bubbles up to the editor's DOM container. We intercept it here.
+  // ── Node click-to-edit ────────────────────────────────────────
+  // Both MathInline and DiagramRef NodeViews dispatch CustomEvents that bubble
+  // up to the editor's DOM container. We intercept them here so the modals
+  // open pre-populated with the clicked node's attributes.
   //
   // Cleanup: the listener is removed when the editor is destroyed (on unmount).
   // useEditor() destroys the editor automatically; we just need to remove
@@ -130,15 +136,42 @@ export default function RichEditor({
       setMathEdit({ latex: e.detail.latex, pos: e.detail.pos })
       setShowMath(true)
     }
+    const handleDiagramClick = (e) => {
+      setDiagramEdit({
+        libraryKey: e.detail.libraryKey,
+        params: e.detail.params,
+        pos: e.detail.pos,
+      })
+      setShowDiagram(true)
+    }
 
     dom.addEventListener('tiptap-math-click', handleMathClick)
-    return () => dom.removeEventListener('tiptap-math-click', handleMathClick)
+    dom.addEventListener('tiptap-diagram-click', handleDiagramClick)
+    return () => {
+      dom.removeEventListener('tiptap-math-click', handleMathClick)
+      dom.removeEventListener('tiptap-diagram-click', handleDiagramClick)
+    }
   }, [editor, editor?.isInitialized])
 
   // ── Handlers ─────────────────────────────────────────────────
-  const handleOpenMath  = useCallback(() => { setMathEdit(null); setShowMath(true) }, [])
-  const handleOpenTable = useCallback(() => setShowTable(true), [])
-  const handleCloseMath = useCallback(() => { setShowMath(false); setMathEdit(null) }, [])
+  const handleOpenMath     = useCallback(() => { setMathEdit(null); setShowMath(true) }, [])
+  const handleOpenTable    = useCallback(() => setShowTable(true), [])
+  const handleOpenDiagram  = useCallback(() => { setDiagramEdit(null); setShowDiagram(true) }, [])
+  const handleCloseMath    = useCallback(() => { setShowMath(false); setMathEdit(null) }, [])
+  const handleCloseDiagram = useCallback(() => { setShowDiagram(false); setDiagramEdit(null) }, [])
+
+  const handleDiagramConfirm = useCallback(({ libraryKey, params }) => {
+    if (!editor) return
+    if (diagramEdit && typeof diagramEdit.pos === 'number') {
+      // Edit-in-place. Use the custom command so the transaction goes through
+      // Tiptap's command system → undoable.
+      editor.chain().focus().updateDiagramRefAt(diagramEdit.pos, { libraryKey, params }).run()
+    } else {
+      editor.chain().focus().insertDiagramRef({ libraryKey, params }).run()
+    }
+    setShowDiagram(false)
+    setDiagramEdit(null)
+  }, [editor, diagramEdit])
 
   // ── Render ────────────────────────────────────────────────────
   return (
@@ -160,6 +193,7 @@ export default function RichEditor({
             editor={editor}
             onMath={handleOpenMath}
             onTable={handleOpenTable}
+            onDiagram={handleOpenDiagram}
           />
         )}
         {/*
@@ -187,6 +221,12 @@ export default function RichEditor({
           onClose={() => setShowTable(false)}
         />
       )}
+      <DiagramPicker
+        open={showDiagram}
+        initial={diagramEdit ? { libraryKey: diagramEdit.libraryKey, params: diagramEdit.params } : null}
+        onClose={handleCloseDiagram}
+        onConfirm={handleDiagramConfirm}
+      />
     </div>
   )
 }

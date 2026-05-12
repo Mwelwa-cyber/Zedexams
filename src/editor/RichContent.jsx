@@ -74,7 +74,7 @@ export default function RichContent({ value, className = '', fallback = null }) 
     const parsed = parseTiptapValue(value)
     if (!parsed) return
 
-    import('./utils/safeRender.js').then(({ toHTML, hydrateKatex }) => {
+    import('./utils/safeRender.js').then(({ toHTML, hydrateKatex, hydrateDiagrams }) => {
       const rendered = toHTML(parsed)
       if (rendered && rendered !== '<p></p>') {
         setHtml(rendered)
@@ -84,6 +84,7 @@ export default function RichContent({ value, className = '', fallback = null }) 
           if (container) {
             container.removeAttribute('data-rich-content-pending')
             hydrateKatex(container)
+            hydrateDiagrams(container)
           }
         }, 0)
       }
@@ -105,8 +106,9 @@ export default function RichContent({ value, className = '', fallback = null }) 
       dangerouslySetInnerHTML={{ __html: html }}
       ref={(el) => {
         if (el) {
-          import('./utils/safeRender.js').then(({ hydrateKatex }) => {
+          import('./utils/safeRender.js').then(({ hydrateKatex, hydrateDiagrams }) => {
             hydrateKatex(el)
+            hydrateDiagrams(el)
           }).catch(() => {})
         }
       }}

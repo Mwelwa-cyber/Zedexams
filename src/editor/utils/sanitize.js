@@ -17,6 +17,15 @@ const EDITOR_ALLOWED_TAGS = [
   'blockquote',
   'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th',
   'span', 'sup', 'sub', 'code',
+  // <div> is reserved for the DiagramRef block node placeholder. Without it,
+  // DOMPurify strips the wrapping element and the hydrateDiagrams() walker
+  // never finds the diagram on render. The element carries no inline content
+  // (the diagram SVG is injected client-side after hydrate), so allowing it
+  // doesn't widen the editor's expressible HTML surface in practice.
+  'div',
+  // The diagram catalog produces real <svg> markup that hydrateDiagrams
+  // injects into the placeholder div's innerHTML AFTER sanitization. DOMPurify
+  // never sees the SVG, so we don't need to allow svg/g/path/etc. here.
 ]
 
 const EDITOR_ALLOWED_ATTR = [
@@ -26,6 +35,12 @@ const EDITOR_ALLOWED_ATTR = [
   'data-latex',
   'data-math-latex',
   'data-display',
+  // DiagramRef placeholder attrs. The Tiptap node's renderHTML emits
+  // <div data-diagram-key="..." data-diagram-params="...">; without these on
+  // the allow-list the round-trip loses the reference and the diagram never
+  // re-hydrates.
+  'data-diagram-key',
+  'data-diagram-params',
   'class',
   // Inline style is narrowed upstream to text-align / color / background-color
   // by cleanStyleAttribute — DOMPurify just has to permit the attribute to
@@ -91,6 +106,9 @@ const QUIZ_RICH_ALLOWED_ATTR = [
   // leaked attribute doesn't drop the entire math node's attributes.
   'data-math-latex',
   'data-display',
+  // DiagramRef placeholder attrs — same rationale as in the editor allow-list.
+  'data-diagram-key',
+  'data-diagram-params',
   'colspan', 'rowspan',
 ]
 
