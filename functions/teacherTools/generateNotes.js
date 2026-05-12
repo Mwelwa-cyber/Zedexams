@@ -22,7 +22,6 @@ const {
   getAnthropicApiKey,
   getUserRole,
   isStaffRole,
-  stripJsonFences,
 } = require("../aiService");
 const {callClaude} = require("./anthropicClient");
 
@@ -33,6 +32,18 @@ const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
 const {assertAndIncrement} = require("./usageMeter");
 
 const NOTES_MODEL = process.env.NOTES_MODEL || "claude-sonnet-4-5";
+
+// Permissive top-level shape — validateNotes() does the strict checking.
+// The schema's job here is to anchor Claude to an object response and force
+// tool use, which eliminates "AI returned non-JSON output" parse failures.
+const NOTES_TOOL_SCHEMA = {
+  type: "object",
+  description: "Teacher delivery notes for a Zambian CBC lesson.",
+  additionalProperties: true,
+  properties: {
+    header: {type: "object", additionalProperties: true},
+  },
+};
 
 const ALLOWED_GRADES = new Set([
   "ECE", "G1", "G2", "G3", "G4", "G5", "G6", "G7",
@@ -189,6 +200,7 @@ async function runNotes({uid, rawInputs, apiKey}) {
     lessonPlan: sourcePlan && sourcePlan.output,
   });
 
+  let parsed = null;
   let raw = "";
   let usageInfo = {inputTokens: 0, outputTokens: 0};
   let modelUsed = NOTES_MODEL;
@@ -200,7 +212,14 @@ async function runNotes({uid, rawInputs, apiKey}) {
       maxTokens: 6000,
       temperature: 0.4,
       model: NOTES_MODEL,
+      mode: "tool",
+      toolName: "emit_lesson_notes",
+      toolDescription:
+        "Emit the complete teacher delivery notes as a single structured " +
+        "object. Do not include any prose or commentary outside this tool call.",
+      toolInputSchema: NOTES_TOOL_SCHEMA,
     });
+    parsed = response.parsed;
     raw = response.text || "";
     usageInfo = response.usage || usageInfo;
     modelUsed = response.model || modelUsed;
@@ -210,21 +229,6 @@ async function runNotes({uid, rawInputs, apiKey}) {
       errorMessage: String(err && err.message || err).slice(0, 500),
     });
     throw err;
-  }
-
-  let parsed;
-  try {
-    parsed = JSON.parse(stripJsonFences(raw));
-  } catch {
-    await genRef.update({
-      status: "failed",
-      errorMessage: "AI returned non-JSON output",
-      outputText: String(raw || "").slice(0, 12000),
-    });
-    throw new HttpsError(
-      "internal",
-      "The AI returned an unexpected response. Please try again.",
-    );
   }
 
   // Make sure the lessonPlanId is reflected inside header.lessonPlanId so
