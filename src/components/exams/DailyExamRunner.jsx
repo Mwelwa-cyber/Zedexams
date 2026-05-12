@@ -48,6 +48,10 @@ function isTextType(type) {
   return type === 'short_answer' || type === 'diagram'
 }
 
+function isNumericType(type) {
+  return type === 'numeric'
+}
+
 // ── Option button (MCQ) ────────────────────────────────────────────────────────
 
 function OptionButton({ label, selected, onClick, disabled, children }) {
@@ -409,7 +413,30 @@ function DailyExamRunnerInner() {
         </div>
 
         {/* Answer input */}
-        {isTextType(question.type) ? (
+        {isNumericType(question.type) ? (
+          <div className="overflow-hidden rounded-2xl border-2 border-slate-900 bg-white shadow-[0_2px_0_#0F1B2D]">
+            <div className="border-b-2 border-slate-900 bg-orange-50 px-4 py-2 text-sm font-bold text-slate-900">
+              🔢 Type the number
+            </div>
+            <div className="p-3">
+              <input
+                type="number"
+                step="any"
+                inputMode="decimal"
+                value={typed}
+                onChange={e => {
+                  const val = e.target.value
+                  setShortText(prev => ({ ...prev, [question.id]: val }))
+                  // Store the raw string; the server (_doSubmit → numericMatches)
+                  // parses + applies the question's tolerance authoritatively.
+                  setAnswers(prev => ({ ...prev, [question.id]: val === '' ? undefined : val }))
+                }}
+                placeholder="e.g. 3.14"
+                className="w-full bg-transparent text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
+              />
+            </div>
+          </div>
+        ) : isTextType(question.type) ? (
           <div className="overflow-hidden rounded-2xl border-2 border-slate-900 bg-white shadow-[0_2px_0_#0F1B2D]">
             <div className="border-b-2 border-slate-900 bg-orange-50 px-4 py-2 text-sm font-bold text-slate-900">
               ✍️ Write your answer

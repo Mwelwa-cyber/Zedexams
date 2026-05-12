@@ -20,6 +20,8 @@
 
 import { Node, mergeAttributes } from '@tiptap/core'
 import katex from 'katex'
+// Chemistry-formula extension (see safeRender.js for context).
+import 'katex/contrib/mhchem'
 
 export const MathInline = Node.create({
   name: 'mathInline',

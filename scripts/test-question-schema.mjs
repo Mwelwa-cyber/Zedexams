@@ -160,6 +160,37 @@ test('rejects text longer than 100 KB', () => {
   assert(!result.success, 'oversized text should fail')
 })
 
+test('numeric type with finite correctAnswer + tolerance passes', () => {
+  const d = validDoc()
+  d.type = 'numeric'
+  d.detectedType = 'numeric'
+  d.options = []
+  d.correctAnswer = 3.14
+  d.tolerance = 0.01
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+})
+
+test('numeric type rejects string correctAnswer', () => {
+  const d = validDoc()
+  d.type = 'numeric'
+  d.detectedType = 'numeric'
+  d.options = []
+  d.correctAnswer = 'pi'
+  const result = questionWriteSchema.safeParse(d)
+  assert(!result.success, 'numeric with string correctAnswer should reject')
+})
+
+test('numeric type rejects options array', () => {
+  const d = validDoc()
+  d.type = 'numeric'
+  d.detectedType = 'numeric'
+  d.correctAnswer = 3.14
+  // options retained from MCQ default — should be flagged
+  const result = questionWriteSchema.safeParse(d)
+  assert(!result.success, 'numeric must have no options')
+})
+
 test('rejects options list larger than 20', () => {
   const d = validDoc()
   d.options = Array.from({ length: 21 }, (_, i) => `opt${i}`)

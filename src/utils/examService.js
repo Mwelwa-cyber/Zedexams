@@ -30,6 +30,11 @@ import { db } from '../firebase/config'
 import { buildQuizDisplaySections } from './quizSections'
 import { coerceQuiz } from '../schemas/quiz.js'
 import { attemptStartSchema, coerceAttempt } from '../schemas/attempt.js'
+import { numericMatches } from './numericGrading.js'
+
+// Re-export so callers that already import { numericMatches } from
+// './examService' (QuizRunnerV2) keep working unchanged.
+export { numericMatches }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -347,9 +352,18 @@ async function _doSubmit(attemptId, attempt, questions, answers) {
     const topic   = (q.topic || 'General').trim()
     totalMarks   += marks
 
-    const isText  = q.type === 'short_answer' || q.type === 'diagram'
-    const given   = answers[q.id]
-    const correct = isText ? given?.correct === true : given === q.correctAnswer
+    const isText    = q.type === 'short_answer' || q.type === 'diagram'
+    const isNumeric = q.type === 'numeric'
+    const given     = answers[q.id]
+    // Server-authoritative grading for numeric — we re-derive correctness
+    // from the persisted correctAnswer + tolerance, not the client's
+    // self-reported `correct` flag. A tampered client can't grant itself
+    // marks; a buggy client can't accidentally award them either.
+    const correct = isText
+      ? given?.correct === true
+      : isNumeric
+        ? numericMatches(given, q.correctAnswer, q.tolerance)
+        : given === q.correctAnswer
     if (correct) score += marks
 
     if (!topicBreakdown[topic]) topicBreakdown[topic] = { correct: 0, total: 0, marks: 0, totalMarks: 0 }
