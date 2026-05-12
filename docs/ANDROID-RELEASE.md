@@ -5,8 +5,11 @@ assets from `dist/`. Every web change requires a fresh APK build +
 redistribution — there's no live-update path today (see the "Future
 options" section for hybrid models like Capacitor Live Updates).
 
-This doc walks through the local-build flow for both debug (sideload
-to your own phone) and release (Play Store / wider distribution).
+**Recommended path:** push a `v*.*.*` tag and let GitHub Actions build
+and distribute the APK for you. See "Releasing via CI" below.
+
+This doc also walks through the local-build flow for both debug (sideload
+to your own phone) and release (signed, Play Store / wider distribution).
 
 ---
 
@@ -43,6 +46,98 @@ ZedExams Android — versionCode=42, versionName=1.1.1
 ```
 
 Verify before installing.
+
+---
+
+## Releasing via CI (recommended)
+
+The `.github/workflows/android-release.yml` workflow builds a **signed
+release APK** and pushes it to Firebase App Distribution. It is the only
+supported way to ship the APK to testers — the older `beta/**` branch
+trigger has been retired.
+
+### Cutting a release
+
+From a clean `main`:
+
+```bash
+git checkout main && git pull
+git tag v1.1.2          # SemVer; must match the pattern v*.*.*
+git push origin v1.1.2
+```
+
+That tag push triggers the workflow. About 8–12 minutes later the new
+APK lands in **Firebase App Distribution → testers**. Testers get an
+email and the in-app prompt.
+
+You can also trigger the workflow manually from **GitHub → Actions →
+Android Release (App Distribution) → Run workflow** if you need a
+hotfix build off the current `main` without bumping the tag. The
+manual dispatch uses `versionName` from `build.gradle`'s default
+(`1.1.1`) — prefer tagging.
+
+### One-time GitHub Actions secret setup
+
+Before the first tag push, add these eight secrets at **GitHub →
+Settings → Secrets and variables → Actions** (the first four exist
+already from the previous workflow; the last four are new):
+
+| Secret | Source |
+|--------|--------|
+| `FIREBASE_TOKEN` | `firebase login:ci` |
+| `FIREBASE_ANDROID_APP_ID` | Firebase Console → Project Settings → Your apps → Android |
+| `VITE_FIREBASE_*` | same values used by `deploy-hosting.yml` |
+| `ZED_RELEASE_KEYSTORE_BASE64` | **base64 of your `zedexams-release.keystore` file** — see below |
+| `ZED_RELEASE_STORE_PASSWORD` | keystore password |
+| `ZED_RELEASE_KEY_ALIAS` | key alias inside the keystore (typically `zedexams`) |
+| `ZED_RELEASE_KEY_PASSWORD` | password for that key |
+
+Generate `ZED_RELEASE_KEYSTORE_BASE64`:
+
+```bash
+# Linux / macOS
+base64 -w 0 zedexams-release.keystore | pbcopy   # macOS clipboard
+base64 -w 0 zedexams-release.keystore             # Linux — print to stdout
+```
+
+```powershell
+# Windows PowerShell
+[Convert]::ToBase64String([IO.File]::ReadAllBytes("M:\Claude\zedexams.com\zedexams-release.keystore")) | Set-Clipboard
+```
+
+Paste that single-line base64 string into the secret value. The
+workflow validates the decoded file is at least 256 bytes, so a
+truncated paste fails fast with a clear error.
+
+If you don't have a `zedexams-release.keystore` yet, create one
+following the `keytool` instructions in [One-time keystore
+setup](#one-time-keystore-setup) below. The same keystore is used by
+both local `npm run android:apk:release` builds and the CI workflow —
+keep the file *and* the passwords in a password manager. **If you lose
+either, Play Store will require a new app listing.**
+
+### Migrating testers from the old debug APK
+
+The old `android-beta.yml` workflow built **debug-signed** APKs. Your
+new release APK is signed with a **different keystore**, so Android
+will refuse to update existing installs with
+`INSTALL_FAILED_UPDATE_INCOMPATIBLE: signatures do not match`.
+
+Tell testers to **uninstall the current ZedExams app once**, then
+install the new build from the Firebase App Distribution invite. After
+this one-time migration, every future release will update cleanly
+because they're all signed with the same release keystore.
+
+### What the workflow produces
+
+- **Firebase App Distribution release** for the `testers` group (or
+  whatever you set in `vars.APP_DISTRIBUTION_GROUPS`).
+- **Workflow artifact** `app-release-<tag>-<sha>.apk`, retained for 30
+  days — useful if you want to manually distribute the same APK
+  elsewhere (Drive, WhatsApp, internal Play track).
+- **Console log** showing `versionCode=<n>, versionName=<tag without v>`
+  and the keystore certificate from `apksigner verify` — both make it
+  obvious that the build went through.
 
 ---
 
