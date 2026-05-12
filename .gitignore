@@ -168,6 +168,12 @@ google-services.json
 GoogleService-Info.plist
 **/GoogleService-Info.plist
 
+# Android release signing — NEVER commit. Losing the keystore means
+# losing the ability to update the app on Play Store. See
+# docs/ANDROID-RELEASE.md for where to store securely.
+*.keystore
+*.jks
+
 # Generated demo trial credentials — never commit
 scripts/demo-credentials.csv
 scripts/demo-credentials*.csv

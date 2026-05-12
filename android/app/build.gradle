@@ -1,5 +1,59 @@
 apply plugin: 'com.android.application'
 
+// ── versionCode / versionName ────────────────────────────────────────
+// Manual override via ZED_VERSION_CODE / ZED_VERSION_NAME env vars
+// (CI typically sets ZED_VERSION_CODE from the build number). Falls
+// back to deriving versionCode from the git commit count so every
+// commit produces a unique, monotonically-increasing APK version,
+// avoiding the "Android won't install my new APK because versionCode
+// hasn't changed" footgun documented in docs/ANDROID-RELEASE.md.
+// Last fallback is a hardcoded number for shallow clones / tarball
+// builds where git isn't available.
+def hardcodedVersionCode = 3
+def hardcodedVersionName = "1.1.1"
+
+def resolvedVersionCode = {
+    def envOverride = System.getenv("ZED_VERSION_CODE")
+    if (envOverride != null && envOverride.isInteger()) return envOverride.toInteger()
+    try {
+        def out = new ByteArrayOutputStream()
+        exec {
+            commandLine 'git', 'rev-list', '--count', 'HEAD'
+            standardOutput = out
+            ignoreExitValue = true
+        }
+        def n = out.toString().trim()
+        if (n.isInteger() && (n as int) > 0) return n.toInteger()
+    } catch (Exception ignored) {
+        // Fall through to hardcoded
+    }
+    return hardcodedVersionCode
+}()
+
+def resolvedVersionName = {
+    def envOverride = System.getenv("ZED_VERSION_NAME")
+    if (envOverride != null && envOverride.trim().length() > 0) return envOverride.trim()
+    return hardcodedVersionName
+}()
+
+println "ZedExams Android — versionCode=${resolvedVersionCode}, versionName=${resolvedVersionName}"
+
+// ── Release signing ──────────────────────────────────────────────────
+// Reads from ZED_RELEASE_STORE_FILE / ZED_RELEASE_STORE_PASSWORD /
+// ZED_RELEASE_KEY_ALIAS / ZED_RELEASE_KEY_PASSWORD. All four must be
+// set, otherwise the release build still runs but produces an unsigned
+// APK that Play Store rejects. We print a clear warning so the failure
+// mode is obvious instead of "looks fine until you upload".
+def releaseSigningReady = (
+    System.getenv("ZED_RELEASE_STORE_FILE")?.trim() &&
+    System.getenv("ZED_RELEASE_STORE_PASSWORD")?.trim() &&
+    System.getenv("ZED_RELEASE_KEY_ALIAS")?.trim() &&
+    System.getenv("ZED_RELEASE_KEY_PASSWORD")?.trim()
+)
+if (!releaseSigningReady) {
+    println "Release signing is not configured. Set ZED_RELEASE_STORE_FILE, ZED_RELEASE_STORE_PASSWORD, ZED_RELEASE_KEY_ALIAS, and ZED_RELEASE_KEY_PASSWORD to build a signed release APK/AAB."
+}
+
 android {
     namespace "com.zedexams.android"
     compileSdk rootProject.ext.compileSdkVersion
@@ -7,8 +61,8 @@ android {
         applicationId "com.zedexams.android"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 2
-        versionName "1.1.0"
+        versionCode resolvedVersionCode
+        versionName resolvedVersionName
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -16,10 +70,23 @@ android {
             ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    if (releaseSigningReady) {
+        signingConfigs {
+            release {
+                storeFile file(System.getenv("ZED_RELEASE_STORE_FILE"))
+                storePassword System.getenv("ZED_RELEASE_STORE_PASSWORD")
+                keyAlias System.getenv("ZED_RELEASE_KEY_ALIAS")
+                keyPassword System.getenv("ZED_RELEASE_KEY_PASSWORD")
+            }
+        }
+    }
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (releaseSigningReady) {
+                signingConfig signingConfigs.release
+            }
         }
     }
 }
