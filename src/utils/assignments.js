@@ -77,7 +77,7 @@ export async function listAssignmentsForLearner(classIds, { limit = 60 } = {}) {
   const merged = []
   for (let i = 0; i < classIds.length; i += 30) {
     const chunk = classIds.slice(i, i + 30)
-    // eslint-disable-next-line no-await-in-loop
+     
     const part = await listAssignmentsForLearner(chunk, { limit })
     for (const a of part) {
       if (seen.has(a.id)) continue

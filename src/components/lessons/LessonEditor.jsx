@@ -21,7 +21,6 @@ import {
   createBlankSlide,
   createEmptyLesson,
   createEmptyPresentation,
-  createStarterSlides,
   ensureEndSlide,
   getSlideActivities,
   getSlideAnswers,

@@ -123,7 +123,7 @@ export default function BlogPost() {
           // Posts are author-written and built into the bundle. No UGC,
           // no XSS surface; same trust boundary as any other component
           // in the app shell.
-          // eslint-disable-next-line react/no-danger
+           
           dangerouslySetInnerHTML={{ __html: post.html }}
         />
 

@@ -51,10 +51,6 @@ const SIMPLE_FRACTION = /(?<![\d/])(\d{1,3})\/(\d{1,3})(?!\d)/g
 // fraction stacked. We look for standalone patterns like "1 1/2".
 const MIXED_NUMBER = /(?<![\d/])(\d{1,3})\s+(\d{1,3})\/(\d{1,3})(?!\d)/g
 
-// Unicode vulgar-fraction characters the model might emit directly.
-// We passthrough these as-is — browsers render them correctly.
-const UNICODE_FRACTIONS = /[¼½¾⅐⅑⅒⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞]/g
-
 /**
  * Looks through a string for fraction patterns and returns an array of
  * (string | React element). Use this return value directly as children of

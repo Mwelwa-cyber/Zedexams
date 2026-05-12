@@ -57,6 +57,20 @@ jobs:
         uses: actions/setup-node@v5
         with:
           node-version: "20"
+          cache: "npm"
+
+      - name: Install root dependencies
+        run: npm ci
+
+      # Stability gates — added 2026-05. Rules + functions deploys must
+      # also pass the same lint + test suite as a hosting deploy. This
+      # blocks a malformed firestore.rules or a regression in the quiz
+      # importer / schema test from reaching production.
+      - name: Lint
+        run: npm run lint
+
+      - name: Tests (importer + sanitize + schema)
+        run: npm run test:all
 
       - name: Install function dependencies
         working-directory: functions

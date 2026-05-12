@@ -521,7 +521,7 @@ export function generateWorksheetStream(inputs, callbacks = {}) {
 }
 
 function runStreamingGenerator({
-  inputs, streamPath, callableFallback, resultKey, label, callbacks,
+  inputs, streamPath, callableFallback, resultKey: _resultKey, label, callbacks,
 }) {
   const { onProgress, onResult, onError } = callbacks
   let cancelled = false

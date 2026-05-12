@@ -31,7 +31,6 @@ import {
   restoreExam,
   saveProgress,
   submitExam,
-  autoSubmitExam,
 } from '../../utils/examService'
 import RichContent from '../../editor/RichContent'
 import SeoHelmet from '../seo/SeoHelmet'

@@ -11,6 +11,7 @@ import OfflineBanner from './components/ui/OfflineBanner'
 import UpdatePrompt from './components/ui/UpdatePrompt'
 import CookieConsentBanner from './components/ui/CookieConsentBanner'
 import ZedChatLauncher from './components/ai/ZedChatLauncher'
+import ErrorBoundary from './components/ui/ErrorBoundary'
 
 // Public marketing/auth routes always render in the brand-default Sky theme
 // so a visitor's previously-saved preference (e.g. Vivid's deep violet bg)
@@ -203,6 +204,21 @@ function TeacherRoute({ children }) {
   )
 }
 
+// Route-level error boundary. Sits inside <BrowserRouter> so it can read
+// the pathname and use it as the boundary's resetKey: a crash on /exam/:id
+// shows the inline recovery card, but navigating away (or clicking Try
+// again) auto-clears the error state instead of leaving the user stuck.
+// Inline mode preserves the surrounding banners + nav chrome that the
+// outer (full-screen) ErrorBoundary in main.jsx would otherwise replace.
+function RouteErrorBoundary({ children }) {
+  const { pathname } = useLocation()
+  return (
+    <ErrorBoundary inline resetKey={pathname}>
+      {children}
+    </ErrorBoundary>
+  )
+}
+
 function MissingProfileRecovery() {
   const { currentUser, profileIssue, ensureUserProfile, logout } = useAuth()
   const [working, setWorking] = useState(false)
@@ -305,6 +321,7 @@ export default function App() {
       <ThemeApplicator />
       <div id="main" tabIndex={-1}>
         <Suspense fallback={<PageLoader />}>
+          <RouteErrorBoundary>
           <Routes>
           <Route path="/" element={<RootRedirect />} />
           <Route path="/welcome"  element={<Marketing />} />
@@ -452,6 +469,7 @@ export default function App() {
 
           <Route path="*" element={<NotFound />} />
         </Routes>
+        </RouteErrorBoundary>
         {/* Inactivity warning + auto-logout (driven by AuthContext) */}
         <IdleWarningModal />
         {/* Paywall — listens for paywall.show(reason, ctx) from anywhere */}

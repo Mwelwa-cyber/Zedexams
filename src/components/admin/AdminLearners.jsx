@@ -154,7 +154,7 @@ export default function AdminLearners() {
   // Filter + sort
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase()
-    let rows = learners.filter(l => {
+    const rows = learners.filter(l => {
       if (gradeF && String(l.grade) !== gradeF) return false
       if (statusF === 'premium' && !(l.isPremium || l.premium)) return false
       if (statusF === 'free'    && (l.isPremium || l.premium))  return false

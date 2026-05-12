@@ -105,7 +105,6 @@ export async function updateLearnerProfileAfterGame({ game, result, userGrade = 
   const score = Number(result.score) || 0
   const correct = Number(result.correct) || 0
   const wrong = Number(result.wrong) || 0
-  const timeSpent = Number(result.timeSpent) || 0
 
   const ref = doc(db, 'learner_profiles', uid)
 

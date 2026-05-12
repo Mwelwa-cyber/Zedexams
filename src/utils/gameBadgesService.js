@@ -19,10 +19,10 @@
 
 import {
   doc, getDoc, setDoc, collection, getDocs, query, where,
-  serverTimestamp, Timestamp,
+  Timestamp,
 } from 'firebase/firestore'
 import { db, auth } from '../firebase/config'
-import { evaluateGameBadges, GAME_BADGE_MAP } from '../data/gameBadges'
+import { evaluateGameBadges } from '../data/gameBadges'
 
 /** Load the current user's earned game badges.  Returns { byId, loading: false }. */
 export async function getMyGameBadges() {
