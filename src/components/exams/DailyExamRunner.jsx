@@ -52,6 +52,10 @@ function isNumericType(type) {
   return type === 'numeric'
 }
 
+function isHotspotType(type) {
+  return type === 'hotspot'
+}
+
 // ── Option button (MCQ) ────────────────────────────────────────────────────────
 
 function OptionButton({ label, selected, onClick, disabled, children }) {
@@ -413,7 +417,49 @@ function DailyExamRunnerInner() {
         </div>
 
         {/* Answer input */}
-        {isNumericType(question.type) ? (
+        {isHotspotType(question.type) ? (
+          // Click-on-image answer. The image is shown above (question.imageUrl
+          // block) AND inside a wrapper here that captures the click as a
+          // normalised (x, y) — the server (_doSubmit → hotspotMatches)
+          // grades authoritatively against question.correctRegion.
+          <div className="overflow-hidden rounded-2xl border-2 border-slate-900 bg-white shadow-[0_2px_0_#0F1B2D]">
+            <div className="border-b-2 border-slate-900 bg-orange-50 px-4 py-2 text-sm font-bold text-slate-900">
+              👆 Tap the correct spot on the image
+            </div>
+            <div className="p-3">
+              {question.imageUrl ? (
+                <div
+                  className="relative w-full cursor-crosshair overflow-hidden rounded-xl border-2 border-slate-200"
+                  onPointerDown={event => {
+                    const rect = event.currentTarget.getBoundingClientRect()
+                    if (rect.width <= 0 || rect.height <= 0) return
+                    const x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width))
+                    const y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height))
+                    setAnswers(prev => ({ ...prev, [question.id]: { x, y } }))
+                  }}
+                >
+                  <img
+                    src={question.imageUrl}
+                    alt="Click the answer"
+                    draggable={false}
+                    className="block w-full select-none object-contain"
+                  />
+                  {/* Show learner's last tap location — feedback only,
+                      not used for grading. Server re-derives from {x, y}. */}
+                  {userAnswer && Number.isFinite(userAnswer.x) && (
+                    <span
+                      aria-hidden="true"
+                      className="pointer-events-none absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-orange-500 shadow"
+                      style={{ left: `${userAnswer.x * 100}%`, top: `${userAnswer.y * 100}%` }}
+                    />
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm font-bold text-orange-600">This hotspot question is missing its image.</p>
+              )}
+            </div>
+          </div>
+        ) : isNumericType(question.type) ? (
           <div className="overflow-hidden rounded-2xl border-2 border-slate-900 bg-white shadow-[0_2px_0_#0F1B2D]">
             <div className="border-b-2 border-slate-900 bg-orange-50 px-4 py-2 text-sm font-bold text-slate-900">
               🔢 Type the number
