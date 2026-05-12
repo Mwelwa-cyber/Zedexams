@@ -167,3 +167,9 @@ google-services.json
 **/google-services.json
 GoogleService-Info.plist
 **/GoogleService-Info.plist
+
+# Generated demo trial credentials — never commit
+scripts/demo-credentials.csv
+scripts/demo-credentials*.csv
+scripts/demo-names.local.txt
+scripts/demo-names.*.local.txt
