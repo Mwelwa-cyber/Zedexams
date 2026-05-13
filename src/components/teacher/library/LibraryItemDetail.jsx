@@ -248,9 +248,9 @@ export default function LibraryItemDetail() {
               {titleForGeneration(item)}
             </h1>
             <div className="mt-1 text-xs flex flex-wrap gap-3" style={{ color: '#566f76' }}>
-              <span>{item.inputs?.grade}</span>
+              <span>{item.inputs?.grade || item.meta?.klass}</span>
               <span>·</span>
-              <span>{formatSubject(item.inputs?.subject)}</span>
+              <span>{formatSubject(item.inputs?.subject || item.meta?.subject)}</span>
               <span>·</span>
               <span>{formatDate(item.createdAt)}</span>
               {item.modelUsed && (
@@ -387,7 +387,10 @@ export default function LibraryItemDetail() {
 
         {/* Content */}
         <div className="studio-card p-5">
-          {item.tool === 'lesson_plan' && <LessonPlanView plan={item.output} />}
+          {item.tool === 'lesson_plan' && item.output && <LessonPlanView plan={item.output} />}
+          {item.tool === 'lesson_plan' && !item.output && item.html && (
+            <LegacyStudioFrame html={item.html} />
+          )}
           {item.tool === 'worksheet' && (
             <WorksheetView worksheet={item.output} showAnswers={showAnswers} />
           )}
@@ -395,7 +398,7 @@ export default function LibraryItemDetail() {
           {item.tool === 'scheme_of_work' && <SchemeOfWorkView scheme={item.output} />}
           {item.tool === 'rubric' && <RubricView rubric={item.output} />}
           {item.tool === 'notes' && <NotesView notes={item.output} />}
-          {!item.output && (
+          {!item.output && !(item.tool === 'lesson_plan' && item.html) && (
             <p className="text-sm theme-text-secondary italic">
               This generation has no output to display.
             </p>
@@ -533,4 +536,54 @@ function EditHeaderModal({ tool, header, saving, onCancel, onSave }) {
 
 function formatSubject(s) {
   return String(s || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+/**
+ * Render a legacy Lesson Plan Studio doc (pre-PR-403 saves only had a
+ * pre-rendered `html` string + the studio's CSS bundle, never an `output`
+ * tree). We mount it inside a sandboxed iframe so the studio's global
+ * stylesheet doesn't leak into the React app, and resize the frame to
+ * fit its content.
+ */
+function LegacyStudioFrame({ html }) {
+  const [height, setHeight] = useState(800)
+  const safeHtml = String(html || '')
+  const srcDoc = `<!doctype html><html><head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <link rel="stylesheet" href="/studio/lesson.css" />
+    <style>
+      body { margin: 0; padding: 24px 16px; background: transparent; }
+      .doc-wrap { box-shadow: none !important; margin: 0 auto; }
+    </style>
+  </head><body><div id="view-plans"><div class="workspace">${safeHtml}</div></div>
+    <script>
+      function reportHeight() {
+        const h = document.documentElement.scrollHeight
+        parent.postMessage({ __legacyStudioFrameHeight: h }, '*')
+      }
+      window.addEventListener('load', reportHeight)
+      window.addEventListener('resize', reportHeight)
+      setTimeout(reportHeight, 250)
+      setTimeout(reportHeight, 1000)
+    </script>
+  </body></html>`
+
+  useEffect(() => {
+    function onMessage(e) {
+      const h = e?.data?.__legacyStudioFrameHeight
+      if (typeof h === 'number' && h > 200) setHeight(h + 24)
+    }
+    window.addEventListener('message', onMessage)
+    return () => window.removeEventListener('message', onMessage)
+  }, [])
+
+  return (
+    <iframe
+      title="Lesson plan"
+      srcDoc={srcDoc}
+      sandbox="allow-same-origin allow-scripts"
+      style={{ width: '100%', height, border: 0, display: 'block' }}
+    />
+  )
 }
