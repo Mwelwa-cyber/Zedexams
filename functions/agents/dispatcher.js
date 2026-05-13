@@ -200,14 +200,44 @@ function createAgentJobsOnApproved() {
       const before = event.data && event.data.before && event.data.before.data();
       const after = event.data && event.data.after && event.data.after.data();
       if (!before || !after) return;
+
+      const jobId = event.params.jobId;
+
+      // Audit hook — capture every approve / reject transition in the
+      // admin audit log so the new /admin/activity page has data the
+      // moment it's live. We write the entry before the publish work
+      // so an in-flight Pubo failure still leaves a record of the
+      // approval decision.
+      try {
+        const {writeAuditLog} = require("../auditLog");
+        if (before.status !== "approved" && after.status === "approved") {
+          await writeAuditLog({
+            actorUid: after.reviewedBy || "system",
+            action: "agent.approve",
+            targetType: "agentJob",
+            targetId: jobId,
+            metadata: {agentId: after.agentId || null, department: after.department || null},
+          });
+        }
+        if (before.status !== "rejected" && after.status === "rejected") {
+          await writeAuditLog({
+            actorUid: after.reviewedBy || "system",
+            action: "agent.reject",
+            targetType: "agentJob",
+            targetId: jobId,
+            metadata: {agentId: after.agentId || null, reason: after.reviewNotes || null},
+          });
+        }
+      } catch (err) {
+        console.warn("[dispatcher] audit log write failed", err?.message);
+      }
+
       // Fire only on the approved transition. Rejected transitions are
       // terminal but require no work — Pubo never publishes them.
       if (before.status === "approved") return;
       if (after.status !== "approved") return;
       if (after.department !== "content") return;
       if (after.seed === true) return;
-
-      const jobId = event.params.jobId;
       const jobData = {id: jobId, ...after};
       const jobRef = admin.firestore().collection("agentJobs").doc(jobId);
 

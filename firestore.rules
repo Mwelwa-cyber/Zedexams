@@ -182,10 +182,40 @@ service cloud.firestore {
           'learnerPortalActivatedAt', 'learnerPortalExpiry',
           'cancelAtPeriodEnd', 'cancelAtPeriodEndUpdatedAt', 'cancelAtPeriodEndReason',
           'referralCode', 'referredBy', 'referralCount', 'referralCredits',
-          'referralCreditRedeemed'
+          'referralCreditRedeemed',
+          // Soft-suspend lifecycle — admin / Cloud Function only.
+          'status', 'suspendedAt', 'suspendedBy', 'suspendReason',
+          'deletedAt', 'deletedBy'
         ]);
       allow update: if isAdmin();
       allow delete: if isAdmin();
+    }
+
+    // ── settings/global (platform-wide configuration) ─────────────
+    // Public read so non-admin clients can pick up the site name,
+    // maintenance flag, and registration toggle without elevated rights.
+    // Writes are admin-only.
+    match /settings/{settingId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ── adminAuditLogs (sensitive admin action ledger) ────────────
+    // Admin-readable, client writes blocked entirely. Cloud Functions
+    // (admin SDK) bypass these rules so the audit log is the single
+    // tamper-resistant source of truth.
+    match /adminAuditLogs/{logId} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
+    // ── announcements (platform-wide banners) ─────────────────────
+    // Read for any signed-in user (audience filtering happens client-
+    // side because the audience depends on the viewer's role). Public
+    // read is also acceptable because announcements are non-secret.
+    match /announcements/{annId} {
+      allow read: if true;
+      allow create, update, delete: if isAdmin();
     }
 
     // ── exam_attempts (daily exam sessions) ──────────────────────

@@ -282,6 +282,14 @@ export function AuthProvider({ children }) {
   const isLearner  = userProfile?.role === ROLES.LEARNER
   const isTeacher  = userProfile?.role === ROLES.TEACHER || userProfile?.role === ROLES.ADMIN
   const isAdmin    = userProfile?.role === ROLES.ADMIN
+  // True only when the role is *exactly* admin. Use this for admin-only
+  // UI (settings, audit log, user suspension) so a teacher acting through
+  // the legacy `isTeacher` overlap above can't sneak past.
+  const isAdminOnly = userProfile?.role === ROLES.ADMIN
+  // Account lifecycle status. Defaults to 'active' for legacy records that
+  // pre-date the soft-suspend field so existing users keep their access.
+  const userStatus = userProfile?.status || 'active'
+  const isSuspended = userStatus === 'suspended' || userStatus === 'deleted'
   const isPremium  = hasPremiumAccess(userProfile)
   const canAccessLearnerPortal = hasLearnerPortalAccess(userProfile)
   // Paid teacher: has teacher role AND active premium subscription
@@ -336,6 +344,28 @@ export function AuthProvider({ children }) {
             if (disposed) return
             if (snap.exists()) {
               const profile = toUserProfile(user.uid, snap.data())
+              // Soft-suspend: if an admin has flipped status to
+              // 'suspended' or 'deleted', sign the user out immediately
+              // and surface a clear message via window.alert. The
+              // ProtectedRoute layer would otherwise let them keep
+              // navigating until the session expires.
+              const status = profile?.status || 'active'
+              if (status === 'suspended' || status === 'deleted') {
+                setUserProfile(null)
+                setProfileIssue(null)
+                setLoading(false)
+                signOut(auth).catch(() => null)
+                if (typeof window !== 'undefined') {
+                  setTimeout(() => {
+                    window.alert(
+                      status === 'suspended'
+                        ? 'Your account has been suspended. Please contact support.'
+                        : 'This account is no longer active.',
+                    )
+                  }, 50)
+                }
+                return
+              }
               setUserProfile(profile)
               setProfileIssue(null)
               setLoading(false)
@@ -386,7 +416,8 @@ export function AuthProvider({ children }) {
       currentUser, userProfile, loading, profileIssue,
       login, loginWithGoogle, register, logout, resetPassword,
       fetchUserProfile, ensureUserProfile, refreshProfile, updateProfileFields, updateLearnerGrade,
-      isLearner, isTeacher, isAdmin, isPremium, isPaidTeacher, canAccessFullContent, canAccessLearnerPortal,
+      isLearner, isTeacher, isAdmin, isAdminOnly, isPremium, isPaidTeacher, canAccessFullContent, canAccessLearnerPortal,
+      userStatus, isSuspended,
       showIdleWarning, idleSecondsLeft, stayActive,
     }}>
       {children}
