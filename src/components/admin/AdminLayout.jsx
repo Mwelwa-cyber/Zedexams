@@ -22,7 +22,7 @@ import {
   Upload,
   ShieldCheck,
   Bell,
-  ChartBar,
+  ChartBarIcon,
   Search,
   ChevronDown,
   Eye,
@@ -44,7 +44,7 @@ const NAV_SECTIONS = [
     label: 'Overview',
     items: [
       { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
-      { to: '/admin/analytics', icon: ChartBar, label: 'Analytics' },
+      { to: '/admin/analytics', icon: ChartBarIcon, label: 'Analytics' },
     ],
   },
   {
