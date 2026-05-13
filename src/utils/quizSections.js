@@ -43,6 +43,13 @@ export function emptyQuestion(overrides = {}) {
     importWarnings: [],
     sourcePage: null,
     passageId: null,
+    // Numeric question fields. Defaulted on every question so the studio
+    // doesn't have to special-case undefined when reading them; only the
+    // 'numeric' type actually surfaces them in the UI.
+    //   numericTolerance — accept answers within ±this value (default 0 = exact).
+    //   numericUnit      — printed after the answer line (e.g. "kg", "%").
+    numericTolerance: 0,
+    numericUnit: '',
     ...overrides,
   }
 
@@ -429,7 +436,9 @@ function hydrateStandaloneQuestion(question = {}) {
   const type = question.type ?? 'mcq'
   // `fill` answers are stored as a comma-separated string and behave like
   // short_answer/diagram for the purpose of options/correctAnswer shape.
-  const isTextAnswer = type === 'short_answer' || type === 'diagram' || type === 'fill' || type === 'short'
+  // `numeric` also rides this path — correctAnswer is the number-as-string;
+  // the actual numeric tolerance / unit live in their own fields below.
+  const isTextAnswer = type === 'short_answer' || type === 'diagram' || type === 'fill' || type === 'short' || type === 'numeric'
 
   return emptyQuestion({
     localId: question.id || question._id || question.localId || nextLocalId('question'),
@@ -461,6 +470,10 @@ function hydrateStandaloneQuestion(question = {}) {
     passageId: question.passageId ?? null,
     imageUploading: false,
     imageUploadStep: '',
+    numericTolerance: Number.isFinite(Number(question.numericTolerance))
+      ? Number(question.numericTolerance)
+      : 0,
+    numericUnit: typeof question.numericUnit === 'string' ? question.numericUnit : '',
   })
 }
 

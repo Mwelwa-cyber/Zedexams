@@ -319,6 +319,10 @@ function buildQuestionBlock(q, number, includeAnswer) {
     diagramText: plain(q.diagramText),
     wordBank: Array.isArray(q.wordBank) ? q.wordBank.filter(Boolean) : (q.wordBank ? String(q.wordBank).split('·').map(s => s.trim()).filter(Boolean) : []),
     answerLines: typeof q.answerLines === 'number' ? q.answerLines : null,
+    // Numeric-only fields. Defaulted to safe values for every block so
+    // renderers can read them unconditionally.
+    numericTolerance: Number.isFinite(Number(q.numericTolerance)) ? Number(q.numericTolerance) : 0,
+    numericUnit: typeof q.numericUnit === 'string' ? q.numericUnit : '',
     showAnswer: includeAnswer,
   }
 }

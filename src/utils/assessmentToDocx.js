@@ -330,6 +330,14 @@ async function renderQuestion(b) {
     for (let i = 0; i < lines; i += 1) {
       out.push(para(runText('______________________________________________________', { size: 20 })))
     }
+  } else if (b.type === 'numeric') {
+    // One short blank line followed by the unit (if any). Fixed-width
+    // underscore run roughly matches the 160pt line in the PDF.
+    const unitSuffix = b.numericUnit ? ` ${b.numericUnit}` : ''
+    out.push(para([
+      runText('___________________', { size: 20 }),
+      runText(unitSuffix, { size: 20 }),
+    ]))
   } else if (b.type === 'diagram') {
     const lines = b.answerLines || 4
     for (let i = 0; i < lines; i += 1) {
@@ -350,6 +358,14 @@ async function renderQuestion(b) {
       out.push(para([
         runText('Answer: ', { bold: true, size: 20, color: '047857' }),
         runText(`${letter}. ${opt}`, { size: 20, color: '047857' }),
+      ]))
+    } else if (b.type === 'numeric') {
+      const value = String(b.correctAnswer ?? '')
+      const unit = b.numericUnit ? ` ${b.numericUnit}` : ''
+      const tol = Number(b.numericTolerance) > 0 ? ` (±${b.numericTolerance})` : ''
+      out.push(para([
+        runText('Expected answer: ', { bold: true, size: 20, color: '047857' }),
+        runText(`${value}${unit}${tol}`, { size: 20, color: '047857' }),
       ]))
     } else {
       out.push(para([

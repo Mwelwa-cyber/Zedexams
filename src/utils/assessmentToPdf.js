@@ -306,6 +306,9 @@ body {
 
 .answer-lines { margin: 6pt 0 12pt; }
 .answer-line { border-bottom: 1px solid #000; height: 18pt; margin-bottom: 4pt; }
+.numeric-line { display: flex; align-items: flex-end; gap: 8pt; margin: 6pt 0 12pt; }
+.numeric-line .answer-line.numeric { display: inline-block; flex: 0 0 160pt; margin-bottom: 0; }
+.numeric-unit { font-size: 11pt; }
 
 .diagram-box {
   border: 1px dashed #999;
@@ -450,6 +453,8 @@ function renderQuestion(b) {
     body += renderAnswerLines(b.answerLines ?? 4)
   } else if (b.type === 'essay') {
     body += renderAnswerLines(b.answerLines ?? 10)
+  } else if (b.type === 'numeric') {
+    body += renderNumericLine(b)
   }
 
   if (b.showAnswer) {
@@ -510,6 +515,14 @@ function renderAnswerLines(count) {
   return `<div class="answer-lines">${Array.from({ length: n }).map(() => '<div class="answer-line"></div>').join('')}</div>`
 }
 
+// Numeric questions get a single short answer line with an optional unit
+// label printed after it (e.g. "____________ kg"). The fixed-width line
+// matches the visual cue in the studio's PaperQuestionBlock preview.
+function renderNumericLine(b) {
+  const unit = b.numericUnit ? `<span class="numeric-unit">${escapeHtml(b.numericUnit)}</span>` : ''
+  return `<div class="numeric-line"><span class="answer-line numeric"></span>${unit}</div>`
+}
+
 function renderAnswerBlock(b) {
   let body = ''
   if (b.type === 'mcq') {
@@ -517,6 +530,11 @@ function renderAnswerBlock(b) {
     const letter = SECTION_LETTERS[i] || '?'
     const opt = b.options?.[i] ?? ''
     body = `<div><span class="label">Answer:</span> ${escapeHtml(letter)}. ${escapeHtml(String(opt))}</div>`
+  } else if (b.type === 'numeric') {
+    const value = escapeHtml(String(b.correctAnswer ?? ''))
+    const unit = b.numericUnit ? ` ${escapeHtml(b.numericUnit)}` : ''
+    const tol = Number(b.numericTolerance) > 0 ? ` (±${escapeHtml(String(b.numericTolerance))})` : ''
+    body = `<div><span class="label">Expected answer:</span> ${value}${unit}${tol}</div>`
   } else {
     body = `<div><span class="label">Expected answer:</span> ${escapeHtml(String(b.correctAnswer ?? ''))}</div>`
   }

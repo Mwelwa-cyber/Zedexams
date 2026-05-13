@@ -1036,6 +1036,15 @@ export default function AssessmentStudio() {
       case 'fill_in_blank':
         newSection = baseQuestion('short_answer', { options: [], correctAnswer: '', marks: 1 })
         break
+      case 'numeric':
+        newSection = baseQuestion('numeric', {
+          options: [],
+          correctAnswer: '',
+          numericTolerance: 0,
+          numericUnit: '',
+          marks: 1,
+        })
+        break
       case 'passage':
         newSection = createPassageSection()
         break
@@ -2011,7 +2020,7 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
 
 // Question fields whose edits invalidate any prior AI answer suggestion.
 // Module-scope so the array is allocated once per page load, not per render.
-const FIELDS_THAT_INVALIDATE_SUGGESTION = ['text', 'options', 'correctAnswer', 'wordBank']
+const FIELDS_THAT_INVALIDATE_SUGGESTION = ['text', 'options', 'correctAnswer', 'wordBank', 'numericTolerance', 'numericUnit']
 
 // Module-scope colour palette for the AI suggestion notice — kept out of
 // the component body so it isn't reallocated per render.
@@ -2050,6 +2059,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
   const isEssay = type === 'essay'
   const isShortAnswer = type === 'short_answer' || type === 'fill' || type === 'short'
   const isStructured = type === 'diagram' && !isShortAnswer
+  const isNumeric = type === 'numeric'
   const imageInputRef = useRef(null)
   const [suggesting, setSuggesting] = useState(false)
   const [suggestError, setSuggestError] = useState('')
@@ -2091,6 +2101,11 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
         text,
         options: isMcq ? question.options : undefined,
         wordBank: Array.isArray(question.wordBank) ? question.wordBank : undefined,
+        // For numeric we pass the unit so Claude knows what physical
+        // quantity the answer should be in (e.g. "kg" or "%"). Tolerance
+        // is informational only — the model still returns a single value.
+        unit: isNumeric ? (question.numericUnit || '') : undefined,
+        tolerance: isNumeric ? Number(question.numericTolerance || 0) : undefined,
         grade: paperMeta?.grade,
         subject: paperMeta?.subject,
         language: paperMeta?.language,
@@ -2118,6 +2133,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
     short_answer: { tag: 'struct', label: 'Short Answer' },
     diagram: { tag: 'struct', label: 'Structured / Diagram' },
     essay: { tag: 'essay', label: 'Essay' },
+    numeric: { tag: 'mcq', label: 'Numeric' },
   }
   const meta = typeMeta[type] || typeMeta.mcq
 
@@ -2146,6 +2162,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
           <option value="short_answer">Short answer</option>
           <option value="diagram">Structured / diagram</option>
           <option value="essay">Essay</option>
+          <option value="numeric">Numeric</option>
         </select>
         <label className="sv-q-marks-input">
           marks
@@ -2279,6 +2296,17 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
             style={{ width: '100%', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: 8, fontSize: 13, background: 'var(--sv-paper)', fontFamily: 'inherit', resize: 'vertical' }}
           />
         </div>
+      )}
+
+      {isNumeric && (
+        <NumericInputs
+          correctAnswer={question.correctAnswer}
+          tolerance={question.numericTolerance}
+          unit={question.numericUnit}
+          onChangeAnswer={value => updateQuestion('correctAnswer', value)}
+          onChangeTolerance={value => updateQuestion('numericTolerance', value)}
+          onChangeUnit={value => updateQuestion('numericUnit', value)}
+        />
       )}
 
       {suggestError && (
@@ -2424,6 +2452,53 @@ function ShortAnswerInputs({ correctAnswer, onChange, label, lines = 2 }) {
         rows={lines}
         style={{ width: '100%', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: 8, fontSize: 13, background: 'var(--sv-paper)', fontFamily: 'inherit', resize: 'vertical' }}
       />
+    </div>
+  )
+}
+
+// Numeric question editor — three side-by-side fields:
+//   • Expected value (number; stored as a string so teachers can type partial
+//     entries like "0." while editing without losing focus)
+//   • Tolerance (± number; default 0 for exact match)
+//   • Unit (free-form short text, e.g. "kg", "m/s", "%")
+function NumericInputs({ correctAnswer, tolerance, unit, onChangeAnswer, onChangeTolerance, onChangeUnit }) {
+  return (
+    <div className="sv-answer-lines">
+      <div className="sv-answer-meta">🔢 Numeric answer (rendered as a blank line on the paper; the unit prints after the line)</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+        <div className="sv-field">
+          <label style={{ fontSize: 11, color: 'var(--sv-muted)' }}>Expected value</label>
+          <input
+            type="text"
+            inputMode="decimal"
+            value={String(correctAnswer ?? '')}
+            onChange={e => onChangeAnswer(e.target.value)}
+            placeholder="e.g. 56"
+            style={{ width: '100%', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: '6px 8px', fontSize: 13, background: 'var(--sv-paper)' }}
+          />
+        </div>
+        <div className="sv-field">
+          <label style={{ fontSize: 11, color: 'var(--sv-muted)' }}>Tolerance ±</label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={String(tolerance ?? 0)}
+            onChange={e => onChangeTolerance(Math.max(0, Number(e.target.value) || 0))}
+            style={{ width: '100%', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: '6px 8px', fontSize: 13, background: 'var(--sv-paper)' }}
+          />
+        </div>
+        <div className="sv-field">
+          <label style={{ fontSize: 11, color: 'var(--sv-muted)' }}>Unit (optional)</label>
+          <input
+            type="text"
+            value={String(unit ?? '')}
+            onChange={e => onChangeUnit(e.target.value.slice(0, 12))}
+            placeholder="kg, m, %"
+            style={{ width: '100%', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: '6px 8px', fontSize: 13, background: 'var(--sv-paper)' }}
+          />
+        </div>
+      </div>
     </div>
   )
 }
@@ -2648,6 +2723,14 @@ function PaperQuestionBlock({ block }) {
           {Array.from({ length: block.answerLines || 2 }).map((_, i) => <div className="sv-paper-answer-line" key={i} />)}
         </div>
       )}
+      {block.type === 'numeric' && (
+        <div className="sv-paper-numeric-line" style={{ display: 'flex', alignItems: 'flex-end', gap: 8, margin: '6px 0' }}>
+          <div className="sv-paper-answer-line" style={{ flex: '0 0 180px' }} />
+          {block.numericUnit && (
+            <span style={{ fontSize: 13, color: '#000', whiteSpace: 'nowrap' }}>{block.numericUnit}</span>
+          )}
+        </div>
+      )}
       {block.type === 'diagram' && (
         <div className="sv-paper-answer-lines">
           {Array.from({ length: block.answerLines || 4 }).map((_, i) => <div className="sv-paper-answer-line" key={i} />)}
@@ -2730,6 +2813,17 @@ function PaperAnswerBlock({ block }) {
     const letter = SECTION_LETTERS[i] || '?'
     const opt = block.options?.[i] ?? ''
     body = <><strong>Answer:</strong> {letter}. {String(opt)}</>
+  } else if (block.type === 'numeric') {
+    body = (
+      <>
+        <strong>Expected answer:</strong>{' '}
+        {String(block.correctAnswer ?? '')}
+        {block.numericUnit ? ` ${block.numericUnit}` : ''}
+        {Number(block.numericTolerance) > 0
+          ? ` (±${block.numericTolerance})`
+          : ''}
+      </>
+    )
   } else {
     body = <><strong>Expected answer:</strong> {String(block.correctAnswer ?? '')}</>
   }
@@ -2773,7 +2867,7 @@ function BlockPickerSlide({ open, onClose, onPick }) {
           <BlockPickerItem icon="✅" title="True / False" hint="Binary statement" onClick={() => onPick('true_false')} />
           <BlockPickerItem icon="📐" title="Fill in Blank" hint="Gap-fill sentence" onClick={() => onPick('fill_in_blank')} />
           <BlockPickerItem icon="↔" title="Matching" hint="Coming soon" disabled />
-          <BlockPickerItem icon="🔢" title="Numeric" hint="Coming soon" disabled />
+          <BlockPickerItem icon="🔢" title="Numeric" hint="Number answer with optional ± tolerance & unit" onClick={() => onPick('numeric')} />
           <BlockPickerItem icon="🔤" title="Sequence" hint="Coming soon" disabled />
         </div>
 

@@ -59,14 +59,14 @@ function withTimeout(promise, ms) {
   })
 }
 
-export async function suggestAnswer({ type, text, options, wordBank, grade, subject, language } = {}) {
+export async function suggestAnswer({ type, text, options, wordBank, unit, tolerance, grade, subject, language } = {}) {
   if (!text || !String(text).trim()) {
     throw new Error('Add some question text first, then ask AI for the answer.')
   }
   try {
     const result = await withTimeout(
       suggestAnswerCallable({
-        type, text, options, wordBank, grade, subject, language,
+        type, text, options, wordBank, unit, tolerance, grade, subject, language,
       }),
       SUGGEST_TIMEOUT_MS,
     )
