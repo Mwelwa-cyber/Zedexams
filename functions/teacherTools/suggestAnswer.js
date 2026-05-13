@@ -230,8 +230,20 @@ function coerceResult(parsed, inputs) {
     return {answer: "True", rationale, confidence: "low"};
   }
 
-  // Free-form text answer.
-  const answer = str(parsed && parsed.answer, 800);
+  // Free-form text answer. Note: the tool schema allows `answer` to be
+  // either a string OR an integer, because Claude often returns numeric
+  // answers as actual numbers for arithmetic prompts (e.g. {answer: 56}
+  // for "What is 7 x 8?"). We coerce numbers to their string form here
+  // so the studio can write them into `correctAnswer` unchanged. If we
+  // didn't, str() would return "" for numeric inputs and we'd silently
+  // wipe whatever the teacher already had in the answer field.
+  const raw = parsed && parsed.answer;
+  let answer = "";
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    answer = String(raw).slice(0, 800);
+  } else {
+    answer = str(raw, 800);
+  }
   if (!answer) {
     return {answer: "", rationale, confidence: "low"};
   }
