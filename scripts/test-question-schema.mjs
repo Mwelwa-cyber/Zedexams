@@ -235,6 +235,86 @@ test('hotspot type rejects out-of-range coords', () => {
   assert(!result.success, 'hotspot x > 1 should reject')
 })
 
+test('numeric type rejects Infinity correctAnswer', () => {
+  const d = validDoc()
+  d.type = 'numeric'
+  d.detectedType = 'numeric'
+  d.options = []
+  d.correctAnswer = Infinity
+  d.tolerance = 0
+  const result = questionWriteSchema.safeParse(d)
+  assert(!result.success, 'numeric requires finite correctAnswer')
+})
+
+test('numeric type rejects negative tolerance', () => {
+  const d = validDoc()
+  d.type = 'numeric'
+  d.detectedType = 'numeric'
+  d.options = []
+  d.correctAnswer = 3.14
+  d.tolerance = -0.01
+  const result = questionWriteSchema.safeParse(d)
+  assert(!result.success, 'tolerance has min(0)')
+})
+
+test('numeric type accepts null tolerance (legacy / not yet set)', () => {
+  const d = validDoc()
+  d.type = 'numeric'
+  d.detectedType = 'numeric'
+  d.options = []
+  d.correctAnswer = 3.14
+  d.tolerance = null
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+})
+
+test('hotspot type rejects correctRegion missing radius', () => {
+  const d = validDoc()
+  d.type = 'hotspot'
+  d.detectedType = 'hotspot'
+  d.options = []
+  // Missing `radius` — shape is incomplete
+  d.correctRegion = { x: 0.5, y: 0.5 }
+  d.imageUrl = 'https://example.com/heart.png'
+  const result = questionWriteSchema.safeParse(d)
+  assert(!result.success, 'correctRegion needs radius')
+})
+
+test('hotspot type rejects correctRegion radius > 0.5 cap', () => {
+  const d = validDoc()
+  d.type = 'hotspot'
+  d.detectedType = 'hotspot'
+  d.options = []
+  d.correctRegion = { x: 0.5, y: 0.5, radius: 0.9 }
+  d.imageUrl = 'https://example.com/heart.png'
+  const result = questionWriteSchema.safeParse(d)
+  assert(!result.success, 'radius capped at 0.5')
+})
+
+test('hotspot accepts imageDiagram in place of imageUrl', () => {
+  // Teachers can drop in a library diagram instead of uploading an image.
+  const d = validDoc()
+  d.type = 'hotspot'
+  d.detectedType = 'hotspot'
+  d.options = []
+  d.correctRegion = { x: 0.5, y: 0.5, radius: 0.1 }
+  d.imageUrl = null
+  d.imageDiagram = { libraryKey: 'heart_anatomy', params: {} }
+  const result = questionWriteSchema.safeParse(d)
+  assert(result.success, JSON.stringify(result.error?.issues))
+})
+
+test('hotspot type rejects retained options from MCQ', () => {
+  const d = validDoc()
+  d.type = 'hotspot'
+  d.detectedType = 'hotspot'
+  d.correctRegion = { x: 0.5, y: 0.5, radius: 0.1 }
+  d.imageUrl = 'https://example.com/heart.png'
+  // options retained from MCQ default — should be flagged
+  const result = questionWriteSchema.safeParse(d)
+  assert(!result.success, 'hotspot must have no options')
+})
+
 test('rejects options list larger than 20', () => {
   const d = validDoc()
   d.options = Array.from({ length: 21 }, (_, i) => `opt${i}`)
