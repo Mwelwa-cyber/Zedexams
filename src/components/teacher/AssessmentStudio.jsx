@@ -18,6 +18,7 @@ import {
 import { storage } from '../../firebase/config'
 import { generateAIQuizQuestions } from '../../utils/aiAssistant'
 import { generateDiagram } from '../../utils/generateDiagram'
+import { suggestAnswer as suggestAnswerCall } from '../../utils/suggestAnswer'
 import {
   createPartGroup,
   createPassageSection,
@@ -1457,6 +1458,7 @@ function BuilderView(props) {
             groupIndex={groupIndex}
             allParts={parts}
             questionNumbers={questionNumbers}
+            paperMeta={{ grade: form.grade, subject: form.subject, language: form.language }}
             onAddBlock={onAddBlock}
             onEditQuestion={onEditQuestion}
             onMoveSection={onMoveSection}
@@ -1521,7 +1523,7 @@ function SmartWarningsBanner({ warnings }) {
   )
 }
 
-function BuilderGroup({ group, allParts, questionNumbers, onAddBlock, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage, onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage, onUpdateSection, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onUpdatePart, onRemovePart, onAssignSectionToPart }) {
+function BuilderGroup({ group, allParts, questionNumbers, paperMeta, onAddBlock, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage, onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage, onUpdateSection, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onUpdatePart, onRemovePart, onAssignSectionToPart }) {
   const partIndex = allParts.findIndex(p => p.id === group.part?.id)
   const letter = partIndex >= 0 ? SECTION_LETTERS[partIndex] || '·' : null
 
@@ -1575,6 +1577,7 @@ function BuilderGroup({ group, allParts, questionNumbers, onAddBlock, onEditQues
           sectionIndex={index}
           parts={allParts}
           questionNumbers={questionNumbers}
+          paperMeta={paperMeta}
           onEditQuestion={onEditQuestion}
           onMoveSection={onMoveSection}
           onRemoveSection={onRemoveSection}
@@ -1844,7 +1847,7 @@ Choose and circle the correct answer from the given options A, B, C, and D."
  * ================================================================== */
 function SectionBlock(props) {
   const {
-    section, sectionIndex, parts, questionNumbers,
+    section, sectionIndex, parts, questionNumbers, paperMeta,
     onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection,
     onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage,
     onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage,
@@ -1876,6 +1879,7 @@ function SectionBlock(props) {
       sectionIndex={sectionIndex}
       parts={parts}
       questionNumbers={questionNumbers}
+      paperMeta={paperMeta}
       onEditQuestion={onEditQuestion}
       onMoveSection={onMoveSection}
       onRemoveSection={onRemoveSection}
@@ -2005,7 +2009,38 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
   )
 }
 
-function QuestionBlock({ section, sectionIndex, parts, questionNumbers, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onUpdateQuestion, onUploadImage, onRemoveImage, onUploadOptionImage, onRemoveOptionImage, onAssignSectionToPart }) {
+// Question fields whose edits invalidate any prior AI answer suggestion.
+// Module-scope so the array is allocated once per page load, not per render.
+const FIELDS_THAT_INVALIDATE_SUGGESTION = ['text', 'options', 'correctAnswer', 'wordBank']
+
+// Inline notice rendered below a question's answer area when Claude has
+// suggested the correct answer. Stays visible until the teacher either
+// edits anything answer-related (auto-cleared) or hits "Confirm".
+function AiSuggestionNotice({ rationale, confidence, onConfirm }) {
+  const confidenceMeta = {
+    high: { bg: '#ECFDF5', border: '#A7F3D0', text: '#065F46', label: 'High confidence' },
+    medium: { bg: '#FFFBEB', border: '#FCD34D', text: '#92400E', label: 'Medium confidence' },
+    low: { bg: '#FEF2F2', border: '#FCA5A5', text: '#991B1B', label: 'Low confidence — verify carefully' },
+  }
+  const m = confidenceMeta[confidence] || confidenceMeta.low
+  return (
+    <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 'var(--sv-r-sm)', background: m.bg, border: `1px solid ${m.border}`, color: m.text, fontSize: 12, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+      <div style={{ flex: 1 }}>
+        <div style={{ fontWeight: 600, marginBottom: 2 }}>✨ AI suggested · {m.label}</div>
+        <div style={{ opacity: 0.9 }}>{rationale}</div>
+      </div>
+      <button
+        type="button"
+        onClick={onConfirm}
+        style={{ background: 'transparent', border: `1px solid ${m.border}`, color: m.text, padding: '3px 8px', borderRadius: 'var(--sv-r-sm)', fontSize: 11, cursor: 'pointer', whiteSpace: 'nowrap' }}
+      >
+        ✓ Confirm
+      </button>
+    </div>
+  )
+}
+
+function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMeta, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onUpdateQuestion, onUploadImage, onRemoveImage, onUploadOptionImage, onRemoveOptionImage, onAssignSectionToPart }) {
   const question = section.question
   const type = question.type || 'mcq'
   const isMcq = type === 'mcq'
@@ -2013,6 +2048,61 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, onEditQu
   const isShortAnswer = type === 'short_answer' || type === 'fill' || type === 'short'
   const isStructured = type === 'diagram' && !isShortAnswer
   const imageInputRef = useRef(null)
+  const [suggesting, setSuggesting] = useState(false)
+  const [suggestError, setSuggestError] = useState('')
+  // Guards setState after unmount during an in-flight suggestion call.
+  const mountedRef = useRef(true)
+  useEffect(() => () => { mountedRef.current = false }, [])
+
+  function updateQuestion(field, value) {
+    if (question.aiSuggestion && FIELDS_THAT_INVALIDATE_SUGGESTION.includes(field)) {
+      onUpdateQuestion('aiSuggestion', null)
+    }
+    onUpdateQuestion(field, value)
+  }
+
+  async function handleSuggestAnswer() {
+    const text = String(question.text || '').trim()
+    if (!text) {
+      setSuggestError('Add the question text first, then ask AI for the answer.')
+      return
+    }
+    if (isMcq) {
+      const nonEmpty = (question.options || []).filter(o => String(o || '').trim()).length
+      if (nonEmpty < 2) {
+        setSuggestError('Fill in at least two options before asking AI.')
+        return
+      }
+    }
+    setSuggestError('')
+    setSuggesting(true)
+    try {
+      const result = await suggestAnswerCall({
+        type,
+        text,
+        options: isMcq ? question.options : undefined,
+        wordBank: Array.isArray(question.wordBank) ? question.wordBank : undefined,
+        grade: paperMeta?.grade,
+        subject: paperMeta?.subject,
+        language: paperMeta?.language,
+      })
+      if (!mountedRef.current) return
+      // Apply directly (not through updateQuestion wrapper) so the
+      // suggestion badge survives the correctAnswer write.
+      onUpdateQuestion('correctAnswer', result.answer)
+      onUpdateQuestion('aiSuggestion', {
+        rationale: result.rationale,
+        confidence: result.confidence,
+        suggestedAt: Date.now(),
+      })
+    } catch (err) {
+      if (mountedRef.current) {
+        setSuggestError(err?.message || 'Could not suggest an answer.')
+      }
+    } finally {
+      if (mountedRef.current) setSuggesting(false)
+    }
+  }
 
   const typeMeta = {
     mcq: { tag: 'mcq', label: 'Multiple Choice' },
@@ -2056,12 +2146,33 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, onEditQu
             onChange={e => onUpdateQuestion('marks', clampInt(e.target.value, 0, 100, 1))}
           />
         </label>
+        <button
+          type="button"
+          onClick={handleSuggestAnswer}
+          disabled={suggesting}
+          title="Ask AI to suggest the correct answer for this question"
+          style={{
+            marginLeft: 'auto',
+            background: suggesting ? 'var(--sv-tinted)' : 'var(--sv-paper)',
+            border: '1px solid var(--sv-border)',
+            borderRadius: 'var(--sv-r-sm)',
+            padding: '3px 10px',
+            fontSize: 11.5,
+            cursor: suggesting ? 'default' : 'pointer',
+            color: 'var(--sv-text)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+        >
+          {suggesting ? '⏳ Thinking…' : '✨ Suggest answer'}
+        </button>
       </div>
 
       <textarea
         className="sv-q-text-input"
         value={toEditableText(question.text)}
-        onChange={e => onUpdateQuestion('text', e.target.value)}
+        onChange={e => updateQuestion('text', e.target.value)}
         placeholder="Question text"
       />
 
@@ -2109,9 +2220,9 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, onEditQu
           onChangeOption={(optIndex, value) => {
             const next = [...(question.options || ['', '', '', ''])]
             next[optIndex] = value
-            onUpdateQuestion('options', next)
+            updateQuestion('options', next)
           }}
-          onSelectCorrect={(optIndex) => onUpdateQuestion('correctAnswer', optIndex)}
+          onSelectCorrect={(optIndex) => updateQuestion('correctAnswer', optIndex)}
           onUploadOptionImage={onUploadOptionImage}
           onRemoveOptionImage={onRemoveOptionImage}
         />
@@ -2120,7 +2231,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, onEditQu
       {isShortAnswer && (
         <ShortAnswerInputs
           correctAnswer={question.correctAnswer}
-          onChange={value => onUpdateQuestion('correctAnswer', value)}
+          onChange={value => updateQuestion('correctAnswer', value)}
         />
       )}
 
@@ -2131,13 +2242,13 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, onEditQu
             <input
               type="text"
               value={Array.isArray(question.wordBank) ? question.wordBank.join(' · ') : (question.wordBank || '')}
-              onChange={e => onUpdateQuestion('wordBank', e.target.value.split(/[·,]/).map(s => s.trim()).filter(Boolean))}
+              onChange={e => updateQuestion('wordBank', e.target.value.split(/[·,]/).map(s => s.trim()).filter(Boolean))}
               placeholder="e.g. Lungs · Mouth · Nose · Trachea · Bronchi"
             />
           </div>
           <ShortAnswerInputs
             correctAnswer={question.correctAnswer}
-            onChange={value => onUpdateQuestion('correctAnswer', value)}
+            onChange={value => updateQuestion('correctAnswer', value)}
             label="Expected response / marking notes"
             lines={4}
           />
@@ -2149,12 +2260,26 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, onEditQu
           <div className="sv-answer-meta">📏 Answer space: One page (rendered on print)</div>
           <textarea
             value={String(question.correctAnswer ?? '')}
-            onChange={e => onUpdateQuestion('correctAnswer', e.target.value)}
+            onChange={e => updateQuestion('correctAnswer', e.target.value)}
             placeholder="Marking notes / sample answer (not printed on the question paper)"
             rows={3}
             style={{ width: '100%', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: 8, fontSize: 13, background: 'var(--sv-paper)', fontFamily: 'inherit', resize: 'vertical' }}
           />
         </div>
+      )}
+
+      {suggestError && (
+        <div style={{ marginTop: 8, padding: '6px 10px', borderRadius: 'var(--sv-r-sm)', background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', fontSize: 12 }}>
+          ⚠ {suggestError}
+        </div>
+      )}
+
+      {question.aiSuggestion && (
+        <AiSuggestionNotice
+          rationale={question.aiSuggestion.rationale}
+          confidence={question.aiSuggestion.confidence}
+          onConfirm={() => onUpdateQuestion('aiSuggestion', null)}
+        />
       )}
 
       <div className="sv-q-footer">
