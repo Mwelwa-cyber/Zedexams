@@ -27,6 +27,7 @@ const PLAN_LIMITS = {
     notes: 3,
     diagram: 3,
     suggest_answer: 30,
+    revise_question: 30,
   },
   individual: {
     lesson_plan: 40,
@@ -38,6 +39,7 @@ const PLAN_LIMITS = {
     notes: 25,
     diagram: 30,
     suggest_answer: 500,
+    revise_question: 300,
   },
   school: {
     lesson_plan: 200,
@@ -49,6 +51,7 @@ const PLAN_LIMITS = {
     notes: 200,
     diagram: 200,
     suggest_answer: 2000,
+    revise_question: 1500,
   },
 };
 

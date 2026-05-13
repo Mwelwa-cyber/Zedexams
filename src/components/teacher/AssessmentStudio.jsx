@@ -19,6 +19,7 @@ import { storage } from '../../firebase/config'
 import { generateAIQuizQuestions } from '../../utils/aiAssistant'
 import { generateDiagram } from '../../utils/generateDiagram'
 import { suggestAnswer as suggestAnswerCall } from '../../utils/suggestAnswer'
+import { reviseQuestion as reviseQuestionCall } from '../../utils/reviseQuestion'
 import {
   createPagebreakSection,
   createPartGroup,
@@ -2249,6 +2250,94 @@ function AiSuggestionNotice({ rationale, confidence, onConfirm }) {
   )
 }
 
+// Inline popover for the "✨ Revise" per-question action. The teacher
+// picks a target grade and/or modifier, hits Rewrite, then either
+// Apply (overwrites question.text) or Discard (drops the preview).
+function ReviseQuestionPopover({
+  paperMeta, targetGrade, modifier, revising, error, preview,
+  onTargetGradeChange, onModifierChange, onRevise, onApply, onDiscard, onClose,
+}) {
+  const GRADES = ['ECE', 'G1', 'G2', 'G3', 'G4', 'G5', 'G6', 'G7', 'G8', 'G9', 'G10', 'G11', 'G12']
+  return (
+    <div style={{ margin: '4px 0 8px', padding: 10, border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', background: 'var(--sv-paper)' }}>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'flex-end', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <label style={{ fontSize: 11, color: 'var(--sv-muted)' }}>Target grade</label>
+          <select
+            value={targetGrade}
+            onChange={e => onTargetGradeChange(e.target.value)}
+            disabled={revising}
+            style={{ border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: '4px 6px', fontSize: 12, background: 'var(--sv-paper)' }}
+          >
+            <option value="">— pick —</option>
+            {GRADES.map(g => (
+              <option key={g} value={g} disabled={g === paperMeta?.grade}>{g}{g === paperMeta?.grade ? ' (current)' : ''}</option>
+            ))}
+          </select>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <label style={{ fontSize: 11, color: 'var(--sv-muted)' }}>Tone (optional)</label>
+          <select
+            value={modifier}
+            onChange={e => onModifierChange(e.target.value)}
+            disabled={revising}
+            style={{ border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: '4px 6px', fontSize: 12, background: 'var(--sv-paper)' }}
+          >
+            <option value="">— none —</option>
+            <option value="easier">Make easier</option>
+            <option value="harder">Make harder</option>
+            <option value="simpler">Simpler vocabulary</option>
+          </select>
+        </div>
+        <button
+          type="button"
+          className="sv-btn sv-btn-primary"
+          disabled={revising || (!targetGrade && !modifier)}
+          onClick={onRevise}
+          style={{ padding: '4px 12px', fontSize: 12 }}
+        >
+          {revising ? '⏳ Rewriting…' : '✨ Rewrite'}
+        </button>
+        <button
+          type="button"
+          onClick={onClose}
+          style={{ marginLeft: 'auto', background: 'transparent', border: 'none', color: 'var(--sv-muted)', cursor: 'pointer', fontSize: 12 }}
+        >
+          Close ✕
+        </button>
+      </div>
+      {error && (
+        <div style={{ marginTop: 8, padding: '4px 8px', borderRadius: 'var(--sv-r-sm)', background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', fontSize: 11 }}>
+          ⚠ {error}
+        </div>
+      )}
+      {preview && (
+        <div style={{ marginTop: 8, padding: 8, border: '1px solid #A7F3D0', borderRadius: 'var(--sv-r-sm)', background: '#ECFDF5' }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#065F46', marginBottom: 4 }}>✨ Suggested rewrite</div>
+          <div style={{ fontSize: 13, color: '#064E3B', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>{preview}</div>
+          <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+            <button
+              type="button"
+              className="sv-btn sv-btn-primary"
+              onClick={onApply}
+              style={{ padding: '3px 10px', fontSize: 11 }}
+            >
+              ✓ Apply
+            </button>
+            <button
+              type="button"
+              onClick={onDiscard}
+              style={{ padding: '3px 10px', fontSize: 11, background: 'transparent', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', cursor: 'pointer' }}
+            >
+              Discard
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMeta, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onUpdateQuestion, onUploadImage, onRemoveImage, onUploadOptionImage, onRemoveOptionImage, onAssignSectionToPart }) {
   const question = section.question
   const type = question.type || 'mcq'
@@ -2268,6 +2357,15 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
   // teacher closes the paper and reopens it — which is the right default
   // for an unconfirmed model output.
   const [aiSuggestion, setAiSuggestion] = useState(null)
+  // AI revise-question state — same component-local pattern as
+  // aiSuggestion above. The revision preview lives here until the
+  // teacher hits Apply or Discard.
+  const [revising, setRevising] = useState(false)
+  const [reviseError, setReviseError] = useState('')
+  const [reviseOpen, setReviseOpen] = useState(false)
+  const [reviseTargetGrade, setReviseTargetGrade] = useState('')
+  const [reviseModifier, setReviseModifier] = useState('')
+  const [revisedPreview, setRevisedPreview] = useState(null) // suggested new text
   // Guards setState after unmount during an in-flight suggestion call.
   const mountedRef = useRef(true)
   useEffect(() => () => { mountedRef.current = false }, [])
@@ -2277,6 +2375,48 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
       setAiSuggestion(null)
     }
     onUpdateQuestion(field, value)
+  }
+
+  async function handleRevise() {
+    const text = String(question.text || '').trim()
+    if (!text) {
+      setReviseError('Add the question text first, then ask AI to revise it.')
+      return
+    }
+    if (!reviseTargetGrade && !reviseModifier) {
+      setReviseError('Pick a target grade or modifier first.')
+      return
+    }
+    setReviseError('')
+    setRevising(true)
+    try {
+      const result = await reviseQuestionCall({
+        text,
+        fromGrade: paperMeta?.grade,
+        toGrade: reviseTargetGrade,
+        subject: paperMeta?.subject,
+        language: paperMeta?.language,
+        modifier: reviseModifier,
+      })
+      if (!mountedRef.current) return
+      setRevisedPreview(result.text)
+    } catch (err) {
+      if (mountedRef.current) setReviseError(err?.message || 'Could not revise the question.')
+    } finally {
+      if (mountedRef.current) setRevising(false)
+    }
+  }
+
+  function applyRevision() {
+    if (!revisedPreview) return
+    updateQuestion('text', revisedPreview)
+    setRevisedPreview(null)
+    setReviseOpen(false)
+  }
+
+  function discardRevision() {
+    setRevisedPreview(null)
+    setReviseError('')
   }
 
   async function handleSuggestAnswer() {
@@ -2416,7 +2556,43 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
             ? '⏳ Thinking…'
             : (isEssay ? '✨ Suggest marking notes' : '✨ Suggest answer')}
         </button>
+        <button
+          type="button"
+          onClick={() => setReviseOpen(o => !o)}
+          title="Rewrite the question for a different grade level or tone"
+          style={{
+            background: reviseOpen ? 'var(--sv-tinted)' : 'var(--sv-paper)',
+            border: '1px solid var(--sv-border)',
+            borderRadius: 'var(--sv-r-sm)',
+            padding: '3px 10px',
+            fontSize: 11.5,
+            cursor: 'pointer',
+            color: 'var(--sv-text)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+        >
+          ✨ Revise {reviseOpen ? '▾' : '▸'}
+        </button>
       </div>
+
+      {reviseOpen && (
+        <ReviseQuestionPopover
+          paperMeta={paperMeta}
+          targetGrade={reviseTargetGrade}
+          modifier={reviseModifier}
+          revising={revising}
+          error={reviseError}
+          preview={revisedPreview}
+          onTargetGradeChange={setReviseTargetGrade}
+          onModifierChange={setReviseModifier}
+          onRevise={handleRevise}
+          onApply={applyRevision}
+          onDiscard={discardRevision}
+          onClose={() => { setReviseOpen(false); discardRevision() }}
+        />
+      )}
 
       <textarea
         className="sv-q-text-input"

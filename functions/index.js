@@ -71,6 +71,10 @@ const {
 const {
   createSuggestAnswer,
 } = require("./teacherTools/suggestAnswer");
+// Teacher Tools — Revise Question (rewrite for grade level / tone).
+const {
+  createReviseQuestion,
+} = require("./teacherTools/reviseQuestion");
 // Teacher Tools — Lesson Plan Studio (vanilla JS studio, free-form prompts).
 const {
   createStudioGenerateLessonPlan,
@@ -1835,6 +1839,9 @@ exports.generateDiagram = createGenerateDiagram(recraftApiKey);
 
 // Teacher Tools — Suggest Answer (per-question AI answer hint, Haiku).
 exports.suggestAnswer = createSuggestAnswer(anthropicApiKey);
+
+// Teacher Tools — Revise Question (rewrite for grade level / tone, Haiku).
+exports.reviseQuestion = createReviseQuestion(anthropicApiKey);
 
 // Teacher Tools — admin-only: import the built-in G1-9 topics into Firestore.
 exports.importBuiltInCbcTopics = importBuiltInCbcTopics;
