@@ -27,11 +27,10 @@ const SUGGEST_TIMEOUT_MS = 50000
 function messageFromError(error) {
   const code = error?.code || ''
   const msg = error?.message || ''
-  if (code.includes('failed-precondition') && /quota|limit/i.test(msg)) {
+  // usageMeter throws failed-precondition for quota; resource-exhausted
+  // is only thrown by the daily AI cap in aiService.
+  if (code.includes('failed-precondition') && /quota|limit|used/i.test(msg)) {
     return msg
-  }
-  if (code.includes('resource-exhausted')) {
-    return 'Monthly answer-suggestion limit reached. Upgrade or try next month.'
   }
   if (code.includes('permission-denied')) {
     return 'Suggesting answers is only available to approved teachers.'

@@ -2050,13 +2050,19 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
   const imageInputRef = useRef(null)
   const [suggesting, setSuggesting] = useState(false)
   const [suggestError, setSuggestError] = useState('')
+  // AI suggestion lives in component-local state, NOT on the question
+  // object. This keeps the AI badge out of the persisted paper schema
+  // (no Firestore drift) and also clears the badge naturally when the
+  // teacher closes the paper and reopens it — which is the right default
+  // for an unconfirmed model output.
+  const [aiSuggestion, setAiSuggestion] = useState(null)
   // Guards setState after unmount during an in-flight suggestion call.
   const mountedRef = useRef(true)
   useEffect(() => () => { mountedRef.current = false }, [])
 
   function updateQuestion(field, value) {
-    if (question.aiSuggestion && FIELDS_THAT_INVALIDATE_SUGGESTION.includes(field)) {
-      onUpdateQuestion('aiSuggestion', null)
+    if (aiSuggestion && FIELDS_THAT_INVALIDATE_SUGGESTION.includes(field)) {
+      setAiSuggestion(null)
     }
     onUpdateQuestion(field, value)
   }
@@ -2087,13 +2093,13 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
         language: paperMeta?.language,
       })
       if (!mountedRef.current) return
-      // Apply directly (not through updateQuestion wrapper) so the
-      // suggestion badge survives the correctAnswer write.
+      // Write the predicted answer to the question via the raw prop —
+      // bypasses the local wrapper that would otherwise clear the
+      // suggestion badge on a correctAnswer change.
       onUpdateQuestion('correctAnswer', result.answer)
-      onUpdateQuestion('aiSuggestion', {
+      setAiSuggestion({
         rationale: result.rationale,
         confidence: result.confidence,
-        suggestedAt: Date.now(),
       })
     } catch (err) {
       if (mountedRef.current) {
@@ -2274,11 +2280,11 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
         </div>
       )}
 
-      {question.aiSuggestion && (
+      {aiSuggestion && (
         <AiSuggestionNotice
-          rationale={question.aiSuggestion.rationale}
-          confidence={question.aiSuggestion.confidence}
-          onConfirm={() => onUpdateQuestion('aiSuggestion', null)}
+          rationale={aiSuggestion.rationale}
+          confidence={aiSuggestion.confidence}
+          onConfirm={() => setAiSuggestion(null)}
         />
       )}
 
