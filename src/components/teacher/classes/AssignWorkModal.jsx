@@ -16,6 +16,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { collection, getDocs, limit as fsLimit, orderBy, query, where } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
+import { coerceQuiz } from '../../../schemas/quiz.js'
 import { createClassAssignment } from '../../../utils/assignments'
 import { SUBJECTS } from '../../../config/curriculum'
 import Skeleton from '../../ui/Skeleton'
@@ -37,7 +38,7 @@ async function fetchAssignableQuizzes({ grade, subject }) {
       fsLimit(50),
     )
     const snap = await getDocs(q)
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    return snap.docs.map((d) => coerceQuiz({ id: d.id, ...d.data() })).filter(Boolean)
   } catch (err) {
     // The composite index for grade+isPublished+updatedAt may not exist
     // yet in older deployments. Fallback: drop the orderBy and let the
@@ -49,7 +50,9 @@ async function fetchAssignableQuizzes({ grade, subject }) {
       fsLimit(50),
     )
     const snap = await getDocs(q2)
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    return snap.docs
+      .map((d) => coerceQuiz({ id: d.id, ...d.data() }))
+      .filter(Boolean)
       .sort((a, b) => (b.updatedAt?.toMillis?.() || 0) - (a.updatedAt?.toMillis?.() || 0))
   }
 }
