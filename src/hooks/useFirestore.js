@@ -27,6 +27,7 @@ import { deleteQuizWithQuestions } from '../utils/deleteQuizWithQuestions.js'
 import { migrateContent } from '../editor/utils/migration.js'
 import { questionWriteSchema, coerceQuestion } from '../editor/schema/question.js'
 import { quizWriteSchema, quizUpdateSchema, coerceQuiz } from '../schemas/quiz.js'
+import { coerceResult } from '../schemas/result.js'
 
 /**
  * Convert a rich-text field to its Tiptap JSON representation for persistence.
@@ -434,28 +435,28 @@ export function useFirestore() {
   async function getResultById(resultId) {
     try {
       const snap = await getDoc(doc(db, 'results', resultId))
-      return snap.exists() ? { id: snap.id, ...snap.data() } : null
+      return snap.exists() ? coerceResult({ id: snap.id, ...snap.data() }) : null
     } catch (e) { console.error('getResultById:', e); return null }
   }
 
   async function getUserResults(userId, limitCount = 20) {
     try {
       const snap = await getDocs(query(collection(db, 'results'), where('userId', '==', userId), orderBy('completedAt', 'desc'), limit(limitCount)))
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      return snap.docs.map(d => coerceResult({ id: d.id, ...d.data() })).filter(Boolean)
     } catch (e) { console.error('getUserResults:', e); return [] }
   }
 
   async function getResultsForQuiz(quizId, limitCount = ADMIN_QUERY_LIMIT) {
     try {
       const snap = await getDocs(query(collection(db, 'results'), where('quizId', '==', quizId), orderBy('completedAt', 'desc'), limit(limitCount)))
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      return snap.docs.map(d => coerceResult({ id: d.id, ...d.data() })).filter(Boolean)
     } catch (e) { console.error('getResultsForQuiz:', e); return [] }
   }
 
   async function getAllResults(limitCount = ADMIN_QUERY_LIMIT) {
     try {
       const snap = await getDocs(query(collection(db, 'results'), orderBy('completedAt', 'desc'), limit(limitCount)))
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      return snap.docs.map(d => coerceResult({ id: d.id, ...d.data() })).filter(Boolean)
     } catch (e) { console.error('getAllResults:', e); return [] }
   }
 
@@ -472,7 +473,7 @@ export function useFirestore() {
         orderBy('completedAt', 'desc'),
         limit(limitCount),
       ))
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      return snap.docs.map(d => coerceResult({ id: d.id, ...d.data() })).filter(Boolean)
     } catch (e) { console.error('getResultsInWindow:', e); return [] }
   }
 
@@ -506,7 +507,7 @@ export function useFirestore() {
   async function getRecentResults(limitCount = 8) {
     try {
       const snap = await getDocs(query(collection(db, 'results'), orderBy('completedAt', 'desc'), limit(limitCount)))
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      return snap.docs.map(d => coerceResult({ id: d.id, ...d.data() })).filter(Boolean)
     } catch (e) { console.error('getRecentResults:', e); return [] }
   }
 

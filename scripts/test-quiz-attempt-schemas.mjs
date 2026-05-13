@@ -10,6 +10,7 @@ const { quizWriteSchema, quizUpdateSchema, coerceQuiz } = await import('../src/s
 const { attemptStartSchema, attemptSubmitSchema, coerceAttempt } = await import('../src/schemas/attempt.js')
 const { numericMatches } = await import('../src/utils/numericGrading.js')
 const { hotspotMatches } = await import('../src/utils/hotspotGrading.js')
+const { coerceResult } = await import('../src/schemas/result.js')
 
 let pass = 0
 let fail = 0
@@ -516,6 +517,112 @@ test('region at image corner with tap at corner grades correctly', () => {
   const corner = { x: 0, y: 0, radius: 0.1 }
   assert(hotspotMatches({ x: 0, y: 0 }, corner) === true)
   assert(hotspotMatches({ x: 0.05, y: 0.05 }, corner) === true)
+})
+
+// ── coerceResult (read-side normaliser) ────────────────────────
+
+console.log('\ncoerceResult')
+
+test('returns null for non-object input', () => {
+  assert(coerceResult(null) === null)
+  assert(coerceResult(undefined) === null)
+  assert(coerceResult('not an object') === null)
+  assert(coerceResult([]) === null)
+})
+
+test('preserves the id field (wiring relies on it)', () => {
+  const out = coerceResult({ id: 'result_xyz', userId: 'u1' })
+  assert(out.id === 'result_xyz')
+})
+
+test('null/NaN percentage no longer renders "null%" or "NaN%"', () => {
+  // The share card does `${result.percentage}%`. Without coercion, a
+  // legacy doc would show "null%" or "NaN%" on the WhatsApp button.
+  assert(coerceResult({ percentage: null }).percentage === 0)
+  assert(coerceResult({ percentage: NaN }).percentage === 0)
+  assert(coerceResult({ percentage: undefined }).percentage === 0)
+})
+
+test('percentage clamped to [0, 100]', () => {
+  assert(coerceResult({ percentage: 150 }).percentage === 100)
+  assert(coerceResult({ percentage: -20 }).percentage === 0)
+  assert(coerceResult({ percentage: 73 }).percentage === 73)
+})
+
+test('numeric-string percentage parses', () => {
+  assert(coerceResult({ percentage: '85' }).percentage === 85)
+})
+
+test('NaN/missing score and totalMarks become 0 (no NaN/NaN render)', () => {
+  // QuizResultsV2: `${result.score}/${result.totalMarks}`. Without
+  // coercion this would show "NaN/NaN" or "undefined/undefined".
+  const out = coerceResult({ score: NaN, totalMarks: undefined })
+  assert(out.score === 0)
+  assert(out.totalMarks === 0)
+})
+
+test('negative score/totalMarks clamp to 0', () => {
+  const out = coerceResult({ score: -5, totalMarks: -1 })
+  assert(out.score === 0)
+  assert(out.totalMarks === 0)
+})
+
+test('non-object topicScores becomes {} (no Object.entries crash)', () => {
+  // getWeaknessAnalysis does Object.entries(r.topicScores). A legacy
+  // doc with `topicScores: []` (a number, null, …) would have crashed
+  // the dashboard for every learner who had that result in their feed.
+  assert(typeof coerceResult({ topicScores: [] }).topicScores === 'object')
+  assert(!Array.isArray(coerceResult({ topicScores: [] }).topicScores))
+  assert(typeof coerceResult({ topicScores: 'oops' }).topicScores === 'object')
+  assert(typeof coerceResult({ topicScores: null }).topicScores === 'object')
+})
+
+test('valid topicScores survives', () => {
+  const ts = { Fractions: { correct: 3, total: 5 }, Decimals: { correct: 2, total: 4 } }
+  const out = coerceResult({ topicScores: ts })
+  assert(out.topicScores.Fractions.correct === 3)
+  assert(out.topicScores.Decimals.total === 4)
+})
+
+test('non-object answers becomes {} (PR #379 bug shape, results edition)', () => {
+  // Same crash class as coerceAttempt — a re-runner that re-iterates
+  // answers would break on a legacy array shape.
+  assert(typeof coerceResult({ answers: [] }).answers === 'object')
+  assert(!Array.isArray(coerceResult({ answers: [] }).answers))
+  assert(typeof coerceResult({ answers: null }).answers === 'object')
+})
+
+test('string fields fall back to "" rather than undefined', () => {
+  // QuizResultsV2 renders `Grade ${result.grade}` and
+  // `${result.subject || 'a quiz'}`. Falling back to '' (not undefined)
+  // keeps both renderable without optional-chaining bloat.
+  const out = coerceResult({})
+  assert(out.subject === '')
+  assert(out.quizTitle === '')
+  assert(out.quizId === '')
+  assert(out.userId === '')
+  assert(out.grade === '')
+})
+
+test('grade accepts both string and number forms', () => {
+  // Some quizzes write grade: '5', others write grade: 5. Preserve both.
+  assert(coerceResult({ grade: '5' }).grade === '5')
+  assert(coerceResult({ grade: 5 }).grade === 5)
+  assert(coerceResult({ grade: { malformed: true } }).grade === '')
+})
+
+test('preserves passthrough fields (completedAt, mode, timeSpent, custom)', () => {
+  const completedAt = { __sentinel: 'serverTimestamp' }
+  const out = coerceResult({
+    completedAt,
+    mode: 'practice',
+    timeSpent: 1200,
+    customField: 'preserve me',
+  })
+  assert(out.completedAt === completedAt)
+  assert(out.mode === 'practice')
+  assert(out.timeSpent === 1200)
+  assert(out.customField === 'preserve me')
 })
 
 // ── Summary ─────────────────────────────────────────────────────

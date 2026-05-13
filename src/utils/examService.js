@@ -109,7 +109,7 @@ export async function getTodaysExam(subject, _grade) {
     )
     if (snap.empty) return null
     const d = snap.docs[0]
-    return { id: d.id, ...d.data() }
+    return coerceQuiz({ id: d.id, ...d.data() })
   } catch (e) {
     console.error('getTodaysExam:', e)
     return null
