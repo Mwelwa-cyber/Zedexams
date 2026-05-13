@@ -88,6 +88,14 @@ function sanitizeInputs(raw = {}) {
     .filter((w) => w.length > 0)
     .slice(0, 20);
 
+  // Numeric-only fields. Both are optional. `unit` is a short label
+  // ("kg", "m/s") that we forward to the model so it returns a value in
+  // the right physical quantity. `tolerance` is informational — the model
+  // returns a single point estimate; the studio handles the ± range.
+  const unit = str(raw.unit, 12);
+  const toleranceRaw = Number(raw.tolerance);
+  const tolerance = Number.isFinite(toleranceRaw) && toleranceRaw >= 0 ? toleranceRaw : 0;
+
   return {
     type: ALLOWED_TYPES.has(type) ? type : "short_answer",
     text,
@@ -97,6 +105,8 @@ function sanitizeInputs(raw = {}) {
     options,
     nonEmptyOptionCount,
     wordBank,
+    unit,
+    tolerance,
   };
 }
 
@@ -165,6 +175,25 @@ function buildUserPrompt(inputs) {
   if (inputs.wordBank.length > 0) {
     lines.push("");
     lines.push(`Word bank teacher provided: ${inputs.wordBank.join(", ")}`);
+  }
+
+  // Numeric guidance — only relevant when the teacher tagged this as a
+  // numeric question. We tell the model the expected unit so it returns a
+  // value compatible with what the studio will render on the paper.
+  // Tolerance is included for context only; the model still returns a
+  // single point estimate.
+  if (inputs.type === "numeric") {
+    lines.push("");
+    if (inputs.unit) {
+      lines.push(`Expected unit: ${inputs.unit}`);
+    }
+    if (inputs.tolerance > 0) {
+      lines.push(`Acceptable tolerance: ±${inputs.tolerance}`);
+    }
+    lines.push(
+      "Return JUST the numeric value (no unit, no formula, no commas) — " +
+      "the studio appends the unit when printing the paper.",
+    );
   }
 
   return lines.join("\n");
