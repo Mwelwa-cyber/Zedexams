@@ -143,6 +143,9 @@ const TeacherLayout = lazy(() => import('./components/teacher/TeacherLayout'))
 const TeacherDashboard = lazy(() => import('./components/teacher/TeacherDashboard'))
 const WelcomeToPro = lazy(() => import('./components/teacher/WelcomeToPro'))
 const SyllabiLibrary = lazy(() => import('./components/teacher/SyllabiLibrary'))
+const CurriculumHome = lazy(() => import('./components/teacher/curriculum/CurriculumHome'))
+const PrimaryCurriculum = lazy(() => import('./components/teacher/curriculum/PrimaryCurriculum'))
+const SecondaryCurriculum = lazy(() => import('./components/teacher/curriculum/SecondaryCurriculum'))
 const AssessmentStudio = lazy(() => import('./components/teacher/AssessmentStudio'))
 const EditAssessment = lazy(() => import('./components/teacher/EditAssessment'))
 const AssessmentList = lazy(() => import('./components/teacher/AssessmentList'))
@@ -483,6 +486,9 @@ export default function App() {
           <Route path="/teacher/library"                 element={<TeacherRoute><TeacherLibrary /></TeacherRoute>} />
           <Route path="/teacher/library/:id"             element={<TeacherRoute><LibraryItemDetail /></TeacherRoute>} />
           <Route path="/teacher/syllabi"                 element={<TeacherRoute><SyllabiLibrary /></TeacherRoute>} />
+          <Route path="/teacher/curriculum"              element={<TeacherRoute><CurriculumHome /></TeacherRoute>} />
+          <Route path="/teacher/curriculum/primary"      element={<TeacherRoute><PrimaryCurriculum /></TeacherRoute>} />
+          <Route path="/teacher/curriculum/secondary"    element={<TeacherRoute><SecondaryCurriculum /></TeacherRoute>} />
           <Route path="/teacher/agents"                  element={<TeacherRoute><TeacherAgentJobsList /></TeacherRoute>} />
           <Route path="/teacher/agents/new"              element={<TeacherRoute><AgentBriefForm /></TeacherRoute>} />
           <Route path="/teacher/agents/:jobId"           element={<TeacherRoute><TeacherAgentJobView /></TeacherRoute>} />
