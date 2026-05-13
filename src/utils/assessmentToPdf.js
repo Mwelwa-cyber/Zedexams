@@ -386,9 +386,22 @@ function renderHeader(b) {
   const paperLine = b.paperName
     ? `<div class="paper-name">${escapeHtml(b.paperName)}</div>`
     : ''
+  // Apply teacher-set transform if any. Width converts directly to the
+  // .logo box size; offsets become a CSS translate so the surrounding
+  // banner reflows around the (now-shifted) logo box naturally.
+  const t = b.logoTransform
+  const logoStyleParts = []
+  if (t?.width) {
+    const px = `${Math.round(t.width)}pt`
+    logoStyleParts.push(`width: ${px}`, `height: ${px}`)
+  }
+  if (t && (t.offsetX || t.offsetY)) {
+    logoStyleParts.push(`transform: translate(${Math.round(t.offsetX)}pt, ${Math.round(t.offsetY)}pt)`)
+  }
+  const logoStyle = logoStyleParts.length ? ` style="${logoStyleParts.join('; ')}"` : ''
   const logoHtml = b.logoUrl
-    ? `<div class="logo"><img src="${escapeHtml(b.logoUrl)}" alt=""></div>`
-    : `<div class="logo">📚</div>`
+    ? `<div class="logo"${logoStyle}><img src="${escapeHtml(b.logoUrl)}" alt=""></div>`
+    : `<div class="logo"${logoStyle}>📚</div>`
   return `<div class="banner">
   <div class="banner-left">${logoHtml}</div>
   <div class="banner-text">
