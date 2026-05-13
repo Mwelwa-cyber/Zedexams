@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useTheme, THEMES } from '../../contexts/ThemeContext';
+import { useAuth } from '../../contexts/AuthContext';
+import CharacterAvatar, {
+  CHARACTERS,
+  INTEREST_GROUPS,
+  getCharacter,
+} from '../profile/CharacterAvatar';
 import SeoHelmet from '../seo/SeoHelmet';
 
 /* ============================================================================
@@ -893,6 +899,164 @@ function AdminControls({ pushToast }) {
 
 /* ── Account & Profile (per role) ─────────────────────────────────────────── */
 
+/* ── Character avatar picker ──────────────────────────────────────────────── */
+
+function CharacterAvatarPicker({ pushToast }) {
+  const { userProfile, updateProfileFields } = useAuth();
+  const [filter, setFilter] = useState('all');
+  const [savingId, setSavingId] = useState(null);
+  const selectedId = userProfile?.avatarCharacter || null;
+  const selected = getCharacter(selectedId);
+
+  const visible = filter === 'all'
+    ? CHARACTERS
+    : CHARACTERS.filter((c) => c.group === filter);
+
+  const groups = [{ id: 'all', label: 'All' }, ...INTEREST_GROUPS];
+
+  const handlePick = async (id) => {
+    if (id === selectedId || savingId) return;
+    setSavingId(id);
+    try {
+      await updateProfileFields({ avatarCharacter: id });
+      pushToast('success', 'Avatar updated.');
+    } catch (err) {
+      pushToast('error', 'Could not save avatar. Please try again.');
+      console.error('avatar save failed', err);
+    } finally {
+      setSavingId(null);
+    }
+  };
+
+  return (
+    <SectionCard
+      title="Character avatar"
+      description="Pick a character to show on your profile and in the nav bar."
+    >
+      {/* Current selection preview */}
+      <div
+        style={{
+          display: 'flex', alignItems: 'center', gap: 14,
+          padding: 12, marginBottom: 16,
+          background: T.surface, border: `1px solid ${T.border}`, borderRadius: 10,
+        }}
+      >
+        <div style={{
+          width: 56, height: 56, borderRadius: '50%',
+          overflow: 'hidden', flexShrink: 0,
+          background: T.primarySoft,
+          border: `2px solid ${T.primary}`,
+        }}>
+          {selected
+            ? <CharacterAvatar characterId={selected.id} className="w-full h-full" />
+            : (
+              <div style={{
+                width: '100%', height: '100%',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                color: T.primary, fontWeight: 700, fontSize: 18,
+              }}>
+                ?
+              </div>
+            )}
+        </div>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 13, color: T.muted, marginBottom: 2 }}>
+            Current avatar
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: T.text }}>
+            {selected ? selected.name : 'None selected yet'}
+          </div>
+        </div>
+      </div>
+
+      {/* Interest filter chips */}
+      <div style={{
+        display: 'flex', flexWrap: 'wrap', gap: 6,
+        marginBottom: 14,
+      }}>
+        {groups.map((g) => {
+          const active = filter === g.id;
+          return (
+            <button
+              key={g.id}
+              type="button"
+              onClick={() => setFilter(g.id)}
+              style={{
+                padding: '6px 12px',
+                fontFamily: T.font, fontSize: 13, fontWeight: 600,
+                color: active ? T.panel : T.textSoft,
+                background: active ? T.primary : T.panel,
+                border: `1px solid ${active ? T.primary : T.border}`,
+                borderRadius: 999, cursor: 'pointer',
+              }}
+            >
+              {g.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Character grid */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(96px, 1fr))',
+          gap: 10,
+        }}
+      >
+        {visible.map((c) => {
+          const isSelected = c.id === selectedId;
+          const isSaving = savingId === c.id;
+          return (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => handlePick(c.id)}
+              disabled={!!savingId}
+              aria-pressed={isSelected}
+              aria-label={`Select ${c.name}`}
+              style={{
+                position: 'relative',
+                padding: 0, border: 'none', background: 'transparent',
+                cursor: savingId ? 'wait' : 'pointer',
+                borderRadius: 10, overflow: 'hidden',
+                outline: isSelected ? `3px solid ${T.primary}` : `1px solid ${T.border}`,
+                outlineOffset: isSelected ? -3 : -1,
+                // Source tile aspect: (1024/5) : (1536/4) = 4096 : 7680
+                aspectRatio: '4096 / 7680',
+                opacity: isSaving ? 0.6 : 1,
+                transition: 'transform .12s ease, outline-color .12s ease',
+                transform: isSelected ? 'scale(1.02)' : 'scale(1)',
+              }}
+            >
+              <CharacterAvatar
+                characterId={c.id}
+                variant="tile"
+                className="w-full h-full"
+              />
+              {isSelected && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    position: 'absolute', top: 6, right: 6,
+                    width: 22, height: 22, borderRadius: '50%',
+                    background: T.primary, color: T.panel,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 13, fontWeight: 800,
+                    boxShadow: '0 2px 6px rgba(0,0,0,.25)',
+                  }}
+                >
+                  ✓
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+    </SectionCard>
+  );
+}
+
 function AccountProfile({ role, pushToast }) {
   const [form, setForm] = useState(() => DEFAULT_PROFILE[role]);
   const [saving, setSaving] = useState(false);
@@ -938,6 +1102,7 @@ function AccountProfile({ role, pushToast }) {
 
   return (
     <>
+      <CharacterAvatarPicker pushToast={pushToast} />
       <SectionCard
         title="Profile"
         description="This information is visible to other users where appropriate."

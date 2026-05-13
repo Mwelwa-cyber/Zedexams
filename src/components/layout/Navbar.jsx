@@ -18,6 +18,7 @@ import { useSubscription } from '../../hooks/useSubscription'
 import { getRoleLandingPath } from '../../utils/navigation'
 import Logo from '../ui/Logo'
 import Icon from '../ui/Icon'
+import CharacterAvatar from '../profile/CharacterAvatar'
 import MobileBottomNav from './MobileBottomNav'
 
 export default function Navbar() {
@@ -44,6 +45,24 @@ export default function Navbar() {
 
   const initials = (userProfile?.displayName || 'U')
     .split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
+  const avatarCharacterId = userProfile?.avatarCharacter || null
+
+  // Avatar = chosen character (if any) inside a circular crop, else initials.
+  // Sized by the parent's h-/w- classes so all three nav slots stay in sync
+  // with the existing layout.
+  const renderAvatar = (sizeClasses) => (
+    <div
+      className={`${sizeClasses} flex-shrink-0 overflow-hidden rounded-full ${
+        avatarCharacterId
+          ? 'theme-bg-subtle theme-border border'
+          : 'theme-accent-fill theme-on-accent flex items-center justify-center text-xs font-black shadow-elev-inner-hl'
+      }`}
+    >
+      {avatarCharacterId
+        ? <CharacterAvatar characterId={avatarCharacterId} className="w-full h-full" />
+        : initials}
+    </div>
+  )
 
   const badgeColors = {
     green:  'theme-accent-bg theme-accent-text theme-border',
@@ -111,9 +130,7 @@ export default function Navbar() {
           </span>
 
           <div className="flex items-center gap-2 pl-2 border-l theme-border">
-            <div className="theme-accent-fill theme-on-accent flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-black shadow-elev-inner-hl">
-              {initials}
-            </div>
+            {renderAvatar('h-8 w-8')}
             <div className="text-right hidden lg:block">
               <p className="theme-text font-black text-xs leading-tight truncate max-w-[100px]">
                 {userProfile?.displayName ?? 'User'}
@@ -133,9 +150,7 @@ export default function Navbar() {
 
         {/* Mobile right — avatar + hamburger */}
         <div className="flex md:hidden items-center gap-2">
-          <div className="theme-accent-fill theme-on-accent flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-black shadow-elev-inner-hl">
-            {initials}
-          </div>
+          {renderAvatar('h-7 w-7')}
           <button
             onClick={() => setOpen(o => !o)}
             aria-label={open ? 'Close navigation menu' : 'Open navigation menu'}
@@ -153,9 +168,7 @@ export default function Navbar() {
           <div className="max-w-5xl mx-auto px-4 py-3 pb-24">
             {/* User info */}
             <div className="flex items-center gap-3 py-3 mb-2 border-b theme-border">
-              <div className="theme-accent-fill theme-on-accent flex h-10 w-10 items-center justify-center rounded-full font-black shadow-elev-inner-hl">
-                {initials}
-              </div>
+              {renderAvatar('h-10 w-10')}
               <div>
                 <p className="font-black theme-text text-sm">{userProfile?.displayName ?? 'User'}</p>
                 <div className="flex items-center gap-1.5 flex-wrap mt-0.5">
