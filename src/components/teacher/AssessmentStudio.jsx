@@ -17,6 +17,7 @@ import {
 } from '../../hooks/useAssessmentDraft'
 import { storage } from '../../firebase/config'
 import { generateAIQuizQuestions } from '../../utils/aiAssistant'
+import { generateDiagram } from '../../utils/generateDiagram'
 import {
   createPartGroup,
   createPassageSection,
@@ -312,6 +313,7 @@ export default function AssessmentStudio() {
   const [saving, setSaving] = useState(false)
   const [aiForm, setAiForm] = useState({ topic: '', count: 5, type: 'mcq' })
   const [aiGenerating, setAiGenerating] = useState(false)
+  const [generatingDiagram, setGeneratingDiagram] = useState(false)
   const [importingDocument, setImportingDocument] = useState(false)
   const [importSummary, setImportSummary] = useState(null)
   const [importedAssets, setImportedAssets] = useState({})
@@ -744,6 +746,42 @@ export default function AssessmentStudio() {
     }
   }
 
+  /* ------------ AI diagram generation (Recraft) ------------ */
+  // The generated PNG lives in Firebase Storage; we attach it as the
+  // imageUrl of a fresh "structured" question whose text is the prompt
+  // itself, so teachers can immediately edit the question wording.
+  async function handleGenerateDiagram(prompt) {
+    const clean = String(prompt || '').trim()
+    if (!clean) {
+      showToast('Describe the diagram you want to generate.', true)
+      return
+    }
+    setGeneratingDiagram(true)
+    try {
+      const { url } = await generateDiagram({ prompt: clean })
+      const newSection = buildStandaloneSection({
+        type: 'diagram',
+        detectedType: 'diagram',
+        text: clean,
+        imageUrl: url,
+        marks: 5,
+        options: [],
+        correctAnswer: '',
+        wordBank: [],
+      })
+      setSections(prev => hasOnlyEmptyStarterSection(prev)
+        ? [newSection]
+        : [...prev, newSection])
+      showToast('Diagram generated. Edit the question text or word bank to label it.')
+      closeSlide()
+      if (view !== 'builder') changeView('builder')
+    } catch (error) {
+      showToast(error?.message || 'Diagram generation failed.', true)
+    } finally {
+      setGeneratingDiagram(false)
+    }
+  }
+
   /* ------------ document import ------------ */
   async function handleImportDocument(file) {
     const hasExistingWork = !hasOnlyEmptyStarterSection(sections)
@@ -1143,6 +1181,9 @@ export default function AssessmentStudio() {
         onImport={handleImportDocument}
         importing={importingDocument}
         onAction={(label) => showToast(`${label} — coming soon.`)}
+        onGenerateDiagram={handleGenerateDiagram}
+        generatingDiagram={generatingDiagram}
+        onOpenMarkingKey={() => { closeSlide(); changeView('marking-key') }}
       />
       <EditorSlide
         open={slideover === 'editor'}
@@ -2642,7 +2683,7 @@ function BlockPickerItem({ icon, title, hint, onClick, disabled, gold }) {
 /* ==================================================================
  * AI ASSISTANT SLIDE-OVER
  * ================================================================== */
-function AiSlide({ open, onClose, aiForm, setAiForm, form, generating, onGenerate, onImport, importing, onAction }) {
+function AiSlide({ open, onClose, aiForm, setAiForm, form, generating, onGenerate, onImport, importing, onAction, onGenerateDiagram, generatingDiagram, onOpenMarkingKey }) {
   const docInputRef = useRef(null)
   return (
     <aside className={`sv-slideover ${open ? 'open' : ''}`}>
@@ -2716,14 +2757,14 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, generating, onGenerat
               }}
             />
           </button>
-          <button className="sv-ai-action" disabled onClick={() => onAction('Generate marking key')}>
+          <button className="sv-ai-action" onClick={onOpenMarkingKey}>
             <div className="sv-ic">📑</div>
-            <div><strong>Generate marking key</strong><small>Coming soon</small></div>
+            <div><strong>Open marking key</strong><small>Auto-generated answers + explanations</small></div>
           </button>
-          <button className="sv-ai-action" disabled onClick={() => onAction('Generate labelled diagram')}>
-            <div className="sv-ic">🎨</div>
-            <div><strong>Generate labelled diagram</strong><small>Coming soon</small></div>
-          </button>
+          <DiagramGeneratorAction
+            disabled={generatingDiagram}
+            onGenerate={onGenerateDiagram}
+          />
           <button className="sv-ai-action" disabled onClick={() => onAction('Balance paper difficulty')}>
             <div className="sv-ic">⚖</div>
             <div><strong>Balance paper difficulty</strong><small>Coming soon</small></div>
@@ -2739,6 +2780,58 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, generating, onGenerat
         </div>
       </div>
     </aside>
+  )
+}
+
+/* ==================================================================
+ * DIAGRAM GENERATOR (inline mini-form inside AiSlide)
+ *
+ * Takes a free-form description ("Cross-section of human skin labelled
+ * epidermis, dermis, hypodermis"), calls the Recraft-backed callable,
+ * and the resulting Storage URL is added as the question image of a
+ * fresh "structured" question via the parent's onGenerate handler.
+ * ================================================================== */
+function DiagramGeneratorAction({ disabled, onGenerate }) {
+  const [prompt, setPrompt] = useState('')
+  const [open, setOpen] = useState(false)
+  return (
+    <div className={`sv-ai-action ${open ? 'expanded' : ''}`} style={{ display: 'block', padding: 'var(--sv-s3)' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{ display: 'flex', alignItems: 'center', gap: 'var(--sv-s3)', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+      >
+        <div className="sv-ic">🎨</div>
+        <div style={{ flex: 1 }}>
+          <strong style={{ display: 'block', fontWeight: 600 }}>Generate diagram</strong>
+          <small style={{ color: 'var(--sv-muted)', fontSize: 12 }}>B&W line art via Recraft</small>
+        </div>
+        <span style={{ color: 'var(--sv-muted)' }}>{open ? '▾' : '▸'}</span>
+      </button>
+      {open && (
+        <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <textarea
+            value={prompt}
+            onChange={e => setPrompt(e.target.value)}
+            placeholder="Describe the diagram (e.g. Cross-section of human skin labelled epidermis, dermis, hypodermis)"
+            rows={3}
+            style={{ width: '100%', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: 8, fontSize: 13, background: 'var(--sv-paper)', fontFamily: 'inherit', resize: 'vertical' }}
+            disabled={disabled}
+          />
+          <button
+            type="button"
+            className="sv-btn sv-btn-primary sv-btn-full"
+            disabled={disabled || !prompt.trim()}
+            onClick={() => onGenerate(prompt.trim()).then(() => setPrompt(''))}
+          >
+            {disabled ? '⏳ Generating…' : '✨ Generate diagram'}
+          </button>
+          <small style={{ color: 'var(--sv-muted)', fontSize: 11 }}>
+            The image is added as a new structured question with the prompt as its question text. Counts toward your monthly diagram quota.
+          </small>
+        </div>
+      )}
+    </div>
   )
 }
 

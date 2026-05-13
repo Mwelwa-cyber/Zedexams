@@ -63,6 +63,10 @@ const {
 const {
   createGenerateNotes,
 } = require("./teacherTools/generateNotes");
+// Teacher Tools — Diagram Generator (Recraft, B&W line art for assessments).
+const {
+  createGenerateDiagram,
+} = require("./teacherTools/generateDiagram");
 // Teacher Tools — Lesson Plan Studio (vanilla JS studio, free-form prompts).
 const {
   createStudioGenerateLessonPlan,
@@ -142,6 +146,7 @@ const mtnSubscriptionKey = defineSecret("MTN_SUBSCRIPTION_KEY");
 const mtnEnv = defineSecret("MTN_ENV");
 const emailSmtpUser = defineSecret("EMAIL_SMTP_USER");
 const emailSmtpPassword = defineSecret("EMAIL_SMTP_PASSWORD");
+const recraftApiKey = defineSecret("RECRAFT_API_KEY");
 const MAX_LEN = {
   question: 1200,
   correctAnswer: 600,
@@ -1820,6 +1825,9 @@ exports.generateRubric = createGenerateRubric(anthropicApiKey);
 
 // Teacher Tools — Notes Studio (teacher delivery notes).
 exports.generateNotes = createGenerateNotes(anthropicApiKey);
+
+// Teacher Tools — Diagram Generator (Recraft, B&W line art for assessments).
+exports.generateDiagram = createGenerateDiagram(recraftApiKey);
 
 // Teacher Tools — admin-only: import the built-in G1-9 topics into Firestore.
 exports.importBuiltInCbcTopics = importBuiltInCbcTopics;

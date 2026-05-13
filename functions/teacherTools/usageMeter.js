@@ -25,6 +25,7 @@ const PLAN_LIMITS = {
     rubric: 0,
     scheme_of_work: 0,
     notes: 3,
+    diagram: 3,
   },
   individual: {
     lesson_plan: 40,
@@ -34,6 +35,7 @@ const PLAN_LIMITS = {
     rubric: 8,
     scheme_of_work: 2,
     notes: 25,
+    diagram: 30,
   },
   school: {
     lesson_plan: 200,
@@ -43,6 +45,7 @@ const PLAN_LIMITS = {
     rubric: 200,
     scheme_of_work: 200,
     notes: 200,
+    diagram: 200,
   },
 };
 
