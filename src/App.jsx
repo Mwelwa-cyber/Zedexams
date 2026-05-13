@@ -2,6 +2,9 @@ import { lazy, Suspense, useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
 import { useTheme, applyThemeToBody, DEFAULT_THEME } from './contexts/ThemeContext'
+import { PlatformSettingsProvider } from './contexts/PlatformSettingsContext'
+import MaintenanceBanner from './components/banners/MaintenanceBanner'
+import AnnouncementBanner from './components/banners/AnnouncementBanner'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import LearnerOnlyRoute from './components/auth/LearnerOnlyRoute'
 import Navbar from './components/layout/Navbar'
@@ -107,6 +110,12 @@ const AdminLearnerProfile = lazy(() => import('./components/admin/AdminLearnerPr
 const GenerationsAdmin = lazy(() => import('./components/admin/GenerationsAdmin'))
 const CbcKbAdmin = lazy(() => import('./components/admin/CbcKbAdmin'))
 const AdminAiCosts = lazy(() => import('./components/admin/AdminAiCosts'))
+const AdminUsersList = lazy(() => import('./components/admin/users/AdminUsersList'))
+const AdminUserProfile = lazy(() => import('./components/admin/users/AdminUserProfile'))
+const AdminSettings = lazy(() => import('./components/admin/settings/AdminSettings'))
+const AnnouncementsAdmin = lazy(() => import('./components/admin/announcements/AnnouncementsAdmin'))
+const AdminActivityLog = lazy(() => import('./components/admin/AdminActivityLog'))
+const AdminAnalytics = lazy(() => import('./components/admin/AdminAnalytics'))
 
 // Admin — Agents (operating-model dashboard)
 const AgentsHome      = lazy(() => import('./components/admin/agents/AgentsHome').then(m => ({ default: m.AgentsHome })))
@@ -298,12 +307,18 @@ export default function App() {
         v7_relativeSplatPath: true,
       }}
     >
+      <PlatformSettingsProvider>
       {/* First focusable element on every page — keyboard users press Tab
           once and can jump past the navbar straight into route content.
           Wrapper div uses id="main" rather than a <main> element because
           some routes (e.g. PublicShareView) render their own <main>, and
           the spec only allows one main landmark per document. */}
       <a href="#main" className="skip-link">Skip to main content</a>
+      {/* Maintenance / announcement banners — driven by settings/global +
+          announcements collection. Stay above the offline banner so they
+          don't get hidden under the network indicator. */}
+      <MaintenanceBanner />
+      <AnnouncementBanner />
       {/* Offline banner — slides in at the top when navigator.onLine flips
           false. Firestore queues writes locally so the user's progress
           survives the network drop; this is the visible reassurance. */}
@@ -424,6 +439,14 @@ export default function App() {
           <Route path="/admin/papers/new"               element={<AdminRoute><AdminPastPaperEditor /></AdminRoute>} />
           <Route path="/admin/papers/:paperId/edit"     element={<AdminRoute><AdminPastPaperEditor /></AdminRoute>} />
           <Route path="/admin/games-seed"               element={<AdminRoute><GamesSeedAdmin /></AdminRoute>} />
+          <Route path="/admin/users"                    element={<AdminRoute><AdminUsersList defaultRole="all" /></AdminRoute>} />
+          <Route path="/admin/users/:userId"            element={<AdminRoute><AdminUserProfile /></AdminRoute>} />
+          <Route path="/admin/teachers"                 element={<AdminRoute><AdminUsersList defaultRole="teacher" /></AdminRoute>} />
+          <Route path="/admin/admins"                   element={<AdminRoute><AdminUsersList defaultRole="admin" /></AdminRoute>} />
+          <Route path="/admin/settings"                 element={<AdminRoute><AdminSettings /></AdminRoute>} />
+          <Route path="/admin/announcements"            element={<AdminRoute><AnnouncementsAdmin /></AdminRoute>} />
+          <Route path="/admin/activity"                 element={<AdminRoute><AdminActivityLog /></AdminRoute>} />
+          <Route path="/admin/analytics"                element={<AdminRoute><AdminAnalytics /></AdminRoute>} />
           <Route path="/admin/learners"                 element={<AdminRoute><AdminLearners /></AdminRoute>} />
           <Route path="/admin/learners/:learnerId"      element={<AdminRoute><AdminLearnerProfile /></AdminRoute>} />
           <Route path="/admin/results"                  element={<AdminRoute><AdminResults /></AdminRoute>} />
@@ -478,6 +501,7 @@ export default function App() {
           <PaywallHost />
         </Suspense>
       </div>
+      </PlatformSettingsProvider>
     </BrowserRouter>
   )
 }

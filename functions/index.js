@@ -1934,6 +1934,14 @@ exports.setSubscriptionCancellation = require("./subscriptionLifecycle").setSubs
 
 exports.apiTextToSpeech = require('./tts').apiTextToSpeech;
 
+// Admin dashboard overhaul — user lifecycle callables.
+// adminSetUserStatus soft-suspends or restores an account and revokes the
+// user's Auth refresh tokens on suspension; adminSetUserRole mutates role
+// with an audit-log entry. Both require the caller to be an admin
+// (verified by Firestore role lookup inside the callable).
+exports.adminSetUserStatus = require("./adminUsers").adminSetUserStatus;
+exports.adminSetUserRole = require("./adminUsers").adminSetUserRole;
+
 // Admin-only callable that bulk-creates demo learner accounts with a
 // trial Premium subscription. Mirrors the layout the admin UI's
 // "Grant Premium Manually" button writes (see grantPremium in
