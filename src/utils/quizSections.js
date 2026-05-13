@@ -130,6 +130,19 @@ function normalizePassageKind(value) {
   return value === PASSAGE_KIND_MAP ? PASSAGE_KIND_MAP : PASSAGE_KIND_COMPREHENSION
 }
 
+// A page break is a structural marker that forces a new page when the paper
+// is printed (PDF) or exported (DOCX). It carries no question content; it
+// just slots into the `sections[]` array between the questions either side
+// and gets serialized to a separate `pagebreaks[]` array on the assessment
+// doc (mirroring how passages are stored).
+export function createPagebreakSection(overrides = {}) {
+  return {
+    id: overrides.id || nextLocalId('pagebreak'),
+    kind: 'pagebreak',
+    partId: overrides.partId ?? null,
+  }
+}
+
 export function createPassageSection(passageOverrides = {}) {
   const passageId = passageOverrides.id || nextLocalId('passage')
   const questionOverrides = Array.isArray(passageOverrides.questions)
@@ -280,6 +293,8 @@ export function countQuizQuestions(sections = []) {
     if (section.kind === 'passage') {
       return total + (section.passage?.questions?.length || 0)
     }
+    // Page breaks are structural markers — they don't add to the count.
+    if (section.kind === 'pagebreak') return total
     return total + 1
   }, 0)
 }
@@ -372,6 +387,7 @@ export function serializeQuizSections(sections = [], parts = []) {
   // edits them; new quizzes save as stringified Tiptap JSON from day one.
   const passages = []
   const questions = []
+  const pagebreaks = []
   let questionOrder = 1
 
   // Allow-list of valid Part IDs. Any partId on a question that doesn't match
@@ -380,6 +396,18 @@ export function serializeQuizSections(sections = [], parts = []) {
   const resolvePartId = candidate => (candidate && validPartIds.has(candidate) ? candidate : null)
 
   sections.forEach(section => {
+    if (section.kind === 'pagebreak') {
+      // Page breaks consume an order slot so they sit between the questions
+      // either side of them in the rendered paper. They carry no question
+      // content of their own.
+      pagebreaks.push({
+        id: section.id || nextLocalId('pagebreak'),
+        order: questionOrder,
+        partId: resolvePartId(section.partId),
+      })
+      questionOrder += 1
+      return
+    }
     if (section.kind === 'passage') {
       const passage = section.passage || {}
       const passageId = passage.id || nextLocalId('passage')
@@ -444,6 +472,7 @@ export function serializeQuizSections(sections = [], parts = []) {
 
   return {
     passages,
+    pagebreaks,
     parts: serializedParts,
     questions,
     questionCount: questions.length,
@@ -546,7 +575,7 @@ function hydratePassageQuestion(question = {}, passageId, partId = null) {
   })
 }
 
-export function hydrateQuizSections(questions = [], passages = [], parts = []) {
+export function hydrateQuizSections(questions = [], passages = [], parts = [], pagebreaks = []) {
   // Returns `{ sections, parts }`. Pre-PRISCA-format callers passed only
   // questions+passages; the new return shape is a breaking change consumed by
   // EditQuizV2/CreateQuizV2 which both treat `parts` as opt-in state. Empty
@@ -610,6 +639,13 @@ export function hydrateQuizSections(questions = [], passages = [], parts = []) {
     })
   })
 
+  // Page breaks slot into the same order space as questions/passages so
+  // they end up at the right place between them once we sort.
+  const pagebreakEntries = (pagebreaks || []).map(pb => ({
+    order: pb.order ?? Number.MAX_SAFE_INTEGER,
+    section: createPagebreakSection({ id: pb.id, partId: pb.partId ?? null }),
+  }))
+
   const combined = [
     ...standaloneSections,
     ...Array.from(passageSections.values()).map(entry => {
@@ -620,6 +656,7 @@ export function hydrateQuizSections(questions = [], passages = [], parts = []) {
       }
       return entry
     }),
+    ...pagebreakEntries,
   ]
     .sort((left, right) => left.order - right.order)
     .map(entry => entry.section)

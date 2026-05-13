@@ -18,6 +18,7 @@ import {
   HeadingLevel,
   ImageRun,
   Packer,
+  PageBreak,
   Paragraph,
   Table,
   TableCell,
@@ -125,6 +126,7 @@ async function renderBlock(block) {
     case 'sectionHeader': return renderSectionHeader(block)
     case 'passage': return renderPassage(block)
     case 'question': return renderQuestion(block)
+    case 'pagebreak': return [new Paragraph({ children: [new PageBreak()] })]
     case 'endOfPaper': return [centeredPara(runText(block.text, { italics: true, size: 20, color: '555555' }))]
     case 'footerCode': return [new Paragraph({
       children: [runText(block.code, { size: 18, color: '555555' })],

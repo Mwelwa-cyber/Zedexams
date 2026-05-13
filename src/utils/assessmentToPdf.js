@@ -314,6 +314,7 @@ body {
 .seq-list { margin: 6pt 0 12pt; }
 .seq-row { display: flex; align-items: center; gap: 10pt; padding: 3pt 0; border-bottom: 1px dotted #999; }
 .seq-blank { display: inline-block; width: 30pt; border-bottom: 1px solid #000; height: 12pt; }
+.pagebreak { page-break-after: always; break-after: page; height: 0; }
 
 .diagram-box {
   border: 1px dashed #999;
@@ -369,6 +370,7 @@ function renderBlock(block) {
     case 'sectionHeader': return renderSectionHeader(block)
     case 'passage': return renderPassage(block)
     case 'question': return renderQuestion(block)
+    case 'pagebreak': return '<div class="pagebreak"></div>'
     case 'endOfPaper': return `<div class="end-of-paper">${escapeHtml(block.text)}</div>`
     case 'footerCode': return `<div class="footer-code">${escapeHtml(block.code)}</div>`
     default: return ''
