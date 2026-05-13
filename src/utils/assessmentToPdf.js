@@ -1,34 +1,19 @@
 /**
- * Print a teacher-private assessment as a PDF using the browser's native
- * print dialog. Mirrors `lessonPlanToPdf.js`: open a new window, write
- * print-friendly HTML, trigger window.print(), let the user pick
- * "Save as PDF" in the system dialog. No external PDF library — keeps
- * the bundle small.
+ * Print an assessment as a PDF via the browser's native print dialog.
+ *
+ * The output mirrors the in-studio Preview pixel-for-pixel: marble banner,
+ * subject + optional paper name, school logo, comprehension passages,
+ * image-MCQ option grids, etc. The shared `buildPaperLayout` helper is the
+ * single source of truth — preview, PDF, and DOCX all walk the same blocks.
  *
  * Two modes:
  *   - 'paper'  (default): printable paper for pupils.
- *   - 'scheme': marking scheme with answers/explanations.
+ *   - 'scheme': marking key for teachers (correct answer + explanation per Q).
  */
 
-import { richTextToPlainText } from './quizRichText.js'
+import { buildPaperLayout } from './assessmentPaperLayout.js'
 
-const ASSESSMENT_TYPE_LABELS = {
-  weekly: 'Weekly Test',
-  monthly: 'Monthly Test',
-  mid_term: 'Mid-term Test',
-  end_of_term: 'End-of-term Test',
-  topic: 'Topic Test',
-  mock: 'Mock Exam',
-  diagnostic: 'Diagnostic / Baseline',
-  pre_test: 'Pre-test',
-  post_test: 'Post-test',
-  revision: 'Revision Test',
-  continuous: 'Continuous Assessment',
-  summative: 'Summative Assessment',
-  practical: 'Practical Assessment',
-  oral: 'Oral Assessment',
-  project: 'Project-based Assessment',
-}
+const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
 function escapeHtml(s) {
   return String(s ?? '')
@@ -39,30 +24,15 @@ function escapeHtml(s) {
     .replace(/'/g, '&#39;')
 }
 
-function letterFor(index) {
-  return String.fromCharCode(65 + index)
-}
-
-function groupByPart(questions, parts) {
-  const partsById = new Map()
-  for (const part of parts || []) {
-    partsById.set(part.id, { ...part, questions: [] })
-  }
-  const standalone = { id: null, title: '', questions: [] }
-  for (const q of questions || []) {
-    const partId = q.partId || null
-    if (partId && partsById.has(partId)) {
-      partsById.get(partId).questions.push(q)
-    } else {
-      standalone.questions.push(q)
-    }
-  }
-  const ordered = [...partsById.values()].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-  return standalone.questions.length ? [standalone, ...ordered] : ordered
-}
-
-function partMarksTotal(part) {
-  return (part.questions || []).reduce((s, q) => s + (q.marks || 1), 0)
+// Render option letters like (A) (B) inline-bold even when wrapped in text.
+function renderInstructionsHtml(text) {
+  if (!text) return ''
+  // Treat as plain text — escape, then bold (A)(B)(C)(D) tags.
+  const escaped = escapeHtml(text)
+  const withBold = escaped.replace(/\(([A-D])\)/g, '<strong>($1)</strong>')
+  // Preserve paragraph breaks
+  const paras = withBold.split(/\n\s*\n/).map(p => p.replace(/\n/g, ' '))
+  return paras.map(p => `<p>${p}</p>`).join('')
 }
 
 export function printAssessmentAsPdf(assessment, questions, { mode = 'paper' } = {}) {
@@ -83,252 +53,475 @@ export function printAssessmentAsPdf(assessment, questions, { mode = 'paper' } =
       win.focus()
       win.print()
     } catch {
-      // Fall through; user can hit Ctrl+P manually.
+      // User can hit Ctrl+P manually.
     }
   }
-  if (win.document.readyState === 'complete') setTimeout(ready, 120)
-  else win.addEventListener('load', () => setTimeout(ready, 120))
+  if (win.document.readyState === 'complete') setTimeout(ready, 200)
+  else win.addEventListener('load', () => setTimeout(ready, 200))
 }
 
 function buildPrintableHtml(assessment, questions, mode) {
-  const includeAnswer = mode === 'scheme'
-  const typeLabel = ASSESSMENT_TYPE_LABELS[assessment.assessmentType] || 'Assessment'
-  const title = assessment.title || typeLabel
-  const docTitle = includeAnswer ? `${title} — Marking Scheme` : title
-
-  const coverRows = [
-    ['School',          assessment.schoolName],
-    ['Class',           assessment.className],
-    ['Subject',         assessment.subject],
-    ['Grade',           assessment.grade ? `Grade ${assessment.grade}` : ''],
-    ['Term',            assessment.term ? `Term ${assessment.term}` : ''],
-    ['Date',            assessment.assessmentDate],
-    ['Duration',        assessment.duration ? `${assessment.duration} minutes` : ''],
-    ['Total marks',     assessment.totalMarks != null ? String(assessment.totalMarks) : ''],
-    ['Topic',           assessment.topic],
-  ].filter(([, v]) => v != null && String(v).trim() !== '')
-
-  const sortedQs = [...questions].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-  const groups = groupByPart(sortedQs, assessment.parts || [])
-
-  let runningNumber = 0
-  const groupsHtml = groups.length === 0
-    ? `<p class="muted">(This assessment has no questions yet.)</p>`
-    : groups.map(group => {
-      const isUnsectioned = !group.id
-      const total = partMarksTotal(group)
-      const heading = isUnsectioned
-        ? ''
-        : `<h2>${escapeHtml(group.title || 'Section')} <span class="mins">— ${total} mark${total === 1 ? '' : 's'}</span></h2>`
-      const qHtml = group.questions.map(q => {
-        runningNumber += 1
-        return renderQuestion(q, runningNumber, includeAnswer)
-      }).join('')
-      return heading + qHtml
-    }).join('')
+  const blocks = buildPaperLayout(assessment, questions, { mode })
+  const docTitle = mode === 'scheme'
+    ? `${assessment.title || 'Marking Key'} — Marking Key`
+    : (assessment.title || 'Assessment')
 
   return `<!DOCTYPE html>
 <html>
 <head>
   <meta charset="utf-8">
   <title>${escapeHtml(docTitle)}</title>
-  <style>
-    @page { size: A4; margin: 18mm; }
-    * { box-sizing: border-box; }
-    body {
-      font-family: 'Calibri', 'Segoe UI', Arial, sans-serif;
-      color: #111;
-      margin: 0;
-      font-size: 12pt;
-      line-height: 1.45;
-    }
-    h1 {
-      font-size: 22pt;
-      text-align: center;
-      margin: 0 0 6pt;
-      letter-spacing: 0.3pt;
-    }
-    .subtitle {
-      text-align: center;
-      text-transform: uppercase;
-      font-weight: bold;
-      font-size: 11pt;
-      color: #6b7280;
-      letter-spacing: 1pt;
-      margin-bottom: 16pt;
-    }
-    h2 {
-      font-size: 14pt;
-      margin: 22pt 0 8pt;
-      padding-bottom: 3pt;
-      border-bottom: 1pt solid #888;
-    }
-    h2 .mins {
-      font-weight: normal;
-      font-size: 11pt;
-      color: #6b7280;
-      font-style: italic;
-    }
-    table.cover {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 0 0 12pt;
-    }
-    table.cover td {
-      border: 0.5pt solid #888;
-      padding: 5pt 8pt;
-      font-size: 11pt;
-      vertical-align: top;
-    }
-    table.cover td.label {
-      width: 30%;
-      background: #f3f4f6;
-      font-weight: bold;
-    }
-    .name-block {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 8pt 0 14pt;
-    }
-    .name-block td {
-      border: 0.5pt solid #888;
-      padding: 8pt;
-      font-size: 11pt;
-    }
-    .instructions {
-      margin: 6pt 0 18pt;
-      padding: 8pt 10pt;
-      border-left: 3pt solid #6b7280;
-      font-style: italic;
-      font-size: 11pt;
-      background: #fafafa;
-    }
-    .instructions strong {
-      font-style: normal;
-      display: block;
-      margin-bottom: 3pt;
-    }
-    .question {
-      margin: 14pt 0 6pt;
-      page-break-inside: avoid;
-    }
-    .question .q-num {
-      font-weight: bold;
-    }
-    .question .marks {
-      color: #6b7280;
-      font-style: italic;
-      font-size: 10pt;
-      margin-left: 6pt;
-    }
-    .options {
-      margin: 4pt 0 0 22pt;
-      padding: 0;
-      list-style: none;
-    }
-    .options li {
-      margin: 2pt 0;
-    }
-    .options li.correct {
-      color: #059669;
-      font-weight: bold;
-    }
-    .answer-line {
-      border-bottom: 0.5pt solid #aaa;
-      height: 14pt;
-      margin: 4pt 0;
-    }
-    .answer-block {
-      margin: 4pt 0 4pt 14pt;
-    }
-    .answer-block .ans {
-      color: #059669;
-      font-weight: bold;
-    }
-    .answer-block .notes {
-      color: #6b7280;
-      font-style: italic;
-      font-size: 10pt;
-      margin-top: 2pt;
-    }
-    .muted { color: #6b7280; font-style: italic; }
-    .total {
-      margin-top: 22pt;
-      padding-top: 8pt;
-      border-top: 1pt solid #444;
-      font-weight: bold;
-      font-size: 13pt;
-    }
-    @media print {
-      .no-print { display: none; }
-    }
-  </style>
+  <style>${PRINT_CSS}</style>
 </head>
 <body>
-  <h1>${includeAnswer ? `Marking Scheme — ${escapeHtml(title)}` : escapeHtml(title)}</h1>
-  <div class="subtitle">${escapeHtml(typeLabel)}</div>
-
-  ${coverRows.length ? `
-  <table class="cover">
-    <tbody>
-      ${coverRows.map(([k, v]) => `<tr><td class="label">${escapeHtml(k)}</td><td>${escapeHtml(v)}</td></tr>`).join('')}
-    </tbody>
-  </table>` : ''}
-
-  ${!includeAnswer ? `
-  <table class="name-block">
-    <tr>
-      <td>Pupil's Name: __________________________________________</td>
-      <td style="width: 30%;">Score: ______ / ______</td>
-    </tr>
-  </table>` : ''}
-
-  ${assessment.coverInstructions ? `
-  <div class="instructions"><strong>Instructions</strong>${escapeHtml(assessment.coverInstructions)}</div>` : ''}
-
-  ${groupsHtml}
-
-  ${includeAnswer ? `
-  <div class="total">Total marks: ${escapeHtml(String(assessment.totalMarks || 0))}</div>` : ''}
+${blocks.map(renderBlock).join('\n')}
 </body>
 </html>`
 }
 
-function renderQuestion(q, number, includeAnswer) {
-  const promptText = richTextToPlainText(q.text || '') || '(no question text)'
-  const marks = q.marks ?? 1
-  const type = q.type || 'mcq'
+const PRINT_CSS = `
+@page { size: A4; margin: 18mm 18mm 16mm; }
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: white; }
+body {
+  color: #111;
+  font-family: 'Times New Roman', 'Liberation Serif', serif;
+  font-size: 12pt;
+  line-height: 1.5;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
 
+.banner {
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.78) 0%, rgba(220,220,225,0.50) 50%, rgba(255,255,255,0.65) 100%),
+    repeating-linear-gradient(38deg, transparent 0, rgba(120,120,130,0.08) 2px, transparent 5px, rgba(180,180,190,0.06) 9px),
+    repeating-linear-gradient(-30deg, transparent 0, rgba(150,150,160,0.07) 1px, transparent 4px),
+    linear-gradient(180deg, #ececec, #e3e3e3);
+  border: 1px solid #c8c8c8;
+  padding: 14pt 18pt;
+  margin-bottom: 14pt;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12pt;
+  align-items: center;
+  page-break-inside: avoid;
+}
+.banner-left { justify-self: start; min-width: 0; }
+.banner-right { justify-self: end; min-width: 0; }
+.banner-text {
+  text-align: center;
+  font-family: 'Arial', 'Helvetica', sans-serif;
+  min-width: 0;
+}
+.banner-text .school {
+  font-weight: 800; font-size: 16pt;
+  letter-spacing: 0.4pt;
+  text-transform: uppercase;
+  line-height: 1.05;
+}
+.banner-text .title {
+  font-weight: 700; font-size: 11pt;
+  margin-top: 6pt;
+  letter-spacing: 0.3pt;
+  line-height: 1.3;
+}
+.banner-text .subject {
+  font-weight: 800; font-size: 12pt;
+  margin-top: 3pt;
+  letter-spacing: 0.4pt;
+}
+.banner-text .paper-name {
+  font-weight: 800; font-size: 11pt;
+  margin-top: 2pt;
+  letter-spacing: 0.4pt;
+}
+.logo {
+  width: 56pt; height: 56pt;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #7d3aa8, #4a1d6e 70%, #2d0e47);
+  display: grid; place-items: center;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.18);
+  color: white;
+  font-size: 22pt;
+}
+.logo img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+
+.learner-row {
+  display: flex; justify-content: space-between;
+  gap: 18pt;
+  font-size: 11pt;
+  margin: 12pt 0 4pt;
+  align-items: flex-end;
+  page-break-inside: avoid;
+}
+.learner-row span { white-space: nowrap; font-weight: 600; }
+.learner-row .line { flex: 1; border-bottom: 1px solid #000; height: 14pt; }
+.total-marks {
+  text-align: right;
+  font-size: 11pt; font-weight: 600;
+  margin: 4pt 0 14pt;
+}
+
+.instructions {
+  background: #f4f4f4;
+  border-left: 3pt solid #000;
+  padding: 8pt 12pt;
+  margin: 0 0 16pt;
+  font-size: 11pt;
+  line-height: 1.6;
+  page-break-inside: avoid;
+}
+.instructions .label {
+  display: block;
+  font-weight: 700;
+  font-size: 10pt;
+  text-transform: uppercase;
+  letter-spacing: 1pt;
+  margin-bottom: 4pt;
+}
+.instructions p { margin: 0 0 4pt; }
+.instructions strong { font-weight: 700; }
+
+.section-head {
+  font-weight: 700; font-size: 13pt;
+  text-transform: uppercase;
+  letter-spacing: 0.4pt;
+  border-bottom: 1px solid #000;
+  padding-bottom: 3pt;
+  margin: 16pt 0 6pt;
+  page-break-after: avoid;
+}
+.section-head .marks-tag { float: right; font-size: 11pt; }
+.section-instr {
+  font-style: italic; font-size: 11pt;
+  margin: 0 0 10pt;
+  color: #333;
+}
+
+.passage {
+  background: #fafafa;
+  border: 1px solid #ccc;
+  padding: 10pt 14pt;
+  margin: 8pt 0 14pt;
+  font-size: 11pt;
+  line-height: 1.6;
+  page-break-inside: avoid;
+}
+.passage .h {
+  display: block;
+  font-size: 10pt;
+  text-transform: uppercase;
+  letter-spacing: 0.4pt;
+  margin-bottom: 6pt;
+  font-weight: 700;
+}
+.passage img { max-width: 100%; max-height: 240pt; object-fit: contain; }
+
+.question {
+  margin: 10pt 0 12pt;
+  page-break-inside: avoid;
+  orphans: 3; widows: 3;
+}
+.question .qline {
+  font-size: 11.5pt;
+  line-height: 1.55;
+}
+.question .qline strong { font-weight: 700; }
+.question .qmarks {
+  white-space: nowrap;
+  font-style: italic;
+  color: #555;
+  font-size: 10pt;
+  margin-left: 4pt;
+}
+.question .word-bank {
+  border: 1px solid #000;
+  padding: 4pt 10pt;
+  margin: 4pt 0;
+  display: inline-block;
+  font-size: 10.5pt;
+}
+.question .word-bank strong { margin-right: 4pt; }
+.question .q-image { margin: 6pt 0; text-align: center; }
+.question .q-image img { max-width: 80%; max-height: 240pt; }
+
+.options-text {
+  padding-left: 18pt;
+  font-size: 11pt;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 3pt 14pt;
+  margin: 4pt 0 6pt;
+}
+.options-text.stacked { grid-template-columns: 1fr; padding-left: 22pt; }
+.options-text > div { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.options-text .letter { font-weight: 700; margin-right: 2pt; }
+
+.options-image {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 8pt;
+  margin: 6pt 0 8pt;
+  page-break-inside: avoid;
+}
+.options-image .item {
+  text-align: center;
+  border: 1px solid #999;
+  border-radius: 3pt;
+  padding: 4pt;
+  background: #fafafa;
+}
+.options-image .item .img-box {
+  width: 100%; aspect-ratio: 1;
+  display: grid; place-items: center;
+  background: white;
+  border-radius: 2pt;
+  margin-bottom: 2pt;
+  overflow: hidden;
+}
+.options-image .item .img-box img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.options-image .item .lbl { font-size: 9.5pt; font-weight: 700; }
+
+.options-mixed {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6pt;
+  margin: 6pt 0;
+  padding-left: 0;
+}
+.options-mixed .item {
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 4pt;
+  align-items: center;
+  padding: 4pt 6pt;
+  border: 1px solid #ccc;
+  border-radius: 3pt;
+}
+.options-mixed .item .img { width: 40pt; height: 40pt; object-fit: contain; }
+.options-mixed .item .letter { font-weight: 700; }
+
+.answer-lines { margin: 6pt 0 12pt; }
+.answer-line { border-bottom: 1px solid #000; height: 18pt; margin-bottom: 4pt; }
+
+.diagram-box {
+  border: 1px dashed #999;
+  background: #fafafa;
+  padding: 8pt;
+  text-align: center;
+  font-style: italic;
+  font-size: 10pt;
+  color: #777;
+  margin: 6pt 0;
+  min-height: 80pt;
+  display: grid; place-items: center;
+}
+.diagram-box img { max-width: 100%; max-height: 280pt; object-fit: contain; }
+
+.correct-mark { color: #047857; font-weight: 700; }
+.answer-block {
+  margin: 4pt 0 4pt 14pt;
+  padding: 4pt 8pt;
+  background: #ecfdf5;
+  border-left: 3pt solid #047857;
+  font-size: 10.5pt;
+}
+.answer-block .label { font-weight: 700; color: #047857; }
+.answer-block .notes { color: #555; font-style: italic; font-size: 10pt; margin-top: 2pt; }
+
+.end-of-paper {
+  text-align: center;
+  margin-top: 18pt;
+  padding-top: 8pt;
+  border-top: 1pt solid #000;
+  font-style: italic;
+  font-size: 10pt;
+  color: #555;
+}
+.footer-code {
+  text-align: right;
+  margin-top: 18pt;
+  font-size: 9.5pt;
+  color: #333;
+}
+
+@media print {
+  .section-head, .question, .passage, .instructions, .banner { page-break-inside: avoid; }
+}
+`
+
+function renderBlock(block) {
+  switch (block.kind) {
+    case 'header': return renderHeader(block)
+    case 'learnerFields': return renderLearnerFields(block)
+    case 'instructions': return renderInstructionsBlock(block)
+    case 'sectionHeader': return renderSectionHeader(block)
+    case 'passage': return renderPassage(block)
+    case 'question': return renderQuestion(block)
+    case 'endOfPaper': return `<div class="end-of-paper">${escapeHtml(block.text)}</div>`
+    case 'footerCode': return `<div class="footer-code">${escapeHtml(block.code)}</div>`
+    default: return ''
+  }
+}
+
+function renderHeader(b) {
+  const school = b.schoolName || 'YOUR SCHOOL NAME'
+  // Subject is required and always rendered. Paper name only when present.
+  const subjectLine = b.subject
+    ? `<div class="subject">${escapeHtml(b.subject)}</div>`
+    : ''
+  const paperLine = b.paperName
+    ? `<div class="paper-name">${escapeHtml(b.paperName)}</div>`
+    : ''
+  const logoHtml = b.logoUrl
+    ? `<div class="logo"><img src="${escapeHtml(b.logoUrl)}" alt=""></div>`
+    : `<div class="logo">📚</div>`
+  return `<div class="banner">
+  <div class="banner-left">${logoHtml}</div>
+  <div class="banner-text">
+    <div class="school">${escapeHtml(school).toUpperCase()}</div>
+    <div class="title">${escapeHtml(b.title)}</div>
+    ${subjectLine}
+    ${paperLine}
+  </div>
+  <div class="banner-right"></div>
+</div>`
+}
+
+function renderLearnerFields(b) {
+  const parts = []
+  if (b.name) parts.push(`<span>NAME:</span><div class="line"></div>`)
+  if (b.date) parts.push(`<span>DATE:</span><div class="line" style="max-width: 140pt;"></div>`)
+  const row1 = parts.length
+    ? `<div class="learner-row">${parts.join('')}</div>`
+    : ''
+  const row2 = b.classField
+    ? `<div class="learner-row"><span>CLASS:</span><div class="line"></div></div>`
+    : ''
+  const marksLine = b.marks
+    ? `<div class="total-marks">TOTAL MARKS: _____________ &nbsp; / &nbsp; ${b.totalMarks || '____'}</div>`
+    : ''
+  return [row1, row2, marksLine].filter(Boolean).join('\n')
+}
+
+function renderInstructionsBlock(b) {
+  if (!b.text) return ''
+  return `<div class="instructions">
+  <span class="label">Instructions</span>
+  ${renderInstructionsHtml(b.text)}
+</div>`
+}
+
+function renderSectionHeader(b) {
+  return `<div class="section-head">Section ${escapeHtml(b.letter)}${b.title ? ` — ${escapeHtml(b.title)}` : ''} <span class="marks-tag">(${b.marks} mark${b.marks === 1 ? '' : 's'})</span></div>
+  ${b.instructions ? `<div class="section-instr">${escapeHtml(b.instructions)}</div>` : ''}`
+}
+
+function renderPassage(b) {
+  return `<div class="passage">
+    ${b.title ? `<strong class="h">${escapeHtml(b.title)}</strong>` : ''}
+    ${b.text ? `<div>${b.text.split('\n\n').map(p => `<p>${escapeHtml(p)}</p>`).join('')}</div>` : ''}
+    ${b.imageUrl ? `<div style="margin-top:6pt; text-align:center;"><img src="${escapeHtml(b.imageUrl)}" alt=""></div>` : ''}
+  </div>`
+}
+
+function renderQuestion(b) {
+  const marks = b.marks ?? 1
+  const qmark = marks > 1
+    ? `<em class="qmarks">(${marks}&nbsp;marks)</em>`
+    : ''
   let body = ''
 
-  if (type === 'mcq' || type === 'tf') {
-    const options = Array.isArray(q.options) ? q.options : []
-    body = `<ul class="options">${options.map((opt, i) => {
-      const isCorrect = includeAnswer && Number(q.correctAnswer) === i
-      return `<li class="${isCorrect ? 'correct' : ''}">${letterFor(i)}. ${escapeHtml(String(opt ?? ''))}${isCorrect ? '  ✓' : ''}</li>`
-    }).join('')}</ul>`
-  } else if (type === 'short_answer' || type === 'short' || type === 'fill') {
-    if (includeAnswer) {
-      body = `<div class="answer-block"><span class="ans">✓ Answer:</span> ${escapeHtml(String(q.correctAnswer ?? ''))}</div>`
-    } else {
-      body = `<div class="answer-line"></div><div class="answer-line"></div>`
-    }
-  } else if (type === 'diagram') {
-    if (includeAnswer) {
-      body = `<div class="answer-block"><span class="ans">✓ Expected answer:</span> ${escapeHtml(String(q.correctAnswer ?? ''))}</div>`
-    } else {
-      body = `<div style="height: 50pt;"></div>`
-    }
+  if (b.imageUrl) {
+    body += `<div class="q-image"><img src="${escapeHtml(b.imageUrl)}" alt=""></div>`
+  }
+  if (b.wordBank && b.wordBank.length) {
+    body += `<div class="word-bank"><strong>Word bank:</strong> ${b.wordBank.map(escapeHtml).join(' · ')}</div>`
   }
 
-  const explanation = includeAnswer ? richTextToPlainText(q.explanation || '') : ''
-  const explanationHtml = explanation
-    ? `<div class="answer-block"><div class="notes">Notes: ${escapeHtml(explanation)}</div></div>`
-    : ''
+  if (b.type === 'mcq') {
+    body += renderOptionsHtml(b)
+  } else if (b.type === 'short_answer' || b.type === 'fill') {
+    body += renderAnswerLines(b.answerLines ?? 2)
+  } else if (b.type === 'diagram') {
+    body += renderAnswerLines(b.answerLines ?? 4)
+  } else if (b.type === 'essay') {
+    body += renderAnswerLines(b.answerLines ?? 10)
+  }
+
+  if (b.showAnswer) {
+    body += renderAnswerBlock(b)
+  }
 
   return `<div class="question">
-    <div><span class="q-num">${number}.</span> ${escapeHtml(promptText)}<span class="marks">[${marks} mark${marks === 1 ? '' : 's'}]</span></div>
+    <div class="qline"><strong>${b.number}.</strong> ${escapeHtml(b.text || '(no question text)')} ${qmark}</div>
     ${body}
-    ${explanationHtml}
   </div>`
+}
+
+function renderOptionsHtml(b) {
+  const opts = b.options || []
+  const correct = Number(b.correctAnswer)
+  if (b.optionsMode === 'image') {
+    return `<div class="options-image">
+      ${opts.map((opt, i) => {
+        const media = b.optionMedia?.[i]
+        const img = media?.imageUrl
+          ? `<img src="${escapeHtml(media.imageUrl)}" alt="${escapeHtml(media.alt || '')}">`
+          : '<span style="font-size:24pt;">?</span>'
+        const correctMark = (b.showAnswer && correct === i) ? ' <span class="correct-mark">✓</span>' : ''
+        return `<div class="item">
+          <div class="img-box">${img}</div>
+          <div class="lbl">${SECTION_LETTERS[i]}.${opt ? ` ${escapeHtml(opt)}` : ''}${correctMark}</div>
+        </div>`
+      }).join('')}
+    </div>`
+  }
+  if (b.optionsMode === 'mixed') {
+    return `<div class="options-mixed">
+      ${opts.map((opt, i) => {
+        const media = b.optionMedia?.[i]
+        const img = media?.imageUrl
+          ? `<img class="img" src="${escapeHtml(media.imageUrl)}" alt="${escapeHtml(media.alt || '')}">`
+          : '<span class="img" style="display:inline-block;width:40pt;height:40pt;"></span>'
+        const correctMark = (b.showAnswer && correct === i) ? ' <span class="correct-mark">✓</span>' : ''
+        return `<div class="item">
+          <span class="letter">${SECTION_LETTERS[i]}.</span>
+          ${img}
+          <span>${escapeHtml(opt)}${correctMark}</span>
+        </div>`
+      }).join('')}
+    </div>`
+  }
+  const long = opts.some(o => String(o).length > 18)
+  return `<div class="options-text ${long ? 'stacked' : ''}">
+    ${opts.map((opt, i) => {
+      const correctMark = (b.showAnswer && correct === i) ? ' <span class="correct-mark">✓</span>' : ''
+      return `<div><span class="letter">${SECTION_LETTERS[i]}.</span> ${escapeHtml(opt)}${correctMark}</div>`
+    }).join('')}
+  </div>`
+}
+
+function renderAnswerLines(count) {
+  const n = Math.max(1, Math.min(20, count))
+  return `<div class="answer-lines">${Array.from({ length: n }).map(() => '<div class="answer-line"></div>').join('')}</div>`
+}
+
+function renderAnswerBlock(b) {
+  let body = ''
+  if (b.type === 'mcq') {
+    const i = Number(b.correctAnswer)
+    const letter = SECTION_LETTERS[i] || '?'
+    const opt = b.options?.[i] ?? ''
+    body = `<div><span class="label">Answer:</span> ${escapeHtml(letter)}. ${escapeHtml(String(opt))}</div>`
+  } else {
+    body = `<div><span class="label">Expected answer:</span> ${escapeHtml(String(b.correctAnswer ?? ''))}</div>`
+  }
+  if (b.explanation) {
+    body += `<div class="notes">Notes: ${escapeHtml(b.explanation)}</div>`
+  }
+  return `<div class="answer-block">${body}</div>`
 }
