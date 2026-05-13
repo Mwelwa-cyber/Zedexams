@@ -48,6 +48,7 @@ const ALLOWED_TYPES = new Set([
   "numeric",
   "true_false",
   "fill_blank",
+  "matching",
 ]);
 
 const ALLOWED_LANGUAGES = new Set([
@@ -96,6 +97,18 @@ function sanitizeInputs(raw = {}) {
   const toleranceRaw = Number(raw.tolerance);
   const tolerance = Number.isFinite(toleranceRaw) && toleranceRaw >= 0 ? toleranceRaw : 0;
 
+  // Matching-only fields. Two parallel arrays of short strings (≤ 10 each).
+  // We keep blanks in place so the indices match what the studio stores,
+  // but the prompt renderer filters them out before sending to Claude.
+  const rawLeft = Array.isArray(raw.matchingLeft) ? raw.matchingLeft : [];
+  const matchingLeft = rawLeft
+    .slice(0, 10)
+    .map((v) => str(v, 200));
+  const rawRight = Array.isArray(raw.matchingRight) ? raw.matchingRight : [];
+  const matchingRight = rawRight
+    .slice(0, 10)
+    .map((v) => str(v, 200));
+
   return {
     type: ALLOWED_TYPES.has(type) ? type : "short_answer",
     text,
@@ -107,6 +120,8 @@ function sanitizeInputs(raw = {}) {
     wordBank,
     unit,
     tolerance,
+    matchingLeft,
+    matchingRight,
   };
 }
 
@@ -115,6 +130,16 @@ function validateInputs(inputs) {
   if (!inputs.text) errs.push("Question text is required.");
   if (inputs.type === "mcq" && inputs.nonEmptyOptionCount < 2) {
     errs.push("MCQs need at least two filled-in options.");
+  }
+  if (inputs.type === "matching") {
+    const leftFilled = inputs.matchingLeft.filter((s) => s.length > 0).length;
+    const rightFilled = inputs.matchingRight.filter((s) => s.length > 0).length;
+    if (leftFilled < 2 || rightFilled < 2) {
+      errs.push(
+        "Matching needs at least two filled-in items on each side before " +
+        "AI can suggest answers.",
+      );
+    }
   }
   return errs;
 }
@@ -135,6 +160,9 @@ const SYSTEM_PROMPT = [
   "- For structured / diagram / essay, return concise marking notes (1–3 sentences)",
   "  that capture the expected response.",
   "- For true_false, return the literal string \"True\" or \"False\".",
+  "- For matching, return an array of 0-based integers — one per left-column",
+  "  row — pointing at the right-column entry that pairs with each left item.",
+  "  The array length MUST equal the number of left-column items shown.",
   "- Rationale: one sentence, ≤ 30 words, suitable for a teacher to verify at a glance.",
   "- Confidence: 'high' if you are certain, 'medium' if there is mild ambiguity,",
   "  'low' if the question is ambiguous, off-syllabus, or you had to guess.",
@@ -177,6 +205,28 @@ function buildUserPrompt(inputs) {
     lines.push(`Word bank teacher provided: ${inputs.wordBank.join(", ")}`);
   }
 
+  // Matching guidance — render the two columns side-by-side using the
+  // ORIGINAL indices so blanks stay aligned with the studio's data model.
+  // We tell the model exactly how long the answer array must be.
+  if (inputs.type === "matching") {
+    lines.push("");
+    lines.push("Left column (return one right-column index per row, in order):");
+    inputs.matchingLeft.forEach((item, i) => {
+      lines.push(`  [${i}] ${item || "(blank)"}`);
+    });
+    lines.push("");
+    lines.push("Right column (use these 0-based indices):");
+    inputs.matchingRight.forEach((item, i) => {
+      lines.push(`  [${i}] ${item || "(blank)"}`);
+    });
+    lines.push("");
+    lines.push(
+      `Return an array of exactly ${inputs.matchingLeft.length} integers — ` +
+      "one for each left-column row above, in the order shown. Each integer " +
+      "is the right-column index that correctly pairs with that left item.",
+    );
+  }
+
   // Numeric guidance — only relevant when the teacher tagged this as a
   // numeric question. We tell the model the expected unit so it returns a
   // value compatible with what the studio will render on the paper.
@@ -207,11 +257,16 @@ const SUGGEST_TOOL_SCHEMA = {
   type: "object",
   additionalProperties: false,
   properties: {
-    // For MCQ: a 0-based integer. For everything else: a string.
+    // Allowed shapes:
+    //   - MCQ                      : integer 0..5
+    //   - numeric / short_answer   : integer or string
+    //   - matching                 : array of integers, one per left-column
+    //                                row, each = the chosen right-column index.
     answer: {
       oneOf: [
-        {type: "integer", minimum: 0, maximum: 5},
+        {type: "integer", minimum: 0, maximum: 9},
         {type: "string", maxLength: 800},
+        {type: "array", items: {type: "integer", minimum: 0, maximum: 9}, maxItems: 10},
       ],
     },
     rationale: {type: "string", maxLength: 300},
@@ -257,6 +312,34 @@ function coerceResult(parsed, inputs) {
       return {answer: "False", rationale, confidence};
     }
     return {answer: "True", rationale, confidence: "low"};
+  }
+
+  if (inputs.type === "matching") {
+    const raw = parsed && parsed.answer;
+    const leftLen = inputs.matchingLeft.length;
+    const rightLen = inputs.matchingRight.length;
+    if (!Array.isArray(raw)) {
+      // Wrong shape — return all -1 with low confidence so the client
+      // shows the badge as a warning.
+      return {
+        answer: Array(leftLen).fill(-1),
+        rationale,
+        confidence: "low",
+      };
+    }
+    // Coerce + pad/truncate to leftLen. Each entry must be an integer
+    // 0..rightLen-1; otherwise we mark it as -1 (no match).
+    const coerced = Array.from({length: leftLen}, (_, i) => {
+      const v = Number(raw[i]);
+      if (!Number.isInteger(v) || v < 0 || v >= rightLen) return -1;
+      return v;
+    });
+    const anyMissing = coerced.some((v) => v < 0);
+    return {
+      answer: coerced,
+      rationale,
+      confidence: anyMissing ? "low" : confidence,
+    };
   }
 
   // Free-form text answer. Note: the tool schema allows `answer` to be

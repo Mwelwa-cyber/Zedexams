@@ -50,6 +50,15 @@ export function emptyQuestion(overrides = {}) {
     //   numericUnit      — printed after the answer line (e.g. "kg", "%").
     numericTolerance: 0,
     numericUnit: '',
+    // Matching question fields. Only the 'matching' type surfaces them.
+    //   matchingLeft   — left-column prompts the student matches FROM.
+    //   matchingRight  — right-column options the student matches TO.
+    //   matchingAnswer — array of right-column indices: matchingAnswer[i]
+    //                    is the index into matchingRight that pairs with
+    //                    matchingLeft[i]. Length always equals matchingLeft.
+    matchingLeft: [],
+    matchingRight: [],
+    matchingAnswer: [],
     ...overrides,
   }
 
@@ -438,7 +447,9 @@ function hydrateStandaloneQuestion(question = {}) {
   // short_answer/diagram for the purpose of options/correctAnswer shape.
   // `numeric` also rides this path — correctAnswer is the number-as-string;
   // the actual numeric tolerance / unit live in their own fields below.
-  const isTextAnswer = type === 'short_answer' || type === 'diagram' || type === 'fill' || type === 'short' || type === 'numeric'
+  // `matching` has its own correctness model (matchingAnswer index array)
+  // and the legacy correctAnswer is unused, so we also flatten it here.
+  const isTextAnswer = type === 'short_answer' || type === 'diagram' || type === 'fill' || type === 'short' || type === 'numeric' || type === 'matching'
 
   return emptyQuestion({
     localId: question.id || question._id || question.localId || nextLocalId('question'),
@@ -474,6 +485,18 @@ function hydrateStandaloneQuestion(question = {}) {
       ? Number(question.numericTolerance)
       : 0,
     numericUnit: typeof question.numericUnit === 'string' ? question.numericUnit : '',
+    matchingLeft: Array.isArray(question.matchingLeft)
+      ? question.matchingLeft.map(s => String(s ?? '')).slice(0, 10)
+      : [],
+    matchingRight: Array.isArray(question.matchingRight)
+      ? question.matchingRight.map(s => String(s ?? '')).slice(0, 10)
+      : [],
+    matchingAnswer: Array.isArray(question.matchingAnswer)
+      ? question.matchingAnswer.map(v => {
+        const n = Number(v)
+        return Number.isInteger(n) && n >= 0 ? n : -1
+      }).slice(0, 10)
+      : [],
   })
 }
 

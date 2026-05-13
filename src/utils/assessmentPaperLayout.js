@@ -323,6 +323,12 @@ function buildQuestionBlock(q, number, includeAnswer) {
     // renderers can read them unconditionally.
     numericTolerance: Number.isFinite(Number(q.numericTolerance)) ? Number(q.numericTolerance) : 0,
     numericUnit: typeof q.numericUnit === 'string' ? q.numericUnit : '',
+    // Matching-only fields. Same defaulting strategy.
+    matchingLeft: Array.isArray(q.matchingLeft) ? q.matchingLeft.map(s => plain(s)) : [],
+    matchingRight: Array.isArray(q.matchingRight) ? q.matchingRight.map(s => plain(s)) : [],
+    matchingAnswer: Array.isArray(q.matchingAnswer)
+      ? q.matchingAnswer.map(v => (Number.isInteger(Number(v)) ? Number(v) : -1))
+      : [],
     showAnswer: includeAnswer,
   }
 }
