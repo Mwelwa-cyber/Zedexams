@@ -14,7 +14,7 @@ globalThis.Node = dom.window.Node
 globalThis.HTMLElement = dom.window.HTMLElement
 globalThis.Element = dom.window.Element
 
-const { questionWriteSchema, tiptapDoc } = await import('../src/editor/schema/question.js')
+const { questionWriteSchema, tiptapDoc, coerceQuestion } = await import('../src/editor/schema/question.js')
 const { migrateQuestionRecord } = await import('./migrate-questions-to-v3.mjs')
 
 let pass = 0
@@ -400,6 +400,122 @@ test('math node round-trips through migration', () => {
   const mathNode = para.content?.find(n => n.type === 'mathInline')
   assert(mathNode, 'math node should be present in JSON output')
   assert(mathNode.attrs?.latex === 'x^2=4', `latex attr preserved, got: ${JSON.stringify(mathNode.attrs)}`)
+})
+
+// ── coerceQuestion (read-side normaliser) ─────────────────────────
+console.log('\ncoerceQuestion')
+
+test('returns null for non-object input', () => {
+  assert(coerceQuestion(null) === null)
+  assert(coerceQuestion(undefined) === null)
+  assert(coerceQuestion('not an object') === null)
+  assert(coerceQuestion([]) === null)
+})
+
+test('preserves id (wiring relies on this)', () => {
+  const out = coerceQuestion({ id: 'q_abc', type: 'mcq', marks: 1 })
+  assert(out.id === 'q_abc')
+})
+
+test('unknown type falls back to mcq', () => {
+  // A legacy doc with `type: 'multiple_choice'` (the old spelling) used
+  // to crash the runner's type-branch switch. Now it grades as mcq.
+  const out = coerceQuestion({ type: 'multiple_choice', marks: 1 })
+  assert(out.type === 'mcq', `expected mcq fallback, got ${out.type}`)
+})
+
+test('known types survive', () => {
+  for (const t of ['mcq', 'tf', 'short_answer', 'diagram', 'fill', 'short', 'numeric', 'hotspot']) {
+    assert(coerceQuestion({ type: t, marks: 1 }).type === t, `${t} should survive`)
+  }
+})
+
+test('non-array options coerces to []', () => {
+  assert(Array.isArray(coerceQuestion({ options: null, marks: 1 }).options))
+  assert(Array.isArray(coerceQuestion({ options: 'A,B,C', marks: 1 }).options))
+  assert(coerceQuestion({ options: null, marks: 1 }).options.length === 0)
+})
+
+test('option entries stringified defensively', () => {
+  // A legacy import that left a number in options[] used to break the
+  // editor's text input. coerceQuestion guarantees strings.
+  const out = coerceQuestion({ options: ['A', 42, null, 'D'], marks: 1 })
+  assert(out.options.every(o => typeof o === 'string'), 'all entries must be strings')
+  assert(out.options[1] === '42')
+  assert(out.options[2] === '')
+})
+
+test('NaN/missing marks falls back to 1 (no score-arithmetic blow-up)', () => {
+  // The runner sums `q.marks` for the score total. Legacy `marks: NaN`
+  // (from a bad CSV import) would propagate NaN through the total and
+  // render "Score: NaN/NaN" on the results page.
+  assert(coerceQuestion({ marks: NaN }).marks === 1)
+  assert(coerceQuestion({ marks: undefined }).marks === 1)
+  assert(coerceQuestion({ marks: 'abc' }).marks === 1)
+  assert(coerceQuestion({ marks: 0 }).marks === 1)
+})
+
+test('marks above cap is floored to 10', () => {
+  assert(coerceQuestion({ marks: 999 }).marks === 10)
+})
+
+test('non-integer marks is floored', () => {
+  assert(coerceQuestion({ marks: 2.7 }).marks === 2)
+})
+
+test('non-array optionMedia coerces to []', () => {
+  assert(Array.isArray(coerceQuestion({ optionMedia: null, marks: 1 }).optionMedia))
+})
+
+test('non-object optionMedia entries become null (parallel-array safety)', () => {
+  const out = coerceQuestion({ optionMedia: [{ alt: 'a' }, 'bad', 42, null], marks: 1 })
+  assert(out.optionMedia[0]?.alt === 'a')
+  assert(out.optionMedia[1] === null)
+  assert(out.optionMedia[2] === null)
+  assert(out.optionMedia[3] === null)
+})
+
+test('malformed tolerance becomes null (does not crash numericGrading)', () => {
+  assert(coerceQuestion({ tolerance: 'oops', marks: 1 }).tolerance === null)
+  assert(coerceQuestion({ tolerance: -1, marks: 1 }).tolerance === null)
+  assert(coerceQuestion({ tolerance: NaN, marks: 1 }).tolerance === null)
+})
+
+test('valid tolerance survives', () => {
+  assert(coerceQuestion({ tolerance: 0.01, marks: 1 }).tolerance === 0.01)
+  assert(coerceQuestion({ tolerance: 0, marks: 1 }).tolerance === 0)
+})
+
+test('malformed correctRegion becomes null', () => {
+  assert(coerceQuestion({ correctRegion: 'not-an-object', marks: 1 }).correctRegion === null)
+  assert(coerceQuestion({ correctRegion: { x: 1.5, y: 0.5, radius: 0.1 }, marks: 1 }).correctRegion === null)
+  assert(coerceQuestion({ correctRegion: { x: 0.5, y: 0.5 }, marks: 1 }).correctRegion === null)
+})
+
+test('valid correctRegion survives with numeric coercion', () => {
+  // String-typed coords (some legacy CSV imports) should still produce
+  // a well-shaped region.
+  const out = coerceQuestion({ correctRegion: { x: '0.5', y: '0.5', radius: '0.1' }, marks: 1 })
+  assert(out.correctRegion?.x === 0.5)
+  assert(out.correctRegion?.y === 0.5)
+  assert(out.correctRegion?.radius === 0.1)
+})
+
+test('preserves passthrough fields (correctAnswer, text, tiptap JSON, …)', () => {
+  const out = coerceQuestion({
+    type: 'mcq',
+    marks: 1,
+    correctAnswer: 0,
+    text: '<p>What?</p>',
+    textJSON: { type: 'doc', content: [] },
+    customField: 'preserve me',
+    contentVersion: 3,
+  })
+  assert(out.correctAnswer === 0)
+  assert(out.text === '<p>What?</p>')
+  assert(out.textJSON?.type === 'doc')
+  assert(out.customField === 'preserve me')
+  assert(out.contentVersion === 3)
 })
 
 // ── Report ────────────────────────────────────────────────────────

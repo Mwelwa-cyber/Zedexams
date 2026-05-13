@@ -29,6 +29,7 @@ import {
 import { db } from '../firebase/config'
 import { buildQuizDisplaySections } from './quizSections'
 import { coerceQuiz } from '../schemas/quiz.js'
+import { coerceQuestion } from '../editor/schema/question.js'
 import { attemptStartSchema, coerceAttempt } from '../schemas/attempt.js'
 import { numericMatches } from './numericGrading.js'
 import { hotspotMatches } from './hotspotGrading.js'
@@ -82,7 +83,7 @@ export async function getExamWithQuestions(examId) {
   // as a second line of defence; safe to remove once every reader is on
   // coerceQuiz.
   const quiz = coerceQuiz({ id: quizSnap.id, ...quizSnap.data() })
-  const questions = qSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+  const questions = qSnap.docs.map(d => coerceQuestion({ id: d.id, ...d.data() })).filter(Boolean)
   const safePassages = Array.isArray(quiz?.passages) ? quiz.passages : []
   const { sections } = buildQuizDisplaySections(questions, safePassages)
 
@@ -248,7 +249,7 @@ export async function restoreExam(userId, attemptId) {
           orderBy('order', 'asc'),
         ),
       )
-      questions = qSnap.docs.map(d => ({ id: d.id, ...d.data() }))
+      questions = qSnap.docs.map(d => coerceQuestion({ id: d.id, ...d.data() })).filter(Boolean)
     } catch (e) {
       console.error('restoreExam questions read for auto-submit failed:', e)
       // Fall through with []; _doSubmit handles that by falling back to
