@@ -299,6 +299,7 @@ export default function AssessmentStudio() {
     assessmentDate: '',
     coverInstructions: '',
     schoolLogoUrl: '',
+    schoolLogoTransform: null, // { width: number, offsetX: number, offsetY: number } or null = defaults
     showNameField: true,
     showDateField: true,
     showMarksField: true,
@@ -1643,6 +1644,135 @@ function BuilderGroup({ group, allParts, questionNumbers, paperMeta, onAddBlock,
 /* ==================================================================
  * HEADER BLOCK
  * ================================================================== */
+// Defaults applied to renderers when schoolLogoTransform is null/missing.
+// Width matches the existing un-resized logo (.sv-paper-logo / .logo CSS).
+// Offsets are 0,0 — i.e. the logo sits at its banner-slot's natural center.
+const DEFAULT_LOGO_TRANSFORM = { width: 80, offsetX: 0, offsetY: 0 }
+const LOGO_MIN_WIDTH = 40
+const LOGO_MAX_WIDTH = 160
+const LOGO_OFFSET_LIMIT = 30 // px in any direction inside the banner slot
+
+function clampLogoTransform(t) {
+  if (!t) return null
+  return {
+    width: Math.max(LOGO_MIN_WIDTH, Math.min(LOGO_MAX_WIDTH, Math.round(Number(t.width) || DEFAULT_LOGO_TRANSFORM.width))),
+    offsetX: Math.max(-LOGO_OFFSET_LIMIT, Math.min(LOGO_OFFSET_LIMIT, Math.round(Number(t.offsetX) || 0))),
+    offsetY: Math.max(-LOGO_OFFSET_LIMIT, Math.min(LOGO_OFFSET_LIMIT, Math.round(Number(t.offsetY) || 0))),
+  }
+}
+
+// Logo size + position adjuster. The teacher clicks "Adjust" to reveal a
+// small panel with a width slider and a draggable position pad. Width is
+// applied across all three renderers (preview, PDF, DOCX). Offset only
+// applies in preview + PDF; DOCX doesn't support inline image positioning
+// cleanly, so the rendered Word file uses the unshifted logo. We surface
+// that limitation in the UI with a small hint.
+function LogoAdjuster({ transform, onChange }) {
+  const [open, setOpen] = useState(false)
+  const padRef = useRef(null)
+  const draggingRef = useRef(false)
+  const t = transform || DEFAULT_LOGO_TRANSFORM
+
+  function update(next) {
+    onChange(clampLogoTransform({ ...t, ...next }))
+  }
+
+  function onPadMouseDown(e) {
+    if (!padRef.current) return
+    draggingRef.current = true
+    onPadMouseMove(e)
+  }
+  function onPadMouseMove(e) {
+    if (!draggingRef.current && e.type !== 'mousedown') return
+    if (!padRef.current) return
+    const rect = padRef.current.getBoundingClientRect()
+    // Map mouse position inside the pad to offsetX/Y in our coordinate
+    // space (-LIMIT..+LIMIT, 0 = centered). The pad is square so X and Y
+    // share the same scale.
+    const x = ((e.clientX - rect.left) / rect.width - 0.5) * 2 * LOGO_OFFSET_LIMIT
+    const y = ((e.clientY - rect.top) / rect.height - 0.5) * 2 * LOGO_OFFSET_LIMIT
+    update({ offsetX: x, offsetY: y })
+  }
+  function onPadMouseUp() {
+    draggingRef.current = false
+  }
+
+  // Convert offset to a position-marker style inside the pad.
+  const markerLeft = `${((t.offsetX / LOGO_OFFSET_LIMIT) / 2 + 0.5) * 100}%`
+  const markerTop = `${((t.offsetY / LOGO_OFFSET_LIMIT) / 2 + 0.5) * 100}%`
+
+  return (
+    <div style={{ marginTop: 6 }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{ background: 'transparent', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: '2px 8px', fontSize: 11, cursor: 'pointer', color: 'var(--sv-muted)' }}
+        title="Resize and reposition the logo"
+      >
+        ⚙ Adjust logo {open ? '▾' : '▸'}
+      </button>
+      {open && (
+        <div
+          onMouseUp={onPadMouseUp}
+          onMouseLeave={onPadMouseUp}
+          style={{ marginTop: 8, padding: 10, border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', background: 'var(--sv-paper)', display: 'flex', gap: 16, alignItems: 'flex-start' }}
+        >
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, fontSize: 11 }}>
+            <label style={{ color: 'var(--sv-muted)' }}>Position (drag)</label>
+            <div
+              ref={padRef}
+              onMouseDown={onPadMouseDown}
+              onMouseMove={onPadMouseMove}
+              style={{
+                position: 'relative', width: 90, height: 90,
+                background: 'repeating-linear-gradient(45deg, #fafafa, #fafafa 4px, #f0f0f0 4px, #f0f0f0 8px)',
+                border: '1px solid var(--sv-border)', borderRadius: 4, cursor: 'crosshair',
+                userSelect: 'none',
+              }}
+            >
+              <div style={{ position: 'absolute', top: 0, left: '50%', bottom: 0, width: 1, background: '#ddd' }} />
+              <div style={{ position: 'absolute', left: 0, top: '50%', right: 0, height: 1, background: '#ddd' }} />
+              <div
+                style={{
+                  position: 'absolute', left: markerLeft, top: markerTop,
+                  width: 12, height: 12, marginLeft: -6, marginTop: -6,
+                  borderRadius: '50%', background: 'var(--sv-primary)',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.2)', pointerEvents: 'none',
+                }}
+              />
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace', fontSize: 10, color: 'var(--sv-muted)', marginTop: 2 }}>
+              <span>x: {Math.round(t.offsetX)}</span>
+              <span>y: {Math.round(t.offsetY)}</span>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1, minWidth: 140 }}>
+            <label style={{ fontSize: 11, color: 'var(--sv-muted)' }}>Size: {t.width}px</label>
+            <input
+              type="range"
+              min={LOGO_MIN_WIDTH}
+              max={LOGO_MAX_WIDTH}
+              value={t.width}
+              onChange={e => update({ width: Number(e.target.value) })}
+            />
+            <div style={{ fontSize: 10, color: 'var(--sv-muted)' }}>
+              Width applies everywhere. Position applies in Preview + PDF (Word fixes the logo in place).
+            </div>
+            <button
+              type="button"
+              onClick={() => onChange(null)}
+              style={{ alignSelf: 'flex-start', marginTop: 4, padding: '2px 8px', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', background: 'transparent', cursor: 'pointer', fontSize: 11, color: 'var(--sv-muted)' }}
+            >
+              Reset
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function HeaderBlock({ form, setF, onUploadLogo, onRemoveLogo, importing, onImportDocument }) {
   const fileInputRef = useRef(null)
   const docInputRef = useRef(null)
@@ -1689,6 +1819,12 @@ function HeaderBlock({ form, setF, onUploadLogo, onRemoveLogo, importing, onImpo
                 display: 'grid', placeItems: 'center', cursor: 'pointer',
               }}
             >×</button>
+          )}
+          {form.schoolLogoUrl && (
+            <LogoAdjuster
+              transform={form.schoolLogoTransform}
+              onChange={t => setF('schoolLogoTransform', t)}
+            />
           )}
         </div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--sv-s3)' }}>
@@ -2952,10 +3088,19 @@ function PaperBlock({ block }) {
 }
 
 function PaperHeaderBlock({ block }) {
+  // Apply the teacher's logo transform if set. Width changes the box;
+  // offsets shift the box (not the image inside) so the surrounding
+  // banner layout reflows around the logo naturally.
+  const t = block.logoTransform || DEFAULT_LOGO_TRANSFORM
+  const logoStyle = {
+    width: t.width,
+    height: t.width,
+    transform: (t.offsetX || t.offsetY) ? `translate(${t.offsetX}px, ${t.offsetY}px)` : undefined,
+  }
   return (
     <div className="sv-paper-banner">
       <div className="sv-banner-left">
-        <div className="sv-paper-logo">
+        <div className="sv-paper-logo" style={logoStyle}>
           {block.logoUrl ? <img src={block.logoUrl} alt="School logo" /> : <span>📚</span>}
         </div>
       </div>

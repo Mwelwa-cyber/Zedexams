@@ -97,12 +97,16 @@ async function fetchImageBytes(url) {
   }
 }
 
-async function logoParagraph(url) {
+async function logoParagraph(url, transform = null) {
   if (!url) return null
   const bytes = await fetchImageBytes(url)
   if (!bytes) return null
+  // Width applies; offset doesn't translate cleanly to inline Word images,
+  // so we clamp to width-only. The studio surfaces this limitation in the
+  // LogoAdjuster's hint text.
+  const width = Math.max(40, Math.min(160, Math.round(Number(transform?.width) || 80)))
   return centeredPara([
-    new ImageRun({ data: bytes, transformation: { width: 80, height: 80 } }),
+    new ImageRun({ data: bytes, transformation: { width, height: width } }),
   ])
 }
 
@@ -139,7 +143,7 @@ async function renderBlock(block) {
 
 async function renderHeader(b) {
   const out = []
-  const logo = await logoParagraph(b.logoUrl)
+  const logo = await logoParagraph(b.logoUrl, b.logoTransform)
   if (logo) out.push(logo)
   out.push(centeredPara(runText((b.schoolName || 'YOUR SCHOOL NAME').toUpperCase(), { bold: true, size: 32 })))
   out.push(centeredPara(runText(b.title, { bold: true, size: 22 })))
