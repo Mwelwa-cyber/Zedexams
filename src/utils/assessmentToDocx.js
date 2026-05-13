@@ -338,6 +338,37 @@ async function renderQuestion(b) {
       runText('___________________', { size: 20 }),
       runText(unitSuffix, { size: 20 }),
     ]))
+  } else if (b.type === 'matching') {
+    // Two-column table with the left prompts and right options. We use
+    // a real Word table so the columns stay aligned even when Word
+    // reflows the page; students draw lines between them by hand.
+    const left = Array.isArray(b.matchingLeft) ? b.matchingLeft : []
+    const right = Array.isArray(b.matchingRight) ? b.matchingRight : []
+    const rows = Math.max(left.length, right.length)
+    const tableRows = []
+    for (let i = 0; i < rows; i += 1) {
+      tableRows.push(new TableRow({
+        children: [
+          new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            children: [para([
+              runText(`${i + 1}. `, { bold: true, size: 20 }),
+              runText(String(left[i] || ''), { size: 20 }),
+            ])],
+          }),
+          new TableCell({
+            width: { size: 50, type: WidthType.PERCENTAGE },
+            children: [para([
+              runText(`${SECTION_LETTERS[i] || '?'}. `, { bold: true, size: 20 }),
+              runText(String(right[i] || ''), { size: 20 }),
+            ])],
+          }),
+        ],
+      }))
+    }
+    if (tableRows.length) {
+      out.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: tableRows }))
+    }
   } else if (b.type === 'diagram') {
     const lines = b.answerLines || 4
     for (let i = 0; i < lines; i += 1) {
@@ -366,6 +397,21 @@ async function renderQuestion(b) {
       out.push(para([
         runText('Expected answer: ', { bold: true, size: 20, color: '047857' }),
         runText(`${value}${unit}${tol}`, { size: 20, color: '047857' }),
+      ]))
+    } else if (b.type === 'matching') {
+      const left = Array.isArray(b.matchingLeft) ? b.matchingLeft : []
+      const right = Array.isArray(b.matchingRight) ? b.matchingRight : []
+      const answer = Array.isArray(b.matchingAnswer) ? b.matchingAnswer : []
+      const pairs = left.map((_, i) => {
+        const j = Number(answer[i])
+        if (!Number.isInteger(j) || j < 0) return `${i + 1}→—`
+        const letter = SECTION_LETTERS[j] || '?'
+        const r = right[j] || ''
+        return `${i + 1}→${letter}${r ? ` (${r})` : ''}`
+      }).join('   ')
+      out.push(para([
+        runText('Answer: ', { bold: true, size: 20, color: '047857' }),
+        runText(pairs, { size: 20, color: '047857' }),
       ]))
     } else {
       out.push(para([

@@ -309,6 +309,8 @@ body {
 .numeric-line { display: flex; align-items: flex-end; gap: 8pt; margin: 6pt 0 12pt; }
 .numeric-line .answer-line.numeric { display: inline-block; flex: 0 0 160pt; margin-bottom: 0; }
 .numeric-unit { font-size: 11pt; }
+.match-columns { display: grid; grid-template-columns: 1fr 1fr; column-gap: 36pt; margin: 6pt 0 12pt; }
+.match-row { padding: 3pt 0; border-bottom: 1px dotted #999; }
 
 .diagram-box {
   border: 1px dashed #999;
@@ -455,6 +457,8 @@ function renderQuestion(b) {
     body += renderAnswerLines(b.answerLines ?? 10)
   } else if (b.type === 'numeric') {
     body += renderNumericLine(b)
+  } else if (b.type === 'matching') {
+    body += renderMatchingColumns(b)
   }
 
   if (b.showAnswer) {
@@ -523,6 +527,29 @@ function renderNumericLine(b) {
   return `<div class="numeric-line"><span class="answer-line numeric"></span>${unit}</div>`
 }
 
+// Matching questions render as two side-by-side columns. Students draw
+// lines between the left prompts and the right options; rendering matches
+// the studio's PaperMatching preview exactly so what teachers see is what
+// they print.
+function renderMatchingColumns(b) {
+  const left = Array.isArray(b.matchingLeft) ? b.matchingLeft : []
+  const right = Array.isArray(b.matchingRight) ? b.matchingRight : []
+  const rows = Math.max(left.length, right.length)
+  const cell = (label, text) => `<div class="match-row">
+    <strong>${escapeHtml(label)}.</strong> ${escapeHtml(text || '')}
+  </div>`
+  let leftHtml = ''
+  let rightHtml = ''
+  for (let i = 0; i < rows; i += 1) {
+    leftHtml += cell(String(i + 1), left[i] || '')
+    rightHtml += cell(SECTION_LETTERS[i] || '?', right[i] || '')
+  }
+  return `<div class="match-columns">
+    <div class="match-col">${leftHtml}</div>
+    <div class="match-col">${rightHtml}</div>
+  </div>`
+}
+
 function renderAnswerBlock(b) {
   let body = ''
   if (b.type === 'mcq') {
@@ -535,6 +562,18 @@ function renderAnswerBlock(b) {
     const unit = b.numericUnit ? ` ${escapeHtml(b.numericUnit)}` : ''
     const tol = Number(b.numericTolerance) > 0 ? ` (±${escapeHtml(String(b.numericTolerance))})` : ''
     body = `<div><span class="label">Expected answer:</span> ${value}${unit}${tol}</div>`
+  } else if (b.type === 'matching') {
+    const left = Array.isArray(b.matchingLeft) ? b.matchingLeft : []
+    const right = Array.isArray(b.matchingRight) ? b.matchingRight : []
+    const answer = Array.isArray(b.matchingAnswer) ? b.matchingAnswer : []
+    const pairs = left.map((_, i) => {
+      const j = Number(answer[i])
+      if (!Number.isInteger(j) || j < 0) return `${i + 1}→—`
+      const letter = SECTION_LETTERS[j] || '?'
+      const r = right[j] || ''
+      return `${i + 1}→${escapeHtml(letter)}${r ? ` (${escapeHtml(r)})` : ''}`
+    }).join('&nbsp;&nbsp; ')
+    body = `<div><span class="label">Answer:</span> ${pairs}</div>`
   } else {
     body = `<div><span class="label">Expected answer:</span> ${escapeHtml(String(b.correctAnswer ?? ''))}</div>`
   }

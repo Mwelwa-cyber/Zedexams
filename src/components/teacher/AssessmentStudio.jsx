@@ -1045,6 +1045,18 @@ export default function AssessmentStudio() {
           marks: 1,
         })
         break
+      case 'matching':
+        // Start with 3 empty pairs and no correct mapping — teachers usually
+        // type 4–6 pairs but 3 is enough to show the UI without overwhelming.
+        newSection = baseQuestion('matching', {
+          options: [],
+          correctAnswer: '',
+          matchingLeft: ['', '', ''],
+          matchingRight: ['', '', ''],
+          matchingAnswer: [-1, -1, -1],
+          marks: 3,
+        })
+        break
       case 'passage':
         newSection = createPassageSection()
         break
@@ -2020,7 +2032,7 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
 
 // Question fields whose edits invalidate any prior AI answer suggestion.
 // Module-scope so the array is allocated once per page load, not per render.
-const FIELDS_THAT_INVALIDATE_SUGGESTION = ['text', 'options', 'correctAnswer', 'wordBank', 'numericTolerance', 'numericUnit']
+const FIELDS_THAT_INVALIDATE_SUGGESTION = ['text', 'options', 'correctAnswer', 'wordBank', 'numericTolerance', 'numericUnit', 'matchingLeft', 'matchingRight', 'matchingAnswer']
 
 // Module-scope colour palette for the AI suggestion notice — kept out of
 // the component body so it isn't reallocated per render.
@@ -2060,6 +2072,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
   const isShortAnswer = type === 'short_answer' || type === 'fill' || type === 'short'
   const isStructured = type === 'diagram' && !isShortAnswer
   const isNumeric = type === 'numeric'
+  const isMatching = type === 'matching'
   const imageInputRef = useRef(null)
   const [suggesting, setSuggesting] = useState(false)
   const [suggestError, setSuggestError] = useState('')
@@ -2106,6 +2119,10 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
         // is informational only — the model still returns a single value.
         unit: isNumeric ? (question.numericUnit || '') : undefined,
         tolerance: isNumeric ? Number(question.numericTolerance || 0) : undefined,
+        // For matching we pass both columns. The model returns an array
+        // of right-column indices — one per left-column item.
+        matchingLeft: isMatching ? (question.matchingLeft || []) : undefined,
+        matchingRight: isMatching ? (question.matchingRight || []) : undefined,
         grade: paperMeta?.grade,
         subject: paperMeta?.subject,
         language: paperMeta?.language,
@@ -2113,8 +2130,14 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
       if (!mountedRef.current) return
       // Write the predicted answer to the question via the raw prop —
       // bypasses the local wrapper that would otherwise clear the
-      // suggestion badge on a correctAnswer change.
-      onUpdateQuestion('correctAnswer', result.answer)
+      // suggestion badge. Matching questions store the answer as an
+      // index array on `matchingAnswer`; everything else uses the
+      // scalar `correctAnswer` field.
+      if (isMatching && Array.isArray(result.answer)) {
+        onUpdateQuestion('matchingAnswer', result.answer)
+      } else {
+        onUpdateQuestion('correctAnswer', result.answer)
+      }
       setAiSuggestion({
         rationale: result.rationale,
         confidence: result.confidence,
@@ -2134,6 +2157,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
     diagram: { tag: 'struct', label: 'Structured / Diagram' },
     essay: { tag: 'essay', label: 'Essay' },
     numeric: { tag: 'mcq', label: 'Numeric' },
+    matching: { tag: 'struct', label: 'Matching' },
   }
   const meta = typeMeta[type] || typeMeta.mcq
 
@@ -2163,6 +2187,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
           <option value="diagram">Structured / diagram</option>
           <option value="essay">Essay</option>
           <option value="numeric">Numeric</option>
+          <option value="matching">Matching</option>
         </select>
         <label className="sv-q-marks-input">
           marks
@@ -2309,6 +2334,17 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
         />
       )}
 
+      {isMatching && (
+        <MatchingInputs
+          left={question.matchingLeft || []}
+          right={question.matchingRight || []}
+          answer={question.matchingAnswer || []}
+          onChangeLeft={value => updateQuestion('matchingLeft', value)}
+          onChangeRight={value => updateQuestion('matchingRight', value)}
+          onChangeAnswer={value => updateQuestion('matchingAnswer', value)}
+        />
+      )}
+
       {suggestError && (
         <div style={{ marginTop: 8, padding: '6px 10px', borderRadius: 'var(--sv-r-sm)', background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', fontSize: 12 }}>
           ⚠ {suggestError}
@@ -2452,6 +2488,124 @@ function ShortAnswerInputs({ correctAnswer, onChange, label, lines = 2 }) {
         rows={lines}
         style={{ width: '100%', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: 8, fontSize: 13, background: 'var(--sv-paper)', fontFamily: 'inherit', resize: 'vertical' }}
       />
+    </div>
+  )
+}
+
+// Matching question editor — two parallel columns with a "match" dropdown
+// per left-column row. The left column shows the prompts the student
+// matches FROM; the right column the labelled options (A, B, C…). Each
+// left row picks the correct right-column letter via its dropdown.
+//
+//   matchingLeft   = ['Lion',  'Tilapia', 'Cobra']
+//   matchingRight  = ['fish',  'mammal',  'reptile']
+//   matchingAnswer = [1, 0, 2]   // Lion→B (mammal), Tilapia→A (fish), Cobra→C
+//
+// Add/remove rows operate on all three arrays together so they stay in
+// lockstep. A -1 in matchingAnswer means "no correct match selected yet".
+function MatchingInputs({ left, right, answer, onChangeLeft, onChangeRight, onChangeAnswer }) {
+  // Rows always render at max(left.length, right.length, 3) — minimum 3
+  // so the editor has visible structure even on a fresh blank question.
+  const rows = Math.max(left.length, right.length, 3)
+  const leftPadded = Array.from({ length: rows }, (_, i) => left[i] ?? '')
+  const rightPadded = Array.from({ length: rows }, (_, i) => right[i] ?? '')
+  const answerPadded = Array.from({ length: rows }, (_, i) =>
+    Number.isInteger(answer[i]) ? answer[i] : -1,
+  )
+
+  function setLeftAt(i, value) {
+    const next = [...leftPadded]
+    next[i] = value
+    onChangeLeft(next)
+  }
+  function setRightAt(i, value) {
+    const next = [...rightPadded]
+    next[i] = value
+    onChangeRight(next)
+  }
+  function setAnswerAt(i, value) {
+    const next = [...answerPadded]
+    const n = Number(value)
+    next[i] = Number.isInteger(n) && n >= 0 && n < rightPadded.length ? n : -1
+    onChangeAnswer(next)
+  }
+  function addRow() {
+    if (rows >= 10) return
+    onChangeLeft([...leftPadded, ''])
+    onChangeRight([...rightPadded, ''])
+    onChangeAnswer([...answerPadded, -1])
+  }
+  function removeRow(i) {
+    if (rows <= 2) return
+    const dropAt = arr => arr.filter((_, idx) => idx !== i)
+    const remappedAnswer = dropAt(answerPadded).map(a =>
+      // If the removed row's index was a target of some other answer,
+      // clear that answer rather than silently pointing it at the wrong row.
+      a === i ? -1 : (a > i ? a - 1 : a),
+    )
+    onChangeLeft(dropAt(leftPadded))
+    onChangeRight(dropAt(rightPadded))
+    onChangeAnswer(remappedAnswer)
+  }
+
+  return (
+    <div className="sv-answer-lines">
+      <div className="sv-answer-meta">🔗 Matching pairs — students draw lines from left to right on the printed paper</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '24px 1fr 24px 1fr 90px 28px', gap: 6, alignItems: 'center', marginBottom: 4, fontSize: 11, color: 'var(--sv-muted)' }}>
+        <div></div>
+        <div>Left (prompt)</div>
+        <div></div>
+        <div>Right (option)</div>
+        <div>Match →</div>
+        <div></div>
+      </div>
+      {leftPadded.map((_, i) => (
+        <div key={i} style={{ display: 'grid', gridTemplateColumns: '24px 1fr 24px 1fr 90px 28px', gap: 6, alignItems: 'center', marginBottom: 4 }}>
+          <strong style={{ textAlign: 'right', fontSize: 12, color: 'var(--sv-muted)' }}>{i + 1}.</strong>
+          <input
+            type="text"
+            value={leftPadded[i]}
+            onChange={e => setLeftAt(i, e.target.value)}
+            placeholder={`Left ${i + 1}`}
+            style={{ width: '100%', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: '4px 6px', fontSize: 13, background: 'var(--sv-paper)' }}
+          />
+          <strong style={{ textAlign: 'right', fontSize: 12, color: 'var(--sv-muted)' }}>{SECTION_LETTERS[i] || '?'}.</strong>
+          <input
+            type="text"
+            value={rightPadded[i]}
+            onChange={e => setRightAt(i, e.target.value)}
+            placeholder={`Right ${SECTION_LETTERS[i] || ''}`}
+            style={{ width: '100%', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: '4px 6px', fontSize: 13, background: 'var(--sv-paper)' }}
+          />
+          <select
+            value={answerPadded[i] >= 0 ? answerPadded[i] : ''}
+            onChange={e => setAnswerAt(i, e.target.value)}
+            style={{ border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: '4px 6px', fontSize: 12, background: 'var(--sv-paper)' }}
+          >
+            <option value="">— pick —</option>
+            {rightPadded.map((r, j) => (
+              <option key={j} value={j} disabled={!String(r || '').trim()}>
+                {SECTION_LETTERS[j]}{String(r || '').trim() ? ` (${String(r).trim().slice(0, 18)})` : ''}
+              </option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => removeRow(i)}
+            disabled={rows <= 2}
+            title="Remove this pair"
+            style={{ width: 24, height: 24, border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', background: 'transparent', cursor: rows <= 2 ? 'default' : 'pointer', color: 'var(--sv-muted)', fontSize: 14 }}
+          >×</button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={addRow}
+        disabled={rows >= 10}
+        style={{ marginTop: 4, padding: '4px 10px', border: '1px dashed var(--sv-border)', borderRadius: 'var(--sv-r-sm)', background: 'transparent', cursor: rows >= 10 ? 'default' : 'pointer', fontSize: 12, color: 'var(--sv-muted)' }}
+      >
+        + Add pair {rows >= 10 ? '(max 10)' : ''}
+      </button>
     </div>
   )
 }
@@ -2731,6 +2885,9 @@ function PaperQuestionBlock({ block }) {
           )}
         </div>
       )}
+      {block.type === 'matching' && (
+        <PaperMatching block={block} />
+      )}
       {block.type === 'diagram' && (
         <div className="sv-paper-answer-lines">
           {Array.from({ length: block.answerLines || 4 }).map((_, i) => <div className="sv-paper-answer-line" key={i} />)}
@@ -2806,6 +2963,33 @@ function PaperMcqOptions({ block }) {
   )
 }
 
+// Matching question render — two columns side by side. Students draw
+// lines between them on the printed paper; in the on-screen preview we
+// just show the columns aligned.
+function PaperMatching({ block }) {
+  const left = Array.isArray(block.matchingLeft) ? block.matchingLeft : []
+  const right = Array.isArray(block.matchingRight) ? block.matchingRight : []
+  const rows = Math.max(left.length, right.length)
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', columnGap: 48, margin: '8px 0' }}>
+      <div>
+        {Array.from({ length: rows }).map((_, i) => (
+          <div key={i} style={{ padding: '4px 0', borderBottom: '1px dotted #999' }}>
+            <strong>{i + 1}.</strong> {left[i] || ''}
+          </div>
+        ))}
+      </div>
+      <div>
+        {Array.from({ length: rows }).map((_, i) => (
+          <div key={i} style={{ padding: '4px 0', borderBottom: '1px dotted #999' }}>
+            <strong>{SECTION_LETTERS[i] || '?'}.</strong> {right[i] || ''}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function PaperAnswerBlock({ block }) {
   let body = null
   if (block.type === 'mcq') {
@@ -2813,6 +2997,25 @@ function PaperAnswerBlock({ block }) {
     const letter = SECTION_LETTERS[i] || '?'
     const opt = block.options?.[i] ?? ''
     body = <><strong>Answer:</strong> {letter}. {String(opt)}</>
+  } else if (block.type === 'matching') {
+    const left = Array.isArray(block.matchingLeft) ? block.matchingLeft : []
+    const right = Array.isArray(block.matchingRight) ? block.matchingRight : []
+    const answer = Array.isArray(block.matchingAnswer) ? block.matchingAnswer : []
+    body = (
+      <>
+        <strong>Answer:</strong>{' '}
+        {left.map((_, i) => {
+          const j = Number(answer[i])
+          const letter = Number.isInteger(j) && j >= 0 ? (SECTION_LETTERS[j] || '?') : '—'
+          const r = Number.isInteger(j) && j >= 0 ? (right[j] || '') : ''
+          return (
+            <span key={i} style={{ marginRight: 12 }}>
+              {i + 1}→{letter}{r ? ` (${r})` : ''}
+            </span>
+          )
+        })}
+      </>
+    )
   } else if (block.type === 'numeric') {
     body = (
       <>
@@ -2866,7 +3069,7 @@ function BlockPickerSlide({ open, onClose, onPick }) {
           <BlockPickerItem icon="📝" title="Essay" hint="Long-form with rubric" onClick={() => onPick('essay')} />
           <BlockPickerItem icon="✅" title="True / False" hint="Binary statement" onClick={() => onPick('true_false')} />
           <BlockPickerItem icon="📐" title="Fill in Blank" hint="Gap-fill sentence" onClick={() => onPick('fill_in_blank')} />
-          <BlockPickerItem icon="↔" title="Matching" hint="Coming soon" disabled />
+          <BlockPickerItem icon="↔" title="Matching" hint="Pair items across two columns" onClick={() => onPick('matching')} />
           <BlockPickerItem icon="🔢" title="Numeric" hint="Number answer with optional ± tolerance & unit" onClick={() => onPick('numeric')} />
           <BlockPickerItem icon="🔤" title="Sequence" hint="Coming soon" disabled />
         </div>
