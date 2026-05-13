@@ -1,0 +1,3290 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#0E2C30">
+<title>Assessment Studio · ZedExams</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,800&family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+
+/* ============================================================
+   DESIGN TOKENS
+   A warm academic palette — feels like a school staffroom,
+   not a quiz app. Deep ink, parchment cream, scholarly oxblood.
+   ============================================================ */
+:root {
+  /* Surfaces */
+  --paper: #FFFFFF;
+  --canvas: #F4EFE5;          /* warm parchment */
+  --canvas-2: #ECE5D5;
+  --tinted: #FAF6EE;          /* very soft cream for fields */
+
+  /* Ink */
+  --ink: #0E2C30;             /* deep scholarly teal-black */
+  --ink-soft: #1F4348;
+  --text: #14181A;
+  --muted: #6E6A60;
+  --muted-2: #A39D8E;
+
+  /* Accents */
+  --primary: #8B2635;         /* oxblood — examination board */
+  --primary-soft: #F4DDDF;
+  --primary-dark: #6D1D2A;
+  --gold: #C8923D;            /* AI / highlights */
+  --gold-soft: #F5E7CC;
+  --sage: #3E7B5A;            /* success */
+  --sage-soft: #DCEBE2;
+  --indigo: #3F4F8B;          /* structured questions */
+  --indigo-soft: #DDE2F1;
+  --plum: #6E2BA0;            /* essay */
+  --plum-soft: #ECDCF4;
+
+  /* Borders */
+  --border: rgba(14, 44, 48, 0.10);
+  --border-strong: rgba(14, 44, 48, 0.20);
+  --border-soft: rgba(14, 44, 48, 0.06);
+
+  /* Shadows */
+  --shadow-xs: 0 1px 1px rgba(14,44,48,0.04);
+  --shadow-sm: 0 1px 3px rgba(14,44,48,0.06), 0 1px 2px rgba(14,44,48,0.04);
+  --shadow-md: 0 8px 24px rgba(14,44,48,0.08), 0 2px 6px rgba(14,44,48,0.04);
+  --shadow-lg: 0 24px 56px rgba(14,44,48,0.16), 0 8px 16px rgba(14,44,48,0.06);
+  --shadow-paper: 0 8px 32px rgba(14,44,48,0.10), 0 2px 8px rgba(14,44,48,0.06);
+
+  /* Radius */
+  --r-sm: 6px;
+  --r: 10px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+
+  /* Spacing scale */
+  --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px;
+  --s5: 24px; --s6: 32px; --s7: 48px;
+
+  /* Layout */
+  --topbar-h: 56px;
+  --bottombar-h: 64px;
+  --canvas-max: 760px;
+}
+
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; padding: 0; }
+body {
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  background: var(--canvas);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+.serif { font-family: 'Fraunces', Georgia, serif; font-optical-sizing: auto; letter-spacing: -0.018em; }
+.mono { font-family: 'Geist Mono', monospace; }
+
+button, input, select, textarea { font-family: inherit; color: inherit; }
+button { border: none; background: none; cursor: pointer; padding: 0; }
+input, textarea, select { outline: none; }
+
+/* Scrollbar refinement (desktop) */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(14,44,48,0.18); border-radius: 99px; border: 2px solid var(--canvas); }
+::-webkit-scrollbar-thumb:hover { background: rgba(14,44,48,0.3); }
+
+/* ============================================================
+   APP SHELL — Top bar, canvas, bottom bar
+   ============================================================ */
+.app-bar {
+  position: sticky; top: 0; z-index: 50;
+  height: var(--topbar-h);
+  background: rgba(244, 239, 229, 0.92);
+  backdrop-filter: saturate(180%) blur(14px);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center;
+  padding: 0 var(--s4);
+  gap: var(--s3);
+}
+.app-bar .icon-btn { width: 38px; height: 38px; border-radius: 99px; display: grid; place-items: center; font-size: 17px; color: var(--ink); transition: background 0.15s; }
+.app-bar .icon-btn:hover { background: rgba(14,44,48,0.06); }
+.app-bar-title {
+  flex: 1; min-width: 0;
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 16px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: flex; align-items: center; gap: var(--s2);
+}
+.app-bar-title .status-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--sage);
+  display: inline-block;
+  box-shadow: 0 0 0 3px rgba(62,123,90,0.18);
+}
+.app-bar-title .badge-mini {
+  font-family: 'Geist', sans-serif; font-weight: 600;
+  font-size: 10px; letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 3px 8px;
+  background: var(--canvas-2);
+  border-radius: 99px;
+  margin-left: var(--s2);
+}
+
+/* Bottom action bar (mobile-first) */
+.bottom-bar {
+  position: fixed; bottom: 0; left: 0; right: 0; z-index: 50;
+  height: calc(var(--bottombar-h) + env(safe-area-inset-bottom));
+  padding-bottom: env(safe-area-inset-bottom);
+  background: var(--ink);
+  color: var(--canvas);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  align-items: center;
+  box-shadow: 0 -8px 24px rgba(14,44,48,0.22);
+}
+.bottom-bar .b {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center;
+  gap: 2px; padding: 8px 0;
+  color: rgba(244,239,229,0.85);
+  font-size: 11px; font-weight: 500;
+  transition: color 0.15s;
+}
+.bottom-bar .b:hover { color: var(--canvas); }
+.bottom-bar .b .ic { font-size: 20px; line-height: 1; }
+.bottom-bar .b.primary {
+  color: var(--canvas);
+}
+.bottom-bar .b.primary .ic-wrap {
+  width: 44px; height: 44px;
+  background: var(--primary);
+  border-radius: 50%;
+  display: grid; place-items: center;
+  margin-bottom: 2px;
+  box-shadow: 0 6px 14px rgba(139,38,53,0.35);
+  font-size: 22px;
+}
+
+/* Main view container */
+.view { display: none; min-height: calc(100vh - var(--topbar-h) - var(--bottombar-h)); padding-bottom: calc(var(--bottombar-h) + 32px); }
+.view.active { display: block; }
+
+/* Centered canvas (desktop wraps narrow like a doc) */
+.canvas-area {
+  max-width: var(--canvas-max);
+  margin: 0 auto;
+  padding: var(--s5) var(--s4);
+}
+
+/* ============================================================
+   STUDIO HOME
+   ============================================================ */
+.welcome {
+  background: var(--ink);
+  color: var(--canvas);
+  border-radius: var(--r-xl);
+  padding: var(--s6) var(--s5);
+  position: relative;
+  overflow: hidden;
+  margin-bottom: var(--s5);
+}
+.welcome::before {
+  content: '';
+  position: absolute; right: -120px; bottom: -120px;
+  width: 320px; height: 320px;
+  border: 1px solid rgba(244,239,229,0.10);
+  border-radius: 50%;
+}
+.welcome::after {
+  content: '';
+  position: absolute; right: -60px; bottom: -60px;
+  width: 200px; height: 200px;
+  border: 1px solid rgba(244,239,229,0.10);
+  border-radius: 50%;
+}
+.welcome-eyebrow {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px; letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--gold);
+  margin-bottom: var(--s3);
+  display: flex; align-items: center; gap: var(--s2);
+}
+.welcome h1 {
+  font-family: 'Fraunces', serif;
+  font-weight: 500;
+  font-size: clamp(28px, 6vw, 40px);
+  line-height: 1.0;
+  margin: 0 0 var(--s3);
+  letter-spacing: -0.025em;
+  max-width: 480px;
+}
+.welcome h1 em { font-style: italic; color: var(--gold); font-weight: 400; }
+.welcome p { margin: 0 0 var(--s4); opacity: 0.82; max-width: 460px; font-size: 14.5px; }
+.welcome-cta { display: flex; gap: var(--s2); flex-wrap: wrap; position: relative; z-index: 1; }
+
+.btn {
+  display: inline-flex; align-items: center; gap: var(--s2);
+  padding: 11px 18px;
+  border-radius: 99px;
+  font-size: 14px; font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.btn-primary { background: var(--primary); color: white; }
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-cream { background: var(--canvas); color: var(--ink); }
+.btn-cream:hover { background: white; }
+.btn-ghost { background: transparent; border: 1px solid rgba(244,239,229,0.30); color: var(--canvas); }
+.btn-ghost:hover { background: rgba(244,239,229,0.10); }
+.btn-outline { background: transparent; border: 1px solid var(--border-strong); color: var(--text); }
+.btn-outline:hover { background: rgba(14,44,48,0.04); }
+.btn-dark { background: var(--ink); color: var(--canvas); }
+.btn-dark:hover { background: #0a1f22; }
+.btn-gold { background: var(--gold-soft); color: var(--ink); border: 1px solid rgba(200,146,61,0.30); }
+.btn-gold:hover { background: var(--gold); color: white; }
+.btn-full { width: 100%; justify-content: center; }
+.btn-sm { padding: 7px 12px; font-size: 12.5px; }
+
+/* Section label */
+.eyebrow {
+  font-family: 'Geist Mono', monospace;
+  font-size: 11px; letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: var(--s5) 0 var(--s3);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.eyebrow a { color: var(--primary); text-decoration: none; font-weight: 500; letter-spacing: 0.03em; text-transform: none; font-family: 'Geist', sans-serif; font-size: 13px; }
+
+/* Stat strip */
+.stat-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.stat-strip .stat {
+  background: var(--paper);
+  padding: var(--s4);
+  text-align: left;
+}
+.stat-strip .stat-v {
+  font-family: 'Fraunces', serif;
+  font-weight: 500; font-size: 26px;
+  line-height: 1;
+  letter-spacing: -0.02em;
+}
+.stat-strip .stat-l {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: var(--s2);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+/* Papers grid */
+.paper-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: var(--s3); }
+.paper-card {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.paper-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); border-color: var(--border-strong); }
+.paper-card .thumb {
+  height: 130px;
+  background: linear-gradient(135deg, var(--ink), var(--ink-soft));
+  display: grid; place-items: center;
+  position: relative;
+  overflow: hidden;
+}
+.paper-card .thumb::before {
+  content: '';
+  position: absolute; inset: 0;
+  background:
+    repeating-linear-gradient(38deg, transparent 0, rgba(255,255,255,0.04) 1px, transparent 4px),
+    radial-gradient(circle at 70% 30%, rgba(200,146,61,0.10), transparent 60%);
+}
+.paper-card .thumb .mini-doc {
+  width: 70px; height: 86px;
+  background: white;
+  border-radius: 3px 8px 3px 3px;
+  position: relative;
+  box-shadow: 0 6px 14px rgba(0,0,0,0.25);
+  padding: 8px 6px;
+  z-index: 1;
+}
+.paper-card .thumb .mini-doc::before {
+  content: ''; position: absolute; top: 0; right: 0;
+  width: 14px; height: 14px;
+  background: linear-gradient(225deg, #d8d4cb 50%, transparent 50%);
+}
+.paper-card .thumb .mini-doc .l { background: var(--muted-2); height: 2px; border-radius: 1px; margin-bottom: 3px; }
+.paper-card .thumb .mini-doc .l.short { width: 60%; }
+.paper-card .thumb .mini-doc .l.tall { height: 4px; background: var(--ink); margin-bottom: 5px; width: 80%; margin-left: 10%; }
+.paper-card .thumb-tag {
+  position: absolute; top: 12px; left: 12px;
+  background: rgba(244,239,229,0.16);
+  backdrop-filter: blur(6px);
+  border: 1px solid rgba(244,239,229,0.20);
+  color: var(--canvas);
+  font-size: 10px; font-weight: 600;
+  padding: 3px 9px;
+  border-radius: 99px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.paper-card .info { padding: var(--s4); }
+.paper-card h3 {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 16px;
+  margin: 0 0 var(--s2);
+  line-height: 1.25;
+}
+.paper-card .meta { font-size: 12px; color: var(--muted); margin-bottom: var(--s3); }
+.paper-card .row { display: flex; gap: var(--s2); font-size: 11.5px; color: var(--muted); }
+.paper-card .row span { display: inline-flex; align-items: center; gap: 4px; }
+
+.status-pill {
+  font-size: 10px; font-weight: 600;
+  padding: 3px 8px; border-radius: 99px;
+  letter-spacing: 0.06em; text-transform: uppercase;
+}
+.status-pill.draft { background: var(--gold-soft); color: #7A5A1F; }
+.status-pill.ready { background: var(--sage-soft); color: #1F5B3D; }
+.status-pill.printed { background: var(--indigo-soft); color: #2C3870; }
+
+/* AI suggestion strip */
+.ai-strip {
+  background: var(--gold-soft);
+  border: 1px solid rgba(200,146,61,0.25);
+  border-radius: var(--r-lg);
+  padding: var(--s4);
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: var(--s3);
+  align-items: center;
+  margin-bottom: var(--s4);
+}
+.ai-strip .sparkle {
+  width: 38px; height: 38px;
+  background: var(--gold);
+  color: white;
+  border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 18px;
+}
+.ai-strip-text { font-size: 13.5px; line-height: 1.4; }
+.ai-strip-text strong { display: block; margin-bottom: 2px; font-size: 14px; }
+.ai-strip-text span { color: var(--muted); }
+
+/* ============================================================
+   BUILDER CANVAS — block-based document
+   ============================================================ */
+.builder-bar {
+  position: sticky; top: var(--topbar-h); z-index: 30;
+  background: rgba(244, 239, 229, 0.95);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+  padding: var(--s2) var(--s4);
+  display: flex; align-items: center; gap: var(--s2);
+  overflow-x: auto; white-space: nowrap;
+}
+.builder-bar::-webkit-scrollbar { display: none; }
+.builder-bar .chip {
+  padding: 6px 12px;
+  background: var(--paper);
+  border: 1px solid var(--border-strong);
+  border-radius: 99px;
+  font-size: 12.5px;
+  display: inline-flex; align-items: center; gap: 5px;
+  cursor: pointer; transition: all 0.15s;
+  color: var(--text);
+}
+.builder-bar .chip:hover { background: var(--canvas-2); }
+.builder-bar .chip.active { background: var(--ink); color: var(--canvas); border-color: var(--ink); }
+.builder-bar .pages {
+  margin-left: auto;
+  font-family: 'Geist Mono', monospace;
+  font-size: 11.5px;
+  color: var(--muted);
+  flex-shrink: 0;
+}
+
+/* The document canvas where blocks live */
+.doc-canvas {
+  padding: var(--s4);
+  max-width: var(--canvas-max);
+  margin: 0 auto;
+}
+
+/* Generic block */
+.block {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--s4) var(--s4);
+  margin-bottom: var(--s3);
+  position: relative;
+  transition: all 0.15s;
+}
+.block:hover { border-color: var(--border-strong); box-shadow: var(--shadow-sm); }
+.block-head {
+  display: flex; align-items: center; gap: var(--s2);
+  margin-bottom: var(--s3);
+  font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--muted);
+  font-family: 'Geist Mono', monospace;
+}
+.block-head .ic { font-size: 13px; opacity: 0.8; }
+.block-head .tools {
+  margin-left: auto;
+  display: flex; gap: 2px;
+  opacity: 0; transition: opacity 0.15s;
+}
+.block:hover .block-head .tools { opacity: 1; }
+@media (hover: none) {
+  .block-head .tools { opacity: 1; }
+}
+.block-head .tool {
+  width: 28px; height: 28px;
+  border-radius: 6px;
+  display: grid; place-items: center;
+  font-size: 14px; color: var(--muted);
+  transition: all 0.15s;
+}
+.block-head .tool:hover { background: var(--canvas); color: var(--ink); }
+.block-head .tool.danger:hover { background: var(--primary-soft); color: var(--primary); }
+
+/* Block category accent (left edge) */
+.block.b-header { border-left: 3px solid var(--ink); }
+.block.b-instr { border-left: 3px solid var(--muted-2); }
+.block.b-section { border-left: 3px solid var(--primary); }
+.block.b-part { border-left: 3px solid var(--gold); margin-left: var(--s4); }
+.block.b-passage { border-left: 3px solid var(--sage); }
+.block.b-question { border-left: 3px solid var(--indigo); }
+.block.b-question.nested { margin-left: var(--s4); }
+.block.b-diagram { border-left: 3px solid var(--plum); }
+.block.b-footer { border-left: 3px solid var(--ink); }
+
+/* Inline "+" add-block between blocks */
+.add-here {
+  display: grid; grid-template-columns: 1fr auto 1fr;
+  align-items: center; gap: var(--s2);
+  padding: var(--s2) var(--s3);
+  margin: 2px 0;
+  opacity: 0;
+  transition: opacity 0.15s;
+}
+.doc-canvas:hover .add-here { opacity: 1; }
+@media (hover: none) {
+  .add-here { opacity: 0.6; }
+}
+.add-here::before, .add-here::after {
+  content: ''; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--border-strong), transparent);
+}
+.add-here .plus {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--paper);
+  border: 1px solid var(--border-strong);
+  display: grid; place-items: center;
+  font-size: 14px;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.add-here .plus:hover { background: var(--ink); color: var(--canvas); border-color: var(--ink); transform: scale(1.1); }
+
+/* ============================================================
+   BLOCK: HEADER
+   ============================================================ */
+.b-header {
+  background: linear-gradient(180deg, var(--paper), var(--tinted));
+  padding: var(--s5);
+}
+.b-header h2 {
+  margin: 0 0 var(--s3);
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 19px;
+  display: flex; align-items: center; gap: var(--s2);
+}
+.b-header h2 .step-num {
+  width: 22px; height: 22px;
+  background: var(--ink);
+  color: var(--canvas);
+  border-radius: 50%;
+  display: inline-grid; place-items: center;
+  font-family: 'Geist'; font-size: 10px;
+  font-weight: 600;
+}
+
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label {
+  font-size: 11px; font-weight: 600; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.08em;
+}
+.field label .req { color: var(--primary); }
+.field input, .field select, .field textarea {
+  font-size: 14px;
+  padding: 10px 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  background: var(--tinted);
+  color: var(--text);
+  width: 100%;
+  transition: all 0.15s;
+}
+.field input:focus, .field select:focus, .field textarea:focus {
+  border-color: var(--primary);
+  background: var(--paper);
+  box-shadow: 0 0 0 3px rgba(139,38,53,0.10);
+}
+.field textarea { min-height: 80px; resize: vertical; font-family: inherit; }
+
+.field-grid { display: grid; gap: var(--s3); }
+.field-grid.two { grid-template-columns: 1fr 1fr; }
+.field-grid.four { grid-template-columns: repeat(4, 1fr); }
+@media (max-width: 640px) {
+  .field-grid.two { grid-template-columns: 1fr; }
+  .field-grid.four { grid-template-columns: 1fr 1fr; }
+}
+
+.identity-row { display: flex; gap: var(--s4); align-items: stretch; margin-bottom: var(--s4); }
+.logo-drop {
+  width: 100px; flex-shrink: 0;
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--r);
+  display: grid; place-items: center;
+  text-align: center;
+  font-size: 24px;
+  color: var(--muted);
+  background: var(--tinted);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.logo-drop small { display: block; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; margin-top: 3px; font-weight: 600; }
+.logo-drop:hover { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); }
+@media (max-width: 540px) {
+  .identity-row { flex-direction: column; }
+  .logo-drop { width: 100%; min-height: 80px; }
+}
+
+.title-preview-card {
+  margin-top: var(--s4);
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: var(--s4);
+  text-align: center;
+  font-family: 'Times New Roman', serif;
+}
+.title-preview-card .auto-label {
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: var(--s2);
+}
+.title-preview-card .school {
+  font-weight: 800; font-size: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.title-preview-card .title-auto {
+  font-weight: 700; font-size: 13px;
+  margin-top: 6px;
+  letter-spacing: 0.03em;
+}
+.title-preview-card .paper-auto {
+  font-weight: 800; font-size: 14px;
+  margin-top: 3px;
+  letter-spacing: 0.04em;
+}
+
+/* Toggle list */
+.toggle-list { display: grid; gap: 6px; }
+.tg-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 14px;
+  background: var(--tinted);
+  border-radius: var(--r);
+  font-size: 13.5px;
+}
+.tg-row .lbl { display: flex; align-items: center; gap: 8px; }
+.tg-row .lbl .ic { width: 22px; text-align: center; }
+.tg {
+  width: 36px; height: 21px;
+  background: var(--border-strong);
+  border-radius: 99px;
+  position: relative;
+  cursor: pointer; transition: background 0.2s;
+  flex-shrink: 0;
+}
+.tg::after {
+  content: ''; position: absolute; top: 2px; left: 2px;
+  width: 17px; height: 17px; background: white;
+  border-radius: 50%;
+  transition: left 0.2s;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.18);
+}
+.tg.on { background: var(--sage); }
+.tg.on::after { left: 17px; }
+
+/* Default-instruction pills */
+.preset-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: var(--s2); }
+.preset-pill {
+  font-size: 12px;
+  padding: 5px 11px;
+  border-radius: 99px;
+  background: var(--gold-soft);
+  color: var(--ink);
+  border: 1px solid rgba(200,146,61,0.20);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.preset-pill:hover { background: var(--gold); color: white; }
+
+/* ============================================================
+   BLOCK: INSTRUCTIONS
+   ============================================================ */
+.b-instr .instr-content {
+  font-size: 14.5px;
+  padding: var(--s2) 0;
+  line-height: 1.65;
+}
+.b-instr .instr-content p { margin: 0 0 0.5em; }
+.b-instr .instr-content p:last-child { margin-bottom: 0; }
+.b-instr .instr-content strong { color: var(--ink); font-weight: 700; }
+.b-instr .instr-content .opt-tag { white-space: nowrap; }
+
+/* ============================================================
+   BLOCK: SECTION
+   ============================================================ */
+.section-title-row {
+  display: flex; align-items: center; gap: var(--s3);
+  margin-bottom: var(--s2);
+}
+.section-letter {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 32px;
+  color: var(--primary);
+  line-height: 1;
+}
+.section-name { flex: 1; }
+.section-name h3 {
+  font-family: 'Fraunces', serif;
+  font-weight: 600; font-size: 18px;
+  margin: 0;
+  line-height: 1.15;
+}
+.section-name .meta {
+  font-size: 11.5px; color: var(--muted);
+  margin-top: 2px;
+  display: flex; gap: var(--s3); flex-wrap: wrap;
+}
+.section-name .meta span { display: inline-flex; align-items: center; gap: 4px; }
+.section-marks {
+  font-family: 'Fraunces', serif;
+  font-weight: 500; font-size: 16px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  padding: 4px 12px;
+  border-radius: var(--r);
+  white-space: nowrap;
+}
+.section-instr-line {
+  font-style: italic;
+  font-size: 13.5px;
+  color: var(--muted);
+  padding: var(--s2) var(--s3);
+  background: var(--tinted);
+  border-radius: var(--r);
+  margin-top: var(--s2);
+}
+
+/* ============================================================
+   BLOCK: PASSAGE
+   ============================================================ */
+.passage-content {
+  background: var(--tinted);
+  border-left: 3px solid var(--sage);
+  padding: var(--s4);
+  border-radius: 0 var(--r) var(--r) 0;
+  font-family: 'Fraunces', serif;
+  font-size: 14.5px;
+  line-height: 1.65;
+}
+.passage-title {
+  font-weight: 700; font-size: 13.5px;
+  font-family: 'Geist', sans-serif;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--sage);
+  margin-bottom: var(--s2);
+  display: flex; justify-content: space-between; align-items: center;
+}
+.passage-title .pword-count {
+  font-size: 11px; color: var(--muted); font-weight: 400;
+  text-transform: none; letter-spacing: 0;
+}
+
+/* ============================================================
+   BLOCK: QUESTION CARD
+   ============================================================ */
+.q-card-top {
+  display: flex; align-items: center; gap: var(--s2);
+  margin-bottom: var(--s3);
+}
+.q-num {
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 18px;
+  width: 32px;
+  flex-shrink: 0;
+  color: var(--ink);
+  line-height: 1;
+}
+.q-type-tag {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: var(--r-sm);
+  background: var(--indigo-soft);
+  color: var(--indigo);
+  font-family: 'Geist', sans-serif;
+}
+.q-type-tag.mcq { background: var(--indigo-soft); color: #2C3870; }
+.q-type-tag.struct { background: var(--primary-soft); color: var(--primary); }
+.q-type-tag.essay { background: var(--plum-soft); color: var(--plum); }
+.q-type-tag.diag { background: var(--gold-soft); color: #7A5A1F; }
+.q-type-tag.tf { background: var(--sage-soft); color: #1F5B3D; }
+.q-type-tag.match { background: var(--canvas-2); color: var(--ink); }
+
+.q-marks-input {
+  margin-left: auto;
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 13px; color: var(--muted);
+  background: var(--tinted);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 4px 4px 4px 8px;
+}
+.q-marks-input input {
+  width: 32px; text-align: right;
+  background: transparent; border: none;
+  font-size: 13px; font-weight: 600;
+  font-family: inherit;
+  color: var(--text);
+}
+
+.q-text {
+  font-size: 15px;
+  line-height: 1.6;
+  margin-bottom: var(--s3);
+  font-family: 'Fraunces', serif;
+  font-weight: 500;
+}
+
+/* Question media zone */
+.q-media {
+  background: var(--tinted);
+  border: 1.5px dashed var(--border-strong);
+  border-radius: var(--r);
+  padding: var(--s3);
+  margin-bottom: var(--s3);
+  display: flex; align-items: center; justify-content: center; gap: var(--s2);
+  min-height: 100px;
+  flex-direction: column;
+  cursor: pointer;
+  transition: all 0.15s;
+  color: var(--muted);
+  font-size: 13px;
+  text-align: center;
+}
+.q-media:hover { border-color: var(--primary); background: var(--primary-soft); color: var(--primary); }
+.q-media .ic { font-size: 24px; }
+.q-media small { font-size: 11px; opacity: 0.8; }
+.q-media-options { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; margin-top: 6px; }
+.q-media-options .opt {
+  font-size: 11px;
+  padding: 3px 9px;
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  color: var(--text);
+}
+.q-media-options .opt:hover { background: var(--ink); color: var(--canvas); border-color: var(--ink); }
+
+/* Filled media (when image is present) */
+.q-media.filled {
+  border-style: solid;
+  background: var(--paper);
+  padding: 0;
+  overflow: hidden;
+  min-height: auto;
+}
+.q-media.filled img {
+  width: 100%; max-height: 240px; object-fit: contain;
+}
+.q-media .placeholder-diagram {
+  width: 100%; max-width: 380px; aspect-ratio: 16 / 9;
+  background:
+    repeating-linear-gradient(45deg, transparent 0, transparent 8px, rgba(14,44,48,0.04) 8px, rgba(14,44,48,0.04) 9px);
+  border-radius: var(--r-sm);
+  display: grid; place-items: center;
+  font-size: 13px; color: var(--muted);
+  border: 1px solid var(--border-strong);
+}
+
+/* MCQ options — text only */
+.mcq-options { display: grid; gap: var(--s2); }
+.mcq-option {
+  display: grid; grid-template-columns: 24px 1fr auto; gap: var(--s2);
+  align-items: center;
+  padding: 9px 12px;
+  background: var(--tinted);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.mcq-option:hover { background: var(--paper); border-color: var(--border-strong); }
+.mcq-option.correct {
+  background: var(--sage-soft);
+  border-color: rgba(62,123,90,0.3);
+}
+.mcq-option .letter {
+  width: 24px; height: 24px;
+  background: var(--paper);
+  border: 1px solid var(--border-strong);
+  border-radius: 50%;
+  display: grid; place-items: center;
+  font-size: 11px; font-weight: 600;
+  font-family: 'Geist Mono', monospace;
+}
+.mcq-option.correct .letter {
+  background: var(--sage);
+  color: white;
+  border-color: var(--sage);
+}
+.mcq-option .text { font-size: 14px; }
+.mcq-option .check { font-size: 14px; color: var(--sage); }
+
+/* MCQ options — image grid (Grade 1-4) */
+.mcq-image-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--s2);
+}
+.mcq-img-option {
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--r);
+  overflow: hidden;
+  cursor: pointer;
+  position: relative;
+  background: var(--paper);
+  transition: all 0.15s;
+}
+.mcq-img-option:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+.mcq-img-option.correct {
+  border-color: var(--sage);
+  border-width: 2.5px;
+  box-shadow: 0 0 0 3px var(--sage-soft);
+}
+.mcq-img-option .img-area {
+  aspect-ratio: 1 / 1;
+  background: var(--canvas);
+  display: grid; place-items: center;
+  font-size: 56px;
+  position: relative;
+}
+.mcq-img-option .letter-tag {
+  position: absolute; top: 8px; left: 8px;
+  width: 26px; height: 26px;
+  background: rgba(255,255,255,0.94);
+  border-radius: 50%;
+  display: grid; place-items: center;
+  font-weight: 600; font-size: 12px;
+  font-family: 'Geist Mono', monospace;
+  box-shadow: var(--shadow-xs);
+}
+.mcq-img-option.correct .letter-tag {
+  background: var(--sage);
+  color: white;
+}
+.mcq-img-option .img-caption {
+  padding: 6px 10px;
+  font-size: 12px;
+  text-align: center;
+  background: var(--paper);
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+}
+
+/* Answer line area (for short answer / structured) */
+.answer-lines {
+  margin-top: var(--s2);
+  padding: var(--s3);
+  background: var(--tinted);
+  border-radius: var(--r-sm);
+  border: 1px dashed var(--border-strong);
+}
+.answer-line {
+  border-bottom: 1px solid var(--border-strong);
+  height: 22px;
+  margin-bottom: 8px;
+}
+.answer-line:last-child { margin-bottom: 0; }
+.answer-meta {
+  display: flex; gap: var(--s2); align-items: center;
+  font-size: 11px; color: var(--muted);
+  margin-bottom: var(--s2);
+  text-transform: uppercase; letter-spacing: 0.06em;
+}
+.answer-meta select {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  padding: 3px 8px;
+  font-size: 11px;
+  text-transform: none; letter-spacing: 0;
+}
+
+/* Card footer (mapping, save to bank) */
+.q-footer {
+  display: flex; gap: var(--s2); align-items: center; flex-wrap: wrap;
+  margin-top: var(--s3);
+  padding-top: var(--s3);
+  border-top: 1px dashed var(--border);
+}
+.q-mapping-tag {
+  font-size: 10.5px;
+  padding: 3px 8px;
+  background: var(--canvas-2);
+  border-radius: 99px;
+  color: var(--ink);
+  font-family: 'Geist Mono', monospace;
+  letter-spacing: 0.04em;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+.q-mini-actions {
+  margin-left: auto;
+  display: flex; gap: 4px;
+}
+.q-mini-actions button {
+  padding: 4px 10px;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  font-size: 11.5px;
+  color: var(--muted);
+  display: inline-flex; align-items: center; gap: 4px;
+  transition: all 0.15s;
+}
+.q-mini-actions button:hover { background: var(--canvas); color: var(--ink); border-color: var(--border-strong); }
+.q-mini-actions button.gold:hover { background: var(--gold-soft); color: var(--gold); border-color: rgba(200,146,61,0.4); }
+
+/* ============================================================
+   BLOCK: DIAGRAM ACTIVITY
+   ============================================================ */
+.diagram-activity {
+  background: var(--tinted);
+  border-radius: var(--r);
+  padding: var(--s3);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--s3);
+  align-items: center;
+}
+.diagram-preview {
+  width: 100%; max-width: 240px;
+  aspect-ratio: 4 / 3;
+  background:
+    repeating-linear-gradient(45deg, transparent 0, transparent 8px, rgba(110,43,160,0.05) 8px, rgba(110,43,160,0.05) 9px);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-sm);
+  display: grid; place-items: center;
+  font-size: 13px;
+  color: var(--muted);
+  text-align: center;
+  padding: var(--s3);
+}
+.diagram-info { font-size: 13px; }
+.diagram-info strong { display: block; margin-bottom: 4px; font-size: 14px; }
+.diagram-info .pts { color: var(--muted); }
+
+/* ============================================================
+   BOTTOM BAR LIVE TOTALS
+   ============================================================ */
+.totals-bar {
+  position: fixed;
+  bottom: calc(var(--bottombar-h) + env(safe-area-inset-bottom));
+  left: 0; right: 0;
+  z-index: 49;
+  background: var(--paper);
+  border-top: 1px solid var(--border);
+  padding: 6px var(--s4);
+  font-size: 11.5px;
+  display: flex; gap: var(--s4); justify-content: space-around;
+  color: var(--muted);
+}
+.totals-bar strong { color: var(--text); font-weight: 600; font-family: 'Geist Mono', monospace; }
+
+/* ============================================================
+   SLIDE-OVER PANELS
+   ============================================================ */
+.scrim {
+  position: fixed; inset: 0;
+  background: rgba(14,44,48,0.40);
+  backdrop-filter: blur(2px);
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.25s;
+  z-index: 100;
+}
+.scrim.open { opacity: 1; pointer-events: auto; }
+
+.slideover {
+  position: fixed;
+  z-index: 101;
+  background: var(--paper);
+  box-shadow: var(--shadow-lg);
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+
+/* Mobile: bottom sheet */
+@media (max-width: 768px) {
+  .slideover {
+    left: 0; right: 0; bottom: 0;
+    max-height: 88vh;
+    border-radius: var(--r-xl) var(--r-xl) 0 0;
+    transform: translateY(100%);
+  }
+  .slideover.open { transform: translateY(0); }
+  .slideover::before {
+    content: '';
+    position: absolute; top: 8px; left: 50%;
+    transform: translateX(-50%);
+    width: 40px; height: 4px;
+    background: var(--border-strong);
+    border-radius: 99px;
+  }
+}
+
+/* Desktop: right rail */
+@media (min-width: 769px) {
+  .slideover {
+    top: 0; right: 0; bottom: 0;
+    width: 440px;
+    transform: translateX(100%);
+  }
+  .slideover.open { transform: translateX(0); }
+}
+
+.slideover-head {
+  padding: var(--s4) var(--s4) var(--s2);
+  display: flex; align-items: center; gap: var(--s3);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.slideover-head h3 {
+  flex: 1;
+  font-family: 'Fraunces', serif;
+  font-weight: 600;
+  font-size: 19px;
+  margin: 0;
+}
+.slideover-head h3 small { display: block; font-family: 'Geist', sans-serif; font-weight: 400; font-size: 12px; color: var(--muted); margin-top: 2px; letter-spacing: 0; }
+.slideover-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--s4);
+}
+.slideover-foot {
+  padding: var(--s3) var(--s4);
+  border-top: 1px solid var(--border);
+  display: flex; gap: var(--s2);
+  flex-shrink: 0;
+  background: var(--tinted);
+}
+
+/* Block picker grid */
+.block-cat {
+  font-family: 'Geist Mono', monospace;
+  font-size: 10px; letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: var(--s3) 0 var(--s2);
+}
+.block-cat:first-child { margin-top: 0; }
+.block-picker-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+.bp-item {
+  padding: var(--s3);
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: all 0.15s;
+  text-align: left;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.bp-item:hover { border-color: var(--primary); background: var(--primary-soft); transform: translateY(-1px); }
+.bp-item .bp-ic {
+  font-size: 22px;
+  width: 40px; height: 40px;
+  background: var(--canvas);
+  border-radius: var(--r);
+  display: grid; place-items: center;
+  margin-bottom: var(--s2);
+}
+.bp-item strong { font-size: 13.5px; font-weight: 600; }
+.bp-item small { font-size: 11.5px; color: var(--muted); line-height: 1.3; }
+
+/* AI suggestions panel content */
+.ai-msg {
+  background: var(--gold-soft);
+  border-left: 3px solid var(--gold);
+  padding: var(--s3) var(--s4);
+  border-radius: 0 var(--r) var(--r) 0;
+  font-size: 13.5px;
+  line-height: 1.5;
+  margin-bottom: var(--s3);
+}
+.ai-msg strong { display: block; margin-bottom: 4px; }
+.ai-action-grid { display: grid; gap: 6px; }
+.ai-action {
+  padding: var(--s3);
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex; gap: var(--s3); align-items: center;
+  text-align: left;
+}
+.ai-action:hover { border-color: var(--gold); background: rgba(245,231,204,0.30); }
+.ai-action .ic {
+  width: 38px; height: 38px;
+  background: var(--gold-soft);
+  border-radius: var(--r);
+  display: grid; place-items: center;
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.ai-action div { font-size: 13.5px; line-height: 1.35; }
+.ai-action div strong { display: block; font-weight: 600; }
+.ai-action div small { color: var(--muted); font-size: 12px; }
+
+/* ============================================================
+   A4 PREVIEW PAPER
+   ============================================================ */
+.preview-shell {
+  padding: var(--s4);
+  background: var(--canvas-2);
+}
+.paper {
+  max-width: 720px;
+  margin: 0 auto;
+  background: white;
+  border-radius: 3px;
+  box-shadow: var(--shadow-paper);
+  padding: 56px 64px;
+  color: #111;
+  font-family: 'Times New Roman', 'Liberation Serif', serif;
+  font-size: 13.5px;
+  line-height: 1.65;
+  /* Print-safe typography: better paragraph control */
+  hyphens: auto;
+  -webkit-hyphens: auto;
+  text-rendering: optimizeLegibility;
+}
+.paper p { margin: 0 0 0.55em; }
+.paper p:last-child { margin-bottom: 0; }
+@media (max-width: 640px) {
+  .paper { padding: 32px 24px; font-size: 12.5px; }
+}
+
+/* Marble banner — three-zone layout for mathematically centered title.
+   Left and right zones flex equally (1fr each); the title column is
+   auto-sized in the center, so it stays exactly at the page midpoint
+   regardless of logo size or title length. */
+.paper-banner {
+  background:
+    linear-gradient(135deg, rgba(255,255,255,0.78) 0%, rgba(220,220,225,0.50) 50%, rgba(255,255,255,0.65) 100%),
+    repeating-linear-gradient(38deg, transparent 0, rgba(120,120,130,0.08) 2px, transparent 5px, rgba(180,180,190,0.06) 9px),
+    repeating-linear-gradient(-30deg, transparent 0, rgba(150,150,160,0.07) 1px, transparent 4px),
+    linear-gradient(180deg, #ececec, #e3e3e3);
+  border: 1px solid #c8c8c8;
+  padding: 22px 32px;
+  margin-bottom: 20px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 16px;
+  align-items: center;
+}
+.banner-left  { justify-self: start; min-width: 0; }
+.banner-right { justify-self: end;   min-width: 0; }
+.paper-logo {
+  width: 76px; height: 76px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #7d3aa8, #4a1d6e 70%, #2d0e47);
+  display: grid; place-items: center;
+  position: relative; overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.18);
+}
+.paper-logo::before {
+  content: ''; position: absolute; inset: 0;
+  background-image:
+    radial-gradient(circle at 18% 28%, white 1.2px, transparent 1.8px),
+    radial-gradient(circle at 72% 22%, white 1.6px, transparent 2.4px),
+    radial-gradient(circle at 28% 72%, white 1px, transparent 1.6px),
+    radial-gradient(circle at 78% 76%, white 1.2px, transparent 1.8px);
+}
+.paper-logo span { position: relative; z-index: 1; font-size: 30px; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.3)); }
+.paper-banner-text {
+  text-align: center;
+  font-family: 'Arial', 'Helvetica', sans-serif;
+  min-width: 0;
+  max-width: 100%;
+}
+.paper-banner-text .pbn-school {
+  font-weight: 800; font-size: 24px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase; line-height: 1.05;
+}
+.paper-banner-text .pbn-title {
+  font-weight: 700; font-size: 14.5px;
+  margin-top: 10px;
+  letter-spacing: 0.025em;
+  line-height: 1.3;
+}
+.paper-banner-text .pbn-paper {
+  font-weight: 800; font-size: 17px;
+  margin-top: 4px;
+  letter-spacing: 0.04em;
+}
+
+/* Paper meta row */
+.paper-name-row {
+  display: flex; justify-content: space-between; gap: 28px;
+  font-size: 13.5px;
+  margin: 18px 0 6px;
+  align-items: end;
+}
+.paper-name-row span { white-space: nowrap; font-weight: 600; }
+.paper-name-row .line { flex: 1; border-bottom: 1px solid #000; height: 18px; }
+.paper-total-marks {
+  text-align: right;
+  font-size: 13px; font-weight: 600;
+  margin: 6px 0 20px;
+}
+
+/* Instruction box — proper inline rendering.
+   The previous version had `strong { display: block }` which broke
+   every (A), (B), (C), (D) onto its own line. Fixed with a dedicated
+   .instr-label class and .opt-tag wrapper that preserves grouping. */
+.paper-instr-box {
+  background: #f4f4f4;
+  border-left: 3px solid #000;
+  padding: 12px 16px;
+  margin-bottom: 22px;
+  font-size: 13.5px;
+  line-height: 1.7;
+}
+.paper-instr-box .instr-label {
+  display: block;
+  font-weight: 700;
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.10em;
+  margin-bottom: 6px;
+  color: #000;
+}
+.paper-instr-box strong { font-weight: 700; color: #000; }
+
+/* Non-breaking option label group — keeps "(A)" intact on one line */
+.opt-tag {
+  white-space: nowrap;
+  font-weight: 600;
+}
+.opt-tag strong { font-weight: 700; color: #000; }
+
+.paper-section { margin-top: 24px; page-break-inside: avoid; break-inside: avoid; }
+.paper-q { page-break-inside: avoid; break-inside: avoid; orphans: 3; widows: 3; }
+.paper-section-head {
+  font-weight: 700; font-size: 14.5px;
+  text-transform: uppercase; letter-spacing: 0.04em;
+  border-bottom: 1px solid #000;
+  padding-bottom: 4px;
+  margin-bottom: 8px;
+}
+.paper-section-head .marks { float: right; font-size: 12.5px; }
+.paper-section-instr {
+  font-style: italic;
+  font-size: 12.5px;
+  margin-bottom: 14px;
+  color: #333;
+  line-height: 1.55;
+}
+
+.paper-q {
+  margin: 12px 0 16px;
+  page-break-inside: avoid; break-inside: avoid;
+}
+.paper-q .qline {
+  font-size: 13.5px;
+  line-height: 1.6;
+  margin-bottom: 6px;
+}
+.paper-q .qline strong { font-weight: 700; color: #000; }
+.paper-q .qline em { font-style: italic; color: #555; }
+.paper-q .qmarks {
+  white-space: nowrap;
+  font-style: italic;
+  color: #555;
+  font-size: 12.5px;
+  margin-left: 4px;
+}
+.paper-options {
+  padding-left: 18px;
+  font-size: 13px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 4px 14px;
+  margin: 4px 0 6px;
+}
+.paper-options.stacked { grid-template-columns: 1fr; gap: 4px; padding-left: 22px; }
+.paper-options > div {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.paper-options .opt-letter {
+  font-weight: 700;
+  color: #000;
+  margin-right: 2px;
+}
+
+.paper-image-options {
+  display: grid; grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 12px;
+  margin: 10px 0 18px;
+}
+@media (max-width: 540px) {
+  .paper-image-options { grid-template-columns: 1fr 1fr; }
+}
+.paper-img-opt {
+  text-align: center;
+  border: 1px solid #999;
+  border-radius: 3px;
+  padding: 8px;
+  background: #fafafa;
+}
+.paper-img-opt .img-box {
+  aspect-ratio: 1 / 1;
+  display: grid; place-items: center;
+  font-size: 40px;
+  background: white;
+  border-radius: 2px;
+  margin-bottom: 4px;
+  filter: grayscale(0.4);
+}
+.paper-img-opt .lbl { font-size: 12px; font-weight: 700; }
+
+.paper-passage {
+  background: #fafafa;
+  border: 1px solid #ccc;
+  padding: 14px 18px;
+  margin: 10px 0 16px;
+  font-size: 13px; line-height: 1.7;
+}
+.paper-passage strong.pass-h { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
+
+.paper-answer-lines { margin: 8px 0 18px; }
+.paper-answer-line { border-bottom: 1px solid #000; height: 22px; margin-bottom: 6px; }
+
+.paper-diagram {
+  border: 2px dashed #999;
+  background: #fafafa;
+  padding: 24px;
+  text-align: center;
+  font-style: italic;
+  font-size: 12px;
+  color: #777;
+  margin: 8px 0 14px;
+  min-height: 100px;
+  display: grid; place-items: center;
+}
+
+.paper-footer-code {
+  text-align: right;
+  margin-top: 30px;
+  font-size: 11.5px;
+  color: #333;
+}
+
+.paper-page-break {
+  border-top: 1px dashed #ccc;
+  margin: 32px 0;
+  position: relative;
+  text-align: center;
+}
+.paper-page-break span {
+  position: relative;
+  top: -10px;
+  background: white;
+  padding: 0 12px;
+  font-size: 10px;
+  color: #aaa;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* ============================================================
+   QUESTION BANK
+   ============================================================ */
+.bank-tabs {
+  display: flex; gap: 4px;
+  background: var(--paper);
+  padding: 4px;
+  border-radius: 99px;
+  border: 1px solid var(--border);
+  width: fit-content;
+  margin-bottom: var(--s4);
+  overflow-x: auto;
+}
+.bank-tab {
+  padding: 7px 14px;
+  border-radius: 99px;
+  font-size: 13px;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.bank-tab.active { background: var(--ink); color: var(--canvas); }
+
+.bank-item {
+  background: var(--paper);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: var(--s3) var(--s4);
+  margin-bottom: var(--s2);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: var(--s3);
+  align-items: center;
+}
+.bank-item .info {
+  font-size: 13.5px;
+}
+.bank-item .info strong { display: block; margin-bottom: 4px; font-weight: 600; }
+.bank-item .info .meta { color: var(--muted); font-size: 11.5px; display: flex; gap: var(--s3); flex-wrap: wrap; }
+.bank-item .meta span { display: inline-flex; align-items: center; gap: 3px; }
+
+/* ============================================================
+   PREVIEW LOGO — direct manipulation
+   Tap-to-select with eight resize handles, floating toolbar
+   (Move | Resize | Replace | Lock | Delete), and a lock badge.
+   ============================================================ */
+.logo-wrap {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+.logo-wrap .paper-logo {
+  cursor: pointer;
+  transition: outline-color 0.15s, transform 0.15s;
+  outline: 2px solid transparent;
+  outline-offset: 4px;
+}
+.logo-wrap:not(.locked):not(.selected) .paper-logo:hover {
+  outline-color: rgba(37, 99, 235, 0.35);
+}
+.logo-wrap.selected .paper-logo {
+  outline-color: #2563EB;
+}
+.logo-wrap.locked .paper-logo { cursor: not-allowed; }
+.logo-wrap.locked::after {
+  content: '🔒';
+  position: absolute;
+  bottom: -2px; right: -2px;
+  background: white;
+  border-radius: 50%;
+  width: 22px; height: 22px;
+  display: grid; place-items: center;
+  font-size: 11px;
+  box-shadow: 0 1px 4px rgba(14,44,48,0.30);
+  border: 1px solid rgba(14,44,48,0.1);
+  z-index: 3;
+}
+.logo-wrap.moving .paper-logo { cursor: grabbing !important; }
+.logo-wrap.move-mode:not(.locked) .paper-logo { cursor: grab; }
+.logo-wrap.move-mode:not(.locked) .paper-logo:active { cursor: grabbing; }
+
+/* Resize handle overlay */
+.resize-handles {
+  position: absolute;
+  inset: -6px;
+  pointer-events: none;
+  display: none;
+  z-index: 2;
+}
+.logo-wrap.selected .resize-handles { display: block; }
+.resize-handle {
+  position: absolute;
+  width: 12px; height: 12px;
+  background: white;
+  border: 1.5px solid #2563EB;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(14,44,48,0.22);
+  pointer-events: auto;
+  touch-action: none;
+}
+.resize-handle.tl { top: 0;    left: 0;    cursor: nwse-resize; }
+.resize-handle.tr { top: 0;    right: 0;   cursor: nesw-resize; }
+.resize-handle.bl { bottom: 0; left: 0;    cursor: nesw-resize; }
+.resize-handle.br { bottom: 0; right: 0;   cursor: nwse-resize; }
+.resize-handle.tm { top: 0;    left: 50%;  transform: translateX(-50%); cursor: ns-resize; }
+.resize-handle.bm { bottom: 0; left: 50%;  transform: translateX(-50%); cursor: ns-resize; }
+.resize-handle.ml { left: 0;   top: 50%;   transform: translateY(-50%); cursor: ew-resize; }
+.resize-handle.mr { right: 0;  top: 50%;   transform: translateY(-50%); cursor: ew-resize; }
+
+/* Floating toolbar */
+.logo-toolbar {
+  position: absolute;
+  bottom: calc(100% + 14px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0E2C30;
+  color: white;
+  border-radius: 99px;
+  padding: 4px;
+  display: none;
+  align-items: center;
+  gap: 0;
+  box-shadow: 0 10px 28px rgba(14,44,48,0.28), 0 2px 6px rgba(14,44,48,0.18);
+  white-space: nowrap;
+  z-index: 20;
+  font-family: 'Geist', sans-serif;
+  animation: toolbar-in 0.18s cubic-bezier(0.2, 0.8, 0.2, 1.1);
+}
+@keyframes toolbar-in {
+  from { opacity: 0; transform: translate(-50%, 4px) scale(0.96); }
+  to   { opacity: 1; transform: translate(-50%, 0)   scale(1);    }
+}
+.logo-wrap.selected .logo-toolbar { display: inline-flex; }
+.logo-toolbar::after {
+  content: '';
+  position: absolute;
+  top: 100%; left: 50%;
+  transform: translate(-50%, -5px) rotate(45deg);
+  width: 10px; height: 10px;
+  background: #0E2C30;
+  z-index: -1;
+}
+.logo-toolbar button {
+  padding: 7px 11px;
+  border-radius: 99px;
+  color: rgba(255,255,255,0.86);
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12.5px; font-weight: 500;
+  transition: all 0.15s;
+  background: transparent;
+  white-space: nowrap;
+  border: none;
+}
+.logo-toolbar button:hover { background: rgba(255,255,255,0.10); color: white; }
+.logo-toolbar button.active {
+  background: #2563EB;
+  color: white;
+}
+.logo-toolbar button.danger:hover {
+  background: #DC2626;
+  color: white;
+}
+.logo-toolbar .sep {
+  width: 1px; height: 18px;
+  background: rgba(255,255,255,0.18);
+  margin: 0 2px;
+  flex-shrink: 0;
+}
+.logo-toolbar .ic { font-size: 13px; line-height: 1; }
+
+/* Mobile: icon-only toolbar */
+@media (max-width: 640px) {
+  .logo-toolbar button .label { display: none; }
+  .logo-toolbar button { padding: 8px 10px; }
+  .logo-toolbar .ic { font-size: 15px; }
+}
+
+/* Deleted state — dashed placeholder */
+.logo-wrap.empty .paper-logo {
+  background: var(--tinted) !important;
+  border: 2px dashed var(--border-strong);
+  box-shadow: none;
+}
+.logo-wrap.empty .paper-logo::before { display: none; }
+.logo-wrap.empty .paper-logo span {
+  filter: none !important;
+  color: var(--muted) !important;
+  opacity: 0.7;
+}
+
+/* Subtle toast for action feedback */
+.action-toast {
+  position: fixed;
+  bottom: calc(var(--bottombar-h) + env(safe-area-inset-bottom) + 80px);
+  left: 50%; transform: translateX(-50%) translateY(8px);
+  background: var(--ink);
+  color: var(--canvas);
+  padding: 9px 16px;
+  border-radius: 99px;
+  font-size: 13px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s, transform 0.2s;
+  z-index: 200;
+  box-shadow: var(--shadow-md);
+  display: inline-flex; align-items: center; gap: 8px;
+}
+.action-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ============================================================
+   RESPONSIVE BREAKPOINTS
+   ============================================================ */
+@media (max-width: 540px) {
+  .canvas-area, .doc-canvas { padding: var(--s3); }
+  .welcome { padding: var(--s5) var(--s4); }
+  .stat-strip { grid-template-columns: 1fr 1fr; }
+  .block { padding: var(--s3); }
+  .block.b-part, .block.b-question.nested { margin-left: var(--s3); }
+  .field-grid.two { grid-template-columns: 1fr; }
+  .paper-options { grid-template-columns: 1fr 1fr; }
+  .block-picker-grid { grid-template-columns: 1fr; }
+  .mcq-image-grid { grid-template-columns: 1fr 1fr; }
+}
+
+/* Print stylesheet — A4 fidelity.
+   What you see in the preview is what comes out of the printer.
+   Set proper margins, allow backgrounds (marble banner), and
+   prevent ugly orphaned questions across page breaks. */
+@page {
+  size: A4;
+  margin: 18mm 18mm 16mm;
+}
+@media print {
+  html, body { background: white; }
+  body * { visibility: hidden; }
+  .paper, .paper * { visibility: visible; }
+  .paper {
+    position: absolute; left: 0; top: 0;
+    box-shadow: none;
+    max-width: 100%;
+    padding: 0;
+    border-radius: 0;
+    background: white;
+    /* Force backgrounds (marble banner, instruction box, etc.) to print */
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    color-adjust: exact;
+  }
+  .paper * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  .paper-section,
+  .paper-q,
+  .paper-passage,
+  .paper-img-opt {
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+  .paper-section-head { page-break-after: avoid; break-after: avoid; }
+  .paper-instr-box   { page-break-inside: avoid; break-inside: avoid; }
+  .app-bar, .bottom-bar, .totals-bar, .builder-bar,
+  .scrim, .slideover, .action-toast,
+  .logo-toolbar, .resize-handles { display: none !important; }
+}
+
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     TOP APP BAR
+     ============================================================ -->
+<header class="app-bar">
+  <button class="icon-btn" onclick="showView('home')">←</button>
+  <div class="app-bar-title">
+    <span class="status-dot"></span>
+    Grade 4 Science — Term 1 Test 2026
+    <span class="badge-mini">Draft</span>
+  </div>
+  <button class="icon-btn" onclick="openSlide('ai')" title="AI assistant">✨</button>
+  <button class="icon-btn" title="More">⋯</button>
+</header>
+
+
+<!-- ============================================================
+     VIEW: STUDIO HOME
+     ============================================================ -->
+<section class="view active" id="view-home">
+  <div class="canvas-area">
+
+    <div class="welcome">
+      <div class="welcome-eyebrow">📄 Teacher-only · Examination Studio</div>
+      <h1>Build school-ready <em>papers</em> the way teachers think.</h1>
+      <p>Composable blocks. Real A4 output. AI that drafts sections, generates diagrams, and writes marking keys — but never publishes to learners.</p>
+      <div class="welcome-cta">
+        <button class="btn btn-cream" onclick="showView('builder')">📝 New paper</button>
+        <button class="btn btn-ghost" onclick="openSlide('ai')">✨ Generate with AI</button>
+      </div>
+    </div>
+
+    <div class="eyebrow">
+      Quick actions
+    </div>
+
+    <div class="ai-strip" onclick="openSlide('ai')">
+      <div class="sparkle">✨</div>
+      <div class="ai-strip-text">
+        <strong>Zed AI is ready to help</strong>
+        <span>Draft a Grade 5 Maths End-of-Term paper · auto-balanced sections · marking key included</span>
+      </div>
+      <button class="btn btn-gold btn-sm">Open →</button>
+    </div>
+
+    <div class="stat-strip">
+      <div class="stat"><div class="stat-v">24</div><div class="stat-l">Papers</div></div>
+      <div class="stat"><div class="stat-v">6</div><div class="stat-l">Drafts</div></div>
+      <div class="stat"><div class="stat-v">187</div><div class="stat-l">Questions banked</div></div>
+      <div class="stat"><div class="stat-v">43</div><div class="stat-l">Diagrams saved</div></div>
+    </div>
+
+    <div class="eyebrow">
+      Recently edited
+      <a href="#" onclick="showView('bank'); return false;">View library →</a>
+    </div>
+
+    <div class="paper-grid">
+
+      <div class="paper-card" onclick="showView('builder')">
+        <div class="thumb">
+          <div class="thumb-tag">📐 Maths · Grade 5</div>
+          <div class="mini-doc">
+            <div class="l tall"></div>
+            <div class="l"></div><div class="l short"></div>
+            <div class="l"></div><div class="l"></div>
+            <div class="l short"></div>
+          </div>
+        </div>
+        <div class="info">
+          <h3>End of Term 3 Test</h3>
+          <div class="meta">29 questions · 50 marks · 90 mins</div>
+          <div class="row">
+            <span><span class="status-pill ready">Ready</span></span>
+            <span style="margin-left: auto; color: var(--muted-2);">2h ago</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="paper-card" onclick="showView('builder')">
+        <div class="thumb">
+          <div class="thumb-tag">🧪 Science · Grade 4</div>
+          <div class="mini-doc">
+            <div class="l tall"></div>
+            <div class="l"></div><div class="l"></div>
+            <div class="l short"></div><div class="l"></div>
+            <div class="l"></div>
+          </div>
+        </div>
+        <div class="info">
+          <h3>Topic Test · Body Systems</h3>
+          <div class="meta">20 questions · 30 marks · 45 mins</div>
+          <div class="row">
+            <span><span class="status-pill draft">Draft</span></span>
+            <span style="margin-left: auto; color: var(--muted-2);">Yesterday</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="paper-card" onclick="showView('preview')">
+        <div class="thumb">
+          <div class="thumb-tag">🌍 Social Studies · Grade 7</div>
+          <div class="mini-doc">
+            <div class="l tall"></div>
+            <div class="l"></div><div class="l short"></div>
+            <div class="l"></div><div class="l"></div>
+            <div class="l"></div>
+          </div>
+        </div>
+        <div class="info">
+          <h3>Mock Exam Paper 1</h3>
+          <div class="meta">50 questions · 100 marks · 120 mins</div>
+          <div class="row">
+            <span><span class="status-pill printed">Printed</span></span>
+            <span style="margin-left: auto; color: var(--muted-2);">3 days ago</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="paper-card" onclick="showView('builder')">
+        <div class="thumb">
+          <div class="thumb-tag">📖 English · Grade 6</div>
+          <div class="mini-doc">
+            <div class="l tall"></div>
+            <div class="l"></div><div class="l"></div>
+            <div class="l"></div><div class="l short"></div>
+          </div>
+        </div>
+        <div class="info">
+          <h3>Comprehension &amp; Grammar</h3>
+          <div class="meta">15 questions · 40 marks · 60 mins</div>
+          <div class="row">
+            <span><span class="status-pill ready">Ready</span></span>
+            <span style="margin-left: auto; color: var(--muted-2);">Last week</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     VIEW: BUILDER — block-based document editor
+     ============================================================ -->
+<section class="view" id="view-builder">
+
+  <!-- Builder sub-toolbar -->
+  <div class="builder-bar">
+    <button class="chip active">📄 Builder</button>
+    <button class="chip" onclick="showView('preview')">👁 Preview</button>
+    <button class="chip" onclick="showView('bank')">🗃 Question bank</button>
+    <button class="chip" onclick="openSlide('ai')">✨ AI tools</button>
+    <span class="pages">📃 Est. 3 pages · A4</span>
+  </div>
+
+  <div class="doc-canvas">
+
+    <!-- ============ BLOCK: HEADER ============ -->
+    <div class="block b-header">
+      <div class="block-head">
+        <span class="ic">📄</span> Paper Header
+        <span class="tools">
+          <button class="tool" title="Move up">↑</button>
+          <button class="tool" title="Move down">↓</button>
+          <button class="tool" title="Settings">⚙</button>
+        </span>
+      </div>
+
+      <div class="identity-row">
+        <div class="logo-drop">
+          🖼<small>School<br>logo</small>
+        </div>
+        <div style="flex: 1; display: flex; flex-direction: column; gap: var(--s3);">
+          <div class="field">
+            <label>School name <span class="req">*</span></label>
+            <input type="text" id="f-school" value="JEMAREEN ACADEMY" oninput="updateLive()">
+          </div>
+          <div class="field">
+            <label>Subtitle (optional)</label>
+            <input type="text" placeholder="P.O. Box 30001, Lusaka">
+          </div>
+        </div>
+      </div>
+
+      <div class="field-grid four" style="margin-bottom: var(--s3);">
+        <div class="field">
+          <label>Grade</label>
+          <select id="f-grade" onchange="updateLive()">
+            <option>One</option><option>Two</option><option>Three</option>
+            <option selected>Four</option><option>Five</option><option>Six</option>
+            <option>Seven</option><option>Eight</option><option>Nine</option>
+            <option>Ten</option><option>Eleven</option><option>Twelve</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Assessment</label>
+          <select id="f-type" onchange="updateLive()">
+            <option>Weekly Test</option><option>Topic Test</option><option>Midterm Test</option>
+            <option selected>End of Term Test</option><option>Mock Exam</option><option>Revision Paper</option>
+            <option>Practical Paper</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Term</label>
+          <select id="f-term" onchange="updateLive()">
+            <option selected>Term 1</option><option>Term 2</option><option>Term 3</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Year</label>
+          <input type="number" id="f-year" value="2026" oninput="updateLive()">
+        </div>
+      </div>
+
+      <div class="field-grid two">
+        <div class="field">
+          <label>Paper name</label>
+          <select id="f-paper" onchange="updateLive()">
+            <option>Paper 1</option><option>Paper 2</option>
+            <option>Special Paper 1</option><option selected>Special Paper 2</option>
+            <option>Practical Paper</option><option>Revision Paper</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Subject</label>
+          <select id="f-subject" onchange="updateLive()">
+            <option>Mathematics</option><option selected>Science</option>
+            <option>Social Studies</option><option>English</option>
+            <option>Technology Studies</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="field-grid two" style="margin-top: var(--s3);">
+        <div class="field">
+          <label>Duration</label>
+          <input type="text" value="60 minutes">
+        </div>
+        <div class="field">
+          <label>Total marks (auto)</label>
+          <input type="text" id="f-marks" value="30" readonly style="background: var(--canvas-2); color: var(--muted);">
+        </div>
+      </div>
+
+      <div style="margin-top: var(--s4);">
+        <label style="font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; display: block; margin-bottom: var(--s2);">Learner info fields (printed on paper)</label>
+        <div class="toggle-list">
+          <div class="tg-row"><div class="lbl"><span class="ic">👤</span> NAME field</div><div class="tg on"></div></div>
+          <div class="tg-row"><div class="lbl"><span class="ic">📅</span> DATE field</div><div class="tg on"></div></div>
+          <div class="tg-row"><div class="lbl"><span class="ic">📊</span> TOTAL MARKS field</div><div class="tg on"></div></div>
+          <div class="tg-row"><div class="lbl"><span class="ic">🏫</span> CLASS field <small style="color: var(--muted);">(optional)</small></div><div class="tg"></div></div>
+        </div>
+      </div>
+
+      <!-- Auto preview of the header -->
+      <div class="title-preview-card">
+        <div class="auto-label">⚡ Auto-generated header</div>
+        <div class="school" id="prv-school">JEMAREEN ACADEMY</div>
+        <div class="title-auto" id="prv-title">GRADE FOUR END OF TERM 1 TEST - 2026</div>
+        <div class="paper-auto" id="prv-paper">SPECIAL PAPER 2</div>
+      </div>
+    </div>
+
+    <div class="add-here"><button class="plus" onclick="openSlide('blocks')">+</button></div>
+
+
+    <!-- ============ BLOCK: INSTRUCTIONS ============ -->
+    <div class="block b-instr">
+      <div class="block-head">
+        <span class="ic">📋</span> General Instructions
+        <span class="tools">
+          <button class="tool" title="Move up">↑</button>
+          <button class="tool" title="Move down">↓</button>
+          <button class="tool danger" title="Delete">🗑</button>
+        </span>
+      </div>
+      <div class="instr-content">
+        <p>Answer <strong>all&nbsp;the</strong> questions.</p>
+        <p>Choose and circle the correct answer from the given options <span class="opt-tag">(<strong>A</strong>)</span>, <span class="opt-tag">(<strong>B</strong>)</span>, <span class="opt-tag">(<strong>C</strong>)</span>,&nbsp;and <span class="opt-tag">(<strong>D</strong>)</span>.</p>
+      </div>
+      <div class="preset-row">
+        <div class="preset-pill">+ Use a pen</div>
+        <div class="preset-pill">+ Show all working</div>
+        <div class="preset-pill">+ No calculators</div>
+        <div class="preset-pill">+ Time reminder</div>
+      </div>
+    </div>
+
+    <div class="add-here"><button class="plus" onclick="openSlide('blocks')">+</button></div>
+
+
+    <!-- ============ BLOCK: SECTION A ============ -->
+    <div class="block b-section">
+      <div class="block-head">
+        <span class="ic">📑</span> Section
+        <span class="tools">
+          <button class="tool" title="Move up">↑</button>
+          <button class="tool" title="Move down">↓</button>
+          <button class="tool" title="Duplicate">📋</button>
+          <button class="tool danger" title="Delete">🗑</button>
+        </span>
+      </div>
+      <div class="section-title-row">
+        <div class="section-letter">A</div>
+        <div class="section-name">
+          <h3>Multiple Choice Questions</h3>
+          <div class="meta">
+            <span>📝 5 questions shown</span>
+            <span>🎯 Body systems · Diseases</span>
+          </div>
+        </div>
+        <div class="section-marks">16 marks</div>
+      </div>
+      <div class="section-instr-line">Choose the correct answer from the options given.</div>
+    </div>
+
+
+    <!-- ============ BLOCK: QUESTION 1 (text MCQ) ============ -->
+    <div class="block b-question nested">
+      <div class="block-head">
+        <span class="ic">❓</span> Multiple Choice
+        <span class="tools">
+          <button class="tool" title="Move up">↑</button>
+          <button class="tool" title="Move down">↓</button>
+          <button class="tool" title="Edit in detail" onclick="openSlide('editor')">✏</button>
+          <button class="tool" title="Duplicate">📋</button>
+          <button class="tool danger" title="Delete">🗑</button>
+        </span>
+      </div>
+      <div class="q-card-top">
+        <div class="q-num">1.</div>
+        <div class="q-type-tag mcq">MCQ · 4 options</div>
+        <div class="q-marks-input">marks <input value="1"></div>
+      </div>
+      <div class="q-text">Which of the following is NOT a respiratory disease?</div>
+      <div class="mcq-options">
+        <div class="mcq-option"><div class="letter">A</div><div class="text">Asthma</div></div>
+        <div class="mcq-option"><div class="letter">B</div><div class="text">Tuberculosis</div></div>
+        <div class="mcq-option correct"><div class="letter">C</div><div class="text">Malaria</div><div class="check">✓</div></div>
+        <div class="mcq-option"><div class="letter">D</div><div class="text">Bronchitis</div></div>
+      </div>
+      <div class="q-footer">
+        <span class="q-mapping-tag">📚 Bio · Health</span>
+        <span class="q-mapping-tag">🎯 LO 4.3.1</span>
+        <div class="q-mini-actions">
+          <button>💾 Save to bank</button>
+          <button class="gold">✨ AI rewrite</button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ============ BLOCK: QUESTION 2 (MCQ with diagram) ============ -->
+    <div class="block b-question nested">
+      <div class="block-head">
+        <span class="ic">🖼</span> Multiple Choice + Diagram
+        <span class="tools">
+          <button class="tool" title="Edit" onclick="openSlide('editor')">✏</button>
+          <button class="tool" title="Duplicate">📋</button>
+          <button class="tool danger" title="Delete">🗑</button>
+        </span>
+      </div>
+      <div class="q-card-top">
+        <div class="q-num">2.</div>
+        <div class="q-type-tag mcq">MCQ</div>
+        <div class="q-type-tag diag" style="margin-left: 4px;">DIAGRAM</div>
+        <div class="q-marks-input">marks <input value="1"></div>
+      </div>
+      <div class="q-text">Name the part of the skin marked with the letter X.</div>
+      <div class="q-media filled">
+        <div class="placeholder-diagram">🖼 Skin cross-section diagram · label X<br><small style="font-size:11px; opacity:0.7;">Auto-generated · grayscale-safe</small></div>
+      </div>
+      <div class="mcq-options">
+        <div class="mcq-option"><div class="letter">A</div><div class="text">dermis</div></div>
+        <div class="mcq-option"><div class="letter">B</div><div class="text">hair follicle</div></div>
+        <div class="mcq-option"><div class="letter">C</div><div class="text">hypodermis</div></div>
+        <div class="mcq-option correct"><div class="letter">D</div><div class="text">epidermis</div><div class="check">✓</div></div>
+      </div>
+    </div>
+
+
+    <!-- ============ BLOCK: QUESTION 3 (Image MCQ — Grade 1-4 style) ============ -->
+    <div class="block b-question nested">
+      <div class="block-head">
+        <span class="ic">🐾</span> Image-only Multiple Choice
+        <span class="tools">
+          <button class="tool" title="Edit" onclick="openSlide('editor')">✏</button>
+          <button class="tool danger" title="Delete">🗑</button>
+        </span>
+      </div>
+      <div class="q-card-top">
+        <div class="q-num">3.</div>
+        <div class="q-type-tag mcq">IMAGE MCQ</div>
+        <div class="q-marks-input">marks <input value="1"></div>
+      </div>
+      <div class="q-text">Which of the following is a mammal?</div>
+      <div class="mcq-image-grid">
+        <div class="mcq-img-option">
+          <div class="img-area">🐦<div class="letter-tag">A</div></div>
+          <div class="img-caption">Bird</div>
+        </div>
+        <div class="mcq-img-option correct">
+          <div class="img-area">🐄<div class="letter-tag">B</div></div>
+          <div class="img-caption">Cow</div>
+        </div>
+        <div class="mcq-img-option">
+          <div class="img-area">🐟<div class="letter-tag">C</div></div>
+          <div class="img-caption">Fish</div>
+        </div>
+        <div class="mcq-img-option">
+          <div class="img-area">🐍<div class="letter-tag">D</div></div>
+          <div class="img-caption">Snake</div>
+        </div>
+      </div>
+      <div class="q-footer">
+        <span class="q-mapping-tag">📚 Bio · Animals</span>
+        <span class="q-mapping-tag">🎓 Grade 1-4 style</span>
+        <div class="q-mini-actions">
+          <button class="gold">✨ Swap images</button>
+        </div>
+      </div>
+    </div>
+
+
+    <div class="add-here"><button class="plus" onclick="openSlide('blocks')">+</button></div>
+
+
+    <!-- ============ BLOCK: SECTION B (Comprehension structure) ============ -->
+    <div class="block b-section">
+      <div class="block-head">
+        <span class="ic">📑</span> Section
+        <span class="tools">
+          <button class="tool" onclick="openSlide('editor')">✏</button>
+          <button class="tool danger">🗑</button>
+        </span>
+      </div>
+      <div class="section-title-row">
+        <div class="section-letter">B</div>
+        <div class="section-name">
+          <h3>Comprehension</h3>
+          <div class="meta">
+            <span>📖 1 passage · 2 parts · 8 questions</span>
+          </div>
+        </div>
+        <div class="section-marks">14 marks</div>
+      </div>
+      <div class="section-instr-line">Read the passage carefully, then answer the questions that follow.</div>
+    </div>
+
+
+    <!-- ============ BLOCK: PASSAGE ============ -->
+    <div class="block b-passage nested">
+      <div class="block-head">
+        <span class="ic">📖</span> Comprehension Passage
+        <span class="tools">
+          <button class="tool" onclick="openSlide('editor')">✏</button>
+          <button class="tool" title="Generate with AI">✨</button>
+          <button class="tool danger">🗑</button>
+        </span>
+      </div>
+      <div class="passage-content">
+        <div class="passage-title">The Lungs and Breathing <span class="pword-count">~120 words · Grade 4 readability</span></div>
+        Our lungs are very important organs in the body. They are part of the respiratory system. When we breathe in, air enters through the nose and passes down a tube called the <em>trachea</em>. The trachea divides into two smaller tubes called <em>bronchi</em>, which carry air into the two lungs.
+        <br><br>
+        Inside the lungs, oxygen from the air passes into the blood. The blood then carries the oxygen to every part of the body. At the same time, the lungs help remove a waste gas called carbon dioxide from the body. Without our lungs, we cannot live.
+      </div>
+    </div>
+
+
+    <!-- ============ BLOCK: PART 1 — questions on passage ============ -->
+    <div class="block b-part">
+      <div class="block-head">
+        <span class="ic">📌</span> Part
+        <span class="tools">
+          <button class="tool">↑</button>
+          <button class="tool danger">🗑</button>
+        </span>
+      </div>
+      <div class="section-title-row">
+        <div class="section-letter" style="font-size: 22px;">i</div>
+        <div class="section-name">
+          <h3>Part 1 — Understanding the Passage</h3>
+          <div class="meta"><span>5 short answer questions</span></div>
+        </div>
+        <div class="section-marks" style="background: var(--gold-soft); color: #7A5A1F;">10 marks</div>
+      </div>
+      <div class="section-instr-line">Answer the questions using complete sentences.</div>
+    </div>
+
+
+    <!-- ============ Question linked to passage ============ -->
+    <div class="block b-question nested" style="margin-left: 48px;">
+      <div class="block-head">
+        <span class="ic">✏</span> Short Answer
+        <span class="tools">
+          <button class="tool" onclick="openSlide('editor')">✏</button>
+          <button class="tool danger">🗑</button>
+        </span>
+      </div>
+      <div class="q-card-top">
+        <div class="q-num">1.</div>
+        <div class="q-type-tag struct">SHORT ANSWER</div>
+        <div class="q-marks-input">marks <input value="2"></div>
+      </div>
+      <div class="q-text">According to the passage, what carries the oxygen to every part of the body?</div>
+      <div class="answer-lines">
+        <div class="answer-meta">
+          📏 Answer space: <select><option>2 lines</option><option>4 lines</option><option>6 lines</option></select>
+          · Linked to passage above
+        </div>
+        <div class="answer-line"></div>
+        <div class="answer-line"></div>
+      </div>
+      <div class="q-footer">
+        <span class="q-mapping-tag">📖 Comprehension</span>
+        <span class="q-mapping-tag">🔗 Linked passage</span>
+      </div>
+    </div>
+
+
+    <div class="add-here"><button class="plus" onclick="openSlide('blocks')">+</button></div>
+
+
+    <!-- ============ BLOCK: STANDALONE STRUCTURED Q WITH DIAGRAM ============ -->
+    <div class="block b-question">
+      <div class="block-head">
+        <span class="ic">🖼</span> Structured · Label Diagram
+        <span class="tools">
+          <button class="tool" onclick="openSlide('editor')">✏</button>
+          <button class="tool">📋</button>
+          <button class="tool danger">🗑</button>
+        </span>
+      </div>
+      <div class="q-card-top">
+        <div class="q-num">4.</div>
+        <div class="q-type-tag struct">LABEL DIAGRAM</div>
+        <div class="q-marks-input">marks <input value="5"></div>
+      </div>
+      <div class="q-text">Label the respiratory system using the words in the box.</div>
+      <div style="background: var(--tinted); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 8px 14px; margin-bottom: var(--s2); display: inline-block; font-size: 13px;">
+        <strong>Word bank:</strong> Lungs · Mouth · Nose · Trachea · Bronchi
+      </div>
+      <div class="q-media filled">
+        <div class="placeholder-diagram">🫁 Respiratory system outline · 5 label arrows<br><small style="font-size:11px; opacity:0.7;">Saved from diagram library</small></div>
+      </div>
+      <div class="q-footer">
+        <span class="q-mapping-tag">📚 Bio · Respiratory</span>
+        <div class="q-mini-actions">
+          <button>🖼 Change diagram</button>
+          <button class="gold">✨ Auto-label</button>
+        </div>
+      </div>
+    </div>
+
+
+    <!-- ============ BLOCK: ESSAY ============ -->
+    <div class="block b-question">
+      <div class="block-head">
+        <span class="ic">📝</span> Essay
+        <span class="tools">
+          <button class="tool" onclick="openSlide('editor')">✏</button>
+          <button class="tool danger">🗑</button>
+        </span>
+      </div>
+      <div class="q-card-top">
+        <div class="q-num">5.</div>
+        <div class="q-type-tag essay">ESSAY</div>
+        <div class="q-marks-input">marks <input value="6"></div>
+      </div>
+      <div class="q-text">Explain how cholera spreads in a community and describe four ways it can be prevented.</div>
+      <div class="answer-lines">
+        <div class="answer-meta">
+          📏 Answer space: <select><option>12 lines</option><option>20 lines</option><option selected>One page</option></select>
+        </div>
+        <div class="answer-line"></div>
+        <div class="answer-line"></div>
+        <div class="answer-line"></div>
+      </div>
+    </div>
+
+
+    <div class="add-here"><button class="plus" onclick="openSlide('blocks')">+</button></div>
+
+
+    <!-- ============ BLOCK: FOOTER ============ -->
+    <div class="block b-footer">
+      <div class="block-head">
+        <span class="ic">⚓</span> Paper Footer
+        <span class="tools">
+          <button class="tool">✏</button>
+          <button class="tool danger">🗑</button>
+        </span>
+      </div>
+      <div class="field-grid two">
+        <div class="field">
+          <label>Footer code (auto-generated)</label>
+          <input type="text" id="f-footer" value="G4/Science/Term 1/2026">
+        </div>
+        <div class="field">
+          <label>End-of-paper text</label>
+          <input type="text" value="— END OF PAPER —">
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Live totals bar (above bottom action bar) -->
+  <div class="totals-bar">
+    <span>📝 <strong>9</strong> questions</span>
+    <span>📊 <strong>30</strong> marks</span>
+    <span>📑 <strong>2</strong> sections</span>
+    <span>📃 <strong>3</strong> pages</span>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     VIEW: PREVIEW (A4 paper)
+     ============================================================ -->
+<section class="view" id="view-preview">
+  <div class="builder-bar">
+    <button class="chip" onclick="showView('builder')">📄 Builder</button>
+    <button class="chip active">👁 Preview</button>
+    <button class="chip">📑 Marking key</button>
+    <span class="pages">📃 A4 · Portrait · 3 pages</span>
+  </div>
+
+  <div class="preview-shell">
+    <div class="paper">
+
+      <div class="paper-banner">
+        <div class="banner-left">
+          <div class="paper-logo"><span>✏️</span></div>
+        </div>
+        <div class="paper-banner-text">
+          <div class="pbn-school" id="pv-school">JEMAREEN ACADEMY</div>
+          <div class="pbn-title" id="pv-title">GRADE FOUR END OF TERM 1 TEST - 2026</div>
+          <div class="pbn-paper" id="pv-paper">SPECIAL PAPER 2</div>
+        </div>
+        <div class="banner-right" aria-hidden="true"></div>
+      </div>
+
+      <div class="paper-name-row">
+        <span>NAME:</span><div class="line"></div>
+        <span>DATE:</span><div class="line" style="max-width: 180px;"></div>
+      </div>
+      <div class="paper-total-marks">TOTAL MARKS: _________</div>
+
+      <div class="paper-instr-box">
+        <span class="instr-label">Instructions</span>
+        <p>Answer <strong>all&nbsp;the</strong> questions.</p>
+        <p>Choose and circle the correct answer from the given options <span class="opt-tag">(<strong>A</strong>)</span>, <span class="opt-tag">(<strong>B</strong>)</span>, <span class="opt-tag">(<strong>C</strong>)</span>&nbsp;and <span class="opt-tag">(<strong>D</strong>)</span>.</p>
+      </div>
+
+      <div class="paper-section">
+        <div class="paper-section-head">Section A <span class="marks">(16 marks)</span></div>
+        <div class="paper-section-instr">Choose the correct answer from the options given.</div>
+
+        <div class="paper-q">
+          <div class="qline"><strong>1.</strong> Which of the following is NOT a respiratory disease?</div>
+          <div class="paper-options"><div><span class="opt-letter">A.</span> Asthma</div><div><span class="opt-letter">B.</span> Tuberculosis</div><div><span class="opt-letter">C.</span> Malaria</div><div><span class="opt-letter">D.</span> Bronchitis</div></div>
+        </div>
+
+        <div class="paper-q">
+          <div class="qline"><strong>2.</strong> Name the part of the skin marked with the letter X.</div>
+          <div class="paper-diagram">🖼 Diagram of skin cross-section with label X</div>
+          <div class="paper-options"><div><span class="opt-letter">A.</span> dermis</div><div><span class="opt-letter">B.</span> hair follicle</div><div><span class="opt-letter">C.</span> hypodermis</div><div><span class="opt-letter">D.</span> epidermis</div></div>
+        </div>
+
+        <div class="paper-q">
+          <div class="qline"><strong>3.</strong> Which of the following is a mammal?</div>
+          <div class="paper-image-options">
+            <div class="paper-img-opt"><div class="img-box">🐦</div><div class="lbl"><span class="opt-letter">A.</span> Bird</div></div>
+            <div class="paper-img-opt"><div class="img-box">🐄</div><div class="lbl"><span class="opt-letter">B.</span> Cow</div></div>
+            <div class="paper-img-opt"><div class="img-box">🐟</div><div class="lbl"><span class="opt-letter">C.</span> Fish</div></div>
+            <div class="paper-img-opt"><div class="img-box">🐍</div><div class="lbl"><span class="opt-letter">D.</span> Snake</div></div>
+          </div>
+        </div>
+
+        <div style="font-size: 11px; color: #999; text-align: center; font-style: italic; margin: 8px 0;">… questions 4–16 continue …</div>
+      </div>
+
+      <div class="paper-page-break"><span>page 2</span></div>
+
+      <div class="paper-section">
+        <div class="paper-section-head">Section B — Comprehension <span class="marks">(14 marks)</span></div>
+        <div class="paper-section-instr">Read the passage carefully, then answer the questions that follow.</div>
+
+        <div class="paper-passage">
+          <strong class="pass-h">The Lungs and Breathing</strong>
+          Our lungs are very important organs in the body. They are part of the respiratory system. When we breathe in, air enters through the nose and passes down a tube called the <em>trachea</em>. The trachea divides into two smaller tubes called <em>bronchi</em>, which carry air into the two lungs.
+          <br><br>
+          Inside the lungs, oxygen from the air passes into the blood. The blood then carries the oxygen to every part of the body. At the same time, the lungs help remove a waste gas called carbon dioxide from the body. Without our lungs, we cannot live.
+        </div>
+
+        <div style="font-weight: 700; font-size: 13px; margin: 14px 0 8px;">Part 1 — Understanding the Passage <span style="float: right; font-weight: 400; font-size: 12px;">(10 marks)</span></div>
+        <div class="paper-section-instr">Answer the questions using complete sentences.</div>
+
+        <div class="paper-q">
+          <div class="qline"><strong>1.</strong> According to the passage, what carries the oxygen to every part of the body? <em class="qmarks">(2&nbsp;marks)</em></div>
+          <div class="paper-answer-lines">
+            <div class="paper-answer-line"></div>
+            <div class="paper-answer-line"></div>
+          </div>
+        </div>
+
+        <div class="paper-q">
+          <div class="qline"><strong>2.</strong> Name the two tubes that the trachea divides into. <em class="qmarks">(2&nbsp;marks)</em></div>
+          <div class="paper-answer-lines">
+            <div class="paper-answer-line"></div>
+            <div class="paper-answer-line"></div>
+          </div>
+        </div>
+
+        <div class="paper-q">
+          <div class="qline"><strong>4.</strong> Label the respiratory system using the words in the box. <em class="qmarks">(5&nbsp;marks)</em></div>
+          <div style="border: 1px solid #000; padding: 5px 12px; margin: 6px 0; display: inline-block; font-size: 12px;">Lungs · Mouth · Nose · Trachea · Bronchi</div>
+          <div class="paper-diagram">🫁 Respiratory system diagram · 5 label arrows</div>
+        </div>
+
+        <div class="paper-q">
+          <div class="qline"><strong>5.</strong> Explain how cholera spreads in a community and describe four ways it can be prevented. <em class="qmarks">(6&nbsp;marks)</em></div>
+          <div class="paper-answer-lines">
+            <div class="paper-answer-line"></div>
+            <div class="paper-answer-line"></div>
+            <div class="paper-answer-line"></div>
+            <div class="paper-answer-line"></div>
+            <div class="paper-answer-line"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="text-align: center; margin-top: 24px; padding-top: 12px; border-top: 1px solid #000; font-size: 11.5px; font-style: italic; color: #555;">
+        — END OF PAPER —
+      </div>
+      <div class="paper-footer-code" id="pv-footer">G4/Science/Term 1/2026</div>
+    </div>
+
+    <div style="max-width: 720px; margin: var(--s4) auto 0; display: flex; gap: var(--s2); flex-wrap: wrap;">
+      <button class="btn btn-primary">📄 Download PDF</button>
+      <button class="btn btn-dark">📝 Download Word</button>
+      <button class="btn btn-outline">🖨 Print</button>
+      <button class="btn btn-gold">📑 Generate marking key</button>
+      <button class="btn btn-outline">💾 Save to library</button>
+      <button class="btn btn-outline" style="margin-left: auto;" onclick="showView('builder')">✏ Edit paper</button>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     VIEW: QUESTION BANK
+     ============================================================ -->
+<section class="view" id="view-bank">
+  <div class="canvas-area">
+    <div class="welcome" style="padding: var(--s5) var(--s5);">
+      <div class="welcome-eyebrow">🗃 Library</div>
+      <h1 style="font-size: 30px;">Question Bank &amp; Library</h1>
+      <p>Saved questions, passages, and diagrams — reusable across papers, organized by subject, grade and competency.</p>
+    </div>
+
+    <div class="bank-tabs">
+      <div class="bank-tab active">📄 Papers (24)</div>
+      <div class="bank-tab">❓ Questions (187)</div>
+      <div class="bank-tab">📖 Passages (32)</div>
+      <div class="bank-tab">🖼 Diagrams (43)</div>
+    </div>
+
+    <div class="eyebrow">Filters</div>
+    <div style="display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: var(--s4);">
+      <button class="btn btn-outline btn-sm">📐 All grades ▾</button>
+      <button class="btn btn-outline btn-sm">📚 All subjects ▾</button>
+      <button class="btn btn-outline btn-sm">🗓 All terms ▾</button>
+      <button class="btn btn-outline btn-sm">📝 All types ▾</button>
+      <button class="btn btn-outline btn-sm">🎯 Any competency ▾</button>
+    </div>
+
+    <div class="bank-item">
+      <div class="info">
+        <strong>Grade 5 Mathematics — End of Term 3</strong>
+        <div class="meta">
+          <span>📊 50 marks</span><span>⏱ 90 mins</span>
+          <span>📝 29 questions</span>
+          <span class="status-pill ready">Ready</span>
+        </div>
+      </div>
+      <div class="q-mini-actions">
+        <button>View</button><button>Duplicate</button>
+      </div>
+    </div>
+
+    <div class="bank-item">
+      <div class="info">
+        <strong>Grade 4 Science — Body Systems Topic Test</strong>
+        <div class="meta">
+          <span>📊 30 marks</span><span>⏱ 45 mins</span>
+          <span>📝 20 questions</span>
+          <span class="status-pill draft">Draft</span>
+        </div>
+      </div>
+      <div class="q-mini-actions">
+        <button>View</button><button>Duplicate</button>
+      </div>
+    </div>
+
+    <div class="bank-item">
+      <div class="info">
+        <strong>Grade 7 Social Studies — Mock Paper 1</strong>
+        <div class="meta">
+          <span>📊 100 marks</span><span>⏱ 120 mins</span>
+          <span>📝 50 questions</span>
+          <span class="status-pill printed">Printed</span>
+        </div>
+      </div>
+      <div class="q-mini-actions">
+        <button>View</button><button>Duplicate</button>
+      </div>
+    </div>
+
+    <div class="bank-item">
+      <div class="info">
+        <strong>Grade 6 English — Comprehension &amp; Grammar</strong>
+        <div class="meta">
+          <span>📊 40 marks</span><span>⏱ 60 mins</span>
+          <span>📝 15 questions</span>
+          <span class="status-pill ready">Ready</span>
+        </div>
+      </div>
+      <div class="q-mini-actions">
+        <button>View</button><button>Duplicate</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<!-- ============================================================
+     BOTTOM ACTION BAR
+     ============================================================ -->
+<nav class="bottom-bar">
+  <button class="b" onclick="showView('home')">
+    <span class="ic">🏠</span>
+    <span>Home</span>
+  </button>
+  <button class="b primary" onclick="openSlide('blocks')">
+    <span class="ic-wrap">+</span>
+    <span>Add block</span>
+  </button>
+  <button class="b" onclick="showView('preview')">
+    <span class="ic">👁</span>
+    <span>Preview</span>
+  </button>
+  <button class="b" onclick="openSlide('ai')">
+    <span class="ic">✨</span>
+    <span>AI</span>
+  </button>
+</nav>
+
+
+<!-- ============================================================
+     SLIDE-OVER: BLOCK PICKER
+     ============================================================ -->
+<div class="scrim" id="scrim" onclick="closeAll()"></div>
+
+<aside class="slideover" id="slide-blocks">
+  <div class="slideover-head">
+    <button class="icon-btn" onclick="closeAll()" style="width: 32px; height: 32px; border-radius: 6px; font-size: 20px;">✕</button>
+    <h3>Add a block
+      <small>Drop into the document at the chosen position</small>
+    </h3>
+  </div>
+  <div class="slideover-body">
+
+    <div class="block-cat">Structure</div>
+    <div class="block-picker-grid">
+      <button class="bp-item">
+        <div class="bp-ic">📑</div>
+        <strong>Section</strong>
+        <small>Container with title &amp; instructions</small>
+      </button>
+      <button class="bp-item">
+        <div class="bp-ic">📌</div>
+        <strong>Part</strong>
+        <small>Sub-container inside a section</small>
+      </button>
+      <button class="bp-item">
+        <div class="bp-ic">📋</div>
+        <strong>Instructions</strong>
+        <small>General or section instructions</small>
+      </button>
+      <button class="bp-item">
+        <div class="bp-ic">↵</div>
+        <strong>Page break</strong>
+        <small>Force a new page</small>
+      </button>
+    </div>
+
+    <div class="block-cat">Questions</div>
+    <div class="block-picker-grid">
+      <button class="bp-item">
+        <div class="bp-ic">🔘</div>
+        <strong>Multiple Choice</strong>
+        <small>4 options, text or image</small>
+      </button>
+      <button class="bp-item">
+        <div class="bp-ic">✏</div>
+        <strong>Short Answer</strong>
+        <small>1–3 lines</small>
+      </button>
+      <button class="bp-item">
+        <div class="bp-ic">📋</div>
+        <strong>Structured</strong>
+        <small>Multi-part with marks</small>
+      </button>
+      <button class="bp-item">
+        <div class="bp-ic">📝</div>
+        <strong>Essay</strong>
+        <small>Long-form with rubric</small>
+      </button>
+      <button class="bp-item">
+        <div class="bp-ic">✅</div>
+        <strong>True / False</strong>
+        <small>Binary statement</small>
+      </button>
+      <button class="bp-item">
+        <div class="bp-ic">📐</div>
+        <strong>Fill in Blank</strong>
+        <small>Gap-fill sentence</small>
+      </button>
+      <button class="bp-item">
+        <div class="bp-ic">↔</div>
+        <strong>Matching</strong>
+        <small>Column A → Column B</small>
+      </button>
+      <button class="bp-item">
+        <div class="bp-ic">🔢</div>
+        <strong>Numeric</strong>
+        <small>Number answer + tolerance</small>
+      </button>
+      <button class="bp-item">
+        <div class="bp-ic">🔤</div>
+        <strong>Sequence</strong>
+        <small>Order events / steps</small>
+      </button>
+    </div>
+
+    <div class="block-cat">Media &amp; reading</div>
+    <div class="block-picker-grid">
+      <button class="bp-item">
+        <div class="bp-ic">📖</div>
+        <strong>Passage</strong>
+        <small>Comprehension passage</small>
+      </button>
+      <button class="bp-item">
+        <div class="bp-ic">🖼</div>
+        <strong>Diagram-based</strong>
+        <small>Label or describe an image</small>
+      </button>
+      <button class="bp-item">
+        <div class="bp-ic">🎨</div>
+        <strong>Draw &amp; Label</strong>
+        <small>Blank space for drawing</small>
+      </button>
+      <button class="bp-item">
+        <div class="bp-ic">🗺</div>
+        <strong>Map Question</strong>
+        <small>Locate or identify on map</small>
+      </button>
+      <button class="bp-item">
+        <div class="bp-ic">📊</div>
+        <strong>Data / Table</strong>
+        <small>Read a chart or table</small>
+      </button>
+      <button class="bp-item">
+        <div class="bp-ic">👁</div>
+        <strong>Image Identify</strong>
+        <small>Name the object shown</small>
+      </button>
+    </div>
+
+    <div class="block-cat">AI-powered</div>
+    <div class="block-picker-grid">
+      <button class="bp-item" style="background: var(--gold-soft); border-color: rgba(200,146,61,0.3);">
+        <div class="bp-ic" style="background: var(--gold); color: white;">✨</div>
+        <strong>Generate questions</strong>
+        <small>AI drafts from topic</small>
+      </button>
+      <button class="bp-item" style="background: var(--gold-soft); border-color: rgba(200,146,61,0.3);">
+        <div class="bp-ic" style="background: var(--gold); color: white;">🎨</div>
+        <strong>Generate diagram</strong>
+        <small>AI creates labelled visual</small>
+      </button>
+    </div>
+  </div>
+</aside>
+
+
+<!-- ============================================================
+     SLIDE-OVER: AI ASSISTANT
+     ============================================================ -->
+<aside class="slideover" id="slide-ai">
+  <div class="slideover-head">
+    <button class="icon-btn" onclick="closeAll()" style="width: 32px; height: 32px; border-radius: 6px; font-size: 20px;">✕</button>
+    <h3>✨ Zed AI Assistant
+      <small>Context-aware help for this paper</small>
+    </h3>
+  </div>
+  <div class="slideover-body">
+
+    <div class="ai-msg">
+      <strong>I noticed something about this paper</strong>
+      Section A is 16 MCQs but Section B currently only has 4 structured questions. For an End-of-Term test, balance is usually ~60/40 between objective and structured. Want me to suggest 2 more structured questions on cholera / hygiene?
+    </div>
+
+    <div class="block-cat">Quick actions</div>
+    <div class="ai-action-grid">
+      <button class="ai-action">
+        <div class="ic">📝</div>
+        <div>
+          <strong>Generate questions on a topic</strong>
+          <small>Pick topic + count + difficulty → AI drafts them</small>
+        </div>
+      </button>
+      <button class="ai-action">
+        <div class="ic">🎨</div>
+        <div>
+          <strong>Generate a labelled diagram</strong>
+          <small>Eye, heart, plant, water cycle, circuit, map…</small>
+        </div>
+      </button>
+      <button class="ai-action">
+        <div class="ic">📑</div>
+        <div>
+          <strong>Generate marking key</strong>
+          <small>Full key with mark allocation notes</small>
+        </div>
+      </button>
+      <button class="ai-action">
+        <div class="ic">⚖</div>
+        <div>
+          <strong>Balance paper difficulty</strong>
+          <small>Check coverage and rewrite easy / hard ratio</small>
+        </div>
+      </button>
+      <button class="ai-action">
+        <div class="ic">🎯</div>
+        <div>
+          <strong>Map to competencies</strong>
+          <small>Auto-tag each question to syllabus outcomes</small>
+        </div>
+      </button>
+      <button class="ai-action">
+        <div class="ic">🔍</div>
+        <div>
+          <strong>Detect duplicates</strong>
+          <small>Find repeated or near-identical questions</small>
+        </div>
+      </button>
+      <button class="ai-action">
+        <div class="ic">📚</div>
+        <div>
+          <strong>Rewrite for grade level</strong>
+          <small>Simplify or extend wording to fit Grade 4</small>
+        </div>
+      </button>
+      <button class="ai-action">
+        <div class="ic">🔄</div>
+        <div>
+          <strong>Convert text → image MCQ</strong>
+          <small>Best for lower grades</small>
+        </div>
+      </button>
+    </div>
+  </div>
+</aside>
+
+
+<!-- ============================================================
+     SLIDE-OVER: QUESTION EDITOR
+     ============================================================ -->
+<aside class="slideover" id="slide-editor">
+  <div class="slideover-head">
+    <button class="icon-btn" onclick="closeAll()" style="width: 32px; height: 32px; border-radius: 6px; font-size: 20px;">✕</button>
+    <h3>Edit Question
+      <small>Q3 · Image Multiple Choice</small>
+    </h3>
+  </div>
+  <div class="slideover-body">
+
+    <div class="field">
+      <label>Question text</label>
+      <textarea>Which of the following is a mammal?</textarea>
+    </div>
+
+    <div class="field" style="margin-top: var(--s3);">
+      <label>Question type</label>
+      <select>
+        <option>Multiple Choice (text)</option>
+        <option selected>Multiple Choice (image)</option>
+        <option>Multiple Choice (text + image)</option>
+        <option>Short Answer</option>
+        <option>Structured</option>
+        <option>True / False</option>
+      </select>
+    </div>
+
+    <div class="field" style="margin-top: var(--s3);">
+      <label>Image layout</label>
+      <div style="display: flex; gap: 6px; margin-top: 4px;">
+        <button class="btn btn-outline btn-sm">⬛ Grid 2×2</button>
+        <button class="btn btn-dark btn-sm">▭ Vertical</button>
+        <button class="btn btn-outline btn-sm">▬ Inline</button>
+      </div>
+    </div>
+
+    <div class="block-cat" style="margin-top: var(--s5);">Options</div>
+    <div class="mcq-image-grid">
+      <div class="mcq-img-option">
+        <div class="img-area" style="font-size: 36px;">🐦<div class="letter-tag">A</div></div>
+        <div class="img-caption">Bird</div>
+      </div>
+      <div class="mcq-img-option correct">
+        <div class="img-area" style="font-size: 36px;">🐄<div class="letter-tag">B</div></div>
+        <div class="img-caption">Cow ✓</div>
+      </div>
+      <div class="mcq-img-option">
+        <div class="img-area" style="font-size: 36px;">🐟<div class="letter-tag">C</div></div>
+        <div class="img-caption">Fish</div>
+      </div>
+      <div class="mcq-img-option">
+        <div class="img-area" style="font-size: 36px;">🐍<div class="letter-tag">D</div></div>
+        <div class="img-caption">Snake</div>
+      </div>
+    </div>
+
+    <div class="block-cat" style="margin-top: var(--s4);">Marking</div>
+    <div class="field-grid two">
+      <div class="field">
+        <label>Marks</label>
+        <input type="number" value="1">
+      </div>
+      <div class="field">
+        <label>Difficulty</label>
+        <select><option>Easy</option><option selected>Medium</option><option>Hard</option></select>
+      </div>
+    </div>
+
+    <div class="block-cat" style="margin-top: var(--s4);">Curriculum mapping</div>
+    <div class="field-grid two">
+      <div class="field">
+        <label>Strand</label>
+        <select><option>Living Things</option></select>
+      </div>
+      <div class="field">
+        <label>Outcome</label>
+        <select><option>LO 4.1.2 — Classify animals</option></select>
+      </div>
+    </div>
+
+    <div class="block-cat" style="margin-top: var(--s4);">AI tools for this question</div>
+    <div class="ai-action-grid">
+      <button class="ai-action">
+        <div class="ic">🎨</div>
+        <div><strong>Swap images for grayscale-safe versions</strong><small>Better for printing</small></div>
+      </button>
+      <button class="ai-action">
+        <div class="ic">🔄</div>
+        <div><strong>Rewrite for Grade 1–2 simplicity</strong><small>Younger learner version</small></div>
+      </button>
+    </div>
+  </div>
+  <div class="slideover-foot">
+    <button class="btn btn-outline" onclick="closeAll()">Cancel</button>
+    <button class="btn btn-primary" style="flex: 1; justify-content: center;" onclick="closeAll()">Save changes</button>
+  </div>
+</aside>
+
+
+<script>
+// ===========================================================
+// VIEW NAVIGATION
+// ===========================================================
+function showView(id) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.getElementById('view-' + id).classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  // Hide totals bar except in builder
+  document.querySelector('.totals-bar').style.display = (id === 'builder') ? '' : 'none';
+}
+showView('home');
+
+// ===========================================================
+// SLIDE-OVERS
+// ===========================================================
+function openSlide(name) {
+  closeAll();
+  document.getElementById('scrim').classList.add('open');
+  document.getElementById('slide-' + name).classList.add('open');
+}
+function closeAll() {
+  document.getElementById('scrim').classList.remove('open');
+  document.querySelectorAll('.slideover').forEach(s => s.classList.remove('open'));
+}
+
+// ===========================================================
+// LIVE HEADER PREVIEW
+// Generates title like "GRADE FOUR END OF TERM 1 TEST - 2026"
+// and footer code "G4/Science/Term 1/2026"
+// ===========================================================
+const gradeNum = {
+  'One':'1','Two':'2','Three':'3','Four':'4','Five':'5','Six':'6',
+  'Seven':'7','Eight':'8','Nine':'9','Ten':'10','Eleven':'11','Twelve':'12'
+};
+
+function updateLive() {
+  const school  = (document.getElementById('f-school')?.value  || '').toUpperCase();
+  const grade   =  document.getElementById('f-grade')?.value   || '';
+  const type    =  document.getElementById('f-type')?.value    || '';
+  const term    =  document.getElementById('f-term')?.value    || '';
+  const year    =  document.getElementById('f-year')?.value    || '';
+  const paper   = (document.getElementById('f-paper')?.value   || '').toUpperCase();
+  const subject =  document.getElementById('f-subject')?.value || '';
+
+  // Title
+  let typeBit = type.toUpperCase();
+  const termNum = term.replace('Term ', '');
+  if (type === 'End of Term Test')  typeBit = `END OF TERM ${termNum} TEST`;
+  else if (type === 'Midterm Test') typeBit = `MID-TERM ${termNum} TEST`;
+  else if (type === 'Mock Exam')    typeBit = 'MOCK EXAMINATION';
+  else if (type === 'Topic Test')   typeBit = `${term.toUpperCase()} TOPIC TEST`;
+  else if (type === 'Weekly Test')  typeBit = `${term.toUpperCase()} WEEKLY TEST`;
+  else if (type === 'Revision Paper') typeBit = `${term.toUpperCase()} REVISION PAPER`;
+  else if (type === 'Practical Paper') typeBit = `${term.toUpperCase()} PRACTICAL PAPER`;
+  const title = `GRADE ${grade.toUpperCase()} ${typeBit} - ${year}`;
+  const footer = `G${gradeNum[grade] || grade}/${subject}/${term}/${year}`;
+
+  // Builder card preview
+  if (document.getElementById('prv-school')) document.getElementById('prv-school').textContent = school;
+  if (document.getElementById('prv-title'))  document.getElementById('prv-title').textContent  = title;
+  if (document.getElementById('prv-paper'))  document.getElementById('prv-paper').textContent  = paper;
+  if (document.getElementById('f-footer'))   document.getElementById('f-footer').value         = footer;
+
+  // A4 preview
+  if (document.getElementById('pv-school'))  document.getElementById('pv-school').textContent  = school;
+  if (document.getElementById('pv-title'))   document.getElementById('pv-title').textContent   = title;
+  if (document.getElementById('pv-paper'))   document.getElementById('pv-paper').textContent   = paper;
+  if (document.getElementById('pv-footer'))  document.getElementById('pv-footer').textContent  = footer;
+}
+
+// Toggle handlers
+document.querySelectorAll('.tg').forEach(t => t.addEventListener('click', () => t.classList.toggle('on')));
+
+// MCQ option selection (correct answer toggle)
+document.querySelectorAll('.mcq-option, .mcq-img-option').forEach(opt => {
+  opt.addEventListener('click', (e) => {
+    if (e.target.closest('button, input, select')) return;
+    const parent = opt.parentElement;
+    parent.querySelectorAll('.mcq-option, .mcq-img-option').forEach(o => o.classList.remove('correct'));
+    opt.classList.add('correct');
+  });
+});
+
+// Preset pills append
+document.querySelectorAll('.preset-pill').forEach(p => {
+  p.addEventListener('click', () => {
+    p.style.background = 'var(--sage)';
+    p.style.color = 'white';
+    p.style.borderColor = 'var(--sage)';
+    setTimeout(() => {
+      p.style.background = '';
+      p.style.color = '';
+      p.style.borderColor = '';
+    }, 700);
+  });
+});
+
+// Bank tab switching
+document.querySelectorAll('.bank-tab').forEach(t => {
+  t.addEventListener('click', () => {
+    document.querySelectorAll('.bank-tab').forEach(x => x.classList.remove('active'));
+    t.classList.add('active');
+  });
+});
+
+// ===========================================================
+// PREVIEW LOGO — direct manipulation (tap to select, resize,
+// move, replace, lock, delete). Wraps the existing .paper-logo
+// inside .logo-wrap on first render and attaches all behaviour.
+// ===========================================================
+(function initLogoSelection() {
+  const logo = document.querySelector('#view-preview .paper-logo');
+  if (!logo) return;
+
+  // Wrap the logo so handles/toolbar are siblings (not clipped by
+  // the logo's overflow:hidden, which would otherwise hide them).
+  const wrap = document.createElement('div');
+  wrap.className = 'logo-wrap';
+  wrap.setAttribute('role', 'group');
+  wrap.setAttribute('aria-label', 'School logo');
+  logo.parentNode.insertBefore(wrap, logo);
+  wrap.appendChild(logo);
+
+  // Inject handles + toolbar
+  wrap.insertAdjacentHTML('beforeend', `
+    <div class="resize-handles" aria-hidden="true">
+      <div class="resize-handle tl" data-pos="tl"></div>
+      <div class="resize-handle tm" data-pos="tm"></div>
+      <div class="resize-handle tr" data-pos="tr"></div>
+      <div class="resize-handle ml" data-pos="ml"></div>
+      <div class="resize-handle mr" data-pos="mr"></div>
+      <div class="resize-handle bl" data-pos="bl"></div>
+      <div class="resize-handle bm" data-pos="bm"></div>
+      <div class="resize-handle br" data-pos="br"></div>
+    </div>
+    <div class="logo-toolbar" role="toolbar" aria-label="Logo actions">
+      <button data-act="move"    title="Move (drag from logo body)"><span class="ic">✥</span><span class="label">Move</span></button>
+      <button data-act="resize" class="active" title="Resize (drag a corner)"><span class="ic">⤡</span><span class="label">Resize</span></button>
+      <div class="sep"></div>
+      <button data-act="replace" title="Replace logo"><span class="ic">🖼</span><span class="label">Replace</span></button>
+      <button data-act="lock"    title="Lock — prevent further edits"><span class="ic">🔒</span><span class="label">Lock</span></button>
+      <div class="sep"></div>
+      <button data-act="delete"  class="danger" title="Delete logo"><span class="ic">🗑</span><span class="label">Delete</span></button>
+    </div>
+  `);
+
+  const toolbar = wrap.querySelector('.logo-toolbar');
+  const handles = wrap.querySelectorAll('.resize-handle');
+
+  // Toast helper for action feedback
+  let toastEl = document.querySelector('.action-toast');
+  if (!toastEl) {
+    toastEl = document.createElement('div');
+    toastEl.className = 'action-toast';
+    document.body.appendChild(toastEl);
+  }
+  let toastTimer = null;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => toastEl.classList.remove('show'), 1600);
+  }
+
+  // ----- Selection -----
+  function select() {
+    if (wrap.classList.contains('locked')) {
+      toast('🔒 Logo is locked — tap Unlock to edit');
+      // Still show a tiny unlock toolbar
+      wrap.classList.add('selected');
+      // Replace toolbar with just an unlock button
+      toolbar.innerHTML = `
+        <button data-act="unlock"><span class="ic">🔓</span><span class="label">Unlock</span></button>
+      `;
+      bindToolbar();
+      return;
+    }
+    wrap.classList.add('selected');
+  }
+  function deselect() {
+    wrap.classList.remove('selected', 'move-mode');
+  }
+
+  logo.addEventListener('click', (e) => {
+    e.stopPropagation();
+    if (!wrap.classList.contains('selected')) select();
+  });
+
+  // Click anywhere else → deselect
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.logo-wrap')) deselect();
+  });
+
+  // Esc deselects too
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') deselect();
+  });
+
+  // ----- Toolbar -----
+  function bindToolbar() {
+    toolbar.querySelectorAll('button').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const act = btn.dataset.act;
+
+        switch (act) {
+          case 'move':
+            setActiveTool(btn);
+            wrap.classList.add('move-mode');
+            toast('✥ Move mode — drag the logo to reposition');
+            break;
+
+          case 'resize':
+            setActiveTool(btn);
+            wrap.classList.remove('move-mode');
+            toast('⤡ Drag any corner handle to resize');
+            break;
+
+          case 'replace':
+            // Trigger a file input (kept lightweight for the prototype)
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/png,image/jpeg,image/svg+xml,image/webp';
+            input.addEventListener('change', (ev) => {
+              const file = ev.target.files && ev.target.files[0];
+              if (!file) return;
+              const reader = new FileReader();
+              reader.onload = (r) => {
+                // Replace logo content with the uploaded image
+                logo.innerHTML = `<img src="${r.target.result}" alt="School logo" style="width:100%;height:100%;object-fit:cover;border-radius:50%;position:relative;z-index:1;">`;
+                logo.style.background = 'white';
+                wrap.classList.remove('empty');
+                toast('🖼 Logo replaced');
+              };
+              reader.readAsDataURL(file);
+            });
+            input.click();
+            break;
+
+          case 'lock':
+            wrap.classList.add('locked');
+            deselect();
+            toast('🔒 Logo locked');
+            break;
+
+          case 'unlock':
+            wrap.classList.remove('locked');
+            // Restore full toolbar
+            toolbar.innerHTML = `
+              <button data-act="move"    title="Move"><span class="ic">✥</span><span class="label">Move</span></button>
+              <button data-act="resize" class="active" title="Resize"><span class="ic">⤡</span><span class="label">Resize</span></button>
+              <div class="sep"></div>
+              <button data-act="replace" title="Replace"><span class="ic">🖼</span><span class="label">Replace</span></button>
+              <button data-act="lock"    title="Lock"><span class="ic">🔒</span><span class="label">Lock</span></button>
+              <div class="sep"></div>
+              <button data-act="delete"  class="danger" title="Delete"><span class="ic">🗑</span><span class="label">Delete</span></button>
+            `;
+            bindToolbar();
+            toast('🔓 Unlocked');
+            break;
+
+          case 'delete':
+            // Soft delete: replace with a "+" placeholder
+            logo.innerHTML = '<span style="position: relative; z-index: 1;">+</span>';
+            wrap.classList.add('empty');
+            deselect();
+            toast('🗑 Logo removed — tap to add a new one');
+            break;
+        }
+      });
+    });
+  }
+
+  function setActiveTool(btn) {
+    toolbar.querySelectorAll('button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  }
+
+  bindToolbar();
+
+  // ----- Drag-to-resize (pointer events: works for mouse + touch) -----
+  let resizeState = null;
+  handles.forEach(h => {
+    h.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      h.setPointerCapture(e.pointerId);
+      const rect = logo.getBoundingClientRect();
+      resizeState = {
+        pos: h.dataset.pos,
+        startX: e.clientX,
+        startY: e.clientY,
+        startW: rect.width,
+        startH: rect.height
+      };
+    });
+    h.addEventListener('pointermove', (e) => {
+      if (!resizeState) return;
+      const dx = e.clientX - resizeState.startX;
+      const dy = e.clientY - resizeState.startY;
+      // For a circular logo we keep it square. Pick the dominant
+      // axis based on which handle is being dragged.
+      let delta;
+      switch (resizeState.pos) {
+        case 'br': case 'mr': case 'bm':  delta = Math.max(dx, dy);  break;
+        case 'tl': case 'ml': case 'tm':  delta = -Math.min(dx, dy); break;
+        case 'tr':                         delta = Math.max(dx, -dy); break;
+        case 'bl':                         delta = Math.max(-dx, dy); break;
+        default: delta = 0;
+      }
+      const size = Math.max(40, Math.min(180, resizeState.startW + delta));
+      logo.style.width  = size + 'px';
+      logo.style.height = size + 'px';
+    });
+    h.addEventListener('pointerup', (e) => {
+      if (!resizeState) return;
+      try { h.releasePointerCapture(e.pointerId); } catch(_) {}
+      const finalW = parseInt(logo.style.width, 10);
+      if (finalW) toast(`⤡ Resized to ${finalW}×${finalW}px`);
+      resizeState = null;
+    });
+  });
+
+  // ----- Drag-to-move (when Move mode is active) -----
+  let moveState = null;
+  let translateX = 0, translateY = 0;
+
+  logo.addEventListener('pointerdown', (e) => {
+    if (!wrap.classList.contains('selected')) return;
+    if (!wrap.classList.contains('move-mode')) return;
+    if (wrap.classList.contains('locked')) return;
+    if (e.target.closest('.resize-handle, .logo-toolbar')) return;
+    e.preventDefault();
+    logo.setPointerCapture(e.pointerId);
+    wrap.classList.add('moving');
+    moveState = {
+      startX: e.clientX,
+      startY: e.clientY,
+      baseX: translateX,
+      baseY: translateY
+    };
+  });
+  logo.addEventListener('pointermove', (e) => {
+    if (!moveState) return;
+    translateX = moveState.baseX + (e.clientX - moveState.startX);
+    translateY = moveState.baseY + (e.clientY - moveState.startY);
+    // Constrain motion to a reasonable range so the logo doesn't escape
+    translateX = Math.max(-40, Math.min(40, translateX));
+    translateY = Math.max(-30, Math.min(30, translateY));
+    logo.style.transform = `translate(${translateX}px, ${translateY}px)`;
+  });
+  logo.addEventListener('pointerup', (e) => {
+    if (!moveState) return;
+    try { logo.releasePointerCapture(e.pointerId); } catch(_) {}
+    wrap.classList.remove('moving');
+    moveState = null;
+    toast('✥ Position updated');
+  });
+})();
+
+// Initial preview render
+window.addEventListener('DOMContentLoaded', updateLive);
+</script>
+
+</body>
+</html>

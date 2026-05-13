@@ -1,6 +1,13 @@
-import { useEffect, useRef, useState } from 'react'
-import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+// Assessment Studio v2 — block-based, parchment + oxblood design.
+// Visual reference: /assessment-studio-preview.html (HTML mockup).
+// Data model is unchanged — sections[] + parts[] still flow through
+// serializeQuizSections / saveAssessmentQuestions exactly as before,
+// so this view is drop-in compatible with EditAssessment + exports.
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
+
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
 import {
@@ -18,14 +25,11 @@ import {
   getQuestionKey,
   hasOnlyEmptyStarterSection,
   serializeQuizSections,
-  shuffleQuizSections,
 } from '../../utils/quizSections.js'
-import { richTextHasContent } from '../../utils/quizRichText.js'
+import { richTextHasContent, richTextToPlainText } from '../../utils/quizRichText.js'
 import { clampInt } from '../../utils/inputs.js'
 import { getErrorMessage } from '../../utils/errors.js'
 import { validateStandaloneQuestion as sharedValidateStandaloneQuestion } from '../../utils/quizValidation.js'
-import QuizSectionsEditor from '../quiz/QuizSectionsEditor'
-import QuizEditorPreviewPanel from '../quiz/QuizEditorPreviewPanel'
 import SeoHelmet from '../seo/SeoHelmet'
 import {
   QUIZ_DOCUMENT_ACCEPT,
@@ -34,35 +38,41 @@ import {
 } from '../quiz/documentQuizImporter'
 import { LIBRARY_TYPES } from '../../config/library'
 import { classifyForLibrary } from '../../utils/libraryClassification'
+import { printAssessmentAsPdf } from '../../utils/assessmentToPdf'
+import { downloadAssessmentDocx } from '../../utils/assessmentToDocx'
 
-// Maps the AssessmentStudio's internal subject + assessment-type values onto
-// the canonical academic taxonomy in src/config/library.js.
+import './studio/assessmentStudio.css'
+
+/* ------------------------------------------------------------------
+ * Constants — kept compatible with library taxonomy and save schema.
+ * ------------------------------------------------------------------ */
+
 const STUDIO_TO_LIBRARY_SUBJECT = {
-  'English':            'English Language',
+  English: 'English Language',
   'Integrated Science': 'Integrated Science',
-  'Mathematics':        'Mathematics',
-  'Social Studies':     'Social Studies',
-  'Expressive Art':     'Expressive Arts',
+  Mathematics: 'Mathematics',
+  'Social Studies': 'Social Studies',
+  'Expressive Art': 'Expressive Arts',
   'Technology Studies': 'Technology Studies',
-  'Cinyanja':           'Zambian Language',
-  'Home Economics':     'Home Economics',
+  Cinyanja: 'Zambian Language',
+  'Home Economics': 'Home Economics',
 }
 const STUDIO_TO_LIBRARY_ASSESSMENT_TYPE = {
-  weekly:      'monthly',     // closest canonical bucket
-  monthly:     'monthly',
-  mid_term:    'midterm',
+  weekly: 'monthly',
+  monthly: 'monthly',
+  mid_term: 'midterm',
   end_of_term: 'end_of_term',
-  topic:       'topic',
-  mock:        'end_of_term',
-  diagnostic:  'topic',
-  pre_test:    'topic',
-  post_test:   'topic',
-  revision:    'topic',
-  continuous:  'topic',
-  summative:   'end_of_term',
-  practical:   'topic',
-  oral:        'topic',
-  project:     'topic',
+  topic: 'topic',
+  mock: 'end_of_term',
+  diagnostic: 'topic',
+  pre_test: 'topic',
+  post_test: 'topic',
+  revision: 'topic',
+  continuous: 'topic',
+  summative: 'end_of_term',
+  practical: 'topic',
+  oral: 'topic',
+  project: 'topic',
 }
 
 const SUBJECTS = [
@@ -75,11 +85,13 @@ const SUBJECTS = [
   'Cinyanja',
   'Home Economics',
 ]
-const GRADES = ['4', '5', '6', '7']
+const GRADES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']
+const GRADE_WORDS = {
+  1: 'ONE', 2: 'TWO', 3: 'THREE', 4: 'FOUR', 5: 'FIVE', 6: 'SIX',
+  7: 'SEVEN', 8: 'EIGHT', 9: 'NINE', 10: 'TEN', 11: 'ELEVEN', 12: 'TWELVE',
+}
 const TERMS = ['1', '2', '3']
 
-// Assessment types — every kind that falls under teacher-made assessments.
-// Stored as machine-friendly enums; rendered with ASSESSMENT_TYPE_LABELS.
 const ASSESSMENT_TYPES = [
   'weekly', 'monthly', 'mid_term', 'end_of_term', 'topic',
   'mock', 'diagnostic', 'pre_test', 'post_test', 'revision',
@@ -103,35 +115,63 @@ const ASSESSMENT_TYPE_LABELS = {
   project: 'Project-based assessment',
 }
 
-const CREATION_MODES = [
-  {
-    id: 'manual',
-    title: 'Create Manually',
-    body: 'Write questions and answers yourself.',
-    accent: 'theme-border theme-accent-bg theme-accent-text',
-  },
-  {
-    id: 'import',
-    title: 'Import Assessment (Word/PDF)',
-    body: 'Upload .doc, .docx, or .pdf and convert it into editable questions.',
-    accent: 'theme-border theme-accent-bg theme-accent-text',
-  },
-  {
-    id: 'ai',
-    title: 'Generate with Zed AI',
-    body: 'Create starter questions from a topic, then edit before saving.',
-    accent: 'theme-border theme-accent-bg theme-accent-text',
-  },
+const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
+
+const INSTRUCTION_PRESETS = [
+  'Use a pen.',
+  'Show all your working clearly.',
+  'No calculators allowed.',
+  'You have the full duration to complete this paper.',
 ]
 
-const FIELD = 'theme-input w-full rounded-xl border-2 px-3 py-2.5 text-sm placeholder:text-gray-400 outline-none transition-colors focus:border-[var(--accent)]'
-const SELECT = 'theme-input rounded-xl border-2 px-3 py-2.5 text-sm outline-none transition-colors focus:border-[var(--accent)]'
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+/* ------------------------------------------------------------------
+ * Helpers
+ * ------------------------------------------------------------------ */
 
-function withCurrentOption(options, currentValue) {
-  const normalized = String(currentValue ?? '').trim()
-  if (!normalized || options.includes(normalized)) return options
-  return [...options, normalized]
+function toEditableText(value) {
+  if (!value) return ''
+  if (typeof value === 'string') {
+    // If it looks like rich text (HTML or Tiptap JSON), strip to plain text.
+    // The new builder uses plain textarea; rich formatting is preserved
+    // round-trip only on questions that aren't edited here.
+    if (value.startsWith('<') || value.trim().startsWith('{')) {
+      return richTextToPlainText(value)
+    }
+    return value
+  }
+  if (typeof value === 'object') return richTextToPlainText(value)
+  return String(value)
+}
+
+function compressImage(file, maxWidth = 1200, quality = 0.85) {
+  return new Promise((resolve, reject) => {
+    const image = new Image()
+    const objectUrl = URL.createObjectURL(file)
+    image.onload = () => {
+      URL.revokeObjectURL(objectUrl)
+      let { width, height } = image
+      if (width > maxWidth) {
+        height = Math.round((height * maxWidth) / width)
+        width = maxWidth
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const context = canvas.getContext('2d')
+      context.drawImage(image, 0, 0, width, height)
+      canvas.toBlob(
+        blob => (blob ? resolve(blob) : reject(new Error('Canvas compression failed'))),
+        'image/jpeg',
+        quality,
+      )
+    }
+    image.onerror = () => {
+      URL.revokeObjectURL(objectUrl)
+      reject(new Error('Could not load image'))
+    }
+    image.src = objectUrl
+  })
 }
 
 function safeStorageName(value, fallback = 'asset') {
@@ -147,44 +187,9 @@ function assetsById(assets = []) {
   return Object.fromEntries(assets.map(asset => [asset.id, asset]))
 }
 
-function compressImage(file, maxWidth = 1200, quality = 0.85) {
-  return new Promise((resolve, reject) => {
-    const image = new Image()
-    const objectUrl = URL.createObjectURL(file)
-
-    image.onload = () => {
-      URL.revokeObjectURL(objectUrl)
-      let { width, height } = image
-      if (width > maxWidth) {
-        height = Math.round((height * maxWidth) / width)
-        width = maxWidth
-      }
-
-      const canvas = document.createElement('canvas')
-      canvas.width = width
-      canvas.height = height
-      const context = canvas.getContext('2d')
-      context.drawImage(image, 0, 0, width, height)
-      canvas.toBlob(
-        blob => (blob ? resolve(blob) : reject(new Error('Canvas compression failed'))),
-        'image/jpeg',
-        quality,
-      )
-    }
-
-    image.onerror = () => {
-      URL.revokeObjectURL(objectUrl)
-      reject(new Error('Could not load image'))
-    }
-
-    image.src = objectUrl
-  })
-}
-
 function buildStandaloneSection(question = {}) {
   const type = question.type ?? 'mcq'
-  const isTextAnswer = type === 'short_answer' || type === 'diagram'
-
+  const isTextAnswer = type === 'short_answer' || type === 'diagram' || type === 'essay'
   return createStandaloneSection({
     ...question,
     sharedInstruction: question.sharedInstruction ?? '',
@@ -218,177 +223,149 @@ function buildQuestionNumberMap(questions = []) {
   return Object.fromEntries(questions.map((question, index) => [getQuestionKey(question), index + 1]))
 }
 
-function countImages(sections = []) {
-  return sections.reduce((total, section) => {
-    if (section.kind === 'passage') {
-      return total + (section.passage?.imageUrl ? 1 : 0)
-    }
-    return total + (section.question?.imageUrl ? 1 : 0)
-  }, 0)
+function buildTitleFromForm(form) {
+  const gradeWord = GRADE_WORDS[form.grade] || form.grade
+  const type = ASSESSMENT_TYPE_LABELS[form.assessmentType] || 'Assessment'
+  const termBit = form.term ? `TERM ${form.term}` : ''
+  const typeUpper = type.toUpperCase()
+  let typeFormatted = typeUpper
+  if (form.assessmentType === 'end_of_term' && termBit) {
+    typeFormatted = `END OF TERM ${form.term} TEST`
+  } else if (form.assessmentType === 'mid_term' && termBit) {
+    typeFormatted = `MID-TERM ${form.term} TEST`
+  } else if (form.assessmentType === 'mock') {
+    typeFormatted = 'MOCK EXAMINATION'
+  } else if (termBit) {
+    typeFormatted = `${termBit} ${typeUpper}`
+  }
+  const year = form.year || new Date().getFullYear()
+  return `GRADE ${gradeWord} ${typeFormatted} - ${year}`
 }
 
-function hasUploadingAssets(sections = []) {
-  return sections.some(section => {
-    if (section.kind === 'passage') return section.passage?.imageUploading
-    return section.question?.imageUploading
-  })
+function buildFooterCode(form) {
+  const parts = [
+    `G${form.grade || ''}`,
+    form.subject || '',
+    `Term ${form.term || ''}`,
+    String(form.year || new Date().getFullYear()),
+  ].filter(Boolean)
+  return parts.join('/')
 }
 
-function ImportQuizPanel({ importing, importSummary, onImport }) {
-  const [inputKey, setInputKey] = useState(0)
-
-  return (
-    <div className="theme-accent-bg theme-border space-y-4 rounded-2xl border p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="theme-text font-black">Import Assessment (Word/PDF)</h2>
-          <p className="theme-text mt-1 max-w-3xl text-sm font-bold leading-relaxed">
-            Upload a .doc, .docx, or .pdf file. ZedExams will extract questions, options, short answers, and image-based questions into editable cards, then use smart cleanup on tricky formatting when available.
-          </p>
-        </div>
-        <label className="theme-accent-fill theme-on-accent cursor-pointer rounded-xl px-4 py-2.5 text-sm font-black">
-          {importing ? 'Importing...' : 'Choose File'}
-          <input
-            key={inputKey}
-            type="file"
-            accept={QUIZ_DOCUMENT_ACCEPT}
-            className="hidden"
-            disabled={importing}
-            onChange={event => {
-              const file = event.target.files?.[0]
-              if (file) onImport(file)
-              setInputKey(current => current + 1)
-            }}
-          />
-        </label>
-      </div>
-      <div className="grid gap-3 md:grid-cols-3">
-        <div className="theme-card theme-border rounded-xl border p-3">
-          <p className="theme-accent-text text-xs font-black uppercase tracking-wide">Editable import</p>
-          <p className="theme-text mt-1 text-xs font-bold leading-relaxed">The document is converted into editable quiz cards, not embedded as a static file.</p>
-        </div>
-        <div className="theme-card theme-border rounded-xl border p-3">
-          <p className="theme-accent-text text-xs font-black uppercase tracking-wide">Images</p>
-          <p className="theme-text mt-1 text-xs font-bold leading-relaxed">DOCX images and PDF snapshots attach to matching questions and upload when you save.</p>
-        </div>
-        <div className="theme-card theme-border rounded-xl border p-3">
-          <p className="theme-accent-text text-xs font-black uppercase tracking-wide">Needs review</p>
-          <p className="theme-text mt-1 text-xs font-bold leading-relaxed">Unclear answers, diagrams, and imperfect extraction are marked before publishing.</p>
-        </div>
-      </div>
-      {importSummary && (
-        <div className={`rounded-xl border px-4 py-3 ${
-          importSummary.importStatus === 'needs_review'
-            ? 'border-amber-200 bg-amber-50 text-amber-900'
-            : 'theme-card theme-border theme-text'
-        }`}>
-          <p className="text-sm font-black">
-            Imported {importSummary.questions} question{importSummary.questions === 1 ? '' : 's'} from {importSummary.fileName}
-          </p>
-          <p className="mt-1 text-xs font-bold leading-relaxed">
-            {importSummary.smartApplied ? 'Smart cleanup applied · ' : ''}
-            {importSummary.passages ? `${importSummary.passages} passage${importSummary.passages === 1 ? '' : 's'} detected · ` : ''}
-            {importSummary.images} image-based question{importSummary.images === 1 ? '' : 's'} · {importSummary.needsReview} need review · Status: {importSummary.importStatus}
-          </p>
-          {importSummary.warnings?.length ? (
-            <ul className="mt-2 space-y-0.5">
-              {importSummary.warnings.slice(0, 3).map((warning, index) => (
-                <li key={`${warning}-${index}`} className="text-xs font-bold leading-relaxed">{warning}</li>
-              ))}
-            </ul>
-          ) : null}
-        </div>
-      )}
-    </div>
-  )
+function plainTextWordCount(value) {
+  const text = toEditableText(value)
+  if (!text) return 0
+  return text.split(/\s+/).filter(Boolean).length
 }
 
-function CreationModeSelector({ activeMode, onSelect }) {
-  return (
-    <div className="theme-card theme-border rounded-2xl border p-4 shadow-sm">
-      <p className="theme-text-muted text-xs font-black uppercase tracking-wide">Choose how to create this assessment</p>
-      <div className="mt-3 grid gap-3 lg:grid-cols-3">
-        {CREATION_MODES.map(mode => {
-          const active = activeMode === mode.id
-          return (
-            <button
-              key={mode.id}
-              type="button"
-              onClick={() => onSelect(mode.id)}
-              className={`min-h-0 rounded-xl border-2 p-4 text-left shadow-none transition-all ${
-                active ? mode.accent : 'theme-border theme-bg-subtle theme-text hover:border-[var(--accent)]'
-              }`}
-            >
-              <span className={`inline-flex rounded-full px-2 py-0.5 text-xs font-black ${
-                active ? 'bg-white/80' : 'theme-card theme-text-muted'
-              }`}>
-                {active ? 'Selected' : 'Option'}
-              </span>
-              <h2 className="mt-2 text-sm font-black">{mode.title}</h2>
-              <p className="mt-1 text-xs font-bold leading-relaxed opacity-80">{mode.body}</p>
-            </button>
-          )
-        })}
-      </div>
-    </div>
-  )
-}
+/* ------------------------------------------------------------------
+ * Top-level component
+ * ------------------------------------------------------------------ */
 
 export default function AssessmentStudio() {
-  const { createAssessment, saveAssessmentQuestions } = useFirestore()
+  const { createAssessment, saveAssessmentQuestions, getMyAssessments } = useFirestore()
   const { currentUser } = useAuth()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
-  const requestedMode = searchParams.get('mode')
+  const requestedView = searchParams.get('view')
 
-  const [creationMode, setCreationMode] = useState(
-    CREATION_MODES.some(mode => mode.id === requestedMode) ? requestedMode : 'manual',
+  // View + slide-over state
+  const [view, setView] = useState(
+    ['home', 'builder', 'preview'].includes(requestedView) ? requestedView : 'home',
   )
-  const [form, setForm] = useState({
+  const [slideover, setSlideover] = useState(null) // 'blocks' | 'ai' | 'editor' | null
+  const [editorTargetKey, setEditorTargetKey] = useState(null)
+  const [insertAfterIndex, setInsertAfterIndex] = useState(null) // for block picker
+  const [toast, setToast] = useState(null)
+
+  // Data state (compatible with existing schema)
+  const [form, setForm] = useState(() => ({
     title: '',
-    subject: 'Mathematics',
-    grade: '5',
+    subject: 'Integrated Science',
+    grade: '4',
     term: '1',
+    year: new Date().getFullYear(),
     duration: 60,
     type: 'assessment',
     topic: '',
     assessmentType: 'end_of_term',
-    // Cover-page fields (printed at the top of the assessment paper).
     schoolName: '',
     className: '',
+    paperName: 'Paper 1',
     assessmentDate: '',
     coverInstructions: '',
+    schoolLogoUrl: '',
+    showNameField: true,
+    showDateField: true,
+    showMarksField: true,
+    showClassField: false,
+    endOfPaperText: '— END OF PAPER —',
     mode: '',
     importStatus: '',
     sourceFileName: '',
     sourceContentType: '',
     importWarnings: [],
-  })
-  const [sections, setSections] = useState([createStandaloneSection()])
+  }))
+  const [sections, setSections] = useState(() => [createStandaloneSection()])
   const [parts, setParts] = useState([])
   const [saving, setSaving] = useState(false)
-  const [toast, setToast] = useState(null)
   const [aiForm, setAiForm] = useState({ topic: '', count: 5, type: 'mcq' })
   const [aiGenerating, setAiGenerating] = useState(false)
   const [importingDocument, setImportingDocument] = useState(false)
   const [importSummary, setImportSummary] = useState(null)
   const [importedAssets, setImportedAssets] = useState({})
+  const [exporting, setExporting] = useState(false)
+  const [recentPapers, setRecentPapers] = useState([])
 
-  const serializedPreview = serializeQuizSections(sections, parts)
-  const questionNumbers = buildQuestionNumberMap(serializedPreview.questions)
+  // Derived
+  const serializedPreview = useMemo(
+    () => serializeQuizSections(sections, parts),
+    [sections, parts],
+  )
+  const questionNumbers = useMemo(
+    () => buildQuestionNumberMap(serializedPreview.questions),
+    [serializedPreview],
+  )
   const questionCount = serializedPreview.questionCount
   const totalMarks = serializedPreview.totalMarks
-  const passageCount = serializedPreview.passages.length
-  const imagesCount = countImages(sections)
-  const anyUploading = hasUploadingAssets(sections) || importingDocument
-  const gradeOptions = withCurrentOption(GRADES, form.grade)
-  const subjectOptions = withCurrentOption(SUBJECTS, form.subject)
-  const termOptions = withCurrentOption(TERMS, form.term)
+  const estimatedPages = Math.max(1, Math.ceil((questionCount + totalMarks * 0.4) / 8))
+  const autoTitle = form.title.trim() || buildTitleFromForm(form)
+  const footerCode = buildFooterCode(form)
 
-  useEffect(() => () => revokeImportedQuizAssets(importedAssets), [importedAssets])
+  /* ------------ helpers ------------ */
+  const showToast = useCallback((message, isErr = false) => {
+    setToast({ message, isErr })
+    window.clearTimeout(showToast._t)
+    showToast._t = window.setTimeout(() => setToast(null), 2500)
+  }, [])
 
-  // Draft auto-save: restore any previously typed work on mount so a page
-  // refresh no longer wipes the editor clean.
+  const setF = useCallback((field, value) => {
+    setForm(current => ({ ...current, [field]: value }))
+  }, [])
+
+  // Sync view ↔ URL
+  function changeView(next) {
+    setView(next)
+    const params = new URLSearchParams(searchParams)
+    if (next === 'home') params.delete('view')
+    else params.set('view', next)
+    setSearchParams(params, { replace: true })
+    window.scrollTo({ top: 0, behavior: 'auto' })
+  }
+
+  function openSlide(name, opts = {}) {
+    if (opts.questionKey != null) setEditorTargetKey(opts.questionKey)
+    if (opts.insertAfter != null) setInsertAfterIndex(opts.insertAfter)
+    else setInsertAfterIndex(null)
+    setSlideover(name)
+  }
+  function closeSlide() {
+    setSlideover(null)
+    setEditorTargetKey(null)
+    setInsertAfterIndex(null)
+  }
+
+  /* ------------ draft restore / autosave ------------ */
   const draftRestoredRef = useRef(false)
   useEffect(() => {
     if (draftRestoredRef.current) return
@@ -397,131 +374,118 @@ export default function AssessmentStudio() {
 
     const draft = loadAssessmentDraft(currentUser.uid)
     if (!draft) return
-    // Only restore into a pristine editor so we never clobber state that
-    // the component has already populated (e.g. a fresh AI/import flow).
     if (!hasOnlyEmptyStarterSection(sections)) return
 
     if (draft.form) setForm(current => ({ ...current, ...draft.form }))
-    if (Array.isArray(draft.sections) && draft.sections.length) {
-      setSections(draft.sections)
-    }
-    if (Array.isArray(draft.parts)) {
-      setParts(draft.parts)
-    }
-    if (draft.creationMode) setCreationMode(draft.creationMode)
-    show('Restored your unsaved draft.')
-    // Intentional: this effect should only fire once per mount per user.
+    if (Array.isArray(draft.sections) && draft.sections.length) setSections(draft.sections)
+    if (Array.isArray(draft.parts)) setParts(draft.parts)
+    if (draft.view === 'builder' || draft.view === 'preview') setView(draft.view)
+    showToast('Restored your unsaved draft.')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.uid])
 
-  // Debounced write-through so typing stays cheap.
   useEffect(() => {
     if (!currentUser?.uid) return
     if (!draftRestoredRef.current) return
-    if (hasOnlyEmptyStarterSection(sections) && !form.title.trim()) {
-      // Nothing worth saving yet.
-      return
-    }
+    if (hasOnlyEmptyStarterSection(sections) && !form.title.trim() && !form.schoolName.trim()) return
     const timer = setTimeout(() => {
-      saveAssessmentDraft(currentUser.uid, { form, sections, parts, creationMode })
+      saveAssessmentDraft(currentUser.uid, { form, sections, parts, view })
     }, 800)
     return () => clearTimeout(timer)
-  }, [form, sections, parts, creationMode, currentUser?.uid])
+  }, [form, sections, parts, view, currentUser?.uid])
 
-  function setF(field, value) {
-    setForm(current => ({ ...current, [field]: value }))
-  }
+  useEffect(() => () => revokeImportedQuizAssets(importedAssets), [importedAssets])
 
-  function setAi(field, value) {
-    setAiForm(current => ({ ...current, [field]: value }))
-  }
+  /* ------------ recent papers (home view) ------------ */
+  useEffect(() => {
+    if (view !== 'home') return
+    if (!currentUser?.uid) return
+    let cancelled = false
+    getMyAssessments(currentUser.uid)
+      .then(list => {
+        if (cancelled) return
+        setRecentPapers(Array.isArray(list) ? list.slice(0, 8) : [])
+      })
+      .catch(err => { console.warn('Failed to load recent papers:', err) })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, currentUser?.uid])
 
-  function show(message, isErr = false) {
-    setToast({ message, isErr })
-    setTimeout(() => setToast(null), 3500)
-  }
-
-  function scrollToBottom() {
-    setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 50)
-  }
-
-  function chooseCreationMode(mode) {
-    setCreationMode(mode)
-    const nextParams = new URLSearchParams(searchParams)
-    if (mode === 'manual') nextParams.delete('mode')
-    else nextParams.set('mode', mode)
-    setSearchParams(nextParams, { replace: true })
-  }
-
+  /* ------------ section + part mutators ------------ */
   function updateSection(sectionIndex, updater) {
-    setSections(currentSections => currentSections.map((section, index) => (
-      index === sectionIndex ? updater(section) : section
-    )))
+    setSections(prev => prev.map((section, index) =>
+      index === sectionIndex ? updater(section) : section,
+    ))
   }
-
   function updateStandaloneQuestion(sectionIndex, field, value) {
     updateSection(sectionIndex, section => ({
       ...section,
-      question: {
-        ...section.question,
-        [field]: value,
-      },
+      question: { ...section.question, [field]: value },
     }))
   }
-
   function moveSection(sectionIndex, direction) {
-    setSections(currentSections => {
-      const nextSections = [...currentSections]
-      const targetIndex = sectionIndex + direction
-      if (targetIndex < 0 || targetIndex >= nextSections.length) return nextSections
-      ;[nextSections[sectionIndex], nextSections[targetIndex]] = [nextSections[targetIndex], nextSections[sectionIndex]]
-      return nextSections
+    setSections(prev => {
+      const next = [...prev]
+      const target = sectionIndex + direction
+      if (target < 0 || target >= next.length) return next
+      ;[next[sectionIndex], next[target]] = [next[target], next[sectionIndex]]
+      return next
+    })
+  }
+  function removeSectionAt(sectionIndex) {
+    setSections(prev => {
+      const next = prev.filter((_, index) => index !== sectionIndex)
+      return next.length ? next : [createStandaloneSection()]
+    })
+  }
+  function duplicateSectionAt(sectionIndex) {
+    setSections(prev => {
+      const source = prev[sectionIndex]
+      if (!source) return prev
+      const cloned = source.kind === 'passage'
+        ? createPassageSection({
+            ...source.passage,
+            id: undefined,
+            questions: (source.passage.questions || []).map(q => ({ ...q, _id: null })),
+          })
+        : buildStandaloneSection({ ...source.question, _id: null })
+      const next = [...prev]
+      next.splice(sectionIndex + 1, 0, cloned)
+      return next
     })
   }
 
-  function handleShuffleSections() {
-    setSections(currentSections => shuffleQuizSections(currentSections))
+  function insertSectionAfter(afterIndex, section) {
+    setSections(prev => {
+      if (hasOnlyEmptyStarterSection(prev)) return [section]
+      if (afterIndex == null) return [...prev, section]
+      const next = [...prev]
+      next.splice(afterIndex + 1, 0, section)
+      return next
+    })
   }
 
-  // ── Parts (PRISCA mock-paper section groups) ─────────────────────
   function addPart() {
-    setParts(currentParts => [
-      ...currentParts,
-      createPartGroup({ order: currentParts.length, title: '' }),
+    setParts(prev => [
+      ...prev,
+      createPartGroup({ order: prev.length, title: `Section ${SECTION_LETTERS[prev.length] || ''}`.trim() }),
     ])
   }
-
   function updatePart(partId, field, value) {
-    setParts(currentParts => currentParts.map(part => (
-      part.id === partId ? { ...part, [field]: value } : part
-    )))
+    setParts(prev => prev.map(part => part.id === partId ? { ...part, [field]: value } : part))
   }
-
-  function movePart(partId, direction) {
-    setParts(currentParts => {
-      const sorted = [...currentParts].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-      const index = sorted.findIndex(part => part.id === partId)
-      const target = index + direction
-      if (index < 0 || target < 0 || target >= sorted.length) return currentParts
-      ;[sorted[index], sorted[target]] = [sorted[target], sorted[index]]
-      return sorted.map((part, i) => ({ ...part, order: i }))
-    })
-  }
-
   function removePart(partId) {
-    setParts(currentParts => currentParts
-      .filter(part => part.id !== partId)
-      .map((part, i) => ({ ...part, order: i })))
-    setSections(currentSections => currentSections.map(section => {
+    setParts(prev => prev.filter(part => part.id !== partId).map((part, i) => ({ ...part, order: i })))
+    setSections(prev => prev.map(section => {
       if (section.kind === 'passage' && section.partId === partId) {
         return {
           ...section,
           partId: null,
           passage: {
             ...section.passage,
-            questions: (section.passage.questions || []).map(q => (
-              q.partId === partId ? { ...q, partId: null } : q
-            )),
+            questions: (section.passage.questions || []).map(q =>
+              q.partId === partId ? { ...q, partId: null } : q,
+            ),
           },
         }
       }
@@ -531,9 +495,8 @@ export default function AssessmentStudio() {
       return section
     }))
   }
-
   function assignSectionToPart(sectionId, partId) {
-    setSections(currentSections => currentSections.map(section => {
+    setSections(prev => prev.map(section => {
       if (section.id !== sectionId) return section
       if (section.kind === 'passage') {
         return {
@@ -549,59 +512,35 @@ export default function AssessmentStudio() {
     }))
   }
 
-  function removeStandaloneSection(sectionIndex) {
-    setSections(currentSections => currentSections.filter((_, index) => index !== sectionIndex))
-  }
-
-  function updatePassage(sectionIndex, field, value) {
+  /* ------------ passage child question mutators ------------ */
+  function updatePassageQuestion(sectionIndex, questionIndex, field, value) {
     updateSection(sectionIndex, section => ({
       ...section,
       passage: {
         ...section.passage,
-        [field]: value,
+        questions: section.passage.questions.map((question, index) =>
+          index === questionIndex ? { ...question, [field]: value } : question,
+        ),
       },
     }))
   }
-
-  function togglePassage(sectionIndex) {
-    updateSection(sectionIndex, section => ({
-      ...section,
-      passage: {
-        ...section.passage,
-        collapsed: !section.passage.collapsed,
-      },
-    }))
-  }
-
-  function removePassageSection(sectionIndex) {
-    setSections(currentSections => currentSections.filter((_, index) => index !== sectionIndex))
-  }
-
-  function addPassageQuestion(sectionIndex) {
+  function addPassageQuestion(sectionIndex, type = 'short_answer') {
     updateSection(sectionIndex, section => ({
       ...section,
       passage: {
         ...section.passage,
         questions: [
           ...section.passage.questions,
-          emptyPassageQuestion({ passageId: section.passage.id }),
+          emptyPassageQuestion({
+            passageId: section.passage.id,
+            type,
+            options: type === 'mcq' ? ['', '', '', ''] : [],
+            correctAnswer: type === 'mcq' ? 0 : '',
+          }),
         ],
       },
     }))
   }
-
-  function updatePassageQuestion(sectionIndex, questionIndex, field, value) {
-    updateSection(sectionIndex, section => ({
-      ...section,
-      passage: {
-        ...section.passage,
-        questions: section.passage.questions.map((question, index) => (
-          index === questionIndex ? { ...question, [field]: value } : question
-        )),
-      },
-    }))
-  }
-
   function removePassageQuestion(sectionIndex, questionIndex) {
     updateSection(sectionIndex, section => ({
       ...section,
@@ -612,57 +551,75 @@ export default function AssessmentStudio() {
     }))
   }
 
-  function movePassageQuestion(sectionIndex, questionIndex, direction) {
-    updateSection(sectionIndex, section => {
-      const nextQuestions = [...section.passage.questions]
-      const targetIndex = questionIndex + direction
-      if (targetIndex < 0 || targetIndex >= nextQuestions.length) return section
-      ;[nextQuestions[questionIndex], nextQuestions[targetIndex]] = [nextQuestions[targetIndex], nextQuestions[questionIndex]]
-      return {
-        ...section,
-        passage: {
-          ...section.passage,
-          questions: nextQuestions,
-        },
-      }
-    })
-  }
-
-  function addStandaloneSectionHandler() {
-    setSections(currentSections => [...currentSections, createStandaloneSection()])
-    scrollToBottom()
-  }
-
-  function addPassageSectionHandler() {
-    const nextSection = createPassageSection()
-    setSections(currentSections => hasOnlyEmptyStarterSection(currentSections)
-      ? [nextSection]
-      : [...currentSections, nextSection])
-    scrollToBottom()
-  }
-
-  function addMapSectionHandler() {
-    const nextSection = createPassageSection({ passageKind: 'map' })
-    setSections(currentSections => hasOnlyEmptyStarterSection(currentSections)
-      ? [nextSection]
-      : [...currentSections, nextSection])
-    scrollToBottom()
-  }
-
-  async function handleGenerateQuestions() {
-    const topic = aiForm.topic.trim()
-    if (!topic) {
-      show('Add a topic for Zed to generate questions.', true)
+  /* ------------ image upload ------------ */
+  async function uploadStandaloneQuestionImage(sectionIndex, file) {
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      showToast('Only JPG, PNG, and WEBP images are allowed.', true)
       return
     }
+    if (file.size > 15 * 1024 * 1024) {
+      showToast('Image must be under 15 MB.', true)
+      return
+    }
+    updateStandaloneQuestion(sectionIndex, 'imageUploading', true)
+    try {
+      const compressed = await compressImage(file)
+      const path = `assessment-images/${currentUser.uid}/${Date.now()}-q-${sectionIndex}.jpg`
+      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType: 'image/jpeg' })
+      const imageUrl = await getDownloadURL(snapshot.ref)
+      updateSection(sectionIndex, section => ({
+        ...section,
+        question: {
+          ...section.question,
+          imageUrl,
+          imageAssetId: '',
+          imageUploading: false,
+          imageUploadStep: '',
+        },
+      }))
+      showToast('Image attached.')
+    } catch (error) {
+      updateStandaloneQuestion(sectionIndex, 'imageUploading', false)
+      showToast(`Upload failed: ${getErrorMessage(error)}`, true)
+    }
+  }
+  function removeStandaloneQuestionImage(sectionIndex) {
+    updateSection(sectionIndex, section => ({
+      ...section,
+      question: { ...section.question, imageUrl: '', imageAssetId: '' },
+    }))
+  }
 
+  async function uploadSchoolLogo(file) {
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      showToast('Only JPG, PNG, and WEBP images are allowed.', true)
+      return
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('Logo must be under 10 MB.', true)
+      return
+    }
+    try {
+      const compressed = await compressImage(file, 600, 0.9)
+      const path = `assessment-images/${currentUser.uid}/logo-${Date.now()}.jpg`
+      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType: 'image/jpeg' })
+      const url = await getDownloadURL(snapshot.ref)
+      setF('schoolLogoUrl', url)
+      showToast('School logo uploaded.')
+    } catch (error) {
+      showToast(`Upload failed: ${getErrorMessage(error)}`, true)
+    }
+  }
+
+  /* ------------ AI generation ------------ */
+  async function handleGenerateQuestions(topicOverride) {
+    const topic = (topicOverride || aiForm.topic || form.topic || '').trim()
+    if (!topic) {
+      showToast('Add a topic so Zed can generate questions.', true)
+      return
+    }
     setAiGenerating(true)
     try {
-      // generateAIQuizQuestions now returns { questions, warning }. The
-      // warning is populated when the requested topic wasn't in the verified
-      // CBC knowledge base and the generator fell back to general CBC
-      // knowledge — we surface it to the teacher so they can double-check
-      // or pick a nearby verified topic next time.
       const { questions: generated, warning: kbWarning } = await generateAIQuizQuestions({
         subject: form.subject,
         grade: form.grade,
@@ -670,66 +627,46 @@ export default function AssessmentStudio() {
         count: aiForm.count,
         type: aiForm.type,
       })
-
-      // Keep only AI questions that actually have text and usable options/answer.
       const generatedList = Array.isArray(generated) ? generated : []
-      const usableGenerated = generatedList.filter(question => {
-        if (!richTextHasContent(question?.text ?? '')) return false
-        const t = question?.type || 'mcq'
+      const usable = generatedList.filter(q => {
+        if (!richTextHasContent(q?.text ?? '')) return false
+        const t = q?.type || 'mcq'
         if (t === 'short_answer' || t === 'diagram') {
-          return String(question?.correctAnswer ?? '').trim().length > 0
+          return String(q?.correctAnswer ?? '').trim().length > 0
         }
-        const opts = Array.isArray(question?.options) ? question.options.filter(o => String(o ?? '').trim()) : []
+        const opts = Array.isArray(q?.options) ? q.options.filter(o => String(o ?? '').trim()) : []
         return opts.length >= 2
       })
-
-      const nextSections = usableGenerated.map(question => buildStandaloneSection({
-        ...question,
-        options: question.options?.length ? question.options : ['', '', '', ''],
+      const nextSections = usable.map(q => buildStandaloneSection({
+        ...q,
+        options: q.options?.length ? q.options : ['', '', '', ''],
       }))
-
       if (!nextSections.length) {
-        show('Zed could not generate questions. Please try again.', true)
+        showToast('Zed could not generate questions. Try again.', true)
         return
       }
-      if (nextSections.length < generatedList.length) {
-        const skipped = generatedList.length - nextSections.length
-        show(`Zed returned ${skipped} incomplete question${skipped === 1 ? '' : 's'}; ${nextSections.length} kept. Review before saving.`)
-      }
-
-      setSections(currentSections => hasOnlyEmptyStarterSection(currentSections)
+      setSections(prev => hasOnlyEmptyStarterSection(prev)
         ? nextSections
-        : [...currentSections, ...nextSections])
-
-      if (!form.title.trim()) {
-        setF('title', `Grade ${form.grade} ${form.subject} - ${topic}`)
-      }
-
-      const usedFastDraft = nextSections.some(section => section.question.generatedBy === 'fast_draft')
-      show(usedFastDraft
-        ? `Added ${nextSections.length} quick draft question${nextSections.length === 1 ? '' : 's'}. Review before saving.`
-        : `Added ${nextSections.length} AI-generated question${nextSections.length === 1 ? '' : 's'}. Review before saving.`)
-
-      // Surface KB warning as a separate, non-blocking notice so teachers
-      // see both "questions added" and "topic wasn't in the verified list".
-      if (kbWarning) {
-        // Small delay so the success toast lands first and the warning
-        // doesn't immediately replace it.
-        setTimeout(() => show(kbWarning, false), 600)
-      }
+        : [...prev, ...nextSections])
+      if (!form.title.trim()) setF('title', `Grade ${form.grade} ${form.subject} - ${topic}`)
+      const skipped = generatedList.length - nextSections.length
+      showToast(skipped
+        ? `Zed returned ${skipped} incomplete; ${nextSections.length} kept. Review before saving.`
+        : `Added ${nextSections.length} AI-generated question${nextSections.length === 1 ? '' : 's'}.`)
+      if (kbWarning) setTimeout(() => showToast(kbWarning), 1500)
+      closeSlide()
+      if (view !== 'builder') changeView('builder')
     } catch (error) {
-      show(getErrorMessage(error, 'AI generation failed. Please try again.'), true)
+      showToast(getErrorMessage(error, 'AI generation failed.'), true)
     } finally {
       setAiGenerating(false)
     }
   }
 
+  /* ------------ document import ------------ */
   async function handleImportDocument(file) {
     const hasExistingWork = !hasOnlyEmptyStarterSection(sections)
-    if (hasExistingWork && !window.confirm('Replace the current questions with questions extracted from this document?')) {
-      return
-    }
-
+    if (hasExistingWork && !window.confirm('Replace the current questions with questions extracted from this document?')) return
     setImportingDocument(true)
     try {
       const imported = await importQuizDocument(file)
@@ -748,9 +685,7 @@ export default function AssessmentStudio() {
       }))
       setSections(imported.sections?.length
         ? imported.sections
-        : imported.questions.map(question => buildStandaloneSection(question)))
-      // Imported PRISCA / ECZ papers can carry SECTION A / PART B headings —
-      // surface them as Parts so questions land inside the right group.
+        : imported.questions.map(q => buildStandaloneSection(q)))
       setParts(Array.isArray(imported.parts) ? imported.parts : [])
       setImportSummary({
         ...imported.summary,
@@ -761,302 +696,72 @@ export default function AssessmentStudio() {
       })
       const importedCount = (imported.sections?.length || imported.questions?.length || 0)
       if (importedCount === 0) {
-        show('No questions could be extracted from this document. Check the file or try a different format.', true)
+        showToast('No questions extracted. Try a different file.', true)
         return
       }
-      show(imported.importStatus === 'needs_review'
-        ? imported.smartApplied
-          ? 'Document imported with smart cleanup. Review flagged questions before publishing.'
-          : 'Document imported. Review passages and marked questions before publishing.'
-        : imported.smartApplied
-          ? 'Document imported with smart cleanup into editable quiz sections.'
-          : 'Document imported into editable quiz sections.')
-      setTimeout(() => window.scrollTo({ top: document.body.scrollHeight / 3, behavior: 'smooth' }), 80)
+      showToast(`Imported ${importedCount} question${importedCount === 1 ? '' : 's'}. Review before saving.`)
+      changeView('builder')
+      closeSlide()
     } catch (error) {
       console.error(error)
-      show(`Import failed: ${error.message || 'Could not read this document.'}`, true)
+      showToast(`Import failed: ${getErrorMessage(error)}`, true)
     } finally {
       setImportingDocument(false)
     }
   }
 
-  async function uploadStandaloneQuestionImage(sectionIndex, file) {
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      show('Only JPG, PNG, and WEBP images are allowed.', true)
-      return
-    }
-    if (file.size > 15 * 1024 * 1024) {
-      show('Image must be under 15 MB.', true)
-      return
-    }
-
-    updateSection(sectionIndex, section => ({
-      ...section,
-      question: {
-        ...section.question,
-        imageUploading: true,
-        imageUploadStep: 'compressing',
-        imageUrl: '',
-        imageAssetId: '',
-      },
-    }))
-
-    try {
-      const compressed = await compressImage(file)
-      updateStandaloneQuestion(sectionIndex, 'imageUploadStep', 'uploading')
-      const path = `assessment-images/${currentUser.uid}/${Date.now()}-standalone-${sectionIndex}.jpg`
-      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType: 'image/jpeg' })
-      const imageUrl = await getDownloadURL(snapshot.ref)
-
-      updateSection(sectionIndex, section => ({
-        ...section,
-        question: {
-          ...section.question,
-          imageUrl,
-          imageAssetId: '',
-          imageUploading: false,
-          imageUploadStep: '',
-        },
-      }))
-      show(`Image ready (${Math.round(compressed.size / 1024)} KB)`)
-    } catch (error) {
-      updateSection(sectionIndex, section => ({
-        ...section,
-        question: {
-          ...section.question,
-          imageUploading: false,
-          imageUploadStep: '',
-        },
-      }))
-      show(`Upload failed: ${error.message}`, true)
-    }
-  }
-
-  function removeStandaloneQuestionImage(sectionIndex) {
-    updateSection(sectionIndex, section => ({
-      ...section,
-      question: {
-        ...section.question,
-        imageUrl: '',
-        imageAssetId: '',
-      },
-    }))
-  }
-
-  async function uploadPassageImage(sectionIndex, file) {
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      show('Only JPG, PNG, and WEBP images are allowed.', true)
-      return
-    }
-    if (file.size > 15 * 1024 * 1024) {
-      show('Image must be under 15 MB.', true)
-      return
-    }
-
-    updateSection(sectionIndex, section => ({
-      ...section,
-      passage: {
-        ...section.passage,
-        imageUploading: true,
-        imageUploadStep: 'compressing',
-        imageUrl: '',
-      },
-    }))
-
-    try {
-      const compressed = await compressImage(file)
-      updateSection(sectionIndex, section => ({
-        ...section,
-        passage: {
-          ...section.passage,
-          imageUploadStep: 'uploading',
-        },
-      }))
-      const path = `assessment-images/${currentUser.uid}/${Date.now()}-passage-${sectionIndex}.jpg`
-      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType: 'image/jpeg' })
-      const imageUrl = await getDownloadURL(snapshot.ref)
-
-      updateSection(sectionIndex, section => ({
-        ...section,
-        passage: {
-          ...section.passage,
-          imageUrl,
-          imageUploading: false,
-          imageUploadStep: '',
-        },
-      }))
-      show(`Passage image ready (${Math.round(compressed.size / 1024)} KB)`)
-    } catch (error) {
-      updateSection(sectionIndex, section => ({
-        ...section,
-        passage: {
-          ...section.passage,
-          imageUploading: false,
-          imageUploadStep: '',
-        },
-      }))
-      show(`Upload failed: ${error.message}`, true)
-    }
-  }
-
-  function buildOptionMediaSlots(question) {
-    const existing = Array.isArray(question.optionMedia) ? question.optionMedia : []
-    const optionCount = Array.isArray(question.options) ? question.options.length : 0
-    return Array.from({ length: optionCount }, (_, i) => existing[i] ?? null)
-  }
-
-  async function uploadStandaloneOptionImage(sectionIndex, optionIndex, file) {
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      show('Only JPG, PNG, and WEBP images are allowed.', true)
-      return
-    }
-    if (file.size > 15 * 1024 * 1024) {
-      show('Image must be under 15 MB.', true)
-      return
-    }
-
-    updateSection(sectionIndex, section => ({
-      ...section,
-      question: {
-        ...section.question,
-        optionImageUploadingIndex: optionIndex,
-        optionImageUploadStep: 'compressing',
-      },
-    }))
-
-    try {
-      const compressed = await compressImage(file)
-      updateStandaloneQuestion(sectionIndex, 'optionImageUploadStep', 'uploading')
-      const path = `assessment-images/${currentUser.uid}/${Date.now()}-standalone-${sectionIndex}-opt-${optionIndex}.jpg`
-      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType: 'image/jpeg' })
-      const imageUrl = await getDownloadURL(snapshot.ref)
-
-      updateSection(sectionIndex, section => {
-        const next = buildOptionMediaSlots(section.question)
-        const prevAlt = next[optionIndex]?.alt ?? ''
-        next[optionIndex] = { imageUrl, alt: prevAlt }
-        return {
-          ...section,
-          question: {
-            ...section.question,
-            optionMedia: next,
-            optionImageUploadingIndex: null,
-            optionImageUploadStep: '',
-          },
-        }
-      })
-      show(`Option image ready (${Math.round(compressed.size / 1024)} KB)`)
-    } catch (error) {
-      updateSection(sectionIndex, section => ({
-        ...section,
-        question: {
-          ...section.question,
-          optionImageUploadingIndex: null,
-          optionImageUploadStep: '',
-        },
-      }))
-      show(`Upload failed: ${error.message}`, true)
-    }
-  }
-
-  function removeStandaloneOptionImage(sectionIndex, optionIndex) {
-    updateSection(sectionIndex, section => {
-      const next = buildOptionMediaSlots(section.question)
-      next[optionIndex] = null
-      return {
-        ...section,
-        question: {
-          ...section.question,
-          optionMedia: next,
-        },
-      }
+  /* ------------ validation + save ------------ */
+  function validateStandaloneQuestion(question, label) {
+    return sharedValidateStandaloneQuestion(question, label, {
+      onError: message => showToast(message, true),
     })
   }
-
-  async function uploadPassageQuestionOptionImage(sectionIndex, questionIndex, optionIndex, file) {
-    if (!ALLOWED_TYPES.includes(file.type)) {
-      show('Only JPG, PNG, and WEBP images are allowed.', true)
-      return
+  function validate() {
+    if (!autoTitle.trim()) {
+      showToast('Set a school name + grade so the title can be generated.', true)
+      return false
     }
-    if (file.size > 15 * 1024 * 1024) {
-      show('Image must be under 15 MB.', true)
-      return
+    if (questionCount === 0) {
+      showToast('Add at least one question before saving.', true)
+      return false
     }
-
-    const patchQuestion = (patch) =>
-      updateSection(sectionIndex, section => ({
-        ...section,
-        passage: {
-          ...section.passage,
-          questions: section.passage.questions.map((question, index) =>
-            index === questionIndex ? { ...question, ...patch(question) } : question
-          ),
-        },
-      }))
-
-    patchQuestion(() => ({
-      optionImageUploadingIndex: optionIndex,
-      optionImageUploadStep: 'compressing',
-    }))
-
-    try {
-      const compressed = await compressImage(file)
-      patchQuestion(() => ({ optionImageUploadStep: 'uploading' }))
-      const path = `assessment-images/${currentUser.uid}/${Date.now()}-passage-${sectionIndex}-q-${questionIndex}-opt-${optionIndex}.jpg`
-      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType: 'image/jpeg' })
-      const imageUrl = await getDownloadURL(snapshot.ref)
-
-      patchQuestion(question => {
-        const next = buildOptionMediaSlots(question)
-        while (next.length < 4) next.push(null)
-        const prevAlt = next[optionIndex]?.alt ?? ''
-        next[optionIndex] = { imageUrl, alt: prevAlt }
-        return {
-          optionMedia: next,
-          optionImageUploadingIndex: null,
-          optionImageUploadStep: '',
+    for (const part of parts) {
+      if (!String(part.title ?? '').trim()) {
+        showToast('Every section needs a title (e.g. "Section A — Multiple Choice").', true)
+        return false
+      }
+    }
+    for (const section of sections) {
+      if (section.kind === 'passage') {
+        const passage = section.passage
+        if (passage.imageUploading) {
+          showToast('A passage image is still uploading. Please wait.', true)
+          return false
         }
-      })
-      show(`Option image ready (${Math.round(compressed.size / 1024)} KB)`)
-    } catch (error) {
-      patchQuestion(() => ({
-        optionImageUploadingIndex: null,
-        optionImageUploadStep: '',
-      }))
-      show(`Upload failed: ${error.message}`, true)
+        if (!richTextHasContent(passage.passageText) && !passage.imageUrl) {
+          showToast('Each passage needs text or an image before saving.', true)
+          return false
+        }
+        if (!passage.questions.length) {
+          showToast('Each passage needs at least one linked question.', true)
+          return false
+        }
+        for (const q of passage.questions) {
+          const label = `Passage question ${questionNumbers[q.localId]}`
+          if (!validateStandaloneQuestion(q, label)) return false
+        }
+        continue
+      }
+      const q = section.question
+      if (!validateStandaloneQuestion(q, `Question ${questionNumbers[q.localId]}`)) return false
     }
-  }
-
-  function removePassageQuestionOptionImage(sectionIndex, questionIndex, optionIndex) {
-    updateSection(sectionIndex, section => ({
-      ...section,
-      passage: {
-        ...section.passage,
-        questions: section.passage.questions.map((question, index) => {
-          if (index !== questionIndex) return question
-          const next = buildOptionMediaSlots(question)
-          if (next.length > optionIndex) next[optionIndex] = null
-          return { ...question, optionMedia: next }
-        }),
-      },
-    }))
-  }
-
-  function removePassageImage(sectionIndex) {
-    updateSection(sectionIndex, section => ({
-      ...section,
-      passage: {
-        ...section.passage,
-        imageUrl: '',
-      },
-    }))
+    return true
   }
 
   async function uploadImportedQuestionImages(questionsToSave) {
-    const assetIds = Array.from(new Set(questionsToSave.map(question => question.imageAssetId).filter(Boolean)))
+    const assetIds = Array.from(new Set(questionsToSave.map(q => q.imageAssetId).filter(Boolean)))
     if (!assetIds.length) return questionsToSave
     if (!currentUser?.uid) throw new Error('Please sign in before saving imported quiz images.')
-
     const uploadedById = {}
     const uploadedRefs = []
     try {
@@ -1065,7 +770,6 @@ export default function AssessmentStudio() {
         if (!asset?.blob) {
           throw new Error('An imported question image is no longer available. Please re-import the document.')
         }
-
         const sourceFile = new File([asset.blob], asset.fileName || `${assetId}.jpg`, {
           type: asset.contentType || 'image/jpeg',
         })
@@ -1083,122 +787,36 @@ export default function AssessmentStudio() {
         uploadedById[assetId] = await getDownloadURL(snapshot.ref)
       }
     } catch (error) {
-      // Clean up any already-uploaded blobs so they don't orphan in Storage
-      // if one of the later uploads fails.
       const { deleteObject } = await import('firebase/storage')
       await Promise.all(uploadedRefs.map(ref =>
         deleteObject(ref).catch(cleanupError => console.warn('Orphaned upload cleanup failed:', cleanupError))
       ))
       throw error
     }
-
-    return questionsToSave.map(question => {
-      const uploadedUrl = uploadedById[question.imageAssetId]
-      if (!uploadedUrl) return question
-      return {
-        ...question,
-        imageUrl: uploadedUrl,
-        imageAssetId: '',
-      }
+    return questionsToSave.map(q => {
+      const uploadedUrl = uploadedById[q.imageAssetId]
+      if (!uploadedUrl) return q
+      return { ...q, imageUrl: uploadedUrl, imageAssetId: '' }
     })
-  }
-
-  function validateStandaloneQuestion(question, label) {
-    return sharedValidateStandaloneQuestion(question, label, {
-      onError: message => show(message, true),
-    })
-  }
-
-  function validate() {
-    if (!form.title.trim()) {
-      show('Please enter an assessment title.', true)
-      return false
-    }
-    if (questionCount === 0) {
-      show('Add at least one question before saving.', true)
-      return false
-    }
-
-    for (const part of parts) {
-      if (!String(part.title ?? '').trim()) {
-        show('Every Part needs a title (e.g. "QUESTIONS 1-15").', true)
-        return false
-      }
-      const hasMembers = sections.some(section => {
-        if (section.kind === 'passage') return section.partId === part.id
-        return section.question?.partId === part.id
-      })
-      if (!hasMembers) {
-        show(`Part "${part.title}" has no questions assigned. Move at least one section into it or delete the Part.`, true)
-        return false
-      }
-    }
-
-    for (const section of sections) {
-      if (section.kind === 'passage') {
-        const passage = section.passage
-        const isMap = passage.passageKind === 'map'
-        if (passage.imageUploading) {
-          show(isMap
-            ? 'A map image is still uploading. Please wait.'
-            : 'A passage image is still uploading. Please wait.', true)
-          return false
-        }
-        if (isMap) {
-          if (!passage.imageUrl) {
-            show('Each map section needs a map image before saving.', true)
-            return false
-          }
-        } else if (!richTextHasContent(passage.passageText)) {
-          show('Each comprehension passage needs passage text before saving.', true)
-          return false
-        }
-        if (!passage.questions.length) {
-          show(isMap
-            ? 'Each map section needs at least one linked question.'
-            : 'Each comprehension passage needs at least one linked question.', true)
-          return false
-        }
-        for (const question of passage.questions) {
-          const label = `Passage question ${questionNumbers[question.localId]}`
-          if (!validateStandaloneQuestion(question, label)) return false
-        }
-        continue
-      }
-
-      const question = section.question
-      const label = `Question ${questionNumbers[question.localId]}`
-      if (!validateStandaloneQuestion(question, label)) return false
-    }
-
-    return true
   }
 
   async function handleSave() {
     if (!validate()) return
     setSaving(true)
-
     try {
-      const serializedSections = serializeQuizSections(sections, parts)
-      const questionsForSave = await uploadImportedQuestionImages(serializedSections.questions)
-      const totalMarksForSave = questionsForSave.reduce((sum, question) => sum + (question.marks || 1), 0)
-
-      // Assessments are teacher-private — there is no publish/approval flow.
-      // We persist the cover-page fields alongside the quiz-shaped payload so
-      // the DOCX/PDF exporters can render them on the printed cover page.
-      // Compute canonical library coords so the assessment lands in
-      // /Assessments/<syllabus>/<grade>/<term>/<subject>/<type>/.
+      const serialized = serializeQuizSections(sections, parts)
+      const questionsForSave = await uploadImportedQuestionImages(serialized.questions)
+      const totalMarksForSave = questionsForSave.reduce((sum, q) => sum + (q.marks || 1), 0)
       const library = classifyForLibrary({
-        libraryType:    LIBRARY_TYPES.ASSESSMENTS,
-        grade:          `Grade ${form.grade}`,
-        term:           form.term,
-        subject:        STUDIO_TO_LIBRARY_SUBJECT[form.subject] || form.subject,
-        assessmentType: STUDIO_TO_LIBRARY_ASSESSMENT_TYPE[form.assessmentType]
-                          || form.assessmentType,
+        libraryType: LIBRARY_TYPES.ASSESSMENTS,
+        grade: `Grade ${form.grade}`,
+        term: form.term,
+        subject: STUDIO_TO_LIBRARY_SUBJECT[form.subject] || form.subject,
+        assessmentType: STUDIO_TO_LIBRARY_ASSESSMENT_TYPE[form.assessmentType] || form.assessmentType,
       })
-
+      const finalTitle = form.title.trim() || autoTitle
       const assessmentId = await createAssessment({
-        title: form.title,
+        title: finalTitle,
         subject: form.subject,
         grade: form.grade,
         term: form.term,
@@ -1207,16 +825,20 @@ export default function AssessmentStudio() {
         assessmentType: form.assessmentType,
         schoolName: form.schoolName,
         className: form.className,
+        paperName: form.paperName,
         assessmentDate: form.assessmentDate,
         coverInstructions: form.coverInstructions,
-        passages: serializedSections.passages,
-        parts: serializedSections.parts,
-        passageCount: serializedSections.passages.length,
+        schoolLogoUrl: form.schoolLogoUrl,
+        endOfPaperText: form.endOfPaperText,
+        footerCode,
+        passages: serialized.passages,
+        parts: serialized.parts,
+        passageCount: serialized.passages.length,
         totalMarks: totalMarksForSave,
         questionCount: questionsForSave.length,
         mode: form.mode,
         importStatus: form.mode === 'imported_document'
-          ? (questionsForSave.some(question => question.requiresReview) ? 'needs_review' : (form.importStatus || 'success'))
+          ? (questionsForSave.some(q => q.requiresReview) ? 'needs_review' : (form.importStatus || 'success'))
           : form.importStatus,
         sourceFileName: form.sourceFileName,
         sourceContentType: form.sourceContentType,
@@ -1224,293 +846,1733 @@ export default function AssessmentStudio() {
         createdBy: currentUser.uid,
         library,
       })
-
       await saveAssessmentQuestions(assessmentId, questionsForSave)
       setImportedAssets({})
       clearAssessmentDraft(currentUser.uid)
-
-      show('Assessment saved to your library!')
-      setTimeout(() => navigate('/teacher/assessments'), 1000)
+      showToast('Saved to your library!')
+      setTimeout(() => navigate('/teacher/assessments'), 900)
     } catch (error) {
       console.error(error)
-      show(`Failed to save: ${getErrorMessage(error, 'unexpected error')}`, true)
+      showToast(`Failed to save: ${getErrorMessage(error)}`, true)
       setSaving(false)
     }
   }
 
+  /* ------------ export (PDF / DOCX / Print) ------------ */
+  async function handleExport(kind) {
+    if (questionCount === 0) {
+      showToast('Add at least one question to export.', true)
+      return
+    }
+    setExporting(true)
+    try {
+      const serialized = serializeQuizSections(sections, parts)
+      const totalMarksOut = serialized.questions.reduce((sum, q) => sum + (q.marks || 1), 0)
+      const assessment = {
+        title: form.title.trim() || autoTitle,
+        subject: form.subject,
+        grade: form.grade,
+        term: form.term,
+        duration: form.duration,
+        schoolName: form.schoolName,
+        className: form.className,
+        assessmentDate: form.assessmentDate,
+        coverInstructions: form.coverInstructions,
+        totalMarks: totalMarksOut,
+        questionCount: serialized.questions.length,
+        passages: serialized.passages,
+        parts: serialized.parts,
+      }
+      if (kind === 'pdf') {
+        printAssessmentAsPdf(assessment, serialized.questions)
+        showToast('PDF dialog opened.')
+      } else if (kind === 'docx') {
+        await downloadAssessmentDocx(assessment, serialized.questions, `${(assessment.title || 'assessment').replace(/[^a-z0-9-]+/gi, '-').toLowerCase()}.docx`)
+        showToast('Word download started.')
+      } else if (kind === 'print') {
+        window.print()
+      }
+    } catch (error) {
+      console.error(error)
+      showToast(`Export failed: ${getErrorMessage(error)}`, true)
+    } finally {
+      setExporting(false)
+    }
+  }
+
+  /* ------------ block picker ------------ */
+  function handleBlockPick(blockKey) {
+    const baseQuestion = (type, overrides = {}) => buildStandaloneSection({
+      type,
+      detectedType: type,
+      ...overrides,
+    })
+    let newSection = null
+    switch (blockKey) {
+      case 'mcq':
+        newSection = baseQuestion('mcq', { options: ['', '', '', ''], correctAnswer: 0, marks: 1 })
+        break
+      case 'short_answer':
+        newSection = baseQuestion('short_answer', { options: [], correctAnswer: '', marks: 2 })
+        break
+      case 'structured':
+        newSection = baseQuestion('diagram', { options: [], correctAnswer: '', marks: 5, diagramText: 'Structured response' })
+        break
+      case 'essay':
+        newSection = baseQuestion('essay', { options: [], correctAnswer: '', marks: 6 })
+        break
+      case 'true_false':
+        newSection = baseQuestion('mcq', { options: ['True', 'False', '', ''], correctAnswer: 0, marks: 1 })
+        break
+      case 'fill_in_blank':
+        newSection = baseQuestion('short_answer', { options: [], correctAnswer: '', marks: 1 })
+        break
+      case 'passage':
+        newSection = createPassageSection()
+        break
+      case 'section': {
+        addPart()
+        showToast('Section added.')
+        closeSlide()
+        return
+      }
+      case 'ai_generate':
+        openSlide('ai')
+        return
+      default:
+        showToast('That block type is coming soon.', true)
+        return
+    }
+    if (newSection) {
+      insertSectionAfter(insertAfterIndex, newSection)
+      showToast('Block added.')
+    }
+    closeSlide()
+  }
+
+  /* ------------ render ------------ */
   return (
-    <div className="theme-text space-y-5">
-      <SeoHelmet title="New assessment" noIndex />
+    <div className="studio-v2">
+      <SeoHelmet title="Assessment Studio" noIndex />
+
+      <TopBar
+        title={autoTitle}
+        savingDraft={Boolean(saving)}
+        onBack={() => navigate('/teacher/assessments')}
+        onAi={() => openSlide('ai')}
+      />
+
+      {view === 'home' && (
+        <HomeView
+          recentPapers={recentPapers}
+          onNewPaper={() => {
+            // Reset to a clean slate
+            setSections([createStandaloneSection()])
+            setParts([])
+            changeView('builder')
+          }}
+          onOpenPaper={(paperId) => navigate(`/teacher/assessments/${paperId}/edit`)}
+          onAi={() => openSlide('ai')}
+          onLibrary={() => navigate('/teacher/assessments')}
+          questionCount={questionCount}
+        />
+      )}
+
+      {view === 'builder' && (
+        <BuilderView
+          form={form}
+          setF={setF}
+          sections={sections}
+          parts={parts}
+          questionNumbers={questionNumbers}
+          questionCount={questionCount}
+          totalMarks={totalMarks}
+          estimatedPages={estimatedPages}
+          autoTitle={autoTitle}
+          footerCode={footerCode}
+          changeView={changeView}
+          onAddBlock={(afterIndex) => openSlide('blocks', { insertAfter: afterIndex })}
+          onEditQuestion={(key) => openSlide('editor', { questionKey: key })}
+          onMoveSection={moveSection}
+          onRemoveSection={removeSectionAt}
+          onDuplicateSection={duplicateSectionAt}
+          onUpdateStandaloneQuestion={updateStandaloneQuestion}
+          onUploadStandaloneImage={uploadStandaloneQuestionImage}
+          onRemoveStandaloneImage={removeStandaloneQuestionImage}
+          onUpdateSection={updateSection}
+          onUpdatePassageQuestion={updatePassageQuestion}
+          onAddPassageQuestion={addPassageQuestion}
+          onRemovePassageQuestion={removePassageQuestion}
+          onUpdatePart={updatePart}
+          onRemovePart={removePart}
+          onAssignSectionToPart={assignSectionToPart}
+          onUploadLogo={uploadSchoolLogo}
+          onImportDocument={handleImportDocument}
+          importing={importingDocument}
+          importSummary={importSummary}
+        />
+      )}
+
+      {view === 'preview' && (
+        <PreviewView
+          form={form}
+          autoTitle={autoTitle}
+          footerCode={footerCode}
+          parts={parts}
+          sections={sections}
+          serializedPreview={serializedPreview}
+          questionNumbers={questionNumbers}
+          totalMarks={totalMarks}
+          changeView={changeView}
+          onExport={handleExport}
+          onSave={handleSave}
+          saving={saving}
+          exporting={exporting}
+        />
+      )}
+
+      <BottomBar
+        view={view}
+        onHome={() => changeView('home')}
+        onAdd={() => openSlide('blocks')}
+        onPreview={() => changeView('preview')}
+        onAi={() => openSlide('ai')}
+      />
+
+      {slideover && <div className="sv-scrim open" onClick={closeSlide} />}
+
+      <BlockPickerSlide
+        open={slideover === 'blocks'}
+        onClose={closeSlide}
+        onPick={handleBlockPick}
+      />
+      <AiSlide
+        open={slideover === 'ai'}
+        onClose={closeSlide}
+        aiForm={aiForm}
+        setAiForm={setAiForm}
+        form={form}
+        generating={aiGenerating}
+        onGenerate={handleGenerateQuestions}
+        onImport={handleImportDocument}
+        importing={importingDocument}
+        onAction={(label) => showToast(`${label} — coming soon.`)}
+      />
+      <EditorSlide
+        open={slideover === 'editor'}
+        onClose={closeSlide}
+        targetKey={editorTargetKey}
+        sections={sections}
+        onUpdateStandaloneQuestion={updateStandaloneQuestion}
+        onUpdatePassageQuestion={updatePassageQuestion}
+        questionNumbers={questionNumbers}
+      />
+
       {toast && (
-        <div className={`fixed right-4 top-4 z-50 max-w-xs rounded-2xl px-5 py-3 text-sm font-bold text-white shadow-lg ${
-          toast.isErr ? 'bg-red-600' : 'theme-accent-fill theme-on-accent'
-        }`}>
+        <div className={`sv-action-toast show ${toast.isErr ? 'err' : ''}`}>
           {toast.message}
         </div>
       )}
+    </div>
+  )
+}
 
-      {/* Page header — brand on the left, back link on the right */}
-      <div className="flex items-center justify-between gap-3 mb-5">
-        <Link to="/teacher" className="flex items-center gap-2.5 no-underline" style={{ color: '#0e2a32' }}>
-          <span style={{ fontSize: 22 }}>🦅</span>
-          <div className="leading-tight">
-            <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 16, margin: 0, color: '#0e2a32' }}>
-              ZedExams <span style={{ color: '#ff7a2e' }}>•</span>
-            </p>
-            <p style={{ fontSize: 11.5, color: '#566f76', margin: 0, fontWeight: 600 }}>
-              Assessment Studio
-            </p>
-          </div>
-        </Link>
-        <Link
-          to="/teacher/assessments"
-          className="inline-flex items-center gap-2 rounded-xl border-2 font-bold no-underline transition-colors"
-          style={{ background: '#fff', borderColor: '#0e2a32', color: '#0e2a32', padding: '8px 14px', fontSize: 13 }}
-          onMouseEnter={e => { e.currentTarget.style.background = '#f5efe1' }}
-          onMouseLeave={e => { e.currentTarget.style.background = '#fff' }}
-        >
-          ← My assessments
-        </Link>
+/* ==================================================================
+ * TOP BAR
+ * ================================================================== */
+function TopBar({ title, savingDraft, onBack, onAi }) {
+  return (
+    <header className="sv-app-bar">
+      <button className="sv-icon-btn" onClick={onBack} aria-label="Back">←</button>
+      <div className="sv-app-bar-title">
+        <span className="sv-status-dot" aria-hidden="true" />
+        {title}
+        <span className="sv-badge-mini">{savingDraft ? 'Saving' : 'Draft'}</span>
       </div>
+      <button className="sv-icon-btn" onClick={onAi} title="AI assistant">✨</button>
+    </header>
+  )
+}
 
-      {/* Dark brand hero */}
-      <div
-        className="rounded-3xl p-7 sm:p-9 mb-8 flex items-center gap-6 flex-wrap"
-        style={{ background: 'linear-gradient(135deg, #0e2a32 0%, #16505d 100%)', color: '#fff', boxShadow: '0 12px 32px rgba(14,42,50,.18)' }}
-      >
-        <div style={{ flex: 1, minWidth: 260 }}>
-          <span
-            className="inline-flex items-center gap-2 mb-3 rounded-full text-xs font-bold uppercase tracking-wider"
-            style={{ background: '#ff7a2e', color: '#fff', padding: '7px 14px' }}
-          >
-            ✨ New assessment
-          </span>
-          <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 36, lineHeight: 1.05, margin: '0 0 8px', letterSpacing: '-.3px' }}>
-            Build your assessment
+/* ==================================================================
+ * BOTTOM BAR
+ * ================================================================== */
+function BottomBar({ view, onHome, onAdd, onPreview, onAi }) {
+  return (
+    <nav className="sv-bottom-bar">
+      <button className="sv-b" onClick={onHome} aria-current={view === 'home'}>
+        <span className="sv-ic">🏠</span>
+        <span>Home</span>
+      </button>
+      <button className="sv-b primary" onClick={onAdd}>
+        <span className="sv-ic-wrap">+</span>
+        <span>Add block</span>
+      </button>
+      <button className="sv-b" onClick={onPreview} aria-current={view === 'preview'}>
+        <span className="sv-ic">👁</span>
+        <span>Preview</span>
+      </button>
+      <button className="sv-b" onClick={onAi}>
+        <span className="sv-ic">✨</span>
+        <span>AI</span>
+      </button>
+    </nav>
+  )
+}
+
+/* ==================================================================
+ * HOME VIEW
+ * ================================================================== */
+function HomeView({ recentPapers, onNewPaper, onOpenPaper, onAi, onLibrary }) {
+  const draftCount = recentPapers.filter(p => (p.importStatus || '') === 'needs_review' || !p.questionCount).length
+  const totalQuestions = recentPapers.reduce((sum, p) => sum + (p.questionCount || 0), 0)
+
+  return (
+    <section className="sv-view">
+      <div className="sv-canvas-area">
+        <div className="sv-welcome">
+          <div className="sv-welcome-eyebrow">📄 Teacher-only · Examination Studio</div>
+          <h1 className="serif">
+            Build school-ready <em>papers</em> the way teachers think.
           </h1>
-          <p style={{ fontSize: 14.5, opacity: .88, marginBottom: 16, maxWidth: 520, lineHeight: 1.55 }}>
-            Set the cover page, drop in your questions, and save to your private library. Export as a printable paper or marking scheme any time.
-          </p>
-          <div className="flex gap-4 flex-wrap" style={{ fontSize: 13, opacity: .78, fontWeight: 500 }}>
-            <span>📝 Cover page</span>
-            <span>🔢 Marks per question</span>
-            <span>📄 Print-ready</span>
+          <p>Composable blocks. Real A4 output. AI that drafts sections and writes marking keys — but never publishes to learners.</p>
+          <div className="sv-welcome-cta">
+            <button className="sv-btn sv-btn-cream" onClick={onNewPaper}>📝 New paper</button>
+            <button className="sv-btn sv-btn-ghost" onClick={onAi}>✨ Generate with AI</button>
           </div>
         </div>
-        <div
-          className="flex-shrink-0 hidden sm:grid place-items-center"
-          style={{ width: 130, height: 130, borderRadius: '50%', background: '#fff', fontSize: 60, boxShadow: '0 8px 28px rgba(0,0,0,.25)' }}
-        >
-          🦅
+
+        <div className="sv-eyebrow">Quick actions</div>
+
+        <div className="sv-ai-strip" onClick={onAi}>
+          <div className="sv-sparkle">✨</div>
+          <div className="sv-ai-strip-text">
+            <strong>Zed AI is ready to help</strong>
+            <span>Generate questions on any CBC topic · auto-balanced sections · marking key included</span>
+          </div>
+          <button className="sv-btn sv-btn-gold sv-btn-sm">Open →</button>
+        </div>
+
+        <div className="sv-stat-strip">
+          <Stat value={recentPapers.length} label="Papers" />
+          <Stat value={draftCount} label="Need review" />
+          <Stat value={totalQuestions} label="Questions saved" />
+          <Stat value="—" label="Diagrams" hint="soon" />
+        </div>
+
+        <div className="sv-eyebrow">
+          Recently edited
+          <a href="#" onClick={(e) => { e.preventDefault(); onLibrary() }}>View library →</a>
+        </div>
+
+        {recentPapers.length === 0 ? (
+          <div style={{
+            padding: '40px 24px',
+            textAlign: 'center',
+            background: 'var(--sv-paper)',
+            border: '1px dashed var(--sv-border-strong)',
+            borderRadius: 'var(--sv-r-lg)',
+            color: 'var(--sv-muted)',
+          }}>
+            <div style={{ fontSize: 36, marginBottom: 12 }}>📄</div>
+            <strong style={{ display: 'block', color: 'var(--sv-text)', marginBottom: 4 }}>
+              You haven&apos;t saved any papers yet
+            </strong>
+            <div style={{ fontSize: 13 }}>
+              Click <em>New paper</em> above to start building.
+            </div>
+          </div>
+        ) : (
+          <div className="sv-paper-grid">
+            {recentPapers.map(paper => (
+              <PaperCard key={paper.id} paper={paper} onClick={() => onOpenPaper(paper.id)} />
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  )
+}
+
+function Stat({ value, label, hint }) {
+  return (
+    <div className="sv-stat">
+      <div className="sv-stat-v">{value}</div>
+      <div className="sv-stat-l">{label}{hint ? ` · ${hint}` : ''}</div>
+    </div>
+  )
+}
+
+function PaperCard({ paper, onClick }) {
+  const status = paper.importStatus === 'needs_review' ? 'draft' : (paper.questionCount > 0 ? 'ready' : 'draft')
+  const tag = paper.subject ? `${paper.subject} · Grade ${paper.grade}` : `Grade ${paper.grade}`
+  const updatedAt = paper.updatedAt?.toDate ? paper.updatedAt.toDate() : (paper.createdAt?.toDate ? paper.createdAt.toDate() : null)
+  const ago = updatedAt ? formatAgo(updatedAt) : ''
+  return (
+    <button className="sv-paper-card" onClick={onClick}>
+      <div className="sv-thumb">
+        <div className="sv-thumb-tag">{tag}</div>
+        <div className="sv-mini-doc">
+          <div className="sv-l tall" />
+          <div className="sv-l" /><div className="sv-l short" />
+          <div className="sv-l" /><div className="sv-l" />
+          <div className="sv-l short" />
         </div>
       </div>
+      <div className="sv-info">
+        <h3 className="serif">{paper.title || 'Untitled paper'}</h3>
+        <div className="sv-meta">
+          {paper.questionCount || 0} questions · {paper.totalMarks || 0} marks · {paper.duration || 0} mins
+        </div>
+        <div className="sv-row">
+          <span><span className={`sv-status-pill ${status}`}>{status === 'ready' ? 'Ready' : 'Draft'}</span></span>
+          {ago && <span style={{ marginLeft: 'auto', color: 'var(--sv-muted-2)' }}>{ago}</span>}
+        </div>
+      </div>
+    </button>
+  )
+}
 
-      <CreationModeSelector activeMode={creationMode} onSelect={chooseCreationMode} />
+function formatAgo(date) {
+  const diff = Date.now() - date.getTime()
+  const minutes = Math.floor(diff / 60000)
+  if (minutes < 1) return 'just now'
+  if (minutes < 60) return `${minutes}m ago`
+  const hours = Math.floor(minutes / 60)
+  if (hours < 24) return `${hours}h ago`
+  const days = Math.floor(hours / 24)
+  if (days < 7) return `${days}d ago`
+  return date.toLocaleDateString()
+}
 
-      {creationMode === 'import' && (
-        <ImportQuizPanel
-          importing={importingDocument}
-          importSummary={importSummary}
-          onImport={handleImportDocument}
-        />
-      )}
+/* ==================================================================
+ * BUILDER VIEW
+ * ================================================================== */
+function BuilderView(props) {
+  const {
+    form, setF, sections, parts, questionNumbers, questionCount, totalMarks,
+    estimatedPages, footerCode, changeView,
+    onAddBlock, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection,
+    onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage,
+    onUpdateSection, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion,
+    onUpdatePart, onRemovePart, onAssignSectionToPart, onUploadLogo,
+    onImportDocument, importing, importSummary,
+  } = props
 
-      <div className="theme-card theme-border space-y-3 rounded-2xl border p-5 shadow-elev-sm">
-        <h2 className="text-display-md theme-text" style={{ fontSize: 17 }}>Assessment details</h2>
-        <input
-          value={form.title}
-          onChange={event => setF('title', event.target.value)}
-          placeholder="Assessment title (e.g. Grade 5 Mathematics — End of Term 2)"
-          className={FIELD}
-        />
-        <div className="grid gap-3 sm:grid-cols-2">
-          <select value={form.assessmentType} onChange={event => setF('assessmentType', event.target.value)} className={SELECT} aria-label="Assessment type">
-            {ASSESSMENT_TYPES.map(t => (
-              <option key={t} value={t}>{ASSESSMENT_TYPE_LABELS[t]}</option>
-            ))}
-          </select>
+  // Group sections by their Part membership for rendering Section headers.
+  const grouped = useMemo(() => {
+    const groups = []
+    const sectionIndexByPart = new Map()
+    const ungrouped = []
+    sections.forEach((section, index) => {
+      const partId = section.kind === 'passage'
+        ? section.partId ?? null
+        : section.question?.partId ?? null
+      if (partId) {
+        if (!sectionIndexByPart.has(partId)) sectionIndexByPart.set(partId, [])
+        sectionIndexByPart.get(partId).push({ section, index })
+      } else {
+        ungrouped.push({ section, index })
+      }
+    })
+    if (ungrouped.length) groups.push({ part: null, members: ungrouped })
+    parts.forEach(part => {
+      const members = sectionIndexByPart.get(part.id) || []
+      groups.push({ part, members })
+    })
+    return groups
+  }, [sections, parts])
+
+  return (
+    <section className="sv-view">
+      <div className="sv-builder-bar">
+        <button className="sv-chip active">📄 Builder</button>
+        <button className="sv-chip" onClick={() => changeView('preview')}>👁 Preview</button>
+        <button className="sv-chip" onClick={() => changeView('home')}>🏠 Home</button>
+        <span className="sv-pages mono">📃 Est. {estimatedPages} page{estimatedPages === 1 ? '' : 's'} · A4</span>
+      </div>
+
+      <div className="sv-doc-canvas">
+        <HeaderBlock form={form} setF={setF} onUploadLogo={onUploadLogo} footerCode={footerCode} importing={importing} importSummary={importSummary} onImportDocument={onImportDocument} />
+
+        <AddHere onAdd={() => onAddBlock(null)} />
+
+        <InstructionsBlock form={form} setF={setF} />
+
+        {grouped.map((group, groupIndex) => (
+          <BuilderGroup
+            key={group.part?.id ?? `ungrouped-${groupIndex}`}
+            group={group}
+            groupIndex={groupIndex}
+            allParts={parts}
+            questionNumbers={questionNumbers}
+            onAddBlock={onAddBlock}
+            onEditQuestion={onEditQuestion}
+            onMoveSection={onMoveSection}
+            onRemoveSection={onRemoveSection}
+            onDuplicateSection={onDuplicateSection}
+            onUpdateStandaloneQuestion={onUpdateStandaloneQuestion}
+            onUploadStandaloneImage={onUploadStandaloneImage}
+            onRemoveStandaloneImage={onRemoveStandaloneImage}
+            onUpdateSection={onUpdateSection}
+            onUpdatePassageQuestion={onUpdatePassageQuestion}
+            onAddPassageQuestion={onAddPassageQuestion}
+            onRemovePassageQuestion={onRemovePassageQuestion}
+            onUpdatePart={onUpdatePart}
+            onRemovePart={onRemovePart}
+            onAssignSectionToPart={onAssignSectionToPart}
+          />
+        ))}
+
+        <AddHere onAdd={() => onAddBlock(sections.length - 1)} />
+
+        <FooterBlock form={form} setF={setF} footerCode={footerCode} />
+      </div>
+
+      <div className="sv-totals-bar">
+        <span>📝 <strong>{questionCount}</strong> questions</span>
+        <span>📊 <strong>{totalMarks}</strong> marks</span>
+        <span>📑 <strong>{parts.length}</strong> sections</span>
+        <span>📃 <strong>{estimatedPages}</strong> pages</span>
+      </div>
+    </section>
+  )
+}
+
+function AddHere({ onAdd }) {
+  return (
+    <div className="sv-add-here">
+      <button className="sv-plus" onClick={onAdd} aria-label="Insert block here">+</button>
+    </div>
+  )
+}
+
+function BuilderGroup({ group, allParts, questionNumbers, onAddBlock, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage, onUpdateSection, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onUpdatePart, onRemovePart, onAssignSectionToPart }) {
+  const partIndex = allParts.findIndex(p => p.id === group.part?.id)
+  const letter = partIndex >= 0 ? SECTION_LETTERS[partIndex] || '·' : null
+
+  const partMarks = useMemo(() => {
+    return group.members.reduce((sum, { section }) => {
+      if (section.kind === 'passage') {
+        return sum + (section.passage.questions || []).reduce((s, q) => s + (q.marks || 1), 0)
+      }
+      return sum + (section.question.marks || 1)
+    }, 0)
+  }, [group.members])
+
+  return (
+    <>
+      {group.part && (
+        <div className="sv-block b-section">
+          <div className="sv-block-head">
+            <span className="sv-ic">📑</span> Section
+            <span className="sv-tools">
+              <button className="sv-tool danger" title="Delete section" onClick={() => onRemovePart(group.part.id)}>🗑</button>
+            </span>
+          </div>
+          <div className="sv-section-title-row">
+            <div className="sv-section-letter">{letter}</div>
+            <div className="sv-section-name">
+              <input
+                className="sv-inline-title"
+                value={group.part.title}
+                onChange={e => onUpdatePart(group.part.id, 'title', e.target.value)}
+                placeholder="Section title (e.g. Multiple Choice Questions)"
+              />
+              <div className="sv-meta">
+                <span>📝 {group.members.length} block{group.members.length === 1 ? '' : 's'}</span>
+              </div>
+            </div>
+            <div className="sv-section-marks">{partMarks} marks</div>
+          </div>
           <input
-            value={form.topic}
-            onChange={event => setF('topic', event.target.value)}
-            placeholder="Topic / focus (optional)"
-            className={FIELD}
+            className="sv-section-instr-input"
+            value={typeof group.part.instructions === 'string' ? group.part.instructions : toEditableText(group.part.instructions)}
+            onChange={e => onUpdatePart(group.part.id, 'instructions', e.target.value)}
+            placeholder="Section instructions (e.g. Choose the correct answer from the options given.)"
           />
         </div>
-        <div className="grid gap-3 sm:grid-cols-4">
-          <select value={form.grade} onChange={event => setF('grade', event.target.value)} className={SELECT}>
-            {gradeOptions.map(grade => <option key={grade} value={grade}>Grade {grade}</option>)}
-          </select>
-          <select value={form.subject} onChange={event => setF('subject', event.target.value)} className={SELECT}>
-            {subjectOptions.map(subject => <option key={subject} value={subject}>{subject}</option>)}
-          </select>
-          <select value={form.term} onChange={event => setF('term', event.target.value)} className={SELECT}>
-            {termOptions.map(term => <option key={term} value={term}>Term {term}</option>)}
-          </select>
-          <div className="theme-border flex items-center gap-2 rounded-xl border-2 px-3 py-2.5">
-            <span className="theme-text-muted whitespace-nowrap text-xs font-bold">⏱️ Mins</span>
+      )}
+
+      {group.members.map(({ section, index }) => (
+        <SectionBlock
+          key={section.id || section.kind + '-' + index}
+          section={section}
+          sectionIndex={index}
+          parts={allParts}
+          questionNumbers={questionNumbers}
+          onEditQuestion={onEditQuestion}
+          onMoveSection={onMoveSection}
+          onRemoveSection={onRemoveSection}
+          onDuplicateSection={onDuplicateSection}
+          onUpdateStandaloneQuestion={onUpdateStandaloneQuestion}
+          onUploadStandaloneImage={onUploadStandaloneImage}
+          onRemoveStandaloneImage={onRemoveStandaloneImage}
+          onUpdateSection={onUpdateSection}
+          onUpdatePassageQuestion={onUpdatePassageQuestion}
+          onAddPassageQuestion={onAddPassageQuestion}
+          onRemovePassageQuestion={onRemovePassageQuestion}
+          onAssignSectionToPart={onAssignSectionToPart}
+        />
+      ))}
+
+      <AddHere onAdd={() => onAddBlock(group.members.length ? group.members[group.members.length - 1].index : null)} />
+    </>
+  )
+}
+
+/* ==================================================================
+ * HEADER BLOCK
+ * ================================================================== */
+function HeaderBlock({ form, setF, onUploadLogo, importing, onImportDocument }) {
+  const fileInputRef = useRef(null)
+  const docInputRef = useRef(null)
+
+  return (
+    <div className="sv-block b-header">
+      <div className="sv-block-head">
+        <span className="sv-ic">📄</span> Paper Header
+      </div>
+
+      <div className="sv-identity-row">
+        <button
+          type="button"
+          className="sv-logo-drop"
+          onClick={() => fileInputRef.current?.click()}
+          aria-label="Upload school logo"
+        >
+          {form.schoolLogoUrl
+            ? <img src={form.schoolLogoUrl} alt="School logo" />
+            : <>🖼<small>School<br />logo</small></>}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={e => {
+              const file = e.target.files?.[0]
+              if (file) onUploadLogo(file)
+              e.target.value = ''
+            }}
+          />
+        </button>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--sv-s3)' }}>
+          <div className="sv-field">
+            <label>School name <span className="sv-req">*</span></label>
             <input
-              type="number"
-              min={5}
-              max={600}
-              value={form.duration}
-              onChange={event => setF('duration', clampInt(event.target.value, 5, 600, 60))}
-              className="flex-1 bg-transparent text-sm font-black outline-none"
+              type="text"
+              value={form.schoolName}
+              onChange={e => setF('schoolName', e.target.value)}
+              placeholder="e.g. Jemareen Academy"
+            />
+          </div>
+          <div className="sv-field">
+            <label>Class (optional)</label>
+            <input
+              type="text"
+              value={form.className}
+              onChange={e => setF('className', e.target.value)}
+              placeholder="e.g. 4A"
             />
           </div>
         </div>
-        <div className="theme-text-muted flex flex-wrap gap-2 pt-1 text-xs">
-          <span className="theme-bg-subtle rounded-full px-2 py-1 font-bold">{questionCount} questions</span>
-          <span className="theme-bg-subtle rounded-full px-2 py-1 font-bold">{totalMarks} marks total</span>
-          {passageCount > 0 && <span className="theme-accent-bg theme-accent-text rounded-full px-2 py-1 font-bold">{passageCount} passage{passageCount === 1 ? '' : 's'}</span>}
-          {imagesCount > 0 && <span className="theme-accent-bg theme-accent-text rounded-full px-2 py-1 font-bold">🖼️ {imagesCount} image{imagesCount === 1 ? '' : 's'}</span>}
-          {form.mode === 'imported_document' && (
-            <span className={`rounded-full px-2 py-1 font-bold ${
-              form.importStatus === 'needs_review' ? 'bg-amber-100 text-amber-700' : 'theme-accent-bg theme-accent-text'
-            }`}>
-              Imported document · {form.importStatus || 'success'}
-            </span>
-          )}
+      </div>
+
+      <div className="sv-field-grid four" style={{ marginBottom: 'var(--sv-s3)' }}>
+        <div className="sv-field">
+          <label>Grade</label>
+          <select value={form.grade} onChange={e => setF('grade', e.target.value)}>
+            {GRADES.map(g => <option key={g} value={g}>Grade {g}</option>)}
+          </select>
+        </div>
+        <div className="sv-field">
+          <label>Assessment</label>
+          <select value={form.assessmentType} onChange={e => setF('assessmentType', e.target.value)}>
+            {ASSESSMENT_TYPES.map(t => <option key={t} value={t}>{ASSESSMENT_TYPE_LABELS[t]}</option>)}
+          </select>
+        </div>
+        <div className="sv-field">
+          <label>Term</label>
+          <select value={form.term} onChange={e => setF('term', e.target.value)}>
+            {TERMS.map(t => <option key={t} value={t}>Term {t}</option>)}
+          </select>
+        </div>
+        <div className="sv-field">
+          <label>Year</label>
+          <input
+            type="number"
+            value={form.year}
+            onChange={e => setF('year', clampInt(e.target.value, 2020, 2099, new Date().getFullYear()))}
+          />
         </div>
       </div>
 
-      {/* Cover page — printed at the top of the assessment paper */}
-      <div className="theme-card theme-border space-y-3 rounded-2xl border p-5 shadow-elev-sm">
-        <div>
-          <h2 className="text-display-md theme-text" style={{ fontSize: 17 }}>Cover page</h2>
-          <p className="theme-text-muted text-xs mt-1">These appear on the printed paper. Leave any field blank to omit it from the cover.</p>
+      <div className="sv-field-grid two">
+        <div className="sv-field">
+          <label>Subject</label>
+          <select value={form.subject} onChange={e => setF('subject', e.target.value)}>
+            {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
+          </select>
         </div>
-        <div className="grid gap-3 sm:grid-cols-2">
+        <div className="sv-field">
+          <label>Paper name</label>
+          <select value={form.paperName} onChange={e => setF('paperName', e.target.value)}>
+            <option>Paper 1</option>
+            <option>Paper 2</option>
+            <option>Special Paper 1</option>
+            <option>Special Paper 2</option>
+            <option>Practical Paper</option>
+            <option>Revision Paper</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="sv-field-grid two" style={{ marginTop: 'var(--sv-s3)' }}>
+        <div className="sv-field">
+          <label>Duration (minutes)</label>
           <input
-            value={form.schoolName}
-            onChange={event => setF('schoolName', event.target.value)}
-            placeholder="School name"
-            className={FIELD}
+            type="number"
+            value={form.duration}
+            onChange={e => setF('duration', clampInt(e.target.value, 5, 600, 60))}
           />
-          <input
-            value={form.className}
-            onChange={event => setF('className', event.target.value)}
-            placeholder="Class (e.g. 5A)"
-            className={FIELD}
-          />
+        </div>
+        <div className="sv-field">
+          <label>Date (optional)</label>
           <input
             type="date"
             value={form.assessmentDate}
-            onChange={event => setF('assessmentDate', event.target.value)}
-            className={FIELD}
-            aria-label="Assessment date"
+            onChange={e => setF('assessmentDate', e.target.value)}
           />
         </div>
-        <textarea
-          value={form.coverInstructions}
-          onChange={event => setF('coverInstructions', event.target.value)}
-          placeholder="Instructions to pupils (e.g. Answer all questions. Show your working clearly.)"
-          rows={3}
-          className={FIELD}
-        />
       </div>
 
-      {creationMode === 'ai' && (
-        <div className="theme-accent-bg theme-border space-y-3 rounded-2xl border p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h2 className="theme-text font-black">✦ AI Assessment Generator</h2>
-              <p className="theme-text mt-0.5 text-sm">Generate draft multiple-choice questions, then edit them below before saving.</p>
-            </div>
-            <span className="theme-card theme-border theme-accent-text hidden rounded-full border px-3 py-1 text-xs font-black sm:inline-flex">Teacher tool</span>
-          </div>
-          <div className="grid gap-3 lg:grid-cols-5">
-            <select value={form.grade} onChange={event => setF('grade', event.target.value)} className={SELECT}>
-              {gradeOptions.map(grade => <option key={grade} value={grade}>Grade {grade}</option>)}
-            </select>
-            <select value={form.subject} onChange={event => setF('subject', event.target.value)} className={SELECT}>
-              {subjectOptions.map(subject => <option key={subject} value={subject}>{subject}</option>)}
-            </select>
+      <div style={{ marginTop: 'var(--sv-s4)' }}>
+        <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--sv-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 'var(--sv-s2)' }}>
+          Learner info fields (printed on paper)
+        </label>
+        <div className="sv-toggle-list">
+          <Toggle label="👤 NAME field"        on={form.showNameField}  onChange={v => setF('showNameField', v)} />
+          <Toggle label="📅 DATE field"        on={form.showDateField}  onChange={v => setF('showDateField', v)} />
+          <Toggle label="📊 TOTAL MARKS field" on={form.showMarksField} onChange={v => setF('showMarksField', v)} />
+          <Toggle label="🏫 CLASS field"       on={form.showClassField} onChange={v => setF('showClassField', v)} />
+        </div>
+      </div>
+
+      <div className="sv-title-preview-card">
+        <div className="sv-auto-label">⚡ Auto-generated header</div>
+        <div className="sv-school">{(form.schoolName || 'YOUR SCHOOL NAME').toUpperCase()}</div>
+        <div className="sv-title-auto">{buildTitleFromForm(form)}</div>
+        <div className="sv-paper-auto">{(form.paperName || '').toUpperCase()}</div>
+      </div>
+
+      <div style={{ marginTop: 'var(--sv-s4)', padding: 'var(--sv-s3)', background: 'var(--sv-tinted)', borderRadius: 'var(--sv-r)', display: 'flex', gap: 'var(--sv-s2)', alignItems: 'center', flexWrap: 'wrap' }}>
+        <span style={{ fontSize: 12.5, color: 'var(--sv-muted)' }}>
+          Have an existing paper? Import a Word or PDF file.
+        </span>
+        <button
+          className="sv-btn sv-btn-outline sv-btn-sm"
+          onClick={() => docInputRef.current?.click()}
+          disabled={importing}
+          style={{ marginLeft: 'auto' }}
+        >
+          {importing ? 'Importing…' : '📥 Import .doc / .pdf'}
+        </button>
+        <input
+          ref={docInputRef}
+          type="file"
+          accept={QUIZ_DOCUMENT_ACCEPT}
+          style={{ display: 'none' }}
+          onChange={e => {
+            const file = e.target.files?.[0]
+            if (file) onImportDocument(file)
+            e.target.value = ''
+          }}
+        />
+      </div>
+    </div>
+  )
+}
+
+function Toggle({ label, on, onChange }) {
+  return (
+    <div className="sv-tg-row">
+      <div className="sv-lbl">{label}</div>
+      <button
+        className={`sv-tg ${on ? 'on' : ''}`}
+        onClick={() => onChange(!on)}
+        aria-pressed={on}
+        aria-label={label}
+      />
+    </div>
+  )
+}
+
+/* ==================================================================
+ * INSTRUCTIONS BLOCK
+ * ================================================================== */
+function InstructionsBlock({ form, setF }) {
+  const appendPreset = (text) => {
+    const current = form.coverInstructions.trim()
+    setF('coverInstructions', current ? `${current}\n${text}` : text)
+  }
+  return (
+    <div className="sv-block b-instr">
+      <div className="sv-block-head">
+        <span className="sv-ic">📋</span> General Instructions
+      </div>
+      <div className="sv-field">
+        <textarea
+          value={form.coverInstructions}
+          onChange={e => setF('coverInstructions', e.target.value)}
+          placeholder="Answer all the questions.
+Choose and circle the correct answer from the given options A, B, C, and D."
+          rows={4}
+        />
+      </div>
+      <div className="sv-preset-row">
+        {INSTRUCTION_PRESETS.map(preset => (
+          <button
+            key={preset}
+            className="sv-preset-pill"
+            onClick={() => appendPreset(preset)}
+            type="button"
+          >
+            + {preset}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/* ==================================================================
+ * SECTION BLOCK (renders either passage or standalone)
+ * ================================================================== */
+function SectionBlock(props) {
+  const {
+    section, sectionIndex, parts, questionNumbers,
+    onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection,
+    onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage,
+    onUpdateSection, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion,
+    onAssignSectionToPart,
+  } = props
+
+  if (section.kind === 'passage') {
+    return (
+      <PassageBlock
+        section={section}
+        sectionIndex={sectionIndex}
+        parts={parts}
+        questionNumbers={questionNumbers}
+        onEditQuestion={onEditQuestion}
+        onMoveSection={onMoveSection}
+        onRemoveSection={onRemoveSection}
+        onUpdateSection={onUpdateSection}
+        onUpdatePassageQuestion={onUpdatePassageQuestion}
+        onAddPassageQuestion={onAddPassageQuestion}
+        onRemovePassageQuestion={onRemovePassageQuestion}
+        onAssignSectionToPart={onAssignSectionToPart}
+      />
+    )
+  }
+  return (
+    <QuestionBlock
+      section={section}
+      sectionIndex={sectionIndex}
+      parts={parts}
+      questionNumbers={questionNumbers}
+      onEditQuestion={onEditQuestion}
+      onMoveSection={onMoveSection}
+      onRemoveSection={onRemoveSection}
+      onDuplicateSection={onDuplicateSection}
+      onUpdateQuestion={(field, value) => onUpdateStandaloneQuestion(sectionIndex, field, value)}
+      onUploadImage={file => onUploadStandaloneImage(sectionIndex, file)}
+      onRemoveImage={() => onRemoveStandaloneImage(sectionIndex)}
+      onAssignSectionToPart={onAssignSectionToPart}
+    />
+  )
+}
+
+function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQuestion, onMoveSection, onRemoveSection, onUpdateSection, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onAssignSectionToPart }) {
+  const passage = section.passage
+  const passageText = toEditableText(passage.passageText)
+  const wordCount = plainTextWordCount(passage.passageText)
+
+  return (
+    <>
+      <div className="sv-block b-passage">
+        <div className="sv-block-head">
+          <span className="sv-ic">📖</span> Comprehension Passage
+          <span className="sv-tools">
+            <button className="sv-tool" title="Move up" onClick={() => onMoveSection(sectionIndex, -1)}>↑</button>
+            <button className="sv-tool" title="Move down" onClick={() => onMoveSection(sectionIndex, 1)}>↓</button>
+            <button className="sv-tool danger" title="Delete passage" onClick={() => onRemoveSection(sectionIndex)}>🗑</button>
+          </span>
+        </div>
+        <div className="sv-passage-content">
+          <div className="sv-passage-title">
             <input
-              value={aiForm.topic}
-              onChange={event => setAi('topic', event.target.value)}
-              placeholder="Topic, e.g. Fractions"
-              className="theme-input col-span-2 rounded-xl border-2 px-3 py-2.5 text-sm placeholder:text-gray-400 outline-none focus:border-[var(--accent)] lg:col-span-1"
+              value={passage.title || ''}
+              onChange={e => onUpdateSection(sectionIndex, s => ({ ...s, passage: { ...s.passage, title: e.target.value } }))}
+              placeholder="Passage title"
             />
+            <span className="sv-pword-count">~{wordCount} words</span>
+          </div>
+          <textarea
+            className="sv-passage-text"
+            value={passageText}
+            onChange={e => onUpdateSection(sectionIndex, s => ({ ...s, passage: { ...s.passage, passageText: e.target.value } }))}
+            placeholder="Paste or type the passage text here. The Tiptap rich-text editor is available in EditAssessment for richer formatting."
+            rows={6}
+          />
+        </div>
+
+        {parts.length > 0 && (
+          <div style={{ marginTop: 'var(--sv-s3)', display: 'flex', alignItems: 'center', gap: 'var(--sv-s2)', fontSize: 12.5, color: 'var(--sv-muted)' }}>
+            <span>Belongs to:</span>
+            <select
+              value={section.partId || ''}
+              onChange={e => onAssignSectionToPart(section.id, e.target.value)}
+              style={{ padding: '4px 8px', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', background: 'var(--sv-tinted)', fontSize: 12.5 }}
+            >
+              <option value="">— No section —</option>
+              {parts.map(p => <option key={p.id} value={p.id}>{p.title || 'Untitled section'}</option>)}
+            </select>
+          </div>
+        )}
+      </div>
+
+      {passage.questions.map((question, qIndex) => (
+        <div key={question.localId || qIndex} className="sv-block b-question nested" style={{ marginLeft: 'calc(var(--sv-s4) * 2)' }}>
+          <div className="sv-block-head">
+            <span className="sv-ic">✏</span> Passage Question
+            <span className="sv-tools">
+              <button className="sv-tool" title="Edit in detail" onClick={() => onEditQuestion(question.localId)}>✏</button>
+              <button className="sv-tool danger" title="Delete question" onClick={() => onRemovePassageQuestion(sectionIndex, qIndex)}>🗑</button>
+            </span>
+          </div>
+          <div className="sv-q-card-top">
+            <div className="sv-q-num">{questionNumbers[question.localId] || qIndex + 1}.</div>
+            <div className="sv-q-type-tag mcq">{(question.type || 'mcq').toUpperCase()}</div>
+            <label className="sv-q-marks-input">
+              marks
+              <input
+                type="number"
+                value={question.marks || 1}
+                onChange={e => onUpdatePassageQuestion(sectionIndex, qIndex, 'marks', clampInt(e.target.value, 0, 100, 1))}
+              />
+            </label>
+          </div>
+          <textarea
+            className="sv-q-text-input"
+            value={toEditableText(question.text)}
+            onChange={e => onUpdatePassageQuestion(sectionIndex, qIndex, 'text', e.target.value)}
+            placeholder="Question text"
+          />
+
+          {(question.type === 'mcq' || !question.type) ? (
+            <McqOptions
+              question={question}
+              onChangeOption={(optIndex, value) => {
+                const next = [...(question.options || ['', '', '', ''])]
+                next[optIndex] = value
+                onUpdatePassageQuestion(sectionIndex, qIndex, 'options', next)
+              }}
+              onSelectCorrect={(optIndex) => onUpdatePassageQuestion(sectionIndex, qIndex, 'correctAnswer', optIndex)}
+            />
+          ) : (
+            <ShortAnswerInputs
+              correctAnswer={question.correctAnswer}
+              onChange={value => onUpdatePassageQuestion(sectionIndex, qIndex, 'correctAnswer', value)}
+            />
+          )}
+        </div>
+      ))}
+
+      <div style={{ marginLeft: 'calc(var(--sv-s4) * 2)', marginBottom: 'var(--sv-s3)' }}>
+        <button
+          className="sv-btn sv-btn-outline sv-btn-sm"
+          onClick={() => onAddPassageQuestion(sectionIndex, 'mcq')}
+        >
+          + Add MCQ to passage
+        </button>
+        <button
+          className="sv-btn sv-btn-outline sv-btn-sm"
+          onClick={() => onAddPassageQuestion(sectionIndex, 'short_answer')}
+          style={{ marginLeft: 6 }}
+        >
+          + Add short answer
+        </button>
+      </div>
+    </>
+  )
+}
+
+function QuestionBlock({ section, sectionIndex, parts, questionNumbers, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onUpdateQuestion, onUploadImage, onRemoveImage, onAssignSectionToPart }) {
+  const question = section.question
+  const type = question.type || 'mcq'
+  const isMcq = type === 'mcq'
+  const isEssay = type === 'essay'
+  const isShortAnswer = type === 'short_answer' || type === 'fill' || type === 'short'
+  const isStructured = type === 'diagram' && !isShortAnswer
+  const imageInputRef = useRef(null)
+
+  const typeMeta = {
+    mcq: { tag: 'mcq', label: 'Multiple Choice' },
+    short_answer: { tag: 'struct', label: 'Short Answer' },
+    diagram: { tag: 'struct', label: 'Structured / Diagram' },
+    essay: { tag: 'essay', label: 'Essay' },
+  }
+  const meta = typeMeta[type] || typeMeta.mcq
+
+  return (
+    <div className="sv-block b-question nested">
+      <div className="sv-block-head">
+        <span className="sv-ic">❓</span> {meta.label}
+        <span className="sv-tools">
+          <button className="sv-tool" title="Move up" onClick={() => onMoveSection(sectionIndex, -1)}>↑</button>
+          <button className="sv-tool" title="Move down" onClick={() => onMoveSection(sectionIndex, 1)}>↓</button>
+          <button className="sv-tool" title="Edit in detail" onClick={() => onEditQuestion(question.localId)}>✏</button>
+          <button className="sv-tool" title="Duplicate" onClick={() => onDuplicateSection(sectionIndex)}>📋</button>
+          <button className="sv-tool danger" title="Delete" onClick={() => onRemoveSection(sectionIndex)}>🗑</button>
+        </span>
+      </div>
+
+      <div className="sv-q-card-top">
+        <div className="sv-q-num">{questionNumbers[question.localId] || sectionIndex + 1}.</div>
+        <div className={`sv-q-type-tag ${meta.tag}`}>{meta.label.toUpperCase()}</div>
+        <select
+          value={type}
+          onChange={e => onUpdateQuestion('type', e.target.value)}
+          style={{ background: 'var(--sv-tinted)', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: '3px 8px', fontSize: 11.5 }}
+        >
+          <option value="mcq">Multiple choice</option>
+          <option value="short_answer">Short answer</option>
+          <option value="diagram">Structured / diagram</option>
+          <option value="essay">Essay</option>
+        </select>
+        <label className="sv-q-marks-input">
+          marks
+          <input
+            type="number"
+            value={question.marks || 1}
+            onChange={e => onUpdateQuestion('marks', clampInt(e.target.value, 0, 100, 1))}
+          />
+        </label>
+      </div>
+
+      <textarea
+        className="sv-q-text-input"
+        value={toEditableText(question.text)}
+        onChange={e => onUpdateQuestion('text', e.target.value)}
+        placeholder="Question text"
+      />
+
+      {(isMcq || isStructured) && (
+        question.imageUrl ? (
+          <div className="sv-q-media filled filled-wrap">
+            <img src={question.imageUrl} alt="" />
+            <button
+              className="sv-media-remove"
+              onClick={onRemoveImage}
+              title="Remove image"
+              type="button"
+            >
+              ×
+            </button>
+          </div>
+        ) : question.imageUploading ? (
+          <div className="sv-q-media">
+            <div className="sv-ic">⏳</div>
+            <div>Uploading image…</div>
+          </div>
+        ) : (
+          <button type="button" className="sv-q-media" onClick={() => imageInputRef.current?.click()}>
+            <div className="sv-ic">🖼</div>
+            <div>Add a diagram or image (optional)</div>
+            <small>JPG, PNG or WEBP · up to 15 MB</small>
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={e => {
+                const file = e.target.files?.[0]
+                if (file) onUploadImage(file)
+                e.target.value = ''
+              }}
+            />
+          </button>
+        )
+      )}
+
+      {isMcq && (
+        <McqOptions
+          question={question}
+          onChangeOption={(optIndex, value) => {
+            const next = [...(question.options || ['', '', '', ''])]
+            next[optIndex] = value
+            onUpdateQuestion('options', next)
+          }}
+          onSelectCorrect={(optIndex) => onUpdateQuestion('correctAnswer', optIndex)}
+        />
+      )}
+
+      {isShortAnswer && (
+        <ShortAnswerInputs
+          correctAnswer={question.correctAnswer}
+          onChange={value => onUpdateQuestion('correctAnswer', value)}
+        />
+      )}
+
+      {isStructured && !isMcq && (
+        <ShortAnswerInputs
+          correctAnswer={question.correctAnswer}
+          onChange={value => onUpdateQuestion('correctAnswer', value)}
+          label="Expected response / marking notes"
+          lines={4}
+        />
+      )}
+
+      {isEssay && (
+        <div className="sv-answer-lines">
+          <div className="sv-answer-meta">📏 Answer space: One page (rendered on print)</div>
+          <textarea
+            value={String(question.correctAnswer ?? '')}
+            onChange={e => onUpdateQuestion('correctAnswer', e.target.value)}
+            placeholder="Marking notes / sample answer (not printed on the question paper)"
+            rows={3}
+            style={{ width: '100%', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: 8, fontSize: 13, background: 'var(--sv-paper)', fontFamily: 'inherit', resize: 'vertical' }}
+          />
+        </div>
+      )}
+
+      <div className="sv-q-footer">
+        {question.topic && <span className="sv-q-mapping-tag">🎯 {question.topic}</span>}
+        {parts.length > 0 && (
+          <select
+            value={question.partId || ''}
+            onChange={e => onAssignSectionToPart(section.id, e.target.value)}
+            style={{ padding: '3px 8px', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', background: 'var(--sv-tinted)', fontSize: 11.5, color: 'var(--sv-muted)' }}
+          >
+            <option value="">No section</option>
+            {parts.map(p => <option key={p.id} value={p.id}>{p.title || 'Untitled'}</option>)}
+          </select>
+        )}
+        <div className="sv-q-mini-actions">
+          <button onClick={() => onEditQuestion(question.localId)}>✏ Edit details</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function McqOptions({ question, onChangeOption, onSelectCorrect }) {
+  const options = Array.isArray(question.options) && question.options.length
+    ? question.options
+    : ['', '', '', '']
+  const correctIndex = typeof question.correctAnswer === 'number' ? question.correctAnswer : 0
+  return (
+    <div className="sv-mcq-options">
+      {options.map((option, optIndex) => (
+        <div
+          key={optIndex}
+          className={`sv-mcq-option ${correctIndex === optIndex ? 'correct' : ''}`}
+          onClick={() => onSelectCorrect(optIndex)}
+          role="button"
+          tabIndex={0}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectCorrect(optIndex) } }}
+        >
+          <div className="sv-letter">{SECTION_LETTERS[optIndex]}</div>
+          <input
+            className="sv-opt-text"
+            type="text"
+            value={option}
+            onChange={e => onChangeOption(optIndex, e.target.value)}
+            onClick={e => e.stopPropagation()}
+            placeholder={`Option ${SECTION_LETTERS[optIndex]}`}
+          />
+          {correctIndex === optIndex && <div className="sv-check">✓</div>}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function ShortAnswerInputs({ correctAnswer, onChange, label, lines = 2 }) {
+  return (
+    <div className="sv-answer-lines">
+      <div className="sv-answer-meta">📏 {label || 'Expected answer (used for marking key)'}</div>
+      <textarea
+        value={String(correctAnswer ?? '')}
+        onChange={e => onChange(e.target.value)}
+        placeholder="Type the expected answer or marking notes"
+        rows={lines}
+        style={{ width: '100%', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: 8, fontSize: 13, background: 'var(--sv-paper)', fontFamily: 'inherit', resize: 'vertical' }}
+      />
+    </div>
+  )
+}
+
+/* ==================================================================
+ * FOOTER BLOCK
+ * ================================================================== */
+function FooterBlock({ form, setF, footerCode }) {
+  return (
+    <div className="sv-block b-footer">
+      <div className="sv-block-head">
+        <span className="sv-ic">⚓</span> Paper Footer
+      </div>
+      <div className="sv-field-grid two">
+        <div className="sv-field">
+          <label>Footer code (auto-generated)</label>
+          <input type="text" value={footerCode} readOnly style={{ background: 'var(--sv-canvas-2)', color: 'var(--sv-muted)' }} />
+        </div>
+        <div className="sv-field">
+          <label>End-of-paper text</label>
+          <input
+            type="text"
+            value={form.endOfPaperText}
+            onChange={e => setF('endOfPaperText', e.target.value)}
+            placeholder="— END OF PAPER —"
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/* ==================================================================
+ * PREVIEW VIEW
+ * ================================================================== */
+function PreviewView({ form, autoTitle, footerCode, parts, sections, totalMarks, changeView, onExport, onSave, saving, exporting }) {
+  return (
+    <section className="sv-view">
+      <div className="sv-builder-bar">
+        <button className="sv-chip" onClick={() => changeView('builder')}>📄 Builder</button>
+        <button className="sv-chip active">👁 Preview</button>
+        <span className="sv-pages mono">📃 A4 · Portrait</span>
+      </div>
+
+      <div className="sv-preview-shell">
+        <div className="sv-paper">
+          <div className="sv-paper-banner">
+            <div className="sv-banner-left">
+              <div className="sv-paper-logo">
+                {form.schoolLogoUrl
+                  ? <img src={form.schoolLogoUrl} alt="School logo" />
+                  : <span>📚</span>}
+              </div>
+            </div>
+            <div className="sv-paper-banner-text">
+              <div className="sv-pbn-school">{(form.schoolName || 'YOUR SCHOOL NAME').toUpperCase()}</div>
+              <div className="sv-pbn-title">{autoTitle}</div>
+              <div className="sv-pbn-paper">{(form.paperName || '').toUpperCase()}</div>
+            </div>
+            <div className="sv-banner-right" aria-hidden="true" />
+          </div>
+
+          {(form.showNameField || form.showDateField) && (
+            <div className="sv-paper-name-row">
+              {form.showNameField && <><span>NAME:</span><div className="sv-line" /></>}
+              {form.showDateField && <><span>DATE:</span><div className="sv-line" style={{ maxWidth: 180 }} /></>}
+            </div>
+          )}
+          {form.showClassField && (
+            <div className="sv-paper-name-row" style={{ marginTop: 0 }}>
+              <span>CLASS:</span><div className="sv-line" />
+            </div>
+          )}
+          {form.showMarksField && <div className="sv-paper-total-marks">TOTAL MARKS: _________</div>}
+
+          {form.coverInstructions && (
+            <div className="sv-paper-instr-box">
+              <span className="sv-instr-label">Instructions</span>
+              {form.coverInstructions.split('\n').filter(Boolean).map((line, i) => (
+                <p key={i}>{line}</p>
+              ))}
+            </div>
+          )}
+
+          <PreviewBody parts={parts} sections={sections} />
+
+          {form.endOfPaperText && (
+            <div style={{ textAlign: 'center', marginTop: 24, paddingTop: 12, borderTop: '1px solid #000', fontSize: 11.5, fontStyle: 'italic', color: '#555' }}>
+              {form.endOfPaperText}
+            </div>
+          )}
+          <div className="sv-paper-footer-code">{footerCode}</div>
+        </div>
+
+        <div style={{ maxWidth: 720, margin: 'var(--sv-s4) auto 0', display: 'flex', gap: 'var(--sv-s2)', flexWrap: 'wrap' }}>
+          <button className="sv-btn sv-btn-primary" onClick={() => onExport('pdf')} disabled={exporting}>
+            {exporting ? '⏳ Working…' : '📄 Download PDF'}
+          </button>
+          <button className="sv-btn sv-btn-dark" onClick={() => onExport('docx')} disabled={exporting}>
+            📝 Download Word
+          </button>
+          <button className="sv-btn sv-btn-outline" onClick={() => onExport('print')}>
+            🖨 Print
+          </button>
+          <button className="sv-btn sv-btn-primary" onClick={onSave} disabled={saving} style={{ marginLeft: 'auto' }}>
+            {saving ? 'Saving…' : `💾 Save · ${totalMarks} marks`}
+          </button>
+          <button className="sv-btn sv-btn-outline" onClick={() => changeView('builder')}>
+            ✏ Edit paper
+          </button>
+        </div>
+      </div>
+    </section>
+  )
+}
+
+function PreviewBody({ parts, sections }) {
+  // Group sections by partId for rendering Section A, B, ...
+  const groups = useMemo(() => {
+    const out = []
+    const byPart = new Map()
+    const ungrouped = []
+    sections.forEach(section => {
+      const partId = section.kind === 'passage'
+        ? section.partId ?? null
+        : section.question?.partId ?? null
+      if (partId) {
+        if (!byPart.has(partId)) byPart.set(partId, [])
+        byPart.get(partId).push(section)
+      } else {
+        ungrouped.push(section)
+      }
+    })
+    if (ungrouped.length) out.push({ part: null, members: ungrouped, marks: 0 })
+    parts.forEach(part => {
+      const members = byPart.get(part.id) || []
+      const marks = members.reduce((sum, section) => {
+        if (section.kind === 'passage') {
+          return sum + (section.passage.questions || []).reduce((s, q) => s + (q.marks || 1), 0)
+        }
+        return sum + (section.question.marks || 1)
+      }, 0)
+      out.push({ part, members, marks })
+    })
+    return out.filter(g => g.members.length > 0)
+  }, [sections, parts])
+
+  let questionNumber = 1
+
+  return (
+    <>
+      {groups.map((group, idx) => {
+        const partIndex = group.part ? parts.findIndex(p => p.id === group.part.id) : -1
+        const letter = partIndex >= 0 ? SECTION_LETTERS[partIndex] : ''
+        return (
+          <div className="sv-paper-section" key={group.part?.id || `ungrouped-${idx}`}>
+            {group.part && (
+              <>
+                <div className="sv-paper-section-head">
+                  Section {letter}{group.part.title ? ` — ${group.part.title}` : ''}
+                  <span className="sv-marks">({group.marks} marks)</span>
+                </div>
+                {group.part.instructions && (
+                  <div className="sv-paper-section-instr">
+                    {typeof group.part.instructions === 'string'
+                      ? group.part.instructions
+                      : toEditableText(group.part.instructions)}
+                  </div>
+                )}
+              </>
+            )}
+            {group.members.map((section, sIdx) => {
+              if (section.kind === 'passage') {
+                const passage = section.passage
+                return (
+                  <div key={section.id || sIdx}>
+                    <div className="sv-paper-passage">
+                      {passage.title && <strong className="sv-pass-h">{passage.title}</strong>}
+                      <PlainText value={passage.passageText} />
+                      {passage.imageUrl && (
+                        <div style={{ marginTop: 8 }}>
+                          <img src={passage.imageUrl} alt="" style={{ maxWidth: '100%' }} />
+                        </div>
+                      )}
+                    </div>
+                    {(passage.questions || []).map(q => {
+                      const num = questionNumber++
+                      return <PreviewQuestion key={q.localId} question={q} num={num} />
+                    })}
+                  </div>
+                )
+              }
+              const num = questionNumber++
+              return <PreviewQuestion key={section.id || sIdx} question={section.question} num={num} />
+            })}
+          </div>
+        )
+      })}
+    </>
+  )
+}
+
+function PreviewQuestion({ question, num }) {
+  const type = question.type || 'mcq'
+  const marks = question.marks || 1
+  const text = toEditableText(question.text)
+  return (
+    <div className="sv-paper-q">
+      <div className="sv-qline">
+        <strong>{num}.</strong> {text}
+        {marks > 1 && <em className="sv-qmarks">({marks}&nbsp;marks)</em>}
+      </div>
+      {question.imageUrl && (
+        <div className="sv-paper-diagram"><img src={question.imageUrl} alt="" /></div>
+      )}
+      {type === 'mcq' && Array.isArray(question.options) && question.options.length > 0 && (
+        <div className={`sv-paper-options ${question.options.some(o => String(o).length > 18) ? 'stacked' : ''}`}>
+          {question.options.map((opt, i) => (
+            <div key={i}><span className="sv-opt-letter">{SECTION_LETTERS[i]}.</span> {opt}</div>
+          ))}
+        </div>
+      )}
+      {(type === 'short_answer' || type === 'fill') && (
+        <div className="sv-paper-answer-lines">
+          <div className="sv-paper-answer-line" />
+          <div className="sv-paper-answer-line" />
+        </div>
+      )}
+      {type === 'diagram' && (
+        <div className="sv-paper-answer-lines">
+          <div className="sv-paper-answer-line" />
+          <div className="sv-paper-answer-line" />
+          <div className="sv-paper-answer-line" />
+        </div>
+      )}
+      {type === 'essay' && (
+        <div className="sv-paper-answer-lines">
+          {Array.from({ length: 6 }).map((_, i) => <div className="sv-paper-answer-line" key={i} />)}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PlainText({ value }) {
+  const text = toEditableText(value)
+  if (!text) return null
+  return text.split('\n\n').map((para, i) => <p key={i}>{para}</p>)
+}
+
+/* ==================================================================
+ * BLOCK PICKER SLIDE-OVER
+ * ================================================================== */
+function BlockPickerSlide({ open, onClose, onPick }) {
+  return (
+    <aside className={`sv-slideover ${open ? 'open' : ''}`}>
+      <div className="sv-slideover-head">
+        <button className="sv-icon-btn" onClick={onClose} aria-label="Close" style={{ width: 32, height: 32, borderRadius: 6, fontSize: 20 }}>✕</button>
+        <h3 className="serif">Add a block<small>Drop into the document at the chosen position</small></h3>
+      </div>
+      <div className="sv-slideover-body">
+        <div className="sv-block-cat">Structure</div>
+        <div className="sv-block-picker-grid">
+          <BlockPickerItem icon="📑" title="Section" hint="Container with title & instructions" onClick={() => onPick('section')} />
+          <BlockPickerItem icon="📌" title="Part" hint="Coming soon" disabled />
+          <BlockPickerItem icon="📋" title="Instructions" hint="Always rendered at top of paper" disabled />
+          <BlockPickerItem icon="↵" title="Page break" hint="Coming soon" disabled />
+        </div>
+
+        <div className="sv-block-cat">Questions</div>
+        <div className="sv-block-picker-grid">
+          <BlockPickerItem icon="🔘" title="Multiple Choice" hint="4 options, text" onClick={() => onPick('mcq')} />
+          <BlockPickerItem icon="✏" title="Short Answer" hint="1–3 lines" onClick={() => onPick('short_answer')} />
+          <BlockPickerItem icon="📋" title="Structured" hint="Multi-part with marks" onClick={() => onPick('structured')} />
+          <BlockPickerItem icon="📝" title="Essay" hint="Long-form with rubric" onClick={() => onPick('essay')} />
+          <BlockPickerItem icon="✅" title="True / False" hint="Binary statement" onClick={() => onPick('true_false')} />
+          <BlockPickerItem icon="📐" title="Fill in Blank" hint="Gap-fill sentence" onClick={() => onPick('fill_in_blank')} />
+          <BlockPickerItem icon="↔" title="Matching" hint="Coming soon" disabled />
+          <BlockPickerItem icon="🔢" title="Numeric" hint="Coming soon" disabled />
+          <BlockPickerItem icon="🔤" title="Sequence" hint="Coming soon" disabled />
+        </div>
+
+        <div className="sv-block-cat">Media &amp; reading</div>
+        <div className="sv-block-picker-grid">
+          <BlockPickerItem icon="📖" title="Passage" hint="Comprehension passage" onClick={() => onPick('passage')} />
+          <BlockPickerItem icon="🖼" title="Diagram-based" hint="Label or describe an image" onClick={() => onPick('structured')} />
+          <BlockPickerItem icon="🎨" title="Draw & Label" hint="Coming soon" disabled />
+          <BlockPickerItem icon="🗺" title="Map Question" hint="Coming soon" disabled />
+          <BlockPickerItem icon="📊" title="Data / Table" hint="Coming soon" disabled />
+          <BlockPickerItem icon="👁" title="Image Identify" hint="Coming soon" disabled />
+        </div>
+
+        <div className="sv-block-cat">AI-powered</div>
+        <div className="sv-block-picker-grid">
+          <BlockPickerItem
+            icon="✨"
+            title="Generate questions"
+            hint="AI drafts from topic"
+            gold
+            onClick={() => onPick('ai_generate')}
+          />
+          <BlockPickerItem icon="🎨" title="Generate diagram" hint="Coming soon" gold disabled />
+        </div>
+      </div>
+    </aside>
+  )
+}
+
+function BlockPickerItem({ icon, title, hint, onClick, disabled, gold }) {
+  return (
+    <button
+      className={`sv-bp-item ${gold ? 'gold' : ''}`}
+      onClick={disabled ? undefined : onClick}
+      disabled={disabled}
+      type="button"
+    >
+      <div className="sv-bp-ic">{icon}</div>
+      <strong>{title}</strong>
+      <small>{hint}</small>
+    </button>
+  )
+}
+
+/* ==================================================================
+ * AI ASSISTANT SLIDE-OVER
+ * ================================================================== */
+function AiSlide({ open, onClose, aiForm, setAiForm, form, generating, onGenerate, onImport, importing, onAction }) {
+  const docInputRef = useRef(null)
+  return (
+    <aside className={`sv-slideover ${open ? 'open' : ''}`}>
+      <div className="sv-slideover-head">
+        <button className="sv-icon-btn" onClick={onClose} aria-label="Close" style={{ width: 32, height: 32, borderRadius: 6, fontSize: 20 }}>✕</button>
+        <h3 className="serif">✨ Zed AI Assistant<small>Context-aware help for this paper</small></h3>
+      </div>
+      <div className="sv-slideover-body">
+        <div className="sv-ai-msg">
+          <strong>Generate questions on a CBC topic</strong>
+          Pick a topic, count and type — I&apos;ll draft them and drop them into the builder. Always review before saving.
+        </div>
+
+        <div className="sv-field" style={{ marginBottom: 12 }}>
+          <label>Topic</label>
+          <input
+            type="text"
+            value={aiForm.topic}
+            onChange={e => setAiForm(prev => ({ ...prev, topic: e.target.value }))}
+            placeholder={`e.g. ${form.subject === 'Mathematics' ? 'Fractions' : 'Body systems'}`}
+          />
+        </div>
+        <div className="sv-field-grid two">
+          <div className="sv-field">
+            <label>Count</label>
             <input
               type="number"
               min={1}
               max={10}
               value={aiForm.count}
-              onChange={event => setAi('count', clampInt(event.target.value, 1, 10, 1))}
-              className="theme-input rounded-xl border-2 px-3 py-2.5 text-sm outline-none focus:border-[var(--accent)]"
-              aria-label="Number of questions"
+              onChange={e => setAiForm(prev => ({ ...prev, count: clampInt(e.target.value, 1, 10, 5) }))}
             />
-            <select value={aiForm.type} onChange={event => setAi('type', event.target.value)} className={SELECT}>
+          </div>
+          <div className="sv-field">
+            <label>Type</label>
+            <select
+              value={aiForm.type}
+              onChange={e => setAiForm(prev => ({ ...prev, type: e.target.value }))}
+            >
               <option value="mcq">Multiple choice</option>
             </select>
           </div>
-          <button type="button" onClick={handleGenerateQuestions} disabled={aiGenerating || saving} className="theme-accent-fill theme-on-accent w-full rounded-xl px-5 py-3 font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md disabled:opacity-60 disabled:pointer-events-none sm:w-auto">
-            {aiGenerating ? '✦ Generating…' : '✦ Generate questions'}
+        </div>
+        <button
+          className="sv-btn sv-btn-primary sv-btn-full"
+          onClick={() => onGenerate()}
+          disabled={generating}
+          style={{ marginTop: 12 }}
+        >
+          {generating ? '✦ Generating…' : '✦ Generate questions'}
+        </button>
+
+        <div className="sv-block-cat">Other tools</div>
+        <div className="sv-ai-action-grid">
+          <button
+            className="sv-ai-action"
+            onClick={() => docInputRef.current?.click()}
+            disabled={importing}
+          >
+            <div className="sv-ic">📥</div>
+            <div><strong>{importing ? 'Importing…' : 'Import Word / PDF'}</strong><small>Convert an existing paper into editable blocks</small></div>
+            <input
+              ref={docInputRef}
+              type="file"
+              accept={QUIZ_DOCUMENT_ACCEPT}
+              style={{ display: 'none' }}
+              onChange={e => {
+                const file = e.target.files?.[0]
+                if (file) onImport(file)
+                e.target.value = ''
+              }}
+            />
+          </button>
+          <button className="sv-ai-action" disabled onClick={() => onAction('Generate marking key')}>
+            <div className="sv-ic">📑</div>
+            <div><strong>Generate marking key</strong><small>Coming soon</small></div>
+          </button>
+          <button className="sv-ai-action" disabled onClick={() => onAction('Generate labelled diagram')}>
+            <div className="sv-ic">🎨</div>
+            <div><strong>Generate labelled diagram</strong><small>Coming soon</small></div>
+          </button>
+          <button className="sv-ai-action" disabled onClick={() => onAction('Balance paper difficulty')}>
+            <div className="sv-ic">⚖</div>
+            <div><strong>Balance paper difficulty</strong><small>Coming soon</small></div>
+          </button>
+          <button className="sv-ai-action" disabled onClick={() => onAction('Map to competencies')}>
+            <div className="sv-ic">🎯</div>
+            <div><strong>Map to competencies</strong><small>Coming soon</small></div>
+          </button>
+          <button className="sv-ai-action" disabled onClick={() => onAction('Detect duplicates')}>
+            <div className="sv-ic">🔍</div>
+            <div><strong>Detect duplicates</strong><small>Coming soon</small></div>
           </button>
         </div>
-      )}
-
-      <QuizSectionsEditor
-        variant="create"
-        sections={sections}
-        parts={parts}
-        questionNumbers={questionNumbers}
-        totalQuestions={questionCount}
-        onStandaloneChange={updateStandaloneQuestion}
-        onStandaloneRemove={removeStandaloneSection}
-        onStandaloneMove={moveSection}
-        onStandaloneImageUpload={uploadStandaloneQuestionImage}
-        onStandaloneImageRemove={removeStandaloneQuestionImage}
-        onStandaloneOptionImageUpload={uploadStandaloneOptionImage}
-        onStandaloneOptionImageRemove={removeStandaloneOptionImage}
-        onPassageChange={updatePassage}
-        onPassageToggle={togglePassage}
-        onPassageRemove={removePassageSection}
-        onPassageMove={moveSection}
-        onPassageImageUpload={uploadPassageImage}
-        onPassageImageRemove={removePassageImage}
-        onPassageQuestionChange={updatePassageQuestion}
-        onPassageQuestionRemove={removePassageQuestion}
-        onPassageQuestionMove={movePassageQuestion}
-        onPassageQuestionOptionImageUpload={uploadPassageQuestionOptionImage}
-        onPassageQuestionOptionImageRemove={removePassageQuestionOptionImage}
-        onPassageAddQuestion={addPassageQuestion}
-        onAddStandalone={addStandaloneSectionHandler}
-        onAddPassage={addPassageSectionHandler}
-        onAddMap={addMapSectionHandler}
-        onAddPart={addPart}
-        onPartChange={updatePart}
-        onPartMove={movePart}
-        onPartRemove={removePart}
-        onAssignSectionToPart={assignSectionToPart}
-        onShuffleSections={handleShuffleSections}
-      />
-
-      <QuizEditorPreviewPanel form={form} serializedSections={serializedPreview} />
-
-      <div className="theme-accent-bg theme-border theme-accent-text flex items-start gap-2 rounded-2xl border px-4 py-3 text-xs">
-        <span className="flex-shrink-0 text-base">ℹ️</span>
-        <span>Question and passage images upload to Firebase Storage as soon as you select them. Comprehension passages are stored separately on the quiz and linked to their questions when you save.</span>
       </div>
+    </aside>
+  )
+}
 
-      <div className="flex gap-3 pb-6">
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          disabled={saving}
-          className="theme-card theme-border theme-text hover:border-[var(--accent)] hover:theme-accent-text rounded-2xl border-2 px-6 py-3.5 font-black transition-all duration-fast ease-out shadow-elev-sm hover:-translate-y-px hover:shadow-elev-md disabled:opacity-50 disabled:pointer-events-none"
-        >
-          Cancel
-        </button>
-        <button
-          type="button"
-          onClick={() => handleSave()}
-          disabled={saving || anyUploading}
-          className="theme-accent-fill theme-on-accent flex-1 rounded-2xl py-3.5 font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md disabled:opacity-50 disabled:pointer-events-none"
-        >
-          {saving ? 'Saving…' : anyUploading ? 'Uploading…' : '💾 Save to my library'}
-        </button>
+/* ==================================================================
+ * QUESTION EDITOR SLIDE-OVER
+ * ================================================================== */
+function EditorSlide({ open, onClose, targetKey, sections, onUpdateStandaloneQuestion, onUpdatePassageQuestion, questionNumbers }) {
+  // Find the target question
+  const target = useMemo(() => {
+    if (!targetKey) return null
+    for (let i = 0; i < sections.length; i += 1) {
+      const section = sections[i]
+      if (section.kind === 'passage') {
+        const idx = (section.passage.questions || []).findIndex(q => q.localId === targetKey)
+        if (idx >= 0) {
+          return { kind: 'passage', sectionIndex: i, questionIndex: idx, question: section.passage.questions[idx] }
+        }
+      } else if (section.question?.localId === targetKey) {
+        return { kind: 'standalone', sectionIndex: i, question: section.question }
+      }
+    }
+    return null
+  }, [targetKey, sections])
+
+  if (!open || !target) {
+    return (
+      <aside className={`sv-slideover ${open ? 'open' : ''}`}>
+        <div className="sv-slideover-head">
+          <button className="sv-icon-btn" onClick={onClose} aria-label="Close" style={{ width: 32, height: 32, borderRadius: 6, fontSize: 20 }}>✕</button>
+          <h3 className="serif">Edit Question<small>Select a question to edit</small></h3>
+        </div>
+        <div className="sv-slideover-body">
+          <p style={{ color: 'var(--sv-muted)', fontSize: 13 }}>No question selected.</p>
+        </div>
+      </aside>
+    )
+  }
+
+  const update = (field, value) => {
+    if (target.kind === 'passage') {
+      onUpdatePassageQuestion(target.sectionIndex, target.questionIndex, field, value)
+    } else {
+      onUpdateStandaloneQuestion(target.sectionIndex, field, value)
+    }
+  }
+
+  const num = questionNumbers[target.question.localId] || ''
+  const question = target.question
+  const type = question.type || 'mcq'
+
+  return (
+    <aside className={`sv-slideover ${open ? 'open' : ''}`}>
+      <div className="sv-slideover-head">
+        <button className="sv-icon-btn" onClick={onClose} aria-label="Close" style={{ width: 32, height: 32, borderRadius: 6, fontSize: 20 }}>✕</button>
+        <h3 className="serif">Edit Question<small>Q{num} · {type.toUpperCase()}</small></h3>
       </div>
-    </div>
+      <div className="sv-slideover-body">
+        <div className="sv-field">
+          <label>Question text</label>
+          <textarea
+            value={toEditableText(question.text)}
+            onChange={e => update('text', e.target.value)}
+            rows={4}
+          />
+        </div>
+
+        {target.kind === 'standalone' && (
+          <div className="sv-field" style={{ marginTop: 12 }}>
+            <label>Question type</label>
+            <select
+              value={type}
+              onChange={e => update('type', e.target.value)}
+            >
+              <option value="mcq">Multiple choice</option>
+              <option value="short_answer">Short answer</option>
+              <option value="diagram">Structured / diagram</option>
+              <option value="essay">Essay</option>
+            </select>
+          </div>
+        )}
+
+        <div className="sv-field-grid two" style={{ marginTop: 12 }}>
+          <div className="sv-field">
+            <label>Marks</label>
+            <input
+              type="number"
+              value={question.marks || 1}
+              onChange={e => update('marks', clampInt(e.target.value, 0, 100, 1))}
+            />
+          </div>
+          <div className="sv-field">
+            <label>Topic (optional)</label>
+            <input
+              type="text"
+              value={question.topic || ''}
+              onChange={e => update('topic', e.target.value)}
+              placeholder="e.g. Respiratory system"
+            />
+          </div>
+        </div>
+
+        {type === 'mcq' && (
+          <>
+            <div className="sv-block-cat" style={{ marginTop: 16 }}>Options</div>
+            <McqOptions
+              question={question}
+              onChangeOption={(optIndex, value) => {
+                const next = [...(question.options || ['', '', '', ''])]
+                next[optIndex] = value
+                update('options', next)
+              }}
+              onSelectCorrect={(optIndex) => update('correctAnswer', optIndex)}
+            />
+          </>
+        )}
+
+        {(type === 'short_answer' || type === 'fill' || type === 'diagram') && (
+          <div className="sv-field" style={{ marginTop: 12 }}>
+            <label>Expected answer (used for marking key)</label>
+            <textarea
+              value={String(question.correctAnswer ?? '')}
+              onChange={e => update('correctAnswer', e.target.value)}
+              rows={3}
+            />
+          </div>
+        )}
+
+        <div className="sv-field" style={{ marginTop: 12 }}>
+          <label>Explanation (optional, for marking key)</label>
+          <textarea
+            value={toEditableText(question.explanation)}
+            onChange={e => update('explanation', e.target.value)}
+            rows={2}
+            placeholder="Why is this the correct answer?"
+          />
+        </div>
+      </div>
+      <div className="sv-slideover-foot">
+        <button className="sv-btn sv-btn-primary sv-btn-full" onClick={onClose}>Done</button>
+      </div>
+    </aside>
   )
 }
