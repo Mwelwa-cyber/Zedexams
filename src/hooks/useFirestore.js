@@ -26,7 +26,7 @@ import { normalizeRichTextPayload } from '../utils/quizRichText.js'
 import { deleteQuizWithQuestions } from '../utils/deleteQuizWithQuestions.js'
 import { migrateContent } from '../editor/utils/migration.js'
 import { questionWriteSchema } from '../editor/schema/question.js'
-import { quizWriteSchema, quizUpdateSchema } from '../schemas/quiz.js'
+import { quizWriteSchema, quizUpdateSchema, coerceQuiz } from '../schemas/quiz.js'
 
 /**
  * Convert a rich-text field to its Tiptap JSON representation for persistence.
@@ -224,28 +224,28 @@ export function useFirestore() {
       if (filters.isDemoOnly) c.push(where('isDemo', '==', true))
       c.push(orderBy('createdAt', 'desc'))
       const snap = await getDocs(query(collection(db, 'quizzes'), ...c))
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      return snap.docs.map(d => coerceQuiz({ id: d.id, ...d.data() })).filter(Boolean)
     } catch (e) { console.error('getQuizzes:', e); return [] }
   }
 
   async function getAllQuizzes(limitCount = ADMIN_QUERY_LIMIT) {
     try {
       const snap = await getDocs(query(collection(db, 'quizzes'), orderBy('createdAt', 'desc'), limit(limitCount)))
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      return snap.docs.map(d => coerceQuiz({ id: d.id, ...d.data() })).filter(Boolean)
     } catch (e) { console.error('getAllQuizzes:', e); return [] }
   }
 
   async function getQuizzesByTeacher(teacherId) {
     try {
       const snap = await getDocs(query(collection(db, 'quizzes'), where('createdBy', '==', teacherId), orderBy('createdAt', 'desc')))
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      return snap.docs.map(d => coerceQuiz({ id: d.id, ...d.data() })).filter(Boolean)
     } catch (e) { console.error('getQuizzesByTeacher:', e); return [] }
   }
 
   async function getQuizById(quizId) {
     try {
       const snap = await getDoc(doc(db, 'quizzes', quizId))
-      return snap.exists() ? { id: snap.id, ...snap.data() } : null
+      return snap.exists() ? coerceQuiz({ id: snap.id, ...snap.data() }) : null
     } catch (e) { console.error('getQuizById:', e); return null }
   }
 

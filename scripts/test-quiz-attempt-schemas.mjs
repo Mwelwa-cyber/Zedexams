@@ -208,6 +208,14 @@ test('coerces totalMarks string to number', () => {
   assert(out.totalMarks === 25, `expected 25, got ${out.totalMarks}`)
 })
 
+test('preserves the id field (wiring guarantee for useFirestore reads)', () => {
+  // useFirestore wires coerceQuiz(s.id, ...d.data()) into all four quiz-list
+  // helpers. If coerceQuiz dropped `id`, the UI would lose every navigate
+  // link. Pin it.
+  const out = coerceQuiz({ id: 'quiz_abc123', title: 'X' })
+  assert(out.id === 'quiz_abc123', `expected id to survive, got ${out.id}`)
+})
+
 // ── attemptStartSchema ──────────────────────────────────────────
 
 console.log('\nattemptStartSchema')
