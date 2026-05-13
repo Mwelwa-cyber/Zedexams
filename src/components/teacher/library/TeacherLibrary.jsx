@@ -8,6 +8,7 @@ import {
   formatDate,
   bucketIntoTree,
   librarySectionForGeneration,
+  TOOL_META,
 } from '../../../utils/teacherLibraryService'
 import {
   LIBRARY_SECTIONS,
@@ -540,6 +541,10 @@ function DocumentList({ items, section }) {
 function DocumentCard({ item, section }) {
   const title = item.__title || titleForGeneration(item)
   const linkTo = item.__linkTo || `/teacher/library/${item.id}`
+  // Per-item icon (e.g. ✨ for lesson plans, 📓 for notes) so a mixed
+  // folder of saved tools is visually distinguishable. Falls back to the
+  // section icon when the tool is unknown (e.g. saved assessments).
+  const itemIcon = TOOL_META[item.tool]?.icon || section.icon
   return (
     <Link
       to={linkTo}
@@ -547,7 +552,7 @@ function DocumentCard({ item, section }) {
       style={{ background: COLORS.card, borderColor: COLORS.ink, minHeight: 140, color: COLORS.ink }}
     >
       <div style={{ width: 40, height: 40, borderRadius: 11, background: section.accent, display: 'grid', placeItems: 'center', fontSize: 20, marginBottom: 10, flexShrink: 0 }}>
-        {section.icon}
+        {itemIcon}
       </div>
       <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 15, color: COLORS.ink, margin: '0 0 4px', lineHeight: 1.25 }} className="line-clamp-2">
         {title}

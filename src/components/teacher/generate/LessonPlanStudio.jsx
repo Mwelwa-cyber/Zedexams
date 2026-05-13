@@ -73,10 +73,23 @@ export default function LessonPlanStudio() {
         term:         termOnly,
         subject:      m.subject,
       })
+      // Save with the canonical tool key + populated `inputs` so the
+      // library detail view, folder bucketing, and titleForGeneration all
+      // work without needing to know about the legacy 'lesson-plan' shape.
+      // We intentionally do NOT set `output` — the studio's data tree has
+      // a different schema than LessonPlanView expects; the detail view's
+      // LegacyStudioFrame renders the pre-rendered `html` blob instead.
       const ref = await addDoc(collection(db, 'aiGenerations'), {
         ownerUid: uid,
-        tool: 'lesson-plan',
+        tool: 'lesson_plan',
         createdAt: serverTimestamp(),
+        inputs: {
+          grade:    m.klass || null,
+          subject:  m.subject || null,
+          topic:    m.topic || null,
+          subtopic: m.subtopic || null,
+          term:     termOnly,
+        },
         meta: m,
         data: data || {},
         html: html || '',

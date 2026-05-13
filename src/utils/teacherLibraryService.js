@@ -57,7 +57,7 @@ export async function listMyGenerations(opts = {}) {
     )
   }
 
-  const rows = snap.docs.map((d) => ({id: d.id, ...d.data()}))
+  const rows = snap.docs.map((d) => normaliseGeneration({id: d.id, ...d.data()}))
   return rows.filter((r) => {
     if (tool && r.tool !== tool) return false
     if (grade && r.inputs?.grade !== grade) return false
@@ -74,11 +74,50 @@ export async function getGeneration(id) {
   try {
     const snap = await getDoc(doc(db, 'aiGenerations', id))
     if (!snap.exists()) return null
-    return {id: snap.id, ...snap.data()}
+    return normaliseGeneration({id: snap.id, ...snap.data()})
   } catch (err) {
     console.error('getGeneration failed', err)
     return null
   }
+}
+
+/**
+ * Normalise legacy generation shapes at the read boundary so every
+ * downstream UI/util can rely on the canonical {tool, inputs} keys.
+ *
+ * The Lesson Plan Studio (legacy /public/studio/* editor) writes docs as
+ *   { tool: 'lesson-plan', meta: {klass, subject, topic, termWeek, …},
+ *     data: {…}, html: '…' }
+ * while the Cloud Functions pipeline writes
+ *   { tool: 'lesson_plan',  inputs: {grade, subject, topic, term, …},
+ *     output: {…} }
+ * This helper translates the former to the latter on the way out — the
+ * original `meta` / `data` / `html` fields are preserved (read-only) so
+ * the detail view can still render the studio's pre-rendered HTML.
+ */
+function normaliseGeneration(row) {
+  if (!row || typeof row !== 'object') return row
+  let tool = row.tool
+  if (tool === 'lesson-plan') tool = 'lesson_plan'
+  // Build inputs from meta if missing — needed for the detail view's
+  // grade/subject pills and the title fallback.
+  let inputs = row.inputs
+  if (!inputs && row.meta && typeof row.meta === 'object') {
+    const m = row.meta
+    const termOnly = (() => {
+      const tw = String(m.termWeek || '')
+      const match = tw.match(/Term\s*(\d)/i)
+      return match ? `Term ${match[1]}` : null
+    })()
+    inputs = {
+      grade:    m.klass || m.grade || null,
+      subject:  m.subject || null,
+      topic:    m.topic || null,
+      subtopic: m.subtopic || null,
+      term:     termOnly,
+    }
+  }
+  return { ...row, tool, inputs: inputs || row.inputs }
 }
 
 /**
@@ -254,9 +293,14 @@ export function titleForGeneration(gen) {
   if (!gen) return 'Untitled'
   const out = gen.output || {}
   if (gen.tool === 'lesson_plan') {
-    return out?.header?.topic ?
-      `${out.header.topic}${out.header.subtopic ? ` — ${out.header.subtopic}` : ''}` :
-      `${gen.inputs?.grade || ''} ${gen.inputs?.subject || ''} lesson plan`.trim()
+    const headerTopic    = out?.header?.topic    || gen.meta?.topic    || gen.inputs?.topic
+    const headerSubtopic = out?.header?.subtopic || gen.meta?.subtopic || gen.inputs?.subtopic
+    if (headerTopic) {
+      return headerSubtopic ? `${headerTopic} — ${headerSubtopic}` : headerTopic
+    }
+    const g = gen.inputs?.grade || gen.meta?.klass || ''
+    const s = gen.inputs?.subject || gen.meta?.subject || ''
+    return `${g} ${s} lesson plan`.trim() || 'Lesson plan'
   }
   if (gen.tool === 'worksheet') {
     return out?.header?.title || `${gen.inputs?.topic || 'Worksheet'}`
