@@ -40,6 +40,7 @@ import { LIBRARY_TYPES } from '../../config/library'
 import { classifyForLibrary } from '../../utils/libraryClassification'
 import { printAssessmentAsPdf } from '../../utils/assessmentToPdf'
 import { downloadAssessmentDocx } from '../../utils/assessmentToDocx'
+import { buildPaperLayout, computeSmartWarnings } from '../../utils/assessmentPaperLayout'
 
 import './studio/assessmentStudio.css'
 
@@ -271,7 +272,7 @@ export default function AssessmentStudio() {
 
   // View + slide-over state
   const [view, setView] = useState(
-    ['home', 'builder', 'preview'].includes(requestedView) ? requestedView : 'home',
+    ['home', 'builder', 'preview', 'marking-key'].includes(requestedView) ? requestedView : 'home',
   )
   const [slideover, setSlideover] = useState(null) // 'blocks' | 'ai' | 'editor' | null
   const [editorTargetKey, setEditorTargetKey] = useState(null)
@@ -291,7 +292,7 @@ export default function AssessmentStudio() {
     assessmentType: 'end_of_term',
     schoolName: '',
     className: '',
-    paperName: 'Paper 1',
+    paperName: '',
     assessmentDate: '',
     coverInstructions: '',
     schoolLogoUrl: '',
@@ -331,6 +332,49 @@ export default function AssessmentStudio() {
   const estimatedPages = Math.max(1, Math.ceil((questionCount + totalMarks * 0.4) / 8))
   const autoTitle = form.title.trim() || buildTitleFromForm(form)
   const footerCode = buildFooterCode(form)
+
+  // The single source-of-truth `assessment` document. Preview, PDF, DOCX,
+  // warnings, and the marking key all consume this same shape.
+  const assessmentDoc = useMemo(() => ({
+    title: form.title.trim() || autoTitle,
+    subject: form.subject,
+    grade: form.grade,
+    term: form.term,
+    year: form.year,
+    duration: form.duration,
+    topic: form.topic,
+    assessmentType: form.assessmentType,
+    schoolName: form.schoolName,
+    className: form.className,
+    paperName: form.paperName,
+    assessmentDate: form.assessmentDate,
+    coverInstructions: form.coverInstructions,
+    schoolLogoUrl: form.schoolLogoUrl,
+    schoolLogoTransform: form.schoolLogoTransform || null,
+    endOfPaperText: form.endOfPaperText,
+    footerCode,
+    showNameField: form.showNameField,
+    showDateField: form.showDateField,
+    showMarksField: form.showMarksField,
+    showClassField: form.showClassField,
+    passages: serializedPreview.passages,
+    parts: serializedPreview.parts,
+    totalMarks,
+    questionCount,
+  }), [form, footerCode, autoTitle, serializedPreview, totalMarks, questionCount])
+
+  const paperBlocks = useMemo(
+    () => buildPaperLayout(assessmentDoc, serializedPreview.questions, { mode: 'paper' }),
+    [assessmentDoc, serializedPreview.questions],
+  )
+  const markingKeyBlocks = useMemo(
+    () => buildPaperLayout(assessmentDoc, serializedPreview.questions, { mode: 'scheme' }),
+    [assessmentDoc, serializedPreview.questions],
+  )
+  const warnings = useMemo(
+    () => computeSmartWarnings(assessmentDoc, serializedPreview.questions),
+    [assessmentDoc, serializedPreview.questions],
+  )
 
   /* ------------ helpers ------------ */
   const showToast = useCallback((message, isErr = false) => {
@@ -590,6 +634,43 @@ export default function AssessmentStudio() {
     }))
   }
 
+  // Per-option image upload (image-only and text+image MCQs).
+  // `optionMedia` is a parallel array to `options`: optionMedia[i] = { imageUrl, alt }.
+  async function uploadStandaloneOptionImage(sectionIndex, optionIndex, file) {
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      showToast('Only JPG, PNG, and WEBP images are allowed.', true)
+      return
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      showToast('Option image must be under 10 MB.', true)
+      return
+    }
+    try {
+      const compressed = await compressImage(file, 600, 0.85)
+      const path = `assessment-images/${currentUser.uid}/${Date.now()}-q-${sectionIndex}-opt-${optionIndex}.jpg`
+      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType: 'image/jpeg' })
+      const imageUrl = await getDownloadURL(snapshot.ref)
+      updateSection(sectionIndex, section => {
+        const optionCount = Array.isArray(section.question.options) ? section.question.options.length : 4
+        const existing = Array.isArray(section.question.optionMedia) ? section.question.optionMedia : []
+        const next = Array.from({ length: optionCount }, (_, i) => existing[i] || null)
+        next[optionIndex] = { imageUrl, alt: existing[optionIndex]?.alt || '' }
+        return { ...section, question: { ...section.question, optionMedia: next } }
+      })
+      showToast('Option image attached.')
+    } catch (error) {
+      showToast(`Upload failed: ${getErrorMessage(error)}`, true)
+    }
+  }
+  function removeStandaloneOptionImage(sectionIndex, optionIndex) {
+    updateSection(sectionIndex, section => {
+      const existing = Array.isArray(section.question.optionMedia) ? section.question.optionMedia : []
+      const next = [...existing]
+      next[optionIndex] = null
+      return { ...section, question: { ...section.question, optionMedia: next } }
+    })
+  }
+
   async function uploadSchoolLogo(file) {
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
       showToast('Only JPG, PNG, and WEBP images are allowed.', true)
@@ -719,6 +800,10 @@ export default function AssessmentStudio() {
   function validate() {
     if (!autoTitle.trim()) {
       showToast('Set a school name + grade so the title can be generated.', true)
+      return false
+    }
+    if (!String(form.subject || '').trim()) {
+      showToast('Subject is required — every paper must show its subject.', true)
       return false
     }
     if (questionCount === 0) {
@@ -859,35 +944,20 @@ export default function AssessmentStudio() {
   }
 
   /* ------------ export (PDF / DOCX / Print) ------------ */
-  async function handleExport(kind) {
+  async function handleExport(kind, mode = 'paper') {
     if (questionCount === 0) {
       showToast('Add at least one question to export.', true)
       return
     }
     setExporting(true)
     try {
-      const serialized = serializeQuizSections(sections, parts)
-      const totalMarksOut = serialized.questions.reduce((sum, q) => sum + (q.marks || 1), 0)
-      const assessment = {
-        title: form.title.trim() || autoTitle,
-        subject: form.subject,
-        grade: form.grade,
-        term: form.term,
-        duration: form.duration,
-        schoolName: form.schoolName,
-        className: form.className,
-        assessmentDate: form.assessmentDate,
-        coverInstructions: form.coverInstructions,
-        totalMarks: totalMarksOut,
-        questionCount: serialized.questions.length,
-        passages: serialized.passages,
-        parts: serialized.parts,
-      }
+      const baseFile = (assessmentDoc.title || 'assessment').replace(/[^a-z0-9-]+/gi, '-').toLowerCase()
+      const fileSuffix = mode === 'scheme' ? '-marking-key' : ''
       if (kind === 'pdf') {
-        printAssessmentAsPdf(assessment, serialized.questions)
+        printAssessmentAsPdf(assessmentDoc, serializedPreview.questions, { mode })
         showToast('PDF dialog opened.')
       } else if (kind === 'docx') {
-        await downloadAssessmentDocx(assessment, serialized.questions, `${(assessment.title || 'assessment').replace(/[^a-z0-9-]+/gi, '-').toLowerCase()}.docx`)
+        await downloadAssessmentDocx(assessmentDoc, serializedPreview.questions, `${baseFile}${fileSuffix}.docx`, { mode })
         showToast('Word download started.')
       } else if (kind === 'print') {
         window.print()
@@ -990,6 +1060,7 @@ export default function AssessmentStudio() {
           estimatedPages={estimatedPages}
           autoTitle={autoTitle}
           footerCode={footerCode}
+          warnings={warnings}
           changeView={changeView}
           onAddBlock={(afterIndex) => openSlide('blocks', { insertAfter: afterIndex })}
           onEditQuestion={(key) => openSlide('editor', { questionKey: key })}
@@ -999,6 +1070,8 @@ export default function AssessmentStudio() {
           onUpdateStandaloneQuestion={updateStandaloneQuestion}
           onUploadStandaloneImage={uploadStandaloneQuestionImage}
           onRemoveStandaloneImage={removeStandaloneQuestionImage}
+          onUploadStandaloneOptionImage={uploadStandaloneOptionImage}
+          onRemoveStandaloneOptionImage={removeStandaloneOptionImage}
           onUpdateSection={updateSection}
           onUpdatePassageQuestion={updatePassageQuestion}
           onAddPassageQuestion={addPassageQuestion}
@@ -1007,6 +1080,7 @@ export default function AssessmentStudio() {
           onRemovePart={removePart}
           onAssignSectionToPart={assignSectionToPart}
           onUploadLogo={uploadSchoolLogo}
+          onRemoveLogo={() => setF('schoolLogoUrl', '')}
           onImportDocument={handleImportDocument}
           importing={importingDocument}
           importSummary={importSummary}
@@ -1014,17 +1088,26 @@ export default function AssessmentStudio() {
       )}
 
       {view === 'preview' && (
-        <PreviewView
-          form={form}
-          autoTitle={autoTitle}
-          footerCode={footerCode}
-          parts={parts}
-          sections={sections}
-          serializedPreview={serializedPreview}
-          questionNumbers={questionNumbers}
-          totalMarks={totalMarks}
+        <PaperRenderView
+          mode="paper"
+          blocks={paperBlocks}
+          assessment={assessmentDoc}
           changeView={changeView}
-          onExport={handleExport}
+          onExport={(kind) => handleExport(kind, 'paper')}
+          onSave={handleSave}
+          saving={saving}
+          exporting={exporting}
+          showSave
+        />
+      )}
+
+      {view === 'marking-key' && (
+        <PaperRenderView
+          mode="scheme"
+          blocks={markingKeyBlocks}
+          assessment={assessmentDoc}
+          changeView={changeView}
+          onExport={(kind) => handleExport(kind, 'scheme')}
           onSave={handleSave}
           saving={saving}
           exporting={exporting}
@@ -1033,9 +1116,12 @@ export default function AssessmentStudio() {
 
       <BottomBar
         view={view}
+        warnings={warnings}
         onHome={() => changeView('home')}
+        onBuilder={() => changeView('builder')}
         onAdd={() => openSlide('blocks')}
         onPreview={() => changeView('preview')}
+        onMarkingKey={() => changeView('marking-key')}
         onAi={() => openSlide('ai')}
       />
 
@@ -1095,28 +1181,49 @@ function TopBar({ title, savingDraft, onBack, onAi }) {
 }
 
 /* ==================================================================
- * BOTTOM BAR
+ * BOTTOM BAR — compact dock + FAB (replaces the big 4-tab bar).
+ *
+ * Slim chip rail at the bottom for view navigation (Home / Builder /
+ * Preview / Key / AI), plus a floating "+" button anchored bottom-right
+ * for the primary "Add block" action. Doesn't cover content the way the
+ * old chunky tab bar did.
  * ================================================================== */
-function BottomBar({ view, onHome, onAdd, onPreview, onAi }) {
+function BottomBar({ view, warnings = [], onHome, onBuilder, onAdd, onPreview, onMarkingKey, onAi }) {
+  const errorCount = warnings.filter(w => w.severity === 'error').length
   return (
-    <nav className="sv-bottom-bar">
-      <button className="sv-b" onClick={onHome} aria-current={view === 'home'}>
-        <span className="sv-ic">🏠</span>
-        <span>Home</span>
-      </button>
-      <button className="sv-b primary" onClick={onAdd}>
-        <span className="sv-ic-wrap">+</span>
-        <span>Add block</span>
-      </button>
-      <button className="sv-b" onClick={onPreview} aria-current={view === 'preview'}>
-        <span className="sv-ic">👁</span>
-        <span>Preview</span>
-      </button>
-      <button className="sv-b" onClick={onAi}>
-        <span className="sv-ic">✨</span>
-        <span>AI</span>
-      </button>
-    </nav>
+    <>
+      <nav className="sv-dock">
+        <DockBtn icon="🏠" label="Home" onClick={onHome} active={view === 'home'} />
+        <DockBtn icon="📄" label="Build" onClick={onBuilder} active={view === 'builder'} />
+        <DockBtn icon="👁" label="Preview" onClick={onPreview} active={view === 'preview'} />
+        <DockBtn icon="🗝" label="Key" onClick={onMarkingKey} active={view === 'marking-key'} />
+        <DockBtn icon="✨" label="AI" onClick={onAi} />
+      </nav>
+      {view !== 'home' && (
+        <button
+          className="sv-fab"
+          onClick={onAdd}
+          aria-label="Add block"
+          title="Add block"
+        >
+          <span>+</span>
+          {errorCount > 0 && <span className="sv-fab-badge">{errorCount}</span>}
+        </button>
+      )}
+    </>
+  )
+}
+
+function DockBtn({ icon, label, onClick, active }) {
+  return (
+    <button
+      className={`sv-dock-btn ${active ? 'active' : ''}`}
+      onClick={onClick}
+      aria-current={active ? 'page' : undefined}
+    >
+      <span className="sv-dock-ic">{icon}</span>
+      <span className="sv-dock-lbl">{label}</span>
+    </button>
   )
 }
 
@@ -1251,11 +1358,12 @@ function formatAgo(date) {
 function BuilderView(props) {
   const {
     form, setF, sections, parts, questionNumbers, questionCount, totalMarks,
-    estimatedPages, footerCode, changeView,
+    estimatedPages, footerCode, changeView, warnings = [],
     onAddBlock, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection,
     onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage,
+    onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage,
     onUpdateSection, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion,
-    onUpdatePart, onRemovePart, onAssignSectionToPart, onUploadLogo,
+    onUpdatePart, onRemovePart, onAssignSectionToPart, onUploadLogo, onRemoveLogo,
     onImportDocument, importing, importSummary,
   } = props
 
@@ -1288,12 +1396,14 @@ function BuilderView(props) {
       <div className="sv-builder-bar">
         <button className="sv-chip active">📄 Builder</button>
         <button className="sv-chip" onClick={() => changeView('preview')}>👁 Preview</button>
-        <button className="sv-chip" onClick={() => changeView('home')}>🏠 Home</button>
+        <button className="sv-chip" onClick={() => changeView('marking-key')}>🗝 Marking key</button>
         <span className="sv-pages mono">📃 Est. {estimatedPages} page{estimatedPages === 1 ? '' : 's'} · A4</span>
       </div>
 
       <div className="sv-doc-canvas">
-        <HeaderBlock form={form} setF={setF} onUploadLogo={onUploadLogo} footerCode={footerCode} importing={importing} importSummary={importSummary} onImportDocument={onImportDocument} />
+        <SmartWarningsBanner warnings={warnings} />
+
+        <HeaderBlock form={form} setF={setF} onUploadLogo={onUploadLogo} onRemoveLogo={onRemoveLogo} footerCode={footerCode} importing={importing} importSummary={importSummary} onImportDocument={onImportDocument} />
 
         <AddHere onAdd={() => onAddBlock(null)} />
 
@@ -1314,6 +1424,8 @@ function BuilderView(props) {
             onUpdateStandaloneQuestion={onUpdateStandaloneQuestion}
             onUploadStandaloneImage={onUploadStandaloneImage}
             onRemoveStandaloneImage={onRemoveStandaloneImage}
+            onUploadStandaloneOptionImage={onUploadStandaloneOptionImage}
+            onRemoveStandaloneOptionImage={onRemoveStandaloneOptionImage}
             onUpdateSection={onUpdateSection}
             onUpdatePassageQuestion={onUpdatePassageQuestion}
             onAddPassageQuestion={onAddPassageQuestion}
@@ -1347,7 +1459,28 @@ function AddHere({ onAdd }) {
   )
 }
 
-function BuilderGroup({ group, allParts, questionNumbers, onAddBlock, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage, onUpdateSection, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onUpdatePart, onRemovePart, onAssignSectionToPart }) {
+/* ==================================================================
+ * SMART WARNINGS BANNER
+ *
+ * Computed by computeSmartWarnings(assessmentDoc, questions). Renders
+ * one short row per warning at the top of the builder. Errors block
+ * save (validated separately); warnings are advisory.
+ * ================================================================== */
+function SmartWarningsBanner({ warnings }) {
+  if (!warnings || !warnings.length) return null
+  return (
+    <div className="sv-warnings">
+      {warnings.map(w => (
+        <div key={w.key} className={`sv-warn sv-warn-${w.severity}`}>
+          <span className="sv-warn-ic">{w.severity === 'error' ? '⚠' : w.severity === 'warn' ? '⚡' : 'ℹ'}</span>
+          <span className="sv-warn-msg">{w.message}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function BuilderGroup({ group, allParts, questionNumbers, onAddBlock, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage, onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage, onUpdateSection, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onUpdatePart, onRemovePart, onAssignSectionToPart }) {
   const partIndex = allParts.findIndex(p => p.id === group.part?.id)
   const letter = partIndex >= 0 ? SECTION_LETTERS[partIndex] || '·' : null
 
@@ -1408,6 +1541,8 @@ function BuilderGroup({ group, allParts, questionNumbers, onAddBlock, onEditQues
           onUpdateStandaloneQuestion={onUpdateStandaloneQuestion}
           onUploadStandaloneImage={onUploadStandaloneImage}
           onRemoveStandaloneImage={onRemoveStandaloneImage}
+          onUploadStandaloneOptionImage={onUploadStandaloneOptionImage}
+          onRemoveStandaloneOptionImage={onRemoveStandaloneOptionImage}
           onUpdateSection={onUpdateSection}
           onUpdatePassageQuestion={onUpdatePassageQuestion}
           onAddPassageQuestion={onAddPassageQuestion}
@@ -1424,7 +1559,7 @@ function BuilderGroup({ group, allParts, questionNumbers, onAddBlock, onEditQues
 /* ==================================================================
  * HEADER BLOCK
  * ================================================================== */
-function HeaderBlock({ form, setF, onUploadLogo, importing, onImportDocument }) {
+function HeaderBlock({ form, setF, onUploadLogo, onRemoveLogo, importing, onImportDocument }) {
   const fileInputRef = useRef(null)
   const docInputRef = useRef(null)
 
@@ -1435,27 +1570,43 @@ function HeaderBlock({ form, setF, onUploadLogo, importing, onImportDocument }) 
       </div>
 
       <div className="sv-identity-row">
-        <button
-          type="button"
-          className="sv-logo-drop"
-          onClick={() => fileInputRef.current?.click()}
-          aria-label="Upload school logo"
-        >
-          {form.schoolLogoUrl
-            ? <img src={form.schoolLogoUrl} alt="School logo" />
-            : <>🖼<small>School<br />logo</small></>}
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            style={{ display: 'none' }}
-            onChange={e => {
-              const file = e.target.files?.[0]
-              if (file) onUploadLogo(file)
-              e.target.value = ''
-            }}
-          />
-        </button>
+        <div style={{ position: 'relative' }}>
+          <button
+            type="button"
+            className="sv-logo-drop"
+            onClick={() => fileInputRef.current?.click()}
+            aria-label="Upload school logo"
+          >
+            {form.schoolLogoUrl
+              ? <img src={form.schoolLogoUrl} alt="School logo" />
+              : <>🖼<small>School<br />logo</small></>}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={e => {
+                const file = e.target.files?.[0]
+                if (file) onUploadLogo(file)
+                e.target.value = ''
+              }}
+            />
+          </button>
+          {form.schoolLogoUrl && onRemoveLogo && (
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onRemoveLogo() }}
+              aria-label="Remove logo"
+              style={{
+                position: 'absolute', top: -6, right: -6,
+                width: 22, height: 22, borderRadius: '50%',
+                background: 'var(--sv-primary)', color: 'white',
+                border: '2px solid white', fontSize: 12, lineHeight: 1,
+                display: 'grid', placeItems: 'center', cursor: 'pointer',
+              }}
+            >×</button>
+          )}
+        </div>
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 'var(--sv-s3)' }}>
           <div className="sv-field">
             <label>School name <span className="sv-req">*</span></label>
@@ -1509,14 +1660,15 @@ function HeaderBlock({ form, setF, onUploadLogo, importing, onImportDocument }) 
 
       <div className="sv-field-grid two">
         <div className="sv-field">
-          <label>Subject</label>
+          <label>Subject <span className="sv-req">*</span></label>
           <select value={form.subject} onChange={e => setF('subject', e.target.value)}>
             {SUBJECTS.map(s => <option key={s} value={s}>{s}</option>)}
           </select>
         </div>
         <div className="sv-field">
-          <label>Paper name</label>
+          <label>Paper name <small style={{ color: 'var(--sv-muted)', fontWeight: 400, textTransform: 'none', letterSpacing: 0 }}>(optional)</small></label>
           <select value={form.paperName} onChange={e => setF('paperName', e.target.value)}>
+            <option value="">— None —</option>
             <option>Paper 1</option>
             <option>Paper 2</option>
             <option>Special Paper 1</option>
@@ -1562,7 +1714,8 @@ function HeaderBlock({ form, setF, onUploadLogo, importing, onImportDocument }) 
         <div className="sv-auto-label">⚡ Auto-generated header</div>
         <div className="sv-school">{(form.schoolName || 'YOUR SCHOOL NAME').toUpperCase()}</div>
         <div className="sv-title-auto">{buildTitleFromForm(form)}</div>
-        <div className="sv-paper-auto">{(form.paperName || '').toUpperCase()}</div>
+        {form.subject && <div className="sv-subject-auto">{form.subject.toUpperCase()}</div>}
+        {form.paperName && <div className="sv-paper-auto">{form.paperName.toUpperCase()}</div>}
       </div>
 
       <div style={{ marginTop: 'var(--sv-s4)', padding: 'var(--sv-s3)', background: 'var(--sv-tinted)', borderRadius: 'var(--sv-r)', display: 'flex', gap: 'var(--sv-s2)', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -1653,6 +1806,7 @@ function SectionBlock(props) {
     section, sectionIndex, parts, questionNumbers,
     onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection,
     onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage,
+    onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage,
     onUpdateSection, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion,
     onAssignSectionToPart,
   } = props
@@ -1688,6 +1842,8 @@ function SectionBlock(props) {
       onUpdateQuestion={(field, value) => onUpdateStandaloneQuestion(sectionIndex, field, value)}
       onUploadImage={file => onUploadStandaloneImage(sectionIndex, file)}
       onRemoveImage={() => onRemoveStandaloneImage(sectionIndex)}
+      onUploadOptionImage={(optIndex, file) => onUploadStandaloneOptionImage(sectionIndex, optIndex, file)}
+      onRemoveOptionImage={optIndex => onRemoveStandaloneOptionImage(sectionIndex, optIndex)}
       onAssignSectionToPart={onAssignSectionToPart}
     />
   )
@@ -1808,7 +1964,7 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
   )
 }
 
-function QuestionBlock({ section, sectionIndex, parts, questionNumbers, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onUpdateQuestion, onUploadImage, onRemoveImage, onAssignSectionToPart }) {
+function QuestionBlock({ section, sectionIndex, parts, questionNumbers, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onUpdateQuestion, onUploadImage, onRemoveImage, onUploadOptionImage, onRemoveOptionImage, onAssignSectionToPart }) {
   const question = section.question
   const type = question.type || 'mcq'
   const isMcq = type === 'mcq'
@@ -1915,6 +2071,8 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, onEditQu
             onUpdateQuestion('options', next)
           }}
           onSelectCorrect={(optIndex) => onUpdateQuestion('correctAnswer', optIndex)}
+          onUploadOptionImage={onUploadOptionImage}
+          onRemoveOptionImage={onRemoveOptionImage}
         />
       )}
 
@@ -1926,12 +2084,23 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, onEditQu
       )}
 
       {isStructured && !isMcq && (
-        <ShortAnswerInputs
-          correctAnswer={question.correctAnswer}
-          onChange={value => onUpdateQuestion('correctAnswer', value)}
-          label="Expected response / marking notes"
-          lines={4}
-        />
+        <>
+          <div className="sv-field" style={{ marginBottom: 'var(--sv-s2)' }}>
+            <label>Word bank (optional, separate with · or comma)</label>
+            <input
+              type="text"
+              value={Array.isArray(question.wordBank) ? question.wordBank.join(' · ') : (question.wordBank || '')}
+              onChange={e => onUpdateQuestion('wordBank', e.target.value.split(/[·,]/).map(s => s.trim()).filter(Boolean))}
+              placeholder="e.g. Lungs · Mouth · Nose · Trachea · Bronchi"
+            />
+          </div>
+          <ShortAnswerInputs
+            correctAnswer={question.correctAnswer}
+            onChange={value => onUpdateQuestion('correctAnswer', value)}
+            label="Expected response / marking notes"
+            lines={4}
+          />
+        </>
       )}
 
       {isEssay && (
@@ -1967,34 +2136,100 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, onEditQu
   )
 }
 
-function McqOptions({ question, onChangeOption, onSelectCorrect }) {
+function McqOptions({ question, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage }) {
   const options = Array.isArray(question.options) && question.options.length
     ? question.options
     : ['', '', '', '']
+  const optionMedia = Array.isArray(question.optionMedia) ? question.optionMedia : []
   const correctIndex = typeof question.correctAnswer === 'number' ? question.correctAnswer : 0
   return (
     <div className="sv-mcq-options">
-      {options.map((option, optIndex) => (
-        <div
-          key={optIndex}
-          className={`sv-mcq-option ${correctIndex === optIndex ? 'correct' : ''}`}
-          onClick={() => onSelectCorrect(optIndex)}
-          role="button"
-          tabIndex={0}
-          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectCorrect(optIndex) } }}
-        >
-          <div className="sv-letter">{SECTION_LETTERS[optIndex]}</div>
-          <input
-            className="sv-opt-text"
-            type="text"
-            value={option}
-            onChange={e => onChangeOption(optIndex, e.target.value)}
-            onClick={e => e.stopPropagation()}
-            placeholder={`Option ${SECTION_LETTERS[optIndex]}`}
+      {options.map((option, optIndex) => {
+        const media = optionMedia[optIndex]
+        return (
+          <McqOptionRow
+            key={optIndex}
+            optIndex={optIndex}
+            option={option}
+            media={media}
+            isCorrect={correctIndex === optIndex}
+            onChangeOption={onChangeOption}
+            onSelectCorrect={onSelectCorrect}
+            onUploadOptionImage={onUploadOptionImage}
+            onRemoveOptionImage={onRemoveOptionImage}
           />
-          {correctIndex === optIndex && <div className="sv-check">✓</div>}
+        )
+      })}
+    </div>
+  )
+}
+
+function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage }) {
+  const fileRef = useRef(null)
+  return (
+    <div
+      className={`sv-mcq-option ${isCorrect ? 'correct' : ''}`}
+      onClick={() => onSelectCorrect(optIndex)}
+      role="button"
+      tabIndex={0}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelectCorrect(optIndex) } }}
+      style={{ gridTemplateColumns: '24px auto 1fr auto' }}
+    >
+      <div className="sv-letter">{SECTION_LETTERS[optIndex]}</div>
+      {media?.imageUrl ? (
+        <div style={{ position: 'relative', width: 44, height: 44, borderRadius: 4, overflow: 'hidden', flexShrink: 0 }}>
+          <img src={media.imageUrl} alt={media.alt || ''} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          {onRemoveOptionImage && (
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); onRemoveOptionImage(optIndex) }}
+              style={{
+                position: 'absolute', top: -4, right: -4,
+                width: 18, height: 18, borderRadius: '50%',
+                background: 'var(--sv-primary)', color: 'white',
+                border: '2px solid white', fontSize: 10, lineHeight: 1,
+                display: 'grid', placeItems: 'center', cursor: 'pointer',
+              }}
+              aria-label="Remove option image"
+            >×</button>
+          )}
         </div>
-      ))}
+      ) : onUploadOptionImage ? (
+        <button
+          type="button"
+          onClick={e => { e.stopPropagation(); fileRef.current?.click() }}
+          title="Add image for this option"
+          style={{
+            width: 32, height: 32, borderRadius: 4,
+            border: '1.5px dashed var(--sv-border-strong)',
+            background: 'transparent', color: 'var(--sv-muted)',
+            display: 'grid', placeItems: 'center', cursor: 'pointer', flexShrink: 0,
+            fontSize: 14,
+          }}
+        >
+          🖼
+          <input
+            ref={fileRef}
+            type="file"
+            accept="image/*"
+            style={{ display: 'none' }}
+            onChange={e => {
+              const file = e.target.files?.[0]
+              if (file && onUploadOptionImage) onUploadOptionImage(optIndex, file)
+              e.target.value = ''
+            }}
+          />
+        </button>
+      ) : <span />}
+      <input
+        className="sv-opt-text"
+        type="text"
+        value={option}
+        onChange={e => onChangeOption(optIndex, e.target.value)}
+        onClick={e => e.stopPropagation()}
+        placeholder={media?.imageUrl ? `Optional caption for ${SECTION_LETTERS[optIndex]}` : `Option ${SECTION_LETTERS[optIndex]}`}
+      />
+      {isCorrect && <div className="sv-check">✓</div>}
     </div>
   )
 }
@@ -2045,79 +2280,45 @@ function FooterBlock({ form, setF, footerCode }) {
 /* ==================================================================
  * PREVIEW VIEW
  * ================================================================== */
-function PreviewView({ form, autoTitle, footerCode, parts, sections, totalMarks, changeView, onExport, onSave, saving, exporting }) {
+/* ==================================================================
+ * PAPER RENDER VIEW (preview + marking key)
+ *
+ * Walks the shared `buildPaperLayout` blocks so the in-studio rendering
+ * matches the PDF and DOCX exports pixel-for-pixel. The `mode` prop
+ * switches between the printable paper and the marking key.
+ * ================================================================== */
+function PaperRenderView({ mode, blocks, assessment, changeView, onExport, onSave, saving, exporting, showSave }) {
+  const isKey = mode === 'scheme'
   return (
     <section className="sv-view">
       <div className="sv-builder-bar">
         <button className="sv-chip" onClick={() => changeView('builder')}>📄 Builder</button>
-        <button className="sv-chip active">👁 Preview</button>
+        <button className={`sv-chip ${!isKey ? 'active' : ''}`} onClick={() => changeView('preview')}>👁 Preview</button>
+        <button className={`sv-chip ${isKey ? 'active' : ''}`} onClick={() => changeView('marking-key')}>🗝 Marking key</button>
         <span className="sv-pages mono">📃 A4 · Portrait</span>
       </div>
 
       <div className="sv-preview-shell">
         <div className="sv-paper">
-          <div className="sv-paper-banner">
-            <div className="sv-banner-left">
-              <div className="sv-paper-logo">
-                {form.schoolLogoUrl
-                  ? <img src={form.schoolLogoUrl} alt="School logo" />
-                  : <span>📚</span>}
-              </div>
-            </div>
-            <div className="sv-paper-banner-text">
-              <div className="sv-pbn-school">{(form.schoolName || 'YOUR SCHOOL NAME').toUpperCase()}</div>
-              <div className="sv-pbn-title">{autoTitle}</div>
-              <div className="sv-pbn-paper">{(form.paperName || '').toUpperCase()}</div>
-            </div>
-            <div className="sv-banner-right" aria-hidden="true" />
-          </div>
-
-          {(form.showNameField || form.showDateField) && (
-            <div className="sv-paper-name-row">
-              {form.showNameField && <><span>NAME:</span><div className="sv-line" /></>}
-              {form.showDateField && <><span>DATE:</span><div className="sv-line" style={{ maxWidth: 180 }} /></>}
-            </div>
-          )}
-          {form.showClassField && (
-            <div className="sv-paper-name-row" style={{ marginTop: 0 }}>
-              <span>CLASS:</span><div className="sv-line" />
-            </div>
-          )}
-          {form.showMarksField && <div className="sv-paper-total-marks">TOTAL MARKS: _________</div>}
-
-          {form.coverInstructions && (
-            <div className="sv-paper-instr-box">
-              <span className="sv-instr-label">Instructions</span>
-              {form.coverInstructions.split('\n').filter(Boolean).map((line, i) => (
-                <p key={i}>{line}</p>
-              ))}
-            </div>
-          )}
-
-          <PreviewBody parts={parts} sections={sections} />
-
-          {form.endOfPaperText && (
-            <div style={{ textAlign: 'center', marginTop: 24, paddingTop: 12, borderTop: '1px solid #000', fontSize: 11.5, fontStyle: 'italic', color: '#555' }}>
-              {form.endOfPaperText}
-            </div>
-          )}
-          <div className="sv-paper-footer-code">{footerCode}</div>
+          {blocks.map((block, i) => <PaperBlock key={i} block={block} />)}
         </div>
 
         <div style={{ maxWidth: 720, margin: 'var(--sv-s4) auto 0', display: 'flex', gap: 'var(--sv-s2)', flexWrap: 'wrap' }}>
           <button className="sv-btn sv-btn-primary" onClick={() => onExport('pdf')} disabled={exporting}>
-            {exporting ? '⏳ Working…' : '📄 Download PDF'}
+            {exporting ? '⏳ Working…' : `📄 ${isKey ? 'Download key PDF' : 'Download PDF'}`}
           </button>
           <button className="sv-btn sv-btn-dark" onClick={() => onExport('docx')} disabled={exporting}>
-            📝 Download Word
+            📝 {isKey ? 'Download key Word' : 'Download Word'}
           </button>
           <button className="sv-btn sv-btn-outline" onClick={() => onExport('print')}>
             🖨 Print
           </button>
-          <button className="sv-btn sv-btn-primary" onClick={onSave} disabled={saving} style={{ marginLeft: 'auto' }}>
-            {saving ? 'Saving…' : `💾 Save · ${totalMarks} marks`}
-          </button>
-          <button className="sv-btn sv-btn-outline" onClick={() => changeView('builder')}>
+          {showSave && (
+            <button className="sv-btn sv-btn-primary" onClick={onSave} disabled={saving} style={{ marginLeft: 'auto' }}>
+              {saving ? 'Saving…' : `💾 Save · ${assessment.totalMarks || 0} marks`}
+            </button>
+          )}
+          <button className="sv-btn sv-btn-outline" onClick={() => changeView('builder')} style={showSave ? {} : { marginLeft: 'auto' }}>
             ✏ Edit paper
           </button>
         </div>
@@ -2126,138 +2327,243 @@ function PreviewView({ form, autoTitle, footerCode, parts, sections, totalMarks,
   )
 }
 
-function PreviewBody({ parts, sections }) {
-  // Group sections by partId for rendering Section A, B, ...
-  const groups = useMemo(() => {
-    const out = []
-    const byPart = new Map()
-    const ungrouped = []
-    sections.forEach(section => {
-      const partId = section.kind === 'passage'
-        ? section.partId ?? null
-        : section.question?.partId ?? null
-      if (partId) {
-        if (!byPart.has(partId)) byPart.set(partId, [])
-        byPart.get(partId).push(section)
-      } else {
-        ungrouped.push(section)
-      }
-    })
-    if (ungrouped.length) out.push({ part: null, members: ungrouped, marks: 0 })
-    parts.forEach(part => {
-      const members = byPart.get(part.id) || []
-      const marks = members.reduce((sum, section) => {
-        if (section.kind === 'passage') {
-          return sum + (section.passage.questions || []).reduce((s, q) => s + (q.marks || 1), 0)
-        }
-        return sum + (section.question.marks || 1)
-      }, 0)
-      out.push({ part, members, marks })
-    })
-    return out.filter(g => g.members.length > 0)
-  }, [sections, parts])
+// Single-block renderer — switches on block.kind. Mirrors the shapes
+// returned by buildPaperLayout in src/utils/assessmentPaperLayout.js.
+function PaperBlock({ block }) {
+  switch (block.kind) {
+    case 'header': return <PaperHeaderBlock block={block} />
+    case 'learnerFields': return <PaperLearnerFieldsBlock block={block} />
+    case 'instructions': return <PaperInstructionsBlock block={block} />
+    case 'sectionHeader': return <PaperSectionHead block={block} />
+    case 'passage': return <PaperPassageBlock block={block} />
+    case 'question': return <PaperQuestionBlock block={block} />
+    case 'endOfPaper': return (
+      <div style={{ textAlign: 'center', marginTop: 24, paddingTop: 12, borderTop: '1px solid #000', fontSize: 11.5, fontStyle: 'italic', color: '#555' }}>
+        {block.text}
+      </div>
+    )
+    case 'footerCode': return <div className="sv-paper-footer-code">{block.code}</div>
+    default: return null
+  }
+}
 
-  let questionNumber = 1
+function PaperHeaderBlock({ block }) {
+  return (
+    <div className="sv-paper-banner">
+      <div className="sv-banner-left">
+        <div className="sv-paper-logo">
+          {block.logoUrl ? <img src={block.logoUrl} alt="School logo" /> : <span>📚</span>}
+        </div>
+      </div>
+      <div className="sv-paper-banner-text">
+        <div className="sv-pbn-school">{(block.schoolName || 'YOUR SCHOOL NAME').toUpperCase()}</div>
+        <div className="sv-pbn-title">{block.title}</div>
+        {block.subject && <div className="sv-pbn-subject">{block.subject}</div>}
+        {block.paperName && <div className="sv-pbn-paper">{block.paperName}</div>}
+      </div>
+      <div className="sv-banner-right" aria-hidden="true" />
+    </div>
+  )
+}
 
+function PaperLearnerFieldsBlock({ block }) {
   return (
     <>
-      {groups.map((group, idx) => {
-        const partIndex = group.part ? parts.findIndex(p => p.id === group.part.id) : -1
-        const letter = partIndex >= 0 ? SECTION_LETTERS[partIndex] : ''
-        return (
-          <div className="sv-paper-section" key={group.part?.id || `ungrouped-${idx}`}>
-            {group.part && (
-              <>
-                <div className="sv-paper-section-head">
-                  Section {letter}{group.part.title ? ` — ${group.part.title}` : ''}
-                  <span className="sv-marks">({group.marks} marks)</span>
-                </div>
-                {group.part.instructions && (
-                  <div className="sv-paper-section-instr">
-                    {typeof group.part.instructions === 'string'
-                      ? group.part.instructions
-                      : toEditableText(group.part.instructions)}
-                  </div>
-                )}
-              </>
-            )}
-            {group.members.map((section, sIdx) => {
-              if (section.kind === 'passage') {
-                const passage = section.passage
-                return (
-                  <div key={section.id || sIdx}>
-                    <div className="sv-paper-passage">
-                      {passage.title && <strong className="sv-pass-h">{passage.title}</strong>}
-                      <PlainText value={passage.passageText} />
-                      {passage.imageUrl && (
-                        <div style={{ marginTop: 8 }}>
-                          <img src={passage.imageUrl} alt="" style={{ maxWidth: '100%' }} />
-                        </div>
-                      )}
-                    </div>
-                    {(passage.questions || []).map(q => {
-                      const num = questionNumber++
-                      return <PreviewQuestion key={q.localId} question={q} num={num} />
-                    })}
-                  </div>
-                )
-              }
-              const num = questionNumber++
-              return <PreviewQuestion key={section.id || sIdx} question={section.question} num={num} />
-            })}
-          </div>
-        )
-      })}
+      {(block.name || block.date) && (
+        <div className="sv-paper-name-row">
+          {block.name && <><span>NAME:</span><div className="sv-line" /></>}
+          {block.date && <><span>DATE:</span><div className="sv-line" style={{ maxWidth: 180 }} /></>}
+        </div>
+      )}
+      {block.classField && (
+        <div className="sv-paper-name-row" style={{ marginTop: 0 }}>
+          <span>CLASS:</span><div className="sv-line" />
+        </div>
+      )}
+      {block.marks && (
+        <div className="sv-paper-total-marks">
+          TOTAL MARKS: _________ / {block.totalMarks || '____'}
+        </div>
+      )}
     </>
   )
 }
 
-function PreviewQuestion({ question, num }) {
-  const type = question.type || 'mcq'
-  const marks = question.marks || 1
-  const text = toEditableText(question.text)
+// Render instructions with inline-bold (A) (B) (C) (D). The raw text comes
+// from the form's coverInstructions textarea — split on blank lines for
+// paragraphs, then bold every (A)/(B)/(C)/(D) tag inline.
+function PaperInstructionsBlock({ block }) {
+  const paragraphs = String(block.text || '').split(/\n\s*\n/).filter(p => p.trim())
   return (
-    <div className="sv-paper-q">
-      <div className="sv-qline">
-        <strong>{num}.</strong> {text}
-        {marks > 1 && <em className="sv-qmarks">({marks}&nbsp;marks)</em>}
+    <div className="sv-paper-instr-box">
+      <span className="sv-instr-label">{block.isMarkingKey ? 'Marking key' : 'Instructions'}</span>
+      {paragraphs.map((p, i) => (
+        <p key={i}>{renderInlineOptionLetters(p.replace(/\n/g, ' '))}</p>
+      ))}
+    </div>
+  )
+}
+
+function renderInlineOptionLetters(text) {
+  const parts = []
+  const pattern = /\(([A-D])\)/g
+  let cursor = 0
+  let match
+  let key = 0
+  while ((match = pattern.exec(text)) !== null) {
+    if (match.index > cursor) parts.push(<span key={key++}>{text.slice(cursor, match.index)}</span>)
+    parts.push(<strong key={key++} className="sv-opt-tag">({match[1]})</strong>)
+    cursor = match.index + match[0].length
+  }
+  if (cursor < text.length) parts.push(<span key={key++}>{text.slice(cursor)}</span>)
+  return parts
+}
+
+function PaperSectionHead({ block }) {
+  return (
+    <div className="sv-paper-section">
+      <div className="sv-paper-section-head">
+        Section {block.letter}{block.title ? ` — ${block.title}` : ''}
+        <span className="sv-marks">({block.marks} mark{block.marks === 1 ? '' : 's'})</span>
       </div>
-      {question.imageUrl && (
-        <div className="sv-paper-diagram"><img src={question.imageUrl} alt="" /></div>
+      {block.instructions && (
+        <div className="sv-paper-section-instr">{block.instructions}</div>
       )}
-      {type === 'mcq' && Array.isArray(question.options) && question.options.length > 0 && (
-        <div className={`sv-paper-options ${question.options.some(o => String(o).length > 18) ? 'stacked' : ''}`}>
-          {question.options.map((opt, i) => (
-            <div key={i}><span className="sv-opt-letter">{SECTION_LETTERS[i]}.</span> {opt}</div>
-          ))}
-        </div>
-      )}
-      {(type === 'short_answer' || type === 'fill') && (
-        <div className="sv-paper-answer-lines">
-          <div className="sv-paper-answer-line" />
-          <div className="sv-paper-answer-line" />
-        </div>
-      )}
-      {type === 'diagram' && (
-        <div className="sv-paper-answer-lines">
-          <div className="sv-paper-answer-line" />
-          <div className="sv-paper-answer-line" />
-          <div className="sv-paper-answer-line" />
-        </div>
-      )}
-      {type === 'essay' && (
-        <div className="sv-paper-answer-lines">
-          {Array.from({ length: 6 }).map((_, i) => <div className="sv-paper-answer-line" key={i} />)}
+    </div>
+  )
+}
+
+function PaperPassageBlock({ block }) {
+  return (
+    <div className="sv-paper-passage">
+      {block.title && <strong className="sv-pass-h">{block.title}</strong>}
+      {block.text && block.text.split('\n\n').map((p, i) => <p key={i}>{p}</p>)}
+      {block.imageUrl && (
+        <div style={{ marginTop: 8, textAlign: 'center' }}>
+          <img src={block.imageUrl} alt="" style={{ maxWidth: '100%' }} />
         </div>
       )}
     </div>
   )
 }
 
-function PlainText({ value }) {
-  const text = toEditableText(value)
-  if (!text) return null
-  return text.split('\n\n').map((para, i) => <p key={i}>{para}</p>)
+function PaperQuestionBlock({ block }) {
+  const marks = block.marks ?? 1
+  return (
+    <div className="sv-paper-q">
+      <div className="sv-qline">
+        <strong>{block.number}.</strong> {block.text || '(no question text)'}
+        {marks > 1 && <em className="sv-qmarks">({marks}&nbsp;marks)</em>}
+      </div>
+      {block.imageUrl && (
+        <div className="sv-paper-diagram"><img src={block.imageUrl} alt="" /></div>
+      )}
+      {block.wordBank?.length > 0 && (
+        <div style={{ display: 'inline-block', border: '1px solid #000', padding: '4px 10px', margin: '4px 0', fontSize: 12 }}>
+          <strong>Word bank:</strong> {block.wordBank.join(' · ')}
+        </div>
+      )}
+      {block.type === 'mcq' && <PaperMcqOptions block={block} />}
+      {(block.type === 'short_answer' || block.type === 'fill') && (
+        <div className="sv-paper-answer-lines">
+          {Array.from({ length: block.answerLines || 2 }).map((_, i) => <div className="sv-paper-answer-line" key={i} />)}
+        </div>
+      )}
+      {block.type === 'diagram' && (
+        <div className="sv-paper-answer-lines">
+          {Array.from({ length: block.answerLines || 4 }).map((_, i) => <div className="sv-paper-answer-line" key={i} />)}
+        </div>
+      )}
+      {block.type === 'essay' && (
+        <div className="sv-paper-answer-lines">
+          {Array.from({ length: block.answerLines || 8 }).map((_, i) => <div className="sv-paper-answer-line" key={i} />)}
+        </div>
+      )}
+      {block.showAnswer && <PaperAnswerBlock block={block} />}
+    </div>
+  )
+}
+
+function PaperMcqOptions({ block }) {
+  const correct = Number(block.correctAnswer)
+  if (block.optionsMode === 'image') {
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, margin: '8px 0' }}>
+        {(block.options || []).map((opt, i) => {
+          const media = block.optionMedia?.[i]
+          const isCorrect = block.showAnswer && correct === i
+          return (
+            <div key={i} style={{ border: `${isCorrect ? '2px solid #047857' : '1px solid #999'}`, borderRadius: 3, padding: 4, textAlign: 'center', background: '#fafafa' }}>
+              <div style={{ aspectRatio: '1', display: 'grid', placeItems: 'center', background: 'white', borderRadius: 2, marginBottom: 2 }}>
+                {media?.imageUrl
+                  ? <img src={media.imageUrl} alt={media.alt || ''} style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }} />
+                  : <span style={{ fontSize: 24, color: '#999' }}>?</span>}
+              </div>
+              <div style={{ fontSize: 12, fontWeight: 700, color: isCorrect ? '#047857' : undefined }}>
+                {SECTION_LETTERS[i]}.{opt ? ` ${opt}` : ''}{isCorrect ? ' ✓' : ''}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+  if (block.optionsMode === 'mixed') {
+    return (
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, margin: '6px 0' }}>
+        {(block.options || []).map((opt, i) => {
+          const media = block.optionMedia?.[i]
+          const isCorrect = block.showAnswer && correct === i
+          return (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: 'auto auto 1fr', gap: 6, alignItems: 'center', padding: '4px 6px', border: '1px solid #ccc', borderRadius: 3 }}>
+              <strong style={{ color: isCorrect ? '#047857' : undefined }}>{SECTION_LETTERS[i]}.</strong>
+              {media?.imageUrl
+                ? <img src={media.imageUrl} alt={media.alt || ''} style={{ width: 40, height: 40, objectFit: 'contain' }} />
+                : <span style={{ width: 40, height: 40, display: 'inline-block' }} />}
+              <span style={{ color: isCorrect ? '#047857' : undefined, fontWeight: isCorrect ? 700 : 400 }}>
+                {opt}{isCorrect ? ' ✓' : ''}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    )
+  }
+  const long = (block.options || []).some(o => String(o).length > 18)
+  return (
+    <div className={`sv-paper-options ${long ? 'stacked' : ''}`}>
+      {(block.options || []).map((opt, i) => {
+        const isCorrect = block.showAnswer && correct === i
+        return (
+          <div key={i} style={isCorrect ? { color: '#047857', fontWeight: 700 } : undefined}>
+            <span className="sv-opt-letter">{SECTION_LETTERS[i]}.</span> {opt}{isCorrect ? '  ✓' : ''}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function PaperAnswerBlock({ block }) {
+  let body = null
+  if (block.type === 'mcq') {
+    const i = Number(block.correctAnswer)
+    const letter = SECTION_LETTERS[i] || '?'
+    const opt = block.options?.[i] ?? ''
+    body = <><strong>Answer:</strong> {letter}. {String(opt)}</>
+  } else {
+    body = <><strong>Expected answer:</strong> {String(block.correctAnswer ?? '')}</>
+  }
+  return (
+    <div style={{ margin: '4px 0 4px 14px', padding: '4px 8px', background: '#ecfdf5', borderLeft: '3px solid #047857', fontSize: 12, color: '#047857' }}>
+      <div>{body}</div>
+      {block.explanation && (
+        <div style={{ color: '#555', fontStyle: 'italic', fontSize: 11, marginTop: 2 }}>
+          Notes: {block.explanation}
+        </div>
+      )}
+    </div>
+  )
 }
 
 /* ==================================================================

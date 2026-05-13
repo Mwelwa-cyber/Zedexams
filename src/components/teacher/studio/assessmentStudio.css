@@ -158,6 +158,145 @@
   margin-left: var(--sv-s2);
 }
 
+/* ============================================================
+   COMPACT DOCK + FAB (replaces the chunky bottom bar)
+
+   .sv-dock = slim horizontal chip rail (Home/Build/Preview/Key/AI)
+   .sv-fab  = floating "+" button anchored bottom-right for the
+              primary "add block" action. The new design covers
+              less content, mobile-first but professional.
+   ============================================================ */
+.studio-v2 .sv-dock {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom) + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: inline-flex;
+  align-items: center;
+  background: var(--sv-ink);
+  color: var(--sv-canvas);
+  border-radius: 99px;
+  padding: 4px;
+  box-shadow: 0 12px 28px rgba(14,44,48,0.28), 0 4px 10px rgba(14,44,48,0.18);
+  gap: 2px;
+  max-width: calc(100vw - 32px);
+  overflow-x: auto;
+}
+.studio-v2 .sv-dock::-webkit-scrollbar { display: none; }
+
+.studio-v2 .sv-dock-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 12px;
+  border-radius: 99px;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: rgba(244,239,229,0.78);
+  background: transparent;
+  white-space: nowrap;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+.studio-v2 .sv-dock-btn:hover {
+  background: rgba(244,239,229,0.10);
+  color: var(--sv-canvas);
+}
+.studio-v2 .sv-dock-btn.active {
+  background: var(--sv-canvas);
+  color: var(--sv-ink);
+}
+.studio-v2 .sv-dock-ic { font-size: 14px; line-height: 1; }
+.studio-v2 .sv-dock-lbl { font-weight: 500; }
+
+@media (max-width: 540px) {
+  .studio-v2 .sv-dock-lbl { display: none; }
+  .studio-v2 .sv-dock-btn { padding: 8px 10px; }
+  .studio-v2 .sv-dock-ic { font-size: 16px; }
+}
+
+.studio-v2 .sv-fab {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom) + 76px);
+  right: 20px;
+  z-index: 51;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--sv-primary);
+  color: white;
+  box-shadow: 0 10px 22px rgba(139,38,53,0.40), 0 4px 8px rgba(139,38,53,0.25);
+  display: grid;
+  place-items: center;
+  font-size: 28px;
+  font-weight: 300;
+  line-height: 1;
+  transition: transform 0.15s, background 0.15s;
+  cursor: pointer;
+}
+.studio-v2 .sv-fab:hover {
+  background: var(--sv-primary-dark);
+  transform: scale(1.05);
+}
+.studio-v2 .sv-fab-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 99px;
+  background: #FFC107;
+  color: var(--sv-ink);
+  font-size: 11px;
+  font-weight: 700;
+  display: grid;
+  place-items: center;
+  padding: 0 5px;
+  border: 2px solid white;
+}
+
+/* Hide the older totals bar — we no longer render it. */
+.studio-v2 .sv-totals-bar { display: none !important; }
+
+/* Subject line in preview banner — sits between TITLE and PAPER NAME. */
+.studio-v2 .sv-paper-banner-text .sv-pbn-subject {
+  font-weight: 800;
+  font-size: 16px;
+  margin-top: 4px;
+  letter-spacing: 0.04em;
+}
+.studio-v2 .sv-subject-auto {
+  font-weight: 800;
+  font-size: 14px;
+  margin-top: 3px;
+  letter-spacing: 0.04em;
+}
+
+/* Smart-warnings banner above the builder content. */
+.studio-v2 .sv-warnings {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0 0 var(--sv-s3);
+}
+.studio-v2 .sv-warn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-radius: var(--sv-r);
+  font-size: 13px;
+  line-height: 1.4;
+  border: 1px solid transparent;
+}
+.studio-v2 .sv-warn-error  { background: var(--sv-primary-soft); color: #6D1D2A; border-color: rgba(139,38,53,0.25); }
+.studio-v2 .sv-warn-warn   { background: var(--sv-gold-soft);    color: #7A5A1F; border-color: rgba(200,146,61,0.30); }
+.studio-v2 .sv-warn-info   { background: var(--sv-indigo-soft);  color: #2C3870; border-color: rgba(63,79,139,0.20); }
+.studio-v2 .sv-warn-ic { flex-shrink: 0; font-size: 14px; }
+.studio-v2 .sv-warn-msg { flex: 1; }
+
+/* (Old) bottom bar block — kept below for legacy class lookups. */
 .studio-v2 .sv-bottom-bar {
   position: fixed;
   bottom: 0;
