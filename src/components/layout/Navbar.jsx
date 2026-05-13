@@ -149,8 +149,8 @@ export default function Navbar() {
 
       {/* Mobile drawer */}
       {open && (
-        <div className="md:hidden border-t theme-border theme-card shadow-elev-lg animate-slide-up">
-          <div className="max-w-5xl mx-auto px-4 py-3">
+        <div className="md:hidden border-t theme-border theme-card shadow-elev-lg animate-slide-up max-h-[calc(100dvh-5rem)] overflow-y-auto overscroll-contain">
+          <div className="max-w-5xl mx-auto px-4 py-3 pb-24">
             {/* User info */}
             <div className="flex items-center gap-3 py-3 mb-2 border-b theme-border">
               <div className="theme-accent-fill theme-on-accent flex h-10 w-10 items-center justify-center rounded-full font-black shadow-elev-inner-hl">
