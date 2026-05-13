@@ -1935,12 +1935,21 @@ exports.setSubscriptionCancellation = require("./subscriptionLifecycle").setSubs
 exports.apiTextToSpeech = require('./tts').apiTextToSpeech;
 
 // Admin dashboard overhaul — user lifecycle callables.
-// adminSetUserStatus soft-suspends or restores an account and revokes the
-// user's Auth refresh tokens on suspension; adminSetUserRole mutates role
-// with an audit-log entry. Both require the caller to be an admin
-// (verified by Firestore role lookup inside the callable).
-exports.adminSetUserStatus = require("./adminUsers").adminSetUserStatus;
-exports.adminSetUserRole = require("./adminUsers").adminSetUserRole;
+//
+// TEMPORARILY DISABLED to unblock the Deploy Firebase workflow that
+// failed after PR #417 merged (run #118). The admin UI keeps working
+// because src/utils/adminUsersService.js already falls back to a
+// direct Firestore write when the callable is unavailable — only the
+// server-stamped audit-log entries from these two callables are
+// missed in the meantime. The agent dispatcher audit hook is
+// independent and stays enabled.
+//
+// Re-enable in a follow-up once we've inspected the deploy log tail
+// and confirmed which side (project IAM vs. these specific callables)
+// owns the failure.
+//
+// exports.adminSetUserStatus = require("./adminUsers").adminSetUserStatus;
+// exports.adminSetUserRole = require("./adminUsers").adminSetUserRole;
 
 // Admin-only callable that bulk-creates demo learner accounts with a
 // trial Premium subscription. Mirrors the layout the admin UI's
