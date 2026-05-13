@@ -20,6 +20,7 @@ import { generateAIQuizQuestions } from '../../utils/aiAssistant'
 import { generateDiagram } from '../../utils/generateDiagram'
 import { suggestAnswer as suggestAnswerCall } from '../../utils/suggestAnswer'
 import {
+  createPagebreakSection,
   createPartGroup,
   createPassageSection,
   createStandaloneSection,
@@ -361,6 +362,7 @@ export default function AssessmentStudio() {
     showMarksField: form.showMarksField,
     showClassField: form.showClassField,
     passages: serializedPreview.passages,
+    pagebreaks: serializedPreview.pagebreaks,
     parts: serializedPreview.parts,
     totalMarks,
     questionCount,
@@ -1072,6 +1074,9 @@ export default function AssessmentStudio() {
       case 'passage':
         newSection = createPassageSection()
         break
+      case 'pagebreak':
+        newSection = createPagebreakSection()
+        break
       case 'section': {
         addPart()
         showToast('Section added.')
@@ -1565,6 +1570,8 @@ function BuilderGroup({ group, allParts, questionNumbers, paperMeta, onAddBlock,
       if (section.kind === 'passage') {
         return sum + (section.passage.questions || []).reduce((s, q) => s + (q.marks || 1), 0)
       }
+      // Page breaks are structural markers with no marks.
+      if (section.kind === 'pagebreak') return sum
       return sum + (section.question.marks || 1)
     }, 0)
   }, [group.members])
@@ -1888,6 +1895,15 @@ function SectionBlock(props) {
     onAssignSectionToPart,
   } = props
 
+  if (section.kind === 'pagebreak') {
+    return (
+      <PagebreakBlock
+        sectionIndex={sectionIndex}
+        onMoveSection={onMoveSection}
+        onRemoveSection={onRemoveSection}
+      />
+    )
+  }
   if (section.kind === 'passage') {
     return (
       <PassageBlock
@@ -2045,6 +2061,27 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
 // Question fields whose edits invalidate any prior AI answer suggestion.
 // Module-scope so the array is allocated once per page load, not per render.
 const FIELDS_THAT_INVALIDATE_SUGGESTION = ['text', 'options', 'correctAnswer', 'wordBank', 'numericTolerance', 'numericUnit', 'matchingLeft', 'matchingRight', 'matchingAnswer', 'sequenceItems', 'sequenceAnswer']
+
+// Page break marker in the builder. Has no editable content — just a
+// visible "PAGE BREAK" divider that the teacher can reorder or delete.
+// The actual page-break behaviour lives in the PDF/DOCX exporters.
+function PagebreakBlock({ sectionIndex, onMoveSection, onRemoveSection }) {
+  return (
+    <div className="sv-block b-pagebreak" style={{ background: '#f8fafc', border: '1px dashed #94a3b8', borderRadius: 6 }}>
+      <div className="sv-block-head" style={{ color: '#475569' }}>
+        <span className="sv-ic">↵</span> Page break
+        <span className="sv-tools">
+          <button className="sv-tool" title="Move up" onClick={() => onMoveSection(sectionIndex, -1)}>↑</button>
+          <button className="sv-tool" title="Move down" onClick={() => onMoveSection(sectionIndex, 1)}>↓</button>
+          <button className="sv-tool danger" title="Delete" onClick={() => onRemoveSection(sectionIndex)}>🗑</button>
+        </span>
+      </div>
+      <div style={{ textAlign: 'center', color: '#94a3b8', fontSize: 11, padding: '4px 0 8px', textTransform: 'uppercase', letterSpacing: 1 }}>
+        — Forces a new page when printed / exported —
+      </div>
+    </div>
+  )
+}
 
 // Module-scope colour palette for the AI suggestion notice — kept out of
 // the component body so it isn't reallocated per render.
@@ -2897,6 +2934,13 @@ function PaperBlock({ block }) {
     case 'sectionHeader': return <PaperSectionHead block={block} />
     case 'passage': return <PaperPassageBlock block={block} />
     case 'question': return <PaperQuestionBlock block={block} />
+    case 'pagebreak': return (
+      <div style={{ borderTop: '2px dashed #94a3b8', margin: '28px 0 14px', position: 'relative' }}>
+        <span style={{ position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)', background: '#fff', padding: '0 10px', fontSize: 10, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 1 }}>
+          Page break
+        </span>
+      </div>
+    )
     case 'endOfPaper': return (
       <div style={{ textAlign: 'center', marginTop: 24, paddingTop: 12, borderTop: '1px solid #000', fontSize: 11.5, fontStyle: 'italic', color: '#555' }}>
         {block.text}
@@ -3249,7 +3293,7 @@ function BlockPickerSlide({ open, onClose, onPick }) {
           <BlockPickerItem icon="📑" title="Section" hint="Container with title & instructions" onClick={() => onPick('section')} />
           <BlockPickerItem icon="📌" title="Part" hint="Coming soon" disabled />
           <BlockPickerItem icon="📋" title="Instructions" hint="Always rendered at top of paper" disabled />
-          <BlockPickerItem icon="↵" title="Page break" hint="Coming soon" disabled />
+          <BlockPickerItem icon="↵" title="Page break" hint="Force a new page when printed / exported" onClick={() => onPick('pagebreak')} />
         </div>
 
         <div className="sv-block-cat">Questions</div>

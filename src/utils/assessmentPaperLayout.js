@@ -206,6 +206,19 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
   const passagesByPart = passageMembersByPart(assessment.passages || [], assessment.parts || [])
   const usedPassages = new Set()
 
+  // Page breaks are stored as `{id, order, partId}` items in a separate
+  // array on the assessment doc, mirroring how passages are stored. We
+  // group them by partId here so they slot into the same merge-by-order
+  // iteration as standalone questions + passages below.
+  const pagebreaksByPart = new Map()
+  pagebreaksByPart.set(null, [])
+  for (const part of assessment.parts || []) pagebreaksByPart.set(part.id, [])
+  for (const pb of assessment.pagebreaks || []) {
+    const key = pb.partId || null
+    if (!pagebreaksByPart.has(key)) pagebreaksByPart.set(key, [])
+    pagebreaksByPart.get(key).push(pb)
+  }
+
   // 5. Sections (Parts) + their questions + passages
   let runningNumber = 0
   groups.forEach((group, groupIndex) => {
@@ -229,20 +242,23 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
       // only if there's enough content. Otherwise skip silently.
     }
 
-    // Emit each part's renderable items (standalone questions + passages)
-    // in the author-typed order. The serializer writes an `order` field
-    // onto both passages (= the order of their first child question) and
-    // standalone questions, so we merge-and-sort by that. Previously we
-    // emitted all passages first and all standalones after, which silently
-    // reordered any interleaved layout.
+    // Emit each part's renderable items (standalone questions + passages
+    // + page breaks) in the author-typed order. The serializer writes an
+    // `order` field onto all three kinds, so we merge-and-sort by that.
+    // Page breaks DO NOT increment the running question number — they're
+    // just structural markers between questions.
     const partPassages = passagesByPart.get(group.id || null) || []
     const standaloneQs = group.questions.filter(q => !q.passageId)
+    const partPagebreaks = pagebreaksByPart.get(group.id || null) || []
     const items = []
     for (const passage of partPassages) {
       items.push({ kind: 'passage', order: passage.order ?? 0, passage })
     }
     for (const q of standaloneQs) {
       items.push({ kind: 'standalone', order: q.order ?? 0, q })
+    }
+    for (const pb of partPagebreaks) {
+      items.push({ kind: 'pagebreak', order: pb.order ?? 0, pb })
     }
     items.sort((a, b) => a.order - b.order)
 
@@ -261,6 +277,8 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
           runningNumber += 1
           blocks.push(buildQuestionBlock(q, runningNumber, includeAnswers))
         }
+      } else if (item.kind === 'pagebreak') {
+        blocks.push({ kind: 'pagebreak' })
       } else {
         runningNumber += 1
         blocks.push(buildQuestionBlock(item.q, runningNumber, includeAnswers))

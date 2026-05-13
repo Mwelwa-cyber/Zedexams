@@ -227,7 +227,7 @@ export default function EditAssessment() {
         importWarnings: assessment.importWarnings ?? [],
       })
       setAssessmentOwner(assessment.createdBy)
-      const hydrated = hydrateQuizSections(questions, assessment.passages || [], assessment.parts || [])
+      const hydrated = hydrateQuizSections(questions, assessment.passages || [], assessment.parts || [], assessment.pagebreaks || [])
       setSections(hydrated.sections)
       setParts(hydrated.parts)
       setDeletedIds([])
