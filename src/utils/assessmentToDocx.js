@@ -369,6 +369,16 @@ async function renderQuestion(b) {
     if (tableRows.length) {
       out.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: tableRows }))
     }
+  } else if (b.type === 'sequence') {
+    // One line per item, prefixed with a short blank where the student
+    // writes the correct position.
+    const items = Array.isArray(b.sequenceItems) ? b.sequenceItems : []
+    for (const it of items) {
+      out.push(para([
+        runText('______  ', { size: 20 }),
+        runText(String(it || ''), { size: 20 }),
+      ]))
+    }
   } else if (b.type === 'diagram') {
     const lines = b.answerLines || 4
     for (let i = 0; i < lines; i += 1) {
@@ -412,6 +422,20 @@ async function renderQuestion(b) {
       out.push(para([
         runText('Answer: ', { bold: true, size: 20, color: '047857' }),
         runText(pairs, { size: 20, color: '047857' }),
+      ]))
+    } else if (b.type === 'sequence') {
+      const items = Array.isArray(b.sequenceItems) ? b.sequenceItems : []
+      const answer = Array.isArray(b.sequenceAnswer) ? b.sequenceAnswer : []
+      const ordered = items
+        .map((it, idx) => ({ pos: Number(answer[idx]) || 999, text: it }))
+        .sort((a, b2) => a.pos - b2.pos)
+      const seq = ordered.map(e => {
+        const label = e.pos < 999 ? `${e.pos}.` : '?'
+        return `${label} ${e.text || '—'}`
+      }).join('   ')
+      out.push(para([
+        runText('Correct order: ', { bold: true, size: 20, color: '047857' }),
+        runText(seq, { size: 20, color: '047857' }),
       ]))
     } else {
       out.push(para([

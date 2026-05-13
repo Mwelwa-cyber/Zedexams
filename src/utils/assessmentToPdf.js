@@ -311,6 +311,9 @@ body {
 .numeric-unit { font-size: 11pt; }
 .match-columns { display: grid; grid-template-columns: 1fr 1fr; column-gap: 36pt; margin: 6pt 0 12pt; }
 .match-row { padding: 3pt 0; border-bottom: 1px dotted #999; }
+.seq-list { margin: 6pt 0 12pt; }
+.seq-row { display: flex; align-items: center; gap: 10pt; padding: 3pt 0; border-bottom: 1px dotted #999; }
+.seq-blank { display: inline-block; width: 30pt; border-bottom: 1px solid #000; height: 12pt; }
 
 .diagram-box {
   border: 1px dashed #999;
@@ -459,6 +462,8 @@ function renderQuestion(b) {
     body += renderNumericLine(b)
   } else if (b.type === 'matching') {
     body += renderMatchingColumns(b)
+  } else if (b.type === 'sequence') {
+    body += renderSequenceList(b)
   }
 
   if (b.showAnswer) {
@@ -527,6 +532,18 @@ function renderNumericLine(b) {
   return `<div class="numeric-line"><span class="answer-line numeric"></span>${unit}</div>`
 }
 
+// Sequence questions render as a single column of items, each preceded by
+// a short underline where the student writes the correct 1-based position.
+// Printed in the order the teacher typed (typically jumbled).
+function renderSequenceList(b) {
+  const items = Array.isArray(b.sequenceItems) ? b.sequenceItems : []
+  let html = ''
+  for (const it of items) {
+    html += `<div class="seq-row"><span class="seq-blank"></span>${escapeHtml(it || '')}</div>`
+  }
+  return `<div class="seq-list">${html}</div>`
+}
+
 // Matching questions render as two side-by-side columns. Students draw
 // lines between the left prompts and the right options; rendering matches
 // the studio's PaperMatching preview exactly so what teachers see is what
@@ -574,6 +591,17 @@ function renderAnswerBlock(b) {
       return `${i + 1}→${escapeHtml(letter)}${r ? ` (${escapeHtml(r)})` : ''}`
     }).join('&nbsp;&nbsp; ')
     body = `<div><span class="label">Answer:</span> ${pairs}</div>`
+  } else if (b.type === 'sequence') {
+    const items = Array.isArray(b.sequenceItems) ? b.sequenceItems : []
+    const answer = Array.isArray(b.sequenceAnswer) ? b.sequenceAnswer : []
+    const ordered = items
+      .map((it, idx) => ({ pos: Number(answer[idx]) || 999, text: it }))
+      .sort((a, b2) => a.pos - b2.pos)
+    const seq = ordered.map(e => {
+      const label = e.pos < 999 ? `${e.pos}.` : '?'
+      return `${label} ${escapeHtml(e.text || '—')}`
+    }).join('&nbsp;&nbsp; ')
+    body = `<div><span class="label">Correct order:</span> ${seq}</div>`
   } else {
     body = `<div><span class="label">Expected answer:</span> ${escapeHtml(String(b.correctAnswer ?? ''))}</div>`
   }

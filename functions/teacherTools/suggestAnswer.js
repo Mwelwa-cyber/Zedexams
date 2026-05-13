@@ -49,6 +49,7 @@ const ALLOWED_TYPES = new Set([
   "true_false",
   "fill_blank",
   "matching",
+  "sequence",
 ]);
 
 const ALLOWED_LANGUAGES = new Set([
@@ -109,6 +110,13 @@ function sanitizeInputs(raw = {}) {
     .slice(0, 10)
     .map((v) => str(v, 200));
 
+  // Sequence items — one column the student reorders. Same length cap +
+  // blank-preserving policy as matching.
+  const rawItems = Array.isArray(raw.sequenceItems) ? raw.sequenceItems : [];
+  const sequenceItems = rawItems
+    .slice(0, 10)
+    .map((v) => str(v, 200));
+
   return {
     type: ALLOWED_TYPES.has(type) ? type : "short_answer",
     text,
@@ -122,6 +130,7 @@ function sanitizeInputs(raw = {}) {
     tolerance,
     matchingLeft,
     matchingRight,
+    sequenceItems,
   };
 }
 
@@ -138,6 +147,15 @@ function validateInputs(inputs) {
       errs.push(
         "Matching needs at least two filled-in items on each side before " +
         "AI can suggest answers.",
+      );
+    }
+  }
+  if (inputs.type === "sequence") {
+    const filled = inputs.sequenceItems.filter((s) => s.length > 0).length;
+    if (filled < 2) {
+      errs.push(
+        "Sequence needs at least two filled-in items before AI can " +
+        "suggest the order.",
       );
     }
   }
@@ -163,6 +181,10 @@ const SYSTEM_PROMPT = [
   "- For matching, return an array of 0-based integers — one per left-column",
   "  row — pointing at the right-column entry that pairs with each left item.",
   "  The array length MUST equal the number of left-column items shown.",
+  "- For sequence, return an array of 1-based positions — one per item in",
+  "  the displayed order. position[i] is where item[i] should land in the",
+  "  correct sequence (1 = first, N = last). The array MUST be a permutation",
+  "  of 1..N (every position used exactly once).",
   "- Rationale: one sentence, ≤ 30 words, suitable for a teacher to verify at a glance.",
   "- Confidence: 'high' if you are certain, 'medium' if there is mild ambiguity,",
   "  'low' if the question is ambiguous, off-syllabus, or you had to guess.",
@@ -203,6 +225,26 @@ function buildUserPrompt(inputs) {
   if (inputs.wordBank.length > 0) {
     lines.push("");
     lines.push(`Word bank teacher provided: ${inputs.wordBank.join(", ")}`);
+  }
+
+  // Sequence guidance — show items in their display order with their
+  // index and ask the model for a permutation of 1..N giving each item's
+  // correct position. We're explicit about the permutation invariant so
+  // the model doesn't reuse positions.
+  if (inputs.type === "sequence") {
+    const items = inputs.sequenceItems;
+    lines.push("");
+    lines.push("Items (in display order — return one position per item):");
+    items.forEach((item, i) => {
+      lines.push(`  [${i + 1}] ${item || "(blank)"}`);
+    });
+    lines.push("");
+    lines.push(
+      `Return an array of exactly ${items.length} integers, each between 1 ` +
+      `and ${items.length}. position[i] is the correct 1-based position of ` +
+      "the item at display index i. The array MUST be a permutation of " +
+      `1..${items.length} (every position used exactly once).`,
+    );
   }
 
   // Matching guidance — render the two columns side-by-side using the
@@ -339,6 +381,36 @@ function coerceResult(parsed, inputs) {
       answer: coerced,
       rationale,
       confidence: anyMissing ? "low" : confidence,
+    };
+  }
+
+  if (inputs.type === "sequence") {
+    const raw = parsed && parsed.answer;
+    const n = inputs.sequenceItems.length;
+    if (!Array.isArray(raw)) {
+      return {
+        answer: Array(n).fill(0),
+        rationale,
+        confidence: "low",
+      };
+    }
+    // Each position must be a 1-based integer in [1..n] and the array
+    // must be a permutation (every position used exactly once). If any
+    // entry is invalid or duplicated, we replace it with 0 and downgrade
+    // confidence — the studio will show the badge as a warning.
+    const used = new Set();
+    const coerced = Array.from({length: n}, (_, i) => {
+      const v = Number(raw[i]);
+      if (!Number.isInteger(v) || v < 1 || v > n) return 0;
+      if (used.has(v)) return 0;
+      used.add(v);
+      return v;
+    });
+    const anyZero = coerced.some((v) => v === 0);
+    return {
+      answer: coerced,
+      rationale,
+      confidence: anyZero ? "low" : confidence,
     };
   }
 
