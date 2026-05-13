@@ -1080,7 +1080,7 @@ export default function LessonEditor() {
             <p className="text-eyebrow text-sky-700">Quick lesson mode</p>
             <h1 className="text-display-xl text-gray-900 mt-1">Convert notes into slides</h1>
           </div>
-          <button onClick={() => setSelectedMode(null)} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-black text-gray-600 shadow-elev-sm transition-all duration-fast ease-out hover:-translate-y-px hover:shadow-elev-md">
+          <button onClick={() => setSelectedMode(null)} className="btn-secondary font-black">
             Change mode
           </button>
         </div>
@@ -1108,7 +1108,7 @@ export default function LessonEditor() {
             <p className="text-eyebrow text-emerald-700">Import PowerPoint</p>
             <h1 className="text-display-xl text-gray-900 mt-1">Upload and convert a .pptx lesson</h1>
           </div>
-          <button onClick={() => setSelectedMode(null)} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-black text-gray-600 shadow-elev-sm transition-all duration-fast ease-out hover:-translate-y-px hover:shadow-elev-md">
+          <button onClick={() => setSelectedMode(null)} className="btn-secondary font-black">
             Change mode
           </button>
         </div>
@@ -1139,22 +1139,22 @@ export default function LessonEditor() {
           </div>
           <div className="flex flex-wrap gap-2">
             {!isEditing && (
-              <button onClick={() => setSelectedMode(null)} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-black text-gray-600 shadow-elev-sm transition-all duration-fast ease-out hover:-translate-y-px hover:shadow-elev-md">
+              <button onClick={() => setSelectedMode(null)} className="btn-secondary font-black">
                 Change mode
               </button>
             )}
-            <button onClick={() => setPreviewOpen(true)} disabled={convertingPresentation || (!form.presentation?.slideImages?.length && !form.presentation?.sourceFileName)} className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-black text-gray-700 shadow-elev-sm transition-all duration-fast ease-out hover:-translate-y-px hover:shadow-elev-md disabled:opacity-50 disabled:pointer-events-none">
+            <button onClick={() => setPreviewOpen(true)} disabled={convertingPresentation || (!form.presentation?.slideImages?.length && !form.presentation?.sourceFileName)} className="btn-secondary font-black disabled:opacity-50 disabled:pointer-events-none">
               Preview
             </button>
-            <button onClick={() => saveLesson({})} disabled={saving || convertingPresentation} className="rounded-xl border-2 border-sky-500 bg-white px-4 py-2 text-sm font-black text-sky-700 shadow-elev-sm transition-all duration-fast ease-out hover:-translate-y-px hover:shadow-elev-md disabled:opacity-50 disabled:pointer-events-none">
+            <button onClick={() => saveLesson({})} disabled={saving || convertingPresentation} className="btn-secondary font-black disabled:opacity-50 disabled:pointer-events-none">
               {saving ? 'Saving…' : isEditing ? 'Save changes' : 'Save draft'}
             </button>
             {isAdmin ? (
-              <button onClick={() => saveLesson({ publish: true })} disabled={saving || convertingPresentation} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white shadow-elev-sm shadow-elev-inner-hl transition-all duration-fast ease-out hover:-translate-y-px hover:shadow-elev-md disabled:opacity-50 disabled:pointer-events-none">
+              <button onClick={() => saveLesson({ publish: true })} disabled={saving || convertingPresentation} className="btn-primary font-black disabled:opacity-50 disabled:pointer-events-none">
                 Publish
               </button>
             ) : (
-              <button onClick={() => saveLesson({ submit: true })} disabled={saving || convertingPresentation} className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-black text-white shadow-elev-sm shadow-elev-inner-hl transition-all duration-fast ease-out hover:-translate-y-px hover:shadow-elev-md disabled:opacity-50 disabled:pointer-events-none">
+              <button onClick={() => saveLesson({ submit: true })} disabled={saving || convertingPresentation} className="btn-primary font-black disabled:opacity-50 disabled:pointer-events-none">
                 Submit
               </button>
             )}
@@ -1192,19 +1192,19 @@ export default function LessonEditor() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <button onClick={() => setPreviewOpen(true)} className="rounded-xl border-2 border-gray-200 bg-white px-4 py-2 text-sm font-black text-gray-700 shadow-elev-sm transition-all duration-fast ease-out hover:-translate-y-px hover:shadow-elev-md">
+          <button onClick={() => setPreviewOpen(true)} className="btn-secondary font-black">
             Preview
           </button>
-          <button onClick={() => saveLesson({})} disabled={saving} className="rounded-xl border-2 border-emerald-500 bg-white px-4 py-2 text-sm font-black text-emerald-700 shadow-elev-sm transition-all duration-fast ease-out hover:-translate-y-px hover:shadow-elev-md disabled:opacity-50 disabled:pointer-events-none">
+          <button onClick={() => saveLesson({})} disabled={saving} className="btn-secondary font-black disabled:opacity-50 disabled:pointer-events-none">
             {saving ? 'Saving…' : isEditing ? 'Save changes' : 'Save draft'}
           </button>
           {isAdmin && (
-            <button onClick={() => saveLesson({ publish: true })} disabled={saving} className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-black text-white shadow-elev-sm shadow-elev-inner-hl transition-all duration-fast ease-out hover:-translate-y-px hover:shadow-elev-md disabled:opacity-50 disabled:pointer-events-none">
+            <button onClick={() => saveLesson({ publish: true })} disabled={saving} className="btn-primary font-black disabled:opacity-50 disabled:pointer-events-none">
               Publish
             </button>
           )}
           {!isAdmin && (
-            <button onClick={() => saveLesson({ submit: true })} disabled={saving} className="rounded-xl bg-sky-600 px-4 py-2 text-sm font-black text-white shadow-elev-sm shadow-elev-inner-hl transition-all duration-fast ease-out hover:-translate-y-px hover:shadow-elev-md disabled:opacity-50 disabled:pointer-events-none">
+            <button onClick={() => saveLesson({ submit: true })} disabled={saving} className="btn-primary font-black disabled:opacity-50 disabled:pointer-events-none">
               Submit
             </button>
           )}

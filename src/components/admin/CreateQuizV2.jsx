@@ -1204,10 +1204,7 @@ export default function CreateQuizV2() {
         <button
           type="button"
           onClick={() => navigate(-1)}
-          className="inline-flex items-center gap-2 rounded-xl border-2 font-bold no-underline transition-colors"
-          style={{ background: '#fff', borderColor: '#0e2a32', color: '#0e2a32', padding: '8px 14px', fontSize: 13 }}
-          onMouseEnter={e => { e.currentTarget.style.background = '#f5efe1' }}
-          onMouseLeave={e => { e.currentTarget.style.background = '#fff' }}
+          className="btn-secondary font-bold"
         >
           ← Back
         </button>
@@ -1400,15 +1397,15 @@ export default function CreateQuizV2() {
       </div>
 
       <div className="flex gap-3 pb-6">
-        <button type="button" onClick={() => handleSave({})} disabled={saving || anyUploading} className="theme-card theme-border theme-text hover:border-[var(--accent)] hover:theme-accent-text flex-1 rounded-2xl border-2 py-3.5 font-black transition-all duration-fast ease-out shadow-elev-sm hover:-translate-y-px hover:shadow-elev-md disabled:opacity-50 disabled:pointer-events-none">
+        <button type="button" onClick={() => handleSave({})} disabled={saving || anyUploading} className="btn-secondary flex-1 py-3.5 font-black disabled:opacity-50 disabled:pointer-events-none">
           {saving ? 'Saving…' : anyUploading ? 'Uploading…' : '💾 Save draft'}
         </button>
         {isAdmin ? (
-          <button type="button" onClick={() => handleSave({ publish: true })} disabled={saving || anyUploading} className="theme-accent-fill theme-on-accent flex-1 rounded-2xl py-3.5 font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md disabled:opacity-50 disabled:pointer-events-none">
+          <button type="button" onClick={() => handleSave({ publish: true })} disabled={saving || anyUploading} className="btn-primary flex-1 py-3.5 font-black disabled:opacity-50 disabled:pointer-events-none">
             {saving ? 'Publishing…' : anyUploading ? 'Uploading…' : '🚀 Publish quiz'}
           </button>
         ) : (
-          <button type="button" onClick={() => handleSave({ submit: true })} disabled={saving || anyUploading} className="theme-accent-fill theme-on-accent flex-1 rounded-2xl py-3.5 font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md disabled:opacity-50 disabled:pointer-events-none">
+          <button type="button" onClick={() => handleSave({ submit: true })} disabled={saving || anyUploading} className="btn-primary flex-1 py-3.5 font-black disabled:opacity-50 disabled:pointer-events-none">
             {saving ? 'Submitting…' : anyUploading ? 'Uploading…' : '📤 Submit for approval'}
           </button>
         )}

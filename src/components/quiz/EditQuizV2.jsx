@@ -921,7 +921,7 @@ export default function EditQuizV2() {
         )}
       </div>
 
-      <div className="theme-card theme-border space-y-4 rounded-2xl border p-5 shadow-elev-sm">
+      <div className="surface space-y-4 p-5">
         <h2 className="text-display-md theme-text flex items-center gap-2" style={{ fontSize: 17 }}>
           <span aria-hidden="true">📋</span> Quiz details
         </h2>
@@ -1014,15 +1014,15 @@ export default function EditQuizV2() {
         </div>
       )}
 
-      <div className="theme-card theme-border space-y-3 rounded-2xl border p-4 shadow-elev-sm">
+      <div className="surface space-y-3 p-4">
         <p className="text-eyebrow">Save options</p>
         <div className="grid gap-3 sm:grid-cols-3">
-          <button type="button" onClick={() => handleSave('draft')} disabled={saving || anyUploading} className="theme-card theme-border theme-text hover:border-[var(--accent)] hover:theme-accent-text flex min-h-0 items-center justify-center gap-2 rounded-2xl border-2 py-3 font-black transition-all duration-fast ease-out shadow-elev-sm hover:-translate-y-px hover:shadow-elev-md disabled:opacity-40 disabled:pointer-events-none">
+          <button type="button" onClick={() => handleSave('draft')} disabled={saving || anyUploading} className="btn-secondary min-h-0 justify-center py-3 font-black disabled:opacity-40 disabled:pointer-events-none">
             <span aria-hidden="true">💾</span>
             <span>{saving ? 'Saving…' : anyUploading ? 'Uploading…' : 'Save draft'}</span>
           </button>
           {!isAdmin && (
-            <button type="button" onClick={() => handleSave('pending')} disabled={saving || anyUploading} className="theme-accent-fill theme-on-accent flex min-h-0 items-center justify-center gap-2 rounded-2xl py-3 font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md disabled:opacity-40 disabled:pointer-events-none">
+            <button type="button" onClick={() => handleSave('pending')} disabled={saving || anyUploading} className="btn-primary min-h-0 justify-center py-3 font-black disabled:opacity-40 disabled:pointer-events-none">
               <span aria-hidden="true">📤</span>
               <span>{saving ? 'Submitting…' : 'Submit for approval'}</span>
             </button>
@@ -1033,7 +1033,7 @@ export default function EditQuizV2() {
                 <span aria-hidden="true">⏳</span>
                 <span>{saving ? 'Saving…' : 'Save as pending'}</span>
               </button>
-              <button type="button" onClick={() => { if (validate()) setVerifyOpen(true) }} disabled={saving || anyUploading} className="theme-accent-fill theme-on-accent flex min-h-0 items-center justify-center gap-2 rounded-2xl py-3 font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md disabled:opacity-40 disabled:pointer-events-none">
+              <button type="button" onClick={() => { if (validate()) setVerifyOpen(true) }} disabled={saving || anyUploading} className="btn-primary min-h-0 justify-center py-3 font-black disabled:opacity-40 disabled:pointer-events-none">
                 <span aria-hidden="true">🚀</span>
                 <span>{saving ? 'Publishing…' : 'Verify & publish'}</span>
               </button>
