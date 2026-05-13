@@ -180,7 +180,7 @@ export default function AdminLayout({ children }) {
         <div className="md:hidden fixed inset-0 z-30" onClick={() => setMobileOpen(false)}>
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in" />
           <nav
-            className="theme-card theme-border absolute left-0 right-0 top-20 space-y-1 border-t p-3 shadow-elev-xl stagger"
+            className="theme-card theme-border absolute left-0 right-0 top-20 bottom-0 space-y-1 overflow-y-auto overscroll-contain border-t p-3 shadow-elev-xl stagger"
             onClick={e => e.stopPropagation()}
           >
             <Link
