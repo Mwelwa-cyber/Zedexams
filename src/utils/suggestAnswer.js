@@ -59,7 +59,7 @@ function withTimeout(promise, ms) {
   })
 }
 
-export async function suggestAnswer({ type, text, options, wordBank, unit, tolerance, matchingLeft, matchingRight, grade, subject, language } = {}) {
+export async function suggestAnswer({ type, text, options, wordBank, unit, tolerance, matchingLeft, matchingRight, sequenceItems, grade, subject, language } = {}) {
   if (!text || !String(text).trim()) {
     throw new Error('Add some question text first, then ask AI for the answer.')
   }
@@ -68,6 +68,7 @@ export async function suggestAnswer({ type, text, options, wordBank, unit, toler
       suggestAnswerCallable({
         type, text, options, wordBank, unit, tolerance,
         matchingLeft, matchingRight,
+        sequenceItems,
         grade, subject, language,
       }),
       SUGGEST_TIMEOUT_MS,

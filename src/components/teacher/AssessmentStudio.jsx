@@ -1057,6 +1057,18 @@ export default function AssessmentStudio() {
           marks: 3,
         })
         break
+      case 'sequence':
+        // Sequence questions ask the student to put items in order.
+        // 4 empty slots is the most common shape (life cycles, process
+        // steps, historical events).
+        newSection = baseQuestion('sequence', {
+          options: [],
+          correctAnswer: '',
+          sequenceItems: ['', '', '', ''],
+          sequenceAnswer: [0, 0, 0, 0],
+          marks: 4,
+        })
+        break
       case 'passage':
         newSection = createPassageSection()
         break
@@ -2032,7 +2044,7 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
 
 // Question fields whose edits invalidate any prior AI answer suggestion.
 // Module-scope so the array is allocated once per page load, not per render.
-const FIELDS_THAT_INVALIDATE_SUGGESTION = ['text', 'options', 'correctAnswer', 'wordBank', 'numericTolerance', 'numericUnit', 'matchingLeft', 'matchingRight', 'matchingAnswer']
+const FIELDS_THAT_INVALIDATE_SUGGESTION = ['text', 'options', 'correctAnswer', 'wordBank', 'numericTolerance', 'numericUnit', 'matchingLeft', 'matchingRight', 'matchingAnswer', 'sequenceItems', 'sequenceAnswer']
 
 // Module-scope colour palette for the AI suggestion notice — kept out of
 // the component body so it isn't reallocated per render.
@@ -2073,6 +2085,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
   const isStructured = type === 'diagram' && !isShortAnswer
   const isNumeric = type === 'numeric'
   const isMatching = type === 'matching'
+  const isSequence = type === 'sequence'
   const imageInputRef = useRef(null)
   const [suggesting, setSuggesting] = useState(false)
   const [suggestError, setSuggestError] = useState('')
@@ -2123,6 +2136,10 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
         // of right-column indices — one per left-column item.
         matchingLeft: isMatching ? (question.matchingLeft || []) : undefined,
         matchingRight: isMatching ? (question.matchingRight || []) : undefined,
+        // For sequence we pass the items as the teacher typed them. The
+        // model returns an array of 1-based positions — one per item —
+        // saying where each item should land in the correct order.
+        sequenceItems: isSequence ? (question.sequenceItems || []) : undefined,
         grade: paperMeta?.grade,
         subject: paperMeta?.subject,
         language: paperMeta?.language,
@@ -2130,11 +2147,13 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
       if (!mountedRef.current) return
       // Write the predicted answer to the question via the raw prop —
       // bypasses the local wrapper that would otherwise clear the
-      // suggestion badge. Matching questions store the answer as an
-      // index array on `matchingAnswer`; everything else uses the
-      // scalar `correctAnswer` field.
+      // suggestion badge. Matching and sequence both store the answer
+      // as an index array on a dedicated field; everything else uses
+      // the scalar `correctAnswer` field.
       if (isMatching && Array.isArray(result.answer)) {
         onUpdateQuestion('matchingAnswer', result.answer)
+      } else if (isSequence && Array.isArray(result.answer)) {
+        onUpdateQuestion('sequenceAnswer', result.answer)
       } else {
         onUpdateQuestion('correctAnswer', result.answer)
       }
@@ -2158,6 +2177,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
     essay: { tag: 'essay', label: 'Essay' },
     numeric: { tag: 'mcq', label: 'Numeric' },
     matching: { tag: 'struct', label: 'Matching' },
+    sequence: { tag: 'struct', label: 'Sequence' },
   }
   const meta = typeMeta[type] || typeMeta.mcq
 
@@ -2188,6 +2208,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
           <option value="essay">Essay</option>
           <option value="numeric">Numeric</option>
           <option value="matching">Matching</option>
+          <option value="sequence">Sequence</option>
         </select>
         <label className="sv-q-marks-input">
           marks
@@ -2342,6 +2363,15 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
           onChangeLeft={value => updateQuestion('matchingLeft', value)}
           onChangeRight={value => updateQuestion('matchingRight', value)}
           onChangeAnswer={value => updateQuestion('matchingAnswer', value)}
+        />
+      )}
+
+      {isSequence && (
+        <SequenceInputs
+          items={question.sequenceItems || []}
+          answer={question.sequenceAnswer || []}
+          onChangeItems={value => updateQuestion('sequenceItems', value)}
+          onChangeAnswer={value => updateQuestion('sequenceAnswer', value)}
         />
       )}
 
@@ -2606,6 +2636,128 @@ function MatchingInputs({ left, right, answer, onChangeLeft, onChangeRight, onCh
       >
         + Add pair {rows >= 10 ? '(max 10)' : ''}
       </button>
+    </div>
+  )
+}
+
+// Sequence question editor — one column of items, each with a "correct
+// position" dropdown (1..N). Teachers can deliberately type items in
+// jumbled order; the paper prints them as typed and the marking key
+// shows the sorted-by-position sequence.
+//
+//   sequenceItems  = ['Frog', 'Tadpole', 'Egg', 'Adult']
+//   sequenceAnswer = [3, 2, 1, 4]   // Frog→3, Tadpole→2, Egg→1, Adult→4
+//
+// 0 in sequenceAnswer means "no position set yet". A valid full answer
+// is a permutation of [1..items.length]; we surface a soft warning if
+// the teacher has duplicates or gaps but don't block save (lets them
+// edit mid-flow without fighting the UI).
+function SequenceInputs({ items, answer, onChangeItems, onChangeAnswer }) {
+  const rows = Math.max(items.length, 3)
+  const itemsPadded = Array.from({ length: rows }, (_, i) => items[i] ?? '')
+  const answerPadded = Array.from({ length: rows }, (_, i) =>
+    Number.isInteger(answer[i]) ? answer[i] : 0,
+  )
+
+  function setItemAt(i, value) {
+    const next = [...itemsPadded]
+    next[i] = value
+    onChangeItems(next)
+  }
+  function setPositionAt(i, value) {
+    const next = [...answerPadded]
+    const n = Number(value)
+    next[i] = Number.isInteger(n) && n >= 1 && n <= rows ? n : 0
+    onChangeAnswer(next)
+  }
+  function addRow() {
+    if (rows >= 10) return
+    onChangeItems([...itemsPadded, ''])
+    onChangeAnswer([...answerPadded, 0])
+  }
+  function removeRow(i) {
+    if (rows <= 2) return
+    const removedPos = answerPadded[i]
+    const dropAt = arr => arr.filter((_, idx) => idx !== i)
+    // Shrinking the list shifts higher positions down by 1 so the
+    // permutation stays well-formed.
+    const remappedAnswer = dropAt(answerPadded).map(p => {
+      if (p === removedPos) return 0
+      if (p > removedPos) return p - 1
+      return p
+    })
+    onChangeItems(dropAt(itemsPadded))
+    onChangeAnswer(remappedAnswer)
+  }
+
+  // Soft validation — duplicates or unset positions among filled items.
+  const filledIndices = itemsPadded
+    .map((it, idx) => (String(it || '').trim() ? idx : -1))
+    .filter(i => i >= 0)
+  const positionsUsed = new Map()
+  const dupPositions = new Set()
+  let anyUnset = false
+  for (const i of filledIndices) {
+    const p = answerPadded[i]
+    if (!p) { anyUnset = true; continue }
+    if (positionsUsed.has(p)) dupPositions.add(p)
+    positionsUsed.set(p, true)
+  }
+  const warnings = []
+  if (filledIndices.length >= 2 && anyUnset) warnings.push('Some items have no position set.')
+  if (dupPositions.size > 0) warnings.push(`Position ${[...dupPositions].join(', ')} is used more than once.`)
+
+  return (
+    <div className="sv-answer-lines">
+      <div className="sv-answer-meta">🔤 Sequence — students write the correct position in the blanks on the printed paper</div>
+      <div style={{ display: 'grid', gridTemplateColumns: '24px 1fr 110px 28px', gap: 6, alignItems: 'center', marginBottom: 4, fontSize: 11, color: 'var(--sv-muted)' }}>
+        <div></div>
+        <div>Item (as printed)</div>
+        <div>Correct position</div>
+        <div></div>
+      </div>
+      {itemsPadded.map((_, i) => (
+        <div key={i} style={{ display: 'grid', gridTemplateColumns: '24px 1fr 110px 28px', gap: 6, alignItems: 'center', marginBottom: 4 }}>
+          <strong style={{ textAlign: 'right', fontSize: 12, color: 'var(--sv-muted)' }}>{i + 1}.</strong>
+          <input
+            type="text"
+            value={itemsPadded[i]}
+            onChange={e => setItemAt(i, e.target.value)}
+            placeholder={`Item ${i + 1}`}
+            style={{ width: '100%', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: '4px 6px', fontSize: 13, background: 'var(--sv-paper)' }}
+          />
+          <select
+            value={answerPadded[i] >= 1 ? answerPadded[i] : ''}
+            onChange={e => setPositionAt(i, e.target.value)}
+            style={{ border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: '4px 6px', fontSize: 12, background: 'var(--sv-paper)' }}
+          >
+            <option value="">— position —</option>
+            {Array.from({ length: rows }).map((_, p) => (
+              <option key={p} value={p + 1}>{p + 1}{p === 0 ? ' (first)' : p === rows - 1 ? ' (last)' : ''}</option>
+            ))}
+          </select>
+          <button
+            type="button"
+            onClick={() => removeRow(i)}
+            disabled={rows <= 2}
+            title="Remove this item"
+            style={{ width: 24, height: 24, border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', background: 'transparent', cursor: rows <= 2 ? 'default' : 'pointer', color: 'var(--sv-muted)', fontSize: 14 }}
+          >×</button>
+        </div>
+      ))}
+      <button
+        type="button"
+        onClick={addRow}
+        disabled={rows >= 10}
+        style={{ marginTop: 4, padding: '4px 10px', border: '1px dashed var(--sv-border)', borderRadius: 'var(--sv-r-sm)', background: 'transparent', cursor: rows >= 10 ? 'default' : 'pointer', fontSize: 12, color: 'var(--sv-muted)' }}
+      >
+        + Add item {rows >= 10 ? '(max 10)' : ''}
+      </button>
+      {warnings.length > 0 && (
+        <div style={{ marginTop: 6, padding: '4px 8px', borderRadius: 'var(--sv-r-sm)', background: '#FFFBEB', border: '1px solid #FCD34D', color: '#92400E', fontSize: 11 }}>
+          {warnings.join(' ')}
+        </div>
+      )}
     </div>
   )
 }
@@ -2888,6 +3040,9 @@ function PaperQuestionBlock({ block }) {
       {block.type === 'matching' && (
         <PaperMatching block={block} />
       )}
+      {block.type === 'sequence' && (
+        <PaperSequence block={block} />
+      )}
       {block.type === 'diagram' && (
         <div className="sv-paper-answer-lines">
           {Array.from({ length: block.answerLines || 4 }).map((_, i) => <div className="sv-paper-answer-line" key={i} />)}
@@ -2963,6 +3118,24 @@ function PaperMcqOptions({ block }) {
   )
 }
 
+// Sequence question render — one column of items, each preceded by a
+// short blank where the student writes the correct position (1..N).
+// Printed in the order the teacher typed; the marking key shows the
+// correctly-sorted sequence.
+function PaperSequence({ block }) {
+  const items = Array.isArray(block.sequenceItems) ? block.sequenceItems : []
+  return (
+    <div style={{ margin: '8px 0' }}>
+      {items.map((it, i) => (
+        <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '4px 0', borderBottom: '1px dotted #999' }}>
+          <span style={{ display: 'inline-block', width: 32, borderBottom: '1px solid #000', height: 16 }} />
+          <span>{it || ''}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 // Matching question render — two columns side by side. Students draw
 // lines between them on the printed paper; in the on-screen preview we
 // just show the columns aligned.
@@ -3014,6 +3187,24 @@ function PaperAnswerBlock({ block }) {
             </span>
           )
         })}
+      </>
+    )
+  } else if (block.type === 'sequence') {
+    const items = Array.isArray(block.sequenceItems) ? block.sequenceItems : []
+    const answer = Array.isArray(block.sequenceAnswer) ? block.sequenceAnswer : []
+    // Show items in their CORRECT order. Build [pos, item] pairs and
+    // sort by position. Items with no position assigned drift to the end.
+    const ordered = items
+      .map((it, idx) => ({ pos: Number(answer[idx]) || 999, text: it }))
+      .sort((a, b) => a.pos - b.pos)
+    body = (
+      <>
+        <strong>Correct order:</strong>{' '}
+        {ordered.map((entry, i) => (
+          <span key={i} style={{ marginRight: 10 }}>
+            {entry.pos < 999 ? `${entry.pos}.` : '?'} {entry.text || '—'}
+          </span>
+        ))}
       </>
     )
   } else if (block.type === 'numeric') {
@@ -3071,7 +3262,7 @@ function BlockPickerSlide({ open, onClose, onPick }) {
           <BlockPickerItem icon="📐" title="Fill in Blank" hint="Gap-fill sentence" onClick={() => onPick('fill_in_blank')} />
           <BlockPickerItem icon="↔" title="Matching" hint="Pair items across two columns" onClick={() => onPick('matching')} />
           <BlockPickerItem icon="🔢" title="Numeric" hint="Number answer with optional ± tolerance & unit" onClick={() => onPick('numeric')} />
-          <BlockPickerItem icon="🔤" title="Sequence" hint="Coming soon" disabled />
+          <BlockPickerItem icon="🔤" title="Sequence" hint="Put items in the correct order" onClick={() => onPick('sequence')} />
         </div>
 
         <div className="sv-block-cat">Media &amp; reading</div>

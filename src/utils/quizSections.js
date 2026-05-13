@@ -59,6 +59,16 @@ export function emptyQuestion(overrides = {}) {
     matchingLeft: [],
     matchingRight: [],
     matchingAnswer: [],
+    // Sequence question fields. Only the 'sequence' type surfaces them.
+    //   sequenceItems  — items shown to the student (typically jumbled
+    //                    so they can't infer the order from display).
+    //   sequenceAnswer — 1-based position each item should occupy in the
+    //                    correct sequence. sequenceAnswer[i] = where
+    //                    sequenceItems[i] should end up. A valid answer
+    //                    is a permutation of [1..items.length]; 0 means
+    //                    "not yet set".
+    sequenceItems: [],
+    sequenceAnswer: [],
     ...overrides,
   }
 
@@ -449,7 +459,8 @@ function hydrateStandaloneQuestion(question = {}) {
   // the actual numeric tolerance / unit live in their own fields below.
   // `matching` has its own correctness model (matchingAnswer index array)
   // and the legacy correctAnswer is unused, so we also flatten it here.
-  const isTextAnswer = type === 'short_answer' || type === 'diagram' || type === 'fill' || type === 'short' || type === 'numeric' || type === 'matching'
+  // `sequence` rides the same path — correctness lives on sequenceAnswer.
+  const isTextAnswer = type === 'short_answer' || type === 'diagram' || type === 'fill' || type === 'short' || type === 'numeric' || type === 'matching' || type === 'sequence'
 
   return emptyQuestion({
     localId: question.id || question._id || question.localId || nextLocalId('question'),
@@ -495,6 +506,16 @@ function hydrateStandaloneQuestion(question = {}) {
       ? question.matchingAnswer.map(v => {
         const n = Number(v)
         return Number.isInteger(n) && n >= 0 ? n : -1
+      }).slice(0, 10)
+      : [],
+    sequenceItems: Array.isArray(question.sequenceItems)
+      ? question.sequenceItems.map(s => String(s ?? '')).slice(0, 10)
+      : [],
+    sequenceAnswer: Array.isArray(question.sequenceAnswer)
+      ? question.sequenceAnswer.map(v => {
+        const n = Number(v)
+        // 1-based positions; 0 = unset
+        return Number.isInteger(n) && n >= 1 ? n : 0
       }).slice(0, 10)
       : [],
   })

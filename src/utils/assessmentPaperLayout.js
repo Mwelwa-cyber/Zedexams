@@ -329,6 +329,11 @@ function buildQuestionBlock(q, number, includeAnswer) {
     matchingAnswer: Array.isArray(q.matchingAnswer)
       ? q.matchingAnswer.map(v => (Number.isInteger(Number(v)) ? Number(v) : -1))
       : [],
+    // Sequence-only fields. Same defaulting strategy.
+    sequenceItems: Array.isArray(q.sequenceItems) ? q.sequenceItems.map(s => plain(s)) : [],
+    sequenceAnswer: Array.isArray(q.sequenceAnswer)
+      ? q.sequenceAnswer.map(v => (Number.isInteger(Number(v)) && Number(v) >= 1 ? Number(v) : 0))
+      : [],
     showAnswer: includeAnswer,
   }
 }
