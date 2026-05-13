@@ -26,6 +26,7 @@ const PLAN_LIMITS = {
     scheme_of_work: 0,
     notes: 3,
     diagram: 3,
+    suggest_answer: 30,
   },
   individual: {
     lesson_plan: 40,
@@ -36,6 +37,7 @@ const PLAN_LIMITS = {
     scheme_of_work: 2,
     notes: 25,
     diagram: 30,
+    suggest_answer: 500,
   },
   school: {
     lesson_plan: 200,
@@ -46,6 +48,7 @@ const PLAN_LIMITS = {
     scheme_of_work: 200,
     notes: 200,
     diagram: 200,
+    suggest_answer: 2000,
   },
 };
 

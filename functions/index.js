@@ -67,6 +67,10 @@ const {
 const {
   createGenerateDiagram,
 } = require("./teacherTools/generateDiagram");
+// Teacher Tools — Suggest Answer (per-question AI answer hint for the studio).
+const {
+  createSuggestAnswer,
+} = require("./teacherTools/suggestAnswer");
 // Teacher Tools — Lesson Plan Studio (vanilla JS studio, free-form prompts).
 const {
   createStudioGenerateLessonPlan,
@@ -1828,6 +1832,9 @@ exports.generateNotes = createGenerateNotes(anthropicApiKey);
 
 // Teacher Tools — Diagram Generator (Recraft, B&W line art for assessments).
 exports.generateDiagram = createGenerateDiagram(recraftApiKey);
+
+// Teacher Tools — Suggest Answer (per-question AI answer hint, Haiku).
+exports.suggestAnswer = createSuggestAnswer(anthropicApiKey);
 
 // Teacher Tools — admin-only: import the built-in G1-9 topics into Firestore.
 exports.importBuiltInCbcTopics = importBuiltInCbcTopics;
