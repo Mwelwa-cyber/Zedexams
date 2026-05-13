@@ -2013,16 +2013,19 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
 // Module-scope so the array is allocated once per page load, not per render.
 const FIELDS_THAT_INVALIDATE_SUGGESTION = ['text', 'options', 'correctAnswer', 'wordBank']
 
+// Module-scope colour palette for the AI suggestion notice — kept out of
+// the component body so it isn't reallocated per render.
+const AI_CONFIDENCE_META = {
+  high: { bg: '#ECFDF5', border: '#A7F3D0', text: '#065F46', label: 'High confidence' },
+  medium: { bg: '#FFFBEB', border: '#FCD34D', text: '#92400E', label: 'Medium confidence' },
+  low: { bg: '#FEF2F2', border: '#FCA5A5', text: '#991B1B', label: 'Low confidence — verify carefully' },
+}
+
 // Inline notice rendered below a question's answer area when Claude has
 // suggested the correct answer. Stays visible until the teacher either
 // edits anything answer-related (auto-cleared) or hits "Confirm".
 function AiSuggestionNotice({ rationale, confidence, onConfirm }) {
-  const confidenceMeta = {
-    high: { bg: '#ECFDF5', border: '#A7F3D0', text: '#065F46', label: 'High confidence' },
-    medium: { bg: '#FFFBEB', border: '#FCD34D', text: '#92400E', label: 'Medium confidence' },
-    low: { bg: '#FEF2F2', border: '#FCA5A5', text: '#991B1B', label: 'Low confidence — verify carefully' },
-  }
-  const m = confidenceMeta[confidence] || confidenceMeta.low
+  const m = AI_CONFIDENCE_META[confidence] || AI_CONFIDENCE_META.low
   return (
     <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 'var(--sv-r-sm)', background: m.bg, border: `1px solid ${m.border}`, color: m.text, fontSize: 12, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
       <div style={{ flex: 1 }}>
@@ -2050,13 +2053,19 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
   const imageInputRef = useRef(null)
   const [suggesting, setSuggesting] = useState(false)
   const [suggestError, setSuggestError] = useState('')
+  // AI suggestion lives in component-local state, NOT on the question
+  // object. This keeps the AI badge out of the persisted paper schema
+  // (no Firestore drift) and also clears the badge naturally when the
+  // teacher closes the paper and reopens it — which is the right default
+  // for an unconfirmed model output.
+  const [aiSuggestion, setAiSuggestion] = useState(null)
   // Guards setState after unmount during an in-flight suggestion call.
   const mountedRef = useRef(true)
   useEffect(() => () => { mountedRef.current = false }, [])
 
   function updateQuestion(field, value) {
-    if (question.aiSuggestion && FIELDS_THAT_INVALIDATE_SUGGESTION.includes(field)) {
-      onUpdateQuestion('aiSuggestion', null)
+    if (aiSuggestion && FIELDS_THAT_INVALIDATE_SUGGESTION.includes(field)) {
+      setAiSuggestion(null)
     }
     onUpdateQuestion(field, value)
   }
@@ -2087,13 +2096,13 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
         language: paperMeta?.language,
       })
       if (!mountedRef.current) return
-      // Apply directly (not through updateQuestion wrapper) so the
-      // suggestion badge survives the correctAnswer write.
+      // Write the predicted answer to the question via the raw prop —
+      // bypasses the local wrapper that would otherwise clear the
+      // suggestion badge on a correctAnswer change.
       onUpdateQuestion('correctAnswer', result.answer)
-      onUpdateQuestion('aiSuggestion', {
+      setAiSuggestion({
         rationale: result.rationale,
         confidence: result.confidence,
-        suggestedAt: Date.now(),
       })
     } catch (err) {
       if (mountedRef.current) {
@@ -2150,7 +2159,9 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
           type="button"
           onClick={handleSuggestAnswer}
           disabled={suggesting}
-          title="Ask AI to suggest the correct answer for this question"
+          title={isEssay
+            ? 'Ask AI to suggest marking notes / a sample answer for this essay'
+            : 'Ask AI to suggest the correct answer for this question'}
           style={{
             marginLeft: 'auto',
             background: suggesting ? 'var(--sv-tinted)' : 'var(--sv-paper)',
@@ -2165,7 +2176,9 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
             gap: 4,
           }}
         >
-          {suggesting ? '⏳ Thinking…' : '✨ Suggest answer'}
+          {suggesting
+            ? '⏳ Thinking…'
+            : (isEssay ? '✨ Suggest marking notes' : '✨ Suggest answer')}
         </button>
       </div>
 
@@ -2274,11 +2287,11 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
         </div>
       )}
 
-      {question.aiSuggestion && (
+      {aiSuggestion && (
         <AiSuggestionNotice
-          rationale={question.aiSuggestion.rationale}
-          confidence={question.aiSuggestion.confidence}
-          onConfirm={() => onUpdateQuestion('aiSuggestion', null)}
+          rationale={aiSuggestion.rationale}
+          confidence={aiSuggestion.confidence}
+          onConfirm={() => setAiSuggestion(null)}
         />
       )}
 

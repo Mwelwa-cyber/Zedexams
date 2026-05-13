@@ -229,29 +229,42 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
       // only if there's enough content. Otherwise skip silently.
     }
 
-    // Emit passages belonging to this part, with their child questions inline.
+    // Emit each part's renderable items (standalone questions + passages)
+    // in the author-typed order. The serializer writes an `order` field
+    // onto both passages (= the order of their first child question) and
+    // standalone questions, so we merge-and-sort by that. Previously we
+    // emitted all passages first and all standalones after, which silently
+    // reordered any interleaved layout.
     const partPassages = passagesByPart.get(group.id || null) || []
-    for (const passage of partPassages) {
-      usedPassages.add(passage.id)
-      const passageQuestions = group.questions.filter(q => q.passageId === passage.id)
-      blocks.push({
-        kind: 'passage',
-        title: plain(passage.title),
-        text: plain(passage.passageText),
-        imageUrl: passage.imageUrl || '',
-        passageKind: passage.passageKind || 'comprehension',
-      })
-      for (const q of passageQuestions) {
-        runningNumber += 1
-        blocks.push(buildQuestionBlock(q, runningNumber, includeAnswers))
-      }
-    }
-
-    // Then emit standalone questions in this part (no passage).
     const standaloneQs = group.questions.filter(q => !q.passageId)
+    const items = []
+    for (const passage of partPassages) {
+      items.push({ kind: 'passage', order: passage.order ?? 0, passage })
+    }
     for (const q of standaloneQs) {
-      runningNumber += 1
-      blocks.push(buildQuestionBlock(q, runningNumber, includeAnswers))
+      items.push({ kind: 'standalone', order: q.order ?? 0, q })
+    }
+    items.sort((a, b) => a.order - b.order)
+
+    for (const item of items) {
+      if (item.kind === 'passage') {
+        usedPassages.add(item.passage.id)
+        const passageQuestions = group.questions.filter(q => q.passageId === item.passage.id)
+        blocks.push({
+          kind: 'passage',
+          title: plain(item.passage.title),
+          text: plain(item.passage.passageText),
+          imageUrl: item.passage.imageUrl || '',
+          passageKind: item.passage.passageKind || 'comprehension',
+        })
+        for (const q of passageQuestions) {
+          runningNumber += 1
+          blocks.push(buildQuestionBlock(q, runningNumber, includeAnswers))
+        }
+      } else {
+        runningNumber += 1
+        blocks.push(buildQuestionBlock(item.q, runningNumber, includeAnswers))
+      }
     }
   })
 

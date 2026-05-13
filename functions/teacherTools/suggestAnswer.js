@@ -59,18 +59,27 @@ function str(v, max) {
 }
 
 function sanitizeInputs(raw = {}) {
-  const type = str(raw.type, 24).toLowerCase();
+  // ALLOWED_TYPES' longest entry is "true_false" (10 chars); 16 is a safe
+  // cap that leaves headroom without being silly.
+  const type = str(raw.type, 16).toLowerCase();
   const text = str(raw.text, 2000);
   const grade = str(raw.grade, 10).toUpperCase().replace(/\s+/g, "");
   const subject = str(raw.subject, 40).toLowerCase().replace(/[^a-z_]/g, "_");
   const language = str(raw.language || "english", 20).toLowerCase();
 
   // MCQ options — keep at most 6, each ≤ 240 chars (matches studio UI cap).
+  // CRITICAL: we keep the original array indices including blanks, because
+  // the studio's correctAnswer field is a 0-based index INTO THE ORIGINAL
+  // options array. Filtering out blanks here and reindexing would cause the
+  // returned answer to point at the wrong option when a middle option is
+  // empty (e.g. ['A','','C','D'] becomes ['A','C','D'] and "C" gets index 1
+  // instead of 2). We only filter at prompt-render time below.
   const rawOptions = Array.isArray(raw.options) ? raw.options : [];
   const options = rawOptions
-    .map((opt) => str(opt, 240))
-    .filter((opt) => opt.length > 0)
-    .slice(0, 6);
+    .slice(0, 6)
+    .map((opt) => str(opt, 240));
+  // Count of non-empty options for validation purposes only.
+  const nonEmptyOptionCount = options.filter((opt) => opt.length > 0).length;
 
   // Word bank — structured questions sometimes ship one.
   const rawBank = Array.isArray(raw.wordBank) ? raw.wordBank : [];
@@ -86,6 +95,7 @@ function sanitizeInputs(raw = {}) {
     subject,
     language: ALLOWED_LANGUAGES.has(language) ? language : "english",
     options,
+    nonEmptyOptionCount,
     wordBank,
   };
 }
@@ -93,8 +103,8 @@ function sanitizeInputs(raw = {}) {
 function validateInputs(inputs) {
   const errs = [];
   if (!inputs.text) errs.push("Question text is required.");
-  if (inputs.type === "mcq" && inputs.options.length < 2) {
-    errs.push("MCQs need at least two options.");
+  if (inputs.type === "mcq" && inputs.nonEmptyOptionCount < 2) {
+    errs.push("MCQs need at least two filled-in options.");
   }
   return errs;
 }
@@ -136,9 +146,19 @@ function buildUserPrompt(inputs) {
 
   if (inputs.type === "mcq") {
     lines.push("");
-    lines.push("Options (you MUST return the index of one of these):");
+    lines.push(
+      "Options (you MUST return the 0-based index of one of these — " +
+      "indices match the teacher's option order exactly, and you must NOT " +
+      "renumber them):",
+    );
+    // Only show non-empty options to the model, but keep the ORIGINAL
+    // 0-based index from inputs.options. This way the teacher's option
+    // layout is preserved when the model's answer index is applied
+    // client-side, even if a middle option is blank.
     inputs.options.forEach((opt, i) => {
-      lines.push(`  [${i}] ${opt}`);
+      if (opt && opt.length > 0) {
+        lines.push(`  [${i}] ${opt}`);
+      }
     });
   }
 
@@ -180,10 +200,21 @@ function coerceResult(parsed, inputs) {
 
   if (inputs.type === "mcq") {
     const idx = Number(parsed && parsed.answer);
-    if (!Number.isFinite(idx) || idx < 0 || idx >= inputs.options.length) {
-      // Force low confidence so the UI flags it. Don't outright fail —
-      // teachers still benefit from seeing the rationale.
-      return {answer: 0, rationale, confidence: "low"};
+    const inBounds = Number.isFinite(idx) && idx >= 0 &&
+      idx < inputs.options.length;
+    // Reject if the model picked a blank option index (means it ignored
+    // the instruction to only choose from non-empty ones).
+    const pointsAtFilledOption = inBounds &&
+      (inputs.options[Math.floor(idx)] || "").length > 0;
+    if (!pointsAtFilledOption) {
+      // Pick the first non-empty option's index as a safe fallback;
+      // mark low confidence so the UI flags it.
+      const fallback = inputs.options.findIndex((o) => o && o.length > 0);
+      return {
+        answer: fallback >= 0 ? fallback : 0,
+        rationale,
+        confidence: "low",
+      };
     }
     return {answer: Math.floor(idx), rationale, confidence};
   }
@@ -199,21 +230,27 @@ function coerceResult(parsed, inputs) {
     return {answer: "True", rationale, confidence: "low"};
   }
 
-  // Free-form text answer.
-  const answer = str(parsed && parsed.answer, 800);
+  // Free-form text answer. Note: the tool schema allows `answer` to be
+  // either a string OR an integer, because Claude often returns numeric
+  // answers as actual numbers for arithmetic prompts (e.g. {answer: 56}
+  // for "What is 7 x 8?"). We coerce numbers to their string form here
+  // so the studio can write them into `correctAnswer` unchanged. If we
+  // didn't, str() would return "" for numeric inputs and we'd silently
+  // wipe whatever the teacher already had in the answer field.
+  const raw = parsed && parsed.answer;
+  let answer = "";
+  if (typeof raw === "number" && Number.isFinite(raw)) {
+    answer = String(raw).slice(0, 800);
+  } else {
+    answer = str(raw, 800);
+  }
   if (!answer) {
     return {answer: "", rationale, confidence: "low"};
   }
   return {answer, rationale, confidence};
 }
 
-async function runSuggestAnswer({uid, rawInputs, apiKey}) {
-  const inputs = sanitizeInputs(rawInputs || {});
-  const errs = validateInputs(inputs);
-  if (errs.length > 0) {
-    throw new HttpsError("invalid-argument", errs.join(" "));
-  }
-
+async function runSuggestAnswer({uid, inputs, apiKey}) {
   const {parsed} = await callClaude(apiKey, {
     model: SUGGEST_MODEL,
     mode: "tool",
@@ -225,9 +262,9 @@ async function runSuggestAnswer({uid, rawInputs, apiKey}) {
     toolDescription:
       "Submit the predicted correct answer, a short rationale, and a confidence rating.",
     toolInputSchema: SUGGEST_TOOL_SCHEMA,
-    // Haiku is fast enough that we explicitly disable extended thinking;
-    // a low-effort straight-through call is what we want here.
-    thinking: {type: "disabled"},
+    // Match the other Haiku-based teacher tools (worksheet, rubric,
+    // flashcards): no `thinking` field. Haiku 4.5 runs straight-through
+    // and adding the field is unnecessary.
   });
 
   const result = coerceResult(parsed, inputs);
@@ -254,10 +291,19 @@ function createSuggestAnswer(anthropicApiKeySecret) {
           "Teacher tools are available to approved teachers only.",
         );
       }
+
+      // Validate BEFORE consuming quota — malformed requests should not
+      // burn a teacher's monthly suggest_answer credit.
+      const inputs = sanitizeInputs(request.data || {});
+      const errs = validateInputs(inputs);
+      if (errs.length > 0) {
+        throw new HttpsError("invalid-argument", errs.join(" "));
+      }
+
       await assertAndIncrement(uid, "suggest_answer");
 
       const apiKey = getAnthropicApiKey(anthropicApiKeySecret);
-      return runSuggestAnswer({uid, rawInputs: request.data, apiKey});
+      return runSuggestAnswer({uid, inputs, apiKey});
     },
   );
 }
