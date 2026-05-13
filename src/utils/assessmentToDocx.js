@@ -257,6 +257,18 @@ async function renderQuestion(b) {
   if (b.imageUrl) {
     const img = await imageParagraph(b.imageUrl)
     if (img) out.push(img)
+    // Word can't reliably overlay positioned labels on top of an inline
+    // image, so we drop the labels as a numbered text list below — same
+    // information, ordered top-to-bottom then left-to-right.
+    const labels = Array.isArray(b.diagramLabels) ? b.diagramLabels : []
+    if (labels.length) {
+      const sorted = [...labels].sort((a, c) => (a.y - c.y) || (a.x - c.x))
+      const text = sorted.map((l, i) => `${i + 1}. ${l.text}`).join('   ')
+      out.push(para([
+        runText('Labels: ', { bold: true, size: 20 }),
+        runText(text, { size: 20 }),
+      ]))
+    }
   }
   if (b.wordBank && b.wordBank.length) {
     out.push(para([

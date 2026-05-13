@@ -69,6 +69,15 @@ export function emptyQuestion(overrides = {}) {
     //                    "not yet set".
     sequenceItems: [],
     sequenceAnswer: [],
+    // Draggable label overlays for the question image. Only the diagram
+    // type surfaces these in the editor, but the field is defaulted on
+    // every question so renderers don't have to null-check.
+    //   id   — stable string used as React key + label reordering
+    //   x, y — 0..1 ratios of the image's width/height (so labels stay
+    //          anchored when the image is resized between preview / PDF
+    //          / DOCX renderers)
+    //   text — short label string (e.g. "Epidermis"), ≤ 80 chars
+    diagramLabels: [],
     ...overrides,
   }
 
@@ -546,6 +555,16 @@ function hydrateStandaloneQuestion(question = {}) {
         // 1-based positions; 0 = unset
         return Number.isInteger(n) && n >= 1 ? n : 0
       }).slice(0, 10)
+      : [],
+    diagramLabels: Array.isArray(question.diagramLabels)
+      ? question.diagramLabels
+        .map(l => ({
+          id: typeof l?.id === 'string' && l.id ? l.id : nextLocalId('label'),
+          x: Math.max(0, Math.min(1, Number(l?.x) || 0)),
+          y: Math.max(0, Math.min(1, Number(l?.y) || 0)),
+          text: String(l?.text ?? '').slice(0, 80),
+        }))
+        .slice(0, 20)
       : [],
   })
 }

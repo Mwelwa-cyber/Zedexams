@@ -352,6 +352,16 @@ function buildQuestionBlock(q, number, includeAnswer) {
     sequenceAnswer: Array.isArray(q.sequenceAnswer)
       ? q.sequenceAnswer.map(v => (Number.isInteger(Number(v)) && Number(v) >= 1 ? Number(v) : 0))
       : [],
+    // Diagram label overlays (x/y are 0..1 ratios of image dimensions).
+    diagramLabels: Array.isArray(q.diagramLabels)
+      ? q.diagramLabels
+        .map(l => ({
+          x: Math.max(0, Math.min(1, Number(l?.x) || 0)),
+          y: Math.max(0, Math.min(1, Number(l?.y) || 0)),
+          text: plain(l?.text),
+        }))
+        .filter(l => l.text.length > 0)
+      : [],
     showAnswer: includeAnswer,
   }
 }

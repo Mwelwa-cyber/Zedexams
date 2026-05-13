@@ -246,7 +246,19 @@ body {
 }
 .question .word-bank strong { margin-right: 4pt; }
 .question .q-image { margin: 6pt 0; text-align: center; }
-.question .q-image img { max-width: 80%; max-height: 240pt; }
+.question .q-image .q-image-frame { position: relative; display: inline-block; max-width: 80%; }
+.question .q-image .q-image-frame img { max-width: 100%; max-height: 240pt; display: block; }
+.diagram-label {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  background: white;
+  border: 1px solid #000;
+  border-radius: 2pt;
+  padding: 1pt 4pt;
+  font-size: 9pt;
+  white-space: nowrap;
+  line-height: 1.1;
+}
 
 .options-text {
   padding-left: 18pt;
@@ -459,7 +471,9 @@ function renderQuestion(b) {
   let body = ''
 
   if (b.imageUrl) {
-    body += `<div class="q-image"><img src="${escapeHtml(b.imageUrl)}" alt=""></div>`
+    const labels = Array.isArray(b.diagramLabels) ? b.diagramLabels : []
+    const labelHtml = labels.map(l => `<span class="diagram-label" style="left:${(l.x * 100).toFixed(2)}%;top:${(l.y * 100).toFixed(2)}%">${escapeHtml(l.text)}</span>`).join('')
+    body += `<div class="q-image"><div class="q-image-frame"><img src="${escapeHtml(b.imageUrl)}" alt="">${labelHtml}</div></div>`
   }
   if (b.wordBank && b.wordBank.length) {
     body += `<div class="word-bank"><strong>Word bank:</strong> ${b.wordBank.map(escapeHtml).join(' · ')}</div>`

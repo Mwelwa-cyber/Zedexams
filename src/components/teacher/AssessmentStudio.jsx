@@ -2427,17 +2427,26 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
 
       {(isMcq || isStructured) && (
         question.imageUrl ? (
-          <div className="sv-q-media filled filled-wrap">
-            <img src={question.imageUrl} alt="" />
-            <button
-              className="sv-media-remove"
-              onClick={onRemoveImage}
-              title="Remove image"
-              type="button"
-            >
-              ×
-            </button>
-          </div>
+          isStructured ? (
+            <DiagramLabelEditor
+              imageUrl={question.imageUrl}
+              labels={question.diagramLabels || []}
+              onChangeLabels={value => updateQuestion('diagramLabels', value)}
+              onRemoveImage={onRemoveImage}
+            />
+          ) : (
+            <div className="sv-q-media filled filled-wrap">
+              <img src={question.imageUrl} alt="" />
+              <button
+                className="sv-media-remove"
+                onClick={onRemoveImage}
+                title="Remove image"
+                type="button"
+              >
+                ×
+              </button>
+            </div>
+          )
         ) : question.imageUploading ? (
           <div className="sv-q-media">
             <div className="sv-ic">⏳</div>
@@ -2691,6 +2700,154 @@ function ShortAnswerInputs({ correctAnswer, onChange, label, lines = 2 }) {
         rows={lines}
         style={{ width: '100%', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: 8, fontSize: 13, background: 'var(--sv-paper)', fontFamily: 'inherit', resize: 'vertical' }}
       />
+    </div>
+  )
+}
+
+// Generates a short string id used as the React key + stable identifier for
+// dragged labels. We don't need cryptographic randomness — collisions across
+// labels on the same question are effectively impossible at 12 random chars.
+function newLabelId() {
+  return `label_${Math.random().toString(36).slice(2, 10)}_${Date.now().toString(36).slice(-4)}`
+}
+
+// Diagram label editor — overlays draggable labels on top of a question
+// image. Used for AI-generated B&W diagrams (PR #422) where the image has
+// no built-in labels and the teacher fills them in.
+//
+// Interaction model:
+//   - Click anywhere on the image (where no label sits) → adds a label at
+//     that point with the input focused for immediate typing.
+//   - Click + drag a label → moves it. Coords are stored as 0..1 ratios
+//     of the image's natural size so labels stay anchored when the image
+//     is resized in preview / PDF / DOCX.
+//   - Click "×" on a label → deletes it.
+//   - Cap of 20 labels per image (matches the schema cap).
+//
+// Labels render as small white-background pills with a thin border so
+// they remain readable over the B&W line art Recraft produces.
+function DiagramLabelEditor({ imageUrl, labels, onChangeLabels, onRemoveImage }) {
+  const wrapperRef = useRef(null)
+  const dragRef = useRef(null) // { id, startX, startY, origX, origY }
+
+  function updateLabel(id, patch) {
+    onChangeLabels(labels.map(l => l.id === id ? { ...l, ...patch } : l))
+  }
+
+  function addLabelAt(clientX, clientY) {
+    if (!wrapperRef.current) return
+    if (labels.length >= 20) return
+    const rect = wrapperRef.current.getBoundingClientRect()
+    const x = Math.max(0.02, Math.min(0.98, (clientX - rect.left) / rect.width))
+    const y = Math.max(0.02, Math.min(0.98, (clientY - rect.top) / rect.height))
+    onChangeLabels([...labels, { id: newLabelId(), x, y, text: '' }])
+  }
+
+  function onImageMouseDown(e) {
+    // Only handle clicks on the image background — not on labels themselves.
+    // Labels stop propagation in their own mousedown handlers below.
+    if (e.target.closest('[data-label]')) return
+    e.preventDefault()
+    addLabelAt(e.clientX, e.clientY)
+  }
+
+  function onLabelMouseDown(e, id) {
+    e.stopPropagation()
+    e.preventDefault()
+    const label = labels.find(l => l.id === id)
+    if (!label) return
+    dragRef.current = {
+      id,
+      startX: e.clientX,
+      startY: e.clientY,
+      origX: label.x,
+      origY: label.y,
+    }
+  }
+  function onWrapperMouseMove(e) {
+    const drag = dragRef.current
+    if (!drag || !wrapperRef.current) return
+    const rect = wrapperRef.current.getBoundingClientRect()
+    const dx = (e.clientX - drag.startX) / rect.width
+    const dy = (e.clientY - drag.startY) / rect.height
+    updateLabel(drag.id, {
+      x: Math.max(0.02, Math.min(0.98, drag.origX + dx)),
+      y: Math.max(0.02, Math.min(0.98, drag.origY + dy)),
+    })
+  }
+  function onWrapperMouseUp() {
+    dragRef.current = null
+  }
+  function deleteLabel(id) {
+    onChangeLabels(labels.filter(l => l.id !== id))
+  }
+
+  return (
+    <div style={{ position: 'relative', marginBottom: 8 }}>
+      <div
+        ref={wrapperRef}
+        onMouseDown={onImageMouseDown}
+        onMouseMove={onWrapperMouseMove}
+        onMouseUp={onWrapperMouseUp}
+        onMouseLeave={onWrapperMouseUp}
+        className="sv-q-media filled filled-wrap"
+        style={{ position: 'relative', cursor: 'crosshair', userSelect: 'none' }}
+      >
+        <img src={imageUrl} alt="" draggable={false} style={{ pointerEvents: 'none' }} />
+        {labels.map(label => (
+          <div
+            key={label.id}
+            data-label
+            onMouseDown={e => onLabelMouseDown(e, label.id)}
+            style={{
+              position: 'absolute',
+              left: `${label.x * 100}%`,
+              top: `${label.y * 100}%`,
+              transform: 'translate(-50%, -50%)',
+              background: 'white',
+              border: '1px solid #000',
+              borderRadius: 3,
+              padding: '1px 6px',
+              fontSize: 11,
+              cursor: 'move',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              boxShadow: '0 1px 3px rgba(0,0,0,0.15)',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            <input
+              type="text"
+              value={label.text}
+              onMouseDown={e => e.stopPropagation()} // let user click the input without starting a drag
+              onChange={e => updateLabel(label.id, { text: e.target.value.slice(0, 80) })}
+              placeholder="Label"
+              style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 11, width: Math.max(60, (label.text?.length || 6) * 7), padding: 0 }}
+            />
+            <button
+              type="button"
+              onClick={e => { e.stopPropagation(); deleteLabel(label.id) }}
+              onMouseDown={e => e.stopPropagation()}
+              title="Remove label"
+              style={{ border: 'none', background: 'transparent', color: '#dc2626', cursor: 'pointer', padding: 0, fontSize: 12, lineHeight: 1 }}
+            >×</button>
+          </div>
+        ))}
+        <button
+          className="sv-media-remove"
+          onClick={e => { e.stopPropagation(); onRemoveImage() }}
+          onMouseDown={e => e.stopPropagation()}
+          title="Remove image"
+          type="button"
+        >
+          ×
+        </button>
+      </div>
+      <div style={{ fontSize: 11, color: 'var(--sv-muted)', marginTop: 4 }}>
+        Click the image to drop a label · drag labels to reposition · ✕ to delete · max 20 labels
+        {labels.length >= 20 && <span style={{ color: '#b91c1c', marginLeft: 6 }}>· limit reached</span>}
+      </div>
     </div>
   )
 }
@@ -3205,7 +3362,28 @@ function PaperQuestionBlock({ block }) {
         {marks > 1 && <em className="sv-qmarks">({marks}&nbsp;marks)</em>}
       </div>
       {block.imageUrl && (
-        <div className="sv-paper-diagram"><img src={block.imageUrl} alt="" /></div>
+        <div className="sv-paper-diagram" style={{ position: 'relative' }}>
+          <img src={block.imageUrl} alt="" />
+          {(block.diagramLabels || []).map((label, i) => (
+            <span
+              key={i}
+              style={{
+                position: 'absolute',
+                left: `${label.x * 100}%`,
+                top: `${label.y * 100}%`,
+                transform: 'translate(-50%, -50%)',
+                background: 'white',
+                border: '1px solid #000',
+                borderRadius: 3,
+                padding: '1px 6px',
+                fontSize: 11,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {label.text}
+            </span>
+          ))}
+        </div>
       )}
       {block.wordBank?.length > 0 && (
         <div style={{ display: 'inline-block', border: '1px solid #000', padding: '4px 10px', margin: '4px 0', fontSize: 12 }}>
