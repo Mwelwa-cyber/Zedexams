@@ -42,7 +42,6 @@ const NAV = [
   { to: '/admin/demo-trials',            icon: Sparkles,        label: 'Demo Trials'               },
   { to: '/admin/ai-costs',               icon: TrendingUp,      label: 'AI Costs'                  },
   { to: '/settings',                     icon: Settings,        label: 'Settings'                  },
-  { to: '/teacher',                      icon: GraduationCap,   label: 'Teacher Panel'             },
 ]
 
 export default function AdminLayout({ children }) {
@@ -112,6 +111,13 @@ export default function AdminLayout({ children }) {
           >
             <Icon as={Home} size="sm" />
             Learner Dashboard
+          </Link>
+          <Link
+            to="/teacher"
+            className="theme-bg-subtle theme-text hover:theme-accent-bg hover:theme-accent-text flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-bold transition-all duration-fast ease-out"
+          >
+            <Icon as={GraduationCap} size="sm" />
+            Teacher Dashboard
           </Link>
           <div className="theme-border my-2 border-t" />
           {NAV.map(item => (
@@ -189,6 +195,13 @@ export default function AdminLayout({ children }) {
               className="theme-bg-subtle theme-text hover:theme-accent-bg hover:theme-accent-text flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-colors animate-slide-in-soft"
             >
               <Icon as={Home} size="sm" />Learner Dashboard
+            </Link>
+            <Link
+              to="/teacher"
+              onClick={() => setMobileOpen(false)}
+              className="theme-bg-subtle theme-text hover:theme-accent-bg hover:theme-accent-text flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-colors animate-slide-in-soft"
+            >
+              <Icon as={GraduationCap} size="sm" />Teacher Dashboard
             </Link>
             <div className="theme-border my-2 border-t" />
             {NAV.map(item => (
