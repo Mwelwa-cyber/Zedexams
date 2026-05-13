@@ -923,7 +923,7 @@ service cloud.firestore {
         && (!('grade' in incoming()) || _validPaperGrade(incoming().grade))
         && (!('subject' in incoming()) || _validSubject(incoming().subject))
         && (!('year' in incoming()) || (incoming().year is int && incoming().year >= 1990 && incoming().year <= 2100))
-        && (!('paperNumber' in incoming()) || (incoming().paperNumber is int && incoming().paperNumber >= 1 && incoming().paperNumber <= 5))
+        && (!('paperNumber' in incoming()) || incoming().paperNumber == null || (incoming().paperNumber is int && incoming().paperNumber >= 1 && incoming().paperNumber <= 5))
         && (!('examBoard' in incoming()) || (incoming().examBoard is string && incoming().examBoard.size() <= 20))
         && (!('pdfPath' in incoming()) || (incoming().pdfPath is string && incoming().pdfPath.size() <= 500))
         && (!('pdfFilename' in incoming()) || (incoming().pdfFilename is string && incoming().pdfFilename.size() <= 200))
