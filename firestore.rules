@@ -23,7 +23,7 @@ service cloud.firestore {
     function _validGrade(value) { return value is string && value in ['4', '5', '6', '7']; }
     function _validSubject(value) { return value is string && value.size() >= 1 && value.size() <= 80; }
     function _validContentStatus(value) { return value is string && value in ['draft', 'pending', 'published', 'rejected']; }
-    function _validQuestionType(value) { return value is string && value in ['mcq', 'short_answer', 'diagram', 'fill', 'short', 'tf']; }
+    function _validQuestionType(value) { return value is string && value in ['mcq', 'short_answer', 'diagram', 'fill', 'short', 'tf', 'numeric', 'hotspot']; }
     function _validQuestionSubtype(value) { return value == null || (value is string && value in ['vocab', 'spelling', 'punctuation', 'sentence_ordering']); }
 
     function validQuizFields() {
@@ -83,7 +83,27 @@ service cloud.firestore {
         && (!('importWarnings' in incoming()) || (incoming().importWarnings is list && incoming().importWarnings.size() <= 50))
         // PRISCA mock-paper format: optional MCQ subtype + Part membership.
         && (!('subtype' in incoming()) || _validQuestionSubtype(incoming().subtype))
-        && (!('partId' in incoming()) || incoming().partId == null || (incoming().partId is string && incoming().partId.size() <= 64));
+        && (!('partId' in incoming()) || incoming().partId == null || (incoming().partId is string && incoming().partId.size() <= 64))
+        // Numeric-answer questions (#398): tolerance is an absolute slack
+        // around correctAnswer. The Zod schema caps it at 1,000,000 and
+        // requires ≥0; mirror those bounds here as a server-side backstop.
+        // Null is allowed because every non-numeric question stores
+        // `tolerance: null` (see normalizeQuestionPayload).
+        && (!('tolerance' in incoming()) || incoming().tolerance == null || (incoming().tolerance is number && incoming().tolerance >= 0 && incoming().tolerance <= 1000000))
+        // Hotspot-answer questions (#399): correctRegion is a normalised
+        // { x, y, radius } target on the question's image. Per-key bounds
+        // ([0,1] for x/y, [0,0.5] for radius) match src/editor/schema/question.js
+        // and src/utils/hotspotGrading.js — keeps the rule from accepting
+        // a region that the grader would reject as out-of-range.
+        && (!('correctRegion' in incoming()) || incoming().correctRegion == null || (
+              incoming().correctRegion is map
+              && incoming().correctRegion.x is number
+              && incoming().correctRegion.x >= 0 && incoming().correctRegion.x <= 1
+              && incoming().correctRegion.y is number
+              && incoming().correctRegion.y >= 0 && incoming().correctRegion.y <= 1
+              && incoming().correctRegion.radius is number
+              && incoming().correctRegion.radius >= 0 && incoming().correctRegion.radius <= 0.5
+            ));
     }
 
     function validLessonFields() {
