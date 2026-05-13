@@ -2009,6 +2009,10 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
   )
 }
 
+// Question fields whose edits invalidate any prior AI answer suggestion.
+// Module-scope so the array is allocated once per page load, not per render.
+const FIELDS_THAT_INVALIDATE_SUGGESTION = ['text', 'options', 'correctAnswer', 'wordBank']
+
 // Inline notice rendered below a question's answer area when Claude has
 // suggested the correct answer. Stays visible until the teacher either
 // edits anything answer-related (auto-cleared) or hits "Confirm".
@@ -2046,11 +2050,10 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
   const imageInputRef = useRef(null)
   const [suggesting, setSuggesting] = useState(false)
   const [suggestError, setSuggestError] = useState('')
+  // Guards setState after unmount during an in-flight suggestion call.
+  const mountedRef = useRef(true)
+  useEffect(() => () => { mountedRef.current = false }, [])
 
-  // Any teacher edit to the parts of the question the suggestion was based on
-  // (text, options, word bank, or the answer itself) invalidates the AI
-  // rationale, so we clear the badge. Marks / partId / image changes keep it.
-  const FIELDS_THAT_INVALIDATE_SUGGESTION = ['text', 'options', 'correctAnswer', 'wordBank']
   function updateQuestion(field, value) {
     if (question.aiSuggestion && FIELDS_THAT_INVALIDATE_SUGGESTION.includes(field)) {
       onUpdateQuestion('aiSuggestion', null)
@@ -2083,6 +2086,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
         subject: paperMeta?.subject,
         language: paperMeta?.language,
       })
+      if (!mountedRef.current) return
       // Apply directly (not through updateQuestion wrapper) so the
       // suggestion badge survives the correctAnswer write.
       onUpdateQuestion('correctAnswer', result.answer)
@@ -2092,9 +2096,11 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
         suggestedAt: Date.now(),
       })
     } catch (err) {
-      setSuggestError(err?.message || 'Could not suggest an answer.')
+      if (mountedRef.current) {
+        setSuggestError(err?.message || 'Could not suggest an answer.')
+      }
     } finally {
-      setSuggesting(false)
+      if (mountedRef.current) setSuggesting(false)
     }
   }
 
