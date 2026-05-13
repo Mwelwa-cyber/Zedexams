@@ -1,4 +1,5 @@
 import { Component } from 'react'
+import { reportClientError } from '../../utils/clientErrorReporting'
 
 // After a Firebase Hosting release, the previous build's hashed JS chunks stop
 // resolving on zedexams.com. Any user mid-session who triggers a lazy import
@@ -56,6 +57,11 @@ export default class ErrorBoundary extends Component {
   componentDidCatch(error, info) {
     // Surface the full stack for devs; kept out of the UI for learners.
     console.error('ErrorBoundary caught:', error, info?.componentStack)
+
+    // Forward to the rate-limited analytics sink. No-op without consent
+    // / config; Sentry's React integration captures the same event
+    // through its own pathway when DSN is set.
+    reportClientError(error, 'error_boundary')
 
     if (isChunkLoadError(error)) {
       // The cooldown stamp prevents an infinite reload loop if a real bug
