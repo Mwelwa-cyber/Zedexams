@@ -59,7 +59,9 @@ function str(v, max) {
 }
 
 function sanitizeInputs(raw = {}) {
-  const type = str(raw.type, 24).toLowerCase();
+  // ALLOWED_TYPES' longest entry is "true_false" (10 chars); 16 is a safe
+  // cap that leaves headroom without being silly.
+  const type = str(raw.type, 16).toLowerCase();
   const text = str(raw.text, 2000);
   const grade = str(raw.grade, 10).toUpperCase().replace(/\s+/g, "");
   const subject = str(raw.subject, 40).toLowerCase().replace(/[^a-z_]/g, "_");

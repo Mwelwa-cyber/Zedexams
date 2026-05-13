@@ -2013,16 +2013,19 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
 // Module-scope so the array is allocated once per page load, not per render.
 const FIELDS_THAT_INVALIDATE_SUGGESTION = ['text', 'options', 'correctAnswer', 'wordBank']
 
+// Module-scope colour palette for the AI suggestion notice — kept out of
+// the component body so it isn't reallocated per render.
+const AI_CONFIDENCE_META = {
+  high: { bg: '#ECFDF5', border: '#A7F3D0', text: '#065F46', label: 'High confidence' },
+  medium: { bg: '#FFFBEB', border: '#FCD34D', text: '#92400E', label: 'Medium confidence' },
+  low: { bg: '#FEF2F2', border: '#FCA5A5', text: '#991B1B', label: 'Low confidence — verify carefully' },
+}
+
 // Inline notice rendered below a question's answer area when Claude has
 // suggested the correct answer. Stays visible until the teacher either
 // edits anything answer-related (auto-cleared) or hits "Confirm".
 function AiSuggestionNotice({ rationale, confidence, onConfirm }) {
-  const confidenceMeta = {
-    high: { bg: '#ECFDF5', border: '#A7F3D0', text: '#065F46', label: 'High confidence' },
-    medium: { bg: '#FFFBEB', border: '#FCD34D', text: '#92400E', label: 'Medium confidence' },
-    low: { bg: '#FEF2F2', border: '#FCA5A5', text: '#991B1B', label: 'Low confidence — verify carefully' },
-  }
-  const m = confidenceMeta[confidence] || confidenceMeta.low
+  const m = AI_CONFIDENCE_META[confidence] || AI_CONFIDENCE_META.low
   return (
     <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 'var(--sv-r-sm)', background: m.bg, border: `1px solid ${m.border}`, color: m.text, fontSize: 12, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
       <div style={{ flex: 1 }}>
@@ -2156,7 +2159,9 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
           type="button"
           onClick={handleSuggestAnswer}
           disabled={suggesting}
-          title="Ask AI to suggest the correct answer for this question"
+          title={isEssay
+            ? 'Ask AI to suggest marking notes / a sample answer for this essay'
+            : 'Ask AI to suggest the correct answer for this question'}
           style={{
             marginLeft: 'auto',
             background: suggesting ? 'var(--sv-tinted)' : 'var(--sv-paper)',
@@ -2171,7 +2176,9 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
             gap: 4,
           }}
         >
-          {suggesting ? '⏳ Thinking…' : '✨ Suggest answer'}
+          {suggesting
+            ? '⏳ Thinking…'
+            : (isEssay ? '✨ Suggest marking notes' : '✨ Suggest answer')}
         </button>
       </div>
 
