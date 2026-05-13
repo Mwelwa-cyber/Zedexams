@@ -314,6 +314,85 @@ export const questionSchema = z
  */
 export const questionWriteSchema = questionSchema
 
+// ── Coerce helper (read-side, never throws) ──────────────────────
+
+function isPlainObject(v) {
+  return v !== null && typeof v === 'object' && !Array.isArray(v)
+}
+
+/**
+ * Normalise a raw Firestore question document for safe consumption by the
+ * UI + the grader.
+ *
+ * Sibling of coerceQuiz / coerceAttempt — see src/schemas/quiz.js + attempt.js
+ * for the established pattern. Same asymmetry: writes are strict, reads are
+ * permissive so legacy/partial docs already in Firestore don't blank the UI.
+ *
+ * Guarantees on the returned object:
+ *   - `type` is one of QUESTION_TYPES (unknown legacy values fall back to 'mcq')
+ *   - `options` is always an array of strings
+ *   - `optionMedia` is always an array (entries may be null)
+ *   - `marks` is a finite integer ≥ 1 (legacy `marks: NaN` no longer crashes
+ *     the runner's score totaller)
+ *   - `tolerance` is null OR a finite ≥0 number (the numericGrading helper
+ *     already defends, but defending here too keeps a corrupt doc out of
+ *     downstream score arithmetic)
+ *   - `correctRegion` is null OR a well-shaped { x, y, radius } object
+ *   - HTML + JSON rich-text fields are always strings/null (never undefined)
+ *
+ * Returns null when the input isn't an object — callers should
+ * `.filter(Boolean)` when mapping a query snapshot.
+ */
+export function coerceQuestion(raw) {
+  if (!isPlainObject(raw)) return null
+
+  const type = QUESTION_TYPES.includes(raw.type) ? raw.type : 'mcq'
+
+  const options = Array.isArray(raw.options)
+    ? raw.options.map(o => (typeof o === 'string' ? o : String(o ?? '')))
+    : []
+
+  const optionMedia = Array.isArray(raw.optionMedia)
+    ? raw.optionMedia.map(m => (isPlainObject(m) ? m : null))
+    : []
+
+  const rawMarks = Number(raw.marks)
+  const marks = Number.isFinite(rawMarks) && rawMarks >= 1
+    ? Math.min(10, Math.floor(rawMarks))
+    : 1
+
+  const rawTolerance = Number(raw.tolerance)
+  const tolerance = raw.tolerance == null
+    ? null
+    : Number.isFinite(rawTolerance) && rawTolerance >= 0
+      ? rawTolerance
+      : null
+
+  let correctRegion = null
+  if (isPlainObject(raw.correctRegion)) {
+    const x = Number(raw.correctRegion.x)
+    const y = Number(raw.correctRegion.y)
+    const r = Number(raw.correctRegion.radius)
+    if (
+      Number.isFinite(x) && x >= 0 && x <= 1 &&
+      Number.isFinite(y) && y >= 0 && y <= 1 &&
+      Number.isFinite(r) && r >= 0 && r <= 0.5
+    ) {
+      correctRegion = { x, y, radius: r }
+    }
+  }
+
+  return {
+    ...raw,
+    type,
+    options,
+    optionMedia,
+    marks,
+    tolerance,
+    correctRegion,
+  }
+}
+
 export const QUESTION_TYPES_LIST = QUESTION_TYPES
 export const DIFFICULTIES_LIST = DIFFICULTIES
 export const SUBTYPES_LIST = SUBTYPES

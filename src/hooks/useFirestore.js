@@ -25,7 +25,7 @@ import { capture as captureAnalytics } from '../utils/analytics.js'
 import { normalizeRichTextPayload } from '../utils/quizRichText.js'
 import { deleteQuizWithQuestions } from '../utils/deleteQuizWithQuestions.js'
 import { migrateContent } from '../editor/utils/migration.js'
-import { questionWriteSchema } from '../editor/schema/question.js'
+import { questionWriteSchema, coerceQuestion } from '../editor/schema/question.js'
 import { quizWriteSchema, quizUpdateSchema, coerceQuiz } from '../schemas/quiz.js'
 
 /**
@@ -286,7 +286,7 @@ export function useFirestore() {
   async function getQuestions(quizId) {
     try {
       const snap = await getDocs(query(collection(db, 'quizzes', quizId, 'questions'), orderBy('order', 'asc')))
-      return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      return snap.docs.map(d => coerceQuestion({ id: d.id, ...d.data() })).filter(Boolean)
     } catch (e) { console.error('getQuestions:', e); return [] }
   }
 
