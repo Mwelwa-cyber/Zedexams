@@ -36,17 +36,27 @@ export default function QuizEditorActionBar({
   uploading = false,
   dirty = false,
   autoSaveState = 'idle',
+  autoSaveError = '',
   issueCount = 0,
   canPublish = false,
   isPublished = false,
 }) {
   const busy = saving || uploading
 
+  // Truncate long Firestore/Storage error chains so the status pill
+  // doesn't break the action bar layout. The full error stays in the
+  // browser console (see EditQuizV2's performAutoSave catch block).
+  const truncatedError = autoSaveError && autoSaveError.length > 90
+    ? `${autoSaveError.slice(0, 87)}…`
+    : autoSaveError
+
   const statusText = (() => {
     if (uploading) return 'Uploading image…'
     if (saving) return 'Saving…'
     if (autoSaveState === 'saving') return 'Auto-saving…'
-    if (autoSaveState === 'failed') return 'Auto-save failed'
+    if (autoSaveState === 'failed') {
+      return truncatedError ? `Auto-save failed: ${truncatedError}` : 'Auto-save failed'
+    }
     if (dirty) return 'Unsaved changes'
     if (autoSaveState === 'saved') return 'Saved'
     return 'All changes saved'

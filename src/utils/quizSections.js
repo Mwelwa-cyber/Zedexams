@@ -527,6 +527,32 @@ export function serializeQuizSections(sections = [], parts = []) {
   }
 }
 
+// Normalise a stored optionMedia array on the way back into the editor.
+// Drops obviously-corrupt entries (non-objects, blob URLs left over from a
+// half-failed upload, options with no media at all), but PRESERVES partial
+// drafts where a teacher uploaded an image but hasn't typed the alt-text yet.
+// That partial state is what the pre-publish checklist is for; the editor
+// must surface it instead of silently dropping the image.
+function hydrateOptionMedia(rawMedia) {
+  if (!Array.isArray(rawMedia)) return []
+  return rawMedia.map(slot => {
+    if (!slot || typeof slot !== 'object') return null
+    const rawUrl = typeof slot.imageUrl === 'string' ? slot.imageUrl.trim() : ''
+    // Never round-trip a blob: URL — these only live in browser memory, so
+    // a previous tab's blob URL is dead by the time we hydrate. Treat the
+    // slot as text-only instead of rendering a broken <img>.
+    const imageUrl = rawUrl && !rawUrl.startsWith('blob:') ? rawUrl : ''
+    const diagram = slot.diagram && slot.diagram.libraryKey
+      ? { libraryKey: String(slot.diagram.libraryKey), params: slot.diagram.params || {} }
+      : null
+    if (!imageUrl && !diagram) return null
+    const out = { alt: typeof slot.alt === 'string' ? slot.alt : '' }
+    if (imageUrl) out.imageUrl = imageUrl
+    if (diagram) out.diagram = diagram
+    return out
+  })
+}
+
 function hydrateStandaloneQuestion(question = {}) {
   const type = question.type ?? 'mcq'
   // `fill` answers are stored as a comma-separated string and behave like
@@ -548,6 +574,11 @@ function hydrateStandaloneQuestion(question = {}) {
       : Array.isArray(question.options) && question.options.length
         ? question.options
         : ['', '', '', ''],
+    // optionMedia is parallel to options; persist it through the load so a
+    // teacher reopening a draft sees the images they uploaded earlier.
+    // emptyQuestion()'s ...overrides spread is the canonical way to feed
+    // arbitrary persisted fields back into the in-memory shape.
+    optionMedia: isTextAnswer ? [] : hydrateOptionMedia(question.optionMedia),
     correctAnswer: isTextAnswer
       ? String(question.correctAnswer ?? '')
       : question.correctAnswer ?? 0,
@@ -632,6 +663,9 @@ function hydratePassageQuestion(question = {}, passageId, partId = null) {
     options: Array.isArray(question.options) && question.options.length
       ? question.options
       : ['', '', '', ''],
+    // Persist optionMedia so image options survive a reload — same reasoning
+    // as in hydrateStandaloneQuestion above.
+    optionMedia: hydrateOptionMedia(question.optionMedia),
     correctAnswer: question.correctAnswer ?? 0,
     explanation: hydrateRichField(pickRichField(question.explanationJSON, question.explanation)),
     topic: question.topic ?? '',

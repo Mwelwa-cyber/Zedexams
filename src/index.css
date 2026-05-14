@@ -1482,6 +1482,38 @@ select option {
     color: var(--ink-2);
   }
 
+  /*
+   * Medium-size answer-option image. Used in the quiz editor's option
+   * card, the editor's preview pane, the learner runner, and the results
+   * review page. The cap keeps an answer card from blowing up vertically
+   * just because a photographer's screenshot was 3000px tall.
+   *
+   * Reasoning behind the numbers:
+   *   - 220px / 160px is "big enough to read a small diagram but small
+   *     enough that four options still fit side-by-side on a desktop".
+   *   - 180px / 140px on phones gives roughly the same proportions on a
+   *     narrow viewport.
+   *   - object-fit: contain (NOT cover) — we never crop a teacher's
+   *     uploaded image; the whole picture has to be visible to be
+   *     answerable.
+   */
+  .quiz-option-image {
+    display: block;
+    max-width: 220px;
+    max-height: 160px;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+    margin: 8px auto;
+    padding: 4px;
+  }
+  @media (max-width: 600px) {
+    .quiz-option-image {
+      max-width: 180px;
+      max-height: 140px;
+    }
+  }
+
   .quiz-actions {
     display: flex; justify-content: space-between;
     margin-top: 16px;
