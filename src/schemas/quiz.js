@@ -108,9 +108,14 @@ export const quizWriteSchema = z
     // `isDailyExam: true`. Practice quizzes use `quizType: 'practice'` (or
     // omit `quizType` entirely on legacy docs — getQuizzes() filters
     // explicitly so omitting it means the quiz never lists for learners).
-    quizType: z.enum(QUIZ_TYPES).optional(),
+    //
+    // `quizType` and `dailyExamDate` are nullable so admin actions (Publish
+    // an exam-only paper, Unassign a quiz) can explicitly *clear* the value
+    // with `null` rather than `undefined` — Firestore needs an actual value
+    // in the patch to delete the existing field on the doc.
+    quizType: z.enum(QUIZ_TYPES).nullable().optional(),
     isDailyExam: z.boolean().optional(),
-    dailyExamDate: z.string().max(10).optional(),
+    dailyExamDate: z.string().max(10).nullable().optional(),
     durationMinutes: z.number().int().min(1).max(600).optional(),
     isDemo: z.boolean().optional(),
   })

@@ -791,6 +791,8 @@ service cloud.firestore {
     // (createClassAssignment / deleteClassAssignment) so a tampered
     // client can't mint an assignment for a class they don't own.
     function _validResourceType(value) { return value is string && value in ['quiz', 'exam']; }
+    function _validAssignmentMode(value) { return value is string && value in ['automatic', 'manual']; }
+    function _validAssignmentStatus(value) { return value is string && value in ['active', 'scheduled', 'completed', 'archived']; }
     function validAssignmentFields() {
       return (!('classId' in incoming()) || (incoming().classId is string && incoming().classId.size() <= 100))
         && (!('teacherUid' in incoming()) || (incoming().teacherUid is string && incoming().teacherUid.size() <= 100))
@@ -800,6 +802,12 @@ service cloud.firestore {
         && (!('subject' in incoming()) || incoming().subject == null || _validSubject(incoming().subject))
         && (!('grade' in incoming()) || incoming().grade == null || (incoming().grade is string && incoming().grade.size() <= 5))
         && (!('dueAt' in incoming()) || incoming().dueAt == null || incoming().dueAt is timestamp)
+        && (!('openAt' in incoming()) || incoming().openAt == null || incoming().openAt is timestamp)
+        && (!('status' in incoming()) || _validAssignmentStatus(incoming().status))
+        && (!('assignmentMode' in incoming()) || _validAssignmentMode(incoming().assignmentMode))
+        && (!('template' in incoming()) || incoming().template == null || (incoming().template is string && incoming().template.size() <= 40))
+        && (!('settings' in incoming()) || incoming().settings == null || incoming().settings is map)
+        && (!('learnerUids' in incoming()) || incoming().learnerUids == null || (incoming().learnerUids is list && incoming().learnerUids.size() <= 200))
         && (!('active' in incoming()) || incoming().active is bool);
     }
     match /assignments/{assignmentId} {
