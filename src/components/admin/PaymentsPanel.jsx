@@ -32,7 +32,7 @@ function fmtDate(ts) {
 
 export default function PaymentsPanel() {
   const { currentUser } = useAuth()
-  const { getPendingPayments, getAllPayments, confirmPayment, rejectPayment, grantPremium, getAllUsers, updateUserRole } = useFirestore()
+  const { getPendingPayments, getAllPayments, confirmPayment, rejectPayment, grantPremium, revokePremium, getAllUsers, updateUserRole } = useFirestore()
 
   const [tab, setTab] = useState('pending')
   const [payments, setPayments] = useState([])
@@ -45,6 +45,7 @@ export default function PaymentsPanel() {
   const [grantPlan, setGrantPlan] = useState('monthly')
   const [grantDays, setGrantDays] = useState(30)
   const [granting, setGranting] = useState(false)
+  const [rowActionUid, setRowActionUid] = useState(null)
 
   function show(msg) { setToast(msg); setTimeout(() => setToast(null), 3500) }
 
@@ -121,6 +122,39 @@ export default function PaymentsPanel() {
     try { await grantPremium(grantUid.trim(), grantPlan, +grantDays, currentUser.uid); show('Premium granted!'); setGrantUid('') }
     catch (e) { show('❌ ' + e.message) }
     setGranting(false)
+  }
+
+  // Per-row grant: uses the currently selected plan + days from the form
+  // so admins don't have to copy a 28-char Firestore UID into the input.
+  async function handleRowGrant(u) {
+    setRowActionUid(u.id)
+    try {
+      await grantPremium(u.id, grantPlan, +grantDays, currentUser.uid)
+      const planName = PLANS[grantPlan]?.name ?? grantPlan
+      setUsers(list => list.map(x => x.id === u.id
+        ? { ...x, premium: true, isPremium: true, paymentStatus: 'active', subscriptionStatus: 'active', subscriptionPlan: grantPlan }
+        : x))
+      show(`⭐ Granted ${planName} to ${u.displayName || u.id.slice(0, 10)}`)
+    } catch (e) { show('❌ ' + e.message) }
+    setRowActionUid(null)
+  }
+
+  async function handleRowRevoke(u) {
+    if (!window.confirm(`Revoke premium from ${u.displayName || u.id}?`)) return
+    setRowActionUid(u.id)
+    try {
+      await revokePremium(u.id)
+      setUsers(list => list.map(x => x.id === u.id
+        ? { ...x, premium: false, isPremium: false, paymentStatus: 'inactive', subscriptionStatus: 'inactive', subscriptionPlan: 'free' }
+        : x))
+      show('Premium revoked.')
+    } catch (e) { show('❌ ' + e.message) }
+    setRowActionUid(null)
+  }
+
+  async function handleCopyUid(uid) {
+    try { await navigator.clipboard.writeText(uid); show('User ID copied.') }
+    catch { show('❌ Could not copy.') }
   }
 
   return (
@@ -215,14 +249,24 @@ export default function PaymentsPanel() {
           : <div className="overflow-x-auto rounded-2xl border border-gray-200">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-200">
-                <tr>{['Name', 'Role', 'Premium', 'Grade'].map(h => <th key={h} className="text-left px-4 py-3 font-black text-gray-600 text-xs">{h}</th>)}</tr>
+                <tr>{['Name', 'Role', 'Premium', 'Grade', 'Actions'].map(h => <th key={h} className="text-left px-4 py-3 font-black text-gray-600 text-xs">{h}</th>)}</tr>
               </thead>
               <tbody>
-                {users.map(u => (
+                {users.map(u => {
+                  const isPremium = hasPremiumAccess(u)
+                  const busy = rowActionUid === u.id
+                  return (
                   <tr key={u.id} className="border-b theme-border hover:bg-gray-50">
                     <td className="px-4 py-3">
                       <div className="font-bold text-gray-800">{u.displayName || '—'}</div>
-                      <div className="text-xs text-gray-400">{u.id?.slice(0, 10) || '—'}…</div>
+                      <button
+                        type="button"
+                        onClick={() => handleCopyUid(u.id)}
+                        title="Copy full User ID"
+                        className="text-xs text-gray-400 hover:text-green-600 hover:underline cursor-pointer"
+                      >
+                        {u.id?.slice(0, 10) || '—'}… 📋
+                      </button>
                     </td>
                     <td className="px-4 py-3">
                       <select value={u.role || ''} onChange={e => handleRoleChange(u.id, e.target.value)}
@@ -234,12 +278,24 @@ export default function PaymentsPanel() {
                       </select>
                     </td>
                     <td className="px-4 py-3">
-                      {hasPremiumAccess(u) ? <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full text-xs font-black">⭐ {u.subscriptionPlan}</span>
+                      {isPremium ? <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded-full text-xs font-black">⭐ {u.subscriptionPlan}</span>
                         : <span className="text-gray-400 text-xs">Free</span>}
                     </td>
                     <td className="px-4 py-3 text-gray-500">{u.grade ? `G${u.grade}` : '—'}</td>
+                    <td className="px-4 py-3">
+                      {isPremium ? (
+                        <Button variant="danger" size="sm" disabled={busy} onClick={() => handleRowRevoke(u)}>
+                          {busy ? '…' : 'Revoke'}
+                        </Button>
+                      ) : (
+                        <Button variant="primary" size="sm" disabled={busy} onClick={() => handleRowGrant(u)}>
+                          {busy ? '…' : '⭐ Grant'}
+                        </Button>
+                      )}
+                    </td>
                   </tr>
-                ))}
+                  )
+                })}
               </tbody>
             </table>
           </div>}
