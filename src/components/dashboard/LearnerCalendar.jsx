@@ -21,14 +21,18 @@ const MUTED = "#8A9BB0";
 const TERM_ACCENT = ["#1A6B5A", "#1A4B8E", "#7B2D8B"];
 const TERM_SOFT   = ["#EAF5F2", "#EAF0FA", "#F5EAF9"];
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
-function today() {
-  const d = new Date(); d.setHours(0,0,0,0); return d;
-}
+// ── Local helpers ─────────────────────────────────────────────────────────────
 
 function detectYear() {
-  const y = today().getFullYear();
+  const active = getActiveTerm();
+  if (active) return active.year;
+  const y = new Date().getFullYear();
   return MOE_CALENDAR[y] ? y : 2026;
+}
+
+function detectTermIdx() {
+  const active = getActiveTerm();
+  return active ? active.termIndex : 0;
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -59,7 +63,6 @@ function TermPill({ term, index, active, onClick }) {
           width: 7, height: 7, borderRadius: "50%",
           background: active ? WHITE : GOLD,
           display: "inline-block",
-          boxShadow: "0 0 0 2px rgba(255,255,255,0.4)",
           animation: "pulse 1.5s infinite",
         }} />
       )}
@@ -107,7 +110,7 @@ function CountdownCard({ term, termIndex }) {
 
   // Active
   const dLeft = daysUntil(term.close);
-  const pct = Math.max(0, Math.min(100, Math.round(
+  const pct   = Math.max(0, Math.min(100, Math.round(
     ((term.residentDays - dLeft) / term.residentDays) * 100
   )));
 
@@ -133,7 +136,6 @@ function CountdownCard({ term, termIndex }) {
         </div>
       </div>
 
-      {/* Progress bar */}
       <div>
         <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: MUTED, marginBottom: 5 }}>
           <span style={{ fontWeight: 600 }}>{pct}% through the term</span>
@@ -143,8 +145,7 @@ function CountdownCard({ term, termIndex }) {
           <div style={{
             width: `${pct}%`, height: "100%",
             background: `linear-gradient(90deg, ${accent}, ${accent}AA)`,
-            borderRadius: 99,
-            transition: "width 0.6s ease",
+            borderRadius: 99, transition: "width 0.6s ease",
           }} />
         </div>
       </div>
@@ -153,9 +154,9 @@ function CountdownCard({ term, termIndex }) {
 }
 
 function HolidayRow({ holiday }) {
-  const d = daysUntil(holiday.date);
-  const isToday  = d === 0;
-  const isSoon   = d > 0 && d <= 7;
+  const d       = daysUntil(holiday.date);
+  const isToday = d === 0;
+  const isSoon  = d > 0 && d <= 7;
   return (
     <div style={{
       display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -174,7 +175,7 @@ function HolidayRow({ holiday }) {
           {isToday ? "TODAY!" : isSoon ? `${d} days` : fmtDate(holiday.date, "day")}
         </div>
         {!isToday && (
-          <div style={{ fontSize: 10, color: MUTED }}>{fmtDate(holiday.date, "short").split(" ").slice(0,2).join(" ")}</div>
+          <div style={{ fontSize: 10, color: MUTED }}>{fmtDate(holiday.date, "short")}</div>
         )}
       </div>
     </div>
@@ -183,11 +184,8 @@ function HolidayRow({ holiday }) {
 
 // ── Main Component ─────────────────────────────────────────────────────────────
 export default function LearnerCalendar() {
-  const [year, setYear]       = useState(detectYear);
-  const [termIdx, setTermIdx] = useState(() => {
-    const active = getActiveTerm();
-    return active ? active.termIndex : 0;
-  });
+  const [year,    setYear]    = useState(detectYear);
+  const [termIdx, setTermIdx] = useState(detectTermIdx);
 
   const terms    = MOE_CALENDAR[year].terms;
   const term     = terms[termIdx];
@@ -203,11 +201,11 @@ export default function LearnerCalendar() {
       <style>{`
         @keyframes pulse {
           0%, 100% { opacity: 1; }
-          50% { opacity: 0.4; }
+          50%       { opacity: 0.4; }
         }
       `}</style>
 
-      {/* Header */}
+      {/* ── Header ── */}
       <div style={{
         background: `linear-gradient(135deg, ${NAVY} 0%, ${DEEP} 100%)`,
         borderRadius: 16, padding: "20px 24px", marginBottom: 20,
@@ -231,7 +229,7 @@ export default function LearnerCalendar() {
 
         {/* Year picker */}
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {Object.keys(MOE_CALENDAR).map(y => (
+          {Object.keys(MOE_CALENDAR).map((y) => (
             <button
               key={y}
               onClick={() => { setYear(+y); setTermIdx(0); }}
@@ -240,35 +238,34 @@ export default function LearnerCalendar() {
                 cursor: "pointer", fontSize: 12, fontWeight: 700,
                 fontFamily: "Georgia, serif",
                 background: +y === year ? GOLD : "rgba(255,255,255,0.1)",
-                color: +y === year ? NAVY : "rgba(255,255,255,0.6)",
+                color:      +y === year ? NAVY : "rgba(255,255,255,0.6)",
                 transition: "all 0.18s",
               }}
-            >{y}</button>
+            >
+              {y}
+            </button>
           ))}
         </div>
       </div>
 
-      {/* Term Pills */}
+      {/* ── Term Pills ── */}
       <div style={{ display: "flex", gap: 10, marginBottom: 16, flexWrap: "wrap" }}>
         {terms.map((t, i) => (
-          <TermPill key={i} term={t} index={i} active={termIdx === i} onClick={() => setTermIdx(i)} />
+          <TermPill key={t.id} term={t} index={i} active={termIdx === i} onClick={() => setTermIdx(i)} />
         ))}
       </div>
 
-      {/* Countdown */}
+      {/* ── Countdown ── */}
       <CountdownCard term={term} termIndex={termIdx} />
 
-      {/* Term quick dates */}
-      <div style={{
-        display: "grid", gridTemplateColumns: "1fr 1fr",
-        gap: 10, margin: "14px 0",
-      }}>
+      {/* ── Quick dates ── */}
+      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, margin: "14px 0" }}>
         {[
-          { label: "Opens",        value: fmtDate(term.open, "short") },
-          { label: "Closes",       value: fmtDate(term.close, "short") },
-          { label: "Working Days", value: term.workingDays },
-          { label: "Holiday",      value: `${term.holidayLength} days` },
-        ].map(({ label, value }) => (
+          ["Opens",        fmtDate(term.open,  "short")],
+          ["Closes",       fmtDate(term.close, "short")],
+          ["Working Days", term.workingDays],
+          ["Holiday",      `${term.holidayLength} days`],
+        ].map(([label, value]) => (
           <div key={label} style={{
             background: WHITE, borderRadius: 10, padding: "12px 16px",
             border: "1px solid #E5E9EF",
@@ -279,11 +276,10 @@ export default function LearnerCalendar() {
         ))}
       </div>
 
-      {/* Upcoming Holidays */}
+      {/* ── Upcoming holidays (next 30 days) ── */}
       <div style={{ background: WHITE, borderRadius: 14, overflow: "hidden", border: "1px solid #E5E9EF" }}>
         <div style={{
-          padding: "14px 18px",
-          borderBottom: "1px solid #E5E9EF",
+          padding: "14px 18px", borderBottom: "1px solid #E5E9EF",
           display: "flex", justifyContent: "space-between", alignItems: "center",
         }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: NAVY }}>Upcoming Public Holidays</div>
@@ -300,7 +296,7 @@ export default function LearnerCalendar() {
         </div>
       </div>
 
-      {/* All holidays this term */}
+      {/* ── All holidays this term ── */}
       <div style={{ marginTop: 14, background: WHITE, borderRadius: 14, overflow: "hidden", border: "1px solid #E5E9EF" }}>
         <div style={{ padding: "14px 18px", borderBottom: "1px solid #E5E9EF" }}>
           <div style={{ fontSize: 13, fontWeight: 700, color: NAVY }}>
@@ -321,7 +317,7 @@ export default function LearnerCalendar() {
         </div>
       </div>
 
-      {/* Footer */}
+      {/* ── Footer ── */}
       <p style={{ textAlign: "center", fontSize: 10, color: MUTED, marginTop: 20 }}>
         Source: MoE Zambia Official School Calendar 2026–2030 · Ng'andu Edition
       </p>
