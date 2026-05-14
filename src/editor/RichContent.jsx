@@ -58,6 +58,23 @@ function extractFromNode(node) {
   if (!node) return ''
   if (node.type === 'text') return node.text || ''
   if (node.type === 'mathInline') return node.attrs?.latex || ''
+  if (node.type === 'mathFraction') {
+    const w = node.attrs?.whole || ''
+    const n = node.attrs?.num || ''
+    const d = node.attrs?.den || ''
+    return `${w ? `${w} ` : ''}${n}/${d}`.trim()
+  }
+  if (node.type === 'numberBase') {
+    const n = node.attrs?.number || ''
+    const b = node.attrs?.base || ''
+    return b ? `${n}_${b}` : n
+  }
+  if (node.type === 'verticalArithmetic') {
+    const op = node.attrs?.operator || '+'
+    const lines = Array.isArray(node.attrs?.lines) ? node.attrs.lines : []
+    const ans = node.attrs?.answer || ''
+    return `${lines.join(` ${op} `)} = ${ans || '___'}`
+  }
   if (node.content) return node.content.map(extractFromNode).join('')
   return ''
 }

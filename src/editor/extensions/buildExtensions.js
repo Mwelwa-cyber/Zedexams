@@ -35,6 +35,9 @@ import Superscript     from '@tiptap/extension-superscript'
 import Subscript       from '@tiptap/extension-subscript'
 import { Placeholder } from '@tiptap/extension-placeholder'
 import { MathInline }  from './MathInline.js'
+import { MathFraction } from './MathFraction.js'
+import { NumberBase }   from './NumberBase.js'
+import { VerticalArithmetic } from './VerticalArithmetic.js'
 // KaTeX CSS is a pure side-effect import — it belongs on the editor/viewer
 // chunks, not the extension factory. Pulling it into this file made the
 // module un-importable from Node scripts (test:schema, migrate-questions).
@@ -65,6 +68,9 @@ export function buildExtensions({ placeholder = '', readOnly = false } = {}) {
     Superscript,
     Subscript,
     MathInline,
+    MathFraction,
+    NumberBase,
+    VerticalArithmetic,
   ]
 
   if (!readOnly) {

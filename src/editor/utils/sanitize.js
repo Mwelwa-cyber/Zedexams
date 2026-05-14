@@ -17,6 +17,10 @@ const EDITOR_ALLOWED_TAGS = [
   'blockquote',
   'table', 'thead', 'tbody', 'tfoot', 'tr', 'td', 'th',
   'span', 'sup', 'sub', 'code',
+  // Grade-7 math blocks: vertical arithmetic is a <div> wrapper. The
+  // visual children are rebuilt by the runtime hydrator, so we never
+  // need to allow the inner spans/rows here.
+  'div',
 ]
 
 const EDITOR_ALLOWED_ATTR = [
@@ -26,6 +30,21 @@ const EDITOR_ALLOWED_ATTR = [
   'data-latex',
   'data-math-latex',
   'data-display',
+  // Grade-7 math node attributes. Round-trip data only — every visual
+  // detail is rebuilt by the hydrator from these data-* values, so the
+  // exported HTML matches the editor preview byte-for-byte.
+  'data-vertical-arithmetic',
+  'data-operator',
+  'data-lines',
+  'data-answer',
+  'data-working',
+  'data-math-fraction',
+  'data-whole',
+  'data-num',
+  'data-den',
+  'data-number-base',
+  'data-number',
+  'data-base',
   'class',
   // Inline style is narrowed upstream to text-align / color / background-color
   // by cleanStyleAttribute — DOMPurify just has to permit the attribute to
@@ -91,6 +110,21 @@ const QUIZ_RICH_ALLOWED_ATTR = [
   // leaked attribute doesn't drop the entire math node's attributes.
   'data-math-latex',
   'data-display',
+  // Grade-7 math node attributes — same allow-list as the editor sanitiser.
+  // Question rendering reads these to rebuild vertical-arithmetic columns,
+  // fractions, and number-base subscripts in the printed paper.
+  'data-vertical-arithmetic',
+  'data-operator',
+  'data-lines',
+  'data-answer',
+  'data-working',
+  'data-math-fraction',
+  'data-whole',
+  'data-num',
+  'data-den',
+  'data-number-base',
+  'data-number',
+  'data-base',
   'colspan', 'rowspan',
 ]
 

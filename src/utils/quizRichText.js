@@ -1,5 +1,10 @@
 import { sanitizeQuizRichHTML } from '../editor/utils/sanitize.js'
-import { toHTML as tiptapJsonToHtml } from '../editor/utils/safeRender.js'
+import {
+  toHTML as tiptapJsonToHtml,
+  hydrateVerticalArithmetic,
+  hydrateFractions,
+  hydrateNumberBases,
+} from '../editor/utils/safeRender.js'
 
 const STRIP_TAGS = new Set(['SCRIPT', 'STYLE', 'IFRAME', 'OBJECT', 'EMBED', 'META', 'LINK'])
 const ALLOWED_TAGS = new Set([
@@ -38,7 +43,7 @@ const TAG_ALIASES = {
 }
 const BLOCK_TAGS = new Set(['P', 'DIV', 'UL', 'OL', 'LI', 'TABLE', 'THEAD', 'TBODY', 'TR', 'H1', 'H2', 'H3', 'BLOCKQUOTE'])
 const SAFE_TEXT_ALIGN = new Set(['left', 'center', 'right'])
-const SAFE_CLASS_NAMES = new Set(['mnode', 'etable'])
+const SAFE_CLASS_NAMES = new Set(['mnode', 'etable', 'vert-arith', 'math-frac', 'num-base'])
 const COLOR_RE = /^(#[0-9a-f]{3,8}|rgb(a)?\([\d\s,.%]+\)|hsl(a)?\([\d\s,.%]+\)|transparent|currentcolor|inherit)$/i
 const HTML_RE = /<\/?[a-z][\s\S]*>/i
 const KATEX_VERSION = '0.16.11'
@@ -198,6 +203,41 @@ function sanitizeElementAttributes(element) {
       const cleanSpan = cleanCellSpan(value)
       if (cleanSpan) element.setAttribute(name, cleanSpan)
     }
+
+    // ── Grade-7 math blocks ──
+    // Vertical-arithmetic <div> wrapper. The hydrator rebuilds the visual
+    // children from these data-* attributes, so we just need to preserve
+    // them through every sanitisation pass.
+    if (tagName === 'DIV' && (
+      name === 'data-vertical-arithmetic' ||
+      name === 'data-operator' ||
+      name === 'data-lines' ||
+      name === 'data-answer' ||
+      name === 'data-working'
+    )) {
+      element.setAttribute(name, value)
+      return
+    }
+    // Fraction <span>. Numerator/denominator (plus optional whole-number
+    // for mixed fractions) stored as data-*; the renderer stacks them.
+    if (tagName === 'SPAN' && (
+      name === 'data-math-fraction' ||
+      name === 'data-whole' ||
+      name === 'data-num' ||
+      name === 'data-den'
+    )) {
+      element.setAttribute(name, value)
+      return
+    }
+    // Number-base <span>: 313 with subscript base 5 → 313₅.
+    if (tagName === 'SPAN' && (
+      name === 'data-number-base' ||
+      name === 'data-number' ||
+      name === 'data-base'
+    )) {
+      element.setAttribute(name, value)
+      return
+    }
   })
 
   if (tagName === 'SPAN' && element.getAttribute('data-latex') && !element.classList.contains('mnode')) {
@@ -332,6 +372,35 @@ export function richTextToPlainText(value) {
       return
     }
 
+    // Grade-7 math blocks read out as a plain-text representation so AI
+    // verifiers, search, and the OCR-export plain fallback all see
+    // human-readable content.
+    if (element.classList.contains('math-frac')) {
+      const w = element.getAttribute('data-whole') || ''
+      const n = element.getAttribute('data-num') || ''
+      const d = element.getAttribute('data-den') || ''
+      pieces.push(`${w ? `${w} ` : ''}${n}/${d}`.trim())
+      pieces.push(' ')
+      return
+    }
+    if (element.classList.contains('num-base')) {
+      const n = element.getAttribute('data-number') || ''
+      const b = element.getAttribute('data-base') || ''
+      pieces.push(b ? `${n}_${b}` : n)
+      pieces.push(' ')
+      return
+    }
+    if (element.classList.contains('vert-arith')) {
+      const op = element.getAttribute('data-operator') || '+'
+      const lines = (element.getAttribute('data-lines') || '').split('|')
+      const answer = element.getAttribute('data-answer') || ''
+      const summary = `${lines.join(` ${op} `)} = ${answer || '___'}`
+      pieces.push('\n')
+      pieces.push(summary.trim())
+      pieces.push('\n')
+      return
+    }
+
     const isCell = tagName === 'TD' || tagName === 'TH'
     const isRow = tagName === 'TR'
 
@@ -374,9 +443,29 @@ function walkTiptapNode(node, out) {
     out.push('\n')
     return
   }
-  if (type === 'math' || type === 'inlineMath' || type === 'mathBlock') {
+  if (type === 'math' || type === 'inlineMath' || type === 'mathBlock' || type === 'mathInline') {
     const latex = node.attrs?.latex || node.attrs?.['data-latex'] || ''
     if (latex) out.push(`${latex} `)
+    return
+  }
+  if (type === 'mathFraction') {
+    const w = node.attrs?.whole || ''
+    const n = node.attrs?.num || ''
+    const d = node.attrs?.den || ''
+    out.push(`${w ? `${w} ` : ''}${n}/${d}`.trim() + ' ')
+    return
+  }
+  if (type === 'numberBase') {
+    const n = node.attrs?.number || ''
+    const b = node.attrs?.base || ''
+    out.push(b ? `${n}_${b} ` : `${n} `)
+    return
+  }
+  if (type === 'verticalArithmetic') {
+    const op = node.attrs?.operator || '+'
+    const lines = Array.isArray(node.attrs?.lines) ? node.attrs.lines : []
+    const ans = node.attrs?.answer || ''
+    out.push(`\n${lines.join(` ${op} `)} = ${ans || '___'}\n`)
     return
   }
   const isBlock =
@@ -557,6 +646,12 @@ export function renderMathInElement(container) {
 
     node.textContent = latex
   })
+
+  // Grade-7 math blocks share this renderer too — the editor viewer,
+  // quiz runner, and quiz preview all flow through here.
+  hydrateVerticalArithmetic(container)
+  hydrateFractions(container)
+  hydrateNumberBases(container)
 }
 
 export function normalizeRichTextPayload(value) {

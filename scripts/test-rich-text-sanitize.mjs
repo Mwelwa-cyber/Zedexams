@@ -229,6 +229,50 @@ test('sanitizeQuizRichHTML permits headings', () => {
   assertIncludes(out, '<h1>', 'h1 allowed in final defensive pass')
 })
 
+// ── Group 6: Grade-7 math blocks ─────────────────────────────────────
+console.log('\nGrade-7 math blocks')
+
+test('vertical-arithmetic data attributes survive editor sanitiser', () => {
+  const input = '<div class="vert-arith" data-vertical-arithmetic="1" data-operator="−" data-lines="2376|1154" data-answer="" data-working="false"></div>'
+  const out = sanitizeHTML(input)
+  assertIncludes(out, 'data-vertical-arithmetic', 'wrapper marker')
+  assertIncludes(out, 'data-operator="−"', 'operator')
+  assertIncludes(out, 'data-lines="2376|1154"', 'lines')
+})
+
+test('vertical-arithmetic survives quiz-rich pipeline', () => {
+  const input = '<div class="vert-arith" data-vertical-arithmetic="1" data-operator="+" data-lines="100|200" data-answer="300" data-working="false"></div>'
+  const out = ensureRichTextHtml(input)
+  assertIncludes(out, 'data-vertical-arithmetic', 'wrapper marker')
+  assertIncludes(out, 'data-operator="+"', 'operator')
+  assertIncludes(out, 'data-answer="300"', 'answer')
+})
+
+test('fraction data attributes survive quiz-rich pipeline', () => {
+  const input = '<p>Add <span class="math-frac" data-math-fraction="1" data-whole="1" data-num="1" data-den="3"></span> and <span class="math-frac" data-math-fraction="1" data-whole="1" data-num="1" data-den="6"></span></p>'
+  const out = ensureRichTextHtml(input)
+  assertIncludes(out, 'data-math-fraction', 'wrapper marker')
+  assertIncludes(out, 'data-whole="1"', 'whole number')
+  assertIncludes(out, 'data-num="1"', 'numerator')
+  assertIncludes(out, 'data-den="3"', 'denominator')
+})
+
+test('number-base data attributes survive quiz-rich pipeline', () => {
+  const input = '<p>Convert <span class="num-base" data-number-base="1" data-number="313" data-base="5"></span> to base 10.</p>'
+  const out = ensureRichTextHtml(input)
+  assertIncludes(out, 'data-number-base', 'wrapper marker')
+  assertIncludes(out, 'data-number="313"', 'number')
+  assertIncludes(out, 'data-base="5"', 'base')
+})
+
+test('vert-arith / math-frac / num-base classes preserved', () => {
+  const input = '<div class="vert-arith" data-vertical-arithmetic="1" data-operator="+" data-lines="1|2" data-answer="" data-working="false"></div><p><span class="math-frac" data-math-fraction="1" data-whole="" data-num="3" data-den="4"></span><span class="num-base" data-number-base="1" data-number="11" data-base="2"></span></p>'
+  const out = ensureRichTextHtml(input)
+  assertIncludes(out, 'class="vert-arith"', 'vert-arith class')
+  assertIncludes(out, 'class="math-frac"', 'math-frac class')
+  assertIncludes(out, 'class="num-base"', 'num-base class')
+})
+
 // ── Report ───────────────────────────────────────────────────────────
 console.log('')
 console.log(`─── ${pass + fail} tests · ${pass} passed · ${fail} failed ───`)

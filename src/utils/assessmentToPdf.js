@@ -342,6 +342,100 @@ body {
 .seq-row { display: flex; align-items: center; gap: 10pt; padding: 3pt 0; border-bottom: 1px dotted #999; }
 .seq-blank { display: inline-block; width: 30pt; border-bottom: 1px solid #000; height: 12pt; }
 .pagebreak { page-break-after: always; break-after: page; height: 0; }
+
+/* ── Grade-7 math blocks (must match editor.css visually) ── */
+.qbody p { margin: 0; }
+.qbody p + p { margin-top: 4pt; }
+.vert-arith {
+  display: inline-block;
+  margin: 4pt 6pt 6pt 0;
+  font-family: 'Cambria Math', 'Times New Roman', 'Liberation Serif', serif;
+  font-size: 13pt;
+  line-height: 1.25;
+  vertical-align: middle;
+  page-break-inside: avoid;
+}
+.vert-arith .va-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6pt;
+  white-space: pre;
+}
+.vert-arith .va-op {
+  display: inline-block;
+  width: 14pt;
+  text-align: left;
+  font-weight: 700;
+}
+.vert-arith .va-num {
+  display: inline-block;
+  text-align: right;
+  font-feature-settings: 'tnum' 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 1pt;
+}
+.vert-arith .va-rule {
+  border-top: 1.5pt solid #000;
+  margin: 1pt 0 1pt 16pt;
+  min-width: 56pt;
+}
+.vert-arith .va-answer-row .va-num { min-height: 16pt; }
+.vert-arith .va-working {
+  border-top: 1pt dashed #888;
+  margin-top: 4pt;
+  padding-top: 4pt;
+}
+.vert-arith .va-working-line {
+  border-bottom: 1px solid #888;
+  height: 14pt;
+  width: 100pt;
+  margin: 2pt 0;
+}
+
+.math-frac {
+  display: inline-flex;
+  align-items: center;
+  gap: 2pt;
+  vertical-align: middle;
+  line-height: 1;
+  margin: 0 1pt;
+  font-family: 'Cambria Math', 'Times New Roman', serif;
+}
+.math-frac-whole { padding-right: 3pt; }
+.math-frac-stack {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+  vertical-align: middle;
+  text-align: center;
+}
+.math-frac-num,
+.math-frac-den {
+  display: block;
+  font-size: 0.85em;
+  padding: 0 2pt;
+  line-height: 1.1;
+  text-align: center;
+}
+.math-frac-num { border-bottom: 1pt solid currentColor; padding-bottom: 1pt; }
+.math-frac-den { padding-top: 1pt; }
+
+.num-base {
+  display: inline-flex;
+  align-items: baseline;
+  vertical-align: baseline;
+  font-family: inherit;
+}
+.num-base-num { font: inherit; }
+.num-base-sub {
+  font-size: 0.65em;
+  position: relative;
+  bottom: -0.35em;
+  margin-left: 1pt;
+  font-weight: 500;
+}
 .data-table { border-collapse: collapse; margin: 6pt 0 10pt; font-size: 11pt; }
 .data-table th, .data-table td { border: 1px solid #000; padding: 3pt 8pt; }
 .data-table th { background: #f1f5f9; font-weight: 700; }
@@ -536,8 +630,15 @@ function renderQuestion(b) {
     body += renderAnswerBlock(b)
   }
 
+  // Prefer the pre-hydrated rich HTML (Tiptap JSON → safeRender → paper
+  // HTML) so vertical sums, fractions, and number bases survive into the
+  // printable paper exactly as the editor preview drew them. Fall back
+  // to the escaped plain text for legacy content.
+  const qBody = b.textHtml && b.textHtml.trim()
+    ? b.textHtml
+    : escapeHtml(b.text || '(no question text)')
   return `<div class="question">
-    <div class="qline"><strong>${b.number}.</strong> ${escapeHtml(b.text || '(no question text)')} ${qmark}</div>
+    <div class="qline"><strong>${b.number}.</strong> <span class="qbody">${qBody}</span> ${qmark}</div>
     ${body}
   </div>`
 }

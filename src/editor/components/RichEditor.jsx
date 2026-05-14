@@ -46,6 +46,9 @@ import { sanitizePastedHTML } from '../utils/sanitize.js'
 import EditorToolbar from './EditorToolbar.jsx'
 import MathModal from './modals/MathModal.jsx'
 import TableModal from './modals/TableModal.jsx'
+import VerticalArithmeticModal from './modals/VerticalArithmeticModal.jsx'
+import FractionModal from './modals/FractionModal.jsx'
+import NumberBaseModal from './modals/NumberBaseModal.jsx'
 // KaTeX stylesheet — side-effect import kept at the component level so the
 // extensions factory stays pure-JS (importable by Node migration scripts).
 import 'katex/dist/katex.min.css'
@@ -70,6 +73,14 @@ export default function RichEditor({
   const [showMath,  setShowMath]  = useState(false)
   const [showTable, setShowTable] = useState(false)
   const [mathEdit,  setMathEdit]  = useState(null)  // { latex, pos } | null
+
+  // Grade-7 math blocks
+  const [showVertArith, setShowVertArith] = useState(false)
+  const [vertArithEdit, setVertArithEdit] = useState(null)
+  const [showFraction, setShowFraction] = useState(false)
+  const [fractionEdit, setFractionEdit] = useState(null)
+  const [showNumBase, setShowNumBase] = useState(false)
+  const [numBaseEdit, setNumBaseEdit] = useState(null)
 
   // ── Stable onChange ref ───────────────────────────────────────
   // Storing onChange in a ref prevents useEditor from re-creating the
@@ -130,15 +141,41 @@ export default function RichEditor({
       setMathEdit({ latex: e.detail.latex, pos: e.detail.pos })
       setShowMath(true)
     }
+    const handleVertArithClick = (e) => {
+      setVertArithEdit({ attrs: e.detail.attrs, pos: e.detail.pos })
+      setShowVertArith(true)
+    }
+    const handleFractionClick = (e) => {
+      setFractionEdit({ attrs: e.detail.attrs, pos: e.detail.pos })
+      setShowFraction(true)
+    }
+    const handleNumberBaseClick = (e) => {
+      setNumBaseEdit({ attrs: e.detail.attrs, pos: e.detail.pos })
+      setShowNumBase(true)
+    }
 
     dom.addEventListener('tiptap-math-click', handleMathClick)
-    return () => dom.removeEventListener('tiptap-math-click', handleMathClick)
+    dom.addEventListener('tiptap-vert-arith-click', handleVertArithClick)
+    dom.addEventListener('tiptap-fraction-click', handleFractionClick)
+    dom.addEventListener('tiptap-number-base-click', handleNumberBaseClick)
+    return () => {
+      dom.removeEventListener('tiptap-math-click', handleMathClick)
+      dom.removeEventListener('tiptap-vert-arith-click', handleVertArithClick)
+      dom.removeEventListener('tiptap-fraction-click', handleFractionClick)
+      dom.removeEventListener('tiptap-number-base-click', handleNumberBaseClick)
+    }
   }, [editor, editor?.isInitialized])
 
   // ── Handlers ─────────────────────────────────────────────────
   const handleOpenMath  = useCallback(() => { setMathEdit(null); setShowMath(true) }, [])
   const handleOpenTable = useCallback(() => setShowTable(true), [])
   const handleCloseMath = useCallback(() => { setShowMath(false); setMathEdit(null) }, [])
+  const handleOpenVertArith = useCallback(() => { setVertArithEdit(null); setShowVertArith(true) }, [])
+  const handleCloseVertArith = useCallback(() => { setShowVertArith(false); setVertArithEdit(null) }, [])
+  const handleOpenFraction = useCallback(() => { setFractionEdit(null); setShowFraction(true) }, [])
+  const handleCloseFraction = useCallback(() => { setShowFraction(false); setFractionEdit(null) }, [])
+  const handleOpenNumBase = useCallback(() => { setNumBaseEdit(null); setShowNumBase(true) }, [])
+  const handleCloseNumBase = useCallback(() => { setShowNumBase(false); setNumBaseEdit(null) }, [])
 
   // ── Render ────────────────────────────────────────────────────
   return (
@@ -160,6 +197,9 @@ export default function RichEditor({
             editor={editor}
             onMath={handleOpenMath}
             onTable={handleOpenTable}
+            onVerticalArithmetic={handleOpenVertArith}
+            onFraction={handleOpenFraction}
+            onNumberBase={handleOpenNumBase}
           />
         )}
         {/*
@@ -185,6 +225,27 @@ export default function RichEditor({
         <TableModal
           editor={editor}
           onClose={() => setShowTable(false)}
+        />
+      )}
+      {showVertArith && (
+        <VerticalArithmeticModal
+          editor={editor}
+          editState={vertArithEdit}
+          onClose={handleCloseVertArith}
+        />
+      )}
+      {showFraction && (
+        <FractionModal
+          editor={editor}
+          editState={fractionEdit}
+          onClose={handleCloseFraction}
+        />
+      )}
+      {showNumBase && (
+        <NumberBaseModal
+          editor={editor}
+          editState={numBaseEdit}
+          onClose={handleCloseNumBase}
         />
       )}
     </div>

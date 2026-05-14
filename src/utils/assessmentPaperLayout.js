@@ -11,6 +11,7 @@
  */
 
 import { richTextToPlainText } from './quizRichText.js'
+import { richTextToPaperHtml } from '../editor/utils/safeRender.js'
 
 export const ASSESSMENT_TYPE_LABELS = {
   weekly: 'Weekly Test',
@@ -69,6 +70,22 @@ function plain(value) {
   if (!value) return ''
   const out = richTextToPlainText(String(value))
   return out.replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * Build paper-ready HTML for a rich-text value (Tiptap JSON, JSON string,
+ * or legacy HTML). Returns '' when the value has no content. The result is
+ * pre-hydrated for Grade-7 math blocks so the PDF print window — which
+ * doesn't execute JavaScript — can render vertical sums, fractions, and
+ * number bases identically to the editor preview.
+ */
+function richHtml(value) {
+  if (value == null || value === '') return ''
+  try {
+    return richTextToPaperHtml(value) || ''
+  } catch {
+    return ''
+  }
 }
 
 function groupQuestionsByPart(questions, parts) {
@@ -326,6 +343,11 @@ function buildQuestionBlock(q, number, includeAnswer) {
     kind: 'question',
     number,
     text: plain(q.text),
+    // Rich-text HTML for the question body. The editor preview, PDF
+    // print window, and DOCX export all prefer this when present so
+    // Grade-7 math blocks (vertical sums, fractions, number bases)
+    // come out exactly as they appear in the editor.
+    textHtml: richHtml(q.text),
     marks: q.marks ?? 1,
     type,
     options,
