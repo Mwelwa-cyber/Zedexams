@@ -34,10 +34,19 @@ async function callGemini(apiKey, opts = {}) {
   const model = opts.model || DEFAULT_MODEL;
   const url = `${GEMINI_BASE}/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
 
+  // Build the user-turn parts. Always start with the text, then attach
+  // an image if one was supplied. Gemini's multimodal API takes either
+  // inline_data (base64) or fileData (cloud-storage URI); we use
+  // inline_data so the function works with any signed URL the caller
+  // already has (Firebase Storage signed URLs, public CDNs, etc.).
+  const userParts = [{text: String(opts.userPrompt || "")}];
+  if (opts.imageUrl) {
+    const inline = await fetchImageAsInlineData(opts.imageUrl);
+    if (inline) userParts.push({inline_data: inline});
+  }
+
   const body = {
-    contents: [
-      {role: "user", parts: [{text: String(opts.userPrompt || "")}]},
-    ],
+    contents: [{role: "user", parts: userParts}],
     generationConfig: {
       temperature: typeof opts.temperature === "number" ? opts.temperature : 0.2,
       maxOutputTokens: Math.min(8000, Math.max(200, Number(opts.maxTokens) || 4000)),
@@ -83,3 +92,35 @@ async function callGemini(apiKey, opts = {}) {
 }
 
 module.exports = {callGemini, DEFAULT_MODEL};
+
+// Fetch an image URL server-side and convert to Gemini's inline_data
+// shape: {mime_type, data: base64}. Returns null if the fetch fails so
+// the caller can decide whether to bail or proceed text-only.
+async function fetchImageAsInlineData(imageUrl) {
+  try {
+    const res = await fetch(imageUrl);
+    if (!res.ok) {
+      console.warn("Gemini image fetch failed", {status: res.status});
+      return null;
+    }
+    // Gemini accepts the common web image MIMEs. Default to image/jpeg
+    // when the server doesn't tell us — Firebase Storage URLs sometimes
+    // return application/octet-stream for legacy uploads.
+    let mimeType = res.headers.get("content-type") || "image/jpeg";
+    if (!/^image\//i.test(mimeType)) mimeType = "image/jpeg";
+    // Strip any charset suffix Gemini doesn't accept ("image/jpeg; ...").
+    mimeType = mimeType.split(";")[0].trim();
+    const buffer = await res.arrayBuffer();
+    // Cap at 4 MB to stay well inside Gemini's per-request limit and
+    // avoid runaway costs from someone uploading a huge image.
+    if (buffer.byteLength > 4 * 1024 * 1024) {
+      console.warn("Gemini image too large", {bytes: buffer.byteLength});
+      return null;
+    }
+    const data = Buffer.from(buffer).toString("base64");
+    return {mime_type: mimeType, data};
+  } catch (err) {
+    console.warn("Gemini image fetch threw", {message: err?.message?.slice(0, 200)});
+    return null;
+  }
+}

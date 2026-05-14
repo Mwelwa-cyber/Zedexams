@@ -35,6 +35,7 @@ const {
   isStaffRole,
 } = require("../aiService");
 const {callClaude} = require("./anthropicClient");
+const {callGemini} = require("../geminiClient");
 const {assertAndIncrement} = require("./usageMeter");
 
 const SUGGEST_MODEL = process.env.SUGGEST_ANSWER_MODEL || "claude-haiku-4-5";
@@ -117,6 +118,11 @@ function sanitizeInputs(raw = {}) {
     .slice(0, 10)
     .map((v) => str(v, 200));
 
+  // Image URL — used to route the call to Gemini vision when present.
+  // We don't validate the URL (servers can vary on what they accept);
+  // the Gemini client handles fetch failures and falls back gracefully.
+  const imageUrl = str(raw.imageUrl, 1500);
+
   return {
     type: ALLOWED_TYPES.has(type) ? type : "short_answer",
     text,
@@ -131,6 +137,7 @@ function sanitizeInputs(raw = {}) {
     matchingLeft,
     matchingRight,
     sequenceItems,
+    imageUrl,
   };
 }
 
@@ -434,24 +441,105 @@ function coerceResult(parsed, inputs) {
   return {answer, rationale, confidence};
 }
 
-async function runSuggestAnswer({uid, inputs, apiKey}) {
-  const {parsed} = await callClaude(apiKey, {
-    model: SUGGEST_MODEL,
-    mode: "tool",
+// Ask Gemini 2.5 Flash to predict the answer using BOTH the question
+// text and the attached image. Returns a `parsed` object compatible with
+// what callClaude(mode:'tool') returns, so coerceResult() can treat the
+// two paths identically.
+//
+// We use Gemini's JSON-response mode (responseMimeType=application/json)
+// and a very tight prompt — the model gets the same instructions Claude
+// gets, plus the image, and is asked to emit a single JSON object with
+// {answer, rationale, confidence}. The post-call coerceResult does the
+// strict shape-checking either way, so this is fine if Gemini occasionally
+// emits a slightly off-spec field.
+async function callGeminiForAnswer({inputs, geminiKey}) {
+  const promptLines = [
+    buildUserPrompt(inputs),
+    "",
+    "An image is attached above. Use BOTH the question text and the",
+    "image when deciding the answer — for Map / diagram / table /",
+    "Image-Identify questions the answer usually lives in the image.",
+    "",
+    "Return a single JSON object with this shape (no preamble, no",
+    "markdown):",
+    "  {",
+    "    \"answer\": <answer per the rules above>,",
+    "    \"rationale\": \"≤ 30 words\",",
+    "    \"confidence\": \"high\" | \"medium\" | \"low\"",
+    "  }",
+  ];
+
+  const text = await callGemini(geminiKey, {
     systemPrompt: SYSTEM_PROMPT,
-    messages: [{role: "user", content: buildUserPrompt(inputs)}],
-    maxTokens: 400,
-    temperature: 0.0,
-    toolName: "submit_answer",
-    toolDescription:
-      "Submit the predicted correct answer, a short rationale, and a confidence rating.",
-    toolInputSchema: SUGGEST_TOOL_SCHEMA,
-    // Match the other Haiku-based teacher tools (worksheet, rubric,
-    // flashcards): no `thinking` field. Haiku 4.5 runs straight-through
-    // and adding the field is unnecessary.
+    userPrompt: promptLines.join("\n"),
+    imageUrl: inputs.imageUrl,
+    maxTokens: 600,
+    temperature: 0.1,
+    responseJson: true,
   });
 
+  // Strip any stray markdown fences in case the model still added them.
+  let json = text.trim();
+  if (json.startsWith("```")) {
+    json = json.replace(/^```(?:json)?\s*/i, "").replace(/```$/, "").trim();
+  }
+  let parsedObj;
+  try {
+    parsedObj = JSON.parse(json);
+  } catch (parseErr) {
+    throw new HttpsError(
+      "internal",
+      `Gemini returned malformed JSON: ${parseErr?.message?.slice(0, 100)}`,
+    );
+  }
+  return parsedObj;
+}
+
+async function runSuggestAnswer({uid, inputs, apiKey, geminiKey}) {
+  // Route to Gemini Vision when the question has an attached image AND
+  // a Gemini key is configured. Claude is text-only at this callable, so
+  // it can't actually *see* the diagram / map / data-table image — it
+  // just guesses from the question text. Gemini's multimodal output is a
+  // real win here, especially for the Map / Image Identify / Diagram
+  // question types where the image carries the answer.
+  let parsed = null;
+  let routedTo = "claude-haiku";
+  if (inputs.imageUrl && geminiKey) {
+    try {
+      parsed = await callGeminiForAnswer({inputs, geminiKey});
+      routedTo = "gemini-vision";
+    } catch (visionErr) {
+      // Don't fail the whole call — fall back to Claude text-only.
+      // Most image questions can still be answered from the text alone,
+      // and the teacher sees the badge as "low confidence" if not.
+      console.warn("suggestAnswer: Gemini vision failed, falling back to Claude", {
+        message: visionErr?.message?.slice(0, 200),
+      });
+      parsed = null;
+    }
+  }
+
+  if (!parsed) {
+    const claudeResult = await callClaude(apiKey, {
+      model: SUGGEST_MODEL,
+      mode: "tool",
+      systemPrompt: SYSTEM_PROMPT,
+      messages: [{role: "user", content: buildUserPrompt(inputs)}],
+      maxTokens: 400,
+      temperature: 0.0,
+      toolName: "submit_answer",
+      toolDescription:
+        "Submit the predicted correct answer, a short rationale, and a confidence rating.",
+      toolInputSchema: SUGGEST_TOOL_SCHEMA,
+      // Match the other Haiku-based teacher tools (worksheet, rubric,
+      // flashcards): no `thinking` field. Haiku 4.5 runs straight-through
+      // and adding the field is unnecessary.
+    });
+    parsed = claudeResult.parsed;
+  }
+
   const result = coerceResult(parsed, inputs);
+  result.routedTo = routedTo;
   return {
     uid,
     type: inputs.type,
@@ -460,9 +548,15 @@ async function runSuggestAnswer({uid, inputs, apiKey}) {
   };
 }
 
-function createSuggestAnswer(anthropicApiKeySecret) {
+function createSuggestAnswer(anthropicApiKeySecret, geminiApiKeySecret) {
+  // Accept the Gemini secret as a second arg so we can route image-bearing
+  // questions to Gemini Vision. When the secret is missing or fetching the
+  // image fails, we fall back to Claude (text-only) — the same behaviour
+  // teachers have today, just without the vision win.
+  const secrets = [anthropicApiKeySecret];
+  if (geminiApiKeySecret) secrets.push(geminiApiKeySecret);
   return onCall(
-    {secrets: [anthropicApiKeySecret], timeoutSeconds: 45, memory: "256MiB"},
+    {secrets, timeoutSeconds: 45, memory: "256MiB"},
     async (request) => {
       const uid = request.auth && request.auth.uid;
       if (!uid) {
@@ -487,7 +581,10 @@ function createSuggestAnswer(anthropicApiKeySecret) {
       await assertAndIncrement(uid, "suggest_answer");
 
       const apiKey = getAnthropicApiKey(anthropicApiKeySecret);
-      return runSuggestAnswer({uid, inputs, apiKey});
+      const geminiKey = geminiApiKeySecret
+        ? (geminiApiKeySecret.value() || process.env.GEMINI_API_KEY || "")
+        : (process.env.GEMINI_API_KEY || "");
+      return runSuggestAnswer({uid, inputs, apiKey, geminiKey});
     },
   );
 }
