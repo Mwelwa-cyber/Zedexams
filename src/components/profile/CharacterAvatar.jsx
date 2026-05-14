@@ -1,20 +1,16 @@
 import { memo } from 'react'
 
 /* ── Character avatar sprite-sheet ──────────────────────────────────────────
- * One 5×4 PNG (1024×1536) holds all 20 student characters. Each tile is
- * 204.8 × 384 px in the source: the top ~256 px is the character portrait,
- * the bottom ~128 px carries the baked-in name label.
+ * One 4×4 PNG (2048×2048) holds all 16 student characters. Each tile is a
+ * 512×512 square portrait — no baked-in name label.
  *
- *   variant='tile'  — shows the full tile including the name label
- *                     (used in the settings picker so students can read names)
- *   variant='avatar' — square, rounded, crops the name label off
- *                     (used in navbar / drawer chips)
+ *   variant='tile'   — used in the settings picker
+ *   variant='avatar' — used in navbar / drawer chips
  *
- * Sprite math, for the curious:
- *   Tile mode      bg-size 500% 400%   pos (col/4, row/3) × 100%
- *   Avatar mode    bg-size 500% 600%   pos (col/4, row/5) × 100%
- *     — 600% vertical zoom hides the ~33% name-label strip at the bottom
- *       of each tile, so the position step is row/(6-1) instead of row/3.
+ * Both variants render the same square crop; the prop is kept for callers.
+ *
+ * Sprite math:
+ *   bg-size 400% 400%   pos (col/3, row/3) × 100%
  * ────────────────────────────────────────────────────────────────────────── */
 
 export const CHARACTER_AVATAR_SHEET = '/images/characters/avatars-grid.png'
@@ -29,29 +25,25 @@ export const INTEREST_GROUPS = [
 
 export const CHARACTERS = [
   // Row 0
-  { id: 'math-genius',    name: 'Math Genius',     row: 0, col: 0, group: 'academic'   },
-  { id: 'science-boy',    name: 'Science Boy',     row: 0, col: 1, group: 'academic'   },
-  { id: 'coding-kid',     name: 'Coding Kid',      row: 0, col: 2, group: 'tech'       },
-  { id: 'book-lover',     name: 'Book Lover',      row: 0, col: 3, group: 'academic'   },
-  { id: 'tech-master',    name: 'Tech Master',     row: 0, col: 4, group: 'tech'       },
+  { id: 'ruby',  name: 'Ruby',  row: 0, col: 0, group: 'academic'   },
+  { id: 'finn',  name: 'Finn',  row: 0, col: 1, group: 'sports'     },
+  { id: 'mia',   name: 'Mia',   row: 0, col: 2, group: 'creative'   },
+  { id: 'kai',   name: 'Kai',   row: 0, col: 3, group: 'academic'   },
   // Row 1
-  { id: 'smart-girl',     name: 'Smart Girl',      row: 1, col: 0, group: 'academic'   },
-  { id: 'scientist-girl', name: 'Scientist Girl',  row: 1, col: 1, group: 'academic'   },
-  { id: 'coder-girl',     name: 'Coder Girl',      row: 1, col: 2, group: 'tech'       },
-  { id: 'reader-girl',    name: 'Reader Girl',     row: 1, col: 3, group: 'academic'   },
-  { id: 'geography-girl', name: 'Geography Girl',  row: 1, col: 4, group: 'academic'   },
+  { id: 'leo',   name: 'Leo',   row: 1, col: 0, group: 'tech'       },
+  { id: 'aria',  name: 'Aria',  row: 1, col: 1, group: 'creative'   },
+  { id: 'theo',  name: 'Theo',  row: 1, col: 2, group: 'tech'       },
+  { id: 'ella',  name: 'Ella',  row: 1, col: 3, group: 'academic'   },
   // Row 2
-  { id: 'soccer-boy',     name: 'Soccer Boy',      row: 2, col: 0, group: 'sports'     },
-  { id: 'gamer-boy',      name: 'Gamer Boy',       row: 2, col: 1, group: 'tech'       },
-  { id: 'music-boy',      name: 'Music Boy',       row: 2, col: 2, group: 'creative'   },
-  { id: 'nature-boy',     name: 'Nature Boy',      row: 2, col: 3, group: 'sports'     },
-  { id: 'skater-boy',     name: 'Skater Boy',      row: 2, col: 4, group: 'sports'     },
+  { id: 'sam',   name: 'Sam',   row: 2, col: 0, group: 'academic'   },
+  { id: 'lily',  name: 'Lily',  row: 2, col: 1, group: 'creative'   },
+  { id: 'zoe',   name: 'Zoe',   row: 2, col: 2, group: 'academic'   },
+  { id: 'max',   name: 'Max',   row: 2, col: 3, group: 'leadership' },
   // Row 3
-  { id: 'football-girl',  name: 'Football Girl',   row: 3, col: 0, group: 'sports'     },
-  { id: 'gamer-girl',     name: 'Gamer Girl',      row: 3, col: 1, group: 'tech'       },
-  { id: 'artist-girl',    name: 'Artist Girl',     row: 3, col: 2, group: 'creative'   },
-  { id: 'debate-girl',    name: 'Debate Girl',     row: 3, col: 3, group: 'leadership' },
-  { id: 'young-leader',   name: 'Young Leader',    row: 3, col: 4, group: 'leadership' },
+  { id: 'nia',   name: 'Nia',   row: 3, col: 0, group: 'leadership' },
+  { id: 'eli',   name: 'Eli',   row: 3, col: 1, group: 'sports'     },
+  { id: 'jude',  name: 'Jude',  row: 3, col: 2, group: 'sports'     },
+  { id: 'tara',  name: 'Tara',  row: 3, col: 3, group: 'tech'       },
 ]
 
 const CHARACTER_INDEX = Object.fromEntries(CHARACTERS.map((c) => [c.id, c]))
@@ -60,36 +52,23 @@ export function getCharacter(id) {
   return CHARACTER_INDEX[id] || null
 }
 
-function spriteStyle(char, variant) {
-  if (variant === 'tile') {
-    return {
-      backgroundImage: `url(${CHARACTER_AVATAR_SHEET})`,
-      backgroundRepeat: 'no-repeat',
-      backgroundSize: '500% 400%',
-      backgroundPosition: `${(char.col / 4) * 100}% ${(char.row / 3) * 100}%`,
-    }
-  }
-  // variant === 'avatar' — square crop, name label hidden
+function spriteStyle(char) {
   return {
     backgroundImage: `url(${CHARACTER_AVATAR_SHEET})`,
     backgroundRepeat: 'no-repeat',
-    backgroundSize: '500% 600%',
-    backgroundPosition: `${(char.col / 4) * 100}% ${(char.row / 5) * 100}%`,
+    backgroundSize: '400% 400%',
+    backgroundPosition: `${(char.col / 3) * 100}% ${(char.row / 3) * 100}%`,
   }
 }
 
 /**
  * Renders the chosen character. Pass `characterId` from the user profile.
  *
- * - variant="avatar" (default): square crop, hides the name label. Use
- *   inside a circular `overflow-hidden rounded-full` container of your
- *   choice; this component fills the parent.
- * - variant="tile": shows the full tile with the baked-in name. Use for
- *   the picker grid.
- *
  * `className` is forwarded to the rendered <div> so callers control sizing.
+ * The `variant` prop is accepted for API compatibility but both variants
+ * render the same square crop now that the sprite has no name labels.
  */
-function CharacterAvatar({ characterId, variant = 'avatar', className = '', title }) {
+function CharacterAvatar({ characterId, variant: _variant = 'avatar', className = '', title }) {
   const char = getCharacter(characterId)
   if (!char) return null
   return (
@@ -97,7 +76,7 @@ function CharacterAvatar({ characterId, variant = 'avatar', className = '', titl
       className={className}
       role="img"
       aria-label={title || char.name}
-      style={spriteStyle(char, variant)}
+      style={spriteStyle(char)}
     />
   )
 }

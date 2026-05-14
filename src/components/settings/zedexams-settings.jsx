@@ -1038,8 +1038,8 @@ function CharacterAvatarPicker({ pushToast }) {
                 borderRadius: 10, overflow: 'hidden',
                 outline: isSelected ? `3px solid ${T.primary}` : `1px solid ${T.border}`,
                 outlineOffset: isSelected ? -3 : -1,
-                // Source tile aspect: (1024/5) : (1536/4) = 4096 : 7680
-                aspectRatio: '4096 / 7680',
+                // Source tile is a square 512×512 cell of a 4×4 sprite.
+                aspectRatio: '1 / 1',
                 opacity: isSaving ? 0.6 : 1,
                 transition: 'transform .12s ease, outline-color .12s ease',
                 transform: isSelected ? 'scale(1.02)' : 'scale(1)',
