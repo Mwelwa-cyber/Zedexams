@@ -864,7 +864,8 @@ export default function AssessmentStudio() {
         showToast('No questions extracted. Try a different file.', true)
         return
       }
-      showToast(`Imported ${importedCount} question${importedCount === 1 ? '' : 's'}. Review before saving.`)
+      const smartTag = imported.smartApplied ? '✨ Smart-imported ' : 'Imported '
+      showToast(`${smartTag}${importedCount} question${importedCount === 1 ? '' : 's'}. Review before saving.`)
       changeView('builder')
       closeSlide()
     } catch (error) {
