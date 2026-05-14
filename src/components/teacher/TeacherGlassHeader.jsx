@@ -105,12 +105,12 @@ export default function TeacherGlassHeader() {
 
   return (
     <header className="zx-glass-nav fixed inset-x-0 top-0 z-40 lg:hidden">
-      <div className="app-container flex min-h-14 items-center justify-between gap-2 px-3 py-1.5 sm:px-4">
-        <Link to="/teacher" className="zx-logo-pill no-underline" aria-label="Teacher home">
+      <div className="app-container flex min-h-16 items-start justify-between gap-2 px-3 pt-1 pb-2 sm:px-4">
+        <Link to="/teacher" className="zx-logo-pill self-center no-underline" aria-label="Teacher home">
           <Logo variant="full" size="sm" className="h-10" />
         </Link>
 
-        <div className="flex items-center gap-1 sm:gap-1.5">
+        <div className="flex items-start gap-1 sm:gap-1.5">
           <HeaderIconLink to="/teacher" label="Progress" icon={BarChart3} size="sm" />
 
           <ThemeSelector dashboardStyle dashboardSize="sm" />
