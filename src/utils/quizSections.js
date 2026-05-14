@@ -78,6 +78,12 @@ export function emptyQuestion(overrides = {}) {
     //          / DOCX renderers)
     //   text — short label string (e.g. "Epidermis"), ≤ 80 chars
     diagramLabels: [],
+    // Inline data table attached to the question. Renders as an HTML
+    // table in preview/PDF and a real Word table in DOCX. Defaulted to
+    // null so questions without one don't render an empty table.
+    //   headers — array of column header strings
+    //   rows    — array of row arrays; rows[i].length === headers.length
+    tableData: null,
     ...overrides,
   }
 
@@ -566,6 +572,18 @@ function hydrateStandaloneQuestion(question = {}) {
         }))
         .slice(0, 20)
       : [],
+    tableData: question.tableData && Array.isArray(question.tableData.headers)
+      ? {
+        headers: question.tableData.headers.map(h => String(h ?? '').slice(0, 60)).slice(0, 6),
+        rows: Array.isArray(question.tableData.rows)
+          ? question.tableData.rows
+            .slice(0, 12)
+            .map(row => Array.isArray(row)
+              ? row.map(c => String(c ?? '').slice(0, 60)).slice(0, 6)
+              : [])
+          : [],
+      }
+      : null,
   })
 }
 

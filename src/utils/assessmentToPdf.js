@@ -327,6 +327,9 @@ body {
 .seq-row { display: flex; align-items: center; gap: 10pt; padding: 3pt 0; border-bottom: 1px dotted #999; }
 .seq-blank { display: inline-block; width: 30pt; border-bottom: 1px solid #000; height: 12pt; }
 .pagebreak { page-break-after: always; break-after: page; height: 0; }
+.data-table { border-collapse: collapse; margin: 6pt 0 10pt; font-size: 11pt; }
+.data-table th, .data-table td { border: 1px solid #000; padding: 3pt 8pt; }
+.data-table th { background: #f1f5f9; font-weight: 700; }
 
 .diagram-box {
   border: 1px dashed #999;
@@ -475,6 +478,9 @@ function renderQuestion(b) {
     const labelHtml = labels.map(l => `<span class="diagram-label" style="left:${(l.x * 100).toFixed(2)}%;top:${(l.y * 100).toFixed(2)}%">${escapeHtml(l.text)}</span>`).join('')
     body += `<div class="q-image"><div class="q-image-frame"><img src="${escapeHtml(b.imageUrl)}" alt="">${labelHtml}</div></div>`
   }
+  if (b.tableData) {
+    body += renderDataTable(b.tableData)
+  }
   if (b.wordBank && b.wordBank.length) {
     body += `<div class="word-bank"><strong>Word bank:</strong> ${b.wordBank.map(escapeHtml).join(' · ')}</div>`
   }
@@ -559,6 +565,20 @@ function renderAnswerLines(count) {
 function renderNumericLine(b) {
   const unit = b.numericUnit ? `<span class="numeric-unit">${escapeHtml(b.numericUnit)}</span>` : ''
   return `<div class="numeric-line"><span class="answer-line numeric"></span>${unit}</div>`
+}
+
+// Data/Table render — emits a plain HTML table with thin black borders.
+// Empty cells stay empty so students can fill values in when relevant.
+function renderDataTable(tableData) {
+  if (!tableData || !Array.isArray(tableData.headers) || !tableData.headers.length) return ''
+  const headers = tableData.headers
+  const rows = Array.isArray(tableData.rows) ? tableData.rows : []
+  const headerHtml = headers.map(h => `<th>${escapeHtml(h || '')}</th>`).join('')
+  const bodyHtml = rows.map(row => {
+    const cells = headers.map((_, j) => `<td>${escapeHtml((Array.isArray(row) ? row[j] : '') || '')}</td>`).join('')
+    return `<tr>${cells}</tr>`
+  }).join('')
+  return `<table class="data-table"><thead><tr>${headerHtml}</tr></thead><tbody>${bodyHtml}</tbody></table>`
 }
 
 // Sequence questions render as a single column of items, each preceded by

@@ -1073,6 +1073,20 @@ export default function AssessmentStudio() {
           marks: 4,
         })
         break
+      case 'data_table':
+        // Data/Table is structured-with-a-table: the teacher attaches a
+        // small data table to a short_answer-style question. Seeded with
+        // 2 headers + 3 rows so the editor has visible structure.
+        newSection = baseQuestion('short_answer', {
+          options: [],
+          correctAnswer: '',
+          marks: 3,
+          tableData: {
+            headers: ['Column A', 'Column B'],
+            rows: [['', ''], ['', ''], ['', '']],
+          },
+        })
+        break
       case 'passage':
         newSection = createPassageSection()
         break
@@ -2197,7 +2211,7 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
 
 // Question fields whose edits invalidate any prior AI answer suggestion.
 // Module-scope so the array is allocated once per page load, not per render.
-const FIELDS_THAT_INVALIDATE_SUGGESTION = ['text', 'options', 'correctAnswer', 'wordBank', 'numericTolerance', 'numericUnit', 'matchingLeft', 'matchingRight', 'matchingAnswer', 'sequenceItems', 'sequenceAnswer']
+const FIELDS_THAT_INVALIDATE_SUGGESTION = ['text', 'options', 'correctAnswer', 'wordBank', 'numericTolerance', 'numericUnit', 'matchingLeft', 'matchingRight', 'matchingAnswer', 'sequenceItems', 'sequenceAnswer', 'tableData']
 
 // Page break marker in the builder. Has no editable content — just a
 // visible "PAGE BREAK" divider that the teacher can reorder or delete.
@@ -2730,6 +2744,13 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
           answer={question.sequenceAnswer || []}
           onChangeItems={value => updateQuestion('sequenceItems', value)}
           onChangeAnswer={value => updateQuestion('sequenceAnswer', value)}
+        />
+      )}
+
+      {question.tableData && (
+        <DataTableInputs
+          tableData={question.tableData}
+          onChange={value => updateQuestion('tableData', value)}
         />
       )}
 
@@ -3273,6 +3294,147 @@ function SequenceInputs({ items, answer, onChangeItems, onChangeAnswer }) {
 //     entries like "0." while editing without losing focus)
 //   • Tolerance (± number; default 0 for exact match)
 //   • Unit (free-form short text, e.g. "kg", "m/s", "%")
+// Data/Table editor — attaches a small data table to a structured
+// question. Renders as an editable grid with add/remove buttons for
+// rows and columns. Used by maths and science questions that need
+// students to read values off a table before answering.
+//
+// Caps: max 6 columns and 12 rows (matches the hydrator limits).
+function DataTableInputs({ tableData, onChange }) {
+  const data = tableData || { headers: ['Column A', 'Column B'], rows: [['', '']] }
+  const headers = Array.isArray(data.headers) ? data.headers : []
+  const rows = Array.isArray(data.rows) ? data.rows : []
+  const cols = headers.length
+
+  function setHeader(i, value) {
+    const nextHeaders = [...headers]
+    nextHeaders[i] = value
+    onChange({ headers: nextHeaders, rows })
+  }
+  function setCell(rowIdx, colIdx, value) {
+    const nextRows = rows.map((r, i) => {
+      if (i !== rowIdx) return r
+      const next = [...(Array.isArray(r) ? r : [])]
+      next[colIdx] = value
+      return next
+    })
+    onChange({ headers, rows: nextRows })
+  }
+  function addRow() {
+    if (rows.length >= 12) return
+    onChange({ headers, rows: [...rows, Array(cols).fill('')] })
+  }
+  function removeRow(i) {
+    if (rows.length <= 1) return
+    onChange({ headers, rows: rows.filter((_, idx) => idx !== i) })
+  }
+  function addCol() {
+    if (cols >= 6) return
+    onChange({
+      headers: [...headers, `Column ${String.fromCharCode(65 + cols)}`],
+      rows: rows.map(r => [...(Array.isArray(r) ? r : []), '']),
+    })
+  }
+  function removeCol(colIdx) {
+    if (cols <= 1) return
+    onChange({
+      headers: headers.filter((_, i) => i !== colIdx),
+      rows: rows.map(r => (Array.isArray(r) ? r.filter((_, i) => i !== colIdx) : [])),
+    })
+  }
+  function clearTable() {
+    // Setting tableData to null removes the table from this question.
+    onChange(null)
+  }
+
+  return (
+    <div className="sv-answer-lines" style={{ marginTop: 4 }}>
+      <div className="sv-answer-meta">📊 Data table — students read values off this table to answer the question</div>
+      <div style={{ overflowX: 'auto', marginTop: 4 }}>
+        <table style={{ borderCollapse: 'collapse', fontSize: 12 }}>
+          <thead>
+            <tr>
+              {headers.map((h, i) => (
+                <th key={i} style={{ border: '1px solid var(--sv-border)', padding: 0, background: '#f8fafc' }}>
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <input
+                      type="text"
+                      value={h || ''}
+                      onChange={e => setHeader(i, e.target.value)}
+                      placeholder="Header"
+                      style={{ width: 110, border: 'none', outline: 'none', padding: '4px 6px', fontSize: 12, background: 'transparent', fontWeight: 600 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => removeCol(i)}
+                      disabled={cols <= 1}
+                      title="Remove column"
+                      style={{ border: 'none', background: 'transparent', cursor: cols <= 1 ? 'default' : 'pointer', color: 'var(--sv-muted)', fontSize: 12, padding: '0 4px' }}
+                    >×</button>
+                  </div>
+                </th>
+              ))}
+              <th style={{ border: 'none', padding: 0 }}>
+                <button
+                  type="button"
+                  onClick={addCol}
+                  disabled={cols >= 6}
+                  title="Add column"
+                  style={{ marginLeft: 4, padding: '2px 8px', border: '1px dashed var(--sv-border)', borderRadius: 'var(--sv-r-sm)', background: 'transparent', cursor: cols >= 6 ? 'default' : 'pointer', fontSize: 11, color: 'var(--sv-muted)' }}
+                >+</button>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, rowIdx) => (
+              <tr key={rowIdx}>
+                {headers.map((_, colIdx) => (
+                  <td key={colIdx} style={{ border: '1px solid var(--sv-border)', padding: 0 }}>
+                    <input
+                      type="text"
+                      value={(Array.isArray(row) ? row[colIdx] : '') || ''}
+                      onChange={e => setCell(rowIdx, colIdx, e.target.value)}
+                      placeholder="—"
+                      style={{ width: 110, border: 'none', outline: 'none', padding: '4px 6px', fontSize: 12, background: 'var(--sv-paper)' }}
+                    />
+                  </td>
+                ))}
+                <td style={{ border: 'none', padding: 0 }}>
+                  <button
+                    type="button"
+                    onClick={() => removeRow(rowIdx)}
+                    disabled={rows.length <= 1}
+                    title="Remove row"
+                    style={{ marginLeft: 4, padding: '2px 6px', border: 'none', background: 'transparent', cursor: rows.length <= 1 ? 'default' : 'pointer', color: 'var(--sv-muted)', fontSize: 12 }}
+                  >×</button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div style={{ display: 'flex', gap: 8, marginTop: 6 }}>
+        <button
+          type="button"
+          onClick={addRow}
+          disabled={rows.length >= 12}
+          style={{ padding: '2px 10px', border: '1px dashed var(--sv-border)', borderRadius: 'var(--sv-r-sm)', background: 'transparent', cursor: rows.length >= 12 ? 'default' : 'pointer', fontSize: 11, color: 'var(--sv-muted)' }}
+        >
+          + Add row {rows.length >= 12 ? '(max 12)' : ''}
+        </button>
+        <button
+          type="button"
+          onClick={clearTable}
+          style={{ padding: '2px 10px', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', background: 'transparent', cursor: 'pointer', fontSize: 11, color: 'var(--sv-muted)' }}
+          title="Remove the table from this question"
+        >
+          Remove table
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function NumericInputs({ correctAnswer, tolerance, unit, onChangeAnswer, onChangeTolerance, onChangeUnit }) {
   return (
     <div className="sv-answer-lines">
@@ -3561,6 +3723,9 @@ function PaperQuestionBlock({ block }) {
           ))}
         </div>
       )}
+      {block.tableData && (
+        <PaperDataTable tableData={block.tableData} />
+      )}
       {block.wordBank?.length > 0 && (
         <div style={{ display: 'inline-block', border: '1px solid #000', padding: '4px 10px', margin: '4px 0', fontSize: 12 }}>
           <strong>Word bank:</strong> {block.wordBank.join(' · ')}
@@ -3657,6 +3822,38 @@ function PaperMcqOptions({ block }) {
           </div>
         )
       })}
+    </div>
+  )
+}
+
+// Data/Table render — a plain HTML table. Headers + body cells render
+// with thin borders matching the typical school-paper style.
+function PaperDataTable({ tableData }) {
+  if (!tableData || !Array.isArray(tableData.headers) || !tableData.headers.length) return null
+  const headers = tableData.headers
+  const rows = Array.isArray(tableData.rows) ? tableData.rows : []
+  return (
+    <div style={{ margin: '8px 0', overflowX: 'auto' }}>
+      <table style={{ borderCollapse: 'collapse', fontSize: 12, minWidth: 280 }}>
+        <thead>
+          <tr>
+            {headers.map((h, i) => (
+              <th key={i} style={{ border: '1px solid #000', padding: '4px 10px', background: '#f1f5f9', fontWeight: 600 }}>{h || ''}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i}>
+              {headers.map((_, j) => (
+                <td key={j} style={{ border: '1px solid #000', padding: '4px 10px' }}>
+                  {Array.isArray(row) ? (row[j] || '') : ''}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   )
 }
@@ -3814,7 +4011,7 @@ function BlockPickerSlide({ open, onClose, onPick }) {
           <BlockPickerItem icon="🖼" title="Diagram-based" hint="Label or describe an image" onClick={() => onPick('structured')} />
           <BlockPickerItem icon="🎨" title="Draw & Label" hint="Coming soon" disabled />
           <BlockPickerItem icon="🗺" title="Map Question" hint="Coming soon" disabled />
-          <BlockPickerItem icon="📊" title="Data / Table" hint="Coming soon" disabled />
+          <BlockPickerItem icon="📊" title="Data / Table" hint="Attach a data table to a question" onClick={() => onPick('data_table')} />
           <BlockPickerItem icon="👁" title="Image Identify" hint="Coming soon" disabled />
         </div>
 
