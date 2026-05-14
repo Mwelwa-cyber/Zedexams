@@ -2396,12 +2396,20 @@ const AI_CONFIDENCE_META = {
 // Inline notice rendered below a question's answer area when Claude has
 // suggested the correct answer. Stays visible until the teacher either
 // edits anything answer-related (auto-cleared) or hits "Confirm".
-function AiSuggestionNotice({ rationale, confidence, onConfirm }) {
+function AiSuggestionNotice({ rationale, confidence, routedTo, onConfirm }) {
   const m = AI_CONFIDENCE_META[confidence] || AI_CONFIDENCE_META.low
+  const isVision = routedTo === 'gemini-vision'
   return (
     <div style={{ marginTop: 8, padding: '8px 10px', borderRadius: 'var(--sv-r-sm)', background: m.bg, border: `1px solid ${m.border}`, color: m.text, fontSize: 12, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
       <div style={{ flex: 1 }}>
-        <div style={{ fontWeight: 600, marginBottom: 2 }}>✨ AI suggested · {m.label}</div>
+        <div style={{ fontWeight: 600, marginBottom: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
+          ✨ AI suggested · {m.label}
+          {isVision && (
+            <span style={{ background: 'rgba(0,0,0,0.06)', color: m.text, padding: '0 6px', borderRadius: 8, fontSize: 10, fontWeight: 600, letterSpacing: 0.3 }}>
+              👁 Vision
+            </span>
+          )}
+        </div>
         <div style={{ opacity: 0.9 }}>{rationale}</div>
       </div>
       <button
@@ -2618,6 +2626,11 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
         // model returns an array of 1-based positions — one per item —
         // saying where each item should land in the correct order.
         sequenceItems: isSequence ? (question.sequenceItems || []) : undefined,
+        // When the question carries an image (diagram / map / data table /
+        // image-identify), the backend may route to Gemini Vision so the
+        // model can actually *see* what's in the image. Falls back to
+        // Claude text-only if the Gemini key isn't configured.
+        imageUrl: question.imageUrl || undefined,
         grade: paperMeta?.grade,
         subject: paperMeta?.subject,
         language: paperMeta?.language,
@@ -2638,6 +2651,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
       setAiSuggestion({
         rationale: result.rationale,
         confidence: result.confidence,
+        routedTo: result.routedTo,
       })
     } catch (err) {
       if (mountedRef.current) {
@@ -2941,6 +2955,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
         <AiSuggestionNotice
           rationale={aiSuggestion.rationale}
           confidence={aiSuggestion.confidence}
+          routedTo={aiSuggestion.routedTo}
           onConfirm={() => setAiSuggestion(null)}
         />
       )}

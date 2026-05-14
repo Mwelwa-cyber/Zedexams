@@ -1907,7 +1907,11 @@ exports.generateNotes = createGenerateNotes(anthropicApiKey);
 exports.generateDiagram = createGenerateDiagram(recraftApiKey);
 
 // Teacher Tools — Suggest Answer (per-question AI answer hint, Haiku).
-exports.suggestAnswer = createSuggestAnswer(anthropicApiKey);
+// When GEMINI_API_KEY is set, suggestAnswer routes image-bearing questions
+// to Gemini Vision so the model can actually *see* the diagram/map/table
+// it's being asked about. Without the secret it falls back to Claude
+// text-only (the existing behaviour).
+exports.suggestAnswer = createSuggestAnswer(anthropicApiKey, geminiApiKey);
 
 // Teacher Tools — Revise Question (rewrite for grade level / tone, Haiku).
 exports.reviseQuestion = createReviseQuestion(anthropicApiKey);

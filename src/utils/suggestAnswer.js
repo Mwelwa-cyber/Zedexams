@@ -59,7 +59,7 @@ function withTimeout(promise, ms) {
   })
 }
 
-export async function suggestAnswer({ type, text, options, wordBank, unit, tolerance, matchingLeft, matchingRight, sequenceItems, grade, subject, language } = {}) {
+export async function suggestAnswer({ type, text, options, wordBank, unit, tolerance, matchingLeft, matchingRight, sequenceItems, imageUrl, grade, subject, language } = {}) {
   if (!text || !String(text).trim()) {
     throw new Error('Add some question text first, then ask AI for the answer.')
   }
@@ -69,6 +69,7 @@ export async function suggestAnswer({ type, text, options, wordBank, unit, toler
         type, text, options, wordBank, unit, tolerance,
         matchingLeft, matchingRight,
         sequenceItems,
+        imageUrl,
         grade, subject, language,
       }),
       SUGGEST_TIMEOUT_MS,
@@ -79,6 +80,9 @@ export async function suggestAnswer({ type, text, options, wordBank, unit, toler
       rationale: data.rationale || '',
       confidence: data.confidence || 'low',
       type: data.type || type,
+      // Surface which provider answered so the studio can show a small
+      // "Gemini Vision" hint on the badge when the image was used.
+      routedTo: data.routedTo || 'claude-haiku',
     }
   } catch (error) {
     throw new Error(messageFromError(error))
