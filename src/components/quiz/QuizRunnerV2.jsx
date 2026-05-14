@@ -86,13 +86,13 @@ function OptionButton({ label, selected, revealed, correct, wrong, onClick, imag
             libraryKey={diagram.libraryKey}
             params={diagram.params}
             alt={imageAlt || ''}
-            className="mb-1 flex max-h-40 w-full items-center justify-center"
+            className="quiz-option-image"
           />
         ) : imageUrl ? (
           <img
             src={imageUrl}
             alt={imageAlt || ''}
-            className="mb-1 max-h-40 w-full rounded-lg object-contain"
+            className="quiz-option-image"
           />
         ) : null}
         {/* optionValue may be plain text, a Tiptap JSON object, or a JSON

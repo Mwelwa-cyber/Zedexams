@@ -292,7 +292,7 @@ function OptionImageUpload({
   if (imageUrl) {
     return (
       <div className={joinClasses('group theme-bg-subtle relative overflow-hidden rounded-lg border-2', theme.cardBorder)}>
-        <img src={imageUrl} alt="" className="mx-auto max-h-32 w-full object-contain py-1" />
+        <img src={imageUrl} alt="" className="quiz-option-image" />
         <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-90 transition-opacity group-hover:opacity-100">
           <button
             type="button"

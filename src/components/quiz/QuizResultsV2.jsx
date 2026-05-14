@@ -236,13 +236,13 @@ export default function QuizResultsV2() {
                       libraryKey={media.diagram.libraryKey}
                       params={media.diagram.params}
                       alt={media.alt || ''}
-                      className="mt-1 flex max-h-24 items-center justify-center"
+                      className="quiz-option-image"
                     />
                   ) : media?.imageUrl && (
                     <img
                       src={media.imageUrl}
                       alt={media.alt || ''}
-                      className="mt-1 max-h-24 rounded object-contain"
+                      className="quiz-option-image"
                     />
                   )}
                   {optionIndex === question.correctAnswer && ' ✅'}

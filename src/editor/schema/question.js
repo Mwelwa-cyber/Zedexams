@@ -199,10 +199,17 @@ export const questionSchema = z
     // the editor's text inputs) keeps working untouched. Renderers that opt
     // into media options read `optionMedia[i]` alongside `options[i]`.
     //
-    // Each slot may hold an uploaded `imageUrl` (PR1), a library `diagram`
-    // (PR2), or both (the renderer prefers the diagram if present). `alt` is
-    // required whenever any media is set — accessibility plus the grader
-    // uses it to know what the option represents.
+    // Each slot may hold an uploaded `imageUrl`, a library `diagram`, or both
+    // (the renderer prefers the diagram if present).
+    //
+    // `alt` is required for accessibility + the AI grader, but only at
+    // PUBLISH time. The pre-publish checklist (collectQuizIssues) is the
+    // canonical enforcement layer — it surfaces every image-without-alt as
+    // a blocking issue. We can't reject empty alt at the schema level
+    // because auto-save fires every few seconds while the teacher is still
+    // typing in the alt field; rejecting "image uploaded, alt half-typed"
+    // would make every image option crash the auto-save loop and the
+    // teacher would lose the uploaded URL on reload.
     optionMedia: z
       .array(
         z.union([
@@ -210,7 +217,7 @@ export const questionSchema = z
           z.object({
             imageUrl: z.string().min(1).max(2000).optional(),
             diagram: diagramRef.optional(),
-            alt: z.string().min(1).max(2000),
+            alt: z.string().max(2000).default(''),
           })
             .strict()
             .refine(

@@ -71,13 +71,13 @@ function PreviewQuestion({ question }) {
                         libraryKey={media.diagram.libraryKey}
                         params={media.diagram.params}
                         alt={media.alt || ''}
-                        className="mx-auto flex max-h-32 w-full items-center justify-center"
+                        className="quiz-option-image"
                       />
                     ) : media?.imageUrl ? (
                       <img
                         src={media.imageUrl}
                         alt={media.alt || ''}
-                        className="mx-auto max-h-32 w-full rounded-lg object-contain"
+                        className="quiz-option-image"
                       />
                     ) : null}
                     <RichContent value={option} className="rich-option" />

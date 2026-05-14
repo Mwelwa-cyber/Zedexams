@@ -113,8 +113,16 @@ function collectQuestionIds(section) {
 
 function hasUploadingAssets(sections = []) {
   return sections.some(section => {
-    if (section.kind === 'passage') return section.passage?.imageUploading
-    return section.question?.imageUploading
+    if (section.kind === 'passage') {
+      if (section.passage?.imageUploading) return true
+      // Per-option uploads inside a passage's sub-questions must also block
+      // auto-save / manual save — otherwise the save can race the upload
+      // and persist an option slot whose imageUrl never arrived.
+      return (section.passage?.questions || []).some(question =>
+        question?.imageUploading || question?.optionImageUploadingIndex != null
+      )
+    }
+    return section.question?.imageUploading || section.question?.optionImageUploadingIndex != null
   })
 }
 
@@ -160,6 +168,10 @@ export default function EditQuizV2() {
   //   autoSaveState: one of AUTO_SAVE (idle | saving | saved | failed)
   //   checklistOpen: whether the pre-publish modal is visible
   const [autoSaveState, setAutoSaveState] = useState(AUTO_SAVE.IDLE)
+  // Holds the message from the most recent failed auto-save so the action
+  // bar (and the console) can surface what actually went wrong instead of
+  // a vague "Auto-save failed". Cleared on every successful save.
+  const [autoSaveError, setAutoSaveError] = useState('')
   const [checklistOpen, setChecklistOpen] = useState(false)
   // Track when the user last interacted so we don't fire an auto-save
   // mid-keystroke. `dirtySince` is reset to now() on every change.
@@ -897,9 +909,18 @@ export default function EditQuizV2() {
       setDeletedIds([])
       setDirty(false)
       setAutoSaveState(AUTO_SAVE.SAVED)
+      setAutoSaveError('')
     } catch (error) {
-      console.error('EditQuiz auto-save error:', error)
-      if (mountedRef.current) setAutoSaveState(AUTO_SAVE.FAILED)
+      // Print BOTH the message and the full error so Firestore / Storage /
+      // schema-validation errors are inspectable in the browser console.
+      // The vague "Auto-save failed" pill in the action bar was leaving
+      // teachers (and us, on bug reports) with nothing to act on.
+      const message = getErrorMessage(error, 'unknown auto-save error')
+      console.error('[EditQuizV2] auto-save failed:', message, error)
+      if (mountedRef.current) {
+        setAutoSaveError(message)
+        setAutoSaveState(AUTO_SAVE.FAILED)
+      }
     } finally {
       autoSavingRef.current = false
     }
@@ -990,6 +1011,7 @@ export default function EditQuizV2() {
       setDeletedIds([])
       setDirty(false)
       setAutoSaveState(AUTO_SAVE.SAVED)
+      setAutoSaveError('')
       show(mode === 'published' ? 'Quiz published!' : mode === 'pending' ? 'Submitted for approval!' : 'Changes saved as draft.')
       setTimeout(() => navigate(backPath), 1400)
     } catch (error) {
@@ -1328,6 +1350,7 @@ export default function EditQuizV2() {
         uploading={anyUploading}
         dirty={dirty}
         autoSaveState={autoSaveState}
+        autoSaveError={autoSaveError}
         issueCount={errorCount}
         canPublish={isAdmin}
         isPublished={quizStatus === 'published'}
