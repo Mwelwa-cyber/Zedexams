@@ -66,7 +66,6 @@ export default function Login() {
   const [email, setEmail]         = useState('')
   const [password, setPassword]   = useState('')
   const [showPw, setShowPw]       = useState(false)
-  const [remember, setRemember]   = useState(false)
   const [loading, setLoading]     = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError]         = useState('')
@@ -83,7 +82,7 @@ export default function Login() {
     setError('')
     setLoading(true)
     try {
-      const cred = await login(email.trim(), password, { remember })
+      const cred = await login(email.trim(), password)
       const profile = await ensureUserProfile(cred.user)
       if (!profile) {
         try { await logout() } catch { /* ignore secondary failure */ }
@@ -105,7 +104,7 @@ export default function Login() {
     setError('')
     setGoogleLoading(true)
     try {
-      const cred = await loginWithGoogle({ remember })
+      const cred = await loginWithGoogle()
       const profile = await ensureUserProfile(cred.user)
       if (!profile) {
         try { await logout() } catch { /* ignore secondary failure */ }
@@ -317,21 +316,6 @@ export default function Login() {
                   </button>
                 </div>
               </div>
-
-              <label
-                htmlFor="login-remember"
-                className="flex items-center gap-2 text-[13px] text-[#1A1F2E] select-none cursor-pointer"
-              >
-                <input
-                  id="login-remember"
-                  name="remember"
-                  type="checkbox"
-                  checked={remember}
-                  onChange={e => setRemember(e.target.checked)}
-                  className="h-4 w-4 rounded border-[1.5px] border-[#2A2A3C] text-[var(--accent)] accent-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/30"
-                />
-                Remember me on this device
-              </label>
 
               {error && (
                 <p aria-live="polite" className="text-danger bg-danger-subtle border rounded-xl px-4 py-3 text-body-sm" style={{ borderColor: 'var(--danger-fg)' }}>

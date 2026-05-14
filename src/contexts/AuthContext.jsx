@@ -10,18 +10,12 @@ import {
 } from 'firebase/auth'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
-import app, { auth, db, googleProvider, applyAuthPersistence } from '../firebase/config'
+import app, { auth, db, googleProvider } from '../firebase/config'
 import { ROLES, hasPremiumAccess, hasLearnerPortalAccess } from '../utils/subscriptionConfig'
-import { useIdleTimeout } from '../hooks/useIdleTimeout'
 import { setSentryUser, clearSentryUser } from '../utils/sentry'
 import { capture, identifyUser, resetAnalytics } from '../utils/analytics'
 import { refreshTokenIfGranted } from '../utils/fcm'
 import { mintAndPersistReferralCode, readPendingReferral, clearPendingReferral } from '../utils/referrals'
-
-// Sign learners/teachers/admins out after this much idle time, with a short
-// countdown beforehand so an active user can keep their session.
-const IDLE_TIMEOUT_MS = 15 * 60 * 1000
-const IDLE_WARNING_MS = 60 * 1000
 
 const AuthContext = createContext(null)
 const functions = getFunctions(app, 'us-central1')
@@ -76,8 +70,6 @@ export function AuthProvider({ children }) {
   const [userProfile, setUserProfile] = useState(null)
   const [loading, setLoading]         = useState(true)
   const [profileIssue, setProfileIssue] = useState(null)
-  const [showIdleWarning, setShowIdleWarning] = useState(false)
-  const [idleSecondsLeft, setIdleSecondsLeft] = useState(Math.ceil(IDLE_WARNING_MS / 1000))
   const bootstrapInFlightRef = useRef(new Map())
 
   async function register(email, password, displayName, grade, school, role = ROLES.LEARNER, extras = {}) {
@@ -132,17 +124,15 @@ export function AuthProvider({ children }) {
     return cred
   }
 
-  async function login(email, password, { remember = false } = {}) {
-    await applyAuthPersistence(remember)
+  async function login(email, password) {
     return signInWithEmailAndPassword(auth, email, password)
   }
 
   // Google sign-in. New users get a default profile; the caller can pass
   // `role` (used only on first sign-in) so the Register page can honour the
   // selected Learner/Teacher tab. Existing users keep their saved role.
-  async function loginWithGoogle({ role, remember = false } = {}) {
+  async function loginWithGoogle({ role } = {}) {
     const targetRole = role === ROLES.TEACHER ? ROLES.TEACHER : ROLES.LEARNER
-    await applyAuthPersistence(remember)
     const cred = await signInWithPopup(auth, googleProvider)
     const userRef = doc(db, 'users', cred.user.uid)
     const snap = await getDoc(userRef)
@@ -180,30 +170,8 @@ export function AuthProvider({ children }) {
   async function logout() {
     setUserProfile(null)
     setProfileIssue(null)
-    setShowIdleWarning(false)
     return signOut(auth)
   }
-
-  const { stayActive: resetIdle } = useIdleTimeout({
-    enabled: !!currentUser,
-    idleMs: IDLE_TIMEOUT_MS,
-    warnMs: IDLE_WARNING_MS,
-    onWarn: (secondsLeft) => {
-      setIdleSecondsLeft(secondsLeft)
-      setShowIdleWarning(true)
-    },
-    onTick: (secondsLeft) => setIdleSecondsLeft(secondsLeft),
-    onResumeActivity: () => setShowIdleWarning(false),
-    onTimeout: () => {
-      setShowIdleWarning(false)
-      logout().catch((e) => console.error('Idle logout failed:', e))
-    },
-  })
-
-  const stayActive = useCallback(() => {
-    setShowIdleWarning(false)
-    resetIdle()
-  }, [resetIdle])
 
   const fetchUserProfile = useCallback(async (uid, { updateState = true } = {}) => {
     try {
@@ -418,7 +386,6 @@ export function AuthProvider({ children }) {
       fetchUserProfile, ensureUserProfile, refreshProfile, updateProfileFields, updateLearnerGrade,
       isLearner, isTeacher, isAdmin, isAdminOnly, isPremium, isPaidTeacher, canAccessFullContent, canAccessLearnerPortal,
       userStatus, isSuspended,
-      showIdleWarning, idleSecondsLeft, stayActive,
     }}>
       {children}
     </AuthContext.Provider>
