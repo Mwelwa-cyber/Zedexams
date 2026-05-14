@@ -8,8 +8,9 @@
     <priority>1.0</priority>
   </url>
 
-  <!-- Marketing. /welcome and /plans render the same content as / and
-       /pricing respectively, so only the canonical URL is listed. -->
+  <!-- Marketing. /welcome and /plans were legacy aliases; they now 301
+       to / and /pricing at the hosting layer (firebase.json), so only
+       the canonical URLs appear here. -->
   <url>
     <loc>https://zedexams.com/pricing</loc>
     <changefreq>monthly</changefreq>

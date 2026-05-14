@@ -151,7 +151,7 @@ export default function PastPaperViewer() {
       {/* Breadcrumb */}
       <header className="theme-card border-b theme-border px-4 py-3">
         <div className="max-w-5xl mx-auto flex items-center gap-3 text-xs font-bold theme-text-muted">
-          <Link to="/welcome" className="hover:theme-text"><Logo className="h-5 w-auto" /></Link>
+          <Link to="/" className="hover:theme-text"><Logo className="h-5 w-auto" /></Link>
           <span aria-hidden="true">/</span>
           <Link to="/papers" className="hover:theme-text">Papers</Link>
           <span aria-hidden="true">/</span>

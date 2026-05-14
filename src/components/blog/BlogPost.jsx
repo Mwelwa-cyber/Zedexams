@@ -89,7 +89,7 @@ export default function BlogPost() {
 
       <header className="theme-card border-b theme-border px-4 py-3">
         <div className="max-w-3xl mx-auto flex items-center gap-3 text-xs font-bold theme-text-muted">
-          <Link to="/welcome" className="hover:theme-text"><Logo className="h-5 w-auto" /></Link>
+          <Link to="/" className="hover:theme-text"><Logo className="h-5 w-auto" /></Link>
           <span aria-hidden="true">/</span>
           <Link to="/blog" className="hover:theme-text">Blog</Link>
           <span aria-hidden="true">/</span>
@@ -131,7 +131,7 @@ export default function BlogPost() {
         <p className="theme-text-muted text-sm text-center">
           More posts on the <Link to="/blog" className="theme-accent-text font-bold underline">blog index</Link>
           {' · '}
-          Practising on ZedExams? <Link to="/welcome" className="theme-accent-text font-bold underline">Create a free account</Link>.
+          Practising on ZedExams? <Link to="/" className="theme-accent-text font-bold underline">Create a free account</Link>.
         </p>
       </article>
     </div>

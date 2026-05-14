@@ -64,7 +64,7 @@ export default function BlogIndex() {
 
       <header className="theme-hero px-4 pt-8 pb-12" data-bg-gradient="true">
         <div className="max-w-3xl mx-auto">
-          <Link to="/welcome" className="inline-flex items-center gap-2 mb-4">
+          <Link to="/" className="inline-flex items-center gap-2 mb-4">
             <Logo className="h-6 w-auto" />
           </Link>
           <p className="text-white/80 font-black text-xs uppercase tracking-widest">Revision blog</p>

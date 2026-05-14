@@ -40,6 +40,10 @@
         ]
       }
     ],
+    "redirects": [
+      { "source": "/welcome", "destination": "/", "type": 301 },
+      { "source": "/plans", "destination": "/pricing", "type": 301 }
+    ],
     "rewrites": [
       {
         "source": "/api/ai/chat",
