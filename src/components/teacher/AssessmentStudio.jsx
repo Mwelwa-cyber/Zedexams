@@ -641,6 +641,46 @@ export default function AssessmentStudio() {
     }))
   }
 
+  // Passage image upload (used primarily by Map passages but also available
+  // for comprehension passages that want a header illustration).
+  async function uploadPassageImage(sectionIndex, file) {
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      showToast('Only JPG, PNG, and WEBP images are allowed.', true)
+      return
+    }
+    if (file.size > 15 * 1024 * 1024) {
+      showToast('Image must be under 15 MB.', true)
+      return
+    }
+    updateSection(sectionIndex, section => ({
+      ...section,
+      passage: { ...section.passage, imageUploading: true },
+    }))
+    try {
+      const compressed = await compressImage(file)
+      const path = `assessment-images/${currentUser.uid}/${Date.now()}-p-${sectionIndex}.jpg`
+      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType: 'image/jpeg' })
+      const imageUrl = await getDownloadURL(snapshot.ref)
+      updateSection(sectionIndex, section => ({
+        ...section,
+        passage: { ...section.passage, imageUrl, imageUploading: false },
+      }))
+      showToast('Image attached.')
+    } catch (error) {
+      updateSection(sectionIndex, section => ({
+        ...section,
+        passage: { ...section.passage, imageUploading: false },
+      }))
+      showToast(`Upload failed: ${getErrorMessage(error)}`, true)
+    }
+  }
+  function removePassageImage(sectionIndex) {
+    updateSection(sectionIndex, section => ({
+      ...section,
+      passage: { ...section.passage, imageUrl: '' },
+    }))
+  }
+
   // Per-option image upload (image-only and text+image MCQs).
   // `optionMedia` is a parallel array to `options`: optionMedia[i] = { imageUrl, alt }.
   async function uploadStandaloneOptionImage(sectionIndex, optionIndex, file) {
@@ -1090,6 +1130,12 @@ export default function AssessmentStudio() {
       case 'passage':
         newSection = createPassageSection()
         break
+      case 'map':
+        // Map questions are passages whose kind is 'map' — the data model
+        // (PASSAGE_KIND_MAP) was already plumbed; this just exposes it as
+        // a first-class block type with its own block picker tile.
+        newSection = createPassageSection({ passageKind: 'map' })
+        break
       case 'pagebreak':
         newSection = createPagebreakSection()
         break
@@ -1166,6 +1212,8 @@ export default function AssessmentStudio() {
           onUploadStandaloneOptionImage={uploadStandaloneOptionImage}
           onRemoveStandaloneOptionImage={removeStandaloneOptionImage}
           onUpdateSection={updateSection}
+          onUploadPassageImage={uploadPassageImage}
+          onRemovePassageImage={removePassageImage}
           onUpdatePassageQuestion={updatePassageQuestion}
           onAddPassageQuestion={addPassageQuestion}
           onRemovePassageQuestion={removePassageQuestion}
@@ -1458,7 +1506,7 @@ function BuilderView(props) {
     onAddBlock, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection,
     onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage,
     onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage,
-    onUpdateSection, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion,
+    onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion,
     onUpdatePart, onRemovePart, onAssignSectionToPart, onUploadLogo, onRemoveLogo,
     onImportDocument, importing, importSummary,
   } = props
@@ -1524,6 +1572,8 @@ function BuilderView(props) {
             onUploadStandaloneOptionImage={onUploadStandaloneOptionImage}
             onRemoveStandaloneOptionImage={onRemoveStandaloneOptionImage}
             onUpdateSection={onUpdateSection}
+            onUploadPassageImage={onUploadPassageImage}
+            onRemovePassageImage={onRemovePassageImage}
             onUpdatePassageQuestion={onUpdatePassageQuestion}
             onAddPassageQuestion={onAddPassageQuestion}
             onRemovePassageQuestion={onRemovePassageQuestion}
@@ -1577,7 +1627,7 @@ function SmartWarningsBanner({ warnings }) {
   )
 }
 
-function BuilderGroup({ group, allParts, questionNumbers, paperMeta, onAddBlock, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage, onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage, onUpdateSection, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onUpdatePart, onRemovePart, onAssignSectionToPart }) {
+function BuilderGroup({ group, allParts, questionNumbers, paperMeta, onAddBlock, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage, onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage, onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onUpdatePart, onRemovePart, onAssignSectionToPart }) {
   const partIndex = allParts.findIndex(p => p.id === group.part?.id)
   const letter = partIndex >= 0 ? SECTION_LETTERS[partIndex] || '·' : null
 
@@ -1644,6 +1694,8 @@ function BuilderGroup({ group, allParts, questionNumbers, paperMeta, onAddBlock,
           onUploadStandaloneOptionImage={onUploadStandaloneOptionImage}
           onRemoveStandaloneOptionImage={onRemoveStandaloneOptionImage}
           onUpdateSection={onUpdateSection}
+          onUploadPassageImage={onUploadPassageImage}
+          onRemovePassageImage={onRemovePassageImage}
           onUpdatePassageQuestion={onUpdatePassageQuestion}
           onAddPassageQuestion={onAddPassageQuestion}
           onRemovePassageQuestion={onRemovePassageQuestion}
@@ -2042,7 +2094,8 @@ function SectionBlock(props) {
     onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection,
     onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage,
     onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage,
-    onUpdateSection, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion,
+    onUpdateSection, onUploadPassageImage, onRemovePassageImage,
+    onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion,
     onAssignSectionToPart,
   } = props
 
@@ -2066,6 +2119,8 @@ function SectionBlock(props) {
         onMoveSection={onMoveSection}
         onRemoveSection={onRemoveSection}
         onUpdateSection={onUpdateSection}
+        onUploadPassageImage={onUploadPassageImage}
+        onRemovePassageImage={onRemovePassageImage}
         onUpdatePassageQuestion={onUpdatePassageQuestion}
         onAddPassageQuestion={onAddPassageQuestion}
         onRemovePassageQuestion={onRemovePassageQuestion}
@@ -2094,16 +2149,34 @@ function SectionBlock(props) {
   )
 }
 
-function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQuestion, onMoveSection, onRemoveSection, onUpdateSection, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onAssignSectionToPart }) {
+function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQuestion, onMoveSection, onRemoveSection, onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onAssignSectionToPart }) {
   const passage = section.passage
+  const isMap = passage.passageKind === 'map'
   const passageText = toEditableText(passage.passageText)
   const wordCount = plainTextWordCount(passage.passageText)
+  const fileInputRef = useRef(null)
+
+  function setKind(nextKind) {
+    onUpdateSection(sectionIndex, s => ({
+      ...s,
+      passage: { ...s.passage, passageKind: nextKind },
+    }))
+  }
 
   return (
     <>
-      <div className="sv-block b-passage">
+      <div className={`sv-block b-passage${isMap ? ' b-passage-map' : ''}`}>
         <div className="sv-block-head">
-          <span className="sv-ic">📖</span> Comprehension Passage
+          <span className="sv-ic">{isMap ? '🗺' : '📖'}</span> {isMap ? 'Map Question' : 'Comprehension Passage'}
+          <select
+            value={isMap ? 'map' : 'comprehension'}
+            onChange={e => setKind(e.target.value)}
+            style={{ marginLeft: 'var(--sv-s2)', background: 'var(--sv-tinted)', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: '2px 6px', fontSize: 11.5 }}
+            title="Switch between Comprehension passage and Map question"
+          >
+            <option value="comprehension">Comprehension</option>
+            <option value="map">Map</option>
+          </select>
           <span className="sv-tools">
             <button className="sv-tool" title="Move up" onClick={() => onMoveSection(sectionIndex, -1)}>↑</button>
             <button className="sv-tool" title="Move down" onClick={() => onMoveSection(sectionIndex, 1)}>↓</button>
@@ -2115,17 +2188,70 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
             <input
               value={passage.title || ''}
               onChange={e => onUpdateSection(sectionIndex, s => ({ ...s, passage: { ...s.passage, title: e.target.value } }))}
-              placeholder="Passage title"
+              placeholder={isMap ? 'Map title (e.g. "Map of Zambia")' : 'Passage title'}
             />
-            <span className="sv-pword-count">~{wordCount} words</span>
+            {!isMap && <span className="sv-pword-count">~{wordCount} words</span>}
           </div>
-          <textarea
-            className="sv-passage-text"
-            value={passageText}
-            onChange={e => onUpdateSection(sectionIndex, s => ({ ...s, passage: { ...s.passage, passageText: e.target.value } }))}
-            placeholder="Paste or type the passage text here. The Tiptap rich-text editor is available in EditAssessment for richer formatting."
-            rows={6}
-          />
+
+          {/* Image upload area — required for Map kind, optional for comprehension. */}
+          {(isMap || passage.imageUrl) && (
+            <div style={{ margin: '8px 0' }}>
+              {passage.imageUrl ? (
+                <div className="sv-q-media filled filled-wrap" style={{ minHeight: 'auto' }}>
+                  <img src={passage.imageUrl} alt="" />
+                  <button
+                    className="sv-media-remove"
+                    onClick={() => onRemovePassageImage(sectionIndex)}
+                    title="Remove image"
+                    type="button"
+                  >×</button>
+                </div>
+              ) : passage.imageUploading ? (
+                <div className="sv-q-media"><div className="sv-ic">⏳</div><div>Uploading map…</div></div>
+              ) : (
+                <button
+                  type="button"
+                  className="sv-q-media"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <div className="sv-ic">🗺</div>
+                  <div>Upload the map image</div>
+                  <small>JPG, PNG or WEBP · up to 15 MB</small>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept="image/*"
+                    style={{ display: 'none' }}
+                    onChange={e => {
+                      const file = e.target.files?.[0]
+                      if (file && onUploadPassageImage) onUploadPassageImage(sectionIndex, file)
+                      e.target.value = ''
+                    }}
+                  />
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* Comprehension passages need a text body; map questions just need the image
+              + optional caption, so we hide the long-text textarea entirely there. */}
+          {!isMap && (
+            <textarea
+              className="sv-passage-text"
+              value={passageText}
+              onChange={e => onUpdateSection(sectionIndex, s => ({ ...s, passage: { ...s.passage, passageText: e.target.value } }))}
+              placeholder="Paste or type the passage text here. The Tiptap rich-text editor is available in EditAssessment for richer formatting."
+              rows={6}
+            />
+          )}
+          {isMap && (
+            <input
+              value={passageText}
+              onChange={e => onUpdateSection(sectionIndex, s => ({ ...s, passage: { ...s.passage, passageText: e.target.value } }))}
+              placeholder="Optional caption / instructions (e.g. 'Use the map above to answer the questions below.')"
+              style={{ width: '100%', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: '6px 8px', fontSize: 13, marginTop: 4 }}
+            />
+          )}
         </div>
 
         {parts.length > 0 && (
@@ -4010,7 +4136,7 @@ function BlockPickerSlide({ open, onClose, onPick }) {
           <BlockPickerItem icon="📖" title="Passage" hint="Comprehension passage" onClick={() => onPick('passage')} />
           <BlockPickerItem icon="🖼" title="Diagram-based" hint="Label or describe an image" onClick={() => onPick('structured')} />
           <BlockPickerItem icon="🎨" title="Draw & Label" hint="Coming soon" disabled />
-          <BlockPickerItem icon="🗺" title="Map Question" hint="Coming soon" disabled />
+          <BlockPickerItem icon="🗺" title="Map Question" hint="Image-based passage with map questions" onClick={() => onPick('map')} />
           <BlockPickerItem icon="📊" title="Data / Table" hint="Attach a data table to a question" onClick={() => onPick('data_table')} />
           <BlockPickerItem icon="👁" title="Image Identify" hint="Coming soon" disabled />
         </div>
