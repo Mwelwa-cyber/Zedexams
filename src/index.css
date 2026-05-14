@@ -218,6 +218,61 @@ body.theme-solar {
   --duration-slow: 400ms;
 }
 
+/* ── MoE School Calendar — scoped tokens ───────────────────────
+ * SchoolCalendar (teacher) and LearnerCalendar (learner) keep their
+ * bespoke Zambian-MoE "official document" palette across light themes
+ * (Sky/Lavender/Oatmeal/Solar/Vivid). Midnight gets a tuned dark
+ * variant so the calendar stays legible without losing the
+ * Navy/Gold identity entirely.
+ *
+ * Brand-stable accents (gold, red, the three term-card hues) are left
+ * as hex in the components — only surfaces, text and borders flip.
+ */
+.moe-calendar {
+  --moe-page-bg:       #FAF7F2;
+  --moe-surface:       #FFFFFF;
+  --moe-surface-2:     #F7F9FC;
+  --moe-strong-bg:     #0F1B2D;
+  --moe-strong-bg-2:   #1A2F4E;
+  --moe-fg:            #0F1B2D;
+  --moe-fg-on-strong:  #FFFFFF;
+  --moe-fg-muted:      #8A9BB0;
+  --moe-border:        #E5E9EF;
+  --moe-divider:       #F0F2F5;
+  --moe-soft-warn-bg:  #FFF8E6;
+  --moe-soft-soon-bg:  #FFF3F3;
+  --moe-soft-soon-bd:  #FFC0C0;
+  --moe-term-soft-1:   #EAF5F2;
+  --moe-term-soft-2:   #EAF0FA;
+  --moe-term-soft-3:   #F5EAF9;
+  --moe-past-bg:       #F0F0F0;
+  --moe-past-fg:       #888888;
+  --moe-past-card-bg:  #F7F7F7;
+  --moe-progress-track:#E5E9EF;
+}
+body.theme-midnight .moe-calendar {
+  --moe-page-bg:       #0F172A;
+  --moe-surface:       #1E293B;
+  --moe-surface-2:     #263449;
+  --moe-strong-bg:     #020617;
+  --moe-strong-bg-2:   #0F1B2D;
+  --moe-fg:            #F1F5F9;
+  --moe-fg-on-strong:  #F1F5F9;
+  --moe-fg-muted:      #94A3B8;
+  --moe-border:        #334155;
+  --moe-divider:       #263449;
+  --moe-soft-warn-bg:  rgba(201,168,76,0.18);
+  --moe-soft-soon-bg:  rgba(248,113,113,0.16);
+  --moe-soft-soon-bd:  rgba(248,113,113,0.40);
+  --moe-term-soft-1:   rgba(26,107,90,0.22);
+  --moe-term-soft-2:   rgba(26,75,142,0.24);
+  --moe-term-soft-3:   rgba(123,45,139,0.24);
+  --moe-past-bg:       #263449;
+  --moe-past-fg:       #94A3B8;
+  --moe-past-card-bg:  #1E293B;
+  --moe-progress-track:#334155;
+}
+
 /* ── Design System v2 — alias tokens ───────────────────────────
  * Maps the design-system spec's token names onto the existing
  * theme-aware vars. var(--accent) etc resolve at use time, so all

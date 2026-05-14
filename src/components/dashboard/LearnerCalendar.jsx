@@ -10,16 +10,35 @@ import {
   getUpcomingHolidays,
 } from "../../utils/moeCalendar";
 
-// ── Design tokens (ZedExams) ──────────────────────────────────────────────────
-const NAVY  = "#0F1B2D";
-const DEEP  = "#1A2F4E";
-const GOLD  = "#C9A84C";
-const CREAM = "#FAF7F2";
-const WHITE = "#FFFFFF";
-const MUTED = "#8A9BB0";
+// ── Design tokens ─────────────────────────────────────────────────────────────
+// Brand-stable accents — look fine on either light or Midnight surfaces.
+const GOLD     = "#C9A84C";
+const RED      = "#C0392B";
+const INK_DARK = "#0F1B2D"; // text painted on top of a GOLD chip — never flips
 
 const TERM_ACCENT = ["#1A6B5A", "#1A4B8E", "#7B2D8B"];
-const TERM_SOFT   = ["#EAF5F2", "#EAF0FA", "#F5EAF9"];
+
+// Theme-aware surfaces / ink — backed by .moe-calendar CSS vars in index.css.
+const PAGE_BG      = "var(--moe-page-bg)";
+const SURFACE      = "var(--moe-surface)";
+const SURFACE_2    = "var(--moe-surface-2)";
+const STRONG_BG    = "var(--moe-strong-bg)";
+const STRONG_BG_2  = "var(--moe-strong-bg-2)";
+const FG           = "var(--moe-fg)";
+const FG_MUTED     = "var(--moe-fg-muted)";
+const FG_ON_STRONG = "var(--moe-fg-on-strong)";
+const BORDER       = "var(--moe-border)";
+const SOFT_WARN_BG = "var(--moe-soft-warn-bg)";
+const SOFT_SOON_BG = "var(--moe-soft-soon-bg)";
+const SOFT_SOON_BD = "var(--moe-soft-soon-bd)";
+const PAST_CARD_BG = "var(--moe-past-card-bg)";
+const PAST_FG      = "var(--moe-past-fg)";
+
+const TERM_SOFT = [
+  "var(--moe-term-soft-1)",
+  "var(--moe-term-soft-2)",
+  "var(--moe-term-soft-3)",
+];
 
 // ── Local helpers ─────────────────────────────────────────────────────────────
 
@@ -46,9 +65,9 @@ function TermPill({ term, index, active, onClick }) {
       style={{
         padding: "8px 18px",
         borderRadius: 99,
-        border: `2px solid ${active ? accent : "#E5E9EF"}`,
-        background: active ? accent : WHITE,
-        color: active ? WHITE : MUTED,
+        border: `2px solid ${active ? accent : BORDER}`,
+        background: active ? accent : SURFACE,
+        color: active ? FG_ON_STRONG : FG_MUTED,
         fontSize: 13, fontWeight: 700,
         cursor: "pointer",
         fontFamily: "Georgia, serif",
@@ -61,7 +80,7 @@ function TermPill({ term, index, active, onClick }) {
       {status === "active" && (
         <span style={{
           width: 7, height: 7, borderRadius: "50%",
-          background: active ? WHITE : GOLD,
+          background: active ? FG_ON_STRONG : GOLD,
           display: "inline-block",
           animation: "pulse 1.5s infinite",
         }} />
@@ -80,12 +99,12 @@ function CountdownCard({ term, termIndex }) {
   if (status === "past") {
     return (
       <div style={{
-        background: "#F7F7F7", borderRadius: 14,
+        background: PAST_CARD_BG, borderRadius: 14,
         padding: "20px 24px", textAlign: "center",
-        border: "1px solid #E5E9EF",
+        border: `1px solid ${BORDER}`,
       }}>
         <div style={{ fontSize: 32 }}>✓</div>
-        <div style={{ fontSize: 14, fontWeight: 700, color: "#AAA", marginTop: 4 }}>Term Complete</div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: PAST_FG, marginTop: 4 }}>Term Complete</div>
       </div>
     );
   }
@@ -102,8 +121,8 @@ function CountdownCard({ term, termIndex }) {
           School Opens In
         </div>
         <div style={{ fontSize: 52, fontWeight: 800, color: accent, lineHeight: 1.1, margin: "6px 0" }}>{d}</div>
-        <div style={{ fontSize: 13, color: DEEP, fontWeight: 600 }}>days</div>
-        <div style={{ fontSize: 12, color: MUTED, marginTop: 8 }}>{fmtDate(term.open, "full")}</div>
+        <div style={{ fontSize: 13, color: FG, fontWeight: 600 }}>days</div>
+        <div style={{ fontSize: 12, color: FG_MUTED, marginTop: 8 }}>{fmtDate(term.open, "full")}</div>
       </div>
     );
   }
@@ -125,21 +144,21 @@ function CountdownCard({ term, termIndex }) {
           <div style={{ fontSize: 11, color: accent, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>
             School Closes
           </div>
-          <div style={{ fontSize: 22, fontWeight: 800, color: NAVY, marginTop: 2 }}>
+          <div style={{ fontSize: 22, fontWeight: 800, color: FG, marginTop: 2 }}>
             {fmtDate(term.close, "short")}
           </div>
         </div>
         <div style={{ textAlign: "right" }}>
-          <div style={{ fontSize: 11, color: MUTED, fontWeight: 600 }}>WEEK</div>
+          <div style={{ fontSize: 11, color: FG_MUTED, fontWeight: 600 }}>WEEK</div>
           <div style={{ fontSize: 26, fontWeight: 800, color: accent }}>{week}</div>
-          <div style={{ fontSize: 11, color: MUTED }}>of {total}</div>
+          <div style={{ fontSize: 11, color: FG_MUTED }}>of {total}</div>
         </div>
       </div>
 
       <div>
-        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: MUTED, marginBottom: 5 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: FG_MUTED, marginBottom: 5 }}>
           <span style={{ fontWeight: 600 }}>{pct}% through the term</span>
-          <span style={{ color: "#C0392B", fontWeight: 700 }}>{dLeft} days left</span>
+          <span style={{ color: RED, fontWeight: 700 }}>{dLeft} days left</span>
         </div>
         <div style={{ background: `${accent}22`, borderRadius: 99, height: 8, overflow: "hidden" }}>
           <div style={{
@@ -161,21 +180,21 @@ function HolidayRow({ holiday }) {
     <div style={{
       display: "flex", justifyContent: "space-between", alignItems: "center",
       padding: "10px 14px", borderRadius: 8,
-      background: isToday ? "#FFF8E6" : isSoon ? "#FFF3F3" : "#F7F9FC",
-      border: `1px solid ${isToday ? GOLD : isSoon ? "#FFC0C0" : "#E5E9EF"}`,
+      background: isToday ? SOFT_WARN_BG : isSoon ? SOFT_SOON_BG : SURFACE_2,
+      border: `1px solid ${isToday ? GOLD : isSoon ? SOFT_SOON_BD : BORDER}`,
     }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span style={{ fontSize: 16 }}>
           {isToday ? "🎉" : isSoon ? "⚠️" : "📅"}
         </span>
-        <span style={{ fontSize: 13, fontWeight: 600, color: NAVY }}>{holiday.name}</span>
+        <span style={{ fontSize: 13, fontWeight: 600, color: FG }}>{holiday.name}</span>
       </div>
       <div style={{ textAlign: "right" }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: isToday ? GOLD : isSoon ? "#C0392B" : MUTED }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: isToday ? GOLD : isSoon ? RED : FG_MUTED }}>
           {isToday ? "TODAY!" : isSoon ? `${d} days` : fmtDate(holiday.date, "day")}
         </div>
         {!isToday && (
-          <div style={{ fontSize: 10, color: MUTED }}>{fmtDate(holiday.date, "short")}</div>
+          <div style={{ fontSize: 10, color: FG_MUTED }}>{fmtDate(holiday.date, "short")}</div>
         )}
       </div>
     </div>
@@ -192,12 +211,15 @@ export default function LearnerCalendar() {
   const upcoming = getUpcomingHolidays(30);
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: CREAM,
-      fontFamily: "Georgia, serif",
-      padding: "20px 16px",
-    }}>
+    <div
+      className="moe-calendar"
+      style={{
+        minHeight: "100vh",
+        background: PAGE_BG,
+        fontFamily: "Georgia, serif",
+        padding: "20px 16px",
+      }}
+    >
       <style>{`
         @keyframes pulse {
           0%, 100% { opacity: 1; }
@@ -207,7 +229,7 @@ export default function LearnerCalendar() {
 
       {/* ── Header ── */}
       <div style={{
-        background: `linear-gradient(135deg, ${NAVY} 0%, ${DEEP} 100%)`,
+        background: `linear-gradient(135deg, ${STRONG_BG} 0%, ${STRONG_BG_2} 100%)`,
         borderRadius: 16, padding: "20px 24px", marginBottom: 20,
         position: "relative", overflow: "hidden",
       }}>
@@ -220,10 +242,10 @@ export default function LearnerCalendar() {
         <div style={{ fontSize: 10, color: GOLD, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 4 }}>
           ZedExams · School Calendar
         </div>
-        <h2 style={{ margin: 0, color: WHITE, fontSize: 20, fontWeight: 700 }}>
+        <h2 style={{ margin: 0, color: FG_ON_STRONG, fontSize: 20, fontWeight: 700 }}>
           {year} Academic Year
         </h2>
-        <p style={{ margin: "4px 0 16px", color: MUTED, fontSize: 12 }}>
+        <p style={{ margin: "4px 0 16px", color: FG_MUTED, fontSize: 12 }}>
           Ministry of Education, Republic of Zambia
         </p>
 
@@ -238,7 +260,7 @@ export default function LearnerCalendar() {
                 cursor: "pointer", fontSize: 12, fontWeight: 700,
                 fontFamily: "Georgia, serif",
                 background: +y === year ? GOLD : "rgba(255,255,255,0.1)",
-                color:      +y === year ? NAVY : "rgba(255,255,255,0.6)",
+                color:      +y === year ? INK_DARK : "rgba(255,255,255,0.6)",
                 transition: "all 0.18s",
               }}
             >
@@ -267,27 +289,27 @@ export default function LearnerCalendar() {
           ["Holiday",      `${term.holidayLength} days`],
         ].map(([label, value]) => (
           <div key={label} style={{
-            background: WHITE, borderRadius: 10, padding: "12px 16px",
-            border: "1px solid #E5E9EF",
+            background: SURFACE, borderRadius: 10, padding: "12px 16px",
+            border: `1px solid ${BORDER}`,
           }}>
-            <div style={{ fontSize: 10, color: MUTED, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>{label}</div>
-            <div style={{ fontSize: 15, fontWeight: 800, color: NAVY, marginTop: 3 }}>{value}</div>
+            <div style={{ fontSize: 10, color: FG_MUTED, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.07em" }}>{label}</div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: FG, marginTop: 3 }}>{value}</div>
           </div>
         ))}
       </div>
 
       {/* ── Upcoming holidays (next 30 days) ── */}
-      <div style={{ background: WHITE, borderRadius: 14, overflow: "hidden", border: "1px solid #E5E9EF" }}>
+      <div style={{ background: SURFACE, borderRadius: 14, overflow: "hidden", border: `1px solid ${BORDER}` }}>
         <div style={{
-          padding: "14px 18px", borderBottom: "1px solid #E5E9EF",
+          padding: "14px 18px", borderBottom: `1px solid ${BORDER}`,
           display: "flex", justifyContent: "space-between", alignItems: "center",
         }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: NAVY }}>Upcoming Public Holidays</div>
-          <div style={{ fontSize: 11, color: MUTED }}>Next 30 days</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: FG }}>Upcoming Public Holidays</div>
+          <div style={{ fontSize: 11, color: FG_MUTED }}>Next 30 days</div>
         </div>
         <div style={{ padding: "14px 18px", display: "flex", flexDirection: "column", gap: 8 }}>
           {upcoming.length === 0 ? (
-            <p style={{ fontSize: 13, color: MUTED, fontStyle: "italic", margin: 0 }}>
+            <p style={{ fontSize: 13, color: FG_MUTED, fontStyle: "italic", margin: 0 }}>
               No public holidays in the next 30 days.
             </p>
           ) : (
@@ -297,9 +319,9 @@ export default function LearnerCalendar() {
       </div>
 
       {/* ── All holidays this term ── */}
-      <div style={{ marginTop: 14, background: WHITE, borderRadius: 14, overflow: "hidden", border: "1px solid #E5E9EF" }}>
-        <div style={{ padding: "14px 18px", borderBottom: "1px solid #E5E9EF" }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: NAVY }}>
+      <div style={{ marginTop: 14, background: SURFACE, borderRadius: 14, overflow: "hidden", border: `1px solid ${BORDER}` }}>
+        <div style={{ padding: "14px 18px", borderBottom: `1px solid ${BORDER}` }}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: FG }}>
             {term.name} — All Public Holidays
           </div>
         </div>
@@ -308,17 +330,17 @@ export default function LearnerCalendar() {
             <div key={i} style={{
               display: "flex", justifyContent: "space-between",
               padding: "8px 12px", borderRadius: 8,
-              background: "#F7F9FC", border: "1px solid #E5E9EF",
+              background: SURFACE_2, border: `1px solid ${BORDER}`,
             }}>
-              <span style={{ fontSize: 13, fontWeight: 600, color: NAVY }}>{h.name}</span>
-              <span style={{ fontSize: 12, color: MUTED, fontWeight: 600 }}>{fmtDate(h.date, "short")}</span>
+              <span style={{ fontSize: 13, fontWeight: 600, color: FG }}>{h.name}</span>
+              <span style={{ fontSize: 12, color: FG_MUTED, fontWeight: 600 }}>{fmtDate(h.date, "short")}</span>
             </div>
           ))}
         </div>
       </div>
 
       {/* ── Footer ── */}
-      <p style={{ textAlign: "center", fontSize: 10, color: MUTED, marginTop: 20 }}>
+      <p style={{ textAlign: "center", fontSize: 10, color: FG_MUTED, marginTop: 20 }}>
         Source: MoE Zambia Official School Calendar 2026–2030 · Ng'andu Edition
       </p>
     </div>

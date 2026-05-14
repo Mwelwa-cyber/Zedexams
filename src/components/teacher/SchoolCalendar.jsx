@@ -7,18 +7,34 @@ import {
   fmtDate,
 } from "../../utils/moeCalendar";
 
-// ── Design tokens (ZedExams) ──────────────────────────────────────────────────
-const NAVY       = "#0F1B2D";
-const DEEP       = "#1A2F4E";
+// ── Design tokens ─────────────────────────────────────────────────────────────
+// Brand-stable accents — look fine on either light or Midnight surfaces.
 const GOLD       = "#C9A84C";
 const GOLD_LIGHT = "#E8C96A";
-const CREAM      = "#FAF7F2";
-const WHITE      = "#FFFFFF";
-const MUTED      = "#8A9BB0";
 const RED        = "#C0392B";
-
+const INK_DARK   = "#0F1B2D"; // text painted on top of a GOLD chip — never flips
 const termColors = ["#1A6B5A", "#1A4B8E", "#7B2D8B"];
-const termBg     = ["#EAF5F2", "#EAF0FA", "#F5EAF9"];
+
+// Theme-aware surfaces / ink — backed by .moe-calendar CSS vars in index.css
+// (defaults to Navy/Gold/Cream; overridden inside body.theme-midnight).
+const PAGE_BG      = "var(--moe-page-bg)";
+const SURFACE      = "var(--moe-surface)";
+const SURFACE_2    = "var(--moe-surface-2)";
+const STRONG_BG    = "var(--moe-strong-bg)";
+const STRONG_BG_2  = "var(--moe-strong-bg-2)";
+const FG           = "var(--moe-fg)";
+const FG_MUTED     = "var(--moe-fg-muted)";
+const FG_ON_STRONG = "var(--moe-fg-on-strong)";
+const BORDER       = "var(--moe-border)";
+const DIVIDER      = "var(--moe-divider)";
+const SOFT_WARN_BG = "var(--moe-soft-warn-bg)";
+const PROGRESS_TR  = "var(--moe-progress-track)";
+
+const termBg = [
+  "var(--moe-term-soft-1)",
+  "var(--moe-term-soft-2)",
+  "var(--moe-term-soft-3)",
+];
 
 // ── Local helpers (UI-only, not worth exporting to lib) ───────────────────────
 
@@ -44,9 +60,9 @@ function detectCurrentTerm(year) {
 
 function StatusBadge({ status }) {
   const cfg = {
-    active:   { bg: GOLD,      color: NAVY,      label: "● ACTIVE"    },
-    upcoming: { bg: "#E8F4F8", color: "#1A4B8E", label: "◦ UPCOMING"  },
-    past:     { bg: "#F0F0F0", color: "#888",    label: "✓ COMPLETED" },
+    active:   { bg: GOLD,                       color: INK_DARK,                 label: "● ACTIVE"    },
+    upcoming: { bg: "#E8F4F8",                  color: "#1A4B8E",                label: "◦ UPCOMING"  },
+    past:     { bg: "var(--moe-past-bg)",       color: "var(--moe-past-fg)",     label: "✓ COMPLETED" },
   }[status];
   return (
     <span style={{
@@ -66,7 +82,7 @@ function CountdownChip({ term, status }) {
   if (status === "upcoming") {
     const d = daysUntil(term.open);
     return (
-      <div style={{ marginTop: 8, fontSize: 12, color: DEEP, fontWeight: 600 }}>
+      <div style={{ marginTop: 8, fontSize: 12, color: FG, fontWeight: 600 }}>
         Opens in <span style={{ color: GOLD, fontWeight: 800 }}>{d}</span> days
       </div>
     );
@@ -76,11 +92,11 @@ function CountdownChip({ term, status }) {
   const pct = Math.max(0, Math.min(100, Math.round(((term.workingDays - d) / term.workingDays) * 100)));
   return (
     <div style={{ marginTop: 10 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: MUTED, marginBottom: 4 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 11, color: FG_MUTED, marginBottom: 4 }}>
         <span style={{ fontWeight: 600, color: RED }}>{d} working days left</span>
         <span>{pct}% elapsed</span>
       </div>
-      <div style={{ background: "#E5E9EF", borderRadius: 99, height: 6, overflow: "hidden" }}>
+      <div style={{ background: PROGRESS_TR, borderRadius: 99, height: 6, overflow: "hidden" }}>
         <div style={{
           width: `${pct}%`, height: "100%",
           background: `linear-gradient(90deg, ${GOLD}, ${GOLD_LIGHT})`,
@@ -99,7 +115,7 @@ function HolidayList({ holidays }) {
 
   if (upcoming.length === 0) {
     return (
-      <p style={{ fontSize: 12, color: MUTED, fontStyle: "italic", margin: 0 }}>
+      <p style={{ fontSize: 12, color: FG_MUTED, fontStyle: "italic", margin: 0 }}>
         No upcoming holidays this term.
       </p>
     );
@@ -111,11 +127,11 @@ function HolidayList({ holidays }) {
         <div key={i} style={{
           display: "flex", justifyContent: "space-between", alignItems: "center",
           padding: "6px 10px", borderRadius: 6,
-          background: h.delta === 0 ? "#FFF8E6" : "#F7F9FC",
-          border: `1px solid ${h.delta === 0 ? GOLD : "#E5E9EF"}`,
+          background: h.delta === 0 ? SOFT_WARN_BG : SURFACE_2,
+          border: `1px solid ${h.delta === 0 ? GOLD : BORDER}`,
         }}>
-          <span style={{ fontSize: 12, fontWeight: 600, color: NAVY }}>{h.name}</span>
-          <span style={{ fontSize: 11, color: h.delta === 0 ? GOLD : MUTED, fontWeight: 700 }}>
+          <span style={{ fontSize: 12, fontWeight: 600, color: FG }}>{h.name}</span>
+          <span style={{ fontSize: 11, color: h.delta === 0 ? GOLD : FG_MUTED, fontWeight: 700 }}>
             {h.delta === 0 ? "TODAY" : h.delta === 1 ? "Tomorrow" : fmtDate(h.date, "day")}
           </span>
         </div>
@@ -135,8 +151,8 @@ function TermCard({ term, index, isSelected, onClick }) {
       style={{
         cursor: "pointer",
         borderRadius: 12,
-        border: `2px solid ${isSelected ? color : "#E5E9EF"}`,
-        background: isSelected ? bg : WHITE,
+        border: `2px solid ${isSelected ? color : BORDER}`,
+        background: isSelected ? bg : SURFACE,
         padding: "16px 18px",
         transition: "all 0.2s ease",
         boxShadow: isSelected ? `0 4px 16px ${color}22` : "0 1px 4px rgba(0,0,0,0.05)",
@@ -148,7 +164,7 @@ function TermCard({ term, index, isSelected, onClick }) {
           <div style={{ fontSize: 10, fontWeight: 700, color, letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 2 }}>
             Term {index + 1}
           </div>
-          <div style={{ fontSize: 15, fontWeight: 700, color: NAVY }}>{term.name}</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: FG }}>{term.name}</div>
         </div>
         <StatusBadge status={status} />
       </div>
@@ -161,8 +177,8 @@ function TermCard({ term, index, isSelected, onClick }) {
           ["Holiday",      `${term.holidayLength} days`],
         ].map(([label, value]) => (
           <div key={label}>
-            <div style={{ color: MUTED, fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
-            <div style={{ color: NAVY, fontWeight: 700, marginTop: 1 }}>{value}</div>
+            <div style={{ color: FG_MUTED, fontSize: 10, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</div>
+            <div style={{ color: FG, fontWeight: 700, marginTop: 1 }}>{value}</div>
           </div>
         ))}
       </div>
@@ -175,7 +191,7 @@ function TermCard({ term, index, isSelected, onClick }) {
 function SectionTitle({ children, style }) {
   return (
     <div style={{
-      fontSize: 10, fontWeight: 700, color: MUTED,
+      fontSize: 10, fontWeight: 700, color: FG_MUTED,
       textTransform: "uppercase", letterSpacing: "0.1em",
       marginBottom: 8, ...style,
     }}>
@@ -188,10 +204,10 @@ function InfoRow({ label, value, highlight }) {
   return (
     <div style={{
       display: "flex", justifyContent: "space-between",
-      padding: "5px 0", borderBottom: "1px solid #F0F2F5",
+      padding: "5px 0", borderBottom: `1px solid ${DIVIDER}`,
     }}>
-      <span style={{ fontSize: 12, color: MUTED }}>{label}</span>
-      <span style={{ fontSize: 12, fontWeight: 700, color: highlight ? GOLD : NAVY }}>{value}</span>
+      <span style={{ fontSize: 12, color: FG_MUTED }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: 700, color: highlight ? GOLD : FG }}>{value}</span>
     </div>
   );
 }
@@ -212,15 +228,18 @@ export default function SchoolCalendar() {
   const totalWorkingDays = terms.reduce((sum, t) => sum + t.workingDays, 0);
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: CREAM,
-      fontFamily: "'Georgia', serif",
-      padding: "24px 16px",
-    }}>
+    <div
+      className="moe-calendar"
+      style={{
+        minHeight: "100vh",
+        background: PAGE_BG,
+        fontFamily: "'Georgia', serif",
+        padding: "24px 16px",
+      }}
+    >
       {/* ── Header ── */}
       <div style={{
-        background: NAVY, borderRadius: 16, padding: "24px 28px",
+        background: STRONG_BG, borderRadius: 16, padding: "24px 28px",
         marginBottom: 20, position: "relative", overflow: "hidden",
       }}>
         <div style={{
@@ -234,14 +253,14 @@ export default function SchoolCalendar() {
             <div style={{ fontSize: 10, color: GOLD, fontWeight: 700, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 4 }}>
               Republic of Zambia · Ministry of Education
             </div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: WHITE, lineHeight: 1.2 }}>
+            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 700, color: FG_ON_STRONG, lineHeight: 1.2 }}>
               School Calendar
             </h1>
-            <p style={{ margin: "4px 0 0", fontSize: 12, color: MUTED }}>
+            <p style={{ margin: "4px 0 0", fontSize: 12, color: FG_MUTED }}>
               Early Childhood, Primary &amp; Secondary
             </p>
           </div>
-          <div style={{ fontSize: 12, color: MUTED, textAlign: "right" }}>
+          <div style={{ fontSize: 12, color: FG_MUTED, textAlign: "right" }}>
             <div style={{ color: GOLD, fontWeight: 700, fontSize: 14 }}>
               {new Date().toLocaleDateString("en-ZM", { weekday: "short", day: "numeric", month: "long", year: "numeric" })}
             </div>
@@ -260,7 +279,7 @@ export default function SchoolCalendar() {
                 cursor: "pointer", fontFamily: "inherit", fontSize: 13, fontWeight: 700,
                 transition: "all 0.2s",
                 background: +y === year ? GOLD : "rgba(255,255,255,0.1)",
-                color:      +y === year ? NAVY : "rgba(255,255,255,0.7)",
+                color:      +y === year ? INK_DARK : "rgba(255,255,255,0.7)",
               }}
             >
               {y}
@@ -278,21 +297,21 @@ export default function SchoolCalendar() {
 
       {/* ── Detail Panel ── */}
       <div style={{
-        background: WHITE, borderRadius: 16,
-        border: "1px solid #E5E9EF",
+        background: SURFACE, borderRadius: 16,
+        border: `1px solid ${BORDER}`,
         boxShadow: "0 2px 12px rgba(0,0,0,0.06)",
         overflow: "hidden",
       }}>
         {/* Panel header */}
         <div style={{
-          background: DEEP, padding: "16px 20px",
+          background: STRONG_BG_2, padding: "16px 20px",
           display: "flex", justifyContent: "space-between", alignItems: "center",
         }}>
           <div>
             <div style={{ fontSize: 10, color: GOLD, fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase" }}>
               {year} · Term {termIdx + 1}
             </div>
-            <div style={{ fontSize: 17, fontWeight: 700, color: WHITE, marginTop: 2 }}>
+            <div style={{ fontSize: 17, fontWeight: 700, color: FG_ON_STRONG, marginTop: 2 }}>
               {selected.name}
             </div>
           </div>
@@ -325,10 +344,10 @@ export default function SchoolCalendar() {
                   <div key={i} style={{
                     display: "flex", justifyContent: "space-between",
                     padding: "6px 10px", borderRadius: 6,
-                    background: "#F7F9FC", border: "1px solid #E5E9EF",
+                    background: SURFACE_2, border: `1px solid ${BORDER}`,
                   }}>
-                    <span style={{ fontSize: 12, fontWeight: 600, color: NAVY }}>{h.name}</span>
-                    <span style={{ fontSize: 11, color: MUTED }}>{fmtDate(h.date, "day")}</span>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: FG }}>{h.name}</span>
+                    <span style={{ fontSize: 11, color: FG_MUTED }}>{fmtDate(h.date, "day")}</span>
                   </div>
                 ))}
               </div>
@@ -340,21 +359,21 @@ export default function SchoolCalendar() {
 
         {/* Footer summary */}
         <div style={{
-          background: "#F7F9FC", borderTop: "1px solid #E5E9EF",
+          background: SURFACE_2, borderTop: `1px solid ${BORDER}`,
           padding: "12px 20px",
           display: "flex", gap: 24, flexWrap: "wrap", alignItems: "center",
         }}>
           <div>
-            <div style={{ fontSize: 10, color: MUTED, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em" }}>Total Resident Days</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: NAVY }}>267</div>
+            <div style={{ fontSize: 10, color: FG_MUTED, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em" }}>Total Resident Days</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: FG }}>267</div>
           </div>
           <div>
-            <div style={{ fontSize: 10, color: MUTED, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em" }}>Total Working Days</div>
-            <div style={{ fontSize: 18, fontWeight: 800, color: NAVY }}>{totalWorkingDays}</div>
+            <div style={{ fontSize: 10, color: FG_MUTED, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.07em" }}>Total Working Days</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: FG }}>{totalWorkingDays}</div>
           </div>
           <div style={{ marginLeft: "auto" }}>
-            <span style={{ fontSize: 10, color: MUTED }}>Source: </span>
-            <span style={{ fontSize: 10, fontWeight: 700, color: DEEP }}>MoE Zambia Official Calendar 2026–2030</span>
+            <span style={{ fontSize: 10, color: FG_MUTED }}>Source: </span>
+            <span style={{ fontSize: 10, fontWeight: 700, color: FG }}>MoE Zambia Official Calendar 2026–2030</span>
           </div>
         </div>
       </div>
