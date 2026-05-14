@@ -35,24 +35,19 @@ function StatCard({ icon, label, value, color, loading, linkTo }) {
   return linkTo ? <Link to={linkTo}>{inner}</Link> : inner
 }
 
-const QA_ACCENT = {
-  green:  'accent-mint',
-  blue:   'accent-blue',
-  orange: 'accent-amber',
-  pink:   'accent-pink',
-}
-
-function QuickAction({ to, icon, label, sub, color }) {
-  return (
-    <Link to={to} className={`qa-card ${QA_ACCENT[color] || 'accent-mint'} hover-lift press-feedback`}>
-      <span className="qa-icon" aria-hidden="true"><span className="text-base">{icon}</span></span>
-      <div className="qa-text">
-        <p className="qa-name">{label}</p>
-        <p className="qa-desc">{sub}</p>
-      </div>
-    </Link>
-  )
-}
+// Admin quick actions reuse the learner dashboard's qa-card / accent-* styles
+// so the two surfaces stay visually consistent. The 7 actions cycle through
+// mint/blue/amber/pink to keep the grid lively without re-using the same
+// accent on adjacent cards.
+const QUICK_ACTIONS = [
+  { to: '/admin/lessons/new',             icon: '📖',  label: 'Create Lesson',     sub: 'Add a new lesson for learners',          accent: 'accent-mint'  },
+  { to: '/admin/quizzes/new',             icon: '✏️',  label: 'Create Quiz',       sub: 'Build a new quiz or test',               accent: 'accent-blue'  },
+  { to: '/admin/quizzes/new?mode=import', icon: '📄',  label: 'Import Quiz',       sub: 'Convert Word/PDF into questions',        accent: 'accent-amber' },
+  { to: '/admin/quizzes/new?mode=ai',     icon: '✦',  label: 'AI Quiz Generator', sub: 'Draft questions with Zed',               accent: 'accent-pink'  },
+  { to: '/admin/content',                 icon: '📁',  label: 'Manage Content',    sub: 'Edit or delete existing content',        accent: 'accent-mint'  },
+  { to: '/admin/learners',                icon: '👥',  label: 'View Learners',     sub: 'Monitor learner activity and progress',  accent: 'accent-blue'  },
+  { to: '/admin/cbc-kb',                  icon: '📚',  label: 'CBC Knowledge Base',sub: 'Add custom curriculum topics',           accent: 'accent-amber' },
+]
 
 export default function AdminDashboard() {
   const { currentUser } = useAuth()
@@ -165,60 +160,88 @@ export default function AdminDashboard() {
         ))}
       </div>
 
-      {/* Quick Actions */}
+      {/* Quick Actions — same qa-card / accent palette the learner dashboard
+          uses so admins and learners see a consistent visual language. The
+          grid grows 2 → 3 → 4 columns to keep cards comfortable on every
+          breakpoint with our 7-action set. */}
       <div>
-        <h2 className="text-eyebrow mb-3">Quick actions</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-          <QuickAction to="/admin/lessons/new" icon="📖" label="Create Lesson" sub="Add a new lesson for learners" color="green" />
-          <QuickAction to="/admin/quizzes/new" icon="✏️" label="Create Quiz"   sub="Build a new quiz or test"    color="blue"  />
-          <QuickAction to="/admin/quizzes/new?mode=import" icon="📄" label="Import Quiz" sub="Convert Word/PDF into editable questions" color="green" />
-          <QuickAction to="/admin/quizzes/new?mode=ai" icon="✦" label="AI Quiz Generator" sub="Draft questions with Zed" color="blue" />
-          <QuickAction to="/admin/content"     icon="📁" label="Manage Content" sub="Edit or delete existing content" color="orange" />
-          <QuickAction to="/admin/learners" icon="👥" label="View Learners" sub="Monitor learner activity and progress" color="orange" />
-          <QuickAction to="/admin/cbc-kb" icon="📚" label="CBC Knowledge Base" sub="Add custom curriculum topics (esp. G10–12)" color="green" />
+        <h2 className="qa-title">⚡ Quick Actions</h2>
+        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 stagger">
+          {QUICK_ACTIONS.map((a, i) => (
+            <Link
+              key={a.to}
+              to={a.to}
+              className={`qa-card ${a.accent} hover-lift press-feedback animate-pop`}
+              style={{ animationDelay: `${i * 60}ms` }}
+            >
+              <span className="qa-icon" aria-hidden="true"><span className="text-base">{a.icon}</span></span>
+              <div className="qa-text">
+                <p className="qa-name">{a.label}</p>
+                <p className="qa-desc">{a.sub}</p>
+              </div>
+            </Link>
+          ))}
         </div>
       </div>
 
-      {/* Audit A3 PR 3 — admin-only on-demand parent digest tester. */}
-      <ParentDigestTester />
+      {/* Developer tools — collapsed by default so the seed + parent-digest
+          test panels stay out of the way on every dashboard load. Admins who
+          need them are one click away; the rest of the page no longer scrolls
+          past two large amber/white blocks that the typical day-to-day admin
+          never touches. */}
+      <details className="surface rounded-radius-lg shadow-elev-sm">
+        <summary className="cursor-pointer select-none flex items-center justify-between gap-3 px-4 py-3 text-eyebrow">
+          <span className="flex items-center gap-2">
+            <span aria-hidden="true">🛠️</span>
+            <span>Developer tools</span>
+          </span>
+          <span className="text-body-sm font-normal normal-case tracking-normal text-slate-500">
+            Seed data &amp; digest tester
+          </span>
+        </summary>
+        <div className="px-4 pb-4 pt-1 space-y-4">
+          {/* Audit A3 PR 3 — admin-only on-demand parent digest tester. */}
+          <ParentDigestTester />
 
-      {/* Seed Data */}
-      <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 shadow-elev-sm">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-          <div className="flex-1">
-            <h2 className="text-display-md text-amber-900" style={{ fontSize: 16 }}>Seed sample data</h2>
-            <p className="text-amber-700 text-body-sm mt-0.5">
-              Load the sample quizzes into Firestore, or clear the seeded set created by your account.
-              Clearing removes the matching seeded quiz docs and their question subcollections.
-            </p>
-          </div>
-          <div className="flex flex-col sm:flex-row gap-2 shrink-0">
-            <Button
-              variant="primary"
-              size="md"
-              onClick={handleSeed}
-              loading={seeding}
-              disabled={clearingSeed}
-              leadingIcon={<Icon as={Sprout} size="sm" />}
-              className="shrink-0"
-              style={{ backgroundColor: '#F59E0B', color: 'white' }}
-            >
-              {seeding ? 'Seeding…' : 'Run seed'}
-            </Button>
-            <Button
-              variant="secondary"
-              size="md"
-              onClick={handleClearSeed}
-              loading={clearingSeed}
-              disabled={seeding}
-              className="shrink-0"
-            >
-              {clearingSeed ? 'Clearing…' : 'Clear seed'}
-            </Button>
+          {/* Seed Data */}
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 shadow-elev-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <div className="flex-1">
+                <h2 className="text-display-md text-amber-900" style={{ fontSize: 16 }}>Seed sample data</h2>
+                <p className="text-amber-700 text-body-sm mt-0.5">
+                  Load the sample quizzes into Firestore, or clear the seeded set created by your account.
+                  Clearing removes the matching seeded quiz docs and their question subcollections.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+                <Button
+                  variant="primary"
+                  size="md"
+                  onClick={handleSeed}
+                  loading={seeding}
+                  disabled={clearingSeed}
+                  leadingIcon={<Icon as={Sprout} size="sm" />}
+                  className="shrink-0"
+                  style={{ backgroundColor: '#F59E0B', color: 'white' }}
+                >
+                  {seeding ? 'Seeding…' : 'Run seed'}
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="md"
+                  onClick={handleClearSeed}
+                  loading={clearingSeed}
+                  disabled={seeding}
+                  className="shrink-0"
+                >
+                  {clearingSeed ? 'Clearing…' : 'Clear seed'}
+                </Button>
+              </div>
+            </div>
+            {seedMsg && <p className="mt-3 text-body-sm font-bold text-amber-900 bg-amber-100 rounded-xl px-4 py-2">{seedMsg}</p>}
           </div>
         </div>
-        {seedMsg && <p className="mt-3 text-body-sm font-bold text-amber-900 bg-amber-100 rounded-xl px-4 py-2">{seedMsg}</p>}
-      </div>
+      </details>
 
       {/* Recent Results */}
       <div>

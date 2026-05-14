@@ -507,7 +507,28 @@ export function useFirestore() {
   async function getRecentResults(limitCount = 8) {
     try {
       const snap = await getDocs(query(collection(db, 'results'), orderBy('completedAt', 'desc'), limit(limitCount)))
-      return snap.docs.map(d => coerceResult({ id: d.id, ...d.data() })).filter(Boolean)
+      const results = snap.docs.map(d => coerceResult({ id: d.id, ...d.data() })).filter(Boolean)
+
+      // Hydrate learner displayName for any result whose write predated the
+      // userName-on-result patch (admin dashboard previously rendered the
+      // string "Learner" for every row because the field was missing).
+      const missingNameUids = Array.from(new Set(
+        results.filter(r => !r.userName && r.userId).map(r => r.userId),
+      ))
+      if (missingNameUids.length === 0) return results
+
+      const profiles = {}
+      await Promise.all(missingNameUids.map(async uid => {
+        try {
+          const snap = await getDoc(doc(db, 'users', uid))
+          if (snap.exists()) profiles[uid] = snap.data()
+        } catch (err) {
+          console.warn('getRecentResults: profile hydrate failed for', uid, err)
+        }
+      }))
+      return results.map(r => (r.userName || !profiles[r.userId])
+        ? r
+        : { ...r, userName: profiles[r.userId].displayName || profiles[r.userId].email || 'Learner' })
     } catch (e) { console.error('getRecentResults:', e); return [] }
   }
 
