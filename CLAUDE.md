@@ -11,8 +11,8 @@ After finishing a code change, Claude should:
 1. Verify locally — `npm run lint && npm run build` at minimum; run the relevant feature tests too. The deploy workflow re-runs these on CI, but failing the gate there wastes a deploy slot.
 2. Commit + push the branch (`git push -u origin <branch>`).
 3. Open a PR with `gh pr create -R Mwelwa-cyber/Zedexams ...`.
-4. Self-merge with `gh pr merge <num> --squash --delete-branch -R Mwelwa-cyber/Zedexams`. Do **not** wait for the human to merge.
-5. The push to `main` triggers [.github/workflows/deploy-hosting.yml](.github/workflows/deploy-hosting.yml), which re-runs `npm run lint` and `npm run test:all` before the firebase deploy step. A failing lint/test fails the deploy rather than shipping broken code to learners.
+4. Self-merge with `gh pr merge <num> --auto --squash --delete-branch -R Mwelwa-cyber/Zedexams`. The `--auto` flag queues the merge to fire when the required `Lint` + `Tests` status checks pass — GitHub will refuse the merge until they're green. Do **not** wait for the human to merge.
+5. The push to `main` triggers [.github/workflows/deploy-hosting.yml](.github/workflows/deploy-hosting.yml), which re-runs `npm run lint` and `npm run test:all` before the firebase deploy step. Belt-and-braces — the pre-merge gate should catch issues first, but the deploy gate is a second line of defense.
 
 ### Off-limits
 
@@ -27,5 +27,5 @@ After finishing a code change, Claude should:
 ## Repo notes
 
 - The repo has two identical remotes. `gh pr ...` commands need `-R Mwelwa-cyber/Zedexams`; `gh api` uses the URL path directly.
-- `main` is not branch-protected — `gh pr merge` succeeds immediately. The real safety net is the lint+tests inside [deploy-hosting.yml](.github/workflows/deploy-hosting.yml) (lines 93–97), which re-run on the post-merge push and fail the deploy if anything is broken.
+- `main` is branch-protected and requires the `Lint` + `Tests (importer + sanitize + schema)` status checks from [ci.yml](.github/workflows/ci.yml) to pass before merge. `enforce_admins` is on, so even admins can't bypass it. Use `gh pr merge --auto` so the merge fires the moment checks turn green rather than blocking on it.
 - The dev server needs `.env` from the project owner's environment. CI builds use repo secrets ([deploy-hosting.yml:60-83](.github/workflows/deploy-hosting.yml#L60-L83)).
