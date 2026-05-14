@@ -270,6 +270,27 @@ async function renderQuestion(b) {
       ]))
     }
   }
+  if (b.tableData) {
+    const headers = Array.isArray(b.tableData.headers) ? b.tableData.headers : []
+    const rows = Array.isArray(b.tableData.rows) ? b.tableData.rows : []
+    if (headers.length) {
+      const headerRow = new TableRow({
+        children: headers.map(h => new TableCell({
+          width: { size: Math.floor(100 / headers.length), type: WidthType.PERCENTAGE },
+          children: [para(runText(String(h || ''), { bold: true, size: 20 }))],
+        })),
+      })
+      const bodyRows = rows.map(row => new TableRow({
+        children: headers.map((_, j) => new TableCell({
+          children: [para(runText(String((Array.isArray(row) ? row[j] : '') || ''), { size: 20 }))],
+        })),
+      }))
+      out.push(new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [headerRow, ...bodyRows],
+      }))
+    }
+  }
   if (b.wordBank && b.wordBank.length) {
     out.push(para([
       runText('Word bank: ', { bold: true, size: 20 }),

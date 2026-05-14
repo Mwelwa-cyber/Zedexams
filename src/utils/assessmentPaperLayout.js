@@ -362,6 +362,15 @@ function buildQuestionBlock(q, number, includeAnswer) {
         }))
         .filter(l => l.text.length > 0)
       : [],
+    // Inline data table (null when the question has no attached table).
+    tableData: q.tableData && Array.isArray(q.tableData.headers)
+      ? {
+        headers: q.tableData.headers.map(h => plain(h)),
+        rows: Array.isArray(q.tableData.rows)
+          ? q.tableData.rows.map(row => Array.isArray(row) ? row.map(c => plain(c)) : [])
+          : [],
+      }
+      : null,
     showAnswer: includeAnswer,
   }
 }
