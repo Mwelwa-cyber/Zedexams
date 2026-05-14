@@ -64,9 +64,10 @@ function pctColor(p) {
 }
 
 const QUICK_ACTIONS = [
-  { icon: '✏️', label: 'Take a Quiz',  sub: 'Test your knowledge',   to: '/quizzes',  accent: 'accent-mint'  },
-  { icon: '📚', label: 'Lessons',      sub: 'Read study notes',      to: '/lessons',  accent: 'accent-blue'  },
-  { icon: '📊', label: 'My Results',   sub: 'View your history',     to: '/my-results', accent: 'accent-amber' },
+  { icon: '✏️', label: 'Take a Quiz',     sub: 'Test your knowledge',   to: '/quizzes',    accent: 'accent-mint'  },
+  { icon: '📚', label: 'Lessons',         sub: 'Read study notes',      to: '/lessons',    accent: 'accent-blue'  },
+  { icon: '📊', label: 'My Results',      sub: 'View your history',     to: '/my-results', accent: 'accent-amber' },
+  { icon: '📅', label: 'School Calendar', sub: 'Terms & holidays',      to: '/calendar',   accent: 'accent-pink'  },
 ]
 
 export default function StudentDashboard() {

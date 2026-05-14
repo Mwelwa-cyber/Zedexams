@@ -84,6 +84,15 @@ const STUDIOS = [
     to: '/teacher/library',
     mascot: 'Your saved work',
   },
+  {
+    emoji: '📅',
+    mascotBg: '#e8e1f6',
+    badge: 'NEW',
+    title: 'School Calendar',
+    tagline: 'Zambian MoE term dates, public holidays, and working days for 2026–2030.',
+    to: '/teacher/calendar',
+    mascot: 'Term Tracker',
+  },
 ]
 
 const TOOL_META = {
