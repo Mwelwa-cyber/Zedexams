@@ -8,6 +8,8 @@ import {
   BarChart3,
   GraduationCap,
   Settings,
+  ShieldCheck,
+  TrophyIcon,
   Menu,
   X,
   LogOut,
@@ -30,13 +32,25 @@ export default function Navbar() {
   // Admins and teachers already see dedicated "Admin"/"Teacher" links below
   // that point to their role home — adding a "Home" link here would duplicate them.
   // Learners get a "Home" link that points to /dashboard.
-  const navLinks = [
-    ...(!isAdmin && !isTeacher ? [{ to: homePath, label: 'Home', icon: Home }] : []),
-    { to: '/notes',      label: 'Notes',       icon: FileText },
-    { to: '/lessons',    label: 'Lessons',     icon: BookOpen },
-    { to: '/quizzes',    label: 'Practise',    icon: PencilLine },
-    { to: '/my-results', label: 'Results',     icon: BarChart3 },
+  // Learner primary nav. Daily Exams is a top-level learner surface
+  // (not just a card on the dashboard) so we expose it here too. Admins
+  // and teachers see their dedicated portal link below instead of a
+  // "Home" item since the homePath would just duplicate that link.
+  const learnerLinks = [
+    { to: homePath,      label: 'Home',     icon: Home },
+    { to: '/lessons',    label: 'Lessons',  icon: BookOpen },
+    { to: '/notes',      label: 'Notes',    icon: FileText },
+    { to: '/quizzes',    label: 'Practise', icon: PencilLine },
+    { to: '/exams',      label: 'Exams',    icon: TrophyIcon },
+    { to: '/my-results', label: 'Results',  icon: BarChart3 },
   ]
+  const staffLinks = [
+    { to: '/notes',      label: 'Notes',    icon: FileText },
+    { to: '/lessons',    label: 'Lessons',  icon: BookOpen },
+    { to: '/quizzes',    label: 'Practise', icon: PencilLine },
+    { to: '/my-results', label: 'Results',  icon: BarChart3 },
+  ]
+  const navLinks = (!isAdmin && !isTeacher) ? learnerLinks : staffLinks
 
   async function handleLogout() {
     await logout()
@@ -112,7 +126,7 @@ export default function Navbar() {
           )}
           {isAdmin && (
             <NavLink to="/admin" className={linkClass}>
-              <Icon as={Settings} size="sm" />
+              <Icon as={ShieldCheck} size="sm" />
               <span>Admin</span>
             </NavLink>
           )}
@@ -130,13 +144,19 @@ export default function Navbar() {
           </span>
 
           <div className="flex items-center gap-2 pl-2 border-l theme-border">
-            {renderAvatar('h-8 w-8')}
-            <div className="text-right hidden lg:block">
-              <p className="theme-text font-black text-xs leading-tight truncate max-w-[100px]">
-                {userProfile?.displayName ?? 'User'}
-              </p>
-              <p className="theme-text-muted text-xs capitalize">{userProfile?.role ?? 'learner'}</p>
-            </div>
+            <Link
+              to="/profile"
+              aria-label="Open your profile"
+              className="flex items-center gap-2 rounded-lg px-1 py-0.5 transition-colors hover:theme-bg-subtle"
+            >
+              {renderAvatar('h-8 w-8')}
+              <div className="text-right hidden lg:block">
+                <p className="theme-text font-black text-xs leading-tight truncate max-w-[100px]">
+                  {userProfile?.displayName ?? 'User'}
+                </p>
+                <p className="theme-text-muted text-xs capitalize">{userProfile?.role ?? 'learner'}</p>
+              </div>
+            </Link>
             <button
               onClick={handleLogout}
               aria-label="Sign out"
@@ -150,7 +170,13 @@ export default function Navbar() {
 
         {/* Mobile right — avatar + hamburger */}
         <div className="flex md:hidden items-center gap-2">
-          {renderAvatar('h-7 w-7')}
+          <Link
+            to="/profile"
+            aria-label="Open your profile"
+            className="rounded-full p-0.5 transition-colors hover:theme-bg-subtle"
+          >
+            {renderAvatar('h-7 w-7')}
+          </Link>
           <button
             onClick={() => setOpen(o => !o)}
             aria-label={open ? 'Close navigation menu' : 'Open navigation menu'}
@@ -166,8 +192,12 @@ export default function Navbar() {
       {open && (
         <div className="md:hidden border-t theme-border theme-card shadow-elev-lg animate-slide-up max-h-[calc(100dvh-5rem)] overflow-y-auto overscroll-contain">
           <div className="max-w-5xl mx-auto px-4 py-3 pb-24">
-            {/* User info */}
-            <div className="flex items-center gap-3 py-3 mb-2 border-b theme-border">
+            {/* User info — also a shortcut into the profile page */}
+            <Link
+              to="/profile"
+              onClick={() => setOpen(false)}
+              className="flex items-center gap-3 py-3 mb-2 border-b theme-border rounded-xl px-1 transition-colors hover:theme-bg-subtle"
+            >
               {renderAvatar('h-10 w-10')}
               <div>
                 <p className="font-black theme-text text-sm">{userProfile?.displayName ?? 'User'}</p>
@@ -179,7 +209,7 @@ export default function Navbar() {
                   </span>
                 </div>
               </div>
-            </div>
+            </Link>
 
             {/* Nav links — staggered entrance from the .stagger helper in index.css */}
             <div className="space-y-0.5 stagger">
@@ -202,7 +232,7 @@ export default function Navbar() {
               )}
               {isAdmin && (
                 <NavLink to="/admin" onClick={() => setOpen(false)} className={mobileLinkClass}>
-                  <Icon as={Settings} size="md" className="w-6" />
+                  <Icon as={ShieldCheck} size="md" className="w-6" />
                   Admin Panel
                 </NavLink>
               )}

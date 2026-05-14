@@ -2461,3 +2461,35 @@ body.theme-vivid .learner-game-theme .learner-bottom-nav {
   height: auto;
   border-radius: 8px;
 }
+
+/* ── Accessibility preferences (audit: learner settings) ───────
+ * Toggled by src/utils/accessibility.js — applied to body via
+ * data-attributes so the rules can ride on top of every theme
+ * without touching the per-theme custom-property cascades.
+ */
+body[data-a11y-motion="reduced"] *,
+body[data-a11y-motion="reduced"] *::before,
+body[data-a11y-motion="reduced"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+body[data-a11y-font="small"]  { font-size: 14px; }
+body[data-a11y-font="medium"] { font-size: 16px; }
+body[data-a11y-font="large"]  { font-size: 18px; }
+
+body[data-a11y-contrast="high"] {
+  --border:       #0F1B2D;
+  --text-muted:   #1F2937;
+  --shadow:       rgba(15,23,42,0.4);
+}
+body[data-a11y-contrast="high"] .zx-card,
+body[data-a11y-contrast="high"] .theme-card,
+body[data-a11y-contrast="high"] .theme-input,
+body[data-a11y-contrast="high"] input,
+body[data-a11y-contrast="high"] select,
+body[data-a11y-contrast="high"] textarea {
+  border-color: #0F1B2D !important;
+}
