@@ -10,6 +10,8 @@ const TEACHER_NAV_ITEMS = [
   { to: '/teacher/classes',     icon: Users,      label: 'My Classes',  end: false },
 ]
 
+const PILL_STYLE = { width: 38, height: 30, borderRadius: 12 }
+
 export default function TeacherBottomNav({ className = '' }) {
   return (
     <nav
@@ -23,17 +25,20 @@ export default function TeacherBottomNav({ className = '' }) {
             to={item.to}
             end={item.end}
             className={({ isActive }) =>
-              `flex-1 flex flex-col items-center gap-1 py-2 transition-all duration-base ease-out ${
+              `flex-1 flex flex-col items-center gap-0.5 py-1.5 transition-all duration-base ease-out ${
                 isActive ? 'text-slate-900' : 'text-slate-700 hover:text-slate-900'
               }`
             }
           >
             {({ isActive }) => (
               <>
-                <span className={isActive ? 'zx-nav-pill-active' : 'zx-nav-pill-idle'}>
-                  <Icon as={item.icon} size="md" strokeWidth={2.2} />
+                <span
+                  className={isActive ? 'zx-nav-pill-active' : 'zx-nav-pill-idle'}
+                  style={PILL_STYLE}
+                >
+                  <Icon as={item.icon} size="sm" strokeWidth={2.2} />
                 </span>
-                <span className={`text-[11px] font-bold ${isActive ? 'font-black' : ''}`}>{item.label}</span>
+                <span className={`text-[10px] font-bold ${isActive ? 'font-black' : ''}`}>{item.label}</span>
               </>
             )}
           </NavLink>

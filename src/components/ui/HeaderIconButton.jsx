@@ -1,23 +1,38 @@
 import { Link } from 'react-router-dom'
 import Icon from './Icon'
 
-export function HeaderIconLink({ to, label, icon: ActionIcon }) {
+const SIZE = {
+  md: {
+    button: 'h-11 w-11 rounded-2xl',
+    icon: 'md',
+    label: 'mt-1 text-[10px]',
+  },
+  sm: {
+    button: 'h-9 w-9 rounded-xl',
+    icon: 'sm',
+    label: 'mt-0.5 text-[9px]',
+  },
+}
+
+export function HeaderIconLink({ to, label, icon: ActionIcon, size = 'md' }) {
+  const s = SIZE[size] || SIZE.md
   return (
     <Link to={to} className="group/tt relative flex flex-col items-center">
-      <span className="zx-card theme-card theme-border learner-chrome-icon flex h-11 w-11 items-center justify-center rounded-2xl border shadow-elev-sm transition-all group-hover/tt:theme-accent-bg group-hover/tt:theme-accent-text">
-        <Icon as={ActionIcon} size="md" strokeWidth={2.1} />
+      <span className={`zx-card theme-card theme-border learner-chrome-icon flex items-center justify-center border shadow-elev-sm transition-all group-hover/tt:theme-accent-bg group-hover/tt:theme-accent-text ${s.button}`}>
+        <Icon as={ActionIcon} size={s.icon} strokeWidth={2.1} />
       </span>
-      <span className="learner-chrome-label mt-1 text-[10px] font-black leading-none">{label}</span>
+      <span className={`learner-chrome-label font-black leading-none ${s.label}`}>{label}</span>
     </Link>
   )
 }
 
-export function HeaderIconButton({ label, icon: ActionIcon, active = false, important = false, badge, children, ...buttonProps }) {
+export function HeaderIconButton({ label, icon: ActionIcon, active = false, important = false, badge, children, size = 'md', ...buttonProps }) {
+  const s = SIZE[size] || SIZE.md
   return (
     <div className="group/tt relative flex flex-col items-center">
       <button
         type="button"
-        className={`zx-card relative flex h-11 w-11 items-center justify-center rounded-2xl border shadow-elev-sm transition-all min-h-0 ${
+        className={`zx-card relative flex items-center justify-center border shadow-elev-sm transition-all min-h-0 ${s.button} ${
           active
             ? 'border-blue-200 bg-blue-50 text-blue-700'
             : important
@@ -26,7 +41,7 @@ export function HeaderIconButton({ label, icon: ActionIcon, active = false, impo
         }`}
         {...buttonProps}
       >
-        <Icon as={ActionIcon} size="md" strokeWidth={2.1} />
+        <Icon as={ActionIcon} size={s.icon} strokeWidth={2.1} />
         {badge ? (
           <span
             aria-hidden="true"
@@ -36,7 +51,7 @@ export function HeaderIconButton({ label, icon: ActionIcon, active = false, impo
           </span>
         ) : null}
       </button>
-      <span className="learner-chrome-label mt-1 text-[10px] font-black leading-none">{label}</span>
+      <span className={`learner-chrome-label font-black leading-none ${s.label}`}>{label}</span>
       {children}
     </div>
   )
