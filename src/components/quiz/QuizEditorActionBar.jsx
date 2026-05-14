@@ -8,8 +8,10 @@
  *   - Validation summary (X issues remaining)
  *   - Save Draft, Preview, Publish buttons
  *
- * Styled to feel close to the existing buttons, but sits above the
- * floating-nav so neither clobbers the other.
+ * Styled to feel close to the existing buttons. Uses z-30 so the
+ * floating-nav (z-40) sits ON TOP at the bottom-right corner — the
+ * nav's round buttons partially overlap the bar's right edge, and if
+ * the bar were on top those buttons would be unclickable.
  *
  * Props
  *   onSaveDraft     — () => void

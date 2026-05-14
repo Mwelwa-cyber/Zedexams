@@ -794,6 +794,11 @@ function StandaloneQuestionCard({
                     className={joinClasses('accent-[var(--accent)] flex-shrink-0 cursor-pointer', optionsAsTextarea && 'mt-2')}
                     aria-label={`Mark option ${QUESTION_LETTERS[optionIndex]} as correct`}
                   />
+                  {/* Letter badge: click target for sighted users. The
+                      adjacent radio already carries the "Mark option X as
+                      correct" aria-label, so we omit it here — otherwise
+                      screen readers would announce the same instruction
+                      twice (once for the radio, once for this button). */}
                   <button
                     type="button"
                     onClick={() => set('correctAnswer', optionIndex)}
@@ -802,7 +807,6 @@ function StandaloneQuestionCard({
                       optionsAsTextarea && 'mt-1',
                       question.correctAnswer === optionIndex ? 'theme-accent-fill theme-on-accent' : 'theme-bg-subtle theme-text-muted',
                     )}
-                    aria-label={`Mark option ${QUESTION_LETTERS[optionIndex]} as correct`}
                   >
                     {isTrueFalse ? (optionIndex === 0 ? 'T' : 'F') : QUESTION_LETTERS[optionIndex]}
                   </button>
@@ -1113,6 +1117,9 @@ function PassageQuestionCard({
                   className={joinClasses('accent-[var(--accent)] flex-shrink-0 cursor-pointer', optionsAsTextarea && 'mt-2')}
                   aria-label={`Mark option ${letter} as correct`}
                 />
+                {/* Letter badge — see equivalent block in StandaloneQuestionCard
+                    for why this button has no aria-label (would duplicate
+                    the adjacent radio's announcement). */}
                 <button
                   type="button"
                   onClick={() => set('correctAnswer', optionIndex)}
@@ -1121,7 +1128,6 @@ function PassageQuestionCard({
                     optionsAsTextarea && 'mt-1',
                     question.correctAnswer === optionIndex ? 'theme-accent-fill theme-on-accent' : 'theme-bg-subtle theme-text-muted',
                   )}
-                  aria-label={`Mark option ${letter} as correct`}
                 >
                   {letter}
                 </button>

@@ -88,6 +88,49 @@ function richHtml(value) {
   }
 }
 
+// Bounded memo for option-level rich + plain conversions. `buildPaperLayout`
+// runs inside an editor `useMemo` whose deps churn on every keystroke —
+// before this cache, a 50-question quiz re-parsed 200 (4×50) option
+// strings per keystroke. Most of those parses are wasted: only the one
+// option the teacher is editing changes; the rest are bit-identical.
+//
+// Key is the option string itself (plain text OR serialised Tiptap JSON),
+// so cache hits work as long as the stored shape is stable. Cap at 1 000
+// entries to avoid unbounded growth in long sessions; FIFO eviction is
+// fine because the working set on a single quiz is small (~200 entries
+// for a 50-question paper).
+const RICH_HTML_OPTION_CACHE = new Map()
+const PLAIN_OPTION_CACHE = new Map()
+const OPTION_CACHE_LIMIT = 1000
+
+function cachedOptionRichHtml(value) {
+  if (value == null || value === '') return ''
+  if (typeof value !== 'string') return richHtml(value)
+  const hit = RICH_HTML_OPTION_CACHE.get(value)
+  if (hit !== undefined) return hit
+  const out = richHtml(value)
+  if (RICH_HTML_OPTION_CACHE.size >= OPTION_CACHE_LIMIT) {
+    const firstKey = RICH_HTML_OPTION_CACHE.keys().next().value
+    RICH_HTML_OPTION_CACHE.delete(firstKey)
+  }
+  RICH_HTML_OPTION_CACHE.set(value, out)
+  return out
+}
+
+function cachedOptionPlain(value) {
+  if (value == null || value === '') return ''
+  if (typeof value !== 'string') return plain(value)
+  const hit = PLAIN_OPTION_CACHE.get(value)
+  if (hit !== undefined) return hit
+  const out = plain(value)
+  if (PLAIN_OPTION_CACHE.size >= OPTION_CACHE_LIMIT) {
+    const firstKey = PLAIN_OPTION_CACHE.keys().next().value
+    PLAIN_OPTION_CACHE.delete(firstKey)
+  }
+  PLAIN_OPTION_CACHE.set(value, out)
+  return out
+}
+
 function groupQuestionsByPart(questions, parts) {
   const partsById = new Map()
   for (const part of parts || []) {
@@ -344,14 +387,12 @@ function buildQuestionBlock(q, number, includeAnswer) {
   // expose:
   //   optionsHtml  — pre-hydrated rich HTML for the PDF / DOCX exports
   //   optionsPlain — readable plain text for legacy code paths
-  // The raw `options` array is preserved unchanged in case callers need
-  // the stored shape directly.
   //
-  // Only MCQ has options — for fill-in-the-blank / numeric / diagram /
-  // essay / etc. we'd just be mapping an empty array, which is wasted
-  // work + needless allocation per render. Short-circuit when empty.
-  const optionsHtml = options.length ? options.map((opt) => richHtml(opt)) : []
-  const optionsPlain = options.length ? options.map((opt) => plain(opt)) : []
+  // Both go through the bounded option-string memo so a 50-question
+  // editor re-render doesn't re-parse 200 unchanged options. Skip the
+  // map entirely for non-MCQ question types where `options` is [].
+  const optionsHtml = options.length ? options.map(cachedOptionRichHtml) : []
+  const optionsPlain = options.length ? options.map(cachedOptionPlain) : []
 
   return {
     kind: 'question',

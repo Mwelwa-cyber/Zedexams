@@ -146,10 +146,13 @@ export const questionSchema = z
     // ── Answer fields ──
     // Option strings can hold either plain text (legacy) or a stringified
     // Tiptap JSON document (the same dual-format convention `text` uses).
-    // The bump to 20 000 chars covers the JSON envelope around a normal
-    // option — most options stay under a few hundred bytes; serialised
-    // Tiptap docs run to a few thousand.
-    options: z.array(z.string().max(20000)).max(20).default([]),
+    // 5000 chars is the practical ceiling: a serialised Tiptap doc for a
+    // typical Grade-7 option (with a fraction, sup/sub, or number-base
+    // node) runs 300–1500 bytes; 5000 gives ~3× headroom without letting
+    // a teacher accidentally paste a 10-paragraph passage into Option A
+    // (20 questions × 4 options × 5000 = 400 KB — well under Firestore's
+    // 1 MB per-doc cap, with room to spare for the rest of the schema).
+    options: z.array(z.string().max(5000)).max(20).default([]),
     // `correctAnswer` is either a numeric index into `options` (MCQ)
     // OR a short string for fill-in-the-blank / short-answer (compared
     // string-for-string by the runner). Keep this tight — a multi-KB

@@ -51,6 +51,16 @@ const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 const FIELD = 'theme-input w-full rounded-xl border-2 px-3 py-2.5 text-sm placeholder:text-gray-400 outline-none transition-colors focus:border-[var(--accent)]'
 const SELECT = 'theme-input rounded-xl border-2 px-3 py-2.5 text-sm outline-none transition-colors focus:border-[var(--accent)]'
 
+// Auto-save state machine. Kept as a frozen object so a typo (e.g.
+// AUTO_SAVE.SVING) fails fast at dev time instead of becoming a silent
+// "unknown state" bug in the status-pill renderer.
+const AUTO_SAVE = Object.freeze({
+  IDLE: 'idle',
+  SAVING: 'saving',
+  SAVED: 'saved',
+  FAILED: 'failed',
+})
+
 function withCurrentOption(options, currentValue) {
   const normalized = String(currentValue ?? '').trim()
   if (!normalized || options.includes(normalized)) return options
@@ -147,9 +157,9 @@ export default function EditQuizV2() {
   const [dirty, setDirty] = useState(false)
   const [verifyOpen, setVerifyOpen] = useState(false)
   // Auto-save + checklist UI state.
-  //   autoSaveState: 'idle' | 'saving' | 'saved' | 'failed'
+  //   autoSaveState: one of AUTO_SAVE (idle | saving | saved | failed)
   //   checklistOpen: whether the pre-publish modal is visible
-  const [autoSaveState, setAutoSaveState] = useState('idle')
+  const [autoSaveState, setAutoSaveState] = useState(AUTO_SAVE.IDLE)
   const [checklistOpen, setChecklistOpen] = useState(false)
   // Track when the user last interacted so we don't fire an auto-save
   // mid-keystroke. `dirtySince` is reset to now() on every change.
@@ -862,7 +872,7 @@ export default function EditQuizV2() {
     if (!String(form.title || '').trim() && sections.length === 0) return
 
     autoSavingRef.current = true
-    setAutoSaveState('saving')
+    setAutoSaveState(AUTO_SAVE.SAVING)
     try {
       const serializedSections = serializeQuizSections(sections, parts)
       await updateQuizWithQuestions(
@@ -886,10 +896,10 @@ export default function EditQuizV2() {
       if (!mountedRef.current) return
       setDeletedIds([])
       setDirty(false)
-      setAutoSaveState('saved')
+      setAutoSaveState(AUTO_SAVE.SAVED)
     } catch (error) {
       console.error('EditQuiz auto-save error:', error)
-      if (mountedRef.current) setAutoSaveState('failed')
+      if (mountedRef.current) setAutoSaveState(AUTO_SAVE.FAILED)
     } finally {
       autoSavingRef.current = false
     }
@@ -979,7 +989,7 @@ export default function EditQuizV2() {
       setQuizStatus(mode)
       setDeletedIds([])
       setDirty(false)
-      setAutoSaveState('saved')
+      setAutoSaveState(AUTO_SAVE.SAVED)
       show(mode === 'published' ? 'Quiz published!' : mode === 'pending' ? 'Submitted for approval!' : 'Changes saved as draft.')
       setTimeout(() => navigate(backPath), 1400)
     } catch (error) {

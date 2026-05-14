@@ -16,12 +16,29 @@
  *   summary   — Array<{ label, ok }> for the "ready" overview list
  */
 
+import { useEffect } from 'react'
+
 export default function QuizValidationChecklist({
   open,
   onClose,
   issues = [],
   summary = [],
 }) {
+  // Escape closes the modal — standard dialog affordance. We mount the
+  // listener only while open so we don't intercept Escape elsewhere on
+  // the page when the modal is closed.
+  useEffect(() => {
+    if (!open) return undefined
+    function handleKey(event) {
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        onClose?.()
+      }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [open, onClose])
+
   if (!open) return null
 
   const errors = issues.filter((i) => i.severity !== 'warn')
