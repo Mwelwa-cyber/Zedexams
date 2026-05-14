@@ -45,6 +45,7 @@ import { classifyForLibrary } from '../../utils/libraryClassification'
 import { printAssessmentAsPdf } from '../../utils/assessmentToPdf'
 import { downloadAssessmentDocx } from '../../utils/assessmentToDocx'
 import { buildPaperLayout, computeSmartWarnings } from '../../utils/assessmentPaperLayout'
+import { SUBJECTS as CBC_SUBJECTS, COMPETENCIES } from '../../config/curriculum'
 
 import './studio/assessmentStudio.css'
 
@@ -1304,11 +1305,12 @@ export default function AssessmentStudio() {
         aiForm={aiForm}
         setAiForm={setAiForm}
         form={form}
+        questions={serializedPreview.questions}
+        questionNumbers={questionNumbers}
         generating={aiGenerating}
         onGenerate={handleGenerateQuestions}
         onImport={handleImportDocument}
         importing={importingDocument}
-        onAction={(label) => showToast(`${label} — coming soon.`)}
         onGenerateDiagram={handleGenerateDiagram}
         generatingDiagram={generatingDiagram}
         onOpenMarkingKey={() => { closeSlide(); changeView('marking-key') }}
@@ -4308,7 +4310,7 @@ function BlockPickerItem({ icon, title, hint, onClick, disabled, gold }) {
 /* ==================================================================
  * AI ASSISTANT SLIDE-OVER
  * ================================================================== */
-function AiSlide({ open, onClose, aiForm, setAiForm, form, generating, onGenerate, onImport, importing, onAction, onGenerateDiagram, generatingDiagram, onOpenMarkingKey }) {
+function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNumbers, generating, onGenerate, onImport, importing, onGenerateDiagram, generatingDiagram, onOpenMarkingKey }) {
   const docInputRef = useRef(null)
   return (
     <aside className={`sv-slideover ${open ? 'open' : ''}`}>
@@ -4390,18 +4392,9 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, generating, onGenerat
             disabled={generatingDiagram}
             onGenerate={onGenerateDiagram}
           />
-          <button className="sv-ai-action" disabled onClick={() => onAction('Balance paper difficulty')}>
-            <div className="sv-ic">⚖</div>
-            <div><strong>Balance paper difficulty</strong><small>Coming soon</small></div>
-          </button>
-          <button className="sv-ai-action" disabled onClick={() => onAction('Map to competencies')}>
-            <div className="sv-ic">🎯</div>
-            <div><strong>Map to competencies</strong><small>Coming soon</small></div>
-          </button>
-          <button className="sv-ai-action" disabled onClick={() => onAction('Detect duplicates')}>
-            <div className="sv-ic">🔍</div>
-            <div><strong>Detect duplicates</strong><small>Coming soon</small></div>
-          </button>
+          <BalanceDifficultyAction questions={questions} questionNumbers={questionNumbers} />
+          <MapCompetenciesAction questions={questions} questionNumbers={questionNumbers} subjectLabel={form.subject} />
+          <DetectDuplicatesAction questions={questions} questionNumbers={questionNumbers} />
         </div>
       </div>
     </aside>
@@ -4479,6 +4472,421 @@ function DiagramGeneratorAction({ disabled, onGenerate }) {
           <small style={{ color: 'var(--sv-muted)', fontSize: 11 }}>
             The image is added as a new structured question with the prompt as its question text. Counts toward your monthly diagram quota.
           </small>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ==================================================================
+ * BALANCE / MAP / DETECT — lightweight analyses over the current paper
+ *
+ * No LLM round-trip. Operates on `serializedPreview.questions` already
+ * computed in the parent. Results render inline in the AI Assistant
+ * slide-over so teachers see them without leaving the authoring view.
+ * ================================================================== */
+
+function questionPlainText(question) {
+  const raw = question?.text
+  if (!raw) return ''
+  if (typeof raw === 'string') return raw
+  try { return richTextToPlainText(raw) } catch { return '' }
+}
+
+function difficultyBucket(question) {
+  const marks = Number(question?.marks) || 1
+  const type = question?.type || 'mcq'
+  if (type === 'essay') return 'hard'
+  if (type === 'short_answer' || type === 'diagram' || type === 'structured') {
+    return marks >= 4 ? 'hard' : 'medium'
+  }
+  if (marks <= 1) return 'easy'
+  if (marks <= 3) return 'medium'
+  return 'hard'
+}
+
+function analyzeDifficulty(questions) {
+  const total = questions.length
+  const buckets = { easy: 0, medium: 0, hard: 0 }
+  const byBucket = { easy: [], medium: [], hard: [] }
+  questions.forEach((q, idx) => {
+    const b = difficultyBucket(q)
+    buckets[b] += 1
+    byBucket[b].push({ q, idx })
+  })
+  const target = { easy: 0.4, medium: 0.4, hard: 0.2 }
+  let verdict = 'Looks balanced'
+  if (total === 0) verdict = 'No questions yet'
+  else if (buckets.easy === 0) verdict = 'No easy openers'
+  else if (buckets.hard === 0) verdict = 'No hard challenge'
+  else if (buckets.easy / total > 0.7) verdict = 'Too easy overall'
+  else if (buckets.hard / total > 0.5) verdict = 'Too hard overall'
+  return { total, buckets, byBucket, target, verdict }
+}
+
+function BalanceDifficultyAction({ questions, questionNumbers }) {
+  const [open, setOpen] = useState(false)
+  const stats = useMemo(() => analyzeDifficulty(questions || []), [questions])
+  const summary = stats.total === 0
+    ? 'Add questions to see the distribution'
+    : `${stats.buckets.easy} easy · ${stats.buckets.medium} medium · ${stats.buckets.hard} hard — ${stats.verdict}`
+  return (
+    <div className={`sv-ai-action ${open ? 'expanded' : ''}`} style={{ display: 'block', padding: 'var(--sv-s3)' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{ display: 'flex', alignItems: 'center', gap: 'var(--sv-s3)', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+      >
+        <div className="sv-ic">⚖</div>
+        <div style={{ flex: 1 }}>
+          <strong style={{ display: 'block', fontWeight: 600 }}>Balance paper difficulty</strong>
+          <small style={{ color: 'var(--sv-muted)', fontSize: 12 }}>{summary}</small>
+        </div>
+        <span style={{ color: 'var(--sv-muted)' }}>{open ? '▾' : '▸'}</span>
+      </button>
+      {open && stats.total > 0 && (
+        <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          <DifficultyBar stats={stats} />
+          <div style={{ fontSize: 12, color: 'var(--sv-muted)', lineHeight: 1.5 }}>
+            Target mix is roughly 40% easy · 40% medium · 20% hard. Difficulty is inferred from marks and question type — adjust marks on a question to reclassify it.
+          </div>
+          {['easy', 'medium', 'hard'].map(b => (
+            <DifficultyBucketList key={b} bucket={b} items={stats.byBucket[b]} questionNumbers={questionNumbers} />
+          ))}
+        </div>
+      )}
+      {open && stats.total === 0 && (
+        <div style={{ marginTop: 12, fontSize: 12, color: 'var(--sv-muted)' }}>
+          No questions in the paper yet.
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DifficultyBar({ stats }) {
+  const { buckets, total, target } = stats
+  const easyPct = total ? Math.round((buckets.easy / total) * 100) : 0
+  const medPct = total ? Math.round((buckets.medium / total) * 100) : 0
+  const hardPct = total ? 100 - easyPct - medPct : 0
+  return (
+    <div>
+      <div style={{ display: 'flex', height: 10, borderRadius: 6, overflow: 'hidden', border: '1px solid var(--sv-border)' }}>
+        <div style={{ width: `${easyPct}%`, background: '#86efac' }} title={`Easy ${easyPct}%`} />
+        <div style={{ width: `${medPct}%`, background: '#fcd34d' }} title={`Medium ${medPct}%`} />
+        <div style={{ width: `${hardPct}%`, background: '#fca5a5' }} title={`Hard ${hardPct}%`} />
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--sv-muted)', marginTop: 4 }}>
+        <span>Easy {easyPct}% <em style={{ color: 'var(--sv-muted)' }}>(target {Math.round(target.easy * 100)}%)</em></span>
+        <span>Medium {medPct}% <em>({Math.round(target.medium * 100)}%)</em></span>
+        <span>Hard {hardPct}% <em>({Math.round(target.hard * 100)}%)</em></span>
+      </div>
+    </div>
+  )
+}
+
+function DifficultyBucketList({ bucket, items, questionNumbers }) {
+  if (!items.length) return null
+  const label = { easy: 'Easy', medium: 'Medium', hard: 'Hard' }[bucket]
+  return (
+    <div>
+      <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: 'var(--sv-muted)', marginBottom: 4 }}>
+        {label} ({items.length})
+      </div>
+      <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {items.map(({ q }) => (
+          <li key={q.localId || q._id} style={{ fontSize: 12, display: 'flex', gap: 6 }}>
+            <span style={{ color: 'var(--sv-muted)', minWidth: 26 }}>Q{questionNumbers?.[q.localId] || '?'}</span>
+            <span style={{ flex: 1 }}>{truncate(questionPlainText(q), 80) || <em style={{ color: 'var(--sv-muted)' }}>(no question text)</em>}</span>
+            <span style={{ color: 'var(--sv-muted)' }}>{Number(q.marks) || 1}m</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function truncate(text, n) {
+  const s = String(text || '').trim()
+  if (s.length <= n) return s
+  return s.slice(0, n - 1) + '…'
+}
+
+function subjectIdFromLabel(label) {
+  if (!label) return null
+  const match = CBC_SUBJECTS.find(s => s.label === label || s.shortLabel === label)
+  return match?.id || null
+}
+
+const COMPETENCY_HINTS = {
+  english: {
+    'Reading & Comprehension': ['read', 'passage', 'comprehension', 'meaning', 'paragraph', 'text', 'story'],
+    'Writing Skills': ['write', 'compose', 'essay', 'paragraph', 'letter', 'composition', 'draft'],
+    'Speaking & Listening': ['speak', 'listen', 'oral', 'pronounce', 'dialogue', 'conversation', 'discuss'],
+    'Grammar & Language Structure': ['noun', 'verb', 'tense', 'adjective', 'adverb', 'sentence', 'grammar', 'pronoun', 'preposition', 'punctuation', 'plural', 'singular'],
+    'Literature & Creative Expression': ['poem', 'poetry', 'character', 'plot', 'theme', 'novel', 'literature', 'figurative', 'metaphor', 'simile'],
+  },
+  science: {
+    'Living Things & Biology': ['plant', 'animal', 'cell', 'organ', 'body', 'leaf', 'root', 'flower', 'photosynthesis', 'respiration', 'digestion', 'reproduction', 'ecosystem', 'living'],
+    'Matter & Physical Science': ['matter', 'solid', 'liquid', 'gas', 'mixture', 'solution', 'element', 'compound', 'chemical', 'substance', 'state'],
+    'Earth & Environment': ['soil', 'rock', 'weather', 'climate', 'water', 'pollution', 'environment', 'earth', 'erosion', 'rain'],
+    'Scientific Inquiry': ['experiment', 'observe', 'hypothesis', 'method', 'measure', 'investigate', 'predict', 'conclusion'],
+    'Energy & Forces': ['force', 'energy', 'motion', 'electric', 'magnet', 'light', 'sound', 'heat', 'gravity', 'friction', 'machine'],
+  },
+  mathematics: {
+    'Number & Operations': ['add', 'sum', 'subtract', 'minus', 'multiply', 'product', 'divide', 'quotient', 'fraction', 'decimal', 'integer', 'whole', 'number', 'place value', 'digit'],
+    'Measurement': ['length', 'metre', 'meter', 'centimetre', 'kilometre', 'kilogram', 'gram', 'litre', 'volume', 'mass', 'weight', 'time', 'hour', 'minute', 'temperature', 'measure'],
+    'Geometry & Spatial Reasoning': ['angle', 'triangle', 'square', 'rectangle', 'circle', 'shape', 'polygon', 'perimeter', 'area', 'symmetry', 'parallel', 'perpendicular', 'geometry'],
+    'Data Handling & Statistics': ['graph', 'chart', 'bar', 'pie', 'table', 'mean', 'median', 'mode', 'average', 'data', 'frequency', 'probability', 'statistic'],
+    'Patterns & Algebra': ['pattern', 'sequence', 'equation', 'variable', 'expression', 'algebra', 'unknown', 'solve for'],
+  },
+  'social-studies': {
+    'History & Heritage': ['history', 'past', 'colonial', 'independence', 'heritage', 'ancestor', 'kingdom', 'tradition'],
+    'Civic Education': ['rights', 'duties', 'citizen', 'government', 'constitution', 'democracy', 'vote', 'law', 'parliament'],
+    'Geography & Environment': ['map', 'country', 'province', 'continent', 'river', 'mountain', 'climate', 'population', 'geography'],
+    'Culture & Society': ['culture', 'tradition', 'custom', 'family', 'community', 'language', 'religion', 'society'],
+    'Economics & Livelihoods': ['money', 'trade', 'market', 'farming', 'agriculture', 'industry', 'income', 'economy', 'business'],
+  },
+  technology: {
+    'Digital Literacy': ['computer', 'keyboard', 'mouse', 'monitor', 'file', 'folder', 'digital'],
+    'Computer Applications': ['word', 'spreadsheet', 'document', 'application', 'software', 'program'],
+    'Problem Solving & Design': ['design', 'algorithm', 'flowchart', 'problem', 'solution', 'code', 'program', 'block'],
+    'Internet Safety': ['internet', 'online', 'password', 'safety', 'cyber', 'phishing', 'scam'],
+    'Technology in Society': ['society', 'impact', 'communication', 'media', 'ethical', 'responsible'],
+  },
+  'expressive-arts': {
+    'Music & Performance': ['music', 'song', 'rhythm', 'beat', 'tempo', 'instrument', 'note', 'melody'],
+    'Visual Arts & Design': ['draw', 'paint', 'colour', 'sketch', 'design', 'pattern', 'sculpture'],
+    'Drama & Theatre': ['drama', 'play', 'act', 'theatre', 'role', 'scene', 'character'],
+    'Dance & Movement': ['dance', 'movement', 'choreograph', 'rhythm'],
+    'Creative Expression': ['creative', 'express', 'imagination', 'idea'],
+  },
+  cinyanja: {
+    'Kuwerenga (Reading)': ['werenga', 'nkhani', 'kuwerenga'],
+    'Kulemba (Writing)': ['lemba', 'kalembedwe', 'kulemba'],
+    'Kulankhula & Kumvera (Speaking & Listening)': ['lankhula', 'mvera', 'kuyankhula'],
+    'Galamala (Grammar)': ['galamala', 'liwu', 'mawu', 'chiganizo'],
+    'Chikhalidwe (Culture & Heritage)': ['chikhalidwe', 'mwambo', 'miyambo'],
+  },
+  'home-economics': {
+    'Food & Nutrition': ['food', 'nutrition', 'vitamin', 'protein', 'carbohydrate', 'meal', 'diet', 'balanced'],
+    'Personal & Family Health': ['health', 'hygiene', 'family', 'disease', 'clean', 'safety'],
+    'Home Management': ['home', 'clean', 'tidy', 'organise', 'organize', 'kitchen'],
+    'Clothing & Textiles': ['cloth', 'fabric', 'sew', 'garment', 'textile', 'iron', 'wash'],
+    'Consumer Education': ['consumer', 'budget', 'money', 'price', 'shop', 'market'],
+  },
+}
+
+function scoreCompetency(text, competency, hints) {
+  const hay = text.toLowerCase()
+  let score = 0
+  const words = competency.toLowerCase().split(/[^a-z]+/).filter(w => w.length > 3)
+  words.forEach(w => { if (hay.includes(w)) score += 2 })
+  ;(hints || []).forEach(h => { if (hay.includes(h.toLowerCase())) score += 1 })
+  return score
+}
+
+function mapQuestionToCompetency(question, subjectId) {
+  const competencies = COMPETENCIES[subjectId] || []
+  if (!competencies.length) return null
+  const text = `${questionPlainText(question)} ${question.topic || ''}`.trim()
+  if (!text) return null
+  let best = null
+  let bestScore = 0
+  competencies.forEach(comp => {
+    const hints = COMPETENCY_HINTS[subjectId]?.[comp] || []
+    const s = scoreCompetency(text, comp, hints)
+    if (s > bestScore) { bestScore = s; best = comp }
+  })
+  return bestScore > 0 ? best : null
+}
+
+function MapCompetenciesAction({ questions, questionNumbers, subjectLabel }) {
+  const [open, setOpen] = useState(false)
+  const subjectId = useMemo(() => subjectIdFromLabel(subjectLabel), [subjectLabel])
+  const competencies = useMemo(() => (subjectId ? (COMPETENCIES[subjectId] || []) : []), [subjectId])
+  const mappings = useMemo(() => {
+    if (!subjectId) return []
+    return (questions || []).map(q => ({ q, competency: mapQuestionToCompetency(q, subjectId) }))
+  }, [questions, subjectId])
+  const grouped = useMemo(() => {
+    const map = new Map()
+    competencies.forEach(c => map.set(c, []))
+    map.set('__unmapped__', [])
+    mappings.forEach(m => {
+      const key = m.competency || '__unmapped__'
+      if (!map.has(key)) map.set(key, [])
+      map.get(key).push(m.q)
+    })
+    return map
+  }, [mappings, competencies])
+  const coverageCount = competencies.filter(c => (grouped.get(c) || []).length > 0).length
+  const summary = !subjectId
+    ? `No competency taxonomy for "${subjectLabel || 'this subject'}"`
+    : (questions || []).length === 0
+      ? 'Add questions to see mappings'
+      : `${coverageCount}/${competencies.length} strands covered · ${(grouped.get('__unmapped__') || []).length} unmapped`
+  return (
+    <div className={`sv-ai-action ${open ? 'expanded' : ''}`} style={{ display: 'block', padding: 'var(--sv-s3)' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{ display: 'flex', alignItems: 'center', gap: 'var(--sv-s3)', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+      >
+        <div className="sv-ic">🎯</div>
+        <div style={{ flex: 1 }}>
+          <strong style={{ display: 'block', fontWeight: 600 }}>Map to competencies</strong>
+          <small style={{ color: 'var(--sv-muted)', fontSize: 12 }}>{summary}</small>
+        </div>
+        <span style={{ color: 'var(--sv-muted)' }}>{open ? '▾' : '▸'}</span>
+      </button>
+      {open && (
+        <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {!subjectId && (
+            <div style={{ fontSize: 12, color: 'var(--sv-muted)' }}>
+              Pick a CBC subject in the paper details to enable competency mapping.
+            </div>
+          )}
+          {subjectId && (questions || []).length === 0 && (
+            <div style={{ fontSize: 12, color: 'var(--sv-muted)' }}>No questions in the paper yet.</div>
+          )}
+          {subjectId && (questions || []).length > 0 && (
+            <>
+              <div style={{ fontSize: 12, color: 'var(--sv-muted)', lineHeight: 1.5 }}>
+                Each question is matched to a CBC strand by keywords in its text and topic. Review and reassign as needed — this is a heuristic, not a verdict.
+              </div>
+              {competencies.map(comp => {
+                const items = grouped.get(comp) || []
+                return (
+                  <CompetencyGroup key={comp} title={comp} items={items} questionNumbers={questionNumbers} />
+                )
+              })}
+              <CompetencyGroup
+                title="Unmapped"
+                items={grouped.get('__unmapped__') || []}
+                questionNumbers={questionNumbers}
+                muted
+              />
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function CompetencyGroup({ title, items, questionNumbers, muted }) {
+  return (
+    <div>
+      <div style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', color: muted ? 'var(--sv-muted)' : 'var(--sv-text)', marginBottom: 4 }}>
+        {title} <span style={{ color: 'var(--sv-muted)', fontWeight: 400 }}>({items.length})</span>
+      </div>
+      {items.length === 0 ? (
+        <div style={{ fontSize: 12, color: 'var(--sv-muted)', fontStyle: 'italic' }}>none</div>
+      ) : (
+        <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {items.map(q => (
+            <li key={q.localId || q._id} style={{ fontSize: 12, display: 'flex', gap: 6 }}>
+              <span style={{ color: 'var(--sv-muted)', minWidth: 26 }}>Q{questionNumbers?.[q.localId] || '?'}</span>
+              <span style={{ flex: 1 }}>{truncate(questionPlainText(q), 80) || <em style={{ color: 'var(--sv-muted)' }}>(no question text)</em>}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+const DUPLICATE_THRESHOLD = 0.55
+const DUPLICATE_STOPWORDS = new Set([
+  'the', 'and', 'for', 'that', 'with', 'from', 'this', 'into', 'your', 'what', 'which', 'when', 'where', 'why', 'how', 'are', 'was', 'were', 'have', 'has', 'had', 'will', 'can', 'you', 'their', 'they', 'these', 'those', 'them', 'about', 'than', 'then',
+])
+
+function tokenizeForDuplicates(text) {
+  return new Set(
+    String(text || '')
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(w => w.length > 2 && !DUPLICATE_STOPWORDS.has(w))
+  )
+}
+
+function jaccard(a, b) {
+  if (!a.size || !b.size) return 0
+  let inter = 0
+  a.forEach(x => { if (b.has(x)) inter += 1 })
+  return inter / (a.size + b.size - inter)
+}
+
+function detectDuplicates(questions, threshold = DUPLICATE_THRESHOLD) {
+  const tokens = questions.map(q => tokenizeForDuplicates(questionPlainText(q)))
+  const pairs = []
+  for (let i = 0; i < questions.length; i += 1) {
+    for (let j = i + 1; j < questions.length; j += 1) {
+      const sim = jaccard(tokens[i], tokens[j])
+      if (sim >= threshold) pairs.push({ a: questions[i], b: questions[j], sim })
+    }
+  }
+  return pairs.sort((p1, p2) => p2.sim - p1.sim)
+}
+
+function DetectDuplicatesAction({ questions, questionNumbers }) {
+  const [open, setOpen] = useState(false)
+  const pairs = useMemo(() => detectDuplicates(questions || []), [questions])
+  const summary = (questions || []).length === 0
+    ? 'Add questions to scan for duplicates'
+    : pairs.length === 0
+      ? 'No near-duplicates found'
+      : `${pairs.length} similar pair${pairs.length === 1 ? '' : 's'} found`
+  return (
+    <div className={`sv-ai-action ${open ? 'expanded' : ''}`} style={{ display: 'block', padding: 'var(--sv-s3)' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        style={{ display: 'flex', alignItems: 'center', gap: 'var(--sv-s3)', width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left' }}
+      >
+        <div className="sv-ic">🔍</div>
+        <div style={{ flex: 1 }}>
+          <strong style={{ display: 'block', fontWeight: 600 }}>Detect duplicates</strong>
+          <small style={{ color: 'var(--sv-muted)', fontSize: 12 }}>{summary}</small>
+        </div>
+        <span style={{ color: 'var(--sv-muted)' }}>{open ? '▾' : '▸'}</span>
+      </button>
+      {open && (
+        <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {(questions || []).length === 0 && (
+            <div style={{ fontSize: 12, color: 'var(--sv-muted)' }}>No questions in the paper yet.</div>
+          )}
+          {(questions || []).length > 0 && pairs.length === 0 && (
+            <div style={{ fontSize: 12, color: 'var(--sv-muted)' }}>
+              Compared {(questions || []).length} questions — nothing crossed the {Math.round(DUPLICATE_THRESHOLD * 100)}% similarity threshold.
+            </div>
+          )}
+          {pairs.length > 0 && (
+            <>
+              <div style={{ fontSize: 12, color: 'var(--sv-muted)', lineHeight: 1.5 }}>
+                Pairs sharing more than {Math.round(DUPLICATE_THRESHOLD * 100)}% of their wording. Review each pair — keep one, rewrite or remove the other.
+              </div>
+              <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {pairs.map((pair, i) => (
+                  <li key={`${pair.a.localId || pair.a._id}-${pair.b.localId || pair.b._id}-${i}`} style={{ border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: 8 }}>
+                    <div style={{ fontSize: 11, color: 'var(--sv-muted)', marginBottom: 4 }}>
+                      {Math.round(pair.sim * 100)}% similar
+                    </div>
+                    <div style={{ fontSize: 12, display: 'flex', gap: 6, marginBottom: 4 }}>
+                      <span style={{ color: 'var(--sv-muted)', minWidth: 26 }}>Q{questionNumbers?.[pair.a.localId] || '?'}</span>
+                      <span style={{ flex: 1 }}>{truncate(questionPlainText(pair.a), 110) || <em>(no text)</em>}</span>
+                    </div>
+                    <div style={{ fontSize: 12, display: 'flex', gap: 6 }}>
+                      <span style={{ color: 'var(--sv-muted)', minWidth: 26 }}>Q{questionNumbers?.[pair.b.localId] || '?'}</span>
+                      <span style={{ flex: 1 }}>{truncate(questionPlainText(pair.b), 110) || <em>(no text)</em>}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
         </div>
       )}
     </div>
