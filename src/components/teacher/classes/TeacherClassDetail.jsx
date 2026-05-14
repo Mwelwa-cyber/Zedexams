@@ -41,7 +41,7 @@ import { SUBJECTS } from '../../../config/curriculum'
 import SeoHelmet from '../../seo/SeoHelmet'
 import Skeleton from '../../ui/Skeleton'
 import SubjectIcon from '../../ui/SubjectIcon'
-import AssignWorkModal from './AssignWorkModal'
+import ClassAssignmentPicker from './ClassAssignmentPicker'
 import ClassAnalytics from './ClassAnalytics'
 
 function fmtExpiry(ts) {
@@ -516,15 +516,21 @@ export default function TeacherClassDetail() {
         </button>
       </section>
 
-      {/* Assign-quiz modal — lazy renders only while open. */}
-      <AssignWorkModal
+      {/* Pick-a-quiz modal → AssignmentWizard. Lazy renders only while open. */}
+      <ClassAssignmentPicker
         open={showAssignModal}
         classId={classId}
         classGrade={klass.grade}
         classSubject={klass.subject}
         onClose={() => setShowAssignModal(false)}
-        onAssigned={() => {
-          setFeedback({ kind: 'ok', text: 'Assignment shared with the class.' })
+        onAssigned={(result) => {
+          const count = result?.assigned?.length ?? 1
+          setFeedback({
+            kind: 'ok',
+            text: count > 1
+              ? `Assignment shared with ${count} classes.`
+              : 'Assignment shared with the class.',
+          })
           refresh()
         }}
       />
