@@ -257,17 +257,31 @@ async function renderQuestion(b) {
   if (b.imageUrl) {
     const img = await imageParagraph(b.imageUrl)
     if (img) out.push(img)
-    // Word can't reliably overlay positioned labels on top of an inline
-    // image, so we drop the labels as a numbered text list below — same
-    // information, ordered top-to-bottom then left-to-right.
     const labels = Array.isArray(b.diagramLabels) ? b.diagramLabels : []
+    const isIdentify = b.diagramMode === 'identify'
     if (labels.length) {
-      const sorted = [...labels].sort((a, c) => (a.y - c.y) || (a.x - c.x))
-      const text = sorted.map((l, i) => `${i + 1}. ${l.text}`).join('   ')
-      out.push(para([
-        runText('Labels: ', { bold: true, size: 20 }),
-        runText(text, { size: 20 }),
-      ]))
+      if (isIdentify) {
+        // Identify mode: emit numbered blank-answer lines below the image
+        // for the student to fill in. The expected answers go into the
+        // marking key paragraph (below, in the showAnswer branch).
+        for (let i = 0; i < labels.length; i += 1) {
+          out.push(para([
+            runText(`${i + 1}. `, { bold: true, size: 20 }),
+            runText('______________________________________________________', { size: 20 }),
+          ]))
+        }
+      } else {
+        // Word can't reliably overlay positioned labels on top of an
+        // inline image, so we drop the labels as a numbered text list
+        // below — same information, ordered top-to-bottom then
+        // left-to-right.
+        const sorted = [...labels].sort((a, c) => (a.y - c.y) || (a.x - c.x))
+        const text = sorted.map((l, i) => `${i + 1}. ${l.text}`).join('   ')
+        out.push(para([
+          runText('Labels: ', { bold: true, size: 20 }),
+          runText(text, { size: 20 }),
+        ]))
+      }
     }
   }
   if (b.tableData) {
@@ -431,7 +445,13 @@ async function renderQuestion(b) {
   }
 
   if (b.showAnswer) {
-    if (b.type === 'mcq') {
+    if (b.type === 'diagram' && b.diagramMode === 'identify' && Array.isArray(b.diagramLabels) && b.diagramLabels.length) {
+      const pairs = b.diagramLabels.map((l, i) => `${i + 1}. ${l.text || '—'}`).join('   ')
+      out.push(para([
+        runText('Answers: ', { bold: true, size: 20, color: '047857' }),
+        runText(pairs, { size: 20, color: '047857' }),
+      ]))
+    } else if (b.type === 'mcq') {
       const i = Number(b.correctAnswer)
       const letter = SECTION_LETTERS[i] || '?'
       const opt = b.options?.[i] ?? ''

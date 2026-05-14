@@ -1136,6 +1136,19 @@ export default function AssessmentStudio() {
         // a first-class block type with its own block picker tile.
         newSection = createPassageSection({ passageKind: 'map' })
         break
+      case 'image_identify':
+        // Image Identify is a diagram-with-labels question rendered in
+        // "identify" mode: numbered markers print on the image, and the
+        // student writes the matching term on numbered blank lines below.
+        // Reuses all the diagramLabels infrastructure (PR #430).
+        newSection = baseQuestion('diagram', {
+          options: [],
+          correctAnswer: '',
+          marks: 5,
+          diagramText: 'Identify the labelled parts',
+          diagramMode: 'identify',
+        })
+        break
       case 'pagebreak':
         newSection = createPagebreakSection()
         break
@@ -2747,7 +2760,9 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
             <DiagramLabelEditor
               imageUrl={question.imageUrl}
               labels={question.diagramLabels || []}
+              mode={question.diagramMode || 'labeled'}
               onChangeLabels={value => updateQuestion('diagramLabels', value)}
+              onChangeMode={value => updateQuestion('diagramMode', value)}
               onRemoveImage={onRemoveImage}
             />
           ) : (
@@ -3049,7 +3064,8 @@ function newLabelId() {
 //
 // Labels render as small white-background pills with a thin border so
 // they remain readable over the B&W line art Recraft produces.
-function DiagramLabelEditor({ imageUrl, labels, onChangeLabels, onRemoveImage }) {
+function DiagramLabelEditor({ imageUrl, labels, mode = 'labeled', onChangeLabels, onChangeMode, onRemoveImage }) {
+  const isIdentify = mode === 'identify'
   const wrapperRef = useRef(null)
   const dragRef = useRef(null) // { id, startX, startY, origX, origY }
 
@@ -3117,7 +3133,7 @@ function DiagramLabelEditor({ imageUrl, labels, onChangeLabels, onRemoveImage })
         style={{ position: 'relative', cursor: 'crosshair', userSelect: 'none' }}
       >
         <img src={imageUrl} alt="" draggable={false} style={{ pointerEvents: 'none' }} />
-        {labels.map(label => (
+        {labels.map((label, i) => (
           <div
             key={label.id}
             data-label
@@ -3140,12 +3156,17 @@ function DiagramLabelEditor({ imageUrl, labels, onChangeLabels, onRemoveImage })
               whiteSpace: 'nowrap',
             }}
           >
+            {isIdentify && (
+              <strong style={{ background: '#000', color: '#fff', borderRadius: '50%', width: 16, height: 16, display: 'inline-grid', placeItems: 'center', fontSize: 10 }}>
+                {i + 1}
+              </strong>
+            )}
             <input
               type="text"
               value={label.text}
               onMouseDown={e => e.stopPropagation()} // let user click the input without starting a drag
               onChange={e => updateLabel(label.id, { text: e.target.value.slice(0, 80) })}
-              placeholder="Label"
+              placeholder={isIdentify ? 'Expected answer' : 'Label'}
               style={{ border: 'none', outline: 'none', background: 'transparent', fontSize: 11, width: Math.max(60, (label.text?.length || 6) * 7), padding: 0 }}
             />
             <button
@@ -3167,9 +3188,24 @@ function DiagramLabelEditor({ imageUrl, labels, onChangeLabels, onRemoveImage })
           ×
         </button>
       </div>
-      <div style={{ fontSize: 11, color: 'var(--sv-muted)', marginTop: 4 }}>
-        Click the image to drop a label · drag labels to reposition · ✕ to delete · max 20 labels
-        {labels.length >= 20 && <span style={{ color: '#b91c1c', marginLeft: 6 }}>· limit reached</span>}
+      <div style={{ fontSize: 11, color: 'var(--sv-muted)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+        <span>
+          {isIdentify
+            ? 'Drop numbered hotspots · each text becomes the expected answer · students fill in numbered blanks below'
+            : 'Click the image to drop a label · drag labels to reposition · ✕ to delete · max 20 labels'}
+          {labels.length >= 20 && <span style={{ color: '#b91c1c', marginLeft: 6 }}>· limit reached</span>}
+        </span>
+        {onChangeMode && (
+          <select
+            value={mode}
+            onChange={e => onChangeMode(e.target.value)}
+            title="How the labels render on the printed paper"
+            style={{ marginLeft: 'auto', background: 'var(--sv-tinted)', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: '2px 6px', fontSize: 11 }}
+          >
+            <option value="labeled">Labels print as text</option>
+            <option value="identify">Identify (numbered hotspots)</option>
+          </select>
+        )}
       </div>
     </div>
   )
@@ -3826,28 +3862,45 @@ function PaperQuestionBlock({ block }) {
         {marks > 1 && <em className="sv-qmarks">({marks}&nbsp;marks)</em>}
       </div>
       {block.imageUrl && (
-        <div className="sv-paper-diagram" style={{ position: 'relative' }}>
-          <img src={block.imageUrl} alt="" />
-          {(block.diagramLabels || []).map((label, i) => (
-            <span
-              key={i}
-              style={{
-                position: 'absolute',
-                left: `${label.x * 100}%`,
-                top: `${label.y * 100}%`,
-                transform: 'translate(-50%, -50%)',
-                background: 'white',
-                border: '1px solid #000',
-                borderRadius: 3,
-                padding: '1px 6px',
-                fontSize: 11,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {label.text}
-            </span>
-          ))}
-        </div>
+        <>
+          <div className="sv-paper-diagram" style={{ position: 'relative' }}>
+            <img src={block.imageUrl} alt="" />
+            {(block.diagramLabels || []).map((label, i) => (
+              <span
+                key={i}
+                style={{
+                  position: 'absolute',
+                  left: `${label.x * 100}%`,
+                  top: `${label.y * 100}%`,
+                  transform: 'translate(-50%, -50%)',
+                  background: block.diagramMode === 'identify' ? '#000' : 'white',
+                  color: block.diagramMode === 'identify' ? '#fff' : '#000',
+                  border: '1px solid #000',
+                  borderRadius: block.diagramMode === 'identify' ? '50%' : 3,
+                  padding: block.diagramMode === 'identify' ? 0 : '1px 6px',
+                  width: block.diagramMode === 'identify' ? 20 : undefined,
+                  height: block.diagramMode === 'identify' ? 20 : undefined,
+                  display: block.diagramMode === 'identify' ? 'grid' : 'inline-block',
+                  placeItems: block.diagramMode === 'identify' ? 'center' : undefined,
+                  fontSize: 11,
+                  fontWeight: block.diagramMode === 'identify' ? 700 : 400,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                {block.diagramMode === 'identify' ? (i + 1) : label.text}
+              </span>
+            ))}
+          </div>
+          {block.diagramMode === 'identify' && (block.diagramLabels?.length > 0) && (
+            <ol style={{ margin: '8px 0 0 18pt', padding: 0 }}>
+              {block.diagramLabels.map((_, i) => (
+                <li key={i} style={{ marginBottom: 4 }}>
+                  <span style={{ display: 'inline-block', minWidth: 180, borderBottom: '1px solid #000', height: 14 }} />
+                </li>
+              ))}
+            </ol>
+          )}
+        </>
       )}
       {block.tableData && (
         <PaperDataTable tableData={block.tableData} />
@@ -4030,6 +4083,26 @@ function PaperMatching({ block }) {
 }
 
 function PaperAnswerBlock({ block }) {
+  // Image-Identify diagram: marking key shows each numbered hotspot with
+  // its expected answer ("1. Epidermis  2. Dermis  3. Hypodermis"), in
+  // the same order the hotspots were placed.
+  if (block.type === 'diagram' && block.diagramMode === 'identify' && Array.isArray(block.diagramLabels) && block.diagramLabels.length) {
+    return (
+      <div style={{ margin: '4px 0 4px 14px', padding: '4px 8px', background: '#ecfdf5', borderLeft: '3px solid #047857', fontSize: 12, color: '#047857' }}>
+        <div>
+          <strong>Answers:</strong>{' '}
+          {block.diagramLabels.map((l, i) => (
+            <span key={i} style={{ marginRight: 12 }}>{i + 1}. {l.text || '—'}</span>
+          ))}
+        </div>
+        {block.explanation && (
+          <div style={{ color: '#555', fontStyle: 'italic', fontSize: 11, marginTop: 2 }}>
+            Notes: {block.explanation}
+          </div>
+        )}
+      </div>
+    )
+  }
   let body = null
   if (block.type === 'mcq') {
     const i = Number(block.correctAnswer)
@@ -4138,7 +4211,7 @@ function BlockPickerSlide({ open, onClose, onPick }) {
           <BlockPickerItem icon="🎨" title="Draw & Label" hint="Coming soon" disabled />
           <BlockPickerItem icon="🗺" title="Map Question" hint="Image-based passage with map questions" onClick={() => onPick('map')} />
           <BlockPickerItem icon="📊" title="Data / Table" hint="Attach a data table to a question" onClick={() => onPick('data_table')} />
-          <BlockPickerItem icon="👁" title="Image Identify" hint="Coming soon" disabled />
+          <BlockPickerItem icon="👁" title="Image Identify" hint="Numbered hotspots — students name each part" onClick={() => onPick('image_identify')} />
         </div>
 
         <div className="sv-block-cat">AI-powered</div>
