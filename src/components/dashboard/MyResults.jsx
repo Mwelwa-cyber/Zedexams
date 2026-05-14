@@ -95,7 +95,7 @@ export default function MyResults() {
   const streak = computeStreak(results.map(r => r.completedAt ?? r.createdAt))
 
   return (
-    <div className="max-w-2xl md:max-w-3xl mx-auto px-4 py-6">
+    <div className="max-w-2xl md:max-w-3xl mx-auto px-4 py-6 pb-28 md:pb-8">
       <SeoHelmet title="My results" path="/my-results" noIndex />
       <div className="mb-5">
         <p className="text-eyebrow">Your progress</p>

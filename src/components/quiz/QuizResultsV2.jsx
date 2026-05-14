@@ -130,7 +130,7 @@ export default function QuizResultsV2() {
 
   if (loading) {
     return (
-      <div className="theme-bg min-h-screen px-4 py-10">
+      <div className="theme-bg min-h-screen px-4 py-10 pb-28 md:pb-10">
         <SeoHelmet title="Quiz results" path={`/results/${resultId}`} noIndex />
         <div className="mx-auto max-w-xl space-y-4">
           <div className="theme-card theme-border rounded-3xl border p-6 text-center shadow-elev-md">
@@ -280,7 +280,7 @@ export default function QuizResultsV2() {
   }
 
   return (
-    <div className="theme-text mx-auto max-w-4xl px-4 py-6 animate-slide-up">
+    <div className="theme-text mx-auto max-w-4xl px-4 py-6 pb-28 md:pb-8 animate-slide-up">
       <SeoHelmet
         title={`${result.percentage ?? 0}% on ${result.subject || 'a quiz'}`}
         path={`/results/${resultId}`}
