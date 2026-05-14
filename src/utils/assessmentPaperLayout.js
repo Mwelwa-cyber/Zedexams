@@ -88,6 +88,49 @@ function richHtml(value) {
   }
 }
 
+// Bounded memo for option-level rich + plain conversions. `buildPaperLayout`
+// runs inside an editor `useMemo` whose deps churn on every keystroke —
+// before this cache, a 50-question quiz re-parsed 200 (4×50) option
+// strings per keystroke. Most of those parses are wasted: only the one
+// option the teacher is editing changes; the rest are bit-identical.
+//
+// Key is the option string itself (plain text OR serialised Tiptap JSON),
+// so cache hits work as long as the stored shape is stable. Cap at 1 000
+// entries to avoid unbounded growth in long sessions; FIFO eviction is
+// fine because the working set on a single quiz is small (~200 entries
+// for a 50-question paper).
+const RICH_HTML_OPTION_CACHE = new Map()
+const PLAIN_OPTION_CACHE = new Map()
+const OPTION_CACHE_LIMIT = 1000
+
+function cachedOptionRichHtml(value) {
+  if (value == null || value === '') return ''
+  if (typeof value !== 'string') return richHtml(value)
+  const hit = RICH_HTML_OPTION_CACHE.get(value)
+  if (hit !== undefined) return hit
+  const out = richHtml(value)
+  if (RICH_HTML_OPTION_CACHE.size >= OPTION_CACHE_LIMIT) {
+    const firstKey = RICH_HTML_OPTION_CACHE.keys().next().value
+    RICH_HTML_OPTION_CACHE.delete(firstKey)
+  }
+  RICH_HTML_OPTION_CACHE.set(value, out)
+  return out
+}
+
+function cachedOptionPlain(value) {
+  if (value == null || value === '') return ''
+  if (typeof value !== 'string') return plain(value)
+  const hit = PLAIN_OPTION_CACHE.get(value)
+  if (hit !== undefined) return hit
+  const out = plain(value)
+  if (PLAIN_OPTION_CACHE.size >= OPTION_CACHE_LIMIT) {
+    const firstKey = PLAIN_OPTION_CACHE.keys().next().value
+    PLAIN_OPTION_CACHE.delete(firstKey)
+  }
+  PLAIN_OPTION_CACHE.set(value, out)
+  return out
+}
+
 function groupQuestionsByPart(questions, parts) {
   const partsById = new Map()
   for (const part of parts || []) {
@@ -339,6 +382,18 @@ function buildQuestionBlock(q, number, includeAnswer) {
     if (hasImage && hasText) optionsMode = 'mixed'
     else if (hasImage) optionsMode = 'image'
   }
+  // Per-option rich + plain pair. Each option could be authored as plain
+  // text (legacy) or a Tiptap JSON document (post Grade-7 upgrade); we
+  // expose:
+  //   optionsHtml  — pre-hydrated rich HTML for the PDF / DOCX exports
+  //   optionsPlain — readable plain text for legacy code paths
+  //
+  // Both go through the bounded option-string memo so a 50-question
+  // editor re-render doesn't re-parse 200 unchanged options. Skip the
+  // map entirely for non-MCQ question types where `options` is [].
+  const optionsHtml = options.length ? options.map(cachedOptionRichHtml) : []
+  const optionsPlain = options.length ? options.map(cachedOptionPlain) : []
+
   return {
     kind: 'question',
     number,
@@ -348,6 +403,8 @@ function buildQuestionBlock(q, number, includeAnswer) {
     // Grade-7 math blocks (vertical sums, fractions, number bases)
     // come out exactly as they appear in the editor.
     textHtml: richHtml(q.text),
+    optionsHtml,
+    optionsPlain,
     marks: q.marks ?? 1,
     type,
     options,

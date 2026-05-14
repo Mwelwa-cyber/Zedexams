@@ -774,9 +774,14 @@ function StandaloneQuestionCard({
             const optionUploadStep = optionUploading ? question.optionImageUploadStep : null
             return (
               <div key={`${question.localId}-${optionIndex}`} className="space-y-2">
-                <label
+                {/* Wrapper used to be <label>, but a label auto-focuses its
+                    first input on click — which toggled the radio every time
+                    a teacher clicked inside the (new) rich option editor. A
+                    plain <div> with the radio + letter sat as their own
+                    clickable affordances avoids that hijacking. */}
+                <div
                   className={joinClasses(
-                    'flex cursor-pointer gap-3 rounded-xl border-2 p-3 transition-colors',
+                    'flex gap-3 rounded-xl border-2 p-3 transition-colors',
                     optionsAsTextarea ? 'items-start' : 'items-center',
                     question.correctAnswer === optionIndex ? theme.radioBorder : 'theme-border hover:border-[var(--accent)]',
                   )}
@@ -786,15 +791,25 @@ function StandaloneQuestionCard({
                     name={`standalone-correct-${question.localId}`}
                     checked={question.correctAnswer === optionIndex}
                     onChange={() => set('correctAnswer', optionIndex)}
-                    className={joinClasses('accent-[var(--accent)] flex-shrink-0', optionsAsTextarea && 'mt-2')}
+                    className={joinClasses('accent-[var(--accent)] flex-shrink-0 cursor-pointer', optionsAsTextarea && 'mt-2')}
+                    aria-label={`Mark option ${QUESTION_LETTERS[optionIndex]} as correct`}
                   />
-                  <span className={joinClasses(
-                    'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-black',
-                    optionsAsTextarea && 'mt-1',
-                    question.correctAnswer === optionIndex ? 'theme-accent-fill theme-on-accent' : 'theme-bg-subtle theme-text-muted',
-                  )}>
+                  {/* Letter badge: click target for sighted users. The
+                      adjacent radio already carries the "Mark option X as
+                      correct" aria-label, so we omit it here — otherwise
+                      screen readers would announce the same instruction
+                      twice (once for the radio, once for this button). */}
+                  <button
+                    type="button"
+                    onClick={() => set('correctAnswer', optionIndex)}
+                    className={joinClasses(
+                      'flex h-6 w-6 flex-shrink-0 cursor-pointer items-center justify-center rounded-full text-xs font-black',
+                      optionsAsTextarea && 'mt-1',
+                      question.correctAnswer === optionIndex ? 'theme-accent-fill theme-on-accent' : 'theme-bg-subtle theme-text-muted',
+                    )}
+                  >
                     {isTrueFalse ? (optionIndex === 0 ? 'T' : 'F') : QUESTION_LETTERS[optionIndex]}
-                  </span>
+                  </button>
                   {optionsAsTextarea ? (
                     <textarea
                       value={typeof option === 'string' ? option : ''}
@@ -803,20 +818,51 @@ function StandaloneQuestionCard({
                       rows={4}
                       className="theme-text flex-1 resize-y border-none bg-transparent text-sm leading-relaxed outline-none"
                     />
-                  ) : (
+                  ) : isTrueFalse ? (
+                    // True / False questions hard-code the two option
+                    // labels. The field is read-only — disabled inputs
+                    // can't fire onChange, so we omit the handler too
+                    // (no setter could ever be triggered, and an unused
+                    // handler is just dead weight + a lint warning).
+                    <input
+                      readOnly
+                      value={optionIndex === 0 ? 'True' : 'False'}
+                      disabled
+                      className="theme-text flex-1 border-none bg-transparent text-sm outline-none disabled:opacity-80"
+                    />
+                  ) : optionsAsPlainText ? (
+                    // Spelling / punctuation / sentence-ordering questions
+                    // need exact-character matching. Tiptap normalises
+                    // whitespace and rewrites characters (smart quotes
+                    // etc.) which would obscure the very characters being
+                    // tested — so these subtypes keep the plain input.
                     <input
                       value={typeof option === 'string' ? option : ''}
                       onChange={event => setOption(optionIndex, event.target.value)}
-                      placeholder={isTrueFalse ? (optionIndex === 0 ? 'True' : 'False') : `Option ${QUESTION_LETTERS[optionIndex]}`}
-                      disabled={isTrueFalse}
-                      className="theme-text flex-1 border-none bg-transparent text-sm outline-none disabled:opacity-80"
-                      spellCheck={!optionsAsPlainText}
+                      placeholder={`Option ${QUESTION_LETTERS[optionIndex]}`}
+                      className="theme-text flex-1 border-none bg-transparent text-sm outline-none"
+                      spellCheck={false}
                     />
+                  ) : (
+                    // Standard MCQ option: rich math editor with the compact
+                    // toolbar (Bold/Italic/Underline + sup/sub + Grade-7 math
+                    // tools). Lets teachers write 1/3 as a stacked fraction,
+                    // 3² with superscript, 313₅ with number-base, etc.
+                    <div className="flex-1 min-w-0 mcq-option-rich">
+                      <QuizRichField
+                        value={option}
+                        onChange={(json) => setOption(optionIndex, json)}
+                        placeholder={`Option ${QUESTION_LETTERS[optionIndex]}`}
+                        minHeight={36}
+                        compact
+                        toolbarVariant="compact"
+                      />
+                    </div>
                   )}
                   {question.correctAnswer === optionIndex && (
                     <span className={joinClasses('flex-shrink-0 text-xs font-black', optionsAsTextarea && 'mt-2', theme.accentText)}>✓ Correct</span>
                   )}
-                </label>
+                </div>
                 {showOptionImage && onOptionImageUpload && (
                   <div className="pl-12 space-y-1.5">
                     <OptionImageUpload
@@ -1052,9 +1098,13 @@ function PassageQuestionCard({
           const cardTheme = theme || THEMES.create
           return (
             <div key={`${question.localId}-${letter}`} className="space-y-2">
-              <label
+              {/* Wrapper is a <div>, not <label> — clicking inside the
+                  rich option editor must NOT auto-toggle the radio
+                  (which is what a label would do with its first input
+                  descendant). */}
+              <div
                 className={joinClasses(
-                  'flex cursor-pointer gap-3 rounded-xl border-2 p-3 transition-colors',
+                  'flex gap-3 rounded-xl border-2 p-3 transition-colors',
                   optionsAsTextarea ? 'items-start' : 'items-center',
                   question.correctAnswer === optionIndex ? 'border-[var(--accent)] theme-accent-bg' : 'theme-border hover:border-[var(--accent)]',
                 )}
@@ -1064,33 +1114,55 @@ function PassageQuestionCard({
                   name={`passage-correct-${question.localId}`}
                   checked={question.correctAnswer === optionIndex}
                   onChange={() => set('correctAnswer', optionIndex)}
-                  className={joinClasses('accent-[var(--accent)] flex-shrink-0', optionsAsTextarea && 'mt-2')}
+                  className={joinClasses('accent-[var(--accent)] flex-shrink-0 cursor-pointer', optionsAsTextarea && 'mt-2')}
+                  aria-label={`Mark option ${letter} as correct`}
                 />
-                <span className={joinClasses(
-                  'flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full text-xs font-black',
-                  optionsAsTextarea && 'mt-1',
-                  question.correctAnswer === optionIndex ? 'theme-accent-fill theme-on-accent' : 'theme-bg-subtle theme-text-muted',
-                )}>
+                {/* Letter badge — see equivalent block in StandaloneQuestionCard
+                    for why this button has no aria-label (would duplicate
+                    the adjacent radio's announcement). */}
+                <button
+                  type="button"
+                  onClick={() => set('correctAnswer', optionIndex)}
+                  className={joinClasses(
+                    'flex h-6 w-6 flex-shrink-0 cursor-pointer items-center justify-center rounded-full text-xs font-black',
+                    optionsAsTextarea && 'mt-1',
+                    question.correctAnswer === optionIndex ? 'theme-accent-fill theme-on-accent' : 'theme-bg-subtle theme-text-muted',
+                  )}
+                >
                   {letter}
-                </span>
+                </button>
                 {optionsAsTextarea ? (
                   <textarea
-                    value={question.options[optionIndex] || ''}
+                    value={typeof question.options[optionIndex] === 'string' ? question.options[optionIndex] : ''}
                     onChange={event => setOption(optionIndex, event.target.value)}
                     placeholder={`Paragraph ordering ${letter}`}
                     rows={4}
                     className="theme-text flex-1 resize-y border-none bg-transparent text-sm leading-relaxed outline-none"
                   />
-                ) : (
+                ) : optionsAsPlainText ? (
+                  // Spelling / punctuation subtypes need exact-character
+                  // matching — keep the plain input. See standalone block
+                  // above for the rationale.
                   <input
-                    value={question.options[optionIndex] || ''}
+                    value={typeof question.options[optionIndex] === 'string' ? question.options[optionIndex] : ''}
                     onChange={event => setOption(optionIndex, event.target.value)}
                     placeholder={`Option ${letter}`}
                     className="theme-text flex-1 border-none bg-transparent text-sm outline-none"
-                    spellCheck={!optionsAsPlainText}
+                    spellCheck={false}
                   />
+                ) : (
+                  <div className="flex-1 min-w-0 mcq-option-rich">
+                    <QuizRichField
+                      value={question.options[optionIndex]}
+                      onChange={(json) => setOption(optionIndex, json)}
+                      placeholder={`Option ${letter}`}
+                      minHeight={36}
+                      compact
+                      toolbarVariant="compact"
+                    />
+                  </div>
                 )}
-              </label>
+              </div>
               {showOptionImage && onOptionImageUpload && (
                 <div className="pl-12 space-y-1.5">
                   <OptionImageUpload

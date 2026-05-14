@@ -38,6 +38,11 @@ export default function QuizRichField({
   placeholder = 'Start typing…',
   minHeight = 120,
   compact = false,
+  // Toolbar variant passes through to RichEditor. 'compact' is the
+  // answer-option layout (no headings / alignment / table / colour); 'full'
+  // is everything. Defaults track the visual `compact` chrome prop so
+  // legacy callers keep their existing toolbar.
+  toolbarVariant,
   resetKey: _resetKey,
 }) {
   // When the value object identity changes (parent switched to a different
@@ -63,6 +68,7 @@ export default function QuizRichField({
         onChange={onChange}
         placeholder={placeholder}
         minHeight={minHeight}
+        toolbarVariant={toolbarVariant || 'full'}
       />
     </div>
   )
