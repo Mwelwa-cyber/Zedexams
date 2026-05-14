@@ -4,7 +4,6 @@ import {
   getAuth,
   setPersistence,
   browserLocalPersistence,
-  browserSessionPersistence,
   indexedDBLocalPersistence,
   GoogleAuthProvider,
 } from 'firebase/auth'
@@ -35,26 +34,22 @@ export const storage = getStorage(app)
 export const googleProvider = new GoogleAuthProvider()
 googleProvider.setCustomParameters({ prompt: 'select_account' })
 
-// Web default is session-only persistence — closing the last tab/window
-// ends the session. Combined with the idle timeout in AuthContext, this
-// protects accounts on shared or stolen devices. When the user ticks
-// "Remember me" on the login form we switch to browserLocalPersistence
-// for that sign-in so the session survives a browser restart.
-//
-// Native (Capacitor): every relaunch of the wrapper destroys the WebView,
-// which would log session-only users out every time they open the app.
-// Always use IndexedDB-backed persistence there; the "Remember me" choice
-// is irrelevant.
-export function applyAuthPersistence(remember) {
+// Persistent auth on every platform: learners and teachers stay signed in
+// across browser restarts and app relaunches. Closing the tab or killing
+// the Capacitor wrapper no longer ends the session — they were complaining
+// about having to sign in repeatedly. Web uses browserLocalPersistence
+// (IndexedDB-backed, falls back to localStorage); native uses
+// indexedDBLocalPersistence so the wrapper relaunch path keeps the session.
+export function applyAuthPersistence() {
   const persistence = isNativePlatform()
     ? indexedDBLocalPersistence
-    : remember ? browserLocalPersistence : browserSessionPersistence
+    : browserLocalPersistence
   return setPersistence(auth, persistence).catch((e) => {
     console.error('Failed to set auth persistence:', e)
   })
 }
 
-applyAuthPersistence(false)
+applyAuthPersistence()
 
 // ── App Check (audit B3) ──────────────────────────────────────────────
 // Mints a short-lived attestation token the SDK forwards to Firestore,

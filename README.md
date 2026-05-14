@@ -162,7 +162,6 @@ One-time setup: add `FIREBASE_ANDROID_APP_ID` to repo secrets (the rest — `FIR
 
 ### Known caveats before wider beta
 
-- **Auth persistence** — `src/firebase/config.js` uses `browserSessionPersistence`, which logs the user out every time the wrapper is killed. Switch to `indexedDBLocalPersistence` for the native shell only (detect via `Capacitor.isNativePlatform()`).
 - **Google sign-in** — popup auth doesn't work in Android WebView. Use `signInWithRedirect` or the [`@capacitor-firebase/authentication`](https://github.com/capawesome-team/capacitor-firebase) plugin.
 - **App Check** — the web reCAPTCHA provider won't work in the WebView. Configure the Play Integrity provider on the Android app before enabling enforcement on Firebase AI Logic / Functions.
 

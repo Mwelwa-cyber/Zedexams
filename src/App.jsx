@@ -76,7 +76,6 @@ const MyResults = lazy(() => import('./components/dashboard/MyResults'))
 const BadgesPage = lazy(() => import('./components/dashboard/BadgesPage'))
 const ProfilePage = lazy(() => import('./components/dashboard/ProfilePage'))
 const ZedExamsSettings = lazy(() => import('./components/settings/zedexams-settings'))
-const IdleWarningModal = lazy(() => import('./components/auth/IdleWarningModal'))
 const PaywallHost = lazy(() => import('./components/subscription/PaywallHost'))
 const NotFound = lazy(() => import('./components/ui/NotFound'))
 const Marketing = lazy(() => import('./components/marketing/Marketing'))
@@ -501,8 +500,6 @@ export default function App() {
           <Route path="*" element={<NotFound />} />
         </Routes>
         </RouteErrorBoundary>
-        {/* Inactivity warning + auto-logout (driven by AuthContext) */}
-        <IdleWarningModal />
         {/* Paywall — listens for paywall.show(reason, ctx) from anywhere */}
           <PaywallHost />
         </Suspense>
