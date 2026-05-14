@@ -19,6 +19,9 @@
 
 import { generateHTML } from '@tiptap/core'
 import katex from 'katex'
+import { buildVerticalArithmeticInner, decodeLines } from '../extensions/VerticalArithmetic.js'
+import { buildFractionInner } from '../extensions/MathFraction.js'
+import { buildNumberBaseInner } from '../extensions/NumberBase.js'
 // mhchem — chemistry formula extension for KaTeX. Side-effect import:
 // registers \ce{} / \pu{} commands on the global katex instance so a
 // Chemistry question with `\ce{H_2SO_4}` or `\ce{2H_2 + O_2 -> 2H_2O}`
@@ -114,4 +117,125 @@ export function hydrateKatex(container) {
       span.textContent = ''
     }
   })
+
+  // Hydrate Grade-7 math blocks. These stored as empty wrappers with
+  // data-* attributes only — the inner DOM is rebuilt here so the
+  // serialised HTML stays minimal and exports never drift.
+  hydrateVerticalArithmetic(container)
+  hydrateFractions(container)
+  hydrateNumberBases(container)
+}
+
+export function hydrateVerticalArithmetic(container) {
+  if (!container) return
+  const blocks = container.querySelectorAll(
+    'div[data-vertical-arithmetic], div.vert-arith'
+  )
+  blocks.forEach((el) => {
+    if (el.querySelector('.va-row')) return
+    const attrs = {
+      operator: el.getAttribute('data-operator') || '+',
+      lines: decodeLines(el.getAttribute('data-lines')),
+      answer: el.getAttribute('data-answer') || '',
+      working: el.getAttribute('data-working') === 'true',
+    }
+    el.innerHTML = buildVerticalArithmeticInner(attrs)
+  })
+}
+
+export function hydrateFractions(container) {
+  if (!container) return
+  const fracs = container.querySelectorAll(
+    'span[data-math-fraction], span.math-frac'
+  )
+  fracs.forEach((el) => {
+    if (el.querySelector('.math-frac-stack')) return
+    const attrs = {
+      whole: el.getAttribute('data-whole') || '',
+      num: el.getAttribute('data-num') || el.getAttribute('data-numerator') || '',
+      den: el.getAttribute('data-den') || el.getAttribute('data-denominator') || '',
+    }
+    el.innerHTML = buildFractionInner(attrs)
+  })
+}
+
+export function hydrateNumberBases(container) {
+  if (!container) return
+  const items = container.querySelectorAll(
+    'span[data-number-base], span.num-base'
+  )
+  items.forEach((el) => {
+    if (el.querySelector('.num-base-sub')) return
+    const attrs = {
+      number: el.getAttribute('data-number') || '',
+      base: el.getAttribute('data-base') || '',
+    }
+    el.innerHTML = buildNumberBaseInner(attrs)
+  })
+}
+
+/**
+ * Convenience: hydrate KaTeX + every Grade-7 math block in one call.
+ * Use this wherever sanitised HTML is mounted (learner viewer, PDF
+ * print window, RichContent component) so the same rebuild runs in
+ * every renderer.
+ */
+export function hydrateMathContent(container) {
+  hydrateKatex(container)
+}
+
+/**
+ * Convert any rich-text value (Tiptap JSON, JSON-string, or HTML) into
+ * "paper HTML" — sanitised HTML with the inner structure of every
+ * Grade-7 math block already baked in.
+ *
+ * This is what the PDF and DOCX exports consume: the print window
+ * doesn't run JS, so the vertical-arithmetic columns, stacked
+ * fractions, and number-base subscripts must be in the HTML before it
+ * lands in the printable document.
+ *
+ * KaTeX math nodes are NOT pre-rendered here (KaTeX itself needs JS to
+ * produce its DOM). They appear as `<span class="mnode" data-latex="…">`
+ * exactly as today.
+ *
+ * @param {object|string|null} value  Tiptap JSON, JSON-string, or HTML
+ * @returns {string}                  Hydrated HTML, or '' if empty
+ */
+export function richTextToPaperHtml(value) {
+  if (!value) return ''
+
+  // Normalise to HTML via the existing pipeline.
+  const baseHtml = (() => {
+    if (typeof value === 'object' && value && value.type === 'doc') {
+      return toHTML(value)
+    }
+    if (typeof value === 'string') {
+      const trimmed = value.trim()
+      if (trimmed.startsWith('{') && trimmed.includes('"type"')) {
+        try {
+          const parsed = JSON.parse(trimmed)
+          if (parsed?.type === 'doc') return toHTML(parsed)
+        } catch { /* fall through */ }
+      }
+      return toHTML(value)
+    }
+    return ''
+  })()
+
+  if (!baseHtml) return ''
+
+  // Inflate the Grade-7 math wrappers. Browser-only: every export
+  // pipeline that calls this runs in the browser (window.print,
+  // docx library), so DOMParser is always available.
+  if (typeof DOMParser === 'undefined') return baseHtml
+
+  try {
+    const doc = new DOMParser().parseFromString(`<body>${baseHtml}</body>`, 'text/html')
+    hydrateVerticalArithmetic(doc.body)
+    hydrateFractions(doc.body)
+    hydrateNumberBases(doc.body)
+    return doc.body.innerHTML
+  } catch {
+    return baseHtml
+  }
 }

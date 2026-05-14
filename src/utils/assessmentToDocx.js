@@ -87,6 +87,158 @@ function instructionParagraphs(text) {
   })
 }
 
+/**
+ * Convert paper HTML (post-hydration, see safeRender.richTextToPaperHtml)
+ * into a list of docx Paragraphs.
+ *
+ * The conversion is best-effort:
+ *   - Plain text + bold/italic/underline marks  → run-level formatting
+ *   - <sup>/<sub>                                → run-level super/subscript
+ *   - <p>                                        → new Paragraph
+ *   - Fraction span (.math-frac)                 → "whole num/den" with the
+ *                                                  numerator on a stacked
+ *                                                  visual via two runs
+ *                                                  (Word lacks a native
+ *                                                  inline frac without
+ *                                                  using OMML field codes,
+ *                                                  so we fall back to a
+ *                                                  legible "a/b" form)
+ *   - Number-base span (.num-base)               → number followed by a
+ *                                                  subscript base
+ *   - Vertical arithmetic div (.vert-arith)      → a monospace block of
+ *                                                  paragraphs, one row per
+ *                                                  line, with the
+ *                                                  operator + numbers
+ *                                                  right-aligned by
+ *                                                  padding
+ *
+ * Returns an array of Paragraph objects.
+ */
+function richHtmlToDocxParagraphs(html, baseOpts = { size: 22 }, opts = {}) {
+  const { prefixRuns = [], suffixRuns = [], firstParaSpacing } = opts
+  if (!html || typeof DOMParser === 'undefined') {
+    const text = html ? String(html).replace(/<[^>]+>/g, ' ') : ''
+    return [new Paragraph({
+      children: [...prefixRuns, runText(text, baseOpts), ...suffixRuns],
+      spacing: firstParaSpacing || { after: 80 },
+    })]
+  }
+  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html')
+
+  /** Accumulate runs into the current paragraph; spill into `out` on block. */
+  const out = []
+  let currentRuns = [...prefixRuns]
+  let isFirstParagraph = true
+
+  const flush = () => {
+    if (currentRuns.length) {
+      const spacing = isFirstParagraph && firstParaSpacing
+        ? firstParaSpacing
+        : { after: 80 }
+      out.push(new Paragraph({ children: currentRuns, spacing }))
+      currentRuns = []
+      isFirstParagraph = false
+    }
+  }
+
+  const walk = (node, marks = {}) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent || ''
+      if (!text) return
+      currentRuns.push(runText(text, { ...baseOpts, ...marks }))
+      return
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return
+
+    const el = node
+    const tag = el.tagName.toUpperCase()
+
+    // Special-case our Grade-7 math blocks.
+    if (el.classList?.contains('vert-arith')) {
+      flush()
+      const operator = el.getAttribute('data-operator') || '+'
+      const lines = (el.getAttribute('data-lines') || '').split('|')
+      const answer = el.getAttribute('data-answer') || ''
+      const width = Math.max(
+        ...lines.map((l) => String(l ?? '').length),
+        String(answer ?? '').length,
+        1
+      )
+      const pad = (s) => String(s ?? '').padStart(width, ' ')
+      lines.forEach((line, idx) => {
+        const isOp = idx === lines.length - 1
+        const opCol = isOp ? operator : ' '
+        out.push(new Paragraph({
+          children: [runText(`${opCol}  ${pad(line)}`, { ...baseOpts, font: 'Consolas' })],
+          spacing: { after: 0 },
+        }))
+      })
+      out.push(new Paragraph({
+        children: [runText(`   ${'─'.repeat(width)}`, { ...baseOpts, font: 'Consolas' })],
+        spacing: { after: 0 },
+      }))
+      out.push(new Paragraph({
+        children: [runText(`   ${pad(answer)}`, { ...baseOpts, font: 'Consolas' })],
+        spacing: { after: 120 },
+      }))
+      return
+    }
+
+    if (el.classList?.contains('math-frac')) {
+      const whole = el.getAttribute('data-whole') || ''
+      const num = el.getAttribute('data-num') || ''
+      const den = el.getAttribute('data-den') || ''
+      if (whole) currentRuns.push(runText(`${whole} `, { ...baseOpts, ...marks }))
+      currentRuns.push(runText(num, { ...baseOpts, ...marks, superScript: true }))
+      currentRuns.push(runText('⁄', { ...baseOpts, ...marks }))
+      currentRuns.push(runText(den, { ...baseOpts, ...marks, subScript: true }))
+      return
+    }
+
+    if (el.classList?.contains('num-base')) {
+      const number = el.getAttribute('data-number') || ''
+      const base = el.getAttribute('data-base') || ''
+      currentRuns.push(runText(number, { ...baseOpts, ...marks }))
+      if (base) currentRuns.push(runText(base, { ...baseOpts, ...marks, subScript: true }))
+      return
+    }
+
+    // Block-level wrappers: flush and recurse.
+    if (tag === 'P' || tag === 'DIV' || tag === 'BLOCKQUOTE' ||
+        tag === 'H1' || tag === 'H2' || tag === 'H3' ||
+        tag === 'UL' || tag === 'OL' || tag === 'LI') {
+      flush()
+      Array.from(el.childNodes).forEach((child) => walk(child, marks))
+      flush()
+      return
+    }
+
+    if (tag === 'BR') {
+      // Hard line break inside the current paragraph.
+      currentRuns.push(runText('\n', { ...baseOpts, ...marks, break: 1 }))
+      return
+    }
+
+    const next = { ...marks }
+    if (tag === 'STRONG' || tag === 'B') next.bold = true
+    if (tag === 'EM' || tag === 'I') next.italics = true
+    if (tag === 'U') next.underline = {}
+    if (tag === 'S' || tag === 'STRIKE') next.strike = true
+    if (tag === 'SUP') next.superScript = true
+    if (tag === 'SUB') next.subScript = true
+
+    Array.from(el.childNodes).forEach((child) => walk(child, next))
+  }
+
+  Array.from(doc.body.childNodes).forEach((node) => walk(node, {}))
+  // Append suffix runs to the last paragraph (or current pending one).
+  if (suffixRuns.length) {
+    currentRuns.push(...suffixRuns)
+  }
+  flush()
+  return out.length ? out : [para([...prefixRuns, runText('', baseOpts), ...suffixRuns], firstParaSpacing || {})]
+}
+
 async function fetchImageBytes(url) {
   try {
     const response = await fetch(url, { mode: 'cors' })
@@ -246,14 +398,30 @@ async function renderQuestion(b) {
   const out = []
   const marks = b.marks ?? 1
   const marksTag = marks > 1 ? `  (${marks} marks)` : ''
-  out.push(new Paragraph({
-    children: [
-      runText(`${b.number}. `, { bold: true, size: 22 }),
-      runText(b.text || '(no question text)', { size: 22 }),
-      runText(marksTag, { size: 20, color: '6b7280', italics: true }),
-    ],
-    spacing: { before: 160, after: 80 },
-  }))
+
+  // When the question carries pre-hydrated rich HTML, walk it so the
+  // Grade-7 math blocks (vertical sums, fractions, number bases) come
+  // out with the right Word formatting instead of being flattened to
+  // plain text. Otherwise fall back to the simple single-line render.
+  if (b.textHtml && b.textHtml.trim()) {
+    const richParas = richHtmlToDocxParagraphs(b.textHtml, { size: 22 }, {
+      prefixRuns: [runText(`${b.number}. `, { bold: true, size: 22 })],
+      suffixRuns: marksTag
+        ? [runText(marksTag, { size: 20, color: '6b7280', italics: true })]
+        : [],
+      firstParaSpacing: { before: 160, after: 80 },
+    })
+    out.push(...richParas)
+  } else {
+    out.push(new Paragraph({
+      children: [
+        runText(`${b.number}. `, { bold: true, size: 22 }),
+        runText(b.text || '(no question text)', { size: 22 }),
+        runText(marksTag, { size: 20, color: '6b7280', italics: true }),
+      ],
+      spacing: { before: 160, after: 80 },
+    }))
+  }
 
   if (b.imageUrl) {
     const img = await imageParagraph(b.imageUrl)
