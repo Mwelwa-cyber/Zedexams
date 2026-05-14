@@ -114,6 +114,81 @@ function instructionParagraphs(text) {
  *
  * Returns an array of Paragraph objects.
  */
+/**
+ * Walk an option's pre-hydrated rich HTML and return a flat array of
+ * docx TextRun / ImageRun-equivalent runs (no paragraph wrappers).
+ *
+ * Used by MCQ option rendering — each option is one row, so we want runs
+ * that fit inside the existing single-paragraph layouts (text, image,
+ * mixed). Falls back to a single plain-text run for legacy options.
+ *
+ * Supports the same marks as richHtmlToDocxParagraphs: bold / italic /
+ * underline / strike / sup / sub, plus the Grade-7 math nodes.
+ */
+function optionRuns(html, baseOpts = { size: 20 }, fallback = '') {
+  if (!html || typeof DOMParser === 'undefined') {
+    return [runText(fallback ? String(fallback) : (html ? String(html).replace(/<[^>]+>/g, ' ') : ''), baseOpts)]
+  }
+  const doc = new DOMParser().parseFromString(`<body>${html}</body>`, 'text/html')
+  const runs = []
+  const walk = (node, marks = {}) => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent || ''
+      if (text) runs.push(runText(text, { ...baseOpts, ...marks }))
+      return
+    }
+    if (node.nodeType !== Node.ELEMENT_NODE) return
+    const el = node
+    const tag = el.tagName.toUpperCase()
+
+    if (el.classList?.contains('math-frac')) {
+      const whole = el.getAttribute('data-whole') || ''
+      const num = el.getAttribute('data-num') || ''
+      const den = el.getAttribute('data-den') || ''
+      if (whole) runs.push(runText(`${whole} `, { ...baseOpts, ...marks }))
+      runs.push(runText(num, { ...baseOpts, ...marks, superScript: true }))
+      runs.push(runText('⁄', { ...baseOpts, ...marks }))
+      runs.push(runText(den, { ...baseOpts, ...marks, subScript: true }))
+      return
+    }
+    if (el.classList?.contains('num-base')) {
+      const number = el.getAttribute('data-number') || ''
+      const base = el.getAttribute('data-base') || ''
+      runs.push(runText(number, { ...baseOpts, ...marks }))
+      if (base) runs.push(runText(base, { ...baseOpts, ...marks, subScript: true }))
+      return
+    }
+    if (el.classList?.contains('vert-arith')) {
+      // Vertical sums don't fit inside an option row (a stacked column
+      // would break the layout). Emit a one-line text summary instead.
+      const operator = el.getAttribute('data-operator') || '+'
+      const lines = (el.getAttribute('data-lines') || '').split('|')
+      const answer = el.getAttribute('data-answer') || ''
+      runs.push(runText(
+        `${lines.join(` ${operator} `)} = ${answer || '___'}`,
+        { ...baseOpts, ...marks, font: 'Consolas' },
+      ))
+      return
+    }
+
+    const next = { ...marks }
+    if (tag === 'STRONG' || tag === 'B') next.bold = true
+    if (tag === 'EM' || tag === 'I') next.italics = true
+    if (tag === 'U') next.underline = {}
+    if (tag === 'S' || tag === 'STRIKE') next.strike = true
+    if (tag === 'SUP') next.superScript = true
+    if (tag === 'SUB') next.subScript = true
+    if (tag === 'BR') {
+      runs.push(runText('\n', { ...baseOpts, ...marks, break: 1 }))
+      return
+    }
+    Array.from(el.childNodes).forEach((child) => walk(child, next))
+  }
+  Array.from(doc.body.childNodes).forEach((node) => walk(node, {}))
+  if (!runs.length) return [runText(fallback ? String(fallback) : '', baseOpts)]
+  return runs
+}
+
 function richHtmlToDocxParagraphs(html, baseOpts = { size: 22 }, opts = {}) {
   const { prefixRuns = [], suffixRuns = [], firstParaSpacing } = opts
   if (!html || typeof DOMParser === 'undefined') {
@@ -482,6 +557,8 @@ async function renderQuestion(b) {
   }
 
   if (b.type === 'mcq') {
+    const optsHtml = b.optionsHtml || []
+    const optsPlain = b.optionsPlain || []
     if (b.optionsMode === 'image') {
       const opts = b.options || []
       for (let row = 0; row < Math.ceil(opts.length / 2); row += 1) {
@@ -500,9 +577,12 @@ async function renderQuestion(b) {
             }
           }
           const isCorrect = b.showAnswer && Number(b.correctAnswer) === i
+          const labelOpts = { bold: true, size: 20, color: isCorrect ? '047857' : undefined }
+          const runOpts = { size: 20, color: isCorrect ? '047857' : undefined, bold: isCorrect }
+          const optRunsList = optionRuns(optsHtml[i], runOpts, optsPlain[i] || opts[i] || '')
           cellChildren.push(centeredPara([
-            runText(`${SECTION_LETTERS[i]}.`, { bold: true, size: 20, color: isCorrect ? '047857' : undefined }),
-            runText(opts[i] ? ` ${opts[i]}` : '', { size: 20, color: isCorrect ? '047857' : undefined, bold: isCorrect }),
+            runText(`${SECTION_LETTERS[i]}.`, labelOpts),
+            ...(optsPlain[i] || opts[i] ? [runText(' ', runOpts), ...optRunsList] : []),
             isCorrect ? runText(' ✓', { bold: true, color: '047857', size: 20 }) : runText(''),
           ]))
           cells.push(new TableCell({
@@ -522,7 +602,9 @@ async function renderQuestion(b) {
       for (let i = 0; i < (b.options || []).length; i += 1) {
         const media = b.optionMedia?.[i]
         const isCorrect = b.showAnswer && Number(b.correctAnswer) === i
-        const runs = [runText(`   ${SECTION_LETTERS[i]}. `, { bold: true, size: 20, color: isCorrect ? '047857' : undefined })]
+        const labelOpts = { bold: true, size: 20, color: isCorrect ? '047857' : undefined }
+        const runOpts = { size: 20, color: isCorrect ? '047857' : undefined, bold: isCorrect }
+        const runs = [runText(`   ${SECTION_LETTERS[i]}. `, labelOpts)]
         if (media?.imageUrl) {
           const bytes = await fetchImageBytes(media.imageUrl)
           if (bytes) {
@@ -530,17 +612,19 @@ async function renderQuestion(b) {
             runs.push(runText('  ', { size: 20 }))
           }
         }
-        runs.push(runText(String(b.options[i] ?? ''), { size: 20, color: isCorrect ? '047857' : undefined, bold: isCorrect }))
+        runs.push(...optionRuns(optsHtml[i], runOpts, optsPlain[i] ?? b.options[i] ?? ''))
         if (isCorrect) runs.push(runText(' ✓', { bold: true, color: '047857', size: 20 }))
         out.push(para(runs))
       }
     } else {
       ;(b.options || []).forEach((opt, i) => {
         const isCorrect = b.showAnswer && Number(b.correctAnswer) === i
+        const labelOpts = { bold: true, size: 20, color: isCorrect ? '047857' : undefined }
+        const runOpts = { size: 20, color: isCorrect ? '047857' : undefined, bold: isCorrect }
         out.push(new Paragraph({
           children: [
-            runText(`   ${SECTION_LETTERS[i]}. `, { bold: true, size: 20, color: isCorrect ? '047857' : undefined }),
-            runText(String(opt ?? ''), { size: 20, color: isCorrect ? '047857' : undefined, bold: isCorrect }),
+            runText(`   ${SECTION_LETTERS[i]}. `, labelOpts),
+            ...optionRuns(optsHtml[i], runOpts, optsPlain[i] ?? opt ?? ''),
             isCorrect ? runText('  ✓', { bold: true, color: '047857', size: 20 }) : runText(''),
           ],
           spacing: { after: 40 },

@@ -224,7 +224,13 @@ export default function QuizResultsV2() {
                     : optionIndex === userAnswer && !correct ? 'bg-red-50 text-red-600 line-through'
                     : 'theme-text-muted'
                 }`}>
-                  <span>{['A', 'B', 'C', 'D'][optionIndex]}. {option}</span>
+                  <div className="flex items-baseline gap-1">
+                    <span className="font-bold">{['A', 'B', 'C', 'D'][optionIndex]}.</span>
+                    {/* RichContent transparently handles strings + Tiptap
+                        JSON. Avoids losing fractions / math when teachers
+                        wrote rich options. */}
+                    <RichContent value={option} className="rich-option" fallback={<span />} />
+                  </div>
                   {media?.diagram ? (
                     <DiagramSvg
                       libraryKey={media.diagram.libraryKey}

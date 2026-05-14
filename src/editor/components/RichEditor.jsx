@@ -68,6 +68,12 @@ export default function RichEditor({
   placeholder = 'Type here…',
   minHeight = 85,
   readOnly = false,
+  // 'full' (default) — every formatting affordance, used for question
+  // text / passages / explanations.
+  // 'compact' — Bold/Italic/Underline + sup/sub + the full Grade-7 math
+  // toolset. Used for answer-option editing where the row is narrow and
+  // headings / alignment / tables don't belong.
+  toolbarVariant = 'full',
 }) {
   // ── Modals ────────────────────────────────────────────────────
   const [showMath,  setShowMath]  = useState(false)
@@ -195,6 +201,7 @@ export default function RichEditor({
         {!readOnly && (
           <EditorToolbar
             editor={editor}
+            variant={toolbarVariant}
             onMath={handleOpenMath}
             onTable={handleOpenTable}
             onVerticalArithmetic={handleOpenVertArith}

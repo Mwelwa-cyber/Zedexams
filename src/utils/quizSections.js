@@ -229,6 +229,24 @@ function serializeRichField(value) {
   return String(value)
 }
 
+/**
+ * Serialise an array of answer-option values for Firestore. Each option
+ * may be a plain string (legacy + simple cases) or a Tiptap JSON document
+ * (rich math options). The schema declares `options: z.array(z.string())`
+ * — so JSON objects must be stringified the same way `text` is.
+ *
+ * Returns a new array; never mutates the input.
+ */
+function serializeOptions(options) {
+  if (!Array.isArray(options)) return []
+  return options.map((opt) => {
+    if (opt == null) return ''
+    if (typeof opt === 'string') return opt
+    if (typeof opt === 'object' && opt.type === 'doc') return JSON.stringify(opt)
+    return String(opt)
+  })
+}
+
 // A previous bug stored Tiptap docs as JSON strings in fields that the editor
 // then re-opened as plain text. Each subsequent edit wrapped the visible JSON
 // inside another doc as a text node, producing nested stringified docs in
@@ -463,6 +481,7 @@ export function serializeQuizSections(sections = [], parts = []) {
           sharedInstruction: serializeRichField(question.sharedInstruction),
           text: serializeRichField(question.text),
           explanation: serializeRichField(question.explanation),
+          options: serializeOptions(question.options),
           passageId,
           type: 'mcq',
           detectedType: 'mcq',
@@ -481,6 +500,7 @@ export function serializeQuizSections(sections = [], parts = []) {
       sharedInstruction: serializeRichField(question.sharedInstruction),
       text: serializeRichField(question.text),
       explanation: serializeRichField(question.explanation),
+      options: serializeOptions(question.options),
       passageId: null,
       subtype: question.subtype ?? null,
       partId: resolvePartId(question.partId),

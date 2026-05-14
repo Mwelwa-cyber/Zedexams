@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { useFirestore } from '../../hooks/useFirestore'
@@ -17,10 +17,16 @@ import {
 import { richTextHasContent } from '../../utils/quizRichText.js'
 import { clampInt } from '../../utils/inputs.js'
 import { getErrorMessage } from '../../utils/errors.js'
-import { validateStandaloneQuestion as sharedValidateStandaloneQuestion } from '../../utils/quizValidation.js'
+import {
+  validateStandaloneQuestion as sharedValidateStandaloneQuestion,
+  collectQuizIssues,
+} from '../../utils/quizValidation.js'
 import QuizSectionsEditor from './QuizSectionsEditor'
 import QuizEditorPreviewPanel from './QuizEditorPreviewPanel'
 import QuizVerifyModal from './QuizVerifyModal'
+import QuizEditorActionBar from './QuizEditorActionBar'
+import QuizEditorFloatingNav from './QuizEditorFloatingNav'
+import QuizValidationChecklist from './QuizValidationChecklist'
 import SeoHelmet from '../seo/SeoHelmet'
 
 const SUBJECTS = [
@@ -142,6 +148,17 @@ export default function EditQuizV2() {
   const [toast, setToast] = useState(null)
   const [dirty, setDirty] = useState(false)
   const [verifyOpen, setVerifyOpen] = useState(false)
+  // Auto-save + checklist UI state.
+  //   autoSaveState: 'idle' | 'saving' | 'saved' | 'failed'
+  //   checklistOpen: whether the pre-publish modal is visible
+  const [autoSaveState, setAutoSaveState] = useState('idle')
+  const [checklistOpen, setChecklistOpen] = useState(false)
+  // Track when the user last interacted so we don't fire an auto-save
+  // mid-keystroke. `dirtySince` is reset to now() on every change.
+  const dirtySinceRef = useRef(0)
+  // Guards against re-entrant auto-saves: only one in-flight save at a
+  // time, and we skip auto-save while a manual save is running.
+  const autoSavingRef = useRef(false)
 
   const serializedPreview = serializeQuizSections(sections, parts)
   const questionNumbers = buildQuestionNumberMap(serializedPreview.questions)
@@ -165,6 +182,23 @@ export default function EditQuizV2() {
     setToast({ message, isErr })
     setTimeout(() => setToast(null), 4000)
   }
+
+  // Bump the "last edited" timestamp whenever any editable state changes.
+  // The auto-save effect debounces against this — we save 25 s after the
+  // teacher stops typing (and again every 25 s if they keep editing).
+  useEffect(() => {
+    dirtySinceRef.current = Date.now()
+  }, [form, sections, parts])
+
+  // Collect all validation issues at once. Memoised so the action bar's
+  // "X to fix" pill doesn't recompute on every keystroke.
+  const validationResult = useMemo(
+    () => collectQuizIssues({ form, sections, parts, questionNumbers }),
+    [form, sections, parts, questionNumbers],
+  )
+  const validationIssues = validationResult.issues
+  const validationSummary = validationResult.summary
+  const errorCount = validationIssues.filter((i) => i.severity !== 'warn').length
 
   function setF(field, value) {
     setForm(current => ({ ...current, [field]: value }))
@@ -773,8 +807,91 @@ export default function EditQuizV2() {
     return true
   }
 
+  // Background auto-save: same write as a manual "Save draft" but without
+  // validation, without navigation, and without flipping the published
+  // status. Skipped while a manual save / upload is in flight, or when
+  // the form is too incomplete (no title, no questions) — auto-saving
+  // empty drafts would just thrash Firestore.
+  async function performAutoSave() {
+    if (autoSavingRef.current || saving) return
+    if (anyUploading) return
+    if (!dirty) return
+    // Refuse if there's literally nothing to save (avoids clobbering a
+    // freshly created quiz with an empty payload on first mount).
+    if (!String(form.title || '').trim() && sections.length === 0) return
+
+    autoSavingRef.current = true
+    setAutoSaveState('saving')
+    try {
+      const serializedSections = serializeQuizSections(sections, parts)
+      await updateQuizWithQuestions(
+        quizId,
+        {
+          ...form,
+          passages: serializedSections.passages,
+          parts: serializedSections.parts,
+          passageCount: serializedSections.passages.length,
+          // Auto-save NEVER changes publish status — published quizzes
+          // stay published, drafts stay drafts. Manual Publish is the
+          // only way to flip it.
+          status: quizStatus,
+          isPublished: quizStatus === 'published',
+          updatedBy: currentUser.uid,
+        },
+        serializedSections.questions,
+        deletedIds,
+      )
+      setDeletedIds([])
+      setDirty(false)
+      setAutoSaveState('saved')
+    } catch (error) {
+      console.error('EditQuiz auto-save error:', error)
+      setAutoSaveState('failed')
+    } finally {
+      autoSavingRef.current = false
+    }
+  }
+
+  // Debounced auto-save. Fires when the form has been dirty + idle for
+  // 25 s. We also tick a 25 s heartbeat so continuous typing still
+  // triggers a save every 25 s — teachers shouldn't lose more than
+  // half a minute of work even if they never stop typing.
+  useEffect(() => {
+    if (!dirty || !quizId || !canEdit) return
+    const interval = setInterval(() => {
+      const idleMs = Date.now() - dirtySinceRef.current
+      if (idleMs >= 5000) {
+        performAutoSave()
+      }
+    }, 5000)
+    const heartbeat = setInterval(() => {
+      performAutoSave()
+    }, 25000)
+    return () => {
+      clearInterval(interval)
+      clearInterval(heartbeat)
+    }
+    // We intentionally don't include performAutoSave in deps — it captures
+    // the current state every call via closure over react state.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dirty, quizId, canEdit])
+
   async function handleSave(mode = 'draft') {
-    if (!validate()) return
+    // Publishing triggers the full pre-publish checklist; lower-trust
+    // modes (draft / pending) keep the legacy toast-on-first-error flow.
+    if (mode === 'published') {
+      if (errorCount > 0) {
+        setChecklistOpen(true)
+        return
+      }
+    } else if (!validate()) {
+      return
+    }
+    if (anyUploading) {
+      show('Wait for image uploads to finish before saving.', true)
+      return
+    }
+    if (saving) return
     setSaving(true)
 
     try {
@@ -807,11 +924,17 @@ export default function EditQuizV2() {
       setQuizStatus(mode)
       setDeletedIds([])
       setDirty(false)
+      setAutoSaveState('saved')
       show(mode === 'published' ? 'Quiz published!' : mode === 'pending' ? 'Submitted for approval!' : 'Changes saved as draft.')
       setTimeout(() => navigate(backPath), 1400)
     } catch (error) {
       console.error('EditQuiz save error:', error)
       show(`Save failed: ${getErrorMessage(error, 'unexpected error')}`, true)
+    } finally {
+      // ALWAYS reset the saving flag — earlier branch only reset on error,
+      // which meant a successful save left the button disabled until the
+      // navigation timeout fired. Pre-navigate state should already be
+      // clean.
       setSaving(false)
     }
   }
@@ -882,7 +1005,9 @@ export default function EditQuizV2() {
   }
 
   return (
-    <div className="theme-text space-y-5 pb-10">
+    // Bottom padding makes room for the sticky QuizEditorActionBar — without
+    // it the bar floats over the page's own Save buttons on short quizzes.
+    <div className="theme-text space-y-5 pb-32 sm:pb-28">
       <SeoHelmet title={form.title ? `Edit: ${form.title}` : 'Edit quiz'} noIndex />
       {toast && (
         <div className={`fixed right-4 top-4 z-50 max-w-xs rounded-2xl px-5 py-3 text-sm font-bold text-white shadow-lg ${
@@ -1054,6 +1179,40 @@ export default function EditQuizV2() {
         onClose={() => setVerifyOpen(false)}
         onFixIssues={() => setVerifyOpen(false)}
         onPublish={() => { setVerifyOpen(false); handleSave('published') }}
+      />
+
+      {/* Sticky bottom action bar — replaces the "scroll to the very end
+          to publish" pattern. Stays visible while editing. */}
+      <QuizEditorActionBar
+        onSaveDraft={() => handleSave('draft')}
+        onPublish={() => handleSave('published')}
+        onPreview={null}
+        onShowChecklist={() => setChecklistOpen(true)}
+        saving={saving}
+        uploading={anyUploading}
+        dirty={dirty}
+        autoSaveState={autoSaveState}
+        issueCount={errorCount}
+        canPublish={isAdmin}
+        isPublished={quizStatus === 'published'}
+      />
+
+      {/* Floating Top / Bottom + quick-save shortcuts. Only mounted when
+          the page is taller than the viewport. */}
+      <QuizEditorFloatingNav
+        onSaveDraft={() => handleSave('draft')}
+        onPublish={isAdmin ? () => handleSave('published') : null}
+        busy={saving || anyUploading}
+        showPublish={isAdmin}
+      />
+
+      {/* Pre-publish checklist. Opened either by clicking the "X to fix"
+          pill in the action bar or by attempting Publish with errors. */}
+      <QuizValidationChecklist
+        open={checklistOpen}
+        onClose={() => setChecklistOpen(false)}
+        issues={validationIssues}
+        summary={validationSummary}
       />
     </div>
   )

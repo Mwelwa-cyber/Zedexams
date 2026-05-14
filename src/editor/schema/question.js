@@ -144,8 +144,13 @@ export const questionSchema = z
     explanationJSON: tiptapDoc.default(null),
 
     // ── Answer fields ──
-    options: z.array(z.string().max(1000)).max(20).default([]),
-    correctAnswer: z.union([z.string().max(1000), z.number()]).default(0),
+    // Option strings can hold either plain text (legacy) or a stringified
+    // Tiptap JSON document (the same dual-format convention `text` uses).
+    // The bump to 20 000 chars covers the JSON envelope around a normal
+    // option — most options stay under a few hundred bytes; serialised
+    // Tiptap docs run to a few thousand.
+    options: z.array(z.string().max(20000)).max(20).default([]),
+    correctAnswer: z.union([z.string().max(20000), z.number()]).default(0),
 
     // ── Numeric-answer fields ──
     // `tolerance` is the maximum absolute difference accepted as a correct

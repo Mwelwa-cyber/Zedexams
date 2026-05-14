@@ -339,6 +339,16 @@ function buildQuestionBlock(q, number, includeAnswer) {
     if (hasImage && hasText) optionsMode = 'mixed'
     else if (hasImage) optionsMode = 'image'
   }
+  // Per-option rich + plain pair. Each option could be authored as plain
+  // text (legacy) or a Tiptap JSON document (post Grade-7 upgrade); we
+  // expose:
+  //   optionsHtml  — pre-hydrated rich HTML for the PDF / DOCX exports
+  //   optionsPlain — readable plain text for legacy code paths
+  // The raw `options` array is preserved unchanged in case callers need
+  // the stored shape directly.
+  const optionsHtml = options.map((opt) => richHtml(opt))
+  const optionsPlain = options.map((opt) => plain(opt))
+
   return {
     kind: 'question',
     number,
@@ -348,6 +358,8 @@ function buildQuestionBlock(q, number, includeAnswer) {
     // Grade-7 math blocks (vertical sums, fractions, number bases)
     // come out exactly as they appear in the editor.
     textHtml: richHtml(q.text),
+    optionsHtml,
+    optionsPlain,
     marks: q.marks ?? 1,
     type,
     options,

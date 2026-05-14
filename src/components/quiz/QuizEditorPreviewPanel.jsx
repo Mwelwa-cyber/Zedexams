@@ -3,6 +3,7 @@ import { buildQuizDisplaySections } from '../../utils/quizSections.js'
 // Format-aware renderer: handles both legacy HTML and Tiptap JSON quizzes.
 import RichContent from '../../editor/RichContent'
 import ZoomableImage from './ZoomableImage'
+import DiagramSvg from '../diagrams/DiagramSvg'
 
 function joinClasses(...parts) {
   return parts.filter(Boolean).join(' ')
@@ -47,21 +48,47 @@ function PreviewQuestion({ question }) {
 
       {(question.options || []).length > 0 ? (
         <div className="grid gap-3 sm:grid-cols-2">
-          {question.options.map((option, index) => (
-            <div
-              key={`${question.id || question.localId || question.questionNumber}-${index}`}
-              className={joinClasses(
-                'rounded-2xl border-2 px-4 py-3 text-sm font-semibold',
-                index === question.correctAnswer
-                  ? 'border-green-300 bg-green-50 text-green-800'
-                  : 'theme-border theme-bg-subtle theme-text',
-              )}
-            >
-              <span className="mr-2 text-xs font-black">{['A', 'B', 'C', 'D'][index]}.</span>
-              {option}
-              {index === question.correctAnswer && <span className="ml-2 text-xs font-black">✓ Correct</span>}
-            </div>
-          ))}
+          {question.options.map((option, index) => {
+            const media = Array.isArray(question.optionMedia) ? question.optionMedia[index] : null
+            return (
+              <div
+                key={`${question.id || question.localId || question.questionNumber}-${index}`}
+                className={joinClasses(
+                  'rounded-2xl border-2 px-4 py-3 text-sm font-semibold',
+                  index === question.correctAnswer
+                    ? 'border-green-300 bg-green-50 text-green-800'
+                    : 'theme-border theme-bg-subtle theme-text',
+                )}
+              >
+                <div className="flex items-start gap-2">
+                  <span className="text-xs font-black">{['A', 'B', 'C', 'D'][index]}.</span>
+                  <div className="flex-1 space-y-2">
+                    {/* Option media (diagram preferred over image) — was
+                        silently dropped before; teachers couldn't see the
+                        picture they'd just uploaded. */}
+                    {media?.diagram ? (
+                      <DiagramSvg
+                        libraryKey={media.diagram.libraryKey}
+                        params={media.diagram.params}
+                        alt={media.alt || ''}
+                        className="mx-auto flex max-h-32 w-full items-center justify-center"
+                      />
+                    ) : media?.imageUrl ? (
+                      <img
+                        src={media.imageUrl}
+                        alt={media.alt || ''}
+                        className="mx-auto max-h-32 w-full rounded-lg object-contain"
+                      />
+                    ) : null}
+                    <RichContent value={option} className="rich-option" />
+                  </div>
+                  {index === question.correctAnswer && (
+                    <span className="text-xs font-black">✓</span>
+                  )}
+                </div>
+              </div>
+            )
+          })}
         </div>
       ) : (
         <div className="rounded-2xl border border-green-200 bg-green-50 px-4 py-3">

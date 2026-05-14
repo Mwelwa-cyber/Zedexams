@@ -346,6 +346,11 @@ body {
 /* ── Grade-7 math blocks (must match editor.css visually) ── */
 .qbody p { margin: 0; }
 .qbody p + p { margin-top: 4pt; }
+.opt-rich, .opt-rich p { display: inline; margin: 0; }
+.opt-rich .vert-arith, .opt-rich .math-frac, .opt-rich .num-base {
+  display: inline-flex;
+  vertical-align: middle;
+}
 .vert-arith {
   display: inline-block;
   margin: 4pt 6pt 6pt 0;
@@ -645,7 +650,24 @@ function renderQuestion(b) {
 
 function renderOptionsHtml(b) {
   const opts = b.options || []
+  const optsHtml = b.optionsHtml || []
+  const optsPlain = b.optionsPlain || []
   const correct = Number(b.correctAnswer)
+
+  // Pick the best HTML representation for option `i`. Prefer the
+  // pre-hydrated rich HTML (so stacked fractions / vertical sums survive
+  // into the printed paper). Fall back to escaped plain text otherwise.
+  const optHtml = (i) => {
+    const rich = optsHtml[i]
+    if (rich && String(rich).trim() && String(rich).trim() !== '<p></p>') return rich
+    const fallback = optsPlain[i] ?? opts[i]
+    return escapeHtml(fallback ?? '')
+  }
+  const optLength = (i) => {
+    const text = optsPlain[i] ?? String(opts[i] ?? '')
+    return text.length
+  }
+
   if (b.optionsMode === 'image') {
     return `<div class="options-image">
       ${opts.map((opt, i) => {
@@ -654,9 +676,12 @@ function renderOptionsHtml(b) {
           ? `<img src="${escapeHtml(media.imageUrl)}" alt="${escapeHtml(media.alt || '')}">`
           : '<span style="font-size:24pt;">?</span>'
         const correctMark = (b.showAnswer && correct === i) ? ' <span class="correct-mark">✓</span>' : ''
+        const labelInner = optsPlain[i] || opt
+          ? ` <span class="opt-rich">${optHtml(i)}</span>`
+          : ''
         return `<div class="item">
           <div class="img-box">${img}</div>
-          <div class="lbl">${SECTION_LETTERS[i]}.${opt ? ` ${escapeHtml(opt)}` : ''}${correctMark}</div>
+          <div class="lbl">${SECTION_LETTERS[i]}.${labelInner}${correctMark}</div>
         </div>`
       }).join('')}
     </div>`
@@ -672,16 +697,16 @@ function renderOptionsHtml(b) {
         return `<div class="item">
           <span class="letter">${SECTION_LETTERS[i]}.</span>
           ${img}
-          <span>${escapeHtml(opt)}${correctMark}</span>
+          <span class="opt-rich">${optHtml(i)}${correctMark}</span>
         </div>`
       }).join('')}
     </div>`
   }
-  const long = opts.some(o => String(o).length > 18)
+  const long = opts.some((_, i) => optLength(i) > 18)
   return `<div class="options-text ${long ? 'stacked' : ''}">
     ${opts.map((opt, i) => {
       const correctMark = (b.showAnswer && correct === i) ? ' <span class="correct-mark">✓</span>' : ''
-      return `<div><span class="letter">${SECTION_LETTERS[i]}.</span> ${escapeHtml(opt)}${correctMark}</div>`
+      return `<div><span class="letter">${SECTION_LETTERS[i]}.</span> <span class="opt-rich">${optHtml(i)}</span>${correctMark}</div>`
     }).join('')}
   </div>`
 }

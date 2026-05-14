@@ -164,6 +164,11 @@ export default function EditorToolbar({
   onVerticalArithmetic,
   onFraction,
   onNumberBase,
+  // 'full' (default) shows headings, alignment, colour, table, etc.
+  // 'compact' is the answer-option variant: Bold/Italic/Underline, sup/sub,
+  // and the full Grade-7 math toolset. No headings, no alignment, no table,
+  // no colour pickers — those don't make sense inside a short answer choice.
+  variant = 'full',
 }) {
   const [showTxColor, setShowTxColor] = useState(false)
   const [showHlColor, setShowHlColor] = useState(false)
@@ -265,38 +270,47 @@ export default function EditorToolbar({
         </TBtn>
         <div className="tbsep" />
 
-        {/* -- Lists -- */}
-        <TBtn editor={editor} cmd="toggleBulletList" active={toolbarState.bulletList} title="Bullet list">
-          <List size={15} strokeWidth={2.25} />
-        </TBtn>
-        <TBtn editor={editor} cmd="toggleOrderedList" active={toolbarState.orderedList} title="Numbered list">
-          <ListOrdered size={15} strokeWidth={2.25} />
-        </TBtn>
-        <div className="tbsep" />
+        {/* Lists / alignment / headings / colour are hidden inside answer
+            options (variant === 'compact') — an option row is too narrow,
+            and these formats don't apply to a single-line choice anyway. */}
+        {variant !== 'compact' && (
+          <>
+            {/* -- Lists -- */}
+            <TBtn editor={editor} cmd="toggleBulletList" active={toolbarState.bulletList} title="Bullet list">
+              <List size={15} strokeWidth={2.25} />
+            </TBtn>
+            <TBtn editor={editor} cmd="toggleOrderedList" active={toolbarState.orderedList} title="Numbered list">
+              <ListOrdered size={15} strokeWidth={2.25} />
+            </TBtn>
+            <div className="tbsep" />
 
-        {/* -- Alignment -- */}
-        <TBtn editor={editor} cmd="setTextAlign" args="left" active={toolbarState.alignLeft} title="Align left">
-          <AlignLeft size={15} strokeWidth={2.25} />
-        </TBtn>
-        <TBtn editor={editor} cmd="setTextAlign" args="center" active={toolbarState.alignCenter} title="Centre">
-          <AlignCenter size={15} strokeWidth={2.25} />
-        </TBtn>
-        <TBtn editor={editor} cmd="setTextAlign" args="right" active={toolbarState.alignRight} title="Align right">
-          <AlignRight size={15} strokeWidth={2.25} />
-        </TBtn>
-        <div className="tbsep" />
+            {/* -- Alignment -- */}
+            <TBtn editor={editor} cmd="setTextAlign" args="left" active={toolbarState.alignLeft} title="Align left">
+              <AlignLeft size={15} strokeWidth={2.25} />
+            </TBtn>
+            <TBtn editor={editor} cmd="setTextAlign" args="center" active={toolbarState.alignCenter} title="Centre">
+              <AlignCenter size={15} strokeWidth={2.25} />
+            </TBtn>
+            <TBtn editor={editor} cmd="setTextAlign" args="right" active={toolbarState.alignRight} title="Align right">
+              <AlignRight size={15} strokeWidth={2.25} />
+            </TBtn>
+            <div className="tbsep" />
 
-        {/* -- Headings --
-            No H1/H2 icons in the set. Styled text labels ARE the standard
-            for heading buttons in Word / Docs / every rich-text UI. */}
-        <TBtn editor={editor} cmd="toggleHeading" args={{ level: 1 }} active={toolbarState.heading1} title="Heading 1">
-          <span style={{ fontWeight: 800, fontSize: '12px', lineHeight: 1 }}>H1</span>
-        </TBtn>
-        <TBtn editor={editor} cmd="toggleHeading" args={{ level: 2 }} active={toolbarState.heading2} title="Heading 2">
-          <span style={{ fontWeight: 800, fontSize: '12px', lineHeight: 1 }}>H2</span>
-        </TBtn>
-        <div className="tbsep" />
+            {/* -- Headings --
+                No H1/H2 icons in the set. Styled text labels ARE the standard
+                for heading buttons in Word / Docs / every rich-text UI. */}
+            <TBtn editor={editor} cmd="toggleHeading" args={{ level: 1 }} active={toolbarState.heading1} title="Heading 1">
+              <span style={{ fontWeight: 800, fontSize: '12px', lineHeight: 1 }}>H1</span>
+            </TBtn>
+            <TBtn editor={editor} cmd="toggleHeading" args={{ level: 2 }} active={toolbarState.heading2} title="Heading 2">
+              <span style={{ fontWeight: 800, fontSize: '12px', lineHeight: 1 }}>H2</span>
+            </TBtn>
+            <div className="tbsep" />
+          </>
+        )}
 
+        {/* Text colour + highlight: also full-only. */}
+        {variant !== 'compact' && (<>
         {/* -- Text colour --
             onMouseDown only prevents editor blur; onClick is what actually
             runs (required for touch, see TBtn comment above). */}
@@ -371,6 +385,7 @@ export default function EditorToolbar({
           )}
         </div>
         <div className="tbsep" />
+        </>)}
 
         {/* -- Math toolset --
             Primary Grade-7 math buttons. Wrapped in `.tbb-math-primary`
@@ -481,15 +496,19 @@ export default function EditorToolbar({
 
         <div className="tbsep" />
 
-        <button
-          type="button" className="tbb tbt" title="Insert Table"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={(e) => { e.preventDefault(); onTable() }}
-          style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
-        >
-          <TableIcon size={14} strokeWidth={2.25} />
-          Table
-        </button>
+        {/* Table button is hidden in the compact (answer-option) variant —
+            an answer choice never wraps a table. */}
+        {variant !== 'compact' && (
+          <button
+            type="button" className="tbb tbt" title="Insert Table"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={(e) => { e.preventDefault(); onTable() }}
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+          >
+            <TableIcon size={14} strokeWidth={2.25} />
+            Table
+          </button>
+        )}
       </div>
 
       {/* Mobile-only "more math" sheet. CSS hides this on desktop; on

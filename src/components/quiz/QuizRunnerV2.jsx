@@ -68,7 +68,7 @@ function getQuizSubjectMascot(subject) {
   return SUBJECT_MASCOT_MAP[key] || DEFAULT_QUIZ_MASCOT
 }
 
-function OptionButton({ label, selected, revealed, correct, wrong, onClick, imageUrl, imageAlt, diagram, children }) {
+function OptionButton({ label, selected, revealed, correct, wrong, onClick, imageUrl, imageAlt, diagram, optionValue, children }) {
   return (
     <button
       type="button"
@@ -95,7 +95,11 @@ function OptionButton({ label, selected, revealed, correct, wrong, onClick, imag
             className="mb-1 max-h-40 w-full rounded-lg object-contain"
           />
         ) : null}
-        {children}
+        {/* optionValue may be plain text, a Tiptap JSON object, or a JSON
+            string. RichContent handles all three transparently — and falls
+            back to the supplied children if there's nothing rich to render
+            (keeps the legacy quiz path working). */}
+        {optionValue ? <RichContent value={optionValue} className="rich-option" /> : children}
       </span>
       {revealed && correct && <span className="text-lg">✅</span>}
     </button>
@@ -921,8 +925,11 @@ export default function QuizRunnerV2() {
                     imageUrl={media?.imageUrl}
                     imageAlt={media?.alt}
                     diagram={media?.diagram}
+                    optionValue={option}
                   >
-                    {option}
+                    {/* Fallback text content for assistive tech + legacy
+                        paths that don't read `optionValue` rich content. */}
+                    {typeof option === 'string' ? option : (getRichPlainText(option) || '')}
                   </OptionButton>
                 )
               })}
