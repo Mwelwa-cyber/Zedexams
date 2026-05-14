@@ -273,6 +273,7 @@ body {
 .identify-list { margin: 6pt 0 12pt 22pt; padding: 0; }
 .identify-list li { margin-bottom: 4pt; }
 .identify-blank { display: inline-block; min-width: 180pt; border-bottom: 1px solid #000; height: 12pt; }
+.draw-canvas { border: 1px solid #000; background: #fff; margin: 6pt 0 12pt; page-break-inside: avoid; }
 
 .options-text {
   padding-left: 18pt;
@@ -524,6 +525,11 @@ function renderQuestion(b) {
     body += renderMatchingColumns(b)
   } else if (b.type === 'sequence') {
     body += renderSequenceList(b)
+  }
+
+  if (Number.isFinite(Number(b.drawingHeight)) && Number(b.drawingHeight) > 0) {
+    const h = Math.round(Number(b.drawingHeight))
+    body += `<div class="draw-canvas" style="height:${h}pt"></div>`
   }
 
   if (b.showAnswer) {

@@ -372,6 +372,10 @@ function buildQuestionBlock(q, number, includeAnswer) {
           : [],
       }
       : null,
+    // Draw & Label canvas height in points (null = no canvas).
+    drawingHeight: Number.isFinite(Number(q.drawingHeight)) && Number(q.drawingHeight) > 0
+      ? Math.max(80, Math.min(500, Math.round(Number(q.drawingHeight))))
+      : null,
     showAnswer: includeAnswer,
   }
 }

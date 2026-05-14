@@ -16,6 +16,7 @@ import {
   BorderStyle,
   Document,
   HeadingLevel,
+  HeightRule,
   ImageRun,
   Packer,
   PageBreak,
@@ -442,6 +443,23 @@ async function renderQuestion(b) {
     for (let i = 0; i < lines; i += 1) {
       out.push(para(runText('______________________________________________________', { size: 20 })))
     }
+  }
+
+  if (Number.isFinite(Number(b.drawingHeight)) && Number(b.drawingHeight) > 0) {
+    // Word doesn't have a native "blank canvas" primitive, but a single
+    // 1×1 table with a fixed row height + thin borders gives students
+    // a clean box to draw inside. height is in twentieths of a point
+    // (twips), so multiply pt by 20.
+    const heightTwips = Math.round(Number(b.drawingHeight) * 20)
+    out.push(new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [new TableRow({
+        height: { value: heightTwips, rule: HeightRule.ATLEAST },
+        children: [new TableCell({
+          children: [para(runText('', { size: 20 }))],
+        })],
+      })],
+    }))
   }
 
   if (b.showAnswer) {
