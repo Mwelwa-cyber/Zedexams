@@ -1127,6 +1127,18 @@ export default function AssessmentStudio() {
           },
         })
         break
+      case 'draw_label':
+        // Draw & Label is a structured question with a blank canvas
+        // under the prompt for the student to draw their own diagram.
+        // Default canvas is 200pt tall — about a third of an A4 page.
+        newSection = baseQuestion('diagram', {
+          options: [],
+          correctAnswer: '',
+          marks: 5,
+          diagramText: 'Draw and label',
+          drawingHeight: 200,
+        })
+        break
       case 'passage':
         newSection = createPassageSection()
         break
@@ -2835,6 +2847,30 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
               placeholder="e.g. Lungs · Mouth · Nose · Trachea · Bronchi"
             />
           </div>
+          {Number.isFinite(Number(question.drawingHeight)) && Number(question.drawingHeight) > 0 && (
+            <div className="sv-field" style={{ marginBottom: 'var(--sv-s2)' }}>
+              <label>Drawing canvas height: {Math.round(Number(question.drawingHeight))} pt</label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <input
+                  type="range"
+                  min={80}
+                  max={500}
+                  step={10}
+                  value={Number(question.drawingHeight)}
+                  onChange={e => updateQuestion('drawingHeight', Number(e.target.value))}
+                  style={{ flex: 1 }}
+                />
+                <button
+                  type="button"
+                  onClick={() => updateQuestion('drawingHeight', null)}
+                  style={{ padding: '2px 10px', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', background: 'transparent', cursor: 'pointer', fontSize: 11, color: 'var(--sv-muted)' }}
+                  title="Remove the blank drawing canvas"
+                >
+                  Remove canvas
+                </button>
+              </div>
+            </div>
+          )}
           <ShortAnswerInputs
             correctAnswer={question.correctAnswer}
             onChange={value => updateQuestion('correctAnswer', value)}
@@ -3930,6 +3966,15 @@ function PaperQuestionBlock({ block }) {
       {block.type === 'sequence' && (
         <PaperSequence block={block} />
       )}
+      {Number.isFinite(Number(block.drawingHeight)) && Number(block.drawingHeight) > 0 && (
+        <div style={{
+          border: '1px solid #000',
+          background: '#fff',
+          height: Number(block.drawingHeight),
+          margin: '8px 0',
+          borderRadius: 2,
+        }} aria-label="Drawing canvas" />
+      )}
       {block.type === 'diagram' && (
         <div className="sv-paper-answer-lines">
           {Array.from({ length: block.answerLines || 4 }).map((_, i) => <div className="sv-paper-answer-line" key={i} />)}
@@ -4208,7 +4253,7 @@ function BlockPickerSlide({ open, onClose, onPick }) {
         <div className="sv-block-picker-grid">
           <BlockPickerItem icon="📖" title="Passage" hint="Comprehension passage" onClick={() => onPick('passage')} />
           <BlockPickerItem icon="🖼" title="Diagram-based" hint="Label or describe an image" onClick={() => onPick('structured')} />
-          <BlockPickerItem icon="🎨" title="Draw & Label" hint="Coming soon" disabled />
+          <BlockPickerItem icon="🎨" title="Draw & Label" hint="Blank canvas for students to draw + label" onClick={() => onPick('draw_label')} />
           <BlockPickerItem icon="🗺" title="Map Question" hint="Image-based passage with map questions" onClick={() => onPick('map')} />
           <BlockPickerItem icon="📊" title="Data / Table" hint="Attach a data table to a question" onClick={() => onPick('data_table')} />
           <BlockPickerItem icon="👁" title="Image Identify" hint="Numbered hotspots — students name each part" onClick={() => onPick('image_identify')} />

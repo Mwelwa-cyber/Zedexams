@@ -92,6 +92,10 @@ export function emptyQuestion(overrides = {}) {
     //   headers — array of column header strings
     //   rows    — array of row arrays; rows[i].length === headers.length
     tableData: null,
+    // Draw & Label canvas height in points. When set, the renderer emits
+    // a blank bordered rectangle of this height under the question text
+    // for the student to draw their own diagram in. null = no canvas.
+    drawingHeight: null,
     ...overrides,
   }
 
@@ -592,6 +596,9 @@ function hydrateStandaloneQuestion(question = {}) {
               : [])
           : [],
       }
+      : null,
+    drawingHeight: Number.isFinite(Number(question.drawingHeight)) && Number(question.drawingHeight) > 0
+      ? Math.max(80, Math.min(500, Math.round(Number(question.drawingHeight))))
       : null,
   })
 }
