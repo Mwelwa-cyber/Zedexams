@@ -329,6 +329,34 @@ const createClassAssignment = onCall({
   const resourceType = String(request.data?.resourceType || "").trim();
   const resourceId = String(request.data?.resourceId || "").trim();
   const dueAtMs = Number(request.data?.dueAtMs || 0) || null;
+  const openAtMs = Number(request.data?.openAtMs || 0) || null;
+
+  // New optional fields introduced with the redesigned assignment wizard.
+  // Stored on the assignment doc so learner-side rendering can honour the
+  // teacher's settings (timer, retakes, schedule, etc.) without a second
+  // collection. Unknown values fall back to safe defaults.
+  const ALLOWED_MODES = ["automatic", "manual"];
+  const assignmentMode = ALLOWED_MODES.includes(request.data?.assignmentMode)
+    ? request.data.assignmentMode
+    : "manual";
+  const timed = Boolean(request.data?.timed);
+  const allowRetakes = Boolean(request.data?.allowRetakes);
+  const shuffleQuestions = Boolean(request.data?.shuffleQuestions);
+  const lockAfterSubmission = Boolean(request.data?.lockAfterSubmission);
+  const notifyLearners = request.data?.notifyLearners === false ? false : true;
+  const addToDailyChallenge = Boolean(request.data?.addToDailyChallenge);
+  const template = typeof request.data?.template === "string"
+    ? request.data.template.slice(0, 40)
+    : null;
+  const learnerUidsRaw = Array.isArray(request.data?.learnerUids)
+    ? request.data.learnerUids
+    : null;
+  const learnerUids = learnerUidsRaw
+    ? learnerUidsRaw
+        .map((u) => (typeof u === "string" ? u.trim() : ""))
+        .filter((u) => u && u.length <= 200)
+        .slice(0, 200)
+    : null;
 
   if (!classId) throw new HttpsError("invalid-argument", "classId is required.");
   if (!["quiz", "exam"].includes(resourceType)) {
@@ -337,6 +365,9 @@ const createClassAssignment = onCall({
   if (!resourceId) throw new HttpsError("invalid-argument", "resourceId is required.");
   if (dueAtMs && dueAtMs < Date.now() - 60000) {
     throw new HttpsError("invalid-argument", "Due date must be in the future.");
+  }
+  if (openAtMs && dueAtMs && openAtMs > dueAtMs) {
+    throw new HttpsError("invalid-argument", "Open date must be before the due date.");
   }
 
   const db = admin.firestore();
@@ -376,6 +407,11 @@ const createClassAssignment = onCall({
   }
 
   const dueAt = dueAtMs ? admin.firestore.Timestamp.fromMillis(dueAtMs) : null;
+  const openAt = openAtMs ? admin.firestore.Timestamp.fromMillis(openAtMs) : null;
+  // Treat a future openAt as a "scheduled" assignment for status badges;
+  // learner-side rendering hides locked assignments until openAt passes.
+  const isScheduled = openAt && openAt.toMillis() > Date.now() + 60000;
+
   const ref = await db.collection("assignments").add({
     classId,
     teacherUid: uid,
@@ -385,7 +421,20 @@ const createClassAssignment = onCall({
     subject: resourceSubject,
     grade: resourceGrade,
     dueAt,
+    openAt,
     active: true,
+    status: isScheduled ? "scheduled" : "active",
+    assignmentMode,
+    template,
+    settings: {
+      timed,
+      allowRetakes,
+      shuffleQuestions,
+      lockAfterSubmission,
+      notifyLearners,
+      addToDailyChallenge,
+    },
+    learnerUids: learnerUids && learnerUids.length > 0 ? learnerUids : null,
     assignedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { useFirestore } from '../../hooks/useFirestore'
@@ -21,6 +21,11 @@ import { validateStandaloneQuestion as sharedValidateStandaloneQuestion } from '
 import QuizSectionsEditor from './QuizSectionsEditor'
 import QuizEditorPreviewPanel from './QuizEditorPreviewPanel'
 import QuizVerifyModal from './QuizVerifyModal'
+import QuizWizardSteps from './QuizWizardSteps'
+import QuizStatusBadge from './assignment/QuizStatusBadge'
+import QuizAssignStep from './assignment/QuizAssignStep'
+import QuizPublishStep from './assignment/QuizPublishStep'
+import { deriveQuizStatus, listAssignmentsForResource } from '../../utils/quizAssignments'
 import SeoHelmet from '../seo/SeoHelmet'
 
 const SUBJECTS = [
@@ -36,13 +41,6 @@ const SUBJECTS = [
 const GRADES = ['4', '5', '6', '7']
 const TERMS = ['1', '2', '3']
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
-
-const STATUS_META = {
-  draft: { label: 'Draft', dot: 'bg-[var(--text-muted)]', pill: 'theme-bg-subtle theme-text-muted theme-border border' },
-  pending: { label: 'Pending', dot: 'bg-yellow-400', pill: 'bg-yellow-100 text-yellow-700' },
-  published: { label: 'Published', dot: 'bg-green-500', pill: 'bg-green-100 text-green-700' },
-  rejected: { label: 'Rejected', dot: 'bg-red-500', pill: 'bg-red-100 text-red-600' },
-}
 
 const FIELD = 'theme-input w-full rounded-xl border-2 px-3 py-2.5 text-sm placeholder:text-gray-400 outline-none transition-colors focus:border-[var(--accent)]'
 const SELECT = 'theme-input rounded-xl border-2 px-3 py-2.5 text-sm outline-none transition-colors focus:border-[var(--accent)]'
@@ -142,6 +140,11 @@ export default function EditQuizV2() {
   const [toast, setToast] = useState(null)
   const [dirty, setDirty] = useState(false)
   const [verifyOpen, setVerifyOpen] = useState(false)
+  // Four-step wizard: create → preview → assign → publish. The current
+  // step lives in component state so navigating back via the stepper
+  // doesn't lose the editor's in-memory state.
+  const [wizardStep, setWizardStep] = useState('create')
+  const [activeAssignmentCount, setActiveAssignmentCount] = useState(0)
 
   const serializedPreview = serializeQuizSections(sections, parts)
   const questionNumbers = buildQuestionNumberMap(serializedPreview.questions)
@@ -151,7 +154,10 @@ export default function EditQuizV2() {
   const newCount = serializedPreview.questions.filter(question => !question._id).length
   const imagesCount = countImages(sections)
   const anyUploading = hasUploadingAssets(sections)
-  const statusMeta = STATUS_META[quizStatus] ?? STATUS_META.draft
+  const derivedStatus = deriveQuizStatus(
+    { status: quizStatus, isPublished: quizStatus === 'published' },
+    { activeAssignments: activeAssignmentCount },
+  )
   // Admin-only flow: teacher quiz creation was replaced by the Assessment
   // Studio. Non-admins shouldn't reach this route, but we still gate access
   // below; the back link is the admin content list.
@@ -221,6 +227,22 @@ export default function EditQuizV2() {
       cancelled = true
     }
   }, [quizId, getQuizById, getQuestions, currentUser?.uid, isAdmin])
+
+  // Track how many active assignments point at this quiz so the status
+  // badge can flip from "Published" → "Active" once at least one class
+  // is on the hook. Reloaded lazily after the AssignmentWizard fires.
+  const refreshAssignmentCount = useCallback(() => {
+    if (!quizId) return
+    listAssignmentsForResource(quizId)
+      .then((rows) => setActiveAssignmentCount(rows.length))
+      .catch((err) => {
+        console.warn('[EditQuizV2] active assignment count load failed', err)
+      })
+  }, [quizId])
+
+  useEffect(() => {
+    refreshAssignmentCount()
+  }, [refreshAssignmentCount])
 
   function updateSection(sectionIndex, updater) {
     setSections(currentSections => currentSections.map((section, index) => (
@@ -903,23 +925,24 @@ export default function EditQuizV2() {
               <h1 className="text-display-xl theme-text flex items-center gap-2">
                 <span aria-hidden="true">✏️</span> Edit quiz
               </h1>
-              <span className={`flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${statusMeta.pill}`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${statusMeta.dot}`} />
-                {statusMeta.label}
-              </span>
+              <QuizStatusBadge status={derivedStatus} />
               {dirty && <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-bold text-orange-600">● Unsaved changes</span>}
             </div>
             <p className="theme-text-muted mt-1 text-body-sm">{form.title || 'Untitled quiz'} · {questionCount} questions</p>
           </div>
         </div>
-        {isAdmin && (
-          <button type="button" onClick={handleTogglePublish} disabled={saving || anyUploading} className={`min-h-0 rounded-xl border-2 px-4 py-2 text-sm font-black transition-all duration-fast ease-out shadow-elev-sm hover:-translate-y-px hover:shadow-elev-md disabled:opacity-40 ${
-            quizStatus === 'published' ? 'border-yellow-300 text-yellow-700 hover:bg-yellow-50' : 'border-green-300 text-green-700 hover:bg-green-50'
-          }`}>
-            {quizStatus === 'published' ? '📦 Unpublish' : '🚀 Publish'}
-          </button>
-        )}
       </div>
+
+      <QuizWizardSteps
+        activeStep={wizardStep}
+        completedSteps={[
+          ...(questionCount > 0 ? ['create'] : []),
+          ...(questionCount > 0 ? ['preview'] : []),
+          ...(activeAssignmentCount > 0 ? ['assign'] : []),
+          ...(quizStatus === 'published' ? ['publish'] : []),
+        ]}
+        onStepChange={setWizardStep}
+      />
 
       <div className="surface space-y-4 p-5">
         <h2 className="text-display-md theme-text flex items-center gap-2" style={{ fontSize: 17 }}>
@@ -969,80 +992,146 @@ export default function EditQuizV2() {
         </div>
       )}
 
-      <QuizSectionsEditor
-        variant="edit"
-        sections={sections}
-        parts={parts}
-        questionNumbers={questionNumbers}
-        totalQuestions={questionCount}
-        onStandaloneChange={updateStandaloneQuestion}
-        onStandaloneRemove={removeStandaloneSection}
-        onStandaloneMove={moveSection}
-        onStandaloneImageUpload={uploadStandaloneQuestionImage}
-        onStandaloneImageRemove={removeStandaloneQuestionImage}
-        onStandaloneOptionImageUpload={uploadStandaloneOptionImage}
-        onStandaloneOptionImageRemove={removeStandaloneOptionImage}
-        onPassageChange={updatePassage}
-        onPassageToggle={togglePassage}
-        onPassageRemove={removePassageSection}
-        onPassageMove={moveSection}
-        onPassageImageUpload={uploadPassageImage}
-        onPassageImageRemove={removePassageImage}
-        onPassageQuestionChange={updatePassageQuestion}
-        onPassageQuestionRemove={removePassageQuestion}
-        onPassageQuestionMove={movePassageQuestion}
-        onPassageQuestionOptionImageUpload={uploadPassageQuestionOptionImage}
-        onPassageQuestionOptionImageRemove={removePassageQuestionOptionImage}
-        onPassageAddQuestion={addPassageQuestion}
-        onAddStandalone={addStandaloneSectionHandler}
-        onAddPassage={addPassageSectionHandler}
-        onAddMap={addMapSectionHandler}
-        onAddPart={addPart}
-        onPartChange={updatePart}
-        onPartMove={movePart}
-        onPartRemove={removePart}
-        onAssignSectionToPart={assignSectionToPart}
-        onShuffleSections={handleShuffleSections}
-      />
-
-      <QuizEditorPreviewPanel form={form} serializedSections={serializedPreview} />
-
-      {deletedIds.length > 0 && (
-        <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-          <span className="flex-shrink-0 text-base">🗑️</span>
-          <span><strong>{deletedIds.length} question{deletedIds.length > 1 ? 's' : ''}</strong> will be permanently deleted from Firestore when you save.</span>
-        </div>
+      {wizardStep === 'create' && (
+        <>
+          <QuizSectionsEditor
+            variant="edit"
+            sections={sections}
+            parts={parts}
+            questionNumbers={questionNumbers}
+            totalQuestions={questionCount}
+            onStandaloneChange={updateStandaloneQuestion}
+            onStandaloneRemove={removeStandaloneSection}
+            onStandaloneMove={moveSection}
+            onStandaloneImageUpload={uploadStandaloneQuestionImage}
+            onStandaloneImageRemove={removeStandaloneQuestionImage}
+            onStandaloneOptionImageUpload={uploadStandaloneOptionImage}
+            onStandaloneOptionImageRemove={removeStandaloneOptionImage}
+            onPassageChange={updatePassage}
+            onPassageToggle={togglePassage}
+            onPassageRemove={removePassageSection}
+            onPassageMove={moveSection}
+            onPassageImageUpload={uploadPassageImage}
+            onPassageImageRemove={removePassageImage}
+            onPassageQuestionChange={updatePassageQuestion}
+            onPassageQuestionRemove={removePassageQuestion}
+            onPassageQuestionMove={movePassageQuestion}
+            onPassageQuestionOptionImageUpload={uploadPassageQuestionOptionImage}
+            onPassageQuestionOptionImageRemove={removePassageQuestionOptionImage}
+            onPassageAddQuestion={addPassageQuestion}
+            onAddStandalone={addStandaloneSectionHandler}
+            onAddPassage={addPassageSectionHandler}
+            onAddMap={addMapSectionHandler}
+            onAddPart={addPart}
+            onPartChange={updatePart}
+            onPartMove={movePart}
+            onPartRemove={removePart}
+            onAssignSectionToPart={assignSectionToPart}
+            onShuffleSections={handleShuffleSections}
+          />
+          {deletedIds.length > 0 && (
+            <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              <span className="flex-shrink-0 text-base">🗑️</span>
+              <span><strong>{deletedIds.length} question{deletedIds.length > 1 ? 's' : ''}</strong> will be permanently deleted from Firestore when you save.</span>
+            </div>
+          )}
+        </>
       )}
 
-      <div className="surface space-y-3 p-4">
-        <p className="text-eyebrow">Save options</p>
-        <div className="grid gap-3 sm:grid-cols-3">
-          <button type="button" onClick={() => handleSave('draft')} disabled={saving || anyUploading} className="btn-secondary min-h-0 justify-center py-3 font-black disabled:opacity-40 disabled:pointer-events-none">
+      {wizardStep === 'preview' && (
+        <>
+          <div className="surface space-y-2 p-4 sm:p-5">
+            <p className="text-eyebrow">Step 2 of 4</p>
+            <h2 className="theme-text text-display-md flex items-center gap-2">
+              <span aria-hidden="true">👁️</span> Preview quiz
+            </h2>
+            <p className="theme-text-muted text-body-sm max-w-prose">
+              This is how the quiz will look to a learner. Spot mistakes
+              now — return to <strong>Step 1: Create</strong> to fix them.
+            </p>
+          </div>
+          <QuizEditorPreviewPanel form={form} serializedSections={serializedPreview} />
+        </>
+      )}
+
+      {wizardStep === 'assign' && (
+        <QuizAssignStep
+          quiz={{
+            id: quizId,
+            title: form.title,
+            subject: form.subject,
+            grade: form.grade,
+            isPublished: quizStatus === 'published',
+            status: quizStatus,
+          }}
+          dirty={dirty}
+          onAssignmentsChanged={refreshAssignmentCount}
+        />
+      )}
+
+      {wizardStep === 'publish' && (
+        <QuizPublishStep
+          status={derivedStatus}
+          dirty={dirty}
+          saving={saving}
+          uploading={anyUploading}
+          questionCount={questionCount}
+          totalMarks={totalMarks}
+          isAdmin={isAdmin}
+          onSaveDraft={() => handleSave('draft')}
+          onSubmitForReview={() => handleSave('pending')}
+          onPublish={() => {
+            if (!validate()) return
+            setVerifyOpen(true)
+          }}
+          onUnpublish={handleTogglePublish}
+          activeAssignmentCount={activeAssignmentCount}
+        />
+      )}
+
+      <div className="surface flex flex-wrap items-center justify-between gap-3 p-3 sm:p-4">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={() => handleSave('draft')}
+            disabled={saving || anyUploading}
+            className="btn-secondary min-h-0 px-4 py-2 font-black disabled:opacity-40 disabled:pointer-events-none"
+          >
             <span aria-hidden="true">💾</span>
             <span>{saving ? 'Saving…' : anyUploading ? 'Uploading…' : 'Save draft'}</span>
           </button>
-          {!isAdmin && (
-            <button type="button" onClick={() => handleSave('pending')} disabled={saving || anyUploading} className="btn-primary min-h-0 justify-center py-3 font-black disabled:opacity-40 disabled:pointer-events-none">
-              <span aria-hidden="true">📤</span>
-              <span>{saving ? 'Submitting…' : 'Submit for approval'}</span>
+          <p className={`text-xs font-bold ${dirty ? 'text-warning' : 'text-success'}`}>
+            {dirty ? '⚠️ Unsaved changes' : '✓ All changes saved'}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {wizardStep !== 'create' && (
+            <button
+              type="button"
+              onClick={() => {
+                const order = ['create', 'preview', 'assign', 'publish']
+                const i = order.indexOf(wizardStep)
+                if (i > 0) setWizardStep(order[i - 1])
+              }}
+              className="theme-card border theme-border rounded-full px-4 py-2 text-sm font-black hover:theme-bg-subtle min-h-[44px]"
+            >
+              ← Back
             </button>
           )}
-          {isAdmin && (
-            <>
-              <button type="button" onClick={() => handleSave('pending')} disabled={saving || anyUploading} className="flex min-h-0 items-center justify-center gap-2 rounded-2xl border-2 border-yellow-400 py-3 font-black text-yellow-700 transition-all duration-fast ease-out shadow-elev-sm hover:-translate-y-px hover:shadow-elev-md hover:bg-yellow-50 disabled:opacity-40 disabled:pointer-events-none">
-                <span aria-hidden="true">⏳</span>
-                <span>{saving ? 'Saving…' : 'Save as pending'}</span>
-              </button>
-              <button type="button" onClick={() => { if (validate()) setVerifyOpen(true) }} disabled={saving || anyUploading} className="btn-primary min-h-0 justify-center py-3 font-black disabled:opacity-40 disabled:pointer-events-none">
-                <span aria-hidden="true">🚀</span>
-                <span>{saving ? 'Publishing…' : 'Verify & publish'}</span>
-              </button>
-            </>
-          )}
+          {wizardStep !== 'publish' ? (
+            <button
+              type="button"
+              onClick={() => {
+                const order = ['create', 'preview', 'assign', 'publish']
+                const i = order.indexOf(wizardStep)
+                if (i < order.length - 1) setWizardStep(order[i + 1])
+              }}
+              className="theme-accent-fill theme-on-accent rounded-full px-5 py-2 text-sm font-black hover:opacity-90 min-h-[44px]"
+            >
+              Continue →
+            </button>
+          ) : null}
         </div>
-        <p className={`text-center text-xs font-bold ${dirty ? 'text-warning' : 'text-success'}`}>
-          {dirty ? '⚠️ You have unsaved changes.' : '✓ All changes saved.'}
-        </p>
       </div>
 
       <QuizVerifyModal
