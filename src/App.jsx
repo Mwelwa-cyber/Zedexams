@@ -21,8 +21,8 @@ import ErrorBoundary from './components/ui/ErrorBoundary'
 // can't bleed onto the welcome/login/register screens. The saved theme
 // applies again as soon as they land on an authenticated route.
 const PUBLIC_THEME_PATHS = new Set([
-  '/', '/welcome', '/login', '/register', '/auth/action',
-  '/pricing', '/plans', '/privacy', '/terms', '/status',
+  '/', '/login', '/register', '/auth/action',
+  '/pricing', '/privacy', '/terms', '/status',
   '/papers',
 ])
 function isPublicThemePath(pathname) {
@@ -342,9 +342,14 @@ export default function App() {
           <RouteErrorBoundary>
           <Routes>
           <Route path="/" element={<RootRedirect />} />
-          <Route path="/welcome"  element={<Marketing />} />
+          {/* /welcome and /plans were legacy aliases that served the same
+              content as / and /pricing. Google Search Console flagged them
+              as "Alternate page with proper canonical tag" — we now 301
+              them at the hosting layer (firebase.json) and keep these
+              client-side redirects as a fallback for the dev server. */}
+          <Route path="/welcome"  element={<Navigate to="/" replace />} />
           <Route path="/pricing"  element={<Plans />} />
-          <Route path="/plans"    element={<Plans />} />
+          <Route path="/plans"    element={<Navigate to="/pricing" replace />} />
           <Route path="/privacy"  element={<PrivacyPolicy />} />
           <Route path="/terms"    element={<Terms />} />
           {/* Audit A2 — public ECZ past-paper archive. Hub is no-auth so

@@ -186,7 +186,7 @@ export default function PastPapersHub() {
       {/* Hero */}
       <header className="theme-hero px-4 pt-6 pb-12" data-bg-gradient="true">
         <div className="max-w-5xl mx-auto">
-          <Link to="/welcome" className="inline-flex items-center gap-1.5 text-white/80 hover:text-white text-xs font-bold mb-4">
+          <Link to="/" className="inline-flex items-center gap-1.5 text-white/80 hover:text-white text-xs font-bold mb-4">
             <Logo className="h-6 w-auto" />
           </Link>
           <div className="flex items-start justify-between gap-3">
