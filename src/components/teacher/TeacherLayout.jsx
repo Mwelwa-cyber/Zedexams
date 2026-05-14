@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Link, NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -6,8 +5,6 @@ import {
   BookOpen,
   FolderOpen,
   GraduationCap,
-  Menu,
-  X,
   LogOut,
   Settings,
   Bot,
@@ -17,6 +14,8 @@ import { useAuth } from '../../contexts/AuthContext'
 import Logo from '../ui/Logo'
 import Icon from '../ui/Icon'
 import TeacherTopBar from './TeacherTopBar'
+import TeacherGlassHeader from './TeacherGlassHeader'
+import TeacherBottomNav from './TeacherBottomNav'
 
 const NAV = [
   { to: '/teacher',                  icon: LayoutDashboard, label: 'My Dashboard', end: true },
@@ -32,7 +31,6 @@ const NAV = [
 export default function TeacherLayout({ children }) {
   const { logout, userProfile, isAdmin } = useAuth()
   const navigate = useNavigate()
-  const [mobileOpen, setMobileOpen] = useState(false)
 
   async function handleLogout() {
     await logout()
@@ -45,10 +43,6 @@ export default function TeacherLayout({ children }) {
         ? 'theme-accent-bg theme-accent-text shadow-elev-inner-hl pl-4'
         : 'theme-text-muted hover:theme-bg-subtle hover:theme-text'
     }`
-  const mobileNavClass = ({ isActive }) =>
-    `relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-colors animate-slide-in-soft ${
-      isActive ? 'theme-accent-bg theme-accent-text shadow-elev-inner-hl pl-5' : 'theme-text-muted hover:theme-bg-subtle hover:theme-text'
-    }`
   const ActiveBar = () => (
     <span
       aria-hidden
@@ -58,9 +52,9 @@ export default function TeacherLayout({ children }) {
 
   return (
     <div className="studio-theme theme-bg theme-text min-h-screen flex">
-      {/* ── Desktop Sidebar ─────────────────────────────── */}
+      {/* ── Desktop Sidebar (lg+) ─────────────────────────── */}
       <aside
-        className="theme-border shadow-elev-md hidden w-60 flex-shrink-0 flex-col border-r md:flex"
+        className="theme-border shadow-elev-md hidden w-60 flex-shrink-0 flex-col border-r lg:flex"
         style={{ backgroundColor: '#ffffff' }}
       >
         <div
@@ -137,96 +131,19 @@ export default function TeacherLayout({ children }) {
         </div>
       </aside>
 
-      {/* ── Mobile Header ───────────────────────────────── */}
-      <div className="theme-border shadow-elev-md fixed left-0 right-0 top-0 z-40 border-b md:hidden" style={{ backgroundColor: '#ffffff' }}>
-        <div className="flex items-center justify-between px-4 h-20">
-          <Link to="/teacher" className="flex items-center gap-2.5 no-underline" style={{ color: '#0e2a32' }}>
-            <Logo variant="icon" size="md" />
-            <div className="leading-tight">
-              <p className="studio-display" style={{ fontSize: 15, margin: 0, color: '#0e2a32' }}>
-                ZedExams <span style={{ color: '#ff7a2e' }}>•</span>
-              </p>
-              <p style={{ fontSize: 10.5, color: '#566f76', margin: 0, fontWeight: 600 }}>
-                Lesson Plan Studio
-              </p>
-            </div>
-          </Link>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setMobileOpen(o => !o)}
-              aria-label={mobileOpen ? 'Close teacher navigation' : 'Open teacher navigation'}
-              aria-expanded={mobileOpen}
-              className="theme-text-muted hover:theme-bg-subtle min-h-0 rounded-lg p-2 transition-colors"
-            >
-              <Icon as={mobileOpen ? X : Menu} size="md" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Mobile Drawer Overlay ────────────────────────── */}
-      {mobileOpen && (
-        <div className="md:hidden fixed inset-0 z-30" onClick={() => setMobileOpen(false)}>
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm animate-fade-in" />
-          <nav
-            className="theme-card theme-border absolute left-0 right-0 top-20 bottom-0 space-y-1 overflow-y-auto overscroll-contain border-t p-3 shadow-elev-xl stagger"
-            onClick={e => e.stopPropagation()}
-          >
-            {isAdmin && (
-              <>
-                <Link
-                  to="/admin"
-                  onClick={() => setMobileOpen(false)}
-                  className="theme-bg-subtle theme-text hover:theme-accent-bg hover:theme-accent-text flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold transition-colors animate-slide-in-soft"
-                >
-                  <Icon as={Settings} size="sm" />Admin Panel
-                </Link>
-                <div className="theme-border my-2 border-t" />
-              </>
-            )}
-            {NAV.map(item => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                onClick={() => setMobileOpen(false)}
-                className={mobileNavClass}
-              >
-                {({ isActive }) => (
-                  <>
-                    {isActive && <ActiveBar />}
-                    <Icon as={item.icon} size="sm" />
-                    <span className="flex-1">{item.label}</span>
-                    {item.badge && (
-                      <span
-                        className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded"
-                        style={{ background: '#ff7a2e', color: '#fff', letterSpacing: '0.08em' }}
-                      >
-                        {item.badge}
-                      </span>
-                    )}
-                  </>
-                )}
-              </NavLink>
-            ))}
-            <button
-              onClick={handleLogout}
-              className="w-full text-left flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-danger hover:bg-danger-subtle min-h-0 transition-colors"
-            >
-              <Icon as={LogOut} size="sm" />Sign Out
-            </button>
-          </nav>
-        </div>
-      )}
+      {/* ── Glass header (mobile + tablet) ─────────────────── */}
+      <TeacherGlassHeader />
 
       {/* ── Main Content ────────────────────────────────── */}
-      <main className="flex-1 min-w-0 md:pt-0 pt-20">
-        <div className="app-container py-6 pb-28">
+      <main className="flex-1 min-w-0 pt-20 lg:pt-0">
+        <div className="app-container py-6 pb-28 lg:pb-6">
           <TeacherTopBar />
           {children}
         </div>
       </main>
 
+      {/* ── Bottom shortcut nav (mobile + tablet) ──────────── */}
+      <TeacherBottomNav />
     </div>
   )
 }
