@@ -61,25 +61,26 @@ function withTimeout(promise, ms) {
   })
 }
 
-export async function generateDiagram({ prompt, style, size } = {}) {
+export async function generateDiagram({ prompt, style, size, provider } = {}) {
   const cleanPrompt = String(prompt || '').trim()
   if (!cleanPrompt) {
     throw new Error('Please describe the diagram you want to generate.')
   }
   try {
     const result = await withTimeout(
-      generateDiagramCallable({ prompt: cleanPrompt, style, size }),
+      generateDiagramCallable({ prompt: cleanPrompt, style, size, provider }),
       DIAGRAM_TIMEOUT_MS,
     )
     const data = result?.data || {}
     if (!data.url) {
-      throw new Error('Recraft returned no image. Please try again.')
+      throw new Error('The AI returned no image. Please try again.')
     }
     return {
       url: data.url,
       prompt: data.prompt || cleanPrompt,
       style: data.style || style || 'line_art',
       size: data.size || size || '1365x1024',
+      provider: data.provider || provider || 'recraft',
       sizeBytes: data.sizeBytes || 0,
     }
   } catch (error) {

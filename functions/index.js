@@ -163,6 +163,11 @@ const recraftApiKey = defineSecret("RECRAFT_API_KEY");
 // When unset, the callable falls back to the original Claude-only path so
 // the feature keeps working without forcing a secret rotation.
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
+// Optional. When set, generateDiagram exposes a "photoreal" style toggle
+// that routes through OpenAI gpt-image-1 instead of Recraft. Recraft is
+// still the default for B&W line art (cleaner on photocopiers). When
+// unset, the photoreal toggle is hidden and Recraft handles everything.
+const openaiApiKey = defineSecret("OPENAI_API_KEY");
 const MAX_LEN = {
   question: 1200,
   correctAnswer: 600,
@@ -1904,7 +1909,11 @@ exports.generateRubric = createGenerateRubric(anthropicApiKey);
 exports.generateNotes = createGenerateNotes(anthropicApiKey);
 
 // Teacher Tools — Diagram Generator (Recraft, B&W line art for assessments).
-exports.generateDiagram = createGenerateDiagram(recraftApiKey);
+// When OPENAI_API_KEY is set, generateDiagram exposes a photoreal style
+// toggle that routes through gpt-image-1. Recraft remains the default
+// for line-art. The factory takes both secrets so the handler can route
+// per-request at runtime.
+exports.generateDiagram = createGenerateDiagram(recraftApiKey, openaiApiKey);
 
 // Teacher Tools — Suggest Answer (per-question AI answer hint, Haiku).
 // When GEMINI_API_KEY is set, suggestAnswer routes image-bearing questions

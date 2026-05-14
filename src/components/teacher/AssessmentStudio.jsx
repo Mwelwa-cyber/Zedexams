@@ -795,7 +795,7 @@ export default function AssessmentStudio() {
   // The generated PNG lives in Firebase Storage; we attach it as the
   // imageUrl of a fresh "structured" question whose text is the prompt
   // itself, so teachers can immediately edit the question wording.
-  async function handleGenerateDiagram(prompt) {
+  async function handleGenerateDiagram(prompt, provider = 'recraft') {
     const clean = String(prompt || '').trim()
     if (!clean) {
       showToast('Describe the diagram you want to generate.', true)
@@ -803,7 +803,7 @@ export default function AssessmentStudio() {
     }
     setGeneratingDiagram(true)
     try {
-      const { url } = await generateDiagram({ prompt: clean })
+      const { url } = await generateDiagram({ prompt: clean, provider })
       const newSection = buildStandaloneSection({
         type: 'diagram',
         detectedType: 'diagram',
@@ -4419,6 +4419,10 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, generating, onGenerat
 function DiagramGeneratorAction({ disabled, onGenerate }) {
   const [prompt, setPrompt] = useState('')
   const [open, setOpen] = useState(false)
+  // 'recraft' = B&W line art (default, cheap, clean on photocopiers).
+  // 'openai'  = photoreal photograph via gpt-image-1 — better for real-
+  //             world subjects (maps, biology specimens, lab apparatus).
+  const [provider, setProvider] = useState('recraft')
   return (
     <div className={`sv-ai-action ${open ? 'expanded' : ''}`} style={{ display: 'block', padding: 'var(--sv-s3)' }}>
       <button
@@ -4429,7 +4433,7 @@ function DiagramGeneratorAction({ disabled, onGenerate }) {
         <div className="sv-ic">🎨</div>
         <div style={{ flex: 1 }}>
           <strong style={{ display: 'block', fontWeight: 600 }}>Generate diagram</strong>
-          <small style={{ color: 'var(--sv-muted)', fontSize: 12 }}>B&W line art via Recraft</small>
+          <small style={{ color: 'var(--sv-muted)', fontSize: 12 }}>B&W line art or a photoreal image</small>
         </div>
         <span style={{ color: 'var(--sv-muted)' }}>{open ? '▾' : '▸'}</span>
       </button>
@@ -4438,18 +4442,39 @@ function DiagramGeneratorAction({ disabled, onGenerate }) {
           <textarea
             value={prompt}
             onChange={e => setPrompt(e.target.value)}
-            placeholder="Describe the diagram (e.g. Cross-section of human skin labelled epidermis, dermis, hypodermis)"
+            placeholder="Describe the image (e.g. Cross-section of human skin labelled epidermis, dermis, hypodermis)"
             rows={3}
             style={{ width: '100%', border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: 8, fontSize: 13, background: 'var(--sv-paper)', fontFamily: 'inherit', resize: 'vertical' }}
             disabled={disabled}
           />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <label style={{ fontSize: 11, color: 'var(--sv-muted)' }}>Style</label>
+            <div style={{ display: 'flex', gap: 6 }}>
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => setProvider('recraft')}
+                style={{ flex: 1, padding: '6px 10px', border: `1px solid ${provider === 'recraft' ? 'var(--sv-primary)' : 'var(--sv-border)'}`, borderRadius: 'var(--sv-r-sm)', background: provider === 'recraft' ? 'var(--sv-tinted)' : 'var(--sv-paper)', cursor: disabled ? 'default' : 'pointer', fontSize: 12, color: 'var(--sv-text)' }}
+              >
+                🖋 Line art<small style={{ display: 'block', color: 'var(--sv-muted)', fontSize: 10, marginTop: 2 }}>B&W diagrams, prints crisply</small>
+              </button>
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => setProvider('openai')}
+                style={{ flex: 1, padding: '6px 10px', border: `1px solid ${provider === 'openai' ? 'var(--sv-primary)' : 'var(--sv-border)'}`, borderRadius: 'var(--sv-r-sm)', background: provider === 'openai' ? 'var(--sv-tinted)' : 'var(--sv-paper)', cursor: disabled ? 'default' : 'pointer', fontSize: 12, color: 'var(--sv-text)' }}
+              >
+                📷 Photoreal<small style={{ display: 'block', color: 'var(--sv-muted)', fontSize: 10, marginTop: 2 }}>Photographs of real things</small>
+              </button>
+            </div>
+          </div>
           <button
             type="button"
             className="sv-btn sv-btn-primary sv-btn-full"
             disabled={disabled || !prompt.trim()}
-            onClick={() => onGenerate(prompt.trim()).then(() => setPrompt(''))}
+            onClick={() => onGenerate(prompt.trim(), provider).then(() => setPrompt(''))}
           >
-            {disabled ? '⏳ Generating…' : '✨ Generate diagram'}
+            {disabled ? '⏳ Generating…' : '✨ Generate image'}
           </button>
           <small style={{ color: 'var(--sv-muted)', fontSize: 11 }}>
             The image is added as a new structured question with the prompt as its question text. Counts toward your monthly diagram quota.
