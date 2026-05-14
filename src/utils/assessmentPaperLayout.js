@@ -362,6 +362,7 @@ function buildQuestionBlock(q, number, includeAnswer) {
         }))
         .filter(l => l.text.length > 0)
       : [],
+    diagramMode: q.diagramMode === 'identify' ? 'identify' : 'labeled',
     // Inline data table (null when the question has no attached table).
     tableData: q.tableData && Array.isArray(q.tableData.headers)
       ? {

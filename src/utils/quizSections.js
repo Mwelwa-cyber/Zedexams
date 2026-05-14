@@ -78,6 +78,14 @@ export function emptyQuestion(overrides = {}) {
     //          / DOCX renderers)
     //   text — short label string (e.g. "Epidermis"), ≤ 80 chars
     diagramLabels: [],
+    // Diagram render mode:
+    //   'labeled'   (default) — labels print as text overlays ON the image,
+    //                            i.e. the student is shown the answers and
+    //                            answers questions about them in the text.
+    //   'identify'            — image overlays show NUMBERS (1, 2, 3…) for
+    //                            each label; students write the matching
+    //                            term on numbered blank lines below.
+    diagramMode: 'labeled',
     // Inline data table attached to the question. Renders as an HTML
     // table in preview/PDF and a real Word table in DOCX. Defaulted to
     // null so questions without one don't render an empty table.
@@ -572,6 +580,7 @@ function hydrateStandaloneQuestion(question = {}) {
         }))
         .slice(0, 20)
       : [],
+    diagramMode: question.diagramMode === 'identify' ? 'identify' : 'labeled',
     tableData: question.tableData && Array.isArray(question.tableData.headers)
       ? {
         headers: question.tableData.headers.map(h => String(h ?? '').slice(0, 60)).slice(0, 6),

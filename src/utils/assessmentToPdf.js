@@ -259,6 +259,20 @@ body {
   white-space: nowrap;
   line-height: 1.1;
 }
+.diagram-label-num {
+  background: #000;
+  color: #fff;
+  border-radius: 50%;
+  width: 16pt; height: 16pt;
+  padding: 0;
+  font-weight: 700;
+  display: inline-grid;
+  place-items: center;
+  text-align: center;
+}
+.identify-list { margin: 6pt 0 12pt 22pt; padding: 0; }
+.identify-list li { margin-bottom: 4pt; }
+.identify-blank { display: inline-block; min-width: 180pt; border-bottom: 1px solid #000; height: 12pt; }
 
 .options-text {
   padding-left: 18pt;
@@ -475,8 +489,19 @@ function renderQuestion(b) {
 
   if (b.imageUrl) {
     const labels = Array.isArray(b.diagramLabels) ? b.diagramLabels : []
-    const labelHtml = labels.map(l => `<span class="diagram-label" style="left:${(l.x * 100).toFixed(2)}%;top:${(l.y * 100).toFixed(2)}%">${escapeHtml(l.text)}</span>`).join('')
+    const isIdentify = b.diagramMode === 'identify'
+    // Identify mode prints numbered hotspots (1, 2, …) instead of the
+    // label text — the text goes into the marking key, not the paper.
+    const labelHtml = labels.map((l, i) => {
+      const inner = isIdentify ? String(i + 1) : escapeHtml(l.text)
+      const cls = isIdentify ? 'diagram-label diagram-label-num' : 'diagram-label'
+      return `<span class="${cls}" style="left:${(l.x * 100).toFixed(2)}%;top:${(l.y * 100).toFixed(2)}%">${inner}</span>`
+    }).join('')
     body += `<div class="q-image"><div class="q-image-frame"><img src="${escapeHtml(b.imageUrl)}" alt="">${labelHtml}</div></div>`
+    if (isIdentify && labels.length) {
+      const blanks = labels.map(() => `<li><span class="identify-blank"></span></li>`).join('')
+      body += `<ol class="identify-list">${blanks}</ol>`
+    }
   }
   if (b.tableData) {
     body += renderDataTable(b.tableData)
@@ -617,6 +642,13 @@ function renderMatchingColumns(b) {
 }
 
 function renderAnswerBlock(b) {
+  // Identify-mode diagrams print a numbered list of expected answers.
+  if (b.type === 'diagram' && b.diagramMode === 'identify' && Array.isArray(b.diagramLabels) && b.diagramLabels.length) {
+    const pairs = b.diagramLabels.map((l, i) => `${i + 1}. ${escapeHtml(l.text || '—')}`).join('&nbsp;&nbsp; ')
+    const body = `<div><span class="label">Answers:</span> ${pairs}</div>`
+    const notes = b.explanation ? `<div class="notes">Notes: ${escapeHtml(b.explanation)}</div>` : ''
+    return `<div class="answer-block">${body}${notes}</div>`
+  }
   let body = ''
   if (b.type === 'mcq') {
     const i = Number(b.correctAnswer)
