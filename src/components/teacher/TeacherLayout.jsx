@@ -135,8 +135,8 @@ export default function TeacherLayout({ children }) {
       <TeacherGlassHeader />
 
       {/* ── Main Content ────────────────────────────────── */}
-      <main className="flex-1 min-w-0 pt-20 lg:pt-0">
-        <div className="app-container py-6 pb-28 lg:pb-6">
+      <main className="flex-1 min-w-0 pt-16 lg:pt-0">
+        <div className="app-container py-6 pb-24 lg:pb-6">
           <TeacherTopBar />
           {children}
         </div>

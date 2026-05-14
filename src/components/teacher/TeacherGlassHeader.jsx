@@ -105,20 +105,21 @@ export default function TeacherGlassHeader() {
 
   return (
     <header className="zx-glass-nav fixed inset-x-0 top-0 z-40 lg:hidden">
-      <div className="app-container flex min-h-16 items-center justify-between gap-2 px-3 py-2 sm:px-4">
+      <div className="app-container flex min-h-14 items-center justify-between gap-2 px-3 py-1.5 sm:px-4">
         <Link to="/teacher" className="zx-logo-pill no-underline" aria-label="Teacher home">
-          <Logo variant="full" size="sm" />
+          <Logo variant="full" size="sm" className="h-10" />
         </Link>
 
-        <div className="flex items-center gap-1 sm:gap-2">
-          <HeaderIconLink to="/teacher" label="Progress" icon={BarChart3} />
+        <div className="flex items-center gap-1 sm:gap-1.5">
+          <HeaderIconLink to="/teacher" label="Progress" icon={BarChart3} size="sm" />
 
-          <ThemeSelector dashboardStyle />
+          <ThemeSelector dashboardStyle dashboardSize="sm" />
 
           <div ref={bellRef} className="relative">
             <HeaderIconButton
               label="Alerts"
               icon={Bell}
+              size="sm"
               onClick={() => { setBellOpen(o => !o); setAccountOpen(false) }}
               aria-label={unreadCount > 0 ? `Alerts, ${unreadCount} unread` : 'Alerts'}
               aria-expanded={bellOpen}
@@ -129,7 +130,7 @@ export default function TeacherGlassHeader() {
             >
               {bellOpen && (
                 <div
-                  className="theme-card theme-border absolute right-0 top-16 z-50 w-80 max-w-[calc(100vw-1rem)] rounded-2xl border shadow-xl"
+                  className="theme-card theme-border absolute right-0 top-12 z-50 w-80 max-w-[calc(100vw-1rem)] rounded-2xl border shadow-xl"
                   style={{ maxHeight: 420, overflowY: 'auto' }}
                 >
                   <div className="theme-border border-b px-4 py-3">
@@ -180,6 +181,7 @@ export default function TeacherGlassHeader() {
             <HeaderIconButton
               label="Account"
               icon={User}
+              size="sm"
               onClick={() => { setAccountOpen(o => !o); setBellOpen(false) }}
               aria-label={`Account menu for ${userProfile?.displayName || 'your account'}`}
               aria-expanded={accountOpen}
@@ -187,7 +189,7 @@ export default function TeacherGlassHeader() {
               active={accountOpen}
             >
               {accountOpen && (
-                <div className="theme-card theme-border absolute right-0 top-16 z-50 min-w-[200px] rounded-2xl border py-2 shadow-xl">
+                <div className="theme-card theme-border absolute right-0 top-12 z-50 min-w-[200px] rounded-2xl border py-2 shadow-xl">
                   <p className="theme-border theme-text border-b px-4 py-2 text-xs font-black">
                     {userProfile?.displayName || 'Teacher'}
                   </p>

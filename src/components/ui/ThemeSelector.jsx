@@ -17,7 +17,8 @@ import { ChevronDown, Palette } from './icons'
  *   - Dropdown has role="menu"; each option has role="menuitem" + aria-label
  *   - CSS tooltip (group-hover) on desktop; text label on mobile
  */
-export default function ThemeSelector({ compact = false, onDark = false, quizStyle = false, dashboardStyle = false }) {
+export default function ThemeSelector({ compact = false, onDark = false, quizStyle = false, dashboardStyle = false, dashboardSize = 'md' }) {
+  const isCompactDashboard = dashboardStyle && dashboardSize === 'sm'
   const { theme, setTheme } = useTheme()
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
@@ -61,14 +62,16 @@ export default function ThemeSelector({ compact = false, onDark = false, quizSty
         title="Change theme"
         className={`flex items-center justify-center gap-1.5 font-bold text-sm transition-all min-h-0 border ${
           dashboardStyle
-            ? 'h-11 w-11 rounded-2xl p-0'
+            ? isCompactDashboard
+              ? 'h-9 w-9 rounded-xl p-0'
+              : 'h-11 w-11 rounded-2xl p-0'
             : quizStyle
               ? 'w-9 h-9 rounded-full p-0 text-base'
               : 'px-2 py-1.5 rounded-lg'
         } ${triggerClass}`}
       >
         {dashboardStyle || quizStyle ? (
-          <Icon as={Palette} size={dashboardStyle ? 'md' : 'sm'} strokeWidth={2.1} aria-hidden="true" />
+          <Icon as={Palette} size={dashboardStyle && !isCompactDashboard ? 'md' : 'sm'} strokeWidth={2.1} aria-hidden="true" />
         ) : (
           <span
             aria-hidden="true"
@@ -96,7 +99,7 @@ export default function ThemeSelector({ compact = false, onDark = false, quizSty
       </span>
 
       {/* Mobile text label — visible only on small screens where hover doesn't exist */}
-      <span aria-hidden="true" className={`${dashboardStyle ? 'learner-chrome-label mt-1 text-[10px] font-black' : 'mt-0.5 text-[9px] font-bold sm:hidden theme-text-muted'} leading-none`}>
+      <span aria-hidden="true" className={`${dashboardStyle ? `learner-chrome-label font-black ${isCompactDashboard ? 'mt-0.5 text-[9px]' : 'mt-1 text-[10px]'}` : 'mt-0.5 text-[9px] font-bold sm:hidden theme-text-muted'} leading-none`}>
         Theme
       </span>
 
