@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import { useTheme, THEMES } from '../../contexts/ThemeContext';
 import { useAuth } from '../../contexts/AuthContext';
 import CharacterAvatar, {
@@ -7,6 +8,12 @@ import CharacterAvatar, {
   getCharacter,
 } from '../profile/CharacterAvatar';
 import SeoHelmet from '../seo/SeoHelmet';
+import LanguageToggle from '../ui/LanguageToggle';
+import ParentShareManager from '../parent/ParentShareManager';
+import {
+  loadAccessibilityPrefs,
+  saveAccessibilityPrefs,
+} from '../../utils/accessibility';
 
 /* ============================================================================
  * ZedExams — Settings module
@@ -52,10 +59,19 @@ const TABS = {
     { id: 'notifications', label: 'Notifications' },
     { id: 'appearance',    label: 'Appearance' },
   ],
+  // Theme/appearance is removed for learners — the dashboard already
+  // hosts a global ThemeSelector, so duplicating it here just confuses
+  // children. We also split profile + security into distinct sections,
+  // add a Learning Preferences tab for grade/sounds/language, an
+  // Accessibility tab (reduced motion, font size, high-contrast), and
+  // a Parent/Guardian tab that wraps the existing ParentShareManager.
   learner: [
-    { id: 'profile',       label: 'Account & Profile' },
+    { id: 'profile',       label: 'Profile' },
+    { id: 'security',      label: 'Password & Security' },
     { id: 'notifications', label: 'Notifications' },
-    { id: 'appearance',    label: 'Appearance' },
+    { id: 'learning',      label: 'Learning Preferences' },
+    { id: 'accessibility', label: 'Accessibility' },
+    { id: 'parent',        label: 'Parent / Guardian' },
   ],
 };
 
@@ -1511,6 +1527,373 @@ function TabSidebar({ tabs, active, onChange, isMobile }) {
   );
 }
 
+/* ── Learner panels (Firestore-wired) ─────────────────────────────────────── */
+
+const GRADE_NUMBERS = [4, 5, 6, 7];
+
+const DEFAULT_LEARNER_NOTIFICATION_PREFS = Object.freeze({
+  examReminders: true,
+  resultsReleased: true,
+  dailyStreak: true,
+  announcements: true,
+});
+
+const DEFAULT_LEARNER_LEARNING_PREFS = Object.freeze({
+  soundEffects: true,
+  showHints: true,
+  autoplayLessons: false,
+});
+
+function normalizeNotificationPrefs(input) {
+  return {
+    examReminders:   input?.examReminders   ?? DEFAULT_LEARNER_NOTIFICATION_PREFS.examReminders,
+    resultsReleased: input?.resultsReleased ?? DEFAULT_LEARNER_NOTIFICATION_PREFS.resultsReleased,
+    dailyStreak:     input?.dailyStreak     ?? DEFAULT_LEARNER_NOTIFICATION_PREFS.dailyStreak,
+    announcements:   input?.announcements   ?? DEFAULT_LEARNER_NOTIFICATION_PREFS.announcements,
+  };
+}
+
+function normalizeLearningPrefs(input) {
+  return {
+    soundEffects:    input?.soundEffects    ?? DEFAULT_LEARNER_LEARNING_PREFS.soundEffects,
+    showHints:       input?.showHints       ?? DEFAULT_LEARNER_LEARNING_PREFS.showHints,
+    autoplayLessons: input?.autoplayLessons ?? DEFAULT_LEARNER_LEARNING_PREFS.autoplayLessons,
+  };
+}
+
+function LearnerProfilePanel({ pushToast }) {
+  const { currentUser, userProfile, updateProfileFields } = useAuth();
+  const [displayName, setDisplayName] = useState('');
+  const [school, setSchool] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState({});
+
+  useEffect(() => {
+    if (!userProfile) return;
+    setDisplayName(userProfile.displayName ?? '');
+    setSchool(userProfile.school ?? '');
+  }, [userProfile]);
+
+  const handleSave = async () => {
+    const e = {};
+    if (!isNonEmpty(displayName)) e.displayName = 'Name is required.';
+    setErrors(e);
+    if (Object.keys(e).length > 0) {
+      pushToast('error', 'Please fix the highlighted fields.');
+      return;
+    }
+    setSaving(true);
+    try {
+      await updateProfileFields({
+        displayName: displayName.trim(),
+        school: school.trim(),
+      });
+      pushToast('success', 'Profile updated.');
+    } catch (err) {
+      console.error('LearnerProfilePanel save failed', err);
+      pushToast('error', 'Could not save profile. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <>
+      <CharacterAvatarPicker pushToast={pushToast} />
+      <SectionCard
+        title="Your details"
+        description="Used across your dashboard, results, and the parent view."
+        footer={<Button onClick={handleSave} loading={saving}>Save changes</Button>}
+      >
+        <div className="zx-grid-2">
+          <TextField
+            label="Full name"
+            required
+            value={displayName}
+            onChange={setDisplayName}
+            error={errors.displayName}
+            autoComplete="name"
+          />
+          <TextField
+            label="School"
+            value={school}
+            onChange={setSchool}
+            placeholder="e.g. Lusaka Academy"
+            autoComplete="organization"
+          />
+        </div>
+        <div style={{
+          padding: '10px 12px',
+          background: T.surface,
+          border: `1px solid ${T.border}`,
+          borderRadius: 8,
+          fontSize: 13,
+          color: T.muted,
+        }}>
+          Signed in as <strong style={{ color: T.text }}>{currentUser?.email || '—'}</strong>.
+          {' '}
+          Email and grade live on your{' '}
+          <Link to="/profile" className="zx-link" style={{ color: T.primary, fontWeight: 600 }}>
+            Profile page
+          </Link>
+          .
+        </div>
+      </SectionCard>
+    </>
+  );
+}
+
+function LearnerSecurityPanel({ pushToast }) {
+  const { currentUser, resetPassword } = useAuth();
+  const [sending, setSending] = useState(false);
+
+  const handleResetEmail = async () => {
+    if (!currentUser?.email) {
+      pushToast('error', 'No email on file for this account.');
+      return;
+    }
+    setSending(true);
+    try {
+      await resetPassword(currentUser.email);
+      pushToast('success', `Password reset email sent to ${currentUser.email}.`);
+    } catch (err) {
+      console.error('LearnerSecurityPanel resetPassword failed', err);
+      pushToast('error', 'Could not send reset email. Please try again.');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  return (
+    <SectionCard
+      title="Password & security"
+      description="Keep your account safe. ZedExams sends password resets through email so a parent or guardian can help if needed."
+      footer={<Button onClick={handleResetEmail} loading={sending}>Send password reset email</Button>}
+    >
+      <div style={{
+        padding: 12,
+        background: T.surface,
+        border: `1px solid ${T.border}`,
+        borderRadius: 10,
+        fontSize: 14,
+        color: T.textSoft,
+        lineHeight: 1.5,
+      }}>
+        <div style={{ fontWeight: 600, color: T.text, marginBottom: 4 }}>
+          How password changes work
+        </div>
+        We email a secure link to{' '}
+        <strong style={{ color: T.text }}>{currentUser?.email || 'your inbox'}</strong>.
+        Click the link to pick a new password — it must be at least 8 characters.
+      </div>
+    </SectionCard>
+  );
+}
+
+function LearnerNotificationsPanel({ pushToast }) {
+  const { userProfile, updateProfileFields } = useAuth();
+  const [prefs, setPrefs] = useState(() => normalizeNotificationPrefs(userProfile?.notificationPrefs));
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setPrefs(normalizeNotificationPrefs(userProfile?.notificationPrefs));
+  }, [userProfile?.notificationPrefs]);
+
+  const set = (k, v) => setPrefs((p) => ({ ...p, [k]: v }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await updateProfileFields({ notificationPrefs: prefs });
+      pushToast('success', 'Notification preferences saved.');
+    } catch (err) {
+      console.error('LearnerNotificationsPanel save failed', err);
+      pushToast('error', 'Could not save preferences. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <SectionCard
+      title="Notifications"
+      description="Choose which reminders ZedExams sends you."
+      footer={<Button onClick={handleSave} loading={saving}>Save changes</Button>}
+    >
+      <Toggle
+        label="Daily exam reminders"
+        description="A nudge when today's exam is ready."
+        checked={prefs.examReminders}
+        onChange={(v) => set('examReminders', v)}
+      />
+      <Toggle
+        label="Results released"
+        description="Tell me when my quiz or exam score is in."
+        checked={prefs.resultsReleased}
+        onChange={(v) => set('resultsReleased', v)}
+      />
+      <Toggle
+        label="Daily streak reminders"
+        description="Help me keep my learning streak alive."
+        checked={prefs.dailyStreak}
+        onChange={(v) => set('dailyStreak', v)}
+      />
+      <Toggle
+        label="Announcements"
+        description="School-wide updates and new feature highlights."
+        checked={prefs.announcements}
+        onChange={(v) => set('announcements', v)}
+      />
+    </SectionCard>
+  );
+}
+
+function LearnerLearningPanel({ pushToast }) {
+  const { userProfile, updateLearnerGrade, updateProfileFields } = useAuth();
+  const initialGrade = (() => {
+    const g = Number(userProfile?.grade);
+    return GRADE_NUMBERS.includes(g) ? g : GRADE_NUMBERS[0];
+  })();
+  const [grade, setGrade] = useState(initialGrade);
+  const [learning, setLearning] = useState(() => normalizeLearningPrefs(userProfile?.learningPrefs));
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const g = Number(userProfile?.grade);
+    if (GRADE_NUMBERS.includes(g)) setGrade(g);
+    setLearning(normalizeLearningPrefs(userProfile?.learningPrefs));
+  }, [userProfile?.grade, userProfile?.learningPrefs]);
+
+  const set = (k, v) => setLearning((p) => ({ ...p, [k]: v }));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      if (Number(userProfile?.grade) !== grade) {
+        await updateLearnerGrade(grade);
+      }
+      await updateProfileFields({ learningPrefs: learning });
+      pushToast('success', 'Learning preferences saved.');
+    } catch (err) {
+      console.error('LearnerLearningPanel save failed', err);
+      pushToast('error', 'Could not save preferences. Please try again.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <SectionCard
+      title="Learning preferences"
+      description="Tune ZedExams to match how you like to study."
+      footer={<Button onClick={handleSave} loading={saving}>Save changes</Button>}
+    >
+      <SelectField
+        label="My grade"
+        hint="Quizzes, lessons, and daily exams are filtered to this grade."
+        value={String(grade)}
+        onChange={(v) => setGrade(Number(v))}
+        options={GRADE_NUMBERS.map((g) => ({ value: String(g), label: `Grade ${g}` }))}
+      />
+      <div style={{ borderTop: `1px solid ${T.border}`, marginTop: 4 }}>
+        <Toggle
+          label="Sound effects"
+          description="Play short sounds for correct answers and badges."
+          checked={learning.soundEffects}
+          onChange={(v) => set('soundEffects', v)}
+        />
+        <Toggle
+          label="Show hints during practice"
+          description="Reveal a hint button on practice quizzes."
+          checked={learning.showHints}
+          onChange={(v) => set('showHints', v)}
+        />
+        <Toggle
+          label="Auto-advance lessons"
+          description="Move to the next slide automatically when one finishes."
+          checked={learning.autoplayLessons}
+          onChange={(v) => set('autoplayLessons', v)}
+        />
+      </div>
+      <div style={{
+        marginTop: 16,
+        padding: 12,
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+        background: T.surface,
+        border: `1px solid ${T.border}`,
+        borderRadius: 10,
+      }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontWeight: 600, color: T.text, fontSize: 14 }}>App language</div>
+          <div style={{ color: T.muted, fontSize: 12, marginTop: 2 }}>
+            Switch between English and other supported languages.
+          </div>
+        </div>
+        <LanguageToggle compact />
+      </div>
+    </SectionCard>
+  );
+}
+
+function LearnerAccessibilityPanel({ pushToast }) {
+  const [prefs, setPrefs] = useState(() => loadAccessibilityPrefs());
+
+  const set = (k, v) => {
+    const next = { ...prefs, [k]: v };
+    setPrefs(next);
+    // Apply immediately on change so the learner sees the effect without
+    // a separate save click. saveAccessibilityPrefs also writes to
+    // localStorage so the choice survives reloads.
+    saveAccessibilityPrefs(next);
+    pushToast('success', 'Accessibility setting updated.');
+  };
+
+  return (
+    <SectionCard
+      title="Accessibility"
+      description="Make ZedExams easier to read and use. Changes apply right away."
+    >
+      <Toggle
+        label="Reduce motion"
+        description="Trim animations and transitions for less visual movement."
+        checked={prefs.reducedMotion}
+        onChange={(v) => set('reducedMotion', v)}
+      />
+      <Toggle
+        label="High contrast"
+        description="Stronger borders and darker text on every theme."
+        checked={prefs.highContrast}
+        onChange={(v) => set('highContrast', v)}
+      />
+      <SelectField
+        label="Text size"
+        hint="Applies to most of the app. Restart any quiz already in progress."
+        value={prefs.fontScale}
+        onChange={(v) => set('fontScale', v)}
+        options={[
+          { value: 'small',  label: 'Small' },
+          { value: 'medium', label: 'Medium (default)' },
+          { value: 'large',  label: 'Large' },
+        ]}
+      />
+    </SectionCard>
+  );
+}
+
+function LearnerParentPanel() {
+  return (
+    <SectionCard
+      title="Parent / Guardian access"
+      description="Share a read-only progress link with a parent or guardian. They will see your scores and badges — never your password."
+    >
+      {/* ParentShareManager is the same widget that powers the link
+          on /profile, so the two surfaces stay in sync without
+          touching the underlying Firestore wiring. */}
+      <ParentShareManager />
+    </SectionCard>
+  );
+}
+
 /* ── Role guard ───────────────────────────────────────────────────────────── */
 
 function RoleForbidden({ role }) {
@@ -1538,6 +1921,10 @@ function RoleForbidden({ role }) {
 
 const VALID_ROLES = ['admin', 'teacher', 'learner'];
 const ADMIN_ONLY  = new Set(['users', 'controls']);
+// Tabs that exist only inside the learner role. Used as a defence-in-depth
+// check so an admin / teacher who somehow navigates to ?tab=learning isn't
+// rendered learner-only chrome.
+const LEARNER_ONLY = new Set(['security', 'learning', 'accessibility', 'parent']);
 
 export default function ZedExamsSettings({ role = 'admin' }) {
   // Inject font + runtime styles once.
@@ -1559,11 +1946,34 @@ export default function ZedExamsSettings({ role = 'admin' }) {
     setToast({ kind, message, key: uid() });
   }, []);
 
-  // Defense-in-depth: reject admin-only tabs for non-admin roles.
-  const isAuthorized = !ADMIN_ONLY.has(active) || safeRole === 'admin';
+  // Defense-in-depth: reject admin-only tabs for non-admin roles, and
+  // learner-only tabs for non-learner roles.
+  const isAuthorized = (!ADMIN_ONLY.has(active)   || safeRole === 'admin')
+                     && (!LEARNER_ONLY.has(active) || safeRole === 'learner');
 
   const renderActive = () => {
     if (!isAuthorized) return <RoleForbidden role={safeRole} />;
+    // Learner gets a Firestore-wired set of sections. The mock-data
+    // AccountProfile / NotificationsPanel below are kept for admin /
+    // teacher views until those are wired to the real API.
+    if (safeRole === 'learner') {
+      switch (active) {
+        case 'profile':
+          return <LearnerProfilePanel pushToast={pushToast} />;
+        case 'security':
+          return <LearnerSecurityPanel pushToast={pushToast} />;
+        case 'notifications':
+          return <LearnerNotificationsPanel pushToast={pushToast} />;
+        case 'learning':
+          return <LearnerLearningPanel pushToast={pushToast} />;
+        case 'accessibility':
+          return <LearnerAccessibilityPanel pushToast={pushToast} />;
+        case 'parent':
+          return <LearnerParentPanel />;
+        default:
+          return null;
+      }
+    }
     switch (active) {
       case 'users':
         return <UserManagement pushToast={pushToast} />;
