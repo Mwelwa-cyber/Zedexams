@@ -257,7 +257,12 @@ function collectQuestionIssues(question, label, push) {
       }
     }
   } else if (qType !== SHORT_ANSWER && qType !== DIAGRAM) {
+    // An unknown type is a publish blocker, not a warning — runner /
+    // grader / export paths only handle MCQ / SHORT_ANSWER / DIAGRAM.
+    // Letting it through silently would surface a question the learner
+    // can't answer and the grader can't score. The legacy
+    // `validateStandaloneQuestion` rejected these; keep the gate.
     push(`type-${question.localId}`,
-      `${label}: unrecognised question type "${qType}".`, 'warn')
+      `${label}: unrecognised question type "${qType}".`)
   }
 }

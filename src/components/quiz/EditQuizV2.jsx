@@ -157,6 +157,14 @@ export default function EditQuizV2() {
   // Guards against re-entrant auto-saves: only one in-flight save at a
   // time, and we skip auto-save while a manual save is running.
   const autoSavingRef = useRef(false)
+  // Always-current reference to performAutoSave. The auto-save effect
+  // would otherwise close over a stale `performAutoSave` (the one from
+  // the render where `dirty` first flipped true), making the timer save
+  // outdated `form`/`sections`/`parts`/`deletedIds` and then call
+  // `setDirty(false)` — silently dropping subsequent edits. Updating
+  // this ref every render keeps the timer reading the latest snapshot
+  // without recreating the interval on every keystroke.
+  const performAutoSaveRef = useRef(null)
   // Four-step wizard: create → preview → assign → publish. The current
   // step lives in component state so navigating back via the stepper
   // doesn't lose the editor's in-memory state.
@@ -874,28 +882,34 @@ export default function EditQuizV2() {
     }
   }
 
+  // Keep the ref pointing at the freshest performAutoSave on every
+  // committed render. The auto-save interval below dereferences this
+  // ref each tick so it always sees the latest form/sections/parts/
+  // deletedIds rather than a closure captured when `dirty` first
+  // flipped true.
+  useEffect(() => {
+    performAutoSaveRef.current = performAutoSave
+  })
+
   // Debounced auto-save. Fires when the form has been dirty + idle for
-  // 25 s. We also tick a 25 s heartbeat so continuous typing still
+  // 5 s. We also tick a 25 s heartbeat so continuous typing still
   // triggers a save every 25 s — teachers shouldn't lose more than
   // half a minute of work even if they never stop typing.
   useEffect(() => {
     if (!dirty || !quizId || !canEdit) return
-    const interval = setInterval(() => {
+    const idleTimer = setInterval(() => {
       const idleMs = Date.now() - dirtySinceRef.current
       if (idleMs >= 5000) {
-        performAutoSave()
+        performAutoSaveRef.current?.()
       }
     }, 5000)
     const heartbeat = setInterval(() => {
-      performAutoSave()
+      performAutoSaveRef.current?.()
     }, 25000)
     return () => {
-      clearInterval(interval)
+      clearInterval(idleTimer)
       clearInterval(heartbeat)
     }
-    // We intentionally don't include performAutoSave in deps — it captures
-    // the current state every call via closure over react state.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dirty, quizId, canEdit])
 
   async function handleSave(mode = 'draft') {
