@@ -26,6 +26,8 @@ const {
   stripJsonFences,
   toAnthropicShape,
 } = require("./aiService");
+// Gemini REST client — used by the structureImportedQuiz pipeline.
+const {callGemini} = require("./geminiClient");
 const {
   buildMtnConfig,
   DEFAULT_CURRENCY,
@@ -155,6 +157,12 @@ const mtnEnv = defineSecret("MTN_ENV");
 const emailSmtpUser = defineSecret("EMAIL_SMTP_USER");
 const emailSmtpPassword = defineSecret("EMAIL_SMTP_PASSWORD");
 const recraftApiKey = defineSecret("RECRAFT_API_KEY");
+// Optional. When set, structureImportedQuiz uses a Gemini → Claude pipeline:
+// Gemini 2.5 Flash ingests the full document (1M-context strength) and emits
+// rough question candidates; Claude refines them into CBC-aligned output.
+// When unset, the callable falls back to the original Claude-only path so
+// the feature keeps working without forcing a secret rotation.
+const geminiApiKey = defineSecret("GEMINI_API_KEY");
 const MAX_LEN = {
   question: 1200,
   correctAnswer: 600,
@@ -1537,9 +1545,9 @@ exports.verifyQuiz = onCall(
 
 exports.structureImportedQuiz = onCall(
   {
-    secrets: [anthropicApiKey],
+    secrets: [anthropicApiKey, geminiApiKey],
     region: "us-central1",
-    timeoutSeconds: 60,
+    timeoutSeconds: 90, // pipeline calls two models; allow extra headroom
     enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
     consumeAppCheckToken: true,
   },
@@ -1578,10 +1586,71 @@ exports.structureImportedQuiz = onCall(
     }
 
     await assertDailyLimit(request.auth.uid, role, "smartImport");
+
+    // Pipeline (when GEMINI_API_KEY is present):
+    //   Step 1 — Gemini 2.5 Flash ingests the full document (1M context)
+    //            and emits rough question candidates as JSON.
+    //   Step 2 — Claude refines those candidates into the final CBC-
+    //            aligned shape using the existing system prompt.
+    //
+    // Fallback (when GEMINI_API_KEY is missing):
+    //   Skip step 1 entirely; Claude reads the raw document directly
+    //   exactly as it always has. This means the feature keeps working
+    //   without the new secret being rotated in.
+    const geminiKey = geminiApiKey.value() || process.env.GEMINI_API_KEY || "";
+    let claudeInputDocument = documentText;
+    let claudeInputHint = localDraft;
+    if (geminiKey) {
+      try {
+        const geminiText = await callGemini(geminiKey, {
+          systemPrompt: [
+            "You are a document scanner for the ZedExams smart-import pipeline.",
+            "Read the raw exam document below and emit a STRUCTURED JSON list",
+            "of every question you can find, in the order they appear.",
+            "Prefer recall over precision — include any uncertain candidates;",
+            "a downstream CBC reviewer will refine and drop bad ones.",
+            "For each question, group passages with their child questions.",
+            "Do NOT invent questions or answers. Return only the JSON object",
+            "described below — no markdown, no preamble.",
+          ].join(" "),
+          userPrompt: [
+            fileName ? `File name: ${fileName}` : "",
+            "",
+            "Raw document text:",
+            documentText,
+            "",
+            "Return JSON in this shape:",
+            "{\"candidates\":[",
+            "  {\"sourceQuestionNumber\":1,\"text\":\"...\",\"options\":[\"\",\"\",\"\",\"\"],",
+            "   \"correctAnswer\":\"\",\"explanation\":\"\",\"passageTitle\":\"\",",
+            "   \"passageText\":\"\"}",
+            "]}",
+          ].filter(Boolean).join("\n"),
+          maxTokens: 6000,
+          temperature: 0.1,
+          responseJson: true,
+        });
+        // Pass Gemini's structured extraction to Claude as the
+        // localDraft hint, alongside the original raw text. Claude sees
+        // both and can correct any mistakes the first pass made.
+        claudeInputHint = `Pre-structured extraction (use to anchor question grouping, but verify against the raw document above): ${geminiText.slice(0, 60000)}`;
+        // Defensive: if Gemini's output is empty/blank we keep the
+        // hint as the original localDraft.
+        if (!geminiText.trim()) claudeInputHint = localDraft;
+      } catch (geminiErr) {
+        // Pipeline failure: fall back to single-pass Claude rather
+        // than failing the whole import. Log so we notice if Gemini
+        // is consistently misbehaving.
+        console.warn("structureImportedQuiz: Gemini step failed, falling back to Claude-only", {
+          message: geminiErr?.message?.slice(0, 200),
+        });
+      }
+    }
+
     const {systemPrompt, messages} = toAnthropicShape(buildImportStructureMessages({
       fileName,
-      documentText,
-      localDraft,
+      documentText: claudeInputDocument,
+      localDraft: claudeInputHint,
     }));
     const raw = await callAnthropic(getAnthropicApiKey(anthropicApiKey), {
       systemPrompt,
