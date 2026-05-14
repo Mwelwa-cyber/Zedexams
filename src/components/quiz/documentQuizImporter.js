@@ -6,6 +6,7 @@ import {
   processImportedQuestionBlocks,
 } from './documentQuizParserCore.js'
 import { buildDocxTableBlocks } from './documentQuizTableBlocks.js'
+import { structureImportedQuiz } from '../../utils/aiAssistant'
 
 let pdfjsLoader = null
 
@@ -1595,31 +1596,137 @@ function summarizeImportedSections(sections = []) {
   }
 }
 
+// Convert AI correctAnswer (number | "A"/"B" letter | option text) to a 0-based
+// index against the option list. Defaults to 0 when nothing matches so the
+// editor still renders an answer choice teachers can adjust.
+function correctAnswerToIndex(value, options) {
+  if (Number.isInteger(value)) return value
+  const s = String(value || '').trim()
+  if (!s) return 0
+  if (/^[A-Da-d]$/.test(s)) return s.toUpperCase().charCodeAt(0) - 65
+  const idx = options.findIndex(o => String(o).trim().toLowerCase() === s.toLowerCase())
+  return idx >= 0 ? idx : 0
+}
+
+function aiQuestionToLocalOverrides(q) {
+  const options = Array.isArray(q.options) ? q.options : []
+  const type = ['mcq', 'truefalse', 'short_answer', 'diagram'].includes(q.type) ? q.type : (options.length >= 2 ? 'mcq' : 'short_answer')
+  return {
+    text: q.text || '',
+    options: options.length ? options : ['', '', '', ''],
+    correctAnswer: type === 'mcq' ? correctAnswerToIndex(q.correctAnswer, options) : (q.correctAnswer ?? ''),
+    explanation: q.explanation || '',
+    type,
+    detectedType: type,
+  }
+}
+
+function smartSectionsToLocal(aiSections) {
+  return aiSections
+    .map(section => {
+      if (section.kind === 'passage') {
+        const questions = (section.questions || []).map(q => aiQuestionToLocalOverrides(q))
+        if (!questions.length) return null
+        return createPassageSection({
+          title: section.title || '',
+          instructions: section.instructions || '',
+          passageText: section.passageText || '',
+          questions,
+        })
+      }
+      const q = section.question
+      if (!q || (!q.text && !(q.options || []).length)) return null
+      return createStandaloneSection(aiQuestionToLocalOverrides(q))
+    })
+    .filter(Boolean)
+}
+
+function rawTextFromExtracted(extracted) {
+  return (extracted.blocks || [])
+    .map(block => block.text || '')
+    .filter(Boolean)
+    .join('\n')
+    .trim()
+}
+
+// Smart import — Gemini + Claude pipeline behind the structureImportedQuiz
+// callable. Only run for Word documents: PDF text extraction is too noisy
+// for the AI to add value (page numbers, broken layouts, OCR drift) and
+// inflates LLM cost on inputs unlikely to improve.
+async function trySmartImport(extracted, file) {
+  const documentText = rawTextFromExtracted(extracted)
+  if (documentText.length < 120) return null
+  try {
+    const localDraft = (extracted.blocks || [])
+      .slice(0, 60)
+      .map(b => b.text)
+      .filter(Boolean)
+      .join('\n')
+      .slice(0, 8000)
+    const ai = await structureImportedQuiz({
+      fileName: file.name,
+      documentText: documentText.slice(0, 60000),
+      localDraft,
+    })
+    const aiSections = Array.isArray(ai.sections) ? ai.sections : []
+    if (!aiSections.length) return null
+    const localSections = smartSectionsToLocal(aiSections)
+    if (!localSections.length) return null
+    return { sections: localSections, warnings: Array.isArray(ai.warnings) ? ai.warnings : [] }
+  } catch (error) {
+    // Swallow — the caller falls back to local parsing. The warning gets
+    // surfaced so teachers know smart import didn't apply.
+    return { error: error?.message || 'Smart import unavailable' }
+  }
+}
+
 export async function importQuizDocument(file) {
   if (!file) throw new Error('Choose a Word or PDF file first.')
 
   const lowerName = file.name.toLowerCase()
   let extracted
+  let isWord = false
 
   if (lowerName.endsWith('.docx')) {
     extracted = await extractDocx(file)
+    isWord = true
   } else if (lowerName.endsWith('.doc')) {
     extracted = await extractLegacyDoc(file)
+    isWord = true
   } else if (lowerName.endsWith('.pdf') || file.type === 'application/pdf') {
     extracted = await extractPdf(file)
   } else {
     throw new Error('Please upload a .doc, .docx, or .pdf file.')
   }
 
-  const { processedBlocks, questions, sections, parts, summary } = processImportedQuestionBlocks(
-    extracted.blocks,
-    extracted.warnings,
-  )
+  const local = processImportedQuestionBlocks(extracted.blocks, extracted.warnings)
   const metadata = buildImportMetadata(
-    processedBlocks.map(block => block.text).join('\n'),
+    local.processedBlocks.map(block => block.text).join('\n'),
     file.name,
   )
-  const importStatus = summary.needsReview > 0 || extracted.warnings.length
+
+  let sections = local.sections
+  let parts = local.parts || []
+  let questions = local.questions
+  let summary = local.summary
+  let smartApplied = false
+  const warnings = [...extracted.warnings]
+
+  if (isWord) {
+    const smart = await trySmartImport(extracted, file)
+    if (smart?.sections) {
+      sections = smart.sections
+      parts = []
+      questions = []
+      summary = { ...local.summary, needsReview: 0, total: smart.sections.length, smartImportSections: smart.sections.length }
+      smartApplied = true
+      if (Array.isArray(smart.warnings)) warnings.push(...smart.warnings)
+    } else if (smart?.error) {
+      warnings.push(`Smart import unavailable, used standard parser. (${smart.error})`)
+    }
+  }
+
+  const importStatus = summary.needsReview > 0 || warnings.length
     ? 'needs_review'
     : 'success'
 
@@ -1634,14 +1741,15 @@ export async function importQuizDocument(file) {
           : lowerName.endsWith('.docx') ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
             : 'application/msword'
       ),
-      importWarnings: extracted.warnings,
+      importWarnings: warnings,
     },
     sections,
-    parts: parts || [],
+    parts,
     questions,
     imageAssets: extracted.imageAssets,
     importStatus,
-    warnings: extracted.warnings,
+    warnings,
+    smartApplied,
     summary,
   }
 }
