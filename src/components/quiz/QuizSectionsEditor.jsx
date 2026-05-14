@@ -815,12 +815,14 @@ function StandaloneQuestionCard({
                       className="theme-text flex-1 resize-y border-none bg-transparent text-sm leading-relaxed outline-none"
                     />
                   ) : isTrueFalse ? (
-                    // True/False stays a plain disabled input — there's
-                    // nothing to format about "True" or "False".
+                    // True / False questions hard-code the two option
+                    // labels. The field is read-only — disabled inputs
+                    // can't fire onChange, so we omit the handler too
+                    // (no setter could ever be triggered, and an unused
+                    // handler is just dead weight + a lint warning).
                     <input
-                      value={typeof option === 'string' ? option : ''}
-                      onChange={event => setOption(optionIndex, event.target.value)}
-                      placeholder={optionIndex === 0 ? 'True' : 'False'}
+                      readOnly
+                      value={optionIndex === 0 ? 'True' : 'False'}
                       disabled
                       className="theme-text flex-1 border-none bg-transparent text-sm outline-none disabled:opacity-80"
                     />

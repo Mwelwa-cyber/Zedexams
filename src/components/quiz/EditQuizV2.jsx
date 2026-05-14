@@ -157,6 +157,12 @@ export default function EditQuizV2() {
   // Guards against re-entrant auto-saves: only one in-flight save at a
   // time, and we skip auto-save while a manual save is running.
   const autoSavingRef = useRef(false)
+  // Set to false on unmount so an in-flight auto-save can't call
+  // setDirty/setDeletedIds after the component is gone, and an
+  // already-queued network round-trip doesn't fire-and-forget a write
+  // to Firestore for a quiz the teacher already navigated away from.
+  const mountedRef = useRef(true)
+  useEffect(() => () => { mountedRef.current = false }, [])
   // Always-current reference to performAutoSave. The auto-save effect
   // would otherwise close over a stale `performAutoSave` (the one from
   // the render where `dirty` first flipped true), making the timer save
@@ -846,6 +852,11 @@ export default function EditQuizV2() {
     if (autoSavingRef.current || saving) return
     if (anyUploading) return
     if (!dirty) return
+    // Published quizzes are LIVE — silently pushing every keystroke into
+    // production would let a teacher's mid-edit "fix" reach learners
+    // before they've checked it. Editing a published quiz requires a
+    // manual "Update" click; auto-save stays in the drafts/pending lane.
+    if (quizStatus === 'published') return
     // Refuse if there's literally nothing to save (avoids clobbering a
     // freshly created quiz with an empty payload on first mount).
     if (!String(form.title || '').trim() && sections.length === 0) return
@@ -861,22 +872,24 @@ export default function EditQuizV2() {
           passages: serializedSections.passages,
           parts: serializedSections.parts,
           passageCount: serializedSections.passages.length,
-          // Auto-save NEVER changes publish status — published quizzes
-          // stay published, drafts stay drafts. Manual Publish is the
-          // only way to flip it.
+          // Auto-save never flips publish status — and we already bail
+          // above for `published`, so this branch only runs for drafts /
+          // pending. The status passthrough preserves whichever of those
+          // two the quiz is currently in.
           status: quizStatus,
-          isPublished: quizStatus === 'published',
+          isPublished: false,
           updatedBy: currentUser.uid,
         },
         serializedSections.questions,
         deletedIds,
       )
+      if (!mountedRef.current) return
       setDeletedIds([])
       setDirty(false)
       setAutoSaveState('saved')
     } catch (error) {
       console.error('EditQuiz auto-save error:', error)
-      setAutoSaveState('failed')
+      if (mountedRef.current) setAutoSaveState('failed')
     } finally {
       autoSavingRef.current = false
     }
@@ -887,6 +900,12 @@ export default function EditQuizV2() {
   // ref each tick so it always sees the latest form/sections/parts/
   // deletedIds rather than a closure captured when `dirty` first
   // flipped true.
+  //
+  // NOTE: this useEffect intentionally has NO dependency array (not an
+  // empty one — none at all). React fires this on every commit, so the
+  // ref tracks the latest `performAutoSave` after every render. An
+  // empty deps array would freeze the ref at the first render's
+  // closure; that bug is exactly what this pattern exists to avoid.
   useEffect(() => {
     performAutoSaveRef.current = performAutoSave
   })
@@ -1289,7 +1308,11 @@ export default function EditQuizV2() {
       <QuizEditorActionBar
         onSaveDraft={() => handleSave('draft')}
         onPublish={() => handleSave('published')}
-        onPreview={null}
+        // Jump straight to the wizard's Preview step — already the
+        // canonical place that renders the live preview, so we don't
+        // need a second preview surface on the action bar. Hidden when
+        // already on Preview so the button doesn't no-op.
+        onPreview={wizardStep === 'preview' ? null : () => setWizardStep('preview')}
         onShowChecklist={() => setChecklistOpen(true)}
         saving={saving}
         uploading={anyUploading}

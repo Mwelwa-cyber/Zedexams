@@ -346,8 +346,12 @@ function buildQuestionBlock(q, number, includeAnswer) {
   //   optionsPlain — readable plain text for legacy code paths
   // The raw `options` array is preserved unchanged in case callers need
   // the stored shape directly.
-  const optionsHtml = options.map((opt) => richHtml(opt))
-  const optionsPlain = options.map((opt) => plain(opt))
+  //
+  // Only MCQ has options — for fill-in-the-blank / numeric / diagram /
+  // essay / etc. we'd just be mapping an empty array, which is wasted
+  // work + needless allocation per render. Short-circuit when empty.
+  const optionsHtml = options.length ? options.map((opt) => richHtml(opt)) : []
+  const optionsPlain = options.length ? options.map((opt) => plain(opt)) : []
 
   return {
     kind: 'question',

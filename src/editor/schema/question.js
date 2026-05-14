@@ -150,7 +150,12 @@ export const questionSchema = z
     // option — most options stay under a few hundred bytes; serialised
     // Tiptap docs run to a few thousand.
     options: z.array(z.string().max(20000)).max(20).default([]),
-    correctAnswer: z.union([z.string().max(20000), z.number()]).default(0),
+    // `correctAnswer` is either a numeric index into `options` (MCQ)
+    // OR a short string for fill-in-the-blank / short-answer (compared
+    // string-for-string by the runner). Keep this tight — a multi-KB
+    // "correct answer" string would never match a learner's typed
+    // response and indicates corrupt data, not a legitimate use case.
+    correctAnswer: z.union([z.string().max(1000), z.number()]).default(0),
 
     // ── Numeric-answer fields ──
     // `tolerance` is the maximum absolute difference accepted as a correct
