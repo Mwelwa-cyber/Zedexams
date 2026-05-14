@@ -11,9 +11,12 @@ import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { SUBJECTS, GRADES } from '../../config/curriculum'
 import { subscribeToDailyLeaderboard, fmtDuration, fmtDate } from '../../utils/examLeaderboardService'
+import { computeRivalry } from '../../utils/gamificationService'
 import { todayString } from '../../utils/examService'
 import Navbar from '../layout/Navbar'
 import SeoHelmet from '../seo/SeoHelmet'
+import LiveActivityFeed from './LiveActivityFeed'
+import WeeklyChampions from './WeeklyChampions'
 
 // ── sub-components ────────────────────────────────────────────────────────────
 
@@ -124,6 +127,7 @@ export default function ExamLeaderboardPage() {
   }, [subject, grade, date])
 
   const myEntry = rows.find(r => r.userId === currentUser?.uid)
+  const rivalry = computeRivalry(rows, currentUser?.uid)
 
   // ── stats strip ────────────────────────────────────────────────────────
   const topPct   = rows[0]?.percentage ?? null
@@ -236,6 +240,41 @@ export default function ExamLeaderboardPage() {
             </div>
           </div>
         )}
+
+        {/* ── rivalry messages (chase / defend) ────────────────── */}
+        {rivalry && rivalry.messages.length > 0 && (
+          <div className="space-y-2">
+            {rivalry.messages.map((m, i) => (
+              <div
+                key={i}
+                className={`flex items-start gap-2 rounded-2xl px-3 py-2.5 text-sm font-bold ${
+                  m.tone === 'challenge'
+                    ? 'bg-rose-50 border border-rose-200 text-rose-800'
+                    : 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+                }`}
+              >
+                <span className="text-lg" aria-hidden="true">{m.icon}</span>
+                <span className="flex-1">{m.text}</span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* ── live activity + weekly champions ────────────────── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {isToday && (
+            <LiveActivityFeed
+              subject={subject || undefined}
+              grade={grade || undefined}
+              date={date}
+            />
+          )}
+          <WeeklyChampions
+            subject={subject || undefined}
+            grade={grade || undefined}
+            currentUserId={currentUser?.uid}
+          />
+        </div>
 
         {/* ── leaderboard rows ─────────────────────────────────── */}
         {loading ? (

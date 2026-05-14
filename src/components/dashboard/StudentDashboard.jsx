@@ -11,6 +11,7 @@ import Button from '../ui/Button'
 import Skeleton from '../ui/Skeleton'
 import SeoHelmet from '../seo/SeoHelmet'
 import ProgressWidget from './ProgressWidget'
+import StreakXpCard from './StreakXpCard'
 
 const STARS = [
   { top: '10%', left:  '7%',  delay: '0s',    dur: '3.2s', emoji: '⭐', cls: 'text-xl opacity-70' },
@@ -146,6 +147,9 @@ export default function StudentDashboard() {
           </div>
         </div>
       </section>
+
+      {/* Gamification: XP, level, streak, personal best */}
+      <StreakXpCard />
 
       {/* Upgrade banner */}
       <UpgradeBanner onUpgradeClick={() => setShowUpgrade(true)} />
