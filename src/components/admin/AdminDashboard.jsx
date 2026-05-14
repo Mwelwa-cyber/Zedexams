@@ -9,44 +9,54 @@ import { db } from '../../firebase/config'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
-import PageHeader from '../ui/PageHeader'
 import EmptyState from '../ui/EmptyState'
 import SeoHelmet from '../seo/SeoHelmet'
 import ParentDigestTester from './ParentDigestTester'
 
-const STAT_TINT = {
-  green:  't-mint',
-  blue:   't-blue',
-  orange: 't-amber',
-  purple: 't-purple',
-  yellow: 't-amber',
+// Pastel mascot tones cycle through orange / blue / green / yellow / pink /
+// purple so the grid feels like the /games hub mascot row.
+const STAT_TONE = {
+  green:  'tone-green',
+  blue:   'tone-blue',
+  orange: 'tone-orange',
+  purple: 'tone-purple',
+  yellow: 'tone-yellow',
+  pink:   'tone-pink',
 }
 
-function StatCard({ icon, label, value, color, loading, linkTo }) {
+function StatCard({ icon, label, value, sub, tone, loading, linkTo }) {
   const inner = (
-    <div className={`stat-tile ${STAT_TINT[color] || 't-purple'} ${linkTo ? 'hover-lift press-feedback cursor-pointer' : ''}`}>
-      <div className="stat-tile-icon" aria-hidden="true"><span className="text-base">{icon}</span></div>
-      <div className="stat-num">
-        {loading ? <Skeleton height={20} width={40} /> : value}
+    <div className={`admin-game-card relative flex flex-col rounded-[22px] bg-white p-4 sm:p-5 ${linkTo ? 'is-pressable cursor-pointer' : ''}`}>
+      <div className={`admin-game-tile ${STAT_TONE[tone] || 'tone-orange'} mb-3 h-12 w-12 text-[24px] leading-none`}>
+        <span aria-hidden="true">{icon}</span>
       </div>
-      <div className="stat-label">{label}</div>
+      <div className="admin-game-display text-[26px] leading-none" style={{ color: '#0F1B2D' }}>
+        {loading ? <Skeleton height={22} width={48} /> : value}
+      </div>
+      <div className="mt-1 text-[10.5px] font-extrabold uppercase tracking-[0.12em]" style={{ color: '#4A5A6E' }}>
+        {label}
+      </div>
+      {sub && (
+        <div className="mt-0.5 text-[11px] font-semibold" style={{ color: '#4A5A6E' }}>
+          {sub}
+        </div>
+      )}
     </div>
   )
-  return linkTo ? <Link to={linkTo}>{inner}</Link> : inner
+  return linkTo ? <Link to={linkTo} className="no-underline">{inner}</Link> : inner
 }
 
-// Admin quick actions reuse the learner dashboard's qa-card / accent-* styles
-// so the two surfaces stay visually consistent. The 7 actions cycle through
-// mint/blue/amber/pink to keep the grid lively without re-using the same
-// accent on adjacent cards.
+// Quick actions — each lives in a sticker card with a pastel mascot tile, an
+// orange "GO" pill in the top corner, and a short blurb. Mirrors the
+// SubjectTile look from /games.
 const QUICK_ACTIONS = [
-  { to: '/admin/lessons/new',             icon: '📖',  label: 'Create Lesson',     sub: 'Add a new lesson for learners',          accent: 'accent-mint'  },
-  { to: '/admin/quizzes/new',             icon: '✏️',  label: 'Create Quiz',       sub: 'Build a new quiz or test',               accent: 'accent-blue'  },
-  { to: '/admin/quizzes/new?mode=import', icon: '📄',  label: 'Import Quiz',       sub: 'Convert Word/PDF into questions',        accent: 'accent-amber' },
-  { to: '/admin/quizzes/new?mode=ai',     icon: '✦',  label: 'AI Quiz Generator', sub: 'Draft questions with Zed',               accent: 'accent-pink'  },
-  { to: '/admin/content',                 icon: '📁',  label: 'Manage Content',    sub: 'Edit or delete existing content',        accent: 'accent-mint'  },
-  { to: '/admin/learners',                icon: '👥',  label: 'View Learners',     sub: 'Monitor learner activity and progress',  accent: 'accent-blue'  },
-  { to: '/admin/cbc-kb',                  icon: '📚',  label: 'CBC Knowledge Base',sub: 'Add custom curriculum topics',           accent: 'accent-amber' },
+  { to: '/admin/lessons/new',             icon: '📖',  label: 'Create Lesson',     sub: 'Add a new lesson for learners',          tone: 'tone-green'  },
+  { to: '/admin/quizzes/new',             icon: '✏️',  label: 'Create Quiz',       sub: 'Build a new quiz or test',               tone: 'tone-blue'   },
+  { to: '/admin/quizzes/new?mode=import', icon: '📄',  label: 'Import Quiz',       sub: 'Convert Word/PDF into questions',        tone: 'tone-yellow' },
+  { to: '/admin/quizzes/new?mode=ai',     icon: '✦',   label: 'AI Quiz Generator', sub: 'Draft questions with Zed',               tone: 'tone-pink'   },
+  { to: '/admin/content',                 icon: '📁',  label: 'Manage Content',    sub: 'Edit or delete existing content',        tone: 'tone-orange' },
+  { to: '/admin/learners',                icon: '👥',  label: 'View Learners',     sub: 'Monitor learner activity and progress',  tone: 'tone-purple' },
+  { to: '/admin/cbc-kb',                  icon: '📚',  label: 'CBC Knowledge Base',sub: 'Add custom curriculum topics',           tone: 'tone-blue'   },
 ]
 
 export default function AdminDashboard() {
@@ -136,79 +146,123 @@ export default function AdminDashboard() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       <SeoHelmet title="Admin dashboard" noIndex />
-      <PageHeader
-        eyebrow="Admin overview"
-        title="Dashboard"
-        description="Overview of your ZedExams platform — at a glance."
-      />
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 stagger">
-        {[
-          { icon: '📖',   label: 'Lessons',          value: stats.lessons,     color: 'green'                                                     },
-          { icon: '📝',   label: 'Quizzes',          value: stats.quizzes,     color: 'blue'                                                      },
-          { icon: '👥',   label: 'Learners',         value: stats.learners,    color: 'orange', linkTo: '/admin/learners'                         },
-          { icon: '📊',   label: 'Results',          value: stats.results,     color: 'purple'                                                    },
-          { icon: '🔔',   label: 'Content Pending',  value: stats.pending,     color: 'yellow',  linkTo: '/admin/approvals'                       },
-          { icon: '✨',   label: stats.gensFlagged > 0 ? `AI Gens · ${stats.gensFlagged} flagged` : `AI Gens · $${stats.gensCostUsd}`, value: stats.gens, color: stats.gensFlagged > 0 ? 'yellow' : 'purple', linkTo: '/admin/generations' },
-        ].map(s => (
-          <div key={s.label} className="animate-slide-in-soft">
-            <StatCard icon={s.icon} label={s.label} value={s.value} color={s.color} loading={loading} linkTo={s.linkTo} />
+      {/* Hero — bold quest-style headline + tagline, mirroring "Pick your
+          quest" from /games. */}
+      <section>
+        <div className="flex items-end justify-between gap-3">
+          <div className="min-w-0">
+            <span className="admin-game-eyebrow">Admin overview</span>
+            <h1 className="admin-game-display mt-2 text-[34px] leading-[1.05] sm:text-[44px]" style={{ color: '#0F1B2D' }}>
+              Pick your quest
+            </h1>
+            <p className="mt-2 max-w-2xl text-[13px] font-medium" style={{ color: '#4A5A6E' }}>
+              Overview of your ZedExams platform — at a glance.
+            </p>
           </div>
-        ))}
-      </div>
+          <Link
+            to="/admin/analytics"
+            className="hidden sm:inline text-xs font-extrabold whitespace-nowrap"
+            style={{ color: '#053541' }}
+          >
+            All ›
+          </Link>
+        </div>
+      </section>
 
-      {/* Quick Actions — same qa-card / accent palette the learner dashboard
-          uses so admins and learners see a consistent visual language. The
-          grid grows 2 → 3 → 4 columns to keep cards comfortable on every
-          breakpoint with our 7-action set. */}
-      <div>
-        <h2 className="qa-title">⚡ Quick Actions</h2>
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-2 stagger">
+      {/* Stats grid — sticker cards with pastel mascot tiles. */}
+      <section>
+        <div className="mb-3">
+          <span className="admin-game-eyebrow">Stats</span>
+          <h2 className="admin-game-display mt-1 text-[22px] sm:text-[26px]" style={{ color: '#0F1B2D' }}>
+            Today's scoreboard
+          </h2>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 stagger">
+          {[
+            { icon: '📖', label: 'Lessons',         value: stats.lessons,  tone: 'green'                                          },
+            { icon: '📝', label: 'Quizzes',         value: stats.quizzes,  tone: 'blue'                                           },
+            { icon: '👥', label: 'Learners',        value: stats.learners, tone: 'orange', linkTo: '/admin/learners'              },
+            { icon: '📊', label: 'Results',         value: stats.results,  tone: 'purple'                                         },
+            { icon: '🔔', label: 'Content pending', value: stats.pending,  tone: 'yellow', linkTo: '/admin/approvals'             },
+            {
+              icon: '✨',
+              label: 'AI generations',
+              value: stats.gens,
+              sub: stats.gensFlagged > 0 ? `${stats.gensFlagged} flagged` : `$${stats.gensCostUsd} spent`,
+              tone: stats.gensFlagged > 0 ? 'yellow' : 'pink',
+              linkTo: '/admin/generations',
+            },
+          ].map(s => (
+            <div key={s.label} className="animate-slide-in-soft">
+              <StatCard icon={s.icon} label={s.label} value={s.value} sub={s.sub} tone={s.tone} loading={loading} linkTo={s.linkTo} />
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* Quick Actions — sticker cards with pastel mascot tiles and an
+          orange "GO" pill, mirroring the SubjectTile from /games. */}
+      <section>
+        <div className="mb-3 flex items-end justify-between">
+          <div>
+            <span className="admin-game-eyebrow">🔥 Hot right now</span>
+            <h2 className="admin-game-display mt-1 text-[22px] sm:text-[26px]" style={{ color: '#0F1B2D' }}>
+              Quick actions
+            </h2>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 stagger">
           {QUICK_ACTIONS.map((a, i) => (
             <Link
               key={a.to}
               to={a.to}
-              className={`qa-card ${a.accent} hover-lift press-feedback animate-pop`}
-              style={{ animationDelay: `${i * 60}ms` }}
+              className="admin-game-card is-pressable relative flex flex-col rounded-[22px] bg-white p-4 sm:p-5 no-underline animate-pop"
+              style={{ animationDelay: `${i * 60}ms`, color: '#0F1B2D' }}
             >
-              <span className="qa-icon" aria-hidden="true"><span className="text-base">{a.icon}</span></span>
-              <div className="qa-text">
-                <p className="qa-name">{a.label}</p>
-                <p className="qa-desc">{a.sub}</p>
+              <span className="admin-game-pill-accent admin-game-pill absolute right-3 top-3">
+                Go ›
+              </span>
+              <div className={`admin-game-tile ${a.tone} mb-3 h-14 w-14 text-[28px] leading-none`}>
+                <span aria-hidden="true">{a.icon}</span>
               </div>
+              <p className="admin-game-display text-[17px] leading-tight" style={{ color: '#0F1B2D' }}>
+                {a.label}
+              </p>
+              <p className="mt-1 text-[11.5px] font-semibold" style={{ color: '#4A5A6E' }}>
+                {a.sub}
+              </p>
             </Link>
           ))}
         </div>
-      </div>
+      </section>
 
       {/* Developer tools — collapsed by default so the seed + parent-digest
-          test panels stay out of the way on every dashboard load. Admins who
-          need them are one click away; the rest of the page no longer scrolls
-          past two large amber/white blocks that the typical day-to-day admin
-          never touches. */}
-      <details className="surface rounded-radius-lg shadow-elev-sm">
-        <summary className="cursor-pointer select-none flex items-center justify-between gap-3 px-4 py-3 text-eyebrow">
+          test panels stay out of the way on every dashboard load. Wrapped in
+          a sticker card to match the rest of the game theme. */}
+      <details className="admin-game-card rounded-[22px] bg-white">
+        <summary className="cursor-pointer select-none flex items-center justify-between gap-3 px-5 py-4">
           <span className="flex items-center gap-2">
-            <span aria-hidden="true">🛠️</span>
-            <span>Developer tools</span>
+            <span aria-hidden="true" className="text-lg">🛠️</span>
+            <span className="admin-game-eyebrow">Developer tools</span>
           </span>
-          <span className="text-body-sm font-normal normal-case tracking-normal text-slate-500">
+          <span className="text-[11px] font-semibold normal-case tracking-normal" style={{ color: '#4A5A6E' }}>
             Seed data &amp; digest tester
           </span>
         </summary>
-        <div className="px-4 pb-4 pt-1 space-y-4">
+        <div className="px-5 pb-5 pt-1 space-y-4">
           {/* Audit A3 PR 3 — admin-only on-demand parent digest tester. */}
           <ParentDigestTester />
 
           {/* Seed Data */}
-          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 shadow-elev-sm">
+          <div className="admin-game-card rounded-[18px] p-5" style={{ background: '#FFF7E6' }}>
             <div className="flex flex-col sm:flex-row sm:items-center gap-3">
               <div className="flex-1">
-                <h2 className="text-display-md text-amber-900" style={{ fontSize: 16 }}>Seed sample data</h2>
-                <p className="text-amber-700 text-body-sm mt-0.5">
+                <p className="admin-game-eyebrow">Seed</p>
+                <h2 className="admin-game-display text-[18px] mt-1" style={{ color: '#0F1B2D' }}>Sample data</h2>
+                <p className="mt-1 text-[12px] font-medium" style={{ color: '#4A5A6E' }}>
                   Load the sample quizzes into Firestore, or clear the seeded set created by your account.
                   Clearing removes the matching seeded quiz docs and their question subcollections.
                 </p>
@@ -222,7 +276,7 @@ export default function AdminDashboard() {
                   disabled={clearingSeed}
                   leadingIcon={<Icon as={Sprout} size="sm" />}
                   className="shrink-0"
-                  style={{ backgroundColor: '#F59E0B', color: 'white' }}
+                  style={{ backgroundColor: '#FF7A1A', color: 'white' }}
                 >
                   {seeding ? 'Seeding…' : 'Run seed'}
                 </Button>
@@ -238,21 +292,33 @@ export default function AdminDashboard() {
                 </Button>
               </div>
             </div>
-            {seedMsg && <p className="mt-3 text-body-sm font-bold text-amber-900 bg-amber-100 rounded-xl px-4 py-2">{seedMsg}</p>}
+            {seedMsg && (
+              <p className="mt-3 text-[12px] font-bold rounded-xl px-4 py-2" style={{ background: '#FFEDD5', color: '#9A3412' }}>
+                {seedMsg}
+              </p>
+            )}
           </div>
         </div>
       </details>
 
-      {/* Recent Results */}
-      <div>
-        <div className="ra-title">
-          <span>Recent activity</span>
-          <Link to="/admin/results">View all →</Link>
+      {/* Recent Results — bordered sticker table mirroring the games hub
+          aesthetic. */}
+      <section>
+        <div className="mb-3 flex items-end justify-between">
+          <div>
+            <span className="admin-game-eyebrow">🏆 Recent runs</span>
+            <h2 className="admin-game-display mt-1 text-[22px] sm:text-[26px]" style={{ color: '#0F1B2D' }}>
+              Recent activity
+            </h2>
+          </div>
+          <Link to="/admin/results" className="text-xs font-extrabold" style={{ color: '#053541' }}>
+            All ›
+          </Link>
         </div>
         {loading ? (
           <div className="space-y-2">
             {Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="surface--tight rounded-radius-md p-4">
+              <div key={i} className="admin-game-card rounded-[18px] p-4 bg-white">
                 <div className="flex items-center gap-3">
                   <Skeleton shape="circle" size={32} />
                   <div className="flex-1 space-y-2">
@@ -264,38 +330,59 @@ export default function AdminDashboard() {
             ))}
           </div>
         ) : recent.length === 0 ? (
-          <div className="surface--tight rounded-radius-lg">
+          <div className="admin-game-card rounded-[22px] bg-white p-10">
             <EmptyState
               title="No results yet"
               description="Results will appear here once learners take quizzes."
             />
           </div>
         ) : (
-          <div className="ra-table">
-            <div className="ra-row head">
+          <div className="admin-game-card rounded-[22px] bg-white overflow-hidden">
+            <div className="grid grid-cols-3 gap-3 px-4 py-3 text-[10.5px] font-extrabold uppercase tracking-[0.12em]" style={{ background: '#0F172A', color: '#FFFFFF' }}>
               <span>Learner</span>
               <span>Quiz</span>
-              <span>Score · Date</span>
+              <span className="text-right">Score · Date</span>
             </div>
-            {recent.map(r => (
-              <div key={r.id} className="ra-row">
-                <div>
-                  <p className="ra-learner-name">{r.userName || 'Learner'}</p>
-                  <p className="ra-learner-grade">Grade {r.grade}</p>
+            <div>
+              {recent.map((r, idx) => (
+                <div
+                  key={r.id}
+                  className="grid grid-cols-3 gap-3 px-4 py-3 items-center"
+                  style={{ borderTop: idx === 0 ? 'none' : '1.5px dashed #D8D0BC' }}
+                >
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-extrabold truncate" style={{ color: '#0F1B2D' }}>
+                      {r.userName || 'Learner'}
+                    </p>
+                    <p className="text-[10.5px] font-semibold uppercase tracking-wider" style={{ color: '#4A5A6E' }}>
+                      Grade {r.grade}
+                    </p>
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[13px] font-bold truncate" style={{ color: '#0F1B2D' }}>
+                      {r.quizTitle}
+                    </p>
+                    <p className="text-[10.5px] font-semibold uppercase tracking-wider" style={{ color: '#4A5A6E' }}>
+                      {r.subject}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p
+                      className="admin-game-display text-[18px] leading-none"
+                      style={{ color: pctColor(r.percentage) === 'green' ? '#047857' : pctColor(r.percentage) === 'amber' ? '#C2410C' : '#B91C1C' }}
+                    >
+                      {r.percentage}%
+                    </p>
+                    <p className="mt-0.5 text-[10.5px] font-semibold" style={{ color: '#4A5A6E' }}>
+                      {r.score}/{r.totalMarks} · {fmt(r.completedAt)}
+                    </p>
+                  </div>
                 </div>
-                <div>
-                  <p className="ra-quiz-name truncate">{r.quizTitle}</p>
-                  <p className="ra-quiz-subj">{r.subject}</p>
-                </div>
-                <div>
-                  <p className={`ra-score ${pctColor(r.percentage)}`}>{r.percentage}%</p>
-                  <p className="ra-score-frac">{r.score}/{r.totalMarks} · {fmt(r.completedAt)}</p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         )}
-      </div>
+      </section>
     </div>
   )
 }

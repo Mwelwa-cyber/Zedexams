@@ -136,8 +136,8 @@ function NavBadge({ count }) {
   if (!count) return null
   return (
     <span
-      className="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full text-[10px] font-black"
-      style={{ background: '#ff7a2e', color: '#fff' }}
+      className="ml-auto inline-flex items-center justify-center min-w-[22px] h-[22px] px-1.5 rounded-full text-[10px] font-black"
+      style={{ background: '#FF7A1A', color: '#fff', border: '2px solid #0F1B2D', boxShadow: '0 2px 0 #0F1B2D' }}
     >
       {count > 99 ? '99+' : count}
     </span>
@@ -171,7 +171,7 @@ function ViewAsMenu() {
       <button
         type="button"
         onClick={() => setOpen(o => !o)}
-        className="theme-bg-subtle theme-border hover:theme-accent-bg hover:theme-accent-text inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-bold transition-colors"
+        className="admin-game-btn-ghost inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-bold"
         aria-haspopup="menu"
         aria-expanded={open}
       >
@@ -229,18 +229,15 @@ export default function AdminLayout({ children }) {
   }, [])
 
   const navClass = ({ isActive }) =>
-    `relative flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-bold transition-all duration-fast ease-out ${
+    `relative flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-extrabold transition-all duration-fast ease-out ${
       isActive
-        ? 'theme-accent-bg theme-accent-text shadow-elev-inner-hl pl-4'
+        ? 'admin-game-nav-active'
         : 'theme-text-muted hover:theme-bg-subtle hover:theme-text'
     }`
   const mobileNavClass = ({ isActive }) =>
-    `relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-colors ${
-      isActive ? 'theme-accent-bg theme-accent-text shadow-elev-inner-hl pl-5' : 'theme-text-muted hover:theme-bg-subtle hover:theme-text'
+    `relative flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-extrabold transition-colors ${
+      isActive ? 'admin-game-nav-active' : 'theme-text-muted hover:theme-bg-subtle hover:theme-text'
     }`
-  const ActiveBar = () => (
-    <span aria-hidden className="absolute left-1 top-2 bottom-2 w-1 rounded-full theme-accent-fill" />
-  )
 
   const renderSection = (section, isMobile) => (
     <div key={section.label} className="mb-2">
@@ -255,42 +252,37 @@ export default function AdminLayout({ children }) {
           onClick={isMobile ? () => setMobileOpen(false) : undefined}
           className={isMobile ? mobileNavClass : navClass}
         >
-          {({ isActive }) => (
-            <>
-              {isActive && <ActiveBar />}
-              <Icon as={item.icon} size="sm" />
-              <span className="flex-1">{item.label}</span>
-              <NavBadge count={item.badgeKey ? badges[item.badgeKey] : 0} />
-            </>
-          )}
+          <Icon as={item.icon} size="sm" />
+          <span className="flex-1">{item.label}</span>
+          <NavBadge count={item.badgeKey ? badges[item.badgeKey] : 0} />
         </NavLink>
       ))}
     </div>
   )
 
   return (
-    <div className="studio-theme theme-bg theme-text min-h-screen flex">
+    <div className="admin-game-theme theme-bg theme-text min-h-screen flex">
       {/* ── Desktop Sidebar ─────────────────────────────── */}
       <aside
-        className="theme-border shadow-elev-md hidden w-64 flex-shrink-0 flex-col border-r md:flex"
-        style={{ backgroundColor: '#ffffff' }}
+        className="hidden w-64 flex-shrink-0 flex-col md:flex"
+        style={{ backgroundColor: '#FFFFFF', borderRight: '2px solid #0F1B2D', boxShadow: '2px 0 0 #0F1B2D' }}
       >
-        <div className="theme-border px-4 py-5 border-b" style={{ backgroundColor: '#fffaf0' }}>
-          <Link to="/admin" className="inline-flex items-center gap-2.5 no-underline" style={{ color: '#0e2a32' }}>
+        <div className="px-4 py-5" style={{ backgroundColor: '#F5EFE1', borderBottom: '2px solid #0F1B2D' }}>
+          <Link to="/admin" className="inline-flex items-center gap-2.5 no-underline" style={{ color: '#0F1B2D' }}>
             <Logo variant="icon" size="md" />
             <div className="leading-tight">
-              <p className="studio-display" style={{ fontSize: 16, margin: 0, color: '#0e2a32' }}>
-                ZedExams <span style={{ color: '#ff7a2e' }}>•</span>
+              <p className="admin-game-display" style={{ fontSize: 18, margin: 0, color: '#0F1B2D' }}>
+                ZedExams <span style={{ color: '#FF7A1A' }}>•</span>
               </p>
-              <p style={{ fontSize: 11.5, color: '#566f76', margin: 0, fontWeight: 600 }}>Admin Panel</p>
+              <p style={{ fontSize: 11.5, color: '#4A5A6E', margin: 0, fontWeight: 700 }}>Admin Quest</p>
             </div>
           </Link>
           <div className="mt-3 pl-1 flex items-center justify-between">
-            <span className="studio-eyebrow">Control centre</span>
+            <span className="admin-game-eyebrow">Control centre</span>
             <button
               type="button"
               onClick={() => setPaletteOpen(true)}
-              className="theme-bg-subtle theme-border hover:theme-accent-bg hover:theme-accent-text inline-flex items-center gap-1.5 rounded-lg border px-2 py-1 text-[10px] font-black uppercase tracking-wider transition-colors"
+              className="admin-game-btn-ghost inline-flex items-center gap-1 rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-wider"
               title="Quick search (⌘K)"
             >
               <Icon as={Search} size="xs" />
@@ -319,9 +311,12 @@ export default function AdminLayout({ children }) {
           </Link>
         </nav>
 
-        <div className="theme-border p-3 border-t">
+        <div className="p-3" style={{ borderTop: '2px solid #0F1B2D' }}>
           <div className="flex items-center gap-2 px-3 py-2 mb-1">
-            <div className="theme-accent-fill theme-on-accent flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full text-xs font-black shadow-elev-inner-hl">
+            <div
+              className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-full text-xs font-black"
+              style={{ background: '#FF7A1A', color: '#FFFFFF', border: '2px solid #0F1B2D', boxShadow: '0 2px 0 #0F1B2D' }}
+            >
               {(userProfile?.displayName || 'A')[0].toUpperCase()}
             </div>
             <div className="min-w-0">
@@ -339,15 +334,15 @@ export default function AdminLayout({ children }) {
       </aside>
 
       {/* ── Mobile Header ───────────────────────────────── */}
-      <div className="theme-border shadow-elev-md fixed left-0 right-0 top-0 z-40 border-b md:hidden" style={{ backgroundColor: '#ffffff' }}>
+      <div className="fixed left-0 right-0 top-0 z-40 md:hidden" style={{ backgroundColor: '#FFFFFF', borderBottom: '2px solid #0F1B2D', boxShadow: '0 2px 0 #0F1B2D' }}>
         <div className="flex items-center justify-between px-4 h-16">
-          <Link to="/admin" className="flex items-center gap-2.5 no-underline" style={{ color: '#0e2a32' }}>
+          <Link to="/admin" className="flex items-center gap-2.5 no-underline" style={{ color: '#0F1B2D' }}>
             <Logo variant="icon" size="md" />
             <div className="leading-tight">
-              <p className="studio-display" style={{ fontSize: 15, margin: 0, color: '#0e2a32' }}>
-                ZedExams <span style={{ color: '#ff7a2e' }}>•</span>
+              <p className="admin-game-display" style={{ fontSize: 16, margin: 0, color: '#0F1B2D' }}>
+                ZedExams <span style={{ color: '#FF7A1A' }}>•</span>
               </p>
-              <p style={{ fontSize: 10.5, color: '#566f76', margin: 0, fontWeight: 600 }}>Admin Panel</p>
+              <p style={{ fontSize: 10.5, color: '#4A5A6E', margin: 0, fontWeight: 700 }}>Admin Quest</p>
             </div>
           </Link>
           <div className="flex items-center gap-2">
@@ -409,7 +404,10 @@ export default function AdminLayout({ children }) {
       <main className="flex-1 min-w-0 md:pt-0 pt-16">
         {/* Top utility bar — theme picker + view-as toggle. Hidden on
             mobile because the mobile header already carries the brand. */}
-        <div className="hidden md:flex items-center justify-end gap-3 px-6 py-3 theme-border border-b" style={{ background: 'rgba(255,255,255,0.6)' }}>
+        <div
+          className="hidden md:flex items-center justify-end gap-3 px-6 py-3"
+          style={{ background: '#FFFAF0', borderBottom: '2px solid #0F1B2D' }}
+        >
           <ViewAsMenu />
           <ThemeSelector />
         </div>

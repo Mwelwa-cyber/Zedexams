@@ -471,6 +471,196 @@ body.theme-solar {
     color: #fff; border-radius: 24px;
     box-shadow: 0 12px 32px rgba(14,42,50,.18);
   }
+
+  /*
+   * Admin Game Theme — the "Pick your quest" sticker look from /games,
+   * applied to the admin shell. White cards with a 2px navy border and a
+   * hard 2px offset shadow, an uppercase eyebrow with an orange dash, and a
+   * cream parchment background. Scopes the theme custom properties so all
+   * descendant theme-* utilities (theme-bg, theme-card, theme-border,
+   * theme-accent-*) repaint without touching individual admin pages.
+   */
+  .admin-game-theme {
+    --bg:              #F5EFE1;
+    --bg-subtle:       #ECE4D2;
+    --card:            #FFFFFF;
+    --card-hover:      #FFFAF0;
+    --text:            #0F1B2D;
+    --text-muted:      #4A5A6E;
+    --border:          #0F1B2D;
+    --accent:          #FF7A1A;
+    --accent-text:     #FFFFFF;
+    --accent-bg:       #FFEDD5;
+    --accent-fg:       #C2410C;
+    --input-bg:        #FFFFFF;
+    --input-border:    #0F1B2D;
+    --shadow:          rgba(15,27,45,0.10);
+    --hero-gradient:   linear-gradient(135deg, #0F172A 0%, #1E293B 100%);
+    --hero-muted:      #FDE9B8;
+    --success:         #10864E; --success-bg: #E6F5ED; --success-fg: #0A5A35;
+    --warning:         #C2410C; --warning-bg: #FFEDD5; --warning-fg: #9A3412;
+    --danger:          #B91C1C; --danger-bg:  #FEE2E2; --danger-fg:  #7F1414;
+    --info:            #0E5E70; --info-bg:    #E3EEF0; --info-fg:    #053541;
+  }
+  .admin-game-theme,
+  .admin-game-theme h1,
+  .admin-game-theme h2,
+  .admin-game-theme h3,
+  .admin-game-theme h4 {
+    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+  }
+  .admin-game-theme .admin-game-display,
+  .admin-game-theme .studio-display {
+    font-family: 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-weight: 800;
+    letter-spacing: -0.4px;
+  }
+  .admin-game-theme .admin-game-eyebrow,
+  .admin-game-theme .studio-eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 10.5px; font-weight: 800;
+    letter-spacing: 0.16em; text-transform: uppercase;
+    color: #053541;
+  }
+  .admin-game-theme .admin-game-eyebrow::before,
+  .admin-game-theme .studio-eyebrow::before {
+    content: ''; width: 22px; height: 3px;
+    border-radius: 2px; background: #FF7A1A;
+  }
+  /* Sticker card — white surface with 2px navy border + hard offset shadow.
+   * Mirrors .zx-card from /games. Applied to .admin-game-card and remaps the
+   * legacy .studio-card class so older admin pages inherit the look without
+   * file-by-file edits. */
+  .admin-game-theme .admin-game-card,
+  .admin-game-theme .studio-card {
+    background: #FFFFFF;
+    border: 2px solid #0F1B2D;
+    border-radius: 22px;
+    box-shadow: 0 2px 0 #0F1B2D;
+    transition: transform .12s ease, box-shadow .12s ease;
+  }
+  .admin-game-theme .admin-game-card.is-pressable:hover,
+  .admin-game-theme .studio-card:hover {
+    transform: translateY(1px);
+    box-shadow: 0 1px 0 #0F1B2D, 0 10px 24px -16px rgba(15,27,45,0.4);
+  }
+  .admin-game-theme .admin-game-card-soft,
+  .admin-game-theme .studio-card-soft {
+    background: #FFFFFF;
+    border: 1.5px solid #D8D0BC;
+    border-radius: 18px;
+  }
+  /* Sticker pill button */
+  .admin-game-theme .admin-game-btn-primary,
+  .admin-game-theme .studio-btn-primary {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    background: #FF7A1A; color: #FFFFFF;
+    border: 2px solid #0F1B2D; border-radius: 14px;
+    padding: 10px 18px; font-weight: 800;
+    box-shadow: 0 3px 0 #0F1B2D;
+    transition: transform 80ms ease, box-shadow 80ms ease, background .15s ease;
+  }
+  .admin-game-theme .admin-game-btn-primary:hover:not(:disabled),
+  .admin-game-theme .studio-btn-primary:hover:not(:disabled) {
+    transform: translateY(1px); box-shadow: 0 2px 0 #0F1B2D;
+  }
+  .admin-game-theme .admin-game-btn-primary:active,
+  .admin-game-theme .studio-btn-primary:active {
+    transform: translateY(3px); box-shadow: 0 0 0 #0F1B2D;
+  }
+  .admin-game-theme .admin-game-btn-ghost,
+  .admin-game-theme .studio-btn-ghost {
+    display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    background: #FFFFFF; color: #0F1B2D;
+    border: 2px solid #0F1B2D; border-radius: 14px;
+    padding: 9px 16px; font-weight: 700;
+    box-shadow: 0 3px 0 #0F1B2D;
+    transition: transform 80ms ease, box-shadow 80ms ease;
+  }
+  .admin-game-theme .admin-game-btn-ghost:hover {
+    transform: translateY(1px); box-shadow: 0 2px 0 #0F1B2D;
+  }
+  .admin-game-theme .admin-game-btn-ghost:active {
+    transform: translateY(3px); box-shadow: 0 0 0 #0F1B2D;
+  }
+  .admin-game-theme .admin-game-input,
+  .admin-game-theme .studio-input {
+    width: 100%; background: #FFFFFF;
+    border: 2px solid #0F1B2D; color: #0F1B2D;
+    border-radius: 12px; padding: 9px 12px;
+    transition: box-shadow .15s ease;
+  }
+  .admin-game-theme .admin-game-input:focus,
+  .admin-game-theme .studio-input:focus {
+    outline: none; box-shadow: 0 0 0 3px rgba(255,122,26,0.25);
+  }
+  .admin-game-theme .admin-game-label,
+  .admin-game-theme .studio-label {
+    display: block; font-size: 11px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: .8px;
+    color: #4A5A6E; margin-bottom: 6px;
+  }
+  /* Solid pill badge — slate-900 with white text, à la "8 GAMES" */
+  .admin-game-theme .admin-game-pill,
+  .admin-game-theme .studio-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px;
+    font-size: 10px; font-weight: 800;
+    letter-spacing: .08em; text-transform: uppercase;
+    background: #0F172A; color: #FFFFFF;
+  }
+  .admin-game-theme .admin-game-pill-accent,
+  .admin-game-theme .studio-badge-accent {
+    background: #FF7A1A; color: #FFFFFF;
+  }
+  .admin-game-theme .admin-game-pill-outline {
+    background: #FFFFFF; color: #0F1B2D;
+    border: 2px solid #0F1B2D;
+    box-shadow: 0 2px 0 #0F1B2D;
+  }
+  /* Pastel mascot tile — square with 2px navy border and a soft fill */
+  .admin-game-theme .admin-game-tile {
+    display: grid; place-items: center;
+    border: 2px solid #0F1B2D; border-radius: 18px;
+    box-shadow: 0 2px 0 #0F1B2D;
+  }
+  .admin-game-theme .admin-game-tile.tone-orange { background: #FFEDD5; color: #C2410C; }
+  .admin-game-theme .admin-game-tile.tone-blue   { background: #DBEAFE; color: #1D4ED8; }
+  .admin-game-theme .admin-game-tile.tone-green  { background: #D1FAE5; color: #047857; }
+  .admin-game-theme .admin-game-tile.tone-yellow { background: #FEF3C7; color: #B45309; }
+  .admin-game-theme .admin-game-tile.tone-pink   { background: #FCE7F3; color: #BE185D; }
+  .admin-game-theme .admin-game-tile.tone-purple { background: #EDE9FE; color: #6D28D9; }
+  /* Progress bar — bordered black outline like /games */
+  .admin-game-theme .admin-game-progress {
+    height: 8px; border: 1.5px solid #0F1B2D;
+    background: #EFE9DB; border-radius: 999px; overflow: hidden;
+  }
+  .admin-game-theme .admin-game-progress > span {
+    display: block; height: 100%;
+    background: #FF7A1A; border-radius: 999px;
+  }
+  /* Sidebar nav active state — orange sticker */
+  .admin-game-theme .admin-game-nav-active {
+    background: #FF7A1A !important;
+    color: #FFFFFF !important;
+    border: 2px solid #0F1B2D;
+    box-shadow: 0 2px 0 #0F1B2D;
+  }
+  /* Hero strip — dark navy with cream accent */
+  .admin-game-theme .admin-game-hero,
+  .admin-game-theme .studio-hero {
+    background: #0F172A; color: #FFFFFF;
+    border: 2px solid #0F1B2D; border-radius: 22px;
+    box-shadow: 0 3px 0 #0F1B2D;
+  }
+  .admin-game-theme .admin-game-flame {
+    animation: zx-flame 1.4s ease-in-out infinite;
+    display: inline-block;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .admin-game-theme .admin-game-flame { animation: none !important; }
+  }
+
   .theme-accent-bg    { background-color: var(--accent-bg); }
   .theme-accent-text  { color: var(--accent-fg); }
   .theme-accent-fill  { background-color: var(--accent); }
