@@ -583,6 +583,17 @@ service cloud.firestore {
       allow delete:        if isAdmin();
     }
 
+    // ── learnerStats (gamification: XP, levels, streaks, personal bests) ──
+    // Owner-only — these are derived from a learner's own exam_attempts
+    // and don't expose anyone else's identity. The leaderboard is the
+    // public surface; this doc is the learner's private progression
+    // record (level, XP, longest streak, best percentage per subject).
+    match /learnerStats/{userId} {
+      allow read:           if isAuthed() && (isOwner(userId) || isAdmin());
+      allow create, update: if isAuthed() && isOwner(userId);
+      allow delete:         if isAdmin();
+    }
+
     // ── shares (public read-only snapshots of teacher generations) ─
     // Teachers publish a plan to the web via a share button. The doc is
     // keyed by a random token (doc ID = token) and contains a snapshot

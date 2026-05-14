@@ -10,11 +10,13 @@ import { useState, useEffect, useRef } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { getExamAttempt, getExamWithQuestions } from '../../utils/examService'
-import { subscribeToDailyLeaderboard, fmtDuration } from '../../utils/examLeaderboardService'
+import { subscribeToDailyLeaderboard, getDailyLeaderboard, fmtDuration } from '../../utils/examLeaderboardService'
+import { recordExamCompletion, computeRivalry } from '../../utils/gamificationService'
 import Navbar from '../layout/Navbar'
 import SeoHelmet from '../seo/SeoHelmet'
 import useSoundEffects from '../../hooks/useSoundEffects'
 import { Volume2, VolumeX } from '../ui/icons'
+import ExamCelebrations from './ExamCelebrations'
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -246,6 +248,7 @@ function LeaderboardSection({ attempt, currentUserId }) {
   }, [attempt?.subject, attempt?.attemptDate])
 
   const myEntry = rows.find(r => r.userId === currentUserId)
+  const rivalry = computeRivalry(rows, currentUserId)
 
   return (
     <section>
@@ -270,6 +273,24 @@ function LeaderboardSection({ attempt, currentUserId }) {
               Out of {rows.length} students
             </p>
           </div>
+        </div>
+      )}
+
+      {rivalry && rivalry.messages.length > 0 && (
+        <div className="mb-3 space-y-2">
+          {rivalry.messages.map((m, i) => (
+            <div
+              key={i}
+              className={`flex items-start gap-2 rounded-2xl px-3 py-2 text-xs font-bold ${
+                m.tone === 'challenge'
+                  ? 'bg-rose-50 border border-rose-200 text-rose-800'
+                  : 'bg-emerald-50 border border-emerald-200 text-emerald-800'
+              }`}
+            >
+              <span aria-hidden="true">{m.icon}</span>
+              <span>{m.text}</span>
+            </div>
+          ))}
         </div>
       )}
 
@@ -327,6 +348,7 @@ export default function ExamResultsPage() {
   const [tab,       setTab]       = useState('My Results')
   const [showCorrections, setShowCorrections] = useState(false)
   const [loadingQs, setLoadingQs] = useState(false)
+  const [celebration, setCelebration] = useState(null) // { result, myRank, totalParticipants }
   const { isMuted, toggleMute, playSuccess, playClick, playWarning, primeSounds } = useSoundEffects()
 
   useEffect(() => {
@@ -355,6 +377,38 @@ export default function ExamResultsPage() {
     if (pct < 50) playWarning()
     else playSuccess()
   }, [attempt, playSuccess, playWarning])
+
+  // After a submitted attempt loads, award XP + update streak (idempotent).
+  // Look up the viewer's rank from today's leaderboard so the celebration
+  // banners can fire for top-3 / top-10 finishes.
+  useEffect(() => {
+    if (!attempt || attempt.status !== 'submitted') return
+    if (!currentUser?.uid || attempt.userId !== currentUser.uid) return
+    if (celebration?.result?.stats) return // already done this mount
+    let cancelled = false
+    ;(async () => {
+      try {
+        const rows = await getDailyLeaderboard(attempt.subject, attempt.attemptDate)
+        if (cancelled) return
+        const myEntry = rows.find(r => r.userId === currentUser.uid)
+        const myRank = myEntry?.rank ?? null
+        const result = await recordExamCompletion({
+          userId: currentUser.uid,
+          attempt,
+          rank: myRank,
+        })
+        if (cancelled) return
+        setCelebration({
+          result,
+          myRank,
+          totalParticipants: rows.length,
+        })
+      } catch (err) {
+        console.warn('exam results celebration failed', err)
+      }
+    })()
+    return () => { cancelled = true }
+  }, [attempt?.id, attempt?.status, currentUser?.uid]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleViewCorrections() {
     playClick()
@@ -433,6 +487,15 @@ export default function ExamResultsPage() {
             </Link>
           </div>
         </div>
+
+        {/* Celebration banners (XP / level-up / personal best / rank). */}
+        {celebration && (
+          <ExamCelebrations
+            result={celebration.result}
+            myRank={celebration.myRank}
+            leaderboardSize={celebration.totalParticipants}
+          />
+        )}
 
         {/* Score card (always visible) */}
         <ScoreCard attempt={attempt} />
