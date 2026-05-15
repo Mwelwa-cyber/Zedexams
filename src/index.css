@@ -1833,8 +1833,6 @@ select option {
     background: color-mix(in srgb, #ffffff 65%, transparent);
     -webkit-backdrop-filter: blur(14px) saturate(160%);
     backdrop-filter: blur(14px) saturate(160%);
-    border-bottom: 2px solid #0F1B2D;
-    box-shadow: 0 2px 0 #0F1B2D;
   }
   .zx-glass-bottom {
     background: color-mix(in srgb, #ffffff 60%, transparent);
@@ -1849,10 +1847,6 @@ select option {
     display: inline-flex;
     align-items: center;
     padding: 4px 10px;
-    border-radius: 16px;
-    background: #fff;
-    border: 2px solid #0F1B2D;
-    box-shadow: 0 2px 0 #0F1B2D;
   }
 
   /* Active/idle pills for mobile bottom-nav icons */
@@ -1883,15 +1877,14 @@ select option {
   body.theme-midnight .zx-glass-nav,
   body.theme-midnight .zx-glass-bottom {
     background: color-mix(in srgb, var(--card) 72%, transparent);
-    border-color: #050816;
-    box-shadow: 0 2px 0 #050816;
   }
-  body.theme-midnight .zx-glass-bottom { box-shadow: 0 -2px 0 #050816; }
+  body.theme-midnight .zx-glass-bottom {
+    border-color: #050816;
+    box-shadow: 0 -2px 0 #050816;
+  }
   body.theme-midnight .zx-nav-pill-idle { color: #e2e8f0; }
   body.theme-midnight .zx-logo-pill {
-    background: var(--card);
-    border-color: #050816;
-    box-shadow: 0 2px 0 #050816;
+    background: transparent;
   }
 
   /* — Recent activity table — */
