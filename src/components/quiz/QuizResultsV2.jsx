@@ -10,6 +10,7 @@ import useSoundEffects from '../../hooks/useSoundEffects'
 // Format-aware renderer + plain-text extractor. Works for both legacy HTML
 // quizzes and Tiptap JSON quizzes saved by the new editor.
 import RichContent, { getRichPlainText } from '../../editor/RichContent'
+import { answerToText } from '../../utils/answerText'
 import DiagramSvg from '../diagrams/DiagramSvg'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
@@ -45,18 +46,6 @@ function ScoreCircle({ percentage }) {
       </div>
     </div>
   )
-}
-
-function answerToText(question, answer) {
-  if (answer === undefined || answer === null || answer === '') return 'No answer'
-  const index = Number(answer)
-  if (Array.isArray(question.options) && Number.isInteger(index) && question.options[index]) {
-    return question.options[index]
-  }
-  if (typeof answer === 'object' && answer !== null && 'text' in answer) {
-    return String(answer.text || '')
-  }
-  return String(answer)
 }
 
 export default function QuizResultsV2() {

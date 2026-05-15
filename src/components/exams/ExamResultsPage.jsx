@@ -17,6 +17,8 @@ import SeoHelmet from '../seo/SeoHelmet'
 import useSoundEffects from '../../hooks/useSoundEffects'
 import { Volume2, VolumeX } from '../ui/icons'
 import ExamCelebrations from './ExamCelebrations'
+import RichContent from '../../editor/RichContent'
+import { answerToText } from '../../utils/answerText'
 
 // ── helpers ────────────────────────────────────────────────────────────────────
 
@@ -203,7 +205,11 @@ function CorrectionsView({ attempt, questions }) {
                 }`}>
                   Q{idx + 1}. {isCorrect ? '✓' : skipped ? '—' : '✗'}
                 </span>
-                <p className="text-sm font-bold theme-text">{q.text || q.question || '(question text)'}</p>
+                <RichContent
+                  value={q.text || q.question}
+                  className="text-sm font-bold theme-text"
+                  fallback={<p className="text-sm font-bold theme-text">(question text)</p>}
+                />
               </div>
 
               {q.topic && (
@@ -212,11 +218,31 @@ function CorrectionsView({ attempt, questions }) {
 
               {!isText && (
                 <div className="space-y-1 text-xs font-bold">
-                  {!isCorrect && !skipped && (
-                    <p className="text-red-700">Your answer: {given ?? '—'}</p>
-                  )}
                   {skipped && <p className="text-slate-500">Not answered</p>}
-                  <p className="text-green-700">Correct answer: {q.correctAnswer ?? '—'}</p>
+                  {Array.isArray(q.options) && q.options.length ? (
+                    q.options.map((option, optionIndex) => (
+                      <div
+                        key={`${q.id}-${optionIndex}`}
+                        className={`rounded-lg px-2 py-1 flex items-baseline gap-1 ${
+                          optionIndex === q.correctAnswer ? 'bg-green-50 text-green-700'
+                            : optionIndex === given && !isCorrect ? 'bg-red-50 text-red-600 line-through'
+                            : 'theme-text-muted'
+                        }`}
+                      >
+                        <span>{['A', 'B', 'C', 'D'][optionIndex] ?? optionIndex + 1}.</span>
+                        <RichContent value={option} className="rich-option" fallback={<span />} />
+                        {optionIndex === q.correctAnswer && <span>✅</span>}
+                        {optionIndex === given && !isCorrect && <span>(your answer)</span>}
+                      </div>
+                    ))
+                  ) : (
+                    <>
+                      {!isCorrect && !skipped && (
+                        <p className="text-red-700">Your answer: {answerToText(q, given)}</p>
+                      )}
+                      <p className="text-green-700">Correct answer: {answerToText(q, q.correctAnswer)}</p>
+                    </>
+                  )}
                 </div>
               )}
               {isText && (
