@@ -6,7 +6,7 @@
 
 ## Mission
 
-Make Zambian Competency-Based Curriculum (CBC) learning and assessment
+Make Zambian Competence-Based Curriculum (CBC) learning and assessment
 delightful, affordable, and trustworthy — by letting AI agents do the
 repeatable work (drafting lesson plans, grading, generating questions, QA)
 while a human owner approves what reaches learners and teachers.

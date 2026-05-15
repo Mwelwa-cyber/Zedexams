@@ -356,6 +356,13 @@ export function librarySectionForGeneration(gen) {
  *
  *   tree.lesson_plans.CBC['Grade 4']['Term 2'].Mathematics  // [item, ...]
  */
+// Legacy: the old syllabus was stored as 'CDC' before it was correctly
+// renamed to 'OBC' (Outcome-Based Curriculum). Map it on read so already-
+// saved items keep showing under the right bucket.
+function normalizeSyllabus(value) {
+  return value === 'CDC' ? 'OBC' : value
+}
+
 export function bucketIntoTree(rows = []) {
   const tree = {}
   for (const row of rows) {
@@ -364,7 +371,7 @@ export function bucketIntoTree(rows = []) {
     const lib = row.library || {}
     const path = [
       section.id,
-      lib.syllabus || 'Unsorted',
+      normalizeSyllabus(lib.syllabus) || 'Unsorted',
       lib.gradeForm || 'Unsorted',
       ...(section.hasTerm ? [lib.term || 'Unsorted'] : []),
       lib.subject || 'Unsorted',

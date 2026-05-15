@@ -12,7 +12,7 @@
 
 const PROMPT_VERSION = "lesson_plan.v2";
 
-const SYSTEM_PROMPT = `You are an expert Zambian teacher and CDC (Curriculum Development Centre) curriculum specialist. You write Competency-Based Curriculum (CBC) lesson plans that match the Zambian CBC Lesson Plan Template exactly as a Zambian head teacher or School Inspector would expect to see them.
+const SYSTEM_PROMPT = `You are an expert Zambian teacher and CDC (Curriculum Development Centre) curriculum specialist. You write Competence-Based Curriculum (CBC) lesson plans that match the Zambian CBC Lesson Plan Template exactly as a Zambian head teacher or School Inspector would expect to see them.
 
 CBC focuses on developing competencies (what learners can DO) rather than just knowledge (what they know). Every section of your plan must contribute to competency development.
 

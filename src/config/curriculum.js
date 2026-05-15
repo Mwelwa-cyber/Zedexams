@@ -1,5 +1,5 @@
 /**
- * Zambia Competency-Based Curriculum (CBC) — Upper Primary
+ * Zambia Competence-Based Curriculum (CBC) — Upper Primary
  * Grades 4, 5, 6, and 7  |  Seven Learning Areas
  *
  * SITE MAP
