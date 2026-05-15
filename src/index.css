@@ -1830,9 +1830,29 @@ select option {
 
   /* Frosted glass strips (navbar + bottom nav) */
   .zx-glass-nav {
-    background: color-mix(in srgb, #ffffff 65%, transparent);
-    -webkit-backdrop-filter: blur(14px) saturate(160%);
-    backdrop-filter: blur(14px) saturate(160%);
+    position: relative;
+    background: color-mix(in srgb, #ffffff 55%, transparent);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.22);
+    border-bottom-left-radius: 20px;
+    border-bottom-right-radius: 20px;
+    box-shadow: 0 10px 30px -12px rgba(15, 27, 45, 0.14),
+                inset 0 -1px 0 rgba(255, 255, 255, 0.35);
+  }
+  .zx-glass-nav::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -28px;
+    height: 28px;
+    pointer-events: none;
+    background: linear-gradient(
+      to bottom,
+      color-mix(in srgb, #ffffff 40%, transparent),
+      transparent
+    );
   }
   .zx-glass-bottom {
     position: relative;
@@ -1905,6 +1925,18 @@ select option {
   body.theme-midnight .zx-glass-bottom::before {
     background: linear-gradient(
       to top,
+      color-mix(in srgb, var(--card) 45%, transparent),
+      transparent
+    );
+  }
+  body.theme-midnight .zx-glass-nav {
+    border-color: rgba(255, 255, 255, 0.10);
+    box-shadow: 0 10px 30px -12px rgba(0, 0, 0, 0.45),
+                inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+  }
+  body.theme-midnight .zx-glass-nav::after {
+    background: linear-gradient(
+      to bottom,
       color-mix(in srgb, var(--card) 45%, transparent),
       transparent
     );

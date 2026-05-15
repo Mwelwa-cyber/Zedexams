@@ -67,16 +67,21 @@ export default defineConfig(({ mode }) => {
       // to generate a service worker that pre-caches the app shell and
       // applies sensible runtime caching to fonts + Firebase Storage assets.
       //
-      // registerType: 'prompt' means a new SW waits for the user to confirm
-      // an update via <UpdatePrompt /> instead of force-claiming open tabs.
-      // The first visit installs the SW silently; subsequent updates ask.
+      // registerType: 'autoUpdate' — a new SW activates and reloads the
+      // app automatically on the next open, no user prompt. This is what
+      // makes HTML/meta changes (e.g. theme-color) actually reach returning
+      // users instead of sitting behind a stale precached index.html. Only
+      // the changed hashed assets download, in the background, and the
+      // precache still serves the app offline — so slow connections aren't
+      // penalised. onNeedRefresh never fires in this mode, so <UpdatePrompt />
+      // simply never renders (left in place; harmless).
       //
       // Capacitor: src/main.jsx skips registerSW() on native platforms
       // because Capacitor already serves bundled assets locally — a SW
       // there is dead weight and the file:// protocol blocks it anyway.
       VitePWA({
         strategies: 'generateSW',
-        registerType: 'prompt',
+        registerType: 'autoUpdate',
         manifest: false,            // already shipped at /manifest.webmanifest
         injectRegister: false,      // we register manually from main.jsx
         workbox: {
@@ -139,10 +144,13 @@ export default defineConfig(({ mode }) => {
               },
             },
           ],
-          // Don't bother claiming clients on activate — the prompt-style
-          // update flow above asks the user when to switch.
-          clientsClaim: false,
-          skipWaiting: false,
+          // autoUpdate: take over open clients and activate immediately so
+          // a deploy reaches users on next open without a manual tap.
+          clientsClaim: true,
+          skipWaiting: true,
+          // Purge precaches from older SW revisions (incl. the stale
+          // index.html that held the old theme-color) on activate.
+          cleanupOutdatedCaches: true,
         },
       }),
       firebaseMessagingSwConfig(env),
