@@ -404,6 +404,7 @@ function SectionPicker({ tree, onPick }) {
 }
 
 function SyllabusPicker({ tree, onPick }) {
+  const extras = extraKeys(tree, SYLLABUS_OPTIONS.map((o) => o.value))
   return (
     <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
       {SYLLABUS_OPTIONS.map((opt) => {
@@ -420,12 +421,16 @@ function SyllabusPicker({ tree, onPick }) {
           />
         )
       })}
+      {extras.map((k) => (
+        <OrphanTile key={k} label={k} count={countLeaves(tree[k])} onClick={() => onPick(k)} />
+      ))}
     </div>
   )
 }
 
 function GradeFormPicker({ syllabus, subTree, onPick }) {
   const grades = getActiveGradeForms(syllabus)
+  const extras = extraKeys(subTree, grades.map((g) => g.value))
   return (
     <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
       {grades.map((g) => {
@@ -442,7 +447,10 @@ function GradeFormPicker({ syllabus, subTree, onPick }) {
           />
         )
       })}
-      {grades.length === 0 && (
+      {extras.map((k) => (
+        <OrphanTile key={k} label={k} count={countLeaves(subTree[k])} onClick={() => onPick(k)} />
+      ))}
+      {grades.length === 0 && extras.length === 0 && (
         <EmptyHint text={`No grades configured for ${syllabus} yet.`} />
       )}
     </div>
@@ -450,6 +458,7 @@ function GradeFormPicker({ syllabus, subTree, onPick }) {
 }
 
 function TermPicker({ subTree, onPick }) {
+  const extras = extraKeys(subTree, TERMS.map((t) => t.value))
   return (
     <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
       {TERMS.map((t) => {
@@ -466,13 +475,17 @@ function TermPicker({ subTree, onPick }) {
           />
         )
       })}
+      {extras.map((k) => (
+        <OrphanTile key={k} label={k} count={countLeaves(subTree[k])} onClick={() => onPick(k)} />
+      ))}
     </div>
   )
 }
 
 function SubjectPicker({ syllabus, gradeForm, subTree, onPick }) {
   const subjects = getSubjectsForGradeForm(syllabus, gradeForm)
-  if (subjects.length === 0) {
+  const extras = extraKeys(subTree, subjects)
+  if (subjects.length === 0 && extras.length === 0) {
     return <EmptyHint text={`Subjects for ${syllabus} ${gradeForm} are not configured yet.`} />
   }
   return (
@@ -491,12 +504,16 @@ function SubjectPicker({ syllabus, gradeForm, subTree, onPick }) {
           />
         )
       })}
+      {extras.map((k) => (
+        <OrphanTile key={k} label={k} count={countLeaves(subTree[k])} onClick={() => onPick(k)} />
+      ))}
     </div>
   )
 }
 
 function AssessmentTypePicker({ syllabus, gradeForm, subTree, onPick }) {
   const types = getAssessmentTypesForGradeForm(syllabus, gradeForm)
+  const extras = extraKeys(subTree, types.map((t) => t.value))
   return (
     <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
       {types.map((t) => {
@@ -513,6 +530,9 @@ function AssessmentTypePicker({ syllabus, gradeForm, subTree, onPick }) {
           />
         )
       })}
+      {extras.map((k) => (
+        <OrphanTile key={k} label={k} count={countLeaves(subTree[k])} onClick={() => onPick(k)} />
+      ))}
     </div>
   )
 }
@@ -592,6 +612,21 @@ function Tile({ icon, accent, title, subtitle, onClick }) {
   )
 }
 
+// Tile for a folder whose key exists in the saved data but isn't in the
+// static taxonomy (e.g. "Unsorted", a legacy subject, or an inactive
+// grade). Without this the item is counted at the parent but unreachable.
+function OrphanTile({ label, count, onClick }) {
+  return (
+    <Tile
+      icon="🗂️"
+      accent="#e5e0d2"
+      title={label === 'Unsorted' ? 'Unsorted' : label}
+      subtitle={count > 0 ? `${count} item${count === 1 ? '' : 's'}` : 'Empty'}
+      onClick={onClick}
+    />
+  )
+}
+
 function EmptyHint({ text }) {
   return (
     <div className="rounded-2xl border-2 border-dashed py-10 px-4 text-center" style={{ background: COLORS.card, borderColor: COLORS.border }}>
@@ -622,6 +657,22 @@ function ErrorState({ message }) {
 }
 
 /* ── Tree utilities ────────────────────────────────────────────── */
+
+// Keys present in a tree branch that the static taxonomy doesn't offer.
+// These hold real items (e.g. "Unsorted", or a subject/grade that no
+// longer matches the config) and must still be navigable, otherwise the
+// parent count includes rows that no child tile can reach.
+function extraKeys(branch, knownValues) {
+  if (!branch || typeof branch !== 'object') return []
+  const known = new Set(knownValues)
+  return Object.keys(branch)
+    .filter((k) => !known.has(k) && countLeaves(branch[k]) > 0)
+    .sort((a, b) => {
+      if (a === 'Unsorted') return 1
+      if (b === 'Unsorted') return -1
+      return a.localeCompare(b)
+    })
+}
 
 function countLeaves(node) {
   if (!node) return 0
