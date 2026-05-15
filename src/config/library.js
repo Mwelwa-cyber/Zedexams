@@ -66,7 +66,7 @@ export const LIBRARY_SECTIONS = [
     hasTerm:   false,           // syllabi span the whole year
     hasAssessmentType: false,
     createTo:  null,
-    emptyHint: 'Official CDC / CBC syllabi — view-only, no subscription required.',
+    emptyHint: 'Official OBC / CBC syllabi — view-only, no subscription required.',
   },
   {
     id:        LIBRARY_TYPES.LESSON_PLANS,
@@ -109,20 +109,21 @@ export const LIBRARY_SECTION_BY_ID = Object.fromEntries(
 
 /* ── Syllabus types ──────────────────────────────────────────── */
 //
-// CBC      — new 2023 framework (Grades 1–12)
-// CDC      — old 2013 syllabus (still in use at Grades 5–7 in some schools)
+// CBC      — Competence-Based Curriculum, the new framework (Grades 1–12)
+// OBC      — Outcome-Based Curriculum, the old syllabus (still in use at
+//            Grades 5–7 in some schools)
 // Secondary — Form 1–4 only (subject lists differ; secondary teachers
 //             often use the "Form" naming so we keep a separate root)
 
 export const SYLLABUS_TYPES = {
   CBC:       'CBC',
-  CDC:       'CDC',
+  OBC:       'OBC',
   SECONDARY: 'Secondary',
 }
 
 export const SYLLABUS_OPTIONS = [
-  { value: SYLLABUS_TYPES.CBC,       label: 'CBC (New Syllabus)' },
-  { value: SYLLABUS_TYPES.CDC,       label: 'CDC (Old Syllabus)' },
+  { value: SYLLABUS_TYPES.CBC,       label: 'CBC — Competence-Based Curriculum (New)' },
+  { value: SYLLABUS_TYPES.OBC,       label: 'OBC — Outcome-Based Curriculum (Old)' },
   { value: SYLLABUS_TYPES.SECONDARY, label: 'Secondary (Form 1–4)' },
 ]
 
@@ -147,7 +148,7 @@ export const GRADE_FORMS = {
     { value: 'Grade 11', label: 'Grade 11', band: 'senior_secondary', active: false },
     { value: 'Grade 12', label: 'Grade 12', band: 'senior_secondary', active: false },
   ],
-  [SYLLABUS_TYPES.CDC]: [
+  [SYLLABUS_TYPES.OBC]: [
     { value: 'Grade 5', label: 'Grade 5', band: 'upper_primary', active: true },
     { value: 'Grade 6', label: 'Grade 6', band: 'upper_primary', active: true },
     { value: 'Grade 7', label: 'Grade 7', band: 'upper_primary', active: true },
@@ -173,7 +174,7 @@ export const TERMS = [
 //
 // CBC Grades 1–3:  combined subjects (Mathematics & Science is ONE subject)
 // CBC Grades 4–7:  fully separated subjects
-// CDC Grades 5–7:  same list as CBC 4–7 (matches the Zambian CDC
+// OBC Grades 5–7:  same list as CBC 4–7 (matches the Zambian Outcome-Based
 //                  upper-primary syllabus that those schools still teach)
 // Secondary Form 1: single-discipline subjects + accounting + ICT
 //
@@ -198,8 +199,8 @@ const CBC_UPPER_PRIMARY_SUBJECTS = [
   'Zambian Language',
 ]
 
-// CDC Grades 5–7 mirror the CBC upper-primary list — same subjects.
-const CDC_UPPER_PRIMARY_SUBJECTS = CBC_UPPER_PRIMARY_SUBJECTS
+// OBC Grades 5–7 mirror the CBC upper-primary list — same subjects.
+const OBC_UPPER_PRIMARY_SUBJECTS = CBC_UPPER_PRIMARY_SUBJECTS
 
 const SECONDARY_FORM_1_SUBJECTS = [
   'Physics',
@@ -231,9 +232,9 @@ export function getSubjectsForGradeForm(syllabus, gradeForm) {
     return []
   }
 
-  if (syllabus === SYLLABUS_TYPES.CDC) {
+  if (syllabus === SYLLABUS_TYPES.OBC) {
     if (['Grade 5', 'Grade 6', 'Grade 7'].includes(gradeForm)) {
-      return CDC_UPPER_PRIMARY_SUBJECTS
+      return OBC_UPPER_PRIMARY_SUBJECTS
     }
     return []
   }

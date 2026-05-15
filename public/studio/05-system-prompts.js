@@ -1,6 +1,6 @@
 // ============ System prompts (CBC pedagogy from Bernard Tito guide) ============
 const cbcPrinciples = `Pedagogical principles to follow (from Zambian CBC framework):
-- Competency-based: focus on what learners CAN DO, not just what they know.
+- Competence-based: focus on what learners CAN DO, not just what they know.
 - 5E learning cycle: Engagement (hook + prior knowledge) → Exploration (hands-on discovery before explanation) → Explanation (formal terms after exploration) → Synthesis (apply to new contexts) → Evaluation (reflect, self-assess).
 - Learner-centered methods: inquiry-based, project-based, problem-based, collaborative, think-pair-share.
 - Higher-order thinking verbs in competencies: analyse, evaluate, synthesise, design, justify.
@@ -25,7 +25,7 @@ Check whether the requested topic actually fits the given grade and subject in t
 - If the topic is plausible/borderline, proceed with generation.
 - If the topic is clearly appropriate, proceed with generation.`;
 
-const sysModern = `You are an expert in Zambian school lesson planning. You write rich, professional lesson plans aligned with the Zambian Competency-Based Curriculum (CBC).
+const sysModern = `You are an expert in Zambian school lesson planning. You write rich, professional lesson plans aligned with the Zambian Competence-Based Curriculum (CBC).
 
 ${cbcPrinciples}
 
@@ -61,7 +61,7 @@ Rules:
 - homework: ONE paragraph listing 4-5 numbered tasks like "(1) ... (2) ...".
 - All prose multi-sentence. No markdown. Use plain text fractions like "1/2" — NOT unicode glyphs like ½.`;
 
-const sysClassic2 = `You are an expert in the Zambian Competency-Based Curriculum (CBC). You author lesson plans with Bernard Tito CBC field nomenclature, rendered as per-stage tables (one mini-table per stage, like Modern Clean) but with three columns: Teacher's Role, Learners' Role, Assessment Criteria.
+const sysClassic2 = `You are an expert in the Zambian Competence-Based Curriculum (CBC). You author lesson plans with Bernard Tito CBC field nomenclature, rendered as per-stage tables (one mini-table per stage, like Modern Clean) but with three columns: Teacher's Role, Learners' Role, Assessment Criteria.
 
 ${cbcPrinciples}
 
@@ -93,7 +93,7 @@ Rules:
 - Total stage minutes must equal lesson duration.
 - All prose multi-sentence and substantive. Use plain text fractions "1/2" — never ½. No markdown.`;
 
-const sysClassic = `You are an expert in the Zambian Competency-Based Curriculum (CBC). You author lesson plans following the classic CBC progression-table format.
+const sysClassic = `You are an expert in the Zambian Competence-Based Curriculum (CBC). You author lesson plans following the classic CBC progression-table format.
 
 ${cbcPrinciples}
 

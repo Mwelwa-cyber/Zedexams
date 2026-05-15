@@ -55,11 +55,11 @@ export default function LessonPlanStudio() {
       // Classify the studio meta into canonical library coords so the saved
       // doc lands in the correct /Lesson Plans/<syllabus>/<grade>/<term>/
       // <subject>/ folder. studioFormat is the hardcoded "new" / "old"
-      // version flag — we map it to CBC vs CDC so old-syllabus plans go
-      // into the CDC tree.
+      // version flag — we map it to CBC vs OBC so old-syllabus plans go
+      // into the OBC tree.
       const m = meta || {}
       const syllabusHint = m.syllabusVersion === 'old'
-        ? SYLLABUS_TYPES.CDC
+        ? SYLLABUS_TYPES.OBC
         : SYLLABUS_TYPES.CBC
       const termOnly = (() => {
         const tw = String(m.termWeek || '')
