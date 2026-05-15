@@ -15,7 +15,6 @@ import {
   LIBRARY_SECTION_BY_ID,
   LIBRARY_TYPES,
   SYLLABUS_OPTIONS,
-  SYLLABUS_TYPES,
   TERMS,
   getActiveGradeForms,
   getSubjectsForGradeForm,
@@ -50,6 +49,68 @@ const COLORS = {
   border:   '#d4cab2',
   card:     '#fff',
   orange:   '#ff7a2e',
+}
+
+/* ── Per-tile icons ────────────────────────────────────────────── */
+// Every tile inside a picker used to share one icon (all grades a
+// schoolbag, all subjects a blue book, …). Distinct icons make a folder
+// of siblings scannable.
+
+const SYLLABUS_ICON = {
+  CBC:       '🌱',
+  CDC:       '📜',
+  Secondary: '🎓',
+}
+
+const TERM_ICON = {
+  'Term 1': '🌤️',
+  'Term 2': '🌧️',
+  'Term 3': '☀️',
+}
+
+const ASSESSMENT_ICON = {
+  topic:       '🎯',
+  monthly:     '🗓️',
+  midterm:     '📊',
+  end_of_term: '🏁',
+}
+
+const GRADE_KEYCAPS = ['0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣']
+
+// Grade/Form → numbered keycap (Grade 4 → 4️⃣, Form 1 → 1️⃣).
+function gradeFormIcon(value) {
+  const m = String(value || '').match(/(\d+)/)
+  if (m) {
+    const n = Number(m[1])
+    if (n === 10) return '🔟'
+    if (n >= 0 && n <= 9) return GRADE_KEYCAPS[n]
+  }
+  return /form/i.test(String(value)) ? '🎓' : '🎒'
+}
+
+const SUBJECT_ICON = {
+  'Mathematics':                                     '🔢',
+  'Mathematics and Science':                         '🧮',
+  'English Language':                                '📖',
+  'Literacy and Language':                           '🔤',
+  'Zambian Language':                                '🗣️',
+  'Integrated Science':                              '🔬',
+  'Social Studies':                                  '🌍',
+  'History':                                         '🏛️',
+  'Geography':                                       '🗺️',
+  'Religious Education':                              '⛪',
+  'Technology Studies':                              '🔧',
+  'Creative and Technology Studies':                 '🎨',
+  'Home Economics':                                  '🍳',
+  'Expressive Arts':                                 '🎭',
+  'Physics':                                         '⚛️',
+  'Chemistry':                                       '🧪',
+  'Principles of Accounting':                        '💰',
+  'Information and Communication Technology (ICT)':  '💻',
+}
+
+function subjectIcon(value) {
+  return SUBJECT_ICON[value] || '📘'
 }
 
 export default function TeacherLibrary() {
@@ -413,7 +474,7 @@ function SyllabusPicker({ tree, onPick }) {
         return (
           <Tile
             key={opt.value}
-            icon="📚"
+            icon={SYLLABUS_ICON[opt.value] || '📚'}
             accent="#fde2c4"
             title={opt.label}
             subtitle={count > 0 ? `${count} item${count === 1 ? '' : 's'}` : 'Empty'}
@@ -439,7 +500,7 @@ function GradeFormPicker({ syllabus, subTree, onPick }) {
         return (
           <Tile
             key={g.value}
-            icon={syllabus === SYLLABUS_TYPES.SECONDARY ? '🎓' : '🎒'}
+            icon={gradeFormIcon(g.value)}
             accent="#dbe7f4"
             title={g.label}
             subtitle={count > 0 ? `${count} item${count === 1 ? '' : 's'}` : 'Empty'}
@@ -467,7 +528,7 @@ function TermPicker({ subTree, onPick }) {
         return (
           <Tile
             key={t.value}
-            icon="📅"
+            icon={TERM_ICON[t.value] || '📅'}
             accent="#faecb8"
             title={t.label}
             subtitle={count > 0 ? `${count} item${count === 1 ? '' : 's'}` : 'Empty'}
@@ -496,7 +557,7 @@ function SubjectPicker({ syllabus, gradeForm, subTree, onPick }) {
         return (
           <Tile
             key={s}
-            icon="📘"
+            icon={subjectIcon(s)}
             accent="#d8ecd0"
             title={s}
             subtitle={count > 0 ? `${count} item${count === 1 ? '' : 's'}` : 'Empty'}
@@ -522,7 +583,7 @@ function AssessmentTypePicker({ syllabus, gradeForm, subTree, onPick }) {
         return (
           <Tile
             key={t.value}
-            icon="📝"
+            icon={ASSESSMENT_ICON[t.value] || '📝'}
             accent="#e8d8f0"
             title={t.label}
             subtitle={count > 0 ? `${count} item${count === 1 ? '' : 's'}` : 'Empty'}
