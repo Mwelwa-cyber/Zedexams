@@ -29,7 +29,7 @@ export default function MobileBottomNav({ mode = 'fixed', className = '' }) {
             to={item.to}
             end={item.end}
             className={({ isActive }) =>
-              `flex-1 flex flex-col items-center gap-1 py-2 transition-all duration-base ease-out ${
+              `flex-1 flex flex-col items-center gap-1 py-2 transition-all duration-base ease-out active:scale-95 ${
                 isActive ? 'text-slate-900' : 'text-slate-700 hover:text-slate-900'
               }`
             }
