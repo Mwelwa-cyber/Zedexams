@@ -1835,11 +1835,29 @@ select option {
     backdrop-filter: blur(14px) saturate(160%);
   }
   .zx-glass-bottom {
-    background: color-mix(in srgb, #ffffff 60%, transparent);
-    -webkit-backdrop-filter: blur(16px) saturate(170%);
-    backdrop-filter: blur(16px) saturate(170%);
-    border-top: 2px solid #0F1B2D;
-    box-shadow: 0 -2px 0 #0F1B2D;
+    position: relative;
+    background: color-mix(in srgb, #ffffff 55%, transparent);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
+    backdrop-filter: blur(20px) saturate(180%);
+    border-top: 1px solid rgba(255, 255, 255, 0.22);
+    border-top-left-radius: 20px;
+    border-top-right-radius: 20px;
+    box-shadow: 0 -10px 30px -12px rgba(15, 27, 45, 0.14),
+                inset 0 1px 0 rgba(255, 255, 255, 0.35);
+  }
+  .zx-glass-bottom::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -28px;
+    height: 28px;
+    pointer-events: none;
+    background: linear-gradient(
+      to top,
+      color-mix(in srgb, #ffffff 40%, transparent),
+      transparent
+    );
   }
 
   /* Logo wrapper inside the glass navbar */
@@ -1859,8 +1877,8 @@ select option {
     border-radius: 14px;
     background: #FF7A1A;
     color: #fff;
-    border: 2px solid #0F1B2D;
-    box-shadow: 0 2px 0 #0F1B2D;
+    box-shadow: 0 6px 18px -6px rgba(255, 122, 26, 0.55);
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
   }
   .zx-nav-pill-idle {
     display: inline-flex;
@@ -1871,6 +1889,7 @@ select option {
     border-radius: 14px;
     background: transparent;
     color: #0F1B2D;
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
   }
 
   /* Midnight theme — keep navy stroke, lift alpha so strips stay legible */
@@ -1879,8 +1898,16 @@ select option {
     background: color-mix(in srgb, var(--card) 72%, transparent);
   }
   body.theme-midnight .zx-glass-bottom {
-    border-color: #050816;
-    box-shadow: 0 -2px 0 #050816;
+    border-color: rgba(255, 255, 255, 0.10);
+    box-shadow: 0 -10px 30px -12px rgba(0, 0, 0, 0.45),
+                inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+  body.theme-midnight .zx-glass-bottom::before {
+    background: linear-gradient(
+      to top,
+      color-mix(in srgb, var(--card) 45%, transparent),
+      transparent
+    );
   }
   body.theme-midnight .zx-nav-pill-idle { color: #e2e8f0; }
   body.theme-midnight .zx-logo-pill {
