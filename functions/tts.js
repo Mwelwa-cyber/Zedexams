@@ -2,6 +2,7 @@ const { onRequest } = require('firebase-functions/v2/https');
 const admin         = require('firebase-admin');
 const textToSpeech  = require('@google-cloud/text-to-speech');
 const { getUserRole, assertDailyLimit } = require('./aiService');
+const { applyCors } = require('./cors');
 
 const client = new textToSpeech.TextToSpeechClient();
 
@@ -30,9 +31,11 @@ exports.apiTextToSpeech = onRequest(
     region:         'us-central1',
     memory:         '256MiB',
     timeoutSeconds: 30,
-    cors:           true,
   },
   async (req, res) => {
+    // Browser CORS via the shared origin allow-list (functions/cors.js).
+    // Replaces v2 `cors:true`, which reflected ANY origin.
+    applyCors(req, res);
     if (req.method === 'OPTIONS') return res.status(204).send('');
     if (req.method !== 'POST')    return res.status(405).json({ error: 'POST only' });
 
