@@ -1,5 +1,6 @@
 const {HttpsError} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
+const {resolveCustomSystemPrompt} = require("./aiPromptPolicy");
 const {anthropicFetch} = require("./anthropicFetch");
 
 const OPENAI_URL = "https://api.openai.com/v1/chat/completions";
@@ -390,8 +391,12 @@ function buildAnthropicChat({
 }) {
   const cleanedContext = cleanContext(context);
   const cleanedHistory = cleanChatHistory(history);
+  // Only staff may override the education guardrail prompt. For a learner
+  // this is undefined no matter what the client sent, so the model stays
+  // education-locked and the page-context wrapper below is kept.
+  const allowedCustomPrompt = resolveCustomSystemPrompt(role, customSystemPrompt);
   const systemPrompt = cleanString(
-    customSystemPrompt,
+    allowedCustomPrompt,
     4000,
   ) || educationSystemPrompt(role, cleanedContext);
 
@@ -413,7 +418,7 @@ function buildAnthropicChat({
     trimmedHistory = trimmedHistory.slice(1);
   }
 
-  const userContent = customSystemPrompt
+  const userContent = allowedCustomPrompt
     ? message
     : [
         `Page context: ${JSON.stringify(cleanedContext)}`,
