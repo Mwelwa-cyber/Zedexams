@@ -1,4 +1,5 @@
 const {HttpsError} = require("firebase-functions/v2/https");
+const {verifySettledAmount} = require("./momoSettlement");
 
 const PLAN_CATALOG = {
   monthly: {
@@ -429,4 +430,5 @@ module.exports = {
   normalizePhoneNumber,
   requestToPay,
   resolveCurrency,
+  verifySettledAmount,
 };
