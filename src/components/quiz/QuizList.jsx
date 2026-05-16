@@ -239,12 +239,19 @@ function LockedBanner({ onUpgrade }) {
 export default function QuizList() {
   const { getQuizzes } = useFirestore()
   const { isDemoOnly, accessBadge } = useSubscription()
-  const { userProfile } = useAuth()
+  const { userProfile, isAdmin, isTeacher } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
   const profileGrade = userProfile?.grade
-  const allowedGrades = useMemo(() => resolveAllowedGrades(profileGrade), [profileGrade])
+  // Admins and teachers manage/preview content across the whole curriculum,
+  // so their own profile grade must not gate the library — they see every
+  // grade. Learners stay on the CBC build-up policy (own grade + below).
+  const canSeeAllGrades = isAdmin || isTeacher
+  const allowedGrades = useMemo(
+    () => (canSeeAllGrades ? GRADES : resolveAllowedGrades(profileGrade)),
+    [canSeeAllGrades, profileGrade],
+  )
   const [gradeF, setGradeF]             = useState(() => resolveDefaultGrade(profileGrade))
   const [termF, setTermF]               = useState('')
   const [search, setSearch]             = useState('')
