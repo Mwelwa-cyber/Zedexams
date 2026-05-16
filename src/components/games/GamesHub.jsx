@@ -11,6 +11,7 @@ import { getFallbackGames } from '../../data/gamesSeed'
 import { getTodaysChallenge, getMyStreak } from '../../utils/dailyChallengeService'
 import { getMyGameBadges } from '../../utils/gameBadgesService'
 import {
+  GRADES,
   SUBJECTS,
   getMyHistory,
   listGames,
@@ -432,7 +433,15 @@ function badgeFor(game, index) {
 }
 
 function pickGradeForSubject(games, subjectSlug) {
-  const first = games.find((game) => String(game.subject || '').toLowerCase() === subjectSlug)
-  return first?.grade || 1
+  // Only grades in GRADES have a working Grade→Subject→Games page; linking to
+  // an out-of-scope grade (e.g. a seed game tagged G1) makes GameList bounce
+  // back to /games via gradeByValue() returning null.
+  const supported = new Set(GRADES.map((g) => g.value))
+  const inScope = games.find(
+    (game) =>
+      String(game.subject || '').toLowerCase() === subjectSlug &&
+      supported.has(Number(game.grade)),
+  )
+  return inScope?.grade || GRADES[0]?.value || 4
 }
 
