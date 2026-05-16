@@ -166,6 +166,37 @@ test('assignments + classInvites writes are Cloud-Function-only', () => {
   )
 })
 
+test('gamification collections enforce field validators', () => {
+  // learnerStats / badges / dailyStreaks are owner-only client writes
+  // with no server writer. If the validator call is dropped from a
+  // create/update rule, a tampered client can write absurd values
+  // (xp:1e18, level:9999) into its own progression record.
+  for (const [coll, fn] of [
+    ['badges', 'validBadgesFields'],
+    ['dailyStreaks', 'validDailyStreaksFields'],
+    ['learnerStats', 'validLearnerStatsFields'],
+  ]) {
+    const block = rules.match(
+      new RegExp(`match /${coll}/\\{[^}]+\\}\\s*\\{([\\s\\S]*?)\\n {4}\\}`),
+    )
+    assert(block, `${coll} match block not found`)
+    assert(
+      block[1].includes(`${fn}()`),
+      `${coll} create/update no longer calls ${fn}() — unbounded self-tamper`,
+    )
+  }
+
+  // Range bounds must stay (the anti-tamper teeth). Streak counters are
+  // deliberately NOT monotonic — they reset to a lower value after a
+  // missed day — so we assert range bounds, never a >= prior constraint.
+  assert(/incoming\(\)\.xp <= 100000000/.test(rules), 'learnerStats xp upper bound missing')
+  assert(/incoming\(\)\.level <= 1000/.test(rules), 'learnerStats level upper bound missing')
+  assert(
+    /incoming\(\)\.streak >= 0 && incoming\(\)\.streak <= 100000/.test(rules),
+    'dailyStreaks streak range bound missing',
+  )
+})
+
 // ── Report ──────────────────────────────────────────────────────
 
 console.log('')
