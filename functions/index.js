@@ -97,6 +97,10 @@ const {runVex} = require("./agents/runners/vex");
 // day's Daily Exam slot every morning so the admin no longer has to
 // click "Daily Exam" by hand for routine rotation.
 const {autoPickDailyExams} = require("./dailyExamPicker");
+const {
+  getExamQuestions: getExamQuestionsFn,
+  submitDailyExam: submitDailyExamFn,
+} = require("./dailyExamGradingFns");
 
 // AI agents — Phase 2 dispatcher (Content department: Aria → Cala → Reva → Pubo).
 const {
@@ -1293,6 +1297,8 @@ exports.apiMomoPaymentStatus = onRequest(
 );
 
 exports.autoPickDailyExams = autoPickDailyExams;
+exports.getExamQuestions = getExamQuestionsFn;
+exports.submitDailyExam = submitDailyExamFn;
 
 exports.pollPendingMomoPayments = onSchedule(
   {
