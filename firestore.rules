@@ -158,7 +158,33 @@ service cloud.firestore {
         && incoming().get('premiumActivatedAt', null) == null
         && incoming().get('subscriptionProvider', null) == null
         && incoming().get('subscriptionPaymentId', null) == null
-        && incoming().get('subscriptionPhoneNumber', null) == null;
+        && incoming().get('subscriptionPhoneNumber', null) == null
+        // Audit (fresh pass) — the self-update blocklist below was solid
+        // but the create rule never pinned these, so a signup setDoc could
+        // mint a paid learner-portal grant or free referral credit by
+        // including them in the very first user doc write. defaultUserRecord
+        // never sets the portal/cancel/lifecycle fields and writes the
+        // referral counters as 0, so requiring the safe defaults here is
+        // non-breaking for legitimate signup.
+        && incoming().get('learnerPortalActive', false) == false
+        && incoming().get('learnerPortalPlan', null) == null
+        && incoming().get('learnerPortalProvider', null) == null
+        && incoming().get('learnerPortalPhoneNumber', null) == null
+        && incoming().get('learnerPortalPaymentId', null) == null
+        && incoming().get('learnerPortalActivatedAt', null) == null
+        && incoming().get('learnerPortalExpiry', null) == null
+        && incoming().get('referralCount', 0) == 0
+        && incoming().get('referralCredits', 0) == 0
+        && incoming().get('referralCreditRedeemed', false) == false
+        && incoming().get('cancelAtPeriodEnd', false) == false
+        && incoming().get('cancelAtPeriodEndUpdatedAt', null) == null
+        && incoming().get('cancelAtPeriodEndReason', null) == null
+        && incoming().get('status', 'active') == 'active'
+        && incoming().get('suspendedAt', null) == null
+        && incoming().get('suspendedBy', null) == null
+        && incoming().get('suspendReason', null) == null
+        && incoming().get('deletedAt', null) == null
+        && incoming().get('deletedBy', null) == null;
       // Self-update: cannot change role or subscription fields. The
       // cancelAtPeriodEnd flag is in this list too (audit D4) — only
       // the setSubscriptionCancellation Cloud Function (admin SDK) is
