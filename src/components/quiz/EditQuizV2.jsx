@@ -44,6 +44,7 @@ const SUBJECTS = [
   'Technology Studies',
   'Cinyanja',
   'Home Economics',
+  'Special Paper 1',
 ]
 const GRADES = ['4', '5', '6', '7']
 const TERMS = ['1', '2', '3']
