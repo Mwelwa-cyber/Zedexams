@@ -17,6 +17,7 @@ import {
 import { richTextHasContent } from '../../utils/quizRichText.js'
 import { clampInt } from '../../utils/inputs.js'
 import { getErrorMessage } from '../../utils/errors.js'
+import { classifyOnPublish } from '../../utils/quizClassification.js'
 import {
   validateStandaloneQuestion as sharedValidateStandaloneQuestion,
   collectQuizIssues,
@@ -157,6 +158,9 @@ export default function EditQuizV2() {
   })
   const [quizStatus, setQuizStatus] = useState('draft')
   const [quizOwner, setQuizOwner] = useState(null)
+  // Captured from the loaded quiz so a publish from the editor can preserve
+  // an existing Daily Exam pin and respect a manual exam-only override.
+  const [origClassification, setOrigClassification] = useState({ quizType: undefined, examOnly: undefined })
   const [sections, setSections] = useState([])
   const [parts, setParts] = useState([])
   const [deletedIds, setDeletedIds] = useState([])
@@ -284,6 +288,7 @@ export default function EditQuizV2() {
       })
       setQuizStatus(quiz.status ?? (quiz.isPublished ? 'published' : 'draft'))
       setQuizOwner(quiz.createdBy)
+      setOrigClassification({ quizType: quiz.quizType, examOnly: quiz.examOnly })
       const hydrated = hydrateQuizSections(questions, quiz.passages || [], quiz.parts || [])
       setSections(hydrated.sections)
       setParts(hydrated.parts)
@@ -983,11 +988,18 @@ export default function EditQuizV2() {
     try {
       const serializedSections = serializeQuizSections(sections, parts)
       const isPublished = mode === 'published'
-      // Saving as draft/pending must clear the assignment so the quiz can't
-      // sit in the orphan state (quizType: 'practice', isPublished: false)
-      // that trips firestore rules-as-filters in getQuizzes.
+      // Publishing must classify the quiz the same way the admin
+      // ManageContent flow does, otherwise it lands as isPublished:true with
+      // no quizType — an orphan that getQuizzes filters out, so no learner
+      // ever sees it. Saving as draft/pending clears the assignment so the
+      // quiz can't sit in the (quizType:'practice', isPublished:false) orphan
+      // state that trips firestore rules-as-filters in getQuizzes.
       const assignmentPatch = isPublished
-        ? {}
+        ? classifyOnPublish({
+            currentQuizType: origClassification.quizType,
+            examOnly: origClassification.examOnly,
+            questionCount: serializedSections.questions.length,
+          })
         : { quizType: null, isDailyExam: false, dailyExamDate: null }
       await updateQuizWithQuestions(
         quizId,
@@ -1032,13 +1044,17 @@ export default function EditQuizV2() {
     try {
       const nextStatus = quizStatus === 'published' ? 'draft' : 'published'
       const serializedSections = serializeQuizSections(sections, parts)
-      // Unpublishing must also clear the assignment fields. Otherwise the
-      // quiz keeps quizType: 'practice' with isPublished: false — the orphan
-      // state that trips firestore rules-as-filters and blanks the learner
-      // library. Re-publishing routes through ManageContent's "Make practice"
-      // flow, which sets quizType correctly.
+      // Publishing classifies the quiz (practice vs exam-only, preserving a
+      // Daily Exam pin) so it actually shows up for learners. Unpublishing
+      // clears the assignment fields, otherwise the quiz keeps
+      // quizType:'practice' with isPublished:false — the orphan state that
+      // trips firestore rules-as-filters and blanks the learner library.
       const assignmentPatch = nextStatus === 'published'
-        ? {}
+        ? classifyOnPublish({
+            currentQuizType: origClassification.quizType,
+            examOnly: origClassification.examOnly,
+            questionCount: serializedSections.questions.length,
+          })
         : { quizType: null, isDailyExam: false, dailyExamDate: null }
       await updateQuizWithQuestions(
         quizId,

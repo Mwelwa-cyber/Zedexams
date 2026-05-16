@@ -256,7 +256,22 @@ export async function restoreExam(userId, attemptId) {
       // `attempt.totalMarks` and produces a 0-score submission rather than
       // throwing.
     }
-    await _doSubmit(attemptId, attempt, questions, attempt.answers || {})
+    // Firestore answers are only written on submit; in-progress answers live
+    // in localStorage (saveProgress). A learner who answered, lost
+    // connectivity and never submitted would otherwise be auto-graded on an
+    // empty `attempt.answers` → permanent 0% with the lock flipped. Recover
+    // the locally-saved answers and prefer them (they are the most recent).
+    let recoveredAnswers = attempt.answers || {}
+    try {
+      const localRaw = localStorage.getItem(LS_KEY(userId, attempt.examId))
+      const local = localRaw ? JSON.parse(localRaw) : null
+      if (local && local.answers && typeof local.answers === 'object' && !Array.isArray(local.answers)) {
+        recoveredAnswers = { ...recoveredAnswers, ...local.answers }
+      }
+    } catch (e) {
+      console.error('restoreExam local answer recovery failed:', e)
+    }
+    await _doSubmit(attemptId, attempt, questions, recoveredAnswers)
     await _updateLockStatus(userId, attempt.subject, 'submitted')
     localStorage.removeItem(LS_KEY(userId, attempt.examId))
     return { alreadySubmitted: true, attemptId, timeExpired: true }
