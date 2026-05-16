@@ -2311,8 +2311,35 @@ exports.bulkGrantDemoTrials = onCall({
       }
 
       const uid = userRecord.uid;
+
+      // Account-takeover guard. An email collision — a slugified name
+      // that matches a real staff @zedexams.com mailbox, or an explicit
+      // email pointing at an existing teacher/admin/paying learner —
+      // used to silently overwrite that account with role:"learner",
+      // demo:true and a premium grant (role downgrade + data clobber).
+      // Only (re)apply the demo grant to a brand-new account or one that
+      // is ALREADY a demo account. Real collisions are refused and
+      // surfaced so the operator handles them explicitly.
+      if (!createdAuth) {
+        const existingSnap = await db.doc(`users/${uid}`).get();
+        if (existingSnap.exists && existingSnap.data()?.demo !== true) {
+          results.push({
+            name: row.name,
+            email: row.email,
+            uid: "",
+            password: row.password,
+            status: "error",
+            error:
+              "Refused: an existing non-demo account already uses this " +
+              "email (possible staff/teacher/paying user). Provide a " +
+              "unique explicit email for this entry.",
+          });
+          continue;
+        }
+      }
+
       // merge: true so we never wipe out fields on a re-used uid (e.g.
-      // an existing learner who is being upgraded to a demo trial).
+      // an existing DEMO account whose trial is being extended).
       await db.doc(`users/${uid}`).set({
         displayName: row.name,
         email: row.email,
