@@ -326,7 +326,7 @@ function DailyExamRunnerInner() {
     clearInterval(timerRef.current)
 
     try {
-      const result = await submitExam(currentUser.uid, attemptId, questions, answers)
+      const result = await submitExam(currentUser.uid, examId, attemptId, answers)
       if (result.alreadySubmitted) {
         navigate(`/exam-results/${attemptId}`, { replace: true })
         return
@@ -337,7 +337,7 @@ function DailyExamRunnerInner() {
       setActionError('Failed to submit. Please check your connection and try again.')
       setSubmitting(false)
     }
-  }, [currentUser, attemptId, questions, answers, navigate, submitting])
+  }, [currentUser, examId, attemptId, answers, navigate, submitting])
 
   submitRef.current = handleSubmit
 

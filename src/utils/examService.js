@@ -23,10 +23,11 @@
  */
 
 import {
-  collection, doc, getDoc, getDocs, setDoc, addDoc, updateDoc,
+  collection, doc, getDoc, getDocs, setDoc, addDoc,
   query, where, orderBy, limit, serverTimestamp,
 } from 'firebase/firestore'
-import { db } from '../firebase/config'
+import { getFunctions, httpsCallable } from 'firebase/functions'
+import app, { db } from '../firebase/config'
 import { buildQuizDisplaySections } from './quizSections'
 import { coerceQuiz } from '../schemas/quiz.js'
 import { coerceQuestion } from '../editor/schema/question.js'
@@ -35,9 +36,20 @@ import { numericMatches } from './numericGrading.js'
 import { hotspotMatches } from './hotspotGrading.js'
 
 // Re-export so callers that already import { numericMatches } from
-// './examService' (QuizRunnerV2) keep working unchanged. Same shape for
-// the hotspot helper added later.
+// './examService' (QuizRunnerV2, practice quizzes) keep working unchanged.
+// Practice quizzes still grade client-side by design — only Daily Exams
+// moved to server-authoritative grading.
 export { numericMatches, hotspotMatches }
+
+// Daily-exam grading + question delivery run server-side so the answer key
+// never reaches a learner mid-exam and the score can't be tampered with.
+const examFunctions = getFunctions(app, 'us-central1')
+const getExamQuestionsCallable = httpsCallable(examFunctions, 'getExamQuestions')
+const submitDailyExamCallable = httpsCallable(examFunctions, 'submitDailyExam')
+
+function isNotFoundError(e) {
+  return e?.code === 'functions/not-found' || e?.message === 'Attempt not found.'
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -58,23 +70,25 @@ const LS_KEY = (userId, examId) => `zedexams:exam:${userId}:${examId}`
  * Fetch the quiz document + all questions for a given examId.
  * Returns { quiz, questions, sections } ready for the runner.
  *
+ * Questions come from the `getExamQuestions` Cloud Function, not a direct
+ * Firestore read: daily-exam questions are closed to clients in
+ * firestore.rules so the answer key can't be scraped mid-exam. The
+ * function strips answer-key fields unless `attemptId` belongs to a
+ * SUBMITTED attempt (the corrections/review screen passes it then).
+ *
  * Defensive shape rules: quiz.passages is coerced to an array before it
  * touches buildQuizDisplaySections (which already coerces internally — this
  * is belt-and-braces so a future caller can't accidentally re-introduce the
  * "s.forEach is not a function" crash that bit /exam/:id loaders).
  */
-export async function getExamWithQuestions(examId) {
-  const [quizSnap, qSnap] = await Promise.all([
-    getDoc(doc(db, 'quizzes', examId)),
-    getDocs(
-      query(
-        collection(db, 'quizzes', examId, 'questions'),
-        orderBy('order', 'asc'),
-      ),
-    ),
-  ])
-
+export async function getExamWithQuestions(examId, attemptId = null) {
+  const quizSnap = await getDoc(doc(db, 'quizzes', examId))
   if (!quizSnap.exists()) return null
+
+  const res = await getExamQuestionsCallable(
+    attemptId ? { examId, attemptId } : { examId },
+  )
+  const rawQuestions = Array.isArray(res?.data?.questions) ? res.data.questions : []
 
   // Normalise the quiz at the read boundary. coerceQuiz guarantees
   // `passages` and `parts` are well-shaped arrays, so the downstream
@@ -83,7 +97,7 @@ export async function getExamWithQuestions(examId) {
   // as a second line of defence; safe to remove once every reader is on
   // coerceQuiz.
   const quiz = coerceQuiz({ id: quizSnap.id, ...quizSnap.data() })
-  const questions = qSnap.docs.map(d => coerceQuestion({ id: d.id, ...d.data() })).filter(Boolean)
+  const questions = rawQuestions.map(q => coerceQuestion(q)).filter(Boolean)
   const safePassages = Array.isArray(quiz?.passages) ? quiz.passages : []
   const { sections } = buildQuizDisplaySections(questions, safePassages)
 
@@ -232,35 +246,17 @@ export async function restoreExam(userId, attemptId) {
     return { alreadySubmitted: true, attemptId }
   }
 
-  // If the deadline already passed, auto-submit with whatever was saved
+  // If the deadline already passed, auto-submit with whatever was saved.
+  // Grading + the lock flip happen server-side (submitDailyExam); the
+  // server loads the questions with the admin SDK, so the client no longer
+  // needs (and is no longer allowed) to read the answer-bearing question
+  // docs here.
   if (Date.now() >= attempt.endTime) {
-    // Fetch the real questions so partial answers still score. The previous
-    // version passed `attempt.answers || []` as the questions argument, but
-    // `attempt.answers` is `{}` (an object, not an array). _doSubmit then
-    // ran `questions.forEach(...)` on an object and crashed with
-    // `forEach is not a function`, blanking the page into the
-    // ErrorBoundary whenever a learner revisited an expired-but-not-yet-
-    // submitted attempt.
-    let questions = []
-    try {
-      const qSnap = await getDocs(
-        query(
-          collection(db, 'quizzes', attempt.examId, 'questions'),
-          orderBy('order', 'asc'),
-        ),
-      )
-      questions = qSnap.docs.map(d => coerceQuestion({ id: d.id, ...d.data() })).filter(Boolean)
-    } catch (e) {
-      console.error('restoreExam questions read for auto-submit failed:', e)
-      // Fall through with []; _doSubmit handles that by falling back to
-      // `attempt.totalMarks` and produces a 0-score submission rather than
-      // throwing.
-    }
     // Firestore answers are only written on submit; in-progress answers live
     // in localStorage (saveProgress). A learner who answered, lost
     // connectivity and never submitted would otherwise be auto-graded on an
-    // empty `attempt.answers` → permanent 0% with the lock flipped. Recover
-    // the locally-saved answers and prefer them (they are the most recent).
+    // empty `attempt.answers` → permanent 0%. Recover the locally-saved
+    // answers and prefer them (they are the most recent).
     let recoveredAnswers = attempt.answers || {}
     try {
       const localRaw = localStorage.getItem(LS_KEY(userId, attempt.examId))
@@ -271,9 +267,14 @@ export async function restoreExam(userId, attemptId) {
     } catch (e) {
       console.error('restoreExam local answer recovery failed:', e)
     }
-    await _doSubmit(attemptId, attempt, questions, recoveredAnswers)
-    await _updateLockStatus(userId, attempt.subject, 'submitted')
-    localStorage.removeItem(LS_KEY(userId, attempt.examId))
+    try {
+      await submitDailyExamCallable({ attemptId, answers: recoveredAnswers })
+    } catch (e) {
+      // Already submitted by a concurrent path is fine; anything else we
+      // still treat as "done" so the learner isn't stuck on a dead exam.
+      if (!isNotFoundError(e)) console.error('restoreExam auto-submit failed:', e)
+    }
+    try { localStorage.removeItem(LS_KEY(userId, attempt.examId)) } catch {}
     return { alreadySubmitted: true, attemptId, timeExpired: true }
   }
 
@@ -319,153 +320,38 @@ export function saveProgress(userId, examId, patch) {
 }
 
 /**
- * Submit the exam: calculate score, write to Firestore, clear local state.
- * questions is the flat array of question objects (with id, correctAnswer, marks).
- * answers is { [questionId]: value }.
+ * Submit the exam. Grading, the exam_attempts write, and the daily-lock
+ * flip all happen server-side in the `submitDailyExam` Cloud Function —
+ * the client never computes or writes the score, and never holds the
+ * answer key. `answers` is { [questionId]: value }. `questions` is no
+ * longer needed (the server loads them with the admin SDK) but the
+ * parameter is kept positionally for the existing call sites.
+ *
+ * Returns either { alreadySubmitted: true, attemptId } or
+ * { alreadySubmitted: false, attemptId, score, percentage, ... }.
  */
-export async function submitExam(userId, attemptId, questions, answers) {
-  const snap = await getDoc(doc(db, 'exam_attempts', attemptId))
-  if (!snap.exists()) throw new Error('Attempt not found.')
-
-  const attempt = snap.data()
-  if (attempt.status === 'submitted') {
-    return { alreadySubmitted: true, attemptId }
-  }
-
-  const result = await _doSubmit(attemptId, attempt, questions, answers)
-  await _updateLockStatus(userId, attempt.subject, 'submitted')
-  localStorage.removeItem(LS_KEY(userId, attempt.examId))
-
-  return result
+export async function submitExam(userId, examId, attemptId, answers) {
+  const res = await submitDailyExamCallable({ attemptId, answers })
+  const result = res?.data || {}
+  try { localStorage.removeItem(LS_KEY(userId, examId)) } catch {}
+  if (result.alreadySubmitted) return { alreadySubmitted: true, attemptId }
+  return { alreadySubmitted: false, attemptId: result.attemptId || attemptId, ...result }
 }
 
 /**
  * Auto-submit when the timer fires — same as submitExam but swallows the
- * "already submitted" case so the component doesn't crash on double-fire.
+ * "attempt not found" case so the component doesn't crash on double-fire.
  */
-export async function autoSubmitExam(userId, attemptId, questions, answers) {
+export async function autoSubmitExam(userId, examId, attemptId, answers) {
   try {
-    return await submitExam(userId, attemptId, questions, answers)
+    return await submitExam(userId, examId, attemptId, answers)
   } catch (e) {
-    if (e.message === 'Attempt not found.') return null
+    if (isNotFoundError(e)) return null
     throw e
   }
 }
 
 // ── Private helpers ───────────────────────────────────────────────────────────
-
-async function _doSubmit(attemptId, attempt, questions, answers) {
-  // Defensive coercion — see restoreExam where a wrong-shape `questions`
-  // arg used to take down the runner with `forEach is not a function`.
-  // _doSubmit already falls back to attempt.totalMarks / totalQuestions
-  // when the array is empty, so a non-array input degrades to a 0-score
-  // submission rather than blanking the page.
-  const safeQuestions = Array.isArray(questions) ? questions : []
-  let score = 0
-  let totalMarks = 0
-  const topicBreakdown = {}
-
-  safeQuestions.forEach(q => {
-    const marks   = q.marks ?? 1
-    const topic   = (q.topic || 'General').trim()
-    totalMarks   += marks
-
-    const isText    = q.type === 'short_answer' || q.type === 'diagram'
-    const isNumeric = q.type === 'numeric'
-    const isHotspot = q.type === 'hotspot'
-    const given     = answers[q.id]
-    // Server-authoritative grading — re-derive correctness from the
-    // persisted question fields, not the client's self-reported `correct`
-    // flag. A tampered client can't grant itself marks; a buggy client
-    // can't accidentally award them either.
-    const correct = isText
-      ? given?.correct === true
-      : isNumeric
-        ? numericMatches(given, q.correctAnswer, q.tolerance)
-        : isHotspot
-          ? hotspotMatches(given, q.correctRegion)
-          : given === q.correctAnswer
-    if (correct) score += marks
-
-    if (!topicBreakdown[topic]) topicBreakdown[topic] = { correct: 0, total: 0, marks: 0, totalMarks: 0 }
-    topicBreakdown[topic].total    += 1
-    topicBreakdown[topic].totalMarks += marks
-    if (correct) {
-      topicBreakdown[topic].correct += 1
-      topicBreakdown[topic].marks   += marks
-    }
-  })
-
-  // Compute percentage per topic
-  Object.values(topicBreakdown).forEach(t => {
-    t.percentage = t.total > 0 ? Math.round((t.correct / t.total) * 100) : 0
-  })
-
-  // Fall back to stored totalMarks if questions array was empty
-  if (totalMarks === 0) totalMarks = attempt.totalMarks || 0
-
-  const totalQuestions = safeQuestions.length || attempt.totalQuestions || 0
-  const percentage     = totalMarks > 0 ? Math.round((score / totalMarks) * 100) : 0
-  const startMs        = attempt.startedAt?.toMillis?.() ?? (Date.now() - 60_000)
-  const timeTakenSeconds = Math.round((Date.now() - startMs) / 1000)
-
-  // Strengths ≥ 70 %, weaknesses < 50 %
-  const strengths  = Object.entries(topicBreakdown).filter(([, t]) => t.percentage >= 70).map(([k]) => k)
-  const weaknesses = Object.entries(topicBreakdown).filter(([, t]) => t.percentage <  50).map(([k]) => k)
-
-  const performanceLevel =
-    percentage >= 90 ? 'Excellent'
-    : percentage >= 75 ? 'Very Good'
-    : percentage >= 60 ? 'Good'
-    : percentage >= 50 ? 'Developing'
-    : 'Needs Improvement'
-
-  // CBC-aligned feedback (plain text, learner-friendly)
-  const feedbackCan = strengths.length > 0
-    ? `You can work confidently with ${_listify(strengths)}.`
-    : 'You are building your skills across all topics in this exam.'
-
-  const feedbackDeveloping = weaknesses.length > 0
-    ? `You are still developing your understanding of ${_listify(weaknesses)}.`
-    : 'You showed a solid understanding across all the topics covered.'
-
-  const feedbackPractice = weaknesses.length > 0
-    ? `Practise more questions on ${_listify(weaknesses)} to strengthen these areas.`
-    : 'Keep up the excellent work — try another exam to maintain your performance!'
-
-  await updateDoc(doc(db, 'exam_attempts', attemptId), {
-    status: 'submitted',
-    answers,
-    score,
-    totalMarks,
-    totalQuestions,
-    percentage,
-    timeTakenSeconds,
-    submittedAt: serverTimestamp(),
-    // topic analysis (private to the learner — only they read their own attempt detail)
-    topicBreakdown,
-    strengths,
-    weaknesses,
-    performanceLevel,
-    feedback: { can: feedbackCan, developing: feedbackDeveloping, practice: feedbackPractice },
-  })
-
-  return { score, totalMarks, totalQuestions, percentage, timeTakenSeconds, attemptId,
-           topicBreakdown, strengths, weaknesses, performanceLevel,
-           feedback: { can: feedbackCan, developing: feedbackDeveloping, practice: feedbackPractice } }
-}
-
-function _listify(arr) {
-  if (arr.length === 0) return ''
-  if (arr.length === 1) return arr[0]
-  return arr.slice(0, -1).join(', ') + ' and ' + arr[arr.length - 1]
-}
-
-async function _updateLockStatus(userId, subject, status) {
-  try {
-    await updateDoc(doc(db, 'daily_exam_locks', lockId(userId, subject)), { status })
-  } catch {}
-}
 
 function _writeLocalSession(userId, examId, session) {
   try {

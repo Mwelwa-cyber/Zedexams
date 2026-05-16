@@ -254,29 +254,25 @@ service cloud.firestore {
         || isAdmin()
       );
       allow create: if isAuthed() && incoming().userId == request.auth.uid;
-      // The only legitimate update is the single in_progress → submitted
-      // transition written by _doSubmit. Pin userId and freeze the doc once
-      // submitted so a learner can't PATCH percentage/timeTaken/score after
-      // the fact to top the public leaderboard.
-      allow update: if isAuthed()
-        && resource.data.userId == request.auth.uid
-        && incoming().userId == resource.data.userId
-        && resource.data.status != 'submitted';
+      // Grading is server-authoritative: the submitDailyExam Cloud Function
+      // writes the in_progress → submitted transition (score, percentage,
+      // etc.) with the admin SDK, which bypasses these rules. No client
+      // ever updates an attempt, so client updates are denied outright —
+      // this removes every score/leaderboard tampering vector.
+      allow update: if isAdmin();
       allow delete: if isAdmin();
     }
 
     // ── daily_exam_locks (one per user per subject per day) ───────
     match /daily_exam_locks/{lockId} {
       allow read:   if isAuthed() && (resource.data.userId == request.auth.uid || isAdmin());
-      // Create is always status:'in_progress' (startExam). Updates may only
-      // touch `status`, and a lock that is already 'submitted' is frozen —
-      // otherwise a learner could rewrite the lock to re-attempt the daily
-      // exam and bypass the one-per-day quota.
+      // Create is always status:'in_progress' (startExam). The lock flip to
+      // 'submitted' is done by the submitDailyExam Cloud Function via the
+      // admin SDK, so clients can never update the lock — this closes the
+      // "rewrite the lock to re-sit the daily exam" quota-bypass.
       allow create: if isAuthed() && incoming().userId == request.auth.uid
         && incoming().status == 'in_progress';
-      allow update: if isAuthed() && resource.data.userId == request.auth.uid
-        && changedKeys().hasOnly(['status'])
-        && resource.data.status != 'submitted';
+      allow update: if isAdmin();
       allow delete: if isAdmin();
     }
 
@@ -371,14 +367,27 @@ service cloud.firestore {
             && resource.data.isPublished == false);
 
       match /questions/{questionId} {
-        // Mirror the parent quiz read rule. The earlier `if isAuthed()` let
-        // every signed-in user (incl. learners) read every teacher's draft
-        // questions, including answer keys and explanations.
+        // Daily-exam questions are NEVER client-readable by learners (even
+        // though the quiz is published) — that was the answer-key leak:
+        // any learner could scrape correctAnswer/explanation from a daily
+        // exam before submitting. Daily exams are served + graded by the
+        // getExamQuestions / submitDailyExam Cloud Functions (admin SDK,
+        // which bypasses these rules). Admins and the quiz owner CAN still
+        // read them (moderation / authoring preview). Practice quizzes
+        // still grade client-side by design, so their published questions
+        // stay readable. Drafts remain owner/admin-only.
+        // Cost: the repeated get() on the parent quiz is the SAME document
+        // path within one rule evaluation, which Firestore caches and
+        // bills as a single read — not three. Daily-exam question reads
+        // are also rare now (server-served), so the leak-closure is worth
+        // the cost.
         allow read: if isAuthed() && (
-          get(/databases/$(database)/documents/quizzes/$(quizId)).data.isPublished == true
-          || get(/databases/$(database)/documents/quizzes/$(quizId)).data.get('quizType', '') == 'daily_exam'
+          isAdmin()
           || get(/databases/$(database)/documents/quizzes/$(quizId)).data.createdBy == request.auth.uid
-          || isAdmin()
+          || (
+            get(/databases/$(database)/documents/quizzes/$(quizId)).data.isPublished == true
+            && get(/databases/$(database)/documents/quizzes/$(quizId)).data.get('quizType', '') != 'daily_exam'
+          )
         );
         allow create, update: if validQuestionFields() && (
           isAdmin()

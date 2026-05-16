@@ -441,7 +441,9 @@ export default function ExamResultsPage() {
     if (questions.length) { setShowCorrections(true); return }
     setLoadingQs(true)
     try {
-      const result = await getExamWithQuestions(attempt.examId)
+      // Pass the attempt id so the server includes the answer key — this
+      // is the post-submission corrections/review screen.
+      const result = await getExamWithQuestions(attempt.examId, attempt.id)
       setQuestions(result?.questions ?? [])
     } finally {
       setLoadingQs(false)
