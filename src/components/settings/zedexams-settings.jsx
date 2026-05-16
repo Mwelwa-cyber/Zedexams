@@ -47,11 +47,18 @@ const T = {
 
 /* ── Tabs per role (admin-only sections excluded for teacher/learner) ─────── */
 const TABS = {
+  // Admin is a superset: every section any other role can see, plus the
+  // admin-only User Management / Admin Controls. "Admin has access to
+  // everything" is taken literally here.
   admin: [
     { id: 'users',         label: 'User Management' },
     { id: 'controls',      label: 'Admin Controls' },
     { id: 'profile',       label: 'Account & Profile' },
+    { id: 'security',      label: 'Password & Security' },
     { id: 'notifications', label: 'Notifications' },
+    { id: 'learning',      label: 'Learning Preferences' },
+    { id: 'accessibility', label: 'Accessibility' },
+    { id: 'parent',        label: 'Parent / Guardian' },
     { id: 'appearance',    label: 'Appearance' },
   ],
   teacher: [
@@ -1921,9 +1928,11 @@ function RoleForbidden({ role }) {
 
 const VALID_ROLES = ['admin', 'teacher', 'learner'];
 const ADMIN_ONLY  = new Set(['users', 'controls']);
-// Tabs that exist only inside the learner role. Used as a defence-in-depth
-// check so an admin / teacher who somehow navigates to ?tab=learning isn't
-// rendered learner-only chrome.
+// Sections whose panels are wired to the signed-in user's own learner
+// profile. Teachers don't get these (they have no learner profile), but
+// admins do: admin has access to everything, so when an admin opens one
+// of these tabs we render the learner-wired panel against their own
+// account rather than blocking them.
 const LEARNER_ONLY = new Set(['security', 'learning', 'accessibility', 'parent']);
 
 export default function ZedExamsSettings({ role = 'admin' }) {
@@ -1946,17 +1955,20 @@ export default function ZedExamsSettings({ role = 'admin' }) {
     setToast({ kind, message, key: uid() });
   }, []);
 
-  // Defense-in-depth: reject admin-only tabs for non-admin roles, and
-  // learner-only tabs for non-learner roles.
-  const isAuthorized = (!ADMIN_ONLY.has(active)   || safeRole === 'admin')
-                     && (!LEARNER_ONLY.has(active) || safeRole === 'learner');
+  // Admin is authorized for every tab. For other roles, reject admin-only
+  // tabs and learner-wired tabs they don't own.
+  const isAuthorized = safeRole === 'admin'
+    || ((!ADMIN_ONLY.has(active)   || safeRole === 'admin')
+     && (!LEARNER_ONLY.has(active) || safeRole === 'learner'));
 
   const renderActive = () => {
     if (!isAuthorized) return <RoleForbidden role={safeRole} />;
-    // Learner gets a Firestore-wired set of sections. The mock-data
+    // Learner gets a Firestore-wired set of sections. Admins also get the
+    // learner-wired panels for the learner-only tabs (against their own
+    // account) so they can see and use everything. The mock-data
     // AccountProfile / NotificationsPanel below are kept for admin /
     // teacher views until those are wired to the real API.
-    if (safeRole === 'learner') {
+    if (safeRole === 'learner' || (safeRole === 'admin' && LEARNER_ONLY.has(active))) {
       switch (active) {
         case 'profile':
           return <LearnerProfilePanel pushToast={pushToast} />;

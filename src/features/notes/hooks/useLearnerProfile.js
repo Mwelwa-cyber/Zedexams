@@ -17,7 +17,7 @@ import { useCallback } from 'react'
 import { useAuth } from '../../../contexts/AuthContext'
 
 export function useLearnerProfile() {
-  const { currentUser, userProfile, loading, refreshProfile } = useAuth()
+  const { currentUser, userProfile, loading, refreshProfile, isAdmin } = useAuth()
 
   // Treat the profile as "ready" only when `grade` is a real grade
   // (the supported range is 4–7 today). Strings and `0` are normalised
@@ -30,6 +30,10 @@ export function useLearnerProfile() {
     status = 'checking'
   } else if (!currentUser) {
     status = 'unauthenticated'
+  } else if (isAdmin) {
+    // Admin has access to everything and has no learner grade of their
+    // own — never trap them on the pick-your-grade onboarding screen.
+    status = 'ready'
   } else if (!userProfile || !hasValidGrade) {
     status = 'needs-onboarding'
   } else {
