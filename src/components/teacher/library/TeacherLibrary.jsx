@@ -15,7 +15,6 @@ import {
   LIBRARY_SECTION_BY_ID,
   LIBRARY_TYPES,
   SYLLABUS_OPTIONS,
-  SYLLABUS_TYPES,
   TERMS,
   getActiveGradeForms,
   getSubjectsForGradeForm,
@@ -50,6 +49,68 @@ const COLORS = {
   border:   '#d4cab2',
   card:     '#fff',
   orange:   '#ff7a2e',
+}
+
+/* ── Per-tile icons ────────────────────────────────────────────── */
+// Every tile inside a picker used to share one icon (all grades a
+// schoolbag, all subjects a blue book, …). Distinct icons make a folder
+// of siblings scannable.
+
+const SYLLABUS_ICON = {
+  CBC:       '🌱',
+  CDC:       '📜',
+  Secondary: '🎓',
+}
+
+const TERM_ICON = {
+  'Term 1': '🌤️',
+  'Term 2': '🌧️',
+  'Term 3': '☀️',
+}
+
+const ASSESSMENT_ICON = {
+  topic:       '🎯',
+  monthly:     '🗓️',
+  midterm:     '📊',
+  end_of_term: '🏁',
+}
+
+const GRADE_KEYCAPS = ['0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣']
+
+// Grade/Form → numbered keycap (Grade 4 → 4️⃣, Form 1 → 1️⃣).
+function gradeFormIcon(value) {
+  const m = String(value || '').match(/(\d+)/)
+  if (m) {
+    const n = Number(m[1])
+    if (n === 10) return '🔟'
+    if (n >= 0 && n <= 9) return GRADE_KEYCAPS[n]
+  }
+  return /form/i.test(String(value)) ? '🎓' : '🎒'
+}
+
+const SUBJECT_ICON = {
+  'Mathematics':                                     '🔢',
+  'Mathematics and Science':                         '🧮',
+  'English Language':                                '📖',
+  'Literacy and Language':                           '🔤',
+  'Zambian Language':                                '🗣️',
+  'Integrated Science':                              '🔬',
+  'Social Studies':                                  '🌍',
+  'History':                                         '🏛️',
+  'Geography':                                       '🗺️',
+  'Religious Education':                              '⛪',
+  'Technology Studies':                              '🔧',
+  'Creative and Technology Studies':                 '🎨',
+  'Home Economics':                                  '🍳',
+  'Expressive Arts':                                 '🎭',
+  'Physics':                                         '⚛️',
+  'Chemistry':                                       '🧪',
+  'Principles of Accounting':                        '💰',
+  'Information and Communication Technology (ICT)':  '💻',
+}
+
+function subjectIcon(value) {
+  return SUBJECT_ICON[value] || '📘'
 }
 
 export default function TeacherLibrary() {
@@ -404,6 +465,7 @@ function SectionPicker({ tree, onPick }) {
 }
 
 function SyllabusPicker({ tree, onPick }) {
+  const extras = extraKeys(tree, SYLLABUS_OPTIONS.map((o) => o.value))
   return (
     <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
       {SYLLABUS_OPTIONS.map((opt) => {
@@ -412,7 +474,7 @@ function SyllabusPicker({ tree, onPick }) {
         return (
           <Tile
             key={opt.value}
-            icon="📚"
+            icon={SYLLABUS_ICON[opt.value] || '📚'}
             accent="#fde2c4"
             title={opt.label}
             subtitle={count > 0 ? `${count} item${count === 1 ? '' : 's'}` : 'Empty'}
@@ -420,12 +482,16 @@ function SyllabusPicker({ tree, onPick }) {
           />
         )
       })}
+      {extras.map((k) => (
+        <OrphanTile key={k} label={k} count={countLeaves(tree[k])} onClick={() => onPick(k)} />
+      ))}
     </div>
   )
 }
 
 function GradeFormPicker({ syllabus, subTree, onPick }) {
   const grades = getActiveGradeForms(syllabus)
+  const extras = extraKeys(subTree, grades.map((g) => g.value))
   return (
     <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
       {grades.map((g) => {
@@ -434,7 +500,7 @@ function GradeFormPicker({ syllabus, subTree, onPick }) {
         return (
           <Tile
             key={g.value}
-            icon={syllabus === SYLLABUS_TYPES.SECONDARY ? '🎓' : '🎒'}
+            icon={gradeFormIcon(g.value)}
             accent="#dbe7f4"
             title={g.label}
             subtitle={count > 0 ? `${count} item${count === 1 ? '' : 's'}` : 'Empty'}
@@ -442,7 +508,10 @@ function GradeFormPicker({ syllabus, subTree, onPick }) {
           />
         )
       })}
-      {grades.length === 0 && (
+      {extras.map((k) => (
+        <OrphanTile key={k} label={k} count={countLeaves(subTree[k])} onClick={() => onPick(k)} />
+      ))}
+      {grades.length === 0 && extras.length === 0 && (
         <EmptyHint text={`No grades configured for ${syllabus} yet.`} />
       )}
     </div>
@@ -450,6 +519,7 @@ function GradeFormPicker({ syllabus, subTree, onPick }) {
 }
 
 function TermPicker({ subTree, onPick }) {
+  const extras = extraKeys(subTree, TERMS.map((t) => t.value))
   return (
     <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
       {TERMS.map((t) => {
@@ -458,7 +528,7 @@ function TermPicker({ subTree, onPick }) {
         return (
           <Tile
             key={t.value}
-            icon="📅"
+            icon={TERM_ICON[t.value] || '📅'}
             accent="#faecb8"
             title={t.label}
             subtitle={count > 0 ? `${count} item${count === 1 ? '' : 's'}` : 'Empty'}
@@ -466,13 +536,17 @@ function TermPicker({ subTree, onPick }) {
           />
         )
       })}
+      {extras.map((k) => (
+        <OrphanTile key={k} label={k} count={countLeaves(subTree[k])} onClick={() => onPick(k)} />
+      ))}
     </div>
   )
 }
 
 function SubjectPicker({ syllabus, gradeForm, subTree, onPick }) {
   const subjects = getSubjectsForGradeForm(syllabus, gradeForm)
-  if (subjects.length === 0) {
+  const extras = extraKeys(subTree, subjects)
+  if (subjects.length === 0 && extras.length === 0) {
     return <EmptyHint text={`Subjects for ${syllabus} ${gradeForm} are not configured yet.`} />
   }
   return (
@@ -483,7 +557,7 @@ function SubjectPicker({ syllabus, gradeForm, subTree, onPick }) {
         return (
           <Tile
             key={s}
-            icon="📘"
+            icon={subjectIcon(s)}
             accent="#d8ecd0"
             title={s}
             subtitle={count > 0 ? `${count} item${count === 1 ? '' : 's'}` : 'Empty'}
@@ -491,12 +565,16 @@ function SubjectPicker({ syllabus, gradeForm, subTree, onPick }) {
           />
         )
       })}
+      {extras.map((k) => (
+        <OrphanTile key={k} label={k} count={countLeaves(subTree[k])} onClick={() => onPick(k)} />
+      ))}
     </div>
   )
 }
 
 function AssessmentTypePicker({ syllabus, gradeForm, subTree, onPick }) {
   const types = getAssessmentTypesForGradeForm(syllabus, gradeForm)
+  const extras = extraKeys(subTree, types.map((t) => t.value))
   return (
     <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
       {types.map((t) => {
@@ -505,7 +583,7 @@ function AssessmentTypePicker({ syllabus, gradeForm, subTree, onPick }) {
         return (
           <Tile
             key={t.value}
-            icon="📝"
+            icon={ASSESSMENT_ICON[t.value] || '📝'}
             accent="#e8d8f0"
             title={t.label}
             subtitle={count > 0 ? `${count} item${count === 1 ? '' : 's'}` : 'Empty'}
@@ -513,6 +591,9 @@ function AssessmentTypePicker({ syllabus, gradeForm, subTree, onPick }) {
           />
         )
       })}
+      {extras.map((k) => (
+        <OrphanTile key={k} label={k} count={countLeaves(subTree[k])} onClick={() => onPick(k)} />
+      ))}
     </div>
   )
 }
@@ -592,6 +673,21 @@ function Tile({ icon, accent, title, subtitle, onClick }) {
   )
 }
 
+// Tile for a folder whose key exists in the saved data but isn't in the
+// static taxonomy (e.g. "Unsorted", a legacy subject, or an inactive
+// grade). Without this the item is counted at the parent but unreachable.
+function OrphanTile({ label, count, onClick }) {
+  return (
+    <Tile
+      icon="🗂️"
+      accent="#e5e0d2"
+      title={label === 'Unsorted' ? 'Unsorted' : label}
+      subtitle={count > 0 ? `${count} item${count === 1 ? '' : 's'}` : 'Empty'}
+      onClick={onClick}
+    />
+  )
+}
+
 function EmptyHint({ text }) {
   return (
     <div className="rounded-2xl border-2 border-dashed py-10 px-4 text-center" style={{ background: COLORS.card, borderColor: COLORS.border }}>
@@ -622,6 +718,22 @@ function ErrorState({ message }) {
 }
 
 /* ── Tree utilities ────────────────────────────────────────────── */
+
+// Keys present in a tree branch that the static taxonomy doesn't offer.
+// These hold real items (e.g. "Unsorted", or a subject/grade that no
+// longer matches the config) and must still be navigable, otherwise the
+// parent count includes rows that no child tile can reach.
+function extraKeys(branch, knownValues) {
+  if (!branch || typeof branch !== 'object') return []
+  const known = new Set(knownValues)
+  return Object.keys(branch)
+    .filter((k) => !known.has(k) && countLeaves(branch[k]) > 0)
+    .sort((a, b) => {
+      if (a === 'Unsorted') return 1
+      if (b === 'Unsorted') return -1
+      return a.localeCompare(b)
+    })
+}
 
 function countLeaves(node) {
   if (!node) return 0
