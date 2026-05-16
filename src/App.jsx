@@ -110,6 +110,7 @@ const AdminLearnerProfile = lazy(() => import('./components/admin/AdminLearnerPr
 const GenerationsAdmin = lazy(() => import('./components/admin/GenerationsAdmin'))
 const CbcKbAdmin = lazy(() => import('./components/admin/CbcKbAdmin'))
 const AdminAiCosts = lazy(() => import('./components/admin/AdminAiCosts'))
+const AdminAppCheck = lazy(() => import('./components/admin/AdminAppCheck'))
 const AdminUsersList = lazy(() => import('./components/admin/users/AdminUsersList'))
 const AdminUserProfile = lazy(() => import('./components/admin/users/AdminUserProfile'))
 const AdminSettings = lazy(() => import('./components/admin/settings/AdminSettings'))
@@ -444,6 +445,9 @@ export default function App() {
           {/* Audit B4 — AI cost dashboard. Admin-only per route +
               Firestore rules. */}
           <Route path="/admin/ai-costs"                 element={<AdminRoute><AdminAiCosts /></AdminRoute>} />
+          {/* App Check enforcement readiness — soft-verify telemetry.
+              Admin-only per route + Firestore rules. */}
+          <Route path="/admin/app-check"                element={<AdminRoute><AdminAppCheck /></AdminRoute>} />
           {/* Audit A2 — past-paper management (upload + edit + status) */}
           <Route path="/admin/papers"                   element={<AdminRoute><AdminPastPapers /></AdminRoute>} />
           <Route path="/admin/papers/new"               element={<AdminRoute><AdminPastPaperEditor /></AdminRoute>} />

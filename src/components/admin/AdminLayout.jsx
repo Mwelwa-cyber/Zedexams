@@ -97,6 +97,7 @@ const NAV_SECTIONS = [
       { to: '/admin/settings', icon: Settings, label: 'Settings' },
       { to: '/admin/announcements', icon: Bell, label: 'Announcements' },
       { to: '/admin/activity', icon: ShieldCheck, label: 'Activity log' },
+      { to: '/admin/app-check', icon: ShieldCheck, label: 'App Check' },
     ],
   },
 ]
