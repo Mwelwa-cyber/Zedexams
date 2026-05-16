@@ -145,6 +145,27 @@ test('curriculum + rag_chunks are still closed to clients', () => {
   assert(/allow read, write:\s*if false/.test(ragBlock[1]), '/rag_chunks is no longer closed')
 })
 
+test('assignments + classInvites writes are Cloud-Function-only', () => {
+  // These collections are written exclusively by admin-SDK Cloud
+  // Functions (createClassAssignment / generateClassInvite) which enforce
+  // class ownership. The old client rules allowed a direct create without
+  // verifying the caller owned incoming().classId — cross-class injection.
+  // If a client write rule ever reappears here, that vector is back.
+  const assignBlock = rules.match(/match \/assignments\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
+  assert(assignBlock, 'assignments match block not found')
+  assert(
+    /allow create, update, delete:\s*if false/.test(assignBlock[1]),
+    'assignments client writes no longer denied — cross-class injection vector reopened',
+  )
+
+  const inviteBlock = rules.match(/match \/classInvites\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
+  assert(inviteBlock, 'classInvites match block not found')
+  assert(
+    /allow create, update, delete:\s*if false/.test(inviteBlock[1]),
+    'classInvites client writes no longer denied — invite-hijack vector reopened',
+  )
+})
+
 // ── Report ──────────────────────────────────────────────────────
 
 console.log('')
