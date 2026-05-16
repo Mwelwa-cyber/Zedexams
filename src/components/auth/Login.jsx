@@ -124,12 +124,17 @@ export default function Login() {
     setResetLoading(true)
     try {
       await resetPassword(resetEmail.trim())
+      // Always show the same neutral confirmation — the server never
+      // reveals whether an account exists for this email (anti-
+      // enumeration), so the UI must not either.
       setResetSuccess(true)
     } catch (err) {
+      // Only genuinely-bad input gets a specific message; everything
+      // else is generic so we don't leak account existence.
       setResetError(
-        err.code === 'auth/user-not-found'   ? 'No account found with that email.' :
-        err.code === 'auth/invalid-email'    ? 'Please enter a valid email address.' :
-        'Failed to send reset email. Please try again.'
+        err.code === 'functions/invalid-argument' || err.code === 'auth/invalid-email'
+          ? 'Please enter a valid email address.'
+          : 'Failed to send reset email. Please try again.',
       )
     } finally { setResetLoading(false) }
   }
@@ -188,8 +193,8 @@ export default function Login() {
                 <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-success-subtle">
                   <Icon as={Mail} size="lg" className="text-success" label="Email sent" />
                 </div>
-                <p className="text-success text-display-md">Reset email sent!</p>
-                <p className="text-success text-body-sm mt-1 opacity-80">Check your inbox and follow the link to reset your password.</p>
+                <p className="text-success text-display-md">Check your inbox</p>
+                <p className="text-success text-body-sm mt-1 opacity-80">If an account exists for that email, we&apos;ve sent a link to reset your password.</p>
                 <Button
                   variant="ghost"
                   size="sm"

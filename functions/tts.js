@@ -1,6 +1,8 @@
 const { onRequest } = require('firebase-functions/v2/https');
 const admin         = require('firebase-admin');
 const textToSpeech  = require('@google-cloud/text-to-speech');
+const { getUserRole, assertDailyLimit } = require('./aiService');
+const { applyCors } = require('./cors');
 
 const client = new textToSpeech.TextToSpeechClient();
 
@@ -29,9 +31,11 @@ exports.apiTextToSpeech = onRequest(
     region:         'us-central1',
     memory:         '256MiB',
     timeoutSeconds: 30,
-    cors:           true,
   },
   async (req, res) => {
+    // Browser CORS via the shared origin allow-list (functions/cors.js).
+    // Replaces v2 `cors:true`, which reflected ANY origin.
+    applyCors(req, res);
     if (req.method === 'OPTIONS') return res.status(204).send('');
     if (req.method !== 'POST')    return res.status(405).json({ error: 'POST only' });
 
@@ -48,6 +52,24 @@ exports.apiTextToSpeech = onRequest(
       return res.status(400).json({ error: `Text too long (max ${MAX_CHARS} chars)` });
     if (!ALLOWED_VOICES.has(voice))
       return res.status(400).json({ error: `Voice '${voice}' not allowed` });
+
+    // Per-user daily quota. Auth alone is not enough — a signed-in user
+    // could otherwise call Studio TTS (~$160/1M chars, 3000/req) in an
+    // unbounded loop (financial DoS). Shares the same aiUsage/{uid}_{day}
+    // budget as chat/explain/etc. (house helper). Fail-closed: if the
+    // meter can't be checked we refuse rather than synthesise uncapped.
+    try {
+      const role = await getUserRole(decoded.uid);
+      await assertDailyLimit(decoded.uid, role, 'tts');
+    } catch (err) {
+      if (err && err.code === 'resource-exhausted') {
+        return res.status(429).json({
+          error: 'Daily voice limit reached. Please try again tomorrow.',
+        });
+      }
+      console.error('[tts] metering error', err?.message || err);
+      return res.status(503).json({ error: 'Voice is temporarily unavailable.' });
+    }
 
     try {
       const [response] = await client.synthesizeSpeech({

@@ -158,7 +158,33 @@ service cloud.firestore {
         && incoming().get('premiumActivatedAt', null) == null
         && incoming().get('subscriptionProvider', null) == null
         && incoming().get('subscriptionPaymentId', null) == null
-        && incoming().get('subscriptionPhoneNumber', null) == null;
+        && incoming().get('subscriptionPhoneNumber', null) == null
+        // Audit (fresh pass) — the self-update blocklist below was solid
+        // but the create rule never pinned these, so a signup setDoc could
+        // mint a paid learner-portal grant or free referral credit by
+        // including them in the very first user doc write. defaultUserRecord
+        // never sets the portal/cancel/lifecycle fields and writes the
+        // referral counters as 0, so requiring the safe defaults here is
+        // non-breaking for legitimate signup.
+        && incoming().get('learnerPortalActive', false) == false
+        && incoming().get('learnerPortalPlan', null) == null
+        && incoming().get('learnerPortalProvider', null) == null
+        && incoming().get('learnerPortalPhoneNumber', null) == null
+        && incoming().get('learnerPortalPaymentId', null) == null
+        && incoming().get('learnerPortalActivatedAt', null) == null
+        && incoming().get('learnerPortalExpiry', null) == null
+        && incoming().get('referralCount', 0) == 0
+        && incoming().get('referralCredits', 0) == 0
+        && incoming().get('referralCreditRedeemed', false) == false
+        && incoming().get('cancelAtPeriodEnd', false) == false
+        && incoming().get('cancelAtPeriodEndUpdatedAt', null) == null
+        && incoming().get('cancelAtPeriodEndReason', null) == null
+        && incoming().get('status', 'active') == 'active'
+        && incoming().get('suspendedAt', null) == null
+        && incoming().get('suspendedBy', null) == null
+        && incoming().get('suspendReason', null) == null
+        && incoming().get('deletedAt', null) == null
+        && incoming().get('deletedBy', null) == null;
       // Self-update: cannot change role or subscription fields. The
       // cancelAtPeriodEnd flag is in this list too (audit D4) — only
       // the setSubscriptionCancellation Cloud Function (admin SDK) is
@@ -567,13 +593,63 @@ service cloud.firestore {
       allow write: if isAdmin();  // Cloud Functions also bypass via admin SDK
     }
 
+    // ── gamification data-integrity backstops ─────────────────
+    // learnerStats / badges / dailyStreaks are owner-only client writes
+    // with no server writer. These validators are NOT authorization
+    // checks — they only bound the shape/range of fields that are
+    // present, so a tampered client can't write absurd values (xp:1e18,
+    // level:9999, a 10MB map) and these docs can't quietly become a
+    // load-bearing reward surface. Presence-gated so legacy/partial
+    // merge:true writes still pass. Streak counters legitimately RESET
+    // to a lower value after a missed day, so they are range-checked
+    // only — never constrained monotonic.
+    function _validYmd(v) { return v == null || (v is string && v.size() <= 10); }
+    function validBadgesFields() {
+      return (!('gameBadges' in incoming())
+        || (incoming().gameBadges is map && incoming().gameBadges.keys().size() <= 200));
+    }
+    function validDailyStreaksFields() {
+      return (!('streak' in incoming()) || (incoming().streak is int && incoming().streak >= 0 && incoming().streak <= 100000))
+        && (!('longestStreak' in incoming()) || (incoming().longestStreak is int && incoming().longestStreak >= 0 && incoming().longestStreak <= 100000))
+        && (!('lastPlayedDate' in incoming()) || (incoming().lastPlayedDate is string && incoming().lastPlayedDate.size() <= 10))
+        && (!('lastGameId' in incoming()) || (incoming().lastGameId is string && incoming().lastGameId.size() <= 128));
+    }
+    function validLearnerStatsFields() {
+      return (!('userId' in incoming()) || (incoming().userId is string && incoming().userId.size() <= 200))
+        && (!('xp' in incoming()) || (incoming().xp is int && incoming().xp >= 0 && incoming().xp <= 100000000))
+        && (!('level' in incoming()) || (incoming().level is int && incoming().level >= 1 && incoming().level <= 1000))
+        && (!('currentStreak' in incoming()) || (incoming().currentStreak is int && incoming().currentStreak >= 0 && incoming().currentStreak <= 100000))
+        && (!('longestStreak' in incoming()) || (incoming().longestStreak is int && incoming().longestStreak >= 0 && incoming().longestStreak <= 100000))
+        && (!('lastActivityDate' in incoming()) || _validYmd(incoming().lastActivityDate))
+        && (!('bestPercentage' in incoming()) || (incoming().bestPercentage is number && incoming().bestPercentage >= 0 && incoming().bestPercentage <= 100))
+        && (!('examsCompleted' in incoming()) || (incoming().examsCompleted is int && incoming().examsCompleted >= 0 && incoming().examsCompleted <= 1000000))
+        && (!('subjectBests' in incoming()) || incoming().subjectBests is map)
+        && (!('processedAttempts' in incoming()) || (incoming().processedAttempts is list && incoming().processedAttempts.size() <= 100))
+        && (!('recentRanks' in incoming()) || (incoming().recentRanks is list && incoming().recentRanks.size() <= 100));
+    }
+    // learner_profiles: derived per-user analytics (totals, per-subject /
+    // per-topic stats, weak topics, recent games). Owner-only read, no
+    // server writer. Same data-integrity-backstop intent as above —
+    // bound shape/size of present fields only; nothing is monotonic.
+    function validLearnerProfileFields() {
+      return (!('userId' in incoming()) || (incoming().userId is string && incoming().userId.size() <= 200))
+        && (!('grade' in incoming()) || incoming().grade == null || incoming().grade is int || (incoming().grade is string && incoming().grade.size() <= 8))
+        && (!('totals' in incoming()) || (incoming().totals is map && incoming().totals.keys().size() <= 50))
+        && (!('subjectStats' in incoming()) || (incoming().subjectStats is map && incoming().subjectStats.keys().size() <= 200))
+        && (!('topicStats' in incoming()) || (incoming().topicStats is map && incoming().topicStats.keys().size() <= 500))
+        && (!('weakTopics' in incoming()) || (incoming().weakTopics is list && incoming().weakTopics.size() <= 50))
+        && (!('recentGames' in incoming()) || (incoming().recentGames is list && incoming().recentGames.size() <= 100))
+        && (!('lastSession' in incoming()) || (incoming().lastSession is map && incoming().lastSession.keys().size() <= 50))
+        && (!('dailyGoal' in incoming()) || incoming().dailyGoal == null || (incoming().dailyGoal is map && incoming().dailyGoal.keys().size() <= 50));
+    }
+
     // ── badges (per-user earned badges) ───────────────────────
     // Self-awarded game badges are OK — the client evaluates against the
     // score just saved to `scores`. Tampering is low-stakes (the leaderboard
     // still uses real scores, badges are decorative). Admin moderates.
     match /badges/{userId} {
       allow read:          if isAuthed() && (isOwner(userId) || isAdmin());
-      allow create, update: if isAuthed() && isOwner(userId);
+      allow create, update: if isAuthed() && isOwner(userId) && validBadgesFields();
       allow delete:        if isAdmin();
     }
 
@@ -589,7 +665,7 @@ service cloud.firestore {
     // Single doc per user: { streak, longestStreak, lastPlayedDate, lastGameId }
     match /dailyStreaks/{userId} {
       allow read:          if isAuthed() && (isOwner(userId) || isAdmin());
-      allow create, update: if isAuthed() && isOwner(userId);
+      allow create, update: if isAuthed() && isOwner(userId) && validDailyStreaksFields();
       allow delete:        if isAdmin();
     }
 
@@ -600,7 +676,7 @@ service cloud.firestore {
     // leaderboard data. Admin may moderate/delete.
     match /learner_profiles/{userId} {
       allow read:          if isAuthed() && (isOwner(userId) || isAdmin());
-      allow create, update: if isAuthed() && isOwner(userId);
+      allow create, update: if isAuthed() && isOwner(userId) && validLearnerProfileFields();
       allow delete:        if isAdmin();
     }
 
@@ -611,7 +687,7 @@ service cloud.firestore {
     // record (level, XP, longest streak, best percentage per subject).
     match /learnerStats/{userId} {
       allow read:           if isAuthed() && (isOwner(userId) || isAdmin());
-      allow create, update: if isAuthed() && isOwner(userId);
+      allow create, update: if isAuthed() && isOwner(userId) && validLearnerStatsFields();
       allow delete:         if isAdmin();
     }
 
@@ -844,15 +920,17 @@ service cloud.firestore {
     }
     match /assignments/{assignmentId} {
       allow read: if isAuthed();
-      allow create: if isTeacherOrAbove()
-        && validAssignmentFields()
-        && incoming().teacherUid == request.auth.uid;
-      allow update: if isAuthed()
-        && validAssignmentFields()
-        && resource.data.teacherUid == request.auth.uid;
-      allow delete: if isAuthed() && (
-        resource.data.teacherUid == request.auth.uid || isAdmin()
-      );
+      // CF-only. The header comment always claimed writes were routed
+      // through Cloud Functions, but the old client rule still allowed a
+      // direct create as long as teacherUid == auth.uid — it never checked
+      // the caller owned incoming().classId, so a tampered client could
+      // mint an assignment for ANY teacher's class (cross-class injection,
+      // surfaced to that class's learners since read is open). All real
+      // writes go through createClassAssignment / removeClassAssignment
+      // (admin SDK, which bypasses these rules and enforces ownership via
+      // loadClassOrThrow). No legitimate direct client write exists, so
+      // deny them outright.
+      allow create, update, delete: if false;
     }
 
     // ── classes + classInvites (audit A10 — teacher classroom roster) ──
@@ -918,14 +996,17 @@ service cloud.firestore {
     // signed-in learner can resolve a code → classId before the
     // joinClassByCode Cloud Function authenticates them in.
     match /classInvites/{inviteCode} {
+      // Read stays open: a signed-in learner resolves code → classId
+      // before the joinClassByCode Cloud Function authenticates them in.
       allow read: if isAuthed();
-      allow create, update: if isTeacherOrAbove()
-        && incoming().createdBy == request.auth.uid
-        && incoming().classId is string
-        && incoming().expiresAt is timestamp;
-      allow delete: if isAuthed() && (
-        resource.data.createdBy == request.auth.uid || isAdmin()
-      );
+      // CF-only. The old rule only checked createdBy == auth.uid and never
+      // verified the caller owned incoming().classId, so a tampered client
+      // could mint an invite code pointing at ANOTHER teacher's class and
+      // hijack/poison their join flow. Invite codes are created/deleted
+      // exclusively by generateClassInvite (admin SDK, bypasses these
+      // rules, owner-gated via loadClassOrThrow). No legitimate direct
+      // client write exists.
+      allow create, update, delete: if false;
     }
 
     // ── paperAttempts (audit A2 PR 3 — timed practice runs) ──────────

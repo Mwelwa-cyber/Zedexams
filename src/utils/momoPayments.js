@@ -1,7 +1,12 @@
 import { auth } from '../firebase/config'
 
 const POLL_INTERVAL_MS = 5000
-const FINAL_STATES = new Set(['successful', 'failed', 'timeout'])
+// 'needs_review' is a server-side terminal hold: MTN reported SUCCESSFUL
+// but the settled amount/currency could not be verified against the plan
+// price, so no subscription was granted and the payment is parked for
+// manual reconciliation. It must be terminal here too — otherwise the
+// client polls until timeout showing a misleading "still waiting".
+const FINAL_STATES = new Set(['successful', 'failed', 'timeout', 'needs_review'])
 
 const ENDPOINTS = {
   initiate: {

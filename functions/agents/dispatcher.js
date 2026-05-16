@@ -28,6 +28,7 @@ const {runAria} = require("./runners/aria");
 const {runCala} = require("./runners/cala");
 const {runReva} = require("./runners/reva");
 const {runPubo} = require("./runners/pubo");
+const {getUserRole, assertDailyLimit} = require("../aiService");
 
 const TRIGGER_OPTS = {
   document: "agentJobs/{jobId}",
@@ -85,6 +86,38 @@ async function runContentChain({jobId, jobData, anthropicApiKeySecret}) {
   async function readJob() {
     const snap = await jobRef.get();
     return {id: snap.id, ...(snap.data() || {})};
+  }
+
+  // 0. Per-user daily cap. agentJobs creation is a DIRECT client write
+  // (firestore.rules only pins createdBy == auth.uid + status == queued —
+  // no count constraint), and each chain is ~2 Sonnet calls (Aria + Reva)
+  // with only a global pause kill-switch. Without this, one teacher
+  // account could queue unlimited chains and run up unbounded Anthropic
+  // spend. Count each chain against the same daily AI budget as
+  // chat/explain/etc. (aiUsage/{uid}_{day}); fail-closed so a metering
+  // outage can't be used to bypass the cap. createdBy is server-trusted
+  // (pinned by the create rule).
+  const ownerUid = typeof jobData.createdBy === "string" ? jobData.createdBy : "";
+  if (!ownerUid || ownerUid === "system") {
+    await setJobFields(jobRef, {
+      status: "failed",
+      error: "Job has no valid owner (createdBy) — refusing to run.",
+    });
+    return;
+  }
+  try {
+    const role = await getUserRole(ownerUid);
+    await assertDailyLimit(ownerUid, role, "agentJob");
+  } catch (err) {
+    const exhausted = err && err.code === "resource-exhausted";
+    await setJobFields(jobRef, {
+      status: "failed",
+      error: exhausted ?
+        "Daily AI limit reached for this account — agent job not run. " +
+          "Please try again tomorrow." :
+        `Metering check failed: ${String(err && err.message || err).slice(0, 300)}`,
+    });
+    return;
   }
 
   // 1. Aria

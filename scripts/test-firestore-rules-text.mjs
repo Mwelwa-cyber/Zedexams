@@ -112,6 +112,27 @@ test('user self-update blocks all subscription fields', () => {
   }
 })
 
+test('user create pins paid-portal / referral / lifecycle fields', () => {
+  // The self-UPDATE blocklist guards mutation, but the very first user
+  // doc write (signup setDoc) is fully client-controlled. If the CREATE
+  // rule stops pinning these to safe defaults, a crafted signup payload
+  // mints free learner-portal access or referral credit outright.
+  const createRule = rules.match(/allow create: if isAuthed\(\) && isOwner\(userId\)[^;]+;/s)
+  assert(createRule, 'users create rule not found')
+  const block = createRule[0]
+  const MUST_PIN = [
+    'learnerPortalActive', 'learnerPortalExpiry', 'learnerPortalPlan',
+    'referralCount', 'referralCredits', 'referralCreditRedeemed',
+    'cancelAtPeriodEnd', 'status', 'deletedAt',
+  ]
+  for (const f of MUST_PIN) {
+    assert(
+      block.includes(`incoming().get('${f}'`),
+      `users create no longer pins '${f}' — signup payload could escalate (paid portal / free credit)`,
+    )
+  }
+})
+
 test('curriculum + rag_chunks are still closed to clients', () => {
   // Server-side AI grounding corpus. Exposing this would leak the
   // entire CBC dataset to the browser.
@@ -122,6 +143,59 @@ test('curriculum + rag_chunks are still closed to clients', () => {
   const ragBlock = rules.match(/match \/rag_chunks\/\{[^}]+\}\s*\{([^}]+)\}/s)
   assert(ragBlock, 'rag_chunks match block not found')
   assert(/allow read, write:\s*if false/.test(ragBlock[1]), '/rag_chunks is no longer closed')
+})
+
+test('assignments + classInvites writes are Cloud-Function-only', () => {
+  // These collections are written exclusively by admin-SDK Cloud
+  // Functions (createClassAssignment / generateClassInvite) which enforce
+  // class ownership. The old client rules allowed a direct create without
+  // verifying the caller owned incoming().classId — cross-class injection.
+  // If a client write rule ever reappears here, that vector is back.
+  const assignBlock = rules.match(/match \/assignments\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
+  assert(assignBlock, 'assignments match block not found')
+  assert(
+    /allow create, update, delete:\s*if false/.test(assignBlock[1]),
+    'assignments client writes no longer denied — cross-class injection vector reopened',
+  )
+
+  const inviteBlock = rules.match(/match \/classInvites\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
+  assert(inviteBlock, 'classInvites match block not found')
+  assert(
+    /allow create, update, delete:\s*if false/.test(inviteBlock[1]),
+    'classInvites client writes no longer denied — invite-hijack vector reopened',
+  )
+})
+
+test('gamification collections enforce field validators', () => {
+  // learnerStats / badges / dailyStreaks are owner-only client writes
+  // with no server writer. If the validator call is dropped from a
+  // create/update rule, a tampered client can write absurd values
+  // (xp:1e18, level:9999) into its own progression record.
+  for (const [coll, fn] of [
+    ['badges', 'validBadgesFields'],
+    ['dailyStreaks', 'validDailyStreaksFields'],
+    ['learnerStats', 'validLearnerStatsFields'],
+    ['learner_profiles', 'validLearnerProfileFields'],
+  ]) {
+    const block = rules.match(
+      new RegExp(`match /${coll}/\\{[^}]+\\}\\s*\\{([\\s\\S]*?)\\n {4}\\}`),
+    )
+    assert(block, `${coll} match block not found`)
+    assert(
+      block[1].includes(`${fn}()`),
+      `${coll} create/update no longer calls ${fn}() — unbounded self-tamper`,
+    )
+  }
+
+  // Range bounds must stay (the anti-tamper teeth). Streak counters are
+  // deliberately NOT monotonic — they reset to a lower value after a
+  // missed day — so we assert range bounds, never a >= prior constraint.
+  assert(/incoming\(\)\.xp <= 100000000/.test(rules), 'learnerStats xp upper bound missing')
+  assert(/incoming\(\)\.level <= 1000/.test(rules), 'learnerStats level upper bound missing')
+  assert(
+    /incoming\(\)\.streak >= 0 && incoming\(\)\.streak <= 100000/.test(rules),
+    'dailyStreaks streak range bound missing',
+  )
 })
 
 // ── Report ──────────────────────────────────────────────────────

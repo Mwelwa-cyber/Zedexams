@@ -37,7 +37,9 @@ const {
   normalizePhoneNumber,
   requestToPay,
   resolveCurrency,
+  verifySettledAmount,
 } = require("./momoService");
+const {applyCors} = require("./cors");
 
 // Teacher Tools — Lesson Plan Generator (Zambian CBC).
 const {
@@ -245,10 +247,10 @@ function getMtnRuntimeConfig() {
   });
 }
 
-function setCorsHeaders(res) {
-  res.set("Access-Control-Allow-Origin", "*");
-  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+// Browser CORS via the shared origin allow-list (functions/cors.js).
+// req is needed to read the Origin header — pass it at every call site.
+function setCorsHeaders(res, req) {
+  applyCors(req, res);
 }
 
 async function requireHttpAuth(req) {
@@ -552,6 +554,48 @@ exports.bootstrapUserProfile = onCall(
   },
 );
 
+// ── Password-reset abuse controls ────────────────────────────────────
+// This endpoint is public (must work while logged out). Two daily caps,
+// mirroring subscribeToNewsletter's best-effort counter pattern:
+//   - per email  → stops bombing one victim's inbox with reset mails
+//   - per IP     → stops one source spraying / enumerating many addresses
+const PWRESET_RL_COLLECTION = "passwordResetRateLimit";
+const PWRESET_MAX_PER_EMAIL_PER_DAY = 5;
+const PWRESET_MAX_PER_IP_PER_DAY = 15;
+
+function passwordResetDayKey(date = new Date()) {
+  return date.toISOString().slice(0, 10); // UTC civil day
+}
+
+// Returns true if either the email or IP bucket is already at its cap.
+// Best-effort: a counter read/write failure never blocks a real reset.
+async function passwordResetRateLimited(db, emailKey, ipKey) {
+  const checks = [
+    {key: emailKey, max: PWRESET_MAX_PER_EMAIL_PER_DAY},
+    {key: ipKey, max: PWRESET_MAX_PER_IP_PER_DAY},
+  ].filter((c) => c.key);
+
+  const snaps = await Promise.all(
+    checks.map((c) =>
+      db.collection(PWRESET_RL_COLLECTION).doc(c.key).get().catch(() => null)),
+  );
+  for (let i = 0; i < checks.length; i += 1) {
+    const snap = snaps[i];
+    const count = snap && snap.exists ? (snap.data()?.count || 0) : 0;
+    if (count >= checks[i].max) return true;
+  }
+  for (const c of checks) {
+    db.collection(PWRESET_RL_COLLECTION).doc(c.key).set({
+      day: passwordResetDayKey(),
+      count: admin.firestore.FieldValue.increment(1),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true}).catch((err) => {
+      console.warn("[sendPasswordResetEmail] rate-limit write failed", err);
+    });
+  }
+  return false;
+}
+
 exports.sendPasswordResetEmail = onCall(
   {secrets: [emailSmtpUser, emailSmtpPassword], region: "us-central1", timeoutSeconds: 30},
   async (request) => {
@@ -560,8 +604,37 @@ exports.sendPasswordResetEmail = onCall(
       throw new HttpsError("invalid-argument", "Valid email address is required.");
     }
 
+    // Uniform reply for success, unknown-account, AND rate-limited alike.
+    // Never reveal whether an account exists (was an enumeration oracle
+    // via the old auth/user-not-found → "No account found" throw) and
+    // never signal throttling — so this endpoint can't be used to mine
+    // the user base or amplify an email-bomb.
+    const uniformOk = {
+      success: true,
+      message:
+        "If an account exists for that email, a password reset link has been sent.",
+    };
+
+    const db = admin.firestore();
+    const ip = String(request.rawRequest?.ip || "unknown").slice(0, 64);
+    const day = passwordResetDayKey();
+    const limited = await passwordResetRateLimited(
+      db,
+      `email_${email}_${day}`,
+      ip !== "unknown" ? `ip_${ip}_${day}` : null,
+    );
+    if (limited) return uniformOk;
+
     try {
-      await admin.auth().getUserByEmail(email);
+      try {
+        await admin.auth().getUserByEmail(email);
+      } catch (lookupError) {
+        if (lookupError.code === "auth/user-not-found") {
+          // No account: do not send, do not reveal. Uniform reply.
+          return uniformOk;
+        }
+        throw lookupError;
+      }
 
       const senderEmail = cleanString(emailSmtpUser.value(), 254);
       const senderDomain = senderEmail.split("@")[1] || "zedexams.com";
@@ -602,12 +675,13 @@ exports.sendPasswordResetEmail = onCall(
         },
       });
 
-      return {success: true, message: "Password reset email sent successfully."};
+      return uniformOk;
     } catch (error) {
       console.error("sendPasswordResetEmail error:", error);
-      if (error.code === "auth/user-not-found") {
-        throw new HttpsError("not-found", "No account found with this email address.");
-      }
+      // Generic failure only — never branch the response on account
+      // existence (that was the enumeration oracle). A real send/SMTP
+      // failure happens regardless of whether the account exists, so
+      // surfacing it here is not an oracle.
       throw new HttpsError(
         "internal",
         "Failed to send password reset email. Please try again.",
@@ -851,6 +925,46 @@ async function emitInvoiceIfMissing(paymentRef, paymentData) {
 
 async function markPaymentSuccessful(paymentRef, paymentData, statusResult) {
   const plan = getPlanConfig(paymentData.planId);
+
+  // Settlement verification — never grant a paid plan unless MTN confirms
+  // it actually settled this plan's price in the expected currency. The
+  // amount/currency MTN processed is echoed on statusResult.raw; if it
+  // doesn't match (under-payment, currency confusion, partial/altered
+  // settlement) we hold the payment for manual reconciliation instead of
+  // activating on trust. Held state is non-'pending', so
+  // refreshPaymentStatus short-circuits future polls (no re-processing,
+  // no eventual grant).
+  const verdict = verifySettledAmount(
+    plan,
+    paymentData.currency,
+    statusResult.raw,
+  );
+  if (!verdict.ok) {
+    console.error("MTN payment settlement verification FAILED", {
+      paymentId: paymentRef.id,
+      userId: paymentData.userId,
+      planId: paymentData.planId,
+      expectedAmount: plan.amountZMW,
+      expectedCurrency: paymentData.currency,
+      settledAmount: statusResult.raw?.amount,
+      settledCurrency: statusResult.raw?.currency,
+      reason: verdict.reason,
+    });
+    await paymentRef.set({
+      status: "needs_review",
+      mtnStatus: statusResult.mtnStatus,
+      reason: sanitizePaymentReason(statusResult.reason),
+      verificationReason: verdict.reason,
+      lastCheckedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      statusChecks: Number(paymentData.statusChecks || 0) + 1,
+      financialTransactionId:
+        statusResult.raw?.financialTransactionId || null,
+      rawStatusResponse: statusResult.raw || null,
+    }, {merge: true});
+    return;
+  }
+
   await admin.firestore().runTransaction(async (tx) => {
     const [paymentSnap, userSnap] = await Promise.all([
       tx.get(paymentRef),
@@ -1050,11 +1164,9 @@ async function refreshPaymentStatus(paymentId, {skipIfNotDue = false} = {}) {
 exports.apiAiChat = onRequest(
   {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 60},
   async (req, res) => {
-    res.set("Access-Control-Allow-Origin", "*");
-    // Audit B3 — accept the App Check token header alongside the
-    // existing Authorization bearer + content-type list.
-    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Firebase-AppCheck");
-    res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+    // Browser CORS via the shared origin allow-list. The default header
+    // set already includes X-Firebase-AppCheck (Audit B3).
+    applyCors(req, res);
 
     if (req.method === "OPTIONS") {
       res.status(204).send("");
@@ -1148,7 +1260,7 @@ exports.apiAiChat = onRequest(
 exports.apiCreateMomoPayment = onRequest(
   {region: "us-central1", timeoutSeconds: 60, secrets: MOMO_PAYMENT_SECRETS},
   async (req, res) => {
-    setCorsHeaders(res);
+    setCorsHeaders(res, req);
 
     if (req.method === "OPTIONS") {
       res.status(204).send("");
@@ -1242,7 +1354,7 @@ exports.apiCreateMomoPayment = onRequest(
 exports.apiMomoPaymentStatus = onRequest(
   {region: "us-central1", timeoutSeconds: 60, secrets: MOMO_PAYMENT_SECRETS},
   async (req, res) => {
-    setCorsHeaders(res);
+    setCorsHeaders(res, req);
 
     if (req.method === "OPTIONS") {
       res.status(204).send("");
@@ -1767,9 +1879,8 @@ function makeStreamingEndpoint({tool, runCore}) {
   return onRequest(
     {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 120},
     async (req, res) => {
-      res.set("Access-Control-Allow-Origin", "*");
-      res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-      res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+      // Browser CORS via the shared origin allow-list (functions/cors.js).
+      applyCors(req, res);
 
       if (req.method === "OPTIONS") {
         res.status(204).send("");
@@ -2204,8 +2315,35 @@ exports.bulkGrantDemoTrials = onCall({
       }
 
       const uid = userRecord.uid;
+
+      // Account-takeover guard. An email collision — a slugified name
+      // that matches a real staff @zedexams.com mailbox, or an explicit
+      // email pointing at an existing teacher/admin/paying learner —
+      // used to silently overwrite that account with role:"learner",
+      // demo:true and a premium grant (role downgrade + data clobber).
+      // Only (re)apply the demo grant to a brand-new account or one that
+      // is ALREADY a demo account. Real collisions are refused and
+      // surfaced so the operator handles them explicitly.
+      if (!createdAuth) {
+        const existingSnap = await db.doc(`users/${uid}`).get();
+        if (existingSnap.exists && existingSnap.data()?.demo !== true) {
+          results.push({
+            name: row.name,
+            email: row.email,
+            uid: "",
+            password: row.password,
+            status: "error",
+            error:
+              "Refused: an existing non-demo account already uses this " +
+              "email (possible staff/teacher/paying user). Provide a " +
+              "unique explicit email for this entry.",
+          });
+          continue;
+        }
+      }
+
       // merge: true so we never wipe out fields on a re-used uid (e.g.
-      // an existing learner who is being upgraded to a demo trial).
+      // an existing DEMO account whose trial is being extended).
       await db.doc(`users/${uid}`).set({
         displayName: row.name,
         email: row.email,
