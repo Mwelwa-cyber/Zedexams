@@ -7,6 +7,7 @@ import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { todayString } from '../../utils/examService'
+import { EXAM_ONLY_QUESTION_THRESHOLD, isExamOnly } from '../../utils/quizClassification.js'
 import SeoHelmet from '../seo/SeoHelmet'
 
 const TABS = [
@@ -133,15 +134,11 @@ function DailyExamModal({ quiz, onSave, onClose }) {
   )
 }
 
-// Long quizzes (≥ 50 questions) are exam-only — they never appear in the
-// /quizzes practice library and the daily auto-picker skips them. Admins
-// pin them as Daily Exam manually whenever they want a formal sit-down.
-const EXAM_ONLY_QUESTION_THRESHOLD = 50
-
-function isExamOnly(quiz) {
-  if (typeof quiz?.examOnly === 'boolean') return quiz.examOnly
-  return Number(quiz?.questionCount) >= EXAM_ONLY_QUESTION_THRESHOLD
-}
+// Long quizzes (≥ EXAM_ONLY_QUESTION_THRESHOLD questions) are exam-only —
+// they never appear in the /quizzes practice library and the daily
+// auto-picker skips them. Admins pin them as Daily Exam manually whenever
+// they want a formal sit-down. isExamOnly / the threshold live in
+// utils/quizClassification.js so the in-editor publish path stays in sync.
 
 // ── Quiz row ───────────────────────────────────────────────────────────────
 function QuizRow({ quiz, onPublish, onSetDailyExam, onUnassign, onDelete, deleting }) {

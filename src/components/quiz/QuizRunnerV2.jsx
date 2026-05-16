@@ -230,6 +230,10 @@ export default function QuizRunnerV2() {
   const timerRef = useRef(null)
   const autoRef = useRef(false)
   const submitRef = useRef(null)
+  // Synchronous re-entry guard. `submitting` state is async, so a timer
+  // auto-fire and a manual tap landing in the same tick would both pass a
+  // state check and write two `results` docs. A ref flips immediately.
+  const submittedRef = useRef(false)
 
   useEffect(() => {
     async function load() {
@@ -276,7 +280,7 @@ export default function QuizRunnerV2() {
             setRevealed(saved.revealed || {})
             setShortText(saved.shortText || {})
             setAiResults(saved.aiResults || {})
-            setActiveSectionIndex(Math.min(saved.activeSectionIndex || 0, built.sections.length - 1))
+            setActiveSectionIndex(Math.max(0, Math.min(saved.activeSectionIndex || 0, built.sections.length - 1)))
             if (saved.endTime) setEndTime(saved.endTime)
             setStartTime(saved.startTime || Date.now())
             setStarted(true)
@@ -420,6 +424,8 @@ export default function QuizRunnerV2() {
   }
 
   const handleSubmit = useCallback(async (auto = false) => {
+    if (submittedRef.current) return
+    submittedRef.current = true
     if (!auto) setShowSubmit(false)
     setSubmitting(true)
     try {
@@ -468,6 +474,8 @@ export default function QuizRunnerV2() {
       navigate(`/results/${resultId}`)
     } catch (error) {
       console.error(error)
+      // Allow a retry after a genuine save failure.
+      submittedRef.current = false
       setSubmitting(false)
       setActionError('Failed to save your results. Please check your connection and try again.')
     }
@@ -524,7 +532,24 @@ export default function QuizRunnerV2() {
   }
 
   const activeSection = sections[activeSectionIndex]
-  if (!activeSection) return null
+  // An empty quiz (0 questions), a fully difficulty-filtered section list,
+  // or a malformed doc would otherwise render a blank white screen with no
+  // way out. Show a recoverable empty state instead.
+  if (!activeSection) {
+    return (
+      <div className="theme-bg flex min-h-screen items-center justify-center px-4">
+        <SeoHelmet title={quiz?.title || 'Quiz'} path={`/quiz/${quizId}`} noIndex />
+        <div className="zx-card-shared p-8 text-center">
+          <div className="mb-3 text-4xl">📭</div>
+          <p className="font-bold theme-text">No questions available for this quiz.</p>
+          <p className="theme-text-muted mt-1 text-sm">It may still be in progress or filtered out by your settings.</p>
+          <button type="button" onClick={() => navigate('/quizzes')} className="zx-sb zx-sb-primary mt-4 text-sm">
+            ← Back to quizzes
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   const answered = Object.keys(answers).length
   const progress = questions.length ? Math.round((answered / questions.length) * 100) : 0

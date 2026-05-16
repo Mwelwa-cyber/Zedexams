@@ -423,13 +423,26 @@ function extractAnswerKey(blocks) {
   return answers
 }
 
-function parseAnswerIndex(rawAnswer, options) {
+// `options` is the persisted (blank-filtered) option list. `sourceOptions`
+// is the original document order before blanks were dropped — answer-key
+// letters (A/B/C/D) refer to that order, so a letter is resolved against
+// sourceOptions and then mapped to its position in the filtered list.
+// Without this, a blank option earlier in the list shifts every later
+// letter onto the wrong option and silently mis-grades the import.
+function parseAnswerIndex(rawAnswer, options, sourceOptions = options) {
   const answer = cleanImportedText(rawAnswer)
   if (!answer) return null
   const letter = answer.match(/^[A-D]/i)?.[0]?.toUpperCase()
   if (letter) {
-    const index = letter.charCodeAt(0) - 65
-    return index >= 0 && index < options.length ? index : null
+    const origIndex = letter.charCodeAt(0) - 65
+    const optText = origIndex >= 0 && origIndex < sourceOptions.length
+      ? cleanImportedText(sourceOptions[origIndex])
+      : ''
+    if (optText) {
+      const mapped = options.findIndex(option => cleanImportedText(option) === optText)
+      if (mapped >= 0) return mapped
+    }
+    return null
   }
   const normalized = answer.toLowerCase()
   const exactIndex = options.findIndex(option => cleanImportedText(option).toLowerCase() === normalized)
@@ -447,7 +460,8 @@ function questionFromCurrent(current, answerKey = new Map()) {
   const reviewNotes = [...current.reviewNotes]
   const text = cleanImportedText(current.textParts.join(' '))
   const sharedInstruction = cleanImportedText(current.sharedInstruction)
-  const options = current.options.map(cleanImportedText).filter(Boolean)
+  const cleanedOptions = current.options.map(cleanImportedText)
+  const options = cleanedOptions.filter(Boolean)
   const imageHint = IMAGE_HINT_RE.test(`${text} ${current.diagramText}`)
   const assets = current.assets.length ? current.assets : imageHint && current.pageAsset ? [current.pageAsset] : []
   const firstAsset = assets[0] || null
@@ -470,7 +484,12 @@ function questionFromCurrent(current, answerKey = new Map()) {
   }
 
   if (type === 'mcq' || type === 'truefalse') {
-    const index = parseAnswerIndex(answerRaw, options)
+    // True/False persists a fixed ['True','False'] list, so the answer must
+    // be resolved against that exact array — not the raw source order,
+    // which may be reversed ("False / True") and would invert the answer.
+    const index = isTrueFalse
+      ? parseAnswerIndex(answerRaw, ['True', 'False'])
+      : parseAnswerIndex(answerRaw, options, cleanedOptions)
     correctAnswer = index ?? 0
     if (index === null) reviewNotes.push('Correct option was not clear.')
   } else if (!correctAnswer) {
