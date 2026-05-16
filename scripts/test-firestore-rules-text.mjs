@@ -112,6 +112,27 @@ test('user self-update blocks all subscription fields', () => {
   }
 })
 
+test('user create pins paid-portal / referral / lifecycle fields', () => {
+  // The self-UPDATE blocklist guards mutation, but the very first user
+  // doc write (signup setDoc) is fully client-controlled. If the CREATE
+  // rule stops pinning these to safe defaults, a crafted signup payload
+  // mints free learner-portal access or referral credit outright.
+  const createRule = rules.match(/allow create: if isAuthed\(\) && isOwner\(userId\)[^;]+;/s)
+  assert(createRule, 'users create rule not found')
+  const block = createRule[0]
+  const MUST_PIN = [
+    'learnerPortalActive', 'learnerPortalExpiry', 'learnerPortalPlan',
+    'referralCount', 'referralCredits', 'referralCreditRedeemed',
+    'cancelAtPeriodEnd', 'status', 'deletedAt',
+  ]
+  for (const f of MUST_PIN) {
+    assert(
+      block.includes(`incoming().get('${f}'`),
+      `users create no longer pins '${f}' — signup payload could escalate (paid portal / free credit)`,
+    )
+  }
+})
+
 test('curriculum + rag_chunks are still closed to clients', () => {
   // Server-side AI grounding corpus. Exposing this would leak the
   // entire CBC dataset to the browser.
