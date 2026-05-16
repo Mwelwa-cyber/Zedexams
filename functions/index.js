@@ -39,6 +39,7 @@ const {
   resolveCurrency,
   verifySettledAmount,
 } = require("./momoService");
+const {applyCors} = require("./cors");
 
 // Teacher Tools — Lesson Plan Generator (Zambian CBC).
 const {
@@ -242,10 +243,10 @@ function getMtnRuntimeConfig() {
   });
 }
 
-function setCorsHeaders(res) {
-  res.set("Access-Control-Allow-Origin", "*");
-  res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-  res.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+// Browser CORS via the shared origin allow-list (functions/cors.js).
+// req is needed to read the Origin header — pass it at every call site.
+function setCorsHeaders(res, req) {
+  applyCors(req, res);
 }
 
 async function requireHttpAuth(req) {
@@ -1159,11 +1160,9 @@ async function refreshPaymentStatus(paymentId, {skipIfNotDue = false} = {}) {
 exports.apiAiChat = onRequest(
   {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 60},
   async (req, res) => {
-    res.set("Access-Control-Allow-Origin", "*");
-    // Audit B3 — accept the App Check token header alongside the
-    // existing Authorization bearer + content-type list.
-    res.set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Firebase-AppCheck");
-    res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+    // Browser CORS via the shared origin allow-list. The default header
+    // set already includes X-Firebase-AppCheck (Audit B3).
+    applyCors(req, res);
 
     if (req.method === "OPTIONS") {
       res.status(204).send("");
@@ -1257,7 +1256,7 @@ exports.apiAiChat = onRequest(
 exports.apiCreateMomoPayment = onRequest(
   {region: "us-central1", timeoutSeconds: 60, secrets: MOMO_PAYMENT_SECRETS},
   async (req, res) => {
-    setCorsHeaders(res);
+    setCorsHeaders(res, req);
 
     if (req.method === "OPTIONS") {
       res.status(204).send("");
@@ -1351,7 +1350,7 @@ exports.apiCreateMomoPayment = onRequest(
 exports.apiMomoPaymentStatus = onRequest(
   {region: "us-central1", timeoutSeconds: 60, secrets: MOMO_PAYMENT_SECRETS},
   async (req, res) => {
-    setCorsHeaders(res);
+    setCorsHeaders(res, req);
 
     if (req.method === "OPTIONS") {
       res.status(204).send("");
@@ -1874,9 +1873,8 @@ function makeStreamingEndpoint({tool, runCore}) {
   return onRequest(
     {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 120},
     async (req, res) => {
-      res.set("Access-Control-Allow-Origin", "*");
-      res.set("Access-Control-Allow-Headers", "Content-Type, Authorization");
-      res.set("Access-Control-Allow-Methods", "POST, OPTIONS");
+      // Browser CORS via the shared origin allow-list (functions/cors.js).
+      applyCors(req, res);
 
       if (req.method === "OPTIONS") {
         res.status(204).send("");
