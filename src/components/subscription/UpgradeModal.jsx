@@ -130,6 +130,17 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
         })
       } else if (finalStatus.status === 'pending') {
         setStatusText(finalStatus.message || 'Still waiting for MTN confirmation.')
+      } else if (finalStatus.status === 'needs_review') {
+        // MTN took the payment but the amount/currency couldn't be
+        // auto-verified, so access wasn't granted automatically. Tell the
+        // learner NOT to pay again (that would double-charge) — support
+        // will reconcile it.
+        setError(
+          'We received your payment but could not confirm it automatically. ' +
+          'Please do not pay again — contact support with your phone number ' +
+          'and we will activate your subscription.',
+        )
+        setStep('failed')
       } else {
         setError(toFriendlyPaymentMessage(finalStatus.reason, 'Payment was not approved.'))
         setStep('failed')

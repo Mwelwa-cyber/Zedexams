@@ -37,6 +37,7 @@ const {
   normalizePhoneNumber,
   requestToPay,
   resolveCurrency,
+  verifySettledAmount,
 } = require("./momoService");
 
 // Teacher Tools — Lesson Plan Generator (Zambian CBC).
@@ -847,6 +848,46 @@ async function emitInvoiceIfMissing(paymentRef, paymentData) {
 
 async function markPaymentSuccessful(paymentRef, paymentData, statusResult) {
   const plan = getPlanConfig(paymentData.planId);
+
+  // Settlement verification — never grant a paid plan unless MTN confirms
+  // it actually settled this plan's price in the expected currency. The
+  // amount/currency MTN processed is echoed on statusResult.raw; if it
+  // doesn't match (under-payment, currency confusion, partial/altered
+  // settlement) we hold the payment for manual reconciliation instead of
+  // activating on trust. Held state is non-'pending', so
+  // refreshPaymentStatus short-circuits future polls (no re-processing,
+  // no eventual grant).
+  const verdict = verifySettledAmount(
+    plan,
+    paymentData.currency,
+    statusResult.raw,
+  );
+  if (!verdict.ok) {
+    console.error("MTN payment settlement verification FAILED", {
+      paymentId: paymentRef.id,
+      userId: paymentData.userId,
+      planId: paymentData.planId,
+      expectedAmount: plan.amountZMW,
+      expectedCurrency: paymentData.currency,
+      settledAmount: statusResult.raw?.amount,
+      settledCurrency: statusResult.raw?.currency,
+      reason: verdict.reason,
+    });
+    await paymentRef.set({
+      status: "needs_review",
+      mtnStatus: statusResult.mtnStatus,
+      reason: sanitizePaymentReason(statusResult.reason),
+      verificationReason: verdict.reason,
+      lastCheckedAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      statusChecks: Number(paymentData.statusChecks || 0) + 1,
+      financialTransactionId:
+        statusResult.raw?.financialTransactionId || null,
+      rawStatusResponse: statusResult.raw || null,
+    }, {merge: true});
+    return;
+  }
+
   await admin.firestore().runTransaction(async (tx) => {
     const [paymentSnap, userSnap] = await Promise.all([
       tx.get(paymentRef),
