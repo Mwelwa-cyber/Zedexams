@@ -40,6 +40,9 @@ const REGION = "us-central1";
 //   - everyone else                 → only a PUBLISHED daily_exam
 // This server path is daily-exam only by design; practice quizzes keep
 // their existing client flow and are never served from here.
+// getUserRole reads Firestore and may reject; that rejection is left
+// uncaught ON PURPOSE — an authz gate must fail closed, so a role-lookup
+// error aborts the call rather than falling through to access.
 async function assertExamAccess(uid, quizData) {
   const role = await getUserRole(uid);
   if (role === "admin") return;

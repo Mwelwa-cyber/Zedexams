@@ -323,9 +323,9 @@ export function saveProgress(userId, examId, patch) {
  * Submit the exam. Grading, the exam_attempts write, and the daily-lock
  * flip all happen server-side in the `submitDailyExam` Cloud Function —
  * the client never computes or writes the score, and never holds the
- * answer key. `answers` is { [questionId]: value }. `questions` is no
- * longer needed (the server loads them with the admin SDK) but the
- * parameter is kept positionally for the existing call sites.
+ * answer key. `answers` is { [questionId]: value }. The server loads the
+ * questions itself (admin SDK); `examId` is only used here to clear the
+ * local autosave key.
  *
  * Returns either { alreadySubmitted: true, attemptId } or
  * { alreadySubmitted: false, attemptId, score, percentage, ... }.
@@ -335,7 +335,7 @@ export async function submitExam(userId, examId, attemptId, answers) {
   const result = res?.data || {}
   try { localStorage.removeItem(LS_KEY(userId, examId)) } catch {}
   if (result.alreadySubmitted) return { alreadySubmitted: true, attemptId }
-  return { alreadySubmitted: false, attemptId: result.attemptId || attemptId, ...result }
+  return { ...result, alreadySubmitted: false, attemptId }
 }
 
 /**

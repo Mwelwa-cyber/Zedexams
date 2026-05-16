@@ -23,8 +23,11 @@ function listify(arr) {
 // MCQ / true-false answers are option indices. The stored key and the
 // learner's submission can drift between number and numeric-string across
 // historical data; compare numerically when both are clean numbers, else
-// fall back to the original strict equality. This never awards a mark the
-// strict check wouldn't have for genuinely different answers.
+// fall back to strict equality. This is INTENTIONALLY more lenient than
+// strict `===`: it awards a mark when the values are numerically equal
+// but differently typed (e.g. given "2" vs correct 2 — the same option),
+// which strict equality would reject. Two genuinely different option
+// indices still differ numerically, so no wrong answer is passed.
 function choiceEquals(given, correct) {
   const gn = Number(given);
   const cn = Number(correct);

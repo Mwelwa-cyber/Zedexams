@@ -20,6 +20,7 @@ ok("choiceEquals number==number", choiceEquals(2, 2) === true);
 ok("choiceEquals '2'==2 (drift)", choiceEquals("2", 2) === true);
 ok("choiceEquals 1!=2", choiceEquals(1, 2) === false);
 ok("choiceEquals string fallback", choiceEquals("True", "True") === true);
+ok("choiceEquals non-numeric string != number", choiceEquals("True", 2) === false);
 ok("choiceEquals empty != 0", choiceEquals("", 0) === false);
 
 // ── Mixed-type quiz grading ──────────────────────────────────────────────
