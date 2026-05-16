@@ -39,6 +39,7 @@ const STATUS_CFG = {
 const SUBJECTS = [
   '', 'English', 'Integrated Science', 'Mathematics', 'Social Studies',
   'Expressive Art', 'Technology Studies', 'Cinyanja', 'Home Economics',
+  'Special Paper 1',
 ]
 
 
