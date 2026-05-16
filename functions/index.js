@@ -549,6 +549,48 @@ exports.bootstrapUserProfile = onCall(
   },
 );
 
+// ── Password-reset abuse controls ────────────────────────────────────
+// This endpoint is public (must work while logged out). Two daily caps,
+// mirroring subscribeToNewsletter's best-effort counter pattern:
+//   - per email  → stops bombing one victim's inbox with reset mails
+//   - per IP     → stops one source spraying / enumerating many addresses
+const PWRESET_RL_COLLECTION = "passwordResetRateLimit";
+const PWRESET_MAX_PER_EMAIL_PER_DAY = 5;
+const PWRESET_MAX_PER_IP_PER_DAY = 15;
+
+function passwordResetDayKey(date = new Date()) {
+  return date.toISOString().slice(0, 10); // UTC civil day
+}
+
+// Returns true if either the email or IP bucket is already at its cap.
+// Best-effort: a counter read/write failure never blocks a real reset.
+async function passwordResetRateLimited(db, emailKey, ipKey) {
+  const checks = [
+    {key: emailKey, max: PWRESET_MAX_PER_EMAIL_PER_DAY},
+    {key: ipKey, max: PWRESET_MAX_PER_IP_PER_DAY},
+  ].filter((c) => c.key);
+
+  const snaps = await Promise.all(
+    checks.map((c) =>
+      db.collection(PWRESET_RL_COLLECTION).doc(c.key).get().catch(() => null)),
+  );
+  for (let i = 0; i < checks.length; i += 1) {
+    const snap = snaps[i];
+    const count = snap && snap.exists ? (snap.data()?.count || 0) : 0;
+    if (count >= checks[i].max) return true;
+  }
+  for (const c of checks) {
+    db.collection(PWRESET_RL_COLLECTION).doc(c.key).set({
+      day: passwordResetDayKey(),
+      count: admin.firestore.FieldValue.increment(1),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true}).catch((err) => {
+      console.warn("[sendPasswordResetEmail] rate-limit write failed", err);
+    });
+  }
+  return false;
+}
+
 exports.sendPasswordResetEmail = onCall(
   {secrets: [emailSmtpUser, emailSmtpPassword], region: "us-central1", timeoutSeconds: 30},
   async (request) => {
@@ -557,8 +599,37 @@ exports.sendPasswordResetEmail = onCall(
       throw new HttpsError("invalid-argument", "Valid email address is required.");
     }
 
+    // Uniform reply for success, unknown-account, AND rate-limited alike.
+    // Never reveal whether an account exists (was an enumeration oracle
+    // via the old auth/user-not-found → "No account found" throw) and
+    // never signal throttling — so this endpoint can't be used to mine
+    // the user base or amplify an email-bomb.
+    const uniformOk = {
+      success: true,
+      message:
+        "If an account exists for that email, a password reset link has been sent.",
+    };
+
+    const db = admin.firestore();
+    const ip = String(request.rawRequest?.ip || "unknown").slice(0, 64);
+    const day = passwordResetDayKey();
+    const limited = await passwordResetRateLimited(
+      db,
+      `email_${email}_${day}`,
+      ip !== "unknown" ? `ip_${ip}_${day}` : null,
+    );
+    if (limited) return uniformOk;
+
     try {
-      await admin.auth().getUserByEmail(email);
+      try {
+        await admin.auth().getUserByEmail(email);
+      } catch (lookupError) {
+        if (lookupError.code === "auth/user-not-found") {
+          // No account: do not send, do not reveal. Uniform reply.
+          return uniformOk;
+        }
+        throw lookupError;
+      }
 
       const senderEmail = cleanString(emailSmtpUser.value(), 254);
       const senderDomain = senderEmail.split("@")[1] || "zedexams.com";
@@ -599,12 +670,13 @@ exports.sendPasswordResetEmail = onCall(
         },
       });
 
-      return {success: true, message: "Password reset email sent successfully."};
+      return uniformOk;
     } catch (error) {
       console.error("sendPasswordResetEmail error:", error);
-      if (error.code === "auth/user-not-found") {
-        throw new HttpsError("not-found", "No account found with this email address.");
-      }
+      // Generic failure only — never branch the response on account
+      // existence (that was the enumeration oracle). A real send/SMTP
+      // failure happens regardless of whether the account exists, so
+      // surfacing it here is not an oracle.
       throw new HttpsError(
         "internal",
         "Failed to send password reset email. Please try again.",
