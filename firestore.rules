@@ -256,10 +256,12 @@ service cloud.firestore {
       allow create: if isAuthed() && incoming().userId == request.auth.uid;
       // Grading is server-authoritative: the submitDailyExam Cloud Function
       // writes the in_progress → submitted transition (score, percentage,
-      // etc.) with the admin SDK, which bypasses these rules. No client
-      // ever updates an attempt, so client updates are denied outright —
-      // this removes every score/leaderboard tampering vector.
-      allow update: if isAdmin();
+      // etc.) with the admin SDK, which bypasses these rules entirely.
+      // So NO client write is ever needed — not even an admin's. Denying
+      // all client updates (rather than `isAdmin()`) removes the residual
+      // vector where a compromised/rogue admin token could PATCH a
+      // learner's score or leaderboard position.
+      allow update: if false;
       allow delete: if isAdmin();
     }
 
@@ -268,11 +270,12 @@ service cloud.firestore {
       allow read:   if isAuthed() && (resource.data.userId == request.auth.uid || isAdmin());
       // Create is always status:'in_progress' (startExam). The lock flip to
       // 'submitted' is done by the submitDailyExam Cloud Function via the
-      // admin SDK, so clients can never update the lock — this closes the
-      // "rewrite the lock to re-sit the daily exam" quota-bypass.
+      // admin SDK (bypasses these rules), so no client write is ever
+      // needed. Denying all client updates closes the "rewrite the lock
+      // to re-sit the daily exam" quota-bypass with no admin-token vector.
       allow create: if isAuthed() && incoming().userId == request.auth.uid
         && incoming().status == 'in_progress';
-      allow update: if isAdmin();
+      allow update: if false;
       allow delete: if isAdmin();
     }
 
