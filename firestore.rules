@@ -624,6 +624,21 @@ service cloud.firestore {
         && (!('processedAttempts' in incoming()) || (incoming().processedAttempts is list && incoming().processedAttempts.size() <= 100))
         && (!('recentRanks' in incoming()) || (incoming().recentRanks is list && incoming().recentRanks.size() <= 100));
     }
+    // learner_profiles: derived per-user analytics (totals, per-subject /
+    // per-topic stats, weak topics, recent games). Owner-only read, no
+    // server writer. Same data-integrity-backstop intent as above —
+    // bound shape/size of present fields only; nothing is monotonic.
+    function validLearnerProfileFields() {
+      return (!('userId' in incoming()) || (incoming().userId is string && incoming().userId.size() <= 200))
+        && (!('grade' in incoming()) || incoming().grade == null || incoming().grade is int || (incoming().grade is string && incoming().grade.size() <= 8))
+        && (!('totals' in incoming()) || (incoming().totals is map && incoming().totals.keys().size() <= 50))
+        && (!('subjectStats' in incoming()) || (incoming().subjectStats is map && incoming().subjectStats.keys().size() <= 200))
+        && (!('topicStats' in incoming()) || (incoming().topicStats is map && incoming().topicStats.keys().size() <= 500))
+        && (!('weakTopics' in incoming()) || (incoming().weakTopics is list && incoming().weakTopics.size() <= 50))
+        && (!('recentGames' in incoming()) || (incoming().recentGames is list && incoming().recentGames.size() <= 100))
+        && (!('lastSession' in incoming()) || (incoming().lastSession is map && incoming().lastSession.keys().size() <= 50))
+        && (!('dailyGoal' in incoming()) || incoming().dailyGoal == null || (incoming().dailyGoal is map && incoming().dailyGoal.keys().size() <= 50));
+    }
 
     // ── badges (per-user earned badges) ───────────────────────
     // Self-awarded game badges are OK — the client evaluates against the
@@ -658,7 +673,7 @@ service cloud.firestore {
     // leaderboard data. Admin may moderate/delete.
     match /learner_profiles/{userId} {
       allow read:          if isAuthed() && (isOwner(userId) || isAdmin());
-      allow create, update: if isAuthed() && isOwner(userId);
+      allow create, update: if isAuthed() && isOwner(userId) && validLearnerProfileFields();
       allow delete:        if isAdmin();
     }
 

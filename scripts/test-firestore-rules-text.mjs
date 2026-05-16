@@ -175,6 +175,7 @@ test('gamification collections enforce field validators', () => {
     ['badges', 'validBadgesFields'],
     ['dailyStreaks', 'validDailyStreaksFields'],
     ['learnerStats', 'validLearnerStatsFields'],
+    ['learner_profiles', 'validLearnerProfileFields'],
   ]) {
     const block = rules.match(
       new RegExp(`match /${coll}/\\{[^}]+\\}\\s*\\{([\\s\\S]*?)\\n {4}\\}`),
