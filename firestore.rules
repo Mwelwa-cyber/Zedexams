@@ -367,14 +367,20 @@ service cloud.firestore {
             && resource.data.isPublished == false);
 
       match /questions/{questionId} {
-        // Daily-exam questions are NEVER client-readable (even though the
-        // quiz is published) — that was the answer-key leak: any learner
-        // could scrape correctAnswer/explanation from a daily exam before
-        // submitting. Daily exams are served + graded by the
+        // Daily-exam questions are NEVER client-readable by learners (even
+        // though the quiz is published) — that was the answer-key leak:
+        // any learner could scrape correctAnswer/explanation from a daily
+        // exam before submitting. Daily exams are served + graded by the
         // getExamQuestions / submitDailyExam Cloud Functions (admin SDK,
-        // which bypasses these rules). Practice quizzes still grade
-        // client-side by design, so their published questions stay
-        // readable. Drafts remain owner/admin-only.
+        // which bypasses these rules). Admins and the quiz owner CAN still
+        // read them (moderation / authoring preview). Practice quizzes
+        // still grade client-side by design, so their published questions
+        // stay readable. Drafts remain owner/admin-only.
+        // Cost: the repeated get() on the parent quiz is the SAME document
+        // path within one rule evaluation, which Firestore caches and
+        // bills as a single read — not three. Daily-exam question reads
+        // are also rare now (server-served), so the leak-closure is worth
+        // the cost.
         allow read: if isAuthed() && (
           isAdmin()
           || get(/databases/$(database)/documents/quizzes/$(quizId)).data.createdBy == request.auth.uid

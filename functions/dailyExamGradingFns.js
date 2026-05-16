@@ -21,8 +21,37 @@
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const {gradeAttempt, stripAnswerKey} = require("./grading/dailyExamGrading");
+const {getUserRole} = require("./aiService");
 
+// Matches the region of every other Cloud Function in this project
+// (functions/index.js, functions/tts.js) — not a new function group.
 const REGION = "us-central1";
+
+// This module performs NO Anthropic / AI work, so it intentionally does
+// not wire functions/usageMeter.js — there is nothing to meter here.
+
+// Re-apply the questions read policy from firestore.rules. Callable
+// invocations use the admin SDK, which bypasses security rules, so
+// without this any signed-in user who knows a quiz id could pull another
+// teacher's unpublished draft (or, via a self-created attempt fed to
+// submitDailyExam, its full answer key). Mirror the rule exactly:
+//   - admin                         → allowed (moderation)
+//   - quiz owner (createdBy == uid)  → allowed (owner preview)
+//   - everyone else                 → only a PUBLISHED daily_exam
+// This server path is daily-exam only by design; practice quizzes keep
+// their existing client flow and are never served from here.
+async function assertExamAccess(uid, quizData) {
+  const role = await getUserRole(uid);
+  if (role === "admin") return;
+  if (quizData.createdBy === uid) return;
+  if (quizData.isPublished === true && (quizData.quizType || "") === "daily_exam") {
+    return;
+  }
+  throw new HttpsError(
+    "permission-denied",
+    "You don't have access to this exam.",
+  );
+}
 
 function requireAuth(request) {
   if (!request.auth?.uid) {
@@ -87,6 +116,7 @@ exports.getExamQuestions = onCall(
     if (!quizSnap.exists) {
       throw new HttpsError("not-found", "Exam not found.");
     }
+    await assertExamAccess(uid, quizSnap.data());
 
     // Full (with answer keys) only when the caller already submitted THIS
     // exam attempt — the corrections screen. Otherwise strip the keys.
@@ -134,6 +164,16 @@ exports.submitDailyExam = onCall(
       return {alreadySubmitted: true, attemptId};
     }
 
+    // Block grading an attempt fabricated against a quiz the caller can't
+    // access (unpublished draft / another teacher's quiz). Without this an
+    // attacker could create their own exam_attempt pointing at any quiz id
+    // and have the server grade — and via getExamQuestions leak — it.
+    const quizSnap = await db.collection("quizzes").doc(pre.examId).get();
+    if (!quizSnap.exists) {
+      throw new HttpsError("not-found", "Exam not found.");
+    }
+    await assertExamAccess(uid, quizSnap.data());
+
     const questions = await loadQuestions(db, pre.examId);
 
     const graded = await db.runTransaction(async (tx) => {
@@ -178,6 +218,10 @@ exports.submitDailyExam = onCall(
     // the score is already saved; a lock write failure must not 500 the
     // submit. Lock id mirrors examService.lockId(userId, subject) on the
     // day the attempt was created.
+    // NOTE: a failed flip leaves the lock 'in_progress' → the learner
+    // could re-sit (quota bypass). The console.error below is logged at
+    // ERROR severity precisely so a Cloud Logging alert can page on it;
+    // do not downgrade it to warn/info.
     try {
       const lockId = `${pre.userId}_${pre.subject}_${pre.attemptDate}`;
       await db.collection("daily_exam_locks").doc(lockId)
