@@ -867,15 +867,17 @@ service cloud.firestore {
     }
     match /assignments/{assignmentId} {
       allow read: if isAuthed();
-      allow create: if isTeacherOrAbove()
-        && validAssignmentFields()
-        && incoming().teacherUid == request.auth.uid;
-      allow update: if isAuthed()
-        && validAssignmentFields()
-        && resource.data.teacherUid == request.auth.uid;
-      allow delete: if isAuthed() && (
-        resource.data.teacherUid == request.auth.uid || isAdmin()
-      );
+      // CF-only. The header comment always claimed writes were routed
+      // through Cloud Functions, but the old client rule still allowed a
+      // direct create as long as teacherUid == auth.uid — it never checked
+      // the caller owned incoming().classId, so a tampered client could
+      // mint an assignment for ANY teacher's class (cross-class injection,
+      // surfaced to that class's learners since read is open). All real
+      // writes go through createClassAssignment / removeClassAssignment
+      // (admin SDK, which bypasses these rules and enforces ownership via
+      // loadClassOrThrow). No legitimate direct client write exists, so
+      // deny them outright.
+      allow create, update, delete: if false;
     }
 
     // ── classes + classInvites (audit A10 — teacher classroom roster) ──
@@ -941,14 +943,17 @@ service cloud.firestore {
     // signed-in learner can resolve a code → classId before the
     // joinClassByCode Cloud Function authenticates them in.
     match /classInvites/{inviteCode} {
+      // Read stays open: a signed-in learner resolves code → classId
+      // before the joinClassByCode Cloud Function authenticates them in.
       allow read: if isAuthed();
-      allow create, update: if isTeacherOrAbove()
-        && incoming().createdBy == request.auth.uid
-        && incoming().classId is string
-        && incoming().expiresAt is timestamp;
-      allow delete: if isAuthed() && (
-        resource.data.createdBy == request.auth.uid || isAdmin()
-      );
+      // CF-only. The old rule only checked createdBy == auth.uid and never
+      // verified the caller owned incoming().classId, so a tampered client
+      // could mint an invite code pointing at ANOTHER teacher's class and
+      // hijack/poison their join flow. Invite codes are created/deleted
+      // exclusively by generateClassInvite (admin SDK, bypasses these
+      // rules, owner-gated via loadClassOrThrow). No legitimate direct
+      // client write exists.
+      allow create, update, delete: if false;
     }
 
     // ── paperAttempts (audit A2 PR 3 — timed practice runs) ──────────
