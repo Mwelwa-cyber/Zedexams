@@ -328,3 +328,23 @@
 
 /* Light card styling for the Style pane section labels (cosmetic only) */
 #view-plans #pane-style .section-label:first-child{margin-top:6px}
+
+/* ============ MOBILE-FIRST LAYOUT — show the form, not a hidden drawer ======
+   On phones/tablets the sidebar (which holds the whole lesson-plan form) was
+   a fixed off-canvas drawer hidden behind a hamburger — so the form was
+   invisible until the teacher found and tapped the menu. That defeats the
+   mobile-first goal. Below 980px we instead lay the form out as a normal,
+   visible, full-width scrolling panel with the live preview stacked beneath
+   it. Desktop (>980px) is unchanged. These rules are last in the file and
+   id-scoped, so they win over the earlier drawer rules. */
+@media(max-width:980px){
+  #view-plans .app{display:block;min-height:0}
+  #view-plans .sidebar{position:static;transform:none;inset:auto;width:auto;max-width:none;height:auto;overflow:visible;z-index:auto;box-shadow:none;border-right:0;border-bottom:1.5px solid #0e2a32}
+  #view-plans .sidebar.open{transform:none}
+  #view-plans .scrim{display:none}
+  #view-plans .menu-btn{display:none}
+  #view-plans .main{min-height:60vh}
+  /* Page (not the sidebar) scrolls, so the sticky Generate bar pins to the
+     viewport bottom while the teacher fills the form. */
+  #view-plans .lp-generate-bar{position:sticky;bottom:0}
+}
