@@ -16,12 +16,18 @@ import CookieConsentBanner from './components/ui/CookieConsentBanner'
 import ZedChatLauncher from './components/ai/ZedChatLauncher'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 
-// Public marketing/auth routes always render in the brand-default Sky theme
-// so a visitor's previously-saved preference (e.g. Vivid's deep violet bg)
-// can't bleed onto the welcome/login/register screens. The saved theme
-// applies again as soon as they land on an authenticated route.
+// Auth/legal routes always render in the brand-default Sky theme so a
+// visitor's previously-saved preference (e.g. Vivid's deep violet bg)
+// can't bleed onto the light-only login/register/legal screens. The
+// saved theme applies again as soon as they land on an authenticated
+// route.
+//
+// The marketing landing page ('/') is intentionally NOT pinned here: it
+// follows the active/saved theme so it matches the in-app look for
+// returning users. New visitors have no saved preference, so it still
+// resolves to the Sky default via resolveInitialTheme().
 const PUBLIC_THEME_PATHS = new Set([
-  '/', '/login', '/register', '/auth/action',
+  '/login', '/register', '/auth/action',
   '/pricing', '/privacy', '/terms', '/status',
   '/papers',
 ])
