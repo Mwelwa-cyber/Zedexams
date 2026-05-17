@@ -117,6 +117,7 @@ async function runHomework({uid, rawInputs, apiKey}) {
       lessonNumber: inputs.lessonNumber,
       totalLessons: inputs.totalLessons,
       learningEnvironment: inputs.learningEnvironment,
+      ownerUid: uid,
     }),
     assertAndIncrement(uid, "homework"),
   ]);

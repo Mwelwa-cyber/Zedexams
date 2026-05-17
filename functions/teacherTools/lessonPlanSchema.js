@@ -230,6 +230,13 @@ function validateLessonPlan(input) {
     pupilsWhoNeedFollowUp: [],
   };
 
+  // ── coveredContent ─────────────────────────────────────────────────
+  // Short bullets of what THIS lesson actually taught — feeds the
+  // no-repeat tracker so a later lesson of the same sub-topic doesn't
+  // re-teach it.
+  out.coveredContent = isStringArray(input.coveredContent) ?
+    input.coveredContent.slice(0, 40) : [];
+
   return errors.length === 0 ?
     {ok: true, value: out} :
     {ok: false, errors, value: out};

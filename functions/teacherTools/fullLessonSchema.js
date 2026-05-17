@@ -101,6 +101,9 @@ function validateFullLesson(input) {
     summary: str(input.summary, 3000),
     homework,
     references: strArr(input.references, {max: 300, cap: 8}),
+    // Short bullets of what THIS lesson actually taught — feeds the
+    // no-repeat tracker for later lessons of the same sub-topic.
+    coveredContent: strArr(input.coveredContent, {max: 400}),
   };
 
   const hasBody = value.objectives.length > 0 ||

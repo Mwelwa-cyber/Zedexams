@@ -198,6 +198,7 @@ async function runLessonPlan({uid, rawInputs, apiKey, onProgress}) {
       lessonNumber: inputs.lessonNumber,
       totalLessons: inputs.totalLessons,
       learningEnvironment: inputs.learningEnvironment,
+      ownerUid: uid,
     }),
     assertAndIncrement(uid, "lesson_plan"),
   ]);
@@ -318,6 +319,7 @@ async function runLessonPlan({uid, rawInputs, apiKey, onProgress}) {
   await genRef.set({
     status: "complete",
     output: lessonPlan,
+    coveredContent: lessonPlan.coveredContent || [],
     outputText: String(raw || "").slice(0, 20000),
     tokensIn,
     tokensOut,

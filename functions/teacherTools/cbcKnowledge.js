@@ -379,6 +379,86 @@ function renderLearningEnvironmentDirective(value) {
   ].join("\n");
 }
 
+function normKey(s) {
+  return String(s || "").trim().toLowerCase();
+}
+
+/**
+ * Query the teacher's OWN prior completed generations for earlier lessons of
+ * this exact sub-topic+term and collect what they already covered. Index-free:
+ * uses the existing (ownerUid, createdAt) index and filters the rest in
+ * memory, so no new composite index is needed. Returns
+ * [{ lessonNumber, items: string[] }] sorted ascending, or [].
+ */
+async function resolvePriorCoverage({
+  ownerUid, grade, subject, topic, subtopic, term, lessonNumber,
+}) {
+  const n = Number(lessonNumber);
+  if (!ownerUid || !subtopic || !(Number.isInteger(n) && n > 1)) return [];
+  const g = String(grade || "").toUpperCase().replace(/\s+/g, "");
+  const s = String(subject || "").toLowerCase();
+  const tp = normKey(topic);
+  const st = normKey(subtopic);
+  const tm = Number(term);
+  try {
+    const db = admin.firestore();
+    const snap = await db.collection("aiGenerations")
+        .where("ownerUid", "==", ownerUid)
+        .orderBy("createdAt", "desc")
+        .limit(250)
+        .get();
+    const byLesson = new Map();
+    for (const doc of snap.docs) {
+      const d = doc.data() || {};
+      if (d.status !== "complete") continue;
+      const inp = d.inputs || {};
+      const ln = Number(inp.lessonNumber);
+      if (!(Number.isInteger(ln) && ln >= 1 && ln < n)) continue;
+      if (String(inp.grade || "").toUpperCase().replace(/\s+/g, "") !== g) {
+        continue;
+      }
+      if (String(inp.subject || "").toLowerCase() !== s) continue;
+      if (normKey(inp.topic) !== tp) continue;
+      if (normKey(inp.subtopic) !== st) continue;
+      if (Number(inp.term) !== tm) continue;
+      const items = Array.isArray(d.coveredContent) ?
+        d.coveredContent
+            .filter((x) => typeof x === "string" && x.trim())
+            .slice(0, 12) :
+        [];
+      if (items.length === 0) continue;
+      // snap is newest-first → keep the most recent per lesson number.
+      if (!byLesson.has(ln)) byLesson.set(ln, items);
+    }
+    return Array.from(byLesson.entries())
+        .sort((a, b) => a[0] - b[0])
+        .map(([ln, items]) => ({lessonNumber: ln, items}));
+  } catch (err) {
+    console.error("resolvePriorCoverage failed", err);
+    return [];
+  }
+}
+
+/**
+ * Render the concrete "already taught" block. Empty string when there's no
+ * prior coverage (no behaviour change for Lesson 1 / non-curriculum runs).
+ */
+function renderPreviouslyCovered(coverage) {
+  if (!Array.isArray(coverage) || coverage.length === 0) return "";
+  const lines = [
+    "<previously_covered>",
+    "This teacher has already generated and taught the earlier lessons of",
+    "THIS sub-topic. The points below were already covered — do NOT",
+    "re-teach or repeat them; build forward from them only.",
+  ];
+  for (const c of coverage) {
+    lines.push("", `Lesson ${c.lessonNumber} already covered:`);
+    for (const it of c.items) lines.push(`- ${it}`);
+  }
+  lines.push("</previously_covered>");
+  return lines.join("\n");
+}
+
 /**
  * High-level resolver used by the Cloud Functions. Returns:
  *   { contextBlock, kbMatch, kbWarning }
@@ -399,12 +479,18 @@ function renderLearningEnvironmentDirective(value) {
  * keep the exact pre-upgrade behaviour, so every existing caller is safe.
  */
 async function resolveCbcContext({
-  grade, subject, topic, subtopic, term,
+  grade, subject, topic, subtopic, term, ownerUid,
   lessonNumber, totalLessons, learningEnvironment,
 } = {}) {
   const leDirective = renderLearningEnvironmentDirective(learningEnvironment);
-  const withLe = (res) => leDirective ?
-    {...res, contextBlock: `${res.contextBlock}\n\n${leDirective}`} :
+  const priorBlock = renderPreviouslyCovered(
+      await resolvePriorCoverage({
+        ownerUid, grade, subject, topic, subtopic, term, lessonNumber,
+      }),
+  );
+  const extras = [leDirective, priorBlock].filter(Boolean).join("\n\n");
+  const decorate = (res) => extras ?
+    {...res, contextBlock: `${res.contextBlock}\n\n${extras}`} :
     res;
 
   // 1. Stored sub-topic curriculum module — outranks everything else.
@@ -413,7 +499,7 @@ async function resolveCbcContext({
       grade, subject, topic, subtopic, term,
     });
     if (moduleMatch) {
-      return withLe({
+      return decorate({
         contextBlock: renderCurriculumModuleBlock(moduleMatch, {
           lessonNumber, totalLessons,
         }),
@@ -431,7 +517,7 @@ async function resolveCbcContext({
     subtopic,
   });
   if (privateResult) {
-    return withLe({
+    return decorate({
       contextBlock: privateResult.contextBlock,
       kbMatch: privateResult.match,
       kbWarning: null,
@@ -441,7 +527,7 @@ async function resolveCbcContext({
   // 3. Editable topic KB (unchanged).
   const match = await lookupTopic({grade, subject, topic});
   if (match) {
-    return withLe({
+    return decorate({
       contextBlock: renderContextBlock(match),
       kbMatch: match,
       kbWarning: null,
@@ -450,7 +536,7 @@ async function resolveCbcContext({
 
   // 4. General CBC fallback (unchanged).
   const suggestions = await suggestTopics({grade, subject});
-  return withLe({
+  return decorate({
     contextBlock: renderFallbackContext({grade, subject, topic, subtopic}),
     kbMatch: null,
     kbWarning: suggestions.length ?
