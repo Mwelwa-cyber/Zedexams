@@ -36,8 +36,10 @@ const CONTENT_TYPES = [
     route: '/teacher/generate/lesson-plan-cbc', ready: true },
   { key: 'exercise', label: 'Exercise / Worksheet', emoji: '✏️',
     route: '/teacher/generate/worksheet', ready: true },
-  { key: 'learner_notes', label: 'Learner Notes', emoji: '📖', ready: false },
-  { key: 'full_lesson', label: 'Full Lesson', emoji: '🎓', ready: false },
+  { key: 'learner_notes', label: 'Learner Notes', emoji: '📖',
+    route: '/teacher/generate/notes', ready: true },
+  { key: 'full_lesson', label: 'Full Lesson', emoji: '🎓',
+    route: '/teacher/generate/full-lesson', ready: true },
   { key: 'homework', label: 'Homework', emoji: '🏠', ready: false },
   { key: 'quiz', label: 'Quiz', emoji: '❓', ready: false },
   { key: 'assessment', label: 'Assessment', emoji: '📝', ready: false },
@@ -284,10 +286,11 @@ export default function CurriculumStudio() {
               ))}
             </div>
             <p className="text-xs text-slate-500 mt-3">
-              Lesson Plan & Exercise are wired to the verified curriculum now.
-              The others are queued for the next phase. Generation, preview,
-              editing and Word/PDF export open in the matching studio with
-              everything pre-filled.
+              Lesson Plan, Learner Notes, Full Lesson and Exercise are wired
+              to the verified curriculum. Homework, Quiz and Assessment are
+              queued for the next phase. Generation, preview, editing and
+              Word/PDF export open in the matching studio with everything
+              pre-filled.
             </p>
           </div>
 

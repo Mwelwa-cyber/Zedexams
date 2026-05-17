@@ -12,6 +12,8 @@
  *      grounded CBC context block.
  */
 
+const {learningEnvironmentLabel} = require("./learningEnvironments");
+
 const PROMPT_VERSION = "notes.v1";
 
 const SYSTEM_PROMPT = `You are an expert Zambian teacher who writes delivery notes for fellow teachers — NOT student handouts.
@@ -79,6 +81,10 @@ function buildUserPrompt(inputs) {
     subject,
     topic,
     subtopic = "",
+    term = null,
+    lessonNumber = null,
+    totalLessons = null,
+    learningEnvironment = "",
     durationMinutes = 40,
     language = "english",
     teacherName = "",
@@ -86,6 +92,8 @@ function buildUserPrompt(inputs) {
     instructions = "",
     lessonPlan = null,
   } = inputs;
+
+  const leLabel = learningEnvironmentLabel(learningEnvironment);
 
   const lessonPlanBlock = lessonPlan ? [
     "Source lesson plan (use this as the authoritative spine — same topic, same goal):",
@@ -102,6 +110,15 @@ function buildUserPrompt(inputs) {
     `- Subject: ${subject}`,
     `- Topic: ${topic}`,
     subtopic ? `- Sub-topic: ${subtopic}` : "",
+    term ? `- Term: ${term}` : "",
+    lessonNumber && totalLessons ?
+      `- These are the notes for Lesson ${lessonNumber} of ${totalLessons} ` +
+      "for this sub-topic. Cover only this lesson's share; build on earlier " +
+      "lessons without repeating them and don't pre-empt later ones." :
+      lessonNumber ?
+        `- These are the notes for Lesson ${lessonNumber} of this ` +
+        "sub-topic. Cover only this lesson's portion." : "",
+    leLabel ? `- Learning environment: ${leLabel}` : "",
     `- Lesson duration: ${durationMinutes} min`,
     `- Medium of instruction: ${language}`,
     school ? `- School: ${school}` : "",
