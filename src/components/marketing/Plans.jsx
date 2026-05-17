@@ -1,7 +1,9 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
-import { ensureProFonts } from '../../utils/proFonts'
+import Logo from '../ui/Logo'
+import Button from '../ui/Button'
+import Card from '../ui/Card'
 import SeoHelmet from '../seo/SeoHelmet'
 
 const UpgradeModal = lazy(() => import('../subscription/UpgradeModal'))
@@ -39,13 +41,161 @@ const FAQ = [
   },
 ]
 
-function Price({ planKey, billing }) {
-  const value = PLAN_PRICES[planKey][billing]
+const PAYMENT_METHODS = [
+  { label: 'MTN MoMo',     swatch: '#FFCC00' },
+  { label: 'Airtel Money', swatch: '#E60012' },
+  { label: 'Visa',         swatch: 'linear-gradient(135deg,#1A1F71,#3057A4)' },
+  { label: 'Mastercard',   swatch: 'linear-gradient(90deg,#EB001B 50%, #F79E1B 50%)' },
+]
+
+function Section({ children, className = '' }) {
   return (
-    <div className="zpl-price-row">
-      <span className="zpl-currency">K</span>
-      <span className="zpl-price">{value}</span>
-      <span className="zpl-per">/ month</span>
+    <section className={`mx-auto w-full max-w-6xl px-5 sm:px-8 ${className}`}>
+      {children}
+    </section>
+  )
+}
+
+function Price({ planKey, billing, onDark }) {
+  const value = PLAN_PRICES[planKey][billing]
+  const muted = onDark ? 'text-white/70' : 'theme-text-muted'
+  return (
+    <div className="flex items-baseline gap-1.5 mb-1.5">
+      <span className={`text-base font-bold ${muted}`}>K</span>
+      <span className="font-display font-black text-5xl tracking-tight leading-none">{value}</span>
+      <span className={`text-sm ${muted}`}>/ month</span>
+    </div>
+  )
+}
+
+function Feat({ children, onDark }) {
+  return (
+    <div className={`flex gap-2.5 text-sm leading-snug ${onDark ? 'text-white/85' : 'theme-text'}`}>
+      <span
+        className={`flex-shrink-0 grid place-items-center w-[18px] h-[18px] rounded-full mt-0.5 text-[11px] font-black ${
+          onDark
+            ? 'bg-white/20 text-white'
+            : 'bg-[color:var(--accent-bg)] theme-accent-text'
+        }`}
+        aria-hidden="true"
+      >✓</span>
+      <span>{children}</span>
+    </div>
+  )
+}
+
+function Row({ label, cells }) {
+  return (
+    <tr className="border-b theme-border last:border-b-0">
+      <td className="px-5 py-3.5 text-sm font-bold theme-text">{label}</td>
+      {cells.map((cell, i) => (
+        <td key={i} className="px-5 py-3.5 text-sm text-center theme-text-muted">
+          {cell === true ? (
+            <span className="inline-grid place-items-center w-5 h-5 rounded-full bg-[color:var(--accent-bg)] theme-accent-text text-xs">✓</span>
+          ) : cell === null ? (
+            <span className="theme-text-muted">—</span>
+          ) : (
+            cell
+          )}
+        </td>
+      ))}
+    </tr>
+  )
+}
+
+function PlanCard({ plan, billing, popular = false, onCta }) {
+  return (
+    <Card
+      variant={popular ? 'hero' : 'elevated'}
+      size="lg"
+      className={`relative flex flex-col ${popular ? '' : 'theme-text'}`}
+    >
+      {popular && (
+        <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-white/20 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-white">
+          Most popular
+        </span>
+      )}
+      <div
+        className={`grid place-items-center w-14 h-14 rounded-2xl text-3xl ${
+          popular ? 'bg-white/15' : 'bg-[color:var(--bg-subtle)]'
+        }`}
+        aria-hidden="true"
+      >{plan.mascot}</div>
+      <div className="font-display font-black text-2xl mt-4">{plan.name}</div>
+      <div className={`text-sm mt-1 mb-5 ${popular ? 'text-white/70' : 'theme-text-muted'}`}>{plan.meta}</div>
+      <Price planKey={plan.key} billing={billing} onDark={popular} />
+      <div className={`text-xs mb-6 min-h-[18px] ${popular ? 'text-white/70' : 'theme-text-muted'}`}>{plan.note}</div>
+      <Button
+        variant={popular ? 'primary' : 'secondary'}
+        size="lg"
+        fullWidth
+        onClick={onCta}
+        className={popular ? 'bg-white !text-[color:var(--accent-fg)] hover:bg-white' : ''}
+      >
+        {plan.cta}
+      </Button>
+      <div
+        className={`mt-6 pt-6 border-t border-dashed flex flex-col gap-3 ${
+          popular ? 'border-white/20' : 'theme-border'
+        }`}
+      >
+        {plan.feats.map((f, i) => (
+          <Feat key={i} onDark={popular}>{f}</Feat>
+        ))}
+      </div>
+    </Card>
+  )
+}
+
+const PLANS = [
+  {
+    key: 'free', name: 'Free', mascot: '🐢', meta: 'For trying things out',
+    note: 'No card required.', cta: 'Start free',
+    feats: [
+      <><strong>5</strong> lesson plans / month</>,
+      <><strong>3</strong> worksheets / month</>,
+      <><strong>3</strong> teacher notes / month</>,
+      <>Daily cap of <strong>2</strong> generations</>,
+      'HTML export only',
+      'Library kept for 7 days',
+      'Full syllabi access',
+    ],
+  },
+  {
+    key: 'pro', name: 'Pro', mascot: '🦊', meta: 'For the everyday teacher',
+    note: 'Or K790 / year — two months free.', cta: 'Go Pro', popular: true,
+    feats: [
+      <><strong>40</strong> lesson plans / month</>,
+      <><strong>25</strong> worksheets &amp; teacher notes</>,
+      <><strong>8</strong> assessments / month</>,
+      <><strong>2</strong> schemes of work / term</>,
+      <>Daily cap of <strong>10</strong> generations</>,
+      'DOCX + PDF export',
+      'Library kept forever',
+      'Premium model quality',
+    ],
+  },
+  {
+    key: 'max', name: 'Max', mascot: '🦅', meta: 'For HoDs & heavy users',
+    note: 'Or K1,990 / year — two months free.', cta: 'Go Max',
+    feats: [
+      <><strong>Unlimited</strong> plans, notes &amp; worksheets*</>,
+      <><strong>Unlimited</strong> assessments &amp; schemes</>,
+      <>Daily cap of <strong>30</strong> generations</>,
+      'Bulk export (whole term in one click)',
+      'Priority queue when servers are busy',
+      'Early access to new studios',
+      'Email support, 24h reply',
+      <><em>*Fair use ~200/month</em></>,
+    ],
+  },
+]
+
+function SectionTag({ children }) {
+  return (
+    <div className="flex items-center gap-2.5 mb-4">
+      <span className="w-6 h-0.5 bg-[color:var(--accent)]" aria-hidden="true" />
+      <span className="text-xs font-black uppercase tracking-wider theme-text-muted">{children}</span>
     </div>
   )
 }
@@ -55,8 +205,6 @@ export default function Plans() {
   const navigate = useNavigate()
   const [billing, setBilling] = useState('monthly')
   const [showUpgrade, setShowUpgrade] = useState(null) // 'pro' | 'max' | null
-
-  useEffect(() => { ensureProFonts() }, [])
 
   function handleFreeCta() {
     navigate(currentUser ? '/' : '/register')
@@ -68,6 +216,10 @@ export default function Plans() {
       return
     }
     setShowUpgrade(tier)
+  }
+
+  function ctaFor(key) {
+    return key === 'free' ? handleFreeCta : () => handlePaidCta(key)
   }
 
   const upgradePlanIds = showUpgrade
@@ -84,192 +236,211 @@ export default function Plans() {
         description="ZedExams Pro and Max plans for Zambian teachers and learners. Pay with MTN MoMo or Airtel Money. Cancel anytime."
         path="/pricing"
       />
-      <style>{styles}</style>
-      <div className="zpl-page">
-        <div className="zpl-wrap">
-          <nav className="zpl-top">
-            <Link to="/" className="zpl-brand">
-              <div className="zpl-logo">Z</div>
-              <div className="zpl-brand-text">
-                <strong>ZedExams</strong>
-                <small>Lesson Plan Studio</small>
-              </div>
+      <div className="min-h-screen theme-bg theme-text font-body">
+        {/* Top nav */}
+        <header className="sticky top-0 z-30 backdrop-blur-md bg-[color:var(--bg)]/85 border-b theme-border">
+          <Section className="flex items-center justify-between py-3">
+            <Link to="/" aria-label="ZedExams home" className="flex items-center">
+              <Logo size="sm" />
             </Link>
-            <div className="zpl-nav-links">
-              <Link to="/teacher">Studios</Link>
-              <Link to="/teacher/library">Library</Link>
-              <Link to="/pricing" className="zpl-nav-current">Plans</Link>
+            <nav className="flex items-center gap-2 sm:gap-3">
               {currentUser ? (
-                <Link to={isTeacher ? '/teacher' : '/'} className="zpl-btn-ghost">Dashboard</Link>
+                <Button as={Link} to={isTeacher ? '/teacher' : '/'} variant="ghost" size="sm">
+                  Dashboard
+                </Button>
               ) : (
-                <Link to="/login" className="zpl-btn-ghost">Sign in</Link>
+                <Button as={Link} to="/login" variant="ghost" size="sm">
+                  Sign in
+                </Button>
               )}
-            </div>
-          </nav>
+              <Button as={Link} to="/register" variant="primary" size="sm">
+                Get started
+              </Button>
+            </nav>
+          </Section>
+        </header>
 
-          <section className="zpl-hero">
-            <span className="zpl-pill">✦ Plans</span>
-            <h1>
-              Plans that grow<br />with your <em>classroom</em>.
+        {/* Hero */}
+        <Section className="pt-10 pb-8 sm:pt-14">
+          <Card variant="hero" size="lg" className="relative overflow-hidden px-7 py-12 sm:px-12 sm:py-14">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-white/15 px-3 py-1 text-xs font-black uppercase tracking-wider text-white">
+              ✦ Plans
+            </span>
+            <h1 className="font-display font-black tracking-tight text-4xl sm:text-5xl lg:text-6xl leading-[1.05] mt-5 mb-4 max-w-2xl">
+              Plans that grow with your classroom.
             </h1>
-            <p className="zpl-lede">
+            <p className="text-lg text-white/80 max-w-xl">
               Start free. Upgrade when your week gets busy. Cancel anytime — no card needed to begin, and we accept MTN MoMo, Airtel Money, and cards.
             </p>
-          </section>
+          </Card>
+        </Section>
 
-          <div className="zpl-toggle-row">
-            <div className="zpl-toggle" role="tablist">
-              <button
-                type="button"
-                role="tab"
-                aria-selected={billing === 'monthly'}
-                className={billing === 'monthly' ? 'zpl-toggle-active' : ''}
-                onClick={() => setBilling('monthly')}
-              >Monthly</button>
-              <button
-                type="button"
-                role="tab"
-                aria-selected={billing === 'annual'}
-                className={billing === 'annual' ? 'zpl-toggle-active' : ''}
-                onClick={() => setBilling('annual')}
-              >Annual <span className="zpl-save-tag">Save 17%</span></button>
-            </div>
+        {/* Billing toggle */}
+        <Section className="flex justify-center pb-8">
+          <div className="inline-flex gap-1 rounded-full theme-card border theme-border p-1.5 shadow-elev-sm" role="tablist">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={billing === 'monthly'}
+              onClick={() => setBilling('monthly')}
+              className={`rounded-full px-5 py-2 text-sm font-black transition-all ${
+                billing === 'monthly' ? 'theme-accent-fill theme-on-accent' : 'theme-text-muted hover:theme-text'
+              }`}
+            >Monthly</button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={billing === 'annual'}
+              onClick={() => setBilling('annual')}
+              className={`inline-flex items-center gap-2 rounded-full px-5 py-2 text-sm font-black transition-all ${
+                billing === 'annual' ? 'theme-accent-fill theme-on-accent' : 'theme-text-muted hover:theme-text'
+              }`}
+            >
+              Annual
+              <span
+                className={`text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded font-black ${
+                  billing === 'annual' ? 'bg-white/20 text-white' : 'bg-[color:var(--accent-bg)] theme-accent-text'
+                }`}
+              >Save 17%</span>
+            </button>
           </div>
+        </Section>
 
-          <section className="zpl-plans">
-            <div className="zpl-plan">
-              <div className="zpl-mascot" aria-hidden="true">🐢</div>
-              <div className="zpl-plan-name">Free</div>
-              <div className="zpl-meta">For trying things out</div>
-              <Price planKey="free" billing={billing} />
-              <div className="zpl-annual-note">No card required.</div>
-              <button type="button" className="zpl-cta" onClick={handleFreeCta}>Start free</button>
-              <div className="zpl-feats">
-                <Feat><strong>5</strong> lesson plans / month</Feat>
-                <Feat><strong>3</strong> worksheets / month</Feat>
-                <Feat><strong>3</strong> teacher notes / month</Feat>
-                <Feat>Daily cap of <strong>2</strong> generations</Feat>
-                <Feat>HTML export only</Feat>
-                <Feat>Library kept for 7 days</Feat>
-                <Feat>Full syllabi access</Feat>
-              </div>
-            </div>
+        {/* Plan cards */}
+        <Section className="pb-16 sm:pb-20">
+          <div className="grid gap-5 md:grid-cols-3 items-start">
+            {PLANS.map((plan) => (
+              <PlanCard
+                key={plan.key}
+                plan={plan}
+                billing={billing}
+                popular={plan.popular}
+                onCta={ctaFor(plan.key)}
+              />
+            ))}
+          </div>
+        </Section>
 
-            <div className="zpl-plan zpl-plan-popular">
-              <span className="zpl-badge-pop">Most popular</span>
-              <div className="zpl-mascot" aria-hidden="true">🦊</div>
-              <div className="zpl-plan-name">Pro</div>
-              <div className="zpl-meta">For the everyday teacher</div>
-              <Price planKey="pro" billing={billing} />
-              <div className="zpl-annual-note">Or K790 / year — two months free.</div>
-              <button type="button" className="zpl-cta zpl-cta-primary" onClick={() => handlePaidCta('pro')}>Go Pro</button>
-              <div className="zpl-feats">
-                <Feat><strong>40</strong> lesson plans / month</Feat>
-                <Feat><strong>25</strong> worksheets &amp; teacher notes</Feat>
-                <Feat><strong>8</strong> assessments / month</Feat>
-                <Feat><strong>2</strong> schemes of work / term</Feat>
-                <Feat>Daily cap of <strong>10</strong> generations</Feat>
-                <Feat>DOCX + PDF export</Feat>
-                <Feat>Library kept forever</Feat>
-                <Feat>Premium model quality</Feat>
-              </div>
-            </div>
-
-            <div className="zpl-plan">
-              <div className="zpl-mascot" aria-hidden="true">🦅</div>
-              <div className="zpl-plan-name">Max</div>
-              <div className="zpl-meta">For HoDs &amp; heavy users</div>
-              <Price planKey="max" billing={billing} />
-              <div className="zpl-annual-note">Or K1,990 / year — two months free.</div>
-              <button type="button" className="zpl-cta" onClick={() => handlePaidCta('max')}>Go Max</button>
-              <div className="zpl-feats">
-                <Feat><strong>Unlimited</strong> plans, notes &amp; worksheets*</Feat>
-                <Feat><strong>Unlimited</strong> assessments &amp; schemes</Feat>
-                <Feat>Daily cap of <strong>30</strong> generations</Feat>
-                <Feat>Bulk export (whole term in one click)</Feat>
-                <Feat>Priority queue when servers are busy</Feat>
-                <Feat>Early access to new studios</Feat>
-                <Feat>Email support, 24h reply</Feat>
-                <Feat><em>*Fair use ~200/month</em></Feat>
-              </div>
-            </div>
-          </section>
-
-          <section className="zpl-compare">
-            <div className="zpl-section-tag"><span>Compare</span></div>
-            <h2 className="zpl-section-h">Every feature, side by side.</h2>
-            <div className="zpl-table-wrap">
-              <table>
+        {/* Comparison */}
+        <Section className="pb-16 sm:pb-20">
+          <SectionTag>Compare</SectionTag>
+          <h2 className="font-display font-black text-3xl sm:text-4xl mb-9 max-w-xl">
+            Every feature, side by side.
+          </h2>
+          <Card variant="flat" size="md" className="!p-0 overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
                 <thead>
-                  <tr>
-                    <th>Feature</th>
-                    <th>Free</th>
-                    <th className="zpl-th-popular">Pro</th>
-                    <th>Max</th>
+                  <tr className="bg-[color:var(--bg-subtle)]">
+                    <th className="px-5 py-4 text-left text-xs font-black uppercase tracking-wider theme-text-muted">Feature</th>
+                    <th className="px-5 py-4 text-center font-display font-black text-base theme-text">Free</th>
+                    <th className="px-5 py-4 text-center font-display font-black text-base theme-accent-text">Pro</th>
+                    <th className="px-5 py-4 text-center font-display font-black text-base theme-text">Max</th>
                   </tr>
                 </thead>
                 <tbody>
-                  <tr className="zpl-divider"><td colSpan={4}>Generations / month</td></tr>
+                  <tr><td colSpan={4} className="px-5 py-2.5 bg-[color:var(--bg-subtle)] text-xs font-black uppercase tracking-wider theme-accent-text">Generations / month</td></tr>
                   <Row label="Lesson plans" cells={['5', '40', 'Unlimited']} />
                   <Row label="Worksheets" cells={['3', '25', 'Unlimited']} />
                   <Row label="Teacher notes" cells={['3', '25', 'Unlimited']} />
                   <Row label="Assessments" cells={[null, '8', 'Unlimited']} />
                   <Row label="Schemes of work" cells={[null, '2 / term', 'Unlimited']} />
 
-                  <tr className="zpl-divider"><td colSpan={4}>Limits &amp; quality</td></tr>
+                  <tr><td colSpan={4} className="px-5 py-2.5 bg-[color:var(--bg-subtle)] text-xs font-black uppercase tracking-wider theme-accent-text">Limits &amp; quality</td></tr>
                   <Row label="Daily generation cap" cells={['2', '10', '30']} />
                   <Row label="Model quality" cells={['Standard', 'Premium', 'Premium']} />
                   <Row label="Priority queue" cells={[null, null, true]} />
 
-                  <tr className="zpl-divider"><td colSpan={4}>Export &amp; library</td></tr>
+                  <tr><td colSpan={4} className="px-5 py-2.5 bg-[color:var(--bg-subtle)] text-xs font-black uppercase tracking-wider theme-accent-text">Export &amp; library</td></tr>
                   <Row label="HTML export" cells={[true, true, true]} />
                   <Row label="DOCX + PDF export" cells={[null, true, true]} />
                   <Row label="Bulk export" cells={[null, null, true]} />
                   <Row label="Library retention" cells={['7 days', 'Forever', 'Forever']} />
 
-                  <tr className="zpl-divider"><td colSpan={4}>Support</td></tr>
+                  <tr><td colSpan={4} className="px-5 py-2.5 bg-[color:var(--bg-subtle)] text-xs font-black uppercase tracking-wider theme-accent-text">Support</td></tr>
                   <Row label="Help centre" cells={[true, true, true]} />
                   <Row label="Email support" cells={[null, '48h', '24h']} />
                   <Row label="Early access to new studios" cells={[null, null, true]} />
                 </tbody>
               </table>
             </div>
-          </section>
+          </Card>
+        </Section>
 
-          <div className="zpl-pay-row">
-            <span>We accept</span>
-            <span className="zpl-pay-chip zpl-pay-momo"><span className="zpl-swatch" />MTN MoMo</span>
-            <span className="zpl-pay-chip zpl-pay-airtel"><span className="zpl-swatch" />Airtel Money</span>
-            <span className="zpl-pay-chip zpl-pay-visa"><span className="zpl-swatch" />Visa</span>
-            <span className="zpl-pay-chip zpl-pay-mc"><span className="zpl-swatch" />Mastercard</span>
+        {/* Payment methods */}
+        <Section className="pb-16">
+          <div className="flex flex-wrap items-center justify-center gap-4">
+            <span className="text-sm theme-text-muted">We accept</span>
+            {PAYMENT_METHODS.map((m) => (
+              <span
+                key={m.label}
+                className="inline-flex items-center gap-2 rounded-xl theme-card border theme-border px-3.5 py-2 text-sm font-bold theme-text"
+              >
+                <span
+                  className="inline-block w-[18px] h-[18px] rounded"
+                  style={{ background: m.swatch }}
+                  aria-hidden="true"
+                />
+                {m.label}
+              </span>
+            ))}
           </div>
+        </Section>
 
-          <section>
-            <div className="zpl-section-tag"><span>FAQ</span></div>
-            <h2 className="zpl-section-h">The honest answers.</h2>
-            <div className="zpl-faq">
-              {FAQ.map((item) => (
-                <details key={item.q} className="zpl-q">
-                  <summary>{item.q}</summary>
-                  <p>{item.a}</p>
-                </details>
-              ))}
-            </div>
-          </section>
+        {/* FAQ */}
+        <Section className="pb-16 sm:pb-20">
+          <SectionTag>FAQ</SectionTag>
+          <h2 className="font-display font-black text-3xl sm:text-4xl mb-9 max-w-xl">
+            The honest answers.
+          </h2>
+          <div className="grid gap-3.5 md:grid-cols-2">
+            {FAQ.map((item) => (
+              <details
+                key={item.q}
+                className="group theme-card border theme-border rounded-2xl px-5 py-5 [&[open]]:border-[color:var(--accent)] transition-colors"
+              >
+                <summary className="flex items-center justify-between gap-3.5 cursor-pointer list-none font-display font-bold text-lg [&::-webkit-details-marker]:hidden">
+                  <span>{item.q}</span>
+                  <span className="text-2xl theme-text-muted group-open:theme-accent-text leading-none">
+                    <span className="group-open:hidden">+</span>
+                    <span className="hidden group-open:inline">–</span>
+                  </span>
+                </summary>
+                <p className="mt-3 text-sm theme-text-muted leading-relaxed">{item.a}</p>
+              </details>
+            ))}
+          </div>
+        </Section>
 
-          <section className="zpl-footer-cta">
-            <h3>Still on the fence?</h3>
-            <p>Free forever, no card needed. You can plan your first lesson in under a minute.</p>
-            <button type="button" className="zpl-btn-primary" onClick={handleFreeCta}>▶ Start with Free</button>
-          </section>
+        {/* Footer CTA */}
+        <Section className="pb-14">
+          <Card variant="hero" size="lg" className="relative overflow-hidden text-center px-7 py-12 sm:px-12">
+            <h3 className="font-display font-black text-3xl sm:text-4xl mb-3">Still on the fence?</h3>
+            <p className="text-white/80 mb-7 max-w-md mx-auto">
+              Free forever, no card needed. You can plan your first lesson in under a minute.
+            </p>
+            <Button
+              variant="primary"
+              size="lg"
+              onClick={handleFreeCta}
+              className="bg-white !text-[color:var(--accent-fg)] hover:bg-white"
+            >
+              ▶ Start with Free
+            </Button>
+          </Card>
+        </Section>
 
-          <footer className="zpl-site">
+        {/* Footer */}
+        <footer className="border-t theme-border">
+          <Section className="py-6 text-xs theme-text-muted flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
             <span>© 2026 ZedExams · Made in Lusaka 🇿🇲</span>
-            <span>
-              <Link to="/terms">Terms</Link> · <Link to="/privacy">Privacy</Link>
+            <span className="flex items-center gap-4">
+              <Link to="/terms" className="hover:theme-text">Terms</Link>
+              <Link to="/privacy" className="hover:theme-text">Privacy</Link>
+              <Link to="/" className="hover:theme-text">Home</Link>
             </span>
-          </footer>
-        </div>
+          </Section>
+        </footer>
       </div>
       {showUpgrade && (
         <Suspense fallback={null}>
@@ -284,147 +455,3 @@ export default function Plans() {
     </>
   )
 }
-
-function Feat({ children }) {
-  return (
-    <div className="zpl-feat">
-      <span className="zpl-feat-dot">✓</span>
-      <span>{children}</span>
-    </div>
-  )
-}
-
-function Row({ label, cells }) {
-  return (
-    <tr>
-      <td>{label}</td>
-      {cells.map((cell, i) => (
-        <td key={i} className="zpl-td-center">
-          {cell === true ? <span className="zpl-check">✓</span>
-           : cell === null ? <span className="zpl-no">—</span>
-           : cell}
-        </td>
-      ))}
-    </tr>
-  )
-}
-
-const styles = `
-.zpl-page{
-  --cream:#F4EFE3;--cream-2:#EDE6D3;--ink:#0F1B1B;--ink-2:#234141;--teal:#0E3838;--teal-2:#0A2828;
-  --orange:#F36A2A;--orange-soft:#FBE4D5;--line:#E2D8C0;--muted:#6B7775;--green:#2F7D5F;--good:#E6F1EA;
-  background:
-    radial-gradient(900px 500px at 90% -10%, rgba(243,106,42,.08), transparent 60%),
-    radial-gradient(800px 600px at -10% 30%, rgba(14,56,56,.06), transparent 60%),
-    var(--cream);
-  color:var(--ink);
-  font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:16px;line-height:1.55;
-  -webkit-font-smoothing:antialiased;min-height:100vh;
-}
-.zpl-page *{box-sizing:border-box}
-.zpl-page h1,.zpl-page h2,.zpl-page h3,.zpl-page h4{font-family:'Fraunces',serif;font-weight:500;letter-spacing:-0.02em;line-height:1.05;margin:0}
-.zpl-page a{color:inherit;text-decoration:none}
-.zpl-wrap{max-width:1180px;margin:0 auto;padding:0 24px}
-.zpl-top{display:flex;align-items:center;justify-content:space-between;padding:22px 0}
-.zpl-brand{display:flex;align-items:center;gap:12px}
-.zpl-logo{width:42px;height:42px;border-radius:50%;background:#fff;display:grid;place-items:center;border:1px solid var(--line);font-family:'Fraunces',serif;font-weight:700;color:var(--teal);font-size:20px;box-shadow:0 1px 0 rgba(15,27,27,.04)}
-.zpl-brand-text small{display:block;font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-top:2px}
-.zpl-brand-text strong{font-family:'Fraunces',serif;font-weight:600;font-size:18px}
-.zpl-nav-links{display:flex;gap:28px;align-items:center}
-.zpl-nav-links a{font-size:14px;color:var(--ink-2);position:relative}
-.zpl-nav-links a:hover{color:var(--orange)}
-.zpl-nav-current{color:var(--orange) !important;font-weight:600}
-.zpl-btn-ghost{padding:9px 16px;border:1px solid var(--line);border-radius:999px;background:#fff;font-size:14px;font-weight:500}
-.zpl-btn-primary{padding:11px 20px;border-radius:999px;background:var(--orange);color:#fff;font-size:14px;font-weight:600;border:none;cursor:pointer;box-shadow:0 1px 0 rgba(0,0,0,.06),0 6px 18px rgba(243,106,42,.28);transition:transform .15s ease, box-shadow .15s ease;font-family:inherit}
-.zpl-btn-primary:hover{transform:translateY(-1px);box-shadow:0 1px 0 rgba(0,0,0,.06),0 10px 22px rgba(243,106,42,.34)}
-.zpl-hero{margin:32px 0 56px;background:var(--teal);color:#fff;border-radius:28px;padding:56px 48px;position:relative;overflow:hidden}
-.zpl-hero::after{content:"";position:absolute;right:-80px;bottom:-80px;width:380px;height:380px;border-radius:50%;background:radial-gradient(circle at 30% 30%, rgba(243,106,42,.18), transparent 60%);pointer-events:none}
-.zpl-pill{display:inline-flex;align-items:center;gap:6px;background:var(--orange);color:#fff;font-size:12px;letter-spacing:.16em;text-transform:uppercase;font-weight:600;padding:7px 14px;border-radius:999px}
-.zpl-hero h1{font-size:clamp(40px,6vw,68px);margin:18px 0 14px;max-width:720px;letter-spacing:-0.025em}
-.zpl-hero h1 em{font-style:italic;color:#F2C49B;font-weight:400}
-.zpl-hero p.zpl-lede{font-size:17px;color:#D8E2E0;max-width:560px}
-.zpl-toggle-row{display:flex;justify-content:center;margin:-20px 0 36px;position:relative;z-index:2}
-.zpl-toggle{background:#fff;border:1px solid var(--line);border-radius:999px;padding:5px;display:inline-flex;gap:4px;box-shadow:0 8px 24px rgba(15,27,27,.06)}
-.zpl-toggle button{border:none;background:transparent;padding:9px 22px;border-radius:999px;font-family:inherit;font-size:14px;font-weight:500;cursor:pointer;color:var(--ink-2);display:inline-flex;align-items:center;gap:8px}
-.zpl-toggle button.zpl-toggle-active{background:var(--ink);color:#fff}
-.zpl-save-tag{font-size:10px;letter-spacing:.1em;text-transform:uppercase;background:var(--orange-soft);color:var(--orange);padding:2px 7px;border-radius:6px;font-weight:600}
-.zpl-toggle button.zpl-toggle-active .zpl-save-tag{background:rgba(255,255,255,.15);color:#FBE4D5}
-.zpl-plans{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:80px}
-.zpl-plan{background:#fff;border:1px solid var(--line);border-radius:24px;padding:32px 28px;display:flex;flex-direction:column;position:relative;transition:transform .2s ease, box-shadow .2s ease}
-.zpl-plan:hover{transform:translateY(-3px);box-shadow:0 18px 40px rgba(15,27,27,.08)}
-.zpl-plan-popular{background:var(--ink);color:#fff;border-color:var(--ink);box-shadow:0 20px 50px rgba(15,27,27,.18)}
-.zpl-plan-popular .zpl-feat{color:#D8E2E0}
-.zpl-plan-popular .zpl-feat-dot{background:var(--orange);color:#fff}
-.zpl-plan-popular .zpl-currency,.zpl-plan-popular .zpl-per{color:#9DB1AE}
-.zpl-plan-popular .zpl-meta{color:#9DB1AE}
-.zpl-badge-pop{position:absolute;top:-12px;left:50%;transform:translateX(-50%);background:var(--orange);color:#fff;font-size:11px;letter-spacing:.14em;text-transform:uppercase;font-weight:700;padding:6px 12px;border-radius:999px}
-.zpl-mascot{width:54px;height:54px;border-radius:14px;display:grid;place-items:center;font-size:28px;background:var(--cream-2)}
-.zpl-plan-popular .zpl-mascot{background:rgba(243,106,42,.15)}
-.zpl-plan-name{font-family:'Fraunces',serif;font-size:24px;font-weight:600;margin-top:14px}
-.zpl-meta{font-size:13px;color:var(--muted);margin-top:4px;margin-bottom:20px}
-.zpl-price-row{display:flex;align-items:baseline;gap:4px;margin-bottom:6px}
-.zpl-currency{font-size:16px;color:var(--muted);font-weight:500}
-.zpl-price{font-family:'Fraunces',serif;font-size:54px;font-weight:500;letter-spacing:-0.03em}
-.zpl-per{font-size:14px;color:var(--muted)}
-.zpl-annual-note{font-size:12px;color:var(--muted);margin-bottom:24px;min-height:18px}
-.zpl-plan-popular .zpl-annual-note{color:#9DB1AE}
-.zpl-cta{width:100%;padding:13px;border-radius:14px;font-family:inherit;font-weight:600;font-size:14px;border:1px solid var(--line);background:#fff;color:var(--ink);cursor:pointer;transition:all .15s ease}
-.zpl-cta:hover{border-color:var(--ink);transform:translateY(-1px)}
-.zpl-cta-primary{background:var(--orange);color:#fff;border-color:var(--orange);box-shadow:0 6px 16px rgba(243,106,42,.28)}
-.zpl-cta-primary:hover{background:#E55E22}
-.zpl-plan-popular .zpl-cta{background:var(--orange);color:#fff;border-color:var(--orange)}
-.zpl-feats{margin-top:24px;padding-top:24px;border-top:1px dashed var(--line);display:flex;flex-direction:column;gap:11px}
-.zpl-plan-popular .zpl-feats{border-top-color:rgba(255,255,255,.14)}
-.zpl-feat{display:flex;gap:10px;font-size:14px;line-height:1.45;color:var(--ink-2)}
-.zpl-feat-dot{flex-shrink:0;width:18px;height:18px;border-radius:50%;background:var(--good);display:grid;place-items:center;color:var(--green);margin-top:2px;font-size:11px;font-weight:700}
-.zpl-feat strong{color:inherit;font-weight:600}
-.zpl-section-tag{display:flex;align-items:center;gap:10px;margin-bottom:16px}
-.zpl-section-tag::before{content:"";width:24px;height:2px;background:var(--orange)}
-.zpl-section-tag span{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--ink-2);font-weight:600}
-.zpl-section-h{font-size:clamp(32px,4vw,46px);margin-bottom:36px;letter-spacing:-0.02em;max-width:680px}
-.zpl-compare{margin-bottom:80px}
-.zpl-table-wrap{background:#fff;border:1px solid var(--line);border-radius:20px;overflow:hidden}
-.zpl-page table{width:100%;border-collapse:collapse}
-.zpl-page thead th{background:var(--cream-2);padding:18px 20px;text-align:left;font-family:'Fraunces',serif;font-weight:500;font-size:18px;border-bottom:1px solid var(--line)}
-.zpl-page thead th:first-child{font-size:13px;font-family:'Bricolage Grotesque',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:600}
-.zpl-page thead th.zpl-th-popular{background:var(--ink);color:#fff;position:relative}
-.zpl-page tbody td{padding:15px 20px;border-bottom:1px solid var(--line);font-size:14px}
-.zpl-page tbody tr:last-child td{border-bottom:none}
-.zpl-page tbody td:first-child{color:var(--ink-2);font-weight:500}
-.zpl-td-center{text-align:left;color:var(--ink-2)}
-.zpl-no{color:var(--muted)}
-.zpl-check{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--good);color:var(--green);font-size:12px}
-.zpl-page tbody tr.zpl-divider td{background:var(--cream);font-family:'Fraunces',serif;font-weight:600;color:var(--teal);font-size:13px;letter-spacing:.06em;text-transform:uppercase;padding:10px 20px}
-.zpl-pay-row{display:flex;align-items:center;justify-content:center;gap:18px;flex-wrap:wrap;margin-bottom:64px}
-.zpl-pay-row span{font-size:13px;color:var(--muted)}
-.zpl-pay-chip{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 14px;font-size:13px;display:inline-flex;align-items:center;gap:8px;font-weight:500}
-.zpl-pay-chip .zpl-swatch{width:18px;height:18px;border-radius:4px;display:inline-block}
-.zpl-pay-momo .zpl-swatch{background:#FFCC00}
-.zpl-pay-airtel .zpl-swatch{background:#E60012}
-.zpl-pay-visa .zpl-swatch{background:linear-gradient(135deg,#1A1F71,#3057A4)}
-.zpl-pay-mc .zpl-swatch{background:linear-gradient(90deg,#EB001B 50%, #F79E1B 50%)}
-.zpl-faq{margin-bottom:90px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
-details.zpl-q{background:#fff;border:1px solid var(--line);border-radius:16px;padding:20px 22px;cursor:pointer;transition:border-color .15s ease}
-details.zpl-q[open]{border-color:var(--ink)}
-details.zpl-q summary{list-style:none;font-family:'Fraunces',serif;font-size:18px;font-weight:500;display:flex;justify-content:space-between;align-items:center;gap:14px}
-details.zpl-q summary::-webkit-details-marker{display:none}
-details.zpl-q summary::after{content:"+";font-family:'Bricolage Grotesque',sans-serif;font-size:22px;color:var(--muted);transition:transform .2s ease}
-details.zpl-q[open] summary::after{content:"–";color:var(--orange)}
-details.zpl-q p{margin-top:12px;font-size:14px;color:var(--ink-2);line-height:1.6}
-.zpl-footer-cta{background:var(--teal);color:#fff;border-radius:24px;padding:48px;text-align:center;margin-bottom:48px;position:relative;overflow:hidden}
-.zpl-footer-cta::before{content:"";position:absolute;left:-60px;top:-60px;width:280px;height:280px;border-radius:50%;background:radial-gradient(circle, rgba(243,106,42,.15), transparent 60%)}
-.zpl-footer-cta h3{font-size:36px;margin-bottom:10px;position:relative}
-.zpl-footer-cta p{color:#9DB1AE;margin-bottom:24px;position:relative}
-.zpl-footer-cta .zpl-btn-primary{position:relative}
-.zpl-site{display:flex;justify-content:space-between;padding:28px 0;color:var(--muted);font-size:13px;border-top:1px solid var(--line)}
-@media (max-width:880px){
-  .zpl-plans{grid-template-columns:1fr;gap:16px}
-  .zpl-hero{padding:40px 28px}
-  .zpl-faq{grid-template-columns:1fr}
-  .zpl-nav-links a:not(.zpl-btn-ghost):not(.zpl-btn-primary){display:none}
-  .zpl-page table{font-size:13px}
-  .zpl-page thead th{font-size:15px;padding:14px 14px}
-  .zpl-page tbody td{padding:12px 14px}
-  .zpl-footer-cta{padding:36px 24px}
-}
-`
