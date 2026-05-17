@@ -187,6 +187,7 @@ async function runNotes({uid, rawInputs, apiKey}) {
     lessonNumber: inputs.lessonNumber,
     totalLessons: inputs.totalLessons,
     learningEnvironment: inputs.learningEnvironment,
+    ownerUid: uid,
   });
 
   const usage = await assertAndIncrement(uid, "notes");
@@ -293,6 +294,7 @@ async function runNotes({uid, rawInputs, apiKey}) {
   await genRef.update({
     status: "complete",
     output: notes,
+    coveredContent: notes.coveredContent || [],
     outputText: String(raw || "").slice(0, 20000),
     tokensIn,
     tokensOut,

@@ -113,6 +113,13 @@ function validateNotes(input) {
   const references = isStringArray(input.references) ?
     input.references.slice(0, 8) : [];
 
+  // ── coveredContent ─────────────────────────────────────────
+  // Short bullets of what THIS lesson actually taught — used by the
+  // no-repeat tracker so a later lesson of the same sub-topic doesn't
+  // re-teach it.
+  const coveredContent = isStringArray(input.coveredContent) ?
+    input.coveredContent.slice(0, 40) : [];
+
   const value = {
     schemaVersion: SCHEMA_VERSION,
     header,
@@ -125,6 +132,7 @@ function validateNotes(input) {
     quickChecks,
     glossary,
     references,
+    coveredContent,
   };
 
   return errors.length === 0 ?

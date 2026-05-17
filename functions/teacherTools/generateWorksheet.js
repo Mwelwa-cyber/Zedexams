@@ -185,6 +185,7 @@ async function runWorksheet({uid, rawInputs, apiKey, onProgress}) {
       lessonNumber: inputs.lessonNumber,
       totalLessons: inputs.totalLessons,
       learningEnvironment: inputs.learningEnvironment,
+      ownerUid: uid,
     }),
     assertAndIncrement(uid, "worksheet"),
   ]);
