@@ -134,7 +134,7 @@ export default function EditAssessment() {
   const { assessmentId } = useParams()
   const navigate = useNavigate()
   const { getAssessmentById, getAssessmentQuestions, updateAssessmentWithQuestions } = useFirestore()
-  const { currentUser } = useAuth()
+  const { currentUser, isAdmin } = useAuth()
 
   const [loading, setLoading] = useState(true)
   const [notFound, setNotFound] = useState(false)
@@ -169,7 +169,7 @@ export default function EditAssessment() {
   const imagesCount = countImages(sections)
   const anyUploading = hasUploadingAssets(sections)
   const backPath = '/teacher/assessments'
-  const canEdit = assessmentOwner === currentUser?.uid
+  const canEdit = isAdmin || assessmentOwner === currentUser?.uid
   const gradeOptions = withCurrentOption(GRADES, form.grade)
   const subjectOptions = withCurrentOption(SUBJECTS, form.subject)
   const termOptions = withCurrentOption(TERMS, form.term)
@@ -201,7 +201,7 @@ export default function EditAssessment() {
         setLoading(false)
         return
       }
-      if (assessment.createdBy !== currentUser.uid) {
+      if (!isAdmin && assessment.createdBy !== currentUser.uid) {
         setNotFound(true)
         setLoading(false)
         return
@@ -239,7 +239,7 @@ export default function EditAssessment() {
     return () => {
       cancelled = true
     }
-  }, [assessmentId, getAssessmentById, getAssessmentQuestions, currentUser?.uid])
+  }, [assessmentId, getAssessmentById, getAssessmentQuestions, currentUser?.uid, isAdmin])
 
   function updateSection(sectionIndex, updater) {
     setSections(currentSections => currentSections.map((section, index) => (

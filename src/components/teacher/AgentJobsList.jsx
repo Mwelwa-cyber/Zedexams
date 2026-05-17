@@ -200,7 +200,7 @@ function JsonBlock({ label, value }) {
 
 export function AgentJobView() {
   const { jobId } = useParams()
-  const { currentUser } = useAuth()
+  const { currentUser, isAdmin } = useAuth()
   const [job, setJob]         = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError]     = useState(null)
@@ -238,7 +238,7 @@ export function AgentJobView() {
       </div>
     )
   }
-  if (job.createdBy !== currentUser?.uid) {
+  if (!isAdmin && job.createdBy !== currentUser?.uid) {
     return (
       <div className="theme-card theme-border rounded-2xl border py-12 text-center">
         <p className="theme-text font-black">Not your submission</p>
