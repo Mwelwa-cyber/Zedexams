@@ -550,6 +550,13 @@ service cloud.firestore {
       match /topics/{topicId} {
         allow read:  if isAuthed();
         allow write: if isAdmin();
+        // Lesson-level curriculum modules — the source of truth the
+        // generators ground against. Teacher-readable, admin-writable
+        // (mirrors the topic rule above; purely additive).
+        match /lessons/{lessonId} {
+          allow read:  if isAuthed();
+          allow write: if isAdmin();
+        }
       }
     }
 

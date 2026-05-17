@@ -87,6 +87,10 @@ const {
 const {
   importBuiltInCbcTopics,
 } = require("./teacherTools/importBuiltInCbcTopics");
+// Teacher Tools — bulk import lesson-level curriculum modules (admin-only).
+const {
+  importCurriculumModules,
+} = require("./teacherTools/importCurriculumModules");
 // CBC knowledge base — used to ground AI quiz questions in the Zambian
 // syllabus. resolveCbcContext returns a rendered <cbc_context> block plus
 // a human-readable warning if the topic wasn't found in the verified KB.
@@ -2044,6 +2048,9 @@ exports.reviseQuestion = createReviseQuestion(anthropicApiKey);
 
 // Teacher Tools — admin-only: import the built-in G1-9 topics into Firestore.
 exports.importBuiltInCbcTopics = importBuiltInCbcTopics;
+
+// Teacher Tools — admin-only: bulk import lesson-level curriculum modules.
+exports.importCurriculumModules = importCurriculumModules;
 
 // Teacher Tools — Lesson Plan Studio (vanilla JS studio endpoint).
 exports.studioGenerateLessonPlan = createStudioGenerateLessonPlan(anthropicApiKey);
