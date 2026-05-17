@@ -17,6 +17,8 @@ const {
   invalidatePrivateCurriculumCache,
   resolvePrivateCurriculumContext,
 } = require("./privateCurriculum");
+const {buildModuleId} = require("./curriculumModuleSchema");
+const {getLearningEnvironment} = require("./learningEnvironments");
 
 const KB_VERSION = "cbc-kb-2026-04-seed";
 
@@ -229,13 +231,199 @@ function renderFallbackContext({grade, subject, topic, subtopic}) {
   ].filter(Boolean).join("\n");
 }
 
+// ── Lesson-level curriculum modules (source of truth) ────────────────────
+
+function slug(s) {
+  return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "").slice(0, 60);
+}
+
+// Must match buildTopicId() in importCurriculumModules.js and the client
+// src/utils/adminCbcKbService.js so we read the right topic subcollection.
+function buildTopicId(grade, subject, topic) {
+  const g = slug(grade);
+  const s = slug(subject);
+  const t = slug(topic);
+  if (!g || !s || !t) return null;
+  return `${g}-${s}-${t}`;
+}
+
 /**
- * High-level resolver used by the Cloud Function. Returns:
- *   { contextBlock, kbMatch, kbWarning }
- * where kbMatch is the KB topic entry (or null) and kbWarning is either null
- * or a human-readable string to surface in the UI.
+ * Look up the stored curriculum module for a sub-topic. One module per
+ * sub-topic; the teacher chooses how many lessons to split it into at
+ * generation time, so lessonNumber is NOT part of the lookup. Deterministic
+ * doc read (no query/index): topic & sub-topic slugify the same way at
+ * import time and here, so case/punctuation differences don't matter.
+ * Returns the module object or null.
  */
-async function resolveCbcContext({grade, subject, topic, subtopic}) {
+async function lookupSubtopicModule({grade, subject, topic, subtopic, term}) {
+  const t = Number(term);
+  if (!grade || !subject || !topic || !subtopic ||
+      !(Number.isInteger(t) && t >= 1 && t <= 3)) {
+    return null;
+  }
+  const topicId = buildTopicId(grade, subject, topic);
+  const moduleId = buildModuleId(subtopic, t);
+  if (!topicId || !moduleId) return null;
+  try {
+    const db = admin.firestore();
+    const doc = await db.collection("cbcKnowledgeBase").doc(KB_VERSION)
+        .collection("topics").doc(topicId)
+        .collection("lessons").doc(moduleId).get();
+    return doc.exists ? {id: doc.id, ...doc.data()} : null;
+  } catch (err) {
+    console.error("lookupLessonModule failed", err);
+    return null;
+  }
+}
+
+function bullets(arr) {
+  return (Array.isArray(arr) ? arr : [])
+      .filter((s) => typeof s === "string" && s.trim())
+      .map((s) => `- ${s}`).join("\n");
+}
+
+/**
+ * Render a stored sub-topic module as the authoritative <curriculum_module>
+ * block. Outranks RAG / topic KB / general knowledge.
+ *
+ * `framing` carries the TEACHER's choice of how to split this sub-topic:
+ *   { lessonNumber, totalLessons }. The module itself only stores a
+ *   `suggestedLessons` default — the teacher decides the real split, and we
+ *   frame the prompt around that so Lesson N doesn't repeat Lesson N-1.
+ */
+function renderCurriculumModuleBlock(m, framing = {}) {
+  if (!m) return "";
+  const suggested = Number(m.suggestedLessons);
+  const askedTotal = Number(framing.totalLessons);
+  const total = Number.isInteger(askedTotal) && askedTotal >= 1 ?
+    askedTotal :
+    (Number.isInteger(suggested) && suggested >= 1 ? suggested : 1);
+  const askedN = Number(framing.lessonNumber);
+  const n = Number.isInteger(askedN) && askedN >= 1 && askedN <= total ?
+    askedN : null;
+
+  const lines = [
+    "<curriculum_module>",
+    "This is the VERIFIED Zambian CBC curriculum module for this exact",
+    "grade + sub-topic. It is the single source of truth. Base ALL generated",
+    "content strictly on it. Do not invent outcomes, content or activities",
+    "that go beyond or contradict this module.",
+    "",
+    `Grade: ${m.grade}`,
+    `Subject: ${m.subject}`,
+    `Term: ${m.term}`,
+    `Topic: ${m.topic}`,
+    `Sub-topic: ${m.subtopic}`,
+  ];
+  if (n && total > 1) {
+    lines.push(
+        "",
+        `The teacher is teaching this sub-topic over ${total} lessons and ` +
+        `wants LESSON ${n} of ${total}. Cover only the share of the ` +
+        `sub-topic's outcomes/content that belongs to Lesson ${n}. Assume ` +
+        `Lessons 1..${n - 1} were already taught — do NOT re-teach their ` +
+        "content, build forward from it; and do NOT pre-empt content that " +
+        "belongs to later lessons. Distribute the outcomes below sensibly " +
+        `across the ${total} lessons.`,
+    );
+  } else if (total > 1) {
+    lines.push(
+        "",
+        `This sub-topic is typically delivered over about ${total} lessons. ` +
+        "Produce one coherent lesson's worth of content drawn from the " +
+        "outcomes below; do not try to cram the whole sub-topic into one.",
+    );
+  }
+  const section = (title, arr) => {
+    const b = bullets(arr);
+    if (b) lines.push("", `${title}:`, b);
+  };
+  if (typeof m.contentSummary === "string" && m.contentSummary.trim()) {
+    lines.push("", "Content summary:", m.contentSummary.trim());
+  }
+  section("Specific learning outcomes", m.outcomes);
+  section("Competencies", m.competencies);
+  section("Key vocabulary", m.vocabulary);
+  section("Teacher activities", m.teacherActivities);
+  section("Learner activities", m.learnerActivities);
+  section("Teaching and learning materials", m.teachingMaterials);
+  section("Assessment criteria", m.assessmentCriteria);
+  section("Sample exercises / questions", m.exercises);
+  section("Remedial activities", m.remedialActivities);
+  section("Extension activities", m.extensionActivities);
+  lines.push("</curriculum_module>");
+  return lines.join("\n");
+}
+
+/**
+ * A directive appended to whatever context block we return so the selected
+ * learning environment shapes activities/materials. Maps the concrete choice
+ * onto the existing 4-value CBC category so the lesson-plan schema is
+ * untouched. Empty string when nothing selected (no behaviour change).
+ */
+function renderLearningEnvironmentDirective(value) {
+  if (!value) return "";
+  const env = getLearningEnvironment(value);
+  if (!env) return "";
+  return [
+    "<learning_environment>",
+    `This lesson will be delivered in: ${env.label} ` +
+    `(CBC category: ${env.cbcCategory}).`,
+    `Shape ALL activities, teaching/learning materials, examples and ` +
+    `learner tasks so they genuinely fit a ${env.label}. Use what that ` +
+    "setting makes possible; avoid steps that need a different environment.",
+    `Where the output has a learning-environment field, set its category ` +
+    `to "${env.cbcCategory}" and the specific environment to "${env.label}".`,
+    "</learning_environment>",
+  ].join("\n");
+}
+
+/**
+ * High-level resolver used by the Cloud Functions. Returns:
+ *   { contextBlock, kbMatch, kbWarning }
+ * where kbMatch is the matched module/topic entry (or null) and kbWarning
+ * is either null or a human-readable string to surface in the UI.
+ *
+ * Resolution priority:
+ *   1. Stored lesson-level curriculum module (source of truth)
+ *   2. Private RAG curriculum
+ *   3. Editable topic KB
+ *   4. General CBC fallback
+ *
+ * A stored module is looked up only when BOTH `subtopic` and `term` are
+ * supplied (modules are keyed by grade+subject+topic+sub-topic+term). When
+ * found it becomes the source of truth and the teacher's lessonNumber /
+ * totalLessons frame the prompt. `lessonNumber`, `totalLessons` and
+ * `learningEnvironment` are optional; callers that pass no sub-topic/term
+ * keep the exact pre-upgrade behaviour, so every existing caller is safe.
+ */
+async function resolveCbcContext({
+  grade, subject, topic, subtopic, term,
+  lessonNumber, totalLessons, learningEnvironment,
+} = {}) {
+  const leDirective = renderLearningEnvironmentDirective(learningEnvironment);
+  const withLe = (res) => leDirective ?
+    {...res, contextBlock: `${res.contextBlock}\n\n${leDirective}`} :
+    res;
+
+  // 1. Stored sub-topic curriculum module — outranks everything else.
+  if (subtopic && term) {
+    const moduleMatch = await lookupSubtopicModule({
+      grade, subject, topic, subtopic, term,
+    });
+    if (moduleMatch) {
+      return withLe({
+        contextBlock: renderCurriculumModuleBlock(moduleMatch, {
+          lessonNumber, totalLessons,
+        }),
+        kbMatch: moduleMatch,
+        kbWarning: null,
+      });
+    }
+  }
+
+  // 2. Private RAG curriculum (unchanged).
   const privateResult = await resolvePrivateCurriculumContext({
     grade,
     subject,
@@ -243,23 +431,26 @@ async function resolveCbcContext({grade, subject, topic, subtopic}) {
     subtopic,
   });
   if (privateResult) {
-    return {
+    return withLe({
       contextBlock: privateResult.contextBlock,
       kbMatch: privateResult.match,
       kbWarning: null,
-    };
+    });
   }
 
+  // 3. Editable topic KB (unchanged).
   const match = await lookupTopic({grade, subject, topic});
   if (match) {
-    return {
+    return withLe({
       contextBlock: renderContextBlock(match),
       kbMatch: match,
       kbWarning: null,
-    };
+    });
   }
+
+  // 4. General CBC fallback (unchanged).
   const suggestions = await suggestTopics({grade, subject});
-  return {
+  return withLe({
     contextBlock: renderFallbackContext({grade, subject, topic, subtopic}),
     kbMatch: null,
     kbWarning: suggestions.length ?
@@ -268,7 +459,7 @@ async function resolveCbcContext({grade, subject, topic, subtopic}) {
       `${suggestions.join(", ")}.` :
       `"${topic}" used general CBC knowledge (no verified syllabus data for ` +
       `this grade+subject yet).`,
-  };
+  });
 }
 
 module.exports = {
@@ -278,6 +469,9 @@ module.exports = {
   renderContextBlock,
   renderFallbackContext,
   resolveCbcContext,
+  lookupSubtopicModule,
+  renderCurriculumModuleBlock,
+  renderLearningEnvironmentDirective,
   invalidateKbCache,
   getAllTopics,
   _topics: TOPICS,

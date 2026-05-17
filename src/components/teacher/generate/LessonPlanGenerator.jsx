@@ -5,6 +5,10 @@ import {
   TEACHER_GRADES,
   TEACHER_LANGUAGES,
   DURATION_PRESETS,
+  CURRICULUM_TERMS,
+  LESSON_NUMBER_OPTIONS,
+  TOTAL_LESSONS_OPTIONS,
+  LEARNING_ENVIRONMENT_OPTIONS,
   getSubjectsForGrade,
   isSubjectValidForGrade,
   defaultSubjectForGrade,
@@ -30,6 +34,10 @@ export default function LessonPlanGenerator() {
     subject: 'mathematics',
     topic: '',
     subtopic: '',
+    term: '',
+    lessonNumber: '',
+    totalLessons: '',
+    learningEnvironment: '',
     durationMinutes: 40,
     language: 'english',
     teacherName: userProfile?.displayName || userProfile?.fullName || '',
@@ -194,6 +202,30 @@ export default function LessonPlanGenerator() {
               value={form.subtopic}
               onChange={(v) => updateField('subtopic', v)}
               maxLength={160}
+            />
+            <FieldSelect
+              label="Term"
+              value={form.term}
+              options={CURRICULUM_TERMS}
+              onChange={(v) => updateField('term', v)}
+            />
+            <FieldSelect
+              label="Number of lessons for this sub-topic"
+              value={form.totalLessons}
+              options={TOTAL_LESSONS_OPTIONS}
+              onChange={(v) => updateField('totalLessons', v)}
+            />
+            <FieldSelect
+              label="Lesson number"
+              value={form.lessonNumber}
+              options={LESSON_NUMBER_OPTIONS}
+              onChange={(v) => updateField('lessonNumber', v)}
+            />
+            <FieldSelect
+              label="Learning environment"
+              value={form.learningEnvironment}
+              options={LEARNING_ENVIRONMENT_OPTIONS}
+              onChange={(v) => updateField('learningEnvironment', v)}
             />
             <FieldSelect
               label="Lesson duration"

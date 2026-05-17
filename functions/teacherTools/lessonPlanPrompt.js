@@ -10,6 +10,8 @@
  * the prompt version used so you can reproduce historical outputs.
  */
 
+const {learningEnvironmentLabel} = require("./learningEnvironments");
+
 const PROMPT_VERSION = "lesson_plan.v2";
 
 const SYSTEM_PROMPT = `You are an expert Zambian teacher and CDC (Curriculum Development Centre) curriculum specialist. You write Competence-Based Curriculum (CBC) lesson plans that match the Zambian CBC Lesson Plan Template exactly as a Zambian head teacher or School Inspector would expect to see them.
@@ -47,6 +49,10 @@ function buildUserPrompt(inputs) {
     subject,
     topic,
     subtopic = "",
+    term = null,
+    lessonNumber = null,
+    totalLessons = null,
+    learningEnvironment = "",
     durationMinutes = 40,
     language = "English",
     teacherName = "",
@@ -57,6 +63,8 @@ function buildUserPrompt(inputs) {
     instructions = "",
   } = inputs;
 
+  const leLabel = learningEnvironmentLabel(learningEnvironment);
+
   return [
     "Generate a Zambian CBC lesson plan for the following lesson:",
     "",
@@ -64,6 +72,17 @@ function buildUserPrompt(inputs) {
     `- Subject: ${subject}`,
     `- Topic: ${topic}`,
     subtopic ? `- Sub-topic: ${subtopic}` : "",
+    term ? `- Term: ${term}` : "",
+    lessonNumber && totalLessons ?
+      `- This is Lesson ${lessonNumber} of ${totalLessons} for this ` +
+      "sub-topic. Teach only this lesson's share of the sub-topic; build " +
+      "on Lessons 1.." + (lessonNumber - 1) + " without repeating them, " +
+      "and do not pre-empt later lessons." :
+      lessonNumber ?
+        `- This is Lesson ${lessonNumber} for this sub-topic. Teach only ` +
+        "this lesson's portion; build on earlier lessons without repeating " +
+        "them and do not pre-empt later ones." : "",
+    leLabel ? `- Learning environment: ${leLabel}` : "",
     `- Lesson duration: ${durationMinutes} minutes`,
     `- Medium of instruction: ${language}`,
     `- Estimated number of pupils: ${numberOfPupils}`,

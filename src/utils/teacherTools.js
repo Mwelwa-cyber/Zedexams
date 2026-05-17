@@ -8,6 +8,7 @@
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app, { auth } from '../firebase/config'
 import { apiUrl, isNativePlatform } from './runtime'
+import { LEARNING_ENVIRONMENTS } from '../config/learningEnvironments'
 
 const functions = getFunctions(app, 'us-central1')
 
@@ -229,6 +230,38 @@ export const SCHEME_TERMS = [
   { value: 1, label: 'Term 1' },
   { value: 2, label: 'Term 2' },
   { value: 3, label: 'Term 3' },
+]
+
+// Optional curriculum-module selectors. Each list leads with a blank
+// "not set" option so leaving them unselected keeps the generators on
+// their previous (no-module) behaviour.
+export const CURRICULUM_TERMS = [
+  { value: '', label: '— Term (optional) —' },
+  { value: '1', label: 'Term 1' },
+  { value: '2', label: 'Term 2' },
+  { value: '3', label: 'Term 3' },
+]
+
+export const LESSON_NUMBER_OPTIONS = [
+  { value: '', label: '— Lesson number (optional) —' },
+  ...Array.from({ length: 10 }, (_, i) => ({
+    value: String(i + 1), label: `Lesson ${i + 1}`,
+  })),
+]
+
+// How many lessons the teacher is splitting this sub-topic into. The stored
+// curriculum module is per sub-topic; the teacher decides the split and the
+// generator frames "Lesson N of M" so lessons don't repeat each other.
+export const TOTAL_LESSONS_OPTIONS = [
+  { value: '', label: '— How many lessons? (optional) —' },
+  ...Array.from({ length: 10 }, (_, i) => ({
+    value: String(i + 1), label: `${i + 1} lesson${i ? 's' : ''}`,
+  })),
+]
+
+export const LEARNING_ENVIRONMENT_OPTIONS = [
+  { value: '', label: '— Learning environment (optional) —' },
+  ...LEARNING_ENVIRONMENTS.map((e) => ({ value: e.value, label: e.label })),
 ]
 
 export const SCHEME_WEEK_COUNTS = [

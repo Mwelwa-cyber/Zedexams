@@ -5,6 +5,8 @@
  * editing v1 in place. Older aiGenerations docs record the version used.
  */
 
+const {learningEnvironmentLabel} = require("./learningEnvironments");
+
 const PROMPT_VERSION = "worksheet.v1";
 
 const SYSTEM_PROMPT = `You are an expert Zambian teacher who creates classroom-ready worksheets for the Zambian Competence-Based Curriculum (CBC). Your worksheets are:
@@ -27,6 +29,10 @@ function buildUserPrompt(inputs) {
     subject,
     topic,
     subtopic = "",
+    term = null,
+    lessonNumber = null,
+    totalLessons = null,
+    learningEnvironment = "",
     count = 10,
     difficulty = "mixed",
     durationMinutes = 30,
@@ -34,6 +40,8 @@ function buildUserPrompt(inputs) {
     language = "English",
     instructions = "",
   } = inputs;
+
+  const leLabel = learningEnvironmentLabel(learningEnvironment);
 
   const diffGuidance = {
     easy: "All questions should be accessible recall / direct application — no multi-step reasoning.",
@@ -49,6 +57,15 @@ function buildUserPrompt(inputs) {
     `- Subject: ${subject}`,
     `- Topic: ${topic}`,
     subtopic ? `- Sub-topic: ${subtopic}` : "",
+    term ? `- Term: ${term}` : "",
+    lessonNumber && totalLessons ?
+      `- This is Lesson ${lessonNumber} of ${totalLessons} for this ` +
+      "sub-topic. Only assess what this lesson covers; do not test " +
+      "earlier or later lessons' content." :
+      lessonNumber ?
+        `- This is Lesson ${lessonNumber} for this sub-topic. Only assess ` +
+        "what this lesson covers; don't test later lessons' content." : "",
+    leLabel ? `- Learning environment: ${leLabel}` : "",
     `- Number of questions (approx): ${count}`,
     `- Difficulty: ${difficulty} — ${diffGuidance}`,
     `- Suggested pupil time: ${durationMinutes} minutes`,
