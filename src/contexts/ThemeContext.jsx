@@ -11,7 +11,7 @@ export const THEMES = [
   { id: 'vivid',    label: 'Vivid (Canva)', swatch: '#EC4899' },
 ]
 
-export const DEFAULT_THEME = 'sky'
+export const DEFAULT_THEME = 'oatmeal'
 const LEGACY_THEME_MAP = {
   light: 'sky',
   warm: 'oatmeal',
@@ -28,7 +28,7 @@ export function normalizeThemeId(id) {
 /**
  * Apply a theme by setting `theme-<id>` on <body>, removing any prior
  * theme class. Exported so the route-aware applicator can override the
- * saved preference (e.g. force Sky on public marketing/auth pages).
+ * saved preference (e.g. pin the brand default on auth/legal pages).
  */
 export function applyThemeToBody(id) {
   if (typeof document === 'undefined') return
@@ -40,7 +40,7 @@ export function applyThemeToBody(id) {
 /**
  * Resolve the initial theme for a brand-new visitor.
  * - If they've saved a choice → use that.
- * - Otherwise → Sky (the light default).
+ * - Otherwise → Warm Oatmeal (the brand default — a light, warm palette).
  *
  * We intentionally do NOT read `prefers-color-scheme` here. The site's
  * content (including the quiz editor, rich-text areas, tables, and native
@@ -76,7 +76,7 @@ export function ThemeProvider({ children }) {
   }
 
   // The body class is applied by <ThemeApplicator /> inside the Router so it
-  // can force Sky on public marketing/auth routes regardless of the saved
+  // can pin the brand default on auth/legal routes regardless of the saved
   // preference. Persist the saved theme here so localStorage stays the source
   // of truth across reloads.
   useEffect(() => {

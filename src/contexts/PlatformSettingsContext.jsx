@@ -10,7 +10,7 @@ const DEFAULTS = {
   registrationOpen: true,
   maxExamAttemptsPerDay: 3,
   defaultGrade: '7',
-  defaultTheme: 'sky',
+  defaultTheme: 'oatmeal',
   featureFlags: {},
 }
 

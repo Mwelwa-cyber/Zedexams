@@ -123,6 +123,25 @@
     -->
   </head>
   <body>
+    <script>
+      // Pre-paint theme guard. CSS :root defaults to the Sky palette, so
+      // without this the body would flash blue before React mounts and
+      // applies the saved/brand-default theme. Mirror ThemeContext: use
+      // the saved choice, else the 'oatmeal' brand default.
+      (function () {
+        try {
+          var legacy = { light: 'sky', warm: 'oatmeal', dark: 'midnight' };
+          var ids = ['sky', 'lavender', 'midnight', 'oatmeal', 'solar', 'vivid'];
+          var saved = localStorage.getItem('examprep:theme');
+          saved = legacy[saved] || saved;
+          document.body.classList.add(
+            'theme-' + (ids.indexOf(saved) !== -1 ? saved : 'oatmeal')
+          );
+        } catch (e) {
+          document.body.classList.add('theme-oatmeal');
+        }
+      })();
+    </script>
     <div id="root"></div>
     <noscript>
       <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;background:#FDF6EC;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif;color:#1A1F2E;text-align:center;">
