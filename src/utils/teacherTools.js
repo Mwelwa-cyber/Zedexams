@@ -33,6 +33,12 @@ const generateNotesCallable = httpsCallable(functions, 'generateNotes', {
 const generateFullLessonCallable = httpsCallable(functions, 'generateFullLesson', {
   timeout: 130_000, // server: 120s
 })
+const generateHomeworkCallable = httpsCallable(functions, 'generateHomework', {
+  timeout: 130_000, // server: 120s
+})
+const generateAssessmentCallable = httpsCallable(functions, 'generateAssessment', {
+  timeout: 130_000, // server: 120s
+})
 
 // Grades grouped by Zambia CBC phase. Values use the canonical G-prefix the
 // backend's ALLOWED_GRADES accepts (ECE, G1–G12). Labels show the
@@ -755,6 +761,76 @@ export async function generateFullLesson(inputs) {
     return { ok: true, data: result.data }
   } catch (error) {
     console.error('[zedexams] generateFullLesson ← FAILED after',
+      Date.now() - startedAt, 'ms',
+      { code: error?.code, message: error?.message },
+    )
+    return {
+      ok: false,
+      error: messageFromError(error),
+      code: error?.code || 'unknown',
+      rawMessage: error?.message || '',
+    }
+  }
+}
+
+/**
+ * Generate short take-home homework. Grounded on the stored curriculum
+ * module when grade+subject+topic+sub-topic+term resolve one.
+ */
+export async function generateHomework(inputs) {
+  console.info('[zedexams] generateHomework →', {
+    grade: inputs?.grade, subject: inputs?.subject,
+    topic: inputs?.topic, subtopic: inputs?.subtopic,
+  })
+  const startedAt = Date.now()
+  try {
+    const result = await withTimeout(
+      generateHomeworkCallable(inputs),
+      HARD_CLIENT_TIMEOUT_MS,
+      'generateHomework',
+    )
+    console.info('[zedexams] generateHomework ← ok in',
+      Date.now() - startedAt, 'ms',
+      { generationId: result?.data?.generationId, warning: result?.data?.warning })
+    return { ok: true, data: result.data }
+  } catch (error) {
+    console.error('[zedexams] generateHomework ← FAILED after',
+      Date.now() - startedAt, 'ms',
+      { code: error?.code, message: error?.message },
+    )
+    return {
+      ok: false,
+      error: messageFromError(error),
+      code: error?.code || 'unknown',
+      rawMessage: error?.message || '',
+    }
+  }
+}
+
+/**
+ * Generate a formal graded assessment. Grounded on the stored curriculum
+ * module when grade+subject+topic+sub-topic+term resolve one. (Distinct
+ * from the quiz-editor Assessment Studio — this is a saved, exportable
+ * assessment document.)
+ */
+export async function generateAssessment(inputs) {
+  console.info('[zedexams] generateAssessment →', {
+    grade: inputs?.grade, subject: inputs?.subject,
+    topic: inputs?.topic, subtopic: inputs?.subtopic,
+  })
+  const startedAt = Date.now()
+  try {
+    const result = await withTimeout(
+      generateAssessmentCallable(inputs),
+      HARD_CLIENT_TIMEOUT_MS,
+      'generateAssessment',
+    )
+    console.info('[zedexams] generateAssessment ← ok in',
+      Date.now() - startedAt, 'ms',
+      { generationId: result?.data?.generationId, warning: result?.data?.warning })
+    return { ok: true, data: result.data }
+  } catch (error) {
+    console.error('[zedexams] generateAssessment ← FAILED after',
       Date.now() - startedAt, 'ms',
       { code: error?.code, message: error?.message },
     )
