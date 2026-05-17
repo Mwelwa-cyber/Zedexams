@@ -17,12 +17,13 @@ const STRING_KEYS = [
   'grade', 'subject', 'topic', 'subtopic',
   'teacherName', 'school', 'language',
   'difficulty', 'instructions',
-  'lessonPlanId',
+  'lessonPlanId', 'learningEnvironment',
 ]
 
 const NUMBER_KEYS = [
   'durationMinutes', 'numberOfPupils', 'count',
   'term', 'numberOfWeeks',
+  'lessonNumber', 'totalLessons',
 ]
 
 const BOOL_KEYS = [
