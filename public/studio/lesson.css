@@ -276,3 +276,55 @@
 #view-plans .btn-primary{background:linear-gradient(180deg,#ff7a2e 0%,#e6651a 100%);color:#fff;box-shadow:0 1px 0 rgba(255,255,255,.2) inset,0 4px 14px rgba(255,122,46,.3)}
 #view-plans .btn-primary:hover{box-shadow:0 1px 0 rgba(255,255,255,.2) inset,0 6px 18px rgba(255,122,46,.4)}
 @media(max-width:980px){#view-plans .sidebar{box-shadow:4px 0 24px rgba(14,42,50,.18)}}
+
+/* ============ MOBILE-FIRST REDESIGN — accordion, pills, sticky bar ============
+   Studio is shown with the teacher theme (cream sidebar, #0e2a32 ink,
+   #ff7a2e accent). These rules layer a clean, touch-friendly, card-based
+   form on top without touching any element ID the studio scripts bind to. */
+
+/* Give the form a little breathing room above the sticky Generate bar. */
+#view-plans #pane-generate{padding-bottom:8px}
+
+/* Accordion section cards */
+#view-plans .lp-section{background:#fff;border:1.5px solid #0e2a32;border-radius:14px;margin:0 0 12px;overflow:hidden;box-shadow:0 1px 0 rgba(14,42,50,.04)}
+#view-plans .lp-section-head{display:flex;align-items:center;gap:8px;width:100%;min-height:52px;padding:14px 16px;background:transparent;border:0;cursor:pointer;text-align:left;font-family:var(--font-body);color:#0e2a32;-webkit-tap-highlight-color:transparent}
+#view-plans .lp-section-head:hover{background:#fffaf0}
+#view-plans .lp-section-title{font-size:14px;font-weight:700;letter-spacing:.01em;flex:1 1 auto}
+#view-plans .lp-section-hint{font-size:10.5px;font-style:italic;color:#566f76;font-weight:400;margin-right:4px;white-space:nowrap}
+#view-plans .lp-chevron{flex-shrink:0;color:#ff7a2e;transition:transform .2s ease}
+#view-plans .lp-section.open > .lp-section-head .lp-chevron{transform:rotate(180deg)}
+#view-plans .lp-section-body{display:none;padding:4px 16px 18px}
+#view-plans .lp-section.open > .lp-section-body{display:block}
+#view-plans .lp-section-body .field:last-child{margin-bottom:0}
+
+/* Bigger, touch-friendly controls inside the studio form */
+#view-plans .lp-section-body .field input,
+#view-plans .lp-section-body .field select,
+#view-plans .lp-section-body .field textarea{min-height:46px;padding:11px 13px;font-size:15px;border-radius:10px}
+#view-plans .lp-section-body .field textarea{min-height:64px}
+#view-plans .lp-section-body .field label{font-size:12px;margin-bottom:6px}
+#view-plans .lp-section-body .field{margin-bottom:14px}
+#view-plans .lp-section-body .field-row{gap:12px}
+
+/* Learning Environment pills */
+#view-plans .le-grid{display:grid;grid-template-columns:1fr;gap:8px}
+#view-plans .le-pill{display:flex;flex-direction:column;align-items:flex-start;gap:2px;width:100%;text-align:left;padding:14px 16px;min-height:56px;background:#fff;border:1.5px solid #0e2a32;border-radius:12px;cursor:pointer;font-family:var(--font-body);color:#0e2a32;transition:all .15s;-webkit-tap-highlight-color:transparent}
+#view-plans .le-pill:hover{background:#fffaf0}
+#view-plans .le-pill .name{font-size:14px;font-weight:700}
+#view-plans .le-pill .desc{font-size:11px;color:#566f76;font-weight:400}
+#view-plans .le-pill[data-on="true"],#view-plans .le-pill.active{background:rgba(255,122,46,.08);border-color:#ff7a2e}
+#view-plans .le-pill[data-on="true"] .name::after{content:'  ✓';color:#ff7a2e}
+
+/* Lesson Progression detail fields */
+#view-plans .lp-progression-fields{margin-top:12px}
+#view-plans .lp-progression-fields[hidden]{display:none}
+
+/* Sticky Generate bar — pinned to the bottom of the scrolling sidebar so
+   the primary action is always reachable on phones. */
+#view-plans .lp-generate-bar{position:sticky;bottom:0;left:0;right:0;margin:8px -22px -32px;padding:14px 22px calc(16px + env(safe-area-inset-bottom));background:rgba(255,250,240,.96);backdrop-filter:blur(10px) saturate(140%);-webkit-backdrop-filter:blur(10px) saturate(140%);border-top:1.5px solid #0e2a32;z-index:5}
+#view-plans .lp-generate-bar .btn-primary{margin-top:0}
+#view-plans .lp-generate-help{margin-top:8px;text-align:center}
+@media(max-width:600px){#view-plans .lp-generate-bar{margin-left:-18px;margin-right:-18px;margin-bottom:-28px}}
+
+/* Light card styling for the Style pane section labels (cosmetic only) */
+#view-plans #pane-style .section-label:first-child{margin-top:6px}

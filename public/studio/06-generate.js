@@ -51,7 +51,14 @@ function gatherInput() {
     showAttendance: $('#t-attendance').dataset.on === 'true',
     showReflection: $('#t-reflection').dataset.on === 'true',
     compactMeta: $('#t-compact').dataset.on === 'true',
-    format: formatChoice
+    format: formatChoice,
+    learningEnvironments: $$('#learning-env .le-pill')
+      .filter(p => p.dataset.on === 'true')
+      .map(p => p.dataset.env),
+    multiLesson: !!($('#t-multilesson') && $('#t-multilesson').dataset.on === 'true'),
+    lessonsTotal: parseInt(($('#f-lessons-total') || {}).value, 10) || 1,
+    lessonsCurrent: parseInt(($('#f-lessons-current') || {}).value, 10) || 1,
+    progressNotes: (($('#f-progress-notes') || {}).value || '').trim()
   };
 }
 
@@ -72,6 +79,12 @@ function buildPrompt(i) {
       .join('\n');
     syllabusContext = `\n\nOFFICIAL ${i.klass} ${i.subject} SYLLABUS TOPICS (${versionLabel}):\n${topicList}\n`;
   }
+  const envLine = (i.learningEnvironments && i.learningEnvironments.length)
+    ? `\n- Learning environment(s) to use: ${i.learningEnvironments.join(', ')} — design activities suited to ${i.learningEnvironments.length > 1 ? 'these environments' : 'this environment'}.`
+    : '';
+  const seqLine = i.multiLesson
+    ? `\n- This subtopic spans multiple lessons. This is lesson ${i.lessonsCurrent} of ${i.lessonsTotal}; scope the content to this lesson only and build on prior lessons where relevant.${i.progressNotes ? ` Progression notes: ${i.progressNotes}` : ''}`
+    : '';
   return `Generate a Zambian CBC lesson plan with these inputs:
 - Class: ${i.klass}
 - Subject: ${i.subject}
@@ -79,7 +92,7 @@ function buildPrompt(i) {
 - Topic: ${i.topic || 'choose an appropriate topic from the official syllabus below'}
 - Sub-topic: ${i.subtopic || 'choose an appropriate sub-topic'}
 - Duration: ${i.duration} minutes
-- Term & Week: ${i.termWeek || 'unspecified'}
+- Term & Week: ${i.termWeek || 'unspecified'}${envLine}${seqLine}
 ${syllabusContext}
 IMPORTANT: The topic and sub-topic MUST fit within the ${i.klass} syllabus scope shown above (${versionLabel}). If the user-supplied topic doesn't match this grade level, return {"error": "explanation"} instead.
 
@@ -108,6 +121,8 @@ function renderMetaTable(meta) {
   if (meta.termWeek) rows.push(['Term &amp; Week', esc(meta.termWeek)]);
   if (meta.showEnrolment) rows.push(['Enrolment', 'Boys: _____ &nbsp;&nbsp; Girls: _____']);
   if (meta.showAttendance) rows.push(['Attendance', 'Boys: _____ &nbsp;&nbsp; Girls: _____']);
+  if (meta.learningEnvironments && meta.learningEnvironments.length) rows.push(['Learning Environment', esc(meta.learningEnvironments.join(', '))]);
+  if (meta.multiLesson) rows.push(['Lesson Sequence', `Lesson ${esc(meta.lessonsCurrent)} of ${esc(meta.lessonsTotal)}` + (meta.progressNotes ? ` &nbsp;·&nbsp; ${esc(meta.progressNotes)}` : '')]);
   rows.push(['Medium of Instruction', 'English']);
   return `<table class="meta-table"><tbody>${rows.map(r => `<tr><td class="k">${r[0]}</td><td class="v">${r[1]}</td></tr>`).join('')}</tbody></table>`;
 }
@@ -125,6 +140,8 @@ function renderMetaCompact(meta) {
   if (meta.subtopic) items.push(['Sub-topic', esc(meta.subtopic)]);
   if (meta.showEnrolment) items.push(['Enrolment', 'B: ___ G: ___']);
   if (meta.showAttendance) items.push(['Attendance', 'B: ___ G: ___']);
+  if (meta.learningEnvironments && meta.learningEnvironments.length) items.push(['Learning Environment', esc(meta.learningEnvironments.join(', '))]);
+  if (meta.multiLesson) items.push(['Lesson Sequence', `Lesson ${esc(meta.lessonsCurrent)} of ${esc(meta.lessonsTotal)}`]);
   return `<div class="meta-compact">${items.map(([k,v]) => `<div class="item"><span class="lbl">${k}:</span><span class="val">${v}</span></div>`).join('')}</div>`;
 }
 
@@ -283,7 +300,7 @@ async function __studioOnGenerateClick() {
       if (editing) setTimeout(enableAllTableResize, 50);
       saveToLibrary({
         type: 'plan',
-        meta: { klass: i.klass, subject: i.subject, topic: i.topic, subtopic: i.subtopic, format: i.format, school: i.school, duration: i.duration, termWeek: i.termWeek, syllabusVersion },
+        meta: { klass: i.klass, subject: i.subject, topic: i.topic, subtopic: i.subtopic, format: i.format, school: i.school, duration: i.duration, termWeek: i.termWeek, syllabusVersion, learningEnvironments: i.learningEnvironments, multiLesson: i.multiLesson, lessonsTotal: i.lessonsTotal, lessonsCurrent: i.lessonsCurrent, progressNotes: i.progressNotes },
         data: data,
         html: html
       });
