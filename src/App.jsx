@@ -16,7 +16,7 @@ import CookieConsentBanner from './components/ui/CookieConsentBanner'
 import ZedChatLauncher from './components/ai/ZedChatLauncher'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 
-// Auth/legal routes always render in the brand-default Sky theme so a
+// Auth/legal routes always render in the brand-default theme so a
 // visitor's previously-saved preference (e.g. Vivid's deep violet bg)
 // can't bleed onto the light-only login/register/legal screens. The
 // saved theme applies again as soon as they land on an authenticated
@@ -25,7 +25,7 @@ import ErrorBoundary from './components/ui/ErrorBoundary'
 // The marketing landing page ('/') is intentionally NOT pinned here: it
 // follows the active/saved theme so it matches the in-app look for
 // returning users. New visitors have no saved preference, so it still
-// resolves to the Sky default via resolveInitialTheme().
+// resolves to the brand default via resolveInitialTheme().
 const PUBLIC_THEME_PATHS = new Set([
   '/login', '/register', '/auth/action',
   '/pricing', '/privacy', '/terms', '/status',
@@ -38,7 +38,7 @@ function isPublicThemePath(pathname) {
   if (pathname.startsWith('/parent/')) return true
   if (pathname === '/blog' || pathname.startsWith('/blog/')) return true
   // /my-papers is auth-only but visually shares the past-paper
-  // theme so we keep it on the brand-default Sky.
+  // theme so we keep it on the brand default.
   if (pathname === '/my-papers') return true
   return false
 }
