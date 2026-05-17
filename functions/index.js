@@ -70,6 +70,12 @@ const {
 const {
   createGenerateFullLesson,
 } = require("./teacherTools/generateFullLesson");
+const {
+  createGenerateHomework,
+} = require("./teacherTools/generateHomework");
+const {
+  createGenerateAssessment,
+} = require("./teacherTools/generateAssessment");
 // Teacher Tools — Diagram Generator (Recraft, B&W line art for assessments).
 const {
   createGenerateDiagram,
@@ -2034,6 +2040,12 @@ exports.generateNotes = createGenerateNotes(anthropicApiKey);
 
 // Teacher Tools — Full Lesson (complete, ready-to-deliver CBC lesson).
 exports.generateFullLesson = createGenerateFullLesson(anthropicApiKey);
+
+// Teacher Tools — Homework (short curriculum-grounded take-home practice).
+exports.generateHomework = createGenerateHomework(anthropicApiKey);
+
+// Teacher Tools — Assessment (formal curriculum-grounded graded test).
+exports.generateAssessment = createGenerateAssessment(anthropicApiKey);
 
 // Teacher Tools — Diagram Generator (Recraft, B&W line art for assessments).
 // When OPENAI_API_KEY is set, generateDiagram exposes a photoreal style
