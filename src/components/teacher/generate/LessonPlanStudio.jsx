@@ -19,7 +19,7 @@ const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerat
 
 // Bump this when /public/studio/* is changed so phones / CDNs refetch
 // instead of serving the cached old file.
-const STUDIO_ASSET_VERSION = 'v9'
+const STUDIO_ASSET_VERSION = 'v10'
 
 // Sequential script loader — each script must finish before the next starts
 // because the studio scripts rely on globals set by earlier ones.
@@ -89,6 +89,13 @@ export default function LessonPlanStudio() {
           topic:    m.topic || null,
           subtopic: m.subtopic || null,
           term:     termOnly,
+          learningEnvironments: Array.isArray(m.learningEnvironments) ? m.learningEnvironments : [],
+          lessonProgression: m.multiLesson ? {
+            requiresMultipleLessons: true,
+            totalLessons:  Number(m.lessonsTotal) || null,
+            currentLesson: Number(m.lessonsCurrent) || null,
+            progressionNotes: m.progressNotes || '',
+          } : { requiresMultipleLessons: false },
         },
         meta: m,
         data: data || {},
@@ -257,76 +264,158 @@ export default function LessonPlanStudio() {
               <div className="tab" data-tab="style">Style</div>
             </div>
 
-            {/* Generate pane */}
+            {/* Generate pane — accordion sections + sticky generate bar */}
             <div className="tab-pane" id="pane-generate">
-              <div className="section-label">School Identity</div>
-              <div className="field"><label>Header line <span className="opt">(optional)</span></label><input type="text" id="f-header" placeholder="e.g. Ministry of Education" /><div className="helper">Leave blank if it doesn't apply.</div></div>
-              <div className="field"><label>School name</label><input type="text" id="f-school" placeholder="e.g. Jemareen Primary School" /></div>
-              <div className="field"><label>Department / sub-line <span className="opt">(optional)</span></label><input type="text" id="f-department" placeholder="e.g. Mathematics Department" /></div>
 
-              <div className="section-label">Lesson Details</div>
-              <div className="field">
-                <label>Syllabus Version <span className="hint-inline">— grades 5, 6, 7, 10, 11, 12 still use the old syllabus</span></label>
-                <div className="seg-toggle" id="syllabus-toggle">
-                  <button type="button" className="seg active" data-version="new">New (2023)</button>
-                  <button type="button" className="seg" data-version="old">Old (2013)</button>
+              {/* 1 · School Identity */}
+              <div className="lp-section open" data-section="identity">
+                <button type="button" className="lp-section-head">
+                  <span className="lp-section-title">School Identity</span>
+                  <svg className="lp-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div className="lp-section-body">
+                  <div className="field"><label>Header line <span className="opt">(optional)</span></label><input type="text" id="f-header" placeholder="e.g. Ministry of Education" /><div className="helper">Leave blank if it doesn't apply.</div></div>
+                  <div className="field"><label>School name</label><input type="text" id="f-school" placeholder="e.g. Jemareen Primary School" /></div>
+                  <div className="field"><label>Department / sub-line <span className="opt">(optional)</span></label><input type="text" id="f-department" placeholder="e.g. Mathematics Department" /></div>
                 </div>
               </div>
-              <div className="field-row">
-                <div className="field"><label>Class</label><select id="f-class"></select></div>
-                <div className="field"><label>Duration (min)</label><input type="number" id="f-duration" defaultValue="40" min="20" max="120" /></div>
-              </div>
-              <div className="field"><label>Subject</label><select id="f-subject"></select></div>
-              <div className="field-row">
-                <div className="field"><label>Term</label><select id="f-term"><option>1</option><option defaultValue="2">2</option><option>3</option></select></div>
-                <div className="field"><label>Week</label><select id="f-week">
-                  <option>1</option><option>2</option><option>3</option><option>4</option>
-                  <option defaultValue="5">5</option><option>6</option><option>7</option><option>8</option>
-                  <option>9</option><option>10</option><option>11</option><option>12</option><option>13</option>
-                </select></div>
-              </div>
-              <div className="field-row">
-                <div className="field"><label>Date <span className="opt">(auto)</span></label><input type="date" id="f-date" /></div>
-                <div className="field"><label>Time <span className="opt">(opt.)</span></label><input type="time" id="f-time" /></div>
+
+              {/* 2 · Lesson Details */}
+              <div className="lp-section" data-section="details">
+                <button type="button" className="lp-section-head">
+                  <span className="lp-section-title">Lesson Details</span>
+                  <svg className="lp-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div className="lp-section-body">
+                  <div className="field">
+                    <label>Syllabus Version <span className="hint-inline">— grades 5, 6, 7, 10, 11, 12 still use the old syllabus</span></label>
+                    <div className="seg-toggle" id="syllabus-toggle">
+                      <button type="button" className="seg active" data-version="new">New (2023)</button>
+                      <button type="button" className="seg" data-version="old">Old (2013)</button>
+                    </div>
+                  </div>
+                  <div className="field-row">
+                    <div className="field"><label>Class</label><select id="f-class"></select></div>
+                    <div className="field"><label>Duration (min)</label><input type="number" id="f-duration" defaultValue="40" min="20" max="120" /></div>
+                  </div>
+                  <div className="field"><label>Subject</label><select id="f-subject"></select></div>
+                  <div className="field-row">
+                    <div className="field"><label>Term</label><select id="f-term"><option>1</option><option defaultValue="2">2</option><option>3</option></select></div>
+                    <div className="field"><label>Week</label><select id="f-week">
+                      <option>1</option><option>2</option><option>3</option><option>4</option>
+                      <option defaultValue="5">5</option><option>6</option><option>7</option><option>8</option>
+                      <option>9</option><option>10</option><option>11</option><option>12</option><option>13</option>
+                    </select></div>
+                  </div>
+                  <div className="field-row">
+                    <div className="field"><label>Date <span className="opt">(auto)</span></label><input type="date" id="f-date" /></div>
+                    <div className="field"><label>Time <span className="opt">(opt.)</span></label><input type="time" id="f-time" /></div>
+                  </div>
+                </div>
               </div>
 
-              <div className="section-label">Topic <span className="opt" style={{textTransform:'none',letterSpacing:0,color:'#6e6253',fontStyle:'italic'}}>— from CBC syllabus</span></div>
-              <div className="field"><label>Topic</label><select id="f-topic"><option value="">Select a topic…</option></select></div>
-              <div className="field"><label>Sub-topic</label><select id="f-subtopic"><option value="">Select a sub-topic…</option></select></div>
-
-              <div className="section-label">Teacher</div>
-              <div className="field"><label>Name <span className="opt">(optional)</span></label><input type="text" id="f-teacher" placeholder="e.g. Mwelwa" /></div>
-              <div className="field"><label>TS / ID <span className="opt">(optional)</span></label><input type="text" id="f-tsno" placeholder="e.g. 20158502" /></div>
-
-              <div className="section-label">Format &amp; Options</div>
-              <div className="format-grid" id="format-cards" style={{gridTemplateColumns:'1fr'}}>
-                <div className="format-card active" data-format="modern"><div className="name">Modern Clean</div><div className="desc">Per-stage tables · Specific Outcomes, Assessment, Differentiation, Reflection sections.</div></div>
-                <div className="format-card" data-format="classic2"><div className="name">Classic 2</div><div className="desc">Per-stage tables (Modern look) with three columns — Teacher's Role, Learners' Role, Assessment Criteria. Includes Teacher's and Learners' Evaluation.</div></div>
-                <div className="format-card" data-format="classic"><div className="name">Classic CBC</div><div className="desc">Single progression table — Stages, Teacher, Learner, Assessment Criteria.</div></div>
+              {/* 3 · Topic & Subtopic */}
+              <div className="lp-section" data-section="topic">
+                <button type="button" className="lp-section-head">
+                  <span className="lp-section-title">Topic &amp; Subtopic</span>
+                  <span className="lp-section-hint">from CBC syllabus</span>
+                  <svg className="lp-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div className="lp-section-body">
+                  <div className="field"><label>Topic</label><select id="f-topic"><option value="">Select a topic…</option></select></div>
+                  <div className="field"><label>Sub-topic</label><select id="f-subtopic"><option value="">Select a sub-topic…</option></select></div>
+                </div>
               </div>
 
-              <div className="toggle-row on" id="t-compact" data-on="true">
-                <div className="lbl">Compact metadata layout<small>Horizontal "Label: Value" pairs (saves space)</small></div>
-                <div className="toggle-switch"></div>
-              </div>
-              <div className="toggle-row" id="t-enrolment" data-on="false">
-                <div className="lbl">Include Enrolment row<small>Boys / Girls headcount on roll</small></div>
-                <div className="toggle-switch"></div>
-              </div>
-              <div className="toggle-row on" id="t-attendance" data-on="true">
-                <div className="lbl">Include Attendance row<small>Boys / Girls present today</small></div>
-                <div className="toggle-switch"></div>
-              </div>
-              <div className="toggle-row on" id="t-reflection" data-on="true">
-                <div className="lbl">Include Teacher's Reflection<small>Modern Clean format only</small></div>
-                <div className="toggle-switch"></div>
+              {/* 4 · Learning Environment (NEW) */}
+              <div className="lp-section" data-section="environment">
+                <button type="button" className="lp-section-head">
+                  <span className="lp-section-title">Learning Environment</span>
+                  <svg className="lp-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div className="lp-section-body">
+                  <div className="helper" style={{marginTop:0,marginBottom:'10px'}}>Pick one or more environments this lesson uses.</div>
+                  <div className="le-grid" id="learning-env">
+                    <button type="button" className="le-pill" data-env="Natural" data-on="false"><span className="name">Natural</span><span className="desc">Gardens, fields, outdoor sites</span></button>
+                    <button type="button" className="le-pill" data-env="Artificial" data-on="false"><span className="name">Artificial</span><span className="desc">Classroom, lab, models, charts</span></button>
+                    <button type="button" className="le-pill" data-env="Technological" data-on="false"><span className="name">Technological</span><span className="desc">Computers, projector, digital tools</span></button>
+                  </div>
+                </div>
               </div>
 
-              <button className="btn btn-primary" id="btn-generate">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/><path d="M9.6 5.6 8 8 5.6 6.4 4 9l2.4 1.6L5 13l3.4-1.4L10 14l1.6-3.4L15 12l-1.6-3.4L17 7l-3.4 1.4L12 5l-1.6 2.4z"/></svg>
-                Generate Lesson Plan
-              </button>
-              <div className="helper" style={{marginTop:'10px'}}>Builds a CBC-aligned plan in your chosen format. Edit, restyle, and export when ready.</div>
+              {/* 5 · Lesson Progression (NEW) */}
+              <div className="lp-section" data-section="progression">
+                <button type="button" className="lp-section-head">
+                  <span className="lp-section-title">Lesson Progression</span>
+                  <svg className="lp-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div className="lp-section-body">
+                  <div className="toggle-row" id="t-multilesson" data-on="false">
+                    <div className="lbl">Subtopic needs multiple lessons<small>Track where this lesson sits in the sequence</small></div>
+                    <div className="toggle-switch"></div>
+                  </div>
+                  <div className="lp-progression-fields" id="multilesson-fields" hidden>
+                    <div className="field-row">
+                      <div className="field"><label>Total lessons</label><input type="number" id="f-lessons-total" min="1" max="20" defaultValue="2" /></div>
+                      <div className="field"><label>This lesson #</label><input type="number" id="f-lessons-current" min="1" max="20" defaultValue="1" /></div>
+                    </div>
+                    <div className="field"><label>Progression notes <span className="opt">(optional)</span></label><textarea id="f-progress-notes" rows="2" placeholder="e.g. Lesson 1 covered definitions; this lesson builds on…"></textarea></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 6 · Teacher Details */}
+              <div className="lp-section" data-section="teacher">
+                <button type="button" className="lp-section-head">
+                  <span className="lp-section-title">Teacher Details</span>
+                  <svg className="lp-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div className="lp-section-body">
+                  <div className="field"><label>Name <span className="opt">(optional)</span></label><input type="text" id="f-teacher" placeholder="e.g. Mwelwa" /></div>
+                  <div className="field"><label>TS / ID <span className="opt">(optional)</span></label><input type="text" id="f-tsno" placeholder="e.g. 20158502" /></div>
+                </div>
+              </div>
+
+              {/* 7 · Format & Options */}
+              <div className="lp-section" data-section="format">
+                <button type="button" className="lp-section-head">
+                  <span className="lp-section-title">Format &amp; Options</span>
+                  <svg className="lp-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div className="lp-section-body">
+                  <div className="format-grid" id="format-cards" style={{gridTemplateColumns:'1fr'}}>
+                    <div className="format-card active" data-format="modern"><div className="name">Modern Clean</div><div className="desc">Per-stage tables · Specific Outcomes, Assessment, Differentiation, Reflection sections.</div></div>
+                    <div className="format-card" data-format="classic2"><div className="name">Classic 2</div><div className="desc">Per-stage tables (Modern look) with three columns — Teacher's Role, Learners' Role, Assessment Criteria. Includes Teacher's and Learners' Evaluation.</div></div>
+                    <div className="format-card" data-format="classic"><div className="name">Classic CBC</div><div className="desc">Single progression table — Stages, Teacher, Learner, Assessment Criteria.</div></div>
+                  </div>
+
+                  <div className="toggle-row on" id="t-compact" data-on="true">
+                    <div className="lbl">Compact metadata layout<small>Horizontal "Label: Value" pairs (saves space)</small></div>
+                    <div className="toggle-switch"></div>
+                  </div>
+                  <div className="toggle-row" id="t-enrolment" data-on="false">
+                    <div className="lbl">Include Enrolment row<small>Boys / Girls headcount on roll</small></div>
+                    <div className="toggle-switch"></div>
+                  </div>
+                  <div className="toggle-row on" id="t-attendance" data-on="true">
+                    <div className="lbl">Include Attendance row<small>Boys / Girls present today</small></div>
+                    <div className="toggle-switch"></div>
+                  </div>
+                  <div className="toggle-row on" id="t-reflection" data-on="true">
+                    <div className="lbl">Include Teacher's Reflection<small>Modern Clean format only</small></div>
+                    <div className="toggle-switch"></div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 8 · Generate — sticky bar */}
+              <div className="lp-generate-bar">
+                <button className="btn btn-primary" id="btn-generate">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/><path d="M9.6 5.6 8 8 5.6 6.4 4 9l2.4 1.6L5 13l3.4-1.4L10 14l1.6-3.4L15 12l-1.6-3.4L17 7l-3.4 1.4L12 5l-1.6 2.4z"/></svg>
+                  Generate Lesson Plan
+                </button>
+                <div className="helper lp-generate-help">Builds a CBC-aligned plan in your chosen format. Edit, restyle, and export when ready.</div>
+              </div>
             </div>
 
             {/* Style pane */}

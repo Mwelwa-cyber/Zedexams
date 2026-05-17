@@ -40,6 +40,34 @@ function __studioInitUI() {
     t.addEventListener('click', () => { const on = t.dataset.on !== 'true'; t.dataset.on = on; t.classList.toggle('on', on); });
   });
 
+  // Accordion sections — tap a header to expand/collapse its card
+  $$('.lp-section-head').forEach(h => {
+    h.addEventListener('click', () => {
+      const sec = h.closest('.lp-section');
+      if (sec) sec.classList.toggle('open');
+    });
+  });
+
+  // Learning Environment — multi-select pills (Natural / Artificial / Technological)
+  $$('#learning-env .le-pill').forEach(p => {
+    p.addEventListener('click', () => {
+      const on = p.dataset.on !== 'true';
+      p.dataset.on = on;
+      p.classList.toggle('active', on);
+    });
+  });
+
+  // Lesson Progression — reveal the detail fields only when multi-lesson is on.
+  // The generic .toggle-row handler above already flips #t-multilesson's
+  // data-on; this listener runs after it and syncs the fields' visibility.
+  const multiToggle = $('#t-multilesson');
+  const multiFields = $('#multilesson-fields');
+  if (multiToggle && multiFields) {
+    const syncMulti = () => { multiFields.hidden = multiToggle.dataset.on !== 'true'; };
+    multiToggle.addEventListener('click', syncMulti);
+    syncMulti();
+  }
+
   // Format choice — sync the active card with the persisted formatChoice
   $$('#format-cards .format-card').forEach(c => {
     c.classList.toggle('active', c.dataset.format === formatChoice);

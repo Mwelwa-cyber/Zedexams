@@ -23,7 +23,11 @@ Check whether the requested topic actually fits the given grade and subject in t
 - If the topic is clearly OUT of scope (e.g. "Calculus" for Grade 3, "Letter Sounds" for Form 4 Mathematics, "Quantum Mechanics" for any Zambian school grade), respond ONLY with this JSON:
   {"error": "The topic '<topic>' does not appear in the <grade> <subject> syllabus. Suggested topics for <grade> <subject>: [topic1, topic2, topic3, topic4]"}
 - If the topic is plausible/borderline, proceed with generation.
-- If the topic is clearly appropriate, proceed with generation.`;
+- If the topic is clearly appropriate, proceed with generation.
+
+TEACHER-SUPPLIED CONTEXT (honour when present in the user prompt):
+- If learning environment(s) are specified (Natural / Artificial / Technological), tailor activities, materials and methods to those environment(s).
+- If the lesson is part of a multi-lesson sequence ("lesson X of Y"), scope the content to that single lesson — do not try to cover the whole subtopic — and build on prior lessons where the progression notes indicate.`;
 
 const sysModern = `You are an expert in Zambian school lesson planning. You write rich, professional lesson plans aligned with the Zambian Competence-Based Curriculum (CBC).
 
