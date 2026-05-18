@@ -2,11 +2,11 @@
 // The bridge returns the raw JSON string from Claude; parse it here so the
 // rest of the studio can treat it as a normal object (matching the original
 // direct-API implementation in files_2/lesson__06-generate.js).
-async function callClaude(systemPrompt, userPrompt) {
+async function callClaude(systemPrompt, userPrompt, context) {
   if (typeof window.__studioCallClaude !== 'function') {
     throw new Error('Studio bridge not initialised — __studioCallClaude is missing.');
   }
-  const raw = await window.__studioCallClaude(systemPrompt, userPrompt);
+  const raw = await window.__studioCallClaude(systemPrompt, userPrompt, context || null);
   let text = String(raw || '').trim();
   text = text.replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/, '').trim();
   try {
@@ -284,7 +284,17 @@ async function __studioOnGenerateClick() {
   $('#btn-generate').innerHTML = '<span>Composing your lesson plan…</span>';
   try {
     const sysPrompt = i.format === 'classic' ? sysClassic : (i.format === 'classic2' ? sysClassic2 : sysModern);
-    const data = await callClaude(sysPrompt, buildPrompt(i));
+    // Lesson coords so the function can ground the plan on the teacher's
+    // own saved Scheme of Work / Weekly Forecast for this week.
+    const planContext = {
+      grade: i.klass,
+      subject: i.subject,
+      term: i.term,
+      week: i.week,
+      topic: i.topic,
+      subtopic: i.subtopic,
+    };
+    const data = await callClaude(sysPrompt, buildPrompt(i), planContext);
     if (data.error) {
       $('#doc').innerHTML = `<div style="padding:60px 30px;text-align:center;font-family:var(--font-doc)">
         <div style="display:inline-block;padding:30px 36px;background:#fef2f2;border:2px solid #b8492a;border-radius:12px;max-width:560px;text-align:left">
