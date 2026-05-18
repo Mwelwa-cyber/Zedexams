@@ -20,6 +20,7 @@ import { useBadges }           from '../../hooks/useBadges'
 import { useSubscription }     from '../../hooks/useSubscription'
 import { getRoleLandingPath }  from '../../utils/navigation'
 import { daysUntilExpiry }     from '../../utils/subscriptionConfig'
+import { isSuperAdmin }        from '../../utils/permissions'
 import UpgradeModal            from '../subscription/UpgradeModal'
 import ParentShareManager      from '../parent/ParentShareManager'
 import LanguageToggle          from '../ui/LanguageToggle'
@@ -105,10 +106,10 @@ export default function ProfilePage() {
   const cancelAtPeriodEnd = Boolean(userProfile?.cancelAtPeriodEnd)
 
   const isLearner = userProfile?.role === 'learner'
-  const isAdmin   = userProfile?.role === 'admin'
+  const isAdmin   = isSuperAdmin(userProfile)
   const daysLeft  = daysUntilExpiry(userProfile)
   const homePath = getRoleLandingPath(userProfile)
-  const homeLabel = userProfile?.role === 'admin'
+  const homeLabel = isAdmin
     ? 'Back to Admin'
     : userProfile?.role === 'teacher'
       ? 'Back to Teacher'

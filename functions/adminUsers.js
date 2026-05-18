@@ -3,14 +3,15 @@ const admin = require("firebase-admin");
 const {writeAuditLog} = require("./auditLog");
 
 const ALLOWED_STATUS = new Set(["active", "suspended", "deleted"]);
-const ALLOWED_ROLE = new Set(["learner", "teacher", "admin"]);
+const ALLOWED_ROLE = new Set(["learner", "teacher", "admin", "superAdmin"]);
+const ADMIN_ROLES = new Set(["admin", "superAdmin"]);
 
 async function assertCallerIsAdmin(request) {
   if (!request.auth?.uid) {
     throw new HttpsError("unauthenticated", "Please sign in first.");
   }
   const snap = await admin.firestore().doc(`users/${request.auth.uid}`).get();
-  if (!snap.exists || snap.data()?.role !== "admin") {
+  if (!snap.exists || !ADMIN_ROLES.has(snap.data()?.role)) {
     throw new HttpsError("permission-denied", "Admin role required.");
   }
   return {
