@@ -76,6 +76,9 @@ const {
 const {
   createGenerateAssessment,
 } = require("./teacherTools/generateAssessment");
+const {
+  createGenerateQuiz,
+} = require("./teacherTools/generateQuiz");
 // Teacher Tools — Diagram Generator (Recraft, B&W line art for assessments).
 const {
   createGenerateDiagram,
@@ -2046,6 +2049,9 @@ exports.generateHomework = createGenerateHomework(anthropicApiKey);
 
 // Teacher Tools — Assessment (formal curriculum-grounded graded test).
 exports.generateAssessment = createGenerateAssessment(anthropicApiKey);
+
+// Teacher Tools — Quiz (short curriculum-grounded formative quiz).
+exports.generateQuiz = createGenerateQuiz(anthropicApiKey);
 
 // Teacher Tools — Diagram Generator (Recraft, B&W line art for assessments).
 // When OPENAI_API_KEY is set, generateDiagram exposes a photoreal style
