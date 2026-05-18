@@ -39,6 +39,9 @@ const generateHomeworkCallable = httpsCallable(functions, 'generateHomework', {
 const generateAssessmentCallable = httpsCallable(functions, 'generateAssessment', {
   timeout: 130_000, // server: 120s
 })
+const generateQuizCallable = httpsCallable(functions, 'generateQuiz', {
+  timeout: 130_000, // server: 120s
+})
 
 // Grades grouped by Zambia CBC phase. Values use the canonical G-prefix the
 // backend's ALLOWED_GRADES accepts (ECE, G1–G12). Labels show the
@@ -831,6 +834,41 @@ export async function generateAssessment(inputs) {
     return { ok: true, data: result.data }
   } catch (error) {
     console.error('[zedexams] generateAssessment ← FAILED after',
+      Date.now() - startedAt, 'ms',
+      { code: error?.code, message: error?.message },
+    )
+    return {
+      ok: false,
+      error: messageFromError(error),
+      code: error?.code || 'unknown',
+      rawMessage: error?.message || '',
+    }
+  }
+}
+
+/**
+ * Generate a short formative quiz. Grounded on the stored curriculum module
+ * when grade+subject+topic+sub-topic+term resolve one. Distinct from the
+ * quiz-editor / Vex subsystem — this is a saved, exportable quiz document.
+ */
+export async function generateQuiz(inputs) {
+  console.info('[zedexams] generateQuiz →', {
+    grade: inputs?.grade, subject: inputs?.subject,
+    topic: inputs?.topic, subtopic: inputs?.subtopic,
+  })
+  const startedAt = Date.now()
+  try {
+    const result = await withTimeout(
+      generateQuizCallable(inputs),
+      HARD_CLIENT_TIMEOUT_MS,
+      'generateQuiz',
+    )
+    console.info('[zedexams] generateQuiz ← ok in',
+      Date.now() - startedAt, 'ms',
+      { generationId: result?.data?.generationId, warning: result?.data?.warning })
+    return { ok: true, data: result.data }
+  } catch (error) {
+    console.error('[zedexams] generateQuiz ← FAILED after',
       Date.now() - startedAt, 'ms',
       { code: error?.code, message: error?.message },
     )

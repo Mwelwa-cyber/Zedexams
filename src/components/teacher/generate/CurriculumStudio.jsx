@@ -44,7 +44,8 @@ const CONTENT_TYPES = [
     route: '/teacher/generate/homework', ready: true },
   { key: 'assessment', label: 'Assessment', emoji: '📝',
     route: '/teacher/generate/assessment', ready: true },
-  { key: 'quiz', label: 'Quiz', emoji: '❓', ready: false },
+  { key: 'quiz', label: 'Quiz', emoji: '❓',
+    route: '/teacher/generate/quiz', ready: true },
 ]
 
 export default function CurriculumStudio() {
@@ -288,11 +289,10 @@ export default function CurriculumStudio() {
               ))}
             </div>
             <p className="text-xs text-slate-500 mt-3">
-              Lesson Plan, Learner Notes, Full Lesson, Exercise, Homework
-              and Assessment are wired to the verified curriculum. Quiz uses
-              the dedicated quiz editor and is queued separately. Generation,
-              preview, editing and Word/PDF export open in the matching
-              studio with everything pre-filled.
+              All seven content types are wired to the verified curriculum.
+              Generation, preview, editing and Word export open in the
+              matching studio with everything pre-filled. (The standalone
+              interactive quiz editor remains separate for published exams.)
             </p>
           </div>
 

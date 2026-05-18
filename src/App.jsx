@@ -165,6 +165,7 @@ const CurriculumStudio = lazy(() => import('./components/teacher/generate/Curric
 const FullLessonStudio = lazy(() => import('./components/teacher/generate/FullLessonStudio'))
 const HomeworkStudio = lazy(() => import('./components/teacher/generate/HomeworkStudio'))
 const AssessmentGenerator = lazy(() => import('./components/teacher/generate/AssessmentGenerator'))
+const QuizStudio = lazy(() => import('./components/teacher/generate/QuizStudio'))
 const WorksheetGenerator = lazy(() => import('./components/teacher/generate/WorksheetGenerator'))
 const FlashcardGenerator = lazy(() => import('./components/teacher/generate/FlashcardGenerator'))
 const SchemeOfWorkGenerator = lazy(() => import('./components/teacher/generate/SchemeOfWorkGenerator'))
@@ -505,6 +506,7 @@ export default function App() {
           <Route path="/teacher/generate/full-lesson"    element={<TeacherRoute><FullLessonStudio /></TeacherRoute>} />
           <Route path="/teacher/generate/homework"       element={<TeacherRoute><HomeworkStudio /></TeacherRoute>} />
           <Route path="/teacher/generate/assessment"     element={<TeacherRoute><AssessmentGenerator /></TeacherRoute>} />
+          <Route path="/teacher/generate/quiz"           element={<TeacherRoute><QuizStudio /></TeacherRoute>} />
           <Route path="/teacher/generate/worksheet"      element={<TeacherRoute><WorksheetGenerator /></TeacherRoute>} />
           <Route path="/teacher/generate/flashcards"     element={<TeacherRoute><FlashcardGenerator /></TeacherRoute>} />
           <Route path="/teacher/generate/scheme-of-work" element={<TeacherRoute><SchemeOfWorkGenerator /></TeacherRoute>} />
