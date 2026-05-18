@@ -102,24 +102,61 @@ export default function CurriculumStudio() {
   useEffect(() => { setTopic(''); setSubtopicId('') }, [grade, subject, term])
   useEffect(() => { setSubtopicId('') }, [topic])
 
-  // Load the stored sub-topic modules for the chosen topic + term.
+  // Sub-topics from the topic document's own `subtopics` array — the source
+  // for topics added via the built-in importer / CbcKbAdmin, which write a
+  // `subtopics` list on the topic doc but no per-lesson modules. Synthesised
+  // as lightweight modules so the dropdown + launch work; the generators
+  // re-resolve full grounding server-side from the KB, so the missing
+  // outcomes here are cosmetic only.
+  const topicDocFallback = useMemo(() => {
+    if (!allTopics || !topic) return []
+    const g = String(grade).toUpperCase()
+    const s = String(subject).toLowerCase()
+    const tn = String(topic).toLowerCase()
+    const out = []
+    const seen = new Set()
+    for (const t of allTopics) {
+      if (String(t.grade || '').toUpperCase() !== g) continue
+      if (String(t.subject || '').toLowerCase() !== s) continue
+      if (String(t.topic || '').trim().toLowerCase() !== tn) continue
+      for (const sub of (t.subtopics || [])) {
+        const name = String(sub || '').trim()
+        if (!name || seen.has(name.toLowerCase())) continue
+        seen.add(name.toLowerCase())
+        out.push({
+          id: `topicdoc:${name.toLowerCase()}`,
+          topic: String(t.topic || topic),
+          subtopic: name,
+          term: Number(t.term) || Number(term) || 1,
+          suggestedLessons: 1,
+          outcomes: Array.isArray(t.specificOutcomes) ? t.specificOutcomes : [],
+          learningEnvironmentOptions: [],
+        })
+      }
+    }
+    return out
+  }, [allTopics, grade, subject, topic, term])
+
+  // Load the stored sub-topic modules for the chosen topic + term; fall back
+  // to the topic doc's own `subtopics` when no per-lesson modules exist.
   useEffect(() => {
     if (!topic || !term) { setModules([]); return }
     const topicId = curriculumTopicDocId({ grade, subject, topic })
-    if (!topicId) { setModules([]); return }
+    if (!topicId) { setModules(topicDocFallback); return }
     let active = true
     setModulesLoading(true)
     listLessons(topicId)
       .then((rows) => {
         if (!active) return
-        setModules((rows || []).filter(
+        const forTerm = (rows || []).filter(
           (m) => Number(m.term) === Number(term),
-        ))
+        )
+        setModules(forTerm.length > 0 ? forTerm : topicDocFallback)
       })
-      .catch(() => { if (active) setModules([]) })
+      .catch(() => { if (active) setModules(topicDocFallback) })
       .finally(() => { if (active) setModulesLoading(false) })
     return () => { active = false }
-  }, [topic, term, grade, subject])
+  }, [topic, term, grade, subject, topicDocFallback])
 
   const selectedModule = useMemo(
     () => modules.find((m) => m.id === subtopicId) || null,

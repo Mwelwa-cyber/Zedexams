@@ -147,18 +147,15 @@ async function fetchTopicsForCurrentSelection() {
   const level = activeGradeLevel()[klass];
   const subj = $('#f-subject').value;
 
-  // 1. New clean curriculumTopics map (02b-curriculum-topics.js) — keyed
-  // by grade only. If the teacher's grade is listed there, use it as the
-  // authoritative source; this is the structure the user can extend by
-  // editing 02b-curriculum-topics.js without touching anything else.
-  if (window.curriculumTopics && window.curriculumTopics[klass]) {
-    return window.curriculumTopics[klass];
-  }
-
-  // 2. Dynamic CBC KB. Bridge contract:
+  // 1. Dynamic CBC KB — the authoritative, grade+subject-aware source the
+  // admin maintains via CbcKbAdmin and the curriculum importers. Bridge
+  // contract:
   //   - non-empty object → KB has data, use it.
-  //   - empty object {}  → KB has no rows; fall through to hardcoded.
-  //   - null             → fetch errored; fall through to hardcoded.
+  //   - empty object {}  → KB has no rows; fall through.
+  //   - null             → fetch errored; fall through.
+  // This MUST be consulted before the hardcoded maps below — otherwise the
+  // 02b-curriculum-topics.js sample stub (which only lists Grade 4/5) would
+  // shadow the real curriculum for exactly those grades.
   if (typeof window.__studioFetchSyllabusTopics === 'function') {
     const grade = classToCbcGrade(klass);
     const subject = subjectToCbcSubject(subj);
@@ -166,6 +163,13 @@ async function fetchTopicsForCurrentSelection() {
       const remote = await window.__studioFetchSyllabusTopics({ grade, subject });
       if (remote && Object.keys(remote).length > 0) return remote;
     }
+  }
+
+  // 2. Manual curriculumTopics map (02b-curriculum-topics.js) — keyed by
+  // grade only. A fallback the user can extend by editing that file when
+  // the KB has no rows for the (grade, subject) pair.
+  if (window.curriculumTopics && window.curriculumTopics[klass]) {
+    return window.curriculumTopics[klass];
   }
 
   // 3. Legacy hardcoded syllabus.
