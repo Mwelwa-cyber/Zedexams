@@ -6,8 +6,10 @@ service cloud.firestore {
     function isAuthed() { return request.auth != null; }
     function isOwner(uid) { return request.auth.uid == uid; }
     function callerRole() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role; }
-    function isAdmin() { return isAuthed() && callerRole() == 'admin'; }
-    function isTeacherOrAbove() { return isAuthed() && (callerRole() == 'teacher' || callerRole() == 'admin'); }
+    // Admin and superAdmin are equivalent — both get full read/write access
+    // to every collection an admin can touch.
+    function isAdmin() { return isAuthed() && (callerRole() == 'admin' || callerRole() == 'superAdmin'); }
+    function isTeacherOrAbove() { return isAuthed() && (callerRole() == 'teacher' || callerRole() == 'admin' || callerRole() == 'superAdmin'); }
     function incoming() { return request.resource.data; }
     function changedKeys() { return request.resource.data.diff(resource.data).affectedKeys(); }
     // Teachers cannot set isPublished:true or status:'published'

@@ -1,10 +1,13 @@
 // Single source of truth for all plan limits and pricing.
 // To change a limit, edit ONLY this file.
 
+import { isSuperAdmin } from './permissions'
+
 export const ROLES = {
-  LEARNER: 'learner',
-  TEACHER: 'teacher',
-  ADMIN:   'admin',
+  LEARNER:     'learner',
+  TEACHER:     'teacher',
+  ADMIN:       'admin',
+  SUPER_ADMIN: 'superAdmin',
 }
 
 // Access levels for content gating.
@@ -179,6 +182,10 @@ function toDateValue(value) {
 }
 
 export function hasPremiumAccess(userProfile) {
+  // Admin / super-admin accounts are always premium — they must be able to
+  // test every paid feature without a subscription or expiry check.
+  if (isSuperAdmin(userProfile)) return true
+
   const hasAccessFlag =
     userProfile?.premium === true ||
     userProfile?.isPremium === true ||
@@ -201,7 +208,7 @@ export function hasPremiumAccess(userProfile) {
 //   teacher-portal premium does NOT grant learner access.
 export function hasLearnerPortalAccess(userProfile) {
   if (!userProfile) return false
-  if (userProfile.role === ROLES.ADMIN) return true
+  if (isSuperAdmin(userProfile)) return true
   if (userProfile.role === ROLES.TEACHER) {
     if (userProfile.learnerPortalActive !== true) return false
     const expiry = toDateValue(userProfile.learnerPortalExpiry)
@@ -214,6 +221,9 @@ export function hasLearnerPortalAccess(userProfile) {
 }
 
 export function getActivePlan(userProfile) {
+  // Super admins get the top plan so any plan-feature flag (examMode,
+  // weaknessAnalysis, generation caps) resolves to its most generous value.
+  if (isSuperAdmin(userProfile)) return PLANS.max_yearly
   if (!hasPremiumAccess(userProfile)) return PLANS.free
   return PLANS[userProfile.subscriptionPlan] ?? PLANS.monthly
 }

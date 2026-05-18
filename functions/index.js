@@ -489,8 +489,8 @@ function buildBootstrappedUserProfile({
     authUser?.displayName || fallbackName,
     120,
   ) || "ZedExams User";
-  const role = tokenRole === "admin" ?
-    "admin" :
+  const role = (tokenRole === "admin" || tokenRole === "superAdmin") ?
+    tokenRole :
     resolveInitialUserRole(email);
 
   return {
