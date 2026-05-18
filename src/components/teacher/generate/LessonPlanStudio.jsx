@@ -19,7 +19,7 @@ const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerat
 
 // Bump this when /public/studio/* is changed so phones / CDNs refetch
 // instead of serving the cached old file.
-const STUDIO_ASSET_VERSION = 'v10'
+const STUDIO_ASSET_VERSION = 'v11'
 
 // Sequential script loader — each script must finish before the next starts
 // because the studio scripts rely on globals set by earlier ones.
@@ -107,8 +107,16 @@ export default function LessonPlanStudio() {
     }
 
     // ---- Bridge: Claude generation ----
-    window.__studioCallClaude = async (systemPrompt, userPrompt) => {
-      const result = await studioGenerateLessonPlanCallable({ systemPrompt, userPrompt })
+    // `context` carries the lesson coords (grade/subject/term/week/topic)
+    // so the function can ground the plan on the teacher's own saved
+    // Scheme of Work / Weekly Forecast. Optional — older studio bundles
+    // that don't pass it still work (the function treats it as absent).
+    window.__studioCallClaude = async (systemPrompt, userPrompt, context) => {
+      const result = await studioGenerateLessonPlanCallable({
+        systemPrompt,
+        userPrompt,
+        context: context || null,
+      })
       // result.data.text is the raw JSON string from Claude
       return result.data.text
     }
