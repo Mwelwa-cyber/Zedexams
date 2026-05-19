@@ -47,6 +47,7 @@ const SUBJECTS = [
   'Technology Studies',
   'Cinyanja',
   'Home Economics',
+  'Special Paper 1',
 ]
 
 // ─── Core Patterns ───────────────────────────────────────────────────────────
