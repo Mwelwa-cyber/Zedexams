@@ -877,7 +877,7 @@ exports.resendInvoiceEmail = onCall({
   const db = admin.firestore();
   const callerSnap = await db.collection("users").doc(uid).get();
   const callerRole = callerSnap.exists ? (callerSnap.data() || {}).role : null;
-  const isAdmin = callerRole === "admin";
+  const isAdmin = callerRole === "admin" || callerRole === "superAdmin";
 
   const invoiceSnap = await db.collection("invoices").doc(invoiceId).get();
   if (!invoiceSnap.exists) {
@@ -1399,7 +1399,7 @@ exports.apiMomoPaymentStatus = onRequest(
       const paymentData = paymentSnap.data();
       if (paymentData.userId !== decoded.uid) {
         const requester = await getUserProfileOrThrow(decoded.uid);
-        if (requester.role !== "admin") {
+        if (requester.role !== "admin" && requester.role !== "superAdmin") {
           throw new HttpsError(
             "permission-denied",
             "You can only view your own payment.",
@@ -2222,7 +2222,7 @@ exports.bulkGrantDemoTrials = onCall({
   const db = admin.firestore();
   const callerSnap = await db.collection("users").doc(callerUid).get();
   const callerRole = callerSnap.exists ? (callerSnap.data() || {}).role : null;
-  if (callerRole !== "admin") {
+  if (callerRole !== "admin" && callerRole !== "superAdmin") {
     throw new HttpsError("permission-denied", "Admin access required.");
   }
 
