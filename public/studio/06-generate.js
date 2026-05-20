@@ -317,6 +317,13 @@ async function __studioOnGenerateClick() {
       toast('Lesson plan generated and saved');
       $('#sidebar').classList.remove('open');
       $('#scrim').classList.remove('show');
+      // On phones the form is now an in-flow panel above the preview, so
+      // bring the freshly generated plan into view instead of leaving the
+      // teacher staring at the form wondering if anything happened.
+      if (window.matchMedia && window.matchMedia('(max-width:980px)').matches) {
+        const dw = document.getElementById('doc-wrap');
+        if (dw) setTimeout(() => dw.scrollIntoView({ behavior: 'smooth', block: 'start' }), 80);
+      }
     }
   } catch (err) {
     console.error(err);
