@@ -359,6 +359,34 @@ const ZAMBIA_BASICS_G4 = {
   ],
 }
 
+const DIGESTIVE_SYSTEM_G5 = {
+  id: 'science_digestive_system_g5',
+  title: 'Digestive System Quest',
+  subject: 'science',
+  grade: 5,
+  type: 'timed_quiz',
+  difficulty: 'easy',
+  description: 'Follow food through the body — mouth, stomach, intestines and more.',
+  timer: 90,
+  points: 10,
+  active: true,
+  cbc_topic: 'The Human Body — Digestive System',
+  questions: [
+    { question: 'Where does digestion begin?',                                      options: ['Stomach', 'Mouth', 'Liver', 'Small intestine'],                              answer: 'Mouth' },
+    { question: 'Which liquid in the mouth helps break down food?',                 options: ['Sweat', 'Saliva', 'Bile', 'Mucus'],                                          answer: 'Saliva' },
+    { question: 'The tube that carries food from the mouth to the stomach is the…', options: ['Trachea', 'Oesophagus', 'Aorta', 'Larynx'],                                  answer: 'Oesophagus' },
+    { question: 'Which organ stores food and mixes it with acid?',                  options: ['Lungs', 'Liver', 'Stomach', 'Kidneys'],                                      answer: 'Stomach' },
+    { question: 'Most nutrients from food are absorbed in the…',                    options: ['Mouth', 'Stomach', 'Small intestine', 'Large intestine'],                    answer: 'Small intestine' },
+    { question: 'What is the MAIN job of the large intestine?',                     options: ['Make blood', 'Absorb water', 'Pump blood', 'Make oxygen'],                   answer: 'Absorb water' },
+    { question: 'Which organ produces bile to break down fats?',                    options: ['Heart', 'Liver', 'Pancreas', 'Spleen'],                                      answer: 'Liver' },
+    { question: 'Where is bile stored before it is used?',                          options: ['Kidney', 'Gall bladder', 'Stomach', 'Appendix'],                             answer: 'Gall bladder' },
+    { question: 'What are the front, flat teeth used for?',                         options: ['Grinding', 'Crushing', 'Cutting', 'Tearing'],                                answer: 'Cutting' },
+    { question: 'Solid waste leaves the body through the…',                         options: ['Anus', 'Mouth', 'Skin', 'Nose'],                                             answer: 'Anus' },
+    { question: 'Which food group helps move waste through the gut?',               options: ['Sugars', 'Fats', 'Fibre', 'Salt'],                                           answer: 'Fibre' },
+    { question: 'A good habit for healthy digestion is to…',                        options: ['Skip meals', 'Chew food well', 'Eat very fast', 'Drink only soda'],          answer: 'Chew food well' },
+  ],
+}
+
 const DECIMALS_G5 = {
   id: 'math_decimals_g5',
   title: 'Decimal Drills',
@@ -431,6 +459,37 @@ const PERCENT_G6 = {
     { question: '1% of 500 = ?',   options: ['1', '5', '50', '500'],    answer: '5'  },
     { question: '5% of 200 = ?',   options: ['5', '10', '15', '20'],    answer: '10' },
     { question: '90% of 100 = ?',  options: ['9', '90', '99', '100'],   answer: '90' },
+  ],
+}
+
+const SOLAR_SYSTEM_G6 = {
+  id: 'science_solar_system_g6',
+  title: 'Solar System Voyage',
+  subject: 'science',
+  grade: 6,
+  type: 'timed_quiz',
+  difficulty: 'medium',
+  description: 'Planets, the Sun, moons and life in our solar neighbourhood.',
+  timer: 90,
+  points: 12,
+  active: true,
+  cbc_topic: 'Earth and Space — The Solar System',
+  questions: [
+    { question: 'How many planets are in our Solar System?',                 options: ['6', '7', '8', '9'],                                                          answer: '8' },
+    { question: 'Which planet is closest to the Sun?',                        options: ['Venus', 'Mercury', 'Earth', 'Mars'],                                          answer: 'Mercury' },
+    { question: 'Which is the largest planet?',                               options: ['Saturn', 'Earth', 'Jupiter', 'Neptune'],                                      answer: 'Jupiter' },
+    { question: 'Which planet is known as the "Red Planet"?',                 options: ['Venus', 'Mars', 'Mercury', 'Jupiter'],                                        answer: 'Mars' },
+    { question: 'Which planet is famous for its bright rings?',               options: ['Jupiter', 'Uranus', 'Saturn', 'Neptune'],                                     answer: 'Saturn' },
+    { question: 'Which is the only planet known to support life?',            options: ['Mars', 'Earth', 'Venus', 'Mercury'],                                          answer: 'Earth' },
+    { question: 'The Sun is a…',                                              options: ['Planet', 'Moon', 'Star', 'Comet'],                                            answer: 'Star' },
+    { question: 'Which planet is farthest from the Sun?',                     options: ['Saturn', 'Uranus', 'Neptune', 'Pluto'],                                       answer: 'Neptune' },
+    { question: 'The path a planet takes around the Sun is called its…',      options: ['Spin', 'Orbit', 'Axis', 'Wave'],                                              answer: 'Orbit' },
+    { question: 'Earth’s natural satellite is the…',                     options: ['Sun', 'Mars', 'Moon', 'Star'],                                                answer: 'Moon' },
+    { question: 'One full spin of Earth on its axis takes about…',            options: ['1 hour', '12 hours', '24 hours', '7 days'],                                   answer: '24 hours' },
+    { question: 'One trip of Earth around the Sun takes about…',              options: ['1 month', '6 months', '1 year', '10 years'],                                  answer: '1 year' },
+    { question: 'Which planet is hottest at its surface?',                    options: ['Mercury', 'Venus', 'Mars', 'Saturn'],                                         answer: 'Venus' },
+    { question: 'In order from the Sun, which planet comes AFTER Earth?',     options: ['Venus', 'Mars', 'Jupiter', 'Mercury'],                                        answer: 'Mars' },
+    { question: 'Which group of small rocky bodies orbits between Mars and Jupiter?', options: ['Comets', 'Asteroids', 'Meteors', 'Moons'],                            answer: 'Asteroids' },
   ],
 }
 
@@ -875,6 +934,7 @@ export const GAMES_SEED = [
   ZAMBIA_BASICS_G4,
   // G5
   HUMAN_BODY_G5,
+  DIGESTIVE_SYSTEM_G5,
   DECIMALS_G5,
   SPELL_IT_RIGHT_G5,
   ZAMBIA_PROVINCES_G5,
@@ -885,6 +945,7 @@ export const GAMES_SEED = [
   PERCENT_G6,
   GRAMMAR_G6,
   SPELL_IT_RIGHT_G6,
+  SOLAR_SYSTEM_G6,
   ZAMBIA_HISTORY_G6,
 
   // ── Outside primary CBC scope — kept in seed so admin can flip active=true if needed ──
