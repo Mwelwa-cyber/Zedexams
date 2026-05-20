@@ -30,8 +30,10 @@ const {validateNotes} = require("./notesSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
   require("./notesPrompt");
 const {assertAndIncrement} = require("./usageMeter");
+const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
 
 const NOTES_MODEL = process.env.NOTES_MODEL || "claude-sonnet-4-5";
+const LE_VALUES = new Set(LEARNING_ENVIRONMENT_VALUES);
 
 // Permissive top-level shape — validateNotes() does the strict checking.
 // The schema's job here is to anchor Claude to an object response and force
@@ -72,11 +74,24 @@ function sanitizeInputs(raw = {}) {
   const subject = str(raw.subject, 40).toLowerCase().replace(/[^a-z_]/g, "_");
   const language = str(raw.language || "english", 20).toLowerCase();
 
+  // Optional curriculum-module selectors (Phase 1 model). Absent → null/""
+  // so behaviour is unchanged when not supplied.
+  const term = Math.round(num(raw.term, 0));
+  const lessonNumber = Math.round(num(raw.lessonNumber, 0));
+  const totalLessons = Math.round(num(raw.totalLessons, 0));
+  const learningEnvironment = str(raw.learningEnvironment, 40)
+    .toLowerCase().replace(/[^a-z_]/g, "_");
+
   return {
     grade,
     subject,
     topic: str(raw.topic, 160),
     subtopic: str(raw.subtopic, 200),
+    term: term >= 1 && term <= 3 ? term : null,
+    lessonNumber: lessonNumber >= 1 ? lessonNumber : null,
+    totalLessons: totalLessons >= 1 ? totalLessons : null,
+    learningEnvironment: LE_VALUES.has(learningEnvironment) ?
+      learningEnvironment : "",
     durationMinutes: Math.min(240, Math.max(5, Math.round(num(raw.durationMinutes, 40)))),
     language: ALLOWED_LANGUAGES.has(language) ? language : "english",
     teacherName: str(raw.teacherName, 80),
@@ -168,6 +183,11 @@ async function runNotes({uid, rawInputs, apiKey}) {
     subject: inputs.subject,
     topic: inputs.topic,
     subtopic: inputs.subtopic,
+    term: inputs.term,
+    lessonNumber: inputs.lessonNumber,
+    totalLessons: inputs.totalLessons,
+    learningEnvironment: inputs.learningEnvironment,
+    ownerUid: uid,
   });
 
   const usage = await assertAndIncrement(uid, "notes");
@@ -274,6 +294,7 @@ async function runNotes({uid, rawInputs, apiKey}) {
   await genRef.update({
     status: "complete",
     output: notes,
+    coveredContent: notes.coveredContent || [],
     outputText: String(raw || "").slice(0, 20000),
     tokensIn,
     tokensOut,

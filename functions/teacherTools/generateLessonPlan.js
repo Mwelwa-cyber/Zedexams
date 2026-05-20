@@ -27,6 +27,7 @@ const {validateLessonPlan} = require("./lessonPlanSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
   require("./lessonPlanPrompt");
 const {assertAndIncrement} = require("./usageMeter");
+const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
 
 // Override at deploy-time without a code change. Set LESSON_PLAN_MODEL=claude-haiku-4-5
 // to drop generation time roughly in half at the cost of some reasoning depth,
@@ -110,6 +111,7 @@ const ALLOWED_SUBJECTS = new Set([
 const ALLOWED_LANGUAGES = new Set([
   "english", "bemba", "nyanja", "tonga", "lozi", "kaonde", "lunda", "luvale",
 ]);
+const LE_VALUES = new Set(LEARNING_ENVIRONMENT_VALUES);
 
 function sanitizeInputs(raw = {}) {
   const str = (v, max) => (typeof v === "string" ?
@@ -120,11 +122,24 @@ function sanitizeInputs(raw = {}) {
   const subject = str(raw.subject, 40).toLowerCase().replace(/[^a-z_]/g, "_");
   const language = str(raw.language || "english", 20).toLowerCase();
 
+  // Optional curriculum-module selectors. Absent/0 → null so resolveCbcContext
+  // and the prompt behave exactly as before this upgrade.
+  const term = Math.round(num(raw.term, 0));
+  const lessonNumber = Math.round(num(raw.lessonNumber, 0));
+  const totalLessons = Math.round(num(raw.totalLessons, 0));
+  const learningEnvironment = str(raw.learningEnvironment, 40)
+    .toLowerCase().replace(/[^a-z_]/g, "_");
+
   return {
     grade,
     subject,
     topic: str(raw.topic, 120),
     subtopic: str(raw.subtopic, 160),
+    term: term >= 1 && term <= 3 ? term : null,
+    lessonNumber: lessonNumber >= 1 ? lessonNumber : null,
+    totalLessons: totalLessons >= 1 ? totalLessons : null,
+    learningEnvironment: LE_VALUES.has(learningEnvironment) ?
+      learningEnvironment : "",
     durationMinutes: Math.min(120, Math.max(20, Math.round(num(raw.durationMinutes, 40)))),
     language: ALLOWED_LANGUAGES.has(language) ? language : "english",
     teacherName: str(raw.teacherName, 80),
@@ -179,6 +194,11 @@ async function runLessonPlan({uid, rawInputs, apiKey, onProgress}) {
       subject: inputs.subject,
       topic: inputs.topic,
       subtopic: inputs.subtopic,
+      term: inputs.term,
+      lessonNumber: inputs.lessonNumber,
+      totalLessons: inputs.totalLessons,
+      learningEnvironment: inputs.learningEnvironment,
+      ownerUid: uid,
     }),
     assertAndIncrement(uid, "lesson_plan"),
   ]);
@@ -299,6 +319,7 @@ async function runLessonPlan({uid, rawInputs, apiKey, onProgress}) {
   await genRef.set({
     status: "complete",
     output: lessonPlan,
+    coveredContent: lessonPlan.coveredContent || [],
     outputText: String(raw || "").slice(0, 20000),
     tokensIn,
     tokensOut,

@@ -8,6 +8,7 @@
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app, { auth } from '../firebase/config'
 import { apiUrl, isNativePlatform } from './runtime'
+import { LEARNING_ENVIRONMENTS } from '../config/learningEnvironments'
 
 const functions = getFunctions(app, 'us-central1')
 
@@ -27,6 +28,18 @@ const generateRubricCallable = httpsCallable(functions, 'generateRubric', {
   timeout: 90_000, // server: 90s
 })
 const generateNotesCallable = httpsCallable(functions, 'generateNotes', {
+  timeout: 130_000, // server: 120s
+})
+const generateFullLessonCallable = httpsCallable(functions, 'generateFullLesson', {
+  timeout: 130_000, // server: 120s
+})
+const generateHomeworkCallable = httpsCallable(functions, 'generateHomework', {
+  timeout: 130_000, // server: 120s
+})
+const generateAssessmentCallable = httpsCallable(functions, 'generateAssessment', {
+  timeout: 130_000, // server: 120s
+})
+const generateQuizCallable = httpsCallable(functions, 'generateQuiz', {
   timeout: 130_000, // server: 120s
 })
 
@@ -229,6 +242,38 @@ export const SCHEME_TERMS = [
   { value: 1, label: 'Term 1' },
   { value: 2, label: 'Term 2' },
   { value: 3, label: 'Term 3' },
+]
+
+// Optional curriculum-module selectors. Each list leads with a blank
+// "not set" option so leaving them unselected keeps the generators on
+// their previous (no-module) behaviour.
+export const CURRICULUM_TERMS = [
+  { value: '', label: '— Term (optional) —' },
+  { value: '1', label: 'Term 1' },
+  { value: '2', label: 'Term 2' },
+  { value: '3', label: 'Term 3' },
+]
+
+export const LESSON_NUMBER_OPTIONS = [
+  { value: '', label: '— Lesson number (optional) —' },
+  ...Array.from({ length: 10 }, (_, i) => ({
+    value: String(i + 1), label: `Lesson ${i + 1}`,
+  })),
+]
+
+// How many lessons the teacher is splitting this sub-topic into. The stored
+// curriculum module is per sub-topic; the teacher decides the split and the
+// generator frames "Lesson N of M" so lessons don't repeat each other.
+export const TOTAL_LESSONS_OPTIONS = [
+  { value: '', label: '— How many lessons? (optional) —' },
+  ...Array.from({ length: 10 }, (_, i) => ({
+    value: String(i + 1), label: `${i + 1} lesson${i ? 's' : ''}`,
+  })),
+]
+
+export const LEARNING_ENVIRONMENT_OPTIONS = [
+  { value: '', label: '— Learning environment (optional) —' },
+  ...LEARNING_ENVIRONMENTS.map((e) => ({ value: e.value, label: e.label })),
 ]
 
 export const SCHEME_WEEK_COUNTS = [
@@ -683,6 +728,149 @@ export async function generateLessonPlan(inputs) {
         details: error?.details,
         httpErrorCode: error?.httpErrorCode?.status,
       },
+    )
+    return {
+      ok: false,
+      error: messageFromError(error),
+      code: error?.code || 'unknown',
+      rawMessage: error?.message || '',
+    }
+  }
+}
+
+/**
+ * Generate a complete, ready-to-deliver CBC lesson. Grounded on the stored
+ * curriculum module when grade+subject+topic+sub-topic+term resolve one.
+ */
+export async function generateFullLesson(inputs) {
+  console.info('[zedexams] generateFullLesson →', {
+    grade: inputs?.grade,
+    subject: inputs?.subject,
+    topic: inputs?.topic,
+    subtopic: inputs?.subtopic,
+  })
+  const startedAt = Date.now()
+  try {
+    const result = await withTimeout(
+      generateFullLessonCallable(inputs),
+      HARD_CLIENT_TIMEOUT_MS,
+      'generateFullLesson',
+    )
+    console.info(
+      '[zedexams] generateFullLesson ← ok in',
+      Date.now() - startedAt, 'ms',
+      { generationId: result?.data?.generationId, warning: result?.data?.warning },
+    )
+    return { ok: true, data: result.data }
+  } catch (error) {
+    console.error('[zedexams] generateFullLesson ← FAILED after',
+      Date.now() - startedAt, 'ms',
+      { code: error?.code, message: error?.message },
+    )
+    return {
+      ok: false,
+      error: messageFromError(error),
+      code: error?.code || 'unknown',
+      rawMessage: error?.message || '',
+    }
+  }
+}
+
+/**
+ * Generate short take-home homework. Grounded on the stored curriculum
+ * module when grade+subject+topic+sub-topic+term resolve one.
+ */
+export async function generateHomework(inputs) {
+  console.info('[zedexams] generateHomework →', {
+    grade: inputs?.grade, subject: inputs?.subject,
+    topic: inputs?.topic, subtopic: inputs?.subtopic,
+  })
+  const startedAt = Date.now()
+  try {
+    const result = await withTimeout(
+      generateHomeworkCallable(inputs),
+      HARD_CLIENT_TIMEOUT_MS,
+      'generateHomework',
+    )
+    console.info('[zedexams] generateHomework ← ok in',
+      Date.now() - startedAt, 'ms',
+      { generationId: result?.data?.generationId, warning: result?.data?.warning })
+    return { ok: true, data: result.data }
+  } catch (error) {
+    console.error('[zedexams] generateHomework ← FAILED after',
+      Date.now() - startedAt, 'ms',
+      { code: error?.code, message: error?.message },
+    )
+    return {
+      ok: false,
+      error: messageFromError(error),
+      code: error?.code || 'unknown',
+      rawMessage: error?.message || '',
+    }
+  }
+}
+
+/**
+ * Generate a formal graded assessment. Grounded on the stored curriculum
+ * module when grade+subject+topic+sub-topic+term resolve one. (Distinct
+ * from the quiz-editor Assessment Studio — this is a saved, exportable
+ * assessment document.)
+ */
+export async function generateAssessment(inputs) {
+  console.info('[zedexams] generateAssessment →', {
+    grade: inputs?.grade, subject: inputs?.subject,
+    topic: inputs?.topic, subtopic: inputs?.subtopic,
+  })
+  const startedAt = Date.now()
+  try {
+    const result = await withTimeout(
+      generateAssessmentCallable(inputs),
+      HARD_CLIENT_TIMEOUT_MS,
+      'generateAssessment',
+    )
+    console.info('[zedexams] generateAssessment ← ok in',
+      Date.now() - startedAt, 'ms',
+      { generationId: result?.data?.generationId, warning: result?.data?.warning })
+    return { ok: true, data: result.data }
+  } catch (error) {
+    console.error('[zedexams] generateAssessment ← FAILED after',
+      Date.now() - startedAt, 'ms',
+      { code: error?.code, message: error?.message },
+    )
+    return {
+      ok: false,
+      error: messageFromError(error),
+      code: error?.code || 'unknown',
+      rawMessage: error?.message || '',
+    }
+  }
+}
+
+/**
+ * Generate a short formative quiz. Grounded on the stored curriculum module
+ * when grade+subject+topic+sub-topic+term resolve one. Distinct from the
+ * quiz-editor / Vex subsystem — this is a saved, exportable quiz document.
+ */
+export async function generateQuiz(inputs) {
+  console.info('[zedexams] generateQuiz →', {
+    grade: inputs?.grade, subject: inputs?.subject,
+    topic: inputs?.topic, subtopic: inputs?.subtopic,
+  })
+  const startedAt = Date.now()
+  try {
+    const result = await withTimeout(
+      generateQuizCallable(inputs),
+      HARD_CLIENT_TIMEOUT_MS,
+      'generateQuiz',
+    )
+    console.info('[zedexams] generateQuiz ← ok in',
+      Date.now() - startedAt, 'ms',
+      { generationId: result?.data?.generationId, warning: result?.data?.warning })
+    return { ok: true, data: result.data }
+  } catch (error) {
+    console.error('[zedexams] generateQuiz ← FAILED after',
+      Date.now() - startedAt, 'ms',
+      { code: error?.code, message: error?.message },
     )
     return {
       ok: false,

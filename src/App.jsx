@@ -14,9 +14,10 @@ import OfflineBanner from './components/ui/OfflineBanner'
 import UpdatePrompt from './components/ui/UpdatePrompt'
 import CookieConsentBanner from './components/ui/CookieConsentBanner'
 import ZedChatLauncher from './components/ai/ZedChatLauncher'
+import AdminDebugPanel from './components/admin/AdminDebugPanel'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 
-// Auth/legal routes always render in the brand-default Sky theme so a
+// Auth/legal routes always render in the brand-default theme so a
 // visitor's previously-saved preference (e.g. Vivid's deep violet bg)
 // can't bleed onto the light-only login/register/legal screens. The
 // saved theme applies again as soon as they land on an authenticated
@@ -25,7 +26,7 @@ import ErrorBoundary from './components/ui/ErrorBoundary'
 // The marketing landing page ('/') is intentionally NOT pinned here: it
 // follows the active/saved theme so it matches the in-app look for
 // returning users. New visitors have no saved preference, so it still
-// resolves to the Sky default via resolveInitialTheme().
+// resolves to the brand default via resolveInitialTheme().
 const PUBLIC_THEME_PATHS = new Set([
   '/login', '/register', '/auth/action',
   '/pricing', '/privacy', '/terms', '/status',
@@ -38,7 +39,7 @@ function isPublicThemePath(pathname) {
   if (pathname.startsWith('/parent/')) return true
   if (pathname === '/blog' || pathname.startsWith('/blog/')) return true
   // /my-papers is auth-only but visually shares the past-paper
-  // theme so we keep it on the brand-default Sky.
+  // theme so we keep it on the brand default.
   if (pathname === '/my-papers') return true
   return false
 }
@@ -160,6 +161,12 @@ const AssessmentList = lazy(() => import('./components/teacher/AssessmentList'))
 
 // Teacher — AI Generators
 const LessonPlanStudio = lazy(() => import('./components/teacher/generate/LessonPlanStudio'))
+const LessonPlanGenerator = lazy(() => import('./components/teacher/generate/LessonPlanGenerator'))
+const CurriculumStudio = lazy(() => import('./components/teacher/generate/CurriculumStudio'))
+const FullLessonStudio = lazy(() => import('./components/teacher/generate/FullLessonStudio'))
+const HomeworkStudio = lazy(() => import('./components/teacher/generate/HomeworkStudio'))
+const AssessmentGenerator = lazy(() => import('./components/teacher/generate/AssessmentGenerator'))
+const QuizStudio = lazy(() => import('./components/teacher/generate/QuizStudio'))
 const WorksheetGenerator = lazy(() => import('./components/teacher/generate/WorksheetGenerator'))
 const FlashcardGenerator = lazy(() => import('./components/teacher/generate/FlashcardGenerator'))
 const SchemeOfWorkGenerator = lazy(() => import('./components/teacher/generate/SchemeOfWorkGenerator'))
@@ -342,6 +349,8 @@ export default function App() {
           bottom-right that opens a slide-over chat. Self-hides on
           marketing/auth/admin routes and during quiz / exam runs. */}
       <ZedChatLauncher />
+      {/* Super-admin diagnostics — self-hides for every non-admin account. */}
+      <AdminDebugPanel />
       {/* Cookie consent (audit D2) — first-visit banner, decline-by-
           default. Self-hides once a decision is recorded. */}
       <CookieConsentBanner />
@@ -495,6 +504,12 @@ export default function App() {
           <Route path="/teacher/lessons/new"             element={<TeacherRoute><LessonEditor /></TeacherRoute>} />
           <Route path="/teacher/lessons/:lessonId/edit"  element={<TeacherRoute><LessonEditor /></TeacherRoute>} />
           <Route path="/teacher/generate/lesson-plan"    element={<ProtectedRoute requiredRole="teacher"><LessonPlanStudio /></ProtectedRoute>} />
+          <Route path="/teacher/generate/lesson-plan-cbc" element={<TeacherRoute><LessonPlanGenerator /></TeacherRoute>} />
+          <Route path="/teacher/generate/curriculum-studio" element={<TeacherRoute><CurriculumStudio /></TeacherRoute>} />
+          <Route path="/teacher/generate/full-lesson"    element={<TeacherRoute><FullLessonStudio /></TeacherRoute>} />
+          <Route path="/teacher/generate/homework"       element={<TeacherRoute><HomeworkStudio /></TeacherRoute>} />
+          <Route path="/teacher/generate/assessment"     element={<TeacherRoute><AssessmentGenerator /></TeacherRoute>} />
+          <Route path="/teacher/generate/quiz"           element={<TeacherRoute><QuizStudio /></TeacherRoute>} />
           <Route path="/teacher/generate/worksheet"      element={<TeacherRoute><WorksheetGenerator /></TeacherRoute>} />
           <Route path="/teacher/generate/flashcards"     element={<TeacherRoute><FlashcardGenerator /></TeacherRoute>} />
           <Route path="/teacher/generate/scheme-of-work" element={<TeacherRoute><SchemeOfWorkGenerator /></TeacherRoute>} />

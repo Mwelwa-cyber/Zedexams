@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { getRoleLandingPath } from '../../utils/navigation'
 import PageLoader from '../ui/PageLoader'
 
-const ROLE_LEVEL = { admin: 3, teacher: 2, learner: 1, student: 1 }
+const ROLE_LEVEL = { superAdmin: 4, admin: 3, teacher: 2, learner: 1, student: 1 }
 
 export default function ProtectedRoute({ children, requiredRole }) {
   const { currentUser, userProfile, loading, profileIssue } = useAuth()

@@ -67,6 +67,18 @@ const {
 const {
   createGenerateNotes,
 } = require("./teacherTools/generateNotes");
+const {
+  createGenerateFullLesson,
+} = require("./teacherTools/generateFullLesson");
+const {
+  createGenerateHomework,
+} = require("./teacherTools/generateHomework");
+const {
+  createGenerateAssessment,
+} = require("./teacherTools/generateAssessment");
+const {
+  createGenerateQuiz,
+} = require("./teacherTools/generateQuiz");
 // Teacher Tools — Diagram Generator (Recraft, B&W line art for assessments).
 const {
   createGenerateDiagram,
@@ -87,6 +99,10 @@ const {
 const {
   importBuiltInCbcTopics,
 } = require("./teacherTools/importBuiltInCbcTopics");
+// Teacher Tools — bulk import lesson-level curriculum modules (admin-only).
+const {
+  importCurriculumModules,
+} = require("./teacherTools/importCurriculumModules");
 // CBC knowledge base — used to ground AI quiz questions in the Zambian
 // syllabus. resolveCbcContext returns a rendered <cbc_context> block plus
 // a human-readable warning if the topic wasn't found in the verified KB.
@@ -473,8 +489,8 @@ function buildBootstrappedUserProfile({
     authUser?.displayName || fallbackName,
     120,
   ) || "ZedExams User";
-  const role = tokenRole === "admin" ?
-    "admin" :
+  const role = (tokenRole === "admin" || tokenRole === "superAdmin") ?
+    tokenRole :
     resolveInitialUserRole(email);
 
   return {
@@ -861,7 +877,7 @@ exports.resendInvoiceEmail = onCall({
   const db = admin.firestore();
   const callerSnap = await db.collection("users").doc(uid).get();
   const callerRole = callerSnap.exists ? (callerSnap.data() || {}).role : null;
-  const isAdmin = callerRole === "admin";
+  const isAdmin = callerRole === "admin" || callerRole === "superAdmin";
 
   const invoiceSnap = await db.collection("invoices").doc(invoiceId).get();
   if (!invoiceSnap.exists) {
@@ -1383,7 +1399,7 @@ exports.apiMomoPaymentStatus = onRequest(
       const paymentData = paymentSnap.data();
       if (paymentData.userId !== decoded.uid) {
         const requester = await getUserProfileOrThrow(decoded.uid);
-        if (requester.role !== "admin") {
+        if (requester.role !== "admin" && requester.role !== "superAdmin") {
           throw new HttpsError(
             "permission-denied",
             "You can only view your own payment.",
@@ -2025,6 +2041,18 @@ exports.generateRubric = createGenerateRubric(anthropicApiKey);
 // Teacher Tools — Notes Studio (teacher delivery notes).
 exports.generateNotes = createGenerateNotes(anthropicApiKey);
 
+// Teacher Tools — Full Lesson (complete, ready-to-deliver CBC lesson).
+exports.generateFullLesson = createGenerateFullLesson(anthropicApiKey);
+
+// Teacher Tools — Homework (short curriculum-grounded take-home practice).
+exports.generateHomework = createGenerateHomework(anthropicApiKey);
+
+// Teacher Tools — Assessment (formal curriculum-grounded graded test).
+exports.generateAssessment = createGenerateAssessment(anthropicApiKey);
+
+// Teacher Tools — Quiz (short curriculum-grounded formative quiz).
+exports.generateQuiz = createGenerateQuiz(anthropicApiKey);
+
 // Teacher Tools — Diagram Generator (Recraft, B&W line art for assessments).
 // When OPENAI_API_KEY is set, generateDiagram exposes a photoreal style
 // toggle that routes through gpt-image-1. Recraft remains the default
@@ -2044,6 +2072,9 @@ exports.reviseQuestion = createReviseQuestion(anthropicApiKey);
 
 // Teacher Tools — admin-only: import the built-in G1-9 topics into Firestore.
 exports.importBuiltInCbcTopics = importBuiltInCbcTopics;
+
+// Teacher Tools — admin-only: bulk import lesson-level curriculum modules.
+exports.importCurriculumModules = importCurriculumModules;
 
 // Teacher Tools — Lesson Plan Studio (vanilla JS studio endpoint).
 exports.studioGenerateLessonPlan = createStudioGenerateLessonPlan(anthropicApiKey);
@@ -2191,7 +2222,7 @@ exports.bulkGrantDemoTrials = onCall({
   const db = admin.firestore();
   const callerSnap = await db.collection("users").doc(callerUid).get();
   const callerRole = callerSnap.exists ? (callerSnap.data() || {}).role : null;
-  if (callerRole !== "admin") {
+  if (callerRole !== "admin" && callerRole !== "superAdmin") {
     throw new HttpsError("permission-denied", "Admin access required.");
   }
 

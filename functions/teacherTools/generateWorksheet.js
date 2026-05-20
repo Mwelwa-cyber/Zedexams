@@ -30,6 +30,7 @@ const {validateWorksheet} = require("./worksheetSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
   require("./worksheetPrompt");
 const {assertAndIncrement} = require("./usageMeter");
+const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
 
 // Worksheet-specific model. Haiku is ~5× cheaper and plenty capable for
 // structured Q&A generation. Teacher can override via an admin toggle later.
@@ -109,6 +110,7 @@ const ALLOWED_LANGUAGES = new Set([
   "english", "bemba", "nyanja", "tonga", "lozi", "kaonde", "lunda", "luvale",
 ]);
 const ALLOWED_DIFFICULTIES = new Set(["easy", "medium", "hard", "mixed"]);
+const LE_VALUES = new Set(LEARNING_ENVIRONMENT_VALUES);
 
 function sanitizeInputs(raw = {}) {
   const str = (v, max) => (typeof v === "string" ?
@@ -120,11 +122,24 @@ function sanitizeInputs(raw = {}) {
   const language = str(raw.language || "english", 20).toLowerCase();
   const difficulty = str(raw.difficulty || "mixed", 10).toLowerCase();
 
+  // Optional curriculum-module selectors. Absent/0 → null so behaviour is
+  // unchanged from before this upgrade when they aren't supplied.
+  const term = Math.round(num(raw.term, 0));
+  const lessonNumber = Math.round(num(raw.lessonNumber, 0));
+  const totalLessons = Math.round(num(raw.totalLessons, 0));
+  const learningEnvironment = str(raw.learningEnvironment, 40)
+    .toLowerCase().replace(/[^a-z_]/g, "_");
+
   return {
     grade,
     subject,
     topic: str(raw.topic, 120),
     subtopic: str(raw.subtopic, 160),
+    term: term >= 1 && term <= 3 ? term : null,
+    lessonNumber: lessonNumber >= 1 ? lessonNumber : null,
+    totalLessons: totalLessons >= 1 ? totalLessons : null,
+    learningEnvironment: LE_VALUES.has(learningEnvironment) ?
+      learningEnvironment : "",
     count: Math.min(25, Math.max(3, Math.round(num(raw.count, 10)))),
     difficulty: ALLOWED_DIFFICULTIES.has(difficulty) ? difficulty : "mixed",
     durationMinutes: Math.min(120, Math.max(10, Math.round(num(raw.durationMinutes, 30)))),
@@ -166,6 +181,11 @@ async function runWorksheet({uid, rawInputs, apiKey, onProgress}) {
       subject: inputs.subject,
       topic: inputs.topic,
       subtopic: inputs.subtopic,
+      term: inputs.term,
+      lessonNumber: inputs.lessonNumber,
+      totalLessons: inputs.totalLessons,
+      learningEnvironment: inputs.learningEnvironment,
+      ownerUid: uid,
     }),
     assertAndIncrement(uid, "worksheet"),
   ]);

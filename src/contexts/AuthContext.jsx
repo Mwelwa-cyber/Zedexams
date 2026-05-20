@@ -12,6 +12,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions'
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
 import app, { auth, db, googleProvider } from '../firebase/config'
 import { ROLES, hasPremiumAccess, hasLearnerPortalAccess } from '../utils/subscriptionConfig'
+import { isSuperAdmin as isSuperAdminRole, resolvePermissionFlags } from '../utils/permissions'
 import { setSentryUser, clearSentryUser } from '../utils/sentry'
 import { capture, identifyUser, resetAnalytics } from '../utils/analytics'
 import { refreshTokenIfGranted } from '../utils/fcm'
@@ -247,13 +248,18 @@ export function AuthProvider({ children }) {
     return updateProfileFields({ grade: Number(newGrade) })
   }
 
+  // Admin & superAdmin are equivalent everywhere — both get full access.
+  const isSuperAdmin = isSuperAdminRole(userProfile)
   const isLearner  = userProfile?.role === ROLES.LEARNER
-  const isTeacher  = userProfile?.role === ROLES.TEACHER || userProfile?.role === ROLES.ADMIN
-  const isAdmin    = userProfile?.role === ROLES.ADMIN
-  // True only when the role is *exactly* admin. Use this for admin-only
-  // UI (settings, audit log, user suspension) so a teacher acting through
-  // the legacy `isTeacher` overlap above can't sneak past.
-  const isAdminOnly = userProfile?.role === ROLES.ADMIN
+  const isTeacher  = userProfile?.role === ROLES.TEACHER || isSuperAdmin
+  const isAdmin    = isSuperAdmin
+  // True for admin / superAdmin only. Use this for admin-only UI (settings,
+  // audit log, user suspension) so a teacher acting through the legacy
+  // `isTeacher` overlap above can't sneak past.
+  const isAdminOnly = isSuperAdmin
+  // Effective per-feature permission flags. Super admins always get the
+  // full set regardless of what the Firestore profile stores.
+  const permissions = resolvePermissionFlags(userProfile)
   // Account lifecycle status. Defaults to 'active' for legacy records that
   // pre-date the soft-suspend field so existing users keep their access.
   const userStatus = userProfile?.status || 'active'
@@ -384,7 +390,8 @@ export function AuthProvider({ children }) {
       currentUser, userProfile, loading, profileIssue,
       login, loginWithGoogle, register, logout, resetPassword,
       fetchUserProfile, ensureUserProfile, refreshProfile, updateProfileFields, updateLearnerGrade,
-      isLearner, isTeacher, isAdmin, isAdminOnly, isPremium, isPaidTeacher, canAccessFullContent, canAccessLearnerPortal,
+      isLearner, isTeacher, isAdmin, isAdminOnly, isSuperAdmin, isPremium, isPaidTeacher, canAccessFullContent, canAccessLearnerPortal,
+      permissions,
       userStatus, isSuspended,
     }}>
       {children}
