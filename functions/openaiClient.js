@@ -63,6 +63,18 @@ async function callOpenAIImage(apiKey, opts = {}) {
   if (!res.ok) {
     const errBody = await res.text().catch(() => "");
     console.error("OpenAI image error", {status: res.status, model, body: errBody.slice(0, 400)});
+    if (res.status === 401) {
+      throw new HttpsError(
+        "failed-precondition",
+        "OpenAI key looks invalid — admin needs to rotate OPENAI_API_KEY in Firebase Secrets.",
+      );
+    }
+    if (res.status === 429) {
+      throw new HttpsError(
+        "resource-exhausted",
+        "OpenAI image API is rate-limited. Wait a moment and try again.",
+      );
+    }
     throw new HttpsError(
       "internal",
       `OpenAI image request failed (${res.status}). Please try again.`,

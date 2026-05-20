@@ -31,6 +31,14 @@ function messageFromError(error) {
   if (code.includes('failed-precondition') && /not configured/i.test(msg)) {
     return 'Diagram generation is not available — admin needs to configure the Recraft key.'
   }
+  if (code.includes('failed-precondition') && /openai key looks invalid/i.test(msg)) {
+    // Pass the diagnostic through verbatim — it tells the admin exactly which
+    // secret to rotate. Surfaced when OpenAI returns 401 from generateDiagram.
+    return msg
+  }
+  if (code.includes('resource-exhausted') && /openai image api is rate-limited/i.test(msg)) {
+    return msg
+  }
   if (code.includes('resource-exhausted')) {
     return 'Monthly diagram limit reached. Upgrade your plan or try again next month.'
   }
