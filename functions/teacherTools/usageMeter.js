@@ -79,9 +79,23 @@ function periodBounds(period) {
   };
 }
 
+// Mirrors src/utils/permissions.js isSuperAdmin(). Kept inline so this
+// module stays dependency-free for the functions bundle.
+function isSuperAdminRole(role) {
+  return role === "admin" || role === "superAdmin";
+}
+
 async function getUserTeacherPlan(uid) {
   const snap = await admin.firestore().doc(`users/${uid}`).get();
   const data = snap.exists ? (snap.data() || {}) : {};
+
+  // Super admins always get the highest tier so they can exercise every
+  // tool without hitting per-month quotas during testing or moderation.
+  // No expiry check — the role itself is the entitlement.
+  if (isSuperAdminRole(data.role)) {
+    return "school";
+  }
+
   const plan = data.teacherPlan;
   if (plan === "individual" || plan === "school") {
     // honour expiry if present
