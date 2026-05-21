@@ -106,8 +106,9 @@ export default function GamesHub() {
   const hotGames = buildHotGames(state.games, state.history, state.challenge?.game)
 
   const subjectCards = SUBJECTS.map((subject) => {
-    const progress = buildSubjectProgress(subject.slug, state.games, state.history)
-    return { subject, progress }
+    const grade = pickGradeForSubject(state.games, subject.slug)
+    const progress = buildSubjectProgress(subject.slug, state.games, state.history, grade)
+    return { subject, progress, grade }
   })
 
   const stats = [
@@ -159,12 +160,12 @@ export default function GamesHub() {
             <SubjectGridSkeleton />
           ) : (
             <div className="grid grid-cols-2 gap-3.5 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4 lg:gap-5">
-              {subjectCards.map(({ subject, progress }) => (
+              {subjectCards.map(({ subject, progress, grade }) => (
                 <SubjectTile
                   key={subject.slug}
                   subject={subject}
                   progress={progress}
-                  href={`/games/g/${pickGradeForSubject(state.games, subject.slug)}/${subject.slug}`}
+                  href={`/games/g/${grade}/${subject.slug}`}
                 />
               ))}
             </div>

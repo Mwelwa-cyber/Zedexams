@@ -233,9 +233,18 @@ export function getDurationLabel(game) {
   return timer > 0 ? `${timer}s` : 'Quick play'
 }
 
-export function buildSubjectProgress(subjectSlug, games, history) {
-  const totalGames = games.filter((game) => String(game.subject || '').toLowerCase() === subjectSlug).length
-  const plays = history.filter((entry) => String(entry.subject || '').toLowerCase() === subjectSlug).length
+export function buildSubjectProgress(subjectSlug, games, history, gradeValue = null) {
+  const grade = gradeValue == null ? null : Number(gradeValue)
+  const matchesScope = (entry) => {
+    if (String(entry.subject || '').toLowerCase() !== subjectSlug) return false
+    if (grade == null) return true
+    return Number(entry.grade) === grade
+  }
+  const totalGames = games.filter(matchesScope).length
+  const uniquePlayedIds = new Set(
+    history.filter(matchesScope).map((entry) => entry.gameId).filter(Boolean),
+  )
+  const plays = Math.min(uniquePlayedIds.size, totalGames)
   const progress = totalGames ? Math.min(100, Math.round((plays / totalGames) * 100)) : 0
   return { totalGames, plays, progress }
 }
