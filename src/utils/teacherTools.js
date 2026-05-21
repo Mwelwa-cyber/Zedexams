@@ -659,12 +659,18 @@ function runStreamingGenerator({
           const raw = line.slice(6).trim()
           if (!raw || raw === '[DONE]') continue
           if (raw.startsWith('[ERROR]')) {
+            // Parse first, then throw outside the try — otherwise the
+            // catch swallows our own throw and the server's real error
+            // message ("AI is temporarily unavailable.", "permission-denied:
+            // …", etc.) is replaced with the generic fallback.
+            let serverError
             try {
-              const { error } = JSON.parse(raw.slice(7).trim())
-              throw new Error(error || 'Generation failed.')
-            } catch (parseErr) {
-              throw new Error('Generation failed. Please try again.')
+              const payload = JSON.parse(raw.slice(7).trim())
+              serverError = payload?.error
+            } catch {
+              /* keep serverError undefined → falls through to generic */
             }
+            throw new Error(serverError || 'Generation failed. Please try again.')
           }
           let payload
           try { payload = JSON.parse(raw) } catch { continue }
