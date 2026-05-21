@@ -479,22 +479,47 @@ export function useFirestore() {
 
   // Cheap dashboard counts via Firestore aggregation. Each call costs
   // ~1 read regardless of collection size — use this instead of
-  // getAll*().length when you only need totals.
+  // getAll*().length when you only need totals. The learner total
+  // subtracts suspended + soft-deleted accounts so it matches the row
+  // count shown on /admin/learners.
   async function getDashboardCounts() {
     try {
-      const [lessonsAgg, quizzesAgg, learnersAgg, studentsAgg, resultsAgg, pendingQuizAgg, pendingLessonAgg] = await Promise.all([
+      const learnerRoles = ['learner', 'student']
+      const [
+        lessonsAgg,
+        quizzesAgg,
+        learnersAgg,
+        studentsAgg,
+        suspendedLearnersAgg,
+        deletedLearnersAgg,
+        resultsAgg,
+        pendingQuizAgg,
+        pendingLessonAgg,
+      ] = await Promise.all([
         getCountFromServer(collection(db, 'lessons')),
         getCountFromServer(collection(db, 'quizzes')),
         getCountFromServer(query(collection(db, 'users'), where('role', '==', 'learner'))),
         getCountFromServer(query(collection(db, 'users'), where('role', '==', 'student'))),
+        getCountFromServer(query(
+          collection(db, 'users'),
+          where('role', 'in', learnerRoles),
+          where('status', '==', 'suspended'),
+        )),
+        getCountFromServer(query(
+          collection(db, 'users'),
+          where('role', 'in', learnerRoles),
+          where('status', '==', 'deleted'),
+        )),
         getCountFromServer(collection(db, 'results')),
         getCountFromServer(query(collection(db, 'quizzes'), where('status', '==', 'pending'))),
         getCountFromServer(query(collection(db, 'lessons'), where('status', '==', 'pending'))),
       ])
+      const totalLearners    = learnersAgg.data().count + studentsAgg.data().count
+      const inactiveLearners = suspendedLearnersAgg.data().count + deletedLearnersAgg.data().count
       return {
         lessons:  lessonsAgg.data().count,
         quizzes:  quizzesAgg.data().count,
-        learners: learnersAgg.data().count + studentsAgg.data().count,
+        learners: Math.max(0, totalLearners - inactiveLearners),
         results:  resultsAgg.data().count,
         pending:  pendingQuizAgg.data().count + pendingLessonAgg.data().count,
       }
