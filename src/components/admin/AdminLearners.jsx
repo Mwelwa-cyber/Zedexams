@@ -109,8 +109,16 @@ export default function AdminLearners() {
     return map
   }, [results])
 
+  // Exclude suspended + soft-deleted accounts so the row count here
+  // matches the "Learners" tile on the admin dashboard. Docs missing
+  // the lifecycle `status` field are treated as active (same convention
+  // as AdminUsersList and the user-create firestore rule default).
   const learners = useMemo(
-    () => users.filter(u => u.role === 'learner' || u.role === 'student'),
+    () => users.filter(u => {
+      if (u.role !== 'learner' && u.role !== 'student') return false
+      const status = u.status || 'active'
+      return status !== 'suspended' && status !== 'deleted'
+    }),
     [users],
   )
 
