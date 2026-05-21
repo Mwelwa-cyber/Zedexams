@@ -278,7 +278,7 @@ export const TOPICS = {
     4: ['Parts of a Computer', 'Using a Keyboard', 'Digital Safety', 'Simple Machines', 'Technology Around Us', 'Problem Solving'],
     5: ['Computer Applications', 'Internet Basics', 'Digital Communication', 'Technology Design', 'Coding Introduction', 'Media Literacy'],
     6: ['Spreadsheets & Data', 'Web Research Skills', 'Digital Citizenship', 'Programming Concepts', 'Technology & Society', 'Cybersecurity Basics'],
-    7: ['Word Processing & Documents', 'Spreadsheets & Charts', 'Online Research & Safety', 'Block Programming', 'Hardware & Networks', 'Tech Project Design'],
+    7: ['Drawing', 'Construction', 'Calculator', 'Energy', 'The Internet', 'Searching and Retrieving Information', 'Entrepreneurship'],
   },
   cinyanja: {
     4: ['Zilembo & Mawu (Letters & Words)', 'Kuwerenga Nkhani (Reading Stories)', 'Kulemba Mawu (Writing Words)', 'Mawu Otsutsana (Opposites)', 'Miyambi (Proverbs)', 'Nyimbo & Ndakatulo (Songs & Poems)'],
