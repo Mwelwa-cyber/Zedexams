@@ -266,7 +266,7 @@ export const TOPICS = {
     4: ['My Community', 'Local Government', 'Zambia — Our Country', 'Natural Environment', 'Traditions & Culture', 'Basic Economics'],
     5: ['Zambia — History & Heritage', 'Provinces of Zambia', 'African Countries', 'Civic Rights & Responsibilities', 'Transport & Communication', 'Economic Activities'],
     6: ['Zambia\'s Independence', 'Regional Geography', 'Democracy & Governance', 'Conflict Resolution', 'Trade & Development', 'Global Citizenship'],
-    7: ['Pre-colonial & Colonial Zambia', 'Map Reading & Africa', 'Constitution & Human Rights', 'Sustainable Development', 'Population & Migration', 'Global Issues'],
+    7: ['Governance', 'The World', 'World Challenges', 'Religion', 'Farming', 'Transport and Communication'],
   },
   'expressive-arts': {
     4: ['Rhythm & Beats', 'Drawing & Colour', 'Storytelling & Drama', 'Folk Songs & Dance', 'Creative Play', 'Art Materials'],
@@ -416,6 +416,40 @@ export const SUBTOPICS = {
         'Collecting Data',
         'Data Presentation',
         'Mean, Mode and Median',
+      ],
+    },
+  },
+  'social-studies': {
+    7: {
+      'Governance': [
+        'Democratic Governance',
+        'Organs of Government',
+        'Government Ministries',
+        'Constitution',
+      ],
+      'The World': [
+        'Continents',
+        'Position of the Continents of the World',
+        'Physical Features of the World',
+      ],
+      'World Challenges': [
+        'Population Growth',
+        'Corruption',
+        'Food Shortage',
+        'HIV and AIDS',
+        'Pollution',
+        'Other World Challenges',
+      ],
+      'Religion': [
+        'The Family',
+      ],
+      'Farming': [
+        'World Farming Regions',
+      ],
+      'Transport and Communication': [
+        'Transport and Communication Services Among SADC and COMESA',
+        'Road Safety',
+        'Safe Cycling',
       ],
     },
   },
