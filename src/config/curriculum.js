@@ -254,7 +254,7 @@ export const TOPICS = {
     4: ['Living & Non-living Things', 'Plants', 'Animals', 'Matter & Materials', 'Forces & Motion', 'Light & Sound'],
     5: ['Plant Life Cycles', 'Animal Adaptations', 'States of Matter', 'Electricity Basics', 'Earth & Soil', 'Weather & Climate'],
     6: ['Human Body Systems', 'Ecosystems & Food Chains', 'Chemical Changes', 'Simple Machines', 'Energy Sources', 'Environmental Issues'],
-    7: ['Cells & Body Systems', 'Reproduction in Plants & Animals', 'Mixtures & Separation', 'Electricity & Magnetism', 'Energy Transfer', 'Health & Diseases'],
+    7: ['The Human Body', 'Health', 'The Environment', 'Plants and Animals', 'Materials and Energy'],
   },
   mathematics: {
     4: ['Whole Numbers', 'Addition & Subtraction', 'Multiplication & Division', 'Fractions', 'Measurement', 'Geometry Basics', 'Data Handling'],
@@ -291,6 +291,28 @@ export const TOPICS = {
     5: ['Nutrition & Meal Planning', 'Cooking Methods', 'Laundry & Clothing Care', 'Home Organisation', 'Consumer Skills', 'First Aid Basics'],
     6: ['Advanced Cooking', 'Clothing & Textiles', 'Home Design', 'Entrepreneurship Basics', 'Family Health', 'Budgeting & Finance'],
     7: ['Food Preservation', 'Sewing & Garment Care', 'Hospitality Skills', 'Home Economics Enterprise', 'Health & First Aid', 'Consumer Rights'],
+  },
+}
+
+/**
+ * Subtopics per topic per grade per subject.
+ *
+ * Opt-in: only entries listed here render the two-level (topic → subtopic →
+ * quizzes) course map. Subjects/grades absent from this map continue to use
+ * the flat topic list returned by getTopics().
+ *
+ * Source of truth for Grade 7 Science: Chrisaivans Integrated Science
+ * textbook table of contents.
+ */
+export const SUBTOPICS = {
+  science: {
+    7: {
+      'The Human Body':     ['Digestive System'],
+      'Health':             ['Diseases', 'Fruits'],
+      'The Environment':    ['Separating Substances', 'Water Supply Systems'],
+      'Plants and Animals': ['The Flower', 'Pollination and Fertilisation in Flowering Plants', 'Fruits and Seeds', 'Seed Dispersal', 'Propagation'],
+      'Materials and Energy': ['Energy', 'Electric Current and Circuits', 'Lightning', 'The Solar System', 'Metals and Non-metals', 'Mining'],
+    },
   },
 }
 
@@ -361,6 +383,11 @@ export const GRADE_META = {
 /** Helper — return topics for a specific grade + subject */
 export function getTopics(subjectId, grade) {
   return TOPICS[subjectId]?.[grade] ?? []
+}
+
+/** Helper — return subtopics for a specific topic within a grade + subject */
+export function getSubtopics(subjectId, grade, topic) {
+  return SUBTOPICS[subjectId]?.[grade]?.[topic] ?? []
 }
 
 /** Helper — return competencies for a subject */
