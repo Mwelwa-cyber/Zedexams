@@ -89,7 +89,7 @@ export default function SubjectSelector() {
       ) : (
         <div className="grid gap-3.5 grid-cols-2 sm:gap-4 sm:grid-cols-3 lg:grid-cols-4 lg:gap-5">
           {SUBJECTS.map((subject) => {
-            const progress = buildSubjectProgress(subject.slug, state.games, state.history)
+            const progress = buildSubjectProgress(subject.slug, state.games, state.history, gradeMeta.value)
             return (
               <SubjectProgressCard
                 key={subject.slug}
