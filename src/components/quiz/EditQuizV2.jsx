@@ -50,8 +50,10 @@ const GRADES = ['4', '5', '6', '7']
 const TERMS = ['1', '2', '3']
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
-const FIELD = 'theme-input w-full rounded-xl border-2 px-3 py-2.5 text-sm placeholder:text-gray-400 outline-none transition-colors focus:border-[var(--accent)]'
-const SELECT = 'theme-input rounded-xl border-2 px-3 py-2.5 text-sm outline-none transition-colors focus:border-[var(--accent)]'
+// text-base (16 px) on phones avoids iOS Safari's auto-zoom-on-focus;
+// shrinks back to text-sm (14 px) at the sm breakpoint to match desktop layout.
+const FIELD = 'theme-input w-full rounded-xl border-2 px-3 py-2.5 text-base sm:text-sm placeholder:text-gray-400 outline-none transition-colors focus:border-[var(--accent)]'
+const SELECT = 'theme-input rounded-xl border-2 px-3 py-2.5 text-base sm:text-sm outline-none transition-colors focus:border-[var(--accent)]'
 
 // Auto-save state machine. Kept as a frozen object so a typo (e.g.
 // AUTO_SAVE.SVING) fails fast at dev time instead of becoming a silent
@@ -1164,7 +1166,7 @@ export default function EditQuizV2() {
             <select value={form.term} onChange={event => setF('term', event.target.value)} className={SELECT}>{termOptions.map(term => <option key={term} value={term}>Term {term}</option>)}</select>
             <div className="theme-border flex items-center gap-2 rounded-xl border-2 px-3 py-2.5">
               <span className="theme-text-muted whitespace-nowrap text-xs font-bold">⏱️ Mins</span>
-              <input type="number" min={5} max={180} value={form.duration} onChange={event => setF('duration', clampInt(event.target.value, 5, 180, 30))} className="flex-1 bg-transparent text-sm font-black outline-none" />
+              <input type="number" min={5} max={180} value={form.duration} onChange={event => setF('duration', clampInt(event.target.value, 5, 180, 30))} className="flex-1 bg-transparent text-base sm:text-sm font-black outline-none" />
             </div>
           </div>
         </div>

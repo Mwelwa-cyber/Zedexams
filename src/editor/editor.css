@@ -983,6 +983,23 @@
   .tbb, .sym-tab, .sbtn, .tc { min-height: 36px; }
   .tbb { padding: 8px 10px; }
 
+  /* iOS Safari auto-zooms on focus when an editable field's computed
+     font-size is < 16 px. Bump every editable surface in the quiz
+     editor to 16 px on phones so tapping a question, option, or the
+     rich-text body no longer zooms the page. Desktop sizing (14 px)
+     is preserved above the breakpoint. */
+  .editor-area,
+  .qe-inp,
+  .qe-sel,
+  .va-line-input,
+  .va-answer-input,
+  .modal input[type="text"],
+  .modal input[type="number"],
+  .modal textarea,
+  .modal select {
+    font-size: 16px;
+  }
+
   /* Compact math toolbar on phones: keep only the headline "Math"
      and "Fraction" buttons inline; everything else moves into the
      "+Math" overflow sheet. */
