@@ -14,7 +14,6 @@ import OfflineBanner from './components/ui/OfflineBanner'
 import UpdatePrompt from './components/ui/UpdatePrompt'
 import CookieConsentBanner from './components/ui/CookieConsentBanner'
 import ZedChatLauncher from './components/ai/ZedChatLauncher'
-import AdminDebugPanel from './components/admin/AdminDebugPanel'
 import ErrorBoundary from './components/ui/ErrorBoundary'
 
 // Auth/legal routes always render in the brand-default theme so a
@@ -349,8 +348,6 @@ export default function App() {
           bottom-right that opens a slide-over chat. Self-hides on
           marketing/auth/admin routes and during quiz / exam runs. */}
       <ZedChatLauncher />
-      {/* Super-admin diagnostics — self-hides for every non-admin account. */}
-      <AdminDebugPanel />
       {/* Cookie consent (audit D2) — first-visit banner, decline-by-
           default. Self-hides once a decision is recorded. */}
       <CookieConsentBanner />
