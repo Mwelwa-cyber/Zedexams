@@ -2085,6 +2085,17 @@ exports.studioGenerateLessonPlan = createStudioGenerateLessonPlan(anthropicApiKe
 exports.agentJobsOnCreate = createAgentJobsOnCreate(anthropicApiKey);
 exports.agentJobsOnApproved = createAgentJobsOnApproved();
 
+// Storage cleanup — cascade-deletes Storage blobs when their parent
+// Firestore docs are deleted, and removes orphans left behind by
+// image/file swaps. See functions/storageCleanup/index.js.
+const storageCleanup = require("./storageCleanup");
+exports.onLessonDeleted = storageCleanup.onLessonDeleted;
+exports.onLessonUpdated = storageCleanup.onLessonUpdated;
+exports.onQuizQuestionDeleted = storageCleanup.onQuizQuestionDeleted;
+exports.onQuizQuestionUpdated = storageCleanup.onQuizQuestionUpdated;
+exports.onAssessmentQuestionDeleted = storageCleanup.onAssessmentQuestionDeleted;
+exports.onAssessmentQuestionUpdated = storageCleanup.onAssessmentQuestionUpdated;
+
 // Quill — nightly QA smoke (Africa/Lusaka 02:00). Writes a summary
 // agentJobs doc the /admin/agents dashboard surfaces in QA / Eng.
 exports.nightlyQaSmoke = nightlyQaSmokeCron;
