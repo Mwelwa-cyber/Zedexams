@@ -27,7 +27,7 @@ import {
 import { useFirestore }     from '../../hooks/useFirestore'
 import { useSubscription }  from '../../hooks/useSubscription'
 import { useAuth }          from '../../contexts/AuthContext'
-import { SUBJECT_MAP, getTopics, getSubtopics } from '../../config/curriculum'
+import { SUBJECT_MAP, getTopics, getSubtopics, getTopicLabel } from '../../config/curriculum'
 import Icon                 from '../ui/Icon'
 import Skeleton             from '../ui/Skeleton'
 import SeoHelmet            from '../seo/SeoHelmet'
@@ -293,6 +293,7 @@ export default function SubjectDrillDown() {
   // Topic ordering comes from the canonical CBC curriculum so the page
   // reads like the syllabus even before any quizzes are published.
   const canonicalTopics = useMemo(() => (subject ? getTopics(subject.id, grade) : []), [subject, grade])
+  const topicLabel = useMemo(() => (subject ? getTopicLabel(subject.id, grade) : getTopicLabel()), [subject, grade])
   const topicSubtopics = useMemo(() => {
     if (!subject) return new Map()
     const m = new Map()
@@ -495,7 +496,7 @@ export default function SubjectDrillDown() {
                 {subject.label}
               </h2>
               <p className="mt-1 text-sm font-bold theme-text">
-                Grade {grade} · {canonicalTopics.length} topic{canonicalTopics.length === 1 ? '' : 's'}
+                Grade {grade} · {canonicalTopics.length} {canonicalTopics.length === 1 ? topicLabel.singular : topicLabel.plural}
                 {hasSubtopicTree ? ` · ${subtopicCount} subtopic${subtopicCount === 1 ? '' : 's'}` : ''}
                 {!loading ? ` · ${totalQuizzes} quiz${totalQuizzes === 1 ? '' : 'zes'}` : ''}
               </p>
@@ -512,7 +513,7 @@ export default function SubjectDrillDown() {
         <section className="space-y-3">
           <div className="flex items-center justify-between">
             <h2 className="learner-page-heading text-display-md flex items-center gap-2">
-              <Icon as={ClipboardList} size="lg" strokeWidth={2.1} /> Topics
+              <Icon as={ClipboardList} size="lg" strokeWidth={2.1} /> {topicLabel.titlePlural}
             </h2>
             <p className="text-xs font-bold theme-text-muted">
               {loading ? 'Loading…' : `${totalQuizzes} quiz${totalQuizzes === 1 ? '' : 'zes'}`}
@@ -556,7 +557,7 @@ export default function SubjectDrillDown() {
               <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl theme-accent-bg theme-accent-text">
                 <Icon as={PencilLine} size="lg" strokeWidth={2.1} />
               </div>
-              <p className="font-black theme-text">No topics yet</p>
+              <p className="font-black theme-text">No {topicLabel.plural} yet</p>
               <p className="theme-text-muted text-sm mt-1">
                 We&rsquo;re still building this subject for Grade {grade}. Check back soon.
               </p>

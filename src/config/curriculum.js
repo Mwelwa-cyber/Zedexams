@@ -260,7 +260,7 @@ export const TOPICS = {
     4: ['Whole Numbers', 'Addition & Subtraction', 'Multiplication & Division', 'Fractions', 'Measurement', 'Geometry Basics', 'Data Handling'],
     5: ['Large Numbers', 'Fractions & Decimals', 'Ratio & Proportion', 'Measurement & Units', 'Geometry & Area', 'Statistics & Graphs'],
     6: ['Integers', 'Algebra Basics', 'Percentages', 'Advanced Geometry', 'Probability', 'Advanced Statistics'],
-    7: ['Real Numbers & Operations', 'Algebraic Expressions', 'Equations & Inequalities', 'Mensuration & Area', 'Coordinate Geometry', 'Statistics & Probability'],
+    7: ['Unit 1: Fractions', 'Unit 2: Decimals', 'Unit 3: Percentages', 'Unit 4: Ratio and Proportion', 'Unit 5: Social and Commercial Arithmetic', 'Unit 6: Integers', 'Unit 7: Number Bases', 'Unit 8: Number and Sequence', 'Unit 9: Inequalities', 'Unit 10: Plane Shapes', 'Unit 11: Measurement', 'Unit 12: Solid Shapes', 'Unit 13: Statistics'],
   },
   'social-studies': {
     4: ['My Community', 'Local Government', 'Zambia — Our Country', 'Natural Environment', 'Traditions & Culture', 'Basic Economics'],
@@ -312,6 +312,111 @@ export const SUBTOPICS = {
       'The Environment':    ['Separating Substances', 'Water Supply Systems'],
       'Plants and Animals': ['The Flower', 'Pollination and Fertilisation in Flowering Plants', 'Fruits and Seeds', 'Seed Dispersal', 'Propagation'],
       'Materials and Energy': ['Energy', 'Electric Current and Circuits', 'Lightning', 'The Solar System', 'Metals and Non-metals', 'Mining'],
+    },
+  },
+  mathematics: {
+    7: {
+      'Unit 1: Fractions': [
+        'Operations on Fractions',
+        'Addition',
+        'Subtraction',
+        'Multiplication',
+        'Division',
+      ],
+      'Unit 2: Decimals': [
+        'Operations on Decimals',
+        'Addition and Subtraction',
+        'Multiplication',
+        'Division',
+        'Conversion of Fractions to Decimals',
+        'Conversion of Decimals to Fractions',
+        'Ordering Fractions and Decimals',
+        'Ordering Decimals',
+      ],
+      'Unit 3: Percentages': [
+        'Conversion of Decimals to Percentages',
+        'Conversion of Percentages to Decimals',
+        'Conversion of Fractions to Percentages',
+        'Conversion of Percentages to Fractions',
+        'Problems Involving Percentages and Application in Real Life',
+      ],
+      'Unit 4: Ratio and Proportion': [
+        'Direct Proportion',
+        'Inverse / Indirect Proportion',
+        'Graphs in Direct and Indirect Proportion',
+      ],
+      'Unit 5: Social and Commercial Arithmetic': [
+        'Foreign Exchange',
+        'Conversion of Currencies',
+        'Cost of Goods Priced in Foreign Currency',
+      ],
+      'Unit 6: Integers': [
+        'Directed Numbers or Integers',
+        'Integers on a Number Line',
+        'Ordering Integers',
+        'Adding Integers Using a Number Line',
+        'Subtracting Numbers Using a Number Line',
+        'Addition and Subtraction of Integers Without Using a Number Line',
+        'Real Life Problems Involving Addition and Subtraction of Integers',
+      ],
+      'Unit 7: Number Bases': [
+        'System of Numeration',
+        'Base Ten / Decimal System',
+        'Base Eight',
+        'Base Five / Quinary System',
+        'Base Two / Binary System',
+        'Conversion from Base 10 to Other Bases',
+        'Converting from Base Ten to Base Two',
+        'Converting from Base Ten to Base Five',
+        'Converting from Base Ten to Base Eight',
+        'Converting Numbers from Bases 2, 5 and 8 to Base 10',
+        'Converting Numbers from Base 2 to Base 10',
+        'Converting Numbers from Base 5 to Base 10',
+        'Converting Numbers from Base 8 to Base 10',
+        'Converting from Base 2 to Base 5',
+        'Converting from Base 5 to Base 2',
+        'Addition of Numbers in Base 2',
+        'Subtraction of Numbers in Base 2',
+        'Addition of Numbers in Base 5',
+        'Subtraction of Numbers in Base 5',
+        'Addition of Numbers in Base 8',
+        'Subtraction of Numbers in Base 8',
+      ],
+      'Unit 8: Number and Sequence': [
+        'Perfect Squares',
+        'Cubes',
+        'Sequences',
+        'Generating a Series',
+      ],
+      'Unit 9: Inequalities': [
+        'Open Sentence',
+        'Solving Inequalities in One Variable',
+      ],
+      'Unit 10: Plane Shapes': [
+        'Simple Lines of Folding Symmetry',
+        'Circumference, Diameter and Radius',
+        'Relationship Between Circumference and Diameter',
+      ],
+      'Unit 11: Measurement': [
+        'Finding the Circumference of a Circle',
+        'Area of a Circle',
+        'Area of Combined Shapes',
+      ],
+      'Unit 12: Solid Shapes': [
+        'Identifying a Cylinder',
+        'Parts of a Cylinder',
+        'Drawing the Net of a Cylinder',
+        'Drawing / Sketching a Cylinder',
+        'Triangular Prism',
+        'Drawing the Net of a Triangular Prism',
+        'Drawing / Sketching a Triangular Prism',
+      ],
+      'Unit 13: Statistics': [
+        'Data Interpretation',
+        'Collecting Data',
+        'Data Presentation',
+        'Mean, Mode and Median',
+      ],
     },
   },
 }
@@ -380,6 +485,17 @@ export const GRADE_META = {
   },
 }
 
+/**
+ * Topic-level terminology overrides per subject + grade. Defaults to
+ * "topic" / "topics" when absent. Lets the course map say "13 units"
+ * for Grade 7 Mathematics while everything else keeps saying "topics".
+ */
+export const TOPIC_LABELS = {
+  mathematics: {
+    7: { singular: 'unit', plural: 'units', titleSingular: 'Unit', titlePlural: 'Units' },
+  },
+}
+
 /** Helper — return topics for a specific grade + subject */
 export function getTopics(subjectId, grade) {
   return TOPICS[subjectId]?.[grade] ?? []
@@ -388,6 +504,16 @@ export function getTopics(subjectId, grade) {
 /** Helper — return subtopics for a specific topic within a grade + subject */
 export function getSubtopics(subjectId, grade, topic) {
   return SUBTOPICS[subjectId]?.[grade]?.[topic] ?? []
+}
+
+/** Helper — return the topic-level label (e.g. "topic" / "unit") for a subject + grade */
+export function getTopicLabel(subjectId, grade) {
+  return TOPIC_LABELS[subjectId]?.[grade] ?? {
+    singular: 'topic',
+    plural: 'topics',
+    titleSingular: 'Topic',
+    titlePlural: 'Topics',
+  }
 }
 
 /** Helper — return competencies for a subject */
