@@ -27,7 +27,7 @@ import {
 import { useFirestore }     from '../../hooks/useFirestore'
 import { useSubscription }  from '../../hooks/useSubscription'
 import { useAuth }          from '../../contexts/AuthContext'
-import { SUBJECT_MAP, getTopics } from '../../config/curriculum'
+import { SUBJECT_MAP, getTopics, getSubtopics } from '../../config/curriculum'
 import Icon                 from '../ui/Icon'
 import Skeleton             from '../ui/Skeleton'
 import SeoHelmet            from '../seo/SeoHelmet'
@@ -159,6 +159,104 @@ function TopicSection({ topic, quizzes, expanded, onToggle, onStart, isLocked, t
   )
 }
 
+function SubtopicRow({ subtopic, quizzes, expanded, onToggle, onStart, isLocked, tone }) {
+  const total = quizzes.length
+  const empty = total === 0
+  return (
+    <div className="zx-card rounded-xl border theme-border theme-card overflow-hidden">
+      <button
+        type="button"
+        disabled={empty}
+        onClick={() => !empty && onToggle(subtopic)}
+        aria-expanded={expanded}
+        aria-controls={`subtopic-${subtopic}`}
+        className={`flex w-full items-center gap-3 px-3.5 py-3 text-left transition ${empty ? 'cursor-not-allowed opacity-65' : 'hover:theme-bg-subtle'}`}
+      >
+        <div className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ring-1 ${tone.bg} ${tone.ring} ${tone.text}`}>
+          <Icon as={PencilLine} size="sm" strokeWidth={2.2} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h4 className="truncate text-sm font-black theme-text">{subtopic}</h4>
+          <p className="mt-0.5 text-[11px] font-bold theme-text-muted">
+            {empty ? 'No quizzes yet — coming soon' : `${total === 1 ? '1 quiz' : `${total} quizzes`}`}
+          </p>
+        </div>
+        {!empty && (
+          <span
+            aria-hidden="true"
+            className={`grid h-8 w-8 shrink-0 place-items-center rounded-full theme-bg-subtle theme-text-muted transition-transform ${expanded ? 'rotate-180' : ''}`}
+          >
+            <Icon as={ChevronDown} size="xs" />
+          </span>
+        )}
+      </button>
+
+      {expanded && !empty && (
+        <div id={`subtopic-${subtopic}`} className="space-y-2 border-t theme-border p-3">
+          {quizzes.map(quiz => (
+            <QuizRow
+              key={quiz.id}
+              quiz={quiz}
+              locked={isLocked(quiz)}
+              onStart={onStart}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function TopicTreeSection({ topic, subtopics, expanded, onToggleTopic, expandedSubtopics, onToggleSubtopic, onStart, isLocked, tone }) {
+  const subtopicCount = subtopics.length
+  const topicQuizCount = subtopics.reduce((sum, s) => sum + s.quizzes.length, 0)
+  return (
+    <div className="zx-card theme-card rounded-2xl border theme-border overflow-hidden">
+      <button
+        type="button"
+        onClick={() => onToggleTopic(topic)}
+        aria-expanded={expanded}
+        aria-controls={`topic-${topic}`}
+        className="flex w-full items-center gap-3 p-4 text-left transition hover:theme-bg-subtle"
+      >
+        <div className={`grid h-11 w-11 shrink-0 place-items-center rounded-2xl ring-1 ${tone.bg} ${tone.ring} ${tone.text}`}>
+          <Icon as={PencilLine} size="md" strokeWidth={2.2} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-base font-black theme-text">{topic}</h3>
+          <p className="mt-0.5 text-xs font-bold theme-text-muted">
+            {subtopicCount} {subtopicCount === 1 ? 'subtopic' : 'subtopics'}
+            {topicQuizCount > 0 ? ` · ${topicQuizCount === 1 ? '1 quiz' : `${topicQuizCount} quizzes`}` : ''}
+          </p>
+        </div>
+        <span
+          aria-hidden="true"
+          className={`grid h-9 w-9 shrink-0 place-items-center rounded-full theme-bg-subtle theme-text-muted transition-transform ${expanded ? 'rotate-180' : ''}`}
+        >
+          <Icon as={ChevronDown} size="sm" />
+        </span>
+      </button>
+
+      {expanded && (
+        <div id={`topic-${topic}`} className="space-y-2.5 border-t theme-border theme-bg-subtle p-3.5 sm:p-4">
+          {subtopics.map(s => (
+            <SubtopicRow
+              key={s.name}
+              subtopic={s.name}
+              quizzes={s.quizzes}
+              expanded={expandedSubtopics.has(`${topic}::${s.name}`)}
+              onToggle={(name) => onToggleSubtopic(topic, name)}
+              onStart={onStart}
+              isLocked={isLocked}
+              tone={tone}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function TopicSkeleton() {
   return (
     <div className="zx-card theme-card rounded-2xl border theme-border p-4 animate-pulse">
@@ -188,11 +286,28 @@ export default function SubjectDrillDown() {
   const [quizzes, setQuizzes]   = useState([])
   const [loading, setLoading]   = useState(true)
   const [expanded, setExpanded] = useState(null)
+  const [expandedTopics, setExpandedTopics] = useState(() => new Set())
+  const [expandedSubtopics, setExpandedSubtopics] = useState(() => new Set())
   const [showUpgrade, setShowUpgrade] = useState(false)
 
   // Topic ordering comes from the canonical CBC curriculum so the page
   // reads like the syllabus even before any quizzes are published.
   const canonicalTopics = useMemo(() => (subject ? getTopics(subject.id, grade) : []), [subject, grade])
+  const topicSubtopics = useMemo(() => {
+    if (!subject) return new Map()
+    const m = new Map()
+    canonicalTopics.forEach(t => m.set(t, getSubtopics(subject.id, grade, t)))
+    return m
+  }, [subject, grade, canonicalTopics])
+  const hasSubtopicTree = useMemo(() => {
+    for (const list of topicSubtopics.values()) if (list.length) return true
+    return false
+  }, [topicSubtopics])
+  const subtopicCount = useMemo(() => {
+    let n = 0
+    for (const list of topicSubtopics.values()) n += list.length
+    return n
+  }, [topicSubtopics])
 
   useEffect(() => {
     if (!subject || !grade) {
@@ -215,10 +330,37 @@ export default function SubjectDrillDown() {
     return () => { cancelled = true }
   }, [subject, grade])
 
-  // Group by topic, preserving canonical order. Any quiz with an
-  // unrecognised topic gets bucketed under "Other quizzes" so it's
-  // still discoverable.
+  // Group by topic, preserving canonical order. When the subject/grade has a
+  // subtopic tree (e.g. Grade 7 Science), quizzes match by quiz.topic ===
+  // subtopic name; otherwise they match against the flat topic list. Any
+  // quiz that doesn't match falls into the "Other quizzes" bucket.
   const grouped = useMemo(() => {
+    if (hasSubtopicTree) {
+      const buckets = new Map()
+      const subtopicToTopic = new Map()
+      canonicalTopics.forEach(t => {
+        const subs = topicSubtopics.get(t) || []
+        subs.forEach(s => {
+          buckets.set(s, [])
+          subtopicToTopic.set(s, t)
+        })
+      })
+      const extras = []
+      for (const quiz of quizzes) {
+        const t = quiz.topic?.trim()
+        if (t && buckets.has(t)) {
+          buckets.get(t).push(quiz)
+        } else {
+          extras.push(quiz)
+        }
+      }
+      const tree = canonicalTopics.map(t => ({
+        topic: t,
+        subtopics: (topicSubtopics.get(t) || []).map(s => ({ name: s, quizzes: buckets.get(s) || [] })),
+      }))
+      return { tree, extras }
+    }
+
     const map = new Map()
     canonicalTopics.forEach(t => map.set(t, []))
     const extras = []
@@ -226,22 +368,37 @@ export default function SubjectDrillDown() {
       const t = quiz.topic?.trim()
       if (t && map.has(t)) {
         map.get(t).push(quiz)
-      } else if (t) {
-        extras.push(quiz)
       } else {
         extras.push(quiz)
       }
     }
     const rows = canonicalTopics.map(t => ({ topic: t, items: map.get(t) || [] }))
     if (extras.length) rows.push({ topic: 'Other quizzes', items: extras })
-    return rows
-  }, [quizzes, canonicalTopics])
+    return { rows }
+  }, [quizzes, canonicalTopics, topicSubtopics, hasSubtopicTree])
 
   const totalQuizzes = quizzes.length
   const demoOnlyAvailable = isDemoOnly ? quizzes.filter(q => q.isDemo).length : null
 
   function handleToggle(topic) {
     setExpanded(prev => (prev === topic ? null : topic))
+  }
+
+  function handleToggleTopic(topic) {
+    setExpandedTopics(prev => {
+      const next = new Set(prev)
+      if (next.has(topic)) next.delete(topic); else next.add(topic)
+      return next
+    })
+  }
+
+  function handleToggleSubtopic(topic, subtopic) {
+    const key = `${topic}::${subtopic}`
+    setExpandedSubtopics(prev => {
+      const next = new Set(prev)
+      if (next.has(key)) next.delete(key); else next.add(key)
+      return next
+    })
   }
 
   function handleStart(quizId, locked) {
@@ -339,6 +496,7 @@ export default function SubjectDrillDown() {
               </h2>
               <p className="mt-1 text-sm font-bold theme-text">
                 Grade {grade} · {canonicalTopics.length} topic{canonicalTopics.length === 1 ? '' : 's'}
+                {hasSubtopicTree ? ` · ${subtopicCount} subtopic${subtopicCount === 1 ? '' : 's'}` : ''}
                 {!loading ? ` · ${totalQuizzes} quiz${totalQuizzes === 1 ? '' : 'zes'}` : ''}
               </p>
               {isDemoOnly && demoOnlyAvailable !== null && (
@@ -365,7 +523,35 @@ export default function SubjectDrillDown() {
             <div className="space-y-3">
               {Array.from({ length: 4 }).map((_, i) => <TopicSkeleton key={i} />)}
             </div>
-          ) : grouped.length === 0 ? (
+          ) : hasSubtopicTree ? (
+            <>
+              {grouped.tree.map(({ topic, subtopics }) => (
+                <TopicTreeSection
+                  key={topic}
+                  topic={topic}
+                  subtopics={subtopics}
+                  expanded={expandedTopics.has(topic)}
+                  onToggleTopic={handleToggleTopic}
+                  expandedSubtopics={expandedSubtopics}
+                  onToggleSubtopic={handleToggleSubtopic}
+                  onStart={handleStart}
+                  isLocked={isLocked}
+                  tone={tone}
+                />
+              ))}
+              {grouped.extras.length > 0 && (
+                <TopicSection
+                  topic="Other quizzes"
+                  quizzes={grouped.extras}
+                  expanded={expanded === 'Other quizzes'}
+                  onToggle={handleToggle}
+                  onStart={handleStart}
+                  isLocked={isLocked}
+                  tone={tone}
+                />
+              )}
+            </>
+          ) : (grouped.rows || []).length === 0 ? (
             <div className="zx-card theme-card rounded-2xl border theme-border p-6 text-center">
               <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-2xl theme-accent-bg theme-accent-text">
                 <Icon as={PencilLine} size="lg" strokeWidth={2.1} />
@@ -376,7 +562,7 @@ export default function SubjectDrillDown() {
               </p>
             </div>
           ) : (
-            grouped.map(({ topic, items }) => (
+            grouped.rows.map(({ topic, items }) => (
               <TopicSection
                 key={topic}
                 topic={topic}
