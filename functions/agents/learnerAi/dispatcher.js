@@ -289,21 +289,33 @@ async function runChain({taskId}) {
 }
 
 /**
- * Auto-publish gate for practice quizzes.
+ * Auto-publish gate per task type.
  *
- * Reads settings/global.learnerAi.autoPublishPracticeQuizzes. When
- * true AND the task is a practice_quiz AND Quality Check verdict was
- * 'pass', returns true so the dispatcher transitions straight to
- * 'approved' (which then fires aiAgentTasksOnApproved → flips the
- * aiGeneratedContent doc to 'published').
+ * Allow-list:
+ *   practice_quiz → settings/global.learnerAi.autoPublishPracticeQuizzes
+ *   notes         → settings/global.learnerAi.autoPublishNotes
+ *
+ * When the matching flag is true AND Quality Check verdict was 'pass'
+ * AND qualityCheck.requiresHumanReview !== true, the dispatcher
+ * transitions straight to APPROVED (which then fires
+ * aiAgentTasksOnApproved → flips the aiGeneratedContent doc to
+ * 'published'). Every other task type — including exam_quiz,
+ * curriculum_update_check, weakness_analysis, learner_feedback,
+ * study_tips — always lands at needs_review.
  *
  * Safe-by-default: returns false on any error, missing setting, or
- * unknown task type. The admin can always opt-out by setting the
- * flag to false in /admin/settings.
+ * unknown task type. Admins opt-out by setting the per-type flag
+ * to false in /admin/settings.
  */
+const AUTO_PUBLISH_SETTING_BY_TASK = Object.freeze({
+  practice_quiz: "autoPublishPracticeQuizzes",
+  notes:         "autoPublishNotes",
+});
+
 async function shouldAutoPublish({task, contentId}) {
   if (!task) return false;
-  if (task.taskType !== "practice_quiz") return false;
+  const settingKey = AUTO_PUBLISH_SETTING_BY_TASK[task.taskType];
+  if (!settingKey) return false;
   if (task.status === TASK_STATUS.FAILED_QUALITY_CHECK) return false;
   if (task.status !== TASK_STATUS.PASSED_QUALITY_CHECK) return false;
   if (!contentId) return false;
@@ -326,7 +338,7 @@ async function shouldAutoPublish({task, contentId}) {
         .get();
     const learnerAi = settingsSnap.exists ?
       (settingsSnap.data() || {}).learnerAi || {} : {};
-    return learnerAi.autoPublishPracticeQuizzes === true;
+    return learnerAi[settingKey] === true;
   } catch (err) {
     console.warn("[learner-ai dispatcher] auto-publish check failed", err && err.message);
     return false;
