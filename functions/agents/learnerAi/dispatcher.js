@@ -322,6 +322,19 @@ const AUTO_PUBLISH_SETTING_BY_TASK = Object.freeze({
     precondition: (task) => !!(task && task.parameters &&
       typeof task.parameters.weakLearnerId === "string" &&
       task.parameters.weakLearnerId.length > 0)},
+  // Learner feedback is shown on the learner's dashboard right after
+  // a quiz, so auto-publish is the expected default once an admin
+  // turns on settings.autoPublishLearnerFeedback. Precondition
+  // enforces "based on actual quiz attempt data": both learnerId AND
+  // attemptId must be on the task parameters. Without them the
+  // feedback runner would have refused upstream anyway, but pinning
+  // it at the publish boundary is belt-and-braces.
+  learner_feedback: {settingKey: "autoPublishLearnerFeedback",
+    precondition: (task) => !!(task && task.parameters &&
+      typeof task.parameters.learnerId === "string" &&
+      task.parameters.learnerId.length > 0 &&
+      typeof task.parameters.attemptId === "string" &&
+      task.parameters.attemptId.length > 0)},
 });
 
 async function shouldAutoPublish({task, contentId}) {
