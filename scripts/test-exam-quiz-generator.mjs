@@ -98,20 +98,24 @@ test('buildStandardsContext uses approved doc when present', () => {
 
 console.log('\nSupervisor planner — exam_quiz chain includes Standards')
 
-test('planStepsFor(exam_quiz) is [reader, standards, generator, qualityCheck]', () => {
+test('planStepsFor(exam_quiz) is [reader, standards, generator, standardsCheck, qualityCheck]', () => {
   const steps = supervisor.planStepsFor('exam_quiz')
   assert(Array.isArray(steps), 'steps must be an array')
-  assert(steps.length === 4, `expected 4 steps, got ${steps.length}: ${steps.join(',')}`)
+  assert(steps.length === 5, `expected 5 steps, got ${steps.length}: ${steps.join(',')}`)
   assert(steps[0] === 'curriculumReader', `step 0 wrong: ${steps[0]}`)
   assert(steps[1] === 'standards', `step 1 must be standards: ${steps[1]}`)
   assert(steps[2] === 'examQuiz', `step 2 must be examQuiz: ${steps[2]}`)
-  assert(steps[3] === 'qualityCheck', `step 3 wrong: ${steps[3]}`)
+  assert(steps[3] === 'standardsCheck', `step 3 must be standardsCheck: ${steps[3]}`)
+  assert(steps[4] === 'qualityCheck', `step 4 wrong: ${steps[4]}`)
 })
 
-test('planStepsFor(practice_quiz) still skips Standards', () => {
+test('planStepsFor(practice_quiz) skips reference-data Standards (no exam structure needed)', () => {
   const steps = supervisor.planStepsFor('practice_quiz')
-  assert(steps.length === 3, `practice_quiz chain must stay at 3 steps: ${steps.join(',')}`)
-  assert(!steps.includes('standards'), 'practice_quiz must NOT include standards')
+  assert(!steps.includes('standards'),
+    `practice_quiz must NOT include reference-data Standards: ${steps.join(',')}`)
+  // It DOES include the standardsCheck verification agent.
+  assert(steps.includes('standardsCheck'),
+    `practice_quiz must include standardsCheck verification: ${steps.join(',')}`)
 })
 
 console.log('\nExam Quiz parameter normalisation')

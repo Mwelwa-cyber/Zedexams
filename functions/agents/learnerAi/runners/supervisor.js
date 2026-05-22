@@ -26,19 +26,40 @@ const TASK_TYPE_TO_GENERATOR = Object.freeze({
   learner_feedback:  "feedback",
 });
 
+// Task types that should have their generated artifact verified by
+// the Zambian Curriculum & Exam Standards CHECK agent. The check
+// runs AFTER the generator and BEFORE Quality Check so its verdict
+// is available on chainContext.standardsCheck when Quality Check
+// composes its own assessment. weakness_analysis is NOT included
+// because that artifact is a learner-rollup (no curriculum facts to
+// align).
+const VERIFIED_BY_STANDARDS_CHECK = new Set([
+  "practice_quiz", "exam_quiz", "notes", "study_tips", "learner_feedback",
+]);
+
 function planStepsFor(taskType) {
   if (taskType === "curriculum_update_check") {
     return ["curriculumWatcher"];
   }
   const gen = TASK_TYPE_TO_GENERATOR[taskType];
   if (!gen) return null;
-  // exam_quiz: insert Standards between Reader and the generator so
-  // the formal Zambian school test structure (sections, marks, time,
-  // Blooms mix) is available on chainContext.standards when the
-  // generator runs. Every other task type uses the slim
-  // [Reader → generator → QualityCheck] chain.
+  // exam_quiz: insert reference-data Standards between Reader and the
+  // generator so the formal Zambian school test structure (sections,
+  // marks, time, Blooms mix) is available on chainContext.standards
+  // when the generator runs. For exam_quiz the standardsCheck
+  // verification step also slots in between generator and Quality
+  // Check.
   if (taskType === "exam_quiz") {
-    return ["curriculumReader", "standards", gen, "qualityCheck"];
+    return [
+      "curriculumReader", "standards", gen,
+      "standardsCheck", "qualityCheck",
+    ];
+  }
+  if (VERIFIED_BY_STANDARDS_CHECK.has(taskType)) {
+    return [
+      "curriculumReader", gen,
+      "standardsCheck", "qualityCheck",
+    ];
   }
   return ["curriculumReader", gen, "qualityCheck"];
 }
@@ -107,4 +128,7 @@ async function runSupervisor({task}) {
   return {ok: true, steps};
 }
 
-module.exports = {runSupervisor, planStepsFor, AGENT_ID, TASK_TYPE_TO_GENERATOR};
+module.exports = {
+  runSupervisor, planStepsFor, AGENT_ID,
+  TASK_TYPE_TO_GENERATOR, VERIFIED_BY_STANDARDS_CHECK,
+};
