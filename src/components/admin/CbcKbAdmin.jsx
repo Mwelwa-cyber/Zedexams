@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   listCbcTopics, saveCbcTopic, deleteCbcTopic, importBuiltInTopics,
   listLessons, saveLesson, deleteLesson, bulkImportCurriculumModules,
-  curriculumTopicDocId,
+  curriculumTopicDocId, subtopicName,
 } from '../../utils/adminCbcKbService'
 import {
   TEACHER_GRADES, TEACHER_SUBJECTS,
@@ -82,7 +82,8 @@ export default function CbcKbAdmin() {
       if (filters.grade && r.grade !== filters.grade) return false
       if (filters.subject && r.subject !== filters.subject) return false
       if (term) {
-        const haystack = [r.topic, ...(r.subtopics || [])].filter(Boolean).join(' ').toLowerCase()
+        const subs = (r.subtopics || []).map(subtopicName)
+        const haystack = [r.topic, ...subs].filter(Boolean).join(' ').toLowerCase()
         if (!haystack.includes(term)) return false
       }
       return true
@@ -96,12 +97,17 @@ export default function CbcKbAdmin() {
   }
 
   function openEdit(topic) {
+    // Enriched subtopics arrive as objects (post-Phase-C activate); the
+    // edit form is flat-string-only for now, so we surface only the names.
+    // Saving here will drop the per-subtopic detail — admins who need the
+    // enrichment should re-upload through Curriculum Replace Studio.
+    const subtopicNames = (topic.subtopics || []).map(subtopicName)
     setForm({
       grade: topic.grade || 'G10',
       subject: topic.subject || 'biology',
       term: topic.term || 1,
       topic: topic.topic || '',
-      subtopics: topic.subtopics?.length ? [...topic.subtopics] : [''],
+      subtopics: subtopicNames.length ? subtopicNames : [''],
       specificOutcomes: topic.specificOutcomes?.length ? [...topic.specificOutcomes] : [''],
       keyCompetencies: topic.keyCompetencies?.length ? [...topic.keyCompetencies] : [''],
       values: topic.values?.length ? [...topic.values] : [''],
@@ -288,7 +294,7 @@ export default function CbcKbAdmin() {
               <h3 className="font-black text-base text-slate-900">{topic.topic}</h3>
               {topic.subtopics?.length > 0 && (
                 <p className="text-xs text-slate-600 mt-1">
-                  {topic.subtopics.slice(0, 3).join(' · ')}
+                  {topic.subtopics.slice(0, 3).map(subtopicName).join(' · ')}
                   {topic.subtopics.length > 3 && ` · +${topic.subtopics.length - 3} more`}
                 </p>
               )}

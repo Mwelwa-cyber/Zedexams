@@ -2095,6 +2095,16 @@ const {
 } = require("./teacherTools/invalidateKbCache");
 exports.invalidateKbCache = invalidateKbCacheCallable;
 
+// Syllabus replacement — Phase C. Atomic promote-and-activate. Promotes
+// cbcKnowledgeBase/{version}/draftTopics → topics (merge:true) and flips
+// cbcKnowledgeBase/_meta to the new version with usePrivateCurriculum=false
+// so studios cut over fully to the new editable KB. Old version's topics
+// remain in place as a one-click Phase D rollback target.
+const {
+  activateSyllabusVersion,
+} = require("./teacherTools/activateSyllabusVersion");
+exports.activateSyllabusVersion = activateSyllabusVersion;
+
 // Teacher Tools — Lesson Plan Studio (vanilla JS studio endpoint).
 exports.studioGenerateLessonPlan = createStudioGenerateLessonPlan(anthropicApiKey);
 

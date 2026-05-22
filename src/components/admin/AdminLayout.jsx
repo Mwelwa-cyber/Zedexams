@@ -66,6 +66,7 @@ const NAV_SECTIONS = [
       { to: '/admin/papers', icon: FileText, label: 'Past papers' },
       { to: '/admin/import/csv', icon: Upload, label: 'CSV import' },
       { to: '/admin/cbc-kb', icon: BookOpen, label: 'CBC KB' },
+      { to: '/admin/curriculum/replace', icon: Upload, label: 'Replace syllabus' },
       { to: '/admin/games-seed', icon: Sparkles, label: 'Games seed' },
     ],
   },

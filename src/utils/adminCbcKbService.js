@@ -156,6 +156,23 @@ function slug(s) {
   return String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60)
 }
 
+/**
+ * Subtopic compatibility helper (client-side mirror of the server one in
+ * functions/teacherTools/cbcKnowledge.js).
+ *
+ * Legacy topic docs store subtopics as plain strings. The Phase-A syllabus
+ * parser writes them as
+ *   { name, specificCompetence, learningActivities, expectedStandard }
+ * objects to preserve the richer per-subtopic detail. This helper hides
+ * the shape difference from any caller that just wants a display string.
+ */
+export function subtopicName(s) {
+  if (s == null) return ''
+  if (typeof s === 'string') return s
+  if (typeof s === 'object' && typeof s.name === 'string') return s.name
+  return String(s)
+}
+
 function buildTopicId(t) {
   const g = slug(t.grade)
   const s = slug(t.subject)
