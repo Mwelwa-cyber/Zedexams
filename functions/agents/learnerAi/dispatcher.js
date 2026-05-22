@@ -33,6 +33,7 @@ const {runWeakness} = require("./runners/weakness");
 const {runFeedback} = require("./runners/feedback");
 const {runStandards} = require("./runners/standards");
 const {runStandardsCheck} = require("./runners/standardsCheck");
+const {runSupervisorReview} = require("./runners/supervisorReview");
 const {runQualityCheck} = require("./runners/qualityCheck");
 const {runCurriculumWatcher} = require("./runners/curriculumWatcher");
 const {writeAgentLog, writeTaskStep} = require("./logger");
@@ -59,6 +60,7 @@ const RUNNER_MAP = Object.freeze({
   feedback: runFeedback,
   standards: runStandards,
   standardsCheck: runStandardsCheck,
+  supervisorReview: runSupervisorReview,
   qualityCheck: runQualityCheck,
   curriculumWatcher: runCurriculumWatcher,
 });
@@ -256,9 +258,15 @@ async function runChain({taskId}) {
     if (result.qualityCheckVerdict && agentId === "qualityCheck") {
       chainContext.qualityCheck = result.qualityCheckVerdict;
     }
+    // Final Supervisor decision — drives terminal task status below.
+    if (result.supervisorDecision && agentId === "supervisorReview") {
+      chainContext.supervisorDecision = result.supervisorDecision;
+    }
     if (result.contentId) lastContentId = result.contentId;
 
-    // Quality Check verdict shapes the terminal task status.
+    // Quality Check verdict shapes an interim task status. Supervisor
+    // Review (the next/last step) is the authoritative source for the
+    // FINAL status — see block 3 below.
     if (agentId === "qualityCheck") {
       await setTaskFields(taskRef, {
         status: result.verdict === "pass" ?
@@ -268,21 +276,38 @@ async function runChain({taskId}) {
     }
   }
 
-  // 3. All steps green. Two paths from here:
-  //    (a) Practice quizzes MAY auto-publish when
-  //        settings/global.learnerAi.autoPublishPracticeQuizzes is on
-  //        AND the Quality Check verdict was 'pass'. We treat that as
-  //        the equivalent of an admin approval (audit log is still
-  //        written by aiAgentTasksOnApproved so the trail stays
-  //        intact).
-  //    (b) Otherwise → admin review gate (NEEDS_REVIEW).
-  const lastTask = await readTask(taskRef);
-  const autoPublishOk = await shouldAutoPublish({
-    task: lastTask,
-    contentId: lastContentId,
-  });
+  // 3. All steps green → Supervisor decision drives the terminal
+  // task status. The decision was made by the supervisorReview agent
+  // (last step) and stashed on chainContext.supervisorDecision.
+  //
+  //   approved             → TASK_STATUS.APPROVED  (then aiAgentTasksOnApproved
+  //                          fires + flips aiGeneratedContent → 'published')
+  //   sent_for_review      → TASK_STATUS.NEEDS_REVIEW
+  //   regenerate_required  → TASK_STATUS.REGENERATING
+  //   rejected             → TASK_STATUS.REJECTED
+  //
+  // If the chain produced no Supervisor decision (e.g. supervisorReview
+  // crashed or wasn't planned for this task type), fall back to the
+  // legacy shouldAutoPublish gate. That guard is the safety net.
+  const sd = chainContext.supervisorDecision;
+  let terminalStatus;
+  if (sd && typeof sd.decision === "string") {
+    if (sd.decision === "approved") terminalStatus = TASK_STATUS.APPROVED;
+    else if (sd.decision === "sent_for_review") terminalStatus = TASK_STATUS.NEEDS_REVIEW;
+    else if (sd.decision === "regenerate_required") terminalStatus = TASK_STATUS.REGENERATING;
+    else if (sd.decision === "rejected") terminalStatus = TASK_STATUS.REJECTED;
+  }
+  if (!terminalStatus) {
+    const lastTask = await readTask(taskRef);
+    const autoPublishOk = await shouldAutoPublish({
+      task: lastTask, contentId: lastContentId,
+    });
+    terminalStatus = autoPublishOk ?
+      TASK_STATUS.APPROVED : TASK_STATUS.NEEDS_REVIEW;
+  }
+
   await setTaskFields(taskRef, {
-    status: autoPublishOk ? TASK_STATUS.APPROVED : TASK_STATUS.NEEDS_REVIEW,
+    status: terminalStatus,
     completedAt: admin.firestore.FieldValue.serverTimestamp(),
     resultContentId: lastContentId,
   });

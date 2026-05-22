@@ -310,14 +310,16 @@ for (const t of ['practice_quiz', 'notes', 'study_tips', 'learner_feedback']) {
   })
 }
 
-test('planStepsFor(exam_quiz) = [reader, standards, examQuiz, standardsCheck, qualityCheck]', () => {
+test('planStepsFor(exam_quiz) = [reader, standards, examQuiz, standardsCheck, qualityCheck, supervisorReview]', () => {
   const steps = supervisor.planStepsFor('exam_quiz')
-  assert(steps.length === 5, `expected 5 steps, got ${steps.join(',')}`)
+  assert(steps.length === 6, `expected 6 steps, got ${steps.join(',')}`)
   assert(steps[0] === 'curriculumReader')
   assert(steps[1] === 'standards')
   assert(steps[2] === 'examQuiz')
   assert(steps[3] === 'standardsCheck')
   assert(steps[4] === 'qualityCheck')
+  assert(steps[5] === 'supervisorReview',
+    `final step must be supervisorReview gatekeeper, got ${steps[5]}`)
 })
 
 test('planStepsFor(weakness_analysis) does NOT include standardsCheck', () => {

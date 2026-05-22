@@ -889,6 +889,93 @@ export const qualityCheckVerdictSchema = z.object({
 
 /** @typedef {import('zod').infer<typeof qualityCheckVerdictSchema>} QualityCheckVerdict */
 
+// ── AI Supervisor (final gatekeeper) — decision shape ────────────────
+//
+// NOT a Firestore collection. The decision the Supervisor Review agent
+// writes onto `aiGeneratedContent.supervisorDecision` AFTER reviewing
+// every upstream verdict (Curriculum Reader, Standards Check, Quality
+// Check). Distinct from the orchestrator Supervisor (`runners/supervisor.js`)
+// which runs FIRST and only plans the step graph; this verdict comes
+// from the gatekeeper that runs LAST.
+//
+// Decision rules baked into the runner (mirrored on the SPA via Zod):
+//   90-100% composite confidence + all checks pass
+//     → 'approved'      (if task type + admin settings allow auto-publish)
+//     → 'sent_for_review' (if auto-publish not allowed for this type)
+//   70-89% composite confidence
+//     → 'sent_for_review' (admin must decide)
+//   50-69% composite confidence
+//     → 'regenerate_required'
+//   < 50% composite confidence
+//     → 'rejected'
+//
+// Hard overrides (apply before the confidence band logic above):
+//   - any qualityCheck.status === 'failed' AND confidence < 0.5 → 'rejected'
+//   - any qualityCheck.status === 'failed' AND confidence ≥ 0.5 → 'regenerate_required'
+//   - any standardsCheck.status === 'failed'                    → 'regenerate_required'
+//   - taskType === 'exam_quiz'                                  → never 'approved'
+//   - taskType === 'curriculum_update_check'                    → never 'approved'
+//   - qualityCheck.requiresHumanReview === true                 → never 'approved'
+
+export const SUPERVISOR_DECISIONS = z.enum([
+  'approved', 'rejected', 'sent_for_review', 'regenerate_required',
+])
+
+export const SUPERVISOR_ADMIN_ACTIONS = z.enum([
+  'none',                  // approved — nothing for admin to do
+  'approve_or_reject',     // sent_for_review — pending admin decision
+  'review_rejection',      // rejected — admin can override / re-queue
+  'review_regeneration',   // regenerate_required — admin can re-queue or close
+])
+
+export const supervisorDecisionSchema = z.object({
+  decision: SUPERVISOR_DECISIONS,
+  // Short narrative explaining the decision so admins can sort the
+  // queue without opening each artifact.
+  reason: z.string().min(1).max(800),
+  // Composite confidence — weighted average of the three upstream
+  // confidence scores (reader, standardsCheck, qualityCheck). 0..1.
+  confidenceScore: z.number().min(0).max(1),
+  // Pinned admin-action enum (above). Maps the decision onto a
+  // concrete UI affordance.
+  requiredAdminAction: SUPERVISOR_ADMIN_ACTIONS,
+  // Per-upstream-agent verdict snapshot — frozen at decision time so
+  // a future re-read can audit how the call was made even if the
+  // upstream verdict docs are later regenerated.
+  upstreamVerdicts: z.object({
+    curriculumReader: z.object({
+      status: z.string().max(40),
+      confidenceScore: z.number().min(0).max(1).nullable(),
+      matchKind: z.string().max(40).nullable(),
+    }).strict(),
+    standardsCheck: z.object({
+      status: z.string().max(40),
+      confidenceScore: z.number().min(0).max(1).nullable(),
+      zambianCurriculumFit: z.boolean(),
+      zambianAssessmentFit: z.boolean(),
+    }).strict(),
+    qualityCheck: z.object({
+      status: z.string().max(40),
+      confidenceScore: z.number().min(0).max(1).nullable(),
+      requiresHumanReview: z.boolean(),
+      deterministicGroundingPass: z.boolean(),
+    }).strict(),
+  }).strict(),
+  // Provenance + audit.
+  modelUsed: z.string().max(80),
+  artifactType: z.string().max(40),
+  contentId: z.string().max(120),
+  // Auto-publish settings snapshot at decision time so admins can
+  // see "approved because settings.learnerAi.autoPublishPracticeQuizzes
+  // was true on YYYY-MM-DD".
+  autoPublishSettings: z.object({}).passthrough().nullable(),
+  checkedAt: z.unknown().refine((v) => v != null, {
+    message: 'checkedAt must be a timestamp value',
+  }),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof supervisorDecisionSchema>} SupervisorDecision */
+
 /**
  * Parse-or-throw helper. Returns the validated doc body; throws ZodError
  * on bad shape. Use immediately before any addDoc / setDoc / update.

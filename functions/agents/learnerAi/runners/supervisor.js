@@ -39,29 +39,30 @@ const VERIFIED_BY_STANDARDS_CHECK = new Set([
 
 function planStepsFor(taskType) {
   if (taskType === "curriculum_update_check") {
-    return ["curriculumWatcher"];
+    // Curriculum updates still pass through the gatekeeper so the
+    // Supervisor logs a "never auto-publish" decision admins can see.
+    return ["curriculumWatcher", "supervisorReview"];
   }
   const gen = TASK_TYPE_TO_GENERATOR[taskType];
   if (!gen) return null;
-  // exam_quiz: insert reference-data Standards between Reader and the
-  // generator so the formal Zambian school test structure (sections,
-  // marks, time, Blooms mix) is available on chainContext.standards
-  // when the generator runs. For exam_quiz the standardsCheck
-  // verification step also slots in between generator and Quality
-  // Check.
+  // Every chain that produces a learner-facing artifact ends with the
+  // Supervisor Review gatekeeper. It reviews every upstream verdict
+  // (Curriculum Reader, Standards Check, Quality Check) and writes
+  // the final decision onto aiGeneratedContent.supervisorDecision.
+  const tail = ["supervisorReview"];
   if (taskType === "exam_quiz") {
     return [
       "curriculumReader", "standards", gen,
-      "standardsCheck", "qualityCheck",
+      "standardsCheck", "qualityCheck", ...tail,
     ];
   }
   if (VERIFIED_BY_STANDARDS_CHECK.has(taskType)) {
     return [
       "curriculumReader", gen,
-      "standardsCheck", "qualityCheck",
+      "standardsCheck", "qualityCheck", ...tail,
     ];
   }
-  return ["curriculumReader", gen, "qualityCheck"];
+  return ["curriculumReader", gen, "qualityCheck", ...tail];
 }
 
 async function runSupervisor({task}) {

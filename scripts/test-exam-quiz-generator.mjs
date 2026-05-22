@@ -98,15 +98,16 @@ test('buildStandardsContext uses approved doc when present', () => {
 
 console.log('\nSupervisor planner — exam_quiz chain includes Standards')
 
-test('planStepsFor(exam_quiz) is [reader, standards, generator, standardsCheck, qualityCheck]', () => {
+test('planStepsFor(exam_quiz) is [reader, standards, generator, standardsCheck, qualityCheck, supervisorReview]', () => {
   const steps = supervisor.planStepsFor('exam_quiz')
   assert(Array.isArray(steps), 'steps must be an array')
-  assert(steps.length === 5, `expected 5 steps, got ${steps.length}: ${steps.join(',')}`)
+  assert(steps.length === 6, `expected 6 steps, got ${steps.length}: ${steps.join(',')}`)
   assert(steps[0] === 'curriculumReader', `step 0 wrong: ${steps[0]}`)
   assert(steps[1] === 'standards', `step 1 must be standards: ${steps[1]}`)
   assert(steps[2] === 'examQuiz', `step 2 must be examQuiz: ${steps[2]}`)
   assert(steps[3] === 'standardsCheck', `step 3 must be standardsCheck: ${steps[3]}`)
   assert(steps[4] === 'qualityCheck', `step 4 wrong: ${steps[4]}`)
+  assert(steps[5] === 'supervisorReview', `step 5 must be supervisorReview: ${steps[5]}`)
 })
 
 test('planStepsFor(practice_quiz) skips reference-data Standards (no exam structure needed)', () => {
