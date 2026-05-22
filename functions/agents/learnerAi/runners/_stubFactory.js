@@ -1,159 +1,156 @@
 /**
- * Stub-runner factory.
+ * Stub-runner factory — v2.
  *
  * Each generator runner (practiceQuiz / examQuiz / notes / studyTips /
- * weakness / feedback / standards / qualityCheck / curriculumWatcher)
- * will eventually call Anthropic with its prompt + schema. Until then,
- * this factory produces a real `learnerAiGenerations` doc with
- * `content:{stub:true}` and the verified curriculumRef attached, so the
- * pipeline is observable end-to-end today.
+ * weakness / feedback / standards) writes an aiGeneratedContent doc
+ * end-to-end. Until the LLM body lands, the factory writes a stub
+ * artifact so the pipeline is observable today.
  *
- * The LLM body slots in here: replace `runStubBody` with the real
- * aiService.callAnthropic call when the corresponding prompt+schema
- * pair is ready for production.
+ * Schema fields (mirrors src/schemas/learnerAi.js → aiGeneratedContentWriteSchema):
+ *   type, source:'ai', status, grade, subject, term, topic, subtopic,
+ *   lessonNumber, curriculumReference, content, qualityCheck,
+ *   zambianStandardsCheck, supervisorDecision, version, createdBy:'ai',
+ *   reviewedBy, createdAt, updatedAt
  */
 
 const admin = require("firebase-admin");
-const {writeAgentLog, updateLiveAgentState, agentVersionFromFile} = require("../logger");
+const {writeAgentLog, updateLiveAgentState, writeTaskStep} = require("../logger");
+const {COLLECTIONS, CONTENT_STATUS, TASK_STATUS, TASK_STEP_STATUS, SEVERITY} =
+  require("../v2Collections");
 
-function buildStubContent({agentId, curriculumRef}) {
+function buildStubContent({agentId, curriculumReference}) {
+  const inMem = curriculumReference && curriculumReference.inMemory;
   return {
     stub: true,
     note: `Stub output from ${agentId}. Replace with LLM-backed body once ` +
       `${agentId} prompt + schema are reviewed.`,
-    citedExcerptCount: (curriculumRef && curriculumRef.citedExcerpts || []).length,
+    citedExcerptCount: inMem && Array.isArray(inMem.citedExcerpts) ?
+      inMem.citedExcerpts.length : 0,
   };
 }
 
 /**
  * @param {object} cfg
- * @param {string} cfg.agentId         e.g. "practiceQuiz"
- * @param {string} cfg.artifactType    e.g. "practice_quiz"
- * @param {string} cfg.promptFile      filename in prompts/  (for agentVersion)
- * @param {(args) => Promise<object>} [cfg.runLive]
- *        Optional live runner. If omitted, the factory writes a stub
- *        learnerAiGenerations doc. Once a generator's LLM body is
- *        ready, swap in a real runLive here.
+ * @param {string} cfg.agentId       e.g. "practiceQuiz"
+ * @param {("practice_quiz"|"exam_quiz"|"notes"|"study_tips"|"learner_feedback")} cfg.artifactType
+ * @param {(args:{task,curriculumReference}) => Promise<{content:object, modelUsed?:string}>} [cfg.runLive]
+ *        Optional live runner. When omitted, the factory writes a stub
+ *        aiGeneratedContent doc with content:{stub:true}.
  */
 function makeRunner(cfg) {
   const AGENT_ID = cfg.agentId;
-  const promptVersion = agentVersionFromFile(cfg.promptFile);
 
-  return async function run({task}) {
-    const startedAt = Date.now();
-    const curriculumRef = task && task.curriculumRef;
-
-    if (!curriculumRef || !curriculumRef.sourceDocId) {
+  return async function run({task, chainContext = {}, stepNumber = 2}) {
+    const curriculumReference = chainContext.curriculumReference;
+    if (!curriculumReference || !curriculumReference.persist) {
       await writeAgentLog({
-        agentId: AGENT_ID,
-        agentVersion: promptVersion,
-        taskId: task.id,
-        correlationId: task.correlationId || null,
-        action: "generate",
-        inputSummary: {missing: "curriculumRef"},
-        level: "blocked",
-        curriculumGrounded: false,
-        durationMs: Date.now() - startedAt,
+        taskId: task.id, agentName: AGENT_ID, action: "generate",
+        message: "Refused: missing curriculumReference",
+        taskType: task.taskType,
+        grade: task.grade, subject: task.subject, topic: task.topic,
+        severity: SEVERITY.WARNING,
+      });
+      await writeTaskStep({
+        taskId: task.id, agentName: AGENT_ID, stepNumber,
+        stepTitle: `Generate ${cfg.artifactType}`,
+        message: "Missing curriculumReference",
+        status: TASK_STEP_STATUS.FAILED, progress: 100,
       });
       return {ok: false, reason: "missing_curriculum_ref"};
     }
 
-    await updateLiveAgentState(AGENT_ID, {status: "running", currentTaskId: task.id});
+    await updateLiveAgentState(AGENT_ID, {
+      agentName: AGENT_ID,
+      status: TASK_STATUS.GENERATING,
+      currentTaskId: task.id,
+      currentTask: `Generate ${cfg.artifactType}`,
+      progress: 25,
+      grade: task.grade, subject: task.subject, term: task.term,
+      topic: task.topic, subtopic: task.subtopic,
+      lastMessage: `Generating ${cfg.artifactType}`,
+    });
+    await writeTaskStep({
+      taskId: task.id, agentName: AGENT_ID, stepNumber,
+      stepTitle: `Generate ${cfg.artifactType}`,
+      message: "Calling generator",
+      status: TASK_STEP_STATUS.RUNNING, progress: 50,
+    });
 
     let content;
-    let modelUsed = null;
-    let tokensIn = 0;
-    let tokensOut = 0;
     if (typeof cfg.runLive === "function") {
       try {
-        const live = await cfg.runLive({task, curriculumRef, promptVersion});
+        const live = await cfg.runLive({task, curriculumReference});
         content = live.content;
-        modelUsed = live.modelUsed || null;
-        tokensIn = live.tokensIn || 0;
-        tokensOut = live.tokensOut || 0;
       } catch (err) {
         await writeAgentLog({
-          agentId: AGENT_ID,
-          agentVersion: promptVersion,
-          taskId: task.id,
-          correlationId: task.correlationId || null,
-          action: "generate",
-          level: "error",
-          inputSummary: {topic: curriculumRef.topic},
-          outputSummary: {error: String(err && err.message || err).slice(0, 400)},
-          curriculumGrounded: true,
-          curriculumRef: {
-            sourceDocId: curriculumRef.sourceDocId,
-            moduleId: curriculumRef.moduleId,
-          },
-          durationMs: Date.now() - startedAt,
+          taskId: task.id, agentName: AGENT_ID, action: "generate",
+          message: `Threw: ${String(err && err.message || err).slice(0, 400)}`,
+          taskType: task.taskType,
+          grade: task.grade, subject: task.subject, topic: task.topic,
+          severity: SEVERITY.ERROR,
+        });
+        await writeTaskStep({
+          taskId: task.id, agentName: AGENT_ID, stepNumber,
+          stepTitle: `Generate ${cfg.artifactType}`,
+          message: String(err && err.message || err).slice(0, 200),
+          status: TASK_STEP_STATUS.FAILED, progress: 100,
         });
         await updateLiveAgentState(AGENT_ID, {
-          status: "error",
-          currentTaskId: null,
-          lastErrorAt: admin.firestore.FieldValue.serverTimestamp(),
-          lastErrorMessage: String(err && err.message || err).slice(0, 400),
+          status: "failed", currentTaskId: null,
+          lastMessage: "runner_error",
         });
         return {ok: false, reason: "runner_error"};
       }
     } else {
-      content = buildStubContent({agentId: AGENT_ID, curriculumRef});
+      content = buildStubContent({agentId: AGENT_ID, curriculumReference});
     }
 
-    // Write the learnerAiGenerations artifact. Visibility starts at
-    // pending_review — only admin approval (via dispatcher onApproved)
-    // flips it to published.
-    const genRef = await admin.firestore()
-        .collection("learnerAiGenerations")
-        .add({
-          schemaVersion: 1,
-          taskId: task.id,
-          agentId: AGENT_ID,
-          agentVersion: promptVersion,
-          artifactType: cfg.artifactType,
-          learnerUid: task.learnerUid || null,
-          grade: curriculumRef.grade || task.grade || null,
-          subject: curriculumRef.subject || task.subject || null,
-          term: curriculumRef.term ?? task.term ?? null,
-          topic: curriculumRef.topic || task.topic || null,
-          subtopic: curriculumRef.subtopic || task.subtopic || null,
-          competency: curriculumRef.competency || null,
-          learningOutcome: curriculumRef.learningOutcome || null,
-          curriculumRef,
-          kbVersion: curriculumRef.kbVersion || null,
-          content,
-          qualityCheck: null,
-          visibility: "pending_review",
-          piiScrubbed: !task.learnerUid,
-          createdAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        });
+    // Build the v2 aiGeneratedContent doc.
+    const docPayload = {
+      type: cfg.artifactType,
+      source: "ai",
+      status: CONTENT_STATUS.NEEDS_REVIEW,
+      grade: String(task.grade || ""),
+      subject: String(task.subject || ""),
+      term: String(task.term || ""),
+      topic: String(task.topic || ""),
+      subtopic: String(task.subtopic || ""),
+      lessonNumber: task.lessonNumber ?? null,
+      curriculumReference: curriculumReference.persist,
+      content,
+      qualityCheck: {},
+      zambianStandardsCheck: {},
+      supervisorDecision: {},
+      version: 1,
+      createdBy: "ai",
+      reviewedBy: null,
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    };
+
+    const ref = await admin.firestore()
+        .collection(COLLECTIONS.CONTENT)
+        .add(docPayload);
 
     await writeAgentLog({
-      agentId: AGENT_ID,
-      agentVersion: promptVersion,
-      taskId: task.id,
-      correlationId: task.correlationId || null,
-      action: "generate",
-      inputSummary: {topic: curriculumRef.topic, subtopic: curriculumRef.subtopic},
-      outputSummary: {
-        generationId: genRef.id,
-        stub: content && content.stub === true,
-      },
-      level: "info",
-      curriculumGrounded: true,
-      curriculumRef: {
-        sourceDocId: curriculumRef.sourceDocId,
-        moduleId: curriculumRef.moduleId,
-      },
-      model: modelUsed,
-      tokensIn,
-      tokensOut,
-      durationMs: Date.now() - startedAt,
+      taskId: task.id, agentName: AGENT_ID, action: "generate",
+      message: `Wrote aiGeneratedContent/${ref.id} (${content && content.stub ? "stub" : "live"})`,
+      taskType: task.taskType,
+      grade: task.grade, subject: task.subject, topic: task.topic,
+      severity: SEVERITY.INFO,
+    });
+    await writeTaskStep({
+      taskId: task.id, agentName: AGENT_ID, stepNumber,
+      stepTitle: `Generate ${cfg.artifactType}`,
+      message: `Wrote aiGeneratedContent/${ref.id}`,
+      status: TASK_STEP_STATUS.COMPLETED, progress: 100,
+    });
+    await updateLiveAgentState(AGENT_ID, {
+      status: "completed", currentTaskId: null, progress: 100,
+      lastMessage: `Wrote ${ref.id}`,
     });
 
-    await updateLiveAgentState(AGENT_ID, {status: "idle", currentTaskId: null});
-    return {ok: true, generationId: genRef.id};
+    return {ok: true, contentId: ref.id, content};
   };
 }
 

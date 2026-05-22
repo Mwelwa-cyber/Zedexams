@@ -5,24 +5,33 @@ import {
 } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 
+// v2 task status palette. Keep in sync with TASK_STATUSES in
+// src/schemas/learnerAi.js.
 const STATUS_COLORS = {
-  queued: 'bg-slate-200 text-slate-700',
-  supervisor_planning: 'bg-blue-100 text-blue-800',
-  curriculum_read: 'bg-indigo-100 text-indigo-800',
-  generating: 'bg-violet-100 text-violet-800',
-  quality_check: 'bg-amber-100 text-amber-800',
-  awaiting_approval: 'bg-orange-100 text-orange-800',
-  approved: 'bg-emerald-100 text-emerald-800',
-  rejected: 'bg-rose-100 text-rose-800',
-  published: 'bg-emerald-100 text-emerald-800',
-  failed: 'bg-rose-100 text-rose-800',
-  cancelled: 'bg-slate-100 text-slate-500',
-  superseded: 'bg-slate-100 text-slate-500',
+  queued:               'bg-slate-200 text-slate-700',
+  running:              'bg-blue-100 text-blue-800',
+  thinking:             'bg-blue-100 text-blue-800',
+  generating:           'bg-violet-100 text-violet-800',
+  checking:             'bg-amber-100 text-amber-800',
+  waiting:              'bg-slate-100 text-slate-600',
+  completed:            'bg-emerald-50 text-emerald-700',
+  passed_quality_check: 'bg-emerald-100 text-emerald-800',
+  failed_quality_check: 'bg-rose-100 text-rose-700',
+  needs_review:         'bg-orange-100 text-orange-800',
+  approved:             'bg-emerald-100 text-emerald-800',
+  published:            'bg-emerald-100 text-emerald-800',
+  rejected:             'bg-rose-100 text-rose-800',
+  regenerating:         'bg-amber-100 text-amber-800',
+  error:                'bg-rose-100 text-rose-800',
 }
 
 const ACTIVE_STATUSES = [
-  'queued', 'supervisor_planning', 'curriculum_read', 'generating', 'quality_check',
+  'queued', 'running', 'thinking', 'generating', 'checking', 'waiting', 'regenerating',
 ]
+
+// Used by LearnerAiHome — admin-attention queue. Tasks need a human
+// look-once they finish the auto pipeline.
+const REVIEW_STATUS = 'needs_review'
 
 function timeAgo(ts) {
   if (!ts) return ''
@@ -34,8 +43,9 @@ function timeAgo(ts) {
   return `${Math.floor(diffSec / 86_400)}d ago`
 }
 
-// statusFilter: 'awaiting_approval' | 'active' | <single status>
-export default function TaskQueue({ statusFilter = 'awaiting_approval' }) {
+// statusFilter: 'needs_review' | 'active' | <single status>.
+// Default is 'needs_review' (the admin-attention queue in v2).
+export default function TaskQueue({ statusFilter = REVIEW_STATUS }) {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState(null)
@@ -83,7 +93,7 @@ export default function TaskQueue({ statusFilter = 'awaiting_approval' }) {
             <th className="px-3 py-2 text-left">Type</th>
             <th className="px-3 py-2 text-left">Grade / Subject / Topic</th>
             <th className="px-3 py-2 text-left">Agent</th>
-            <th className="px-3 py-2 text-left">Grounded</th>
+            <th className="px-3 py-2 text-left">Artifact</th>
             <th className="px-3 py-2 text-left">Created</th>
             <th className="px-3 py-2 text-left">Actions</th>
           </tr>
@@ -101,12 +111,12 @@ export default function TaskQueue({ statusFilter = 'awaiting_approval' }) {
                 G{t.grade} · {t.subject} · {t.topic || '—'}
                 {t.subtopic ? ` / ${t.subtopic}` : ''}
               </td>
-              <td className="px-3 py-2 text-slate-600">{t.agentId || '—'}</td>
-              <td className="px-3 py-2">
-                {t.curriculumRef?.sourceDocId ? (
-                  <span className="text-emerald-700 text-xs">✓ {t.curriculumRef.sourceDocId}</span>
+              <td className="px-3 py-2 text-slate-600">{t.agentName || '—'}</td>
+              <td className="px-3 py-2 text-xs">
+                {t.resultContentId ? (
+                  <span className="text-emerald-700">artifact ✓</span>
                 ) : (
-                  <span className="text-slate-400 text-xs">—</span>
+                  <span className="text-slate-400">—</span>
                 )}
               </td>
               <td className="px-3 py-2 text-slate-500">{timeAgo(t.createdAt)}</td>

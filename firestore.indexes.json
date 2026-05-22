@@ -711,18 +711,18 @@
       "collectionGroup": "aiAgentTasks",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "learnerUid", "order": "ASCENDING"  },
-        { "fieldPath": "status",     "order": "ASCENDING"  },
-        { "fieldPath": "createdAt",  "order": "DESCENDING" }
+        { "fieldPath": "agentName", "order": "ASCENDING"  },
+        { "fieldPath": "status",    "order": "ASCENDING"  },
+        { "fieldPath": "updatedAt", "order": "DESCENDING" }
       ]
     },
     {
       "collectionGroup": "aiAgentTasks",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "agentId",   "order": "ASCENDING"  },
+        { "fieldPath": "taskType",  "order": "ASCENDING"  },
         { "fieldPath": "status",    "order": "ASCENDING"  },
-        { "fieldPath": "updatedAt", "order": "DESCENDING" }
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
     {
@@ -737,36 +737,69 @@
       "collectionGroup": "aiAgentLogs",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "agentId",   "order": "ASCENDING"  },
-        { "fieldPath": "level",     "order": "ASCENDING"  },
+        { "fieldPath": "agentName", "order": "ASCENDING"  },
+        { "fieldPath": "severity",  "order": "ASCENDING"  },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
     {
-      "collectionGroup": "aiAgentLogs",
+      "collectionGroup": "aiTaskSteps",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "curriculumGrounded", "order": "ASCENDING"  },
-        { "fieldPath": "createdAt",          "order": "DESCENDING" }
+        { "fieldPath": "taskId",     "order": "ASCENDING" },
+        { "fieldPath": "stepNumber", "order": "ASCENDING" }
       ]
     },
     {
-      "collectionGroup": "learnerAiGenerations",
+      "collectionGroup": "aiGeneratedContent",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "learnerUid", "order": "ASCENDING"  },
-        { "fieldPath": "visibility", "order": "ASCENDING"  },
-        { "fieldPath": "createdAt",  "order": "DESCENDING" }
+        { "fieldPath": "status",    "order": "ASCENDING"  },
+        { "fieldPath": "subject",   "order": "ASCENDING"  },
+        { "fieldPath": "grade",     "order": "ASCENDING"  },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
     {
-      "collectionGroup": "learnerAiGenerations",
+      "collectionGroup": "aiGeneratedContent",
       "queryScope": "COLLECTION",
       "fields": [
-        { "fieldPath": "visibility", "order": "ASCENDING"  },
-        { "fieldPath": "subject",    "order": "ASCENDING"  },
-        { "fieldPath": "grade",      "order": "ASCENDING"  },
-        { "fieldPath": "createdAt",  "order": "DESCENDING" }
+        { "fieldPath": "type",      "order": "ASCENDING"  },
+        { "fieldPath": "status",    "order": "ASCENDING"  },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "aiSupervisorLogs",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "actionTaken", "order": "ASCENDING"  },
+        { "fieldPath": "createdAt",   "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "curriculumUpdateReports",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "status",    "order": "ASCENDING"  },
+        { "fieldPath": "checkedAt", "order": "DESCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "assessmentStandards",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "grade",          "order": "ASCENDING" },
+        { "fieldPath": "subject",        "order": "ASCENDING" },
+        { "fieldPath": "assessmentType", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "learnerWeaknessProfiles",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "learnerId",   "order": "ASCENDING"  },
+        { "fieldPath": "lastUpdated", "order": "DESCENDING" }
       ]
     }
   ],

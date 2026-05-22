@@ -116,11 +116,12 @@ function useAdminBadges() {
           getCountFromServer(query(collection(db, 'quizzes'), where('status', '==', 'pending'))).catch(() => null),
           getCountFromServer(query(collection(db, 'lessons'), where('status', '==', 'pending'))).catch(() => null),
           getCountFromServer(query(collection(db, 'agentJobs'), where('status', '==', 'awaiting_approval'))).catch(() => null),
-          // Parallel counter for the learner-AI pipeline. Kept as a
+          // Parallel counter for the learner-AI v2 pipeline. Kept as a
           // separate query (NOT folded into the existing agentJobs
           // counter) so teacher + learner queues stay visually
-          // distinct in the sidebar.
-          getCountFromServer(query(collection(db, 'aiAgentTasks'), where('status', '==', 'awaiting_approval'))).catch(() => null),
+          // distinct. v2 status is 'needs_review' (not the v1
+          // 'awaiting_approval').
+          getCountFromServer(query(collection(db, 'aiAgentTasks'), where('status', '==', 'needs_review'))).catch(() => null),
           getCountFromServer(query(collection(db, 'payments'), where('status', '==', 'pending'))).catch(() => null),
         ])
         if (cancelled) return

@@ -29,7 +29,7 @@ export function LearnerAiHome() {
 
       <section className="mb-8">
         <h2 className="text-lg font-semibold mb-3">Tasks awaiting your approval</h2>
-        <TaskQueue statusFilter="awaiting_approval" />
+        <TaskQueue statusFilter="needs_review" />
       </section>
 
       <section className="mb-8">

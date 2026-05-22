@@ -36,7 +36,7 @@ export default function LiveAgentStates() {
 
   useEffect(() => {
     const unsubState = onSnapshot(
-      query(collection(db, 'liveAgentStates')),
+      query(collection(db, 'aiLiveAgentStates')),
       snap => {
         const map = {}
         snap.forEach(d => { map[d.id] = d.data() })
@@ -44,7 +44,7 @@ export default function LiveAgentStates() {
       },
     )
     const unsubCtrl = onSnapshot(
-      query(collection(db, 'agentControl')),
+      query(collection(db, 'aiAgentControls')),
       snap => {
         const map = {}
         snap.forEach(d => { map[d.id] = !!d.data().paused })
@@ -57,8 +57,12 @@ export default function LiveAgentStates() {
   async function togglePause(agentId) {
     setBusy(agentId)
     try {
-      await setDoc(doc(db, 'agentControl', agentId), {
-        paused: !pausedMap[agentId],
+      const next = !pausedMap[agentId]
+      await setDoc(doc(db, 'aiAgentControls', agentId), {
+        enabled: true,
+        paused: next,
+        pauseReason: next ? 'Paused from admin UI' : null,
+        updatedBy: 'admin',
         updatedAt: serverTimestamp(),
       }, { merge: true })
     } finally {
