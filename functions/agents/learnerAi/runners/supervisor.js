@@ -41,6 +41,15 @@ function planStepsFor(taskType) {
   if (taskType === "curriculum_update_check") {
     return ["curriculumWatcher"];
   }
+  // Weakness Detection is a per-learner data rollup — not learner-
+  // facing content, doesn't need curriculum grounding or Quality
+  // Check / Standards Check verification. Runs as a single step that
+  // reads ONLY the learner's own attempts and writes to
+  // learnerWeaknessProfiles/{learnerId}. The runner itself queues a
+  // downstream study_tips task when weakness signals exist.
+  if (taskType === "weakness_analysis") {
+    return ["weakness"];
+  }
   const gen = TASK_TYPE_TO_GENERATOR[taskType];
   if (!gen) return null;
   // exam_quiz: insert reference-data Standards between Reader and the
