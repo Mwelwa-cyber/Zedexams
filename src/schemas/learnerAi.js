@@ -47,6 +47,16 @@ const timestampish = z.unknown().refine(v => v != null, {
   message: 'expected a timestamp value (serverTimestamp sentinel, Timestamp, or Date)',
 })
 
+// ── Shared enums hoisted above the schemas that reference them ─────
+// ASSESSMENT_TYPES is declared again on assessmentStandardWriteSchema
+// below — exports are deduplicated by JS, this is just the earliest
+// position where aiAgentTaskWriteSchema can pin its assessmentType
+// field to the same enum.
+export const ASSESSMENT_TYPES = z.enum([
+  'practice_quiz', 'topic_test', 'monthly_test', 'midterm_test',
+  'end_of_term_test', 'composite_exam',
+])
+
 // ── 1. aiAgentTasks ───────────────────────────────────────────────
 
 export const TASK_TYPES = z.enum([
@@ -87,6 +97,11 @@ export const aiAgentTaskWriteSchema = z.object({
   topic: z.string().max(200).nullable(),
   subtopic: z.string().max(200).nullable(),
   lessonNumber: z.number().int().min(1).max(60).nullable(),
+  // assessmentType is consumed by the Standards + Exam Quiz agents.
+  // Other task types ignore it; it's nullable so practice_quiz / notes
+  // / study_tips tasks don't have to set it. Pinned to the same
+  // ASSESSMENT_TYPES enum used by assessmentStandards.
+  assessmentType: ASSESSMENT_TYPES.nullable(),
   startedAt: timestampish.nullable(),
   completedAt: timestampish.nullable(),
   resultContentId: z.string().max(120).nullable(),
@@ -298,10 +313,8 @@ export const curriculumUpdateReportWriteSchema = z.object({
 export const SCHOOL_LEVELS = z.enum([
   'primary', 'junior_secondary', 'senior_secondary',
 ])
-export const ASSESSMENT_TYPES = z.enum([
-  'practice_quiz', 'topic_test', 'monthly_test', 'midterm_test',
-  'end_of_term_test', 'composite_exam',
-])
+// ASSESSMENT_TYPES is hoisted near the top of the file so
+// aiAgentTaskWriteSchema can reference it.
 
 export const assessmentStandardWriteSchema = z.object({
   country: z.literal('Zambia'),
@@ -342,6 +355,73 @@ export const learnerWeaknessProfileWriteSchema = z.object({
 }).strict()
 
 /** @typedef {import('zod').infer<typeof learnerWeaknessProfileWriteSchema>} LearnerWeaknessProfile */
+
+// ── Curriculum Reader Agent — public output contract ─────────────────
+//
+// NOT a Firestore collection — this is the in-memory shape returned
+// by `runCurriculumReader` to the dispatcher and stashed at
+// `chainContext.curriculumReader` for every downstream agent to read.
+// The slim audit slice persisted onto aiGeneratedContent.curriculumReference
+// is curriculumReferenceSchema above; THIS schema is the richer
+// runtime surface (competencies/learningOutcomes/keyConcepts/etc.).
+
+export const CURRICULUM_READER_STATUSES = z.enum(['ok', 'needs_review'])
+export const CURRICULUM_READER_MATCH_KINDS = z.enum(['subtopic_exact', 'topic_only'])
+
+export const curriculumReaderCitedExcerptSchema = z.object({
+  text: z.string().min(1).max(480),
+  anchor: z.string().max(80),
+}).strict()
+
+export const curriculumReaderSourceChecksumSchema = z.object({
+  storagePath: z.string().max(500),
+  sha256: z.string().max(120),
+}).strict()
+
+export const curriculumReaderOutputSchema = z.object({
+  // Echoed-back inputs so downstream agents can grab everything they
+  // need off one object without re-reading the task doc.
+  grade: z.string().min(1).max(8),
+  subject: z.string().min(1).max(80),
+  term: z.string().max(8).nullable(),
+  topic: z.string().min(1).max(200),
+  subtopic: z.string().max(200).nullable(),
+  lessonNumber: z.number().int().min(1).max(60).nullable(),
+  assessmentType: ASSESSMENT_TYPES.nullable(),
+
+  // Structured curriculum context — what the user asked for.
+  competencies: z.array(z.string().max(400)).max(40),
+  learningOutcomes: z.array(z.string().max(400)).max(40),
+  keyConcepts: z.array(z.string().max(200)).max(40),
+  suggestedContent: z.array(z.string().max(400)).max(40),
+
+  // Provenance of the source document this output was projected from.
+  // documentPath is the Storage path of the approved syllabus; version
+  // is the cbcKnowledgeBase version tag (KB_VERSION).
+  curriculumDocumentPath: z.string().max(500),
+  curriculumVersion: z.string().max(80),
+
+  // 0..1, monotone in match quality. < 0.6 → status='needs_review'.
+  // Formula documented on computeConfidenceScore() in the runner.
+  confidenceScore: z.number().min(0).max(1),
+
+  // Tri-state outcome flag. Hard errors return ok:false from the
+  // runner — they never produce a CurriculumReaderOutput.
+  status: CURRICULUM_READER_STATUSES,
+  matchKind: CURRICULUM_READER_MATCH_KINDS,
+
+  // Internal-but-typed: Quality Check consumes citedExcerpts to do
+  // its deterministic substring-grounding pass; sourceChecksums prove
+  // the bytes of the syllabus the Reader saw. The slim
+  // aiGeneratedContent.curriculumReference audit field doesn't carry
+  // these — only this in-memory object does.
+  citedExcerpts: z.array(curriculumReaderCitedExcerptSchema).max(20),
+  sourceChecksums: z.array(curriculumReaderSourceChecksumSchema).max(10),
+  sourceDocId: z.string().max(120),
+  moduleId: z.string().max(120),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof curriculumReaderOutputSchema>} CurriculumReaderOutput */
 
 // ── Collection ↔ schema map (use for generic validators / migrations) ─
 

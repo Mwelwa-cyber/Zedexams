@@ -176,29 +176,181 @@ await test('refuses when module has no cited-excerpt content', async () => {
   assert(r.reason === 'no_cited_excerpts', `wrong reason: ${r.reason}`)
 })
 
+const RICH_MODULE = {
+  id: 'mod-1', grade: '7', subject: 'Mathematics', term: 1,
+  topic: 'Fractions', subtopic: 'Adding fractions',
+  outcomes: [
+    'Add fractions with the same denominator.',
+    'Identify equivalent fractions.',
+  ],
+  contentSummary: 'Adding fractions with like denominators.',
+  competencies: ['competency code MATH-7-FR-A'],
+  vocabulary: ['numerator', 'denominator', 'equivalent'],
+  teachingMaterials: ['Fraction strips', 'Number line'],
+  learnerActivities: ['Solve worksheet 7-2'],
+  assessmentCriteria: ['Demonstrates correct denominator handling'],
+  sourceDocId: 'syll-1',
+  sourceStoragePath: 'syllabi/g7-mathematics-2024.pdf',
+}
+const RICH_SYLLABI = {
+  'syll-1': {
+    grade: '7', subject: 'Mathematics',
+    storagePath: 'syllabi/g7-mathematics-2024.pdf', sha256: 'abc123',
+  },
+}
+
 await test('succeeds when KB + approvedSyllabi + excerpts all line up', async () => {
-  state.module = {
-    id: 'mod-1', grade: '7', subject: 'Mathematics', term: 1,
-    topic: 'Fractions', subtopic: 'Adding fractions',
-    outcomes: ['Add fractions with the same denominator.'],
-    contentSummary: 'Adding fractions with like denominators.',
-    competencies: ['competency code MATH-7-FR-A'],
-    sourceDocId: 'syll-1',
-    sourceStoragePath: 'syllabi/g7-mathematics-2024.pdf',
-  }
+  state.module = RICH_MODULE
   state.topic = null
-  fakeAdmin.__syllabi = {
-    'syll-1': {
-      grade: '7', subject: 'Mathematics',
-      storagePath: 'syllabi/g7-mathematics-2024.pdf', sha256: 'abc123',
-    },
-  }
+  fakeAdmin.__syllabi = RICH_SYLLABI
   const r = await resolveStrictCurriculumRef(baseInputs)
   assert(r.ok === true, `expected ok=true, got reason=${r.reason || '?'}`)
   assert(r.curriculumRef.sourceDocId === 'syll-1', 'sourceDocId not set')
   assert(r.curriculumRef.citedExcerpts.length > 0, 'cited excerpts missing')
   assert(r.curriculumRef.sourceChecksums.length === 1, 'sourceChecksums must be populated')
   assert(r.curriculumRef.kbVersion === 'cbc-kb-test', 'kbVersion not propagated')
+  assert(r.matchedModule, 'matchedModule must be returned alongside curriculumRef')
+  assert(r.matchKind === 'subtopic_exact', `matchKind wrong: ${r.matchKind}`)
+})
+
+// ── v2 agent output contract ─────────────────────────────────────────
+console.log('\nCurriculum Reader v2 — agent output contract')
+
+const RUNNER_PATH = join(__dirname, '..', 'functions', 'agents', 'learnerAi', 'runners', 'curriculumReader.js')
+// Stub the logger so importing the runner doesn't pull in admin SDK
+// timers via writeAgentLog. We import the runner only for its pure
+// projectAgentOutput / derive* / computeConfidenceScore helpers.
+const origLoad2 = Module._load
+Module._load = function(request, parent, ...rest) {
+  if (request === '../logger') {
+    return {
+      writeAgentLog: async () => {}, updateLiveAgentState: async () => {},
+      writeTaskStep: async () => {},
+    }
+  }
+  if (request === '../v2Collections') {
+    return {
+      TASK_STATUS: {CHECKING: 'checking'},
+      TASK_STEP_STATUS: {RUNNING: 'running', COMPLETED: 'completed', FAILED: 'failed'},
+      SEVERITY: {INFO: 'info', WARNING: 'warning'},
+    }
+  }
+  if (request === '../curriculumResolver') {
+    return {resolveStrictCurriculumRef}
+  }
+  return origLoad2.call(this, request, parent, ...rest)
+}
+const reader = await import(RUNNER_PATH)
+Module._load = origLoad
+
+const baseTask = {
+  id: 't1', taskType: 'practice_quiz',
+  grade: '7', subject: 'Mathematics', term: '1',
+  topic: 'Fractions', subtopic: 'Adding fractions', lessonNumber: 2,
+  assessmentType: null,
+}
+
+await test('projectAgentOutput emits all 14 v2 fields on subtopic_exact match', async () => {
+  state.module = RICH_MODULE
+  state.topic = null
+  fakeAdmin.__syllabi = RICH_SYLLABI
+  const resolved = await resolveStrictCurriculumRef(baseInputs)
+  const out = reader.projectAgentOutput({task: baseTask, resolved})
+  assert(out.status === 'ok', `expected status=ok, got ${out.status}`)
+  assert(out.matchKind === 'subtopic_exact', 'matchKind wrong')
+  assert(out.confidenceScore >= 0.8, `expected confidence >= 0.8 (got ${out.confidenceScore})`)
+  assert(out.competencies.length >= 1, 'competencies must populate from module.competencies')
+  assert(out.learningOutcomes.length >= 1, 'learningOutcomes must populate from module.outcomes')
+  assert(out.keyConcepts.length >= 1, 'keyConcepts must populate (vocabulary)')
+  assert(out.suggestedContent.length >= 1, 'suggestedContent must populate (teachingMaterials)')
+  assert(out.curriculumDocumentPath === 'syllabi/g7-mathematics-2024.pdf', 'doc path wrong')
+  assert(out.curriculumVersion === 'cbc-kb-test', 'version wrong')
+  assert(out.citedExcerpts.length >= 1, 'citedExcerpts must propagate from resolver')
+  assert(out.sourceChecksums.length >= 1, 'sourceChecksums must propagate')
+  assert(out.lessonNumber === 2, 'lessonNumber must echo from task')
+})
+
+await test('topic-only match → status=needs_review with sparse KB', async () => {
+  // Topic-only fallback: lookupSubtopicModule returns null, lookupTopic hits.
+  // To exercise the < 0.6 threshold:
+  //   - matchKind=topic_only       → baseline 0.5
+  //   - only one citable field     → +0.05 (one excerpt)
+  //   - no outcomes[]              → no bonus
+  //   - no competencies[]          → no bonus
+  //   - syllabus carries no sha256 → no sourceChecksums bonus
+  //   total: 0.55 → status='needs_review'
+  state.module = null
+  state.topic = {
+    id: 'top-1', grade: '7', subject: 'Mathematics', term: 1,
+    topic: 'Fractions',
+    contentSummary: 'Fractions overview.',
+    sourceDocId: 'syll-bare',
+  }
+  fakeAdmin.__syllabi = {
+    'syll-bare': {
+      grade: '7', subject: 'Mathematics',
+      storagePath: 'syllabi/g7-bare.pdf',
+      // no sha256 → sourceChecksums stays empty in the curriculumRef
+    },
+  }
+  const resolved = await resolveStrictCurriculumRef(baseInputs)
+  assert(resolved.ok === true, `expected resolver to succeed on topic-only path: ${resolved.reason || ''}`)
+  assert(resolved.matchKind === 'topic_only', `matchKind wrong: ${resolved.matchKind}`)
+  const out = reader.projectAgentOutput({task: baseTask, resolved})
+  assert(out.status === 'needs_review',
+    `topic-only sparse KB must yield needs_review, got status=${out.status} conf=${out.confidenceScore}`)
+  assert(out.confidenceScore < 0.6,
+    `expected confidence < 0.6 (got ${out.confidenceScore})`)
+})
+
+await test('confidenceScore monotone in cited-excerpt count', async () => {
+  const low = reader.computeConfidenceScore({
+    matchKind: 'subtopic_exact',
+    citedExcerpts: [1],
+    competencies: [], outcomes: [], sourceChecksums: [],
+  })
+  const high = reader.computeConfidenceScore({
+    matchKind: 'subtopic_exact',
+    citedExcerpts: [1, 2, 3, 4, 5],
+    competencies: [], outcomes: [], sourceChecksums: [],
+  })
+  assert(low < high, `expected low(${low}) < high(${high}) when cited excerpt count rises`)
+})
+
+await test('task.assessmentType is echoed onto output', async () => {
+  state.module = RICH_MODULE
+  state.topic = null
+  fakeAdmin.__syllabi = RICH_SYLLABI
+  const resolved = await resolveStrictCurriculumRef(baseInputs)
+  const out = reader.projectAgentOutput({
+    task: {...baseTask, assessmentType: 'end_of_term_test'},
+    resolved,
+  })
+  assert(out.assessmentType === 'end_of_term_test',
+    `expected assessmentType=end_of_term_test, got ${out.assessmentType}`)
+})
+
+await test('keyConcepts derived from vocabulary[] when present', async () => {
+  assert.deepEqual = (a, b, msg) => {
+    if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(msg || `${JSON.stringify(a)} !== ${JSON.stringify(b)}`)
+  }
+  const kc = reader.deriveKeyConcepts({
+    vocabulary: ['numerator', 'denominator', 'equivalent'],
+    assessmentCriteria: ['should-not-be-used'],
+    contentSummary: 'also-should-not-be-used',
+  })
+  assert.deepEqual(kc, ['numerator', 'denominator', 'equivalent'],
+    `vocabulary must win: got ${JSON.stringify(kc)}`)
+})
+
+await test('suggestedContent falls back to learnerActivities when no teachingMaterials', async () => {
+  const sc1 = reader.deriveSuggestedContent({
+    teachingMaterials: ['Number line'],
+    learnerActivities: ['should-not-be-used'],
+  })
+  assert(sc1[0] === 'Number line' && sc1.length === 1, `teachingMaterials must win: ${JSON.stringify(sc1)}`)
+  const sc2 = reader.deriveSuggestedContent({learnerActivities: ['Solve worksheet 7-2']})
+  assert(sc2[0] === 'Solve worksheet 7-2', `fallback to learnerActivities failed: ${JSON.stringify(sc2)}`)
 })
 
 // Restore module loader

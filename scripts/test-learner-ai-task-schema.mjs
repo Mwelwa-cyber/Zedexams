@@ -173,6 +173,7 @@ const happyPath = {
     taskType: 'practice_quiz', agentName: 'practiceQuiz', status: 'queued',
     grade: '7', subject: 'Mathematics', term: '1',
     topic: 'Fractions', subtopic: 'Adding fractions', lessonNumber: 1,
+    assessmentType: null,
     startedAt: null, completedAt: null,
     resultContentId: null, errorMessage: null,
     createdAt: now, updatedAt: now,
@@ -265,6 +266,82 @@ test('queued → running is legal', () => assert(canTransitionTaskStatus('queued
 test('queued → published is illegal', () => assert(!canTransitionTaskStatus('queued', 'published')))
 test('passed_quality_check → published is legal', () => assert(canTransitionTaskStatus('passed_quality_check', 'published')))
 test('published → anything else is illegal', () => assert(!canTransitionTaskStatus('published', 'rejected')))
+
+console.log('\naiAgentTasks.assessmentType is pinned to ASSESSMENT_TYPES')
+
+const { aiAgentTaskWriteSchema, ASSESSMENT_TYPES, curriculumReaderOutputSchema } =
+  await import('../src/schemas/learnerAi.js')
+
+test('assessmentType=null is allowed', () => {
+  const ok = aiAgentTaskWriteSchema.safeParse({
+    ...happyPath.aiAgentTasks,
+    assessmentType: null,
+  })
+  assert(ok.success, `assessmentType null must validate: ${ok.error && ok.error.message}`)
+})
+for (const t of ASSESSMENT_TYPES.options) {
+  test(`assessmentType='${t}' is allowed`, () => {
+    const ok = aiAgentTaskWriteSchema.safeParse({
+      ...happyPath.aiAgentTasks,
+      assessmentType: t,
+    })
+    assert(ok.success, `assessmentType=${t} must validate: ${ok.error && ok.error.message}`)
+  })
+}
+test('assessmentType="nonsense" is rejected', () => {
+  const bad = aiAgentTaskWriteSchema.safeParse({
+    ...happyPath.aiAgentTasks,
+    assessmentType: 'nonsense',
+  })
+  assert(!bad.success, 'invalid assessmentType must be rejected')
+})
+
+console.log('\ncurriculumReaderOutputSchema accepts the agent contract shape')
+
+test('curriculumReaderOutputSchema happy-path validates', () => {
+  const out = curriculumReaderOutputSchema.parse({
+    grade: '7', subject: 'Mathematics', term: '1',
+    topic: 'Fractions', subtopic: 'Adding fractions', lessonNumber: 2,
+    assessmentType: 'topic_test',
+    competencies: ['Solve fractional arithmetic'],
+    learningOutcomes: ['Add fractions with same denominator'],
+    keyConcepts: ['numerator', 'denominator'],
+    suggestedContent: ['Fraction strips', 'Practice worksheet 7-2'],
+    curriculumDocumentPath: 'syllabi/g7-math.pdf',
+    curriculumVersion: 'cbc-kb-2026-04-seed',
+    confidenceScore: 0.85,
+    status: 'ok', matchKind: 'subtopic_exact',
+    citedExcerpts: [{ text: 'Add fractions with like denominators.', anchor: 'content' }],
+    sourceChecksums: [{ storagePath: 'syllabi/g7-math.pdf', sha256: 'abc' }],
+    sourceDocId: 'g7-math', moduleId: 'mod-1',
+  })
+  assert(out.status === 'ok', 'status must be preserved')
+  assert(out.confidenceScore === 0.85, 'confidenceScore must be preserved')
+})
+test('curriculumReaderOutputSchema rejects out-of-range confidence', () => {
+  const bad = curriculumReaderOutputSchema.safeParse({
+    grade: '7', subject: 'Mathematics', term: '1', topic: 'Fractions', subtopic: null,
+    lessonNumber: null, assessmentType: null,
+    competencies: [], learningOutcomes: [], keyConcepts: [], suggestedContent: [],
+    curriculumDocumentPath: '', curriculumVersion: '',
+    confidenceScore: 1.5,
+    status: 'ok', matchKind: 'subtopic_exact',
+    citedExcerpts: [], sourceChecksums: [], sourceDocId: '', moduleId: '',
+  })
+  assert(!bad.success, 'confidenceScore > 1 must be rejected')
+})
+test('curriculumReaderOutputSchema rejects unknown status', () => {
+  const bad = curriculumReaderOutputSchema.safeParse({
+    grade: '7', subject: 'Mathematics', term: '1', topic: 'Fractions', subtopic: null,
+    lessonNumber: null, assessmentType: null,
+    competencies: [], learningOutcomes: [], keyConcepts: [], suggestedContent: [],
+    curriculumDocumentPath: '', curriculumVersion: '',
+    confidenceScore: 0.5,
+    status: 'unknown', matchKind: 'subtopic_exact',
+    citedExcerpts: [], sourceChecksums: [], sourceDocId: '', moduleId: '',
+  })
+  assert(!bad.success, 'unknown status must be rejected')
+})
 
 setTimeout(() => {
   console.log(`\n${pass} passed, ${fail} failed`)

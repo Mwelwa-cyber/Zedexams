@@ -18,7 +18,7 @@ const {writeAgentLog, updateLiveAgentState, writeTaskStep} = require("../logger"
 const {COLLECTIONS, CONTENT_STATUS, TASK_STATUS, TASK_STEP_STATUS, SEVERITY} =
   require("../v2Collections");
 
-function buildStubContent({agentId, curriculumReference}) {
+function buildStubContent({agentId, curriculumReference, curriculumReader}) {
   const inMem = curriculumReference && curriculumReference.inMemory;
   return {
     stub: true,
@@ -26,6 +26,17 @@ function buildStubContent({agentId, curriculumReference}) {
       `${agentId} prompt + schema are reviewed.`,
     citedExcerptCount: inMem && Array.isArray(inMem.citedExcerpts) ?
       inMem.citedExcerpts.length : 0,
+    // Curriculum Reader v2 surface — surfaces structured context the
+    // real LLM body will eventually condition on. Admin can sanity-
+    // check the pipeline by glancing at these.
+    curriculumReaderConfidence: curriculumReader && typeof curriculumReader.confidenceScore === "number" ?
+      curriculumReader.confidenceScore : null,
+    curriculumReaderStatus: curriculumReader ? curriculumReader.status : null,
+    curriculumReaderMatchKind: curriculumReader ? curriculumReader.matchKind : null,
+    keyConceptCount: curriculumReader && Array.isArray(curriculumReader.keyConcepts) ?
+      curriculumReader.keyConcepts.length : 0,
+    suggestedContentCount: curriculumReader && Array.isArray(curriculumReader.suggestedContent) ?
+      curriculumReader.suggestedContent.length : 0,
   };
 }
 
@@ -102,7 +113,11 @@ function makeRunner(cfg) {
         return {ok: false, reason: "runner_error"};
       }
     } else {
-      content = buildStubContent({agentId: AGENT_ID, curriculumReference});
+      content = buildStubContent({
+        agentId: AGENT_ID,
+        curriculumReference,
+        curriculumReader: chainContext.curriculumReader,
+      });
     }
 
     // Build the v2 aiGeneratedContent doc.
