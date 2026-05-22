@@ -1,19 +1,25 @@
 /**
- * Quality Check Agent (stub for the LLM nuance pass).
+ * Quality Check Agent — v2.
  *
- * The deterministic excerpt-match pass IS implemented here — that part
- * is non-negotiable per the design (no LLM rubber-stamping). It reads
- * the latest learnerAiGenerations doc for the task, walks every
- * content-bearing string, and confirms each cites a curriculumRef
- * excerpt index that exists. The LLM nuance scoring (Haiku 4.5) is a
- * stub today and slots in via the runLive hook.
+ * Two passes:
+ *   1. Deterministic substring grounding — every claim must reference
+ *      a citedExcerpts index that exists. NON-NEGOTIABLE; this guards
+ *      against ungrounded LLM output regardless of the nuance pass.
+ *   2. LLM nuance pass (Haiku 4.5) — stub until the prompt is reviewed.
+ *
+ * Reads the most recent aiGeneratedContent doc for the task and writes:
+ *   - qualityCheck       (onto the aiGeneratedContent doc)
+ *   - aiAgentLogs row
+ *   - aiSupervisorLogs row (the decision)
+ *   - aiTaskSteps row
  */
 
 const admin = require("firebase-admin");
-const {writeAgentLog, updateLiveAgentState, agentVersionFromFile} = require("../logger");
+const {writeAgentLog, writeSupervisorLog, updateLiveAgentState, writeTaskStep} =
+  require("../logger");
+const {COLLECTIONS, TASK_STEP_STATUS, SEVERITY} = require("../v2Collections");
 
-const AGENT_ID = "qualityCheck";
-const promptVersion = agentVersionFromFile("qualityCheck.js");
+const AGENT_ID = "Quality Check Agent";
 
 function collectGroundingIndices(content) {
   const out = new Set();
@@ -35,11 +41,10 @@ function collectGroundingIndices(content) {
   return [...out];
 }
 
-function deterministicGroundingCheck({content, curriculumRef}) {
-  const excerpts = (curriculumRef && curriculumRef.citedExcerpts) || [];
-  // Stub content from the stub factory doesn't carry groundingIndices;
-  // accept that explicitly so the pipeline runs end-to-end. Once a
-  // real LLM body lands, the indices must be present.
+function deterministicGroundingCheck({content, curriculumReference}) {
+  const excerpts = (curriculumReference &&
+    curriculumReference.inMemory &&
+    curriculumReference.inMemory.citedExcerpts) || [];
   if (content && content.stub === true) {
     return {ok: true, blockers: [], warnings: ["stub_artifact"]};
   }
@@ -58,106 +63,139 @@ function deterministicGroundingCheck({content, curriculumRef}) {
   return {ok: true, blockers: [], warnings: []};
 }
 
-async function runQualityCheck({task}) {
-  const startedAt = Date.now();
-  await updateLiveAgentState(AGENT_ID, {status: "running", currentTaskId: task.id});
-
-  const curriculumRef = task && task.curriculumRef;
-  if (!curriculumRef || !curriculumRef.sourceDocId) {
+async function runQualityCheck({task, chainContext = {}, stepNumber = 3}) {
+  const curriculumReference = chainContext.curriculumReference;
+  if (!curriculumReference) {
     await writeAgentLog({
-      agentId: AGENT_ID,
-      agentVersion: promptVersion,
-      taskId: task.id,
-      correlationId: task.correlationId || null,
-      action: "quality_check",
-      level: "blocked",
-      curriculumGrounded: false,
-      durationMs: Date.now() - startedAt,
+      taskId: task.id, agentName: AGENT_ID, action: "quality_check",
+      message: "Refused: missing curriculumReference",
+      taskType: task.taskType,
+      grade: task.grade, subject: task.subject, topic: task.topic,
+      severity: SEVERITY.WARNING,
     });
     return {ok: false, reason: "missing_curriculum_ref"};
   }
 
-  // Find the most recent learnerAiGenerations doc for this task.
+  await updateLiveAgentState(AGENT_ID, {
+    agentName: AGENT_ID, status: "checking", currentTaskId: task.id,
+    currentTask: "Quality check", progress: 25,
+    grade: task.grade, subject: task.subject, term: task.term,
+    topic: task.topic, subtopic: task.subtopic,
+    lastMessage: "Running deterministic grounding pass",
+  });
+  await writeTaskStep({
+    taskId: task.id, agentName: AGENT_ID, stepNumber,
+    stepTitle: "Quality check",
+    message: "Deterministic substring-grounding pass",
+    status: TASK_STEP_STATUS.RUNNING, progress: 50,
+  });
+
   const snap = await admin.firestore()
-      .collection("learnerAiGenerations")
-      .where("taskId", "==", task.id)
-      .orderBy("createdAt", "desc")
-      .limit(1)
+      .collection(COLLECTIONS.CONTENT)
+      .where("__name__", ">", "")  // ensures the predicate is well-formed
       .get()
       .catch(() => null);
+  // The above broad query isn't ideal; refine with a where("taskId" ...)
+  // once the content doc carries that. v2 schema doesn't include taskId
+  // on aiGeneratedContent (the caller's spec), so we resolve the doc by
+  // matching the most recent grade+subject+topic for the task instead.
+  let target = null;
+  if (snap && !snap.empty) {
+    const candidates = [];
+    snap.forEach((d) => {
+      const data = d.data();
+      if (data.grade === String(task.grade || "") &&
+          data.subject === String(task.subject || "") &&
+          data.topic === String(task.topic || "") &&
+          data.subtopic === String(task.subtopic || "")) {
+        candidates.push({ref: d.ref, data});
+      }
+    });
+    candidates.sort((a, b) => {
+      const at = a.data.createdAt && a.data.createdAt.toMillis ?
+        a.data.createdAt.toMillis() : 0;
+      const bt = b.data.createdAt && b.data.createdAt.toMillis ?
+        b.data.createdAt.toMillis() : 0;
+      return bt - at;
+    });
+    target = candidates[0] || null;
+  }
 
-  if (!snap || snap.empty) {
+  if (!target) {
     await writeAgentLog({
-      agentId: AGENT_ID,
-      agentVersion: promptVersion,
-      taskId: task.id,
-      correlationId: task.correlationId || null,
-      action: "quality_check",
-      level: "error",
-      outputSummary: {reason: "no_artifact_found"},
-      curriculumGrounded: true,
-      durationMs: Date.now() - startedAt,
+      taskId: task.id, agentName: AGENT_ID, action: "quality_check",
+      message: "No aiGeneratedContent found for this task",
+      taskType: task.taskType,
+      grade: task.grade, subject: task.subject, topic: task.topic,
+      severity: SEVERITY.ERROR,
     });
     return {ok: false, reason: "no_artifact_found"};
   }
 
-  const genDoc = snap.docs[0];
-  const gen = genDoc.data();
-
   const det = deterministicGroundingCheck({
-    content: gen.content,
-    curriculumRef,
+    content: target.data.content,
+    curriculumReference,
   });
 
-  // The LLM nuance pass lives here. For now, a stub verdict with the
-  // deterministic result baked in. Replace with Haiku 4.5 call later.
   const verdict = det.ok ? "pass" : "fail";
   const qualityCheck = {
     verdict,
-    groundingScore: det.ok ? 100 : 0,
+    deterministicGroundingPass: det.ok,
     blockers: det.blockers,
     warnings: det.warnings,
     verifierVerdict: "stub_no_llm_yet",
     checkedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
+  const zambianStandardsCheck = {
+    aligned: det.ok,
+    note: "stub — Standards-Agent verification pending",
+  };
 
-  await genDoc.ref.set({
+  await target.ref.set({
     qualityCheck,
+    zambianStandardsCheck,
     updatedAt: admin.firestore.FieldValue.serverTimestamp(),
   }, {merge: true});
 
-  await admin.firestore()
-      .collection("aiAgentTasks")
-      .doc(task.id)
-      .set({
-        qualityVerdict: {
-          verdict,
-          groundingScore: det.ok ? 100 : 0,
-          blockers: det.blockers,
-          warnings: det.warnings,
-        },
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      }, {merge: true});
-
-  await writeAgentLog({
-    agentId: AGENT_ID,
-    agentVersion: promptVersion,
-    taskId: task.id,
-    correlationId: task.correlationId || null,
-    action: "quality_check",
-    inputSummary: {generationId: genDoc.id},
-    outputSummary: {verdict, blockers: det.blockers},
-    level: det.ok ? "info" : "warning",
-    curriculumGrounded: true,
-    curriculumRef: {
-      sourceDocId: curriculumRef.sourceDocId,
-      moduleId: curriculumRef.moduleId,
-    },
-    durationMs: Date.now() - startedAt,
+  // Supervisor decision row.
+  const actionTaken = det.ok ? "sent_for_review" :
+    (det.blockers.length ? "regenerate_required" : "sent_for_review");
+  await writeSupervisorLog({
+    taskId: task.id, agentName: AGENT_ID,
+    contentType: target.data.type,
+    grade: task.grade || "", subject: task.subject || "", term: task.term || "",
+    topic: task.topic || "", subtopic: task.subtopic || "",
+    actionTaken,
+    reason: det.ok ? "deterministic_grounding_passed" :
+      `blocked:${det.blockers.join(",")}`,
+    confidenceScore: det.ok ? 0.9 : 0.0,
   });
 
-  await updateLiveAgentState(AGENT_ID, {status: "idle", currentTaskId: null});
-  return {ok: det.ok, verdict, generationId: genDoc.id};
+  await writeAgentLog({
+    taskId: task.id, agentName: AGENT_ID, action: "quality_check",
+    message: `Verdict ${verdict} on aiGeneratedContent/${target.ref.id}`,
+    taskType: task.taskType,
+    grade: task.grade, subject: task.subject, topic: task.topic,
+    severity: det.ok ? SEVERITY.INFO : SEVERITY.WARNING,
+  });
+  await writeTaskStep({
+    taskId: task.id, agentName: AGENT_ID, stepNumber,
+    stepTitle: "Quality check",
+    message: `${verdict}; blockers=${det.blockers.length}`,
+    status: det.ok ? TASK_STEP_STATUS.COMPLETED : TASK_STEP_STATUS.FAILED,
+    progress: 100,
+  });
+  await updateLiveAgentState(AGENT_ID, {
+    status: det.ok ? "completed" : "failed", currentTaskId: null,
+    progress: 100, lastMessage: verdict,
+  });
+
+  return {ok: det.ok, verdict, contentId: target.ref.id};
 }
 
-module.exports = {runQualityCheck, deterministicGroundingCheck, collectGroundingIndices};
+module.exports = {
+  runQualityCheck,
+  deterministicGroundingCheck,
+  collectGroundingIndices,
+  AGENT_ID,
+};

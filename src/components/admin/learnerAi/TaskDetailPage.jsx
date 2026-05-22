@@ -24,8 +24,8 @@ export default function TaskDetailPage() {
   const [task, setTask] = useState(null)
   const [steps, setSteps] = useState([])
   const [logs, setLogs] = useState([])
+  const [supervisorRows, setSupervisorRows] = useState([])
   const [gens, setGens] = useState([])
-  const [reviewNotes, setReviewNotes] = useState('')
   const [busy, setBusy] = useState(false)
 
   useEffect(() => {
@@ -34,8 +34,13 @@ export default function TaskDetailPage() {
       setTask(snap.exists() ? { id: snap.id, ...snap.data() } : null)
     })
     const unsubSteps = onSnapshot(
-      query(collection(db, 'aiAgentTasks', taskId, 'steps'), orderBy('stepNumber', 'asc')),
+      query(
+        collection(db, 'aiTaskSteps'),
+        where('taskId', '==', taskId),
+        orderBy('stepNumber', 'asc'),
+      ),
       snap => setSteps(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+      () => {},
     )
     return () => { unsub(); unsubSteps() }
   }, [taskId])
@@ -52,23 +57,58 @@ export default function TaskDetailPage() {
       snap => setLogs(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
       () => {},
     )
-    return () => unsubLogs()
+    const unsubSup = onSnapshot(
+      query(
+        collection(db, 'aiSupervisorLogs'),
+        where('taskId', '==', taskId),
+        orderBy('createdAt', 'asc'),
+        fsLimit(20),
+      ),
+      snap => setSupervisorRows(snap.docs.map(d => ({ id: d.id, ...d.data() }))),
+      () => {},
+    )
+    return () => { unsubLogs(); unsubSup() }
   }, [taskId])
 
+  // v2: aiGeneratedContent doesn't carry taskId. Resolve by
+  // resultContentId stamped on the task, or by (grade, subject, topic).
   useEffect(() => {
-    if (!taskId) return
+    if (!task) return
     let cancelled = false
-    getDocs(query(
-      collection(db, 'learnerAiGenerations'),
-      where('taskId', '==', taskId),
-      orderBy('createdAt', 'desc'),
-      fsLimit(10),
-    )).then(snap => {
-      if (cancelled) return
-      setGens(snap.docs.map(d => ({ id: d.id, ...d.data() })))
-    }).catch(() => {})
+    async function load() {
+      const hits = []
+      if (task.resultContentId) {
+        try {
+          const docs = await getDocs(query(
+            collection(db, 'aiGeneratedContent'),
+            where('__name__', '==', task.resultContentId),
+            fsLimit(1),
+          ))
+          docs.forEach(d => hits.push({ id: d.id, ...d.data() }))
+        } catch {
+          // ignore
+        }
+      }
+      if (!hits.length && task.grade) {
+        try {
+          const docs = await getDocs(query(
+            collection(db, 'aiGeneratedContent'),
+            where('grade', '==', String(task.grade)),
+            where('subject', '==', String(task.subject || '')),
+            where('topic', '==', String(task.topic || '')),
+            orderBy('createdAt', 'desc'),
+            fsLimit(5),
+          ))
+          docs.forEach(d => hits.push({ id: d.id, ...d.data() }))
+        } catch {
+          // ignore
+        }
+      }
+      if (!cancelled) setGens(hits)
+    }
+    load()
     return () => { cancelled = true }
-  }, [taskId, task?.status])
+  }, [task])
 
   async function decide(status) {
     if (!task) return
@@ -76,9 +116,7 @@ export default function TaskDetailPage() {
     try {
       await updateDoc(doc(db, 'aiAgentTasks', taskId), {
         status,
-        reviewedBy: currentUser?.uid || null,
-        reviewedAt: serverTimestamp(),
-        reviewNotes: reviewNotes || null,
+        updatedAt: serverTimestamp(),
       })
       navigate('/admin/learner-ai')
     } catch (err) {
@@ -90,7 +128,7 @@ export default function TaskDetailPage() {
 
   if (!task) return <div className="p-6 text-slate-500">Loading task…</div>
 
-  const canApprove = task.status === 'awaiting_approval'
+  const canApprove = task.status === 'needs_review' || task.status === 'passed_quality_check'
 
   return (
     <div className="p-4 md:p-6 max-w-5xl mx-auto">
@@ -102,52 +140,21 @@ export default function TaskDetailPage() {
         </h1>
         <div className="text-sm text-slate-600 mt-1">
           G{task.grade} · {task.subject} · {task.topic || '—'} {task.subtopic ? `/ ${task.subtopic}` : ''}
+          {task.agentName ? ` · agent: ${task.agentName}` : ''}
         </div>
+        {task.errorMessage && (
+          <div className="text-sm text-rose-700 mt-1">Error: {task.errorMessage}</div>
+        )}
       </header>
-
-      <Section title="Curriculum reference">
-        {task.curriculumRef ? (
-          <div className="text-sm">
-            <div><strong>Source doc:</strong> {task.curriculumRef.sourceDocId}</div>
-            <div><strong>KB version:</strong> {task.curriculumRef.kbVersion}</div>
-            <div><strong>Module:</strong> {task.curriculumRef.moduleId}</div>
-            <div><strong>Storage path:</strong> {task.curriculumRef.storagePath || '—'}</div>
-            <div><strong>Cited excerpts:</strong> {task.curriculumRef.citedExcerpts?.length || 0}</div>
-            {task.curriculumRef.citedExcerpts?.length > 0 && (
-              <ul className="mt-2 list-disc pl-5 text-slate-700">
-                {task.curriculumRef.citedExcerpts.slice(0, 5).map((e, i) => (
-                  <li key={i}><span className="text-slate-400">[{i}]</span> {e.text}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        ) : (
-          <div className="text-sm text-slate-500">
-            No curriculumRef yet (Curriculum Reader has not run or refused).
-          </div>
-        )}
-      </Section>
-
-      <Section title="Supervisor plan">
-        {task.supervisorPlan ? (
-          <ol className="text-sm list-decimal pl-5">
-            {task.supervisorPlan.steps?.map((s, i) => (
-              <li key={i} className={s.status === 'failed' ? 'text-rose-700' : s.status === 'succeeded' ? 'text-emerald-700' : 'text-slate-700'}>
-                {s.agentId} — {s.status || 'pending'}
-              </li>
-            ))}
-          </ol>
-        ) : (
-          <div className="text-sm text-slate-500">No plan yet.</div>
-        )}
-      </Section>
 
       <Section title="Steps">
         {steps.length ? (
           <ul className="text-sm divide-y">
             {steps.map(s => (
               <li key={s.id} className="py-1.5">
-                <span className="font-medium">#{s.stepNumber} {s.agentId}</span> — {s.status} {s.durationMs ? `(${s.durationMs}ms)` : ''}
+                <span className="font-medium">#{s.stepNumber} {s.agentName}</span>
+                {' — '}{s.status}
+                {s.message ? <span className="text-slate-500"> · {s.message}</span> : null}
               </li>
             ))}
           </ul>
@@ -156,20 +163,41 @@ export default function TaskDetailPage() {
         )}
       </Section>
 
-      <Section title="Quality verdict">
-        {task.qualityVerdict ? (
-          <pre className="text-xs bg-slate-50 p-2 rounded overflow-x-auto">{JSON.stringify(task.qualityVerdict, null, 2)}</pre>
+      <Section title={`Supervisor decisions (${supervisorRows.length})`}>
+        {supervisorRows.length ? (
+          <ul className="text-sm divide-y">
+            {supervisorRows.map(s => (
+              <li key={s.id} className="py-1.5">
+                <strong>{s.actionTaken}</strong> · confidence {(s.confidenceScore * 100).toFixed(0)}%
+                <div className="text-slate-500 text-xs">{s.reason}</div>
+              </li>
+            ))}
+          </ul>
         ) : (
-          <div className="text-sm text-slate-500">Quality check pending.</div>
+          <div className="text-sm text-slate-500">No supervisor decisions yet.</div>
         )}
       </Section>
 
       <Section title={`Generated artifacts (${gens.length})`}>
         {gens.length ? gens.map(g => (
           <div key={g.id} className="text-sm mb-3 pb-3 border-b last:border-b-0">
-            <div><strong>{g.artifactType}</strong> · visibility: <em>{g.visibility}</em></div>
+            <div>
+              <strong>{g.type}</strong> · status: <em>{g.status}</em> · version {g.version}
+            </div>
             <div className="text-slate-500 text-xs">ID: {g.id}</div>
+            {g.curriculumReference && (
+              <div className="text-xs text-slate-600 mt-1">
+                Source: {g.curriculumReference.documentPath || '—'}
+                {' · competency: '}{g.curriculumReference.competency || '—'}
+              </div>
+            )}
             <pre className="text-xs bg-slate-50 p-2 rounded mt-2 max-h-48 overflow-auto">{JSON.stringify(g.content, null, 2)}</pre>
+            {g.qualityCheck && Object.keys(g.qualityCheck).length > 0 && (
+              <details className="mt-2 text-xs">
+                <summary className="cursor-pointer text-slate-600">Quality check</summary>
+                <pre className="bg-slate-50 p-2 rounded overflow-auto">{JSON.stringify(g.qualityCheck, null, 2)}</pre>
+              </details>
+            )}
           </div>
         )) : <div className="text-sm text-slate-500">No artifacts yet.</div>}
       </Section>
@@ -179,13 +207,11 @@ export default function TaskDetailPage() {
           {logs.map(l => (
             <li key={l.id} className="py-1">
               <span className={
-                l.level === 'error' ? 'text-rose-700' :
-                l.level === 'blocked' ? 'text-amber-700' :
-                l.level === 'warning' ? 'text-amber-600' :
+                l.severity === 'error' ? 'text-rose-700' :
+                l.severity === 'warning' ? 'text-amber-600' :
                 'text-slate-700'
               }>
-                [{l.level}] {l.agentId}.{l.action} — grounded:{String(l.curriculumGrounded)}
-                {l.outputSummary ? ' · ' + (typeof l.outputSummary === 'string' ? l.outputSummary : JSON.stringify(l.outputSummary).slice(0, 200)) : ''}
+                [{l.severity}] {l.agentName}.{l.action} — {l.message}
               </span>
             </li>
           ))}
@@ -195,13 +221,10 @@ export default function TaskDetailPage() {
       {canApprove && (
         <div className="border border-orange-200 bg-orange-50 rounded-lg p-4 mt-6">
           <h3 className="font-semibold text-orange-900 mb-2">Review</h3>
-          <textarea
-            value={reviewNotes}
-            onChange={e => setReviewNotes(e.target.value)}
-            placeholder="Notes (optional)"
-            className="w-full border border-orange-200 rounded p-2 text-sm"
-            rows={3}
-          />
+          <div className="text-xs text-slate-600 mb-3">
+            Approving flips the linked aiGeneratedContent doc to <code>published</code>.
+            Reviewer: {currentUser?.email || currentUser?.uid || 'unknown'}
+          </div>
           <div className="flex gap-3 mt-3">
             <button
               onClick={() => decide('approved')}

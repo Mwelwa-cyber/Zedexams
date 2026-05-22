@@ -1,41 +1,28 @@
 /**
- * Append-only logger for the learner-AI pipeline.
+ * Append-only logger for the learner-AI pipeline (v2).
  *
- * Every runner calls writeAgentLog at the start and end of its work.
- * `curriculumGrounded` is the audit-query target — admins can search
- * `where('curriculumGrounded','==',false)` to find ungrounded outputs.
+ * Writes to:
+ *   - aiAgentLogs       — per-step structured audit log (info|warning|error)
+ *   - aiLiveAgentStates — per-agent heartbeat + current task
+ *   - aiSupervisorLogs  — Supervisor's pass/reject decisions (separate
+ *                         from aiAgentLogs because they carry a
+ *                         confidence score and are scarcer)
+ *   - aiTaskSteps       — per-step execution record
  *
- * `agentVersion` is a stable SHA over the prompt file content (or any
- * string the runner chooses) so a regression after a prompt edit can
- * be bisected by version.
+ * v2 schema (mirrors src/schemas/learnerAi.js):
+ *   aiAgentLogs/{logId}
+ *     { taskId, agentName, action, message, taskType,
+ *       grade, subject, topic, severity, createdAt }
+ *
+ *   aiLiveAgentStates/{agentId}
+ *     { agentName, status, currentTaskId, currentTask, progress,
+ *       grade, subject, term, topic, subtopic, lastMessage, updatedAt }
  */
 
 const admin = require("firebase-admin");
-const crypto = require("crypto");
-const fs = require("fs");
-const path = require("path");
+const {COLLECTIONS, SEVERITY} = require("./v2Collections");
 
-const versionCache = new Map();
-
-function agentVersionFromFile(promptFilePath) {
-  if (!promptFilePath) return "v0";
-  const cached = versionCache.get(promptFilePath);
-  if (cached) return cached;
-  let v = "v0";
-  try {
-    const abs = path.resolve(__dirname, "prompts", promptFilePath);
-    const buf = fs.readFileSync(abs);
-    v = "v-" + crypto.createHash("sha256").update(buf).digest("hex").slice(0, 12);
-  } catch (err) {
-    // Falling back to v0 is acceptable — the log just loses bisect
-    // resolution for that one row. Don't throw.
-    console.warn("agentVersionFromFile failed", promptFilePath, err && err.message);
-  }
-  versionCache.set(promptFilePath, v);
-  return v;
-}
-
-function trimSummary(value, limit = 800) {
+function trim(value, limit) {
   if (value == null) return null;
   if (typeof value === "string") return value.slice(0, limit);
   try {
@@ -47,71 +34,128 @@ function trimSummary(value, limit = 800) {
 
 /**
  * @param {object} entry
- * @param {string} entry.agentId
- * @param {string} [entry.agentVersion]
- * @param {string} [entry.taskId]
- * @param {string} [entry.stepId]
- * @param {string} [entry.correlationId]
- * @param {string} entry.action
- * @param {any}    [entry.inputSummary]
- * @param {any}    [entry.outputSummary]
- * @param {("info"|"warning"|"error"|"blocked")} [entry.level]
- * @param {boolean} [entry.curriculumGrounded]
- * @param {object} [entry.curriculumRef]
- * @param {string} [entry.model]
- * @param {number} [entry.tokensIn]
- * @param {number} [entry.tokensOut]
- * @param {number} [entry.costUsdCents]
- * @param {number} [entry.durationMs]
+ * @param {string} entry.taskId
+ * @param {string} entry.agentName
+ * @param {string} entry.action          short verb, e.g. "plan", "generate"
+ * @param {string} [entry.message]
+ * @param {string} [entry.taskType]
+ * @param {string|null} [entry.grade]
+ * @param {string|null} [entry.subject]
+ * @param {string|null} [entry.topic]
+ * @param {("info"|"warning"|"error")} [entry.severity]
  */
 async function writeAgentLog(entry) {
   const doc = {
-    schemaVersion: 1,
-    agentId: String(entry.agentId || "unknown"),
-    agentVersion: entry.agentVersion || "v0",
-    taskId: entry.taskId || null,
-    stepId: entry.stepId || null,
-    correlationId: entry.correlationId || null,
+    taskId: String(entry.taskId || ""),
+    agentName: String(entry.agentName || "unknown"),
     action: String(entry.action || "noop"),
-    inputSummary: trimSummary(entry.inputSummary),
-    outputSummary: trimSummary(entry.outputSummary),
-    level: entry.level || "info",
-    curriculumGrounded: typeof entry.curriculumGrounded === "boolean" ?
-      entry.curriculumGrounded : false,
-    curriculumRef: entry.curriculumRef || null,
-    model: entry.model || null,
-    tokensIn: Number.isFinite(entry.tokensIn) ? entry.tokensIn : null,
-    tokensOut: Number.isFinite(entry.tokensOut) ? entry.tokensOut : null,
-    costUsdCents: Number.isFinite(entry.costUsdCents) ? entry.costUsdCents : null,
-    durationMs: Number.isFinite(entry.durationMs) ? entry.durationMs : null,
+    message: trim(entry.message, 2000) || "",
+    taskType: String(entry.taskType || ""),
+    grade: entry.grade ?? null,
+    subject: entry.subject ?? null,
+    topic: entry.topic ?? null,
+    severity: entry.severity || SEVERITY.INFO,
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   };
   try {
-    await admin.firestore().collection("aiAgentLogs").add(doc);
+    await admin.firestore().collection(COLLECTIONS.LOGS).add(doc);
   } catch (err) {
-    // Logging failures must NEVER fail the pipeline. Log to console.
+    // Logging must never fail the pipeline.
     console.warn("writeAgentLog failed", err && err.message);
   }
 }
 
+/**
+ * @param {object} entry
+ * @param {string} entry.taskId
+ * @param {string} entry.agentName
+ * @param {string} entry.contentType
+ * @param {string} entry.grade
+ * @param {string} entry.subject
+ * @param {string} [entry.term]
+ * @param {string} [entry.topic]
+ * @param {string} [entry.subtopic]
+ * @param {("approved"|"rejected"|"sent_for_review"|"regenerate_required")} entry.actionTaken
+ * @param {string} entry.reason
+ * @param {number} entry.confidenceScore   0..1
+ */
+async function writeSupervisorLog(entry) {
+  const doc = {
+    taskId: String(entry.taskId || ""),
+    agentName: String(entry.agentName || "AI Supervisor Agent"),
+    contentType: String(entry.contentType || ""),
+    grade: String(entry.grade || ""),
+    subject: String(entry.subject || ""),
+    term: String(entry.term || ""),
+    topic: String(entry.topic || ""),
+    subtopic: String(entry.subtopic || ""),
+    actionTaken: entry.actionTaken,
+    reason: trim(entry.reason, 2000) || "",
+    confidenceScore: Number.isFinite(entry.confidenceScore) ?
+      Math.max(0, Math.min(1, entry.confidenceScore)) : 0,
+    checkedBy: "AI Supervisor Agent",
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+  try {
+    await admin.firestore().collection(COLLECTIONS.SUPERVISOR_LOGS).add(doc);
+  } catch (err) {
+    console.warn("writeSupervisorLog failed", err && err.message);
+  }
+}
+
+/**
+ * @param {string} agentId
+ * @param {object} patch                 partial aiLiveAgentStates fields
+ */
 async function updateLiveAgentState(agentId, patch) {
   if (!agentId) return;
   try {
     await admin.firestore()
-        .collection("liveAgentStates")
+        .collection(COLLECTIONS.LIVE_STATES)
         .doc(agentId)
         .set({
-          agentId,
+          agentName: agentId,
           ...patch,
-          lastHeartbeat: admin.firestore.FieldValue.serverTimestamp(),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
         }, {merge: true});
   } catch (err) {
     console.warn("updateLiveAgentState failed", agentId, err && err.message);
   }
 }
 
+/**
+ * Append a step record. One row per (taskId, stepNumber).
+ * @param {object} entry
+ * @param {string} entry.taskId
+ * @param {string} entry.agentName
+ * @param {number} entry.stepNumber
+ * @param {string} entry.stepTitle
+ * @param {string} [entry.message]
+ * @param {("queued"|"running"|"completed"|"failed"|"skipped")} entry.status
+ * @param {number} [entry.progress]      0..100
+ */
+async function writeTaskStep(entry) {
+  const doc = {
+    taskId: String(entry.taskId || ""),
+    agentName: String(entry.agentName || ""),
+    stepNumber: Number.isInteger(entry.stepNumber) ? entry.stepNumber : 0,
+    stepTitle: trim(entry.stepTitle, 200) || "",
+    message: trim(entry.message, 2000) || "",
+    status: entry.status,
+    progress: Number.isFinite(entry.progress) ?
+      Math.max(0, Math.min(100, entry.progress)) : 0,
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+  try {
+    await admin.firestore().collection(COLLECTIONS.STEPS).add(doc);
+  } catch (err) {
+    console.warn("writeTaskStep failed", err && err.message);
+  }
+}
+
 module.exports = {
   writeAgentLog,
+  writeSupervisorLog,
   updateLiveAgentState,
-  agentVersionFromFile,
+  writeTaskStep,
 };

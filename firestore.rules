@@ -1237,117 +1237,136 @@ service cloud.firestore {
       allow create, update, delete: if false;
     }
 
-    // ── Learner-AI pipeline (parallel to teacher agentJobs flow) ──────
+    // ── Learner-AI pipeline (v2 canonical schema) ─────────────────────
     //
-    // The learner-facing AI agent system is intentionally a separate
-    // collection from agentJobs so its rules (learner creates allowed),
-    // state machine (more statuses), and UI counters (parallel admin
-    // pending count) do not interfere with the existing teacher pipeline.
-    //
-    // Cloud Functions own status transitions and outputs. Clients can:
-    //   - learners create a `queued` task for themselves;
-    //   - admins approve / reject;
+    // 10-collection layout. Cloud Functions own all state transitions
+    // and writes via the admin SDK (which bypasses rules). Clients can:
+    //   - learners / teachers create a `queued` aiAgentTasks doc for
+    //     themselves;
+    //   - admins approve/reject + toggle pause flags;
     //   - everyone reads what they're allowed to.
+    //
+    // No code under functions/agents/learnerAi/ may write to the
+    // existing `quizzes` collection — enforced by a grep test in CI
+    // (scripts/test-learner-ai-isolation.mjs).
+
+    // 1. aiAgentTasks — the work queue.
     match /aiAgentTasks/{taskId} {
       allow read: if isAuthed() && (
-        resource.data.createdBy == request.auth.uid
-        || resource.data.learnerUid == request.auth.uid
+        resource.data.learnerId == request.auth.uid
+        || resource.data.createdBy == request.auth.uid
         || isAdmin()
       );
 
-      // Learners (and teachers / admins) create their own tasks. The
-      // shape is locked down: only inert fields permitted at create, so
-      // a tampered client cannot prefill supervisorPlan, curriculumRef,
-      // qualityVerdict, etc.
+      // Create: status must be 'queued', no prefilled pipeline fields.
+      // Anyone authenticated can create — admin SDK can override on
+      // the server. taskType is validated by the schema-validator
+      // helper in src/schemas/learnerAi.js before the addDoc call.
       allow create: if isAuthed()
-        && incoming().department == 'learner_ai'
         && incoming().status == 'queued'
-        && incoming().createdBy == request.auth.uid
         && incoming().taskType is string
         && incoming().taskType.size() <= 64
-        && (!('supervisorPlan' in incoming()))
-        && (!('curriculumRef' in incoming()))
-        && (!('qualityVerdict' in incoming()))
-        && (!('output' in incoming()))
-        && (!('reviewedBy' in incoming()));
+        && incoming().agentName is string
+        && incoming().agentName.size() <= 80
+        && (!('startedAt' in incoming()) || incoming().startedAt == null)
+        && (!('completedAt' in incoming()) || incoming().completedAt == null)
+        && (!('resultContentId' in incoming()) || incoming().resultContentId == null)
+        && (!('errorMessage' in incoming()) || incoming().errorMessage == null);
 
-      // Admin review fields only. Real pipeline updates come from the
-      // dispatcher (admin SDK bypasses these rules).
+      // Admins can flip terminal review statuses. Real pipeline updates
+      // are written by the dispatcher via admin SDK.
       allow update: if isAdmin()
-        && changedKeys().hasOnly(['status', 'reviewedBy', 'reviewedAt', 'reviewNotes'])
+        && changedKeys().hasOnly(['status', 'errorMessage', 'updatedAt'])
         && (incoming().status == 'approved'
             || incoming().status == 'rejected'
-            || incoming().status == 'cancelled'
+            || incoming().status == 'regenerating'
             || incoming().status == resource.data.status);
 
       allow delete: if isAdmin();
-
-      // Per-step subcollection — admin SDK writes, admin + owners read.
-      match /steps/{stepId} {
-        allow read: if isAuthed() && (
-          get(/databases/$(database)/documents/aiAgentTasks/$(taskId)).data.createdBy == request.auth.uid
-          || get(/databases/$(database)/documents/aiAgentTasks/$(taskId)).data.learnerUid == request.auth.uid
-          || isAdmin()
-        );
-        allow write: if false;
-      }
     }
 
-    // ── aiAgentLogs (append-only structured audit log) ────────────────
-    //
-    // Every agent step writes one log row with curriculumGrounded:bool.
-    // Audit query: where('curriculumGrounded','==',false) surfaces every
-    // ungrounded output for review. Admin-only read; no client writes.
+    // 2. aiAgentLogs — append-only audit log (admin-read, server-write).
     match /aiAgentLogs/{logId} {
-      allow read: if isAdmin();
+      allow read:  if isAdmin();
       allow write: if false;
     }
 
-    // ── learnerAiGenerations (the learner-AI artifact store) ──────────
-    //
-    // Parallel to teacher `aiGenerations`. Learners only see their own
-    // PUBLISHED artifacts; admins see everything; admin SDK writes.
-    // Hard rule: this collection NEVER gets duplicated into the
-    // `quizzes` collection — the existing learner publishing flow is
-    // not touched by this PR.
-    match /learnerAiGenerations/{genId} {
+    // 3. aiGeneratedContent — the learner-AI artifact store.
+    //    Replaces v1's `learnerAiGenerations`. Hard rule: nothing ever
+    //    copies these into `quizzes` from the learner-AI pipeline.
+    match /aiGeneratedContent/{contentId} {
       allow read: if isAuthed() && (
         isAdmin()
-        || (resource.data.visibility == 'published'
-            && resource.data.learnerUid == request.auth.uid)
+        || resource.data.status == 'published'
       );
       allow write: if false;
     }
 
-    // ── liveAgentStates (per-agent heartbeat + daily stats) ───────────
-    match /liveAgentStates/{agentId} {
+    // 4. aiLiveAgentStates — per-agent heartbeat + current task.
+    match /aiLiveAgentStates/{agentId} {
       allow read:  if isAuthed();
       allow write: if false;
     }
 
-    // ── curriculumUpdateReports (Curriculum Update Checker output) ────
+    // 5. aiTaskSteps — flat step records (one row per agent step).
+    match /aiTaskSteps/{stepId} {
+      allow read: if isAuthed() && isAdmin();
+      allow write: if false;
+    }
+
+    // 6. aiAgentControls — circuit breaker per agent.
+    //    Admins toggle paused/enabled; the dispatcher reads this before
+    //    every runner invocation.
+    match /aiAgentControls/{agentId} {
+      allow read:   if isAuthed();
+      allow write:  if isAdmin()
+        && incoming().enabled is bool
+        && incoming().paused is bool
+        && incoming().updatedBy == request.auth.uid;
+    }
+
+    // 7. aiSupervisorLogs — Supervisor's pass/reject decisions, separate
+    //    from aiAgentLogs because they carry confidence + are scarcer.
+    match /aiSupervisorLogs/{logId} {
+      allow read:  if isAdmin();
+      allow write: if false;
+    }
+
+    // 8. curriculumUpdateReports — Curriculum Watcher daily output.
     match /curriculumUpdateReports/{reportId} {
       allow read: if isAdmin();
       allow update: if isAdmin()
-        && changedKeys().hasOnly(['reviewedBy', 'reviewedAt', 'requiresAdminAction']);
+        && changedKeys().hasOnly(['status', 'reviewedBy', 'reviewedAt']);
       allow create, delete: if false;
     }
 
-    // ── assessmentStandards (Standards Agent output) ──────────────────
-    //
-    // Drafts written by the Standards agent; admins promote to approved.
+    // 9. assessmentStandards — Zambian exam structure per
+    //    grade × subject × assessmentType. Authed-read because
+    //    teachers/learners may need to see what an exam looks like.
     match /assessmentStandards/{standardId} {
       allow read: if isAuthed();
       allow update: if isAdmin()
-        && changedKeys().hasOnly(['status', 'approvedBy', 'approvedAt']);
+        && changedKeys().hasOnly(['approvedByAdmin', 'updatedAt']);
       allow create, delete: if false;
+    }
+
+    // 10. learnerWeaknessProfiles — per-learner weakness rollup.
+    //     Each profile is keyed by learnerId. Only the learner and
+    //     admins can read.
+    match /learnerWeaknessProfiles/{profileId} {
+      allow read: if isAuthed() && (
+        resource.data.learnerId == request.auth.uid
+        || isAdmin()
+      );
+      allow write: if false;
     }
 
     // ── approvedSyllabi (the "what counts as approved" index) ─────────
     //
-    // Indexed view of approved Zambian curriculum documents in Storage
-    // (syllabi/ and syllabus-uploads/). The Curriculum Reader Agent
-    // refuses to ground on anything that isn't listed here.
+    // Indexed view of approved Zambian curriculum documents in Storage.
+    // The Curriculum Reader refuses to ground on anything not listed
+    // here. Kept across v1 → v2 (not in the 10-collection set, but the
+    // Reader still reads it).
     match /approvedSyllabi/{syllabusId} {
       allow read: if isAuthed();
       allow write: if isAdmin();

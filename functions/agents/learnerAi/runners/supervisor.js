@@ -1,35 +1,33 @@
 /**
- * AI Supervisor Agent (Sage) — the orchestrator.
+ * AI Supervisor Agent — v2.
  *
- * Plans the step graph for each task, enforces cost caps, and decides
- * which agent to wake next. Does NOT call an LLM — orchestration is
- * deterministic and cheap. Every decision is logged.
+ * The orchestrator. Decides which agents to run for each task type and
+ * in what order. Returns the plan to the dispatcher as a JS array
+ * (not persisted on aiAgentTasks — v2 schema doesn't carry it; steps
+ * are observable through the aiTaskSteps collection instead).
  *
  * Step plans by taskType:
- *   practice_quiz, exam_quiz, notes, study_tips → [curriculumReader, generator, qualityCheck]
- *   weakness_scan, feedback                     → [curriculumReader, generator, qualityCheck]
- *   standards_draft                             → [curriculumReader, standards, qualityCheck]
- *   curriculum_check                            → [curriculumWatcher]
+ *   practice_quiz, exam_quiz, notes, study_tips, learner_feedback,
+ *   weakness_analysis        → [curriculumReader, <generator>, qualityCheck]
+ *   curriculum_update_check  → [curriculumWatcher]
  */
 
-const admin = require("firebase-admin");
-const {writeAgentLog, updateLiveAgentState} = require("../logger");
-const {DEFAULT_TASK_BUDGET} = require("../costGuard");
+const {writeAgentLog, updateLiveAgentState, writeTaskStep} = require("../logger");
+const {TASK_STATUS, TASK_STEP_STATUS, SEVERITY} = require("../v2Collections");
 
-const AGENT_ID = "supervisor";
+const AGENT_ID = "AI Supervisor Agent";
 
-const TASK_TYPE_TO_GENERATOR = {
-  practice_quiz: "practiceQuiz",
-  exam_quiz: "examQuiz",
-  notes: "notes",
-  study_tips: "studyTips",
-  weakness_scan: "weakness",
-  feedback: "feedback",
-  standards_draft: "standards",
-};
+const TASK_TYPE_TO_GENERATOR = Object.freeze({
+  practice_quiz:     "practiceQuiz",
+  exam_quiz:         "examQuiz",
+  notes:             "notes",
+  study_tips:        "studyTips",
+  weakness_analysis: "weakness",
+  learner_feedback:  "feedback",
+});
 
 function planStepsFor(taskType) {
-  if (taskType === "curriculum_check") {
+  if (taskType === "curriculum_update_check") {
     return ["curriculumWatcher"];
   }
   const gen = TASK_TYPE_TO_GENERATOR[taskType];
@@ -38,61 +36,67 @@ function planStepsFor(taskType) {
 }
 
 async function runSupervisor({task}) {
-  const startedAt = Date.now();
-  await updateLiveAgentState(AGENT_ID, {status: "running", currentTaskId: task.id});
+  await updateLiveAgentState(AGENT_ID, {
+    agentName: AGENT_ID,
+    status: TASK_STATUS.RUNNING,
+    currentTaskId: task.id,
+    currentTask: `Plan ${task.taskType}`,
+    progress: 0,
+    grade: task.grade || null,
+    subject: task.subject || null,
+    term: task.term || null,
+    topic: task.topic || null,
+    subtopic: task.subtopic || null,
+    lastMessage: "Planning step graph",
+  });
 
   const steps = planStepsFor(task.taskType);
   if (!steps) {
     await writeAgentLog({
-      agentId: AGENT_ID,
       taskId: task.id,
-      correlationId: task.correlationId || null,
+      agentName: AGENT_ID,
       action: "plan",
-      inputSummary: {taskType: task.taskType},
-      outputSummary: {reason: "unsupported_task_type"},
-      level: "error",
-      curriculumGrounded: false,
-      durationMs: Date.now() - startedAt,
+      message: `Unsupported task type: ${task.taskType}`,
+      taskType: task.taskType,
+      grade: task.grade, subject: task.subject, topic: task.topic,
+      severity: SEVERITY.ERROR,
     });
-    await updateLiveAgentState(AGENT_ID, {status: "idle", currentTaskId: null});
+    await updateLiveAgentState(AGENT_ID, {
+      status: "failed", currentTaskId: null, lastMessage: "unsupported_task_type",
+    });
     return {ok: false, reason: "unsupported_task_type"};
   }
 
-  const supervisorPlan = {
-    steps: steps.map((agentId, i) => ({
-      agentId,
+  // Pre-create one aiTaskSteps row per planned step (status:'queued')
+  // so the UI can render the full plan immediately. Each runner then
+  // updates its own step record to 'running'/'completed'/'failed'.
+  for (let i = 0; i < steps.length; i++) {
+    await writeTaskStep({
+      taskId: task.id,
+      agentName: steps[i],
       stepNumber: i + 1,
-      status: "pending",
-    })),
-    currentStep: 0,
-    nextAgentId: steps[0],
-    ...DEFAULT_TASK_BUDGET,
-    plannedAt: admin.firestore.FieldValue.serverTimestamp(),
-  };
-
-  await admin.firestore()
-      .collection("aiAgentTasks")
-      .doc(task.id)
-      .set({
-        supervisorPlan,
-        agentId: AGENT_ID,
-        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-      }, {merge: true});
+      stepTitle: `Run ${steps[i]}`,
+      message: `Planned by ${AGENT_ID}`,
+      status: TASK_STEP_STATUS.QUEUED,
+      progress: 0,
+    });
+  }
 
   await writeAgentLog({
-    agentId: AGENT_ID,
     taskId: task.id,
-    correlationId: task.correlationId || null,
+    agentName: AGENT_ID,
     action: "plan",
-    inputSummary: {taskType: task.taskType, grade: task.grade, subject: task.subject},
-    outputSummary: {steps, budget: DEFAULT_TASK_BUDGET},
-    level: "info",
-    curriculumGrounded: false,
-    durationMs: Date.now() - startedAt,
+    message: `Planned ${steps.length} steps: ${steps.join(" → ")}`,
+    taskType: task.taskType,
+    grade: task.grade, subject: task.subject, topic: task.topic,
+    severity: SEVERITY.INFO,
   });
 
-  await updateLiveAgentState(AGENT_ID, {status: "idle", currentTaskId: null});
-  return {ok: true, supervisorPlan};
+  await updateLiveAgentState(AGENT_ID, {
+    status: "completed", currentTaskId: null, progress: 100,
+    lastMessage: `Planned ${steps.length} steps`,
+  });
+  return {ok: true, steps};
 }
 
-module.exports = {runSupervisor, planStepsFor, AGENT_ID};
+module.exports = {runSupervisor, planStepsFor, AGENT_ID, TASK_TYPE_TO_GENERATOR};

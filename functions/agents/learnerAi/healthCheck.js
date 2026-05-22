@@ -1,13 +1,8 @@
 /**
- * Scheduled health check + daily curriculum watcher trigger.
- *
- * Two scheduled functions exported separately so they can be deployed
- * and observed independently:
+ * Scheduled health check + daily curriculum watcher trigger — v2.
  *
  *   - aiAgentHealthCheckScheduled: every 15 minutes. Reaps tasks stuck
- *     in non-terminal statuses for >10 minutes, refreshes
- *     liveAgentStates daily-stat counters, fails stuck tasks.
- *
+ *     in non-terminal statuses for >10 minutes, marks them status:'error'.
  *   - curriculumUpdateCheckerScheduled: daily at 02:00 UTC. Invokes
  *     the Curriculum Watcher agent runner.
  */
@@ -16,27 +11,29 @@ const admin = require("firebase-admin");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {runCurriculumWatcher} = require("./runners/curriculumWatcher");
 const {writeAgentLog} = require("./logger");
+const {COLLECTIONS, TASK_STATUS, SEVERITY} = require("./v2Collections");
 
 const STUCK_MINUTES = 10;
+
+// Non-terminal statuses that should be reaped if they sit too long.
 const NON_TERMINAL = new Set([
-  "queued",
-  "supervisor_planning",
-  "curriculum_read",
-  "generating",
-  "quality_check",
+  TASK_STATUS.QUEUED,
+  TASK_STATUS.RUNNING,
+  TASK_STATUS.THINKING,
+  TASK_STATUS.GENERATING,
+  TASK_STATUS.CHECKING,
+  TASK_STATUS.WAITING,
+  TASK_STATUS.REGENERATING,
 ]);
 
 async function reapStuckTasks() {
   const cutoffMs = Date.now() - STUCK_MINUTES * 60 * 1000;
   const cutoff = admin.firestore.Timestamp.fromMillis(cutoffMs);
 
-  // Index used: (status ASC, createdAt DESC). We can only query one
-  // status at a time without a special index, so we sweep each
-  // non-terminal status separately.
   const reaped = [];
   for (const status of NON_TERMINAL) {
     const snap = await admin.firestore()
-        .collection("aiAgentTasks")
+        .collection(COLLECTIONS.TASKS)
         .where("status", "==", status)
         .where("createdAt", "<", cutoff)
         .limit(25)
@@ -45,8 +42,8 @@ async function reapStuckTasks() {
     if (!snap || snap.empty) continue;
     for (const doc of snap.docs) {
       await doc.ref.set({
-        status: "failed",
-        errorReason: `reaped_after_${STUCK_MINUTES}m_in_${status}`,
+        status: TASK_STATUS.ERROR,
+        errorMessage: `reaped_after_${STUCK_MINUTES}m_in_${status}`,
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       }, {merge: true});
       reaped.push({taskId: doc.id, fromStatus: status});
@@ -54,12 +51,13 @@ async function reapStuckTasks() {
   }
 
   await writeAgentLog({
-    agentId: "supervisor",
+    taskId: "scheduled",
+    agentName: "AI Supervisor Agent",
     action: "health_check",
-    inputSummary: {stuckMinutes: STUCK_MINUTES},
-    outputSummary: {reapedCount: reaped.length, reaped},
-    level: reaped.length ? "warning" : "info",
-    curriculumGrounded: false,
+    message: `Reaped ${reaped.length} stuck task(s) older than ${STUCK_MINUTES}m`,
+    taskType: "health_check",
+    grade: null, subject: null, topic: null,
+    severity: reaped.length ? SEVERITY.WARNING : SEVERITY.INFO,
   });
 
   return reaped.length;

@@ -1,15 +1,18 @@
 /**
- * Learner-AI dispatcher — Firestore triggers for the aiAgentTasks
- * collection. Mirrors the agentJobs dispatcher pattern (paused-cache,
- * department guard, sequential runner invocation) but on a SEPARATE
- * collection so the existing teacher pipeline is untouched.
+ * Learner-AI dispatcher — v2.
+ *
+ * Firestore triggers on the aiAgentTasks collection. v2 schema does NOT
+ * carry orchestration metadata on aiAgentTasks; instead the dispatcher
+ * carries `chainContext` in-memory and persists observability through
+ * aiTaskSteps, aiAgentLogs, aiSupervisorLogs.
  *
  * Triggers:
- *   1. aiAgentTasksOnCreate — runs Supervisor → step graph → terminal
- *      status. Stops at awaiting_approval for admin review.
- *   2. aiAgentTasksOnApproved — on approve, flips the
- *      learnerAiGenerations doc visibility from pending_review →
- *      published.  On reject, no side effects beyond the status change.
+ *   1. aiAgentTasksOnCreate — wakes Supervisor; walks the planned step
+ *      graph; flips terminal status to `needs_review` once all steps
+ *      pass (or `failed_quality_check` / `error` on failure).
+ *   2. aiAgentTasksOnApproved — fires when admin sets status='approved'.
+ *      Flips the corresponding aiGeneratedContent doc status to
+ *      'published' and stamps `reviewedBy`.
  *
  * Hard rule: this file (and every runner under runners/) MUST NOT write
  * to the `quizzes` collection. Enforced by
@@ -31,17 +34,20 @@ const {runFeedback} = require("./runners/feedback");
 const {runStandards} = require("./runners/standards");
 const {runQualityCheck} = require("./runners/qualityCheck");
 const {runCurriculumWatcher} = require("./runners/curriculumWatcher");
-const {writeAgentLog} = require("./logger");
+const {writeAgentLog, writeTaskStep} = require("./logger");
 const {assertLearnerDailyLimit} = require("./costGuard");
+const {
+  COLLECTIONS, TASK_STATUS, CONTENT_STATUS, TASK_STEP_STATUS, SEVERITY,
+} = require("./v2Collections");
 
 const TRIGGER_OPTS = {
-  document: "aiAgentTasks/{taskId}",
+  document: `${COLLECTIONS.TASKS}/{taskId}`,
   region: "us-central1",
   timeoutSeconds: 540,
   memory: "512MiB",
 };
 
-const RUNNER_MAP = {
+const RUNNER_MAP = Object.freeze({
   supervisor: runSupervisor,
   curriculumReader: runCurriculumReader,
   practiceQuiz: runPracticeQuiz,
@@ -53,32 +59,27 @@ const RUNNER_MAP = {
   standards: runStandards,
   qualityCheck: runQualityCheck,
   curriculumWatcher: runCurriculumWatcher,
-};
+});
 
-// Paused-cache mirrors functions/agents/dispatcher.js. Each task may
-// check 3-4 agent pause states in a row; reading agentControl once per
-// minute is enough.
+// Per-agent pause cache (1-minute TTL). Reads aiAgentControls. Mirrors
+// the pattern from functions/agents/dispatcher.js for the teacher pipeline.
 const PAUSED_CACHE_TTL_MS = 60_000;
 let pausedCache = {expiresAt: 0, paused: new Set()};
 
 async function refreshPausedCache() {
   const snap = await admin.firestore()
-      .collection("agentControl")
+      .collection(COLLECTIONS.CONTROLS)
       .where("paused", "==", true)
       .get()
       .catch(() => null);
   const paused = new Set();
-  if (snap && !snap.empty) {
-    snap.forEach((doc) => paused.add(doc.id));
-  }
+  if (snap && !snap.empty) snap.forEach((doc) => paused.add(doc.id));
   pausedCache = {expiresAt: Date.now() + PAUSED_CACHE_TTL_MS, paused};
   return pausedCache;
 }
 
 async function isAgentPaused(agentId) {
-  if (Date.now() >= pausedCache.expiresAt) {
-    await refreshPausedCache();
-  }
+  if (Date.now() >= pausedCache.expiresAt) await refreshPausedCache();
   return pausedCache.paused.has(agentId);
 }
 
@@ -94,28 +95,31 @@ async function readTask(taskRef) {
   return {id: snap.id, ...(snap.data() || {})};
 }
 
-// Status flow for taskType=practice_quiz (and most learner-AI tasks):
-//   queued → supervisor_planning → curriculum_read → generating
-//          → quality_check → awaiting_approval
-// Generators map to status='generating'; qualityCheck → 'quality_check'.
-function statusForAgent(agentId) {
-  if (agentId === "supervisor") return "supervisor_planning";
-  if (agentId === "curriculumReader") return "curriculum_read";
-  if (agentId === "qualityCheck") return "quality_check";
-  return "generating";
+// Pipeline status flow (v2):
+//   queued → running → (per-runner: thinking|generating|checking|waiting)
+//          → completed → passed_quality_check → needs_review
+//                      | failed_quality_check → regenerating | rejected
+//          → approved → published
+//   any branch → error
+function statusForRunner(agentId) {
+  if (agentId === "supervisor")          return TASK_STATUS.RUNNING;
+  if (agentId === "curriculumReader")    return TASK_STATUS.CHECKING;
+  if (agentId === "qualityCheck")        return TASK_STATUS.CHECKING;
+  if (agentId === "curriculumWatcher")   return TASK_STATUS.RUNNING;
+  return TASK_STATUS.GENERATING;
 }
 
 async function runChain({taskId}) {
   const db = admin.firestore();
-  const taskRef = db.collection("aiAgentTasks").doc(taskId);
+  const taskRef = db.collection(COLLECTIONS.TASKS).doc(taskId);
   let task = await readTask(taskRef);
 
-  // 0. Per-user daily cap, distinct kind from the teacher pipeline.
-  const owner = String(task.createdBy || "");
+  // 0. Per-user daily cap — distinct from teacher caps.
+  const owner = String(task.createdBy || task.learnerId || "");
   if (!owner || owner === "system") {
     await setTaskFields(taskRef, {
-      status: "failed",
-      errorReason: "missing_owner_uid",
+      status: TASK_STATUS.ERROR,
+      errorMessage: "missing_owner_uid",
     });
     return;
   }
@@ -124,118 +128,118 @@ async function runChain({taskId}) {
   } catch (err) {
     const exhausted = err && err.code === "resource-exhausted";
     await setTaskFields(taskRef, {
-      status: "failed",
-      errorReason: exhausted ?
+      status: TASK_STATUS.ERROR,
+      errorMessage: exhausted ?
         "daily_learner_ai_limit_reached" :
         `meter_check_failed:${String(err && err.message || err).slice(0, 200)}`,
     });
     return;
   }
 
-  // 1. Supervisor — plans the step graph onto task.supervisorPlan.
+  // 1. Supervisor — plans the step graph (in-memory).
   if (await isAgentPaused("supervisor")) {
     await setTaskFields(taskRef, {
-      status: "failed",
-      errorReason: "supervisor_paused",
+      status: TASK_STATUS.ERROR, errorMessage: "supervisor_paused",
     });
     return;
   }
   await setTaskFields(taskRef, {
-    status: "supervisor_planning",
-    agentId: "supervisor",
-    attempts: (task.attempts || 0) + 1,
-    lastAttemptAt: admin.firestore.FieldValue.serverTimestamp(),
+    status: TASK_STATUS.RUNNING,
+    agentName: "AI Supervisor Agent",
+    startedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
   const planResult = await runSupervisor({task});
   if (!planResult.ok) {
     await setTaskFields(taskRef, {
-      status: "failed",
-      errorReason: planResult.reason || "supervisor_plan_failed",
+      status: TASK_STATUS.ERROR,
+      errorMessage: planResult.reason || "supervisor_plan_failed",
     });
     return;
   }
   task = await readTask(taskRef);
+  const steps = planResult.steps;
 
-  // 2. Walk the supervisor plan in order. The first runner is always
-  //    Curriculum Reader for generator tasks (the safety gate); the
-  //    Supervisor itself was already invoked above so we skip its
-  //    plan-entry if it's present.
-  const steps = (task.supervisorPlan && task.supervisorPlan.steps) || [];
+  // 2. Walk the planned steps. chainContext carries the in-memory
+  //    curriculumReference from the Reader forward to the generator
+  //    and Quality Check.
+  const chainContext = {};
+  let lastContentId = null;
   for (let i = 0; i < steps.length; i++) {
-    const step = steps[i];
-    const agentId = step.agentId;
-    if (agentId === "supervisor") continue;
+    const agentId = steps[i];
     const runner = RUNNER_MAP[agentId];
     if (!runner) {
       await setTaskFields(taskRef, {
-        status: "failed",
-        errorReason: `unknown_agent:${agentId}`,
+        status: TASK_STATUS.ERROR,
+        errorMessage: `unknown_agent:${agentId}`,
       });
       return;
     }
     if (await isAgentPaused(agentId)) {
       await setTaskFields(taskRef, {
-        status: "failed",
-        errorReason: `${agentId}_paused`,
+        status: TASK_STATUS.ERROR,
+        errorMessage: `${agentId}_paused`,
       });
       return;
     }
     await setTaskFields(taskRef, {
-      status: statusForAgent(agentId),
-      agentId,
-      [`supervisorPlan.steps.${i}.status`]: "running",
-      [`supervisorPlan.steps.${i}.startedAt`]:
-        admin.firestore.FieldValue.serverTimestamp(),
-      [`supervisorPlan.currentStep`]: i,
-      [`supervisorPlan.nextAgentId`]: steps[i + 1] ? steps[i + 1].agentId : null,
+      status: statusForRunner(agentId),
+      agentName: agentId,
     });
 
     let result;
     try {
-      result = await runner({task});
+      result = await runner({task, chainContext, stepNumber: i + 1});
     } catch (err) {
       console.error(`learner-ai runner ${agentId} threw`, err);
       await writeAgentLog({
-        agentId,
-        taskId,
-        action: "uncaught_error",
-        level: "error",
-        outputSummary: {error: String(err && err.message || err).slice(0, 400)},
-        curriculumGrounded: false,
+        taskId, agentName: agentId, action: "uncaught_error",
+        message: String(err && err.message || err).slice(0, 400),
+        taskType: task.taskType,
+        grade: task.grade, subject: task.subject, topic: task.topic,
+        severity: SEVERITY.ERROR,
+      });
+      await writeTaskStep({
+        taskId, agentName: agentId, stepNumber: i + 1,
+        stepTitle: `Run ${agentId}`,
+        message: String(err && err.message || err).slice(0, 200),
+        status: TASK_STEP_STATUS.FAILED, progress: 100,
       });
       await setTaskFields(taskRef, {
-        status: "failed",
-        errorReason: `${agentId}_threw:${String(err && err.message || err).slice(0, 200)}`,
-        [`supervisorPlan.steps.${i}.status`]: "failed",
-        [`supervisorPlan.steps.${i}.completedAt`]:
-          admin.firestore.FieldValue.serverTimestamp(),
+        status: TASK_STATUS.ERROR,
+        errorMessage: `${agentId}_threw:${String(err && err.message || err).slice(0, 200)}`,
       });
       return;
     }
 
     if (!result || result.ok === false) {
       await setTaskFields(taskRef, {
-        status: "failed",
-        errorReason: `${agentId}:${(result && result.reason) || "failed"}`,
-        [`supervisorPlan.steps.${i}.status`]: "failed",
-        [`supervisorPlan.steps.${i}.completedAt`]:
-          admin.firestore.FieldValue.serverTimestamp(),
+        status: TASK_STATUS.ERROR,
+        errorMessage: `${agentId}:${(result && result.reason) || "failed"}`,
       });
       return;
     }
 
-    await setTaskFields(taskRef, {
-      [`supervisorPlan.steps.${i}.status`]: "succeeded",
-      [`supervisorPlan.steps.${i}.completedAt`]:
-        admin.firestore.FieldValue.serverTimestamp(),
-    });
-    task = await readTask(taskRef);
+    // Hoist returned values into the chain context.
+    if (result.curriculumReference) {
+      chainContext.curriculumReference = result.curriculumReference;
+    }
+    if (result.contentId) lastContentId = result.contentId;
+
+    // Quality Check verdict shapes the terminal task status.
+    if (agentId === "qualityCheck") {
+      await setTaskFields(taskRef, {
+        status: result.verdict === "pass" ?
+          TASK_STATUS.PASSED_QUALITY_CHECK :
+          TASK_STATUS.FAILED_QUALITY_CHECK,
+      });
+    }
   }
 
   // 3. All steps green → admin approval gate.
   await setTaskFields(taskRef, {
-    status: "awaiting_approval",
-    agentId: null,
+    status: TASK_STATUS.NEEDS_REVIEW,
+    completedAt: admin.firestore.FieldValue.serverTimestamp(),
+    resultContentId: lastContentId,
   });
 }
 
@@ -244,8 +248,7 @@ function createAiAgentTasksOnCreate() {
     const snap = event.data;
     if (!snap) return;
     const data = snap.data() || {};
-    if (data.department !== "learner_ai") return;
-    if (data.status !== "queued") return;
+    if (data.status !== TASK_STATUS.QUEUED) return;
     if (data.seed === true) return;
     await runChain({taskId: snap.id});
   });
@@ -256,69 +259,83 @@ function createAiAgentTasksOnApproved() {
     const before = event.data && event.data.before && event.data.before.data();
     const after = event.data && event.data.after && event.data.after.data();
     if (!before || !after) return;
-    if (after.department !== "learner_ai") return;
     if (after.seed === true) return;
     const taskId = event.params.taskId;
-    const taskRef = admin.firestore().collection("aiAgentTasks").doc(taskId);
+    const taskRef = admin.firestore().collection(COLLECTIONS.TASKS).doc(taskId);
 
-    // Audit hook reuses the same audit log writer as the teacher pipeline.
+    // Audit hook — reuses the same writer as the teacher pipeline.
     try {
       const {writeAuditLog} = require("../../auditLog");
-      if (before.status !== "approved" && after.status === "approved") {
+      if (before.status !== TASK_STATUS.APPROVED && after.status === TASK_STATUS.APPROVED) {
         await writeAuditLog({
-          actorUid: after.reviewedBy || "system",
+          actorUid: "system",
           action: "learner_ai.approve",
           targetType: "aiAgentTask",
           targetId: taskId,
           metadata: {taskType: after.taskType || null},
         });
       }
-      if (before.status !== "rejected" && after.status === "rejected") {
+      if (before.status !== TASK_STATUS.REJECTED && after.status === TASK_STATUS.REJECTED) {
         await writeAuditLog({
-          actorUid: after.reviewedBy || "system",
+          actorUid: "system",
           action: "learner_ai.reject",
           targetType: "aiAgentTask",
           targetId: taskId,
-          metadata: {reason: after.reviewNotes || null},
+          metadata: {taskType: after.taskType || null},
         });
       }
     } catch (err) {
       console.warn("[learner-ai dispatcher] audit log write failed", err && err.message);
     }
 
-    if (before.status === "approved") return;
-    if (after.status !== "approved") return;
+    if (before.status === TASK_STATUS.APPROVED) return;
+    if (after.status !== TASK_STATUS.APPROVED) return;
 
-    // Find every learnerAiGenerations row for this task and flip
-    // visibility → published. Stub artifacts are still flipped because
-    // the admin explicitly approved them.
-    const gens = await admin.firestore()
-        .collection("learnerAiGenerations")
-        .where("taskId", "==", taskId)
-        .get()
-        .catch(() => null);
-    if (gens && !gens.empty) {
-      const batch = admin.firestore().batch();
-      gens.forEach((g) => {
-        batch.set(g.ref, {
-          visibility: "published",
-          approvedBy: after.reviewedBy || null,
-          approvedAt: admin.firestore.FieldValue.serverTimestamp(),
-          publishedAt: admin.firestore.FieldValue.serverTimestamp(),
-          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
-        }, {merge: true});
-      });
-      await batch.commit();
+    // Flip the latest aiGeneratedContent doc for this task to published.
+    // v2 schema doesn't carry taskId on the content doc, so we resolve
+    // by (grade, subject, topic, subtopic) and pick the newest. Falls
+    // back to the resultContentId stamped on aiAgentTasks if present.
+    let contentRef = null;
+    if (after.resultContentId) {
+      contentRef = admin.firestore()
+          .collection(COLLECTIONS.CONTENT)
+          .doc(after.resultContentId);
+    } else {
+      const snap = await admin.firestore()
+          .collection(COLLECTIONS.CONTENT)
+          .where("grade", "==", String(after.grade || ""))
+          .where("subject", "==", String(after.subject || ""))
+          .where("topic", "==", String(after.topic || ""))
+          .get()
+          .catch(() => null);
+      if (snap && !snap.empty) {
+        const docs = [...snap.docs];
+        docs.sort((a, b) => {
+          const at = a.data().createdAt && a.data().createdAt.toMillis ?
+            a.data().createdAt.toMillis() : 0;
+          const bt = b.data().createdAt && b.data().createdAt.toMillis ?
+            b.data().createdAt.toMillis() : 0;
+          return bt - at;
+        });
+        contentRef = docs[0].ref;
+      }
     }
 
-    await setTaskFields(taskRef, {status: "published"});
+    if (contentRef) {
+      await contentRef.set({
+        status: CONTENT_STATUS.PUBLISHED,
+        reviewedBy: "admin",
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      }, {merge: true});
+    }
+
+    await setTaskFields(taskRef, {status: TASK_STATUS.PUBLISHED});
   });
 }
 
 module.exports = {
   createAiAgentTasksOnCreate,
   createAiAgentTasksOnApproved,
-  // Exposed for unit tests:
-  statusForAgent,
+  statusForRunner,
   RUNNER_MAP,
 };

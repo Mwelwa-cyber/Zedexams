@@ -1,53 +1,58 @@
 /**
- * Curriculum Update Checker Agent (stub).
+ * Curriculum Update Checker Agent — v2.
  *
- * Daily scheduled job. Compares stored sha256 in approvedSyllabi
- * against the live Storage object metadata; flags changed blobs and
- * stale learnerAiGenerations docs that referenced them. Writes ONE
- * curriculumUpdateReports doc per scan. Never mutates cbcKnowledgeBase.
- *
- * The stub body writes an empty report so the scheduled function is
- * observable today. A future PR fills in the SHA comparison.
+ * Daily scheduled job. Writes a curriculumUpdateReports doc in the v2
+ * schema (sourceName, sourceUrl, trustLevel, updateType, affectedGrades,
+ * affectedSubjects, summary, recommendation, status, checkedAt,
+ * reviewedBy, reviewedAt). Stub body until SHA comparison + diff
+ * extraction land.
  */
 
 const admin = require("firebase-admin");
 const {writeAgentLog, updateLiveAgentState} = require("../logger");
+const {COLLECTIONS, SEVERITY} = require("../v2Collections");
 
-const AGENT_ID = "curriculumWatcher";
+const AGENT_ID = "Curriculum Update Checker Agent";
 
-async function runCurriculumWatcher({task} = {}) {
-  const startedAt = Date.now();
-  await updateLiveAgentState(AGENT_ID, {status: "running", currentTaskId: task && task.id || null});
+async function runCurriculumWatcher({task} = {task: {id: `scheduled-${Date.now()}`}}) {
+  await updateLiveAgentState(AGENT_ID, {
+    agentName: AGENT_ID, status: "running", currentTaskId: task && task.id || null,
+    currentTask: "Scan approvedSyllabi", progress: 0,
+    lastMessage: "Starting scheduled scan",
+  });
 
   const report = {
-    schemaVersion: 1,
-    kbVersion: "cbc-kb-2026-04-seed",
-    scannedAt: admin.firestore.FieldValue.serverTimestamp(),
-    scannedBy: AGENT_ID,
-    newDocuments: [],
-    changedDocuments: [],
-    staleKbModules: [],
-    staleLearnerArtifacts: [],
-    requiresAdminAction: false,
-    note: "Stub scan — SHA comparison and staleness analysis pending.",
+    sourceName: "ZedExams Approved Syllabi index",
+    sourceUrl: "https://zedexams.com/admin/cbc-kb",
+    trustLevel: "very_high",
+    updateType: "syllabus",
+    affectedGrades: [],
+    affectedSubjects: [],
+    summary: "Stub scan: no diff engine implemented yet.",
+    recommendation: "No action required.",
+    status: "pending_review",
+    checkedAt: admin.firestore.FieldValue.serverTimestamp(),
+    reviewedBy: null,
+    reviewedAt: null,
   };
 
   const ref = await admin.firestore()
-      .collection("curriculumUpdateReports")
+      .collection(COLLECTIONS.CURRICULUM_REPORTS)
       .add(report);
 
   await writeAgentLog({
-    agentId: AGENT_ID,
-    taskId: task && task.id || null,
-    action: "curriculum_scan",
-    inputSummary: {kbVersion: report.kbVersion},
-    outputSummary: {reportId: ref.id, stub: true},
-    level: "info",
-    curriculumGrounded: false,
-    durationMs: Date.now() - startedAt,
+    taskId: task && task.id || "",
+    agentName: AGENT_ID, action: "curriculum_scan",
+    message: `Wrote ${COLLECTIONS.CURRICULUM_REPORTS}/${ref.id} (stub)`,
+    taskType: "curriculum_update_check",
+    grade: null, subject: null, topic: null,
+    severity: SEVERITY.INFO,
   });
 
-  await updateLiveAgentState(AGENT_ID, {status: "idle", currentTaskId: null});
+  await updateLiveAgentState(AGENT_ID, {
+    status: "completed", currentTaskId: null, progress: 100,
+    lastMessage: `Wrote report ${ref.id}`,
+  });
   return {ok: true, reportId: ref.id};
 }
 

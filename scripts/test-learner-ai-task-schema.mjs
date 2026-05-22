@@ -1,14 +1,15 @@
 #!/usr/bin/env node
 /**
- * Static schema test for the learner-AI pipeline.
+ * Static schema test for the learner-AI pipeline (v2).
  *
- * Three things matter and are easy to drift:
- *   1. firestore.rules whitelists every new collection.
- *   2. firestore.indexes.json carries the 8 composite indexes.
+ * What this catches:
+ *   1. firestore.rules whitelists every v2 collection.
+ *   2. firestore.indexes.json carries the essential composite indexes.
  *   3. The dispatcher's status machine + supervisor's step planner
- *      stay aligned with the rule's `incoming().status` whitelist.
+ *      use the v2 status enum (matches src/schemas/learnerAi.js).
+ *   4. The Zod schemas validate a happy-path doc for every collection.
  *
- * This test fails the build if any of those drift.
+ * Fails the build on any drift between these three layers.
  *
  * Run: npm run test:learner-ai-schema  (also via npm run test:all)
  */
@@ -26,85 +27,104 @@ const indexes = JSON.parse(readFileSync(join(REPO, 'firestore.indexes.json'), 'u
 let pass = 0, fail = 0
 const failures = []
 function test(name, fn) {
-  try { fn(); pass++; console.log(`  ok  ${name}`) }
-  catch (err) { fail++; failures.push({name, message: err.message}); console.log(`  FAIL ${name}\n       ${err.message}`) }
+  try {
+    const r = fn()
+    if (r && typeof r.then === 'function') {
+      return r.then(() => { pass++; console.log(`  ok  ${name}`) })
+              .catch(err => { fail++; failures.push({name, message: err.message}); console.log(`  FAIL ${name}\n       ${err.message}`) })
+    }
+    pass++; console.log(`  ok  ${name}`)
+  } catch (err) {
+    fail++; failures.push({name, message: err.message}); console.log(`  FAIL ${name}\n       ${err.message}`)
+  }
 }
 function assert(cond, msg) { if (!cond) throw new Error(msg) }
 
-console.log('\nLearner-AI Firestore rules — new collections present')
+console.log('\nv2 Firestore rules — all 10 collections present')
 
-const NEW_COLLECTIONS = [
+const V2_COLLECTIONS = [
   'aiAgentTasks',
   'aiAgentLogs',
-  'learnerAiGenerations',
-  'liveAgentStates',
+  'aiGeneratedContent',
+  'aiLiveAgentStates',
+  'aiTaskSteps',
+  'aiAgentControls',
+  'aiSupervisorLogs',
   'curriculumUpdateReports',
   'assessmentStandards',
-  'approvedSyllabi',
+  'learnerWeaknessProfiles',
 ]
-for (const c of NEW_COLLECTIONS) {
+for (const c of V2_COLLECTIONS) {
   test(`rules whitelist /${c}/{id}`, () => {
     assert(rules.includes(`match /${c}/{`),
       `firestore.rules missing match block for ${c}`)
   })
 }
 
-test('aiAgentTasks create gated to department=learner_ai', () => {
-  assert(rules.includes("incoming().department == 'learner_ai'"),
-    'aiAgentTasks create rule must pin department to learner_ai')
-})
-
-test('aiAgentTasks create blocks supervisorPlan / curriculumRef prefill', () => {
-  // Same approach as agentJobs: ensure tampered client cannot prefill
-  // the orchestration / grounding fields.
-  for (const field of ['supervisorPlan', 'curriculumRef', 'qualityVerdict', 'output']) {
-    assert(rules.includes(`(!('${field}' in incoming()))`),
+test('aiAgentTasks create requires status=queued + no pipeline prefill', () => {
+  const headerIdx = rules.indexOf('match /aiAgentTasks/')
+  assert(headerIdx >= 0)
+  const block = rules.slice(headerIdx, headerIdx + 2500)
+  assert(block.includes("incoming().status == 'queued'"),
+    'aiAgentTasks create rule must pin status to queued')
+  for (const field of ['startedAt', 'completedAt', 'resultContentId', 'errorMessage']) {
+    assert(block.includes(`'${field}' in incoming()`),
       `aiAgentTasks create rule does not block prefilled ${field}`)
   }
 })
 
-test('learnerAiGenerations learner read gated to published+ownLearnerUid', () => {
-  assert(rules.includes("resource.data.visibility == 'published'") &&
-         rules.includes('resource.data.learnerUid == request.auth.uid'),
-    'learnerAiGenerations learner-read rule missing published+ownership predicate')
+test('aiGeneratedContent learner read gated to published only', () => {
+  const headerIdx = rules.indexOf('match /aiGeneratedContent/')
+  assert(headerIdx >= 0)
+  const block = rules.slice(headerIdx, headerIdx + 800)
+  assert(block.includes("resource.data.status == 'published'"),
+    'aiGeneratedContent learner-read rule missing published predicate')
 })
 
 test('aiAgentLogs is admin-read, no client write', () => {
   const headerIdx = rules.indexOf('match /aiAgentLogs/')
-  assert(headerIdx >= 0, 'aiAgentLogs match block not found')
-  // The brace right after the path-parameter `{logId}` opens the block.
-  // Find the first newline after the header — the block body starts there.
-  const nlAfterHeader = rules.indexOf('\n', headerIdx)
-  assert(nlAfterHeader > 0, 'aiAgentLogs header has no newline')
-  // Grab the next ~30 lines — that's plenty for any single match block.
-  const block = rules.slice(headerIdx, nlAfterHeader + 1000)
-  assert(block.includes('allow read: if isAdmin();'),
+  assert(headerIdx >= 0)
+  const block = rules.slice(headerIdx, headerIdx + 400)
+  assert(block.includes('allow read:  if isAdmin();') ||
+         block.includes('allow read: if isAdmin();'),
     'aiAgentLogs must be admin-read only')
   assert(block.includes('allow write: if false;'),
     'aiAgentLogs must deny all client writes')
 })
 
-console.log('\nLearner-AI composite indexes — 8 essential indexes present')
+test('aiAgentControls write requires admin + valid shape', () => {
+  const headerIdx = rules.indexOf('match /aiAgentControls/')
+  assert(headerIdx >= 0)
+  const block = rules.slice(headerIdx, headerIdx + 600)
+  assert(block.includes('incoming().enabled is bool'),
+    'aiAgentControls write rule must validate enabled:bool')
+  assert(block.includes('incoming().paused is bool'),
+    'aiAgentControls write rule must validate paused:bool')
+})
 
-const collectionsIndexed = new Set(
-  indexes.indexes.map(i => i.collectionGroup),
-)
-for (const c of ['aiAgentTasks', 'aiAgentLogs', 'learnerAiGenerations']) {
-  test(`indexes include ${c}`, () => {
-    assert(collectionsIndexed.has(c),
-      `firestore.indexes.json missing composite index for ${c}`)
-  })
-}
+test('learnerWeaknessProfiles gated to own learnerId or admin', () => {
+  const headerIdx = rules.indexOf('match /learnerWeaknessProfiles/')
+  assert(headerIdx >= 0)
+  const block = rules.slice(headerIdx, headerIdx + 500)
+  assert(block.includes('resource.data.learnerId == request.auth.uid'),
+    'learnerWeaknessProfiles read rule must scope to own learnerId')
+})
+
+console.log('\nv2 composite indexes — essential indexes present')
 
 const requiredIndexShapes = [
-  { collectionGroup: 'aiAgentTasks', fields: ['status', 'createdAt'] },
-  { collectionGroup: 'aiAgentTasks', fields: ['learnerUid', 'status', 'createdAt'] },
-  { collectionGroup: 'aiAgentTasks', fields: ['agentId', 'status', 'updatedAt'] },
-  { collectionGroup: 'aiAgentLogs', fields: ['taskId', 'createdAt'] },
-  { collectionGroup: 'aiAgentLogs', fields: ['agentId', 'level', 'createdAt'] },
-  { collectionGroup: 'aiAgentLogs', fields: ['curriculumGrounded', 'createdAt'] },
-  { collectionGroup: 'learnerAiGenerations', fields: ['learnerUid', 'visibility', 'createdAt'] },
-  { collectionGroup: 'learnerAiGenerations', fields: ['visibility', 'subject', 'grade', 'createdAt'] },
+  { collectionGroup: 'aiAgentTasks',            fields: ['status', 'createdAt'] },
+  { collectionGroup: 'aiAgentTasks',            fields: ['agentName', 'status', 'updatedAt'] },
+  { collectionGroup: 'aiAgentTasks',            fields: ['taskType', 'status', 'createdAt'] },
+  { collectionGroup: 'aiAgentLogs',             fields: ['taskId', 'createdAt'] },
+  { collectionGroup: 'aiAgentLogs',             fields: ['agentName', 'severity', 'createdAt'] },
+  { collectionGroup: 'aiTaskSteps',             fields: ['taskId', 'stepNumber'] },
+  { collectionGroup: 'aiGeneratedContent',      fields: ['status', 'subject', 'grade', 'createdAt'] },
+  { collectionGroup: 'aiGeneratedContent',      fields: ['type', 'status', 'createdAt'] },
+  { collectionGroup: 'aiSupervisorLogs',        fields: ['actionTaken', 'createdAt'] },
+  { collectionGroup: 'curriculumUpdateReports', fields: ['status', 'checkedAt'] },
+  { collectionGroup: 'assessmentStandards',     fields: ['grade', 'subject', 'assessmentType'] },
+  { collectionGroup: 'learnerWeaknessProfiles', fields: ['learnerId', 'lastUpdated'] },
 ]
 for (const want of requiredIndexShapes) {
   test(`composite index ${want.collectionGroup}:(${want.fields.join(', ')})`, () => {
@@ -117,22 +137,140 @@ for (const want of requiredIndexShapes) {
   })
 }
 
-console.log('\nDispatcher state machine aligns with rule whitelist')
+console.log('\nDispatcher uses v2 status enum')
 
 const dispatcher = readFileSync(
   join(REPO, 'functions', 'agents', 'learnerAi', 'dispatcher.js'),
   'utf8',
 )
-for (const status of ['queued', 'supervisor_planning', 'curriculum_read', 'generating', 'quality_check', 'awaiting_approval', 'failed', 'published']) {
-  test(`dispatcher uses status '${status}'`, () => {
-    assert(dispatcher.includes(`"${status}"`),
-      `dispatcher does not reference status '${status}'`)
+const v2Constants = readFileSync(
+  join(REPO, 'functions', 'agents', 'learnerAi', 'v2Collections.js'),
+  'utf8',
+)
+for (const status of [
+  'queued', 'running', 'thinking', 'generating', 'checking', 'waiting',
+  'passed_quality_check', 'failed_quality_check',
+  'needs_review', 'approved', 'published', 'rejected', 'regenerating', 'error',
+]) {
+  test(`v2Collections.js declares status '${status}'`, () => {
+    assert(v2Constants.includes(`"${status}"`),
+      `v2Collections.js does not reference status '${status}'`)
+  })
+}
+test('dispatcher imports TASK_STATUS from v2Collections', () => {
+  assert(dispatcher.includes('TASK_STATUS') && dispatcher.includes('./v2Collections'),
+    'dispatcher must use the canonical TASK_STATUS enum')
+})
+
+console.log('\nZod schemas accept a happy-path doc for every collection')
+
+const { COLLECTION_SCHEMAS, validateWrite, canTransitionTaskStatus } =
+  await import('../src/schemas/learnerAi.js')
+
+const now = new Date()
+const happyPath = {
+  aiAgentTasks: {
+    taskType: 'practice_quiz', agentName: 'practiceQuiz', status: 'queued',
+    grade: '7', subject: 'Mathematics', term: '1',
+    topic: 'Fractions', subtopic: 'Adding fractions', lessonNumber: 1,
+    startedAt: null, completedAt: null,
+    resultContentId: null, errorMessage: null,
+    createdAt: now, updatedAt: now,
+  },
+  aiAgentLogs: {
+    taskId: 't1', agentName: 'practiceQuiz', action: 'generate',
+    message: 'wrote artifact', taskType: 'practice_quiz',
+    grade: '7', subject: 'Mathematics', topic: 'Fractions',
+    severity: 'info', createdAt: now,
+  },
+  aiGeneratedContent: {
+    type: 'practice_quiz', source: 'ai', status: 'needs_review',
+    grade: '7', subject: 'Mathematics', term: '1',
+    topic: 'Fractions', subtopic: 'Adding fractions', lessonNumber: 1,
+    curriculumReference: {
+      documentPath: 'syllabi/g7-math.pdf',
+      competency: 'MATH-7-FR-A',
+      learningOutcome: 'Add fractions with the same denominator',
+      sourceVersion: 'cbc-kb-2026-04-seed',
+    },
+    content: { questions: [] },
+    qualityCheck: {}, zambianStandardsCheck: {}, supervisorDecision: {},
+    version: 1, createdBy: 'ai', reviewedBy: null,
+    createdAt: now, updatedAt: now,
+  },
+  aiLiveAgentStates: {
+    agentName: 'practiceQuiz', status: 'idle', currentTaskId: null,
+    currentTask: null, progress: 0,
+    grade: null, subject: null, term: null, topic: null, subtopic: null,
+    lastMessage: null, updatedAt: now,
+  },
+  aiTaskSteps: {
+    taskId: 't1', agentName: 'practiceQuiz', stepNumber: 1,
+    stepTitle: 'Generate practice quiz', message: '', status: 'queued',
+    progress: 0, createdAt: now,
+  },
+  aiAgentControls: {
+    enabled: true, paused: false, pauseReason: null,
+    updatedBy: 'admin-uid', updatedAt: now,
+  },
+  aiSupervisorLogs: {
+    taskId: 't1', agentName: 'AI Supervisor Agent',
+    contentType: 'practice_quiz',
+    grade: '7', subject: 'Mathematics', term: '1',
+    topic: 'Fractions', subtopic: 'Adding fractions',
+    actionTaken: 'sent_for_review',
+    reason: 'deterministic_grounding_passed', confidenceScore: 0.9,
+    checkedBy: 'AI Supervisor Agent', createdAt: now,
+  },
+  curriculumUpdateReports: {
+    sourceName: 'ZedExams', sourceUrl: 'https://example.zedexams.com',
+    trustLevel: 'high', updateType: 'syllabus',
+    affectedGrades: ['7'], affectedSubjects: ['Mathematics'],
+    summary: 'stub', recommendation: 'noop',
+    status: 'pending_review',
+    checkedAt: now, reviewedBy: null, reviewedAt: null,
+  },
+  assessmentStandards: {
+    country: 'Zambia', level: 'junior_secondary',
+    grade: '7', subject: 'Mathematics',
+    assessmentType: 'end_of_term_test',
+    structure: {
+      headerFields: ['School name', 'Date'],
+      sections: [{ name: 'Section A' }],
+      instructions: ['Answer all questions'],
+      markDistribution: { sectionA: 50, sectionB: 50 },
+      timeLimit: '120 minutes',
+    },
+    sourceReference: 'ECZ 2024 syllabus', approvedByAdmin: false,
+    updatedAt: now,
+  },
+  learnerWeaknessProfiles: {
+    learnerId: 'learner-1', grade: '7', subject: 'Mathematics',
+    weakTopics: ['Fractions'], weakSubtopics: ['Adding fractions'],
+    repeatedMistakes: [{ mistake: 'denominators' }],
+    recommendedNotes: [], recommendedQuizzes: [],
+    lastUpdated: now,
+  },
+}
+
+for (const name of Object.keys(COLLECTION_SCHEMAS)) {
+  test(`Zod ${name} happy-path validates`, () => {
+    const parsed = validateWrite(name, happyPath[name])
+    assert(parsed != null, 'validateWrite returned no result')
   })
 }
 
-console.log(`\n${pass} passed, ${fail} failed`)
-if (fail > 0) {
-  console.log('\nfailures:')
-  for (const f of failures) console.log(`  ${f.name}: ${f.message}`)
-  process.exit(1)
-}
+console.log('\ncanTransitionTaskStatus accepts only legal transitions')
+test('queued → running is legal', () => assert(canTransitionTaskStatus('queued', 'running')))
+test('queued → published is illegal', () => assert(!canTransitionTaskStatus('queued', 'published')))
+test('passed_quality_check → published is legal', () => assert(canTransitionTaskStatus('passed_quality_check', 'published')))
+test('published → anything else is illegal', () => assert(!canTransitionTaskStatus('published', 'rejected')))
+
+setTimeout(() => {
+  console.log(`\n${pass} passed, ${fail} failed`)
+  if (fail > 0) {
+    console.log('\nfailures:')
+    for (const f of failures) console.log(`  ${f.name}: ${f.message}`)
+    process.exit(1)
+  }
+}, 100)
