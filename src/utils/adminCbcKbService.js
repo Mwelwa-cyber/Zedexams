@@ -6,7 +6,7 @@
  */
 
 import {
-  collection, deleteDoc, doc, getDocs, query, orderBy,
+  collection, deleteDoc, doc, getDoc, getDocs, query, orderBy,
   serverTimestamp, setDoc,
 } from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
@@ -42,14 +42,50 @@ export async function importBuiltInTopics() {
   }
 }
 
-// Must match the server-side KB_VERSION in functions/teacherTools/cbcKnowledge.js
+// Seed default KB version. Used as the fallback when cbcKnowledgeBase/_meta
+// doesn't exist yet (i.e. before the Phase C approve-and-activate flow has
+// ever run). Must match KB_DEFAULT_VERSION in functions/teacherTools/cbcKnowledge.js.
 export const KB_VERSION = 'cbc-kb-2026-04-seed'
+
+// In-memory cache for the active-version pointer. Same 10s TTL as the
+// server-side getActiveKbState() so a Phase D rollback feels equally fast
+// from both the studio (server) and admin UI (client).
+const ACTIVE_STATE_TTL_MS = 10_000
+let _activeStateCache = null
+let _activeStateAt = 0
+
+/**
+ * Read the runtime-active KB version from cbcKnowledgeBase/_meta. Falls back
+ * to KB_VERSION when the doc is missing or unreadable, so the admin UI keeps
+ * working before any active-version pointer is ever written.
+ */
+export async function getActiveKbVersion() {
+  const now = Date.now()
+  if (_activeStateCache && (now - _activeStateAt) < ACTIVE_STATE_TTL_MS) {
+    return _activeStateCache.version
+  }
+  try {
+    const snap = await getDoc(doc(db, 'cbcKnowledgeBase', '_meta'))
+    const data = snap.exists() ? (snap.data() || {}) : {}
+    const version = (typeof data.version === 'string' && data.version) ?
+      data.version : KB_VERSION
+    _activeStateCache = { version }
+    _activeStateAt = now
+    return version
+  } catch (err) {
+    console.warn('getActiveKbVersion fallback to default', err)
+    _activeStateCache = { version: KB_VERSION }
+    _activeStateAt = now
+    return KB_VERSION
+  }
+}
 
 /** List all Firestore-stored topics. Returns empty array on error. */
 export async function listCbcTopics() {
   try {
+    const version = await getActiveKbVersion()
     const snap = await getDocs(query(
-      collection(db, 'cbcKnowledgeBase', KB_VERSION, 'topics'),
+      collection(db, 'cbcKnowledgeBase', version, 'topics'),
       orderBy('grade'),
     ))
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
@@ -84,7 +120,8 @@ export async function saveCbcTopic(topic) {
   }
   if (!payload.topic) throw new Error('Topic name is required.')
 
-  await setDoc(doc(db, 'cbcKnowledgeBase', KB_VERSION, 'topics', id), payload)
+  const version = await getActiveKbVersion()
+  await setDoc(doc(db, 'cbcKnowledgeBase', version, 'topics', id), payload)
   return id
 }
 
@@ -92,7 +129,8 @@ export async function saveCbcTopic(topic) {
 export async function deleteCbcTopic(id) {
   if (!id) return false
   try {
-    await deleteDoc(doc(db, 'cbcKnowledgeBase', KB_VERSION, 'topics', id))
+    const version = await getActiveKbVersion()
+    await deleteDoc(doc(db, 'cbcKnowledgeBase', version, 'topics', id))
     return true
   } catch (err) {
     console.error('deleteCbcTopic failed', err)
@@ -170,8 +208,9 @@ function cleanArr(v) {
 export async function listLessons(topicId) {
   if (!topicId) return []
   try {
+    const version = await getActiveKbVersion()
     const snap = await getDocs(query(
-      collection(db, 'cbcKnowledgeBase', KB_VERSION, 'topics', topicId, 'lessons'),
+      collection(db, 'cbcKnowledgeBase', version, 'topics', topicId, 'lessons'),
       orderBy('subtopic'),
     ))
     return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
@@ -227,8 +266,9 @@ export async function saveLesson(topicId, lesson) {
     payload[k] = cleanArr(lesson[k]).map((s) => s.slice(0, 800))
   }
 
+  const version = await getActiveKbVersion()
   await setDoc(
-    doc(db, 'cbcKnowledgeBase', KB_VERSION, 'topics', topicId, 'lessons', id),
+    doc(db, 'cbcKnowledgeBase', version, 'topics', topicId, 'lessons', id),
     payload,
   )
   return id
@@ -238,8 +278,9 @@ export async function saveLesson(topicId, lesson) {
 export async function deleteLesson(topicId, lessonId) {
   if (!topicId || !lessonId) return false
   try {
+    const version = await getActiveKbVersion()
     await deleteDoc(
-      doc(db, 'cbcKnowledgeBase', KB_VERSION, 'topics', topicId, 'lessons', lessonId),
+      doc(db, 'cbcKnowledgeBase', version, 'topics', topicId, 'lessons', lessonId),
     )
     return true
   } catch (err) {

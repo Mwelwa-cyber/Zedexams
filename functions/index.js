@@ -2086,6 +2086,15 @@ const {
 } = require("./teacherTools/parseSyllabusUpload");
 exports.parseSyllabusUpload = parseSyllabusUpload;
 
+// Syllabus replacement — Phase B. Admin-only callable that bumps
+// cbcKnowledgeBase/_meta.cacheBust so every warm container refreshes its
+// CBC topic + active-version + RAG caches. Used after a Phase C activate
+// or a Phase D rollback to make the switch observable in seconds.
+const {
+  invalidateKbCacheCallable,
+} = require("./teacherTools/invalidateKbCache");
+exports.invalidateKbCache = invalidateKbCacheCallable;
+
 // Teacher Tools — Lesson Plan Studio (vanilla JS studio endpoint).
 exports.studioGenerateLessonPlan = createStudioGenerateLessonPlan(anthropicApiKey);
 

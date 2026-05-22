@@ -22,7 +22,7 @@ const {
 } = require("../aiService");
 const {callClaude} = require("./anthropicClient");
 
-const {resolveCbcContext, KB_VERSION} = require("./cbcKnowledge");
+const {resolveCbcContext} = require("./cbcKnowledge");
 const {validateLessonPlan} = require("./lessonPlanSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
   require("./lessonPlanPrompt");
@@ -188,7 +188,7 @@ async function runLessonPlan({uid, rawInputs, apiKey, onProgress}) {
   }
 
   // 2. Resolve CBC context + enforce per-tool monthly quota in parallel.
-  const [{contextBlock, kbMatch, kbWarning}, usage] = await Promise.all([
+  const [{contextBlock, kbMatch, kbWarning, kbVersion}, usage] = await Promise.all([
     resolveCbcContext({
       grade: inputs.grade,
       subject: inputs.subject,
@@ -215,7 +215,7 @@ async function runLessonPlan({uid, rawInputs, apiKey, onProgress}) {
     outputText: "",
     modelUsed: LESSON_PLAN_MODEL,
     promptVersion: PROMPT_VERSION,
-    kbVersion: KB_VERSION,
+    kbVersion,
     tokensIn: 0,
     tokensOut: 0,
     costUsdCents: 0,
