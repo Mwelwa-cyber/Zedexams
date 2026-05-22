@@ -38,6 +38,9 @@ const activateSyllabusVersionCallable = httpsCallable(
 const rollbackSyllabusVersionCallable = httpsCallable(
   functions, 'rollbackSyllabusVersion', { timeout: 60_000 },
 )
+const cleanupArchivedSyllabusDataCallable = httpsCallable(
+  functions, 'cleanupArchivedSyllabusData', { timeout: 540_000 },
+)
 const invalidateKbCacheCallable = httpsCallable(
   functions, 'invalidateKbCache', { timeout: 30_000 },
 )
@@ -269,6 +272,68 @@ export async function rollbackVersion({ expectedCurrentVersion } = {}) {
       ok: false,
       code: err?.code || null,
       error: err?.message || 'Rollback failed.',
+    }
+  }
+}
+
+// ── Phase E cleanup wrappers ────────────────────────────────────────────
+
+/**
+ * Read-only audit of the data Phase E can delete. Returns counts for
+ * curriculum/*, rag_chunks/*, and every cbcKnowledgeBase/{version}/topics/*.
+ * Safe to call at any time.
+ */
+export async function auditArchivedData() {
+  try {
+    const result = await cleanupArchivedSyllabusDataCallable({ mode: 'audit' })
+    return { ok: true, ...result.data }
+  } catch (err) {
+    console.error('auditArchivedData failed', err)
+    return {
+      ok: false, code: err?.code || null,
+      error: err?.message || 'Audit failed.',
+    }
+  }
+}
+
+/**
+ * DESTRUCTIVE. Deletes curriculum/* and rag_chunks/* (the pre-Phase-A
+ * RAG layer). Server refuses if _meta.usePrivateCurriculum is still
+ * true — the RAG path must be off before the data is removable.
+ */
+export async function deleteArchivedRag() {
+  try {
+    const result = await cleanupArchivedSyllabusDataCallable({
+      mode: 'delete-rag',
+    })
+    return { ok: true, ...result.data }
+  } catch (err) {
+    console.error('deleteArchivedRag failed', err)
+    return {
+      ok: false, code: err?.code || null,
+      error: err?.message || 'Delete failed.',
+    }
+  }
+}
+
+/**
+ * DESTRUCTIVE. Deletes cbcKnowledgeBase/{version}/topics/* recursively
+ * (lessons subcollections included). Server refuses if version equals
+ * active.version or active.previousVersion. `confirmVersion` must
+ * exactly equal `version` — server enforces this as a deliberate-typo
+ * guard.
+ */
+export async function deleteOldVersion({ version, confirmVersion }) {
+  try {
+    const result = await cleanupArchivedSyllabusDataCallable({
+      mode: 'delete-version', version, confirmVersion,
+    })
+    return { ok: true, ...result.data }
+  } catch (err) {
+    console.error('deleteOldVersion failed', err)
+    return {
+      ok: false, code: err?.code || null,
+      error: err?.message || 'Delete failed.',
     }
   }
 }

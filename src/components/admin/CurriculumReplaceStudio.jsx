@@ -5,6 +5,9 @@ import {
 import SeoHelmet from '../seo/SeoHelmet'
 import {
   activateVersion,
+  auditArchivedData,
+  deleteArchivedRag,
+  deleteOldVersion,
   formatSubject,
   getActiveVersionMeta,
   invalidateKbCache,
@@ -46,6 +49,15 @@ export default function CurriculumReplaceStudio() {
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [rollbackConfirmOpen, setRollbackConfirmOpen] = useState(false)
   const [expandedSubject, setExpandedSubject] = useState(null)
+
+  // Phase E — danger-zone cleanup state. Audit is read-only; the two
+  // delete paths are gated behind explicit user input (typed version
+  // for delete-version, and a usePrivateCurriculum=false precondition
+  // the server also enforces for delete-rag).
+  const [dangerOpen, setDangerOpen] = useState(false)
+  const [audit, setAudit] = useState(null)
+  const [deleteVersionInput, setDeleteVersionInput] = useState('')
+  const [deleteVersionConfirm, setDeleteVersionConfirm] = useState('')
 
   const fileInputRef = useRef(null)
   const dropRef = useRef(null)
@@ -233,6 +245,80 @@ export default function CurriculumReplaceStudio() {
         `✓ Cache bust counter is now ${result.cacheBust}. ` +
         'Studios will refresh within ~10 seconds.' :
         `Refresh failed: ${result.error}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onAudit() {
+    setBusy(true)
+    try {
+      const result = await auditArchivedData()
+      if (result.ok) {
+        setAudit(result)
+      } else {
+        flashToast(`Audit failed: ${result.error}`)
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onDeleteRag() {
+    if (!window.confirm(
+      'PERMANENTLY DELETE the legacy RAG data (curriculum/* + rag_chunks/*)?\n\n' +
+      'This is irreversible. The server will also refuse if RAG fallback ' +
+      'is still on (usePrivateCurriculum=true on _meta).',
+    )) return
+    setBusy(true)
+    try {
+      const result = await deleteArchivedRag()
+      if (result.ok) {
+        flashToast(
+          `✓ Deleted curriculum/* (${result.deleted.curriculum}) and ` +
+          `rag_chunks/* (${result.deleted.rag_chunks}). ` +
+          'Re-audit to confirm.',
+          10_000,
+        )
+        setAudit(null)
+      } else {
+        flashToast(`Delete failed: ${result.error}`, 10_000)
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function onDeleteVersion() {
+    if (!deleteVersionInput.trim()) return
+    if (deleteVersionInput !== deleteVersionConfirm) {
+      flashToast('Type the same version id in both fields to confirm.')
+      return
+    }
+    if (!window.confirm(
+      `PERMANENTLY DELETE cbcKnowledgeBase/${deleteVersionInput}/topics/* ` +
+      'and every lessons subcollection beneath it?\n\n' +
+      'This is irreversible. The server refuses if this version is the ' +
+      'current active or current rollback target.',
+    )) return
+    setBusy(true)
+    try {
+      const result = await deleteOldVersion({
+        version: deleteVersionInput.trim(),
+        confirmVersion: deleteVersionConfirm.trim(),
+      })
+      if (result.ok) {
+        flashToast(
+          `✓ Deleted ${result.deleted.topics} docs under ` +
+          `"${result.version}".`,
+          10_000,
+        )
+        setDeleteVersionInput('')
+        setDeleteVersionConfirm('')
+        setAudit(null)
+      } else {
+        flashToast(`Delete failed: ${result.error}`, 10_000)
+      }
     } finally {
       setBusy(false)
     }
@@ -551,6 +637,149 @@ export default function CurriculumReplaceStudio() {
           </button>
         </section>
       )}
+
+      {/* Phase E — Danger zone (archived-data cleanup) */}
+      <section className="rounded-2xl border-2 border-rose-200 bg-rose-50/40 p-4 space-y-3">
+        <button
+          type="button"
+          onClick={() => setDangerOpen((o) => !o)}
+          className="w-full flex items-center justify-between gap-2"
+        >
+          <span className="font-black text-rose-900 text-left">
+            🗑️ {dangerOpen ? '▾' : '▸'} Danger zone — archived-data cleanup
+          </span>
+          <span className="text-[10px] uppercase tracking-wide font-bold text-rose-700/80">
+            destructive
+          </span>
+        </button>
+        {dangerOpen && (
+          <div className="space-y-3 pt-1">
+            <p className="text-xs text-rose-900/80">
+              These actions permanently delete data the migration archived.
+              Run only after the new syllabus has been live and trusted for
+              the verification window (recommend ≥ 2 weeks). The server
+              enforces preconditions: RAG-data deletion refuses while
+              RAG is still on; version deletion refuses on the active +
+              rollback targets.
+            </p>
+
+            {/* Audit */}
+            <div className="rounded-xl border-2 theme-border bg-white p-3 space-y-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <p className="font-bold text-sm">1) Audit what could be deleted</p>
+                <button
+                  type="button"
+                  onClick={onAudit}
+                  disabled={busy}
+                  className="px-3 py-1.5 rounded-lg border-2 theme-border font-bold text-sm hover:theme-card-hover disabled:opacity-40"
+                >
+                  {busy ? 'Auditing…' : 'Run audit'}
+                </button>
+              </div>
+              {audit && (
+                <div className="text-xs space-y-1">
+                  <p>
+                    <code className="font-mono">curriculum/*</code>:{' '}
+                    <span className="font-black">{audit.counts.curriculum}</span> docs
+                  </p>
+                  <p>
+                    <code className="font-mono">rag_chunks/*</code>:{' '}
+                    <span className="font-black">{audit.counts.rag_chunks}</span> docs
+                  </p>
+                  {Array.isArray(audit.versions) && audit.versions.length > 0 && (
+                    <div>
+                      <p className="font-bold mt-1">KB versions:</p>
+                      <ul className="ml-3 space-y-0.5">
+                        {audit.versions.map((v) => (
+                          <li key={v.version} className="flex items-baseline gap-2">
+                            <code className="font-mono">{v.version}</code>
+                            <span>— {v.topicCount} topics</span>
+                            {v.version === activeMeta?.version && (
+                              <span className="text-emerald-700 font-bold">active</span>
+                            )}
+                            {v.version === activeMeta?.previousVersion && (
+                              <span className="text-amber-700 font-bold">rollback target</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
+            {/* Delete RAG */}
+            <div className="rounded-xl border-2 theme-border bg-white p-3 space-y-2">
+              <p className="font-bold text-sm">
+                2) Delete legacy RAG (<code className="font-mono">curriculum/*</code>{' '}+{' '}
+                <code className="font-mono">rag_chunks/*</code>)
+              </p>
+              <p className="text-xs theme-text-muted">
+                Pre-Phase-A retrieval-grounding data. The server refuses if
+                <code className="mx-1 px-1 rounded bg-rose-100 text-rose-900 font-mono">
+                  usePrivateCurriculum: true
+                </code>
+                — activate a Phase-C syllabus first (which sets the flag to
+                false), then this deletion becomes available.
+              </p>
+              <button
+                type="button"
+                onClick={onDeleteRag}
+                disabled={busy || activeMeta?.usePrivateCurriculum !== false}
+                className="px-4 py-2 rounded-lg font-black text-white bg-gradient-to-r from-rose-500 to-rose-700 disabled:opacity-40"
+              >
+                {activeMeta?.usePrivateCurriculum !== false ?
+                  'RAG path still on — can\'t delete yet' :
+                  'Delete legacy RAG data'}
+              </button>
+            </div>
+
+            {/* Delete old version */}
+            <div className="rounded-xl border-2 theme-border bg-white p-3 space-y-2">
+              <p className="font-bold text-sm">
+                3) Delete an old KB version
+              </p>
+              <p className="text-xs theme-text-muted">
+                Permanently removes{' '}
+                <code className="font-mono">cbcKnowledgeBase/{'{version}'}/topics/*</code>
+                {' '}and every <code>lessons</code> subcollection underneath. The
+                server refuses if you target the active version or the rollback
+                target — there's no recovery short of a Firestore backup
+                restore.
+              </p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <input
+                  type="text"
+                  value={deleteVersionInput}
+                  onChange={(e) => setDeleteVersionInput(e.target.value)}
+                  placeholder="Version id"
+                  className="px-3 py-2 rounded-lg border-2 theme-border font-mono text-sm focus:outline-none focus:border-rose-400"
+                />
+                <input
+                  type="text"
+                  value={deleteVersionConfirm}
+                  onChange={(e) => setDeleteVersionConfirm(e.target.value)}
+                  placeholder="Type version id again to confirm"
+                  className="px-3 py-2 rounded-lg border-2 theme-border font-mono text-sm focus:outline-none focus:border-rose-400"
+                />
+              </div>
+              <button
+                type="button"
+                onClick={onDeleteVersion}
+                disabled={
+                  busy ||
+                  !deleteVersionInput ||
+                  deleteVersionInput !== deleteVersionConfirm
+                }
+                className="px-4 py-2 rounded-lg font-black text-white bg-gradient-to-r from-rose-500 to-rose-700 disabled:opacity-40"
+              >
+                Delete version
+              </button>
+            </div>
+          </div>
+        )}
+      </section>
 
       {/* Toast */}
       {toast && (
