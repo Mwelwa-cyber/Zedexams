@@ -786,6 +786,109 @@ export const standardsCheckVerdictSchema = z.object({
 
 /** @typedef {import('zod').infer<typeof standardsCheckVerdictSchema>} StandardsCheckVerdict */
 
+// ── Quality Check Agent — verdict shape ───────────────────────────────
+//
+// NOT a Firestore collection. The verdict the Quality Check runner
+// writes onto `aiGeneratedContent.qualityCheck` and reports back to
+// the AI Supervisor via aiSupervisorLogs.
+//
+// Distinct from `standardsCheckVerdictSchema`: Standards Check verifies
+// *curriculum alignment*, Quality Check verifies *content quality + safety*.
+// They run in this order: generator → standardsCheck → qualityCheck.
+//
+// Status decision rule (mirrored in the runner):
+//   any critical issue OR confidenceScore < 0.5 → 'failed'
+//   confidenceScore < 0.8 OR any issues         → 'needs_review'
+//   otherwise                                   → 'passed'
+//
+// requiresHumanReview:
+//   true if artifactType === 'exam_quiz'  (rule: exam quizzes always
+//                                         require admin review)
+//   true if status !== 'passed'
+//   true if confidenceScore < 0.8
+//   false otherwise
+
+export const QUALITY_CHECK_STATUSES = z.enum([
+  'passed', 'failed', 'needs_review',
+])
+
+export const QUALITY_CHECK_ISSUE_SEVERITIES = z.enum([
+  'critical', 'minor',
+])
+
+// Axes checked by the agent. Pinned as an enum so the admin UI can
+// filter issues per axis. Per-artifact-type axes (`notes_*`,
+// `tips_*`, `quiz_*`) only fire for their respective types; others
+// are universal.
+export const QUALITY_CHECK_AXES = z.enum([
+  // Universal
+  'required_fields',
+  'completeness',
+  'spelling_grammar',
+  'topic_match',
+  'grade_suitability',
+  'difficulty_consistency',
+  'diagram_required',
+  'grounding',
+  'ambiguity',
+  // Quiz-specific
+  'correct_answer_exists',
+  'correct_answer_in_options',
+  'duplicate_options',
+  'options_too_similar',
+  'single_correct_answer',
+  'explanation_matches_answer',
+  // Exam-paper-specific
+  'marks_allocation',
+  'sections_present',
+  'answer_key_complete',
+  'marking_guide_present',
+  // Notes-specific
+  'notes_simple',
+  'notes_length',
+  'notes_match_topic',
+  // Study-tips-specific
+  'tips_useful',
+  'tips_actionable',
+])
+
+export const qualityCheckIssueSchema = z.object({
+  axis: QUALITY_CHECK_AXES,
+  severity: QUALITY_CHECK_ISSUE_SEVERITIES,
+  message: z.string().min(1).max(400),
+  // Optional pointer into the artifact (e.g. "questions[3].options") so
+  // admins can jump straight to the offending element.
+  path: z.string().max(200).optional(),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof qualityCheckIssueSchema>} QualityCheckIssue */
+
+export const qualityCheckVerdictSchema = z.object({
+  status: QUALITY_CHECK_STATUSES,
+  confidenceScore: z.number().min(0).max(1),
+  issues: z.array(qualityCheckIssueSchema).max(60),
+  // Specific, actionable fixes — one per issue. The admin UI surfaces
+  // these as a TODO list next to each issue.
+  fixedSuggestions: z.array(z.string().min(1).max(400)).max(60),
+  requiresHumanReview: z.boolean(),
+  // Provenance + audit trail.
+  modelUsed: z.string().max(80),
+  artifactType: z.string().max(40),
+  contentId: z.string().max(120),
+  // Carried forward by the dispatcher so the auto-publish gate can
+  // refuse anything that fails Quality Check, regardless of the
+  // task status the dispatcher inferred.
+  verifierVerdict: z.enum(['pass', 'fail', 'stub_no_llm_yet']),
+  // Deterministic grounding result — kept for backward compat with
+  // the pre-#543 Quality Check shape that callers may read.
+  deterministicGroundingPass: z.boolean(),
+  checkedAt: z.unknown().refine((v) => v != null, {
+    message: 'checkedAt must be a timestamp value',
+  }),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof qualityCheckVerdictSchema>} QualityCheckVerdict */
+
 /**
  * Parse-or-throw helper. Returns the validated doc body; throws ZodError
  * on bad shape. Use immediately before any addDoc / setDoc / update.

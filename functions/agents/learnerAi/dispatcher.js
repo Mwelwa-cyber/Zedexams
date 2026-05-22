@@ -248,6 +248,14 @@ async function runChain({taskId}) {
     if (result.standardsCheckVerdict && agentId === "standardsCheck") {
       chainContext.standardsCheck = result.standardsCheckVerdict;
     }
+    // Quality Check agent: surfaces the full v3 verdict
+    // (status / confidence / issues / fixedSuggestions /
+    //  requiresHumanReview) so future agents (and the auto-publish
+    // gate, indirectly via task.status) can read the verdict without
+    // re-reading the artifact doc.
+    if (result.qualityCheckVerdict && agentId === "qualityCheck") {
+      chainContext.qualityCheck = result.qualityCheckVerdict;
+    }
     if (result.contentId) lastContentId = result.contentId;
 
     // Quality Check verdict shapes the terminal task status.
@@ -300,6 +308,19 @@ async function shouldAutoPublish({task, contentId}) {
   if (task.status !== TASK_STATUS.PASSED_QUALITY_CHECK) return false;
   if (!contentId) return false;
   try {
+    // Quality Check v3 sets `requiresHumanReview:true` on every exam
+    // quiz, on any artifact that failed checks, and on anything below
+    // confidence 0.8. Refuse to auto-publish if the verdict on the
+    // artifact says human review is required — this is the
+    // server-side enforcement of the v3 rule independent of the
+    // task.status branch above.
+    const contentSnap = await admin.firestore()
+        .collection(COLLECTIONS.CONTENT).doc(contentId).get();
+    if (contentSnap.exists) {
+      const qc = (contentSnap.data() || {}).qualityCheck || {};
+      if (qc.requiresHumanReview === true) return false;
+      if (qc.status === "failed") return false;
+    }
     const settingsSnap = await admin.firestore()
         .doc("settings/global")
         .get();
