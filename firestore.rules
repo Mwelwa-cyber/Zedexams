@@ -560,6 +560,26 @@ service cloud.firestore {
           allow write: if isAdmin();
         }
       }
+      // Syllabus-replacement Phase A: parser output lands here under a
+      // fresh {version} so live topics/* stay untouched until Phase C's
+      // approve-and-activate flow promotes drafts.
+      match /draftTopics/{topicId} {
+        allow read:  if isAuthed();
+        allow write: if isAdmin();
+      }
+      // Scheme-of-work pacing rows (one doc per subject_grade). Same
+      // teacher-read / admin-write contract as topics.
+      match /pacing/{pacingId} {
+        allow read:  if isAuthed();
+        allow write: if isAdmin();
+      }
+      // Parser status docs (filename → parsing|parsed|error). Written
+      // only by the Cloud Function via the admin SDK, so client writes
+      // are denied; the admin review UI subscribes for live progress.
+      match /uploadStatus/{statusId} {
+        allow read:  if isAuthed();
+        allow write: if false;
+      }
     }
 
     // ── promptTemplates ───────────────────────────────────────

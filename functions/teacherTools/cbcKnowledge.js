@@ -77,6 +77,22 @@ function topicKey(t) {
   return `${grade}|${subject}|${topic}`;
 }
 
+/**
+ * Subtopic compatibility helper.
+ *
+ * Legacy topic docs store subtopics as plain strings. The Phase-A syllabus
+ * parser writes them as `{name, specificCompetence, learningActivities,
+ * expectedStandard}` objects to preserve the richer per-subtopic detail in
+ * the new CDC workbooks. This helper hides that shape difference from the
+ * lookup and rendering paths so both formats coexist during the migration.
+ */
+function subtopicName(s) {
+  if (s == null) return "";
+  if (typeof s === "string") return s;
+  if (typeof s === "object" && typeof s.name === "string") return s.name;
+  return String(s);
+}
+
 /** Force the next getAllTopics() call to bypass the cache. Used after writes. */
 function invalidateKbCache() {
   _cache = null;
@@ -124,12 +140,14 @@ async function lookupTopic({grade, subject, topic}) {
   });
   if (contains) return contains;
 
-  // Sub-topic match.
+  // Sub-topic match. subtopicName() handles both legacy string subtopics
+  // and Phase-A enriched {name, ...} objects from the new syllabus parser.
   const subMatch = candidates.find((t) =>
-    t.subtopics.some(
-      (s) => s.toLowerCase().includes(topicNorm) ||
-             topicNorm.includes(s.toLowerCase()),
-    ),
+    (t.subtopics || []).some((s) => {
+      const sn = subtopicName(s).toLowerCase();
+      if (!sn) return false;
+      return sn.includes(topicNorm) || topicNorm.includes(sn);
+    }),
   );
   if (subMatch) return subMatch;
 
@@ -169,11 +187,13 @@ async function suggestTopics({grade, subject}) {
  */
 function renderContextBlock(entry) {
   if (!entry) return "";
-  const subs = entry.subtopics.map((s) => `- ${s}`).join("\n");
-  const outcomes = entry.specificOutcomes.map((s) => `- ${s}`).join("\n");
-  const comps = entry.keyCompetencies.map((s) => `- ${s}`).join("\n");
-  const vals = entry.values.map((s) => `- ${s}`).join("\n");
-  const mats = entry.suggestedMaterials.map((s) => `- ${s}`).join("\n");
+  const subs = (entry.subtopics || [])
+    .map((s) => `- ${subtopicName(s)}`)
+    .join("\n");
+  const outcomes = (entry.specificOutcomes || []).map((s) => `- ${s}`).join("\n");
+  const comps = (entry.keyCompetencies || []).map((s) => `- ${s}`).join("\n");
+  const vals = (entry.values || []).map((s) => `- ${s}`).join("\n");
+  const mats = (entry.suggestedMaterials || []).map((s) => `- ${s}`).join("\n");
   return [
     "<cbc_context>",
     `Grade: ${entry.grade}`,

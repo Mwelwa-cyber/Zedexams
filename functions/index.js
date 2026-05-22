@@ -2076,6 +2076,16 @@ exports.importBuiltInCbcTopics = importBuiltInCbcTopics;
 // Teacher Tools — admin-only: bulk import lesson-level curriculum modules.
 exports.importCurriculumModules = importCurriculumModules;
 
+// Syllabus replacement — Phase A. Storage onFinalize parser. Watches
+// syllabus-uploads/{version}/{filename}.xlsx and writes enriched draft
+// topics + scheme-of-work pacing to cbcKnowledgeBase/{version}/draftTopics
+// and /pacing. Drafts are intentionally separate from the live topics/*
+// subcollection — Phase C will add the approve-and-activate flow.
+const {
+  parseSyllabusUpload,
+} = require("./teacherTools/parseSyllabusUpload");
+exports.parseSyllabusUpload = parseSyllabusUpload;
+
 // Teacher Tools — Lesson Plan Studio (vanilla JS studio endpoint).
 exports.studioGenerateLessonPlan = createStudioGenerateLessonPlan(anthropicApiKey);
 
