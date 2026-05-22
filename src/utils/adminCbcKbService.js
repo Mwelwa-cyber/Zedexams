@@ -69,7 +69,11 @@ export async function getActiveKbVersion() {
     const data = snap.exists() ? (snap.data() || {}) : {}
     const version = (typeof data.version === 'string' && data.version) ?
       data.version : KB_VERSION
+    // Last-write-wins is the intended behaviour for this module-level cache —
+    // overlapping callers should converge on the most recent fetch.
+    // eslint-disable-next-line require-atomic-updates
     _activeStateCache = { version }
+    // eslint-disable-next-line require-atomic-updates
     _activeStateAt = now
     return version
   } catch (err) {

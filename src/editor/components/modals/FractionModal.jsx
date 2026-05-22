@@ -77,7 +77,7 @@ export default function FractionModal({ editor, editState, onClose }) {
     onClose()
   }
 
-  const cleanDigits = (v) => String(v ?? '').replace(/[^0-9.\-]/g, '')
+  const cleanDigits = (v) => String(v ?? '').replace(/[^0-9.-]/g, '')
 
   return (
     <div

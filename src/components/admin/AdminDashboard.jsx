@@ -126,7 +126,7 @@ export default function AdminDashboard() {
       }
     }
     load()
-  }, [])
+  }, [getDashboardCounts, getRecentResults])
 
   function fmt(ts) {
     if (!ts) return '—'

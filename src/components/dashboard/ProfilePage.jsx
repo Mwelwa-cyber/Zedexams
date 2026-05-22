@@ -127,11 +127,16 @@ export default function ProfilePage() {
   // load quiz count
   useEffect(() => {
     if (!currentUser) return
-    getUserResults(currentUser.uid, 100).then(res => {
-      setQuizCount(res.length)
-      setLoading(false)
-    })
-  }, [currentUser])
+    getUserResults(currentUser.uid, 100)
+      .then(res => {
+        setQuizCount(res.length)
+        setLoading(false)
+      })
+      .catch(err => {
+        console.error('ProfilePage quiz count:', err)
+        setLoading(false)
+      })
+  }, [currentUser, getUserResults])
 
   async function handleSave(e) {
     e.preventDefault()

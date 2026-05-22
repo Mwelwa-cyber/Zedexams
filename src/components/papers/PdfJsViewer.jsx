@@ -131,9 +131,13 @@ export default function PdfJsViewer({ url, title }) {
 
         const ctx = canvas.getContext('2d')
         if (!ctx) return
-        renderTaskRef.current = page.render({ canvasContext: ctx, viewport })
-        await renderTaskRef.current.promise
-        renderTaskRef.current = null
+        const renderTask = page.render({ canvasContext: ctx, viewport })
+        // Overlapping renders are cancelled at the top of this effect, so
+        // assigning the latest task is the intended behaviour.
+        // eslint-disable-next-line require-atomic-updates
+        renderTaskRef.current = renderTask
+        await renderTask.promise
+        if (renderTaskRef.current === renderTask) renderTaskRef.current = null
       } catch (err) {
         if (err?.name !== 'RenderingCancelledException') {
           console.warn('[PdfJsViewer] render failed', err)

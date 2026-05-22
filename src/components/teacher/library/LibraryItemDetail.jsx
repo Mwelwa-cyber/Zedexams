@@ -84,14 +84,19 @@ export default function LibraryItemDetail() {
   useEffect(() => {
     if (!id) return
     setStatus('loading')
-    getGeneration(id).then((row) => {
-      if (!row) {
+    getGeneration(id)
+      .then((row) => {
+        if (!row) {
+          setStatus('notfound')
+          return
+        }
+        setItem(row)
+        setStatus('ready')
+      })
+      .catch(err => {
+        console.error('LibraryItemDetail load:', err)
         setStatus('notfound')
-        return
-      }
-      setItem(row)
-      setStatus('ready')
-    })
+      })
   }, [id])
 
   async function onDelete() {

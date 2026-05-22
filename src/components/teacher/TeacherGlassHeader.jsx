@@ -55,11 +55,13 @@ export default function TeacherGlassHeader() {
     Promise.all([
       listMyGenerations({ uid: currentUser.uid }).catch(() => []),
       getMyQuizzes(currentUser.uid).catch(() => []),
-    ]).then(([g, q]) => {
-      if (cancelled) return
-      setGenerations(g || [])
-      setQuizzes(q || [])
-    })
+    ])
+      .then(([g, q]) => {
+        if (cancelled) return
+        setGenerations(g || [])
+        setQuizzes(q || [])
+      })
+      .catch(err => console.error('TeacherGlassHeader load:', err))
     return () => { cancelled = true }
   }, [currentUser, getMyQuizzes])
 

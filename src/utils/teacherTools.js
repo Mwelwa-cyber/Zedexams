@@ -352,10 +352,9 @@ function withTimeout(promise, ms, label = 'request') {
       err.code = 'client-timeout'
       reject(err)
     }, ms)
-    promise.then(
-      (v) => { clearTimeout(t); resolve(v) },
-      (e) => { clearTimeout(t); reject(e) },
-    )
+    promise
+      .then((v) => { clearTimeout(t); resolve(v) })
+      .catch((e) => { clearTimeout(t); reject(e) })
   })
 }
 

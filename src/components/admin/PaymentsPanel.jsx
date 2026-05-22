@@ -62,7 +62,7 @@ export default function PaymentsPanel() {
       setUsers(u)
     }
     setLoading(false)
-  }, [tab])
+  }, [tab, getAllPayments, getAllUsers, getPendingPayments])
 
   useEffect(() => { load() }, [load])
 

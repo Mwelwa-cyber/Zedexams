@@ -60,7 +60,7 @@ export default function LessonLibrary() {
       setLoading(false)
     }
     load()
-  }, [filters.grade, filters.subject])
+  }, [filters.grade, filters.subject, getLessons])
 
   const topics = useMemo(() => [...new Set(lessons.map(lesson => lesson.topic).filter(Boolean))].sort(), [lessons])
 

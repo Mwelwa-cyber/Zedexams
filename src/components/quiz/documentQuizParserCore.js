@@ -13,15 +13,15 @@ const SUBJECTS = [
   'Home Economics',
 ]
 
-const QUESTION_RE = /^(?:q(?:uestion)?\s*)?(\d{1,3})\s*[\).:\-]\s*(.+)$/i
+const QUESTION_RE = /^(?:q(?:uestion)?\s*)?(\d{1,3})\s*[).:-]\s*(.+)$/i
 const QUESTION_NO_PUNCT_RE = /^(?:q(?:uestion)?\s*)?(\d{1,3})\s+(.+\?)$/i
-const OPTION_RE = /^(?:\(([A-Da-d])\)|([A-Da-d])\s*[\).:\-])\s*(.+)$/
-const OPTION_LABEL_RE = /(^|\s)(?:\(([A-Da-d])\)|([A-Da-d])\s*[\).:\-])\s*/g
-const ANSWER_RE = /^(?:answer|correct answer|ans|key)\s*[:\-]\s*(.+)$/i
-const EXPLANATION_RE = /^(?:explanation|reason|because)\s*[:\-]\s*(.+)$/i
+const OPTION_RE = /^(?:\(([A-Da-d])\)|([A-Da-d])\s*[).:-])\s*(.+)$/
+const OPTION_LABEL_RE = /(^|\s)(?:\(([A-Da-d])\)|([A-Da-d])\s*[).:-])\s*/g
+const ANSWER_RE = /^(?:answer|correct answer|ans|key)\s*[:-]\s*(.+)$/i
+const EXPLANATION_RE = /^(?:explanation|reason|because)\s*[:-]\s*(.+)$/i
 const IMAGE_HINT_RE = /\b(diagram|figure|picture|image|graph|chart|map|shown|label|observe|study the|look at)\b/i
 const ANSWER_KEY_HEADING_RE = /^(answers\b|answer\s+key|memorandum|marking scheme)\b/i
-const ANSWER_KEY_PAIR_RE = /(?:^|\s)(\d{1,3})\s*[\).:\-]?\s*(?:answer\s*)?([A-D]|true|false)\b/gi
+const ANSWER_KEY_PAIR_RE = /(?:^|\s)(\d{1,3})\s*[).:-]?\s*(?:answer\s*)?([A-D]|true|false)\b/gi
 const SECTION_HEADING_RE = /^(?:spelling bee\b|elimination round\b|category\b|words\b|easy round\b|average level\b|round\s+\d+\b|tie[-\s]?breakers?\b|extra words?\b|oral recitation\b)/i
 const PARA_ORDER_INSTRUCTION_RE = /each question has four paragraphs|sentences in the best order|choose the paragraph which has the sentences/i
 const PARA_ORDER_DO_Q_RE = /\bnow\s+do\s+questions?\s+(\d{1,3})/i
@@ -149,7 +149,7 @@ function deriveParaOrderQuestionText(instruction) {
 
 function parseParaOrderOptionLine(line) {
   const text = cleanImportedText(line)
-  const punctuated = text.match(/^([A-D])[\).:\-]\s*(.+)$/)
+  const punctuated = text.match(/^([A-D])[).:-]\s*(.+)$/)
   const glued = text.match(/^([A-D])([A-Z].+)$/)
   const label = (punctuated?.[1] || glued?.[1] || '').toUpperCase()
   if (!label) return null
@@ -162,7 +162,7 @@ function parseParaOrderOptionLine(line) {
 
 function parseRawParaOrderOptionLine(line) {
   const text = cleanImportedText(String(line || '').replace(/\n+/g, ' '))
-  const match = text.match(/^([A-D])(?:[\).:\-]\s*|)(.+)$/)
+  const match = text.match(/^([A-D])(?:[).:-]\s*|)(.+)$/)
   const label = (match?.[1] || '').toUpperCase()
   const optionText = cleanImportedText(match?.[2] || '')
   if (!label || !optionText) return null
@@ -219,7 +219,7 @@ function extractOptionSegments(line) {
   if (!matches.length) return []
 
   const firstPrefix = cleanImportedText(text.slice(0, matches[0].labelStart)).toLowerCase()
-  const startsAsOptionLine = matches[0].labelStart <= 2 || /^(options?|choices?)[:\-]?$/.test(firstPrefix)
+  const startsAsOptionLine = matches[0].labelStart <= 2 || /^(options?|choices?)[:-]?$/.test(firstPrefix)
   const hasQuestionThenInlineOptions = firstPrefix.length >= 8 && matches.length >= 2
   if (!startsAsOptionLine && !hasQuestionThenInlineOptions) return []
 
@@ -302,12 +302,12 @@ function looksLikeInstructionLine(line) {
 }
 
 function stripInstructionPrefix(text) {
-  return cleanImportedText(text).replace(/^instructions?\s*[:.-]\s*/i, '').replace(/^note\s*[:\-]\s*/i, '')
+  return cleanImportedText(text).replace(/^instructions?\s*[:.-]\s*/i, '').replace(/^note\s*[:-]\s*/i, '')
 }
 
 function optionOnlyQuestionMatch(line) {
   const text = cleanImportedText(line)
-  const match = text.match(/^(\d{1,3})\s*[\).:\-]\s*(.+)$/)
+  const match = text.match(/^(\d{1,3})\s*[).:-]\s*(.+)$/)
   if (!match) return null
 
   const optionText = cleanImportedText(match[2])
@@ -539,7 +539,7 @@ function questionFromCurrent(current, answerKey = new Map()) {
 //   [Image Description: A black silhouette of an athlete mid-air ...]
 //   [Image: a flower with stigma labelled X]
 //   [refer to image in original]
-const BRACKETED_IMAGE_LINE_RE = /^\s*[\[(]\s*(?:image(?:\s+description)?|figure|diagram|picture|refer\s+to\s+image|see\s+image)\b[^\]\)]*[\]\)]\s*$/i
+const BRACKETED_IMAGE_LINE_RE = /^\s*[[(]\s*(?:image(?:\s+description)?|figure|diagram|picture|refer\s+to\s+image|see\s+image)\b[^\])]*[\])]\s*$/i
 
 function stripBracketedImageDescriptions(blocks) {
   return blocks.map(block => {
@@ -669,7 +669,7 @@ function buildParaOrderBlocks(lineObjects, instruction) {
 
     const doQMatch = text.match(PARA_ORDER_DO_Q_RE)
     if (doQMatch) {
-      const inlineStart = text.match(/(\d{1,3})\s*A(?:[\).:\-]\s*|\s+)?(.*)$/)
+      const inlineStart = text.match(/(\d{1,3})\s*A(?:[).:-]\s*|\s+)?(.*)$/)
       if (inlineStart) {
         startQuestion(inlineStart[1], block)
         currentOpt = 'A'
@@ -685,7 +685,7 @@ function buildParaOrderBlocks(lineObjects, instruction) {
       continue
     }
 
-    const inlineQuestionOption = text.match(/^(\d{1,3})\s*([A-D])(?:[\).:\-]\s*|\s+)?(.*)$/)
+    const inlineQuestionOption = text.match(/^(\d{1,3})\s*([A-D])(?:[).:-]\s*|\s+)?(.*)$/)
     if (inlineQuestionOption) {
       startQuestion(inlineQuestionOption[1], block)
       currentOpt = inlineQuestionOption[2]
@@ -721,7 +721,7 @@ function buildParaOrderBlocks(lineObjects, instruction) {
 
 function normalizeOptionOnlyQuestionBlock(block, instruction) {
   const text = cleanImportedText(String(block.text || '').replace(/\n+/g, ' '))
-  const match = text.match(/^(\d{1,3})\s*[\).:\-]\s*(.+)$/)
+  const match = text.match(/^(\d{1,3})\s*[).:-]\s*(.+)$/)
   if (!match) return null
 
   const optionSegments = extractOptionSegments(cleanImportedText(match[2]))
@@ -934,7 +934,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
 
       if (inAnswerKey) {
         ANSWER_KEY_PAIR_RE.lastIndex = 0
-        if (ANSWER_KEY_PAIR_RE.test(line) || /^[\d\sA-D).:\-]+$/i.test(line)) return
+        if (ANSWER_KEY_PAIR_RE.test(line) || /^[\d\sA-D).:-]+$/i.test(line)) return
         if (isComprehensionInstruction(line) || isSectionHeading(line)) {
           inAnswerKey = false
         } else {

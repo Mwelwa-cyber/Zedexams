@@ -68,7 +68,7 @@ export default function LessonPlayer() {
     }
     load()
     return () => { cancelled = true }
-  }, [lessonId])
+  }, [lessonId, getLessonById])
 
   const slides = useMemo(() => {
     if (!lesson) return []
@@ -89,6 +89,9 @@ export default function LessonPlayer() {
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
+    // goNext/goPrevious are local closures recreated each render; we re-bind
+    // the keydown listener only when the navigable state actually changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [complete, index, slides.length])
 
   function goNext() {

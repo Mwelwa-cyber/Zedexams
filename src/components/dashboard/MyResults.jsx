@@ -72,7 +72,7 @@ export default function MyResults() {
       setLoading(false)
     }
     load()
-  }, [userProfile?.id])
+  }, [userProfile?.id, getUserResults])
 
   function fmt(ts) {
     if (!ts) return ''

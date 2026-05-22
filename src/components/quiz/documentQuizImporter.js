@@ -51,18 +51,18 @@ const SUBJECTS = [
 ]
 
 // ─── Core Patterns ───────────────────────────────────────────────────────────
-const QUESTION_RE = /^(?:q(?:uestion)?\s*)?(\d{1,3})\s*[\).:\-]\s*(.+)$/i
+const QUESTION_RE = /^(?:q(?:uestion)?\s*)?(\d{1,3})\s*[).:-]\s*(.+)$/i
 const QUESTION_NO_PUNCT_RE = /^(?:q(?:uestion)?\s*)?(\d{1,3})\s+(.+\?)$/i
 
 // Options: handles A. A) (A) a. a) (a) and roman numerals i. ii. iii. iv.
-const OPTION_RE = /^(?:\(([A-Da-d])\)|([A-Da-d])\s*[\).:\-])\s*(.+)$/
-const OPTION_LABEL_RE = /(^|\s)(?:\(([A-Da-d])\)|([A-Da-d])\s*[\).:\-])\s*/g
+const OPTION_RE = /^(?:\(([A-Da-d])\)|([A-Da-d])\s*[).:-])\s*(.+)$/
+const OPTION_LABEL_RE = /(^|\s)(?:\(([A-Da-d])\)|([A-Da-d])\s*[).:-])\s*/g
 
-const ANSWER_RE = /^(?:answer|correct answer|ans|key)\s*[:\-]\s*(.+)$/i
-const EXPLANATION_RE = /^(?:explanation|reason|because)\s*[:\-]\s*(.+)$/i
+const ANSWER_RE = /^(?:answer|correct answer|ans|key)\s*[:-]\s*(.+)$/i
+const EXPLANATION_RE = /^(?:explanation|reason|because)\s*[:-]\s*(.+)$/i
 const IMAGE_HINT_RE = /\b(diagram|figure|picture|image|graph|chart|map|shown|label|observe|study the|look at)\b/i
 const ANSWER_KEY_HEADING_RE = /^(answers\b|answer\s+key|memorandum|marking scheme)\b/i
-const ANSWER_KEY_PAIR_RE = /(?:^|\s)(\d{1,3})\s*[\).:\-]?\s*(?:answer\s*)?([A-D]|true|false)\b/gi
+const ANSWER_KEY_PAIR_RE = /(?:^|\s)(\d{1,3})\s*[).:-]?\s*(?:answer\s*)?([A-D]|true|false)\b/gi
 
 // Named spelling/word-game section headings
 const SECTION_HEADING_RE = /^(?:spelling bee\b|elimination round\b|category\b|words\b|easy round\b|average level\b|round\s+\d+\b|tie[-\s]?breakers?\b|extra words?\b|oral recitation\b)/i
@@ -152,7 +152,7 @@ function deriveParaOrderQuestionText(instruction) {
 
 function parseParaOrderOptionLine(line) {
   const text = cleanText(line)
-  const punctuated = text.match(/^([A-D])[\).:\-]\s*(.+)$/)
+  const punctuated = text.match(/^([A-D])[).:-]\s*(.+)$/)
   const glued = text.match(/^([A-D])([A-Z].+)$/)
   const label = (punctuated?.[1] || glued?.[1] || '').toUpperCase()
   if (!label) return null
@@ -165,7 +165,7 @@ function parseParaOrderOptionLine(line) {
 
 function parseRawParaOrderOptionLine(line) {
   const text = cleanText(String(line || '').replace(/\n+/g, ' '))
-  const match = text.match(/^([A-D])(?:[\).:\-]\s*|)(.+)$/)
+  const match = text.match(/^([A-D])(?:[).:-]\s*|)(.+)$/)
   const label = (match?.[1] || '').toUpperCase()
   const optionText = cleanText(match?.[2] || '')
   if (!label || !optionText) return null
@@ -174,7 +174,7 @@ function parseRawParaOrderOptionLine(line) {
 
 function optionOnlyQuestionMatch(line) {
   const text = cleanText(line)
-  const match = text.match(/^(\d{1,3})\s*[\).:\-]\s*(.+)$/)
+  const match = text.match(/^(\d{1,3})\s*[).:-]\s*(.+)$/)
   if (!match) return null
 
   const optionText = cleanText(match[2])
@@ -258,7 +258,7 @@ function extractOptionSegments(line) {
   if (!matches.length) return []
 
   const firstPrefix = cleanText(text.slice(0, matches[0].labelStart)).toLowerCase()
-  const startsAsOptionLine = matches[0].labelStart <= 2 || /^(options?|choices?)[:\-]?$/.test(firstPrefix)
+  const startsAsOptionLine = matches[0].labelStart <= 2 || /^(options?|choices?)[:-]?$/.test(firstPrefix)
   const hasQuestionThenInlineOptions = firstPrefix.length >= 8 && matches.length >= 2
   if (!startsAsOptionLine && !hasQuestionThenInlineOptions) return []
 
@@ -991,7 +991,7 @@ function buildParaOrderBlocks(lineObjects, instruction) {
     // ── Signal 1: "Now do questions N" — locates the first question ──────────
     const doQMatch = text.match(PARA_ORDER_DO_Q_RE)
     if (doQMatch) {
-      const inlineStart = text.match(/(\d{1,3})\s*A(?:[\).:\-]\s*|\s+)?(.*)$/)
+      const inlineStart = text.match(/(\d{1,3})\s*A(?:[).:-]\s*|\s+)?(.*)$/)
       if (inlineStart) {
         startQuestion(inlineStart[1], block)
         currentOpt = 'A'
@@ -1007,7 +1007,7 @@ function buildParaOrderBlocks(lineObjects, instruction) {
       continue
     }
 
-    const inlineQuestionOption = text.match(/^(\d{1,3})\s*([A-D])(?:[\).:\-]\s*|\s+)?(.*)$/)
+    const inlineQuestionOption = text.match(/^(\d{1,3})\s*([A-D])(?:[).:-]\s*|\s+)?(.*)$/)
     if (inlineQuestionOption) {
       startQuestion(inlineQuestionOption[1], block)
       currentOpt = inlineQuestionOption[2]
@@ -1047,7 +1047,7 @@ function buildParaOrderBlocks(lineObjects, instruction) {
 
 function normalizeOptionOnlyQuestionBlock(block, instruction) {
   const text = cleanText(String(block.text || '').replace(/\n+/g, ' '))
-  const match = text.match(/^(\d{1,3})\s*[\).:\-]\s*(.+)$/)
+  const match = text.match(/^(\d{1,3})\s*[).:-]\s*(.+)$/)
   if (!match) return null
 
   const optionSegments = extractOptionSegments(cleanText(match[2]))
@@ -1268,7 +1268,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
       }
       if (inAnswerKey) {
         ANSWER_KEY_PAIR_RE.lastIndex = 0
-        if (ANSWER_KEY_PAIR_RE.test(line) || /^[\d\sA-D).:\-]+$/i.test(line)) return
+        if (ANSWER_KEY_PAIR_RE.test(line) || /^[\d\sA-D).:-]+$/i.test(line)) return
         // If we see a fresh instruction or section heading, leave answer-key mode
         if (isComprehensionInstruction(line) || isSectionHeading(line)) {
           inAnswerKey = false

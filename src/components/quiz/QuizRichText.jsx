@@ -363,9 +363,9 @@ function MathModal({ open, onClose, onInsert, initialLatex = '', mode = 'insert'
     const previewNode = container.querySelector('.mnode')
     if (!previewNode) return
 
-    loadKaTeXAssets().then(() => {
-      renderMathInElement(container)
-    })
+    loadKaTeXAssets()
+      .then(() => { renderMathInElement(container) })
+      .catch(err => console.warn('QuizRichText preview KaTeX:', err))
   }, [latex, open])
 
   useEffect(() => {
@@ -795,7 +795,9 @@ export function RichTextContent({ value, className = '' }) {
 
   useEffect(() => {
     if (!rootRef.current || !safeHtml) return
-    loadKaTeXAssets().then(() => renderMathInElement(rootRef.current))
+    loadKaTeXAssets()
+      .then(() => renderMathInElement(rootRef.current))
+      .catch(err => console.warn('QuizRichText display KaTeX:', err))
   }, [safeHtml])
 
   if (!safeHtml) return null
@@ -890,7 +892,9 @@ export function RichTextEditor({
 
     if (currentHtml !== nextHtml) {
       editorRef.current.innerHTML = nextHtml
-      loadKaTeXAssets().then(() => renderMathInElement(editorRef.current))
+      loadKaTeXAssets()
+        .then(() => renderMathInElement(editorRef.current))
+        .catch(err => console.warn('QuizRichText editor KaTeX:', err))
     }
 
     setIsEmpty(!richTextHasContent(nextHtml))
@@ -1123,7 +1127,9 @@ export function RichTextEditor({
               if (html && editorRef.current) {
                 event.preventDefault()
                 insertHtmlAtSelection(editorRef.current, savedRangeRef.current, ensureRichTextHtml(html))
-                loadKaTeXAssets().then(() => renderMathInElement(editorRef.current))
+                loadKaTeXAssets()
+                  .then(() => renderMathInElement(editorRef.current))
+                  .catch(err => console.warn('QuizRichText paste KaTeX:', err))
                 syncFromEditor()
               }
             }}
@@ -1177,7 +1183,9 @@ export function RichTextEditor({
             insertHtmlAtSelection(editorRef.current, savedRangeRef.current, createMathNodeHtml(latex))
           }
           setEditingMathNode(null)
-          loadKaTeXAssets().then(() => renderMathInElement(editorRef.current))
+          loadKaTeXAssets()
+            .then(() => renderMathInElement(editorRef.current))
+            .catch(err => console.warn('QuizRichText math editor KaTeX:', err))
           syncFromEditor()
         }}
       />

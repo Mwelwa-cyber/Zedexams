@@ -474,7 +474,10 @@ export default function QuizRunnerV2() {
       navigate(`/results/${resultId}`)
     } catch (error) {
       console.error(error)
-      // Allow a retry after a genuine save failure.
+      // Allow a retry after a genuine save failure. The submit button is
+      // disabled while `submitting` is true, so we can't get into this
+      // catch block from two parallel submissions.
+      // eslint-disable-next-line require-atomic-updates
       submittedRef.current = false
       setSubmitting(false)
       setActionError('Failed to save your results. Please check your connection and try again.')

@@ -43,7 +43,7 @@ export function useBadges(userId) {
     })
 
     return () => { cancelled = true }
-  }, [userId, tick])
+  }, [userId, tick, getUserResults])
 
   return { earned, progress, loading, refresh }
 }

@@ -36,7 +36,6 @@ import { isTiptapJSON } from './migration.js'
 // `node` test runner there's no window, the import never fires, and the
 // `.css` file no longer trips Node's ESM loader.
 if (typeof window !== 'undefined') {
-  // eslint-disable-next-line promise/catch-or-return -- fire-and-forget
   import('katex/dist/katex.min.css').catch(() => {})
 }
 

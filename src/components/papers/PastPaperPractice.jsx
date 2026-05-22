@@ -179,7 +179,7 @@ export default function PastPaperPractice() {
     } finally {
       setSubmitting(false)
     }
-  }, [attemptId, submitting, done, elapsedSeconds, reflection])
+  }, [attemptId, submitting, done, elapsedSeconds, reflection, paper?.grade, paper?.subject])
 
   if (authLoading) return null
   if (!currentUser) {
