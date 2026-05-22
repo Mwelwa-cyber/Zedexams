@@ -2115,6 +2115,17 @@ const {
 } = require("./teacherTools/rollbackSyllabusVersion");
 exports.rollbackSyllabusVersion = rollbackSyllabusVersion;
 
+// Syllabus replacement — Phase E. Admin-only cleanup of leftover data
+// the migration archived. Three modes: "audit" (read-only counts),
+// "delete-rag" (curriculum/* + rag_chunks/*), and "delete-version"
+// (a single old cbcKnowledgeBase/{v}/topics/* tree). Safety checks
+// refuse destructive ops while the system still needs the data —
+// see the file header for details.
+const {
+  cleanupArchivedSyllabusData,
+} = require("./teacherTools/cleanupArchivedSyllabusData");
+exports.cleanupArchivedSyllabusData = cleanupArchivedSyllabusData;
+
 // Teacher Tools — Lesson Plan Studio (vanilla JS studio endpoint).
 exports.studioGenerateLessonPlan = createStudioGenerateLessonPlan(anthropicApiKey);
 
