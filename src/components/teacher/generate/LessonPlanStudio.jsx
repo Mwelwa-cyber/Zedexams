@@ -7,7 +7,7 @@ import {
   query, where, getDocs,
 } from 'firebase/firestore'
 import app from '../../../firebase/config'
-import { KB_VERSION } from '../../../utils/adminCbcKbService'
+import { getActiveKbVersion, subtopicName } from '../../../utils/adminCbcKbService'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { LIBRARY_TYPES, SYLLABUS_TYPES } from '../../../config/library'
 import { classifyForLibrary } from '../../../utils/libraryClassification'
@@ -147,8 +147,12 @@ export default function LessonPlanStudio() {
       const key = `${grade}|${subject}`
       if (cbcCache.has(key)) return cbcCache.get(key)
       try {
+        // Read the runtime-active KB version (Phase B). Falling back to
+        // the static KB_VERSION here would have shown the OLD seed
+        // topics even after a Phase C activate flipped _meta.version.
+        const version = await getActiveKbVersion()
         const snap = await getDocs(query(
-          collection(db, 'cbcKnowledgeBase', KB_VERSION, 'topics'),
+          collection(db, 'cbcKnowledgeBase', version, 'topics'),
           where('grade', '==', grade),
           where('subject', '==', subject),
         ))
@@ -156,7 +160,12 @@ export default function LessonPlanStudio() {
         snap.forEach((d) => {
           const t = d.data()
           if (t && t.topic) {
-            out[t.topic] = Array.isArray(t.subtopics) ? t.subtopics : []
+            // Phase A enriches subtopics to objects ({name, ...}); the
+            // studio's downstream consumer expects string arrays, so
+            // surface only the names here.
+            out[t.topic] = (Array.isArray(t.subtopics) ? t.subtopics : [])
+              .map(subtopicName)
+              .filter(Boolean)
           }
         })
         cbcCache.set(key, out)
