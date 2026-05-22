@@ -964,6 +964,115 @@ export const notesParametersSchema = z.object({
 
 /** @typedef {import('zod').infer<typeof notesParametersSchema>} NotesParameters */
 
+// ── Study Tips Agent — content + parameters ──────────────────────────
+//
+// NOT a Firestore collection. Validates the structured payload the
+// Study Tips Generator writes onto aiGeneratedContent.content for
+// taskType='study_tips' artifacts.
+//
+// Tips MUST be tied to real learner performance data — the runner
+// reads learnerWeaknessProfiles/{learnerId} (or the explicit weakAreas
+// supplied on task.parameters) and refuses to generate generic tips.
+// Every tip.reason field traces back to one weakSignal entry.
+
+export const STUDY_TIP_PRIORITIES = z.enum(['high', 'medium', 'low'])
+
+export const studyTipWeakSignalSchema = z.object({
+  // What kind of weakness this signal came from. 'profile' = from
+  // learnerWeaknessProfiles; 'attempt' = from a specific failed quiz
+  // attempt; 'parameter' = explicitly passed in by the caller.
+  source: z.enum(['profile', 'attempt', 'parameter']),
+  // The weak target — topic or subtopic.
+  topic: z.string().min(1).max(200),
+  subtopic: z.string().max(200).nullable(),
+  // Optional explanation pulled from repeatedMistakes (e.g.
+  // "confused arteries with veins").
+  mistakeNote: z.string().max(400).nullable(),
+}).strict()
+
+export const studyTipSchema = z.object({
+  // The tip itself — actionable, starts with an imperative verb.
+  // Quality Check v3's `tips_actionable` axis enforces this.
+  tip: z.string().min(1).max(300),
+  // The reason ties the tip back to a weakness signal so admins +
+  // learners can see why the tip was offered.
+  reason: z.string().min(1).max(400),
+  // Pointer at the weak target the tip addresses.
+  topic: z.string().min(1).max(200),
+  subtopic: z.string().max(200).nullable(),
+  priority: STUDY_TIP_PRIORITIES,
+  // 2-15 minutes — how long this single tip's activity takes.
+  estimatedMinutes: z.number().int().min(2).max(60),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof studyTipSchema>} StudyTip */
+
+export const studyTipRecommendedQuizSchema = z.object({
+  topic: z.string().min(1).max(200),
+  subtopic: z.string().max(200).nullable(),
+  focus: z.string().min(1).max(400),
+  // Suggested generator parameters the practice-quiz generator can
+  // honour if the learner clicks "Try this quiz next" — numQuestions
+  // + difficulty hint based on the weakness severity.
+  numQuestions: z.number().int().min(3).max(20),
+  difficulty: z.enum(['easy', 'medium', 'hard', 'mixed']),
+}).strict()
+
+export const studyTipRevisionDaySchema = z.object({
+  day: z.number().int().min(1).max(14),
+  focus: z.string().min(1).max(200),
+  activity: z.string().min(1).max(400),
+  estimatedMinutes: z.number().int().min(5).max(120),
+}).strict()
+
+export const studyTipsContentSchema = z.object({
+  title: z.string().min(1).max(200),
+  // Encouraging-but-honest opener. Sets the tone — never sugar-coats
+  // a poor performance but never demoralises.
+  feedback: z.string().min(1).max(800),
+  tips: z.array(studyTipSchema).min(1).max(15),
+  recommendedNotes: z.array(z.string().min(1).max(300)).max(10),
+  recommendedQuizzes: z.array(studyTipRecommendedQuizSchema).max(6),
+  // Day-by-day revision plan, ordered by day. Optional in shape but
+  // the runner produces it by default.
+  revisionPlan: z.array(studyTipRevisionDaySchema).max(14),
+  // Snapshot of the weakness signals consumed — kept on the artifact
+  // so admins can audit which performance data shaped the tips.
+  weakSignalsUsed: z.array(studyTipWeakSignalSchema).max(40),
+  // Curriculum echo — stamped server-side from chainContext.curriculumReader.
+  grade: z.string().min(1).max(8),
+  subject: z.string().min(1).max(80),
+  term: z.string().max(8).nullable(),
+  topic: z.string().min(1).max(200),
+  subtopic: z.string().max(200).nullable(),
+  // Learner this artifact targets. Mirrors task.parameters.weakLearnerId
+  // so admin queue filters by learner work.
+  learnerId: z.string().max(120),
+  modelUsed: z.string().max(80),
+  parametersUsed: z.object({}).passthrough(),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof studyTipsContentSchema>} StudyTipsContent */
+
+export const studyTipsParametersSchema = z.object({
+  // Required — the runner refuses if not set.
+  weakLearnerId: z.string().min(1).max(120),
+  maxTips: z.number().int().min(3).max(15).default(6),
+  includeRevisionPlan: z.boolean().default(true),
+  planDurationDays: z.number().int().min(3).max(14).default(7),
+  // Optional explicit weak-areas seed — bypasses the
+  // learnerWeaknessProfiles lookup when set. Useful for one-off
+  // catch-up plans an admin queues for a learner whose profile
+  // hasn't been built yet.
+  weakAreas: z.array(z.object({
+    topic: z.string().min(1).max(200),
+    subtopic: z.string().max(200).nullable().optional(),
+    mistakeNote: z.string().max(400).nullable().optional(),
+  })).max(20).optional(),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof studyTipsParametersSchema>} StudyTipsParameters */
+
 /**
  * Parse-or-throw helper. Returns the validated doc body; throws ZodError
  * on bad shape. Use immediately before any addDoc / setDoc / update.

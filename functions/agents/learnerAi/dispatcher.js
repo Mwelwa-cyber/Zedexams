@@ -306,16 +306,29 @@ async function runChain({taskId}) {
  * Safe-by-default: returns false on any error, missing setting, or
  * unknown task type. Admins opt-out by setting the per-type flag
  * to false in /admin/settings.
+ *
+ * Per-type extra preconditions can be wired alongside the setting
+ * key — e.g. study_tips refuses to auto-publish unless the task
+ * carries `parameters.weakLearnerId` (enforcing the user rule:
+ * "Study tips may auto-publish if based on real learner weakness
+ * data"). Auto-publish for exam_quiz / curriculum_update_check /
+ * weakness_analysis / learner_feedback is never granted (those types
+ * are absent from the table).
  */
 const AUTO_PUBLISH_SETTING_BY_TASK = Object.freeze({
-  practice_quiz: "autoPublishPracticeQuizzes",
-  notes:         "autoPublishNotes",
+  practice_quiz: {settingKey: "autoPublishPracticeQuizzes", precondition: null},
+  notes:         {settingKey: "autoPublishNotes",           precondition: null},
+  study_tips:    {settingKey: "autoPublishStudyTips",
+    precondition: (task) => !!(task && task.parameters &&
+      typeof task.parameters.weakLearnerId === "string" &&
+      task.parameters.weakLearnerId.length > 0)},
 });
 
 async function shouldAutoPublish({task, contentId}) {
   if (!task) return false;
-  const settingKey = AUTO_PUBLISH_SETTING_BY_TASK[task.taskType];
-  if (!settingKey) return false;
+  const entry = AUTO_PUBLISH_SETTING_BY_TASK[task.taskType];
+  if (!entry) return false;
+  if (typeof entry.precondition === "function" && !entry.precondition(task)) return false;
   if (task.status === TASK_STATUS.FAILED_QUALITY_CHECK) return false;
   if (task.status !== TASK_STATUS.PASSED_QUALITY_CHECK) return false;
   if (!contentId) return false;
@@ -338,7 +351,7 @@ async function shouldAutoPublish({task, contentId}) {
         .get();
     const learnerAi = settingsSnap.exists ?
       (settingsSnap.data() || {}).learnerAi || {} : {};
-    return learnerAi[settingKey] === true;
+    return learnerAi[entry.settingKey] === true;
   } catch (err) {
     console.warn("[learner-ai dispatcher] auto-publish check failed", err && err.message);
     return false;
