@@ -90,7 +90,11 @@ const SUBJECT_NORMALISE = {
 
 exports.parseSyllabusUpload = onObjectFinalized(
   {
-    region: "us-central1",
+    // Storage triggers MUST live in the same region as the bucket they
+    // watch. The project's default bucket is in africa-south1 (matches
+    // the country we serve); the other Cloud Functions are us-central1
+    // because they're HTTP/callable and have no colocation requirement.
+    region: "africa-south1",
     memory: "1GiB",
     timeoutSeconds: 540,
   },
