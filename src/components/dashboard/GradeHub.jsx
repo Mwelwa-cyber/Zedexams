@@ -62,14 +62,15 @@ import { getTodaysExam, checkDailyLock } from '../../utils/examService'
 // ── Sub-components ─────────────────────────────────────────────────────────
 
 const NOTIFICATION_STORAGE_PREFIX = 'zedexams:notifications:seen:v1'
-// Dashboard character art. Each entry ships WebP (≈90% smaller than the
-// original PNG, ~5 MB → ~500 KB total) with the PNG kept as a <picture>
-// fallback for legacy browsers. Intrinsic pixel dimensions are passed to
-// the <img> so the browser can reserve space and avoid CLS as images load.
+// Dashboard character art. WebP ships as both the <source> and the <img>
+// fallback — every browser the app supports (Android Chrome 32+, iOS 14+)
+// has native WebP decode, and the PNG originals were 5 MB of redundant
+// hosting weight. Intrinsic pixel dimensions are passed to the <img> so
+// the browser can reserve space and avoid CLS as images load.
 const DASHBOARD_CHARACTERS = {
-  hero:  { png: '/images/characters/zed-zara-reading.png?v=transparent-1', webp: '/images/characters/zed-zara-reading.webp?v=1', width: 1402, height: 1122 },
-  exams: { png: '/images/characters/lina-study.png?v=transparent-1',       webp: '/images/characters/lina-study.webp?v=1',       width: 1313, height: 1198 },
-  games: { png: '/images/characters/max-gaming.png?v=transparent-1',       webp: '/images/characters/max-gaming.webp?v=1',       width: 1254, height: 1254 },
+  hero:  { src: '/images/characters/zed-zara-reading.webp?v=1', width: 1402, height: 1122 },
+  exams: { src: '/images/characters/lina-study.webp?v=1',       width: 1313, height: 1198 },
+  games: { src: '/images/characters/max-gaming.webp?v=1',       width: 1254, height: 1254 },
 }
 
 // Subject palette tuned for the light surfaces shown in the product
@@ -166,11 +167,8 @@ function DashboardCharacter({ image, alt, variant = 'card', loading = 'lazy', cl
     games: 'h-24 sm:h-[118px]',
   }[variant] || 'h-24 sm:h-28'
 
-  // <picture> lets modern browsers fetch the WebP (≈90% smaller) while
-  // older browsers fall back to the PNG. width/height attributes give the
-  // browser the aspect ratio up-front so the page doesn't jump when the
-  // image finishes loading (CLS). <picture> itself is a layout-transparent
-  // shell — all sizing/positioning classes stay on the <img>.
+  // width/height give the browser the aspect ratio up-front so the page
+  // doesn't jump when the image finishes loading (CLS).
   //
   // `w-auto` is load-bearing: the HTML `width` attribute doubles as a CSS
   // presentational hint (`width: 1402px` for the hero, etc.) which without
@@ -178,18 +176,15 @@ function DashboardCharacter({ image, alt, variant = 'card', loading = 'lazy', cl
   // layout and shift/clip the art. `w-auto` forces the rendered width to
   // come from the CSS height × aspect-ratio instead.
   return (
-    <picture>
-      <source type="image/webp" srcSet={image.webp} />
-      <img
-        src={image.png}
-        alt={alt}
-        width={image.width}
-        height={image.height}
-        loading={loading}
-        decoding="async"
-        className={`pointer-events-none select-none object-contain drop-shadow-[0_14px_18px_rgba(15,23,42,0.16)] w-auto ${sizeClass} ${className}`}
-      />
-    </picture>
+    <img
+      src={image.src}
+      alt={alt}
+      width={image.width}
+      height={image.height}
+      loading={loading}
+      decoding="async"
+      className={`pointer-events-none select-none object-contain drop-shadow-[0_14px_18px_rgba(15,23,42,0.16)] w-auto ${sizeClass} ${className}`}
+    />
   )
 }
 
