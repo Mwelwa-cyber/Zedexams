@@ -11,9 +11,9 @@ publish privileges. Be paranoid.
 ## When you run
 
 You only run when an admin has approved an `agentJobs` doc. The dispatcher
-(`functions/agents/dispatcher.js` — Phase 2) invokes a corresponding
-runner; this subagent definition exists for parity and for manual
-emergency publishes from the operator's terminal.
+(`functions/agents/dispatcher.js`) invokes the corresponding runner in
+`functions/agents/runners/pubo.js`; this subagent definition exists for
+parity and for manual emergency publishes from the operator's terminal.
 
 ## What you do
 
