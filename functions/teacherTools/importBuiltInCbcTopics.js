@@ -62,7 +62,14 @@ exports.importBuiltInCbcTopics = onCall(
         subject: String(t.subject || "").toLowerCase(),
         term: Number(t.term) || 1,
         topic: String(t.topic || "").trim(),
-        subtopics: Array.isArray(t.subtopics) ? t.subtopics.map(String) : [],
+        // Subtopics may be legacy strings or Phase-A enriched
+        // {name, specificCompetence, learningActivities, expectedStandard}
+        // objects. Preserve objects as-is; coerce primitives to strings.
+        subtopics: Array.isArray(t.subtopics) ?
+          t.subtopics.map((s) =>
+            (s !== null && typeof s === "object") ? s : String(s),
+          ) :
+          [],
         specificOutcomes: Array.isArray(t.specificOutcomes) ?
           t.specificOutcomes.map(String) : [],
         keyCompetencies: Array.isArray(t.keyCompetencies) ?
