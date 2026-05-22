@@ -245,12 +245,56 @@ async function runChain({taskId}) {
     }
   }
 
-  // 3. All steps green → admin approval gate.
+  // 3. All steps green. Two paths from here:
+  //    (a) Practice quizzes MAY auto-publish when
+  //        settings/global.learnerAi.autoPublishPracticeQuizzes is on
+  //        AND the Quality Check verdict was 'pass'. We treat that as
+  //        the equivalent of an admin approval (audit log is still
+  //        written by aiAgentTasksOnApproved so the trail stays
+  //        intact).
+  //    (b) Otherwise → admin review gate (NEEDS_REVIEW).
+  const lastTask = await readTask(taskRef);
+  const autoPublishOk = await shouldAutoPublish({
+    task: lastTask,
+    contentId: lastContentId,
+  });
   await setTaskFields(taskRef, {
-    status: TASK_STATUS.NEEDS_REVIEW,
+    status: autoPublishOk ? TASK_STATUS.APPROVED : TASK_STATUS.NEEDS_REVIEW,
     completedAt: admin.firestore.FieldValue.serverTimestamp(),
     resultContentId: lastContentId,
   });
+}
+
+/**
+ * Auto-publish gate for practice quizzes.
+ *
+ * Reads settings/global.learnerAi.autoPublishPracticeQuizzes. When
+ * true AND the task is a practice_quiz AND Quality Check verdict was
+ * 'pass', returns true so the dispatcher transitions straight to
+ * 'approved' (which then fires aiAgentTasksOnApproved → flips the
+ * aiGeneratedContent doc to 'published').
+ *
+ * Safe-by-default: returns false on any error, missing setting, or
+ * unknown task type. The admin can always opt-out by setting the
+ * flag to false in /admin/settings.
+ */
+async function shouldAutoPublish({task, contentId}) {
+  if (!task) return false;
+  if (task.taskType !== "practice_quiz") return false;
+  if (task.status === TASK_STATUS.FAILED_QUALITY_CHECK) return false;
+  if (task.status !== TASK_STATUS.PASSED_QUALITY_CHECK) return false;
+  if (!contentId) return false;
+  try {
+    const settingsSnap = await admin.firestore()
+        .doc("settings/global")
+        .get();
+    const learnerAi = settingsSnap.exists ?
+      (settingsSnap.data() || {}).learnerAi || {} : {};
+    return learnerAi.autoPublishPracticeQuizzes === true;
+  } catch (err) {
+    console.warn("[learner-ai dispatcher] auto-publish check failed", err && err.message);
+    return false;
+  }
 }
 
 function createAiAgentTasksOnCreate() {

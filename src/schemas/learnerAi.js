@@ -102,6 +102,14 @@ export const aiAgentTaskWriteSchema = z.object({
   // / study_tips tasks don't have to set it. Pinned to the same
   // ASSESSMENT_TYPES enum used by assessmentStandards.
   assessmentType: ASSESSMENT_TYPES.nullable(),
+  // Optional generator parameters bag — opaque to the task schema,
+  // validated by each task type's own parameters schema (e.g.
+  // practiceQuizParametersSchema below) inside the runner. Keeping this
+  // generic on the task doc means new task types don't have to expand
+  // aiAgentTaskWriteSchema every time. .optional() so older / simpler
+  // task types can omit the field; .nullable() so callers can
+  // explicitly set null when their type has no params.
+  parameters: z.object({}).passthrough().nullable().optional(),
   startedAt: timestampish.nullable(),
   completedAt: timestampish.nullable(),
   resultContentId: z.string().max(120).nullable(),
@@ -437,6 +445,105 @@ export const COLLECTION_SCHEMAS = Object.freeze({
   assessmentStandards:     assessmentStandardWriteSchema,
   learnerWeaknessProfiles: learnerWeaknessProfileWriteSchema,
 })
+
+// ── Practice Quiz Generator Agent — content + parameters ─────────────
+//
+// NOT a Firestore collection. These schemas validate the structured
+// quiz payload the Practice Quiz Generator produces (stored on
+// aiGeneratedContent.content) and the parameters it accepts off
+// aiAgentTasks.parameters. Imported by the SPA (when learners trigger
+// generation, to pre-flight the params) and by the server runner.
+
+export const QUIZ_QUESTION_TYPES = z.enum([
+  'mcq', 'true_false', 'short_answer', 'matching',
+])
+export const QUIZ_DIFFICULTIES = z.enum(['easy', 'medium', 'hard'])
+// 'mixed' is allowed on the params but each individual question must
+// resolve to one of the three concrete levels above.
+export const QUIZ_DIFFICULTY_PARAMS = z.enum(['easy', 'medium', 'hard', 'mixed'])
+export const PRACTICE_QUIZ_MODES = z.enum([
+  'topic', 'subtopic', 'lesson', 'revision',
+])
+
+export const matchingPairSchema = z.object({
+  left: z.string().min(1).max(200),
+  right: z.string().min(1).max(200),
+}).strict()
+
+export const practiceQuizQuestionSchema = z.object({
+  questionText: z.string().min(1).max(800),
+  questionType: QUIZ_QUESTION_TYPES,
+  // For mcq/true_false: choice strings.
+  // For short_answer:  [] (no options).
+  // For matching:      [] (pairs live on `matchingPairs` below).
+  options: z.array(z.string().min(1).max(200)).max(6),
+  // For mcq:           the correct option text (must appear in options[]).
+  // For true_false:    'True' | 'False'.
+  // For short_answer:  the canonical answer string.
+  // For matching:      [] (matchingPairs encodes the answer key).
+  correctAnswer: z.string().max(400),
+  matchingPairs: z.array(matchingPairSchema).max(8).optional(),
+  explanation: z.string().min(1).max(800),
+  difficulty: QUIZ_DIFFICULTIES,
+  marks: z.number().int().min(1).max(10),
+  // Curriculum echo — stamped by the runner from chainContext.curriculumReader
+  // so each question is self-contained for the learner UI without a
+  // second Firestore read.
+  grade: z.string().min(1).max(8),
+  subject: z.string().min(1).max(80),
+  term: z.string().max(8).nullable(),
+  topic: z.string().min(1).max(200),
+  subtopic: z.string().max(200).nullable(),
+  competency: z.string().max(400),
+  learningOutcome: z.string().max(400).nullable(),
+  // Grounding pointer — index into curriculumReader.citedExcerpts so
+  // Quality Check can substring-match the question against the source.
+  groundingIndex: z.number().int().min(0).max(50),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof practiceQuizQuestionSchema>} PracticeQuizQuestion */
+
+export const practiceQuizContentSchema = z.object({
+  // Top-level metadata the learner UI can render without parsing questions.
+  title: z.string().min(1).max(200),
+  description: z.string().max(800),
+  mode: PRACTICE_QUIZ_MODES,
+  difficulty: QUIZ_DIFFICULTY_PARAMS,
+  totalMarks: z.number().int().min(1).max(500),
+  estimatedMinutes: z.number().int().min(1).max(180),
+  questions: z.array(practiceQuizQuestionSchema).min(1).max(50),
+  // Provenance — the LLM model that wrote this (or 'stub' for fallbacks
+  // when ANTHROPIC_API_KEY is absent / disabled). Quality Check uses
+  // this to decide whether the deterministic grounding pass is enough
+  // or it also needs a Haiku nuance score.
+  modelUsed: z.string().max(80),
+  // Echo of the generator parameters, useful for filterable history
+  // ("show me my last 10 lesson-2 revision quizzes").
+  parametersUsed: z.object({}).passthrough(),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof practiceQuizContentSchema>} PracticeQuizContent */
+
+export const practiceQuizParametersSchema = z.object({
+  numQuestions: z.number().int().min(1).max(50).default(10),
+  difficulty: QUIZ_DIFFICULTY_PARAMS.default('mixed'),
+  mode: PRACTICE_QUIZ_MODES.default('topic'),
+  // For mode='revision' the runner consults learnerWeaknessProfiles to
+  // pick weak topics; weakLearnerId is the learner whose profile to read.
+  // Other modes ignore it. Optional (nullable) because most queue writes
+  // won't supply it.
+  weakLearnerId: z.string().max(120).nullable().default(null),
+  // For mode='lesson', narrows generation to the specific KB lesson.
+  // The runner will refuse the task if the resolver can't honor it.
+  lessonNumber: z.number().int().min(1).max(60).nullable().default(null),
+  // Allowed question types — defaults to all four. Lets a caller scope
+  // a quiz to e.g. just MCQs for a primary-school audience.
+  allowedQuestionTypes: z.array(QUIZ_QUESTION_TYPES).min(1).default(
+    ['mcq', 'true_false', 'short_answer', 'matching'],
+  ),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof practiceQuizParametersSchema>} PracticeQuizParameters */
 
 /**
  * Parse-or-throw helper. Returns the validated doc body; throws ZodError
