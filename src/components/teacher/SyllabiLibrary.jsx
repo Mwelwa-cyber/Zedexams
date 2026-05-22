@@ -30,6 +30,17 @@ function formatBytes(bytes) {
   return `${Math.ceil(bytes / 1024)} KB`
 }
 
+// PDFs live in Cloud Storage at /syllabi/<file>. storage.rules grants public
+// read on that path so we can hit the tokenless `?alt=media` URL — no auth,
+// no signed-URL round-trip. Returns null when the bucket env is missing so
+// the caller can surface a load error instead of fetching a malformed URL.
+const STORAGE_BUCKET = import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || ''
+function syllabusPdfUrl(file) {
+  if (!file || !STORAGE_BUCKET) return null
+  const encoded = encodeURIComponent(`syllabi/${file}`)
+  return `https://firebasestorage.googleapis.com/v0/b/${STORAGE_BUCKET}/o/${encoded}?alt=media`
+}
+
 function phaseTone(phase) {
   const tones = {
     'Curriculum Framework': 'bg-amber-500/15 text-amber-100 ring-1 ring-amber-300/30',
@@ -83,7 +94,9 @@ function SyllabusReader({ syllabus }) {
     async function loadDocument() {
       try {
         const pdfjsLib = await loadPdfjs()
-        const response = await fetch(syllabus.file, { cache: 'no-store' })
+        const url = syllabusPdfUrl(syllabus.file)
+        if (!url) throw new Error('Storage bucket is not configured.')
+        const response = await fetch(url, { cache: 'no-store' })
         if (!response.ok) throw new Error(`PDF request failed: ${response.status}`)
         const fileBytes = new Uint8Array(await response.arrayBuffer())
         if (cancelled) return
