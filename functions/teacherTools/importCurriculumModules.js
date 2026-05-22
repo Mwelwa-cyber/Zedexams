@@ -20,9 +20,8 @@ const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const {getUserRole} = require("../aiService");
 const {validateCurriculumModule, buildModuleId} =
   require("./curriculumModuleSchema");
-const {invalidateKbCache} = require("./cbcKnowledge");
+const {invalidateKbCache, getActiveKbVersion} = require("./cbcKnowledge");
 
-const KB_VERSION = "cbc-kb-2026-04-seed";
 const MAX_MODULES = 2000;
 
 function slug(s) {
@@ -67,6 +66,9 @@ exports.importCurriculumModules = onCall(
       const db = admin.firestore();
       const now = admin.firestore.FieldValue.serverTimestamp();
       const BATCH_SIZE = 400;
+      // Always write into the runtime-active version so a bulk import lands
+      // on whichever syllabus is currently in use.
+      const kbVersion = await getActiveKbVersion();
 
       let written = 0;
       const errors = [];
@@ -100,7 +102,7 @@ exports.importCurriculumModules = onCall(
           continue;
         }
 
-        const topicRef = db.collection("cbcKnowledgeBase").doc(KB_VERSION)
+        const topicRef = db.collection("cbcKnowledgeBase").doc(kbVersion)
             .collection("topics").doc(topicId);
 
         // Minimal parent topic stub — merge:true keeps existing rich fields.
@@ -144,7 +146,7 @@ exports.importCurriculumModules = onCall(
         skipped: errors.length,
         totalSubmitted: rows.length,
         errors: errors.slice(0, 50),
-        kbVersion: KB_VERSION,
+        kbVersion,
       };
     },
 );

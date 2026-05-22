@@ -20,12 +20,96 @@ const {
 const {buildModuleId} = require("./curriculumModuleSchema");
 const {getLearningEnvironment} = require("./learningEnvironments");
 
+// Default ("seed") KB version. Used as the fallback active version when
+// cbcKnowledgeBase/_meta doesn't exist yet — i.e. before the first Phase-C
+// approve-and-activate flow ever runs. After Phase B ships, callers should
+// prefer getActiveKbVersion() instead of this constant for any path that
+// has to follow a runtime version switch.
 const KB_VERSION = "cbc-kb-2026-04-seed";
+const KB_DEFAULT_VERSION = KB_VERSION;
 
 // Module-level cache to avoid hitting Firestore on every generation.
 let _cache = null;
 let _cacheAt = 0;
 const CACHE_TTL_MS = 60_000;
+
+// ── Active KB pointer ────────────────────────────────────────────────────
+// `cbcKnowledgeBase/_meta` is a runtime-switchable doc:
+//   { version, usePrivateCurriculum, cacheBust, updatedAt }
+// Missing doc / read failure ⇒ fall back to the seed default with RAG ON,
+// which matches pre-Phase-B behaviour byte-for-byte. Cached for
+// ACTIVE_STATE_TTL_MS so admin rollback (Phase D) propagates within seconds
+// across warm containers instead of waiting on the topic cache's 60s TTL.
+
+const ACTIVE_KB_DOC_PATH = "cbcKnowledgeBase/_meta";
+const ACTIVE_STATE_TTL_MS = 10_000;
+const ACTIVE_DEFAULT = Object.freeze({
+  version: KB_DEFAULT_VERSION,
+  usePrivateCurriculum: true,
+  cacheBust: 0,
+});
+
+let _activeStateCache = null;
+let _activeStateAt = 0;
+// null on cold start so the first-ever read does NOT spuriously
+// invalidate the empty topic cache. After the first successful read it
+// tracks the last-observed cacheBust counter.
+let _lastSeenCacheBust = null;
+
+/**
+ * Read the runtime KB pointer. Falls back to the seed default + RAG ON when
+ * the doc is missing or unreadable, so the system keeps working before
+ * Phase C ever writes _meta. The cacheBust field lets the Phase D rollback
+ * invalidate every warm container's caches within ACTIVE_STATE_TTL_MS.
+ */
+async function getActiveKbState() {
+  const now = Date.now();
+  if (_activeStateCache && (now - _activeStateAt) < ACTIVE_STATE_TTL_MS) {
+    return _activeStateCache;
+  }
+  try {
+    const db = admin.firestore();
+    const snap = await db.doc(ACTIVE_KB_DOC_PATH).get();
+    let next;
+    if (!snap.exists) {
+      next = ACTIVE_DEFAULT;
+    } else {
+      const data = snap.data() || {};
+      next = {
+        version: (typeof data.version === "string" && data.version) ?
+          data.version : KB_DEFAULT_VERSION,
+        // Default ON — explicit false from admin disables the RAG path.
+        usePrivateCurriculum: data.usePrivateCurriculum !== false,
+        cacheBust: Number(data.cacheBust) || 0,
+      };
+    }
+    // Cross-container cache invalidation: when cacheBust ticks up since
+    // we last observed it, treat the topic-set + RAG caches as stale.
+    if (_lastSeenCacheBust !== null && next.cacheBust !== _lastSeenCacheBust) {
+      _cache = null;
+      _cacheAt = 0;
+      try {
+        invalidatePrivateCurriculumCache();
+      } catch {
+        // Best effort only.
+      }
+    }
+    _lastSeenCacheBust = next.cacheBust;
+    _activeStateCache = next;
+    _activeStateAt = now;
+    return next;
+  } catch (err) {
+    console.error("getActiveKbState failed", err);
+    _activeStateCache = ACTIVE_DEFAULT;
+    _activeStateAt = now;
+    return ACTIVE_DEFAULT;
+  }
+}
+
+/** Convenience: just the active version string. */
+async function getActiveKbVersion() {
+  return (await getActiveKbState()).version;
+}
 
 /**
  * Fetch topics from Firestore for the active KB version. Returns [] if the
@@ -35,9 +119,10 @@ const CACHE_TTL_MS = 60_000;
 async function fetchFirestoreTopics() {
   try {
     const db = admin.firestore();
+    const version = await getActiveKbVersion();
     const snap = await db
       .collection("cbcKnowledgeBase")
-      .doc(KB_VERSION)
+      .doc(version)
       .collection("topics")
       .get();
     return snap.docs.map((d) => ({id: d.id, ...d.data()}));
@@ -97,6 +182,9 @@ function subtopicName(s) {
 function invalidateKbCache() {
   _cache = null;
   _cacheAt = 0;
+  _activeStateCache = null;
+  _activeStateAt = 0;
+  _lastSeenCacheBust = null;
   try {
     invalidatePrivateCurriculumCache();
   } catch {
@@ -287,7 +375,8 @@ async function lookupSubtopicModule({grade, subject, topic, subtopic, term}) {
   if (!topicId || !moduleId) return null;
   try {
     const db = admin.firestore();
-    const doc = await db.collection("cbcKnowledgeBase").doc(KB_VERSION)
+    const version = await getActiveKbVersion();
+    const doc = await db.collection("cbcKnowledgeBase").doc(version)
         .collection("topics").doc(topicId)
         .collection("lessons").doc(moduleId).get();
     return doc.exists ? {id: doc.id, ...doc.data()} : null;
@@ -502,6 +591,15 @@ async function resolveCbcContext({
   grade, subject, topic, subtopic, term, ownerUid,
   lessonNumber, totalLessons, learningEnvironment,
 } = {}) {
+  // Read the runtime active-version pointer once per call. Every return
+  // path carries kbVersion forward so generators can stamp it on their
+  // aiGenerations log row. usePrivateCurriculum gates step #2 below — when
+  // false (Phase C activate sets this), the RAG fallback is bypassed so
+  // the newly approved syllabus is the sole source for any topic without
+  // a stored sub-topic module.
+  const activeState = await getActiveKbState();
+  const kbVersion = activeState.version;
+
   const leDirective = renderLearningEnvironmentDirective(learningEnvironment);
   const priorBlock = renderPreviouslyCovered(
       await resolvePriorCoverage({
@@ -509,9 +607,12 @@ async function resolveCbcContext({
       }),
   );
   const extras = [leDirective, priorBlock].filter(Boolean).join("\n\n");
-  const decorate = (res) => extras ?
-    {...res, contextBlock: `${res.contextBlock}\n\n${extras}`} :
-    res;
+  const decorate = (res) => {
+    const withVersion = {...res, kbVersion};
+    return extras ?
+      {...withVersion, contextBlock: `${withVersion.contextBlock}\n\n${extras}`} :
+      withVersion;
+  };
 
   // 1. Stored sub-topic curriculum module — outranks everything else.
   if (subtopic && term) {
@@ -529,19 +630,23 @@ async function resolveCbcContext({
     }
   }
 
-  // 2. Private RAG curriculum (unchanged).
-  const privateResult = await resolvePrivateCurriculumContext({
-    grade,
-    subject,
-    topic,
-    subtopic,
-  });
-  if (privateResult) {
-    return decorate({
-      contextBlock: privateResult.contextBlock,
-      kbMatch: privateResult.match,
-      kbWarning: null,
+  // 2. Private RAG curriculum — gated by active.usePrivateCurriculum so the
+  // Phase C activate flow can disable this short-circuit and force every
+  // topic to come from the new editable KB (steps 3 + 4 below).
+  if (activeState.usePrivateCurriculum) {
+    const privateResult = await resolvePrivateCurriculumContext({
+      grade,
+      subject,
+      topic,
+      subtopic,
     });
+    if (privateResult) {
+      return decorate({
+        contextBlock: privateResult.contextBlock,
+        kbMatch: privateResult.match,
+        kbWarning: null,
+      });
+    }
   }
 
   // 3. Editable topic KB (unchanged).
@@ -570,6 +675,9 @@ async function resolveCbcContext({
 
 module.exports = {
   KB_VERSION,
+  KB_DEFAULT_VERSION,
+  getActiveKbVersion,
+  getActiveKbState,
   lookupTopic,
   suggestTopics,
   renderContextBlock,

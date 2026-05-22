@@ -25,7 +25,7 @@ const {
 } = require("../aiService");
 const {callClaude} = require("./anthropicClient");
 
-const {resolveCbcContext, KB_VERSION} = require("./cbcKnowledge");
+const {resolveCbcContext} = require("./cbcKnowledge");
 const {validateNotes} = require("./notesSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
   require("./notesPrompt");
@@ -178,7 +178,7 @@ async function runNotes({uid, rawInputs, apiKey}) {
     throw new HttpsError("invalid-argument", inputErrors.join(" "));
   }
 
-  const {contextBlock, kbMatch, kbWarning} = await resolveCbcContext({
+  const {contextBlock, kbMatch, kbWarning, kbVersion} = await resolveCbcContext({
     grade: inputs.grade,
     subject: inputs.subject,
     topic: inputs.topic,
@@ -201,7 +201,7 @@ async function runNotes({uid, rawInputs, apiKey}) {
     outputText: "",
     modelUsed: NOTES_MODEL,
     promptVersion: PROMPT_VERSION,
-    kbVersion: KB_VERSION,
+    kbVersion,
     tokensIn: 0,
     tokensOut: 0,
     costUsdCents: 0,

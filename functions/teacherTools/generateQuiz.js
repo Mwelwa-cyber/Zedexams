@@ -18,7 +18,7 @@ const {
 } = require("../aiService");
 const {callClaude} = require("./anthropicClient");
 
-const {resolveCbcContext, KB_VERSION} = require("./cbcKnowledge");
+const {resolveCbcContext} = require("./cbcKnowledge");
 const {validateQuiz} = require("./quizSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
   require("./quizPrompt");
@@ -109,7 +109,7 @@ async function runQuiz({uid, rawInputs, apiKey}) {
     throw new HttpsError("invalid-argument", inputErrors.join(" "));
   }
 
-  const [{contextBlock, kbMatch, kbWarning}, usage] = await Promise.all([
+  const [{contextBlock, kbMatch, kbWarning, kbVersion}, usage] = await Promise.all([
     resolveCbcContext({
       grade: inputs.grade,
       subject: inputs.subject,
@@ -133,7 +133,7 @@ async function runQuiz({uid, rawInputs, apiKey}) {
     outputText: "",
     modelUsed: QUIZ_MODEL,
     promptVersion: PROMPT_VERSION,
-    kbVersion: KB_VERSION,
+    kbVersion,
     tokensIn: 0,
     tokensOut: 0,
     costUsdCents: 0,

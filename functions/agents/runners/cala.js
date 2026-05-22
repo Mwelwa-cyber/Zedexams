@@ -11,7 +11,6 @@
 
 const {
   resolveCbcContext,
-  KB_VERSION,
 } = require("../../teacherTools/cbcKnowledge");
 
 function collectDraftText(draft) {
@@ -57,7 +56,7 @@ async function runCala({job}) {
     throw new Error("Cala needs job.output.aria.draft — Aria must run first.");
   }
 
-  const {kbMatch, kbWarning} = await resolveCbcContext({
+  const {kbMatch, kbWarning, kbVersion} = await resolveCbcContext({
     grade: input.grade,
     subject: input.subject,
     topic: input.topic,
@@ -88,7 +87,7 @@ async function runCala({job}) {
     citations,
     gaps,
     drift,
-    kbVersion: KB_VERSION,
+    kbVersion,
     kbWarning: kbWarning || null,
   };
 }

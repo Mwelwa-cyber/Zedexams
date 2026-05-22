@@ -19,7 +19,7 @@ const {
 } = require("../aiService");
 const {callClaude, DEFAULT_MODEL} = require("./anthropicClient");
 
-const {resolveCbcContext, KB_VERSION} = require("./cbcKnowledge");
+const {resolveCbcContext} = require("./cbcKnowledge");
 const {validateSchemeOfWork} = require("./schemeOfWorkSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
   require("./schemeOfWorkPrompt");
@@ -94,7 +94,7 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
 
   // CBC context — scheme-of-work uses the broad grade+subject context,
   // not a specific topic, so we pass the term as the topic anchor.
-  const {contextBlock, kbMatch, kbWarning} = await resolveCbcContext({
+  const {contextBlock, kbMatch, kbWarning, kbVersion} = await resolveCbcContext({
     grade: inputs.grade,
     subject: inputs.subject,
     topic: `Term ${inputs.term} overview`,
@@ -112,7 +112,7 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
     outputText: "",
     modelUsed: "claude-sonnet-4-5",
     promptVersion: PROMPT_VERSION,
-    kbVersion: KB_VERSION,
+    kbVersion,
     tokensIn: 0,
     tokensOut: 0,
     costUsdCents: 0,

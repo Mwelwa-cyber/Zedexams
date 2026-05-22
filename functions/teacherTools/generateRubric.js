@@ -20,7 +20,7 @@ const {
 } = require("../aiService");
 const {callClaude} = require("./anthropicClient");
 
-const {resolveCbcContext, KB_VERSION} = require("./cbcKnowledge");
+const {resolveCbcContext} = require("./cbcKnowledge");
 const {validateRubric} = require("./rubricSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
   require("./rubricPrompt");
@@ -104,7 +104,7 @@ async function runRubric({uid, rawInputs, apiKey}) {
 
   // Rubrics don't need a curated-topic grounding (they're about assessment
   // not content), but we still provide grade+subject context for style.
-  const {contextBlock, kbMatch, kbWarning} = await resolveCbcContext({
+  const {contextBlock, kbMatch, kbWarning, kbVersion} = await resolveCbcContext({
     grade: inputs.grade,
     subject: inputs.subject,
     topic: `${inputs.taskType} assessment`,
@@ -122,7 +122,7 @@ async function runRubric({uid, rawInputs, apiKey}) {
     outputText: "",
     modelUsed: RUBRIC_MODEL,
     promptVersion: PROMPT_VERSION,
-    kbVersion: KB_VERSION,
+    kbVersion,
     tokensIn: 0,
     tokensOut: 0,
     costUsdCents: 0,

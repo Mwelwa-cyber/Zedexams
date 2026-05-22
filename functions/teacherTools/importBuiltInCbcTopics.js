@@ -16,9 +16,7 @@ const {onCall, HttpsError} = require("firebase-functions/v2/https");
 
 const {getUserRole} = require("../aiService");
 const {TOPICS} = require("./cbcTopics");
-const {invalidateKbCache} = require("./cbcKnowledge");
-
-const KB_VERSION = "cbc-kb-2026-04-seed";
+const {invalidateKbCache, getActiveKbVersion} = require("./cbcKnowledge");
 
 function slug(s) {
   return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-")
@@ -44,7 +42,10 @@ exports.importBuiltInCbcTopics = onCall(
     }
 
     const db = admin.firestore();
-    const col = db.collection("cbcKnowledgeBase").doc(KB_VERSION).collection("topics");
+    // Always write to the runtime-active version so admins importing the
+    // seed topics see them appear in whichever syllabus is currently active.
+    const kbVersion = await getActiveKbVersion();
+    const col = db.collection("cbcKnowledgeBase").doc(kbVersion).collection("topics");
     const now = admin.firestore.FieldValue.serverTimestamp();
 
     // Firestore batched writes max at 500 operations per batch.
@@ -103,7 +104,7 @@ exports.importBuiltInCbcTopics = onCall(
       ok: true,
       written,
       totalInCode: TOPICS.length,
-      kbVersion: KB_VERSION,
+      kbVersion,
     };
   },
 );
