@@ -183,11 +183,93 @@ async function deleteByPrefix(bucket, prefix) {
   }
 }
 
+/**
+ * Top-level storage prefixes keyed by a user uid. When a user is deleted
+ * we sweep each of these, and the orphan reaper iterates them looking
+ * for blobs whose owning uid no longer exists in `users/`.
+ *
+ * `papers/` and `lesson-images/`, `lesson-files/`, `lesson-presentations/`,
+ * `quiz-images/`, `assessment-images/` all use the same `{prefix}/{uid}/...`
+ * layout. `invoices/{uid}/{paymentId}.pdf` matches too.
+ *
+ * `syllabi/` is intentionally excluded — it's admin-owned static content
+ * not bound to a single uid.
+ */
+const USER_KEYED_PREFIXES = Object.freeze([
+  "lesson-files/",
+  "lesson-presentations/",
+  "lesson-images/",
+  "quiz-images/",
+  "assessment-images/",
+  "papers/",
+  "invoices/",
+]);
+
+/**
+ * Every storage prefix that the given uid owns. Used by the auth-delete
+ * cascade and by the reaper when it confirms a uid is gone from users/.
+ */
+function collectUserPrefixes(uid) {
+  if (!uid) return [];
+  return USER_KEYED_PREFIXES.map((p) => `${p}${uid}/`);
+}
+
+/**
+ * List the immediate child "directories" under a prefix using the GCS
+ * `delimiter: '/'` trick. Returns the child segment without the trailing
+ * slash. e.g. listing `lesson-files/` with children
+ * `lesson-files/abc/...` and `lesson-files/def/...` returns
+ * `['abc', 'def']`.
+ *
+ * Handles pagination via the auto-pagination wrapper that
+ * `@google-cloud/storage` provides on getFiles. Caps at `limit` returned
+ * child segments so we never load an unbounded list into memory.
+ */
+async function listChildDirs(bucket, prefix, limit = 10000) {
+  if (!bucket || !prefix) return [];
+  const out = [];
+  let query = {
+    prefix,
+    delimiter: "/",
+    autoPaginate: false,
+    maxResults: 1000,
+  };
+  while (true) {
+    const [, nextQuery, apiResponse] = await bucket.getFiles(query);
+    const childPrefixes = (apiResponse && apiResponse.prefixes) || [];
+    for (const p of childPrefixes) {
+      const tail = p.slice(prefix.length).replace(/\/$/, "");
+      if (tail) out.push(tail);
+      if (out.length >= limit) return out;
+    }
+    if (!nextQuery) break;
+    query = {...query, ...nextQuery};
+  }
+  return out;
+}
+
+/**
+ * Pull every Storage object path referenced by a single past-paper doc.
+ * Mirrors collectQuestionImagePaths in shape so the reaper can use a
+ * common "is this path live?" check.
+ */
+function collectPaperPaths(paperData) {
+  if (!paperData) return [];
+  const out = new Set();
+  if (paperData.pdfPath) out.add(String(paperData.pdfPath));
+  if (paperData.markSchemePath) out.add(String(paperData.markSchemePath));
+  return [...out];
+}
+
 module.exports = {
   parseStoragePathFromUrl,
   collectQuestionImagePaths,
   collectLessonPaths,
   collectLessonPrefixes,
+  collectPaperPaths,
+  collectUserPrefixes,
+  listChildDirs,
   safeDelete,
   deleteByPrefix,
+  USER_KEYED_PREFIXES,
 };

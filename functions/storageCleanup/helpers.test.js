@@ -12,6 +12,9 @@ const {
   collectQuestionImagePaths,
   collectLessonPaths,
   collectLessonPrefixes,
+  collectPaperPaths,
+  collectUserPrefixes,
+  USER_KEYED_PREFIXES,
 } = require("./helpers");
 
 let passed = 0;
@@ -173,5 +176,51 @@ eq("collectLessonPrefixes returns both batch folders",
 eq("collectLessonPrefixes returns empty when batch info is missing",
   collectLessonPrefixes({createdBy: "uid"}),
   []);
+
+console.log("\ncollectPaperPaths");
+
+eq("collects pdfPath + markSchemePath",
+  collectPaperPaths({
+    pdfPath: "papers/uid/abc/paper-2024.pdf",
+    markSchemePath: "papers/uid/abc/mark-scheme-2024.pdf",
+  }).sort(),
+  [
+    "papers/uid/abc/mark-scheme-2024.pdf",
+    "papers/uid/abc/paper-2024.pdf",
+  ]);
+
+eq("collectPaperPaths dedupes when both fields are identical",
+  collectPaperPaths({
+    pdfPath: "papers/uid/abc/paper.pdf",
+    markSchemePath: "papers/uid/abc/paper.pdf",
+  }),
+  ["papers/uid/abc/paper.pdf"]);
+
+eq("collectPaperPaths returns empty for null / missing fields",
+  collectPaperPaths(null), []);
+
+console.log("\ncollectUserPrefixes");
+
+eq("emits one prefix per user-keyed top folder",
+  collectUserPrefixes("alice").sort(),
+  [
+    "assessment-images/alice/",
+    "invoices/alice/",
+    "lesson-files/alice/",
+    "lesson-images/alice/",
+    "lesson-presentations/alice/",
+    "papers/alice/",
+    "quiz-images/alice/",
+  ]);
+
+eq("collectUserPrefixes returns empty for a missing uid",
+  collectUserPrefixes(""), []);
+
+ok("USER_KEYED_PREFIXES is the source of truth, frozen",
+  Object.isFrozen(USER_KEYED_PREFIXES) &&
+  USER_KEYED_PREFIXES.length === 7);
+
+ok("syllabi/ is NOT user-keyed (admin-owned global content)",
+  !USER_KEYED_PREFIXES.includes("syllabi/"));
 
 console.log(`\n${passed} assertions passed`);
