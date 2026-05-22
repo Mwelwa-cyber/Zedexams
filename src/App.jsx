@@ -130,6 +130,13 @@ const AgentsAllJobs   = lazy(() => import('./components/admin/agents/AgentsHome'
 const AgentProfile    = lazy(() => import('./components/admin/agents/AgentsHome').then(m => ({ default: m.AgentProfile })))
 const AgentJobDetail  = lazy(() => import('./components/admin/agents/AgentJobDetail'))
 
+// Learner-AI admin pages (parallel pipeline at /admin/learner-ai).
+const LearnerAiHome           = lazy(() => import('./components/admin/learnerAi/LearnerAiHome'))
+const LearnerAiTaskDetail     = lazy(() => import('./components/admin/learnerAi/TaskDetailPage'))
+const LearnerAiLogs           = lazy(() => import('./components/admin/learnerAi/AgentLogsTable'))
+const LearnerAiCurriculumRpts = lazy(() => import('./components/admin/learnerAi/CurriculumUpdateReports'))
+const LearnerAiStandards      = lazy(() => import('./components/admin/learnerAi/AssessmentStandardsList'))
+
 // Teacher — Agent submissions
 const AgentBriefForm       = lazy(() => import('./components/teacher/AgentBriefForm'))
 const TeacherAgentJobsList = lazy(() => import('./components/teacher/AgentJobsList').then(m => ({ default: m.AgentJobsList })))
@@ -487,6 +494,13 @@ export default function App() {
           <Route path="/admin/agents/jobs"              element={<AdminRoute><AgentsAllJobs /></AdminRoute>} />
           <Route path="/admin/agents/jobs/:jobId"       element={<AdminRoute><AgentJobDetail /></AdminRoute>} />
           <Route path="/admin/agents/:agentId"          element={<AdminRoute><AgentProfile /></AdminRoute>} />
+
+          {/* Learner-AI pipeline (parallel to /admin/agents). */}
+          <Route path="/admin/learner-ai"                        element={<AdminRoute><LearnerAiHome /></AdminRoute>} />
+          <Route path="/admin/learner-ai/tasks/:taskId"          element={<AdminRoute><LearnerAiTaskDetail /></AdminRoute>} />
+          <Route path="/admin/learner-ai/logs"                   element={<AdminRoute><LearnerAiLogs /></AdminRoute>} />
+          <Route path="/admin/learner-ai/curriculum-updates"     element={<AdminRoute><LearnerAiCurriculumRpts /></AdminRoute>} />
+          <Route path="/admin/learner-ai/standards"              element={<AdminRoute><LearnerAiStandards /></AdminRoute>} />
 
           {/* ── Teacher routes (all wrapped in TeacherLayout) ─── */}
           {/* Post-upgrade celebration page — full-bleed, outside TeacherLayout chrome */}
