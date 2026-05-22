@@ -1073,6 +1073,106 @@ export const studyTipsParametersSchema = z.object({
 
 /** @typedef {import('zod').infer<typeof studyTipsParametersSchema>} StudyTipsParameters */
 
+// ── Learner Feedback Agent — content + parameters ───────────────────
+//
+// NOT a Firestore collection. Validates the structured feedback the
+// Learner Feedback Generator writes onto aiGeneratedContent.content
+// for taskType='learner_feedback' artifacts. One artifact per
+// completed quiz attempt.
+//
+// Rules baked into the schema + runner:
+//   - Feedback is tied to ONE specific attempt (attemptId required).
+//   - Feedback consumes learnerWeaknessProfiles + the attempt's own
+//     topicScores — NEVER guessed.
+//   - Tone is honest+encouraging; no fake praise, no shaming. The
+//     runner's structured-stub fallback enforces this in deterministic
+//     output; the LLM prompt enforces it for live output; the Quality
+//     Check + Standards Check agents verify it on the way through.
+
+export const FEEDBACK_TONES = z.enum([
+  // Tone label echoed onto the artifact so admins can see what
+  // posture the agent took. Picked deterministically from the score.
+  'celebratory',     // ≥ 85%
+  'positive',        // 70-84%
+  'balanced',        // 50-69%
+  'supportive',      // 30-49%
+  'gentle',          // < 30%
+])
+
+export const feedbackCorrectiveExplanationSchema = z.object({
+  topic: z.string().min(1).max(200),
+  subtopic: z.string().max(200).nullable(),
+  // What the learner likely got wrong + a short, age-appropriate
+  // explanation of the correct concept. Keeps the misconception
+  // bound to a real topic (no "guess what you got wrong" prose).
+  whatToCorrect: z.string().min(1).max(400),
+  briefExplanation: z.string().min(1).max(600),
+}).strict()
+
+export const feedbackRecommendedQuizSchema = z.object({
+  topic: z.string().min(1).max(200),
+  subtopic: z.string().max(200).nullable(),
+  focus: z.string().min(1).max(400),
+  numQuestions: z.number().int().min(3).max(15),
+  difficulty: z.enum(['easy', 'medium', 'hard', 'mixed']),
+}).strict()
+
+export const learnerFeedbackContentSchema = z.object({
+  // Display title — e.g. "Your Fractions quiz results".
+  title: z.string().min(1).max(200),
+  // Honest score block — score / outOf / percentage so the UI can
+  // render either fraction or percentage without recomputing.
+  score: z.object({
+    score: z.number().min(0).max(1000),
+    outOf: z.number().min(1).max(1000),
+    percentage: z.number().min(0).max(100),
+  }).strict(),
+  tone: FEEDBACK_TONES,
+  // Encouraging-but-honest opener — the "Good work. You scored 7/10."
+  // line from the spec example.
+  encouragingMessage: z.string().min(1).max(600),
+  // Strengths — topics the learner did well on (≥ 70% on this
+  // attempt). Empty array is valid when the learner scored low
+  // everywhere; the runner does not invent strengths.
+  strengths: z.array(z.string().min(1).max(200)).max(10),
+  // Weak areas — topics under 70% on this attempt OR from the
+  // weakness profile. Same no-fabrication rule.
+  weakAreas: z.array(z.string().min(1).max(200)).max(10),
+  correctiveExplanations: z.array(feedbackCorrectiveExplanationSchema).max(8),
+  recommendedNotes: z.array(z.string().min(1).max(300)).max(6),
+  recommendedQuizzes: z.array(feedbackRecommendedQuizSchema).max(4),
+  // One actionable study tip — verb-led, specific to a weak area.
+  // Optional when there are no weak areas (rare — learner aced it).
+  studyTip: z.string().max(300).nullable(),
+  // Curriculum echo (from the quiz the attempt came from).
+  grade: z.string().min(1).max(8),
+  subject: z.string().min(1).max(80),
+  term: z.string().max(8).nullable(),
+  topic: z.string().min(1).max(200),
+  subtopic: z.string().max(200).nullable(),
+  // Audit linkage — the attempt this feedback is about + the
+  // learner it's addressed to. Used by the dashboard query
+  // ("show me my feedback for attempt X").
+  learnerId: z.string().max(120),
+  attemptId: z.string().max(120),
+  quizId: z.string().max(120),
+  modelUsed: z.string().max(80),
+  parametersUsed: z.object({}).passthrough(),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof learnerFeedbackContentSchema>} LearnerFeedbackContent */
+
+export const learnerFeedbackParametersSchema = z.object({
+  // Both REQUIRED — feedback is tied to ONE specific attempt.
+  learnerId: z.string().min(1).max(120),
+  attemptId: z.string().min(1).max(120),
+  // Optional: how many corrective explanations to include. Defaults
+  // to all weak areas, capped at 8 by the content schema.
+  maxCorrectiveExplanations: z.number().int().min(1).max(8).default(4),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof learnerFeedbackParametersSchema>} LearnerFeedbackParameters */
+
 /**
  * Parse-or-throw helper. Returns the validated doc body; throws ZodError
  * on bad shape. Use immediately before any addDoc / setDoc / update.
