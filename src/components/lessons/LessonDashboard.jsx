@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useLocation } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
@@ -137,17 +137,17 @@ export default function LessonDashboard() {
     setTimeout(() => setToast(null), 3000)
   }
 
-  async function loadLessons() {
+  const loadLessons = useCallback(async () => {
     if (!currentUser) return
     setLoading(true)
     const data = isTeacherArea ? await getMyLessons(currentUser.uid) : await getAllLessons()
     setLessons(data)
     setLoading(false)
-  }
+  }, [currentUser, isTeacherArea, getAllLessons, getMyLessons])
 
   useEffect(() => {
     loadLessons()
-  }, [currentUser, isTeacherArea])
+  }, [loadLessons])
 
   const topics = useMemo(() => {
     return [...new Set(lessons.map(lesson => lesson.topic).filter(Boolean))].sort()

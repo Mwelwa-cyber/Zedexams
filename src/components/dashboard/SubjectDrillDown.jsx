@@ -329,7 +329,7 @@ export default function SubjectDrillDown() {
       setLoading(false)
     })
     return () => { cancelled = true }
-  }, [subject, grade])
+  }, [subject, grade, getQuizzes])
 
   // Group by topic, preserving canonical order. When the subject/grade has a
   // subtopic tree (e.g. Grade 7 Science), quizzes match by quiz.topic ===

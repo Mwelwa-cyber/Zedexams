@@ -285,7 +285,7 @@ export default function QuizList() {
     }
     load()
     return () => { cancelled = true }
-  }, [gradeF, termF])
+  }, [gradeF, termF, getQuizzes])
 
   // Auto-dismiss the "blocked" toast that the upgrade flow forwards in.
   useEffect(() => {

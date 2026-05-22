@@ -271,6 +271,10 @@ function LeaderboardSection({ attempt, currentUserId }) {
       (newRows) => { setRows(newRows); setLoading(false) },
     )
     return () => { if (unsubRef.current) unsubRef.current() }
+    // We deliberately key on the two scalar fields that drive the
+    // subscription instead of the parent `attempt` object — re-subscribing
+    // on identity changes alone would thrash the leaderboard.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [attempt?.subject, attempt?.attemptDate])
 
   const myEntry = rows.find(r => r.userId === currentUserId)

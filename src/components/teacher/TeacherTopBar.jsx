@@ -81,13 +81,15 @@ export default function TeacherTopBar() {
     Promise.all([
       listMyGenerations({ uid: currentUser.uid }).catch(() => []),
       getMyQuizzes(currentUser.uid).catch(() => []),
-    ]).then(([g, q]) => {
-      if (cancelled) return
-      setGenerations(g || [])
-      setQuizzes(q || [])
-    })
+    ])
+      .then(([g, q]) => {
+        if (cancelled) return
+        setGenerations(g || [])
+        setQuizzes(q || [])
+      })
+      .catch(err => console.error('TeacherTopBar load:', err))
     return () => { cancelled = true }
-  }, [currentUser])
+  }, [currentUser, getMyQuizzes])
 
   useEffect(() => {
     function onKey(e) {

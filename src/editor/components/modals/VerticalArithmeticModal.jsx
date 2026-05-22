@@ -46,7 +46,7 @@ export default function VerticalArithmeticModal({ editor, editState, onClose }) 
 
   const updateLine = (idx, value) => {
     const next = [...lines]
-    next[idx] = value.replace(/[^0-9.\-]/g, '')
+    next[idx] = value.replace(/[^0-9.-]/g, '')
     setLines(next)
   }
 
@@ -177,7 +177,7 @@ export default function VerticalArithmeticModal({ editor, editState, onClose }) 
             inputMode="decimal"
             className="qe-inp va-answer-input"
             value={answer}
-            onChange={(e) => setAnswer(e.target.value.replace(/[^0-9.\-]/g, ''))}
+            onChange={(e) => setAnswer(e.target.value.replace(/[^0-9.-]/g, ''))}
             placeholder="Leave blank or type the answer"
             aria-label="Answer"
           />

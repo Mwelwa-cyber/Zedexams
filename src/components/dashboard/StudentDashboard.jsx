@@ -91,7 +91,7 @@ export default function StudentDashboard() {
       setResults(r); setWeakness(w); setLoading(false)
     }
     load()
-  }, [userProfile?.id, canUseWeaknessAnalysis])
+  }, [userProfile?.id, canUseWeaknessAnalysis, getUserResults, getWeaknessAnalysis])
 
   const totalQuizzes = results.length
   const avgScore = totalQuizzes > 0

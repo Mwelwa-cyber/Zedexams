@@ -1,10 +1,10 @@
-const QUESTION_RE = /^(?:q(?:uestion)?\s*)?(\d{1,3})\s*[\).:\-]\s*(.+)$/i
+const QUESTION_RE = /^(?:q(?:uestion)?\s*)?(\d{1,3})\s*[).:-]\s*(.+)$/i
 const QUESTION_NO_PUNCT_RE = /^(?:q(?:uestion)?\s*)?(\d{1,3})\s+(.+\?)$/i
-const QUESTION_NUMBER_ONLY_RE = /^(\d{1,3})[\).:]?$/
-const OPTION_LABEL_ONLY_RE = /^([A-D])(?:[\).:]?)$/i
-const OPTION_TEXT_RE = /^(?:\(([A-Da-d])\)|([A-Da-d])\s*[\).:\-])\s*(.+)$/
+const QUESTION_NUMBER_ONLY_RE = /^(\d{1,3})[).:]?$/
+const OPTION_LABEL_ONLY_RE = /^([A-D])(?:[).:]?)$/i
+const OPTION_TEXT_RE = /^(?:\(([A-Da-d])\)|([A-Da-d])\s*[).:-])\s*(.+)$/
 const ANSWER_LABEL_ONLY_RE = /^(?:answer|correct answer|ans|key)$/i
-const ANSWER_RE = /^(?:answer|correct answer|ans|key)\s*[:\-]?\s*(.+)$/i
+const ANSWER_RE = /^(?:answer|correct answer|ans|key)\s*[:-]?\s*(.+)$/i
 const HEADER_TOKEN_RE = /^(?:q(?:uestion)?(?:\s*no\.?)?|no\.?|number|item|question|question no\.?|option(?:\s+[a-d])?|answer|correct answer|marks?|score|a|b|c|d)$/i
 const OPTION_LETTERS = ['A', 'B', 'C', 'D']
 

@@ -872,6 +872,11 @@ export function useFirestore() {
     deleteQuestion, updateQuizWithQuestions,
     getMyAssessments, getAssessmentById, createAssessment, updateAssessment, deleteAssessment,
     getAssessmentQuestions, saveAssessmentQuestions, updateAssessmentWithQuestions,
+    // The intent is a stable identity for the returned API surface: every
+    // listed function is a fresh closure on each render but only references
+    // module-scope bindings (`db`, schemas), so freezing them on first mount
+    // is the correct behaviour. Adding them to deps would defeat the cache.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }), [])
 }
 

@@ -19,7 +19,8 @@ export function NoteUploader({ ownerUid, assetBatchId, currentFile, onUploaded, 
   const pickFile = () => inputRef.current?.click()
 
   const handleFile = async (e) => {
-    const file = e.target.files?.[0]
+    const inputEl = e.target
+    const file = inputEl.files?.[0]
     if (!file) return
     if (!ready) {
       onError?.(new Error('Save the note as a draft first, then upload the file.'))
@@ -35,7 +36,7 @@ export function NoteUploader({ ownerUid, assetBatchId, currentFile, onUploaded, 
     } finally {
       setBusy(false)
       setProgress(null)
-      e.target.value = ''
+      inputEl.value = ''
     }
   }
 

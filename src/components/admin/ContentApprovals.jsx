@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
 import StatusBadge from '../ui/StatusBadge'
@@ -90,14 +90,14 @@ export default function ContentApprovals() {
 
   function show(msg) { setToast(msg); setTimeout(() => setToast(null), 3500) }
 
-  async function load() {
+  const load = useCallback(async () => {
     setLoading(true)
     const data = await getPendingApprovals()
     setItems(data)
     setLoading(false)
-  }
+  }, [getPendingApprovals])
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [load])
 
   async function handleApprove(item) {
     setBusy(true)

@@ -522,7 +522,7 @@ export default function GradeHub() {
     })
 
     return () => { cancelled = true }
-  }, [currentUser, userProfile])
+  }, [currentUser, userProfile, getUserResults])
 
   // Per-subject performance: prefer pre-aggregated userProfile.performance
   // when available, otherwise derive from the last 50 results. One extra
@@ -556,7 +556,7 @@ export default function GradeHub() {
       setPerfBySubject({})
     })
     return () => { cancelled = true }
-  }, [currentUser, userProfile])
+  }, [currentUser, userProfile, getUserResults])
 
   // Weakest 3 topics across the learner's last 50 results (any topic with
   // < 70% mastery). Drives the "Personalized For You" chip row.
@@ -572,7 +572,7 @@ export default function GradeHub() {
       setWeakTopics(weak)
     }).catch(() => { if (!cancelled) setWeakTopics([]) })
     return () => { cancelled = true }
-  }, [currentUser])
+  }, [currentUser, getWeaknessAnalysis])
 
   useEffect(() => {
     setSeenNotificationIds(readSeenNotificationIds(notificationUserId))
@@ -716,6 +716,9 @@ export default function GradeHub() {
       writeSeenNotificationIds(notificationUserId, nextSeenIds)
       return nextSeenIds
     })
+    // activeNotificationIds is tracked via activeNotificationIdsKey so the
+    // effect only re-runs when the joined-string identity changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeNotificationIdsKey, notificationUserId, loading])
 
   function markNotificationsSeen(ids) {
@@ -768,6 +771,10 @@ export default function GradeHub() {
       document.removeEventListener('pointerdown', handlePointerDown)
       document.removeEventListener('keydown', handleKeyDown)
     }
+    // closeNotifications is recreated each render; rebinding listeners on
+    // every render would be wasteful — the dep set below is the actual
+    // observable input to the listener attach/detach cycle.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [notificationsOpen, activeNotificationIdsKey])
 
   return (
@@ -874,7 +881,12 @@ export default function GradeHub() {
                     <button
                       type="button"
                       aria-label="Sign out of your account"
-                      onClick={() => { setMenuOpen(false); logout().then(() => navigate('/login')) }}
+                      onClick={() => {
+                        setMenuOpen(false)
+                        logout()
+                          .then(() => navigate('/login'))
+                          .catch(err => console.error('GradeHub logout:', err))
+                      }}
                       className="flex w-full items-center gap-2 rounded-none bg-transparent px-4 py-2 text-left text-sm font-bold text-red-500 shadow-none hover:bg-red-50 min-h-0">
                       <Icon as={LogOut} size="sm" strokeWidth={2.1} /> Sign Out
                     </button>

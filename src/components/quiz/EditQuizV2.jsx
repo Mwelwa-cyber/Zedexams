@@ -930,6 +930,9 @@ export default function EditQuizV2() {
         setAutoSaveState(AUTO_SAVE.FAILED)
       }
     } finally {
+      // Concurrent invocations are gated by the autoSavingRef check at the
+      // top of the function, so resetting it here is safe.
+      // eslint-disable-next-line require-atomic-updates
       autoSavingRef.current = false
     }
   }

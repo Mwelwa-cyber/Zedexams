@@ -92,7 +92,7 @@ export default function QuizTip({ isCorrect, tipText, onDismiss, visible }) {
       }, 8000)
       return () => clearTimeout(t)
     }
-  }, [visible])
+  }, [visible, onDismiss])
 
   if (!visible && !shown) return null
 

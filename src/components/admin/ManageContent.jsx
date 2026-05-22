@@ -311,7 +311,7 @@ export default function ManageContent() {
       setLessons(l); setQuizzes(q); setLoading(false)
     }
     load()
-  }, [])
+  }, [getAllLessons, getAllQuizzes])
 
   // ── Legacy migration ───────────────────────────────────────────────────
   // Published quizzes that haven't been classified yet. Long quizzes

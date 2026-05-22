@@ -59,6 +59,7 @@ export default function PastPaperViewer() {
         }
         setPaper(row)
         // Best-effort: record a view. Doesn't block render.
+        // eslint-disable-next-line promise/no-nesting
         recordPaperEvent(paperId, 'view').catch(() => {})
       })
       .catch((err) => {

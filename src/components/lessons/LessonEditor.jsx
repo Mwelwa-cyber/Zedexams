@@ -603,7 +603,7 @@ export default function LessonEditor() {
       setLoading(false)
     }
     loadLesson()
-  }, [lessonId])
+  }, [lessonId, getLessonById])
 
   useEffect(() => {
     async function loadQuizzes() {
@@ -612,7 +612,7 @@ export default function LessonEditor() {
       setQuizzes(data)
     }
     loadQuizzes()
-  }, [currentUser, isTeacherArea])
+  }, [currentUser, isTeacherArea, getAllQuizzes, getMyQuizzes])
 
   useEffect(() => {
     if (!selectedMode || loading) return undefined

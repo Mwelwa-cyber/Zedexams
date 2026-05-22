@@ -106,7 +106,7 @@ export default function AdminLearnerProfile() {
     }
     load()
     return () => { cancelled = true }
-  }, [learnerId, reloadKey])
+  }, [learnerId, reloadKey, getUserResults])
 
   const stats = useMemo(() => {
     if (!results.length) return { count: 0, avg: 0, pass: 0, best: null, weakest: null }

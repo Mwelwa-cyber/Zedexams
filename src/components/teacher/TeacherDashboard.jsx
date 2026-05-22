@@ -298,7 +298,7 @@ export default function TeacherDashboard() {
     }
     load()
     return () => { cancelled = true }
-  }, [currentUser])
+  }, [currentUser, getMyQuizzes])
 
   const librarySummary = useMemo(() => {
     const byTool = generations.reduce((acc, g) => {

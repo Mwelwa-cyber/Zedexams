@@ -144,19 +144,21 @@ export default function AdminCsvImport() {
     if (!parsed) return
     const idx = CSV_HEADERS.indexOf(header)
     if (idx < 0) return
-    import('../../utils/csvQuizImport').then(({ rowToQuestion }) => {
-      setParsed(current => {
-        if (!current) return current
-        const rows = current.rows.map(r => ({ ...r, raw: [...r.raw] }))
-        const target = rows[rowIndex]
-        target.raw[idx] = value
-        const fresh = rowToQuestion(target.raw)
-        rows[rowIndex] = { ...target, ...fresh }
-        const summary = { total: rows.length, ok: 0, warning: 0, error: 0 }
-        rows.forEach(r => { summary[r.status] += 1 })
-        return { ...current, rows, summary }
+    import('../../utils/csvQuizImport')
+      .then(({ rowToQuestion }) => {
+        setParsed(current => {
+          if (!current) return current
+          const rows = current.rows.map(r => ({ ...r, raw: [...r.raw] }))
+          const target = rows[rowIndex]
+          target.raw[idx] = value
+          const fresh = rowToQuestion(target.raw)
+          rows[rowIndex] = { ...target, ...fresh }
+          const summary = { total: rows.length, ok: 0, warning: 0, error: 0 }
+          rows.forEach(r => { summary[r.status] += 1 })
+          return { ...current, rows, summary }
+        })
       })
-    })
+      .catch(err => console.error('AdminCsvImport rowToQuestion:', err))
   }
 
   // ── Publish ─────────────────────────────────────────────────
