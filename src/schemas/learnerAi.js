@@ -545,6 +545,163 @@ export const practiceQuizParametersSchema = z.object({
 
 /** @typedef {import('zod').infer<typeof practiceQuizParametersSchema>} PracticeQuizParameters */
 
+// ── Exam Quiz Generator Agent — content + parameters ─────────────────
+//
+// NOT a Firestore collection. Validates the formal Zambian school
+// test paper the Exam Quiz Generator produces (stored on
+// aiGeneratedContent.content for taskType='exam_quiz' artifacts).
+//
+// Three-section structure (Section A: MCQ, Section B: Short Answer,
+// Section C: Structured Questions) matches the standard ECZ /
+// internal school paper layout. Each section carries its own questions,
+// per-question marks, and an answer-key entry. Printable header
+// (school, grade, term, year, subject, learner name, date, time,
+// total marks, instructions) is rendered once at the top.
+//
+// Hard rule: exam_quiz artifacts NEVER auto-publish. The dispatcher
+// gate at functions/agents/learnerAi/dispatcher.js explicitly checks
+// taskType === 'practice_quiz' before allowing auto-publish; this is
+// enforced by a unit test (scripts/test-exam-quiz-generator.mjs).
+
+export const EXAM_SECTION_IDS = z.enum(['A', 'B', 'C'])
+// 'A' = Multiple Choice, 'B' = Short Answer, 'C' = Structured.
+// Pinned as ASCII letters because the printable header uses them
+// verbatim ("Section A — Multiple Choice (20 marks)").
+
+export const EXAM_QUESTION_TYPES = z.enum([
+  'mcq',            // Section A
+  'short_answer',   // Section B
+  'structured',     // Section C (multi-part)
+])
+
+// One sub-question inside a Section C structured item. A structured
+// question carries 2-6 sub-parts (a), (b), (c), each with its own
+// prompt, mark allocation, and answer-key entry.
+export const examStructuredPartSchema = z.object({
+  label: z.string().min(1).max(8),         // 'a', 'b', '(i)' etc.
+  prompt: z.string().min(1).max(800),
+  marks: z.number().int().min(1).max(20),
+  expectedAnswer: z.string().min(1).max(800),
+  markingPoints: z.array(z.string().max(300)).max(8),
+}).strict()
+
+export const examQuestionSchema = z.object({
+  number: z.number().int().min(1).max(100),
+  questionType: EXAM_QUESTION_TYPES,
+  prompt: z.string().min(1).max(1200),
+  // mcq: 4 distinct options, exactly one correctAnswer in options.
+  // short_answer: options=[], correctAnswer is canonical answer.
+  // structured: options=[], correctAnswer='' (parts carry the key).
+  options: z.array(z.string().min(1).max(300)).max(6),
+  correctAnswer: z.string().max(800),
+  structuredParts: z.array(examStructuredPartSchema).max(6).optional(),
+  marks: z.number().int().min(1).max(40),
+  // Curriculum echo stamped server-side from chainContext.curriculumReader
+  // — saves the LLM prompt tokens and keeps these immutable.
+  grade: z.string().min(1).max(8),
+  subject: z.string().min(1).max(80),
+  term: z.string().max(8).nullable(),
+  topic: z.string().min(1).max(200),
+  subtopic: z.string().max(200).nullable(),
+  competency: z.string().max(400),
+  learningOutcome: z.string().max(400).nullable(),
+  // Quality Check uses this index to substring-match each question
+  // against curriculumReader.citedExcerpts.
+  groundingIndex: z.number().int().min(0).max(50),
+  // For Section C marking: structured items carry rubric criteria
+  // here in addition to the per-part markingPoints.
+  bloomsLevel: z.enum([
+    'remember', 'understand', 'apply', 'analyze', 'evaluate', 'create',
+  ]),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof examQuestionSchema>} ExamQuestion */
+
+export const examSectionSchema = z.object({
+  id: EXAM_SECTION_IDS,
+  title: z.string().min(1).max(120),           // "Section A — Multiple Choice"
+  instructions: z.string().max(800),
+  marks: z.number().int().min(1).max(200),     // section total marks
+  // Section A typically MCQs (5-30), B short answers (3-15),
+  // C structured (2-8). Limits below are generous upper bounds.
+  questions: z.array(examQuestionSchema).min(1).max(50),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof examSectionSchema>} ExamSection */
+
+// Printable paper header — every field rendered once at the top of
+// the exam, exactly as a Zambian school paper expects.
+export const examPaperHeaderSchema = z.object({
+  schoolName: z.string().max(200),
+  grade: z.string().min(1).max(8),
+  term: z.string().max(8),
+  year: z.number().int().min(2020).max(2099),
+  subject: z.string().min(1).max(80),
+  paperName: z.string().max(200),              // optional, e.g. "Paper 1"
+  learnerNameLabel: z.string().max(80),        // label, not a value
+  dateLabel: z.string().max(80),
+  timeLabel: z.string().max(80),
+  totalMarks: z.number().int().min(1).max(500),
+  timeAllowed: z.string().min(1).max(80),      // e.g. "2 hours 30 minutes"
+  instructions: z.array(z.string().min(1).max(400)).min(1).max(12),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof examPaperHeaderSchema>} ExamPaperHeader */
+
+// Answer key + marking guide. Mirrors `questions` in section order
+// but is kept separate so the printable paper (header + sections) can
+// render without leaking answers.
+export const examAnswerKeyEntrySchema = z.object({
+  sectionId: EXAM_SECTION_IDS,
+  questionNumber: z.number().int().min(1).max(100),
+  // For MCQ: the correct option letter (A/B/C/D) AND the option text.
+  // For short_answer: the canonical answer.
+  // For structured: a structured object encoded as JSON string in
+  // `answer`, with each part's expected answer + marking points.
+  answer: z.string().min(1).max(2000),
+  marks: z.number().int().min(1).max(40),
+  markingNotes: z.string().max(800),
+}).strict()
+
+export const examQuizContentSchema = z.object({
+  header: examPaperHeaderSchema,
+  sections: z.array(examSectionSchema).min(1).max(5),
+  answerKey: z.array(examAnswerKeyEntrySchema).min(1).max(150),
+  // Free-form marking-guide narrative (rubric criteria, awarding
+  // policy, half-mark rules). Rendered as a final page of the
+  // teacher's copy of the paper.
+  markingGuide: z.string().min(1).max(4000),
+  // Provenance — same convention as practiceQuizContentSchema. 'stub'
+  // when the LLM was unavailable.
+  modelUsed: z.string().max(80),
+  parametersUsed: z.object({}).passthrough(),
+  standardsUsed: z.object({}).passthrough().nullable(),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof examQuizContentSchema>} ExamQuizContent */
+
+// Exam quiz generation parameters — drives section sizing, total
+// marks, time limit. Allowed assessmentTypes match v2Collections
+// ASSESSMENT_TYPES; the runner refuses to generate without one.
+export const examQuizParametersSchema = z.object({
+  assessmentType: ASSESSMENT_TYPES,
+  // Year/school appear on the printed paper. Defaults provided by
+  // the runner if absent (current year, schoolName='').
+  year: z.number().int().min(2020).max(2099).optional(),
+  schoolName: z.string().max(200).default(''),
+  paperName: z.string().max(200).default(''),
+  // Section sizing — defaults match a typical Zambian end-of-term
+  // junior-secondary paper (20 MCQ + 8 short + 3 structured = ~60
+  // marks). Caller may override per assessmentType.
+  sectionASize: z.number().int().min(1).max(30).default(20),
+  sectionBSize: z.number().int().min(1).max(20).default(8),
+  sectionCSize: z.number().int().min(1).max(10).default(3),
+  totalMarks: z.number().int().min(1).max(500).default(60),
+  timeAllowed: z.string().min(1).max(80).default('1 hour 30 minutes'),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof examQuizParametersSchema>} ExamQuizParameters */
+
 /**
  * Parse-or-throw helper. Returns the validated doc body; throws ZodError
  * on bad shape. Use immediately before any addDoc / setDoc / update.

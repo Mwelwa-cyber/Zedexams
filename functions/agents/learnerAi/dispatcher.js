@@ -233,6 +233,13 @@ async function runChain({taskId}) {
     if (result.output && agentId === "curriculumReader") {
       chainContext.curriculumReader = result.output;
     }
+    // Standards agent: surfaces the (admin-approved or default)
+    // assessment structure that the Exam Quiz Generator + Quality
+    // Check use to size sections, allocate marks, and enforce the
+    // Blooms mix.
+    if (result.standards && agentId === "standards") {
+      chainContext.standards = result.standards;
+    }
     if (result.contentId) lastContentId = result.contentId;
 
     // Quality Check verdict shapes the terminal task status.

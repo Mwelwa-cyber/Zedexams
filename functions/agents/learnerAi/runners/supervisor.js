@@ -32,6 +32,14 @@ function planStepsFor(taskType) {
   }
   const gen = TASK_TYPE_TO_GENERATOR[taskType];
   if (!gen) return null;
+  // exam_quiz: insert Standards between Reader and the generator so
+  // the formal Zambian school test structure (sections, marks, time,
+  // Blooms mix) is available on chainContext.standards when the
+  // generator runs. Every other task type uses the slim
+  // [Reader → generator → QualityCheck] chain.
+  if (taskType === "exam_quiz") {
+    return ["curriculumReader", "standards", gen, "qualityCheck"];
+  }
   return ["curriculumReader", gen, "qualityCheck"];
 }
 

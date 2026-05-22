@@ -44,11 +44,13 @@ function buildStubContent({agentId, curriculumReference, curriculumReader}) {
  * @param {object} cfg
  * @param {string} cfg.agentId       e.g. "practiceQuiz"
  * @param {("practice_quiz"|"exam_quiz"|"notes"|"study_tips"|"learner_feedback")} cfg.artifactType
- * @param {(args:{task,curriculumReference,curriculumReader}) => Promise<{content:object, modelUsed?:string}>} [cfg.runLive]
+ * @param {(args:{task,curriculumReference,curriculumReader,standards}) => Promise<{content:object, modelUsed?:string}>} [cfg.runLive]
  *        Optional live runner. When omitted, the factory writes a stub
  *        aiGeneratedContent doc with content:{stub:true}. Receives the
- *        full chainContext.curriculumReader (v2 agent contract) plus
- *        the slim chainContext.curriculumReference audit slice.
+ *        full chainContext.curriculumReader (v2 agent contract), the
+ *        slim chainContext.curriculumReference audit slice, and the
+ *        chainContext.standards object (set for exam_quiz tasks, null
+ *        for everything else).
  */
 function makeRunner(cfg) {
   const AGENT_ID = cfg.agentId;
@@ -95,6 +97,7 @@ function makeRunner(cfg) {
         const live = await cfg.runLive({
           task, curriculumReference,
           curriculumReader: chainContext.curriculumReader,
+          standards: chainContext.standards || null,
         });
         content = live.content;
       } catch (err) {
