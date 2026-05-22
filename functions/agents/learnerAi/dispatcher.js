@@ -32,6 +32,7 @@ const {runStudyTips} = require("./runners/studyTips");
 const {runWeakness} = require("./runners/weakness");
 const {runFeedback} = require("./runners/feedback");
 const {runStandards} = require("./runners/standards");
+const {runStandardsCheck} = require("./runners/standardsCheck");
 const {runQualityCheck} = require("./runners/qualityCheck");
 const {runCurriculumWatcher} = require("./runners/curriculumWatcher");
 const {writeAgentLog, writeTaskStep} = require("./logger");
@@ -57,6 +58,7 @@ const RUNNER_MAP = Object.freeze({
   weakness: runWeakness,
   feedback: runFeedback,
   standards: runStandards,
+  standardsCheck: runStandardsCheck,
   qualityCheck: runQualityCheck,
   curriculumWatcher: runCurriculumWatcher,
 });
@@ -239,6 +241,12 @@ async function runChain({taskId}) {
     // Blooms mix.
     if (result.standards && agentId === "standards") {
       chainContext.standards = result.standards;
+    }
+    // Verification agent: surfaces the Zambian-curriculum + assessment
+    // verdict so Quality Check can incorporate it without re-running
+    // the alignment checks.
+    if (result.standardsCheckVerdict && agentId === "standardsCheck") {
+      chainContext.standardsCheck = result.standardsCheckVerdict;
     }
     if (result.contentId) lastContentId = result.contentId;
 

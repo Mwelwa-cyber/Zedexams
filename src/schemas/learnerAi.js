@@ -702,6 +702,90 @@ export const examQuizParametersSchema = z.object({
 
 /** @typedef {import('zod').infer<typeof examQuizParametersSchema>} ExamQuizParameters */
 
+// ── Zambian Curriculum & Exam Standards CHECK Agent — verdict shape ─
+//
+// NOT a Firestore collection. This is the verdict the verification
+// agent writes onto `aiGeneratedContent.zambianStandardsCheck` after
+// running its alignment checks. Distinct from the reference-data
+// Standards Agent (which supplies `chainContext.standards` BEFORE
+// the generator runs) — the verification agent runs AFTER the
+// generator and reports back to the AI Supervisor with this verdict.
+//
+// Status decision rule (must match the runner's implementation):
+//   confidenceScore ≥ 0.80  AND zero critical issues → 'passed'
+//   confidenceScore ≥ 0.50  OR  only minor issues   → 'needs_review'
+//   otherwise (≥ 1 critical issue OR confidence < 0.50) → 'failed'
+
+export const STANDARDS_CHECK_STATUSES = z.enum([
+  'passed', 'failed', 'needs_review',
+])
+
+export const STANDARDS_CHECK_ISSUE_SEVERITIES = z.enum([
+  'critical', 'minor',
+])
+
+// Axes the agent checks against — pinned as an enum so the issues[]
+// surface is filterable in the admin UI.
+export const STANDARDS_CHECK_AXES = z.enum([
+  'grade', 'subject', 'term', 'topic', 'subtopic', 'competency',
+  'learning_outcome', 'language', 'age_suitability', 'paper_structure',
+  'marks_allocation', 'instructions', 'sections', 'foreign_content',
+])
+
+export const standardsCheckIssueSchema = z.object({
+  axis: STANDARDS_CHECK_AXES,
+  severity: STANDARDS_CHECK_ISSUE_SEVERITIES,
+  message: z.string().min(1).max(400),
+  // Optional pointer into the artifact (e.g. "sections[0].questions[3]")
+  // so admins can jump straight to the offending element. Free-form
+  // path string keeps this agnostic of the artifact shape.
+  path: z.string().max(200).optional(),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof standardsCheckIssueSchema>} StandardsCheckIssue */
+
+export const standardsCheckVerdictSchema = z.object({
+  status: STANDARDS_CHECK_STATUSES,
+  confidenceScore: z.number().min(0).max(1),
+  // Per-axis verdicts so the admin UI can render a checklist without
+  // re-parsing the free-form issues[] array. Each axis is 'pass' |
+  // 'fail' | 'skip' (skip used when the check is N/A for this artifact
+  // type, e.g. paper_structure for a notes artifact).
+  checks: z.object({
+    grade: z.enum(['pass', 'fail', 'skip']),
+    subject: z.enum(['pass', 'fail', 'skip']),
+    term: z.enum(['pass', 'fail', 'skip']),
+    topic: z.enum(['pass', 'fail', 'skip']),
+    subtopic: z.enum(['pass', 'fail', 'skip']),
+    competency: z.enum(['pass', 'fail', 'skip']),
+    learning_outcome: z.enum(['pass', 'fail', 'skip']),
+    language: z.enum(['pass', 'fail', 'skip']),
+    age_suitability: z.enum(['pass', 'fail', 'skip']),
+    paper_structure: z.enum(['pass', 'fail', 'skip']),
+    marks_allocation: z.enum(['pass', 'fail', 'skip']),
+    instructions: z.enum(['pass', 'fail', 'skip']),
+    sections: z.enum(['pass', 'fail', 'skip']),
+    foreign_content: z.enum(['pass', 'fail', 'skip']),
+  }).strict(),
+  issues: z.array(standardsCheckIssueSchema).max(40),
+  recommendations: z.array(z.string().min(1).max(400)).max(20),
+  zambianCurriculumFit: z.boolean(),
+  zambianAssessmentFit: z.boolean(),
+  // Provenance — 'deterministic' when the agent ran without LLM (CI /
+  // no-key path); model id when Haiku was consulted for the language
+  // + age axes.
+  modelUsed: z.string().max(80),
+  // Mirror of the artifact type the verdict refers to.
+  artifactType: z.string().max(40),
+  // Tied to the aiGeneratedContent doc this verdict is attached to.
+  contentId: z.string().max(120),
+  checkedAt: z.unknown().refine((v) => v != null, {
+    message: 'checkedAt must be a timestamp value',
+  }),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof standardsCheckVerdictSchema>} StandardsCheckVerdict */
+
 /**
  * Parse-or-throw helper. Returns the validated doc body; throws ZodError
  * on bad shape. Use immediately before any addDoc / setDoc / update.
