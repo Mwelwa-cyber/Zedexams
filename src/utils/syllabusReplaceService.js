@@ -35,6 +35,9 @@ const functions = getFunctions(app, 'us-central1')
 const activateSyllabusVersionCallable = httpsCallable(
   functions, 'activateSyllabusVersion', { timeout: 540_000 },
 )
+const rollbackSyllabusVersionCallable = httpsCallable(
+  functions, 'rollbackSyllabusVersion', { timeout: 60_000 },
+)
 const invalidateKbCacheCallable = httpsCallable(
   functions, 'invalidateKbCache', { timeout: 30_000 },
 )
@@ -243,6 +246,29 @@ export async function activateVersion({ version, expectedPreviousVersion }) {
       ok: false,
       code: err?.code || null,
       error: err?.message || 'Activate failed.',
+    }
+  }
+}
+
+/**
+ * One-click rollback to whatever version was active before the most
+ * recent activate. Flips the pointer, restores RAG fallback, bumps
+ * cacheBust. No data movement — the previous version's topics/* docs
+ * were left in place by activateSyllabusVersion exactly for this case.
+ * `expectedCurrentVersion` protects against admin races (server checks).
+ */
+export async function rollbackVersion({ expectedCurrentVersion } = {}) {
+  try {
+    const result = await rollbackSyllabusVersionCallable({
+      expectedCurrentVersion,
+    })
+    return { ok: true, ...result.data }
+  } catch (err) {
+    console.error('rollbackVersion failed', err)
+    return {
+      ok: false,
+      code: err?.code || null,
+      error: err?.message || 'Rollback failed.',
     }
   }
 }

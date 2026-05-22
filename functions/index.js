@@ -2105,6 +2105,16 @@ const {
 } = require("./teacherTools/activateSyllabusVersion");
 exports.activateSyllabusVersion = activateSyllabusVersion;
 
+// Syllabus replacement — Phase D. One-click rollback. Flips
+// cbcKnowledgeBase/_meta back to the previousVersion captured during
+// the most recent activate, restores usePrivateCurriculum=true, and
+// bumps cacheBust. No data movement — the previous version's topics
+// were left in place by activateSyllabusVersion exactly for this case.
+const {
+  rollbackSyllabusVersion,
+} = require("./teacherTools/rollbackSyllabusVersion");
+exports.rollbackSyllabusVersion = rollbackSyllabusVersion;
+
 // Teacher Tools — Lesson Plan Studio (vanilla JS studio endpoint).
 exports.studioGenerateLessonPlan = createStudioGenerateLessonPlan(anthropicApiKey);
 
