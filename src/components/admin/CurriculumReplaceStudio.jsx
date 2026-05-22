@@ -9,6 +9,7 @@ import {
   getActiveVersionMeta,
   invalidateKbCache,
   isPlausibleVersionId,
+  rollbackVersion,
   subscribeDraftSummary,
   subscribeUploadStatus,
   suggestNextVersionId,
@@ -43,6 +44,7 @@ export default function CurriculumReplaceStudio() {
   const [busy, setBusy] = useState(false)
   const [toast, setToast] = useState('')
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [rollbackConfirmOpen, setRollbackConfirmOpen] = useState(false)
   const [expandedSubject, setExpandedSubject] = useState(null)
 
   const fileInputRef = useRef(null)
@@ -236,6 +238,29 @@ export default function CurriculumReplaceStudio() {
     }
   }
 
+  async function onRollback() {
+    setBusy(true)
+    try {
+      const result = await rollbackVersion({
+        expectedCurrentVersion: activeMeta?.version || null,
+      })
+      if (result.ok) {
+        flashToast(
+          `↩ Rolled back to "${result.version}". ` +
+          `"${result.previousVersion}" is now the ping-pong target. ` +
+          'RAG fallback restored. Studios will refresh within ~10s.',
+          10_000,
+        )
+        await loadActiveMeta()
+        setRollbackConfirmOpen(false)
+      } else {
+        flashToast(`Rollback failed: ${result.error}`, 10_000)
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const activeVersionIsThis = Boolean(
     activeMeta && activeMeta.version === versionId,
   )
@@ -268,14 +293,27 @@ export default function CurriculumReplaceStudio() {
                 (activeMeta?.version || '—')}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={onRefreshCaches}
-            disabled={busy}
-            className="px-3 py-2 rounded-lg border-2 theme-border font-bold text-sm hover:theme-card-hover disabled:opacity-40"
-          >
-            🔄 Refresh studio caches
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            {activeMeta?.previousVersion && (
+              <button
+                type="button"
+                onClick={() => setRollbackConfirmOpen(true)}
+                disabled={busy}
+                className="px-3 py-2 rounded-lg border-2 border-amber-300 bg-amber-50 text-amber-900 font-bold text-sm hover:bg-amber-100 disabled:opacity-40"
+                title={`Roll back to ${activeMeta.previousVersion}`}
+              >
+                ↩ Rollback
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onRefreshCaches}
+              disabled={busy}
+              className="px-3 py-2 rounded-lg border-2 theme-border font-bold text-sm hover:theme-card-hover disabled:opacity-40"
+            >
+              🔄 Refresh studio caches
+            </button>
+          </div>
         </div>
         {activeMeta && (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
@@ -553,6 +591,46 @@ export default function CurriculumReplaceStudio() {
                 className="flex-1 px-3 py-2 rounded-lg font-black text-white bg-gradient-to-r from-emerald-500 to-sky-500 disabled:opacity-50"
               >
                 {busy ? 'Activating…' : 'Confirm activate'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rollback modal */}
+      {rollbackConfirmOpen && activeMeta?.previousVersion && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl max-w-md w-full p-5 space-y-3">
+            <h2 className="text-lg font-black">↩ Roll back this syllabus?</h2>
+            <p className="text-sm">
+              Switch every studio back to
+              <span className="font-mono mx-1">{activeMeta.previousVersion}</span>.
+              Current version
+              <span className="font-mono mx-1">{activeMeta.version}</span>
+              becomes the new rollback target — you can ping-pong by clicking
+              Rollback again.
+            </p>
+            <p className="text-sm">
+              RAG fallback turns back <span className="font-bold">ON</span>.
+              No data is moved — both versions' <code>topics/*</code> stay in
+              Firestore. Studios will refresh within ~10 seconds.
+            </p>
+            <div className="flex gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setRollbackConfirmOpen(false)}
+                disabled={busy}
+                className="flex-1 px-3 py-2 rounded-lg border-2 theme-border font-bold disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={onRollback}
+                disabled={busy}
+                className="flex-1 px-3 py-2 rounded-lg font-black text-white bg-gradient-to-r from-amber-500 to-rose-500 disabled:opacity-50"
+              >
+                {busy ? 'Rolling back…' : 'Confirm rollback'}
               </button>
             </div>
           </div>

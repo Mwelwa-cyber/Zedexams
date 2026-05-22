@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   listCbcTopics, saveCbcTopic, deleteCbcTopic, importBuiltInTopics,
   listLessons, saveLesson, deleteLesson, bulkImportCurriculumModules,
-  curriculumTopicDocId, subtopicName,
+  curriculumTopicDocId, subtopicName, getActiveKbVersion, KB_VERSION,
 } from '../../utils/adminCbcKbService'
 import {
   TEACHER_GRADES, TEACHER_SUBJECTS,
@@ -48,6 +48,7 @@ const EMPTY_FORM = {
 export default function CbcKbAdmin() {
   const [rows, setRows] = useState([])
   const [status, setStatus] = useState('loading')
+  const [activeVersion, setActiveVersion] = useState(null)
   const [filters, setFilters] = useState({ grade: '', subject: '', search: '' })
   const [form, setForm] = useState(EMPTY_FORM)
   const [editingId, setEditingId] = useState(null)
@@ -75,6 +76,17 @@ export default function CbcKbAdmin() {
   }
 
   useEffect(() => { load() }, [])
+
+  // Surface the active version so admins know which syllabus they're
+  // editing — useful after Phase C activate or Phase D rollback flips
+  // _meta to a non-default version.
+  useEffect(() => {
+    let cancelled = false
+    getActiveKbVersion().then((v) => {
+      if (!cancelled) setActiveVersion(v)
+    }).catch(() => { /* fallback already returns the default */ })
+    return () => { cancelled = true }
+  }, [])
 
   const filtered = useMemo(() => {
     const term = filters.search.trim().toLowerCase()
@@ -171,6 +183,8 @@ export default function CbcKbAdmin() {
     setTimeout(() => setToast(''), 6000)
   }
 
+  const isCustomVersion = activeVersion && activeVersion !== KB_VERSION
+
   return (
     <div className="space-y-5">
       <SeoHelmet title="CBC knowledge base" noIndex />
@@ -182,6 +196,21 @@ export default function CbcKbAdmin() {
             Custom curriculum topics that supplement the built-in G1–9 seed.
             Ideal for adding Grade 10–12 subjects.
           </p>
+          {activeVersion && (
+            <p className="text-xs mt-2">
+              <span className="text-gray-500">Editing version:</span>{' '}
+              <code className={`px-1.5 py-0.5 rounded font-mono ${
+                isCustomVersion ?
+                  'bg-emerald-100 text-emerald-900' :
+                  'bg-slate-100 text-slate-700'
+              }`}>{activeVersion}</code>
+              {isCustomVersion ? (
+                <span className="ml-2 text-emerald-700 font-bold">active</span>
+              ) : (
+                <span className="ml-2 text-slate-500">seed default</span>
+              )}
+            </p>
+          )}
         </div>
         <button
           onClick={openNew}
