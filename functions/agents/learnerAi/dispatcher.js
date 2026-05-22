@@ -220,8 +220,18 @@ async function runChain({taskId}) {
     }
 
     // Hoist returned values into the chain context.
+    //   - curriculumReference (slim {persist, inMemory}) feeds the
+    //     _stubFactory's write of aiGeneratedContent.curriculumReference.
+    //   - curriculumReader (the rich v2 agent output, see
+    //     src/schemas/learnerAi.js → curriculumReaderOutputSchema)
+    //     is what every downstream agent (PracticeQuiz, ExamQuiz,
+    //     Notes, StudyTips, Standards, QualityCheck, Supervisor)
+    //     reads to get structured curriculum context.
     if (result.curriculumReference) {
       chainContext.curriculumReference = result.curriculumReference;
+    }
+    if (result.output && agentId === "curriculumReader") {
+      chainContext.curriculumReader = result.output;
     }
     if (result.contentId) lastContentId = result.contentId;
 

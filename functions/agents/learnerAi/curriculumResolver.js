@@ -91,9 +91,17 @@ function refusal(reason, suggestions) {
  * @param {string} [args.subtopic]
  * @param {number|string} [args.term]
  * @returns {Promise<
- *   | { ok: true, curriculumRef: object }
+ *   | { ok: true, curriculumRef: object, matchedModule: object,
+ *       matchKind: 'subtopic_exact' | 'topic_only' }
  *   | { ok: false, reason: string, suggestions: string[] }
  * >}
+ *
+ * On success, callers also get the raw `matchedModule` (the KB lesson
+ * doc, including its `competencies[]`, `outcomes[]`, `vocabulary[]`,
+ * `teachingMaterials[]`, etc.) plus `matchKind` so a downstream
+ * projector (Curriculum Reader runner) can build a richer agent
+ * output without re-reading the KB. The slim `curriculumRef` shape
+ * is unchanged for the audit slice persisted onto aiGeneratedContent.
  */
 async function resolveStrictCurriculumRef({grade, subject, topic, subtopic, term}) {
   if (!safeString(grade) || !safeString(subject) || !safeString(topic)) {
@@ -170,7 +178,9 @@ async function resolveStrictCurriculumRef({grade, subject, topic, subtopic, term
     matchedAt: admin.firestore.FieldValue.serverTimestamp(),
   };
 
-  return {ok: true, curriculumRef};
+  const matchKind = module ? "subtopic_exact" : "topic_only";
+
+  return {ok: true, curriculumRef, matchedModule, matchKind};
 }
 
 module.exports = {
