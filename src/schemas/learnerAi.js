@@ -889,6 +889,81 @@ export const qualityCheckVerdictSchema = z.object({
 
 /** @typedef {import('zod').infer<typeof qualityCheckVerdictSchema>} QualityCheckVerdict */
 
+// ── Notes Generator Agent — content + parameters ────────────────────
+//
+// NOT a Firestore collection. Validates the structured notes payload
+// the Notes Generator writes onto aiGeneratedContent.content for
+// taskType='notes' artifacts. Carries the user-required sections:
+// shortExplanation, keyVocabulary, importantFacts, examples, summary,
+// rememberThis, diagramSuggestions, quickRevision.
+//
+// Also carries a `body` field built by the runner that concatenates
+// the structured pieces into one plain-text block. Quality Check v3
+// reads `body` for its sentence-length / word-cap / topic-match
+// checks, so notes from this generator pass through QC cleanly.
+
+export const NOTES_DETAIL_LEVELS = z.enum(['brief', 'standard', 'detailed'])
+
+export const notesVocabularyEntrySchema = z.object({
+  term: z.string().min(1).max(120),
+  definition: z.string().min(1).max(400),
+}).strict()
+
+export const notesExampleSchema = z.object({
+  title: z.string().min(1).max(200),
+  explanation: z.string().min(1).max(800),
+}).strict()
+
+export const notesContentSchema = z.object({
+  title: z.string().min(1).max(200),
+  // shortExplanation — 1-3 learner-friendly sentences introducing
+  // the topic. Rendered at the top of the notes page.
+  shortExplanation: z.string().min(1).max(800),
+  keyVocabulary: z.array(notesVocabularyEntrySchema).min(0).max(15),
+  importantFacts: z.array(z.string().min(1).max(400)).min(0).max(20),
+  examples: z.array(notesExampleSchema).min(0).max(8),
+  // Plain-language summary paragraph (≤ 600 chars). Distinct from
+  // shortExplanation in that this rounds out the whole topic, not
+  // just an intro.
+  summary: z.string().min(1).max(800),
+  // "Remember this" bullets — short imperative reminders.
+  rememberThis: z.array(z.string().min(1).max(300)).min(0).max(10),
+  // Optional diagram suggestions. The renderer surfaces these as a
+  // sidebar TODO list ("Sketch a number line showing 1/2 and 1/4");
+  // no images are stored on aiGeneratedContent — that's a future PR.
+  diagramSuggestions: z.array(z.string().min(1).max(300)).min(0).max(8),
+  // Quick revision bullets at the end of the notes page — the
+  // learner's last-minute cheat sheet.
+  quickRevision: z.array(z.string().min(1).max(300)).min(0).max(12),
+  // Concatenated plain-text body, built by the runner from the
+  // structured fields above. Quality Check v3's notes_simple /
+  // notes_length / notes_match_topic axes read this field.
+  body: z.string().min(1).max(20_000),
+  // Curriculum echo — stamped server-side from chainContext.curriculumReader.
+  grade: z.string().min(1).max(8),
+  subject: z.string().min(1).max(80),
+  term: z.string().max(8).nullable(),
+  topic: z.string().min(1).max(200),
+  subtopic: z.string().max(200).nullable(),
+  competency: z.string().max(400),
+  learningOutcome: z.string().max(400).nullable(),
+  estimatedReadingMinutes: z.number().int().min(1).max(120),
+  // Provenance — 'stub' when ANTHROPIC_API_KEY is absent.
+  modelUsed: z.string().max(80),
+  parametersUsed: z.object({}).passthrough(),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof notesContentSchema>} NotesContent */
+
+export const notesParametersSchema = z.object({
+  detailLevel: NOTES_DETAIL_LEVELS.default('standard'),
+  includeDiagrams: z.boolean().default(true),
+  numExamples: z.number().int().min(1).max(8).default(3),
+  numKeyVocabulary: z.number().int().min(1).max(15).default(5),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof notesParametersSchema>} NotesParameters */
+
 /**
  * Parse-or-throw helper. Returns the validated doc body; throws ZodError
  * on bad shape. Use immediately before any addDoc / setDoc / update.
