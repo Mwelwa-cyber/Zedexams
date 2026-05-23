@@ -380,6 +380,17 @@ function slug(s) {
     .replace(/^-|-$/g, "").slice(0, 60);
 }
 
+/**
+ * Canonical subject key used for KB lookups and approvedSyllabi
+ * matches. Mirrors the inline rule lookupTopic / suggestTopics use
+ * ("Integrated Science" → "integrated_science"), exposed so other
+ * modules (the strict resolver, the syllabus upload writer) can
+ * compare on the same shape without re-deriving it.
+ */
+function normalizeSubject(subject) {
+  return String(subject || "").toLowerCase().replace(/[^a-z]/g, "_");
+}
+
 // Must match buildTopicId() in importCurriculumModules.js and the client
 // src/utils/adminCbcKbService.js so we read the right topic subcollection.
 function buildTopicId(grade, subject, topic) {
@@ -724,5 +735,6 @@ module.exports = {
   invalidateKbCache,
   getAllTopics,
   normalizeGrade,
+  normalizeSubject,
   _topics: TOPICS,
 };
