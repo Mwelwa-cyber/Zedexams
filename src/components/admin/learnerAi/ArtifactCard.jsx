@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { doc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
@@ -5,6 +6,7 @@ import { classForStatus } from './agentRegistry'
 import {
   examQuizToAssessment, suggestExamQuizFilename,
 } from '../../../utils/examQuizToAssessment'
+import CompareVersionsPanel from './CompareVersionsPanel'
 
 // One card per aiGeneratedContent doc. Wraps the per-artifact admin
 // actions (View / Approve / Publish / Reject / Regenerate / Edit /
@@ -188,15 +190,13 @@ export default function ArtifactCard({
   onView,
   onRegenerate,
   onMarkingGuide,
-  // onCompareVersions — placeholder for the Phase B version-history
-  // diff viewer. The button is disabled below; once the version
-  // subcollection lands we'll wire this prop up.
 }) {
   const status = artifact.status || 'draft'
   const title = previewTitle(artifact)
   const summary = previewSummary(artifact)
   const isExam = artifact.type === 'exam_quiz'
   const linkedTaskId = artifact._linkedTaskId
+  const [showVersions, setShowVersions] = useState(false)
 
   async function handleApprove() {
     if (!confirm('Approve this artifact? It will be published to learners.')) return
@@ -286,9 +286,9 @@ export default function ArtifactCard({
         </button>
         <button
           type="button"
-          disabled
-          title="Compare Versions arrives with the version-history subcollection (Phase B)"
-          className="text-[11px] font-semibold px-2 py-1 rounded bg-slate-100 text-slate-400 cursor-not-allowed"
+          onClick={() => setShowVersions(true)}
+          title="Open the full version + audit-trail history for this content doc."
+          className="text-[11px] font-semibold px-2 py-1 rounded bg-slate-100 text-slate-700 hover:bg-slate-200"
         >
           Compare Versions
         </button>
@@ -320,6 +320,13 @@ export default function ArtifactCard({
           </>
         )}
       </div>
+
+      {showVersions && (
+        <CompareVersionsPanel
+          contentId={artifact.id}
+          onClose={() => setShowVersions(false)}
+        />
+      )}
     </article>
   )
 }

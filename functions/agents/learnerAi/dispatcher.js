@@ -42,6 +42,9 @@ const {
   assertAutomationAllowed, assertDailyQuotas, estimateQuestionCount,
 } = require("./automationGate");
 const {
+  recordContentVersion, CHANGE_TYPES: VERSION_CHANGE_TYPES,
+} = require("./versionRecorder");
+const {
   COLLECTIONS, TASK_STATUS, CONTENT_STATUS, TASK_STEP_STATUS, SEVERITY,
 } = require("./v2Collections");
 
@@ -439,6 +442,13 @@ function createAiAgentTasksOnApproved() {
     const taskId = event.params.taskId;
     const taskRef = admin.firestore().collection(COLLECTIONS.TASKS).doc(taskId);
 
+    // Resolve the linked content doc up front so the audit hooks +
+    // the publish step + the version-history append all share a ref.
+    // v2 schema doesn't carry taskId on the content doc, so we resolve
+    // by (grade, subject, topic) and pick the newest. Falls back to
+    // the resultContentId stamped on aiAgentTasks if present.
+    const resolvedContentRef = await resolveContentRefForTask(after);
+
     // Audit hook — reuses the same writer as the teacher pipeline.
     try {
       const {writeAuditLog} = require("../../auditLog");
@@ -450,6 +460,15 @@ function createAiAgentTasksOnApproved() {
           targetId: taskId,
           metadata: {taskType: after.taskType || null},
         });
+        // Snapshot the content at the moment of approval.
+        if (resolvedContentRef) {
+          recordContentVersion({
+            contentId: resolvedContentRef.id,
+            changedBy: "system",
+            changeType: VERSION_CHANGE_TYPES.APPROVED,
+            changeReason: null,
+          }).catch(() => { /* swallow */ });
+        }
       }
       if (before.status !== TASK_STATUS.REJECTED && after.status === TASK_STATUS.REJECTED) {
         await writeAuditLog({
@@ -459,6 +478,40 @@ function createAiAgentTasksOnApproved() {
           targetId: taskId,
           metadata: {taskType: after.taskType || null},
         });
+        // Snapshot the rejected content. The admin's rejection notes
+        // live on the task (after.errorMessage / after.adminNotes);
+        // we propagate them as the changeReason so admins reading
+        // the version history see WHY this artifact was rejected.
+        if (resolvedContentRef) {
+          recordContentVersion({
+            contentId: resolvedContentRef.id,
+            changedBy: "system",
+            changeType: VERSION_CHANGE_TYPES.REJECTED,
+            changeReason: after.errorMessage || after.adminNotes || null,
+          }).catch(() => { /* swallow */ });
+        }
+      }
+      // Admin re-queued a previously-terminal task (Edit / Regenerate
+      // from the admin UI flips task.status back to 'queued'). We
+      // record a 'regenerated' snapshot on the OLD content doc so
+      // its audit trail captures the replace decision. The new
+      // content doc the regeneration produces gets its own initial
+      // 'ai_generated' snapshot via _stubFactory.
+      const wasTerminal =
+        before.status === TASK_STATUS.APPROVED ||
+        before.status === TASK_STATUS.REJECTED ||
+        before.status === TASK_STATUS.NEEDS_REVIEW ||
+        before.status === TASK_STATUS.REGENERATING ||
+        before.status === TASK_STATUS.PUBLISHED;
+      if (wasTerminal && after.status === TASK_STATUS.QUEUED) {
+        if (resolvedContentRef) {
+          recordContentVersion({
+            contentId: resolvedContentRef.id,
+            changedBy: "system",
+            changeType: VERSION_CHANGE_TYPES.REGENERATED,
+            changeReason: after.adminNotes || after.errorMessage || null,
+          }).catch(() => { /* swallow */ });
+        }
       }
     } catch (err) {
       console.warn("[learner-ai dispatcher] audit log write failed", err && err.message);
@@ -467,46 +520,58 @@ function createAiAgentTasksOnApproved() {
     if (before.status === TASK_STATUS.APPROVED) return;
     if (after.status !== TASK_STATUS.APPROVED) return;
 
-    // Flip the latest aiGeneratedContent doc for this task to published.
-    // v2 schema doesn't carry taskId on the content doc, so we resolve
-    // by (grade, subject, topic, subtopic) and pick the newest. Falls
-    // back to the resultContentId stamped on aiAgentTasks if present.
-    let contentRef = null;
-    if (after.resultContentId) {
-      contentRef = admin.firestore()
-          .collection(COLLECTIONS.CONTENT)
-          .doc(after.resultContentId);
-    } else {
-      const snap = await admin.firestore()
-          .collection(COLLECTIONS.CONTENT)
-          .where("grade", "==", String(after.grade || ""))
-          .where("subject", "==", String(after.subject || ""))
-          .where("topic", "==", String(after.topic || ""))
-          .get()
-          .catch(() => null);
-      if (snap && !snap.empty) {
-        const docs = [...snap.docs];
-        docs.sort((a, b) => {
-          const at = a.data().createdAt && a.data().createdAt.toMillis ?
-            a.data().createdAt.toMillis() : 0;
-          const bt = b.data().createdAt && b.data().createdAt.toMillis ?
-            b.data().createdAt.toMillis() : 0;
-          return bt - at;
-        });
-        contentRef = docs[0].ref;
-      }
-    }
-
-    if (contentRef) {
-      await contentRef.set({
+    if (resolvedContentRef) {
+      await resolvedContentRef.set({
         status: CONTENT_STATUS.PUBLISHED,
         reviewedBy: "admin",
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       }, {merge: true});
+
+      // Snapshot the now-published content. This is the version
+      // learners actually see — pin it in the audit trail so admins
+      // can later confirm "this exact content was published on X
+      // date by Y".
+      recordContentVersion({
+        contentId: resolvedContentRef.id,
+        changedBy: "system",
+        changeType: VERSION_CHANGE_TYPES.PUBLISHED,
+        changeReason: null,
+      }).catch(() => { /* swallow */ });
     }
 
     await setTaskFields(taskRef, {status: TASK_STATUS.PUBLISHED});
   });
+}
+
+// Resolve the content doc the task points at. Pulled out of
+// `createAiAgentTasksOnApproved` so the same logic feeds the audit
+// hooks + the publish step. Returns null when nothing matches.
+async function resolveContentRefForTask(task) {
+  if (!task) return null;
+  if (task.resultContentId) {
+    return admin.firestore()
+        .collection(COLLECTIONS.CONTENT)
+        .doc(task.resultContentId);
+  }
+  const snap = await admin.firestore()
+      .collection(COLLECTIONS.CONTENT)
+      .where("grade", "==", String(task.grade || ""))
+      .where("subject", "==", String(task.subject || ""))
+      .where("topic", "==", String(task.topic || ""))
+      .get()
+      .catch(() => null);
+  if (snap && !snap.empty) {
+    const docs = [...snap.docs];
+    docs.sort((a, b) => {
+      const at = a.data().createdAt && a.data().createdAt.toMillis ?
+        a.data().createdAt.toMillis() : 0;
+      const bt = b.data().createdAt && b.data().createdAt.toMillis ?
+        b.data().createdAt.toMillis() : 0;
+      return bt - at;
+    });
+    return docs[0].ref;
+  }
+  return null;
 }
 
 module.exports = {
