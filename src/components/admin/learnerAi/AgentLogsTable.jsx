@@ -3,6 +3,7 @@ import {
   collection, limit as fsLimit, onSnapshot, orderBy, query, where,
 } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
+import { prettyAgentName } from './agentRegistry'
 import SeoHelmet from '../../seo/SeoHelmet'
 
 export default function AgentLogsTable() {
@@ -68,7 +69,7 @@ export default function AgentLogsTable() {
             {logs.map(l => (
               <tr key={l.id} className="border-t">
                 <td className="px-2 py-1">{l.createdAt?.toDate?.()?.toLocaleString?.() || ''}</td>
-                <td className="px-2 py-1 font-medium">{l.agentName}</td>
+                <td className="px-2 py-1 font-medium">{prettyAgentName(l.agentName)}</td>
                 <td className="px-2 py-1">{l.action}</td>
                 <td className="px-2 py-1">{l.severity}</td>
                 <td className="px-2 py-1">{l.taskType || ''}</td>

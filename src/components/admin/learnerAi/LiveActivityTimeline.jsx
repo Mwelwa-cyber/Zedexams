@@ -3,6 +3,7 @@ import {
   collection, limit as fsLimit, onSnapshot, orderBy, query, where,
 } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
+import { prettyAgentName } from './agentRegistry'
 
 // Section 3: real-time aiAgentLogs feed. Filterable by severity +
 // task type + free-text search. Newest entries appear at the top
@@ -66,7 +67,11 @@ export default function LiveActivityTimeline() {
     const needle = search.toLowerCase()
     return logs.filter(l =>
       (l.message || '').toLowerCase().includes(needle) ||
+      // Match against BOTH the raw id ('practiceQuiz') AND the friendly
+      // name ('Practice Quiz Generator Agent') so an admin can search
+      // by either form.
       (l.agentName || '').toLowerCase().includes(needle) ||
+      prettyAgentName(l.agentName).toLowerCase().includes(needle) ||
       (l.action || '').toLowerCase().includes(needle) ||
       (l.topic || '').toLowerCase().includes(needle) ||
       (l.subject || '').toLowerCase().includes(needle),
@@ -122,7 +127,7 @@ export default function LiveActivityTimeline() {
               </span>
               <span className="text-[11px] text-slate-500 tabular-nums">{timeOf(l.createdAt)}</span>
               <span className="text-[11px] text-slate-400">({timeAgo(l.createdAt)})</span>
-              <span className="text-xs font-semibold text-slate-700">{l.agentName}</span>
+              <span className="text-xs font-semibold text-slate-700">{prettyAgentName(l.agentName)}</span>
               <span className="text-[11px] text-slate-500">·</span>
               <span className="text-[11px] text-slate-500 font-mono">{l.action}</span>
               {l.taskType && (
