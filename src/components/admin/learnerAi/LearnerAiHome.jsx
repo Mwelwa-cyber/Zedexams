@@ -5,6 +5,7 @@ import LiveSummaryCards from './LiveSummaryCards'
 import LiveAgentStatusCards from './LiveAgentStatusCards'
 import LiveActivityTimeline from './LiveActivityTimeline'
 import RunningTaskDetailDrawer from './RunningTaskDetailDrawer'
+import RunTestQuizGenerationButton from './RunTestQuizGenerationButton'
 
 // AI Control Centre — Monitor tab (section 1 of the spec).
 //
@@ -37,6 +38,8 @@ export function LearnerAiHome() {
         and curriculum-update reports. Every section updates in real time
         via Firestore listeners.
       </p>
+
+      <RunTestQuizGenerationButton onTaskCreated={openTask} />
 
       <LiveSummaryCards />
 
