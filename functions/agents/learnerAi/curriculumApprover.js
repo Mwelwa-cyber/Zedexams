@@ -37,16 +37,23 @@ function createCurriculumUpdateReportsOnApproved() {
     const beforeStatus = String(before.status || "");
     const afterStatus = String(after.status || "");
     if (!TERMINAL_STATUSES.has(afterStatus)) return;
-    // Only fire on the FIRST transition into a terminal state. Skip
-    // approved → applied transitions for now (they would need a
-    // separate audit action; revisit if the "applied" workflow lands).
-    if (beforeStatus !== "pending_review") return;
+    // Accept two transitions:
+    //   pending_review → approved | rejected   (first decision)
+    //   approved        → applied              (admin marked it
+    //                                          applied after the
+    //                                          manual KB update)
+    // Any other before-status transition is ignored to avoid noise.
+    const isFirstDecision = beforeStatus === "pending_review";
+    const isApplyDecision = beforeStatus === "approved" &&
+      afterStatus === "applied";
+    if (!isFirstDecision && !isApplyDecision) return;
 
     const reportId = event.params.reportId;
     const actorUid = String(after.reviewedBy || "system");
     let action;
     if (afterStatus === "approved") action = "learner_ai.curriculum_approve";
     else if (afterStatus === "rejected") action = "learner_ai.curriculum_reject";
+    else if (afterStatus === "applied") action = "learner_ai.curriculum_applied";
     else action = `learner_ai.curriculum_${afterStatus}`;
 
     try {

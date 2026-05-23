@@ -154,9 +154,16 @@ test('trigger document matches curriculumUpdateReports/{reportId}', () => {
     'trigger document mismatch')
 })
 
-test('trigger fires only on pending_review → terminal transitions', () => {
-  assert(/beforeStatus !==\s*["']pending_review["']/.test(APPROVER_TEXT),
-    'must early-return when before.status !== pending_review')
+test('trigger fires only on pending_review → terminal OR approved → applied transitions', () => {
+  // Accepts EITHER the original early-return check (before==pending_review)
+  // OR the post-bug-fix-pass branch (isFirstDecision || isApplyDecision)
+  // which extends coverage to the approved → applied transition.
+  const hasFirstDecisionCheck =
+    /beforeStatus === ["']pending_review["']/.test(APPROVER_TEXT) ||
+    /beforeStatus !==\s*["']pending_review["']/.test(APPROVER_TEXT) ||
+    /isFirstDecision/.test(APPROVER_TEXT)
+  assert(hasFirstDecisionCheck,
+    'must gate on before.status to avoid double-firing per status change')
   assert(/TERMINAL_STATUSES\.has\(afterStatus\)/.test(APPROVER_TEXT) ||
     /\["approved",\s*"rejected"/.test(APPROVER_TEXT),
     'must gate on terminal after.status')

@@ -74,9 +74,14 @@ const RUNNER_MAP = Object.freeze({
   curriculumWatcher: runCurriculumWatcher,
 });
 
-// Per-agent pause cache (1-minute TTL). Reads aiAgentControls. Mirrors
-// the pattern from functions/agents/dispatcher.js for the teacher pipeline.
-const PAUSED_CACHE_TTL_MS = 60_000;
+// Per-agent pause cache. Reads aiAgentControls. Mirrors the pattern
+// from functions/agents/dispatcher.js for the teacher pipeline.
+// TTL is intentionally short (5s) so an admin pause toggle in the
+// Live Monitor takes effect on new task pickup within ~5s instead
+// of the previous ~60s. Cost: ~12× more single-doc reads from
+// aiAgentControls. That collection has ≤15 docs so the impact is
+// negligible — well worth the responsiveness improvement.
+const PAUSED_CACHE_TTL_MS = 5_000;
 let pausedCache = {expiresAt: 0, paused: new Set()};
 
 async function refreshPausedCache() {
@@ -432,7 +437,16 @@ async function runChain({taskId}) {
  */
 const AUTO_PUBLISH_SETTING_BY_TASK = Object.freeze({
   practice_quiz: {settingKey: "autoPublishPracticeQuizzes", precondition: null},
-  notes:         {settingKey: "autoPublishNotes",           precondition: null},
+  // Notes auto-publish requires a non-empty task.topic. Defends
+  // against a malformed task slipping past the schema (e.g. a
+  // teacher form that didn't validate topic) and shipping a topic-
+  // less notes doc straight to learners. The generator runner
+  // already requires topic via the schema, but pinning it here is
+  // belt-and-braces — a notes artifact without a clear topic
+  // would be useless to a learner anyway.
+  notes:         {settingKey: "autoPublishNotes",
+    precondition: (task) => !!(task && typeof task.topic === "string" &&
+      task.topic.trim().length > 0)},
   study_tips:    {settingKey: "autoPublishStudyTips",
     precondition: (task) => !!(task && task.parameters &&
       typeof task.parameters.weakLearnerId === "string" &&

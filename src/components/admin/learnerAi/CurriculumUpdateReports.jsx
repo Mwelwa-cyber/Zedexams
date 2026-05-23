@@ -64,11 +64,16 @@ export default function CurriculumUpdateReports() {
       setErr('Admin only')
       return
     }
-    const verb = status === 'approved' ? 'approve' : 'reject'
-    if (!confirm(`${verb === 'approve' ? 'Approve' : 'Reject'} this report?\n\n` +
-      `Approving does NOT auto-apply the curriculum change — you must update ` +
-      `the KB manually via /admin/cbc-kb. This action is recorded in the ` +
-      `audit log.`)) return
+    const PROMPTS = {
+      approved: 'Approve this report?\n\n' +
+        'Approving does NOT auto-apply the curriculum change — you must update ' +
+        'the KB manually via /admin/cbc-kb. This action is recorded in the audit log.',
+      rejected: 'Reject this report? This decision is recorded in the audit log.',
+      applied:  'Mark this report as applied?\n\n' +
+        'Click this only after you have manually updated the KB in /admin/cbc-kb. ' +
+        'The audit log will record the apply timestamp.',
+    }
+    if (!confirm(PROMPTS[status] || `Set status to ${status}?`)) return
     setBusyId(reportId)
     setErr(null)
     try {
@@ -189,6 +194,17 @@ export default function CurriculumUpdateReports() {
                       Reject
                     </button>
                   </div>
+                )}
+                {status === 'approved' && (
+                  <button
+                    type="button"
+                    onClick={() => setStatus(r.id, 'applied')}
+                    disabled={busyId === r.id}
+                    title="Click after manually updating the KB in /admin/cbc-kb"
+                    className="text-xs font-bold px-3 py-1.5 rounded bg-blue-50 text-blue-800 hover:bg-blue-100 disabled:opacity-40"
+                  >
+                    Mark applied
+                  </button>
                 )}
               </footer>
             </article>
