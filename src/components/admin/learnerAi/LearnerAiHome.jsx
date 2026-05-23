@@ -6,6 +6,7 @@ import LiveAgentStatusCards from './LiveAgentStatusCards'
 import LiveActivityTimeline from './LiveActivityTimeline'
 import RunningTaskDetailDrawer from './RunningTaskDetailDrawer'
 import RunTestQuizGenerationButton from './RunTestQuizGenerationButton'
+import BatchGenerateTopicsForm from './BatchGenerateTopicsForm'
 
 // AI Control Centre — Monitor tab (section 1 of the spec).
 //
@@ -38,6 +39,10 @@ export function LearnerAiHome() {
         and curriculum-update reports. Every section updates in real time
         via Firestore listeners.
       </p>
+
+      <BatchGenerateTopicsForm
+        onBatchQueued={(result) => result && result.firstTaskId && openTask(result.firstTaskId)}
+      />
 
       <RunTestQuizGenerationButton onTaskCreated={openTask} />
 
