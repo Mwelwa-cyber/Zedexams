@@ -762,6 +762,16 @@
       ]
     },
     {
+      "collectionGroup": "aiGeneratedContent",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "type",      "order": "ASCENDING"  },
+        { "fieldPath": "status",    "order": "ASCENDING"  },
+        { "fieldPath": "grade",     "order": "ASCENDING"  },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "aiSupervisorLogs",
       "queryScope": "COLLECTION",
       "fields": [

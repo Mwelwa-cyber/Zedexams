@@ -60,6 +60,10 @@ const GradeHub = lazy(() => import('./components/dashboard/GradeHub'))
 const LearnerCalendar = lazy(() => import('./components/dashboard/LearnerCalendar'))
 const SubjectDrillDown = lazy(() => import('./components/dashboard/SubjectDrillDown'))
 const QuizList = lazy(() => import('./components/quiz/QuizList'))
+// Learner-facing AI-generated practice quizzes (feature-flagged
+// via settings/global.learnerAi.showAiPracticeQuizzesToLearners).
+const AiPracticeQuizList   = lazy(() => import('./components/learnerAi/AiPracticeQuizList'))
+const AiPracticeQuizRunner = lazy(() => import('./components/learnerAi/AiPracticeQuizRunner'))
 const QuizRunner = lazy(() => import('./components/quiz/QuizRunnerV2'))
 const QuizResults = lazy(() => import('./components/quiz/QuizResultsV2'))
 // Slide-based interactive lessons. /lessons is the canonical learner-
@@ -428,6 +432,11 @@ export default function App() {
           <Route path="/exam/:examId"                element={<ProtectedRoute><LearnerOnlyRoute><DailyExamRunner /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/exam-results/:attemptId"     element={<ProtectedRoute><LearnerOnlyRoute><ExamResultsPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/quizzes"           element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><QuizList /></LearnerOnlyRoute></ProtectedRoute>} />
+          {/* AI-generated practice quizzes. Feature-flagged inside the
+              components (silent redirect to /dashboard when the
+              admin flag is off). */}
+          <Route path="/ai-practice"             element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><AiPracticeQuizList /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/ai-practice/:contentId"  element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><AiPracticeQuizRunner /></LearnerOnlyRoute></ProtectedRoute>} />
           {/* Course-map drill-down — clicking Practise on a subject card
               lands the learner here, with quizzes grouped by topic. */}
           <Route path="/practise/:grade/:subjectId" element={<ProtectedRoute><LearnerOnlyRoute><SubjectDrillDown /></LearnerOnlyRoute></ProtectedRoute>} />
