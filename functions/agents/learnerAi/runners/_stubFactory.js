@@ -15,6 +15,9 @@
 
 const admin = require("firebase-admin");
 const {writeAgentLog, updateLiveAgentState, writeTaskStep} = require("../logger");
+const {
+  recordGenerationUsage, countQuestionsInContent,
+} = require("../automationGate");
 const {COLLECTIONS, CONTENT_STATUS, TASK_STATUS, TASK_STEP_STATUS, SEVERITY} =
   require("../v2Collections");
 
@@ -154,6 +157,13 @@ function makeRunner(cfg) {
     const ref = await admin.firestore()
         .collection(COLLECTIONS.CONTENT)
         .add(docPayload);
+
+    // Fire-and-forget usage metering. Never blocks or fails the
+    // chain — `recordGenerationUsage` swallows its own errors.
+    recordGenerationUsage({
+      contentType: cfg.artifactType,
+      questionCount: countQuestionsInContent(cfg.artifactType, content),
+    }).catch(() => { /* swallow — metering is best-effort */ });
 
     await writeAgentLog({
       taskId: task.id, agentName: AGENT_ID, action: "generate",

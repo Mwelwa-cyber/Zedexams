@@ -39,6 +39,9 @@ const {runCurriculumWatcher} = require("./runners/curriculumWatcher");
 const {writeAgentLog, writeTaskStep} = require("./logger");
 const {assertLearnerDailyLimit} = require("./costGuard");
 const {
+  assertAutomationAllowed, assertDailyQuotas, estimateQuestionCount,
+} = require("./automationGate");
+const {
   COLLECTIONS, TASK_STATUS, CONTENT_STATUS, TASK_STEP_STATUS, SEVERITY,
 } = require("./v2Collections");
 
@@ -136,6 +139,26 @@ async function runChain({taskId}) {
       errorMessage: exhausted ?
         "daily_learner_ai_limit_reached" :
         `meter_check_failed:${String(err && err.message || err).slice(0, 200)}`,
+    });
+    return;
+  }
+
+  // 0b. Automation policy gate (per aiAutomationSettings/global). Refuses
+  // tasks when admin has paused automation, when the task's grade or
+  // subject is not on the whitelist, or when today's question / quiz
+  // quota would be breached. See functions/agents/learnerAi/automationGate.js.
+  try {
+    await assertAutomationAllowed({task});
+    await assertDailyQuotas({
+      estimatedQuestionCount: estimateQuestionCount(task),
+      contentType: task.taskType,
+    });
+  } catch (err) {
+    await setTaskFields(taskRef, {
+      status: TASK_STATUS.ERROR,
+      errorMessage: err && err.code ?
+        `${err.code}:${String(err.message || "").slice(0, 200)}` :
+        `automation_gate_failed:${String(err && err.message || err).slice(0, 200)}`,
     });
     return;
   }
