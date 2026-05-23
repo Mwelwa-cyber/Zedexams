@@ -6,6 +6,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import ControlCentreLayout from './ControlCentreLayout'
+import CompareVersionsPanel from './CompareVersionsPanel'
 import {
   examQuizToAssessment, suggestExamQuizFilename,
 } from '../../../utils/examQuizToAssessment'
@@ -489,6 +490,7 @@ export default function ExamDraftDetailPage() {
   const [showRegen, setShowRegen] = useState(false)
   const [regenMode, setRegenMode] = useState('edit')  // 'edit' | 'regenerate'
   const [regenNotes, setRegenNotes] = useState('')
+  const [showVersions, setShowVersions] = useState(false)
 
   // Live subscription to the artifact so admins see the latest verdict
   // when the supervisor finishes during review.
@@ -707,6 +709,15 @@ export default function ExamDraftDetailPage() {
           >
             Download Word
           </button>
+          <span className="hidden md:inline text-slate-300">|</span>
+          <button
+            type="button"
+            onClick={() => setShowVersions(true)}
+            className="text-xs font-bold px-3 py-1.5 rounded bg-slate-100 text-slate-700 hover:bg-slate-200"
+            title="See every version of this content + who approved / rejected / regenerated it."
+          >
+            Compare Versions
+          </button>
         </div>
       </div>
 
@@ -800,6 +811,13 @@ export default function ExamDraftDetailPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {showVersions && (
+        <CompareVersionsPanel
+          contentId={artifact.id}
+          onClose={() => setShowVersions(false)}
+        />
       )}
     </ControlCentreLayout>
   )

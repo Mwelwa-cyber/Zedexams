@@ -772,6 +772,14 @@
       ]
     },
     {
+      "collectionGroup": "aiGeneratedContentVersions",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "contentId", "order": "ASCENDING"  },
+        { "fieldPath": "version",   "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "aiSupervisorLogs",
       "queryScope": "COLLECTION",
       "fields": [

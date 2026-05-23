@@ -18,6 +18,8 @@ const {writeAgentLog, updateLiveAgentState, writeTaskStep} = require("../logger"
 const {
   recordGenerationUsage, countQuestionsInContent,
 } = require("../automationGate");
+const {recordContentVersion, CHANGE_TYPES: VERSION_CHANGE_TYPES} =
+  require("../versionRecorder");
 const {COLLECTIONS, CONTENT_STATUS, TASK_STATUS, TASK_STEP_STATUS, SEVERITY} =
   require("../v2Collections");
 
@@ -164,6 +166,21 @@ function makeRunner(cfg) {
       contentType: cfg.artifactType,
       questionCount: countQuestionsInContent(cfg.artifactType, content),
     }).catch(() => { /* swallow — metering is best-effort */ });
+
+    // Append the initial version snapshot (v1) to the audit trail.
+    // The parent's `version: 1` field was just stamped above — we
+    // mirror that into aiGeneratedContentVersions/{} so future
+    // transitions (approved / published / rejected) bump from a
+    // known starting point. Fire-and-forget — `recordContentVersion`
+    // swallows its own errors.
+    recordContentVersion({
+      contentId: ref.id,
+      content,
+      changedBy: `agent:${AGENT_ID}`,
+      changeType: VERSION_CHANGE_TYPES.AI_GENERATED,
+      changeReason: null,
+      isInitial: true,
+    }).catch(() => { /* swallow — versioning is best-effort */ });
 
     await writeAgentLog({
       taskId: task.id, agentName: AGENT_ID, action: "generate",

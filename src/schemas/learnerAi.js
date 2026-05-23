@@ -182,6 +182,66 @@ export const curriculumReferenceSchema = z.object({
   sourceVersion: z.string().max(80).nullable(),
 }).strict()
 
+// ── Content version history ─────────────────────────────────────────
+//
+// Append-only audit trail for every `aiGeneratedContent` doc. Records
+// one row per change of consequence — generation, admin edit, admin
+// re-queue ("regenerated"), approval, publication, rejection. Lets an
+// admin compare the AI's first draft against the version that was
+// ultimately approved + audit who decided + why.
+//
+// Hard rules enforced server-side:
+//   - All writes happen via the dispatcher / runner / status-change
+//     trigger (firestore.rules: write:false; only Cloud Functions with
+//     the admin SDK can append).
+//   - Read access is admin-only. Learners never see version history.
+//   - Approved + published content is NEVER overwritten on its own
+//     `aiGeneratedContent` doc; each transition appends a new version
+//     row to `aiGeneratedContentVersions/{}` instead. A regenerate
+//     creates a NEW `aiGeneratedContent` doc, leaving the old one
+//     (and its full version history) preserved.
+
+export const CONTENT_VERSION_CHANGE_TYPES = z.enum([
+  // Written when the generator runner emits the artifact (version 1).
+  'ai_generated',
+  // Reserved for future in-place admin edits. Today admins re-queue
+  // via "Edit" which creates a NEW content doc — no direct edits
+  // happen yet, so this changeType is unused by current writers.
+  'admin_edit',
+  // Written when an admin re-queues an existing terminal task
+  // (status moves from approved / rejected / needs_review → queued).
+  // Documents that the content was deemed insufficient + replaced.
+  'regenerated',
+  // Written when an admin approves the linked task (task →
+  // 'approved'). Snapshots the content at the moment of approval.
+  'approved',
+  // Written when the dispatcher flips the content doc to
+  // 'published' (always after 'approved' for the same content).
+  'published',
+  // Written when an admin rejects the linked task.
+  'rejected',
+])
+
+export const aiGeneratedContentVersionWriteSchema = z.object({
+  contentId: z.string().min(1).max(120),
+  version: z.number().int().min(1).max(10_000),
+  // Full content snapshot at the moment of the change. Allows two
+  // versions to be diffed without re-reading the live `aiGeneratedContent`
+  // doc (which only carries the latest state).
+  content: z.object({}).passthrough(),
+  // `changedBy` is one of:
+  //   - 'agent:<agentId>' (e.g. 'agent:practiceQuiz') for generator writes
+  //   - 'system' for dispatcher-driven status transitions
+  //   - admin uid for in-place edits (when that future path lands)
+  changedBy: z.string().min(1).max(120),
+  changeType: CONTENT_VERSION_CHANGE_TYPES,
+  // Optional admin note (e.g. "Section A Q3 had the wrong answer key").
+  changeReason: z.string().max(800).nullable(),
+  createdAt: timestampish,
+}).strict()
+
+/** @typedef {import('zod').infer<typeof aiGeneratedContentVersionWriteSchema>} AiGeneratedContentVersionWrite */
+
 export const aiGeneratedContentWriteSchema = z.object({
   type: GENERATED_CONTENT_TYPES,
   source: z.literal('ai'),

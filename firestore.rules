@@ -1333,6 +1333,18 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // 3b. aiGeneratedContentVersions — append-only audit trail for the
+    //     aiGeneratedContent doc above. Every generation, approval,
+    //     publication, rejection, and regenerate decision writes one
+    //     row here. Admin-only read so learners never see the version
+    //     history (per the spec: "Do not allow learners to see version
+    //     history"). Writes happen via the dispatcher trigger + the
+    //     stub-factory only — clients cannot append.
+    match /aiGeneratedContentVersions/{versionId} {
+      allow read:  if isAuthed() && isAdmin();
+      allow write: if false;
+    }
+
     // 4. aiLiveAgentStates — per-agent heartbeat + current task.
     match /aiLiveAgentStates/{agentId} {
       allow read:  if isAuthed();
