@@ -332,6 +332,38 @@ async function runChain({taskId}) {
       TASK_STATUS.APPROVED : TASK_STATUS.NEEDS_REVIEW;
   }
 
+  // Honour mid-flight admin cancellation. The Cancel Task button in
+  // the Live Monitor (LiveAgentStatusCards.handleCancelTask) writes
+  // status='rejected' + errorMessage='Cancelled from Live Monitor'
+  // while the chain may still be walking the step plan. The dispatcher
+  // does not signal-abort the chain (runners share no abort channel),
+  // so by the time we reach this terminal write the supervisor may
+  // have already decided 'approved' — which would overwrite the admin's
+  // cancellation AND fire the aiAgentTasksOnApproved trigger AND
+  // publish the artifact.
+  //
+  // Re-read the task here. If the admin set status='rejected' OR
+  // errorMessage starts with 'Cancelled', skip the terminal write +
+  // log the cancellation. The artifact already-written by the
+  // generator runner stays at status='needs_review' (its default) and
+  // is therefore not learner-visible.
+  const finalTask = await readTask(taskRef);
+  const cancelled =
+    finalTask.status === TASK_STATUS.REJECTED &&
+    typeof finalTask.errorMessage === "string" &&
+    finalTask.errorMessage.toLowerCase().startsWith("cancelled");
+  if (cancelled) {
+    await writeAgentLog({
+      taskId, agentName: "dispatcher", action: "honour_cancellation",
+      message: `runChain finished but admin cancelled mid-flight. ` +
+        `Skipping terminal write — leaving status='rejected', errorMessage='${finalTask.errorMessage}'.`,
+      taskType: finalTask.taskType,
+      grade: finalTask.grade, subject: finalTask.subject, topic: finalTask.topic,
+      severity: SEVERITY.WARNING,
+    });
+    return;
+  }
+
   await setTaskFields(taskRef, {
     status: terminalStatus,
     completedAt: admin.firestore.FieldValue.serverTimestamp(),
@@ -491,27 +523,55 @@ function createAiAgentTasksOnApproved() {
           }).catch(() => { /* swallow */ });
         }
       }
-      // Admin re-queued a previously-terminal task (Edit / Regenerate
-      // from the admin UI flips task.status back to 'queued'). We
-      // record a 'regenerated' snapshot on the OLD content doc so
-      // its audit trail captures the replace decision. The new
-      // content doc the regeneration produces gets its own initial
-      // 'ai_generated' snapshot via _stubFactory.
+      // Admin re-queued a previously-terminal task. The Live Monitor /
+      // ArtifactCard / ExamDraftDetailPage all open the
+      // RegenerateWithNotesModal which writes status='regenerating'.
+      // (The legacy 'queued' transition is also accepted so any future
+      // direct-re-queue UI keeps working.)
       const wasTerminal =
         before.status === TASK_STATUS.APPROVED ||
         before.status === TASK_STATUS.REJECTED ||
         before.status === TASK_STATUS.NEEDS_REVIEW ||
-        before.status === TASK_STATUS.REGENERATING ||
-        before.status === TASK_STATUS.PUBLISHED;
-      if (wasTerminal && after.status === TASK_STATUS.QUEUED) {
+        before.status === TASK_STATUS.PUBLISHED ||
+        before.status === TASK_STATUS.ERROR ||
+        before.status === TASK_STATUS.FAILED_QUALITY_CHECK;
+      const isRegenerateRequest =
+        wasTerminal && (
+          after.status === TASK_STATUS.REGENERATING ||
+          after.status === TASK_STATUS.QUEUED
+        );
+      if (isRegenerateRequest) {
+        // 1. Audit: record a `regenerated` version snapshot on the
+        //    OLD content doc so its history shows it was replaced.
         if (resolvedContentRef) {
           recordContentVersion({
             contentId: resolvedContentRef.id,
             changedBy: "system",
             changeType: VERSION_CHANGE_TYPES.REGENERATED,
-            changeReason: after.adminNotes || after.errorMessage || null,
+            changeReason: after.regenerateNotes || after.adminNotes ||
+              after.errorMessage || null,
           }).catch(() => { /* swallow */ });
         }
+        // 2. Reset pipeline fields so the chain runs cleanly.
+        await setTaskFields(taskRef, {
+          startedAt: null,
+          completedAt: null,
+          resultContentId: null,
+          errorMessage: null,
+        });
+        // 3. Re-trigger the chain. Without this, the admin's
+        //    regenerate request silently sits forever — the
+        //    onDocumentCreated trigger fires only on doc creation,
+        //    not on status updates.
+        await writeAgentLog({
+          taskId, agentName: "dispatcher", action: "regenerate",
+          message: `Admin re-queued task (before='${before.status}', after='${after.status}'). Re-running chain.`,
+          taskType: after.taskType,
+          grade: after.grade, subject: after.subject, topic: after.topic,
+          severity: SEVERITY.INFO,
+        });
+        await runChain({taskId});
+        return;
       }
     } catch (err) {
       console.warn("[learner-ai dispatcher] audit log write failed", err && err.message);
