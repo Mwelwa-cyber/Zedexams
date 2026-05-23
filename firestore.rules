@@ -1364,6 +1364,18 @@ service cloud.firestore {
             || string(resource.data.grade) == string(callerGrade())
           )
         )
+        // Teacher / above can preview drafts of their OWN queued
+        // tasks. Requires the artifact to carry a sourceTaskId
+        // back-link (stamped by _stubFactory). Cross-collection
+        // get() costs one extra small-doc read per rule eval — only
+        // hit for teacher-on-draft reads, not the learner happy path.
+        || (
+          isTeacherOrAbove()
+          && 'sourceTaskId' in resource.data
+          && resource.data.sourceTaskId != null
+          && exists(/databases/$(database)/documents/aiAgentTasks/$(resource.data.sourceTaskId))
+          && get(/databases/$(database)/documents/aiAgentTasks/$(resource.data.sourceTaskId)).data.createdBy == request.auth.uid
+        )
       );
       allow write: if false;
     }

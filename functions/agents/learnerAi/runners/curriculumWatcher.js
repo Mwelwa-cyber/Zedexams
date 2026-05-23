@@ -307,6 +307,38 @@ async function checkOneSource({source, sourceState, nowMs, overrideFrequency}) {
   const ref = await admin.firestore()
       .collection(COLLECTIONS.CURRICULUM_REPORTS).add(report);
 
+  // Supersede prior pending_review reports for the same source URL —
+  // if the watcher ran twice for the same source without an admin
+  // touching the first report, the OLD report is stale. Mirrors the
+  // sibling-demote pattern dispatcher.js uses for aiGeneratedContent
+  // when a fresh version is published. Best-effort: failure here
+  // doesn't break the new report write.
+  try {
+    const siblings = await admin.firestore()
+        .collection(COLLECTIONS.CURRICULUM_REPORTS)
+        .where("sourceUrl", "==", source.url)
+        .where("status", "==", "pending_review")
+        .get();
+    if (!siblings.empty) {
+      const batch = admin.firestore().batch();
+      let demoted = 0;
+      for (const doc of siblings.docs) {
+        if (doc.id === ref.id) continue;
+        batch.update(doc.ref, {
+          status: "superseded",
+          supersededBy: ref.id,
+          reviewedAt: admin.firestore.FieldValue.serverTimestamp(),
+          reviewedBy: "system:watcher",
+        });
+        demoted += 1;
+      }
+      if (demoted > 0) await batch.commit();
+    }
+  } catch (err) {
+    console.warn("[curriculumWatcher] sibling supersede failed",
+        err && err.message);
+  }
+
   return {
     sourceId: source.id,
     outcome: prior ? "changed" : "first_snapshot",
