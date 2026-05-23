@@ -33,6 +33,7 @@ function PreviewQuestion({ question }) {
           <ZoomableImage
             src={question.imageUrl}
             alt="Question illustration"
+            fallbackText={question.diagramText}
             className="mx-auto max-h-[80vh] w-full rounded-xl object-contain"
           />
         </div>
@@ -78,6 +79,9 @@ function PreviewQuestion({ question }) {
                         src={media.imageUrl}
                         alt={media.alt || ''}
                         className="quiz-option-image"
+                        onError={event => {
+                          event.currentTarget.style.display = 'none'
+                        }}
                       />
                     ) : null}
                     <RichContent value={option} className="rich-option" />
@@ -201,6 +205,7 @@ export default function QuizEditorPreviewPanel({ form, serializedSections }) {
                         <ZoomableImage
                           src={section.passage.imageUrl}
                           alt="Passage illustration"
+                          fallbackText={section.passage.title || ''}
                           className="mx-auto max-h-[80vh] w-full rounded-xl object-contain"
                         />
                       </div>

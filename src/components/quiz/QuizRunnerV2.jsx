@@ -93,6 +93,11 @@ function OptionButton({ label, selected, revealed, correct, wrong, onClick, imag
             src={imageUrl}
             alt={imageAlt || ''}
             className="quiz-option-image"
+            onError={event => {
+              // Stay tappable, just hide the broken icon — the option text
+              // below still names the choice so the learner can pick it.
+              event.currentTarget.style.display = 'none'
+            }}
           />
         ) : null}
         {/* optionValue may be plain text, a Tiptap JSON object, or a JSON
@@ -615,6 +620,7 @@ export default function QuizRunnerV2() {
               <ZoomableImage
                 src={question.imageUrl}
                 alt="Question illustration"
+                fallbackText={question.diagramText}
                 className="mx-auto max-h-[80vh] w-full rounded-xl object-contain"
               />
             </div>
@@ -1121,6 +1127,7 @@ export default function QuizRunnerV2() {
                     <ZoomableImage
                       src={activeSection.passage.imageUrl}
                       alt="Passage illustration"
+                      fallbackText={activeSection.passage.diagramText || activeSection.passage.title || ''}
                       className="mx-auto max-h-[80vh] w-full rounded-2xl object-contain"
                     />
                   </div>
