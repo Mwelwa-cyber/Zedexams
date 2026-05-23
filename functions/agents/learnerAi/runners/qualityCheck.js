@@ -433,6 +433,27 @@ function checkSingleCorrectAnswer({content, artifactType}) {
   return {issue: null};
 }
 
+// Flags MCQ + short_answer questions on a practice quiz that omit an
+// explanation. Exam quizzes don't carry per-question explanations
+// (marking guide carries that detail), so the rule is scoped to
+// practice_quiz only. Severity is `minor`: a missing explanation
+// doesn't fail the chain but should surface in the admin reviewer
+// queue so the author can pad the artifact before publishing.
+function checkExplanationsPresent({content, artifactType}) {
+  if (artifactType !== "practice_quiz") return {issue: null};
+  let missing = 0;
+  for (const q of gatherQuestions(content)) {
+    if (q.questionType !== "mcq" && q.questionType !== "short_answer") continue;
+    if (!asString(q.explanation).trim()) missing += 1;
+  }
+  if (missing > 0) {
+    return {issue: {axis: "explanations_present", severity: "minor",
+      message: `${missing} question(s) have no explanation. Learners benefit ` +
+        `from a one-line "why" after each MCQ.`}};
+  }
+  return {issue: null};
+}
+
 function checkExplanationMatchesAnswer({content, artifactType}) {
   if (!QUIZ_ARTIFACT_TYPES.has(artifactType)) return {issue: null};
   let mismatched = 0;
@@ -672,6 +693,7 @@ function buildVerdict({artifactType, content, curriculumReader, curriculumRefere
     checkDuplicateOptions({content, artifactType}),
     checkOptionsTooSimilar({content, artifactType}),
     checkSingleCorrectAnswer({content, artifactType}),
+    checkExplanationsPresent({content, artifactType}),
     checkExplanationMatchesAnswer({content, artifactType}),
     checkMarksAllocation({content, artifactType}),
     checkSectionsPresent({content, artifactType}),
@@ -876,7 +898,7 @@ module.exports = {
   checkDiagramRequired, checkAmbiguity,
   checkCorrectAnswerExists, checkCorrectAnswerInOptions,
   checkDuplicateOptions, checkOptionsTooSimilar,
-  checkSingleCorrectAnswer, checkExplanationMatchesAnswer,
+  checkSingleCorrectAnswer, checkExplanationsPresent, checkExplanationMatchesAnswer,
   checkMarksAllocation, checkSectionsPresent, checkAnswerKeyComplete,
   checkMarkingGuidePresent,
   checkNotesSimple, checkNotesLength, checkNotesMatchTopic,

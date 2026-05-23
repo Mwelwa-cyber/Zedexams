@@ -156,9 +156,37 @@ function makeRunner(cfg) {
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
 
-    const ref = await admin.firestore()
-        .collection(COLLECTIONS.CONTENT)
-        .add(docPayload);
+    // Wrap the artifact write so a Firestore failure (quota, permissions,
+    // transient network) surfaces as a structured `firestore_write_failed`
+    // step record + agent log instead of an uncaught throw. The dispatcher
+    // would still catch a throw at a higher level, but the per-runner log
+    // is what admins actually look at on the Monitor + Logs tabs.
+    let ref;
+    try {
+      ref = await admin.firestore()
+          .collection(COLLECTIONS.CONTENT)
+          .add(docPayload);
+    } catch (err) {
+      const msg = String(err && err.message || err).slice(0, 300);
+      await writeAgentLog({
+        taskId: task.id, agentName: AGENT_ID, action: "generate",
+        message: `Artifact write failed: ${msg}`,
+        taskType: task.taskType,
+        grade: task.grade, subject: task.subject, topic: task.topic,
+        severity: SEVERITY.ERROR,
+      });
+      await writeTaskStep({
+        taskId: task.id, agentName: AGENT_ID, stepNumber,
+        stepTitle: `Generate ${cfg.artifactType}`,
+        message: `firestore_write_failed: ${msg.slice(0, 180)}`,
+        status: TASK_STEP_STATUS.FAILED, progress: 100,
+      });
+      await updateLiveAgentState(AGENT_ID, {
+        status: "failed", currentTaskId: null,
+        lastMessage: "firestore_write_failed",
+      });
+      return {ok: false, reason: "firestore_write_failed"};
+    }
 
     // Fire-and-forget usage metering. Never blocks or fails the
     // chain — `recordGenerationUsage` swallows its own errors.

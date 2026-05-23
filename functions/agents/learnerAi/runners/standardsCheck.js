@@ -149,6 +149,29 @@ function checkTopic({content, reader}) {
   return {axis: "topic", verdict: "skip"};
 }
 
+// Compares the topic the Curriculum Reader fuzzy-matched against the
+// topic the requester actually asked for. The default `checkTopic`
+// catches generator-vs-reader mismatches; this one catches the
+// upstream case where the reader landed on a *different* curriculum
+// entry than requested. Severity is `minor` (admin review surfaces
+// it for low-confidence matches) — does not fail the chain.
+function checkTopicDrift({task, reader}) {
+  const askedForRaw = String((task && task.topic) || "").trim();
+  const gotRaw = String((reader && reader.topic) || "").trim();
+  if (!askedForRaw || !gotRaw) return {axis: "topic_drift", verdict: "skip"};
+  if (askedForRaw.toLowerCase() === gotRaw.toLowerCase()) {
+    return {axis: "topic_drift", verdict: "pass"};
+  }
+  return {
+    axis: "topic_drift", verdict: "fail",
+    issue: {
+      axis: "topic_drift", severity: "minor",
+      message: `Curriculum Reader matched "${gotRaw}" but the request asked ` +
+        `for "${askedForRaw}". Verify the match is acceptable before publishing.`,
+    },
+  };
+}
+
 function checkSubtopic({content, reader}) {
   if (!reader || !reader.subtopic) return {axis: "subtopic", verdict: "skip"};
   const got = norm(content && content.subtopic) ||
@@ -470,7 +493,7 @@ function decideStatus({issues, confidence}) {
  * @param {object|null} [args.standards]     chainContext.standards (for exam_quiz)
  * @returns {object}                         partial StandardsCheckVerdict
  */
-function buildVerdict({artifactType, content, reader, standards}) {
+function buildVerdict({artifactType, content, reader, standards, task}) {
   const results = [
     checkGrade({content, reader}),
     checkSubject({content, reader}),
@@ -486,6 +509,7 @@ function buildVerdict({artifactType, content, reader, standards}) {
     checkInstructions({content, artifactType}),
     checkSections({content, artifactType, standards}),
     checkForeignContent({content}),
+    checkTopicDrift({task, reader}),
   ];
 
   const checks = {};
@@ -616,6 +640,7 @@ async function runStandardsCheck({task, chainContext = {}, stepNumber = 4}) {
     content: target.data.content || {},
     reader: chainContext.curriculumReader || null,
     standards: chainContext.standards || null,
+    task,
   });
 
   const verdict = {
@@ -688,6 +713,7 @@ module.exports = {
   checkGrade, checkSubject, checkTerm, checkTopic, checkSubtopic,
   checkCompetency, checkLearningOutcome, checkLanguage, checkAgeSuitability,
   checkPaperStructure, checkMarksAllocation, checkInstructions,
+  checkTopicDrift,
   checkSections, checkForeignContent,
   AGENT_ID,
   FOREIGN_PATTERNS, ZAMBIAN_WHITELIST,
