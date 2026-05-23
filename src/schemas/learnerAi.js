@@ -790,6 +790,11 @@ export const STANDARDS_CHECK_AXES = z.enum([
   'grade', 'subject', 'term', 'topic', 'subtopic', 'competency',
   'learning_outcome', 'language', 'age_suitability', 'paper_structure',
   'marks_allocation', 'instructions', 'sections', 'foreign_content',
+  // Surfaces when the Curriculum Reader's fuzzy match (`reader.topic`)
+  // landed on a different topic than what the requester asked for
+  // (`task.topic`). Doesn't fail the chain by itself — flagged as
+  // `minor` so admins reviewing low-confidence matches can decide.
+  'topic_drift',
 ])
 
 export const standardsCheckIssueSchema = z.object({
@@ -826,6 +831,7 @@ export const standardsCheckVerdictSchema = z.object({
     instructions: z.enum(['pass', 'fail', 'skip']),
     sections: z.enum(['pass', 'fail', 'skip']),
     foreign_content: z.enum(['pass', 'fail', 'skip']),
+    topic_drift: z.enum(['pass', 'fail', 'skip']),
   }).strict(),
   issues: z.array(standardsCheckIssueSchema).max(40),
   recommendations: z.array(z.string().min(1).max(400)).max(20),
@@ -897,6 +903,7 @@ export const QUALITY_CHECK_AXES = z.enum([
   'duplicate_options',
   'options_too_similar',
   'single_correct_answer',
+  'explanations_present',
   'explanation_matches_answer',
   // Exam-paper-specific
   'marks_allocation',

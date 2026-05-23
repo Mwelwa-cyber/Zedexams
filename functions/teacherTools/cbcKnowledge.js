@@ -205,7 +205,7 @@ const TOPICS = SEED_TOPICS;
  */
 async function lookupTopic({grade, subject, topic}) {
   if (!grade || !subject || !topic) return null;
-  const gradeNorm = String(grade).toUpperCase().replace(/\s+/g, "");
+  const gradeNorm = normalizeGrade(grade);
   const subjectNorm = String(subject).toLowerCase().replace(/[^a-z]/g, "_");
   const topicNorm = String(topic).toLowerCase().trim();
   const allTopics = await getAllTopics();
@@ -258,7 +258,7 @@ async function lookupTopic({grade, subject, topic}) {
  * find a confident match — teacher sees: "Did you mean one of these?"
  */
 async function suggestTopics({grade, subject}) {
-  const gradeNorm = String(grade || "").toUpperCase().replace(/\s+/g, "");
+  const gradeNorm = normalizeGrade(grade);
   const subjectNorm = String(subject || "").toLowerCase().replace(/[^a-z]/g, "_");
   const allTopics = await getAllTopics();
   return allTopics
@@ -341,6 +341,32 @@ function renderFallbackContext({grade, subject, topic, subtopic}) {
 
 // ── Lesson-level curriculum modules (source of truth) ────────────────────
 
+/**
+ * Canonicalise a grade label for KB lookups. The CBC seeds + the
+ * teacher-side AgentBriefForm both write grades as "G4" (with the
+ * leading "G"). But the learner-AI runtime + per-attempt task writers
+ * (src/utils/aiPracticeQuizService.js) sometimes pass a bare digit
+ * like "4". Both must resolve to the same KB entry.
+ *
+ * Rules:
+ *   "4"     → "G4"
+ *   "g4"    → "G4"
+ *   "G4"    → "G4"
+ *   " G 4 " → "G4"
+ *   ""      → ""
+ *
+ * Idempotent. Called from every public lookup helper below.
+ */
+function normalizeGrade(grade) {
+  if (grade == null) return "";
+  const raw = String(grade).trim().toUpperCase().replace(/\s+/g, "");
+  if (!raw) return "";
+  if (/^G\d+$/.test(raw)) return raw;
+  if (/^\d+$/.test(raw)) return `G${raw}`;
+  // Anything else (e.g. "ECE", "PP1") is left alone — KB stores it verbatim.
+  return raw;
+}
+
 function slug(s) {
   return String(s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "").slice(0, 60);
@@ -370,7 +396,8 @@ async function lookupSubtopicModule({grade, subject, topic, subtopic, term}) {
       !(Number.isInteger(t) && t >= 1 && t <= 3)) {
     return null;
   }
-  const topicId = buildTopicId(grade, subject, topic);
+  const gradeNorm = normalizeGrade(grade);
+  const topicId = buildTopicId(gradeNorm, subject, topic);
   const moduleId = buildModuleId(subtopic, t);
   if (!topicId || !moduleId) return null;
   try {
@@ -688,5 +715,6 @@ module.exports = {
   renderLearningEnvironmentDirective,
   invalidateKbCache,
   getAllTopics,
+  normalizeGrade,
   _topics: TOPICS,
 };
