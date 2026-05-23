@@ -37,7 +37,10 @@ const {runSupervisorReview} = require("./runners/supervisorReview");
 const {runQualityCheck} = require("./runners/qualityCheck");
 const {runCurriculumWatcher} = require("./runners/curriculumWatcher");
 const {writeAgentLog, writeTaskStep} = require("./logger");
-const {assertLearnerDailyLimit} = require("./costGuard");
+const {
+  assertLearnerDailyLimit, taskExceedsBudget, DEFAULT_TASK_BUDGET,
+  MAX_REGENERATION_ATTEMPTS,
+} = require("./costGuard");
 const {
   assertAutomationAllowed, assertDailyQuotas, estimateQuestionCount,
 } = require("./automationGate");
@@ -193,9 +196,38 @@ async function runChain({taskId}) {
   //    curriculumReference from the Reader forward to the generator
   //    and Quality Check.
   const chainContext = {};
+  // Per-task usage accumulator. Runners that call the LLM should
+  // push their token + cost stats here so taskExceedsBudget can
+  // detect runaway chains. For now we track step count; token/cost
+  // accumulation is a follow-up that requires runner-side wiring
+  // to push the Anthropic response usage onto chainContext.usage.
+  chainContext.usage = {steps: 0, tokensTotal: 0, costUsdCents: 0};
+  const taskBudget = (task.supervisorPlan && task.supervisorPlan.budget) ||
+    DEFAULT_TASK_BUDGET;
   let lastContentId = null;
   for (let i = 0; i < steps.length; i++) {
     const agentId = steps[i];
+    chainContext.usage.steps = i;
+    // Per-task budget gate (cost-guard F1). Refuses to start the next
+    // runner if the chain has already burned past its budget — defends
+    // against accidental long step plans + future runner-side
+    // token/cost overruns. DEFAULT_TASK_BUDGET.maxSteps=8 gives
+    // headroom over the longest current plan (exam_quiz=6 steps).
+    const breach = taskExceedsBudget(chainContext.usage, taskBudget);
+    if (breach) {
+      await writeAgentLog({
+        taskId, agentName: "dispatcher", action: "budget_breach",
+        message: `Task budget exceeded at step ${i + 1}/${steps.length}: ${breach}`,
+        taskType: task.taskType,
+        grade: task.grade, subject: task.subject, topic: task.topic,
+        severity: SEVERITY.ERROR,
+      });
+      await setTaskFields(taskRef, {
+        status: TASK_STATUS.ERROR,
+        errorMessage: `task_budget_exceeded:${breach}`,
+      });
+      return;
+    }
     const runner = RUNNER_MAP[agentId];
     if (!runner) {
       await setTaskFields(taskRef, {
@@ -541,6 +573,26 @@ function createAiAgentTasksOnApproved() {
           after.status === TASK_STATUS.QUEUED
         );
       if (isRegenerateRequest) {
+        // 0. Loop guard. Refuse the re-run if this task has already
+        //    burned through MAX_REGENERATION_ATTEMPTS — protects
+        //    against tight regenerate loops that would drain the
+        //    daily question quota on a single bad artifact.
+        const attemptsSoFar = Number.isInteger(after.regenerationAttempts) ?
+          after.regenerationAttempts : 0;
+        if (attemptsSoFar >= MAX_REGENERATION_ATTEMPTS) {
+          await writeAgentLog({
+            taskId, agentName: "dispatcher", action: "regenerate_blocked",
+            message: `Refused: ${attemptsSoFar}/${MAX_REGENERATION_ATTEMPTS} regeneration attempts already consumed.`,
+            taskType: after.taskType,
+            grade: after.grade, subject: after.subject, topic: after.topic,
+            severity: SEVERITY.WARNING,
+          });
+          await setTaskFields(taskRef, {
+            status: TASK_STATUS.ERROR,
+            errorMessage: `regeneration_loop_blocked:attempts=${attemptsSoFar}`,
+          });
+          return;
+        }
         // 1. Audit: record a `regenerated` version snapshot on the
         //    OLD content doc so its history shows it was replaced.
         if (resolvedContentRef) {
@@ -552,12 +604,14 @@ function createAiAgentTasksOnApproved() {
               after.errorMessage || null,
           }).catch(() => { /* swallow */ });
         }
-        // 2. Reset pipeline fields so the chain runs cleanly.
+        // 2. Reset pipeline fields + bump the attempt counter so the
+        //    chain runs cleanly with the guard primed for next time.
         await setTaskFields(taskRef, {
           startedAt: null,
           completedAt: null,
           resultContentId: null,
           errorMessage: null,
+          regenerationAttempts: attemptsSoFar + 1,
         });
         // 3. Re-trigger the chain. Without this, the admin's
         //    regenerate request silently sits forever — the
