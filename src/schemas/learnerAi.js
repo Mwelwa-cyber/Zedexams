@@ -114,6 +114,17 @@ export const aiAgentTaskWriteSchema = z.object({
   completedAt: timestampish.nullable(),
   resultContentId: z.string().max(120).nullable(),
   errorMessage: z.string().max(2000).nullable(),
+  // Per-task regeneration counter. Incremented by the dispatcher on
+  // each terminal → 'regenerating' transition (admin re-queue). After
+  // costGuard.MAX_REGENERATION_ATTEMPTS the dispatcher refuses to
+  // re-run the chain — protects against tight regenerate loops
+  // burning through the daily question quota. Capped at 20 in the
+  // schema for an obvious upper bound.
+  regenerationAttempts: z.number().int().min(0).max(20).optional(),
+  // Optional admin-typed notes attached to a Regenerate / Edit
+  // re-queue. The dispatcher pulls these into the version
+  // snapshot's changeReason for audit context.
+  regenerateNotes: z.string().max(4000).nullable().optional(),
   createdAt: timestampish,
   updatedAt: timestampish,
 }).strict()

@@ -142,7 +142,7 @@ test('onApproved handler resets pipeline fields before re-run', () => {
   const regenIdx = DISPATCHER_TEXT.indexOf('isRegenerateRequest')
   assert(regenIdx > 0, 'isRegenerateRequest block must exist')
   // Find the next ~600 chars window — must contain the reset writes.
-  const block = DISPATCHER_TEXT.slice(regenIdx, regenIdx + 2500)
+  const block = DISPATCHER_TEXT.slice(regenIdx, regenIdx + 4000)
   assert(/startedAt:\s*null/.test(block),
     'must reset startedAt:null')
   assert(/completedAt:\s*null/.test(block),
@@ -153,14 +153,14 @@ test('onApproved handler resets pipeline fields before re-run', () => {
 
 test('onApproved handler calls runChain for the regenerate request', () => {
   const regenIdx = DISPATCHER_TEXT.indexOf('isRegenerateRequest')
-  const block = DISPATCHER_TEXT.slice(regenIdx, regenIdx + 2500)
+  const block = DISPATCHER_TEXT.slice(regenIdx, regenIdx + 4000)
   assert(/await runChain\(\{\s*taskId\s*\}\)/.test(block),
     'must call await runChain({taskId}) inside the regenerate block')
 })
 
 test('onApproved handler logs the regenerate decision before re-run', () => {
   const regenIdx = DISPATCHER_TEXT.indexOf('isRegenerateRequest')
-  const block = DISPATCHER_TEXT.slice(regenIdx, regenIdx + 2500)
+  const block = DISPATCHER_TEXT.slice(regenIdx, regenIdx + 4000)
   assert(/action:\s*["']regenerate["']/.test(block),
     'must writeAgentLog with action=regenerate before re-running')
 })
@@ -170,7 +170,7 @@ test('Regenerated version snapshot still gets recorded', () => {
   // 'queued' transition. The fix extends to also cover 'regenerating'.
   // Verify the snapshot write is still present inside the new block.
   const regenIdx = DISPATCHER_TEXT.indexOf('isRegenerateRequest')
-  const block = DISPATCHER_TEXT.slice(regenIdx, regenIdx + 2500)
+  const block = DISPATCHER_TEXT.slice(regenIdx, regenIdx + 4000)
   assert(/VERSION_CHANGE_TYPES\.REGENERATED/.test(block),
     'must record a REGENERATED version snapshot before re-running')
 })
@@ -181,7 +181,7 @@ test('regenerate block returns early so the publish branch never fires', () => {
   // not stop the publish-path code (it would, but only by accident).
   // Explicit return is cleaner + protects future edits.
   const regenIdx = DISPATCHER_TEXT.indexOf('isRegenerateRequest')
-  const block = DISPATCHER_TEXT.slice(regenIdx, regenIdx + 2500)
+  const block = DISPATCHER_TEXT.slice(regenIdx, regenIdx + 4000)
   const runChainCallIdx = block.indexOf('await runChain')
   assert(runChainCallIdx > 0, 'await runChain call missing')
   const afterRunChain = block.slice(runChainCallIdx, runChainCallIdx + 200)

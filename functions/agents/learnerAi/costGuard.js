@@ -14,10 +14,23 @@ const {assertDailyLimit, getUserRole} = require("../../aiService");
 const KIND = "learnerAiTask";
 
 const DEFAULT_TASK_BUDGET = Object.freeze({
-  maxSteps: 4,
+  // 8 steps covers every current step plan with headroom — the longest
+  // (exam_quiz) is 6 steps: supervisor → curriculumReader → standards
+  // → examQuiz → standardsCheck → qualityCheck → supervisorReview.
+  // The old default (4) actually short-circuited every practice_quiz
+  // and exam_quiz chain — but the helper was never wired into the
+  // dispatcher so no production task ever hit it.
+  maxSteps: 8,
   maxTokensTotal: 8000,
   maxCostUsdCents: 30,
 });
+
+// Hard ceiling on per-task regeneration attempts. After this many
+// re-queues for the same task doc, the dispatcher refuses to run
+// the chain again — protects against tight loops where admin (or
+// the supervisor's auto-decision) keeps regenerating the same task
+// and burns the daily question quota on a single bad artifact.
+const MAX_REGENERATION_ATTEMPTS = 3;
 
 async function assertLearnerDailyLimit(uid) {
   if (!uid || uid === "system") {
@@ -44,6 +57,7 @@ function taskExceedsBudget(usage, budget) {
 module.exports = {
   KIND,
   DEFAULT_TASK_BUDGET,
+  MAX_REGENERATION_ATTEMPTS,
   assertLearnerDailyLimit,
   taskExceedsBudget,
 };
