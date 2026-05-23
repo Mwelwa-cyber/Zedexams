@@ -20,6 +20,27 @@ function draftKey(userId) {
   return `${KEY_PREFIX}${userId}`
 }
 
+// A blob: URL is bound to the document that created it. The moment the page
+// reloads it becomes a dead reference — every <img> rendered against it
+// shows a broken-image icon. Drop these on save so a rehydrated draft never
+// surfaces a stale blob URL.
+function stripBlobUrl(value) {
+  return typeof value === 'string' && value.startsWith('blob:') ? '' : value
+}
+
+function stripOptionMediaRuntime(optionMedia) {
+  if (!Array.isArray(optionMedia)) return optionMedia
+  return optionMedia.map(slot => {
+    if (!slot || typeof slot !== 'object') return slot
+    if (typeof slot.imageUrl === 'string' && slot.imageUrl.startsWith('blob:')) {
+      const { imageUrl: _imageUrl, ...rest } = slot
+      // Persist alt + diagram if present; drop the dead URL only.
+      return rest
+    }
+    return slot
+  })
+}
+
 function stripQuestionRuntime(question) {
   if (!question) return question
   const {
@@ -31,7 +52,11 @@ function stripQuestionRuntime(question) {
     imageAssetId: _imageAssetId,
     ...rest
   } = question
-  return rest
+  return {
+    ...rest,
+    imageUrl: stripBlobUrl(rest.imageUrl),
+    optionMedia: stripOptionMediaRuntime(rest.optionMedia),
+  }
 }
 
 function stripSectionsRuntime(sections = []) {
@@ -41,12 +66,16 @@ function stripSectionsRuntime(sections = []) {
       const {
         imageUploading: _imageUploading,
         imageUploadStep: _imageUploadStep,
+        // Same reasoning as on questions: blob asset ids only mean anything
+        // while the importing page session is alive.
+        imageAssetId: _imageAssetId,
         ...passageRest
       } = passage
       return {
         ...section,
         passage: {
           ...passageRest,
+          imageUrl: stripBlobUrl(passageRest.imageUrl),
           questions: (passage.questions || []).map(stripQuestionRuntime),
         },
       }

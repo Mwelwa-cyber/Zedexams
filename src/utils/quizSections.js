@@ -181,6 +181,11 @@ export function createPassageSection(passageOverrides = {}) {
     instructions: '',
     passageText: '',
     imageUrl: '',
+    // imageAssetId points at the in-memory blob produced by documentQuizImporter
+    // when a passage carries a diagram in the source document. It's the same
+    // shape as question.imageAssetId, and the save pass uploads it to Firebase
+    // Storage before persisting the passage so we never write a blob: URL.
+    imageAssetId: '',
     imageUploading: false,
     imageUploadStep: '',
     collapsed: false,
@@ -470,6 +475,10 @@ export function serializeQuizSections(sections = [], parts = []) {
         instructions: serializeRichField(passage.instructions),
         passageText: serializeRichField(passage.passageText),
         imageUrl: passage.imageUrl || null,
+        // Carried so the save pass can swap in a Firebase Storage download URL
+        // before the doc reaches Firestore. Cleared on save when the upload
+        // succeeds; never persisted long-term.
+        imageAssetId: passage.imageAssetId || '',
         passageKind: normalizePassageKind(passage.passageKind),
         order: startOrder,
         partId: passagePartId,
@@ -701,6 +710,7 @@ export function hydrateQuizSections(questions = [], passages = [], parts = [], p
       instructions: hydrateRichField(passage.instructions ?? ''),
       passageText: hydrateRichField(passage.passageText ?? ''),
       imageUrl: passage.imageUrl ?? '',
+      imageAssetId: passage.imageAssetId ?? '',
       passageKind: passage.passageKind,
       questions: [],
     })

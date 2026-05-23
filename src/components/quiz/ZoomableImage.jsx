@@ -8,8 +8,18 @@ import { useEffect, useState } from 'react'
 //   alt        — accessible label
 //   className  — applied to the inline (non-zoomed) image
 //   wrapperClassName — applied to the inline button wrapper
-export default function ZoomableImage({ src, alt, className = '', wrapperClassName = '' }) {
+//   fallbackText — caption shown when the image fails to load (e.g. the
+//                  question's diagramText). Prevents the broken-icon UX when
+//                  a Storage URL 404s or a stale blob: URL slipped through.
+export default function ZoomableImage({ src, alt, className = '', wrapperClassName = '', fallbackText = '' }) {
   const [open, setOpen] = useState(false)
+  const [failed, setFailed] = useState(false)
+
+  // Reset the failure state when the src changes so a corrected URL gets a
+  // fresh load attempt instead of staying stuck on the placeholder.
+  useEffect(() => {
+    setFailed(false)
+  }, [src])
 
   useEffect(() => {
     if (!open) return
@@ -27,6 +37,22 @@ export default function ZoomableImage({ src, alt, className = '', wrapperClassNa
 
   if (!src) return null
 
+  if (failed) {
+    return (
+      <div
+        role="img"
+        aria-label={alt || 'Image unavailable'}
+        className="theme-border theme-bg-subtle theme-text-muted flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed px-4 py-6 text-center"
+      >
+        <span aria-hidden="true" className="text-3xl">🖼️</span>
+        <span className="text-sm font-bold">Image unavailable</span>
+        {fallbackText && (
+          <p className="text-xs font-bold leading-relaxed">{fallbackText}</p>
+        )}
+      </div>
+    )
+  }
+
   return (
     <>
       <button
@@ -35,7 +61,7 @@ export default function ZoomableImage({ src, alt, className = '', wrapperClassNa
         aria-label={`Open ${alt || 'image'} full size`}
         className={`group block w-full cursor-zoom-in border-0 bg-transparent p-0 text-left ${wrapperClassName}`}
       >
-        <img src={src} alt={alt} className={className} loading="lazy" />
+        <img src={src} alt={alt} className={className} loading="lazy" onError={() => setFailed(true)} />
       </button>
 
       {open && (
@@ -61,6 +87,10 @@ export default function ZoomableImage({ src, alt, className = '', wrapperClassNa
             src={src}
             alt={alt}
             onClick={event => event.stopPropagation()}
+            onError={() => {
+              setFailed(true)
+              setOpen(false)
+            }}
             className="max-h-[92vh] max-w-[92vw] cursor-zoom-out object-contain"
           />
         </div>
