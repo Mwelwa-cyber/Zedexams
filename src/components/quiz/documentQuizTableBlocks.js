@@ -112,11 +112,78 @@ function buildSplitRow(texts) {
   return ''
 }
 
-function createBlock(text, assets = [], source = 'docx') {
+function createBlock(text, assets = [], source = 'docx', extras = {}) {
   return {
     text: cleanText(text),
     assets,
     source,
+    ...extras,
+  }
+}
+
+// Phase 3 (image-options row): a wide row where the question cell is followed
+// by 4 cells that each carry an option letter (A./B./C./D.) and an inline
+// image. buildWideQuestionRow can't handle these because it requires non-empty
+// option TEXT — every option here is "A.", "B.", etc. and strips to "".
+// We synthesise an image-option block here with "(image)" placeholders so the
+// parser's OPTION_RE matches; the parser strips the placeholder when it sees
+// an attributed asset for that option, leaving an image-only option in the
+// editor.
+//
+// Returns `{ text, optionAssetsByLetter }` or null if the row doesn't fit.
+function tryImageOptionsRow(cells) {
+  if (cells.length < 5) return null
+
+  let questionNumber = ''
+  let questionText = ''
+  let optionStart = 1
+
+  const firstQ = questionMatch(cells[0].text)
+  if (firstQ) {
+    questionNumber = firstQ.number
+    questionText = firstQ.text
+  } else {
+    const numberOnly = cells[0].text.match(QUESTION_NUMBER_ONLY_RE)
+    if (!numberOnly || !cells[1]) return null
+    questionNumber = numberOnly[1]
+    questionText = cleanText(cells[1].text)
+    optionStart = 2
+  }
+  if (!questionText) return null
+
+  const optionCells = cells.slice(optionStart, optionStart + 4)
+  if (optionCells.length < 4) return null
+
+  // All four option cells must carry the expected letter A-D and have an
+  // image. Mixed text+image options stay on the original buildWideQuestionRow
+  // path (which already produces text and now passes optionAssetsByLetter
+  // through createBlock's extras).
+  const allImageOptions = optionCells.every((cell, index) => (
+    cell.optionLetter === OPTION_LETTERS[index]
+    && Array.isArray(cell.assets) && cell.assets.length > 0
+  ))
+  if (!allImageOptions) return null
+
+  const lines = [`${questionNumber}. ${questionText}`]
+  OPTION_LETTERS.forEach(letter => {
+    // The placeholder gives OPTION_RE something to match; the parser blanks
+    // it out when an attributed asset exists for that option letter.
+    lines.push(`${letter}. (image)`)
+  })
+
+  const answerCells = cells.slice(optionStart + 4)
+  const answerLine = answerCells
+    .map(cell => normalizeAnswerCell(cell.text))
+    .find(Boolean) || ''
+  if (answerLine) lines.push(answerLine)
+
+  const optionAssetsByLetter = Object.fromEntries(
+    OPTION_LETTERS.map((letter, index) => [letter, optionCells[index].assets[0]]),
+  )
+
+  return {
+    text: lines.join('\n'),
+    optionAssetsByLetter,
   }
 }
 
@@ -192,27 +259,55 @@ export function buildDocxTableBlocks(rows = []) {
     const texts = cells.map(cell => cell.text).filter(Boolean)
     const assets = cells.flatMap(cell => cell.assets)
 
+    // Phase 3: when a cell carries an option-letter prefix AND inline images,
+    // attribute the FIRST image to that option slot. The parser uses
+    // optionAssetsByLetter to populate question.optionMedia[i] instead of
+    // dumping every image onto the question stem.
+    const optionAssetsByLetter = {}
+    cells.forEach(cell => {
+      if (cell.optionLetter && Array.isArray(cell.assets) && cell.assets[0]) {
+        // Only assign once per letter — first cell with a given letter wins.
+        if (!optionAssetsByLetter[cell.optionLetter]) {
+          optionAssetsByLetter[cell.optionLetter] = cell.assets[0]
+        }
+      }
+    })
+    const hasOptionAttribution = Object.keys(optionAssetsByLetter).length > 0
+    const blockExtras = hasOptionAttribution ? { optionAssetsByLetter } : {}
+
     if (!texts.length) {
-      if (assets.length) blocks.push(createBlock('', assets))
+      if (assets.length) blocks.push(createBlock('', assets, 'docx', blockExtras))
       return
     }
 
     if (index === 0 && isHeaderRow(texts)) return
 
+    // Image-only options branch: needs to run BEFORE buildWideQuestionRow,
+    // which only accepts options with non-empty text. Passes block.assets=[]
+    // so the option-attributed images never get picked up as the question's
+    // stem image.
+    const imageOptionsRow = tryImageOptionsRow(cells)
+    if (imageOptionsRow) {
+      blocks.push(createBlock(imageOptionsRow.text, [], 'docx', {
+        optionAssetsByLetter: imageOptionsRow.optionAssetsByLetter,
+      }))
+      return
+    }
+
     const wideRow = buildWideQuestionRow(texts)
     if (wideRow) {
-      blocks.push(createBlock(wideRow, assets))
+      blocks.push(createBlock(wideRow, assets, 'docx', blockExtras))
       return
     }
 
     const splitRow = buildSplitRow(texts)
     if (splitRow) {
-      blocks.push(createBlock(splitRow, assets))
+      blocks.push(createBlock(splitRow, assets, 'docx', blockExtras))
       return
     }
 
     const mergedText = texts.join('\n')
-    blocks.push(createBlock(mergedText, assets, texts.length > 1 ? 'docx-table' : 'docx'))
+    blocks.push(createBlock(mergedText, assets, texts.length > 1 ? 'docx-table' : 'docx', blockExtras))
     if (texts.length > 1) fallbackRowCount += 1
   })
 

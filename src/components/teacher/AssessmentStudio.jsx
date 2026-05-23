@@ -938,8 +938,8 @@ export default function AssessmentStudio() {
 
   // Uploads in-memory imported image blobs (produced by documentQuizImporter)
   // to Firebase Storage and returns a Map<assetId, downloadUrl>. The kindSlug
-  // (e.g. "question", "passage") is interpolated into the filename so we can
-  // distinguish where each upload originated when auditing Storage.
+  // (e.g. "question", "passage", "option") is interpolated into the filename
+  // so we can distinguish where each upload originated when auditing Storage.
   async function uploadImportedAssets(assetIds, kindSlug) {
     const uploadedById = new Map()
     if (!assetIds.length) return uploadedById
@@ -980,14 +980,39 @@ export default function AssessmentStudio() {
     return uploadedById
   }
 
+  // Phase 3 extends this beyond question.imageAssetId to also walk each
+  // question's optionMedia[] so per-option imports survive the save.
   async function uploadImportedQuestionImages(questionsToSave) {
-    const assetIds = Array.from(new Set(questionsToSave.map(q => q.imageAssetId).filter(Boolean)))
-    const uploadedById = await uploadImportedAssets(assetIds, 'question')
+    const assetIds = new Set()
+    questionsToSave.forEach(q => {
+      if (q.imageAssetId) assetIds.add(q.imageAssetId)
+      if (Array.isArray(q.optionMedia)) {
+        q.optionMedia.forEach(slot => {
+          if (slot && typeof slot === 'object' && slot.imageAssetId) {
+            assetIds.add(slot.imageAssetId)
+          }
+        })
+      }
+    })
+    const uploadedById = await uploadImportedAssets(Array.from(assetIds), 'question')
     if (!uploadedById.size) return questionsToSave
     return questionsToSave.map(q => {
-      const uploadedUrl = uploadedById.get(q.imageAssetId)
-      if (!uploadedUrl) return q
-      return { ...q, imageUrl: uploadedUrl, imageAssetId: '' }
+      const next = { ...q }
+      const stemUrl = uploadedById.get(q.imageAssetId)
+      if (stemUrl) {
+        next.imageUrl = stemUrl
+        next.imageAssetId = ''
+      }
+      if (Array.isArray(q.optionMedia)) {
+        next.optionMedia = q.optionMedia.map(slot => {
+          if (!slot || typeof slot !== 'object') return slot
+          const url = slot.imageAssetId ? uploadedById.get(slot.imageAssetId) : null
+          if (!url) return slot
+          const { imageAssetId: _unused, ...rest } = slot
+          return { ...rest, imageUrl: url }
+        })
+      }
+      return next
     })
   }
 

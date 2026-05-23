@@ -28,16 +28,19 @@ function stripBlobUrl(value) {
   return typeof value === 'string' && value.startsWith('blob:') ? '' : value
 }
 
+// Phase 3 layer: per-option imports may stamp a blob: URL on
+// optionMedia[i].imageUrl alongside an imageAssetId. Both die when the page
+// session ends, so drop them both while persisting any alt / diagram fields.
 function stripOptionMediaRuntime(optionMedia) {
   if (!Array.isArray(optionMedia)) return optionMedia
   return optionMedia.map(slot => {
     if (!slot || typeof slot !== 'object') return slot
-    if (typeof slot.imageUrl === 'string' && slot.imageUrl.startsWith('blob:')) {
-      const { imageUrl: _imageUrl, ...rest } = slot
-      // Persist alt + diagram if present; drop the dead URL only.
-      return rest
+    const next = { ...slot }
+    if (typeof next.imageUrl === 'string' && next.imageUrl.startsWith('blob:')) {
+      delete next.imageUrl
     }
-    return slot
+    if (next.imageAssetId) delete next.imageAssetId
+    return next
   })
 }
 
