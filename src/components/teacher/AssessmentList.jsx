@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
 import { downloadAssessmentDocx } from '../../utils/assessmentToDocx'
 import { printAssessmentAsPdf } from '../../utils/assessmentToPdf'
+import { summarizeImportReview } from '../../utils/importReviewSummary.js'
 import ImportReviewBadge from '../quiz/ImportReviewBadge'
 import SeoHelmet from '../seo/SeoHelmet'
 
@@ -147,6 +148,10 @@ export default function AssessmentList() {
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState(null)
   const [error, setError] = useState('')
+  // Phase 8: teacher-side counterpart to ManageContent's filter chip — drops
+  // the list to imports the parser flagged for review. Off by default so
+  // a teacher landing here still sees everything.
+  const [needsReviewOnly, setNeedsReviewOnly] = useState(false)
 
   useEffect(() => {
     if (!currentUser?.uid) return
@@ -301,28 +306,77 @@ export default function AssessmentList() {
             + Create assessment
           </button>
         </div>
-      ) : (
-        <>
-          <div className="flex items-center gap-2.5 mb-3" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#ff7a2e' }}>
-            <span style={{ width: 32, height: 3, background: '#ff7a2e', borderRadius: 2, display: 'inline-block', flexShrink: 0 }} />
-            Saved
-          </div>
-          <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 24, color: '#0e2a32', margin: '0 0 16px' }}>
-            {assessments.length} assessment{assessments.length === 1 ? '' : 's'}
-          </h2>
-          <div className="space-y-3">
-            {assessments.map(a => (
-              <AssessmentRow
-                key={a.id}
-                assessment={a}
-                onDelete={handleDelete}
-                onExport={handleExport}
-                busy={busyId === a.id}
-              />
-            ))}
-          </div>
-        </>
-      )}
+      ) : (() => {
+        // Phase 8: filter the list down to imports flagged for review when
+        // the chip is on. Count is computed against the raw list so the
+        // chip can show "(N)" even when needsReviewOnly is off.
+        const needsReviewCount = assessments.reduce(
+          (n, a) => (summarizeImportReview(a).needsReview ? n + 1 : n),
+          0,
+        )
+        const visible = needsReviewOnly
+          ? assessments.filter(a => summarizeImportReview(a).needsReview)
+          : assessments
+
+        return (
+          <>
+            <div className="flex items-center gap-2.5 mb-3" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#ff7a2e' }}>
+              <span style={{ width: 32, height: 3, background: '#ff7a2e', borderRadius: 2, display: 'inline-block', flexShrink: 0 }} />
+              Saved
+            </div>
+            <div className="flex flex-wrap items-baseline justify-between gap-3 mb-4">
+              <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 24, color: '#0e2a32', margin: 0 }}>
+                {needsReviewOnly
+                  ? `${visible.length} of ${assessments.length} need review`
+                  : `${assessments.length} assessment${assessments.length === 1 ? '' : 's'}`}
+              </h2>
+              <button
+                type="button"
+                onClick={() => setNeedsReviewOnly(v => !v)}
+                aria-pressed={needsReviewOnly}
+                disabled={!needsReviewOnly && needsReviewCount === 0}
+                className="rounded-full border-2 px-3 py-1.5 text-xs font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  borderColor: needsReviewOnly ? '#d97706' : '#e5e7eb',
+                  background: needsReviewOnly ? '#fef3c7' : '#fff',
+                  color: needsReviewOnly ? '#92400e' : '#374151',
+                }}
+                title={needsReviewOnly
+                  ? 'Click to show all assessments'
+                  : needsReviewCount > 0
+                    ? `${needsReviewCount} imported assessment${needsReviewCount === 1 ? '' : 's'} flagged for review`
+                    : 'No imports currently need review'}
+              >
+                ⚠️ Needs review
+                {needsReviewCount > 0 && (
+                  <span
+                    className="ml-1.5 inline-flex items-center justify-center rounded-full px-1.5 text-[11px] font-black text-white min-w-[20px]"
+                    style={{ background: '#d97706' }}
+                  >
+                    {needsReviewCount}
+                  </span>
+                )}
+              </button>
+            </div>
+            <div className="space-y-3">
+              {visible.map(a => (
+                <AssessmentRow
+                  key={a.id}
+                  assessment={a}
+                  onDelete={handleDelete}
+                  onExport={handleExport}
+                  busy={busyId === a.id}
+                />
+              ))}
+            </div>
+            {needsReviewOnly && visible.length === 0 && (
+              <p className="text-center text-sm font-bold mt-6" style={{ color: '#566f76' }}>
+                No assessments need review right now. Click the chip again to see all of them.
+              </p>
+            )}
+          </>
+        )
+      })()}
     </div>
   )
 }
