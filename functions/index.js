@@ -103,6 +103,12 @@ const {
 const {
   importCurriculumModules,
 } = require("./teacherTools/importCurriculumModules");
+// Teacher Tools — admin-only preflight that asks the strict learner-AI
+// resolver whether a given grade/subject/topic/subtopic/term would be
+// accepted before the admin queues a task in the Live AI Monitor.
+const {
+  preflightCurriculumRef,
+} = require("./teacherTools/preflightCurriculumRef");
 // CBC knowledge base — used to ground AI quiz questions in the Zambian
 // syllabus. resolveCbcContext returns a rendered <cbc_context> block plus
 // a human-readable warning if the topic wasn't found in the verified KB.
@@ -2075,6 +2081,13 @@ exports.importBuiltInCbcTopics = importBuiltInCbcTopics;
 
 // Teacher Tools — admin-only: bulk import lesson-level curriculum modules.
 exports.importCurriculumModules = importCurriculumModules;
+
+// Teacher Tools — admin-only: preflight a (grade, subject, topic,
+// subtopic, term) tuple against the strict learner-AI curriculum
+// resolver. Used by the Live AI Monitor's batch-generate form to
+// disable subtopics that would fail the no_source_doc_ref / no
+// _curriculum_match gate before the admin presses Queue.
+exports.preflightCurriculumRef = preflightCurriculumRef;
 
 // Syllabus replacement — Phase A. Storage onFinalize parser. Watches
 // syllabus-uploads/{version}/{filename}.xlsx and writes enriched draft

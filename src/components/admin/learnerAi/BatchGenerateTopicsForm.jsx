@@ -2,7 +2,30 @@ import { useEffect, useMemo, useState } from 'react'
 import { collection, doc, serverTimestamp, writeBatch } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
-import { listCbcTopics, subtopicName } from '../../../utils/adminCbcKbService'
+import {
+  listCbcTopics,
+  preflightCurriculumRef,
+  subtopicName,
+} from '../../../utils/adminCbcKbService'
+
+const PREFLIGHT_REASON_LABELS = Object.freeze({
+  missing_required_inputs: 'Missing grade/subject/topic on the KB row.',
+  no_curriculum_match: 'No matching topic or lesson module in the curriculum.',
+  no_source_doc_ref: 'No approved-syllabus reference (sourceDocId) on the lesson module. Attach one in /admin/cbc-kb.',
+  source_doc_not_found: 'sourceDocId points to a missing approvedSyllabi doc.',
+  source_doc_grade_mismatch: 'Approved-syllabus doc is for a different grade.',
+  source_doc_subject_mismatch: 'Approved-syllabus doc is for a different subject.',
+  no_cited_excerpts: 'Lesson module has no outcomes/summary/competencies to cite.',
+  permission_denied: 'Admin only — your session lacks admin role.',
+  callable_error: 'Preflight call failed — try again.',
+  resolver_error: 'Server resolver threw an error.',
+})
+
+function describeReason(reason, fallback) {
+  if (PREFLIGHT_REASON_LABELS[reason]) return PREFLIGHT_REASON_LABELS[reason]
+  if (fallback) return fallback
+  return `Cannot generate (${reason || 'unknown'}).`
+}
 
 // Admin form that drives the learner-AI pipeline from the uploaded
 // CBC syllabus. Reads cbcKnowledgeBase/{activeVersion}/topics/* via
@@ -54,6 +77,8 @@ export default function BatchGenerateTopicsForm({ onBatchQueued }) {
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState(null)
   const [lastResult, setLastResult] = useState(null)
+  // Preflight state: key -> { status: 'loading'|'ok'|'fail', reason?, message? }
+  const [preflight, setPreflight] = useState({})
 
   useEffect(() => {
     let cancelled = false
@@ -104,8 +129,71 @@ export default function BatchGenerateTopicsForm({ onBatchQueued }) {
     })
   }, [topicsForSelection])
 
+  // Run preflight against every visible subtopic, in parallel. The
+  // dispatcher's strict resolver refuses tasks where the matched module
+  // lacks an approved-syllabus reference; surfacing that here saves the
+  // admin from queueing tasks that would only fail at quality_check.
+  useEffect(() => {
+    if (topicsForSelection.length === 0) {
+      setPreflight({})
+      return undefined
+    }
+    let cancelled = false
+    const initial = {}
+    const lookups = []
+    for (const topic of topicsForSelection) {
+      const subtopics = Array.isArray(topic.subtopics) ? topic.subtopics : []
+      subtopics.forEach((s, idx) => {
+        const key = selectionKey(topic.id, idx)
+        initial[key] = { status: 'loading' }
+        lookups.push({ key, topic, subtopic: s })
+      })
+    }
+    setPreflight(initial)
+    Promise.all(lookups.map(async ({ key, topic, subtopic }) => {
+      const result = await preflightCurriculumRef({
+        grade: topic.grade,
+        subject: topic.subject,
+        topic: topic.topic,
+        subtopic: subtopicName(subtopic),
+        term: Number(topic.term) || null,
+      })
+      return { key, result }
+    })).then((results) => {
+      if (cancelled) return
+      setPreflight((prev) => {
+        const next = { ...prev }
+        for (const { key, result } of results) {
+          if (result && result.ok) next[key] = { status: 'ok' }
+          else next[key] = {
+            status: 'fail',
+            reason: (result && result.reason) || 'unknown',
+            message: result && result.message,
+          }
+        }
+        return next
+      })
+      // Drop any pre-existing selections that now fail preflight.
+      setSelected((prev) => {
+        const failKeys = new Set(
+          results.filter((r) => !(r.result && r.result.ok)).map((r) => r.key),
+        )
+        if (failKeys.size === 0) return prev
+        const next = { ...prev }
+        for (const k of failKeys) delete next[k]
+        return next
+      })
+    }).catch((err) => {
+      if (cancelled) return
+      console.warn('preflight batch failed', err)
+    })
+    return () => { cancelled = true }
+  }, [topicsForSelection])
+
   function toggleSubtopic(topic, subtopic, idx) {
     const key = selectionKey(topic.id, idx)
+    const pf = preflight[key]
+    if (pf && pf.status !== 'ok') return
     setSelected((prev) => {
       const next = { ...prev }
       if (next[key]) delete next[key]
@@ -118,13 +206,19 @@ export default function BatchGenerateTopicsForm({ onBatchQueued }) {
     setSelected((prev) => {
       const next = { ...prev }
       const subtopics = Array.isArray(topic.subtopics) ? topic.subtopics : []
-      const allKeys = subtopics.map((_, idx) => selectionKey(topic.id, idx))
-      const allSelected = allKeys.every((k) => next[k])
+      const okKeys = subtopics
+          .map((_, idx) => selectionKey(topic.id, idx))
+          .filter((k) => (preflight[k] && preflight[k].status === 'ok'))
+      if (okKeys.length === 0) return prev
+      const allSelected = okKeys.every((k) => next[k])
       if (allSelected) {
-        for (const k of allKeys) delete next[k]
+        for (const k of okKeys) delete next[k]
       } else {
         subtopics.forEach((s, idx) => {
-          next[selectionKey(topic.id, idx)] = { topic, subtopic: s }
+          const key = selectionKey(topic.id, idx)
+          if (preflight[key] && preflight[key].status === 'ok') {
+            next[key] = { topic, subtopic: s }
+          }
         })
       }
       return next
@@ -264,7 +358,10 @@ export default function BatchGenerateTopicsForm({ onBatchQueued }) {
               {topicsForSelection.map((topic) => {
                 const subtopics = Array.isArray(topic.subtopics) ? topic.subtopics : []
                 const allKeys = subtopics.map((_, idx) => selectionKey(topic.id, idx))
-                const allSelected = allKeys.length > 0 && allKeys.every((k) => selected[k])
+                const okKeys = allKeys.filter((k) => preflight[k] && preflight[k].status === 'ok')
+                const allSelected = okKeys.length > 0 && okKeys.every((k) => selected[k])
+                const failCount = allKeys.filter((k) => preflight[k] && preflight[k].status === 'fail').length
+                const loadingCount = allKeys.filter((k) => !preflight[k] || preflight[k].status === 'loading').length
                 return (
                   <div key={topic.id} className="p-3">
                     <div className="flex items-center justify-between gap-2 mb-2">
@@ -274,15 +371,21 @@ export default function BatchGenerateTopicsForm({ onBatchQueued }) {
                         </div>
                         <div className="text-[11px] text-slate-500">
                           Term {Number(topic.term) || '?'} · {subtopics.length} subtopic{subtopics.length === 1 ? '' : 's'}
+                          {failCount > 0 && (
+                            <span className="ml-2 text-amber-700">{failCount} blocked</span>
+                          )}
+                          {loadingCount > 0 && (
+                            <span className="ml-2 text-slate-400">{loadingCount} checking…</span>
+                          )}
                         </div>
                       </div>
-                      {subtopics.length > 0 && (
+                      {okKeys.length > 0 && (
                         <button
                           type="button"
                           onClick={() => toggleAllForTopic(topic)}
                           className="text-[11px] font-semibold text-emerald-700 hover:underline shrink-0"
                         >
-                          {allSelected ? 'Clear all' : 'Select all'}
+                          {allSelected ? 'Clear all' : `Select all (${okKeys.length})`}
                         </button>
                       )}
                     </div>
@@ -295,18 +398,40 @@ export default function BatchGenerateTopicsForm({ onBatchQueued }) {
                         {subtopics.map((s, idx) => {
                           const key = selectionKey(topic.id, idx)
                           const name = subtopicName(s)
+                          const pf = preflight[key]
+                          const isLoading = !pf || pf.status === 'loading'
+                          const isBlocked = pf && pf.status === 'fail'
+                          const tooltip = isBlocked ? describeReason(pf.reason, pf.message) : ''
                           return (
                             <label
                               key={key}
-                              className="flex items-start gap-2 text-xs text-slate-700 cursor-pointer p-1.5 rounded hover:bg-slate-50"
+                              title={tooltip}
+                              className={
+                                `flex items-start gap-2 text-xs p-1.5 rounded ${
+                                  isBlocked
+                                    ? 'text-slate-400 cursor-not-allowed bg-amber-50/40'
+                                    : 'text-slate-700 cursor-pointer hover:bg-slate-50'
+                                }`
+                              }
                             >
                               <input
                                 type="checkbox"
                                 checked={!!selected[key]}
                                 onChange={() => toggleSubtopic(topic, s, idx)}
+                                disabled={isLoading || isBlocked}
                                 className="mt-0.5"
                               />
-                              <span className="leading-snug">{name || `Subtopic ${idx + 1}`}</span>
+                              <span className="leading-snug">
+                                {name || `Subtopic ${idx + 1}`}
+                                {isLoading && (
+                                  <span className="ml-2 text-[10px] text-slate-400">checking…</span>
+                                )}
+                                {isBlocked && (
+                                  <span className="ml-2 text-[10px] text-amber-700">
+                                    blocked · {pf.reason}
+                                  </span>
+                                )}
+                              </span>
                             </label>
                           )
                         })}
