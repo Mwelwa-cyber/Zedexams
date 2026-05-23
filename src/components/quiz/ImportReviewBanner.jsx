@@ -58,6 +58,13 @@ export default function ImportReviewBanner({ record, onMarkReviewed, busy = fals
             {summary.sourceFileName
               ? <>Parsed from <code className="rounded bg-amber-100 px-1.5 py-0.5 font-mono">{summary.sourceFileName}</code>.</>
               : 'Parsed from an uploaded document.'}
+            {/* Phase 10: lead with the live question-level count when we
+                have it — it's what the teacher actually needs to act on.
+                Warning count comes second; for pre-Phase-10 docs it's the
+                only number we have. */}
+            {summary.reviewCount !== null && summary.reviewCount > 0 && (
+              <>{' '}<strong>{summary.reviewCount} question{summary.reviewCount === 1 ? '' : 's'}</strong> still flagged for review.</>
+            )}
             {summary.warningCount > 0 && (
               <>{' '}The importer raised {summary.warningCount} warning{summary.warningCount === 1 ? '' : 's'} — fix anything that looks wrong, then mark as reviewed.</>
             )}

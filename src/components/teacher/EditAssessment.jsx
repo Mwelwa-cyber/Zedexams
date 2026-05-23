@@ -794,13 +794,23 @@ export default function EditAssessment() {
   }
 
   // Phase 9: ImportReviewBanner click handler. Patches the assessment
-  // doc to clear the import-review state and mirrors the change locally
-  // so the banner unmounts immediately.
+  // doc to clear the import-review state — Phase 10 extends this to also
+  // zero out the persisted reviewCount so the badge/chip/banner agree
+  // the doc is now clean.
   async function handleMarkImportReviewed() {
     if (!assessmentId) return
     try {
-      await updateAssessment(assessmentId, { importStatus: 'success', importWarnings: [] })
-      setForm(curr => ({ ...curr, importStatus: 'success', importWarnings: [] }))
+      await updateAssessment(assessmentId, {
+        importStatus: 'success',
+        importWarnings: [],
+        reviewCount: 0,
+      })
+      setForm(curr => ({
+        ...curr,
+        importStatus: 'success',
+        importWarnings: [],
+        reviewCount: 0,
+      }))
       show('Cleared the review flag.')
     } catch (err) {
       show(`Could not update: ${getErrorMessage(err, 'unexpected error')}`, true)
@@ -830,6 +840,12 @@ export default function EditAssessment() {
           passages: serializedSections.passages,
           parts: serializedSections.parts,
           passageCount: serializedSections.passages.length,
+          // Phase 10: persisted count of questions still flagged for review.
+          // Recomputed on every save so the badge / chip / banner stay
+          // honest as teachers fix the flagged questions one by one.
+          reviewCount: form.mode === 'imported_document'
+            ? serializedSections.questions.filter(q => q?.requiresReview).length
+            : 0,
           mode: form.mode,
           importStatus: form.importStatus,
           sourceFileName: form.sourceFileName,

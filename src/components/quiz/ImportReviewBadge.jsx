@@ -38,20 +38,29 @@ export default function ImportReviewBadge({ record, variant = 'light', className
   // Build a single tooltip string that the host's native title attribute
   // can render. Better tooltips (rich popover) are a follow-up; this
   // already gets the warnings in front of the teacher with zero new deps.
+  const reviewLine = summary.reviewCount !== null && summary.reviewCount > 0
+    ? `${summary.reviewCount} question${summary.reviewCount === 1 ? '' : 's'} still flagged for review`
+    : null
   const tooltipLines = [
     `Imported from ${summary.sourceFileName || 'unnamed source'}`,
+    reviewLine,
     summary.warningCount > 0
       ? `${summary.warningCount} import warning${summary.warningCount === 1 ? '' : 's'}:`
-      : 'Marked as needs review.',
+      : reviewLine ? null : 'Marked as needs review.',
     ...summary.sampleWarnings.map(line => `• ${line}`),
     summary.warningCount > summary.sampleWarnings.length
       ? `(and ${summary.warningCount - summary.sampleWarnings.length} more)`
       : '',
   ].filter(Boolean).join('\n')
 
-  const countSuffix = summary.warningCount > 0
-    ? ` · ${summary.warningCount} warning${summary.warningCount === 1 ? '' : 's'}`
-    : ''
+  // Phase 10: prefer the live question-level review count when available
+  // (it stays honest as teachers fix flagged questions). Falls back to the
+  // warning count from the original import for pre-Phase-10 docs.
+  const countSuffix = summary.reviewCount !== null && summary.reviewCount > 0
+    ? ` · ${summary.reviewCount} to review`
+    : summary.warningCount > 0
+      ? ` · ${summary.warningCount} warning${summary.warningCount === 1 ? '' : 's'}`
+      : ''
 
   return (
     <span

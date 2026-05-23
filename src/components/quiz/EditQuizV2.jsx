@@ -903,6 +903,7 @@ export default function EditQuizV2() {
           passages: serializedSections.passages,
           parts: serializedSections.parts,
           passageCount: serializedSections.passages.length,
+          reviewCount: computeReviewCount(serializedSections.questions),
           // Auto-save never flips publish status — and we already bail
           // above for `published`, so this branch only runs for drafts /
           // pending. The status passthrough preserves whichever of those
@@ -974,18 +975,30 @@ export default function EditQuizV2() {
     }
   }, [dirty, quizId, canEdit])
 
+  // Phase 10: shared count helper called from every save path. Imported
+  // docs persist a fresh count of how many questions still carry
+  // requiresReview so the badge/banner stay honest as teachers fix the
+  // flagged questions over multiple save cycles. Non-imports always
+  // persist 0 — the field is universal so the summarizer doesn't have to
+  // care which path created the doc.
+  function computeReviewCount(questionsForSave) {
+    if (form.mode !== 'imported_document') return 0
+    return questionsForSave.filter(q => q?.requiresReview).length
+  }
+
   // Phase 9: ImportReviewBanner calls this when the teacher clicks
   // "Mark as reviewed". Patches the quiz doc to clear the importStatus
-  // flag and the importWarnings array, then mirrors the change in local
-  // form state so the banner unmounts immediately (no waiting for a
-  // reload). Pre-existing question records and per-question requiresReview
-  // flags are left alone — those still surface on the individual question
-  // cards via reviewNotes / importWarnings.
+  // flag, the importWarnings array, and the persisted review count
+  // (Phase 10) so all three signals agree the doc is clean. Then mirrors
+  // the change in local form state so the banner unmounts immediately
+  // (no waiting for a reload). Pre-existing question records and
+  // per-question requiresReview flags are left alone — those still surface
+  // on the individual question cards via reviewNotes / importWarnings.
   async function handleMarkImportReviewed() {
     if (!quizId) return
     try {
-      await updateQuiz(quizId, { importStatus: 'success', importWarnings: [] })
-      setForm(curr => ({ ...curr, importStatus: 'success', importWarnings: [] }))
+      await updateQuiz(quizId, { importStatus: 'success', importWarnings: [], reviewCount: 0 })
+      setForm(curr => ({ ...curr, importStatus: 'success', importWarnings: [], reviewCount: 0 }))
       show('Cleared the review flag.')
     } catch (err) {
       show(`Could not update: ${getErrorMessage(err, 'unexpected error')}`, true)
@@ -1033,6 +1046,7 @@ export default function EditQuizV2() {
           passages: serializedSections.passages,
           parts: serializedSections.parts,
           passageCount: serializedSections.passages.length,
+          reviewCount: computeReviewCount(serializedSections.questions),
           status: mode,
           isPublished,
           updatedBy: currentUser.uid,
@@ -1088,6 +1102,7 @@ export default function EditQuizV2() {
           passages: serializedSections.passages,
           parts: serializedSections.parts,
           passageCount: serializedSections.passages.length,
+          reviewCount: computeReviewCount(serializedSections.questions),
           status: nextStatus,
           isPublished: nextStatus === 'published',
           updatedBy: currentUser.uid,
