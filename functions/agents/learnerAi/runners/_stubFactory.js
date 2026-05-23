@@ -150,6 +150,12 @@ function makeRunner(cfg) {
       zambianStandardsCheck: {},
       supervisorDecision: {},
       version: 1,
+      // Back-link to the source task. Powers the rule extension that
+      // lets the teacher who queued the task preview the draft before
+      // an admin approves it. The dispatcher already stamps the
+      // forward link (aiAgentTasks.resultContentId); this is the
+      // reverse pointer for the cross-collection rule check.
+      sourceTaskId: task.id ? String(task.id) : null,
       createdBy: "ai",
       reviewedBy: null,
       createdAt: admin.firestore.FieldValue.serverTimestamp(),

@@ -287,6 +287,16 @@ export const aiGeneratedContentWriteSchema = z.object({
   zambianStandardsCheck: z.object({}).passthrough(),
   supervisorDecision: z.object({}).passthrough(),
   version: z.number().int().min(1),
+  // Back-link to the source `aiAgentTasks/{}` doc. Powers the rule
+  // branch that lets the teacher who queued the task preview the
+  // draft before admin approval. Optional + nullable for older docs
+  // written before the back-link landed.
+  sourceTaskId: z.string().max(120).nullable().optional(),
+  // Set by the dispatcher when a NEW artifact for the same
+  // (grade, subject, topic, subtopic) gets approved + published.
+  // Carries the new doc's id so the audit trail makes the
+  // supersede relationship explicit.
+  supersededBy: z.string().max(120).nullable().optional(),
   createdBy: z.literal('ai'),
   reviewedBy: z.string().max(120).nullable(),
   createdAt: timestampish,
