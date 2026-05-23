@@ -9,6 +9,40 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { prettyAgentName } from './agentRegistry'
 import SeoHelmet from '../../seo/SeoHelmet'
 
+// Render any of "4" / "G4" / "Grade 4" as "Grade 4". Defends against
+// the historic mix of grade formats across task writers — the
+// AgentBriefForm wrote "G4", the test-button (#566) wrote "Grade 4"
+// before this fix, and aiPracticeQuizService writes the artifact's
+// raw grade. Without normalisation the header rendered "GGrade 4"
+// for the test button's malformed value.
+function formatGrade(raw) {
+  if (raw == null) return ''
+  const s = String(raw).trim()
+  if (!s) return ''
+  // Already "Grade X" — leave it.
+  if (/^grade\s/i.test(s)) return s.replace(/^grade\s+/i, 'Grade ')
+  // "G4" / "G12" — strip the G prefix.
+  const gMatch = s.match(/^G(\d+)$/i)
+  if (gMatch) return `Grade ${gMatch[1]}`
+  // Bare digit — prepend "Grade ".
+  if (/^\d+$/.test(s)) return `Grade ${s}`
+  // Anything else (e.g. "ECE") — pass through verbatim.
+  return s
+}
+
+// Render "1" / "Term 1" / "T1" as "Term 1". Same defensive
+// normalisation as formatGrade.
+function formatTerm(raw) {
+  if (raw == null) return ''
+  const s = String(raw).trim()
+  if (!s) return ''
+  if (/^term\s/i.test(s)) return s.replace(/^term\s+/i, 'Term ')
+  const tMatch = s.match(/^T(\d+)$/i)
+  if (tMatch) return `Term ${tMatch[1]}`
+  if (/^\d+$/.test(s)) return `Term ${s}`
+  return s
+}
+
 function Section({ title, children }) {
   return (
     <section className="mb-6 border border-slate-200 rounded-lg bg-white p-4">
@@ -140,7 +174,9 @@ export default function TaskDetailPage() {
           <span className="ml-2 text-sm font-normal text-slate-500">{task.status}</span>
         </h1>
         <div className="text-sm text-slate-600 mt-1">
-          G{task.grade} · {task.subject} · {task.topic || '—'} {task.subtopic ? `/ ${task.subtopic}` : ''}
+          {formatGrade(task.grade) || '—'} · {task.subject || '—'}
+          {task.term ? ` · ${formatTerm(task.term)}` : ''}
+          {' · '}{task.topic || '—'}{task.subtopic ? ` / ${task.subtopic}` : ''}
           {task.agentName ? ` · agent: ${prettyAgentName(task.agentName)}` : ''}
         </div>
         {task.errorMessage && (

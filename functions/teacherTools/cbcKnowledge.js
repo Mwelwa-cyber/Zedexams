@@ -344,16 +344,21 @@ function renderFallbackContext({grade, subject, topic, subtopic}) {
 /**
  * Canonicalise a grade label for KB lookups. The CBC seeds + the
  * teacher-side AgentBriefForm both write grades as "G4" (with the
- * leading "G"). But the learner-AI runtime + per-attempt task writers
+ * leading "G"). The learner-AI runtime + per-attempt task writers
  * (src/utils/aiPracticeQuizService.js) sometimes pass a bare digit
- * like "4". Both must resolve to the same KB entry.
+ * like "4". The admin Live Monitor's manual test trigger (PR #566,
+ * pre-#569 fix) wrote the human-readable "Grade 4" form. All three
+ * must resolve to the same KB entry.
  *
  * Rules:
- *   "4"     → "G4"
- *   "g4"    → "G4"
- *   "G4"    → "G4"
- *   " G 4 " → "G4"
- *   ""      → ""
+ *   "4"        → "G4"
+ *   "g4"       → "G4"
+ *   "G4"       → "G4"
+ *   " G 4 "    → "G4"
+ *   "Grade 4"  → "G4"
+ *   "GRADE 4"  → "G4"
+ *   "grade 4"  → "G4"
+ *   ""         → ""
  *
  * Idempotent. Called from every public lookup helper below.
  */
@@ -363,6 +368,9 @@ function normalizeGrade(grade) {
   if (!raw) return "";
   if (/^G\d+$/.test(raw)) return raw;
   if (/^\d+$/.test(raw)) return `G${raw}`;
+  // "GRADE4" / "GRADE 4" → "G4" (whitespace already stripped above).
+  const gradeMatch = raw.match(/^GRADE(\d+)$/);
+  if (gradeMatch) return `G${gradeMatch[1]}`;
   // Anything else (e.g. "ECE", "PP1") is left alone — KB stores it verbatim.
   return raw;
 }
