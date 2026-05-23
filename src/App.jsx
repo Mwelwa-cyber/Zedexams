@@ -131,12 +131,18 @@ const AgentsAllJobs   = lazy(() => import('./components/admin/agents/AgentsHome'
 const AgentProfile    = lazy(() => import('./components/admin/agents/AgentsHome').then(m => ({ default: m.AgentProfile })))
 const AgentJobDetail  = lazy(() => import('./components/admin/agents/AgentJobDetail'))
 
-// Learner-AI admin pages (parallel pipeline at /admin/learner-ai).
+// Learner-AI admin pages (AI Control Centre at /admin/learner-ai).
 const LearnerAiHome           = lazy(() => import('./components/admin/learnerAi/LearnerAiHome'))
 const LearnerAiTaskDetail     = lazy(() => import('./components/admin/learnerAi/TaskDetailPage'))
 const LearnerAiLogs           = lazy(() => import('./components/admin/learnerAi/AgentLogsTable'))
 const LearnerAiCurriculumRpts = lazy(() => import('./components/admin/learnerAi/CurriculumUpdateReports'))
 const LearnerAiStandards      = lazy(() => import('./components/admin/learnerAi/AssessmentStandardsList'))
+// Phase A content-management tabs.
+const LearnerAiContentType    = lazy(() => import('./components/admin/learnerAi/ContentTypePage'))
+const LearnerAiFailedChecks   = lazy(() => import('./components/admin/learnerAi/FailedChecksPage'))
+const LearnerAiWeakness       = lazy(() => import('./components/admin/learnerAi/WeaknessReportsList'))
+const LearnerAiReports        = lazy(() => import('./components/admin/learnerAi/AgentReports'))
+const LearnerAiSettings       = lazy(() => import('./components/admin/learnerAi/AgentSettings'))
 
 // Teacher — Agent submissions
 const AgentBriefForm       = lazy(() => import('./components/teacher/AgentBriefForm'))
@@ -503,6 +509,16 @@ export default function App() {
           <Route path="/admin/learner-ai/logs"                   element={<AdminRoute><LearnerAiLogs /></AdminRoute>} />
           <Route path="/admin/learner-ai/curriculum-updates"     element={<AdminRoute><LearnerAiCurriculumRpts /></AdminRoute>} />
           <Route path="/admin/learner-ai/standards"              element={<AdminRoute><LearnerAiStandards /></AdminRoute>} />
+          {/* Phase A content-management tabs */}
+          <Route path="/admin/learner-ai/practice-quizzes"       element={<AdminRoute><LearnerAiContentType typeFilter="practice_quiz" /></AdminRoute>} />
+          <Route path="/admin/learner-ai/exam-quizzes"           element={<AdminRoute><LearnerAiContentType typeFilter="exam_quiz" /></AdminRoute>} />
+          <Route path="/admin/learner-ai/notes-drafts"           element={<AdminRoute><LearnerAiContentType typeFilter="notes" /></AdminRoute>} />
+          <Route path="/admin/learner-ai/study-tips"             element={<AdminRoute><LearnerAiContentType typeFilter="study_tips" /></AdminRoute>} />
+          <Route path="/admin/learner-ai/feedback"               element={<AdminRoute><LearnerAiContentType typeFilter="learner_feedback" /></AdminRoute>} />
+          <Route path="/admin/learner-ai/failed-checks"          element={<AdminRoute><LearnerAiFailedChecks /></AdminRoute>} />
+          <Route path="/admin/learner-ai/weakness"               element={<AdminRoute><LearnerAiWeakness /></AdminRoute>} />
+          <Route path="/admin/learner-ai/reports"                element={<AdminRoute><LearnerAiReports /></AdminRoute>} />
+          <Route path="/admin/learner-ai/settings"               element={<AdminRoute><LearnerAiSettings /></AdminRoute>} />
 
           {/* ── Teacher routes (all wrapped in TeacherLayout) ─── */}
           {/* Post-upgrade celebration page — full-bleed, outside TeacherLayout chrome */}
