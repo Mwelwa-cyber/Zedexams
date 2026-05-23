@@ -597,10 +597,79 @@ function createAiAgentTasksOnApproved() {
         changeType: VERSION_CHANGE_TYPES.PUBLISHED,
         changeReason: null,
       }).catch(() => { /* swallow */ });
+
+      // Demote any sibling docs that were already published for the
+      // same (type, grade, subject, topic, subtopic). After admin
+      // regenerates an approved quiz, the new content is published
+      // — the OLD published doc is no longer current and must not
+      // surface in the learner-facing list. Setting status='superseded'
+      // pulls it out of the rule's `status=='published'` gate without
+      // deleting it (admin retains audit visibility).
+      await demoteSiblingPublishedContent({
+        keepContentId: resolvedContentRef.id,
+        taskType: after.taskType,
+        grade: after.grade,
+        subject: after.subject,
+        topic: after.topic,
+        subtopic: after.subtopic,
+      }).catch((err) => {
+        console.warn("[learner-ai dispatcher] sibling demote failed",
+            err && err.message);
+      });
     }
 
     await setTaskFields(taskRef, {status: TASK_STATUS.PUBLISHED});
   });
+}
+
+/**
+ * Find every other aiGeneratedContent doc with status='published'
+ * matching the same (type, grade, subject, topic, subtopic) tuple
+ * and demote it to status='superseded'. Used after admin regenerate
+ * + admin approve so the learner-facing list shows only the latest.
+ *
+ * Best-effort: caller .catch()s any failure. The demotion is an
+ * audit improvement, not a hard correctness guarantee — the new
+ * content is already published and learners see it ordered by
+ * createdAt desc, so worst case they see two versions briefly.
+ *
+ * Writes:
+ *   - aiGeneratedContent/<oldId>.status = 'superseded'
+ *   - aiGeneratedContent/<oldId>.supersededBy = <keepContentId>
+ *   - aiGeneratedContentVersions/<auto> with changeType='superseded'
+ */
+async function demoteSiblingPublishedContent({
+  keepContentId, taskType, grade, subject, topic, subtopic,
+}) {
+  if (!taskType || !grade || !subject || !topic) return;
+  const snap = await admin.firestore()
+      .collection(COLLECTIONS.CONTENT)
+      .where("type", "==", String(taskType))
+      .where("grade", "==", String(grade))
+      .where("subject", "==", String(subject))
+      .where("topic", "==", String(topic))
+      .where("subtopic", "==", String(subtopic || ""))
+      .where("status", "==", CONTENT_STATUS.PUBLISHED)
+      .get();
+  if (snap.empty) return;
+  const batch = admin.firestore().batch();
+  let demoted = 0;
+  for (const doc of snap.docs) {
+    if (doc.id === keepContentId) continue;
+    batch.update(doc.ref, {
+      status: "superseded",
+      supersededBy: keepContentId,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+    demoted += 1;
+    recordContentVersion({
+      contentId: doc.id,
+      changedBy: "system",
+      changeType: "superseded",
+      changeReason: `Superseded by ${keepContentId}`,
+    }).catch(() => { /* swallow */ });
+  }
+  if (demoted > 0) await batch.commit();
 }
 
 // Resolve the content doc the task points at. Pulled out of

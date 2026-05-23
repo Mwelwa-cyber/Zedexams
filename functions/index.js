@@ -2151,10 +2151,14 @@ const {
   createAiAgentHealthCheckScheduled,
   createCurriculumUpdateCheckerScheduled,
 } = require("./agents/learnerAi/healthCheck");
+const {
+  createCurriculumUpdateReportsOnApproved,
+} = require("./agents/learnerAi/curriculumApprover");
 exports.aiAgentTasksOnCreate = createAiAgentTasksOnCreate();
 exports.aiAgentTasksOnApproved = createAiAgentTasksOnApproved();
 exports.aiAgentHealthCheckScheduled = createAiAgentHealthCheckScheduled();
 exports.curriculumUpdateCheckerScheduled = createCurriculumUpdateCheckerScheduled();
+exports.curriculumUpdateReportsOnApproved = createCurriculumUpdateReportsOnApproved();
 
 // Storage cleanup — cascade-deletes Storage blobs when their parent
 // Firestore docs are deleted, removes orphans left by image/file swaps,
