@@ -34,6 +34,7 @@ import { richTextHasContent, richTextToPlainText } from '../../utils/quizRichTex
 import { clampInt } from '../../utils/inputs.js'
 import { getErrorMessage } from '../../utils/errors.js'
 import { validateStandaloneQuestion as sharedValidateStandaloneQuestion } from '../../utils/quizValidation.js'
+import { assertNoBlobImageUrls } from '../../utils/importedQuizAssets.js'
 import SeoHelmet from '../seo/SeoHelmet'
 import {
   QUIZ_DOCUMENT_ACCEPT,
@@ -935,9 +936,53 @@ export default function AssessmentStudio() {
     return true
   }
 
+  // Uploads in-memory imported image blobs (produced by documentQuizImporter)
+  // to Firebase Storage and returns a Map<assetId, downloadUrl>. The kindSlug
+  // (e.g. "question", "passage", "option") is interpolated into the filename
+  // so we can distinguish where each upload originated when auditing Storage.
+  async function uploadImportedAssets(assetIds, kindSlug) {
+    const uploadedById = new Map()
+    if (!assetIds.length) return uploadedById
+    if (!currentUser?.uid) throw new Error('Please sign in before saving imported quiz images.')
+
+    const uploadedRefs = []
+    try {
+      for (const assetId of assetIds) {
+        const asset = importedAssets[assetId]
+        if (!asset?.blob) {
+          throw new Error('An imported image is no longer available. Please re-import the document.')
+        }
+        const sourceFile = new File([asset.blob], asset.fileName || `${assetId}.jpg`, {
+          type: asset.contentType || 'image/jpeg',
+        })
+        const uploadBlob = await compressImage(sourceFile)
+        const fileName = `${Date.now()}-${kindSlug}-${safeStorageName(assetId)}.jpg`
+        const path = `assessment-images/${currentUser.uid}/imports/${fileName}`
+        const ref = storageRef(storage, path)
+        const snapshot = await uploadBytes(ref, uploadBlob, {
+          contentType: 'image/jpeg',
+          customMetadata: {
+            sourceFileName: form.sourceFileName || '',
+            sourcePath: asset.sourcePath || '',
+          },
+        })
+        uploadedRefs.push(snapshot.ref)
+        uploadedById.set(assetId, await getDownloadURL(snapshot.ref))
+      }
+    } catch (error) {
+      const { deleteObject } = await import('firebase/storage')
+      await Promise.all(uploadedRefs.map(ref =>
+        deleteObject(ref).catch(cleanupError => console.warn('Orphaned upload cleanup failed:', cleanupError))
+      ))
+      throw error
+    }
+
+    return uploadedById
+  }
+
+  // Phase 3 extends this beyond question.imageAssetId to also walk each
+  // question's optionMedia[] so per-option imports survive the save.
   async function uploadImportedQuestionImages(questionsToSave) {
-    // Phase 3: also walk question.optionMedia[*].imageAssetId so per-option
-    // imports flow through Storage the same way question-stem images do.
     const assetIds = new Set()
     questionsToSave.forEach(q => {
       if (q.imageAssetId) assetIds.add(q.imageAssetId)
@@ -949,42 +994,11 @@ export default function AssessmentStudio() {
         })
       }
     })
-    if (!assetIds.size) return questionsToSave
-    if (!currentUser?.uid) throw new Error('Please sign in before saving imported quiz images.')
-    const uploadedById = {}
-    const uploadedRefs = []
-    try {
-      for (const assetId of assetIds) {
-        const asset = importedAssets[assetId]
-        if (!asset?.blob) {
-          throw new Error('An imported question image is no longer available. Please re-import the document.')
-        }
-        const sourceFile = new File([asset.blob], asset.fileName || `${assetId}.jpg`, {
-          type: asset.contentType || 'image/jpeg',
-        })
-        const uploadBlob = await compressImage(sourceFile)
-        const path = `assessment-images/${currentUser.uid}/imports/${Date.now()}-${safeStorageName(assetId)}.jpg`
-        const ref = storageRef(storage, path)
-        const snapshot = await uploadBytes(ref, uploadBlob, {
-          contentType: 'image/jpeg',
-          customMetadata: {
-            sourceFileName: form.sourceFileName || '',
-            sourcePath: asset.sourcePath || '',
-          },
-        })
-        uploadedRefs.push(snapshot.ref)
-        uploadedById[assetId] = await getDownloadURL(snapshot.ref)
-      }
-    } catch (error) {
-      const { deleteObject } = await import('firebase/storage')
-      await Promise.all(uploadedRefs.map(ref =>
-        deleteObject(ref).catch(cleanupError => console.warn('Orphaned upload cleanup failed:', cleanupError))
-      ))
-      throw error
-    }
+    const uploadedById = await uploadImportedAssets(Array.from(assetIds), 'question')
+    if (!uploadedById.size) return questionsToSave
     return questionsToSave.map(q => {
       const next = { ...q }
-      const stemUrl = uploadedById[q.imageAssetId]
+      const stemUrl = uploadedById.get(q.imageAssetId)
       if (stemUrl) {
         next.imageUrl = stemUrl
         next.imageAssetId = ''
@@ -992,7 +1006,7 @@ export default function AssessmentStudio() {
       if (Array.isArray(q.optionMedia)) {
         next.optionMedia = q.optionMedia.map(slot => {
           if (!slot || typeof slot !== 'object') return slot
-          const url = slot.imageAssetId ? uploadedById[slot.imageAssetId] : null
+          const url = slot.imageAssetId ? uploadedById.get(slot.imageAssetId) : null
           if (!url) return slot
           const { imageAssetId: _unused, ...rest } = slot
           return { ...rest, imageUrl: url }
@@ -1002,12 +1016,30 @@ export default function AssessmentStudio() {
     })
   }
 
+  // Same shape as uploadImportedQuestionImages, but for the parallel
+  // passages[] list. Without this, a passage diagram extracted by the
+  // importer would persist as a dead blob: URL after save.
+  async function uploadImportedPassageImages(passagesToSave) {
+    const assetIds = Array.from(new Set(passagesToSave.map(p => p.imageAssetId).filter(Boolean)))
+    const uploadedById = await uploadImportedAssets(assetIds, 'passage')
+    if (!uploadedById.size) return passagesToSave
+    return passagesToSave.map(p => {
+      const uploadedUrl = uploadedById.get(p.imageAssetId)
+      if (!uploadedUrl) return p
+      return { ...p, imageUrl: uploadedUrl, imageAssetId: '' }
+    })
+  }
+
   async function handleSave() {
     if (!validate()) return
     setSaving(true)
     try {
       const serialized = serializeQuizSections(sections, parts)
       const questionsForSave = await uploadImportedQuestionImages(serialized.questions)
+      const passagesForSave = await uploadImportedPassageImages(serialized.passages)
+      // Defensive: catch any blob: URL that slipped through the upload pass
+      // before it can land in Firestore and break for every learner.
+      assertNoBlobImageUrls(questionsForSave, passagesForSave)
       const totalMarksForSave = questionsForSave.reduce((sum, q) => sum + (q.marks || 1), 0)
       const library = classifyForLibrary({
         libraryType: LIBRARY_TYPES.ASSESSMENTS,
@@ -1033,9 +1065,9 @@ export default function AssessmentStudio() {
         schoolLogoUrl: form.schoolLogoUrl,
         endOfPaperText: form.endOfPaperText,
         footerCode,
-        passages: serialized.passages,
+        passages: passagesForSave,
         parts: serialized.parts,
-        passageCount: serialized.passages.length,
+        passageCount: passagesForSave.length,
         totalMarks: totalMarksForSave,
         questionCount: questionsForSave.length,
         mode: form.mode,

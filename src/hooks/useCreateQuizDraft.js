@@ -20,10 +20,17 @@ function draftKey(userId) {
   return `${KEY_PREFIX}${userId}`
 }
 
-// Phase 3: per-option imports may stamp a blob: URL on optionMedia[i].imageUrl
-// alongside an imageAssetId. The asset id is dropped below; we also need to
-// drop the blob: URL because it's bound to the page session that created it
-// and shows as a broken image after refresh.
+// A blob: URL is bound to the document that created it. The moment the page
+// reloads it becomes a dead reference — every <img> rendered against it
+// shows a broken-image icon. Drop these on save so a rehydrated draft never
+// surfaces a stale blob URL.
+function stripBlobUrl(value) {
+  return typeof value === 'string' && value.startsWith('blob:') ? '' : value
+}
+
+// Phase 3 layer: per-option imports may stamp a blob: URL on
+// optionMedia[i].imageUrl alongside an imageAssetId. Both die when the page
+// session ends, so drop them both while persisting any alt / diagram fields.
 function stripOptionMediaRuntime(optionMedia) {
   if (!Array.isArray(optionMedia)) return optionMedia
   return optionMedia.map(slot => {
@@ -50,6 +57,7 @@ function stripQuestionRuntime(question) {
   } = question
   return {
     ...rest,
+    imageUrl: stripBlobUrl(rest.imageUrl),
     optionMedia: stripOptionMediaRuntime(rest.optionMedia),
   }
 }
@@ -61,12 +69,16 @@ function stripSectionsRuntime(sections = []) {
       const {
         imageUploading: _imageUploading,
         imageUploadStep: _imageUploadStep,
+        // Same reasoning as on questions: blob asset ids only mean anything
+        // while the importing page session is alive.
+        imageAssetId: _imageAssetId,
         ...passageRest
       } = passage
       return {
         ...section,
         passage: {
           ...passageRest,
+          imageUrl: stripBlobUrl(passageRest.imageUrl),
           questions: (passage.questions || []).map(stripQuestionRuntime),
         },
       }
