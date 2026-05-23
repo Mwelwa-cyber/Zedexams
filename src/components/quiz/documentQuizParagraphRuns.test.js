@@ -133,4 +133,24 @@ const cleanBlocks = [
 assert.deepEqual(consolidateOptionImageRuns(cleanBlocks), cleanBlocks,
   'unchanged input passes through unchanged')
 
+// ─── Phase 5: PDF-shape blocks ─────────────────────────────────────────────
+
+// extractPdf produces one block per text line. When a line is "A." and the
+// nearest figure (by Y) was attached via pickFigureForLineY, the consolidator
+// folds it into the preceding question stem — identical behaviour to DOCX.
+// The source field changes; the behaviour shouldn't.
+const pdfBlocks = [
+  { text: '7. Which letter is the vowel?', assets: [], pageAsset: null, pageNumber: 1, source: 'pdf' },
+  { text: 'A.', assets: [{ id: 'pdf-fig-a' }], pageAsset: null, pageNumber: 1, source: 'pdf' },
+  { text: 'B.', assets: [{ id: 'pdf-fig-b' }], pageAsset: null, pageNumber: 1, source: 'pdf' },
+  { text: 'C.', assets: [{ id: 'pdf-fig-c' }], pageAsset: null, pageNumber: 1, source: 'pdf' },
+  { text: 'D.', assets: [{ id: 'pdf-fig-d' }], pageAsset: null, pageNumber: 1, source: 'pdf' },
+]
+const pdfResult = consolidateOptionImageRuns(pdfBlocks)
+assert.equal(pdfResult.length, 1,
+  'four PDF option-letter lines fold into the question block')
+assert.equal(pdfResult[0].source, 'pdf', 'PDF source field survives the rewrite')
+assert.equal(pdfResult[0].optionAssetsByLetter.A.id, 'pdf-fig-a')
+assert.equal(pdfResult[0].optionAssetsByLetter.D.id, 'pdf-fig-d')
+
 console.log('documentQuizParagraphRuns.test.js — OK')
