@@ -7,9 +7,15 @@
  *      before each runner call.
  *   2. Per-user daily cap: wraps aiService.assertDailyLimit with a
  *      dedicated kind so learner usage does not pool with teacher caps.
+ *
+ * `aiService` is lazy-required inside `assertLearnerDailyLimit` so the
+ * pure helpers + constants below (`taskExceedsBudget`,
+ * `DEFAULT_TASK_BUDGET`, `MAX_REGENERATION_ATTEMPTS`) can be
+ * unit-tested without the full functions/ dep chain — CI's root
+ * `npm ci` doesn't install `functions/node_modules`, so eagerly
+ * requiring aiService at module-top breaks any test that imports
+ * costGuard.
  */
-
-const {assertDailyLimit, getUserRole} = require("../../aiService");
 
 const KIND = "learnerAiTask";
 
@@ -38,6 +44,10 @@ async function assertLearnerDailyLimit(uid) {
     err.code = "failed-precondition";
     throw err;
   }
+  // Lazy-required so a test that only exercises the pure helpers
+  // doesn't have to mock the full aiService → firebase-functions →
+  // anthropicFetch require chain.
+  const {assertDailyLimit, getUserRole} = require("../../aiService");
   const role = await getUserRole(uid);
   await assertDailyLimit(uid, role, KIND);
 }
