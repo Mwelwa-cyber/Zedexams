@@ -62,6 +62,23 @@ const fakeCbc = {
   KB_VERSION: 'cbc-kb-test',
   lookupSubtopicModule: async () => state.module,
   lookupTopic: async () => state.topic,
+  // Real implementations — these are pure and the resolver uses them to
+  // normalise grade ("4" / "G4" / "Grade 4" → "G4") and subject
+  // ("Integrated Science" → "integrated_science") on both sides of the
+  // approvedSyllabi mismatch check. Without them, the resolver would
+  // refuse every task wired from the admin Live Monitor test button.
+  normalizeGrade: (g) => {
+    if (g == null) return ''
+    const raw = String(g).trim().toUpperCase().replace(/\s+/g, '')
+    if (!raw) return ''
+    if (/^G\d+$/.test(raw)) return raw
+    if (/^\d+$/.test(raw)) return `G${raw}`
+    const m = raw.match(/^GRADE(\d+)$/)
+    if (m) return `G${m[1]}`
+    return raw
+  },
+  normalizeSubject: (s) =>
+    String(s || '').toLowerCase().replace(/[^a-z]/g, '_'),
 }
 
 // Patch require so curriculumResolver picks up our mocks
@@ -301,6 +318,35 @@ await test('topic-only match → status=needs_review with sparse KB', async () =
     `topic-only sparse KB must yield needs_review, got status=${out.status} conf=${out.confidenceScore}`)
   assert(out.confidenceScore < 0.6,
     `expected confidence < 0.6 (got ${out.confidenceScore})`)
+})
+
+await test('grade + subject mismatch checks normalize before comparing', async () => {
+  // Admin Live Monitor test button writes task.grade='4' /
+  // task.subject='Integrated Science'. parseSyllabusUpload writes
+  // approvedSyllabi as grade='G4' / subject='integrated_science'
+  // (canonical KB shape). The mismatch check must normalize both
+  // sides — pre-fix it refused every such task with
+  // source_doc_grade_mismatch.
+  state.module = {
+    id: 'mod-1', grade: 'G4', subject: 'integrated_science', term: 1,
+    topic: 'Blood Circulatory System', subtopic: 'The Heart',
+    outcomes: ['Identifies heart chambers correctly.'],
+    sourceDocId: 'syll-canon',
+  }
+  state.topic = null
+  fakeAdmin.__syllabi = {
+    'syll-canon': {
+      grade: 'G4', subject: 'integrated_science',
+      storagePath: 'syllabus-uploads/v1/G4 Integrated Science.xlsx',
+      sha256: 'abc',
+    },
+  }
+  const r = await resolveStrictCurriculumRef({
+    grade: '4', subject: 'Integrated Science',
+    topic: 'Blood Circulatory System', subtopic: 'The Heart', term: 1,
+  })
+  assert(r.ok === true,
+    `normalised lookup must succeed, got refusal=${r.reason || '?'}`)
 })
 
 await test('confidenceScore monotone in cited-excerpt count', async () => {

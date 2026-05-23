@@ -25,6 +25,9 @@
 const {onObjectFinalized} = require("firebase-functions/v2/storage");
 const admin = require("firebase-admin");
 const ExcelJS = require("exceljs");
+const crypto = require("node:crypto");
+
+const {normalizeGrade, normalizeSubject} = require("./cbcKnowledge");
 
 const STORAGE_PREFIX = "syllabus-uploads/";
 
@@ -130,7 +133,10 @@ exports.parseSyllabusUpload = onObjectFinalized(
       const filenameHints = parseFilenameHints(filename);
       const result = parseWorkbook(wb, {filename, version, filenameHints});
 
-      await writeResultsToFirestore(result, {version, filename});
+      const sha256 = crypto.createHash("sha256").update(buffer).digest("hex");
+      await writeResultsToFirestore(result, {
+        version, filename, filePath, filenameHints, sha256,
+      });
       log("done", {
         topics: result.topicDocs.length,
         pacingEntries: result.pacingEntries.length,
@@ -495,11 +501,146 @@ function buildTopicId(grade, subject, topic) {
   return `${g}-${s}-${t}`;
 }
 
+// --- approvedSyllabi linking ------------------------------------------
+//
+// The strict learner-AI resolver
+// (functions/agents/learnerAi/curriculumResolver.js) refuses every task
+// whose matched KB module has no `sourceDocId` field pointing at an
+// `approvedSyllabi` doc. Previously the only way to populate either was
+// via `scripts/seed-approved-syllabi.mjs` + `scripts/backfill-kb-source-refs.mjs`
+// run from a workstation, so admins who uploaded a syllabus through the
+// UI saw every agent sit idle on `no_source_doc_ref`. Building the link
+// at parse time closes that gap — one upload → one approvedSyllabi doc
+// → every parsed draft tagged with the right sourceDocId.
+
+/**
+ * Deterministic id for an approvedSyllabi doc derived from a single
+ * uploaded workbook. Mirrors the slug style used by
+ * scripts/seed-approved-syllabi.mjs so re-runs over the same source
+ * file collide (and merge) instead of duplicating.
+ *
+ * @param {object} hints Filename hints — { grade, subject, term, ... }.
+ * @param {string} filename Original .xlsx basename (for the title suffix).
+ * @returns {string|null} slug id, or null when grade/subject can't be parsed.
+ */
+function buildApprovedSyllabusId(hints, filename) {
+  if (!hints || !hints.grade || !hints.subject) return null;
+  const grade = normalizeGrade(hints.grade).toLowerCase() || slug(hints.grade);
+  const subject = normalizeSubject(hints.subject) || slug(hints.subject);
+  const term = hints.term != null ? String(hints.term) : "all";
+  const title = String(filename || "").replace(/\.[^.]+$/, "");
+  return slug(`${grade}-${subject}-${term}-${title}`);
+}
+
+/**
+ * Pure builder for the approvedSyllabi/{id} record. Whatever value
+ * shows up under `grade` and `subject` here is what the resolver
+ * compares against `task.grade` and `task.subject`, normalized on both
+ * sides — storing the canonical KB shape ("G4", "integrated_science")
+ * makes that comparison stable regardless of which client wrote the
+ * task.
+ *
+ * @param {object} ctx Writer context — { filePath, filename, sha256, version }.
+ * @param {object} hints Filename hints — { grade, subject, term, subjectDisplay }.
+ * @param {Function} ts Server-timestamp sentinel factory. Injected so the
+ *   pure helper stays unit-testable.
+ * @returns {object|null} record, or null when the link can't be built.
+ */
+function buildApprovedSyllabusRecord({ctx, hints, ts}) {
+  if (!ctx || !hints || !hints.grade || !hints.subject) return null;
+  return {
+    schemaVersion: 1,
+    title: String(ctx.filename || "").replace(/\.[^.]+$/, ""),
+    grade: normalizeGrade(hints.grade),
+    subject: normalizeSubject(hints.subject),
+    subjectDisplay: hints.subjectDisplay || "",
+    term: hints.term != null ? Number(hints.term) : null,
+    storagePath: ctx.filePath || "",
+    sha256: ctx.sha256 || "",
+    uploadedAt: ts(),
+    approvedAt: ts(),
+    approvedBy: "syllabus-upload-parser",
+    kbVersion: ctx.version,
+    coverage: {topics: [], subtopics: []},
+  };
+}
+
+/**
+ * Project the parser's topic shape into the alias fields the strict
+ * resolver's `pickExcerpts` reads (contentSummary / outcomes /
+ * competencies / assessmentCriteria / learnerActivities). The parser
+ * captures these under richer per-subtopic structures (`subtopics[]`
+ * with specificCompetence + learningActivities + expectedStandard, plus
+ * top-level `keyCompetencies`); without aliasing them the resolver's
+ * topic-only fallback returned zero cited excerpts and refused with
+ * `no_cited_excerpts`. Returns only the fields that have content so we
+ * don't overwrite richer KB data on idempotent re-runs (merge:true).
+ *
+ * @param {object} draft One parsed draftTopic doc.
+ * @returns {object} Field aliases to merge onto the draft.
+ */
+function deriveExcerptAliases(draft) {
+  const out = {};
+  const subs = Array.isArray(draft.subtopics) ? draft.subtopics : [];
+
+  const competencies = [];
+  if (Array.isArray(draft.keyCompetencies)) {
+    for (const c of draft.keyCompetencies) {
+      if (typeof c === "string" && c.trim()) competencies.push(c.trim());
+    }
+  }
+  for (const s of subs) {
+    const sc = s && typeof s === "object" ? s.specificCompetence : null;
+    if (typeof sc === "string" && sc.trim()) competencies.push(sc.trim());
+  }
+  if (competencies.length) out.competencies = competencies;
+
+  const outcomes = [];
+  for (const s of subs) {
+    const es = s && typeof s === "object" ? s.expectedStandard : null;
+    if (typeof es === "string" && es.trim()) outcomes.push(es.trim());
+  }
+  if (outcomes.length) {
+    out.outcomes = outcomes;
+    // Same source field doubles as assessment criteria — the CDC
+    // workbooks use "Expected Standard" as a learner-facing acceptance
+    // criterion, so it carries grading signal for the quality gate too.
+    out.assessmentCriteria = outcomes.slice();
+  }
+
+  const activities = [];
+  for (const s of subs) {
+    const a = s && typeof s === "object" ? s.learningActivities : null;
+    if (Array.isArray(a)) {
+      for (const item of a) {
+        if (typeof item === "string" && item.trim()) {
+          activities.push(item.trim());
+        }
+      }
+    }
+  }
+  if (activities.length) out.learnerActivities = activities;
+
+  const summaryItems = [];
+  for (const s of subs) {
+    const name = s && typeof s === "object" ? s.name : (typeof s === "string" ? s : "");
+    if (typeof name === "string" && name.trim() && name.trim() !== "(unnamed sub-topic)") {
+      summaryItems.push(name.trim());
+    }
+  }
+  if (summaryItems.length) {
+    out.contentSummary = `Sub-topics covered: ${summaryItems.join("; ")}.`;
+  }
+
+  return out;
+}
+
 // --- Firestore writes ---------------------------------------------------
 
 async function writeResultsToFirestore(result, ctx) {
   const db = admin.firestore();
-  const now = admin.firestore.FieldValue.serverTimestamp();
+  const ts = () => admin.firestore.FieldValue.serverTimestamp();
+  const now = ts();
   const BATCH_LIMIT = 450; // leave headroom under the 500-op cap
 
   let batch = db.batch();
@@ -512,14 +653,40 @@ async function writeResultsToFirestore(result, ctx) {
     }
   };
 
+  // Upsert the approvedSyllabi doc first. The draftTopics below carry
+  // its id forward as `sourceDocId`, which the strict resolver requires
+  // before any learner-AI generator can run. Skipped only when
+  // filename hints couldn't yield a grade+subject — in that case the
+  // parser also produced no topicDocs, so no draft is left dangling.
+  const syllabusId =
+    buildApprovedSyllabusId(ctx.filenameHints || {}, ctx.filename);
+  const syllabusRecord = buildApprovedSyllabusRecord({
+    ctx, hints: ctx.filenameHints || {}, ts,
+  });
+  if (syllabusId && syllabusRecord) {
+    batch.set(
+        db.collection("approvedSyllabi").doc(syllabusId),
+        syllabusRecord,
+        {merge: true},
+    );
+    inBatch += 1;
+  }
+
   for (const doc of result.topicDocs) {
     const ref = db
       .collection("cbcKnowledgeBase")
       .doc(ctx.version)
       .collection("draftTopics")
       .doc(doc.id);
+    const aliases = deriveExcerptAliases(doc);
+    const sourceFields = syllabusId ? {
+      sourceDocId: syllabusId,
+      sourceStoragePath: ctx.filePath || "",
+    } : {};
     batch.set(ref, {
       ...doc,
+      ...aliases,
+      ...sourceFields,
       updatedAt: now,
       importedAt: now,
     }, {merge: true});
@@ -592,4 +759,7 @@ exports.__test__ = {
   buildTopicId,
   splitBulleted,
   parseWorkbook,
+  buildApprovedSyllabusId,
+  buildApprovedSyllabusRecord,
+  deriveExcerptAliases,
 };
