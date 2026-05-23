@@ -6,6 +6,12 @@ service cloud.firestore {
     function isAuthed() { return request.auth != null; }
     function isOwner(uid) { return request.auth.uid == uid; }
     function callerRole() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role; }
+    // Caller's registered grade. Used to gate per-grade content reads
+    // (e.g. aiGeneratedContent for learners). Defaults to '' when the
+    // field is absent so non-learner accounts (teachers / admins) fall
+    // through their own bypass branches instead of comparing against
+    // a real grade.
+    function callerGrade() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('grade', ''); }
     // Admin and superAdmin are equivalent — both get full read/write access
     // to every collection an admin can touch.
     function isAdmin() { return isAuthed() && (callerRole() == 'admin' || callerRole() == 'superAdmin'); }
@@ -1287,13 +1293,24 @@ service cloud.firestore {
       );
 
       // Create: status must be 'queued', no prefilled pipeline fields.
-      // Anyone authenticated can create — admin SDK can override on
-      // the server. taskType is validated by the schema-validator
-      // helper in src/schemas/learnerAi.js before the addDoc call.
+      // taskType is gated by caller role:
+      //   - learners may only queue per-attempt agents that the client
+      //     code at src/utils/aiPracticeQuizService.js actually emits.
+      //   - teachers + admins can queue any task type (the teacher
+      //     AgentBriefForm covers generator types, admins drive
+      //     curriculum_update_check + ad-hoc runs).
+      // Server-side automationGate.js + costGuard.js add the cost-side
+      // limits on top of this role gate.
       allow create: if isAuthed()
         && incoming().status == 'queued'
         && incoming().taskType is string
         && incoming().taskType.size() <= 64
+        && (
+          isTeacherOrAbove()
+          || incoming().taskType in [
+            'weakness_analysis', 'learner_feedback',
+          ]
+        )
         && incoming().agentName is string
         && incoming().agentName.size() <= 80
         && (!('startedAt' in incoming()) || incoming().startedAt == null)
@@ -1325,10 +1342,28 @@ service cloud.firestore {
     // 3. aiGeneratedContent — the learner-AI artifact store.
     //    Replaces v1's `learnerAiGenerations`. Hard rule: nothing ever
     //    copies these into `quizzes` from the learner-AI pipeline.
+    //
+    //    Read access (defence in depth — mirrors the client-side filter
+    //    in src/utils/aiPracticeQuizService.js):
+    //      - admins see everything
+    //      - teachers see every published artifact (cross-grade preview
+    //        is intentional — teachers may need to review content for
+    //        other grades they don't teach today but will tomorrow)
+    //      - learners see published artifacts ONLY for their registered
+    //        grade. A hand-crafted client query without the grade filter
+    //        now gets rule-level denial for non-matching grade docs.
+    //      - drafts / needs_review / rejected / regenerate_required are
+    //        admin-only (any non-published status).
     match /aiGeneratedContent/{contentId} {
       allow read: if isAuthed() && (
         isAdmin()
-        || resource.data.status == 'published'
+        || (
+          resource.data.status == 'published'
+          && (
+            isTeacherOrAbove()
+            || string(resource.data.grade) == string(callerGrade())
+          )
+        )
       );
       allow write: if false;
     }
@@ -1346,8 +1381,11 @@ service cloud.firestore {
     }
 
     // 4. aiLiveAgentStates — per-agent heartbeat + current task.
+    //    Admin-only read. The Live Monitor (LiveAgentStatusCards.jsx)
+    //    is gated behind AdminRoute so this rule defends against
+    //    learners / teachers probing the agent surface directly.
     match /aiLiveAgentStates/{agentId} {
-      allow read:  if isAuthed();
+      allow read:  if isAuthed() && isAdmin();
       allow write: if false;
     }
 
