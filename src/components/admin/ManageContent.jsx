@@ -8,6 +8,7 @@ import Skeleton from '../ui/Skeleton'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { todayString } from '../../utils/examService'
 import { EXAM_ONLY_QUESTION_THRESHOLD, isExamOnly } from '../../utils/quizClassification.js'
+import ImportReviewBadge from '../quiz/ImportReviewBadge'
 import SeoHelmet from '../seo/SeoHelmet'
 
 const TABS = [
@@ -173,11 +174,7 @@ function QuizRow({ quiz, onPublish, onSetDailyExam, onUnassign, onDelete, deleti
             <Pill color="bg-indigo-100 text-indigo-700">G{quiz.grade}</Pill>
             <Pill color="bg-gray-100 text-gray-600">T{quiz.term}</Pill>
             <Pill color="bg-gray-50 text-gray-500">{qCount}Q · {duration}m</Pill>
-            {quiz.mode === 'imported_document' && (
-              <Pill color={quiz.importStatus === 'needs_review' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}>
-                Imported
-              </Pill>
-            )}
+            <ImportReviewBadge record={quiz} />
             {quizType === 'daily_exam' && (
               <Pill color="bg-amber-100 text-amber-700">🏆 Daily Exam · {quiz.dailyExamDate}</Pill>
             )}

@@ -4,6 +4,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
 import { downloadAssessmentDocx } from '../../utils/assessmentToDocx'
 import { printAssessmentAsPdf } from '../../utils/assessmentToPdf'
+import ImportReviewBadge from '../quiz/ImportReviewBadge'
 import SeoHelmet from '../seo/SeoHelmet'
 
 const ASSESSMENT_TYPE_LABELS = {
@@ -67,6 +68,10 @@ function AssessmentRow({ assessment, onDelete, onExport, busy }) {
             {assessment.term && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#f5efe1', color: '#566f76' }}>T{assessment.term}</span>}
             {assessment.totalMarks != null && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#fde9b8', color: '#8a3d12' }}>{assessment.totalMarks} marks</span>}
             {assessment.duration != null && <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: '#fff5e6', color: '#c2531a' }}>{assessment.duration} min</span>}
+            {/* Phase 7: surface import-review state on the list so the teacher
+                doesn't have to open every imported draft to find the ones
+                that flagged warnings during parsing. */}
+            <ImportReviewBadge record={assessment} />
           </div>
           <p className="mt-1.5 text-xs" style={{ color: '#566f76' }}>
             {assessment.questionCount ?? 0} questions · Created {formatDate(assessment.createdAt)}
