@@ -157,7 +157,14 @@ function ImageUpload({
   if (imageUrl) {
     return (
       <div className={joinClasses('group theme-bg-subtle relative overflow-hidden rounded-xl border-2', theme.cardBorder)}>
-        <img src={imageUrl} alt={label} className="mx-auto max-h-[60vh] w-full object-contain py-2" />
+        <img
+          src={imageUrl}
+          alt={label}
+          className="mx-auto max-h-[60vh] w-full object-contain py-2"
+          onError={event => {
+            event.currentTarget.style.display = 'none'
+          }}
+        />
         <div className="absolute right-2 top-2 flex gap-1.5 opacity-90 transition-opacity group-hover:opacity-100">
           <button
             type="button"
@@ -292,7 +299,14 @@ function OptionImageUpload({
   if (imageUrl) {
     return (
       <div className={joinClasses('group theme-bg-subtle relative overflow-hidden rounded-lg border-2', theme.cardBorder)}>
-        <img src={imageUrl} alt="" className="quiz-option-image" />
+        <img
+          src={imageUrl}
+          alt=""
+          className="quiz-option-image"
+          onError={event => {
+            event.currentTarget.style.display = 'none'
+          }}
+        />
         <div className="absolute right-1.5 top-1.5 flex gap-1 opacity-90 transition-opacity group-hover:opacity-100">
           <button
             type="button"

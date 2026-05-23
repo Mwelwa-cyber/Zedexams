@@ -478,6 +478,25 @@ function paragraphImages(paragraph, relationships, zipEntries, warnings) {
     .filter(Boolean)
 }
 
+// Matches a cell whose text is JUST an option label (A/B/C/D with optional
+// punctuation and surrounding whitespace). Used to attribute that cell's
+// inline image to the right option slot — "A." | "(A)" | "A)" | "A:" | "A".
+const CELL_OPTION_LABEL_RE = /^\(?([A-Da-d])\)?[.):-]?\s*$/
+
+// Matches a cell whose text BEGINS with an option label followed by content.
+// Used when teachers type "A. Apple" or "(A) An animal" inside a single cell.
+const CELL_OPTION_PREFIX_RE = /^\(?([A-Da-d])\)?\s*[.):-]\s*\S/
+
+function detectOptionLetterInCell(text) {
+  const normalized = String(text || '').trim()
+  if (!normalized) return ''
+  const labelOnly = normalized.match(CELL_OPTION_LABEL_RE)
+  if (labelOnly) return labelOnly[1].toUpperCase()
+  const prefix = normalized.match(CELL_OPTION_PREFIX_RE)
+  if (prefix) return prefix[1].toUpperCase()
+  return ''
+}
+
 function tableCellContent(cell, relationships, zipEntries, warnings) {
   const parts = []
   const assets = []
@@ -508,9 +527,16 @@ function tableCellContent(cell, relationships, zipEntries, warnings) {
     if (fallbackText) parts.push(fallbackText)
   }
 
+  const text = parts.join('\n')
+
   return {
-    text: parts.join('\n'),
+    text,
     assets,
+    // Detected option letter (A-D) when this cell sits inside an option
+    // column of an MCQ table. Empty string if the cell isn't an option cell.
+    // Phase 3: lets buildDocxTableBlocks attribute the cell's image to the
+    // right optionMedia[] slot instead of dumping it on the question stem.
+    optionLetter: detectOptionLetterInCell(text),
   }
 }
 
@@ -608,10 +634,15 @@ function canvasToBlob(canvas, type = 'image/jpeg', quality = 0.82) {
 
 /**
  * Groups PDF text items into logical lines using Y-coordinate proximity.
- * Threshold increased from 3 → 5 px to handle slight baseline variations
- * common in scanned or mixed-font PDFs.
+ * Threshold of 5 px handles slight baseline variations common in scanned
+ * or mixed-font PDFs.
+ *
+ * Returns an array of `{ text, y }` rows sorted top-to-bottom. `y` is the
+ * PDF-user-space Y of the baseline (origin bottom-left, Y up) — kept so
+ * per-figure extraction (Phase 2) can map each figure to the question it
+ * sits next to.
  */
-function textContentToLines(textContent) {
+function textContentToLineRecords(textContent) {
   const rows = []
   ;(textContent.items || []).forEach(item => {
     const str = cleanText(item.str)
@@ -629,8 +660,11 @@ function textContentToLines(textContent) {
 
   return rows
     .sort((a, b) => b.y - a.y)
-    .map(row => cleanText(row.items.sort((a, b) => a.x - b.x).map(item => item.str).join(' ')))
-    .filter(Boolean)
+    .map(row => ({
+      text: cleanText(row.items.sort((a, b) => a.x - b.x).map(item => item.str).join(' ')),
+      y: row.y,
+    }))
+    .filter(row => row.text)
 }
 
 async function renderPdfPageSnapshot(page, pageNumber, warnings) {
@@ -651,9 +685,250 @@ async function renderPdfPageSnapshot(page, pageNumber, warnings) {
   }
 }
 
+// ─── Phase 2: per-figure PDF image extraction ────────────────────────────────
+//
+// PDF.js exposes a content stream as an "operator list" — a flat array of
+// (opcode, args) pairs. We walk it tracking the current transformation matrix
+// (the same way a PDF renderer would) and, every time we hit a paint-image
+// opcode, record the image's bounding box in PDF user space. Then we render
+// the page once at high DPI and crop each figure out of the rendered canvas.
+//
+// Why crop from a rendered canvas instead of decoding the XObject directly?
+//   1. Image XObjects come in many formats (JPEG, FlateDecode, JBIG2…) — PDF.js
+//      already handles decoding when it renders, so we get correctness for
+//      free.
+//   2. Vector annotations or text labels drawn on top of the image are
+//      preserved (labels of organs on a biology diagram, axis ticks on a graph).
+//   3. We avoid needing access to PDF.js's private object store, which is
+//      gated behind callbacks and not reliable across PDF.js versions.
+
+// 6-element CTM: [a, b, c, d, e, f] represents
+// | a  c  e |
+// | b  d  f |
+// | 0  0  1 |
+const IDENTITY_CTM = [1, 0, 0, 1, 0, 0]
+
+function multiplyCTM(left, right) {
+  // PDF's `cm` operator postmultiplies: newCTM = left * right.
+  return [
+    left[0] * right[0] + left[2] * right[1],
+    left[1] * right[0] + left[3] * right[1],
+    left[0] * right[2] + left[2] * right[3],
+    left[1] * right[2] + left[3] * right[3],
+    left[0] * right[4] + left[2] * right[5] + left[4],
+    left[1] * right[4] + left[3] * right[5] + left[5],
+  ]
+}
+
+// Map the four corners of the unit square (0,0)-(1,1) through the given CTM
+// and return the axis-aligned bounding box {x, y, width, height} in PDF
+// user space. Handles rotated/sheared images correctly.
+function ctmToPdfBbox(ctm) {
+  const corners = [
+    [0, 0],
+    [1, 0],
+    [0, 1],
+    [1, 1],
+  ].map(([u, v]) => ({
+    x: ctm[0] * u + ctm[2] * v + ctm[4],
+    y: ctm[1] * u + ctm[3] * v + ctm[5],
+  }))
+  const xs = corners.map(c => c.x)
+  const ys = corners.map(c => c.y)
+  const minX = Math.min(...xs)
+  const maxX = Math.max(...xs)
+  const minY = Math.min(...ys)
+  const maxY = Math.max(...ys)
+  return {
+    x: minX,
+    y: minY,
+    width: maxX - minX,
+    height: maxY - minY,
+  }
+}
+
+/**
+ * Walks the operator list and returns the PDF-user-space bounding box of
+ * every painted image XObject. Tracks save/restore/transform so nested
+ * `q ... cm ... Do ... Q` blocks resolve to the right CTM.
+ *
+ * `pdfjsLib` is needed to read `OPS.*` numeric constants — these are stable
+ * across pdfjs versions but reading them from the module makes the code
+ * future-proof.
+ */
+function collectImageBboxes(operatorList, pdfjsLib) {
+  const { OPS } = pdfjsLib
+  // The bottom of the stack is the initial CTM. We push a fresh copy on
+  // `q` (save) and pop on `Q` (restore).
+  const stack = [IDENTITY_CTM.slice()]
+  const figures = []
+
+  // PDF.js's operator list lazy-loads image data; we only care about ops
+  // whose presence we can detect synchronously from the op codes.
+  const PAINT_IMAGE_OPS = new Set([
+    OPS.paintImageXObject,
+    OPS.paintImageMaskXObject,
+    OPS.paintJpegXObject,
+    OPS.paintInlineImage,
+    OPS.paintInlineImageXObject,
+  ].filter(value => typeof value === 'number'))
+
+  const fnArray = operatorList.fnArray || []
+  const argsArray = operatorList.argsArray || []
+
+  for (let index = 0; index < fnArray.length; index += 1) {
+    const fn = fnArray[index]
+    const args = argsArray[index]
+
+    if (fn === OPS.save) {
+      stack.push(stack[stack.length - 1].slice())
+      continue
+    }
+    if (fn === OPS.restore) {
+      if (stack.length > 1) stack.pop()
+      continue
+    }
+    if (fn === OPS.transform) {
+      // args is [a, b, c, d, e, f] — postmultiply the top of the stack.
+      const top = stack[stack.length - 1]
+      stack[stack.length - 1] = multiplyCTM(top, args)
+      continue
+    }
+    if (PAINT_IMAGE_OPS.has(fn)) {
+      const bbox = ctmToPdfBbox(stack[stack.length - 1])
+      // Drop degenerate boxes — these slip in when a page initialises an
+      // image XObject far off-canvas as a measurement pass.
+      if (bbox.width > 4 && bbox.height > 4) {
+        figures.push(bbox)
+      }
+    }
+  }
+
+  return figures
+}
+
+/**
+ * Render the page at high DPI once, then crop each detected figure out of
+ * the rendered canvas. Returns the rendered canvas alongside the per-figure
+ * assets so the caller can also use the full-page snapshot as a fallback
+ * (e.g. when no figures were detected but the page has a diagram hint).
+ *
+ * Returns { canvas, viewport, figureAssets } where each figureAsset is
+ *   { asset, pdfY, pdfHeight }
+ * with `pdfY` in PDF user-space coordinates (origin bottom-left, Y up) so
+ * we can match figures to text lines by Y proximity.
+ */
+async function renderPageAndCropFigures(page, pdfjsLib, pageNumber, bboxes, warnings) {
+  const baseViewport = page.getViewport({ scale: 1 })
+  // Same scale heuristic as renderPdfPageSnapshot — bigger pages need to fit
+  // a maximum-width budget so the cropped figures stay readable.
+  const scale = Math.min(1.8, 1100 / baseViewport.width)
+  const viewport = page.getViewport({ scale })
+
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.ceil(viewport.width)
+  canvas.height = Math.ceil(viewport.height)
+  const context = canvas.getContext('2d', { alpha: false })
+
+  try {
+    await page.render({ canvasContext: context, viewport }).promise
+  } catch (error) {
+    warnings.push(`Could not render PDF page ${pageNumber} for figure extraction.`)
+    return { canvas: null, viewport, figureAssets: [] }
+  }
+
+  const figureAssets = []
+  for (let index = 0; index < bboxes.length; index += 1) {
+    const bbox = bboxes[index]
+    // Convert the four corners of the PDF-space bbox into viewport pixel
+    // coordinates and recompute an axis-aligned pixel rect. Padding (4px)
+    // gives us a small margin around the figure so labels right on the
+    // edge don't get clipped.
+    const pixelCorners = [
+      viewport.convertToViewportPoint(bbox.x, bbox.y),
+      viewport.convertToViewportPoint(bbox.x + bbox.width, bbox.y),
+      viewport.convertToViewportPoint(bbox.x, bbox.y + bbox.height),
+      viewport.convertToViewportPoint(bbox.x + bbox.width, bbox.y + bbox.height),
+    ]
+    const pxXs = pixelCorners.map(p => p[0])
+    const pxYs = pixelCorners.map(p => p[1])
+    const padding = 4
+    const left = Math.max(0, Math.floor(Math.min(...pxXs)) - padding)
+    const top = Math.max(0, Math.floor(Math.min(...pxYs)) - padding)
+    const right = Math.min(canvas.width, Math.ceil(Math.max(...pxXs)) + padding)
+    const bottom = Math.min(canvas.height, Math.ceil(Math.max(...pxYs)) + padding)
+    const cropWidth = right - left
+    const cropHeight = bottom - top
+    if (cropWidth < 8 || cropHeight < 8) continue
+
+    const figureCanvas = document.createElement('canvas')
+    figureCanvas.width = cropWidth
+    figureCanvas.height = cropHeight
+    const figureContext = figureCanvas.getContext('2d', { alpha: false })
+    figureContext.drawImage(
+      canvas,
+      left, top, cropWidth, cropHeight,
+      0, 0, cropWidth, cropHeight,
+    )
+
+    let blob
+    try {
+      blob = await canvasToBlob(figureCanvas)
+    } catch (error) {
+      warnings.push(`Could not encode figure ${index + 1} on PDF page ${pageNumber}.`)
+      continue
+    }
+
+    const asset = makeImageAsset(
+      blob,
+      `pdf-page-${pageNumber}-figure-${figureAssets.length + 1}.jpg`,
+      'image/jpeg',
+      warnings,
+    )
+    if (!asset) continue
+
+    figureAssets.push({
+      asset,
+      // pdfY is the center of the figure in PDF user space — what we'll use
+      // to find the nearest text line.
+      pdfY: bbox.y + bbox.height / 2,
+      pdfHeight: bbox.height,
+    })
+  }
+
+  return { canvas, viewport, figureAssets }
+}
+
+/**
+ * Pick the figure whose center is closest to `lineY` (in PDF user space) and
+ * within a reasonable vertical window. Reuses don't fight each other: figures
+ * already attached to a line are skipped via `consumed`. Returns null if no
+ * figure is within range — the line stays text-only, which is the right
+ * call (forced attachment causes more confusion than missing diagrams).
+ */
+function pickFigureForLineY(figures, lineY, consumed) {
+  let best = null
+  let bestDistance = Infinity
+  for (let index = 0; index < figures.length; index += 1) {
+    if (consumed.has(index)) continue
+    const figure = figures[index]
+    const distance = Math.abs(figure.pdfY - lineY)
+    // Vertical proximity threshold: the figure must overlap the line's
+    // neighbourhood. Half the figure's height plus a generous 40-pt buffer
+    // covers the typical "diagram immediately above the question stem" case
+    // without grabbing figures from the next question down the page.
+    const reach = figure.pdfHeight / 2 + 40
+    if (distance <= reach && distance < bestDistance) {
+      best = index
+      bestDistance = distance
+    }
+  }
+  return best
+}
+
 async function extractPdf(file) {
   const warnings = [
-    'PDF import extracts text and attaches page snapshots to diagram-style questions. Review cropping before publishing.',
+    'PDF import extracts text and attaches per-figure crops (or full-page snapshots when figures cannot be isolated) to diagram-style questions. Review cropping before publishing.',
   ]
   const buffer = await file.arrayBuffer()
   const pdfjsLib = await loadPdfjs()
@@ -669,35 +944,88 @@ async function extractPdf(file) {
   for (let pageNumber = 1; pageNumber <= pdf.numPages; pageNumber += 1) {
     const page = await pdf.getPage(pageNumber)
     const textContent = await page.getTextContent()
-    const lines = textContentToLines(textContent)
-    const pageText = lines.join('\n')
+    const lineRecords = textContentToLineRecords(textContent)
+    const pageText = lineRecords.map(record => record.text).join('\n')
 
-    // Only snapshot truly image-only pages (no extractable text) or pages
-    // with explicit diagram/figure references. Using < 50 instead of < 180
-    // prevents false-positives on pages with short but valid text content.
-    const hasNoText = pageText.length < 50
-    const hasImageHint = IMAGE_HINT_RE.test(pageText)
-    const shouldSnapshot = pageNumber <= maxSnapshotPages && (hasNoText || hasImageHint)
-    const pageAsset = shouldSnapshot ? await renderPdfPageSnapshot(page, pageNumber, warnings) : null
-    if (pageAsset) imageAssets.push(pageAsset)
+    // Phase 2: try to pull individual image XObjects out of the page. If we
+    // find any, we'll render once and crop each figure rather than baking
+    // the whole page into a single JPEG. The pre-Phase-2 fallback (full-page
+    // snapshot for diagram-hint pages) only kicks in if figure extraction
+    // returns nothing — vector-only diagrams hit that path.
+    let figureAssets = []
+    let pageAsset = null
 
-    if (!lines.length && pageAsset) {
-      blocks.push({
-        text: '',
-        assets: [pageAsset],
-        pageAsset,
-        pageNumber,
-        source: 'pdf-image',
-      })
-      warnings.push(`PDF page ${pageNumber} looked image-based. Review the imported diagram question before publishing.`)
+    if (pageNumber <= maxSnapshotPages) {
+      let bboxes = []
+      try {
+        const operatorList = await page.getOperatorList()
+        bboxes = collectImageBboxes(operatorList, pdfjsLib)
+      } catch (error) {
+        warnings.push(`Could not read the content stream of PDF page ${pageNumber}; falling back to page snapshot if needed.`)
+      }
+
+      if (bboxes.length > 0) {
+        const rendered = await renderPageAndCropFigures(page, pdfjsLib, pageNumber, bboxes, warnings)
+        figureAssets = rendered.figureAssets
+        // Surface every cropped figure in the top-level asset list so the
+        // save pass can upload them. The per-line picker below also points
+        // at the same asset objects.
+        figureAssets.forEach(figure => imageAssets.push(figure.asset))
+      }
+
+      // Fallback: page looks image-heavy but no XObjects (e.g. vector chart,
+      // font-based diagram). Use the existing whole-page snapshot logic.
+      if (figureAssets.length === 0) {
+        const hasNoText = pageText.length < 50
+        const hasImageHint = IMAGE_HINT_RE.test(pageText)
+        if (hasNoText || hasImageHint) {
+          pageAsset = await renderPdfPageSnapshot(page, pageNumber, warnings)
+          if (pageAsset) imageAssets.push(pageAsset)
+        }
+      }
+    }
+
+    if (!lineRecords.length && (pageAsset || figureAssets.length > 0)) {
+      // Image-only page. If we extracted figures, take the largest; otherwise
+      // the whole-page snapshot. Either way, emit one block that the
+      // question builder treats as an image-based question.
+      const fallbackAsset = pageAsset
+        ?? figureAssets.reduce((largest, candidate) =>
+          !largest || candidate.pdfHeight > largest.pdfHeight ? candidate : largest, null)?.asset
+      if (fallbackAsset) {
+        blocks.push({
+          text: '',
+          assets: [fallbackAsset],
+          pageAsset: fallbackAsset,
+          pageNumber,
+          source: 'pdf-image',
+        })
+        warnings.push(`PDF page ${pageNumber} looked image-based. Review the imported diagram question before publishing.`)
+      }
       continue
     }
 
-    lines.forEach(line => {
+    // Attach each cropped figure to the text line whose Y sits closest to
+    // it (within a vertical window). A figure that doesn't claim any line
+    // still appears in imageAssets so it isn't lost.
+    const consumed = new Set()
+    lineRecords.forEach(record => {
+      const figureIndex = figureAssets.length
+        ? pickFigureForLineY(figureAssets, record.y, consumed)
+        : null
+      let lineAsset = null
+      let attachedAssets = []
+      if (figureIndex !== null && figureIndex !== undefined) {
+        consumed.add(figureIndex)
+        lineAsset = figureAssets[figureIndex].asset
+        attachedAssets = [lineAsset]
+      }
+      // `pageAsset` is only set when we fell back to a whole-page snapshot;
+      // in that case every line on the page shares it.
       blocks.push({
-        text: line,
-        assets: [],
-        pageAsset,
+        text: record.text,
+        assets: attachedAssets,
+        pageAsset: lineAsset || pageAsset,
         pageNumber,
         source: 'pdf',
       })

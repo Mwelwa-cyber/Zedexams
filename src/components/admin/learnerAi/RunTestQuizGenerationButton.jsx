@@ -23,15 +23,28 @@ import { useAuth } from '../../../contexts/AuthContext'
 // default the test task lands at status='needs_review' and the
 // generated artifact stays at status='needs_review' / 'draft' (i.e.
 // NOT visible to learners).
+//
+// Topic choice: the resolver requires a curriculum match against
+// either the seed cbcTopics.js OR an admin-curated entry in
+// cbcKnowledgeBase (via /admin/cbc-kb). The default below points at
+// "States of Matter" — a topic the seed ships for Grade 4
+// Integrated Science Term 2 (cbcTopics.js id 'g4-sci-states-of-matter'
+// with subtopics ['Solids', 'Liquids', 'Gases', ...]). To test other
+// topics, either add them via /admin/cbc-kb or change this payload
+// to a (grade, subject, term, topic, subtopic) tuple that's in the
+// merged KB. The previous default ('Blood Circulatory System' / 'The
+// Heart') always errored with curriculumReader:no_curriculum_match
+// because that topic lives in Grade 6 IS Term 1 in the seed, not
+// Grade 4.
 const TEST_TASK_PAYLOAD = Object.freeze({
   taskType: 'practice_quiz',
   agentName: 'AI Supervisor Agent',
   status: 'queued',
-  grade: 'Grade 4',
+  grade: '4',
   subject: 'Integrated Science',
-  term: 'Term 2',
-  topic: 'Blood Circulatory System',
-  subtopic: 'The Heart',
+  term: '2',
+  topic: 'States of Matter',
+  subtopic: 'Solids',
   lessonNumber: null,
   assessmentType: 'practice_quiz',
   parameters: {

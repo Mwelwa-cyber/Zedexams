@@ -24,6 +24,7 @@ import { richTextHasContent } from '../../utils/quizRichText.js'
 import { clampInt } from '../../utils/inputs.js'
 import { getErrorMessage } from '../../utils/errors.js'
 import { validateStandaloneQuestion as sharedValidateStandaloneQuestion } from '../../utils/quizValidation.js'
+import { assertNoBlobImageUrls } from '../../utils/importedQuizAssets.js'
 import QuizSectionsEditor from '../quiz/QuizSectionsEditor'
 import QuizEditorPreviewPanel from '../quiz/QuizEditorPreviewPanel'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -1014,25 +1015,29 @@ export default function CreateQuizV2() {
     }))
   }
 
-  async function uploadImportedQuestionImages(questionsToSave) {
-    const assetIds = Array.from(new Set(questionsToSave.map(question => question.imageAssetId).filter(Boolean)))
-    if (!assetIds.length) return questionsToSave
+  // Uploads in-memory imported image blobs (produced by documentQuizImporter)
+  // to Firebase Storage and returns a Map<assetId, downloadUrl>. The kindSlug
+  // (e.g. "question", "passage", "option") is interpolated into the filename
+  // so we can distinguish where each upload originated when auditing Storage.
+  async function uploadImportedAssets(assetIds, kindSlug) {
+    const uploadedById = new Map()
+    if (!assetIds.length) return uploadedById
     if (!currentUser?.uid) throw new Error('Please sign in before saving imported quiz images.')
 
-    const uploadedById = {}
     const uploadedRefs = []
     try {
       for (const assetId of assetIds) {
         const asset = importedAssets[assetId]
         if (!asset?.blob) {
-          throw new Error('An imported question image is no longer available. Please re-import the document.')
+          throw new Error('An imported image is no longer available. Please re-import the document.')
         }
 
         const sourceFile = new File([asset.blob], asset.fileName || `${assetId}.jpg`, {
           type: asset.contentType || 'image/jpeg',
         })
         const uploadBlob = await compressImage(sourceFile)
-        const path = `quiz-images/${currentUser.uid}/imports/${Date.now()}-${safeStorageName(assetId)}.jpg`
+        const fileName = `${Date.now()}-${kindSlug}-${safeStorageName(assetId)}.jpg`
+        const path = `quiz-images/${currentUser.uid}/imports/${fileName}`
         const ref = storageRef(storage, path)
         const snapshot = await uploadBytes(ref, uploadBlob, {
           contentType: 'image/jpeg',
@@ -1042,7 +1047,7 @@ export default function CreateQuizV2() {
           },
         })
         uploadedRefs.push(snapshot.ref)
-        uploadedById[assetId] = await getDownloadURL(snapshot.ref)
+        uploadedById.set(assetId, await getDownloadURL(snapshot.ref))
       }
     } catch (error) {
       // Clean up any already-uploaded blobs so they don't orphan in Storage
@@ -1054,11 +1059,61 @@ export default function CreateQuizV2() {
       throw error
     }
 
+    return uploadedById
+  }
+
+  // Resolve every imageAssetId on the question records to a Storage URL and
+  // strip the asset id (it's transient — only meaningful while we hold the
+  // matching Blob in memory). Phase 3 extends this to also walk each
+  // question's optionMedia[] so per-option imports survive the save.
+  async function uploadImportedQuestionImages(questionsToSave) {
+    const assetIds = new Set()
+    questionsToSave.forEach(question => {
+      if (question.imageAssetId) assetIds.add(question.imageAssetId)
+      if (Array.isArray(question.optionMedia)) {
+        question.optionMedia.forEach(slot => {
+          if (slot && typeof slot === 'object' && slot.imageAssetId) {
+            assetIds.add(slot.imageAssetId)
+          }
+        })
+      }
+    })
+    const uploadedById = await uploadImportedAssets(Array.from(assetIds), 'question')
+    if (!uploadedById.size) return questionsToSave
+
     return questionsToSave.map(question => {
-      const uploadedUrl = uploadedById[question.imageAssetId]
-      if (!uploadedUrl) return question
+      const next = { ...question }
+      const stemUrl = uploadedById.get(question.imageAssetId)
+      if (stemUrl) {
+        next.imageUrl = stemUrl
+        next.imageAssetId = ''
+      }
+      if (Array.isArray(question.optionMedia)) {
+        next.optionMedia = question.optionMedia.map(slot => {
+          if (!slot || typeof slot !== 'object') return slot
+          const url = slot.imageAssetId ? uploadedById.get(slot.imageAssetId) : null
+          if (!url) return slot
+          const { imageAssetId: _unused, ...rest } = slot
+          return { ...rest, imageUrl: url }
+        })
+      }
+      return next
+    })
+  }
+
+  // Same shape as uploadImportedQuestionImages, but for the parallel
+  // passages[] list. Without this, a passage diagram extracted by the
+  // importer would persist as a dead blob: URL after save.
+  async function uploadImportedPassageImages(passagesToSave) {
+    const assetIds = Array.from(new Set(passagesToSave.map(passage => passage.imageAssetId).filter(Boolean)))
+    const uploadedById = await uploadImportedAssets(assetIds, 'passage')
+    if (!uploadedById.size) return passagesToSave
+
+    return passagesToSave.map(passage => {
+      const uploadedUrl = uploadedById.get(passage.imageAssetId)
+      if (!uploadedUrl) return passage
       return {
-        ...question,
+        ...passage,
         imageUrl: uploadedUrl,
         imageAssetId: '',
       }
@@ -1143,14 +1198,20 @@ export default function CreateQuizV2() {
     try {
       const serializedSections = serializeQuizSections(sections, parts)
       const questionsForSave = await uploadImportedQuestionImages(serializedSections.questions)
+      const passagesForSave = await uploadImportedPassageImages(serializedSections.passages)
+      // Defensive: any blob: URL slipping through here would persist into
+      // Firestore and break for every learner on reload. Catch it before
+      // we write — the user re-imports rather than ending up with a broken
+      // quiz.
+      assertNoBlobImageUrls(questionsForSave, passagesForSave)
       const totalMarksForSave = questionsForSave.reduce((sum, question) => sum + (question.marks || 1), 0)
       const status = publish ? 'published' : submit ? 'pending' : 'draft'
 
       const quizId = await createQuiz({
         ...form,
-        passages: serializedSections.passages,
+        passages: passagesForSave,
         parts: serializedSections.parts,
-        passageCount: serializedSections.passages.length,
+        passageCount: passagesForSave.length,
         totalMarks: totalMarksForSave,
         questionCount: questionsForSave.length,
         importStatus: form.mode === 'imported_document'

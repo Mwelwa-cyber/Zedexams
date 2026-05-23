@@ -25,6 +25,8 @@ const {
   KB_VERSION,
   lookupSubtopicModule,
   lookupTopic,
+  normalizeGrade,
+  normalizeSubject,
 } = require("../../teacherTools/cbcKnowledge");
 
 function safeString(v) {
@@ -137,11 +139,17 @@ async function resolveStrictCurriculumRef({grade, subject, topic, subtopic, term
   if (!syllabus) {
     return refusal("source_doc_not_found", []);
   }
-  if (syllabus.grade && safeString(grade) && safeString(syllabus.grade) !== safeString(grade)) {
+  // Normalize both sides before comparing so that callers passing a
+  // bare digit ("4") line up with syllabi seeded as "G4", and subject
+  // display strings ("Integrated Science") line up with the KB-canonical
+  // key ("integrated_science"). Without this, the byte-for-byte check
+  // refused every task wired from the admin Live Monitor test button.
+  if (syllabus.grade && safeString(grade) &&
+      normalizeGrade(syllabus.grade) !== normalizeGrade(grade)) {
     return refusal("source_doc_grade_mismatch", []);
   }
   if (syllabus.subject && safeString(subject) &&
-      safeString(syllabus.subject).toLowerCase() !== safeString(subject).toLowerCase()) {
+      normalizeSubject(syllabus.subject) !== normalizeSubject(subject)) {
     return refusal("source_doc_subject_mismatch", []);
   }
 
