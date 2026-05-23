@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { doc, serverTimestamp, updateDoc } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { classForStatus } from './agentRegistry'
@@ -233,13 +234,23 @@ export default function ArtifactCard({
       </div>
 
       <div className="flex flex-wrap gap-1.5 pt-2 border-t border-slate-100 mt-auto">
-        <button
-          type="button"
-          onClick={() => onView && onView(artifact)}
-          className="text-[11px] font-semibold px-2 py-1 rounded bg-blue-50 text-blue-700 hover:bg-blue-100"
-        >
-          View
-        </button>
+        {isExam ? (
+          <Link
+            to={`/admin/learner-ai/exams/${artifact.id}`}
+            className="text-[11px] font-semibold px-2 py-1 rounded bg-blue-50 text-blue-700 hover:bg-blue-100"
+            title="Open the full review page (paper preview, verifier verdicts, marking guide)"
+          >
+            Review draft
+          </Link>
+        ) : (
+          <button
+            type="button"
+            onClick={() => onView && onView(artifact)}
+            className="text-[11px] font-semibold px-2 py-1 rounded bg-blue-50 text-blue-700 hover:bg-blue-100"
+          >
+            View
+          </button>
+        )}
         <button
           type="button"
           onClick={() => onRegenerate && onRegenerate(artifact, 'edit')}
