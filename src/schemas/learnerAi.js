@@ -173,6 +173,14 @@ export const GENERATED_CONTENT_TYPES = z.enum([
 
 export const GENERATED_CONTENT_STATUSES = z.enum([
   'draft', 'needs_review', 'approved', 'published', 'rejected', 'regenerate_required',
+  // Written by the dispatcher when a NEW artifact for the same
+  // (grade, subject, topic, subtopic) gets approved + published.
+  // The OLD published doc is demoted to 'superseded' so the
+  // learner-facing list (filtered to status==published) never shows
+  // duplicate entries for the same topic after a regenerate cycle.
+  // Learners cannot read superseded docs (rule still requires
+  // status==published). Admins keep visibility for audit.
+  'superseded',
 ])
 
 export const curriculumReferenceSchema = z.object({
@@ -220,6 +228,13 @@ export const CONTENT_VERSION_CHANGE_TYPES = z.enum([
   'published',
   // Written when an admin rejects the linked task.
   'rejected',
+  // Written when the dispatcher demotes a previously-published doc
+  // because a NEW artifact for the same (grade, subject, topic,
+  // subtopic) just got approved + published. The OLD doc's content
+  // field is unchanged; only its status flips to 'superseded'. The
+  // version snapshot captures who superseded it (the new content id
+  // lives in changeReason).
+  'superseded',
 ])
 
 export const aiGeneratedContentVersionWriteSchema = z.object({
