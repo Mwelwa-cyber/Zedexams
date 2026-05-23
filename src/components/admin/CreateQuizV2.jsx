@@ -1015,8 +1015,22 @@ export default function CreateQuizV2() {
   }
 
   async function uploadImportedQuestionImages(questionsToSave) {
-    const assetIds = Array.from(new Set(questionsToSave.map(question => question.imageAssetId).filter(Boolean)))
-    if (!assetIds.length) return questionsToSave
+    // Gather every imported imageAssetId across the question stem AND each
+    // option's optionMedia slot. Per-option imports (Phase 3) attach assets
+    // to optionMedia[i].imageAssetId; without this the per-option blob URLs
+    // would persist into Firestore the same way question-level ones used to.
+    const assetIds = new Set()
+    questionsToSave.forEach(question => {
+      if (question.imageAssetId) assetIds.add(question.imageAssetId)
+      if (Array.isArray(question.optionMedia)) {
+        question.optionMedia.forEach(slot => {
+          if (slot && typeof slot === 'object' && slot.imageAssetId) {
+            assetIds.add(slot.imageAssetId)
+          }
+        })
+      }
+    })
+    if (!assetIds.size) return questionsToSave
     if (!currentUser?.uid) throw new Error('Please sign in before saving imported quiz images.')
 
     const uploadedById = {}
@@ -1055,13 +1069,22 @@ export default function CreateQuizV2() {
     }
 
     return questionsToSave.map(question => {
-      const uploadedUrl = uploadedById[question.imageAssetId]
-      if (!uploadedUrl) return question
-      return {
-        ...question,
-        imageUrl: uploadedUrl,
-        imageAssetId: '',
+      const next = { ...question }
+      const stemUrl = uploadedById[question.imageAssetId]
+      if (stemUrl) {
+        next.imageUrl = stemUrl
+        next.imageAssetId = ''
       }
+      if (Array.isArray(question.optionMedia)) {
+        next.optionMedia = question.optionMedia.map(slot => {
+          if (!slot || typeof slot !== 'object') return slot
+          const url = slot.imageAssetId ? uploadedById[slot.imageAssetId] : null
+          if (!url) return slot
+          const { imageAssetId: _unused, ...rest } = slot
+          return { ...rest, imageUrl: url }
+        })
+      }
+      return next
     })
   }
 

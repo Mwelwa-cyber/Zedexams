@@ -287,4 +287,57 @@ function runPreQuestionInstructionTest() {
 
 runPreQuestionInstructionTest()
 
+// Phase 3: a DOCX table row that carries one image per option cell should
+// produce a question with optionMedia[] pointing at those images — not a
+// question stem image with the option images discarded.
+function runOptionImageAttributionTest() {
+  const optAAsset = { id: 'asset-A', imageUrl: 'blob:opt-A' }
+  const optBAsset = { id: 'asset-B', imageUrl: 'blob:opt-B' }
+  const optCAsset = { id: 'asset-C', imageUrl: 'blob:opt-C' }
+  const optDAsset = { id: 'asset-D', imageUrl: 'blob:opt-D' }
+
+  // Simulates the block buildDocxTableBlocks emits for a row whose 4 option
+  // cells each carry "A. <img>" / "B. <img>" / "C. <img>" / "D. <img>". The
+  // "(image)" placeholders are what tryImageOptionsRow synthesises so the
+  // parser's OPTION_RE matches; the parser then blanks them out when an
+  // attributed asset is found for that option.
+  const tableBlock = {
+    text: '1. Which animal is the elephant?\nA. (image)\nB. (image)\nC. (image)\nD. (image)',
+    assets: [],
+    source: 'docx',
+    optionAssetsByLetter: {
+      A: optAAsset,
+      B: optBAsset,
+      C: optCAsset,
+      D: optDAsset,
+    },
+  }
+
+  const warnings = []
+  const { sections } = processImportedQuestionBlocks([tableBlock], warnings)
+  const q1 = findStandaloneQuestion(sections, 1)
+  assert.ok(q1, 'image-option question must parse out of the table block')
+
+  assert.ok(Array.isArray(q1.optionMedia) && q1.optionMedia.length >= 4,
+    'optionMedia[] should be populated for all four option assets')
+  assert.equal(q1.optionMedia[0]?.imageAssetId, 'asset-A',
+    'option A media should point at the A asset')
+  assert.equal(q1.optionMedia[3]?.imageAssetId, 'asset-D',
+    'option D media should point at the D asset')
+
+  // Per-option assets must NOT also surface as the stem image — otherwise
+  // the question stem would show option A's image and confuse the learner.
+  assert.equal(q1.imageAssetId, '',
+    'question stem must not claim any of the option-attributed assets')
+  assert.equal(q1.imageUrl, '',
+    'question stem image URL must stay empty when all assets are option images')
+
+  // Imported alt text seeded so the pre-publish checklist surfaces a review
+  // prompt rather than failing validation silently.
+  assert.match(q1.optionMedia[0]?.alt || '', /option a/i,
+    'alt text should be seeded with the option letter for accessibility')
+}
+
+runOptionImageAttributionTest()
+
 console.log('documentQuizParserCore regression test passed')

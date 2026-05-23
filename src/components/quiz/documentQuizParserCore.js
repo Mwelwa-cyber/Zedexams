@@ -454,16 +454,44 @@ function parseAnswerIndex(rawAnswer, options, sourceOptions = options) {
   return containedIndex >= 0 ? containedIndex : null
 }
 
+// Phase 3: assets that the parser attributed to a specific option (e.g. via
+// block.optionAssetsByLetter from a DOCX table) live on current.optionAssets[i].
+// They surface on the question's optionMedia[] array and must NOT also be
+// picked up as the question's stem image — so we filter their IDs out of
+// current.assets before computing firstAsset.
+const OPTION_LETTERS_FOR_MEDIA = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
+
 function questionFromCurrent(current, answerKey = new Map()) {
   if (!current) return null
 
   const reviewNotes = [...current.reviewNotes]
   const text = cleanImportedText(current.textParts.join(' '))
   const sharedInstruction = cleanImportedText(current.sharedInstruction)
-  const cleanedOptions = current.options.map(cleanImportedText)
-  const options = cleanedOptions.filter(Boolean)
+  const optionAssetsArr = Array.isArray(current.optionAssets) ? current.optionAssets : []
+  // Phase 3: the table-block builder synthesises "(image)" as the option text
+  // when a DOCX cell carries an option letter and an image but no caption.
+  // Once the matching asset is attached to current.optionAssets, blank out
+  // the placeholder so the learner sees an image-only option in the runner.
+  const cleanedOptions = current.options.map((option, index) => {
+    const cleaned = cleanImportedText(option)
+    if (cleaned === '(image)' && optionAssetsArr[index]) return ''
+    return cleaned
+  })
+  // Keep empty option strings that have an attributed image — they hold the
+  // index alignment so optionMedia[i] stays parallel to options[i]. Truly
+  // empty options (no text + no media) still drop out.
+  const options = cleanedOptions.filter((opt, index) => Boolean(opt) || optionAssetsArr[index])
   const imageHint = IMAGE_HINT_RE.test(`${text} ${current.diagramText}`)
-  const assets = current.assets.length ? current.assets : imageHint && current.pageAsset ? [current.pageAsset] : []
+
+  // Build optionMedia from current.optionAssets and remember which assets
+  // it claims so they don't double as the question's stem image.
+  const optionAssets = Array.isArray(current.optionAssets) ? current.optionAssets : []
+  const claimedAssetIds = new Set(
+    optionAssets.filter(Boolean).map(asset => asset.id).filter(Boolean),
+  )
+
+  const stemAssets = (current.assets || []).filter(asset => !claimedAssetIds.has(asset?.id))
+  const assets = stemAssets.length ? stemAssets : imageHint && current.pageAsset ? [current.pageAsset] : []
   const firstAsset = assets[0] || null
   const lowerOptions = options.map(option => option.toLowerCase())
   const isTrueFalse = options.length === 2 && lowerOptions.includes('true') && lowerOptions.includes('false')
@@ -504,6 +532,27 @@ function questionFromCurrent(current, answerKey = new Map()) {
 
   const marksMatch = text.match(/\[?\(?(\d{1,2})\s*marks?\)?\]?/i)
 
+  // Build the optionMedia payload only for MCQ-style questions, and only if
+  // at least one option carries an image. The editor's pre-publish checklist
+  // surfaces missing alt text — we seed it with a sensible default so the
+  // teacher doesn't have to start from blank.
+  const isMcqLike = type === 'mcq' || type === 'truefalse'
+  let optionMedia
+  if (isMcqLike) {
+    const slots = optionAssets.map((asset, index) => {
+      if (!asset) return null
+      const letter = OPTION_LETTERS_FOR_MEDIA[index] || `Option ${index + 1}`
+      return {
+        imageAssetId: asset.id,
+        // imageUrl is the transient blob: URL for the editor preview only;
+        // the save pass swaps it for a Storage download URL.
+        imageUrl: asset.imageUrl || '',
+        alt: `Option ${letter} image (imported — please review)`,
+      }
+    })
+    if (slots.some(Boolean)) optionMedia = slots
+  }
+
   return {
     text,
     sharedInstruction,
@@ -523,14 +572,15 @@ function questionFromCurrent(current, answerKey = new Map()) {
     diagramText: firstAsset
       ? cleanImportedText(current.diagramText || `Imported image from ${firstAsset.sourcePath || 'document'}.`)
       : cleanImportedText(current.diagramText),
-    requiresReview: reviewNotes.length > 0,
-    reviewNotes,
+    requiresReview: reviewNotes.length > 0 || Boolean(optionMedia),
+    reviewNotes: optionMedia ? [...reviewNotes, 'Imported option images — add alt text before publishing.'] : reviewNotes,
     importWarnings: reviewNotes,
     sourcePage: current.pageNumber || null,
     sourceQuestionNumber: current.sourceNumber || null,
     partTitle: current.partTitle || '',
     imageUploading: false,
     imageUploadStep: '',
+    ...(optionMedia ? { optionMedia } : {}),
   }
 }
 
@@ -813,6 +863,21 @@ function parseQuestionsFromBlocks(blocks, warnings) {
   // a Part).
   let currentPartTitle = ''
 
+  // Phase 3: when a DOCX table cell carries "A. <img>" / "B. <img>" / …,
+  // buildDocxTableBlocks stamps the cell's first asset onto
+  // `block.optionAssetsByLetter`. The parser routes each asset to the
+  // matching optionAssets[] slot here. Letters > D harmlessly no-op.
+  const OPTION_LETTERS_FOR_PARSER = ['A', 'B', 'C', 'D']
+  function attachBlockOptionAsset(target, block, optionIndex) {
+    if (!target || !block?.optionAssetsByLetter) return
+    const letter = OPTION_LETTERS_FOR_PARSER[optionIndex]
+    if (!letter) return
+    const asset = block.optionAssetsByLetter[letter]
+    if (!asset) return
+    if (!Array.isArray(target.optionAssets)) target.optionAssets = []
+    target.optionAssets[optionIndex] = asset
+  }
+
   function finalizeSubQuestion() {
     if (!current) return
     const q = questionFromCurrent(current, answerKey)
@@ -891,6 +956,12 @@ function parseQuestionsFromBlocks(blocks, warnings) {
     current = {
       textParts: [inline.text],
       options: [],
+      // Phase 3: parallel to options[]. Index i holds the imageAsset attributed
+      // to option i (e.g. via a DOCX-table cell that said "A. <img>"). The
+      // builder surfaces these on question.optionMedia and filters them out
+      // of stem-asset selection so a per-option image doesn't double as the
+      // question's illustration.
+      optionAssets: [],
       lastOptionIndex: inline.options.length ? inline.options[inline.options.length - 1].index : null,
       answerRaw: '',
       explanationParts: [],
@@ -907,6 +978,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
     }
     inline.options.forEach(opt => {
       current.options[opt.index] = opt.text
+      attachBlockOptionAsset(current, block, opt.index)
     })
     pendingAssets = []
   }
@@ -1007,6 +1079,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
             optionSegments.forEach(opt => {
               current.options[opt.index] = opt.text
               current.lastOptionIndex = opt.index
+              attachBlockOptionAsset(current, block, opt.index)
             })
             return
           }
@@ -1015,6 +1088,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
           if (bareOption) {
             current.options[bareOption.index] = bareOption.text
             current.lastOptionIndex = bareOption.index
+            attachBlockOptionAsset(current, block, bareOption.index)
             return
           }
           // Trailing instruction text after this sub-question's options belongs
@@ -1136,6 +1210,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         optionSegments.forEach(opt => {
           current.options[opt.index] = opt.text
           current.lastOptionIndex = opt.index
+          attachBlockOptionAsset(current, block, opt.index)
         })
         return
       }
@@ -1144,6 +1219,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
       if (bareOption && !numberOnlyQuestion) {
         current.options[bareOption.index] = bareOption.text
         current.lastOptionIndex = bareOption.index
+        attachBlockOptionAsset(current, block, bareOption.index)
         return
       }
       if (current.sharedInstruction && PARA_ORDER_INSTRUCTION_RE.test(current.sharedInstruction) && paraOrderOption) {

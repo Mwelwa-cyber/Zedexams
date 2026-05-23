@@ -936,8 +936,20 @@ export default function AssessmentStudio() {
   }
 
   async function uploadImportedQuestionImages(questionsToSave) {
-    const assetIds = Array.from(new Set(questionsToSave.map(q => q.imageAssetId).filter(Boolean)))
-    if (!assetIds.length) return questionsToSave
+    // Phase 3: also walk question.optionMedia[*].imageAssetId so per-option
+    // imports flow through Storage the same way question-stem images do.
+    const assetIds = new Set()
+    questionsToSave.forEach(q => {
+      if (q.imageAssetId) assetIds.add(q.imageAssetId)
+      if (Array.isArray(q.optionMedia)) {
+        q.optionMedia.forEach(slot => {
+          if (slot && typeof slot === 'object' && slot.imageAssetId) {
+            assetIds.add(slot.imageAssetId)
+          }
+        })
+      }
+    })
+    if (!assetIds.size) return questionsToSave
     if (!currentUser?.uid) throw new Error('Please sign in before saving imported quiz images.')
     const uploadedById = {}
     const uploadedRefs = []
@@ -971,9 +983,22 @@ export default function AssessmentStudio() {
       throw error
     }
     return questionsToSave.map(q => {
-      const uploadedUrl = uploadedById[q.imageAssetId]
-      if (!uploadedUrl) return q
-      return { ...q, imageUrl: uploadedUrl, imageAssetId: '' }
+      const next = { ...q }
+      const stemUrl = uploadedById[q.imageAssetId]
+      if (stemUrl) {
+        next.imageUrl = stemUrl
+        next.imageAssetId = ''
+      }
+      if (Array.isArray(q.optionMedia)) {
+        next.optionMedia = q.optionMedia.map(slot => {
+          if (!slot || typeof slot !== 'object') return slot
+          const url = slot.imageAssetId ? uploadedById[slot.imageAssetId] : null
+          if (!url) return slot
+          const { imageAssetId: _unused, ...rest } = slot
+          return { ...rest, imageUrl: url }
+        })
+      }
+      return next
     })
   }
 

@@ -478,6 +478,25 @@ function paragraphImages(paragraph, relationships, zipEntries, warnings) {
     .filter(Boolean)
 }
 
+// Matches a cell whose text is JUST an option label (A/B/C/D with optional
+// punctuation and surrounding whitespace). Used to attribute that cell's
+// inline image to the right option slot — "A." | "(A)" | "A)" | "A:" | "A".
+const CELL_OPTION_LABEL_RE = /^\(?([A-Da-d])\)?[.):-]?\s*$/
+
+// Matches a cell whose text BEGINS with an option label followed by content.
+// Used when teachers type "A. Apple" or "(A) An animal" inside a single cell.
+const CELL_OPTION_PREFIX_RE = /^\(?([A-Da-d])\)?\s*[.):-]\s*\S/
+
+function detectOptionLetterInCell(text) {
+  const normalized = String(text || '').trim()
+  if (!normalized) return ''
+  const labelOnly = normalized.match(CELL_OPTION_LABEL_RE)
+  if (labelOnly) return labelOnly[1].toUpperCase()
+  const prefix = normalized.match(CELL_OPTION_PREFIX_RE)
+  if (prefix) return prefix[1].toUpperCase()
+  return ''
+}
+
 function tableCellContent(cell, relationships, zipEntries, warnings) {
   const parts = []
   const assets = []
@@ -508,9 +527,16 @@ function tableCellContent(cell, relationships, zipEntries, warnings) {
     if (fallbackText) parts.push(fallbackText)
   }
 
+  const text = parts.join('\n')
+
   return {
-    text: parts.join('\n'),
+    text,
     assets,
+    // Detected option letter (A-D) when this cell sits inside an option
+    // column of an MCQ table. Empty string if the cell isn't an option cell.
+    // Phase 3: lets buildDocxTableBlocks attribute the cell's image to the
+    // right optionMedia[] slot instead of dumping it on the question stem.
+    optionLetter: detectOptionLetterInCell(text),
   }
 }
 

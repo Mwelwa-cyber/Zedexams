@@ -20,6 +20,23 @@ function draftKey(userId) {
   return `${KEY_PREFIX}${userId}`
 }
 
+// Phase 3: per-option imports may stamp a blob: URL on optionMedia[i].imageUrl
+// alongside an imageAssetId. The asset id is dropped below; we also need to
+// drop the blob: URL because it's bound to the page session that created it
+// and shows as a broken image after refresh.
+function stripOptionMediaRuntime(optionMedia) {
+  if (!Array.isArray(optionMedia)) return optionMedia
+  return optionMedia.map(slot => {
+    if (!slot || typeof slot !== 'object') return slot
+    const next = { ...slot }
+    if (typeof next.imageUrl === 'string' && next.imageUrl.startsWith('blob:')) {
+      delete next.imageUrl
+    }
+    if (next.imageAssetId) delete next.imageAssetId
+    return next
+  })
+}
+
 function stripQuestionRuntime(question) {
   if (!question) return question
   const {
@@ -31,7 +48,10 @@ function stripQuestionRuntime(question) {
     imageAssetId: _imageAssetId,
     ...rest
   } = question
-  return rest
+  return {
+    ...rest,
+    optionMedia: stripOptionMediaRuntime(rest.optionMedia),
+  }
 }
 
 function stripSectionsRuntime(sections = []) {
