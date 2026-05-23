@@ -45,7 +45,13 @@ function timeAgo(ts) {
 
 // statusFilter: 'needs_review' | 'active' | <single status>.
 // Default is 'needs_review' (the admin-attention queue in v2).
-export default function TaskQueue({ statusFilter = REVIEW_STATUS }) {
+//
+// When `onRowClick(taskId)` is supplied (Live Monitor passes it in),
+// the row's "Open" button calls it instead of navigating to the
+// full task page — the Monitor opens its drawer overlay. Without
+// it the row still links to /admin/learner-ai/tasks/{id} for the
+// standalone /tasks list view.
+export default function TaskQueue({ statusFilter = REVIEW_STATUS, onRowClick }) {
   const [tasks, setTasks] = useState([])
   const [loading, setLoading] = useState(true)
   const [err, setErr] = useState(null)
@@ -121,9 +127,19 @@ export default function TaskQueue({ statusFilter = REVIEW_STATUS }) {
               </td>
               <td className="px-3 py-2 text-slate-500">{timeAgo(t.createdAt)}</td>
               <td className="px-3 py-2">
-                <Link to={`/admin/learner-ai/tasks/${t.id}`} className="text-blue-600 hover:underline text-xs">
-                  Open
-                </Link>
+                {onRowClick ? (
+                  <button
+                    type="button"
+                    onClick={() => onRowClick(t.id)}
+                    className="text-blue-600 hover:underline text-xs font-semibold"
+                  >
+                    View Task
+                  </button>
+                ) : (
+                  <Link to={`/admin/learner-ai/tasks/${t.id}`} className="text-blue-600 hover:underline text-xs">
+                    Open
+                  </Link>
+                )}
               </td>
             </tr>
           ))}
