@@ -1274,9 +1274,12 @@ service cloud.firestore {
         && (!('errorMessage' in incoming()) || incoming().errorMessage == null);
 
       // Admins can flip terminal review statuses. Real pipeline updates
-      // are written by the dispatcher via admin SDK.
+      // are written by the dispatcher via admin SDK. `regenerateNotes`
+      // is the admin-typed string from the "Regenerate with notes"
+      // modal — opaque to the rule, captured for the dispatcher to
+      // log when it re-runs the chain.
       allow update: if isAdmin()
-        && changedKeys().hasOnly(['status', 'errorMessage', 'updatedAt'])
+        && changedKeys().hasOnly(['status', 'errorMessage', 'regenerateNotes', 'updatedAt'])
         && (incoming().status == 'approved'
             || incoming().status == 'rejected'
             || incoming().status == 'regenerating'

@@ -346,13 +346,19 @@ test('stub output assembles into a valid ExamQuizContent doc', () => {
 
 console.log('\nHard rule: exam quizzes never auto-publish')
 
-test('dispatcher shouldAutoPublish refuses any task that is not practice_quiz', () => {
-  // Source-level inspection: the gate at functions/agents/learnerAi/dispatcher.js
-  // explicitly pins to practice_quiz. If anyone ever broadens it, this test
-  // fires.
-  assert(/taskType !== "practice_quiz"/.test(DISPATCHER_TEXT) ||
-    /taskType\s*!==\s*'practice_quiz'/.test(DISPATCHER_TEXT),
-    'shouldAutoPublish must pin to practice_quiz (exam_quiz must never auto-publish)')
+test('dispatcher shouldAutoPublish allow-list does NOT include exam_quiz', () => {
+  // Source-level inspection: the auto-publish gate at
+  // functions/agents/learnerAi/dispatcher.js uses an
+  // AUTO_PUBLISH_SETTING_BY_TASK lookup table; exam_quiz must not
+  // appear as a key in it. If anyone ever adds it, this test fires.
+  assert(DISPATCHER_TEXT.includes('AUTO_PUBLISH_SETTING_BY_TASK'),
+    'expected the per-task allow-list table to exist')
+  // The table sits between this open and close marker — extract it
+  // and assert exam_quiz is absent.
+  const tableStart = DISPATCHER_TEXT.indexOf('AUTO_PUBLISH_SETTING_BY_TASK')
+  const tableSlice = DISPATCHER_TEXT.slice(tableStart, tableStart + 400)
+  assert(!/exam_quiz\s*:/.test(tableSlice),
+    `exam_quiz must never appear in the auto-publish allow-list, found in: ${tableSlice.slice(0, 200)}`)
 })
 
 test('dispatcher carries chainContext.standards forward', () => {

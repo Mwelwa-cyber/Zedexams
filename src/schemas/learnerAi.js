@@ -976,6 +976,290 @@ export const supervisorDecisionSchema = z.object({
 
 /** @typedef {import('zod').infer<typeof supervisorDecisionSchema>} SupervisorDecision */
 
+// ── Notes Generator Agent — content + parameters ────────────────────
+//
+// NOT a Firestore collection. Validates the structured notes payload
+// the Notes Generator writes onto aiGeneratedContent.content for
+// taskType='notes' artifacts. Carries the user-required sections:
+// shortExplanation, keyVocabulary, importantFacts, examples, summary,
+// rememberThis, diagramSuggestions, quickRevision.
+//
+// Also carries a `body` field built by the runner that concatenates
+// the structured pieces into one plain-text block. Quality Check v3
+// reads `body` for its sentence-length / word-cap / topic-match
+// checks, so notes from this generator pass through QC cleanly.
+
+export const NOTES_DETAIL_LEVELS = z.enum(['brief', 'standard', 'detailed'])
+
+export const notesVocabularyEntrySchema = z.object({
+  term: z.string().min(1).max(120),
+  definition: z.string().min(1).max(400),
+}).strict()
+
+export const notesExampleSchema = z.object({
+  title: z.string().min(1).max(200),
+  explanation: z.string().min(1).max(800),
+}).strict()
+
+export const notesContentSchema = z.object({
+  title: z.string().min(1).max(200),
+  // shortExplanation — 1-3 learner-friendly sentences introducing
+  // the topic. Rendered at the top of the notes page.
+  shortExplanation: z.string().min(1).max(800),
+  keyVocabulary: z.array(notesVocabularyEntrySchema).min(0).max(15),
+  importantFacts: z.array(z.string().min(1).max(400)).min(0).max(20),
+  examples: z.array(notesExampleSchema).min(0).max(8),
+  // Plain-language summary paragraph (≤ 600 chars). Distinct from
+  // shortExplanation in that this rounds out the whole topic, not
+  // just an intro.
+  summary: z.string().min(1).max(800),
+  // "Remember this" bullets — short imperative reminders.
+  rememberThis: z.array(z.string().min(1).max(300)).min(0).max(10),
+  // Optional diagram suggestions. The renderer surfaces these as a
+  // sidebar TODO list ("Sketch a number line showing 1/2 and 1/4");
+  // no images are stored on aiGeneratedContent — that's a future PR.
+  diagramSuggestions: z.array(z.string().min(1).max(300)).min(0).max(8),
+  // Quick revision bullets at the end of the notes page — the
+  // learner's last-minute cheat sheet.
+  quickRevision: z.array(z.string().min(1).max(300)).min(0).max(12),
+  // Concatenated plain-text body, built by the runner from the
+  // structured fields above. Quality Check v3's notes_simple /
+  // notes_length / notes_match_topic axes read this field.
+  body: z.string().min(1).max(20_000),
+  // Curriculum echo — stamped server-side from chainContext.curriculumReader.
+  grade: z.string().min(1).max(8),
+  subject: z.string().min(1).max(80),
+  term: z.string().max(8).nullable(),
+  topic: z.string().min(1).max(200),
+  subtopic: z.string().max(200).nullable(),
+  competency: z.string().max(400),
+  learningOutcome: z.string().max(400).nullable(),
+  estimatedReadingMinutes: z.number().int().min(1).max(120),
+  // Provenance — 'stub' when ANTHROPIC_API_KEY is absent.
+  modelUsed: z.string().max(80),
+  parametersUsed: z.object({}).passthrough(),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof notesContentSchema>} NotesContent */
+
+export const notesParametersSchema = z.object({
+  detailLevel: NOTES_DETAIL_LEVELS.default('standard'),
+  includeDiagrams: z.boolean().default(true),
+  numExamples: z.number().int().min(1).max(8).default(3),
+  numKeyVocabulary: z.number().int().min(1).max(15).default(5),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof notesParametersSchema>} NotesParameters */
+
+// ── Study Tips Agent — content + parameters ──────────────────────────
+//
+// NOT a Firestore collection. Validates the structured payload the
+// Study Tips Generator writes onto aiGeneratedContent.content for
+// taskType='study_tips' artifacts.
+//
+// Tips MUST be tied to real learner performance data — the runner
+// reads learnerWeaknessProfiles/{learnerId} (or the explicit weakAreas
+// supplied on task.parameters) and refuses to generate generic tips.
+// Every tip.reason field traces back to one weakSignal entry.
+
+export const STUDY_TIP_PRIORITIES = z.enum(['high', 'medium', 'low'])
+
+export const studyTipWeakSignalSchema = z.object({
+  // What kind of weakness this signal came from. 'profile' = from
+  // learnerWeaknessProfiles; 'attempt' = from a specific failed quiz
+  // attempt; 'parameter' = explicitly passed in by the caller.
+  source: z.enum(['profile', 'attempt', 'parameter']),
+  // The weak target — topic or subtopic.
+  topic: z.string().min(1).max(200),
+  subtopic: z.string().max(200).nullable(),
+  // Optional explanation pulled from repeatedMistakes (e.g.
+  // "confused arteries with veins").
+  mistakeNote: z.string().max(400).nullable(),
+}).strict()
+
+export const studyTipSchema = z.object({
+  // The tip itself — actionable, starts with an imperative verb.
+  // Quality Check v3's `tips_actionable` axis enforces this.
+  tip: z.string().min(1).max(300),
+  // The reason ties the tip back to a weakness signal so admins +
+  // learners can see why the tip was offered.
+  reason: z.string().min(1).max(400),
+  // Pointer at the weak target the tip addresses.
+  topic: z.string().min(1).max(200),
+  subtopic: z.string().max(200).nullable(),
+  priority: STUDY_TIP_PRIORITIES,
+  // 2-15 minutes — how long this single tip's activity takes.
+  estimatedMinutes: z.number().int().min(2).max(60),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof studyTipSchema>} StudyTip */
+
+export const studyTipRecommendedQuizSchema = z.object({
+  topic: z.string().min(1).max(200),
+  subtopic: z.string().max(200).nullable(),
+  focus: z.string().min(1).max(400),
+  // Suggested generator parameters the practice-quiz generator can
+  // honour if the learner clicks "Try this quiz next" — numQuestions
+  // + difficulty hint based on the weakness severity.
+  numQuestions: z.number().int().min(3).max(20),
+  difficulty: z.enum(['easy', 'medium', 'hard', 'mixed']),
+}).strict()
+
+export const studyTipRevisionDaySchema = z.object({
+  day: z.number().int().min(1).max(14),
+  focus: z.string().min(1).max(200),
+  activity: z.string().min(1).max(400),
+  estimatedMinutes: z.number().int().min(5).max(120),
+}).strict()
+
+export const studyTipsContentSchema = z.object({
+  title: z.string().min(1).max(200),
+  // Encouraging-but-honest opener. Sets the tone — never sugar-coats
+  // a poor performance but never demoralises.
+  feedback: z.string().min(1).max(800),
+  tips: z.array(studyTipSchema).min(1).max(15),
+  recommendedNotes: z.array(z.string().min(1).max(300)).max(10),
+  recommendedQuizzes: z.array(studyTipRecommendedQuizSchema).max(6),
+  // Day-by-day revision plan, ordered by day. Optional in shape but
+  // the runner produces it by default.
+  revisionPlan: z.array(studyTipRevisionDaySchema).max(14),
+  // Snapshot of the weakness signals consumed — kept on the artifact
+  // so admins can audit which performance data shaped the tips.
+  weakSignalsUsed: z.array(studyTipWeakSignalSchema).max(40),
+  // Curriculum echo — stamped server-side from chainContext.curriculumReader.
+  grade: z.string().min(1).max(8),
+  subject: z.string().min(1).max(80),
+  term: z.string().max(8).nullable(),
+  topic: z.string().min(1).max(200),
+  subtopic: z.string().max(200).nullable(),
+  // Learner this artifact targets. Mirrors task.parameters.weakLearnerId
+  // so admin queue filters by learner work.
+  learnerId: z.string().max(120),
+  modelUsed: z.string().max(80),
+  parametersUsed: z.object({}).passthrough(),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof studyTipsContentSchema>} StudyTipsContent */
+
+export const studyTipsParametersSchema = z.object({
+  // Required — the runner refuses if not set.
+  weakLearnerId: z.string().min(1).max(120),
+  maxTips: z.number().int().min(3).max(15).default(6),
+  includeRevisionPlan: z.boolean().default(true),
+  planDurationDays: z.number().int().min(3).max(14).default(7),
+  // Optional explicit weak-areas seed — bypasses the
+  // learnerWeaknessProfiles lookup when set. Useful for one-off
+  // catch-up plans an admin queues for a learner whose profile
+  // hasn't been built yet.
+  weakAreas: z.array(z.object({
+    topic: z.string().min(1).max(200),
+    subtopic: z.string().max(200).nullable().optional(),
+    mistakeNote: z.string().max(400).nullable().optional(),
+  })).max(20).optional(),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof studyTipsParametersSchema>} StudyTipsParameters */
+
+// ── Learner Feedback Agent — content + parameters ───────────────────
+//
+// NOT a Firestore collection. Validates the structured feedback the
+// Learner Feedback Generator writes onto aiGeneratedContent.content
+// for taskType='learner_feedback' artifacts. One artifact per
+// completed quiz attempt.
+//
+// Rules baked into the schema + runner:
+//   - Feedback is tied to ONE specific attempt (attemptId required).
+//   - Feedback consumes learnerWeaknessProfiles + the attempt's own
+//     topicScores — NEVER guessed.
+//   - Tone is honest+encouraging; no fake praise, no shaming. The
+//     runner's structured-stub fallback enforces this in deterministic
+//     output; the LLM prompt enforces it for live output; the Quality
+//     Check + Standards Check agents verify it on the way through.
+
+export const FEEDBACK_TONES = z.enum([
+  // Tone label echoed onto the artifact so admins can see what
+  // posture the agent took. Picked deterministically from the score.
+  'celebratory',     // ≥ 85%
+  'positive',        // 70-84%
+  'balanced',        // 50-69%
+  'supportive',      // 30-49%
+  'gentle',          // < 30%
+])
+
+export const feedbackCorrectiveExplanationSchema = z.object({
+  topic: z.string().min(1).max(200),
+  subtopic: z.string().max(200).nullable(),
+  // What the learner likely got wrong + a short, age-appropriate
+  // explanation of the correct concept. Keeps the misconception
+  // bound to a real topic (no "guess what you got wrong" prose).
+  whatToCorrect: z.string().min(1).max(400),
+  briefExplanation: z.string().min(1).max(600),
+}).strict()
+
+export const feedbackRecommendedQuizSchema = z.object({
+  topic: z.string().min(1).max(200),
+  subtopic: z.string().max(200).nullable(),
+  focus: z.string().min(1).max(400),
+  numQuestions: z.number().int().min(3).max(15),
+  difficulty: z.enum(['easy', 'medium', 'hard', 'mixed']),
+}).strict()
+
+export const learnerFeedbackContentSchema = z.object({
+  // Display title — e.g. "Your Fractions quiz results".
+  title: z.string().min(1).max(200),
+  // Honest score block — score / outOf / percentage so the UI can
+  // render either fraction or percentage without recomputing.
+  score: z.object({
+    score: z.number().min(0).max(1000),
+    outOf: z.number().min(1).max(1000),
+    percentage: z.number().min(0).max(100),
+  }).strict(),
+  tone: FEEDBACK_TONES,
+  // Encouraging-but-honest opener — the "Good work. You scored 7/10."
+  // line from the spec example.
+  encouragingMessage: z.string().min(1).max(600),
+  // Strengths — topics the learner did well on (≥ 70% on this
+  // attempt). Empty array is valid when the learner scored low
+  // everywhere; the runner does not invent strengths.
+  strengths: z.array(z.string().min(1).max(200)).max(10),
+  // Weak areas — topics under 70% on this attempt OR from the
+  // weakness profile. Same no-fabrication rule.
+  weakAreas: z.array(z.string().min(1).max(200)).max(10),
+  correctiveExplanations: z.array(feedbackCorrectiveExplanationSchema).max(8),
+  recommendedNotes: z.array(z.string().min(1).max(300)).max(6),
+  recommendedQuizzes: z.array(feedbackRecommendedQuizSchema).max(4),
+  // One actionable study tip — verb-led, specific to a weak area.
+  // Optional when there are no weak areas (rare — learner aced it).
+  studyTip: z.string().max(300).nullable(),
+  // Curriculum echo (from the quiz the attempt came from).
+  grade: z.string().min(1).max(8),
+  subject: z.string().min(1).max(80),
+  term: z.string().max(8).nullable(),
+  topic: z.string().min(1).max(200),
+  subtopic: z.string().max(200).nullable(),
+  // Audit linkage — the attempt this feedback is about + the
+  // learner it's addressed to. Used by the dashboard query
+  // ("show me my feedback for attempt X").
+  learnerId: z.string().max(120),
+  attemptId: z.string().max(120),
+  quizId: z.string().max(120),
+  modelUsed: z.string().max(80),
+  parametersUsed: z.object({}).passthrough(),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof learnerFeedbackContentSchema>} LearnerFeedbackContent */
+
+export const learnerFeedbackParametersSchema = z.object({
+  // Both REQUIRED — feedback is tied to ONE specific attempt.
+  learnerId: z.string().min(1).max(120),
+  attemptId: z.string().min(1).max(120),
+  // Optional: how many corrective explanations to include. Defaults
+  // to all weak areas, capped at 8 by the content schema.
+  maxCorrectiveExplanations: z.number().int().min(1).max(8).default(4),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof learnerFeedbackParametersSchema>} LearnerFeedbackParameters */
+
 /**
  * Parse-or-throw helper. Returns the validated doc body; throws ZodError
  * on bad shape. Use immediately before any addDoc / setDoc / update.

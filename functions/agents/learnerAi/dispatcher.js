@@ -314,21 +314,59 @@ async function runChain({taskId}) {
 }
 
 /**
- * Auto-publish gate for practice quizzes.
+ * Auto-publish gate per task type.
  *
- * Reads settings/global.learnerAi.autoPublishPracticeQuizzes. When
- * true AND the task is a practice_quiz AND Quality Check verdict was
- * 'pass', returns true so the dispatcher transitions straight to
- * 'approved' (which then fires aiAgentTasksOnApproved → flips the
- * aiGeneratedContent doc to 'published').
+ * Allow-list:
+ *   practice_quiz → settings/global.learnerAi.autoPublishPracticeQuizzes
+ *   notes         → settings/global.learnerAi.autoPublishNotes
+ *
+ * When the matching flag is true AND Quality Check verdict was 'pass'
+ * AND qualityCheck.requiresHumanReview !== true, the dispatcher
+ * transitions straight to APPROVED (which then fires
+ * aiAgentTasksOnApproved → flips the aiGeneratedContent doc to
+ * 'published'). Every other task type — including exam_quiz,
+ * curriculum_update_check, weakness_analysis, learner_feedback,
+ * study_tips — always lands at needs_review.
  *
  * Safe-by-default: returns false on any error, missing setting, or
- * unknown task type. The admin can always opt-out by setting the
- * flag to false in /admin/settings.
+ * unknown task type. Admins opt-out by setting the per-type flag
+ * to false in /admin/settings.
+ *
+ * Per-type extra preconditions can be wired alongside the setting
+ * key — e.g. study_tips refuses to auto-publish unless the task
+ * carries `parameters.weakLearnerId` (enforcing the user rule:
+ * "Study tips may auto-publish if based on real learner weakness
+ * data"). Auto-publish for exam_quiz / curriculum_update_check /
+ * weakness_analysis / learner_feedback is never granted (those types
+ * are absent from the table).
  */
+const AUTO_PUBLISH_SETTING_BY_TASK = Object.freeze({
+  practice_quiz: {settingKey: "autoPublishPracticeQuizzes", precondition: null},
+  notes:         {settingKey: "autoPublishNotes",           precondition: null},
+  study_tips:    {settingKey: "autoPublishStudyTips",
+    precondition: (task) => !!(task && task.parameters &&
+      typeof task.parameters.weakLearnerId === "string" &&
+      task.parameters.weakLearnerId.length > 0)},
+  // Learner feedback is shown on the learner's dashboard right after
+  // a quiz, so auto-publish is the expected default once an admin
+  // turns on settings.autoPublishLearnerFeedback. Precondition
+  // enforces "based on actual quiz attempt data": both learnerId AND
+  // attemptId must be on the task parameters. Without them the
+  // feedback runner would have refused upstream anyway, but pinning
+  // it at the publish boundary is belt-and-braces.
+  learner_feedback: {settingKey: "autoPublishLearnerFeedback",
+    precondition: (task) => !!(task && task.parameters &&
+      typeof task.parameters.learnerId === "string" &&
+      task.parameters.learnerId.length > 0 &&
+      typeof task.parameters.attemptId === "string" &&
+      task.parameters.attemptId.length > 0)},
+});
+
 async function shouldAutoPublish({task, contentId}) {
   if (!task) return false;
-  if (task.taskType !== "practice_quiz") return false;
+  const entry = AUTO_PUBLISH_SETTING_BY_TASK[task.taskType];
+  if (!entry) return false;
+  if (typeof entry.precondition === "function" && !entry.precondition(task)) return false;
   if (task.status === TASK_STATUS.FAILED_QUALITY_CHECK) return false;
   if (task.status !== TASK_STATUS.PASSED_QUALITY_CHECK) return false;
   if (!contentId) return false;
@@ -351,7 +389,7 @@ async function shouldAutoPublish({task, contentId}) {
         .get();
     const learnerAi = settingsSnap.exists ?
       (settingsSnap.data() || {}).learnerAi || {} : {};
-    return learnerAi.autoPublishPracticeQuizzes === true;
+    return learnerAi[entry.settingKey] === true;
   } catch (err) {
     console.warn("[learner-ai dispatcher] auto-publish check failed", err && err.message);
     return false;

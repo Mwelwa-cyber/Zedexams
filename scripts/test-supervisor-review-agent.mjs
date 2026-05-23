@@ -260,9 +260,13 @@ test('qualityCheck.requiresHumanReview blocks auto-approve', () => {
     `requiresHumanReview must block approve, got ${d.decision}`)
 })
 
-console.log('\nSupervisor planner — appends supervisorReview to every chain')
+console.log('\nSupervisor planner — appends supervisorReview to every content chain')
 
-for (const t of ['practice_quiz', 'notes', 'study_tips', 'learner_feedback', 'weakness_analysis']) {
+// Note: weakness_analysis is intentionally a single-step chain
+// (just ["weakness"]) because it's a per-learner data rollup, not
+// learner-facing content — see PR #548. The other learner-facing
+// content types all get supervisorReview appended.
+for (const t of ['practice_quiz', 'notes', 'study_tips', 'learner_feedback']) {
   test(`planStepsFor(${t}) ends with supervisorReview`, () => {
     const steps = supervisor.planStepsFor(t)
     assert(steps[steps.length - 1] === 'supervisorReview',
@@ -278,6 +282,11 @@ test('planStepsFor(curriculum_update_check) ends with supervisorReview', () => {
   const steps = supervisor.planStepsFor('curriculum_update_check')
   assert(steps[steps.length - 1] === 'supervisorReview',
     `curriculum_update_check must still pass through gatekeeper, got: ${steps.join(',')}`)
+})
+test('planStepsFor(weakness_analysis) is intentionally a single-step rollup', () => {
+  const steps = supervisor.planStepsFor('weakness_analysis')
+  assert(steps.length === 1 && steps[0] === 'weakness',
+    `weakness_analysis must be ['weakness'] (data rollup, no gatekeeper), got: ${steps.join(',')}`)
 })
 
 console.log('\nDispatcher wiring (source-text checks)')

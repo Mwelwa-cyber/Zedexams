@@ -60,6 +60,16 @@ const AUTO_PUBLISH_ALLOWLIST = Object.freeze({
   study_tips:       {settingKey: "autoPublishStudyTips",
     requiresExtra: (task) => !!(task &&
       task.parameters && task.parameters.weakLearnerId)},
+  // learner_feedback: must reference a real attempt by a real
+  // learner. The precondition mirrors the dispatcher's auto-publish
+  // gate from PR #549.
+  learner_feedback: {settingKey: "autoPublishLearnerFeedback",
+    requiresExtra: (task) => !!(task &&
+      task.parameters &&
+      typeof task.parameters.learnerId === "string" &&
+      task.parameters.learnerId.length > 0 &&
+      typeof task.parameters.attemptId === "string" &&
+      task.parameters.attemptId.length > 0)},
 });
 
 // Task types that MUST NEVER auto-publish, regardless of confidence
