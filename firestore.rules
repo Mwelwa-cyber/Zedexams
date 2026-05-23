@@ -895,6 +895,34 @@ service cloud.firestore {
       }
     }
 
+    // ── aiAutomationSettings (admin-managed learner-AI policy) ────────
+    //
+    // The /global doc carries the master enabled switch, daily caps,
+    // enabledGrades/Subjects whitelists, curriculum-update frequency
+    // override, and hard-pin admin-approval rules. The dispatcher's
+    // automationGate.js reads from here on every task.
+    match /aiAutomationSettings/{settingId} {
+      allow read: if isAuthed();
+      // Admin-only writes. The Zod schema in
+      // src/schemas/learnerAi.js → aiAutomationSettingsWriteSchema
+      // pins requireAdminApprovalForExamQuizzes + ...ForCurriculumUpdates
+      // to literal true so the admin UI cannot silently flip them off.
+      // The server-side gate (loadAutomationSettings) double-checks
+      // those literals and falls back to defaults if either is missing.
+      allow write: if isAdmin();
+    }
+
+    // ── aiUsageDaily (per-day question/quiz counter rollup) ──────────
+    //
+    // Single counter doc per UTC day. Server-only writes via the
+    // _stubFactory's fire-and-forget recordGenerationUsage(). The
+    // admin UI reads it via onSnapshot for the live "today: X / cap"
+    // indicator on the Settings tab.
+    match /aiUsageDaily/{date} {
+      allow read: if isAdmin();
+      allow create, update, delete: if false;
+    }
+
     // ── parentDigestEvents (audit A3 PR 2 — weekly digest audit log) ──
     // Append-only ledger written exclusively by the weekly digest
     // cron (admin SDK). The owning learner can read their own rows

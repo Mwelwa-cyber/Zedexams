@@ -12,6 +12,7 @@ const {onSchedule} = require("firebase-functions/v2/scheduler");
 const {runCurriculumWatcher} = require("./runners/curriculumWatcher");
 const {writeAgentLog} = require("./logger");
 const {COLLECTIONS, TASK_STATUS, SEVERITY} = require("./v2Collections");
+const {loadAutomationSettings} = require("./automationGate");
 
 const STUCK_MINUTES = 10;
 
@@ -72,6 +73,14 @@ function createAiAgentHealthCheckScheduled() {
       },
       async () => {
         try {
+          // Master automation kill-switch — admin can pause every
+          // scheduled run from aiAutomationSettings/global.enabled
+          // without redeploying.
+          const settings = await loadAutomationSettings();
+          if (settings.enabled === false) {
+            console.log("[healthCheck] skipped — automation disabled by admin");
+            return;
+          }
           await reapStuckTasks();
         } catch (err) {
           console.error("aiAgentHealthCheck failed", err);
@@ -90,6 +99,11 @@ function createCurriculumUpdateCheckerScheduled() {
       },
       async () => {
         try {
+          const settings = await loadAutomationSettings();
+          if (settings.enabled === false) {
+            console.log("[curriculumUpdateChecker] skipped — automation disabled by admin");
+            return;
+          }
           await runCurriculumWatcher({task: {id: `scheduled-${Date.now()}`}});
         } catch (err) {
           console.error("curriculumUpdateChecker scheduled run failed", err);

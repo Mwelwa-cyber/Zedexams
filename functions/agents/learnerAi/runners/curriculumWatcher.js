@@ -43,6 +43,7 @@ const {
   writeAgentLog, writeSupervisorLog, updateLiveAgentState, writeTaskStep,
 } = require("../logger");
 const {COLLECTIONS, TASK_STEP_STATUS, SEVERITY} = require("../v2Collections");
+const {loadAutomationSettings} = require("../automationGate");
 
 const AGENT_ID = "curriculumWatcher";
 const SUPERVISOR_DISPLAY = "Curriculum Update Checker Agent";
@@ -239,7 +240,7 @@ function summariseChange({source, oldBody, newBody}) {
  * scheduled function calls this agent every day, but each source only
  * actually fetches when its window has elapsed.
  */
-function dueForCheck({source, sourceState, nowMs}) {
+function dueForCheck({source, sourceState, nowMs, overrideFrequency}) {
   let lastMs = 0;
   if (sourceState) {
     if (sourceState.lastCheckedAt && typeof sourceState.lastCheckedAt.toMillis === "function") {
@@ -249,12 +250,16 @@ function dueForCheck({source, sourceState, nowMs}) {
     }
   }
   if (!lastMs) return true;
-  const window = FREQUENCY_MS[source.frequency] || FREQUENCY_MS.weekly;
+  // Admin override (from aiAutomationSettings.curriculumUpdateCheckFrequency)
+  // wins over per-source defaults so admins can stretch every source
+  // to monthly without redeploying.
+  const freq = overrideFrequency || source.frequency;
+  const window = FREQUENCY_MS[freq] || FREQUENCY_MS.weekly;
   return (nowMs - lastMs) >= window;
 }
 
-async function checkOneSource({source, sourceState, nowMs}) {
-  if (!dueForCheck({source, sourceState, nowMs})) {
+async function checkOneSource({source, sourceState, nowMs, overrideFrequency}) {
+  if (!dueForCheck({source, sourceState, nowMs, overrideFrequency})) {
     return {sourceId: source.id, outcome: "skipped", reason: "cooldown", reportId: null};
   }
 
@@ -335,12 +340,19 @@ async function runCurriculumWatcher({task} = {task: {id: `scheduled-${Date.now()
   const sourcesState = state.sources || {};
   const nowMs = Date.now();
 
+  // Admin override for per-source frequency. Loaded once per run so
+  // the value is stable across all sources within a single scan.
+  const automationSettings = await loadAutomationSettings();
+  const overrideFrequency = automationSettings &&
+    typeof automationSettings.curriculumUpdateCheckFrequency === "string" ?
+    automationSettings.curriculumUpdateCheckFrequency : null;
+
   const outcomes = [];
   const newState = {sources: {...sourcesState}};
 
   for (const source of TRUSTED_SOURCES) {
     const out = await checkOneSource({
-      source, sourceState: sourcesState[source.id], nowMs,
+      source, sourceState: sourcesState[source.id], nowMs, overrideFrequency,
     });
     outcomes.push(out);
 

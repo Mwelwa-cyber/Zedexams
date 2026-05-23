@@ -1260,6 +1260,60 @@ export const learnerFeedbackParametersSchema = z.object({
 
 /** @typedef {import('zod').infer<typeof learnerFeedbackParametersSchema>} LearnerFeedbackParameters */
 
+// ── Automation rules + scheduling ────────────────────────────────────
+//
+// New as of the Automation Rules PR. Lives at aiAutomationSettings/global
+// (separate from the existing settings/global.learnerAi.* per-task
+// auto-publish flags — those stay where they are per the user's
+// chosen split: keep both docs side-by-side).
+//
+// `requireAdminApprovalForExamQuizzes` + `requireAdminApprovalForCurriculumUpdates`
+// are pinned to literal `true` — the dispatcher refuses to load a
+// settings doc whose Zod parse fails, so an admin editing the doc
+// via the Firestore Console can't silently flip these off.
+//
+// `enabledGrades` + `enabledSubjects` default to []. Empty array =
+// allow all (backwards-compatible: a freshly-created doc keeps
+// existing flows working). Non-empty = whitelist.
+
+export const CURRICULUM_UPDATE_FREQUENCIES = z.enum(['weekly', 'monthly'])
+
+export const aiAutomationSettingsWriteSchema = z.object({
+  enabled: z.boolean(),
+  maxQuestionsPerDay: z.number().int().min(0).max(10_000),
+  maxQuizzesPerDay: z.number().int().min(0).max(1_000),
+  // Mirrored copies of the existing settings/global.learnerAi.* fields.
+  // Optional — the dispatcher's shouldAutoPublish still reads the
+  // canonical location; these are exposed here purely so admin tooling
+  // that loads only this doc can render the matching toggles in the
+  // same view. Never required for dispatch.
+  autoPublishPracticeQuizzes: z.boolean().optional(),
+  autoPublishNotes: z.boolean().optional(),
+  // Hard-rule pins — must be literal true. Zod rejects any other value.
+  requireAdminApprovalForExamQuizzes: z.literal(true),
+  requireAdminApprovalForCurriculumUpdates: z.literal(true),
+  curriculumUpdateCheckFrequency: CURRICULUM_UPDATE_FREQUENCIES,
+  enabledGrades: z.array(z.string().max(8)).max(20).default([]),
+  enabledSubjects: z.array(z.string().max(80)).max(40).default([]),
+  updatedAt: timestampish,
+  updatedBy: z.string().min(1).max(120),
+}).strict()
+
+/** @typedef {import('zod').infer<typeof aiAutomationSettingsWriteSchema>} AiAutomationSettings */
+
+// Single counter doc per UTC day. Server-only writes via
+// FieldValue.increment from _stubFactory. The admin UI reads it via
+// onSnapshot to render a live "today: X / cap" indicator.
+export const aiUsageDailyWriteSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+  questionsGenerated: z.number().int().min(0),
+  quizzesGenerated: z.number().int().min(0),
+  artifactsGenerated: z.number().int().min(0),
+  updatedAt: timestampish,
+}).strict()
+
+/** @typedef {import('zod').infer<typeof aiUsageDailyWriteSchema>} AiUsageDaily */
+
 /**
  * Parse-or-throw helper. Returns the validated doc body; throws ZodError
  * on bad shape. Use immediately before any addDoc / setDoc / update.
