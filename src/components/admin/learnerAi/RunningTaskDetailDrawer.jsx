@@ -6,7 +6,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
-import { classForStatus } from './agentRegistry'
+import { classForStatus, prettyAgentName } from './agentRegistry'
 
 // Section 4 + 5: slide-in drawer showing a task's live detail +
 // the admin control buttons.
@@ -60,7 +60,7 @@ function StepRow({ step }) {
       <span className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${accent}`} />
       <div className="flex-1 min-w-0">
         <div className="text-xs font-semibold text-slate-700">
-          #{step.stepNumber} {step.stepTitle || step.agentName}
+          #{step.stepNumber} {step.stepTitle || prettyAgentName(step.agentName)}
         </div>
         {step.message && (
           <div className="text-[11px] text-slate-500">{step.message}</div>
@@ -225,7 +225,7 @@ export default function RunningTaskDetailDrawer({ taskId, onClose }) {
             <Section title="Agent + curriculum">
               <dl className="grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs">
                 <dt className="text-slate-500">Agent</dt>
-                <dd className="text-slate-900 font-medium">{task.agentName || '—'}</dd>
+                <dd className="text-slate-900 font-medium">{task.agentName ? prettyAgentName(task.agentName) : '—'}</dd>
                 <dt className="text-slate-500">Task type</dt>
                 <dd className="text-slate-900 font-medium">{task.taskType}</dd>
                 <dt className="text-slate-500">Grade</dt><dd>{task.grade || '—'}</dd>
@@ -270,7 +270,7 @@ export default function RunningTaskDetailDrawer({ taskId, onClose }) {
                       'text-slate-700'
                     }>
                       <span className="font-mono text-[10px] text-slate-400">[{l.severity}]</span>{' '}
-                      <span className="font-semibold">{l.agentName}</span>
+                      <span className="font-semibold">{prettyAgentName(l.agentName)}</span>
                       {' · '}{l.action}{l.message ? ` — ${l.message}` : ''}
                     </span>
                   </li>

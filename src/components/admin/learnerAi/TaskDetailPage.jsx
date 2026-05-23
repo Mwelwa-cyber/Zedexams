@@ -6,6 +6,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
+import { prettyAgentName } from './agentRegistry'
 import SeoHelmet from '../../seo/SeoHelmet'
 
 function Section({ title, children }) {
@@ -140,7 +141,7 @@ export default function TaskDetailPage() {
         </h1>
         <div className="text-sm text-slate-600 mt-1">
           G{task.grade} · {task.subject} · {task.topic || '—'} {task.subtopic ? `/ ${task.subtopic}` : ''}
-          {task.agentName ? ` · agent: ${task.agentName}` : ''}
+          {task.agentName ? ` · agent: ${prettyAgentName(task.agentName)}` : ''}
         </div>
         {task.errorMessage && (
           <div className="text-sm text-rose-700 mt-1">Error: {task.errorMessage}</div>
@@ -152,7 +153,7 @@ export default function TaskDetailPage() {
           <ul className="text-sm divide-y">
             {steps.map(s => (
               <li key={s.id} className="py-1.5">
-                <span className="font-medium">#{s.stepNumber} {s.agentName}</span>
+                <span className="font-medium">#{s.stepNumber} {prettyAgentName(s.agentName)}</span>
                 {' — '}{s.status}
                 {s.message ? <span className="text-slate-500"> · {s.message}</span> : null}
               </li>
@@ -211,7 +212,7 @@ export default function TaskDetailPage() {
                 l.severity === 'warning' ? 'text-amber-600' :
                 'text-slate-700'
               }>
-                [{l.severity}] {l.agentName}.{l.action} — {l.message}
+                [{l.severity}] {prettyAgentName(l.agentName)}.{l.action} — {l.message}
               </span>
             </li>
           ))}

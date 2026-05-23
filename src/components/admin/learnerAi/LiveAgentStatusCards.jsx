@@ -4,7 +4,7 @@ import {
 } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
-import { AGENTS, classForStatus, displayNameFor } from './agentRegistry'
+import { AGENTS, classForStatus, displayNameFor, displayKindFor } from './agentRegistry'
 
 // Section 2: per-agent status card grid. One card per registered
 // agent (11 total). Driven by:
@@ -54,9 +54,13 @@ function AgentCard({ agent, state, paused, onViewTask, onTogglePause, onCancelTa
   return (
     <div className="rounded-lg border border-slate-200 bg-white p-4 flex flex-col gap-2 min-h-[200px]">
       <div className="flex items-start justify-between gap-2">
-        <div>
+        <div className="min-w-0 flex-1">
           <div className="text-sm font-bold text-slate-900 leading-tight">{display}</div>
-          <div className="text-xs text-slate-400">{agent.kind}</div>
+          {displayKindFor(agent) && (
+            <div className="text-[11px] text-slate-500 leading-snug mt-0.5 line-clamp-2">
+              {displayKindFor(agent)}
+            </div>
+          )}
         </div>
         <div className="flex flex-col items-end gap-1 shrink-0">
           <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${classForStatus(status)}`}>
