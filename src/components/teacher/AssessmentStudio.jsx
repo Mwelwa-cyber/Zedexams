@@ -822,7 +822,14 @@ export default function AssessmentStudio() {
       closeSlide()
       if (view !== 'builder') changeView('builder')
     } catch (error) {
-      showToast(error?.message || 'Diagram generation failed.', true)
+      const raw = error?.message || ''
+      const isOpenAiKeyIssue = provider === 'openai'
+        && /openai|photoreal|OPENAI_API_KEY/i.test(raw)
+        && /(invalid|not configured|not available|unavailable|rotate)/i.test(raw)
+      const message = isOpenAiKeyIssue
+        ? 'Photoreal is currently unavailable. Switch to Line art and try again.'
+        : (raw || 'Diagram generation failed.')
+      showToast(message, true)
     } finally {
       setGeneratingDiagram(false)
     }
