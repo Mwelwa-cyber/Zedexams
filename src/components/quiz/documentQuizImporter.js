@@ -1041,7 +1041,12 @@ async function extractPdf(file) {
     })
   }
 
-  return { blocks, imageAssets, warnings }
+  // Phase 5: same per-option image consolidation we run on DOCX blocks. A
+  // PDF line that's just "A." with a figure attached (via Phase 2's Y-proximity
+  // matching in pickFigureForLineY) folds into the preceding question stem
+  // with optionAssetsByLetter, so the figures land on the right option's
+  // optionMedia slot instead of all bunching onto the question.
+  return { blocks: consolidateOptionImageRuns(blocks), imageAssets, warnings }
 }
 
 // TODO(stop-the-bleeding 2026-05): wired up to importer? Delete or call.
