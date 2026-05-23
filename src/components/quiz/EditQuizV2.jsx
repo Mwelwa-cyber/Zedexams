@@ -25,6 +25,7 @@ import {
 import QuizSectionsEditor from './QuizSectionsEditor'
 import QuizEditorPreviewPanel from './QuizEditorPreviewPanel'
 import QuizVerifyModal from './QuizVerifyModal'
+import ImportReviewBanner from './ImportReviewBanner'
 import QuizEditorActionBar from './QuizEditorActionBar'
 import QuizEditorFloatingNav from './QuizEditorFloatingNav'
 import QuizValidationChecklist from './QuizValidationChecklist'
@@ -144,7 +145,7 @@ function StatPill({ label, value, color }) {
 export default function EditQuizV2() {
   const { quizId } = useParams()
   const navigate = useNavigate()
-  const { getQuizById, getQuestions, updateQuizWithQuestions } = useFirestore()
+  const { getQuizById, getQuestions, updateQuiz, updateQuizWithQuestions } = useFirestore()
   const { currentUser, isAdmin } = useAuth()
 
   const [loading, setLoading] = useState(true)
@@ -973,6 +974,24 @@ export default function EditQuizV2() {
     }
   }, [dirty, quizId, canEdit])
 
+  // Phase 9: ImportReviewBanner calls this when the teacher clicks
+  // "Mark as reviewed". Patches the quiz doc to clear the importStatus
+  // flag and the importWarnings array, then mirrors the change in local
+  // form state so the banner unmounts immediately (no waiting for a
+  // reload). Pre-existing question records and per-question requiresReview
+  // flags are left alone — those still surface on the individual question
+  // cards via reviewNotes / importWarnings.
+  async function handleMarkImportReviewed() {
+    if (!quizId) return
+    try {
+      await updateQuiz(quizId, { importStatus: 'success', importWarnings: [] })
+      setForm(curr => ({ ...curr, importStatus: 'success', importWarnings: [] }))
+      show('Cleared the review flag.')
+    } catch (err) {
+      show(`Could not update: ${getErrorMessage(err, 'unexpected error')}`, true)
+    }
+  }
+
   async function handleSave(mode = 'draft') {
     // Publishing triggers the full pre-publish checklist; lower-trust
     // modes (draft / pending) keep the legacy toast-on-first-error flow.
@@ -1193,16 +1212,12 @@ export default function EditQuizV2() {
         </div>
       </div>
 
-      {form.mode === 'imported_document' && (
-        <div className={`rounded-2xl border px-4 py-3 ${
-          form.importStatus === 'needs_review' ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'
-        }`}>
-          <p className={`text-sm font-black ${form.importStatus === 'needs_review' ? 'text-amber-900' : 'text-emerald-900'}`}>Imported from Word/PDF</p>
-          <p className={`mt-1 text-xs font-bold leading-relaxed ${form.importStatus === 'needs_review' ? 'text-amber-800' : 'text-emerald-800'}`}>
-            Source: {form.sourceFileName || 'document'} · Status: {form.importStatus || 'success'} · Check all marked questions before publishing.
-          </p>
-        </div>
-      )}
+      {/* Phase 9: replaces the previous static "Imported from Word/PDF"
+          banner with an actionable one that lists warnings and lets the
+          teacher clear the review flag once they've fixed the flagged
+          questions. Renders nothing for clean imports — the badge on the
+          list view (Phase 7) is enough of an info-only signal. */}
+      <ImportReviewBanner record={form} onMarkReviewed={handleMarkImportReviewed} busy={saving} />
 
       {wizardStep === 'create' && (
         <>
