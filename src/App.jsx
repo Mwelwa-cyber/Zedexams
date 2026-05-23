@@ -147,6 +147,7 @@ const LearnerAiFailedChecks   = lazy(() => import('./components/admin/learnerAi/
 const LearnerAiWeakness       = lazy(() => import('./components/admin/learnerAi/WeaknessReportsList'))
 const LearnerAiReports        = lazy(() => import('./components/admin/learnerAi/AgentReports'))
 const LearnerAiSettings       = lazy(() => import('./components/admin/learnerAi/AgentSettings'))
+const LearnerAiExamDetail     = lazy(() => import('./components/admin/learnerAi/ExamDraftDetailPage'))
 
 // Teacher — Agent submissions
 const AgentBriefForm       = lazy(() => import('./components/teacher/AgentBriefForm'))
@@ -521,6 +522,7 @@ export default function App() {
           {/* Phase A content-management tabs */}
           <Route path="/admin/learner-ai/practice-quizzes"       element={<AdminRoute><LearnerAiContentType typeFilter="practice_quiz" /></AdminRoute>} />
           <Route path="/admin/learner-ai/exam-quizzes"           element={<AdminRoute><LearnerAiContentType typeFilter="exam_quiz" /></AdminRoute>} />
+          <Route path="/admin/learner-ai/exams/:contentId"       element={<AdminRoute><LearnerAiExamDetail /></AdminRoute>} />
           <Route path="/admin/learner-ai/notes-drafts"           element={<AdminRoute><LearnerAiContentType typeFilter="notes" /></AdminRoute>} />
           <Route path="/admin/learner-ai/study-tips"             element={<AdminRoute><LearnerAiContentType typeFilter="study_tips" /></AdminRoute>} />
           <Route path="/admin/learner-ai/feedback"               element={<AdminRoute><LearnerAiContentType typeFilter="learner_feedback" /></AdminRoute>} />
