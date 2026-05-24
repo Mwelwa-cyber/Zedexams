@@ -1,11 +1,22 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
-import { PLANS, hasPremiumAccess } from '../../utils/subscriptionConfig'
+import { PLANS, PAYMENT_DETAILS, hasPremiumAccess } from '../../utils/subscriptionConfig'
 import { resendInvoiceEmail } from '../../utils/invoices'
 import Button from '../ui/Button'
 import Skeleton from '../ui/Skeleton'
 import SeoHelmet from '../seo/SeoHelmet'
+
+// Products surfaced in the admin grant dropdown. Ordered by what we
+// actually sell most. Each entry resolves to a plan id in PLANS.
+const GRANT_PLAN_IDS = [
+  'grade7_monthly',
+  'grade7_termly',
+  'grade9_monthly',
+  'grade12_monthly',
+  'full_platform_termly',
+  'single_subject_monthly',
+]
 
 const statusColors = {
   pending: 'bg-yellow-100 text-yellow-800',
@@ -32,9 +43,14 @@ function fmtDate(ts) {
 
 export default function PaymentsPanel() {
   const { currentUser } = useAuth()
-  const { getPendingPayments, getAllPayments, confirmPayment, rejectPayment, grantPremium, revokePremium, getAllUsers, updateUserRole } = useFirestore()
+  const {
+    getPendingPayments, getAllPayments, confirmPayment, rejectPayment,
+    grantPremium, revokePremium, getAllUsers, updateUserRole,
+    grantAccessByEmail, getTodayPaymentStats, getActivePremiumCount,
+    getRecentConfirmedPayments,
+  } = useFirestore()
 
-  const [tab, setTab] = useState('pending')
+  const [tab, setTab] = useState('grant')
   const [payments, setPayments] = useState([])
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -47,24 +63,133 @@ export default function PaymentsPanel() {
   const [granting, setGranting] = useState(false)
   const [rowActionUid, setRowActionUid] = useState(null)
 
+  // Grant-tab state
+  const [grantEmail, setGrantEmail] = useState('')
+  const [grantProductId, setGrantProductId] = useState(GRANT_PLAN_IDS[0])
+  const [grantProductDays, setGrantProductDays] = useState(PLANS[GRANT_PLAN_IDS[0]]?.durationDays ?? 30)
+  const [grantPaymentRef, setGrantPaymentRef] = useState('')
+  const [grantSubmitting, setGrantSubmitting] = useState(false)
+  const [grantStats, setGrantStats] = useState({ revenue: 0, activations: 0, activeUsers: 0 })
+  const [recentActivations, setRecentActivations] = useState([])
+  const [lastGrant, setLastGrant] = useState(null)
+
   function show(msg) { setToast(msg); setTimeout(() => setToast(null), 3500) }
+
+  const loadGrantTab = useCallback(async () => {
+    const [stats, activeUsers, recent] = await Promise.all([
+      getTodayPaymentStats(),
+      getActivePremiumCount(),
+      getRecentConfirmedPayments(10),
+    ])
+    setGrantStats({ ...stats, activeUsers })
+    setRecentActivations(recent)
+  }, [getTodayPaymentStats, getActivePremiumCount, getRecentConfirmedPayments])
 
   const load = useCallback(async () => {
     setLoading(true)
-    // Only the active tab's queries fire; we don't refetch users when
-    // switching back to a non-users tab. The previous version did
-    // `Promise.resolve(users)` here, which captured `users` in the
-    // useCallback closure and could go stale if `users` changed.
-    const p = await (tab === 'pending' ? getPendingPayments() : getAllPayments())
-    setPayments(p)
-    if (tab === 'users') {
+    if (tab === 'grant') {
+      await loadGrantTab()
+    } else if (tab === 'pending' || tab === 'all') {
+      const p = await (tab === 'pending' ? getPendingPayments() : getAllPayments())
+      setPayments(p)
+    } else if (tab === 'users') {
       const u = await getAllUsers()
       setUsers(u)
     }
     setLoading(false)
-  }, [tab, getAllPayments, getAllUsers, getPendingPayments])
+  }, [tab, loadGrantTab, getAllPayments, getAllUsers, getPendingPayments])
 
   useEffect(() => { load() }, [load])
+
+  async function handleGrantAccess(e) {
+    e.preventDefault()
+    if (!grantEmail.trim()) return
+    setGrantSubmitting(true)
+    try {
+      const result = await grantAccessByEmail({
+        email: grantEmail,
+        planId: grantProductId,
+        durationDays: +grantProductDays,
+        paymentReference: grantPaymentRef,
+        adminId: currentUser.uid,
+      })
+      const plan = PLANS[grantProductId]
+      const expiryStr = result.expiry.toLocaleDateString('en-ZM', {
+        day: '2-digit', month: 'short', year: 'numeric',
+      })
+      const confirmText =
+        `Hi ${result.displayName.split(' ')[0] || 'there'}! ` +
+        `Your ${plan.name} (K${plan.priceZMW}) is now active until ${expiryStr}. ` +
+        `Login at zedexams.com with ${grantEmail.trim().toLowerCase()}. Welcome!`
+      setLastGrant({
+        name: result.displayName,
+        email: grantEmail.trim().toLowerCase(),
+        plan: plan.name,
+        expiryStr,
+        confirmText,
+      })
+      show(`✅ Activated ${plan.name} for ${result.displayName}`)
+      setGrantEmail('')
+      setGrantPaymentRef('')
+      loadGrantTab()
+    } catch (err) {
+      show('❌ ' + err.message)
+    }
+    setGrantSubmitting(false)
+  }
+
+  function handleCopyConfirmation() {
+    if (!lastGrant) return
+    navigator.clipboard?.writeText(lastGrant.confirmText)
+      .then(() => show('📋 Confirmation copied — paste into WhatsApp'))
+      .catch(() => show('❌ Could not copy.'))
+  }
+
+  function handleOpenWhatsApp() {
+    if (!lastGrant) return
+    const number = PAYMENT_DETAILS.contact.whatsapp.replace(/[^\d]/g, '')
+    const url = `https://wa.me/${number}?text=${encodeURIComponent(lastGrant.confirmText)}`
+    window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
+  function handleExportTodayCsv() {
+    if (!recentActivations.length) {
+      show('No activations to export yet.')
+      return
+    }
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0)
+    const todaysRows = recentActivations.filter((p) => {
+      const dt = p.confirmedAt?.toDate?.() ?? (p.confirmedAt ? new Date(p.confirmedAt) : null)
+      return dt && dt >= startOfToday
+    })
+    if (!todaysRows.length) {
+      show('No activations today yet.')
+      return
+    }
+    const escape = (v) => {
+      const s = String(v ?? '').replace(/"/g, '""')
+      return /[",\n]/.test(s) ? `"${s}"` : s
+    }
+    const lines = [
+      ['confirmedAt', 'email', 'displayName', 'plan', 'amountZMW', 'paymentReference', 'paymentId'].join(','),
+      ...todaysRows.map((p) => [
+        (p.confirmedAt?.toDate?.() ?? new Date(p.confirmedAt)).toISOString(),
+        p.email || '',
+        p.displayName || '',
+        p.planName || PLANS[p.planId]?.name || p.planId || '',
+        p.amountZMW || 0,
+        p.paymentReference || '',
+        p.id,
+      ].map(escape).join(',')),
+    ]
+    const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `zedexams-sales-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a); a.click(); a.remove()
+    URL.revokeObjectURL(url)
+  }
 
   async function handleConfirm(p) {
     setActionId(p.id)
@@ -172,6 +297,7 @@ export default function PaymentsPanel() {
 
       <div className="flex gap-2 flex-wrap">
         {[
+          { id: 'grant', label: '🎯 Grant access' },
           { id: 'pending', label: '⏳ Pending' },
           { id: 'all', label: '📋 All Payments' },
           { id: 'users', label: '👥 Users & Roles' },
@@ -182,6 +308,174 @@ export default function PaymentsPanel() {
           </button>
         ))}
       </div>
+
+      {tab === 'grant' && (
+        <div className="space-y-4">
+          {/* Stats row */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="bg-white rounded-2xl shadow-sm border theme-border p-4 text-center">
+              <div className="text-2xl font-black text-[#B8860B]">K{grantStats.revenue.toLocaleString()}</div>
+              <div className="text-xs uppercase tracking-wider text-gray-500 mt-1 font-bold">Today</div>
+            </div>
+            <div className="bg-white rounded-2xl shadow-sm border theme-border p-4 text-center">
+              <div className="text-2xl font-black text-gray-800">{grantStats.activations}</div>
+              <div className="text-xs uppercase tracking-wider text-gray-500 mt-1 font-bold">Activations</div>
+            </div>
+            <div className="bg-white rounded-2xl shadow-sm border theme-border p-4 text-center">
+              <div className="text-2xl font-black text-gray-800">{grantStats.activeUsers}</div>
+              <div className="text-xs uppercase tracking-wider text-gray-500 mt-1 font-bold">Active users</div>
+            </div>
+          </div>
+
+          {/* Grant form */}
+          <div className="bg-white rounded-2xl shadow-sm border theme-border p-5">
+            <h3 className="text-base font-black text-gray-800 mb-4 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#B8860B]" />
+              Grant access
+            </h3>
+            <form onSubmit={handleGrantAccess} className="space-y-3">
+              <div>
+                <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">
+                  Customer email
+                </label>
+                <input
+                  type="email"
+                  value={grantEmail}
+                  onChange={(e) => setGrantEmail(e.target.value)}
+                  required
+                  placeholder="parent.mwape@gmail.com"
+                  className="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:border-green-500 focus:outline-none"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">
+                    Plan
+                  </label>
+                  <select
+                    value={grantProductId}
+                    onChange={(e) => {
+                      const pid = e.target.value
+                      setGrantProductId(pid)
+                      setGrantProductDays(PLANS[pid]?.durationDays ?? 30)
+                    }}
+                    className="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:border-green-500 focus:outline-none"
+                  >
+                    {GRANT_PLAN_IDS.map((pid) => (
+                      <option key={pid} value={pid}>
+                        {PLANS[pid].name} · K{PLANS[pid].priceZMW}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">
+                    Duration (days)
+                  </label>
+                  <input
+                    type="number"
+                    min={1}
+                    value={grantProductDays}
+                    onChange={(e) => setGrantProductDays(e.target.value)}
+                    className="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:border-green-500 focus:outline-none"
+                  />
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">
+                  Payment reference (optional)
+                </label>
+                <input
+                  type="text"
+                  value={grantPaymentRef}
+                  onChange={(e) => setGrantPaymentRef(e.target.value)}
+                  placeholder="MP260524.1422.A12345"
+                  className="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:border-green-500 focus:outline-none"
+                />
+              </div>
+              <Button type="submit" variant="primary" size="lg" fullWidth loading={grantSubmitting}>
+                {grantSubmitting ? 'Granting…' : 'Grant access'}
+              </Button>
+              <p className="text-xs text-gray-500 bg-yellow-50 border-l-4 border-[#B8860B] rounded-r p-3">
+                <strong className="text-gray-800">What happens:</strong> the user is activated immediately
+                with an expiry date. A payment record is written for the dashboard & CSV export.
+                After saving, you'll get a copy-pasteable WhatsApp confirmation.
+              </p>
+            </form>
+          </div>
+
+          {/* Post-grant confirmation snippet */}
+          {lastGrant && (
+            <div className="bg-green-50 border-2 border-green-300 rounded-2xl p-4">
+              <p className="text-sm font-bold text-green-800 mb-2">
+                ✅ Activated {lastGrant.plan} for {lastGrant.name} ({lastGrant.email})
+              </p>
+              <textarea
+                readOnly
+                value={lastGrant.confirmText}
+                className="w-full text-sm bg-white border border-green-200 rounded-lg p-3 mb-3 font-mono"
+                rows={3}
+              />
+              <div className="flex gap-2 flex-wrap">
+                <Button variant="primary" size="sm" onClick={handleCopyConfirmation}>
+                  📋 Copy message
+                </Button>
+                <Button variant="secondary" size="sm" onClick={handleOpenWhatsApp}>
+                  💬 Open WhatsApp
+                </Button>
+                <Button variant="ghost" size="sm" onClick={() => setLastGrant(null)}>
+                  Dismiss
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Recent activations */}
+          <div className="bg-white rounded-2xl shadow-sm border theme-border p-5">
+            <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+              <h3 className="text-base font-black text-gray-800 flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-[#B8860B]" />
+                Recent activations
+              </h3>
+              <Button variant="secondary" size="sm" onClick={handleExportTodayCsv}>
+                ⬇ Export today's sales
+              </Button>
+            </div>
+            {loading ? (
+              <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} height={40} />)}</div>
+            ) : recentActivations.length === 0 ? (
+              <p className="text-center text-gray-400 py-8 text-sm">No activations yet.</p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>{['Email', 'Plan', 'Activated', 'Status'].map((h) => (
+                      <th key={h} className="text-left px-3 py-2 font-bold text-gray-600 text-xs uppercase tracking-wider">{h}</th>
+                    ))}</tr>
+                  </thead>
+                  <tbody>
+                    {recentActivations.map((p) => (
+                      <tr key={p.id} className="border-b theme-border">
+                        <td className="px-3 py-2 text-gray-800">{p.email || '—'}</td>
+                        <td className="px-3 py-2 text-gray-600">
+                          {p.planName || PLANS[p.planId]?.name || p.planId || '—'}
+                          {p.amountZMW ? ` · K${p.amountZMW}` : ''}
+                        </td>
+                        <td className="px-3 py-2 text-gray-500 text-xs">{fmtDate(p.confirmedAt)}</td>
+                        <td className="px-3 py-2">
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${statusColors[p.status] || statusColors.confirmed}`}>
+                            {statusIcons[p.status] || '✅'} {p.status}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {(tab === 'pending' || tab === 'all') && (
         loading ? <div className="space-y-3">{[1, 2, 3].map(i => <Skeleton key={i} height={96} className="!rounded-2xl" />)}</div>

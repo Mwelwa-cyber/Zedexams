@@ -28,6 +28,7 @@ import { migrateContent } from '../editor/utils/migration.js'
 import { questionWriteSchema, coerceQuestion } from '../editor/schema/question.js'
 import { quizWriteSchema, quizUpdateSchema, coerceQuiz } from '../schemas/quiz.js'
 import { coerceResult } from '../schemas/result.js'
+import { PLANS } from '../utils/subscriptionConfig.js'
 
 /**
  * Convert a rich-text field to its Tiptap JSON representation for persistence.
@@ -697,6 +698,131 @@ export function useFirestore() {
     })
   }
 
+  // Admin "Grant access" flow — looks up a user by email, then activates
+  // their subscription AND writes a payment doc in one batch so the
+  // dashboard's today's-revenue / activations / CSV-export queries have a
+  // row to aggregate. Returns { ok, userId, displayName } or throws.
+  async function grantAccessByEmail({ email, planId, durationDays, paymentReference = '', adminId }) {
+    const cleanEmail = String(email || '').trim().toLowerCase()
+    if (!cleanEmail) throw new Error('Email is required.')
+    const plan = PLANS[planId]
+    if (!plan) throw new Error(`Unknown plan: ${planId}`)
+    const days = Number(durationDays || plan.durationDays || 30)
+
+    const userSnap = await getDocs(
+      query(collection(db, 'users'), where('email', '==', cleanEmail), limit(1))
+    )
+    if (userSnap.empty) {
+      throw new Error(`No account found for ${cleanEmail}. Ask the customer to sign up first.`)
+    }
+    const userDoc = userSnap.docs[0]
+    const userId = userDoc.id
+    const userData = userDoc.data() || {}
+
+    const expiry = new Date()
+    expiry.setDate(expiry.getDate() + days)
+
+    const paymentRef = await addDoc(collection(db, 'payments'), {
+      userId,
+      displayName: userData.displayName || '',
+      email: cleanEmail,
+      userRole: userData.role || 'learner',
+      planId,
+      planName: plan.name,
+      amountZMW: plan.priceZMW || 0,
+      currency: 'ZMW',
+      provider: 'manual_grant',
+      method: 'mobile_money',
+      paymentReference: String(paymentReference || '').trim(),
+      status: 'confirmed',
+      confirmedBy: adminId,
+      confirmedAt: serverTimestamp(),
+      createdAt: serverTimestamp(),
+    })
+
+    await updateDoc(doc(db, 'users', userId), {
+      plan: 'premium',
+      premium: true,
+      isPremium: true,
+      paymentStatus: 'active',
+      subscriptionStatus: 'active',
+      premiumActivatedAt: serverTimestamp(),
+      subscriptionPlan: planId,
+      subscriptionExpiry: Timestamp.fromDate(expiry),
+      subscriptionActivatedBy: adminId,
+      subscriptionActivatedAt: serverTimestamp(),
+      subscriptionProvider: 'manual_grant',
+      subscriptionPaymentId: paymentRef.id,
+    })
+
+    return {
+      ok: true,
+      userId,
+      displayName: userData.displayName || cleanEmail,
+      expiry,
+    }
+  }
+
+  // Today's revenue + activation count. Counts manual grants and any
+  // legacy MoMo successes confirmed since 00:00 local time. Two reads
+  // (count + small doc fetch) keeps the dashboard cheap.
+  async function getTodayPaymentStats() {
+    try {
+      const startOfToday = new Date()
+      startOfToday.setHours(0, 0, 0, 0)
+      const cutoff = Timestamp.fromDate(startOfToday)
+      const todayQuery = query(
+        collection(db, 'payments'),
+        where('status', 'in', ['confirmed', 'successful']),
+        where('confirmedAt', '>=', cutoff),
+      )
+      const snap = await getDocs(todayQuery)
+      let revenue = 0
+      snap.docs.forEach((d) => {
+        const data = d.data() || {}
+        revenue += Number(data.amountZMW || 0)
+      })
+      return { activations: snap.size, revenue }
+    } catch (e) {
+      console.error('getTodayPaymentStats:', e)
+      return { activations: 0, revenue: 0 }
+    }
+  }
+
+  // Cheap server-side count of users currently flagged as premium. This
+  // overcounts the few users whose expiry passed without a cleanup write
+  // — acceptable for a top-of-page stat; the per-user dashboards use the
+  // accurate hasPremiumAccess() helper.
+  async function getActivePremiumCount() {
+    try {
+      const countSnap = await getCountFromServer(
+        query(collection(db, 'users'), where('premium', '==', true)),
+      )
+      return countSnap.data().count
+    } catch (e) {
+      console.error('getActivePremiumCount:', e)
+      return 0
+    }
+  }
+
+  // Most recent confirmed payments — feeds the activations table on the
+  // grant page. Ordered by confirmedAt so manual grants and legacy MoMo
+  // successes appear in the same timeline.
+  async function getRecentConfirmedPayments(limitCount = 25) {
+    try {
+      const snap = await getDocs(query(
+        collection(db, 'payments'),
+        where('status', 'in', ['confirmed', 'successful']),
+        orderBy('confirmedAt', 'desc'),
+        limit(limitCount),
+      ))
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    } catch (e) {
+      console.error('getRecentConfirmedPayments:', e)
+      return []
+    }
+  }
+
   async function revokePremium(userId) {
     await updateDoc(doc(db, 'users', userId), {
       plan: 'free',
@@ -866,6 +992,7 @@ export function useFirestore() {
     getAllUsers, getAllLearners, updateUserRole,
     checkAndConsumeAttempt,
     submitPaymentRequest, getPendingPayments, getAllPayments, confirmPayment, rejectPayment, grantPremium, revokePremium,
+    grantAccessByEmail, getTodayPaymentStats, getActivePremiumCount, getRecentConfirmedPayments,
     getLessons, getAllLessons, getLessonById, createLesson, updateLesson, deleteLesson,
     getMyQuizzes, getMyLessons,
     getPendingApprovals, submitForApproval, withdrawFromApproval, approveContent, rejectContent,
