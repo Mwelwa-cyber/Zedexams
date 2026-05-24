@@ -12,6 +12,7 @@ import Skeleton from '../ui/Skeleton'
 import EmptyState from '../ui/EmptyState'
 import SeoHelmet from '../seo/SeoHelmet'
 import ParentDigestTester from './ParentDigestTester'
+import AdminSetupBanner from './AdminSetupBanner'
 
 // Pastel mascot tones cycle through orange / blue / green / yellow / pink /
 // purple so the grid feels like the /games hub mascot row.
@@ -148,6 +149,10 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-8">
       <SeoHelmet title="Admin dashboard" noIndex />
+
+      {/* First-run hint pointing at the Platform Health diagnostic.
+          Self-dismisses via localStorage so returning admins don't see it. */}
+      <AdminSetupBanner />
 
       {/* Hero — bold quest-style headline + tagline, mirroring "Pick your
           quest" from /games. */}
