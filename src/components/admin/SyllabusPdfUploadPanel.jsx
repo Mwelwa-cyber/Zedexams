@@ -41,7 +41,7 @@ function safeFilename(name) {
     .slice(0, 80) || 'syllabus'
 }
 
-export default function SyllabusPdfUploadPanel() {
+export default function SyllabusPdfUploadPanel({ onComplete }) {
   const [version, setVersion] = useState(null)
   const [file, setFile] = useState(null)
   const [grade, setGrade] = useState('G6')
@@ -118,6 +118,9 @@ export default function SyllabusPdfUploadPanel() {
       })
       setResult(res?.data || null)
       setStep('')
+      if (typeof onComplete === 'function' && res?.data?.topicCount > 0) {
+        onComplete(res.data)
+      }
     } catch (e) {
       const msg = e?.message || 'Extraction failed.'
       setError(msg)
@@ -226,8 +229,12 @@ export default function SyllabusPdfUploadPanel() {
       {result && (
         <div className="mt-3 rounded-xl border-2 border-emerald-300 bg-white p-4">
           <p className="text-sm font-black text-gray-800">
-            ✓ Staged {result.topicCount} draft topic{result.topicCount === 1 ? '' : 's'}
+            ✓ Added {result.topicCount} topic{result.topicCount === 1 ? '' : 's'} to your KB
             {result.skippedCount > 0 && ` (${result.skippedCount} skipped)`}
+          </p>
+          <p className="text-xs text-gray-600 mt-1">
+            Each topic is flagged <code>reviewStatus: needs_check</code>. They appear in the
+            list below — review, edit, or delete any that don't look right.
           </p>
           {result.truncated && (
             <p className="text-xs text-amber-700 mt-1">
@@ -243,14 +250,11 @@ export default function SyllabusPdfUploadPanel() {
           )}
           <div className="mt-3 flex flex-wrap gap-2 text-xs">
             <Link
-              to="/admin/curriculum/replace"
-              className="rounded-lg bg-emerald-600 px-3 py-1.5 font-black text-white no-underline hover:bg-emerald-700"
+              to="/admin/agents"
+              className="rounded-lg border-2 border-emerald-300 bg-white px-3 py-1.5 font-black text-emerald-700 no-underline hover:bg-emerald-50"
             >
-              Review drafts & promote →
+              Next: Platform Health → ✨generate
             </Link>
-            <span className="text-gray-500 self-center">
-              Drafts land under cbcKnowledgeBase/{result.version || version}/draftTopics
-            </span>
           </div>
         </div>
       )}

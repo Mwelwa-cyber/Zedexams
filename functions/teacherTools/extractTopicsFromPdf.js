@@ -11,12 +11,15 @@
  *   2. Admin calls this with { storagePath, grade, subject, version }
  *   3. We download the PDF, extract text with pdf-parse, send a capped
  *      slice to Claude with a strict JSON tool schema asking for topics
- *      that match the cbcKnowledgeBase/{version}/draftTopics/* shape.
- *   4. We write each extracted topic as a draftTopic. The existing
- *      CurriculumReplaceStudio approve flow handles promotion to
- *      live topics.
- *   5. We write an uploadStatus doc so the admin UI can show progress
- *      next to the XLSX uploads.
+ *      that match the cbcKnowledgeBase/{version}/topics/* shape.
+ *   4. We write each extracted topic into the live topics collection
+ *      with reviewStatus: 'needs_check' so it shows up immediately in
+ *      /admin/cbc-kb where the admin can edit, approve, or delete it.
+ *      This matches the pattern importBuiltInCbcTopics uses — live
+ *      topics with a review flag, not a separate draftTopics workflow
+ *      (that's for whole-syllabus version flips in
+ *      CurriculumReplaceStudio).
+ *   5. We write an uploadStatus doc so the admin UI can show progress.
  *
  * Cost controls: PDF text is truncated to PDF_TEXT_LIMIT chars before
  * the LLM call. Per-call cost is metered against the calling admin via
@@ -322,7 +325,7 @@ function createExtractTopicsFromPdf(anthropicApiKeySecret) {
       }
       const ref = db.collection("cbcKnowledgeBase")
         .doc(version)
-        .collection("draftTopics")
+        .collection("topics")
         .doc(id);
       batch.set(ref, {
         id,

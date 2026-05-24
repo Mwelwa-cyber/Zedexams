@@ -255,8 +255,10 @@ export default function CbcKbAdmin() {
         </div>
       )}
 
-      {/* Syllabus PDF → KB extractor (Claude-powered, admin-only). */}
-      <SyllabusPdfUploadPanel />
+      {/* Syllabus PDF → KB extractor (Claude-powered, admin-only).
+          On success the panel calls load() so newly added topics
+          appear in the list below without a full page reload. */}
+      <SyllabusPdfUploadPanel onComplete={() => { load(); flashToast('Topics added from PDF — review the new entries below.', 8000) }} />
 
       {/* Bulk-import curriculum modules */}
       <div className="rounded-2xl border-2 border-amber-200 bg-amber-50/60 p-4">
