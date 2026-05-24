@@ -105,4 +105,80 @@ import { summarizeImportReview } from './importReviewSummary.js'
   assert.equal(out.isImported, false)
 }
 
+// ─── Phase 10: reviewCount field ───────────────────────────────────────────
+
+// reviewCount > 0 → needsReview is true and overrides any older signal.
+// Even if importStatus claims 'success', a non-zero count still warns.
+{
+  const out = summarizeImportReview({
+    mode: 'imported_document',
+    importStatus: 'success',
+    importWarnings: [],
+    reviewCount: 3,
+  })
+  assert.equal(out.needsReview, true,
+    'persisted reviewCount overrides importStatus when > 0')
+  assert.equal(out.reviewCount, 3)
+}
+
+// reviewCount === 0 → needsReview false even if importStatus is still
+// 'needs_review' (teacher fixed every flagged question; the next save
+// recomputed the count to zero but didn't necessarily flip the status).
+{
+  const out = summarizeImportReview({
+    mode: 'imported_document',
+    importStatus: 'needs_review',
+    importWarnings: ['some old warning'],
+    reviewCount: 0,
+  })
+  assert.equal(out.needsReview, false,
+    'persisted reviewCount=0 trumps the legacy status + warning signals')
+  assert.equal(out.reviewCount, 0)
+}
+
+// Pre-Phase-10 doc (no reviewCount field) falls back to the legacy signal.
+{
+  const out = summarizeImportReview({
+    mode: 'imported_document',
+    importStatus: 'needs_review',
+    importWarnings: ['parse error on page 4'],
+  })
+  assert.equal(out.needsReview, true)
+  assert.equal(out.reviewCount, null,
+    'unset reviewCount surfaces as null so renderers can branch')
+}
+
+// Numeric string is accepted (Firestore exports / loose data sources).
+{
+  const out = summarizeImportReview({
+    mode: 'imported_document',
+    importStatus: 'success',
+    reviewCount: '2',
+  })
+  assert.equal(out.reviewCount, 2)
+  assert.equal(out.needsReview, true)
+}
+
+// Garbage in the field doesn't crash — falls back to null and the legacy
+// signal kicks in.
+{
+  const out = summarizeImportReview({
+    mode: 'imported_document',
+    importStatus: 'needs_review',
+    reviewCount: 'banana',
+  })
+  assert.equal(out.reviewCount, null)
+  assert.equal(out.needsReview, true, 'still flagged via the legacy status')
+}
+
+// Negative numbers are treated as garbage (defensive).
+{
+  const out = summarizeImportReview({
+    mode: 'imported_document',
+    importStatus: 'success',
+    reviewCount: -1,
+  })
+  assert.equal(out.reviewCount, null)
+}
+
 console.log('importReviewSummary.test.js — OK')
