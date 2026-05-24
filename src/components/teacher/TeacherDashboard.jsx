@@ -55,6 +55,36 @@ const STUDIOS = [
     mascot: 'Practice Turtle',
   },
   {
+    emoji: '✏️',
+    mascotBg: '#cfe9f5',
+    badge: 'NEW',
+    libraryKey: 'quiz',
+    title: 'Quizzes',
+    tagline: 'CBC-aligned quizzes drafted from a topic — review before publishing.',
+    to: '/teacher/generate/quiz',
+    mascot: 'Quiz Owl',
+  },
+  {
+    emoji: '🎴',
+    mascotBg: '#fde9b8',
+    badge: 'NEW',
+    libraryKey: 'flashcards',
+    title: 'Flashcards',
+    tagline: 'Bite-size revision cards built from any CBC topic.',
+    to: '/teacher/generate/flashcards',
+    mascot: 'Memory Robin',
+  },
+  {
+    emoji: '📋',
+    mascotBg: '#f0d6e0',
+    badge: 'NEW',
+    libraryKey: 'rubric',
+    title: 'Rubrics',
+    tagline: 'Marking guides with criteria and performance levels.',
+    to: '/teacher/generate/rubric',
+    mascot: 'Marking Mole',
+  },
+  {
     emoji: '🦅',
     mascotBg: '#e8d8f0',
     badge: 'NEW',
@@ -92,6 +122,7 @@ const TOOL_META = {
   rubric: { icon: '📋', accent: '#f0d6e0', label: 'Rubric' },
   notes: { icon: '🦉', accent: '#dbe7f4', label: 'Teacher Notes' },
   assessments: { icon: '🦅', accent: '#e8d8f0', label: 'Assessment' },
+  quiz: { icon: '✏️', accent: '#cfe9f5', label: 'Quiz' },
 }
 
 function SectionLabel({ children }) {

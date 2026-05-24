@@ -18,6 +18,7 @@ import {
 import { db } from '../../../firebase/config'
 import { AGENTS, AGENTS_BY_ID } from '../../../config/agents'
 import SeoHelmet from '../../seo/SeoHelmet'
+import PlatformHealthPanel from './PlatformHealthPanel'
 
 const JOBS_WINDOW = 200
 
@@ -605,6 +606,10 @@ export default function AgentsDashboard() {
         <div className="space-y-4">
           {/* Stats row */}
           <StatsRow jobs={jobs} />
+
+          {/* Platform health — top of dashboard so blockers surface
+              before the admin scrolls into per-agent detail. */}
+          <PlatformHealthPanel />
 
           {/* Pipeline + activity */}
           <div className="grid gap-4 lg:grid-cols-3">

@@ -2169,6 +2169,16 @@ exports.studioGenerateLessonPlan = createStudioGenerateLessonPlan(anthropicApiKe
 exports.agentJobsOnCreate = createAgentJobsOnCreate(anthropicApiKey);
 exports.agentJobsOnApproved = createAgentJobsOnApproved();
 
+// Platform Health — admin diagnostics for the agent pipeline.
+const {
+  createGetPlatformHealth,
+  createInitializeAgentPipeline,
+  createRunSampleAgentJob,
+} = require("./agents/platformHealth");
+exports.getPlatformHealth = createGetPlatformHealth(anthropicApiKey);
+exports.initializeAgentPipeline = createInitializeAgentPipeline();
+exports.runSampleAgentJob = createRunSampleAgentJob();
+
 /**
  * Admin-only callable: re-runs Cala (and Reva) on a job that previously
  * failed at the Cala step. Safe because Cala is deterministic and costs
