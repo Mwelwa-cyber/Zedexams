@@ -19,7 +19,7 @@ const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerat
 
 // Bump this when /public/studio/* is changed so phones / CDNs refetch
 // instead of serving the cached old file.
-const STUDIO_ASSET_VERSION = 'v11'
+const STUDIO_ASSET_VERSION = 'v12'
 
 // Sequential script loader — each script must finish before the next starts
 // because the studio scripts rely on globals set by earlier ones.
@@ -176,6 +176,51 @@ export default function LessonPlanStudio() {
       }
     }
 
+    // ---- Bridge: dynamic subject list per grade from the active CBC KB ----
+    // The studio's hardcoded subjectsByLevel maps each level (lp/up/js/ss/al)
+    // to a fixed subject list. That can't reflect what an admin has actually
+    // uploaded via /admin/curriculum/replace — so when a teacher selects a
+    // grade, the dropdown shows the canonical list even if their school's
+    // own activated syllabus has a narrower or different one. This bridge
+    // returns the distinct subject display names present in the active KB
+    // for a given grade; the router uses it (when on the New syllabus
+    // toggle) to replace the hardcoded list when the KB has data.
+    //
+    // Returns Array<string> (subject display names) on success, [] when the
+    // KB has no rows for that grade, or null on error.
+    const subjectsCache = new Map()
+    window.__studioFetchSyllabusSubjects = async ({ grade }) => {
+      if (!grade) return []
+      if (subjectsCache.has(grade)) return subjectsCache.get(grade)
+      try {
+        const version = await getActiveKbVersion()
+        const snap = await getDocs(query(
+          collection(db, 'cbcKnowledgeBase', version, 'topics'),
+          where('grade', '==', grade),
+        ))
+        // Build a unique display-name list, preferring `subjectDisplay`
+        // (what the parser preserved from the workbook) and falling back
+        // to a title-cased version of the canonical `subject` key.
+        const seen = new Set()
+        const out = []
+        snap.forEach((d) => {
+          const t = d.data()
+          if (!t || !t.subject) return
+          const display = (t.subjectDisplay && String(t.subjectDisplay).trim())
+            || String(t.subject).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+          if (seen.has(display)) return
+          seen.add(display)
+          out.push(display)
+        })
+        out.sort((a, b) => a.localeCompare(b))
+        subjectsCache.set(grade, out)
+        return out
+      } catch (err) {
+        console.warn('studio CBC KB subjects fetch failed', err)
+        return null
+      }
+    }
+
     // ---- Load CSS ----
     if (!document.querySelector('link[href*="/studio/lesson.css"]')) {
       const link = document.createElement('link')
@@ -248,6 +293,7 @@ export default function LessonPlanStudio() {
       delete window.__studioCallClaude
       delete window.__studioGetAuth
       delete window.__studioFetchSyllabusTopics
+      delete window.__studioFetchSyllabusSubjects
       delete window.saveToLibrary
       delete window.$
       delete window.$$
