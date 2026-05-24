@@ -18,6 +18,11 @@ import { useNavigate } from 'react-router-dom'
 import { db } from '../../firebase/config'
 import { useAuth } from '../../contexts/AuthContext'
 
+// Tools the Aria → Cala → Reva pipeline supports (see
+// functions/agents/runners/aria.js RUNNERS map). Quiz is intentionally
+// not in this list — it's a synchronous studio (no agent pipeline) and
+// gets its own button at the bottom of the popover that opens the
+// QuizStudio with the topic pre-filled via URL params.
 const TOOLS = [
   { key: 'lesson_plan',    label: 'Lesson Plan',    icon: '🦊', hint: 'Single-period CBC lesson plan' },
   { key: 'worksheet',      label: 'Worksheet',      icon: '🐢', hint: 'Pupil practice activities' },
@@ -130,9 +135,38 @@ export default function GenerateFromTopicMenu({ topic }) {
               {error}
             </p>
           )}
-          <p className="mt-2 px-2 pb-1 text-[10px] text-slate-400">
+          <p className="mt-2 px-2 pt-1 text-[10px] text-slate-400">
             Lands in <code>/admin/agents</code> for review.
           </p>
+
+          <div className="mt-2 border-t-2 border-dashed border-slate-200 pt-2">
+            <p className="px-2 pb-1 text-[10px] font-black uppercase tracking-wider text-sky-700">
+              Or use the synchronous studios
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                const params = new URLSearchParams({
+                  grade: topic.grade,
+                  subject: topic.subject,
+                  topic: topic.topic,
+                })
+                const sub = firstSubtopicName(topic.subtopics)
+                if (sub) params.set('subtopic', sub)
+                if (Number.isInteger(topic.term)) params.set('term', String(topic.term))
+                navigate(`/teacher/generate/quiz?${params.toString()}`)
+              }}
+              className="flex w-full items-start gap-2 rounded-xl px-2.5 py-2 text-left text-xs hover:bg-sky-50"
+            >
+              <span className="text-lg leading-none mt-0.5" aria-hidden>✏️</span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-black text-slate-800">Quiz</span>
+                <span className="block text-[11px] text-slate-500">
+                  Opens Quiz Studio with the topic pre-filled — instant draft, edit, then publish
+                </span>
+              </span>
+            </button>
+          </div>
         </div>
       )}
     </div>
