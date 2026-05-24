@@ -71,6 +71,48 @@ export const PLANS = {
     locked: [],
   },
 
+  // ── Grade 7 ECZ Exam Pack ──────────────────────────────────────────────
+  // First learner-facing product priced around the ECZ Grade 7 composite
+  // exam. Monthly is the volume play; termly locks in the full exam run-up
+  // (Aug–Oct) at a K25 discount.
+  grade7_monthly: {
+    id: 'grade7_monthly',
+    name: 'Grade 7 ECZ Pack · Monthly',
+    tagline: 'Full pack · 30 days',
+    priceZMW: 75,
+    durationDays: 30,
+    dailyQuizLimit: Infinity,
+    weaknessAnalysis: true,
+    examMode: true,
+    badge: '📘',
+    features: [
+      'All Grade 7 ECZ subjects',
+      'Revision notes per topic',
+      'Past papers 2020–2025 with solutions',
+      'Auto-marked practice quizzes',
+      'Exam strategy guide',
+    ],
+    locked: [],
+  },
+  grade7_termly: {
+    id: 'grade7_termly',
+    name: 'Grade 7 ECZ Pack · Termly',
+    tagline: 'Save K25 vs paying monthly',
+    priceZMW: 200,
+    durationDays: 90,
+    dailyQuizLimit: Infinity,
+    weaknessAnalysis: true,
+    examMode: true,
+    badge: '🎯',
+    features: [
+      'Everything in Monthly',
+      'Locks in the full 90-day exam run-up',
+      'Save K25 vs paying every month',
+      'Priority WhatsApp support',
+    ],
+    locked: [],
+  },
+
   // ── Pro / Max tiers (matches /pricing marketing page) ──────────────────
   // Kept alongside the legacy monthly/termly/yearly plans so existing
   // subscribers keep their access; new subscriptions use these.
