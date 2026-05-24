@@ -20,6 +20,7 @@ const TABS = [
   { to: '/admin/learner-ai/failed-checks',     label: 'Failed checks' },
   { to: '/admin/learner-ai/reports',           label: 'Reports' },
   { to: '/admin/learner-ai/curriculum-updates', label: 'Curriculum updates' },
+  { to: '/admin/learner-ai/staged-modules',    label: 'Staged modules' },
   { to: '/admin/learner-ai/standards',         label: 'Standards' },
   { to: '/admin/learner-ai/settings',          label: 'Settings' },
 ]

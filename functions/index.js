@@ -103,6 +103,13 @@ const {
 const {
   importCurriculumModules,
 } = require("./teacherTools/importCurriculumModules");
+// Teacher Tools — admin-only callables that surface modules staged by
+// the curriculumWatcher ingester and promote them into cbcKnowledgeBase.
+const {
+  listStagedCurriculumModules,
+  promoteIngestedCurriculumModule,
+  rejectIngestedCurriculumModule,
+} = require("./teacherTools/promoteIngestedCurriculumModule");
 // Teacher Tools — admin-only preflight that asks the strict learner-AI
 // resolver whether a given grade/subject/topic/subtopic/term would be
 // accepted before the admin queues a task in the Live AI Monitor.
@@ -2082,6 +2089,13 @@ exports.importBuiltInCbcTopics = importBuiltInCbcTopics;
 
 // Teacher Tools — admin-only: bulk import lesson-level curriculum modules.
 exports.importCurriculumModules = importCurriculumModules;
+
+// Teacher Tools — admin-only: surface modules staged by curriculumWatcher
+// and promote them (one click) into cbcKnowledgeBase. See
+// teacherTools/promoteIngestedCurriculumModule.js for the doc rules.
+exports.listStagedCurriculumModules = listStagedCurriculumModules;
+exports.promoteIngestedCurriculumModule = promoteIngestedCurriculumModule;
+exports.rejectIngestedCurriculumModule = rejectIngestedCurriculumModule;
 
 // Teacher Tools — admin-only: preflight a (grade, subject, topic,
 // subtopic, term) tuple against the strict learner-AI curriculum

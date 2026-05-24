@@ -140,6 +140,7 @@ const LearnerAiHome           = lazy(() => import('./components/admin/learnerAi/
 const LearnerAiTaskDetail     = lazy(() => import('./components/admin/learnerAi/TaskDetailPage'))
 const LearnerAiLogs           = lazy(() => import('./components/admin/learnerAi/AgentLogsTable'))
 const LearnerAiCurriculumRpts = lazy(() => import('./components/admin/learnerAi/CurriculumUpdateReports'))
+const LearnerAiStagedModules = lazy(() => import('./components/admin/learnerAi/StagedModulesPanel'))
 const LearnerAiStandards      = lazy(() => import('./components/admin/learnerAi/AssessmentStandardsList'))
 // Phase A content-management tabs.
 const LearnerAiContentType    = lazy(() => import('./components/admin/learnerAi/ContentTypePage'))
@@ -518,6 +519,7 @@ export default function App() {
           <Route path="/admin/learner-ai/tasks/:taskId"          element={<AdminRoute><LearnerAiTaskDetail /></AdminRoute>} />
           <Route path="/admin/learner-ai/logs"                   element={<AdminRoute><LearnerAiLogs /></AdminRoute>} />
           <Route path="/admin/learner-ai/curriculum-updates"     element={<AdminRoute><LearnerAiCurriculumRpts /></AdminRoute>} />
+          <Route path="/admin/learner-ai/staged-modules"         element={<AdminRoute><LearnerAiStagedModules /></AdminRoute>} />
           <Route path="/admin/learner-ai/standards"              element={<AdminRoute><LearnerAiStandards /></AdminRoute>} />
           {/* Phase A content-management tabs */}
           <Route path="/admin/learner-ai/practice-quizzes"       element={<AdminRoute><LearnerAiContentType typeFilter="practice_quiz" /></AdminRoute>} />
