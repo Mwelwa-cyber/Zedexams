@@ -396,6 +396,12 @@ async function ingestOneModule({source, link, runBudget}) {
     firstChars: parsed.text.slice(0, 4000),
   });
 
+  const documentType = ingester.detectDocumentType({
+    url: link.url,
+    anchorText: link.anchorText,
+    headings: parsed.headings,
+  });
+
   const chunks = ingester.chunkText(parsed.text);
   if (chunks.length === 0) {
     return {skipped: true, reason: "no_chunks"};
@@ -414,6 +420,7 @@ async function ingestOneModule({source, link, runBudget}) {
     subject: classification.subject,
     term: classification.term,
     topic: classification.topic,
+    documentType,
     confidence: classification.confidence,
     byteLength: fetched.byteLength,
     chunkCount: embedded.length,
@@ -504,6 +511,7 @@ async function ingestSource({source, body, runBudget}) {
         subject: outcome.meta.subject,
         term: outcome.meta.term,
         topic: outcome.meta.topic,
+        documentType: outcome.meta.documentType || "unknown",
         confidence: outcome.meta.confidence,
         chunkCount: outcome.meta.chunkCount,
       });

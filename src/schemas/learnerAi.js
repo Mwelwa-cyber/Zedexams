@@ -414,6 +414,12 @@ const ingestedModuleEntrySchema = z.object({
   subject: z.string().max(80).nullable().optional(),
   term: z.number().int().nullable().optional(),
   topic: z.string().max(400).nullable().optional(),
+  // Categorical doc type — admins filter the staged queue by this.
+  // Detected by curriculumIngester.detectDocumentType().
+  documentType: z.enum([
+    'scheme_of_work', 'lesson_plan', 'assessment', 'teachers_guide',
+    'learners_book', 'syllabus', 'module', 'unknown',
+  ]).optional(),
   confidence: z.enum(['high', 'medium', 'low']).optional(),
   chunkCount: z.number().int().nonnegative().optional(),
   skipped: z.boolean().optional(),
