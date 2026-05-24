@@ -9,6 +9,9 @@ import {
 } from '../../utils/teacherTools'
 import { LEARNING_ENVIRONMENTS } from '../../config/learningEnvironments'
 import SeoHelmet from '../seo/SeoHelmet'
+import SyllabusPdfUploadPanel from './SyllabusPdfUploadPanel'
+import GenerateFromTopicMenu from './GenerateFromTopicMenu'
+import BulkGenerateButton from './BulkGenerateButton'
 
 const EMPTY_LESSON = {
   subtopic: '',
@@ -211,12 +214,15 @@ export default function CbcKbAdmin() {
             </p>
           )}
         </div>
-        <button
-          onClick={openNew}
-          className="px-4 py-2 rounded-xl text-sm font-black text-white bg-gradient-to-r from-emerald-500 to-teal-500"
-        >
-          + Add topic
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <BulkGenerateButton topics={filtered} />
+          <button
+            onClick={openNew}
+            className="px-4 py-2 rounded-xl text-sm font-black text-white bg-gradient-to-r from-emerald-500 to-teal-500"
+          >
+            + Add topic
+          </button>
+        </div>
       </header>
 
       {toast && (
@@ -248,6 +254,11 @@ export default function CbcKbAdmin() {
           </div>
         </div>
       )}
+
+      {/* Syllabus PDF → KB extractor (Claude-powered, admin-only).
+          On success the panel calls load() so newly added topics
+          appear in the list below without a full page reload. */}
+      <SyllabusPdfUploadPanel onComplete={() => { load(); flashToast('Topics added from PDF — review the new entries below.', 8000) }} />
 
       {/* Bulk-import curriculum modules */}
       <div className="rounded-2xl border-2 border-amber-200 bg-amber-50/60 p-4">
@@ -324,7 +335,8 @@ export default function CbcKbAdmin() {
                   {topic.subtopics.length > 3 && ` · +${topic.subtopics.length - 3} more`}
                 </p>
               )}
-              <div className="flex gap-3 mt-3 text-xs">
+              <div className="flex flex-wrap items-center gap-3 mt-3 text-xs">
+                <GenerateFromTopicMenu topic={topic} />
                 <button
                   onClick={() => openEdit(topic)}
                   className="text-emerald-700 hover:underline font-bold"

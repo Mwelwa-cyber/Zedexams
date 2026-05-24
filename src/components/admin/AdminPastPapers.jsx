@@ -61,12 +61,21 @@ export default function AdminPastPapers() {
             ECZ archive uploads — Grade 7, 9, 12 across every CBC subject.
           </p>
         </div>
-        <Link
-          to="/admin/papers/new"
-          className="theme-accent-fill theme-on-accent rounded-full px-4 py-2 text-sm font-black hover:opacity-90"
-        >
-          + New paper
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link
+            to="/admin/quizzes/new?mode=import"
+            className="rounded-full border-2 theme-border theme-text px-3 py-2 text-xs font-black hover:bg-amber-50"
+            title="Convert a past paper PDF into editable quiz questions"
+          >
+            🔄 Convert to quiz
+          </Link>
+          <Link
+            to="/admin/papers/new"
+            className="theme-accent-fill theme-on-accent rounded-full px-4 py-2 text-sm font-black hover:opacity-90"
+          >
+            + New paper
+          </Link>
+        </div>
       </div>
 
       {/* Status filter */}

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
-import { Search, Plus, Download, X, ChevronRight } from '../ui/icons'
+import { Search, Plus, Download, X, ChevronRight, Sparkles } from '../ui/icons'
 import { useFirestore } from '../../hooks/useFirestore'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
@@ -548,12 +548,12 @@ export default function ManageContent() {
         <div className="flex gap-2 flex-wrap">
           <Button
             as={Link}
-            to="/admin/quizzes/new"
+            to="/admin/quizzes/new?mode=ai"
             variant="primary"
             size="md"
-            leadingIcon={<Icon as={Plus} size="sm" />}
+            leadingIcon={<Icon as={Sparkles} size="sm" />}
           >
-            Quiz
+            AI Quiz
           </Button>
           <Button
             as={Link}
@@ -562,7 +562,16 @@ export default function ManageContent() {
             size="md"
             leadingIcon={<Icon as={Download} size="sm" />}
           >
-            Import Quiz
+            Import (Word/PDF)
+          </Button>
+          <Button
+            as={Link}
+            to="/admin/quizzes/new"
+            variant="secondary"
+            size="md"
+            leadingIcon={<Icon as={Plus} size="sm" />}
+          >
+            Manual quiz
           </Button>
           <Button
             as={Link}
@@ -730,16 +739,41 @@ export default function ManageContent() {
           ) : filteredQuizzes.length === 0 ? (
             <div className="text-center py-14 bg-white rounded-2xl border theme-border shadow-elev-sm">
               <div className="text-4xl mb-2" aria-hidden="true">📭</div>
-              <p className="text-display-md text-gray-700" style={{ fontSize: 16 }}>No quizzes match your filters</p>
-              <div className="inline-flex mt-3">
+              <p className="text-display-md text-gray-700" style={{ fontSize: 16 }}>
+                {totalQuizzes === 0 ? 'No quizzes yet' : 'No quizzes match your filters'}
+              </p>
+              {totalQuizzes === 0 && (
+                <p className="mt-1 text-xs text-gray-500 max-w-md mx-auto">
+                  Start with AI Quiz to draft from a topic, Import to convert a Word/PDF document, or build one by hand.
+                </p>
+              )}
+              <div className="mt-3 flex flex-wrap justify-center gap-2">
+                <Button
+                  as={Link}
+                  to="/admin/quizzes/new?mode=ai"
+                  variant="primary"
+                  size="sm"
+                  leadingIcon={<Icon as={Sparkles} size="sm" />}
+                >
+                  AI Quiz
+                </Button>
+                <Button
+                  as={Link}
+                  to="/admin/quizzes/new?mode=import"
+                  variant="secondary"
+                  size="sm"
+                  leadingIcon={<Icon as={Download} size="sm" />}
+                >
+                  Import (Word/PDF)
+                </Button>
                 <Button
                   as={Link}
                   to="/admin/quizzes/new"
-                  variant="primary"
+                  variant="secondary"
                   size="sm"
-                  trailingIcon={<Icon as={ChevronRight} size="sm" />}
+                  leadingIcon={<Icon as={Plus} size="sm" />}
                 >
-                  Create a new quiz
+                  Manual
                 </Button>
               </div>
             </div>

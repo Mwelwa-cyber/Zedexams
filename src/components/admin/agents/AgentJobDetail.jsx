@@ -465,6 +465,23 @@ export default function AgentJobDetail() {
         <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
           <p className="font-black">Error</p>
           <p className="mt-1 text-xs whitespace-pre-wrap">{job.error}</p>
+          <div className="mt-3 border-t border-red-200 pt-3">
+            <p className="text-[11px] font-black uppercase tracking-wider text-red-800">
+              Common causes
+            </p>
+            <ul className="mt-1 list-disc list-inside text-[11px] text-red-700 space-y-0.5">
+              <li>ANTHROPIC_API_KEY secret not set on Firebase Functions</li>
+              <li>Agent paused in <code>agentControl/&#123;agent&#125;</code> (Cala / Reva)</li>
+              <li>Topic not in the verified CBC KB for that grade+subject</li>
+              <li>Daily AI quota exhausted for the job owner</li>
+            </ul>
+            <Link
+              to="/admin/agents"
+              className="mt-2 inline-block text-[11px] font-black text-red-800 underline hover:text-red-900"
+            >
+              Open Platform Health to diagnose →
+            </Link>
+          </div>
         </div>
       )}
 

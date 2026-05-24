@@ -83,11 +83,26 @@ export default function AgentJobsQueue({ departmentId = null, statusFilter = nul
 
   if (jobs.length === 0) {
     return (
-      <div className="theme-card theme-border rounded-2xl border py-12 text-center">
-        <p className="theme-text font-black">No jobs yet</p>
-        <p className="theme-text-muted mt-1 text-sm">
-          Once briefs start flowing, queued jobs land here.
+      <div className="theme-card theme-border rounded-2xl border py-10 px-6 text-center">
+        <p className="theme-text font-black text-base">No agent jobs yet</p>
+        <p className="theme-text-muted mt-1 text-sm max-w-md mx-auto">
+          Briefs flow here when you click <strong>✨generate</strong> on a topic in the CBC KB,
+          submit a teacher brief, or run a sample job from Platform Health above.
         </p>
+        <div className="mt-4 flex flex-wrap justify-center gap-2 text-xs">
+          <Link
+            to="/admin/cbc-kb"
+            className="rounded-lg bg-violet-600 px-3 py-1.5 font-black text-white no-underline hover:bg-violet-700"
+          >
+            Open CBC KB →
+          </Link>
+          <Link
+            to="/admin/agents"
+            className="rounded-lg border-2 border-violet-300 bg-white px-3 py-1.5 font-black text-violet-700 no-underline hover:bg-violet-50"
+          >
+            Platform Health
+          </Link>
+        </div>
       </div>
     )
   }
