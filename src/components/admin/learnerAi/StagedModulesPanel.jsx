@@ -4,6 +4,7 @@ import ControlCentreLayout from './ControlCentreLayout'
 import {
   listStagedCurriculumModules,
   promoteCurriculumModule,
+  promoteCurriculumModuleWithAi,
   rejectCurriculumModule,
 } from '../../../utils/stagedCurriculumModules'
 
@@ -98,6 +99,37 @@ export default function StagedModulesPanel() {
     setBusyId(null)
   }
 
+  async function handlePromoteWithAi(m) {
+    if (!confirm(
+      `Promote "${m.topic || '(no topic)'}" using AI?\n\n` +
+      `Claude will read the staged RAG chunks for this module and extract ` +
+      `subtopics, specific outcomes, key competencies, values, and ` +
+      `suggested materials before writing the topic to the canonical KB.\n\n` +
+      `Cost: ~$0.02 per call. Takes ~10–30 seconds. The result is marked ` +
+      `reviewStatus:"needs_review" so you can edit it in /admin/cbc-kb.`,
+    )) return
+    setBusyId(m.curriculumId)
+    setError(null)
+    setNotice(null)
+    const result = await promoteCurriculumModuleWithAi(m.curriculumId)
+    if (!result.ok) {
+      setError(result.error)
+    } else {
+      const e = result.enrichment || {}
+      const counts = result.alreadyPromoted ?
+        'already promoted' :
+        `${e.subtopicsCount || 0} subtopics, ${e.outcomesCount || 0} outcomes, ` +
+        `${e.competenciesCount || 0} competencies, ${e.valuesCount || 0} values, ` +
+        `${e.materialsCount || 0} materials`
+      setNotice(
+        `"${m.topic || m.curriculumId}" — promoted to ${result.topicId} ` +
+        `with AI enrichment (${counts}). Review in /admin/cbc-kb.`,
+      )
+      await load()
+    }
+    setBusyId(null)
+  }
+
   async function handleReject(m) {
     const reason = prompt(
       `Reject "${m.topic || '(no topic)'}"?\n\n` +
@@ -184,14 +216,24 @@ export default function StagedModulesPanel() {
                   {m.chunkCount ? ` · ${m.chunkCount} chunk(s)` : ''}
                 </div>
               </div>
-              <div className="flex gap-2 shrink-0">
+              <div className="flex gap-2 shrink-0 flex-wrap justify-end">
+                <button
+                  type="button"
+                  onClick={() => handlePromoteWithAi(m)}
+                  disabled={busyId === m.curriculumId}
+                  title="Run Claude over the RAG chunks to fill subtopics + outcomes automatically (~$0.02, ~10–30s)"
+                  className="text-xs font-semibold px-3 py-1.5 rounded-full bg-violet-600 text-white hover:bg-violet-700 disabled:opacity-50"
+                >
+                  {busyId === m.curriculumId ? 'Working…' : 'Promote with AI'}
+                </button>
                 <button
                   type="button"
                   onClick={() => handlePromote(m)}
                   disabled={busyId === m.curriculumId}
+                  title="Create a stub topic; admin fills outcomes by hand in /admin/cbc-kb"
                   className="text-xs font-semibold px-3 py-1.5 rounded-full bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-50"
                 >
-                  {busyId === m.curriculumId ? 'Working…' : 'Promote to KB'}
+                  Promote (stub)
                 </button>
                 <button
                   type="button"

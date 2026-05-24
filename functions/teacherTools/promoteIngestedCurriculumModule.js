@@ -44,7 +44,9 @@
 const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
 
-const {getUserRole} = require("../aiService");
+const {
+  getUserRole, callAnthropic, getAnthropicApiKey,
+} = require("../aiService");
 const {getActiveKbVersion, invalidateKbCache} = require("./cbcKnowledge");
 
 const LIST_LIMIT = 100;
@@ -268,5 +270,307 @@ exports.rejectIngestedCurriculumModule = onCall(
     },
 );
 
+// ── AI-assisted enrichment ────────────────────────────────────────
+//
+// "Promote with AI" — runs Claude over the staged module's RAG chunks
+// to extract structured curriculum metadata (subtopics, specific
+// outcomes, key competencies, values, suggested materials) before
+// writing the topic to cbcKnowledgeBase. The stub-promotion callable
+// above remains the safe default; this one trades ~$0.02/call for
+// not having to fill those fields by hand in /admin/cbc-kb.
+//
+// Hallucination safety:
+//   - Temperature 0.1 + explicit JSON schema in the prompt.
+//   - Output is parsed + validated (string arrays, length caps,
+//     entry count caps) before it ever touches Firestore.
+//   - The topic write uses merge:true so an admin can always edit
+//     the AI output afterwards in /admin/cbc-kb.
+//   - enrichedBy + enrichedAt + enrichedModel are recorded so admins
+//     know which rows are AI-generated.
+
+const ENRICH_CHUNK_LIMIT = 20;             // ~20KB of context
+const ENRICH_CHAR_BUDGET = 24_000;
+const ENRICH_MAX_ITEMS = 12;               // per field
+const ENRICH_ITEM_CHAR_CAP = 500;
+const ENRICH_TIMEOUT_MS = 45_000;
+
+const ENRICH_SYSTEM_PROMPT = [
+  "You are a Zambian CBC (Competency-Based Curriculum) curriculum analyst.",
+  "Given extracts from an official syllabus PDF/document, you extract",
+  "structured curriculum metadata that a Grade-school teacher can use",
+  "directly to plan lessons.",
+  "",
+  "Output STRICT JSON matching this exact shape (no markdown, no prose):",
+  "{",
+  "  \"subtopics\": string[],          // 3-12 subtopic names",
+  "  \"specificOutcomes\": string[],   // 3-12 'By the end... the learner should be able to ...'",
+  "  \"keyCompetencies\": string[],    // 2-8 broad competencies the topic develops",
+  "  \"values\": string[],             // 1-6 values the topic instils",
+  "  \"suggestedMaterials\": string[]  // 2-10 concrete materials a teacher can use",
+  "}",
+  "",
+  "Hard rules:",
+  "- Only use information present in the extracts. If a field is not",
+  "  clearly supported, return an empty array for it — do NOT invent.",
+  "- Each entry is one short sentence (under 200 characters).",
+  "- specificOutcomes should start with an action verb (identify,",
+  "  describe, apply, calculate, demonstrate, etc.).",
+  "- Stay in English. Do not include grade or subject names in the entries.",
+].join("\n");
+
+/**
+ * Best-effort coercion of one field from the LLM's JSON output into a
+ * clean array of capped strings. Returns [] for anything malformed.
+ */
+function coerceStringArray(raw) {
+  if (!Array.isArray(raw)) return [];
+  const out = [];
+  for (const entry of raw) {
+    if (out.length >= ENRICH_MAX_ITEMS) break;
+    const s = String(entry == null ? "" : entry).trim();
+    if (!s) continue;
+    out.push(s.slice(0, ENRICH_ITEM_CHAR_CAP));
+  }
+  return out;
+}
+
+/**
+ * Validate + normalise the LLM payload. Returns a structurally-safe
+ * object; never throws.
+ */
+function normaliseEnrichment(payload) {
+  const p = (payload && typeof payload === "object") ? payload : {};
+  return {
+    subtopics: coerceStringArray(p.subtopics),
+    specificOutcomes: coerceStringArray(p.specificOutcomes),
+    keyCompetencies: coerceStringArray(p.keyCompetencies),
+    values: coerceStringArray(p.values),
+    suggestedMaterials: coerceStringArray(p.suggestedMaterials),
+  };
+}
+
+/**
+ * Pull up to ENRICH_CHUNK_LIMIT chunks for the curriculum doc and
+ * concatenate their text under a character budget. Chunks are
+ * ordered by chunk_index so they read top-to-bottom of the source
+ * document.
+ */
+async function loadChunksFor(curriculumId) {
+  const db = admin.firestore();
+  const snap = await db.collection("rag_chunks")
+      .where("curriculum_doc_id", "==", curriculumId)
+      .limit(ENRICH_CHUNK_LIMIT)
+      .get();
+  if (snap.empty) return "";
+  const rows = snap.docs
+      .map((d) => d.data() || {})
+      .sort((a, b) => Number(a.chunk_index || 0) - Number(b.chunk_index || 0));
+  let combined = "";
+  for (const row of rows) {
+    const t = String(row.text || "").trim();
+    if (!t) continue;
+    if (combined.length + t.length + 2 > ENRICH_CHAR_BUDGET) break;
+    combined += (combined ? "\n\n" : "") + t;
+  }
+  return combined;
+}
+
+/**
+ * Run Claude over the staged chunks and return a normalised
+ * enrichment object. Throws HttpsError on missing key / API failure /
+ * unparseable response so the caller can surface a useful error.
+ */
+async function enrichTopicFromChunks({curriculumDoc, curriculumId, uid}) {
+  const text = await loadChunksFor(curriculumId);
+  if (!text || text.length < 200) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Not enough source text from RAG chunks to enrich this module. " +
+        "Try the stub Promote instead.",
+    );
+  }
+  let apiKey;
+  try {
+    apiKey = await getAnthropicApiKey();
+  } catch {
+    throw new HttpsError(
+        "failed-precondition",
+        "Anthropic API key is not configured.",
+    );
+  }
+  if (!apiKey) {
+    throw new HttpsError(
+        "failed-precondition",
+        "Anthropic API key is not configured.",
+    );
+  }
+
+  const userPrompt = [
+    `Source: ${curriculumDoc.sourceName || "unknown"}`,
+    `URL: ${curriculumDoc.sourceUrl || ""}`,
+    `Grade: ${curriculumDoc.grade != null ? curriculumDoc.grade : "?"}`,
+    `Subject: ${curriculumDoc.subject || "?"}`,
+    `Term: ${curriculumDoc.term != null ? curriculumDoc.term : "?"}`,
+    `Topic (as detected): ${curriculumDoc.topic || "?"}`,
+    "",
+    "Extracts from the syllabus document:",
+    "```",
+    text,
+    "```",
+  ].join("\n");
+
+  let rawText;
+  try {
+    rawText = await Promise.race([
+      callAnthropic(apiKey, {
+        systemPrompt: ENRICH_SYSTEM_PROMPT,
+        messages: [{role: "user", content: userPrompt}],
+        maxTokens: 1500,
+        temperature: 0.1,
+        json: true,
+        track: {uid, tool: "promote_curriculum_module_ai"},
+      }),
+      new Promise((_, reject) => setTimeout(
+          () => reject(new Error("enrichment_timeout")),
+          ENRICH_TIMEOUT_MS,
+      )),
+    ]);
+  } catch (err) {
+    throw new HttpsError(
+        "internal",
+        `AI enrichment failed: ${(err && err.message || "unknown").slice(0, 200)}`,
+    );
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(rawText);
+  } catch {
+    throw new HttpsError(
+        "internal",
+        "AI returned a response that wasn't valid JSON. Try the stub " +
+        "Promote and add outcomes manually.",
+    );
+  }
+  return normaliseEnrichment(parsed);
+}
+
+exports.promoteIngestedCurriculumModuleWithAi = onCall(
+    {timeoutSeconds: 60, memory: "512MiB"},
+    async (request) => {
+      const uid = await requireAdmin(request);
+      const curriculumId = request.data && request.data.curriculumId;
+      if (typeof curriculumId !== "string" || !curriculumId) {
+        throw new HttpsError(
+            "invalid-argument",
+            "Provide a curriculumId.",
+        );
+      }
+      const db = admin.firestore();
+      const ref = db.collection("curriculum").doc(curriculumId);
+      const snap = await ref.get();
+      if (!snap.exists) {
+        throw new HttpsError("not-found", `curriculum/${curriculumId} not found.`);
+      }
+      const d = snap.data() || {};
+
+      if (d.reviewStatus === "promoted") {
+        return {
+          ok: true,
+          topicId: d.promotedToTopicId || null,
+          version: d.promotedToVersion || null,
+          alreadyPromoted: true,
+        };
+      }
+      if (d.reviewStatus === "rejected") {
+        throw new HttpsError(
+            "failed-precondition",
+            "This module was rejected and cannot be promoted.",
+        );
+      }
+      if ((d.importedBy || "") !== "curriculumWatcher") {
+        throw new HttpsError(
+            "failed-precondition",
+            "Only curriculumWatcher-ingested modules can be promoted.",
+        );
+      }
+
+      const topicId = buildTopicId(d.grade, d.subject, d.topic);
+      if (!topicId) {
+        throw new HttpsError(
+            "failed-precondition",
+            "Module is missing grade/subject/topic — cannot derive a topic id.",
+        );
+      }
+
+      // Heavy lift — call Claude before we touch the canonical KB.
+      const enrichment = await enrichTopicFromChunks({
+        curriculumDoc: d, curriculumId, uid,
+      });
+
+      const kbVersion = await getActiveKbVersion();
+      const topicRef = db.collection("cbcKnowledgeBase").doc(kbVersion)
+          .collection("topics").doc(topicId);
+      const now = admin.firestore.FieldValue.serverTimestamp();
+      const term = Number(d.term);
+
+      // Topic stub + AI-enriched arrays. merge:true so any subsequent
+      // admin edits survive future re-runs.
+      const doc = {
+        id: topicId,
+        grade: typeof d.grade === "number" ? `G${d.grade}` :
+          String(d.grade || "").toUpperCase(),
+        subject: String(d.subject || "").toLowerCase(),
+        term: Number.isInteger(term) && term >= 1 && term <= 3 ? term : 1,
+        topic: String(d.topic || "").slice(0, 200),
+        subtopics: enrichment.subtopics,
+        specificOutcomes: enrichment.specificOutcomes,
+        keyCompetencies: enrichment.keyCompetencies,
+        values: enrichment.values,
+        suggestedMaterials: enrichment.suggestedMaterials,
+        origin: "ingested_from_curriculum_watcher_ai",
+        importedFrom: {
+          curriculumId,
+          sourceUrl: d.sourceUrl || null,
+          sourceName: d.sourceName || null,
+          confidence: d.confidence || "low",
+        },
+        enrichedBy: "claude",
+        enrichedAt: now,
+        reviewStatus: "needs_review",
+        updatedAt: now,
+      };
+      await topicRef.set(doc, {merge: true});
+
+      await ref.set({
+        reviewStatus: "promoted",
+        promotedAt: now,
+        promotedBy: uid,
+        promotedToTopicId: topicId,
+        promotedToVersion: kbVersion,
+        promotionMode: "ai_enriched",
+      }, {merge: true});
+
+      invalidateKbCache();
+
+      return {
+        ok: true,
+        topicId,
+        version: kbVersion,
+        enrichment: {
+          subtopicsCount: enrichment.subtopics.length,
+          outcomesCount: enrichment.specificOutcomes.length,
+          competenciesCount: enrichment.keyCompetencies.length,
+          valuesCount: enrichment.values.length,
+          materialsCount: enrichment.suggestedMaterials.length,
+        },
+      };
+    },
+);
+
 // Pure helpers exported for unit tests.
-exports._internals = {slug, buildTopicId, serialiseModule};
+exports._internals = {
+  slug, buildTopicId, serialiseModule,
+  coerceStringArray, normaliseEnrichment,
+  ENRICH_MAX_ITEMS, ENRICH_ITEM_CHAR_CAP,
+};
