@@ -10,14 +10,16 @@
  * Structure per entry:
  *   { id, grade, subject, term, topic,
  *     subtopics: [...], specificOutcomes: [...],
- *     keyCompetencies: [...], values: [...], suggestedMaterials: [...] }
+ *     keyCompetencies: [...], values: [...], suggestedMaterials: [...],
+ *     reviewStatus: "needs_check" | "approved" }
  *
  * To extend: add more entries to this array. Nothing else needs to change —
  * cbcKnowledge.js imports from here and handles lookup.
  *
- * Review status: initial seed. Recommend a Zambian teacher collaborator
- * review this file before public launch; flag uncertain entries with a
- * `review: "needs_check"` field so we can track them.
+ * `reviewStatus` tracks Zambian-teacher sign-off. Every seed entry starts at
+ * "needs_check"; flip an entry to "approved" once a curriculum reviewer has
+ * verified its grade/subject/term placement and outcome wording.
+ * `npm run cbc:validate` reports counts by status and asserts schema invariants.
  */
 
 const TOPICS = [
@@ -37,6 +39,7 @@ const TOPICS = [
     keyCompetencies: ["Communication and literacy", "Listening skills"],
     values: ["Attentiveness", "Perseverance"],
     suggestedMaterials: ["Letter sound cards", "Alphabet chart", "Grade 1 Literacy Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g1-lit-sight-words",
@@ -50,6 +53,7 @@ const TOPICS = [
     keyCompetencies: ["Literacy", "Communication"],
     values: ["Confidence", "Perseverance"],
     suggestedMaterials: ["Sight-word flashcards", "Grade 1 Literacy Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g1-math-numbers-20",
@@ -64,6 +68,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Critical thinking"],
     values: ["Accuracy", "Perseverance"],
     suggestedMaterials: ["Number cards", "Counters (bottle tops, stones)", "Grade 1 Maths Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g1-math-addition-10",
@@ -77,6 +82,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Problem solving"],
     values: ["Accuracy", "Cooperation"],
     suggestedMaterials: ["Counters", "Number line", "Grade 1 Maths Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g1-math-shapes-2d",
@@ -90,6 +96,7 @@ const TOPICS = [
     keyCompetencies: ["Observation", "Numeracy"],
     values: ["Curiosity", "Accuracy"],
     suggestedMaterials: ["Shape cut-outs", "Objects from the classroom", "Grade 1 Maths Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g1-sci-my-body",
@@ -104,6 +111,7 @@ const TOPICS = [
     keyCompetencies: ["Scientific literacy", "Self-management"],
     values: ["Cleanliness", "Responsibility"],
     suggestedMaterials: ["Body chart", "Soap, water, cloth", "Grade 1 Integrated Science Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g1-sci-living-things",
@@ -117,6 +125,7 @@ const TOPICS = [
     keyCompetencies: ["Scientific literacy", "Observation"],
     values: ["Care for the environment", "Curiosity"],
     suggestedMaterials: ["Real plant samples", "Pictures of Zambian animals", "Grade 1 Integrated Science Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g1-soc-my-family",
@@ -130,6 +139,7 @@ const TOPICS = [
     keyCompetencies: ["Communication", "Citizenship"],
     values: ["Love", "Respect", "Responsibility"],
     suggestedMaterials: ["Family photographs", "Drawing paper", "Grade 1 Social Studies Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g1-eng-listening-speaking",
@@ -143,6 +153,7 @@ const TOPICS = [
     keyCompetencies: ["Communication", "Collaboration"],
     values: ["Respect", "Attentiveness"],
     suggestedMaterials: ["Grade 1 English Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g1-re-gods-creation",
@@ -157,6 +168,7 @@ const TOPICS = [
     keyCompetencies: ["Communication", "Spiritual awareness"],
     values: ["Gratitude", "Reverence"],
     suggestedMaterials: ["Bible (simplified/picture)", "Creation pictures", "Grade 1 RE Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
 
   // ═══════════════════════════════════════════════════════════════════
@@ -175,6 +187,7 @@ const TOPICS = [
     keyCompetencies: ["Literacy", "Comprehension"],
     values: ["Perseverance", "Confidence"],
     suggestedMaterials: ["Grade 2 Literacy Pupil's Book (CDC)", "Chalkboard"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g2-math-numbers-100",
@@ -188,6 +201,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Critical thinking"],
     values: ["Accuracy", "Perseverance"],
     suggestedMaterials: ["Place value chart", "Bundled sticks (tens and ones)", "Grade 2 Maths Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g2-math-add-sub-20",
@@ -201,6 +215,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Problem solving"],
     values: ["Accuracy", "Cooperation"],
     suggestedMaterials: ["Counters", "Number line", "Grade 2 Maths Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g2-math-measurement-length",
@@ -214,6 +229,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Observation"],
     values: ["Accuracy", "Cooperation"],
     suggestedMaterials: ["Ruler", "String", "Everyday classroom objects", "Grade 2 Maths Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g2-sci-plants-around-us",
@@ -227,6 +243,7 @@ const TOPICS = [
     keyCompetencies: ["Scientific literacy", "Observation"],
     values: ["Care for the environment", "Curiosity"],
     suggestedMaterials: ["Real plant samples", "Grade 2 Integrated Science Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g2-soc-community",
@@ -240,6 +257,7 @@ const TOPICS = [
     keyCompetencies: ["Citizenship", "Communication"],
     values: ["Respect", "Responsibility", "Cooperation"],
     suggestedMaterials: ["Community pictures", "Grade 2 Social Studies Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g2-eng-simple-sentences",
@@ -253,6 +271,7 @@ const TOPICS = [
     keyCompetencies: ["Communication", "Literacy"],
     values: ["Accuracy", "Confidence"],
     suggestedMaterials: ["Grade 2 English Pupil's Book (CDC)", "Exercise book"],
+    reviewStatus: "needs_check",
   },
 
   // ═══════════════════════════════════════════════════════════════════
@@ -271,6 +290,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Critical thinking"],
     values: ["Accuracy", "Perseverance"],
     suggestedMaterials: ["Place value chart", "Number cards", "Grade 3 Maths Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g3-math-multiplication-intro",
@@ -284,6 +304,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Problem solving"],
     values: ["Accuracy", "Perseverance"],
     suggestedMaterials: ["Counters", "Multiplication chart", "Grade 3 Maths Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g3-math-fractions-intro",
@@ -297,6 +318,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Critical thinking"],
     values: ["Accuracy", "Cooperation"],
     suggestedMaterials: ["Fraction strips", "Paper shapes", "Grade 3 Maths Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g3-math-time",
@@ -310,6 +332,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Self-management"],
     values: ["Punctuality", "Accuracy"],
     suggestedMaterials: ["Analogue clock", "Calendar", "Grade 3 Maths Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g3-sci-human-body",
@@ -323,6 +346,7 @@ const TOPICS = [
     keyCompetencies: ["Scientific literacy", "Self-management"],
     values: ["Cleanliness", "Responsibility"],
     suggestedMaterials: ["Body chart", "Toothbrush", "Grade 3 Integrated Science Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g3-sci-weather",
@@ -336,6 +360,7 @@ const TOPICS = [
     keyCompetencies: ["Observation", "Scientific literacy"],
     values: ["Curiosity", "Responsibility"],
     suggestedMaterials: ["Weather chart", "Grade 3 Integrated Science Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g3-soc-zambia-my-country",
@@ -349,6 +374,7 @@ const TOPICS = [
     keyCompetencies: ["Citizenship", "Communication"],
     values: ["Patriotism", "Respect"],
     suggestedMaterials: ["Map of Zambia", "Picture of flag and coat of arms", "Grade 3 Social Studies Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g3-eng-comprehension",
@@ -362,6 +388,7 @@ const TOPICS = [
     keyCompetencies: ["Literacy", "Communication"],
     values: ["Attentiveness", "Perseverance"],
     suggestedMaterials: ["Grade 3 English Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g3-eng-grammar-nouns",
@@ -375,6 +402,7 @@ const TOPICS = [
     keyCompetencies: ["Literacy", "Communication"],
     values: ["Accuracy", "Perseverance"],
     suggestedMaterials: ["Grade 3 English Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
 
   // ═══════════════════════════════════════════════════════════════════
@@ -393,6 +421,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Critical thinking"],
     values: ["Accuracy", "Perseverance"],
     suggestedMaterials: ["Place value chart", "Grade 4 Maths Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g4-math-multiplication-tables",
@@ -406,6 +435,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Problem solving"],
     values: ["Accuracy", "Perseverance"],
     suggestedMaterials: ["Multiplication chart", "Counters", "Grade 4 Maths Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g4-math-fractions",
@@ -419,6 +449,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Critical thinking"],
     values: ["Accuracy", "Cooperation"],
     suggestedMaterials: ["Fraction strips", "Grade 4 Maths Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g4-math-area-perimeter",
@@ -432,6 +463,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Problem solving"],
     values: ["Accuracy", "Perseverance"],
     suggestedMaterials: ["Ruler", "Grid paper", "Grade 4 Maths Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g4-sci-plant-parts",
@@ -445,6 +477,7 @@ const TOPICS = [
     keyCompetencies: ["Scientific literacy", "Observation", "Collaboration"],
     values: ["Curiosity", "Care for the environment", "Cooperation"],
     suggestedMaterials: ["Real plant samples (maize, bean)", "Plant parts chart", "Grade 4 Integrated Science Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g4-sci-states-of-matter",
@@ -458,6 +491,7 @@ const TOPICS = [
     keyCompetencies: ["Scientific literacy", "Observation"],
     values: ["Curiosity", "Accuracy"],
     suggestedMaterials: ["Ice, water, kettle demonstration", "Grade 4 Integrated Science Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g4-soc-zambia-geography",
@@ -471,6 +505,7 @@ const TOPICS = [
     keyCompetencies: ["Map literacy", "Citizenship"],
     values: ["Patriotism", "Care for the environment"],
     suggestedMaterials: ["Map of Zambia", "Grade 4 Social Studies Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g4-eng-composition-narrative",
@@ -484,6 +519,7 @@ const TOPICS = [
     keyCompetencies: ["Literacy", "Creativity", "Communication"],
     values: ["Creativity", "Perseverance"],
     suggestedMaterials: ["Grade 4 English Pupil's Book (CDC)", "Exercise book"],
+    reviewStatus: "needs_check",
   },
 
   // ═══════════════════════════════════════════════════════════════════
@@ -503,6 +539,7 @@ const TOPICS = [
     keyCompetencies: ["Critical thinking and problem solving", "Numeracy", "Communication and collaboration"],
     values: ["Accuracy", "Perseverance", "Cooperation"],
     suggestedMaterials: ["Fraction strips (paper)", "Chalkboard and chalk", "Pupils' exercise books", "Grade 5 Mathematics Pupil's Book (CDC), pages 48-62"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g5-math-decimals",
@@ -517,6 +554,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Critical thinking and problem solving"],
     values: ["Accuracy", "Responsibility"],
     suggestedMaterials: ["Place value chart", "Chalkboard", "Grade 5 Mathematics Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g5-math-percentages",
@@ -530,6 +568,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Problem solving"],
     values: ["Accuracy", "Responsibility"],
     suggestedMaterials: ["100-square grid", "Grade 5 Mathematics Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g5-math-geometry-angles",
@@ -543,6 +582,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Observation"],
     values: ["Accuracy", "Perseverance"],
     suggestedMaterials: ["Protractor", "Ruler", "Grade 5 Mathematics Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g5-math-measurement",
@@ -556,6 +596,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Problem solving"],
     values: ["Accuracy", "Cooperation"],
     suggestedMaterials: ["Ruler, weighing scale, measuring cylinder", "Grade 5 Mathematics Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g5-eng-comprehension",
@@ -570,6 +611,7 @@ const TOPICS = [
     keyCompetencies: ["Literacy", "Critical thinking"],
     values: ["Attentiveness", "Perseverance"],
     suggestedMaterials: ["Grade 5 English Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g5-eng-tenses",
@@ -583,6 +625,7 @@ const TOPICS = [
     keyCompetencies: ["Literacy", "Communication"],
     values: ["Accuracy", "Perseverance"],
     suggestedMaterials: ["Grade 5 English Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g5-eng-letter-writing",
@@ -596,6 +639,7 @@ const TOPICS = [
     keyCompetencies: ["Literacy", "Communication"],
     values: ["Respect", "Creativity"],
     suggestedMaterials: ["Sample letters", "Grade 5 English Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g5-sci-plants-photosynthesis",
@@ -609,6 +653,7 @@ const TOPICS = [
     keyCompetencies: ["Scientific literacy", "Critical thinking"],
     values: ["Curiosity", "Care for the environment"],
     suggestedMaterials: ["Real green leaves", "Chart of photosynthesis", "Grade 5 Integrated Science Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g5-sci-digestive-system",
@@ -622,6 +667,7 @@ const TOPICS = [
     keyCompetencies: ["Scientific literacy", "Self-management"],
     values: ["Responsibility", "Cleanliness"],
     suggestedMaterials: ["Digestive system chart", "Grade 5 Integrated Science Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g5-soc-zambia-history",
@@ -635,6 +681,7 @@ const TOPICS = [
     keyCompetencies: ["Citizenship", "Critical thinking"],
     values: ["Patriotism", "Respect for heritage"],
     suggestedMaterials: ["Map of Zambia", "Grade 5 Social Studies Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g5-re-bible-stories",
@@ -648,6 +695,7 @@ const TOPICS = [
     keyCompetencies: ["Spiritual awareness", "Communication"],
     values: ["Faith", "Courage", "Obedience"],
     suggestedMaterials: ["Bible", "Grade 5 RE Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
 
   // ═══════════════════════════════════════════════════════════════════
@@ -667,6 +715,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Problem solving"],
     values: ["Accuracy", "Fairness"],
     suggestedMaterials: ["Grade 6 Mathematics Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g6-math-percentages",
@@ -680,6 +729,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Problem solving", "Entrepreneurship"],
     values: ["Accuracy", "Responsibility"],
     suggestedMaterials: ["Calculator", "Grade 6 Mathematics Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g6-math-algebra-intro",
@@ -694,6 +744,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Critical thinking"],
     values: ["Accuracy", "Perseverance"],
     suggestedMaterials: ["Grade 6 Mathematics Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g6-math-data-handling",
@@ -707,6 +758,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Critical thinking"],
     values: ["Accuracy", "Cooperation"],
     suggestedMaterials: ["Graph paper", "Grade 6 Mathematics Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g6-eng-summary",
@@ -720,6 +772,7 @@ const TOPICS = [
     keyCompetencies: ["Literacy", "Critical thinking"],
     values: ["Accuracy", "Perseverance"],
     suggestedMaterials: ["Grade 6 English Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g6-eng-poetry",
@@ -733,6 +786,7 @@ const TOPICS = [
     keyCompetencies: ["Literacy", "Creativity", "Communication"],
     values: ["Creativity", "Appreciation"],
     suggestedMaterials: ["Zambian and English poetry samples", "Grade 6 English Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g6-sci-circulatory-system",
@@ -746,6 +800,7 @@ const TOPICS = [
     keyCompetencies: ["Scientific literacy", "Self-management"],
     values: ["Responsibility", "Care for one's health"],
     suggestedMaterials: ["Circulatory system chart", "Grade 6 Integrated Science Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g6-sci-forces",
@@ -759,6 +814,7 @@ const TOPICS = [
     keyCompetencies: ["Scientific literacy", "Observation"],
     values: ["Curiosity", "Accuracy"],
     suggestedMaterials: ["Spring balance", "Toy car", "Grade 6 Integrated Science Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g6-soc-zambia-independence",
@@ -772,6 +828,7 @@ const TOPICS = [
     keyCompetencies: ["Citizenship", "Communication"],
     values: ["Patriotism", "Unity", "Respect for heritage"],
     suggestedMaterials: ["Historical pictures", "Grade 6 Social Studies Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
 
   // ═══════════════════════════════════════════════════════════════════
@@ -791,6 +848,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Critical thinking", "Problem solving"],
     values: ["Accuracy", "Perseverance"],
     suggestedMaterials: ["Grade 7 Mathematics Pupil's Book (CDC)", "ECZ past-paper samples"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g7-math-geometry-triangles",
@@ -804,6 +862,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Observation"],
     values: ["Accuracy", "Perseverance"],
     suggestedMaterials: ["Protractor, ruler, set square", "Grade 7 Mathematics Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g7-math-statistics",
@@ -817,6 +876,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Critical thinking"],
     values: ["Accuracy", "Honesty"],
     suggestedMaterials: ["Graph paper", "Grade 7 Mathematics Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g7-math-probability",
@@ -830,6 +890,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Critical thinking"],
     values: ["Accuracy", "Fairness"],
     suggestedMaterials: ["Coins, dice", "Grade 7 Mathematics Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g7-eng-composition",
@@ -843,6 +904,7 @@ const TOPICS = [
     keyCompetencies: ["Literacy", "Creativity", "Communication"],
     values: ["Creativity", "Perseverance"],
     suggestedMaterials: ["Grade 7 English Pupil's Book (CDC)", "Exercise book"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g7-eng-formal-letter",
@@ -856,6 +918,7 @@ const TOPICS = [
     keyCompetencies: ["Literacy", "Communication"],
     values: ["Respect", "Responsibility"],
     suggestedMaterials: ["Sample formal letters", "Grade 7 English Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g7-sci-electricity",
@@ -869,6 +932,7 @@ const TOPICS = [
     keyCompetencies: ["Scientific literacy", "Innovation"],
     values: ["Safety", "Curiosity"],
     suggestedMaterials: ["Battery, wires, bulb, switch", "Grade 7 Integrated Science Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g7-sci-reproduction",
@@ -882,6 +946,7 @@ const TOPICS = [
     keyCompetencies: ["Scientific literacy", "Observation"],
     values: ["Curiosity", "Care for the environment"],
     suggestedMaterials: ["Real flowers (hibiscus)", "Grade 7 Integrated Science Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g7-soc-government",
@@ -895,6 +960,7 @@ const TOPICS = [
     keyCompetencies: ["Citizenship", "Critical thinking"],
     values: ["Patriotism", "Responsibility"],
     suggestedMaterials: ["Zambian constitution (simplified)", "Grade 7 Social Studies Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g7-soc-economy",
@@ -908,6 +974,7 @@ const TOPICS = [
     keyCompetencies: ["Citizenship", "Entrepreneurship", "Critical thinking"],
     values: ["Patriotism", "Responsibility"],
     suggestedMaterials: ["Map of Zambian mines", "Grade 7 Social Studies Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
 
   // ═══════════════════════════════════════════════════════════════════
@@ -926,6 +993,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Critical thinking"],
     values: ["Accuracy", "Perseverance"],
     suggestedMaterials: ["Number line", "Grade 8 Mathematics Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g8-math-linear-equations",
@@ -939,6 +1007,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Problem solving", "Critical thinking"],
     values: ["Accuracy", "Perseverance"],
     suggestedMaterials: ["Grade 8 Mathematics Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g8-math-sets",
@@ -953,6 +1022,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Critical thinking"],
     values: ["Accuracy", "Perseverance"],
     suggestedMaterials: ["Grade 8 Mathematics Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g8-math-geometry-polygons",
@@ -966,6 +1036,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Observation"],
     values: ["Accuracy", "Perseverance"],
     suggestedMaterials: ["Protractor, ruler", "Grade 8 Mathematics Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g8-eng-comprehension",
@@ -979,6 +1050,7 @@ const TOPICS = [
     keyCompetencies: ["Literacy", "Critical thinking"],
     values: ["Attentiveness", "Accuracy"],
     suggestedMaterials: ["Grade 8 English Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g8-eng-argumentative",
@@ -992,6 +1064,7 @@ const TOPICS = [
     keyCompetencies: ["Literacy", "Critical thinking", "Communication"],
     values: ["Honesty", "Respect", "Integrity"],
     suggestedMaterials: ["Grade 8 English Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g8-sci-cells",
@@ -1005,6 +1078,7 @@ const TOPICS = [
     keyCompetencies: ["Scientific literacy", "Observation"],
     values: ["Curiosity", "Accuracy"],
     suggestedMaterials: ["Microscope (if available)", "Cell diagram charts", "Grade 8 Integrated Science Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g8-sci-chemistry-atoms",
@@ -1018,6 +1092,7 @@ const TOPICS = [
     keyCompetencies: ["Scientific literacy", "Critical thinking"],
     values: ["Curiosity", "Accuracy"],
     suggestedMaterials: ["Periodic table", "Grade 8 Integrated Science Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g8-sci-motion",
@@ -1032,6 +1107,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Scientific literacy"],
     values: ["Accuracy", "Perseverance"],
     suggestedMaterials: ["Stopwatch, measuring tape", "Grade 8 Integrated Science Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g8-civ-constitution",
@@ -1046,6 +1122,7 @@ const TOPICS = [
     keyCompetencies: ["Citizenship", "Critical thinking", "Communication"],
     values: ["Patriotism", "Responsibility", "Justice"],
     suggestedMaterials: ["Simplified Zambian constitution", "Grade 8 Civic Education Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g8-civ-human-rights",
@@ -1059,6 +1136,7 @@ const TOPICS = [
     keyCompetencies: ["Citizenship", "Communication"],
     values: ["Respect", "Justice", "Equality"],
     suggestedMaterials: ["Child Rights booklet", "Grade 8 Civic Education Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g8-soc-zambia-history-colonial",
@@ -1072,6 +1150,7 @@ const TOPICS = [
     keyCompetencies: ["Citizenship", "Critical thinking"],
     values: ["Patriotism", "Unity"],
     suggestedMaterials: ["Historical maps", "Grade 8 Social Studies Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g8-re-world-religions",
@@ -1085,6 +1164,7 @@ const TOPICS = [
     keyCompetencies: ["Spiritual awareness", "Critical thinking", "Communication"],
     values: ["Respect", "Tolerance"],
     suggestedMaterials: ["Religious texts (where available)", "Grade 8 RE Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
 
   // ═══════════════════════════════════════════════════════════════════
@@ -1103,6 +1183,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Critical thinking", "Problem solving"],
     values: ["Accuracy", "Perseverance"],
     suggestedMaterials: ["Grade 9 Mathematics Pupil's Book (CDC)", "ECZ JSC past papers"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g9-math-simultaneous-equations",
@@ -1116,6 +1197,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Problem solving"],
     values: ["Accuracy", "Perseverance"],
     suggestedMaterials: ["Grade 9 Mathematics Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g9-math-trigonometry",
@@ -1129,6 +1211,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Problem solving"],
     values: ["Accuracy", "Perseverance"],
     suggestedMaterials: ["Scientific calculator or trig tables", "Grade 9 Mathematics Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g9-math-mensuration",
@@ -1142,6 +1225,7 @@ const TOPICS = [
     keyCompetencies: ["Numeracy", "Problem solving"],
     values: ["Accuracy", "Perseverance"],
     suggestedMaterials: ["Formula sheet", "Grade 9 Mathematics Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g9-eng-literature-prose",
@@ -1155,6 +1239,7 @@ const TOPICS = [
     keyCompetencies: ["Literacy", "Critical thinking", "Communication"],
     values: ["Empathy", "Integrity"],
     suggestedMaterials: ["Prescribed Zambian/African literature text", "Grade 9 English Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g9-eng-poetry-devices",
@@ -1168,6 +1253,7 @@ const TOPICS = [
     keyCompetencies: ["Literacy", "Creativity"],
     values: ["Appreciation", "Creativity"],
     suggestedMaterials: ["Zambian and African poetry anthology", "Grade 9 English Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g9-sci-genetics",
@@ -1181,6 +1267,7 @@ const TOPICS = [
     keyCompetencies: ["Scientific literacy", "Critical thinking"],
     values: ["Curiosity", "Respect for diversity"],
     suggestedMaterials: ["Chart of inheritance", "Grade 9 Integrated Science Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g9-sci-acids-bases",
@@ -1194,6 +1281,7 @@ const TOPICS = [
     keyCompetencies: ["Scientific literacy", "Observation"],
     values: ["Safety", "Curiosity"],
     suggestedMaterials: ["Litmus paper, lemon juice, bicarbonate of soda", "Grade 9 Integrated Science Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g9-sci-energy-transformations",
@@ -1208,6 +1296,7 @@ const TOPICS = [
     keyCompetencies: ["Scientific literacy", "Innovation", "Citizenship"],
     values: ["Responsibility", "Care for the environment"],
     suggestedMaterials: ["Pictures of solar panels, hydro plants (Kariba)", "Grade 9 Integrated Science Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g9-civ-democracy",
@@ -1221,6 +1310,7 @@ const TOPICS = [
     keyCompetencies: ["Citizenship", "Communication", "Critical thinking"],
     values: ["Patriotism", "Responsibility", "Integrity"],
     suggestedMaterials: ["ECZ Voter Education pamphlets", "Grade 9 Civic Education Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g9-civ-corruption",
@@ -1234,6 +1324,7 @@ const TOPICS = [
     keyCompetencies: ["Citizenship", "Critical thinking"],
     values: ["Integrity", "Honesty", "Responsibility"],
     suggestedMaterials: ["ACC awareness materials", "Grade 9 Civic Education Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
   {
     id: "g9-soc-climate-change",
@@ -1248,6 +1339,7 @@ const TOPICS = [
     keyCompetencies: ["Citizenship", "Critical thinking", "Innovation"],
     values: ["Responsibility", "Care for the environment"],
     suggestedMaterials: ["News articles on Zambian climate impacts", "Grade 9 Social Studies Pupil's Book (CDC)"],
+    reviewStatus: "needs_check",
   },
 ]
 
