@@ -6,22 +6,28 @@ import { capture } from '../../utils/analytics'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 
-const DEFAULT_PLAN_ORDER = ['monthly', 'termly', 'yearly']
+const DEFAULT_PLAN_ORDER_BY_PORTAL = {
+  learner: ['grade7_monthly', 'grade7_termly'],
+  teacher: ['pro_monthly', 'pro_yearly'],
+  generic: ['grade7_monthly', 'grade7_termly'],
+}
 const PLAN_BORDER = {
-  monthly:     'border-green-400 bg-green-50',
-  termly:      'border-blue-400 bg-blue-50',
-  yearly:      'border-purple-400 bg-purple-50',
-  pro_monthly: 'border-orange-400 bg-orange-50',
-  pro_yearly:  'border-orange-400 bg-orange-50',
-  max_monthly: 'border-blue-500 bg-blue-50',
-  max_yearly:  'border-blue-500 bg-blue-50',
+  grade7_monthly: 'border-amber-400 bg-amber-50',
+  grade7_termly:  'border-emerald-400 bg-emerald-50',
+  monthly:        'border-green-400 bg-green-50',
+  termly:         'border-blue-400 bg-blue-50',
+  yearly:         'border-purple-400 bg-purple-50',
+  pro_monthly:    'border-orange-400 bg-orange-50',
+  pro_yearly:     'border-orange-400 bg-orange-50',
+  max_monthly:    'border-blue-500 bg-blue-50',
+  max_yearly:     'border-blue-500 bg-blue-50',
 }
 const FALLBACK_BORDER = 'border-orange-400 bg-orange-50'
 
 const PORTAL_COPY = {
   learner: {
-    title: 'Subscribe to Learner Portal',
-    subtitle: 'Unlock the learner dashboard, quizzes, lessons & exams',
+    title: 'Grade 7 ECZ Exam Pack',
+    subtitle: 'Notes · past papers · quizzes · exam strategy',
   },
   teacher: {
     title: 'Subscribe to Teacher Portal',
@@ -49,7 +55,9 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
   const { userProfile, currentUser } = useAuth()
   const pendingReferralCredits = Number(userProfile?.referralCredits || 0)
 
-  const visiblePlanIds = (planIds && planIds.length ? planIds : DEFAULT_PLAN_ORDER)
+  const defaultOrder =
+    DEFAULT_PLAN_ORDER_BY_PORTAL[portal] || DEFAULT_PLAN_ORDER_BY_PORTAL.generic
+  const visiblePlanIds = (planIds && planIds.length ? planIds : defaultOrder)
     .filter((id) => PLANS[id])
   const [step, setStep] = useState('plans')
   const [selectedPlanId, setSelectedPlanId] = useState(
