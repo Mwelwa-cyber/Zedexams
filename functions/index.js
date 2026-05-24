@@ -1582,6 +1582,14 @@ exports.getPlatformHealth = createGetPlatformHealth(anthropicApiKey);
 exports.initializeAgentPipeline = createInitializeAgentPipeline();
 exports.runSampleAgentJob = createRunSampleAgentJob();
 
+// CBC KB — extract topics from an admin-uploaded syllabus PDF via Claude.
+// Complements parseSyllabusUpload (XLSX-only Storage trigger) for the
+// PDF source files most CDC syllabi ship as.
+const {
+  createExtractTopicsFromPdf,
+} = require("./teacherTools/extractTopicsFromPdf");
+exports.extractTopicsFromPdf = createExtractTopicsFromPdf(anthropicApiKey);
+
 /**
  * Admin-only callable: re-runs Cala (and Reva) on a job that previously
  * failed at the Cala step. Safe because Cala is deterministic and costs

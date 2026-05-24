@@ -9,6 +9,7 @@ import {
 } from '../../utils/teacherTools'
 import { LEARNING_ENVIRONMENTS } from '../../config/learningEnvironments'
 import SeoHelmet from '../seo/SeoHelmet'
+import SyllabusPdfUploadPanel from './SyllabusPdfUploadPanel'
 
 const EMPTY_LESSON = {
   subtopic: '',
@@ -248,6 +249,9 @@ export default function CbcKbAdmin() {
           </div>
         </div>
       )}
+
+      {/* Syllabus PDF → KB extractor (Claude-powered, admin-only). */}
+      <SyllabusPdfUploadPanel />
 
       {/* Bulk-import curriculum modules */}
       <div className="rounded-2xl border-2 border-amber-200 bg-amber-50/60 p-4">
