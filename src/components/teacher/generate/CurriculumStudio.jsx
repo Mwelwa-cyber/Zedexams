@@ -98,8 +98,10 @@ export default function CurriculumStudio() {
     return out.sort((a, b) => a.localeCompare(b))
   }, [allTopics, grade, subject])
 
-  // Reset the cascade when a higher selector changes.
-  useEffect(() => { setTopic(''); setSubtopicId('') }, [grade, subject, term])
+  // Reset the cascade when a higher selector changes. Term is the teacher's
+  // own choice and is intentionally NOT a topic filter — switching term keeps
+  // the picked topic.
+  useEffect(() => { setTopic(''); setSubtopicId('') }, [grade, subject])
   useEffect(() => { setSubtopicId('') }, [topic])
 
   // Sub-topics from the topic document's own `subtopics` array — the source
@@ -127,7 +129,6 @@ export default function CurriculumStudio() {
           id: `topicdoc:${name.toLowerCase()}`,
           topic: String(t.topic || topic),
           subtopic: name,
-          term: Number(t.term) || Number(term) || 1,
           suggestedLessons: 1,
           outcomes: Array.isArray(t.specificOutcomes) ? t.specificOutcomes : [],
           learningEnvironmentOptions: [],
@@ -135,12 +136,13 @@ export default function CurriculumStudio() {
       }
     }
     return out
-  }, [allTopics, grade, subject, topic, term])
+  }, [allTopics, grade, subject, topic])
 
-  // Load the stored sub-topic modules for the chosen topic + term; fall back
-  // to the topic doc's own `subtopics` when no per-lesson modules exist.
+  // Load every stored sub-topic module for the chosen topic — we no longer
+  // restrict by term. The teacher picks the term separately in their brief;
+  // showing all sub-topics keeps cross-term planning fluid.
   useEffect(() => {
-    if (!topic || !term) { setModules([]); return }
+    if (!topic) { setModules([]); return }
     const topicId = curriculumTopicDocId({ grade, subject, topic })
     if (!topicId) { setModules(topicDocFallback); return }
     let active = true
@@ -148,15 +150,12 @@ export default function CurriculumStudio() {
     listLessons(topicId)
       .then((rows) => {
         if (!active) return
-        const forTerm = (rows || []).filter(
-          (m) => Number(m.term) === Number(term),
-        )
-        setModules(forTerm.length > 0 ? forTerm : topicDocFallback)
+        setModules((rows && rows.length > 0) ? rows : topicDocFallback)
       })
       .catch(() => { if (active) setModules(topicDocFallback) })
       .finally(() => { if (active) setModulesLoading(false) })
     return () => { active = false }
-  }, [topic, term, grade, subject, topicDocFallback])
+  }, [topic, grade, subject, topicDocFallback])
 
   const selectedModule = useMemo(
     () => modules.find((m) => m.id === subtopicId) || null,
@@ -234,12 +233,12 @@ export default function CurriculumStudio() {
             <FieldSelect
               label="Topic"
               value={topic}
-              disabled={!term || allTopics === null}
+              disabled={allTopics === null}
               options={[
                 { value: '', label: allTopics === null ?
-                  'Loading…' : (!term ? 'Pick a term first' :
-                    (topicOptions.length ? '— Select topic —' :
-                      'No stored topics for this grade/subject')) },
+                  'Loading…' :
+                  (topicOptions.length ? '— Select topic —' :
+                    'No stored topics for this grade/subject') },
                 ...topicOptions.map((t) => ({ value: t, label: t })),
               ]}
               onChange={setTopic}
@@ -253,7 +252,7 @@ export default function CurriculumStudio() {
             options={[
               { value: '', label: modulesLoading ? 'Loading modules…' :
                 (modules.length ? '— Select sub-topic —' :
-                  (topic ? 'No stored modules for this topic/term yet' :
+                  (topic ? 'No stored modules for this topic yet' :
                     'Pick a topic first')) },
               ...modules.map((m) => ({
                 value: m.id,
@@ -270,7 +269,7 @@ export default function CurriculumStudio() {
                 {selectedModule.topic} → {selectedModule.subtopic}
               </p>
               <p className="text-xs text-slate-500 mb-2">
-                Term {selectedModule.term} · {selectedModule.outcomes?.length || 0}{' '}
+                {selectedModule.outcomes?.length || 0}{' '}
                 outcome(s) · suggested {selectedModule.suggestedLessons || 1} lesson(s)
               </p>
               {selectedModule.outcomes?.length > 0 && (

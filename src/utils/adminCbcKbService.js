@@ -133,7 +133,6 @@ export async function saveCbcTopic(topic) {
     id,
     grade: String(topic.grade || '').toUpperCase().slice(0, 10),
     subject: String(topic.subject || '').toLowerCase().replace(/[^a-z_]/g, '_').slice(0, 40),
-    term: Number(topic.term) || 1,
     topic: String(topic.topic || '').trim().slice(0, 200),
     subtopics: Array.isArray(topic.subtopics) ?
       topic.subtopics.filter(Boolean).map((s) => String(s).slice(0, 200)) : [],

@@ -12,6 +12,7 @@ import SeoHelmet from '../seo/SeoHelmet'
 
 const EMPTY_LESSON = {
   subtopic: '',
+  term: 1,
   suggestedLessons: '',
   learningEnvironmentOptions: [],
   outcomes: [''],
@@ -36,7 +37,6 @@ const LESSON_ARRAY_FIELDS = [
 const EMPTY_FORM = {
   grade: 'G10',
   subject: 'biology',
-  term: 1,
   topic: '',
   subtopics: [''],
   specificOutcomes: [''],
@@ -117,7 +117,6 @@ export default function CbcKbAdmin() {
     setForm({
       grade: topic.grade || 'G10',
       subject: topic.subject || 'biology',
-      term: topic.term || 1,
       topic: topic.topic || '',
       subtopics: subtopicNames.length ? subtopicNames : [''],
       specificOutcomes: topic.specificOutcomes?.length ? [...topic.specificOutcomes] : [''],
@@ -312,8 +311,6 @@ export default function CbcKbAdmin() {
                 <span>{topic.grade}</span>
                 <span>·</span>
                 <span>{formatSubject(topic.subject)}</span>
-                <span>·</span>
-                <span>Term {topic.term}</span>
                 {topic.origin === 'builtin_seed' && (
                   <span className="ml-auto px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-700 text-[10px]">
                     built-in
@@ -389,7 +386,7 @@ function TopicFormModal({ form, setForm, editing, saving, onSave, onCancel }) {
           <button onClick={onCancel} className="text-slate-500 hover:text-slate-900">✕</button>
         </div>
         <div className="p-5 space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Labelled label="Grade">
               <select value={form.grade} onChange={(e) => update('grade', e.target.value)} className="w-full px-3 py-2 rounded-lg border-2 theme-border bg-white">
                 {TEACHER_GRADES.map((g) => <option key={g.value} value={g.value}>{g.label}</option>)}
@@ -400,14 +397,11 @@ function TopicFormModal({ form, setForm, editing, saving, onSave, onCancel }) {
                 {TEACHER_SUBJECTS.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
             </Labelled>
-            <Labelled label="Term">
-              <select value={form.term} onChange={(e) => update('term', Number(e.target.value))} className="w-full px-3 py-2 rounded-lg border-2 theme-border bg-white">
-                <option value={1}>Term 1</option>
-                <option value={2}>Term 2</option>
-                <option value={3}>Term 3</option>
-              </select>
-            </Labelled>
           </div>
+          <p className="text-xs text-slate-500">
+            Topics span the school year — the term is chosen per lesson module
+            below (or by the teacher in their brief), not on the topic itself.
+          </p>
 
           <Labelled label="Topic *">
             <input
@@ -591,7 +585,7 @@ function LessonsManagerModal({ topic, onClose, onToast }) {
 
   async function onDeleteLesson(l) {
     if (!window.confirm(
-      `Delete the "${l.subtopic}" (Term ${l.term}) module?`,
+      `Delete the "${l.subtopic}" (Term ${l.term ?? '—'}) module?`,
     )) return
     const ok = await deleteLesson(topicId, l.id)
     if (ok) { onToast('Lesson deleted.'); reload() } else {
@@ -606,8 +600,7 @@ function LessonsManagerModal({ topic, onClose, onToast }) {
           <div>
             <h2 className="font-black text-lg">Lesson modules</h2>
             <p className="text-xs text-slate-500">
-              {topic.grade} · {formatSubject(topic.subject)} · Term{' '}
-              {topic.term} · {topic.topic}
+              {topic.grade} · {formatSubject(topic.subject)} · {topic.topic}
             </p>
           </div>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-900">✕</button>
@@ -639,7 +632,7 @@ function LessonsManagerModal({ topic, onClose, onToast }) {
                     <p className="font-black text-sm text-slate-900">
                       {l.subtopic}{' '}
                       <span className="text-slate-500 font-normal">
-                        — Term {l.term} · ~{l.suggestedLessons || 1} lesson(s)
+                        — Term {l.term ?? '—'} · ~{l.suggestedLessons || 1} lesson(s)
                       </span>
                     </p>
                     <p className="text-xs text-slate-600 mt-0.5 truncate">
@@ -697,6 +690,7 @@ function LessonFormModal({ topic, topicId, lesson, onCancel, onSaved }) {
     if (!lesson) return { ...EMPTY_LESSON }
     const f = { ...EMPTY_LESSON }
     f.subtopic = lesson.subtopic || ''
+    f.term = Number(lesson.term) || 1
     f.suggestedLessons = lesson.suggestedLessons || ''
     f.learningEnvironmentOptions = [...(lesson.learningEnvironmentOptions || [])]
     f.contentSummary = lesson.contentSummary || ''
@@ -728,7 +722,7 @@ function LessonFormModal({ topic, topicId, lesson, onCancel, onSaved }) {
       const payload = {
         grade: topic.grade,
         subject: topic.subject,
-        term: topic.term,
+        term: Number(form.term) || 1,
         topic: topic.topic,
         subtopic: form.subtopic,
         suggestedLessons: form.suggestedLessons ?
@@ -758,20 +752,34 @@ function LessonFormModal({ topic, topicId, lesson, onCancel, onSaved }) {
         </div>
         <div className="p-5 space-y-4">
           <p className="text-xs text-slate-500">
-            {topic.grade} · {formatSubject(topic.subject)} · Term {topic.term}{' '}
-            · {topic.topic}
+            {topic.grade} · {formatSubject(topic.subject)} · {topic.topic}
           </p>
 
-          <Labelled label="Sub-topic *">
-            <input
-              type="text"
-              value={form.subtopic}
-              onChange={(e) => update('subtopic', e.target.value)}
-              placeholder="e.g. Parts of a Plant"
-              maxLength={200}
-              className="w-full px-3 py-2 rounded-lg border-2 theme-border focus:outline-none focus:border-emerald-400"
-            />
-          </Labelled>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="sm:col-span-2">
+              <Labelled label="Sub-topic *">
+                <input
+                  type="text"
+                  value={form.subtopic}
+                  onChange={(e) => update('subtopic', e.target.value)}
+                  placeholder="e.g. Parts of a Plant"
+                  maxLength={200}
+                  className="w-full px-3 py-2 rounded-lg border-2 theme-border focus:outline-none focus:border-emerald-400"
+                />
+              </Labelled>
+            </div>
+            <Labelled label="Term">
+              <select
+                value={form.term}
+                onChange={(e) => update('term', Number(e.target.value))}
+                className="w-full px-3 py-2 rounded-lg border-2 theme-border bg-white"
+              >
+                <option value={1}>Term 1</option>
+                <option value={2}>Term 2</option>
+                <option value={3}>Term 3</option>
+              </select>
+            </Labelled>
+          </div>
 
           <Labelled label="Suggested number of lessons (optional)">
             <input
