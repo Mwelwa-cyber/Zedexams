@@ -6,6 +6,7 @@ import {
   processImportedQuestionBlocks,
 } from './documentQuizParserCore.js'
 import { buildDocxTableBlocks } from './documentQuizTableBlocks.js'
+import { consolidateOptionImageRuns } from './documentQuizParagraphRuns.js'
 import { structureImportedQuiz } from '../../utils/aiAssistant'
 
 let pdfjsLoader = null
@@ -598,7 +599,15 @@ async function extractDocx(file) {
     }
   })
 
-  return { blocks, imageAssets, warnings }
+  // Phase 4: detect non-table per-option image patterns. Teachers who lay out
+  // image options as separate paragraphs ("A.\n<img>\nB.\n<img>\n…") instead
+  // of a 5-cell table row used to lose the per-option attribution — every
+  // image ended up on the question stem. consolidateOptionImageRuns walks
+  // the linear block stream, recognises option-letter-only paragraphs that
+  // either contain an inline image or are followed by an image-only
+  // paragraph, and rewrites the preceding question block to be an
+  // image-options block with optionAssetsByLetter.
+  return { blocks: consolidateOptionImageRuns(blocks), imageAssets, warnings }
 }
 
 async function extractLegacyDoc(file) {
@@ -1032,7 +1041,12 @@ async function extractPdf(file) {
     })
   }
 
-  return { blocks, imageAssets, warnings }
+  // Phase 5: same per-option image consolidation we run on DOCX blocks. A
+  // PDF line that's just "A." with a figure attached (via Phase 2's Y-proximity
+  // matching in pickFigureForLineY) folds into the preceding question stem
+  // with optionAssetsByLetter, so the figures land on the right option's
+  // optionMedia slot instead of all bunching onto the question.
+  return { blocks: consolidateOptionImageRuns(blocks), imageAssets, warnings }
 }
 
 // TODO(stop-the-bleeding 2026-05): wired up to importer? Delete or call.

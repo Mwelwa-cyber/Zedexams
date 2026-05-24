@@ -45,17 +45,34 @@ async function runPubo({job}) {
     throw new Error(`Pubo refuses: aiGenerations/${generationId} not found.`);
   }
 
+  // Capture an admin override when Cala flagged the draft as not
+  // aligned but the admin still chose to publish. We surface this on
+  // the published aiGenerations doc so the audit trail survives even if
+  // the agentJobs row is later cleaned up. Override is "active" when
+  // the alignment verdict was not clean AND the admin supplied a
+  // reason — clean approvals carry neither field forward.
+  const calaUnaligned =
+    calaOutput.aligned === false ||
+    (Array.isArray(calaOutput.gaps) && calaOutput.gaps.length > 0) ||
+    (Array.isArray(calaOutput.drift) && calaOutput.drift.length > 0);
+  const overrideReason = typeof job.overrideReason === "string" ?
+    job.overrideReason.trim() : "";
+  const overrideActive = calaUnaligned && overrideReason.length > 0;
+
   await genRef.set({
     visibility: "public",
     approvedBy: job.reviewedBy || null,
     approvedJobId: job.id || null,
     publishedBy: "agent:pubo",
     publishedAt: admin.firestore.FieldValue.serverTimestamp(),
+    approvedWithOverride: overrideActive,
+    overrideReason: overrideActive ? overrideReason : null,
   }, {merge: true});
 
   return {
     publishedRefs: [{collection: "aiGenerations", docId: generationId}],
     publishedAt: admin.firestore.FieldValue.serverTimestamp(),
+    approvedWithOverride: overrideActive,
   };
 }
 
