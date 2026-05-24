@@ -11,6 +11,7 @@ import { LEARNING_ENVIRONMENTS } from '../../config/learningEnvironments'
 import SeoHelmet from '../seo/SeoHelmet'
 import SyllabusPdfUploadPanel from './SyllabusPdfUploadPanel'
 import GenerateFromTopicMenu from './GenerateFromTopicMenu'
+import BulkGenerateButton from './BulkGenerateButton'
 
 const EMPTY_LESSON = {
   subtopic: '',
@@ -213,12 +214,15 @@ export default function CbcKbAdmin() {
             </p>
           )}
         </div>
-        <button
-          onClick={openNew}
-          className="px-4 py-2 rounded-xl text-sm font-black text-white bg-gradient-to-r from-emerald-500 to-teal-500"
-        >
-          + Add topic
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <BulkGenerateButton topics={filtered} />
+          <button
+            onClick={openNew}
+            className="px-4 py-2 rounded-xl text-sm font-black text-white bg-gradient-to-r from-emerald-500 to-teal-500"
+          >
+            + Add topic
+          </button>
+        </div>
       </header>
 
       {toast && (
