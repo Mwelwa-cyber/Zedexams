@@ -144,6 +144,21 @@ service firebase.storage {
       allow delete: if isAdmin();
     }
 
+    // PDF syllabi uploaded by admins for the extractTopicsFromPdf callable
+    // (functions/teacherTools/extractTopicsFromPdf.js). PDF-only; the
+    // callable rejects any path that doesn't end in .pdf, but the rule
+    // pins it on the storage side too so non-PDF uploads can't squat the
+    // path and bypass the callable's quota meter.
+    function validSyllabusPdfUpload() {
+      return request.resource.size < 25 * 1024 * 1024
+        && request.resource.contentType == 'application/pdf';
+    }
+    match /syllabus-uploads-pdf/{version}/{fileName=**} {
+      allow read: if isAdmin();
+      allow create, update: if isAdmin() && validSyllabusPdfUpload();
+      allow delete: if isAdmin();
+    }
+
     // Notes Studio inline images: PNG/JPEG/WebP/GIF up to 5 MB, written by
     // the rich-text editor. Must come BEFORE the whole-note files match
     // since {fileName=**} would otherwise swallow the /inline/ segment.
