@@ -10,6 +10,7 @@ import {
 import { LEARNING_ENVIRONMENTS } from '../../config/learningEnvironments'
 import SeoHelmet from '../seo/SeoHelmet'
 import SyllabusPdfUploadPanel from './SyllabusPdfUploadPanel'
+import GenerateFromTopicMenu from './GenerateFromTopicMenu'
 
 const EMPTY_LESSON = {
   subtopic: '',
@@ -328,7 +329,8 @@ export default function CbcKbAdmin() {
                   {topic.subtopics.length > 3 && ` · +${topic.subtopics.length - 3} more`}
                 </p>
               )}
-              <div className="flex gap-3 mt-3 text-xs">
+              <div className="flex flex-wrap items-center gap-3 mt-3 text-xs">
+                <GenerateFromTopicMenu topic={topic} />
                 <button
                   onClick={() => openEdit(topic)}
                   className="text-emerald-700 hover:underline font-bold"
