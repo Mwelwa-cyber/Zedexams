@@ -205,6 +205,99 @@ await test('empty input → empty output', async () => {
   assertEq(r.length, 0)
 })
 
+console.log('\ndetectDocumentType')
+
+await test('"Scheme of Work" in anchor text → scheme_of_work', () => {
+  const t = ing.detectDocumentType({
+    url: 'https://x/file.pdf',
+    anchorText: 'Grade 7 Mathematics Scheme of Work — Term 1',
+    headings: [],
+  })
+  assertEq(t, 'scheme_of_work')
+})
+
+await test('"scheme-of-work" slug in URL → scheme_of_work', () => {
+  const t = ing.detectDocumentType({
+    url: 'https://library.cdcrepository.info/files/g7-maths-scheme-of-work.pdf',
+    anchorText: 'Download PDF',
+    headings: [],
+  })
+  assertEq(t, 'scheme_of_work')
+})
+
+await test('"syllabus" anywhere → syllabus', () => {
+  assertEq(ing.detectDocumentType({
+    url: 'https://x/g5-eng-syllabus.pdf', anchorText: 'Download', headings: [],
+  }), 'syllabus')
+  assertEq(ing.detectDocumentType({
+    url: 'https://x/file.pdf', anchorText: 'English Syllabus G5', headings: [],
+  }), 'syllabus')
+})
+
+await test('"Lesson plan" beats "module" when both could fit', () => {
+  // The keyword order in DOCUMENT_TYPE_KEYWORDS puts lesson_plan
+  // before module, so a row mentioning both should land as lesson_plan.
+  const t = ing.detectDocumentType({
+    url: 'https://x/g4-science-module.pdf',
+    anchorText: 'Sample lesson plan for Module 3',
+    headings: [],
+  })
+  assertEq(t, 'lesson_plan')
+})
+
+await test('"Teacher\'s Guide" → teachers_guide', () => {
+  assertEq(ing.detectDocumentType({
+    url: 'https://x/y.pdf',
+    anchorText: "Teacher's Guide — Grade 6 Science",
+    headings: [],
+  }), 'teachers_guide')
+})
+
+await test('"Pupil\'s Book" / "Learner\'s Book" → learners_book', () => {
+  assertEq(ing.detectDocumentType({
+    url: 'https://x/g3-pupils-book.pdf', anchorText: 'Download', headings: [],
+  }), 'learners_book')
+  assertEq(ing.detectDocumentType({
+    url: 'https://x/y.pdf',
+    anchorText: "Learner's Book Grade 3",
+    headings: [],
+  }), 'learners_book')
+})
+
+await test('"Past paper" → assessment', () => {
+  assertEq(ing.detectDocumentType({
+    url: 'https://x/y.pdf',
+    anchorText: 'Grade 7 past paper 2024', headings: [],
+  }), 'assessment')
+})
+
+await test('Nothing matches → unknown (never null)', () => {
+  const t = ing.detectDocumentType({
+    url: 'https://x/file.pdf',
+    anchorText: 'Download',
+    headings: ['Introduction'],
+  })
+  assertEq(t, 'unknown')
+})
+
+await test('Plain "module" still works', () => {
+  assertEq(ing.detectDocumentType({
+    url: 'https://x/y.pdf',
+    anchorText: 'Module 2 — Energy',
+    headings: [],
+  }), 'module')
+})
+
+await test('Empty/null inputs → unknown', () => {
+  assertEq(ing.detectDocumentType({}), 'unknown')
+  assertEq(ing.detectDocumentType({
+    url: '', anchorText: '', headings: [],
+  }), 'unknown')
+  assertEq(ing.detectDocumentType({
+    url: 'not-a-url', anchorText: null, headings: null,
+  }), 'unknown')
+})
+
 console.log('\nbuildCurriculumDoc + buildRagChunkDocs')
 
 await test('curriculumDocId is deterministic + 32 chars', () => {
@@ -225,6 +318,7 @@ await test('buildCurriculumDoc produces the expected shape', () => {
     anchorText: 'Grade 7 Maths',
     grade: 7, subject: 'mathematics', term: null,
     topic: 'Number Operations', confidence: 'high',
+    documentType: 'scheme_of_work',
     byteLength: 12345, chunkCount: 4,
   })
   assert(typeof doc.id === 'string')
@@ -232,8 +326,16 @@ await test('buildCurriculumDoc produces the expected shape', () => {
   assertEq(doc.data.grade, 7)
   assertEq(doc.data.subject, 'mathematics')
   assertEq(doc.data.parsedFrom, 'pdf')
+  assertEq(doc.data.documentType, 'scheme_of_work')
   assertEq(doc.data.importedBy, 'curriculumWatcher')
   assertEq(doc.data.reviewStatus, 'needs_check')
+})
+
+await test('buildCurriculumDoc defaults missing documentType to "unknown"', () => {
+  const doc = ing.buildCurriculumDoc({
+    sourceUrl: 'https://x/y.pdf', grade: 5, subject: 'english',
+  })
+  assertEq(doc.data.documentType, 'unknown')
 })
 
 await test('buildRagChunkDocs ids are deterministic + namespaced', () => {

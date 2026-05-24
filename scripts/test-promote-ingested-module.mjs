@@ -123,6 +123,7 @@ test('serialises timestamps to ISO strings', () => {
       subject: 'mathematics',
       term: 2,
       topic: 'Number',
+      documentType: 'scheme_of_work',
       confidence: 'high',
       chunkCount: 4,
       byteLength: 1024,
@@ -136,9 +137,16 @@ test('serialises timestamps to ISO strings', () => {
   assertEq(out.grade, 7)
   assertEq(out.subject, 'mathematics')
   assertEq(out.confidence, 'high')
+  assertEq(out.documentType, 'scheme_of_work')
   assertEq(out.importedAt, '2026-05-24T12:34:56.000Z')
   assertEq(out.rejectedAt, null) // absent in input
   assertEq(out.promotedToTopicId, null)
+})
+
+test('missing documentType serialises as "unknown" (backfill safety)', () => {
+  const snap = {id: 'r', data: () => ({grade: 7, subject: 'mathematics'})}
+  const out = serialiseModule(snap)
+  assertEq(out.documentType, 'unknown')
 })
 
 test('missing fields default to null/empty rather than undefined', () => {

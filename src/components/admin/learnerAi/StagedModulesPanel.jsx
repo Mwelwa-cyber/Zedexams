@@ -37,6 +37,44 @@ function ConfidencePill({ confidence }) {
   )
 }
 
+// Display label per documentType. Must stay in sync with the
+// detectDocumentType enum in curriculumIngester.js + the Zod schema
+// in src/schemas/learnerAi.js.
+const DOCUMENT_TYPE_LABELS = {
+  scheme_of_work: 'Scheme of work',
+  lesson_plan:    'Lesson plan',
+  assessment:     'Assessment',
+  teachers_guide: 'Teacher’s guide',
+  learners_book:  'Learner’s book',
+  syllabus:       'Syllabus',
+  module:         'Module',
+  unknown:        'Unknown',
+}
+
+// Ordered filter chip definitions — same order as the keyword
+// detection priority so admins read the queue in the same shape
+// the agent classifies it.
+const DOC_TYPE_FILTERS = [
+  { id: 'all', label: 'All' },
+  { id: 'scheme_of_work', label: 'Schemes of work' },
+  { id: 'syllabus',       label: 'Syllabi' },
+  { id: 'module',         label: 'Modules' },
+  { id: 'lesson_plan',    label: 'Lesson plans' },
+  { id: 'assessment',     label: 'Assessments' },
+  { id: 'teachers_guide', label: 'Teacher guides' },
+  { id: 'learners_book',  label: 'Learner books' },
+  { id: 'unknown',        label: 'Uncategorised' },
+]
+
+function DocTypePill({ documentType }) {
+  const label = DOCUMENT_TYPE_LABELS[documentType] || 'Unknown'
+  return (
+    <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border border-slate-300 bg-slate-50 text-slate-700">
+      {label}
+    </span>
+  )
+}
+
 function formatGrade(g) {
   if (g == null) return '—'
   if (typeof g === 'number') return `Grade ${g}`
@@ -56,6 +94,20 @@ export default function StagedModulesPanel() {
   const [notice, setNotice] = useState(null)
   const [loading, setLoading] = useState(true)
   const [running, setRunning] = useState(false)
+  const [typeFilter, setTypeFilter] = useState('all')
+
+  // Live counts per documentType so the filter chips can show a
+  // count and disable empty filters. Computed against the full
+  // module list, not the post-filter list, so the count never lies
+  // about what you'd see if you clicked.
+  const typeCounts = modules.reduce((acc, m) => {
+    const t = m.documentType || 'unknown'
+    acc[t] = (acc[t] || 0) + 1
+    return acc
+  }, {})
+
+  const filteredModules = typeFilter === 'all' ? modules :
+    modules.filter((m) => (m.documentType || 'unknown') === typeFilter)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -231,10 +283,42 @@ export default function StagedModulesPanel() {
           {loading ? 'Loading…' : 'Refresh'}
         </button>
         <span className="text-xs text-slate-500">
-          {modules.length} staged module(s) awaiting review
+          {filteredModules.length} of {modules.length} staged module(s)
+          {typeFilter !== 'all' ? ` (filter: ${DOCUMENT_TYPE_LABELS[typeFilter] || typeFilter})` : ' awaiting review'}
           {running && ' · watcher run in progress, this may take a couple of minutes'}
         </span>
       </div>
+
+      {modules.length > 0 && (
+        <nav
+          aria-label="Filter by document type"
+          className="mb-4 flex flex-wrap gap-1.5"
+        >
+          {DOC_TYPE_FILTERS.map((f) => {
+            const count = f.id === 'all' ? modules.length : (typeCounts[f.id] || 0)
+            const active = typeFilter === f.id
+            const empty = count === 0
+            return (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setTypeFilter(f.id)}
+                disabled={empty && !active}
+                className={
+                  'text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ' +
+                  (active ?
+                    'bg-blue-600 text-white border-blue-600' :
+                    empty ?
+                      'bg-slate-50 text-slate-400 border-slate-200 cursor-not-allowed' :
+                      'bg-white text-slate-700 border-slate-300 hover:bg-slate-50')
+                }
+              >
+                {f.label} <span className="opacity-70">· {count}</span>
+              </button>
+            )
+          })}
+        </nav>
+      )}
 
       {!loading && modules.length === 0 && !error && (
         <div className="border border-dashed border-slate-300 rounded p-6 text-center text-sm text-slate-500">
@@ -243,8 +327,14 @@ export default function StagedModulesPanel() {
         </div>
       )}
 
+      {!loading && modules.length > 0 && filteredModules.length === 0 && (
+        <div className="border border-dashed border-slate-300 rounded p-6 text-center text-sm text-slate-500">
+          No modules in this category. Pick another filter above.
+        </div>
+      )}
+
       <ul className="space-y-3">
-        {modules.map((m) => (
+        {filteredModules.map((m) => (
           <li
             key={m.curriculumId}
             className="border border-slate-200 rounded-lg p-4 bg-white shadow-sm"
@@ -255,6 +345,7 @@ export default function StagedModulesPanel() {
                   <h3 className="text-sm font-semibold text-slate-900 truncate">
                     {m.topic || <span className="italic text-slate-400">(no topic detected)</span>}
                   </h3>
+                  <DocTypePill documentType={m.documentType} />
                   <ConfidencePill confidence={m.confidence} />
                 </div>
                 <div className="text-xs text-slate-500 mt-0.5">

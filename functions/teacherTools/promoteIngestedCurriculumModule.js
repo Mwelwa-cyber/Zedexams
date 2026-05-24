@@ -103,6 +103,7 @@ function serialiseModule(snap) {
     subject: d.subject || null,
     term: d.term != null ? d.term : null,
     topic: d.topic || null,
+    documentType: d.documentType || "unknown",
     confidence: d.confidence || "low",
     chunkCount: typeof d.chunkCount === "number" ? d.chunkCount : 0,
     byteLength: typeof d.byteLength === "number" ? d.byteLength : 0,
