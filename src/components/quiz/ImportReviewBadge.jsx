@@ -19,7 +19,7 @@ export default function ImportReviewBadge({ record, variant = 'light', className
   if (!summary.isImported) return null
 
   const fileLabel = summary.sourceFileName ? ` · ${summary.sourceFileName}` : ''
-  const baseClasses = `inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold ${className}`
+  const baseClasses = `inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold max-w-full min-w-0 ${className}`
 
   if (!summary.needsReview) {
     return (
@@ -29,8 +29,8 @@ export default function ImportReviewBadge({ record, variant = 'light', className
           : 'bg-emerald-100 text-emerald-700'}`}
         title={`Imported document: ${summary.sourceFileName || 'unnamed source'}`}
       >
-        <span aria-hidden="true">📥</span>
-        Imported{fileLabel}
+        <span aria-hidden="true" className="flex-shrink-0">📥</span>
+        <span className="truncate min-w-0">Imported{fileLabel}</span>
       </span>
     )
   }
@@ -69,8 +69,8 @@ export default function ImportReviewBadge({ record, variant = 'light', className
         : 'bg-amber-100 text-amber-700'}`}
       title={tooltipLines}
     >
-      <span aria-hidden="true">⚠️</span>
-      Needs review{countSuffix}
+      <span aria-hidden="true" className="flex-shrink-0">⚠️</span>
+      <span className="truncate min-w-0">Needs review{countSuffix}</span>
     </span>
   )
 }
