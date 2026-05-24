@@ -141,6 +141,25 @@ export default function LessonPlanStudio() {
     // Returns { [topicName]: [subtopic, ...] } on success, {} when the KB
     // has no rows for that grade+subject, or null on error (router treats
     // null the same as "use fallback").
+    // Returns true when a topic string is really a grade/level banner
+    // (e.g. "Grade 4 – Primary School", "Form 1", "ECE Level 1"). The
+    // parseSyllabusUpload Cloud Function captured those as topic docs for
+    // some uploaded workbooks before we added a server-side filter; this
+    // client-side check keeps them out of the dropdown for KB versions
+    // that were parsed before the fix shipped, so admins don't have to
+    // re-upload to get a clean list.
+    const isGradeBanner = (topic) => {
+      const t = String(topic || '').trim()
+      if (!t) return false
+      if (/^grade\s*\d{1,2}\b/i.test(t)) return true
+      if (/^form\s*\d{1,2}\b/i.test(t)) return true
+      if (/^ece(\s|$)/i.test(t)) return true
+      if (/^level\s*\d/i.test(t)) return true
+      if (/^(primary|secondary|junior\s+secondary|senior\s+secondary|lower\s+primary|upper\s+primary)(\s+school)?$/i.test(t)) return true
+      if (/^syllabus$/i.test(t)) return true
+      return false
+    }
+
     const cbcCache = new Map()
     window.__studioFetchSyllabusTopics = async ({ grade, subject }) => {
       if (!grade || !subject) return {}
@@ -159,14 +178,14 @@ export default function LessonPlanStudio() {
         const out = {}
         snap.forEach((d) => {
           const t = d.data()
-          if (t && t.topic) {
-            // Phase A enriches subtopics to objects ({name, ...}); the
-            // studio's downstream consumer expects string arrays, so
-            // surface only the names here.
-            out[t.topic] = (Array.isArray(t.subtopics) ? t.subtopics : [])
-              .map(subtopicName)
-              .filter(Boolean)
-          }
+          if (!t || !t.topic) return
+          if (isGradeBanner(t.topic)) return
+          // Phase A enriches subtopics to objects ({name, ...}); the
+          // studio's downstream consumer expects string arrays, so
+          // surface only the names here.
+          out[t.topic] = (Array.isArray(t.subtopics) ? t.subtopics : [])
+            .map(subtopicName)
+            .filter(Boolean)
         })
         cbcCache.set(key, out)
         return out

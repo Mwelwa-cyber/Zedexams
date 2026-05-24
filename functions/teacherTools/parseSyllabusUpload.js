@@ -405,6 +405,15 @@ function parseSyllabusSheet(sheet, ctx) {
     const standard = cStd > 0 ? cellString(row.getCell(cStd)) : "";
 
     if (!topic && !subtopic && !competence && !activities && !standard) continue;
+
+    // Skip banner / section-header rows that put a grade-level label in the
+    // Topic column (e.g. "Grade 4 – Primary School", "Form 1", "ECE Level 2").
+    // We were previously capturing those as real topic docs, which then
+    // surfaced in the Lesson Plan Studio's topic dropdown. Treat them like
+    // an empty row — don't update lastTopic either, so the next content row
+    // doesn't inherit the banner.
+    if (topic && looksLikeGradeBanner(topic)) continue;
+
     if (!topic && lastTopic) topic = lastTopic;
     if (topic) lastTopic = topic;
     if (!topic) continue;
@@ -499,6 +508,29 @@ function buildTopicId(grade, subject, topic) {
   const t = slug(topic);
   if (!g || !s || !t) return null;
   return `${g}-${s}-${t}`;
+}
+
+// Returns true when a Topic-column cell holds a grade/level banner rather
+// than a real topic name. Zambian syllabus workbooks commonly have a single
+// row like "Grade 4 – Primary School" or "Form 1" sitting between the
+// header row and the first real topic — we don't want those landing in the
+// dropdowns. Patterns are intentionally narrow so a legitimate topic that
+// happens to mention a grade ("Money in Grade 5 contexts") isn't filtered.
+function looksLikeGradeBanner(topic) {
+  const t = String(topic || "").trim();
+  if (!t) return false;
+  // "Grade 4", "Grade 4 – Primary School", "Grade 4 Primary"
+  if (/^grade\s*\d{1,2}\b/i.test(t)) return true;
+  // "Form 1", "Form 1 – Junior Secondary"
+  if (/^form\s*\d{1,2}\b/i.test(t)) return true;
+  // "ECE", "ECE Level 1", "ECE Level 1-2"
+  if (/^ece(\s|$)/i.test(t)) return true;
+  if (/^level\s*\d/i.test(t)) return true;
+  // Bare level labels
+  if (/^(primary|secondary|junior\s+secondary|senior\s+secondary|lower\s+primary|upper\s+primary)(\s+school)?$/i.test(t)) return true;
+  // Sheet-name leakage
+  if (/^syllabus$/i.test(t)) return true;
+  return false;
 }
 
 // --- approvedSyllabi linking ------------------------------------------
