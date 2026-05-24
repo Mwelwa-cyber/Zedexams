@@ -209,26 +209,52 @@ async function main() {
     sha: fileSnap.sha,
   });
 
-  const {data: pr} = await octokit.pulls.create({
-    owner,
-    repo,
-    head: branch,
-    base: "main",
-    title: `chore: changelog for ${new Date().toISOString().slice(0, 10)}`,
-    body: [
-      "Drafted by Ledger (release-notes agent).",
-      "",
-      "Review the bucketed changes below; merge when happy.",
-      "",
-      "<sub>See [docs/AGENTS.md](../blob/main/docs/AGENTS.md).</sub>",
-    ].join("\n"),
-    draft: true,
-  });
+  // Open the PR, or reuse an existing one for the same head branch.
+  // The branch is named per-day, so a second run on the same day re-uses
+  // it (the createOrUpdateFileContents call above already pushed the
+  // latest changelog onto the existing branch). pulls.create returns
+  // 422 "A pull request already exists for <branch>" in that case —
+  // catch it and look up the existing PR rather than failing the job.
+  let pr;
+  try {
+    const created = await octokit.pulls.create({
+      owner,
+      repo,
+      head: branch,
+      base: "main",
+      title: `chore: changelog for ${new Date().toISOString().slice(0, 10)}`,
+      body: [
+        "Drafted by Ledger (release-notes agent).",
+        "",
+        "Review the bucketed changes below; merge when happy.",
+        "",
+        "<sub>See [docs/AGENTS.md](../blob/main/docs/AGENTS.md).</sub>",
+      ].join("\n"),
+      draft: true,
+    });
+    pr = created.data;
+    console.log(`Opened changelog PR: ${pr.html_url}`);
+  } catch (err) {
+    const alreadyExists =
+      err && err.status === 422 &&
+      /already exists/i.test(JSON.stringify(err.response && err.response.data || ""));
+    if (!alreadyExists) throw err;
+    const {data: open} = await octokit.pulls.list({
+      owner, repo, head: `${owner}:${branch}`, state: "open",
+    });
+    if (open.length === 0) {
+      throw new Error(
+        `pulls.create returned 422 'already exists' for ${branch}, ` +
+        `but pulls.list found no open PR for that head. Branch may be stale; ` +
+        `delete it and re-run.`,
+      );
+    }
+    pr = open[0];
+    console.log(`Updated existing changelog PR in place: ${pr.html_url}`);
+  }
 
   // Save the patch locally too in case the action wants to upload it.
   writeFileSync("/tmp/ledger-patch.md", newSection);
-
-  console.log(`Opened changelog PR: ${pr.html_url}`);
 }
 
 main().catch((err) => {

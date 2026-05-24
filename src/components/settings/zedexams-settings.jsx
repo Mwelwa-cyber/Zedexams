@@ -18,10 +18,11 @@ import {
 /* ============================================================================
  * ZedExams — Settings module
  * ----------------------------------------------------------------------------
- * Self-contained role-based settings UI for Admin / Teacher / Learner.
- * - React hooks only, no external UI libraries.
- * - Inline-style "CSS-in-JS" with Sora font + teal palette.
- * - Mock data and mock async saves; swap callbacks via props for real APIs.
+ * Role-aware settings UI for Admin / Teacher / Learner.
+ * Every panel is Firestore-wired or localStorage-wired — there is no mock
+ * UI in this file. Admin/Teacher tabs are deliberately limited to the
+ * surfaces with a real backend; site-wide admin controls and user
+ * management live on the /admin/* routes.
  * ========================================================================== */
 
 /* ── Theme tokens ─────────────────────────────────────────────────────────── */
@@ -45,25 +46,17 @@ const T = {
   font:          "'Sora', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
 };
 
-/* ── Tabs per role (admin-only sections excluded for teacher/learner) ─────── */
+/* ── Tabs per role ────────────────────────────────────────────────────────── */
 const TABS = {
-  // Admin is a superset: every section any other role can see, plus the
-  // admin-only User Management / Admin Controls. "Admin has access to
-  // everything" is taken literally here.
+  // Admin gets the personal-account preferences that map to their own
+  // profile. Site-wide admin controls and user management live on /admin/*.
   admin: [
-    { id: 'users',         label: 'User Management' },
-    { id: 'controls',      label: 'Admin Controls' },
-    { id: 'profile',       label: 'Account & Profile' },
     { id: 'security',      label: 'Password & Security' },
-    { id: 'notifications', label: 'Notifications' },
-    { id: 'learning',      label: 'Learning Preferences' },
     { id: 'accessibility', label: 'Accessibility' },
-    { id: 'parent',        label: 'Parent / Guardian' },
     { id: 'appearance',    label: 'Appearance' },
   ],
   teacher: [
-    { id: 'profile',       label: 'Account & Profile' },
-    { id: 'notifications', label: 'Notifications' },
+    { id: 'accessibility', label: 'Accessibility' },
     { id: 'appearance',    label: 'Appearance' },
   ],
   // Theme/appearance is removed for learners — the dashboard already
@@ -82,73 +75,7 @@ const TABS = {
   ],
 };
 
-/* ── Mock data (replace with API/Firebase wiring later) ───────────────────── */
-const MOCK_USERS = {
-  teachers: [
-    { id: 't1', name: 'Mwape Banda',    email: 'mwape@zedexams.com',  status: 'active'   },
-    { id: 't2', name: 'Chola Mulenga',  email: 'chola@zedexams.com',  status: 'active'   },
-    { id: 't3', name: 'Joyce Tembo',    email: 'joyce@zedexams.com',  status: 'disabled' },
-  ],
-  learners: [
-    { id: 'l1', name: 'Chanda Phiri',   email: 'chanda@learner.zm',   status: 'active'   },
-    { id: 'l2', name: 'Bupe Sakala',    email: 'bupe@learner.zm',     status: 'active'   },
-    { id: 'l3', name: 'Natasha Lungu',  email: 'natasha@learner.zm',  status: 'disabled' },
-  ],
-};
-
-const DEFAULT_PROFILE = {
-  admin: {
-    name: 'Admin User', email: 'admin@zedexams.com', phone: '+260 97 0000000',
-    password: '', newPassword: '', twoFactor: false,
-  },
-  teacher: {
-    name: 'Teacher User', email: 'teacher@zedexams.com', phone: '+260 97 1111111',
-    subject: 'Mathematics', bio: '',
-    password: '', newPassword: '', twoFactor: false,
-  },
-  learner: {
-    name: 'Learner User', email: 'learner@zedexams.com', phone: '+260 97 2222222',
-    grade: 'Grade 5',
-    password: '', newPassword: '', twoFactor: false,
-  },
-};
-
-const DEFAULT_CONTROLS = {
-  siteName: 'ZedExams',
-  supportEmail: 'support@zedexams.com',
-  maxAttempts: 3,
-  maintenanceMode: false,
-  openRegistration: true,
-  activityLogging: true,
-};
-
-const DEFAULT_NOTIFICATIONS = {
-  admin:   { email: true,  sms: false, inApp: true },
-  teacher: {
-    examReminders: true, resultsReleased: true, announcements: true,
-    sms: false, inAppMessages: true, inAppSubmissions: true,
-  },
-  learner: { examReminders: true, results: true, sms: false, inApp: true },
-};
-
-const DEFAULT_APPEARANCE = {
-  accent: '#0e7490',
-  fontSize: 'medium',       // 'small' | 'medium' | 'large'
-  density: 'comfortable',   // 'compact' | 'comfortable' | 'spacious'
-};
-
-const ACCENT_PALETTE = [
-  '#0e7490', '#1d4ed8', '#7c3aed', '#db2777',
-  '#dc2626', '#ea580c', '#16a34a', '#0f172a',
-];
-
-const GRADE_OPTIONS = [
-  'Grade 4', 'Grade 5', 'Grade 6', 'Grade 7',
-];
-
 /* ── Validation helpers ───────────────────────────────────────────────────── */
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const isEmail    = (v) => EMAIL_RE.test(String(v ?? '').trim());
 const isNonEmpty = (v) => String(v ?? '').trim().length > 0;
 const uid        = () => Math.random().toString(36).slice(2, 9);
 
@@ -189,13 +116,12 @@ function ensureRuntimeAssets() {
       .zx-btn:hover:not(:disabled)  { filter: brightness(.94); }
       .zx-btn:active:not(:disabled) { filter: brightness(.88); }
       .zx-btn:disabled              { opacity: .55; cursor: not-allowed; }
-      .zx-input:focus, .zx-textarea:focus, .zx-select:focus {
+      .zx-input:focus, .zx-select:focus {
         outline: none;
         border-color: ${T.primary};
         box-shadow: 0 0 0 3px ${T.primarySoft};
       }
       .zx-tab:hover     { background: ${T.surface}; }
-      .zx-row:hover     { background: #f8fafc; }
       .zx-link:hover    { text-decoration: underline; }
       .zx-fade-in       { animation: zxFadeIn .18s ease-out; }
       @keyframes zxFadeIn {
@@ -208,37 +134,9 @@ function ensureRuntimeAssets() {
         grid-template-columns: 1fr 1fr;
         column-gap: 20px;
       }
-      .zx-add-form {
-        display: grid;
-        grid-template-columns: minmax(160px,1fr) minmax(180px,1fr) auto;
-        gap: 10px;
-        align-items: start;
-        padding: 12px;
-        background: ${T.surface};
-        border-radius: 10px;
-        margin-bottom: 16px;
-        border: 1px solid ${T.border};
-      }
-      .zx-user-head, .zx-user-row {
-        display: grid;
-        grid-template-columns: minmax(160px,2fr) minmax(180px,2fr) 100px 200px;
-        align-items: center;
-      }
-      .zx-user-head { padding: 10px 14px; background: ${T.surface}; }
-      .zx-user-row  { padding: 12px 14px; border-top: 1px solid ${T.border}; font-size: 14px; }
-      .zx-num-field { width: 140px; }
 
       @media (max-width: 640px) {
-        .zx-grid-2,
-        .zx-add-form { grid-template-columns: 1fr; }
-        .zx-user-head { display: none; }
-        .zx-user-row {
-          grid-template-columns: 1fr;
-          row-gap: 6px;
-          padding: 14px;
-        }
-        .zx-user-row > div { min-width: 0; white-space: normal !important; }
-        .zx-num-field { width: 100%; }
+        .zx-grid-2 { grid-template-columns: 1fr; }
       }
     `;
     document.head.appendChild(tag);
@@ -306,30 +204,6 @@ function TextField({
   );
 }
 
-function TextArea({ label, value, onChange, rows = 4, error, hint, placeholder }) {
-  return (
-    <div style={{ marginBottom: 16 }}>
-      {label && <FieldLabel hint={hint}>{label}</FieldLabel>}
-      <textarea
-        className="zx-textarea"
-        rows={rows}
-        value={value ?? ''}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        style={{
-          width: '100%', boxSizing: 'border-box', resize: 'vertical',
-          padding: '10px 12px',
-          fontFamily: T.font, fontSize: 14, color: T.text,
-          background: T.panel,
-          border: `1px solid ${error ? T.danger : T.border}`,
-          borderRadius: 8,
-        }}
-      />
-      <FieldError>{error}</FieldError>
-    </div>
-  );
-}
-
 function SelectField({ label, value, onChange, options, error, hint }) {
   return (
     <div style={{ marginBottom: 16 }}>
@@ -354,31 +228,6 @@ function SelectField({ label, value, onChange, options, error, hint }) {
           return <option key={v} value={v}>{l}</option>;
         })}
       </select>
-      <FieldError>{error}</FieldError>
-    </div>
-  );
-}
-
-function NumberField({ label, value, onChange, min = 0, max = 999, error, hint }) {
-  return (
-    <div style={{ marginBottom: 16 }}>
-      {label && <FieldLabel hint={hint}>{label}</FieldLabel>}
-      <input
-        className="zx-input zx-num-field"
-        type="number"
-        value={value}
-        min={min}
-        max={max}
-        onChange={(e) => onChange(Number(e.target.value))}
-        style={{
-          boxSizing: 'border-box',
-          padding: '10px 12px',
-          fontFamily: T.font, fontSize: 14, color: T.text,
-          background: T.panel,
-          border: `1px solid ${error ? T.danger : T.border}`,
-          borderRadius: 8,
-        }}
-      />
       <FieldError>{error}</FieldError>
     </div>
   );
@@ -523,46 +372,6 @@ function Toast({ kind = 'success', message, onClose }) {
   );
 }
 
-function ConfirmDialog({ open, title, message, confirmLabel = 'Confirm', danger, onConfirm, onCancel }) {
-  if (!open) return null;
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      style={{
-        position: 'fixed', inset: 0, zIndex: 1100,
-        background: 'rgba(15,23,42,.45)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        padding: 16,
-      }}
-      onClick={onCancel}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        className="zx-fade-in"
-        style={{
-          width: '100%', maxWidth: 420,
-          background: T.panel, borderRadius: 12,
-          padding: 20,
-          fontFamily: T.font,
-          boxShadow: '0 24px 60px rgba(15,23,42,.25)',
-        }}
-      >
-        <div style={{ fontSize: 16, fontWeight: 700, color: T.text, marginBottom: 8 }}>
-          {title}
-        </div>
-        <div style={{ fontSize: 14, color: T.textSoft, marginBottom: 20, lineHeight: 1.5 }}>
-          {message}
-        </div>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-          <Button variant="ghost" onClick={onCancel}>Cancel</Button>
-          <Button danger={danger} onClick={onConfirm}>{confirmLabel}</Button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function SectionCard({ title, description, children, footer }) {
   return (
     <section style={{
@@ -602,325 +411,6 @@ function SectionCard({ title, description, children, footer }) {
     </section>
   );
 }
-
-/* ── User management table (Admin only) ───────────────────────────────────── */
-
-function UserTable({ users, onToggleStatus, onDelete }) {
-  if (users.length === 0) {
-    return (
-      <div style={{
-        padding: 24, textAlign: 'center', color: T.muted,
-        fontSize: 14, background: T.surface, borderRadius: 8,
-      }}>
-        No users yet. Add the first one above.
-      </div>
-    );
-  }
-  return (
-    <div style={{
-      border: `1px solid ${T.border}`, borderRadius: 10, overflow: 'hidden',
-    }}>
-      <div
-        className="zx-user-head"
-        style={{
-          fontSize: 12, fontWeight: 700, color: T.muted, textTransform: 'uppercase',
-          letterSpacing: '.04em',
-        }}
-      >
-        <div>Name</div><div>Email</div><div>Status</div><div>Actions</div>
-      </div>
-      {users.map((u) => (
-        <div
-          key={u.id}
-          className="zx-row zx-user-row"
-        >
-          <div style={{ fontWeight: 600, color: T.text, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {u.name}
-          </div>
-          <div style={{ color: T.textSoft, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-            {u.email}
-          </div>
-          <div>
-            <span style={{
-              display: 'inline-block', padding: '2px 8px',
-              fontSize: 12, fontWeight: 600, borderRadius: 999,
-              color: u.status === 'active' ? T.success : T.muted,
-              background: u.status === 'active' ? T.successSoft : T.surface,
-              border: `1px solid ${u.status === 'active' ? T.success : T.border}`,
-            }}>
-              {u.status === 'active' ? 'Active' : 'Disabled'}
-            </span>
-          </div>
-          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-            <Button
-              variant="soft"
-              onClick={() => onToggleStatus(u.id)}
-              style={{ padding: '6px 10px', fontSize: 12 }}
-            >
-              {u.status === 'active' ? 'Disable' : 'Enable'}
-            </Button>
-            <Button
-              danger
-              onClick={() => onDelete(u)}
-              style={{ padding: '6px 10px', fontSize: 12 }}
-            >
-              Delete
-            </Button>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function UserManagement({ pushToast }) {
-  const [activeKind, setActiveKind] = useState('teachers'); // 'teachers' | 'learners'
-  const [users, setUsers] = useState(MOCK_USERS);
-  const [draft, setDraft] = useState({ name: '', email: '' });
-  const [errors, setErrors] = useState({});
-  const [adding, setAdding] = useState(false);
-  const [confirm, setConfirm] = useState(null); // user object or null
-
-  const list = users[activeKind];
-
-  const validateDraft = () => {
-    const e = {};
-    if (!isNonEmpty(draft.name))  e.name  = 'Name is required.';
-    if (!isNonEmpty(draft.email)) e.email = 'Email is required.';
-    else if (!isEmail(draft.email)) e.email = 'Enter a valid email address.';
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
-  const handleAdd = async (ev) => {
-    ev.preventDefault();
-    if (!validateDraft()) return;
-    setAdding(true);
-    await new Promise((r) => setTimeout(r, 500)); // mock latency
-    const newUser = {
-      id: uid(),
-      name: draft.name.trim(),
-      email: draft.email.trim().toLowerCase(),
-      status: 'active',
-    };
-    setUsers((prev) => ({ ...prev, [activeKind]: [...prev[activeKind], newUser] }));
-    setDraft({ name: '', email: '' });
-    setErrors({});
-    setAdding(false);
-    pushToast('success', `${activeKind === 'teachers' ? 'Teacher' : 'Learner'} added.`);
-  };
-
-  const handleToggle = (id) => {
-    setUsers((prev) => ({
-      ...prev,
-      [activeKind]: prev[activeKind].map((u) =>
-        u.id === id ? { ...u, status: u.status === 'active' ? 'disabled' : 'active' } : u
-      ),
-    }));
-    pushToast('success', 'User status updated.');
-  };
-
-  const handleDelete = () => {
-    if (!confirm) return;
-    setUsers((prev) => ({
-      ...prev,
-      [activeKind]: prev[activeKind].filter((u) => u.id !== confirm.id),
-    }));
-    pushToast('success', `${confirm.name} was removed.`);
-    setConfirm(null);
-  };
-
-  const kindLabel = activeKind === 'teachers' ? 'Teacher' : 'Learner';
-
-  return (
-    <SectionCard
-      title="User Management"
-      description="Manage Teachers and Learners. Add, enable/disable, or remove accounts."
-    >
-      {/* Sub-tabs */}
-      <div style={{
-        display: 'inline-flex', padding: 4,
-        background: T.surface, borderRadius: 10, marginBottom: 16,
-        border: `1px solid ${T.border}`,
-      }}>
-        {['teachers', 'learners'].map((k) => {
-          const on = activeKind === k;
-          return (
-            <button
-              key={k}
-              type="button"
-              className="zx-btn"
-              onClick={() => { setActiveKind(k); setErrors({}); }}
-              style={{
-                padding: '8px 14px',
-                fontFamily: T.font, fontSize: 13, fontWeight: 600,
-                background: on ? T.panel : 'transparent',
-                color: on ? T.primary : T.textSoft,
-                border: 'none', borderRadius: 8,
-                cursor: 'pointer',
-                boxShadow: on ? '0 1px 2px rgba(15,23,42,.08)' : 'none',
-              }}
-            >
-              {k === 'teachers' ? 'Teachers' : 'Learners'}
-              <span style={{
-                marginLeft: 8, padding: '1px 8px', borderRadius: 999,
-                background: on ? T.primarySoft : T.border,
-                color: on ? T.primary : T.muted,
-                fontSize: 11,
-              }}>
-                {users[k].length}
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Inline add form */}
-      <form onSubmit={handleAdd} className="zx-add-form">
-        <div>
-          <input
-            className="zx-input"
-            placeholder={`${kindLabel} full name`}
-            value={draft.name}
-            onChange={(e) => setDraft({ ...draft, name: e.target.value })}
-            style={{
-              width: '100%', boxSizing: 'border-box',
-              padding: '10px 12px',
-              fontFamily: T.font, fontSize: 14, color: T.text,
-              background: T.panel,
-              border: `1px solid ${errors.name ? T.danger : T.border}`,
-              borderRadius: 8,
-            }}
-          />
-          <FieldError>{errors.name}</FieldError>
-        </div>
-        <div>
-          <input
-            className="zx-input"
-            placeholder={`${kindLabel} email`}
-            value={draft.email}
-            onChange={(e) => setDraft({ ...draft, email: e.target.value })}
-            style={{
-              width: '100%', boxSizing: 'border-box',
-              padding: '10px 12px',
-              fontFamily: T.font, fontSize: 14, color: T.text,
-              background: T.panel,
-              border: `1px solid ${errors.email ? T.danger : T.border}`,
-              borderRadius: 8,
-            }}
-          />
-          <FieldError>{errors.email}</FieldError>
-        </div>
-        <Button type="submit" loading={adding}>Add {kindLabel}</Button>
-      </form>
-
-      <UserTable
-        users={list}
-        onToggleStatus={handleToggle}
-        onDelete={(u) => setConfirm(u)}
-      />
-
-      <ConfirmDialog
-        open={!!confirm}
-        title={`Delete ${confirm?.name}?`}
-        message={`This will permanently remove ${confirm?.email} from the ${kindLabel.toLowerCase()} list. This action cannot be undone.`}
-        confirmLabel="Delete user"
-        danger
-        onConfirm={handleDelete}
-        onCancel={() => setConfirm(null)}
-      />
-    </SectionCard>
-  );
-}
-
-/* ── Admin Controls ───────────────────────────────────────────────────────── */
-
-function AdminControls({ pushToast }) {
-  const [form, setForm] = useState(DEFAULT_CONTROLS);
-  const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState({});
-
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-
-  const validate = () => {
-    const e = {};
-    if (!isNonEmpty(form.siteName))     e.siteName     = 'Site name is required.';
-    if (!isNonEmpty(form.supportEmail)) e.supportEmail = 'Support email is required.';
-    else if (!isEmail(form.supportEmail)) e.supportEmail = 'Enter a valid email address.';
-    if (!Number.isFinite(form.maxAttempts) || form.maxAttempts < 1 || form.maxAttempts > 20) {
-      e.maxAttempts = 'Must be between 1 and 20.';
-    }
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
-  const handleSave = async () => {
-    if (!validate()) {
-      pushToast('error', 'Please fix the highlighted fields.');
-      return;
-    }
-    setSaving(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setSaving(false);
-    pushToast('success', 'Admin controls saved.');
-  };
-
-  return (
-    <SectionCard
-      title="Admin Controls"
-      description="Site-wide configuration. Changes here affect every user."
-      footer={<Button onClick={handleSave} loading={saving}>Save changes</Button>}
-    >
-      <div className="zx-grid-2">
-        <TextField
-          label="Site name"
-          required
-          value={form.siteName}
-          onChange={(v) => set('siteName', v)}
-          error={errors.siteName}
-        />
-        <TextField
-          label="Support email"
-          required
-          type="email"
-          value={form.supportEmail}
-          onChange={(v) => set('supportEmail', v)}
-          error={errors.supportEmail}
-        />
-      </div>
-      <NumberField
-        label="Max exam attempts per learner"
-        value={form.maxAttempts}
-        min={1}
-        max={20}
-        onChange={(v) => set('maxAttempts', v)}
-        error={errors.maxAttempts}
-      />
-      <div style={{ marginTop: 4, borderTop: `1px solid ${T.border}` }}>
-        <Toggle
-          label="Maintenance mode"
-          description="Temporarily lock learners and teachers out for upgrades."
-          checked={form.maintenanceMode}
-          onChange={(v) => set('maintenanceMode', v)}
-        />
-        <Toggle
-          label="Open registration"
-          description="Allow new accounts to sign up without an invite."
-          checked={form.openRegistration}
-          onChange={(v) => set('openRegistration', v)}
-        />
-        <Toggle
-          label="Activity logging"
-          description="Record sign-ins, exam attempts, and edits for audit."
-          checked={form.activityLogging}
-          onChange={(v) => set('activityLogging', v)}
-        />
-      </div>
-    </SectionCard>
-  );
-}
-
-/* ── Account & Profile (per role) ─────────────────────────────────────────── */
 
 /* ── Character avatar picker ──────────────────────────────────────────────── */
 
@@ -1080,369 +570,49 @@ function CharacterAvatarPicker({ pushToast }) {
   );
 }
 
-function AccountProfile({ role, pushToast }) {
-  const [form, setForm] = useState(() => DEFAULT_PROFILE[role]);
-  const [saving, setSaving] = useState(false);
-  const [errors, setErrors] = useState({});
+/* ── Appearance panel (theme switcher only) ───────────────────────────────── */
 
-  // Re-init when role changes (in case parent swaps role)
-  useEffect(() => { setForm(DEFAULT_PROFILE[role]); setErrors({}); }, [role]);
-
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-
-  const validate = () => {
-    const e = {};
-    if (!isNonEmpty(form.name))    e.name  = 'Name is required.';
-    if (!isNonEmpty(form.email))   e.email = 'Email is required.';
-    else if (!isEmail(form.email)) e.email = 'Enter a valid email address.';
-    if (role === 'teacher' && !isNonEmpty(form.subject)) {
-      e.subject = 'Subject or department is required.';
-    }
-    if (role === 'learner' && !isNonEmpty(form.grade)) {
-      e.grade = 'Grade is required.';
-    }
-    if (form.newPassword && form.newPassword.length < 8) {
-      e.newPassword = 'New password must be at least 8 characters.';
-    }
-    if (form.newPassword && !form.password) {
-      e.password = 'Enter your current password to change it.';
-    }
-    setErrors(e);
-    return Object.keys(e).length === 0;
-  };
-
-  const handleSave = async () => {
-    if (!validate()) {
-      pushToast('error', 'Please fix the highlighted fields.');
-      return;
-    }
-    setSaving(true);
-    await new Promise((r) => setTimeout(r, 600));
-    setSaving(false);
-    pushToast('success', 'Profile updated.');
-    setForm((f) => ({ ...f, password: '', newPassword: '' }));
-  };
-
-  return (
-    <>
-      <CharacterAvatarPicker pushToast={pushToast} />
-      <SectionCard
-        title="Profile"
-        description="This information is visible to other users where appropriate."
-      >
-        <div className="zx-grid-2">
-          <TextField
-            label="Full name"
-            required
-            value={form.name}
-            onChange={(v) => set('name', v)}
-            error={errors.name}
-            autoComplete="name"
-          />
-          <TextField
-            label="Email"
-            required
-            type="email"
-            value={form.email}
-            onChange={(v) => set('email', v)}
-            error={errors.email}
-            autoComplete="email"
-          />
-          <TextField
-            label="Phone"
-            type="tel"
-            value={form.phone}
-            onChange={(v) => set('phone', v)}
-            autoComplete="tel"
-          />
-          {role === 'teacher' && (
-            <TextField
-              label="Subject / Department"
-              required
-              value={form.subject}
-              onChange={(v) => set('subject', v)}
-              error={errors.subject}
-            />
-          )}
-          {role === 'learner' && (
-            <SelectField
-              label="Grade / Class"
-              value={form.grade}
-              onChange={(v) => set('grade', v)}
-              options={GRADE_OPTIONS}
-              error={errors.grade}
-            />
-          )}
-        </div>
-        {role === 'teacher' && (
-          <TextArea
-            label="Bio"
-            hint="(optional)"
-            value={form.bio}
-            onChange={(v) => set('bio', v)}
-            placeholder="Tell learners a bit about your teaching background."
-          />
-        )}
-      </SectionCard>
-
-      <SectionCard
-        title="Security"
-        description="Update your password and enable two-factor authentication."
-        footer={<Button onClick={handleSave} loading={saving}>Save changes</Button>}
-      >
-        <div className="zx-grid-2">
-          <TextField
-            label="Current password"
-            type="password"
-            value={form.password}
-            onChange={(v) => set('password', v)}
-            error={errors.password}
-            autoComplete="current-password"
-          />
-          <TextField
-            label="New password"
-            type="password"
-            hint="(min 8 chars)"
-            value={form.newPassword}
-            onChange={(v) => set('newPassword', v)}
-            error={errors.newPassword}
-            autoComplete="new-password"
-          />
-        </div>
-        <div style={{ borderTop: `1px solid ${T.border}`, marginTop: 4 }}>
-          <Toggle
-            label="Two-factor authentication"
-            description="Require a one-time code at sign-in for extra security."
-            checked={form.twoFactor}
-            onChange={(v) => set('twoFactor', v)}
-          />
-        </div>
-      </SectionCard>
-    </>
-  );
-}
-
-/* ── Notifications panel ──────────────────────────────────────────────────── */
-
-function NotificationsPanel({ role, pushToast }) {
-  const [form, setForm] = useState(() => DEFAULT_NOTIFICATIONS[role]);
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => { setForm(DEFAULT_NOTIFICATIONS[role]); }, [role]);
-
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-
-  const handleSave = async () => {
-    setSaving(true);
-    await new Promise((r) => setTimeout(r, 500));
-    setSaving(false);
-    pushToast('success', 'Notification preferences saved.');
-  };
-
-  return (
-    <SectionCard
-      title="Notifications"
-      description="Choose how ZedExams keeps you informed."
-      footer={<Button onClick={handleSave} loading={saving}>Save changes</Button>}
-    >
-      {role === 'admin' && (
-        <>
-          <Toggle
-            label="Email notifications"
-            description="System alerts, weekly summaries, and security events."
-            checked={form.email}
-            onChange={(v) => set('email', v)}
-          />
-          <Toggle
-            label="SMS notifications"
-            description="Critical alerts only — outages, locked accounts."
-            checked={form.sms}
-            onChange={(v) => set('sms', v)}
-          />
-          <Toggle
-            label="In-app notifications"
-            description="Show banners and the bell icon counter inside ZedExams."
-            checked={form.inApp}
-            onChange={(v) => set('inApp', v)}
-          />
-        </>
-      )}
-
-      {role === 'teacher' && (
-        <>
-          <Toggle
-            label="Exam reminders"
-            description="Receive reminders before scheduled exams begin."
-            checked={form.examReminders}
-            onChange={(v) => set('examReminders', v)}
-          />
-          <Toggle
-            label="Results released"
-            description="Email me when results for my exams are published."
-            checked={form.resultsReleased}
-            onChange={(v) => set('resultsReleased', v)}
-          />
-          <Toggle
-            label="Announcements"
-            description="School-wide announcements from administrators."
-            checked={form.announcements}
-            onChange={(v) => set('announcements', v)}
-          />
-          <Toggle
-            label="SMS"
-            description="Receive critical reminders via SMS."
-            checked={form.sms}
-            onChange={(v) => set('sms', v)}
-          />
-          <Toggle
-            label="In-app messages"
-            description="Direct messages from learners and admins."
-            checked={form.inAppMessages}
-            onChange={(v) => set('inAppMessages', v)}
-          />
-          <Toggle
-            label="In-app exam submissions"
-            description="Notify me each time a learner submits an exam."
-            checked={form.inAppSubmissions}
-            onChange={(v) => set('inAppSubmissions', v)}
-          />
-        </>
-      )}
-
-      {role === 'learner' && (
-        <>
-          <Toggle
-            label="Exam reminders"
-            description="Get reminded before each upcoming exam."
-            checked={form.examReminders}
-            onChange={(v) => set('examReminders', v)}
-          />
-          <Toggle
-            label="Results"
-            description="Notify me when my results are released."
-            checked={form.results}
-            onChange={(v) => set('results', v)}
-          />
-          <Toggle
-            label="SMS"
-            description="Receive reminders by SMS."
-            checked={form.sms}
-            onChange={(v) => set('sms', v)}
-          />
-          <Toggle
-            label="In-app notifications"
-            description="Banners and bell counter inside ZedExams."
-            checked={form.inApp}
-            onChange={(v) => set('inApp', v)}
-          />
-        </>
-      )}
-    </SectionCard>
-  );
-}
-
-/* ── Appearance panel ─────────────────────────────────────────────────────── */
-
-function AppearancePanel({ pushToast }) {
+function AppearancePanel() {
   const { theme, setTheme } = useTheme();
-  const [form, setForm] = useState(DEFAULT_APPEARANCE);
-  const [saving, setSaving] = useState(false);
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
-
-  const handleSave = async () => {
-    setSaving(true);
-    await new Promise((r) => setTimeout(r, 400));
-    setSaving(false);
-    pushToast('success', 'Appearance updated.');
-  };
 
   return (
     <SectionCard
       title="Appearance"
-      description="Personalize the look and feel of ZedExams."
-      footer={<Button onClick={handleSave} loading={saving}>Save changes</Button>}
+      description="Pick a theme. Changes apply instantly across the app."
     >
-      <div style={{ marginBottom: 16 }}>
-        <FieldLabel hint="Applies instantly across the app">Theme</FieldLabel>
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {THEMES.map((t) => {
-            const on = theme === t.id;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                className="zx-btn"
-                onClick={() => setTheme(t.id)}
-                aria-pressed={on}
+      <FieldLabel hint="Applies instantly across the app">Theme</FieldLabel>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+        {THEMES.map((t) => {
+          const on = theme === t.id;
+          return (
+            <button
+              key={t.id}
+              type="button"
+              className="zx-btn"
+              onClick={() => setTheme(t.id)}
+              aria-pressed={on}
+              style={{
+                display: 'inline-flex', alignItems: 'center', gap: 8,
+                padding: '8px 14px',
+                fontFamily: T.font, fontSize: 13, fontWeight: 600,
+                background: on ? T.primarySoft : T.panel,
+                color: on ? T.primary : T.textSoft,
+                border: `1px solid ${on ? T.primary : T.border}`,
+                borderRadius: 8, cursor: 'pointer',
+              }}
+            >
+              <span
+                aria-hidden="true"
                 style={{
-                  display: 'inline-flex', alignItems: 'center', gap: 8,
-                  padding: '8px 14px',
-                  fontFamily: T.font, fontSize: 13, fontWeight: 600,
-                  background: on ? T.primarySoft : T.panel,
-                  color: on ? T.primary : T.textSoft,
-                  border: `1px solid ${on ? T.primary : T.border}`,
-                  borderRadius: 8, cursor: 'pointer',
-                }}
-              >
-                <span
-                  aria-hidden="true"
-                  style={{
-                    width: 14, height: 14, borderRadius: '50%',
-                    background: t.swatch,
-                    border: `2px solid ${on ? T.primary : T.border}`,
-                  }}
-                />
-                {t.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div style={{ marginBottom: 16 }}>
-        <FieldLabel>Accent color</FieldLabel>
-        <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          {ACCENT_PALETTE.map((c) => {
-            const on = form.accent === c;
-            return (
-              <button
-                key={c}
-                type="button"
-                onClick={() => set('accent', c)}
-                aria-label={`Set accent ${c}`}
-                style={{
-                  width: 30, height: 30, borderRadius: '50%',
-                  background: c, cursor: 'pointer',
-                  border: on ? `3px solid ${T.dark}` : `2px solid ${T.border}`,
-                  boxShadow: on ? `0 0 0 3px ${T.primarySoft}` : 'none',
+                  width: 14, height: 14, borderRadius: '50%',
+                  background: t.swatch,
+                  border: `2px solid ${on ? T.primary : T.border}`,
                 }}
               />
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="zx-grid-2">
-        <SelectField
-          label="Font size"
-          value={form.fontSize}
-          onChange={(v) => set('fontSize', v)}
-          options={[
-            { value: 'small',  label: 'Small' },
-            { value: 'medium', label: 'Medium' },
-            { value: 'large',  label: 'Large' },
-          ]}
-        />
-        <SelectField
-          label="Layout density"
-          value={form.density}
-          onChange={(v) => set('density', v)}
-          options={[
-            { value: 'compact',     label: 'Compact' },
-            { value: 'comfortable', label: 'Comfortable' },
-            { value: 'spacious',    label: 'Spacious' },
-          ]}
-        />
+              {t.label}
+            </button>
+          );
+        })}
       </div>
     </SectionCard>
   );
@@ -1901,39 +1071,9 @@ function LearnerParentPanel() {
   );
 }
 
-/* ── Role guard ───────────────────────────────────────────────────────────── */
-
-function RoleForbidden({ role }) {
-  return (
-    <div
-      role="alert"
-      style={{
-        padding: 24, textAlign: 'center',
-        background: T.dangerSoft, color: T.danger,
-        border: `1px solid ${T.danger}`,
-        borderRadius: 12, fontFamily: T.font,
-      }}
-    >
-      <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 6 }}>
-        Access restricted
-      </div>
-      <div style={{ fontSize: 14 }}>
-        Your role ({role || 'unknown'}) cannot view this section.
-      </div>
-    </div>
-  );
-}
-
 /* ── Main component ───────────────────────────────────────────────────────── */
 
 const VALID_ROLES = ['admin', 'teacher', 'learner'];
-const ADMIN_ONLY  = new Set(['users', 'controls']);
-// Sections whose panels are wired to the signed-in user's own learner
-// profile. Teachers don't get these (they have no learner profile), but
-// admins do: admin has access to everything, so when an admin opens one
-// of these tabs we render the learner-wired panel against their own
-// account rather than blocking them.
-const LEARNER_ONLY = new Set(['security', 'learning', 'accessibility', 'parent']);
 
 export default function ZedExamsSettings({ role = 'admin' }) {
   // Inject font + runtime styles once.
@@ -1955,50 +1095,20 @@ export default function ZedExamsSettings({ role = 'admin' }) {
     setToast({ kind, message, key: uid() });
   }, []);
 
-  // Admin is authorized for every tab. For other roles, reject admin-only
-  // tabs and learner-wired tabs they don't own.
-  const isAuthorized = safeRole === 'admin'
-    || ((!ADMIN_ONLY.has(active)   || safeRole === 'admin')
-     && (!LEARNER_ONLY.has(active) || safeRole === 'learner'));
-
+  // Every panel renders against the signed-in user's own account or
+  // localStorage, so a single dispatch covers all three roles. The role
+  // gate is the per-role TABS list — tabs an account shouldn't see are
+  // simply not in its sidebar.
   const renderActive = () => {
-    if (!isAuthorized) return <RoleForbidden role={safeRole} />;
-    // Learner gets a Firestore-wired set of sections. Admins also get the
-    // learner-wired panels for the learner-only tabs (against their own
-    // account) so they can see and use everything. The mock-data
-    // AccountProfile / NotificationsPanel below are kept for admin /
-    // teacher views until those are wired to the real API.
-    if (safeRole === 'learner' || (safeRole === 'admin' && LEARNER_ONLY.has(active))) {
-      switch (active) {
-        case 'profile':
-          return <LearnerProfilePanel pushToast={pushToast} />;
-        case 'security':
-          return <LearnerSecurityPanel pushToast={pushToast} />;
-        case 'notifications':
-          return <LearnerNotificationsPanel pushToast={pushToast} />;
-        case 'learning':
-          return <LearnerLearningPanel pushToast={pushToast} />;
-        case 'accessibility':
-          return <LearnerAccessibilityPanel pushToast={pushToast} />;
-        case 'parent':
-          return <LearnerParentPanel />;
-        default:
-          return null;
-      }
-    }
     switch (active) {
-      case 'users':
-        return <UserManagement pushToast={pushToast} />;
-      case 'controls':
-        return <AdminControls pushToast={pushToast} />;
-      case 'profile':
-        return <AccountProfile role={safeRole} pushToast={pushToast} />;
-      case 'notifications':
-        return <NotificationsPanel role={safeRole} pushToast={pushToast} />;
-      case 'appearance':
-        return <AppearancePanel pushToast={pushToast} />;
-      default:
-        return null;
+      case 'profile':       return <LearnerProfilePanel pushToast={pushToast} />;
+      case 'security':      return <LearnerSecurityPanel pushToast={pushToast} />;
+      case 'notifications': return <LearnerNotificationsPanel pushToast={pushToast} />;
+      case 'learning':      return <LearnerLearningPanel pushToast={pushToast} />;
+      case 'accessibility': return <LearnerAccessibilityPanel pushToast={pushToast} />;
+      case 'parent':        return <LearnerParentPanel />;
+      case 'appearance':    return <AppearancePanel />;
+      default:              return null;
     }
   };
 
@@ -2077,10 +1187,5 @@ export default function ZedExamsSettings({ role = 'admin' }) {
 /* ── Named exports for tests / external composition ───────────────────────── */
 export {
   TABS,
-  DEFAULT_PROFILE,
-  DEFAULT_CONTROLS,
-  DEFAULT_NOTIFICATIONS,
-  DEFAULT_APPEARANCE,
-  isEmail,
   isNonEmpty,
 };
