@@ -785,6 +785,51 @@ exports.resendInvoiceEmail = onCall({
   return {ok: true, emailedTo: result.emailedTo};
 });
 
+// Admin-only — sends an activation confirmation to the customer's
+// WhatsApp via the Meta Cloud API helper that's already wired for the
+// parent digest (functions/metaWhatsApp.js). Soft-fails when the Meta
+// secrets aren't bound so local dev still works; the admin UI falls
+// back to the copy-paste WhatsApp deep link in that case.
+exports.sendActivationConfirmation = onCall({
+  region: "us-central1",
+  timeoutSeconds: 30,
+  memory: "256MiB",
+  secrets: [...require("./metaWhatsApp").WHATSAPP_SECRETS],
+}, async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError("unauthenticated", "Sign in required.");
+
+  const db = admin.firestore();
+  const callerSnap = await db.collection("users").doc(uid).get();
+  const role = callerSnap.exists ? (callerSnap.data()?.role || "") : "";
+  if (role !== "admin" && role !== "superAdmin") {
+    throw new HttpsError("permission-denied", "Admin only.");
+  }
+
+  const rawPhone = String(request.data?.phone || "").trim();
+  const body = String(request.data?.body || "").trim();
+  if (!rawPhone) throw new HttpsError("invalid-argument", "phone is required.");
+  if (!body) throw new HttpsError("invalid-argument", "body is required.");
+
+  const {normalizeToWhatsApp, sendWhatsAppDigest} = require("./metaWhatsApp");
+  const to = normalizeToWhatsApp(rawPhone);
+  if (!to) {
+    throw new HttpsError(
+      "invalid-argument",
+      `Could not parse phone number "${rawPhone}" — use 09XXXXXXXX or +2609XXXXXXXX.`,
+    );
+  }
+
+  const result = await sendWhatsAppDigest({to, body: body.slice(0, 1600)});
+  return {
+    status: result.status,
+    messageId: result.messageId || null,
+    reason: result.reason || null,
+    error: result.error || null,
+    to,
+  };
+});
+
 exports.apiAiChat = onRequest(
   {secrets: [anthropicApiKey], region: "us-central1", timeoutSeconds: 60},
   async (req, res) => {

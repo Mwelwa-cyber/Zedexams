@@ -3,6 +3,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
 import { PLANS, PAYMENT_DETAILS, hasPremiumAccess } from '../../utils/subscriptionConfig'
 import { resendInvoiceEmail } from '../../utils/invoices'
+import { sendActivationConfirmation } from '../../utils/whatsapp'
 import Button from '../ui/Button'
 import Skeleton from '../ui/Skeleton'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -65,6 +66,7 @@ export default function PaymentsPanel() {
 
   // Grant-tab state
   const [grantEmail, setGrantEmail] = useState('')
+  const [grantPhone, setGrantPhone] = useState('')
   const [grantProductId, setGrantProductId] = useState(GRANT_PLAN_IDS[0])
   const [grantProductDays, setGrantProductDays] = useState(PLANS[GRANT_PLAN_IDS[0]]?.durationDays ?? 30)
   const [grantPaymentRef, setGrantPaymentRef] = useState('')
@@ -121,15 +123,41 @@ export default function PaymentsPanel() {
         `Hi ${result.displayName.split(' ')[0] || 'there'}! ` +
         `Your ${plan.name} (K${plan.priceZMW}) is now active until ${expiryStr}. ` +
         `Login at zedexams.com with ${grantEmail.trim().toLowerCase()}. Welcome!`
+      // Try auto-sending via the Meta WhatsApp API when a phone was
+      // entered. Soft-fails: if the API isn't configured or the send
+      // bounces, the admin still gets the copy/wa.me fallback below.
+      let sendStatus = null
+      const trimmedPhone = grantPhone.trim()
+      if (trimmedPhone) {
+        try {
+          const res = await sendActivationConfirmation({
+            phone: trimmedPhone,
+            body: confirmText,
+          })
+          sendStatus = res
+        } catch (err) {
+          sendStatus = { status: 'failed', error: err.message }
+        }
+      }
+
       setLastGrant({
         name: result.displayName,
         email: grantEmail.trim().toLowerCase(),
+        phone: trimmedPhone,
         plan: plan.name,
         expiryStr,
         confirmText,
+        sendStatus,
       })
-      show(`✅ Activated ${plan.name} for ${result.displayName}`)
+      if (sendStatus?.status === 'sent') {
+        show(`✅ Activated & WhatsApp sent to ${result.displayName}`)
+      } else if (sendStatus?.status === 'failed') {
+        show(`✅ Activated · ⚠ WhatsApp failed — use the copy button below`)
+      } else {
+        show(`✅ Activated ${plan.name} for ${result.displayName}`)
+      }
       setGrantEmail('')
+      setGrantPhone('')
       setGrantPaymentRef('')
       loadGrantTab()
     } catch (err) {
@@ -334,18 +362,32 @@ export default function PaymentsPanel() {
               Grant access
             </h3>
             <form onSubmit={handleGrantAccess} className="space-y-3">
-              <div>
-                <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">
-                  Customer email
-                </label>
-                <input
-                  type="email"
-                  value={grantEmail}
-                  onChange={(e) => setGrantEmail(e.target.value)}
-                  required
-                  placeholder="parent.mwape@gmail.com"
-                  className="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:border-green-500 focus:outline-none"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">
+                    Customer email
+                  </label>
+                  <input
+                    type="email"
+                    value={grantEmail}
+                    onChange={(e) => setGrantEmail(e.target.value)}
+                    required
+                    placeholder="parent.mwape@gmail.com"
+                    className="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:border-green-500 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">
+                    WhatsApp number <span className="text-gray-400 normal-case font-normal">(auto-send)</span>
+                  </label>
+                  <input
+                    type="tel"
+                    value={grantPhone}
+                    onChange={(e) => setGrantPhone(e.target.value)}
+                    placeholder="0977 740 465"
+                    className="w-full border-2 border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:border-green-500 focus:outline-none"
+                  />
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
@@ -407,9 +449,30 @@ export default function PaymentsPanel() {
           {/* Post-grant confirmation snippet */}
           {lastGrant && (
             <div className="bg-green-50 border-2 border-green-300 rounded-2xl p-4">
-              <p className="text-sm font-bold text-green-800 mb-2">
+              <p className="text-sm font-bold text-green-800 mb-1">
                 ✅ Activated {lastGrant.plan} for {lastGrant.name} ({lastGrant.email})
               </p>
+              {lastGrant.sendStatus?.status === 'sent' && (
+                <p className="text-xs text-green-700 mb-2">
+                  📨 WhatsApp message sent to {lastGrant.phone}
+                  {lastGrant.sendStatus.messageId ? ` · id ${lastGrant.sendStatus.messageId.slice(-8)}` : ''}
+                </p>
+              )}
+              {lastGrant.sendStatus?.status === 'skipped' && (
+                <p className="text-xs text-yellow-700 mb-2">
+                  ⚠ WhatsApp API not configured — use Copy / Open WhatsApp below.
+                </p>
+              )}
+              {lastGrant.sendStatus?.status === 'failed' && (
+                <p className="text-xs text-red-600 mb-2">
+                  ⚠ Auto-send failed: {lastGrant.sendStatus.error || 'unknown error'} — use the buttons below.
+                </p>
+              )}
+              {!lastGrant.sendStatus && lastGrant.phone === '' && (
+                <p className="text-xs text-gray-600 mb-2">
+                  No WhatsApp number entered — copy/paste the message below.
+                </p>
+              )}
               <textarea
                 readOnly
                 value={lastGrant.confirmText}
