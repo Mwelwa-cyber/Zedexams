@@ -1,9 +1,7 @@
-import { useEffect, useRef, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { AlertTriangle, ArrowLeft, Check, CheckCircleIcon, CreditCard, Sparkles, X } from '../ui/icons'
+import { useState } from 'react'
+import { ArrowLeft, Check, Sparkles, X } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import { PLANS, PAYMENT_DETAILS } from '../../utils/subscriptionConfig'
-import { initiateMomoPayment, pollMomoPayment } from '../../utils/momoPayments'
 import { capture } from '../../utils/analytics'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
@@ -19,16 +17,6 @@ const PLAN_BORDER = {
   max_yearly:  'border-blue-500 bg-blue-50',
 }
 const FALLBACK_BORDER = 'border-orange-400 bg-orange-50'
-const SUBSCRIPTION_PENDING_MESSAGE =
-  'Subscription not yet activated. If you have already paid, please refresh or contact support.'
-
-function toFriendlyPaymentMessage(message, fallback = 'The payment did not complete this time.') {
-  const text = String(message || '').trim()
-  if (!text) return fallback
-  return /subscription key|api key|access denied|authenticate with mtn/i.test(text)
-    ? SUBSCRIPTION_PENDING_MESSAGE
-    : text
-}
 
 const PORTAL_COPY = {
   learner: {
@@ -45,119 +33,54 @@ const PORTAL_COPY = {
   },
 }
 
+function buildWhatsAppLink({ plan, email, displayName }) {
+  const lines = [
+    `Hi, I just paid K${plan.priceZMW} for the ${plan.name} plan 🙏`,
+    email ? `Email: ${email}` : null,
+    displayName ? `Name: ${displayName}` : null,
+    'Sending screenshot now.',
+  ].filter(Boolean)
+  const number = PAYMENT_DETAILS.contact.whatsapp.replace(/[^\d]/g, '')
+  return `https://wa.me/${number}?text=${encodeURIComponent(lines.join('\n'))}`
+}
+
 export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
   const copy = PORTAL_COPY[portal] || PORTAL_COPY.generic
-  const { refreshProfile, userProfile } = useAuth()
-  // Audit C7 PR 3 — referral credits will be auto-applied at payment
-  // success (server-side). Surface that here so the user knows their
-  // subscription period will actually be longer than the plan duration.
+  const { userProfile, currentUser } = useAuth()
   const pendingReferralCredits = Number(userProfile?.referralCredits || 0)
-  const navigate = useNavigate()
+
   const visiblePlanIds = (planIds && planIds.length ? planIds : DEFAULT_PLAN_ORDER)
     .filter((id) => PLANS[id])
   const [step, setStep] = useState('plans')
   const [selectedPlanId, setSelectedPlanId] = useState(
     defaultPlanId && visiblePlanIds.includes(defaultPlanId) ? defaultPlanId : null
   )
-  const [phone, setPhone] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [statusText, setStatusText] = useState('')
-  const [error, setError] = useState('')
-  const [paymentId, setPaymentId] = useState('')
-  const mountedRef    = useRef(true)
-  // Synchronous double-submit guard. The `submitting` state alone isn't
-  // enough — two rapid clicks can both observe `submitting === false`
-  // before React has a chance to commit the `setSubmitting(true)` from
-  // the first call, resulting in two parallel payment intents.
-  const submittingRef = useRef(false)
 
   const plan = selectedPlanId ? PLANS[selectedPlanId] : null
+  const userEmail = userProfile?.email || currentUser?.email || ''
 
-  useEffect(() => {
-    return () => {
-      mountedRef.current = false
-    }
-  }, [])
+  function handleContinue() {
+    if (!plan) return
+    setStep('instructions')
+    // Audit B2 — capture the intent so we can measure conversion from
+    // pricing → instructions page (separate from actual activation,
+    // which now happens manually in /admin/payments).
+    capture('subscription_intent', {
+      planId: selectedPlanId,
+      amountZmw: plan.priceZMW ?? null,
+      durationDays: plan.durationDays ?? null,
+    })
+  }
 
-  async function handlePay() {
-    if (submittingRef.current) return
-    if (!plan) {
-      setError('Choose a plan first.')
-      return
-    }
-    if (!phone.trim()) {
-      setError('Enter your MTN mobile money number.')
-      return
-    }
-
-    submittingRef.current = true
-    setError('')
-    setStatusText('')
-    setSubmitting(true)
-    setStep('processing')
-
-    try {
-      const started = await initiateMomoPayment({
-        planId: selectedPlanId,
-        phoneNumber: phone.trim(),
-        portal,
-      })
-
-      if (!mountedRef.current) return
-
-      setPaymentId(started.paymentId || '')
-      setStatusText(started.message || 'Approve the payment on your phone.')
-
-      const finalStatus = await pollMomoPayment(started.paymentId, {
-        onUpdate: (update) => {
-          if (!mountedRef.current) return
-          setStatusText(update.message || 'Waiting for MTN confirmation…')
-        },
-      })
-
-      if (!mountedRef.current) return
-
-      if (finalStatus.status === 'successful') {
-        await refreshProfile?.()
-        setStatusText(finalStatus.message || 'Payment received.')
-        setStep('success')
-        // Audit B2 — capture subscription_purchased. Plan + amount
-        // (ZMW) only; never the phone number or paymentId.
-        capture('subscription_purchased', {
-          planId: selectedPlanId,
-          amountZmw: plan?.amountZMW ?? null,
-          durationDays: plan?.durationDays ?? null,
-        })
-      } else if (finalStatus.status === 'pending') {
-        setStatusText(finalStatus.message || 'Still waiting for MTN confirmation.')
-      } else if (finalStatus.status === 'needs_review') {
-        // MTN took the payment but the amount/currency couldn't be
-        // auto-verified, so access wasn't granted automatically. Tell the
-        // learner NOT to pay again (that would double-charge) — support
-        // will reconcile it.
-        setError(
-          'We received your payment but could not confirm it automatically. ' +
-          'Please do not pay again — contact support with your phone number ' +
-          'and we will activate your subscription.',
-        )
-        setStep('failed')
-      } else {
-        setError(toFriendlyPaymentMessage(finalStatus.reason, 'Payment was not approved.'))
-        setStep('failed')
-      }
-    } catch (err) {
-      if (!mountedRef.current) return
-      console.error(err)
-      setError(toFriendlyPaymentMessage(err.message, 'Could not start the MTN payment.'))
-      setStep('failed')
-    } finally {
-      // The entry guard at the top of handlePay prevents a parallel call
-      // from racing with this assignment, so eslint's atomic-update warning
-      // here is a false positive.
-      // eslint-disable-next-line require-atomic-updates
-      submittingRef.current = false
-      if (mountedRef.current) setSubmitting(false)
-    }
+  function handleOpenWhatsApp() {
+    if (!plan) return
+    capture('subscription_whatsapp_opened', { planId: selectedPlanId })
+    const url = buildWhatsAppLink({
+      plan,
+      email: userEmail,
+      displayName: userProfile?.displayName || '',
+    })
+    window.open(url, '_blank', 'noopener,noreferrer')
   }
 
   return (
@@ -181,21 +104,17 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
 
         <div className="p-5">
           {step === 'plans' && <>
-            {/* Audit C7 PR 3 — referral credit pre-payment banner.
-                Self-hides when credits === 0. The actual credit
-                consumption happens server-side in
-                markPaymentSuccessful → consumeReferralCredits. */}
             {pendingReferralCredits > 0 && (
               <div
                 className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900"
                 role="status"
               >
                 <p className="font-bold">
-                  🎁 {pendingReferralCredits} free month{pendingReferralCredits === 1 ? '' : 's'} from referrals will be applied
+                  🎁 {pendingReferralCredits} free month{pendingReferralCredits === 1 ? '' : 's'} from referrals
                 </p>
                 <p className="text-xs mt-1 text-emerald-800/90">
-                  Pick a plan and pay the regular price — we'll add
-                  {' '}{pendingReferralCredits * 30} bonus day{pendingReferralCredits === 1 ? '' : 's'} on top automatically.
+                  Mention your email when you message us and we'll add
+                  {' '}{pendingReferralCredits * 30} bonus day{pendingReferralCredits === 1 ? '' : 's'} when activating.
                 </p>
               </div>
             )}
@@ -235,112 +154,90 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
               })}
             </div>
             <div className="bg-gray-50 rounded-2xl p-3 mb-4 text-sm text-gray-500 text-center">
-              Approve the MTN prompt on your phone and your account unlocks automatically.
+              Pay via Mobile Money, then confirm on WhatsApp. We activate within 30 minutes.
             </div>
             <Button
               variant="primary"
               size="lg"
               fullWidth
               disabled={!selectedPlanId}
-              onClick={() => selectedPlanId && setStep('pay')}
+              onClick={handleContinue}
             >
               {selectedPlanId ? `Continue → Pay K${plan.priceZMW}` : 'Select a Plan'}
             </Button>
           </>}
 
-          {step === 'pay' && plan && <>
-            <Button variant="ghost" size="sm" leadingIcon={<Icon as={ArrowLeft} size="xs" />} onClick={() => setStep('plans')} className="mb-4 -ml-2">Back</Button>
-            <div className="bg-yellow-50 border-2 border-yellow-300 rounded-2xl p-4 mb-4 text-center">
-              <p className="text-gray-700 font-bold">You will pay</p>
-              <p className="text-4xl font-black text-green-700 my-1">K{plan.priceZMW} ZMW</p>
-              <p className="text-gray-500 text-sm">{plan.name} plan · {plan.durationDays} days</p>
-            </div>
-            <div className="bg-green-50 border-2 border-green-300 rounded-2xl p-4 mb-4">
-              <p className="text-xs text-green-700 font-bold uppercase tracking-wider mb-1">Payment method</p>
-              <p className="text-2xl font-black text-green-800">{PAYMENT_DETAILS.MTN.name}</p>
-              <p className="text-xs text-gray-500 mt-2">Use the MTN number that should receive the approval prompt. We send the Request to Pay from the server.</p>
-            </div>
-            <div className="space-y-3 mb-4">
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1">Your MTN number *</label>
-                <input
-                  type="tel"
-                  value={phone}
-                  onChange={(event) => setPhone(event.target.value)}
-                  placeholder="096 XXX XXXX"
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-base focus:border-green-500 focus:outline-none"
-                />
-              </div>
-            </div>
-            {error && <p className="text-red-600 text-sm bg-red-50 border border-red-200 rounded-xl p-3 mb-3">{error}</p>}
-            <Button variant="primary" size="lg" fullWidth loading={submitting} onClick={handlePay}>
-              {submitting ? 'Starting payment…' : 'Pay with MTN'}
+          {step === 'instructions' && plan && <>
+            <Button
+              variant="ghost"
+              size="sm"
+              leadingIcon={<Icon as={ArrowLeft} size="xs" />}
+              onClick={() => setStep('plans')}
+              className="mb-4 -ml-2"
+            >
+              Back
             </Button>
-            <p className="text-center text-xs text-gray-400 mt-3">You will receive an approval prompt on your phone.</p>
+
+            <div className="bg-gradient-to-br from-[#0B1A2C] to-[#1F3A5F] text-white rounded-2xl p-5 mb-5">
+              <p className="text-sm text-white/80">{plan.name} · {plan.durationDays} days</p>
+              <p className="font-black text-4xl mt-1 text-[#F4E4BC]">K{plan.priceZMW}</p>
+              <p className="text-xs text-white/70 mt-1">{plan.tagline}</p>
+            </div>
+
+            <h3 className="text-base font-black text-gray-800 mb-3">How to pay</h3>
+            <ol className="space-y-3 mb-5">
+              {[
+                <>Send <strong>K{plan.priceZMW}</strong> via {PAYMENT_DETAILS.mobileMoney.providers} to the number below</>,
+                <>Use your <strong>email address</strong> as the reference</>,
+                <>Tap the WhatsApp button to send us your confirmation</>,
+                <>Receive access within <strong>30 minutes</strong></>,
+              ].map((line, i) => (
+                <li key={i} className="flex gap-3 text-sm text-gray-700">
+                  <span className="flex-shrink-0 grid place-items-center w-7 h-7 rounded-full bg-[#B8860B] text-white text-xs font-black">
+                    {i + 1}
+                  </span>
+                  <span className="leading-relaxed pt-0.5">{line}</span>
+                </li>
+              ))}
+            </ol>
+
+            <div className="bg-[#FAF6EE] border-2 border-dashed border-[#B8860B] rounded-2xl p-4 text-center mb-4">
+              <p className="text-[11px] uppercase tracking-wider text-gray-500 font-bold">
+                {PAYMENT_DETAILS.mobileMoney.providers}
+              </p>
+              <p className="text-2xl font-black text-[#0B1A2C] tracking-wider mt-1">
+                {PAYMENT_DETAILS.mobileMoney.displayNumber}
+              </p>
+              <p className="text-sm font-bold text-[#B8860B] mt-1">
+                Amount: K{plan.priceZMW}.00
+              </p>
+            </div>
+
+            <div className="bg-yellow-50 border-l-4 border-[#B8860B] rounded-r-lg p-3 mb-5 text-sm text-gray-700">
+              <strong className="text-gray-900">Reference:</strong>{' '}
+              your email{userEmail ? ` (${userEmail})` : ' (e.g. parent@gmail.com)'} so we can activate the right account.
+            </div>
+
+            <button
+              type="button"
+              onClick={handleOpenWhatsApp}
+              className="w-full bg-[#25D366] hover:bg-[#1FBE5C] text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-colors"
+            >
+              <Icon as={Check} size="sm" strokeWidth={2.4} />
+              Confirm payment on WhatsApp
+            </button>
+            <p className="text-center text-xs text-gray-500 mt-3">
+              We respond within 30 minutes · 7 days a week
+            </p>
+
+            <button
+              type="button"
+              onClick={onClose}
+              className="w-full mt-4 text-sm text-gray-500 hover:text-gray-700 underline"
+            >
+              I'll do this later
+            </button>
           </>}
-
-          {step === 'processing' && plan && (
-            <div className="text-center py-4">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-yellow-50 text-yellow-700 animate-bounce">
-                <Icon as={CreditCard} size="xl" strokeWidth={2.1} />
-              </div>
-              <h3 className="text-2xl font-black text-gray-800 mb-2">Approve the Prompt</h3>
-              <p className="text-gray-600 mb-4">{statusText || 'We are waiting for MTN to confirm your payment.'}</p>
-              <div className="bg-yellow-50 border-2 border-yellow-200 rounded-2xl p-4 mb-4 text-sm text-yellow-800">
-                <p className="font-bold mb-1">{plan.name} plan · K{plan.priceZMW}</p>
-                <p>{phone}</p>
-                {paymentId && <p className="mt-2 text-xs break-all text-yellow-700">Ref: {paymentId}</p>}
-              </div>
-              <Button variant="secondary" size="lg" fullWidth onClick={onClose}>Close</Button>
-            </div>
-          )}
-
-          {step === 'success' && (
-            <div className="text-center py-4">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-green-50 text-green-700">
-                <Icon as={CheckCircleIcon} size="xl" strokeWidth={2.1} />
-              </div>
-              <h3 className="text-2xl font-black text-gray-800 mb-2">Payment Successful!</h3>
-              <p className="text-gray-600 mb-4">Your <strong>{plan?.name}</strong> plan is active now.</p>
-              <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-4 mb-4 text-sm text-green-800">
-                <p className="font-bold mb-1">Account activated</p>
-                <p>{statusText || 'You now have full subscription access.'}</p>
-              </div>
-              {portal === 'teacher' ? (
-                <Button
-                  variant="primary"
-                  size="lg"
-                  fullWidth
-                  onClick={() => {
-                    onClose?.()
-                    navigate('/teacher/welcome-to-pro')
-                  }}
-                >
-                  See what's unlocked →
-                </Button>
-              ) : (
-                <Button variant="primary" size="lg" fullWidth onClick={onClose}>Back to Dashboard</Button>
-              )}
-            </div>
-          )}
-
-          {step === 'failed' && (
-            <div className="text-center py-4">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-3xl bg-red-50 text-red-700">
-                <Icon as={AlertTriangle} size="xl" strokeWidth={2.1} />
-              </div>
-              <h3 className="text-2xl font-black text-gray-800 mb-2">Payment Not Completed</h3>
-              <p className="text-gray-600 mb-4">{error || 'The payment did not complete this time.'}</p>
-              <div className="bg-green-50 border-2 border-green-200 rounded-2xl p-4 mb-4 text-sm text-green-800">
-                <p className="font-bold mb-1">Need help?</p>
-                <p>WhatsApp <a href={`https://wa.me/${PAYMENT_DETAILS.contact.whatsapp.replace(/\s+/g, '')}`} className="font-black underline" target="_blank" rel="noopener noreferrer">{PAYMENT_DETAILS.contact.whatsapp}</a></p>
-              </div>
-              <div className="flex gap-3">
-                <Button variant="primary" size="lg" className="flex-1" onClick={() => setStep('pay')}>Try Again</Button>
-                <Button variant="secondary" size="lg" className="flex-1" onClick={onClose}>Close</Button>
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

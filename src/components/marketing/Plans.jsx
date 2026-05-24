@@ -21,7 +21,7 @@ const FAQ = [
   },
   {
     q: 'Can I pay with Mobile Money?',
-    a: "Yes — MTN MoMo and Airtel Money are first-class. Subscriptions auto-renew via your wallet, and you'll get an SMS receipt every month. Cards work too.",
+    a: "Yes — Airtel Money and MTN MoMo both work. You send the amount to our number, then confirm on WhatsApp using your email as the reference. We activate your account within 30 minutes, 7 days a week. There's no auto-renewal — you only pay for the period you choose.",
   },
   {
     q: 'Can I cancel anytime?',
@@ -42,10 +42,9 @@ const FAQ = [
 ]
 
 const PAYMENT_METHODS = [
-  { label: 'MTN MoMo',     swatch: '#FFCC00' },
   { label: 'Airtel Money', swatch: '#E60012' },
-  { label: 'Visa',         swatch: 'linear-gradient(135deg,#1A1F71,#3057A4)' },
-  { label: 'Mastercard',   swatch: 'linear-gradient(90deg,#EB001B 50%, #F79E1B 50%)' },
+  { label: 'MTN MoMo',     swatch: '#FFCC00' },
+  { label: 'WhatsApp confirm', swatch: '#25D366' },
 ]
 
 function Section({ children, className = '' }) {
@@ -233,7 +232,7 @@ export default function Plans() {
     <>
       <SeoHelmet
         title="Pricing — Free, Pro and Max plans"
-        description="ZedExams Pro and Max plans for Zambian teachers and learners. Pay with MTN MoMo or Airtel Money. Cancel anytime."
+        description="ZedExams Pro and Max plans for Zambian teachers and learners. Pay with Airtel Money or MTN MoMo, confirm on WhatsApp."
         path="/pricing"
       />
       <div className="min-h-screen theme-bg theme-text font-body">
@@ -270,7 +269,7 @@ export default function Plans() {
               Plans that grow with your classroom.
             </h1>
             <p className="text-lg text-white/80 max-w-xl">
-              Start free. Upgrade when your week gets busy. Cancel anytime — no card needed to begin, and we accept MTN MoMo, Airtel Money, and cards.
+              Start free. Upgrade when your week gets busy. Pay with Airtel Money or MTN MoMo, confirm on WhatsApp, and you're live within 30 minutes.
             </p>
           </Card>
         </Section>
