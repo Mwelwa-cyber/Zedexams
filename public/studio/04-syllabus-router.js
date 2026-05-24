@@ -21,19 +21,42 @@ function populateClasses() {
   }
 }
 
-function updateSubjects() {
+async function updateSubjects() {
   const klass = $('#f-class').value;
   const level = activeGradeLevel()[klass];
-  // Show every subject the curriculum lists for this level. Previously we
-  // filtered out subjects without hardcoded topic data — but topics now
-  // also come from the dynamic CBC KB, and the topic input is a free-text
-  // <input list="..."> anyway, so an empty dropdown is harmless.
-  const subjects = activeSubjectsByLevel()[level] || [];
   const sel = $('#f-subject');
+  if (!sel) return;
   const current = sel.value;
-  // For Lower Primary (new syllabus): split into 2 optgroups (official 3 learning areas vs individual components)
+
+  // Default to the curriculum's hardcoded subjects for this level. They
+  // still drive the dropdown for the Old syllabus and as a fallback when
+  // the active CBC KB has no rows for the selected grade.
+  let subjects = activeSubjectsByLevel()[level] || [];
+
+  // On the New (CBC) syllabus, prefer the subject list the admin actually
+  // uploaded — i.e. distinct subjects in the active KB for this grade.
+  // If the KB has data we replace the hardcoded list; if not we keep the
+  // hardcoded list. We never merge the two: a smaller, school-specific
+  // list is more accurate than padding it with subjects the school may
+  // not actually teach.
+  if (syllabusVersion === 'new' && typeof window.__studioFetchSyllabusSubjects === 'function') {
+    const grade = classToCbcGrade(klass);
+    if (grade) {
+      try {
+        const remote = await window.__studioFetchSyllabusSubjects({ grade });
+        if (Array.isArray(remote) && remote.length > 0) {
+          subjects = remote;
+        }
+      } catch (err) {
+        console.warn('updateSubjects: KB subject fetch failed', err);
+      }
+    }
+  }
+
+  // For Lower Primary (new syllabus, hardcoded path): split into 2 optgroups
+  // (official 3 learning areas vs individual components).
   let html;
-  if (level === 'lp') {
+  if (level === 'lp' && subjects.some(s => s.includes('(Learning Area)'))) {
     const areas = subjects.filter(s => s.includes('(Learning Area)'));
     const components = subjects.filter(s => !s.includes('(Learning Area)'));
     const opt = s => `<option value="${esc(s)}"${s === current ? ' selected' : ''}>${esc(s)}</option>`;
@@ -44,7 +67,7 @@ function updateSubjects() {
   }
   sel.innerHTML = html;
   if (!subjects.includes(current) && subjects.length) sel.value = subjects[0];
-  updateTopics();
+  await updateTopics();
 }
 
 // Grade-aware lookup: syllabus[level][subject] can be either:
@@ -153,10 +176,14 @@ async function fetchTopicsForCurrentSelection() {
   //   - non-empty object → KB has data, use it.
   //   - empty object {}  → KB has no rows; fall through.
   //   - null             → fetch errored; fall through.
-  // This MUST be consulted before the hardcoded maps below — otherwise the
-  // 02b-curriculum-topics.js sample stub (which only lists Grade 4/5) would
-  // shadow the real curriculum for exactly those grades.
-  if (typeof window.__studioFetchSyllabusTopics === 'function') {
+  //
+  // IMPORTANT: only consult the KB on the New (CBC) syllabus. The KB stores
+  // the 2023 CBC curriculum the admin uploads via /admin/curriculum/replace.
+  // Querying it from the Old (2013) syllabus tab leaked CBC topics into the
+  // old-syllabus dropdowns, which is what teachers were noticing in the
+  // wild. The Old syllabus has its own hardcoded data in 03-syllabus-old.js
+  // and must use that exclusively.
+  if (syllabusVersion === 'new' && typeof window.__studioFetchSyllabusTopics === 'function') {
     const grade = classToCbcGrade(klass);
     const subject = subjectToCbcSubject(subj);
     if (grade && subject) {
@@ -216,12 +243,16 @@ function __studioInitSyllabus() {
       syllabusVersion = newVersion;
       document.querySelectorAll('#syllabus-toggle .seg').forEach(b => b.classList.toggle('active', b === btn));
       populateClasses();
-      updateSubjects();
+      updateSubjects().catch(err => console.warn('updateSubjects failed', err));
     });
   });
 
-  $('#f-class').addEventListener('change', updateSubjects);
-  $('#f-subject').addEventListener('change', updateTopics);
+  $('#f-class').addEventListener('change', () => {
+    updateSubjects().catch(err => console.warn('updateSubjects failed', err));
+  });
+  $('#f-subject').addEventListener('change', () => {
+    updateTopics().catch(err => console.warn('updateTopics failed', err));
+  });
   // Topic is now a <select>; only 'change' fires, and we always reset the
   // subtopic dropdown so a stale subtopic from the previous topic can't be
   // submitted accidentally.
@@ -229,7 +260,7 @@ function __studioInitSyllabus() {
 
   // Initial population
   populateClasses();
-  updateSubjects();
+  updateSubjects().catch(err => console.warn('updateSubjects failed', err));
 }
 
 window.__studioRebinders = window.__studioRebinders || [];
