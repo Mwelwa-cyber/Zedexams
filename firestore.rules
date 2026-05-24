@@ -502,10 +502,16 @@ service cloud.firestore {
                        && (!('reviewedBy' in incoming()))
                        && (!('publishedRefs' in incoming()));
 
-      // Admin updates: only the review fields. Output / status transitions
-      // beyond approve/reject come from the Cloud Function (admin SDK).
+      // Admin updates: review + override fields only. Output / status
+      // transitions beyond approve/reject come from the Cloud Function
+      // (admin SDK). `overrideReason` is the audit-trail reason an admin
+      // supplies when approving despite Cala flagging alignment issues;
+      // it's a free-text string the UI requires when the alignment is
+      // not clean. The retry markers (`status: 'failed'` → no client
+      // write; only the retryAgentJob callable resets state) stay
+      // server-owned.
       allow update: if isAdmin()
-                       && changedKeys().hasOnly(['status', 'reviewedBy', 'reviewedAt', 'reviewNotes'])
+                       && changedKeys().hasOnly(['status', 'reviewedBy', 'reviewedAt', 'reviewNotes', 'overrideReason'])
                        && (incoming().status == 'approved'
                            || incoming().status == 'rejected'
                            || incoming().status == resource.data.status);

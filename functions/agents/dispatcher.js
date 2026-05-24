@@ -197,6 +197,73 @@ async function runContentChain({jobId, jobData, anthropicApiKeySecret}) {
 }
 
 /**
+ * Resume a job at the Cala step. Used by the admin "Retry Cala" callable
+ * when a previous Cala run failed (e.g. the matcher threw on malformed
+ * KB data). Identical to steps 2-3 of runContentChain but additive — we
+ * deliberately don't refactor runContentChain so existing dispatcher
+ * trace tests continue to exercise the exact same code path.
+ *
+ * Caller has already verified: admin, status was 'failed', output.aria.draft
+ * exists. Caller cleared error/status before calling.
+ */
+async function runFromCala({jobId, anthropicApiKeySecret}) {
+  const db = admin.firestore();
+  const jobRef = db.collection("agentJobs").doc(jobId);
+  async function readJob() {
+    const snap = await jobRef.get();
+    return {id: snap.id, ...(snap.data() || {})};
+  }
+
+  // Cala.
+  if (await isAgentPaused("cala")) {
+    await setJobFields(jobRef, {
+      status: "awaiting_approval",
+      error: "Cala is paused — review manually.",
+    });
+    return;
+  }
+  await setJobFields(jobRef, {status: "running", agentId: "cala"});
+  let calaOut;
+  try {
+    calaOut = await runCala({job: await readJob()});
+  } catch (err) {
+    console.error("Cala failed (retry)", err);
+    await setJobFields(jobRef, {
+      status: "failed",
+      error: `Cala: ${String(err && err.message || err).slice(0, 500)}`,
+    });
+    return;
+  }
+  await setJobFields(jobRef, {"output.cala": calaOut});
+
+  // Reva.
+  if (await isAgentPaused("reva")) {
+    await setJobFields(jobRef, {
+      status: "awaiting_approval",
+      error: "Reva is paused — review manually.",
+    });
+    return;
+  }
+  await setJobFields(jobRef, {agentId: "reva"});
+  let revaOut;
+  try {
+    revaOut = await runReva({job: await readJob(), anthropicApiKeySecret});
+  } catch (err) {
+    console.error("Reva failed (retry)", err);
+    await setJobFields(jobRef, {
+      status: "failed",
+      error: `Reva: ${String(err && err.message || err).slice(0, 500)}`,
+    });
+    return;
+  }
+  await setJobFields(jobRef, {
+    "output.reva": revaOut,
+    status: "awaiting_approval",
+    agentId: "reva",
+  });
+}
+
+/**
  * Factory for the onCreate trigger. The secret is passed in by index.js
  * (mirrors the createGenerateLessonPlan factory pattern).
  */
@@ -303,4 +370,5 @@ function createAgentJobsOnApproved() {
 module.exports = {
   createAgentJobsOnCreate,
   createAgentJobsOnApproved,
+  runFromCala,
 };
