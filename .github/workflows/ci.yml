@@ -54,3 +54,27 @@ jobs:
         run: npm ci
       - name: Tests
         run: npm run test:all
+
+  rules-emulator:
+    # Behavioural Firestore-rules tests. Kept as a separate job because
+    # they need the Firestore emulator (JVM) — that's why they can't sit
+    # inside `test:all`, which is plain `node` scripts.
+    name: Tests (Firestore rules emulator)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          cache: "npm"
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Install dependencies
+        run: npm ci
+      - name: Firestore rules tests
+        run: npm run test:rules-emulator

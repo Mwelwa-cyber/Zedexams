@@ -107,5 +107,11 @@
         "*.local"
       ]
     }
-  ]
+  ],
+  "emulators": {
+    "firestore": {
+      "port": 8080
+    },
+    "singleProjectMode": false
+  }
 }
