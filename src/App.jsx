@@ -64,6 +64,10 @@ const QuizList = lazy(() => import('./components/quiz/QuizList'))
 // via settings/global.learnerAi.showAiPracticeQuizzesToLearners).
 const AiPracticeQuizList   = lazy(() => import('./components/learnerAi/AiPracticeQuizList'))
 const AiPracticeQuizRunner = lazy(() => import('./components/learnerAi/AiPracticeQuizRunner'))
+// Learner-facing AI-generated notes (feature-flagged via
+// settings/global.learnerAi.showAiNotesToLearners). Read-only.
+const AiNotesList   = lazy(() => import('./components/learnerAi/AiNotesList'))
+const AiNotesReader = lazy(() => import('./components/learnerAi/AiNotesReader'))
 const QuizRunner = lazy(() => import('./components/quiz/QuizRunnerV2'))
 const QuizResults = lazy(() => import('./components/quiz/QuizResultsV2'))
 // Slide-based interactive lessons. /lessons is the canonical learner-
@@ -439,6 +443,10 @@ export default function App() {
               admin flag is off). */}
           <Route path="/ai-practice"             element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><AiPracticeQuizList /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/ai-practice/:contentId"  element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><AiPracticeQuizRunner /></LearnerOnlyRoute></ProtectedRoute>} />
+          {/* AI-generated notes. Same feature-flag pattern as
+              /ai-practice — silent redirect when the admin flag is off. */}
+          <Route path="/ai-notes"                element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><AiNotesList /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/ai-notes/:contentId"     element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><AiNotesReader /></LearnerOnlyRoute></ProtectedRoute>} />
           {/* Course-map drill-down — clicking Practise on a subject card
               lands the learner here, with quizzes grouped by topic. */}
           <Route path="/practise/:grade/:subjectId" element={<ProtectedRoute><LearnerOnlyRoute><SubjectDrillDown /></LearnerOnlyRoute></ProtectedRoute>} />

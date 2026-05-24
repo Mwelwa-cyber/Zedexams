@@ -684,6 +684,25 @@ function createAiAgentTasksOnApproved() {
         console.warn("[learner-ai dispatcher] sibling demote failed",
             err && err.message);
       });
+    } else {
+      // Admin approved a task with no resolvable content doc. Without
+      // this log, the approval silently does nothing — the task flips
+      // to "published" below but learners see no artifact because no
+      // aiGeneratedContent doc ever transitioned to status='published'.
+      // Surface it on the agent log so the Live Monitor flags it.
+      await writeAgentLog({
+        taskId,
+        agentName: "dispatcher",
+        action: "publish_skipped",
+        message: "Approved but no aiGeneratedContent doc could be resolved " +
+          "(missing resultContentId AND fallback grade/subject/topic " +
+          "query returned no match). Nothing published.",
+        taskType: after.taskType,
+        grade: after.grade,
+        subject: after.subject,
+        topic: after.topic,
+        severity: SEVERITY.WARNING,
+      }).catch(() => { /* swallow — log write must never block the approve */ });
     }
 
     await setTaskFields(taskRef, {status: TASK_STATUS.PUBLISHED});
