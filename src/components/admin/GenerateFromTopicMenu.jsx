@@ -141,28 +141,31 @@ export default function GenerateFromTopicMenu({ topic }) {
 
           <div className="mt-2 border-t-2 border-dashed border-slate-200 pt-2">
             <p className="px-2 pb-1 text-[10px] font-black uppercase tracking-wider text-sky-700">
-              Or use the synchronous studios
+              Or publish a learner-facing quiz now
             </p>
             <button
               type="button"
               onClick={() => {
+                // /admin/quizzes/new uses learner-facing grade format ('5', '6', '7')
+                // not the agent pipeline 'G5' shape, so strip the prefix before
+                // handing it off to CreateQuizV2.prefillGrade.
+                const gradeRaw = String(topic.grade || '').toUpperCase()
+                const adminGrade = gradeRaw.startsWith('G') ? gradeRaw.slice(1) : gradeRaw
                 const params = new URLSearchParams({
-                  grade: topic.grade,
-                  subject: topic.subject,
-                  topic: topic.topic,
+                  mode: 'ai',
+                  grade: adminGrade,
+                  subject: topic.subject || '',
+                  topic: topic.topic || '',
                 })
-                const sub = firstSubtopicName(topic.subtopics)
-                if (sub) params.set('subtopic', sub)
-                if (Number.isInteger(topic.term)) params.set('term', String(topic.term))
-                navigate(`/teacher/generate/quiz?${params.toString()}`)
+                navigate(`/admin/quizzes/new?${params.toString()}`)
               }}
               className="flex w-full items-start gap-2 rounded-xl px-2.5 py-2 text-left text-xs hover:bg-sky-50"
             >
               <span className="text-lg leading-none mt-0.5" aria-hidden>✏️</span>
               <span className="min-w-0 flex-1">
-                <span className="block font-black text-slate-800">Quiz</span>
+                <span className="block font-black text-slate-800">Quiz (Admin editor)</span>
                 <span className="block text-[11px] text-slate-500">
-                  Opens Quiz Studio with the topic pre-filled — instant draft, edit, then publish
+                  AI-draft questions, review in the editor, save to the public quiz library learners see
                 </span>
               </span>
             </button>
