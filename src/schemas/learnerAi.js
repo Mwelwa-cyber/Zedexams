@@ -386,14 +386,39 @@ export const aiSupervisorLogWriteSchema = z.object({
 
 // ── 8. curriculumUpdateReports ────────────────────────────────────
 
+// Upper bound on how many module manifest entries a single
+// curriculumUpdateReports row can carry. Matches SOURCE_FILE_CAP in
+// the watcher — if you raise one, raise the other.
+const SOURCE_REPORT_MODULE_CAP = 50
+
 export const TRUST_LEVELS = z.enum(['very_high', 'high', 'medium', 'low'])
 export const CURRICULUM_UPDATE_TYPES = z.enum([
-  'syllabus', 'exam_timetable', 'subject_structure',
+  'syllabus', 'syllabus_modules', 'exam_timetable', 'subject_structure',
   'grade_structure', 'assessment_format',
 ])
 export const CURRICULUM_REPORT_STATUSES = z.enum([
-  'pending_review', 'approved', 'rejected', 'applied',
+  'pending_review', 'approved', 'rejected', 'applied', 'superseded',
 ])
+
+// One row in the ingestion manifest the curriculum watcher attaches to
+// each report. Documents the module that was staged into curriculum/
+// + rag_chunks/ (or, when `skipped` is true, the reason the file was
+// not ingested). The admin review UI renders these so a human can
+// promote individual modules into the canonical cbcKnowledgeBase.
+const ingestedModuleEntrySchema = z.object({
+  docId: z.string().max(64).optional(),
+  url: z.string().max(2000),
+  kind: z.string().max(16).optional(),
+  anchorText: z.string().max(400).optional().nullable(),
+  grade: z.number().int().nullable().optional(),
+  subject: z.string().max(80).nullable().optional(),
+  term: z.number().int().nullable().optional(),
+  topic: z.string().max(400).nullable().optional(),
+  confidence: z.enum(['high', 'medium', 'low']).optional(),
+  chunkCount: z.number().int().nonnegative().optional(),
+  skipped: z.boolean().optional(),
+  reason: z.string().max(200).optional(),
+})
 
 export const curriculumUpdateReportWriteSchema = z.object({
   sourceName: z.string().min(1).max(200),
@@ -408,6 +433,12 @@ export const curriculumUpdateReportWriteSchema = z.object({
   checkedAt: timestampish,
   reviewedBy: z.string().max(120).nullable(),
   reviewedAt: timestampish.nullable(),
+  // Optional ingestion fields populated when a crawlEnabled source
+  // produced downloadable modules. Absent on detection-only sources.
+  ingestedModules: z.array(ingestedModuleEntrySchema).max(SOURCE_REPORT_MODULE_CAP).optional(),
+  ingestedModuleCount: z.number().int().nonnegative().optional(),
+  ingestedSkippedCount: z.number().int().nonnegative().optional(),
+  linksDiscovered: z.number().int().nonnegative().optional(),
 }).strict()
 
 /** @typedef {import('zod').infer<typeof curriculumUpdateReportWriteSchema>} CurriculumUpdateReport */

@@ -56,29 +56,62 @@ function assert(cond, msg) { if (!cond) throw new Error(msg) }
 
 console.log('\nTrusted source registry')
 
-test('exactly 3 sources, all from official Zambian domains', () => {
-  assert(w.TRUSTED_SOURCES.length === 3, 'expected 3 trusted sources')
+// Hostnames that must remain on the whitelist. Sources may be added but
+// never removed silently — losing one of these is a regression.
+const REQUIRED_HOSTNAMES = new Set([
+  'www.moe.gov.zm',
+  'www.cdc.gov.zm',
+  'www.exams-council.org.zm',
+  'library.cdcrepository.info',
+  'www.edu.gov.zm',
+])
+
+const TRUSTED_HOSTNAME_SUFFIXES = [
+  '.gov.zm', '.org.zm', 'cdcrepository.info',
+]
+
+test('every source is trusted, declared, and on a known suffix', () => {
+  assert(w.TRUSTED_SOURCES.length >= 5,
+    `expected at least 5 trusted sources, got ${w.TRUSTED_SOURCES.length}`)
   for (const s of w.TRUSTED_SOURCES) {
     const u = new URL(s.url)
-    assert(u.hostname.endsWith('.gov.zm') || u.hostname.endsWith('.org.zm'),
-      `untrusted hostname: ${u.hostname}`)
+    const okSuffix = TRUSTED_HOSTNAME_SUFFIXES.some(suffix =>
+      u.hostname === suffix.replace(/^\./, '') || u.hostname.endsWith(suffix))
+    assert(okSuffix, `untrusted hostname: ${u.hostname}`)
     assert(s.trustLevel === 'very_high', `trustLevel must be very_high, got ${s.trustLevel}`)
     assert(['weekly', 'monthly'].includes(s.frequency),
       `frequency must be weekly/monthly, got ${s.frequency}`)
   }
 })
 
-test('covers MoE + CDC + ECZ', () => {
-  const ids = w.TRUSTED_SOURCES.map(s => s.id)
-  assert(ids.includes('moe-zambia'))
-  assert(ids.includes('cdc-zambia'))
-  assert(ids.includes('ecz-zambia'))
+test('covers MoE + CDC + ECZ + CDC Repository + edu.gov.zm', () => {
+  const ids = new Set(w.TRUSTED_SOURCES.map(s => s.id))
+  assert(ids.has('moe-zambia'))
+  assert(ids.has('cdc-zambia'))
+  assert(ids.has('ecz-zambia'))
+  assert(ids.has('cdc-repository'))
+  assert(ids.has('moe-edu-zm-syllabi'))
+})
+
+test('every required hostname is present on the whitelist', () => {
+  const hostnames = new Set(w.TRUSTED_SOURCES.map(s => new URL(s.url).hostname))
+  for (const required of REQUIRED_HOSTNAMES) {
+    assert(hostnames.has(required), `missing required hostname: ${required}`)
+  }
 })
 
 test('ALLOWED_URLS matches registry one-to-one', () => {
   assert(w.ALLOWED_URLS.size === w.TRUSTED_SOURCES.length)
   for (const s of w.TRUSTED_SOURCES) {
     assert(w.ALLOWED_URLS.has(s.url), `${s.url} missing from ALLOWED_URLS`)
+  }
+})
+
+test('ALLOWED_HOSTS covers every source hostname', () => {
+  assert(w.ALLOWED_HOSTS instanceof Set, 'ALLOWED_HOSTS must be a Set')
+  for (const s of w.TRUSTED_SOURCES) {
+    const host = new URL(s.url).hostname.toLowerCase()
+    assert(w.ALLOWED_HOSTS.has(host), `${host} missing from ALLOWED_HOSTS`)
   }
 })
 
@@ -103,6 +136,27 @@ test('assertWhitelisted refuses empty / non-string', () => {
   let threw2 = false; try { w.assertWhitelisted(null) } catch { threw2 = true }
   let threw3 = false; try { w.assertWhitelisted(123) } catch { threw3 = true }
   assert(threw1 && threw2 && threw3, 'must throw on empty/null/non-string')
+})
+
+test('assertWhitelisted permits same-host sub-paths (for crawler)', () => {
+  // CDC Repository is crawlEnabled — the ingester needs to follow
+  // links like /collect/syllabi/grade-7.pdf under the same hostname.
+  w.assertWhitelisted('https://library.cdcrepository.info/collect/syllabi/grade-7.pdf')
+  w.assertWhitelisted('https://www.edu.gov.zm/wp-content/uploads/2024/01/grade-5-mathematics.pdf')
+})
+
+test('assertWhitelisted refuses similar-looking but wrong hostnames', () => {
+  // Defence-in-depth: the agent must not be tricked by typo-squat
+  // hostnames or subdomain abuse.
+  for (const hostile of [
+    'https://evil.com/syllabus.pdf',
+    'https://library.cdcrepository.info.evil.com/x',
+    'https://www-edu.gov.zm/x',
+  ]) {
+    let threw = false
+    try { w.assertWhitelisted(hostile) } catch { threw = true }
+    assert(threw, `must refuse ${hostile}`)
+  }
 })
 
 console.log('\nsha256Hex')
