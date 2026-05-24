@@ -2,12 +2,12 @@
  * functions/cors.js
  *
  * Single source of truth for browser CORS on the bearer-token HTTP
- * endpoints (apiAiChat, apiCreateMomoPayment, apiMomoPaymentStatus,
- * apiTextToSpeech, the lesson-plan/worksheet streaming endpoints).
+ * endpoints (apiAiChat, apiTextToSpeech, the lesson-plan/worksheet
+ * streaming endpoints).
  *
  * Dependency-free (no firebase-admin / firebase-functions imports) so it
  * is unit-tested by the repo-root `npm run test:all` without functions/
- * deps — same pattern as functions/aiPromptPolicy.js & momoSettlement.js.
+ * deps — same pattern as functions/aiPromptPolicy.js.
  *
  * Why: these endpoints used to send `Access-Control-Allow-Origin: *`
  * (or v2 `cors:true`, which reflects ANY origin). They're authenticated

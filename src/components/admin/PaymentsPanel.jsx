@@ -166,7 +166,7 @@ export default function PaymentsPanel() {
         <p className="text-eyebrow">Admin overview</p>
         <h1 className="text-display-xl text-gray-800 mt-1">💳 Payments</h1>
         <p className="text-body-sm text-gray-500 mt-1">
-          Review pending MTN MoMo payments, grant premium manually, and manage roles.
+          Confirm Mobile Money payments after WhatsApp verification, grant premium manually, and manage roles.
         </p>
       </div>
 
@@ -197,9 +197,10 @@ export default function PaymentsPanel() {
                     <span className="bg-green-100 text-green-700 px-2 py-0.5 rounded-full text-xs font-bold">{PLANS[p.planId ?? p.plan]?.name ?? p.planId ?? p.plan} K{p.amountZMW}</span>
                   </div>
                   <p className="text-sm text-gray-500">{p.email}</p>
-                  <p className="text-sm text-gray-600 mt-1">MTN MoMo: <span className="font-bold">{p.phoneNumber}</span></p>
+                  {p.phoneNumber && (
+                    <p className="text-sm text-gray-600 mt-1">Mobile Money: <span className="font-bold">{p.phoneNumber}</span></p>
+                  )}
                   <p className="text-xs text-gray-400 mt-1">Submitted: {fmtDate(p.createdAt)}</p>
-                  <p className="text-xs text-gray-400 mt-1">MTN status: {p.mtnStatus || '—'}</p>
                   {p.reason && <p className="text-xs text-red-500 mt-1">{p.reason}</p>}
                 </div>
                 {p.status === 'pending' && (

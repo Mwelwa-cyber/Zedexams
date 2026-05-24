@@ -165,8 +165,13 @@ export const PLANS = {
 }
 
 export const PAYMENT_DETAILS = {
-  MTN: {
-    name: 'MTN Mobile Money',
+  // Phone that receives Mobile Money payments. Same number doubles as
+  // the WhatsApp confirmation line. Keep both fields formatted with the
+  // leading "+" so wa.me / tel: links stay portable.
+  mobileMoney: {
+    number: '+260968310746',
+    displayNumber: '0968 310 746',
+    providers: 'Airtel Money / MTN MoMo',
   },
   contact: {
     whatsapp: '+260968310746',
