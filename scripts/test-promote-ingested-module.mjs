@@ -47,13 +47,16 @@ Module._load = function(request, parent, ...rest) {
       invalidateKbCache: () => {},
     }
   }
+  if (request === '../agents/learnerAi/runners/curriculumWatcher') {
+    return {runCurriculumWatcher: async () => ({ok: true, outcomes: []})}
+  }
   return origLoad.call(this, request, parent, ...rest)
 }
 const mod = await import(SRC)
 Module._load = origLoad
 const {
   slug, buildTopicId, serialiseModule,
-  coerceStringArray, normaliseEnrichment,
+  coerceStringArray, normaliseEnrichment, summariseRunOutcome,
   ENRICH_MAX_ITEMS, ENRICH_ITEM_CHAR_CAP,
 } = mod._internals
 
@@ -244,6 +247,54 @@ test('long entries are truncated, not dropped', () => {
   assertEq(e.specificOutcomes.length, 1)
   assertEq(e.specificOutcomes[0].length, ENRICH_ITEM_CHAR_CAP)
   assert(e.specificOutcomes[0].startsWith('Identify '))
+})
+
+console.log('\nsummariseRunOutcome — shape the UI receives')
+
+test('happy path: aggregates counts + per-source breakdown', () => {
+  const result = {
+    ok: true,
+    changedCount: 2,
+    unreachableCount: 1,
+    ingestedTotal: 7,
+    outcomes: [
+      {sourceId: 'cdc-repository', outcome: 'changed', ingestedModuleCount: 4, reportId: 'r1'},
+      {sourceId: 'moe-edu-zm-syllabi', outcome: 'first_snapshot', ingestedModuleCount: 3, reportId: 'r2'},
+      {sourceId: 'ecz-zambia', outcome: 'unreachable', reason: 'http_503'},
+      {sourceId: 'moe-zambia', outcome: 'skipped', reason: 'cooldown'},
+    ],
+  }
+  const s = summariseRunOutcome(result)
+  assertEq(s.changedCount, 2)
+  assertEq(s.unreachableCount, 1)
+  assertEq(s.ingestedTotal, 7)
+  assertEq(s.bySource['cdc-repository'].outcome, 'changed')
+  assertEq(s.bySource['cdc-repository'].ingestedModuleCount, 4)
+  assertEq(s.bySource['cdc-repository'].reportId, 'r1')
+  assertEq(s.bySource['ecz-zambia'].outcome, 'unreachable')
+  assertEq(s.bySource['ecz-zambia'].reason, 'http_503')
+  assertEq(s.bySource['moe-zambia'].outcome, 'skipped')
+})
+
+test('missing fields → zero / empty defaults', () => {
+  const s = summariseRunOutcome({})
+  assertEq(s.changedCount, 0)
+  assertEq(s.unreachableCount, 0)
+  assertEq(s.ingestedTotal, 0)
+  assertEq(Object.keys(s.bySource).length, 0)
+})
+
+test('skips malformed outcome entries', () => {
+  const s = summariseRunOutcome({
+    outcomes: [
+      {sourceId: 'ok', outcome: 'changed'},
+      null,
+      {outcome: 'no-source-id'}, // missing sourceId
+      'not an object',
+    ],
+  })
+  assertEq(Object.keys(s.bySource).length, 1)
+  assertEq(s.bySource.ok.outcome, 'changed')
 })
 
 console.log(`\n${pass} passed, ${fail} failed`)

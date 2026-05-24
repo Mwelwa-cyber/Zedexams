@@ -6,6 +6,7 @@ import {
   promoteCurriculumModule,
   promoteCurriculumModuleWithAi,
   rejectCurriculumModule,
+  runCurriculumWatcherNow,
 } from '../../../utils/stagedCurriculumModules'
 
 // Admin queue for curriculumWatcher-ingested modules. Each row is one
@@ -54,6 +55,7 @@ export default function StagedModulesPanel() {
   const [error, setError] = useState(null)
   const [notice, setNotice] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [running, setRunning] = useState(false)
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -130,6 +132,42 @@ export default function StagedModulesPanel() {
     setBusyId(null)
   }
 
+  async function handleRunWatcherNow() {
+    if (!confirm(
+      'Run the curriculum watcher right now?\n\n' +
+      'This visits all 5 trusted sources (CDC, edu.gov.zm, ECZ, MoE, CDC Repository), ' +
+      'downloads any changed module documents, parses them, and stages them here ' +
+      'for review.\n\n' +
+      'Can take 1–3 minutes. Per-source weekly/monthly cooldowns still apply — ' +
+      'sources you checked recently will be skipped.',
+    )) return
+    setRunning(true)
+    setError(null)
+    setNotice(null)
+    const result = await runCurriculumWatcherNow()
+    if (!result.ok) {
+      setError(result.error)
+    } else {
+      const s = result.summary || {}
+      const bySource = s.bySource || {}
+      const bits = Object.entries(bySource)
+        .map(([id, o]) => {
+          const ingested = o.ingestedModuleCount ?
+            ` (${o.ingestedModuleCount} ingested)` : ''
+          return `${id}: ${o.outcome}${ingested}`
+        })
+        .join(' · ')
+      setNotice(
+        `Watcher run complete. ${s.changedCount || 0} source(s) changed, ` +
+        `${s.unreachableCount || 0} unreachable, ` +
+        `${s.ingestedTotal || 0} module(s) ingested. ` +
+        (bits ? `\n${bits}` : ''),
+      )
+      await load()
+    }
+    setRunning(false)
+  }
+
   async function handleReject(m) {
     const reason = prompt(
       `Reject "${m.topic || '(no topic)'}"?\n\n` +
@@ -164,7 +202,7 @@ export default function StagedModulesPanel() {
       </p>
 
       {notice && (
-        <div className="mb-3 px-3 py-2 rounded border border-emerald-300 bg-emerald-50 text-sm text-emerald-800">
+        <div className="mb-3 px-3 py-2 rounded border border-emerald-300 bg-emerald-50 text-sm text-emerald-800 whitespace-pre-line">
           {notice}
         </div>
       )}
@@ -174,17 +212,27 @@ export default function StagedModulesPanel() {
         </div>
       )}
 
-      <div className="mb-3 flex items-center gap-2">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={handleRunWatcherNow}
+          disabled={running || loading}
+          title="Trigger one full pass of the curriculum-watcher agent right now. Takes 1–3 minutes."
+          className="text-xs font-semibold px-3 py-1.5 rounded-full bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+        >
+          {running ? 'Running watcher…' : 'Run watcher now'}
+        </button>
         <button
           type="button"
           onClick={load}
-          disabled={loading}
+          disabled={loading || running}
           className="text-xs font-semibold px-3 py-1.5 rounded-full bg-slate-100 text-slate-700 hover:bg-slate-200 disabled:opacity-50"
         >
           {loading ? 'Loading…' : 'Refresh'}
         </button>
         <span className="text-xs text-slate-500">
           {modules.length} staged module(s) awaiting review
+          {running && ' · watcher run in progress, this may take a couple of minutes'}
         </span>
       </div>
 

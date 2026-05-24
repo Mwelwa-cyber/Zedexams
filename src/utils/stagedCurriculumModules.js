@@ -31,6 +31,11 @@ const promoteWithAiCallable = httpsCallable(functions, 'promoteIngestedCurriculu
 const rejectCallable = httpsCallable(functions, 'rejectIngestedCurriculumModule', {
   timeout: 15_000,
 })
+const runWatcherNowCallable = httpsCallable(functions, 'runCurriculumWatcherNow', {
+  // Match the server-side timeoutSeconds — full runs can take a couple
+  // of minutes when downloading + parsing modules across all sources.
+  timeout: 540_000,
+})
 
 function toError(err, fallback) {
   if (err?.code === 'permission-denied') return 'Admin only.'
@@ -80,5 +85,23 @@ export async function rejectCurriculumModule(curriculumId, reason) {
     return { ok: true, ...data }
   } catch (err) {
     return { ok: false, error: toError(err, 'Reject failed') }
+  }
+}
+
+/**
+ * Manually trigger one full pass of the curriculumWatcher agent. Used
+ * to verify ingestion without waiting for the daily 02:00 UTC cron.
+ * Returns `{ ok, taskId, summary: { changedCount, unreachableCount,
+ * ingestedTotal, bySource } }` on success.
+ */
+export async function runCurriculumWatcherNow() {
+  try {
+    const { data } = await runWatcherNowCallable({})
+    if (data && data.ok === false) {
+      return { ok: false, error: data.error || 'Run failed' }
+    }
+    return { ok: true, ...data }
+  } catch (err) {
+    return { ok: false, error: toError(err, 'Run failed') }
   }
 }

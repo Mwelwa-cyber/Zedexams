@@ -48,6 +48,9 @@ const {
   getUserRole, callAnthropic, getAnthropicApiKey,
 } = require("../aiService");
 const {getActiveKbVersion, invalidateKbCache} = require("./cbcKnowledge");
+const {
+  runCurriculumWatcher,
+} = require("../agents/learnerAi/runners/curriculumWatcher");
 
 const LIST_LIMIT = 100;
 
@@ -568,9 +571,84 @@ exports.promoteIngestedCurriculumModuleWithAi = onCall(
     },
 );
 
+// ── Manual "Run watcher now" trigger ──────────────────────────────
+//
+// Admin-only callable that invokes runCurriculumWatcher() inline so
+// an admin can verify ingestion without waiting for the daily
+// scheduled run (02:00 UTC via curriculumUpdateCheckerScheduled).
+//
+// Notes for callers:
+//   - Per-source weekly/monthly cooldowns still apply. A second
+//     manual run within the cooldown window for a given source will
+//     just record outcome:"skipped" for that source.
+//   - The runner can take up to a couple of minutes when it actually
+//     downloads + parses modules. Client-side timeout is set
+//     accordingly. Memory is bumped to 512MiB because pdf-parse +
+//     mammoth load the whole file in-memory.
+//   - Concurrency: no lock today. Two admins clicking within the
+//     same minute would race on Firestore writes, but writes are
+//     keyed deterministically (sha256 of sourceUrl) so duplicates
+//     converge cleanly. The chance of a collision is low.
+//   - Errors from the runner are caught + returned as part of the
+//     payload; we never throw out of this callable so the UI can
+//     render whatever happened.
+
+function summariseRunOutcome(result) {
+  const outcomes = Array.isArray(result.outcomes) ? result.outcomes : [];
+  const bySource = {};
+  for (const o of outcomes) {
+    if (!o || typeof o.sourceId !== "string") continue;
+    bySource[o.sourceId] = {
+      outcome: o.outcome || "unknown",
+      ingestedModuleCount: o.ingestedModuleCount || 0,
+      ingestedSkippedCount: o.ingestedSkippedCount || 0,
+      reason: o.reason || null,
+      reportId: o.reportId || null,
+    };
+  }
+  return {
+    changedCount: Number(result.changedCount) || 0,
+    unreachableCount: Number(result.unreachableCount) || 0,
+    ingestedTotal: Number(result.ingestedTotal) || 0,
+    bySource,
+  };
+}
+
+exports.runCurriculumWatcherNow = onCall(
+    {timeoutSeconds: 540, memory: "512MiB"},
+    async (request) => {
+      const uid = await requireAdmin(request);
+      const taskId = `manual-${uid}-${Date.now()}`;
+      let result;
+      try {
+        result = await runCurriculumWatcher({task: {id: taskId}});
+      } catch (err) {
+        return {
+          ok: false,
+          taskId,
+          error: `Runner threw: ${(err && err.message || "unknown")
+              .slice(0, 300)}`,
+        };
+      }
+      if (!result || result.ok !== true) {
+        return {
+          ok: false,
+          taskId,
+          error: (result && result.error) ||
+            "Runner returned a non-ok result.",
+        };
+      }
+      return {
+        ok: true,
+        taskId,
+        summary: summariseRunOutcome(result),
+      };
+    },
+);
+
 // Pure helpers exported for unit tests.
 exports._internals = {
   slug, buildTopicId, serialiseModule,
-  coerceStringArray, normaliseEnrichment,
+  coerceStringArray, normaliseEnrichment, summariseRunOutcome,
   ENRICH_MAX_ITEMS, ENRICH_ITEM_CHAR_CAP,
 };

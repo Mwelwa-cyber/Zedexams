@@ -110,6 +110,7 @@ const {
   promoteIngestedCurriculumModule,
   promoteIngestedCurriculumModuleWithAi,
   rejectIngestedCurriculumModule,
+  runCurriculumWatcherNow,
 } = require("./teacherTools/promoteIngestedCurriculumModule");
 // Teacher Tools — admin-only preflight that asks the strict learner-AI
 // resolver whether a given grade/subject/topic/subtopic/term would be
@@ -2098,6 +2099,9 @@ exports.listStagedCurriculumModules = listStagedCurriculumModules;
 exports.promoteIngestedCurriculumModule = promoteIngestedCurriculumModule;
 exports.promoteIngestedCurriculumModuleWithAi = promoteIngestedCurriculumModuleWithAi;
 exports.rejectIngestedCurriculumModule = rejectIngestedCurriculumModule;
+// Manual trigger so admins can verify ingestion without waiting for
+// curriculumUpdateCheckerScheduled's 02:00 UTC cron.
+exports.runCurriculumWatcherNow = runCurriculumWatcherNow;
 
 // Teacher Tools — admin-only: preflight a (grade, subject, topic,
 // subtopic, term) tuple against the strict learner-AI curriculum
