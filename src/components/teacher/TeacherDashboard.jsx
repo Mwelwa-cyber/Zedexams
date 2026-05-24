@@ -13,8 +13,6 @@ import UsageMeter from './UsageMeter'
 import SeoHelmet from '../seo/SeoHelmet'
 import TeacherOnboardingTour from './TeacherOnboardingTour'
 
-const TEACHER_SYLLABI_TOTAL_COUNT = 41
-
 const STUDIOS = [
   {
     emoji: '🦁',
@@ -64,15 +62,6 @@ const STUDIOS = [
     tagline: 'Topic, weekly, monthly, mid-term & end-of-term assessments.',
     to: '/teacher/assessments',
     mascot: 'Sharp Eagle',
-  },
-  {
-    emoji: '🐘',
-    mascotBg: '#fcd9c4',
-    badge: 'FREE',
-    title: 'Syllabi',
-    tagline: 'Official CDC syllabi — view all Zambian curricula in one place.',
-    to: '/teacher/syllabi',
-    mascot: `${TEACHER_SYLLABI_TOTAL_COUNT} docs`,
   },
   {
     emoji: '📚',
