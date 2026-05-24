@@ -5,6 +5,14 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-05-24
+
+### Added
+- Admin interface for managing AI agents with actionable controls. (#583)
+
+### Fixed
+- CALA-CBC alignment issues to ensure proper integration. (#583)
+
 ### Added
 - AI agents Phase 5: completes the operating model.
   - Admin pause toggle on `/admin/agents/:agentId` flips
