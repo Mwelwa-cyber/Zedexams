@@ -1205,6 +1205,13 @@ export default function CreateQuizV2() {
       // quiz.
       assertNoBlobImageUrls(questionsForSave, passagesForSave)
       const totalMarksForSave = questionsForSave.reduce((sum, question) => sum + (question.marks || 1), 0)
+      // Phase 10: fresh count of questions still flagged for review. Persisted
+      // so the badge / chip / banner stay truthful as teachers fix flagged
+      // questions one by one — the older boolean importStatus was a snapshot
+      // taken at first save and never updated.
+      const reviewCountForSave = form.mode === 'imported_document'
+        ? questionsForSave.filter(question => question.requiresReview).length
+        : 0
       const status = publish ? 'published' : submit ? 'pending' : 'draft'
 
       const quizId = await createQuiz({
@@ -1214,6 +1221,7 @@ export default function CreateQuizV2() {
         passageCount: passagesForSave.length,
         totalMarks: totalMarksForSave,
         questionCount: questionsForSave.length,
+        reviewCount: reviewCountForSave,
         importStatus: form.mode === 'imported_document'
           ? (questionsForSave.some(question => question.requiresReview) ? 'needs_review' : (form.importStatus || 'success'))
           : form.importStatus,

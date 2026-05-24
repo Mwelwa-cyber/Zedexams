@@ -1070,6 +1070,11 @@ export default function AssessmentStudio() {
         passageCount: passagesForSave.length,
         totalMarks: totalMarksForSave,
         questionCount: questionsForSave.length,
+        // Phase 10: see CreateQuizV2 comment — fresh count, persisted so the
+        // badge/chip/banner stay honest as flagged questions get fixed.
+        reviewCount: form.mode === 'imported_document'
+          ? questionsForSave.filter(q => q.requiresReview).length
+          : 0,
         mode: form.mode,
         importStatus: form.mode === 'imported_document'
           ? (questionsForSave.some(q => q.requiresReview) ? 'needs_review' : (form.importStatus || 'success'))

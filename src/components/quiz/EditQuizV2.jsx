@@ -25,6 +25,7 @@ import {
 import QuizSectionsEditor from './QuizSectionsEditor'
 import QuizEditorPreviewPanel from './QuizEditorPreviewPanel'
 import QuizVerifyModal from './QuizVerifyModal'
+import ImportReviewBanner from './ImportReviewBanner'
 import QuizEditorActionBar from './QuizEditorActionBar'
 import QuizEditorFloatingNav from './QuizEditorFloatingNav'
 import QuizValidationChecklist from './QuizValidationChecklist'
@@ -144,7 +145,7 @@ function StatPill({ label, value, color }) {
 export default function EditQuizV2() {
   const { quizId } = useParams()
   const navigate = useNavigate()
-  const { getQuizById, getQuestions, updateQuizWithQuestions } = useFirestore()
+  const { getQuizById, getQuestions, updateQuiz, updateQuizWithQuestions } = useFirestore()
   const { currentUser, isAdmin } = useAuth()
 
   const [loading, setLoading] = useState(true)
@@ -902,6 +903,7 @@ export default function EditQuizV2() {
           passages: serializedSections.passages,
           parts: serializedSections.parts,
           passageCount: serializedSections.passages.length,
+          reviewCount: computeReviewCount(serializedSections.questions),
           // Auto-save never flips publish status — and we already bail
           // above for `published`, so this branch only runs for drafts /
           // pending. The status passthrough preserves whichever of those
@@ -973,6 +975,36 @@ export default function EditQuizV2() {
     }
   }, [dirty, quizId, canEdit])
 
+  // Phase 10: shared count helper called from every save path. Imported
+  // docs persist a fresh count of how many questions still carry
+  // requiresReview so the badge/banner stay honest as teachers fix the
+  // flagged questions over multiple save cycles. Non-imports always
+  // persist 0 — the field is universal so the summarizer doesn't have to
+  // care which path created the doc.
+  function computeReviewCount(questionsForSave) {
+    if (form.mode !== 'imported_document') return 0
+    return questionsForSave.filter(q => q?.requiresReview).length
+  }
+
+  // Phase 9: ImportReviewBanner calls this when the teacher clicks
+  // "Mark as reviewed". Patches the quiz doc to clear the importStatus
+  // flag, the importWarnings array, and the persisted review count
+  // (Phase 10) so all three signals agree the doc is clean. Then mirrors
+  // the change in local form state so the banner unmounts immediately
+  // (no waiting for a reload). Pre-existing question records and
+  // per-question requiresReview flags are left alone — those still surface
+  // on the individual question cards via reviewNotes / importWarnings.
+  async function handleMarkImportReviewed() {
+    if (!quizId) return
+    try {
+      await updateQuiz(quizId, { importStatus: 'success', importWarnings: [], reviewCount: 0 })
+      setForm(curr => ({ ...curr, importStatus: 'success', importWarnings: [], reviewCount: 0 }))
+      show('Cleared the review flag.')
+    } catch (err) {
+      show(`Could not update: ${getErrorMessage(err, 'unexpected error')}`, true)
+    }
+  }
+
   async function handleSave(mode = 'draft') {
     // Publishing triggers the full pre-publish checklist; lower-trust
     // modes (draft / pending) keep the legacy toast-on-first-error flow.
@@ -1014,6 +1046,7 @@ export default function EditQuizV2() {
           passages: serializedSections.passages,
           parts: serializedSections.parts,
           passageCount: serializedSections.passages.length,
+          reviewCount: computeReviewCount(serializedSections.questions),
           status: mode,
           isPublished,
           updatedBy: currentUser.uid,
@@ -1069,6 +1102,7 @@ export default function EditQuizV2() {
           passages: serializedSections.passages,
           parts: serializedSections.parts,
           passageCount: serializedSections.passages.length,
+          reviewCount: computeReviewCount(serializedSections.questions),
           status: nextStatus,
           isPublished: nextStatus === 'published',
           updatedBy: currentUser.uid,
@@ -1193,16 +1227,12 @@ export default function EditQuizV2() {
         </div>
       </div>
 
-      {form.mode === 'imported_document' && (
-        <div className={`rounded-2xl border px-4 py-3 ${
-          form.importStatus === 'needs_review' ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'
-        }`}>
-          <p className={`text-sm font-black ${form.importStatus === 'needs_review' ? 'text-amber-900' : 'text-emerald-900'}`}>Imported from Word/PDF</p>
-          <p className={`mt-1 text-xs font-bold leading-relaxed ${form.importStatus === 'needs_review' ? 'text-amber-800' : 'text-emerald-800'}`}>
-            Source: {form.sourceFileName || 'document'} · Status: {form.importStatus || 'success'} · Check all marked questions before publishing.
-          </p>
-        </div>
-      )}
+      {/* Phase 9: replaces the previous static "Imported from Word/PDF"
+          banner with an actionable one that lists warnings and lets the
+          teacher clear the review flag once they've fixed the flagged
+          questions. Renders nothing for clean imports — the badge on the
+          list view (Phase 7) is enough of an info-only signal. */}
+      <ImportReviewBanner record={form} onMarkReviewed={handleMarkImportReviewed} busy={saving} />
 
       {wizardStep === 'create' && (
         <>

@@ -8,6 +8,8 @@ import Skeleton from '../ui/Skeleton'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import { todayString } from '../../utils/examService'
 import { EXAM_ONLY_QUESTION_THRESHOLD, isExamOnly } from '../../utils/quizClassification.js'
+import { summarizeImportReview } from '../../utils/importReviewSummary.js'
+import ImportReviewBadge from '../quiz/ImportReviewBadge'
 import SeoHelmet from '../seo/SeoHelmet'
 
 const TABS = [
@@ -173,11 +175,7 @@ function QuizRow({ quiz, onPublish, onSetDailyExam, onUnassign, onDelete, deleti
             <Pill color="bg-indigo-100 text-indigo-700">G{quiz.grade}</Pill>
             <Pill color="bg-gray-100 text-gray-600">T{quiz.term}</Pill>
             <Pill color="bg-gray-50 text-gray-500">{qCount}Q · {duration}m</Pill>
-            {quiz.mode === 'imported_document' && (
-              <Pill color={quiz.importStatus === 'needs_review' ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}>
-                Imported
-              </Pill>
-            )}
+            <ImportReviewBadge record={quiz} />
             {quizType === 'daily_exam' && (
               <Pill color="bg-amber-100 text-amber-700">🏆 Daily Exam · {quiz.dailyExamDate}</Pill>
             )}
@@ -294,6 +292,10 @@ export default function ManageContent() {
   const [gradeF,     setGradeF]     = useState('')
   const [subjectF,   setSubjectF]   = useState('')
   const [quizTypeF,  setQuizTypeF]  = useState('')
+  // Phase 8: when true, the quiz list collapses to imports the parser
+  // flagged as needs_review (or that carry import warnings). Off by default
+  // so the existing tabs keep working as they did before.
+  const [needsReviewOnly, setNeedsReviewOnly] = useState(false)
 
   const [deleting,     setDeleting]     = useState(null)
   const [migrating,    setMigrating]    = useState(false)
@@ -464,13 +466,30 @@ export default function ManageContent() {
       if (quizTypeF === 'practice')   return qt === 'practice' && !isExamOnly(q)
       return qt === quizTypeF
     })()
+    // Phase 8: when the "Needs review" chip is on, drop everything that's
+    // either not an import or that imported cleanly. Implemented via the
+    // same summarizer the badge uses, so the chip count and the badges
+    // always agree.
+    const matchesNeedsReview = !needsReviewOnly || summarizeImportReview(q).needsReview
     return (
       (!gradeF      || q.grade   === gradeF) &&
       (!subjectF    || q.subject === subjectF) &&
       matchesType &&
+      matchesNeedsReview &&
       (!term        || q.title?.toLowerCase().includes(term) || q.subject?.toLowerCase().includes(term))
     )
   })
+
+  // Count of quizzes the Needs-review chip would surface, computed against
+  // the ALREADY-grade/subject/type/text-filtered set so the chip's "(N)"
+  // matches what the user will see after they enable it.
+  const needsReviewCount = quizzes.reduce((count, q) => {
+    if (!summarizeImportReview(q).needsReview) return count
+    if (gradeF && q.grade !== gradeF) return count
+    if (subjectF && q.subject !== subjectF) return count
+    if (term && !(q.title?.toLowerCase().includes(term) || q.subject?.toLowerCase().includes(term))) return count
+    return count + 1
+  }, 0)
 
   const filteredLessons = lessons.filter(l => (
       (!gradeF   || l.grade   === gradeF) &&
@@ -657,11 +676,43 @@ export default function ManageContent() {
           <option value="daily_exam">🏆 Daily Exam</option>
           <option value="unpublished">⚠ Unpublished</option>
         </select>
-        {(search || gradeF || subjectF || quizTypeF) && (
+        {/* Phase 8: chip-style toggle. Disabled (greyed out) when there's
+            nothing to review so it never looks "broken" — clicking has no
+            visible effect because the predicate matches zero items. */}
+        <button
+          type="button"
+          onClick={() => setNeedsReviewOnly(v => !v)}
+          aria-pressed={needsReviewOnly}
+          disabled={!needsReviewOnly && needsReviewCount === 0}
+          className={`rounded-xl border-2 px-3 py-2 text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+            needsReviewOnly
+              ? 'border-amber-500 bg-amber-100 text-amber-800'
+              : 'border-gray-200 bg-white text-gray-700 hover:border-amber-300'
+          }`}
+          title={needsReviewOnly
+            ? 'Click to show all imports'
+            : needsReviewCount > 0
+              ? `${needsReviewCount} imported draft${needsReviewCount === 1 ? '' : 's'} flagged for review`
+              : 'No imports currently need review'}
+        >
+          ⚠️ Needs review
+          {needsReviewCount > 0 && (
+            <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-amber-500 px-1.5 text-[11px] font-black text-white min-w-[20px]">
+              {needsReviewCount}
+            </span>
+          )}
+        </button>
+        {(search || gradeF || subjectF || quizTypeF || needsReviewOnly) && (
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => { setSearch(''); setGradeF(''); setSubjectF(''); setQuizTypeF('') }}
+            onClick={() => {
+              setSearch('')
+              setGradeF('')
+              setSubjectF('')
+              setQuizTypeF('')
+              setNeedsReviewOnly(false)
+            }}
             leadingIcon={<Icon as={X} size="sm" />}
           >
             Clear
