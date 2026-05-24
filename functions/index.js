@@ -108,6 +108,7 @@ const {
 const {
   listStagedCurriculumModules,
   promoteIngestedCurriculumModule,
+  promoteIngestedCurriculumModuleWithAi,
   rejectIngestedCurriculumModule,
 } = require("./teacherTools/promoteIngestedCurriculumModule");
 // Teacher Tools — admin-only preflight that asks the strict learner-AI
@@ -2095,6 +2096,7 @@ exports.importCurriculumModules = importCurriculumModules;
 // teacherTools/promoteIngestedCurriculumModule.js for the doc rules.
 exports.listStagedCurriculumModules = listStagedCurriculumModules;
 exports.promoteIngestedCurriculumModule = promoteIngestedCurriculumModule;
+exports.promoteIngestedCurriculumModuleWithAi = promoteIngestedCurriculumModuleWithAi;
 exports.rejectIngestedCurriculumModule = rejectIngestedCurriculumModule;
 
 // Teacher Tools — admin-only: preflight a (grade, subject, topic,

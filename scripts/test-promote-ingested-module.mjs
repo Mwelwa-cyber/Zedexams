@@ -51,7 +51,11 @@ Module._load = function(request, parent, ...rest) {
 }
 const mod = await import(SRC)
 Module._load = origLoad
-const {slug, buildTopicId, serialiseModule} = mod._internals
+const {
+  slug, buildTopicId, serialiseModule,
+  coerceStringArray, normaliseEnrichment,
+  ENRICH_MAX_ITEMS, ENRICH_ITEM_CHAR_CAP,
+} = mod._internals
 
 let pass = 0, fail = 0
 const failures = []
@@ -156,6 +160,90 @@ test('handles a Firestore Timestamp on rejectedAt too', () => {
   const out = serialiseModule(snap)
   assertEq(out.rejectedAt, '2026-05-25T08:00:00.000Z')
   assertEq(out.rejectedReason, 'wrong subject')
+})
+
+console.log('\ncoerceStringArray — defensive parsing of LLM output')
+
+test('non-array → []', () => {
+  assertEq(coerceStringArray(null).length, 0)
+  assertEq(coerceStringArray('not an array').length, 0)
+  assertEq(coerceStringArray({}).length, 0)
+})
+test('trims + drops empty entries', () => {
+  const out = coerceStringArray(['  alpha  ', '', '   ', 'beta'])
+  assertEq(out.length, 2)
+  assertEq(out[0], 'alpha')
+  assertEq(out[1], 'beta')
+})
+test('caps each entry at ENRICH_ITEM_CHAR_CAP', () => {
+  const long = 'x'.repeat(ENRICH_ITEM_CHAR_CAP + 100)
+  const out = coerceStringArray([long])
+  assertEq(out.length, 1)
+  assertEq(out[0].length, ENRICH_ITEM_CHAR_CAP)
+})
+test('caps array at ENRICH_MAX_ITEMS', () => {
+  const arr = new Array(ENRICH_MAX_ITEMS + 5).fill('x')
+  const out = coerceStringArray(arr)
+  assert(out.length <= ENRICH_MAX_ITEMS,
+    `must cap, got ${out.length}`)
+})
+test('coerces numbers to strings', () => {
+  const out = coerceStringArray([1, 2, 'three'])
+  assertEq(out.length, 3)
+  assertEq(out[0], '1')
+})
+
+console.log('\nnormaliseEnrichment — full payload safety')
+
+test('happy path: all five fields populated', () => {
+  const e = normaliseEnrichment({
+    subtopics: ['Sub A', 'Sub B'],
+    specificOutcomes: ['Identify X', 'Describe Y'],
+    keyCompetencies: ['Critical thinking'],
+    values: ['Honesty'],
+    suggestedMaterials: ['Textbook page 12'],
+  })
+  assertEq(e.subtopics.length, 2)
+  assertEq(e.specificOutcomes.length, 2)
+  assertEq(e.keyCompetencies.length, 1)
+  assertEq(e.values.length, 1)
+  assertEq(e.suggestedMaterials.length, 1)
+})
+
+test('missing fields → empty arrays (never undefined)', () => {
+  const e = normaliseEnrichment({})
+  for (const k of ['subtopics', 'specificOutcomes', 'keyCompetencies', 'values', 'suggestedMaterials']) {
+    assert(Array.isArray(e[k]), `${k} must be an array`)
+    assertEq(e[k].length, 0)
+  }
+})
+
+test('null payload → empty enrichment shape', () => {
+  const e = normaliseEnrichment(null)
+  assertEq(e.subtopics.length, 0)
+})
+
+test('wrong types per field → empty arrays for those fields', () => {
+  const e = normaliseEnrichment({
+    subtopics: 'not an array',
+    specificOutcomes: 42,
+    keyCompetencies: ['ok'],
+    values: null,
+    suggestedMaterials: {bad: 'shape'},
+  })
+  assertEq(e.subtopics.length, 0)
+  assertEq(e.specificOutcomes.length, 0)
+  assertEq(e.keyCompetencies.length, 1)
+  assertEq(e.values.length, 0)
+  assertEq(e.suggestedMaterials.length, 0)
+})
+
+test('long entries are truncated, not dropped', () => {
+  const longOutcome = 'Identify ' + 'x'.repeat(ENRICH_ITEM_CHAR_CAP * 2)
+  const e = normaliseEnrichment({specificOutcomes: [longOutcome]})
+  assertEq(e.specificOutcomes.length, 1)
+  assertEq(e.specificOutcomes[0].length, ENRICH_ITEM_CHAR_CAP)
+  assert(e.specificOutcomes[0].startsWith('Identify '))
 })
 
 console.log(`\n${pass} passed, ${fail} failed`)

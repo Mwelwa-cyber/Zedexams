@@ -24,6 +24,10 @@ const listCallable = httpsCallable(functions, 'listStagedCurriculumModules', {
 const promoteCallable = httpsCallable(functions, 'promoteIngestedCurriculumModule', {
   timeout: 30_000,
 })
+const promoteWithAiCallable = httpsCallable(functions, 'promoteIngestedCurriculumModuleWithAi', {
+  // Longer timeout — Claude call can take ~10–30s on big extracts.
+  timeout: 60_000,
+})
 const rejectCallable = httpsCallable(functions, 'rejectIngestedCurriculumModule', {
   timeout: 15_000,
 })
@@ -50,6 +54,22 @@ export async function promoteCurriculumModule(curriculumId) {
     return { ok: true, ...data }
   } catch (err) {
     return { ok: false, error: toError(err, 'Promotion failed') }
+  }
+}
+
+/**
+ * AI-assisted promotion. Calls Claude on the staged module's RAG
+ * chunks to extract subtopics/outcomes/competencies/values/materials,
+ * then writes the canonical KB topic with those fields filled in.
+ * Cost: ~$0.02 per call. Slower (~10–30s) than the stub flow.
+ */
+export async function promoteCurriculumModuleWithAi(curriculumId) {
+  if (!curriculumId) return { ok: false, error: 'Missing curriculumId' }
+  try {
+    const { data } = await promoteWithAiCallable({ curriculumId })
+    return { ok: true, ...data }
+  } catch (err) {
+    return { ok: false, error: toError(err, 'AI promotion failed') }
   }
 }
 
