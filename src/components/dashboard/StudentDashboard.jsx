@@ -76,6 +76,8 @@ export default function StudentDashboard() {
   const { settings: platformSettings } = usePlatformSettings()
   const aiPracticeOn = !!(platformSettings && platformSettings.learnerAi &&
     platformSettings.learnerAi.showAiPracticeQuizzesToLearners)
+  const aiNotesOn = !!(platformSettings && platformSettings.learnerAi &&
+    platformSettings.learnerAi.showAiNotesToLearners)
   const { getUserResults, getWeaknessAnalysis } = useFirestore()
   const { isPremium, canUseWeaknessAnalysis }   = useSubscription()
   const navigate = useNavigate()
@@ -204,6 +206,32 @@ export default function StudentDashboard() {
               </div>
             </div>
             <span className="text-blue-600 font-bold text-sm shrink-0">
+              Open →
+            </span>
+          </div>
+        </Link>
+      )}
+
+      {/* AI notes banner — feature-flagged via
+          settings/global.learnerAi.showAiNotesToLearners. Same silent
+          pattern as the practice banner above. */}
+      {aiNotesOn && (
+        <Link
+          to="/ai-notes"
+          className="block rounded-2xl border-2 border-emerald-300 bg-gradient-to-br from-emerald-50 to-teal-50 p-4 hover-lift press-feedback"
+        >
+          <div className="flex items-start gap-3">
+            <span className="text-3xl shrink-0" aria-hidden="true">📓</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-bold text-slate-900">
+                AI study notes
+              </div>
+              <div className="text-xs text-slate-600 mt-0.5 leading-snug">
+                Curriculum-aligned notes for Grade {userProfile?.grade ?? '—'}.
+                Vocabulary, examples, and a quick-revision recap.
+              </div>
+            </div>
+            <span className="text-emerald-700 font-bold text-sm shrink-0">
               Open →
             </span>
           </div>

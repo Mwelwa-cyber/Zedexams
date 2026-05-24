@@ -67,6 +67,32 @@ const FLAGS = [
   },
 ]
 
+// Learner-visibility flags. Distinct from the auto-publish toggles
+// above: these decide whether published artifacts appear on the
+// learner-facing routes at all. With either flag OFF, the
+// corresponding learner pages render a silent redirect to /dashboard
+// — admins can still review the content in /admin/learner-ai. Even
+// after a successful approve→publish, learners only see the artifact
+// when the matching visibility flag is ON here.
+const VISIBILITY_FLAGS = [
+  {
+    key: 'showAiPracticeQuizzesToLearners',
+    label: 'Show AI practice quizzes to learners',
+    help: 'Reveals /ai-practice on the learner dashboard. Pulls every ' +
+      'published practice-quiz artifact for the learner\'s grade from ' +
+      'aiGeneratedContent. Off by default — turn on only after at least ' +
+      'one practice quiz has been approved.',
+  },
+  {
+    key: 'showAiNotesToLearners',
+    label: 'Show AI notes to learners',
+    help: 'Reveals /ai-notes on the learner dashboard. Pulls every ' +
+      'published notes artifact for the learner\'s grade from ' +
+      'aiGeneratedContent. Off by default — turn on after notes have ' +
+      'been approved by an admin.',
+  },
+]
+
 function Toggle({ on, onClick, disabled, ariaLabel }) {
   return (
     <button
@@ -489,6 +515,31 @@ export default function AgentSettings() {
           </p>
         </header>
         {FLAGS.map(f => (
+          <FlagRow
+            key={f.key}
+            flag={f}
+            value={settings[f.key]}
+            busy={busyKey === f.key}
+            onToggle={setFlag}
+          />
+        ))}
+      </section>
+
+      {/* Learner visibility — separate from auto-publish. Publish only
+          flips the artifact status; these flags decide whether the
+          learner-facing routes (/ai-practice, /ai-notes) render at all. */}
+      <section className="mb-6 bg-white border border-slate-200 rounded-lg p-4">
+        <header className="mb-2">
+          <h2 className="text-base font-bold text-slate-900">Learner visibility</h2>
+          <p className="text-xs text-slate-600 leading-snug">
+            Controls whether published artifacts appear on the
+            learner-facing routes. Approved content sits in
+            <code> aiGeneratedContent</code> with <code>status=&apos;published&apos;</code>
+            regardless of these flags; turning a flag ON here is what
+            actually surfaces the content to learners.
+          </p>
+        </header>
+        {VISIBILITY_FLAGS.map(f => (
           <FlagRow
             key={f.key}
             flag={f}
