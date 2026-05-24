@@ -166,6 +166,29 @@ export default function PlatformHealthPanel() {
         </div>
       )}
 
+      {/* Concrete next-step when the Anthropic key is missing — this is
+          the single most common reason a fresh deployment can't run
+          agent briefs, and there's no way to set Functions secrets
+          from a callable (Google requires CLI or Cloud Console), so
+          the best the panel can do is hand the admin the exact
+          command to run on their workstation. */}
+      {health && anthropic && !anthropic.ok && (
+        <div className="mb-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200">
+          <p className="font-black text-amber-100">Anthropic API is unreachable</p>
+          <p className="mt-1 text-amber-200/90">
+            {anthropic.error || 'The ANTHROPIC_API_KEY secret is not set on Firebase Functions.'}
+          </p>
+          <p className="mt-2 text-amber-100 font-black">Fix in one command (run on a machine with Firebase CLI logged in to examsprepzambia):</p>
+          <pre className="mt-1 rounded-lg bg-slate-900/70 border border-amber-500/30 p-2 text-[11px] text-amber-100 overflow-x-auto">
+            firebase functions:secrets:set ANTHROPIC_API_KEY
+          </pre>
+          <p className="mt-2 text-amber-200/80">
+            Paste your Claude API key when prompted (starts with <code>sk-ant-…</code>), then redeploy functions for the secret to take effect.
+            After CI deploys, click <strong>Refresh</strong> above.
+          </p>
+        </div>
+      )}
+
       {/* Diagnostic rows */}
       <div className="grid gap-2 md:grid-cols-2">
         <Row
