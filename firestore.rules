@@ -450,6 +450,11 @@ service cloud.firestore {
     // ── payments ──────────────────────────────────────────────
     match /payments/{paymentId} {
       allow read: if isAuthed() && (resource.data.userId == request.auth.uid || isAdmin());
+      // Admin-only create — admin grant flow writes a payment record so
+      // today's revenue / activations / CSV export queries have data to
+      // aggregate. Learners themselves never create payment docs (the
+      // legacy MoMo cloud function used to; that's gone).
+      allow create: if isAdmin();
       allow update: if isAdmin();
       allow delete: if isAdmin();
     }
