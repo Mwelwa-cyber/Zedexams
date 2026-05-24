@@ -20,6 +20,7 @@ import { getErrorMessage } from '../../utils/errors.js'
 import { validateStandaloneQuestion as sharedValidateStandaloneQuestion } from '../../utils/quizValidation.js'
 import QuizSectionsEditor from '../quiz/QuizSectionsEditor'
 import QuizEditorPreviewPanel from '../quiz/QuizEditorPreviewPanel'
+import ImportReviewBanner from '../quiz/ImportReviewBanner'
 import SeoHelmet from '../seo/SeoHelmet'
 
 const SUBJECTS = [
@@ -133,7 +134,7 @@ function StatPill({ label, value, color }) {
 export default function EditAssessment() {
   const { assessmentId } = useParams()
   const navigate = useNavigate()
-  const { getAssessmentById, getAssessmentQuestions, updateAssessmentWithQuestions } = useFirestore()
+  const { getAssessmentById, getAssessmentQuestions, updateAssessment, updateAssessmentWithQuestions } = useFirestore()
   const { currentUser, isAdmin } = useAuth()
 
   const [loading, setLoading] = useState(true)
@@ -792,6 +793,20 @@ export default function EditAssessment() {
     return true
   }
 
+  // Phase 9: ImportReviewBanner click handler. Patches the assessment
+  // doc to clear the import-review state and mirrors the change locally
+  // so the banner unmounts immediately.
+  async function handleMarkImportReviewed() {
+    if (!assessmentId) return
+    try {
+      await updateAssessment(assessmentId, { importStatus: 'success', importWarnings: [] })
+      setForm(curr => ({ ...curr, importStatus: 'success', importWarnings: [] }))
+      show('Cleared the review flag.')
+    } catch (err) {
+      show(`Could not update: ${getErrorMessage(err, 'unexpected error')}`, true)
+    }
+  }
+
   async function handleSave() {
     if (!validate()) return
     setSaving(true)
@@ -978,16 +993,11 @@ export default function EditAssessment() {
         <textarea value={form.coverInstructions || ''} onChange={event => setF('coverInstructions', event.target.value)} placeholder="Instructions to pupils (e.g. Answer all questions. Show your working clearly.)" rows={3} className={FIELD} />
       </div>
 
-      {form.mode === 'imported_document' && (
-        <div className={`rounded-2xl border px-4 py-3 ${
-          form.importStatus === 'needs_review' ? 'border-amber-200 bg-amber-50' : 'border-emerald-200 bg-emerald-50'
-        }`}>
-          <p className={`text-sm font-black ${form.importStatus === 'needs_review' ? 'text-amber-900' : 'text-emerald-900'}`}>Imported from Word/PDF</p>
-          <p className={`mt-1 text-xs font-bold leading-relaxed ${form.importStatus === 'needs_review' ? 'text-amber-800' : 'text-emerald-800'}`}>
-            Source: {form.sourceFileName || 'document'} · Status: {form.importStatus || 'success'} · Check all marked questions before saving.
-          </p>
-        </div>
-      )}
+      {/* Phase 9: actionable import-review banner. Renders nothing once
+          the import is clean — the on-list badge stays as the at-a-glance
+          status; the editor stops nagging once the teacher's marked it as
+          reviewed. */}
+      <ImportReviewBanner record={form} onMarkReviewed={handleMarkImportReviewed} busy={saving} />
 
       <QuizSectionsEditor
         variant="edit"
