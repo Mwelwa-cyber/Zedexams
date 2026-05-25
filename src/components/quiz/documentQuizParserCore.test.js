@@ -287,6 +287,62 @@ function runPreQuestionInstructionTest() {
 
 runPreQuestionInstructionTest()
 
+// Regression test for the "stem text bleeds into the wrong slot" bug. Past-
+// paper imports where the next question's number prefix went missing (Word
+// table flattened, PDF column reflow, etc.) used to cascade every subsequent
+// trailing line into Q1's explanation/stem, ballooning Q1 with Q2/Q3 content
+// and silently dropping Q2 from the editor. This mirrors the screenshot
+// failure where Q1 carried two "Extra text after options" warnings.
+function runStemBleedGuardTest() {
+  const blocks = [
+    block('1. What is the capital of France?'),
+    block('A. Berlin'),
+    block('B. Paris'),
+    block('C. London'),
+    block('D. Madrid'),
+    // A stray line of context that doesn't match any structural pattern —
+    // permitted to land as Q1's explanation, but only once.
+    block('Paris is in Western Europe.'),
+    // Next question lost its "2." prefix during extraction. Before the fix
+    // this bled into Q1's stem because it ends with `?` and Q1 already had
+    // options.
+    block('What is the capital of Germany?'),
+    block('A. Paris'),
+    block('B. Madrid'),
+    block('C. Berlin'),
+    block('D. Rome'),
+  ]
+
+  const warnings = []
+  const { sections, summary } = processImportedQuestionBlocks(blocks, warnings)
+  const allQuestions = allQuestionsFromSections(sections)
+
+  assert.equal(allQuestions.length, 2,
+    'both questions must survive even when the second loses its number prefix')
+  assert.equal(summary.questions, 2)
+
+  const q1 = allQuestions[0]
+  assert.match(plainRichText(q1.text), /capital of france/i,
+    'Q1 stem must remain "capital of France"')
+  assert.doesNotMatch(plainRichText(q1.text), /capital of germany/i,
+    'Q1 stem must not absorb the next question stem')
+  assert.doesNotMatch(plainRichText(q1.explanation), /capital of germany/i,
+    'Q1 explanation must not absorb the next question stem')
+
+  const q2 = allQuestions[1]
+  assert.match(plainRichText(q2.text), /capital of germany/i,
+    'Q2 must be recognised as its own question')
+  assert.equal(q2.options.length, 4, 'Q2 must keep its own options')
+  // Q2's options must match the source order — the cascade used to overwrite
+  // them with Q3's "A. Rome" / "B. Venice" etc.
+  assert.match(q2.options[0], /paris/i)
+  assert.match(q2.options[1], /madrid/i)
+  assert.match(q2.options[2], /berlin/i)
+  assert.match(q2.options[3], /rome/i)
+}
+
+runStemBleedGuardTest()
+
 // Phase 3: a DOCX table row that carries one image per option cell should
 // produce a question with optionMedia[] pointing at those images — not a
 // question stem image with the option images discarded.

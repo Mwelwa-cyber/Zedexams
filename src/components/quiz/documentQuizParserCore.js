@@ -1099,8 +1099,19 @@ function parseQuestionsFromBlocks(blocks, warnings) {
             return
           }
           if (imageOnlyHint && !current.diagramText) current.diagramText = line
-          if (current.options.length && !/\?$/.test(line)) {
+          if (current.options.length >= 2) {
+            // Same cascade guard as the standalone path — once a comprehension
+            // sub-question has its options, trailing text is almost always the
+            // next sub-question whose number went missing in extraction.
+            const looksLikeNextStem = /\?\s*$/.test(line)
+            const alreadyAbsorbedOneExtra = current.explanationParts.length > 0
+            if (looksLikeNextStem || alreadyAbsorbedOneExtra) {
+              startQuestion(line, { ...block, assets: lineAssets }, null, true)
+              current.reviewNotes.push('Question number was not detected — review this question.')
+              return
+            }
             current.explanationParts.push(line)
+            current.reviewNotes.push('Extra text after options was treated as explanation.')
           } else {
             current.textParts.push(line)
           }
@@ -1247,7 +1258,21 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         return
       }
       if (imageOnlyHint && !current.diagramText) current.diagramText = line
-      if (current.options.length && !/\?$/.test(line)) {
+      if (current.options.length >= 2) {
+        // A complete question already has its options. Trailing text now
+        // belongs to either an explanation (rare in past papers) OR the next
+        // question whose number prefix went missing during extraction.
+        //   - Lines ending in `?` are almost certainly the next stem.
+        //   - The SECOND extra line in a row is also almost certainly the next
+        //     question — explanations are usually one paragraph. Capping the
+        //     absorb count stops Q2/Q3/Q4's content cascading into Q1.
+        const looksLikeNextStem = /\?\s*$/.test(line)
+        const alreadyAbsorbedOneExtra = current.explanationParts.length > 0
+        if (looksLikeNextStem || alreadyAbsorbedOneExtra) {
+          startQuestion(line, { ...block, assets: lineAssets }, null, false)
+          current.reviewNotes.push('Question number was not detected — review this question.')
+          return
+        }
         current.explanationParts.push(line)
         current.reviewNotes.push('Extra text after options was treated as explanation.')
       } else {
