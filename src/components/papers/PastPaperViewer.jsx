@@ -72,18 +72,40 @@ export default function PastPaperViewer() {
     return () => { cancelled = true }
   }, [paperId])
 
+  // The "preview source" picks the right rendering path:
+  //   1. legacy pdfPath (set by the old single-page editor)
+  //   2. a PDF inside assets[] (Studio uploads — single PDF case)
+  //   3. images inside assets[] (scanned-paper case — multi-page)
+  const previewSource = (() => {
+    if (!paper) return null
+    if (paper.pdfPath) return { kind: 'pdf', path: paper.pdfPath, size: paper.pdfSize || null }
+    const assets = Array.isArray(paper.assets) ? paper.assets : []
+    if (assets.length === 0) return null
+    const pdfAsset = assets.find((a) => a.contentType === 'application/pdf')
+    if (pdfAsset) return { kind: 'pdf', path: pdfAsset.path, size: pdfAsset.size || null }
+    const images = assets.filter((a) => a.contentType?.startsWith('image/'))
+    if (images.length) return { kind: 'images', assets: images }
+    return null
+  })()
+
+  // Resolved signed URLs for image-only papers. One per asset in upload
+  // order — fetched in parallel after auth so the stacked scan view
+  // composes into a single readable page.
+  const [imageAssetUrls, setImageAssetUrls] = useState([])
+  const [imageAssetsLoading, setImageAssetsLoading] = useState(false)
+
   // Fetch a signed URL for the PDF only when the user is signed in —
   // anonymous visitors trip Storage rules and get a CORS error in the
   // console, which is noisy. Wait for auth before attempting.
   useEffect(() => {
-    if (!paper || !currentUser) {
+    if (!paper || !currentUser || previewSource?.kind !== 'pdf') {
       setPaperUrl(null)
       return
     }
     let cancelled = false
     setPaperUrlLoading(true)
     setDownloadError('')
-    resolvePaperUrl(paper.pdfPath)
+    resolvePaperUrl(previewSource.path)
       .then((url) => { if (!cancelled) setPaperUrl(url) })
       .catch((err) => {
         console.warn('[PastPaperViewer] pdf URL failed', err)
@@ -91,7 +113,25 @@ export default function PastPaperViewer() {
       })
       .finally(() => { if (!cancelled) setPaperUrlLoading(false) })
     return () => { cancelled = true }
-  }, [paper, currentUser])
+  }, [paper, currentUser, previewSource?.kind, previewSource?.path])
+
+  // Multi-image scanned-paper case — resolve every asset URL in parallel.
+  useEffect(() => {
+    if (!paper || !currentUser || previewSource?.kind !== 'images') {
+      setImageAssetUrls([])
+      return
+    }
+    let cancelled = false
+    setImageAssetsLoading(true)
+    setDownloadError('')
+    Promise.all(previewSource.assets.map((a) => resolvePaperUrl(a.path).catch((err) => {
+      console.warn('[PastPaperViewer] image url failed', a.path, err)
+      return null
+    })))
+      .then((urls) => { if (!cancelled) setImageAssetUrls(urls) })
+      .finally(() => { if (!cancelled) setImageAssetsLoading(false) })
+    return () => { cancelled = true }
+  }, [paper, currentUser, previewSource?.kind, previewSource?.assets])
 
   const handleDownload = useCallback(async (path, kind) => {
     if (!path) return
@@ -200,13 +240,13 @@ export default function PastPaperViewer() {
               >
                 🎯 Practise as timed exam{paper.durationMinutes ? ` (${paper.durationMinutes} min)` : ''}
               </Link>
-              {paper.pdfPath && (
+              {previewSource?.kind === 'pdf' && (
                 <button
                   type="button"
-                  onClick={() => handleDownload(paper.pdfPath, 'paper')}
+                  onClick={() => handleDownload(previewSource.path, 'paper')}
                   className="theme-card border theme-border rounded-full px-4 py-2 text-sm font-black hover:theme-bg-subtle"
                 >
-                  ⬇️ Download paper ({formatBytes(paper.pdfSize)})
+                  ⬇️ Download paper{previewSource.size ? ` (${formatBytes(previewSource.size)})` : ''}
                 </button>
               )}
               {paper.markSchemePath && (
@@ -238,7 +278,7 @@ export default function PastPaperViewer() {
             on most pages and falls back to "tap to download"; PDF.js
             renders consistently across Safari, Chrome, Edge, Firefox,
             and the Capacitor WebView. */}
-        {currentUser && (
+        {currentUser && previewSource?.kind === 'pdf' && (
           paperUrlLoading || !paperUrl ? (
             <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex items-center justify-center theme-text-muted text-sm">
               Loading paper…
@@ -252,6 +292,56 @@ export default function PastPaperViewer() {
               <PdfJsViewer url={paperUrl} title={paper.title} />
             </Suspense>
           )
+        )}
+
+        {/* Scanned-paper case: a series of images stacked vertically.
+            Each lands at a max readable width on mobile; lazy-loaded so
+            a 30-page paper doesn't fetch every page on first paint. */}
+        {currentUser && previewSource?.kind === 'images' && (
+          imageAssetsLoading ? (
+            <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex items-center justify-center theme-text-muted text-sm">
+              Loading scanned pages…
+            </div>
+          ) : (
+            <section className="theme-card border theme-border rounded-radius-md p-3 space-y-3">
+              <p className="text-xs font-black theme-text-muted uppercase tracking-widest text-center">
+                {previewSource.assets.length} scanned page{previewSource.assets.length === 1 ? '' : 's'}
+              </p>
+              {previewSource.assets.map((asset, idx) => {
+                const url = imageAssetUrls[idx]
+                if (!url) {
+                  return (
+                    <div
+                      key={asset.path}
+                      className="theme-bg-subtle rounded-radius-md h-64 flex items-center justify-center text-xs theme-text-muted"
+                    >
+                      Page {idx + 1} unavailable
+                    </div>
+                  )
+                }
+                return (
+                  <figure key={asset.path} className="space-y-1">
+                    <img
+                      src={url}
+                      alt={`${paper.title} — page ${idx + 1}`}
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full h-auto rounded-radius-md theme-bg-subtle"
+                    />
+                    <figcaption className="text-center text-xs theme-text-muted font-bold">
+                      Page {idx + 1} of {previewSource.assets.length}
+                    </figcaption>
+                  </figure>
+                )
+              })}
+            </section>
+          )
+        )}
+
+        {currentUser && !previewSource && (
+          <div className="theme-card border theme-border rounded-radius-md p-6 text-center text-sm theme-text-muted">
+            No paper file has been attached yet.
+          </div>
         )}
 
         {!currentUser && (
