@@ -55,7 +55,13 @@ async function requireAdmin(request) {
 
 /**
  * Tiny Anthropic ping. One token in, one out. Confirms the key is alive
- * without burning meaningful budget. Returns { ok, model, error }.
+ * without burning meaningful budget. Returns
+ *   { ok, model, error, keyMissing }
+ * where keyMissing distinguishes "secret value is empty" (admin needs
+ * to run firebase functions:secrets:set ...) from "secret is set but
+ * the API call failed" (transient rate-limit / 5xx / network — already
+ * the existing live Anthropic features would be failing too, no admin
+ * fix needed).
  */
 async function pingAnthropic(anthropicApiKeySecret) {
   const apiKey = anthropicApiKeySecret.value() ||
@@ -63,6 +69,7 @@ async function pingAnthropic(anthropicApiKeySecret) {
   if (!apiKey) {
     return {
       ok: false,
+      keyMissing: true,
       error: "ANTHROPIC_API_KEY secret is not set in Firebase Functions.",
     };
   }
@@ -85,14 +92,16 @@ async function pingAnthropic(anthropicApiKeySecret) {
       const txt = await res.text().catch(() => "");
       return {
         ok: false,
+        keyMissing: false,
         model,
         error: `Anthropic returned ${res.status}: ${txt.slice(0, 200)}`,
       };
     }
-    return {ok: true, model};
+    return {ok: true, keyMissing: false, model};
   } catch (err) {
     return {
       ok: false,
+      keyMissing: false,
       model,
       error: `Anthropic ping failed: ${String(err && err.message || err)
         .slice(0, 200)}`,

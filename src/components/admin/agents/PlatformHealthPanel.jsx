@@ -184,25 +184,37 @@ export default function PlatformHealthPanel() {
         </div>
       )}
 
-      {/* Concrete next-step when the Anthropic key is missing — this is
-          the single most common reason a fresh deployment can't run
-          agent briefs, and there's no way to set Functions secrets
-          from a callable (Google requires CLI or Cloud Console), so
-          the best the panel can do is hand the admin the exact
-          command to run on their workstation. */}
-      {health && anthropic && !anthropic.ok && (
+      {/* Distinguish two failure modes:
+          1. keyMissing — the Functions secret has no value at all.
+             Only happens on a fresh project where the admin hasn't run
+             firebase functions:secrets:set yet. Surface the exact CLI
+             command since there's no callable to set Functions secrets.
+          2. Ping failed for some other reason (transient 429/5xx/network).
+             Don't suggest a CLI fix — the secret is set, the existing
+             Zed chat / studios are also using it, this is a flake. */}
+      {health && anthropic?.keyMissing && (
         <div className="mb-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-3 text-xs text-amber-200">
-          <p className="font-black text-amber-100">Anthropic API is unreachable</p>
+          <p className="font-black text-amber-100">ANTHROPIC_API_KEY secret is not set</p>
           <p className="mt-1 text-amber-200/90">
-            {anthropic.error || 'The ANTHROPIC_API_KEY secret is not set on Firebase Functions.'}
+            Functions secrets can only be set via CLI or Cloud Console — no callable can do it.
+            Run this on a machine with Firebase CLI logged in to <code>examsprepzambia</code>:
           </p>
-          <p className="mt-2 text-amber-100 font-black">Fix in one command (run on a machine with Firebase CLI logged in to examsprepzambia):</p>
           <pre className="mt-1 rounded-lg bg-slate-900/70 border border-amber-500/30 p-2 text-[11px] text-amber-100 overflow-x-auto">
             firebase functions:secrets:set ANTHROPIC_API_KEY
           </pre>
           <p className="mt-2 text-amber-200/80">
             Paste your Claude API key when prompted (starts with <code>sk-ant-…</code>), then redeploy functions for the secret to take effect.
             After CI deploys, click <strong>Refresh</strong> above.
+          </p>
+        </div>
+      )}
+      {health && anthropic && !anthropic.ok && !anthropic.keyMissing && (
+        <div className="mb-3 rounded-xl border border-rose-500/30 bg-rose-500/10 p-3 text-xs text-rose-200">
+          <p className="font-black text-rose-100">Anthropic ping returned an error</p>
+          <p className="mt-1 text-rose-200/90 break-all">{anthropic.error}</p>
+          <p className="mt-2 text-rose-200/80">
+            The key is set (existing Zed chat / studios use it) — this is most likely a transient rate-limit or 5xx.
+            Click <strong>Refresh</strong> to re-check. If it persists, check the Anthropic console.
           </p>
         </div>
       )}
