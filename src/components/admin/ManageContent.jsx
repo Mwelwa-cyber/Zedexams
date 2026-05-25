@@ -206,6 +206,17 @@ function QuizRow({ quiz, onPublish, onSetDailyExam, onUnassign, onDelete, deleti
             className="btn-edit justify-center">
             ✏️ Edit
           </Link>
+          {quizId && quiz.isPublished && (
+            <a
+              href={`/quiz/${quizId}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs font-bold px-3 py-1.5 rounded-full border border-sky-300 text-sky-700 hover:bg-sky-50 min-h-0 transition-colors text-center"
+              title="Open as a learner would see it (new tab)"
+            >
+              👁 Preview
+            </a>
+          )}
 
           {/* Assignment controls */}
           {!quiz.isPublished && (
