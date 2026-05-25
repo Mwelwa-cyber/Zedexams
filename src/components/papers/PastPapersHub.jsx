@@ -54,32 +54,40 @@ function PaperCard({ paper }) {
   const subjectMeta = SUBJECTS.find((s) => s.id === paper.subject)
   const subjectLabel = subjectMeta?.label || paper.subject
   const subjectIcon = subjectMeta?.icon || '📄'
+  const hasQuiz = Boolean(paper.quizId)
   return (
-    <Link
-      to={`/papers/${paper.id}`}
-      className="theme-card border theme-border rounded-radius-md p-4 flex items-start gap-3 hover:theme-bg-subtle transition-colors"
-    >
-      <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-xl theme-bg-subtle">
-        <span aria-hidden="true">{subjectIcon}</span>
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="theme-text font-black text-sm leading-snug">{paper.title}</p>
-        <p className="theme-text-muted text-xs mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
-          <span>{paper.examBoard || 'ECZ'}</span>
-          <span aria-hidden="true">·</span>
-          <span>Grade {paper.grade}</span>
-          <span aria-hidden="true">·</span>
-          <span>{subjectLabel}</span>
-          {paper.paperNumber ? (
-            <>
-              <span aria-hidden="true">·</span>
-              <span>Paper {paper.paperNumber}</span>
-            </>
-          ) : null}
-        </p>
-      </div>
-      <span className="theme-accent-text text-xs font-black uppercase tracking-wider self-center">View →</span>
-    </Link>
+    <div className="theme-card border theme-border rounded-radius-md p-4 flex flex-col gap-3 hover:theme-bg-subtle transition-colors">
+      <Link to={`/papers/${paper.id}`} className="flex items-start gap-3 -m-1 p-1 rounded-radius-md">
+        <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-xl theme-bg-subtle">
+          <span aria-hidden="true">{subjectIcon}</span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="theme-text font-black text-sm leading-snug">{paper.title}</p>
+          <p className="theme-text-muted text-xs mt-1 flex flex-wrap gap-x-2 gap-y-0.5">
+            <span>{paper.examBoard || 'ECZ'}</span>
+            <span aria-hidden="true">·</span>
+            <span>Grade {paper.grade}</span>
+            <span aria-hidden="true">·</span>
+            <span>{subjectLabel}</span>
+            {paper.paperNumber ? (
+              <>
+                <span aria-hidden="true">·</span>
+                <span>Paper {paper.paperNumber}</span>
+              </>
+            ) : null}
+          </p>
+        </div>
+        <span className="theme-accent-text text-xs font-black uppercase tracking-wider self-center">View →</span>
+      </Link>
+      {hasQuiz && (
+        <Link
+          to={`/papers/${paper.id}/quiz`}
+          className="self-start inline-flex items-center gap-1.5 rounded-full theme-accent-fill theme-on-accent text-xs font-black px-3 py-1.5 hover:opacity-90"
+        >
+          ✏️ Take the quiz
+        </Link>
+      )}
+    </div>
   )
 }
 

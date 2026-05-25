@@ -34,6 +34,15 @@ const SCENARIOS = {
     primaryAction: 'upgrade',
     compare: 'free-vs-pro',
   },
+  'quiz-preview-limit': {
+    tag: '🔒 Free preview ended',
+    title: (ctx) => `You've previewed ${ctx.limit || 30} questions on ${ctx.paperTitle || 'this paper'}`,
+    sub: () => 'Upgrade to keep going on this paper and unlock every past-paper quiz, the full library, daily exams, and Ask Zed AI study help.',
+    mascot: '🐢',
+    primary: 'Upgrade to Pro · K79/mo',
+    primaryAction: 'upgrade',
+    compare: 'free-vs-pro',
+  },
   'coming-soon': {
     tag: '✨ Coming soon',
     title: (ctx) => `${ctx.feature || 'Schemes of Work'} is launching soon`,
@@ -94,6 +103,10 @@ function CompareCol({ data, recommended }) {
 export default function PaywallHost() {
   const [state, setState] = useState(null)
   const [showUpgrade, setShowUpgrade] = useState(false)
+  // Reason of the scenario that triggered the upgrade modal — captured
+  // before state is cleared so we can route to the correct portal copy
+  // (learner Grade-7 pack vs teacher Pro).
+  const [upgradeReason, setUpgradeReason] = useState(null)
   const lastFocusRef = useRef(null)
   const primaryBtnRef = useRef(null)
 
@@ -129,6 +142,7 @@ export default function PaywallHost() {
 
   function handlePrimary() {
     if (scenario?.primaryAction === 'upgrade') {
+      setUpgradeReason(state?.reason || null)
       paywall.hide()
       setShowUpgrade(true)
     }
@@ -138,6 +152,7 @@ export default function PaywallHost() {
     const action = scenario?.secondaryAction
     if (action === 'one-off') {
       // K5 one-off credit purchase isn't wired yet — fall through to upgrade.
+      setUpgradeReason(state?.reason || null)
       paywall.hide()
       setShowUpgrade(true)
     } else if (action === 'notify') {
@@ -196,12 +211,21 @@ export default function PaywallHost() {
       )}
       {showUpgrade && (
         <Suspense fallback={null}>
-          <UpgradeModal
-            portal="teacher"
-            planIds={['pro_monthly', 'pro_yearly']}
-            defaultPlanId="pro_monthly"
-            onClose={() => setShowUpgrade(false)}
-          />
+          {upgradeReason === 'quiz-preview-limit' ? (
+            <UpgradeModal
+              portal="learner"
+              planIds={['grade7_monthly', 'grade7_termly']}
+              defaultPlanId="grade7_monthly"
+              onClose={() => { setShowUpgrade(false); setUpgradeReason(null) }}
+            />
+          ) : (
+            <UpgradeModal
+              portal="teacher"
+              planIds={['pro_monthly', 'pro_yearly']}
+              defaultPlanId="pro_monthly"
+              onClose={() => { setShowUpgrade(false); setUpgradeReason(null) }}
+            />
+          )}
         </Suspense>
       )}
     </>

@@ -102,9 +102,10 @@ const Terms = lazy(() => import('./components/marketing/Terms'))
 const PastPapersHub = lazy(() => import('./components/papers/PastPapersHub'))
 const PastPaperViewer = lazy(() => import('./components/papers/PastPaperViewer'))
 const PastPaperPractice = lazy(() => import('./components/papers/PastPaperPractice'))
+const PublicQuizRunner = lazy(() => import('./components/papers/PublicQuizRunner'))
 const MyPapersHistory = lazy(() => import('./components/papers/MyPapersHistory'))
 const AdminPastPapers = lazy(() => import('./components/admin/AdminPastPapers'))
-const AdminPastPaperEditor = lazy(() => import('./components/admin/AdminPastPaperEditor'))
+const PastPaperStudio = lazy(() => import('./components/admin/PastPaperStudio'))
 const ZedChatPage = lazy(() => import('./components/ai/ZedChatPage'))
 const StatusPage = lazy(() => import('./components/marketing/StatusPage'))
 // Audit C5 — SEO blog. Markdown-driven, posts ship in the bundle.
@@ -405,6 +406,9 @@ export default function App() {
           {/* Audit A2 PR 3 — timed practice runner. Auth-gated inside
               the component so the redirect carries the original target. */}
           <Route path="/papers/:paperId/practice" element={<PastPaperPractice />} />
+          {/* Past-paper quiz — public; 30-question free preview then paywall.
+              No auth required so marketing visitors can try a quiz inline. */}
+          <Route path="/papers/:paperId/quiz"     element={<PublicQuizRunner />} />
           {/* Audit A2 PR 4 — learner's history of past-paper runs. */}
           <Route path="/my-papers"          element={<ProtectedRoute><MyPapersHistory /></ProtectedRoute>} />
           {/* Audit C5 — SEO blog. Public, indexable. */}
@@ -500,10 +504,13 @@ export default function App() {
           {/* App Check enforcement readiness — soft-verify telemetry.
               Admin-only per route + Firestore rules. */}
           <Route path="/admin/app-check"                element={<AdminRoute><AdminAppCheck /></AdminRoute>} />
-          {/* Audit A2 — past-paper management (upload + edit + status) */}
+          {/* Audit A2 — past-paper management (upload + edit + status).
+              The Studio runs the 5-step upload flow (assets → details →
+              questions → answers → publish) and links the published
+              quiz to the paper. */}
           <Route path="/admin/papers"                   element={<AdminRoute><AdminPastPapers /></AdminRoute>} />
-          <Route path="/admin/papers/new"               element={<AdminRoute><AdminPastPaperEditor /></AdminRoute>} />
-          <Route path="/admin/papers/:paperId/edit"     element={<AdminRoute><AdminPastPaperEditor /></AdminRoute>} />
+          <Route path="/admin/papers/new"               element={<AdminRoute><PastPaperStudio /></AdminRoute>} />
+          <Route path="/admin/papers/:paperId/edit"     element={<AdminRoute><PastPaperStudio /></AdminRoute>} />
           <Route path="/admin/games-seed"               element={<AdminRoute><GamesSeedAdmin /></AdminRoute>} />
           <Route path="/admin/users"                    element={<AdminRoute><AdminUsersList defaultRole="all" /></AdminRoute>} />
           <Route path="/admin/users/:userId"            element={<AdminRoute><AdminUserProfile /></AdminRoute>} />
