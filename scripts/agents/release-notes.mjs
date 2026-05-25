@@ -230,7 +230,7 @@ async function main() {
         "",
         "<sub>See [docs/AGENTS.md](../blob/main/docs/AGENTS.md).</sub>",
       ].join("\n"),
-      draft: true,
+      draft: false,
     });
     pr = created.data;
     console.log(`Opened changelog PR: ${pr.html_url}`);
