@@ -44,6 +44,10 @@ const {
 const {
   createGenerateFlashcards,
 } = require("./teacherTools/generateFlashcards");
+// Past Paper Studio — AI question importer (vision over scanned pages).
+const {
+  createImportPastPaperQuestions,
+} = require("./teacherTools/pastPaperImport");
 // Teacher Tools — Scheme of Work Generator.
 const {
   createGenerateSchemeOfWork,
@@ -1631,6 +1635,10 @@ exports.apiGenerateWorksheet = makeStreamingEndpoint({
 
 // Teacher Tools — Zambian CBC Flashcard Generator.
 exports.generateFlashcards = createGenerateFlashcards(anthropicApiKey);
+
+// Past Paper Studio — AI MCQ importer (vision over scanned pages).
+exports.importPastPaperQuestions =
+  createImportPastPaperQuestions(anthropicApiKey);
 
 // Teacher Tools — Zambian CBC Scheme of Work Generator.
 exports.generateSchemeOfWork = createGenerateSchemeOfWork(anthropicApiKey);
