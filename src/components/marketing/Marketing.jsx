@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import Logo from '../ui/Logo'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -8,6 +8,8 @@ import Icon from '../ui/Icon'
 import ContactDialog from './ContactDialog'
 import LiveStats from './LiveStats'
 import NewsletterSignup from './NewsletterSignup'
+import { listPapersWithQuiz } from '../../utils/pastPapers'
+import { SUBJECTS } from '../../config/curriculum'
 import {
   AcademicCapIcon,
   Sparkles,
@@ -165,6 +167,75 @@ function Section({ children, className = '' }) {
     <section className={`mx-auto w-full max-w-6xl px-5 sm:px-8 ${className}`}>
       {children}
     </section>
+  )
+}
+
+// Featured past-paper-quiz section — fetches a handful of published
+// papers that have an attached quiz and surfaces them as CTA cards
+// linked into the public quiz runner. Silent-fail empty when none are
+// available yet (early-launch state).
+function PastPaperPreviewSection() {
+  const [papers, setPapers] = useState([])
+  const [loading, setLoading] = useState(true)
+  useEffect(() => {
+    let cancelled = false
+    listPapersWithQuiz({ limit: 12 })
+      .then((rows) => { if (!cancelled) setPapers(rows.slice(0, 4)) })
+      .catch((err) => console.warn('[Marketing] past-paper preview load failed', err))
+      .finally(() => { if (!cancelled) setLoading(false) })
+    return () => { cancelled = true }
+  }, [])
+  if (!loading && papers.length === 0) return null
+  return (
+    <Section className="py-16 sm:py-20">
+      <div className="text-center mb-10">
+        <p className="text-sm font-black uppercase tracking-wider theme-accent-text mb-2">
+          Try before you sign up
+        </p>
+        <h2 className="font-display font-black text-3xl sm:text-4xl mb-3">
+          Free past-paper quizzes.
+        </h2>
+        <p className="theme-text-muted text-lg max-w-2xl mx-auto">
+          Pick a real Grade 7 ECZ past paper and take the quiz right here — no account
+          needed. Get instant feedback on the first 30 questions.
+        </p>
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {papers.map((p) => {
+          const subjectMeta = SUBJECTS.find((s) => s.id === p.subject)
+          return (
+            <Card key={p.id} variant="elevated" size="md" className="flex flex-col">
+              <div className="flex items-start gap-3 mb-3">
+                <div className="flex-shrink-0 w-10 h-10 rounded-xl theme-bg-subtle flex items-center justify-center text-xl">
+                  <span aria-hidden="true">{subjectMeta?.icon || '📄'}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="theme-text font-black text-sm leading-snug">{p.title}</p>
+                  <p className="theme-text-muted text-xs mt-1">
+                    Grade {p.grade} · {p.year} · {subjectMeta?.shortLabel || subjectMeta?.label || p.subject}
+                  </p>
+                </div>
+              </div>
+              <Button
+                as={Link}
+                to={`/papers/${p.id}/quiz`}
+                variant="primary"
+                size="sm"
+                fullWidth
+                className="mt-auto"
+              >
+                Take the quiz
+              </Button>
+            </Card>
+          )
+        })}
+      </div>
+      <div className="mt-6 text-center">
+        <Link to="/papers" className="theme-accent-text font-black text-sm hover:underline">
+          Browse the full archive →
+        </Link>
+      </div>
+    </Section>
   )
 }
 
@@ -339,6 +410,10 @@ export default function Marketing() {
           </div>
         </div>
       </Section>
+
+      {/* Past-paper quizzes — try-before-signup hook. Renders nothing
+          until at least one published paper has an attached quiz. */}
+      <PastPaperPreviewSection />
 
       {/* Audience tracks — two equal primary tracks */}
       <Section className="py-16 sm:py-20">

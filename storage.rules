@@ -26,8 +26,18 @@ service firebase.storage {
     }
 
     function validPaperUpload() {
-      return request.resource.size < 20 * 1024 * 1024
-        && request.resource.contentType == 'application/pdf';
+      // Past papers accept a single PDF OR a series of scanned images.
+      // Scanned ECZ papers from the older archive arrived as JPGs (one
+      // per page) so the multi-image upload path needs to be supported.
+      // 50MB cap is the per-file limit — admin Studio enforces it
+      // client-side too, this is the server backstop.
+      return request.resource.size < 50 * 1024 * 1024
+        && (
+          request.resource.contentType == 'application/pdf'
+          || request.resource.contentType == 'image/jpeg'
+          || request.resource.contentType == 'image/png'
+          || request.resource.contentType == 'image/webp'
+        );
     }
 
     function validQuizImageUpload() {

@@ -35,7 +35,18 @@ import {
 import { db, storage } from '../firebase/config'
 import { capture } from './analytics'
 
-export const PAPER_GRADES = ['7']
+export const PAPER_GRADES = ['7', '9', '12']
+
+// Paper assets can be a PDF (one file) or a series of images (scanned
+// papers — common for older ECZ exams that were photocopied). Anything
+// up to 50MB per asset goes through `uploadPaperAsset` below.
+export const ALLOWED_PAPER_MIME = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+]
+export const MAX_PAPER_FILE_BYTES = 50 * 1024 * 1024
 
 export const PAPER_STATUSES = {
   DRAFT:     'draft',
@@ -83,6 +94,19 @@ export async function getPaper(paperId) {
   return snap.exists() ? { id: snap.id, ...snap.data() } : null
 }
 
+/** Alias kept for readability at call sites that fetch by id. */
+export const getPaperById = getPaper
+
+/**
+ * Like listPublishedPapers but restricted to papers that have a linked
+ * quiz (i.e. learners can press "Quiz" on them). The marketing page +
+ * the hub's quiz tab both call into this.
+ */
+export async function listPapersWithQuiz({ limit = 60 } = {}) {
+  const all = await listPublishedPapers({ limit })
+  return all.filter((p) => Boolean(p.quizId))
+}
+
 /**
  * Resolve a Storage path to a download URL. The Hosting / SDK auth
  * token is automatically applied by getDownloadURL — signed-out
@@ -108,6 +132,32 @@ export async function uploadPaperPdf({ uid, paperId, kind, file }) {
     contentType: 'application/pdf',
   })
   return { path, filename: file.name, size: file.size }
+}
+
+/**
+ * Upload an arbitrary paper asset (PDF or image). Scanned papers come
+ * in as JPG/PNG and we accept multiple of them on one paper. Path
+ * convention:
+ *   papers/{adminUid}/{paperId}/assets/{idx}-{filename}
+ * `idx` keeps assets sortable in the order the admin uploaded them.
+ */
+export async function uploadPaperAsset({ uid, paperId, file, index = 0 }) {
+  if (!uid || !paperId || !file) throw new Error('Missing arguments for paper upload')
+  if (!ALLOWED_PAPER_MIME.includes(file.type)) {
+    throw new Error(`Unsupported file type: ${file.type || 'unknown'}. Use PDF, JPG, PNG or WEBP.`)
+  }
+  if (file.size > MAX_PAPER_FILE_BYTES) {
+    throw new Error(`File "${file.name}" is larger than 50MB.`)
+  }
+  const safeName = (file.name || 'asset').replace(/[^a-z0-9._-]+/gi, '_')
+  const path = `papers/${uid}/${paperId}/assets/${index}-${safeName}`
+  await uploadBytes(storageRef(storage, path), file, { contentType: file.type })
+  return {
+    path,
+    filename: file.name,
+    size: file.size,
+    contentType: file.type,
+  }
 }
 
 export async function deletePaperPdf(path) {

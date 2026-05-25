@@ -121,8 +121,14 @@ test('lesson-files whole-note uploads remain PDF or Word only', () => {
 
 console.log('\nupload size caps')
 
-test('paper PDF cap stays at 20 MB', () => {
-  assertContains('request.resource.size < 20 * 1024 * 1024', 'validPaperUpload size cap moved')
+test('paper upload cap is 50 MB (multi-image scanned papers)', () => {
+  assertContains('request.resource.size < 50 * 1024 * 1024', 'validPaperUpload size cap moved')
+})
+
+test('paper upload accepts PDF + scanned-image MIME types', () => {
+  assertContains("request.resource.contentType == 'application/pdf'", 'paper PDF MIME missing')
+  assertContains("request.resource.contentType == 'image/jpeg'", 'paper JPEG MIME missing')
+  assertContains("request.resource.contentType == 'image/png'", 'paper PNG MIME missing')
 })
 
 test('quiz/assessment image cap stays at 5 MB', () => {

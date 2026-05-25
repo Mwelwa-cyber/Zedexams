@@ -180,24 +180,35 @@ export default function PastPaperViewer() {
 
         {/* Action row */}
         <section className="flex flex-wrap gap-2">
+          {/* Past-paper quiz — available to anon visitors too. Primary
+              CTA when the paper has a linked quiz; otherwise hidden. */}
+          {paper.quizId && (
+            <Link
+              to={`/papers/${paperId}/quiz`}
+              className="theme-accent-fill theme-on-accent rounded-full px-4 py-2 text-sm font-black hover:opacity-90"
+            >
+              ✏️ Take the quiz
+            </Link>
+          )}
           {currentUser ? (
             <>
-              {/* Audit A2 PR 3 — primary CTA. The conversion lever the
-                  audit called out: practising under a timer is the #1
+              {/* Audit A2 PR 3 — practising under a timer is the #1
                   thing that improves real-exam performance. */}
               <Link
                 to={`/papers/${paperId}/practice`}
-                className="theme-accent-fill theme-on-accent rounded-full px-4 py-2 text-sm font-black hover:opacity-90"
+                className="theme-card border theme-border rounded-full px-4 py-2 text-sm font-black hover:theme-bg-subtle"
               >
                 🎯 Practise as timed exam{paper.durationMinutes ? ` (${paper.durationMinutes} min)` : ''}
               </Link>
-              <button
-                type="button"
-                onClick={() => handleDownload(paper.pdfPath, 'paper')}
-                className="theme-card border theme-border rounded-full px-4 py-2 text-sm font-black hover:theme-bg-subtle"
-              >
-                ⬇️ Download paper ({formatBytes(paper.pdfSize)})
-              </button>
+              {paper.pdfPath && (
+                <button
+                  type="button"
+                  onClick={() => handleDownload(paper.pdfPath, 'paper')}
+                  className="theme-card border theme-border rounded-full px-4 py-2 text-sm font-black hover:theme-bg-subtle"
+                >
+                  ⬇️ Download paper ({formatBytes(paper.pdfSize)})
+                </button>
+              )}
               {paper.markSchemePath && (
                 <button
                   type="button"
@@ -211,7 +222,7 @@ export default function PastPaperViewer() {
           ) : (
             <Link
               to={`/login?next=/papers/${paperId}`}
-              className="theme-accent-fill theme-on-accent rounded-full px-4 py-2 text-sm font-black hover:opacity-90"
+              className="theme-card border theme-border rounded-full px-4 py-2 text-sm font-black hover:theme-bg-subtle"
             >
               Sign in to view + download
             </Link>

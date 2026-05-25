@@ -46,7 +46,12 @@ service cloud.firestore {
         && (!('isPublished' in incoming()) || incoming().isPublished is bool)
         // Optional Parts grouping (PRISCA mock-paper layout). Cap list size;
         // per-element shape is enforced by the Zod schema client-side.
-        && (!('parts' in incoming()) || (incoming().parts is list && incoming().parts.size() <= 20));
+        && (!('parts' in incoming()) || (incoming().parts is list && incoming().parts.size() <= 20))
+        // Past-paper-attached quizzes opt into anonymous read with
+        // `publicAccess: true`, the gate the rule above checks for.
+        && (!('publicAccess' in incoming()) || incoming().publicAccess is bool)
+        && (!('linkedPaperId' in incoming()) || (incoming().linkedPaperId is string && incoming().linkedPaperId.size() <= 100))
+        && (!('quizType' in incoming()) || (incoming().quizType is string && incoming().quizType.size() <= 32));
     }
 
     // Defence-in-depth on rich-text fields. Limits mirror the Zod schema in
@@ -351,6 +356,15 @@ service cloud.firestore {
 
     // ── quizzes ───────────────────────────────────────────────
     match /quizzes/{quizId} {
+      // Public-read quizzes attached to past papers: the past-papers
+      // quiz feature runs an SSR-indexable preview for marketing visitors.
+      // Anything flagged `publicAccess: true` AND `isPublished: true`
+      // can be read by anyone, signed in or not. Authors and the dispatcher
+      // set both flags via the admin Past Paper Studio.
+      allow read: if (
+        resource.data.get('publicAccess', false) == true
+        && resource.data.get('isPublished', false) == true
+      );
       // Anyone signed in can read published quizzes and daily exams; the
       // creating teacher can read their own drafts. Admins read everything
       // for support. Earlier `|| isTeacherOrAbove()` clause let any
@@ -392,6 +406,13 @@ service cloud.firestore {
         // bills as a single read — not three. Daily-exam question reads
         // are also rare now (server-served), so the leak-closure is worth
         // the cost.
+        // Public-access past-paper quizzes: questions readable by anyone
+        // when the parent quiz has both publicAccess + isPublished true.
+        allow read: if (
+          get(/databases/$(database)/documents/quizzes/$(quizId)).data.get('publicAccess', false) == true
+          && get(/databases/$(database)/documents/quizzes/$(quizId)).data.get('isPublished', false) == true
+          && get(/databases/$(database)/documents/quizzes/$(quizId)).data.get('quizType', '') != 'daily_exam'
+        );
         allow read: if isAuthed() && (
           isAdmin()
           || get(/databases/$(database)/documents/quizzes/$(quizId)).data.createdBy == request.auth.uid
@@ -1161,13 +1182,22 @@ service cloud.firestore {
         && (!('examBoard' in incoming()) || (incoming().examBoard is string && incoming().examBoard.size() <= 20))
         && (!('pdfPath' in incoming()) || (incoming().pdfPath is string && incoming().pdfPath.size() <= 500))
         && (!('pdfFilename' in incoming()) || (incoming().pdfFilename is string && incoming().pdfFilename.size() <= 200))
-        && (!('pdfSize' in incoming()) || (incoming().pdfSize is int && incoming().pdfSize >= 0 && incoming().pdfSize <= 26214400))
+        && (!('pdfSize' in incoming()) || (incoming().pdfSize is int && incoming().pdfSize >= 0 && incoming().pdfSize <= 52428800))
         && (!('markSchemePath' in incoming()) || incoming().markSchemePath == null || (incoming().markSchemePath is string && incoming().markSchemePath.size() <= 500))
         && (!('markSchemeFilename' in incoming()) || incoming().markSchemeFilename == null || (incoming().markSchemeFilename is string && incoming().markSchemeFilename.size() <= 200))
         && (!('description' in incoming()) || incoming().description == null || (incoming().description is string && incoming().description.size() <= 1000))
         && (!('durationMinutes' in incoming()) || incoming().durationMinutes == null || (incoming().durationMinutes is int && incoming().durationMinutes >= 5 && incoming().durationMinutes <= 480))
         && (!('totalMarks' in incoming()) || incoming().totalMarks == null || (incoming().totalMarks is int && incoming().totalMarks >= 0 && incoming().totalMarks <= 1000))
-        && (!('status' in incoming()) || _validPaperStatus(incoming().status));
+        && (!('status' in incoming()) || _validPaperStatus(incoming().status))
+        // Scanned papers come in as a series of images instead of a
+        // single PDF. `assets` holds the list — per-element shape is
+        // enforced client-side; cap at 50 files (one ECZ paper rarely
+        // exceeds 30 pages).
+        && (!('assets' in incoming()) || (incoming().assets is list && incoming().assets.size() <= 50))
+        && (!('assetType' in incoming()) || (incoming().assetType is string && incoming().assetType.size() <= 16))
+        // Optional link to a quizzes/{quizId} doc whose questions are
+        // the "Attempt the quiz" version of this paper.
+        && (!('quizId' in incoming()) || incoming().quizId == null || (incoming().quizId is string && incoming().quizId.size() <= 100));
     }
     match /pastPapers/{paperId} {
       // Anonymous-readable index: published papers list freely so
