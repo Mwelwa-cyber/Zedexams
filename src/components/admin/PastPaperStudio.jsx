@@ -44,7 +44,6 @@ import {
   query,
   serverTimestamp,
   setDoc,
-  writeBatch,
 } from 'firebase/firestore'
 
 const fns = getFunctions(undefined, 'us-central1')
@@ -61,26 +60,11 @@ const CURRENT_YEAR = new Date().getFullYear()
 const YEARS = Array.from({ length: 25 }, (_, i) => CURRENT_YEAR - i)
 
 const STEPS = [
-  { id: 1, label: 'Upload', hint: 'PDF or scanned images' },
+  { id: 1, label: 'Upload', hint: 'PDF, Word or images' },
   { id: 2, label: 'Details', hint: 'Subject, grade, year' },
-  { id: 3, label: 'Questions', hint: 'Prompts and options' },
-  { id: 4, label: 'Answers', hint: 'Correct + explanation' },
-  { id: 5, label: 'Publish', hint: 'Review and go live' },
+  { id: 3, label: 'Quiz', hint: 'AI import + Quiz Editor' },
+  { id: 4, label: 'Publish', hint: 'Review and go live' },
 ]
-
-function emptyQuestion(order) {
-  return {
-    id: `local-${Math.random().toString(36).slice(2, 9)}`,
-    persisted: false,
-    type: 'mcq',
-    text: '',
-    options: ['', '', '', ''],
-    correctAnswer: 0,
-    explanation: '',
-    marks: 1,
-    order,
-  }
-}
 
 function inputCls() {
   return 'w-full rounded-xl border-2 theme-border theme-input px-3 py-2 text-sm focus:outline-none disabled:opacity-50'
@@ -151,7 +135,7 @@ function DropZone({ disabled, onFiles }) {
       <div className="text-4xl mb-2" aria-hidden="true">📤</div>
       <p className="theme-text font-black text-sm">Drag &amp; drop files here</p>
       <p className="theme-text-muted text-xs mt-1">
-        PDF, JPG, PNG or WEBP · up to 50 MB each · scanned papers can be multiple images
+        PDF, Word (.doc/.docx), JPG, PNG or WEBP · up to 50 MB each · scanned papers can be multiple images
       </p>
       <input
         ref={inputRef}
@@ -201,11 +185,15 @@ export default function PastPaperStudio() {
     totalMarks: '',
   })
   const [assets, setAssets] = useState([])
-  const [questions, setQuestions] = useState(() => [emptyQuestion(0)])
+  // Linked quiz: question authoring happens in the Quiz Editor, not in
+  // the Studio. We keep the id + question count here so step 3 can
+  // surface "N questions in the quiz" and a one-click handoff.
   const [existingQuizId, setExistingQuizId] = useState(null)
+  const [quizCount, setQuizCount] = useState(0)
   const [originalStatus, setOriginalStatus] = useState(PAPER_STATUSES.DRAFT)
   const [uploading, setUploading] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [linkingQuiz, setLinkingQuiz] = useState(false)
 
   // ── Bootstrap: create a draft doc (new) or load existing ─────────
   useEffect(() => {
@@ -256,12 +244,7 @@ export default function PastPaperStudio() {
           if (row.quizId) {
             try {
               const qs = await getDocs(query(collection(db, 'quizzes', row.quizId, 'questions')))
-              if (!cancelled && !qs.empty) {
-                const loaded = qs.docs
-                  .map((d) => ({ id: d.id, persisted: true, ...d.data() }))
-                  .sort((a, b) => (a.order || 0) - (b.order || 0))
-                setQuestions(loaded.length ? loaded : [emptyQuestion(0)])
-              }
+              if (!cancelled) setQuizCount(qs.size)
             } catch (err) {
               console.warn('[PastPaperStudio] loading existing questions failed', err)
             }
@@ -393,32 +376,64 @@ export default function PastPaperStudio() {
   }
 
   // ── Step 3-4: questions ───────────────────────────────────────────
-  function setQuestion(idx, patch) {
-    setQuestions((arr) => arr.map((q, i) => (i === idx ? { ...q, ...patch } : q)))
+  // ── Step 3: linked quiz handoff ───────────────────────────────────
+
+  // Lazy-create the quiz that the Quiz Editor will manage. Called on
+  // first entry to step 3. We use the existing `quizzes/` rules + the
+  // Studio's admin context so the editor is fully feature-complete
+  // (image options, rich text, multiple types).
+  async function ensureLinkedQuiz() {
+    if (!paperId || !currentUser?.uid) return null
+    if (existingQuizId) return existingQuizId
+    setLinkingQuiz(true)
+    try {
+      const quizId = doc(collection(db, 'quizzes')).id
+      const fields = {
+        title: `${details.title.trim() || 'Untitled past paper'} — Quiz`,
+        subject: details.subject,
+        topic: 'past-paper',
+        isPublished: false,
+        publicAccess: false,
+        quizType: 'past_paper',
+        linkedPaperId: paperId,
+        createdBy: currentUser.uid,
+        questionCount: 0,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      }
+      // The quizzes rule's _validGrade accepts 4-7 only. For non-G4-7
+      // papers (e.g. Grade 12) we leave grade off — the paper carries
+      // the grade label and the quiz is reached via the linked paper.
+      if (['4', '5', '6', '7'].includes(details.grade)) {
+        fields.grade = details.grade
+      }
+      await setDoc(doc(db, 'quizzes', quizId), fields)
+      await updatePaper(paperId, { quizId })
+      setExistingQuizId(quizId)
+      return quizId
+    } catch (err) {
+      console.error('[PastPaperStudio] linked-quiz create failed', err)
+      setError(err?.message || 'Could not create the linked quiz.')
+      return null
+    } finally {
+      setLinkingQuiz(false)
+    }
   }
-  function setOption(qIdx, optIdx, value) {
-    setQuestions((arr) => arr.map((q, i) => {
-      if (i !== qIdx) return q
-      const options = [...q.options]
-      options[optIdx] = value
-      return { ...q, options }
-    }))
+
+  async function refreshQuizCount() {
+    if (!existingQuizId) return
+    try {
+      const snap = await getDocs(collection(db, 'quizzes', existingQuizId, 'questions'))
+      setQuizCount(snap.size)
+    } catch (err) {
+      console.warn('[PastPaperStudio] refreshQuizCount failed', err)
+    }
   }
-  function addQuestion() {
-    setQuestions((arr) => [...arr, emptyQuestion(arr.length)])
-  }
-  function removeQuestion(idx) {
-    setQuestions((arr) => arr.filter((_, i) => i !== idx).map((q, i) => ({ ...q, order: i })))
-  }
-  function moveQuestion(idx, dir) {
-    const target = idx + dir
-    setQuestions((arr) => {
-      if (target < 0 || target >= arr.length) return arr
-      const next = [...arr]
-      const [item] = next.splice(idx, 1)
-      next.splice(target, 0, item)
-      return next.map((q, i) => ({ ...q, order: i }))
-    })
+
+  async function openQuizEditor() {
+    setError('')
+    const quizId = await ensureLinkedQuiz()
+    if (quizId) navigate(`/admin/quizzes/${quizId}/edit`)
   }
 
   async function importQuestionsWithAi() {
@@ -427,38 +442,26 @@ export default function PastPaperStudio() {
       setError('Upload at least one file before running the AI importer.')
       return
     }
-    const hasWork = questions.some((q) => q.text?.trim() || q.options?.some((o) => o.trim()))
-    if (hasWork && typeof window !== 'undefined' &&
-        !window.confirm('Replace the current question draft with the AI-extracted questions?')) {
+    const quizId = await ensureLinkedQuiz()
+    if (!quizId) return
+    if (quizCount > 0 && typeof window !== 'undefined' &&
+        !window.confirm(`This will replace all ${quizCount} existing questions with the AI-extracted ones. Continue?`)) {
       return
     }
     setError('')
     setInfo('')
     setImporting(true)
     try {
-      const res = await importPastPaperQuestionsCallable({ paperId })
-      const drafts = Array.isArray(res?.data?.questions) ? res.data.questions : []
-      if (!drafts.length) {
+      const res = await importPastPaperQuestionsCallable({ paperId, quizId })
+      const written = Number(res?.data?.questionsWritten || 0)
+      if (!written) {
         setError(res?.data?.warning || 'The AI could not extract any questions from this paper.')
         return
       }
-      const next = drafts.map((q, i) => ({
-        id: `local-${Math.random().toString(36).slice(2, 9)}`,
-        persisted: false,
-        type: 'mcq',
-        text: q.prompt || '',
-        // Pad to 4 options for the editor UI; admins can tweak counts in step 3.
-        options: [0, 1, 2, 3].map((k) => q.options?.[k] || ''),
-        correctAnswer: Number.isInteger(q.correctAnswer) ? q.correctAnswer : 0,
-        explanation: q.explanation || '',
-        marks: 1,
-        order: i,
-        requiresReview: true,
-      }))
-      setQuestions(next)
-      const parts = [`Imported ${next.length} question${next.length === 1 ? '' : 's'}.`]
+      setQuizCount(written)
+      const parts = [`Imported ${written} question${written === 1 ? '' : 's'} into the quiz.`]
       if (res?.data?.warning) parts.push(res.data.warning)
-      parts.push('Review every answer before publishing.')
+      parts.push('Open the Quiz Editor to review answers and add images before publishing.')
       setInfo(parts.join(' '))
     } catch (err) {
       console.error('[PastPaperStudio] import failed', err)
@@ -468,104 +471,42 @@ export default function PastPaperStudio() {
     }
   }
 
-  function validateQuestionsForStep(currentStep) {
-    for (let i = 0; i < questions.length; i += 1) {
-      const q = questions[i]
-      if (!q.text?.trim()) return `Question ${i + 1} is missing a prompt.`
-      if (currentStep >= 3) {
-        const filled = (q.options || []).filter((o) => o.trim()).length
-        if (filled < 2) return `Question ${i + 1} needs at least 2 options.`
-      }
-      if (currentStep >= 4) {
-        const idx = Number(q.correctAnswer)
-        if (!Number.isInteger(idx) || idx < 0 || idx >= q.options.length) {
-          return `Question ${i + 1} needs a marked correct answer.`
-        }
-        if (!String(q.options[idx]).trim()) {
-          return `Question ${i + 1} has its correct answer pointing at an empty option.`
-        }
-      }
-    }
-    return null
-  }
-
-  // ── Step 5: publish ───────────────────────────────────────────────
+  // ── Step 4: publish ───────────────────────────────────────────────
   async function publish() {
     if (!paperId || !currentUser?.uid) return
     setError('')
     if (!assets.length) { setError('Upload at least one asset before publishing.'); return }
     if (!details.title.trim()) { setError('Title is required.'); return }
-    const issue = validateQuestionsForStep(4)
-    if (issue) { setError(issue); return }
-    if (!questions.length) { setError('Add at least one question.'); return }
+    if (!existingQuizId) {
+      setError('No quiz is linked to this paper yet — finish step 3 first.')
+      return
+    }
+    if (quizCount === 0) {
+      setError('The linked quiz has no questions yet. Open the Quiz Editor or run the AI importer first.')
+      return
+    }
 
     setPublishing(true)
     try {
       const detailsOk = await saveDetails()
       if (!detailsOk) return
 
-      // Create-or-reuse the linked quiz doc.
-      const quizId = existingQuizId || doc(collection(db, 'quizzes')).id
-      const quizFields = {
-        title: `${details.title.trim()} — Quiz`,
-        subject: details.subject,
-        topic: 'past-paper',
+      // Flip the linked quiz from authoring mode to public.
+      await setDoc(doc(db, 'quizzes', existingQuizId), {
         isPublished: true,
         publicAccess: true,
-        quizType: 'past_paper',
+        title: `${details.title.trim()} — Quiz`,
+        subject: details.subject,
         linkedPaperId: paperId,
-        createdBy: currentUser.uid,
-        questionCount: questions.length,
+        quizType: 'past_paper',
         updatedAt: serverTimestamp(),
-      }
-      // Persist grade only when it falls within the rules' allowed set;
-      // outside that range (e.g. Grade 12) the rule rejects the write,
-      // so omit and rely on the linked paper for the grade label.
-      if (['4', '5', '6', '7'].includes(details.grade)) {
-        quizFields.grade = details.grade
-      }
-      const quizRef = doc(db, 'quizzes', quizId)
-      if (existingQuizId) {
-        await setDoc(quizRef, quizFields, { merge: true })
-      } else {
-        await setDoc(quizRef, { ...quizFields, createdAt: serverTimestamp() })
-      }
+      }, { merge: true })
 
-      // Rewrite questions: deterministic ids by order so re-publish
-      // overwrites cleanly without leaving stale ones from earlier runs.
-      const batch = writeBatch(db)
-      // Wipe any previously persisted questions that are no longer in
-      // the working set (e.g. admin removed Q5 since last publish).
-      if (existingQuizId) {
-        const existingSnap = await getDocs(collection(db, 'quizzes', quizId, 'questions'))
-        const keep = new Set(questions.filter((q) => q.persisted).map((q) => q.id))
-        existingSnap.forEach((d) => {
-          if (!keep.has(d.id)) batch.delete(d.ref)
-        })
-      }
-      questions.forEach((q, i) => {
-        const qid = q.persisted ? q.id : `q${String(i + 1).padStart(3, '0')}`
-        const ref = doc(db, 'quizzes', quizId, 'questions', qid)
-        batch.set(ref, {
-          type: 'mcq',
-          text: q.text.trim(),
-          options: q.options.map((o) => o.trim()),
-          correctAnswer: Number(q.correctAnswer),
-          explanation: (q.explanation || '').trim(),
-          marks: Math.max(1, Math.min(10, Number(q.marks) || 1)),
-          order: i,
-          updatedAt: serverTimestamp(),
-        }, { merge: true })
-      })
-      await batch.commit()
-
-      // Final paper update: link quiz, flip to published, refresh
-      // counters that the rules ignore but the UI uses.
+      // Paper goes public.
       await updatePaper(paperId, {
-        quizId,
+        quizId: existingQuizId,
         status: PAPER_STATUSES.PUBLISHED,
       })
-      setExistingQuizId(quizId)
       setInfo('Published.')
       navigate('/admin/papers')
     } catch (err) {
@@ -600,16 +541,16 @@ export default function PastPaperStudio() {
       if (!ok) return
       markCompleted(2)
       setStep(3)
+      // Lazy-create the linked quiz the moment we enter step 3 so
+      // the "Open Quiz Editor" button is immediately useful.
+      ensureLinkedQuiz()
     } else if (step === 3) {
-      const issue = validateQuestionsForStep(3)
-      if (issue) { setError(issue); return }
+      if (quizCount === 0) {
+        setError('Add at least one question to the linked quiz before continuing.')
+        return
+      }
       markCompleted(3)
       setStep(4)
-    } else if (step === 4) {
-      const issue = validateQuestionsForStep(4)
-      if (issue) { setError(issue); return }
-      markCompleted(4)
-      setStep(5)
     }
   }
 
@@ -659,30 +600,23 @@ export default function PastPaperStudio() {
       )}
       {step === 2 && <DetailsStep details={details} setDetail={setDetail} />}
       {step === 3 && (
-        <QuestionsStep
-          questions={questions}
-          setQuestion={setQuestion}
-          setOption={setOption}
-          onAdd={addQuestion}
-          onRemove={removeQuestion}
-          onMove={moveQuestion}
-          onImportWithAi={importQuestionsWithAi}
-          importing={importing}
+        <QuizStep
+          quizId={existingQuizId}
+          quizCount={quizCount}
           hasAssets={assets.length > 0}
+          linkingQuiz={linkingQuiz}
+          importing={importing}
+          onOpenEditor={openQuizEditor}
+          onImportWithAi={importQuestionsWithAi}
+          onRefreshCount={refreshQuizCount}
         />
       )}
       {step === 4 && (
-        <AnswersStep
-          questions={questions}
-          setQuestion={setQuestion}
-        />
-      )}
-      {step === 5 && (
         <PublishStep
           details={details}
           assets={assets}
-          questions={questions}
-          existingQuizId={existingQuizId}
+          quizId={existingQuizId}
+          quizCount={quizCount}
         />
       )}
 
@@ -696,7 +630,7 @@ export default function PastPaperStudio() {
             ← Back
           </button>
         )}
-        {step < 5 && (
+        {step < 4 && (
           <button
             type="button"
             onClick={goNext}
@@ -706,7 +640,7 @@ export default function PastPaperStudio() {
             {saving ? 'Saving…' : 'Continue →'}
           </button>
         )}
-        {step === 5 && (
+        {step === 4 && (
           <button
             type="button"
             onClick={publish}
@@ -746,7 +680,11 @@ function UploadStep({ assets, uploading, onAddFiles, onRemove, onMove }) {
         {assets.map((a, i) => (
           <li key={a.path} className="theme-card border theme-border rounded-radius-md p-3 flex items-center gap-3">
             <span className="text-xl" aria-hidden="true">
-              {a.contentType === 'application/pdf' ? '📄' : '🖼️'}
+              {a.contentType === 'application/pdf'
+                ? '📄'
+                : a.contentType?.startsWith('image/')
+                  ? '🖼️'
+                  : '📝'}
             </span>
             <div className="flex-1 min-w-0">
               <p className="font-black text-sm theme-text truncate">{a.filename}</p>
@@ -848,136 +786,69 @@ function DetailsStep({ details, setDetail }) {
   )
 }
 
-function QuestionsStep({
-  questions, setQuestion, setOption, onAdd, onRemove, onMove,
-  onImportWithAi, importing, hasAssets,
+function QuizStep({
+  quizId, quizCount, hasAssets, linkingQuiz, importing,
+  onOpenEditor, onImportWithAi, onRefreshCount,
 }) {
   return (
     <section className="space-y-4">
-      <div className="theme-card border theme-border rounded-radius-md p-4 flex flex-wrap items-center gap-3">
-        <div className="flex-1 min-w-0">
-          <p className="theme-text font-black text-sm">Import questions with AI</p>
-          <p className="theme-text-muted text-xs mt-0.5">
-            Read the uploaded paper with Claude and pre-fill the question list.
-            You still review every answer before publishing.
-          </p>
+      <div className="theme-card border theme-border rounded-radius-md p-5 space-y-3">
+        <p className="theme-accent-text font-black text-xs uppercase tracking-widest">Quiz authoring</p>
+        <p className="theme-text font-black text-base">
+          {quizCount > 0
+            ? `${quizCount} question${quizCount === 1 ? '' : 's'} in the linked quiz`
+            : 'No questions yet'}
+        </p>
+        <p className="theme-text-muted text-sm">
+          Build the quiz in the full Quiz Editor — it supports images per option,
+          rich text, multiple question types, and reordering. Use AI import to
+          pre-fill MCQs from the uploaded paper, then open the editor to attach
+          pictures and review answers.
+        </p>
+        <div className="flex flex-wrap gap-2 pt-1">
+          <button
+            type="button"
+            onClick={onOpenEditor}
+            disabled={linkingQuiz}
+            className="theme-accent-fill theme-on-accent rounded-full px-4 py-2 text-sm font-black hover:opacity-90 disabled:opacity-50"
+          >
+            {linkingQuiz ? 'Linking quiz…' : (quizId ? 'Open Quiz Editor →' : 'Create quiz + open editor →')}
+          </button>
+          <button
+            type="button"
+            onClick={onImportWithAi}
+            disabled={importing || !hasAssets}
+            className="theme-card border-2 theme-border rounded-full px-4 py-2 text-sm font-black theme-text hover:theme-bg-subtle disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {importing ? 'Importing… 30-60 s' : '✨ Import with AI'}
+          </button>
+          {quizId && (
+            <button
+              type="button"
+              onClick={onRefreshCount}
+              className="text-xs font-bold theme-text-muted hover:theme-text ml-auto"
+            >
+              Refresh count
+            </button>
+          )}
         </div>
-        <button
-          type="button"
-          onClick={onImportWithAi}
-          disabled={importing || !hasAssets}
-          className="theme-accent-fill theme-on-accent rounded-full px-4 py-2 text-sm font-black hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {importing ? 'Importing… this can take 30-60 s' : '✨ Import with AI'}
-        </button>
+        {!hasAssets && (
+          <p className="text-xs font-bold text-amber-700">
+            Upload at least one file in step 1 before running the AI importer.
+          </p>
+        )}
       </div>
-      <p className="theme-text-muted text-sm">
-        Add each multiple-choice question with its options. You&apos;ll mark the correct
-        answer and add explanations in the next step.
-      </p>
-      <ol className="space-y-4">
-        {questions.map((q, i) => (
-          <li key={q.id} className="theme-card border theme-border rounded-radius-md p-4 space-y-3">
-            <div className="flex items-center gap-2">
-              <span className="theme-accent-text font-black text-xs uppercase tracking-widest">Question {i + 1}</span>
-              <div className="ml-auto flex items-center gap-1">
-                <button type="button" onClick={() => onMove(i, -1)} disabled={i === 0} className="px-2 py-1 text-xs font-black theme-text-muted hover:theme-text disabled:opacity-30">↑</button>
-                <button type="button" onClick={() => onMove(i, 1)} disabled={i === questions.length - 1} className="px-2 py-1 text-xs font-black theme-text-muted hover:theme-text disabled:opacity-30">↓</button>
-                {questions.length > 1 && (
-                  <button type="button" onClick={() => onRemove(i)} className="px-2 py-1 text-xs font-bold text-rose-700 hover:underline">Remove</button>
-                )}
-              </div>
-            </div>
-            <FieldRow label="Prompt">
-              <textarea
-                rows={2}
-                value={q.text}
-                onChange={(e) => setQuestion(i, { text: e.target.value })}
-                className={inputCls()}
-                placeholder="What is 2 + 2?"
-              />
-            </FieldRow>
-            <div className="grid sm:grid-cols-2 gap-3">
-              {q.options.map((opt, oi) => (
-                <FieldRow key={oi} label={`Option ${String.fromCharCode(65 + oi)}`}>
-                  <input
-                    type="text"
-                    value={opt}
-                    onChange={(e) => setOption(i, oi, e.target.value)}
-                    className={inputCls()}
-                    placeholder={`Option ${String.fromCharCode(65 + oi)}`}
-                  />
-                </FieldRow>
-              ))}
-            </div>
-          </li>
-        ))}
-      </ol>
-      <button
-        type="button"
-        onClick={onAdd}
-        className="theme-card border-2 border-dashed theme-border rounded-radius-md w-full p-4 text-sm font-black theme-text-muted hover:theme-text"
-      >
-        + Add another question
-      </button>
+      <div className="theme-card border theme-border rounded-radius-md p-4 text-sm theme-text-muted">
+        <p className="font-black theme-text mb-1">Tip</p>
+        Open the Quiz Editor in a new browser tab if you want to keep the Studio
+        open at the same time. When you come back, click <em>Refresh count</em>
+        to see how many questions the editor now holds.
+      </div>
     </section>
   )
 }
 
-function AnswersStep({ questions, setQuestion }) {
-  return (
-    <section className="space-y-4">
-      <p className="theme-text-muted text-sm">
-        Mark the correct option and (optionally) write a short explanation that the learner
-        will see after they answer.
-      </p>
-      <ol className="space-y-4">
-        {questions.map((q, i) => (
-          <li key={q.id} className="theme-card border theme-border rounded-radius-md p-4 space-y-3">
-            <p className="theme-accent-text font-black text-xs uppercase tracking-widest">Question {i + 1}</p>
-            <p className="theme-text font-black text-sm">{q.text || <em className="theme-text-muted">No prompt entered yet.</em>}</p>
-            <FieldRow label="Correct answer">
-              <div className="flex flex-wrap gap-2">
-                {q.options.map((opt, oi) => {
-                  const filled = String(opt).trim()
-                  const isSelected = Number(q.correctAnswer) === oi
-                  return (
-                    <button
-                      key={oi}
-                      type="button"
-                      onClick={() => setQuestion(i, { correctAnswer: oi })}
-                      disabled={!filled}
-                      className={[
-                        'rounded-full px-3 py-1.5 text-xs font-black border-2 transition-colors',
-                        isSelected
-                          ? 'border-emerald-500 bg-emerald-50 text-emerald-900'
-                          : 'theme-card theme-text-muted theme-border hover:theme-text',
-                        !filled ? 'opacity-50 cursor-not-allowed' : '',
-                      ].join(' ')}
-                    >
-                      {String.fromCharCode(65 + oi)} · {filled || <em>(empty)</em>}
-                    </button>
-                  )
-                })}
-              </div>
-            </FieldRow>
-            <FieldRow label="Explanation" hint="optional, shown after the learner answers">
-              <textarea
-                rows={2}
-                value={q.explanation}
-                onChange={(e) => setQuestion(i, { explanation: e.target.value })}
-                className={inputCls()}
-                placeholder="Why is this answer correct? What concept is being tested?"
-              />
-            </FieldRow>
-          </li>
-        ))}
-      </ol>
-    </section>
-  )
-}
-
-function PublishStep({ details, assets, questions, existingQuizId }) {
+function PublishStep({ details, assets, quizId, quizCount }) {
   const subjectMeta = useMemo(() => SUBJECTS.find((s) => s.id === details.subject), [details.subject])
   return (
     <section className="space-y-4">
@@ -1000,7 +871,7 @@ function PublishStep({ details, assets, questions, existingQuizId }) {
         <ul className="space-y-1 text-sm">
           {assets.map((a, i) => (
             <li key={a.path} className="theme-text flex items-center gap-2">
-              <span aria-hidden="true">{a.contentType === 'application/pdf' ? '📄' : '🖼️'}</span>
+              <span aria-hidden="true">{a.contentType === 'application/pdf' ? '📄' : a.contentType?.startsWith('image/') ? '🖼️' : '📝'}</span>
               <span className="truncate">{i + 1}. {a.filename}</span>
               <span className="text-xs theme-text-muted ml-auto">{formatBytes(a.size)}</span>
             </li>
@@ -1008,26 +879,20 @@ function PublishStep({ details, assets, questions, existingQuizId }) {
         </ul>
       </div>
       <div className="theme-card border theme-border rounded-radius-md p-5">
-        <p className="theme-accent-text font-black text-xs uppercase tracking-widest mb-2">Quiz ({questions.length} question{questions.length === 1 ? '' : 's'})</p>
-        <ol className="space-y-3 text-sm">
-          {questions.map((q, i) => {
-            const idx = Number(q.correctAnswer)
-            const correctText = q.options?.[idx] || '—'
-            return (
-              <li key={q.id}>
-                <p className="theme-text font-black">{i + 1}. {q.text}</p>
-                <p className="theme-text-muted text-xs mt-1">
-                  Correct: <span className="text-emerald-700 font-bold">{String.fromCharCode(65 + idx)}. {correctText}</span>
-                </p>
-              </li>
-            )
-          })}
-        </ol>
+        <p className="theme-accent-text font-black text-xs uppercase tracking-widest mb-2">Linked quiz</p>
+        <p className="theme-text font-black text-sm">
+          {quizCount} question{quizCount === 1 ? '' : 's'} ready
+        </p>
+        {quizId && (
+          <p className="theme-text-muted text-xs mt-1 font-mono break-all">
+            quiz id: {quizId}
+          </p>
+        )}
       </div>
       <p className="theme-text-muted text-xs">
-        Publishing will set this paper&apos;s status to <strong>Published</strong> and
-        {existingQuizId ? ' update the linked quiz' : ' create a new linked quiz'} with public
-        access so anonymous marketing visitors can preview up to 30 questions.
+        Publishing flips the paper to <strong>Published</strong> and turns on
+        <strong> publicAccess</strong> on the linked quiz, so anonymous marketing
+        visitors can preview up to 30 questions before the paywall.
       </p>
     </section>
   )

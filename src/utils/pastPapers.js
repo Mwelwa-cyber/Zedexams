@@ -37,11 +37,14 @@ import { capture } from './analytics'
 
 export const PAPER_GRADES = ['7', '9', '12']
 
-// Paper assets can be a PDF (one file) or a series of images (scanned
-// papers — common for older ECZ exams that were photocopied). Anything
-// up to 50MB per asset goes through `uploadPaperAsset` below.
+// Paper assets can be a PDF, a Word document (modern teacher-typed
+// papers usually start life as .docx), or a series of images
+// (scanned ECZ exams from the older archive). Anything up to 50MB
+// per asset goes through `uploadPaperAsset` below.
 export const ALLOWED_PAPER_MIME = [
   'application/pdf',
+  'application/msword',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'image/jpeg',
   'image/png',
   'image/webp',
