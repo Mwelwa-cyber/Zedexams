@@ -7,6 +7,7 @@ import { useSubscription } from '../../hooks/useSubscription'
 import UpgradeModal from '../subscription/UpgradeModal'
 import { UpgradeBanner, AttemptCounter } from '../subscription/PremiumGate'
 import PremiumGate from '../subscription/PremiumGate'
+import RenewalBanner from '../subscription/RenewalBanner'
 import Mascot from '../ui/Mascot'
 import Button from '../ui/Button'
 import Skeleton from '../ui/Skeleton'
@@ -120,7 +121,13 @@ export default function StudentDashboard() {
   return (
     <div className="max-w-2xl md:max-w-3xl mx-auto px-4 py-5 space-y-5">
       <SeoHelmet title="My stats" path="/my-stats" noIndex />
-      {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
+      {showUpgrade && (
+        <UpgradeModal
+          portal="learner"
+          defaultPlanId={userProfile?.subscriptionPlan}
+          onClose={() => setShowUpgrade(false)}
+        />
+      )}
 
       {/* Welcome hero */}
       <section className="hero min-h-[130px]">
@@ -157,6 +164,9 @@ export default function StudentDashboard() {
 
       {/* Gamification: XP, level, streak, personal best */}
       <StreakXpCard />
+
+      {/* Renewal nudge — surfaces in the last 7 days of an active subscription */}
+      <RenewalBanner onRenewClick={() => setShowUpgrade(true)} />
 
       {/* Upgrade banner */}
       <UpgradeBanner onUpgradeClick={() => setShowUpgrade(true)} />
