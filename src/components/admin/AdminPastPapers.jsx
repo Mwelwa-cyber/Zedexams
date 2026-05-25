@@ -41,6 +41,7 @@ export default function AdminPastPapers() {
   // current paper id so only one row spins at a time; convertMsg /
   // convertErr show a banner above the list with the result.
   const [converting, setConverting] = useState(null)
+  const [bulkBusy, setBulkBusy] = useState(false)
   const [convertMsg, setConvertMsg] = useState(null)
   const [convertErr, setConvertErr] = useState(null)
   const { currentUser } = useAuth()
@@ -67,6 +68,54 @@ export default function AdminPastPapers() {
       setConvertMsg(null)
     } finally {
       setConverting(null)
+    }
+  }
+
+  // Bulk variant — converts up to MAX_BULK papers from the current filter
+  // that have a PDF attached. Skips draft papers without pdfPath. Caps at
+  // 10 per click so a runaway press can't chew through the whole archive
+  // unintentionally (admin can re-click for the next batch).
+  const MAX_BULK = 10
+  async function handleBulkConvert() {
+    if (converting || bulkBusy) return
+    const eligible = filtered.filter((p) => p.pdfPath).slice(0, MAX_BULK)
+    if (eligible.length === 0) {
+      setConvertErr('No papers in the current filter have a PDF attached.')
+      return
+    }
+    setBulkBusy(true)
+    setConvertErr(null)
+    const failed = []
+    let saved = 0
+    for (let i = 0; i < eligible.length; i++) {
+      const p = eligible[i]
+      setConvertMsg(`Converting ${i + 1} / ${eligible.length} — ${p.title || 'untitled'}…`)
+      try {
+        await convertPaperToQuizDraft({
+          paper: p,
+          uid: currentUser?.uid,
+          createQuiz,
+          saveQuestions,
+          onProgress: () => { /* swallow per-paper progress in bulk mode */ },
+        })
+        saved += 1
+      } catch (err) {
+        failed.push({ title: p.title || p.id, error: err?.message || 'failed' })
+      }
+    }
+    setBulkBusy(false)
+    if (failed.length === 0) {
+      setConvertMsg(`✓ Converted ${saved} paper${saved === 1 ? '' : 's'} into draft quizzes. Opening filtered list…`)
+      setTimeout(() => navigate('/admin/content'), 1000)
+    } else {
+      setConvertMsg(`Done — ${saved} converted, ${failed.length} failed:`)
+      setConvertErr(
+        failed
+          .slice(0, 5)
+          .map((f) => `• ${f.title}: ${f.error}`)
+          .join('\n') +
+          (failed.length > 5 ? `\n…and ${failed.length - 5} more` : ''),
+      )
     }
   }
 
@@ -97,6 +146,22 @@ export default function AdminPastPapers() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
+          {/* Bulk convert — only shows when there's at least one filtered
+              paper with a pdfPath to operate on. Caps internally at 10
+              per click. */}
+          {filtered.some((p) => p.pdfPath) && (
+            <button
+              type="button"
+              onClick={handleBulkConvert}
+              disabled={bulkBusy || converting !== null}
+              className="rounded-full bg-violet-600 px-3 py-2 text-xs font-black text-white hover:bg-violet-700 disabled:opacity-50"
+              title="Convert every visible paper that has a PDF into a draft quiz (capped at 10 per click)"
+            >
+              {bulkBusy
+                ? '… converting'
+                : `✨ Bulk convert (${Math.min(filtered.filter((p) => p.pdfPath).length, 10)})`}
+            </button>
+          )}
           <Link
             to="/admin/quizzes/new?mode=import"
             className="rounded-full border-2 theme-border theme-text px-3 py-2 text-xs font-black hover:bg-amber-50"
