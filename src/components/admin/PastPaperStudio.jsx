@@ -36,6 +36,7 @@ import {
 } from '../../utils/pastPapers'
 import { SUBJECTS } from '../../config/curriculum'
 import { db } from '../../firebase/config'
+import { getFunctions, httpsCallable } from 'firebase/functions'
 import {
   collection,
   doc,
@@ -45,6 +46,15 @@ import {
   setDoc,
   writeBatch,
 } from 'firebase/firestore'
+
+const fns = getFunctions(undefined, 'us-central1')
+// The vision model can take 30-60s on a 12-page scan; bump the SDK
+// timeout above the default 70s so the call doesn't abort.
+const importPastPaperQuestionsCallable = httpsCallable(
+  fns,
+  'importPastPaperQuestions',
+  { timeout: 240_000 },
+)
 import SeoHelmet from '../seo/SeoHelmet'
 
 const CURRENT_YEAR = new Date().getFullYear()
@@ -195,6 +205,7 @@ export default function PastPaperStudio() {
   const [existingQuizId, setExistingQuizId] = useState(null)
   const [originalStatus, setOriginalStatus] = useState(PAPER_STATUSES.DRAFT)
   const [uploading, setUploading] = useState(false)
+  const [importing, setImporting] = useState(false)
 
   // ── Bootstrap: create a draft doc (new) or load existing ─────────
   useEffect(() => {
@@ -410,6 +421,53 @@ export default function PastPaperStudio() {
     })
   }
 
+  async function importQuestionsWithAi() {
+    if (!paperId || importing) return
+    if (!assets.length) {
+      setError('Upload at least one file before running the AI importer.')
+      return
+    }
+    const hasWork = questions.some((q) => q.text?.trim() || q.options?.some((o) => o.trim()))
+    if (hasWork && typeof window !== 'undefined' &&
+        !window.confirm('Replace the current question draft with the AI-extracted questions?')) {
+      return
+    }
+    setError('')
+    setInfo('')
+    setImporting(true)
+    try {
+      const res = await importPastPaperQuestionsCallable({ paperId })
+      const drafts = Array.isArray(res?.data?.questions) ? res.data.questions : []
+      if (!drafts.length) {
+        setError(res?.data?.warning || 'The AI could not extract any questions from this paper.')
+        return
+      }
+      const next = drafts.map((q, i) => ({
+        id: `local-${Math.random().toString(36).slice(2, 9)}`,
+        persisted: false,
+        type: 'mcq',
+        text: q.prompt || '',
+        // Pad to 4 options for the editor UI; admins can tweak counts in step 3.
+        options: [0, 1, 2, 3].map((k) => q.options?.[k] || ''),
+        correctAnswer: Number.isInteger(q.correctAnswer) ? q.correctAnswer : 0,
+        explanation: q.explanation || '',
+        marks: 1,
+        order: i,
+        requiresReview: true,
+      }))
+      setQuestions(next)
+      const parts = [`Imported ${next.length} question${next.length === 1 ? '' : 's'}.`]
+      if (res?.data?.warning) parts.push(res.data.warning)
+      parts.push('Review every answer before publishing.')
+      setInfo(parts.join(' '))
+    } catch (err) {
+      console.error('[PastPaperStudio] import failed', err)
+      setError(err?.message || 'AI import failed.')
+    } finally {
+      setImporting(false)
+    }
+  }
+
   function validateQuestionsForStep(currentStep) {
     for (let i = 0; i < questions.length; i += 1) {
       const q = questions[i]
@@ -608,6 +666,9 @@ export default function PastPaperStudio() {
           onAdd={addQuestion}
           onRemove={removeQuestion}
           onMove={moveQuestion}
+          onImportWithAi={importQuestionsWithAi}
+          importing={importing}
+          hasAssets={assets.length > 0}
         />
       )}
       {step === 4 && (
@@ -787,9 +848,29 @@ function DetailsStep({ details, setDetail }) {
   )
 }
 
-function QuestionsStep({ questions, setQuestion, setOption, onAdd, onRemove, onMove }) {
+function QuestionsStep({
+  questions, setQuestion, setOption, onAdd, onRemove, onMove,
+  onImportWithAi, importing, hasAssets,
+}) {
   return (
     <section className="space-y-4">
+      <div className="theme-card border theme-border rounded-radius-md p-4 flex flex-wrap items-center gap-3">
+        <div className="flex-1 min-w-0">
+          <p className="theme-text font-black text-sm">Import questions with AI</p>
+          <p className="theme-text-muted text-xs mt-0.5">
+            Read the uploaded paper with Claude and pre-fill the question list.
+            You still review every answer before publishing.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={onImportWithAi}
+          disabled={importing || !hasAssets}
+          className="theme-accent-fill theme-on-accent rounded-full px-4 py-2 text-sm font-black hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {importing ? 'Importing… this can take 30-60 s' : '✨ Import with AI'}
+        </button>
+      </div>
       <p className="theme-text-muted text-sm">
         Add each multiple-choice question with its options. You&apos;ll mark the correct
         answer and add explanations in the next step.
