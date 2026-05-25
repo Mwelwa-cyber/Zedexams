@@ -1,7 +1,8 @@
-import { lazy, Suspense, useState } from 'react'
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { lazy, Suspense, useEffect, useState } from 'react'
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { PLANS, PAYMENT_DETAILS } from '../../utils/subscriptionConfig'
+import { captureReferralFromUrl } from '../../utils/referrals'
 import Logo from '../ui/Logo'
 import Button from '../ui/Button'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -157,7 +158,19 @@ export default function GradePackLanding() {
   const pack = GRADE_PACKS[gradeSlug]
   const { currentUser } = useAuth()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const [showUpgrade, setShowUpgrade] = useState(false)
+
+  // Capture ?ref=ABC12345 → localStorage so the eventual /register
+  // flow writes user.referredBy. Same helper the /register page
+  // uses, so a learner who lands here via a friend's share link and
+  // signs up later still triggers the referral credit when their
+  // grant lands. Runs once per mount; no-op if no ref or already
+  // signed in (existing users can't re-attribute).
+  useEffect(() => {
+    if (currentUser) return
+    captureReferralFromUrl(searchParams)
+  }, [currentUser, searchParams])
 
   if (!pack) return <Navigate to="/pricing" replace />
   if (!pack.available) return <ComingSoon pack={pack} />
