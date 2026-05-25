@@ -7,6 +7,7 @@ import { sendActivationConfirmation, sendExpiryReminders } from '../../utils/wha
 import Button from '../ui/Button'
 import Skeleton from '../ui/Skeleton'
 import SeoHelmet from '../seo/SeoHelmet'
+import RevenueTrendCard from './RevenueTrendCard'
 
 // Products surfaced in the admin grant dropdown. Ordered by what we
 // actually sell most. Each entry resolves to a plan id in PLANS.
@@ -405,6 +406,11 @@ export default function PaymentsPanel() {
 
       {tab === 'grant' && (
         <div className="space-y-4">
+          {/* 7-day revenue trend — visual cue when daily volume is
+              up/down so the admin notices a slow day before they're
+              halfway through the next launch post. */}
+          <RevenueTrendCard />
+
           {/* Stats row */}
           <div className="grid grid-cols-3 gap-3">
             <div className="bg-white rounded-2xl shadow-sm border theme-border p-4 text-center">
