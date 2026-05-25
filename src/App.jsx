@@ -35,6 +35,7 @@ function isPublicThemePath(pathname) {
   if (PUBLIC_THEME_PATHS.has(pathname)) return true
   if (pathname.startsWith('/share/')) return true
   if (pathname.startsWith('/papers/')) return true
+  if (pathname.startsWith('/grade-')) return true
   if (pathname.startsWith('/parent/')) return true
   if (pathname === '/blog' || pathname.startsWith('/blog/')) return true
   // /my-papers is auth-only but visually shares the past-paper
@@ -95,6 +96,7 @@ const PaywallHost = lazy(() => import('./components/subscription/PaywallHost'))
 const NotFound = lazy(() => import('./components/ui/NotFound'))
 const Marketing = lazy(() => import('./components/marketing/Marketing'))
 const Plans = lazy(() => import('./components/marketing/Plans'))
+const GradePackLanding = lazy(() => import('./components/marketing/GradePackLanding'))
 const PrivacyPolicy = lazy(() => import('./components/marketing/PrivacyPolicy'))
 const Terms = lazy(() => import('./components/marketing/Terms'))
 const PastPapersHub = lazy(() => import('./components/papers/PastPapersHub'))
@@ -389,6 +391,10 @@ export default function App() {
           <Route path="/welcome"  element={<Navigate to="/" replace />} />
           <Route path="/pricing"  element={<Plans />} />
           <Route path="/plans"    element={<Navigate to="/pricing" replace />} />
+          {/* Grade-specific landing pages — the URLs to share in
+              WhatsApp posts. Slug = grade number; data lives in
+              GradePackLanding's GRADE_PACKS map. */}
+          <Route path="/grade-:gradeSlug" element={<GradePackLanding />} />
           <Route path="/privacy"  element={<PrivacyPolicy />} />
           <Route path="/terms"    element={<Terms />} />
           {/* Audit A2 — public ECZ past-paper archive. Hub is no-auth so
