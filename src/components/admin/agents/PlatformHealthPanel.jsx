@@ -16,6 +16,7 @@ const functions = getFunctions(app, 'us-central1')
 const getPlatformHealthCallable = httpsCallable(functions, 'getPlatformHealth', { timeout: 30_000 })
 const initializeAgentPipelineCallable = httpsCallable(functions, 'initializeAgentPipeline', { timeout: 30_000 })
 const runSampleAgentJobCallable = httpsCallable(functions, 'runSampleAgentJob', { timeout: 30_000 })
+const importBuiltInCbcTopicsCallable = httpsCallable(functions, 'importBuiltInCbcTopics', { timeout: 60_000 })
 
 const AGENT_LABELS = {
   aria: 'Aria',
@@ -63,6 +64,7 @@ export default function PlatformHealthPanel() {
   const [error, setError] = useState(null)
   const [initBusy, setInitBusy] = useState(false)
   const [sampleBusy, setSampleBusy] = useState(false)
+  const [seedBusy, setSeedBusy] = useState(false)
   const [actionMsg, setActionMsg] = useState(null)
   const [sampleJobId, setSampleJobId] = useState(null)
 
@@ -99,6 +101,22 @@ export default function PlatformHealthPanel() {
       setActionMsg(`Initialize failed: ${e?.message || 'unknown error'}`)
     } finally {
       setInitBusy(false)
+    }
+  }
+
+  async function handleSeedTopics() {
+    setSeedBusy(true)
+    setActionMsg(null)
+    try {
+      const res = await importBuiltInCbcTopicsCallable({})
+      const written = res?.data?.written ?? 0
+      const total = res?.data?.totalInCode ?? 0
+      setActionMsg(`Seeded ${written} of ${total} built-in CBC topics into the KB.`)
+      await refresh()
+    } catch (e) {
+      setActionMsg(`Seed failed: ${e?.message || 'unknown error'}`)
+    } finally {
+      setSeedBusy(false)
     }
   }
 
@@ -281,6 +299,17 @@ export default function PlatformHealthPanel() {
         >
           {initBusy ? 'Initializing…' : missingControl.length === 0 ? 'Initialized' : `Initialize (${missingControl.length})`}
         </button>
+        {(kb?.totalTopics || 0) === 0 && (
+          <button
+            type="button"
+            onClick={handleSeedTopics}
+            disabled={seedBusy}
+            className="rounded-xl bg-violet-600 px-3 py-1.5 text-xs font-black text-white hover:bg-violet-700 disabled:opacity-50"
+            title="Copy the 90 built-in G1–9 CBC topics into Firestore so Cala can verify alignment"
+          >
+            {seedBusy ? 'Seeding…' : 'Seed 90 built-in topics'}
+          </button>
+        )}
         <button
           type="button"
           onClick={handleRunSample}
