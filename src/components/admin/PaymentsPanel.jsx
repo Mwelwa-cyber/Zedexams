@@ -3,7 +3,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
 import { PLANS, PAYMENT_DETAILS, hasPremiumAccess } from '../../utils/subscriptionConfig'
 import { resendInvoiceEmail } from '../../utils/invoices'
-import { sendActivationConfirmation } from '../../utils/whatsapp'
+import { sendActivationConfirmation, sendExpiryReminders } from '../../utils/whatsapp'
 import Button from '../ui/Button'
 import Skeleton from '../ui/Skeleton'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -74,6 +74,7 @@ export default function PaymentsPanel() {
   const [grantStats, setGrantStats] = useState({ revenue: 0, activations: 0, activeUsers: 0 })
   const [recentActivations, setRecentActivations] = useState([])
   const [lastGrant, setLastGrant] = useState(null)
+  const [remindersRunning, setRemindersRunning] = useState(false)
 
   function show(msg) { setToast(msg); setTimeout(() => setToast(null), 3500) }
 
@@ -113,6 +114,7 @@ export default function PaymentsPanel() {
         planId: grantProductId,
         durationDays: +grantProductDays,
         paymentReference: grantPaymentRef,
+        phoneNumber: grantPhone,
         adminId: currentUser.uid,
       })
       const plan = PLANS[grantProductId]
@@ -178,6 +180,25 @@ export default function PaymentsPanel() {
     const number = PAYMENT_DETAILS.contact.whatsapp.replace(/[^\d]/g, '')
     const url = `https://wa.me/${number}?text=${encodeURIComponent(lastGrant.confirmText)}`
     window.open(url, '_blank', 'noopener,noreferrer')
+  }
+
+  async function handleSendReminders() {
+    if (remindersRunning) return
+    if (!window.confirm(
+      "Send WhatsApp renewal reminders to learners expiring in the next 3 days or lapsed in the last 14? Each user receives at most one reminder per 20 hours."
+    )) return
+    setRemindersRunning(true)
+    try {
+      const res = await sendExpiryReminders()
+      if (res.status === 'skipped' && res.reason === 'meta-not-configured') {
+        show('⚠ Meta WhatsApp secrets not set on the server.')
+      } else {
+        show(`📨 Reminders: ${res.sent} sent · ${res.skipped} skipped · ${res.failed} failed (of ${res.candidates} candidates)`)
+      }
+    } catch (err) {
+      show('❌ ' + (err.message || 'Could not send reminders.'))
+    }
+    setRemindersRunning(false)
   }
 
   function handleExportTodayCsv() {
@@ -500,9 +521,14 @@ export default function PaymentsPanel() {
                 <span className="w-2 h-2 rounded-full bg-[#B8860B]" />
                 Recent activations
               </h3>
-              <Button variant="secondary" size="sm" onClick={handleExportTodayCsv}>
-                ⬇ Export today's sales
-              </Button>
+              <div className="flex gap-2 flex-wrap">
+                <Button variant="secondary" size="sm" onClick={handleExportTodayCsv}>
+                  ⬇ Export today's sales
+                </Button>
+                <Button variant="secondary" size="sm" loading={remindersRunning} onClick={handleSendReminders}>
+                  {remindersRunning ? 'Sending…' : '📨 Send expiry reminders'}
+                </Button>
+              </div>
             </div>
             {loading ? (
               <div className="space-y-2">{[1, 2, 3].map((i) => <Skeleton key={i} height={40} />)}</div>
