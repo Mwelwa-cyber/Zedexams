@@ -37,6 +37,30 @@ import { capture } from './analytics'
 
 export const PAPER_GRADES = ['7', '9', '12']
 
+// Each uploaded asset can be either the paper itself or its mark
+// scheme. Defaults to 'paper' when the field is absent (back-compat
+// with assets uploaded before the role split landed).
+export const ASSET_ROLES = {
+  PAPER: 'paper',
+  MARK_SCHEME: 'mark-scheme',
+}
+
+export function getAssetRole(asset) {
+  return asset?.role === ASSET_ROLES.MARK_SCHEME
+    ? ASSET_ROLES.MARK_SCHEME
+    : ASSET_ROLES.PAPER
+}
+
+export function splitAssetsByRole(assets) {
+  const paper = []
+  const markScheme = []
+  for (const a of (Array.isArray(assets) ? assets : [])) {
+    if (getAssetRole(a) === ASSET_ROLES.MARK_SCHEME) markScheme.push(a)
+    else paper.push(a)
+  }
+  return { paper, markScheme }
+}
+
 // Paper assets can be a PDF, a Word document (modern teacher-typed
 // papers usually start life as .docx), or a series of images
 // (scanned ECZ exams from the older archive). Anything up to 50MB
