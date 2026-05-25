@@ -1785,6 +1785,18 @@ const {
 } = require("./teacherTools/extractTopicsFromPdf");
 exports.extractTopicsFromPdf = createExtractTopicsFromPdf(anthropicApiKey);
 
+// Admin-only curriculum module upload. Accepts DOCX / PDF / XLSX, parses,
+// chunks, embeds, and writes straight into the curriculum/ + rag_chunks/
+// collections so the teacher tools pick them up immediately (no review
+// queue). Pairs with deleteCurriculumUpload for the admin UI's tear-down
+// button. Lives at /admin/curriculum-upload.
+const {
+  createUploadCurriculumModule,
+  createDeleteCurriculumUpload,
+} = require("./teacherTools/uploadCurriculumModule");
+exports.uploadCurriculumModule = createUploadCurriculumModule(openaiApiKey);
+exports.deleteCurriculumUpload = createDeleteCurriculumUpload();
+
 /**
  * Admin-only callable: re-runs Cala (and Reva) on a job that previously
  * failed at the Cala step. Safe because Cala is deterministic and costs

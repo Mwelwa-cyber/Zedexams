@@ -127,6 +127,7 @@ const AdminLearnerProfile = lazy(() => import('./components/admin/AdminLearnerPr
 const GenerationsAdmin = lazy(() => import('./components/admin/GenerationsAdmin'))
 const CbcKbAdmin = lazy(() => import('./components/admin/CbcKbAdmin'))
 const CurriculumReplaceStudio = lazy(() => import('./components/admin/CurriculumReplaceStudio'))
+const CurriculumUploadPanel = lazy(() => import('./components/admin/CurriculumUploadPanel'))
 const AdminAiCosts = lazy(() => import('./components/admin/AdminAiCosts'))
 const AdminAppCheck = lazy(() => import('./components/admin/AdminAppCheck'))
 const AdminUsersList = lazy(() => import('./components/admin/users/AdminUsersList'))
@@ -498,6 +499,7 @@ export default function App() {
           <Route path="/admin/generations/:id"          element={<AdminRoute><LibraryItemDetail /></AdminRoute>} />
           <Route path="/admin/cbc-kb"                   element={<AdminRoute><CbcKbAdmin /></AdminRoute>} />
           <Route path="/admin/curriculum/replace"       element={<AdminRoute><CurriculumReplaceStudio /></AdminRoute>} />
+          <Route path="/admin/curriculum-upload"        element={<AdminRoute><CurriculumUploadPanel /></AdminRoute>} />
           {/* Audit B4 — AI cost dashboard. Admin-only per route +
               Firestore rules. */}
           <Route path="/admin/ai-costs"                 element={<AdminRoute><AdminAiCosts /></AdminRoute>} />

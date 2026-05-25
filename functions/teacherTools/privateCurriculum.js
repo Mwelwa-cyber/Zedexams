@@ -464,6 +464,18 @@ function scoreChunk(chunk, requestMeta) {
   const tagHits = requestMeta.queryTags.filter((tag) => tags.includes(tag)).length;
   score += Math.min(tagHits * 4, 12);
 
+  // Admin-uploaded modules beat general syllabus chunks when an admin
+  // has uploaded a topic-specific resource for the same grade + subject.
+  // The retrieval still falls back to the syllabus if no module ranks
+  // above the confidence threshold — the boost only changes ordering,
+  // not eligibility.
+  const documentType = typeof chunk.documentType === "string" ?
+    chunk.documentType : "";
+  if (documentType === "module") score += 8;
+  else if (documentType === "learners_book" || documentType === "teachers_guide" ||
+           documentType === "scheme_of_work" || documentType === "lesson_plan") score += 6;
+  else if (documentType === "syllabus") score += 3;
+
   return score;
 }
 
@@ -614,8 +626,40 @@ async function resolvePrivateCurriculumContext(request) {
   };
 }
 
+/**
+ * Build the `tags` array to attach to an admin-uploaded curriculum chunk
+ * so it surfaces in `fetchCandidateChunks` for matching teacher-tool
+ * requests. The retrieval query is `tags array-contains-any [...queryTags]`
+ * where queryTags is `SUBJECT_PROFILES[subject].syllabi[band]`. Returning
+ * the same tag set on the chunk guarantees it shows up alongside the
+ * syllabus rows scoped by the same grade + subject.
+ *
+ * Returns at minimum a band tag (e.g. "upper_primary") so even unrecognised
+ * subjects still surface for grade-only queries.
+ */
+function buildIngestTagsFor(grade, subject) {
+  const gradeProfile = inferGradeProfile(grade);
+  const subjectId = String(subject || "")
+      .toLowerCase()
+      .replace(/[^a-z_]/g, "_");
+  const subjectProfile = SUBJECT_PROFILES[subjectId];
+  const tags = [];
+  if (subjectProfile && gradeProfile.band) {
+    const syllabusTags = subjectProfile.syllabi[gradeProfile.band] || [];
+    for (const tag of syllabusTags) {
+      if (tag && !tags.includes(tag)) tags.push(tag);
+    }
+  }
+  if (gradeProfile.band && !tags.includes(gradeProfile.band)) {
+    tags.push(gradeProfile.band);
+  }
+  return tags;
+}
+
 module.exports = {
   PRIVATE_CURRICULUM_VERSION,
   invalidatePrivateCurriculumCache,
   resolvePrivateCurriculumContext,
+  buildIngestTagsFor,
+  scoreChunk,
 };
