@@ -395,3 +395,57 @@
   .format-preview-scale .doc-head .school{font-size:16pt}
   .format-preview-scale .doc-head .lp-title{font-size:13pt}
 }
+
+/* ============ A4 PREVIEW MODAL ============
+   After generating, the teacher clicks "A4 Preview" in the topbar to see
+   the lesson plan on an actual A4-sized sheet. This is what the PDF /
+   Word export will look like — same width, same margins, same wrapping. */
+.modal.modal-a4{max-width:calc(210mm + 80px);width:100%;max-height:92vh}
+.a4-preview-actions{display:flex;gap:6px;flex-wrap:wrap;margin-left:auto;margin-right:14px}
+.a4-preview-actions .a4-action{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border:1px solid #cdd6da;border-radius:5px;background:#fff;color:#0e2a32;font:600 12px/1 'DM Sans',sans-serif;cursor:pointer;transition:all .12s}
+.a4-preview-actions .a4-action:hover{background:#ff7a2e;border-color:#ff7a2e;color:#fff}
+.a4-preview-actions .a4-action svg{width:14px;height:14px;flex-shrink:0}
+.a4-preview-body{background:#d0c8b5;padding:18px;max-height:calc(92vh - 64px);overflow:auto}
+.a4-page{width:210mm;min-height:297mm;margin:0 auto;background:#fff;box-shadow:0 4px 16px rgba(0,0,0,.18),0 1px 3px rgba(0,0,0,.08);padding:14mm 18mm 22mm;box-sizing:border-box;font-family:var(--font-doc);font-size:var(--doc-font-size);line-height:1.55;color:var(--ink);outline:none}
+.a4-page::before{content:'';display:block;height:0}
+@media(max-width:780px){
+  .a4-preview-body{padding:10px}
+  /* Scale the full A4 page down so it fits a phone without horizontal
+     scroll. `zoom` is supported in Chromium, WebKit and Firefox ≥126; if
+     unsupported the user can still pinch-zoom and pan the page. */
+  .a4-page{zoom:.45}
+}
+
+/* ============ PRINT STYLES — used by exportPDF() (window.print) ============
+   Hide everything except the .doc-wrap, drop the workspace background,
+   remove the accent stripe, keep stage tables together, and force the
+   browser to preserve the gold stage-head / cream col-head background
+   colors instead of stripping them for "save toner". */
+@media print {
+  @page { size: A4; margin: 14mm 16mm 18mm 16mm; }
+  body * { visibility: hidden !important; }
+  #view-plans .doc-wrap, #view-plans .doc-wrap * { visibility: visible !important; }
+  #view-plans .doc-wrap{
+    position:absolute;left:0;top:0;width:100%!important;max-width:none!important;margin:0!important;
+    box-shadow:none!important;border-radius:0!important;background:#fff!important;
+  }
+  #view-plans .doc-wrap::before{display:none!important}
+  #view-plans .doc{
+    padding:0!important;min-height:0!important;outline:none!important;
+    background:#fff!important;
+  }
+  #view-plans .doc[contenteditable="true"]{outline:none!important}
+  #view-plans .workspace{background:#fff!important;padding:0!important}
+  /* Keep stage tables and meta rows from splitting across pages */
+  .stage-block, .stage-table, .meta-table tr, .lp-table tbody tr{
+    page-break-inside:avoid;break-inside:avoid;
+  }
+  /* Don't orphan a heading from the content that follows it */
+  h2.sec, .progression-title{page-break-after:avoid;break-after:avoid}
+  /* Preserve the colored stage-head/col-head backgrounds — browsers
+     strip these by default for "background graphics off". */
+  *{ -webkit-print-color-adjust:exact!important; print-color-adjust:exact!important; color-adjust:exact!important; }
+  /* Hide all modals defensively in case one is open when printing */
+  .modal-scrim{display:none!important}
+  .toast{display:none!important}
+}

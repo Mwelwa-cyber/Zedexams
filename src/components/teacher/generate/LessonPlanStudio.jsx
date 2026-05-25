@@ -19,7 +19,7 @@ const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerat
 
 // Bump this when /public/studio/* is changed so phones / CDNs refetch
 // instead of serving the cached old file.
-const STUDIO_ASSET_VERSION = 'v13'
+const STUDIO_ASSET_VERSION = 'v14'
 
 // Sequential script loader — each script must finish before the next starts
 // because the studio scripts rely on globals set by earlier ones.
@@ -259,6 +259,7 @@ export default function LessonPlanStudio() {
       `/studio/09-symbols.js${v}`,
       `/studio/10-export.js${v}`,
       `/studio/11-diagrams.js${v}`,
+      `/studio/12-a4-preview.js${v}`,
     ]
 
     loadScriptsSequentially(scripts)
@@ -639,6 +640,10 @@ export default function LessonPlanStudio() {
                 </div>
               </div>
               <div className="tb-spacer"></div>
+              <button className="tb-btn" id="btn-a4-preview" title="See how this will look on A4 paper">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="3" width="14" height="18" rx="1"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="16" x2="13" y2="16"/></svg>
+                <span>A4 Preview</span>
+              </button>
               <div className="export-menu">
                 <button className="tb-btn" id="btn-export" style={{background:'var(--accent)',color:'#faf6ef',borderColor:'var(--accent)'}}>
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -721,6 +726,29 @@ export default function LessonPlanStudio() {
           </div>
           <div className="modal-body modal-body-flush" id="format-preview-body">
             <div className="format-preview-empty">Loading sample lesson plan…</div>
+          </div>
+        </div>
+      </div>
+      <div className="modal-scrim" id="modal-a4-preview">
+        <div className="modal modal-a4">
+          <div className="modal-head">
+            <h3>A4 Preview · how your PDF / Word file will look</h3>
+            <div className="a4-preview-actions">
+              <button type="button" className="a4-action" data-a4-action="print">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                <span>Print / Save as PDF</span>
+              </button>
+              <button type="button" className="a4-action" data-a4-action="word">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 8 9.5 16 12 10 14.5 16 17 8" strokeWidth="1.7"/></svg>
+                <span>Download Word</span>
+              </button>
+            </div>
+            <button className="close" data-close-modal>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div className="modal-body modal-body-flush a4-preview-body" id="a4-preview-body">
+            <div className="format-preview-empty">Generate a lesson plan first to see it here.</div>
           </div>
         </div>
       </div>

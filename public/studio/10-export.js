@@ -22,7 +22,21 @@ window.__studioRebinders.push(__studioInitExport);
 function gatherStyles() {
   return Array.from(document.styleSheets).map(s => { try { return Array.from(s.cssRules).map(r => r.cssText).join('\n'); } catch (e) { return ''; } }).join('\n');
 }
-function exportPDF() { if (editing) doc.contentEditable = false; window.print(); if (editing) doc.contentEditable = true; }
+// Empty-state markup is the placeholder shown before any generation; if
+// it's still there, the doc has no real content and exporting it would
+// produce a meaningless "An empty page is waiting" PDF/Word file.
+function hasExportableContent() {
+  const docEl = document.getElementById('doc');
+  return !!(docEl && !docEl.querySelector('.empty-state'));
+}
+function exportPDF() {
+  if (!hasExportableContent()) { toast('Generate a lesson plan first'); return; }
+  // Turn off contentEditable so the print pipeline doesn't render the
+  // editing outline or place a caret in the printed output.
+  if (typeof editing !== 'undefined' && editing) doc.contentEditable = false;
+  window.print();
+  if (typeof editing !== 'undefined' && editing) doc.contentEditable = true;
+}
 function exportHTML() {
   const styles = gatherStyles();
   const body = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Lesson Plan</title><link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700;800&family=Lora:wght@400;600;700&display=swap" rel="stylesheet"><style>${styles}</style></head><body><div class="doc-wrap" style="max-width:794px;margin:24px auto"><div class="doc">${doc.innerHTML}</div></div></body></html>`;
@@ -45,6 +59,7 @@ function loadHtmlDocxLib() {
 }
 
 async function exportWord() {
+  if (!hasExportableContent()) { toast('Generate a lesson plan first'); return; }
   toast('Preparing Word document…');
   try {
     await loadHtmlDocxLib();
@@ -82,9 +97,16 @@ h2.sec, .progression-title { font-family: Georgia, serif; font-weight: 700; font
 .stage-table td { padding: 6pt 8pt; vertical-align: top; border-top: 1px solid #c8baa3; }
 .c2-stage-table th.col-head, .c2-stage-table td { width: 33.33%; }
 .c2-stage-table td + td { border-left: 1px solid #c8baa3; }
+.progression-title { font-family: Georgia, serif; font-weight: 700; font-size: 12pt; margin: 14pt 0 6pt; letter-spacing: 0.5pt; }
+.outcomes-list { list-style: decimal; padding-left: 22pt; margin: 4pt 0 8pt; }
+.outcomes-list li { margin: 3pt 0; padding-left: 4pt; }
+.callout-line { margin: 4pt 0 4pt 4pt; padding: 2pt 0 6pt; border-bottom: 1px dotted #c8baa3; }
+.callout-line strong { font-weight: 700; margin-right: 6pt; }
+.callout-line .blank { display: inline-block; min-width: 60%; border-bottom: 1px dotted #c8baa3; }
 ul, ol { margin: 4pt 0 8pt 18pt; padding: 0; }
 li { margin: 2pt 0; }
 strong { font-weight: 700; }
+@media print { .stage-block, tr { page-break-inside: avoid; } h2.sec, .progression-title { page-break-after: avoid; } }
 </style>
 </head><body><div class="WordSection1">${doc.innerHTML}</div></body></html>`;
 
