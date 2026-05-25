@@ -91,12 +91,31 @@ export async function rejectCurriculumModule(curriculumId, reason) {
 /**
  * Manually trigger one full pass of the curriculumWatcher agent. Used
  * to verify ingestion without waiting for the daily 02:00 UTC cron.
+ *
+ * @param {object} [options]
+ * @param {string[]} [options.grades]   Grade tokens to scope the run to,
+ *                                       e.g. ['3','4','ECE']. Empty array
+ *                                       or undefined → all grades.
+ * @param {boolean}  [options.includeUnknownGrade]
+ *                                       When a grade scope is set, this
+ *                                       controls whether to keep modules
+ *                                       whose grade can't be detected.
+ *                                       Defaults: true when unscoped,
+ *                                       false when scoped (matches the
+ *                                       server's normaliseRunOptions()).
+ *
  * Returns `{ ok, taskId, summary: { changedCount, unreachableCount,
- * ingestedTotal, bySource } }` on success.
+ * ingestedTotal, skippedTotal, gradeFilter, includeUnknownGrade,
+ * aggregatedSkipReasons, bySource } }` on success.
  */
-export async function runCurriculumWatcherNow() {
+export async function runCurriculumWatcherNow(options = {}) {
+  const payload = {}
+  if (Array.isArray(options.grades)) payload.grades = options.grades
+  if (typeof options.includeUnknownGrade === 'boolean') {
+    payload.includeUnknownGrade = options.includeUnknownGrade
+  }
   try {
-    const { data } = await runWatcherNowCallable({})
+    const { data } = await runWatcherNowCallable(payload)
     if (data && data.ok === false) {
       return { ok: false, error: data.error || 'Run failed' }
     }

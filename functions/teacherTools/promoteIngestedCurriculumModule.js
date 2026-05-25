@@ -53,6 +53,7 @@ const {
 const {getActiveKbVersion, invalidateKbCache} = require("./cbcKnowledge");
 const {
   runCurriculumWatcher,
+  normaliseGradeToken,
 } = require("../agents/learnerAi/runners/curriculumWatcher");
 
 const LIST_LIMIT = 100;
@@ -610,6 +611,10 @@ function summariseRunOutcome(result) {
       outcome: o.outcome || "unknown",
       ingestedModuleCount: o.ingestedModuleCount || 0,
       ingestedSkippedCount: o.ingestedSkippedCount || 0,
+      linksDiscovered: o.linksDiscovered || 0,
+      linksAttempted: o.linksAttempted || 0,
+      linksPreFiltered: o.linksPreFiltered || 0,
+      skipReasons: o.skipReasons || {},
       reason: o.reason || null,
       reportId: o.reportId || null,
     };
@@ -618,18 +623,86 @@ function summariseRunOutcome(result) {
     changedCount: Number(result.changedCount) || 0,
     unreachableCount: Number(result.unreachableCount) || 0,
     ingestedTotal: Number(result.ingestedTotal) || 0,
+    skippedTotal: Number(result.skippedTotal) || 0,
+    gradeFilter: Array.isArray(result.gradeFilter) ? result.gradeFilter : null,
+    includeUnknownGrade: result.includeUnknownGrade !== false,
+    aggregatedSkipReasons: result.aggregatedSkipReasons || {},
     bySource,
   };
+}
+
+/**
+ * Validate + normalise the caller's grade scope payload. Returns
+ * `{grades, includeUnknownGrade}` where `grades` is either `null`
+ * (= all grades) or an array of normalised tokens like `["1","2","ECE"]`.
+ * Throws HttpsError on malformed input so the caller sees a clear error.
+ */
+function normaliseRunOptions(rawData) {
+  const data = rawData && typeof rawData === "object" ? rawData : {};
+  const rawGrades = data.grades;
+  let grades = null;
+  if (rawGrades !== undefined && rawGrades !== null) {
+    if (!Array.isArray(rawGrades)) {
+      throw new HttpsError(
+          "invalid-argument",
+          "grades must be an array of grade tokens (e.g. ['3','4','ECE']).",
+      );
+    }
+    if (rawGrades.length > 0) {
+      const out = [];
+      for (const raw of rawGrades) {
+        const t = normaliseGradeToken(raw);
+        if (!t) {
+          throw new HttpsError(
+              "invalid-argument",
+              `Unrecognised grade token: ${String(raw)}. ` +
+              "Use '1'-'12' or 'ECE'.",
+          );
+        }
+        if (!out.includes(t)) out.push(t);
+      }
+      // Cap at the full set so a bad caller can't blow up the payload.
+      if (out.length > 16) {
+        throw new HttpsError(
+            "invalid-argument",
+            "Too many grades selected (max 16).",
+        );
+      }
+      grades = out;
+    }
+    // Empty array == no scope (= all grades). Matches the UI "All grades"
+    // checkbox behaviour.
+  }
+  // Default: when a grade scope is supplied, drop modules whose grade
+  // can't be detected. Caller can override explicitly.
+  const includeUnknownGrade = data.includeUnknownGrade === undefined ?
+    (grades === null) : Boolean(data.includeUnknownGrade);
+  return {grades, includeUnknownGrade};
 }
 
 exports.runCurriculumWatcherNow = onCall(
     {timeoutSeconds: 540, memory: "512MiB"},
     async (request) => {
       const uid = await requireAdmin(request);
+      // Validate the grade scope BEFORE building the taskId so a bad
+      // call doesn't leave a half-formed run hanging in the agent state.
+      let runOptions;
+      try {
+        runOptions = normaliseRunOptions(request.data);
+      } catch (err) {
+        if (err instanceof HttpsError) throw err;
+        throw new HttpsError(
+            "invalid-argument",
+            `Bad run options: ${(err && err.message || "").slice(0, 200)}`,
+        );
+      }
       const taskId = `manual-${uid}-${Date.now()}`;
       let result;
       try {
-        result = await runCurriculumWatcher({task: {id: taskId}});
+        result = await runCurriculumWatcher({
+          task: {id: taskId},
+          options: runOptions,
+        });
       } catch (err) {
         return {
           ok: false,
@@ -658,5 +731,6 @@ exports.runCurriculumWatcherNow = onCall(
 exports._internals = {
   slug, buildTopicId, serialiseModule,
   coerceStringArray, normaliseEnrichment, summariseRunOutcome,
+  normaliseRunOptions,
   ENRICH_MAX_ITEMS, ENRICH_ITEM_CHAR_CAP,
 };

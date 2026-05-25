@@ -9,6 +9,40 @@ import {
   runCurriculumWatcherNow,
 } from '../../../utils/stagedCurriculumModules'
 
+// Grade tokens the watcher accepts. Must match normaliseGradeToken()
+// in functions/agents/learnerAi/runners/curriculumWatcher.js — adding
+// a value here without teaching the server about it would just produce
+// an "Unrecognised grade token" invalid-argument error.
+const GRADE_TOKENS = ['ECE', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']
+
+const GRADE_LABELS = {
+  ECE: 'ECE',
+  1: 'G1', 2: 'G2', 3: 'G3', 4: 'G4',
+  5: 'G5', 6: 'G6', 7: 'G7', 8: 'G8',
+  9: 'G9', 10: 'G10', 11: 'G11', 12: 'G12',
+}
+
+// Human-readable explanations for each skip reason key the server
+// reports. Keys must match the bucketed reason strings (everything
+// before the first colon) in ingestSource() — keep these in sync.
+const SKIP_REASON_LABELS = {
+  grade_filtered:       'Wrong grade for this run',
+  grade_undetected:     'Could not detect a grade',
+  parse_text_too_short: 'Document had too little text',
+  parse_unsupported:    'File format not supported',
+  pdf_parse_failed:     'PDF could not be parsed',
+  docx_parse_failed:    'Word doc could not be parsed',
+  no_chunks:            'No usable content blocks',
+  http_404:             'Source returned 404 (not found)',
+  http_403:             'Source returned 403 (forbidden)',
+  http_500:             'Source returned 500 (server error)',
+  fetch_error:          'Network error during download',
+  fetch_unavailable_in_runtime: 'Download not available in this environment',
+  ingest_error:         'Unexpected error during ingest',
+  persist_error:        'Could not save to Firestore',
+  run_budget_exhausted: 'Per-run download budget reached',
+}
+
 // Admin queue for curriculumWatcher-ingested modules. Each row is one
 // `curriculum/{id}` doc that the agent staged into the private RAG
 // layer. Admin can either:
@@ -86,6 +120,243 @@ function formatImportedAt(iso) {
   try { return new Date(iso).toLocaleString() } catch { return '' }
 }
 
+// ── Run-summary panel ─────────────────────────────────────────────
+//
+// Replaces the old one-line "X changed, Y ingested" notice with a
+// structured panel that admins can actually act on:
+//   - run scope (grades, include-unknown)
+//   - aggregate totals
+//   - per-source row: status, links discovered → fetched → staged,
+//     and the bucketed skip reasons (with friendly labels)
+//
+// Stays open until the admin dismisses it so a long scrollable run
+// can be cross-referenced against the staged-modules list below.
+
+function formatScope(summary) {
+  if (!summary.gradeFilter || !Array.isArray(summary.gradeFilter) || summary.gradeFilter.length === 0) {
+    return 'All grades'
+  }
+  const labels = summary.gradeFilter.map((t) => GRADE_LABELS[t] || t)
+  return `${labels.join(', ')}${summary.includeUnknownGrade ? ' (+ unknown)' : ''}`
+}
+
+function SkipReasonChip({ reasonKey, count }) {
+  const label = SKIP_REASON_LABELS[reasonKey] || reasonKey
+  return (
+    <span
+      className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded border border-slate-200 bg-slate-50 text-slate-700"
+      title={reasonKey}
+    >
+      {label}
+      <span className="font-bold text-slate-900">· {count}</span>
+    </span>
+  )
+}
+
+function SourceRow({ id, info }) {
+  const ingested = info.ingestedModuleCount || 0
+  const skipped = info.ingestedSkippedCount || 0
+  const discovered = info.linksDiscovered || 0
+  const attempted = info.linksAttempted || 0
+  const preFiltered = info.linksPreFiltered || 0
+  const reasons = info.skipReasons || {}
+  const reasonEntries = Object.entries(reasons).sort((a, b) => b[1] - a[1])
+  const outcomeTone =
+    info.outcome === 'changed' || info.outcome === 'first_snapshot' ? 'text-emerald-700' :
+    info.outcome === 'unreachable' ? 'text-rose-700' :
+    info.outcome === 'unchanged' ? 'text-slate-500' :
+    'text-slate-600'
+
+  return (
+    <li className="border border-slate-200 rounded p-3 bg-white">
+      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+        <code className="text-xs font-bold text-slate-900">{id}</code>
+        <span className={`text-[11px] font-semibold uppercase tracking-wider ${outcomeTone}`}>
+          {info.outcome}
+          {info.reason ? ` (${info.reason})` : ''}
+        </span>
+        {info.reportId && (
+          <span className="text-[11px] text-slate-500">report {info.reportId.slice(0, 8)}…</span>
+        )}
+      </div>
+      {(discovered > 0 || attempted > 0) && (
+        <div className="text-xs text-slate-600 mt-1">
+          Found <strong>{discovered}</strong> link(s) ·{' '}
+          attempted <strong>{attempted}</strong>
+          {preFiltered > 0 ? ` (${preFiltered} pre-filtered by grade)` : ''} ·{' '}
+          staged <strong className="text-emerald-700">{ingested}</strong> ·{' '}
+          skipped <strong className="text-amber-700">{skipped}</strong>
+        </div>
+      )}
+      {reasonEntries.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {reasonEntries.map(([k, v]) => (
+            <SkipReasonChip key={k} reasonKey={k} count={v} />
+          ))}
+        </div>
+      )}
+    </li>
+  )
+}
+
+function RunSummary({ summary, onDismiss }) {
+  const bySource = summary.bySource || {}
+  const sourceIds = Object.keys(bySource).sort()
+  const totalDiscovered = sourceIds.reduce((n, id) => n + (bySource[id].linksDiscovered || 0), 0)
+  return (
+    <div className="mb-3 border border-slate-300 rounded-lg bg-slate-50">
+      <div className="flex items-start justify-between gap-2 px-3 pt-3">
+        <div>
+          <div className="text-sm font-semibold text-slate-900">Last watcher run</div>
+          <div className="text-xs text-slate-600">
+            Scope: <strong>{formatScope(summary)}</strong>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="text-xs text-slate-500 hover:text-slate-800"
+        >
+          Dismiss
+        </button>
+      </div>
+      <div className="px-3 py-2 text-xs text-slate-700">
+        <strong className="text-slate-900">{summary.ingestedTotal || 0}</strong> module(s) staged ·{' '}
+        <strong className="text-slate-900">{summary.skippedTotal || 0}</strong> skipped ·{' '}
+        <strong className="text-slate-900">{summary.changedCount || 0}</strong> source(s) changed ·{' '}
+        <strong className="text-slate-900">{summary.unreachableCount || 0}</strong> unreachable ·{' '}
+        <strong className="text-slate-900">{totalDiscovered}</strong> link(s) discovered
+      </div>
+      <ul className="px-3 pb-3 space-y-2">
+        {sourceIds.map((id) => (
+          <SourceRow key={id} id={id} info={bySource[id]} />
+        ))}
+        {sourceIds.length === 0 && (
+          <li className="text-xs text-slate-500 italic">No per-source detail recorded.</li>
+        )}
+      </ul>
+    </div>
+  )
+}
+
+// ── Grade-picker modal ───────────────────────────────────────────
+//
+// Light-touch modal that gates "Run watcher now" on a deliberate
+// grade choice. We keep the local state in the parent so reopening
+// the picker remembers the last selection within the session.
+
+function GradePickerModal({
+  selectedGrades, includeUnknownGrade,
+  onToggleGrade, onSelectAll, onClear, onChangeIncludeUnknown,
+  onCancel, onRun,
+}) {
+  const count = selectedGrades.size
+  const isAll = count === 0
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="grade-picker-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      onClick={onCancel}
+    >
+      <div
+        className="bg-white rounded-lg shadow-xl max-w-md w-full p-5"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id="grade-picker-title" className="text-base font-semibold text-slate-900 mb-1">
+          Which grades should the watcher download?
+        </h2>
+        <p className="text-xs text-slate-600 mb-3">
+          Pick one or more. Documents the agent classifies as a different grade
+          will be skipped (and logged) — so the queue stays focused on what
+          you’re working on. Leave everything unchecked to download for all
+          grades, like the daily scheduled run does.
+        </p>
+
+        <div className="flex flex-wrap gap-1.5 mb-3">
+          {GRADE_TOKENS.map((t) => {
+            const active = selectedGrades.has(t)
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => onToggleGrade(t)}
+                className={
+                  'text-xs font-semibold px-2.5 py-1 rounded-full border ' +
+                  (active ?
+                    'bg-blue-600 text-white border-blue-600' :
+                    'bg-white text-slate-700 border-slate-300 hover:bg-slate-50')
+                }
+              >
+                {GRADE_LABELS[t] || t}
+              </button>
+            )
+          })}
+        </div>
+
+        <div className="flex items-center gap-3 text-xs mb-3">
+          <button
+            type="button"
+            onClick={onSelectAll}
+            className="text-blue-700 hover:underline"
+          >
+            Select all
+          </button>
+          <button
+            type="button"
+            onClick={onClear}
+            className="text-slate-600 hover:underline"
+          >
+            Clear
+          </button>
+          <span className="text-slate-500 ml-auto">
+            {isAll ? 'All grades' : `${count} grade(s) selected`}
+          </span>
+        </div>
+
+        <label className={
+          'flex items-start gap-2 text-xs px-3 py-2 rounded border ' +
+          (isAll ?
+            'border-slate-200 bg-slate-50 text-slate-400' :
+            'border-slate-300 bg-white text-slate-700')
+        }>
+          <input
+            type="checkbox"
+            disabled={isAll}
+            checked={isAll ? true : includeUnknownGrade}
+            onChange={(e) => onChangeIncludeUnknown(e.target.checked)}
+            className="mt-0.5"
+          />
+          <span>
+            Also keep documents where the watcher <em>can’t tell</em> the grade.
+            {isAll ? ' (Always on when no grade is picked.)' :
+              ' Off by default when you pick specific grades — turn on if you ' +
+              'want to manually review uncategorised modules too.'}
+          </span>
+        </label>
+
+        <div className="flex justify-end gap-2 mt-4">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="text-xs font-semibold px-3 py-1.5 rounded-full bg-white text-slate-700 border border-slate-300 hover:bg-slate-50"
+          >
+            Cancel
+          </button>
+          <button
+            type="button"
+            onClick={onRun}
+            className="text-xs font-semibold px-3 py-1.5 rounded-full bg-blue-600 text-white hover:bg-blue-700"
+          >
+            {isAll ? 'Run for all grades' : `Run for ${count} grade(s)`}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function StagedModulesPanel() {
   const { isAdmin } = useAuth()
   const [modules, setModules] = useState([])
@@ -95,6 +366,19 @@ export default function StagedModulesPanel() {
   const [loading, setLoading] = useState(true)
   const [running, setRunning] = useState(false)
   const [typeFilter, setTypeFilter] = useState('all')
+
+  // Grade-picker modal state. `gradePickerOpen` toggles visibility,
+  // `selectedGrades` is a Set<string> of normalised tokens that the
+  // picker mutates and the submit handler reads. Empty set means
+  // "All grades" (matches the server's null = unscoped behaviour).
+  const [gradePickerOpen, setGradePickerOpen] = useState(false)
+  const [selectedGrades, setSelectedGrades] = useState(() => new Set())
+  const [includeUnknownGrade, setIncludeUnknownGrade] = useState(false)
+
+  // Last run summary — when set, rendered as a structured panel
+  // beneath the controls instead of the one-liner notice. We keep
+  // both because non-run actions (promote/reject) still use `notice`.
+  const [runSummary, setRunSummary] = useState(null)
 
   // Live counts per documentType so the filter chips can show a
   // count and disable empty filters. Computed against the full
@@ -184,37 +468,43 @@ export default function StagedModulesPanel() {
     setBusyId(null)
   }
 
-  async function handleRunWatcherNow() {
-    if (!confirm(
-      'Run the curriculum watcher right now?\n\n' +
-      'This visits all 5 trusted sources (CDC, edu.gov.zm, ECZ, MoE, CDC Repository), ' +
-      'downloads any changed module documents, parses them, and stages them here ' +
-      'for review.\n\n' +
-      'Can take 1–3 minutes. Per-source weekly/monthly cooldowns still apply — ' +
-      'sources you checked recently will be skipped.',
-    )) return
+  // The "Run watcher now" button just opens the grade picker. The
+  // picker's Run button is what actually fires the callable so the
+  // user has to make a conscious grade-scope choice each run.
+  function openGradePicker() {
+    setError(null)
+    setGradePickerOpen(true)
+  }
+
+  function toggleGrade(token) {
+    setSelectedGrades((prev) => {
+      const next = new Set(prev)
+      if (next.has(token)) next.delete(token); else next.add(token)
+      return next
+    })
+  }
+
+  function selectAllGrades() { setSelectedGrades(new Set(GRADE_TOKENS)) }
+  function clearGrades()     { setSelectedGrades(new Set()) }
+
+  async function handleRunWatcherWithScope() {
+    const grades = [...selectedGrades]
+    setGradePickerOpen(false)
     setRunning(true)
     setError(null)
     setNotice(null)
-    const result = await runCurriculumWatcherNow()
+    setRunSummary(null)
+    const result = await runCurriculumWatcherNow({
+      grades,
+      // When the user picked specific grades, default to skipping
+      // documents whose grade can't be detected unless they opted in.
+      // When they ran with no scope ("All grades"), keep everything.
+      includeUnknownGrade: grades.length === 0 ? true : includeUnknownGrade,
+    })
     if (!result.ok) {
       setError(result.error)
     } else {
-      const s = result.summary || {}
-      const bySource = s.bySource || {}
-      const bits = Object.entries(bySource)
-        .map(([id, o]) => {
-          const ingested = o.ingestedModuleCount ?
-            ` (${o.ingestedModuleCount} ingested)` : ''
-          return `${id}: ${o.outcome}${ingested}`
-        })
-        .join(' · ')
-      setNotice(
-        `Watcher run complete. ${s.changedCount || 0} source(s) changed, ` +
-        `${s.unreachableCount || 0} unreachable, ` +
-        `${s.ingestedTotal || 0} module(s) ingested. ` +
-        (bits ? `\n${bits}` : ''),
-      )
+      setRunSummary(result.summary || null)
       await load()
     }
     setRunning(false)
@@ -263,16 +553,22 @@ export default function StagedModulesPanel() {
           {error}
         </div>
       )}
+      {runSummary && (
+        <RunSummary
+          summary={runSummary}
+          onDismiss={() => setRunSummary(null)}
+        />
+      )}
 
       <div className="mb-3 flex flex-wrap items-center gap-2">
         <button
           type="button"
-          onClick={handleRunWatcherNow}
+          onClick={openGradePicker}
           disabled={running || loading}
-          title="Trigger one full pass of the curriculum-watcher agent right now. Takes 1–3 minutes."
+          title="Choose which grades to download, then run the curriculum-watcher agent. Takes 1–3 minutes."
           className="text-xs font-semibold px-3 py-1.5 rounded-full bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
         >
-          {running ? 'Running watcher…' : 'Run watcher now'}
+          {running ? 'Running watcher…' : 'Run watcher now…'}
         </button>
         <button
           type="button"
@@ -331,6 +627,19 @@ export default function StagedModulesPanel() {
         <div className="border border-dashed border-slate-300 rounded p-6 text-center text-sm text-slate-500">
           No modules in this category. Pick another filter above.
         </div>
+      )}
+
+      {gradePickerOpen && (
+        <GradePickerModal
+          selectedGrades={selectedGrades}
+          includeUnknownGrade={includeUnknownGrade}
+          onToggleGrade={toggleGrade}
+          onSelectAll={selectAllGrades}
+          onClear={clearGrades}
+          onChangeIncludeUnknown={setIncludeUnknownGrade}
+          onCancel={() => setGradePickerOpen(false)}
+          onRun={handleRunWatcherWithScope}
+        />
       )}
 
       <ul className="space-y-3">

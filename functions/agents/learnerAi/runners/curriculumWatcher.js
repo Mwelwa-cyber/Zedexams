@@ -430,15 +430,123 @@ async function ingestOneModule({source, link, runBudget}) {
   return {curriculumDoc, ragDocs, meta};
 }
 
+// ── Grade-scope filtering ──────────────────────────────────────────
+//
+// The admin "Run watcher now" dialog lets the user scope a run to one
+// or more grades. We do this in two passes so we avoid wasted bandwidth
+// AND wrong-grade staging:
+//
+//   1. preFilter() — cheap regex against URL + anchor text. If the link
+//      already advertises a grade (e.g. "/grade-5-mathematics.pdf",
+//      anchor "Grade 7 Syllabus"), and that grade ISN'T in the
+//      requested set, skip without fetching. If no grade marker is
+//      visible at this stage, we still fetch — many links use slugs
+//      like "/uploads/file_2934.pdf" where the grade lives inside the
+//      PDF.
+//
+//   2. postClassifyFilter() — after parseDocument + classifyModule the
+//      detected grade gets checked. Out-of-scope → skip and record
+//      reason "grade_filtered:N". Undetected grade + includeUnknownGrade
+//      false → skip with reason "grade_undetected".
+//
+// `gradeFilter` is null/undefined when the run is unscoped (the daily
+// scheduled run leaves it null so behaviour is unchanged). When set,
+// it's a Set<string> of normalised grade tokens like "1".."12" and
+// "ECE". Number 5 and string "5" both normalise to "5".
+
+const GRADE_MARKER_RE = /\b(?:Grade|Gr\.?)[\s\-_]*(\d{1,2})\b/i;
+const ECE_MARKER_RE = /\b(?:ECE|early\s+childhood|pre[-\s]?school)\b/i;
+
+function normaliseGradeToken(g) {
+  if (g == null) return null;
+  if (typeof g === "number" && Number.isFinite(g)) {
+    if (g >= 1 && g <= 12) return String(g);
+    return null;
+  }
+  const s = String(g).trim();
+  if (!s) return null;
+  if (/^\d{1,2}$/.test(s)) {
+    const n = Number(s);
+    return (n >= 1 && n <= 12) ? String(n) : null;
+  }
+  if (/^ece$/i.test(s) || /early.?childhood/i.test(s) || /^pp$/i.test(s)) {
+    return "ECE";
+  }
+  const m = s.match(/^G(\d{1,2})$/i);
+  if (m) {
+    const n = Number(m[1]);
+    return (n >= 1 && n <= 12) ? String(n) : null;
+  }
+  return null;
+}
+
+/**
+ * Build a Set<string> of normalised grade tokens from a raw filter.
+ * Returns null when there is no filter — runner uses that to short-circuit.
+ */
+function buildGradeFilter(raw) {
+  if (!raw) return null;
+  const arr = Array.isArray(raw) ? raw : [raw];
+  const out = new Set();
+  for (const g of arr) {
+    const t = normaliseGradeToken(g);
+    if (t) out.add(t);
+  }
+  return out.size > 0 ? out : null;
+}
+
+/**
+ * Cheap pre-filter against the URL path and anchor text. Returns
+ * `{skip:true, reason}` only when we can prove from cheap signals
+ * that the link is for an out-of-scope grade. Anything ambiguous is
+ * fetched and then re-checked after the classifier runs.
+ */
+function preFilterLinkByGrade(link, gradeFilter) {
+  if (!gradeFilter) return {skip: false};
+  const hay = `${link.anchorText || ""} ${link.url || ""}`;
+  const m = hay.match(GRADE_MARKER_RE);
+  if (m) {
+    const found = String(Number(m[1]));
+    if (!gradeFilter.has(found)) {
+      return {skip: true, reason: `grade_filtered:${found}`};
+    }
+    return {skip: false};
+  }
+  if (ECE_MARKER_RE.test(hay)) {
+    if (!gradeFilter.has("ECE")) {
+      return {skip: true, reason: "grade_filtered:ECE"};
+    }
+  }
+  return {skip: false};
+}
+
+/**
+ * Post-classifier check. Runs after the document has been parsed +
+ * classified. Honours `includeUnknownGrade` for the undetected case.
+ */
+function postFilterModuleByGrade({meta, gradeFilter, includeUnknownGrade}) {
+  if (!gradeFilter) return {skip: false};
+  const t = normaliseGradeToken(meta && meta.grade);
+  if (!t) {
+    if (includeUnknownGrade) return {skip: false};
+    return {skip: true, reason: "grade_undetected"};
+  }
+  if (!gradeFilter.has(t)) {
+    return {skip: true, reason: `grade_filtered:${t}`};
+  }
+  return {skip: false};
+}
+
 /**
  * Walk a source's landing-page body for sub-page links, fetch each
  * up to SOURCE_FILE_CAP, persist successful ingests as `curriculum/*`
  * and `rag_chunks/*` docs, and return a manifest the caller attaches
  * to the curriculumUpdateReports row.
  */
-async function ingestSource({source, body, runBudget}) {
+async function ingestSource({source, body, runBudget, gradeFilter, includeUnknownGrade}) {
   if (!source.crawlEnabled) {
-    return {modules: [], skippedCrawl: true};
+    return {modules: [], skippedCrawl: true,
+      linksDiscovered: 0, linksAttempted: 0, skipReasons: {}};
   }
   const links = ingester.discoverModuleLinks(body, source.url);
   // Only follow same-host links (ALLOWED_HOSTS will accept them via
@@ -454,23 +562,50 @@ async function ingestSource({source, body, runBudget}) {
   const cap = Math.min(sameHost.length, SOURCE_FILE_CAP);
 
   const modulesManifest = [];
+  // Grouped skip-reason counts so the run summary can show "5 grade-
+  // filtered, 3 parse-failed, 1 http_404" without the admin having to
+  // read every per-link row.
+  const skipReasons = {};
+  function bumpSkip(reason) {
+    const key = String(reason || "unknown").split(":")[0];
+    skipReasons[key] = (skipReasons[key] || 0) + 1;
+  }
   const db = admin.firestore();
 
+  let linksPreFiltered = 0;
+  let polite = false;
   for (let i = 0; i < cap; i++) {
     const link = sameHost[i];
     if (runBudget.bytesUsed >= RUN_BYTE_CAP || runBudget.filesUsed >= RUN_FILE_CAP) {
       break;
     }
-    if (i > 0) await sleep(POLITE_DELAY_MS);
+
+    // Cheap grade pre-filter: skip without spending a fetch when the
+    // URL/anchor advertises a clearly out-of-scope grade.
+    const pre = preFilterLinkByGrade(link, gradeFilter);
+    if (pre.skip) {
+      linksPreFiltered += 1;
+      modulesManifest.push({
+        url: link.url, kind: link.kind, anchorText: link.anchorText,
+        skipped: true, reason: pre.reason,
+      });
+      bumpSkip(pre.reason);
+      continue;
+    }
+
+    if (polite) await sleep(POLITE_DELAY_MS);
+    polite = true;
 
     let outcome;
     try {
       outcome = await ingestOneModule({source, link, runBudget});
     } catch (err) {
+      const reason = `ingest_error:${(err && err.message || "").slice(0, 120)}`;
       modulesManifest.push({
         url: link.url, kind: link.kind, anchorText: link.anchorText,
-        skipped: true, reason: `ingest_error:${(err && err.message || "").slice(0, 120)}`,
+        skipped: true, reason,
       });
+      bumpSkip(reason);
       continue;
     }
     if (outcome.skipped) {
@@ -478,6 +613,24 @@ async function ingestSource({source, body, runBudget}) {
         url: link.url, kind: link.kind, anchorText: link.anchorText,
         skipped: true, reason: outcome.reason,
       });
+      bumpSkip(outcome.reason);
+      continue;
+    }
+
+    // Post-classify grade gate. We already paid the fetch + parse cost
+    // for this link but the detected grade is out of scope — drop the
+    // module rather than staging it for review.
+    const post = postFilterModuleByGrade({
+      meta: outcome.meta, gradeFilter, includeUnknownGrade,
+    });
+    if (post.skip) {
+      modulesManifest.push({
+        url: link.url, kind: link.kind, anchorText: link.anchorText,
+        skipped: true, reason: post.reason,
+        detectedGrade: outcome.meta.grade,
+        detectedSubject: outcome.meta.subject,
+      });
+      bumpSkip(post.reason);
       continue;
     }
 
@@ -516,11 +669,13 @@ async function ingestSource({source, body, runBudget}) {
         chunkCount: outcome.meta.chunkCount,
       });
     } catch (err) {
+      const reason = `persist_error:${(err && err.message || "").slice(0, 120)}`;
       modulesManifest.push({
         url: link.url, kind: link.kind, anchorText: link.anchorText,
         skipped: true,
-        reason: `persist_error:${(err && err.message || "").slice(0, 120)}`,
+        reason,
       });
+      bumpSkip(reason);
     }
   }
 
@@ -528,6 +683,8 @@ async function ingestSource({source, body, runBudget}) {
     modules: modulesManifest,
     linksDiscovered: links.length,
     linksAttempted: cap,
+    linksPreFiltered,
+    skipReasons,
   };
 }
 
@@ -556,7 +713,7 @@ function dueForCheck({source, sourceState, nowMs, overrideFrequency}) {
   return (nowMs - lastMs) >= window;
 }
 
-async function checkOneSource({source, sourceState, nowMs, overrideFrequency, runBudget}) {
+async function checkOneSource({source, sourceState, nowMs, overrideFrequency, runBudget, gradeFilter, includeUnknownGrade}) {
   if (!dueForCheck({source, sourceState, nowMs, overrideFrequency})) {
     return {sourceId: source.id, outcome: "skipped", reason: "cooldown", reportId: null};
   }
@@ -583,11 +740,15 @@ async function checkOneSource({source, sourceState, nowMs, overrideFrequency, ru
 
   // Changed (or first snapshot) — ingest first so the report carries
   // the module manifest, then write the report.
-  let ingestResult = {modules: [], linksDiscovered: 0, linksAttempted: 0};
+  let ingestResult = {
+    modules: [], linksDiscovered: 0, linksAttempted: 0,
+    linksPreFiltered: 0, skipReasons: {},
+  };
   if (source.crawlEnabled && runBudget) {
     try {
       ingestResult = await ingestSource({
         source, body: fetchResult.body, runBudget,
+        gradeFilter, includeUnknownGrade,
       });
     } catch (err) {
       console.warn("[curriculumWatcher] ingestSource threw",
@@ -669,25 +830,40 @@ async function checkOneSource({source, sourceState, nowMs, overrideFrequency, ru
     bodyHint: fetchResult.body.slice(0, 4000), // keep a short preview
     ingestedModuleCount: ingestedOk,
     ingestedSkippedCount: ingestedSkipped,
+    linksDiscovered: ingestResult.linksDiscovered || 0,
+    linksAttempted: ingestResult.linksAttempted || 0,
+    linksPreFiltered: ingestResult.linksPreFiltered || 0,
+    skipReasons: ingestResult.skipReasons || {},
   };
 }
 
 // ── Runner ──────────────────────────────────────────────────────────
 
-async function runCurriculumWatcher({task} = {task: {id: `scheduled-${Date.now()}`}}) {
+async function runCurriculumWatcher({task, options} = {}) {
   const taskId = task && task.id || `scheduled-${Date.now()}`;
+  const opts = options || {};
+  const gradeFilter = buildGradeFilter(opts.grades);
+  // Default: keep modules whose grade can't be detected. The admin UI
+  // overrides this to false when a grade scope is set, so a Grade-3
+  // run doesn't end up staging unrelated category-listing pages.
+  const includeUnknownGrade = opts.includeUnknownGrade === undefined ?
+    true : Boolean(opts.includeUnknownGrade);
+  const filterLabel = gradeFilter ?
+    `grades=${[...gradeFilter].sort().join(",")}` +
+    (includeUnknownGrade ? " (+unknown)" : "") :
+    "grades=all";
 
   await updateLiveAgentState(AGENT_ID, {
     agentName: SUPERVISOR_DISPLAY,
     status: "running", currentTaskId: taskId,
-    currentTask: `Check ${TRUSTED_SOURCES.length} trusted sources`,
+    currentTask: `Check ${TRUSTED_SOURCES.length} trusted sources (${filterLabel})`,
     progress: 0,
     lastMessage: "Loading per-source state",
   });
   await writeTaskStep({
     taskId, agentName: AGENT_ID, stepNumber: 1,
     stepTitle: "Curriculum update scan",
-    message: `Visiting ${TRUSTED_SOURCES.length} trusted Zambian sources`,
+    message: `Visiting ${TRUSTED_SOURCES.length} trusted Zambian sources (${filterLabel})`,
     status: TASK_STEP_STATUS.RUNNING, progress: 25,
   });
 
@@ -712,6 +888,7 @@ async function runCurriculumWatcher({task} = {task: {id: `scheduled-${Date.now()
     const out = await checkOneSource({
       source, sourceState: sourcesState[source.id], nowMs,
       overrideFrequency, runBudget,
+      gradeFilter, includeUnknownGrade,
     });
     outcomes.push(out);
 
@@ -757,17 +934,34 @@ async function runCurriculumWatcher({task} = {task: {id: `scheduled-${Date.now()
   const unreachableCount = outcomes.filter((o) => o.outcome === "unreachable").length;
   const ingestedTotal = outcomes.reduce((n, o) =>
     n + (o.ingestedModuleCount || 0), 0);
+  const skippedTotal = outcomes.reduce((n, o) =>
+    n + (o.ingestedSkippedCount || 0), 0);
+  // Aggregate skip-reason counts across all sources so the supervisor
+  // log carries the same shape the admin UI shows.
+  const aggregatedSkipReasons = {};
+  for (const o of outcomes) {
+    if (!o || !o.skipReasons) continue;
+    for (const [k, v] of Object.entries(o.skipReasons)) {
+      aggregatedSkipReasons[k] = (aggregatedSkipReasons[k] || 0) + v;
+    }
+  }
+  const skipReasonSummary = Object.entries(aggregatedSkipReasons)
+      .sort((a, b) => b[1] - a[1])
+      .map(([k, v]) => `${k}=${v}`)
+      .join(", ") || "none";
   await writeSupervisorLog({
     taskId, agentName: SUPERVISOR_DISPLAY,
     contentType: "curriculum_update_scan",
     grade: "", subject: "", term: "",
     topic: "", subtopic: "",
     actionTaken: changedCount > 0 ? "sent_for_review" : "sent_for_review",
-    reason: `Checked ${TRUSTED_SOURCES.length} sources: ` +
+    reason: `Scope: ${filterLabel}. ` +
+      `Checked ${TRUSTED_SOURCES.length} sources: ` +
       `${changedCount} changed, ${unreachableCount} unreachable, ` +
       `${outcomes.filter((o) => o.outcome === "unchanged").length} unchanged, ` +
-      `${outcomes.filter((o) => o.outcome === "skipped").length} skipped. ` +
-      `Ingested ${ingestedTotal} module(s) into curriculum/ + rag_chunks/. ` +
+      `${outcomes.filter((o) => o.outcome === "skipped").length} cooldown. ` +
+      `Ingested ${ingestedTotal} module(s), skipped ${skippedTotal} ` +
+      `(${skipReasonSummary}). ` +
       `Run budget: ${runBudget.filesUsed}/${RUN_FILE_CAP} files, ` +
       `${(runBudget.bytesUsed / 1024 / 1024).toFixed(1)}/${RUN_BYTE_CAP / 1024 / 1024} MB.`,
     confidenceScore: changedCount === 0 ? 1 : 0.5,
@@ -776,18 +970,21 @@ async function runCurriculumWatcher({task} = {task: {id: `scheduled-${Date.now()
   await writeTaskStep({
     taskId, agentName: AGENT_ID, stepNumber: 1,
     stepTitle: "Curriculum update scan",
-    message: `${changedCount} change(s) detected, ${unreachableCount} unreachable, ${ingestedTotal} module(s) ingested`,
+    message: `${changedCount} change(s) detected, ${unreachableCount} unreachable, ${ingestedTotal} module(s) ingested, ${skippedTotal} skipped`,
     status: TASK_STEP_STATUS.COMPLETED, progress: 100,
   });
   await updateLiveAgentState(AGENT_ID, {
     status: "completed", currentTaskId: null, progress: 100,
-    lastMessage: `${changedCount} change(s) detected, ${ingestedTotal} ingested`,
+    lastMessage: `${changedCount} change(s) detected, ${ingestedTotal} ingested, ${skippedTotal} skipped`,
   });
 
   return {
     ok: true,
     outcomes,
-    changedCount, unreachableCount, ingestedTotal,
+    changedCount, unreachableCount, ingestedTotal, skippedTotal,
+    gradeFilter: gradeFilter ? [...gradeFilter].sort() : null,
+    includeUnknownGrade,
+    aggregatedSkipReasons,
     reportIds: outcomes.filter((o) => o.reportId).map((o) => o.reportId),
   };
 }
@@ -809,4 +1006,10 @@ module.exports = {
   SOURCE_FILE_CAP,
   AGENT_ID,
   SUPERVISOR_DISPLAY,
+  // Grade-scope helpers (used by the callable for input validation
+  // and by the tests for the pre/post filter behaviour).
+  normaliseGradeToken,
+  buildGradeFilter,
+  preFilterLinkByGrade,
+  postFilterModuleByGrade,
 };
