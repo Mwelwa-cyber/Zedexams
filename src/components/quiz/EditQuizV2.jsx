@@ -26,6 +26,7 @@ import QuizSectionsEditor from './QuizSectionsEditor'
 import QuizEditorPreviewPanel from './QuizEditorPreviewPanel'
 import QuizVerifyModal from './QuizVerifyModal'
 import ImportReviewBanner from './ImportReviewBanner'
+import PastPaperReferenceBanner from './PastPaperReferenceBanner'
 import QuizEditorActionBar from './QuizEditorActionBar'
 import QuizEditorFloatingNav from './QuizEditorFloatingNav'
 import QuizValidationChecklist from './QuizValidationChecklist'
@@ -289,6 +290,13 @@ export default function EditQuizV2() {
         sourceFileName: quiz.sourceFileName ?? '',
         sourceContentType: quiz.sourceContentType ?? '',
         importWarnings: quiz.importWarnings ?? [],
+        // Past-paper conversion provenance — read by PastPaperReferenceBanner
+        // so it can render quick-access links to the original paper PDF
+        // and the mark scheme. Optional on every other quiz; renders nothing
+        // when sourcePastPaperId is falsy.
+        sourcePastPaperId: quiz.sourcePastPaperId ?? null,
+        sourcePastPaperPdfPath: quiz.sourcePastPaperPdfPath ?? null,
+        sourceMarkSchemePath: quiz.sourceMarkSchemePath ?? null,
       })
       setQuizStatus(quiz.status ?? (quiz.isPublished ? 'published' : 'draft'))
       setQuizOwner(quiz.createdBy)
@@ -1232,6 +1240,7 @@ export default function EditQuizV2() {
           teacher clear the review flag once they've fixed the flagged
           questions. Renders nothing for clean imports — the badge on the
           list view (Phase 7) is enough of an info-only signal. */}
+      <PastPaperReferenceBanner quiz={form} />
       <ImportReviewBanner record={form} onMarkReviewed={handleMarkImportReviewed} busy={saving} />
 
       {wizardStep === 'create' && (
