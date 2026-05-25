@@ -43,6 +43,9 @@
 
 const admin = require("firebase-admin");
 const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {defineSecret} = require("firebase-functions/params");
+
+const anthropicApiKeySecret = defineSecret("ANTHROPIC_API_KEY");
 
 const {
   getUserRole, callAnthropic, getAnthropicApiKey,
@@ -395,7 +398,7 @@ async function enrichTopicFromChunks({curriculumDoc, curriculumId, uid}) {
   }
   let apiKey;
   try {
-    apiKey = await getAnthropicApiKey();
+    apiKey = getAnthropicApiKey(anthropicApiKeySecret);
   } catch {
     throw new HttpsError(
         "failed-precondition",
@@ -460,7 +463,11 @@ async function enrichTopicFromChunks({curriculumDoc, curriculumId, uid}) {
 }
 
 exports.promoteIngestedCurriculumModuleWithAi = onCall(
-    {timeoutSeconds: 60, memory: "512MiB"},
+    {
+      secrets: [anthropicApiKeySecret],
+      timeoutSeconds: 60,
+      memory: "512MiB",
+    },
     async (request) => {
       const uid = await requireAdmin(request);
       const curriculumId = request.data && request.data.curriculumId;

@@ -40,6 +40,11 @@ Module._load = function(request, parent, ...rest) {
       },
     }
   }
+  if (request === 'firebase-functions/params') {
+    return {
+      defineSecret: (name) => ({name, value: () => ''}),
+    }
+  }
   if (request === '../aiService') return {getUserRole: async () => 'admin'}
   if (request === './cbcKnowledge') {
     return {
