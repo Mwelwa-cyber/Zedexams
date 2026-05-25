@@ -7,6 +7,7 @@ import LiveActivityTimeline from './LiveActivityTimeline'
 import RunningTaskDetailDrawer from './RunningTaskDetailDrawer'
 import RunTestQuizGenerationButton from './RunTestQuizGenerationButton'
 import BatchGenerateTopicsForm from './BatchGenerateTopicsForm'
+import { AGENTS } from './agentRegistry'
 
 // AI Control Centre — Monitor tab (section 1 of the spec).
 //
@@ -34,10 +35,10 @@ export function LearnerAiHome() {
       helmetTitle="AI Control Centre — Live Monitor"
     >
       <p className="text-sm text-slate-600 mb-4 leading-snug">
-        Live view of the 11 learner-AI agents producing practice quizzes,
-        exam drafts, notes, study tips, weakness profiles, learner feedback,
-        and curriculum-update reports. Every section updates in real time
-        via Firestore listeners.
+        Live view of the {AGENTS.length} learner-AI agents producing practice
+        quizzes, exam drafts, notes, study tips, weakness profiles, learner
+        feedback, and curriculum-update reports. Every section updates in
+        real time via Firestore listeners.
       </p>
 
       <BatchGenerateTopicsForm

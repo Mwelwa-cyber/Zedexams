@@ -23,6 +23,13 @@ const importCurriculumModulesCallable = httpsCallable(functions, 'importCurricul
 const preflightCurriculumRefCallable = httpsCallable(functions, 'preflightCurriculumRef', {
   timeout: 20_000,
 })
+const backfillKbSourceRefsCallable = httpsCallable(functions, 'backfillKbSourceRefs', {
+  // Backfill walks every lesson module under the active KB version. With
+  // hundreds of modules this can comfortably take a minute on a cold
+  // start; the server-side timeoutSeconds is 540 so the bottleneck is
+  // the client-side cancel budget.
+  timeout: 540_000,
+})
 
 const LE_SET = new Set(LEARNING_ENVIRONMENT_VALUES)
 
@@ -45,6 +52,64 @@ export async function preflightCurriculumRef({ grade, subject, topic, subtopic, 
       reason: err?.code === 'permission-denied' ? 'permission_denied' : 'callable_error',
       message: err?.message || 'Preflight failed',
     }
+  }
+}
+
+/**
+ * Run the strict-resolver source-doc-ref backfill from the admin UI.
+ * Defaults to a dry run so a misclick reports rather than writes — pass
+ * `{ dryRun: false }` to actually apply.
+ *
+ * Returns the full server response on success, or `{ ok:false, error }`
+ * shaped like the other admin callables in this file.
+ */
+export async function backfillKbSourceRefs({ dryRun = true, grade = null, subject = null } = {}) {
+  try {
+    const result = await backfillKbSourceRefsCallable({ dryRun, grade, subject })
+    return { ok: true, ...(result?.data || {}) }
+  } catch (err) {
+    console.error('backfillKbSourceRefs failed', err)
+    return {
+      ok: false,
+      error: err?.code === 'permission-denied' ?
+        'Admin only.' :
+        (err?.message || 'Backfill failed.'),
+    }
+  }
+}
+
+/**
+ * Count approvedSyllabi docs that match a (grade, subject) tuple. The
+ * backfill cannot link a subtopic unless at least one approved-syllabus
+ * doc exists for its grade+subject, so the admin UI surfaces this count
+ * to explain why "Backfill" would otherwise be a no-op.
+ *
+ * Returns `{ total, byTerm: { 1: n, 2: n, 3: n, null: n } }`. Errors
+ * resolve to `{ total: 0, byTerm: {} }` so the UI degrades gracefully.
+ */
+export async function countApprovedSyllabiFor(grade, subject) {
+  const out = { total: 0, byTerm: {} }
+  if (!grade || !subject) return out
+  try {
+    const normGrade = String(grade).toUpperCase().replace(/\s+/g, '')
+    const normSubject = String(subject).toLowerCase().replace(/[^a-z]/g, '_')
+    // approvedSyllabi is small (one doc per uploaded syllabus). Reading
+    // the full collection client-side is OK and avoids a composite index.
+    const snap = await getDocs(collection(db, 'approvedSyllabi'))
+    for (const d of snap.docs) {
+      const v = d.data() || {}
+      const g = String(v.grade || '').toUpperCase().replace(/\s+/g, '')
+      const s = String(v.subject || '').toLowerCase().replace(/[^a-z]/g, '_')
+      if (g !== normGrade || s !== normSubject) continue
+      out.total += 1
+      const t = Number(v.term)
+      const tKey = Number.isInteger(t) && t >= 1 && t <= 3 ? String(t) : 'null'
+      out.byTerm[tKey] = (out.byTerm[tKey] || 0) + 1
+    }
+    return out
+  } catch (err) {
+    console.warn('countApprovedSyllabiFor failed', err)
+    return out
   }
 }
 
