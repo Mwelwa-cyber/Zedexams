@@ -84,11 +84,12 @@ test('invoices path is server-write-only', () => {
 
 console.log('\nupload validator content-type whitelists')
 
-test('paper uploads remain PDF-only', () => {
-  // PR #383+ added past papers as PDFs. Widening this to allow other
-  // types would mean a teacher could upload an HTML payload that the
-  // PDF viewer renders, breaking content sandboxing.
-  assertContains("request.resource.contentType == 'application/pdf'", 'validPaperUpload no longer pins to PDF')
+test('paper uploads still allow application/pdf', () => {
+  // PR #383+ added past papers as PDFs; later PRs widened the validator
+  // to also accept Word documents and scanned-page images. The next
+  // test enumerates the full whitelist — this one just pins that PDF
+  // is one of them so the most common case can't regress silently.
+  assertContains("request.resource.contentType == 'application/pdf'", 'validPaperUpload no longer accepts PDF')
 })
 
 test('quiz/assessment images remain jpeg|png|webp (no SVG, no gif)', () => {
@@ -125,10 +126,23 @@ test('paper upload cap is 50 MB (multi-image scanned papers)', () => {
   assertContains('request.resource.size < 50 * 1024 * 1024', 'validPaperUpload size cap moved')
 })
 
-test('paper upload accepts PDF + scanned-image MIME types', () => {
-  assertContains("request.resource.contentType == 'application/pdf'", 'paper PDF MIME missing')
-  assertContains("request.resource.contentType == 'image/jpeg'", 'paper JPEG MIME missing')
-  assertContains("request.resource.contentType == 'image/png'", 'paper PNG MIME missing')
+test('paper upload accepts PDF + Word + scanned-image MIME types', () => {
+  // The validator now spans three media families: PDFs, Word documents
+  // (.doc and .docx), and scanned page images. The Past Paper Studio
+  // upload step and the AI importer both rely on every entry being
+  // present, so any one missing immediately breaks one flow.
+  const wantedMimes = [
+    'application/pdf',
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    'image/jpeg',
+    'image/png',
+  ]
+  const fn = rules.match(/function validPaperUpload\(\)[\s\S]*?\n\s*\}/)
+  assert(fn, 'validPaperUpload not found')
+  for (const mime of wantedMimes) {
+    assert(fn[0].includes(`'${mime}'`), `validPaperUpload missing MIME: ${mime}`)
+  }
 })
 
 test('quiz/assessment image cap stays at 5 MB', () => {
