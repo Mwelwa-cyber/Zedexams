@@ -15,7 +15,7 @@ const structureImportedQuizCallable = httpsCallable(functions, 'structureImporte
 const AI_CHAT_TIMEOUT_MS = 35000       // server: 30s
 const AI_EXPLAIN_TIMEOUT_MS = 35000    // server: 30s
 const AI_QUIZ_TIMEOUT_MS = 50000       // server: 45s
-const AI_IMPORT_TIMEOUT_MS = 65000     // server: 60s
+const AI_IMPORT_TIMEOUT_MS = 95000     // server: 90s (Gemini → Claude pipeline)
 
 function messageFromError(error) {
   const code = error?.code || ''
