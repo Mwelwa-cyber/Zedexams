@@ -1,15 +1,16 @@
 /**
  * /admin/papers/new and /admin/papers/:paperId/edit — Past Paper Studio.
  *
- * Five-step wizard that walks an admin from raw PDF/image uploads
- * through to a published past paper with an attached quiz:
+ * Four-step wizard that walks an admin from raw PDF / Word / image
+ * uploads through to a published past paper with an attached quiz:
  *
- *   1. Upload  — PDF or scanned images (JPG/PNG/WEBP) up to 50MB each
+ *   1. Upload  — PDF, Word, or scanned images up to 50MB each. The
+ *                step also previews each upload inline so the admin
+ *                can see exactly what the learner will see.
  *   2. Details — grade, subject, year, board, title, marks, duration
- *   3. Questions — MCQ prompts + options
- *   4. Answers — correct option + explanation per question
- *   5. Publish — review and commit. Creates the linked quiz with
- *      publicAccess:true so anonymous marketing visitors can run it.
+ *   3. Quiz    — Open Quiz Editor + Import-with-AI handoff
+ *   4. Publish — flip the linked quiz to publicAccess + isPublished,
+ *                flip the paper to status='published'.
  *
  * Pattern: a draft `pastPapers/{id}` doc is created on Studio mount
  * (new mode) so uploaded Storage assets have a stable place to land.
@@ -19,7 +20,7 @@
  * Replaces the older single-page AdminPastPaperEditor.
  */
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import {
@@ -31,6 +32,7 @@ import {
   deletePaper,
   deletePaperPdf,
   getPaper,
+  resolvePaperUrl,
   updatePaper,
   uploadPaperAsset,
 } from '../../utils/pastPapers'
@@ -45,6 +47,10 @@ import {
   serverTimestamp,
   setDoc,
 } from 'firebase/firestore'
+
+// PDF.js viewer is ~400 kB gzipped — only load it once the admin
+// actually reaches step 1 with a PDF asset on screen.
+const PdfJsViewer = lazy(() => import('../papers/PdfJsViewer'))
 
 const fns = getFunctions(undefined, 'us-central1')
 // The vision model can take 30-60s on a 12-page scan; bump the SDK
@@ -716,10 +722,104 @@ function UploadStep({ assets, uploading, onAddFiles, onRemove, onMove }) {
       </ul>
       {assets.length === 0 && (
         <p className="theme-text-muted text-sm italic">
-          No files uploaded yet. Drag a PDF or one or more scanned-page images above to start.
+          No files uploaded yet. Drag a PDF, Word doc, or one or more scanned-page images above to start.
         </p>
       )}
+      {assets.length > 0 && <AssetPreviews assets={assets} />}
     </section>
+  )
+}
+
+/**
+ * AssetPreviews — inline preview of every uploaded paper file.
+ *
+ * Resolves a signed Storage URL for each asset in parallel, then renders
+ * the appropriate viewer:
+ *   - application/pdf → lazy PdfJsViewer
+ *   - image/* → inline <img> with lazy loading + readable max width
+ *   - Word docs (or anything else) → placeholder copy. The AI importer
+ *     in step 3 handles the text content; the admin uploads images
+ *     manually inside the Quiz Editor afterwards.
+ *
+ * Why inline rather than a separate preview tab: a paper that survives
+ * the upload + retention checks is one that the admin can SEE here, in
+ * the same place they fix typos in filenames or reorder pages. No
+ * round-trip through "publish, navigate, find the bug, come back."
+ */
+function AssetPreviews({ assets }) {
+  const [urls, setUrls] = useState({})
+  useEffect(() => {
+    let cancelled = false
+    const next = {}
+    // Resolve every URL in parallel; failures fall back to null so the
+    // preview shows an "unavailable" placeholder instead of crashing.
+    Promise.all(assets.map(async (a) => {
+      try {
+        next[a.path] = await resolvePaperUrl(a.path)
+      } catch (err) {
+        console.warn('[PastPaperStudio] preview URL failed', a.path, err)
+        next[a.path] = null
+      }
+    }))
+      .then(() => { if (!cancelled) setUrls(next) })
+      .catch(() => { /* per-asset errors already swallowed above */ })
+    return () => { cancelled = true }
+  }, [assets])
+
+  return (
+    <div className="space-y-3 pt-2">
+      <div>
+        <p className="theme-text font-black text-sm">Preview</p>
+        <p className="theme-text-muted text-xs">
+          This is exactly how the paper will look to learners on /papers/:id.
+        </p>
+      </div>
+      {assets.map((a, i) => {
+        const url = urls[a.path]
+        const isPdf = a.contentType === 'application/pdf'
+        const isImg = a.contentType?.startsWith('image/')
+        return (
+          <figure
+            key={a.path}
+            className="theme-card border theme-border rounded-radius-md overflow-hidden"
+          >
+            <figcaption className="theme-bg-subtle text-xs font-black theme-text-muted uppercase tracking-widest px-3 py-2 border-b theme-border">
+              {i + 1}. {a.filename}
+            </figcaption>
+            {url === undefined ? (
+              <div className="h-40 flex items-center justify-center theme-text-muted text-sm">
+                Loading preview…
+              </div>
+            ) : url === null ? (
+              <div className="h-32 flex items-center justify-center theme-text-muted text-sm">
+                Could not load this file&apos;s preview.
+              </div>
+            ) : isPdf ? (
+              <Suspense fallback={
+                <div className="h-[60vh] flex items-center justify-center theme-text-muted text-sm">
+                  Loading PDF viewer…
+                </div>
+              }>
+                <PdfJsViewer url={url} title={a.filename} />
+              </Suspense>
+            ) : isImg ? (
+              <img
+                src={url}
+                alt={a.filename}
+                loading="lazy"
+                decoding="async"
+                className="w-full h-auto theme-bg-subtle"
+              />
+            ) : (
+              <div className="p-6 text-center text-sm theme-text-muted space-y-1">
+                <p className="theme-text font-black">Word document</p>
+                <p>Preview not available — Word files render in the AI importer (step 3) instead.</p>
+              </div>
+            )}
+          </figure>
+        )
+      })}
+    </div>
   )
 }
 
