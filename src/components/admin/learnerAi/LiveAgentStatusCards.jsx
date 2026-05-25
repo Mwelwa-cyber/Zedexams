@@ -5,9 +5,29 @@ import {
 import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
 import { AGENTS, classForStatus, displayNameFor, displayKindFor } from './agentRegistry'
+import { PREFLIGHT_REASONS, summarizeReason } from '../../../utils/learnerAiReasons'
+
+// Runners write raw refusal codes ("no_source_doc_ref") into
+// aiLiveAgentStates.lastMessage. Translate them on render so admins
+// see "The lesson module is not linked to an approved syllabus …"
+// rather than a Snake-cased token. Unknown strings pass through
+// unchanged so non-refusal messages ("Looking up …") are preserved.
+function humaniseLastMessage(raw) {
+  if (typeof raw !== 'string' || !raw) return raw || ''
+  const trimmed = raw.trim()
+  if (PREFLIGHT_REASONS[trimmed]) return summarizeReason(trimmed)
+  // Runner sometimes stamps "Refused: <reason>" — keep the prefix but
+  // expand the reason on the back half.
+  const refusedMatch = trimmed.match(/^Refused:\s*([a-z_]+)\s*$/i)
+  if (refusedMatch) {
+    const code = refusedMatch[1].toLowerCase()
+    if (PREFLIGHT_REASONS[code]) return `Refused — ${summarizeReason(code)}`
+  }
+  return trimmed
+}
 
 // Section 2: per-agent status card grid. One card per registered
-// agent (11 total). Driven by:
+// agent. Driven by:
 //   - aiLiveAgentStates (onSnapshot) — heartbeat + currentTask
 //   - aiAgentControls   (onSnapshot) — paused/enabled flags
 //   - aiAgentTasks      (onSnapshot, scoped to this agent) — the
@@ -90,8 +110,11 @@ function AgentCard({ agent, state, paused, onViewTask, onTogglePause, onCancelTa
       )}
 
       {lastMessage && (
-        <div className="text-[11px] text-slate-600 italic line-clamp-2">
-          {lastMessage}
+        <div
+          className="text-[11px] text-slate-600 italic line-clamp-2"
+          title={lastMessage}
+        >
+          {humaniseLastMessage(lastMessage)}
         </div>
       )}
 

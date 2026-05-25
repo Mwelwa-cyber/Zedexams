@@ -3,29 +3,18 @@ import { collection, doc, serverTimestamp, writeBatch } from 'firebase/firestore
 import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
 import {
+  backfillKbSourceRefs,
+  countApprovedSyllabiFor,
   listCbcTopics,
   preflightCurriculumRef,
   subtopicName,
 } from '../../../utils/adminCbcKbService'
-
-const PREFLIGHT_REASON_LABELS = Object.freeze({
-  missing_required_inputs: 'Missing grade/subject/topic on the KB row.',
-  no_curriculum_match: 'No matching topic or lesson module in the curriculum.',
-  no_source_doc_ref: 'No approved-syllabus reference (sourceDocId) on the lesson module. Attach one in /admin/cbc-kb.',
-  source_doc_not_found: 'sourceDocId points to a missing approvedSyllabi doc.',
-  source_doc_grade_mismatch: 'Approved-syllabus doc is for a different grade.',
-  source_doc_subject_mismatch: 'Approved-syllabus doc is for a different subject.',
-  no_cited_excerpts: 'Lesson module has no outcomes/summary/competencies to cite.',
-  permission_denied: 'Admin only — your session lacks admin role.',
-  callable_error: 'Preflight call failed — try again.',
-  resolver_error: 'Server resolver threw an error.',
-})
-
-function describeReason(reason, fallback) {
-  if (PREFLIGHT_REASON_LABELS[reason]) return PREFLIGHT_REASON_LABELS[reason]
-  if (fallback) return fallback
-  return `Cannot generate (${reason || 'unknown'}).`
-}
+import {
+  fixHint,
+  shortReason,
+  summarizePreflightResults,
+  summarizeReason,
+} from '../../../utils/learnerAiReasons'
 
 // Admin form that drives the learner-AI pipeline from the uploaded
 // CBC syllabus. Reads cbcKnowledgeBase/{activeVersion}/topics/* via
@@ -79,6 +68,18 @@ export default function BatchGenerateTopicsForm({ onBatchQueued }) {
   const [lastResult, setLastResult] = useState(null)
   // Preflight state: key -> { status: 'loading'|'ok'|'fail', reason?, message? }
   const [preflight, setPreflight] = useState({})
+  // Cached approvedSyllabi count for the picked grade+subject so the
+  // banner can tell the admin whether Backfill is worth pressing.
+  const [syllabiCount, setSyllabiCount] = useState(null)
+  // Backfill action state. dryRun-first: surfaces the projected delta
+  // before the admin commits to a write.
+  const [backfilling, setBackfilling] = useState(false)
+  const [backfillResult, setBackfillResult] = useState(null)
+  const [backfillError, setBackfillError] = useState(null)
+  // Force-refresh counter: bumped after a live backfill so the preflight
+  // useEffect re-runs against the now-linked lesson modules without the
+  // admin having to switch grades back and forth.
+  const [refreshTick, setRefreshTick] = useState(0)
 
   useEffect(() => {
     let cancelled = false
@@ -128,6 +129,25 @@ export default function BatchGenerateTopicsForm({ onBatchQueued }) {
       return next
     })
   }, [topicsForSelection])
+
+  // Refresh the approved-syllabi count whenever the admin picks (or
+  // changes) a grade+subject pair. Cleared as soon as either selector
+  // resets so the banner doesn't lie. Stale-result guard via cancelled.
+  useEffect(() => {
+    setBackfillResult(null)
+    setBackfillError(null)
+    if (!grade || !subject) { setSyllabiCount(null); return undefined }
+    let cancelled = false
+    countApprovedSyllabiFor(grade, subject).then((res) => {
+      if (!cancelled) setSyllabiCount(res)
+    }).catch((err) => {
+      if (!cancelled) {
+        console.warn('countApprovedSyllabiFor failed', err)
+        setSyllabiCount({ total: 0, byTerm: {} })
+      }
+    })
+    return () => { cancelled = true }
+  }, [grade, subject])
 
   // Run preflight against every visible subtopic, in parallel. The
   // dispatcher's strict resolver refuses tasks where the matched module
@@ -188,7 +208,7 @@ export default function BatchGenerateTopicsForm({ onBatchQueued }) {
       console.warn('preflight batch failed', err)
     })
     return () => { cancelled = true }
-  }, [topicsForSelection])
+  }, [topicsForSelection, refreshTick])
 
   function toggleSubtopic(topic, subtopic, idx) {
     const key = selectionKey(topic.id, idx)
@@ -227,6 +247,51 @@ export default function BatchGenerateTopicsForm({ onBatchQueued }) {
 
   const selectedEntries = useMemo(() => Object.values(selected), [selected])
   const totalTasks = selectedEntries.length * GENERATORS.length
+
+  // Reduce per-chip preflight state into banner-friendly summary stats
+  // (total, blocked count, dominant reason). Re-runs whenever a chip
+  // flips state, so the banner stays in sync with the grid.
+  const preflightSummary = useMemo(
+    () => summarizePreflightResults(Object.values(preflight)),
+    [preflight],
+  )
+
+  async function runBackfill(dryRun) {
+    if (backfilling) return
+    setBackfilling(true)
+    setBackfillError(null)
+    setBackfillResult(null)
+    try {
+      // Scope the backfill to the picked grade+subject so a misclick on
+      // a small slice doesn't trigger a full-KB walk. Server falls back
+      // to the full KB when both filters are null.
+      const result = await backfillKbSourceRefs({
+        dryRun,
+        grade: grade || null,
+        subject: subject || null,
+      })
+      if (!result.ok) {
+        setBackfillError(result.error || 'Backfill failed.')
+        return
+      }
+      setBackfillResult(result)
+      // On a real write, re-run preflight so chips refresh from the
+      // freshly-linked sourceDocId values.
+      if (!dryRun) {
+        setPreflight({})
+        setRefreshTick((t) => t + 1)
+        // Also refresh the syllabi count — a backfill itself doesn't
+        // add syllabi, but the admin may have uploaded one while
+        // browsing, and the count widget belongs in the same banner.
+        const next = await countApprovedSyllabiFor(grade, subject)
+        setSyllabiCount(next)
+      }
+    } catch (err) {
+      setBackfillError(err?.message || String(err))
+    } finally {
+      setBackfilling(false)
+    }
+  }
 
   async function handleSubmit() {
     if (submitting || selectedEntries.length === 0) return
@@ -353,6 +418,72 @@ export default function BatchGenerateTopicsForm({ onBatchQueued }) {
             </div>
           )}
 
+          {grade && subject && topicsForSelection.length > 0 && preflightSummary.blocked > 0 && (
+            <div className="rounded border border-amber-300 bg-amber-50 p-3 text-xs">
+              <div className="font-semibold text-amber-900 mb-1">
+                {preflightSummary.blocked} of {preflightSummary.total} subtopics blocked
+                {preflightSummary.dominant ? (
+                  <> · most common: <span className="font-mono">{preflightSummary.dominant}</span></>
+                ) : null}
+              </div>
+              {preflightSummary.dominant && (
+                <p className="text-amber-900 leading-snug mb-2">
+                  {summarizeReason(preflightSummary.dominant)}{' '}
+                  <span className="text-amber-800">{fixHint(preflightSummary.dominant)}</span>
+                </p>
+              )}
+              {syllabiCount !== null && (
+                <p className="text-[11px] text-amber-900 mb-2">
+                  Approved syllabi on file for {grade} · {subject}:{' '}
+                  <span className="font-bold">{syllabiCount.total}</span>
+                  {syllabiCount.total === 0 && (
+                    <>. Upload one at <code className="font-mono">/admin/curriculum/replace</code> before backfilling.</>
+                  )}
+                </p>
+              )}
+              {(preflightSummary.dominant === 'no_source_doc_ref' ||
+                preflightSummary.dominant === 'source_doc_not_found') && (
+                <div className="flex flex-wrap items-center gap-2 mt-1">
+                  <button
+                    type="button"
+                    onClick={() => runBackfill(true)}
+                    disabled={backfilling || (syllabiCount && syllabiCount.total === 0)}
+                    className="text-[11px] font-semibold px-2.5 py-1.5 rounded border border-amber-400 bg-white text-amber-900 hover:bg-amber-100 disabled:opacity-50"
+                  >
+                    {backfilling ? 'Working…' : 'Preview backfill (dry run)'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => runBackfill(false)}
+                    disabled={backfilling || (syllabiCount && syllabiCount.total === 0) || !backfillResult || !backfillResult.dryRun}
+                    title={
+                      !backfillResult || !backfillResult.dryRun ?
+                        'Run a dry run first so you can see what would change.' :
+                        ''
+                    }
+                    className="text-[11px] font-semibold px-2.5 py-1.5 rounded bg-amber-600 text-white hover:bg-amber-700 disabled:opacity-50"
+                  >
+                    {backfilling ? 'Writing…' : 'Apply backfill'}
+                  </button>
+                </div>
+              )}
+              {backfillResult && (
+                <div className="mt-2 text-[11px] text-amber-900 font-mono break-all">
+                  {backfillResult.dryRun ? 'Dry run' : 'Applied'}:{' '}
+                  would link <span className="font-bold">{backfillResult.updated}</span>,{' '}
+                  already linked {backfillResult.alreadySet},{' '}
+                  no syllabus match {backfillResult.noMatch}{' '}
+                  (scanned {backfillResult.totalScanned}, syllabi {backfillResult.totalSyllabi}).
+                </div>
+              )}
+              {backfillError && (
+                <div className="mt-2 text-[11px] text-rose-700">
+                  Backfill error: {backfillError}
+                </div>
+              )}
+            </div>
+          )}
+
           {topicsForSelection.length > 0 && (
             <div className="max-h-80 overflow-y-auto rounded border border-slate-200 bg-white divide-y divide-slate-100">
               {topicsForSelection.map((topic) => {
@@ -401,7 +532,13 @@ export default function BatchGenerateTopicsForm({ onBatchQueued }) {
                           const pf = preflight[key]
                           const isLoading = !pf || pf.status === 'loading'
                           const isBlocked = pf && pf.status === 'fail'
-                          const tooltip = isBlocked ? describeReason(pf.reason, pf.message) : ''
+                          // Tooltip layers the full human label with the raw
+                          // server message — the latter is the only signal
+                          // for generic codes (callable_error / resolver_error)
+                          // and would otherwise be silently swallowed.
+                          const tooltip = isBlocked ?
+                            `${summarizeReason(pf.reason, pf.message)}${fixHint(pf.reason) ? ` — ${fixHint(pf.reason)}` : ''}` :
+                            ''
                           return (
                             <label
                               key={key}
@@ -428,7 +565,7 @@ export default function BatchGenerateTopicsForm({ onBatchQueued }) {
                                 )}
                                 {isBlocked && (
                                   <span className="ml-2 text-[10px] text-amber-700">
-                                    blocked · {pf.reason}
+                                    {shortReason(pf.reason)}
                                   </span>
                                 )}
                               </span>

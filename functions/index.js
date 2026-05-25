@@ -107,6 +107,12 @@ const {
 const {
   preflightCurriculumRef,
 } = require("./teacherTools/preflightCurriculumRef");
+// Teacher Tools — admin-only one-click linker that runs the same logic
+// as scripts/backfill-kb-source-refs.mjs from the Live AI Monitor, so
+// admins can attach approvedSyllabi to lesson modules without a shell.
+const {
+  backfillKbSourceRefs,
+} = require("./teacherTools/backfillKbSourceRefs");
 // CBC knowledge base — used to ground AI quiz questions in the Zambian
 // syllabus. resolveCbcContext returns a rendered <cbc_context> block plus
 // a human-readable warning if the topic wasn't found in the verified KB.
@@ -1687,6 +1693,12 @@ exports.runCurriculumWatcherNow = runCurriculumWatcherNow;
 // disable subtopics that would fail the no_source_doc_ref / no
 // _curriculum_match gate before the admin presses Queue.
 exports.preflightCurriculumRef = preflightCurriculumRef;
+
+// Teacher Tools — admin-only: backfill sourceDocId on every lesson
+// module under the active KB version by matching against approvedSyllabi
+// rows. Surfaced as the "Backfill syllabus links" button on the Live
+// AI Monitor when the preflight grid is dominated by no_source_doc_ref.
+exports.backfillKbSourceRefs = backfillKbSourceRefs;
 
 // Syllabus replacement — Phase A. Storage onFinalize parser. Watches
 // syllabus-uploads/{version}/{filename}.xlsx and writes enriched draft
