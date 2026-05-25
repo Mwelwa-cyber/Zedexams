@@ -102,6 +102,15 @@ const NAV_SECTIONS = [
       { to: '/admin/app-check', icon: ShieldCheck, label: 'App Check' },
     ],
   },
+  {
+    label: 'Preview',
+    items: [
+      // External links so they open in a new tab — admins viewing live
+      // learner/teacher surfaces without losing their admin context.
+      { to: '/quizzes', icon: Eye, label: 'View as learner', external: true },
+      { to: '/teacher', icon: Eye, label: 'View as teacher', external: true },
+    ],
+  },
 ]
 
 const VIEW_AS_KEY = 'zedexams.adminViewAs'
@@ -255,17 +264,35 @@ export default function AdminLayout({ children }) {
         {section.label}
       </p>
       {section.items.map(item => (
-        <NavLink
-          key={item.to}
-          to={item.to}
-          end={item.end}
-          onClick={isMobile ? () => setMobileOpen(false) : undefined}
-          className={isMobile ? mobileNavClass : navClass}
-        >
-          <Icon as={item.icon} size="sm" />
-          <span className="flex-1">{item.label}</span>
-          <NavBadge count={item.badgeKey ? badges[item.badgeKey] : 0} />
-        </NavLink>
+        item.external ? (
+          // External preview links open in a new tab so admins keep
+          // their admin context. Plain <a> instead of NavLink because
+          // NavLink doesn't support target.
+          <a
+            key={item.to}
+            href={item.to}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={isMobile ? () => setMobileOpen(false) : undefined}
+            className={isMobile ? mobileNavClass : navClass}
+          >
+            <Icon as={item.icon} size="sm" />
+            <span className="flex-1">{item.label}</span>
+            <span className="text-[10px] theme-text-muted">↗</span>
+          </a>
+        ) : (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.end}
+            onClick={isMobile ? () => setMobileOpen(false) : undefined}
+            className={isMobile ? mobileNavClass : navClass}
+          >
+            <Icon as={item.icon} size="sm" />
+            <span className="flex-1">{item.label}</span>
+            <NavBadge count={item.badgeKey ? badges[item.badgeKey] : 0} />
+          </NavLink>
+        )
       ))}
     </div>
   )
