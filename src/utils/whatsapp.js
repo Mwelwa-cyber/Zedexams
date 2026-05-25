@@ -14,6 +14,7 @@ import app from '../firebase/config'
 
 const fns = getFunctions(app, 'us-central1')
 const sendActivationConfirmationCallable = httpsCallable(fns, 'sendActivationConfirmation')
+const sendExpiryRemindersCallable = httpsCallable(fns, 'sendExpiryReminders')
 
 /**
  * Send a free-form WhatsApp message to a customer (Meta 24h window).
@@ -25,5 +26,18 @@ const sendActivationConfirmationCallable = httpsCallable(fns, 'sendActivationCon
  */
 export async function sendActivationConfirmation({ phone, body }) {
   const result = await sendActivationConfirmationCallable({ phone, body })
+  return result.data
+}
+
+/**
+ * Fire WhatsApp renewal nudges to learners whose subscription expires in
+ * the next 3 days or lapsed in the last 14. Server-side admin-gated,
+ * idempotent on a 20-hour cooldown so re-clicking the button doesn't
+ * spam.
+ *
+ * Returns: { status, candidates, sent, skipped, failed, results }
+ */
+export async function sendExpiryReminders() {
+  const result = await sendExpiryRemindersCallable({})
   return result.data
 }

@@ -702,12 +702,13 @@ export function useFirestore() {
   // their subscription AND writes a payment doc in one batch so the
   // dashboard's today's-revenue / activations / CSV-export queries have a
   // row to aggregate. Returns { ok, userId, displayName } or throws.
-  async function grantAccessByEmail({ email, planId, durationDays, paymentReference = '', adminId }) {
+  async function grantAccessByEmail({ email, planId, durationDays, paymentReference = '', phoneNumber = '', adminId }) {
     const cleanEmail = String(email || '').trim().toLowerCase()
     if (!cleanEmail) throw new Error('Email is required.')
     const plan = PLANS[planId]
     if (!plan) throw new Error(`Unknown plan: ${planId}`)
     const days = Number(durationDays || plan.durationDays || 30)
+    const cleanPhone = String(phoneNumber || '').trim()
 
     const userSnap = await getDocs(
       query(collection(db, 'users'), where('email', '==', cleanEmail), limit(1))
@@ -740,7 +741,7 @@ export function useFirestore() {
       createdAt: serverTimestamp(),
     })
 
-    await updateDoc(doc(db, 'users', userId), {
+    const userUpdate = {
       plan: 'premium',
       premium: true,
       isPremium: true,
@@ -753,7 +754,14 @@ export function useFirestore() {
       subscriptionActivatedAt: serverTimestamp(),
       subscriptionProvider: 'manual_grant',
       subscriptionPaymentId: paymentRef.id,
-    })
+      // Reset the reminder cooldown so the next near-expiry window is
+      // eligible to send a renewal nudge to this customer.
+      expiryReminderSentAt: null,
+    }
+    if (cleanPhone) {
+      userUpdate.subscriptionPhoneNumber = cleanPhone
+    }
+    await updateDoc(doc(db, 'users', userId), userUpdate)
 
     return {
       ok: true,
