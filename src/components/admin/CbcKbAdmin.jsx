@@ -12,6 +12,7 @@ import SeoHelmet from '../seo/SeoHelmet'
 import SyllabusPdfUploadPanel from './SyllabusPdfUploadPanel'
 import GenerateFromTopicMenu from './GenerateFromTopicMenu'
 import BulkGenerateButton from './BulkGenerateButton'
+import BulkPublishQuizzesButton from './BulkPublishQuizzesButton'
 
 const EMPTY_LESSON = {
   subtopic: '',
@@ -215,6 +216,7 @@ export default function CbcKbAdmin() {
           )}
         </div>
         <div className="flex flex-wrap gap-2">
+          <BulkPublishQuizzesButton topics={filtered} />
           <BulkGenerateButton topics={filtered} />
           <button
             onClick={openNew}
