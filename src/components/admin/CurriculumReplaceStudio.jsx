@@ -60,11 +60,27 @@ export default function CurriculumReplaceStudio() {
   const [deleteVersionInput, setDeleteVersionInput] = useState('')
   const [deleteVersionConfirm, setDeleteVersionConfirm] = useState('')
 
+  // Phase 3 — session-only activity log fed by flashToast. Resets on
+  // page reload; not persisted to Firestore.
+  const [activity, setActivity] = useState([])
+
   const fileInputRef = useRef(null)
   const dropRef = useRef(null)
 
+  function pushActivity(msg) {
+    const level = /(✓|↩)/.test(msg) ? 'ok' :
+      /(fail|error|refus|cannot|can't|Wait —)/i.test(msg) ? 'error' :
+        /(PERMANENT|delete|destroy)/i.test(msg) ? 'warn' :
+          'info'
+    setActivity((a) => [
+      { ts: Date.now(), level, msg },
+      ...a,
+    ].slice(0, 30))
+  }
+
   function flashToast(msg, ms = 6000) {
     setToast(msg)
+    pushActivity(msg)
     setTimeout(() => setToast(''), ms)
   }
 
@@ -592,6 +608,18 @@ export default function CurriculumReplaceStudio() {
                           <span className="text-rose-700">{u.error}</span>
                         )}
                       </div>
+                      {u.status === 'parsed' && Array.isArray(u.warnings) && u.warnings.length > 0 && (
+                        <details className="mt-1.5 text-xs">
+                          <summary className="cursor-pointer font-bold text-amber-800 select-none hover:text-amber-900">
+                            ⚠ Show {u.warnings.length} parser warning{u.warnings.length !== 1 ? 's' : ''}
+                          </summary>
+                          <ul className="mt-1.5 ml-3 space-y-0.5 list-disc list-inside text-amber-900 bg-amber-50/60 rounded-lg p-2 border border-amber-200">
+                            {u.warnings.map((w, i) => (
+                              <li key={i} className="break-words">{w}</li>
+                            ))}
+                          </ul>
+                        </details>
+                      )}
                     </div>
                   </li>
                 ))}
@@ -693,7 +721,7 @@ export default function CurriculumReplaceStudio() {
       </>)}
 
       {/* Versions & audit tab — surfaces what audit used to hide inside Danger zone */}
-      {activeTab === 'versions' && (
+      {activeTab === 'versions' && (<>
         <section className="rounded-2xl border-2 theme-border bg-white p-4 space-y-3">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
@@ -761,7 +789,81 @@ export default function CurriculumReplaceStudio() {
             </div>
           )}
         </section>
-      )}
+
+        {/* Diff card — compares draft topic count to active version's (uses audit data when available) */}
+        <section className="rounded-2xl border-2 theme-border bg-white p-4 space-y-3">
+          <p className="text-xs uppercase tracking-wide theme-text-muted font-bold">
+            Diff vs active version
+          </p>
+          {!versionLocked || draftSummary.topicCount === 0 ? (
+            <p className="text-sm theme-text-muted">
+              Lock a version and parse uploads in the Workflow tab to compare topic counts.
+            </p>
+          ) : !activeMeta ? (
+            <p className="text-sm theme-text-muted">
+              No active version to compare against.
+            </p>
+          ) : !audit ? (
+            <p className="text-sm theme-text-muted">
+              Run <span className="font-bold">🔍 Run audit</span> above to fetch the active version's topic count for a direct comparison.
+            </p>
+          ) : (
+            <DiffStats
+              activeVersion={activeMeta.version}
+              activeCount={(audit.versions || []).find((v) => v.version === activeMeta.version)?.topicCount}
+              draftVersion={versionId}
+              draftCount={draftSummary.topicCount}
+            />
+          )}
+        </section>
+
+        {/* Activity feed — session-only log fed by flashToast */}
+        <section className="rounded-2xl border-2 theme-border bg-white p-4 space-y-3">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <div>
+              <p className="text-xs uppercase tracking-wide theme-text-muted font-bold">
+                Activity (this session)
+              </p>
+              <p className="text-sm theme-text-muted mt-1">
+                Recent toasts captured locally. Resets on page reload.
+              </p>
+            </div>
+            {activity.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setActivity([])}
+                className="px-3 py-1.5 rounded-lg border-2 theme-border font-bold text-xs hover:theme-card-hover"
+              >
+                Clear
+              </button>
+            )}
+          </div>
+          {activity.length === 0 ? (
+            <div className="rounded-xl border-2 border-dashed theme-border p-6 text-center theme-text-muted">
+              <p className="text-sm">No activity yet this session.</p>
+            </div>
+          ) : (
+            <ul className="space-y-1.5 max-h-64 overflow-y-auto">
+              {activity.map((a, i) => (
+                <li
+                  key={i}
+                  className={`flex items-baseline gap-3 text-sm border-l-[3px] pl-2.5 py-0.5 ${
+                    a.level === 'ok' ? 'border-emerald-400' :
+                      a.level === 'warn' ? 'border-amber-400' :
+                        a.level === 'error' ? 'border-rose-400' :
+                          'border-slate-300'
+                  }`}
+                >
+                  <span className="text-[10px] theme-text-muted font-mono shrink-0 whitespace-nowrap">
+                    {new Date(a.ts).toLocaleTimeString()}
+                  </span>
+                  <span className="break-words">{a.msg}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </>)}
 
       {/* Danger zone tab — destructive cleanup, formerly inline-collapsible at page bottom */}
       {activeTab === 'danger' && (<>
@@ -984,6 +1086,32 @@ function StatusCard({ label, icon, value, badge, badgeTone, meta, tone }) {
         </span>
       )}
       {meta && <p className="text-xs theme-text-muted leading-snug">{meta}</p>}
+    </div>
+  )
+}
+
+function DiffStats({ activeVersion, activeCount, draftVersion, draftCount }) {
+  const delta = activeCount != null ? draftCount - activeCount : null
+  const deltaLabel = delta == null ? '—' :
+    delta > 0 ? `+${delta} topics` :
+      delta < 0 ? `${delta} topics` :
+        'No change'
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+      <Stat
+        label={`Active · ${activeVersion}`}
+        value={activeCount != null ? `${activeCount} topics` : 'Unknown'}
+      />
+      <Stat
+        label={`Draft · ${draftVersion}`}
+        value={`${draftCount} topics`}
+        tone="emerald"
+      />
+      <Stat
+        label="Delta"
+        value={deltaLabel}
+        tone={delta == null ? undefined : delta > 0 ? 'emerald' : delta < 0 ? 'amber' : undefined}
+      />
     </div>
   )
 }
