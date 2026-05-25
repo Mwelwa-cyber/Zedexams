@@ -50,11 +50,12 @@ export default function CurriculumReplaceStudio() {
   const [rollbackConfirmOpen, setRollbackConfirmOpen] = useState(false)
   const [expandedSubject, setExpandedSubject] = useState(null)
 
-  // Phase E — danger-zone cleanup state. Audit is read-only; the two
+  // Workspace tab — separates the sequential workflow from versions/audit
+  // and the destructive cleanup actions. Audit is read-only; the two
   // delete paths are gated behind explicit user input (typed version
   // for delete-version, and a usePrivateCurriculum=false precondition
   // the server also enforces for delete-rag).
-  const [dangerOpen, setDangerOpen] = useState(false)
+  const [activeTab, setActiveTab] = useState('workflow')
   const [audit, setAudit] = useState(null)
   const [deleteVersionInput, setDeleteVersionInput] = useState('')
   const [deleteVersionConfirm, setDeleteVersionConfirm] = useState('')
@@ -455,9 +456,22 @@ export default function CurriculumReplaceStudio() {
         )}
         <div className="flex-1 min-w-0" />
         <span className="text-xs theme-text-muted hidden sm:inline">
-          Activate appears in Step 4 once drafts are parsed
+          Activate appears in Workflow → Step 4 once drafts are parsed
         </span>
       </section>
+
+      {/* Tab bar — separates Workflow (Steps 1-4) from Versions & audit and Danger zone */}
+      <TabBar
+        active={activeTab}
+        onChange={setActiveTab}
+        tabs={[
+          { id: 'workflow', label: 'Workflow', icon: '📝' },
+          { id: 'versions', label: 'Versions & audit', icon: '🏷️' },
+          { id: 'danger',   label: 'Danger zone', icon: '🗑️' },
+        ]}
+      />
+
+      {activeTab === 'workflow' && (<>
 
       {/* Step 1 — version id */}
       <section className="rounded-2xl border-2 theme-border bg-white p-4 space-y-3">
@@ -676,148 +690,161 @@ export default function CurriculumReplaceStudio() {
         </section>
       )}
 
-      {/* Phase E — Danger zone (archived-data cleanup) */}
-      <section className="rounded-2xl border-2 border-rose-200 bg-rose-50/40 p-4 space-y-3">
-        <button
-          type="button"
-          onClick={() => setDangerOpen((o) => !o)}
-          className="w-full flex items-center justify-between gap-2"
-        >
-          <span className="font-black text-rose-900 text-left">
-            🗑️ {dangerOpen ? '▾' : '▸'} Danger zone — archived-data cleanup
-          </span>
-          <span className="text-[10px] uppercase tracking-wide font-bold text-rose-700/80">
-            destructive
-          </span>
-        </button>
-        {dangerOpen && (
-          <div className="space-y-3 pt-1">
-            <p className="text-xs text-rose-900/80">
-              These actions permanently delete data the migration archived.
-              Run only after the new syllabus has been live and trusted for
-              the verification window (recommend ≥ 2 weeks). The server
-              enforces preconditions: RAG-data deletion refuses while
-              RAG is still on; version deletion refuses on the active +
-              rollback targets.
-            </p>
+      </>)}
 
-            {/* Audit */}
-            <div className="rounded-xl border-2 theme-border bg-white p-3 space-y-2">
-              <div className="flex items-center justify-between gap-2 flex-wrap">
-                <p className="font-bold text-sm">1) Audit what could be deleted</p>
-                <button
-                  type="button"
-                  onClick={onAudit}
-                  disabled={busy}
-                  className="px-3 py-1.5 rounded-lg border-2 theme-border font-bold text-sm hover:theme-card-hover disabled:opacity-40"
-                >
-                  {busy ? 'Auditing…' : 'Run audit'}
-                </button>
+      {/* Versions & audit tab — surfaces what audit used to hide inside Danger zone */}
+      {activeTab === 'versions' && (
+        <section className="rounded-2xl border-2 theme-border bg-white p-4 space-y-3">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div>
+              <p className="text-xs uppercase tracking-wide theme-text-muted font-bold">
+                Versions & audit
+              </p>
+              <p className="text-sm theme-text-muted mt-1">
+                Inventory of KB versions in Firestore plus any legacy RAG data still archived.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onAudit}
+              disabled={busy}
+              className="px-3 py-2 rounded-lg border-2 theme-border font-bold text-sm hover:theme-card-hover disabled:opacity-40"
+            >
+              {busy ? 'Auditing…' : '🔍 Run audit'}
+            </button>
+          </div>
+          {!audit && (
+            <div className="rounded-xl border-2 border-dashed theme-border p-6 text-center theme-text-muted">
+              <p className="text-sm">
+                Click <span className="font-bold">Run audit</span> above to fetch the current Firestore inventory.
+              </p>
+            </div>
+          )}
+          {audit && (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Stat label="Legacy curriculum/* docs" value={String(audit.counts.curriculum)} />
+                <Stat label="Legacy rag_chunks/* docs" value={String(audit.counts.rag_chunks)} />
               </div>
-              {audit && (
-                <div className="text-xs space-y-1">
-                  <p>
-                    <code className="font-mono">curriculum/*</code>:{' '}
-                    <span className="font-black">{audit.counts.curriculum}</span> docs
-                  </p>
-                  <p>
-                    <code className="font-mono">rag_chunks/*</code>:{' '}
-                    <span className="font-black">{audit.counts.rag_chunks}</span> docs
-                  </p>
-                  {Array.isArray(audit.versions) && audit.versions.length > 0 && (
-                    <div>
-                      <p className="font-bold mt-1">KB versions:</p>
-                      <ul className="ml-3 space-y-0.5">
-                        {audit.versions.map((v) => (
-                          <li key={v.version} className="flex items-baseline gap-2">
-                            <code className="font-mono">{v.version}</code>
-                            <span>— {v.topicCount} topics</span>
-                            {v.version === activeMeta?.version && (
-                              <span className="text-emerald-700 font-bold">active</span>
-                            )}
-                            {v.version === activeMeta?.previousVersion && (
-                              <span className="text-amber-700 font-bold">rollback target</span>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  )}
+              {Array.isArray(audit.versions) && audit.versions.length > 0 && (
+                <div className="rounded-xl border-2 theme-border bg-white p-3 space-y-1.5">
+                  <p className="font-bold text-sm mb-1">KB versions in Firestore</p>
+                  <ul className="space-y-1.5">
+                    {audit.versions.map((v) => (
+                      <li
+                        key={v.version}
+                        className="flex items-center justify-between gap-3 text-sm border-b theme-border last:border-b-0 pb-1.5 last:pb-0"
+                      >
+                        <div className="flex items-baseline gap-2 min-w-0">
+                          <code className="font-mono truncate">{v.version}</code>
+                          <span className="theme-text-muted text-xs whitespace-nowrap">
+                            {v.topicCount} topics
+                          </span>
+                        </div>
+                        <div className="flex gap-1.5 shrink-0">
+                          {v.version === activeMeta?.version && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                              active
+                            </span>
+                          )}
+                          {v.version === activeMeta?.previousVersion && (
+                            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800">
+                              rollback target
+                            </span>
+                          )}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
             </div>
+          )}
+        </section>
+      )}
 
-            {/* Delete RAG */}
-            <div className="rounded-xl border-2 theme-border bg-white p-3 space-y-2">
-              <p className="font-bold text-sm">
-                2) Delete legacy RAG (<code className="font-mono">curriculum/*</code>{' '}+{' '}
-                <code className="font-mono">rag_chunks/*</code>)
-              </p>
-              <p className="text-xs theme-text-muted">
-                Pre-Phase-A retrieval-grounding data. The server refuses if
-                <code className="mx-1 px-1 rounded bg-rose-100 text-rose-900 font-mono">
-                  usePrivateCurriculum: true
-                </code>
-                — activate a Phase-C syllabus first (which sets the flag to
-                false), then this deletion becomes available.
-              </p>
-              <button
-                type="button"
-                onClick={onDeleteRag}
-                disabled={busy || activeMeta?.usePrivateCurriculum !== false}
-                className="px-4 py-2 rounded-lg font-black text-white bg-gradient-to-r from-rose-500 to-rose-700 disabled:opacity-40"
-              >
-                {activeMeta?.usePrivateCurriculum !== false ?
-                  'RAG path still on — can\'t delete yet' :
-                  'Delete legacy RAG data'}
-              </button>
-            </div>
+      {/* Danger zone tab — destructive cleanup, formerly inline-collapsible at page bottom */}
+      {activeTab === 'danger' && (<>
+        <section className="rounded-2xl border-2 border-rose-200 bg-rose-50/40 p-4">
+          <p className="text-xs text-rose-900/90 leading-snug">
+            These actions permanently delete data the migration archived.
+            Run only after the new syllabus has been live and trusted for
+            the verification window (recommend ≥ 2 weeks). The server
+            enforces preconditions: RAG-data deletion refuses while RAG is
+            still on; version deletion refuses on the active + rollback
+            targets.
+          </p>
+        </section>
 
-            {/* Delete old version */}
-            <div className="rounded-xl border-2 theme-border bg-white p-3 space-y-2">
-              <p className="font-bold text-sm">
-                3) Delete an old KB version
-              </p>
-              <p className="text-xs theme-text-muted">
-                Permanently removes{' '}
-                <code className="font-mono">cbcKnowledgeBase/{'{version}'}/topics/*</code>
-                {' '}and every <code>lessons</code> subcollection underneath. The
-                server refuses if you target the active version or the rollback
-                target — there's no recovery short of a Firestore backup
-                restore.
-              </p>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <input
-                  type="text"
-                  value={deleteVersionInput}
-                  onChange={(e) => setDeleteVersionInput(e.target.value)}
-                  placeholder="Version id"
-                  className="px-3 py-2 rounded-lg border-2 theme-border font-mono text-sm focus:outline-none focus:border-rose-400"
-                />
-                <input
-                  type="text"
-                  value={deleteVersionConfirm}
-                  onChange={(e) => setDeleteVersionConfirm(e.target.value)}
-                  placeholder="Type version id again to confirm"
-                  className="px-3 py-2 rounded-lg border-2 theme-border font-mono text-sm focus:outline-none focus:border-rose-400"
-                />
-              </div>
-              <button
-                type="button"
-                onClick={onDeleteVersion}
-                disabled={
-                  busy ||
-                  !deleteVersionInput ||
-                  deleteVersionInput !== deleteVersionConfirm
-                }
-                className="px-4 py-2 rounded-lg font-black text-white bg-gradient-to-r from-rose-500 to-rose-700 disabled:opacity-40"
-              >
-                Delete version
-              </button>
-            </div>
+        {/* Delete RAG */}
+        <section className="rounded-2xl border-2 theme-border bg-white p-4 space-y-2">
+          <p className="font-black text-sm text-rose-900">
+            Delete legacy RAG (<code className="font-mono">curriculum/*</code>{' '}+{' '}
+            <code className="font-mono">rag_chunks/*</code>)
+          </p>
+          <p className="text-xs theme-text-muted">
+            Pre-Phase-A retrieval-grounding data. The server refuses if
+            <code className="mx-1 px-1 rounded bg-rose-100 text-rose-900 font-mono">
+              usePrivateCurriculum: true
+            </code>
+            — activate a Phase-C syllabus first (which sets the flag to
+            false), then this deletion becomes available.
+          </p>
+          <button
+            type="button"
+            onClick={onDeleteRag}
+            disabled={busy || activeMeta?.usePrivateCurriculum !== false}
+            className="px-4 py-2 rounded-lg font-black text-white bg-gradient-to-r from-rose-500 to-rose-700 disabled:opacity-40"
+          >
+            {activeMeta?.usePrivateCurriculum !== false ?
+              'RAG path still on — can\'t delete yet' :
+              'Delete legacy RAG data'}
+          </button>
+        </section>
+
+        {/* Delete old version */}
+        <section className="rounded-2xl border-2 theme-border bg-white p-4 space-y-2">
+          <p className="font-black text-sm text-rose-900">
+            Delete an old KB version
+          </p>
+          <p className="text-xs theme-text-muted">
+            Permanently removes{' '}
+            <code className="font-mono">cbcKnowledgeBase/{'{version}'}/topics/*</code>
+            {' '}and every <code>lessons</code> subcollection underneath. The
+            server refuses if you target the active version or the rollback
+            target — there's no recovery short of a Firestore backup
+            restore.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <input
+              type="text"
+              value={deleteVersionInput}
+              onChange={(e) => setDeleteVersionInput(e.target.value)}
+              placeholder="Version id"
+              className="px-3 py-2 rounded-lg border-2 theme-border font-mono text-sm focus:outline-none focus:border-rose-400"
+            />
+            <input
+              type="text"
+              value={deleteVersionConfirm}
+              onChange={(e) => setDeleteVersionConfirm(e.target.value)}
+              placeholder="Type version id again to confirm"
+              className="px-3 py-2 rounded-lg border-2 theme-border font-mono text-sm focus:outline-none focus:border-rose-400"
+            />
           </div>
-        )}
-      </section>
+          <button
+            type="button"
+            onClick={onDeleteVersion}
+            disabled={
+              busy ||
+              !deleteVersionInput ||
+              deleteVersionInput !== deleteVersionConfirm
+            }
+            className="px-4 py-2 rounded-lg font-black text-white bg-gradient-to-r from-rose-500 to-rose-700 disabled:opacity-40"
+          >
+            Delete version
+          </button>
+        </section>
+      </>)}
 
       {/* Toast */}
       {toast && (
@@ -958,6 +985,35 @@ function StatusCard({ label, icon, value, badge, badgeTone, meta, tone }) {
       )}
       {meta && <p className="text-xs theme-text-muted leading-snug">{meta}</p>}
     </div>
+  )
+}
+
+function TabBar({ active, onChange, tabs }) {
+  return (
+    <nav
+      className="flex gap-1 border-b-2 theme-border overflow-x-auto -mx-1 px-1"
+      role="tablist"
+    >
+      {tabs.map((t) => {
+        const isActive = active === t.id
+        return (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={isActive}
+            onClick={() => onChange(t.id)}
+            className={`px-4 py-2.5 text-sm font-bold whitespace-nowrap border-b-[3px] -mb-0.5 transition ${
+              isActive ?
+                'border-emerald-500 text-emerald-700' :
+                'border-transparent theme-text-muted hover:text-slate-700'
+            }`}
+          >
+            <span className="mr-1.5">{t.icon}</span>{t.label}
+          </button>
+        )
+      })}
+    </nav>
   )
 }
 
