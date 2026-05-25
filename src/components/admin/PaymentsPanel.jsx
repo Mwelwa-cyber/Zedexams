@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
-import { PLANS, PAYMENT_DETAILS, hasPremiumAccess } from '../../utils/subscriptionConfig'
+import { PLANS, PAYMENT_DETAILS, hasPremiumAccess, daysUntilExpiry } from '../../utils/subscriptionConfig'
 import { resendInvoiceEmail } from '../../utils/invoices'
 import { sendActivationConfirmation, sendExpiryReminders } from '../../utils/whatsapp'
 import Button from '../ui/Button'
@@ -48,7 +48,7 @@ export default function PaymentsPanel() {
     getPendingPayments, getAllPayments, confirmPayment, rejectPayment,
     grantPremium, revokePremium, getAllUsers, updateUserRole,
     grantAccessByEmail, getTodayPaymentStats, getActivePremiumCount,
-    getRecentConfirmedPayments,
+    getRecentConfirmedPayments, findUserByEmail, getMyPayments,
   } = useFirestore()
 
   const [tab, setTab] = useState('grant')
@@ -75,6 +75,11 @@ export default function PaymentsPanel() {
   const [recentActivations, setRecentActivations] = useState([])
   const [lastGrant, setLastGrant] = useState(null)
   const [remindersRunning, setRemindersRunning] = useState(false)
+  // Email-driven customer preview. Populated after a 400ms debounce
+  // when the admin pauses typing in the email field, so each keystroke
+  // doesn't fire a Firestore query.
+  const [lookupResult, setLookupResult] = useState(null) // { user, lastPayment } | { notFound: true } | null
+  const [lookupLoading, setLookupLoading] = useState(false)
 
   function show(msg) { setToast(msg); setTimeout(() => setToast(null), 3500) }
 
@@ -103,6 +108,46 @@ export default function PaymentsPanel() {
   }, [tab, loadGrantTab, getAllPayments, getAllUsers, getPendingPayments])
 
   useEffect(() => { load() }, [load])
+
+  // Debounced email → user lookup. Pre-fills phone + shows current
+  // subscription state inline. Falls through silently if the field is
+  // empty or doesn't look like an email yet.
+  useEffect(() => {
+    const value = grantEmail.trim().toLowerCase()
+    if (!value || !value.includes('@') || !value.includes('.')) {
+      setLookupResult(null)
+      setLookupLoading(false)
+      return undefined
+    }
+    let cancelled = false
+    setLookupLoading(true)
+    const handle = setTimeout(async () => {
+      const user = await findUserByEmail(value)
+      if (cancelled) return
+      if (!user) {
+        setLookupResult({ notFound: true })
+        setLookupLoading(false)
+        return
+      }
+      // Pull most recent payment so the admin can verify this isn't
+      // a double-grant (customer already paid + activated today).
+      const payments = await getMyPayments(user.id, { limit: 1 })
+      if (cancelled) return
+      setLookupResult({ user, lastPayment: payments[0] || null })
+      setLookupLoading(false)
+      // Pre-fill the phone field if the customer has one on file and
+      // the admin hasn't already typed one. Saves the WhatsApp-number
+      // lookup step entirely for repeat customers.
+      const onFile = user.subscriptionPhoneNumber || ''
+      if (onFile && !grantPhone.trim()) setGrantPhone(onFile)
+    }, 400)
+    return () => { cancelled = true; clearTimeout(handle) }
+    // grantPhone deliberately omitted: we read it inside the effect to
+    // decide whether to auto-fill, but re-running on every phone
+    // keystroke would re-fire the Firestore lookup. ESLint can't model
+    // this nuance cleanly — the manual dep list is correct.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [grantEmail, findUserByEmail, getMyPayments])
 
   async function handleGrantAccess(e) {
     e.preventDefault()
@@ -410,6 +455,72 @@ export default function PaymentsPanel() {
                   />
                 </div>
               </div>
+
+              {/* Email-driven customer preview. Reflects what the
+                  admin will write when they submit (current plan vs.
+                  fresh activation, phone already on file, last payment
+                  date). */}
+              {lookupLoading && (
+                <div className="text-xs text-gray-500 px-2">Looking up customer…</div>
+              )}
+              {lookupResult?.notFound && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-sm">
+                  <p className="font-bold text-amber-900">No account for this email yet</p>
+                  <p className="text-xs text-amber-800 mt-0.5">
+                    Ask the customer to sign up at zedexams.com first — granting will fail until then.
+                  </p>
+                </div>
+              )}
+              {lookupResult?.user && (() => {
+                const u = lookupResult.user
+                const last = lookupResult.lastPayment
+                const isPrem = hasPremiumAccess(u)
+                const daysLeft = daysUntilExpiry(u)
+                const planName = PLANS[u.subscriptionPlan]?.name || u.subscriptionPlan || 'No plan'
+                const lastDate = last?.createdAt?.toDate?.()
+                  ? last.createdAt.toDate().toLocaleDateString('en-GB', { day: '2-digit', month: 'short' })
+                  : null
+                return (
+                  <div className={`rounded-xl p-3 text-sm border ${isPrem ? 'bg-emerald-50 border-emerald-200' : 'bg-gray-50 border-gray-200'}`}>
+                    <div className="flex items-start justify-between gap-2 flex-wrap">
+                      <div className="min-w-0">
+                        <p className="font-bold text-gray-800">
+                          {u.displayName || u.email}
+                          {u.role && u.role !== 'learner' && (
+                            <span className="ml-2 text-[10px] font-black uppercase tracking-wider bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded">{u.role}</span>
+                          )}
+                        </p>
+                        <p className="text-xs text-gray-600 mt-0.5">
+                          {isPrem
+                            ? `⭐ ${planName} · ${daysLeft != null ? `${daysLeft} days left` : 'active'}`
+                            : 'Free tier — no active subscription'}
+                        </p>
+                        {u.subscriptionPhoneNumber && (
+                          <p className="text-xs text-gray-500 mt-0.5">📱 {u.subscriptionPhoneNumber}</p>
+                        )}
+                      </div>
+                      {last && (
+                        <div className="text-right text-xs text-gray-500 flex-shrink-0">
+                          <p>Last: K{last.amountZMW || 0}</p>
+                          {lastDate && <p>{lastDate}</p>}
+                        </div>
+                      )}
+                    </div>
+                    {isPrem && daysLeft != null && daysLeft > 0 && (() => {
+                      const planForGrant = PLANS[grantProductId]
+                      const addDays = +grantProductDays || planForGrant?.durationDays || 30
+                      const totalDays = daysLeft + addDays
+                      return (
+                        <p className="text-xs text-blue-700 mt-2 leading-snug">
+                          ℹ Customer has {daysLeft} day{daysLeft === 1 ? '' : 's'} left.
+                          Granting adds {addDays} day{addDays === 1 ? '' : 's'} on top — new expiry in <strong>{totalDays} days</strong>.
+                        </p>
+                      )
+                    })()}
+                  </div>
+                )
+              })()}
+
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">

@@ -702,6 +702,29 @@ export function useFirestore() {
   // their subscription AND writes a payment doc in one batch so the
   // dashboard's today's-revenue / activations / CSV-export queries have a
   // row to aggregate. Returns { ok, userId, displayName } or throws.
+  // Quick admin-side email → user lookup. Returns the matched user
+  // doc (with id) or null. Used by the Grant Access form to preview
+  // the customer's current subscription / phone-on-file before the
+  // admin commits to a grant, so they catch "wrong email" / "user
+  // hasn't signed up yet" before filling out the rest of the form.
+  async function findUserByEmail(email) {
+    const cleanEmail = String(email || '').trim().toLowerCase()
+    if (!cleanEmail) return null
+    try {
+      const snap = await getDocs(query(
+        collection(db, 'users'),
+        where('email', '==', cleanEmail),
+        limit(1),
+      ))
+      if (snap.empty) return null
+      const userDoc = snap.docs[0]
+      return { id: userDoc.id, ...userDoc.data() }
+    } catch (e) {
+      console.error('findUserByEmail:', e)
+      return null
+    }
+  }
+
   async function grantAccessByEmail({ email, planId, durationDays, paymentReference = '', phoneNumber = '', adminId }) {
     const cleanEmail = String(email || '').trim().toLowerCase()
     if (!cleanEmail) throw new Error('Email is required.')
@@ -720,7 +743,17 @@ export function useFirestore() {
     const userId = userDoc.id
     const userData = userDoc.data() || {}
 
-    const expiry = new Date()
+    // Stack onto an existing active subscription. A customer who renews
+    // early shouldn't lose the days they've already paid for; the old
+    // MoMo `markPaymentSuccessful` flow did the same thing. When the
+    // current expiry is in the past (or absent), start fresh from
+    // today.
+    const currentExpiry = userData.subscriptionExpiry?.toDate?.() ||
+      (userData.subscriptionExpiry ? new Date(userData.subscriptionExpiry) : null)
+    const baseDate = currentExpiry && currentExpiry > new Date()
+      ? currentExpiry
+      : new Date()
+    const expiry = new Date(baseDate)
     expiry.setDate(expiry.getDate() + days)
 
     const paymentRef = await addDoc(collection(db, 'payments'), {
@@ -1020,7 +1053,7 @@ export function useFirestore() {
     checkAndConsumeAttempt,
     submitPaymentRequest, getPendingPayments, getAllPayments, confirmPayment, rejectPayment, grantPremium, revokePremium,
     grantAccessByEmail, getTodayPaymentStats, getActivePremiumCount, getRecentConfirmedPayments,
-    getMyPayments,
+    getMyPayments, findUserByEmail,
     getLessons, getAllLessons, getLessonById, createLesson, updateLesson, deleteLesson,
     getMyQuizzes, getMyLessons,
     getPendingApprovals, submitForApproval, withdrawFromApproval, approveContent, rejectContent,
