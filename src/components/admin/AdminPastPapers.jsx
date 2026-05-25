@@ -8,12 +8,15 @@
  */
 
 import { useEffect, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import {
   PAPER_STATUSES,
   listAllPapersForAdmin,
 } from '../../utils/pastPapers'
 import { SUBJECTS } from '../../config/curriculum'
+import { convertPaperToQuizDraft } from '../../utils/paperToQuizConverter'
+import { useAuth } from '../../contexts/AuthContext'
+import { useFirestore } from '../../hooks/useFirestore'
 import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
 
@@ -34,6 +37,38 @@ export default function AdminPastPapers() {
   const [papers, setPapers] = useState([])
   const [loading, setLoading] = useState(true)
   const [statusFilter, setStatusFilter] = useState('all')
+  // Per-row "Convert to quiz draft" state. converting holds the
+  // current paper id so only one row spins at a time; convertMsg /
+  // convertErr show a banner above the list with the result.
+  const [converting, setConverting] = useState(null)
+  const [convertMsg, setConvertMsg] = useState(null)
+  const [convertErr, setConvertErr] = useState(null)
+  const { currentUser } = useAuth()
+  const { createQuiz, saveQuestions } = useFirestore()
+  const navigate = useNavigate()
+
+  async function handleConvert(paper) {
+    if (converting) return
+    setConverting(paper.id)
+    setConvertMsg(null)
+    setConvertErr(null)
+    try {
+      const result = await convertPaperToQuizDraft({
+        paper,
+        uid: currentUser?.uid,
+        createQuiz,
+        saveQuestions,
+        onProgress: ({ step }) => setConvertMsg(step),
+      })
+      setConvertMsg(`✓ Converted to a draft quiz with ${result.questionCount} question${result.questionCount === 1 ? '' : 's'}. Opening editor…`)
+      setTimeout(() => navigate(`/admin/quizzes/${result.quizId}/edit`), 800)
+    } catch (err) {
+      setConvertErr(err?.message || 'Conversion failed.')
+      setConvertMsg(null)
+    } finally {
+      setConverting(null)
+    }
+  }
 
   useEffect(() => {
     let cancelled = false
@@ -99,6 +134,19 @@ export default function AdminPastPapers() {
         ))}
       </div>
 
+      {/* Convert-to-quiz feedback banner (shared across rows). */}
+      {convertMsg && (
+        <div className="rounded-2xl border-2 border-violet-200 bg-violet-50 px-4 py-3 text-xs font-bold text-violet-900">
+          {convertMsg}
+        </div>
+      )}
+      {convertErr && (
+        <div className="rounded-2xl border-2 border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-800">
+          <p className="font-black">Conversion failed</p>
+          <p className="mt-1">{convertErr}</p>
+        </div>
+      )}
+
       {/* Body */}
       {loading ? (
         <div className="space-y-2">
@@ -129,6 +177,17 @@ export default function AdminPastPapers() {
                   <span className={`text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${status.cls}`}>
                     {status.label}
                   </span>
+                  {p.pdfPath && (
+                    <button
+                      type="button"
+                      onClick={() => handleConvert(p)}
+                      disabled={converting !== null}
+                      className="text-xs font-bold rounded-full px-2.5 py-1 border-2 border-violet-300 text-violet-700 hover:bg-violet-50 disabled:opacity-50"
+                      title="Auto-convert this paper into a draft quiz (admin reviews before publishing)"
+                    >
+                      {converting === p.id ? '… working' : '✨ Convert to quiz'}
+                    </button>
+                  )}
                   <Link
                     to={`/admin/papers/${p.id}/edit`}
                     className="text-xs font-bold theme-accent-text hover:underline"
