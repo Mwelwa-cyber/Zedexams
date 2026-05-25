@@ -6,22 +6,28 @@ import { capture } from '../../utils/analytics'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 
-const DEFAULT_PLAN_ORDER = ['monthly', 'termly', 'yearly']
+const DEFAULT_PLAN_ORDER_BY_PORTAL = {
+  learner: ['grade7_monthly', 'grade7_termly'],
+  teacher: ['pro_monthly', 'pro_yearly'],
+  generic: ['grade7_monthly', 'grade7_termly'],
+}
 const PLAN_BORDER = {
-  monthly:     'border-green-400 bg-green-50',
-  termly:      'border-blue-400 bg-blue-50',
-  yearly:      'border-purple-400 bg-purple-50',
-  pro_monthly: 'border-orange-400 bg-orange-50',
-  pro_yearly:  'border-orange-400 bg-orange-50',
-  max_monthly: 'border-blue-500 bg-blue-50',
-  max_yearly:  'border-blue-500 bg-blue-50',
+  grade7_monthly: 'border-amber-400 bg-amber-50',
+  grade7_termly:  'border-emerald-400 bg-emerald-50',
+  monthly:        'border-green-400 bg-green-50',
+  termly:         'border-blue-400 bg-blue-50',
+  yearly:         'border-purple-400 bg-purple-50',
+  pro_monthly:    'border-orange-400 bg-orange-50',
+  pro_yearly:     'border-orange-400 bg-orange-50',
+  max_monthly:    'border-blue-500 bg-blue-50',
+  max_yearly:     'border-blue-500 bg-blue-50',
 }
 const FALLBACK_BORDER = 'border-orange-400 bg-orange-50'
 
 const PORTAL_COPY = {
   learner: {
-    title: 'Subscribe to Learner Portal',
-    subtitle: 'Unlock the learner dashboard, quizzes, lessons & exams',
+    title: 'Grade 7 ECZ Exam Pack',
+    subtitle: 'Notes · past papers · quizzes · exam strategy',
   },
   teacher: {
     title: 'Subscribe to Teacher Portal',
@@ -33,15 +39,25 @@ const PORTAL_COPY = {
   },
 }
 
-function buildWhatsAppLink({ plan, email, displayName }) {
+function buildWhatsAppLink({ plan, email, displayName, customerPhone }) {
   const lines = [
     `Hi, I just paid K${plan.priceZMW} for the ${plan.name} plan 🙏`,
     email ? `Email: ${email}` : null,
     displayName ? `Name: ${displayName}` : null,
+    customerPhone ? `My WhatsApp: ${customerPhone}` : null,
     'Sending screenshot now.',
   ].filter(Boolean)
   const number = PAYMENT_DETAILS.contact.whatsapp.replace(/[^\d]/g, '')
   return `https://wa.me/${number}?text=${encodeURIComponent(lines.join('\n'))}`
+}
+
+// Loose Zambian phone validator. Accepts 09…, 07…, +260…, 260…, and
+// bare 9-digit nationals. We're permissive here — the admin can fix
+// typos on the grant form; the normalisation happens server-side
+// (functions/metaWhatsApp.js → normalizeToWhatsApp).
+function looksLikePhone(value) {
+  const digits = String(value || '').replace(/[^\d]/g, '')
+  return digits.length >= 9 && digits.length <= 15
 }
 
 export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }) {
@@ -49,12 +65,19 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
   const { userProfile, currentUser } = useAuth()
   const pendingReferralCredits = Number(userProfile?.referralCredits || 0)
 
-  const visiblePlanIds = (planIds && planIds.length ? planIds : DEFAULT_PLAN_ORDER)
+  const defaultOrder =
+    DEFAULT_PLAN_ORDER_BY_PORTAL[portal] || DEFAULT_PLAN_ORDER_BY_PORTAL.generic
+  const visiblePlanIds = (planIds && planIds.length ? planIds : defaultOrder)
     .filter((id) => PLANS[id])
   const [step, setStep] = useState('plans')
   const [selectedPlanId, setSelectedPlanId] = useState(
     defaultPlanId && visiblePlanIds.includes(defaultPlanId) ? defaultPlanId : null
   )
+  // Customer-supplied WhatsApp number. Optional, but pre-filling it
+  // saves the admin from having to ask once the chat thread opens —
+  // and lets the bulk expiry-reminder cron reach this learner later.
+  const [customerPhone, setCustomerPhone] = useState('')
+  const phoneValid = customerPhone === '' || looksLikePhone(customerPhone)
 
   const plan = selectedPlanId ? PLANS[selectedPlanId] : null
   const userEmail = userProfile?.email || currentUser?.email || ''
@@ -74,9 +97,13 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
 
   function handleOpenWhatsApp() {
     if (!plan) return
-    capture('subscription_whatsapp_opened', { planId: selectedPlanId })
+    capture('subscription_whatsapp_opened', {
+      planId: selectedPlanId,
+      hasPhone: customerPhone.trim() !== '',
+    })
     const url = buildWhatsAppLink({
       plan,
+      customerPhone: customerPhone.trim(),
       email: userEmail,
       displayName: userProfile?.displayName || '',
     })
@@ -213,15 +240,40 @@ export default function UpgradeModal({ onClose, portal, planIds, defaultPlanId }
               </p>
             </div>
 
-            <div className="bg-yellow-50 border-l-4 border-[#B8860B] rounded-r-lg p-3 mb-5 text-sm text-gray-700">
+            <div className="bg-yellow-50 border-l-4 border-[#B8860B] rounded-r-lg p-3 mb-4 text-sm text-gray-700">
               <strong className="text-gray-900">Reference:</strong>{' '}
               your email{userEmail ? ` (${userEmail})` : ' (e.g. parent@gmail.com)'} so we can activate the right account.
+            </div>
+
+            <div className="mb-5">
+              <label className="block text-xs uppercase tracking-wider text-gray-500 font-bold mb-1">
+                Your WhatsApp number <span className="text-gray-400 normal-case font-normal">(optional · we'll confirm to this number)</span>
+              </label>
+              <input
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                value={customerPhone}
+                onChange={(e) => setCustomerPhone(e.target.value)}
+                placeholder="0977 740 465"
+                className={`w-full border-2 rounded-xl px-3 py-2.5 text-base focus:outline-none ${
+                  phoneValid
+                    ? 'border-gray-200 focus:border-[#B8860B]'
+                    : 'border-red-300 focus:border-red-500'
+                }`}
+              />
+              {!phoneValid && (
+                <p className="text-xs text-red-600 mt-1">
+                  Use a Zambian number like 0977 740 465 or +260 977 740 465.
+                </p>
+              )}
             </div>
 
             <button
               type="button"
               onClick={handleOpenWhatsApp}
-              className="w-full bg-[#25D366] hover:bg-[#1FBE5C] text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-colors"
+              disabled={!phoneValid}
+              className="w-full bg-[#25D366] hover:bg-[#1FBE5C] disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-colors"
             >
               <Icon as={Check} size="sm" strokeWidth={2.4} />
               Confirm payment on WhatsApp
