@@ -367,58 +367,96 @@ export default function CurriculumReplaceStudio() {
         </p>
       </header>
 
-      {/* Currently active */}
-      <section className="rounded-2xl border-2 theme-border bg-white p-4 space-y-2">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <p className="text-xs uppercase tracking-wide theme-text-muted font-bold">
-              Currently active syllabus
-            </p>
-            <p className="text-lg font-black break-all">
-              {activeMetaStatus === 'loading' ? 'Loading…' :
-                (activeMeta?.version || '—')}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            {activeMeta?.previousVersion && (
-              <button
-                type="button"
-                onClick={() => setRollbackConfirmOpen(true)}
-                disabled={busy}
-                className="px-3 py-2 rounded-lg border-2 border-amber-300 bg-amber-50 text-amber-900 font-bold text-sm hover:bg-amber-100 disabled:opacity-40"
-                title={`Roll back to ${activeMeta.previousVersion}`}
-              >
-                ↩ Rollback
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={onRefreshCaches}
-              disabled={busy}
-              className="px-3 py-2 rounded-lg border-2 theme-border font-bold text-sm hover:theme-card-hover disabled:opacity-40"
-            >
-              🔄 Refresh studio caches
-            </button>
-          </div>
-        </div>
-        {activeMeta && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-sm">
-            <Stat
-              label="RAG fallback"
-              value={activeMeta.usePrivateCurriculum ?
-                'ON (legacy)' : 'OFF (new syllabus is sole source)'}
-              tone={activeMeta.usePrivateCurriculum ? 'amber' : 'emerald'}
-            />
-            <Stat
-              label="Rollback target"
-              value={activeMeta.previousVersion || '— (first activation)'}
-            />
-            <Stat
-              label="Cache bust"
-              value={String(activeMeta.cacheBust)}
-            />
-          </div>
+      {/* Status dashboard — surfaces active syllabus, upload progress, drafts, rollback target at a glance */}
+      <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatusCard
+          label="Active syllabus"
+          icon="🏷️"
+          value={activeMetaStatus === 'loading' ? 'Loading…' :
+            (activeMeta?.version || '—')}
+          badge={activeMeta ? (activeMeta.usePrivateCurriculum ?
+            'RAG fallback ON' : 'Sole source') : null}
+          badgeTone={activeMeta?.usePrivateCurriculum ? 'amber' : 'emerald'}
+          meta={activeMeta ?
+            `Cache bust ${activeMeta.cacheBust}` :
+            'No active version yet'}
+          tone={activeMeta ?
+            (activeMeta.usePrivateCurriculum ? 'amber' : 'emerald') :
+            'slate'}
+        />
+        <StatusCard
+          label="Upload progress"
+          icon="📤"
+          value={!versionLocked ? 'Awaiting version' :
+            uploadsView.length === 0 ? 'No files yet' :
+              `${parsedFileCount}/${uploadsView.length} parsed`}
+          badge={!versionLocked ? null :
+            errorFileCount > 0 ? `${errorFileCount} failed` :
+              inFlightCount > 0 ? `${inFlightCount} in flight` :
+                uploadsView.length > 0 ? 'All parsed' : null}
+          badgeTone={errorFileCount > 0 ? 'rose' :
+            inFlightCount > 0 ? 'sky' : 'emerald'}
+          meta={!versionLocked ? 'Lock a version id first (Step 1)' :
+            uploadsView.length === 0 ? 'Drop .xlsx files in Step 2' :
+              `${uploadsView.reduce((s, u) => s + (u.topicCount || 0), 0)} topics extracted`}
+          tone={errorFileCount > 0 ? 'rose' :
+            inFlightCount > 0 ? 'sky' :
+              uploadsView.length > 0 && parsedFileCount === uploadsView.length ? 'emerald' :
+                'slate'}
+        />
+        <StatusCard
+          label="Draft summary"
+          icon="📋"
+          value={draftSummary.topicCount === 0 ? '—' :
+            `${draftSummary.topicCount} topics`}
+          badge={draftSummary.topicCount === 0 ? null :
+            versionLocked ? 'Ready to activate' : null}
+          badgeTone="emerald"
+          meta={draftSummary.topicCount === 0 ? 'No drafts yet' :
+            `${draftSummary.subtopicCount} subtopics · ${Object.keys(draftSummary.bySubject).length} subject${Object.keys(draftSummary.bySubject).length !== 1 ? 's' : ''}`}
+          tone={draftSummary.topicCount === 0 ? 'slate' : 'emerald'}
+        />
+        <StatusCard
+          label="Rollback target"
+          icon="↩️"
+          value={activeMeta?.previousVersion || 'None'}
+          badge={activeMeta?.previousVersion ? 'Available' : 'First activation'}
+          badgeTone={activeMeta?.previousVersion ? 'amber' : 'slate'}
+          meta={activeMeta?.previousVersion ?
+            'One-click rollback from the toolbar' :
+            'No previous version to restore'}
+          tone={activeMeta?.previousVersion ? 'amber' : 'slate'}
+        />
+      </section>
+
+      {/* Quick-action toolbar — same buttons that used to live inside the active-syllabus card */}
+      <section className="rounded-2xl border-2 theme-border bg-white p-3 flex items-center gap-2 flex-wrap">
+        <span className="text-[10px] uppercase tracking-wide theme-text-muted font-bold pl-1 pr-2">
+          Quick actions
+        </span>
+        <button
+          type="button"
+          onClick={onRefreshCaches}
+          disabled={busy}
+          className="px-3 py-2 rounded-lg border-2 theme-border font-bold text-sm hover:theme-card-hover disabled:opacity-40"
+        >
+          🔄 Refresh studio caches
+        </button>
+        {activeMeta?.previousVersion && (
+          <button
+            type="button"
+            onClick={() => setRollbackConfirmOpen(true)}
+            disabled={busy}
+            className="px-3 py-2 rounded-lg border-2 border-amber-300 bg-amber-50 text-amber-900 font-bold text-sm hover:bg-amber-100 disabled:opacity-40"
+            title={`Roll back to ${activeMeta.previousVersion}`}
+          >
+            ↩ Rollback to <span className="font-mono">{activeMeta.previousVersion}</span>
+          </button>
         )}
+        <div className="flex-1 min-w-0" />
+        <span className="text-xs theme-text-muted hidden sm:inline">
+          Activate appears in Step 4 once drafts are parsed
+        </span>
       </section>
 
       {/* Step 1 — version id */}
@@ -881,6 +919,44 @@ function Stat({ label, value, tone }) {
         {label}
       </p>
       <p className="text-sm font-black break-all">{value}</p>
+    </div>
+  )
+}
+
+function StatusCard({ label, icon, value, badge, badgeTone, meta, tone }) {
+  const toneClass = tone === 'emerald' ?
+    'border-emerald-300 bg-emerald-50/40' :
+    tone === 'amber' ?
+      'border-amber-300 bg-amber-50/40' :
+      tone === 'rose' ?
+        'border-rose-300 bg-rose-50/40' :
+        tone === 'sky' ?
+          'border-sky-300 bg-sky-50/40' :
+          'theme-border bg-white'
+  const badgeClass = badgeTone === 'emerald' ?
+    'bg-emerald-100 text-emerald-900' :
+    badgeTone === 'amber' ?
+      'bg-amber-100 text-amber-900' :
+      badgeTone === 'rose' ?
+        'bg-rose-100 text-rose-900' :
+        badgeTone === 'sky' ?
+          'bg-sky-100 text-sky-900' :
+          'bg-slate-100 text-slate-700'
+  return (
+    <div className={`rounded-2xl border-2 p-4 space-y-2 ${toneClass}`}>
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[10px] uppercase tracking-wide font-bold theme-text-muted">
+          {label}
+        </p>
+        {icon && <span className="text-lg leading-none">{icon}</span>}
+      </div>
+      <p className="text-base font-black break-all leading-tight">{value}</p>
+      {badge && (
+        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${badgeClass}`}>
+          {badge}
+        </span>
+      )}
+      {meta && <p className="text-xs theme-text-muted leading-snug">{meta}</p>}
     </div>
   )
 }
