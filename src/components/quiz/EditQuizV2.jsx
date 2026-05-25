@@ -10,6 +10,7 @@ import {
   createStandaloneSection,
   emptyPassageQuestion,
   getQuestionKey,
+  hasOnlyEmptyStarterSection,
   hydrateQuizSections,
   serializeQuizSections,
   shuffleQuizSections,
@@ -22,6 +23,18 @@ import {
   validateStandaloneQuestion as sharedValidateStandaloneQuestion,
   collectQuizIssues,
 } from '../../utils/quizValidation.js'
+import { assertNoBlobImageUrls } from '../../utils/importedQuizAssets.js'
+import {
+  assetsById,
+  buildStandaloneSection,
+  uploadImportedPassageImages,
+  uploadImportedQuestionImages,
+} from '../../utils/quizDocumentImport.js'
+import {
+  importQuizDocument,
+  revokeImportedQuizAssets,
+} from './documentQuizImporter'
+import ImportQuizPanel from './ImportQuizPanel'
 import QuizSectionsEditor from './QuizSectionsEditor'
 import QuizEditorPreviewPanel from './QuizEditorPreviewPanel'
 import QuizVerifyModal from './QuizVerifyModal'
@@ -132,6 +145,29 @@ function hasUploadingAssets(sections = []) {
   })
 }
 
+// True while questions or passages still carry an `imageAssetId` from a
+// fresh document import — i.e. their image blobs have not yet been
+// uploaded to Storage. Used to gate auto-save so the background timer
+// doesn't try to push 30+ extracted images on every keystroke; the
+// admin commits the import explicitly via "Save draft" / "Update".
+function hasPendingImportedAssets(sections = []) {
+  function questionHasAsset(question) {
+    if (!question) return false
+    if (question.imageAssetId) return true
+    if (Array.isArray(question.optionMedia)) {
+      return question.optionMedia.some(slot => slot && typeof slot === 'object' && slot.imageAssetId)
+    }
+    return false
+  }
+  return sections.some(section => {
+    if (section.kind === 'passage') {
+      if (section.passage?.imageAssetId) return true
+      return (section.passage?.questions || []).some(questionHasAsset)
+    }
+    return questionHasAsset(section.question)
+  })
+}
+
 function countImages(sections = []) {
   return sections.reduce((total, section) => {
     if (section.kind === 'passage') return total + (section.passage?.imageUrl ? 1 : 0)
@@ -207,6 +243,17 @@ export default function EditQuizV2() {
   // doesn't lose the editor's in-memory state.
   const [wizardStep, setWizardStep] = useState('create')
   const [activeAssignmentCount, setActiveAssignmentCount] = useState(0)
+  // Word/PDF import state. documentQuizImporter returns extracted
+  // questions plus an in-memory map of image blobs keyed by assetId;
+  // we hold the blobs here and upload them when the editor saves.
+  const [importingDocument, setImportingDocument] = useState(false)
+  const [importSummary, setImportSummary] = useState(null)
+  const [importedAssets, setImportedAssets] = useState({})
+  // Past-paper quizzes opened with no questions yet land on this
+  // editor straight from the Studio — surface the import panel
+  // expanded so the admin can drop in the source doc immediately.
+  // Other edits keep it collapsed so it doesn't clutter the page.
+  const [importPanelOpen, setImportPanelOpen] = useState(false)
 
   const serializedPreview = serializeQuizSections(sections, parts)
   const questionNumbers = buildQuestionNumberMap(serializedPreview.questions)
@@ -338,6 +385,21 @@ export default function EditQuizV2() {
   useEffect(() => {
     refreshAssignmentCount()
   }, [refreshAssignmentCount])
+
+  // Release the blob: object URLs created by documentQuizImporter when
+  // this editor unmounts — otherwise an imported quiz that wasn't saved
+  // would leak the preview blobs until the tab is closed.
+  useEffect(() => () => revokeImportedQuizAssets(importedAssets), [importedAssets])
+
+  // Auto-expand the Word/PDF import panel for past-paper-linked quizzes
+  // that are still empty. The admin almost always arrived here from the
+  // Past Paper Studio expecting to upload the source paper or markscheme.
+  useEffect(() => {
+    if (loading) return
+    if (form.linkedPaperId && hasOnlyEmptyStarterSection(sections)) {
+      setImportPanelOpen(true)
+    }
+  }, [loading, form.linkedPaperId, sections])
 
   function updateSection(sectionIndex, updater) {
     setSections(currentSections => currentSections.map((section, index) => (
@@ -890,6 +952,105 @@ export default function EditQuizV2() {
     return true
   }
 
+  // Parse a Word/PDF document into editable quiz sections. Mirrors the
+  // create-flow handler but is safer about overwriting existing work
+  // (always confirms) and preserves past-paper context — when the quiz
+  // is already linked to a paper we keep the admin's chosen subject /
+  // grade / topic rather than letting the importer's guesses overwrite
+  // them.
+  async function handleImportDocument(file) {
+    if (!file) return
+    const hasExistingWork = !hasOnlyEmptyStarterSection(sections)
+    if (hasExistingWork && typeof window !== 'undefined' &&
+        !window.confirm('Replace the current questions with questions extracted from this document?')) {
+      return
+    }
+    if (importingDocument) return
+
+    setImportingDocument(true)
+    try {
+      const imported = await importQuizDocument(file)
+      // Release the previous import's blob URLs before adopting new ones.
+      revokeImportedQuizAssets(importedAssets)
+      setImportedAssets(assetsById(imported.imageAssets))
+
+      const linkedToPaper = Boolean(form.linkedPaperId)
+      setForm(current => ({
+        ...current,
+        // Past-paper quizzes already carry an admin-chosen title /
+        // subject / grade — don't let the importer's guesses overwrite
+        // them. For fresh quizzes, fall back to the importer's metadata
+        // only when the field is empty.
+        title: linkedToPaper || current.title?.trim()
+          ? current.title
+          : imported.quiz.title,
+        topic: linkedToPaper || current.topic?.trim()
+          ? current.topic
+          : imported.quiz.topic,
+        grade: linkedToPaper ? current.grade : (imported.quiz.grade || current.grade),
+        subject: linkedToPaper ? current.subject : (imported.quiz.subject || current.subject),
+        mode: 'imported_document',
+        importStatus: imported.importStatus,
+        sourceFileName: imported.quiz.sourceFileName,
+        sourceContentType: imported.quiz.sourceContentType,
+        importWarnings: imported.warnings,
+      }))
+      // Replaced sections / parts: the previous question records are
+      // gone, so their Firestore ids need to land in deletedIds so the
+      // next save cleans them up.
+      const removedIds = sections.flatMap(collectQuestionIds)
+      setDeletedIds(current => [...current, ...removedIds])
+      setSections(imported.sections?.length
+        ? imported.sections
+        : imported.questions.map(question => buildStandaloneSection(question)))
+      setParts(Array.isArray(imported.parts) ? imported.parts : [])
+      setImportSummary({
+        ...imported.summary,
+        fileName: file.name,
+        importStatus: imported.importStatus,
+        smartApplied: imported.smartApplied,
+        warnings: imported.warnings,
+      })
+      const importedCount = imported.sections?.length || imported.questions?.length || 0
+      if (importedCount === 0) {
+        show('No questions could be extracted from this document. Check the file or try a different format.', true)
+        return
+      }
+      setDirty(true)
+      show(imported.importStatus === 'needs_review'
+        ? imported.smartApplied
+          ? 'Document imported with smart cleanup. Review flagged questions before publishing.'
+          : 'Document imported. Review passages and marked questions before publishing.'
+        : imported.smartApplied
+          ? 'Document imported with smart cleanup into editable quiz sections.'
+          : 'Document imported into editable quiz sections.')
+    } catch (error) {
+      console.error('[EditQuizV2] document import failed', error)
+      show(`Import failed: ${getErrorMessage(error, 'Could not read this document.')}`, true)
+    } finally {
+      setImportingDocument(false)
+    }
+  }
+
+  // Upload any blob-backed imported images to Storage, then return the
+  // serialized sections with imageAssetIds rewritten to real imageUrls.
+  // No-op (cheap) when the quiz wasn't built from an imported document.
+  async function serializeWithImportedAssetUploads() {
+    const serialized = serializeQuizSections(sections, parts)
+    const uploadCtx = {
+      storage,
+      uid: currentUser?.uid,
+      assets: importedAssets,
+      sourceFileName: form.sourceFileName || '',
+    }
+    const questions = await uploadImportedQuestionImages(serialized.questions, uploadCtx)
+    const passages = await uploadImportedPassageImages(serialized.passages, uploadCtx)
+    // Defensive: any leftover blob: URL would persist to Firestore and
+    // break for every learner on reload. Catch it here instead.
+    assertNoBlobImageUrls(questions, passages)
+    return { ...serialized, questions, passages }
+  }
+
   // Background auto-save: same write as a manual "Save draft" but without
   // validation, without navigation, and without flipping the published
   // status. Skipped while a manual save / upload is in flight, or when
@@ -898,6 +1059,11 @@ export default function EditQuizV2() {
   async function performAutoSave() {
     if (autoSavingRef.current || saving) return
     if (anyUploading) return
+    // After a fresh document import the editor holds image blobs that
+    // must be uploaded before the quiz is persisted. Pushing 30+
+    // extracted images on the background timer would block typing for
+    // ~30 s — wait for an explicit "Save draft" / "Update" instead.
+    if (hasPendingImportedAssets(sections)) return
     if (!dirty) return
     // Published quizzes are LIVE — silently pushing every keystroke into
     // production would let a teacher's mid-edit "fix" reach learners
@@ -911,7 +1077,7 @@ export default function EditQuizV2() {
     autoSavingRef.current = true
     setAutoSaveState(AUTO_SAVE.SAVING)
     try {
-      const serializedSections = serializeQuizSections(sections, parts)
+      const serializedSections = await serializeWithImportedAssetUploads()
       await updateQuizWithQuestions(
         quizId,
         {
@@ -1040,7 +1206,7 @@ export default function EditQuizV2() {
     setSaving(true)
 
     try {
-      const serializedSections = serializeQuizSections(sections, parts)
+      const serializedSections = await serializeWithImportedAssetUploads()
       const isPublished = mode === 'published'
       // Publishing must classify the quiz the same way the admin
       // ManageContent flow does, otherwise it lands as isPublished:true with
@@ -1076,6 +1242,9 @@ export default function EditQuizV2() {
 
       setQuizStatus(mode)
       setDeletedIds([])
+      // Imported image blobs are now persisted in Storage; release the
+      // in-memory blob: URLs so unmount cleanup has nothing to do.
+      setImportedAssets({})
       setDirty(false)
       setAutoSaveState(AUTO_SAVE.SAVED)
       setAutoSaveError('')
@@ -1098,7 +1267,7 @@ export default function EditQuizV2() {
     setSaving(true)
     try {
       const nextStatus = quizStatus === 'published' ? 'draft' : 'published'
-      const serializedSections = serializeQuizSections(sections, parts)
+      const serializedSections = await serializeWithImportedAssetUploads()
       // Publishing classifies the quiz (practice vs exam-only, preserving a
       // Daily Exam pin) so it actually shows up for learners. Unpublishing
       // clears the assignment fields, otherwise the quiz keeps
@@ -1261,6 +1430,43 @@ export default function EditQuizV2() {
 
       {wizardStep === 'create' && (
         <>
+          {/* Word/PDF document import: the same flow CreateQuizV2 ships,
+              available here so past-paper quizzes (opened from the Past
+              Paper Studio) can be populated by uploading the source
+              paper directly into the editor. Collapsed by default for
+              quizzes that already have questions; auto-expanded when
+              the editor lands empty on a paper-linked quiz. */}
+          <details
+            className="theme-card theme-border rounded-2xl border"
+            open={importPanelOpen}
+            onToggle={(event) => setImportPanelOpen(event.currentTarget.open)}
+          >
+            <summary className="flex cursor-pointer flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm font-black theme-text">
+              <span className="flex items-center gap-2">
+                <span aria-hidden="true">📄</span>
+                <span>Import from Word/PDF</span>
+                {form.linkedPaperId && (
+                  <span className="rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-violet-700">
+                    Past paper
+                  </span>
+                )}
+              </span>
+              <span className="theme-text-muted text-xs font-bold">
+                {importingDocument ? 'Importing…' : importSummary ? 'Re-import' : 'Upload a document'}
+              </span>
+            </summary>
+            <div className="border-t theme-border p-4">
+              <ImportQuizPanel
+                importing={importingDocument}
+                importSummary={importSummary}
+                onImport={handleImportDocument}
+                title={form.linkedPaperId ? 'Import past paper document' : 'Import Quiz (Word/PDF)'}
+                intro={form.linkedPaperId
+                  ? 'Upload the past paper (.doc, .docx, or .pdf). ZedExams will extract questions, options, and image-based items into editable cards. You can also re-import a different version any time.'
+                  : 'Upload a .doc, .docx, or .pdf file. ZedExams will extract questions, options, short answers, and image-based questions into editable cards, then use smart cleanup on tricky formatting when available.'}
+              />
+            </div>
+          </details>
           <QuizSectionsEditor
             variant="edit"
             sections={sections}
