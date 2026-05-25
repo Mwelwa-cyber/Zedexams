@@ -206,15 +206,19 @@ function QuizRow({ quiz, onPublish, onSetDailyExam, onUnassign, onDelete, deleti
             className="btn-edit justify-center">
             ✏️ Edit
           </Link>
-          {quizId && quiz.isPublished && (
+          {quizId && (
             <a
               href={`/quiz/${quizId}`}
               target="_blank"
               rel="noopener noreferrer"
               className="text-xs font-bold px-3 py-1.5 rounded-full border border-sky-300 text-sky-700 hover:bg-sky-50 min-h-0 transition-colors text-center"
-              title="Open as a learner would see it (new tab)"
+              title={
+                quiz.isPublished
+                  ? 'Open as a learner would see it (new tab)'
+                  : 'Take this draft yourself before publishing (admin-only — firestore.rules allows isAdmin to read drafts; opens in new tab)'
+              }
             >
-              👁 Preview
+              👁 {quiz.isPublished ? 'Preview' : 'Test draft'}
             </a>
           )}
 
