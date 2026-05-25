@@ -134,8 +134,13 @@ export async function convertPaperToQuizDraft({
     durationMinutes: 30,
     quizType: 'practice',
     // Soft link back to the originating past paper — useful for an
-    // admin "where did this quiz come from?" audit.
+    // admin "where did this quiz come from?" audit, and used by
+    // PastPaperReferenceBanner in the editor to surface a quick
+    // "View original PDF" / "View mark scheme" link so the admin
+    // can fill in correctAnswer fields without leaving the page.
     sourcePastPaperId: paper.id,
+    sourcePastPaperPdfPath: paper.pdfPath || null,
+    sourceMarkSchemePath: paper.markSchemePath || null,
   })
 
   await saveQuestions(quizId, questions)
