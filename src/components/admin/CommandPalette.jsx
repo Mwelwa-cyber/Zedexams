@@ -12,6 +12,7 @@ function buildCommands(sections) {
         section: section.label,
         label: item.label,
         to: item.to,
+        external: !!item.external,
         keywords: [section.label, item.label].join(' ').toLowerCase(),
       })
     }
@@ -89,13 +90,23 @@ export default function CommandPalette({ open, onClose, sections }) {
               <button
                 key={cmd.to}
                 onMouseEnter={() => setHighlight(i)}
-                onClick={() => { navigate(cmd.to); onClose() }}
+                onClick={() => {
+                  // External entries (Preview section) leave admin chrome
+                  // — open in a new tab so the admin keeps their place.
+                  if (cmd.external) {
+                    window.open(cmd.to, '_blank', 'noopener')
+                  } else {
+                    navigate(cmd.to)
+                  }
+                  onClose()
+                }}
                 className={`w-full text-left flex items-center gap-3 px-4 py-2.5 text-sm font-bold transition-colors ${
                   i === highlight ? 'theme-accent-bg theme-accent-text' : 'theme-text hover:theme-bg-subtle'
                 }`}
               >
                 <span className="text-[10px] uppercase tracking-wider opacity-70 w-20 shrink-0">{cmd.section}</span>
                 <span className="flex-1 truncate">{cmd.label}</span>
+                {cmd.external && <span className="text-[10px] theme-text-muted">↗</span>}
                 <Icon as={ChevronRight} size="xs" />
               </button>
             ))
