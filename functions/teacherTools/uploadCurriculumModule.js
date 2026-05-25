@@ -40,12 +40,9 @@ const {onCall, HttpsError} = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 
 const {
-  parseDocument,
   chunkText,
   embedChunks,
-  curriculumDocId,
-  ragChunkDocId,
-  EMBED_MODEL,
+  parseDocument,
 } = require("../agents/learnerAi/runners/curriculumIngester");
 
 const {
@@ -55,221 +52,34 @@ const {
 
 const {getUserRole, assertDailyLimit} = require("../aiService");
 
+// Pure helpers live in a sibling file so the test suite can `require`
+// them without pulling firebase-functions/v2 (a functions-only dep that
+// CI's repo-root `npm ci` doesn't install). Same split as cors.js +
+// cors.test.js, dailyExamGrading.js + .test.js.
+const {
+  extOf,
+  sanitiseStoragePath,
+  sanitiseGrade,
+  sanitiseSubject,
+  sanitiseTerm,
+  sanitiseTopic,
+  sanitiseDocumentType,
+  detectKindFromPath,
+  parseXlsx,
+  buildAdminCurriculumDoc,
+  buildAdminCurriculumDocId,
+  buildAdminRagChunkDocs,
+  SUPPORTED_DOCUMENT_TYPES,
+  EXT_TO_KIND,
+  MAX_FILE_BYTES,
+  MAX_CHUNKS,
+} = require("./uploadCurriculumModuleHelpers");
+
 const APPCHECK_ENFORCE_CALLABLE = process.env.APPCHECK_ENFORCE === "1";
-
-// 25 MB matches the existing syllabus uploads — large enough for a
-// full textbook chapter, small enough to keep Storage costs sane.
-const MAX_FILE_BYTES = 25 * 1024 * 1024;
-
-const SUPPORTED_DOCUMENT_TYPES = Object.freeze([
-  "module",
-  "syllabus",
-  "scheme_of_work",
-  "lesson_plan",
-  "assessment",
-  "teachers_guide",
-  "learners_book",
-]);
-
-const EXT_TO_KIND = Object.freeze({
-  pdf: "pdf",
-  docx: "docx",
-  xlsx: "xlsx",
-});
-
-// Bound the result size so a fat workbook can't produce a 50MB Firestore
-// write. Same cap as the watcher (MAX_CHUNKS_PER_MODULE) for consistency.
-const MAX_CHUNKS = 200;
-
-// ── Pure helpers (exported for tests) ────────────────────────────
-
-function extOf(value) {
-  const m = /\.([a-z0-9]+)(?:\?|#|$)/i.exec(String(value || ""));
-  return m ? m[1].toLowerCase() : "";
-}
-
-function sanitiseStoragePath(value) {
-  const v = String(value || "").trim();
-  if (!v || v.length > 500) return null;
-  if (!v.startsWith("curriculum-uploads/")) return null;
-  if (v.includes("..")) return null;
-  const ext = extOf(v);
-  if (!Object.prototype.hasOwnProperty.call(EXT_TO_KIND, ext)) return null;
-  return v;
-}
-
-function sanitiseGrade(value) {
-  const v = String(value || "").trim().toUpperCase();
-  if (/^G\d{1,2}$/.test(v) || v === "ECE" || /^F\d{1,2}$/.test(v)) return v;
-  return null;
-}
-
-function sanitiseSubject(value) {
-  const v = String(value || "")
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9_\s]/g, "")
-      .replace(/\s+/g, "_");
-  return v && v.length <= 64 ? v : null;
-}
-
-function sanitiseTerm(value) {
-  if (value == null || value === "") return null;
-  const n = Number(value);
-  if (!Number.isInteger(n) || n < 1 || n > 3) return null;
-  return n;
-}
-
-function sanitiseTopic(value) {
-  if (value == null) return null;
-  const v = String(value).replace(/\s+/g, " ").trim().slice(0, 200);
-  return v || null;
-}
-
-function sanitiseDocumentType(value) {
-  const v = String(value || "module").toLowerCase().trim();
-  return SUPPORTED_DOCUMENT_TYPES.includes(v) ? v : "module";
-}
-
-function detectKindFromPath(storagePath) {
-  return EXT_TO_KIND[extOf(storagePath)] || null;
-}
-
-// ── XLSX parser (exceljs is already in functions/package.json) ────
-
-/**
- * Flatten an Excel workbook into a single text blob + per-sheet headings.
- *
- * Each row is joined with " | " between cells and each sheet is prefixed
- * by its name (so chunking + retrieval still know which sheet a row came
- * from). Empty rows are skipped. Returns the same shape as parseDocument
- * for the other formats: { text, headings, error? }.
- */
-async function parseXlsx(buffer) {
-  if (!buffer || !Buffer.isBuffer(buffer)) {
-    return {text: "", headings: []};
-  }
-  let ExcelJS;
-  try {
-    ExcelJS = require("exceljs");
-  } catch (err) {
-    return {
-      text: "", headings: [], unsupported: true,
-      reason: `exceljs_missing:${String(err && err.message || "").slice(0, 80)}`,
-    };
-  }
-  try {
-    const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(buffer);
-    const lines = [];
-    const headings = [];
-    wb.eachSheet((sheet) => {
-      const sheetName = String(sheet.name || "").trim();
-      if (sheetName) {
-        headings.push(sheetName);
-        lines.push(`\n## ${sheetName}\n`);
-      }
-      sheet.eachRow({includeEmpty: false}, (row) => {
-        // ExcelJS hands cells as a sparse array indexed from 1.
-        const values = [];
-        row.eachCell({includeEmpty: false}, (cell) => {
-          const v = cell.value;
-          let cellText = "";
-          if (v == null) cellText = "";
-          else if (typeof v === "string") cellText = v;
-          else if (typeof v === "number" || typeof v === "boolean") cellText = String(v);
-          else if (v instanceof Date) cellText = v.toISOString().slice(0, 10);
-          else if (typeof v === "object") {
-            // Rich text, hyperlink, formula, etc.
-            if (Array.isArray(v.richText)) cellText = v.richText.map((r) => r.text || "").join("");
-            else if (typeof v.text === "string") cellText = v.text;
-            else if (typeof v.result !== "undefined") cellText = String(v.result);
-            else if (typeof v.hyperlink === "string") cellText = v.hyperlink;
-          }
-          cellText = String(cellText).replace(/\s+/g, " ").trim();
-          if (cellText) values.push(cellText);
-        });
-        if (values.length) lines.push(values.join(" | "));
-      });
-    });
-    const text = lines.join("\n").trim();
-    return {text, headings};
-  } catch (err) {
-    return {
-      text: "", headings: [],
-      error: `xlsx_parse_failed:${String(err && err.message || "").slice(0, 120)}`,
-    };
-  }
-}
 
 async function parseByKind(buffer, kind) {
   if (kind === "xlsx") return parseXlsx(buffer);
   return parseDocument(buffer, kind);
-}
-
-// ── Firestore doc builders ────────────────────────────────────────
-
-/**
- * Build the curriculum doc id. Differs from the watcher's hash of
- * sourceUrl because admin uploads have no canonical URL — we key on
- * uploader uid + storage path + upload-time stamp so re-uploads of the
- * same file land in distinct rows (admin probably wants a separate
- * revision rather than an in-place overwrite).
- */
-function buildAdminCurriculumDocId(uid, storagePath) {
-  // Re-use the watcher's sha256 via curriculumDocId by passing a
-  // synthetic "url" that includes the uid so it's deterministic per
-  // upload.
-  return curriculumDocId({sourceUrl: `admin:${uid}:${storagePath}`});
-}
-
-function buildAdminCurriculumDoc({
-  uid, storagePath, filename, kind, grade, subject, term, topic,
-  documentType, byteLength, chunkCount,
-}) {
-  return {
-    source: "admin_upload",
-    sourceUrl: null,
-    sourceName: filename,
-    parsedFrom: kind,
-    storagePath,
-    anchorText: topic || filename,
-    grade,
-    subject,
-    term: term != null ? term : null,
-    topic: topic || null,
-    documentType,
-    confidence: "high",
-    byteLength: byteLength || 0,
-    chunkCount: chunkCount || 0,
-    importedBy: "admin_upload",
-    uploadedBy: uid,
-    reviewStatus: "approved",
-  };
-}
-
-function buildAdminRagChunkDocs(curriculumId, embedded, meta) {
-  const tags = Array.isArray(meta.tags) ? meta.tags : [];
-  return embedded.map((c, index) => ({
-    id: ragChunkDocId(curriculumId, index),
-    data: {
-      syllabus_id: curriculumId,
-      source_group: "admin_upload",
-      curriculum_doc_id: curriculumId,
-      source_url: null,
-      title: meta.topic || meta.filename || null,
-      grade: meta.grade != null ? meta.grade : null,
-      subject: meta.subject || null,
-      term: meta.term != null ? meta.term : null,
-      topic_title: meta.topic || null,
-      documentType: meta.documentType || "module",
-      tags,
-      chunk_index: index,
-      text: c.text,
-      embedding: c.embedding || null,
-      embedding_model: c.embedding ? EMBED_MODEL : null,
-    },
-  }));
 }
 
 // ── Callable ──────────────────────────────────────────────────────
@@ -529,7 +339,9 @@ function createDeleteCurriculumUpload() {
 module.exports = {
   createUploadCurriculumModule,
   createDeleteCurriculumUpload,
-  // Exposed for tests
+  // Helpers are exported here too so existing call-sites stay stable;
+  // the test suite imports them straight from ./uploadCurriculumModuleHelpers
+  // to avoid pulling firebase-functions/v2 (CI installs root deps only).
   extOf,
   sanitiseStoragePath,
   sanitiseGrade,
