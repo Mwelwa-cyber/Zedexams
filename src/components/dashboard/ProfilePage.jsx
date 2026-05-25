@@ -25,6 +25,7 @@ import UpgradeModal            from '../subscription/UpgradeModal'
 import ParentShareManager      from '../parent/ParentShareManager'
 import LanguageToggle          from '../ui/LanguageToggle'
 import InvoicesCard            from './InvoicesCard'
+import PaymentHistoryCard      from './PaymentHistoryCard'
 import ReplayTourCard          from '../ui/ReplayTourCard'
 import AnalyticsConsentToggle  from '../ui/AnalyticsConsentToggle'
 import ReferralCard            from './ReferralCard'
@@ -280,6 +281,14 @@ export default function ProfilePage() {
                   Upgrade
                 </Button>
               )}
+              {/* Renew now — visible even for active subscriptions so
+                  customers can top up before the 7-day banner fires.
+                  Pre-loads the upgrade modal with their current plan. */}
+              {isPremium && !cancelAtPeriodEnd && (
+                <Button variant="secondary" size="sm" onClick={() => setShowUpgrade(true)} className="flex-shrink-0">
+                  Renew
+                </Button>
+              )}
             </div>
 
             {/* Audit D4 — cancel / reactivate row. Inline confirmation
@@ -374,6 +383,12 @@ export default function ProfilePage() {
         {/* Audit D3 — MoMo receipts. Self-hides if the user has no
             invoices yet (most accounts), so free-tier UX is unchanged. */}
         <InvoicesCard />
+
+        {/* Payment history — manual-grant + legacy MoMo payments for
+            this customer. Self-hides when empty. Complements
+            InvoicesCard (which only shows D3 receipts; manual grants
+            don't write invoices). */}
+        <PaymentHistoryCard />
 
         {/* Audit A3 PR 1 — share-progress-with-parent. Learners only;
             teachers/admins don't have a "parent". */}
@@ -491,7 +506,13 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      {showUpgrade && <UpgradeModal onClose={() => setShowUpgrade(false)} />}
+      {showUpgrade && (
+        <UpgradeModal
+          portal={isLearner ? 'learner' : 'teacher'}
+          defaultPlanId={userProfile?.subscriptionPlan}
+          onClose={() => setShowUpgrade(false)}
+        />
+      )}
     </div>
   )
 }
