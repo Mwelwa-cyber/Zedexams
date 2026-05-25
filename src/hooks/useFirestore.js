@@ -816,6 +816,25 @@ export function useFirestore() {
   // Most recent confirmed payments — feeds the activations table on the
   // grant page. Ordered by confirmedAt so manual grants and legacy MoMo
   // successes appear in the same timeline.
+  // Customer-scoped payment history. Firestore rule for /payments
+  // already permits read where userId == auth.uid, so this works
+  // straight from the client without a callable.
+  async function getMyPayments(uid, { limit: limitCount = 20 } = {}) {
+    if (!uid) return []
+    try {
+      const snap = await getDocs(query(
+        collection(db, 'payments'),
+        where('userId', '==', uid),
+        orderBy('createdAt', 'desc'),
+        limit(limitCount),
+      ))
+      return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+    } catch (e) {
+      console.error('getMyPayments:', e)
+      return []
+    }
+  }
+
   async function getRecentConfirmedPayments(limitCount = 25) {
     try {
       const snap = await getDocs(query(
@@ -1001,6 +1020,7 @@ export function useFirestore() {
     checkAndConsumeAttempt,
     submitPaymentRequest, getPendingPayments, getAllPayments, confirmPayment, rejectPayment, grantPremium, revokePremium,
     grantAccessByEmail, getTodayPaymentStats, getActivePremiumCount, getRecentConfirmedPayments,
+    getMyPayments,
     getLessons, getAllLessons, getLessonById, createLesson, updateLesson, deleteLesson,
     getMyQuizzes, getMyLessons,
     getPendingApprovals, submitForApproval, withdrawFromApproval, approveContent, rejectContent,
