@@ -510,6 +510,10 @@ export default function ManageContent() {
       if (quizTypeF === 'unpublished') return !q.isPublished
       if (quizTypeF === 'exam_only')  return isExamOnly(q) && q.isPublished && qt !== 'daily_exam'
       if (quizTypeF === 'practice')   return qt === 'practice' && !isExamOnly(q)
+      // PR #623 stamps sourcePastPaperId on every quiz the past-paper
+      // converter creates; this filter lets admins quickly find them
+      // (e.g. to mass-review the ones still missing correctAnswer fields).
+      if (quizTypeF === 'from_past_paper') return Boolean(q.sourcePastPaperId)
       return qt === quizTypeF
     })()
     // Phase 8: when the "Needs review" chip is on, drop everything that's
@@ -791,6 +795,7 @@ export default function ManageContent() {
           <option value="exam_only">🏆 Exam only</option>
           <option value="daily_exam">🏆 Daily Exam</option>
           <option value="unpublished">⚠ Unpublished</option>
+          <option value="from_past_paper">📄 From past paper</option>
         </select>
         {/* Phase 8: chip-style toggle. Disabled (greyed out) when there's
             nothing to review so it never looks "broken" — clicking has no
