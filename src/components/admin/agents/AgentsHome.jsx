@@ -276,7 +276,29 @@ export function AgentsHome() {
   return <AgentsDashboard />
 }
 
+// Status filter chips for the All Agent Jobs page. Each chip passes the
+// selected status through to AgentJobsQueue's statusFilter prop, which
+// adds a Firestore where() clause. 'All' clears the filter.
+const JOBS_STATUS_CHIPS = [
+  { id: null,                 label: 'All',                 tone: 'slate' },
+  { id: 'awaiting_approval',  label: '⏳ Awaiting approval', tone: 'yellow' },
+  { id: 'failed',             label: '⚠ Failed',            tone: 'rose' },
+  { id: 'running',            label: '▶ Running',           tone: 'blue' },
+  { id: 'queued',             label: '· Queued',            tone: 'gray' },
+  { id: 'done',               label: '✓ Done',              tone: 'green' },
+]
+
+const CHIP_TONES = {
+  slate:  { active: 'bg-slate-900 text-white',         idle: 'theme-card theme-border theme-text' },
+  yellow: { active: 'bg-yellow-500 text-white',        idle: 'theme-card theme-border text-yellow-700' },
+  rose:   { active: 'bg-rose-600 text-white',          idle: 'theme-card theme-border text-rose-700' },
+  blue:   { active: 'bg-blue-600 text-white',          idle: 'theme-card theme-border text-blue-700' },
+  gray:   { active: 'bg-gray-700 text-white',          idle: 'theme-card theme-border theme-text-muted' },
+  green:  { active: 'bg-emerald-600 text-white',       idle: 'theme-card theme-border text-emerald-700' },
+}
+
 export function AgentsAllJobs() {
+  const [statusFilter, setStatusFilter] = useState(null)
   return (
     <div className="space-y-5">
       <SeoHelmet title="Agent jobs" noIndex />
@@ -285,8 +307,30 @@ export function AgentsAllJobs() {
           ← Back to agents
         </Link>
         <h1 className="mt-1 text-2xl font-black text-gray-800">All agent jobs</h1>
+        <p className="mt-1 text-xs theme-text-muted">
+          Showing the 100 most recent jobs that match the filter. Click a chip to narrow by status.
+        </p>
       </header>
-      <AgentJobsQueue max={100} />
+      <div className="flex flex-wrap gap-2">
+        {JOBS_STATUS_CHIPS.map(chip => {
+          const active = statusFilter === chip.id
+          const tone = CHIP_TONES[chip.tone] || CHIP_TONES.slate
+          return (
+            <button
+              key={chip.id || 'all'}
+              type="button"
+              onClick={() => setStatusFilter(chip.id)}
+              aria-pressed={active}
+              className={`rounded-full px-3 py-1.5 text-xs font-black transition-colors border-2 ${
+                active ? tone.active + ' border-transparent' : tone.idle
+              }`}
+            >
+              {chip.label}
+            </button>
+          )
+        })}
+      </div>
+      <AgentJobsQueue max={100} statusFilter={statusFilter} />
     </div>
   )
 }
