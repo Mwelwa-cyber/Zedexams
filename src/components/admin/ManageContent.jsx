@@ -194,6 +194,9 @@ function QuizRow({ quiz, onPublish, onSetDailyExam, onUnassign, onDelete, deleti
             {quiz.isDemo && (
               <Pill color="bg-sky-100 text-sky-700">🎁 Demo · free-tier</Pill>
             )}
+            {quiz.sourcePastPaperId && (
+              <Pill color="bg-violet-100 text-violet-700">📄 From past paper</Pill>
+            )}
           </div>
           {quiz.rejectionReason && (
             <p className="text-xs text-red-500 mt-1 italic">Rejected: {quiz.rejectionReason}</p>
