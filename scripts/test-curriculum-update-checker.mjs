@@ -29,22 +29,60 @@ const RULES_TEXT = readFileSync(join(ROOT, 'firestore.rules'), 'utf8')
 const fakeAdmin = {firestore: () => ({})}
 fakeAdmin.firestore.FieldValue = {serverTimestamp: () => '__ts__'}
 
+// Lightweight stubs for the few Cloud Functions APIs the runner +
+// callable touch at module load time. Tests never invoke the wrapped
+// handlers — they only exercise the pure helpers exported alongside.
+class FakeHttpsError extends Error {
+  constructor(code, message) { super(message); this.code = code }
+}
+const fakeFunctionsHttps = {
+  onCall: (...args) => {
+    // Last arg is always the handler; ignore the options object so the
+    // wrapper is a no-op at module load.
+    return args[args.length - 1]
+  },
+  HttpsError: FakeHttpsError,
+}
+const fakeFunctionsParams = {
+  defineSecret: (name) => ({ name, value: () => null }),
+}
+const fakeAutomationGate = { loadAutomationSettings: async () => ({}) }
+const fakeAiService = {
+  getUserRole: async () => 'admin',
+  callAnthropic: async () => '{}',
+  getAnthropicApiKey: () => null,
+}
+const fakeCbcKnowledge = {
+  getActiveKbVersion: async () => 'v1',
+  invalidateKbCache: () => {},
+}
+const fakeV2Collections = {
+  COLLECTIONS: { CURRICULUM_REPORTS: 'curriculumUpdateReports' },
+  TASK_STEP_STATUS: { RUNNING: 'running', COMPLETED: 'completed' },
+  SEVERITY: { INFO: 'info', WARNING: 'warning' },
+}
+
 const origLoad = Module._load
 Module._load = function(request, parent, ...rest) {
   if (request === 'firebase-admin') return fakeAdmin
+  if (request === 'firebase-functions/v2/https') return fakeFunctionsHttps
+  if (request === 'firebase-functions/params') return fakeFunctionsParams
   if (request === '../logger') {
     return {
       writeAgentLog: async () => {}, writeSupervisorLog: async () => {},
       updateLiveAgentState: async () => {}, writeTaskStep: async () => {},
     }
   }
+  if (request === '../automationGate') return fakeAutomationGate
+  if (request === '../aiService') return fakeAiService
+  if (request === './cbcKnowledge') return fakeCbcKnowledge
+  if (request === '../v2Collections') return fakeV2Collections
   return origLoad.call(this, request, parent, ...rest)
 }
 
 const w = await import(RUNNER)
 const { curriculumUpdateReportWriteSchema } =
   await import('../src/schemas/learnerAi.js')
-Module._load = origLoad
 
 let pass = 0, fail = 0
 const failures = []
@@ -273,6 +311,165 @@ test('report status is ALWAYS pending_review on creation', () => {
   const runnerText = readFileSync(RUNNER, 'utf8')
   assert(/status:\s*['"]pending_review['"]/.test(runnerText),
     'agent must always set status:"pending_review" on new reports')
+})
+
+console.log('\nGrade-scope helpers')
+
+test('normaliseGradeToken accepts numeric grades 1-12', () => {
+  for (let g = 1; g <= 12; g++) {
+    assert(w.normaliseGradeToken(g) === String(g), `numeric ${g} should normalise`)
+    assert(w.normaliseGradeToken(String(g)) === String(g), `string '${g}' should normalise`)
+  }
+})
+test('normaliseGradeToken accepts G-prefixed strings', () => {
+  assert(w.normaliseGradeToken('G3') === '3')
+  assert(w.normaliseGradeToken('g12') === '12')
+})
+test('normaliseGradeToken accepts ECE aliases', () => {
+  assert(w.normaliseGradeToken('ECE') === 'ECE')
+  assert(w.normaliseGradeToken('ece') === 'ECE')
+  assert(w.normaliseGradeToken('PP') === 'ECE')
+  assert(w.normaliseGradeToken('Early Childhood') === 'ECE')
+})
+test('normaliseGradeToken rejects garbage', () => {
+  assert(w.normaliseGradeToken(null) === null)
+  assert(w.normaliseGradeToken('') === null)
+  assert(w.normaliseGradeToken('Grade 13') === null)
+  assert(w.normaliseGradeToken('hello') === null)
+  assert(w.normaliseGradeToken(0) === null)
+  assert(w.normaliseGradeToken(99) === null)
+})
+
+test('buildGradeFilter returns null for empty/missing filter', () => {
+  assert(w.buildGradeFilter(null) === null)
+  assert(w.buildGradeFilter(undefined) === null)
+  assert(w.buildGradeFilter([]) === null)
+})
+test('buildGradeFilter dedupes + normalises', () => {
+  const f = w.buildGradeFilter(['3', 3, 'G3', '5'])
+  assert(f instanceof Set)
+  assert(f.size === 2, `expected 2 unique tokens, got ${f.size}`)
+  assert(f.has('3') && f.has('5'))
+})
+test('buildGradeFilter ignores unrecognised tokens', () => {
+  // Mixed garbage + valid → valid tokens come through, garbage drops.
+  const f = w.buildGradeFilter(['hello', 'G7', 'ECE'])
+  assert(f.size === 2)
+  assert(f.has('7') && f.has('ECE'))
+})
+
+test('preFilterLinkByGrade skips obviously wrong-grade URLs', () => {
+  const filter = w.buildGradeFilter(['3', '4'])
+  const res = w.preFilterLinkByGrade(
+    {url: 'https://example.com/grade-7-syllabus.pdf', anchorText: '', kind: 'pdf'},
+    filter,
+  )
+  assert(res.skip === true)
+  assert(/grade_filtered:7/.test(res.reason), `got ${res.reason}`)
+})
+test('preFilterLinkByGrade keeps in-scope URLs', () => {
+  const filter = w.buildGradeFilter(['3', '4'])
+  const res = w.preFilterLinkByGrade(
+    {url: 'https://example.com/grade-3-math.pdf', anchorText: '', kind: 'pdf'},
+    filter,
+  )
+  assert(res.skip === false)
+})
+test('preFilterLinkByGrade passes ambiguous URLs through', () => {
+  // No grade marker visible at link-discovery time — must NOT skip
+  // here so the post-classify gate gets to look at the PDF body.
+  const filter = w.buildGradeFilter(['3'])
+  const res = w.preFilterLinkByGrade(
+    {url: 'https://example.com/uploads/file_2934.pdf', anchorText: '', kind: 'pdf'},
+    filter,
+  )
+  assert(res.skip === false)
+})
+test('preFilterLinkByGrade respects ECE marker', () => {
+  const filter = w.buildGradeFilter(['1', '2'])
+  const res = w.preFilterLinkByGrade(
+    {url: 'https://example.com/x', anchorText: 'Early Childhood Materials', kind: 'pdf'},
+    filter,
+  )
+  assert(res.skip === true)
+  assert(res.reason === 'grade_filtered:ECE')
+})
+test('preFilterLinkByGrade no-ops when filter is null', () => {
+  const res = w.preFilterLinkByGrade(
+    {url: 'https://example.com/grade-7-syllabus.pdf', anchorText: ''}, null,
+  )
+  assert(res.skip === false)
+})
+
+test('postFilterModuleByGrade skips out-of-scope detected grade', () => {
+  const filter = w.buildGradeFilter(['3', '4'])
+  const res = w.postFilterModuleByGrade({
+    meta: {grade: 7, subject: 'mathematics'},
+    gradeFilter: filter, includeUnknownGrade: true,
+  })
+  assert(res.skip === true)
+  assert(res.reason === 'grade_filtered:7')
+})
+test('postFilterModuleByGrade keeps unknown grade when allowed', () => {
+  const filter = w.buildGradeFilter(['3'])
+  const res = w.postFilterModuleByGrade({
+    meta: {grade: null, subject: 'mathematics'},
+    gradeFilter: filter, includeUnknownGrade: true,
+  })
+  assert(res.skip === false)
+})
+test('postFilterModuleByGrade skips unknown grade when forbidden', () => {
+  const filter = w.buildGradeFilter(['3'])
+  const res = w.postFilterModuleByGrade({
+    meta: {grade: null, subject: 'mathematics'},
+    gradeFilter: filter, includeUnknownGrade: false,
+  })
+  assert(res.skip === true)
+  assert(res.reason === 'grade_undetected')
+})
+
+console.log('\nCallable: normaliseRunOptions')
+
+const promote = await import('../functions/teacherTools/promoteIngestedCurriculumModule.js')
+const { normaliseRunOptions } = promote._internals
+
+test('normaliseRunOptions defaults to unscoped + include-unknown', () => {
+  const out = normaliseRunOptions({})
+  assert(out.grades === null)
+  assert(out.includeUnknownGrade === true)
+})
+test('normaliseRunOptions normalises grades + flips include-unknown default', () => {
+  const out = normaliseRunOptions({grades: ['3', 'G4', 'ECE']})
+  assert(Array.isArray(out.grades))
+  assert(out.grades.length === 3)
+  // Defaults to false when a scope is set so wrong/unknown-grade docs
+  // don't sneak through.
+  assert(out.includeUnknownGrade === false)
+})
+test('normaliseRunOptions honours explicit includeUnknownGrade=true', () => {
+  const out = normaliseRunOptions({grades: ['3'], includeUnknownGrade: true})
+  assert(out.includeUnknownGrade === true)
+})
+test('normaliseRunOptions throws on non-array grades', () => {
+  let threw = false
+  try { normaliseRunOptions({grades: '3'}) } catch (e) {
+    threw = true
+    assert(/grades must be an array/.test(e.message))
+  }
+  assert(threw, 'must throw on non-array grades')
+})
+test('normaliseRunOptions throws on unrecognised token', () => {
+  let threw = false
+  try { normaliseRunOptions({grades: ['Grade 99']}) } catch (e) {
+    threw = true
+    assert(/Unrecognised grade token/.test(e.message))
+  }
+  assert(threw)
+})
+test('normaliseRunOptions treats empty grades array as unscoped', () => {
+  const out = normaliseRunOptions({grades: []})
+  assert(out.grades === null)
+  assert(out.includeUnknownGrade === true)
 })
 
 console.log(`\n${pass} passed, ${fail} failed`)
