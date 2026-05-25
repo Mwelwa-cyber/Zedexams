@@ -868,6 +868,46 @@ export function useFirestore() {
     }
   }
 
+  // Per-day revenue + activation count for the admin dashboard. Reads
+  // every confirmed/successful payment from the last `days` days and
+  // buckets client-side so the query is a single inequality with no
+  // composite index dependency. Cheap at the volume we expect for the
+  // foreseeable future (~tens of payments/day); revisit when daily
+  // volume gets into the hundreds.
+  async function getRevenueByDay(days = 7) {
+    const buckets = []
+    const startOfToday = new Date()
+    startOfToday.setHours(0, 0, 0, 0)
+    for (let i = days - 1; i >= 0; i -= 1) {
+      const d = new Date(startOfToday)
+      d.setDate(d.getDate() - i)
+      buckets.push({ date: d, revenue: 0, activations: 0 })
+    }
+    const windowStart = new Date(startOfToday)
+    windowStart.setDate(windowStart.getDate() - (days - 1))
+    try {
+      const snap = await getDocs(query(
+        collection(db, 'payments'),
+        where('status', 'in', ['confirmed', 'successful']),
+        where('confirmedAt', '>=', Timestamp.fromDate(windowStart)),
+      ))
+      snap.docs.forEach((doc) => {
+        const data = doc.data() || {}
+        const ts = data.confirmedAt?.toDate?.() ?? (data.confirmedAt ? new Date(data.confirmedAt) : null)
+        if (!ts) return
+        const dayKey = new Date(ts); dayKey.setHours(0, 0, 0, 0)
+        const bucket = buckets.find((b) => b.date.getTime() === dayKey.getTime())
+        if (!bucket) return
+        bucket.revenue += Number(data.amountZMW || 0)
+        bucket.activations += 1
+      })
+      return buckets
+    } catch (e) {
+      console.error('getRevenueByDay:', e)
+      return buckets
+    }
+  }
+
   async function getRecentConfirmedPayments(limitCount = 25) {
     try {
       const snap = await getDocs(query(
@@ -1053,7 +1093,7 @@ export function useFirestore() {
     checkAndConsumeAttempt,
     submitPaymentRequest, getPendingPayments, getAllPayments, confirmPayment, rejectPayment, grantPremium, revokePremium,
     grantAccessByEmail, getTodayPaymentStats, getActivePremiumCount, getRecentConfirmedPayments,
-    getMyPayments, findUserByEmail,
+    getMyPayments, findUserByEmail, getRevenueByDay,
     getLessons, getAllLessons, getLessonById, createLesson, updateLesson, deleteLesson,
     getMyQuizzes, getMyLessons,
     getPendingApprovals, submitForApproval, withdrawFromApproval, approveContent, rejectContent,
