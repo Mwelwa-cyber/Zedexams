@@ -1,10 +1,15 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import {
   addDoc, collection, serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import { useAuth } from '../../contexts/AuthContext'
+import {
+  defaultSubjectForGrade,
+  getSubjectsForGrade,
+  isSubjectValidForGrade,
+} from '../../utils/teacherTools'
 import SeoHelmet from '../seo/SeoHelmet'
 import Button from '../ui/Button'
 
@@ -29,17 +34,42 @@ export default function AgentBriefForm() {
 
   const [tool, setTool]       = useState('lesson_plan')
   const [grade, setGrade]     = useState('6')
-  const [subject, setSubject] = useState('')
+  const [subject, setSubject] = useState(() => defaultSubjectForGrade('G6'))
   const [topic, setTopic]     = useState('')
   const [subtopic, setSubtopic] = useState('')
   const [term, setTerm]       = useState('2')
   const [duration, setDuration] = useState('40')
   const [brief, setBrief]     = useState('')
 
+  // Subjects available for the currently selected grade. Matches the
+  // server-side ALLOWED_SUBJECTS enum in functions/teacherTools/* so the
+  // brief can never be rejected for an unknown subject.
+  const subjectGroups = useMemo(() => {
+    const groups = []
+    let cur = null
+    for (const opt of getSubjectsForGrade(`G${grade}`)) {
+      if (opt.group !== undefined) {
+        if (cur) groups.push(cur)
+        cur = { label: opt.group, items: [] }
+      } else {
+        if (!cur) cur = { label: null, items: [] }
+        cur.items.push(opt)
+      }
+    }
+    if (cur) groups.push(cur)
+    return groups
+  }, [grade])
+
+  function handleGradeChange(nextGrade) {
+    setGrade(nextGrade)
+    if (!isSubjectValidForGrade(subject, `G${nextGrade}`)) {
+      setSubject(defaultSubjectForGrade(`G${nextGrade}`))
+    }
+  }
+
   function validate() {
-    if (!subject.trim()) return 'Add a subject.'
+    if (!subject) return 'Pick a subject.'
     if (!topic.trim()) return 'Add a topic.'
-    if (subject.length > 80) return 'Subject is too long (80 chars max).'
     if (topic.length > 200) return 'Topic is too long (200 chars max).'
     if (brief.length > 4000) return 'Brief is too long (4000 chars max).'
     return null
@@ -124,7 +154,7 @@ export default function AgentBriefForm() {
             <label className="block text-xs font-black uppercase tracking-wide text-gray-500 mb-1">Grade</label>
             <select
               value={grade}
-              onChange={e => setGrade(e.target.value)}
+              onChange={e => handleGradeChange(e.target.value)}
               className="w-full theme-border rounded-lg border px-3 py-2 text-sm bg-white"
             >
               {GRADES.map(g => <option key={g} value={g}>Grade {g}</option>)}
@@ -157,12 +187,20 @@ export default function AgentBriefForm() {
 
         <div>
           <label className="block text-xs font-black uppercase tracking-wide text-gray-500 mb-1">Subject</label>
-          <input
+          <select
             value={subject}
             onChange={e => setSubject(e.target.value)}
-            placeholder="e.g. Mathematics, Integrated Science, English"
             className="w-full theme-border rounded-lg border px-3 py-2 text-sm bg-white"
-          />
+          >
+            {subjectGroups.map((g, i) => g.label
+              ? (
+                <optgroup key={i} label={g.label}>
+                  {g.items.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                </optgroup>
+              )
+              : g.items.map(o => <option key={o.value} value={o.value}>{o.label}</option>),
+            )}
+          </select>
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
