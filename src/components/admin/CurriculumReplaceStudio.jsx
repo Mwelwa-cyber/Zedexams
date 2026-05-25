@@ -140,6 +140,19 @@ export default function CurriculumReplaceStudio() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [versionLocked, versionId])
 
+  // Phase 4 — Escape closes whichever confirm modal is open. Standard
+  // dialog UX; no behavioural change beyond intercepting Esc.
+  useEffect(() => {
+    if (!confirmOpen && !rollbackConfirmOpen) return undefined
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return
+      if (confirmOpen) setConfirmOpen(false)
+      if (rollbackConfirmOpen) setRollbackConfirmOpen(false)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [confirmOpen, rollbackConfirmOpen])
+
   function handleFiles(files) {
     if (!versionLocked) {
       flashToast('Choose a version first, then upload files.')
@@ -487,7 +500,13 @@ export default function CurriculumReplaceStudio() {
         ]}
       />
 
-      {activeTab === 'workflow' && (<>
+      {activeTab === 'workflow' && (
+      <div
+        role="tabpanel"
+        id="panel-workflow"
+        aria-labelledby="tab-workflow"
+        className="space-y-5"
+      >
 
       {/* Step 1 — version id */}
       <section className="rounded-2xl border-2 theme-border bg-white p-4 space-y-3">
@@ -718,10 +737,16 @@ export default function CurriculumReplaceStudio() {
         </section>
       )}
 
-      </>)}
+      </div>)}
 
       {/* Versions & audit tab — surfaces what audit used to hide inside Danger zone */}
-      {activeTab === 'versions' && (<>
+      {activeTab === 'versions' && (
+      <div
+        role="tabpanel"
+        id="panel-versions"
+        aria-labelledby="tab-versions"
+        className="space-y-5"
+      >
         <section className="rounded-2xl border-2 theme-border bg-white p-4 space-y-3">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
@@ -863,10 +888,16 @@ export default function CurriculumReplaceStudio() {
             </ul>
           )}
         </section>
-      </>)}
+      </div>)}
 
       {/* Danger zone tab — destructive cleanup, formerly inline-collapsible at page bottom */}
-      {activeTab === 'danger' && (<>
+      {activeTab === 'danger' && (
+      <div
+        role="tabpanel"
+        id="panel-danger"
+        aria-labelledby="tab-danger"
+        className="space-y-5"
+      >
         <section className="rounded-2xl border-2 border-rose-200 bg-rose-50/40 p-4">
           <p className="text-xs text-rose-900/90 leading-snug">
             These actions permanently delete data the migration archived.
@@ -946,11 +977,16 @@ export default function CurriculumReplaceStudio() {
             Delete version
           </button>
         </section>
-      </>)}
+      </div>)}
 
-      {/* Toast */}
+      {/* Toast — ARIA live region so screen readers announce action results */}
       {toast && (
-        <div className="fixed bottom-4 right-4 max-w-md bg-slate-900 text-white text-sm rounded-2xl px-4 py-3 shadow-2xl whitespace-pre-line">
+        <div
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className="fixed bottom-4 right-4 max-w-md bg-slate-900 text-white text-sm rounded-2xl px-4 py-3 shadow-2xl whitespace-pre-line"
+        >
           {toast}
         </div>
       )}
@@ -1117,10 +1153,32 @@ function DiffStats({ activeVersion, activeCount, draftVersion, draftCount }) {
 }
 
 function TabBar({ active, onChange, tabs }) {
+  const navRef = useRef(null)
+
+  // WAI-ARIA tablist keyboard pattern: arrow keys move + activate,
+  // Home/End jump to first/last. Click + Enter/Space also activate
+  // (standard button behaviour).
+  function onKeyDown(e) {
+    const idx = tabs.findIndex((t) => t.id === active)
+    let next = null
+    if (e.key === 'ArrowRight') next = (idx + 1) % tabs.length
+    else if (e.key === 'ArrowLeft') next = (idx - 1 + tabs.length) % tabs.length
+    else if (e.key === 'Home') next = 0
+    else if (e.key === 'End') next = tabs.length - 1
+    if (next != null) {
+      e.preventDefault()
+      onChange(tabs[next].id)
+      const btns = navRef.current?.querySelectorAll('[role="tab"]')
+      btns?.[next]?.focus()
+    }
+  }
+
   return (
     <nav
+      ref={navRef}
       className="flex gap-1 border-b-2 theme-border overflow-x-auto -mx-1 px-1"
       role="tablist"
+      onKeyDown={onKeyDown}
     >
       {tabs.map((t) => {
         const isActive = active === t.id
@@ -1129,9 +1187,12 @@ function TabBar({ active, onChange, tabs }) {
             key={t.id}
             type="button"
             role="tab"
+            id={`tab-${t.id}`}
+            aria-controls={`panel-${t.id}`}
             aria-selected={isActive}
+            tabIndex={isActive ? 0 : -1}
             onClick={() => onChange(t.id)}
-            className={`px-4 py-2.5 text-sm font-bold whitespace-nowrap border-b-[3px] -mb-0.5 transition ${
+            className={`px-4 py-2.5 text-sm font-bold whitespace-nowrap border-b-[3px] -mb-0.5 transition focus:outline-none focus:ring-2 focus:ring-emerald-400 focus:ring-offset-1 rounded-t ${
               isActive ?
                 'border-emerald-500 text-emerald-700' :
                 'border-transparent theme-text-muted hover:text-slate-700'
