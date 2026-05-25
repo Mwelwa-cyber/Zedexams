@@ -253,6 +253,25 @@ async function main() {
     console.log(`Updated existing changelog PR in place: ${pr.html_url}`);
   }
 
+  // Force ci.yml to run on the new branch. PRs opened by GITHUB_TOKEN don't
+  // fire downstream workflows, so the required `Lint` + `Tests` checks would
+  // never report and the PR would stay BLOCKED. workflow_dispatch is the one
+  // event GitHub allows GITHUB_TOKEN to trigger.
+  try {
+    await octokit.actions.createWorkflowDispatch({
+      owner,
+      repo,
+      workflow_id: "ci.yml",
+      ref: branch,
+    });
+    console.log(`Dispatched ci.yml against ${branch}.`);
+  } catch (err) {
+    console.warn(
+      `Failed to dispatch ci.yml against ${branch}: ${err.message}. ` +
+      `PR may stay BLOCKED until a human kicks CI.`,
+    );
+  }
+
   // Save the patch locally too in case the action wants to upload it.
   writeFileSync("/tmp/ledger-patch.md", newSection);
 }
