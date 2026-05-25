@@ -348,3 +348,50 @@
      viewport bottom while the teacher fills the form. */
   #view-plans .lp-generate-bar{position:sticky;bottom:0}
 }
+
+/* ============ FORMAT CARDS — thumbnails + preview button ============
+   Each card now shows a small visual mock of the layout on the left and a
+   "Preview" button at the bottom-right that opens #modal-format-preview. */
+#view-plans .format-card{position:relative;padding:12px}
+#view-plans .format-card-body{display:flex;gap:12px;align-items:flex-start;padding-top:18px}
+#view-plans .format-thumb{flex:0 0 64px;width:64px;height:80px;border:1px solid #cdd6da;border-radius:4px;background:#fff;padding:6px 5px;display:flex;flex-direction:column;gap:3px;overflow:hidden;box-shadow:0 1px 2px rgba(14,42,50,.06)}
+#view-plans .format-thumb .t-head{height:6px;background:#0e2a32;border-radius:1px}
+#view-plans .format-thumb .t-line{height:2px;background:#cdd6da;border-radius:1px}
+#view-plans .format-thumb .t-line-md{width:80%}
+#view-plans .format-thumb .t-line-sm{width:55%}
+#view-plans .format-thumb .t-stage{border:1px solid #cdd6da;border-radius:1px;overflow:hidden;flex-shrink:0}
+#view-plans .format-thumb .t-stage-head{height:4px;background:#ff7a2e}
+#view-plans .format-thumb .t-stage-cols{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#cdd6da}
+#view-plans .format-thumb .t-stage-cols.t-cols-3{grid-template-columns:1fr 1fr 1fr}
+#view-plans .format-thumb .t-stage-cols > div{background:#fff;height:8px}
+#view-plans .format-thumb .t-table{border:1px solid #0e2a32;border-radius:1px;overflow:hidden;flex:1}
+#view-plans .format-thumb .t-row{display:grid;grid-template-columns:18% 1fr 1fr 22%;gap:1px;background:#0e2a32}
+#view-plans .format-thumb .t-row + .t-row{border-top:1px solid #0e2a32}
+#view-plans .format-thumb .t-row > div{background:#fff;height:6px}
+#view-plans .format-thumb .t-row-head > div{background:#ff7a2e;height:5px}
+#view-plans .format-card-text{flex:1;min-width:0;padding-right:6px}
+#view-plans .format-card .format-preview-btn{position:absolute;top:8px;right:8px;display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border:1px solid #cdd6da;border-radius:14px;background:#fff;color:#0e2a32;font:600 11px/1 'DM Sans',sans-serif;cursor:pointer;transition:all .12s;z-index:2}
+#view-plans .format-card .format-preview-btn:hover{background:#ff7a2e;border-color:#ff7a2e;color:#fff;transform:translateY(-1px)}
+#view-plans .format-card .format-preview-btn svg{flex-shrink:0}
+#view-plans .format-card.active .format-preview-btn{border-color:#ff7a2e;color:#ff7a2e}
+#view-plans .format-card.active .format-preview-btn:hover{color:#fff}
+
+/* ============ FORMAT PREVIEW MODAL ============
+   Wider than the default modal so the A4-shaped sample lesson plan has
+   room to breathe. The .format-preview-scale wrapper shrinks the inner
+   .doc on small screens so it fits without horizontal scroll. */
+.modal.modal-wide{max-width:900px}
+.modal-body.modal-body-flush{padding:0;background:#efe9dd}
+.format-preview-empty{padding:40px 22px;text-align:center;color:#7a6d5d;font-size:13px}
+.format-preview-scale{padding:18px;overflow-x:auto}
+.format-preview-scale .doc-wrap{margin:0 auto;max-width:794px}
+.format-preview-scale .doc{padding:14mm 16mm 18mm;min-height:0}
+/* Shrink the preview text a touch so a full lesson plan fits on screen
+   without dominating the modal. */
+.format-preview-scale .doc{font-size:10.5pt}
+@media(max-width:720px){
+  .format-preview-scale{padding:10px}
+  .format-preview-scale .doc{padding:10mm 8mm;font-size:9.5pt}
+  .format-preview-scale .doc-head .school{font-size:16pt}
+  .format-preview-scale .doc-head .lp-title{font-size:13pt}
+}

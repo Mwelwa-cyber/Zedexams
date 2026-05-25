@@ -19,7 +19,7 @@ const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerat
 
 // Bump this when /public/studio/* is changed so phones / CDNs refetch
 // instead of serving the cached old file.
-const STUDIO_ASSET_VERSION = 'v12'
+const STUDIO_ASSET_VERSION = 'v13'
 
 // Sequential script loader — each script must finish before the next starts
 // because the studio scripts rely on globals set by earlier ones.
@@ -254,6 +254,7 @@ export default function LessonPlanStudio() {
       `/studio/04-syllabus-router.js${v}`,
       `/studio/05-system-prompts.js${v}`,
       `/studio/06-generate.js${v}`,
+      `/studio/07-format-preview.js${v}`,
       `/studio/08-edit-mode.js${v}`,
       `/studio/09-symbols.js${v}`,
       `/studio/10-export.js${v}`,
@@ -447,9 +448,69 @@ export default function LessonPlanStudio() {
                 </button>
                 <div className="lp-section-body">
                   <div className="format-grid" id="format-cards" style={{gridTemplateColumns:'1fr'}}>
-                    <div className="format-card active" data-format="modern"><div className="name">Modern Clean</div><div className="desc">Per-stage tables · Specific Outcomes, Assessment, Differentiation, Reflection sections.</div></div>
-                    <div className="format-card" data-format="classic2"><div className="name">Classic 2</div><div className="desc">Per-stage tables (Modern look) with three columns — Teacher's Role, Learners' Role, Assessment Criteria. Includes Teacher's and Learners' Evaluation.</div></div>
-                    <div className="format-card" data-format="classic"><div className="name">Classic CBC</div><div className="desc">Single progression table — Stages, Teacher, Learner, Assessment Criteria.</div></div>
+                    <div className="format-card active" data-format="modern">
+                      <div className="format-card-body">
+                        <div className="format-thumb format-thumb-modern" aria-hidden="true">
+                          <div className="t-head"></div>
+                          <div className="t-line t-line-md"></div>
+                          <div className="t-line t-line-sm"></div>
+                          <div className="t-stage"><div className="t-stage-head"></div><div className="t-stage-cols"><div></div><div></div></div></div>
+                          <div className="t-stage"><div className="t-stage-head"></div><div className="t-stage-cols"><div></div><div></div></div></div>
+                          <div className="t-line t-line-md"></div>
+                        </div>
+                        <div className="format-card-text">
+                          <div className="name">Modern Clean</div>
+                          <div className="desc">Per-stage tables · Specific Outcomes, Assessment, Differentiation, Reflection sections.</div>
+                        </div>
+                      </div>
+                      <button type="button" className="format-preview-btn" data-preview-format="modern" aria-label="Preview Modern Clean format">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        <span>Preview</span>
+                      </button>
+                    </div>
+                    <div className="format-card" data-format="classic2">
+                      <div className="format-card-body">
+                        <div className="format-thumb format-thumb-classic2" aria-hidden="true">
+                          <div className="t-head"></div>
+                          <div className="t-line t-line-md"></div>
+                          <div className="t-line t-line-sm"></div>
+                          <div className="t-stage"><div className="t-stage-head"></div><div className="t-stage-cols t-cols-3"><div></div><div></div><div></div></div></div>
+                          <div className="t-stage"><div className="t-stage-head"></div><div className="t-stage-cols t-cols-3"><div></div><div></div><div></div></div></div>
+                          <div className="t-line t-line-sm"></div>
+                        </div>
+                        <div className="format-card-text">
+                          <div className="name">Classic 2</div>
+                          <div className="desc">Per-stage tables (Modern look) with three columns — Teacher's Role, Learners' Role, Assessment Criteria. Includes Teacher's and Learners' Evaluation.</div>
+                        </div>
+                      </div>
+                      <button type="button" className="format-preview-btn" data-preview-format="classic2" aria-label="Preview Classic 2 format">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        <span>Preview</span>
+                      </button>
+                    </div>
+                    <div className="format-card" data-format="classic">
+                      <div className="format-card-body">
+                        <div className="format-thumb format-thumb-classic" aria-hidden="true">
+                          <div className="t-head"></div>
+                          <div className="t-line t-line-md"></div>
+                          <div className="t-line t-line-sm"></div>
+                          <div className="t-table">
+                            <div className="t-row t-row-head"><div></div><div></div><div></div><div></div></div>
+                            <div className="t-row"><div></div><div></div><div></div><div></div></div>
+                            <div className="t-row"><div></div><div></div><div></div><div></div></div>
+                            <div className="t-row"><div></div><div></div><div></div><div></div></div>
+                          </div>
+                        </div>
+                        <div className="format-card-text">
+                          <div className="name">Classic CBC</div>
+                          <div className="desc">Single progression table — Stages, Teacher, Learner, Assessment Criteria.</div>
+                        </div>
+                      </div>
+                      <button type="button" className="format-preview-btn" data-preview-format="classic" aria-label="Preview Classic CBC format">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                        <span>Preview</span>
+                      </button>
+                    </div>
                   </div>
 
                   <div className="toggle-row on" id="t-compact" data-on="true">
@@ -648,6 +709,19 @@ export default function LessonPlanStudio() {
             </button>
           </div>
           <div className="modal-body" id="symbols-modal-body"></div>
+        </div>
+      </div>
+      <div className="modal-scrim" id="modal-format-preview">
+        <div className="modal modal-wide">
+          <div className="modal-head">
+            <h3 id="format-preview-title">Format preview</h3>
+            <button className="close" data-close-modal>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div className="modal-body modal-body-flush" id="format-preview-body">
+            <div className="format-preview-empty">Loading sample lesson plan…</div>
+          </div>
         </div>
       </div>
       <div className="toast" id="toast">Saved</div>
