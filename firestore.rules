@@ -583,6 +583,17 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Admin-only summary collection mirroring `curriculum/` entries
+    // created by the uploadCurriculumModule callable. The full corpus
+    // is server-only (above), so this summary exists purely so the
+    // /admin/curriculum-upload page can list + delete recent uploads
+    // without exposing the chunk text. Writes still go through the
+    // admin SDK in the Cloud Function.
+    match /curriculumUploads/{docId} {
+      allow read:  if isAdmin();
+      allow write: if false;
+    }
+
     // ── cbcKnowledgeBase ──────────────────────────────────────
     match /cbcKnowledgeBase/{version} {
       allow read:  if isAuthed();
