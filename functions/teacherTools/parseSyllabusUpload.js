@@ -35,6 +35,11 @@ const SYLLABUS_SHEET_REGEX = /(?:^|\s-\s)syllabus$/i;
 const COMPETENCES_SHEET_REGEX = /(?:^|\s-\s)(?:key\s+)?competen[cs]es?$/i;
 const SOW_SHEET_REGEX = /^scheme\s+of\s+work$/i;
 const COVER_SHEET_REGEX = /^cover$/i;
+// "Grade 4", "Form 1", "Level 4" — the CDC 2024 Science (Grades 4-6) and
+// Social Studies (Grades 4-7) workbooks split each grade onto its own
+// sheet rather than using a single "Syllabus" sheet. Subject is read
+// from the filename in this layout; grade comes from the sheet name.
+const GRADE_SHEET_REGEX = /^(?:grade|form|level)\s*\d+$/i;
 
 const HEADER_ALIASES = {
   topic: ["topic", "topics", "concept", "concepts"],
@@ -188,7 +193,19 @@ function parseFilenameHints(filename) {
   }
 
   let subject = base;
-  subject = subject.replace(/(?:Grade|Form)\s*\d{1,2}/gi, "");
+  // Parenthesised grade ranges land in workbook names like
+  // "Science Syllabus (Grades 4-6).xlsx" — strip these before the
+  // single-grade pass so the surrounding parens don't survive.
+  subject = subject.replace(
+    /\(\s*grades?\s*\d{1,2}(?:\s*[-–]\s*\d{1,2})?\s*\)/gi, "",
+  );
+  // Handles "Grade 4", "Form 1", "Grades 4-6", "Forms 1-2", with optional
+  // plural "s" and optional range. Covers the original
+  // /(?:Grade|Form)\s*\d{1,2}/ plus the multi-grade workbook case where
+  // the filename hint can't pin a single grade.
+  subject = subject.replace(
+    /\b(?:grades?|forms?)\s*\d{1,2}(?:\s*[-–]\s*\d{1,2})?\b/gi, "",
+  );
   subject = subject.replace(/ECE\s*Level\s*\d(?:\s*-\s*\d)?/gi, "");
   subject = subject.replace(/\bECE\b/gi, "");
   subject = subject.replace(/\bG\d{1,2}\b/gi, ""); // standalone "G4" grade marker
@@ -224,6 +241,19 @@ function competenceScope(sheetName) {
 function subjectScope(sheetName) {
   const m = sheetName.match(/^(.*?)\s*-\s*syllabus$/i);
   return m ? m[1].trim() : "";
+}
+
+// "Grade 4"   -> "G4"
+// "Form 1"    -> "F1"
+// "Level 4"   -> "L4"
+// Anything else returns null so the caller can fall back to filename hints.
+function gradeFromSheetName(sheetName) {
+  const name = String(sheetName || "").trim();
+  let m;
+  if ((m = name.match(/^Grade\s*(\d{1,2})$/i))) return `G${m[1]}`;
+  if ((m = name.match(/^Form\s*(\d{1,2})$/i))) return `F${m[1]}`;
+  if ((m = name.match(/^Level\s*(\d{1,2})$/i))) return `L${m[1]}`;
+  return null;
 }
 
 // --- Cell helpers -------------------------------------------------------
@@ -346,6 +376,32 @@ function parseWorkbook(wb, ctx) {
         competencesByScope.get(scope) ||
         competencesByScope.get("") ||
         [];
+      const docs = parseSyllabusSheet(sheet, {
+        subjectKey, subjectDisplay, grade, competencies,
+        sourceWorkbook: ctx.filename,
+        sourceSheet: name,
+      });
+      result.topicDocs.push(...docs);
+      result.sheetsProcessed += 1;
+      continue;
+    }
+
+    // "Grade 4" / "Form 1" / "Level 4" layout — one subject (from filename),
+    // multiple grades (one per sheet). The sheet name is the authoritative
+    // grade signal; the filename hint can be a range like "Grades 4-6" and
+    // is unreliable for individual sheet rows.
+    if (GRADE_SHEET_REGEX.test(name)) {
+      const grade = gradeFromSheetName(name);
+      const subjectKey = ctx.filenameHints.subject;
+      const subjectDisplay = ctx.filenameHints.subjectDisplay || "";
+      if (!grade || !subjectKey) {
+        result.warnings.push(
+          `Sheet "${name}": could not resolve subject/grade ` +
+          `(subject=${subjectKey}, grade=${grade})`,
+        );
+        continue;
+      }
+      const competencies = competencesByScope.get("") || [];
       const docs = parseSyllabusSheet(sheet, {
         subjectKey, subjectDisplay, grade, competencies,
         sourceWorkbook: ctx.filename,
@@ -653,23 +709,53 @@ async function writeResultsToFirestore(result, ctx) {
     }
   };
 
-  // Upsert the approvedSyllabi doc first. The draftTopics below carry
-  // its id forward as `sourceDocId`, which the strict resolver requires
-  // before any learner-AI generator can run. Skipped only when
-  // filename hints couldn't yield a grade+subject — in that case the
-  // parser also produced no topicDocs, so no draft is left dangling.
-  const syllabusId =
-    buildApprovedSyllabusId(ctx.filenameHints || {}, ctx.filename);
-  const syllabusRecord = buildApprovedSyllabusRecord({
-    ctx, hints: ctx.filenameHints || {}, ts,
-  });
-  if (syllabusId && syllabusRecord) {
-    batch.set(
-        db.collection("approvedSyllabi").doc(syllabusId),
-        syllabusRecord,
-        {merge: true},
-    );
-    inBatch += 1;
+  // Upsert one approvedSyllabi doc per (grade, subject) pair present in
+  // the parsed topics. The strict learner-AI resolver
+  // (functions/agents/learnerAi/curriculumResolver.js) refuses a task
+  // when syllabus.grade ≠ task.grade, so a multi-grade workbook needs
+  // one approvedSyllabi per grade — stamping every topic with the same
+  // id would block every grade except the one stored on the doc.
+  //
+  // For a conventional single-grade workbook this collapses to exactly
+  // one doc with the same id as the previous behaviour (filename hints
+  // + that single grade), so existing data is not disturbed.
+  const groupedTopics = new Map(); // key=`${grade}::${subject}` → topicDocs[]
+  for (const doc of result.topicDocs) {
+    const key = `${doc.grade}::${doc.subject}`;
+    let bucket = groupedTopics.get(key);
+    if (!bucket) {
+      bucket = [];
+      groupedTopics.set(key, bucket);
+    }
+    bucket.push(doc);
+  }
+
+  const syllabusIdByGroup = new Map();
+  for (const [key, topics] of groupedTopics) {
+    const [groupGrade, groupSubject] = key.split("::");
+    const hintsForGroup = {
+      ...(ctx.filenameHints || {}),
+      grade: groupGrade,
+      subject: groupSubject,
+      subjectDisplay:
+        (ctx.filenameHints && ctx.filenameHints.subjectDisplay) ||
+        (topics[0] && topics[0].subjectDisplay) || "",
+    };
+    const syllabusId =
+      buildApprovedSyllabusId(hintsForGroup, ctx.filename);
+    const syllabusRecord = buildApprovedSyllabusRecord({
+      ctx, hints: hintsForGroup, ts,
+    });
+    if (syllabusId && syllabusRecord) {
+      batch.set(
+          db.collection("approvedSyllabi").doc(syllabusId),
+          syllabusRecord,
+          {merge: true},
+      );
+      inBatch += 1;
+      if (inBatch >= BATCH_LIMIT) await flush();
+      syllabusIdByGroup.set(key, syllabusId);
+    }
   }
 
   for (const doc of result.topicDocs) {
@@ -679,6 +765,8 @@ async function writeResultsToFirestore(result, ctx) {
       .collection("draftTopics")
       .doc(doc.id);
     const aliases = deriveExcerptAliases(doc);
+    const groupKey = `${doc.grade}::${doc.subject}`;
+    const syllabusId = syllabusIdByGroup.get(groupKey);
     const sourceFields = syllabusId ? {
       sourceDocId: syllabusId,
       sourceStoragePath: ctx.filePath || "",
@@ -756,10 +844,12 @@ exports.__test__ = {
   normaliseSubjectKey,
   competenceScope,
   subjectScope,
+  gradeFromSheetName,
   buildTopicId,
   splitBulleted,
   parseWorkbook,
   buildApprovedSyllabusId,
   buildApprovedSyllabusRecord,
   deriveExcerptAliases,
+  GRADE_SHEET_REGEX,
 };
