@@ -297,11 +297,18 @@ async function callAnthropic(apiKey, {
   const cleaned = json ? stripJsonFences(text) : text;
   // Anthropic has no native JSON mode — if the model still wrapped output
   // in prose, try to extract the first JSON object as a last resort.
+  //
+  // The 60K cap (vs. the previous 10K) is needed for callers like
+  // structureImportedQuiz that can legitimately return ~14K-30K of JSON for
+  // a 16+ question past paper. Cutting at 10K used to truncate the response
+  // mid-array, which is why parseStructuredImport then failed with
+  // "The smart import response could not be read."
+  const cap = json ? 60000 : 10000;
   if (json && cleaned && !cleaned.startsWith("{") && !cleaned.startsWith("[")) {
     const objMatch = cleaned.match(/\{[\s\S]*\}/);
-    if (objMatch) return cleanString(objMatch[0], 10000);
+    if (objMatch) return cleanString(objMatch[0], cap);
   }
-  return cleanString(cleaned, 10000);
+  return cleanString(cleaned, cap);
 }
 
 // Convert OpenAI-shaped messages ([{role:"system",...}, {role:"user",...}, ...])
@@ -905,11 +912,98 @@ function normalizeImportedQuestion(question = {}) {
   };
 }
 
+// Best-effort recovery for a JSON payload that ended mid-stream (model hit
+// max_tokens before closing the last "sections" entry). We walk the string,
+// remember the last index where a top-level sections-array element closed
+// cleanly, slice to that point, and close the still-open outer braces. The
+// caller keeps every question that was fully emitted instead of losing all
+// 16 because the last one was cut off.
+function tryRecoverTruncatedJson(text) {
+  if (!text || typeof text !== "string") return null;
+  // Skip any prose that might have leaked past callAnthropic's strip layer.
+  const firstBrace = text.indexOf("{");
+  const firstBracket = text.indexOf("[");
+  const starts = [firstBrace, firstBracket].filter((idx) => idx >= 0);
+  if (!starts.length) return null;
+  const start = Math.min(...starts);
+  text = text.slice(start);
+  let lastSafe = -1;
+  let openBraces = 0;
+  let openBrackets = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = 0; i < text.length; i += 1) {
+    const ch = text[i];
+    if (inString) {
+      if (escape) escape = false;
+      else if (ch === "\\") escape = true;
+      else if (ch === "\"") inString = false;
+      continue;
+    }
+    if (ch === "\"") { inString = true; continue; }
+    if (ch === "{") { openBraces += 1; continue; }
+    if (ch === "[") { openBrackets += 1; continue; }
+    if (ch === "}") {
+      openBraces -= 1;
+      // Safe cut: a sections-array element just closed. Element nesting at
+      // close is depth=1 (one outer object, one array; this `}` closes the
+      // entry inside the array). Same shape covers the final top-level `}`.
+      if (openBraces === 1 && openBrackets === 1) lastSafe = i;
+      if (openBraces === 0 && openBrackets === 0) lastSafe = i;
+      continue;
+    }
+    if (ch === "]") {
+      openBrackets -= 1;
+      if (openBraces === 1 && openBrackets === 0) lastSafe = i;
+      continue;
+    }
+  }
+  if (lastSafe < 0) return null;
+  let truncated = text.slice(0, lastSafe + 1);
+  // Recompute still-open frames at the cut point, then close them in order.
+  let braces2 = 0;
+  let brackets2 = 0;
+  let inStr2 = false;
+  let esc2 = false;
+  const closeStack = [];
+  for (let i = 0; i < truncated.length; i += 1) {
+    const ch = truncated[i];
+    if (inStr2) {
+      if (esc2) esc2 = false;
+      else if (ch === "\\") esc2 = true;
+      else if (ch === "\"") inStr2 = false;
+      continue;
+    }
+    if (ch === "\"") { inStr2 = true; continue; }
+    if (ch === "{") { braces2 += 1; closeStack.push("}"); continue; }
+    if (ch === "[") { brackets2 += 1; closeStack.push("]"); continue; }
+    if (ch === "}") { braces2 -= 1; closeStack.pop(); continue; }
+    if (ch === "]") { brackets2 -= 1; closeStack.pop(); continue; }
+  }
+  while (closeStack.length) truncated += closeStack.pop();
+  try {
+    return JSON.parse(truncated);
+  } catch {
+    return null;
+  }
+}
+
 function parseStructuredImport(raw) {
+  const cleanedRaw = stripJsonFences(raw);
   let parsed;
   try {
-    parsed = JSON.parse(stripJsonFences(raw));
+    parsed = JSON.parse(cleanedRaw);
   } catch {
+    parsed = tryRecoverTruncatedJson(cleanedRaw);
+  }
+  if (!parsed) {
+    // Log a short preview so the failure is debuggable without leaking the
+    // full document. Surfaces in Cloud Functions logs only.
+    console.warn("parseStructuredImport: JSON.parse failed", {
+      length: cleanedRaw?.length || 0,
+      head: cleanedRaw?.slice(0, 160) || "",
+      tail: cleanedRaw?.slice(-160) || "",
+    });
     throw new HttpsError(
       "internal",
       "The smart import response could not be read. Please try again.",

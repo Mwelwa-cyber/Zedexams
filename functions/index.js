@@ -1398,7 +1398,11 @@ exports.structureImportedQuiz = onCall(
     const raw = await callAnthropic(getAnthropicApiKey(anthropicApiKey), {
       systemPrompt,
       messages,
-      maxTokens: 4000,
+      // 8000 tokens (~30K chars) comfortably fits a 16-question past paper
+      // with options, passages, and per-question explanations. 4000 used to
+      // truncate the JSON mid-array, which is why parseStructuredImport
+      // failed with "The smart import response could not be read."
+      maxTokens: 8000,
       temperature: 0.2,
       json: true,
       track: {uid: request.auth.uid, tool: "structureImportedQuiz"},
