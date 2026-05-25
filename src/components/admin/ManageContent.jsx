@@ -401,6 +401,37 @@ export default function ManageContent() {
       : '📝 Published — students can practice it now.')
   }
 
+  // Bulk-publish every draft that matches the current filter. Used as a
+  // natural follow-up to the CBC KB's "✏️ Bulk publish quizzes" action,
+  // which creates N drafts at once — the admin reviews the list in this
+  // page, then clicks here to ship them all without a per-row publish click.
+  const [bulkPublishing, setBulkPublishing] = useState(false)
+  const [bulkConfirmOpen, setBulkConfirmOpen] = useState(false)
+
+  async function publishAllVisibleDrafts() {
+    const drafts = filteredQuizzes.filter(q => !q.isPublished)
+    if (drafts.length === 0) return
+    setBulkPublishing(true)
+    let succeeded = 0
+    let failed = 0
+    for (const q of drafts) {
+      try {
+        await publishQuiz(q)
+        succeeded += 1
+      } catch {
+        failed += 1
+      }
+    }
+    setBulkPublishing(false)
+    setBulkConfirmOpen(false)
+    show(
+      failed === 0
+        ? `✅ Published ${succeeded} quiz${succeeded === 1 ? '' : 'zes'}.`
+        : `Published ${succeeded}; ${failed} failed. Check console for details.`,
+      failed > 0,
+    )
+  }
+
   async function setAsDailyExam(quiz, { date, duration, isDemo }) {
     // `isDemo` may be undefined if called from older code paths — only write
     // the field when the modal explicitly supplied a value, so we don't
@@ -633,6 +664,67 @@ export default function ManageContent() {
               <span className="stat-label">{s.label}</span>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Bulk publish drafts — only when there are visible drafts matching the
+          current filter. Reads filteredQuizzes (the same array QuizRow uses
+          below) so the count and the action stay consistent. */}
+      {tab === 'quizzes' && !loading && filteredQuizzes.some(q => !q.isPublished) && (
+        <div className="rounded-2xl border-2 border-emerald-200 bg-emerald-50 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="font-black text-emerald-900 text-sm">
+              {filteredQuizzes.filter(q => !q.isPublished).length} draft{filteredQuizzes.filter(q => !q.isPublished).length === 1 ? '' : 's'} in the current filter
+            </p>
+            <p className="text-xs text-emerald-700 mt-0.5">
+              Quick-publish them all in one click — practice quizzes go live, long ones become exam-only awaiting Daily pin.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setBulkConfirmOpen(true)}
+            disabled={bulkPublishing}
+            className="rounded-xl bg-emerald-600 px-4 py-2 text-xs font-black text-white hover:bg-emerald-700 disabled:opacity-50 whitespace-nowrap"
+          >
+            {bulkPublishing ? 'Publishing…' : `✅ Publish all ${filteredQuizzes.filter(q => !q.isPublished).length} drafts`}
+          </button>
+        </div>
+      )}
+
+      {bulkConfirmOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl">
+            <h3 className="font-black text-lg text-gray-800">Publish all visible drafts?</h3>
+            <p className="text-xs text-gray-600 mt-1">
+              {filteredQuizzes.filter(q => !q.isPublished).length} quiz{filteredQuizzes.filter(q => !q.isPublished).length === 1 ? '' : 'zes'} will become learner-visible immediately. Long ones (≥{EXAM_ONLY_QUESTION_THRESHOLD} Q) save as exam-only, the rest as practice.
+            </p>
+            <ul className="mt-3 max-h-48 overflow-y-auto text-xs text-gray-700 space-y-1 border-2 border-gray-100 rounded-xl p-2">
+              {filteredQuizzes.filter(q => !q.isPublished).slice(0, 12).map(q => (
+                <li key={q.id} className="truncate">• {q.title}</li>
+              ))}
+              {filteredQuizzes.filter(q => !q.isPublished).length > 12 && (
+                <li className="italic text-gray-500">…and {filteredQuizzes.filter(q => !q.isPublished).length - 12} more</li>
+              )}
+            </ul>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setBulkConfirmOpen(false)}
+                disabled={bulkPublishing}
+                className="px-3 py-2 rounded-xl text-xs font-black text-gray-600 hover:text-gray-800 disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={publishAllVisibleDrafts}
+                disabled={bulkPublishing}
+                className="px-4 py-2 rounded-xl text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50"
+              >
+                {bulkPublishing ? 'Publishing…' : 'Publish them all'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
