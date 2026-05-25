@@ -85,23 +85,30 @@ export default function BulkPublishQuizzesButton({ topics }) {
   async function handleRun() {
     if (!currentUser?.uid || count === 0) return
     setBusy(true)
-    setResults({ saved: 0, failed: [] })
+    setResults({ saved: 0, failed: [], warnings: [] })
     setProgress({ done: 0, total: count, label: 'Starting…' })
     const slice = eligible.slice(0, count)
     const failed = []
+    const warnings = []
     let saved = 0
 
     for (let i = 0; i < slice.length; i++) {
       const t = slice[i]
       setProgress({ done: i, total: count, label: `Generating "${t.topic}"…` })
       try {
-        const { questions } = await generateAIQuizQuestions({
+        const { questions, warning: kbWarning } = await generateAIQuizQuestions({
           subject: subjectForLearnerCollection(t.subject),
           grade: gradeForLearnerCollection(t.grade),
           topic: t.topic,
           count: QUESTIONS_PER_QUIZ,
           type: 'mcq',
         })
+        // KB-grounding warnings are non-fatal — the AI fell back to general
+        // CBC knowledge instead of the verified topic. Surface them so the
+        // admin knows which drafts likely deserve more careful review.
+        if (kbWarning) {
+          warnings.push({ topic: t.topic, warning: kbWarning })
+        }
         const usable = Array.isArray(questions) ? questions.filter((q) => {
           if (!q || typeof q !== 'object') return false
           if (!String(q.text || '').trim()) return false
@@ -142,10 +149,12 @@ export default function BulkPublishQuizzesButton({ topics }) {
       }
     }
 
-    setResults({ saved, failed })
+    setResults({ saved, failed, warnings })
     setProgress({ done: count, total: count, label: 'Done.' })
     setBusy(false)
-    if (saved > 0 && failed.length === 0) {
+    // Only auto-navigate when everything was clean — leave the admin on
+    // the modal so they can read the failures / warnings before moving on.
+    if (saved > 0 && failed.length === 0 && warnings.length === 0) {
       setTimeout(() => navigate('/admin/content'), 1500)
     }
   }
@@ -197,10 +206,26 @@ export default function BulkPublishQuizzesButton({ topics }) {
             {!busy && results.saved > 0 && (
               <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-xs text-emerald-800 font-black">
                 ✓ Saved {results.saved} quiz{results.saved === 1 ? '' : 'zes'} as draft{results.saved === 1 ? '' : 's'}.
-                {results.failed.length === 0 && ' Redirecting to /admin/content…'}
+                {results.failed?.length === 0 && results.warnings?.length === 0 && ' Redirecting to /admin/content…'}
               </p>
             )}
-            {!busy && results.failed.length > 0 && (
+            {!busy && results.warnings?.length > 0 && (
+              <div className="mt-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                <p className="font-black">{results.warnings.length} draft{results.warnings.length === 1 ? '' : 's'} need closer review</p>
+                <p className="mt-0.5 text-amber-700/90">
+                  The AI couldn't ground these on a verified KB topic — it fell back to general CBC knowledge. Read them carefully before publishing.
+                </p>
+                <ul className="mt-1 list-disc list-inside text-amber-700">
+                  {results.warnings.slice(0, 5).map((w, i) => (
+                    <li key={i}><strong>{w.topic}</strong>: {w.warning}</li>
+                  ))}
+                  {results.warnings.length > 5 && (
+                    <li className="italic">…and {results.warnings.length - 5} more</li>
+                  )}
+                </ul>
+              </div>
+            )}
+            {!busy && results.failed?.length > 0 && (
               <div className="mt-3 rounded-xl bg-rose-50 px-3 py-2 text-xs text-rose-800">
                 <p className="font-black">{results.failed.length} failed</p>
                 <ul className="mt-1 list-disc list-inside text-rose-700">
