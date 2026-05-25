@@ -34,6 +34,12 @@ import { generateAIQuizQuestions } from '../../utils/aiAssistant'
 const MAX_BATCH = 10
 const QUESTIONS_PER_QUIZ = 5
 
+// Learner-facing quizzes collection only accepts grades 4-7 per the
+// Firestore rules' _validGrade helper (PSLE focus). Filtering here
+// keeps the bulk action consistent with the rule — a topic for G8+
+// would fail at addDoc with 'permission-denied' otherwise.
+const LEARNER_GRADES = new Set(['4', '5', '6', '7'])
+
 function gradeForLearnerCollection(grade) {
   // The CBC KB uses 'G6' / 'G7' / 'ECE'. The learner-facing /quizzes
   // page filters by plain '4'/'5'/'6'/'7'. Strip the leading 'G' so
@@ -63,7 +69,15 @@ export default function BulkPublishQuizzesButton({ topics }) {
   const [results, setResults] = useState({ saved: 0, failed: [] })
 
   const eligible = Array.isArray(topics) ?
-    topics.filter((t) => t && t.grade && t.subject && t.topic) : []
+    topics.filter((t) => {
+      if (!t || !t.grade || !t.subject || !t.topic) return false
+      // Match the Firestore rule — refuse to even attempt a write that
+      // would land in permission-denied.
+      return LEARNER_GRADES.has(gradeForLearnerCollection(t.grade))
+    }) : []
+  const skippedNonPsle = Array.isArray(topics) ?
+    topics.filter((t) => t && t.grade && t.subject && t.topic
+      && !LEARNER_GRADES.has(gradeForLearnerCollection(t.grade))).length : 0
   const count = Math.min(eligible.length, MAX_BATCH)
 
   if (eligible.length === 0) return null
@@ -160,6 +174,11 @@ export default function BulkPublishQuizzesButton({ topics }) {
               <p className="mt-0.5 text-sky-700">
                 Saved as <code>isPublished: false</code> — review in /admin/content and click Publish when you're ready.
               </p>
+              {skippedNonPsle > 0 && (
+                <p className="mt-1 text-amber-700">
+                  ⚠ {skippedNonPsle} topic{skippedNonPsle === 1 ? '' : 's'} skipped — quizzes only support Grades 4–7 (PSLE focus).
+                </p>
+              )}
             </div>
 
             {busy && (
