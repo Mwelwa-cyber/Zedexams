@@ -38,7 +38,7 @@ function formatBytes(bytes) {
 
 export default function PastPaperViewer() {
   const { paperId } = useParams()
-  const { currentUser } = useAuth()
+  const { currentUser, isAdmin } = useAuth()
   const navigate = useNavigate()
   const [paper, setPaper] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -53,7 +53,10 @@ export default function PastPaperViewer() {
     getPaper(paperId)
       .then((row) => {
         if (cancelled) return
-        if (!row || row.status !== 'published') {
+        // Admins can preview draft / archived papers from the Studio's
+        // "Preview as learner" button. Everyone else only sees the
+        // paper once it's been published.
+        if (!row || (row.status !== 'published' && !isAdmin)) {
           setErrored(true)
           return
         }
@@ -70,20 +73,39 @@ export default function PastPaperViewer() {
         if (!cancelled) setLoading(false)
       })
     return () => { cancelled = true }
-  }, [paperId])
+  }, [paperId, isAdmin])
 
   // The "preview source" picks the right rendering path:
   //   1. legacy pdfPath (set by the old single-page editor)
-  //   2. a PDF inside assets[] (Studio uploads — single PDF case)
-  //   3. images inside assets[] (scanned-paper case — multi-page)
+  //   2. a PDF inside the paper-role assets[] (Studio single-PDF case)
+  //   3. images inside the paper-role assets[] (scanned multi-page)
+  // Mark-scheme assets are split out into their own optional source.
+  const paperAssets = Array.isArray(paper?.assets)
+    ? paper.assets.filter((a) => a.role !== 'mark-scheme')
+    : []
+  const markSchemeAssets = Array.isArray(paper?.assets)
+    ? paper.assets.filter((a) => a.role === 'mark-scheme')
+    : []
+
   const previewSource = (() => {
     if (!paper) return null
     if (paper.pdfPath) return { kind: 'pdf', path: paper.pdfPath, size: paper.pdfSize || null }
-    const assets = Array.isArray(paper.assets) ? paper.assets : []
-    if (assets.length === 0) return null
-    const pdfAsset = assets.find((a) => a.contentType === 'application/pdf')
+    if (paperAssets.length === 0) return null
+    const pdfAsset = paperAssets.find((a) => a.contentType === 'application/pdf')
     if (pdfAsset) return { kind: 'pdf', path: pdfAsset.path, size: pdfAsset.size || null }
-    const images = assets.filter((a) => a.contentType?.startsWith('image/'))
+    const images = paperAssets.filter((a) => a.contentType?.startsWith('image/'))
+    if (images.length) return { kind: 'images', assets: images }
+    return null
+  })()
+
+  // Same dispatch for the optional mark scheme section.
+  const markSchemeSource = (() => {
+    if (!paper) return null
+    if (paper.markSchemePath) return { kind: 'pdf', path: paper.markSchemePath, size: null }
+    if (!markSchemeAssets.length) return null
+    const pdfAsset = markSchemeAssets.find((a) => a.contentType === 'application/pdf')
+    if (pdfAsset) return { kind: 'pdf', path: pdfAsset.path, size: pdfAsset.size || null }
+    const images = markSchemeAssets.filter((a) => a.contentType?.startsWith('image/'))
     if (images.length) return { kind: 'images', assets: images }
     return null
   })()
@@ -249,10 +271,10 @@ export default function PastPaperViewer() {
                   ⬇️ Download paper{previewSource.size ? ` (${formatBytes(previewSource.size)})` : ''}
                 </button>
               )}
-              {paper.markSchemePath && (
+              {markSchemeSource?.kind === 'pdf' && (
                 <button
                   type="button"
-                  onClick={() => handleDownload(paper.markSchemePath, 'mark-scheme')}
+                  onClick={() => handleDownload(markSchemeSource.path, 'mark-scheme')}
                   className="theme-card border theme-border rounded-full px-4 py-2 text-sm font-black hover:theme-bg-subtle"
                 >
                   📝 Download mark scheme
@@ -344,6 +366,18 @@ export default function PastPaperViewer() {
           </div>
         )}
 
+        {/* Mark scheme — collapsed by default so the learner attempts
+            the paper first. Same auth requirement as the paper itself
+            because Storage rules gate the file read. */}
+        {currentUser && markSchemeSource && (
+          <MarkSchemeSection
+            source={markSchemeSource}
+            paperTitle={paper.title}
+            paperId={paperId}
+            onDownload={handleDownload}
+          />
+        )}
+
         {!currentUser && (
           <section className="theme-card border theme-border rounded-radius-md p-6 text-center">
             <h2 className="theme-text font-black text-base">Sign in to read the paper here</h2>
@@ -369,5 +403,119 @@ export default function PastPaperViewer() {
         )}
       </div>
     </div>
+  )
+}
+
+/**
+ * Mark scheme reveal section. Collapsed by default so a learner is
+ * nudged into attempting the paper first. On expand it resolves the
+ * relevant signed URLs and renders the scheme inline (PDF or stacked
+ * images) plus a download button.
+ */
+function MarkSchemeSection({ source, paperTitle, paperId, onDownload }) {
+  const [open, setOpen] = useState(false)
+  const [url, setUrl] = useState(null)
+  const [imageUrls, setImageUrls] = useState([])
+  const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    let cancelled = false
+    setLoading(true)
+    async function resolve() {
+      try {
+        if (source.kind === 'pdf') {
+          const u = await resolvePaperUrl(source.path)
+          if (!cancelled) setUrl(u)
+        } else {
+          const urls = await Promise.all(source.assets.map((a) =>
+            resolvePaperUrl(a.path).catch(() => null),
+          ))
+          if (!cancelled) setImageUrls(urls)
+        }
+      } catch (err) {
+        console.warn('[PastPaperViewer] mark scheme load failed', err)
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    resolve()
+    return () => { cancelled = true }
+  }, [open, source])
+
+  return (
+    <section className="theme-card border theme-border rounded-radius-md overflow-hidden">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between p-4 hover:theme-bg-subtle text-left"
+      >
+        <div>
+          <p className="theme-text font-black text-sm">📝 Mark scheme</p>
+          <p className="theme-text-muted text-xs mt-0.5">
+            {open ? 'Click to hide. Try the paper yourself first!' : 'Click to reveal the answer key.'}
+          </p>
+        </div>
+        <span className="theme-text-muted text-lg" aria-hidden="true">{open ? '▾' : '▸'}</span>
+      </button>
+      {open && (
+        <div className="border-t theme-border p-3 space-y-3">
+          <div className="flex flex-wrap gap-2">
+            {source.kind === 'pdf' && (
+              <button
+                type="button"
+                onClick={() => onDownload(source.path, 'mark-scheme')}
+                className="theme-card border theme-border rounded-full px-4 py-2 text-xs font-black hover:theme-bg-subtle"
+              >
+                ⬇️ Download mark scheme
+              </button>
+            )}
+          </div>
+          {loading ? (
+            <div className="h-40 flex items-center justify-center theme-text-muted text-sm">
+              Loading mark scheme…
+            </div>
+          ) : source.kind === 'pdf' && url ? (
+            <Suspense fallback={
+              <div className="h-[60vh] flex items-center justify-center theme-text-muted text-sm">
+                Loading viewer…
+              </div>
+            }>
+              <PdfJsViewer url={url} title={`${paperTitle} — mark scheme`} />
+            </Suspense>
+          ) : source.kind === 'images' ? (
+            <div className="space-y-3">
+              {source.assets.map((a, i) => {
+                const u = imageUrls[i]
+                if (!u) {
+                  return (
+                    <div key={a.path} className="theme-bg-subtle rounded-radius-md h-48 flex items-center justify-center text-xs theme-text-muted">
+                      Page {i + 1} unavailable
+                    </div>
+                  )
+                }
+                return (
+                  <figure key={a.path} className="space-y-1">
+                    <img
+                      src={u}
+                      alt={`${paperTitle} mark scheme page ${i + 1}`}
+                      loading="lazy"
+                      decoding="async"
+                      className="w-full h-auto rounded-radius-md theme-bg-subtle"
+                    />
+                    <figcaption className="text-center text-xs theme-text-muted font-bold">
+                      Mark scheme page {i + 1} of {source.assets.length}
+                    </figcaption>
+                  </figure>
+                )
+              })}
+            </div>
+          ) : null}
+          <p className="text-xs theme-text-muted">
+            Paper id <code>{paperId}</code>
+          </p>
+        </div>
+      )}
+    </section>
   )
 }

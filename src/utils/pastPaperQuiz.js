@@ -102,10 +102,20 @@ export function resetCounter(paperId, uid) {
  */
 export async function loadPublicQuiz(quizId) {
   if (!quizId) return null
-  const quizSnap = await getDoc(doc(db, 'quizzes', quizId))
+  // Firestore rules are the security boundary. The read here succeeds
+  // either because (a) the quiz is publicAccess + isPublished (anon /
+  // signed-in learner path), or (b) the visitor is the admin / creator
+  // (preview-a-draft path). Either way we want to render the runner —
+  // we don't gate on the flags client-side anymore, because the rules
+  // already do it correctly for non-privileged callers.
+  let quizSnap
+  try {
+    quizSnap = await getDoc(doc(db, 'quizzes', quizId))
+  } catch {
+    return null
+  }
   if (!quizSnap.exists()) return null
   const quiz = { id: quizSnap.id, ...quizSnap.data() }
-  if (!quiz.isPublished || !quiz.publicAccess) return null
 
   const qs = await getDocs(query(
     collection(db, 'quizzes', quizId, 'questions'),

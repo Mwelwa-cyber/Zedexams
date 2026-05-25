@@ -25,14 +25,17 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import {
   ALLOWED_PAPER_MIME,
+  ASSET_ROLES,
   MAX_PAPER_FILE_BYTES,
   PAPER_GRADES,
   PAPER_STATUSES,
   createPaper,
   deletePaper,
   deletePaperPdf,
+  getAssetRole,
   getPaper,
   resolvePaperUrl,
+  splitAssetsByRole,
   updatePaper,
   uploadPaperAsset,
 } from '../../utils/pastPapers'
@@ -343,6 +346,15 @@ export default function PastPaperStudio() {
     updatePaper(paperId, { assets: next }).catch((err) => console.warn('[PastPaperStudio] reorder save failed', err))
   }
 
+  function setAssetRole(idx, role) {
+    if (!assets[idx]) return
+    const next = assets.map((a, i) => (i === idx ? { ...a, role } : a))
+    setAssets(next)
+    updatePaper(paperId, { assets: next }).catch(
+      (err) => console.warn('[PastPaperStudio] role save failed', err),
+    )
+  }
+
   function inferAssetType(list) {
     if (!list.length) return 'pdf'
     if (list.every((a) => a.contentType === 'application/pdf')) return 'pdf'
@@ -602,11 +614,13 @@ export default function PastPaperStudio() {
           onAddFiles={handleAddFiles}
           onRemove={handleRemoveAsset}
           onMove={moveAsset}
+          onSetRole={setAssetRole}
         />
       )}
       {step === 2 && <DetailsStep details={details} setDetail={setDetail} />}
       {step === 3 && (
         <QuizStep
+          paperId={paperId}
           quizId={existingQuizId}
           quizCount={quizCount}
           hasAssets={assets.length > 0}
@@ -619,6 +633,7 @@ export default function PastPaperStudio() {
       )}
       {step === 4 && (
         <PublishStep
+          paperId={paperId}
           details={details}
           assets={assets}
           quizId={existingQuizId}
@@ -675,50 +690,78 @@ export default function PastPaperStudio() {
 
 // ── Step bodies ─────────────────────────────────────────────────────
 
-function UploadStep({ assets, uploading, onAddFiles, onRemove, onMove }) {
+function RolePill({ active, onClick, children }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={[
+        'rounded-full border-2 px-2.5 py-0.5 text-[11px] font-black transition-colors',
+        active
+          ? 'theme-accent-fill theme-on-accent border-transparent'
+          : 'theme-card theme-text-muted theme-border hover:theme-text',
+      ].join(' ')}
+    >
+      {children}
+    </button>
+  )
+}
+
+function UploadStep({ assets, uploading, onAddFiles, onRemove, onMove, onSetRole }) {
   return (
     <section className="space-y-4">
       <DropZone disabled={uploading} onFiles={onAddFiles} />
       <div className="text-xs theme-text-muted">
-        {uploading ? 'Uploading… please wait.' : `Uploaded ${assets.length} file${assets.length === 1 ? '' : 's'}.`}
+        {uploading ? 'Uploading… please wait.' : `Uploaded ${assets.length} file${assets.length === 1 ? '' : 's'}. Mark each as Paper or Mark scheme below.`}
       </div>
       <ul className="space-y-2">
-        {assets.map((a, i) => (
-          <li key={a.path} className="theme-card border theme-border rounded-radius-md p-3 flex items-center gap-3">
-            <span className="text-xl" aria-hidden="true">
-              {a.contentType === 'application/pdf'
-                ? '📄'
-                : a.contentType?.startsWith('image/')
-                  ? '🖼️'
-                  : '📝'}
-            </span>
-            <div className="flex-1 min-w-0">
-              <p className="font-black text-sm theme-text truncate">{a.filename}</p>
-              <p className="text-xs theme-text-muted">{formatBytes(a.size)} · {a.contentType}</p>
-            </div>
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={() => onMove(i, -1)}
-                disabled={i === 0}
-                className="px-2 py-1 text-xs font-black theme-text-muted hover:theme-text disabled:opacity-30"
-                aria-label="Move up"
-              >↑</button>
-              <button
-                type="button"
-                onClick={() => onMove(i, 1)}
-                disabled={i === assets.length - 1}
-                className="px-2 py-1 text-xs font-black theme-text-muted hover:theme-text disabled:opacity-30"
-                aria-label="Move down"
-              >↓</button>
-              <button
-                type="button"
-                onClick={() => onRemove(i)}
-                className="px-2 py-1 text-xs font-bold text-rose-700 hover:underline"
-              >Remove</button>
-            </div>
-          </li>
-        ))}
+        {assets.map((a, i) => {
+          const role = getAssetRole(a)
+          return (
+            <li key={a.path} className="theme-card border theme-border rounded-radius-md p-3 flex flex-wrap items-center gap-3">
+              <span className="text-xl" aria-hidden="true">
+                {a.contentType === 'application/pdf'
+                  ? '📄'
+                  : a.contentType?.startsWith('image/')
+                    ? '🖼️'
+                    : '📝'}
+              </span>
+              <div className="flex-1 min-w-0">
+                <p className="font-black text-sm theme-text truncate">{a.filename}</p>
+                <p className="text-xs theme-text-muted">{formatBytes(a.size)} · {a.contentType}</p>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <RolePill active={role === ASSET_ROLES.PAPER} onClick={() => onSetRole(i, ASSET_ROLES.PAPER)}>
+                  Paper
+                </RolePill>
+                <RolePill active={role === ASSET_ROLES.MARK_SCHEME} onClick={() => onSetRole(i, ASSET_ROLES.MARK_SCHEME)}>
+                  Mark scheme
+                </RolePill>
+              </div>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => onMove(i, -1)}
+                  disabled={i === 0}
+                  className="px-2 py-1 text-xs font-black theme-text-muted hover:theme-text disabled:opacity-30"
+                  aria-label="Move up"
+                >↑</button>
+                <button
+                  type="button"
+                  onClick={() => onMove(i, 1)}
+                  disabled={i === assets.length - 1}
+                  className="px-2 py-1 text-xs font-black theme-text-muted hover:theme-text disabled:opacity-30"
+                  aria-label="Move down"
+                >↓</button>
+                <button
+                  type="button"
+                  onClick={() => onRemove(i)}
+                  className="px-2 py-1 text-xs font-bold text-rose-700 hover:underline"
+                >Remove</button>
+              </div>
+            </li>
+          )
+        })}
       </ul>
       {assets.length === 0 && (
         <p className="theme-text-muted text-sm italic">
@@ -766,59 +809,78 @@ function AssetPreviews({ assets }) {
     return () => { cancelled = true }
   }, [assets])
 
+  const { paper: paperAssets, markScheme: msAssets } = splitAssetsByRole(assets)
+
+  function renderAsset(a, idx) {
+    const url = urls[a.path]
+    const isPdf = a.contentType === 'application/pdf'
+    const isImg = a.contentType?.startsWith('image/')
+    return (
+      <figure
+        key={a.path}
+        className="theme-card border theme-border rounded-radius-md overflow-hidden"
+      >
+        <figcaption className="theme-bg-subtle text-xs font-black theme-text-muted uppercase tracking-widest px-3 py-2 border-b theme-border">
+          {idx + 1}. {a.filename}
+        </figcaption>
+        {url === undefined ? (
+          <div className="h-40 flex items-center justify-center theme-text-muted text-sm">
+            Loading preview…
+          </div>
+        ) : url === null ? (
+          <div className="h-32 flex items-center justify-center theme-text-muted text-sm">
+            Could not load this file&apos;s preview.
+          </div>
+        ) : isPdf ? (
+          <Suspense fallback={
+            <div className="h-[60vh] flex items-center justify-center theme-text-muted text-sm">
+              Loading PDF viewer…
+            </div>
+          }>
+            <PdfJsViewer url={url} title={a.filename} />
+          </Suspense>
+        ) : isImg ? (
+          <img
+            src={url}
+            alt={a.filename}
+            loading="lazy"
+            decoding="async"
+            className="w-full h-auto theme-bg-subtle"
+          />
+        ) : (
+          <div className="p-6 text-center text-sm theme-text-muted space-y-1">
+            <p className="theme-text font-black">Word document</p>
+            <p>Preview not available — Word files render in the AI importer (step 3) instead.</p>
+          </div>
+        )}
+      </figure>
+    )
+  }
+
   return (
-    <div className="space-y-3 pt-2">
+    <div className="space-y-4 pt-2">
       <div>
         <p className="theme-text font-black text-sm">Preview</p>
         <p className="theme-text-muted text-xs">
           This is exactly how the paper will look to learners on /papers/:id.
         </p>
       </div>
-      {assets.map((a, i) => {
-        const url = urls[a.path]
-        const isPdf = a.contentType === 'application/pdf'
-        const isImg = a.contentType?.startsWith('image/')
-        return (
-          <figure
-            key={a.path}
-            className="theme-card border theme-border rounded-radius-md overflow-hidden"
-          >
-            <figcaption className="theme-bg-subtle text-xs font-black theme-text-muted uppercase tracking-widest px-3 py-2 border-b theme-border">
-              {i + 1}. {a.filename}
-            </figcaption>
-            {url === undefined ? (
-              <div className="h-40 flex items-center justify-center theme-text-muted text-sm">
-                Loading preview…
-              </div>
-            ) : url === null ? (
-              <div className="h-32 flex items-center justify-center theme-text-muted text-sm">
-                Could not load this file&apos;s preview.
-              </div>
-            ) : isPdf ? (
-              <Suspense fallback={
-                <div className="h-[60vh] flex items-center justify-center theme-text-muted text-sm">
-                  Loading PDF viewer…
-                </div>
-              }>
-                <PdfJsViewer url={url} title={a.filename} />
-              </Suspense>
-            ) : isImg ? (
-              <img
-                src={url}
-                alt={a.filename}
-                loading="lazy"
-                decoding="async"
-                className="w-full h-auto theme-bg-subtle"
-              />
-            ) : (
-              <div className="p-6 text-center text-sm theme-text-muted space-y-1">
-                <p className="theme-text font-black">Word document</p>
-                <p>Preview not available — Word files render in the AI importer (step 3) instead.</p>
-              </div>
-            )}
-          </figure>
-        )
-      })}
+      {paperAssets.length > 0 && (
+        <div className="space-y-3">
+          <p className="theme-accent-text font-black text-xs uppercase tracking-widest">
+            Paper ({paperAssets.length})
+          </p>
+          {paperAssets.map((a, i) => renderAsset(a, i))}
+        </div>
+      )}
+      {msAssets.length > 0 && (
+        <div className="space-y-3">
+          <p className="theme-accent-text font-black text-xs uppercase tracking-widest">
+            Mark scheme ({msAssets.length})
+          </p>
+          {msAssets.map((a, i) => renderAsset(a, i))}
+        </div>
+      )}
     </div>
   )
 }
@@ -887,7 +949,7 @@ function DetailsStep({ details, setDetail }) {
 }
 
 function QuizStep({
-  quizId, quizCount, hasAssets, linkingQuiz, importing,
+  paperId, quizId, quizCount, hasAssets, linkingQuiz, importing,
   onOpenEditor, onImportWithAi, onRefreshCount,
 }) {
   return (
@@ -922,6 +984,16 @@ function QuizStep({
           >
             {importing ? 'Importing… 30-60 s' : '✨ Import with AI'}
           </button>
+          {quizCount > 0 && (
+            <a
+              href={`/papers/${paperId}/quiz`}
+              target="_blank"
+              rel="noreferrer"
+              className="theme-card border-2 theme-border rounded-full px-4 py-2 text-sm font-black theme-text hover:theme-bg-subtle"
+            >
+              👀 Preview as learner ↗
+            </a>
+          )}
           {quizId && (
             <button
               type="button"
@@ -948,7 +1020,7 @@ function QuizStep({
   )
 }
 
-function PublishStep({ details, assets, quizId, quizCount }) {
+function PublishStep({ paperId, details, assets, quizId, quizCount }) {
   const subjectMeta = useMemo(() => SUBJECTS.find((s) => s.id === details.subject), [details.subject])
   return (
     <section className="space-y-4">
@@ -989,6 +1061,16 @@ function PublishStep({ details, assets, quizId, quizCount }) {
           </p>
         )}
       </div>
+      {quizCount > 0 && (
+        <a
+          href={`/papers/${paperId}/quiz`}
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-1.5 theme-card border-2 theme-border rounded-full px-4 py-2 text-sm font-black theme-text hover:theme-bg-subtle"
+        >
+          👀 Preview as learner ↗
+        </a>
+      )}
       <p className="theme-text-muted text-xs">
         Publishing flips the paper to <strong>Published</strong> and turns on
         <strong> publicAccess</strong> on the linked quiz, so anonymous marketing

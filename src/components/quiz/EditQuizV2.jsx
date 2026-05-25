@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
@@ -222,8 +222,12 @@ export default function EditQuizV2() {
   )
   // Admin-only flow: teacher quiz creation was replaced by the Assessment
   // Studio. Non-admins shouldn't reach this route, but we still gate access
-  // below; the back link is the admin content list.
-  const backPath = '/admin/content'
+  // below; the back link is the admin content list. Quizzes opened from
+  // the Past Paper Studio carry a `linkedPaperId` so we route the back
+  // arrow straight back to the Studio's edit page in that case.
+  const backPath = form.linkedPaperId
+    ? `/admin/papers/${form.linkedPaperId}/edit`
+    : '/admin/content'
   const canEdit = isAdmin || quizOwner === currentUser?.uid
   const gradeOptions = withCurrentOption(GRADES, form.grade)
   const subjectOptions = withCurrentOption(SUBJECTS, form.subject)
@@ -297,6 +301,10 @@ export default function EditQuizV2() {
         sourcePastPaperId: quiz.sourcePastPaperId ?? null,
         sourcePastPaperPdfPath: quiz.sourcePastPaperPdfPath ?? null,
         sourceMarkSchemePath: quiz.sourceMarkSchemePath ?? null,
+        // Past Paper Studio link: when set, the quiz is the authoring
+        // surface for that paper. We use this on the back link so
+        // admin can hop straight back to the Studio.
+        linkedPaperId: quiz.linkedPaperId ?? null,
       })
       setQuizStatus(quiz.status ?? (quiz.isPublished ? 'published' : 'draft'))
       setQuizOwner(quiz.createdBy)
@@ -1180,6 +1188,14 @@ export default function EditQuizV2() {
                 <span aria-hidden="true">✏️</span> Edit quiz
               </h1>
               <QuizStatusBadge status={derivedStatus} />
+              {form.linkedPaperId && (
+                <Link
+                  to={`/admin/papers/${form.linkedPaperId}/edit`}
+                  className="rounded-full theme-bg-subtle theme-text-muted hover:theme-text px-2.5 py-1 text-xs font-bold"
+                >
+                  ← Past Paper Studio
+                </Link>
+              )}
               {dirty && <span className="rounded-full bg-orange-100 px-2.5 py-1 text-xs font-bold text-orange-600">● Unsaved changes</span>}
             </div>
             <p className="theme-text-muted mt-1 text-body-sm">{form.title || 'Untitled quiz'} · {questionCount} questions</p>

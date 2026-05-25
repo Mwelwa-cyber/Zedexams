@@ -101,10 +101,15 @@ function pickSources(paper) {
   //   {kind: 'pdf', path, size}
   //   {kind: 'docx', path, size, mime}  — Word documents
   //   {kind: 'images', items}            — scanned page images
+  //
+  // Mark-scheme assets are intentionally skipped — feeding the answer
+  // key into the importer would let the model "extract" questions
+  // from the mark scheme itself, polluting the output.
   if (paper.pdfPath) {
     return {kind: "pdf", path: paper.pdfPath, size: paper.pdfSize || null};
   }
-  const assets = Array.isArray(paper.assets) ? paper.assets : [];
+  const rawAssets = Array.isArray(paper.assets) ? paper.assets : [];
+  const assets = rawAssets.filter((a) => a.role !== "mark-scheme");
   const pdf = assets.find((a) => a.contentType === "application/pdf");
   if (pdf) return {kind: "pdf", path: pdf.path, size: pdf.size || null};
   const doc = assets.find(
