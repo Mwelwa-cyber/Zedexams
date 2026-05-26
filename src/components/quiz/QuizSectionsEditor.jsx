@@ -390,6 +390,7 @@ function StandaloneQuestionCard({
   isNew,
   isSelected,
   onToggleSelect,
+  issueCount = 0,
   onChange,
   onRemove,
   onMove,
@@ -472,6 +473,21 @@ function StandaloneQuestionCard({
           <span className={joinClasses('rounded-full px-3 py-1 text-xs font-black', theme.badge)}>
             Q{questionNumber} of {totalQuestions}
           </span>
+          {issueCount > 0 && (
+            // Inline publish-blocker count. Shows the same number the
+            // checklist modal would surface for this card so teachers can
+            // walk down the list and fix each one without re-opening the
+            // modal between cards.
+            <span
+              className="inline-flex items-center gap-1 rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-black text-rose-800 ring-1 ring-rose-200"
+              title={`${issueCount} validation issue${issueCount === 1 ? '' : 's'} on this question`}
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+              </svg>
+              {issueCount} to fix
+            </span>
+          )}
           {subtypeBadge && (
             <span className="theme-bg-subtle theme-text rounded-full border theme-border px-2 py-0.5 text-[11px] font-black">
               {subtypeBadge}
@@ -1765,6 +1781,11 @@ export default function QuizSectionsEditor({
   sections,
   parts = [],
   questionNumbers,
+  // Map<question.localId, errorCount> — populated when the parent
+  // editor wires `collectQuizIssues` into a per-question map. Each card
+  // shows a small red badge when its count > 0 so teachers can spot
+  // questions that need fixes without opening the checklist modal.
+  issueCountsByLocalId = null,
   totalQuestions,
   onStandaloneChange,
   onStandaloneRemove,
@@ -1894,6 +1915,7 @@ export default function QuizSectionsEditor({
         isNew={!section.question._id}
         isSelected={selectedIds.has(section.id)}
         onToggleSelect={toggleSelect}
+        issueCount={issueCountsByLocalId?.get(section.question.localId) || 0}
         onChange={onStandaloneChange}
         onRemove={onStandaloneRemove}
         onMove={onStandaloneMove}
