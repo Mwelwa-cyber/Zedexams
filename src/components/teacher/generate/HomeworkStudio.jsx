@@ -17,6 +17,7 @@ import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
+import TopicSubtopicPicker from './TopicSubtopicPicker'
 
 /**
  * Homework Studio — short take-home practice grounded on the stored
@@ -120,11 +121,14 @@ export default function HomeworkStudio() {
               options={TEACHER_GRADES} onChange={(v) => set('grade', v)} />
             <FieldSelect label="Subject" value={form.subject}
               options={subjectOptions} onChange={(v) => set('subject', v)} />
-            <FieldText label="Topic *" placeholder="e.g. Fractions"
-              value={form.topic} onChange={(v) => set('topic', v)} maxLength={120} />
-            <FieldText label="Sub-topic (optional)"
-              placeholder="e.g. Adding Fractions"
-              value={form.subtopic} onChange={(v) => set('subtopic', v)} maxLength={160} />
+            <TopicSubtopicPicker
+              grade={form.grade}
+              subject={form.subject}
+              topic={form.topic}
+              subtopic={form.subtopic}
+              onChangeTopic={(v) => set('topic', v)}
+              onChangeSubtopic={(v) => set('subtopic', v)}
+            />
             <FieldSelect label="Term" value={form.term}
               options={CURRICULUM_TERMS} onChange={(v) => set('term', v)} />
             <FieldSelect label="Number of lessons for this sub-topic"
@@ -230,17 +234,6 @@ export default function HomeworkStudio() {
 
 function FieldLabel({ children }) {
   return <label className="studio-label">{children}</label>
-}
-function FieldText({ label, value, onChange, placeholder, maxLength }) {
-  return (
-    <div>
-      <FieldLabel>{label}</FieldLabel>
-      <input type="text" value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder} maxLength={maxLength}
-        className="studio-input" />
-    </div>
-  )
 }
 function FieldTextarea({ label, value, onChange, placeholder, maxLength }) {
   return (

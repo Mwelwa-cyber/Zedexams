@@ -12,6 +12,7 @@ import {
 } from '../../utils/teacherTools'
 import SeoHelmet from '../seo/SeoHelmet'
 import Button from '../ui/Button'
+import TopicSubtopicPicker from './generate/TopicSubtopicPicker'
 
 // Mirrors functions/agents/runners/aria.js SUPPORTED_TOOLS — keep in sync.
 const TOOLS = [
@@ -204,26 +205,22 @@ export default function AgentBriefForm() {
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wide text-gray-500 mb-1">Topic</label>
-            <input
-              value={topic}
-              onChange={e => setTopic(e.target.value)}
-              placeholder="e.g. Adding fractions"
-              className="w-full theme-border rounded-lg border px-3 py-2 text-sm bg-white"
-            />
-          </div>
-          <div>
-            <label className="block text-xs font-black uppercase tracking-wide text-gray-500 mb-1">
-              Subtopic <span className="font-normal lowercase text-gray-400">(optional)</span>
-            </label>
-            <input
-              value={subtopic}
-              onChange={e => setSubtopic(e.target.value)}
-              placeholder="e.g. Unlike denominators"
-              className="w-full theme-border rounded-lg border px-3 py-2 text-sm bg-white"
-            />
-          </div>
+          <TopicSubtopicPicker
+            grade={`G${grade}`}
+            subject={subject}
+            topic={topic}
+            subtopic={subtopic}
+            onChangeTopic={setTopic}
+            onChangeSubtopic={setSubtopic}
+            topicLabel="Topic"
+            subtopicLabel="Subtopic (optional)"
+            topicPlaceholder="e.g. Adding fractions"
+            subtopicPlaceholder="e.g. Unlike denominators"
+            inputClassName="w-full theme-border rounded-lg border px-3 py-2 text-sm bg-white"
+            labelClassName="block text-xs font-black uppercase tracking-wide text-gray-500 mb-1"
+            hintClassName="text-xs text-gray-500 mt-1"
+            warnClassName="text-xs text-amber-600 mt-1"
+          />
         </div>
 
         <div>
