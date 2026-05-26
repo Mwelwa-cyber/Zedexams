@@ -931,7 +931,7 @@ export async function importQuizDocument(file) {
     ? 'needs_review'
     : 'success'
 
-  return {
+  const output = {
     quiz: {
       ...metadata,
       mode: 'imported_document',
@@ -947,12 +947,50 @@ export async function importQuizDocument(file) {
     sections,
     parts,
     questions,
+    documentInstruction: local.documentInstruction || '',
     imageAssets: extracted.imageAssets,
     importStatus,
     warnings,
     smartApplied,
     summary,
   }
+
+  // Dev-only trace so we can see exactly how a document mapped onto the
+  // quiz state when triaging a "wrong field" report. Wrapped in
+  // `import.meta.env.DEV` so the logs never ship to production users.
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.DEV) {
+    const standaloneQuestions = sections
+      .filter(s => s.kind !== 'passage')
+      .map(s => s.question)
+    console.groupCollapsed(`[importQuizDocument] ${file.name}`)
+    console.log('Detected metadata:', metadata)
+    console.log('Detected document instruction:', output.documentInstruction || '(none)')
+    console.log('Detected parts:', parts.map(p => ({
+      title: p.title,
+      instructions: typeof p.instructions === 'string' ? p.instructions : '(rich)',
+    })))
+    console.log('Detected questions:', standaloneQuestions.map(q => ({
+      n: q.sourceQuestionNumber,
+      type: q.type,
+      text: typeof q.text === 'string' ? q.text : '(rich)',
+      sharedInstruction: typeof q.sharedInstruction === 'string' ? q.sharedInstruction : '(rich)',
+    })))
+    console.log('Detected options:', standaloneQuestions.map(q => ({
+      n: q.sourceQuestionNumber,
+      options: q.options,
+    })))
+    console.log('Detected answers:', standaloneQuestions.map(q => ({
+      n: q.sourceQuestionNumber,
+      correctAnswer: q.correctAnswer,
+    })))
+    console.log('Detected diagrams:', standaloneQuestions
+      .filter(q => q.diagramText || q.imageUrl)
+      .map(q => ({ n: q.sourceQuestionNumber, diagramText: q.diagramText, imageUrl: q.imageUrl })))
+    console.log('Final mapped quiz object:', output)
+    console.groupEnd()
+  }
+
+  return output
 }
 
 export function revokeImportedQuizAssets(assets = {}) {

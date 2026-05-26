@@ -984,9 +984,9 @@ export default function EditQuizV2() {
         title: linkedToPaper || current.title?.trim()
           ? current.title
           : imported.quiz.title,
-        topic: linkedToPaper || current.topic?.trim()
-          ? current.topic
-          : imported.quiz.topic,
+        // Topic is intentionally left untouched on import — imported papers
+        // span many CBC topics; the teacher should keep their own value or
+        // leave the field blank rather than have the title stamped in.
         grade: linkedToPaper ? current.grade : (imported.quiz.grade || current.grade),
         subject: linkedToPaper ? current.subject : (imported.quiz.subject || current.subject),
         mode: 'imported_document',

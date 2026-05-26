@@ -337,19 +337,54 @@ function isLikelyDocxQuestionHeading(text, block) {
 
 export function metadataFromText(text, fileName) {
   const firstLines = splitLines(text).slice(0, 8)
-  const title = firstLines.find(line => line.length > 6 && !questionMatch(line) && !OPTION_RE.test(line)) || titleFromFileName(fileName)
-  const gradeMatch = text.match(/\bgrade\s*(\d{1,2})\b/i)
-  const grade = gradeMatch ? gradeMatch[1] : ''
+
+  // Prefer header lines that look like a paper title ("…Examination 2023",
+  // "Mathematics Mock Test"). The first line is often an institution name
+  // ("EXAMINATIONS COUNCIL OF ZAMBIA") which makes a poor quiz title, so
+  // we fall through to the filename when nothing paper-y is present.
+  const PAPER_KEYWORDS_RE = /\b(examination|exam|test|paper|quiz|assessment|mock|trial|composite)\b/i
+  const titleFromHeader =
+    firstLines.find(line => line.length > 6 && !questionMatch(line) && !OPTION_RE.test(line) && PAPER_KEYWORDS_RE.test(line))
+    || firstLines.find(line => line.length > 6 && !questionMatch(line) && !OPTION_RE.test(line))
+  const title = titleFromHeader || titleFromFileName(fileName)
+
+  // Grade detection must be scoped to the header. "A Grade 8 learner got
+  // 14 marks…" inside Q60 was poisoning the paper-level grade. We also
+  // accept word-spelled grades (e.g. "GRADE SEVEN") and fall back to a
+  // "G7_..." style filename token.
+  //
+  // Word-spelled grades are checked FIRST because formal paper headers
+  // tend to use them ("GRADE SEVEN COMPOSITE EXAMINATION"), whereas
+  // digit-form "Grade N" often appears inside an example question
+  // ("A Grade 8 learner got 14 marks…"). Preferring the word form is
+  // more robust when both appear inside the header window.
+  const headerOnly = firstLines.join(' ')
+  const WORD_GRADES = { one: '1', two: '2', three: '3', four: '4', five: '5', six: '6', seven: '7', eight: '8', nine: '9', ten: '10', eleven: '11', twelve: '12' }
+  const headerWord = headerOnly.match(/\bgrade\s+(one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve)\b/i)
+  const headerDigit = !headerWord ? headerOnly.match(/\bgrade\s*(\d{1,2})\b/i) : null
+  const filenameGrade = !headerWord && !headerDigit
+    ? String(fileName || '').match(/(?:^|[^a-z])g(?:rade)?[\s_-]*(\d{1,2})\b/i)
+    : null
+  const grade = headerWord
+    ? WORD_GRADES[headerWord[1].toLowerCase()]
+    : headerDigit
+      ? headerDigit[1]
+      : filenameGrade
+        ? filenameGrade[1]
+        : ''
+
   const headerText = [title, ...firstLines].join(' ')
   const subject = SUBJECTS.find(s => new RegExp(`\\b${s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(headerText))
     || SUBJECTS.find(s => new RegExp(`\\b${s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text))
     || ''
 
+  // Topic is intentionally omitted from imported metadata — imported papers
+  // span many CBC topics and the teacher should pick (or leave blank) rather
+  // than have the title silently stamped as the topic.
   return {
     title: cleanImportedText(title).slice(0, 90) || titleFromFileName(fileName),
     grade,
     subject,
-    topic: cleanImportedText(title).slice(0, 80),
   }
 }
 
@@ -589,23 +624,47 @@ function questionFromCurrent(current, answerKey = new Map()) {
 //   [Image Description: A black silhouette of an athlete mid-air ...]
 //   [Image: a flower with stigma labelled X]
 //   [refer to image in original]
-const BRACKETED_IMAGE_LINE_RE = /^\s*[[(]\s*(?:image(?:\s+description)?|figure|diagram|picture|refer\s+to\s+image|see\s+image)\b[^\])]*[\])]\s*$/i
+//   [Diagram: trapezium with sides 18 cm (top), 7 cm (left), 26 cm (bottom)]
+//   [Shapes diagram: I = square, II = rhombus, III = hexagon]
+//
+// The earlier regex `[^\])]*` rejected inner `)`, so any caption with nested
+// parens like "(top)" / "(bottom)" failed to match and the placeholder leaked
+// into the question stem. The keyword also had to be the first token after
+// the opening bracket, which missed "Shapes diagram". The two clauses below
+// accept the `[…]` and `(…)` forms independently and allow the keyword to
+// appear anywhere inside the bracket.
+const BRACKETED_IMAGE_LINE_RE = new RegExp(
+  '^\\s*\\[[^\\]]*\\b(?:image(?:\\s+description)?|figure|diagram|picture|refer\\s+to\\s+image|see\\s+image)\\b[^\\]]*\\]\\s*$'
+  + '|'
+  + '^\\s*\\([^)]*\\b(?:image(?:\\s+description)?|figure|diagram|picture|refer\\s+to\\s+image|see\\s+image)\\b[^)]*\\)\\s*$',
+  'i',
+)
 
 function stripBracketedImageDescriptions(blocks) {
   return blocks.map(block => {
     const text = String(block?.text || '')
     if (!text) return block
     const lines = text.split(/\r?\n/)
+    const captions = []
     let mutated = false
     const filtered = lines.filter(line => {
       if (BRACKETED_IMAGE_LINE_RE.test(line)) {
+        captions.push(line.trim())
         mutated = true
         return false
       }
       return true
     })
     if (!mutated) return block
-    return { ...block, text: filtered.join('\n').trim() }
+    return {
+      ...block,
+      text: filtered.join('\n').trim(),
+      // Sidecar so the parser can attach captions to the question they
+      // belong to. Without this the description is lost when the line is
+      // dropped from `text`, and the editor's diagram-description field
+      // ends up empty for imported papers that use `[Diagram: …]` markers.
+      diagramCaptions: [...(block.diagramCaptions || []), ...captions],
+    }
   })
 }
 
@@ -884,10 +943,38 @@ function preprocessStandaloneInstructions(blocks) {
   return output
 }
 
+// Detect a leading preamble instruction — the text before the first
+// numbered question — so the importer can lift it to parts[0].instructions
+// instead of letting it land as Q1's per-question prompt.
+function extractDocumentInstruction(blocks = []) {
+  const accumulated = []
+  for (const block of blocks) {
+    const text = cleanImportedText(String(block?.text || ''))
+    if (!text) continue
+    const singleLineText = cleanImportedText(text.replace(/\n+/g, ' '))
+    const leadingLine = splitLines(text)[0] || singleLineText
+    if (questionMatch(leadingLine)) break
+    if (
+      isSectionHeading(singleLineText)
+      || isPassageLabel(singleLineText)
+      || ANSWER_KEY_HEADING_RE.test(singleLineText)
+    ) break
+    if (isStandaloneInstruction(singleLineText) || looksLikeInstructionLine(singleLineText)) {
+      accumulated.push(stripInstructionPrefix(singleLineText))
+    }
+  }
+  return cleanImportedText(accumulated.join(' '))
+}
+
 function parseQuestionsFromBlocks(blocks, warnings) {
   const questions = []
   const answerKey = extractAnswerKey(blocks)
   let pendingAssets = []
+  // Diagram captions stripped from text by stripBracketedImageDescriptions.
+  // Buffered until the next question starts so e.g. `[Diagram: …]` between
+  // a question stem and the next stem lands on the next question, not the
+  // previous one whose stem already closed.
+  let pendingDiagramCaptions = []
   let inAnswerKey = false
   let sharedInstruction = ''
   let compActive = false
@@ -1009,7 +1096,9 @@ function parseQuestionsFromBlocks(blocks, warnings) {
       assets: [...pendingAssets, ...(block.assets || [])],
       pageAsset: block.pageAsset || null,
       pageNumber: block.pageNumber || null,
-      diagramText: '',
+      diagramText: pendingDiagramCaptions.length
+        ? cleanImportedText(pendingDiagramCaptions.join(' '))
+        : '',
       tableFlattened: block.source === 'docx-table',
       sourceNumber,
       isSubQuestion,
@@ -1021,6 +1110,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
       attachBlockOptionAsset(current, block, opt.index)
     })
     pendingAssets = []
+    pendingDiagramCaptions = []
     // Consumable instruction: once a question has taken the standing
     // sharedInstruction, clear it so it does not leak onto every
     // subsequent question. Top-of-doc lines like "Answer ALL 60 questions.
@@ -1035,10 +1125,31 @@ function parseQuestionsFromBlocks(blocks, warnings) {
 
   blocks.forEach(block => {
     const lines = splitLines(block.text)
+    const blockDiagramCaptions = Array.isArray(block.diagramCaptions) ? block.diagramCaptions : []
+
+    // Captions from a [Diagram: …] line that got stripped out: attach to
+    // the active question's diagram text, otherwise buffer until the next
+    // question opens.
+    if (blockDiagramCaptions.length) {
+      if (current) {
+        current.diagramText = cleanImportedText(
+          [current.diagramText, ...blockDiagramCaptions].filter(Boolean).join(' '),
+        )
+      } else {
+        pendingDiagramCaptions.push(...blockDiagramCaptions)
+      }
+    }
 
     if (!lines.length && block.assets?.length) {
       if (current) current.assets.push(...block.assets)
       else pendingAssets.push(...block.assets)
+      return
+    }
+
+    if (!lines.length) {
+      // No text left in this block (e.g. it was just a `[Diagram: …]` line
+      // that the stripper consumed). The caption handling above already
+      // attached it; nothing else to do for this block.
       return
     }
 
@@ -1381,7 +1492,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
 // PRISCA / ECZ exam papers that include "PART A: …", "SECTION B" or
 // "UNIT 3" headings get an entry per unique heading, and every section
 // belonging to that heading is stamped with the part's id.
-function buildImportedSections(questions = []) {
+function buildImportedSections(questions = [], documentInstruction = '') {
   const partsByTitle = new Map()
   const orderedParts = []
 
@@ -1395,11 +1506,22 @@ function buildImportedSections(questions = []) {
     return part
   }
 
+  // Document-level preamble instruction (e.g. "Answer ALL 60 questions.")
+  // belongs in the editor's Instructions slot, not on Q1's sharedInstruction.
+  // When no explicit Part headings were detected, we create a single
+  // untitled Part to own the preamble — every question lands inside it.
+  let defaultPart = null
+  if (documentInstruction) {
+    defaultPart = createPartGroup({ title: '', instructions: documentInstruction, order: 0 })
+    orderedParts.push(defaultPart)
+  }
+
   const sections = questions.map(question => {
     const partTitle = question.passageTitle && question.partTitle
       ? question.partTitle
       : question.partTitle || ''
-    const part = ensurePart(partTitle)
+    const namedPart = ensurePart(partTitle)
+    const part = namedPart || defaultPart
     const partId = part?.id ?? null
 
     if (question.type === 'comprehension' || question.detectedType === 'comprehension') {
@@ -1462,8 +1584,24 @@ export function processImportedQuestionBlocks(blocks = [], warnings = []) {
   const processedBlocks = preprocessStandaloneInstructions(
     preprocessParaOrdering(blocks),
   )
+  // Capture the leading "Answer ALL N questions"-style instruction before
+  // any numbered question, so we can hoist it to parts[0].instructions
+  // instead of stamping it onto Q1 only.
+  const documentInstruction = extractDocumentInstruction(processedBlocks)
   const questions = parseQuestionsFromBlocks(processedBlocks, warnings)
-  const { sections, parts } = buildImportedSections(questions)
+
+  // The parser still sets sharedInstruction on the first question because
+  // the legacy stamping path runs unconditionally. Strip the doc-level
+  // instruction off the first standalone question so it doesn't render
+  // twice (once in parts[0].instructions, once on Q1's prompt).
+  if (documentInstruction && questions.length) {
+    const target = questions.find(q => q.type !== 'comprehension')
+    if (target && cleanImportedText(target.sharedInstruction) === documentInstruction) {
+      target.sharedInstruction = ''
+    }
+  }
+
+  const { sections, parts } = buildImportedSections(questions, documentInstruction)
   const summary = summarizeImportedSections(sections)
 
   return {
@@ -1471,6 +1609,7 @@ export function processImportedQuestionBlocks(blocks = [], warnings = []) {
     questions,
     sections,
     parts,
+    documentInstruction,
     summary,
   }
 }
