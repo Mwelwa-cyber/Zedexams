@@ -847,7 +847,9 @@ export default function AssessmentStudio() {
       setForm(current => ({
         ...current,
         title: current.title.trim() && hasExistingWork ? current.title : imported.quiz.title,
-        topic: current.topic.trim() && hasExistingWork ? current.topic : imported.quiz.topic,
+        // Topic is intentionally left untouched on import — imported papers
+        // span many CBC topics; the teacher should keep their own value or
+        // leave the field blank rather than have the title stamped in.
         grade: imported.quiz.grade || current.grade,
         subject: imported.quiz.subject || current.subject,
         mode: 'imported_document',

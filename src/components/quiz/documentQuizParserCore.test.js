@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict'
-import { processImportedQuestionBlocks } from './documentQuizParserCore.js'
+import { metadataFromText, processImportedQuestionBlocks } from './documentQuizParserCore.js'
 import { richTextToPlainText } from '../../utils/quizRichText.js'
 
 const punctuationInstruction = 'For questions 26-30, each sentence has one punctuation error. Choose the sentence with the correct punctuation.'
@@ -203,16 +203,22 @@ runRegressionTest()
  * later has a per-question prompt that happens to start with an
  * imperative verb like "List …" / "Find …" inside a diagram question).
  *
- * Two distinct bugs were stamping the wrong shared instruction on the
+ * Three distinct bugs were stamping the wrong shared instruction on the
  * wrong questions:
  *
- * 1. Once the parser captured the doc's intro instruction it was stamped
+ * 1. The doc's intro instruction was previously stamped onto Q1's
+ *    sharedInstruction, making Q1 look like a special question with a
+ *    document-level prompt. The intro now lifts to parts[0].instructions
+ *    instead, so every numbered question's sharedInstruction stays empty
+ *    unless the source genuinely had a per-question prompt.
+ *
+ * 2. Once the parser captured the doc's intro instruction it was stamped
  *    onto every subsequent question forever, because neither the
  *    preprocessor's `currentInstruction` nor the parser's local
  *    `sharedInstruction` was cleared after being consumed by a
  *    numbered question.
  *
- * 2. When a per-question prompt that looks like a teacher instruction
+ * 3. When a per-question prompt that looks like a teacher instruction
  *    appeared between the question's diagram and its options (e.g.
  *    "List set A ∪ B." under a Venn diagram), the parser would close
  *    the question with empty options AND promote the line to a stale
@@ -256,7 +262,7 @@ function runIntroInstructionLeakTest() {
     block('Answer: D — Triangular prism'),
   ]
 
-  const { sections } = processImportedQuestionBlocks(fixture, [])
+  const { sections, parts, documentInstruction } = processImportedQuestionBlocks(fixture, [])
   const q1 = findStandaloneQuestion(sections, 1)
   const q2 = findStandaloneQuestion(sections, 2)
   const q35 = findStandaloneQuestion(sections, 35)
@@ -267,9 +273,16 @@ function runIntroInstructionLeakTest() {
   assert.ok(q35, 'Q35 must parse')
   assert.ok(q36, 'Q36 must parse')
 
-  // Bug 1: intro instruction must stop at Q1.
-  assert.equal(plainRichText(q1.sharedInstruction), intro,
-    'Q1 should carry the doc intro instruction')
+  // Bug 1: the doc-level intro lives on parts[0].instructions, not on
+  // Q1's per-question prompt — every numbered question's sharedInstruction
+  // should remain empty unless the source had a real per-question prompt.
+  assert.equal(documentInstruction, intro,
+    'documentInstruction should expose the doc-level intro')
+  assert.ok(parts.length >= 1, 'a default Part should be created to own the intro')
+  assert.equal(plainRichText(parts[0].instructions), intro,
+    'parts[0].instructions should carry the doc intro')
+  assert.equal(plainRichText(q1.sharedInstruction), '',
+    'Q1 must not also carry the doc intro on its per-question prompt')
   assert.equal(plainRichText(q2.sharedInstruction), '',
     'Q2 must not inherit Q1\'s intro instruction')
 
@@ -488,5 +501,87 @@ function runOptionImageAttributionTest() {
 }
 
 runOptionImageAttributionTest()
+
+// Regression: G7_Mathematics_2023 past-paper docx triggered five distinct
+// import-mapping bugs at once. This test pins the field-routing fixes so
+// future parser changes can't silently reintroduce them.
+function runG7PastPaperMappingTest() {
+  // metadataFromText must NOT pick the institution name as the title, must
+  // accept word-spelled grades ("GRADE SEVEN"), and must not surface a
+  // topic field — imported papers span many CBC topics and the teacher
+  // should pick (or leave blank) rather than have the title stamped in.
+  const headerText = [
+    'EXAMINATIONS COUNCIL OF ZAMBIA',
+    'GRADE SEVEN COMPOSITE EXAMINATION – 2023',
+    'Mathematics',
+    'SUBJECT 3/1     |     TIME ALLOWED: 90 MINUTES',
+    'Answer ALL 60 questions. Choose the BEST answer for each question.',
+    '1.  The perimeter of the following trapezium is …',
+    'A  Grade 8 learner foil should not move the grade reading away from seven.',
+  ].join('\n')
+  const metadata = metadataFromText(headerText, 'G7_Mathematics_2023_Past_Paper.docx')
+  assert.equal(metadata.title, 'GRADE SEVEN COMPOSITE EXAMINATION – 2023',
+    'title should prefer the paper-y header line, not the institution name')
+  assert.equal(metadata.grade, '7',
+    'grade should be derived from the header "GRADE SEVEN", not "Grade 8" inside a later question')
+  assert.equal(metadata.subject, 'Mathematics',
+    'subject should still match the dedicated header line')
+  assert.equal(metadata.topic, undefined,
+    'topic must not be present on imported metadata')
+
+  // Parser: a [Diagram: …] line with nested parens used to leak into the
+  // question text AND populate diagramText, putting the caption in two
+  // fields. Fix: it now goes only to diagramText.
+  const fixture = [
+    block('Answer ALL 60 questions. Choose the BEST answer for each question.'),
+    block('1.  The perimeter of the following trapezium is …'),
+    block('[Diagram: trapezium with sides 18 cm (top), 7 cm (left), 9 cm (right), 26 cm (bottom)]'),
+    block('A  32 cm'),
+    block('B  42 cm'),
+    block('C  52 cm'),
+    block('D  62 cm'),
+    block('Answer: C — 52 cm'),
+    // A second question whose diagram caption keyword is NOT the first
+    // token inside the brackets ("Shapes diagram"). The old regex only
+    // matched when the keyword led; this asserts the new regex catches
+    // the keyword anywhere inside the bracket.
+    block('30.  Which of the following shapes is a regular hexagon?'),
+    block('[Shapes diagram: I = square, II = rhombus/diamond, III = hexagon, IV = pentagon]'),
+    block('A  IV'),
+    block('B  III'),
+    block('C  II'),
+    block('D  I'),
+    block('Answer: B — III'),
+  ]
+  const result = processImportedQuestionBlocks(fixture, [])
+  const q1 = findStandaloneQuestion(result.sections, 1)
+  const q30 = findStandaloneQuestion(result.sections, 30)
+  assert.ok(q1 && q30, 'Q1 and Q30 must parse')
+
+  // The bracketed diagram description must be stripped from the question
+  // text, but preserved as diagramText so the editor still shows it.
+  assert.doesNotMatch(plainRichText(q1.text), /\[Diagram:/i,
+    'Q1 stem must not contain the bracketed diagram caption')
+  assert.match(q1.diagramText || '', /trapezium with sides 18 cm/i,
+    'Q1 diagramText must keep the caption (so the editor can render it)')
+  assert.doesNotMatch(plainRichText(q30.text), /\[Shapes diagram:/i,
+    'Q30 stem must not contain the bracketed Shapes-diagram caption')
+  assert.match(q30.diagramText || '', /I = square/i,
+    'Q30 diagramText must keep the caption even though the keyword is not the first token')
+
+  // The leading "Answer ALL …" intro must lift to parts[0].instructions
+  // rather than land on Q1's sharedInstruction.
+  assert.equal(plainRichText(q1.sharedInstruction), '',
+    'Q1 sharedInstruction must be empty — the doc-level intro lives on the part, not the question')
+  assert.ok(result.parts.length >= 1, 'a default Part should be created to own the intro')
+  assert.match(plainRichText(result.parts[0].instructions), /Answer ALL 60 questions/i,
+    'parts[0].instructions should carry the doc-level intro')
+
+  // No topic on individual questions either — empty string from the parser.
+  assert.equal(q1.topic ?? '', '',
+    'Q1.topic must be empty — imports do not stamp topic per-question')
+}
+
+runG7PastPaperMappingTest()
 
 console.log('documentQuizParserCore regression test passed')
