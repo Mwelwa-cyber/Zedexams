@@ -607,9 +607,39 @@ function StandaloneQuestionCard({
         </div>
       )}
 
+      {/* Card field order matches the way teachers think about a question:
+            1. Instructions (shared prompt — e.g. "Choose the best answer.")
+            2. Question text (the actual question)
+            3. Image upload + library diagram picker (visual reference)
+          Image used to come FIRST, but teachers reported writing the
+          question text top-down and finding the image-picker in the way.
+          Moving it under the question text means the picker is right
+          where the eye lands AFTER the text is written. */}
+
+      <div className="space-y-2">
+        <FieldHeader title="Instructions" badge="Optional" />
+        <QuizRichField
+          value={question.sharedInstruction}
+          onChange={nextValue => set('sharedInstruction', nextValue)}
+          placeholder="Add shared instructions for this question..."
+          minHeight={96}
+          compact
+        />
+      </div>
+
+      <div className="space-y-2">
+        <FieldHeader title="Question Text" badge="Required" />
+        <QuizRichField
+          value={question.text}
+          onChange={nextValue => set('text', nextValue)}
+          placeholder={question.imageUrl ? 'Describe what is shown in the image below, or ask your question...' : 'Write your question here...'}
+          minHeight={144}
+        />
+      </div>
+
       <ImageUpload
         label="Upload Question Image"
-        hint="Optional · JPG, PNG, WEBP · max 5 MB"
+        hint="Optional · JPG, PNG, WEBP · max 5 MB — or pick a diagram from the library"
         imageUrl={question.imageUrl}
         diagram={question.imageDiagram}
         uploading={question.imageUploading}
@@ -639,27 +669,6 @@ function StandaloneQuestionCard({
           </select>
         </div>
       )}
-
-      <div className="space-y-2">
-        <FieldHeader title="Instructions" badge="Optional" />
-        <QuizRichField
-          value={question.sharedInstruction}
-          onChange={nextValue => set('sharedInstruction', nextValue)}
-          placeholder="Add shared instructions for this question..."
-          minHeight={96}
-          compact
-        />
-      </div>
-
-      <div className="space-y-2">
-        <FieldHeader title="Question Text" badge="Required" />
-        <QuizRichField
-          value={question.text}
-          onChange={nextValue => set('text', nextValue)}
-          placeholder={question.imageUrl ? 'Describe what is shown in the image above, or ask your question...' : 'Write your question here...'}
-          minHeight={144}
-        />
-      </div>
 
       {isHotspot ? (
         <div className="space-y-2">
