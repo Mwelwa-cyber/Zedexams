@@ -633,10 +633,17 @@ function questionFromCurrent(current, answerKey = new Map()) {
 // the opening bracket, which missed "Shapes diagram". The two clauses below
 // accept the `[…]` and `(…)` forms independently and allow the keyword to
 // appear anywhere inside the bracket.
+// Image-description placeholders that paper authors leave for imported
+// diagrams. The keyword list intentionally mirrors IMAGE_HINT_RE so any
+// `[Bar graph: …]`, `[Pie chart: …]`, `[Map of Zambia: …]`, `[Table:
+// rainfall totals]` style line is stripped from the question stem AND
+// kept as a diagramCaption on the source block so the parser can hand
+// it back as `question.diagramText`. This is what the editor shows
+// learners as supplementary context next to the actual question.
 const BRACKETED_IMAGE_LINE_RE = new RegExp(
-  '^\\s*\\[[^\\]]*\\b(?:image(?:\\s+description)?|figure|diagram|picture|refer\\s+to\\s+image|see\\s+image)\\b[^\\]]*\\]\\s*$'
+  '^\\s*\\[[^\\]]*\\b(?:image(?:\\s+description)?|figure|diagram|picture|graph|chart|map|table|refer\\s+to\\s+image|see\\s+image)\\b[^\\]]*\\]\\s*$'
   + '|'
-  + '^\\s*\\([^)]*\\b(?:image(?:\\s+description)?|figure|diagram|picture|refer\\s+to\\s+image|see\\s+image)\\b[^)]*\\)\\s*$',
+  + '^\\s*\\([^)]*\\b(?:image(?:\\s+description)?|figure|diagram|picture|graph|chart|map|table|refer\\s+to\\s+image|see\\s+image)\\b[^)]*\\)\\s*$',
   'i',
 )
 
@@ -1362,6 +1369,13 @@ function parseQuestionsFromBlocks(blocks, warnings) {
             }
             current.explanationParts.push(line)
             current.reviewNotes.push('Extra text after options was treated as explanation.')
+          } else if (block.source === 'docx-table') {
+            // Same routing as the standalone path: a real `<w:tbl>` between
+            // a sub-question's stem and its options is reference data, not
+            // the stem itself.
+            current.diagramText = cleanImportedText(
+              [current.diagramText, line].filter(Boolean).join('\n'),
+            )
           } else {
             current.textParts.push(line)
           }
@@ -1541,6 +1555,17 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         }
         current.explanationParts.push(line)
         current.reviewNotes.push('Extra text after options was treated as explanation.')
+      } else if (block.source === 'docx-table') {
+        // The source DOCX had a real `<w:tbl>` here (e.g. Q4's oranges
+        // table). buildDocxTableBlocks flattened it to text but tagged the
+        // block with source='docx-table' so we know the content is reference
+        // data, not part of the question stem. Route it into diagramText so
+        // the editor renders it as supplementary context next to the
+        // question instead of bloating the stem with `Days Monday Tuesday
+        // … 42 19 0 39 1 40` glued onto a one-sentence prompt.
+        current.diagramText = cleanImportedText(
+          [current.diagramText, line].filter(Boolean).join('\n'),
+        )
       } else {
         current.textParts.push(line)
       }

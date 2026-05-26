@@ -536,6 +536,91 @@ function runOrphanNumberAndFooterTest() {
 
 runOrphanNumberAndFooterTest()
 
+// Regression: data context (a real `<w:tbl>` between a question's stem
+// and its options, or a `[Bar graph: …]` / `[Pie chart: …]` / `[Map: …]`
+// bracketed reference) used to flatten into the question's stem field —
+// e.g. Q4's stem becoming "The table shows… Days Monday Tuesday … 42 19
+// 0 39 1 40 On which day was the highest…?" which made the editor card
+// unreadable. The parser now routes both forms into question.diagramText
+// so the stem stays clean and the data context is rendered as
+// supplementary content.
+function runDataContextSplitTest() {
+  const blocks = [
+    // Q4 — real DOCX table sits BETWEEN the lead-in and the interrogative.
+    // buildDocxTableBlocks (in production) emits one block per row tagged
+    // source='docx-table'; we emulate that shape directly here.
+    block('4. The table shows the number of oranges collected by a farmer from his orchard.'),
+    { text: 'Days\nMonday\nTuesday', source: 'docx-table', assets: [], numberedList: false },
+    { text: 'Number of oranges\n42\n19', source: 'docx-table', assets: [], numberedList: false },
+    block('On which day was the highest number of oranges collected?'),
+    block('A Friday'),
+    block('B Monday'),
+    block('C Saturday'),
+    block('D Wednesday'),
+    block('Answer: C — Saturday'),
+    // Q11 — bracketed Bar graph placeholder. Before the regex fix this
+    // stayed in the stem because `graph` wasn't in the keyword list.
+    block('11. The graph shows the number of bags of maize harvested by a farmer in five days.'),
+    block('[Bar graph: Mon ≈ 20, Tue ≈ 20, Wed ≈ 25, Thu ≈ 15, Fri ≈ 10 bags]'),
+    block('How many bags of maize were harvested on Tuesday?'),
+    block('A 25'),
+    block('B 20'),
+    block('C 10'),
+    block('D 5'),
+    block('Answer: B — 20'),
+    // Q12 — `[Map: …]` placeholder, also previously missed.
+    block('12. Use the map below to answer the question.'),
+    block('[Map: provinces of Zambia, shaded for population density]'),
+    block('Which province has the highest population density?'),
+    block('A Lusaka'),
+    block('B Copperbelt'),
+    block('C Eastern'),
+    block('D Western'),
+    block('Answer: A — Lusaka'),
+  ]
+
+  const warnings = []
+  const { sections } = processImportedQuestionBlocks(blocks, warnings)
+  const q4 = findStandaloneQuestion(sections, 4)
+  const q11 = findStandaloneQuestion(sections, 11)
+  const q12 = findStandaloneQuestion(sections, 12)
+
+  assert.ok(q4, 'Q4 must parse')
+  assert.ok(q11, 'Q11 must parse')
+  assert.ok(q12, 'Q12 must parse')
+
+  // Q4 — table data must be in diagramText, not stem. Stem must NOT
+  // include `Days Monday` or the numeric column values.
+  assert.doesNotMatch(plainRichText(q4.text), /\bDays\s+Monday\b/,
+    'Q4 stem must not absorb table column headers')
+  assert.doesNotMatch(plainRichText(q4.text), /\b42 19\b/,
+    'Q4 stem must not absorb table numeric cells')
+  assert.match(String(q4.diagramText || ''), /Days/,
+    'Q4 diagramText should carry the column headers')
+  assert.match(String(q4.diagramText || ''), /42/,
+    'Q4 diagramText should carry the numeric cells')
+  // Stem still has both the lead-in AND the interrogative.
+  assert.match(plainRichText(q4.text), /table shows the number of oranges/i)
+  assert.match(plainRichText(q4.text), /On which day was the highest/i)
+  assert.equal(q4.correctAnswer, 2, 'Q4 correct answer index is C → 2')
+
+  // Q11 — `[Bar graph: …]` must be stripped from stem and land in
+  // diagramText. The current bracketed regex used to miss `graph` /
+  // `chart` / `map` keywords entirely.
+  assert.doesNotMatch(plainRichText(q11.text), /\[Bar graph/i,
+    'Q11 stem must not contain the bar-graph placeholder')
+  assert.match(String(q11.diagramText || ''), /Bar graph/i,
+    'Q11 diagramText must carry the bar-graph placeholder')
+
+  // Q12 — same for `[Map: …]`.
+  assert.doesNotMatch(plainRichText(q12.text), /\[Map:/i,
+    'Q12 stem must not contain the map placeholder')
+  assert.match(String(q12.diagramText || ''), /Map:/i,
+    'Q12 diagramText must carry the map placeholder')
+}
+
+runDataContextSplitTest()
+
 // Phase 3: a DOCX table row that carries one image per option cell should
 // produce a question with optionMedia[] pointing at those images — not a
 // question stem image with the option images discarded.
