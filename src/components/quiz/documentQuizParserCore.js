@@ -599,7 +599,10 @@ function questionFromCurrent(current, answerKey = new Map()) {
     correctAnswer,
     explanation: cleanImportedText(current.explanationParts.join(' ')),
     topic: '',
-    marks: marksMatch ? Math.max(1, Number(marksMatch[1]) || 1) : 1,
+    // Clamp to [1, 20] — the per-question schema cap. An ECZ section
+    // header like "[15 marks]" matching a stem regex used to land as
+    // marks=15 and break auto-save downstream; values above 20 cap to 20.
+    marks: marksMatch ? Math.max(1, Math.min(20, Number(marksMatch[1]) || 1)) : 1,
     type,
     detectedType: type,
     imageUrl: firstAsset?.imageUrl || '',
