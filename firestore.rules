@@ -629,6 +629,15 @@ service cloud.firestore {
         allow read:  if isAuthed();
         allow write: if false;
       }
+      // Syllabi Studio row overrides — edits, deletes, and inserted rows
+      // on top of the static curriculum-data.json that the CBC KB editor
+      // renders. Authenticated read so teacher views can pick up the
+      // latest edits; writes go through admin-only callables and so are
+      // closed at the rules level.
+      match /syllabusOverrides/{rowId} {
+        allow read:  if isAuthed();
+        allow write: if false;
+      }
     }
 
     // ── promptTemplates ───────────────────────────────────────

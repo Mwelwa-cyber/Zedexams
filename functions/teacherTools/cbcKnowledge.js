@@ -19,6 +19,10 @@ const {
 } = require("./privateCurriculum");
 const {buildModuleId} = require("./curriculumModuleSchema");
 const {getLearningEnvironment} = require("./learningEnvironments");
+const {
+  getCurriculumDataTopics,
+  invalidateCache: invalidateSyllabiCache,
+} = require("./syllabiCurriculumData");
 
 // Default ("seed") KB version. Used as the fallback active version when
 // cbcKnowledgeBase/_meta doesn't exist yet — i.e. before the first Phase-C
@@ -133,20 +137,38 @@ async function fetchFirestoreTopics() {
 }
 
 /**
- * Return the merged topic list (Firestore + in-code). Firestore wins on
- * matching grade+subject+topic-name triplets.
+ * Return the merged topic list. Three layers, lowest priority first:
+ *   1. Syllabi Studio curriculum-data.json — every CDC syllabus the admin
+ *      page surfaces. Acts as a wide base coverage layer so generators
+ *      always see the full national curriculum, not just the seed.
+ *   2. In-code seed (cbcTopics.js) — the curated G1-9 entries with the
+ *      Specific Outcomes / Key Competencies / Values fields generators
+ *      have historically grounded on. Overrides the syllabi base.
+ *   3. Firestore overlay — admin edits via the CBC KB admin page. Wins
+ *      over everything so a hand-edit always takes effect.
  */
 async function getAllTopics() {
   const now = Date.now();
   if (_cache && (now - _cacheAt) < CACHE_TTL_MS) return _cache;
 
-  const fromFirestore = await fetchFirestoreTopics();
+  const version = await getActiveKbVersion();
+  const [fromSyllabi, fromFirestore] = await Promise.all([
+    getCurriculumDataTopics(version).catch((err) => {
+      console.error("getCurriculumDataTopics failed", err);
+      return [];
+    }),
+    fetchFirestoreTopics(),
+  ]);
   const byKey = new Map();
-  // Seed first...
+  // Base — syllabi-data rows (broadest coverage, thinnest grounding).
+  for (const t of fromSyllabi) {
+    byKey.set(topicKey(t), {...t, _source: "syllabi_studio"});
+  }
+  // Seed — curated outcomes/competencies override syllabi base.
   for (const t of SEED_TOPICS) {
     byKey.set(topicKey(t), {...t, _source: "seed"});
   }
-  // ...then Firestore overrides.
+  // Firestore — admin edits win.
   for (const t of fromFirestore) {
     byKey.set(topicKey(t), {...t, _source: "firestore"});
   }
@@ -189,6 +211,11 @@ function invalidateKbCache() {
     invalidatePrivateCurriculumCache();
   } catch {
     // Best effort only — the editable seed cache is the important part here.
+  }
+  try {
+    invalidateSyllabiCache();
+  } catch {
+    // Best effort — module-cache only, the next read re-loads from disk.
   }
 }
 
