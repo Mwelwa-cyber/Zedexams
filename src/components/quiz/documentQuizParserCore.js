@@ -668,6 +668,95 @@ function stripBracketedImageDescriptions(blocks) {
   })
 }
 
+// Matches a paragraph whose entire content is a punctuated question-number
+// marker — `1.`, `1)`, `Q1.`, `Question 1:`. Used by
+// mergeOrphanQuestionNumbers to detect numbers that landed in their own
+// paragraph (PRISCA / ECZ past papers often lay vertical-arithmetic
+// questions out as `6.\n954 751\n− 362 948\n─────────`).
+//
+// Punctuation is REQUIRED — bare `'39'` paragraphs are used as the
+// paragraph-ordering question marker pattern (see preprocessParaOrdering)
+// and have their own handling. Matching them here would steal the marker
+// and break the para-order fixture.
+const ORPHAN_QUESTION_NUMBER_RE = /^(?:q(?:uestion)?\s*)?(\d{1,3})\s*[.):]\s*$/i
+
+// Footer / disclaimer markers that ECZ / PRISCA papers leave at the bottom.
+// Without this filter the stem-bleed guard treats `©G7/Mathematics/2023`
+// (or `STOP! PLEASE CHECK …`) as the stem of a brand-new unnumbered
+// question, ballooning the final question count by 1-2.
+const DOC_FOOTER_RE = /^(?:©|\(c\)|copyright\b|all\s+rights\s+reserved\b|stop!?\s*(please|check)?\b|end\s+of\s+(exam|paper|test|questions)\b|please\s+check\s+all\s+your\s+work\b|do\s+not\s+turn\s+over\b|do\s+not\s+open\s+this\s+paper\b)/i
+
+function looksLikeDocFooter(line) {
+  const text = cleanImportedText(line)
+  if (!text) return false
+  if (DOC_FOOTER_RE.test(text)) return true
+  // A trailing `©G7/Mathematics/2023` style header with a slash chain and
+  // no spaces also shows up — match generously.
+  if (/^©|^\(c\)/i.test(text)) return true
+  return false
+}
+
+// Walks the block stream and merges blocks whose entire text is just a
+// question-number marker (e.g. `6.`) with the next non-empty block.
+//
+// ECZ Grade-7 past papers in Word emit vertical-arithmetic questions as
+//   `6.` / `954 751` / `− 362 948` / `─────────` / `A 691 813` …
+// Before this preprocessor ran, `6.` was a stray line that failed to match
+// QUESTION_RE (which requires `[).:-]\s*(.+)$`) and the parser dropped or
+// misattributed Q6 entirely. By merging forward, the next paragraph picks
+// up the question number prefix and the existing QUESTION_RE handles the
+// merged line normally.
+//
+// Conservative: we DON'T merge if the next non-empty block already
+// carries a question number (`5.` then `6. Find …` would collide) or an
+// option label (`A.` / `(A)`), or sits inside the answer key heading.
+function mergeOrphanQuestionNumbers(blocks) {
+  const output = []
+  for (let i = 0; i < blocks.length; i += 1) {
+    const block = blocks[i]
+    const text = cleanImportedText(block?.text || '')
+    const orphanMatch = text.match(ORPHAN_QUESTION_NUMBER_RE)
+    if (!orphanMatch) { output.push(block); continue }
+
+    // Find the next non-empty block.
+    let j = i + 1
+    while (j < blocks.length && !cleanImportedText(blocks[j]?.text || '')) j += 1
+    if (j >= blocks.length) { output.push(block); continue }
+
+    const next = blocks[j]
+    const nextText = cleanImportedText(next.text || '')
+
+    // Don't merge if the next block already starts with its own question
+    // number, an option label, an answer marker, or a section heading.
+    if (
+      questionMatch(nextText)
+      || ORPHAN_QUESTION_NUMBER_RE.test(nextText)
+      || extractOptionSegments(nextText).length
+      || /^([A-Da-d])\s+\S/.test(nextText) // bare-letter option line
+      || ANSWER_RE.test(nextText)
+      || EXPLANATION_RE.test(nextText)
+      || ANSWER_KEY_HEADING_RE.test(nextText)
+      || isSectionHeading(nextText)
+      || isPassageLabel(nextText)
+    ) {
+      output.push(block)
+      continue
+    }
+
+    // Merge: emit a fused block carrying both the question number and the
+    // first paragraph of the stem. The parser's QUESTION_RE will match the
+    // result and start a new question; later paragraphs (e.g. `− 362 948`,
+    // `─────────`) attach as stem continuations via the existing
+    // textParts.push path because no options have arrived yet.
+    output.push({
+      ...next,
+      text: `${orphanMatch[1]}. ${nextText}`,
+    })
+    i = j // skip the consumed next block
+  }
+  return output
+}
+
 function preprocessParaOrdering(blocks) {
   // First strip bracketed image-description placeholders that the AI doc
   // generators insert between a question stem and its options. Lines like
@@ -1439,6 +1528,10 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         //   - The SECOND extra line in a row is also almost certainly the next
         //     question — explanations are usually one paragraph. Capping the
         //     absorb count stops Q2/Q3/Q4's content cascading into Q1.
+        //   - Trailing footer/disclaimer lines (©…, "STOP! PLEASE CHECK…")
+        //     are dropped silently — past-paper docs end with these and we
+        //     don't want them spawning a phantom question.
+        if (looksLikeDocFooter(line)) return
         const looksLikeNextStem = /\?\s*$/.test(line)
         const alreadyAbsorbedOneExtra = current.explanationParts.length > 0
         if (looksLikeNextStem || alreadyAbsorbedOneExtra) {
@@ -1581,8 +1674,12 @@ function summarizeImportedSections(sections = []) {
 }
 
 export function processImportedQuestionBlocks(blocks = [], warnings = []) {
+  // Run mergeOrphanQuestionNumbers FIRST so the rest of the pipeline sees
+  // `6. 954 751` instead of two stray blocks `6.` + `954 751`. Past papers
+  // that lay vertical arithmetic out as separate paragraphs were dropping
+  // every such question on the floor.
   const processedBlocks = preprocessStandaloneInstructions(
-    preprocessParaOrdering(blocks),
+    preprocessParaOrdering(mergeOrphanQuestionNumbers(blocks)),
   )
   // Capture the leading "Answer ALL N questions"-style instruction before
   // any numbered question, so we can hoist it to parts[0].instructions

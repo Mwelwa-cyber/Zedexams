@@ -449,6 +449,93 @@ function runStemBleedGuardTest() {
 
 runStemBleedGuardTest()
 
+// Regression test for the "vertical arithmetic question is lost / footer
+// becomes a phantom question" bugs reproduced on G7_Mathematics_2023:
+//
+// - The source lays Q6 out as `6.` / `954 751` / `− 362 948` / `─────────`
+//   in four separate Word paragraphs. Before the fix, `6.` failed to
+//   match QUESTION_RE (which requires `(.+)$` after the punctuation),
+//   was absorbed into Q5's explanation, and Q6 either disappeared or
+//   showed up as an unnumbered "Q?" with the wrong stem.
+// - The doc ends with `STOP! PLEASE CHECK ALL YOUR WORK CAREFULLY` and
+//   `©G7/Mathematics/2023`. Before the fix, the stem-bleed guard treated
+//   each trailing line as the stem of a new question, inflating the
+//   question count by 1-2 and producing footer-as-Q entries.
+function runOrphanNumberAndFooterTest() {
+  const blocks = [
+    // Q5 (already complete) — establishes that the orphan-number
+    // preprocessor doesn't interfere with normal questions.
+    block('5. Find the Highest Common Factor of 9 and 12.'),
+    block('A 12'),
+    block('B 9'),
+    block('C 3'),
+    block('D 1'),
+    block('Answer: C — 3'),
+    // Q6 — vertical arithmetic, four-paragraph layout.
+    block('6.'),
+    block('954 751'),
+    block('− 362 948'),
+    block('─────────'),
+    block('A 691 813'),
+    block('B 592 803'),
+    block('C 591 813'),
+    block('D 591 803'),
+    block('Answer: C — 591 803'),
+    // Q7 — normal numbered question, follows Q6.
+    block('7. Find the next number in the sequence below.'),
+    block('98, 92, 86, 80, ___'),
+    block('A 78'),
+    block('B 74'),
+    block('C 68'),
+    block('D 64'),
+    block('Answer: B — 74'),
+    // Trailing footer lines — must NOT become phantom questions.
+    block('STOP! PLEASE CHECK ALL YOUR WORK CAREFULLY'),
+    block('©G7/Mathematics/2023'),
+  ]
+
+  const warnings = []
+  const { sections, summary } = processImportedQuestionBlocks(blocks, warnings)
+  const standalones = sections
+    .filter(s => s.kind !== 'passage')
+    .map(s => s.question)
+
+  // Exactly three questions — Q5, Q6, Q7. No phantom Q? from the footer.
+  assert.equal(standalones.length, 3,
+    `exactly three questions expected — saw ${standalones.length}`)
+  assert.equal(summary.questions, 3)
+
+  const q5 = findStandaloneQuestion(sections, 5)
+  const q6 = findStandaloneQuestion(sections, 6)
+  const q7 = findStandaloneQuestion(sections, 7)
+
+  assert.ok(q5, 'Q5 must parse')
+  assert.ok(q6, 'Q6 must parse with the correct source question number')
+  assert.ok(q7, 'Q7 must parse')
+
+  // Q5 must not have absorbed the orphan `6.` into its explanation.
+  assert.doesNotMatch(plainRichText(q5.explanation), /^6\.?\s*$/,
+    'Q5 explanation must not contain the orphan question-number marker')
+  // No reviewNotes complaining about absorbed extra text.
+  assert.deepEqual(q5.reviewNotes, [],
+    `Q5 should have no review notes — saw ${JSON.stringify(q5.reviewNotes)}`)
+
+  // Q6 keeps its source number AND captures the multi-paragraph stem
+  // (vertical-arithmetic operands and the underline).
+  assert.equal(q6.options.length, 4, 'Q6 must have all four options')
+  assert.match(plainRichText(q6.text), /954 751/, 'Q6 stem must contain 954 751')
+  assert.match(plainRichText(q6.text), /362 948/, 'Q6 stem must contain 362 948')
+  assert.equal(q6.correctAnswer, 2, 'Q6 correct answer index is C → 2')
+
+  // Confirm no question survived the footer (no phantom Q with copyright
+  // text or "STOP!" as stem).
+  const phantom = standalones.find(q => /©|stop!|copyright/i.test(plainRichText(q.text)))
+  assert.equal(phantom, undefined,
+    `no question should be created from the document footer — saw ${JSON.stringify(phantom)}`)
+}
+
+runOrphanNumberAndFooterTest()
+
 // Phase 3: a DOCX table row that carries one image per option cell should
 // produce a question with optionMedia[] pointing at those images — not a
 // question stem image with the option images discarded.
