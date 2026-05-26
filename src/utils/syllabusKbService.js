@@ -15,7 +15,8 @@
 import { collection, getDocs } from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app, { db } from '../firebase/config'
-import { getActiveKbVersion } from './adminCbcKbService'
+import { getActiveKbVersion, listCbcTopics } from './adminCbcKbService'
+import { syllabiToKbTopics } from './syllabusMapping'
 
 const functions = getFunctions(app, 'us-central1')
 const upsertSyllabusRowCallable = httpsCallable(functions, 'upsertSyllabusRow', {
@@ -235,4 +236,33 @@ export function invalidateSyllabiCache() {
   _overridesCacheAt = 0
   _rawCache = null
   _rawCachePromise = null
+}
+
+/**
+ * Returns the union of all syllabus topics — the curated rows from
+ * curriculum-data.json (with admin overrides applied) plus everything in
+ * Firestore's `cbcKnowledgeBase/{version}/topics/*`. Firestore entries
+ * take precedence on a (grade, subject, topic) collision, mirroring the
+ * server-side `cbcKnowledge.getAllTopics()` precedence so the picker the
+ * teacher sees can't drift from what the AI grounds on.
+ *
+ * Returns an array of KB-shape topic entries:
+ *   { id, grade, subject, topic, subtopics, specificOutcomes, ... }
+ */
+export async function listAllSyllabusTopics() {
+  const [merged, firestoreTopics] = await Promise.all([
+    getMergedSyllabi().catch(() => ({})),
+    listCbcTopics().catch(() => []),
+  ])
+  const fromSyllabi = syllabiToKbTopics(merged)
+  const byKey = new Map()
+  for (const t of fromSyllabi) {
+    const k = `${String(t.grade).toUpperCase()}|${String(t.subject).toLowerCase()}|${String(t.topic).toLowerCase()}`
+    byKey.set(k, { ...t, _source: 'syllabi_studio' })
+  }
+  for (const t of firestoreTopics || []) {
+    const k = `${String(t.grade || '').toUpperCase()}|${String(t.subject || '').toLowerCase()}|${String(t.topic || '').toLowerCase()}`
+    byKey.set(k, { ...t, _source: 'firestore' })
+  }
+  return Array.from(byKey.values())
 }
