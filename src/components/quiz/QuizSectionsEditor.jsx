@@ -976,9 +976,9 @@ function StandaloneQuestionCard({
             <input
               type="number"
               min={1}
-              max={10}
+              max={20}
               value={question.marks}
-              onChange={event => set('marks', clampInt(event.target.value, 1, 10, 1))}
+              onChange={event => set('marks', clampInt(event.target.value, 1, 20, 1))}
               className="theme-text w-10 bg-transparent text-center text-xs font-black outline-none"
             />
           </div>

@@ -127,7 +127,12 @@ export const questionSchema = z
     type: z.enum(QUESTION_TYPES),
     detectedType: z.string().optional(),
     topic: z.string().max(200).default(''),
-    marks: z.number().int().min(1).max(10),
+    // Cap raised from 10 to 20 so legitimate past-paper questions (the
+    // ECZ end-of-section "long answer" items can be 10-20 marks) survive
+    // import without auto-save throwing "Invalid input at 'marks'". The
+    // editor's clampInt() and the importer's marksMatch clamp keep the
+    // value inside this range for typed input and `[N marks]` text matches.
+    marks: z.number().int().min(1).max(20),
     difficulty: z.enum(DIFFICULTIES).optional(),
     order: z.number().int().min(0).max(10000),
 

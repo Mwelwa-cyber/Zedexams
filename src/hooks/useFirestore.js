@@ -163,7 +163,11 @@ function normalizeQuestionPayload(q, order) {
     text:          normalizeRichTextPayload(q.text),
     explanation:   normalizeRichTextPayload(q.explanation),
     topic:         String(q.topic ?? '').trim(),
-    marks:         Number(q.marks) || 1,
+    // Clamp to the schema's accepted [1, 20] range so a parsing typo
+    // ("[15 marks]" in an imported past-paper question, or a UI bug
+    // overshoot) never throws "Invalid question payload at 'marks'" on
+    // auto-save. The cap exactly matches questionWriteSchema's max.
+    marks:         Math.max(1, Math.min(20, Number(q.marks) || 1)),
     type,
     detectedType:  q.detectedType || type,
     imageUrl:      q.imageUrl || null,
@@ -193,14 +197,16 @@ function normalizeQuestionPayload(q, order) {
   )
 
   // Validate the final shape. If Zod rejects, the caller sees a clear error
-  // with the exact field at fault instead of a mysterious Firestore write
-  // failure (or worse: a silent corrupt write).
+  // with the exact field at fault — AND the question's display order — so
+  // the teacher can find the failing card in a 60-question past paper
+  // instead of staring at a generic "Auto-save failed".
   const parsed = questionWriteSchema.safeParse(cleaned)
   if (!parsed.success) {
     const first = parsed.error.issues?.[0]
     const path = first?.path?.join('.') || '(root)'
+    const where = order ? ` (question ${order})` : ''
     throw new Error(
-      `Invalid question payload at "${path}": ${first?.message || 'schema violation'}`
+      `Invalid question payload at "${path}"${where}: ${first?.message || 'schema violation'}`
     )
   }
   return parsed.data
