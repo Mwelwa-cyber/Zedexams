@@ -117,6 +117,15 @@ const {
 const {
   backfillKbSourceRefs,
 } = require("./teacherTools/backfillKbSourceRefs");
+// Teacher Tools — admin-only callables that let the CBC KB editor
+// upsert / delete / restore individual rows of the Syllabi Studio
+// curriculum data. Edits land in syllabusOverrides/* and are applied
+// at read time so the source JSON stays canonical.
+const {
+  upsertSyllabusRow,
+  deleteSyllabusRow,
+  restoreSyllabusRow,
+} = require("./teacherTools/syllabusOverrides");
 // CBC knowledge base — used to ground AI quiz questions in the Zambian
 // syllabus. resolveCbcContext returns a rendered <cbc_context> block plus
 // a human-readable warning if the topic wasn't found in the verified KB.
@@ -1711,6 +1720,15 @@ exports.preflightCurriculumRef = preflightCurriculumRef;
 // rows. Surfaced as the "Backfill syllabus links" button on the Live
 // AI Monitor when the preflight grid is dominated by no_source_doc_ref.
 exports.backfillKbSourceRefs = backfillKbSourceRefs;
+
+// Syllabi Studio edit pipeline — admin-only row-level CRUD over the
+// curriculum-data.json the CBC KB editor renders. Edits land as
+// override docs and are applied at read time both for the admin UI
+// and the server-side prompt resolver, so a save instantly affects
+// every AI generator without redeploying or touching git.
+exports.upsertSyllabusRow = upsertSyllabusRow;
+exports.deleteSyllabusRow = deleteSyllabusRow;
+exports.restoreSyllabusRow = restoreSyllabusRow;
 
 // Syllabus replacement — Phase A. Storage onFinalize parser. Watches
 // syllabus-uploads/{version}/{filename}.xlsx and writes enriched draft
