@@ -388,6 +388,8 @@ function StandaloneQuestionCard({
   sectionId,
   parts,
   isNew,
+  isSelected,
+  onToggleSelect,
   onChange,
   onRemove,
   onMove,
@@ -454,6 +456,19 @@ function StandaloneQuestionCard({
     >
       <div className="flex items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
+          {onToggleSelect && (
+            // Bulk-select checkbox. Sits before the Q-number badge so the
+            // teacher can scan a column of checkboxes down the page while
+            // picking which questions to delete / re-mark in bulk.
+            <input
+              type="checkbox"
+              checked={Boolean(isSelected)}
+              onChange={() => onToggleSelect(sectionId)}
+              aria-label={`Select question ${questionNumber}`}
+              title="Select for bulk actions"
+              className="h-4 w-4 cursor-pointer accent-current"
+            />
+          )}
           <span className={joinClasses('rounded-full px-3 py-1 text-xs font-black', theme.badge)}>
             Q{questionNumber} of {totalQuestions}
           </span>
@@ -1520,6 +1535,71 @@ function PassageSectionCard({
   )
 }
 
+// Sticky bulk-action toolbar surfaced when ≥1 standalone question is
+// selected. Sits above the question list and exposes the two bulk actions
+// that actually save time when cleaning up an imported 60-question past
+// paper: delete N and re-mark N to a uniform value. Type changes intentionally
+// stay per-card — switching mcq ↔ short_answer ↔ truefalse rewrites options
+// and correctAnswer in ways a teacher needs to see one question at a time.
+function BulkActionBar({ count, theme, onClear, onDelete, onSetMarks }) {
+  const [marksInput, setMarksInput] = useState('')
+  if (count <= 0) return null
+  return (
+    <div
+      role="region"
+      aria-label={`${count} questions selected`}
+      className="sticky top-2 z-30 theme-card theme-border flex flex-wrap items-center gap-3 rounded-2xl border-2 border-amber-300 bg-amber-50 px-4 py-2.5 shadow-md"
+    >
+      <span className="text-sm font-black text-amber-900">
+        {count} selected
+      </span>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <label className="text-xs font-black text-amber-900">Marks:</label>
+        <input
+          type="number"
+          min={1}
+          max={20}
+          value={marksInput}
+          onChange={event => setMarksInput(event.target.value)}
+          placeholder="1-20"
+          className="w-16 rounded-lg border-2 border-amber-300 bg-white px-2 py-1 text-sm font-bold text-amber-900 placeholder:text-amber-400 outline-none focus:border-amber-600"
+        />
+        <button
+          type="button"
+          onClick={() => {
+            const value = clampInt(marksInput, 1, 20, NaN)
+            if (Number.isFinite(value)) {
+              onSetMarks(value)
+              setMarksInput('')
+            }
+          }}
+          disabled={!marksInput.trim()}
+          className="rounded-lg bg-amber-600 px-3 py-1 text-xs font-black text-white shadow-sm transition-colors hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Apply
+        </button>
+      </div>
+      <button
+        type="button"
+        onClick={onDelete}
+        className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-black text-white shadow-sm transition-colors hover:bg-red-700"
+      >
+        Delete {count}
+      </button>
+      <button
+        type="button"
+        onClick={onClear}
+        className={joinClasses(
+          'ml-auto rounded-lg border-2 px-3 py-1.5 text-xs font-black transition-colors',
+          theme?.button || 'border-amber-700 text-amber-900 hover:bg-amber-100',
+        )}
+      >
+        Clear
+      </button>
+    </div>
+  )
+}
+
 function AddQuestionMenu({ onAddStandalone, onAddPassage, onAddMap, variant }) {
   const [open, setOpen] = useState(false)
   const theme = THEMES[variant] || THEMES.create
@@ -1721,6 +1801,24 @@ export default function QuizSectionsEditor({
   const sortedParts = [...(parts || [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
   const partsAvailable = sortedParts.length > 0 && Boolean(onAssignSectionToPart)
 
+  // Bulk-select state. Only standalone questions participate — passage
+  // sub-questions are typically ≤5 per passage and don't have the same
+  // cleanup pain. The Set is keyed by section.id so it survives reorder.
+  // Stale ids (after a single-card delete) are filtered out at the
+  // render/action sites rather than fighting React effects.
+  const [selectedIds, setSelectedIds] = useState(() => new Set())
+  function toggleSelect(sectionId) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(sectionId)) next.delete(sectionId)
+      else next.add(sectionId)
+      return next
+    })
+  }
+  function clearSelection() {
+    setSelectedIds(new Set())
+  }
+
   // Build a stable iteration order: ungrouped sections first (preserving the
   // sections[] order), then each Part with its members in sections[] order.
   // Story numbering follows the same iteration so STORY 1 / STORY 2 etc match
@@ -1794,6 +1892,8 @@ export default function QuizSectionsEditor({
         sectionId={section.id}
         parts={partsAvailable ? sortedParts : []}
         isNew={!section.question._id}
+        isSelected={selectedIds.has(section.id)}
+        onToggleSelect={toggleSelect}
         onChange={onStandaloneChange}
         onRemove={onStandaloneRemove}
         onMove={onStandaloneMove}
@@ -1805,6 +1905,41 @@ export default function QuizSectionsEditor({
         theme={theme}
       />
     )
+  }
+
+  // Build the list of (sectionIndex, sectionId) for currently-selected
+  // standalone cards. Stale ids (already-deleted sections) are skipped.
+  // The list is rebuilt on every render so it's always consistent with
+  // the sections[] prop.
+  function selectedStandaloneIndexes() {
+    const result = []
+    sections.forEach((section, index) => {
+      if (section.kind === 'passage') return
+      if (selectedIds.has(section.id)) result.push(index)
+    })
+    return result
+  }
+  const liveSelectedCount = selectedStandaloneIndexes().length
+
+  function bulkDelete() {
+    const indexes = selectedStandaloneIndexes()
+    if (!indexes.length || !onStandaloneRemove) return
+    if (typeof window !== 'undefined' && !window.confirm(
+      `Delete ${indexes.length} selected question${indexes.length === 1 ? '' : 's'}? This can't be undone.`,
+    )) return
+    // Delete in DESCENDING index order so earlier deletions don't shift
+    // the indices of later targets. React's functional setState (in the
+    // parent's removeStandaloneSection) sees the latest sections[] on
+    // each call, so a desc sort gives a correct cumulative result.
+    indexes.sort((a, b) => b - a).forEach(idx => onStandaloneRemove(idx))
+    clearSelection()
+  }
+
+  function bulkSetMarks(value) {
+    const indexes = selectedStandaloneIndexes()
+    if (!indexes.length || !onStandaloneChange) return
+    indexes.forEach(idx => onStandaloneChange(idx, 'marks', value))
+    clearSelection()
   }
 
   function handleShuffleClick() {
@@ -1827,6 +1962,13 @@ export default function QuizSectionsEditor({
 
   return (
     <div className="space-y-4">
+      <BulkActionBar
+        count={liveSelectedCount}
+        theme={theme}
+        onClear={clearSelection}
+        onDelete={bulkDelete}
+        onSetMarks={bulkSetMarks}
+      />
       {(sections.length > 0 || sortedParts.length > 0) && canShuffle && (
         <div className="theme-card theme-border flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-4 py-3 shadow-sm">
           <div>
