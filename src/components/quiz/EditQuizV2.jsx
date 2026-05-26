@@ -218,6 +218,10 @@ export default function EditQuizV2() {
   // a vague "Auto-save failed". Cleared on every successful save.
   const [autoSaveError, setAutoSaveError] = useState('')
   const [checklistOpen, setChecklistOpen] = useState(false)
+  // Guard so we only auto-open the checklist ONCE per mount when an
+  // imported quiz loads with outstanding issues — repeated re-opens
+  // after the user manually closed it would be annoying.
+  const checklistAutoOpenedRef = useRef(false)
   // Track when the user last interacted so we don't fire an auto-save
   // mid-keystroke. `dirtySince` is reset to now() on every change.
   const dirtySinceRef = useRef(0)
@@ -301,6 +305,19 @@ export default function EditQuizV2() {
   const validationIssues = validationResult.issues
   const validationSummary = validationResult.summary
   const errorCount = validationIssues.filter((i) => i.severity !== 'warn').length
+
+  // Per-question issue counts, keyed by question.localId. Feeds the inline
+  // red badge in each card header so a teacher can see at a glance which
+  // cards still need attention without opening the checklist modal.
+  const issueCountsByLocalId = useMemo(() => {
+    const map = new Map()
+    for (const issue of validationIssues) {
+      if (issue.severity === 'warn') continue
+      if (!issue.localId) continue
+      map.set(issue.localId, (map.get(issue.localId) || 0) + 1)
+    }
+    return map
+  }, [validationIssues])
 
   function setF(field, value) {
     setForm(current => ({ ...current, [field]: value }))
@@ -400,6 +417,21 @@ export default function EditQuizV2() {
       setImportPanelOpen(true)
     }
   }, [loading, form.linkedPaperId, sections])
+
+  // Auto-open the checklist ONCE on first load when the quiz arrived
+  // from an import and still has unresolved issues. Teachers were
+  // missing the small "X to fix" pill at the bottom of the screen on
+  // freshly-imported papers and shipping unreviewed content. The
+  // checklistAutoOpenedRef guard means a manual close stays closed.
+  useEffect(() => {
+    if (loading) return
+    if (checklistAutoOpenedRef.current) return
+    const isFreshImport = form.importStatus === 'needs_review' && form.mode === 'imported_document'
+    if (!isFreshImport) return
+    if (errorCount === 0) return
+    checklistAutoOpenedRef.current = true
+    setChecklistOpen(true)
+  }, [loading, form.importStatus, form.mode, errorCount])
 
   function updateSection(sectionIndex, updater) {
     setSections(currentSections => currentSections.map((section, index) => (
@@ -1472,6 +1504,7 @@ export default function EditQuizV2() {
             sections={sections}
             parts={parts}
             questionNumbers={questionNumbers}
+            issueCountsByLocalId={issueCountsByLocalId}
             totalQuestions={questionCount}
             onStandaloneChange={updateStandaloneQuestion}
             onStandaloneRemove={removeStandaloneSection}

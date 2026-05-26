@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import SeoHelmet from '../seo/SeoHelmet'
+import { getMergedSyllabi } from '../../utils/syllabusKbService'
 
 // Subject metadata — maps the raw JSON keys to icon + category + short label.
 // Keep aligned with public/syllabi/curriculum-data.json. New subjects fall
@@ -111,19 +112,18 @@ export default function SyllabiLibrary() {
   const [currentSheet, setCurrentSheet] = useState(null)
   const [rowFilter, setRowFilter] = useState('')
 
-  // Load the structured curriculum data lazily from /public. The file is
-  // ~1.3MB so we don't want it in the main bundle — it's keep-in-cache once
-  // fetched (the asset has a content hash via the dev server / hosting).
+  // Load the structured curriculum data via the merged-source helper so any
+  // admin overrides made in the CBC KB editor are reflected here too. The
+  // helper caches both the raw JSON (~1.3MB, fetched once per session) and
+  // the overrides snapshot, so this is cheap on subsequent mounts.
   useEffect(() => {
     let cancelled = false
     async function load() {
       try {
-        const response = await fetch('/syllabi/curriculum-data.json')
-        if (!response.ok) throw new Error(`Curriculum data request failed: ${response.status}`)
-        const raw = await response.json()
+        const merged = await getMergedSyllabi()
         if (cancelled) return
         const enriched = {}
-        for (const [subj, sheets] of Object.entries(raw)) {
+        for (const [subj, sheets] of Object.entries(merged || {})) {
           const meta = META[subj] || { icon: '📄', cat: 'Other', short: subj.slice(0, 30) }
           enriched[subj] = { ...meta, sheets }
         }
