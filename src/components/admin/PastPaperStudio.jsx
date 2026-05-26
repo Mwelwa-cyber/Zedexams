@@ -45,6 +45,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions'
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   query,
   serverTimestamp,
@@ -249,14 +250,27 @@ export default function PastPaperStudio() {
           })
           setAssets(Array.isArray(row.assets) ? row.assets : [])
           setOriginalStatus(row.status || PAPER_STATUSES.DRAFT)
-          setExistingQuizId(row.quizId || null)
           if (row.quizId) {
+            // Verify the linked quiz still exists. If an admin deleted
+            // it from /admin/content, the paper still carries the dead
+            // id and step 3 would mislead with "0 questions in the quiz"
+            // → "Open Quiz Editor" → "Quiz not found". Treat a missing
+            // quiz as unlinked so ensureLinkedQuiz() creates a fresh one.
             try {
-              const qs = await getDocs(query(collection(db, 'quizzes', row.quizId, 'questions')))
-              if (!cancelled) setQuizCount(qs.size)
+              const quizSnap = await getDoc(doc(db, 'quizzes', row.quizId))
+              if (quizSnap.exists()) {
+                if (!cancelled) setExistingQuizId(row.quizId)
+                const qs = await getDocs(query(collection(db, 'quizzes', row.quizId, 'questions')))
+                if (!cancelled) setQuizCount(qs.size)
+              } else if (!cancelled) {
+                setExistingQuizId(null)
+              }
             } catch (err) {
-              console.warn('[PastPaperStudio] loading existing questions failed', err)
+              console.warn('[PastPaperStudio] loading existing quiz failed', err)
+              if (!cancelled) setExistingQuizId(null)
             }
+          } else {
+            setExistingQuizId(null)
           }
         }
       } catch (err) {
@@ -402,7 +416,21 @@ export default function PastPaperStudio() {
   // (image options, rich text, multiple types).
   async function ensureLinkedQuiz() {
     if (!paperId || !currentUser?.uid) return null
-    if (existingQuizId) return existingQuizId
+    // The paper may carry a stale `quizId` pointing at a quiz that an
+    // admin has since deleted from /admin/content. Verify the doc still
+    // exists before handing it back — otherwise the editor opens on a
+    // dead id and shows "Quiz not found". If it's gone, fall through
+    // to create a fresh one (and overwrite the dead pointer below).
+    if (existingQuizId) {
+      try {
+        const snap = await getDoc(doc(db, 'quizzes', existingQuizId))
+        if (snap.exists()) return existingQuizId
+      } catch (err) {
+        console.warn('[PastPaperStudio] linked-quiz existence check failed', err)
+      }
+      setExistingQuizId(null)
+      setQuizCount(0)
+    }
     setLinkingQuiz(true)
     try {
       const quizId = doc(collection(db, 'quizzes')).id
