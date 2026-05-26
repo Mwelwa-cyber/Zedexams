@@ -197,6 +197,99 @@ function runRegressionTest() {
 
 runRegressionTest()
 
+/**
+ * Past-paper regression: G7 Mathematics 2023 (and any docx that opens
+ * with a "Answer ALL N questions. Choose the BEST answer." intro and
+ * later has a per-question prompt that happens to start with an
+ * imperative verb like "List …" / "Find …" inside a diagram question).
+ *
+ * Two distinct bugs were stamping the wrong shared instruction on the
+ * wrong questions:
+ *
+ * 1. Once the parser captured the doc's intro instruction it was stamped
+ *    onto every subsequent question forever, because neither the
+ *    preprocessor's `currentInstruction` nor the parser's local
+ *    `sharedInstruction` was cleared after being consumed by a
+ *    numbered question.
+ *
+ * 2. When a per-question prompt that looks like a teacher instruction
+ *    appeared between the question's diagram and its options (e.g.
+ *    "List set A ∪ B." under a Venn diagram), the parser would close
+ *    the question with empty options AND promote the line to a stale
+ *    sharedInstruction that then leaked onto the next 25+ questions.
+ */
+function runIntroInstructionLeakTest() {
+  const intro = 'Answer ALL 60 questions. Choose the BEST answer for each question.'
+  const fixture = [
+    block(intro),
+    // Q1 — should be the only question carrying the intro instruction.
+    block('1.  The perimeter of the following trapezium is …'),
+    block('A  32 cm'),
+    block('B  42 cm'),
+    block('C  52 cm'),
+    block('D  62 cm'),
+    block('Answer: C — 52 cm'),
+    // Q2 — must NOT inherit Q1's intro instruction.
+    block('2.  367 452 + 456 577 ='),
+    block('A  824 029'),
+    block('B  823 929'),
+    block('C  813 929'),
+    block('D  813 029'),
+    block('Answer: D — 813 029'),
+    // Q35 — Venn-diagram question whose actual prompt ("List set A ∪ B.")
+    // sits between the figure line and the options. Pre-fix this dropped
+    // Q35's options entirely and stamped "List set A ∪ B." onto Q36.
+    block('35.  Study the Venn diagram below.'),
+    block('[Venn diagram: E = universal set; A = {k, l, m, n, o} overlapping with B = {o, p, q, r, s}; t is outside both]'),
+    block('List set A ∪ B.'),
+    block('A  {l, o, r}'),
+    block('B  {l, o, r, s}'),
+    block('C  {k, l, m, n, o, p, q, r, s}'),
+    block('D  {k, l, m, n, o, p, q, r, s, t}'),
+    block('Answer: D — {k, l, m, n, o, p, q, r, s, t}'),
+    // Q36 — must NOT inherit Q35's "List set A ∪ B." prompt.
+    block('36.  What is the name of the following shape?'),
+    block('A  Cuboid'),
+    block('B  Cylinder'),
+    block('C  Trapezium'),
+    block('D  Triangular prism'),
+    block('Answer: D — Triangular prism'),
+  ]
+
+  const { sections } = processImportedQuestionBlocks(fixture, [])
+  const q1 = findStandaloneQuestion(sections, 1)
+  const q2 = findStandaloneQuestion(sections, 2)
+  const q35 = findStandaloneQuestion(sections, 35)
+  const q36 = findStandaloneQuestion(sections, 36)
+
+  assert.ok(q1, 'Q1 must parse')
+  assert.ok(q2, 'Q2 must parse')
+  assert.ok(q35, 'Q35 must parse')
+  assert.ok(q36, 'Q36 must parse')
+
+  // Bug 1: intro instruction must stop at Q1.
+  assert.equal(plainRichText(q1.sharedInstruction), intro,
+    'Q1 should carry the doc intro instruction')
+  assert.equal(plainRichText(q2.sharedInstruction), '',
+    'Q2 must not inherit Q1\'s intro instruction')
+
+  // Bug 2a: Q35 must keep its four options instead of being closed early
+  // when the parser hits "List set A ∪ B.".
+  const q35Options = q35.options.filter(opt => opt && opt.length)
+  assert.equal(q35Options.length, 4,
+    'Q35 must retain all four options when an instruction-shaped line sits between its figure and options')
+  assert.equal(q35.correctAnswer, 3,
+    'Q35 correct answer index should still parse as D')
+
+  // Bug 2b: the "List set A ∪ B." prompt must not leak onto Q36.
+  assert.equal(plainRichText(q36.sharedInstruction), '',
+    'Q36 must not inherit Q35\'s in-question prompt as a shared instruction')
+  const q36Options = q36.options.filter(opt => opt && opt.length)
+  assert.equal(q36Options.length, 4, 'Q36 should still parse all four options')
+}
+
+runIntroInstructionLeakTest()
+
 function findStandaloneQuestion(sections, sourceQuestionNumber) {
   return sections
     .filter(section => section.kind !== 'passage')
