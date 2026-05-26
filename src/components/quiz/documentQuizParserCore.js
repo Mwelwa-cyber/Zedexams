@@ -793,6 +793,15 @@ function normalizeOptionOnlyQuestionBlock(block, instruction) {
 function preprocessStandaloneInstructions(blocks) {
   const output = []
   let currentInstruction = ''
+  // Track whether the most-recently-seen numbered question has been
+  // closed (by an Answer: marker, the next numbered question, or a
+  // section break). When a question is still open, an instruction-shaped
+  // line is almost always part of that question's prompt (e.g.
+  // "List set A ∪ B." appearing after a Venn diagram for the current
+  // question) — promoting it to a between-question sharedInstruction
+  // would (a) drop it from the active question, and (b) stamp it onto
+  // the next numbered question as a stale prompt.
+  let insideOpenQuestion = false
 
   blocks.forEach(block => {
     const text = cleanImportedText(block.text)
@@ -809,31 +818,62 @@ function preprocessStandaloneInstructions(blocks) {
     const sectionBreak = isSectionHeading(singleLineText) ||
       isPassageLabel(singleLineText) ||
       ANSWER_KEY_HEADING_RE.test(singleLineText)
+    const isAnswerMarker = ANSWER_RE.test(singleLineText)
 
     if (sectionBreak || comprehensionInstruction) {
       currentInstruction = ''
+      insideOpenQuestion = false
       output.push(block)
       return
     }
 
     if (standaloneInstruction && !detectedQuestion) {
+      if (insideOpenQuestion) {
+        // The line belongs to the open question (its prompt or a
+        // figure-caption-style continuation); let the parser keep it
+        // attached to that question instead of hoisting it.
+        output.push(block)
+        return
+      }
       currentInstruction = stripInstructionPrefix(singleLineText)
       output.push(block)
       return
     }
 
+    if (detectedQuestion) {
+      insideOpenQuestion = true
+    } else if (isAnswerMarker) {
+      insideOpenQuestion = false
+    }
+
     if (currentInstruction) {
       const normalizedOptionOnly = normalizeOptionOnlyQuestionBlock(block, currentInstruction)
       if (normalizedOptionOnly) {
+        // Option-only blocks fully consume the standing instruction (the
+        // instruction supplies the missing question text). Clear so it
+        // doesn't repeat onto the next question.
+        currentInstruction = ''
         output.push(normalizedOptionOnly)
         return
       }
 
       if (detectedQuestion) {
+        // Hand the standing instruction to the next numbered question
+        // and clear it so it doesn't leak onto every subsequent
+        // question. The parser will also pick it up live from its own
+        // sharedInstruction state, which is the safer source (it tracks
+        // line position inside a block) — but stamping the first match
+        // here keeps backwards-compatibility with the existing flow.
+        // Without the clear, top-of-doc lines like "Answer ALL 60
+        // questions." stamped every question forever, and a
+        // per-question prompt mis-detected as a standalone instruction
+        // (e.g. "List set A ∪ B." under a Venn diagram) leaked across
+        // dozens of subsequent questions.
         output.push({
           ...block,
           sharedInstruction: currentInstruction,
         })
+        currentInstruction = ''
         return
       }
     }
@@ -981,6 +1021,16 @@ function parseQuestionsFromBlocks(blocks, warnings) {
       attachBlockOptionAsset(current, block, opt.index)
     })
     pendingAssets = []
+    // Consumable instruction: once a question has taken the standing
+    // sharedInstruction, clear it so it does not leak onto every
+    // subsequent question. Top-of-doc lines like "Answer ALL 60 questions.
+    // Choose the BEST answer." used to stamp every question forever,
+    // and a per-question prompt like "List set A ∪ B." was carrying
+    // forward to questions 36–60 once the parser misread it as a fresh
+    // standalone instruction. The "for questions X–Y" multi-question
+    // pattern is handled separately via question-range headings — those
+    // never land in `sharedInstruction` in the first place.
+    if (!isSubQuestion) sharedInstruction = ''
   }
 
   blocks.forEach(block => {
@@ -1154,6 +1204,18 @@ function parseQuestionsFromBlocks(blocks, warnings) {
       }
 
       if (isStandaloneInstruction(line) && !detectedQuestion) {
+        // An "instruction-shaped" line inside a question that has not yet
+        // received any options is almost always the question's actual
+        // prompt — e.g. "List set A ∪ B." appearing after a Venn-diagram
+        // figure line for the current question. Closing the question
+        // here would drop its options entirely (the A/B/C/D lines arrive
+        // when `current` is null and get silently discarded) and leak
+        // the prompt onto every subsequent question as a stale
+        // sharedInstruction. Keep the line as part of the active stem.
+        if (current && !(current.options || []).some(opt => opt != null && opt !== '')) {
+          current.textParts.push(line)
+          return
+        }
         finalizeStandaloneQuestion()
         sharedInstruction = stripInstructionPrefix(line)
         return
