@@ -203,12 +203,15 @@ test('inline lesson images rule sits before the bare lesson-files match', () => 
 
 console.log('\npublic read surfaces (intended)')
 
-test('syllabi PDFs remain world-readable', () => {
-  // The viewer iframe loads syllabi without auth tokens, so anonymous
-  // reads must stay allowed. Removing this breaks the syllabi viewer.
-  const block = rules.match(/match \/syllabi\/\{fileName=\*\*\}\s*\{([\s\S]*?)^\s*\}/m)
-  assert(block, 'syllabi match block not found')
-  assert(/allow read:\s*if true/.test(block[1]), 'syllabi is no longer world-readable — viewer iframe will break')
+test('syllabi PDF storage rule is gone', () => {
+  // The PDF reader at /teacher/syllabi was retired when the route swapped
+  // to a structured-data Studio backed by public/syllabi/curriculum-data.json.
+  // No Cloud Storage path is consumed by the new component, so the
+  // public-read rule on /syllabi/ has been removed.
+  assert(
+    !/match \/syllabi\/\{fileName=\*\*\}/.test(rules),
+    'storage.rules still has a /syllabi rule — remove it or update this assertion'
+  )
 })
 
 // ── Report ──────────────────────────────────────────────────────
