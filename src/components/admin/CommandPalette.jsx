@@ -50,7 +50,13 @@ export default function CommandPalette({ open, onClose, sections }) {
       else if (e.key === 'Enter') {
         e.preventDefault()
         const cmd = filtered[highlight]
-        if (cmd) { navigate(cmd.to); onClose() }
+        if (!cmd) return
+        if (cmd.external) {
+          window.open(cmd.to, '_blank', 'noopener')
+        } else {
+          navigate(cmd.to)
+        }
+        onClose()
       }
     }
     window.addEventListener('keydown', onKey)
