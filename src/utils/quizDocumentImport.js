@@ -107,6 +107,11 @@ export function compressImportedImage(file, maxWidth = 1200, quality = 0.85) {
  * Upload each in-memory imported image blob to Firebase Storage and
  * return a Map<assetId, downloadUrl>. Cleans up partial uploads on error
  * so a mid-way failure does not orphan blobs in Storage.
+ *
+ * onProgress, if provided, is called as `onProgress({ completed, total })`
+ * after each successful upload — letting the editor surface "Uploading
+ * images… 4 / 32" in the action bar instead of going silent for the
+ * 30-60 seconds a 30-image past-paper save can take.
  */
 export async function uploadImportedAssets({
   storage,
@@ -116,6 +121,7 @@ export async function uploadImportedAssets({
   kindSlug,
   sourceFileName = '',
   compressImage = compressImportedImage,
+  onProgress,
 }) {
   const uploadedById = new Map()
   if (!assetIds.length) return uploadedById
@@ -145,6 +151,16 @@ export async function uploadImportedAssets({
       })
       uploadedRefs.push(snapshot.ref)
       uploadedById.set(assetId, await getDownloadURL(snapshot.ref))
+      if (typeof onProgress === 'function') {
+        // Never let an onProgress throw break the upload loop — the
+        // caller's setState couldn't realistically fail but we'd rather
+        // lose a progress tick than orphan blobs we just wrote.
+        try {
+          onProgress({ completed: uploadedById.size, total: assetIds.length })
+        } catch (cbErr) {
+          console.warn('Upload progress callback threw:', cbErr)
+        }
+      }
     }
   } catch (error) {
     await Promise.all(uploadedRefs.map(ref =>

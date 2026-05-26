@@ -209,6 +209,12 @@ export default function EditQuizV2() {
   const [toast, setToast] = useState(null)
   const [dirty, setDirty] = useState(false)
   const [verifyOpen, setVerifyOpen] = useState(false)
+  // Imported-image upload progress. Set to { completed, total } while a
+  // save flushes the Storage uploads for blob-backed import assets, so
+  // the action bar can show "Uploading images… 4 / 32" instead of
+  // freezing on "Saving…" for the 30-60s a 30-image past paper takes.
+  // null when no batch is in flight.
+  const [uploadProgress, setUploadProgress] = useState(null)
   // Auto-save + checklist UI state.
   //   autoSaveState: one of AUTO_SAVE (idle | saving | saved | failed)
   //   checklistOpen: whether the pre-publish modal is visible
@@ -1069,18 +1075,57 @@ export default function EditQuizV2() {
   // No-op (cheap) when the quiz wasn't built from an imported document.
   async function serializeWithImportedAssetUploads() {
     const serialized = serializeQuizSections(sections, parts)
+
+    // Count distinct imageAssetIds across both question stems / option
+    // media AND passages so the progress chip reflects the FULL batch,
+    // not just whichever half is currently uploading. Without this the
+    // chip would jump from "x / 20" → "1 / 5" mid-save when the
+    // function moves from questions to passages.
+    const allAssetIds = new Set()
+    serialized.questions.forEach((q) => {
+      if (q.imageAssetId) allAssetIds.add(q.imageAssetId)
+      if (Array.isArray(q.optionMedia)) {
+        q.optionMedia.forEach((slot) => {
+          if (slot?.imageAssetId) allAssetIds.add(slot.imageAssetId)
+        })
+      }
+    })
+    serialized.passages.forEach((p) => {
+      if (p.imageAssetId) allAssetIds.add(p.imageAssetId)
+    })
+    const totalImages = allAssetIds.size
+
+    if (totalImages > 0) {
+      setUploadProgress({ completed: 0, total: totalImages })
+    }
+    let completedTotal = 0
+    const onProgress = totalImages > 0
+      ? () => {
+          completedTotal += 1
+          setUploadProgress({ completed: completedTotal, total: totalImages })
+        }
+      : undefined
+
     const uploadCtx = {
       storage,
       uid: currentUser?.uid,
       assets: importedAssets,
       sourceFileName: form.sourceFileName || '',
+      onProgress,
     }
-    const questions = await uploadImportedQuestionImages(serialized.questions, uploadCtx)
-    const passages = await uploadImportedPassageImages(serialized.passages, uploadCtx)
-    // Defensive: any leftover blob: URL would persist to Firestore and
-    // break for every learner on reload. Catch it here instead.
-    assertNoBlobImageUrls(questions, passages)
-    return { ...serialized, questions, passages }
+    try {
+      const questions = await uploadImportedQuestionImages(serialized.questions, uploadCtx)
+      const passages = await uploadImportedPassageImages(serialized.passages, uploadCtx)
+      // Defensive: any leftover blob: URL would persist to Firestore and
+      // break for every learner on reload. Catch it here instead.
+      assertNoBlobImageUrls(questions, passages)
+      return { ...serialized, questions, passages }
+    } finally {
+      // Always clear so a save-failure doesn't leave the progress chip
+      // stuck on the action bar. The catch in the calling save handler
+      // surfaces the actual error.
+      setUploadProgress(null)
+    }
   }
 
   // Background auto-save: same write as a manual "Save draft" but without
@@ -1664,6 +1709,7 @@ export default function EditQuizV2() {
         onShowChecklist={() => setChecklistOpen(true)}
         saving={saving}
         uploading={anyUploading}
+        uploadProgress={uploadProgress}
         dirty={dirty}
         autoSaveState={autoSaveState}
         autoSaveError={autoSaveError}
