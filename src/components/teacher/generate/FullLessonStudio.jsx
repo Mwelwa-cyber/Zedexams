@@ -17,6 +17,7 @@ import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
+import TopicSubtopicPicker from './TopicSubtopicPicker'
 
 /**
  * Full Lesson Studio — a complete, ready-to-deliver CBC lesson, grounded on
@@ -127,13 +128,15 @@ export default function FullLessonStudio() {
             <FieldSelect label="Subject" value={form.subject}
               options={subjectOptions}
               onChange={(v) => updateField('subject', v)} />
-            <FieldText label="Topic *" placeholder="e.g. Fractions"
-              value={form.topic}
-              onChange={(v) => updateField('topic', v)} maxLength={120} />
-            <FieldText label="Sub-topic (optional)"
-              placeholder="e.g. Adding Fractions with Unlike Denominators"
-              value={form.subtopic}
-              onChange={(v) => updateField('subtopic', v)} maxLength={160} />
+            <TopicSubtopicPicker
+              grade={form.grade}
+              subject={form.subject}
+              topic={form.topic}
+              subtopic={form.subtopic}
+              onChangeTopic={(v) => updateField('topic', v)}
+              onChangeSubtopic={(v) => updateField('subtopic', v)}
+              subtopicPlaceholder="e.g. Adding Fractions with Unlike Denominators"
+            />
             <FieldSelect label="Term" value={form.term}
               options={CURRICULUM_TERMS}
               onChange={(v) => updateField('term', v)} />
@@ -233,17 +236,6 @@ function FieldLabel({ children }) {
   return <label className="studio-label">{children}</label>
 }
 
-function FieldText({ label, value, onChange, placeholder, maxLength }) {
-  return (
-    <div>
-      <FieldLabel>{label}</FieldLabel>
-      <input type="text" value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder} maxLength={maxLength}
-        className="studio-input" />
-    </div>
-  )
-}
 
 function FieldTextarea({ label, value, onChange, placeholder, maxLength }) {
   return (

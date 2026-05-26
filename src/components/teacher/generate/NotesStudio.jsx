@@ -22,6 +22,7 @@ import {
 import { LIBRARY_TYPES } from '../../../config/library'
 import NotesView from '../views/NotesView'
 import StudioPageHeader from '../StudioPageHeader'
+import TopicSubtopicPicker from './TopicSubtopicPicker'
 
 const MODE_FROM_PLAN = 'from_plan'
 const MODE_STANDALONE = 'standalone'
@@ -233,19 +234,15 @@ export default function NotesStudio() {
                   options={subjectOptions}
                   onChange={(v) => updateField('subject', v)}
                 />
-                <FieldText
-                  label="Topic *"
-                  placeholder="e.g. Photosynthesis"
-                  value={form.topic}
-                  onChange={(v) => updateField('topic', v)}
-                  maxLength={120}
-                />
-                <FieldText
-                  label="Sub-topic (optional)"
-                  placeholder="e.g. Light-dependent reactions"
-                  value={form.subtopic}
-                  onChange={(v) => updateField('subtopic', v)}
-                  maxLength={160}
+                <TopicSubtopicPicker
+                  grade={form.grade}
+                  subject={form.subject}
+                  topic={form.topic}
+                  subtopic={form.subtopic}
+                  onChangeTopic={(v) => updateField('topic', v)}
+                  onChangeSubtopic={(v) => updateField('subtopic', v)}
+                  topicPlaceholder="e.g. Photosynthesis"
+                  subtopicPlaceholder="e.g. Light-dependent reactions"
                 />
                 <FieldSelect
                   label="Lesson duration"
