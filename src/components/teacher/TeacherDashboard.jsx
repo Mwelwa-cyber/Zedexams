@@ -112,6 +112,15 @@ const STUDIOS = [
     to: '/teacher/calendar',
     mascot: 'Term Tracker',
   },
+  {
+    emoji: '📘',
+    mascotBg: '#d9ecff',
+    badge: 'NEW',
+    title: 'Syllabi Studio',
+    tagline: 'Browse all 20 CBC subjects — topics, competences, activities, and standards in one workspace.',
+    to: '/teacher/syllabi',
+    mascot: 'Curriculum Shelf',
+  },
 ]
 
 const TOOL_META = {

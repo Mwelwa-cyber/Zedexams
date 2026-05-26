@@ -22,6 +22,7 @@ const NAV = [
   { to: '/teacher/library',          icon: FolderOpen,      label: 'Library'                 },
   { to: '/teacher/assessments',      icon: PencilLine,      label: 'Assessments'             },
   { to: '/teacher/lessons/new',      icon: BookOpen,        label: 'Create Lesson'           },
+  { to: '/teacher/syllabi',          icon: FolderOpen,      label: 'Syllabi Studio'          },
   { to: '/teacher/curriculum',       icon: GraduationCap,   label: 'Curriculum'              },
   { to: '/teacher/generate/curriculum-studio', icon: PencilLine, label: 'Curriculum Studio'  },
   { to: '/teacher/classes',          icon: Users,           label: 'Classes'                 },
