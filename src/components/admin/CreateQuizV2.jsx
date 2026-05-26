@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 import { useFirestore } from '../../hooks/useFirestore'
@@ -23,10 +23,11 @@ import {
 import { richTextHasContent } from '../../utils/quizRichText.js'
 import { clampInt } from '../../utils/inputs.js'
 import { getErrorMessage } from '../../utils/errors.js'
-import { validateStandaloneQuestion as sharedValidateStandaloneQuestion } from '../../utils/quizValidation.js'
+import { validateStandaloneQuestion as sharedValidateStandaloneQuestion, collectQuizIssues } from '../../utils/quizValidation.js'
 import { assertNoBlobImageUrls } from '../../utils/importedQuizAssets.js'
 import QuizSectionsEditor from '../quiz/QuizSectionsEditor'
 import QuizEditorPreviewPanel from '../quiz/QuizEditorPreviewPanel'
+import QuizValidationChecklist from '../quiz/QuizValidationChecklist'
 import SeoHelmet from '../seo/SeoHelmet'
 import {
   QUIZ_DOCUMENT_ACCEPT,
@@ -326,12 +327,53 @@ export default function CreateQuizV2() {
   const [importSummary, setImportSummary] = useState(null)
   const [importedAssets, setImportedAssets] = useState({})
 
+  // Pre-publish checklist: same `collectQuizIssues` source of truth that
+  // EditQuizV2 wires up. Lives here so the create flow gets identical
+  // inline issue badges + auto-open behaviour as the edit flow — see
+  // PRs #657 / #659 for the original wiring on the edit side.
+  const [checklistOpen, setChecklistOpen] = useState(false)
+  const checklistAutoOpenedRef = useRef(false)
+
   const serializedPreview = serializeQuizSections(sections, parts)
   const questionNumbers = buildQuestionNumberMap(serializedPreview.questions)
   const questionCount = serializedPreview.questionCount
   const totalMarks = serializedPreview.totalMarks
   const passageCount = serializedPreview.passages.length
   const imagesCount = countImages(sections)
+
+  const validationResult = useMemo(
+    () => collectQuizIssues({ form, sections, parts, questionNumbers }),
+    [form, sections, parts, questionNumbers],
+  )
+  const validationIssues = validationResult.issues
+  const validationSummary = validationResult.summary
+  const errorCount = validationIssues.filter((i) => i.severity !== 'warn').length
+
+  // Per-question issue counts keyed by question.localId. Drives the
+  // small "N to fix" badge in each question card header.
+  const issueCountsByLocalId = useMemo(() => {
+    const map = new Map()
+    for (const issue of validationIssues) {
+      if (issue.severity === 'warn') continue
+      if (!issue.localId) continue
+      map.set(issue.localId, (map.get(issue.localId) || 0) + 1)
+    }
+    return map
+  }, [validationIssues])
+
+  // Auto-open the checklist ONCE on import when a freshly-imported
+  // document still has issues — matches the edit-flow behaviour from
+  // PR #657 so importing a past paper into a new quiz surfaces the
+  // fixes-needed list without the teacher having to remember to click
+  // the pill at the bottom of the page.
+  useEffect(() => {
+    if (checklistAutoOpenedRef.current) return
+    const isFreshImport = form.importStatus === 'needs_review' && form.mode === 'imported_document'
+    if (!isFreshImport) return
+    if (errorCount === 0) return
+    checklistAutoOpenedRef.current = true
+    setChecklistOpen(true)
+  }, [form.importStatus, form.mode, errorCount])
   const anyUploading = hasUploadingAssets(sections) || importingDocument
   const gradeOptions = withCurrentOption(GRADES, form.grade)
   const subjectOptions = withCurrentOption(SUBJECTS, form.subject)
@@ -1430,6 +1472,7 @@ export default function CreateQuizV2() {
         sections={sections}
         parts={parts}
         questionNumbers={questionNumbers}
+        issueCountsByLocalId={issueCountsByLocalId}
         totalQuestions={questionCount}
         onStandaloneChange={updateStandaloneQuestion}
         onStandaloneRemove={removeStandaloneSection}
@@ -1468,6 +1511,25 @@ export default function CreateQuizV2() {
         <span>Question and passage images upload to Firebase Storage as soon as you select them. Comprehension passages are stored separately on the quiz and linked to their questions when you save.</span>
       </div>
 
+      {/* Pre-publish checklist pill. Mirrors the edit-flow pill from
+          QuizEditorActionBar so the create flow surfaces the same
+          fix-it-before-publish signal without dragging the full action
+          bar into Create (which has its own large Save/Publish buttons
+          below). */}
+      {errorCount > 0 && (
+        <button
+          type="button"
+          onClick={() => setChecklistOpen(true)}
+          className="inline-flex items-center gap-2 self-start rounded-full bg-amber-50 px-4 py-2 text-xs font-bold text-amber-800 ring-1 ring-amber-200 hover:bg-amber-100"
+          aria-label={`Show ${errorCount} validation issue${errorCount === 1 ? '' : 's'}`}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M12 9v4M12 17h.01M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+          </svg>
+          {errorCount} to fix before publishing
+        </button>
+      )}
+
       <div className="flex gap-3 pb-6">
         <button type="button" onClick={() => handleSave({})} disabled={saving || anyUploading} className="btn-secondary flex-1 py-3.5 font-black disabled:opacity-50 disabled:pointer-events-none">
           {saving ? 'Saving…' : anyUploading ? 'Uploading…' : '💾 Save draft'}
@@ -1482,6 +1544,17 @@ export default function CreateQuizV2() {
           </button>
         )}
       </div>
+
+      {/* Pre-publish checklist modal — same component the edit flow uses.
+          Opened by the amber pill above when any issues are pending, and
+          auto-opened once on a fresh imported document via the useEffect
+          near questionNumbers. */}
+      <QuizValidationChecklist
+        open={checklistOpen}
+        onClose={() => setChecklistOpen(false)}
+        issues={validationIssues}
+        summary={validationSummary}
+      />
     </div>
   )
 }
