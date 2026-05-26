@@ -108,9 +108,12 @@ export default function BulkGrantTrialsPanel() {
       show('❌ Shared password must be at least 6 characters.')
       return
     }
+    // Number inputs hand back strings; an emptied field would send 0 days,
+    // which would land as a same-instant-expiring trial.
+    const daysNum = Math.max(1, Math.min(365, Number(days) || 30))
     if (!window.confirm(
       `Create ${entries.length} demo trial account${entries.length === 1 ? '' : 's'}? ` +
-      `Each gets a ${days}-day Premium trial (plan: ${plan}, grade ${grade}). ` +
+      `Each gets a ${daysNum}-day Premium trial (plan: ${plan}, grade ${grade}). ` +
       `This action creates real Firebase Auth users.`,
     )) return
 
@@ -121,7 +124,7 @@ export default function BulkGrantTrialsPanel() {
       const payload = {
         entries: entries.map(e => ({ name: e.name, email: e.email || undefined })),
         grade: Number(grade),
-        days:  Number(days),
+        days:  daysNum,
         plan,
         school: school.trim() || 'Demo School',
       }

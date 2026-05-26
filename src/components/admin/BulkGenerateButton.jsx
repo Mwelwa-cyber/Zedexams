@@ -86,8 +86,7 @@ export default function BulkGenerateButton({ topics }) {
     }
     setBusy(false)
     setOpen(false)
-    navigate('/admin/agents/jobs')
-    void firstJobId
+    navigate(firstJobId ? `/admin/agents/jobs/${firstJobId}` : '/admin/agents/jobs')
   }
 
   if (eligible.length === 0) return null

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { doc, getDoc, collection, query, where, orderBy, limit, getDocs } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
+import { useAuth } from '../../../contexts/AuthContext'
 import PageHeader from '../../ui/PageHeader'
 import Card from '../../ui/Card'
 import Button from '../../ui/Button'
@@ -21,6 +22,8 @@ function fmt(ts) {
 
 export default function AdminUserProfile() {
   const { userId } = useParams()
+  const { currentUser } = useAuth()
+  const isSelf = !!currentUser?.uid && currentUser.uid === userId
   const [profile, setProfile] = useState(null)
   const [results, setResults] = useState([])
   const [loading, setLoading] = useState(true)
@@ -60,6 +63,10 @@ export default function AdminUserProfile() {
   }, [userId])
 
   async function changeStatus(target) {
+    if (isSelf) {
+      window.alert("You can't change your own account status from here.")
+      return
+    }
     setBusy(true)
     try {
       const reason = target === 'suspended'
@@ -75,6 +82,10 @@ export default function AdminUserProfile() {
   }
 
   async function changeRole(target) {
+    if (isSelf) {
+      window.alert("You can't change your own role from here.")
+      return
+    }
     if (!window.confirm(`Change role to ${target}? This affects what the user can do across the platform.`)) return
     setBusy(true)
     try {
@@ -125,14 +136,19 @@ export default function AdminUserProfile() {
 
         <Card variant="elevated" size="md" className="space-y-3">
           <h3 className="font-black theme-text">Admin actions</h3>
+          {isSelf && (
+            <p className="text-xs font-bold theme-text-muted bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+              This is your own account. Status and role changes are disabled here — ask another admin if you need them.
+            </p>
+          )}
           <div className="flex flex-col gap-2">
             {status !== 'suspended' ? (
-              <Button variant="secondary" onClick={() => changeStatus('suspended')} disabled={busy}>Suspend account</Button>
+              <Button variant="secondary" onClick={() => changeStatus('suspended')} disabled={busy || isSelf}>Suspend account</Button>
             ) : (
-              <Button variant="primary" onClick={() => changeStatus('active')} disabled={busy}>Restore account</Button>
+              <Button variant="primary" onClick={() => changeStatus('active')} disabled={busy || isSelf}>Restore account</Button>
             )}
             {status !== 'deleted' && (
-              <Button variant="secondary" onClick={() => changeStatus('deleted')} disabled={busy}>Soft delete</Button>
+              <Button variant="secondary" onClick={() => changeStatus('deleted')} disabled={busy || isSelf}>Soft delete</Button>
             )}
           </div>
           <div className="theme-border border-t pt-3">
@@ -142,8 +158,8 @@ export default function AdminUserProfile() {
                 <button
                   key={r}
                   onClick={() => changeRole(r)}
-                  disabled={busy || profile.role === r}
-                  className={`px-3 py-1.5 rounded-lg text-xs font-black border transition-colors ${
+                  disabled={busy || isSelf || profile.role === r}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-black border transition-colors disabled:opacity-50 ${
                     profile.role === r
                       ? 'theme-accent-bg theme-accent-text border-transparent'
                       : 'theme-bg-subtle theme-border theme-text hover:theme-accent-bg hover:theme-accent-text'

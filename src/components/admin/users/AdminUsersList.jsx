@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link, useLocation, useSearchParams } from 'react-router-dom'
 import { collection, getDocs, query, where, limit } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
+import { useAuth } from '../../../contexts/AuthContext'
 import PageHeader from '../../ui/PageHeader'
 import Card from '../../ui/Card'
 import Button from '../../ui/Button'
@@ -46,6 +47,7 @@ function fmtDate(ts) {
  * the status filter (used by the "Suspended" sidebar quick link).
  */
 export default function AdminUsersList({ defaultRole = 'all' }) {
+  const { currentUser } = useAuth()
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -103,6 +105,10 @@ export default function AdminUsersList({ defaultRole = 'all' }) {
 
   async function handleSuspend(uid, current) {
     if (busy[uid]) return
+    if (uid === currentUser?.uid) {
+      window.alert("You can't suspend your own account from here.")
+      return
+    }
     const goal = current === 'suspended' ? 'active' : 'suspended'
     const reason = goal === 'suspended'
       ? (window.prompt('Optional reason for suspension (logged in the audit trail):') || '')
@@ -120,6 +126,10 @@ export default function AdminUsersList({ defaultRole = 'all' }) {
 
   async function handleSoftDelete(uid) {
     if (busy[uid]) return
+    if (uid === currentUser?.uid) {
+      window.alert("You can't soft-delete your own account from here.")
+      return
+    }
     if (!window.confirm('Soft-delete this user? They will lose access immediately. The record stays for audit; reverse with status=active.')) return
     setBusy(b => ({ ...b, [uid]: true }))
     try {
@@ -217,10 +227,11 @@ export default function AdminUsersList({ defaultRole = 'all' }) {
         ) : (
           filtered.map(u => {
             const status = u.status || 'active'
+            const isSelf = u.id === currentUser?.uid
             return (
               <div key={u.id} className="border-b theme-border last:border-b-0 px-5 py-3 grid grid-cols-1 md:grid-cols-[2fr_1fr_0.8fr_0.8fr_1fr_auto] gap-2 md:gap-4 items-center">
                 <div className="min-w-0">
-                  <p className="font-black theme-text truncate">{u.displayName || '—'}</p>
+                  <p className="font-black theme-text truncate">{u.displayName || '—'}{isSelf && <span className="ml-1 text-[10px] font-bold theme-text-muted">(you)</span>}</p>
                   <p className="text-xs theme-text-muted truncate">{u.email}</p>
                 </div>
                 <div className="text-sm font-bold theme-text">{ROLE_LABELS[u.role] || u.role}</div>
@@ -235,7 +246,7 @@ export default function AdminUsersList({ defaultRole = 'all' }) {
                     Open
                     <Icon as={ChevronRight} size="xs" />
                   </Link>
-                  {status !== 'deleted' && (
+                  {!isSelf && status !== 'deleted' && (
                     <button
                       onClick={() => handleSuspend(u.id, status)}
                       disabled={!!busy[u.id]}
@@ -244,7 +255,7 @@ export default function AdminUsersList({ defaultRole = 'all' }) {
                       {status === 'suspended' ? 'Unsuspend' : 'Suspend'}
                     </button>
                   )}
-                  {status !== 'deleted' && (
+                  {!isSelf && status !== 'deleted' && (
                     <button
                       onClick={() => handleSoftDelete(u.id)}
                       disabled={!!busy[u.id]}

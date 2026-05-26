@@ -155,10 +155,14 @@ export default function PaymentsPanel() {
     if (!grantEmail.trim()) return
     setGrantSubmitting(true)
     try {
+      // Number inputs surface `e.target.value` as a string; an emptied
+      // field coerces to 0, which would grant a premium that expires the
+      // same instant. Fall back to the plan default (or 30) on 0/NaN.
+      const days = (+grantProductDays) || PLANS[grantProductId]?.durationDays || 30
       const result = await grantAccessByEmail({
         email: grantEmail,
         planId: grantProductId,
-        durationDays: +grantProductDays,
+        durationDays: days,
         paymentReference: grantPaymentRef,
         phoneNumber: grantPhone,
         adminId: currentUser.uid,
@@ -339,7 +343,12 @@ export default function PaymentsPanel() {
     e.preventDefault()
     if (!grantUid.trim()) return
     setGranting(true)
-    try { await grantPremium(grantUid.trim(), grantPlan, +grantDays, currentUser.uid); show('Premium granted!'); setGrantUid('') }
+    try {
+      const days = (+grantDays) || PLANS[grantPlan]?.durationDays || 30
+      await grantPremium(grantUid.trim(), grantPlan, days, currentUser.uid)
+      show('Premium granted!')
+      setGrantUid('')
+    }
     catch (e) { show('❌ ' + e.message) }
     setGranting(false)
   }
@@ -349,7 +358,8 @@ export default function PaymentsPanel() {
   async function handleRowGrant(u) {
     setRowActionUid(u.id)
     try {
-      await grantPremium(u.id, grantPlan, +grantDays, currentUser.uid)
+      const days = (+grantDays) || PLANS[grantPlan]?.durationDays || 30
+      await grantPremium(u.id, grantPlan, days, currentUser.uid)
       const planName = PLANS[grantPlan]?.name ?? grantPlan
       setUsers(list => list.map(x => x.id === u.id
         ? { ...x, premium: true, isPremium: true, paymentStatus: 'active', subscriptionStatus: 'active', subscriptionPlan: grantPlan }
