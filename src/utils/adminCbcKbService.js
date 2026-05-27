@@ -30,6 +30,9 @@ const backfillKbSourceRefsCallable = httpsCallable(functions, 'backfillKbSourceR
   // the client-side cancel budget.
   timeout: 540_000,
 })
+const expandKbLessonsCallable = httpsCallable(functions, 'expandKbLessons', {
+  timeout: 540_000,
+})
 
 const LE_SET = new Set(LEARNING_ENVIRONMENT_VALUES)
 
@@ -74,6 +77,27 @@ export async function backfillKbSourceRefs({ dryRun = true, grade = null, subjec
       error: err?.code === 'permission-denied' ?
         'Admin only.' :
         (err?.message || 'Backfill failed.'),
+    }
+  }
+}
+
+/**
+ * Expand subtopics[] on every live KB topic into lessons/ subcollection docs.
+ * Safe to run on an already-active version — uses merge:true so richer
+ * existing lesson data is never overwritten. Pass dryRun=true to get counts
+ * without writing.
+ */
+export async function expandKbLessons({ version = null, grade = null, subject = null, dryRun = false } = {}) {
+  try {
+    const result = await expandKbLessonsCallable({ version, grade, subject, dryRun })
+    return { ok: true, ...(result?.data || {}) }
+  } catch (err) {
+    console.error('expandKbLessons failed', err)
+    return {
+      ok: false,
+      error: err?.code === 'permission-denied' ?
+        'Admin only.' :
+        (err?.message || 'Expand lessons failed.'),
     }
   }
 }

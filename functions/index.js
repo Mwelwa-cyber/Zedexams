@@ -117,6 +117,9 @@ const {
 const {
   backfillKbSourceRefs,
 } = require("./teacherTools/backfillKbSourceRefs");
+const {
+  expandKbLessons,
+} = require("./teacherTools/expandKbLessons");
 // Teacher Tools — admin-only callables that let the CBC KB editor
 // upsert / delete / restore individual rows of the Syllabi Studio
 // curriculum data. Edits land in syllabusOverrides/* and are applied
@@ -1720,6 +1723,14 @@ exports.preflightCurriculumRef = preflightCurriculumRef;
 // rows. Surfaced as the "Backfill syllabus links" button on the Live
 // AI Monitor when the preflight grid is dominated by no_source_doc_ref.
 exports.backfillKbSourceRefs = backfillKbSourceRefs;
+
+// Teacher Tools — admin-only: expand subtopics[] on every live KB topic
+// into individual lessons/{slug}-t{1|2|3} subcollection docs so the
+// strict curriculum resolver gets subtopic_exact hits. Run this once
+// after activating a syllabus version uploaded before lesson expansion
+// was added to activateSyllabusVersion. Surfaced as the "Expand lessons"
+// button in Syllabi Studio → Versions & audit.
+exports.expandKbLessons = expandKbLessons;
 
 // Syllabi Studio edit pipeline — admin-only row-level CRUD over the
 // curriculum-data.json the CBC KB editor renders. Edits land as
