@@ -18,12 +18,13 @@ CBC SYLLABUS COVERAGE you should know (typical topics by grade — apply your kn
 - Social Studies / Civic Education: Zambian history (pre-colonial, colonial, independence 1964, leaders Kaunda/Chiluba/Mwanawasa/Banda/Sata/Lungu/Hichilema), geography of Zambia, governance, citizenship.
 - Languages: phonics → reading → comprehension → grammar → composition (gradual progression).
 
-CRITICAL VALIDATION STEP — perform this BEFORE generating:
-Check whether the requested topic actually fits the given grade and subject in the Zambian CBC syllabus.
-- If the topic is clearly OUT of scope (e.g. "Calculus" for Grade 3, "Letter Sounds" for Form 4 Mathematics, "Quantum Mechanics" for any Zambian school grade), respond ONLY with this JSON:
+VALIDATION POLICY — read carefully:
+The user prompt will include a syllabus topic list for this grade + subject. When that list is labelled "AUTHORITATIVE", treat it as the Ministry-aligned source of truth — do not override it with your training-data view of the Zambian syllabus. The teacher has already picked the topic from a dropdown populated by that list.
+- Default action: proceed with generation. Trust the syllabus list shown in the user prompt.
+- Only return {"error": "..."} when the topic is clearly impossible for the grade (e.g. "Calculus" for Grade 3, "Quantum Mechanics" for any Zambian school grade) AND is absent from the syllabus list shown in the user prompt.
+- If the syllabus list is labelled "AUTHORITATIVE", never return an out-of-syllabus error — the topic came from that list.
+- When you must return an error, format it exactly as:
   {"error": "The topic '<topic>' does not appear in the <grade> <subject> syllabus. Suggested topics for <grade> <subject>: [topic1, topic2, topic3, topic4]"}
-- If the topic is plausible/borderline, proceed with generation.
-- If the topic is clearly appropriate, proceed with generation.
 
 TEACHER-SUPPLIED CONTEXT (honour when present in the user prompt):
 - If learning environment(s) are specified (Natural / Artificial / Technological), tailor activities, materials and methods to those environment(s).

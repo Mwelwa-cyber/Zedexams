@@ -205,6 +205,11 @@ async function fetchTopicsForCurrentSelection() {
 
 async function updateTopics() {
   currentTopicsMap = await fetchTopicsForCurrentSelection();
+  // Mirror on window so 06-generate.js's buildPrompt() can consume the same
+  // topic list the dropdowns were populated from, instead of falling back to
+  // the legacy hardcoded syllabus files which lag the dynamic CBC KB and
+  // caused Claude to reject teacher-picked topics as "out of syllabus".
+  if (typeof window !== 'undefined') window.currentTopicsMap = currentTopicsMap;
   const topicSel = $('#f-topic');
   if (!topicSel) return;
   const topics = Object.keys(currentTopicsMap);

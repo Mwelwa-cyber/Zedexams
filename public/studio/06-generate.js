@@ -94,14 +94,35 @@ function buildPrompt(i, lessonNumber, lessonFocus, totalLessons) {
   // dropdown — otherwise it might flag them as "out of syllabus" when the
   // legacy subject map happens not to list them.
   const curated = (window.curriculumTopics && window.curriculumTopics[i.klass]) || {};
-  const topics = Object.assign({}, legacyTopics, curated);
+  // CRITICAL: the topic + subtopic dropdowns are populated by
+  // 04-syllabus-router.js's `currentTopicsMap`, which prefers the dynamic
+  // CBC KB (the same source CbcKbAdmin maintains). The legacy hardcoded
+  // syllabus files lag behind the KB for several subjects — e.g. the new
+  // 2023 Home Economics syllabus has topics like "Food Safety" that the
+  // legacy file knows nothing about. Building the prompt off the legacy
+  // file then made Claude reject the teacher's pick as "out of syllabus".
+  // Always start from the dynamic map the teacher actually saw, then merge
+  // legacy / curated as a backup so we don't lose subjects the dynamic KB
+  // hasn't covered yet.
+  const dynamic = (typeof window !== 'undefined' && window.currentTopicsMap && typeof window.currentTopicsMap === 'object')
+    ? window.currentTopicsMap
+    : (typeof currentTopicsMap !== 'undefined' ? currentTopicsMap : {});
+  const topics = Object.assign({}, legacyTopics, curated, dynamic);
   const versionLabel = syllabusVersion === 'old' ? '2013 Old CDC Syllabus' : '2023 Zambia ECF';
+  // Authoritative-list flag: when the dynamic KB returned data for this
+  // (grade, subject) the syllabus block IS the source of truth, and Claude
+  // should not second-guess it with its own training-data view of the
+  // Zambian syllabus.
+  const dynamicHasData = dynamic && Object.keys(dynamic).length > 0;
   let syllabusContext = '';
   if (Object.keys(topics).length) {
     const topicList = Object.entries(topics)
-      .map(([t, subs]) => `  • ${t}: ${(subs || []).slice(0, 6).join('; ')}`)
+      .map(([t, subs]) => `  • ${t}: ${(subs || []).slice(0, 8).join('; ')}`)
       .join('\n');
-    syllabusContext = `\n\nOFFICIAL ${i.klass} ${i.subject} SYLLABUS TOPICS (${versionLabel}):\n${topicList}\n`;
+    const header = dynamicHasData
+      ? `\n\nAUTHORITATIVE ${i.klass} ${i.subject} SYLLABUS TOPICS (${versionLabel}) — sourced directly from the Ministry-aligned CBC knowledge base. Treat this list as the source of truth even if it differs from your training-data view.`
+      : `\n\nOFFICIAL ${i.klass} ${i.subject} SYLLABUS TOPICS (${versionLabel}):`;
+    syllabusContext = `${header}\n${topicList}\n`;
   }
   const envLine = (i.learningEnvironments && i.learningEnvironments.length)
     ? `\n- Learning environment(s) to use: ${i.learningEnvironments.join(', ')} — design activities suited to ${i.learningEnvironments.length > 1 ? 'these environments' : 'this environment'}.`
@@ -114,6 +135,15 @@ function buildPrompt(i, lessonNumber, lessonFocus, totalLessons) {
   const seqLine = N > 1
     ? `\n- LESSON SEQUENCE: This sub-topic is being split into ${N} lesson periods. You are writing LESSON ${K} of ${N}.\n- This lesson's focus: "${String(lessonFocus || '').trim() || `Lesson ${K}`}". Scope the entire plan to this focus only — do NOT cover content earmarked for later lessons.\n- Series outline so you know what to leave for siblings:\n${focusLines}`
     : '';
+  // Tighter validation rule: if the teacher's pick is present in the topic
+  // list shown above, accept it unconditionally. Reject only when the topic
+  // is genuinely absent AND looks off-grade (e.g. "Quantum Mechanics" for
+  // Grade 4). Even then, when dynamicHasData is true, we prefer to proceed
+  // because the dynamic KB is the source of truth — Claude doesn't get to
+  // overrule the Ministry's syllabus.
+  const validationRule = dynamicHasData
+    ? `IMPORTANT: The topic list above is the AUTHORITATIVE syllabus for ${i.klass} ${i.subject}. The user's topic "${i.topic}" was picked directly from that list — proceed with generation. Do NOT return an "out of syllabus" error.`
+    : `IMPORTANT: The topic and sub-topic should fit within the ${i.klass} ${i.subject} syllabus shown above. If the topic appears in the list — even loosely — proceed with generation. Only return {"error": "explanation"} when the topic is clearly from a different grade or subject (e.g. "Quantum Mechanics" for Grade 4).`;
   return `Generate a Zambian CBC lesson plan with these inputs:
 - Class: ${i.klass}
 - Subject: ${i.subject}
@@ -123,7 +153,7 @@ function buildPrompt(i, lessonNumber, lessonFocus, totalLessons) {
 - Duration: ${i.duration} minutes
 - Term & Week: ${i.termWeek || 'unspecified'}${envLine}${seqLine}
 ${syllabusContext}
-IMPORTANT: The topic and sub-topic MUST fit within the ${i.klass} syllabus scope shown above (${versionLabel}). If the user-supplied topic doesn't match this grade level, return {"error": "explanation"} instead.
+${validationRule}
 
 Return JSON only.`;
 }
