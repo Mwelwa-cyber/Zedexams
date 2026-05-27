@@ -142,7 +142,7 @@ export default function AdminPastPapers() {
           <p className="text-xs font-black theme-text-muted uppercase tracking-widest">Content</p>
           <h1 className="theme-text font-display font-black text-2xl sm:text-3xl">Past papers</h1>
           <p className="theme-text-muted text-sm mt-1">
-            ECZ archive uploads — Grade 7, 9, 12 across every CBC subject.
+            ECZ archive uploads — Grade 7 and Grade 12 across every CBC subject.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">

@@ -1062,7 +1062,7 @@ export default function GradeHub() {
           className="border-violet-300 bg-[linear-gradient(135deg,#EDE9FE_0%,#C4B5FD_55%,#7C3AED_100%)]"
           icon={Files}
           iconClassName="bg-violet-600 text-white"
-          kicker="ECZ archive · Grade 7, 9, 12"
+          kicker="ECZ archive · Grade 7 & 12"
           kickerClassName="text-violet-800"
           title="Past Papers"
           titleClassName="text-violet-950"
@@ -1306,13 +1306,14 @@ export default function GradeHub() {
           </div>
 
           {/* ── Past papers shortcut ────────────────────────────
-                ECZ only ships papers for Grades 7, 9, 12. Of the GradeHub
-                universe (4-7) that's just Grade 7, so the contextual
-                tile only renders for those learners — the rest still
-                reach /papers via the top-level Past Papers action card
-                and the navbar. Pre-filtering the link with ?grade=7
-                lands them on a list that's already scoped to their
-                grade so they don't see Grade 9 / 12 papers up top. */}
+                ECZ only ships papers for Grades 7 and 12 (Grade 9 was
+                phased out). Of the GradeHub universe (4-7) that's just
+                Grade 7, so the contextual tile only renders for those
+                learners — the rest still reach /papers via the top-
+                level Past Papers action card and the navbar. Pre-
+                filtering the link with ?grade=7 lands them on a list
+                that's already scoped to their grade so they don't see
+                Grade 12 papers up top. */}
           {userGrade === 7 && (
             <div className="zx-card theme-card rounded-2xl border theme-border p-4 mb-3">
               <div className="flex items-center gap-3">
