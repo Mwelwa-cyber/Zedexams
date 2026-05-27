@@ -999,7 +999,7 @@ function SyllabiStudioStyles() {
 .ss-root .ss-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 13px;
+  font-size: 15px;
 }
 .ss-root .ss-table thead th {
   background: var(--ss-teal);
@@ -1007,7 +1007,7 @@ function SyllabiStudioStyles() {
   padding: 12px 16px;
   text-align: left;
   font-weight: 700;
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
   letter-spacing: 0.8px;
   white-space: nowrap;
@@ -1020,7 +1020,7 @@ function SyllabiStudioStyles() {
   background: var(--ss-teal);
   color: white;
   font-weight: 700;
-  font-size: 12px;
+  font-size: 13px;
   text-transform: uppercase;
   letter-spacing: 1px;
   padding: 10px 16px;
@@ -1030,7 +1030,7 @@ function SyllabiStudioStyles() {
   background: #D4E4EC;
   color: var(--ss-teal);
   font-weight: 800;
-  font-size: 13px;
+  font-size: 15px;
   padding: 11px 16px;
   border-top: 2.5px solid var(--ss-teal);
   border-bottom: 1.5px solid #9BBECE;
@@ -1047,12 +1047,12 @@ function SyllabiStudioStyles() {
 .ss-root .ss-table td {
   padding: 11px 16px;
   vertical-align: top;
-  line-height: 1.6;
+  line-height: 1.55;
   border-right: 1px solid #EDE7DB;
 }
 .ss-root .ss-table td:last-child { border-right: none; }
 
-.ss-root .ss-topic-cell-dim { opacity: 0.45; font-size: 11px; }
+.ss-root .ss-topic-cell-dim { opacity: 0.45; font-size: 12px; }
 .ss-root .ss-subtopic-cell {
   font-weight: 600; color: var(--ss-teal);
   min-width: 180px;
@@ -1065,7 +1065,7 @@ function SyllabiStudioStyles() {
   min-width: 160px;
   color: #555;
   font-style: italic;
-  font-size: 12.5px;
+  font-size: 14px;
 }
 .ss-root .ss-table td ul { padding-left: 16px; margin: 3px 0; }
 .ss-root .ss-table td ul li { margin: 4px 0; }
