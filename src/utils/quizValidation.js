@@ -129,8 +129,11 @@ export function validateStandaloneQuestion(question, label, { onError } = {}) {
  */
 export function collectQuizIssues({ form = {}, sections = [], parts = [], questionNumbers = {} } = {}) {
   const issues = []
-  const push = (id, label, severity = 'error') =>
-    issues.push({ id, label, severity })
+  // Per-issue `localId` is the question (or passage) localId the issue
+  // attaches to, or null for quiz-level issues. Lets the UI map an issue
+  // back to the card it touches without parsing the structured id string.
+  const push = (id, label, { severity = 'error', localId = null } = {}) =>
+    issues.push({ id, label, severity, localId })
 
   // Top-level form fields.
   const title = String(form.title ?? '').trim()
@@ -170,19 +173,24 @@ export function collectQuizIssues({ form = {}, sections = [], parts = [], questi
     if (section?.kind === 'passage') {
       const passage = section.passage || {}
       const isMap = passage.passageKind === 'map'
+      const passageLocalId = passage.localId || null
       if (passage.imageUploading) {
         push(`passage-uploading-${passage.localId || 'unknown'}`,
-          isMap ? 'A map image is still uploading.' : 'A passage image is still uploading.')
+          isMap ? 'A map image is still uploading.' : 'A passage image is still uploading.',
+          { localId: passageLocalId })
       }
       if (isMap && !passage.imageUrl) {
-        push(`passage-map-image-${passage.localId || 'unknown'}`, 'Each map section needs a map image.')
+        push(`passage-map-image-${passage.localId || 'unknown'}`, 'Each map section needs a map image.',
+          { localId: passageLocalId })
       } else if (!isMap && !richTextHasContent(passage.passageText)) {
-        push(`passage-text-${passage.localId || 'unknown'}`, 'Each comprehension passage needs passage text.')
+        push(`passage-text-${passage.localId || 'unknown'}`, 'Each comprehension passage needs passage text.',
+          { localId: passageLocalId })
       }
       if (!Array.isArray(passage.questions) || passage.questions.length === 0) {
         push(`passage-questions-${passage.localId || 'unknown'}`,
           isMap ? 'Each map section needs at least one linked question.'
-                : 'Each comprehension passage needs at least one linked question.')
+                : 'Each comprehension passage needs at least one linked question.',
+          { localId: passageLocalId })
       } else {
         for (const question of passage.questions) {
           const label = `Passage question ${questionNumbers[question.localId] ?? '?'}`
@@ -215,23 +223,24 @@ export function collectQuizIssues({ form = {}, sections = [], parts = [], questi
 }
 
 function collectQuestionIssues(question, label, push) {
+  const localId = question?.localId || null
   if (question?.imageUploading) {
     push(`question-uploading-${question.localId}`,
-      `${label}: image is still uploading.`)
+      `${label}: image is still uploading.`, { localId })
   }
   if (question?.optionImageUploadingIndex != null) {
     push(`opt-uploading-${question.localId}`,
-      `${label}: option image is still uploading.`)
+      `${label}: option image is still uploading.`, { localId })
   }
   if (!richTextHasContent(question?.text)) {
     push(`question-text-${question.localId}`,
-      `${label}: question text is empty.`)
+      `${label}: question text is empty.`, { localId })
   }
   const qType = question?.type || MCQ
   const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']
   if (qType === MCQ) {
     if (!Array.isArray(question.options) || question.options.length < 2) {
-      push(`opt-count-${question.localId}`, `${label}: needs at least two options.`)
+      push(`opt-count-${question.localId}`, `${label}: needs at least two options.`, { localId })
     } else {
       const media = Array.isArray(question.optionMedia) ? question.optionMedia : []
       for (let i = 0; i < question.options.length; i++) {
@@ -243,17 +252,17 @@ function collectQuestionIssues(question, label, push) {
         const hasAlt = hasMedia && String(slot.alt || '').trim().length > 0
         if (!hasText && !hasMedia) {
           push(`opt-empty-${question.localId}-${i}`,
-            `${label}: option ${OPTION_LETTERS[i] || i + 1} is empty.`)
+            `${label}: option ${OPTION_LETTERS[i] || i + 1} is empty.`, { localId })
         }
         if (hasMedia && !hasAlt) {
           push(`opt-alt-${question.localId}-${i}`,
-            `${label}: option ${OPTION_LETTERS[i] || i + 1} needs alt text for its image.`)
+            `${label}: option ${OPTION_LETTERS[i] || i + 1} needs alt text for its image.`, { localId })
         }
       }
       const correctIdx = Number(question.correctAnswer)
       if (!Number.isInteger(correctIdx) || correctIdx < 0 || correctIdx >= (question.options?.length || 0)) {
         push(`correct-${question.localId}`,
-          `${label}: pick the correct answer.`)
+          `${label}: pick the correct answer.`, { localId })
       }
     }
   } else if (qType !== SHORT_ANSWER && qType !== DIAGRAM) {
@@ -263,6 +272,6 @@ function collectQuestionIssues(question, label, push) {
     // can't answer and the grader can't score. The legacy
     // `validateStandaloneQuestion` rejected these; keep the gate.
     push(`type-${question.localId}`,
-      `${label}: unrecognised question type "${qType}".`)
+      `${label}: unrecognised question type "${qType}".`, { localId })
   }
 }

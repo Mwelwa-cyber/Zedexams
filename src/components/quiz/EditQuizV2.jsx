@@ -209,6 +209,12 @@ export default function EditQuizV2() {
   const [toast, setToast] = useState(null)
   const [dirty, setDirty] = useState(false)
   const [verifyOpen, setVerifyOpen] = useState(false)
+  // Imported-image upload progress. Set to { completed, total } while a
+  // save flushes the Storage uploads for blob-backed import assets, so
+  // the action bar can show "Uploading images… 4 / 32" instead of
+  // freezing on "Saving…" for the 30-60s a 30-image past paper takes.
+  // null when no batch is in flight.
+  const [uploadProgress, setUploadProgress] = useState(null)
   // Auto-save + checklist UI state.
   //   autoSaveState: one of AUTO_SAVE (idle | saving | saved | failed)
   //   checklistOpen: whether the pre-publish modal is visible
@@ -218,6 +224,10 @@ export default function EditQuizV2() {
   // a vague "Auto-save failed". Cleared on every successful save.
   const [autoSaveError, setAutoSaveError] = useState('')
   const [checklistOpen, setChecklistOpen] = useState(false)
+  // Guard so we only auto-open the checklist ONCE per mount when an
+  // imported quiz loads with outstanding issues — repeated re-opens
+  // after the user manually closed it would be annoying.
+  const checklistAutoOpenedRef = useRef(false)
   // Track when the user last interacted so we don't fire an auto-save
   // mid-keystroke. `dirtySince` is reset to now() on every change.
   const dirtySinceRef = useRef(0)
@@ -301,6 +311,19 @@ export default function EditQuizV2() {
   const validationIssues = validationResult.issues
   const validationSummary = validationResult.summary
   const errorCount = validationIssues.filter((i) => i.severity !== 'warn').length
+
+  // Per-question issue counts, keyed by question.localId. Feeds the inline
+  // red badge in each card header so a teacher can see at a glance which
+  // cards still need attention without opening the checklist modal.
+  const issueCountsByLocalId = useMemo(() => {
+    const map = new Map()
+    for (const issue of validationIssues) {
+      if (issue.severity === 'warn') continue
+      if (!issue.localId) continue
+      map.set(issue.localId, (map.get(issue.localId) || 0) + 1)
+    }
+    return map
+  }, [validationIssues])
 
   function setF(field, value) {
     setForm(current => ({ ...current, [field]: value }))
@@ -400,6 +423,21 @@ export default function EditQuizV2() {
       setImportPanelOpen(true)
     }
   }, [loading, form.linkedPaperId, sections])
+
+  // Auto-open the checklist ONCE on first load when the quiz arrived
+  // from an import and still has unresolved issues. Teachers were
+  // missing the small "X to fix" pill at the bottom of the screen on
+  // freshly-imported papers and shipping unreviewed content. The
+  // checklistAutoOpenedRef guard means a manual close stays closed.
+  useEffect(() => {
+    if (loading) return
+    if (checklistAutoOpenedRef.current) return
+    const isFreshImport = form.importStatus === 'needs_review' && form.mode === 'imported_document'
+    if (!isFreshImport) return
+    if (errorCount === 0) return
+    checklistAutoOpenedRef.current = true
+    setChecklistOpen(true)
+  }, [loading, form.importStatus, form.mode, errorCount])
 
   function updateSection(sectionIndex, updater) {
     setSections(currentSections => currentSections.map((section, index) => (
@@ -1037,18 +1075,57 @@ export default function EditQuizV2() {
   // No-op (cheap) when the quiz wasn't built from an imported document.
   async function serializeWithImportedAssetUploads() {
     const serialized = serializeQuizSections(sections, parts)
+
+    // Count distinct imageAssetIds across both question stems / option
+    // media AND passages so the progress chip reflects the FULL batch,
+    // not just whichever half is currently uploading. Without this the
+    // chip would jump from "x / 20" → "1 / 5" mid-save when the
+    // function moves from questions to passages.
+    const allAssetIds = new Set()
+    serialized.questions.forEach((q) => {
+      if (q.imageAssetId) allAssetIds.add(q.imageAssetId)
+      if (Array.isArray(q.optionMedia)) {
+        q.optionMedia.forEach((slot) => {
+          if (slot?.imageAssetId) allAssetIds.add(slot.imageAssetId)
+        })
+      }
+    })
+    serialized.passages.forEach((p) => {
+      if (p.imageAssetId) allAssetIds.add(p.imageAssetId)
+    })
+    const totalImages = allAssetIds.size
+
+    if (totalImages > 0) {
+      setUploadProgress({ completed: 0, total: totalImages })
+    }
+    let completedTotal = 0
+    const onProgress = totalImages > 0
+      ? () => {
+          completedTotal += 1
+          setUploadProgress({ completed: completedTotal, total: totalImages })
+        }
+      : undefined
+
     const uploadCtx = {
       storage,
       uid: currentUser?.uid,
       assets: importedAssets,
       sourceFileName: form.sourceFileName || '',
+      onProgress,
     }
-    const questions = await uploadImportedQuestionImages(serialized.questions, uploadCtx)
-    const passages = await uploadImportedPassageImages(serialized.passages, uploadCtx)
-    // Defensive: any leftover blob: URL would persist to Firestore and
-    // break for every learner on reload. Catch it here instead.
-    assertNoBlobImageUrls(questions, passages)
-    return { ...serialized, questions, passages }
+    try {
+      const questions = await uploadImportedQuestionImages(serialized.questions, uploadCtx)
+      const passages = await uploadImportedPassageImages(serialized.passages, uploadCtx)
+      // Defensive: any leftover blob: URL would persist to Firestore and
+      // break for every learner on reload. Catch it here instead.
+      assertNoBlobImageUrls(questions, passages)
+      return { ...serialized, questions, passages }
+    } finally {
+      // Always clear so a save-failure doesn't leave the progress chip
+      // stuck on the action bar. The catch in the calling save handler
+      // surfaces the actual error.
+      setUploadProgress(null)
+    }
   }
 
   // Background auto-save: same write as a manual "Save draft" but without
@@ -1472,6 +1549,7 @@ export default function EditQuizV2() {
             sections={sections}
             parts={parts}
             questionNumbers={questionNumbers}
+            issueCountsByLocalId={issueCountsByLocalId}
             totalQuestions={questionCount}
             onStandaloneChange={updateStandaloneQuestion}
             onStandaloneRemove={removeStandaloneSection}
@@ -1631,6 +1709,7 @@ export default function EditQuizV2() {
         onShowChecklist={() => setChecklistOpen(true)}
         saving={saving}
         uploading={anyUploading}
+        uploadProgress={uploadProgress}
         dirty={dirty}
         autoSaveState={autoSaveState}
         autoSaveError={autoSaveError}

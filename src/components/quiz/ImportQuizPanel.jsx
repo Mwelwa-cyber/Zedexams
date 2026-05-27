@@ -8,8 +8,23 @@
  * component is purely presentational + file-picker.
  */
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { QUIZ_DOCUMENT_ACCEPT } from './documentQuizImporter'
+
+// Pull the underlying reason out of a "Smart import unavailable, used
+// standard parser. (REASON)" warning so we can render it in a distinct
+// sub-banner instead of buried in the warning list.
+const SMART_FAIL_PREFIX = /^Smart import unavailable, used standard parser\.\s*\(?/i
+
+function extractSmartImportReason(warnings = []) {
+  if (!Array.isArray(warnings)) return ''
+  const match = warnings.find(w => SMART_FAIL_PREFIX.test(String(w || '')))
+  if (!match) return ''
+  return String(match)
+    .replace(SMART_FAIL_PREFIX, '')
+    .replace(/\)\s*$/, '')
+    .trim()
+}
 
 export default function ImportQuizPanel({
   importing,
@@ -22,6 +37,33 @@ export default function ImportQuizPanel({
   // still fires onChange — without this, a teacher who chose the wrong
   // file would have to refresh to retry the same path.
   const [inputKey, setInputKey] = useState(0)
+  // Cache the last-picked File so the "Retry smart import" button can
+  // re-run the importer without making the teacher re-pick the file
+  // (which is annoying after smart import quietly fell back).
+  const lastFileRef = useRef(null)
+
+  function handlePick(file) {
+    if (!file) return
+    lastFileRef.current = file
+    onImport(file)
+    setInputKey(current => current + 1)
+  }
+
+  function handleRetrySmartImport() {
+    const file = lastFileRef.current
+    if (!file || importing) return
+    onImport(file)
+  }
+
+  // Smart-import fell back to the standard parser when smartApplied is
+  // explicitly false AND we have a warning message that starts with the
+  // canonical fallback prefix. Past papers with messy layouts work much
+  // better through smart import than the standard parser, so we want to
+  // surface this state prominently with a one-click retry.
+  const smartFellBack = importSummary && importSummary.smartApplied === false
+  const smartFailReason = smartFellBack
+    ? extractSmartImportReason(importSummary?.warnings)
+    : ''
 
   return (
     <div className="theme-accent-bg theme-border space-y-4 rounded-2xl border p-5">
@@ -40,11 +82,7 @@ export default function ImportQuizPanel({
             accept={QUIZ_DOCUMENT_ACCEPT}
             className="hidden"
             disabled={importing}
-            onChange={event => {
-              const file = event.target.files?.[0]
-              if (file) onImport(file)
-              setInputKey(current => current + 1)
-            }}
+            onChange={event => handlePick(event.target.files?.[0])}
           />
         </label>
       </div>
@@ -62,6 +100,40 @@ export default function ImportQuizPanel({
           <p className="theme-text mt-1 text-xs font-bold leading-relaxed">Unclear answers, diagrams, and imperfect extraction are marked before publishing.</p>
         </div>
       </div>
+
+      {smartFellBack && (
+        <div className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-3 text-orange-900">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-black">
+                <span aria-hidden="true">⚠️</span> Smart import didn&apos;t run for this file
+              </p>
+              <p className="mt-1 text-xs font-bold leading-relaxed">
+                Falling back to the standard parser. Smart import handles messy
+                past-paper layouts more reliably — retrying often works the
+                second time, especially after a Cloud Function cold start.
+              </p>
+              {smartFailReason && (
+                <p className="mt-2 text-xs font-bold text-orange-800">
+                  <span className="font-black">Why:</span>{' '}
+                  <code className="rounded bg-orange-100 px-1.5 py-0.5 font-mono text-[11px]">{smartFailReason}</code>
+                </p>
+              )}
+            </div>
+            {lastFileRef.current && (
+              <button
+                type="button"
+                onClick={handleRetrySmartImport}
+                disabled={importing}
+                className="shrink-0 rounded-xl bg-orange-600 px-3 py-2 text-xs font-black text-white shadow-sm transition-colors hover:bg-orange-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {importing ? 'Retrying…' : '↻ Retry smart import'}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {importSummary && (
         <div className={`rounded-xl border px-4 py-3 ${
           importSummary.importStatus === 'needs_review'
@@ -72,7 +144,7 @@ export default function ImportQuizPanel({
             Imported {importSummary.questions} question{importSummary.questions === 1 ? '' : 's'} from {importSummary.fileName}
           </p>
           <p className="mt-1 text-xs font-bold leading-relaxed">
-            {importSummary.smartApplied ? 'Smart cleanup applied · ' : ''}
+            {importSummary.smartApplied ? 'Smart cleanup applied · ' : 'Standard parser · '}
             {importSummary.passages ? `${importSummary.passages} passage${importSummary.passages === 1 ? '' : 's'} detected · ` : ''}
             {importSummary.images} image-based question{importSummary.images === 1 ? '' : 's'} · {importSummary.needsReview} need review · Status: {importSummary.importStatus}
           </p>

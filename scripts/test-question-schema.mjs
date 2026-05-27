@@ -125,11 +125,22 @@ test('rejects marks=0', () => {
   assert(!result.success, 'marks must be >= 1')
 })
 
-test('rejects marks=11 (above cap)', () => {
+test('accepts marks=15 (within the 1-20 range)', () => {
+  // The cap was raised from 10 to 20 so legitimate past-paper questions
+  // with `[15 marks]` survive import without auto-save throwing
+  // "Invalid input at 'marks'". See useFirestore.normalizeQuestionPayload
+  // for the matching client-side clamp.
   const d = validDoc()
-  d.marks = 11
+  d.marks = 15
   const result = questionWriteSchema.safeParse(d)
-  assert(!result.success, 'marks must be <= 10')
+  assert(result.success, 'marks=15 should be accepted under the new 1-20 cap')
+})
+
+test('rejects marks=21 (above cap)', () => {
+  const d = validDoc()
+  d.marks = 21
+  const result = questionWriteSchema.safeParse(d)
+  assert(!result.success, 'marks must be <= 20')
 })
 
 test('rejects unknown question type', () => {

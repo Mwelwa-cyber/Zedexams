@@ -34,6 +34,11 @@ export default function QuizEditorActionBar({
   onShowChecklist,
   saving = false,
   uploading = false,
+  // Batch-upload progress for imported images. Either null (no batch in
+  // flight) or { completed, total }. When set, the status pill shows
+  // "Uploading images… 4 / 32" so a 30+ image past-paper save doesn't
+  // look like it has frozen.
+  uploadProgress = null,
   dirty = false,
   autoSaveState = 'idle',
   autoSaveError = '',
@@ -51,6 +56,12 @@ export default function QuizEditorActionBar({
     : autoSaveError
 
   const statusText = (() => {
+    if (uploadProgress && uploadProgress.total > 0) {
+      // Batch import upload — show concrete progress so the teacher
+      // knows the editor isn't stuck. Plural-aware on the noun.
+      const { completed, total } = uploadProgress
+      return `Uploading images… ${completed}/${total}`
+    }
     if (uploading) return 'Uploading image…'
     if (saving) return 'Saving…'
     if (autoSaveState === 'saving') return 'Auto-saving…'
@@ -64,7 +75,7 @@ export default function QuizEditorActionBar({
 
   const statusTone = (() => {
     if (autoSaveState === 'failed') return 'text-rose-700 bg-rose-50 ring-rose-200'
-    if (uploading || saving || autoSaveState === 'saving') return 'text-sky-700 bg-sky-50 ring-sky-200'
+    if (uploadProgress || uploading || saving || autoSaveState === 'saving') return 'text-sky-700 bg-sky-50 ring-sky-200'
     if (dirty) return 'text-amber-700 bg-amber-50 ring-amber-200'
     return 'text-emerald-700 bg-emerald-50 ring-emerald-200'
   })()
