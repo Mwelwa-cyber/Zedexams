@@ -31,6 +31,13 @@ function formatLessonDate(raw) {
 }
 
 function gatherInput() {
+  // The planner (12-lesson-progression.js) owns the lesson-count / foci
+  // state; gatherInput() reads it via window.__lpState so the legacy
+  // single-lesson DOM fields stay accurate when the planner is single-mode,
+  // and the multi-lesson loop in __studioOnGenerateClick uses the planner's
+  // count + per-lesson focus instead of the old f-lessons-* inputs.
+  const lp = window.__lpState || { mode: 'single', count: 1, foci: ['Single lesson plan'] };
+  const lessonsTotal = Math.max(1, parseInt(lp.count, 10) || 1);
   return {
     headerLine: $('#f-header').value.trim(),
     school: $('#f-school').value.trim(),
@@ -55,14 +62,31 @@ function gatherInput() {
     learningEnvironments: $$('#learning-env .le-pill')
       .filter(p => p.dataset.on === 'true')
       .map(p => p.dataset.env),
-    multiLesson: !!($('#t-multilesson') && $('#t-multilesson').dataset.on === 'true'),
-    lessonsTotal: parseInt(($('#f-lessons-total') || {}).value, 10) || 1,
-    lessonsCurrent: parseInt(($('#f-lessons-current') || {}).value, 10) || 1,
-    progressNotes: (($('#f-progress-notes') || {}).value || '').trim()
+    // Backwards-compat fields: keep the single-lesson DOM shape but populate
+    // it from the planner. Other studio modules (10-export.js, 07-format-
+    // preview.js) read these names so we keep the contract stable.
+    multiLesson: lessonsTotal > 1,
+    lessonsTotal,
+    lessonsCurrent: 1,
+    progressNotes: '',
+    // Planner snapshot — used by __studioOnGenerateClick to drive the loop.
+    planner: {
+      mode: lp.mode || 'single',
+      count: lessonsTotal,
+      foci: Array.isArray(lp.foci) ? lp.foci.slice(0, lessonsTotal) : [],
+      seriesId: lp.seriesId || null,
+      aiSuggestedReason: lp.aiSuggestedReason || null,
+      generateOnlyIndex: lp.generateOnlyIndex || null,
+    },
   };
 }
 
-function buildPrompt(i) {
+// Build the user prompt for one specific lesson in the series.
+// `lessonNumber` is 1-based; `lessonFocus` is the short focus headline
+// (e.g. "Concept introduction"). When totalLessons === 1, the focus block
+// is omitted entirely so the prompt looks exactly like the single-lesson
+// path that already works in production.
+function buildPrompt(i, lessonNumber, lessonFocus, totalLessons) {
   const level = activeGradeLevel()[i.klass];
   const legacyTopics = getTopicsForClass(level, i.subject, i.klass);
   // Merge in the clean curriculumTopics map (02b-curriculum-topics.js) for
@@ -82,8 +106,13 @@ function buildPrompt(i) {
   const envLine = (i.learningEnvironments && i.learningEnvironments.length)
     ? `\n- Learning environment(s) to use: ${i.learningEnvironments.join(', ')} — design activities suited to ${i.learningEnvironments.length > 1 ? 'these environments' : 'this environment'}.`
     : '';
-  const seqLine = i.multiLesson
-    ? `\n- This subtopic spans multiple lessons. This is lesson ${i.lessonsCurrent} of ${i.lessonsTotal}; scope the content to this lesson only and build on prior lessons where relevant.${i.progressNotes ? ` Progression notes: ${i.progressNotes}` : ''}`
+  const N = Math.max(1, parseInt(totalLessons, 10) || 1);
+  const K = Math.max(1, Math.min(N, parseInt(lessonNumber, 10) || 1));
+  const focusLines = (N > 1 && Array.isArray(i.planner && i.planner.foci) && i.planner.foci.length)
+    ? i.planner.foci.map((f, idx) => `   ${idx + 1}. ${String(f || '').trim()}`).join('\n')
+    : '';
+  const seqLine = N > 1
+    ? `\n- LESSON SEQUENCE: This sub-topic is being split into ${N} lesson periods. You are writing LESSON ${K} of ${N}.\n- This lesson's focus: "${String(lessonFocus || '').trim() || `Lesson ${K}`}". Scope the entire plan to this focus only — do NOT cover content earmarked for later lessons.\n- Series outline so you know what to leave for siblings:\n${focusLines}`
     : '';
   return `Generate a Zambian CBC lesson plan with these inputs:
 - Class: ${i.klass}
@@ -122,7 +151,10 @@ function renderMetaTable(meta) {
   if (meta.showEnrolment) rows.push(['Enrolment', 'Boys: _____ &nbsp;&nbsp; Girls: _____']);
   if (meta.showAttendance) rows.push(['Attendance', 'Boys: _____ &nbsp;&nbsp; Girls: _____']);
   if (meta.learningEnvironments && meta.learningEnvironments.length) rows.push(['Learning Environment', esc(meta.learningEnvironments.join(', '))]);
-  if (meta.multiLesson) rows.push(['Lesson Sequence', `Lesson ${esc(meta.lessonsCurrent)} of ${esc(meta.lessonsTotal)}` + (meta.progressNotes ? ` &nbsp;·&nbsp; ${esc(meta.progressNotes)}` : '')]);
+  if (meta.multiLesson) {
+    rows.push(['Lesson Sequence', `Lesson ${esc(meta.lessonsCurrent)} of ${esc(meta.lessonsTotal)}`]);
+    if (meta.lessonFocus) rows.push(['Lesson Focus', esc(meta.lessonFocus)]);
+  }
   rows.push(['Medium of Instruction', 'English']);
   return `<table class="meta-table"><tbody>${rows.map(r => `<tr><td class="k">${r[0]}</td><td class="v">${r[1]}</td></tr>`).join('')}</tbody></table>`;
 }
@@ -141,7 +173,10 @@ function renderMetaCompact(meta) {
   if (meta.showEnrolment) items.push(['Enrolment', 'B: ___ G: ___']);
   if (meta.showAttendance) items.push(['Attendance', 'B: ___ G: ___']);
   if (meta.learningEnvironments && meta.learningEnvironments.length) items.push(['Learning Environment', esc(meta.learningEnvironments.join(', '))]);
-  if (meta.multiLesson) items.push(['Lesson Sequence', `Lesson ${esc(meta.lessonsCurrent)} of ${esc(meta.lessonsTotal)}`]);
+  if (meta.multiLesson) {
+    items.push(['Lesson Sequence', `Lesson ${esc(meta.lessonsCurrent)} of ${esc(meta.lessonsTotal)}`]);
+    if (meta.lessonFocus) items.push(['Lesson Focus', esc(meta.lessonFocus)]);
+  }
   return `<div class="meta-compact">${items.map(([k,v]) => `<div class="item"><span class="lbl">${k}:</span><span class="val">${v}</span></div>`).join('')}</div>`;
 }
 
@@ -274,47 +309,127 @@ function renderClassic2(data, meta) {
 
 // ── Generate button ────────────────────────────────────────────────────────────
 
+// Restore the generate button's label after a run. The planner owns the
+// "Generate N Lesson Plans" text via #btn-generate-label, so we just hand
+// control back and let it re-render on the next state change.
+function __studioRestoreGenerateBtn() {
+  const btn = $('#btn-generate');
+  if (!btn) return;
+  btn.disabled = false;
+  btn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/><path d="M9.6 5.6 8 8 5.6 6.4 4 9l2.4 1.6L5 13l3.4-1.4L10 14l1.6-3.4L15 12l-1.6-3.4L17 7l-3.4 1.4L12 5l-1.6 2.4z"/></svg><span id="btn-generate-label">Generate Lesson Plan</span>`;
+  // Repaint the planner's label.
+  const planner = window.__lpState;
+  const label = document.getElementById('btn-generate-label');
+  if (label && planner) {
+    if (planner.generateOnlyIndex && planner.count > 1) label.textContent = `Generate Lesson ${planner.generateOnlyIndex} of ${planner.count}`;
+    else if (planner.count > 1) label.textContent = `Generate ${planner.count} Lesson Plans`;
+  }
+}
+
+// Render the out-of-syllabus error card. Pulled out of the loop so each
+// failed lesson can show the same UI.
+function __studioRenderOutOfSyllabusError(message) {
+  $('#doc').innerHTML = `<div style="padding:60px 30px;text-align:center;font-family:var(--font-doc)">
+    <div style="display:inline-block;padding:30px 36px;background:#fef2f2;border:2px solid #b8492a;border-radius:12px;max-width:560px;text-align:left">
+      <div style="font:700 14px/1 var(--font-display);text-transform:uppercase;letter-spacing:.1em;color:#b8492a;margin-bottom:12px">Topic Out of Syllabus</div>
+      <div style="font-size:14pt;color:#1c1612;line-height:1.5;margin-bottom:14px">${esc(message)}</div>
+      <div style="font-size:11pt;color:#7a6d5d;font-style:italic">Pick one of the suggested topics, or refine your topic input on the left and try again.</div>
+    </div>
+  </div>`;
+}
+
+// Generate ONE lesson, render it, save it. Returns true on success, false on
+// out-of-syllabus error (which short-circuits the rest of a multi-lesson
+// run), throws on transport/system errors.
+async function __studioGenerateOneLesson({ i, lessonNumber, totalLessons, lessonFocus, sysPrompt }) {
+  const planContext = {
+    grade: i.klass, subject: i.subject, term: i.term, week: i.week,
+    topic: i.topic, subtopic: i.subtopic,
+  };
+  const data = await callClaude(sysPrompt, buildPrompt(i, lessonNumber, lessonFocus, totalLessons), planContext);
+  if (data.error) {
+    __studioRenderOutOfSyllabusError(data.error);
+    toast('Topic does not match this grade');
+    return false;
+  }
+  // For multi-lesson runs we tag the meta so the rendered header shows
+  // "Lesson K of N" / "Lesson Focus: …" — even though i.lessonsCurrent
+  // from gatherInput is always 1 (planner-owned).
+  const renderMeta = Object.assign({}, i, {
+    lessonsCurrent: lessonNumber,
+    lessonFocus: lessonFocus || '',
+  });
+  const html = i.format === 'classic' ? renderClassic(data, renderMeta)
+    : (i.format === 'classic2' ? renderClassic2(data, renderMeta) : renderModern(data, renderMeta));
+  $('#doc').innerHTML = html;
+  if (editing) setTimeout(enableAllTableResize, 50);
+
+  // Hand the planner the lesson number so it can return the matching
+  // seriesId / planningMode / focus payload to attach to this doc.
+  const lessonSeries = (typeof window.__lpResolveSeries === 'function')
+    ? window.__lpResolveSeries(lessonNumber)
+    : null;
+
+  saveToLibrary({
+    type: 'plan',
+    meta: {
+      klass: i.klass, subject: i.subject, topic: i.topic, subtopic: i.subtopic,
+      format: i.format, school: i.school, duration: i.duration,
+      termWeek: i.termWeek, syllabusVersion,
+      learningEnvironments: i.learningEnvironments,
+      // Series metadata — read by the React-side saveToLibrary bridge to
+      // populate inputs.lessonSeries on the aiGenerations doc.
+      lessonSeries,
+      // Backwards-compat flags so older readers that only know about the
+      // single multi-lesson flag still surface "Lesson K of N".
+      multiLesson: totalLessons > 1,
+      lessonsTotal: totalLessons,
+      lessonsCurrent: lessonNumber,
+      lessonFocus: lessonFocus || '',
+      progressNotes: '',
+    },
+    data: data,
+    html: html,
+  });
+  return true;
+}
+
 async function __studioOnGenerateClick() {
   const i = gatherInput();
   if (!i.school) { toast('Please add a school name'); $('#f-school').focus(); return; }
   if (!i.topic && !i.subtopic) { toast('Add at least a topic or sub-topic'); $('#f-topic').focus(); return; }
   const loader = $('#loader');
+  const btn = $('#btn-generate');
+
+  const total = Math.max(1, parseInt(i.planner.count, 10) || 1);
+  // "Only this" overrides the loop — produce a single lesson at that index.
+  const onlyIndex = (i.planner.generateOnlyIndex && i.planner.generateOnlyIndex >= 1 && i.planner.generateOnlyIndex <= total)
+    ? i.planner.generateOnlyIndex
+    : null;
+  const indices = onlyIndex ? [onlyIndex] : Array.from({ length: total }, (_, k) => k + 1);
+
   if (loader) loader.classList.add('show');
-  $('#btn-generate').disabled = true;
-  $('#btn-generate').innerHTML = '<span>Composing your lesson plan…</span>';
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = `<span>${total > 1 ? `Composing lesson plans…` : 'Composing your lesson plan…'}</span>`;
+  }
+
+  const sysPrompt = i.format === 'classic' ? sysClassic : (i.format === 'classic2' ? sysClassic2 : sysModern);
+  let madeCount = 0;
   try {
-    const sysPrompt = i.format === 'classic' ? sysClassic : (i.format === 'classic2' ? sysClassic2 : sysModern);
-    // Lesson coords so the function can ground the plan on the teacher's
-    // own saved Scheme of Work / Weekly Forecast for this week.
-    const planContext = {
-      grade: i.klass,
-      subject: i.subject,
-      term: i.term,
-      week: i.week,
-      topic: i.topic,
-      subtopic: i.subtopic,
-    };
-    const data = await callClaude(sysPrompt, buildPrompt(i), planContext);
-    if (data.error) {
-      $('#doc').innerHTML = `<div style="padding:60px 30px;text-align:center;font-family:var(--font-doc)">
-        <div style="display:inline-block;padding:30px 36px;background:#fef2f2;border:2px solid #b8492a;border-radius:12px;max-width:560px;text-align:left">
-          <div style="font:700 14px/1 var(--font-display);text-transform:uppercase;letter-spacing:.1em;color:#b8492a;margin-bottom:12px">Topic Out of Syllabus</div>
-          <div style="font-size:14pt;color:#1c1612;line-height:1.5;margin-bottom:14px">${esc(data.error)}</div>
-          <div style="font-size:11pt;color:#7a6d5d;font-style:italic">Pick one of the suggested topics, or refine your topic input on the left and try again.</div>
-        </div>
-      </div>`;
-      toast('Topic does not match this grade');
-    } else {
-      const html = i.format === 'classic' ? renderClassic(data, i) : (i.format === 'classic2' ? renderClassic2(data, i) : renderModern(data, i));
-      $('#doc').innerHTML = html;
-      if (editing) setTimeout(enableAllTableResize, 50);
-      saveToLibrary({
-        type: 'plan',
-        meta: { klass: i.klass, subject: i.subject, topic: i.topic, subtopic: i.subtopic, format: i.format, school: i.school, duration: i.duration, termWeek: i.termWeek, syllabusVersion, learningEnvironments: i.learningEnvironments, multiLesson: i.multiLesson, lessonsTotal: i.lessonsTotal, lessonsCurrent: i.lessonsCurrent, progressNotes: i.progressNotes },
-        data: data,
-        html: html
-      });
-      toast('Lesson plan generated and saved');
+    for (const lessonNumber of indices) {
+      if (btn) btn.innerHTML = `<span>${total > 1 ? `Composing lesson ${madeCount + 1} of ${indices.length}…` : 'Composing your lesson plan…'}</span>`;
+      const focus = (i.planner.foci && i.planner.foci[lessonNumber - 1]) || '';
+      const ok = await __studioGenerateOneLesson({ i, lessonNumber, totalLessons: total, lessonFocus: focus, sysPrompt });
+      if (!ok) break;        // Out-of-syllabus error — stop the series here.
+      madeCount += 1;
+    }
+    if (madeCount > 0) {
+      if (madeCount === 1 && total === 1) toast('Lesson plan generated and saved');
+      else if (onlyIndex) toast(`Lesson ${onlyIndex} of ${total} generated and saved`);
+      else toast(`${madeCount} of ${total} lesson plans generated and saved`);
+      // Clear "only this" so the next click defaults back to the full series.
+      if (typeof window.__lpResetGenerateOnly === 'function') window.__lpResetGenerateOnly();
       $('#sidebar').classList.remove('open');
       $('#scrim').classList.remove('show');
       // On phones the form is now an in-flow panel above the preview, so
@@ -331,8 +446,7 @@ async function __studioOnGenerateClick() {
     toast(msg ? `Generation failed: ${msg}` : 'Generation failed — try again');
   } finally {
     if (loader) loader.classList.remove('show');
-    $('#btn-generate').disabled = false;
-    $('#btn-generate').innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/><path d="M9.6 5.6 8 8 5.6 6.4 4 9l2.4 1.6L5 13l3.4-1.4L10 14l1.6-3.4L15 12l-1.6-3.4L17 7l-3.4 1.4L12 5l-1.6 2.4z"/></svg> Generate Lesson Plan`;
+    __studioRestoreGenerateBtn();
   }
 }
 

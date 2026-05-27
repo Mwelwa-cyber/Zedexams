@@ -21,7 +21,7 @@ const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerat
 
 // Bump this when /public/studio/* is changed so phones / CDNs refetch
 // instead of serving the cached old file.
-const STUDIO_ASSET_VERSION = 'v13'
+const STUDIO_ASSET_VERSION = 'v14'
 
 // Sequential script loader — each script must finish before the next starts
 // because the studio scripts rely on globals set by earlier ones.
@@ -81,6 +81,21 @@ export default function LessonPlanStudio() {
       // We intentionally do NOT set `output` — the studio's data tree has
       // a different schema than LessonPlanView expects; the detail view's
       // LegacyStudioFrame renders the pre-rendered `html` blob instead.
+      // Series metadata describes whether this lesson plan belongs to a
+      // multi-lesson group (Multiple lessons / Full week plan / Let AI
+      // suggest), or stands alone (Single lesson). When present, seriesId
+      // links sibling plans in the library so a future grouping UI can
+      // surface them together. lessonFocus carries the per-lesson topic
+      // angle the studio generated this plan for ("Introduction…",
+      // "Guided practice…", etc.).
+      const series = m.lessonSeries && typeof m.lessonSeries === 'object'
+        ? m.lessonSeries
+        : null
+      const weekOnly = (() => {
+        const tw = String(m.termWeek || '')
+        const match = tw.match(/Week\s*(\d+)/i)
+        return match ? `Week ${match[1]}` : null
+      })()
       const ref = await addDoc(collection(db, 'aiGenerations'), {
         ownerUid: uid,
         tool: 'lesson_plan',
@@ -91,7 +106,25 @@ export default function LessonPlanStudio() {
           topic:    m.topic || null,
           subtopic: m.subtopic || null,
           term:     termOnly,
+          week:     weekOnly,
           learningEnvironments: Array.isArray(m.learningEnvironments) ? m.learningEnvironments : [],
+          lessonSeries: series ? {
+            seriesId:        String(series.seriesId || '') || null,
+            planningMode:    String(series.planningMode || 'single'),
+            totalLessons:    Number(series.totalLessons) || 1,
+            lessonNumber:    Number(series.lessonNumber) || 1,
+            lessonFocus:     String(series.lessonFocus || '').slice(0, 240),
+            aiSuggestedReason: series.aiSuggestedReason ? String(series.aiSuggestedReason).slice(0, 600) : null,
+          } : {
+            seriesId: null,
+            planningMode: 'single',
+            totalLessons: 1,
+            lessonNumber: 1,
+            lessonFocus: '',
+            aiSuggestedReason: null,
+          },
+          // Kept for backwards-compat with any reader still looking at the
+          // pre-v14 shape; new readers should prefer lessonSeries above.
           lessonProgression: m.multiLesson ? {
             requiresMultipleLessons: true,
             totalLessons:  Number(m.lessonsTotal) || null,
@@ -195,6 +228,45 @@ export default function LessonPlanStudio() {
       }
     }
 
+    // ---- Bridge: fetch the rich detail for one subtopic ----
+    // The topics bridge above only surfaces subtopic NAMES (because the
+    // studio's hardcoded JS expects { topic: [subName, ...] }). The richer
+    // {specificCompetence, learningActivities, expectedStandard} shape lives
+    // in the merged source and is what the Lesson Progression planner needs
+    // to a) build subject-aware breakdowns and b) ask Claude to suggest a
+    // lesson count grounded in the actual syllabus content.
+    //
+    // Returns { name, specificCompetence, learningActivities, expectedStandard }
+    // on a match, null otherwise.
+    window.__studioFetchSubtopicDetail = async ({ grade, subject, topic, subtopic }) => {
+      if (!grade || !subject || !topic || !subtopic) return null
+      try {
+        const merged = await getMergedSyllabi()
+        const kbTopics = syllabiToKbTopics(merged)
+        const wanted = String(subtopic).trim().toLowerCase()
+        for (const t of kbTopics) {
+          if (t.grade !== grade || t.subject !== subject) continue
+          if (String(t.topic || '').trim().toLowerCase() !== String(topic).trim().toLowerCase()) continue
+          for (const s of (Array.isArray(t.subtopics) ? t.subtopics : [])) {
+            const name = subtopicName(s)
+            if (String(name).trim().toLowerCase() !== wanted) continue
+            // Legacy string subtopics carry no detail; that's a null match.
+            if (typeof s === 'string') return { name, specificCompetence: '', learningActivities: '', expectedStandard: '' }
+            return {
+              name,
+              specificCompetence: String(s.specificCompetence || ''),
+              learningActivities: String(s.learningActivities || ''),
+              expectedStandard:   String(s.expectedStandard || ''),
+            }
+          }
+        }
+        return null
+      } catch (err) {
+        console.warn('studio subtopic detail fetch failed', err)
+        return null
+      }
+    }
+
     // ---- Bridge: dynamic subject list per grade from the active CBC KB ----
     // The studio's hardcoded subjectsByLevel maps each level (lp/up/js/ss/al)
     // to a fixed subject list. That can't reflect what an admin has actually
@@ -285,6 +357,7 @@ export default function LessonPlanStudio() {
       `/studio/09-symbols.js${v}`,
       `/studio/10-export.js${v}`,
       `/studio/11-diagrams.js${v}`,
+      `/studio/12-lesson-progression.js${v}`,
     ]
 
     loadScriptsSequentially(scripts)
@@ -320,6 +393,7 @@ export default function LessonPlanStudio() {
       delete window.__studioCallClaude
       delete window.__studioGetAuth
       delete window.__studioFetchSyllabusTopics
+      delete window.__studioFetchSubtopicDetail
       delete window.__studioFetchSyllabusSubjects
       delete window.saveToLibrary
       delete window.$
@@ -433,24 +507,101 @@ export default function LessonPlanStudio() {
                 </div>
               </div>
 
-              {/* 5 · Lesson Progression (NEW) */}
+              {/* 5 · Lesson Progression (NEW — planning modes) */}
               <div className="lp-section" data-section="progression">
                 <button type="button" className="lp-section-head">
                   <span className="lp-section-title">Lesson Progression</span>
+                  <span className="lp-section-hint">one subtopic ≠ one lesson</span>
                   <svg className="lp-chevron" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
                 <div className="lp-section-body">
-                  <div className="toggle-row" id="t-multilesson" data-on="false">
-                    <div className="lbl">Subtopic needs multiple lessons<small>Track where this lesson sits in the sequence</small></div>
-                    <div className="toggle-switch"></div>
+                  <div className="helper" style={{marginTop:0,marginBottom:'10px'}}>Choose how many lesson plans this subtopic needs. One plan covers one lesson period.</div>
+
+                  {/* Planning mode pills (segmented) */}
+                  <div className="lp-mode-grid" id="lp-mode-grid" role="radiogroup" aria-label="Planning mode">
+                    <button type="button" className="lp-mode-pill" data-mode="single" data-on="true" role="radio" aria-checked="true">
+                      <span className="name">Single lesson</span>
+                      <span className="desc">One 40-min plan for this subtopic</span>
+                    </button>
+                    <button type="button" className="lp-mode-pill" data-mode="multiple" data-on="false" role="radio" aria-checked="false">
+                      <span className="name">Multiple lessons</span>
+                      <span className="desc">Pick 2–5 (or custom) sequenced plans</span>
+                    </button>
+                    <button type="button" className="lp-mode-pill" data-mode="week" data-on="false" role="radio" aria-checked="false">
+                      <span className="name">Full week plan</span>
+                      <span className="desc">One plan per period this week</span>
+                    </button>
+                    <button type="button" className="lp-mode-pill" data-mode="ai" data-on="false" role="radio" aria-checked="false">
+                      <span className="name">Let AI suggest</span>
+                      <span className="desc">Reads the syllabus and recommends</span>
+                    </button>
                   </div>
-                  <div className="lp-progression-fields" id="multilesson-fields" hidden>
-                    <div className="field-row">
-                      <div className="field"><label>Total lessons</label><input type="number" id="f-lessons-total" min="1" max="20" defaultValue="2" /></div>
-                      <div className="field"><label>This lesson #</label><input type="number" id="f-lessons-current" min="1" max="20" defaultValue="1" /></div>
+
+                  {/* Multiple-lessons count selector */}
+                  <div className="lp-mode-panel" id="lp-panel-multiple" hidden>
+                    <div className="field">
+                      <label>How many lesson plans?</label>
+                      <div className="lp-count-row" id="lp-count-row">
+                        <button type="button" className="lp-count-pill" data-count="2">2</button>
+                        <button type="button" className="lp-count-pill" data-count="3" data-on="true">3</button>
+                        <button type="button" className="lp-count-pill" data-count="4">4</button>
+                        <button type="button" className="lp-count-pill" data-count="5">5</button>
+                        <button type="button" className="lp-count-pill" data-count="custom">Custom</button>
+                      </div>
+                      <input type="number" id="f-lp-count-custom" min="2" max="20" defaultValue="6" hidden />
                     </div>
-                    <div className="field"><label>Progression notes <span className="opt">(optional)</span></label><textarea id="f-progress-notes" rows="2" placeholder="e.g. Lesson 1 covered definitions; this lesson builds on…"></textarea></div>
                   </div>
+
+                  {/* Full week — periods per week */}
+                  <div className="lp-mode-panel" id="lp-panel-week" hidden>
+                    <div className="field">
+                      <label>Periods for this subject this week</label>
+                      <div className="lp-count-row" id="lp-week-row">
+                        <button type="button" className="lp-count-pill" data-week="2">2</button>
+                        <button type="button" className="lp-count-pill" data-week="3" data-on="true">3</button>
+                        <button type="button" className="lp-count-pill" data-week="4">4</button>
+                        <button type="button" className="lp-count-pill" data-week="5">5</button>
+                        <button type="button" className="lp-count-pill" data-week="6">6</button>
+                      </div>
+                      <div className="helper" style={{marginTop:'6px'}}>One lesson plan will be generated per period.</div>
+                    </div>
+                  </div>
+
+                  {/* AI-suggest panel */}
+                  <div className="lp-mode-panel" id="lp-panel-ai" hidden>
+                    <button type="button" className="btn lp-ai-btn" id="btn-lp-ai-suggest">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1"/></svg>
+                      <span>Suggest a number</span>
+                    </button>
+                    <div className="lp-ai-banner" id="lp-ai-banner" hidden>
+                      <div className="lp-ai-banner-head">
+                        <span className="lp-ai-count" id="lp-ai-count">—</span>
+                        <span className="lp-ai-count-label">lesson plans suggested</span>
+                      </div>
+                      <div className="lp-ai-reason" id="lp-ai-reason"></div>
+                      <div className="lp-ai-actions">
+                        <button type="button" className="lp-ai-accept" id="btn-lp-ai-accept">Accept</button>
+                        <button type="button" className="lp-ai-edit" id="btn-lp-ai-edit">Edit number…</button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Breakdown preview — shown whenever a non-single mode resolves to N ≥ 1 lessons */}
+                  <div className="lp-breakdown" id="lp-breakdown" hidden>
+                    <div className="lp-breakdown-head">
+                      <span className="lp-breakdown-title">Lesson breakdown</span>
+                      <span className="lp-breakdown-hint" id="lp-breakdown-hint">Edit any focus, or click a row to generate just that lesson.</span>
+                    </div>
+                    <div className="lp-breakdown-list" id="lp-breakdown-list"></div>
+                  </div>
+
+                  {/* Hidden legacy fields — kept so 06-generate.js gatherInput()
+                      doesn't break on first load before the new panel writes
+                      its values. The new planner overwrites these on every
+                      change. */}
+                  <input type="hidden" id="f-lessons-total" defaultValue="1" />
+                  <input type="hidden" id="f-lessons-current" defaultValue="1" />
+                  <input type="hidden" id="f-progress-notes" defaultValue="" />
                 </div>
               </div>
 
@@ -558,13 +709,15 @@ export default function LessonPlanStudio() {
                 </div>
               </div>
 
-              {/* 8 · Generate — sticky bar */}
+              {/* 8 · Generate — sticky bar.
+                  Label changes to "Generate N Lesson Plans" when the planner
+                  resolves to a multi-lesson mode (12-lesson-progression.js). */}
               <div className="lp-generate-bar">
                 <button className="btn btn-primary" id="btn-generate">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/><path d="M9.6 5.6 8 8 5.6 6.4 4 9l2.4 1.6L5 13l3.4-1.4L10 14l1.6-3.4L15 12l-1.6-3.4L17 7l-3.4 1.4L12 5l-1.6 2.4z"/></svg>
-                  Generate Lesson Plan
+                  <span id="btn-generate-label">Generate Lesson Plan</span>
                 </button>
-                <div className="helper lp-generate-help">Builds a CBC-aligned plan in your chosen format. Edit, restyle, and export when ready.</div>
+                <div className="helper lp-generate-help">Builds CBC-aligned plans in your chosen format. Edit, restyle, and export when ready.</div>
               </div>
             </div>
 
