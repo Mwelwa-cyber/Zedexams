@@ -61,6 +61,7 @@
     "test:syllabus-mapping": "node scripts/test-syllabus-mapping.mjs",
     "test:syllabus-data-sync": "node scripts/test-syllabus-data-sync.mjs",
     "sync:syllabus-data": "node scripts/sync-syllabus-data.mjs",
+    "audit:syllabus-data": "node scripts/audit-syllabus-data.mjs",
     "test:cbc-kb": "node functions/scripts/validate-cbc-kb.mjs",
     "test:rules-emulator": "npx -y firebase-tools@latest emulators:exec --only firestore --project examsprepzambia-test \"node scripts/test-firestore-rules-emulator.mjs\"",
     "test:storage-rules-emulator": "npx -y firebase-tools@latest emulators:exec --only firestore,storage --project examsprepzambia-test \"node scripts/test-storage-rules-emulator.mjs\"",
