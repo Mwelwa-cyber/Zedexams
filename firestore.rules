@@ -59,7 +59,14 @@ service cloud.firestore {
     // stay valid because all the new checks are gated on field presence.
     function validQuestionFields() {
       return (!('type' in incoming()) || _validQuestionType(incoming().type))
-        && (!('marks' in incoming()) || (incoming().marks is int && incoming().marks >= 1 && incoming().marks <= 10))
+        // Cap raised from 10 to 20 to match the client-side
+        // questionWriteSchema (bumped in PR #655). ECZ end-of-section
+        // long-answer items can legitimately be 10-20 marks; without
+        // this lift, importing such a paper would save the draft fine
+        // and then fail on publish with
+        // "Save failed: Missing or insufficient permissions."
+        // Keep the integer + non-negative shape unchanged.
+        && (!('marks' in incoming()) || (incoming().marks is int && incoming().marks >= 1 && incoming().marks <= 20))
         && (!('options' in incoming()) || (incoming().options is list && incoming().options.size() <= 20))
         && (!('order' in incoming()) || (incoming().order is int && incoming().order >= 0 && incoming().order <= 10000))
         && (!('topic' in incoming()) || (incoming().topic is string && incoming().topic.size() <= 200))
