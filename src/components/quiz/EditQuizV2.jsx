@@ -43,6 +43,8 @@ import PastPaperReferenceBanner from './PastPaperReferenceBanner'
 import QuizEditorActionBar from './QuizEditorActionBar'
 import QuizEditorFloatingNav from './QuizEditorFloatingNav'
 import QuizValidationChecklist from './QuizValidationChecklist'
+import ReimportDiffModal from './ReimportDiffModal'
+import { diffImportedSections, mergeImportedSections } from '../../utils/quizReimportDiff.js'
 import QuizWizardSteps from './QuizWizardSteps'
 import QuizStatusBadge from './assignment/QuizStatusBadge'
 import QuizAssignStep from './assignment/QuizAssignStep'
@@ -215,6 +217,11 @@ export default function EditQuizV2() {
   // freezing on "Saving…" for the 30-60s a 30-image past paper takes.
   // null when no batch is in flight.
   const [uploadProgress, setUploadProgress] = useState(null)
+  // Re-import diff modal state. Set when handleImportDocument finds
+  // that the new file overlaps an existing quiz; cleared by either of
+  // the modal's three buttons (Update matched / Replace all / Cancel).
+  const [pendingImport, setPendingImport] = useState(null)
+  const [pendingDiff, setPendingDiff] = useState(null)
   // Auto-save + checklist UI state.
   //   autoSaveState: one of AUTO_SAVE (idle | saving | saved | failed)
   //   checklistOpen: whether the pre-publish modal is visible
@@ -996,72 +1003,122 @@ export default function EditQuizV2() {
   // is already linked to a paper we keep the admin's chosen subject /
   // grade / topic rather than letting the importer's guesses overwrite
   // them.
-  async function handleImportDocument(file) {
-    if (!file) return
-    const hasExistingWork = !hasOnlyEmptyStarterSection(sections)
-    if (hasExistingWork && typeof window !== 'undefined' &&
-        !window.confirm('Replace the current questions with questions extracted from this document?')) {
-      return
-    }
-    if (importingDocument) return
+  // When a re-import is in flight, we stash the freshly-imported payload
+  // here so the diff modal can choose between merge / replace / cancel.
+  // null when no decision is pending.
+  // pendingImport: { imported, file } | null
+  // pendingDiff: result of diffImportedSections(sections, imported.sections)
+  // — pre-computed once so the modal renders synchronously without
+  //   re-running the diff on every keystroke.
 
-    setImportingDocument(true)
-    try {
-      const imported = await importQuizDocument(file)
-      // Release the previous import's blob URLs before adopting new ones.
-      revokeImportedQuizAssets(importedAssets)
-      setImportedAssets(assetsById(imported.imageAssets))
+  // Apply an imported payload to editor state using one of two
+  // strategies: 'replace' (the legacy behaviour, wipes sections + parts
+  // and adopts the import verbatim) or 'merge' (preserves manual edits
+  // on questions the new file didn't change; see quizReimportDiff.js).
+  function applyImportedPayload(imported, file, strategy) {
+    // Release the previous import's blob URLs before adopting new ones.
+    revokeImportedQuizAssets(importedAssets)
+    setImportedAssets(assetsById(imported.imageAssets))
 
-      const linkedToPaper = Boolean(form.linkedPaperId)
-      setForm(current => ({
-        ...current,
-        // Past-paper quizzes already carry an admin-chosen title /
-        // subject / grade — don't let the importer's guesses overwrite
-        // them. For fresh quizzes, fall back to the importer's metadata
-        // only when the field is empty.
-        title: linkedToPaper || current.title?.trim()
-          ? current.title
-          : imported.quiz.title,
-        // Topic is intentionally left untouched on import — imported papers
-        // span many CBC topics; the teacher should keep their own value or
-        // leave the field blank rather than have the title stamped in.
-        grade: linkedToPaper ? current.grade : (imported.quiz.grade || current.grade),
-        subject: linkedToPaper ? current.subject : (imported.quiz.subject || current.subject),
-        mode: 'imported_document',
-        importStatus: imported.importStatus,
-        sourceFileName: imported.quiz.sourceFileName,
-        sourceContentType: imported.quiz.sourceContentType,
-        importWarnings: imported.warnings,
-      }))
+    const linkedToPaper = Boolean(form.linkedPaperId)
+    setForm(current => ({
+      ...current,
+      // Past-paper quizzes already carry an admin-chosen title /
+      // subject / grade — don't let the importer's guesses overwrite
+      // them. For fresh quizzes, fall back to the importer's metadata
+      // only when the field is empty.
+      title: linkedToPaper || current.title?.trim()
+        ? current.title
+        : imported.quiz.title,
+      // Topic is intentionally left untouched on import — imported papers
+      // span many CBC topics; the teacher should keep their own value or
+      // leave the field blank rather than have the title stamped in.
+      grade: linkedToPaper ? current.grade : (imported.quiz.grade || current.grade),
+      subject: linkedToPaper ? current.subject : (imported.quiz.subject || current.subject),
+      mode: 'imported_document',
+      importStatus: imported.importStatus,
+      sourceFileName: imported.quiz.sourceFileName,
+      sourceContentType: imported.quiz.sourceContentType,
+      importWarnings: imported.warnings,
+    }))
+
+    const incomingSections = imported.sections?.length
+      ? imported.sections
+      : imported.questions.map(question => buildStandaloneSection(question))
+
+    if (strategy === 'replace') {
       // Replaced sections / parts: the previous question records are
       // gone, so their Firestore ids need to land in deletedIds so the
       // next save cleans them up.
       const removedIds = sections.flatMap(collectQuestionIds)
       setDeletedIds(current => [...current, ...removedIds])
-      setSections(imported.sections?.length
-        ? imported.sections
-        : imported.questions.map(question => buildStandaloneSection(question)))
+      setSections(incomingSections)
       setParts(Array.isArray(imported.parts) ? imported.parts : [])
-      setImportSummary({
-        ...imported.summary,
-        fileName: file.name,
-        importStatus: imported.importStatus,
-        smartApplied: imported.smartApplied,
-        warnings: imported.warnings,
-      })
-      const importedCount = imported.sections?.length || imported.questions?.length || 0
-      if (importedCount === 0) {
-        show('No questions could be extracted from this document. Check the file or try a different format.', true)
+    } else {
+      // Merge strategy: matched questions are updated in place (Firestore
+      // id retained, manual topic preserved); incoming-only questions
+      // append; existing-only questions stay. No Firestore ids are
+      // queued for deletion — the merge by construction doesn't drop
+      // any existing records.
+      setSections(mergeImportedSections(sections, incomingSections))
+      // Parts: take the union (existing first, then incoming-only).
+      const existingPartIds = new Set((parts || []).map(p => p.id))
+      const incomingParts = Array.isArray(imported.parts) ? imported.parts : []
+      const mergedParts = [...parts, ...incomingParts.filter(p => !existingPartIds.has(p.id))]
+      setParts(mergedParts)
+    }
+
+    setImportSummary({
+      ...imported.summary,
+      fileName: file.name,
+      importStatus: imported.importStatus,
+      smartApplied: imported.smartApplied,
+      warnings: imported.warnings,
+    })
+
+    const importedCount = incomingSections.length
+    if (importedCount === 0) {
+      show('No questions could be extracted from this document. Check the file or try a different format.', true)
+      return
+    }
+    setDirty(true)
+    const verb = strategy === 'merge' ? 'merged' : 'imported'
+    show(imported.importStatus === 'needs_review'
+      ? imported.smartApplied
+        ? `Document ${verb} with smart cleanup. Review flagged questions before publishing.`
+        : `Document ${verb}. Review passages and marked questions before publishing.`
+      : imported.smartApplied
+        ? `Document ${verb} with smart cleanup into editable quiz sections.`
+        : `Document ${verb} into editable quiz sections.`)
+  }
+
+  async function handleImportDocument(file) {
+    if (!file) return
+    if (importingDocument) return
+
+    setImportingDocument(true)
+    try {
+      const imported = await importQuizDocument(file)
+
+      const hasExistingWork = !hasOnlyEmptyStarterSection(sections)
+      const incomingSections = imported.sections?.length
+        ? imported.sections
+        : imported.questions.map(question => buildStandaloneSection(question))
+      const diff = diffImportedSections(sections, incomingSections)
+      const hasMatchableQuestions = (diff.added.length + diff.changed.length + diff.unchanged.length + diff.removed.length) > 0
+
+      // First import (or an existing quiz with nothing matchable) goes
+      // straight to the legacy replace path — no decision is needed
+      // because there's nothing to preserve.
+      if (!hasExistingWork || !hasMatchableQuestions) {
+        applyImportedPayload(imported, file, 'replace')
         return
       }
-      setDirty(true)
-      show(imported.importStatus === 'needs_review'
-        ? imported.smartApplied
-          ? 'Document imported with smart cleanup. Review flagged questions before publishing.'
-          : 'Document imported. Review passages and marked questions before publishing.'
-        : imported.smartApplied
-          ? 'Document imported with smart cleanup into editable quiz sections.'
-          : 'Document imported into editable quiz sections.')
+
+      // Otherwise hand off to the diff modal. The modal owns the next
+      // step; the apply call happens in onMerge / onReplace below.
+      setPendingImport({ imported, file })
+      setPendingDiff(diff)
     } catch (error) {
       console.error('[EditQuizV2] document import failed', error)
       show(`Import failed: ${getErrorMessage(error, 'Could not read this document.')}`, true)
@@ -1734,6 +1791,36 @@ export default function EditQuizV2() {
         onClose={() => setChecklistOpen(false)}
         issues={validationIssues}
         summary={validationSummary}
+      />
+
+      {/* Re-import diff modal — surfaced when a teacher re-uploads a
+          DOCX into a quiz that already has matching questions. Lets
+          them merge (preserve manual edits) instead of being forced
+          into the legacy nuke-and-replace. */}
+      <ReimportDiffModal
+        open={Boolean(pendingImport && pendingDiff)}
+        fileName={pendingImport?.file?.name || ''}
+        diff={pendingDiff}
+        onMerge={() => {
+          if (!pendingImport) return
+          applyImportedPayload(pendingImport.imported, pendingImport.file, 'merge')
+          setPendingImport(null)
+          setPendingDiff(null)
+        }}
+        onReplace={() => {
+          if (!pendingImport) return
+          applyImportedPayload(pendingImport.imported, pendingImport.file, 'replace')
+          setPendingImport(null)
+          setPendingDiff(null)
+        }}
+        onCancel={() => {
+          // Release the freshly-imported blob URLs we never adopted.
+          if (pendingImport?.imported?.imageAssets) {
+            revokeImportedQuizAssets(assetsById(pendingImport.imported.imageAssets))
+          }
+          setPendingImport(null)
+          setPendingDiff(null)
+        }}
       />
     </div>
   )
