@@ -36,6 +36,49 @@ const CAT_LABELS = {
   'Secondary':       'Secondary · Forms 1–4',
 }
 
+// ─── 2013 legacy curriculum ──────────────────────────────────────────────────
+// Same shape as the current META above but pointing at the pre-CBC 2013 syllabi.
+// Loaded lazily — only the first switch to the legacy era pulls
+// /syllabi/curriculum-data-2013.json. Overrides aren't supported on this era;
+// it's strictly read-only reference material.
+const META_2013 = {
+  'Integrated Science Syllabus (Grades 1-7, 2013)':         { icon: '🔬', cat: 'Primary',           short: 'Integrated Science' },
+  'Mathematics Syllabus (Grades 1-7, 2013)':                { icon: '➗', cat: 'Primary',           short: 'Mathematics' },
+  'Social Studies Syllabus (Grades 1-7, 2013)':             { icon: '🌍', cat: 'Primary',           short: 'Social Studies' },
+  'English Language Syllabus (Grades 2-7, 2013)':           { icon: '📖', cat: 'Primary',           short: 'English Language' },
+  'Creative & Technology Studies Syllabus (2013)':           { icon: '🎨', cat: 'Primary',           short: 'Creative & Technology Studies' },
+  'Home Economics Syllabus (Grades 5-7, 2013)':             { icon: '🏠', cat: 'Upper Primary',     short: 'Home Economics' },
+  'Design & Technology Syllabus (Grades 5-7, 2013)':        { icon: '⚙️', cat: 'Upper Primary',     short: 'Design & Technology' },
+  'Expressive Arts Syllabus (Grades 5-7, 2013)':            { icon: '🎭', cat: 'Upper Primary',     short: 'Expressive Arts' },
+  'Zambian Language Syllabus (Grades 5-7, 2013)':           { icon: '🗣️', cat: 'Upper Primary',     short: 'Zambian Language' },
+  'Technology Studies Syllabus (Grades 4-6)-d22e21c3':      { icon: '🛠️', cat: 'Upper Primary',     short: 'Technology Studies' },
+  'Physical Education Syllabus (Grades 8-9, 2013)':         { icon: '🏃', cat: 'Junior Secondary',  short: 'Physical Education' },
+  'Civic Education Syllabus (Grades 10-12, 2013)':          { icon: '🏛️', cat: 'Senior Secondary',  short: 'Civic Education' },
+  'Food & Nutrition Syllabus (Grades 10-12, 2013)':         { icon: '🥗', cat: 'Senior Secondary',  short: 'Food & Nutrition' },
+  'Geography Syllabus (Grades 10-12, 2013)':                { icon: '🗺️', cat: 'Senior Secondary',  short: 'Geography' },
+  'History Syllabus (Senior Secondary, 2013)':              { icon: '📜', cat: 'Senior Secondary',  short: 'History' },
+  'Home Management Syllabus (Grades 10-12, 2013)':          { icon: '🏡', cat: 'Senior Secondary',  short: 'Home Management' },
+  'Mathematics Syllabus (Grades 10-12, 2013)':              { icon: '📐', cat: 'Senior Secondary',  short: 'Mathematics' },
+  'Physical Education Syllabus (Grades 10-12, 2013)':       { icon: '⚽', cat: 'Senior Secondary',  short: 'Physical Education (Sr.)' },
+  'Religious Education 2044 Syllabus (Grades 10-12, 2013)': { icon: '✝️', cat: 'Senior Secondary',  short: 'Religious Education 2044' },
+  'Religious Education 2046 Syllabus (Grades 10-12, 2013)': { icon: '☪️', cat: 'Senior Secondary',  short: 'Religious Education 2046' },
+}
+
+const CAT_ORDER_2013 = ['Primary', 'Upper Primary', 'Junior Secondary', 'Senior Secondary']
+const CAT_LABELS_2013 = {
+  'Primary':          'Primary · Grades 1–7',
+  'Upper Primary':    'Upper Primary · Grades 4–7',
+  'Junior Secondary': 'Junior Secondary · Grades 8–9',
+  'Senior Secondary': 'Senior Secondary · Grades 10–12',
+}
+
+function catOrderForEra(era) {
+  return era === 'legacy' ? CAT_ORDER_2013 : CAT_ORDER
+}
+function catLabelsForEra(era) {
+  return era === 'legacy' ? CAT_LABELS_2013 : CAT_LABELS
+}
+
 function escapeRegex(s) {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
@@ -102,15 +145,23 @@ function countTopicsInSheet(sheet) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function SyllabiLibrary() {
-  const [rawData, setRawData] = useState(null)
-  const [loading, setLoading] = useState(true)
+  // Two independent caches — one per era. Current uses the merged service so
+  // admin overrides apply; 2013 is a flat read-only fetch of the static JSON.
+  const [currentData, setCurrentData] = useState(null)
+  const [legacyData, setLegacyData] = useState(null)
+  const [loadingCurrent, setLoadingCurrent] = useState(true)
+  const [loadingLegacy, setLoadingLegacy] = useState(false)
   const [error, setError] = useState('')
 
+  const [era, setEra] = useState('current') // 'current' | 'legacy'
   const [query, setQuery] = useState('')
   const [debouncedQuery, setDebouncedQuery] = useState('')
   const [currentSubject, setCurrentSubject] = useState(null)
   const [currentSheet, setCurrentSheet] = useState(null)
   const [rowFilter, setRowFilter] = useState('')
+
+  const rawData = era === 'legacy' ? legacyData : currentData
+  const loading = era === 'legacy' ? loadingLegacy : loadingCurrent
 
   // Load the structured curriculum data via the merged-source helper so any
   // admin overrides made in the CBC KB editor are reflected here too. The
@@ -127,16 +178,46 @@ export default function SyllabiLibrary() {
           const meta = META[subj] || { icon: '📄', cat: 'Other', short: subj.slice(0, 30) }
           enriched[subj] = { ...meta, sheets }
         }
-        setRawData(enriched)
+        setCurrentData(enriched)
       } catch (err) {
         if (!cancelled) setError(err?.message || 'Could not load curriculum data.')
       } finally {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) setLoadingCurrent(false)
       }
     }
     load()
     return () => { cancelled = true }
   }, [])
+
+  // Lazy-load the 2013 dataset the first time the user switches eras. We
+  // deliberately don't preload it — teachers default to the current
+  // curriculum, and the file is another ~850KB they may never need.
+  useEffect(() => {
+    if (era !== 'legacy' || legacyData || loadingLegacy) return undefined
+    let cancelled = false
+    setLoadingLegacy(true)
+    fetch('/syllabi/curriculum-data-2013.json')
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`)
+        return r.json()
+      })
+      .then(raw => {
+        if (cancelled) return
+        const enriched = {}
+        for (const [subj, sheets] of Object.entries(raw)) {
+          const meta = META_2013[subj] || { icon: '📄', cat: 'Other', short: subj.slice(0, 30) }
+          enriched[subj] = { ...meta, sheets }
+        }
+        setLegacyData(enriched)
+      })
+      .catch(err => {
+        if (!cancelled) setError(err?.message || 'Could not load 2013 curriculum data.')
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingLegacy(false)
+      })
+    return () => { cancelled = true }
+  }, [era, legacyData, loadingLegacy])
 
   // Inject Playfair Display once — used for the brand serif headings to
   // match the uploaded design. The app's global font stack (Fraunces /
@@ -181,6 +262,20 @@ export default function SyllabiLibrary() {
     setQuery('')
   }
 
+  // Switching eras invalidates the current selection — the subject key for
+  // "Mathematics" in 2013 is a different document from "Mathematics" in the
+  // current curriculum.
+  function switchEra(nextEra) {
+    if (nextEra === era) return
+    setEra(nextEra)
+    setCurrentSubject(null)
+    setCurrentSheet(null)
+    setQuery('')
+    setDebouncedQuery('')
+    setRowFilter('')
+    setError('')
+  }
+
   // ── Home + sidebar derived state ────────────────────────────────────────
   const grouped = useMemo(() => (rawData ? groupByCategory(rawData) : {}), [rawData])
 
@@ -220,24 +315,51 @@ export default function SyllabiLibrary() {
 
   // ─────────────────────────────────────────────────────────────────────────
 
+  const isLegacy = era === 'legacy'
+  const rootClass = `ss-root${isLegacy ? ' is-legacy' : ''}`
+
   return (
-    <section className="ss-root" data-view={view}>
+    <section className={rootClass} data-view={view} data-era={era}>
       <SeoHelmet title="Syllabi Studio" noIndex />
       <SyllabiStudioStyles />
 
       <div className="ss-header">
-        <div className="ss-logo-mark" aria-hidden>📘</div>
+        <div className="ss-logo-mark" aria-hidden>{isLegacy ? '📜' : '📘'}</div>
         <div className="ss-logo-text-wrap">
           <div className="ss-logo-text">Syllabi Studio</div>
-          <div className="ss-logo-sub">Zambian National Curriculum</div>
+          <div className="ss-logo-sub">
+            {isLegacy ? '2013 Zambian Curriculum (still in use)' : 'Zambian National Curriculum'}
+          </div>
         </div>
+
+        <div className="ss-era-switcher" role="tablist" aria-label="Curriculum era">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={era === 'current'}
+            className={`ss-era-btn ${era === 'current' ? 'is-active' : ''}`}
+            onClick={() => switchEra('current')}
+          >
+            ✦ Current Curriculum
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={era === 'legacy'}
+            className={`ss-era-btn ${era === 'legacy' ? 'is-active is-legacy' : ''}`}
+            onClick={() => switchEra('legacy')}
+          >
+            📜 2013 Curriculum
+          </button>
+        </div>
+
         <div className="ss-spacer" />
         <label className="ss-search-wrap">
           <span className="sr-only">Search topics or competences</span>
           <input
             type="text"
             className="ss-search-box"
-            placeholder="Search topics, competences…"
+            placeholder={isLegacy ? 'Search 2013 topics…' : 'Search topics, competences…'}
             value={query}
             onChange={e => setQuery(e.target.value)}
             disabled={!rawData}
@@ -251,13 +373,14 @@ export default function SyllabiLibrary() {
           grouped={grouped}
           currentSubject={currentSubject}
           onSelectSubject={showSubject}
+          era={era}
         />
 
         <main className="ss-main">
           {loading && (
             <div className="ss-loading">
               <div className="ss-loading-dot" />
-              <p>Loading curriculum data…</p>
+              <p>Loading{isLegacy ? ' 2013 ' : ' '}curriculum data…</p>
             </div>
           )}
 
@@ -273,10 +396,11 @@ export default function SyllabiLibrary() {
               stats={stats}
               grouped={grouped}
               onSelectSubject={showSubject}
+              era={era}
             />
           )}
 
-          {!loading && !error && view === 'subject' && currentSubject && rawData && (
+          {!loading && !error && view === 'subject' && currentSubject && rawData && rawData[currentSubject] && (
             <SubjectDetail
               meta={rawData[currentSubject]}
               currentSheet={currentSheet}
@@ -284,6 +408,7 @@ export default function SyllabiLibrary() {
               rowFilter={rowFilter}
               onRowFilter={setRowFilter}
               onBack={showHome}
+              era={era}
             />
           )}
 
@@ -297,6 +422,7 @@ export default function SyllabiLibrary() {
                 setCurrentSheet(sheetName)
                 setRowFilter(debouncedQuery)
               }}
+              era={era}
             />
           )}
         </main>
@@ -307,7 +433,7 @@ export default function SyllabiLibrary() {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-function Sidebar({ data, grouped, currentSubject, onSelectSubject }) {
+function Sidebar({ data, grouped, currentSubject, onSelectSubject, era }) {
   if (!data) {
     return (
       <nav className="ss-sidebar" aria-label="Subjects">
@@ -317,7 +443,7 @@ function Sidebar({ data, grouped, currentSubject, onSelectSubject }) {
   }
   return (
     <nav className="ss-sidebar" aria-label="Subjects">
-      {CAT_ORDER.map(cat => {
+      {catOrderForEra(era).map(cat => {
         const list = grouped[cat]
         if (!list || list.length === 0) return null
         return (
@@ -343,36 +469,52 @@ function Sidebar({ data, grouped, currentSubject, onSelectSubject }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-function HomeView({ stats, grouped, onSelectSubject }) {
+function HomeView({ stats, grouped, onSelectSubject, era }) {
+  const isLegacy = era === 'legacy'
+  const labels = catLabelsForEra(era)
   return (
     <div className="ss-home">
       <section className="ss-hero" aria-label="Studio overview">
         <div className="ss-hero-text">
-          <div className="ss-hero-label">✦ SYLLABI STUDIO</div>
-          <h1 className="ss-hero-title">Zambian National<br />Curriculum</h1>
-          <p className="ss-hero-blurb">
-            Browse all 20 subjects across Early Childhood,<br />
-            Primary and Secondary levels.
-          </p>
+          <div className="ss-hero-label">
+            {isLegacy ? '📜 2013 CURRICULUM' : '✦ SYLLABI STUDIO'}
+          </div>
+          {isLegacy ? (
+            <>
+              <h1 className="ss-hero-title">2013 Curriculum<br />Still in Classrooms</h1>
+              <p className="ss-hero-blurb">
+                The 2013 syllabi are still in active use by some grades —<br />
+                full reference across Primary and Secondary levels.
+              </p>
+            </>
+          ) : (
+            <>
+              <h1 className="ss-hero-title">Zambian National<br />Curriculum</h1>
+              <p className="ss-hero-blurb">
+                Browse all 20 subjects across Early Childhood,<br />
+                Primary and Secondary levels.
+              </p>
+            </>
+          )}
         </div>
-        <div className="ss-hero-emoji" aria-hidden>📘</div>
+        <div className="ss-hero-emoji" aria-hidden>{isLegacy ? '📜' : '📘'}</div>
       </section>
 
       <div className="ss-stats-row">
         <StatCard value={stats.subjects} label="Subjects" />
-        <StatCard value={stats.levels}   label="Grade/Form Levels" />
+        <StatCard value={stats.levels}   label={isLegacy ? 'Grade Levels' : 'Grade/Form Levels'} />
         <StatCard value={stats.topics}   label="Topics" />
-        <StatCard value={4}              label="Education Stages" />
+        <StatCard value={isLegacy ? '2013' : 'Live'} label="Edition" />
       </div>
 
-      {CAT_ORDER.map(cat => {
+      {catOrderForEra(era).map(cat => {
         const list = grouped[cat]
         if (!list || list.length === 0) return null
         return (
           <section key={cat} className="ss-cat-section">
             <div className="ss-section-heading">
               <span className="ss-sh-dash">{cat.toUpperCase()}</span>
-              <h2 className="ss-sh-title">{CAT_LABELS[cat] || cat}</h2>
+              <h2 className="ss-sh-title">{labels[cat] || cat}</h2>
             </div>
             <div className="ss-cards-grid">
               {list.map(([subj, meta]) => {
@@ -414,7 +556,7 @@ function StatCard({ value, label }) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-function SubjectDetail({ meta, currentSheet, onSelectSheet, rowFilter, onRowFilter, onBack }) {
+function SubjectDetail({ meta, currentSheet, onSelectSheet, rowFilter, onRowFilter, onBack, era }) {
   const sheetNames = useMemo(() => Object.keys(meta.sheets), [meta])
   const activeSheetName = sheetNames.includes(currentSheet) ? currentSheet : sheetNames[0]
   const sheet = activeSheetName ? meta.sheets[activeSheetName] : null
@@ -483,6 +625,7 @@ function SubjectDetail({ meta, currentSheet, onSelectSheet, rowFilter, onRowFilt
             {sheetNames.length} level{sheetNames.length > 1 ? 's' : ''}
             {sheetNames.length > 0 ? '  ·  ' : ''}
             {sheetNames.join('  ·  ')}
+            {era === 'legacy' ? '  ·  2013 Curriculum' : ''}
           </p>
         </div>
       </section>
@@ -575,11 +718,18 @@ function SubjectDetail({ meta, currentSheet, onSelectSheet, rowFilter, onRowFilt
 
 // ─────────────────────────────────────────────────────────────────────────────
 
-function SearchResults({ query, results, onOpenResult }) {
+function SearchResults({ query, results, onOpenResult, era }) {
+  const isLegacy = era === 'legacy'
   return (
     <div className="ss-search-results">
       <div className="ss-sr-header">
-        <h2>Search results</h2>
+        <h2>
+          Search results
+          {' '}
+          <span className={`ss-era-tag ${isLegacy ? 'is-legacy' : ''}`}>
+            {isLegacy ? '2013 Syllabi' : 'Current'}
+          </span>
+        </h2>
         <p>
           {results.length}{results.length >= 60 ? '+' : ''} levels match
           {' '}&ldquo;<strong>{query}</strong>&rdquo;
@@ -1117,7 +1267,72 @@ function SyllabiStudioStyles() {
   background: var(--ss-orange); color: white;
 }
 
+/* ── ERA SWITCHER ────────────────────────────────────────────────────── */
+.ss-root .ss-era-switcher {
+  display: inline-flex;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 2px solid rgba(255,255,255,0.3);
+  flex-shrink: 0;
+}
+.ss-root .ss-era-btn {
+  padding: 6px 16px;
+  font-size: 12px; font-weight: 700;
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.65);
+  font-family: inherit;
+  letter-spacing: 0.3px;
+  white-space: nowrap;
+  transition: background 0.15s, color 0.15s;
+}
+.ss-root .ss-era-btn:hover { background: rgba(255,255,255,0.1); color: white; }
+.ss-root .ss-era-btn.is-active { background: var(--ss-orange); color: white; }
+.ss-root .ss-era-btn.is-active.is-legacy { background: #B8860B; }
+
+.ss-root .ss-era-tag {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 11px; font-weight: 700;
+  background: var(--ss-orange); color: white;
+  vertical-align: middle;
+  margin-left: 6px;
+}
+.ss-root .ss-era-tag.is-legacy { background: #B8860B; }
+
+/* ── LEGACY (2013) PALETTE OVERRIDES ─────────────────────────────────── */
+/* Swap the warm-teal/orange brand for a warm-amber palette so teachers
+   immediately see they're reading the retired 2013 syllabi. */
+.ss-root.is-legacy {
+  --ss-orange: #B8860B;          /* primary accent */
+  --ss-teal:   #6B4C00;           /* deep brown for hero + table chrome */
+  --ss-cream:  #FFF8E1;           /* hover/background tint */
+  --ss-cream2: #F5EBC9;           /* toolbar tint */
+}
+.ss-root.is-legacy .ss-hero {
+  background: linear-gradient(135deg, #3d2b00, #6b4c00);
+}
+.ss-root.is-legacy .ss-detail-hero {
+  background: linear-gradient(135deg, #3d2b00, #6b4c00);
+}
+.ss-root.is-legacy .ss-topic-header-row td {
+  background: #FFF8E1;
+  color: #5D4000;
+  border-top-color: #8B6914;
+  border-bottom-color: #D4A017;
+}
+.ss-root.is-legacy .ss-topic-header-row td:first-child {
+  border-left-color: #B8860B;
+}
+.ss-root.is-legacy .ss-hero-blurb,
+.ss-root.is-legacy .ss-dh-text p { opacity: 0.85; }
+
 /* ── RESPONSIVE ──────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .ss-root .ss-era-btn { padding: 6px 12px; font-size: 11px; }
+}
 @media (max-width: 900px) {
   .ss-root .ss-sidebar { display: none; }
   .ss-root .ss-main { padding: 20px 18px; max-height: none; }
@@ -1126,6 +1341,10 @@ function SyllabiStudioStyles() {
   .ss-root .ss-hero-title { font-size: 24px; }
   .ss-root .ss-hero-emoji { font-size: 40px; }
   .ss-root .ss-search-box { width: 160px; }
+  .ss-root .ss-era-btn { padding: 5px 10px; font-size: 10.5px; }
+}
+@media (max-width: 700px) {
+  .ss-root .ss-era-switcher { display: none; }
 }
 @media (max-width: 560px) {
   .ss-root .ss-stats-row { grid-template-columns: 1fr 1fr; }
