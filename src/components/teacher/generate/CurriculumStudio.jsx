@@ -11,8 +11,9 @@ import {
   defaultSubjectForGrade,
 } from '../../../utils/teacherTools'
 import {
-  listCbcTopics, listLessons, curriculumTopicDocId,
+  listLessons, curriculumTopicDocId, subtopicName,
 } from '../../../utils/adminCbcKbService'
+import { listAllSyllabusTopics } from '../../../utils/syllabusKbService'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
@@ -63,11 +64,13 @@ export default function CurriculumStudio() {
   const [modules, setModules] = useState([]) // sub-topic modules for topic
   const [modulesLoading, setModulesLoading] = useState(false)
 
-  // Load the full topic list once (teacher-readable; Firestore rules allow
-  // any signed-in user to read cbcKnowledgeBase).
+  // Load the merged topic list once — curriculum-data.json rows + admin
+  // overrides + Firestore overlay (Firestore wins on collision). The same
+  // set every AI generator now grounds on, so the picker can't drift
+  // from what the prompt actually sees.
   useEffect(() => {
     let active = true
-    listCbcTopics()
+    listAllSyllabusTopics()
       .then((t) => { if (active) setAllTopics(t || []) })
       .catch(() => { if (active) setAllTopics([]) })
     return () => { active = false }
@@ -122,15 +125,24 @@ export default function CurriculumStudio() {
       if (String(t.subject || '').toLowerCase() !== s) continue
       if (String(t.topic || '').trim().toLowerCase() !== tn) continue
       for (const sub of (t.subtopics || [])) {
-        const name = String(sub || '').trim()
+        // Subtopics may be plain strings (legacy) or enriched objects
+        // {name, specificCompetence, learningActivities, expectedStandard}
+        // (curriculum-data.json + Phase A parser output). Use subtopicName
+        // to surface the display string for both shapes.
+        const name = subtopicName(sub).trim()
         if (!name || seen.has(name.toLowerCase())) continue
         seen.add(name.toLowerCase())
+        // Prefer the per-subtopic specificCompetence as the outcome when
+        // present; otherwise fall back to the topic-level outcomes array.
+        const subOutcome = (sub && typeof sub === 'object' && sub.specificCompetence) ?
+          [String(sub.specificCompetence)] :
+          (Array.isArray(t.specificOutcomes) ? t.specificOutcomes : [])
         out.push({
           id: `topicdoc:${name.toLowerCase()}`,
           topic: String(t.topic || topic),
           subtopic: name,
           suggestedLessons: 1,
-          outcomes: Array.isArray(t.specificOutcomes) ? t.specificOutcomes : [],
+          outcomes: subOutcome,
           learningEnvironmentOptions: [],
         })
       }
