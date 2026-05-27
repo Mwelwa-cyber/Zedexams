@@ -24,7 +24,6 @@ const NAV = [
   { to: '/teacher/lessons/new',      icon: BookOpen,        label: 'Create Lesson'           },
   { to: '/teacher/syllabi',          icon: FolderOpen,      label: 'Syllabi Studio'          },
   { to: '/teacher/curriculum',       icon: GraduationCap,   label: 'Curriculum'              },
-  { to: '/teacher/generate/curriculum-studio', icon: PencilLine, label: 'Curriculum Studio'  },
   { to: '/teacher/classes',          icon: Users,           label: 'Classes'                 },
   { to: '/teacher/agents',           icon: Bot,             label: 'Agent Submissions'       },
   { to: '/settings',                 icon: Settings,        label: 'Settings'                },
