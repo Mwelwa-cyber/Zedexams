@@ -8,6 +8,8 @@ import {
 } from 'firebase/firestore'
 import app from '../../../firebase/config'
 import { getActiveKbVersion, subtopicName } from '../../../utils/adminCbcKbService'
+import { getMergedSyllabi } from '../../../utils/syllabusKbService'
+import { syllabiToKbTopics } from '../../../utils/syllabusMapping'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { LIBRARY_TYPES, SYLLABUS_TYPES } from '../../../config/library'
 import { classifyForLibrary } from '../../../utils/libraryClassification'
@@ -141,28 +143,45 @@ export default function LessonPlanStudio() {
     // Returns { [topicName]: [subtopic, ...] } on success, {} when the KB
     // has no rows for that grade+subject, or null on error (router treats
     // null the same as "use fallback").
+    // Memoised by (grade, subject) so keystrokes don't repeatedly walk the
+    // merged source's ~800 entries.
     const cbcCache = new Map()
+    // Two-stage read: the merged source (curriculum-data.json + admin
+    // overrides + Firestore topics, the same set every generator now
+    // grounds on) usually has data. When it doesn't, fall back to the
+    // older direct-Firestore path so we never regress for grade+subject
+    // pairs the merged source doesn't reach.
     window.__studioFetchSyllabusTopics = async ({ grade, subject }) => {
       if (!grade || !subject) return {}
       const key = `${grade}|${subject}`
       if (cbcCache.has(key)) return cbcCache.get(key)
       try {
-        // Read the runtime-active KB version (Phase B). Falling back to
-        // the static KB_VERSION here would have shown the OLD seed
-        // topics even after a Phase C activate flipped _meta.version.
+        const merged = await getMergedSyllabi()
+        const kbTopics = syllabiToKbTopics(merged)
+        const out = {}
+        for (const t of kbTopics) {
+          if (t.grade !== grade || t.subject !== subject) continue
+          if (!t.topic) continue
+          // Studio router expects { topic: [subtopicName, ...] }; subtopics
+          // here are enriched objects, so surface only their names.
+          out[t.topic] = (Array.isArray(t.subtopics) ? t.subtopics : [])
+            .map(subtopicName)
+            .filter(Boolean)
+        }
+        if (Object.keys(out).length > 0) {
+          cbcCache.set(key, out)
+          return out
+        }
+        // Merged source had nothing — try the legacy direct-Firestore path.
         const version = await getActiveKbVersion()
         const snap = await getDocs(query(
           collection(db, 'cbcKnowledgeBase', version, 'topics'),
           where('grade', '==', grade),
           where('subject', '==', subject),
         ))
-        const out = {}
         snap.forEach((d) => {
           const t = d.data()
           if (t && t.topic) {
-            // Phase A enriches subtopics to objects ({name, ...}); the
-            // studio's downstream consumer expects string arrays, so
-            // surface only the names here.
             out[t.topic] = (Array.isArray(t.subtopics) ? t.subtopics : [])
               .map(subtopicName)
               .filter(Boolean)
@@ -193,25 +212,32 @@ export default function LessonPlanStudio() {
       if (!grade) return []
       if (subjectsCache.has(grade)) return subjectsCache.get(grade)
       try {
-        const version = await getActiveKbVersion()
-        const snap = await getDocs(query(
-          collection(db, 'cbcKnowledgeBase', version, 'topics'),
-          where('grade', '==', grade),
-        ))
-        // Build a unique display-name list, preferring `subjectDisplay`
-        // (what the parser preserved from the workbook) and falling back
-        // to a title-cased version of the canonical `subject` key.
+        const merged = await getMergedSyllabi()
+        const kbTopics = syllabiToKbTopics(merged)
         const seen = new Set()
         const out = []
-        snap.forEach((d) => {
-          const t = d.data()
-          if (!t || !t.subject) return
-          const display = (t.subjectDisplay && String(t.subjectDisplay).trim())
-            || String(t.subject).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-          if (seen.has(display)) return
-          seen.add(display)
-          out.push(display)
-        })
+        for (const t of kbTopics) {
+          if (t.grade !== grade || !t.subject || seen.has(t.subject)) continue
+          seen.add(t.subject)
+          out.push(String(t.subject).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
+        }
+        if (out.length === 0) {
+          // Merged source had nothing for this grade — try direct Firestore.
+          const version = await getActiveKbVersion()
+          const snap = await getDocs(query(
+            collection(db, 'cbcKnowledgeBase', version, 'topics'),
+            where('grade', '==', grade),
+          ))
+          snap.forEach((d) => {
+            const t = d.data()
+            if (!t || !t.subject) return
+            const display = (t.subjectDisplay && String(t.subjectDisplay).trim())
+              || String(t.subject).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+            if (seen.has(display)) return
+            seen.add(display)
+            out.push(display)
+          })
+        }
         out.sort((a, b) => a.localeCompare(b))
         subjectsCache.set(grade, out)
         return out

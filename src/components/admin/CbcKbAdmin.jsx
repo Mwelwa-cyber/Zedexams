@@ -3,7 +3,11 @@ import SeoHelmet from '../seo/SeoHelmet'
 import SyllabusPdfUploadPanel from './SyllabusPdfUploadPanel'
 import BulkGenerateButton from './BulkGenerateButton'
 import BulkPublishQuizzesButton from './BulkPublishQuizzesButton'
-import { getActiveKbVersion, KB_VERSION } from '../../utils/adminCbcKbService'
+import {
+  getActiveKbVersion, KB_VERSION,
+  listCbcTopics, saveCbcTopic, deleteCbcTopic,
+  subtopicName,
+} from '../../utils/adminCbcKbService'
 import {
   getMergedSyllabi, saveSyllabusRow, removeSyllabusRow, restoreSyllabusRow,
   invalidateSyllabiCache,
@@ -12,6 +16,9 @@ import {
   STUDIO_SUBJECT_TO_KB, sheetNameToGrade,
   syllabiToKbTopics,
 } from '../../utils/syllabusMapping'
+import {
+  TEACHER_GRADES, TEACHER_SUBJECTS,
+} from '../../utils/teacherTools'
 
 // ── Visual constants (mirrors src/components/teacher/SyllabiLibrary.jsx) ──
 // Subject metadata — long syllabi names get a short label, icon and the
@@ -142,6 +149,7 @@ function countOverrides(rawData) {
 
 export default function CbcKbAdmin() {
   const [rawData, setRawData] = useState(null)
+  const [customTopics, setCustomTopics] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [activeVersion, setActiveVersion] = useState(null)
@@ -152,6 +160,7 @@ export default function CbcKbAdmin() {
   const [currentSheet, setCurrentSheet] = useState(null)
   const [rowFilter, setRowFilter] = useState('')
   const [editing, setEditing] = useState(null) // { studioSubject, sheet, mode, original?, cells }
+  const [editingCustom, setEditingCustom] = useState(null) // KB-shape topic, or 'new'
   const [toast, setToast] = useState('')
 
   const flashToast = useCallback((msg, ms = 5000) => {
@@ -163,8 +172,26 @@ export default function CbcKbAdmin() {
     setLoading(true)
     setError('')
     try {
-      const merged = await getMergedSyllabi({ forceOverrides: true })
+      const [merged, firestoreTopics] = await Promise.all([
+        getMergedSyllabi({ forceOverrides: true }),
+        listCbcTopics().catch(() => []),
+      ])
       setRawData(enrichSubjects(merged))
+      // A Firestore topic is "custom" when it doesn't shadow an entry in
+      // the syllabi-data layer. The merged-source rebuild already covers
+      // shadowed cases (Firestore wins on collision in the AI's read
+      // path), so the admin only needs to see what's *uniquely* in
+      // Firestore — typically PDF-extracted rows + manual additions
+      // that don't map to the official syllabi.
+      const syllabiKeys = new Set()
+      for (const t of syllabiToKbTopics(merged)) {
+        syllabiKeys.add(`${String(t.grade).toUpperCase()}|${String(t.subject).toLowerCase()}|${String(t.topic).toLowerCase()}`)
+      }
+      const custom = (firestoreTopics || []).filter((t) => {
+        const k = `${String(t.grade || '').toUpperCase()}|${String(t.subject || '').toLowerCase()}|${String(t.topic || '').toLowerCase()}`
+        return !syllabiKeys.has(k)
+      })
+      setCustomTopics(custom)
     } catch (err) {
       setError(err?.message || 'Could not load curriculum data.')
     } finally {
@@ -281,6 +308,34 @@ export default function CbcKbAdmin() {
     await load()
   }
 
+  async function onSaveCustomTopic(payload) {
+    try {
+      await saveCbcTopic(payload)
+      flashToast(payload._editing ?
+        'Topic updated. AIs will pick up the change within ~60 seconds.' :
+        'Custom topic added.')
+      setEditingCustom(null)
+      await load()
+      return true
+    } catch (err) {
+      flashToast(`Save failed: ${err?.message || err}`)
+      return false
+    }
+  }
+
+  async function onDeleteCustomTopic(topic) {
+    if (!window.confirm(`Delete custom topic "${topic.topic}" (${topic.grade} ${topic.subject})?`)) {
+      return
+    }
+    const ok = await deleteCbcTopic(topic.id)
+    if (ok) {
+      flashToast('Topic deleted.')
+      await load()
+    } else {
+      flashToast('Delete failed — check console.')
+    }
+  }
+
   const grouped = useMemo(() => (rawData ? groupByCategory(rawData) : {}), [rawData])
 
   const stats = useMemo(() => {
@@ -386,9 +441,13 @@ export default function CbcKbAdmin() {
               stats={stats}
               grouped={grouped}
               overrideCounts={overrideCounts}
+              customTopics={customTopics}
               onSelectSubject={showSubject}
               onLoaded={load}
               flashToast={flashToast}
+              onEditCustomTopic={(t) => setEditingCustom(t)}
+              onAddCustomTopic={() => setEditingCustom('new')}
+              onDeleteCustomTopic={onDeleteCustomTopic}
             />
           )}
 
@@ -428,6 +487,14 @@ export default function CbcKbAdmin() {
           editing={editing}
           onCancel={() => setEditing(null)}
           onSave={onSaveRow}
+        />
+      )}
+
+      {editingCustom && (
+        <CustomTopicModal
+          topic={editingCustom === 'new' ? null : editingCustom}
+          onCancel={() => setEditingCustom(null)}
+          onSave={onSaveCustomTopic}
         />
       )}
     </section>
@@ -480,7 +547,11 @@ function Sidebar({ data, grouped, currentSubject, onSelectSubject, onHome }) {
 
 // ── Home view ────────────────────────────────────────────────────────────
 
-function HomeView({ stats, grouped, overrideCounts, onSelectSubject, onLoaded, flashToast }) {
+function HomeView({
+  stats, grouped, overrideCounts, customTopics,
+  onSelectSubject, onLoaded, flashToast,
+  onEditCustomTopic, onAddCustomTopic, onDeleteCustomTopic,
+}) {
   return (
     <div className="ss-home">
       <section className="ss-hero" aria-label="Editor overview">
@@ -512,9 +583,16 @@ function HomeView({ stats, grouped, overrideCounts, onSelectSubject, onLoaded, f
         <SyllabusPdfUploadPanel onComplete={() => {
           invalidateSyllabiCache()
           onLoaded()
-          flashToast('PDF processed — refresh the affected subject to see new entries.', 8000)
+          flashToast('PDF processed — find new entries under "Admin-added topics" below.', 8000)
         }} />
       </div>
+
+      <CustomTopicsPanel
+        topics={customTopics}
+        onAdd={onAddCustomTopic}
+        onEdit={onEditCustomTopic}
+        onDelete={onDeleteCustomTopic}
+      />
 
       {CAT_ORDER.map(cat => {
         const list = grouped[cat]
@@ -561,6 +639,292 @@ function StatCard({ value, label }) {
       <div className="ss-stat-lbl">{label}</div>
     </div>
   )
+}
+
+// ── Custom (Firestore-only) topics panel ────────────────────────────────
+// Surfaces topics in cbcKnowledgeBase/{version}/topics/* that don't shadow
+// any entry in curriculum-data.json. These are the PDF-extracted rows + any
+// manually added topics — they ground the AI but were previously invisible
+// in the new browsable layout.
+
+function CustomTopicsPanel({ topics, onAdd, onEdit, onDelete }) {
+  const [expanded, setExpanded] = useState(false)
+  const grouped = useMemo(() => {
+    const byGrade = new Map()
+    for (const t of topics || []) {
+      const g = String(t.grade || '?').toUpperCase()
+      if (!byGrade.has(g)) byGrade.set(g, [])
+      byGrade.get(g).push(t)
+    }
+    return Array.from(byGrade.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([grade, list]) => [grade, list.sort((x, y) => String(x.subject).localeCompare(String(y.subject)))])
+  }, [topics])
+
+  const total = (topics || []).length
+  const open = expanded || total > 0
+
+  return (
+    <section className="ss-custom-panel" aria-label="Admin-added topics">
+      <div className="ss-custom-head">
+        <div>
+          <div className="ss-sh-dash">ADMIN-ADDED TOPICS</div>
+          <h2 className="ss-sh-title">
+            Custom topics
+            {total > 0 && <span className="ss-custom-count">{total}</span>}
+          </h2>
+          <p className="ss-custom-blurb">
+            Topics added through PDF upload, manual entry, or imports that
+            don't shadow the official syllabi. They ground the AI alongside
+            the syllabi above.
+          </p>
+        </div>
+        <div className="ss-custom-actions">
+          <button type="button" className="ss-add-row-btn" onClick={onAdd}>
+            + Add custom topic
+          </button>
+          {total > 0 && (
+            <button
+              type="button"
+              className="ss-tab-btn"
+              onClick={() => setExpanded((v) => !v)}
+            >
+              {open && expanded ? 'Collapse' : 'Show all'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {total === 0 && (
+        <p className="ss-custom-empty">
+          No custom topics yet. Use the PDF upload above, or click
+          <strong> + Add custom topic</strong> to add one manually.
+        </p>
+      )}
+
+      {total > 0 && expanded && (
+        <div className="ss-custom-grid">
+          {grouped.map(([grade, list]) => (
+            <div key={grade} className="ss-custom-grade-block">
+              <div className="ss-custom-grade-label">{grade}</div>
+              {list.map((t) => (
+                <div key={t.id} className="ss-custom-card">
+                  <div className="ss-custom-card-meta">
+                    {formatSubject(t.subject)}
+                  </div>
+                  <div className="ss-custom-card-title">{t.topic}</div>
+                  {Array.isArray(t.subtopics) && t.subtopics.length > 0 && (
+                    <div className="ss-custom-card-subs">
+                      {t.subtopics.slice(0, 3).map(subtopicName).filter(Boolean).join(' · ')}
+                      {t.subtopics.length > 3 && ` · +${t.subtopics.length - 3} more`}
+                    </div>
+                  )}
+                  <div className="ss-custom-card-actions">
+                    <button
+                      type="button"
+                      className="ss-row-btn ss-row-edit"
+                      onClick={() => onEdit(t)}
+                    >
+                      edit
+                    </button>
+                    <button
+                      type="button"
+                      className="ss-row-btn ss-row-delete"
+                      onClick={() => onDelete(t)}
+                    >
+                      delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+function formatSubject(s) {
+  return String(s || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+// ── Custom topic edit modal ─────────────────────────────────────────────
+
+function CustomTopicModal({ topic, onCancel, onSave }) {
+  const editing = !!topic
+  const [form, setForm] = useState(() => ({
+    grade: topic?.grade || 'G10',
+    subject: topic?.subject || 'biology',
+    topic: topic?.topic || '',
+    subtopics: arrFromTopic(topic, 'subtopics', subtopicName),
+    specificOutcomes: arrFromTopic(topic, 'specificOutcomes'),
+    keyCompetencies: arrFromTopic(topic, 'keyCompetencies'),
+    values: arrFromTopic(topic, 'values'),
+    suggestedMaterials: arrFromTopic(topic, 'suggestedMaterials'),
+  }))
+  const [saving, setSaving] = useState(false)
+  const update = (k, v) => setForm((f) => ({ ...f, [k]: v }))
+
+  async function submit() {
+    setSaving(true)
+    const ok = await onSave({
+      ...form,
+      subtopics: form.subtopics.filter(Boolean),
+      specificOutcomes: form.specificOutcomes.filter(Boolean),
+      keyCompetencies: form.keyCompetencies.filter(Boolean),
+      values: form.values.filter(Boolean),
+      suggestedMaterials: form.suggestedMaterials.filter(Boolean),
+      _editing: editing,
+    })
+    if (!ok) setSaving(false)
+  }
+
+  return (
+    <div className="ss-modal-backdrop">
+      <div className="ss-modal">
+        <div className="ss-modal-head">
+          <h2>{editing ? 'Edit custom topic' : 'Add a custom topic'}</h2>
+          <p>
+            Goes into <code>cbcKnowledgeBase/&#123;version&#125;/topics</code>.
+            Grounds the AI on top of any syllabi-data row with the same
+            grade + subject + topic name.
+          </p>
+        </div>
+        <div className="ss-modal-body">
+          <div className="ss-ct-grade-row">
+            <div className="ss-field">
+              <label>Grade</label>
+              <select
+                value={form.grade}
+                onChange={(e) => update('grade', e.target.value)}
+              >
+                {TEACHER_GRADES.filter((g) => g.value).map((g) => (
+                  <option key={g.value} value={g.value}>{g.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="ss-field">
+              <label>Subject</label>
+              <select
+                value={form.subject}
+                onChange={(e) => update('subject', e.target.value)}
+              >
+                {TEACHER_SUBJECTS.filter((s) => s.value).map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="ss-field">
+            <label>Topic name</label>
+            <input
+              type="text"
+              value={form.topic}
+              onChange={(e) => update('topic', e.target.value)}
+              placeholder="e.g. Cell Division (Mitosis & Meiosis)"
+              maxLength={200}
+            />
+          </div>
+
+          <CustomArrayEditor
+            label="Sub-topics"
+            hint="One per line."
+            values={form.subtopics}
+            onChange={(v) => update('subtopics', v)}
+          />
+          <CustomArrayEditor
+            label="Specific outcomes"
+            hint="Measurable CBC outcomes."
+            values={form.specificOutcomes}
+            onChange={(v) => update('specificOutcomes', v)}
+          />
+          <CustomArrayEditor
+            label="Key competencies"
+            hint="From the CBC competencies list."
+            values={form.keyCompetencies}
+            onChange={(v) => update('keyCompetencies', v)}
+          />
+          <CustomArrayEditor
+            label="Values"
+            values={form.values}
+            onChange={(v) => update('values', v)}
+          />
+          <CustomArrayEditor
+            label="Suggested teaching/learning materials"
+            values={form.suggestedMaterials}
+            onChange={(v) => update('suggestedMaterials', v)}
+          />
+
+          <p className="ss-modal-note">
+            Edits land in Firestore and reach every AI generator within
+            ~60 seconds. Use the row-level editor above for tweaks that
+            belong on the official syllabi rows; this form is for
+            entries that don't map to any syllabus.
+          </p>
+        </div>
+        <div className="ss-modal-foot">
+          <button type="button" className="ss-btn-ghost" onClick={onCancel} disabled={saving}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="ss-btn-primary"
+            onClick={submit}
+            disabled={saving || !form.topic.trim()}
+          >
+            {saving ? 'Saving…' : (editing ? 'Save changes' : 'Add topic')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CustomArrayEditor({ label, hint, values, onChange }) {
+  const update = (i, v) => onChange(values.map((x, idx) => (idx === i ? v : x)))
+  const add = () => onChange([...values, ''])
+  const remove = (i) => onChange(
+    values.filter((_, idx) => idx !== i).concat(values.length === 1 ? [''] : []),
+  )
+  return (
+    <div className="ss-field">
+      <label>{label}</label>
+      {hint && <p className="ss-ct-hint">{hint}</p>}
+      <div className="ss-ct-list">
+        {values.map((v, i) => (
+          <div key={i} className="ss-ct-row">
+            <input
+              type="text"
+              value={v}
+              onChange={(e) => update(i, e.target.value)}
+              placeholder={`${label.replace(/s$/, '')} ${i + 1}`}
+            />
+            {values.length > 1 && (
+              <button
+                type="button"
+                className="ss-row-btn ss-row-delete"
+                onClick={() => remove(i)}
+              >
+                remove
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+      <button type="button" className="ss-ct-add" onClick={add}>
+        + Add another
+      </button>
+    </div>
+  )
+}
+
+function arrFromTopic(topic, key, mapper) {
+  const v = topic?.[key]
+  const list = Array.isArray(v) ? v : []
+  const mapped = mapper ? list.map(mapper).filter(Boolean) : list.filter(Boolean)
+  return mapped.length > 0 ? mapped : ['']
 }
 
 // ── Subject detail (editable table) ──────────────────────────────────────
@@ -1405,6 +1769,120 @@ function SyllabiStudioStyles() {
   padding: 3px 10px; border-radius: 20px;
   font-size: 11px; font-weight: 700;
   background: var(--ss-orange); color: white;
+}
+
+/* ── Custom (Firestore-only) topics panel ───────────────────────────── */
+.ss-root .ss-custom-panel {
+  background: var(--ss-white);
+  border: 1.5px solid var(--ss-teal);
+  border-radius: var(--ss-radius);
+  padding: 22px 26px;
+  margin-bottom: 28px;
+  border-left: 4px solid var(--ss-orange);
+}
+.ss-root .ss-custom-head {
+  display: flex; align-items: flex-start; gap: 18px;
+  margin-bottom: 14px;
+}
+.ss-root .ss-custom-head h2 { margin: 0 0 4px; }
+.ss-root .ss-custom-count {
+  display: inline-block;
+  margin-left: 10px;
+  padding: 2px 10px;
+  font-size: 12px;
+  border-radius: 12px;
+  background: var(--ss-orange); color: white;
+  font-family: 'Inter', sans-serif;
+  font-weight: 800;
+  vertical-align: middle;
+}
+.ss-root .ss-custom-blurb {
+  font-size: 13px; color: var(--ss-muted); margin: 0; max-width: 56ch;
+}
+.ss-root .ss-custom-actions {
+  margin-left: auto; display: flex; gap: 8px; flex-shrink: 0; align-items: center;
+}
+.ss-root .ss-custom-empty {
+  font-size: 13px; color: var(--ss-muted); margin: 0;
+  padding: 12px 14px;
+  background: var(--ss-cream);
+  border-radius: 8px;
+}
+.ss-root .ss-custom-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+}
+.ss-root .ss-custom-grade-block { display: flex; flex-direction: column; gap: 8px; }
+.ss-root .ss-custom-grade-label {
+  font-size: 11px; font-weight: 800;
+  text-transform: uppercase; letter-spacing: 1px;
+  color: var(--ss-teal);
+  padding-bottom: 4px;
+  border-bottom: 1.5px dashed var(--ss-cream2);
+}
+.ss-root .ss-custom-card {
+  background: #FBF8F3;
+  border: 1.5px solid #E8E0D4;
+  border-radius: 10px;
+  padding: 12px 14px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    "meta meta"
+    "title actions"
+    "subs subs";
+  gap: 4px 12px;
+}
+.ss-root .ss-custom-card-meta {
+  grid-area: meta;
+  font-size: 11px; color: var(--ss-orange);
+  font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px;
+}
+.ss-root .ss-custom-card-title {
+  grid-area: title;
+  font-family: 'Playfair Display', serif;
+  font-weight: 800; font-size: 15px;
+  color: var(--ss-teal);
+}
+.ss-root .ss-custom-card-subs {
+  grid-area: subs;
+  font-size: 12px; color: var(--ss-muted); margin-top: 2px;
+}
+.ss-root .ss-custom-card-actions {
+  grid-area: actions;
+  display: flex; gap: 10px; align-items: center;
+}
+
+/* Custom topic modal helpers */
+.ss-ct-grade-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px;
+}
+.ss-ct-hint { font-size: 12px; color: #6B6B6B; margin: -2px 0 6px; }
+.ss-ct-list { display: flex; flex-direction: column; gap: 6px; }
+.ss-ct-row {
+  display: flex; gap: 8px; align-items: center;
+}
+.ss-ct-row input {
+  flex: 1;
+  border: 1.5px solid #E2D7C2; border-radius: 8px;
+  padding: 8px 10px;
+  font-family: inherit; font-size: 14px; outline: none;
+}
+.ss-ct-row input:focus { border-color: #E8722A; box-shadow: 0 0 0 2px rgba(232,114,42,0.15); }
+.ss-ct-add {
+  margin-top: 6px;
+  background: transparent; border: none;
+  color: #047857; font-weight: 700; font-size: 12px;
+  cursor: pointer; font-family: inherit; padding: 0;
+}
+.ss-ct-add:hover { text-decoration: underline; }
+.ss-field select {
+  width: 100%;
+  border: 1.5px solid #E2D7C2; border-radius: 8px;
+  padding: 9px 10px;
+  font-family: inherit; font-size: 14px; background: white;
+  outline: none;
 }
 
 .ss-modal-backdrop {

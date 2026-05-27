@@ -20,7 +20,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import {
   PAPER_GRADES,
@@ -123,10 +123,18 @@ function EmptyState() {
 
 export default function PastPapersHub() {
   const { currentUser } = useAuth()
+  const [searchParams] = useSearchParams()
   const [papers, setPapers] = useState([])
   const [loading, setLoading] = useState(true)
   const [errored, setErrored] = useState(false)
-  const [grade, setGrade] = useState(ANY)
+  // Deep-link support: GradeHub's contextual "Past papers for Grade 7"
+  // tile and any future marketing link can prefill the grade filter via
+  // `?grade=7`. Only honoured if the value is one of PAPER_GRADES so a
+  // malformed URL silently falls back to "All" instead of an empty list.
+  const [grade, setGrade] = useState(() => {
+    const g = searchParams.get('grade')
+    return g && PAPER_GRADES.includes(g) ? g : ANY
+  })
   const [subject, setSubject] = useState(ANY)
   const [year, setYear] = useState(ANY)
 

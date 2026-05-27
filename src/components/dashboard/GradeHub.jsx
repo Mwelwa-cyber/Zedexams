@@ -22,6 +22,7 @@ import {
   CheckCircleIcon,
   ChevronRight,
   FileText,
+  Files,
   FireIcon,
   Gamepad2,
   GraduationCap,
@@ -1056,6 +1057,21 @@ export default function GradeHub() {
           actionClassName="bg-sky-600 text-white"
         />
 
+        <DashboardActionCard
+          to="/papers"
+          className="border-violet-300 bg-[linear-gradient(135deg,#EDE9FE_0%,#C4B5FD_55%,#7C3AED_100%)]"
+          icon={Files}
+          iconClassName="bg-violet-600 text-white"
+          kicker="ECZ archive · Grade 7, 9, 12"
+          kickerClassName="text-violet-800"
+          title="Past Papers"
+          titleClassName="text-violet-950"
+          body="Real ECZ exam papers — practise under timer, download with mark schemes"
+          bodyClassName="text-violet-900/80"
+          action="Browse"
+          actionClassName="bg-violet-600 text-white"
+        />
+
         {/* ── GRADE-PERSONALISED HUB ──────────────────────────────
               Layout (matches product mockup):
                 · Tab bar (My Grade / Next Level / Challenge Mode) with
@@ -1288,6 +1304,42 @@ export default function GradeHub() {
               </button>
             </div>
           </div>
+
+          {/* ── Past papers shortcut ────────────────────────────
+                ECZ only ships papers for Grades 7, 9, 12. Of the GradeHub
+                universe (4-7) that's just Grade 7, so the contextual
+                tile only renders for those learners — the rest still
+                reach /papers via the top-level Past Papers action card
+                and the navbar. Pre-filtering the link with ?grade=7
+                lands them on a list that's already scoped to their
+                grade so they don't see Grade 9 / 12 papers up top. */}
+          {userGrade === 7 && (
+            <div className="zx-card theme-card rounded-2xl border theme-border p-4 mb-3">
+              <div className="flex items-center gap-3">
+                <div className="w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 bg-violet-100 ring-1 ring-violet-200 text-violet-700">
+                  <Icon as={Files} size="lg" strokeWidth={2.2} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="font-black theme-text text-sm">Past papers for Grade {userGrade}</p>
+                    <span className="rounded-full bg-violet-100 ring-1 ring-violet-200 px-2 py-0.5 text-[10px] font-black text-violet-700">
+                      ECZ
+                    </span>
+                  </div>
+                  <p className="theme-text-muted text-xs font-bold mt-0.5">
+                    Practise the questions from real ECZ exams · Timed mode · Mark schemes
+                  </p>
+                </div>
+                <Link
+                  to={`/papers?grade=${userGrade}`}
+                  className="min-h-0 inline-flex items-center gap-1 rounded-full px-3 py-2 text-xs font-black shadow-sm bg-violet-600 text-white hover:opacity-90"
+                >
+                  Browse
+                  <Icon as={ChevronRight} size="xs" strokeWidth={2.4} />
+                </Link>
+              </div>
+            </div>
+          )}
 
           {/* ── Personalized For You (weak-topic chips) ──────── */}
           {weakTopics.length > 0 && (
