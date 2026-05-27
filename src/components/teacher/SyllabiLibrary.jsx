@@ -197,7 +197,12 @@ export default function SyllabiLibrary() {
   // deliberately don't preload it — teachers default to the current
   // curriculum, and the file is another ~850KB they may never need.
   useEffect(() => {
-    if (era !== 'legacy' || legacyData || loadingLegacy) return undefined
+    // Don't gate on loadingLegacy here — keeping it in deps re-fires this
+    // effect when we call setLoadingLegacy(true) below, which then runs the
+    // cleanup (cancelled = true) and silently drops the in-flight fetch.
+    // The early-return on legacyData is enough to keep us from double-
+    // fetching the JSON.
+    if (era !== 'legacy' || legacyData) return undefined
     let cancelled = false
     setLoadingLegacy(true)
     fetch('/syllabi/curriculum-data-2013.json')
@@ -221,7 +226,8 @@ export default function SyllabiLibrary() {
         if (!cancelled) setLoadingLegacy(false)
       })
     return () => { cancelled = true }
-  }, [era, legacyData, loadingLegacy])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [era, legacyData])
 
   // Inject Playfair Display once — used for the brand serif headings to
   // match the uploaded design. The app's global font stack (Fraunces /
