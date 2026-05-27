@@ -42,7 +42,11 @@ function PreviewQuestion({ question }) {
       <RichContent value={question.text} className="text-base font-bold leading-relaxed" />
 
       {question.diagramText && (
-        <p className="theme-bg-subtle theme-text-muted rounded-xl px-3 py-2 text-xs font-bold leading-relaxed">
+        // whitespace-pre-line preserves the newlines PR #653 routes into
+        // diagramText for flattened-table data — without it Q4's oranges
+        // table collapses every \n into a single space and becomes one
+        // unreadable run-on line.
+        <p className="theme-bg-subtle theme-text-muted whitespace-pre-line rounded-xl px-3 py-2 text-xs font-bold leading-relaxed">
           {question.diagramText}
         </p>
       )}
