@@ -634,7 +634,11 @@ export default function QuizRunnerV2() {
               )}
               <RichContent value={question.text} className="text-[15px] font-bold leading-relaxed text-slate-900 sm:text-[17px]" />
               {question.diagramText && (
-                <p className="mt-2 rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold leading-relaxed text-slate-700">{question.diagramText}</p>
+                // whitespace-pre-line preserves the newlines that PR #653
+                // routes into diagramText for flattened-table data (Q4's
+                // oranges table renders as separate rows instead of
+                // collapsing every \n into a single space).
+                <p className="mt-2 whitespace-pre-line rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold leading-relaxed text-slate-700">{question.diagramText}</p>
               )}
             </div>
           )
