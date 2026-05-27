@@ -600,7 +600,65 @@ function AssessmentTypePicker({ syllabus, gradeForm, subTree, onPick }) {
 
 /* ── Documents (leaf) ──────────────────────────────────────────── */
 
+// Multi-lesson generations from the Lesson Plan Studio (v14+) share an
+// `inputs.lessonSeries.seriesId` across their siblings. Group those into one
+// header row so a teacher who generated a 4-lesson series doesn't see four
+// near-identical "Food Hygiene" tiles. Returns a flat render list where each
+// entry is either { kind: 'card', item } or { kind: 'group', group }.
+//
+// The group is positioned at the place of its newest member (preserving the
+// list's createdAt-desc order across groups), and its children render in
+// pedagogical order (lessonNumber ascending) when expanded.
+function partitionIntoSeriesGroups(items) {
+  const groupsBySeriesId = new Map()
+  const out = []
+  for (const item of items || []) {
+    const series = item?.inputs?.lessonSeries
+    const seriesId = series && series.seriesId
+    const total = series && Number(series.totalLessons)
+    // A "series" here means 2+ planned lessons sharing a seriesId. Lone
+    // single-lesson generations stay as ordinary cards even though the new
+    // shape stamps a default lessonSeries on every doc.
+    const isSeriesMember = seriesId && total && total > 1
+    if (!isSeriesMember) {
+      out.push({ kind: 'card', item })
+      continue
+    }
+    let g = groupsBySeriesId.get(seriesId)
+    if (!g) {
+      g = { seriesId, items: [], firstItem: item }
+      groupsBySeriesId.set(seriesId, g)
+      // Reserve this slot in render order; we'll fill it with the populated
+      // group once all members have been collected below.
+      out.push({ kind: 'group', group: g })
+    }
+    g.items.push(item)
+  }
+  // Sort each group's children by lessonNumber so the expanded view reads
+  // "Lesson 1, 2, 3, 4" instead of newest-first.
+  for (const g of groupsBySeriesId.values()) {
+    g.items.sort((a, b) => {
+      const an = Number(a?.inputs?.lessonSeries?.lessonNumber) || 0
+      const bn = Number(b?.inputs?.lessonSeries?.lessonNumber) || 0
+      return an - bn
+    })
+  }
+  return out
+}
+
 function DocumentList({ items, section }) {
+  // Local expand state, keyed by seriesId. Defaults to collapsed so the
+  // library stays scannable when a teacher has many series.
+  const [expanded, setExpanded] = useState(() => new Set())
+  const toggle = (seriesId) => {
+    setExpanded((prev) => {
+      const next = new Set(prev)
+      if (next.has(seriesId)) next.delete(seriesId)
+      else next.add(seriesId)
+      return next
+    })
+  }
+  const rendered = useMemo(() => partitionIntoSeriesGroups(items || []), [items])
   if (!items || items.length === 0) {
     return (
       <div className="rounded-2xl border-2 border-dashed py-10 px-4 text-center" style={{ background: COLORS.card, borderColor: COLORS.border }}>
@@ -612,15 +670,138 @@ function DocumentList({ items, section }) {
   }
   return (
     <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
-      {items.map((item) => (
-        <DocumentCard key={item.id} item={item} section={section} />
-      ))}
+      {rendered.map((entry) => {
+        if (entry.kind === 'card') {
+          return <DocumentCard key={entry.item.id} item={entry.item} section={section} />
+        }
+        const isOpen = expanded.has(entry.group.seriesId)
+        return (
+          <SeriesGroupBlock
+            key={`group:${entry.group.seriesId}`}
+            group={entry.group}
+            section={section}
+            open={isOpen}
+            onToggle={() => toggle(entry.group.seriesId)}
+          />
+        )
+      })}
+    </div>
+  )
+}
+
+// Renders a series as a full-width header card (spans every column of the
+// auto-fill grid via `gridColumn: 1 / -1`) plus, when expanded, the child
+// lesson cards laid out as a nested grid below it. Keeping the children
+// inside the same grid cell avoids fighting the parent's auto-fill layout
+// when adjacent series have different sibling counts.
+function SeriesGroupBlock({ group, section, open, onToggle }) {
+  const first = group.firstItem
+  const series = first?.inputs?.lessonSeries || {}
+  const total = Number(series.totalLessons) || group.items.length
+  const planningMode = String(series.planningMode || 'multiple')
+  // Title derives from the topic / subtopic the studio saved on each plan —
+  // siblings share these — so we surface them once at the group level
+  // instead of repeating them on every child tile.
+  const topicLabel = first?.inputs?.subtopic || first?.inputs?.topic || titleForGeneration(first)
+  const itemIcon = TOOL_META[first?.tool]?.icon || section.icon
+  const modeLabel = {
+    single: 'Single',
+    multiple: 'Multiple lessons',
+    week: 'Full week plan',
+    ai_suggested: 'AI suggested',
+  }[planningMode] || 'Multiple lessons'
+  // Pick the freshest createdAt across the children so the date label
+  // tracks re-runs of an existing series. formatDate() accepts a Firestore
+  // Timestamp directly, so we hold on to the original ts object.
+  let newestTs = null
+  let newestMs = 0
+  for (const it of group.items) {
+    const ts = it?.createdAt
+    const ms = (ts && typeof ts.toMillis === 'function') ? ts.toMillis() : 0
+    if (ms > newestMs) { newestMs = ms; newestTs = ts }
+  }
+  return (
+    <div style={{ gridColumn: '1 / -1' }}>
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className="block w-full text-left no-underline rounded-2xl border-2 p-4 transition-all hover:-translate-y-0.5"
+        style={{ background: COLORS.card, borderColor: COLORS.ink, color: COLORS.ink, cursor: 'pointer' }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 11, background: section.accent, display: 'grid', placeItems: 'center', fontSize: 20, flexShrink: 0 }}>
+            {itemIcon}
+          </div>
+          <div style={{ flex: '1 1 auto', minWidth: 0 }}>
+            <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 15, color: COLORS.ink, margin: '0 0 2px', lineHeight: 1.25 }} className="line-clamp-2">
+              {topicLabel}
+            </p>
+            <p style={{ fontSize: 12, color: COLORS.inkSoft, margin: 0 }}>
+              <span style={{ fontWeight: 700, color: COLORS.orange }}>{group.items.length} of {total} lesson plans</span>
+              {' · '}
+              <span>{modeLabel}</span>
+              {first?.library?.path ? <> · <span style={{ color: COLORS.faint }}>{first.library.path}</span></> : null}
+            </p>
+          </div>
+          <div
+            aria-hidden="true"
+            style={{
+              flex: '0 0 auto',
+              width: 28,
+              height: 28,
+              borderRadius: 8,
+              background: COLORS.paper,
+              display: 'grid',
+              placeItems: 'center',
+              color: COLORS.ink,
+              fontSize: 14,
+              fontWeight: 700,
+              transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
+              transition: 'transform .15s ease',
+            }}
+          >
+            ›
+          </div>
+        </div>
+        {newestTs ? (
+          <p style={{ fontSize: 11, color: COLORS.faint, margin: '10px 0 0', fontWeight: 600 }}>
+            {formatDate(newestTs)}
+          </p>
+        ) : null}
+      </button>
+      {open ? (
+        <div
+          className="grid gap-3"
+          style={{
+            gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
+            marginTop: 12,
+            paddingLeft: 12,
+            borderLeft: `3px solid ${COLORS.orange}`,
+          }}
+        >
+          {group.items.map((child) => (
+            <DocumentCard key={child.id} item={child} section={section} />
+          ))}
+        </div>
+      ) : null}
     </div>
   )
 }
 
 function DocumentCard({ item, section }) {
-  const title = item.__title || titleForGeneration(item)
+  // When this card is being rendered inside an expanded series group, the
+  // header already shows the shared topic / subtopic. Re-using that as the
+  // child title would print the same text on every sibling card. Prefer the
+  // per-lesson identity ("Lesson 2 — Concept introduction") so the
+  // expanded grid is scannable. titleForGeneration() handles non-series
+  // generations as before.
+  const series = item?.inputs?.lessonSeries
+  const isSeriesChild = !!(series && series.seriesId && Number(series.totalLessons) > 1)
+  const baseTitle = item.__title || titleForGeneration(item)
+  const title = isSeriesChild
+    ? `Lesson ${Number(series.lessonNumber) || '?'}${series.lessonFocus ? ` — ${series.lessonFocus}` : ''}`
+    : baseTitle
   const linkTo = item.__linkTo || `/teacher/library/${item.id}`
   // Per-item icon (e.g. ✨ for lesson plans, 📓 for notes) so a mixed
   // folder of saved tools is visually distinguishable. Falls back to the
@@ -639,7 +820,9 @@ function DocumentCard({ item, section }) {
         {title}
       </p>
       <p style={{ fontSize: 12, color: COLORS.inkSoft, margin: 0 }}>
-        {item.library?.path || ''}
+        {isSeriesChild
+          ? `${baseTitle}${item.library?.path ? ` · ${item.library.path}` : ''}`
+          : (item.library?.path || '')}
       </p>
       {item.createdAt && (
         <p style={{ fontSize: 11, color: COLORS.faint, margin: '10px 0 0', fontWeight: 600 }}>
