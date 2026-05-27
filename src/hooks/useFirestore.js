@@ -1074,7 +1074,13 @@ export function useFirestore() {
       await delBatch.commit()
     }
 
-    // 3. Upsert remaining questions in chunks of 490
+    // 3. Upsert remaining questions in chunks of 490.
+    //    Return the assigned Firestore ID for every question so callers can
+    //    patch _id back into React state. Without this, questions that start
+    //    with _id:null (e.g. freshly imported) get re-created as new Firestore
+    //    docs on every subsequent auto-save — producing the "60 → 2000"
+    //    question-count explosion reported by teachers.
+    const idMap = []
     const chunkSize = 490
     for (let i = 0; i < questions.length; i += chunkSize) {
       const chunk = questions.slice(i, i + chunkSize)
@@ -1083,12 +1089,16 @@ export function useFirestore() {
         const cleanQ = normalizeQuestionPayload(q, i + offset + 1)
         if (q._id) {
           upsertBatch.update(doc(db, 'quizzes', quizId, 'questions', q._id), cleanQ)
+          idMap.push({ localId: q.localId, id: q._id })
         } else {
-          upsertBatch.set(doc(collection(db, 'quizzes', quizId, 'questions')), cleanQ)
+          const newRef = doc(collection(db, 'quizzes', quizId, 'questions'))
+          upsertBatch.set(newRef, cleanQ)
+          idMap.push({ localId: q.localId, id: newRef.id })
         }
       })
       await upsertBatch.commit()
     }
+    return idMap
   }
 
   return useMemo(() => ({

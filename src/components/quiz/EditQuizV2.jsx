@@ -1199,6 +1199,41 @@ export default function EditQuizV2() {
     }
   }
 
+  // After updateQuizWithQuestions creates new Firestore docs for questions that
+  // had no _id yet (e.g. freshly imported), patch those IDs back into the
+  // sections state. Without this every subsequent auto-save re-creates the
+  // same questions instead of updating them, producing the "60 → 2000" count
+  // explosion.
+  function applyAssignedIds(idMap) {
+    if (!idMap || idMap.length === 0) return
+    const byLocalId = new Map(idMap.map(({ localId, id }) => [localId, id]))
+    setSections(current =>
+      current.map(section => {
+        if (section.kind === 'standalone') {
+          const q = section.question
+          if (q?.localId && !q._id && byLocalId.has(q.localId)) {
+            return { ...section, question: { ...q, _id: byLocalId.get(q.localId) } }
+          }
+          return section
+        }
+        if (section.kind === 'passage') {
+          const qs = section.passage?.questions || []
+          let changed = false
+          const patched = qs.map(q => {
+            if (q?.localId && !q._id && byLocalId.has(q.localId)) {
+              changed = true
+              return { ...q, _id: byLocalId.get(q.localId) }
+            }
+            return q
+          })
+          if (!changed) return section
+          return { ...section, passage: { ...section.passage, questions: patched } }
+        }
+        return section
+      })
+    )
+  }
+
   // Background auto-save: same write as a manual "Save draft" but without
   // validation, without navigation, and without flipping the published
   // status. Skipped while a manual save / upload is in flight, or when
@@ -1226,7 +1261,7 @@ export default function EditQuizV2() {
     setAutoSaveState(AUTO_SAVE.SAVING)
     try {
       const serializedSections = await serializeWithImportedAssetUploads()
-      await updateQuizWithQuestions(
+      const idMap = await updateQuizWithQuestions(
         quizId,
         {
           ...form,
@@ -1246,6 +1281,7 @@ export default function EditQuizV2() {
         deletedIds,
       )
       if (!mountedRef.current) return
+      applyAssignedIds(idMap)
       setDeletedIds([])
       setDirty(false)
       setAutoSaveState(AUTO_SAVE.SAVED)
@@ -1369,7 +1405,7 @@ export default function EditQuizV2() {
             questionCount: serializedSections.questions.length,
           })
         : { quizType: null, isDailyExam: false, dailyExamDate: null }
-      await updateQuizWithQuestions(
+      const saveIdMap = await updateQuizWithQuestions(
         quizId,
         {
           ...form,
@@ -1387,6 +1423,7 @@ export default function EditQuizV2() {
         serializedSections.questions,
         deletedIds,
       )
+      applyAssignedIds(saveIdMap)
 
       setQuizStatus(mode)
       setDeletedIds([])
@@ -1428,7 +1465,7 @@ export default function EditQuizV2() {
             questionCount: serializedSections.questions.length,
           })
         : { quizType: null, isDailyExam: false, dailyExamDate: null }
-      await updateQuizWithQuestions(
+      const toggleIdMap = await updateQuizWithQuestions(
         quizId,
         {
           ...form,
@@ -1444,6 +1481,7 @@ export default function EditQuizV2() {
         serializedSections.questions,
         deletedIds,
       )
+      applyAssignedIds(toggleIdMap)
       setQuizStatus(nextStatus)
       setDeletedIds([])
       setDirty(false)
