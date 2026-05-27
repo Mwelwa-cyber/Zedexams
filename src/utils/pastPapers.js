@@ -35,7 +35,10 @@ import {
 import { db, storage } from '../firebase/config'
 import { capture } from './analytics'
 
-export const PAPER_GRADES = ['7', '9', '12']
+// Grade 9 ECZ exams were phased out, so the public archive only
+// surfaces Grade 7 and Grade 12 papers. Any legacy Grade 9 docs that
+// remain in Firestore are filtered out at the hub level.
+export const PAPER_GRADES = ['7', '12']
 
 // Each uploaded asset can be either the paper itself or its mark
 // scheme. Defaults to 'paper' when the field is absent (back-compat

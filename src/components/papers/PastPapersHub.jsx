@@ -2,8 +2,10 @@
  * /papers — public ECZ past-paper archive (audit A2).
  *
  * The audit calls this "the largest organic-demand gap in the Zambian
- * market" — Grade 7, 9, 12 ECZ past papers drive significant SEO traffic
- * and are typically the #1 reason a learner lands on a revision site.
+ * market" — ECZ past papers drive significant SEO traffic and are
+ * typically the #1 reason a learner lands on a revision site. Grade 9
+ * was phased out by ECZ, so the archive now covers Grade 7 and Grade
+ * 12 only.
  *
  * Routing is open (no auth required) so search engines can index the
  * list and signed-out visitors browse before signing up. The actual
@@ -11,7 +13,7 @@
  * incentive to register.
  *
  * UX:
- *   - Filter row at the top: Grade (7 / 9 / 12) + Subject + Year.
+ *   - Filter row at the top: Grade (7 / 12) + Subject + Year.
  *   - Year-grouped sections within the filtered set so a learner
  *     scanning for "Mathematics 2023" doesn't have to scroll past
  *     mark-scheme variants.
@@ -110,7 +112,7 @@ function EmptyState() {
       <div className="text-5xl mb-3">📚</div>
       <h2 className="theme-text font-black text-lg">Past papers coming soon</h2>
       <p className="theme-text-muted text-sm mt-2 max-w-md mx-auto">
-        We&apos;re uploading the official ECZ archive — Grade 7, 9 and 12 papers
+        We&apos;re uploading the official ECZ archive — Grade 7 and Grade 12 papers
         from recent years. Check back shortly, or{' '}
         <a className="theme-accent-text font-bold underline" href="https://wa.me/260977740465">
           WhatsApp us
@@ -143,7 +145,11 @@ export default function PastPapersHub() {
     setLoading(true)
     listPublishedPapers({})
       .then((rows) => {
-        if (!cancelled) setPapers(rows)
+        // Defensive — ECZ phased out Grade 9 exams; hide any legacy
+        // Grade 9 docs that still live in Firestore so they never
+        // surface to learners.
+        const visible = rows.filter((p) => PAPER_GRADES.includes(String(p.grade)))
+        if (!cancelled) setPapers(visible)
       })
       .catch((err) => {
         console.warn('[PastPapersHub] list failed', err)
@@ -194,8 +200,8 @@ export default function PastPapersHub() {
   return (
     <div className="min-h-screen theme-bg pb-20">
       <SeoHelmet
-        title="ECZ Past Papers — Grade 7, 9, 12 archive"
-        description="Browse the official ECZ past-paper archive — Grade 7, Grade 9 and Grade 12 papers across every CBC subject. Sign in to download papers and mark schemes."
+        title="ECZ Past Papers — Grade 7 & Grade 12 archive"
+        description="Browse the official ECZ past-paper archive — Grade 7 and Grade 12 papers across every CBC subject. Sign in to download papers and mark schemes."
         path="/papers"
       />
 
@@ -210,7 +216,7 @@ export default function PastPapersHub() {
               <p className="text-white/80 font-black text-xs uppercase tracking-widest">ECZ archive</p>
               <h1 className="text-white text-3xl sm:text-4xl font-black mt-1">Past papers</h1>
               <p className="text-white/85 text-sm sm:text-base mt-2 max-w-2xl">
-                Grade 7, 9 and 12 papers from the Examinations Council of Zambia, organised by year and subject.
+                Grade 7 and Grade 12 papers from the Examinations Council of Zambia, organised by year and subject.
               </p>
             </div>
             {currentUser && (
