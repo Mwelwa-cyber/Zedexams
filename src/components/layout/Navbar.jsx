@@ -4,6 +4,7 @@ import {
   Home,
   BookOpen,
   FileText,
+  Files,
   PencilLine,
   BarChart3,
   GraduationCap,
@@ -41,6 +42,7 @@ export default function Navbar() {
     { to: '/lessons',    label: 'Lessons',  icon: BookOpen },
     { to: '/notes',      label: 'Notes',    icon: FileText },
     { to: '/quizzes',    label: 'Practise', icon: PencilLine },
+    { to: '/papers',     label: 'Papers',   icon: Files },
     { to: '/exams',      label: 'Exams',    icon: TrophyIcon },
     { to: '/my-results', label: 'Results',  icon: BarChart3 },
   ]
