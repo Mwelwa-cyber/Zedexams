@@ -50,8 +50,15 @@ service cloud.firestore {
         // Past-paper-attached quizzes opt into anonymous read with
         // `publicAccess: true`, the gate the rule above checks for.
         && (!('publicAccess' in incoming()) || incoming().publicAccess is bool)
-        && (!('linkedPaperId' in incoming()) || (incoming().linkedPaperId is string && incoming().linkedPaperId.size() <= 100))
-        && (!('quizType' in incoming()) || (incoming().quizType is string && incoming().quizType.size() <= 32));
+        && (!('linkedPaperId' in incoming()) || incoming().linkedPaperId == null || (incoming().linkedPaperId is string && incoming().linkedPaperId.size() <= 100))
+        // `quizType: null` is a valid state — classifyOnPublish writes null
+        // for quizzes >= 50 questions (they become exam-only, no
+        // practice-library entry). Without the null arm, publishing a
+        // long past paper fails with
+        // "Missing or insufficient permissions" because `null is string`
+        // is false in CEL. Same goes for the explicit draft path which
+        // also writes { quizType: null, isDailyExam: false, dailyExamDate: null }.
+        && (!('quizType' in incoming()) || incoming().quizType == null || (incoming().quizType is string && incoming().quizType.size() <= 32));
     }
 
     // Defence-in-depth on rich-text fields. Limits mirror the Zod schema in
