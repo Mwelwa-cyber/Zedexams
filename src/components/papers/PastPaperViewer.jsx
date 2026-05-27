@@ -16,7 +16,7 @@
  *   - View / download counts are best-effort incremented for analytics.
  */
 
-import { lazy, Suspense, useCallback, useEffect, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { getPaper, recordPaperEvent, resolvePaperUrl } from '../../utils/pastPapers'
@@ -80,35 +80,43 @@ export default function PastPaperViewer() {
   //   2. a PDF inside the paper-role assets[] (Studio single-PDF case)
   //   3. images inside the paper-role assets[] (scanned multi-page)
   // Mark-scheme assets are split out into their own optional source.
-  const paperAssets = Array.isArray(paper?.assets)
-    ? paper.assets.filter((a) => a.role !== 'mark-scheme')
-    : []
-  const markSchemeAssets = Array.isArray(paper?.assets)
-    ? paper.assets.filter((a) => a.role === 'mark-scheme')
-    : []
+  //
+  // Memoised so the derived `assets` arrays keep a stable reference across
+  // renders — the image-fetch effect below uses them as a dependency, and a
+  // fresh `.filter()` array on every render would retrigger the effect, cancel
+  // the in-flight `getDownloadURL` calls, and leave the spinner spinning.
+  const { previewSource, markSchemeSource } = useMemo(() => {
+    const paperAssets = Array.isArray(paper?.assets)
+      ? paper.assets.filter((a) => a.role !== 'mark-scheme')
+      : []
+    const markSchemeAssets = Array.isArray(paper?.assets)
+      ? paper.assets.filter((a) => a.role === 'mark-scheme')
+      : []
 
-  const previewSource = (() => {
-    if (!paper) return null
-    if (paper.pdfPath) return { kind: 'pdf', path: paper.pdfPath, size: paper.pdfSize || null }
-    if (paperAssets.length === 0) return null
-    const pdfAsset = paperAssets.find((a) => a.contentType === 'application/pdf')
-    if (pdfAsset) return { kind: 'pdf', path: pdfAsset.path, size: pdfAsset.size || null }
-    const images = paperAssets.filter((a) => a.contentType?.startsWith('image/'))
-    if (images.length) return { kind: 'images', assets: images }
-    return null
-  })()
+    const buildPreview = () => {
+      if (!paper) return null
+      if (paper.pdfPath) return { kind: 'pdf', path: paper.pdfPath, size: paper.pdfSize || null }
+      if (paperAssets.length === 0) return null
+      const pdfAsset = paperAssets.find((a) => a.contentType === 'application/pdf')
+      if (pdfAsset) return { kind: 'pdf', path: pdfAsset.path, size: pdfAsset.size || null }
+      const images = paperAssets.filter((a) => a.contentType?.startsWith('image/'))
+      if (images.length) return { kind: 'images', assets: images }
+      return null
+    }
 
-  // Same dispatch for the optional mark scheme section.
-  const markSchemeSource = (() => {
-    if (!paper) return null
-    if (paper.markSchemePath) return { kind: 'pdf', path: paper.markSchemePath, size: null }
-    if (!markSchemeAssets.length) return null
-    const pdfAsset = markSchemeAssets.find((a) => a.contentType === 'application/pdf')
-    if (pdfAsset) return { kind: 'pdf', path: pdfAsset.path, size: pdfAsset.size || null }
-    const images = markSchemeAssets.filter((a) => a.contentType?.startsWith('image/'))
-    if (images.length) return { kind: 'images', assets: images }
-    return null
-  })()
+    const buildMarkScheme = () => {
+      if (!paper) return null
+      if (paper.markSchemePath) return { kind: 'pdf', path: paper.markSchemePath, size: null }
+      if (!markSchemeAssets.length) return null
+      const pdfAsset = markSchemeAssets.find((a) => a.contentType === 'application/pdf')
+      if (pdfAsset) return { kind: 'pdf', path: pdfAsset.path, size: pdfAsset.size || null }
+      const images = markSchemeAssets.filter((a) => a.contentType?.startsWith('image/'))
+      if (images.length) return { kind: 'images', assets: images }
+      return null
+    }
+
+    return { previewSource: buildPreview(), markSchemeSource: buildMarkScheme() }
+  }, [paper])
 
   // Resolved signed URLs for image-only papers. One per asset in upload
   // order — fetched in parallel after auth so the stacked scan view
