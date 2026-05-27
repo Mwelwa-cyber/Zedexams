@@ -238,6 +238,11 @@ export default function EditQuizV2() {
   // Track when the user last interacted so we don't fire an auto-save
   // mid-keystroke. `dirtySince` is reset to now() on every change.
   const dirtySinceRef = useRef(0)
+  // Mirrors `dirty` so the load effect can check it WITHOUT adding it
+  // to its deps. Reading via ref lets the effect skip re-loads after
+  // a fresh import while still re-firing on quiz id / auth changes.
+  const dirtyRef = useRef(false)
+  useEffect(() => { dirtyRef.current = dirty }, [dirty])
   // Guards against re-entrant auto-saves: only one in-flight save at a
   // time, and we skip auto-save while a manual save is running.
   const autoSavingRef = useRef(false)
@@ -339,6 +344,15 @@ export default function EditQuizV2() {
 
   useEffect(() => {
     if (!quizId || !currentUser?.uid) return
+    // Once the editor has unsaved local work (e.g. just after a fresh
+    // import), skip the re-load. AuthContext can flip `isAdmin` from
+    // false to true a tick after mount on slow profile fetches, and
+    // because isAdmin is in this effect's deps, the load would re-fire
+    // and clobber the imported sections with the empty Firestore copy
+    // — leaving the editor on "No questions yet" two seconds after the
+    // cards rendered. Re-loads are only safe when there's nothing to
+    // lose.
+    if (dirtyRef.current) return
     let cancelled = false
 
     async function load() {
