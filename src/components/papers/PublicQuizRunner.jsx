@@ -400,7 +400,7 @@ export default function PublicQuizRunner() {
           {/* Question prompt */}
           <div className="theme-text font-black text-base sm:text-lg leading-snug">
             {question.textJSON
-              ? <RichContent content={question.textJSON} />
+              ? <RichContent value={question.textJSON} fallback={<p>{plainTextFromQuestion(question)}</p>} />
               : <p>{plainTextFromQuestion(question)}</p>}
           </div>
 
@@ -436,7 +436,7 @@ export default function PublicQuizRunner() {
               </p>
               <div className="theme-text text-sm">
                 {question.explanationJSON
-                  ? <RichContent content={question.explanationJSON} />
+                  ? <RichContent value={question.explanationJSON} fallback={<p>{getRichPlainText(question.explanation) || question.explanation}</p>} />
                   : <p>{getRichPlainText(question.explanation) || question.explanation}</p>}
               </div>
             </div>
