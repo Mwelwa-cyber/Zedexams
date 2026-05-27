@@ -82,7 +82,37 @@ export function sheetNameToGrade(sheetName) {
   return ''
 }
 
-export function studioSubjectToKbSubject(studioSubject) {
+export function studioSubjectToKbSubject(studioSubject, sheetName) {
+  // ECE + Lower Primary have ONE top-level syllabus that bundles every
+  // strand (English, Zambian Languages, Maths & Science, Creative). The
+  // canonical CBC subject lives in the sheet name, not the top-level
+  // subject key — without this dispatch every G1 row gets force-mapped
+  // to "english", erasing zambian_language / numeracy / creative coverage.
+  if (
+    studioSubject === 'Early Childhood Education Syllabi (3-5 Years)' ||
+    studioSubject === 'Lower Primary Syllabi (Grades 1-3)'
+  ) {
+    const lower = String(sheetName || '').toLowerCase()
+    const isEce = studioSubject.startsWith('Early')
+    if (lower.includes('english')) return 'english'
+    if (lower.includes('zambian')) return 'zambian_language'
+    if (lower.includes('creative') || lower.includes('tech')) {
+      // ECE doesn't have "Creative & Technology Studies" — the closest
+      // CBC subject is Expressive Arts. Lower Primary has the dedicated
+      // Creative & Technology Studies key.
+      return isEce ? 'expressive_arts' : 'creative_and_technology_studies'
+    }
+    if (
+      lower.includes('math') || lower.includes('numeracy') || lower.includes('science')
+    ) {
+      // Maths & Science is one combined sheet in both ECE and Lower
+      // Primary. Numeracy covers it best: it's the pre-Mathematics
+      // strand and at this level the science content is environment
+      // observation woven into number/measurement activities.
+      return 'numeracy'
+    }
+    return STUDIO_SUBJECT_TO_KB[studioSubject] || ''
+  }
   return STUDIO_SUBJECT_TO_KB[studioSubject] || ''
 }
 
@@ -135,7 +165,7 @@ export function rowKey(studioSubject, sheetName, topic, subtopic) {
  */
 export function rowToTopicFragment({ row, studioSubject, sheetName }) {
   const grade = sheetNameToGrade(sheetName)
-  const subject = studioSubjectToKbSubject(studioSubject)
+  const subject = studioSubjectToKbSubject(studioSubject, sheetName)
   if (!grade || !subject || !row.topic) return null
   return {
     grade,

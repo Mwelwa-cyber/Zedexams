@@ -59,6 +59,7 @@ require.cache["__stub__firebase-admin__"] = {
 const {
   sheetNameToGrade: serverSheetToGrade,
   STUDIO_SUBJECT_TO_KB: SERVER_MAP,
+  resolveKbSubject: serverResolveKbSubject,
   rowKey: serverRowKey,
   getCurriculumDataTopics,
   getMergedStudioData,
@@ -161,6 +162,51 @@ test("studioSubjectToKbSubject returns the canonical key", () => {
   eq(studioSubjectToKbSubject("Mathematics Syllabus (Forms 1-4)"), "mathematics");
   eq(studioSubjectToKbSubject("Physics Syllabus (Forms 1-4)"), "physics");
   eq(studioSubjectToKbSubject("Made-up subject"), "");
+});
+
+console.log("\nresolveKbSubject (sheet-aware for ECE + Lower Primary)");
+
+test("ECE sheets dispatch by strand in the sheet name", () => {
+  const ece = "Early Childhood Education Syllabi (3-5 Years)";
+  eq(studioSubjectToKbSubject(ece, "3-4 Years - English Language"), "english");
+  eq(studioSubjectToKbSubject(ece, "4-5 Years - English Language"), "english");
+  eq(studioSubjectToKbSubject(ece, "3-4 Years - Zambian Languages"), "zambian_language");
+  eq(studioSubjectToKbSubject(ece, "3-4 Years - Pre-Maths & Science"), "numeracy");
+  eq(studioSubjectToKbSubject(ece, "3-4 Years - Creative & Tech"), "expressive_arts");
+});
+
+test("Lower Primary sheets dispatch by strand in the sheet name", () => {
+  const lp = "Lower Primary Syllabi (Grades 1-3)";
+  eq(studioSubjectToKbSubject(lp, "Grade 1 - English Language"), "english");
+  eq(studioSubjectToKbSubject(lp, "Grade 2 - Zambian Languages"), "zambian_language");
+  eq(studioSubjectToKbSubject(lp, "Grade 3 - Maths & Science"), "numeracy");
+  eq(studioSubjectToKbSubject(lp, "Grade 1 - Creative & Technology"), "creative_and_technology_studies");
+});
+
+test("Single-subject syllabi ignore sheet name (return canonical key)", () => {
+  eq(studioSubjectToKbSubject("Mathematics Syllabus (Forms 1-4)", "Form 1"), "mathematics");
+  eq(studioSubjectToKbSubject("Mathematics Syllabus (Forms 1-4)"), "mathematics");
+});
+
+test("Client + server resolveKbSubject agree on ECE + LP sheets", () => {
+  const cases = [
+    ["Early Childhood Education Syllabi (3-5 Years)", "3-4 Years - English Language"],
+    ["Early Childhood Education Syllabi (3-5 Years)", "3-4 Years - Zambian Languages"],
+    ["Early Childhood Education Syllabi (3-5 Years)", "3-4 Years - Pre-Maths & Science"],
+    ["Early Childhood Education Syllabi (3-5 Years)", "3-4 Years - Creative & Tech"],
+    ["Lower Primary Syllabi (Grades 1-3)", "Grade 1 - English Language"],
+    ["Lower Primary Syllabi (Grades 1-3)", "Grade 1 - Zambian Languages"],
+    ["Lower Primary Syllabi (Grades 1-3)", "Grade 1 - Maths & Science"],
+    ["Lower Primary Syllabi (Grades 1-3)", "Grade 1 - Creative & Technology"],
+    ["Mathematics Syllabus (Forms 1-4)", "Form 1"],
+  ];
+  for (const [subj, sheet] of cases) {
+    const c = studioSubjectToKbSubject(subj, sheet);
+    const s = serverResolveKbSubject(subj, sheet);
+    if (c !== s) {
+      throw new Error(`drift on (${subj}, ${sheet}): client=${c} server=${s}`);
+    }
+  }
 });
 
 console.log("\nrowsWithPropagatedTopic");

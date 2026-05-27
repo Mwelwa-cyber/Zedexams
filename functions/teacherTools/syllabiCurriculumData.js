@@ -74,6 +74,36 @@ function slug(s) {
       .slice(0, 60);
 }
 
+/**
+ * Translate a (studioSubject, sheetName) pair into the canonical CBC
+ * subject key. The top-level STUDIO_SUBJECT_TO_KB map covers single-
+ * subject syllabi cleanly; ECE + Lower Primary bundle several strands
+ * under one top-level entry and need the sheet name to pick the right
+ * CBC subject. Mirrors studioSubjectToKbSubject in
+ * src/utils/syllabusMapping.js — keep in lock-step.
+ */
+function resolveKbSubject(studioSubject, sheetName) {
+  if (
+    studioSubject === "Early Childhood Education Syllabi (3-5 Years)" ||
+    studioSubject === "Lower Primary Syllabi (Grades 1-3)"
+  ) {
+    const lower = String(sheetName || "").toLowerCase();
+    const isEce = studioSubject.startsWith("Early");
+    if (lower.includes("english")) return "english";
+    if (lower.includes("zambian")) return "zambian_language";
+    if (lower.includes("creative") || lower.includes("tech")) {
+      return isEce ? "expressive_arts" : "creative_and_technology_studies";
+    }
+    if (
+      lower.includes("math") || lower.includes("numeracy") || lower.includes("science")
+    ) {
+      return "numeracy";
+    }
+    return STUDIO_SUBJECT_TO_KB[studioSubject] || "";
+  }
+  return STUDIO_SUBJECT_TO_KB[studioSubject] || "";
+}
+
 function rowKey(studioSubject, sheetName, topic, subtopic) {
   return [studioSubject, sheetName, topic || "", subtopic || ""]
       .map((p) => String(p || "").trim().toLowerCase().replace(/\s+/g, "_"))
@@ -250,11 +280,10 @@ async function getCurriculumDataTopics(version) {
   const merged = applyOverridesToRaw(raw, overrides);
   const byKey = new Map();
   for (const [studioSubject, sheets] of Object.entries(merged || {})) {
-    const subject = STUDIO_SUBJECT_TO_KB[studioSubject];
-    if (!subject) continue;
     for (const [sheetName, sheet] of Object.entries(sheets || {})) {
       const grade = sheetNameToGrade(sheetName);
-      if (!grade) continue;
+      const subject = resolveKbSubject(studioSubject, sheetName);
+      if (!grade || !subject) continue;
       const rows = rowsWithPropagatedTopic(sheet?.rows || []);
       for (const r of rows) {
         if (!r.topic) continue;
@@ -311,6 +340,7 @@ function invalidateCache() {
 module.exports = {
   STUDIO_SUBJECT_TO_KB,
   sheetNameToGrade,
+  resolveKbSubject,
   rowKey,
   loadRawData,
   loadOverrides,
