@@ -5,6 +5,14 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-05-27
+
+### Added
+- Admin interface now shows actionable agent alignment status and controls. (#583)
+
+### Fixed
+- CALA agent alignment with CBC requirements now properly enforced. (#583)
+
 ## 2026-05-24
 
 ### Added
