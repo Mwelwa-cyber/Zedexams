@@ -63,6 +63,11 @@ export const PREFLIGHT_REASONS = Object.freeze({
     long: 'The preflight callable threw before returning. See the tooltip for the underlying error message.',
     fix: 'Check the browser console + /admin/agents/jobs for stack traces. A re-deploy of Cloud Functions usually clears transient failures.',
   },
+  role_check_failed: {
+    short: 'Role lookup failed',
+    long: 'The server could not read your user role to authorise the preflight check.',
+    fix: 'Usually a transient Firestore blip — wait a few seconds and reload. If it persists, check Cloud Functions logs for the preflightCurriculumRef invocation.',
+  },
   resolver_error: {
     short: 'Resolver crashed',
     long: 'The server-side curriculum resolver threw an exception. See the tooltip for the message.',

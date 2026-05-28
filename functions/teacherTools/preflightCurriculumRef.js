@@ -22,7 +22,23 @@ exports.preflightCurriculumRef = onCall(
     async (request) => {
       const uid = request.auth && request.auth.uid;
       if (!uid) throw new HttpsError("unauthenticated", "Please sign in.");
-      const role = await getUserRole(uid);
+
+      // Role lookup must not escape as an HTTP 500 — the client wraps any
+      // non-permission-denied error as the opaque `callable_error` reason,
+      // which is what blocked the admin batch UI for days. A transient
+      // Firestore blip during 20+ parallel preflight calls is enough to
+      // trip it. Catch the unexpected case and surface it as a structured
+      // refusal with the underlying message instead.
+      let role;
+      try {
+        role = await getUserRole(uid);
+      } catch (err) {
+        return {
+          ok: false,
+          reason: "role_check_failed",
+          message: err && err.message ? err.message : String(err),
+        };
+      }
       if (role !== "admin") {
         throw new HttpsError("permission-denied", "Admin only.");
       }

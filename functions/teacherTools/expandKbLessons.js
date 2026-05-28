@@ -107,7 +107,7 @@ async function expandTopicLessons({topicId, topicData, topicsCol, writer, now, d
       vocabulary: [],
       contentSummary,
       teacherActivities: [],
-      learnerActivities,
+      learnerActivities: learningActivities,
       teachingMaterials: [],
       assessmentCriteria,
       exercises: [],
