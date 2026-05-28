@@ -426,11 +426,29 @@ export default function PublicQuizRunner() {
             <Progress value={currentIndex + (revealed ? 1 : 0)} max={total} />
           </div>
 
-          {/* Stem image / diagram — mirrors the editor preview. Library
-              diagrams (imageDiagram.libraryKey) win; uploaded photos
-              (imageUrl) are the fallback. Without this block the
-              trapezium/figure questions show only their text and the
-              learner can't actually answer them. */}
+          {/* Shared instruction — rendered first, matching the editor's
+              top-to-bottom layout (instruction → question → diagram).
+              Only shown when authored on the question. */}
+          {(question.sharedInstruction || question.sharedInstructionJSON) && (
+            <div className="rounded-radius-md border theme-border bg-amber-50 px-3 py-2 text-sm font-bold leading-relaxed text-slate-900">
+              <RichContent value={question.sharedInstructionJSON ?? question.sharedInstruction} />
+            </div>
+          )}
+
+          {/* Question prompt — must come BEFORE the diagram so the
+              learner reads the question first, matching the editor
+              ordering. */}
+          <div className="theme-text font-black text-base sm:text-lg leading-snug">
+            {question.textJSON
+              ? <RichContent value={question.textJSON} fallback={<p>{plainTextFromQuestion(question)}</p>} />
+              : <p>{plainTextFromQuestion(question)}</p>}
+          </div>
+
+          {/* Stem image / diagram — rendered AFTER the question text.
+              Library diagrams (imageDiagram.libraryKey) win; uploaded
+              photos (imageUrl) are the fallback; plain diagramText is
+              the last resort so figure questions can still be solved
+              when neither asset is attached. */}
           {question.imageDiagram?.libraryKey ? (
             <div className="overflow-hidden rounded-radius-md border theme-border bg-white p-3">
               <DiagramSvg
@@ -455,13 +473,6 @@ export default function PublicQuizRunner() {
               {question.diagramText}
             </p>
           )}
-
-          {/* Question prompt */}
-          <div className="theme-text font-black text-base sm:text-lg leading-snug">
-            {question.textJSON
-              ? <RichContent value={question.textJSON} fallback={<p>{plainTextFromQuestion(question)}</p>} />
-              : <p>{plainTextFromQuestion(question)}</p>}
-          </div>
 
           {/* Options */}
           <div className="space-y-2.5">
