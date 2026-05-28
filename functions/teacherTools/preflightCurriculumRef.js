@@ -10,7 +10,7 @@
  * Same admin gate as the other CBC KB callables. No state writes.
  */
 
-const {onCall, HttpsError} = require("firebase-functions/v2/https");
+const {onCall} = require("firebase-functions/v2/https");
 
 const {getUserRole} = require("../aiService");
 const {
@@ -20,51 +20,65 @@ const {
 exports.preflightCurriculumRef = onCall(
     {timeoutSeconds: 30, memory: "256MiB"},
     async (request) => {
-      const uid = request.auth && request.auth.uid;
-      if (!uid) throw new HttpsError("unauthenticated", "Please sign in.");
-
-      // Role lookup must not escape as an HTTP 500 — the client wraps any
-      // non-permission-denied error as the opaque `callable_error` reason,
-      // which is what blocked the admin batch UI for days. A transient
-      // Firestore blip during 20+ parallel preflight calls is enough to
-      // trip it. Catch the unexpected case and surface it as a structured
-      // refusal with the underlying message instead.
-      let role;
+      // Outer try/catch is a belt-and-braces guarantee: nothing in this
+      // callable may ever escape as an HTTP 500. The client bucket-labels
+      // every non-permission-denied error as `callable_error`, which is
+      // a debugging dead end — we've seen the admin batch UI stuck on
+      // that code for days. Any unexpected throw is turned into a
+      // structured refusal with the underlying error message.
       try {
-        role = await getUserRole(uid);
-      } catch (err) {
-        return {
-          ok: false,
-          reason: "role_check_failed",
-          message: err && err.message ? err.message : String(err),
-        };
-      }
-      if (role !== "admin") {
-        throw new HttpsError("permission-denied", "Admin only.");
-      }
-
-      const data = (request && request.data) || {};
-      const grade = typeof data.grade === "string" ? data.grade : "";
-      const subject = typeof data.subject === "string" ? data.subject : "";
-      const topic = typeof data.topic === "string" ? data.topic : "";
-      const subtopic = typeof data.subtopic === "string" ? data.subtopic : "";
-      const term = data.term;
-
-      try {
-        const result = await resolveStrictCurriculumRef({
-          grade, subject, topic, subtopic, term,
-        });
-        if (result && result.ok) {
-          return {ok: true};
+        const uid = request.auth && request.auth.uid;
+        if (!uid) {
+          return {ok: false, reason: "unauthenticated", message: "Please sign in."};
         }
-        return {
-          ok: false,
-          reason: (result && result.reason) || "no_curriculum_match",
-        };
+
+        let role;
+        try {
+          role = await getUserRole(uid);
+        } catch (err) {
+          return {
+            ok: false,
+            reason: "role_check_failed",
+            message: err && err.message ? err.message : String(err),
+          };
+        }
+        if (role !== "admin") {
+          return {ok: false, reason: "permission_denied", message: "Admin only."};
+        }
+
+        const data = (request && request.data) || {};
+        const grade = typeof data.grade === "string" ? data.grade : "";
+        const subject = typeof data.subject === "string" ? data.subject : "";
+        const topic = typeof data.topic === "string" ? data.topic : "";
+        const subtopic = typeof data.subtopic === "string" ? data.subtopic : "";
+        const term = data.term;
+
+        try {
+          const result = await resolveStrictCurriculumRef({
+            grade, subject, topic, subtopic, term,
+          });
+          if (result && result.ok) {
+            return {ok: true};
+          }
+          return {
+            ok: false,
+            reason: (result && result.reason) || "no_curriculum_match",
+          };
+        } catch (err) {
+          return {
+            ok: false,
+            reason: "resolver_error",
+            message: err && err.message ? err.message : String(err),
+          };
+        }
       } catch (err) {
+        // Last-resort catch — anything that survives the inner handlers
+        // (a TypeError from a malformed `request`, an OOM bubble, etc.)
+        // still becomes a structured response instead of a 500.
+        console.error("preflightCurriculumRef unexpected error", err);
         return {
           ok: false,
-          reason: "resolver_error",
+          reason: "preflight_internal_error",
           message: err && err.message ? err.message : String(err),
         };
       }
