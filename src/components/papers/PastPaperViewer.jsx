@@ -753,26 +753,16 @@ function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, r
                 </button>
               ) : (
                 <div className="relative">
-                  <img
-                    key={`${page.key}-${nonce}`}
+                  <PaperPageImage
+                    pageKey={page.key}
                     src={src}
                     alt={`${altPrefix} ${page.pageNumber} of ${totalPages}`}
-                    loading={page.pageNumber <= 2 ? 'eager' : 'lazy'}
-                    decoding="async"
+                    eager={page.pageNumber <= 2}
                     width={page.width || undefined}
                     height={page.height || undefined}
-                    onLoad={() => onLoad(page.key)}
+                    hasLoaded={hasLoaded}
+                    onLoad={onLoad}
                     onError={() => onError(page.key, page)}
-                    className="block w-full h-auto max-w-[900px] mx-auto"
-                    // Only apply a fallback aspect ratio while the image
-                    // hasn't loaded — reserving the layout slot for old
-                    // uploads that don't have stored dimensions. Once
-                    // the image lands, the browser's intrinsic ratio
-                    // (or the width/height attrs) takes over so the
-                    // rendered page isn't distorted.
-                    style={!hasLoaded && !(page.width && page.height)
-                      ? { aspectRatio: '1 / 1.41' }
-                      : undefined}
                   />
                   {!hasLoaded && (
                     <div
@@ -789,6 +779,53 @@ function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, r
         )
       })}
     </div>
+  )
+}
+
+/**
+ * Renders the paper page <img> with a defensive "already cached?" check.
+ *
+ * The bug this guards against: when the Firebase Storage SW cache (or
+ * the browser HTTP cache) serves the image synchronously fast — fast
+ * enough that the image's `complete` flag is true before React attaches
+ * the `onLoad` listener — the native `load` event never fires for our
+ * listener. The "Loading page N…" overlay then sticks forever even
+ * though the image is fully rendered behind it.
+ *
+ * Fix: on mount and on every src change, look at the underlying img
+ * element. If it's already complete with non-zero natural dimensions,
+ * call `onLoad` manually so the overlay clears.
+ */
+function PaperPageImage({ pageKey, src, alt, eager, width, height, hasLoaded, onLoad, onError }) {
+  const imgRef = useRef(null)
+
+  useEffect(() => {
+    const el = imgRef.current
+    if (!el || hasLoaded) return
+    if (el.complete && el.naturalWidth > 0) {
+      onLoad(pageKey)
+    }
+  }, [src, hasLoaded, pageKey, onLoad])
+
+  return (
+    <img
+      ref={imgRef}
+      src={src}
+      alt={alt}
+      loading={eager ? 'eager' : 'lazy'}
+      decoding="async"
+      width={width}
+      height={height}
+      onLoad={() => onLoad(pageKey)}
+      onError={onError}
+      className="block w-full h-auto max-w-[900px] mx-auto"
+      // Fallback aspect ratio reserves layout space for old uploads
+      // that don't have stored dimensions yet. Drop once loaded so the
+      // intrinsic ratio takes over and the rendered page isn't squashed.
+      style={!hasLoaded && !(width && height)
+        ? { aspectRatio: '1 / 1.41' }
+        : undefined}
+    />
   )
 }
 
