@@ -86,7 +86,10 @@ function gatherInput() {
 // (e.g. "Concept introduction"). When totalLessons === 1, the focus block
 // is omitted entirely so the prompt looks exactly like the single-lesson
 // path that already works in production.
-function buildPrompt(i, lessonNumber, lessonFocus, totalLessons) {
+// `coveredSoFar` is the accumulating list of {lessonNumber, focus, summary}
+// for lessons already generated EARLIER IN THIS RUN. Lets the model build
+// on what was actually taught instead of guessing from the outline.
+function buildPrompt(i, lessonNumber, lessonFocus, totalLessons, coveredSoFar) {
   const level = activeGradeLevel()[i.klass];
   const legacyTopics = getTopicsForClass(level, i.subject, i.klass);
   // Merge in the clean curriculumTopics map (02b-curriculum-topics.js) for
@@ -135,6 +138,15 @@ function buildPrompt(i, lessonNumber, lessonFocus, totalLessons) {
   const seqLine = N > 1
     ? `\n- LESSON SEQUENCE: This sub-topic is being split into ${N} lesson periods. You are writing LESSON ${K} of ${N}.\n- This lesson's focus: "${String(lessonFocus || '').trim() || `Lesson ${K}`}". Scope the entire plan to this focus only — do NOT cover content earmarked for later lessons.\n- Series outline so you know what to leave for siblings:\n${focusLines}`
     : '';
+  // Past-lesson awareness: when the loop has already generated lesson(s)
+  // earlier in this run, drop their actual content into the prompt so this
+  // lesson treats them as PRIOR knowledge instead of re-teaching the same
+  // material. Each summary is short (specific outcomes / lesson goal +
+  // stage names) so a Lesson 4 prompt doesn't balloon past the context
+  // window — see summariseLessonForFollowups() below for the extractor.
+  const coveredBlock = (N > 1 && Array.isArray(coveredSoFar) && coveredSoFar.length)
+    ? `\n\nPREVIOUSLY COVERED IN THIS SERIES (treat as prior knowledge; do NOT re-teach, but DO build on it where relevant):\n${coveredSoFar.map(c => `Lesson ${c.lessonNumber} — ${c.focus || 'untitled'}:\n${c.summary}`).join('\n\n')}`
+    : '';
   // Tighter validation rule: if the teacher's pick is present in the topic
   // list shown above, accept it unconditionally. Reject only when the topic
   // is genuinely absent AND looks off-grade (e.g. "Quantum Mechanics" for
@@ -152,10 +164,42 @@ function buildPrompt(i, lessonNumber, lessonFocus, totalLessons) {
 - Sub-topic: ${i.subtopic || 'choose an appropriate sub-topic'}
 - Duration: ${i.duration} minutes
 - Term & Week: ${i.termWeek || 'unspecified'}${envLine}${seqLine}
-${syllabusContext}
+${syllabusContext}${coveredBlock}
 ${validationRule}
 
 Return JSON only.`;
+}
+
+// Compact per-lesson summary used by past-lesson awareness in multi-lesson
+// runs. Caller passes the JSON the model just returned (post-parse) plus
+// the format key it was generated in. Output is short enough to stack 5+
+// summaries inside a single later prompt without blowing the context budget.
+function summariseLessonForFollowups(data, format) {
+  if (!data || typeof data !== 'object') return '';
+  const stageNames = Array.isArray(data.stages)
+    ? data.stages.map(s => s && s.name).filter(Boolean).slice(0, 5).join(' → ')
+    : '';
+  if (format === 'modern') {
+    // Modern format keys: specificOutcomes[], keyCompetencies[], stages[],
+    // homework. Outcomes are the single best signal of "what got taught" —
+    // each is already a "By the end of the lesson, pupils should…" sentence.
+    const outcomes = (Array.isArray(data.specificOutcomes) ? data.specificOutcomes : [])
+      .slice(0, 3)
+      .map(o => `   • ${String(o).slice(0, 220)}`)
+      .join('\n');
+    return [
+      outcomes,
+      stageNames && `   Stages: ${stageNames}`,
+    ].filter(Boolean).join('\n');
+  }
+  // classic / classic2 share lessonGoal + majorLearningPoint + stages.
+  const goal = String(data.lessonGoal || '').slice(0, 280);
+  const main = String(data.majorLearningPoint || '').slice(0, 280);
+  return [
+    goal && `   Goal: ${goal}`,
+    main && `   Main learning point: ${main}`,
+    stageNames && `   Stages: ${stageNames}`,
+  ].filter(Boolean).join('\n');
 }
 
 function renderHeader(meta) {
@@ -368,19 +412,20 @@ function __studioRenderOutOfSyllabusError(message) {
   </div>`;
 }
 
-// Generate ONE lesson, render it, save it. Returns true on success, false on
-// out-of-syllabus error (which short-circuits the rest of a multi-lesson
-// run), throws on transport/system errors.
-async function __studioGenerateOneLesson({ i, lessonNumber, totalLessons, lessonFocus, sysPrompt }) {
+// Generate ONE lesson, render it, save it. Returns { ok, data } so the
+// caller can extract a summary for the next lesson's PREVIOUSLY COVERED
+// block. ok=false signals an out-of-syllabus error (short-circuits the
+// rest of the run); transport/system errors throw.
+async function __studioGenerateOneLesson({ i, lessonNumber, totalLessons, lessonFocus, sysPrompt, coveredSoFar }) {
   const planContext = {
     grade: i.klass, subject: i.subject, term: i.term, week: i.week,
     topic: i.topic, subtopic: i.subtopic,
   };
-  const data = await callClaude(sysPrompt, buildPrompt(i, lessonNumber, lessonFocus, totalLessons), planContext);
+  const data = await callClaude(sysPrompt, buildPrompt(i, lessonNumber, lessonFocus, totalLessons, coveredSoFar), planContext);
   if (data.error) {
     __studioRenderOutOfSyllabusError(data.error);
     toast('Topic does not match this grade');
-    return false;
+    return { ok: false, data: null };
   }
   // For multi-lesson runs we tag the meta so the rendered header shows
   // "Lesson K of N" / "Lesson Focus: …" — even though i.lessonsCurrent
@@ -421,7 +466,7 @@ async function __studioGenerateOneLesson({ i, lessonNumber, totalLessons, lesson
     data: data,
     html: html,
   });
-  return true;
+  return { ok: true, data };
 }
 
 async function __studioOnGenerateClick() {
@@ -446,13 +491,21 @@ async function __studioOnGenerateClick() {
 
   const sysPrompt = i.format === 'classic' ? sysClassic : (i.format === 'classic2' ? sysClassic2 : sysModern);
   let madeCount = 0;
+  // Accumulates compact summaries of lessons we've generated EARLIER IN
+  // THIS RUN. Each entry is { lessonNumber, focus, summary } and gets
+  // injected into the next lesson's user prompt as PREVIOUSLY COVERED IN
+  // THIS SERIES, so Claude can build on what was really taught instead of
+  // re-teaching or guessing.
+  const coveredSoFar = [];
   try {
     for (const lessonNumber of indices) {
       if (btn) btn.innerHTML = `<span>${total > 1 ? `Composing lesson ${madeCount + 1} of ${indices.length}…` : 'Composing your lesson plan…'}</span>`;
       const focus = (i.planner.foci && i.planner.foci[lessonNumber - 1]) || '';
-      const ok = await __studioGenerateOneLesson({ i, lessonNumber, totalLessons: total, lessonFocus: focus, sysPrompt });
-      if (!ok) break;        // Out-of-syllabus error — stop the series here.
+      const res = await __studioGenerateOneLesson({ i, lessonNumber, totalLessons: total, lessonFocus: focus, sysPrompt, coveredSoFar });
+      if (!res.ok) break;    // Out-of-syllabus error — stop the series here.
       madeCount += 1;
+      const summary = summariseLessonForFollowups(res.data, i.format);
+      if (summary) coveredSoFar.push({ lessonNumber, focus, summary });
     }
     if (madeCount > 0) {
       if (madeCount === 1 && total === 1) toast('Lesson plan generated and saved');
