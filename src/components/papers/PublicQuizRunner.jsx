@@ -97,7 +97,7 @@ function Progress({ value, max }) {
   )
 }
 
-function OptionButton({ label, index, selected, revealed, correct, onClick, disabled, imageUrl, diagram }) {
+function OptionButton({ optionValue, index, selected, revealed, correct, onClick, disabled, imageUrl, diagram }) {
   let cls = 'theme-card border-2 theme-border'
   if (revealed) {
     if (correct) cls = 'border-2 border-emerald-500 bg-emerald-50 text-emerald-900'
@@ -136,7 +136,13 @@ function OptionButton({ label, index, selected, revealed, correct, onClick, disa
             )}
           </span>
         )}
-        {label && <span className="block whitespace-pre-wrap">{label}</span>}
+        {/* Render the option through RichContent so Tiptap nodes like
+            mathFraction render as the actual fraction instead of being
+            shown as raw {"type":"doc",...} JSON. RichContent handles
+            both strings (legacy / plain) and Tiptap JSON docs. */}
+        {optionValue != null && (
+          <RichContent value={optionValue} className="rich-option block" />
+        )}
       </span>
       {revealed && correct && <span aria-hidden="true">✓</span>}
       {revealed && selected && !correct && <span aria-hidden="true">✗</span>}
@@ -460,13 +466,20 @@ export default function PublicQuizRunner() {
           {/* Options */}
           <div className="space-y-2.5">
             {options.map((opt, idx) => {
-              const label = plainTextFromOption(opt)
               const optObj = (opt && typeof opt === 'object') ? opt : null
+              // RichContent prefers a Tiptap JSON doc when present, then
+              // falls back to a stringified HTML/plain value. Passing
+              // textJSON directly avoids the previous path that ran
+              // option.text (the stringified JSON) through plain text
+              // extraction and rendered the JSON literally.
+              const optionValue = optObj?.textJSON
+                ?? optObj?.text
+                ?? (typeof opt === 'string' ? opt : '')
               return (
                 <OptionButton
                   key={idx}
                   index={idx}
-                  label={label}
+                  optionValue={optionValue}
                   imageUrl={optObj?.imageUrl}
                   diagram={optObj?.diagram}
                   selected={selection === idx}
