@@ -21,7 +21,7 @@ const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerat
 
 // Bump this when /public/studio/* is changed so phones / CDNs refetch
 // instead of serving the cached old file.
-const STUDIO_ASSET_VERSION = 'v20'
+const STUDIO_ASSET_VERSION = 'v21'
 
 // Sequential script loader — each script must finish before the next starts
 // because the studio scripts rely on globals set by earlier ones.
@@ -189,23 +189,14 @@ export default function LessonPlanStudio() {
       const key = `${grade}|${subject}`
       if (cbcCache.has(key)) return cbcCache.get(key)
       try {
-        const merged = await getMergedSyllabi()
-        const kbTopics = syllabiToKbTopics(merged)
+        // 1) PRIMARY: the active uploaded version's topics. When an admin
+        //    has run the full-XLSX replace + activate flow, those rows
+        //    live in cbcKnowledgeBase/{activeVersion}/topics and
+        //    represent the school's authoritative syllabus — they must
+        //    win over the bundled curriculum-data.json (which is the
+        //    seed shipped with the build). Per-(grade, subject), so a
+        //    partial upload doesn't blank out subjects it didn't cover.
         const out = {}
-        for (const t of kbTopics) {
-          if (t.grade !== grade || t.subject !== subject) continue
-          if (!t.topic) continue
-          // Studio router expects { topic: [subtopicName, ...] }; subtopics
-          // here are enriched objects, so surface only their names.
-          out[t.topic] = (Array.isArray(t.subtopics) ? t.subtopics : [])
-            .map(subtopicName)
-            .filter(Boolean)
-        }
-        if (Object.keys(out).length > 0) {
-          cbcCache.set(key, out)
-          return out
-        }
-        // Merged source had nothing — try the legacy direct-Firestore path.
         const version = await getActiveKbVersion()
         const snap = await getDocs(query(
           collection(db, 'cbcKnowledgeBase', version, 'topics'),
@@ -220,6 +211,27 @@ export default function LessonPlanStudio() {
               .filter(Boolean)
           }
         })
+        if (Object.keys(out).length > 0) {
+          cbcCache.set(key, out)
+          return out
+        }
+
+        // 2) FALLBACK: bundled curriculum-data.json + Syllabi Studio
+        //    per-row overrides. This is the right path for schools that
+        //    haven't done a full replace — admin row edits made in
+        //    Syllabi Studio still flow through here because they live in
+        //    syllabusOverrides/*, not in topics/.
+        const merged = await getMergedSyllabi()
+        const kbTopics = syllabiToKbTopics(merged)
+        for (const t of kbTopics) {
+          if (t.grade !== grade || t.subject !== subject) continue
+          if (!t.topic) continue
+          // Studio router expects { topic: [subtopicName, ...] }; subtopics
+          // here are enriched objects, so surface only their names.
+          out[t.topic] = (Array.isArray(t.subtopics) ? t.subtopics : [])
+            .map(subtopicName)
+            .filter(Boolean)
+        }
         cbcCache.set(key, out)
         return out
       } catch (err) {
@@ -300,24 +312,50 @@ export default function LessonPlanStudio() {
     // on a match, null otherwise.
     window.__studioFetchSubtopicDetail = async ({ grade, subject, topic, subtopic }) => {
       if (!grade || !subject || !topic || !subtopic) return null
+      const wanted = String(subtopic).trim().toLowerCase()
+      const wantedTopic = String(topic).trim().toLowerCase()
+      // Shared match-and-pack so the active-version and bundled-JSON
+      // paths use identical extraction rules.
+      const packSubtopic = (s) => {
+        if (typeof s === 'string') {
+          return { name: s, specificCompetence: '', learningActivities: '', expectedStandard: '' }
+        }
+        return {
+          name:               subtopicName(s),
+          specificCompetence: String(s.specificCompetence || ''),
+          learningActivities: String(s.learningActivities || ''),
+          expectedStandard:   String(s.expectedStandard || ''),
+        }
+      }
       try {
+        // 1) PRIMARY: active uploaded version. Same priority story as
+        //    __studioFetchSyllabusTopics — if an admin uploaded a syllabus
+        //    that includes this (grade, subject), its detail must win
+        //    over the bundled JSON so teachers see what they uploaded.
+        const version = await getActiveKbVersion()
+        const snap = await getDocs(query(
+          collection(db, 'cbcKnowledgeBase', version, 'topics'),
+          where('grade', '==', grade),
+          where('subject', '==', subject),
+        ))
+        for (const d of snap.docs) {
+          const t = d.data()
+          if (!t || String(t.topic || '').trim().toLowerCase() !== wantedTopic) continue
+          for (const s of (Array.isArray(t.subtopics) ? t.subtopics : [])) {
+            if (String(subtopicName(s)).trim().toLowerCase() !== wanted) continue
+            return packSubtopic(s)
+          }
+        }
+
+        // 2) FALLBACK: bundled JSON + Syllabi Studio per-row overrides.
         const merged = await getMergedSyllabi()
         const kbTopics = syllabiToKbTopics(merged)
-        const wanted = String(subtopic).trim().toLowerCase()
         for (const t of kbTopics) {
           if (t.grade !== grade || t.subject !== subject) continue
-          if (String(t.topic || '').trim().toLowerCase() !== String(topic).trim().toLowerCase()) continue
+          if (String(t.topic || '').trim().toLowerCase() !== wantedTopic) continue
           for (const s of (Array.isArray(t.subtopics) ? t.subtopics : [])) {
-            const name = subtopicName(s)
-            if (String(name).trim().toLowerCase() !== wanted) continue
-            // Legacy string subtopics carry no detail; that's a null match.
-            if (typeof s === 'string') return { name, specificCompetence: '', learningActivities: '', expectedStandard: '' }
-            return {
-              name,
-              specificCompetence: String(s.specificCompetence || ''),
-              learningActivities: String(s.learningActivities || ''),
-              expectedStandard:   String(s.expectedStandard || ''),
-            }
+            if (String(subtopicName(s)).trim().toLowerCase() !== wanted) continue
+            return packSubtopic(s)
           }
         }
         return null
@@ -344,31 +382,38 @@ export default function LessonPlanStudio() {
       if (!grade) return []
       if (subjectsCache.has(grade)) return subjectsCache.get(grade)
       try {
-        const merged = await getMergedSyllabi()
-        const kbTopics = syllabiToKbTopics(merged)
         const seen = new Set()
         const out = []
+        // 1) PRIMARY: subjects present in the active uploaded version,
+        //    preferring the admin-set display name when available. Same
+        //    priority story as the topics bridge — what the admin
+        //    uploaded must be visible.
+        const version = await getActiveKbVersion()
+        const snap = await getDocs(query(
+          collection(db, 'cbcKnowledgeBase', version, 'topics'),
+          where('grade', '==', grade),
+        ))
+        snap.forEach((d) => {
+          const t = d.data()
+          if (!t || !t.subject) return
+          const display = (t.subjectDisplay && String(t.subjectDisplay).trim())
+            || String(t.subject).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+          if (seen.has(display)) return
+          seen.add(display)
+          out.push(display)
+        })
+        // 2) UNION the bundled JSON + Syllabi Studio overrides on top.
+        //    Union (not fallback) so a partial upload that only covers a
+        //    few subjects doesn't hide the rest from teachers who still
+        //    want to pick a subject the school hasn't replaced yet.
+        const merged = await getMergedSyllabi()
+        const kbTopics = syllabiToKbTopics(merged)
         for (const t of kbTopics) {
-          if (t.grade !== grade || !t.subject || seen.has(t.subject)) continue
-          seen.add(t.subject)
-          out.push(String(t.subject).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()))
-        }
-        if (out.length === 0) {
-          // Merged source had nothing for this grade — try direct Firestore.
-          const version = await getActiveKbVersion()
-          const snap = await getDocs(query(
-            collection(db, 'cbcKnowledgeBase', version, 'topics'),
-            where('grade', '==', grade),
-          ))
-          snap.forEach((d) => {
-            const t = d.data()
-            if (!t || !t.subject) return
-            const display = (t.subjectDisplay && String(t.subjectDisplay).trim())
-              || String(t.subject).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
-            if (seen.has(display)) return
-            seen.add(display)
-            out.push(display)
-          })
+          if (t.grade !== grade || !t.subject) continue
+          const display = String(t.subject).replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+          if (seen.has(display)) continue
+          seen.add(display)
+          out.push(display)
         }
         out.sort((a, b) => a.localeCompare(b))
         subjectsCache.set(grade, out)
