@@ -235,6 +235,8 @@ export default function PastPaperViewer() {
         pageNumber: idx + 1,
         path: asset.path,
         url: imageAssetUrls[idx] || null,
+        width: asset.width || null,
+        height: asset.height || null,
       }))
       .filter((p) => Boolean(p.url) && typeof p.url === 'string' && p.url.trim() !== '')
       .sort((a, b) => a.pageNumber - b.pageNumber)
@@ -720,7 +722,12 @@ function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, r
                   {!hasLoaded && (
                     <div
                       className="w-full flex items-center justify-center theme-text-muted text-sm"
-                      style={{ aspectRatio: '1 / 1.41', maxHeight: '70vh' }}
+                      style={{
+                        aspectRatio: page.width && page.height
+                          ? `${page.width} / ${page.height}`
+                          : '1 / 1.41',
+                        maxHeight: '70vh',
+                      }}
                     >
                       Loading page {page.pageNumber}…
                     </div>
@@ -731,6 +738,8 @@ function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, r
                     alt={`${altPrefix} ${page.pageNumber} of ${totalPages}`}
                     loading="lazy"
                     decoding="async"
+                    width={page.width || undefined}
+                    height={page.height || undefined}
                     onLoad={() => onLoad(page.key)}
                     onError={() => onError(page.key, page)}
                     className={hasLoaded
@@ -836,6 +845,8 @@ function AnswersPanel({ source, paperTitle, onDownload }) {
         pageNumber: idx + 1,
         path: asset.path,
         url: imageUrls[idx] || null,
+        width: asset.width || null,
+        height: asset.height || null,
       }))
       .filter((p) => Boolean(p.url))
       .sort((a, b) => a.pageNumber - b.pageNumber)
