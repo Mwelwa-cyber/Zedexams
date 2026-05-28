@@ -9,7 +9,7 @@
  * e.g. "Grade 7 mathematics past paper 2023 — page 4").
  */
 
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { getPaper, recordPaperEvent, resolvePaperUrl } from '../../utils/pastPapers'
@@ -37,6 +37,8 @@ export default function PastPaperViewer() {
   const [paperUrlLoading, setPaperUrlLoading] = useState(false)
   const [downloadError, setDownloadError] = useState('')
   const [activeTab, setActiveTab] = useState('questionPaper')
+  const [answersConfirmOpen, setAnswersConfirmOpen] = useState(false)
+  const answersConfirmedRef = useRef(false)
 
   useEffect(() => {
     let cancelled = false
@@ -98,6 +100,7 @@ export default function PastPaperViewer() {
   const [imageAssetsLoading, setImageAssetsLoading] = useState(false)
   const [failedPages, setFailedPages] = useState({})
   const [loadedPages, setLoadedPages] = useState({})
+  const [retryNonces, setRetryNonces] = useState({})
 
   useEffect(() => {
     if (!paper || !currentUser || previewSource?.kind !== 'pdf') {
@@ -127,6 +130,7 @@ export default function PastPaperViewer() {
     setDownloadError('')
     setFailedPages({})
     setLoadedPages({})
+    setRetryNonces({})
     Promise.all(previewSource.assets.map((a) => resolvePaperUrl(a.path).catch((err) => {
       console.warn('[PastPaperViewer] image url failed', a.path, err)
       return null
@@ -148,6 +152,63 @@ export default function PastPaperViewer() {
       path: page?.path,
     })
   }, [])
+
+  const handleRetryPage = useCallback((pageKey, page) => {
+    setFailedPages((prev) => {
+      const next = { ...prev }
+      delete next[pageKey]
+      return next
+    })
+    setLoadedPages((prev) => {
+      const next = { ...prev }
+      delete next[pageKey]
+      return next
+    })
+    // If the original signed URL never resolved, refetch one. Otherwise
+    // just bump the nonce to bust the browser's failed-fetch cache for
+    // the existing URL.
+    if (page?.path && (!page.url || retryNonces[pageKey])) {
+      resolvePaperUrl(page.path)
+        .then((url) => {
+          if (!url) return
+          setImageAssetUrls((prev) => {
+            const next = [...prev]
+            const idx = page.pageNumber - 1
+            if (idx >= 0 && idx < next.length) next[idx] = url
+            return next
+          })
+        })
+        .catch((err) => {
+          console.warn('[PastPaperViewer] retry url fetch failed', err)
+          setFailedPages((prev) => ({ ...prev, [pageKey]: true }))
+        })
+    }
+    setRetryNonces((prev) => ({ ...prev, [pageKey]: (prev[pageKey] || 0) + 1 }))
+  }, [retryNonces])
+
+  const requestTabChange = useCallback((next) => {
+    if (next === 'answers' && !answersConfirmedRef.current) {
+      try {
+        if (typeof window !== 'undefined' && window.localStorage?.getItem(`paper-answer-revealed:${paperId}`) === '1') {
+          answersConfirmedRef.current = true
+        }
+      } catch { /* localStorage blocked — fall through to modal */ }
+    }
+    if (next === 'answers' && !answersConfirmedRef.current) {
+      setAnswersConfirmOpen(true)
+      return
+    }
+    setActiveTab(next)
+  }, [paperId])
+
+  const confirmRevealAnswers = useCallback(() => {
+    answersConfirmedRef.current = true
+    try {
+      window.localStorage?.setItem(`paper-answer-revealed:${paperId}`, '1')
+    } catch { /* ignore */ }
+    setAnswersConfirmOpen(false)
+    setActiveTab('answers')
+  }, [paperId])
 
   const handleDownload = useCallback(async (path, kind) => {
     if (!path) return
@@ -322,7 +383,7 @@ export default function PastPaperViewer() {
                 type="button"
                 role="tab"
                 aria-selected={activeTab === 'questionPaper'}
-                onClick={() => setActiveTab('questionPaper')}
+                onClick={() => requestTabChange('questionPaper')}
                 className={`px-4 py-2.5 text-sm font-black rounded-t-md min-h-[42px] transition-colors ${
                   activeTab === 'questionPaper'
                     ? 'theme-text border-b-2 border-current'
@@ -335,7 +396,7 @@ export default function PastPaperViewer() {
                 type="button"
                 role="tab"
                 aria-selected={activeTab === 'answers'}
-                onClick={() => setActiveTab('answers')}
+                onClick={() => requestTabChange('answers')}
                 className={`px-4 py-2.5 text-sm font-black rounded-t-md min-h-[42px] transition-colors ${
                   activeTab === 'answers'
                     ? 'theme-text border-b-2 border-current'
@@ -345,6 +406,13 @@ export default function PastPaperViewer() {
                 Answers
               </button>
             </div>
+
+            {answersConfirmOpen && (
+              <AnswersConfirmDialog
+                onCancel={() => setAnswersConfirmOpen(false)}
+                onConfirm={confirmRevealAnswers}
+              />
+            )}
 
             {activeTab === 'questionPaper' && (
               <section aria-labelledby="question-paper-tab">
@@ -389,8 +457,10 @@ export default function PastPaperViewer() {
                     loading={imageAssetsLoading}
                     loadedPages={loadedPages}
                     failedPages={failedPages}
+                    retryNonces={retryNonces}
                     onLoad={handleImageLoad}
                     onError={handleImageError}
+                    onRetry={handleRetryPage}
                   />
                 )}
               </section>
@@ -430,7 +500,31 @@ export default function PastPaperViewer() {
  * "page failed to load" panel instead of the browser's broken-image
  * glyph (which would otherwise show the alt text and an icon).
  */
-function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, onLoad, onError }) {
+function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, retryNonces = {}, onLoad, onError, onRetry, altPrefix = 'Question paper page' }) {
+  const articleRefs = useRef({})
+  const [visiblePage, setVisiblePage] = useState(1)
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        // Pick the entry with the largest intersection ratio in view —
+        // when two pages straddle the viewport, the bigger one wins.
+        const inView = entries
+          .filter((e) => e.isIntersecting)
+          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)
+        if (inView.length) {
+          const pageNumber = Number(inView[0].target.dataset.pageNumber)
+          if (pageNumber) setVisiblePage(pageNumber)
+        }
+      },
+      { threshold: [0, 0.25, 0.5, 0.75, 1], rootMargin: '-20% 0px -60% 0px' },
+    )
+    Object.values(articleRefs.current).forEach((el) => {
+      if (el) observer.observe(el)
+    })
+    return () => observer.disconnect()
+  }, [pages])
+
   if (loading) {
     return (
       <div className="theme-card border theme-border rounded-radius-md h-[60vh] flex items-center justify-center theme-text-muted text-sm">
@@ -448,22 +542,57 @@ function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, o
   }
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-5 relative">
       <p className="text-center text-xs font-black theme-text-muted uppercase tracking-widest">
         {totalPages} {totalPages === 1 ? 'page' : 'pages'}
       </p>
+
+      {/* Sticky page indicator — orients the learner inside a long paper */}
+      {totalPages > 3 && (
+        <div
+          aria-hidden="true"
+          className="sticky top-2 z-10 self-center pointer-events-none"
+        >
+          <span className="inline-block bg-black/75 text-white text-xs font-black rounded-full px-3 py-1 shadow-elev-md tabular-nums">
+            Page {visiblePage} of {totalPages}
+          </span>
+        </div>
+      )}
+
       {pages.map((page) => {
         const hasFailed = failedPages[page.key]
         const hasLoaded = loadedPages[page.key]
+        const nonce = retryNonces[page.key] || 0
+        // Add a cache-busting param on retry so the browser refetches
+        // instead of replaying its cached failure.
+        const src = nonce > 0
+          ? `${page.url}${page.url.includes('?') ? '&' : '?'}_r=${nonce}`
+          : page.url
         return (
-          <article key={page.key} className="w-full">
+          <article
+            key={page.key}
+            ref={(el) => { articleRefs.current[page.key] = el }}
+            data-page-number={page.pageNumber}
+            className="w-full"
+          >
             <p className="text-center text-xs font-bold theme-text-muted mb-2">
               Page {page.pageNumber} of {totalPages}
             </p>
             <div className="w-full bg-white rounded-radius-md overflow-hidden shadow-elev-sm">
               {hasFailed ? (
-                <div className="px-4 py-10 text-center text-sm font-bold text-rose-700 bg-rose-50">
-                  Page failed to load. Please refresh or contact support.
+                <div className="px-4 py-8 text-center bg-rose-50">
+                  <p className="text-sm font-bold text-rose-700">
+                    Page failed to load. Please check your connection and try again.
+                  </p>
+                  {onRetry && (
+                    <button
+                      type="button"
+                      onClick={() => onRetry(page.key, page)}
+                      className="mt-3 inline-flex items-center justify-center rounded-full bg-rose-600 text-white px-4 py-2 text-xs font-black hover:bg-rose-700 min-h-[40px]"
+                    >
+                      Retry
+                    </button>
+                  )}
                 </div>
               ) : (
                 <>
@@ -476,9 +605,9 @@ function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, o
                     </div>
                   )}
                   <img
-                    src={page.url}
-                    alt=""
-                    role="presentation"
+                    key={`${page.key}-${nonce}`}
+                    src={src}
+                    alt={`${altPrefix} ${page.pageNumber} of ${totalPages}`}
                     loading="lazy"
                     decoding="async"
                     onLoad={() => onLoad(page.key)}
@@ -497,6 +626,47 @@ function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, o
   )
 }
 
+function AnswersConfirmDialog({ onCancel, onConfirm }) {
+  return (
+    <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="answers-confirm-title"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4"
+      onClick={onCancel}
+    >
+      <div
+        className="theme-card rounded-radius-md max-w-md w-full p-5 shadow-elev-lg"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id="answers-confirm-title" className="theme-text font-black text-lg">
+          Reveal the answers?
+        </h2>
+        <p className="theme-text-muted text-sm mt-2 leading-relaxed">
+          You'll learn the most if you try the questions yourself first. Are
+          you sure you want to see the answers now?
+        </p>
+        <div className="mt-5 flex flex-col sm:flex-row-reverse gap-2">
+          <button
+            type="button"
+            onClick={onConfirm}
+            className="theme-accent-fill theme-on-accent rounded-full px-5 py-2.5 text-sm font-black hover:opacity-90 min-h-[44px]"
+          >
+            Yes, show answers
+          </button>
+          <button
+            type="button"
+            onClick={onCancel}
+            className="theme-card border theme-border rounded-full px-5 py-2.5 text-sm font-black hover:theme-bg-subtle min-h-[44px]"
+          >
+            Keep trying first
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 /**
  * Answers panel rendered inside the "Answers" tab. PDF answers use the
  * canvas viewer; image-based answers stack vertically like the question
@@ -508,12 +678,14 @@ function AnswersPanel({ source, paperTitle, onDownload }) {
   const [loading, setLoading] = useState(true)
   const [failedPages, setFailedPages] = useState({})
   const [loadedPages, setLoadedPages] = useState({})
+  const [retryNonces, setRetryNonces] = useState({})
 
   useEffect(() => {
     let cancelled = false
     setLoading(true)
     setFailedPages({})
     setLoadedPages({})
+    setRetryNonces({})
     async function resolve() {
       try {
         if (source.kind === 'pdf') {
@@ -587,6 +759,8 @@ function AnswersPanel({ source, paperTitle, onDownload }) {
         loading={false}
         loadedPages={loadedPages}
         failedPages={failedPages}
+        retryNonces={retryNonces}
+        altPrefix="Answer key page"
         onLoad={(key) => setLoadedPages((prev) => ({ ...prev, [key]: true }))}
         onError={(key, page) => {
           setFailedPages((prev) => ({ ...prev, [key]: true }))
@@ -595,6 +769,19 @@ function AnswersPanel({ source, paperTitle, onDownload }) {
             pageNumber: page?.pageNumber,
             path: page?.path,
           })
+        }}
+        onRetry={(key) => {
+          setFailedPages((prev) => {
+            const next = { ...prev }
+            delete next[key]
+            return next
+          })
+          setLoadedPages((prev) => {
+            const next = { ...prev }
+            delete next[key]
+            return next
+          })
+          setRetryNonces((prev) => ({ ...prev, [key]: (prev[key] || 0) + 1 }))
         }}
       />
     )
