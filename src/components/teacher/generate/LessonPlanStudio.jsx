@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { getFunctions, httpsCallable } from 'firebase/functions'
@@ -9,6 +9,7 @@ import {
 import app from '../../../firebase/config'
 import { getActiveKbVersion, subtopicName } from '../../../utils/adminCbcKbService'
 import { getMergedSyllabi } from '../../../utils/syllabusKbService'
+import { getActiveVersionMeta } from '../../../utils/syllabusReplaceService'
 import { syllabiToKbTopics } from '../../../utils/syllabusMapping'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { LIBRARY_TYPES, SYLLABUS_TYPES } from '../../../config/library'
@@ -21,7 +22,7 @@ const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerat
 
 // Bump this when /public/studio/* is changed so phones / CDNs refetch
 // instead of serving the cached old file.
-const STUDIO_ASSET_VERSION = 'v23'
+const STUDIO_ASSET_VERSION = 'v24'
 
 // Sequential script loader — each script must finish before the next starts
 // because the studio scripts rely on globals set by earlier ones.
@@ -40,6 +41,25 @@ export default function LessonPlanStudio() {
   const navigate = useNavigate()
   const { currentUser, userProfile } = useAuth()
   const db = getFirestore(app)
+
+  // Active-syllabus chip in the sidebar brand area. Reads from
+  // cbcKnowledgeBase/_meta — the same source the server-side generators
+  // and the admin's CurriculumReplaceStudio agree on — so the chip is
+  // an honest "what the studio is reading from right now" signal. Fails
+  // open: a network error leaves the chip hidden rather than blocking
+  // generation, since the lesson generator picks the right version
+  // independently.
+  const [activeSyllabus, setActiveSyllabus] = useState(null)
+  useEffect(() => {
+    let cancelled = false
+    getActiveVersionMeta()
+      .then((meta) => {
+        if (cancelled) return
+        if (meta && meta.version) setActiveSyllabus(meta)
+      })
+      .catch(() => { /* leave chip hidden on failure */ })
+    return () => { cancelled = true }
+  }, [])
 
   useEffect(() => {
     // Studio scripts are loaded once (cached in <head>), but their DOM
@@ -645,6 +665,30 @@ export default function LessonPlanStudio() {
               <div className="brand-text">
                 <h1>ZedExams</h1>
                 <div className="sub">Lesson Plan Studio</div>
+                {activeSyllabus && (
+                  <div
+                    className="syllabus-chip"
+                    title={`Active CBC knowledge-base version. The studio reads grades, subjects, topics and sub-topics from this version.${activeSyllabus.activatedAt && activeSyllabus.activatedAt.toMillis ? '\nActivated ' + new Date(activeSyllabus.activatedAt.toMillis()).toLocaleString() : ''}`}
+                  >
+                    <span className="syllabus-chip-dot" aria-hidden="true" />
+                    <span className="syllabus-chip-label">Syllabus:&nbsp;</span>
+                    <span className="syllabus-chip-version">{activeSyllabus.version}</span>
+                    {activeSyllabus.activatedAt && activeSyllabus.activatedAt.toMillis && (
+                      <>
+                        <span className="syllabus-chip-sep">·</span>
+                        <span className="syllabus-chip-date">
+                          {(() => {
+                            const d = new Date(activeSyllabus.activatedAt.toMillis())
+                            const sameYear = d.getFullYear() === new Date().getFullYear()
+                            return d.toLocaleDateString('en-GB', sameYear
+                              ? { month: 'short', day: 'numeric' }
+                              : { month: 'short', day: 'numeric', year: 'numeric' })
+                          })()}
+                        </span>
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
             <div className="tabs">

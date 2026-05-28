@@ -237,6 +237,17 @@
 #view-plans .brand-mark-img{background:#fff;border-color:#0e2a32;box-shadow:0 4px 12px rgba(14,42,50,.08)}
 #view-plans .brand-text h1{color:#0e2a32;font-family:'Fraunces','Source Serif 4',Georgia,serif;font-weight:800;font-size:22px;letter-spacing:-.01em}
 #view-plans .brand-text .sub{color:#ff7a2e;font-weight:600;letter-spacing:.12em}
+
+/* Active-syllabus chip — sits just below the studio subtitle. Subtle by
+   design: a quick trust signal for teachers and admins to confirm which
+   CBC knowledge-base version is feeding the dropdowns, without competing
+   with the brand. Hover the chip for the full activation timestamp. */
+#view-plans .syllabus-chip{display:inline-flex;align-items:center;gap:5px;margin-top:6px;padding:2px 8px 2px 6px;background:#fff6e6;border:1px solid #e6d7b5;border-radius:999px;font:600 10.5px/1.4 var(--font-body);color:#0e2a32;letter-spacing:.01em;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;cursor:default}
+#view-plans .syllabus-chip-dot{width:6px;height:6px;border-radius:50%;background:#3ea36a;flex-shrink:0;box-shadow:0 0 0 2px rgba(62,163,106,.18)}
+#view-plans .syllabus-chip-label{color:#7a5b00;font-weight:500}
+#view-plans .syllabus-chip-version{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:10px;color:#0e2a32}
+#view-plans .syllabus-chip-sep{color:#a89880;margin:0 3px}
+#view-plans .syllabus-chip-date{color:#566f76;font-weight:500}
 #view-plans .section-label{color:#ff7a2e}
 #view-plans .section-label::before{background:#ff7a2e;width:18px;height:2px;border-radius:2px}
 #view-plans .field label{color:#0e2a32;font-weight:600}
