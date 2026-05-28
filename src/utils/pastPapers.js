@@ -165,11 +165,38 @@ export async function uploadPaperPdf({ uid, paperId, kind, file }) {
 }
 
 /**
+ * Read the intrinsic pixel dimensions of an image file before upload.
+ * Used by uploadPaperAsset so the viewer can render `<img width height>`
+ * and reserve the layout slot before the bytes arrive (no jank on
+ * mobile). Returns null on any failure — dimensions are nice-to-have,
+ * never block the upload.
+ */
+async function readImageDimensions(file) {
+  if (typeof window === 'undefined') return null
+  if (!file?.type?.startsWith('image/')) return null
+  const url = URL.createObjectURL(file)
+  try {
+    return await new Promise((resolve) => {
+      const img = new window.Image()
+      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight })
+      img.onerror = () => resolve(null)
+      img.src = url
+    })
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
+/**
  * Upload an arbitrary paper asset (PDF or image). Scanned papers come
  * in as JPG/PNG and we accept multiple of them on one paper. Path
  * convention:
  *   papers/{adminUid}/{paperId}/assets/{idx}-{filename}
  * `idx` keeps assets sortable in the order the admin uploaded them.
+ *
+ * For images, captures the intrinsic width/height client-side and
+ * stores them on the asset record so the viewer can reserve layout
+ * space before download completes.
  */
 export async function uploadPaperAsset({ uid, paperId, file, index = 0 }) {
   if (!uid || !paperId || !file) throw new Error('Missing arguments for paper upload')
@@ -181,12 +208,14 @@ export async function uploadPaperAsset({ uid, paperId, file, index = 0 }) {
   }
   const safeName = (file.name || 'asset').replace(/[^a-z0-9._-]+/gi, '_')
   const path = `papers/${uid}/${paperId}/assets/${index}-${safeName}`
+  const dims = await readImageDimensions(file)
   await uploadBytes(storageRef(storage, path), file, { contentType: file.type })
   return {
     path,
     filename: file.name,
     size: file.size,
     contentType: file.type,
+    ...(dims ? { width: dims.width, height: dims.height } : {}),
   }
 }
 
