@@ -486,6 +486,31 @@ Return JSON only.`;
       }
     });
 
+    // Auto-open the Lesson Progression accordion the first time a teacher
+    // picks a sub-topic. The section is collapsed by default so the form
+    // doesn't look intimidating, but a teacher who's reached "picked a
+    // sub-topic" is ready to think about pacing — and most won't know to
+    // expand it. We only auto-open once per session so a teacher who
+    // deliberately closes it again isn't fought by the script.
+    const subSel = document.getElementById('f-subtopic');
+    const progressionSection = document.querySelector('.lp-section[data-section="progression"]');
+    if (subSel && progressionSection && !__lp.__autoOpenedProgression) {
+      const maybeOpen = () => {
+        if (__lp.__autoOpenedProgression) return;
+        if (!subSel.value) return;
+        if (progressionSection.classList.contains('open')) {
+          __lp.__autoOpenedProgression = true;   // Already open; mark as done so we don't try again.
+          return;
+        }
+        progressionSection.classList.add('open');
+        __lp.__autoOpenedProgression = true;
+      };
+      subSel.addEventListener('change', maybeOpen);
+      // Run once at bind time in case the teacher landed on a session with
+      // a pre-selected sub-topic (rebind path).
+      maybeOpen();
+    }
+
     recompute();
   }
 
