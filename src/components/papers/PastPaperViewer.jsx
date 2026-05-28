@@ -12,6 +12,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import { useDataSaver } from '../../contexts/DataSaverContext'
 import { getPaper, recordPaperEvent, resolvePaperUrl } from '../../utils/pastPapers'
 import { SUBJECTS } from '../../config/curriculum'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -29,6 +30,7 @@ function formatBytes(bytes) {
 export default function PastPaperViewer() {
   const { paperId } = useParams()
   const { currentUser, isAdmin } = useAuth()
+  const { dataSaver } = useDataSaver()
   const navigate = useNavigate()
   const [paper, setPaper] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -317,14 +319,24 @@ export default function PastPaperViewer() {
         path={`/papers/${paperId}`}
       />
 
-      {/* Breadcrumb */}
-      <header className="theme-card border-b theme-border px-4 py-3">
-        <div className="max-w-5xl mx-auto flex items-center gap-3 text-xs font-bold theme-text-muted">
-          <Link to="/" className="hover:theme-text"><Logo className="h-5 w-auto" /></Link>
-          <span aria-hidden="true">/</span>
-          <Link to="/papers" className="hover:theme-text">Papers</Link>
-          <span aria-hidden="true">/</span>
-          <span className="theme-text truncate">{paper.title}</span>
+      {/* Header — back button on mobile, breadcrumb on desktop */}
+      <header className="theme-card border-b theme-border px-3 sm:px-4 py-2.5 sm:py-3">
+        <div className="max-w-5xl mx-auto flex items-center gap-2 sm:gap-3 text-xs font-bold theme-text-muted">
+          <Link
+            to="/papers"
+            aria-label="Back to papers"
+            className="sm:hidden inline-flex items-center justify-center w-9 h-9 rounded-full hover:theme-bg-subtle theme-text"
+          >
+            ←
+          </Link>
+          <div className="hidden sm:flex items-center gap-3">
+            <Link to="/" className="hover:theme-text"><Logo className="h-5 w-auto" /></Link>
+            <span aria-hidden="true">/</span>
+            <Link to="/papers" className="hover:theme-text">Papers</Link>
+            <span aria-hidden="true">/</span>
+            <span className="theme-text truncate">{paper.title}</span>
+          </div>
+          <span className="sm:hidden theme-text font-black text-sm truncate">{paper.title}</span>
         </div>
       </header>
 
@@ -428,26 +440,25 @@ export default function PastPaperViewer() {
                       Loading paper…
                     </div>
                   ) : (
-                    <div className="flex flex-wrap items-center justify-end gap-2 mb-3">
-                      <button
-                        type="button"
-                        onClick={() => handleDownload(previewSource.path, 'paper')}
-                        className="theme-card border theme-border rounded-full px-4 py-2 text-xs font-black hover:theme-bg-subtle"
-                      >
-                        ⬇️ Download paper{previewSource.size ? ` (${formatBytes(previewSource.size)})` : ''}
-                      </button>
+                    <div className="space-y-3">
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <button
+                          type="button"
+                          onClick={() => handleDownload(previewSource.path, 'paper')}
+                          className="theme-card border theme-border rounded-full px-4 py-2 text-xs font-black hover:theme-bg-subtle"
+                        >
+                          ⬇️ Download paper{previewSource.size ? ` (${formatBytes(previewSource.size)})` : ''}
+                        </button>
+                      </div>
+                      <Suspense fallback={
+                        <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex items-center justify-center theme-text-muted text-sm">
+                          Loading paper…
+                        </div>
+                      }>
+                        <PdfJsViewer url={paperUrl} title={paper.title} />
+                      </Suspense>
                     </div>
                   )
-                )}
-
-                {previewSource?.kind === 'pdf' && paperUrl && !paperUrlLoading && (
-                  <Suspense fallback={
-                    <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex items-center justify-center theme-text-muted text-sm">
-                      Loading viewer…
-                    </div>
-                  }>
-                    <PdfJsViewer url={paperUrl} title={paper.title} />
-                  </Suspense>
                 )}
 
                 {previewSource?.kind === 'images' && (
@@ -458,6 +469,7 @@ export default function PastPaperViewer() {
                     loadedPages={loadedPages}
                     failedPages={failedPages}
                     retryNonces={retryNonces}
+                    dataSaver={dataSaver}
                     onLoad={handleImageLoad}
                     onError={handleImageError}
                     onRetry={handleRetryPage}
@@ -500,9 +512,29 @@ export default function PastPaperViewer() {
  * "page failed to load" panel instead of the browser's broken-image
  * glyph (which would otherwise show the alt text and an icon).
  */
-function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, retryNonces = {}, onLoad, onError, onRetry, altPrefix = 'Question paper page' }) {
+function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, retryNonces = {}, dataSaver = false, onLoad, onError, onRetry, altPrefix = 'Question paper page' }) {
   const articleRefs = useRef({})
   const [visiblePage, setVisiblePage] = useState(1)
+  // In Data Saver mode, pre-load only the first 2 pages; later pages
+  // wait for an explicit "Load page" tap so a long paper doesn't burn
+  // through 10+ MB on open.
+  const DATA_SAVER_AUTOLOAD = 2
+  const [revealedPages, setRevealedPages] = useState(() => {
+    const next = {}
+    if (dataSaver) {
+      pages.slice(0, DATA_SAVER_AUTOLOAD).forEach((p) => { next[p.key] = true })
+    }
+    return next
+  })
+
+  useEffect(() => {
+    if (!dataSaver) return
+    setRevealedPages((prev) => {
+      const next = { ...prev }
+      pages.slice(0, DATA_SAVER_AUTOLOAD).forEach((p) => { next[p.key] = true })
+      return next
+    })
+  }, [dataSaver, pages])
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -563,6 +595,7 @@ function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, r
         const hasFailed = failedPages[page.key]
         const hasLoaded = loadedPages[page.key]
         const nonce = retryNonces[page.key] || 0
+        const gated = dataSaver && !revealedPages[page.key]
         // Add a cache-busting param on retry so the browser refetches
         // instead of replaying its cached failure.
         const src = nonce > 0
@@ -594,6 +627,17 @@ function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, r
                     </button>
                   )}
                 </div>
+              ) : gated ? (
+                <button
+                  type="button"
+                  onClick={() => setRevealedPages((prev) => ({ ...prev, [page.key]: true }))}
+                  className="w-full flex flex-col items-center justify-center gap-2 py-12 text-sm font-black theme-text-muted hover:theme-text hover:theme-bg-subtle"
+                  style={{ minHeight: '40vh' }}
+                >
+                  <span className="text-3xl" aria-hidden="true">📄</span>
+                  <span>Tap to load page {page.pageNumber}</span>
+                  <span className="text-xs font-bold theme-text-muted">Data Saver is on</span>
+                </button>
               ) : (
                 <>
                   {!hasLoaded && (
