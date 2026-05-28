@@ -989,17 +989,17 @@ export default function QuizRunnerV2() {
                   {userAnswer === question.correctAnswer ? (
                     <>
                       <p className="text-lg font-black text-green-700">🌟 Excellent! Well done!</p>
-                      <p className="mt-1 text-sm text-green-700">The answer is <strong>{question.options[question.correctAnswer]}</strong></p>
+                      <p className="mt-1 text-sm text-green-700">The answer is <strong><RichContent value={question.options[question.correctAnswer]} className="rich-option" fallback={<span />} /></strong></p>
                     </>
                   ) : userAnswer === undefined ? (
                     <>
                       <p className="theme-text text-lg font-black">⏭️ Skipped</p>
-                      <p className="theme-text-muted mt-1 text-sm">Correct: <strong>{question.options[question.correctAnswer]}</strong></p>
+                      <p className="theme-text-muted mt-1 text-sm">Correct: <strong><RichContent value={question.options[question.correctAnswer]} className="rich-option" fallback={<span />} /></strong></p>
                     </>
                   ) : (
                     <>
                       <p className="text-lg font-black text-orange-700">💡 Not quite — you can do it!</p>
-                      <p className="mt-1 text-sm text-orange-700">Correct answer: <strong>{question.options[question.correctAnswer]}</strong></p>
+                      <p className="mt-1 text-sm text-orange-700">Correct answer: <strong><RichContent value={question.options[question.correctAnswer]} className="rich-option" fallback={<span />} /></strong></p>
                     </>
                   )}
                 </div>
