@@ -1,19 +1,12 @@
 /**
- * /papers/:paperId — view + download a single ECZ past paper.
+ * /papers/:paperId — view a single ECZ past paper.
  *
- * Page logic:
- *   - Anonymous read of the Firestore doc (rules allow read for
- *     status==published).
- *   - The PDF itself lives in Storage with auth-required read rules,
- *     so signed-out visitors see metadata + a "Sign in to view" CTA
- *     instead of the iframe.
- *   - Inline iframe for signed-in users — the browser's native PDF
- *     viewer is good enough for v1; PDF.js polish lands later if we
- *     need annotations or richer paging.
- *   - "Download paper" + "Download mark scheme" buttons request a
- *     fresh signed URL each click (so a token leak from a previous
- *     session can't be reused).
- *   - View / download counts are best-effort incremented for analytics.
+ * Layout — Question Paper / Answers tabs, full-width page images on
+ * mobile, action buttons repeated at the top and bottom. Images render
+ * with explicit onLoad/onError handlers so a failed page shows a clean
+ * learner-friendly message instead of the browser's broken-image icon
+ * (which would otherwise render the alt text and a missing-asset glyph,
+ * e.g. "Grade 7 mathematics past paper 2023 — page 4").
  */
 
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react'
@@ -25,9 +18,6 @@ import SeoHelmet from '../seo/SeoHelmet'
 import Logo from '../ui/Logo'
 import Skeleton from '../ui/Skeleton'
 
-// Audit A2 PR 2 — PDF.js viewer is heavy (the worker + the lib add
-// ~400 kB gzipped). Lazy-load so a learner browsing /papers without
-// opening one doesn't pay the cost.
 const PdfJsViewer = lazy(() => import('./PdfJsViewer'))
 
 function formatBytes(bytes) {
@@ -46,6 +36,7 @@ export default function PastPaperViewer() {
   const [paperUrl, setPaperUrl] = useState(null)
   const [paperUrlLoading, setPaperUrlLoading] = useState(false)
   const [downloadError, setDownloadError] = useState('')
+  const [activeTab, setActiveTab] = useState('questionPaper')
 
   useEffect(() => {
     let cancelled = false
@@ -53,16 +44,11 @@ export default function PastPaperViewer() {
     getPaper(paperId)
       .then((row) => {
         if (cancelled) return
-        // Admins can preview draft / archived papers from the Studio's
-        // "Preview as learner" button. Everyone else only sees the
-        // paper once it's been published.
         if (!row || (row.status !== 'published' && !isAdmin)) {
           setErrored(true)
           return
         }
         setPaper(row)
-        // Best-effort: record a view. Doesn't block render.
-        // eslint-disable-next-line promise/no-nesting
         recordPaperEvent(paperId, 'view').catch(() => {})
       })
       .catch((err) => {
@@ -75,16 +61,6 @@ export default function PastPaperViewer() {
     return () => { cancelled = true }
   }, [paperId, isAdmin])
 
-  // The "preview source" picks the right rendering path:
-  //   1. legacy pdfPath (set by the old single-page editor)
-  //   2. a PDF inside the paper-role assets[] (Studio single-PDF case)
-  //   3. images inside the paper-role assets[] (scanned multi-page)
-  // Mark-scheme assets are split out into their own optional source.
-  //
-  // Memoised so the derived `assets` arrays keep a stable reference across
-  // renders — the image-fetch effect below uses them as a dependency, and a
-  // fresh `.filter()` array on every render would retrigger the effect, cancel
-  // the in-flight `getDownloadURL` calls, and leave the spinner spinning.
   const { previewSource, markSchemeSource } = useMemo(() => {
     const paperAssets = Array.isArray(paper?.assets)
       ? paper.assets.filter((a) => a.role !== 'mark-scheme')
@@ -118,15 +94,11 @@ export default function PastPaperViewer() {
     return { previewSource: buildPreview(), markSchemeSource: buildMarkScheme() }
   }, [paper])
 
-  // Resolved signed URLs for image-only papers. One per asset in upload
-  // order — fetched in parallel after auth so the stacked scan view
-  // composes into a single readable page.
   const [imageAssetUrls, setImageAssetUrls] = useState([])
   const [imageAssetsLoading, setImageAssetsLoading] = useState(false)
+  const [failedPages, setFailedPages] = useState({})
+  const [loadedPages, setLoadedPages] = useState({})
 
-  // Fetch a signed URL for the PDF only when the user is signed in —
-  // anonymous visitors trip Storage rules and get a CORS error in the
-  // console, which is noisy. Wait for auth before attempting.
   useEffect(() => {
     if (!paper || !currentUser || previewSource?.kind !== 'pdf') {
       setPaperUrl(null)
@@ -145,7 +117,6 @@ export default function PastPaperViewer() {
     return () => { cancelled = true }
   }, [paper, currentUser, previewSource?.kind, previewSource?.path])
 
-  // Multi-image scanned-paper case — resolve every asset URL in parallel.
   useEffect(() => {
     if (!paper || !currentUser || previewSource?.kind !== 'images') {
       setImageAssetUrls([])
@@ -154,6 +125,8 @@ export default function PastPaperViewer() {
     let cancelled = false
     setImageAssetsLoading(true)
     setDownloadError('')
+    setFailedPages({})
+    setLoadedPages({})
     Promise.all(previewSource.assets.map((a) => resolvePaperUrl(a.path).catch((err) => {
       console.warn('[PastPaperViewer] image url failed', a.path, err)
       return null
@@ -163,14 +136,24 @@ export default function PastPaperViewer() {
     return () => { cancelled = true }
   }, [paper, currentUser, previewSource?.kind, previewSource?.assets])
 
+  const handleImageLoad = useCallback((pageKey) => {
+    setLoadedPages((prev) => ({ ...prev, [pageKey]: true }))
+  }, [])
+
+  const handleImageError = useCallback((pageKey, page) => {
+    setFailedPages((prev) => ({ ...prev, [pageKey]: true }))
+    console.error('[PastPaperViewer] page failed to load', {
+      pageKey,
+      pageNumber: page?.pageNumber,
+      path: page?.path,
+    })
+  }, [])
+
   const handleDownload = useCallback(async (path, kind) => {
     if (!path) return
     setDownloadError('')
     try {
       const url = await resolvePaperUrl(path)
-      // Force a download by opening in a new tab — the storage URL
-      // serves Content-Disposition: attachment so Chrome / Safari /
-      // Firefox all download instead of preview here.
       window.open(url, '_blank', 'noopener,noreferrer')
       recordPaperEvent(paperId, 'download').catch(() => {})
     } catch (err) {
@@ -178,6 +161,21 @@ export default function PastPaperViewer() {
       setDownloadError('Download failed — please try again.')
     }
   }, [paperId])
+
+  // Build a clean, validated list of pages for the image renderer.
+  // Filters empty/invalid URLs and sorts deterministically by page index.
+  const validImagePages = useMemo(() => {
+    if (previewSource?.kind !== 'images') return []
+    return previewSource.assets
+      .map((asset, idx) => ({
+        key: asset.path || `page-${idx}`,
+        pageNumber: idx + 1,
+        path: asset.path,
+        url: imageAssetUrls[idx] || null,
+      }))
+      .filter((p) => Boolean(p.url) && typeof p.url === 'string' && p.url.trim() !== '')
+      .sort((a, b) => a.pageNumber - b.pageNumber)
+  }, [previewSource, imageAssetUrls])
 
   if (loading) {
     return (
@@ -210,6 +208,45 @@ export default function PastPaperViewer() {
 
   const subjectMeta = SUBJECTS.find((s) => s.id === paper.subject)
   const subjectLabel = subjectMeta?.label || paper.subject
+  const quizAvailable = Boolean(paper.quizId)
+  const timedExamAvailable = Boolean(currentUser)
+  const answersAvailable = Boolean(markSchemeSource)
+
+  const renderActionButtons = (variant) => (
+    <div className={`flex flex-col sm:flex-row gap-2 ${variant === 'footer' ? 'mt-6' : ''}`}>
+      {quizAvailable ? (
+        <Link
+          to={`/papers/${paperId}/quiz`}
+          className="theme-accent-fill theme-on-accent rounded-full px-5 py-3 text-sm font-black text-center hover:opacity-90 min-h-[48px] flex items-center justify-center"
+        >
+          ✏️ Take the quiz
+        </Link>
+      ) : (
+        <button
+          type="button"
+          disabled
+          className="theme-accent-fill theme-on-accent rounded-full px-5 py-3 text-sm font-black opacity-55 cursor-not-allowed min-h-[48px]"
+        >
+          ✏️ Quiz coming soon
+        </button>
+      )}
+      {timedExamAvailable ? (
+        <Link
+          to={`/papers/${paperId}/practice`}
+          className="theme-card border theme-border rounded-full px-5 py-3 text-sm font-black text-center hover:theme-bg-subtle min-h-[48px] flex items-center justify-center"
+        >
+          🎯 Practise as timed exam{paper.durationMinutes ? ` (${paper.durationMinutes} min)` : ''}
+        </Link>
+      ) : (
+        <Link
+          to={`/login?next=/papers/${paperId}`}
+          className="theme-card border theme-border rounded-full px-5 py-3 text-sm font-black text-center hover:theme-bg-subtle min-h-[48px] flex items-center justify-center"
+        >
+          🎯 Sign in to practise as timed exam
+        </Link>
+      )}
+    </div>
+  )
 
   return (
     <div className="min-h-screen theme-bg flex flex-col">
@@ -230,13 +267,13 @@ export default function PastPaperViewer() {
         </div>
       </header>
 
-      <div className="flex-1 max-w-5xl w-full mx-auto px-4 py-6 space-y-5">
-        {/* Title + meta */}
+      <div className="flex-1 max-w-5xl w-full mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4">
+        {/* Title — shown once at the top only */}
         <section>
           <p className="theme-text-muted text-xs font-black uppercase tracking-widest">
             {paper.examBoard || 'ECZ'} · Grade {paper.grade} · {paper.year}
           </p>
-          <h1 className="theme-text font-display font-black text-2xl sm:text-3xl mt-1">{paper.title}</h1>
+          <h1 className="theme-text font-display font-black text-xl sm:text-3xl mt-1 leading-snug">{paper.title}</h1>
           <p className="theme-text-muted text-sm mt-1">
             {subjectLabel}
             {paper.paperNumber ? ` · Paper ${paper.paperNumber}` : ''}
@@ -248,149 +285,18 @@ export default function PastPaperViewer() {
           )}
         </section>
 
-        {/* Action row */}
-        <section className="flex flex-wrap gap-2">
-          {/* Past-paper quiz — available to anon visitors too. Primary
-              CTA when the paper has a linked quiz; otherwise hidden. */}
-          {paper.quizId && (
-            <Link
-              to={`/papers/${paperId}/quiz`}
-              className="theme-accent-fill theme-on-accent rounded-full px-4 py-2 text-sm font-black hover:opacity-90"
-            >
-              ✏️ Take the quiz
-            </Link>
-          )}
-          {currentUser ? (
-            <>
-              {/* Audit A2 PR 3 — practising under a timer is the #1
-                  thing that improves real-exam performance. */}
-              <Link
-                to={`/papers/${paperId}/practice`}
-                className="theme-card border theme-border rounded-full px-4 py-2 text-sm font-black hover:theme-bg-subtle"
-              >
-                🎯 Practise as timed exam{paper.durationMinutes ? ` (${paper.durationMinutes} min)` : ''}
-              </Link>
-              {previewSource?.kind === 'pdf' && (
-                <button
-                  type="button"
-                  onClick={() => handleDownload(previewSource.path, 'paper')}
-                  className="theme-card border theme-border rounded-full px-4 py-2 text-sm font-black hover:theme-bg-subtle"
-                >
-                  ⬇️ Download paper{previewSource.size ? ` (${formatBytes(previewSource.size)})` : ''}
-                </button>
-              )}
-              {markSchemeSource?.kind === 'pdf' && (
-                <button
-                  type="button"
-                  onClick={() => handleDownload(markSchemeSource.path, 'mark-scheme')}
-                  className="theme-card border theme-border rounded-full px-4 py-2 text-sm font-black hover:theme-bg-subtle"
-                >
-                  📝 Download mark scheme
-                </button>
-              )}
-            </>
-          ) : (
-            <Link
-              to={`/login?next=/papers/${paperId}`}
-              className="theme-card border theme-border rounded-full px-4 py-2 text-sm font-black hover:theme-bg-subtle"
-            >
-              Sign in to view + download
-            </Link>
-          )}
-        </section>
+        {/* Top action buttons */}
+        {renderActionButtons('header')}
 
         {downloadError && (
           <p role="alert" className="text-sm font-bold text-rose-700">{downloadError}</p>
         )}
 
-        {/* Inline viewer (signed-in only). Audit A2 PR 2 — PDF.js
-            replaces the iframe. iOS Safari refuses inline iframe PDFs
-            on most pages and falls back to "tap to download"; PDF.js
-            renders consistently across Safari, Chrome, Edge, Firefox,
-            and the Capacitor WebView. */}
-        {currentUser && previewSource?.kind === 'pdf' && (
-          paperUrlLoading || !paperUrl ? (
-            <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex items-center justify-center theme-text-muted text-sm">
-              Loading paper…
-            </div>
-          ) : (
-            <Suspense fallback={
-              <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex items-center justify-center theme-text-muted text-sm">
-                Loading viewer…
-              </div>
-            }>
-              <PdfJsViewer url={paperUrl} title={paper.title} />
-            </Suspense>
-          )
-        )}
-
-        {/* Scanned-paper case: a series of images stacked vertically.
-            Each lands at a max readable width on mobile; lazy-loaded so
-            a 30-page paper doesn't fetch every page on first paint. */}
-        {currentUser && previewSource?.kind === 'images' && (
-          imageAssetsLoading ? (
-            <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex items-center justify-center theme-text-muted text-sm">
-              Loading scanned pages…
-            </div>
-          ) : (
-            <section className="theme-card border theme-border rounded-radius-md p-3 space-y-3">
-              <p className="text-xs font-black theme-text-muted uppercase tracking-widest text-center">
-                {previewSource.assets.length} scanned page{previewSource.assets.length === 1 ? '' : 's'}
-              </p>
-              {previewSource.assets.map((asset, idx) => {
-                const url = imageAssetUrls[idx]
-                if (!url) {
-                  return (
-                    <div
-                      key={asset.path}
-                      className="theme-bg-subtle rounded-radius-md h-64 flex items-center justify-center text-xs theme-text-muted"
-                    >
-                      Page {idx + 1} unavailable
-                    </div>
-                  )
-                }
-                return (
-                  <figure key={asset.path} className="space-y-1">
-                    <img
-                      src={url}
-                      alt={`${paper.title} — page ${idx + 1}`}
-                      loading="lazy"
-                      decoding="async"
-                      className="w-full h-auto rounded-radius-md theme-bg-subtle"
-                    />
-                    <figcaption className="text-center text-xs theme-text-muted font-bold">
-                      Page {idx + 1} of {previewSource.assets.length}
-                    </figcaption>
-                  </figure>
-                )
-              })}
-            </section>
-          )
-        )}
-
-        {currentUser && !previewSource && (
-          <div className="theme-card border theme-border rounded-radius-md p-6 text-center text-sm theme-text-muted">
-            No paper file has been attached yet.
-          </div>
-        )}
-
-        {/* Mark scheme — collapsed by default so the learner attempts
-            the paper first. Same auth requirement as the paper itself
-            because Storage rules gate the file read. */}
-        {currentUser && markSchemeSource && (
-          <MarkSchemeSection
-            source={markSchemeSource}
-            paperTitle={paper.title}
-            paperId={paperId}
-            onDownload={handleDownload}
-          />
-        )}
-
-        {!currentUser && (
+        {!currentUser ? (
           <section className="theme-card border theme-border rounded-radius-md p-6 text-center">
             <h2 className="theme-text font-black text-base">Sign in to read the paper here</h2>
             <p className="theme-text-muted text-sm mt-2 max-w-md mx-auto">
-              Past-paper PDFs are available to ZedExams members. Creating an
+              Past papers are available to ZedExams members. Creating an
               account is free and takes under a minute.
             </p>
             <div className="mt-4 flex flex-wrap justify-center gap-2">
@@ -408,6 +314,110 @@ export default function PastPaperViewer() {
               </Link>
             </div>
           </section>
+        ) : (
+          <>
+            {/* Question Paper / Answers tabs */}
+            <div role="tablist" aria-label="Paper sections" className="flex gap-2 border-b theme-border">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'questionPaper'}
+                onClick={() => setActiveTab('questionPaper')}
+                className={`px-4 py-2.5 text-sm font-black rounded-t-md min-h-[42px] transition-colors ${
+                  activeTab === 'questionPaper'
+                    ? 'theme-text border-b-2 border-current'
+                    : 'theme-text-muted hover:theme-text'
+                }`}
+              >
+                Question Paper
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={activeTab === 'answers'}
+                onClick={() => setActiveTab('answers')}
+                className={`px-4 py-2.5 text-sm font-black rounded-t-md min-h-[42px] transition-colors ${
+                  activeTab === 'answers'
+                    ? 'theme-text border-b-2 border-current'
+                    : 'theme-text-muted hover:theme-text'
+                }`}
+              >
+                Answers
+              </button>
+            </div>
+
+            {activeTab === 'questionPaper' && (
+              <section aria-labelledby="question-paper-tab">
+                {!previewSource && (
+                  <div className="theme-card border theme-border rounded-radius-md p-6 text-center text-sm theme-text-muted">
+                    No paper file has been attached yet.
+                  </div>
+                )}
+
+                {previewSource?.kind === 'pdf' && (
+                  paperUrlLoading || !paperUrl ? (
+                    <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex items-center justify-center theme-text-muted text-sm">
+                      Loading paper…
+                    </div>
+                  ) : (
+                    <div className="flex flex-wrap items-center justify-end gap-2 mb-3">
+                      <button
+                        type="button"
+                        onClick={() => handleDownload(previewSource.path, 'paper')}
+                        className="theme-card border theme-border rounded-full px-4 py-2 text-xs font-black hover:theme-bg-subtle"
+                      >
+                        ⬇️ Download paper{previewSource.size ? ` (${formatBytes(previewSource.size)})` : ''}
+                      </button>
+                    </div>
+                  )
+                )}
+
+                {previewSource?.kind === 'pdf' && paperUrl && !paperUrlLoading && (
+                  <Suspense fallback={
+                    <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex items-center justify-center theme-text-muted text-sm">
+                      Loading viewer…
+                    </div>
+                  }>
+                    <PdfJsViewer url={paperUrl} title={paper.title} />
+                  </Suspense>
+                )}
+
+                {previewSource?.kind === 'images' && (
+                  <PageImageList
+                    pages={validImagePages}
+                    totalPages={previewSource.assets.length}
+                    loading={imageAssetsLoading}
+                    loadedPages={loadedPages}
+                    failedPages={failedPages}
+                    onLoad={handleImageLoad}
+                    onError={handleImageError}
+                  />
+                )}
+              </section>
+            )}
+
+            {activeTab === 'answers' && (
+              <section aria-labelledby="answers-tab">
+                {answersAvailable ? (
+                  <AnswersPanel
+                    source={markSchemeSource}
+                    paperTitle={paper.title}
+                    onDownload={handleDownload}
+                  />
+                ) : (
+                  <div className="theme-card border theme-border rounded-radius-md p-8 text-center">
+                    <p className="theme-text font-black text-base">Answers coming soon.</p>
+                    <p className="theme-text-muted text-sm mt-2">
+                      We're still preparing the answer key for this paper. Check back soon.
+                    </p>
+                  </div>
+                )}
+              </section>
+            )}
+
+            {/* Bottom action buttons */}
+            {renderActionButtons('footer')}
+          </>
         )}
       </div>
     </div>
@@ -415,21 +425,95 @@ export default function PastPaperViewer() {
 }
 
 /**
- * Mark scheme reveal section. Collapsed by default so a learner is
- * nudged into attempting the paper first. On expand it resolves the
- * relevant signed URLs and renders the scheme inline (PDF or stacked
- * images) plus a download button.
+ * Vertical stack of past-paper page images. Each image uses onLoad /
+ * onError so a network or permission failure swaps the page to a clean
+ * "page failed to load" panel instead of the browser's broken-image
+ * glyph (which would otherwise show the alt text and an icon).
  */
-function MarkSchemeSection({ source, paperTitle, paperId, onDownload }) {
-  const [open, setOpen] = useState(false)
+function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, onLoad, onError }) {
+  if (loading) {
+    return (
+      <div className="theme-card border theme-border rounded-radius-md h-[60vh] flex items-center justify-center theme-text-muted text-sm">
+        Loading paper…
+      </div>
+    )
+  }
+
+  if (!pages.length) {
+    return (
+      <div className="theme-card border theme-border rounded-radius-md p-6 text-center text-sm theme-text-muted">
+        No pages available. Please refresh or contact support.
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex flex-col gap-5">
+      <p className="text-center text-xs font-black theme-text-muted uppercase tracking-widest">
+        {totalPages} {totalPages === 1 ? 'page' : 'pages'}
+      </p>
+      {pages.map((page) => {
+        const hasFailed = failedPages[page.key]
+        const hasLoaded = loadedPages[page.key]
+        return (
+          <article key={page.key} className="w-full">
+            <p className="text-center text-xs font-bold theme-text-muted mb-2">
+              Page {page.pageNumber} of {totalPages}
+            </p>
+            <div className="w-full bg-white rounded-radius-md overflow-hidden shadow-elev-sm">
+              {hasFailed ? (
+                <div className="px-4 py-10 text-center text-sm font-bold text-rose-700 bg-rose-50">
+                  Page failed to load. Please refresh or contact support.
+                </div>
+              ) : (
+                <>
+                  {!hasLoaded && (
+                    <div
+                      className="w-full flex items-center justify-center theme-text-muted text-sm"
+                      style={{ aspectRatio: '1 / 1.41', maxHeight: '70vh' }}
+                    >
+                      Loading page {page.pageNumber}…
+                    </div>
+                  )}
+                  <img
+                    src={page.url}
+                    alt=""
+                    role="presentation"
+                    loading="lazy"
+                    decoding="async"
+                    onLoad={() => onLoad(page.key)}
+                    onError={() => onError(page.key, page)}
+                    className={hasLoaded
+                      ? 'block w-full h-auto max-w-[900px] mx-auto'
+                      : 'hidden'}
+                  />
+                </>
+              )}
+            </div>
+          </article>
+        )
+      })}
+    </div>
+  )
+}
+
+/**
+ * Answers panel rendered inside the "Answers" tab. PDF answers use the
+ * canvas viewer; image-based answers stack vertically like the question
+ * paper, with the same clean error handling per page.
+ */
+function AnswersPanel({ source, paperTitle, onDownload }) {
   const [url, setUrl] = useState(null)
   const [imageUrls, setImageUrls] = useState([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
+  const [failedPages, setFailedPages] = useState({})
+  const [loadedPages, setLoadedPages] = useState({})
 
   useEffect(() => {
-    if (!open) return
     let cancelled = false
     setLoading(true)
+    setFailedPages({})
+    setLoadedPages({})
     async function resolve() {
       try {
         if (source.kind === 'pdf') {
@@ -442,88 +526,83 @@ function MarkSchemeSection({ source, paperTitle, paperId, onDownload }) {
           if (!cancelled) setImageUrls(urls)
         }
       } catch (err) {
-        console.warn('[PastPaperViewer] mark scheme load failed', err)
+        console.warn('[PastPaperViewer] answers load failed', err)
       } finally {
         if (!cancelled) setLoading(false)
       }
     }
     resolve()
     return () => { cancelled = true }
-  }, [open, source])
+  }, [source])
+
+  const validPages = useMemo(() => {
+    if (source.kind !== 'images') return []
+    return source.assets
+      .map((asset, idx) => ({
+        key: asset.path || `answer-page-${idx}`,
+        pageNumber: idx + 1,
+        path: asset.path,
+        url: imageUrls[idx] || null,
+      }))
+      .filter((p) => Boolean(p.url))
+      .sort((a, b) => a.pageNumber - b.pageNumber)
+  }, [source, imageUrls])
+
+  if (loading) {
+    return (
+      <div className="theme-card border theme-border rounded-radius-md h-[40vh] flex items-center justify-center theme-text-muted text-sm">
+        Loading answers…
+      </div>
+    )
+  }
+
+  if (source.kind === 'pdf' && url) {
+    return (
+      <div className="space-y-3">
+        <div className="flex flex-wrap items-center justify-end gap-2">
+          <button
+            type="button"
+            onClick={() => onDownload(source.path, 'mark-scheme')}
+            className="theme-card border theme-border rounded-full px-4 py-2 text-xs font-black hover:theme-bg-subtle"
+          >
+            ⬇️ Download answers
+          </button>
+        </div>
+        <Suspense fallback={
+          <div className="theme-card border theme-border rounded-radius-md h-[60vh] flex items-center justify-center theme-text-muted text-sm">
+            Loading viewer…
+          </div>
+        }>
+          <PdfJsViewer url={url} title={`${paperTitle} — answers`} />
+        </Suspense>
+      </div>
+    )
+  }
+
+  if (source.kind === 'images') {
+    return (
+      <PageImageList
+        pages={validPages}
+        totalPages={source.assets.length}
+        loading={false}
+        loadedPages={loadedPages}
+        failedPages={failedPages}
+        onLoad={(key) => setLoadedPages((prev) => ({ ...prev, [key]: true }))}
+        onError={(key, page) => {
+          setFailedPages((prev) => ({ ...prev, [key]: true }))
+          console.error('[PastPaperViewer] answers page failed to load', {
+            key,
+            pageNumber: page?.pageNumber,
+            path: page?.path,
+          })
+        }}
+      />
+    )
+  }
 
   return (
-    <section className="theme-card border theme-border rounded-radius-md overflow-hidden">
-      <button
-        type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between p-4 hover:theme-bg-subtle text-left"
-      >
-        <div>
-          <p className="theme-text font-black text-sm">📝 Mark scheme</p>
-          <p className="theme-text-muted text-xs mt-0.5">
-            {open ? 'Click to hide. Try the paper yourself first!' : 'Click to reveal the answer key.'}
-          </p>
-        </div>
-        <span className="theme-text-muted text-lg" aria-hidden="true">{open ? '▾' : '▸'}</span>
-      </button>
-      {open && (
-        <div className="border-t theme-border p-3 space-y-3">
-          <div className="flex flex-wrap gap-2">
-            {source.kind === 'pdf' && (
-              <button
-                type="button"
-                onClick={() => onDownload(source.path, 'mark-scheme')}
-                className="theme-card border theme-border rounded-full px-4 py-2 text-xs font-black hover:theme-bg-subtle"
-              >
-                ⬇️ Download mark scheme
-              </button>
-            )}
-          </div>
-          {loading ? (
-            <div className="h-40 flex items-center justify-center theme-text-muted text-sm">
-              Loading mark scheme…
-            </div>
-          ) : source.kind === 'pdf' && url ? (
-            <Suspense fallback={
-              <div className="h-[60vh] flex items-center justify-center theme-text-muted text-sm">
-                Loading viewer…
-              </div>
-            }>
-              <PdfJsViewer url={url} title={`${paperTitle} — mark scheme`} />
-            </Suspense>
-          ) : source.kind === 'images' ? (
-            <div className="space-y-3">
-              {source.assets.map((a, i) => {
-                const u = imageUrls[i]
-                if (!u) {
-                  return (
-                    <div key={a.path} className="theme-bg-subtle rounded-radius-md h-48 flex items-center justify-center text-xs theme-text-muted">
-                      Page {i + 1} unavailable
-                    </div>
-                  )
-                }
-                return (
-                  <figure key={a.path} className="space-y-1">
-                    <img
-                      src={u}
-                      alt={`${paperTitle} mark scheme page ${i + 1}`}
-                      loading="lazy"
-                      decoding="async"
-                      className="w-full h-auto rounded-radius-md theme-bg-subtle"
-                    />
-                    <figcaption className="text-center text-xs theme-text-muted font-bold">
-                      Mark scheme page {i + 1} of {source.assets.length}
-                    </figcaption>
-                  </figure>
-                )
-              })}
-            </div>
-          ) : null}
-          <p className="text-xs theme-text-muted">
-            Paper id <code>{paperId}</code>
-          </p>
-        </div>
-      )}
-    </section>
+    <div className="theme-card border theme-border rounded-radius-md p-8 text-center">
+      <p className="theme-text font-black text-base">Answers coming soon.</p>
+    </div>
   )
 }
