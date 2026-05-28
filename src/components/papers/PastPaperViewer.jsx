@@ -409,13 +409,24 @@ export default function PastPaperViewer() {
                 role="tab"
                 aria-selected={activeTab === 'answers'}
                 onClick={() => requestTabChange('answers')}
-                className={`px-4 py-2.5 text-sm font-black rounded-t-md min-h-[42px] transition-colors ${
+                className={`px-4 py-2.5 text-sm font-black rounded-t-md min-h-[42px] transition-colors inline-flex items-center gap-2 ${
                   activeTab === 'answers'
                     ? 'theme-text border-b-2 border-current'
                     : 'theme-text-muted hover:theme-text'
                 }`}
               >
                 Answers
+                {answersAvailable ? (
+                  <span
+                    aria-hidden="true"
+                    className="inline-block w-2 h-2 rounded-full bg-emerald-500"
+                    title="Answers available"
+                  />
+                ) : (
+                  <span className="text-[10px] font-bold theme-text-muted uppercase tracking-wide bg-amber-100 text-amber-800 rounded-full px-1.5 py-0.5">
+                    Soon
+                  </span>
+                )}
               </button>
             </div>
 
@@ -470,6 +481,7 @@ export default function PastPaperViewer() {
                     failedPages={failedPages}
                     retryNonces={retryNonces}
                     dataSaver={dataSaver}
+                    syncHash
                     onLoad={handleImageLoad}
                     onError={handleImageError}
                     onRetry={handleRetryPage}
@@ -545,9 +557,10 @@ function BackToTopFab() {
  * "page failed to load" panel instead of the browser's broken-image
  * glyph (which would otherwise show the alt text and an icon).
  */
-function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, retryNonces = {}, dataSaver = false, onLoad, onError, onRetry, altPrefix = 'Question paper page' }) {
+function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, retryNonces = {}, dataSaver = false, onLoad, onError, onRetry, altPrefix = 'Question paper page', syncHash = false }) {
   const articleRefs = useRef({})
   const [visiblePage, setVisiblePage] = useState(1)
+  const hasScrolledToHashRef = useRef(false)
   // In Data Saver mode, pre-load only the first 2 pages; later pages
   // wait for an explicit "Load page" tap so a long paper doesn't burn
   // through 10+ MB on open.
@@ -579,7 +592,15 @@ function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, r
           .sort((a, b) => b.intersectionRatio - a.intersectionRatio)
         if (inView.length) {
           const pageNumber = Number(inView[0].target.dataset.pageNumber)
-          if (pageNumber) setVisiblePage(pageNumber)
+          if (pageNumber) {
+            setVisiblePage(pageNumber)
+            if (syncHash && typeof window !== 'undefined') {
+              const nextHash = `#page=${pageNumber}`
+              if (window.location.hash !== nextHash) {
+                window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${nextHash}`)
+              }
+            }
+          }
         }
       },
       { threshold: [0, 0.25, 0.5, 0.75, 1], rootMargin: '-20% 0px -60% 0px' },
@@ -588,7 +609,30 @@ function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, r
       if (el) observer.observe(el)
     })
     return () => observer.disconnect()
-  }, [pages])
+  }, [pages, syncHash])
+
+  // On first mount with a #page=N hash, scroll to that article. Only
+  // runs once per pages array — subsequent hash changes (from the
+  // observer above) shouldn't fight the user's scroll.
+  useEffect(() => {
+    if (!syncHash || hasScrolledToHashRef.current || !pages.length) return
+    if (typeof window === 'undefined') return
+    const match = /#page=(\d+)/.exec(window.location.hash)
+    if (!match) return
+    const target = pages.find((p) => p.pageNumber === Number(match[1]))
+    if (!target) return
+    // If the target sits in the Data Saver gated zone, reveal it so the
+    // scroll lands on content rather than a "Tap to load" button.
+    if (dataSaver) setRevealedPages((prev) => ({ ...prev, [target.key]: true }))
+    const el = articleRefs.current[target.key]
+    if (!el) return
+    hasScrolledToHashRef.current = true
+    // Defer one frame so the IntersectionObserver above doesn't fire on
+    // the initial top-of-page intersection before we jump.
+    requestAnimationFrame(() => {
+      el.scrollIntoView({ behavior: 'auto', block: 'start' })
+    })
+  }, [pages, syncHash, dataSaver])
 
   if (loading) {
     return (
