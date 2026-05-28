@@ -752,35 +752,37 @@ function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, r
                   <span className="text-xs font-bold theme-text-muted">Data Saver is on</span>
                 </button>
               ) : (
-                <>
-                  {!hasLoaded && (
-                    <div
-                      className="w-full flex items-center justify-center theme-text-muted text-sm"
-                      style={{
-                        aspectRatio: page.width && page.height
-                          ? `${page.width} / ${page.height}`
-                          : '1 / 1.41',
-                        maxHeight: '70vh',
-                      }}
-                    >
-                      Loading page {page.pageNumber}…
-                    </div>
-                  )}
+                <div className="relative">
                   <img
                     key={`${page.key}-${nonce}`}
                     src={src}
                     alt={`${altPrefix} ${page.pageNumber} of ${totalPages}`}
-                    loading="lazy"
+                    loading={page.pageNumber <= 2 ? 'eager' : 'lazy'}
                     decoding="async"
                     width={page.width || undefined}
                     height={page.height || undefined}
                     onLoad={() => onLoad(page.key)}
                     onError={() => onError(page.key, page)}
-                    className={hasLoaded
-                      ? 'block w-full h-auto max-w-[900px] mx-auto'
-                      : 'hidden'}
+                    className="block w-full h-auto max-w-[900px] mx-auto"
+                    // Only apply a fallback aspect ratio while the image
+                    // hasn't loaded — reserving the layout slot for old
+                    // uploads that don't have stored dimensions. Once
+                    // the image lands, the browser's intrinsic ratio
+                    // (or the width/height attrs) takes over so the
+                    // rendered page isn't distorted.
+                    style={!hasLoaded && !(page.width && page.height)
+                      ? { aspectRatio: '1 / 1.41' }
+                      : undefined}
                   />
-                </>
+                  {!hasLoaded && (
+                    <div
+                      className="absolute inset-0 flex items-center justify-center theme-text-muted text-sm pointer-events-none"
+                      aria-hidden="true"
+                    >
+                      Loading page {page.pageNumber}…
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </article>
