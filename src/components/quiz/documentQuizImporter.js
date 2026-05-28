@@ -7,6 +7,7 @@ import {
 } from './documentQuizParserCore.js'
 import { buildDocxTableBlocks } from './documentQuizTableBlocks.js'
 import { consolidateOptionImageRuns } from './documentQuizParagraphRuns.js'
+import { importMarkupToRichHtml, importMarkupToOptionHtml } from './importRichText.js'
 import { structureImportedQuiz } from '../../utils/aiAssistant'
 
 let pdfjsLoader = null
@@ -810,13 +811,18 @@ function correctAnswerToIndex(value, options) {
 }
 
 function aiQuestionToLocalOverrides(q) {
-  const options = Array.isArray(q.options) ? q.options : []
-  const type = ['mcq', 'truefalse', 'short_answer', 'diagram'].includes(q.type) ? q.type : (options.length >= 2 ? 'mcq' : 'short_answer')
+  const rawOptions = Array.isArray(q.options) && q.options.length ? q.options : ['', '', '', '']
+  const type = ['mcq', 'truefalse', 'short_answer', 'diagram'].includes(q.type) ? q.type : (rawOptions.length >= 2 ? 'mcq' : 'short_answer')
+  // Resolve the answer index against the ORIGINAL option text (before markup
+  // conversion) so a text-matched correctAnswer still lines up; only then
+  // convert the stored option strings into editor node-HTML (fractions,
+  // inline math). hasImportMarkup gates the converters, so plain options are
+  // passed through byte-for-byte.
   return {
-    text: q.text || '',
-    options: options.length ? options : ['', '', '', ''],
-    correctAnswer: type === 'mcq' ? correctAnswerToIndex(q.correctAnswer, options) : (q.correctAnswer ?? ''),
-    explanation: q.explanation || '',
+    text: importMarkupToRichHtml(q.text || ''),
+    options: rawOptions.map(opt => importMarkupToOptionHtml(opt)),
+    correctAnswer: type === 'mcq' ? correctAnswerToIndex(q.correctAnswer, rawOptions) : (q.correctAnswer ?? ''),
+    explanation: importMarkupToRichHtml(q.explanation || ''),
     type,
     detectedType: type,
   }
@@ -830,8 +836,8 @@ function smartSectionsToLocal(aiSections) {
         if (!questions.length) return null
         return createPassageSection({
           title: section.title || '',
-          instructions: section.instructions || '',
-          passageText: section.passageText || '',
+          instructions: importMarkupToRichHtml(section.instructions || ''),
+          passageText: importMarkupToRichHtml(section.passageText || ''),
           questions,
         })
       }
@@ -851,9 +857,13 @@ function rawTextFromExtracted(extracted) {
 }
 
 // Smart import — Gemini + Claude pipeline behind the structureImportedQuiz
-// callable. Only run for Word documents: PDF text extraction is too noisy
-// for the AI to add value (page numbers, broken layouts, OCR drift) and
-// inflates LLM cost on inputs unlikely to improve.
+// callable. Runs for both Word and PDF documents. PDF text is noisier (page
+// numbers, broken layouts, OCR drift), but the smart-import prompts now
+// normalise that noise AND emit fraction / vertical-arithmetic / inline-math /
+// table markup that importRichText converts into real editor nodes — exactly
+// the structure the deterministic parser flattens to plain text. The callable
+// is daily-limited server-side, and any failure falls back to the local
+// parser, so the worst case is "no worse than before".
 async function trySmartImport(extracted, file) {
   const documentText = rawTextFromExtracted(extracted)
   if (documentText.length < 120) return null
@@ -913,7 +923,10 @@ export async function importQuizDocument(file) {
   let smartApplied = false
   const warnings = [...extracted.warnings]
 
-  if (isWord) {
+  // Smart import now runs for PDFs too (not just Word). It is the only path
+  // that recovers fractions, vertical arithmetic, and tables as editor nodes
+  // instead of flat text — which is precisely what past-paper PDFs need.
+  if (isWord || extracted.blocks?.length) {
     const smart = await trySmartImport(extracted, file)
     if (smart?.sections) {
       sections = smart.sections
