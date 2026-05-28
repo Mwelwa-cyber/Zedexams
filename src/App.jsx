@@ -83,6 +83,7 @@ const LearnerLessonsList = lazy(() => import('./features/lessons/pages/LearnerLe
 // Notes Studio admin — replaces the old slide-builder at /admin/lessons
 const AdminNotesList    = lazy(() => import('./features/notes/pages/AdminNotesList').then(m => ({ default: m.AdminNotesList })))
 const AdminNoteEditor   = lazy(() => import('./features/notes/pages/AdminNoteEditor').then(m => ({ default: m.AdminNoteEditor })))
+const AdminVisualNotesGenerator = lazy(() => import('./features/notes/pages/AdminVisualNotesGenerator').then(m => ({ default: m.AdminVisualNotesGenerator })))
 
 // Notes Studio learner — /notes list + reader, gated by LearnerGate
 const LearnerNotesList  = lazy(() => import('./features/notes/pages/LearnerNotesList').then(m => ({ default: m.LearnerNotesList })))
@@ -488,6 +489,7 @@ export default function App() {
           <Route path="/admin"                          element={<AdminRoute><AdminDashboard /></AdminRoute>} />
           <Route path="/admin/lessons"                  element={<AdminRoute><AdminNotesList /></AdminRoute>} />
           <Route path="/admin/lessons/new"              element={<AdminRoute><AdminNoteEditor /></AdminRoute>} />
+          <Route path="/admin/lessons/visual/new"       element={<AdminRoute><AdminVisualNotesGenerator /></AdminRoute>} />
           <Route path="/admin/lessons/:id/edit"         element={<AdminRoute><AdminNoteEditor /></AdminRoute>} />
           <Route path="/admin/quizzes/new"              element={<AdminRoute><CreateQuiz /></AdminRoute>} />
           <Route path="/admin/quizzes/:quizId/edit"     element={<AdminRoute><EditQuiz /></AdminRoute>} />

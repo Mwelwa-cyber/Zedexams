@@ -635,9 +635,10 @@ export const NOTE_STATUS = {
 }
 
 export const NOTE_FORMAT = {
-  SLIDES:    'slides',
+  SLIDES:    'slides',         // legacy slide-built lessons (LessonPlayer)
   RICH_TEXT: 'rich_text',
   FILE:      'file',
+  VISUAL:    'visual_slides',  // AI-generated illustrated learner decks
 }
 
 export const BAND_LABELS = {

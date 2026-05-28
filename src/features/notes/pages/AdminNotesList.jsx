@@ -5,7 +5,7 @@
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus } from '../../../components/ui/icons'
+import { Plus, Sparkles } from '../../../components/ui/icons'
 import { useAdminNotes } from '../hooks/useAdminNotes'
 import { NoteFilters } from '../components/NoteFilters'
 import { NoteCard } from '../components/NoteCard'
@@ -36,12 +36,20 @@ export function AdminNotesList() {
               Drafts and published notes across every subject and grade.
             </p>
           </div>
-          <button
-            onClick={() => navigate('/admin/lessons/new')}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-white text-sm font-medium transition hover:scale-[1.02] active:scale-[0.98] shadow-sm bg-neutral-900"
-          >
-            <Plus size={16} /> New note
-          </button>
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              onClick={() => navigate('/admin/lessons/visual/new')}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-white text-sm font-medium transition hover:scale-[1.02] active:scale-[0.98] shadow-sm bg-violet-600"
+            >
+              <Sparkles size={16} /> Generate visual notes
+            </button>
+            <button
+              onClick={() => navigate('/admin/lessons/new')}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-white text-sm font-medium transition hover:scale-[1.02] active:scale-[0.98] shadow-sm bg-neutral-900"
+            >
+              <Plus size={16} /> New note
+            </button>
+          </div>
         </div>
 
         <NoteFilters
