@@ -39,6 +39,51 @@ const STUDIO_SUBJECT_TO_KB = {
   "Travel & Tourism Syllabus (Forms 1-4)": "social_studies",
 };
 
+// Legacy 2013-curriculum subject → KB key map. Names mirror exactly the
+// top-level keys in /public/syllabi/curriculum-data-2013.json, so a new
+// 2013 syllabus shows up in the AI knowledge base as soon as it's added to
+// the data file + listed here.
+const STUDIO_SUBJECT_TO_KB_2013 = {
+  "Integrated Science Syllabus (Grades 1-7, 2013)": "integrated_science",
+  "Mathematics Syllabus (Grades 1-7, 2013)": "mathematics",
+  "Social Studies Syllabus (Grades 1-7, 2013)": "social_studies",
+  "English Language Syllabus (Grades 2-7, 2013)": "english",
+  "Creative & Technology Studies Syllabus (2013)": "creative_and_technology_studies",
+  "Home Economics Syllabus (Grades 5-7, 2013)": "home_economics",
+  "Design & Technology Syllabus (Grades 5-7, 2013)": "design_and_technology",
+  "Expressive Arts Syllabus (Grades 5-7, 2013)": "expressive_arts",
+  "Zambian Language Syllabus (Grades 5-7, 2013)": "zambian_language",
+  "Physical Education Syllabus (Grades 8-9, 2013)": "physical_education",
+  "Agricultural Science Syllabus (Grades 10-12, 2013)": "agricultural_science",
+  "Art & Design Syllabus (Grades 10-12, 2013)": "art_and_design",
+  "Biology Syllabus (Grades 10-12, 2013)": "biology",
+  "Chemistry Syllabus (Grades 10-12, 2013)": "chemistry",
+  "Civic Education Syllabus (Grades 10-12, 2013)": "civic_education",
+  "Food & Nutrition Syllabus (Grades 10-12, 2013)": "home_economics",
+  "Geography Syllabus (Grades 10-12, 2013)": "geography",
+  "History Syllabus (Senior Secondary, 2013)": "history",
+  "Home Management Syllabus (Grades 10-12, 2013)": "home_economics",
+  "Mathematics Syllabus (Grades 10-12, 2013)": "mathematics",
+  "Physical Education Syllabus (Grades 10-12, 2013)": "physical_education",
+  "Religious Education 2044 Syllabus (Grades 10-12, 2013)": "religious_education",
+  "Religious Education 2046 Syllabus (Grades 10-12, 2013)": "religious_education",
+};
+
+// Filenames for each curriculum framework — used by locateDataFile().
+const FRAMEWORK_FILES = {
+  "2023": "curriculum-data.json",
+  "2013": "curriculum-data-2013.json",
+};
+
+const VALID_FRAMEWORKS = Object.freeze(["2023", "2013"]);
+const DEFAULT_FRAMEWORK = "2023";
+
+function normalizeFramework(framework) {
+  if (framework == null) return DEFAULT_FRAMEWORK;
+  const s = String(framework).trim();
+  return VALID_FRAMEWORKS.includes(s) ? s : DEFAULT_FRAMEWORK;
+}
+
 const FORM_TO_GRADE = {
   "form 1": "G8",
   "form 2": "G9",
@@ -110,15 +155,19 @@ function rowKey(studioSubject, sheetName, topic, subtopic) {
       .join("||");
 }
 
-let _dataCache = null;
-let _dataCachePath = null;
+// One cache + one cache-path entry per framework so loadRawData("2023") and
+// loadRawData("2013") don't trample each other.
+const _dataCache = new Map();
+const _dataCachePathByFramework = new Map();
 
-function locateDataFile() {
+function locateDataFile(framework = DEFAULT_FRAMEWORK) {
+  const fw = normalizeFramework(framework);
+  const filename = FRAMEWORK_FILES[fw];
   // Prefer the per-functions data copy; fall back to the public asset when
   // running tests from the repo root.
   const candidates = [
-    path.join(__dirname, "..", "data", "curriculum-data.json"),
-    path.join(__dirname, "..", "..", "public", "syllabi", "curriculum-data.json"),
+    path.join(__dirname, "..", "data", filename),
+    path.join(__dirname, "..", "..", "public", "syllabi", filename),
   ];
   for (const p of candidates) {
     try {
@@ -130,21 +179,24 @@ function locateDataFile() {
   return null;
 }
 
-function loadRawData() {
-  if (_dataCache) return _dataCache;
-  const p = locateDataFile();
+function loadRawData(framework = DEFAULT_FRAMEWORK) {
+  const fw = normalizeFramework(framework);
+  if (_dataCache.has(fw)) return _dataCache.get(fw);
+  const p = locateDataFile(fw);
   if (!p) {
-    _dataCache = {};
-    return _dataCache;
+    _dataCache.set(fw, {});
+    return {};
   }
   try {
-    _dataCachePath = p;
-    _dataCache = JSON.parse(fs.readFileSync(p, "utf8"));
+    _dataCachePathByFramework.set(fw, p);
+    const parsed = JSON.parse(fs.readFileSync(p, "utf8"));
+    _dataCache.set(fw, parsed);
+    return parsed;
   } catch (err) {
     console.error("syllabiCurriculumData: read failed for", p, err);
-    _dataCache = {};
+    _dataCache.set(fw, {});
+    return {};
   }
-  return _dataCache;
 }
 
 function rowsWithPropagatedTopic(rows) {
@@ -270,12 +322,130 @@ function applyOverridesToRaw(raw, overrides) {
   return clone;
 }
 
+// ── 2013 schema parser ───────────────────────────────────────────────────
+// Legacy sheets use a different column layout to the current 2023 sheets:
+//   2023: TOPIC, SUB-TOPIC, SPECIFIC COMPETENCES, LEARNING ACTIVITIES, EXPECTED STANDARD
+//   2013: <topic-code column>, TOPIC, SPECIFIC OUTCOMES, KNOWLEDGE, SKILLS, VALUES
+// The "topic-code column" is named after the first topic on the sheet
+// (e.g. "4.1 SETS") and contains all topic codes for that sheet, so we
+// detect it dynamically.
+
+const _2013_KNOWN_COLS = new Set([
+  "TOPIC", "SPECIFIC OUTCOMES", "KNOWLEDGE", "SKILLS", "VALUES",
+]);
+
+function detect2013TopicColumn(sheet) {
+  const cols = Array.isArray(sheet?.columns) ? sheet.columns : [];
+  for (const c of cols) {
+    if (c && !_2013_KNOWN_COLS.has(c)) return c;
+  }
+  return null;
+}
+
+function rows2013WithPropagatedTopic(rows, topicColumn) {
+  const out = [];
+  let topic = "";
+  for (const row of rows || []) {
+    if (row.type !== "data") continue;
+    const cells = row.cells || {};
+    const codeRaw = topicColumn ? String(cells[topicColumn] || "").trim() : "";
+    if (codeRaw) topic = codeRaw;
+    if (!topic) continue;
+    out.push({
+      topic,
+      specificOutcomes: String(cells["SPECIFIC OUTCOMES"] || "").trim(),
+      knowledge: String(cells.KNOWLEDGE || "").trim(),
+      skills: String(cells.SKILLS || "").trim(),
+      values: String(cells.VALUES || "").trim(),
+    });
+  }
+  return out;
+}
+
+// Split a "4.1.1 Foo. 4.1.2 Bar. 4.1.3 Baz" string into discrete outcomes.
+function splitNumberedOutcomes(s) {
+  const str = String(s || "").trim();
+  if (!str) return [];
+  const parts = str.split(/(?=\b\d+\.\d+(?:\.\d+)?\s)/g)
+      .map((p) => p.trim()).filter(Boolean);
+  return parts.length ? parts : [str];
+}
+
+// Split bullet-led lists (• Foo • Bar) into discrete items. Falls back to
+// the whole string when there are no bullets.
+function splitBulletList(s) {
+  const str = String(s || "").trim();
+  if (!str) return [];
+  const parts = str.split(/[•●·•]\s*/g).map((p) => p.trim()).filter(Boolean);
+  return parts.length ? parts : [str];
+}
+
+function get2013CurriculumDataTopics() {
+  const raw = loadRawData("2013");
+  const byKey = new Map();
+  for (const [studioSubject, sheets] of Object.entries(raw || {})) {
+    const subject = STUDIO_SUBJECT_TO_KB_2013[studioSubject];
+    if (!subject) continue;
+    for (const [sheetName, sheet] of Object.entries(sheets || {})) {
+      const grade = sheetNameToGrade(sheetName);
+      if (!grade) continue;
+      const topicCol = detect2013TopicColumn(sheet);
+      const parsed = rows2013WithPropagatedTopic(sheet?.rows || [], topicCol);
+      for (const r of parsed) {
+        const key = `${grade}|${subject}|${r.topic.toLowerCase()}`;
+        let entry = byKey.get(key);
+        if (!entry) {
+          entry = {
+            id: buildTopicId(grade, subject, r.topic),
+            grade,
+            subject,
+            topic: r.topic,
+            subtopics: [],
+            specificOutcomes: [],
+            keyCompetencies: [],
+            values: [],
+            suggestedMaterials: [],
+            framework: "2013",
+            origin: "syllabi_studio_2013",
+          };
+          byKey.set(key, entry);
+        }
+        for (const o of splitNumberedOutcomes(r.specificOutcomes)) {
+          entry.specificOutcomes.push(o);
+        }
+        for (const k of splitBulletList(r.knowledge)) {
+          entry.subtopics.push({
+            name: k,
+            specificCompetence: "",
+            learningActivities: "",
+            expectedStandard: "",
+          });
+        }
+        for (const sk of splitBulletList(r.skills)) {
+          entry.keyCompetencies.push(sk);
+        }
+        for (const v of splitBulletList(r.values)) {
+          entry.values.push(v);
+        }
+      }
+    }
+  }
+  return Array.from(byKey.values());
+}
+
 /**
  * Returns the Studio rows as flat KB-topic entries. One entry per
  * grade+subject+topic, with enriched sub-topic objects underneath.
+ *
+ * Framework defaults to "2023" — passing "2013" reads the legacy file via
+ * its own schema parser. Every topic returned carries a `framework` field
+ * so downstream filters can pick the right era cleanly.
  */
-async function getCurriculumDataTopics(version) {
-  const raw = loadRawData();
+async function getCurriculumDataTopics(version, opts = {}) {
+  const framework = normalizeFramework(opts.framework);
+  if (framework === "2013") return get2013CurriculumDataTopics();
+
+  const raw = loadRawData("2023");
   const overrides = version ? await loadOverrides(version) : [];
   const merged = applyOverridesToRaw(raw, overrides);
   const byKey = new Map();
@@ -300,6 +470,7 @@ async function getCurriculumDataTopics(version) {
             keyCompetencies: [],
             values: [],
             suggestedMaterials: [],
+            framework: "2023",
             origin: "syllabi_studio",
           };
           byKey.set(key, entry);
@@ -324,21 +495,29 @@ async function getCurriculumDataTopics(version) {
 /**
  * Returns the merged Studio shape (subject → sheet → rows). Used by the
  * admin/teacher pages that want to render the same browsable layout but
- * with admin overrides applied.
+ * with admin overrides applied. Defaults to the 2023 framework.
  */
-async function getMergedStudioData(version) {
-  const raw = loadRawData();
-  const overrides = version ? await loadOverrides(version) : [];
+async function getMergedStudioData(version, opts = {}) {
+  const framework = normalizeFramework(opts.framework);
+  const raw = loadRawData(framework);
+  // Overrides are only defined for the current (2023) era today.
+  const overrides = (version && framework === "2023") ?
+    await loadOverrides(version) : [];
   return applyOverridesToRaw(raw, overrides);
 }
 
 function invalidateCache() {
-  _dataCache = null;
-  _dataCachePath = null;
+  _dataCache.clear();
+  _dataCachePathByFramework.clear();
 }
 
 module.exports = {
   STUDIO_SUBJECT_TO_KB,
+  STUDIO_SUBJECT_TO_KB_2013,
+  FRAMEWORK_FILES,
+  VALID_FRAMEWORKS,
+  DEFAULT_FRAMEWORK,
+  normalizeFramework,
   sheetNameToGrade,
   resolveKbSubject,
   rowKey,
@@ -346,7 +525,9 @@ module.exports = {
   loadOverrides,
   applyOverridesToRaw,
   getCurriculumDataTopics,
+  get2013CurriculumDataTopics,
   getMergedStudioData,
   invalidateCache,
-  _dataCachePath: () => _dataCachePath,
+  _dataCachePath: (framework = DEFAULT_FRAMEWORK) =>
+    _dataCachePathByFramework.get(normalizeFramework(framework)) || null,
 };
