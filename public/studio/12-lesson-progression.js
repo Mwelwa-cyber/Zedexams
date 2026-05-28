@@ -309,10 +309,34 @@ SYLLABUS DETAIL FOR THIS SUB-TOPIC:
 - Learning activities: ${detail.learningActivities || '(not specified)'}
 - Expected standard:   ${detail.expectedStandard || '(not specified)'}` : '';
 
-    const sysPrompt = `You are a Zambian CBC pacing advisor. Given a syllabus sub-topic, you suggest how many ${duration}-minute lesson periods a competent teacher should plan to cover it well. Consider the breadth of the specific competence, the number and complexity of learning activities, the expected standard, the subject's typical pedagogy (Mathematics → concept → examples → practice; Integrated Science → observation → explanation → activity; English → vocabulary → reading → grammar; Social Studies → discussion → explanation → activity), and the learner level. Output STRICTLY valid JSON, no preamble:
+    // Grade-level pacing band. Lower-Primary (G1-G3) attention is shorter
+    // so the same breadth of content needs more, smaller lessons; Forms
+    // (G8-G12 / Form 1-5) can sustain longer concept chunks per period.
+    // Upper-Primary sits in the middle.
+    const gradeBand = (() => {
+      if (/^Grade\s*[1-3]\b/i.test(grade)) return 'Lower Primary (Grades 1-3): short attention spans, plenty of repetition, hands-on. Bias toward MORE, shorter conceptual chunks.';
+      if (/^Grade\s*[4-7]\b/i.test(grade)) return 'Upper Primary (Grades 4-7): can sustain one concept per period with practice. Standard pacing.';
+      if (/^Form\s*\d|^Grade\s*([89]|1[012])\b/i.test(grade)) return 'Secondary (Forms 1-5 / Grades 8-12): can handle deeper concepts and longer practice per period. Bias toward FEWER but denser periods.';
+      return 'Apply standard CBC pacing for the given grade.';
+    })();
+
+    const sysPrompt = `You are a Zambian CBC pacing advisor. Given a syllabus sub-topic, you suggest how many ${duration}-minute lesson periods a competent teacher should plan to cover it well.
+
+PACING SIGNALS to weigh:
+- Breadth of the specific competence and number of learning activities listed in the syllabus detail.
+- Subject-specific pedagogy:
+  · Mathematics → concept → worked examples → guided practice → independent practice → assessment
+  · Integrated Science → observation → explanation → demonstration / activity → drawing / labelling → assessment
+  · English → vocabulary → reading / listening → comprehension → grammar / writing → assessment
+  · Social Studies → discussion → explanation with local examples → activity → revision → assessment
+- Period length: scale your suggestion to the ACTUAL duration. A 30-minute period covers materially less than a 40-minute period; a 60- or 80-minute double-period covers more. Do NOT default to a 40-minute mental model.
+- Learner level: ${gradeBand}
+- Sub-topic depth: a single discrete sub-topic ("Adding fractions with the same denominator") usually fits in 1-3 periods; a broad sub-topic ("Food safety and hygiene") may need 4-8; a Form-level unit ("Quadratic functions and their graphs") can need 8-12.
+
+Output STRICTLY valid JSON, no preamble:
 {
-  "suggestedCount": <integer between 1 and 8>,
-  "reason": "<one short paragraph, 2-3 sentences, explaining why this many periods>",
+  "suggestedCount": <integer between 1 and 12>,
+  "reason": "<one short paragraph, 2-3 sentences explaining why this many periods at this duration for this grade>",
   "foci": ["<focus for lesson 1>", "<focus for lesson 2>", ...]
 }
 "foci" length MUST equal suggestedCount. Each focus is a short headline (max 60 chars).`;
@@ -329,7 +353,7 @@ Return JSON only.`;
       const raw = await window.__studioCallClaude(sysPrompt, userPrompt, { grade, subject, topic, subtopic });
       let text = String(raw || '').trim().replace(/^```json\s*/i, '').replace(/^```\s*/, '').replace(/\s*```$/, '').trim();
       const parsed = JSON.parse(text);
-      const n = Math.max(1, Math.min(8, parseInt(parsed.suggestedCount, 10) || 1));
+      const n = Math.max(1, Math.min(12, parseInt(parsed.suggestedCount, 10) || 1));
       const reason = String(parsed.reason || '').slice(0, 600);
       // Trust the AI's foci when shape matches; otherwise fall back to the
       // subject-intelligence ordered list. Either way, the teacher can still
