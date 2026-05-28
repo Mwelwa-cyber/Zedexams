@@ -157,10 +157,19 @@ export default defineConfig(({ mode }) => {
     ],
     build: {
       outDir: 'dist',
-      // The previous 500 kB warning was firing on the catch-all vendor chunk;
-      // with the split below the largest shipped chunk is ~300 kB gzipped (pdf
-      // worker is excluded — it's loaded on demand by past-paper viewing only).
-      chunkSizeWarningLimit: 600,
+      // The original warning fired on a 1.48 MB catch-all `vendor` chunk —
+      // the whole @firebase/* SDK had fallen into it. The manualChunks split
+      // below routes the heavy deps into capped, independently-cached chunks
+      // (largest now: sentry-vendor ~479 kB lazy, firebase-firestore ~411 kB,
+      // pdfjs ~409 kB on-demand). The one chunk still over the limit is
+      // `index` — the SPA entry: the app shell plus shared code reachable from
+      // the static graph (contexts, nav, banners, shared UI/hooks/utils).
+      // Every route in App.jsx is already React.lazy, so this is genuine
+      // common code, not un-split routes; it's 842 kB raw but 252 kB gzipped,
+      // which is reasonable for an entry chunk. The limit is set to 900 so the
+      // warning still fires on a real regression (a heavy dep slipping into a
+      // chunk) without nagging about the known shell.
+      chunkSizeWarningLimit: 900,
       rollupOptions: {
         output: {
           manualChunks(id) {
@@ -182,7 +191,48 @@ export default defineConfig(({ mode }) => {
               return 'react-vendor'
             }
             if (normalizedId.includes('/node_modules/react-router')) return 'router-vendor'
-            if (normalizedId.includes('/node_modules/firebase/')) return 'firebase-vendor'
+
+            // Firebase: the public `firebase/*` umbrella only re-exports from
+            // the much heavier `@firebase/*` implementation packages, so both
+            // prefixes have to be routed here — otherwise the bulk of the SDK
+            // (which lives under @firebase/*) falls into the catch-all vendor
+            // chunk. Firestore is by far the largest surface, so it gets its
+            // own chunk to keep either bundle under the size warning.
+            if (
+              normalizedId.includes('/node_modules/firebase/firestore') ||
+              normalizedId.includes('/node_modules/@firebase/firestore') ||
+              normalizedId.includes('/node_modules/@firebase/webchannel-wrapper')
+            ) {
+              return 'firebase-firestore'
+            }
+            if (
+              normalizedId.includes('/node_modules/firebase/') ||
+              normalizedId.includes('/node_modules/@firebase/')
+            ) {
+              return 'firebase-vendor'
+            }
+
+            // Analytics + error reporting are both large, always-loaded, and
+            // change on their own release cadence — splitting them keeps the
+            // catch-all vendor chunk under the warning limit and lets each be
+            // cached independently.
+            if (normalizedId.includes('/node_modules/posthog-js/')) return 'posthog-vendor'
+            if (
+              normalizedId.includes('/node_modules/@sentry/') ||
+              normalizedId.includes('/node_modules/@sentry-internal/')
+            ) {
+              return 'sentry-vendor'
+            }
+
+            // i18next family + the markdown parser are mid-sized leaf libs;
+            // pulling them out trims the remaining vendor catch-all.
+            if (
+              normalizedId.includes('/node_modules/i18next') ||
+              normalizedId.includes('/node_modules/react-i18next/')
+            ) {
+              return 'i18n-vendor'
+            }
+            if (normalizedId.includes('/node_modules/marked/')) return 'markdown-vendor'
 
             // Icons are used across almost every page but are relatively small;
             // keep them in their own chunk so the main vendor bundle doesn't
