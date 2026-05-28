@@ -1132,6 +1132,19 @@ function SyllabiStudioStyles() {
   .ss-root .ss-header { padding: 0 14px; }
   .ss-root .ss-search-box { width: 140px; padding-left: 32px; }
   .ss-root .ss-logo-sub { display: none; }
+
+  /* Give the syllabi table more horizontal room on phones. The
+     app-container already adds 16px each side, and rounding the
+     outer card on a 360–400px viewport wastes another ~20px. */
+  .ss-root { border-radius: 12px; }
+  .ss-root .ss-main { padding: 16px 4px; }
+  .ss-root .ss-table-wrap { border-radius: 8px; }
+  .ss-root .ss-table thead th { padding: 10px 10px; }
+  .ss-root .ss-table td { padding: 10px 10px; }
+  .ss-root .ss-topic-header-row td { padding: 10px 10px; }
+  .ss-root .ss-section-row td { padding: 9px 10px; }
+  .ss-root .ss-subtopic-cell { min-width: 120px; }
+  .ss-root .ss-competences-cell { min-width: 140px; }
 }
 `}</style>
   )
