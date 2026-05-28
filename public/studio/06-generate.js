@@ -383,6 +383,50 @@ function renderClassic2(data, meta) {
 
 // ── Generate button ────────────────────────────────────────────────────────────
 
+// Multi-lesson progress panel. Replaces the simple "Generating…" spinner
+// inside #loader with a per-lesson status list, progress bar, and focus
+// labels so a teacher generating 4+ lessons can see where the run is
+// without staring at a single toast for a minute. Single-lesson runs skip
+// this and use the original spinner via the `total <= 1` short-circuit.
+//
+// `state` shape: { total, foci[], done:Set<number>, current:number|null,
+//                  failedAt:number|null }
+// Re-rendering on each state change is fine — the panel is small.
+function __studioRenderMultiProgress(state) {
+  const loader = $('#loader');
+  if (!loader) return;
+  const total = Math.max(1, Number(state.total) || 1);
+  const done = state.done instanceof Set ? state.done : new Set(Array.isArray(state.done) ? state.done : []);
+  const current = state.current && state.current >= 1 && state.current <= total ? state.current : null;
+  const failedAt = state.failedAt && state.failedAt >= 1 ? state.failedAt : null;
+  const foci = Array.isArray(state.foci) ? state.foci : [];
+  const pct = Math.round((done.size / total) * 100);
+  const rows = Array.from({ length: total }, (_, k) => {
+    const n = k + 1;
+    let icon, cls, status;
+    if (failedAt === n) { icon = '✗'; cls = 'failed'; status = 'Failed'; }
+    else if (done.has(n)) { icon = '✓'; cls = 'done'; status = 'Done'; }
+    else if (current === n) { icon = '<span class="lp-prog-spinner"></span>'; cls = 'current'; status = 'Composing…'; }
+    else { icon = String(n); cls = 'pending'; status = 'Pending'; }
+    const focus = (foci[k] || '').toString().slice(0, 80);
+    return `<li class="lp-prog-row lp-prog-${cls}">
+      <span class="lp-prog-icon">${icon}</span>
+      <span class="lp-prog-body">
+        <span class="lp-prog-title">Lesson ${n}${focus ? ` — ${esc(focus)}` : ''}</span>
+        <span class="lp-prog-status">${status}</span>
+      </span>
+    </li>`;
+  }).join('');
+  loader.innerHTML = `<div class="lp-prog-panel" role="status" aria-live="polite">
+    <div class="lp-prog-head">
+      <strong>Generating ${total} lesson plans</strong>
+      <span class="lp-prog-count">${done.size} of ${total} done</span>
+    </div>
+    <div class="lp-prog-bar"><span class="lp-prog-bar-fill" style="width:${pct}%"></span></div>
+    <ul class="lp-prog-list">${rows}</ul>
+  </div>`;
+}
+
 // Restore the generate button's label after a run. The planner owns the
 // "Generate N Lesson Plans" text via #btn-generate-label, so we just hand
 // control back and let it re-render on the next state change.
@@ -483,10 +527,26 @@ async function __studioOnGenerateClick() {
     : null;
   const indices = onlyIndex ? [onlyIndex] : Array.from({ length: total }, (_, k) => k + 1);
 
-  if (loader) loader.classList.add('show');
+  // Paint the loader content BEFORE showing it — single-lesson runs get
+  // the simple spinner (existing behaviour), multi-lesson runs get the
+  // per-lesson progress panel so the teacher can see exactly where the
+  // run is rather than staring at one Composing… message for a minute.
+  const isMulti = indices.length > 1;
+  const progress = { total, foci: i.planner.foci || [], done: new Set(), current: null, failedAt: null };
+  if (loader) {
+    if (isMulti) {
+      __studioRenderMultiProgress(progress);
+    } else {
+      loader.innerHTML = `<div style="text-align:center;color:var(--muted,#7a6d5d)">
+        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="animation:spin 1s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+        <div style="margin-top:10px;font-size:13px">Generating…</div>
+      </div>`;
+    }
+    loader.classList.add('show');
+  }
   if (btn) {
     btn.disabled = true;
-    btn.innerHTML = `<span>${total > 1 ? `Composing lesson plans…` : 'Composing your lesson plan…'}</span>`;
+    btn.innerHTML = `<span>${isMulti ? `Composing lesson plans…` : 'Composing your lesson plan…'}</span>`;
   }
 
   const sysPrompt = i.format === 'classic' ? sysClassic : (i.format === 'classic2' ? sysClassic2 : sysModern);
@@ -521,13 +581,31 @@ async function __studioOnGenerateClick() {
   }
   try {
     for (const lessonNumber of indices) {
-      if (btn) btn.innerHTML = `<span>${total > 1 ? `Composing lesson ${madeCount + 1} of ${indices.length}…` : 'Composing your lesson plan…'}</span>`;
+      if (btn) btn.innerHTML = `<span>${isMulti ? `Composing lesson ${madeCount + 1} of ${indices.length}…` : 'Composing your lesson plan…'}</span>`;
+      if (isMulti) {
+        progress.current = lessonNumber;
+        __studioRenderMultiProgress(progress);
+      }
       const focus = (i.planner.foci && i.planner.foci[lessonNumber - 1]) || '';
       const res = await __studioGenerateOneLesson({ i, lessonNumber, totalLessons: total, lessonFocus: focus, sysPrompt, coveredSoFar });
-      if (!res.ok) break;    // Out-of-syllabus error — stop the series here.
+      if (!res.ok) {
+        // Out-of-syllabus error — flag the failed lesson in the panel,
+        // then bail out so we don't waste calls on the rest of the run.
+        if (isMulti) {
+          progress.current = null;
+          progress.failedAt = lessonNumber;
+          __studioRenderMultiProgress(progress);
+        }
+        break;
+      }
       madeCount += 1;
       const summary = summariseLessonForFollowups(res.data, i.format);
       if (summary) coveredSoFar.push({ lessonNumber, focus, summary });
+      if (isMulti) {
+        progress.done.add(lessonNumber);
+        progress.current = null;
+        __studioRenderMultiProgress(progress);
+      }
     }
     if (madeCount > 0) {
       if (madeCount === 1 && total === 1) toast('Lesson plan generated and saved');

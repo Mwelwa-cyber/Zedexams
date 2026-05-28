@@ -374,6 +374,31 @@
   #view-plans .lp-only-this{padding:6px 8px;font-size:10.5px}
 }
 
+/* Multi-lesson progress panel — replaces the spinner inside #loader for
+   multi-lesson runs. Single-lesson runs continue to use the spinner. */
+#view-plans .lp-prog-panel{max-width:420px;width:100%;margin:0 24px;padding:18px 18px 14px;background:#fff;border:1.5px solid #0e2a32;border-radius:14px;box-shadow:0 6px 24px rgba(14,42,50,.12);font-family:var(--font-body);color:#0e2a32}
+#view-plans .lp-prog-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;margin-bottom:10px}
+#view-plans .lp-prog-head strong{font:700 14px/1.2 var(--font-body);color:#0e2a32}
+#view-plans .lp-prog-count{font-size:11.5px;color:#566f76;font-weight:600;letter-spacing:.02em}
+#view-plans .lp-prog-bar{height:6px;background:#f1ead8;border-radius:99px;overflow:hidden;margin-bottom:14px}
+#view-plans .lp-prog-bar-fill{display:block;height:100%;background:linear-gradient(90deg,#ff7a2e 0%,#c89a3a 100%);transition:width .3s ease}
+#view-plans .lp-prog-list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:260px;overflow-y:auto}
+#view-plans .lp-prog-row{display:flex;align-items:center;gap:10px;padding:7px 10px;background:#fffaf0;border:1px solid #e6dcc5;border-radius:8px;font-size:12px}
+#view-plans .lp-prog-row.lp-prog-current{background:rgba(255,122,46,.10);border-color:#ff7a2e}
+#view-plans .lp-prog-row.lp-prog-done{background:rgba(54,150,108,.08);border-color:#7fbd9d}
+#view-plans .lp-prog-row.lp-prog-failed{background:#fef2f2;border-color:#b8492a}
+#view-plans .lp-prog-icon{flex:0 0 22px;height:22px;display:grid;place-items:center;border-radius:50%;background:#0e2a32;color:#faf6ef;font:700 11px/1 var(--font-body)}
+#view-plans .lp-prog-row.lp-prog-done .lp-prog-icon{background:#36966c}
+#view-plans .lp-prog-row.lp-prog-current .lp-prog-icon{background:#ff7a2e}
+#view-plans .lp-prog-row.lp-prog-failed .lp-prog-icon{background:#b8492a}
+#view-plans .lp-prog-body{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:1px}
+#view-plans .lp-prog-title{font-weight:600;color:#0e2a32;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#view-plans .lp-prog-status{font-size:10.5px;color:#566f76}
+#view-plans .lp-prog-row.lp-prog-done .lp-prog-status{color:#2e7551}
+#view-plans .lp-prog-row.lp-prog-current .lp-prog-status{color:#c25f12;font-style:italic}
+#view-plans .lp-prog-row.lp-prog-failed .lp-prog-status{color:#b8492a}
+#view-plans .lp-prog-spinner{display:inline-block;width:11px;height:11px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .9s linear infinite}
+
 /* Sticky Generate bar — pinned to the bottom of the scrolling sidebar so
    the primary action is always reachable on phones. */
 #view-plans .lp-generate-bar{position:sticky;bottom:0;left:0;right:0;margin:8px -22px -32px;padding:14px 22px calc(16px + env(safe-area-inset-bottom));background:rgba(255,250,240,.96);backdrop-filter:blur(10px) saturate(140%);-webkit-backdrop-filter:blur(10px) saturate(140%);border-top:1.5px solid #0e2a32;z-index:5}
