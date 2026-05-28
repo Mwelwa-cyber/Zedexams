@@ -294,6 +294,21 @@ function hydrateRichField(value) {
   return value
 }
 
+// Answer options are serialised the same way rich fields are: a Tiptap JSON
+// option (rich math choice) is stored as a JSON string via serializeOptions.
+// On load they must be hydrated back into objects — otherwise the option
+// editor receives the literal `{"type":"doc",…}` string, RichEditor's
+// migrateContent() treats it as plain text, and the raw JSON renders verbatim
+// inside the answer box. Plain-string options (simple text/number choices)
+// and empty slots pass straight through unchanged.
+function hydrateOptions(options) {
+  if (!Array.isArray(options)) return options
+  return options.map((opt) => {
+    if (opt == null || opt === '') return opt
+    return hydrateRichField(opt)
+  })
+}
+
 // When a question has both an HTML mirror (e.g. `text`) and a JSON mirror
 // (e.g. `textJSON`), prefer the JSON. This rescues quizzes saved by an
 // earlier build whose normaliser corrupted the HTML mirror by escaping the
@@ -581,7 +596,7 @@ function hydrateStandaloneQuestion(question = {}) {
     options: isTextAnswer
       ? []
       : Array.isArray(question.options) && question.options.length
-        ? question.options
+        ? hydrateOptions(question.options)
         : ['', '', '', ''],
     // optionMedia is parallel to options; persist it through the load so a
     // teacher reopening a draft sees the images they uploaded earlier.
@@ -670,7 +685,7 @@ function hydratePassageQuestion(question = {}, passageId, partId = null) {
     sharedInstruction: hydrateRichField(pickRichField(question.sharedInstructionJSON, question.sharedInstruction)),
     text: hydrateRichField(pickRichField(question.textJSON, question.text)),
     options: Array.isArray(question.options) && question.options.length
-      ? question.options
+      ? hydrateOptions(question.options)
       : ['', '', '', ''],
     // Persist optionMedia so image options survive a reload — same reasoning
     // as in hydrateStandaloneQuestion above.
