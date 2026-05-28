@@ -390,7 +390,10 @@ function renderClassic2(data, meta) {
 // this and use the original spinner via the `total <= 1` short-circuit.
 //
 // `state` shape: { total, foci[], done:Set<number>, current:number|null,
-//                  failedAt:number|null }
+//                  currentSet:Set<number>|null, failed:Set<number>|null }
+// Both `current` (single in-flight, sequential path) and `currentSet`
+// (multiple in-flight, parallel wave) are honoured so the renderer
+// doesn't need to know which mode is active.
 // Re-rendering on each state change is fine — the panel is small.
 function __studioRenderMultiProgress(state) {
   const loader = $('#loader');
@@ -398,15 +401,18 @@ function __studioRenderMultiProgress(state) {
   const total = Math.max(1, Number(state.total) || 1);
   const done = state.done instanceof Set ? state.done : new Set(Array.isArray(state.done) ? state.done : []);
   const current = state.current && state.current >= 1 && state.current <= total ? state.current : null;
-  const failedAt = state.failedAt && state.failedAt >= 1 ? state.failedAt : null;
+  const currentSet = state.currentSet instanceof Set ? state.currentSet : null;
+  const failed = state.failed instanceof Set ? state.failed
+    : (state.failedAt && state.failedAt >= 1 ? new Set([state.failedAt]) : new Set());
   const foci = Array.isArray(state.foci) ? state.foci : [];
   const pct = Math.round((done.size / total) * 100);
+  const isCurrent = (n) => current === n || (currentSet && currentSet.has(n));
   const rows = Array.from({ length: total }, (_, k) => {
     const n = k + 1;
     let icon, cls, status;
-    if (failedAt === n) { icon = '✗'; cls = 'failed'; status = 'Failed'; }
+    if (failed.has(n)) { icon = '✗'; cls = 'failed'; status = 'Failed'; }
     else if (done.has(n)) { icon = '✓'; cls = 'done'; status = 'Done'; }
-    else if (current === n) { icon = '<span class="lp-prog-spinner"></span>'; cls = 'current'; status = 'Composing…'; }
+    else if (isCurrent(n)) { icon = '<span class="lp-prog-spinner"></span>'; cls = 'current'; status = 'Composing…'; }
     else { icon = String(n); cls = 'pending'; status = 'Pending'; }
     const focus = (foci[k] || '').toString().slice(0, 80);
     return `<li class="lp-prog-row lp-prog-${cls}">
@@ -532,7 +538,19 @@ async function __studioOnGenerateClick() {
   // per-lesson progress panel so the teacher can see exactly where the
   // run is rather than staring at one Composing… message for a minute.
   const isMulti = indices.length > 1;
-  const progress = { total, foci: i.planner.foci || [], done: new Set(), current: null, failedAt: null };
+  // Parallel "wave" mode kicks in for series of 3+ lessons that aren't an
+  // "Only this" regenerate. Below that threshold the savings are too small
+  // to justify the in-run past-lesson awareness regression: at N=2 the
+  // canary-then-wave is identical in wall-clock to plain sequential, and
+  // for "Only this" the cross-session siblings bridge already supplies
+  // the awareness — running its single iteration through the canary path
+  // would just add branching for no gain.
+  const useParallelWave = isMulti && !onlyIndex && indices.length >= 3;
+  const progress = {
+    total, foci: i.planner.foci || [], done: new Set(), failed: new Set(),
+    current: null,        // sequential path: which single lesson is in flight
+    currentSet: null,     // wave path: which set of lessons are in flight
+  };
   if (loader) {
     if (isMulti) {
       __studioRenderMultiProgress(progress);
@@ -579,32 +597,92 @@ async function __studioOnGenerateClick() {
       }
     } catch (e) { /* fail-open — past-lesson awareness is a nice-to-have */ }
   }
-  try {
-    for (const lessonNumber of indices) {
-      if (btn) btn.innerHTML = `<span>${isMulti ? `Composing lesson ${madeCount + 1} of ${indices.length}…` : 'Composing your lesson plan…'}</span>`;
+  // Runs one lesson and updates the progress panel. Shared by both the
+  // sequential path and the canary step of the parallel wave so the
+  // single-lesson UX (in-flight spinner → done / failed icon) stays
+  // identical between modes.
+  const runOneLesson = async (lessonNumber, { isCanary } = {}) => {
+    const focus = (i.planner.foci && i.planner.foci[lessonNumber - 1]) || '';
+    if (btn) btn.innerHTML = `<span>${isMulti ? `Composing lesson ${madeCount + 1} of ${indices.length}${isCanary ? ' (then ' + (indices.length - 1) + ' in parallel…)' : '…'}` : 'Composing your lesson plan…'}</span>`;
+    if (isMulti) {
+      progress.current = lessonNumber;
+      __studioRenderMultiProgress(progress);
+    }
+    const res = await __studioGenerateOneLesson({ i, lessonNumber, totalLessons: total, lessonFocus: focus, sysPrompt, coveredSoFar });
+    if (!res.ok) {
       if (isMulti) {
-        progress.current = lessonNumber;
-        __studioRenderMultiProgress(progress);
-      }
-      const focus = (i.planner.foci && i.planner.foci[lessonNumber - 1]) || '';
-      const res = await __studioGenerateOneLesson({ i, lessonNumber, totalLessons: total, lessonFocus: focus, sysPrompt, coveredSoFar });
-      if (!res.ok) {
-        // Out-of-syllabus error — flag the failed lesson in the panel,
-        // then bail out so we don't waste calls on the rest of the run.
-        if (isMulti) {
-          progress.current = null;
-          progress.failedAt = lessonNumber;
-          __studioRenderMultiProgress(progress);
-        }
-        break;
-      }
-      madeCount += 1;
-      const summary = summariseLessonForFollowups(res.data, i.format);
-      if (summary) coveredSoFar.push({ lessonNumber, focus, summary });
-      if (isMulti) {
-        progress.done.add(lessonNumber);
         progress.current = null;
+        progress.failed.add(lessonNumber);
         __studioRenderMultiProgress(progress);
+      }
+      return { ok: false, lessonNumber, focus };
+    }
+    madeCount += 1;
+    const summary = summariseLessonForFollowups(res.data, i.format);
+    if (summary) coveredSoFar.push({ lessonNumber, focus, summary });
+    if (isMulti) {
+      progress.done.add(lessonNumber);
+      progress.current = null;
+      __studioRenderMultiProgress(progress);
+    }
+    return { ok: true, lessonNumber, focus };
+  };
+
+  try {
+    if (useParallelWave) {
+      // ── Canary + wave ─────────────────────────────────────────────────
+      // Lesson 1 runs sequentially as a canary so:
+      //   • An out-of-syllabus error bails the run BEFORE we burn quota
+      //     on lessons 2..N (the sequential path's early-break behaviour
+      //     is preserved at least for the most common error mode).
+      //   • Lessons 2..N see lesson 1's coverage in their PREVIOUSLY
+      //     COVERED block — softens the regression vs sequential, where
+      //     each lesson sees ALL prior lessons.
+      // Lessons 2..N then fire in parallel. The full in-run awareness
+      // chain (lesson 4 reads 1+2+3) is intentionally sacrificed here
+      // for the ~2x wall-clock speedup; teachers who want the chain
+      // back can use single mode or "Only this" (both stay sequential).
+      const canaryNumber = indices[0];
+      const wave = indices.slice(1);
+      const canaryRes = await runOneLesson(canaryNumber, { isCanary: wave.length > 0 });
+      if (canaryRes.ok && wave.length > 0) {
+        // Show all wave lessons as in-flight at once. As each settles
+        // its row flips from spinning → done / failed; the others keep
+        // spinning until their own promise resolves.
+        progress.currentSet = new Set(wave);
+        __studioRenderMultiProgress(progress);
+        await Promise.allSettled(wave.map(async (lessonNumber) => {
+          const focus = (i.planner.foci && i.planner.foci[lessonNumber - 1]) || '';
+          try {
+            const res = await __studioGenerateOneLesson({ i, lessonNumber, totalLessons: total, lessonFocus: focus, sysPrompt, coveredSoFar });
+            // Per-completion progress update so the panel doesn't go
+            // dark until the whole wave is done.
+            if (res.ok) {
+              madeCount += 1;
+              progress.done.add(lessonNumber);
+            } else {
+              progress.failed.add(lessonNumber);
+            }
+            progress.currentSet.delete(lessonNumber);
+            __studioRenderMultiProgress(progress);
+            return res;
+          } catch (e) {
+            progress.failed.add(lessonNumber);
+            progress.currentSet.delete(lessonNumber);
+            __studioRenderMultiProgress(progress);
+            throw e;
+          }
+        }));
+        progress.currentSet = null;
+        __studioRenderMultiProgress(progress);
+      }
+    } else {
+      // ── Sequential ────────────────────────────────────────────────────
+      // Single-lesson runs, "Only this" runs, and 2-lesson series all go
+      // through here so they keep full in-run past-lesson awareness.
+      for (const lessonNumber of indices) {
+        const res = await runOneLesson(lessonNumber);
+        if (!res.ok) break;  // Out-of-syllabus — don't burn the rest of the series.
       }
     }
     if (madeCount > 0) {
