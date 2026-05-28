@@ -141,7 +141,7 @@ async function fetchRecraftImage(apiKey, {finalPrompt, style, size}) {
 // that the preview + PDF + DOCX exporters can all read. Same flow for
 // OpenAI — we accept the bytes directly there since the API returns
 // b64 inline rather than a URL.
-async function downloadToStorage(uid, source, promptForMeta, generator) {
+async function downloadToStorage(uid, source, promptForMeta, generator, subdir) {
   let buffer;
   if (source.bytes) {
     buffer = source.bytes;
@@ -158,7 +158,16 @@ async function downloadToStorage(uid, source, promptForMeta, generator) {
   }
 
   const bucket = admin.storage().bucket();
-  const filename = `assessment-images/${uid}/diagrams/${Date.now()}.png`;
+  // Callers may scope the image into their own folder (e.g. slide-notes decks
+  // write to `slide-notes-images/{uid}/{deckId}`). Defaults to the Assessment
+  // Studio path so existing callers are unchanged.
+  const baseDir = (typeof subdir === "string" && subdir.trim()) ?
+    subdir.replace(/^\/+|\/+$/g, "") :
+    `assessment-images/${uid}/diagrams`;
+  // A short random suffix avoids collisions when several images are generated
+  // within the same millisecond (the slide-notes enrichment pass fires these
+  // in small concurrent batches).
+  const filename = `${baseDir}/${Date.now()}-${crypto.randomBytes(4).toString("hex")}.png`;
   const file = bucket.file(filename);
 
   // Mint a Firebase download token so the URL we return matches what
@@ -199,7 +208,7 @@ async function downloadToStorage(uid, source, promptForMeta, generator) {
   return {url: downloadUrl, sizeBytes: buffer.length};
 }
 
-async function runGenerateDiagram({uid, rawInputs, recraftKey, openaiKey}) {
+async function runGenerateDiagram({uid, rawInputs, recraftKey, openaiKey, storageSubdir}) {
   const userPrompt = sanitizePrompt((rawInputs && rawInputs.prompt) || "");
   if (!userPrompt) {
     throw new HttpsError("invalid-argument", "Please describe the diagram you want to generate.");
@@ -256,7 +265,7 @@ async function runGenerateDiagram({uid, rawInputs, recraftKey, openaiKey}) {
     modelId = "recraft-v3";
   }
 
-  const {url, sizeBytes} = await downloadToStorage(uid, storageSource, userPrompt, provider);
+  const {url, sizeBytes} = await downloadToStorage(uid, storageSource, userPrompt, provider, storageSubdir);
 
   // Log to a per-user history so teachers can see their generated diagrams
   // and we have an audit trail for cost reconciliation.
