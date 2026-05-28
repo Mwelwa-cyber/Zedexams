@@ -374,6 +374,27 @@
   #view-plans .lp-only-this{padding:6px 8px;font-size:10.5px}
 }
 
+/* Resume banner — surfaces an existing saved series for the current
+   sub-topic so the teacher can continue across page reloads. */
+#view-plans .lp-resume-banner{display:flex;align-items:center;gap:12px;margin:0 0 12px;padding:10px 12px;background:linear-gradient(180deg,#fffaf0 0%,#fff6e6 100%);border:1.5px solid #c89a3a;border-radius:10px;color:#0e2a32}
+#view-plans .lp-resume-icon{flex:0 0 28px;height:28px;display:grid;place-items:center;background:#c89a3a;color:#fff;border-radius:50%}
+#view-plans .lp-resume-body{flex:1 1 auto;min-width:0}
+#view-plans .lp-resume-title{font:600 13px/1.3 var(--font-body);color:#0e2a32}
+#view-plans .lp-resume-title #lp-resume-subtopic{color:#8a4a00;font-style:italic}
+#view-plans .lp-resume-meta{font-size:11.5px;color:#566f76;margin-top:2px;display:flex;gap:6px;align-items:center}
+#view-plans .lp-resume-sep{opacity:.5}
+#view-plans .lp-resume-actions{display:flex;gap:6px;flex-shrink:0}
+#view-plans .lp-resume-continue,#view-plans .lp-resume-fresh{padding:7px 12px;font:600 12px var(--font-body);border-radius:8px;cursor:pointer;transition:filter .15s,background .15s}
+#view-plans .lp-resume-continue{background:#0e2a32;color:#faf6ef;border:1.5px solid #0e2a32}
+#view-plans .lp-resume-continue:hover{filter:brightness(1.15)}
+#view-plans .lp-resume-fresh{background:transparent;color:#0e2a32;border:1.5px solid #d4c8a8}
+#view-plans .lp-resume-fresh:hover{background:#fff}
+@media(max-width:600px){
+  #view-plans .lp-resume-banner{flex-direction:column;align-items:stretch}
+  #view-plans .lp-resume-icon{align-self:flex-start}
+  #view-plans .lp-resume-actions{justify-content:flex-end}
+}
+
 /* Multi-lesson progress panel — replaces the spinner inside #loader for
    multi-lesson runs. Single-lesson runs continue to use the spinner. */
 #view-plans .lp-prog-panel{max-width:420px;width:100%;margin:0 24px;padding:18px 18px 14px;background:#fff;border:1.5px solid #0e2a32;border-radius:14px;box-shadow:0 6px 24px rgba(14,42,50,.12);font-family:var(--font-body);color:#0e2a32}

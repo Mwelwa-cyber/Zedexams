@@ -21,7 +21,7 @@ const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerat
 
 // Bump this when /public/studio/* is changed so phones / CDNs refetch
 // instead of serving the cached old file.
-const STUDIO_ASSET_VERSION = 'v21'
+const STUDIO_ASSET_VERSION = 'v22'
 
 // Sequential script loader — each script must finish before the next starts
 // because the studio scripts rely on globals set by earlier ones.
@@ -300,6 +300,123 @@ export default function LessonPlanStudio() {
       }
     }
 
+    // ---- Bridge: find the most recent saved series for this sub-topic ----
+    // Lets the planner offer "Continue series" when a teacher returns to a
+    // sub-topic they've already generated lessons for. Without this the
+    // seriesId lives only in the in-memory __lp closure, so a page reload
+    // drops the link and "Only this" / cross-session past-lesson awareness
+    // (the bridge above) silently stop working.
+    //
+    // Returns the most recent matching series — or null when none exists —
+    // shaped as:
+    //   {
+    //     seriesId, totalLessons, planningMode, aiSuggestedReason,
+    //     foci: [string, ...]                    // length = totalLessons
+    //     generatedLessons: [1, 3]                // 1-based lessonNumbers
+    //                                             // already saved
+    //     latestCreatedAt: Date,
+    //     latestLessonFocus: string,              // for the banner subtitle
+    //   }
+    //
+    // Same narrow server query as __studioFetchSeriesSiblings (ownerUid +
+    // createdAt desc, capped at 100) so no new composite index is needed.
+    // All filtering happens client-side.
+    window.__studioFetchExistingSeries = async ({ grade, subject, subtopic }) => {
+      const uid = currentUser && currentUser.uid
+      if (!uid || !grade || !subject || !subtopic) return null
+      try {
+        const snap = await getDocs(query(
+          collection(db, 'aiGenerations'),
+          where('ownerUid', '==', uid),
+          orderBy('createdAt', 'desc'),
+          limit(100),
+        ))
+        // Group rows by seriesId, keeping the latest createdAt + focus.
+        // Match the planner's own (grade, subject, subtopic) keys exactly
+        // so a sub-topic name mismatch (curriculum edit, syllabus replace)
+        // doesn't surface a stale series the teacher can't actually
+        // continue from.
+        const wantedSubtopic = String(subtopic).trim().toLowerCase()
+        const groups = new Map()  // seriesId → accumulator
+        snap.forEach((d) => {
+          const row = d.data()
+          if (!row || row.tool !== 'lesson_plan') return
+          const inputs = row.inputs || {}
+          const series = inputs.lessonSeries
+          if (!series || !series.seriesId) return
+          if (inputs.klass !== grade) return
+          if (inputs.subject !== subject) return
+          if (String(inputs.subtopic || '').trim().toLowerCase() !== wantedSubtopic) return
+          const sid = series.seriesId
+          const ln = Number(series.lessonNumber) || 0
+          const total = Number(series.totalLessons) || 0
+          if (total <= 1) return  // single-lesson plans aren't resumable
+          const createdAtMs = (row.createdAt && typeof row.createdAt.toMillis === 'function')
+            ? row.createdAt.toMillis()
+            : 0
+          let acc = groups.get(sid)
+          if (!acc) {
+            acc = {
+              seriesId: sid,
+              totalLessons: total,
+              planningMode: String(series.planningMode || 'multiple'),
+              aiSuggestedReason: series.aiSuggestedReason || null,
+              foci: new Array(total).fill(''),
+              generatedLessons: new Set(),
+              latestCreatedAtMs: 0,
+              latestLessonFocus: '',
+            }
+            groups.set(sid, acc)
+          }
+          // totalLessons is recorded per-doc; if it drifts (e.g. the
+          // teacher regenerated with a different count under the same
+          // seriesId), prefer the most-recent doc's view.
+          if (createdAtMs > acc.latestCreatedAtMs && total > 0) {
+            acc.totalLessons = total
+            acc.planningMode = String(series.planningMode || acc.planningMode)
+            acc.aiSuggestedReason = series.aiSuggestedReason || acc.aiSuggestedReason
+            acc.latestCreatedAtMs = createdAtMs
+            acc.latestLessonFocus = String(series.lessonFocus || '')
+            // Resize the foci array to the new totalLessons.
+            if (acc.foci.length !== total) {
+              const next = new Array(total).fill('')
+              for (let i = 0; i < Math.min(acc.foci.length, total); i++) next[i] = acc.foci[i]
+              acc.foci = next
+            }
+          }
+          if (ln >= 1 && ln <= acc.totalLessons) {
+            acc.generatedLessons.add(ln)
+            // Only fill a focus slot if it's still blank — the snapshot
+            // is createdAt-desc, so the first write to a slot is the
+            // freshest version of that lesson's focus.
+            if (!acc.foci[ln - 1] && series.lessonFocus) {
+              acc.foci[ln - 1] = String(series.lessonFocus)
+            }
+          }
+        })
+        if (groups.size === 0) return null
+        // Pick the most recently touched series — that's the one the
+        // teacher most likely came back to continue.
+        let best = null
+        for (const acc of groups.values()) {
+          if (!best || acc.latestCreatedAtMs > best.latestCreatedAtMs) best = acc
+        }
+        return {
+          seriesId:          best.seriesId,
+          totalLessons:      best.totalLessons,
+          planningMode:      best.planningMode,
+          aiSuggestedReason: best.aiSuggestedReason,
+          foci:              best.foci,
+          generatedLessons:  Array.from(best.generatedLessons).sort((a, b) => a - b),
+          latestCreatedAt:   new Date(best.latestCreatedAtMs),
+          latestLessonFocus: best.latestLessonFocus,
+        }
+      } catch (err) {
+        console.warn('studio existing-series fetch failed', err)
+        return null
+      }
+    }
+
     // ---- Bridge: fetch the rich detail for one subtopic ----
     // The topics bridge above only surfaces subtopic NAMES (because the
     // studio's hardcoded JS expects { topic: [subName, ...] }). The richer
@@ -501,6 +618,7 @@ export default function LessonPlanStudio() {
       delete window.__studioFetchSubtopicDetail
       delete window.__studioFetchSyllabusSubjects
       delete window.__studioFetchSeriesSiblings
+      delete window.__studioFetchExistingSeries
       delete window.saveToLibrary
       delete window.$
       delete window.$$
@@ -622,6 +740,30 @@ export default function LessonPlanStudio() {
                 </button>
                 <div className="lp-section-body">
                   <div className="helper" style={{marginTop:0,marginBottom:'10px'}}>Choose how many lesson plans this subtopic needs. One plan covers one lesson period.</div>
+
+                  {/* Resume banner — populated by 12-lesson-progression.js when
+                      the teacher picks a sub-topic they already have a series
+                      for. Hidden by default; the planner toggles `hidden` and
+                      fills the inner spans. */}
+                  <div className="lp-resume-banner" id="lp-resume-banner" hidden>
+                    <div className="lp-resume-icon" aria-hidden="true">
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9"/><polyline points="3 5 3 12 10 12"/></svg>
+                    </div>
+                    <div className="lp-resume-body">
+                      <div className="lp-resume-title">
+                        Continue <span id="lp-resume-total">—</span>-lesson series for <span id="lp-resume-subtopic">this sub-topic</span>
+                      </div>
+                      <div className="lp-resume-meta">
+                        <span id="lp-resume-progress">— of — saved</span>
+                        <span className="lp-resume-sep">·</span>
+                        <span id="lp-resume-date">recently</span>
+                      </div>
+                    </div>
+                    <div className="lp-resume-actions">
+                      <button type="button" className="lp-resume-continue" id="btn-lp-resume-continue">Continue</button>
+                      <button type="button" className="lp-resume-fresh" id="btn-lp-resume-fresh">Start fresh</button>
+                    </div>
+                  </div>
 
                   {/* Planning mode pills (segmented) */}
                   <div className="lp-mode-grid" id="lp-mode-grid" role="radiogroup" aria-label="Planning mode">

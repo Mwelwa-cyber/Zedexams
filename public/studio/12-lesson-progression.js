@@ -428,6 +428,120 @@ Return JSON only.`;
     updateGenerateButton();
   };
 
+  // ── Resume banner ──────────────────────────────────────────────────────
+  // The seriesId lives only in the in-memory __lp closure. A page reload
+  // drops it, which means a teacher who returns to a sub-topic they've
+  // already partly generated can no longer use "Only this" to fill in
+  // missing lessons (the cross-session past-lesson awareness in
+  // 06-generate.js needs the seriesId to find siblings). The banner
+  // closes that loop: when the bridge finds a saved series matching the
+  // current (grade, subject, subtopic), the teacher can Continue (restore
+  // the seriesId + count + foci into __lp) or Start fresh (hide the
+  // banner; recompute() will mint a new seriesId on demand).
+  let __lpResumePayload = null;   // last bridge response, for Continue
+  let __lpResumeDismissed = false; // sticky-per-(subject|subtopic) so the
+                                   // banner doesn't re-appear after the
+                                   // teacher clicks Start fresh.
+  let __lpResumeDismissKey = '';
+
+  function hideResumeBanner() {
+    const el = document.getElementById('lp-resume-banner');
+    if (el) el.hidden = true;
+    __lpResumePayload = null;
+  }
+
+  function showResumeBanner(payload, subtopicLabel) {
+    const el = document.getElementById('lp-resume-banner');
+    if (!el) return;
+    const total = document.getElementById('lp-resume-total');
+    const sub = document.getElementById('lp-resume-subtopic');
+    const prog = document.getElementById('lp-resume-progress');
+    const dateEl = document.getElementById('lp-resume-date');
+    if (total) total.textContent = String(payload.totalLessons);
+    if (sub) sub.textContent = subtopicLabel || 'this sub-topic';
+    if (prog) prog.textContent = `${payload.generatedLessons.length} of ${payload.totalLessons} saved`;
+    if (dateEl) {
+      const d = payload.latestCreatedAt;
+      // Compact relative-style date: "May 26" if same year, "May 26, 2025"
+      // otherwise — short enough for the inline meta row, readable
+      // without a tooltip.
+      const sameYear = d.getFullYear() === new Date().getFullYear();
+      dateEl.textContent = d.toLocaleDateString('en-GB', sameYear
+        ? { month: 'short', day: 'numeric' }
+        : { month: 'short', day: 'numeric', year: 'numeric' });
+    }
+    el.hidden = false;
+    __lpResumePayload = payload;
+  }
+
+  function continueSeries() {
+    const p = __lpResumePayload;
+    if (!p) return;
+    // Pick the mode that matches the planning intent so the right
+    // panel and pills are highlighted. AI-suggested counts go back into
+    // 'ai' so the reason chip stays consistent; everything else lands
+    // in 'multiple'.
+    if (p.planningMode === 'ai_suggested') {
+      __lp.mode = 'ai';
+      __lp.aiSuggestedReason = p.aiSuggestedReason || null;
+    } else {
+      __lp.mode = 'multiple';
+      __lp.aiSuggestedReason = null;
+    }
+    __lp.count = Math.max(1, p.totalLessons);
+    // Restore the foci slot-for-slot; fall back to the subject's stage
+    // list for any slot the persisted series left blank (rare but
+    // possible — e.g. a doc with no lessonFocus recorded).
+    const fresh = buildFoci(currentSubject(), __lp.count);
+    __lp.foci = (p.foci || []).map((f, i) => f && f.trim() ? f : fresh[i] || '');
+    __lp.seriesId = p.seriesId;
+    __lp.generateOnlyIndex = null;
+    syncModePills();
+    syncCountPills();
+    syncWeekPills();
+    renderBreakdown();
+    updateGenerateButton();
+    // Hide the banner — the planner is now in the restored state, so
+    // any further changes (clicking Only this, regenerating, etc.) work
+    // against the saved seriesId.
+    hideResumeBanner();
+    toast(`Continuing ${p.generatedLessons.length} of ${p.totalLessons}-lesson series`);
+  }
+
+  function dismissResumeBanner() {
+    hideResumeBanner();
+    __lpResumeDismissed = true;
+    // Generate a new seriesId NOW so the next generate run doesn't
+    // accidentally inherit the old one (recompute() leaves a non-null
+    // seriesId alone).
+    __lp.seriesId = null;
+    if (__lp.count > 1) __lp.seriesId = uuidish();
+  }
+
+  async function checkResumableSeries() {
+    if (typeof window.__studioFetchExistingSeries !== 'function') return;
+    const grade = (document.getElementById('f-class') || {}).value || '';
+    const subject = currentSubject();
+    const subtopic = currentSubtopic();
+    if (!grade || !subject || !subtopic) { hideResumeBanner(); return; }
+    const dismissKey = `${grade}|${subject}|${subtopic}`;
+    // Reset the "dismissed" sticky if the teacher changed (grade, subject,
+    // subtopic) — a fresh sub-topic deserves a fresh check.
+    if (__lpResumeDismissKey !== dismissKey) {
+      __lpResumeDismissed = false;
+      __lpResumeDismissKey = dismissKey;
+    }
+    if (__lpResumeDismissed) return;
+    try {
+      const payload = await window.__studioFetchExistingSeries({ grade, subject, subtopic });
+      if (!payload) { hideResumeBanner(); return; }
+      // Re-check the keys — if the teacher changed the sub-topic during
+      // the async fetch we'd otherwise show a stale banner.
+      if (currentSubtopic() !== subtopic || currentSubject() !== subject) return;
+      showResumeBanner(payload, subtopic);
+    } catch (e) { /* fail-open */ }
+  }
+
   // ── Init / rebind ───────────────────────────────────────────────────────
   function __studioInitLessonProgression() {
     const grid = document.getElementById('lp-mode-grid');
@@ -510,6 +624,20 @@ Return JSON only.`;
       // a pre-selected sub-topic (rebind path).
       maybeOpen();
     }
+
+    // Resume banner: check whenever the teacher lands on a sub-topic.
+    // Same change-handler as the auto-open above so we share the trigger
+    // semantics — the bridge is cheap (one Firestore query, results
+    // filtered client-side) so running on every change is fine. Also
+    // run once at bind time for the rebind path.
+    if (subSel) {
+      subSel.addEventListener('change', checkResumableSeries);
+      checkResumableSeries();
+    }
+    const continueBtn = document.getElementById('btn-lp-resume-continue');
+    if (continueBtn) continueBtn.addEventListener('click', continueSeries);
+    const freshBtn = document.getElementById('btn-lp-resume-fresh');
+    if (freshBtn) freshBtn.addEventListener('click', dismissResumeBanner);
 
     recompute();
   }
