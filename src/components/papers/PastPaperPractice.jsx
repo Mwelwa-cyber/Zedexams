@@ -23,7 +23,7 @@
  *     submit and a ghost.
  */
 
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import {
@@ -48,12 +48,33 @@ function fmtClock(totalSeconds) {
   return `${mm}:${ss}`
 }
 
+/**
+ * Pick the right preview source for the runner — PDF if there is one,
+ * otherwise the image-asset stack used by scanned ECZ papers. Mirrors
+ * the same picker in PastPaperViewer so a paper that displays as
+ * stacked images on the viewer also runs as stacked images here.
+ */
+function pickPreviewSource(paper) {
+  if (!paper) return null
+  if (paper.pdfPath) return { kind: 'pdf', path: paper.pdfPath }
+  const paperAssets = Array.isArray(paper.assets)
+    ? paper.assets.filter((a) => a.role !== 'mark-scheme')
+    : []
+  if (paperAssets.length === 0) return null
+  const pdfAsset = paperAssets.find((a) => a.contentType === 'application/pdf')
+  if (pdfAsset) return { kind: 'pdf', path: pdfAsset.path }
+  const images = paperAssets.filter((a) => a.contentType?.startsWith('image/'))
+  if (images.length) return { kind: 'images', assets: images }
+  return null
+}
+
 export default function PastPaperPractice() {
   const { paperId } = useParams()
   const { currentUser, loading: authLoading } = useAuth()
 
   const [paper, setPaper] = useState(null)
   const [paperUrl, setPaperUrl] = useState(null)
+  const [imageAssetUrls, setImageAssetUrls] = useState([])
   const [loadError, setLoadError] = useState(false)
 
   const [attemptId, setAttemptId] = useState(null)
@@ -81,12 +102,25 @@ export default function PastPaperPractice() {
           return
         }
         setPaper(row)
-        if (row.pdfPath) {
+        const source = pickPreviewSource(row)
+        if (source?.kind === 'pdf') {
           try {
-            const url = await resolvePaperUrl(row.pdfPath)
+            const url = await resolvePaperUrl(source.path)
             if (!cancelled) setPaperUrl(url)
           } catch (err) {
             console.warn('[PastPaperPractice] pdf url failed', err)
+          }
+        } else if (source?.kind === 'images') {
+          try {
+            const urls = await Promise.all(source.assets.map((a) =>
+              resolvePaperUrl(a.path).catch((err) => {
+                console.warn('[PastPaperPractice] image url failed', a.path, err)
+                return null
+              }),
+            ))
+            if (!cancelled) setImageAssetUrls(urls)
+          } catch (err) {
+            console.warn('[PastPaperPractice] images failed', err)
           }
         }
       } catch (err) {
@@ -143,6 +177,8 @@ export default function PastPaperPractice() {
       abandonPaperAttempt(attemptId).catch(() => {})
     }
   }, [attemptId])
+
+  const previewSource = useMemo(() => pickPreviewSource(paper), [paper])
 
   const durationMinutes = paper?.durationMinutes ?? FALLBACK_DURATION_MINUTES
   const elapsedSeconds = startedAtMs ? Math.floor((now - startedAtMs) / 1000) : 0
@@ -316,22 +352,98 @@ export default function PastPaperPractice() {
         />
       </div>
 
-      {/* PDF viewer — same component the regular paper page uses. */}
+      {/* Paper body — same picker as the viewer. PDF papers render
+          through PdfJsViewer; scanned (image) papers render as a
+          vertical stack of <img> elements so the learner can scroll
+          the paper while the timer counts down. */}
       <div className="flex-1 px-4 pt-3 pb-6">
-        {paperUrl ? (
-          <Suspense fallback={
-            <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex items-center justify-center theme-text-muted text-sm">
-              Loading viewer…
-            </div>
-          }>
-            <PdfJsViewer url={paperUrl} title={paper.title} />
-          </Suspense>
-        ) : (
-          <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex items-center justify-center theme-text-muted text-sm">
-            Loading paper…
-          </div>
-        )}
+        <PaperBody
+          previewSource={previewSource}
+          paperUrl={paperUrl}
+          imageAssetUrls={imageAssetUrls}
+          paperTitle={paper.title}
+        />
       </div>
+    </div>
+  )
+}
+
+function PaperBody({ previewSource, paperUrl, imageAssetUrls, paperTitle }) {
+  if (!previewSource) {
+    return (
+      <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex items-center justify-center theme-text-muted text-sm">
+        No paper file is attached.
+      </div>
+    )
+  }
+
+  if (previewSource.kind === 'pdf') {
+    if (!paperUrl) {
+      return (
+        <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex items-center justify-center theme-text-muted text-sm">
+          Loading paper…
+        </div>
+      )
+    }
+    return (
+      <Suspense fallback={
+        <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex items-center justify-center theme-text-muted text-sm">
+          Loading paper…
+        </div>
+      }>
+        <PdfJsViewer url={paperUrl} title={paperTitle} />
+      </Suspense>
+    )
+  }
+
+  // images
+  const validPages = previewSource.assets
+    .map((asset, idx) => ({
+      key: asset.path || `page-${idx}`,
+      pageNumber: idx + 1,
+      width: asset.width || null,
+      height: asset.height || null,
+      url: imageAssetUrls[idx] || null,
+    }))
+    .filter((p) => p.url)
+
+  if (!imageAssetUrls.length) {
+    return (
+      <div className="theme-card border theme-border rounded-radius-md h-[70vh] flex items-center justify-center theme-text-muted text-sm">
+        Loading paper…
+      </div>
+    )
+  }
+
+  if (!validPages.length) {
+    return (
+      <div className="theme-card border theme-border rounded-radius-md h-[40vh] flex items-center justify-center theme-text-muted text-sm">
+        Paper pages are unavailable. Please refresh or contact support.
+      </div>
+    )
+  }
+
+  const total = previewSource.assets.length
+  return (
+    <div className="flex flex-col gap-4">
+      {validPages.map((page) => (
+        <article key={page.key} className="w-full">
+          <p className="text-center text-xs font-bold theme-text-muted mb-2">
+            Page {page.pageNumber} of {total}
+          </p>
+          <div className="w-full bg-white rounded-radius-md overflow-hidden shadow-elev-sm">
+            <img
+              src={page.url}
+              alt={`Question paper page ${page.pageNumber} of ${total}`}
+              loading={page.pageNumber <= 2 ? 'eager' : 'lazy'}
+              decoding="async"
+              width={page.width || undefined}
+              height={page.height || undefined}
+              className="block w-full h-auto max-w-[900px] mx-auto"
+            />
+          </div>
+        </article>
+      ))}
     </div>
   )
 }
