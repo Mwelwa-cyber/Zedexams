@@ -4,9 +4,12 @@
  *
  * The Reader (functions/agents/learnerAi/curriculumResolver.js) MUST:
  *   1. Refuse when no KB module / topic matches.
- *   2. Refuse when the module has no `sourceDocId` (i.e. before the
- *      backfill script runs).
- *   3. Refuse when the approved syllabus doc is missing.
+ *   2. Succeed with noSourceRef=true when the module has no `sourceDocId`
+ *      (backfill not yet run) — generator still runs, artifact marked
+ *      needs_review. Previously a hard block; changed so the system does
+ *      not permanently stall on unlinked but valid KB modules.
+ *   3. Refuse when the approved syllabus doc is missing (sourceDocId set
+ *      but the referenced doc doesn't exist).
  *   4. Refuse on grade/subject mismatch between module and syllabus.
  *   5. Succeed only when KB + approvedSyllabi line up AND cited
  *      excerpts are non-empty.
@@ -120,17 +123,23 @@ await test('refuses when KB has no module and no topic match', async () => {
   assert(r.reason === 'no_curriculum_match', `wrong reason: ${r.reason}`)
 })
 
-await test('refuses when module has no sourceDocId (pre-backfill state)', async () => {
+await test('succeeds with noSourceRef=true when module has no sourceDocId', async () => {
+  // Backfill not yet run → sourceDocId missing. Previously a hard block;
+  // now the resolver succeeds with noSourceRef=true so the generator can
+  // run and the artifact is marked needs_review for admin attention.
   state.module = {
     id: 'mod-1', grade: '7', subject: 'Mathematics', term: 1,
     topic: 'Fractions', subtopic: 'Adding fractions',
     outcomes: ['outcome a'], contentSummary: 'summary',
-    // NOTE: no sourceDocId — must refuse, not fall back to general knowledge.
+    // no sourceDocId — must NOT hard-block; noSourceRef flag must be set.
   }
   state.topic = null
   const r = await resolveStrictCurriculumRef(baseInputs)
-  assert(r.ok === false, 'must refuse modules without sourceDocId')
-  assert(r.reason === 'no_source_doc_ref', `wrong reason: ${r.reason}`)
+  assert(r.ok === true, `must succeed (needs_review path) when sourceDocId missing, got reason=${r.reason || '?'}`)
+  assert(r.noSourceRef === true, 'noSourceRef flag must be set when sourceDocId is absent')
+  assert(r.curriculumRef.sourceDocId === '', 'sourceDocId must be empty string on curriculumRef')
+  assert(r.curriculumRef.sourceChecksums.length === 0, 'sourceChecksums must be empty without a syllabus doc')
+  assert(r.curriculumRef.citedExcerpts.length > 0, 'cited excerpts must still be populated from the KB module')
 })
 
 await test('refuses when approvedSyllabi doc is missing', async () => {
@@ -285,6 +294,30 @@ await test('projectAgentOutput emits all 14 v2 fields on subtopic_exact match', 
   assert(out.citedExcerpts.length >= 1, 'citedExcerpts must propagate from resolver')
   assert(out.sourceChecksums.length >= 1, 'sourceChecksums must propagate')
   assert(out.lessonNumber === 2, 'lessonNumber must echo from task')
+})
+
+await test('noSourceRef forces status=needs_review even on rich subtopic_exact match', async () => {
+  // A fully-populated KB module but no sourceDocId (backfill not run).
+  // Without the fix, generation was hard-blocked. With the fix, the
+  // resolver succeeds with noSourceRef=true and the runner forces
+  // needs_review regardless of the high confidence score.
+  const richModuleNoDoc = {...RICH_MODULE}
+  delete richModuleNoDoc.sourceDocId
+  delete richModuleNoDoc.sourceStoragePath
+  state.module = richModuleNoDoc
+  state.topic = null
+  fakeAdmin.__syllabi = {}
+  const resolved = await resolveStrictCurriculumRef(baseInputs)
+  assert(resolved.ok === true, `resolver must succeed on noSourceRef path, got reason=${resolved.reason || '?'}`)
+  assert(resolved.noSourceRef === true, 'noSourceRef must be true')
+  const out = reader.projectAgentOutput({task: baseTask, resolved})
+  // Simulate the runner's post-project override (projectAgentOutput is pure;
+  // the runner applies the override after calling it).
+  if (resolved.noSourceRef) out.status = 'needs_review'
+  assert(out.status === 'needs_review',
+    `noSourceRef must force needs_review, got status=${out.status}`)
+  assert(out.citedExcerpts.length > 0, 'excerpts must still populate')
+  assert(out.competencies.length > 0, 'competencies must still populate')
 })
 
 await test('topic-only match → status=needs_review with sparse KB', async () => {

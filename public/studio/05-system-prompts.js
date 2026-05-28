@@ -27,7 +27,7 @@ Check whether the requested topic actually fits the given grade and subject in t
 
 TEACHER-SUPPLIED CONTEXT (honour when present in the user prompt):
 - If learning environment(s) are specified (Natural / Artificial / Technological), tailor activities, materials and methods to those environment(s).
-- If the lesson is part of a multi-lesson sequence ("lesson X of Y"), scope the content to that single lesson — do not try to cover the whole subtopic — and build on prior lessons where the progression notes indicate.`;
+- If the lesson is part of a multi-lesson sequence ("LESSON K of N" + per-lesson focus + series outline), scope the ENTIRE plan to that single lesson's focus. Do NOT cover content earmarked for later lessons; build on lessons earlier in the series. Even when the syllabus sub-topic is broad, this plan is for ONE period (the duration given in the user prompt) only — choose depth over breadth.`;
 
 const sysModern = `You are an expert in Zambian school lesson planning. You write rich, professional lesson plans aligned with the Zambian Competence-Based Curriculum (CBC).
 

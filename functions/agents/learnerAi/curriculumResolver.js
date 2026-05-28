@@ -126,17 +126,18 @@ async function resolveStrictCurriculumRef({grade, subject, topic, subtopic, term
     return refusal("no_curriculum_match", []);
   }
 
-  // 3. Approved syllabus reference. A module without `sourceDocId` is
-  //    treated as ungrounded — the backfill script must run before the
-  //    Curriculum Reader can succeed. This is intentional: we'd rather
-  //    refuse 100% of generations on day one than ship guesses.
+  // 3. Approved syllabus reference. A missing `sourceDocId` means the
+  //    backfill has not yet run for this module. Rather than hard-blocking
+  //    generation indefinitely, we continue as `needs_review` — the KB
+  //    module content is still grounded, the generator runs, and the
+  //    artifact is flagged for admin attention via `noSourceRef: true`.
   const sourceDocId = safeString(module && module.sourceDocId) ||
     safeString(topicMatch && topicMatch.sourceDocId);
-  if (!sourceDocId) {
-    return refusal("no_source_doc_ref", []);
-  }
-  const syllabus = await loadApprovedSyllabus(sourceDocId);
-  if (!syllabus) {
+  const noSourceRef = !sourceDocId;
+
+  // Only fetch the syllabus doc when we actually have a reference to resolve.
+  const syllabus = sourceDocId ? await loadApprovedSyllabus(sourceDocId) : null;
+  if (sourceDocId && !syllabus) {
     return refusal("source_doc_not_found", []);
   }
   // Normalize both sides before comparing so that callers passing a
@@ -144,11 +145,11 @@ async function resolveStrictCurriculumRef({grade, subject, topic, subtopic, term
   // display strings ("Integrated Science") line up with the KB-canonical
   // key ("integrated_science"). Without this, the byte-for-byte check
   // refused every task wired from the admin Live Monitor test button.
-  if (syllabus.grade && safeString(grade) &&
+  if (syllabus && syllabus.grade && safeString(grade) &&
       normalizeGrade(syllabus.grade) !== normalizeGrade(grade)) {
     return refusal("source_doc_grade_mismatch", []);
   }
-  if (syllabus.subject && safeString(subject) &&
+  if (syllabus && syllabus.subject && safeString(subject) &&
       normalizeSubject(syllabus.subject) !== normalizeSubject(subject)) {
     return refusal("source_doc_subject_mismatch", []);
   }
@@ -162,9 +163,9 @@ async function resolveStrictCurriculumRef({grade, subject, topic, subtopic, term
   const curriculumRef = {
     kbVersion: KB_VERSION,
     sourceDocId,
-    storagePath: safeString(syllabus.storagePath) ||
+    storagePath: safeString(syllabus && syllabus.storagePath) ||
       safeString(matchedModule.sourceStoragePath) || "",
-    sourceChecksums: syllabus.sha256 ? [
+    sourceChecksums: (syllabus && syllabus.sha256) ? [
       {storagePath: syllabus.storagePath || "", sha256: syllabus.sha256},
     ] : [],
     moduleId: matchedModule.id || "",
@@ -188,7 +189,7 @@ async function resolveStrictCurriculumRef({grade, subject, topic, subtopic, term
 
   const matchKind = module ? "subtopic_exact" : "topic_only";
 
-  return {ok: true, curriculumRef, matchedModule, matchKind};
+  return {ok: true, curriculumRef, matchedModule, matchKind, noSourceRef};
 }
 
 module.exports = {

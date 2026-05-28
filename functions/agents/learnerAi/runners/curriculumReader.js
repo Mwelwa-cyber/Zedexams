@@ -301,15 +301,24 @@ async function runCurriculumReader({task, stepNumber = 1}) {
   }
 
   const output = projectAgentOutput({task, resolved});
+
+  // KB match found but no approved-syllabus link — force needs_review so
+  // every artifact is flagged for admin attention. Run the "Backfill
+  // syllabus links" button on /admin/learner-ai to resolve permanently.
+  if (resolved.noSourceRef) {
+    output.status = "needs_review";
+  }
+
   const slim = projectPersistSlice(output);
 
+  const sourceNote = resolved.noSourceRef ? ", no_source_doc_ref" : "";
   const summary = `${output.status} (confidence=${output.confidenceScore.toFixed(2)}, ` +
     `match=${output.matchKind}, excerpts=${output.citedExcerpts.length}, ` +
-    `competencies=${output.competencies.length}, outcomes=${output.learningOutcomes.length})`;
+    `competencies=${output.competencies.length}, outcomes=${output.learningOutcomes.length}${sourceNote})`;
 
   await writeAgentLog({
     taskId: task.id, agentName: AGENT_ID, action: "resolve_curriculum",
-    message: `Grounded in ${output.curriculumDocumentPath || output.sourceDocId} — ${summary}`,
+    message: `Grounded in ${output.curriculumDocumentPath || output.sourceDocId || "(no doc ref)"} — ${summary}`,
     taskType: task.taskType,
     grade: task.grade, subject: task.subject, topic: task.topic,
     severity: output.status === "needs_review" ? SEVERITY.WARNING : SEVERITY.INFO,
