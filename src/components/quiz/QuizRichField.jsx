@@ -43,7 +43,7 @@ export default function QuizRichField({
   // is everything. Defaults track the visual `compact` chrome prop so
   // legacy callers keep their existing toolbar.
   toolbarVariant,
-  resetKey: _resetKey,
+  resetKey,
 }) {
   // When the value object identity changes (parent switched to a different
   // question), remount RichEditor so it re-reads initialContent. We don't
@@ -52,13 +52,18 @@ export default function QuizRichField({
     // Stable key per "document" identity: object reference for JSON, string
     // hash for HTML. Teachers editing in place keep their cursor; switching
     // to another question hands RichEditor a new document to mount.
-    if (value && typeof value === 'object') return identityKey(value)
-    if (typeof value === 'string') return `s:${stringHash(value)}`
-    return 'empty'
-    // We INTENTIONALLY derive mountKey from value only on mount. We don't
-    // want to react to every onChange — that would remount every keystroke.
+    const base = (value && typeof value === 'object')
+      ? identityKey(value)
+      : (typeof value === 'string' ? `s:${stringHash(value)}` : 'empty')
+    // resetKey lets a parent force a clean remount that re-reads the CURRENT
+    // value — used after an AI edit replaces the field's content in place.
+    // When resetKey is undefined the dep is stable, so typing still keeps the
+    // cursor (we recompute base only when resetKey actually changes).
+    return resetKey != null ? `${base}#${resetKey}` : base
+    // We INTENTIONALLY recompute only when resetKey changes, not on every
+    // onChange — that would remount every keystroke.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [resetKey])
 
   return (
     <div className={compact ? 'qrf-compact' : ''} style={{ width: '100%' }}>

@@ -8,6 +8,7 @@ const aiChatCallable = httpsCallable(functions, 'aiChat')
 const explainAnswerCallable = httpsCallable(functions, 'explainAnswer')
 const generateQuizCallable = httpsCallable(functions, 'generateQuizQuestions')
 const structureImportedQuizCallable = httpsCallable(functions, 'structureImportedQuiz')
+const editQuizQuestionCallable = httpsCallable(functions, 'editQuizQuestion')
 // Client timeouts are intentionally a bit longer than the matching Cloud
 // Function timeoutSeconds — so the server's own error surfaces rather than
 // the client giving up first. Claude Sonnet can easily take 15–25s on a
@@ -16,6 +17,7 @@ const AI_CHAT_TIMEOUT_MS = 35000       // server: 30s
 const AI_EXPLAIN_TIMEOUT_MS = 35000    // server: 30s
 const AI_QUIZ_TIMEOUT_MS = 50000       // server: 45s
 const AI_IMPORT_TIMEOUT_MS = 95000     // server: 90s (Gemini → Claude pipeline)
+const AI_EDIT_TIMEOUT_MS = 50000       // server: 45s (single-question edit)
 
 function messageFromError(error) {
   const code = error?.code || ''
@@ -380,6 +382,28 @@ export async function generateAIQuizQuestions(payload) {
     if (!isHardAIError(error)) {
       return { questions: makeLocalQuizQuestions(payload), warning: null }
     }
+    throw new Error(messageFromError(error))
+  }
+}
+
+// Per-question AI edit. `payload` = { action, question, options, correctAnswer,
+// subject, grade, topic }. Returns { action, patch } where patch only contains
+// the fields the model changed (text / options / correctAnswer / explanation /
+// note). Maths in the patch comes back as import markup — the caller runs it
+// through importRichText before applying so fractions/sums/tables render.
+export async function aiEditQuizQuestion(payload) {
+  try {
+    const response = await withTimeout(
+      editQuizQuestionCallable(payload),
+      AI_EDIT_TIMEOUT_MS,
+      'The AI editor is taking too long. Please try again.',
+    )
+    const data = response.data || {}
+    return {
+      action: data.action || payload.action,
+      patch: data.patch && typeof data.patch === 'object' ? data.patch : {},
+    }
+  } catch (error) {
     throw new Error(messageFromError(error))
   }
 }

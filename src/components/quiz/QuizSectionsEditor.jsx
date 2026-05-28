@@ -24,6 +24,7 @@ function partLabel(index) {
 // way in (legacy quizzes render fine) and emits Tiptap JSON. Saving passes
 // the JSON straight through to Firestore.
 import QuizRichField from './QuizRichField'
+import QuestionAiAssistant from './QuestionAiAssistant.jsx'
 // RichContent is format-aware — handles both legacy HTML and Tiptap JSON.
 // Used wherever we previously showed RichTextContent.
 import RichContent from '../../editor/RichContent'
@@ -399,15 +400,29 @@ function StandaloneQuestionCard({
   onOptionImageUpload,
   onOptionImageRemove,
   onAssignToPart,
+  quizContext = {},
   theme,
 }) {
   // Diagram-picker state. `target` is either { kind: 'question' } or
   // { kind: 'option', optionIndex }. Lives on the card so multiple cards on
   // the same page don't fight over a shared modal.
   const [diagramTarget, setDiagramTarget] = useState(null)
+  // Bumped after an AI edit applies new content so the in-place rich-text
+  // editors remount and re-read the patched value (see QuizRichField.resetKey).
+  const [aiResetKey, setAiResetKey] = useState(0)
 
   function set(field, value) {
     onChange(sectionIndex, field, value)
+  }
+
+  // Apply an editor-ready patch from the AI assistant, then force the rich
+  // fields to refresh so the teacher sees the change immediately.
+  function applyAiPatch(patch) {
+    if (patch.text != null) set('text', patch.text)
+    if (Array.isArray(patch.options)) set('options', patch.options)
+    if (patch.correctAnswer != null) set('correctAnswer', patch.correctAnswer)
+    if (patch.explanation != null) set('explanation', patch.explanation)
+    setAiResetKey(k => k + 1)
   }
 
   function setOption(optionIndex, value) {
@@ -496,6 +511,12 @@ function StandaloneQuestionCard({
           {isNew && <span className="theme-text-muted text-xs font-bold">New question</span>}
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
+          <QuestionAiAssistant
+            question={question}
+            subject={quizContext.subject}
+            grade={quizContext.grade}
+            onApply={applyAiPatch}
+          />
           <select
             value={question.type}
             onChange={event => {
@@ -634,6 +655,7 @@ function StandaloneQuestionCard({
           onChange={nextValue => set('text', nextValue)}
           placeholder={question.imageUrl ? 'Describe what is shown in the image below, or ask your question...' : 'Write your question here...'}
           minHeight={144}
+          resetKey={aiResetKey}
         />
       </div>
 
@@ -910,6 +932,7 @@ function StandaloneQuestionCard({
                         minHeight={36}
                         compact
                         toolbarVariant="compact"
+                        resetKey={aiResetKey}
                       />
                     </div>
                   )}
@@ -1002,6 +1025,7 @@ function StandaloneQuestionCard({
             placeholder="Explain the answer, steps, or reasoning..."
             minHeight={112}
             compact
+            resetKey={aiResetKey}
           />
         </div>
         <div className="flex gap-2">
@@ -1040,13 +1064,25 @@ function PassageQuestionCard({
   onMove,
   onOptionImageUpload,
   onOptionImageRemove,
+  quizContext = {},
   theme,
 }) {
   // Diagram-picker state local to this passage question.
   const [diagramTarget, setDiagramTarget] = useState(null)
+  // Bumped after an AI edit so the in-place rich-text editors remount and
+  // re-read the patched value (see QuizRichField.resetKey).
+  const [aiResetKey, setAiResetKey] = useState(0)
 
   function set(field, value) {
     onChange(sectionIndex, questionIndex, field, value)
+  }
+
+  function applyAiPatch(patch) {
+    if (patch.text != null) set('text', patch.text)
+    if (Array.isArray(patch.options)) set('options', patch.options)
+    if (patch.correctAnswer != null) set('correctAnswer', patch.correctAnswer)
+    if (patch.explanation != null) set('explanation', patch.explanation)
+    setAiResetKey(k => k + 1)
   }
 
   function setOption(optionIndex, value) {
@@ -1090,6 +1126,12 @@ function PassageQuestionCard({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
+          <QuestionAiAssistant
+            question={question}
+            subject={quizContext.subject}
+            grade={quizContext.grade}
+            onApply={applyAiPatch}
+          />
           <select
             value={question.subtype ?? ''}
             onChange={event => set('subtype', event.target.value || null)}
@@ -1134,6 +1176,7 @@ function PassageQuestionCard({
           placeholder="Write the question for this passage..."
           minHeight={128}
           compact
+          resetKey={aiResetKey}
         />
       </div>
 
@@ -1213,6 +1256,7 @@ function PassageQuestionCard({
                       minHeight={36}
                       compact
                       toolbarVariant="compact"
+                      resetKey={aiResetKey}
                     />
                   </div>
                 )}
@@ -1302,6 +1346,7 @@ function PassageQuestionCard({
           placeholder="Add the explanation for this passage question..."
           minHeight={96}
           compact
+          resetKey={aiResetKey}
         />
       </div>
     </div>
@@ -1330,6 +1375,7 @@ function PassageSectionCard({
   onPassageQuestionOptionImageRemove,
   onPassageAddQuestion,
   onAssignToPart,
+  quizContext = {},
 }) {
   const passage = section.passage
   const isMap = passage.passageKind === 'map'
@@ -1548,6 +1594,7 @@ function PassageSectionCard({
                     onMove={onPassageQuestionMove}
                     onOptionImageUpload={onPassageQuestionOptionImageUpload}
                     onOptionImageRemove={onPassageQuestionOptionImageRemove}
+                    quizContext={quizContext}
                     theme={theme}
                   />
                 ))
@@ -1789,6 +1836,9 @@ export default function QuizSectionsEditor({
   variant = 'create',
   sections,
   parts = [],
+  // { subject, grade } — passed to each question card so the per-question
+  // "✨ AI" assistant can make grade/subject-appropriate edits.
+  quizContext = {},
   questionNumbers,
   // Map<question.localId, errorCount> — populated when the parent
   // editor wires `collectQuizIssues` into a per-question map. Each card
@@ -1908,6 +1958,7 @@ export default function QuizSectionsEditor({
           onPassageQuestionOptionImageRemove={onPassageQuestionOptionImageRemove}
           onPassageAddQuestion={onPassageAddQuestion}
           onAssignToPart={onAssignSectionToPart}
+          quizContext={quizContext}
         />
       )
     }
@@ -1933,6 +1984,7 @@ export default function QuizSectionsEditor({
         onOptionImageUpload={onStandaloneOptionImageUpload}
         onOptionImageRemove={onStandaloneOptionImageRemove}
         onAssignToPart={onAssignSectionToPart}
+        quizContext={quizContext}
         theme={theme}
       />
     )
