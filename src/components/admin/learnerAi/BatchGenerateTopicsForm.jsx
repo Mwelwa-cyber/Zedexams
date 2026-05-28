@@ -149,10 +149,18 @@ export default function BatchGenerateTopicsForm({ onBatchQueued }) {
     return () => { cancelled = true }
   }, [grade, subject])
 
-  // Run preflight against every visible subtopic, in parallel. The
-  // dispatcher's strict resolver refuses tasks where the matched module
-  // lacks an approved-syllabus reference; surfacing that here saves the
-  // admin from queueing tasks that would only fail at quality_check.
+  // Run preflight against every visible subtopic. The dispatcher's
+  // strict resolver refuses tasks where the matched module lacks an
+  // approved-syllabus reference; surfacing that here saves the admin
+  // from queueing tasks that would only fail at quality_check.
+  //
+  // Concurrency capped at PREFLIGHT_CONCURRENCY. Firing 20+ callables
+  // in parallel against a cold-start Cloud Function reliably exceeds
+  // the 20-second client timeout for the tail of the burst, which
+  // surfaces as `deadline_exceeded` on every chip. Chunking lets the
+  // first batch warm a function instance, then subsequent batches
+  // reuse it. Results stream into state as each chunk completes so
+  // chips flip green progressively instead of all-at-once.
   useEffect(() => {
     if (topicsForSelection.length === 0) {
       setPreflight({})
@@ -170,7 +178,9 @@ export default function BatchGenerateTopicsForm({ onBatchQueued }) {
       })
     }
     setPreflight(initial)
-    Promise.all(lookups.map(async ({ key, topic, subtopic }) => {
+
+    const PREFLIGHT_CONCURRENCY = 4
+    async function runOne({ key, topic, subtopic }) {
       const result = await preflightCurriculumRef({
         grade: topic.grade,
         subject: topic.subject,
@@ -179,31 +189,44 @@ export default function BatchGenerateTopicsForm({ onBatchQueued }) {
         term: Number(topic.term) || null,
       })
       return { key, result }
-    })).then((results) => {
-      if (cancelled) return
-      setPreflight((prev) => {
-        const next = { ...prev }
-        for (const { key, result } of results) {
-          if (result && result.ok) next[key] = { status: 'ok' }
-          else next[key] = {
-            status: 'fail',
-            reason: (result && result.reason) || 'unknown',
-            message: result && result.message,
+    }
+
+    ;(async () => {
+      const allResults = []
+      for (let i = 0; i < lookups.length; i += PREFLIGHT_CONCURRENCY) {
+        if (cancelled) return
+        const slice = lookups.slice(i, i + PREFLIGHT_CONCURRENCY)
+        const chunkResults = await Promise.all(slice.map(runOne))
+        if (cancelled) return
+        allResults.push(...chunkResults)
+        // Stream chip updates so the admin sees progress instead of a
+        // long all-loading state followed by a flash of greens/reds.
+        setPreflight((prev) => {
+          const next = { ...prev }
+          for (const { key, result } of chunkResults) {
+            if (result && result.ok) next[key] = { status: 'ok' }
+            else next[key] = {
+              status: 'fail',
+              reason: (result && result.reason) || 'unknown',
+              message: (result && result.message) || null,
+              rawCode: (result && result.rawCode) || null,
+            }
           }
-        }
-        return next
-      })
+          return next
+        })
+      }
+      if (cancelled) return
       // Drop any pre-existing selections that now fail preflight.
       setSelected((prev) => {
         const failKeys = new Set(
-          results.filter((r) => !(r.result && r.result.ok)).map((r) => r.key),
+          allResults.filter((r) => !(r.result && r.result.ok)).map((r) => r.key),
         )
         if (failKeys.size === 0) return prev
         const next = { ...prev }
         for (const k of failKeys) delete next[k]
         return next
       })
-    }).catch((err) => {
+    })().catch((err) => {
       if (cancelled) return
       console.warn('preflight batch failed', err)
     })
@@ -255,6 +278,20 @@ export default function BatchGenerateTopicsForm({ onBatchQueued }) {
     () => summarizePreflightResults(Object.values(preflight)),
     [preflight],
   )
+
+  // Pick a representative underlying message for the dominant reason so
+  // the banner can surface the actual SDK / server error inline instead
+  // of forcing the admin to hover a single chip to read it.
+  const dominantMessage = useMemo(() => {
+    if (!preflightSummary.dominant) return null
+    for (const v of Object.values(preflight)) {
+      if (v && v.status === 'fail' &&
+          v.reason === preflightSummary.dominant && v.message) {
+        return v.rawCode ? `[${v.rawCode}] ${v.message}` : v.message
+      }
+    }
+    return null
+  }, [preflight, preflightSummary.dominant])
 
   async function runBackfill(dryRun) {
     if (backfilling) return
@@ -428,7 +465,7 @@ export default function BatchGenerateTopicsForm({ onBatchQueued }) {
               </div>
               {preflightSummary.dominant && (
                 <p className="text-amber-900 leading-snug mb-2">
-                  {summarizeReason(preflightSummary.dominant)}{' '}
+                  {summarizeReason(preflightSummary.dominant, dominantMessage)}{' '}
                   <span className="text-amber-800">{fixHint(preflightSummary.dominant)}</span>
                 </p>
               )}
