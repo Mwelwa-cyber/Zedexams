@@ -31,6 +31,7 @@ import { NoteMetaPanel } from '../components/NoteMetaPanel'
 import { NoteEditor }    from '../components/NoteEditor'
 import { NoteUploader }  from '../components/NoteUploader'
 import { PublishToggle } from '../components/PublishToggle'
+import { SlideNotesReader } from '../components/SlideNotesReader'
 import SeoHelmet         from '../../../components/seo/SeoHelmet'
 import '../styles/notes.css'
 
@@ -72,6 +73,9 @@ export function AdminNoteEditor() {
 
   const isLegacySlides = noteFormat === NOTE_FORMAT.SLIDES
     || (note && !note.noteFormat && Array.isArray(note.slides) && note.slides.length > 0)
+  // AI visual slide-notes: not editable here (regenerate to change content),
+  // but previewable and publishable via the standard toggle.
+  const isVisual = noteFormat === NOTE_FORMAT.VISUAL
 
   // Hydrate the form when the note loads.
   useEffect(() => {
@@ -274,7 +278,20 @@ export function AdminNoteEditor() {
           week={week}       onWeekChange={(v)    => { if (!isLegacySlides) { setWeek(v);    markDirty() } }}
         />
 
-        {!isLegacySlides && (
+        {isVisual && (
+          <div className="mt-4">
+            <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 mb-4 flex gap-3 items-start">
+              <Sparkles size={18} className="text-violet-700 mt-0.5 shrink-0" />
+              <div className="text-sm text-violet-900">
+                <strong>AI visual slide-notes.</strong> Preview the deck below and publish it when you're happy.
+                To change the content, generate a new deck — the slides aren't edited here.
+              </div>
+            </div>
+            <SlideNotesReader deck={note?.deck} />
+          </div>
+        )}
+
+        {!isLegacySlides && !isVisual && (
           <>
             <div className="flex gap-1 p-1 bg-neutral-100 rounded-xl mb-4 max-w-md">
               <ToggleButton

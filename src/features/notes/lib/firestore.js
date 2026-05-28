@@ -110,6 +110,10 @@ export async function createNote(data) {
     noteFormat,
     content:      noteFormat === NOTE_FORMAT.RICH_TEXT ? (data.content || '') : '',
     excerpt:      data.excerpt || '',
+    // Visual slide-notes carry their whole deck ({header, theme, slides[]})
+    // and a link back to the aiGenerations draft they were generated from.
+    deck:             noteFormat === NOTE_FORMAT.VISUAL ? (data.deck || null) : null,
+    sourceGenerationId: noteFormat === NOTE_FORMAT.VISUAL ? (data.sourceGenerationId || null) : null,
     fileUrl:      noteFormat === NOTE_FORMAT.FILE ? (data.fileUrl || null) : null,
     fileName:     noteFormat === NOTE_FORMAT.FILE ? (data.fileName || null) : null,
     storagePath:  noteFormat === NOTE_FORMAT.FILE ? (data.storagePath || null) : null,

@@ -16,6 +16,7 @@ import { useNote }            from '../hooks/useNote'
 import { NOTE_FORMAT }        from '../../../config/curriculum'
 import { formatDate }         from '../lib/format'
 import { sanitizeNoteHTML }   from '../../../editor/utils/sanitize.js'
+import { SlideNotesReader }   from '../components/SlideNotesReader'
 import SeoHelmet              from '../../../components/seo/SeoHelmet'
 import '../styles/notes.css'
 
@@ -118,6 +119,8 @@ export function LearnerNoteRead() {
 
           {note.noteFormat === NOTE_FORMAT.FILE ? (
             <FileDownload note={note} />
+          ) : note.noteFormat === NOTE_FORMAT.VISUAL ? (
+            <SlideNotesReader deck={note.deck} />
           ) : (
             <div
               className="prose-note"
