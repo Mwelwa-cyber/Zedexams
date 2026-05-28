@@ -319,6 +319,22 @@ export default function PastPaperViewer() {
         title={paper.title}
         description={`${paper.examBoard || 'ECZ'} Grade ${paper.grade} ${subjectLabel} ${paper.year} past paper${paper.paperNumber ? `, Paper ${paper.paperNumber}` : ''}.`}
         path={`/papers/${paperId}`}
+        jsonLd={{
+          '@context': 'https://schema.org',
+          '@type': 'LearningResource',
+          name: paper.title,
+          educationalLevel: `Grade ${paper.grade}`,
+          learningResourceType: 'Exam',
+          inLanguage: 'en',
+          about: subjectLabel,
+          provider: {
+            '@type': 'Organization',
+            name: paper.examBoard || 'Examinations Council of Zambia',
+          },
+          publisher: { '@type': 'Organization', name: 'ZedExams' },
+          datePublished: paper.year ? `${paper.year}-01-01` : undefined,
+          url: `https://zedexams.com/papers/${paperId}`,
+        }}
       />
 
       {/* Header — back button on mobile, breadcrumb on desktop */}
@@ -484,6 +500,7 @@ export default function PastPaperViewer() {
                     retryNonces={retryNonces}
                     dataSaver={dataSaver}
                     syncHash
+                    progressKey={`paper-progress:${paperId}`}
                     onLoad={handleImageLoad}
                     onError={handleImageError}
                     onRetry={handleRetryPage}
@@ -559,10 +576,11 @@ function BackToTopFab() {
  * "page failed to load" panel instead of the browser's broken-image
  * glyph (which would otherwise show the alt text and an icon).
  */
-function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, retryNonces = {}, dataSaver = false, onLoad, onError, onRetry, altPrefix = 'Question paper page', syncHash = false }) {
+function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, retryNonces = {}, dataSaver = false, onLoad, onError, onRetry, altPrefix = 'Question paper page', syncHash = false, progressKey = null }) {
   const articleRefs = useRef({})
   const [visiblePage, setVisiblePage] = useState(1)
   const hasScrolledToHashRef = useRef(false)
+  const hasRestoredProgressRef = useRef(false)
   // In Data Saver mode, pre-load only the first 2 pages; later pages
   // wait for an explicit "Load page" tap so a long paper doesn't burn
   // through 10+ MB on open.
@@ -602,6 +620,11 @@ function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, r
                 window.history.replaceState(null, '', `${window.location.pathname}${window.location.search}${nextHash}`)
               }
             }
+            if (progressKey && typeof window !== 'undefined') {
+              try {
+                window.localStorage?.setItem(progressKey, String(pageNumber))
+              } catch { /* quota / private mode — ignore */ }
+            }
           }
         }
       },
@@ -611,30 +634,41 @@ function PageImageList({ pages, totalPages, loading, loadedPages, failedPages, r
       if (el) observer.observe(el)
     })
     return () => observer.disconnect()
-  }, [pages, syncHash])
+  }, [pages, syncHash, progressKey])
 
-  // On first mount with a #page=N hash, scroll to that article. Only
-  // runs once per pages array — subsequent hash changes (from the
-  // observer above) shouldn't fight the user's scroll.
+  // On first mount, scroll to either:
+  //   1. the #page=N hash (shared deep link wins — explicit intent)
+  //   2. otherwise the locally-saved progress page (resume reading)
+  // Only runs once per pages array; subsequent hash / progress updates
+  // are driven by the observer and shouldn't fight the user's scroll.
   useEffect(() => {
-    if (!syncHash || hasScrolledToHashRef.current || !pages.length) return
+    if (!pages.length) return
+    if (hasScrolledToHashRef.current && hasRestoredProgressRef.current) return
     if (typeof window === 'undefined') return
-    const match = /#page=(\d+)/.exec(window.location.hash)
-    if (!match) return
-    const target = pages.find((p) => p.pageNumber === Number(match[1]))
+    let targetPageNumber = null
+    if (syncHash && !hasScrolledToHashRef.current) {
+      const match = /#page=(\d+)/.exec(window.location.hash)
+      if (match) targetPageNumber = Number(match[1])
+    }
+    if (targetPageNumber == null && progressKey && !hasRestoredProgressRef.current) {
+      try {
+        const stored = window.localStorage?.getItem(progressKey)
+        const parsed = stored ? Number(stored) : NaN
+        if (Number.isInteger(parsed) && parsed > 1) targetPageNumber = parsed
+      } catch { /* ignore */ }
+    }
+    hasScrolledToHashRef.current = true
+    hasRestoredProgressRef.current = true
+    if (!targetPageNumber) return
+    const target = pages.find((p) => p.pageNumber === targetPageNumber)
     if (!target) return
-    // If the target sits in the Data Saver gated zone, reveal it so the
-    // scroll lands on content rather than a "Tap to load" button.
     if (dataSaver) setRevealedPages((prev) => ({ ...prev, [target.key]: true }))
     const el = articleRefs.current[target.key]
     if (!el) return
-    hasScrolledToHashRef.current = true
-    // Defer one frame so the IntersectionObserver above doesn't fire on
-    // the initial top-of-page intersection before we jump.
     requestAnimationFrame(() => {
       el.scrollIntoView({ behavior: 'auto', block: 'start' })
     })
-  }, [pages, syncHash, dataSaver])
+  }, [pages, syncHash, dataSaver, progressKey])
 
   if (loading) {
     return (
