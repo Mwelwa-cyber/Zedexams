@@ -28,13 +28,34 @@ import {
   Eye,
 } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
-import Logo from '../ui/Logo'
 import Icon from '../ui/Icon'
 import ErrorBoundary from '../ui/ErrorBoundary'
 import ThemeSelector from '../ui/ThemeSelector'
 import { collection, getCountFromServer, query, where } from 'firebase/firestore'
 import { db } from '../../firebase/config'
 import CommandPalette from './CommandPalette'
+
+function AdminBrand({ compact = false }) {
+  return (
+    <div className="inline-flex min-w-0 items-center gap-2.5">
+      <span
+        aria-hidden="true"
+        className={`admin-game-display grid shrink-0 place-items-center rounded-xl border-2 ${compact ? 'h-9 w-9 text-lg' : 'h-10 w-10 text-xl'}`}
+        style={{ background: '#0F1B2D', borderColor: '#0F1B2D', color: '#FFFFFF', boxShadow: '0 2px 0 #FF7A1A' }}
+      >
+        Z
+      </span>
+      <div className="min-w-0 leading-tight">
+        <p className="admin-game-display truncate" style={{ fontSize: compact ? 16 : 18, margin: 0, color: '#0F1B2D' }}>
+          ZedExams
+        </p>
+        <p className="truncate" style={{ fontSize: compact ? 10.5 : 11.5, color: '#4A5A6E', margin: 0, fontWeight: 700 }}>
+          Admin
+        </p>
+      </div>
+    </div>
+  )
+}
 
 // Grouped navigation. Each entry can carry a `badgeKey` referencing the
 // `badges` map computed below (pending counts), so admins can see how
@@ -307,13 +328,7 @@ export default function AdminLayout({ children }) {
       >
         <div className="px-4 py-5" style={{ backgroundColor: '#F5EFE1', borderBottom: '2px solid #0F1B2D' }}>
           <Link to="/admin" className="inline-flex items-center gap-2.5 no-underline" style={{ color: '#0F1B2D' }}>
-            <Logo variant="icon" size="md" />
-            <div className="leading-tight">
-              <p className="admin-game-display" style={{ fontSize: 18, margin: 0, color: '#0F1B2D' }}>
-                ZedExams <span style={{ color: '#FF7A1A' }}>•</span>
-              </p>
-              <p style={{ fontSize: 11.5, color: '#4A5A6E', margin: 0, fontWeight: 700 }}>Admin Quest</p>
-            </div>
+            <AdminBrand />
           </Link>
           <div className="mt-3 pl-1 flex items-center justify-between">
             <span className="admin-game-eyebrow">Control centre</span>
@@ -375,13 +390,7 @@ export default function AdminLayout({ children }) {
       <div className="fixed left-0 right-0 top-0 z-40 md:hidden" style={{ backgroundColor: '#FFFFFF', borderBottom: '2px solid #0F1B2D', boxShadow: '0 2px 0 #0F1B2D' }}>
         <div className="flex items-center justify-between px-4 h-16">
           <Link to="/admin" className="flex items-center gap-2.5 no-underline" style={{ color: '#0F1B2D' }}>
-            <Logo variant="icon" size="md" />
-            <div className="leading-tight">
-              <p className="admin-game-display" style={{ fontSize: 16, margin: 0, color: '#0F1B2D' }}>
-                ZedExams <span style={{ color: '#FF7A1A' }}>•</span>
-              </p>
-              <p style={{ fontSize: 10.5, color: '#4A5A6E', margin: 0, fontWeight: 700 }}>Admin Quest</p>
-            </div>
+            <AdminBrand compact />
           </Link>
           <div className="flex items-center gap-2">
             <button
