@@ -497,6 +497,28 @@ async function __studioOnGenerateClick() {
   // THIS SERIES, so Claude can build on what was really taught instead of
   // re-teaching or guessing.
   const coveredSoFar = [];
+  // Cross-session past-lesson awareness: when the teacher uses "Only this"
+  // to regenerate a single lesson in an existing series, prior siblings
+  // weren't generated in this run — they live in Firestore from previous
+  // sessions. Seed coveredSoFar from those, so a "regenerate Lesson 3"
+  // run still sees what Lessons 1 and 2 actually taught.
+  //
+  // Scoped to onlyIndex on purpose: a full series re-run (Generate all)
+  // already produces the right PREVIOUSLY COVERED block in-run, and
+  // feeding it stale persisted summaries would tell Lesson 1 "you already
+  // taught this" — which is wrong.
+  if (onlyIndex && i.planner.seriesId && typeof window.__studioFetchSeriesSiblings === 'function') {
+    try {
+      const siblings = await window.__studioFetchSeriesSiblings({
+        seriesId: i.planner.seriesId,
+        lessThan: onlyIndex,
+      });
+      for (const s of siblings) {
+        const summary = summariseLessonForFollowups(s.data, s.format);
+        if (summary) coveredSoFar.push({ lessonNumber: s.lessonNumber, focus: s.lessonFocus, summary });
+      }
+    } catch (e) { /* fail-open — past-lesson awareness is a nice-to-have */ }
+  }
   try {
     for (const lessonNumber of indices) {
       if (btn) btn.innerHTML = `<span>${total > 1 ? `Composing lesson ${madeCount + 1} of ${indices.length}…` : 'Composing your lesson plan…'}</span>`;

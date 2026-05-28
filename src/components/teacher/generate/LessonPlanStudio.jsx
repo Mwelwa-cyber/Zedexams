@@ -4,7 +4,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import {
   getFirestore, collection, addDoc, serverTimestamp,
-  query, where, getDocs,
+  query, where, getDocs, orderBy, limit,
 } from 'firebase/firestore'
 import app from '../../../firebase/config'
 import { getActiveKbVersion, subtopicName } from '../../../utils/adminCbcKbService'
@@ -21,7 +21,7 @@ const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerat
 
 // Bump this when /public/studio/* is changed so phones / CDNs refetch
 // instead of serving the cached old file.
-const STUDIO_ASSET_VERSION = 'v18'
+const STUDIO_ASSET_VERSION = 'v19'
 
 // Sequential script loader — each script must finish before the next starts
 // because the studio scripts rely on globals set by earlier ones.
@@ -228,6 +228,66 @@ export default function LessonPlanStudio() {
       }
     }
 
+    // ---- Bridge: fetch saved siblings of a multi-lesson series ----
+    // Used by 06-generate.js's "Only this" path so a regenerated lesson K
+    // sees what lessons 1..K-1 actually taught even when those plans were
+    // generated in a previous session. Returns an array of
+    //   { lessonNumber, lessonFocus, data, format }
+    // sorted by lessonNumber ascending, with siblings filtered to
+    // lessonNumber < `lessThan`. Returns [] when not signed in, when the
+    // seriesId is missing, or on any query error (fail-open — past-lesson
+    // awareness is a nice-to-have, never a blocker).
+    //
+    // Server query is narrow on purpose — only filters we already have
+    // composite indexes for: ownerUid + createdAt desc, capped at 100.
+    // The tool and seriesId filters happen client-side, so we don't need
+    // a new Firestore index. A series usually has 2–12 lessons generated
+    // close in time, so 100 rows of recent ownerUid history is a
+    // comfortable upper bound to find every sibling.
+    window.__studioFetchSeriesSiblings = async ({ seriesId, lessThan }) => {
+      const uid = currentUser && currentUser.uid
+      if (!uid || !seriesId) return []
+      const cap = Number.isFinite(Number(lessThan)) ? Number(lessThan) : Infinity
+      try {
+        const snap = await getDocs(query(
+          collection(db, 'aiGenerations'),
+          where('ownerUid', '==', uid),
+          orderBy('createdAt', 'desc'),
+          limit(100),
+        ))
+        const out = []
+        // De-dupe by lessonNumber — if a teacher regenerated lesson 2
+        // multiple times, only the most recent (which sorts first thanks
+        // to createdAt desc) wins. That's what we want: feed the freshest
+        // version into the new lesson's PREVIOUSLY COVERED block.
+        const seen = new Set()
+        snap.forEach((d) => {
+          const row = d.data()
+          if (!row || row.tool !== 'lesson_plan') return
+          const series = row && row.inputs && row.inputs.lessonSeries
+          if (!series || series.seriesId !== seriesId) return
+          const n = Number(series.lessonNumber) || 0
+          if (n <= 0 || n >= cap) return
+          if (seen.has(n)) return
+          seen.add(n)
+          out.push({
+            lessonNumber: n,
+            lessonFocus:  String(series.lessonFocus || ''),
+            data:         row.data || null,
+            // studioFormat is the renderer key (modern/classic/classic2)
+            // the planner used at save time; summariseLessonForFollowups
+            // needs it to pick the right field extraction.
+            format:       String(row.studioFormat || 'modern'),
+          })
+        })
+        out.sort((a, b) => a.lessonNumber - b.lessonNumber)
+        return out
+      } catch (err) {
+        console.warn('studio series siblings fetch failed', err)
+        return []
+      }
+    }
+
     // ---- Bridge: fetch the rich detail for one subtopic ----
     // The topics bridge above only surfaces subtopic NAMES (because the
     // studio's hardcoded JS expects { topic: [subName, ...] }). The richer
@@ -395,6 +455,7 @@ export default function LessonPlanStudio() {
       delete window.__studioFetchSyllabusTopics
       delete window.__studioFetchSubtopicDetail
       delete window.__studioFetchSyllabusSubjects
+      delete window.__studioFetchSeriesSiblings
       delete window.saveToLibrary
       delete window.$
       delete window.$$
