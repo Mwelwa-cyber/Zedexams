@@ -14,6 +14,7 @@ import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 const DISMISS_KEY = 'admin.setupBanner.dismissedV1'
+const HEALTH_CHECKS = ['AI keys', 'Agent controls', 'CBC KB']
 
 function readDismissed() {
   if (typeof window === 'undefined') return false
@@ -39,43 +40,50 @@ export default function AdminSetupBanner() {
   }
 
   return (
-    <section className="rounded-2xl border-2 border-violet-200 bg-gradient-to-br from-violet-50 to-fuchsia-50 p-4 sm:p-5">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <section className="admin-game-card rounded-[18px] bg-white p-3 sm:p-4">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
         <div className="flex items-start gap-3 min-w-0">
-          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl border-2 border-violet-300 bg-white text-lg">
-            ✨
+          <div className="admin-game-tile tone-blue grid h-10 w-10 shrink-0 place-items-center rounded-xl text-base">
+            <span aria-hidden="true">✓</span>
           </div>
           <div className="min-w-0">
-            <p className="font-black text-violet-900 text-sm sm:text-base">
-              New here, or things feel off? Run Platform Health
+            <p className="font-black text-sm sm:text-base" style={{ color: '#0F1B2D' }}>
+              Platform health
             </p>
-            <p className="mt-0.5 text-xs text-violet-800/85 leading-relaxed max-w-2xl">
-              The agent pipeline (lesson plans, worksheets, notes, flashcards, rubrics) runs server-side and fails silently when the Anthropic key, agent controls, or CBC KB aren't set up. Platform Health checks all three in 5 seconds and lets you initialise missing pieces with one click.
+            <p className="mt-0.5 max-w-2xl text-xs font-semibold leading-relaxed" style={{ color: '#4A5A6E' }}>
+              Check the services that keep generators, approvals, and curriculum tools running.
             </p>
-            <div className="mt-2 flex flex-wrap gap-2 text-xs">
-              <Link
-                to="/admin/agents"
-                className="rounded-lg bg-violet-600 px-3 py-1.5 font-black text-white no-underline hover:bg-violet-700"
-              >
-                Open Platform Health →
-              </Link>
-              <Link
-                to="/admin/cbc-kb"
-                className="rounded-lg border-2 border-violet-300 bg-white px-3 py-1.5 font-black text-violet-700 no-underline hover:bg-violet-50"
-              >
-                Manage CBC KB
-              </Link>
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {HEALTH_CHECKS.map(label => (
+                <span key={label} className="admin-game-pill-outline admin-game-pill">
+                  {label}
+                </span>
+              ))}
             </div>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={dismiss}
-          className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black text-violet-700 hover:bg-white"
-          aria-label="Dismiss"
-        >
-          Dismiss ×
-        </button>
+        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
+          <Link
+            to="/admin/agents"
+            className="admin-game-btn-primary min-h-0 px-3 py-2 text-xs no-underline"
+          >
+            Run check
+          </Link>
+          <Link
+            to="/admin/cbc-kb"
+            className="admin-game-btn-ghost min-h-0 px-3 py-2 text-xs no-underline"
+          >
+            CBC KB
+          </Link>
+          <button
+            type="button"
+            onClick={dismiss}
+            className="admin-game-btn-ghost min-h-0 px-2.5 py-2 text-xs"
+            aria-label="Dismiss platform health banner"
+          >
+            Dismiss
+          </button>
+        </div>
       </div>
     </section>
   )

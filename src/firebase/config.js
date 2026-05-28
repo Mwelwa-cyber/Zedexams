@@ -8,8 +8,9 @@ import {
   GoogleAuthProvider,
 } from 'firebase/auth'
 import {
-  getFirestore,
-  enableMultiTabIndexedDbPersistence,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
 } from 'firebase/firestore'
 import { getMessaging } from 'firebase/messaging'
 import { getStorage } from 'firebase/storage'
@@ -28,7 +29,17 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig)
 
 export const auth    = getAuth(app)
-export const db      = getFirestore(app)
+// Firestore offline persistence (audit A1.1) is configured here via the
+// modern cache API rather than the deprecated
+// enableMultiTabIndexedDbPersistence(). Cached reads survive reload/
+// refresh, writes queue while offline and replay on reconnect, and the
+// multi-tab manager lets several open tabs share one cache instead of
+// fighting over a "primary" tab. Unsupported environments (Safari < 15,
+// private mode, quota-exceeded) degrade to memory cache automatically —
+// no try/catch needed.
+export const db = initializeFirestore(app, {
+  localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+})
 export const storage = getStorage(app)
 
 export const googleProvider = new GoogleAuthProvider()
@@ -167,27 +178,6 @@ async function initAppCheck() {
 // Fire-and-forget. Failures inside initAppCheck never reject because
 // we catch every path internally.
 initAppCheck()
-
-// Firestore offline persistence (audit A1.1). Cached reads survive
-// reload/refresh, writes queue while offline and replay on reconnect.
-// Multi-tab variant lets learners with several tabs open share the
-// same cache instead of fighting over a "primary" tab.
-//
-// Failures are non-fatal — Safari < 15, browser private modes, and
-// quota-exceeded all surface here. The app still works, just without
-// the cache-backed offline experience.
-enableMultiTabIndexedDbPersistence(db).catch((err) => {
-  if (err?.code === 'failed-precondition') {
-    // Another tab already has persistence — multi-tab variant should
-    // prevent this, but fall through gracefully if the browser is old.
-    console.warn('Firestore persistence: multiple tabs without multi-tab support')
-  } else if (err?.code === 'unimplemented') {
-    // Browser doesn't support IndexedDB persistence (Safari < 15, etc.)
-    console.warn('Firestore persistence: browser unsupported')
-  } else {
-    console.warn('Firestore persistence init failed:', err)
-  }
-})
 
 // Firebase Cloud Messaging — initialised only when the browser actually
 // supports web push (Service Worker + PushManager APIs) and we're not

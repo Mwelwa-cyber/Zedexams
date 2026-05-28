@@ -568,7 +568,7 @@ body.theme-midnight .moe-calendar {
   .admin-game-theme .studio-display {
     font-family: 'Outfit', 'Plus Jakarta Sans', system-ui, sans-serif;
     font-weight: 800;
-    letter-spacing: -0.4px;
+    letter-spacing: 0;
   }
   .admin-game-theme .admin-game-eyebrow,
   .admin-game-theme .studio-eyebrow {

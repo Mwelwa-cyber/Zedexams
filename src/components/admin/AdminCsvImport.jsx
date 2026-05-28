@@ -26,6 +26,7 @@ import {
   CSV_HEADERS,
   buildCsvTemplate,
   parseCsvImport,
+  rowToQuestion,
 } from '../../utils/csvQuizImport'
 import { Download, Upload, Check, AlertTriangle, X as XMarkIcon } from '../ui/icons'
 import Icon from '../ui/Icon'
@@ -135,30 +136,21 @@ export default function AdminCsvImport() {
   // place. For the MVP only the most-edited columns are exposed inline
   // (text, correctAnswer, topic, marks); for anything else the teacher
   // re-uploads a corrected CSV.
-  //
-  // The validator lives in the same module we already imported at the
-  // top, but we import it via a dynamic import here so the page's
-  // initial render doesn't bundle every helper if the teacher never
-  // edits a row.
   function updateRowCell(rowIndex, header, value) {
     if (!parsed) return
     const idx = CSV_HEADERS.indexOf(header)
     if (idx < 0) return
-    import('../../utils/csvQuizImport')
-      .then(({ rowToQuestion }) => {
-        setParsed(current => {
-          if (!current) return current
-          const rows = current.rows.map(r => ({ ...r, raw: [...r.raw] }))
-          const target = rows[rowIndex]
-          target.raw[idx] = value
-          const fresh = rowToQuestion(target.raw)
-          rows[rowIndex] = { ...target, ...fresh }
-          const summary = { total: rows.length, ok: 0, warning: 0, error: 0 }
-          rows.forEach(r => { summary[r.status] += 1 })
-          return { ...current, rows, summary }
-        })
-      })
-      .catch(err => console.error('AdminCsvImport rowToQuestion:', err))
+    setParsed(current => {
+      if (!current) return current
+      const rows = current.rows.map(r => ({ ...r, raw: [...r.raw] }))
+      const target = rows[rowIndex]
+      target.raw[idx] = value
+      const fresh = rowToQuestion(target.raw)
+      rows[rowIndex] = { ...target, ...fresh }
+      const summary = { total: rows.length, ok: 0, warning: 0, error: 0 }
+      rows.forEach(r => { summary[r.status] += 1 })
+      return { ...current, rows, summary }
+    })
   }
 
   // ── Publish ─────────────────────────────────────────────────
