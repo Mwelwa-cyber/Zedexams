@@ -1657,6 +1657,7 @@ export default function EditQuizV2() {
             variant="edit"
             sections={sections}
             parts={parts}
+            quizContext={{ subject: form.subject, grade: form.grade }}
             questionNumbers={questionNumbers}
             issueCountsByLocalId={issueCountsByLocalId}
             totalQuestions={questionCount}

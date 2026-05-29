@@ -1019,6 +1019,7 @@ export default function EditAssessment() {
         variant="edit"
         sections={sections}
         parts={parts}
+        quizContext={{ subject: form.subject, grade: form.grade }}
         questionNumbers={questionNumbers}
         totalQuestions={questionCount}
         onStandaloneChange={updateStandaloneQuestion}

@@ -12,6 +12,7 @@ const {
   LIMITS,
   assertDailyLimit,
   buildAnthropicChat,
+  buildEditQuestionMessages,
   buildExplainMessages,
   buildImportStructureMessages,
   buildQuizMessages,
@@ -20,7 +21,9 @@ const {
   cleanString: cleanAiString,
   getAnthropicApiKey,
   getUserRole,
+  isEditQuestionAction,
   isStaffRole,
+  parseEditedQuestion,
   parseGeneratedQuiz,
   parseStructuredImport,
   stripJsonFences,
@@ -1129,6 +1132,74 @@ exports.explainAnswer = onCall(
     });
 
     return {explanation};
+  },
+);
+
+// Per-question AI edit — powers the "✨ AI" button on every question in the
+// quiz editor (Simplify / Easier / Harder / Rephrase / Suggest answer /
+// Write explanation). Staff-only; returns a patch the editor previews before
+// applying. Maths in the patch comes back as import markup so the same
+// importRichText converter renders fractions, column sums, and tables.
+exports.editQuizQuestion = onCall(
+  {
+    secrets: [anthropicApiKey],
+    region: "us-central1",
+    timeoutSeconds: 45,
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Please sign in first.");
+    }
+    recordAppCheckCallable(request, "editQuizQuestion");
+
+    const action = cleanAiString(request.data?.action, 30);
+    if (!isEditQuestionAction(action)) {
+      throw new HttpsError("invalid-argument", "Unknown AI edit action.");
+    }
+    const question = cleanAiString(request.data?.question, LIMITS.question);
+    if (!question) {
+      throw new HttpsError(
+        "invalid-argument",
+        "There is no question text to work with yet.",
+      );
+    }
+
+    const role = await getUserRole(request.auth.uid);
+    if (!isStaffRole(role)) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only teachers and admins can use the AI question editor.",
+      );
+    }
+    await assertDailyLimit(request.auth.uid, role, "editQuestion");
+
+    const options = Array.isArray(request.data?.options) ?
+      request.data.options.slice(0, 6).map((opt) => cleanAiString(opt, 300)) :
+      [];
+
+    const {systemPrompt, messages} = toAnthropicShape(
+      buildEditQuestionMessages({
+        action,
+        question,
+        options,
+        correctAnswer: cleanAiString(request.data?.correctAnswer, 40),
+        subject: request.data?.subject,
+        grade: request.data?.grade,
+        topic: request.data?.topic,
+      }),
+    );
+    const raw = await callAnthropic(getAnthropicApiKey(anthropicApiKey), {
+      systemPrompt,
+      messages,
+      maxTokens: 900,
+      temperature: action === "suggest_answer" ? 0.1 : 0.4,
+      json: true,
+      track: {uid: request.auth.uid, tool: "editQuizQuestion"},
+    });
+
+    return {action, patch: parseEditedQuestion(raw)};
   },
 );
 

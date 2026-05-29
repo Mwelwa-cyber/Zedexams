@@ -1006,6 +1006,27 @@ function tryRecoverTruncatedJson(text) {
   }
 }
 
+// Per-question AI edit helpers live in a dependency-free module so their unit
+// test runs under CI's root-only `npm ci` (it must not require firebase-functions
+// / firebase-admin). parseEditedQuestion throws a plain Error there; we wrap it
+// in an HttpsError here so the callable keeps its friendly message.
+const {
+  isEditQuestionAction,
+  buildEditQuestionMessages,
+  parseEditedQuestion: parseEditedQuestionPure,
+} = require("./editQuestionPrompt");
+
+function parseEditedQuestion(raw) {
+  try {
+    return parseEditedQuestionPure(raw);
+  } catch {
+    throw new HttpsError(
+      "internal",
+      "The AI edit could not be read. Please try again.",
+    );
+  }
+}
+
 function parseStructuredImport(raw) {
   const cleanedRaw = stripJsonFences(raw);
   let parsed;
@@ -1206,6 +1227,7 @@ module.exports = {
   assertDailyLimit,
   buildAnthropicChat,
   buildChatMessages,
+  buildEditQuestionMessages,
   buildExplainMessages,
   buildImportStructureMessages,
   buildQuizMessages,
@@ -1218,7 +1240,9 @@ module.exports = {
   getAnthropicApiKey,
   getApiKey,
   getUserRole,
+  isEditQuestionAction,
   isStaffRole,
+  parseEditedQuestion,
   parseStructuredImport,
   parseGeneratedQuiz,
   stripJsonFences,

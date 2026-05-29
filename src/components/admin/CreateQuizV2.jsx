@@ -1471,6 +1471,7 @@ export default function CreateQuizV2() {
         variant="create"
         sections={sections}
         parts={parts}
+        quizContext={{ subject: form.subject, grade: form.grade }}
         questionNumbers={questionNumbers}
         issueCountsByLocalId={issueCountsByLocalId}
         totalQuestions={questionCount}
