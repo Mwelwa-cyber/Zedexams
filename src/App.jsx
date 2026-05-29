@@ -1,10 +1,12 @@
-import { lazy, Suspense, useState } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { lazy, Suspense, useEffect, useState } from 'react'
+import { BrowserRouter, Routes, Route, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from './contexts/AuthContext'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import Navbar from './components/layout/Navbar'
 import { getRoleLandingPath } from './utils/navigation'
 import PageLoader from './components/ui/PageLoader'
+import ErrorBoundary from './components/ui/ErrorBoundary'
+import NetworkBanner from './components/ui/NetworkBanner'
 
 const Login = lazy(() => import('./components/auth/Login'))
 const Register = lazy(() => import('./components/auth/Register'))
@@ -175,17 +177,39 @@ function MissingProfileRecovery() {
   )
 }
 
-export default function App() {
+// Bridge the AuthContext `sessionExpired` flag to the router. The context
+// can't call useNavigate directly (it sits above BrowserRouter), so this
+// lives inside the router and reacts to the flag once per expiry.
+function SessionExpiredRedirect() {
+  const { sessionExpired } = useAuth()
+  const navigate = useNavigate()
+  const location = useLocation()
+
+  useEffect(() => {
+    if (!sessionExpired) return
+    if (location.pathname === '/login') return
+    navigate('/login', { replace: true, state: { reason: 'session-expired' } })
+  }, [sessionExpired, location.pathname, navigate])
+
+  return null
+}
+
+function RouterShell() {
+  const location = useLocation()
   return (
-    <BrowserRouter
-      future={{
-        v7_startTransition: true,
-        v7_relativeSplatPath: true,
-      }}
-    >
-      <Suspense fallback={<PageLoader />}>
-        <Routes>
-          <Route path="/" element={<RootRedirect />} />
+    <>
+      <NetworkBanner />
+      <SessionExpiredRedirect />
+      {/*
+        Route-keyed boundary: a render throw on one page shows the recovery
+        card; navigating to another route resets the boundary so the rest
+        of the app keeps working. The outer boundary in main.jsx still
+        catches catastrophic mount-time errors.
+      */}
+      <ErrorBoundary resetKey={location.pathname}>
+        <Suspense fallback={<PageLoader />}>
+          <Routes>
+            <Route path="/" element={<RootRedirect />} />
           <Route path="/login"    element={<Login />} />
           <Route path="/register" element={<Register />} />
 
@@ -261,13 +285,27 @@ export default function App() {
           <Route path="/teacher/library"                 element={<TeacherRoute><TeacherLibrary /></TeacherRoute>} />
           <Route path="/teacher/library/:id"             element={<TeacherRoute><LibraryItemDetail /></TeacherRoute>} />
 
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-        {/* Floating "Ask Zed" button — self-gates visibility per route */}
-        <FloatingZedButton />
-        {/* Inactivity warning + auto-logout (driven by AuthContext) */}
-        <IdleWarningModal />
-      </Suspense>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+          {/* Floating "Ask Zed" button — self-gates visibility per route */}
+          <FloatingZedButton />
+          {/* Inactivity warning + auto-logout (driven by AuthContext) */}
+          <IdleWarningModal />
+        </Suspense>
+      </ErrorBoundary>
+    </>
+  )
+}
+
+export default function App() {
+  return (
+    <BrowserRouter
+      future={{
+        v7_startTransition: true,
+        v7_relativeSplatPath: true,
+      }}
+    >
+      <RouterShell />
     </BrowserRouter>
   )
 }

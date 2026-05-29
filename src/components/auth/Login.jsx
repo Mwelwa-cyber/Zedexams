@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
 import { ArrowLeft, Eye, EyeOff, EnvelopeIcon as Mail } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import { getRoleLandingPath } from '../../utils/navigation'
@@ -18,8 +18,9 @@ const FRIENDLY = {
 }
 
 export default function Login() {
-  const { login, logout, resetPassword, ensureUserProfile } = useAuth()
+  const { login, logout, resetPassword, ensureUserProfile, sessionExpired, clearSessionExpired } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const [email, setEmail]         = useState('')
   const [password, setPassword]   = useState('')
@@ -34,9 +35,27 @@ export default function Login() {
   const [resetSuccess, setResetSuccess]   = useState(false)
   const [resetError, setResetError]       = useState('')
 
+  // We arrive here from three paths after a session timeout:
+  //   1. <Navigate state={{ reason: 'session-expired' }} /> from ProtectedRoute
+  //   2. ?reason=session-expired query string (full-page reload preserves it)
+  //   3. The AuthContext flag (a wake-up that expired *while on /login*)
+  const expiredFromState = location.state?.reason === 'session-expired'
+  const expiredFromQuery = useMemo(() => {
+    try {
+      return new URLSearchParams(location.search).get('reason') === 'session-expired'
+    } catch (_e) { return false }
+  }, [location.search])
+  const showSessionExpired = expiredFromState || expiredFromQuery || sessionExpired
+
   useEffect(() => {
     document.title = 'Sign In — ZedExams'
   }, [])
+
+  // Once the notice has been shown, dismiss the global flag so a subsequent
+  // visit to /login (or a successful sign-in) doesn't re-display it.
+  useEffect(() => {
+    if (showSessionExpired && sessionExpired) clearSessionExpired()
+  }, [showSessionExpired, sessionExpired, clearSessionExpired])
 
   async function handleSubmit(e) {
     e.preventDefault()
@@ -166,6 +185,16 @@ export default function Login() {
         ) : (
           /* ── Login Form ── */
           <form onSubmit={handleSubmit} className="space-y-4 animate-slide-up">
+            {showSessionExpired && !error && (
+              <p
+                role="status"
+                aria-live="polite"
+                className="text-danger bg-danger-subtle border rounded-xl px-4 py-3 text-body-sm"
+                style={{ borderColor: 'var(--danger-fg)' }}
+              >
+                Your session expired. Please log in again.
+              </p>
+            )}
             <div>
               <label htmlFor="login-email" className="block text-sm font-bold theme-text mb-1">Email</label>
               <input

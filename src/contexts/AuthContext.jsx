@@ -12,6 +12,7 @@ import { doc, setDoc, getDoc, updateDoc, serverTimestamp, onSnapshot } from 'fir
 import app, { auth, db } from '../firebase/config'
 import { ROLES, hasPremiumAccess } from '../utils/subscriptionConfig'
 import { useIdleTimeout } from '../hooks/useIdleTimeout'
+import { useAuthRecovery } from '../hooks/useAuthRecovery'
 
 // Sign learners/teachers/admins out after this much idle time, with a short
 // countdown beforehand so an active user can keep their session.
@@ -37,9 +38,15 @@ export function AuthProvider({ children }) {
   const [userProfile, setUserProfile] = useState(null)
   const [loading, setLoading]         = useState(true)
   const [profileIssue, setProfileIssue] = useState(null)
+  const [sessionExpired, setSessionExpired] = useState(false)
   const [showIdleWarning, setShowIdleWarning] = useState(false)
   const [idleSecondsLeft, setIdleSecondsLeft] = useState(Math.ceil(IDLE_WARNING_MS / 1000))
   const bootstrapInFlightRef = useRef(new Map())
+  // Live ref to the active profile snapshot subscriber so the recovery hook
+  // can re-establish a dropped listener without restarting the whole effect.
+  const subscribeProfileRef = useRef(null)
+  const disposedRef = useRef(false)
+  const clearSessionExpired = useCallback(() => setSessionExpired(false), [])
 
   async function register(email, password, displayName, grade, school, role = ROLES.LEARNER) {
     const wantsTeacherAccess = role === ROLES.TEACHER
@@ -119,7 +126,13 @@ export function AuthProvider({ children }) {
         return profile
       }
     } catch (e) {
-      console.error('fetchUserProfile:', e)
+      console.error('[auth] fetchUserProfile failed:', {
+        code: e?.code,
+        message: e?.message,
+        uid,
+        visibility: typeof document !== 'undefined' ? document.visibilityState : 'n/a',
+        online: typeof navigator !== 'undefined' ? navigator.onLine : 'n/a',
+      })
       if (updateState) setProfileIssue('unreadable')
     }
     return null
@@ -186,58 +199,110 @@ export function AuthProvider({ children }) {
   // Full content access: admin always, paid teachers, or premium learners.
   const canAccessFullContent = isAdmin || isPaidTeacher || isPremium
 
+  // Force-end the session: used both by terminal token-refresh failures and
+  // by snapshot auth errors that survive a refresh attempt. Sets the
+  // `sessionExpired` flag (read by ProtectedRoute / SessionExpiredRedirect),
+  // tears down state, and signs out so a fresh login starts cleanly.
+  const expireSession = useCallback((reason) => {
+    if (disposedRef.current) return
+    console.warn('[auth] session expired:', reason)
+    setSessionExpired(true)
+    setUserProfile(null)
+    setProfileIssue(null)
+    signOut(auth).catch((e) => console.error('signOut after expiry failed:', e))
+  }, [])
+
   useEffect(() => {
     let unsubProfile = null
-    let disposed = false
+    disposedRef.current = false
     // Watchdog: if Firebase auth + Firestore profile snapshot don't resolve
     // within this window, drop the loading gate so the user sees *something*.
     // 5 s gives slower Zambian networks enough time to complete the round-trip
     // before we fall back to the generic "loading your workspace…" screen.
     const timeout = setTimeout(() => {
-      if (!disposed) setLoading(false)
+      if (!disposedRef.current) setLoading(false)
     }, 5000)
+
+    const subscribeProfile = (user) => {
+      if (unsubProfile) {
+        try { unsubProfile() } catch (_e) { /* listener already torn down */ }
+        unsubProfile = null
+      }
+      unsubProfile = onSnapshot(
+        doc(db, 'users', user.uid),
+        (snap) => {
+          if (disposedRef.current) return
+          if (snap.exists()) {
+            setUserProfile(toUserProfile(user.uid, snap.data()))
+            setProfileIssue(null)
+            setLoading(false)
+            return
+          }
+
+          void (async () => {
+            const repairedProfile = await bootstrapMissingProfile(user)
+            if (disposedRef.current) return
+            if (repairedProfile) {
+              setUserProfile(repairedProfile)
+              setProfileIssue(null)
+            } else {
+              setUserProfile(null)
+              setProfileIssue('missing')
+            }
+            setLoading(false)
+          })()
+        },
+        async (e) => {
+          if (disposedRef.current) return
+          console.error('[auth] profile subscription error:', {
+            code: e?.code,
+            message: e?.message,
+            uid: user?.uid,
+            visibility: typeof document !== 'undefined' ? document.visibilityState : 'n/a',
+            online: typeof navigator !== 'undefined' ? navigator.onLine : 'n/a',
+          })
+          // Auth-shaped errors after a long idle usually mean the ID token
+          // is stale. Try one forced refresh; if it works, re-subscribe and
+          // recover silently. If it doesn't, the session really is gone.
+          if (e?.code === 'permission-denied' || e?.code === 'unauthenticated') {
+            try {
+              await user.getIdToken(true)
+              if (disposedRef.current) return
+              subscribeProfile(user)
+              return
+            } catch (refreshErr) {
+              if (disposedRef.current) return
+              expireSession(`snapshot-${e.code}:${refreshErr?.code || 'unknown'}`)
+              return
+            }
+          }
+          // Transient / network errors: surface a recoverable state instead
+          // of nuking the session. Recovery hook will retry on resume.
+          setUserProfile(null)
+          setProfileIssue('unreadable')
+          setLoading(false)
+        },
+      )
+    }
+
+    subscribeProfileRef.current = () => {
+      if (auth.currentUser) subscribeProfile(auth.currentUser)
+    }
+
     const unsub = onAuthStateChanged(auth, (user) => {
       clearTimeout(timeout)
       if (unsubProfile) {
-        unsubProfile()
+        try { unsubProfile() } catch (_e) { /* listener already torn down */ }
         unsubProfile = null
       }
       setCurrentUser(user)
       setProfileIssue(null)
       if (user) {
+        // A fresh sign-in clears any stale "session expired" flag from a
+        // previous tab visit.
+        setSessionExpired(false)
         setLoading(true)
-        unsubProfile = onSnapshot(
-          doc(db, 'users', user.uid),
-          (snap) => {
-            if (disposed) return
-            if (snap.exists()) {
-              setUserProfile(toUserProfile(user.uid, snap.data()))
-              setProfileIssue(null)
-              setLoading(false)
-              return
-            }
-
-            void (async () => {
-              const repairedProfile = await bootstrapMissingProfile(user)
-              if (disposed) return
-              if (repairedProfile) {
-                setUserProfile(repairedProfile)
-                setProfileIssue(null)
-              } else {
-                setUserProfile(null)
-                setProfileIssue('missing')
-              }
-              setLoading(false)
-            })()
-          },
-          (e) => {
-            console.error('profile subscription:', e)
-            if (disposed) return
-            setUserProfile(null)
-            setProfileIssue('unreadable')
-            setLoading(false)
-          },
-        )
+        subscribeProfile(user)
       } else {
         setUserProfile(null)
         setProfileIssue(null)
@@ -245,16 +310,30 @@ export function AuthProvider({ children }) {
       }
     })
     return () => {
-      disposed = true
+      disposedRef.current = true
       clearTimeout(timeout)
-      if (unsubProfile) unsubProfile()
+      subscribeProfileRef.current = null
+      if (unsubProfile) {
+        try { unsubProfile() } catch (_e) { /* already torn down */ }
+      }
       unsub()
     }
-  }, [bootstrapMissingProfile])
+  }, [bootstrapMissingProfile, expireSession])
+
+  // On tab/app resume, force a token refresh and re-establish the profile
+  // snapshot if it was dropped. If the session is genuinely dead, route to
+  // /login with a clear message instead of showing the snag card.
+  useAuthRecovery({
+    currentUser,
+    enabled: !!currentUser && !sessionExpired,
+    onResubscribe: () => subscribeProfileRef.current?.(),
+    onSessionExpired: (reason) => expireSession(`resume-${reason}`),
+  })
 
   return (
     <AuthContext.Provider value={{
       currentUser, userProfile, loading, profileIssue,
+      sessionExpired, clearSessionExpired,
       login, register, logout, resetPassword,
       fetchUserProfile, ensureUserProfile, refreshProfile, updateProfileFields,
       isLearner, isTeacher, isAdmin, isPremium, isPaidTeacher, canAccessFullContent,
