@@ -253,6 +253,45 @@ async function main() {
     console.log(`Updated existing changelog PR in place: ${pr.html_url}`);
   }
 
+  // Self-cleaning: close any *older* open changelog PRs from Ledger so at most
+  // one is ever open at a time. Each day's run opens a fresh per-day branch and
+  // nothing merges the previous ones, so without this they pile up indefinitely.
+  try {
+    const {data: openPRs} = await octokit.pulls.list({
+      owner,
+      repo,
+      state: "open",
+      per_page: 100,
+    });
+    const stale = openPRs.filter(
+      (p) =>
+        p.number !== pr.number &&
+        typeof (p.head && p.head.ref) === "string" &&
+        p.head.ref.startsWith("agent/ledger/changelog-"),
+    );
+    for (const old of stale) {
+      await octokit.pulls.update({
+        owner, repo, pull_number: old.number, state: "closed",
+      });
+      await octokit.issues.createComment({
+        owner,
+        repo,
+        issue_number: old.number,
+        body: `Superseded by #${pr.number} (newer changelog draft). ` +
+          "Closed automatically by Ledger.",
+      });
+      // Delete the stale branch so it doesn't linger.
+      await octokit.git.deleteRef({
+        owner, repo, ref: `heads/${old.head.ref}`,
+      }).catch((err) => {
+        console.warn(`Could not delete branch ${old.head.ref}: ${err.message}`);
+      });
+      console.log(`Superseded older changelog PR #${old.number} (${old.head.ref}).`);
+    }
+  } catch (err) {
+    console.warn(`Failed to supersede older changelog PRs: ${err.message}`);
+  }
+
   // Force ci.yml to run on the new branch. PRs opened by GITHUB_TOKEN don't
   // fire downstream workflows, so the required `Lint` + `Tests` checks would
   // never report and the PR would stay BLOCKED. workflow_dispatch is the one
