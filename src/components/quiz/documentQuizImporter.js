@@ -958,7 +958,15 @@ export async function importQuizDocument(file) {
         // Build a question-index → partId map from local sections (in order),
         // then stamp each smart section's questions with the matching partId.
         const localParts = local.parts || []
-        if (localParts.length > 0) {
+        // Only keep parts that have an actual title. The deterministic parser
+        // creates a blank-titled "default" part to carry the document-level
+        // instruction when no explicit section heading exists; keeping it
+        // would trigger the "Every Part needs a title" validation error.
+        const namedLocalParts = localParts.filter(p => String(p.title ?? '').trim())
+        const unnamedPartIds = new Set(
+          localParts.filter(p => !String(p.title ?? '').trim()).map(p => p.id)
+        )
+        if (namedLocalParts.length > 0) {
           const qPartIds = []
           for (const s of local.sections) {
             if (s.kind === 'passage') {
@@ -971,7 +979,8 @@ export async function importQuizDocument(file) {
           let qi = 0
           sections = smart.sections.map(s => {
             if (s.kind === 'passage') {
-              const partId = qPartIds[qi] ?? null
+              const rawPartId = qPartIds[qi] ?? null
+              const partId = unnamedPartIds.has(rawPartId) ? null : rawPartId
               qi += s.passage?.questions?.length || 0
               return {
                 ...s, partId,
@@ -982,12 +991,13 @@ export async function importQuizDocument(file) {
               }
             }
             if (s.kind === 'standalone') {
-              const partId = qPartIds[qi++] ?? null
+              const rawPartId = qPartIds[qi++] ?? null
+              const partId = unnamedPartIds.has(rawPartId) ? null : rawPartId
               return { ...s, question: { ...s.question, partId } }
             }
             return s
           })
-          parts = localParts
+          parts = namedLocalParts
         } else {
           sections = smart.sections
           parts = []
