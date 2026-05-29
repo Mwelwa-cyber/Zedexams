@@ -489,7 +489,7 @@ export function serializeQuizSections(sections = [], parts = []) {
         title: String(passage.title ?? '').trim(),
         instructions: serializeRichField(passage.instructions),
         passageText: serializeRichField(passage.passageText),
-        imageUrl: passage.imageUrl || null,
+        imageUrl: passage.imageUrl || '',
         // Carried so the save pass can swap in a Firebase Storage download URL
         // before the doc reaches Firestore. Cleared on save when the upload
         // succeeds; never persisted long-term.

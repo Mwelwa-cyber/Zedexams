@@ -32,6 +32,21 @@
 
 import { z } from 'zod'
 
+// ── Field helpers ─────────────────────────────────────────────────
+
+/**
+ * A bounded string field that treats `null`/`undefined` as the empty string.
+ *
+ * Plain `z.string().default('')` only fills in for `undefined` — a `null`
+ * still fails with Zod's "Invalid input". The serializer writes
+ * `passage.imageUrl || null` for image-less passages, so without this the
+ * whole quiz save throws `Invalid quiz payload at "passages.0.imageUrl"`.
+ * Read-side `coercePassage` already normalises null→'', so accepting it here
+ * keeps the write and read boundaries symmetric.
+ */
+const emptyableString = (max) =>
+  z.preprocess((v) => (v == null ? '' : v), z.string().max(max))
+
 // ── Embedded shapes ───────────────────────────────────────────────
 
 /**
@@ -42,11 +57,11 @@ import { z } from 'zod'
 export const passageSchema = z
   .object({
     id: z.string().min(1).max(100),
-    title: z.string().max(500).default(''),
-    instructions: z.string().max(10000).default(''),
-    passageText: z.string().max(50000).default(''),
-    imageUrl: z.string().max(2000).default(''),
-    passageKind: z.string().max(40).default(''),
+    title: emptyableString(500),
+    instructions: emptyableString(10000),
+    passageText: emptyableString(50000),
+    imageUrl: emptyableString(2000),
+    passageKind: emptyableString(40),
     order: z.number().int().min(0).max(10000).default(0),
   })
   .passthrough()
