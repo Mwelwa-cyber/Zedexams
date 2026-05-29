@@ -821,8 +821,8 @@ function runG7PastPaperMappingTest() {
     'title should prefer the paper-y header line, not the institution name')
   assert.equal(metadata.grade, '7',
     'grade should be derived from the header "GRADE SEVEN", not "Grade 8" inside a later question')
-  assert.equal(metadata.subject, 'Mathematics',
-    'subject should still match the dedicated header line')
+  assert.equal(metadata.subject, 'mathematics',
+    'subject should return the curriculum ID, not the display label')
   assert.equal(metadata.topic, undefined,
     'topic must not be present on imported metadata')
 

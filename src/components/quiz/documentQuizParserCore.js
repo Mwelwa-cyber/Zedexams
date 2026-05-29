@@ -1,16 +1,19 @@
 import { createPartGroup, createPassageSection, createStandaloneSection } from '../../utils/quizSections.js'
 
+// Each entry maps a detectable label (used in doc headers) to the curriculum
+// subject ID used by the form and Firestore. Must stay in sync with
+// src/config/curriculum.js SUBJECTS[].id.
 const SUBJECTS = [
-  'English',
-  'Integrated Science',
-  'Science',
-  'Mathematics',
-  'Social Studies',
-  'Expressive Art',
-  'Expressive Arts',
-  'Technology Studies',
-  'Cinyanja',
-  'Home Economics',
+  { label: 'English',            id: 'english' },
+  { label: 'Integrated Science', id: 'science' },
+  { label: 'Science',            id: 'science' },
+  { label: 'Mathematics',        id: 'mathematics' },
+  { label: 'Social Studies',     id: 'social-studies' },
+  { label: 'Expressive Art',     id: 'expressive-arts' },
+  { label: 'Expressive Arts',    id: 'expressive-arts' },
+  { label: 'Technology Studies', id: 'technology' },
+  { label: 'Cinyanja',           id: 'cinyanja' },
+  { label: 'Home Economics',     id: 'home-economics' },
 ]
 
 const QUESTION_RE = /^(?:q(?:uestion)?\s*)?(\d{1,3})\s*[).:-]\s*(.+)$/i
@@ -374,9 +377,11 @@ export function metadataFromText(text, fileName) {
         : ''
 
   const headerText = [title, ...firstLines].join(' ')
-  const subject = SUBJECTS.find(s => new RegExp(`\\b${s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(headerText))
-    || SUBJECTS.find(s => new RegExp(`\\b${s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text))
-    || ''
+  const escape = str => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const matchSubject = haystack =>
+    SUBJECTS.find(s => new RegExp(`\\b${escape(s.label)}\\b`, 'i').test(haystack))
+  const matched = matchSubject(headerText) || matchSubject(text)
+  const subject = matched?.id || ''
 
   // Topic is intentionally omitted from imported metadata — imported papers
   // span many CBC topics and the teacher should pick (or leave blank) rather
