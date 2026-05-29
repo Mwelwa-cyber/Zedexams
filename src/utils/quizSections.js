@@ -811,13 +811,14 @@ export function hydrateQuizSections(questions = [], passages = [], parts = [], p
   // Only activates when ALL parts have parseable ranges so we don't make
   // partial/wrong assignments.
   const RANGE_RE = /\b(\d+)\s*[-–—]\s*(\d+)\b/
-  const partsBroken = hydratedParts.length > 0 && sections.every(s => {
+  const namedHydratedParts = hydratedParts.filter(p => String(p.title ?? '').trim())
+  const partsBroken = namedHydratedParts.length > 0 && sections.every(s => {
     if (s.kind === 'standalone') return !s.question?.partId
     if (s.kind === 'passage') return !s.partId
     return true
   })
   if (partsBroken) {
-    const partRanges = hydratedParts.map(p => {
+    const partRanges = namedHydratedParts.map(p => {
       const m = p.title.match(RANGE_RE)
       return m ? { id: p.id, low: Number(m[1]), high: Number(m[2]) } : null
     })
@@ -836,7 +837,7 @@ export function hydrateQuizSections(questions = [], passages = [], parts = [], p
         const match = partRanges.find(r => qOrder >= r.low && qOrder <= r.high)
         return match ? { ...s, question: { ...s.question, partId: match.id } } : s
       })
-      return { sections: recovered, parts: hydratedParts }
+      return { sections: recovered, parts: namedHydratedParts }
     }
   }
 
