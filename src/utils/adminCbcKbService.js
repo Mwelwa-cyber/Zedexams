@@ -34,29 +34,6 @@ const expandKbLessonsCallable = httpsCallable(functions, 'expandKbLessons', {
 
 const LE_SET = new Set(LEARNING_ENVIRONMENT_VALUES)
 
-/**
- * Map the firebase-functions error code surfaced by the callable SDK
- * into one of our learnerAiReasons codes. Returning a single
- * `callable_error` bucket for everything hides the actual problem —
- * a `deadline-exceeded` from 20+ parallel cold-start calls looks
- * identical to a `not-found` from a missing function deploy. Each
- * code now maps to its own reason so the admin banner can show the
- * right fix.
- */
-function mapCallableErrorCode(code) {
-  switch (code) {
-    case 'permission-denied':    return 'permission_denied'
-    case 'unauthenticated':      return 'unauthenticated'
-    case 'deadline-exceeded':    return 'deadline_exceeded'
-    case 'unavailable':          return 'service_unavailable'
-    case 'not-found':            return 'function_not_found'
-    case 'failed-precondition':  return 'failed_precondition'
-    case 'resource-exhausted':   return 'resource_exhausted'
-    case 'internal':             return 'internal_error'
-    default:                     return 'callable_error'
-  }
-}
-
 
 /**
  * Run the strict-resolver source-doc-ref backfill from the admin UI.
