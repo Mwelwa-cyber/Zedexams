@@ -4,11 +4,14 @@
  */
 
 const assert = require("node:assert");
+// Import the PURE module (no firebase-functions / firebase-admin) so this test
+// runs under CI's root-only `npm ci`. aiService.js re-exports these same
+// helpers (wrapping parseEditedQuestion's Error in an HttpsError).
 const {
   buildEditQuestionMessages,
   parseEditedQuestion,
   isEditQuestionAction,
-} = require("./aiService");
+} = require("./editQuestionPrompt");
 
 let passed = 0;
 function ok(name, cond) {
