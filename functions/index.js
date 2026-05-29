@@ -1748,10 +1748,11 @@ exports.generateRubric = createGenerateRubric(anthropicApiKey);
 exports.generateNotes = createGenerateNotes(anthropicApiKey);
 
 // Teacher Tools — Visual Slide-Notes (learner-facing illustrated deck).
-// Two-pass: Claude emits the deck + image prompts, then Recraft draws one
-// line-art illustration per prompt. Needs both the Anthropic and Recraft keys.
+// Two-pass: Claude emits the deck + image prompts, then images are drawn one
+// per prompt. Prefers ChatGPT/gpt-image-1 (colour) when the OpenAI key is set,
+// falling back to Recraft line-art. Needs the Anthropic + (OpenAI/Recraft) keys.
 exports.generateVisualNotes =
-  createGenerateSlideNotes(anthropicApiKey, recraftApiKey);
+  createGenerateSlideNotes(anthropicApiKey, recraftApiKey, openaiApiKey);
 
 // Teacher Tools — Full Lesson (complete, ready-to-deliver CBC lesson).
 exports.generateFullLesson = createGenerateFullLesson(anthropicApiKey);

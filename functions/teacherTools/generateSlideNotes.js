@@ -130,13 +130,18 @@ function validateInputs(inputs) {
  * Mutates `deck` in place. Never throws — image trouble degrades the deck to
  * (partial) text rather than failing generation.
  */
-async function enrichDeckImages({uid, deckId, deck, recraftKey}) {
+async function enrichDeckImages({uid, deckId, deck, recraftKey, openaiKey}) {
   const targets = [];
   forEachImageTarget(deck, (t) => targets.push(t));
 
-  // No key configured → skip fast and return a clean text-only deck rather
-  // than firing N doomed Recraft calls.
-  if (!recraftKey) {
+  // Prefer ChatGPT / gpt-image-1 (full-colour, closer to the reference decks)
+  // when the OpenAI key is configured; fall back to Recraft line-art otherwise.
+  const provider = openaiKey ? "openai" : "recraft";
+  const haveKey = Boolean(openaiKey) || Boolean(recraftKey);
+
+  // No image key at all → skip fast and return a clean text-only deck rather
+  // than firing N doomed calls.
+  if (!haveKey) {
     return {
       requested: targets.length, generated: 0, failed: 0,
       quotaReached: false, skipped: true,
@@ -183,11 +188,12 @@ async function enrichDeckImages({uid, deckId, deck, recraftKey}) {
           uid,
           rawInputs: {
             prompt: target.imagePrompt,
-            style: "line_art",
+            style: "line_art", // ignored by the openai provider
             size: "1365x1024",
-            provider: "recraft",
+            provider,
           },
           recraftKey,
+          openaiKey,
           storageSubdir: subdir,
         });
         if (url) {
@@ -213,7 +219,7 @@ async function enrichDeckImages({uid, deckId, deck, recraftKey}) {
   return {requested: targets.length, generated, failed, quotaReached, timedOut};
 }
 
-async function runSlideNotes({uid, rawInputs, apiKey, recraftKey}) {
+async function runSlideNotes({uid, rawInputs, apiKey, recraftKey, openaiKey}) {
   const inputs = sanitizeInputs(rawInputs || {});
 
   const inputErrors = validateInputs(inputs);
@@ -330,6 +336,7 @@ async function runSlideNotes({uid, rawInputs, apiKey, recraftKey}) {
       deckId: genRef.id,
       deck,
       recraftKey,
+      openaiKey,
     });
   } catch (err) {
     // Unexpected enrichment error — keep the text deck, note the problem.
@@ -382,12 +389,14 @@ async function runSlideNotes({uid, rawInputs, apiKey, recraftKey}) {
   };
 }
 
-function createGenerateSlideNotes(anthropicApiKeySecret, recraftApiKeySecret) {
+function createGenerateSlideNotes(
+    anthropicApiKeySecret, recraftApiKeySecret, openaiApiKeySecret) {
   const secrets = [anthropicApiKeySecret];
   if (recraftApiKeySecret) secrets.push(recraftApiKeySecret);
+  if (openaiApiKeySecret) secrets.push(openaiApiKeySecret);
   return onCall(
-    // Images run sequentially, so allow the full 5-minute ceiling for a
-    // 10-image deck. 512MiB is plenty (we stream PNGs, never hold many).
+    // Images generate with bounded concurrency under a wall-clock budget, but
+    // still allow the full 5-minute ceiling. 512MiB is plenty (we stream PNGs).
     {secrets, timeoutSeconds: 300, memory: "512MiB"},
     async (request) => {
       const uid = request.auth && request.auth.uid;
@@ -403,8 +412,13 @@ function createGenerateSlideNotes(anthropicApiKeySecret, recraftApiKeySecret) {
       const recraftKey = recraftApiKeySecret ?
         (recraftApiKeySecret.value() || process.env.RECRAFT_API_KEY || "") :
         (process.env.RECRAFT_API_KEY || "");
+      const openaiKey = openaiApiKeySecret ?
+        (openaiApiKeySecret.value() || process.env.OPENAI_API_KEY || "") :
+        (process.env.OPENAI_API_KEY || "");
       try {
-        return await runSlideNotes({uid, rawInputs: request.data, apiKey, recraftKey});
+        return await runSlideNotes({
+          uid, rawInputs: request.data, apiKey, recraftKey, openaiKey,
+        });
       } catch (err) {
         if (err instanceof HttpsError) throw err;
         console.error("generateVisualNotes unexpected error", {uid, err});
