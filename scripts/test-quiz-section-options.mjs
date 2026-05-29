@@ -118,6 +118,22 @@ console.log('\nPassage child question: rich-math options round-trip')
   assert(isFractionDoc(opts[3], 5, 7), 'passage option D hydrated back to a fraction doc')
 }
 
+// ── Image-less passage serializes imageUrl as "" (not null) ──────────
+// Regression: an image-less passage used to serialize as `imageUrl: null`,
+// which quizWriteSchema rejected with "Invalid quiz payload at
+// passages.0.imageUrl: Invalid input" — blocking the entire quiz save.
+console.log('\nImage-less passage serializes imageUrl as ""')
+{
+  const passageSection = createPassageSection({
+    id: 'p_noimg',
+    title: 'No image',
+    passageText: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Read.' }] }] },
+    questions: [emptyPassageQuestion({ passageId: 'p_noimg', type: 'mcq', correctAnswer: 0 })],
+  })
+  const { passages } = serializeQuizSections([passageSection], [])
+  assert(passages[0].imageUrl === '', 'image-less passage serializes imageUrl as "" (string), not null')
+}
+
 // ── Legacy plain-string options must survive untouched ───────────────
 console.log('\nLegacy plain-string options unaffected')
 {
