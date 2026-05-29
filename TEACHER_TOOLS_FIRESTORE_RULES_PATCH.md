@@ -1,5 +1,12 @@
 # Firestore rules additions for Teacher Tools MVP
 
+> **⚠️ STATUS — re-verified 2026-05-29: ALREADY APPLIED. Do not paste these blocks again.** All six rule blocks below are live in `firestore.rules` (the `aiGenerations`, `teacherLibraries`, `usageMeters`, `cbcKnowledgeBase`, `promptTemplates`, and `schoolLicences` matches; `agentJobs` exists too). `firestore.rules` is the source of truth, not this file. Two caveats:
+>
+> - **The `aiGenerations` `update` block has since widened.** The live rule's `changedKeys().hasOnly([...])` now also allows `output` and `library` (plus immutability guards on `ownerUid` / `tool`), not just the `['teacherEdited', 'visibility', 'exportedFormats']` shown below. Don't treat the snippet below as current.
+> - **The deploy command is stale.** Rules ship via CI (`deploy-firebase.yml`), not `npm run deploy:firebase:firestore` from a workstation.
+>
+> _Original patch kept below for history._
+
 Paste these blocks **inside** the root `match /databases/{database}/documents { ... }` block in `firestore.rules`, next to the existing `// ── lessons ──` and `// ── payments ──` sections. They follow the same `isAuthed()`, `isOwner()`, `isAdmin()`, `callerRole()` helper pattern already defined at the top of the rules file.
 
 After pasting, deploy with:

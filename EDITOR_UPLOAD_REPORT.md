@@ -1,5 +1,14 @@
 # Uploaded Quiz Editor — Feasibility Report
 
+> **⚠️ STATUS — re-verified 2026-05-29:** This was a one-time feasibility report (≈2026-04-19) on a 14-file editor upload. **Both blocking problems are fixed and the report is now historical:**
+>
+> - §2 `QuizPreview.jsx` double-`export default` — fixed; `AnswerOptions` is its own file (`src/editor/components/AnswerOptions.jsx`).
+> - §3 `sanitize.js` dropping `sanitizeQuizRichHTML` — never regressed; the export is present in `src/editor/utils/sanitize.js`.
+> - §1 the two "missing" files (`QuizEditor.jsx`, `QuizViewer.jsx`) were added — then removed again on 2026-05-29 as unused dead code (see [BUG_REPORT.md](BUG_REPORT.md) P3-1; recoverable from git).
+> - §4c the MathModal / EditorToolbar "polish loss" was undone by a 2026-04-22 rewrite (categorized math modal + icon toolbar).
+>
+> **The only thread still open is §5's structural rewrite** — it was never started. The `QuizEditor.jsx` / `QuizViewer.jsx` scaffolding has been deleted as unused, quiz surfaces still render via `RichContent`, and storage is still HTML strings, not Tiptap JSON. The "will these 14 files build?" framing is moot. Don't action §1–§4 or the A/B/C options below; if the Tiptap switch is revived, recover the scaffolding from git and scope it fresh.
+
 **Question asked:** will these 14 files run without breaking anything?
 **Short answer:** **No — not as-is.** Two files have real problems that will break the build or crash the app. The other twelve are upgraded versions of files you already have and will drop in cleanly once the two are fixed.
 

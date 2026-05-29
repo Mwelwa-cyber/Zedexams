@@ -1,5 +1,15 @@
 # Launch Checklist — ZedExams Teacher Suite
 
+> **⚠️ STATUS — re-verified 2026-05-29: SUPERSEDED historical snapshot. Do not use as a live checklist.** This was a one-time launch runbook for a "Teacher Suite" funnel that was never built, and the stack has moved on:
+>
+> - **The public funnel it tests doesn't exist** — there are no `/teachers`, `/teachers/samples`, or `/admin/waitlist` routes, and no waitlist component anywhere in `src/`. Most of §1–§2 checks a product shape that was never shipped.
+> - **Hosting:** Netlify → **Firebase Hosting** via GitHub Actions. The `app.netlify.com/…` links (§7) and the "Publish deploy" rollback (§8) are dead — rollback is `git revert` + push.
+> - **Analytics:** the Plausible/GA4 instructions (§3) are obsolete — the app uses **PostHog** (`src/utils/analytics.js`, gated on `VITE_POSTHOG_KEY` + consent).
+> - **Error monitoring:** Sentry is **already installed and wired** (`src/utils/sentry.js`, `src/main.jsx`); only `VITE_SENTRY_DSN` remains unset. §4's "npm install @sentry/react" is done.
+> - **§6 `MARKETING_KIT.md` does not exist** in the repo.
+>
+> Only the personal credential-backup list (§5, minus the Netlify line) and the secrets-leak rotation steps (§8) are still useful. If a teacher-marketing launch is still planned, write a fresh checklist against the current Firebase + PostHog + Sentry stack.
+
 Walk this top-to-bottom **once** before posting your first WhatsApp message or email. Each item is ~2 minutes. Allow an hour total.
 
 ---

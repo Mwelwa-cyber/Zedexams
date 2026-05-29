@@ -1,5 +1,13 @@
 # ZedExams — Premium Polish Plan
 
+> **⚠️ STATUS — re-verified 2026-05-29:** Most of this plan has shipped. Phase 0 (design tokens) and the Phase 1 primitives — `Button`, `Card`, `Skeleton`, `Icon`, the global focus ring, shimmer — are all in `src/components/ui/` + `src/index.css`, and most of the Phase 2–3 surface passes are done. **~17 of the 25 items are complete.** Before using this as a to-do list:
+>
+> - **"lucide-react" is wrong throughout.** The repo never used lucide — icons are `@heroicons/react` (see `package.json`), wrapped by `src/components/ui/Icon.jsx`. Read every "Lucide" reference below as Heroicons.
+> - **Items #11 and 1F (OS `prefers-color-scheme` dark-mode default) will NOT be done** — `ThemeContext` deliberately ignores the OS preference (a standing product decision). Skip them.
+> - **What actually remains:** finish migrating the ~36 files still using `animate-pulse` to `<Skeleton>` (items 1C / #10), and the optional QuizResults confetti (2F). Everything else below is shipped.
+>
+> _Original plan kept below for context._
+
 **Goal:** bring the visual language and interaction quality up to feel like a paid consumer product, while keeping the warm, K–7-friendly personality that's already there.
 
 **Audience reality check:** learners aged 8–13 on low-bandwidth Zambian networks. Premium here means *refined and trustworthy*, not *cold and corporate*. We keep the color, the Pako mascot, the encouragement — and we raise the craft ceiling around them.
