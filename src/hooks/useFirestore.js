@@ -134,6 +134,7 @@ function normalizeQuestionPayload(q, order) {
     optionMedia,
     passageId:     q.passageId || null,
     partId:        q.partId ?? null,
+    subtype:       q.subtype ?? null,
     correctAnswer: isShortAnswer
       ? String(q.correctAnswer ?? '').trim()
       : isNumeric
@@ -171,6 +172,7 @@ function normalizeQuestionPayload(q, order) {
     marks:         Math.max(1, Math.min(20, Number(q.marks) || 1)),
     type,
     detectedType:  q.detectedType || type,
+    difficulty:    q.difficulty || undefined,
     imageUrl:      q.imageUrl || null,
     imageDiagram,
     imagePosition: q.imagePosition || null,
