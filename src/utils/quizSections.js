@@ -805,6 +805,41 @@ export function hydrateQuizSections(questions = [], passages = [], parts = [], p
     }))
     .sort((left, right) => (left.order ?? 0) - (right.order ?? 0))
 
+  // Recovery pass: if parts exist but every question has partId=null (caused
+  // by a pre-fix save that stripped partId), try to re-infer assignments from
+  // number ranges encoded in part titles ("Questions 1 - 20", "21 - 25", …).
+  // Only activates when ALL parts have parseable ranges so we don't make
+  // partial/wrong assignments.
+  const RANGE_RE = /\b(\d+)\s*[-–—]\s*(\d+)\b/
+  const partsBroken = hydratedParts.length > 0 && sections.every(s => {
+    if (s.kind === 'standalone') return !s.question?.partId
+    if (s.kind === 'passage') return !s.partId
+    return true
+  })
+  if (partsBroken) {
+    const partRanges = hydratedParts.map(p => {
+      const m = p.title.match(RANGE_RE)
+      return m ? { id: p.id, low: Number(m[1]), high: Number(m[2]) } : null
+    })
+    if (partRanges.every(Boolean)) {
+      let qOrder = 0
+      const recovered = sections.map(s => {
+        if (s.kind === 'pagebreak') return s
+        if (s.kind === 'passage') {
+          const qCount = s.passage?.questions?.length || 0
+          qOrder += qCount
+          const mid = qOrder - Math.floor(qCount / 2)
+          const match = partRanges.find(r => mid >= r.low && mid <= r.high)
+          return match ? { ...s, partId: match.id } : s
+        }
+        qOrder++
+        const match = partRanges.find(r => qOrder >= r.low && qOrder <= r.high)
+        return match ? { ...s, question: { ...s.question, partId: match.id } } : s
+      })
+      return { sections: recovered, parts: hydratedParts }
+    }
+  }
+
   return { sections, parts: hydratedParts }
 }
 
