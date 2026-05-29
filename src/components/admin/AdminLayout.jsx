@@ -97,7 +97,6 @@ const NAV_SECTIONS = [
     items: [
       { to: '/admin/approvals', icon: BellRing, label: 'Content queue', badgeKey: 'content' },
       { to: '/admin/agents', icon: Bot, label: 'AI agents', badgeKey: 'agents' },
-      { to: '/admin/learner-ai', icon: Sparkles, label: 'Learner AI', badgeKey: 'learnerAi' },
       { to: '/admin/generations', icon: Sparkles, label: 'AI generations' },
     ],
   },
@@ -138,28 +137,21 @@ const NAV_SECTIONS = [
 const VIEW_AS_KEY = 'zedexams.adminViewAs'
 
 function useAdminBadges() {
-  const [badges, setBadges] = useState({ content: 0, agents: 0, learnerAi: 0, payments: 0 })
+  const [badges, setBadges] = useState({ content: 0, agents: 0, payments: 0 })
   useEffect(() => {
     let cancelled = false
     async function load() {
       try {
-        const [pendingQuiz, pendingLesson, awaitingApproval, awaitingLearnerAi, pendingPayments] = await Promise.all([
+        const [pendingQuiz, pendingLesson, awaitingApproval, pendingPayments] = await Promise.all([
           getCountFromServer(query(collection(db, 'quizzes'), where('status', '==', 'pending'))).catch(() => null),
           getCountFromServer(query(collection(db, 'lessons'), where('status', '==', 'pending'))).catch(() => null),
           getCountFromServer(query(collection(db, 'agentJobs'), where('status', '==', 'awaiting_approval'))).catch(() => null),
-          // Parallel counter for the learner-AI v2 pipeline. Kept as a
-          // separate query (NOT folded into the existing agentJobs
-          // counter) so teacher + learner queues stay visually
-          // distinct. v2 status is 'needs_review' (not the v1
-          // 'awaiting_approval').
-          getCountFromServer(query(collection(db, 'aiAgentTasks'), where('status', '==', 'needs_review'))).catch(() => null),
           getCountFromServer(query(collection(db, 'payments'), where('status', '==', 'pending'))).catch(() => null),
         ])
         if (cancelled) return
         setBadges({
           content: (pendingQuiz?.data()?.count ?? 0) + (pendingLesson?.data()?.count ?? 0),
           agents: awaitingApproval?.data()?.count ?? 0,
-          learnerAi: awaitingLearnerAi?.data()?.count ?? 0,
           payments: pendingPayments?.data()?.count ?? 0,
         })
       } catch {
