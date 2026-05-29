@@ -45,10 +45,27 @@ function plainTextFromQuestion(q) {
 
 function plainTextFromOption(opt) {
   if (opt == null) return ''
-  if (typeof opt === 'string') return opt
+  if (typeof opt === 'string') {
+    // An option may be a plain string ("117 kg"), legacy HTML, OR a
+    // stringified Tiptap doc ('{"type":"doc",...}'). getRichPlainText handles
+    // all three — for a stringified doc it extracts the readable text (e.g.
+    // "1/32"), for a plain string it returns it unchanged. Routing strings
+    // through it is what stops raw JSON leaking into the option label.
+    return getRichPlainText(opt) || opt
+  }
   if (typeof opt === 'object') {
     return getRichPlainText(opt.textJSON ?? opt.text ?? '') || opt.text || ''
   }
+  return String(opt)
+}
+
+// The value to hand <RichContent> for an option, so it renders with real
+// stacked fractions / KaTeX like the question stem instead of plain text.
+// Mirrors plainTextFromOption's shape handling.
+function richOptionValue(opt) {
+  if (opt == null) return ''
+  if (typeof opt === 'string') return opt
+  if (typeof opt === 'object') return opt.textJSON ?? opt.text ?? ''
   return String(opt)
 }
 
@@ -97,7 +114,7 @@ function Progress({ value, max }) {
   )
 }
 
-function OptionButton({ label, index, selected, revealed, correct, onClick, disabled, imageUrl, diagram }) {
+function OptionButton({ label, optionValue, index, selected, revealed, correct, onClick, disabled, imageUrl, diagram }) {
   let cls = 'theme-card border-2 theme-border'
   if (revealed) {
     if (correct) cls = 'border-2 border-emerald-500 bg-emerald-50 text-emerald-900'
@@ -136,7 +153,13 @@ function OptionButton({ label, index, selected, revealed, correct, onClick, disa
             )}
           </span>
         )}
-        {label && <span className="block whitespace-pre-wrap">{label}</span>}
+        {/* Render the option as rich content (stacked fractions, KaTeX) just
+            like the stem. RichContent handles Tiptap JSON, a stringified
+            Tiptap doc, legacy HTML, and plain strings; the plain-text label
+            is the fallback so an option is never blank or shows raw JSON. */}
+        {optionValue
+          ? <RichContent value={optionValue} className="block whitespace-pre-wrap" fallback={label ? <span className="block whitespace-pre-wrap">{label}</span> : null} />
+          : (label && <span className="block whitespace-pre-wrap">{label}</span>)}
       </span>
       {revealed && correct && <span aria-hidden="true">✓</span>}
       {revealed && selected && !correct && <span aria-hidden="true">✗</span>}
@@ -467,6 +490,7 @@ export default function PublicQuizRunner() {
                   key={idx}
                   index={idx}
                   label={label}
+                  optionValue={richOptionValue(opt)}
                   imageUrl={optObj?.imageUrl}
                   diagram={optObj?.diagram}
                   selected={selection === idx}

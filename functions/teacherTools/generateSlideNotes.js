@@ -43,6 +43,19 @@ const SLIDE_NOTES_MODEL = process.env.SLIDE_NOTES_MODEL || "claude-sonnet-4-5";
 // Recraft charges ~$0.04 per image; mirror that for the per-deck cost estimate.
 const IMAGE_COST_CENTS = 4;
 
+// Image generation tuning. Recraft round-trips (generate + download to
+// Storage) can take 20-40s each, so generating ~10 sequentially blew past the
+// 300s function timeout and the instance was killed (surfacing to the client
+// as a bare "internal"). We instead generate with bounded concurrency and a
+// wall-clock budget: once the budget is spent we stop launching new images and
+// return the deck with whatever finished — the rest stay text-only, which the
+// learner reader already renders cleanly.
+const IMAGE_CONCURRENCY = 4;
+// Stop launching new images after this. Budget + a worst-case ~40s in-flight
+// Recraft tail + the upfront Claude call must all fit under the 300s function
+// timeout, so keep this comfortably below it.
+const IMAGE_PHASE_BUDGET_MS = 180_000;
+
 // Permissive top-level shape — validateSlideNotes() does the strict checking.
 // Forcing tool use eliminates "AI returned non-JSON" parse failures.
 const SLIDE_NOTES_TOOL_SCHEMA = {
@@ -105,25 +118,38 @@ function validateInputs(inputs) {
 }
 
 /**
- * Pass 2 — turn every slide's imagePrompt into an illustration. Sequential and
- * quota-gated: a single failure leaves that slide text-only; hitting the
- * monthly image quota stops further generation but keeps the deck.
+ * Pass 2 — turn each slide's imagePrompt into an illustration.
  *
- * Mutates `deck` in place. Returns generation stats.
+ * Two phases so the callable always returns before its timeout:
+ *   1. Reserve monthly image quota sequentially (fast Firestore writes), up to
+ *      the cap. This keeps the transactional meter free of write contention.
+ *   2. Generate the reserved images with bounded concurrency under a wall-clock
+ *      budget. When the budget runs out we stop launching new ones; unfinished
+ *      slides stay text-only.
+ *
+ * Mutates `deck` in place. Never throws — image trouble degrades the deck to
+ * (partial) text rather than failing generation.
  */
 async function enrichDeckImages({uid, deckId, deck, recraftKey}) {
   const targets = [];
   forEachImageTarget(deck, (t) => targets.push(t));
 
-  let generated = 0;
-  let failed = 0;
-  let quotaReached = false;
-  const subdir = `slide-notes-images/${uid}/${deckId}`;
+  // No key configured → skip fast and return a clean text-only deck rather
+  // than firing N doomed Recraft calls.
+  if (!recraftKey) {
+    return {
+      requested: targets.length, generated: 0, failed: 0,
+      quotaReached: false, skipped: true,
+    };
+  }
 
+  // Phase 1 — reserve quota sequentially (cheap, avoids meter contention).
+  const reserved = [];
+  let quotaReached = false;
   for (const target of targets) {
-    // Stop entirely once the monthly image quota is exhausted.
     try {
       await assertAndIncrement(uid, "slide_notes_images");
+      reserved.push(target);
     } catch (err) {
       if (err instanceof HttpsError && err.code === "failed-precondition") {
         quotaReached = true;
@@ -131,32 +157,60 @@ async function enrichDeckImages({uid, deckId, deck, recraftKey}) {
       }
       throw err;
     }
-
-    try {
-      const {url} = await runGenerateDiagram({
-        uid,
-        rawInputs: {
-          prompt: target.imagePrompt,
-          style: "line_art",
-          size: "1365x1024",
-          provider: "recraft",
-        },
-        recraftKey,
-        storageSubdir: subdir,
-      });
-      target.imageUrl = url || "";
-      if (url) generated += 1; else failed += 1;
-    } catch (err) {
-      // One bad image shouldn't sink the deck — leave it text-only.
-      console.warn("slide-notes image generation failed", {
-        deckId,
-        message: err && err.message,
-      });
-      failed += 1;
-    }
   }
 
-  return {requested: targets.length, generated, failed, quotaReached};
+  // Phase 2 — generate concurrently under a wall-clock budget.
+  const subdir = `slide-notes-images/${uid}/${deckId}`;
+  const deadline = Date.now() + IMAGE_PHASE_BUDGET_MS;
+  let generated = 0;
+  let failed = 0;
+  let timedOut = false;
+  let next = 0;
+
+  const worker = async () => {
+    for (;;) {
+      const i = next++;
+      if (i >= reserved.length) return;
+      // Out of time — leave the remaining slides text-only and bail so the
+      // callable can return before the function timeout kills it.
+      if (Date.now() > deadline) {
+        timedOut = true;
+        return;
+      }
+      const target = reserved[i];
+      try {
+        const {url} = await runGenerateDiagram({
+          uid,
+          rawInputs: {
+            prompt: target.imagePrompt,
+            style: "line_art",
+            size: "1365x1024",
+            provider: "recraft",
+          },
+          recraftKey,
+          storageSubdir: subdir,
+        });
+        if (url) {
+          target.imageUrl = url;
+          generated += 1;
+        } else {
+          failed += 1;
+        }
+      } catch (err) {
+        // One bad image shouldn't sink the deck — leave it text-only.
+        console.warn("slide-notes image generation failed", {
+          deckId,
+          message: err && err.message,
+        });
+        failed += 1;
+      }
+    }
+  };
+
+  const poolSize = Math.min(IMAGE_CONCURRENCY, reserved.length);
+  await Promise.all(Array.from({length: poolSize}, () => worker()));
+
+  return {requested: targets.length, generated, failed, quotaReached, timedOut};
 }
 
 async function runSlideNotes({uid, rawInputs, apiKey, recraftKey}) {
@@ -285,9 +339,19 @@ async function runSlideNotes({uid, rawInputs, apiKey, recraftKey}) {
   const imageCostCents = imageStats.generated * IMAGE_COST_CENTS;
 
   const imageWarnings = [];
+  if (imageStats.skipped) {
+    imageWarnings.push(
+      "Illustrations are not configured yet — saved as a text-only deck.",
+    );
+  }
   if (imageStats.quotaReached) {
     imageWarnings.push(
       "Monthly image quota reached — some slides were left without illustrations.",
+    );
+  }
+  if (imageStats.timedOut) {
+    imageWarnings.push(
+      "Some illustrations took too long and were left as text — you can regenerate to try again.",
     );
   }
   if (imageStats.failed > 0) {
