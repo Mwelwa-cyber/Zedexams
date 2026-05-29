@@ -20,9 +20,7 @@ const importBuiltInCbcTopicsCallable = httpsCallable(functions, 'importBuiltInCb
 const importCurriculumModulesCallable = httpsCallable(functions, 'importCurriculumModules', {
   timeout: 120_000,
 })
-const preflightCurriculumRefCallable = httpsCallable(functions, 'preflightCurriculumRef', {
-  timeout: 20_000,
-})
+
 const backfillKbSourceRefsCallable = httpsCallable(functions, 'backfillKbSourceRefs', {
   // Backfill walks every lesson module under the active KB version. With
   // hundreds of modules this can comfortably take a minute on a cold
@@ -59,28 +57,6 @@ function mapCallableErrorCode(code) {
   }
 }
 
-/**
- * Ask the server-side strict resolver whether a given subtopic will be
- * accepted by the learner-AI dispatcher before queueing a task.
- * Returns { ok, reason?, message?, rawCode? }.
- */
-export async function preflightCurriculumRef({ grade, subject, topic, subtopic, term }) {
-  try {
-    const result = await preflightCurriculumRefCallable({
-      grade, subject, topic, subtopic, term,
-    })
-    const data = (result && result.data) || {}
-    if (data.ok) return { ok: true }
-    return { ok: false, reason: data.reason || 'unknown', message: data.message || null }
-  } catch (err) {
-    return {
-      ok: false,
-      reason: mapCallableErrorCode(err?.code),
-      message: err?.message || 'Preflight failed',
-      rawCode: err?.code || null,
-    }
-  }
-}
 
 /**
  * Run the strict-resolver source-doc-ref backfill from the admin UI.
