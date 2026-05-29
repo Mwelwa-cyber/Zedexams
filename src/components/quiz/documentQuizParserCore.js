@@ -840,6 +840,11 @@ function buildParaOrderBlocks(lineObjects, instruction) {
   let currentOpt = ''
   let optTexts = { A: [], B: [], C: [], D: [] }
   let firstBlock = null
+  // Inline "Answer: D — …" line that sits right after a para-order question's
+  // options. ECZ answer-key documents place it inline rather than in a
+  // trailing answer-key table. We capture it and re-emit it on the synthetic
+  // block so the main parser's ANSWER_RE resolves the correct option.
+  let answerRaw = ''
   const OPT_ORDER = ['A', 'B', 'C', 'D']
 
   function flushQuestion() {
@@ -849,6 +854,7 @@ function buildParaOrderBlocks(lineObjects, instruction) {
       const sentences = optTexts[letter] || []
       if (sentences.length) lines.push(`${letter}. ${sentences.join(' ')}`)
     }
+    if (answerRaw) lines.push(`Answer: ${answerRaw}`)
     output.push({
       text: lines.join('\n'),
       assets: firstBlock?.assets || [],
@@ -860,6 +866,7 @@ function buildParaOrderBlocks(lineObjects, instruction) {
     currentOpt = ''
     optTexts = { A: [], B: [], C: [], D: [] }
     firstBlock = null
+    answerRaw = ''
   }
 
   function startQuestion(num, block) {
@@ -875,6 +882,15 @@ function buildParaOrderBlocks(lineObjects, instruction) {
 
     if (/^example$/i.test(text) || /^the answer is\b/i.test(text)) continue
 
+    // Inline answer line ("Answer: D — …") for the active question. Captured
+    // here so parseRawParaOrderOptionLine below doesn't mistake "Answer…" for
+    // an option labelled "A".
+    const inlineAnswer = text.match(ANSWER_RE)
+    if (inlineAnswer) {
+      if (qNum) answerRaw = inlineAnswer[1]
+      continue
+    }
+
     const doQMatch = text.match(PARA_ORDER_DO_Q_RE)
     if (doQMatch) {
       const inlineStart = text.match(/(\d{1,3})\s*A(?:[).:-]\s*|\s+)?(.*)$/)
@@ -887,9 +903,12 @@ function buildParaOrderBlocks(lineObjects, instruction) {
       continue
     }
 
-    const questionOnlyMatch = text.match(PARA_ORDER_QUESTION_ONLY_RE)
+    // A question-number marker on its own line. ECZ Word exports write these
+    // as `39.` (with a trailing period); the bare `39` form also occurs. Both
+    // start a new para-order question.
+    const questionOnlyMatch = text.match(/^(\d{1,3})\s*[.):]?$/)
     if (questionOnlyMatch) {
-      startQuestion(questionOnlyMatch[0], block)
+      startQuestion(questionOnlyMatch[1], block)
       continue
     }
 
@@ -1076,6 +1095,15 @@ function parseQuestionsFromBlocks(blocks, warnings) {
   let pendingDiagramCaptions = []
   let inAnswerKey = false
   let sharedInstruction = ''
+  // Standing instruction for a run of "number-only stem" questions — e.g. an
+  // ECZ punctuation section where the heading is "Choose the sentence which is
+  // correctly punctuated." and every question is just a number (`26.`, `27.`)
+  // followed by full-sentence A–D options on their own lines. Unlike
+  // `sharedInstruction` (consumed by the first question), this persists across
+  // the whole run so every numbered question in the section keeps the prompt
+  // as its stem. Cleared whenever a normal numbered question, a new
+  // instruction, a section/passage break, or the answer key arrives.
+  let numberStemInstruction = ''
   let compActive = false
   let compInstructions = []
   let compTitle = ''
@@ -1260,6 +1288,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         finalizeStandaloneQuestion()
         inAnswerKey = true
         sharedInstruction = ''
+        numberStemInstruction = ''
         currentPartTitle = ''
         return
       }
@@ -1394,6 +1423,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
 
       if (explicitInstruction && !detectedQuestion) {
         finalizeStandaloneQuestion()
+        numberStemInstruction = ''
         sharedInstruction = stripInstructionPrefix(line)
         return
       }
@@ -1401,6 +1431,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
       if (isInstruction && !detectedQuestion) {
         finalizeStandaloneQuestion()
         sharedInstruction = ''
+        numberStemInstruction = ''
         compActive = true
         compInstructions.push(line)
         if (lineAssets.length) pendingAssets.push(...lineAssets)
@@ -1411,6 +1442,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         if (lineAssets.length) pendingAssets.push(...lineAssets)
         finalizeStandaloneQuestion()
         sharedInstruction = ''
+        numberStemInstruction = ''
         // Section heading (PART A / SECTION B / UNIT 3 / etc.) opens a new
         // Part group. Passage labels ("Story 1") do NOT — those belong to
         // a comprehension passage that may live inside the active Part.
@@ -1434,6 +1466,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
           return
         }
         finalizeStandaloneQuestion()
+        numberStemInstruction = ''
         sharedInstruction = stripInstructionPrefix(line)
         return
       }
@@ -1461,7 +1494,23 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         return
       }
 
+      // Number-only stem: a line that is just `26.` / `27)` with the actual
+      // answer choices on the following lines (full-sentence A–D options).
+      // Common in ECZ "Choose the correctly punctuated sentence" sections.
+      // We only treat it as a question when a section instruction is standing
+      // — otherwise a stray page number would spawn a phantom question. The
+      // instruction is latched into numberStemInstruction so every numbered
+      // question in the run keeps the same prompt as its stem.
+      const numberStemMatch = line.match(/^(\d{1,3})\s*[.):]?$/)
+      if (numberStemMatch && !detectedQuestion && (numberStemInstruction || sharedInstruction)) {
+        if (!numberStemInstruction && sharedInstruction) numberStemInstruction = sharedInstruction
+        const stem = numberStemInstruction || sharedInstruction
+        startQuestion(stem, { ...block, assets: lineAssets, sharedInstruction: stem }, numberStemMatch[1], false)
+        return
+      }
+
       if (detectedQuestion) {
+        numberStemInstruction = ''
         startQuestion(detectedQuestion.text, { ...block, assets: lineAssets }, detectedQuestion.number, false)
         return
       }
