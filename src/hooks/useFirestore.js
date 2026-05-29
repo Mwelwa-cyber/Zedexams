@@ -133,6 +133,7 @@ function normalizeQuestionPayload(q, order) {
     options,
     optionMedia,
     passageId:     q.passageId || null,
+    partId:        q.partId ?? null,
     correctAnswer: isShortAnswer
       ? String(q.correctAnswer ?? '').trim()
       : isNumeric
