@@ -197,6 +197,131 @@ function runRegressionTest() {
 
 runRegressionTest()
 
+// ─── Real-world ECZ Word layout ───────────────────────────────────────────
+// The fixture above uses idealised one-line / bare-number formats. Real ECZ
+// .docx exports (e.g. G7 English) use two layouts the parser used to silently
+// drop:
+//   1. "Number-only stem" — the question is just `26.` on its own line and the
+//      A–D answer choices are full sentences on the following lines, with an
+//      inline `Answer: B  —  …` line. The section heading supplies the stem.
+//   2. Paragraph-ordering markers written as `39.` (trailing period), not the
+//      bare `39` the old code required, also with inline answers.
+// This regression locks both in so a clean 60-question paper imports whole.
+function numberOnlyStemQuestion(number, options, answerLetter) {
+  const answerText = options['ABCD'.indexOf(answerLetter)]
+  return [
+    block(`${number}.`),
+    block(`A   ${options[0]}`),
+    block(`B   ${options[1]}`),
+    block(`C   ${options[2]}`),
+    block(`D   ${options[3]}`),
+    block(`Answer: ${answerLetter}  —  ${answerText}`),
+  ]
+}
+
+function paraOrderQuestionWithPeriod(number, options, answerLetter) {
+  const answerText = options['ABCD'.indexOf(answerLetter)]
+  return [
+    block(`${number}.`),
+    block(`A   ${options[0]}`),
+    block(`B   ${options[1]}`),
+    block(`C   ${options[2]}`),
+    block(`D   ${options[3]}`),
+    block(`Answer: ${answerLetter}  —  ${answerText}`),
+  ]
+}
+
+function runRealWorldLayoutTest() {
+  const punctuationInstr = 'Choose the sentence which is correctly punctuated.'
+  const paragraphInstr = 'Choose the paragraph which has the sentences in the best order.'
+
+  const blocks = [
+    block('Part 3: Questions 26 – 30'),
+    block(punctuationInstr),
+    ...numberOnlyStemQuestion(26, [
+      'The Bible was translated into Chitonga Cinyanja Luvale and Icibemba.',
+      'The Bible was translated into, Chitonga Cinyanja Luvale and Icibemba.',
+      'The Bible, was translated into Chitonga Cinyanja Luvale and Icibemba.',
+      'The Bible was translated into Chitonga, Cinyanja, Luvale and Icibemba.',
+    ], 'D'),
+    ...numberOnlyStemQuestion(27, [
+      "The First Lady's Independence Day attire was nice.",
+      'The First Ladys Independence Day attire was nice.',
+      "The First Lady's, Independence Day attire was nice.",
+      "The First Ladys' Independence Day attire was nice.",
+    ], 'A'),
+    ...numberOnlyStemQuestion(28, [
+      'take this map in case you lose your way.',
+      'Take this map in case you lose your way?',
+      'Take this map in case you lose your way.',
+      'take this map in case you lose your way!',
+    ], 'C'),
+    ...numberOnlyStemQuestion(29, [
+      "Your mother is very dear to you, isn't she?",
+      "Your mother is very dear, to you isn't she?",
+      "Your mother is very dear to you! isn't she?",
+      "Your mother is very dear to you, isn't she?",
+    ], 'A'),
+    ...numberOnlyStemQuestion(30, [
+      'Aha! There comes our teacher! said Patra.',
+      'Aha! There comes our teacher. said Patra.',
+      'Aha! There comes our teacher, said Patra.',
+      'Aha! There comes our teacher, said Patra.',
+    ], 'A'),
+    block('SECTION B — Part 1: Questions 39 – 45'),
+    block(paragraphInstr),
+    ...paraOrderQuestionWithPeriod(39, [
+      'First sentence one. Then sentence two. Finally sentence three.',
+      'Then sentence two. Finally sentence three. First sentence one.',
+      'Finally sentence three. First sentence one. Then sentence two.',
+      'First sentence one. Then sentence two. Finally sentence three again.',
+    ], 'A'),
+    ...paraOrderQuestionWithPeriod(45, [
+      'Football is played all over the world. It is run by FIFA.',
+      'It is run by FIFA. Football is played all over the world.',
+      'FIFA runs football. Football is played everywhere.',
+      'Everywhere football is played. FIFA is the body.',
+    ], 'B'),
+  ]
+
+  const warnings = []
+  const { sections, summary } = processImportedQuestionBlocks(blocks, warnings)
+
+  // All 7 questions present (5 punctuation + 2 paragraph-ordering).
+  assert.equal(summary.questions, 7, `expected 7 questions, got ${summary.questions}`)
+
+  const numbers = allQuestionsFromSections(sections)
+    .map(q => Number(q.sourceQuestionNumber))
+    .sort((a, b) => a - b)
+  assert.deepEqual(numbers, [26, 27, 28, 29, 30, 39, 45])
+
+  // Number-only stems: each carries the section instruction as its stem,
+  // four options, and the inline answer resolved to the right index.
+  const q26 = findQuestion(sections, 26)
+  assert.match(plainRichText(q26.text), /correctly punctuated/i)
+  assert.equal(q26.options.length, 4)
+  assert.equal(q26.type, 'mcq')
+  assert.equal(q26.correctAnswer, 3) // D
+
+  const q27 = findQuestion(sections, 27)
+  assert.equal(q27.correctAnswer, 0) // A
+  const q28 = findQuestion(sections, 28)
+  assert.equal(q28.correctAnswer, 2) // C — option ending in "?" must not be misread
+
+  // Paragraph-ordering markers with a trailing period (`39.`) parse, keep four
+  // options, and resolve their inline answers.
+  const q39 = findQuestion(sections, 39)
+  assert.ok(q39, 'Q39 (paragraph-ordering, "39." marker) must not be dropped')
+  assert.equal(q39.options.length, 4)
+  assert.equal(q39.correctAnswer, 0) // A
+  const q45 = findQuestion(sections, 45)
+  assert.ok(q45, 'Q45 must not be dropped')
+  assert.equal(q45.correctAnswer, 1) // B
+}
+
+runRealWorldLayoutTest()
+console.log('documentQuizParserCore real-world ECZ layout test passed')
+
 /**
  * Past-paper regression: G7 Mathematics 2023 (and any docx that opens
  * with a "Answer ALL N questions. Choose the BEST answer." intro and

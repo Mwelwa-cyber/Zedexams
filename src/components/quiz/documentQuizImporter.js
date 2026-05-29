@@ -848,6 +848,19 @@ function smartSectionsToLocal(aiSections) {
     .filter(Boolean)
 }
 
+// Count the questions a section list represents — passage sections own a
+// list of sub-questions, standalone sections own exactly one. Used to compare
+// the AI smart-import result against the deterministic parser so the AI can
+// never silently drop questions (see the reconciliation in importQuizDocument).
+function countSectionQuestions(sections = []) {
+  return sections.reduce((total, section) => {
+    if (section?.kind === 'passage') {
+      return total + (section.passage?.questions?.length || 0)
+    }
+    return total + 1
+  }, 0)
+}
+
 function rawTextFromExtracted(extracted) {
   return (extracted.blocks || [])
     .map(block => block.text || '')
@@ -929,12 +942,28 @@ export async function importQuizDocument(file) {
   if (isWord || extracted.blocks?.length) {
     const smart = await trySmartImport(extracted, file)
     if (smart?.sections) {
-      sections = smart.sections
-      parts = []
-      questions = []
-      summary = { ...local.summary, needsReview: 0, total: smart.sections.length, smartImportSections: smart.sections.length }
-      smartApplied = true
-      if (Array.isArray(smart.warnings)) warnings.push(...smart.warnings)
+      // Reconcile against the deterministic parser before accepting the AI
+      // result. The smart import's value is recovering rich structure
+      // (fractions, vertical arithmetic, tables) — NOT reducing the question
+      // count. A non-deterministic LLM that returns fewer questions than the
+      // parser found has dropped or merged questions, which is exactly the
+      // "questions missing / sitting in the wrong place" failure teachers hit.
+      // In that case we keep the parser's output, which preserves every
+      // numbered question in document order, and surface a warning.
+      const localCount = local.summary?.questions || 0
+      const smartCount = countSectionQuestions(smart.sections)
+      if (smartCount > 0 && smartCount >= localCount) {
+        sections = smart.sections
+        parts = []
+        questions = []
+        summary = { ...local.summary, needsReview: 0, total: smart.sections.length, smartImportSections: smart.sections.length }
+        smartApplied = true
+        if (Array.isArray(smart.warnings)) warnings.push(...smart.warnings)
+      } else {
+        warnings.push(
+          `Smart import returned ${smartCount} question${smartCount === 1 ? '' : 's'} but the document parser found ${localCount}; kept the parsed version so no questions were dropped. Please review.`,
+        )
+      }
     } else if (smart?.error) {
       warnings.push(`Smart import unavailable, used standard parser. (${smart.error})`)
     }
