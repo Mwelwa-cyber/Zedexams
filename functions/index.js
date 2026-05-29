@@ -103,21 +103,6 @@ const {
 const {
   importCurriculumModules,
 } = require("./teacherTools/importCurriculumModules");
-// Teacher Tools — admin-only callables that surface modules staged by
-// the curriculumWatcher ingester and promote them into cbcKnowledgeBase.
-const {
-  listStagedCurriculumModules,
-  promoteIngestedCurriculumModule,
-  promoteIngestedCurriculumModuleWithAi,
-  rejectIngestedCurriculumModule,
-  runCurriculumWatcherNow,
-} = require("./teacherTools/promoteIngestedCurriculumModule");
-// Teacher Tools — admin-only preflight that asks the strict learner-AI
-// resolver whether a given grade/subject/topic/subtopic/term would be
-// accepted before the admin queues a task in the Live AI Monitor.
-const {
-  preflightCurriculumRef,
-} = require("./teacherTools/preflightCurriculumRef");
 // Teacher Tools — admin-only one-click linker that runs the same logic
 // as scripts/backfill-kb-source-refs.mjs from the Live AI Monitor, so
 // admins can attach approvedSyllabi to lesson modules without a shell.
@@ -1789,23 +1774,6 @@ exports.importBuiltInCbcTopics = importBuiltInCbcTopics;
 // Teacher Tools — admin-only: bulk import lesson-level curriculum modules.
 exports.importCurriculumModules = importCurriculumModules;
 
-// Teacher Tools — admin-only: surface modules staged by curriculumWatcher
-// and promote them (one click) into cbcKnowledgeBase. See
-// teacherTools/promoteIngestedCurriculumModule.js for the doc rules.
-exports.listStagedCurriculumModules = listStagedCurriculumModules;
-exports.promoteIngestedCurriculumModule = promoteIngestedCurriculumModule;
-exports.promoteIngestedCurriculumModuleWithAi = promoteIngestedCurriculumModuleWithAi;
-exports.rejectIngestedCurriculumModule = rejectIngestedCurriculumModule;
-// Manual trigger so admins can verify ingestion without waiting for
-// curriculumUpdateCheckerScheduled's 02:00 UTC cron.
-exports.runCurriculumWatcherNow = runCurriculumWatcherNow;
-
-// Teacher Tools — admin-only: preflight a (grade, subject, topic,
-// subtopic, term) tuple against the strict learner-AI curriculum
-// resolver. Used by the Live AI Monitor's batch-generate form to
-// disable subtopics that would fail the no_source_doc_ref / no
-// _curriculum_match gate before the admin presses Queue.
-exports.preflightCurriculumRef = preflightCurriculumRef;
 
 // Teacher Tools — admin-only: backfill sourceDocId on every lesson
 // module under the active KB version by matching against approvedSyllabi
@@ -2012,30 +1980,6 @@ exports.retryAgentJob = onCall(
   },
 );
 
-// Learner-AI agents — a parallel pipeline for learner-facing artifacts
-// (practice quizzes, exam drafts, notes, study tips, weakness reports,
-// feedback). Runs off the `aiAgentTasks` collection, never writes to
-// the existing `quizzes` collection, requires admin approval before
-// any artifact's visibility flips to published. The two reference
-// agents (Supervisor + Curriculum Reader) are fully implemented; the
-// other nine ship as wired stubs that produce real artifacts so the
-// pipeline is observable end-to-end today.
-const {
-  createAiAgentTasksOnCreate,
-  createAiAgentTasksOnApproved,
-} = require("./agents/learnerAi/dispatcher");
-const {
-  createAiAgentHealthCheckScheduled,
-  createCurriculumUpdateCheckerScheduled,
-} = require("./agents/learnerAi/healthCheck");
-const {
-  createCurriculumUpdateReportsOnApproved,
-} = require("./agents/learnerAi/curriculumApprover");
-exports.aiAgentTasksOnCreate = createAiAgentTasksOnCreate();
-exports.aiAgentTasksOnApproved = createAiAgentTasksOnApproved();
-exports.aiAgentHealthCheckScheduled = createAiAgentHealthCheckScheduled();
-exports.curriculumUpdateCheckerScheduled = createCurriculumUpdateCheckerScheduled();
-exports.curriculumUpdateReportsOnApproved = createCurriculumUpdateReportsOnApproved();
 
 // Storage cleanup — cascade-deletes Storage blobs when their parent
 // Firestore docs are deleted, removes orphans left by image/file swaps,
