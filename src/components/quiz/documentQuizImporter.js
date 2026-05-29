@@ -953,8 +953,45 @@ export async function importQuizDocument(file) {
       const localCount = local.summary?.questions || 0
       const smartCount = countSectionQuestions(smart.sections)
       if (smartCount > 0 && smartCount >= localCount) {
-        sections = smart.sections
-        parts = []
+        // Carry part structure from the deterministic parser into the smart
+        // sections so SECTION A / SECTION B groupings survive smart import.
+        // Build a question-index → partId map from local sections (in order),
+        // then stamp each smart section's questions with the matching partId.
+        const localParts = local.parts || []
+        if (localParts.length > 0) {
+          const qPartIds = []
+          for (const s of local.sections) {
+            if (s.kind === 'passage') {
+              const pid = s.partId ?? null
+              for (let i = 0; i < (s.passage?.questions?.length || 0); i++) qPartIds.push(pid)
+            } else if (s.kind === 'standalone') {
+              qPartIds.push(s.question?.partId ?? null)
+            }
+          }
+          let qi = 0
+          sections = smart.sections.map(s => {
+            if (s.kind === 'passage') {
+              const partId = qPartIds[qi] ?? null
+              qi += s.passage?.questions?.length || 0
+              return {
+                ...s, partId,
+                passage: {
+                  ...s.passage,
+                  questions: (s.passage?.questions || []).map(q => ({ ...q, partId })),
+                },
+              }
+            }
+            if (s.kind === 'standalone') {
+              const partId = qPartIds[qi++] ?? null
+              return { ...s, question: { ...s.question, partId } }
+            }
+            return s
+          })
+          parts = localParts
+        } else {
+          sections = smart.sections
+          parts = []
+        }
         questions = []
         summary = { ...local.summary, needsReview: 0, total: smart.sections.length, smartImportSections: smart.sections.length }
         smartApplied = true
