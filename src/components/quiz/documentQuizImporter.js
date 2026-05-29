@@ -967,21 +967,24 @@ export async function importQuizDocument(file) {
           localParts.filter(p => !String(p.title ?? '').trim()).map(p => p.id)
         )
         if (namedLocalParts.length > 0) {
-          const qPartIds = []
-          for (const s of local.sections) {
+          // Assign partIds by matching smart section types against local section
+          // types in order. Standalone smart sections map to local standalones in
+          // order; passage (comprehension) smart sections map to local passages in
+          // order. This is type-aware so a passage section returned first by the AI
+          // (common when the AI groups comprehension sections together) doesn't
+          // consume the standalone partIds, which would shift every other question
+          // into the wrong part.
+          const localStandalones = local.sections.filter(s => s.kind === 'standalone')
+          const localPassages = local.sections.filter(s => s.kind === 'passage')
+          let siStandalone = 0
+          let siPassage = 0
+          const withPartIds = smart.sections.map(s => {
             if (s.kind === 'passage') {
-              const pid = s.partId ?? null
-              for (let i = 0; i < (s.passage?.questions?.length || 0); i++) qPartIds.push(pid)
-            } else if (s.kind === 'standalone') {
-              qPartIds.push(s.question?.partId ?? null)
-            }
-          }
-          let qi = 0
-          sections = smart.sections.map(s => {
-            if (s.kind === 'passage') {
-              const rawPartId = qPartIds[qi] ?? null
+              const rawPartId = siPassage < localPassages.length
+                ? (localPassages[siPassage].partId ?? null)
+                : null
+              siPassage++
               const partId = unnamedPartIds.has(rawPartId) ? null : rawPartId
-              qi += s.passage?.questions?.length || 0
               return {
                 ...s, partId,
                 passage: {
@@ -991,12 +994,25 @@ export async function importQuizDocument(file) {
               }
             }
             if (s.kind === 'standalone') {
-              const rawPartId = qPartIds[qi++] ?? null
+              const rawPartId = siStandalone < localStandalones.length
+                ? (localStandalones[siStandalone].question?.partId ?? null)
+                : null
+              siStandalone++
               const partId = unnamedPartIds.has(rawPartId) ? null : rawPartId
               return { ...s, question: { ...s.question, partId } }
             }
             return s
           })
+          // Restore document order: sort by the part's position in namedLocalParts.
+          // The AI may return sections out of order (e.g. comprehension first). A
+          // stable sort by part index puts every section into its correct document
+          // position while preserving relative order within each part.
+          const partOrderMap = new Map(namedLocalParts.map((p, i) => [p.id, i]))
+          const getPartId = s => s.kind === 'passage' ? s.partId : s.question?.partId
+          sections = withPartIds.slice().sort(
+            (a, b) => (partOrderMap.get(getPartId(a)) ?? partOrderMap.size)
+                    - (partOrderMap.get(getPartId(b)) ?? partOrderMap.size)
+          )
           parts = namedLocalParts
         } else {
           sections = smart.sections
