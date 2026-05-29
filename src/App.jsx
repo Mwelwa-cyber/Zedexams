@@ -61,14 +61,7 @@ const GradeHub = lazy(() => import('./components/dashboard/GradeHub'))
 const LearnerCalendar = lazy(() => import('./components/dashboard/LearnerCalendar'))
 const SubjectDrillDown = lazy(() => import('./components/dashboard/SubjectDrillDown'))
 const QuizList = lazy(() => import('./components/quiz/QuizList'))
-// Learner-facing AI-generated practice quizzes (feature-flagged
-// via settings/global.learnerAi.showAiPracticeQuizzesToLearners).
-const AiPracticeQuizList   = lazy(() => import('./components/learnerAi/AiPracticeQuizList'))
-const AiPracticeQuizRunner = lazy(() => import('./components/learnerAi/AiPracticeQuizRunner'))
-// Learner-facing AI-generated notes (feature-flagged via
-// settings/global.learnerAi.showAiNotesToLearners). Read-only.
-const AiNotesList   = lazy(() => import('./components/learnerAi/AiNotesList'))
-const AiNotesReader = lazy(() => import('./components/learnerAi/AiNotesReader'))
+
 const QuizRunner = lazy(() => import('./components/quiz/QuizRunnerV2'))
 const QuizResults = lazy(() => import('./components/quiz/QuizResultsV2'))
 // Slide-based interactive lessons. /lessons is the canonical learner-
@@ -144,20 +137,6 @@ const AgentsAllJobs   = lazy(() => import('./components/admin/agents/AgentsHome'
 const AgentProfile    = lazy(() => import('./components/admin/agents/AgentsHome').then(m => ({ default: m.AgentProfile })))
 const AgentJobDetail  = lazy(() => import('./components/admin/agents/AgentJobDetail'))
 
-// Learner-AI admin pages (AI Control Centre at /admin/learner-ai).
-const LearnerAiHome           = lazy(() => import('./components/admin/learnerAi/LearnerAiHome'))
-const LearnerAiTaskDetail     = lazy(() => import('./components/admin/learnerAi/TaskDetailPage'))
-const LearnerAiLogs           = lazy(() => import('./components/admin/learnerAi/AgentLogsTable'))
-const LearnerAiCurriculumRpts = lazy(() => import('./components/admin/learnerAi/CurriculumUpdateReports'))
-const LearnerAiStagedModules = lazy(() => import('./components/admin/learnerAi/StagedModulesPanel'))
-const LearnerAiStandards      = lazy(() => import('./components/admin/learnerAi/AssessmentStandardsList'))
-// Phase A content-management tabs.
-const LearnerAiContentType    = lazy(() => import('./components/admin/learnerAi/ContentTypePage'))
-const LearnerAiFailedChecks   = lazy(() => import('./components/admin/learnerAi/FailedChecksPage'))
-const LearnerAiWeakness       = lazy(() => import('./components/admin/learnerAi/WeaknessReportsList'))
-const LearnerAiReports        = lazy(() => import('./components/admin/learnerAi/AgentReports'))
-const LearnerAiSettings       = lazy(() => import('./components/admin/learnerAi/AgentSettings'))
-const LearnerAiExamDetail     = lazy(() => import('./components/admin/learnerAi/ExamDraftDetailPage'))
 
 // Teacher — Agent submissions
 const AgentBriefForm       = lazy(() => import('./components/teacher/AgentBriefForm'))
@@ -449,15 +428,7 @@ export default function App() {
           <Route path="/exam/:examId"                element={<ProtectedRoute><LearnerOnlyRoute><DailyExamRunner /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/exam-results/:attemptId"     element={<ProtectedRoute><LearnerOnlyRoute><ExamResultsPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/quizzes"           element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><QuizList /></LearnerOnlyRoute></ProtectedRoute>} />
-          {/* AI-generated practice quizzes. Feature-flagged inside the
-              components (silent redirect to /dashboard when the
-              admin flag is off). */}
-          <Route path="/ai-practice"             element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><AiPracticeQuizList /></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/ai-practice/:contentId"  element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><AiPracticeQuizRunner /></LearnerOnlyRoute></ProtectedRoute>} />
-          {/* AI-generated notes. Same feature-flag pattern as
-              /ai-practice — silent redirect when the admin flag is off. */}
-          <Route path="/ai-notes"                element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><AiNotesList /></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/ai-notes/:contentId"     element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><AiNotesReader /></LearnerOnlyRoute></ProtectedRoute>} />
+
           {/* Course-map drill-down — clicking Practise on a subject card
               lands the learner here, with quizzes grouped by topic. */}
           <Route path="/practise/:grade/:subjectId" element={<ProtectedRoute><LearnerOnlyRoute><SubjectDrillDown /></LearnerOnlyRoute></ProtectedRoute>} />
@@ -538,24 +509,6 @@ export default function App() {
           <Route path="/admin/agents/jobs/:jobId"       element={<AdminRoute><AgentJobDetail /></AdminRoute>} />
           <Route path="/admin/agents/:agentId"          element={<AdminRoute><AgentProfile /></AdminRoute>} />
 
-          {/* Learner-AI pipeline (parallel to /admin/agents). */}
-          <Route path="/admin/learner-ai"                        element={<AdminRoute><LearnerAiHome /></AdminRoute>} />
-          <Route path="/admin/learner-ai/tasks/:taskId"          element={<AdminRoute><LearnerAiTaskDetail /></AdminRoute>} />
-          <Route path="/admin/learner-ai/logs"                   element={<AdminRoute><LearnerAiLogs /></AdminRoute>} />
-          <Route path="/admin/learner-ai/curriculum-updates"     element={<AdminRoute><LearnerAiCurriculumRpts /></AdminRoute>} />
-          <Route path="/admin/learner-ai/staged-modules"         element={<AdminRoute><LearnerAiStagedModules /></AdminRoute>} />
-          <Route path="/admin/learner-ai/standards"              element={<AdminRoute><LearnerAiStandards /></AdminRoute>} />
-          {/* Phase A content-management tabs */}
-          <Route path="/admin/learner-ai/practice-quizzes"       element={<AdminRoute><LearnerAiContentType typeFilter="practice_quiz" /></AdminRoute>} />
-          <Route path="/admin/learner-ai/exam-quizzes"           element={<AdminRoute><LearnerAiContentType typeFilter="exam_quiz" /></AdminRoute>} />
-          <Route path="/admin/learner-ai/exams/:contentId"       element={<AdminRoute><LearnerAiExamDetail /></AdminRoute>} />
-          <Route path="/admin/learner-ai/notes-drafts"           element={<AdminRoute><LearnerAiContentType typeFilter="notes" /></AdminRoute>} />
-          <Route path="/admin/learner-ai/study-tips"             element={<AdminRoute><LearnerAiContentType typeFilter="study_tips" /></AdminRoute>} />
-          <Route path="/admin/learner-ai/feedback"               element={<AdminRoute><LearnerAiContentType typeFilter="learner_feedback" /></AdminRoute>} />
-          <Route path="/admin/learner-ai/failed-checks"          element={<AdminRoute><LearnerAiFailedChecks /></AdminRoute>} />
-          <Route path="/admin/learner-ai/weakness"               element={<AdminRoute><LearnerAiWeakness /></AdminRoute>} />
-          <Route path="/admin/learner-ai/reports"                element={<AdminRoute><LearnerAiReports /></AdminRoute>} />
-          <Route path="/admin/learner-ai/settings"               element={<AdminRoute><LearnerAiSettings /></AdminRoute>} />
 
           {/* ── Teacher routes (all wrapped in TeacherLayout) ─── */}
           {/* Post-upgrade celebration page — full-bleed, outside TeacherLayout chrome */}

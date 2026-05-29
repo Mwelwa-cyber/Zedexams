@@ -2012,30 +2012,6 @@ exports.retryAgentJob = onCall(
   },
 );
 
-// Learner-AI agents — a parallel pipeline for learner-facing artifacts
-// (practice quizzes, exam drafts, notes, study tips, weakness reports,
-// feedback). Runs off the `aiAgentTasks` collection, never writes to
-// the existing `quizzes` collection, requires admin approval before
-// any artifact's visibility flips to published. The two reference
-// agents (Supervisor + Curriculum Reader) are fully implemented; the
-// other nine ship as wired stubs that produce real artifacts so the
-// pipeline is observable end-to-end today.
-const {
-  createAiAgentTasksOnCreate,
-  createAiAgentTasksOnApproved,
-} = require("./agents/learnerAi/dispatcher");
-const {
-  createAiAgentHealthCheckScheduled,
-  createCurriculumUpdateCheckerScheduled,
-} = require("./agents/learnerAi/healthCheck");
-const {
-  createCurriculumUpdateReportsOnApproved,
-} = require("./agents/learnerAi/curriculumApprover");
-exports.aiAgentTasksOnCreate = createAiAgentTasksOnCreate();
-exports.aiAgentTasksOnApproved = createAiAgentTasksOnApproved();
-exports.aiAgentHealthCheckScheduled = createAiAgentHealthCheckScheduled();
-exports.curriculumUpdateCheckerScheduled = createCurriculumUpdateCheckerScheduled();
-exports.curriculumUpdateReportsOnApproved = createCurriculumUpdateReportsOnApproved();
 
 // Storage cleanup — cascade-deletes Storage blobs when their parent
 // Firestore docs are deleted, removes orphans left by image/file swaps,
