@@ -13,6 +13,7 @@ import {
   persistentMultipleTabManager,
 } from 'firebase/firestore'
 import { getMessaging } from 'firebase/messaging'
+import { getPerformance } from 'firebase/performance'
 import { getStorage } from 'firebase/storage'
 import { isNativePlatform } from '../utils/runtime'
 
@@ -41,6 +42,9 @@ export const db = initializeFirestore(app, {
   localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
 })
 export const storage = getStorage(app)
+// Firebase Performance Monitoring. Guarded for non-window contexts (SSR /
+// service worker). Ships the perf SDK and starts collecting traces.
+export const perf = typeof window !== 'undefined' ? getPerformance(app) : null
 
 export const googleProvider = new GoogleAuthProvider()
 googleProvider.setCustomParameters({ prompt: 'select_account' })
