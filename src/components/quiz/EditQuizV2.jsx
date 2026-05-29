@@ -64,7 +64,10 @@ const SUBJECTS = [
   'Special Paper 1',
 ]
 const GRADES = ['4', '5', '6', '7']
-const TERMS = ['1', '2', '3']
+// Common quiz lengths offered in the duration dropdown so admins pick rather
+// than type a free-form number. Any saved value outside this list is still
+// preserved and shown via durationOptions below.
+const DURATIONS = [5, 10, 15, 20, 25, 30, 40, 45, 60, 75, 90, 120, 150, 180]
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
 // text-base (16 px) on phones avoids iOS Safari's auto-zoom-on-focus;
@@ -193,7 +196,6 @@ export default function EditQuizV2() {
     title: '',
     subject: 'Mathematics',
     grade: '5',
-    term: '1',
     duration: 30,
     type: 'quiz',
     topic: '',
@@ -300,7 +302,11 @@ export default function EditQuizV2() {
   const canEdit = isAdmin || quizOwner === currentUser?.uid
   const gradeOptions = withCurrentOption(GRADES, form.grade)
   const subjectOptions = withCurrentOption(SUBJECTS, form.subject)
-  const termOptions = withCurrentOption(TERMS, form.term)
+  // Keep any legacy/custom saved duration selectable even if it isn't one of
+  // the preset options, so editing an older quiz never silently rewrites it.
+  const durationOptions = DURATIONS.includes(Number(form.duration))
+    ? DURATIONS
+    : [...DURATIONS, Number(form.duration)].sort((a, b) => a - b)
 
   function show(message, isErr = false) {
     setToast({ message, isErr })
@@ -375,7 +381,6 @@ export default function EditQuizV2() {
         title: quiz.title ?? '',
         subject: quiz.subject ?? 'Mathematics',
         grade: quiz.grade ?? '5',
-        term: quiz.term ?? '1',
         duration: quiz.duration ?? 30,
         type: quiz.type ?? 'quiz',
         topic: quiz.topic ?? '',
@@ -1576,14 +1581,10 @@ export default function EditQuizV2() {
         <div className="space-y-3">
           <input value={form.title} onChange={event => setF('title', event.target.value)} placeholder="Quiz title (e.g. Grade 6 Science - Human Body)" className={FIELD} />
           <input value={form.topic || ''} onChange={event => setF('topic', event.target.value)} placeholder="Topic (optional, e.g. Photosynthesis)" className={FIELD} />
-          <div className="grid gap-3 sm:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-3">
             <select value={form.grade} onChange={event => setF('grade', event.target.value)} className={SELECT}>{gradeOptions.map(grade => <option key={grade} value={grade}>Grade {grade}</option>)}</select>
             <select value={form.subject} onChange={event => setF('subject', event.target.value)} className={SELECT}>{subjectOptions.map(subject => <option key={subject} value={subject}>{subject}</option>)}</select>
-            <select value={form.term} onChange={event => setF('term', event.target.value)} className={SELECT}>{termOptions.map(term => <option key={term} value={term}>Term {term}</option>)}</select>
-            <div className="theme-border flex items-center gap-2 rounded-xl border-2 px-3 py-2.5">
-              <span className="theme-text-muted whitespace-nowrap text-xs font-bold">⏱️ Mins</span>
-              <input type="number" min={5} max={180} value={form.duration} onChange={event => setF('duration', clampInt(event.target.value, 5, 180, 30))} className="flex-1 bg-transparent text-base sm:text-sm font-black outline-none" />
-            </div>
+            <select value={Number(form.duration) || 30} onChange={event => setF('duration', clampInt(event.target.value, 5, 180, 30))} className={SELECT} aria-label="Quiz duration in minutes">{durationOptions.map(mins => <option key={mins} value={mins}>⏱️ {mins} minutes</option>)}</select>
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
