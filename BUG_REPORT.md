@@ -7,11 +7,12 @@
 
 ## Current status (2026-05-29)
 
-The 2026-04-18 audit found **no P0/P1 issues** and a list of P2 hardening + P3 cleanup items. On re-verification against the current tree, **every P2 item is resolved** and **most P3 cleanup is done**. Only one minor, non-blocking item remains.
+The 2026-04-18 audit found **no P0/P1 issues** and a list of P2 hardening + P3 cleanup items. On re-verification against the current tree, **every P2 item is resolved** and **most P3 cleanup is done**. Two non-blocking items remain (one cosmetic, one auth-resilience hardening gap).
 
 ### Still open
 
 1. **One `console.log` in a test** — `src/components/quiz/documentQuizParserCore.test.js` logs a "regression test passed" line. Test-only, excluded from the production bundle. Cosmetic; optional.
+2. **Auth: no session recovery for backgrounded tabs** — `src/contexts/AuthContext.jsx` doesn't force an ID-token refresh or re-establish dropped Firestore `onSnapshot` listeners on `visibilitychange` / `pageshow` / `online`. A tab or PWA backgrounded for hours can wake into a dead-listener state (stale token, profile stops updating) — relevant for mobile / flaky-network users. A working prototype (`useAuthRecovery` hook + `NetworkBanner` + session-expiry UX) lives on the **`salvage/auth-recovery`** branch (PR #705, closed); it predates `main`'s soft-suspend handling + analytics inside the auth effect, so it must be **rebuilt and login-tested on current `main`**, not merged as-is.
 
 _(The two orphaned editor files — `src/editor/QuizEditor.jsx` and `src/editor/QuizViewer.jsx` — were deleted in this change; see P3-1 below. They're recoverable from git history if the Tiptap-editor switch in [EDITOR_UPLOAD_REPORT.md](EDITOR_UPLOAD_REPORT.md) is ever revived.)_
 
