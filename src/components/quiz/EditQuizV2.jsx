@@ -1115,13 +1115,13 @@ export default function EditQuizV2() {
         : `Document ${verb} into editable quiz sections.`)
   }
 
-  async function handleImportDocument(file) {
+  async function handleImportDocument(file, importOptions = {}) {
     if (!file) return
     if (importingDocument) return
 
     setImportingDocument(true)
     try {
-      const imported = await importQuizDocument(file)
+      const imported = await importQuizDocument(file, importOptions)
 
       const hasExistingWork = !hasOnlyEmptyStarterSection(sections)
       const incomingSections = imported.sections?.length
@@ -1270,10 +1270,20 @@ export default function EditQuizV2() {
     setAutoSaveState(AUTO_SAVE.SAVING)
     try {
       const serializedSections = await serializeWithImportedAssetUploads()
+      // Defense in depth: the quiz schema requires title.min(1). An imported
+      // doc whose detected title cleaned down to whitespace would otherwise
+      // throw "Invalid quiz update at title" and silently fail every autosave.
+      // Coerce an empty/whitespace title to a safe default derived from the
+      // source filename so autosave can never fail on title. (We intentionally
+      // do NOT relax the schema's min(1).)
+      const safeTitle = String(form.title || '').trim()
+        || String(form.sourceFileName || '').replace(/\.(docx?|pdf)$/i, '').trim()
+        || 'Untitled quiz'
       const idMap = await updateQuizWithQuestions(
         quizId,
         {
           ...form,
+          title: safeTitle,
           passages: serializedSections.passages,
           parts: serializedSections.parts,
           passageCount: serializedSections.passages.length,

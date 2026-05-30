@@ -119,11 +119,24 @@ function splitLines(text) {
 }
 
 function titleFromFileName(name = '') {
-  return String(name || 'Imported Quiz')
+  const cleaned = String(name || 'Imported Quiz')
     .replace(/\.(docx?|pdf)$/i, '')
+    // Strip a leading hex/hash/upload-id prefix that download pipelines bolt
+    // onto the original filename, e.g. "053d6115-G7 English 2023 Answers2"
+    // or "a1b2c3d4e5f6_G7_English". Only strips a clearly-id-shaped prefix
+    // (8+ hex chars or a long alnum token) followed by a separator so real
+    // titles like "2023 English" are left intact.
+    .replace(/^[0-9a-f]{6,}[-_\s]+/i, '')
     .replace(/[_-]+/g, ' ')
     .replace(/\s+/g, ' ')
-    .trim() || 'Imported Quiz'
+    .trim()
+  // Normalise "G7" / "Grade7" / "Grade 7" tokens to a tidy "Grade 7" so an
+  // imported "G7 English 2023" reads as "Grade 7 English 2023".
+  const normalized = cleaned
+    .replace(/\bg(?:rade)?\s*([1-9]|1[0-2])\b/i, 'Grade $1')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return normalized || 'Imported Quiz'
 }
 
 function normalizeParaOrderInstruction(text) {
@@ -190,6 +203,16 @@ function isPassageLabel(line) {
 
 function isQuestionRangeHeading(line) {
   return QUESTION_RANGE_HEADING_RE.test(cleanImportedText(line))
+}
+
+// A "Reading Comprehension" banner that introduces the comprehension section
+// of a paper (e.g. "Reading Comprehension — Questions 46 – 60"). It is NOT a
+// single passage label (those are "Story 1", "Text 2") — it groups the
+// passages that follow under one Part. Matched broadly so the trailing
+// "— Questions N – M" range, an em-dash, or a colon don't defeat it.
+const READING_COMPREHENSION_HEADING_RE = /^reading\s+comprehension\b/i
+function isReadingComprehensionHeading(line) {
+  return READING_COMPREHENSION_HEADING_RE.test(cleanImportedText(line))
 }
 
 function questionMatch(line) {
@@ -386,8 +409,15 @@ export function metadataFromText(text, fileName) {
   // Topic is intentionally omitted from imported metadata — imported papers
   // span many CBC topics and the teacher should pick (or leave blank) rather
   // than have the title silently stamped as the topic.
+  // Guarantee a non-empty, trimmed title. A header line that cleans down to
+  // whitespace (e.g. a logo-only first paragraph) used to yield '' and fail
+  // the quiz schema's title.min(1) on autosave — fall back to the filename.
+  const cleanedTitle = cleanImportedText(title)
+  const safeTitle = cleanedTitle.trim()
+    ? cleanedTitle.slice(0, 90).trim()
+    : titleFromFileName(fileName)
   return {
-    title: cleanImportedText(title).slice(0, 90) || titleFromFileName(fileName),
+    title: safeTitle || 'Imported Quiz',
     grade,
     subject,
   }
@@ -1179,6 +1209,10 @@ function parseQuestionsFromBlocks(blocks, warnings) {
       importWarnings: reviewNotes,
       sourcePage: null,
       sourceQuestionNumber: null,
+      // Stamp the active Part heading (e.g. "Reading Comprehension") so
+      // buildImportedSections groups the passage under that part rather than
+      // the document default part.
+      partTitle: currentPartTitle || '',
       imageUploading: false,
       imageUploadStep: '',
     })
@@ -1433,6 +1467,22 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         return
       }
 
+      // "Reading Comprehension — Questions 46 – 60" banner: open a Reading
+      // Comprehension PART so the Story 1/2/3 passages and Q46–60 that follow
+      // are grouped under it (requirement #3/#4). It is NOT itself a passage
+      // label ("Story N") nor a comprehension instruction ("read the passage
+      // …") — it only stamps the part title. The passages open their own
+      // comprehension blocks via isPassLabel below and inherit this partId
+      // because currentPartTitle stays set.
+      if (isReadingComprehensionHeading(line) && !detectedQuestion) {
+        finalizeStandaloneQuestion()
+        sharedInstruction = ''
+        numberStemInstruction = ''
+        if (lineAssets.length) pendingAssets.push(...lineAssets)
+        currentPartTitle = 'Reading Comprehension'
+        return
+      }
+
       if (isInstruction && !detectedQuestion) {
         finalizeStandaloneQuestion()
         sharedInstruction = ''
@@ -1467,6 +1517,24 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         return
       }
 
+      // A range heading ("Questions 21 – 25", "Questions 39 – 45") is a PART
+      // boundary in the standalone path: finalize the current question and
+      // start a fresh part so the questions that follow group under it.
+      // Checked BEFORE isStandaloneInstruction because STANDALONE_INSTRUCTION_RE
+      // also matches "questions N – M" and would otherwise swallow the heading
+      // into a sharedInstruction, never creating the part.
+      // (Comprehension mode handles range headings separately above — it
+      // keeps ignoring them so a "Questions 46 – 60" banner mid-passage
+      // doesn't split a story.)
+      if (isQuestionRangeHeading(line) && !detectedQuestion) {
+        finalizeStandaloneQuestion()
+        sharedInstruction = ''
+        numberStemInstruction = ''
+        if (lineAssets.length) pendingAssets.push(...lineAssets)
+        currentPartTitle = cleanImportedText(line)
+        return
+      }
+
       if (isStandaloneInstruction(line) && !detectedQuestion) {
         // An "instruction-shaped" line inside a question that has not yet
         // received any options is almost always the question's actual
@@ -1485,8 +1553,6 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         sharedInstruction = stripInstructionPrefix(line)
         return
       }
-
-      if (isQuestionRangeHeading(line) && !detectedQuestion) return
 
       if (sharedInstruction && PARA_ORDER_INSTRUCTION_RE.test(sharedInstruction) && numberOnlyQuestion) {
         startQuestion(
@@ -1701,7 +1767,7 @@ function buildImportedSections(questions = [], documentInstruction = '') {
     orderedParts.push(defaultPart)
   }
 
-  const sections = questions.map(question => {
+  const sections = questions.map((question, index) => {
     const partTitle = question.passageTitle && question.partTitle
       ? question.partTitle
       : question.partTitle || ''
@@ -1715,26 +1781,70 @@ function buildImportedSections(questions = [], documentInstruction = '') {
         instructions: question.instructions ?? question.text ?? '',
         passageText: question.passage ?? '',
         imageUrl: question.imageUrl ?? '',
-        questions: (question.subQuestions || []).map(subQuestion => ({
+        questions: (question.subQuestions || []).map((subQuestion, subIndex) => ({
           ...subQuestion,
           type: 'mcq',
           detectedType: 'mcq',
           passageId: null,
           partId,
+          // Sequential in-memory ordering aid for the passage's sub-questions.
+          orderIndex: subIndex,
         })),
       })
       passageSection.partId = partId
+      // Stable integer document-order key. In-memory only — persistence uses
+      // the `order` field written by serializeQuizSections; the Zod quiz
+      // schema is .passthrough() so an extra field never hard-fails a save.
+      passageSection.orderIndex = index
       return passageSection
     }
 
     const section = createStandaloneSection({ ...question, partId })
+    section.orderIndex = index
     return section
   })
 
   return { sections, parts: orderedParts }
 }
 
-function summarizeImportedSections(sections = []) {
+// Per-part question/passage counts for the import preview. Returns one entry
+// per part (named parts plus the untitled default part, in document order),
+// each with the questions/passages it owns. Sections whose partId matches no
+// supplied part fall into a synthetic "(no part)" bucket so the preview still
+// accounts for every question. `hasZeroQuestionPart` flags parts the teacher
+// should look at before saving.
+function buildPartBreakdown(sections = [], parts = []) {
+  const byId = new Map()
+  const order = []
+  const ensure = (id, title) => {
+    const key = id ?? '__none__'
+    if (!byId.has(key)) {
+      const entry = { partId: id ?? null, title: title ?? '', questions: 0, passages: 0 }
+      byId.set(key, entry)
+      order.push(entry)
+    }
+    return byId.get(key)
+  }
+
+  // Seed in part order so empty parts still surface (a 0-question part is
+  // exactly what the warning is for).
+  ;(parts || []).forEach(part => ensure(part.id, part.title))
+
+  sections.forEach(section => {
+    if (section.kind === 'passage') {
+      const entry = ensure(section.partId ?? null)
+      entry.passages += 1
+      entry.questions += (section.passage?.questions || []).length
+      return
+    }
+    const entry = ensure(section.question?.partId ?? null)
+    entry.questions += 1
+  })
+
+  return order
+}
+
+function summarizeImportedSections(sections = [], parts = []) {
   let questionCount = 0
   let images = 0
   let needsReview = 0
@@ -1757,15 +1867,54 @@ function summarizeImportedSections(sections = []) {
     if (section.question?.requiresReview) needsReview += 1
   })
 
+  const partBreakdown = buildPartBreakdown(sections, parts)
+  const zeroQuestionParts = partBreakdown.filter(p => String(p.title || '').trim() && p.questions === 0)
+
   return {
     questions: questionCount,
     images,
     needsReview,
     passages,
+    sections: sections.length,
+    partBreakdown,
+    zeroQuestionParts,
   }
 }
 
-export function processImportedQuestionBlocks(blocks = [], warnings = []) {
+// When "group comprehension" is OFF, flatten each comprehension block into
+// standalone questions so Q46–60 are emitted as ordinary questions instead of
+// attaching to their passage. Preserves document order and source numbers.
+function flattenComprehensionQuestions(questions = []) {
+  const out = []
+  questions.forEach(question => {
+    if (question.type === 'comprehension' || question.detectedType === 'comprehension') {
+      ;(question.subQuestions || []).forEach(subQuestion => {
+        out.push({
+          ...subQuestion,
+          type: subQuestion.type === 'comprehension' ? 'mcq' : (subQuestion.type || 'mcq'),
+          detectedType: subQuestion.detectedType || subQuestion.type || 'mcq',
+          // Carry the passage's part membership onto the now-standalone question
+          // so it still lands in the right Part.
+          partTitle: subQuestion.partTitle || question.partTitle || '',
+        })
+      })
+      return
+    }
+    out.push(question)
+  })
+  return out
+}
+
+// `options`:
+//   preserveNumbering  (default true)  — keep each question's
+//     sourceQuestionNumber. When false, renumber sequentially 1..N in
+//     document order.
+//   groupComprehension (default true)  — attach Q46–60 to their Story/Text
+//     passages. When false, emit them as standalone questions.
+export function processImportedQuestionBlocks(blocks = [], warnings = [], options = {}) {
+  const preserveNumbering = options.preserveNumbering !== false
+  const groupComprehension = options.groupComprehension !== false
+
   // Run mergeOrphanQuestionNumbers FIRST so the rest of the pipeline sees
   // `6. 954 751` instead of two stray blocks `6.` + `954 751`. Past papers
   // that lay vertical arithmetic out as separate paragraphs were dropping
@@ -1777,7 +1926,7 @@ export function processImportedQuestionBlocks(blocks = [], warnings = []) {
   // any numbered question, so we can hoist it to parts[0].instructions
   // instead of stamping it onto Q1 only.
   const documentInstruction = extractDocumentInstruction(processedBlocks)
-  const questions = parseQuestionsFromBlocks(processedBlocks, warnings)
+  let questions = parseQuestionsFromBlocks(processedBlocks, warnings)
 
   // The parser still sets sharedInstruction on the first question because
   // the legacy stamping path runs unconditionally. Strip the doc-level
@@ -1790,8 +1939,30 @@ export function processImportedQuestionBlocks(blocks = [], warnings = []) {
     }
   }
 
+  if (!groupComprehension) {
+    questions = flattenComprehensionQuestions(questions)
+  }
+
+  // Renumber sequentially only when the teacher opted OUT of preserving the
+  // original numbering. The default (preserveNumbering = true) leaves every
+  // sourceQuestionNumber exactly as the document had it.
+  if (!preserveNumbering) {
+    let n = 0
+    questions.forEach(question => {
+      if (question.type === 'comprehension' || question.detectedType === 'comprehension') {
+        ;(question.subQuestions || []).forEach(subQuestion => {
+          n += 1
+          subQuestion.sourceQuestionNumber = n
+        })
+        return
+      }
+      n += 1
+      question.sourceQuestionNumber = n
+    })
+  }
+
   const { sections, parts } = buildImportedSections(questions, documentInstruction)
-  const summary = summarizeImportedSections(sections)
+  const summary = summarizeImportedSections(sections, parts)
 
   return {
     processedBlocks,

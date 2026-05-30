@@ -137,21 +137,31 @@ export function reconcileSmartSectionOrder(local, smartSections = []) {
   // Stable sort by document-order key; ties fall back to original AI order.
   decorated.sort((a, b) => (a.orderKey - b.orderKey) || (a.i - b.i))
 
-  const sections = decorated.map(({ section, partId }) => {
+  // Re-derive orderIndex from the final sorted position so the array carries a
+  // stable document-order key even after the AI's sections were re-anchored.
+  // In-memory only (the quiz schema is .passthrough() and persistence keys off
+  // the serialized `order` field) — but having it on the section lets the
+  // editor/preview sort by orderIndex/array order, never by id or AI order.
+  const sections = decorated.map(({ section, partId }, orderIndex) => {
     if (section.kind === 'passage') {
       return {
         ...section,
         partId,
+        orderIndex,
         passage: {
           ...section.passage,
-          questions: (section.passage?.questions || []).map(q => ({ ...q, partId })),
+          questions: (section.passage?.questions || []).map((q, subIndex) => ({
+            ...q,
+            partId,
+            orderIndex: subIndex,
+          })),
         },
       }
     }
     if (section.kind === 'standalone') {
-      return { ...section, question: { ...section.question, partId } }
+      return { ...section, orderIndex, question: { ...section.question, partId } }
     }
-    return section
+    return { ...section, orderIndex }
   })
 
   return { sections, parts: namedLocalParts }

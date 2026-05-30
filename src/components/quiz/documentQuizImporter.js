@@ -905,8 +905,19 @@ async function trySmartImport(extracted, file) {
   }
 }
 
-export async function importQuizDocument(file) {
+// Import options surfaced in the UI (ImportQuizPanel), both default ON:
+//   preserveNumbering  — keep each question's original number from the doc.
+//   groupComprehension — attach comprehension questions to their passage.
+// Defaults reproduce the correct G7 English behaviour.
+export const DEFAULT_IMPORT_OPTIONS = {
+  preserveNumbering: true,
+  groupComprehension: true,
+}
+
+export async function importQuizDocument(file, options = {}) {
   if (!file) throw new Error('Choose a Word or PDF file first.')
+
+  const importOptions = { ...DEFAULT_IMPORT_OPTIONS, ...options }
 
   const lowerName = file.name.toLowerCase()
   let extracted
@@ -924,7 +935,7 @@ export async function importQuizDocument(file) {
     throw new Error('Please upload a .doc, .docx, or .pdf file.')
   }
 
-  const local = processImportedQuestionBlocks(extracted.blocks, extracted.warnings)
+  const local = processImportedQuestionBlocks(extracted.blocks, extracted.warnings, importOptions)
   const metadata = buildImportMetadata(
     local.processedBlocks.map(block => block.text).join('\n'),
     file.name,

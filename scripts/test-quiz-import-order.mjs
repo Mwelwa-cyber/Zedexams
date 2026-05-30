@@ -227,9 +227,20 @@ function assertAscending(nums, label) {
 function runParserOrderTest() {
   const { sections, parts } = processImportedQuestionBlocks(makeG7EnglishFixture(), [])
 
+  // Range headings ("Questions 26 – 30", "Questions 39 – 45") and the literal
+  // "Part 4" heading all become named parts now, in document order. The
+  // comprehension section is grouped under a "Reading Comprehension" part.
   const namedParts = parts.filter(p => String(p.title ?? '').trim())
-  assert.equal(namedParts.length, 1, `expected 1 named part, got ${namedParts.length}`)
-  assert.match(namedParts[0].title, /Part 4/i)
+  assert.ok(namedParts.length >= 1, `expected at least 1 named part, got ${namedParts.length}`)
+  assert.ok(namedParts.some(p => /Part 4/i.test(p.title)), 'expected a "Part 4" named part')
+  // Parts must appear in document order: scanning the expected sequence, each
+  // title's index in the actual array must strictly increase.
+  const partTitles = namedParts.map(p => p.title)
+  const expectedOrder = ['Questions 26 – 30', 'Part 4: Questions 31 – 38', 'Questions 39 – 45', 'Reading Comprehension']
+  const positions = expectedOrder.filter(t => partTitles.includes(t)).map(t => partTitles.indexOf(t))
+  for (let i = 1; i < positions.length; i += 1) {
+    assert.ok(positions[i] > positions[i - 1], `parts out of document order: ${partTitles.join(' | ')}`)
+  }
 
   const allQs = sections.flatMap(s =>
     s.kind === 'passage' ? (s.passage?.questions || []) : [s.question],
@@ -273,9 +284,12 @@ function runShuffledSmartImportTest() {
   assertAscending(outNums, 'reconciled')
   assert.equal(outNums[0], 1, 'first reconciled section must be Q1, not a comprehension passage or Part 4')
 
-  // Part structure preserved (the one named part).
-  assert.equal(parts.length, 1, 'reconcile must return the single named part')
-  assert.match(parts[0].title, /Part 4/i)
+  // Part structure preserved: the named parts the parser detected (range
+  // headings + the literal "Part 4" + Reading Comprehension) survive
+  // reconciliation. The unnamed default part is dropped.
+  assert.ok(parts.length >= 1, 'reconcile must return the named parts')
+  assert.ok(parts.some(p => /Part 4/i.test(p.title)), 'reconcile must keep the "Part 4" named part')
+  assert.ok(parts.every(p => String(p.title ?? '').trim()), 'reconcile must drop the unnamed default part')
 
   console.log('test-quiz-import-order: reconcile recovers document order from shuffled AI output — PASSED')
 }
@@ -285,12 +299,16 @@ function runShuffledSmartImportTest() {
 // (raw AI order, no reordering at all) — a silent jumbling vector.
 
 function runNoNamedPartsTest() {
+  // Deliberately NO part-creating headings: no "Reading Comprehension"
+  // banner, no range heading, no "Part/Section N". The passage is introduced
+  // by a bare comprehension instruction + "Story 1" label, which open a
+  // passage block WITHOUT creating a named part.
   const blocks = [
     block('Answer ALL questions.'),
     ...mcqBlock(1, 'The cat sat on the …', ['mat', 'hat', 'bat', 'rat'], 'A'),
     ...mcqBlock(2, 'Birds can … in the sky.', ['swim', 'fly', 'dig', 'run'], 'B'),
     ...mcqBlock(3, 'Water is made of hydrogen and …', ['carbon', 'oxygen', 'nitrogen', 'helium'], 'B'),
-    block('Reading Comprehension'),
+    block('Read the passage below and answer the questions that follow.'),
     block('Story 1'),
     block('The sun is a star at the centre of our solar system. It gives us light and heat every day.'),
     ...mcqBlock(4, 'The sun is at the centre of our …', ['galaxy', 'solar system', 'planet', 'moon'], 'B'),
