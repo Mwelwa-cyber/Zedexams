@@ -976,17 +976,26 @@ export async function importQuizDocument(file) {
           // into the wrong part.
           const localStandalones = local.sections.filter(s => s.kind === 'standalone')
           const localPassages = local.sections.filter(s => s.kind === 'passage')
+          // Build a map from each local section's id to its position in the full
+          // document-ordered local.sections array. This is the source of truth for
+          // what "document order" means — the deterministic parser always emits
+          // sections in document order regardless of part structure.
+          const localSectionOrderMap = new Map(local.sections.map((s, i) => [s.id, i]))
           let siStandalone = 0
           let siPassage = 0
           const withPartIds = smart.sections.map(s => {
             if (s.kind === 'passage') {
-              const rawPartId = siPassage < localPassages.length
-                ? (localPassages[siPassage].partId ?? null)
+              const localSection = siPassage < localPassages.length
+                ? localPassages[siPassage]
                 : null
+              const rawPartId = localSection?.partId ?? null
               siPassage++
               const partId = unnamedPartIds.has(rawPartId) ? null : rawPartId
               return {
                 ...s, partId,
+                // Carry the local section id so the sort below can recover the
+                // exact document position for this smart section.
+                _localSectionId: localSection?.id ?? null,
                 passage: {
                   ...s.passage,
                   questions: (s.passage?.questions || []).map(q => ({ ...q, partId })),
@@ -994,24 +1003,39 @@ export async function importQuizDocument(file) {
               }
             }
             if (s.kind === 'standalone') {
-              const rawPartId = siStandalone < localStandalones.length
-                ? (localStandalones[siStandalone].question?.partId ?? null)
+              const localSection = siStandalone < localStandalones.length
+                ? localStandalones[siStandalone]
                 : null
+              const rawPartId = localSection?.question?.partId ?? null
               siStandalone++
               const partId = unnamedPartIds.has(rawPartId) ? null : rawPartId
-              return { ...s, question: { ...s.question, partId } }
+              return {
+                ...s,
+                question: { ...s.question, partId },
+                // Carry the local section id so the sort below can recover the
+                // exact document position for this smart section.
+                _localSectionId: localSection?.id ?? null,
+              }
             }
             return s
           })
-          // Restore document order: sort by the part's position in namedLocalParts.
-          // The AI may return sections out of order (e.g. comprehension first). A
-          // stable sort by part index puts every section into its correct document
-          // position while preserving relative order within each part.
-          const partOrderMap = new Map(namedLocalParts.map((p, i) => [p.id, i]))
-          const getPartId = s => s.kind === 'passage' ? s.partId : s.question?.partId
+          // Restore document order: sort by the section's position in the local
+          // (deterministic-parser) section list. This is robust because the local
+          // parser always emits sections in document order, and we have matched
+          // every smart section against the corresponding local section above.
+          //
+          // Previous approach sorted by part index within namedLocalParts only,
+          // which broke documents where the only named part (e.g. "Part 4") is not
+          // the first part: it received sort key 0 (the lowest), causing it to
+          // sort before all sections that belonged to unnamed parts (which got
+          // fallback key = namedLocalParts.length = 1). For a 60-question English
+          // paper where Q1–Q30 have no named part and Q31–Q45 are in "Part 4",
+          // this put Q31–Q45 first and Q1–Q30 after, matching the "question 45 at
+          // position 20" jumbling reported by teachers.
           sections = withPartIds.slice().sort(
-            (a, b) => (partOrderMap.get(getPartId(a)) ?? partOrderMap.size)
-                    - (partOrderMap.get(getPartId(b)) ?? partOrderMap.size)
+            (a, b) =>
+              (localSectionOrderMap.get(a._localSectionId) ?? localSectionOrderMap.size)
+            - (localSectionOrderMap.get(b._localSectionId) ?? localSectionOrderMap.size)
           )
           parts = namedLocalParts
         } else {
