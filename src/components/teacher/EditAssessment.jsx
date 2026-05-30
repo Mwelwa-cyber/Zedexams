@@ -14,6 +14,7 @@ import {
   serializeQuizSections,
   shuffleQuizSections,
 } from '../../utils/quizSections.js'
+import { regroupComprehensionSections, moveQuestionToPassage } from '../../utils/comprehensionGrouping.js'
 import { richTextHasContent } from '../../utils/quizRichText.js'
 import { clampInt } from '../../utils/inputs.js'
 import { getErrorMessage } from '../../utils/errors.js'
@@ -273,6 +274,18 @@ export default function EditAssessment() {
 
   function handleShuffleSections() {
     setSections(currentSections => shuffleQuizSections(currentSections))
+    setDirty(true)
+  }
+
+  function handleAutoGroupComprehension() {
+    setSections(currentSections => regroupComprehensionSections(currentSections).sections)
+    setDirty(true)
+    show('Comprehension questions re-grouped by passage.')
+  }
+
+  function handleMoveQuestionToPassage(fromSectionId, questionLocalId, toSectionId) {
+    setSections(currentSections =>
+      moveQuestionToPassage(currentSections, fromSectionId, questionLocalId, toSectionId))
     setDirty(true)
   }
 
@@ -1051,6 +1064,8 @@ export default function EditAssessment() {
         onPartRemove={removePart}
         onAssignSectionToPart={assignSectionToPart}
         onShuffleSections={handleShuffleSections}
+        onAutoGroupComprehension={handleAutoGroupComprehension}
+        onMoveQuestionToPassage={handleMoveQuestionToPassage}
       />
 
       <QuizEditorPreviewPanel form={form} serializedSections={serializedPreview} />

@@ -1064,6 +1064,9 @@ function PassageQuestionCard({
   onMove,
   onOptionImageUpload,
   onOptionImageRemove,
+  passageOptions = null,
+  currentSectionId = null,
+  onMoveToPassage,
   quizContext = {},
   theme,
 }) {
@@ -1142,6 +1145,23 @@ function PassageQuestionCard({
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
+          {Array.isArray(passageOptions) && passageOptions.length > 1 && onMoveToPassage && currentSectionId && (
+            <select
+              value={currentSectionId}
+              onChange={event => {
+                const target = event.target.value
+                if (target && target !== currentSectionId) {
+                  onMoveToPassage(currentSectionId, question.localId || question._id, target)
+                }
+              }}
+              className="theme-input rounded-lg border px-2 py-1 text-xs outline-none focus:border-[var(--accent)]"
+              title="Link this question to another passage"
+            >
+              {passageOptions.map(option => (
+                <option key={option.id} value={option.id}>Linked: {option.label}</option>
+              ))}
+            </select>
+          )}
           <button
             type="button"
             onClick={() => onMove(sectionIndex, questionIndex, -1)}
@@ -1375,6 +1395,8 @@ function PassageSectionCard({
   onPassageQuestionOptionImageRemove,
   onPassageAddQuestion,
   onAssignToPart,
+  comprehensionPassages = null,
+  onMoveQuestionToPassage,
   quizContext = {},
 }) {
   const passage = section.passage
@@ -1594,6 +1616,9 @@ function PassageSectionCard({
                     onMove={onPassageQuestionMove}
                     onOptionImageUpload={onPassageQuestionOptionImageUpload}
                     onOptionImageRemove={onPassageQuestionOptionImageRemove}
+                    passageOptions={isMap ? null : comprehensionPassages}
+                    currentSectionId={section.id}
+                    onMoveToPassage={isMap ? null : onMoveQuestionToPassage}
                     quizContext={quizContext}
                     theme={theme}
                   />
@@ -1874,6 +1899,12 @@ export default function QuizSectionsEditor({
   onPartRemove,
   onAssignSectionToPart,
   onShuffleSections,
+  // Manual comprehension-grouping controls. Optional — the dropdown + bulk
+  // button only render when the parent wires these in.
+  //   onMoveQuestionToPassage(fromSectionId, questionLocalId, toSectionId)
+  //   onAutoGroupComprehension()  — keyword-regroup every comprehension run
+  onMoveQuestionToPassage,
+  onAutoGroupComprehension,
   emptyStateTitle = 'No questions yet',
   emptyStateDescription = 'Click "Add Question" below to start building this quiz.',
 }) {
@@ -1931,6 +1962,17 @@ export default function QuizSectionsEditor({
     }
   })
 
+  // Passage options for the per-question "Linked passage" dropdown. Only
+  // comprehension passages (not maps) participate, labelled by their title or a
+  // "Passage N" fallback so a teacher can move a question to the right text.
+  const comprehensionPassages = allInOrder
+    .filter(section => section.kind === 'passage' && (section.passage?.passageKind ?? 'comprehension') !== 'map')
+    .map(section => ({
+      id: section.id,
+      label: String(section.passage?.title ?? '').trim() || `Passage ${storyNumberById.get(section.id)}`,
+    }))
+  const canAutoGroup = Boolean(onAutoGroupComprehension) && comprehensionPassages.length >= 2
+
   function renderSection(section) {
     const sectionIndex = sectionIndexById.get(section.id) ?? 0
     if (section.kind === 'passage') {
@@ -1958,6 +2000,8 @@ export default function QuizSectionsEditor({
           onPassageQuestionOptionImageRemove={onPassageQuestionOptionImageRemove}
           onPassageAddQuestion={onPassageAddQuestion}
           onAssignToPart={onAssignSectionToPart}
+          comprehensionPassages={comprehensionPassages}
+          onMoveQuestionToPassage={onMoveQuestionToPassage}
           quizContext={quizContext}
         />
       )
@@ -2043,6 +2087,21 @@ export default function QuizSectionsEditor({
 
   const canShuffle = Boolean(onShuffleSections) && totalQuestions >= 2
 
+  function handleAutoGroupClick() {
+    if (!onAutoGroupComprehension) return
+    const ok = typeof window === 'undefined'
+      ? true
+      : window.confirm(
+        'Auto-group comprehension questions?\n\n'
+          + '• Each question in a set of passages is matched to the passage it '
+          + 'refers to (by keywords in the question, options, and answer).\n'
+          + '• Original question numbers and order are preserved.\n'
+          + '\nYou can still fine-tune with each question’s "Linked passage" dropdown.',
+      )
+    if (!ok) return
+    onAutoGroupComprehension()
+  }
+
   return (
     <div className="space-y-4">
       <BulkActionBar
@@ -2052,25 +2111,45 @@ export default function QuizSectionsEditor({
         onDelete={bulkDelete}
         onSetMarks={bulkSetMarks}
       />
-      {(sections.length > 0 || sortedParts.length > 0) && canShuffle && (
+      {(sections.length > 0 || sortedParts.length > 0) && (canShuffle || canAutoGroup) && (
         <div className="theme-card theme-border flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-4 py-3 shadow-sm">
           <div>
             <p className="theme-text text-sm font-black">Question order</p>
             <p className="theme-text-muted mt-0.5 text-xs font-bold">
-              {totalQuestions} question{totalQuestions === 1 ? '' : 's'} · use Shuffle to randomise the order for fairness.
+              {totalQuestions} question{totalQuestions === 1 ? '' : 's'}
+              {canAutoGroup
+                ? ' · auto-group attaches each comprehension question to the right passage.'
+                : ' · use Shuffle to randomise the order for fairness.'}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleShuffleClick}
-            className={joinClasses(
-              'min-h-0 rounded-xl border-2 px-4 py-2 text-sm font-black transition-all hover:-translate-y-px',
-              theme.button,
+          <div className="flex flex-wrap items-center gap-2">
+            {canAutoGroup && (
+              <button
+                type="button"
+                onClick={handleAutoGroupClick}
+                className={joinClasses(
+                  'min-h-0 rounded-xl border-2 px-4 py-2 text-sm font-black transition-all hover:-translate-y-px',
+                  theme.button,
+                )}
+                title="Match each comprehension question to the passage it refers to"
+              >
+                🧩 Auto-group comprehension questions
+              </button>
             )}
-            title="Randomise the order of questions (and within each Part / passage)"
-          >
-            🔀 Shuffle questions
-          </button>
+            {canShuffle && (
+              <button
+                type="button"
+                onClick={handleShuffleClick}
+                className={joinClasses(
+                  'min-h-0 rounded-xl border-2 px-4 py-2 text-sm font-black transition-all hover:-translate-y-px',
+                  theme.button,
+                )}
+                title="Randomise the order of questions (and within each Part / passage)"
+              >
+                🔀 Shuffle questions
+              </button>
+            )}
+          </div>
         </div>
       )}
       {sections.length === 0 && sortedParts.length === 0 ? (

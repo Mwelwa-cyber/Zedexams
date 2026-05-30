@@ -1,4 +1,5 @@
 import { createPartGroup, createPassageSection, createStandaloneSection } from '../../utils/quizSections.js'
+import { extractKeywords, keywordsForQuestion, assignByKeywords } from '../../utils/comprehensionGrouping.js'
 
 // Each entry maps a detectable label (used in doc headers) to the curriculum
 // subject ID used by the form and Firestore. Must stay in sync with
@@ -30,6 +31,23 @@ const PARA_ORDER_INSTRUCTION_RE = /each question has four paragraphs|sentences i
 const PARA_ORDER_DO_Q_RE = /\bnow\s+do\s+questions?\s+(\d{1,3})/i
 const PARA_ORDER_QUESTION_ONLY_RE = /^\d{1,3}$/
 const QUESTION_RANGE_HEADING_RE = /^(?:(?:comprehension\s+)?questions?\s+\d{1,3}\s*[–-]\s*\d{1,3}|now\s+do\s+questions?\s+\d{1,3}\s*[–-]\s*\d{1,3}|look\s+at\s+questions?\s+\d{1,3}(?:\s*[–-]\s*\d{1,3})?)$/i
+// A shared "now do questions N – M" / "answer questions N to M" instruction that
+// introduces a run of comprehension questions. Unlike QUESTION_RANGE_HEADING_RE
+// this tolerates trailing punctuation ("Now do questions 46 – 60.") and the
+// "to" word form, so it does not leak into the passage text or the first
+// question's stem. It is captured as a comprehension instruction instead.
+const COMP_RANGE_INSTRUCTION_RE = /^(?:now\s+do|answer|attempt|do)\s+(?:the\s+)?questions?\s+\d{1,3}\s*(?:[–-]|to)\s*\d{1,3}\b\s*[.:;]?\s*$/i
+function isComprehensionRangeInstruction(line) {
+  return COMP_RANGE_INSTRUCTION_RE.test(cleanImportedText(line))
+}
+// Strip a leading "now do questions N – M" phrase off a question stem so an
+// imported Q46 reads "According to the text, why was …" rather than
+// "Now do questions 46 – 60. According to the text, why was …".
+function stripLeadingRangeInstruction(text) {
+  return cleanImportedText(
+    String(text || '').replace(/^(?:now\s+do|answer|attempt|do)\s+(?:the\s+)?questions?\s+\d{1,3}\s*(?:[–-]|to)\s*\d{1,3}\b\s*[.:;-]?\s*/i, ''),
+  )
+}
 // Verbs that, when they lead a non-numbered line, almost always mean the line
 // is a teacher instruction rather than a question stem or an answer/explanation.
 // Kept conservative — common question stems like "Find the value of x" stay
@@ -535,7 +553,7 @@ function questionFromCurrent(current, answerKey = new Map()) {
   if (!current) return null
 
   const reviewNotes = [...current.reviewNotes]
-  const text = cleanImportedText(current.textParts.join(' '))
+  const text = stripLeadingRangeInstruction(cleanImportedText(current.textParts.join(' ')))
   const sharedInstruction = cleanImportedText(current.sharedInstruction)
   const optionAssetsArr = Array.isArray(current.optionAssets) ? current.optionAssets : []
   // Phase 3: the table-block builder synthesises "(image)" as the option text
@@ -1356,6 +1374,16 @@ function parseQuestionsFromBlocks(blocks, warnings) {
       const explicitInstruction = /^instructions?\s*[:.-]/i.test(line)
 
       if (compActive) {
+        // "Now do questions 46 – 60." after the passages: capture it as a
+        // shared comprehension instruction instead of letting it fall through
+        // to the passage-text accumulator (which would bury it inside the last
+        // passage) or onto Q46's stem.
+        if (isComprehensionRangeInstruction(line) && !detectedQuestion) {
+          finalizeSubQuestion()
+          compInstructions.push(cleanImportedText(line).replace(/\s*[.:;]\s*$/, ''))
+          return
+        }
+
         if (isInstruction && !detectedQuestion) {
           if (compPassageParts.length > 0 || compSubQuestions.length > 0 || current) {
             finalizeComprehension()
@@ -1881,6 +1909,67 @@ function summarizeImportedSections(sections = [], parts = []) {
   }
 }
 
+function isComprehensionBlock(question) {
+  return Boolean(question
+    && (question.type === 'comprehension' || question.detectedType === 'comprehension'))
+}
+
+// Repair degenerate comprehension grouping. When a paper lays out several
+// passages ("Text 1", "Text 2", "Text 3") and *then* a shared run of questions
+// ("Now do questions 46 – 60"), the line-by-line parser attaches that whole run
+// to the LAST passage, leaving the earlier passages with zero sub-questions.
+// This pass finds each maximal run of consecutive comprehension blocks; if some
+// passage in the run has no questions while the run as a whole does, it pools
+// every sub-question and reattaches each to the passage it actually refers to
+// by keyword overlap. Correctly-interleaved papers (every passage already has
+// its own questions) are left untouched.
+function regroupComprehensionBlocks(questions = []) {
+  const result = [...questions]
+  let i = 0
+  while (i < result.length) {
+    if (!isComprehensionBlock(result[i])) {
+      i += 1
+      continue
+    }
+    let j = i
+    while (j < result.length && isComprehensionBlock(result[j])) j += 1
+    const run = result.slice(i, j)
+    if (run.length >= 2) {
+      const counts = run.map(block => (block.subQuestions || []).length)
+      const total = counts.reduce((sum, n) => sum + n, 0)
+      const hasEmpty = counts.some(n => n === 0)
+      if (total > 0 && hasEmpty) {
+        const passageKeywordLists = run.map(block =>
+          extractKeywords(`${block.passageTitle ?? ''} \n ${block.passage ?? ''}`))
+        const pool = run.flatMap(block => block.subQuestions || [])
+        const assignments = assignByKeywords(passageKeywordLists, pool.map(keywordsForQuestion))
+        const buckets = run.map(() => [])
+        pool.forEach((subQuestion, idx) => {
+          buckets[assignments[idx] ?? 0].push(subQuestion)
+        })
+        buckets.forEach(bucket => bucket.sort((a, b) =>
+          (Number(a.sourceQuestionNumber) || 0) - (Number(b.sourceQuestionNumber) || 0)))
+        run.forEach((block, passageIndex) => {
+          const bucket = buckets[passageIndex]
+          block.subQuestions = bucket
+          block.marks = Math.max(1, bucket.reduce((sum, q) => sum + (q.marks || 1), 0))
+          // Refresh the "no sub-questions" review note now the counts changed.
+          const notes = (block.reviewNotes || []).filter(note =>
+            note !== 'No sub-questions were found for this comprehension block.')
+          if (bucket.length === 0) {
+            notes.push('No sub-questions were found for this comprehension block.')
+          }
+          block.reviewNotes = notes
+          block.importWarnings = notes
+          block.requiresReview = notes.length > 0 || bucket.some(q => q.requiresReview)
+        })
+      }
+    }
+    i = j
+  }
+  return result
+}
+
 // When "group comprehension" is OFF, flatten each comprehension block into
 // standalone questions so Q46–60 are emitted as ordinary questions instead of
 // attaching to their passage. Preserves document order and source numbers.
@@ -1939,7 +2028,12 @@ export function processImportedQuestionBlocks(blocks = [], warnings = [], option
     }
   }
 
-  if (!groupComprehension) {
+  if (groupComprehension) {
+    // Fix the "all questions on the last passage, earlier passages empty" bug
+    // before sections are built so the editor and runner both see the right
+    // grouping.
+    questions = regroupComprehensionBlocks(questions)
+  } else {
     questions = flattenComprehensionQuestions(questions)
   }
 

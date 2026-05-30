@@ -7,6 +7,7 @@ import {
 } from './documentQuizParserCore.js'
 import { buildDocxTableBlocks } from './documentQuizTableBlocks.js'
 import { reconcileSmartSectionOrder } from './documentQuizReconcile.js'
+import { regroupComprehensionSections } from '../../utils/comprehensionGrouping.js'
 import { consolidateOptionImageRuns } from './documentQuizParagraphRuns.js'
 import { importMarkupToRichHtml, importMarkupToOptionHtml } from './importRichText.js'
 import { structureImportedQuiz } from '../../utils/aiAssistant'
@@ -987,6 +988,20 @@ export async function importQuizDocument(file, options = {}) {
       }
     } else if (smart?.error) {
       warnings.push(`Smart import unavailable, used standard parser. (${smart.error})`)
+    }
+  }
+
+  // Safety net for the smart-import path: the deterministic parser already
+  // regroups comprehension questions, but reconcileSmartSectionOrder takes its
+  // passage questions from the (LLM) smart sections, which can re-pile every
+  // question onto the last passage. Re-run the keyword regroup on the final
+  // sections — it only acts on degenerate runs (a passage left empty while a
+  // sibling has questions), so correctly-grouped imports pass through unchanged.
+  {
+    const regrouped = regroupComprehensionSections(sections)
+    if (regrouped.changed) {
+      sections = regrouped.sections
+      warnings.push('Comprehension questions were re-grouped by passage — please confirm each text has the right questions.')
     }
   }
 

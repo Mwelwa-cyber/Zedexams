@@ -6,6 +6,7 @@
 // vice versa). Extracting to one shared module prevents that drift.
 
 import { richTextHasContent } from './quizRichText.js'
+import { findComprehensionGroupingIssues } from './comprehensionGrouping.js'
 
 /**
  * Check whether an answer-option value carries any meaningful content.
@@ -166,6 +167,13 @@ export function collectQuizIssues({ form = {}, sections = [], parts = [], questi
     if (!hasMembers) {
       push(`part-empty-${part?.id || 'unknown'}`, `Part "${part?.title || 'Untitled'}" has no questions assigned.`)
     }
+  }
+
+  // Comprehension grouping: a set of passages where one has every question and
+  // its siblings have none is a mis-import — block publishing until it's fixed
+  // (manually or via "Auto-group comprehension questions").
+  for (const issue of findComprehensionGroupingIssues(sections)) {
+    push(`comprehension-grouping-${issue.runStart}`, issue.message, { severity: issue.severity })
   }
 
   // Walk each section + collect per-question issues.
