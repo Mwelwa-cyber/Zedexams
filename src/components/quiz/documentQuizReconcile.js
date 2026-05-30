@@ -5,6 +5,58 @@
 // `node` — see scripts/test-quiz-import-order.mjs. documentQuizImporter.js
 // imports reconcileSmartSectionOrder from here.
 
+// Signals that a source document carries the rich structure smart import
+// exists to recover: stacked / inline fractions, vertical arithmetic,
+// measurement units, math symbols, or a markdown-style table. A prose paper
+// (English comprehension, social studies) has none of these.
+//
+// IMPORTANT: this is intentionally conservative on prose. Number RANGES like
+// "Questions 26 – 30" or "Grade 6" must NOT register as rich structure, so
+// the arithmetic clause requires an actual math operator (`= + × ÷ *`, never a
+// hyphen / en-dash which doubles as a range separator) between two numbers.
+const RICH_STRUCTURE_PATTERNS = [
+  /\\frac\s*\{/, //                       LaTeX stacked fraction
+  /\$[^$\n]+\$/, //                       $…$ inline math
+  /\\\(|\\\[/, //                         \( … \) / \[ … \]
+  /\[\[\s*vmath\b/i, //                   vertical-arithmetic token
+  /\b\d+\s*\/\s*\d+\b/, //                literal fraction "1/2", "3 / 4"
+  /[½¼¾⅓⅔⅛⅜⅝⅞√∑∏∫πθΣµΩ±×÷≤≥≠≈∞²³⁴⁵⁶⁷⁸⁹]/, // math glyphs / superscripts
+  /\b\d+(?:\.\d+)?\s?(?:cm|mm|km|kg|mg|ml|°c|°f)\b/i, // measurement units
+  /\bx\s*\^\s*\d/i, //                    x^2 style exponent
+  /\d\s*[=+×÷*]\s*\d/, //                 arithmetic between two numbers
+  /_{4,}|─{3,}|—{3,}/, //                 long rule under vertical arithmetic
+]
+
+export function documentHasRichStructure(text) {
+  const s = String(text || '')
+  if (!s) return false
+  // A markdown table row ("| a | b |") with at least two pipes.
+  if (s.split(/\r?\n/).some(line => (line.match(/\|/g) || []).length >= 2)) return true
+  return RICH_STRUCTURE_PATTERNS.some(re => re.test(s))
+}
+
+// Decide whether to hand the document to the (non-deterministic) smart-import
+// LLM at all. The deterministic parser is ground truth for ordering and, for
+// plain prose papers, for content too — it never reorders questions or drops an
+// option. Smart import ONLY adds value by recovering rich structure (fractions,
+// vertical arithmetic, tables). So we only risk the LLM when:
+//   1. the parser found no questions (nothing to lose), or
+//   2. the parser flagged questions for review (missing option / unresolved
+//      answer / flattened table — the LLM might do better), or
+//   3. the document actually contains rich structure worth recovering.
+//
+// This is the fix for the recurring "English paper imports jumbled, a choice is
+// missing" reports: a clean, complete parse of a prose paper now wins outright
+// instead of being overwritten by an LLM re-read that can shuffle questions or
+// merge/drop a long option.
+export function shouldRunSmartImport(local, documentText) {
+  const summary = local?.summary || {}
+  const questions = summary.questions || 0
+  if (!questions) return true
+  if ((summary.needsReview || 0) > 0) return true
+  return documentHasRichStructure(documentText)
+}
+
 // Normalise a question/section's text for content-matching between the AI
 // smart-import result and the deterministic parser. Strips HTML, entities, a
 // leading question number ("31." / "31)" / "31:"), punctuation and casing so
