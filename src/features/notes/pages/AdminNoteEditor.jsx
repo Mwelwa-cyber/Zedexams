@@ -327,6 +327,8 @@ export function AdminNoteEditor() {
                 onChange={(next) => { setBlocks(next); markDirty() }}
                 ownerUid={currentUser?.uid}
                 assetBatchId={assetBatchId}
+                subject={subject}
+                grade={grade}
               />
             ) : noteFormat === NOTE_FORMAT.RICH_TEXT ? (
               <NoteEditor
