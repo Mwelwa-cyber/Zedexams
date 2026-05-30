@@ -146,7 +146,7 @@ service cloud.firestore {
         // as null whenever the note is in rich-text mode (or when the
         // teacher hasn't picked a term/week yet) — matching the same
         // null-or-string pattern used for question imageUrl/diagramText.
-        && (!('noteFormat' in incoming()) || (incoming().noteFormat is string && incoming().noteFormat in ['slides', 'rich_text', 'file']))
+        && (!('noteFormat' in incoming()) || (incoming().noteFormat is string && incoming().noteFormat in ['slides', 'rich_text', 'file', 'visual_slides']))
         && (!('content' in incoming()) || (incoming().content is string && incoming().content.size() <= 200000))
         && (!('excerpt' in incoming()) || (incoming().excerpt is string && incoming().excerpt.size() <= 500))
         && (!('fileUrl' in incoming()) || incoming().fileUrl == null || (incoming().fileUrl is string && incoming().fileUrl.size() <= 2000))

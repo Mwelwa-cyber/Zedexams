@@ -198,6 +198,29 @@ test('gamification collections enforce field validators', () => {
   )
 })
 
+// ── validLessonFields keeps every NOTE_FORMAT learners can be served ──
+
+console.log('\nvalidLessonFields whitelists every saveable note format')
+
+// Mirrors NOTE_FORMAT in src/config/curriculum.js. The lessons create/update
+// rule gates `noteFormat` through this allowlist, so any format the editor can
+// save MUST appear here — otherwise Firestore silently rejects the write and
+// the note (e.g. an admin-published visual deck) never reaches a learner.
+// 'visual_slides' was added in #696 but the rule allowlist wasn't, which is
+// why grade-7 visual notes failed to publish until this line was fixed.
+const REQUIRED_NOTE_FORMATS = ['slides', 'rich_text', 'file', 'visual_slides']
+
+for (const f of REQUIRED_NOTE_FORMATS) {
+  test(`whitelists noteFormat '${f}'`, () => {
+    const line = rules.split('\n').find(l => l.includes("'noteFormat' in incoming()"))
+    assert(line, 'validLessonFields noteFormat guard not found')
+    assert(
+      line.includes(`'${f}'`),
+      `validLessonFields is missing noteFormat '${f}' — admin/teacher writes for this note format will be rejected by Firestore, so the note never shows for learners`,
+    )
+  })
+}
+
 // ── Report ──────────────────────────────────────────────────────
 
 console.log('')
