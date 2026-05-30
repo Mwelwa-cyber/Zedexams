@@ -6,7 +6,7 @@ import {
   processImportedQuestionBlocks,
 } from './documentQuizParserCore.js'
 import { buildDocxTableBlocks } from './documentQuizTableBlocks.js'
-import { reconcileSmartSectionOrder } from './documentQuizReconcile.js'
+import { reconcileSmartSectionOrder, shouldRunSmartImport } from './documentQuizReconcile.js'
 import { regroupComprehensionSections } from '../../utils/comprehensionGrouping.js'
 import { consolidateOptionImageRuns } from './documentQuizParagraphRuns.js'
 import { importMarkupToRichHtml, importMarkupToOptionHtml } from './importRichText.js'
@@ -1032,7 +1032,15 @@ export async function importQuizDocument(file, options = {}) {
   // Smart import now runs for PDFs too (not just Word). It is the only path
   // that recovers fractions, vertical arithmetic, and tables as editor nodes
   // instead of flat text — which is precisely what past-paper PDFs need.
-  if (isWord || extracted.blocks?.length) {
+  //
+  // But it must NOT touch a clean, complete deterministic parse of a plain
+  // prose paper. The LLM re-read does not reliably preserve question order and
+  // can merge or drop a long option — which is exactly the "English paper
+  // imports jumbled, a choice is missing" failure. shouldRunSmartImport keeps
+  // the deterministic result unless the parse needs help OR the document
+  // carries the rich structure smart import exists to recover.
+  const rawDocumentText = rawTextFromExtracted(extracted)
+  if ((isWord || extracted.blocks?.length) && shouldRunSmartImport(local, rawDocumentText)) {
     const smart = await trySmartImport(extracted, file)
     if (smart?.sections) {
       // Reconcile against the deterministic parser before accepting the AI
