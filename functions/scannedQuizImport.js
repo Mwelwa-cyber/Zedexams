@@ -26,9 +26,20 @@
  * model calls are injected so the tests run without network access.
  */
 
-const {HttpsError} = require("firebase-functions/v2/https");
-const {callClaude: defaultCallClaude} = require("./teacherTools/anthropicClient");
-const {callGemini: defaultCallGemini} = require("./geminiClient");
+// Dependencies are required lazily, not at module load. The CI "Tests" job
+// runs `npm run test:all` after a ROOT-only `npm ci` (no functions/node_modules),
+// so importing firebase-functions / the model clients at the top would make
+// this file unloadable there — and the pure helpers below are exactly what
+// that job unit-tests. HttpsError falls back to a plain coded Error when
+// firebase-functions isn't installed (test env); production always has it.
+function httpsError(code, message) {
+  try {
+    const {HttpsError} = require("firebase-functions/v2/https");
+    return new HttpsError(code, message);
+  } catch {
+    return Object.assign(new Error(message), {code});
+  }
+}
 
 // The vision OCR model is configurable so the project owner can dial cost vs
 // quality without a code change. Defaults to the project-wide Anthropic model
@@ -186,7 +197,7 @@ function clampString(value, max) {
  */
 function validatePages(rawPages) {
   if (!Array.isArray(rawPages) || rawPages.length === 0) {
-    throw new HttpsError("invalid-argument", "No pages were supplied for import.");
+    throw httpsError("invalid-argument", "No pages were supplied for import.");
   }
   const pages = [];
   let dropped = 0;
@@ -216,7 +227,7 @@ function validatePages(rawPages) {
     });
   }
   if (!pages.length) {
-    throw new HttpsError(
+    throw httpsError(
       "failed-precondition",
       "Every page image was unreadable or over 5MB. Re-render at a lower resolution and retry.",
     );
@@ -372,8 +383,12 @@ async function runScannedQuizImport(
   {pages: rawPages, fileName, subjectHint, gradeHint, anthropicKey, geminiKey, uid},
   deps = {},
 ) {
-  const callClaude = deps.callClaude || defaultCallClaude;
-  const callGemini = deps.callGemini || defaultCallGemini;
+  // Lazy-require the real model clients only when not injected (tests inject
+  // both, so they never load firebase-functions-dependent code).
+  const callClaude = deps.callClaude ||
+    require("./teacherTools/anthropicClient").callClaude;
+  const callGemini = deps.callGemini ||
+    require("./geminiClient").callGemini;
 
   const {pages, dropped} = validatePages(rawPages);
   const pageNumbers = pages.map((p) => p.pageNumber);
