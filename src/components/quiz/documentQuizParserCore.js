@@ -1448,12 +1448,22 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         finalizeStandaloneQuestion()
         sharedInstruction = ''
         numberStemInstruction = ''
-        // Section heading (PART A / SECTION B / UNIT 3 / etc.) opens a new
-        // Part group. Passage labels ("Story 1") do NOT — those belong to
-        // a comprehension passage that may live inside the active Part.
+        // A bare passage label ("Story 1", "Passage B", "Text 2") with no
+        // preceding "read the passage and answer the questions that follow"
+        // instruction still opens a comprehension block. Without this, a
+        // story that isn't introduced by a comprehension instruction (common
+        // in ECZ English papers where each story is headed only by
+        // "Story N") never activates comprehension mode: its passage text is
+        // dropped and every question under it is emitted as a bare standalone
+        // — exactly the "stories are not there, only the questions" failure.
+        // Section headings (PART A / SECTION B / UNIT 3) take precedence and
+        // open a Part group instead, since a passage can live inside a Part.
         if (isSectionBreak) {
           currentPartTitle = cleanImportedText(line)
+          return
         }
+        compActive = true
+        compTitle = cleanImportedText(line)
         return
       }
 

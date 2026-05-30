@@ -322,6 +322,85 @@ function runRealWorldLayoutTest() {
 runRealWorldLayoutTest()
 console.log('documentQuizParserCore real-world ECZ layout test passed')
 
+// ─── Bare "Story N" comprehension passages ────────────────────────────────
+// Real ECZ G7 English papers head each reading passage with just "Story 1",
+// "Story 2", "Story 3" and NO "read the passage and answer the questions that
+// follow" instruction — the section is introduced only by a "Reading
+// Comprehension — Questions 46 – 60" range heading. The parser used to need a
+// comprehension instruction (or a passage-internal "answer the questions that
+// follow" line) to enter comprehension mode, so a bare "Story N" label was
+// discarded: the passage text vanished and every question under it landed as a
+// bare standalone. The visible symptom was "after importing, the stories are
+// not there — only the questions." This locks the passages in.
+function comprehensionQuestionWithInlineAnswer(number, stem, options, answerLetter) {
+  const answerText = options['ABCD'.indexOf(answerLetter)]
+  return [
+    block(`${number}.  ${stem}`),
+    block(`A   ${options[0]}`),
+    block(`B   ${options[1]}`),
+    block(`C   ${options[2]}`),
+    block(`D   ${options[3]}`),
+    block(`Answer: ${answerLetter}  —  ${answerText}`),
+  ]
+}
+
+function runBareStoryLabelTest() {
+  const blocks = [
+    block('Reading Comprehension — Questions 46 – 60'),
+    // Story 1 — introduced by a bare label, no comprehension instruction.
+    block('Story 1'),
+    block('Once upon a time, the grandson of a headman developed a bad cough. The people called in a witchdoctor to cure him.'),
+    block('The witchdoctor chewed some roots and danced around the child, then took a small calabash and made it appear to speak.'),
+    ...comprehensionQuestionWithInlineAnswer(46, 'According to the text, why was the ancestor angry with the villagers? They …',
+      ['bewitched the boy.', 'did not give him some beer.', 'misunderstood the calabash.', 'offered him some beer.'], 'B'),
+    ...comprehensionQuestionWithInlineAnswer(47, 'Which of the following was not done by the witchdoctor?',
+      ['Carrying him outside.', 'Dancing around him.', 'Giving him medicine.', 'Spitting on his face.'], 'C'),
+    // Story 2 — another bare label; must close Story 1 and open a new passage.
+    block('Story 2'),
+    block('Crocodiles are large semiaquatic reptiles that live throughout the tropics. The crocodile has the most powerful bite ever measured for living animals.'),
+    block("The crocodile's jaw is also incredibly sensitive to touch, even more sensitive than the human fingertip."),
+    ...comprehensionQuestionWithInlineAnswer(51, 'According to the passage, the word hatchlings means young animals that have recently emerged from the …',
+      ['womb.', 'water.', 'leaves.', 'eggs.'], 'D'),
+    ...comprehensionQuestionWithInlineAnswer(52, "The crocodile's jaw has a high sense of …",
+      ['touch.', 'taste.', 'smell.', 'sight.'], 'A'),
+  ]
+
+  const warnings = []
+  const { sections, summary } = processImportedQuestionBlocks(blocks, warnings)
+
+  assert.equal(summary.passages, 2, `expected 2 passages, got ${summary.passages}`)
+  assert.equal(summary.questions, 4, `expected 4 questions, got ${summary.questions}`)
+
+  const passageSections = sections.filter(section => section.kind === 'passage')
+  assert.deepEqual(
+    passageSections.map(section => section.passage.title),
+    ['Story 1', 'Story 2'],
+  )
+
+  // Each story keeps its own passage text and its own two questions — the
+  // story is not swallowed into a previous question and the questions are not
+  // emitted as bare standalones.
+  assert.match(plainRichText(passageSections[0].passage.passageText), /grandson of a headman/i)
+  assert.match(plainRichText(passageSections[0].passage.passageText), /witchdoctor chewed some roots/i)
+  assert.equal(passageSections[0].passage.questions.length, 2)
+
+  assert.match(plainRichText(passageSections[1].passage.passageText), /Crocodiles are large semiaquatic reptiles/i)
+  // Story 1's text must NOT leak into Story 2's passage.
+  assert.doesNotMatch(plainRichText(passageSections[1].passage.passageText), /grandson of a headman/i)
+  assert.equal(passageSections[1].passage.questions.length, 2)
+
+  // Inline answers resolve against the right option for grouped questions.
+  const q46 = findQuestion(sections, 46)
+  assert.ok(q46, 'Q46 must be grouped under Story 1, not dropped')
+  assert.equal(q46.correctAnswer, 1) // B
+  const q51 = findQuestion(sections, 51)
+  assert.ok(q51, 'Q51 must be grouped under Story 2, not dropped')
+  assert.equal(q51.correctAnswer, 3) // D
+}
+
+runBareStoryLabelTest()
+console.log('documentQuizParserCore bare "Story N" comprehension test passed')
+
 /**
  * Past-paper regression: G7 Mathematics 2023 (and any docx that opens
  * with a "Answer ALL N questions. Choose the BEST answer." intro and
