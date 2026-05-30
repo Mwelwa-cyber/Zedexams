@@ -1,8 +1,9 @@
 // src/features/notes/lib/seedImport.js
 //
-// One-click admin seeder: creates the Grade-7 Integrated Science study notes
-// from the committed bundle (seed/grade7ScienceSeed.json), creates + publishes
-// each note's practice quiz, and links them. Idempotent per note via seedKey.
+// One-click admin seeder: creates the Grade-7 study notes (Integrated Science +
+// Social Studies) from the committed bundle (seed/grade7Seed.json), creates +
+// publishes each note's practice quiz where one exists, and links them.
+// Idempotent per note via seedKey. Each note carries its own subject/grade.
 //
 // Reuses the app's gated write paths:
 //   - questions: standalone item → CSV row → rowToQuestion (same as /admin/import/csv)
@@ -10,11 +11,8 @@
 //   - notes:     createNote (noteFormat 'study') + publishNote
 // Quiz/diagram images resolve to /notes/<file> (committed in public/notes/).
 
-import seed from '../seed/grade7ScienceSeed.json'
+import seed from '../seed/grade7Seed.json'
 import { rowToQuestion } from '../../../utils/csvQuizImport'
-
-const SUBJECT = 'Integrated Science'
-const GRADE = '7'
 
 /** Counts for the pre-import confirmation. */
 export function seedSummary() {
@@ -67,7 +65,7 @@ export async function importGrade7Seed({
         if (questions.length) {
           quizId = await createQuiz({
             title: `${note.title} — Practice Quiz`,
-            subject: SUBJECT, grade: GRADE, term: '', description: '',
+            subject: note.subject, grade: note.grade, term: '', description: '',
             passages: [], parts: [], passageCount: 0,
             totalMarks: questions.reduce((s, q) => s + (q.marks || 1), 0),
             questionCount: questions.length,
@@ -84,7 +82,7 @@ export async function importGrade7Seed({
       }
 
       const noteId = await createNote({
-        title: note.title, subject: SUBJECT, grade: GRADE,
+        title: note.title, subject: note.subject, grade: note.grade,
         noteFormat: 'study', blocks, seedKey: note.seedKey, createdBy: currentUid,
       })
       await publishNote(noteId)

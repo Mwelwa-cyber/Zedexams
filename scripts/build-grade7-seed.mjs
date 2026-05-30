@@ -99,10 +99,12 @@ const notes = SEED.map((n) => {
     }
   }
   return {
+    // seedKey prefix kept stable (g7sci_) so notes already imported from an
+    // earlier run stay deduped; standalone ids are subject-distinct (n_* vs ss_*).
     seedKey: `g7sci_${n.id}`,
     title: key || S(n.name),
-    subject: 'Integrated Science',
-    grade: '7',
+    subject: S(n.subject) || 'Integrated Science',
+    grade: S(n.grade) || '7',
     blocks,
   }
 })
@@ -119,12 +121,12 @@ for (const note of notes) {
 
 const bundle = {
   version: 1,
-  generatedFrom: 'standalone Notes Studio (Grade 7 Integrated Science)',
+  generatedFrom: 'standalone Notes Studio (Grade 7: Integrated Science + Social Studies)',
   notes,
   quizzes: QUIZZES,
 }
 
-const outPath = join(REPO, 'src', 'features', 'notes', 'seed', 'grade7ScienceSeed.json')
+const outPath = join(REPO, 'src', 'features', 'notes', 'seed', 'grade7Seed.json')
 mkdirSync(dirname(outPath), { recursive: true })
 writeFileSync(outPath, JSON.stringify(bundle, null, 2) + '\n', 'utf8')
 

@@ -1,7 +1,7 @@
 // src/features/notes/components/SeedImportPanel.jsx
 //
-// Admin-only one-click importer for the Grade-7 Integrated Science sample
-// content: creates the study notes + their practice quizzes (published) and
+// Admin-only one-click importer for the Grade-7 sample content (Integrated
+// Science + Social Studies): creates the study notes + their practice quizzes (published) and
 // links them. Idempotent — notes already imported (matched by seedKey) are
 // skipped, so it's safe to re-run. The heavy seed bundle is lazy-loaded only
 // when the panel is opened, to keep the admin notes list lean.
@@ -64,7 +64,7 @@ export function SeedImportPanel() {
       <button
         onClick={openPanel}
         className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-white text-sm font-medium transition hover:scale-[1.02] active:scale-[0.98] shadow-sm bg-emerald-600"
-        title="Import the Grade-7 Integrated Science sample notes + quizzes"
+        title="Import the Grade-7 sample study notes + quizzes (Integrated Science + Social Studies)"
       >
         <Sparkles size={16} /> Import Grade-7 set
       </button>
@@ -76,7 +76,7 @@ export function SeedImportPanel() {
             <header className="p-4 border-b border-neutral-100 flex items-center justify-between gap-2">
               <div>
                 <p className="text-[11px] font-semibold uppercase tracking-wide text-neutral-400">Sample content</p>
-                <h3 className="font-display text-xl text-neutral-900 mt-0.5">Import Grade-7 Integrated Science</h3>
+                <h3 className="font-display text-xl text-neutral-900 mt-0.5">Import Grade-7 study notes</h3>
               </div>
               <button type="button" onClick={close} disabled={running} aria-label="Close" className="text-neutral-400 hover:text-neutral-700 disabled:opacity-40 rounded-full p-2"><XIcon size={18} /></button>
             </header>
