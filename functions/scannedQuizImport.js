@@ -52,67 +52,108 @@ const ALLOWED_IMAGE_MIME = new Set([
 ]);
 
 const CLAUDE_SYSTEM_PROMPT = [
-  "You are digitising a Zambian ECZ examination paper for the ZedExams quiz",
-  "editor. The user sends you the paper as a sequence of scanned page images.",
-  "Read EVERY question on the pages and return them as structured JSON via the",
-  "tool, in the exact order they appear.",
+  "You are digitising a standard Zambian ECZ examination paper for the",
+  "ZedExams quiz editor. The user sends the paper as a sequence of scanned",
+  "page images. Capture EVERYTHING on the paper — nothing should be left out —",
+  "and return it as structured JSON 'sections' via the tool, in the exact",
+  "order it appears.",
   "",
-  "Rules:",
-  "- One entry per question. Use the printed question number as",
-  "  sourceQuestionNumber (an integer). If a number is unreadable, set it to 0.",
-  "- prompt: the question stem, exactly as written. Preserve inline maths,",
-  "  units and labels. Repair obvious OCR/spacing artefacts in the scan.",
-  "- options: one string per choice the paper offers (usually 4: A, B, C, D),",
-  "  in order, WITHOUT the 'A.'/'B.' letter labels. Preserve wording exactly.",
-  "- correctAnswer: ALWAYS null. These question papers do not print an answer",
-  "  key, so never guess — the teacher fills answers in afterwards.",
-  "- explanation: leave empty ('').",
-  "- hasDiagram: true when the question depends on a figure, picture, table,",
-  "  graph, shape or diagram printed on the page; false for plain text.",
-  "- sectionTitle: the nearest section/part heading above the question",
-  "  (e.g. 'Section A', 'Part 1') or ''. instruction: any shared instruction",
-  "  that applies to the question (e.g. 'Choose the word that best completes",
-  "  the sentence') or ''.",
-  "- Skip the cover/instructions page and worked examples. Skip non-MCQ items",
-  "  (essays, 'explain why'). Do not invent questions.",
+  "A section is either a 'passage' (shared content + its questions) or a",
+  "'standalone' question. Group correctly:",
+  "- COMPREHENSION (English stories, letters, poems, adverts, notices, dialogues,",
+  "  reports): emit ONE passage with kind='comprehension', the full text in",
+  "  passageText, and every question about it inside questions[]. Never fold a",
+  "  story into the previous question's text.",
+  "- SHARED MAP / DIAGRAM / FIGURE / TABLE that several questions refer to",
+  "  (e.g. a Social Studies map of Zambia, a science apparatus, a graph or a",
+  "  data table read by Q5-Q8): emit ONE passage with kind='map', set",
+  "  hasImage=true, put the caption in title and any printed lead-in text in",
+  "  passageText, and place the dependent questions inside questions[].",
+  "- Everything else (single MCQs, sentence-completion, pattern/box puzzles,",
+  "  individual maths items): emit a 'standalone' section.",
   "",
-  "Accuracy over coverage, but do not drop readable questions: a 6-page batch",
-  "of an ECZ paper typically holds 25-35 questions.",
+  "Question rules:",
+  "- sourceQuestionNumber: the printed number (integer); 0 if unreadable.",
+  "- prompt: the stem exactly as written; repair obvious OCR/spacing artefacts.",
+  "- options: one string per printed choice (usually 4: A, B, C, D), in order,",
+  "  WITHOUT the 'A.'/'B.' labels. Preserve wording exactly.",
+  "- correctAnswer: ALWAYS null — ECZ question papers print no answer key, so",
+  "  never guess. The teacher sets answers afterwards.",
+  "- explanation: ''.",
+  "- hasDiagram: true when THIS question has its own figure/shape/picture/graph",
+  "  printed with it (e.g. a single geometry shape, a Venn diagram, a number",
+  "  line). Use the map/diagram passage instead when a figure is shared.",
+  "- sourcePageIndex: 0-based index of the page (within this batch) the item is on.",
+  "",
+  "Preserve STRUCTURE with ZedExams import markup so the editor renders real",
+  "nodes — never flatten to prose or '[see diagram]':",
+  "- Fractions: \\frac{3}{4} (mixed numbers: 1\\frac{1}{3}).",
+  "- Other inline maths (roots, powers, indices, symbols): wrap in $...$,",
+  "  e.g. $\\sqrt{49}$, $5^3$, $5\\times10^3$, $313_5$.",
+  "- Vertical / column arithmetic: ONE token on its own line —",
+  "  [[vmath op=- lines=3623,1894 answer=]] (op is + - * /, lines are the",
+  "  operands top-to-bottom, answer empty when the paper does not give it).",
+  "- Any table OR a 'complete the pattern' box puzzle (Special Paper): a",
+  "  GitHub-style Markdown table — header row, then a |---|---| separator, then",
+  "  one row per line. Show an empty answer box as the ▭ character. Example:",
+  "  | Word | Pattern |",
+  "  | --- | --- |",
+  "  | INTEND | TEND |",
+  "  | CARTOON | ▭ |",
+  "  Apply this markup inside prompt, options and passageText.",
+  "",
+  "Skip ONLY the cover/instructions page and any worked 'Example'. Skip",
+  "free-response items (essays, 'explain why'). Do not invent questions.",
+  "Accuracy over coverage, but do not drop readable questions.",
 ].join("\n");
 
 const SCANNED_TOOL_SCHEMA = {
   type: "object",
   properties: {
-    questions: {
+    sections: {
       type: "array",
       items: {
         type: "object",
         properties: {
-          sourceQuestionNumber: {type: "integer"},
-          prompt: {type: "string"},
-          options: {
-            type: "array",
-            items: {type: "string"},
-            minItems: 2,
-            maxItems: 6,
-          },
-          correctAnswer: {type: ["integer", "null"]},
-          explanation: {type: "string"},
-          hasDiagram: {type: "boolean"},
-          sectionTitle: {type: "string"},
-          instruction: {type: "string"},
-          sourcePageIndex: {
-            type: "integer",
-            description:
-              "0-based index of the page (within this batch) the question " +
-              "appears on, so its diagram can be attached.",
-          },
+          kind: {type: "string", enum: ["passage", "standalone"]},
+          // passage fields
+          passageKind: {type: "string", enum: ["comprehension", "map"]},
+          title: {type: "string"},
+          instructions: {type: "string"},
+          passageText: {type: "string"},
+          hasImage: {type: "boolean"},
+          sourcePageIndex: {type: "integer"},
+          questions: {type: "array", items: {$ref: "#/$defs/question"}},
+          // standalone field
+          question: {$ref: "#/$defs/question"},
         },
-        required: ["prompt", "options"],
+        required: ["kind"],
       },
     },
   },
-  required: ["questions"],
+  required: ["sections"],
+  $defs: {
+    question: {
+      type: "object",
+      properties: {
+        sourceQuestionNumber: {type: "integer"},
+        prompt: {type: "string"},
+        options: {
+          type: "array",
+          items: {type: "string"},
+          minItems: 2,
+          maxItems: 6,
+        },
+        correctAnswer: {type: ["integer", "null"]},
+        explanation: {type: "string"},
+        hasDiagram: {type: "boolean"},
+        sectionTitle: {type: "string"},
+        instruction: {type: "string"},
+        sourcePageIndex: {type: "integer"},
+      },
+      required: ["prompt", "options"],
+    },
+  },
 };
 
 const GEMINI_SYSTEM_PROMPT = [
@@ -183,45 +224,88 @@ function validatePages(rawPages) {
   return {pages, dropped};
 }
 
+function pageNumberFor(rawIndex, pageNumbers) {
+  const pageIdx = Number.parseInt(rawIndex, 10);
+  if (Number.isFinite(pageIdx) && pageNumbers[pageIdx] != null) {
+    return pageNumbers[pageIdx];
+  }
+  return pageNumbers[0] ?? null;
+}
+
 /**
- * Force the scanned-import answer policy: blank answer, flagged for review.
- * Drops entries without a usable stem + at least two options. Re-bases the
- * model's per-batch sourcePageIndex onto the real page numbers so a question's
- * diagram can be attached to the right page client-side.
+ * Normalise one question, applying the scanned-import answer policy: answer
+ * always blank, flagged for review. Returns null for an unusable item.
  */
-function normaliseScannedQuestions(rawQuestions, pageNumbers = []) {
-  const list = Array.isArray(rawQuestions) ? rawQuestions : [];
+function normaliseScannedQuestion(raw, pageNumbers = []) {
+  const prompt = clampString(raw?.prompt || raw?.text, 4000).trim();
+  const options = (Array.isArray(raw?.options) ? raw.options : [])
+    .map((o) => clampString(o, 1000).trim())
+    .filter(Boolean)
+    .slice(0, 6);
+  if (!prompt || options.length < 2) return null;
+
+  const num = Number.parseInt(raw?.sourceQuestionNumber, 10);
+  return {
+    sourceQuestionNumber: Number.isFinite(num) && num > 0 ? num : null,
+    text: prompt,
+    options,
+    correctAnswer: "", // never imported from a question paper
+    explanation: "",
+    type: "mcq",
+    hasDiagram: Boolean(raw?.hasDiagram),
+    sectionTitle: clampString(raw?.sectionTitle, 160).trim(),
+    sharedInstruction: clampString(raw?.instruction, 1200).trim(),
+    sourcePage: pageNumberFor(raw?.sourcePageIndex, pageNumbers),
+    requiresReview: true,
+  };
+}
+
+/**
+ * Normalise the model's sections into the editor-facing shape. Passages keep
+ * their text + child questions; map/diagram passages keep a hasImage flag so
+ * the client attaches the source page image. Standalone questions are wrapped
+ * in a one-question section. Empty sections are dropped.
+ */
+function normaliseScannedSections(rawSections, pageNumbers = []) {
+  const list = Array.isArray(rawSections) ? rawSections : [];
   const out = [];
-  for (const raw of list.slice(0, MAX_QUESTIONS_PER_CALL)) {
-    const prompt = clampString(raw?.prompt || raw?.text, 4000).trim();
-    const options = (Array.isArray(raw?.options) ? raw.options : [])
-      .map((o) => clampString(o, 1000).trim())
-      .filter(Boolean)
-      .slice(0, 6);
-    if (!prompt || options.length < 2) continue;
 
-    const num = Number.parseInt(raw?.sourceQuestionNumber, 10);
-    const pageIdx = Number.parseInt(raw?.sourcePageIndex, 10);
-    const sourcePage = Number.isFinite(pageIdx) && pageNumbers[pageIdx] != null ?
-      pageNumbers[pageIdx] :
-      (pageNumbers[0] ?? null);
+  for (const raw of list) {
+    const kind = clampString(raw?.kind, 20).toLowerCase();
 
-    out.push({
-      sourceQuestionNumber: Number.isFinite(num) && num > 0 ? num : null,
-      text: prompt,
-      options,
-      // Answer policy: never imported from a question paper. Always blank.
-      correctAnswer: "",
-      explanation: "",
-      type: "mcq",
-      hasDiagram: Boolean(raw?.hasDiagram),
-      sectionTitle: clampString(raw?.sectionTitle, 160).trim(),
-      sharedInstruction: clampString(raw?.instruction, 1200).trim(),
-      sourcePage,
-      requiresReview: true,
-    });
+    if (kind === "passage") {
+      const questions = (Array.isArray(raw?.questions) ? raw.questions : [])
+        .map((q) => normaliseScannedQuestion(q, pageNumbers))
+        .filter(Boolean);
+      if (!questions.length) continue;
+      const passageKind = clampString(raw?.passageKind, 20).toLowerCase() === "map" ?
+        "map" : "comprehension";
+      out.push({
+        kind: "passage",
+        passageKind,
+        title: clampString(raw?.title, 200).trim(),
+        instructions: clampString(raw?.instructions, 2000).trim(),
+        passageText: clampString(raw?.passageText, 12000).trim(),
+        hasImage: Boolean(raw?.hasImage) || passageKind === "map",
+        sourcePage: pageNumberFor(raw?.sourcePageIndex, pageNumbers),
+        questions,
+      });
+    } else {
+      const question = normaliseScannedQuestion(raw?.question || raw, pageNumbers);
+      if (!question) continue;
+      out.push({kind: "standalone", question});
+    }
   }
   return out;
+}
+
+function countSectionQuestions(sections = []) {
+  return sections.reduce((total, section) => {
+    if (section?.kind === "passage") {
+      return total + (Array.isArray(section.questions) ? section.questions.length : 0);
+    }
+    return total + 1;
+  }, 0);
 }
 
 /**
@@ -264,7 +348,9 @@ function buildClaudeMessages(pages, hints, geminiDraft) {
     });
   });
   const tail = [
-    "Extract every multiple-choice question from the pages above using the tool.",
+    "Digitise EVERYTHING on the pages above into 'sections' using the tool —",
+    "passages/stories and maps with their questions grouped, standalone MCQs,",
+    "pattern/box puzzles as tables, and all maths in the markup described.",
     hints?.subject ? `Subject: ${hints.subject}` : "",
     hints?.grade ? `Grade: ${hints.grade}` : "",
     geminiDraft ?
@@ -330,25 +416,27 @@ async function runScannedQuizImport(
     maxTokens: 8000,
     temperature: 0.1,
     mode: "tool",
-    toolName: "return_questions",
-    toolDescription: "Return every multiple-choice question found on the pages.",
+    toolName: "return_sections",
+    toolDescription:
+      "Return every passage, map/diagram group and question on the pages.",
     toolInputSchema: SCANNED_TOOL_SCHEMA,
   });
 
-  const questions = normaliseScannedQuestions(
-    result?.parsed?.questions,
+  const sections = normaliseScannedSections(
+    result?.parsed?.sections,
     pageNumbers,
   );
+  const extractedCount = countSectionQuestions(sections);
 
-  const countWarning = reconcileCounts(questions.length, geminiCount);
+  const countWarning = reconcileCounts(extractedCount, geminiCount);
   if (countWarning) warnings.push(countWarning);
 
   return {
-    questions,
+    sections,
     warnings,
     pageNumbers,
     detectedCount: geminiCount,
-    extractedCount: questions.length,
+    extractedCount,
     model: result?.model || VISION_MODEL,
     usage: result?.usage || null,
     fileName: clampString(fileName, 180),
@@ -360,7 +448,9 @@ module.exports = {
   runScannedQuizImport,
   // Exported for tests:
   validatePages,
-  normaliseScannedQuestions,
+  normaliseScannedQuestion,
+  normaliseScannedSections,
+  countSectionQuestions,
   reconcileCounts,
   parseGeminiCount,
   buildClaudeMessages,

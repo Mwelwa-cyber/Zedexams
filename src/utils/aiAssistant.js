@@ -438,7 +438,7 @@ export async function structureScannedQuiz(payload) {
     )
     const data = response.data || {}
     return {
-      questions: Array.isArray(data.questions) ? data.questions : [],
+      sections: Array.isArray(data.sections) ? data.sections : [],
       warnings: Array.isArray(data.warnings) ? data.warnings : [],
       detectedCount: Number(data.detectedCount) || 0,
       extractedCount: Number(data.extractedCount) || 0,

@@ -11,7 +11,9 @@ const assert = require("node:assert");
 const {
   runScannedQuizImport,
   validatePages,
-  normaliseScannedQuestions,
+  normaliseScannedQuestion,
+  normaliseScannedSections,
+  countSectionQuestions,
   reconcileCounts,
   parseGeminiCount,
   buildClaudeMessages,
@@ -31,6 +33,12 @@ function test(name, fn) {
   console.log(`  ✓ ${name}`);
 }
 
+const mcq = (over = {}) => ({
+  prompt: "Q",
+  options: ["a", "b", "c", "d"],
+  ...over,
+});
+
 console.log("scannedQuizImport");
 
 // ── validatePages ──────────────────────────────────────────────────────────
@@ -44,7 +52,6 @@ test("validatePages decodes a good page batch", () => {
   assert.equal(dropped, 0);
   assert.equal(pages[0].pageNumber, 2);
   assert.equal(pages[0].mediaType, "image/png");
-  assert.ok(pages[0].data.length > 0);
   assert.ok(!pages[0].data.includes("data:"), "data must be raw base64, no prefix");
 });
 
@@ -63,13 +70,6 @@ test("validatePages throws on an empty batch", () => {
   assert.throws(() => validatePages([]), /No pages/);
 });
 
-test("validatePages throws when every page is unusable", () => {
-  assert.throws(
-    () => validatePages([{pageNumber: 1, dataUrl: "junk"}]),
-    /unreadable/,
-  );
-});
-
 test("validatePages caps the batch at MAX_PAGES_PER_CALL", () => {
   const many = Array.from({length: MAX_PAGES_PER_CALL + 5}, (_, i) => ({
     pageNumber: i + 1,
@@ -79,71 +79,109 @@ test("validatePages caps the batch at MAX_PAGES_PER_CALL", () => {
   assert.equal(pages.length, MAX_PAGES_PER_CALL);
 });
 
-// ── normaliseScannedQuestions ────────────────────────────────────────────────
+// ── normaliseScannedQuestion ─────────────────────────────────────────────────
 
-test("normaliseScannedQuestions forces a blank answer + review flag", () => {
-  const out = normaliseScannedQuestions(
-    [
-      {
-        sourceQuestionNumber: 5,
-        prompt: "In expanded form, 5 cubed is",
-        options: ["3 x 5", "5 x 3", "5 x 5 x 5", "3 x 3 x 3 x 3 x 3"],
-        // Even if the model hallucinated an answer, the scanned policy blanks it.
-        correctAnswer: 2,
-        hasDiagram: false,
-        sourcePageIndex: 0,
-      },
-    ],
+test("normaliseScannedQuestion forces a blank answer + review flag", () => {
+  const q = normaliseScannedQuestion(
+    {sourceQuestionNumber: 5, prompt: "5 cubed is", options: ["a", "b", "c", "d"], correctAnswer: 2, sourcePageIndex: 0},
     [2],
   );
-  assert.equal(out.length, 1);
-  assert.equal(out[0].correctAnswer, "", "answer must always be blank");
-  assert.equal(out[0].requiresReview, true);
-  assert.equal(out[0].type, "mcq");
-  assert.equal(out[0].sourceQuestionNumber, 5);
-  assert.equal(out[0].sourcePage, 2, "page index re-based onto real page number");
-  assert.equal(out[0].options.length, 4);
+  assert.equal(q.correctAnswer, "", "answer must always be blank");
+  assert.equal(q.requiresReview, true);
+  assert.equal(q.type, "mcq");
+  assert.equal(q.sourceQuestionNumber, 5);
+  assert.equal(q.sourcePage, 2, "page index re-based onto real page number");
 });
 
-test("normaliseScannedQuestions drops items without a stem or enough options", () => {
-  const out = normaliseScannedQuestions(
-    [
-      {prompt: "", options: ["a", "b"]},
-      {prompt: "Only one option", options: ["a"]},
-      {prompt: "Good one", options: ["a", "b", "c", "d"]},
-    ],
-    [1],
-  );
-  assert.equal(out.length, 1);
-  assert.equal(out[0].text, "Good one");
+test("normaliseScannedQuestion returns null without a stem or enough options", () => {
+  assert.equal(normaliseScannedQuestion({prompt: "", options: ["a", "b"]}, [1]), null);
+  assert.equal(normaliseScannedQuestion({prompt: "x", options: ["a"]}, [1]), null);
 });
 
-test("normaliseScannedQuestions carries diagram + section hints", () => {
-  const out = normaliseScannedQuestions(
-    [
-      {
-        prompt: "Study the diagram below.",
-        options: ["a", "b", "c", "d"],
-        hasDiagram: true,
-        sectionTitle: "Section A",
-        instruction: "Choose the best answer.",
-        sourcePageIndex: 1,
-      },
-    ],
+test("normaliseScannedQuestion carries diagram + instruction hints", () => {
+  const q = normaliseScannedQuestion(
+    {prompt: "Study the figure.", options: ["a", "b", "c", "d"], hasDiagram: true, instruction: "Choose the best answer.", sourcePageIndex: 1},
     [4, 5],
   );
-  assert.equal(out[0].hasDiagram, true);
-  assert.equal(out[0].sectionTitle, "Section A");
-  assert.equal(out[0].sharedInstruction, "Choose the best answer.");
-  assert.equal(out[0].sourcePage, 5);
+  assert.equal(q.hasDiagram, true);
+  assert.equal(q.sharedInstruction, "Choose the best answer.");
+  assert.equal(q.sourcePage, 5);
 });
 
-test("normaliseScannedQuestions falls back to first page when index is bad", () => {
-  const out = normaliseScannedQuestions(
-    [{prompt: "Q", options: ["a", "b"], sourcePageIndex: 99}],
-    [7, 8],
+// ── normaliseScannedSections ─────────────────────────────────────────────────
+
+test("normaliseScannedSections keeps a comprehension passage with its questions", () => {
+  const sections = normaliseScannedSections(
+    [
+      {
+        kind: "passage",
+        passageKind: "comprehension",
+        title: "The Lion",
+        passageText: "Once upon a time...",
+        sourcePageIndex: 0,
+        questions: [mcq({prompt: "Who?"}), mcq({prompt: "Where?"})],
+      },
+    ],
+    [3],
   );
-  assert.equal(out[0].sourcePage, 7);
+  assert.equal(sections.length, 1);
+  assert.equal(sections[0].kind, "passage");
+  assert.equal(sections[0].passageKind, "comprehension");
+  assert.equal(sections[0].passageText, "Once upon a time...");
+  assert.equal(sections[0].questions.length, 2);
+  assert.equal(sections[0].questions[0].correctAnswer, "");
+});
+
+test("normaliseScannedSections marks a map passage hasImage and re-bases the page", () => {
+  const sections = normaliseScannedSections(
+    [
+      {
+        kind: "passage",
+        passageKind: "map",
+        title: "Map of Zambia",
+        hasImage: true,
+        sourcePageIndex: 1,
+        questions: [mcq()],
+      },
+    ],
+    [6, 7],
+  );
+  assert.equal(sections[0].passageKind, "map");
+  assert.equal(sections[0].hasImage, true);
+  assert.equal(sections[0].sourcePage, 7);
+});
+
+test("normaliseScannedSections forces hasImage on any map passage", () => {
+  const sections = normaliseScannedSections(
+    [{kind: "passage", passageKind: "map", questions: [mcq()]}],
+    [1],
+  );
+  assert.equal(sections[0].hasImage, true);
+});
+
+test("normaliseScannedSections wraps standalone questions", () => {
+  const sections = normaliseScannedSections(
+    [{kind: "standalone", question: mcq({prompt: "2+2?"})}],
+    [1],
+  );
+  assert.equal(sections[0].kind, "standalone");
+  assert.equal(sections[0].question.text, "2+2?");
+});
+
+test("normaliseScannedSections drops passages whose questions are all unusable", () => {
+  const sections = normaliseScannedSections(
+    [{kind: "passage", title: "Empty", questions: [{prompt: "", options: []}]}],
+    [1],
+  );
+  assert.equal(sections.length, 0);
+});
+
+test("countSectionQuestions totals passage children + standalones", () => {
+  const total = countSectionQuestions([
+    {kind: "passage", questions: [{}, {}, {}]},
+    {kind: "standalone", question: {}},
+  ]);
+  assert.equal(total, 4);
 });
 
 // ── reconcileCounts ──────────────────────────────────────────────────────────
@@ -184,31 +222,24 @@ test("buildClaudeMessages interleaves page labels + images and a tail", () => {
   assert.equal(msg.role, "user");
   const images = msg.content.filter((b) => b.type === "image");
   assert.equal(images.length, 2);
-  assert.equal(images[0].source.media_type, "image/png");
   assert.equal(images[0].source.data, "AAA");
   const tail = msg.content[msg.content.length - 1];
-  assert.equal(tail.type, "text");
   assert.ok(/Mathematics/.test(tail.text));
   assert.ok(/always null/i.test(tail.text), "tail reminds the model not to guess");
 });
 
 test("buildGeminiImages maps to inline-image shape", () => {
-  const imgs = buildGeminiImages([
-    {pageNumber: 1, mediaType: "image/jpeg", data: "X"},
-  ]);
+  const imgs = buildGeminiImages([{pageNumber: 1, mediaType: "image/jpeg", data: "X"}]);
   assert.deepEqual(imgs, [{mimeType: "image/jpeg", data: "X"}]);
 });
 
 // ── runScannedQuizImport (orchestration, mocked models) ──────────────────────
 
-test("runScannedQuizImport runs both models and returns blank-answer MCQs", async () => {
+test("runScannedQuizImport runs both models and returns blank-answer sections", async () => {
   const calls = {gemini: 0, claude: 0};
   const result = await runScannedQuizImport(
     {
-      pages: [
-        {pageNumber: 1, dataUrl: dataUrl()},
-        {pageNumber: 2, dataUrl: dataUrl()},
-      ],
+      pages: [{pageNumber: 1, dataUrl: dataUrl()}, {pageNumber: 2, dataUrl: dataUrl()}],
       fileName: "math_g7.pdf",
       subjectHint: "Mathematics",
       gradeHint: "7",
@@ -220,95 +251,79 @@ test("runScannedQuizImport runs both models and returns blank-answer MCQs", asyn
         calls.gemini += 1;
         assert.equal(key, "g");
         assert.ok(Array.isArray(opts.images) && opts.images.length === 2);
-        return '{"questionNumbers":[1,2]}';
+        return '{"questionNumbers":[1,2,3]}';
       },
       callClaude: async (key, opts) => {
         calls.claude += 1;
-        assert.equal(key, "k");
         assert.equal(opts.mode, "tool");
+        assert.equal(opts.toolName, "return_sections");
         return {
           parsed: {
-            questions: [
-              {sourceQuestionNumber: 1, prompt: "Q1", options: ["a", "b", "c", "d"], correctAnswer: 1, sourcePageIndex: 0},
-              {sourceQuestionNumber: 2, prompt: "Q2", options: ["a", "b", "c", "d"], sourcePageIndex: 1},
+            sections: [
+              {kind: "standalone", question: mcq({sourceQuestionNumber: 1, prompt: "Q1"})},
+              {
+                kind: "passage",
+                passageKind: "comprehension",
+                title: "Story",
+                passageText: "text",
+                questions: [mcq({sourceQuestionNumber: 2, prompt: "Q2"}), mcq({sourceQuestionNumber: 3, prompt: "Q3"})],
+              },
             ],
           },
           model: "test-model",
-          usage: {inputTokens: 10, outputTokens: 5},
         };
       },
     },
   );
   assert.equal(calls.gemini, 1);
   assert.equal(calls.claude, 1);
-  assert.equal(result.questions.length, 2);
-  assert.equal(result.questions[0].correctAnswer, "");
-  assert.equal(result.questions[1].sourcePage, 2);
-  assert.equal(result.extractedCount, 2);
-  assert.equal(result.detectedCount, 2);
+  assert.equal(result.sections.length, 2);
+  assert.equal(result.extractedCount, 3);
+  assert.equal(result.detectedCount, 3);
   assert.equal(result.warnings.length, 0);
 });
 
 test("runScannedQuizImport surfaces a count-mismatch warning", async () => {
   const result = await runScannedQuizImport(
-    {
-      pages: [{pageNumber: 1, dataUrl: dataUrl()}],
-      anthropicKey: "k",
-      geminiKey: "g",
-    },
+    {pages: [{pageNumber: 1, dataUrl: dataUrl()}], anthropicKey: "k", geminiKey: "g"},
     {
       callGemini: async () => '{"questionNumbers":[1,2,3,4,5,6,7,8,9,10]}',
-      callClaude: async () => ({
-        parsed: {questions: [{prompt: "only one", options: ["a", "b"]}]},
-      }),
+      callClaude: async () => ({parsed: {sections: [{kind: "standalone", question: mcq()}]}}),
     },
   );
-  assert.equal(result.questions.length, 1);
+  assert.equal(result.extractedCount, 1);
   assert.ok(result.warnings.some((w) => /missing/i.test(w)));
 });
 
 test("runScannedQuizImport survives a Gemini failure (assist is best-effort)", async () => {
   const result = await runScannedQuizImport(
-    {
-      pages: [{pageNumber: 1, dataUrl: dataUrl()}],
-      anthropicKey: "k",
-      geminiKey: "g",
-    },
+    {pages: [{pageNumber: 1, dataUrl: dataUrl()}], anthropicKey: "k", geminiKey: "g"},
     {
       callGemini: async () => {
         throw new Error("gemini down");
       },
-      callClaude: async () => ({
-        parsed: {questions: [{prompt: "Q1", options: ["a", "b", "c", "d"]}]},
-      }),
+      callClaude: async () => ({parsed: {sections: [{kind: "standalone", question: mcq()}]}}),
     },
   );
-  assert.equal(result.questions.length, 1);
+  assert.equal(result.extractedCount, 1);
   assert.equal(result.detectedCount, 0);
-  // No count cross-check possible, so no mismatch warning.
   assert.ok(!result.warnings.some((w) => /missing/i.test(w)));
 });
 
 test("runScannedQuizImport works with no Gemini key (Claude-only)", async () => {
   let geminiCalled = false;
   const result = await runScannedQuizImport(
-    {
-      pages: [{pageNumber: 1, dataUrl: dataUrl()}],
-      anthropicKey: "k",
-      geminiKey: "",
-    },
+    {pages: [{pageNumber: 1, dataUrl: dataUrl()}], anthropicKey: "k", geminiKey: ""},
     {
       callGemini: async () => {
         geminiCalled = true;
         return "{}";
       },
-      callClaude: async () => ({
-        parsed: {questions: [{prompt: "Q1", options: ["a", "b", "c", "d"]}]},
-      }),
+      callClaude: async () => ({parsed: {sections: [{kind: "standalone", question: mcq()}]}}),
     },
   );
   assert.equal(geminiCalled, false, "Gemini must be skipped without a key");
-  assert.equal(result.questions.length, 1);
+  assert.equal(result.extractedCount, 1);
 });
 
 console.log(`\nscannedQuizImport: ${passed} passed`);

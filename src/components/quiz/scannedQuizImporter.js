@@ -4,26 +4,31 @@
  *
  * Flow:
  *   1. Rasterise each PDF page to a JPEG (good OCR resolution).
- *   2. Batch the pages and send each batch to the `structureScannedQuiz`
- *      callable, which runs the dual-model OCR pipeline server-side.
- *   3. Merge the batches, renumber, and map every question to an editor
- *      section with a BLANK answer + `requiresReview` (these papers have
- *      no answer key — the teacher sets answers before publishing).
- *   4. For questions the model flagged as diagram-dependent, attach the
- *      rendered page image so the figure isn't lost; the teacher can crop
- *      or replace it in the editor.
+ *   2. Batch the pages (with a 1-page overlap so a passage/map that straddles
+ *      a page boundary stays intact in at least one batch) and send each
+ *      batch to the `structureScannedQuiz` callable, which runs the
+ *      dual-model OCR pipeline server-side.
+ *   3. Merge the batches into ordered editor sections — comprehension
+ *      passages and shared maps/diagrams keep their grouped questions;
+ *      everything else is a standalone question.
+ *   4. Every answer is left BLANK + flagged requiresReview (ECZ question
+ *      papers carry no answer key — the teacher sets answers before
+ *      publishing). Map passages and diagram questions get the rendered
+ *      source page attached so figures aren't lost.
  *
  * The pure helpers are exported and unit-tested in
  * scannedQuizImporter.test.js; the model call and page rendering are
  * injected/guarded so the tests run in plain Node with no DOM.
  */
 
-import { createStandaloneSection } from '../../utils/quizSections.js'
+import { createStandaloneSection, createPassageSection } from '../../utils/quizSections.js'
 import { importMarkupToRichHtml, importMarkupToOptionHtml } from './importRichText.js'
 
-// Pages per server call. The callable caps at 8; 6 keeps each Claude vision
-// response inside its output-token budget with comfortable headroom.
-export const SCANNED_BATCH_SIZE = 6
+// Pages per server call. The callable caps at 8; 5 + a 1-page overlap keeps
+// each Claude vision response inside its output-token budget while letting a
+// passage/map that crosses a boundary be captured whole in one batch.
+export const SCANNED_BATCH_SIZE = 5
+export const SCANNED_BATCH_OVERLAP = 1
 // Hard ceiling on pages we OCR in one import, to bound cost/latency. ECZ
 // papers are ≤ ~16 pages; longer uploads are almost always the wrong file.
 export const SCANNED_MAX_PAGES = 40
@@ -42,110 +47,232 @@ export function isLikelyScannedPdf({ sampledChars = 0, sampledPages = 0 } = {}) 
   return sampledChars < sampledPages * SCANNED_TEXT_CHARS_PER_PAGE
 }
 
-/** Split page descriptors into fixed-size batches, preserving order. */
-export function chunkPages(pages = [], size = SCANNED_BATCH_SIZE) {
+/**
+ * Split page descriptors into batches, optionally sharing `overlap` trailing
+ * pages with the next batch so boundary-straddling passages/maps survive.
+ */
+export function chunkPages(pages = [], size = SCANNED_BATCH_SIZE, overlap = SCANNED_BATCH_OVERLAP) {
   const batchSize = Math.max(1, size)
+  const step = Math.max(1, batchSize - Math.max(0, overlap))
   const batches = []
-  for (let i = 0; i < pages.length; i += batchSize) {
+  if (!pages.length) return batches
+  for (let i = 0; i < pages.length; i += step) {
     batches.push(pages.slice(i, i + batchSize))
+    if (i + batchSize >= pages.length) break
   }
   return batches
 }
 
+function questionKey(q) {
+  const stem = String(q?.text || '').trim().toLowerCase()
+  const opts = (Array.isArray(q?.options) ? q.options : []).join('|').toLowerCase()
+  return `${stem}::${opts}`
+}
+
+function passageKey(section) {
+  const kind = section?.passageKind === 'map' ? 'map' : 'comprehension'
+  const title = String(section?.title || '').trim().toLowerCase()
+  // Prefer the title — the same passage re-read across the batch overlap keeps
+  // its title even if OCR of the body text drifts slightly. Fall back to a text
+  // prefix, then to the page (so the same untitled map merges across the
+  // overlap but two different maps on different pages stay separate).
+  if (title) return `${kind}::title::${title}`
+  const text = String(section?.passageText || '').trim().toLowerCase().slice(0, 80)
+  if (text) return `${kind}::text::${text}`
+  return `${kind}::page${section?.sourcePage ?? '?'}`
+}
+
 /**
- * Merge the per-batch question arrays into a single ordered list, dropping
- * exact-duplicate stems that can appear when a question straddles a batch
- * boundary and both batches transcribe it. Renumbering is left to the caller.
+ * Merge the per-batch section arrays into one ordered list. Duplicate
+ * questions (from the batch overlap) are dropped by stem; a passage seen in
+ * two batches has its questions unioned and the richer text/image kept.
  */
-export function mergeQuestionBatches(batchResults = []) {
-  const questions = []
+export function mergeSectionBatches(batchResults = []) {
+  const sections = []
   const warnings = []
-  const seen = new Set()
+  const seenQuestions = new Set()
+  const passageByKey = new Map()
   let detectedTotal = 0
+
+  const takeQuestions = (list = []) => {
+    const kept = []
+    list.forEach(q => {
+      const stem = String(q?.text || '').trim()
+      if (!stem) return
+      const key = questionKey(q)
+      if (seenQuestions.has(key)) return
+      seenQuestions.add(key)
+      kept.push(q)
+    })
+    return kept
+  }
 
   batchResults.forEach(result => {
     if (!result) return
     if (Array.isArray(result.warnings)) warnings.push(...result.warnings)
     detectedTotal += Number(result.detectedCount) || 0
-    ;(Array.isArray(result.questions) ? result.questions : []).forEach(q => {
-      const stem = String(q?.text || '').trim().toLowerCase()
-      const optionKey = (Array.isArray(q?.options) ? q.options : []).join('|').toLowerCase()
-      const key = `${stem}::${optionKey}`
-      if (stem && seen.has(key)) return
-      if (stem) seen.add(key)
-      questions.push(q)
+
+    ;(Array.isArray(result.sections) ? result.sections : []).forEach(section => {
+      if (section?.kind === 'passage') {
+        const key = passageKey(section)
+        const existing = passageByKey.get(key)
+        if (existing) {
+          // Same passage seen again (overlap) — union new questions, keep richer text.
+          existing.questions.push(...takeQuestions(section.questions))
+          if (String(section.passageText || '').length > String(existing.passageText || '').length) {
+            existing.passageText = section.passageText
+          }
+          if (!existing.title && section.title) existing.title = section.title
+          if (!existing.instructions && section.instructions) existing.instructions = section.instructions
+          existing.hasImage = existing.hasImage || section.hasImage
+          return
+        }
+        const merged = { ...section, questions: takeQuestions(section.questions) }
+        // A passage whose every question was a duplicate carries no new
+        // content — drop it rather than emit an empty passage.
+        if (!merged.questions.length) return
+        passageByKey.set(key, merged)
+        sections.push(merged)
+      } else {
+        const q = section?.question || section
+        const kept = takeQuestions([q])
+        if (kept.length) sections.push({ kind: 'standalone', question: kept[0] })
+      }
     })
   })
 
-  return { questions, warnings: [...new Set(warnings)], detectedTotal }
+  return { sections, warnings: [...new Set(warnings)], detectedTotal }
+}
+
+// Preserve line breaks the editor would otherwise collapse. importMarkupToRichHtml
+// only builds block HTML when it detects maths/table markup; a plain multi-line
+// stem (e.g. a special-paper box pattern the model did NOT table-ise, or a
+// multi-paragraph passage) would render as one run. When that happens we wrap
+// the lines into a <p> joined by <br> so the structure survives.
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+}
+
+function toRichPreservingBreaks(text, toRich) {
+  const raw = String(text ?? '')
+  if (!raw.trim()) return ''
+  const html = toRich(raw)
+  // toRich returned the input unchanged (no markup) but it spans multiple
+  // lines — preserve them explicitly.
+  if (html === raw && /\n/.test(raw)) {
+    const paragraphs = raw.split(/\n{2,}/).map(block =>
+      `<p>${block.split(/\n/).map(line => escapeHtml(line.trim())).filter(Boolean).join('<br>')}</p>`,
+    )
+    return paragraphs.join('')
+  }
+  return html
+}
+
+function mapVisionQuestion(q, order, options, deps) {
+  const toRich = deps.toRichHtml || importMarkupToRichHtml
+  const toOption = deps.toOptionHtml || importMarkupToOptionHtml
+  const pageAssetByNumber = options.pageAssetByNumber || {}
+  const usedAssetIds = options.usedAssetIds
+
+  const opts = (Array.isArray(q?.options) ? q.options : []).map(opt => toOption(String(opt ?? '')))
+  const overrides = {
+    text: toRichPreservingBreaks(q?.text, toRich),
+    sharedInstruction: q?.sharedInstruction ? toRichPreservingBreaks(q.sharedInstruction, toRich) : '',
+    options: opts.length ? opts : ['', '', '', ''],
+    correctAnswer: '', // blank — teacher fills in
+    explanation: '',
+    type: 'mcq',
+    detectedType: 'mcq',
+    marks: 1,
+    order,
+    requiresReview: true,
+    reviewNotes: ['Imported from a scanned paper — set the correct answer and check the wording.'],
+    sourceQuestionNumber: Number.isFinite(q?.sourceQuestionNumber) ? q.sourceQuestionNumber : order + 1,
+    sourcePage: q?.sourcePage ?? null,
+  }
+
+  if (q?.hasDiagram && q?.sourcePage != null) {
+    const asset = pageAssetByNumber[q.sourcePage]
+    if (asset) {
+      overrides.imageUrl = asset.imageUrl || asset.objectUrl || ''
+      overrides.imageAssetId = asset.id
+      overrides.diagramText = `Figure on page ${q.sourcePage} — crop or replace this image with just this question's diagram.`
+      usedAssetIds?.add(asset.id)
+    }
+  }
+  return overrides
 }
 
 /**
- * Map the merged vision questions to editor sections. Answers are forced
- * blank ('' — the editor's "unset" state) and every question is flagged for
- * review. Diagram-flagged questions get the source page image attached via
- * `pageAssetByNumber`.
- *
- * `deps` lets the test inject light-weight rich-text + section factories so
- * the mapping logic is verifiable without the editor's real (DOM-coupled)
- * helpers. Production callers use the defaults.
+ * Map merged vision sections onto editor sections. Passages become passage
+ * sections (comprehension or map, with the source page attached for maps);
+ * standalone questions become standalone sections. Answers are blank and
+ * every question is flagged for review.
  */
-export function visionQuestionsToSections(questions = [], options = {}, deps = {}) {
+export function visionSectionsToLocal(sections = [], options = {}, deps = {}) {
   const pageAssetByNumber = options.pageAssetByNumber || {}
   const toRich = deps.toRichHtml || importMarkupToRichHtml
-  const toOption = deps.toOptionHtml || importMarkupToOptionHtml
-  const makeSection = deps.createSection || createStandaloneSection
-
+  const makeStandalone = deps.createSection || createStandaloneSection
+  const makePassage = deps.createPassage || createPassageSection
   const usedAssetIds = new Set()
+  let order = 0
 
-  const sections = questions.map((q, index) => {
-    const options2 = (Array.isArray(q?.options) ? q.options : [])
-      .map(opt => toOption(String(opt ?? '')))
-    const overrides = {
-      text: toRich(String(q?.text ?? '')),
-      sharedInstruction: q?.sharedInstruction ? toRich(String(q.sharedInstruction)) : '',
-      options: options2.length ? options2 : ['', '', '', ''],
-      // Blank answer: teacher fills in. '' is the editor's recognised "unset".
-      correctAnswer: '',
-      explanation: '',
-      type: 'mcq',
-      detectedType: 'mcq',
-      marks: 1,
-      order: index,
-      requiresReview: true,
-      reviewNotes: ['Imported from a scanned paper — set the correct answer and check the wording.'],
-      sourceQuestionNumber: Number.isFinite(q?.sourceQuestionNumber) ? q.sourceQuestionNumber : index + 1,
-      sourcePage: q?.sourcePage ?? null,
-    }
-
-    // Attach the source page image when the question depends on a diagram and
-    // we have that page rendered. Multiple questions on one page reuse the
-    // same asset id (one upload at save time).
-    if (q?.hasDiagram && q?.sourcePage != null) {
-      const asset = pageAssetByNumber[q.sourcePage]
-      if (asset) {
-        overrides.imageUrl = asset.imageUrl || asset.objectUrl || ''
-        overrides.imageAssetId = asset.id
-        overrides.diagramText = `Figure on page ${q.sourcePage} — crop or replace this image with just the diagram for this question.`
-        usedAssetIds.add(asset.id)
+  const local = sections.map(section => {
+    if (section?.kind === 'passage') {
+      const questions = (Array.isArray(section.questions) ? section.questions : [])
+        .map(q => mapVisionQuestion(q, order++, { pageAssetByNumber, usedAssetIds }, deps))
+      const overrides = {
+        title: section.title || '',
+        instructions: section.instructions ? toRichPreservingBreaks(section.instructions, toRich) : '',
+        passageText: section.passageText ? toRichPreservingBreaks(section.passageText, toRich) : '',
+        passageKind: section.passageKind === 'map' ? 'map' : 'comprehension',
+        questions,
       }
+      if (section.hasImage && section.sourcePage != null) {
+        const asset = pageAssetByNumber[section.sourcePage]
+        if (asset) {
+          overrides.imageUrl = asset.imageUrl || asset.objectUrl || ''
+          overrides.imageAssetId = asset.id
+          usedAssetIds.add(asset.id)
+        }
+      }
+      return makePassage(overrides)
     }
-
-    return makeSection(overrides)
+    return makeStandalone(mapVisionQuestion(section.question, order++, { pageAssetByNumber, usedAssetIds }, deps))
   })
 
-  return { sections, usedAssetIds }
+  return { sections: local, usedAssetIds }
+}
+
+/** Count questions across local editor sections (passage children + standalones). */
+export function countLocalQuestions(sections = []) {
+  return sections.reduce((total, section) => {
+    if (section?.kind === 'passage') return total + (section.passage?.questions?.length || 0)
+    return total + 1
+  }, 0)
 }
 
 /**
  * Build the importer summary object shown in the editor's import panel.
  */
-export function buildScannedSummary({ questions = [], fileName = '', pageCount = 0, warnings = [] } = {}) {
+export function buildScannedSummary({ sections = [], fileName = '', pageCount = 0, warnings = [] } = {}) {
+  const questions = countLocalQuestions(sections)
+  const passages = sections.filter(s => s?.kind === 'passage').length
+  const images = sections.reduce((n, s) => {
+    if (s?.kind === 'passage') {
+      return n + (s.passage?.imageAssetId ? 1 : 0) +
+        (s.passage?.questions || []).filter(q => q?.imageAssetId).length
+    }
+    return n + (s.question?.imageAssetId ? 1 : 0)
+  }, 0)
   return {
-    questions: questions.length,
-    passages: 0,
-    images: questions.filter(q => q?.imageAssetId).length,
-    needsReview: questions.length,
+    questions,
+    passages,
+    images,
+    needsReview: questions,
     pageCount,
     fileName,
     importStatus: 'needs_review',
@@ -190,8 +317,8 @@ function makePageAsset(blob, pageNumber) {
 /**
  * Render PDF pages to JPEGs at an OCR-friendly resolution. Returns the data
  * URLs (for the vision call) and a per-page in-memory asset (for attaching to
- * diagram questions). `onProgress({ phase, current, total })` reports rendering
- * progress for the UI.
+ * diagram/map questions). `onProgress({ phase, current, total })` reports
+ * rendering progress for the UI.
  */
 export async function renderPdfPagesForVision(pdf, { maxPages = SCANNED_MAX_PAGES, onProgress, targetWidth = 1500 } = {}) {
   const total = Math.min(pdf.numPages, maxPages)
@@ -249,7 +376,7 @@ export async function runScannedImport({
     throw new Error('None of the PDF pages could be read for import.')
   }
 
-  const batches = chunkPages(pageImages, SCANNED_BATCH_SIZE)
+  const batches = chunkPages(pageImages)
   const batchResults = []
   for (let i = 0; i < batches.length; i += 1) {
     onProgress?.({ phase: 'reading', current: i + 1, total: batches.length })
@@ -264,15 +391,14 @@ export async function runScannedImport({
     batchResults.push(result)
   }
 
-  const merged = mergeQuestionBatches(batchResults)
-  const { sections, usedAssetIds } = visionQuestionsToSections(merged.questions, {
+  const merged = mergeSectionBatches(batchResults)
+  const { sections, usedAssetIds } = visionSectionsToLocal(merged.sections, {
     pageAssetByNumber: assetByPage,
   })
 
-  // Only ship assets that actually got attached to a question, so we don't
-  // upload a dozen unused full-page snapshots at save time.
+  // Only ship assets that actually got attached, so we don't upload a dozen
+  // unused full-page snapshots at save time. Revoke the rest to avoid a leak.
   const imageAssets = Object.values(assetByPage).filter(asset => usedAssetIds.has(asset.id))
-  // Revoke the object URLs of unused page assets to avoid a memory leak.
   Object.values(assetByPage).forEach(asset => {
     if (!usedAssetIds.has(asset.id) && asset.objectUrl && typeof URL !== 'undefined') {
       URL.revokeObjectURL(asset.objectUrl)
@@ -281,7 +407,7 @@ export async function runScannedImport({
 
   const warnings = [...new Set([...renderWarnings, ...merged.warnings])]
   if (!sections.length) {
-    warnings.push('No multiple-choice questions could be read from this scanned paper.')
+    warnings.push('No questions could be read from this scanned paper.')
   } else {
     warnings.unshift('Answers were left blank — set the correct answer for each question before publishing.')
   }
@@ -292,7 +418,7 @@ export async function runScannedImport({
     warnings,
     pageCount: pageImages.length,
     summary: buildScannedSummary({
-      questions: sections.map(s => s.question),
+      sections,
       fileName: file?.name || '',
       pageCount: pageImages.length,
       warnings,
