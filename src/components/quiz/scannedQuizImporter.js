@@ -247,6 +247,26 @@ export function visionSectionsToLocal(sections = [], options = {}, deps = {}) {
   return { sections: local, usedAssetIds }
 }
 
+export const OPTION_LETTERS = ['A', 'B', 'C', 'D', 'E', 'F']
+
+/**
+ * For a raw vision question with pictorial options, return the crop plan:
+ * one { index, box, label } per option that has a usable bounding box and a
+ * rendered source page to crop from. Pure — the actual crop is done in the
+ * DOM helper below. Returns [] for normal text-option questions.
+ */
+export function planOptionImageCrops(rawQuestion, pageAsset) {
+  if (!rawQuestion?.optionsAreImages || !pageAsset) return []
+  const boxes = Array.isArray(rawQuestion.optionImageBoxes) ? rawQuestion.optionImageBoxes : []
+  const plan = []
+  boxes.forEach((box, index) => {
+    if (box && Number.isFinite(box.w) && Number.isFinite(box.h) && box.w > 0 && box.h > 0) {
+      plan.push({ index, box, label: OPTION_LETTERS[index] || `Option ${index + 1}` })
+    }
+  })
+  return plan
+}
+
 /** Count questions across local editor sections (passage children + standalones). */
 export function countLocalQuestions(sections = []) {
   return sections.reduce((total, section) => {
@@ -261,12 +281,15 @@ export function countLocalQuestions(sections = []) {
 export function buildScannedSummary({ sections = [], fileName = '', pageCount = 0, warnings = [] } = {}) {
   const questions = countLocalQuestions(sections)
   const passages = sections.filter(s => s?.kind === 'passage').length
+  const questionImages = (q) =>
+    (q?.imageAssetId ? 1 : 0) +
+    (Array.isArray(q?.optionMedia) ? q.optionMedia.filter(slot => slot?.imageAssetId).length : 0)
   const images = sections.reduce((n, s) => {
     if (s?.kind === 'passage') {
       return n + (s.passage?.imageAssetId ? 1 : 0) +
-        (s.passage?.questions || []).filter(q => q?.imageAssetId).length
+        (s.passage?.questions || []).reduce((m, q) => m + questionImages(q), 0)
     }
-    return n + (s.question?.imageAssetId ? 1 : 0)
+    return n + questionImages(s.question)
   }, 0)
   return {
     questions,
@@ -312,6 +335,99 @@ function makePageAsset(blob, pageNumber) {
     sourcePath: `scanned-page-${pageNumber}.jpg`,
     sourcePage: pageNumber,
   }
+}
+
+function loadImage(url) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    img.onload = () => resolve(img)
+    img.onerror = () => reject(new Error('Could not load page image for cropping.'))
+    img.src = url
+  })
+}
+
+// Crop a normalised box {x,y,w,h} (fractions of the page) out of a rendered
+// page asset and return a fresh in-memory image asset for that region.
+async function cropAssetRegion(pageAsset, box) {
+  const img = await loadImage(pageAsset.objectUrl || pageAsset.imageUrl)
+  const W = img.naturalWidth || img.width
+  const H = img.naturalHeight || img.height
+  const sx = Math.max(0, Math.round(box.x * W))
+  const sy = Math.max(0, Math.round(box.y * H))
+  const sw = Math.max(1, Math.min(W - sx, Math.round(box.w * W)))
+  const sh = Math.max(1, Math.min(H - sy, Math.round(box.h * H)))
+  const canvas = document.createElement('canvas')
+  canvas.width = sw
+  canvas.height = sh
+  const ctx = canvas.getContext('2d', { alpha: false })
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh)
+  const blob = await canvasToBlob(canvas)
+  return makePageAsset(blob, pageAsset.sourcePage)
+}
+
+function canvasToBlob(canvas, quality = 0.85) {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      blob => (blob ? resolve(blob) : reject(new Error('Could not crop an option image.'))),
+      'image/jpeg',
+      quality,
+    )
+  })
+}
+
+/**
+ * Walk local sections alongside the raw vision sections (same order) and, for
+ * every pictorial-option question, crop each option's picture out of its page
+ * and write it into the question's optionMedia slots. Returns the new crop
+ * assets so the caller can upload them at save time. DOM-only (uses canvas).
+ */
+async function attachOptionImages(localSections, rawSections, assetByPage, usedAssetIds) {
+  const cropAssets = []
+
+  const pairsFor = (local, raw) => {
+    if (local?.kind === 'passage') {
+      const qs = local.passage?.questions || []
+      return qs.map((q, j) => [q, raw?.questions?.[j]])
+    }
+    return [[local?.question, raw?.question || raw]]
+  }
+
+  for (let i = 0; i < localSections.length; i += 1) {
+    const raw = rawSections[i]
+    for (const [localQ, rawQ] of pairsFor(localSections[i], raw)) {
+      if (!localQ || !rawQ) continue
+      const pageAsset = assetByPage[localQ.sourcePage]
+      const plan = planOptionImageCrops(rawQ, pageAsset)
+      if (!plan.length) continue
+
+      const media = Array.isArray(localQ.optionMedia) ? [...localQ.optionMedia] : []
+      let attached = 0
+      for (const { index, box, label } of plan) {
+        try {
+          const crop = await cropAssetRegion(pageAsset, box)
+          media[index] = {
+            imageAssetId: crop.id,
+            imageUrl: crop.objectUrl,
+            alt: `Option ${label} image (imported — please review)`,
+          }
+          cropAssets.push(crop)
+          usedAssetIds?.add(crop.id)
+          attached += 1
+        } catch {
+          // Skip a crop we couldn't render; the option keeps its text/blank.
+        }
+      }
+      if (attached) {
+        // Keep optionMedia a clean array parallel to options (null = text option).
+        const len = Math.max(media.length, (localQ.options || []).length)
+        localQ.optionMedia = Array.from({ length: len }, (_, k) => media[k] || null)
+        localQ.requiresReview = true
+        const note = 'Option images were auto-cropped from the scan — check each crop and add alt text.'
+        localQ.reviewNotes = [...new Set([...(localQ.reviewNotes || []), note])]
+      }
+    }
+  }
+  return cropAssets
 }
 
 /**
@@ -396,9 +512,16 @@ export async function runScannedImport({
     pageAssetByNumber: assetByPage,
   })
 
+  // Crop pictorial answer options out of their page into per-option media.
+  // Runs before the revoke pass below so the page object URLs are still alive.
+  const optionCropAssets = await attachOptionImages(sections, merged.sections, assetByPage, usedAssetIds)
+
   // Only ship assets that actually got attached, so we don't upload a dozen
   // unused full-page snapshots at save time. Revoke the rest to avoid a leak.
-  const imageAssets = Object.values(assetByPage).filter(asset => usedAssetIds.has(asset.id))
+  const imageAssets = [
+    ...Object.values(assetByPage).filter(asset => usedAssetIds.has(asset.id)),
+    ...optionCropAssets,
+  ]
   Object.values(assetByPage).forEach(asset => {
     if (!usedAssetIds.has(asset.id) && asset.objectUrl && typeof URL !== 'undefined') {
       URL.revokeObjectURL(asset.objectUrl)
