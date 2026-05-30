@@ -182,6 +182,51 @@ export const SUBJECTS = [
 /** Subject ID → Subject object lookup */
 export const SUBJECT_MAP = Object.fromEntries(SUBJECTS.map(s => [s.id, s]))
 
+/**
+ * Canonical display labels for every subject (the wire value stored on
+ * quizzes/lessons/notes and matched against learner-facing filters).
+ */
+export const SUBJECT_LABELS = SUBJECTS.map(s => s.label)
+
+/**
+ * Slug/id → display-label lookup. The document importer and some legacy
+ * docs carry the curriculum *id* (a slug like "mathematics") instead of the
+ * display label ("Mathematics"). Use {@link normalizeSubject} to repair such
+ * values back to the canonical label before saving or matching.
+ *
+ * Includes a lowercased-label alias too, so "MATHEMATICS" or "mathematics"
+ * both resolve regardless of whether the slug or the label was lowercased.
+ */
+const SUBJECT_SLUG_TO_LABEL = (() => {
+  const map = {}
+  for (const s of SUBJECTS) {
+    map[s.id] = s.label
+    map[s.id.toLowerCase()] = s.label
+    map[s.label.toLowerCase()] = s.label
+  }
+  return map
+})()
+
+const SUBJECT_LABEL_SET = new Set(SUBJECT_LABELS)
+
+/**
+ * Repair a subject value to its canonical display label.
+ *
+ * - An already-valid label ("Mathematics") is returned unchanged.
+ * - A curriculum id / slug ("mathematics", "social-studies") is mapped to its
+ *   label.
+ * - Any unrecognised value is returned trimmed-but-unchanged so strict schema
+ *   validation can still reject genuine garbage rather than this helper
+ *   silently swallowing it.
+ */
+export function normalizeSubject(value) {
+  if (value == null) return value
+  const raw = String(value).trim()
+  if (!raw) return raw
+  if (SUBJECT_LABEL_SET.has(raw)) return raw
+  return SUBJECT_SLUG_TO_LABEL[raw.toLowerCase()] ?? raw
+}
+
 /** Competencies per subject — CBC strands */
 export const COMPETENCIES = {
   english: [

@@ -31,6 +31,7 @@
  */
 
 import { z } from 'zod'
+import { normalizeSubject } from '../config/curriculum.js'
 
 // ── Field helpers ─────────────────────────────────────────────────
 
@@ -97,7 +98,15 @@ export const quizWriteSchema = z
   .object({
     // ── Identity & meta ──
     title: z.string().min(1).max(200),
-    subject: z.string().min(1).max(100),
+    // Repair a stray curriculum slug ("mathematics") into its canonical
+    // display label ("Mathematics") before validating, so an imported or
+    // legacy slug never hard-fails the save. The string bound stays the
+    // source of truth for length/type — normalizeSubject only rewrites
+    // recognised slugs and leaves everything else untouched.
+    subject: z.preprocess(
+      (v) => (typeof v === 'string' ? normalizeSubject(v) : v),
+      z.string().min(1).max(100),
+    ),
     // Grade can be a string ('5') or number (5) depending on the form; both
     // are accepted, the canonical normaliser below coerces to string.
     grade: z.union([z.string().max(20), z.number().int().min(0).max(20)]),
