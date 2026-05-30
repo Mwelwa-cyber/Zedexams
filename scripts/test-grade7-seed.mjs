@@ -19,7 +19,7 @@ const { studyBlocksWriteSchema } = await import('../src/features/notes/lib/study
 const { rowToQuestion } = await import('../src/utils/csvQuizImport.js')
 
 const REPO = join(dirname(fileURLToPath(import.meta.url)), '..')
-const bundle = JSON.parse(readFileSync(join(REPO, 'src/features/notes/seed/grade7ScienceSeed.json'), 'utf8'))
+const bundle = JSON.parse(readFileSync(join(REPO, 'src/features/notes/seed/grade7Seed.json'), 'utf8'))
 
 let pass = 0, fail = 0
 const failures = []
@@ -36,8 +36,11 @@ function itemToRow(it, topic) {
 
 console.log('\ngrade-7 seed bundle')
 
-test('17 notes, 16 quiz banks', () => {
-  assert(bundle.notes.length === 17, `notes=${bundle.notes.length}`)
+test('42 notes (17 Science + 25 Social Studies), 16 quiz banks', () => {
+  assert(bundle.notes.length === 42, `notes=${bundle.notes.length}`)
+  const bySubject = bundle.notes.reduce((m, n) => ((m[n.subject] = (m[n.subject] || 0) + 1), m), {})
+  assert(bySubject['Integrated Science'] === 17, `Integrated Science=${bySubject['Integrated Science']}`)
+  assert(bySubject['Social Studies'] === 25, `Social Studies=${bySubject['Social Studies']}`)
   assert(Object.keys(bundle.quizzes).length === 16, `quizzes=${Object.keys(bundle.quizzes).length}`)
 })
 

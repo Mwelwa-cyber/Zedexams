@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "generatedFrom": "standalone Notes Studio (Grade 7 Integrated Science)",
+  "generatedFrom": "standalone Notes Studio (Grade 7: Integrated Science + Social Studies)",
   "notes": [
     {
       "seedKey": "g7sci_n_tips",
@@ -2654,6 +2654,2678 @@
           "quizKey": "5.6 Mining",
           "quizTitle": "5.6 Mining — Practice Quiz",
           "questionCount": 12
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_1_1",
+      "title": "1.1 What is Democracy?",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Describe democracy and mention its characteristics.",
+            "Explain how democracy protects human rights.",
+            "Describe ways women and girls are not treated equally.",
+            "Explain forms of child abuse and child labour."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "Who chooses the leaders of your country?",
+            "What do you think would happen if people could not choose their leaders?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Democracy",
+              "def": "Rule by the people."
+            },
+            {
+              "term": "Election",
+              "def": "When people vote to choose their leaders."
+            },
+            {
+              "term": "Ballot",
+              "def": "The paper on which a voter makes a secret mark."
+            },
+            {
+              "term": "Discrimination",
+              "def": "Treating people unequally and unfairly."
+            },
+            {
+              "term": "Human rights",
+              "def": "The basic rights every person should have."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "**Democracy** means 'rule by the people'. In a democracy the people take part in government by voting in elections, finding out about and discussing issues, attending community meetings and paying taxes."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Elections"
+        },
+        {
+          "type": "paragraph",
+          "text": "Elections are held every few years so people can change leaders who are not serving them well. To vote in Zambia you must be **18 or older, a Zambian citizen with a green National Registration Card, and a registered voter**. Voting is by **secret ballot** placed in a locked ballot box, so elections are free and fair."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Political parties and human rights"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Members of parliament form groups called **parties**; the party with the most votes forms the government.",
+            "A party with fewer votes is a **minority party** or the **opposition**, whose different ideas must still be heard.",
+            "A democracy protects human rights. The **United Nations** proclaimed the Universal Declaration of Human Rights on 10 December 1948.",
+            "Rights include voting, free movement, free speech, freedom of religion, owning property and being treated equally by the law."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Discrimination, child abuse and child labour"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "**Discrimination** is unequal treatment — e.g. unequal pay, or girls not being sent to school.",
+            "Zambia has two laws: **statutory law** (written, passed by government) and **customary law** (followed by tradition, often unwritten).",
+            "**Child abuse** includes neglect, beating, rape and human trafficking.",
+            "**Child labour** is forcing children to work instead of going to school."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "What does the word 'democracy' mean?",
+          "a": "Rule by the people.",
+          "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Name the three things you must be to vote in Zambia.",
+          "a": "18 or older, a Zambian citizen with a green NRC, and a registered voter.",
+          "level": "Medium"
+        },
+        {
+          "type": "mistake",
+          "wrong": "In a democracy only the ruling party is allowed to speak.",
+          "correct": "The opposition (minority parties) must also be heard — democracy protects the right to different opinions."
+        },
+        {
+          "type": "exam",
+          "q": "State three ways people take part in a democracy.",
+          "a": "By voting in elections, discussing and finding out about issues, attending community meetings and paying taxes (any three)."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Democracy is rule by the people, through free and fair elections.",
+            "Human rights are protected; the UN declared the Universal Declaration of Human Rights in 1948.",
+            "Discrimination, child abuse and child labour are wrong and against children's rights."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_1_2",
+      "title": "1.2 How Government Works",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Identify the three organs (branches) of government.",
+            "Explain the functions of the legislature, executive and judiciary.",
+            "Explain why the branches must stay separate."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "Who makes the laws, and who makes sure people obey them?",
+            "Should one person be allowed to do all three?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Legislature",
+              "def": "The branch that makes laws (Parliament)."
+            },
+            {
+              "term": "Executive",
+              "def": "The branch that carries out laws."
+            },
+            {
+              "term": "Judiciary",
+              "def": "The branch of courts that enforces laws."
+            },
+            {
+              "term": "Appeal",
+              "def": "Asking a higher court to hear a case again."
+            },
+            {
+              "term": "Civil servant",
+              "def": "A government worker, e.g. a teacher, nurse or police officer."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Government has **three branches**, like a tree. Each branch does a different job and is separate from the others."
+        },
+        {
+          "type": "table",
+          "headers": [
+            "Branch",
+            "What it does",
+            "Who is in it"
+          ],
+          "rows": [
+            {
+              "cells": [
+                "Legislature",
+                "Makes laws",
+                "National Assembly (Parliament) and the president"
+              ]
+            },
+            {
+              "cells": [
+                "Executive",
+                "Carries out laws",
+                "President, vice-president and cabinet ministers"
+              ]
+            },
+            {
+              "cells": [
+                "Judiciary",
+                "Makes sure people obey laws",
+                "The law courts (judges and magistrates)"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Each branch is **separate** and does not take orders from another. Only the president can choose cabinet ministers; Parliament and the president cannot tell the courts what to do. This **separation of powers** stops any one branch from having too much power."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "The courts"
+        },
+        {
+          "type": "paragraph",
+          "text": "There are four levels of courts in Zambia. If you lose a case you can **appeal** to a higher court. The **Supreme Court** is the highest court and its decisions are final."
+        },
+        {
+          "type": "quickcheck",
+          "q": "Name the three branches of government and what each does.",
+          "a": "Legislature (makes laws), Executive (carries out laws), Judiciary (enforces laws).",
+          "level": "Exam Level"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Which is the highest court in Zambia?",
+          "a": "The Supreme Court.",
+          "level": "Easy"
+        },
+        {
+          "type": "mistake",
+          "wrong": "The president can tell the courts what to decide.",
+          "correct": "The branches are separate — the president and Parliament cannot tell the courts what to do."
+        },
+        {
+          "type": "exam",
+          "q": "Why is it important that the three branches of government stay separate?",
+          "a": "So that no single branch gets too much power, and each can check that the others do their job well."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Government has three branches: legislature, executive and judiciary.",
+            "They are separate (separation of powers) so no branch has too much power.",
+            "The Supreme Court is the highest court; you can appeal to a higher court."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_1_3",
+      "title": "1.3 What Government Does",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Explain the work of the executive branch.",
+            "Explain how government serves the people.",
+            "Explain how government is paid for (taxes and revenue)."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "Who builds the schools, hospitals and roads in your area?",
+            "Where does the government get the money to do this?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "President",
+              "def": "The head of government."
+            },
+            {
+              "term": "Cabinet minister",
+              "def": "A leader chosen by the president to run a ministry."
+            },
+            {
+              "term": "Civil service",
+              "def": "The people employed to do government work."
+            },
+            {
+              "term": "Revenue",
+              "def": "Money the government collects, mainly from taxes."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "The **executive** carries out the laws and runs the country. At the top are the **president** (head of government), the **vice-president** (who stands in for the president), and the **cabinet ministers** the president chooses."
+        },
+        {
+          "type": "paragraph",
+          "text": "Government provides services such as building schools and hospitals. It employs **civil servants** — teachers, police officers, doctors and nurses — to do this work. Their salaries are paid from **taxes**."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Where the money comes from"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Government collects **taxes** from citizens and businesses.",
+            "This money is called **revenue**.",
+            "The **Ministry of Finance** decides how to spend the revenue, but the National Assembly must approve the plan."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "What is the money the government collects from taxes called?",
+          "a": "Revenue.",
+          "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Name two civil servants paid from taxes.",
+          "a": "Any two: teachers, police officers, doctors, nurses.",
+          "level": "Easy"
+        },
+        {
+          "type": "mistake",
+          "wrong": "The government's money comes from the president's own pocket.",
+          "correct": "Government money (revenue) comes mainly from taxes paid by citizens and businesses."
+        },
+        {
+          "type": "exam",
+          "q": "How does the government get the money to pay civil servants?",
+          "a": "It collects taxes from citizens and businesses; this revenue is used to pay salaries and provide services."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "The executive (president, vice-president, ministers) carries out laws and runs services.",
+            "Civil servants such as teachers and nurses do government work.",
+            "Government is funded by taxes (revenue); the Ministry of Finance plans the spending."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_1_4",
+      "title": "1.4 Government Ministries",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Explain what a ministry is.",
+            "Identify the main government ministries and what each does."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "If a road is broken, which part of government should fix it?",
+            "Why is government divided into different ministries?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Ministry",
+              "def": "A national department run by a cabinet minister."
+            },
+            {
+              "term": "Ministry of Finance",
+              "def": "Collects taxes and decides how to spend them."
+            },
+            {
+              "term": "Ministry of Home Affairs",
+              "def": "Keeps records of people and issues passports and NRCs."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "The president chooses **cabinet ministers**, who are part of the executive. Each minister runs a different national department called a **ministry**."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Some important ministries"
+        },
+        {
+          "type": "table",
+          "headers": [
+            "Ministry",
+            "What it does"
+          ],
+          "rows": [
+            {
+              "cells": [
+                "Education",
+                "Manages education from pre-school to university."
+              ]
+            },
+            {
+              "cells": [
+                "Health",
+                "Supplies medicines, doctors, nurses, hospitals and clinics."
+              ]
+            },
+            {
+              "cells": [
+                "Home Affairs",
+                "Records of citizens; issues NRCs, birth/death records and passports; prisons."
+              ]
+            },
+            {
+              "cells": [
+                "Defence",
+                "Controls the army and air force; keeps people safe from outside danger."
+              ]
+            },
+            {
+              "cells": [
+                "Finance",
+                "Collects taxes and decides how to spend them."
+              ]
+            },
+            {
+              "cells": [
+                "Justice",
+                "Controls the law courts."
+              ]
+            },
+            {
+              "cells": [
+                "Agriculture and Livestock",
+                "Looks after the food supply."
+              ]
+            },
+            {
+              "cells": [
+                "Transport, Works, Supply and Communications",
+                "Looks after roads, public buildings, phones and the internet."
+              ]
+            }
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "Which ministry issues passports and national registration cards?",
+          "a": "The Ministry of Home Affairs.",
+          "level": "Medium"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Which ministry looks after the food supply?",
+          "a": "The Ministry of Agriculture and Livestock.",
+          "level": "Easy"
+        },
+        {
+          "type": "mistake",
+          "wrong": "The Ministry of Health controls the army.",
+          "correct": "The Ministry of Defence controls the army and air force; the Ministry of Health looks after medicines, hospitals and clinics."
+        },
+        {
+          "type": "exam",
+          "q": "Name the ministry responsible for collecting taxes, and one responsible for roads.",
+          "a": "Finance collects taxes; Transport, Works, Supply and Communications looks after roads."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "A ministry is a national department run by a cabinet minister.",
+            "Key ministries: Education, Health, Home Affairs, Defence, Finance, Agriculture, Transport.",
+            "Ministries help the president put laws into action and serve the people."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_1_5",
+      "title": "1.5 The Constitution",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "State what a constitution is and why it is important.",
+            "State the main things the Zambian constitution says.",
+            "Name the types of elections and how the constitution is changed."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "What are the most important rules for your country?",
+            "Who should the rules apply to — only ordinary people, or the leaders too?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Constitution",
+              "def": "The set of written rules for a country; the supreme law."
+            },
+            {
+              "term": "Referendum",
+              "def": "A vote where citizens say Yes or No to a change."
+            },
+            {
+              "term": "By-election",
+              "def": "An election to replace a leader who dies, steps down or loses their job."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "A **constitution** is a set of written rules for a country. It tells the people in government how to rule, and it is the **most important law in the land**."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "What Zambia's constitution says"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Zambia is a Christian country, but everyone is free to choose their own religion.",
+            "The people must choose their government leaders.",
+            "The government must protect human rights and answer to the citizens.",
+            "Men and women must be treated equally.",
+            "The government must be honest and help improve people's lives."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Elections and changing the constitution"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "**General elections** every five years elect the president and members of parliament.",
+            "**Local government elections** elect councillors.",
+            "**By-elections** replace a leader who dies, steps down or loses their job.",
+            "To change a law, **two-thirds of parliament** must agree. If a change affects citizens' rights, there must be a **referendum**."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "What is a constitution?",
+          "a": "The set of written rules for a country; it is the most important (supreme) law.",
+          "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "How often are general elections held in Zambia?",
+          "a": "Every five years.",
+          "level": "Medium"
+        },
+        {
+          "type": "mistake",
+          "wrong": "The constitution can be changed easily by one minister.",
+          "correct": "Changing it needs two-thirds of parliament to agree, and a referendum if citizens' rights are affected."
+        },
+        {
+          "type": "exam",
+          "q": "Name two ways the constitution of Zambia can be changed.",
+          "a": "A two-thirds vote of members of parliament, and a referendum where citizens vote Yes or No (when rights are affected)."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "A constitution is the supreme written law of a country.",
+            "Zambia's constitution is democratic: it protects rights and equality and makes government accountable.",
+            "Elections: general, local government and by-elections. Changing it needs two-thirds of parliament (and a referendum for rights)."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_2_1",
+      "title": "2.1 The Continents",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Name the seven continents.",
+            "Compare the continents by size and population.",
+            "Locate the continents on a world map."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "How many continents can you name without looking?",
+            "Which one do you live on?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Continent",
+              "def": "One of the seven huge landmasses of the world."
+            },
+            {
+              "term": "Landmass",
+              "def": "A very large area of land."
+            },
+            {
+              "term": "Population",
+              "def": "The number of people living in a place."
+            },
+            {
+              "term": "Equator",
+              "def": "An imaginary line around the middle of the Earth."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "The world has **seven continents**: Africa, Asia, Europe, North America, South America, Antarctica and Australia."
+        },
+        {
+          "type": "table",
+          "headers": [
+            "Continent",
+            "Key facts"
+          ],
+          "rows": [
+            {
+              "cells": [
+                "Asia",
+                "The largest continent (about 30% of land) and the most people (about 4.3 billion)."
+              ]
+            },
+            {
+              "cells": [
+                "Africa",
+                "The second largest; home to famous wildlife."
+              ]
+            },
+            {
+              "cells": [
+                "North America",
+                "About 17% of the world's land; joined to South America by a narrow strip."
+              ]
+            },
+            {
+              "cells": [
+                "South America",
+                "The equator passes through it; has the Andes, the world's longest mountain range."
+              ]
+            },
+            {
+              "cells": [
+                "Antarctica",
+                "The coldest and least populated; includes the South Pole; covered in ice."
+              ]
+            },
+            {
+              "cells": [
+                "Europe",
+                "One of the smallest, but densely populated."
+              ]
+            },
+            {
+              "cells": [
+                "Australia",
+                "The smallest continent."
+              ]
+            }
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "Which is the largest continent and which has the most people?",
+          "a": "Asia is both the largest and the most populated.",
+          "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Which continent is the coldest and least populated?",
+          "a": "Antarctica.",
+          "level": "Easy"
+        },
+        {
+          "type": "mistake",
+          "wrong": "Africa is the largest continent.",
+          "correct": "Asia is the largest continent; Africa is the second largest."
+        },
+        {
+          "type": "exam",
+          "q": "Name the seven continents of the world.",
+          "a": "Africa, Asia, Europe, North America, South America, Antarctica and Australia."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "There are seven continents.",
+            "Asia is the largest and most populated; Antarctica is the coldest and least populated.",
+            "The equator passes through South America and Africa."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_2_2",
+      "title": "2.2 Physical Features of the World",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Identify the main physical features of the world.",
+            "Describe rivers, lakes, mountains, deserts, plains and plateaus.",
+            "Give examples of each feature."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "What different landforms have you seen — hills, rivers, plains?",
+            "How do you think mountains were made?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Physical feature",
+              "def": "A natural landform such as a mountain, river or desert."
+            },
+            {
+              "term": "Fold mountain",
+              "def": "A mountain pushed up when continents shifted."
+            },
+            {
+              "term": "Plateau",
+              "def": "A large area of high, flat land (a tableland)."
+            },
+            {
+              "term": "Plain",
+              "def": "A large area of low, flat land, often grassland."
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Water features"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "**Rivers** flow across the land. A **lake** is water surrounded by land; **Lake Victoria** is Africa's largest lake.",
+            "There are **four oceans**; seas are smaller and often bordered by land (e.g. the Red Sea).",
+            "**Islands** vary from tiny atolls to large ones like Madagascar."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Land features"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "**Mountains** are the most common feature; **fold mountains** include the Atlas, Andes, Alps, Rockies and Drakensberg. The **Himalayas** are the highest range.",
+            "**Deserts** cover about one-third of the Earth — hot deserts like the Sahara and Kalahari, and cold deserts.",
+            "**Valleys and lowlands**: the **Great Rift Valley** runs through East Africa. **Plains** (like the prairies and steppes) are grasslands used for crops.",
+            "**Plateaus** are high flat lands; much of southern Africa is the **Great African Plateau**."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "What is the highest mountain range in the world?",
+          "a": "The Himalayas.",
+          "level": "Medium"
+        },
+        {
+          "type": "quickcheck",
+          "q": "About what fraction of the Earth is desert?",
+          "a": "About one-third.",
+          "level": "Medium"
+        },
+        {
+          "type": "mistake",
+          "wrong": "A lake and a river are the same thing.",
+          "correct": "A river flows; a lake is a body of water surrounded by land and does not flow."
+        },
+        {
+          "type": "exam",
+          "q": "Explain the difference between a river and a lake.",
+          "a": "A river flows across the land, while a lake is an area of water surrounded by land that does not flow."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Physical features include rivers, lakes, mountains, deserts, plains and plateaus.",
+            "The Himalayas are the highest mountains; the Sahara and Kalahari are hot deserts.",
+            "The Great Rift Valley and the Great African Plateau are important features of Africa."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_3_1",
+      "title": "3.1 Population Growth",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Explain the reasons for rapid population growth.",
+            "Describe the effects of rapid population growth.",
+            "Suggest solutions."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "Is your town more crowded than it was a few years ago?",
+            "What problems happen when too many people live in one place?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Birth rate",
+              "def": "The number of births per thousand people per year."
+            },
+            {
+              "term": "Death rate",
+              "def": "The number of deaths per thousand people per year."
+            },
+            {
+              "term": "Overpopulation",
+              "def": "Too many people for the resources available."
+            },
+            {
+              "term": "Industrialised",
+              "def": "When a country's economy moves from farming to factories."
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Why populations grow"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Better science and technology means more food can be grown.",
+            "Better health care means people live longer and fewer children die.",
+            "Early marriages and poor family planning lead to large families.",
+            "Polygamy (one man with many wives) and improved sanitation also raise the population."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Effects of rapid growth"
+        },
+        {
+          "type": "paragraph",
+          "text": "When a population grows too fast there are **not enough hospitals, schools or jobs**. This leads to disease, unemployment, crime, **slums (shanty compounds)**, food shortages and environmental problems like deforestation and pollution."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Solutions"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Family planning and education.",
+            "Better farming methods to grow more food.",
+            "New industries to create jobs."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "What is the birth rate?",
+          "a": "The number of births per thousand people per year.",
+          "level": "Medium"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Give two effects of rapid population growth.",
+          "a": "Any two: not enough schools/hospitals/jobs, slums, crime, food shortages, pollution.",
+          "level": "Medium"
+        },
+        {
+          "type": "mistake",
+          "wrong": "Population grows only because more babies are born.",
+          "correct": "It also grows because people live longer (lower death rate) thanks to better health care."
+        },
+        {
+          "type": "exam",
+          "q": "Suggest two ways to solve the problems of rapid population growth.",
+          "a": "Family planning and education, better farming methods, and creating new industries to provide jobs (any two)."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Populations grow because of better health care, more food, early marriages and poor family planning.",
+            "Rapid growth strains schools, hospitals and jobs and causes slums and food shortages.",
+            "Solutions: family planning, education, better farming and new industries."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_3_2",
+      "title": "3.2 Corruption",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Explain what corruption is.",
+            "Discuss the causes and effects of corruption.",
+            "Give examples of corruption."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "Have you heard the phrase 'paying under the table'?",
+            "Why is it unfair when an official takes a bribe?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Corruption",
+              "def": "Dishonest behaviour by people in positions of power."
+            },
+            {
+              "term": "Bribe",
+              "def": "Money or favours given to make someone act dishonestly."
+            },
+            {
+              "term": "Accountable",
+              "def": "Taking responsibility for what you say and do."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "**Corruption** is when people in positions of power behave dishonestly. Because governments decide how to spend public money, officials have power, so people try to **bribe** them — paying money 'under the table' where no one can see."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Examples of corruption"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Bribing an official to get an NRC or a driving licence.",
+            "Bribing a school principal to accept a child.",
+            "Bribing a teacher to leak an exam paper (called **rigging** an exam).",
+            "Bribing a police officer to free a criminal.",
+            "Bribing officials to win large government contracts."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "What is corruption?",
+          "a": "Dishonest behaviour by people in positions of power, such as taking bribes.",
+          "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "What is it called when an exam paper is leaked through bribery?",
+          "a": "Rigging an exam.",
+          "level": "Medium"
+        },
+        {
+          "type": "mistake",
+          "wrong": "Corruption only happens on a very large scale.",
+          "correct": "Corruption can be large or small — even a small bribe for a document is corruption."
+        },
+        {
+          "type": "exam",
+          "q": "Give two examples of corruption.",
+          "a": "Any two: bribing an official for a document, leaking an exam paper, bribing a police officer, or paying a bribe to win a contract."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Corruption is dishonest behaviour by people in power, often through bribes.",
+            "It happens on a large or small scale.",
+            "It is unfair because it lets some people get what they should not, at the expense of others."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_3_3",
+      "title": "3.3 Food Shortages",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "List the causes of food shortages.",
+            "Explain food security and malnutrition.",
+            "Suggest ways to make sure there is enough food."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "What would happen if the rains failed for a whole year?",
+            "Why do some countries have to buy food from others?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Food security",
+              "def": "Making sure there is enough food now and in the future."
+            },
+            {
+              "term": "Malnutrition",
+              "def": "Illness caused by not getting enough good food."
+            },
+            {
+              "term": "Cash crop",
+              "def": "A crop grown to sell for money rather than to eat."
+            },
+            {
+              "term": "Drought",
+              "def": "A long period with little or no rain."
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Causes of food shortages"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Overpopulation — food is produced more slowly than people are born.",
+            "Climate change, droughts, floods and other natural disasters.",
+            "Deforestation and overgrazing turn farmland into desert.",
+            "Soil erosion and poor farming methods.",
+            "Wars (people flee and land is unfarmed) and diseases (sick people cannot work).",
+            "Growing cash crops instead of food, so food must be imported (which costs more)."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Food security"
+        },
+        {
+          "type": "paragraph",
+          "text": "**Food security** means making sure there is enough food for everyone now and in the future. Too little food causes **malnutrition**, so people are weak and cannot work. Governments can help by promoting good farming, supplying seeds and fertilisers, irrigating dry areas, improving storage and creating markets for crops."
+        },
+        {
+          "type": "quickcheck",
+          "q": "What does 'food security' mean?",
+          "a": "Making sure there is enough food to feed the people now and in the future.",
+          "level": "Medium"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Name two causes of food shortages.",
+          "a": "Any two: overpopulation, drought/floods, deforestation, overgrazing, soil erosion, poor farming, wars, diseases, cash crops.",
+          "level": "Medium"
+        },
+        {
+          "type": "mistake",
+          "wrong": "Growing cash crops always increases a country's food supply.",
+          "correct": "Cash crops are grown to sell, not to eat, so a country may still have to import food."
+        },
+        {
+          "type": "exam",
+          "q": "State two ways a country can make sure there is enough food for the future.",
+          "a": "Use good farming methods and supply seeds/fertilisers; irrigate dry areas; improve storage; ensure a market for crops (any two)."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Food shortages are caused by overpopulation, climate change, disasters, poor farming, wars and cash crops.",
+            "Food security means enough food now and in future; too little causes malnutrition.",
+            "Good farming, irrigation, better storage and markets improve food security."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_3_4",
+      "title": "3.4 HIV and AIDS",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Explain why HIV and AIDS is a global challenge.",
+            "Describe how HIV and AIDS affects food security and the economy."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "How can illness in a community affect how much food is grown?",
+            "Why is HIV and AIDS a challenge for the whole country, not just the sick person?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "HIV",
+              "def": "The virus that causes AIDS."
+            },
+            {
+              "term": "AIDS",
+              "def": "Acquired Immune Deficiency Syndrome; it weakens the body's defences."
+            },
+            {
+              "term": "Economy",
+              "def": "How a country produces, sells and uses goods, services and money."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "HIV and AIDS is one of the world's great challenges. It affects not only health but also **food security and the economy**."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "How it affects food and the economy"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "People who are sick with AIDS **cannot work as hard**, so less food is produced.",
+            "Families may leave their small farms when members fall ill, threatening food security.",
+            "Money and time are spent caring for the sick instead of on development.",
+            "The workplace loses skilled workers, which slows the economy."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "How does HIV and AIDS affect food production?",
+          "a": "Sick people cannot work as hard, so less food is grown; families may leave their farms.",
+          "level": "Exam Level"
+        },
+        {
+          "type": "mistake",
+          "wrong": "HIV and AIDS only affects the person who is sick.",
+          "correct": "It affects the whole community — food production, families and the economy all suffer."
+        },
+        {
+          "type": "exam",
+          "q": "Explain how HIV and AIDS can reduce a country's food supply.",
+          "a": "People who are sick cannot farm properly, families may abandon small farms, and there are fewer healthy workers, so less food is produced."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "HIV and AIDS is a global challenge that goes beyond health.",
+            "It reduces food production because sick people cannot work.",
+            "It harms the economy by removing healthy, skilled workers."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_3_5",
+      "title": "3.5 Pollution",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "List the different forms of pollution.",
+            "Discuss the effects of pollution.",
+            "Suggest solutions to pollution."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "What rubbish or smoke do you see around your area?",
+            "What harm do you think it does?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Pollution",
+              "def": "Harmful substances that make the environment dirty and unhealthy."
+            },
+            {
+              "term": "Acid rain",
+              "def": "Rain made acidic by gases from factories and vehicles."
+            },
+            {
+              "term": "Sewage",
+              "def": "Human body waste."
+            },
+            {
+              "term": "Fossil fuels",
+              "def": "Coal, oil and natural gas that formed over millions of years."
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Forms of pollution"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "**Air pollution** — burning fossil fuels in power stations, factories and cars.",
+            "**Soil pollution** — rubbish, human waste, pesticides and soil erosion.",
+            "**Noise pollution** — vehicles, machinery, aircraft and loud music.",
+            "**Water pollution** — factory waste, sewage, oil spills and fertilisers (which make algae use up the oxygen so fish die)."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Effects"
+        },
+        {
+          "type": "paragraph",
+          "text": "Air pollution damages lungs and eyes and causes **acid rain**, which kills trees and eats into rocks and buildings. Water pollution causes diseases like cholera, and harms fish and seabirds. Pollution also causes **global warming**."
+        },
+        {
+          "type": "quickcheck",
+          "q": "Name the four main forms of pollution.",
+          "a": "Air, soil (land), noise and water pollution.",
+          "level": "Medium"
+        },
+        {
+          "type": "quickcheck",
+          "q": "What causes acid rain?",
+          "a": "Gases from factories and vehicles that mix with moisture in the air.",
+          "level": "Exam Level"
+        },
+        {
+          "type": "mistake",
+          "wrong": "Only factories cause pollution.",
+          "correct": "Pollution also comes from cars, homes (cleaning chemicals), farms (pesticides) and noise."
+        },
+        {
+          "type": "exam",
+          "q": "List three ways we can reduce pollution from cars.",
+          "a": "Use public transport, walk or cycle, keep engines well serviced, and use cleaner fuels (any three)."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Pollution can be of air, soil, noise or water.",
+            "It harms health, causes acid rain and global warming, and kills wildlife.",
+            "We reduce it by burning fewer fossil fuels, managing waste and using cleaner methods."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_3_6",
+      "title": "3.6 Other World Challenges",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Identify other world challenges such as war, global warming and poverty.",
+            "Suggest solutions to these challenges."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "Why do people sometimes have to leave their homes and country?",
+            "What does it mean to be poor?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Refugee",
+              "def": "A person who flees their home, usually because of war."
+            },
+            {
+              "term": "Global warming",
+              "def": "The warming of the Earth caused by greenhouse gases."
+            },
+            {
+              "term": "Poverty",
+              "def": "Not having enough money for food, clothes, health care and schooling."
+            },
+            {
+              "term": "Illiterate",
+              "def": "Unable to read or write."
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "War and refugees"
+        },
+        {
+          "type": "paragraph",
+          "text": "War forces people to leave their homes; these people are called **refugees** and often live in camps with too little food, water or schools. The **United Nations (UN)** and the **African Union (AU)** help fighting groups make peace; the International Court of Justice also helps solve conflicts."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Global warming"
+        },
+        {
+          "type": "paragraph",
+          "text": "Burning **fossil fuels** releases greenhouse gases that trap the Sun's heat and make the Earth warmer. This melts ice caps, raises sea levels, causes droughts and disturbs natural habitats."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Poverty"
+        },
+        {
+          "type": "paragraph",
+          "text": "**Poverty** is not having enough money for basic needs. Poor people often cannot afford education, so they remain **illiterate** and cannot get well-paid jobs. **Education** is the key to ending poverty, which is why Zambia provides basic education for all children."
+        },
+        {
+          "type": "quickcheck",
+          "q": "What is a refugee?",
+          "a": "A person who flees their home, usually because of war.",
+          "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "What is the main key to ending poverty?",
+          "a": "Education.",
+          "level": "Medium"
+        },
+        {
+          "type": "mistake",
+          "wrong": "Global warming is caused by the Earth moving closer to the Sun.",
+          "correct": "Global warming is caused by greenhouse gases from burning fossil fuels trapping the Sun's heat."
+        },
+        {
+          "type": "exam",
+          "q": "Explain how global warming can affect cities near the sea.",
+          "a": "Global warming melts the ice caps, raising sea levels, which can flood low-lying cities near the sea."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Other challenges include war (refugees), global warming and poverty.",
+            "The UN and AU help solve conflicts.",
+            "Global warming comes from greenhouse gases; education helps end poverty."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_4_1",
+      "title": "4.1 Family Ties",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Explain the importance of family life in Zambia.",
+            "Discuss different types of families.",
+            "Explain how family life provides security, love and care."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "Who looks after you and teaches you right from wrong?",
+            "What does the saying 'It takes a village to raise a child' mean?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Family",
+              "def": "A group of people related by blood, marriage or adoption."
+            },
+            {
+              "term": "Nuclear family",
+              "def": "A mother, father and their children."
+            },
+            {
+              "term": "Extended family",
+              "def": "Parents, children and other relatives such as grandparents, uncles and aunts."
+            },
+            {
+              "term": "Orphan",
+              "def": "A child whose parents have died."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Families are the **building blocks of society**. It is within our family that we first learn the values and traditions of our culture. Our parents feed, clothe and care for us until we can look after ourselves."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Why family life is important"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Children receive security, protection, love and care.",
+            "Family members support each other; the weak, sick, old and orphaned are cared for.",
+            "Children are taught religious beliefs and moral values.",
+            "Children raised in families tend to be healthier and have better relationships as adults."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Types of families"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "**Nuclear family** — parents and their children.",
+            "**Extended family** — also includes grandparents, uncles, aunts and cousins.",
+            "**Single-parent family** — one parent (through death, divorce or never marrying).",
+            "**Orphans** are cared for by grandparents or older siblings; **adopted children** are raised by people who are not their birth parents."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "What is a nuclear family?",
+          "a": "A mother, father and their children.",
+          "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Complete the saying: 'It takes a ___ to raise a ___.'",
+          "a": "It takes a village to raise a child.",
+          "level": "Medium"
+        },
+        {
+          "type": "mistake",
+          "wrong": "An extended family is just a mother and father.",
+          "correct": "That is a nuclear family. An extended family also includes grandparents, uncles, aunts and cousins."
+        },
+        {
+          "type": "exam",
+          "q": "List three reasons why family life is important.",
+          "a": "It gives children security, love and care; family members support each other and care for the weak; and children are taught values (any three)."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Families are the building blocks of society and teach us values.",
+            "Family life gives security, love, care and support.",
+            "Types include nuclear, extended, single-parent and families with orphans or adopted children."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_4_2",
+      "title": "4.2 Parents and Children",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Describe the relationship between parents and children in a Zambian family.",
+            "Explain matrilineal and patrilineal family systems.",
+            "Explain the duties of children towards their parents."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "How do you show respect to your parents and elders?",
+            "What do your parents teach you that you will need as an adult?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Matrilineal",
+              "def": "A family system where children belong more to the mother's side (e.g. Tonga, Bemba)."
+            },
+            {
+              "term": "Patrilineal",
+              "def": "A family system where children belong to the father's side (e.g. Lozi, Ngoni)."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "In Zambian tradition, **family ties are very strong**. There are two systems of family belonging: in **matrilineal** tribes (such as the Tonga and Bemba) children belong more to the mother's side, while in **patrilineal** tribes (such as the Lozi and Ngoni) children belong to the father's side."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Duties of parents and children"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Parents love and care for their children and **train them in the skills they will need** in adult life.",
+            "Children are expected to **respect and obey** their parents — for example, kneeling to show respect.",
+            "Children must care for their parents in old age, bury them when they die and look after their graves, and may name their own children after them."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "Name the two family systems and give one tribe for each.",
+          "a": "Matrilineal (Tonga or Bemba) and patrilineal (Lozi or Ngoni).",
+          "level": "Exam Level"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Give one way children show respect to parents in Zambian tradition.",
+          "a": "By kneeling when giving something to a parent (or obeying and caring for them).",
+          "level": "Easy"
+        },
+        {
+          "type": "mistake",
+          "wrong": "In matrilineal tribes children belong to the father's side.",
+          "correct": "In matrilineal tribes children belong to the mother's side; in patrilineal tribes they belong to the father's side."
+        },
+        {
+          "type": "exam",
+          "q": "Explain the difference between matrilineal and patrilineal family systems.",
+          "a": "In a matrilineal system children belong more to the mother's side (e.g. Tonga, Bemba); in a patrilineal system they belong to the father's side (e.g. Lozi, Ngoni)."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Zambian families have strong ties.",
+            "Matrilineal tribes trace children through the mother; patrilineal through the father.",
+            "Parents train and care for children; children respect, obey and later care for their parents."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_5_1",
+      "title": "5.1 The Prairies",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Say where the Prairies are and what the word means.",
+            "Describe the climate, vegetation and farming of the Prairies."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "Imagine flat grassland stretching as far as you can see — where might that be?",
+            "Why might such land be good for growing crops?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Prairie",
+              "def": "A large area of temperate grassland in North America."
+            },
+            {
+              "term": "Biodiversity",
+              "def": "The variety of living things in an area."
+            },
+            {
+              "term": "Temperate",
+              "def": "A mild climate, not very hot or very cold."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "The **Prairies** are temperate grasslands in **North America**. The word 'prairie' means grassland/meadow. They can be wet (rich soil, good for farming), mesic (good drainage and soil) or dry (may suffer drought)."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Vegetation and farming"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Originally tall, mixed and short grass with **few trees**, because regular fires killed the trees.",
+            "The soil was so thick with roots that strong **iron (steel) ploughs** had to be invented to break it.",
+            "Today vast fields grow maize, soya beans, sorghum, barley, oats, sugar beet, cotton, sunflower and groundnuts.",
+            "In 2012 the USA prairies produced about **36% of the world's maize**.",
+            "Farming has reduced the natural **biodiversity**, so some land is being conserved."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "On which continent are the Prairies?",
+          "a": "North America.",
+          "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Why were steel ploughs invented for the Prairie?",
+          "a": "Because the soil was so thickly matted with roots that wooden ploughs could not break it.",
+          "level": "Exam Level"
+        },
+        {
+          "type": "mistake",
+          "wrong": "The Prairies are natural forests.",
+          "correct": "The Prairies are grasslands with few trees, because regular fires stopped trees from growing."
+        },
+        {
+          "type": "exam",
+          "q": "Give three examples of crops grown on the Prairies.",
+          "a": "Any three: maize, soya beans, sorghum, barley, oats, sugar beet, cotton, sunflower, groundnuts."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "The Prairies are temperate grasslands in North America.",
+            "They had few trees because of fire, and needed steel ploughs to farm.",
+            "They grow maize and other crops, but have lost much natural biodiversity."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_5_2",
+      "title": "5.2 The Pampas",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Say where the Pampas are and what the word means.",
+            "Describe the climate and farming of the Pampas."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "Where in South America might you find huge grassy plains?",
+            "What animals would do well on rich grazing land?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Pampas",
+              "def": "Fertile temperate grassland plains in South America."
+            },
+            {
+              "term": "Livestock",
+              "def": "Farm animals such as cattle and sheep."
+            },
+            {
+              "term": "Endangered habitat",
+              "def": "A natural area at risk of being destroyed."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "The **Pampas** are fertile plains covering large parts of **Argentina, Uruguay and parts of Brazil** — about 750,000 km². The word 'pampas' means **'plain'**. They lie in a **temperate region with regular rainfall**, making them one of the world's richest grazing lands."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Farming and threats"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "At first the Pampas were used for raising **cattle and horses**.",
+            "Today the rich soil grows maize, wheat, flax and alfalfa, and high-quality **cattle and sheep** are raised; it is also good for dairy, wine and vegetables.",
+            "Threats include pollution from fertilisers and pesticides and **overgrazing**, so little of the original grassland remains — it is an **endangered habitat**."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "What does the word 'pampas' mean, and where are they?",
+          "a": "'Plain'; they are in South America (Argentina, Uruguay and parts of Brazil).",
+          "level": "Medium"
+        },
+        {
+          "type": "quickcheck",
+          "q": "What two things threaten the Pampas?",
+          "a": "Pollution (fertilisers and pesticides) and overgrazing by livestock.",
+          "level": "Exam Level"
+        },
+        {
+          "type": "mistake",
+          "wrong": "The Pampas are in Africa.",
+          "correct": "The Pampas are in South America (Argentina, Uruguay and parts of Brazil)."
+        },
+        {
+          "type": "exam",
+          "q": "Why do the Pampas make ideal grazing land?",
+          "a": "They lie in a temperate region with regular rainfall and deep, rich soil, which produces lush grass for livestock."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "The Pampas are fertile temperate grasslands of South America; 'pampas' means plain.",
+            "Regular rainfall makes them rich grazing for cattle and sheep, and good for crops.",
+            "Pollution and overgrazing have made them an endangered habitat."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_5_3",
+      "title": "5.3 The Downs",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Say where the Downs are.",
+            "Describe the climate, soil and farming of the Darling Downs."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "Australia has famous farming areas — can you name one?",
+            "Where would farmers get water in a dry country?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Darling Downs",
+              "def": "A farming region in Queensland, Australia."
+            },
+            {
+              "term": "Great Artesian Basin",
+              "def": "The world's largest underground body of water, used for irrigation."
+            },
+            {
+              "term": "Pasture",
+              "def": "Grassland used for grazing animals."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "The **Downs** (the **Darling Downs**) is a farming region in **Queensland, Australia**, on the western slopes of the Great Dividing Range. It has a **humid sub-tropical climate** with rainfall of 600–1000 mm."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Soil, crops and water"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "The soil is **rich and black**, with rolling hills covered by **pastures**.",
+            "Crops include vegetables, legumes, cotton, wheat, barley and sorghum.",
+            "Livestock includes **beef and dairy cattle, pigs and sheep**.",
+            "Irrigation water is pumped from underground — the **Great Artesian Basin**, the largest underground water body in the world."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "In which country are the Downs found?",
+          "a": "Australia (Queensland).",
+          "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Where does the irrigation water for the Downs come from?",
+          "a": "Underground, from the Great Artesian Basin.",
+          "level": "Exam Level"
+        },
+        {
+          "type": "mistake",
+          "wrong": "The Downs get their irrigation water from a large river.",
+          "correct": "The water is pumped from underground — the Great Artesian Basin."
+        },
+        {
+          "type": "exam",
+          "q": "Name two crops and two types of livestock farmed in the Downs.",
+          "a": "Crops: any two of vegetables, legumes, cotton, wheat, barley, sorghum. Livestock: beef cattle, dairy cattle, pigs or sheep (any two)."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "The Downs (Darling Downs) is a farming region in Queensland, Australia.",
+            "It has humid sub-tropical climate, rich black soil and pastures.",
+            "It grows wheat, cotton and sorghum and raises cattle, pigs and sheep, using water from the Great Artesian Basin."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_5_4",
+      "title": "5.4 The Steppes",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Say where the Steppes are.",
+            "Explain why there is little farming on the Steppes.",
+            "Describe the natural vegetation."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "What happens to land that is far from the sea and high near mountains?",
+            "Would you expect much rain there?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Steppe",
+              "def": "A dry, cold grassland, mostly in Asia."
+            },
+            {
+              "term": "Eurasia",
+              "def": "The combined landmass of Europe and Asia."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "The **Steppes** are **dry, cold grasslands** that usually lie between forests and deserts. They are found mostly in **Mongolia, Siberia, Tibet, China and the USA** (where they are called dry prairies)."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Climate and vegetation"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "The air is **dry** because the Steppes are far from the ocean and close to mountains.",
+            "There is **little farming** because the soil is poor and the climate is cold; rainfall is only 250–750 mm.",
+            "The natural plants are mostly **grasses** — tall grass near the forest, short grass near the desert, and mixed grass in between."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "Why is there little farming on the Steppes?",
+          "a": "Because the soil is poor and the climate is dry and cold.",
+          "level": "Exam Level"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Name two places where Steppes are found.",
+          "a": "Any two: Mongolia, Siberia, Tibet, China, the USA.",
+          "level": "Medium"
+        },
+        {
+          "type": "mistake",
+          "wrong": "The Steppes are warm, wet grasslands.",
+          "correct": "The Steppes are dry, cold grasslands with low rainfall."
+        },
+        {
+          "type": "exam",
+          "q": "Describe the natural vegetation of the Steppes.",
+          "a": "Mostly grasses — tall grass near the forest, short grass near the desert, and mixed grasses in between, with some shrubs and flowers."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "The Steppes are dry, cold grasslands of Eurasia (and dry prairies in the USA).",
+            "Little farming happens because the soil is poor and the climate cold and dry.",
+            "The vegetation is mainly grass: tall near forests, short near deserts."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_5_5",
+      "title": "5.5 The Veld",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Explain what the veld is and name its main types.",
+            "Describe the farming done on each type of veld."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "What word do we use for grassland in southern Africa?",
+            "Which type of land would suit cattle, and which would suit growing crops?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Veld",
+              "def": "Open grassland in southern Africa."
+            },
+            {
+              "term": "Highveld",
+              "def": "High plateau veld (1500–2100 m) used for commercial farming."
+            },
+            {
+              "term": "Lowveld",
+              "def": "Lower, warmer veld (below 500 m) with a wetter climate."
+            },
+            {
+              "term": "Thornveld",
+              "def": "Veld covered with grass and thorny acacia trees."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "The **veld** is the open grassland of **southern Africa**. There are three main types:"
+        },
+        {
+          "type": "table",
+          "headers": [
+            "Type of veld",
+            "Height / climate",
+            "Farming"
+          ],
+          "rows": [
+            {
+              "cells": [
+                "Highveld",
+                "High plateau, 1500–2100 m",
+                "Commercial farming: livestock, cereal crops and market gardening."
+              ]
+            },
+            {
+              "cells": [
+                "Lowveld",
+                "Below 500 m, wetter and warmer",
+                "Timber, fruit, tea, coffee, livestock, game farms and vegetables; many wild animals."
+              ]
+            },
+            {
+              "cells": [
+                "Thornveld",
+                "Grass with thorny acacia trees",
+                "Mainly cattle farming."
+              ]
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Parts of Zambia are covered by **bushveld/thornveld**, which suits cattle farming."
+        },
+        {
+          "type": "quickcheck",
+          "q": "What are the three main types of veld?",
+          "a": "Highveld, lowveld and thornveld.",
+          "level": "Medium"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Which type of veld is best for cattle farming?",
+          "a": "The thornveld.",
+          "level": "Easy"
+        },
+        {
+          "type": "mistake",
+          "wrong": "The veld is found in North America.",
+          "correct": "The veld is the grassland of southern Africa."
+        },
+        {
+          "type": "exam",
+          "q": "Name the three types of veld and one farming activity for each.",
+          "a": "Highveld (cereals/livestock), lowveld (fruit/tea/game farming) and thornveld (cattle farming)."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "The veld is southern African grassland.",
+            "Highveld is used for cereals and livestock; lowveld for fruit, tea and game; thornveld for cattle.",
+            "Parts of Zambia are thornveld, suited to cattle."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_6_1",
+      "title": "6.1 Building Africa Together",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Explain the aims of SADC and COMESA.",
+            "Explain how working together improves trade."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "Why might countries agree to work together?",
+            "How could removing border taxes help trade?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "SADC",
+              "def": "Southern African Development Community."
+            },
+            {
+              "term": "COMESA",
+              "def": "Common Market for Eastern and Southern Africa."
+            },
+            {
+              "term": "Free trade zone",
+              "def": "A group of countries that remove customs and taxes on goods between them."
+            },
+            {
+              "term": "Infrastructure",
+              "def": "Roads, railways and power supplies a country needs."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "**SADC** (the Southern African Development Community) is a group of southern African countries that work together on **infrastructure** — roads, railways, power, water and electricity — to improve their economies."
+        },
+        {
+          "type": "paragraph",
+          "text": "**COMESA** (the Common Market for Eastern and Southern Africa) is a **free trade zone** of 20 countries that **remove customs controls and taxes** on goods moving between them. This lets goods travel freely, making transport quicker and cheaper and improving trade."
+        },
+        {
+          "type": "quickcheck",
+          "q": "What do the letters SADC and COMESA stand for?",
+          "a": "SADC = Southern African Development Community; COMESA = Common Market for Eastern and Southern Africa.",
+          "level": "Exam Level"
+        },
+        {
+          "type": "quickcheck",
+          "q": "What is a free trade zone?",
+          "a": "A group of countries that remove customs controls and taxes on goods moving between them.",
+          "level": "Medium"
+        },
+        {
+          "type": "mistake",
+          "wrong": "SADC and COMESA make each country trade only by itself.",
+          "correct": "They help countries work together — sharing infrastructure and removing trade barriers."
+        },
+        {
+          "type": "exam",
+          "q": "How does belonging to a free trade zone improve trade?",
+          "a": "Removing customs and taxes lets goods move freely, so transport is quicker and cheaper and more goods are traded."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "SADC members cooperate on infrastructure to improve their economies.",
+            "COMESA is a free trade zone of 20 countries that removes customs and taxes.",
+            "Working together makes trade quicker, cheaper and easier."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_6_2",
+      "title": "6.2 Transport Systems",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Name the five types of transport systems.",
+            "Describe road and air transport and their importance."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "How do goods get from a farm to a town, or to another country?",
+            "Which way of travelling is fastest?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Transport system",
+              "def": "A way of moving people and goods (road, air, rail, shipping, pipeline)."
+            },
+            {
+              "term": "Infrastructure",
+              "def": "The roads, railways and facilities transport needs."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "There are **five types of transport systems**: **road, air, rail, shipping and pipelines**."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Road and air transport"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "**Roads** are the basis of all transport systems. Vehicles include trucks, buses, cars, bicycles, ox-carts and farm vehicles. Some rural areas have poor roads, so people use bicycles and ox-carts.",
+            "**Air transport** is the **quickest but most expensive**. It uses aeroplanes and airfields. It lets fresh farm produce (e.g. peas or flowers) reach Europe within hours, creating new industries."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "Name the five types of transport systems.",
+          "a": "Road, air, rail, shipping and pipelines.",
+          "level": "Medium"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Which transport system is the quickest but most expensive?",
+          "a": "Air transport.",
+          "level": "Easy"
+        },
+        {
+          "type": "mistake",
+          "wrong": "Air transport is the cheapest way to move goods.",
+          "correct": "Air transport is the quickest but the most expensive way to move goods."
+        },
+        {
+          "type": "exam",
+          "q": "Explain one benefit of air transport for farmers.",
+          "a": "Fresh produce such as flowers or peas can be flown to other parts of the world within hours and sold fresh, creating new markets."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "The five transport systems are road, air, rail, shipping and pipelines.",
+            "Roads are the basis of transport; bicycles and ox-carts help in rural areas.",
+            "Air transport is quickest but most expensive, and lets fresh produce be exported."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_6_3",
+      "title": "6.3 Communication Systems",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Identify the main communication systems.",
+            "Compare fixed lines, fibre-optic cables and radio.",
+            "Explain communication and commerce."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "How do you send a message to someone far away?",
+            "How is this faster than writing a letter?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Fixed line",
+              "def": "Copper wires on telephone poles that carry an electrical signal."
+            },
+            {
+              "term": "Fibre-optic cable",
+              "def": "Glass or plastic cable that carries light signals; very fast."
+            },
+            {
+              "term": "Commerce",
+              "def": "Buying and selling goods and services."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Communication systems include **fixed lines, fibre-optic cables and radio**. Electronic communication has largely replaced writing letters because it is much faster."
+        },
+        {
+          "type": "table",
+          "headers": [
+            "System",
+            "How it works"
+          ],
+          "rows": [
+            {
+              "cells": [
+                "Fixed lines",
+                "Copper wires that carry an electrical signal from one device to another."
+              ]
+            },
+            {
+              "cells": [
+                "Fibre-optic cables",
+                "Glass or plastic cables that carry light signals; faster and carry more data than copper."
+              ]
+            },
+            {
+              "cells": [
+                "Radio",
+                "Uses microwave towers and satellites to send signals between devices."
+              ]
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "These days we use the **internet** for **commerce** — buying and selling goods worldwide (for example buying a book online and paying through an electronic payment system), so buyers and sellers no longer need to be in the same place."
+        },
+        {
+          "type": "quickcheck",
+          "q": "What is the difference between a fixed line and a fibre-optic cable?",
+          "a": "A fixed line is copper wire carrying an electrical signal; a fibre-optic cable is glass/plastic carrying light signals, and is faster with more data.",
+          "level": "Exam Level"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Which communication system uses microwave towers and satellites?",
+          "a": "Radio.",
+          "level": "Medium"
+        },
+        {
+          "type": "mistake",
+          "wrong": "Fixed lines carry more data faster than fibre-optic cables.",
+          "correct": "Fibre-optic cables are faster and carry far more data than copper fixed lines."
+        },
+        {
+          "type": "exam",
+          "q": "Why are fibre-optic cables important for global communication?",
+          "a": "They carry large amounts of data as light signals at very high speed, which copper fixed lines cannot do."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Communication systems: fixed lines (copper/electrical), fibre-optic cables (glass/light, fast) and radio (towers and satellites).",
+            "Electronic communication is faster than letters.",
+            "The internet allows commerce between buyers and sellers anywhere."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_6_4",
+      "title": "6.4 Road Safety (the Bicycle)",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Identify the main parts of a bicycle.",
+            "Explain the function of each part.",
+            "List uses of a bicycle."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "Do you ride or have you seen a bicycle?",
+            "Which part keeps you balanced and steering?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Frame",
+              "def": "The tubular steel body of the bicycle."
+            },
+            {
+              "term": "Handle bars",
+              "def": "Used to steer the bicycle."
+            },
+            {
+              "term": "Saddle",
+              "def": "The seat of the bicycle (adjustable)."
+            },
+            {
+              "term": "Luggage rack",
+              "def": "A strong holder for carrying things."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "A bicycle is a common form of transport made of many parts."
+        },
+        {
+          "type": "table",
+          "headers": [
+            "Part",
+            "Function"
+          ],
+          "rows": [
+            {
+              "cells": [
+                "Frame",
+                "Tubular steel body; strong enough to carry the rider and load."
+              ]
+            },
+            {
+              "cells": [
+                "Handle bars",
+                "Used to steer; keep both hands on them."
+              ]
+            },
+            {
+              "cells": [
+                "Saddle",
+                "The seat; can be adjusted to the rider's size."
+              ]
+            },
+            {
+              "cells": [
+                "Luggage rack",
+                "A strong holder for carrying goods or passengers."
+              ]
+            },
+            {
+              "cells": [
+                "Bicycle stand",
+                "Holds the bicycle up so it does not fall over."
+              ]
+            },
+            {
+              "cells": [
+                "Pedals & chain",
+                "Turned by the feet to drive the wheels."
+              ]
+            },
+            {
+              "cells": [
+                "Brakes",
+                "Stop the bicycle (e.g. the coaster/pedal brake)."
+              ]
+            }
+          ]
+        },
+        {
+          "type": "picture",
+          "caption": "A bicycle and its main parts",
+          "lines": [
+            "The frame (tubular steel body) in the middle",
+            "Handle bars at the front for steering",
+            "The saddle (seat) on top",
+            "Pedals and chain that drive the rear wheel",
+            "Brakes, spokes and wheel rims on the wheels",
+            "A luggage rack and stand at the back"
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "What is the frame of a bicycle made of, and what does it do?",
+          "a": "Tubular steel; it carries the weight of the rider and load.",
+          "level": "Medium"
+        },
+        {
+          "type": "quickcheck",
+          "q": "What are the handle bars used for?",
+          "a": "To steer the bicycle.",
+          "level": "Easy"
+        },
+        {
+          "type": "mistake",
+          "wrong": "The saddle is used to steer the bicycle.",
+          "correct": "The handle bars steer the bicycle; the saddle is the seat."
+        },
+        {
+          "type": "exam",
+          "q": "Name three parts of a bicycle and the function of each.",
+          "a": "Frame (carries the rider), handle bars (steer), saddle (seat), brakes (stop), luggage rack (carry goods) — any three."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "A bicycle's main parts are the frame, handle bars, saddle, pedals, chain, brakes, spokes, rims, luggage rack and stand.",
+            "The frame is tubular steel; handle bars steer; the saddle is the adjustable seat.",
+            "Bicycles carry people and goods, especially where roads are poor."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_ss_6_5",
+      "title": "6.5 Safe Cycling",
+      "subject": "Social Studies",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Explain how alcohol and drugs affect road safety.",
+            "State the rules a cyclist must obey to be safe."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "Why is it dangerous to cycle on a busy road?",
+            "What could make a driver fail to see a cyclist at night?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Reflector",
+              "def": "A part that shines in light so others can see you."
+            },
+            {
+              "term": "Hand signal",
+              "def": "Using your hand to show what you intend to do."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Roads are getting busier, so there are more accidents. **Alcohol and drugs** slow people's reactions and judgement and cause many accidents, so cyclists and drivers must never use them on the road. Cyclists should also not use **earphones**, because they cannot hear traffic."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Rules of the road for cyclists"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Ride on the **left-hand side** of the road, with the flow of traffic.",
+            "Always observe what is happening around you; do not assume drivers have seen you.",
+            "Make sure you can be seen — use **reflectors** and wear **bright colours**, especially at night.",
+            "Use **hand signals** to show what you intend to do.",
+            "Do not use earphones while cycling."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "On which side of the road should a cyclist ride in Zambia?",
+          "a": "On the left-hand side, with the flow of traffic.",
+          "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Why should a cyclist not wear earphones on the road?",
+          "a": "Because they cannot hear the traffic around them.",
+          "level": "Medium"
+        },
+        {
+          "type": "mistake",
+          "wrong": "It is safe to cycle after drinking a little alcohol.",
+          "correct": "Alcohol slows reactions and judgement and causes accidents — never cycle (or drive) after drinking."
+        },
+        {
+          "type": "exam",
+          "q": "Write three rules of the road that a cyclist must obey.",
+          "a": "Ride on the left with the traffic; be visible with reflectors and bright colours; use hand signals; do not use earphones; stay alert (any three)."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Alcohol and drugs cause accidents; cyclists must avoid them and not wear earphones.",
+            "Cyclists ride on the left with the traffic and stay alert.",
+            "Be visible with reflectors and bright colours, and use hand signals."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "",
+          "quizTitle": "",
+          "questionCount": null
         }
       ]
     }
