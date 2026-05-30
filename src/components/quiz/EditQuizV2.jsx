@@ -502,6 +502,44 @@ export default function EditQuizV2() {
     setDirty(true)
   }
 
+  // Reset the whole editor back to an empty quiz: clears the title,
+  // details, and every question. Saved questions are queued for
+  // deletion (mirroring the "replace" import path) so the next save
+  // removes them from Firestore. Past-paper provenance + studio
+  // linkage are preserved so a cleared quiz keeps its tie to its
+  // source (and the back button still routes correctly). Guarded
+  // behind a confirm because it can't be undone.
+  function handleClearForm() {
+    if (typeof window !== 'undefined' && !window.confirm(
+      'Clear the whole quiz?\n\n'
+        + '• The title, topic, and details reset to defaults.\n'
+        + '• Every question is removed.\n'
+        + "• Saved questions are deleted on the next save and this can't be undone.\n"
+        + '\nNavigate away without saving to discard the clear instead.',
+    )) return
+    setDeletedIds(current => [...current, ...sections.flatMap(collectQuestionIds)])
+    setForm(current => ({
+      title: '',
+      subject: 'Mathematics',
+      grade: '5',
+      duration: 30,
+      type: 'quiz',
+      topic: '',
+      isDemo: false,
+      // Preserve provenance + linkage so a cleared quiz stays tied to
+      // its source past paper / studio after the reset.
+      sourcePastPaperId: current.sourcePastPaperId ?? null,
+      sourcePastPaperPdfPath: current.sourcePastPaperPdfPath ?? null,
+      sourceMarkSchemePath: current.sourceMarkSchemePath ?? null,
+      linkedPaperId: current.linkedPaperId ?? null,
+    }))
+    setSections([createStandaloneSection()])
+    setParts([])
+    setWizardStep('create')
+    setDirty(true)
+    show('Quiz cleared. Save to apply, or leave without saving to discard.')
+  }
+
   // ── Parts (PRISCA mock-paper section groups) ─────────────────────
   function addPart() {
     setParts(currentParts => [
@@ -1579,9 +1617,22 @@ export default function EditQuizV2() {
       />
 
       <div className="surface space-y-4 p-5">
-        <h2 className="text-display-md theme-text flex items-center gap-2" style={{ fontSize: 17 }}>
-          <span aria-hidden="true">📋</span> Quiz details
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-display-md theme-text flex items-center gap-2" style={{ fontSize: 17 }}>
+            <span aria-hidden="true">📋</span> Quiz details
+          </h2>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={handleClearForm}
+              disabled={saving}
+              className="rounded-full border border-red-200 px-3 py-1.5 text-xs font-black text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:pointer-events-none min-h-0"
+              title="Reset the title, details, and remove every question"
+            >
+              <span aria-hidden="true">🗑️</span> Clear quiz
+            </button>
+          )}
+        </div>
         <div className="space-y-3">
           <input value={form.title} onChange={event => setF('title', event.target.value)} placeholder="Quiz title (e.g. Grade 6 Science - Human Body)" className={FIELD} />
           <input value={form.topic || ''} onChange={event => setF('topic', event.target.value)} placeholder="Topic (optional, e.g. Photosynthesis)" className={FIELD} />
