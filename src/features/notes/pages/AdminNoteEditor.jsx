@@ -26,9 +26,12 @@ import { NOTE_FORMAT, NOTE_STATUS } from '../../../config/curriculum'
 import { useNote } from '../hooks/useNote'
 import { createNote, updateNote, deleteNote } from '../lib/firestore'
 import { buildExcerpt } from '../lib/format'
+import { blankStudyBlocks, buildStudyExcerpt } from '../lib/studyBlocks'
+import { coerceStudyBlocks } from '../lib/studySchema'
 
 import { NoteMetaPanel } from '../components/NoteMetaPanel'
 import { NoteEditor }    from '../components/NoteEditor'
+import { StudyNoteEditor } from '../components/StudyNoteEditor'
 import { NoteUploader }  from '../components/NoteUploader'
 import { PublishToggle } from '../components/PublishToggle'
 import { SlideNotesReader } from '../components/SlideNotesReader'
@@ -59,8 +62,9 @@ export function AdminNoteEditor() {
   const [grade,        setGrade]        = useState(4)
   const [term,         setTerm]         = useState(null)
   const [week,         setWeek]         = useState(null)
-  const [noteFormat,   setNoteFormat]   = useState(NOTE_FORMAT.RICH_TEXT)
+  const [noteFormat,   setNoteFormat]   = useState(NOTE_FORMAT.STUDY)
   const [content,      setContent]      = useState('')
+  const [blocks,       setBlocks]       = useState(() => isNew ? blankStudyBlocks() : [])
   const [fileMeta,     setFileMeta]     = useState(null)
   const [status,       setStatus]       = useState(NOTE_STATUS.DRAFT)
   // Generate the asset batch eagerly for new notes so inline image uploads
@@ -90,6 +94,7 @@ export function AdminNoteEditor() {
       ? NOTE_FORMAT.SLIDES
       : NOTE_FORMAT.RICH_TEXT))
     setContent(note.content || '')
+    setBlocks(coerceStudyBlocks(note.blocks))
     setFileMeta(note.fileUrl ? {
       url: note.fileUrl,
       fileName: note.fileName,
@@ -137,7 +142,9 @@ export function AdminNoteEditor() {
         week,
         noteFormat,
         content:     noteFormat === NOTE_FORMAT.RICH_TEXT ? content : '',
-        excerpt:     noteFormat === NOTE_FORMAT.RICH_TEXT ? buildExcerpt(content) : '',
+        blocks:      noteFormat === NOTE_FORMAT.STUDY ? coerceStudyBlocks(blocks) : null,
+        excerpt:     noteFormat === NOTE_FORMAT.RICH_TEXT ? buildExcerpt(content)
+                     : noteFormat === NOTE_FORMAT.STUDY ? buildStudyExcerpt(blocks) : '',
         fileUrl:     noteFormat === NOTE_FORMAT.FILE ? (fileMeta?.url || null) : null,
         fileName:    noteFormat === NOTE_FORMAT.FILE ? (fileMeta?.fileName || null) : null,
         storagePath: noteFormat === NOTE_FORMAT.FILE ? (fileMeta?.storagePath || null) : null,
@@ -176,7 +183,7 @@ export function AdminNoteEditor() {
       if (canSaveRef.current) performSaveRef.current?.()
     }, AUTOSAVE_DELAY_MS)
     return () => clearTimeout(saveTimeoutRef.current)
-  }, [title, subject, grade, term, week, content, noteFormat, fileMeta])
+  }, [title, subject, grade, term, week, content, blocks, noteFormat, fileMeta])
 
   const markDirty = () => { dirtyRef.current = true; setSaveState('idle') }
 
@@ -293,12 +300,18 @@ export function AdminNoteEditor() {
 
         {!isLegacySlides && !isVisual && (
           <>
-            <div className="flex gap-1 p-1 bg-neutral-100 rounded-xl mb-4 max-w-md">
+            <div className="flex gap-1 p-1 bg-neutral-100 rounded-xl mb-4 max-w-xl">
+              <ToggleButton
+                active={noteFormat === NOTE_FORMAT.STUDY}
+                onClick={() => { setNoteFormat(NOTE_FORMAT.STUDY); markDirty() }}
+                icon={<Layout size={14} />}
+                label="Study note"
+              />
               <ToggleButton
                 active={noteFormat === NOTE_FORMAT.RICH_TEXT}
                 onClick={() => { setNoteFormat(NOTE_FORMAT.RICH_TEXT); markDirty() }}
                 icon={<FileText size={14} />}
-                label="Write in editor"
+                label="Rich text"
               />
               <ToggleButton
                 active={noteFormat === NOTE_FORMAT.FILE}
@@ -308,7 +321,14 @@ export function AdminNoteEditor() {
               />
             </div>
 
-            {noteFormat === NOTE_FORMAT.RICH_TEXT ? (
+            {noteFormat === NOTE_FORMAT.STUDY ? (
+              <StudyNoteEditor
+                value={blocks}
+                onChange={(next) => { setBlocks(next); markDirty() }}
+                ownerUid={currentUser?.uid}
+                assetBatchId={assetBatchId}
+              />
+            ) : noteFormat === NOTE_FORMAT.RICH_TEXT ? (
               <NoteEditor
                 value={content}
                 onChange={(v) => { setContent(v); markDirty() }}

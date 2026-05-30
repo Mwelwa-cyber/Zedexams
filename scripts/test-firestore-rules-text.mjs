@@ -208,7 +208,7 @@ console.log('\nvalidLessonFields whitelists every saveable note format')
 // the note (e.g. an admin-published visual deck) never reaches a learner.
 // 'visual_slides' was added in #696 but the rule allowlist wasn't, which is
 // why grade-7 visual notes failed to publish until this line was fixed.
-const REQUIRED_NOTE_FORMATS = ['slides', 'rich_text', 'file', 'visual_slides']
+const REQUIRED_NOTE_FORMATS = ['slides', 'rich_text', 'file', 'visual_slides', 'study']
 
 for (const f of REQUIRED_NOTE_FORMATS) {
   test(`whitelists noteFormat '${f}'`, () => {
