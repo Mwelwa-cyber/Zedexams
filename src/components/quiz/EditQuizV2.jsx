@@ -50,6 +50,7 @@ import QuizStatusBadge from './assignment/QuizStatusBadge'
 import QuizAssignStep from './assignment/QuizAssignStep'
 import QuizPublishStep from './assignment/QuizPublishStep'
 import { deriveQuizStatus, listAssignmentsForResource } from '../../utils/quizAssignments'
+import { normalizeSubject } from '../../config/curriculum.js'
 import SeoHelmet from '../seo/SeoHelmet'
 
 const SUBJECTS = [
@@ -379,7 +380,10 @@ export default function EditQuizV2() {
 
       setForm({
         title: quiz.title ?? '',
-        subject: quiz.subject ?? 'Mathematics',
+        // Repair any legacy/imported subject slug ("mathematics") back to its
+        // canonical display label ("Mathematics") so the <select> matches an
+        // option and the value round-trips through validation + learner filters.
+        subject: normalizeSubject(quiz.subject ?? 'Mathematics'),
         grade: quiz.grade ?? '5',
         duration: quiz.duration ?? 30,
         type: quiz.type ?? 'quiz',
@@ -1053,7 +1057,7 @@ export default function EditQuizV2() {
       // span many CBC topics; the teacher should keep their own value or
       // leave the field blank rather than have the title stamped in.
       grade: linkedToPaper ? current.grade : (imported.quiz.grade || current.grade),
-      subject: linkedToPaper ? current.subject : (imported.quiz.subject || current.subject),
+      subject: normalizeSubject(linkedToPaper ? current.subject : (imported.quiz.subject || current.subject)),
       mode: 'imported_document',
       importStatus: imported.importStatus,
       sourceFileName: imported.quiz.sourceFileName,
