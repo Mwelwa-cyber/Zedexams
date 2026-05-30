@@ -10,7 +10,8 @@ import { reconcileSmartSectionOrder } from './documentQuizReconcile.js'
 import { regroupComprehensionSections } from '../../utils/comprehensionGrouping.js'
 import { consolidateOptionImageRuns } from './documentQuizParagraphRuns.js'
 import { importMarkupToRichHtml, importMarkupToOptionHtml } from './importRichText.js'
-import { structureImportedQuiz } from '../../utils/aiAssistant'
+import { structureImportedQuiz, structureScannedQuiz } from '../../utils/aiAssistant'
+import { isLikelyScannedPdf, runScannedImport } from './scannedQuizImporter.js'
 
 let pdfjsLoader = null
 
@@ -686,13 +687,41 @@ function pickFigureForLineY(figures, lineY, consumed) {
   return best
 }
 
-async function extractPdf(file) {
-  const warnings = [
-    'PDF import extracts text and attaches per-figure crops (or full-page snapshots when figures cannot be isolated) to diagram-style questions. Review cropping before publishing.',
-  ]
+// Load a PDF once and hand back both the document and the pdfjs module so
+// callers can reuse them (scanned-detection + extraction) without decoding
+// the file twice.
+async function loadPdfDocument(file) {
   const buffer = await file.arrayBuffer()
   const pdfjsLib = await loadPdfjs()
   const pdf = await pdfjsLib.getDocument({ data: buffer }).promise
+  return { pdf, pdfjsLib }
+}
+
+// Cheap scanned-vs-native check: sum the extractable text on the first few
+// pages. A scanned (image-only) paper yields ~0 characters even on text-heavy
+// pages, so a tiny sample is enough and avoids reading every page twice.
+async function detectScannedPdf(pdf) {
+  const sampledPages = Math.min(pdf.numPages, 4)
+  let sampledChars = 0
+  for (let i = 1; i <= sampledPages; i += 1) {
+    try {
+      const page = await pdf.getPage(i)
+      const textContent = await page.getTextContent()
+      sampledChars += (textContent.items || [])
+        .reduce((sum, item) => sum + String(item.str || '').trim().length, 0)
+    } catch {
+      // Unreadable page text only pushes us towards the scanned path.
+    }
+  }
+  return { sampledPages, sampledChars, scanned: isLikelyScannedPdf({ sampledChars, sampledPages }) }
+}
+
+async function extractPdf(file, preloaded = null) {
+  const warnings = [
+    'PDF import extracts text and attaches per-figure crops (or full-page snapshots when figures cannot be isolated) to diagram-style questions. Review cropping before publishing.',
+  ]
+  const { pdf } = preloaded || await loadPdfDocument(file)
+  const pdfjsLib = preloaded?.pdfjsLib || await loadPdfjs()
   const blocks = []
   const imageAssets = []
   const maxSnapshotPages = 25
@@ -906,9 +935,52 @@ async function trySmartImport(extracted, file) {
   }
 }
 
+// Scanned (image-only) PDF import. Bypasses the text parser entirely and runs
+// the dual-model vision OCR pipeline over rendered page images. Returns the
+// same output shape as importQuizDocument so the editor handles it identically.
+async function importScannedPdfQuiz({ pdf, file, importOptions }) {
+  const metadata = buildImportMetadata('', file.name)
+  const onProgress = typeof importOptions.onProgress === 'function' ? importOptions.onProgress : null
+
+  const result = await runScannedImport({
+    pdf,
+    file,
+    subjectHint: metadata.subject || '',
+    gradeHint: metadata.grade || '',
+    callVision: structureScannedQuiz,
+    onProgress,
+  })
+
+  const warnings = result.warnings || []
+  const importStatus = 'needs_review'
+
+  return {
+    quiz: {
+      ...metadata,
+      mode: 'imported_document',
+      importStatus,
+      sourceFileName: file.name,
+      sourceContentType: 'application/pdf',
+      importWarnings: warnings,
+    },
+    sections: result.sections,
+    parts: [],
+    questions: [],
+    documentInstruction: '',
+    imageAssets: result.imageAssets,
+    importStatus,
+    warnings,
+    smartApplied: true,
+    scanned: true,
+    summary: result.summary,
+  }
+}
+
 // Import options surfaced in the UI (ImportQuizPanel), both default ON:
 //   preserveNumbering  — keep each question's original number from the doc.
 //   groupComprehension — attach comprehension questions to their passage.
+//   onProgress         — optional ({ phase, current, total }) callback used by
+//                        the scanned-PDF path to drive the import progress UI.
 // Defaults reproduce the correct G7 English behaviour.
 export const DEFAULT_IMPORT_OPTIONS = {
   preserveNumbering: true,
@@ -931,7 +1003,15 @@ export async function importQuizDocument(file, options = {}) {
     extracted = await extractLegacyDoc(file)
     isWord = true
   } else if (lowerName.endsWith('.pdf') || file.type === 'application/pdf') {
-    extracted = await extractPdf(file)
+    // Decode the PDF once, then branch: image-only (scanned) papers go through
+    // the vision OCR pipeline; PDFs with a real text layer use the existing
+    // text + figure extractor.
+    const preloaded = await loadPdfDocument(file)
+    const { scanned } = await detectScannedPdf(preloaded.pdf)
+    if (scanned) {
+      return await importScannedPdfQuiz({ pdf: preloaded.pdf, file, importOptions })
+    }
+    extracted = await extractPdf(file, preloaded)
   } else {
     throw new Error('Please upload a .doc, .docx, or .pdf file.')
   }

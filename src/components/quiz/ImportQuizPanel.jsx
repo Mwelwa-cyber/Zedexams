@@ -26,8 +26,21 @@ function extractSmartImportReason(warnings = []) {
     .trim()
 }
 
+// Human-readable label for the scanned-PDF vision-import progress phases.
+function progressLabel(progress) {
+  if (!progress || !progress.total) return ''
+  if (progress.phase === 'rendering') {
+    return `Rendering scanned page ${progress.current} of ${progress.total}…`
+  }
+  if (progress.phase === 'reading') {
+    return `Reading questions — batch ${progress.current} of ${progress.total}…`
+  }
+  return ''
+}
+
 export default function ImportQuizPanel({
   importing,
+  importProgress,
   importSummary,
   onImport,
   intro,
@@ -105,10 +118,25 @@ export default function ImportQuizPanel({
           <p className="theme-text mt-1 text-xs font-bold leading-relaxed">DOCX images and PDF snapshots attach to matching questions and upload when you save.</p>
         </div>
         <div className="theme-card theme-border rounded-xl border p-3">
-          <p className="theme-accent-text text-xs font-black uppercase tracking-wide">Needs review</p>
-          <p className="theme-text mt-1 text-xs font-bold leading-relaxed">Unclear answers, diagrams, and imperfect extraction are marked before publishing.</p>
+          <p className="theme-accent-text text-xs font-black uppercase tracking-wide">Scanned papers</p>
+          <p className="theme-text mt-1 text-xs font-bold leading-relaxed">Image-only PDFs (photographed past papers) are read with AI vision. Answers are left blank for you to set.</p>
         </div>
       </div>
+
+      {importing && importProgress && progressLabel(importProgress) && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-blue-900">
+          <p className="text-sm font-black">
+            <span aria-hidden="true">📷</span> Reading scanned paper…
+          </p>
+          <p className="mt-1 text-xs font-bold leading-relaxed">{progressLabel(importProgress)}</p>
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-blue-100">
+            <div
+              className="h-full rounded-full bg-blue-500 transition-all"
+              style={{ width: `${Math.round((importProgress.current / Math.max(1, importProgress.total)) * 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-6">
         <label className="theme-text flex items-center gap-2 text-xs font-bold">

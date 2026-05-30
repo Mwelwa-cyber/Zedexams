@@ -8,6 +8,7 @@ const aiChatCallable = httpsCallable(functions, 'aiChat')
 const explainAnswerCallable = httpsCallable(functions, 'explainAnswer')
 const generateQuizCallable = httpsCallable(functions, 'generateQuizQuestions')
 const structureImportedQuizCallable = httpsCallable(functions, 'structureImportedQuiz')
+const structureScannedQuizCallable = httpsCallable(functions, 'structureScannedQuiz')
 const editQuizQuestionCallable = httpsCallable(functions, 'editQuizQuestion')
 // Client timeouts are intentionally a bit longer than the matching Cloud
 // Function timeoutSeconds — so the server's own error surfaces rather than
@@ -17,6 +18,7 @@ const AI_CHAT_TIMEOUT_MS = 35000       // server: 30s
 const AI_EXPLAIN_TIMEOUT_MS = 35000    // server: 30s
 const AI_QUIZ_TIMEOUT_MS = 50000       // server: 45s
 const AI_IMPORT_TIMEOUT_MS = 95000     // server: 90s (Gemini → Claude pipeline)
+const AI_SCANNED_IMPORT_TIMEOUT_MS = 245000 // server: 240s (vision OCR over a page batch)
 const AI_EDIT_TIMEOUT_MS = 50000       // server: 45s (single-question edit)
 
 function messageFromError(error) {
@@ -418,6 +420,28 @@ export async function structureImportedQuiz(payload) {
     return {
       sections: Array.isArray(response.data?.sections) ? response.data.sections : [],
       warnings: Array.isArray(response.data?.warnings) ? response.data.warnings : [],
+    }
+  } catch (error) {
+    throw new Error(messageFromError(error))
+  }
+}
+
+// Scanned past-paper OCR import. `payload.pages` is one batch of rendered PDF
+// page images ({ pageNumber, dataUrl }); the caller paginates a long paper and
+// calls this once per batch. Returns blank-answer MCQs flagged for review.
+export async function structureScannedQuiz(payload) {
+  try {
+    const response = await withTimeout(
+      structureScannedQuizCallable(payload),
+      AI_SCANNED_IMPORT_TIMEOUT_MS,
+      'Reading the scanned pages is taking too long. Please try a smaller file or try again.',
+    )
+    const data = response.data || {}
+    return {
+      questions: Array.isArray(data.questions) ? data.questions : [],
+      warnings: Array.isArray(data.warnings) ? data.warnings : [],
+      detectedCount: Number(data.detectedCount) || 0,
+      extractedCount: Number(data.extractedCount) || 0,
     }
   } catch (error) {
     throw new Error(messageFromError(error))

@@ -31,6 +31,9 @@ const {
 } = require("./aiService");
 // Gemini REST client — used by the structureImportedQuiz pipeline.
 const {callGemini} = require("./geminiClient");
+// Scanned-paper OCR import — dual-model (Claude vision + Gemini assist) used
+// by the Quiz Editor when a teacher uploads an image-only PDF past paper.
+const {runScannedQuizImport} = require("./scannedQuizImport");
 const {applyCors} = require("./cors");
 
 // Teacher Tools — Lesson Plan Generator (Zambian CBC).
@@ -1488,6 +1491,57 @@ exports.structureImportedQuiz = onCall(
     });
 
     return parseStructuredImport(raw);
+  },
+);
+
+// Scanned past-paper import for the Quiz Editor. The client rasterises an
+// image-only PDF into page images and sends them here in batches; each call
+// runs the dual-model OCR pipeline (Claude vision primary + Gemini assist)
+// and returns blank-answer MCQs flagged for review. Higher memory + timeout
+// than structureImportedQuiz because page images are large and vision is slow.
+exports.structureScannedQuiz = onCall(
+  {
+    secrets: [anthropicApiKey, geminiApiKey],
+    region: "us-central1",
+    timeoutSeconds: 240,
+    memory: "1GiB",
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Please sign in first.");
+    }
+    recordAppCheckCallable(request, "structureScannedQuiz");
+
+    const role = await getUserRole(request.auth.uid);
+    if (!isStaffRole(role)) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only teachers and admins can import scanned papers.",
+      );
+    }
+
+    const pages = Array.isArray(request.data?.pages) ? request.data.pages : [];
+    if (!pages.length) {
+      throw new HttpsError(
+        "invalid-argument",
+        "No page images were supplied for scanned import.",
+      );
+    }
+
+    // Counts as one AI action per page batch (same meter as smart import).
+    await assertDailyLimit(request.auth.uid, role, "scannedImport");
+
+    return runScannedQuizImport({
+      pages,
+      fileName: cleanAiString(request.data?.fileName, LIMITS.importFileName),
+      subjectHint: cleanAiString(request.data?.subjectHint, 80),
+      gradeHint: cleanAiString(request.data?.gradeHint, 20),
+      anthropicKey: getAnthropicApiKey(anthropicApiKey),
+      geminiKey: geminiApiKey.value() || process.env.GEMINI_API_KEY || "",
+      uid: request.auth.uid,
+    });
   },
 );
 
