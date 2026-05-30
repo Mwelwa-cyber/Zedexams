@@ -14,6 +14,7 @@ const {
   normaliseScannedQuestion,
   normaliseScannedSections,
   countSectionQuestions,
+  sanitiseOptionBoxes,
   reconcileCounts,
   parseGeminiCount,
   buildClaudeMessages,
@@ -106,6 +107,81 @@ test("normaliseScannedQuestion carries diagram + instruction hints", () => {
   assert.equal(q.hasDiagram, true);
   assert.equal(q.sharedInstruction, "Choose the best answer.");
   assert.equal(q.sourcePage, 5);
+});
+
+// ── pictorial options (sanitiseOptionBoxes + normalise) ──────────────────────
+
+test("sanitiseOptionBoxes validates, clamps overflow, and pads to length", () => {
+  const boxes = sanitiseOptionBoxes(
+    [
+      {x: 0.1, y: 0.1, w: 0.2, h: 0.2}, // good
+      {x: 0.9, y: 0.1, w: 0.5, h: 0.2}, // overflows right → w clamped to 0.1
+      {x: 0, y: 0, w: 0.01, h: 0.2}, // too thin → null
+      {x: 0, y: 0, w: 1, h: 1}, // whole page → null
+    ],
+    4,
+  );
+  assert.equal(boxes.length, 4);
+  assert.deepEqual(boxes[0], {x: 0.1, y: 0.1, w: 0.2, h: 0.2});
+  assert.ok(Math.abs(boxes[1].w - 0.1) < 1e-9, "right overflow clamped");
+  assert.equal(boxes[2], null);
+  assert.equal(boxes[3], null);
+});
+
+test("sanitiseOptionBoxes pads missing entries with null", () => {
+  const boxes = sanitiseOptionBoxes([{x: 0, y: 0, w: 0.3, h: 0.3}], 4);
+  assert.equal(boxes.length, 4);
+  assert.ok(boxes[0]);
+  assert.equal(boxes[3], null);
+});
+
+test("normaliseScannedQuestion keeps pictorial options with boxes + blank labels", () => {
+  const q = normaliseScannedQuestion(
+    {
+      prompt: "Which net folds into a cube?",
+      options: ["", "", "", ""],
+      optionsAreImages: true,
+      optionImageBoxes: [
+        {x: 0.1, y: 0.5, w: 0.15, h: 0.15},
+        {x: 0.3, y: 0.5, w: 0.15, h: 0.15},
+        {x: 0.5, y: 0.5, w: 0.15, h: 0.15},
+        {x: 0.7, y: 0.5, w: 0.15, h: 0.15},
+      ],
+      sourcePageIndex: 0,
+    },
+    [4],
+  );
+  assert.ok(q, "kept even though option text is blank");
+  assert.equal(q.optionsAreImages, true);
+  assert.equal(q.options.length, 4);
+  assert.equal(q.optionImageBoxes.length, 4);
+  assert.ok(q.optionImageBoxes.every(Boolean));
+  assert.equal(q.correctAnswer, "");
+});
+
+test("normaliseScannedQuestion falls back to text when picture boxes are unusable", () => {
+  // optionsAreImages claimed, but boxes are degenerate AND there is option text.
+  const q = normaliseScannedQuestion(
+    {
+      prompt: "Pick one",
+      options: ["red", "blue", "green", "yellow"],
+      optionsAreImages: true,
+      optionImageBoxes: [null, null, null, null],
+    },
+    [1],
+  );
+  assert.equal(q.optionsAreImages, false);
+  assert.equal(q.optionImageBoxes, null);
+  assert.deepEqual(q.options, ["red", "blue", "green", "yellow"]);
+});
+
+test("normaliseScannedQuestion drops a picture question with fewer than 2 boxes", () => {
+  const q = normaliseScannedQuestion(
+    {prompt: "x", options: ["", ""], optionsAreImages: true, optionImageBoxes: [{x: 0, y: 0, w: 0.3, h: 0.3}, null]},
+    [1],
+  );
+  // Only one usable box and no option text → unusable.
+  assert.equal(q, null);
 });
 
 // ── normaliseScannedSections ─────────────────────────────────────────────────

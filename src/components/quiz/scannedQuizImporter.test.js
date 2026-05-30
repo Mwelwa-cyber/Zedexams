@@ -18,6 +18,7 @@ import {
   visionSectionsToLocal,
   countLocalQuestions,
   buildScannedSummary,
+  planOptionImageCrops,
 } from './scannedQuizImporter.js'
 
 let passed = 0
@@ -206,6 +207,48 @@ test('visionSectionsToLocal runs with the real editor helpers', () => {
   assert.equal(sections[0].question.correctAnswer, '')
   assert.equal(sections[1].kind, 'passage')
   assert.equal(sections[1].passage.questions.length, 1)
+})
+
+// ── planOptionImageCrops (pictorial options) ─────────────────────────────────
+
+const pageAsset = { id: 'page-4', objectUrl: 'blob:p4', imageUrl: 'blob:p4', sourcePage: 4 }
+
+test('planOptionImageCrops plans a crop per boxed option', () => {
+  const plan = planOptionImageCrops(
+    {
+      optionsAreImages: true,
+      optionImageBoxes: [
+        { x: 0.1, y: 0.5, w: 0.15, h: 0.15 },
+        { x: 0.3, y: 0.5, w: 0.15, h: 0.15 },
+        null,
+        { x: 0.7, y: 0.5, w: 0.15, h: 0.15 },
+      ],
+    },
+    pageAsset,
+  )
+  assert.equal(plan.length, 3)
+  assert.deepEqual(plan.map(p => p.index), [0, 1, 3])
+  assert.equal(plan[0].label, 'A')
+  assert.equal(plan[2].label, 'D')
+})
+
+test('planOptionImageCrops returns [] without a page asset', () => {
+  assert.deepEqual(planOptionImageCrops({ optionsAreImages: true, optionImageBoxes: [{ x: 0, y: 0, w: 0.3, h: 0.3 }] }, null), [])
+})
+
+test('planOptionImageCrops returns [] for a text-option question', () => {
+  assert.deepEqual(planOptionImageCrops({ optionsAreImages: false, optionImageBoxes: null }, pageAsset), [])
+})
+
+test('buildScannedSummary counts per-option images', () => {
+  const summary = buildScannedSummary({
+    sections: [
+      { kind: 'standalone', question: { optionMedia: [{ imageAssetId: 'a' }, { imageAssetId: 'b' }, null, null] } },
+    ],
+    fileName: 'maths.pdf',
+    pageCount: 12,
+  })
+  assert.equal(summary.images, 2)
 })
 
 // ── countLocalQuestions / buildScannedSummary ────────────────────────────────

@@ -94,6 +94,13 @@ const CLAUDE_SYSTEM_PROMPT = [
   "- hasDiagram: true when THIS question has its own figure/shape/picture/graph",
   "  printed with it (e.g. a single geometry shape, a Venn diagram, a number",
   "  line). Use the map/diagram passage instead when a figure is shared.",
+  "- PICTORIAL OPTIONS: if the answer choices THEMSELVES are pictures/shapes/",
+  "  graphs rather than text (e.g. four nets, four diagrams, four bar charts),",
+  "  set optionsAreImages=true, keep each options[] entry as its printed label",
+  "  (often '') and give optionImageBoxes: one tight bounding box per option,",
+  "  in the same order, as {x,y,w,h} fractions (0-1) of the page on the item's",
+  "  sourcePageIndex. Use this ONLY for genuinely pictorial options — never for",
+  "  text options (leave optionsAreImages false and omit the boxes).",
   "- sourcePageIndex: 0-based index of the page (within this batch) the item is on.",
   "",
   "Preserve STRUCTURE with ZedExams import markup so the editor renders real",
@@ -158,6 +165,28 @@ const SCANNED_TOOL_SCHEMA = {
         correctAnswer: {type: ["integer", "null"]},
         explanation: {type: "string"},
         hasDiagram: {type: "boolean"},
+        optionsAreImages: {
+          type: "boolean",
+          description:
+            "True only when the answer options are pictures/shapes/graphs " +
+            "rather than text.",
+        },
+        optionImageBoxes: {
+          type: "array",
+          description:
+            "When optionsAreImages: one bounding box per option (same order " +
+            "as options), as fractions 0-1 of the page, tightly around that " +
+            "option's picture. Use null for any text option.",
+          items: {
+            type: ["object", "null"],
+            properties: {
+              x: {type: "number"},
+              y: {type: "number"},
+              w: {type: "number"},
+              h: {type: "number"},
+            },
+          },
+        },
         sectionTitle: {type: "string"},
         instruction: {type: "string"},
         sourcePageIndex: {type: "integer"},
@@ -247,13 +276,81 @@ function pageNumberFor(rawIndex, pageNumbers) {
  * Normalise one question, applying the scanned-import answer policy: answer
  * always blank, flagged for review. Returns null for an unusable item.
  */
+function clampUnit(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return NaN;
+  return Math.min(1, Math.max(0, n));
+}
+
+// Validate one normalised bounding box {x,y,w,h} (fractions of the page).
+// Returns null when it is missing, degenerate, or covers (nearly) the whole
+// page — i.e. not a usable per-option crop. Overflow past the right/bottom
+// edge is clamped rather than dropped.
+function sanitiseBox(box) {
+  if (!box || typeof box !== "object") return null;
+  let x = clampUnit(box.x);
+  let y = clampUnit(box.y);
+  let w = clampUnit(box.w);
+  let h = clampUnit(box.h);
+  if ([x, y, w, h].some((n) => !Number.isFinite(n))) return null;
+  if (x + w > 1) w = 1 - x;
+  if (y + h > 1) h = 1 - y;
+  // Too small to be a real picture, or basically the whole page.
+  if (w < 0.03 || h < 0.03) return null;
+  if (w > 0.98 && h > 0.98) return null;
+  return {x, y, w, h};
+}
+
+// Build the per-option box array (length === optionCount). Each entry is a
+// sanitised box or null (text option). Exported for tests.
+function sanitiseOptionBoxes(rawBoxes, optionCount) {
+  const list = Array.isArray(rawBoxes) ? rawBoxes : [];
+  const out = [];
+  for (let i = 0; i < optionCount; i += 1) {
+    out.push(sanitiseBox(list[i]));
+  }
+  return out;
+}
+
+/**
+ * Normalise one question, applying the scanned-import answer policy: answer
+ * always blank, flagged for review. Returns null for an unusable item.
+ *
+ * Pictorial-option questions (four shapes/graphs instead of text) are kept
+ * with `optionsAreImages` + per-option `optionImageBoxes` so the client can
+ * crop each option's picture out of the page; their option strings may be
+ * blank labels.
+ */
 function normaliseScannedQuestion(raw, pageNumbers = []) {
   const prompt = clampString(raw?.prompt || raw?.text, 4000).trim();
-  const options = (Array.isArray(raw?.options) ? raw.options : [])
-    .map((o) => clampString(o, 1000).trim())
-    .filter(Boolean)
-    .slice(0, 6);
-  if (!prompt || options.length < 2) return null;
+  if (!prompt) return null;
+
+  const rawOptions = (Array.isArray(raw?.options) ? raw.options : [])
+    .map((o) => clampString(o, 1000).trim());
+
+  // Decide whether the options are pictures we can crop.
+  let optionsAreImages = false;
+  let optionImageBoxes = null;
+  let options;
+  if (raw?.optionsAreImages) {
+    const count = Math.min(
+      6,
+      Math.max(rawOptions.length, Array.isArray(raw?.optionImageBoxes) ? raw.optionImageBoxes.length : 0),
+    );
+    const boxes = sanitiseOptionBoxes(raw?.optionImageBoxes, count);
+    if (boxes.filter(Boolean).length >= 2) {
+      optionsAreImages = true;
+      optionImageBoxes = boxes;
+      // Keep any printed labels, allow blanks — the picture carries the option.
+      options = Array.from({length: count}, (_, i) => rawOptions[i] || "");
+    }
+  }
+  if (!optionsAreImages) {
+    options = rawOptions.filter(Boolean).slice(0, 6);
+    if (options.length < 2) return null;
+  } else if (options.length < 2) {
+    return null;
+  }
 
   const num = Number.parseInt(raw?.sourceQuestionNumber, 10);
   return {
@@ -264,6 +361,8 @@ function normaliseScannedQuestion(raw, pageNumbers = []) {
     explanation: "",
     type: "mcq",
     hasDiagram: Boolean(raw?.hasDiagram),
+    optionsAreImages,
+    optionImageBoxes,
     sectionTitle: clampString(raw?.sectionTitle, 160).trim(),
     sharedInstruction: clampString(raw?.instruction, 1200).trim(),
     sourcePage: pageNumberFor(raw?.sourcePageIndex, pageNumbers),
@@ -466,6 +565,7 @@ module.exports = {
   normaliseScannedQuestion,
   normaliseScannedSections,
   countSectionQuestions,
+  sanitiseOptionBoxes,
   reconcileCounts,
   parseGeminiCount,
   buildClaudeMessages,
