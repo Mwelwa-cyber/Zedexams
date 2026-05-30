@@ -38,7 +38,7 @@ import { useAuth }              from '../../contexts/AuthContext'
 import { useFirestore }         from '../../hooks/useFirestore'
 import { useBadges }            from '../../hooks/useBadges'
 import { useDataSaver }         from '../../contexts/DataSaverContext'
-import { GRADE_META, SUBJECTS, getTopics } from '../../config/curriculum'
+import { GRADE_META, SUBJECTS, getTopics, normalizeSubject } from '../../config/curriculum'
 import ProfessorPako            from '../ui/ProfessorPako'
 import DataSaverToggle          from '../ui/DataSaverToggle'
 import BadgeCard                from '../ui/BadgeCard'
@@ -61,6 +61,18 @@ import { computeStreak }        from '../../utils/streak'
 import { getTodaysExam, checkDailyLock } from '../../utils/examService'
 
 // ── Sub-components ─────────────────────────────────────────────────────────
+
+// Results, the weakness analysis, and userProfile.performance all key on the
+// subject *label* a quiz was saved with (e.g. "Integrated Science", sometimes
+// a legacy variant like "Science"). Routes (/practise/:grade/:subjectId) and
+// the tone maps below are keyed on the curriculum *id* ("science"). This
+// resolver bridges the two so per-subject progress %, chip colours, and
+// drill-down links all line up regardless of which spelling was stored.
+const SUBJECT_BY_LABEL = Object.fromEntries(SUBJECTS.map(s => [s.label, s]))
+function resolveSubject(value) {
+  if (!value) return null
+  return SUBJECT_BY_LABEL[normalizeSubject(value)] ?? null
+}
 
 const NOTIFICATION_STORAGE_PREFIX = 'zedexams:notifications:seen:v1'
 // Dashboard character art. WebP ships as both the <source> and the <img>
@@ -486,7 +498,7 @@ export default function GradeHub() {
   // No routing — local state only, content swaps in place.
   const [activeTab, setActiveTab] = useState('myGrade')
 
-  // Per-subject performance keyed by subject.id. Sourced from
+  // Per-subject performance keyed by the canonical subject label. Sourced from
   // userProfile.performance if present (future-proof for a server-side
   // aggregation), otherwise derived from the last 50 quiz results.
   const [perfBySubject, setPerfBySubject] = useState({})
@@ -562,8 +574,17 @@ export default function GradeHub() {
       setPerfBySubject({})
       return undefined
     }
+    // Always re-key onto the canonical subject label so the subject cards
+    // (which read perfBySubject[subject.label]) line up no matter whether the
+    // source keyed by id, label, or a legacy spelling.
     if (userProfile?.performance && typeof userProfile.performance === 'object') {
-      setPerfBySubject(userProfile.performance)
+      const norm = {}
+      Object.entries(userProfile.performance).forEach(([s, v]) => {
+        if (typeof v !== 'number') return
+        const key = resolveSubject(s)?.label ?? s
+        norm[key] = v
+      })
+      setPerfBySubject(norm)
       return undefined
     }
 
@@ -573,9 +594,10 @@ export default function GradeHub() {
       const acc = {}
       results.forEach(r => {
         if (!r.subject || typeof r.percentage !== 'number') return
-        acc[r.subject] ??= { sum: 0, n: 0 }
-        acc[r.subject].sum += r.percentage
-        acc[r.subject].n   += 1
+        const key = resolveSubject(r.subject)?.label ?? r.subject
+        acc[key] ??= { sum: 0, n: 0 }
+        acc[key].sum += r.percentage
+        acc[key].n   += 1
       })
       const out = {}
       Object.entries(acc).forEach(([s, v]) => { out[s] = Math.round(v.sum / v.n) })
@@ -645,14 +667,14 @@ export default function GradeHub() {
 
   // Average across the 7 CBC subjects, using only those with recorded scores.
   const subjectScoreList = SUBJECTS
-    .map(s => perfBySubject[s.id])
+    .map(s => perfBySubject[s.label])
     .filter(v => typeof v === 'number')
   const avgPerformance = subjectScoreList.length
     ? Math.round(subjectScoreList.reduce((a, b) => a + b, 0) / subjectScoreList.length)
     : 0
 
   const nextLevelUnlocked = avgPerformance >= 70 && hasNextGrade
-  const challengeSubjects = SUBJECTS.filter(s => (perfBySubject[s.id] ?? 0) >= 80)
+  const challengeSubjects = SUBJECTS.filter(s => (perfBySubject[s.label] ?? 0) >= 80)
   // Challenge tab APPEARS only when the learner has earned it — per spec,
   // the section is performance-gated rather than always-visible-but-locked.
   const showChallenge = challengeSubjects.length > 0
@@ -1229,7 +1251,7 @@ export default function GradeHub() {
                       key={subject.id}
                       subject={subject}
                       grade={userGrade}
-                      perf={perfBySubject[subject.id]}
+                      perf={perfBySubject[subject.label]}
                       {...subjectCounts(userGrade, subject)}
                     />
                   ))}
@@ -1267,7 +1289,7 @@ export default function GradeHub() {
                     key={subject.id}
                     subject={subject}
                     grade={nextGrade}
-                    perf={nextLevelUnlocked ? perfBySubject[subject.id] : 0}
+                    perf={nextLevelUnlocked ? perfBySubject[subject.label] : 0}
                     dimmed={!nextLevelUnlocked}
                     locked={!nextLevelUnlocked}
                     {...subjectCounts(nextGrade, subject)}
@@ -1308,7 +1330,7 @@ export default function GradeHub() {
                     key={subject.id}
                     subject={subject}
                     grade={userGrade}
-                    perf={perfBySubject[subject.id]}
+                    perf={perfBySubject[subject.label]}
                     ctaLabel="Start Challenge"
                     ctaHref={`/practise/${userGrade}/${subject.id}`}
                     {...subjectCounts(userGrade, subject)}
@@ -1443,9 +1465,14 @@ export default function GradeHub() {
               </p>
               <div className="flex flex-wrap gap-2">
                 {weakTopics.map(topic => {
-                  const tone = SUBJECT_TONES[topic.subject] || SUBJECT_TONES.mathematics
-                  const chipHref = userGrade
-                    ? `/practise/${userGrade}/${topic.subject}`
+                  // topic.subject is the stored subject label; map it back to
+                  // the curriculum id so the chip tone and the drill-down route
+                  // (/practise/:grade/:subjectId) both resolve. Falling back to
+                  // the library keeps the chip clickable for an unknown subject.
+                  const subjectId = resolveSubject(topic.subject)?.id
+                  const tone = SUBJECT_TONES[subjectId] || SUBJECT_TONES.mathematics
+                  const chipHref = userGrade && subjectId
+                    ? `/practise/${userGrade}/${subjectId}`
                     : '/quizzes'
                   return (
                     <Link
