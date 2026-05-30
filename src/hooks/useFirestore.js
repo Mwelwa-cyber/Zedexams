@@ -28,6 +28,7 @@ import { migrateContent } from '../editor/utils/migration.js'
 import { questionWriteSchema, coerceQuestion } from '../editor/schema/question.js'
 import { quizWriteSchema, quizUpdateSchema, coerceQuiz } from '../schemas/quiz.js'
 import { coerceResult } from '../schemas/result.js'
+import { normalizeSubject } from '../config/curriculum.js'
 import { PLANS } from '../utils/subscriptionConfig.js'
 
 /**
@@ -975,13 +976,24 @@ export function useFirestore() {
     } catch (e) { console.error('getLessonById:', e); return null }
   }
 
+  // Repair a stray curriculum slug ("mathematics") to its display label on
+  // the way in. The lesson editor only offers labels today, so this is
+  // defensive against a future importer writing a slug — and keeps lessons
+  // consistent with the same normalization quizzes and notes apply.
+  function withNormalizedSubject(data) {
+    if (data && typeof data === 'object' && 'subject' in data) {
+      return { ...data, subject: normalizeSubject(data.subject) }
+    }
+    return data
+  }
+
   async function createLesson(data) {
-    const ref = await addDoc(collection(db, 'lessons'), { ...data, createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
+    const ref = await addDoc(collection(db, 'lessons'), { ...withNormalizedSubject(data), createdAt: serverTimestamp(), updatedAt: serverTimestamp() })
     return ref.id
   }
 
   async function updateLesson(lessonId, data) {
-    await updateDoc(doc(db, 'lessons', lessonId), { ...data, updatedAt: serverTimestamp() })
+    await updateDoc(doc(db, 'lessons', lessonId), { ...withNormalizedSubject(data), updatedAt: serverTimestamp() })
   }
 
   async function deleteLesson(lessonId) {
