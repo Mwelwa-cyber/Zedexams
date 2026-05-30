@@ -227,7 +227,7 @@ export default function StudentDashboard() {
           pattern as the practice banner above. */}
       {aiNotesOn && (
         <Link
-          to="/ai-notes"
+          to="/notes"
           className="block rounded-2xl border-2 border-emerald-300 bg-gradient-to-br from-emerald-50 to-teal-50 p-4 hover-lift press-feedback"
         >
           <div className="flex items-start gap-3">
