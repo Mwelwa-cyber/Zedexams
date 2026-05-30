@@ -117,6 +117,8 @@ export async function createNote(data) {
     // and a link back to the aiGenerations draft they were generated from.
     deck:             noteFormat === NOTE_FORMAT.VISUAL ? (data.deck || null) : null,
     sourceGenerationId: noteFormat === NOTE_FORMAT.VISUAL ? (data.sourceGenerationId || null) : null,
+    // Structured study notes store their block array (parallel to `deck`).
+    blocks:           noteFormat === NOTE_FORMAT.STUDY ? (Array.isArray(data.blocks) ? data.blocks : []) : null,
     fileUrl:      noteFormat === NOTE_FORMAT.FILE ? (data.fileUrl || null) : null,
     fileName:     noteFormat === NOTE_FORMAT.FILE ? (data.fileName || null) : null,
     storagePath:  noteFormat === NOTE_FORMAT.FILE ? (data.storagePath || null) : null,

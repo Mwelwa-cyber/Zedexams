@@ -697,6 +697,7 @@ export const NOTE_FORMAT = {
   RICH_TEXT: 'rich_text',
   FILE:      'file',
   VISUAL:    'visual_slides',  // AI-generated illustrated learner decks
+  STUDY:     'study',          // structured, interactive study notes (blocks[])
 }
 
 export const BAND_LABELS = {

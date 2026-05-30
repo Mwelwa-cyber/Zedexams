@@ -17,6 +17,9 @@ import { NOTE_FORMAT }        from '../../../config/curriculum'
 import { formatDate }         from '../lib/format'
 import { sanitizeNoteHTML }   from '../../../editor/utils/sanitize.js'
 import { SlideNotesReader }   from '../components/SlideNotesReader'
+import { StudyNoteReader }    from '../components/StudyNoteReader'
+import { ReaderControls }     from '../components/ReaderControls'
+import { coerceStudyBlocks }  from '../lib/studySchema'
 import SeoHelmet              from '../../../components/seo/SeoHelmet'
 import '../styles/notes.css'
 
@@ -77,6 +80,7 @@ export function LearnerNoteRead() {
   }
 
   const s = subjectStyle(note.subject)
+  const studyBlocks = note.noteFormat === NOTE_FORMAT.STUDY ? coerceStudyBlocks(note.blocks) : null
 
   return (
     <div className="notes-studio min-h-screen pb-24 md:pb-8" style={{ backgroundColor: '#FAFAF7' }}>
@@ -121,6 +125,11 @@ export function LearnerNoteRead() {
             <FileDownload note={note} />
           ) : note.noteFormat === NOTE_FORMAT.VISUAL ? (
             <SlideNotesReader deck={note.deck} />
+          ) : note.noteFormat === NOTE_FORMAT.STUDY ? (
+            <>
+              <ReaderControls blocks={studyBlocks} title={note.title} />
+              <StudyNoteReader blocks={studyBlocks} />
+            </>
           ) : (
             <div
               className="prose-note"

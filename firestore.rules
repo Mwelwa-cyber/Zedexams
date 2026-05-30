@@ -146,9 +146,12 @@ service cloud.firestore {
         // as null whenever the note is in rich-text mode (or when the
         // teacher hasn't picked a term/week yet) — matching the same
         // null-or-string pattern used for question imageUrl/diagramText.
-        && (!('noteFormat' in incoming()) || (incoming().noteFormat is string && incoming().noteFormat in ['slides', 'rich_text', 'file', 'visual_slides']))
+        && (!('noteFormat' in incoming()) || (incoming().noteFormat is string && incoming().noteFormat in ['slides', 'rich_text', 'file', 'visual_slides', 'study']))
         && (!('content' in incoming()) || (incoming().content is string && incoming().content.size() <= 200000))
         && (!('excerpt' in incoming()) || (incoming().excerpt is string && incoming().excerpt.size() <= 500))
+        // Study-note blocks: null or a bounded list. Per-element shape is
+        // enforced by the Zod schema (studySchema.js) client-side before write.
+        && (!('blocks' in incoming()) || incoming().blocks == null || (incoming().blocks is list && incoming().blocks.size() <= 200))
         && (!('fileUrl' in incoming()) || incoming().fileUrl == null || (incoming().fileUrl is string && incoming().fileUrl.size() <= 2000))
         && (!('fileName' in incoming()) || incoming().fileName == null || (incoming().fileName is string && incoming().fileName.size() <= 200))
         && (!('storagePath' in incoming()) || incoming().storagePath == null || (incoming().storagePath is string && incoming().storagePath.size() <= 500))
