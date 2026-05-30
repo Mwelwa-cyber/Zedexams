@@ -1,32 +1,31 @@
 /**
- * Regression test for the smart-import section-ordering bug.
+ * Regression test for the smart-import question-jumbling bug.
  *
- * Root cause (fixed in documentQuizImporter.js): when the smart-import path
- * sorted sections back into document order, it used `partOrderMap.get(partId)
- * ?? partOrderMap.size` as the sort key.  `partOrderMap` only contained NAMED
- * parts (unnamed/default parts were filtered out).  For the G7 English 2023
- * paper the only named part is "Part 4: Questions 31 – 38" which received sort
- * key 0, while all sections without a named part (Q1–Q30 and Q46–Q60) received
- * the fallback key `partOrderMap.size = 1`.  That made Q31–Q45 sort BEFORE
- * Q1–Q30 — exactly the jumbling teachers reported ("question 45 at position 20").
+ * The deterministic parser (processImportedQuestionBlocks) always emits
+ * sections in true document order. "Smart import" sends the document to an LLM
+ * to recover rich structure (fractions, tables, vertical arithmetic) — but an
+ * LLM does NOT reliably preserve question order. The old reconciliation matched
+ * the AI's sections to the parser's sections *by position* (Nth smart
+ * standalone == Nth document standalone) and, when the document had no named
+ * parts, used the raw AI order outright. Both assumptions broke the moment the
+ * AI returned questions shuffled or grouped, producing the recurring
+ * "questions jumbled / Q45 sitting at position 20, even the numbers are wrong"
+ * reports.
  *
- * The fix replaces the part-index sort key with a local-section-index sort key
- * derived from the deterministic parser's own section list (which is always in
- * document order).
+ * The fix (documentQuizReconcile.js#reconcileSmartSectionOrder) matches each
+ * smart section to the parser section it represents *by content* and orders the
+ * result strictly by that section's document index.
  *
- * This test:
- *   1. Drives `processImportedQuestionBlocks` with a minimal fixture that
- *      reproduces the document structure (unnamed-part questions first, then a
- *      named part, then passages under unnamed part).
- *   2. Verifies the parser emits sections in the correct document order.
- *   3. Simulates the smart-import merge step — the part that the sort bug lived
- *      in — and confirms the resulting section list is still in document order
- *      after sorting.
+ * IMPORTANT: this test exercises the REAL exported reconcileSmartSectionOrder
+ * function — not a re-implemented copy of it — so it actually guards the code
+ * path the importer runs. It feeds the function deliberately SHUFFLED smart
+ * sections (the real failure mode) and asserts the output is back in document
+ * order.
  */
 
 import assert from 'node:assert/strict'
 import { processImportedQuestionBlocks } from '../src/components/quiz/documentQuizParserCore.js'
-import { createStandaloneSection, createPassageSection } from '../src/utils/quizSections.js'
+import { reconcileSmartSectionOrder } from '../src/components/quiz/documentQuizReconcile.js'
 
 // ─── helpers matching the parser test conventions ─────────────────────────
 
@@ -58,17 +57,15 @@ function numberOnlyStemQuestion(number, options, answerLetter) {
   ]
 }
 
-// A minimal fixture matching the G7 English 2023 paper structure:
+// A minimal fixture matching the real G7 English 2023 paper structure:
 //   Q1–Q25   — no named part (unnamed/default part)
-//   Q26–Q30  — "Questions 26 – 30" range heading (not a SECTION/PART, so also unnamed part)
+//   Q26–Q30  — "Questions 26 – 30" range heading (not a SECTION/PART → unnamed)
 //   Q31–Q38  — "Part 4: Questions 31 – 38" (the ONLY named part)
-//   Q39–Q45  — paragraph-ordering, still under "Part 4" heading in the doc
+//   Q39–Q45  — "Questions 39 – 45" (unnamed)
 //   Q46–Q60  — Reading Comprehension passages (unnamed part)
-//
-// We use a compressed version: Q1, Q2, Q25, Q26, Q30, Q31, Q38, Q39, Q45,
-// then comprehension (Q46–Q50 in one story, Q51–Q55 in another).
+// Compressed: Q1, Q2, Q25, Q26, Q30, Q31, Q38, Q39, Q45, then two stories.
 function makeG7EnglishFixture() {
-  const blocks = [
+  return [
     block('Grade 7 English — 2023'),
     block('Each question contains a sentence from which a word or group of words is missing. Choose the word or group of words that makes the sentence right.'),
     ...mcqBlock(1, 'Zacheaus climbed a tree to see Jesus … he was short.', ['and', 'because', 'but', 'yet'], 'B'),
@@ -90,7 +87,8 @@ function makeG7EnglishFixture() {
       '"Aha! There comes our teacher," said Patra.',
     ], 'A'),
 
-    // "Part 4" is the ONLY named SECTION/PART heading in this document.
+    // "Part 4" is the ONLY named SECTION/PART heading in this document, and it
+    // is NOT the first part — the bug that jumbled Q31+ to the front.
     block('Part 4: Questions 31 – 38'),
     block('Choose the answer that gives the right meaning of the underlined word or group of words.'),
     ...mcqBlock(31, 'Mary managed to attend the interview despite being late. The correct rephrasing is that Mary …', ['attended the interview.', 'did not attend the interview.', 'missed the interview.', 'was not late for the interview.'], 'A'),
@@ -123,196 +121,238 @@ function makeG7EnglishFixture() {
     ...mcqBlock(51, 'The word hatchlings means young animals that have recently emerged from the …', ['womb.', 'water.', 'leaves.', 'eggs.'], 'D'),
     ...mcqBlock(55, 'The prefix semi in the word semiaquatic means …', ['full.', 'large.', 'quick.', 'half.'], 'D'),
   ]
+}
 
-  return blocks
+// Deterministic shuffle (seeded) so the test is reproducible across runs.
+function seededShuffle(arr, seed) {
+  const a = arr.slice()
+  let s = seed
+  const rand = () => {
+    s = (s * 1103515245 + 12345) & 0x7fffffff
+    return s / 0x7fffffff
+  }
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+// Turn the parser's local sections into the shape smart import returns
+// (smartSectionsToLocal output): kind + question / passage. Crucially we DROP
+// sourceQuestionNumber so the test proves ordering is recovered from CONTENT,
+// not from any surviving number metadata. `rewrite` lets us simulate the AI
+// lightly rephrasing a stem (appended whitespace/words) to confirm fuzzy match.
+function toSmartSection(localSection, rewrite = s => s) {
+  if (localSection.kind === 'passage') {
+    return {
+      kind: 'passage',
+      passage: {
+        title: localSection.passage?.title ?? '',
+        instructions: localSection.passage?.instructions ?? '',
+        passageText: localSection.passage?.passageText ?? '',
+        questions: (localSection.passage?.questions || []).map(q => ({
+          text: rewrite(q.text),
+          options: q.options,
+          correctAnswer: q.correctAnswer,
+          type: q.type,
+        })),
+      },
+    }
+  }
+  return {
+    kind: 'standalone',
+    question: {
+      text: rewrite(localSection.question?.text ?? ''),
+      options: localSection.question?.options ?? [],
+      correctAnswer: localSection.question?.correctAnswer ?? 0,
+      type: localSection.question?.type ?? 'mcq',
+    },
+  }
+}
+
+// Document-order list of "first question number" per section, used to assert
+// the reconciled output is in ascending document order.
+function expectedSectionNumbers(local) {
+  return local.sections.map(s =>
+    s.kind === 'passage'
+      ? Number(s.passage?.questions?.[0]?.sourceQuestionNumber)
+      : Number(s.question?.sourceQuestionNumber),
+  )
+}
+
+// Map a reconciled (smart-shaped) section back to its document number by
+// content-matching against the local sections. Mirrors how a human would
+// verify "is this the right question in the right slot".
+function numberForReconciledSection(section, local) {
+  const norm = t => String(t || '').replace(/<[^>]+>/g, ' ').replace(/[^a-z0-9 ]+/gi, ' ').replace(/\s+/g, ' ').trim().toLowerCase()
+  // Match on stem + options (options disambiguate identical-stem number-only
+  // questions) — the same basis reconcileSmartSectionOrder uses.
+  const qSig = q => `${norm(q?.text)} ${(q?.options || []).map(o => norm(typeof o === 'string' ? o : o?.text)).join(' ')}`.trim()
+  const sigOf = s => s.kind === 'passage'
+    ? `${norm(s.passage?.title)} ${qSig(s.passage?.questions?.[0])}`.trim()
+    : qSig(s.question)
+  const numOf = s => s.kind === 'passage'
+    ? Number(s.passage?.questions?.[0]?.sourceQuestionNumber)
+    : Number(s.question?.sourceQuestionNumber)
+  const sig = sigOf(section)
+  let bestNum = null
+  let bestScore = 0
+  for (const ls of local.sections) {
+    const lsSig = sigOf(ls)
+    const ta = new Set(sig.split(' ').filter(Boolean))
+    const tb = new Set(lsSig.split(' ').filter(Boolean))
+    let inter = 0
+    for (const t of ta) if (tb.has(t)) inter += 1
+    const score = inter / (ta.size + tb.size - inter || 1)
+    if (score > bestScore) {
+      bestScore = score
+      bestNum = numOf(ls)
+    }
+  }
+  return bestNum
+}
+
+function assertAscending(nums, label) {
+  for (let i = 1; i < nums.length; i++) {
+    assert.ok(
+      nums[i] > nums[i - 1],
+      `${label}: Q${nums[i]} appears after Q${nums[i - 1]} — expected strictly ascending document order. Full order: ${nums.join(', ')}`,
+    )
+  }
 }
 
 // ─── Test 1: Parser output is in document order ───────────────────────────
 
 function runParserOrderTest() {
-  const blocks = makeG7EnglishFixture()
-  const warnings = []
-  const { sections, parts, summary } = processImportedQuestionBlocks(blocks, warnings)
+  const { sections, parts } = processImportedQuestionBlocks(makeG7EnglishFixture(), [])
 
-  // Verify parts structure
   const namedParts = parts.filter(p => String(p.title ?? '').trim())
   assert.equal(namedParts.length, 1, `expected 1 named part, got ${namedParts.length}`)
   assert.match(namedParts[0].title, /Part 4/i)
 
-  // Collect all questions in section order
   const allQs = sections.flatMap(s =>
-    s.kind === 'passage' ? (s.passage?.questions || []) : [s.question]
+    s.kind === 'passage' ? (s.passage?.questions || []) : [s.question],
   )
   const sourceNums = allQs.map(q => Number(q.sourceQuestionNumber)).filter(Boolean)
-
-  // The document order must be strictly increasing by question number:
-  // Q1, Q2, Q25, Q26, Q30, Q31, Q38, Q39, Q45, Q46, Q50, Q51, Q55
-  for (let i = 1; i < sourceNums.length; i++) {
-    assert.ok(
-      sourceNums[i] > sourceNums[i - 1],
-      `Parser emitted Q${sourceNums[i]} after Q${sourceNums[i - 1]} — expected strictly ascending order`,
-    )
-  }
-
+  assertAscending(sourceNums, 'parser')
   assert.equal(sourceNums[0], 1, 'first question must be Q1')
   assert.equal(sourceNums[sourceNums.length - 1], 55, 'last question must be Q55')
 
   console.log('test-quiz-import-order: parser produces correct document order — PASSED')
-  return { sections, parts, namedParts, summary }
 }
 
-// ─── Test 2: The smart-import section sort uses document order ────────────
-//
-// This test directly exercises the sort logic that was broken. We:
-//   1. Run the parser to get `local` (sections + parts in document order).
-//   2. Simulate smart-import returning sections in a reordered list (comprehension
-//      sections first, then standalones — the documented AI behaviour).
-//   3. Apply the fixed sort logic and verify the result is document order.
+// ─── Test 2: reconcile recovers document order from SHUFFLED AI output ─────
 
-function runSmartImportSortTest() {
-  // Re-run the parser to get local sections (document order).
-  const blocks = makeG7EnglishFixture()
-  const warnings = []
-  const local = processImportedQuestionBlocks(blocks, warnings)
+function runShuffledSmartImportTest() {
+  const local = processImportedQuestionBlocks(makeG7EnglishFixture(), [])
 
-  const localParts = local.parts || []
-  const namedLocalParts = localParts.filter(p => String(p.title ?? '').trim())
-  const unnamedPartIds = new Set(
-    localParts.filter(p => !String(p.title ?? '').trim()).map(p => p.id)
-  )
-
-  // We only exercise this path when there are named parts (the failing scenario).
-  assert.ok(namedLocalParts.length > 0, 'fixture must have at least one named part')
-
-  // Simulate the AI returning sections out of order: passages (comprehension)
-  // first, then standalones. This is the case described in the code comments.
-  const localStandalones = local.sections.filter(s => s.kind === 'standalone')
-  const localPassages = local.sections.filter(s => s.kind === 'passage')
-
-  // Build simulated smart sections in the order the AI might return them.
-  // Use the actual local section data but reorder: passages first, then standalones.
+  // Simulate the AI returning every section SHUFFLED, with the comprehension
+  // passages pulled to the front (a documented AI habit) and a couple of stems
+  // lightly rephrased — the real-world failure mode.
+  const passages = local.sections.filter(s => s.kind === 'passage')
+  const standalones = local.sections.filter(s => s.kind === 'standalone')
+  const lightRewrite = t => `${t} ` // trailing space: a no-op rephrase
   const smartSections = [
-    ...localPassages.map(ps => ({
-      kind: 'passage',
-      title: ps.passage?.title ?? '',
-      instructions: ps.passage?.instructions ?? '',
-      passageText: ps.passage?.passageText ?? '',
-      questions: (ps.passage?.questions || []).map(q => ({
-        text: q.text,
-        options: q.options,
-        correctAnswer: q.correctAnswer,
-        explanation: q.explanation,
-        type: q.type,
-      })),
-    })),
-    ...localStandalones.map(ss => ({
-      kind: 'standalone',
-      question: {
-        text: ss.question?.text ?? '',
-        options: ss.question?.options ?? [],
-        correctAnswer: ss.question?.correctAnswer ?? 0,
-        explanation: ss.question?.explanation ?? '',
-        type: ss.question?.type ?? 'mcq',
-        sourceQuestionNumber: ss.question?.sourceQuestionNumber ?? null,
-      },
-    })),
+    ...passages.map(s => toSmartSection(s)),
+    ...seededShuffle(standalones, 1337).map(s => toSmartSection(s, lightRewrite)),
   ]
 
-  // Now apply the same logic as the fixed importQuizDocument code.
-  const localSectionOrderMap = new Map(local.sections.map((s, i) => [s.id, i]))
-  let siStandalone = 0
-  let siPassage = 0
+  // Sanity: the AI input order is NOT document order (so the test is meaningful).
+  const inputNums = smartSections.map(s => numberForReconciledSection(s, local))
+  const isAscendingInput = inputNums.every((n, i) => i === 0 || n > inputNums[i - 1])
+  assert.ok(!isAscendingInput, 'precondition: shuffled smart input must NOT already be in order')
 
-  const withPartIds = smartSections.map(s => {
-    if (s.kind === 'passage') {
-      const localSection = siPassage < localPassages.length ? localPassages[siPassage] : null
-      const rawPartId = localSection?.partId ?? null
-      siPassage++
-      const partId = unnamedPartIds.has(rawPartId) ? null : rawPartId
-      return {
-        ...s, partId,
-        _localSectionId: localSection?.id ?? null,
-        passage: {
-          ...s,
-          questions: (s.questions || []).map(q => ({ ...q, partId })),
-        },
-      }
-    }
-    if (s.kind === 'standalone') {
-      const localSection = siStandalone < localStandalones.length ? localStandalones[siStandalone] : null
-      const rawPartId = localSection?.question?.partId ?? null
-      siStandalone++
-      const partId = unnamedPartIds.has(rawPartId) ? null : rawPartId
-      return {
-        ...s,
-        question: { ...s.question, partId },
-        _localSectionId: localSection?.id ?? null,
-      }
-    }
-    return s
-  })
+  const { sections, parts } = reconcileSmartSectionOrder(local, smartSections)
 
-  // Fixed sort: by local section order index.
-  const sorted = withPartIds.slice().sort(
-    (a, b) =>
-      (localSectionOrderMap.get(a._localSectionId) ?? localSectionOrderMap.size)
-    - (localSectionOrderMap.get(b._localSectionId) ?? localSectionOrderMap.size)
+  // No questions lost or duplicated.
+  assert.equal(sections.length, local.sections.length, 'section count must be preserved')
+
+  // The reconciled output must be in ascending document order.
+  const outNums = sections.map(s => numberForReconciledSection(s, local))
+  assertAscending(outNums, 'reconciled')
+  assert.equal(outNums[0], 1, 'first reconciled section must be Q1, not a comprehension passage or Part 4')
+
+  // Part structure preserved (the one named part).
+  assert.equal(parts.length, 1, 'reconcile must return the single named part')
+  assert.match(parts[0].title, /Part 4/i)
+
+  console.log('test-quiz-import-order: reconcile recovers document order from shuffled AI output — PASSED')
+}
+
+// ─── Test 3: reconcile works when there are NO named parts ────────────────
+// This is the path the old code handled with `sections = smart.sections`
+// (raw AI order, no reordering at all) — a silent jumbling vector.
+
+function runNoNamedPartsTest() {
+  const blocks = [
+    block('Answer ALL questions.'),
+    ...mcqBlock(1, 'The cat sat on the …', ['mat', 'hat', 'bat', 'rat'], 'A'),
+    ...mcqBlock(2, 'Birds can … in the sky.', ['swim', 'fly', 'dig', 'run'], 'B'),
+    ...mcqBlock(3, 'Water is made of hydrogen and …', ['carbon', 'oxygen', 'nitrogen', 'helium'], 'B'),
+    block('Reading Comprehension'),
+    block('Story 1'),
+    block('The sun is a star at the centre of our solar system. It gives us light and heat every day.'),
+    ...mcqBlock(4, 'The sun is at the centre of our …', ['galaxy', 'solar system', 'planet', 'moon'], 'B'),
+    ...mcqBlock(5, 'The sun gives us light and …', ['rain', 'wind', 'heat', 'snow'], 'C'),
+  ]
+  const local = processImportedQuestionBlocks(blocks, [])
+  assert.equal(
+    local.parts.filter(p => String(p.title ?? '').trim()).length,
+    0,
+    'this fixture must have NO named parts',
   )
 
-  // Verify that the sorted order matches the local (document) order.
-  // Standalones should precede passages, exactly matching local.sections order.
-  const sortedIds = sorted.map(s => s._localSectionId)
-  const expectedIds = local.sections.map(s => s.id)
-  assert.deepEqual(
-    sortedIds,
-    expectedIds,
-    'after sort, smart sections must be in the same order as local (document-order) sections',
-  )
+  // AI returns them badly out of order: passage first, then Q3, Q1, Q2.
+  const passages = local.sections.filter(s => s.kind === 'passage').map(s => toSmartSection(s))
+  const standalones = local.sections.filter(s => s.kind === 'standalone').map(s => toSmartSection(s))
+  const smartSections = [passages[0], standalones[2], standalones[0], standalones[1]]
 
-  // Verify the OLD (broken) sort would have produced a different order.
-  // The old sort used namedLocalParts index as sort key with fallback = namedLocalParts.length.
-  const partOrderMap = new Map(namedLocalParts.map((p, i) => [p.id, i]))
-  const getPartId = s => s.kind === 'passage' ? s.partId : s.question?.partId
-  const brokenSorted = withPartIds.slice().sort(
-    (a, b) => (partOrderMap.get(getPartId(a)) ?? partOrderMap.size)
-           - (partOrderMap.get(getPartId(b)) ?? partOrderMap.size)
-  )
-  const brokenIds = brokenSorted.map(s => s._localSectionId)
-  assert.notDeepEqual(
-    brokenIds,
-    expectedIds,
-    'the old (broken) sort must produce a different order — confirms the bug was real',
-  )
+  const { sections, parts } = reconcileSmartSectionOrder(local, smartSections)
+  const outNums = sections.map(s => numberForReconciledSection(s, local))
+  assertAscending(outNums, 'reconciled (no named parts)')
+  assert.deepEqual(parts, [], 'no named parts → parts must be empty')
 
-  // Verify the first section in the fixed order has a standalone from Q1
-  // (not a passage and not from Part 4).
-  assert.equal(sorted[0].kind, 'standalone', 'first section after sort must be standalone (Q1), not a passage')
+  console.log('test-quiz-import-order: reconcile fixes the no-named-parts (raw-AI-order) path — PASSED')
+}
 
-  // Verify Part 4 sections appear AFTER the unnamed-part standalones.
-  const part4Id = namedLocalParts[0].id
-  const part4Indices = sorted
-    .map((s, i) => ({ s, i }))
-    .filter(({ s }) => getPartId(s) === part4Id)
-    .map(({ i }) => i)
-  const unnamedStandaloneIndices = sorted
-    .map((s, i) => ({ s, i }))
-    .filter(({ s }) => s.kind === 'standalone' && getPartId(s) !== part4Id)
-    .map(({ i }) => i)
+// ─── Test 4: an AI-recovered extra question stays adjacent, order preserved ─
 
-  const lastUnnamedStandaloneIdx = Math.max(...unnamedStandaloneIndices)
-  const firstPart4Idx = Math.min(...part4Indices)
-  assert.ok(
-    firstPart4Idx > lastUnnamedStandaloneIdx,
-    `Part 4 sections (first at index ${firstPart4Idx}) must appear AFTER unnamed-part standalones (last at index ${lastUnnamedStandaloneIdx})`,
-  )
+function runAiExtraQuestionTest() {
+  const local = processImportedQuestionBlocks(makeG7EnglishFixture(), [])
+  const standalones = local.sections.filter(s => s.kind === 'standalone').map(s => toSmartSection(s))
+  const passages = local.sections.filter(s => s.kind === 'passage').map(s => toSmartSection(s))
 
-  console.log('test-quiz-import-order: smart-import sort preserves document order — PASSED')
-  console.log('test-quiz-import-order: old (broken) sort confirmed to produce wrong order — PASSED')
+  // AI splits Q1 into Q1 + a brand-new extra it "recovered" right after it.
+  const extra = {
+    kind: 'standalone',
+    question: { text: 'A completely new sub-question the AI recovered from vertical arithmetic.', options: ['1', '2', '3', '4'], correctAnswer: 0, type: 'mcq' },
+  }
+  const smartSections = [standalones[0], extra, ...standalones.slice(1), ...passages]
+
+  const { sections } = reconcileSmartSectionOrder(local, smartSections)
+
+  // The extra survives (no question dropped) and the matched questions are
+  // still in ascending document order ignoring the unmatched extra.
+  assert.equal(sections.length, smartSections.length, 'AI-recovered extra must not be dropped')
+  const matchedNums = sections
+    .map(s => ({ s, num: numberForReconciledSection(s, local) }))
+    .filter(({ s }) => !/completely new sub-question/.test(s.question?.text || ''))
+    .map(({ num }) => num)
+  assertAscending(matchedNums, 'reconciled (with AI extra)')
+
+  // The extra should sit right after Q1 (its AI predecessor), i.e. at index 1.
+  const extraIdx = sections.findIndex(s => /completely new sub-question/.test(s.question?.text || ''))
+  assert.equal(extraIdx, 1, `AI-recovered extra should stay adjacent to its predecessor (index 1), got ${extraIdx}`)
+
+  console.log('test-quiz-import-order: AI-recovered extra stays adjacent, order preserved — PASSED')
 }
 
 // ─── Run tests ────────────────────────────────────────────────────────────
 
 runParserOrderTest()
-runSmartImportSortTest()
+runShuffledSmartImportTest()
+runNoNamedPartsTest()
+runAiExtraQuestionTest()
 
 console.log('test-quiz-import-order: ALL PASSED')
