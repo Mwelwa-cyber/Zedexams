@@ -44,6 +44,19 @@ async function callGemini(apiKey, opts = {}) {
     const inline = await fetchImageAsInlineData(opts.imageUrl);
     if (inline) userParts.push({inline_data: inline});
   }
+  // Multi-image vision: the caller can pass already-decoded inline images
+  // (base64) directly — used by the scanned-quiz import pipeline, which
+  // rasterises PDF pages client-side and hands the bytes to the function
+  // rather than round-tripping through a signed URL. Each entry is
+  // {mimeType, data} where data is raw base64 (no data-URL prefix).
+  if (Array.isArray(opts.images)) {
+    for (const img of opts.images) {
+      if (!img || !img.data) continue;
+      let mimeType = String(img.mimeType || "image/jpeg").split(";")[0].trim();
+      if (!/^image\//i.test(mimeType)) mimeType = "image/jpeg";
+      userParts.push({inline_data: {mime_type: mimeType, data: String(img.data)}});
+    }
+  }
 
   const body = {
     contents: [{role: "user", parts: userParts}],

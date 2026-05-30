@@ -273,6 +273,9 @@ export default function EditQuizV2() {
   // questions plus an in-memory map of image blobs keyed by assetId;
   // we hold the blobs here and upload them when the editor saves.
   const [importingDocument, setImportingDocument] = useState(false)
+  // Progress for the scanned-PDF vision import: { phase: 'rendering'|'reading',
+  // current, total }. null at all other times.
+  const [importProgress, setImportProgress] = useState(null)
   const [importSummary, setImportSummary] = useState(null)
   const [importedAssets, setImportedAssets] = useState({})
   // Past-paper quizzes opened with no questions yet land on this
@@ -1174,8 +1177,12 @@ export default function EditQuizV2() {
     if (importingDocument) return
 
     setImportingDocument(true)
+    setImportProgress(null)
     try {
-      const imported = await importQuizDocument(file, importOptions)
+      const imported = await importQuizDocument(file, {
+        ...importOptions,
+        onProgress: setImportProgress,
+      })
 
       const hasExistingWork = !hasOnlyEmptyStarterSection(sections)
       const incomingSections = imported.sections?.length
@@ -1201,6 +1208,7 @@ export default function EditQuizV2() {
       show(`Import failed: ${getErrorMessage(error, 'Could not read this document.')}`, true)
     } finally {
       setImportingDocument(false)
+      setImportProgress(null)
     }
   }
 
@@ -1733,6 +1741,7 @@ export default function EditQuizV2() {
             <div className="border-t theme-border p-4">
               <ImportQuizPanel
                 importing={importingDocument}
+                importProgress={importProgress}
                 importSummary={importSummary}
                 onImport={handleImportDocument}
                 title={form.linkedPaperId ? 'Import past paper document' : 'Import Quiz (Word/PDF)'}
