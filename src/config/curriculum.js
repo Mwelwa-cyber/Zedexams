@@ -203,7 +203,20 @@ const SUBJECT_SLUG_TO_LABEL = (() => {
     map[s.id] = s.label
     map[s.id.toLowerCase()] = s.label
     map[s.label.toLowerCase()] = s.label
+    // Underscore variant of the slug too — the CBC knowledge base keys
+    // subjects with underscores ("expressive_arts", "social_studies")
+    // while the curriculum ids use hyphens ("expressive-arts"). Without
+    // this, a KB-keyed subject like "expressive_arts" would slip through
+    // normalizeSubject unchanged and never match the learner label
+    // "Expressive Art" (see BulkPublishQuizzesButton).
+    map[s.id.replace(/-/g, '_')] = s.label
   }
+  // Extra KB-specific aliases that don't follow the slug<->label rule.
+  // "integrated_science" / "integrated science" are how the KB and some
+  // teacher tools name what the curriculum calls id "science" / label
+  // "Integrated Science".
+  map['integrated_science'] = 'Integrated Science'
+  map['integrated science'] = 'Integrated Science'
   return map
 })()
 

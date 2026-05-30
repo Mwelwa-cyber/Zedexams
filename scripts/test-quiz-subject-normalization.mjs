@@ -13,7 +13,7 @@
  */
 import assert from 'node:assert/strict'
 import { normalizeSubject, SUBJECT_LABELS } from '../src/config/curriculum.js'
-import { quizWriteSchema } from '../src/schemas/quiz.js'
+import { quizWriteSchema, quizUpdateSchema } from '../src/schemas/quiz.js'
 
 let passed = 0
 function check(name, fn) {
@@ -75,6 +75,29 @@ check('null / undefined are passed through', () => {
   assert.equal(normalizeSubject(undefined), undefined)
 })
 
+// ── KB-style underscore keys (BulkPublish subjectForLearnerCollection) ──
+// The CBC knowledge base keys subjects with underscores; the learner filter
+// matches on the canonical display label. These must resolve, or bulk-published
+// quizzes never appear under the right subject (the 'expressive_arts' ->
+// 'Expressive Arts' [plural] mis-map this batch fixes).
+check('KB underscore key "expressive_arts" -> "Expressive Art" (singular)', () => {
+  assert.equal(normalizeSubject('expressive_arts'), 'Expressive Art')
+})
+
+check('hyphen slug "expressive-arts" -> "Expressive Art" (singular)', () => {
+  assert.equal(normalizeSubject('expressive-arts'), 'Expressive Art')
+})
+
+check('KB underscore key "social_studies" -> "Social Studies"', () => {
+  assert.equal(normalizeSubject('social_studies'), 'Social Studies')
+})
+
+check('KB aliases "integrated_science" / "science" -> "Integrated Science"', () => {
+  assert.equal(normalizeSubject('integrated_science'), 'Integrated Science')
+  assert.equal(normalizeSubject('integrated science'), 'Integrated Science')
+  assert.equal(normalizeSubject('science'), 'Integrated Science')
+})
+
 check('every label round-trips, and its lowercase resolves', () => {
   for (const label of SUBJECT_LABELS) {
     assert.equal(normalizeSubject(label), label, `label ${label} should be stable`)
@@ -106,6 +129,55 @@ check('valid display subject passes unchanged through schema', () => {
 check('empty subject still fails (min length enforced)', () => {
   const parsed = quizWriteSchema.safeParse(baseQuiz({ subject: '' }))
   assert.ok(!parsed.success, 'empty subject must be rejected')
+})
+
+// ── duration field validation (P2b) ───────────────────────────────
+console.log('\nquizWriteSchema (duration validation)')
+
+check('valid in-range duration passes on create', () => {
+  const parsed = quizWriteSchema.safeParse(baseQuiz({ duration: 60 }))
+  assert.ok(parsed.success, JSON.stringify(parsed.error?.issues))
+  assert.equal(parsed.data.duration, 60)
+})
+
+check('out-of-range duration hard-fails on CREATE with a named error', () => {
+  const parsed = quizWriteSchema.safeParse(baseQuiz({ duration: 200 }))
+  assert.ok(!parsed.success, 'duration > 180 must be rejected on create')
+  const issue = parsed.error.issues.find((i) => i.path.includes('duration'))
+  assert.ok(issue, 'the failing issue should name the duration field')
+})
+
+check('UPDATE path clamps a legacy out-of-range duration instead of failing', () => {
+  // EditQuizV2 keeps a legacy/custom saved duration selectable and re-saves it
+  // on unrelated edits; a hard-fail here would block editing the quiz. The
+  // update schema clamps into 5..180 (and below the Firestore rule cap).
+  const high = quizUpdateSchema.safeParse({ duration: 200 })
+  assert.ok(high.success, JSON.stringify(high.error?.issues))
+  assert.equal(high.data.duration, 180)
+
+  const low = quizUpdateSchema.safeParse({ duration: 2 })
+  assert.ok(low.success, JSON.stringify(low.error?.issues))
+  assert.equal(low.data.duration, 5)
+
+  const ok = quizUpdateSchema.safeParse({ duration: 45 })
+  assert.ok(ok.success, JSON.stringify(ok.error?.issues))
+  assert.equal(ok.data.duration, 45)
+})
+
+check('UPDATE path preserves unknown passthrough fields (reviewCount, mode)', () => {
+  // updateQuizWithQuestions relies on .passthrough() so the autosave path
+  // validates known fields without dropping ad-hoc ones.
+  const parsed = quizUpdateSchema.safeParse({
+    subject: 'mathematics',
+    reviewCount: 3,
+    mode: 'autosave',
+    importStatus: 'done',
+  })
+  assert.ok(parsed.success, JSON.stringify(parsed.error?.issues))
+  assert.equal(parsed.data.subject, 'Mathematics', 'subject still normalized on update')
+  assert.equal(parsed.data.reviewCount, 3)
+  assert.equal(parsed.data.mode, 'autosave')
+  assert.equal(parsed.data.importStatus, 'done')
 })
 
 console.log(`\n${passed} checks passed`)

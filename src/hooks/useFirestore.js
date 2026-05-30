@@ -335,9 +335,19 @@ export function useFirestore() {
     } catch (e) { console.error('getAssessmentById:', e); return null }
   }
 
+  // Assessments have no Zod schema yet, so subject parity with quizzes/lessons
+  // is enforced with a lightweight normalize: repair a stray curriculum slug
+  // ("mathematics") to its display label ("Mathematics") on the way in.
+  function withNormalizedAssessmentSubject(data) {
+    if (data && typeof data === 'object' && 'subject' in data) {
+      return { ...data, subject: normalizeSubject(data.subject) }
+    }
+    return data
+  }
+
   async function createAssessment(data) {
     const ref = await addDoc(collection(db, 'assessments'), {
-      ...data,
+      ...withNormalizedAssessmentSubject(data),
       createdAt: serverTimestamp(),
     })
     return ref.id
@@ -345,7 +355,7 @@ export function useFirestore() {
 
   async function updateAssessment(assessmentId, data) {
     await updateDoc(doc(db, 'assessments', assessmentId), {
-      ...data,
+      ...withNormalizedAssessmentSubject(data),
       updatedAt: serverTimestamp(),
     })
   }
@@ -398,7 +408,7 @@ export function useFirestore() {
     const totalMarks = questions.reduce((s, q) => s + (q.marks || 1), 0)
 
     await updateDoc(doc(db, 'assessments', assessmentId), {
-      ...assessmentData,
+      ...withNormalizedAssessmentSubject(assessmentData),
       questionCount: questions.length,
       totalMarks,
       updatedAt: serverTimestamp(),
@@ -1074,11 +1084,25 @@ export function useFirestore() {
   async function updateQuizWithQuestions(quizId, quizData, questions, deletedIds = []) {
     const totalMarks = questions.reduce((s, q) => s + (q.marks || 1), 0)
 
-    // 1. Update quiz doc
-    await updateDoc(doc(db, 'quizzes', quizId), {
+    // 1. Update quiz doc — validate the metadata the same way updateQuiz does.
+    //    This is the HOT autosave path, so a raw write here used to bypass the
+    //    schema entirely: a stray subject slug or out-of-range field would
+    //    either land verbatim in Firestore or fail later with an opaque
+    //    permission error. quizUpdateSchema is .partial() + .passthrough(), so
+    //    it coerces subject via normalizeSubject and validates known fields
+    //    while preserving ad-hoc ones (reviewCount, mode, importStatus, …).
+    const parsed = quizUpdateSchema.safeParse({
       ...quizData,
       questionCount: questions.length,
       totalMarks,
+    })
+    if (!parsed.success) {
+      const first = parsed.error.issues?.[0]
+      const path = first?.path?.join('.') || '(root)'
+      throw new Error(`Invalid quiz update at "${path}": ${first?.message || 'schema violation'}`)
+    }
+    await updateDoc(doc(db, 'quizzes', quizId), {
+      ...parsed.data,
       updatedAt: serverTimestamp(),
     })
 

@@ -19,6 +19,7 @@ import {
 import {
   TEACHER_GRADES, TEACHER_SUBJECTS,
 } from '../../utils/teacherTools'
+import { normalizeSubject } from '../../config/curriculum.js'
 
 // ── Visual constants (mirrors src/components/teacher/SyllabiLibrary.jsx) ──
 // Subject metadata — long syllabi names get a short label, icon and the
@@ -755,7 +756,11 @@ function CustomTopicModal({ topic, onCancel, onSave }) {
   const editing = !!topic
   const [form, setForm] = useState(() => ({
     grade: topic?.grade || 'G10',
-    subject: topic?.subject || 'biology',
+    // 'biology' is not a CBC subject, so a topic missing a subject used to
+    // yield an unreachable quiz (no learner filter matches it). Default to a
+    // real CBC subject and normalize so it resolves to a valid learner label
+    // ('Integrated Science') end-to-end through subjectForLearnerCollection.
+    subject: normalizeSubject(topic?.subject || 'science'),
     topic: topic?.topic || '',
     subtopics: arrFromTopic(topic, 'subtopics', subtopicName),
     specificOutcomes: arrFromTopic(topic, 'specificOutcomes'),
