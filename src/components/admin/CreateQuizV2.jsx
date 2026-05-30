@@ -439,6 +439,50 @@ export default function CreateQuizV2() {
     setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 50)
   }
 
+  // Escape hatch for "I refreshed and a draft I didn't want got restored":
+  // wipe the editor back to a blank slate AND drop the auto-saved draft.
+  // Clearing React state alone is not enough — the debounced auto-save would
+  // just rewrite the draft on the next keystroke — so we also remove the
+  // localStorage draft via clearCreateQuizDraft. The reset state is the same
+  // empty starter the editor mounts with, so the post-clear auto-save bails
+  // out early (nothing worth saving) and the cleared draft stays cleared.
+  function clearAll() {
+    const hasWork = !hasOnlyEmptyStarterSection(sections) || form.title.trim()
+    if (
+      hasWork &&
+      !window.confirm(
+        'Clear everything and start over? This wipes the current questions, quiz details, and any auto-saved draft. This cannot be undone.',
+      )
+    ) {
+      return
+    }
+    revokeImportedQuizAssets(importedAssets)
+    setForm({
+      title: '',
+      subject: prefillSubject,
+      grade: prefillGrade,
+      term: '1',
+      duration: 30,
+      type: 'quiz',
+      topic: '',
+      isDemo: false,
+      mode: '',
+      importStatus: '',
+      sourceFileName: '',
+      sourceContentType: '',
+      importWarnings: [],
+    })
+    setSections([createStandaloneSection()])
+    setParts([])
+    setImportedAssets({})
+    setImportSummary(null)
+    setChecklistOpen(false)
+    checklistAutoOpenedRef.current = false
+    clearCreateQuizDraft(currentUser?.uid)
+    show('Cleared. Starting fresh.')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   function chooseCreationMode(mode) {
     setCreationMode(mode)
     const nextParams = new URLSearchParams(searchParams)
@@ -1315,13 +1359,23 @@ export default function CreateQuizV2() {
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="btn-secondary font-bold"
-        >
-          ← Back
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={clearAll}
+            className="rounded-xl border border-red-300 bg-red-50 px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-100"
+            title="Wipe the editor and delete any auto-saved draft"
+          >
+            🗑 Clear all
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="btn-secondary font-bold"
+          >
+            ← Back
+          </button>
+        </div>
       </div>
 
       {/* Dark brand hero */}
