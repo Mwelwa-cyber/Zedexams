@@ -389,6 +389,9 @@ export default function EditQuizV2() {
         type: quiz.type ?? 'quiz',
         topic: quiz.topic ?? '',
         isDemo: quiz.isDemo ?? false,
+        // When ON, the learner runner randomises question order at attempt
+        // time (within Parts/passages). Default OFF preserves document order.
+        shuffleQuestions: quiz.shuffleQuestions ?? false,
         mode: quiz.mode ?? '',
         importStatus: quiz.importStatus ?? '',
         sourceFileName: quiz.sourceFileName ?? '',
@@ -1153,13 +1156,13 @@ export default function EditQuizV2() {
         : `Document ${verb} into editable quiz sections.`)
   }
 
-  async function handleImportDocument(file) {
+  async function handleImportDocument(file, importOptions = {}) {
     if (!file) return
     if (importingDocument) return
 
     setImportingDocument(true)
     try {
-      const imported = await importQuizDocument(file)
+      const imported = await importQuizDocument(file, importOptions)
 
       const hasExistingWork = !hasOnlyEmptyStarterSection(sections)
       const incomingSections = imported.sections?.length
@@ -1308,10 +1311,20 @@ export default function EditQuizV2() {
     setAutoSaveState(AUTO_SAVE.SAVING)
     try {
       const serializedSections = await serializeWithImportedAssetUploads()
+      // Defense in depth: the quiz schema requires title.min(1). An imported
+      // doc whose detected title cleaned down to whitespace would otherwise
+      // throw "Invalid quiz update at title" and silently fail every autosave.
+      // Coerce an empty/whitespace title to a safe default derived from the
+      // source filename so autosave can never fail on title. (We intentionally
+      // do NOT relax the schema's min(1).)
+      const safeTitle = String(form.title || '').trim()
+        || String(form.sourceFileName || '').replace(/\.(docx?|pdf)$/i, '').trim()
+        || 'Untitled quiz'
       const idMap = await updateQuizWithQuestions(
         quizId,
         {
           ...form,
+          title: safeTitle,
           passages: serializedSections.passages,
           parts: serializedSections.parts,
           passageCount: serializedSections.passages.length,
@@ -1658,6 +1671,13 @@ export default function EditQuizV2() {
               <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${form.isDemo ? 'left-5' : 'left-0.5'}`} />
             </button>
             {form.isDemo && <span className="theme-accent-bg theme-accent-text rounded-full px-2 py-0.5 text-xs font-black">Demo</span>}
+          </label>
+          <label className="flex cursor-pointer select-none items-center gap-2" title="Randomise question order for each learner at attempt time (Parts and passages stay grouped)">
+            <span className="theme-text-muted text-xs font-black">Shuffle questions</span>
+            <button type="button" onClick={() => setF('shuffleQuestions', !form.shuffleQuestions)} className={`relative h-5 w-10 min-h-0 rounded-full p-0 shadow-none transition-colors ${form.shuffleQuestions ? 'theme-accent-fill' : 'theme-border theme-bg-subtle border'}`}>
+              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${form.shuffleQuestions ? 'left-5' : 'left-0.5'}`} />
+            </button>
+            {form.shuffleQuestions && <span className="theme-accent-bg theme-accent-text rounded-full px-2 py-0.5 text-xs font-black">On</span>}
           </label>
         </div>
       </div>

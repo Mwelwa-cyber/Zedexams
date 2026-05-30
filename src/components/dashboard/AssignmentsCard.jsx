@@ -98,9 +98,17 @@ export default function AssignmentsCard() {
         {assignments.map((a) => {
           const subjectMeta = SUBJECTS.find((s) => s.id === a.subject)
           const due = dueLabel(a.dueAt)
+          // Forward the assignment's shuffle preference to the runner, which
+          // honours ?shuffle=1. Two writers populate the assignments
+          // collection with different shapes: assignQuizToTargets stores
+          // shuffleQuestions top-level, the createClassAssignment Cloud
+          // Function nests it under settings — honour both. Harmless when the
+          // flag is absent (and for exams, which have their own runner).
+          const wantsShuffle = Boolean(a.shuffleQuestions ?? a.settings?.shuffleQuestions)
+          const shuffleSuffix = a.resourceType !== 'exam' && wantsShuffle ? '?shuffle=1' : ''
           const targetPath = a.resourceType === 'exam'
             ? `/exam/${a.resourceId}`
-            : `/quiz/${a.resourceId}`
+            : `/quiz/${a.resourceId}${shuffleSuffix}`
           return (
             <li key={a.id}>
               <Link

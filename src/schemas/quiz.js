@@ -149,6 +149,9 @@ export const quizWriteSchema = z
     // a legacy quiz whose stored duration is outside 5..180 never hard-fails.
     duration: z.number().int().min(5).max(180).optional(),
     isDemo: z.boolean().optional(),
+    // When true, the learner runner randomises question order at attempt time
+    // (within Parts/passages). Absent/false preserves document order.
+    shuffleQuestions: z.boolean().optional(),
   })
   .passthrough()
 

@@ -837,12 +837,12 @@ export default function AssessmentStudio() {
   }
 
   /* ------------ document import ------------ */
-  async function handleImportDocument(file) {
+  async function handleImportDocument(file, importOptions = {}) {
     const hasExistingWork = !hasOnlyEmptyStarterSection(sections)
     if (hasExistingWork && !window.confirm('Replace the current questions with questions extracted from this document?')) return
     setImportingDocument(true)
     try {
-      const imported = await importQuizDocument(file)
+      const imported = await importQuizDocument(file, importOptions)
       setImportedAssets(assetsById(imported.imageAssets))
       setForm(current => ({
         ...current,
@@ -1942,6 +1942,9 @@ function LogoAdjuster({ transform, onChange }) {
 function HeaderBlock({ form, setF, onUploadLogo, onRemoveLogo, importing, onImportDocument }) {
   const fileInputRef = useRef(null)
   const docInputRef = useRef(null)
+  // Import options — both default ON; threaded into the parser via onImportDocument.
+  const [preserveNumbering, setPreserveNumbering] = useState(true)
+  const [groupComprehension, setGroupComprehension] = useState(true)
 
   return (
     <div className="sv-block b-header">
@@ -2123,10 +2126,20 @@ function HeaderBlock({ form, setF, onUploadLogo, onRemoveLogo, importing, onImpo
           style={{ display: 'none' }}
           onChange={e => {
             const file = e.target.files?.[0]
-            if (file) onImportDocument(file)
+            if (file) onImportDocument(file, { preserveNumbering, groupComprehension })
             e.target.value = ''
           }}
         />
+        <div style={{ flexBasis: '100%', display: 'flex', gap: 'var(--sv-s3)', flexWrap: 'wrap', marginTop: 'var(--sv-s2)' }}>
+          <label style={{ fontSize: 12, color: 'var(--sv-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input type="checkbox" checked={preserveNumbering} disabled={importing} onChange={e => setPreserveNumbering(e.target.checked)} />
+            Preserve original numbering
+          </label>
+          <label style={{ fontSize: 12, color: 'var(--sv-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input type="checkbox" checked={groupComprehension} disabled={importing} onChange={e => setGroupComprehension(e.target.checked)} />
+            Group comprehension under passage
+          </label>
+        </div>
       </div>
     </div>
   )

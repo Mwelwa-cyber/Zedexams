@@ -6,6 +6,7 @@ import {
   processImportedQuestionBlocks,
 } from './documentQuizParserCore.js'
 import { buildDocxTableBlocks } from './documentQuizTableBlocks.js'
+import { reconcileSmartSectionOrder } from './documentQuizReconcile.js'
 import { consolidateOptionImageRuns } from './documentQuizParagraphRuns.js'
 import { importMarkupToRichHtml, importMarkupToOptionHtml } from './importRichText.js'
 import { structureImportedQuiz } from '../../utils/aiAssistant'
@@ -904,8 +905,19 @@ async function trySmartImport(extracted, file) {
   }
 }
 
-export async function importQuizDocument(file) {
+// Import options surfaced in the UI (ImportQuizPanel), both default ON:
+//   preserveNumbering  — keep each question's original number from the doc.
+//   groupComprehension — attach comprehension questions to their passage.
+// Defaults reproduce the correct G7 English behaviour.
+export const DEFAULT_IMPORT_OPTIONS = {
+  preserveNumbering: true,
+  groupComprehension: true,
+}
+
+export async function importQuizDocument(file, options = {}) {
   if (!file) throw new Error('Choose a Word or PDF file first.')
+
+  const importOptions = { ...DEFAULT_IMPORT_OPTIONS, ...options }
 
   const lowerName = file.name.toLowerCase()
   let extracted
@@ -923,7 +935,7 @@ export async function importQuizDocument(file) {
     throw new Error('Please upload a .doc, .docx, or .pdf file.')
   }
 
-  const local = processImportedQuestionBlocks(extracted.blocks, extracted.warnings)
+  const local = processImportedQuestionBlocks(extracted.blocks, extracted.warnings, importOptions)
   const metadata = buildImportMetadata(
     local.processedBlocks.map(block => block.text).join('\n'),
     file.name,
@@ -953,95 +965,17 @@ export async function importQuizDocument(file) {
       const localCount = local.summary?.questions || 0
       const smartCount = countSectionQuestions(smart.sections)
       if (smartCount > 0 && smartCount >= localCount) {
-        // Carry part structure from the deterministic parser into the smart
-        // sections so SECTION A / SECTION B groupings survive smart import.
-        // Build a question-index → partId map from local sections (in order),
-        // then stamp each smart section's questions with the matching partId.
-        const localParts = local.parts || []
-        // Only keep parts that have an actual title. The deterministic parser
-        // creates a blank-titled "default" part to carry the document-level
-        // instruction when no explicit section heading exists; keeping it
-        // would trigger the "Every Part needs a title" validation error.
-        const namedLocalParts = localParts.filter(p => String(p.title ?? '').trim())
-        const unnamedPartIds = new Set(
-          localParts.filter(p => !String(p.title ?? '').trim()).map(p => p.id)
-        )
-        if (namedLocalParts.length > 0) {
-          // Assign partIds by matching smart section types against local section
-          // types in order. Standalone smart sections map to local standalones in
-          // order; passage (comprehension) smart sections map to local passages in
-          // order. This is type-aware so a passage section returned first by the AI
-          // (common when the AI groups comprehension sections together) doesn't
-          // consume the standalone partIds, which would shift every other question
-          // into the wrong part.
-          const localStandalones = local.sections.filter(s => s.kind === 'standalone')
-          const localPassages = local.sections.filter(s => s.kind === 'passage')
-          // Build a map from each local section's id to its position in the full
-          // document-ordered local.sections array. This is the source of truth for
-          // what "document order" means — the deterministic parser always emits
-          // sections in document order regardless of part structure.
-          const localSectionOrderMap = new Map(local.sections.map((s, i) => [s.id, i]))
-          let siStandalone = 0
-          let siPassage = 0
-          const withPartIds = smart.sections.map(s => {
-            if (s.kind === 'passage') {
-              const localSection = siPassage < localPassages.length
-                ? localPassages[siPassage]
-                : null
-              const rawPartId = localSection?.partId ?? null
-              siPassage++
-              const partId = unnamedPartIds.has(rawPartId) ? null : rawPartId
-              return {
-                ...s, partId,
-                // Carry the local section id so the sort below can recover the
-                // exact document position for this smart section.
-                _localSectionId: localSection?.id ?? null,
-                passage: {
-                  ...s.passage,
-                  questions: (s.passage?.questions || []).map(q => ({ ...q, partId })),
-                },
-              }
-            }
-            if (s.kind === 'standalone') {
-              const localSection = siStandalone < localStandalones.length
-                ? localStandalones[siStandalone]
-                : null
-              const rawPartId = localSection?.question?.partId ?? null
-              siStandalone++
-              const partId = unnamedPartIds.has(rawPartId) ? null : rawPartId
-              return {
-                ...s,
-                question: { ...s.question, partId },
-                // Carry the local section id so the sort below can recover the
-                // exact document position for this smart section.
-                _localSectionId: localSection?.id ?? null,
-              }
-            }
-            return s
-          })
-          // Restore document order: sort by the section's position in the local
-          // (deterministic-parser) section list. This is robust because the local
-          // parser always emits sections in document order, and we have matched
-          // every smart section against the corresponding local section above.
-          //
-          // Previous approach sorted by part index within namedLocalParts only,
-          // which broke documents where the only named part (e.g. "Part 4") is not
-          // the first part: it received sort key 0 (the lowest), causing it to
-          // sort before all sections that belonged to unnamed parts (which got
-          // fallback key = namedLocalParts.length = 1). For a 60-question English
-          // paper where Q1–Q30 have no named part and Q31–Q45 are in "Part 4",
-          // this put Q31–Q45 first and Q1–Q30 after, matching the "question 45 at
-          // position 20" jumbling reported by teachers.
-          sections = withPartIds.slice().sort(
-            (a, b) =>
-              (localSectionOrderMap.get(a._localSectionId) ?? localSectionOrderMap.size)
-            - (localSectionOrderMap.get(b._localSectionId) ?? localSectionOrderMap.size)
-          )
-          parts = namedLocalParts
-        } else {
-          sections = smart.sections
-          parts = []
-        }
+        // Re-anchor the AI's sections to the deterministic parser's document
+        // order and carry the parser's part structure onto them. The smart
+        // import's value is recovering rich structure (fractions, vertical
+        // arithmetic, tables) — NOT deciding question order, which an LLM does
+        // NOT preserve reliably. reconcileSmartSectionOrder matches each smart
+        // section to the parser section it represents *by content* and orders
+        // the result by the parser's document position, so a shuffled, grouped,
+        // or split AI response can no longer jumble the questions.
+        const reconciled = reconcileSmartSectionOrder(local, smart.sections)
+        sections = reconciled.sections
+        parts = reconciled.parts
         questions = []
         summary = { ...local.summary, needsReview: 0, total: smart.sections.length, smartImportSections: smart.sections.length }
         smartApplied = true

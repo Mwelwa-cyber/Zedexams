@@ -42,17 +42,26 @@ export default function ImportQuizPanel({
   // (which is annoying after smart import quietly fell back).
   const lastFileRef = useRef(null)
 
+  // Import options — both default ON. They are passed to onImport(file, opts)
+  // and threaded down to the parser so they actually gate behaviour.
+  const [preserveNumbering, setPreserveNumbering] = useState(true)
+  const [groupComprehension, setGroupComprehension] = useState(true)
+
+  function currentOptions() {
+    return { preserveNumbering, groupComprehension }
+  }
+
   function handlePick(file) {
     if (!file) return
     lastFileRef.current = file
-    onImport(file)
+    onImport(file, currentOptions())
     setInputKey(current => current + 1)
   }
 
   function handleRetrySmartImport() {
     const file = lastFileRef.current
     if (!file || importing) return
-    onImport(file)
+    onImport(file, currentOptions())
   }
 
   // Smart-import fell back to the standard parser when smartApplied is
@@ -99,6 +108,29 @@ export default function ImportQuizPanel({
           <p className="theme-accent-text text-xs font-black uppercase tracking-wide">Needs review</p>
           <p className="theme-text mt-1 text-xs font-bold leading-relaxed">Unclear answers, diagrams, and imperfect extraction are marked before publishing.</p>
         </div>
+      </div>
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-6">
+        <label className="theme-text flex items-center gap-2 text-xs font-bold">
+          <input
+            type="checkbox"
+            checked={preserveNumbering}
+            disabled={importing}
+            onChange={event => setPreserveNumbering(event.target.checked)}
+            className="h-4 w-4"
+          />
+          Preserve original numbering
+        </label>
+        <label className="theme-text flex items-center gap-2 text-xs font-bold">
+          <input
+            type="checkbox"
+            checked={groupComprehension}
+            disabled={importing}
+            onChange={event => setGroupComprehension(event.target.checked)}
+            className="h-4 w-4"
+          />
+          Group comprehension questions under passage
+        </label>
       </div>
 
       {smartFellBack && (
@@ -154,6 +186,38 @@ export default function ImportQuizPanel({
                 <li key={`${warning}-${index}`} className="text-xs font-bold leading-relaxed">{warning}</li>
               ))}
             </ul>
+          ) : null}
+
+          {/* Import preview — detected parts (in order) and per-part counts,
+              plus a warning for any part that ended up with no questions.
+              Shown before the quiz is committed so the teacher can spot a
+              mis-detected section. */}
+          {Array.isArray(importSummary.partBreakdown) && importSummary.partBreakdown.length ? (
+            <div className="mt-3 border-t border-current/10 pt-2">
+              <p className="text-xs font-black uppercase tracking-wide">Detected structure</p>
+              <ul className="mt-1 space-y-0.5">
+                {importSummary.partBreakdown.map((part, index) => {
+                  const label = String(part.title || '').trim() || 'Unsectioned questions'
+                  const empty = String(part.title || '').trim() && part.questions === 0
+                  return (
+                    <li
+                      key={part.partId || `part-${index}`}
+                      className={`text-xs font-bold leading-relaxed ${empty ? 'text-red-700' : ''}`}
+                    >
+                      {label}: {part.questions} question{part.questions === 1 ? '' : 's'}
+                      {part.passages ? ` · ${part.passages} passage${part.passages === 1 ? '' : 's'}` : ''}
+                      {empty ? ' ⚠️ no questions detected' : ''}
+                    </li>
+                  )
+                })}
+              </ul>
+              {importSummary.zeroQuestionParts?.length ? (
+                <p className="mt-2 text-xs font-black text-red-700">
+                  ⚠️ {importSummary.zeroQuestionParts.length} part
+                  {importSummary.zeroQuestionParts.length === 1 ? '' : 's'} detected with no questions — review before saving.
+                </p>
+              ) : null}
+            </div>
           ) : null}
         </div>
       )}

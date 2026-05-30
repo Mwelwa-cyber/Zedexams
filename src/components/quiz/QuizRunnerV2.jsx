@@ -3,7 +3,7 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
 import { useSubscription } from '../../hooks/useSubscription'
-import { buildQuizDisplaySections } from '../../utils/quizSections.js'
+import { buildQuizDisplaySections, shuffleQuizSections } from '../../utils/quizSections.js'
 import UpgradeModal from '../subscription/UpgradeModal'
 import QuizTip from './QuizTip'
 import ZoomableImage from './ZoomableImage'
@@ -200,6 +200,11 @@ export default function QuizRunnerV2() {
   // Challenge Mode entry point: GradeHub passes ?difficulty=hard to surface
   // only the hardest questions for learners performing ≥ 80% in the subject.
   const difficultyFilter = (searchParams.get('difficulty') || '').toLowerCase()
+  // Shuffle escape hatch: an assigned quiz launched with ?shuffle=1 randomises
+  // question order. Derived at component scope (like difficultyFilter) so the
+  // load effect can depend on the stable string rather than the searchParams
+  // object.
+  const shuffleParam = (searchParams.get('shuffle') || '').toLowerCase()
   const { currentUser } = useAuth()
   const { getQuizById, getQuestions, saveResult } = useFirestore()
   const { canUseExamMode, canAccessFullContent } = useSubscription()
@@ -272,7 +277,19 @@ export default function QuizRunnerV2() {
 
         const built = buildQuizDisplaySections(activeQuestionDocs, quizDoc.passages || [])
         setQuiz(quizDoc)
-        setSections(built.sections)
+        // Shuffle ONLY when shuffle is explicitly enabled — either the quiz
+        // doc carries a truthy `shuffleQuestions` flag (set when an assignment
+        // requested shuffling) or the launch URL passes `?shuffle=1`. By
+        // default we preserve the document order the parser produced.
+        // shuffleQuizSections keeps Parts and passages intact (it only
+        // reorders within those boundaries), so the section structure stays
+        // correct while the questions a learner sees are randomised.
+        const shuffleEnabled = Boolean(quizDoc.shuffleQuestions)
+          || ['1', 'true', 'yes'].includes(shuffleParam)
+        const displaySections = shuffleEnabled
+          ? shuffleQuizSections(built.sections)
+          : built.sections
+        setSections(displaySections)
         setQuestions(built.questions)
 
         // Auto-resume any in-progress session saved in localStorage
@@ -301,7 +318,7 @@ export default function QuizRunnerV2() {
 
     load()
     return () => clearInterval(timerRef.current)
-  }, [quizId, getQuizById, getQuestions, canAccessFullContent, navigate, currentUser, difficultyFilter])
+  }, [quizId, getQuizById, getQuestions, canAccessFullContent, navigate, currentUser, difficultyFilter, shuffleParam])
 
   function handleStart(nextMode) {
     if (nextMode === 'exam' && !canUseExamMode) {

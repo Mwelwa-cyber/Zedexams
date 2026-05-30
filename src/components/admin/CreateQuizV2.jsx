@@ -182,6 +182,10 @@ function hasUploadingAssets(sections = []) {
 
 function ImportQuizPanel({ importing, importSummary, onImport }) {
   const [inputKey, setInputKey] = useState(0)
+  // Import options — both default ON. Passed to onImport(file, opts) and
+  // threaded into the parser so they actually gate behaviour.
+  const [preserveNumbering, setPreserveNumbering] = useState(true)
+  const [groupComprehension, setGroupComprehension] = useState(true)
 
   return (
     <div className="theme-accent-bg theme-border space-y-4 rounded-2xl border p-5">
@@ -202,10 +206,20 @@ function ImportQuizPanel({ importing, importSummary, onImport }) {
             disabled={importing}
             onChange={event => {
               const file = event.target.files?.[0]
-              if (file) onImport(file)
+              if (file) onImport(file, { preserveNumbering, groupComprehension })
               setInputKey(current => current + 1)
             }}
           />
+        </label>
+      </div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-6">
+        <label className="theme-text flex items-center gap-2 text-xs font-bold">
+          <input type="checkbox" checked={preserveNumbering} disabled={importing} onChange={event => setPreserveNumbering(event.target.checked)} className="h-4 w-4" />
+          Preserve original numbering
+        </label>
+        <label className="theme-text flex items-center gap-2 text-xs font-bold">
+          <input type="checkbox" checked={groupComprehension} disabled={importing} onChange={event => setGroupComprehension(event.target.checked)} className="h-4 w-4" />
+          Group comprehension questions under passage
         </label>
       </div>
       <div className="grid gap-3 md:grid-cols-3">
@@ -762,7 +776,7 @@ export default function CreateQuizV2() {
     }
   }
 
-  async function handleImportDocument(file) {
+  async function handleImportDocument(file, importOptions = {}) {
     const hasExistingWork = !hasOnlyEmptyStarterSection(sections)
     if (hasExistingWork && !window.confirm('Replace the current questions with questions extracted from this document?')) {
       return
@@ -770,7 +784,7 @@ export default function CreateQuizV2() {
 
     setImportingDocument(true)
     try {
-      const imported = await importQuizDocument(file)
+      const imported = await importQuizDocument(file, importOptions)
       setImportedAssets(assetsById(imported.imageAssets))
       setForm(current => ({
         ...current,
