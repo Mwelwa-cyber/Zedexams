@@ -389,6 +389,9 @@ export default function EditQuizV2() {
         type: quiz.type ?? 'quiz',
         topic: quiz.topic ?? '',
         isDemo: quiz.isDemo ?? false,
+        // When ON, the learner runner randomises question order at attempt
+        // time (within Parts/passages). Default OFF preserves document order.
+        shuffleQuestions: quiz.shuffleQuestions ?? false,
         mode: quiz.mode ?? '',
         importStatus: quiz.importStatus ?? '',
         sourceFileName: quiz.sourceFileName ?? '',
@@ -1668,6 +1671,13 @@ export default function EditQuizV2() {
               <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${form.isDemo ? 'left-5' : 'left-0.5'}`} />
             </button>
             {form.isDemo && <span className="theme-accent-bg theme-accent-text rounded-full px-2 py-0.5 text-xs font-black">Demo</span>}
+          </label>
+          <label className="flex cursor-pointer select-none items-center gap-2" title="Randomise question order for each learner at attempt time (Parts and passages stay grouped)">
+            <span className="theme-text-muted text-xs font-black">Shuffle questions</span>
+            <button type="button" onClick={() => setF('shuffleQuestions', !form.shuffleQuestions)} className={`relative h-5 w-10 min-h-0 rounded-full p-0 shadow-none transition-colors ${form.shuffleQuestions ? 'theme-accent-fill' : 'theme-border theme-bg-subtle border'}`}>
+              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${form.shuffleQuestions ? 'left-5' : 'left-0.5'}`} />
+            </button>
+            {form.shuffleQuestions && <span className="theme-accent-bg theme-accent-text rounded-full px-2 py-0.5 text-xs font-black">On</span>}
           </label>
         </div>
       </div>

@@ -98,9 +98,12 @@ export default function AssignmentsCard() {
         {assignments.map((a) => {
           const subjectMeta = SUBJECTS.find((s) => s.id === a.subject)
           const due = dueLabel(a.dueAt)
+          // Forward the assignment's shuffle preference to the runner, which
+          // honours ?shuffle=1. Harmless when the flag is absent (quizzes only).
+          const shuffleSuffix = a.resourceType !== 'exam' && a.shuffleQuestions ? '?shuffle=1' : ''
           const targetPath = a.resourceType === 'exam'
             ? `/exam/${a.resourceId}`
-            : `/quiz/${a.resourceId}`
+            : `/quiz/${a.resourceId}${shuffleSuffix}`
           return (
             <li key={a.id}>
               <Link
