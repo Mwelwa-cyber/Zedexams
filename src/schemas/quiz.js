@@ -141,6 +141,13 @@ export const quizWriteSchema = z
     isDailyExam: z.boolean().optional(),
     dailyExamDate: z.string().max(10).nullable().optional(),
     durationMinutes: z.number().int().min(1).max(600).optional(),
+    // The editor writes the active quiz length as `duration` (minutes); it
+    // previously rode through on `.passthrough()` unvalidated, so a bad value
+    // only blew up at the Firestore rule (duration int 5..180) with an opaque
+    // permission error. Validate it client-side instead, giving a named error
+    // on create. The update path relaxes this (see quizUpdateSchema) so editing
+    // a legacy quiz whose stored duration is outside 5..180 never hard-fails.
+    duration: z.number().int().min(5).max(180).optional(),
     isDemo: z.boolean().optional(),
   })
   .passthrough()
@@ -148,8 +155,24 @@ export const quizWriteSchema = z
 /**
  * Partial variant for updateDoc(). Every field is optional, but typed values
  * are still validated when present. Use for `updateQuiz(id, patch)`.
+ *
+ * `duration` is overridden to be lenient: EditQuizV2 deliberately keeps a
+ * legacy/custom saved duration selectable even when it falls outside the
+ * 5..180 dropdown range (durationOptions), and re-saves it verbatim on an
+ * unrelated edit. A strict bound here would block that edit with a confusing
+ * "Invalid quiz update at duration" error, so on the update path we clamp the
+ * value into 5..180 rather than reject it. A genuinely fresh out-of-range
+ * value still gets corrected before it can fail the Firestore rule.
  */
-export const quizUpdateSchema = quizWriteSchema.partial()
+export const quizUpdateSchema = quizWriteSchema.partial().extend({
+  duration: z.preprocess(
+    (v) => {
+      if (typeof v !== 'number' || !Number.isFinite(v)) return v
+      return Math.min(180, Math.max(5, Math.round(v)))
+    },
+    z.number().int().min(5).max(180).optional(),
+  ),
+})
 
 // ── Coerce helpers (read-side, never throw) ──────────────────────
 
