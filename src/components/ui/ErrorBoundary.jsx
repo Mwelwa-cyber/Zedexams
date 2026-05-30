@@ -1,24 +1,19 @@
 import { Component } from 'react'
 import { reportClientError } from '../../utils/clientErrorReporting'
+import { isChunkLoadError, recoverFromChunkError } from '../../utils/swRecovery'
 
 // After a Firebase Hosting release, the previous build's hashed JS chunks stop
 // resolving on zedexams.com. Any user mid-session who triggers a lazy import
 // then sees this boundary's recovery card. Detecting that specific failure and
-// hard-reloading once turns the bug into a silent refresh to the new build.
+// recovering once turns the bug into a silent refresh to the new build.
+//
+// A plain reload isn't enough: the PWA service worker precaches index.html and
+// keeps serving the stale shell that points at the dead chunk hashes, so the
+// reload loops straight back into the same failed import. recoverFromChunkError
+// evicts the SW shell (clears Cache Storage + unregisters the SW) BEFORE
+// reloading so the next navigation pulls the live index.html + new chunks.
 const RELOAD_FLAG = 'zedexams:chunk-reload-at'
 const RELOAD_COOLDOWN_MS = 30_000
-
-function isChunkLoadError(err) {
-  if (!err) return false
-  if (err.name === 'ChunkLoadError') return true
-  const msg = String(err.message || err)
-  return (
-    /Failed to fetch dynamically imported module/i.test(msg) ||
-    /error loading dynamically imported module/i.test(msg) ||
-    /Importing a module script failed/i.test(msg) ||
-    /Loading chunk .* failed/i.test(msg)
-  )
-}
 
 /**
  * ErrorBoundary — catches render-time exceptions anywhere in the React tree
@@ -71,10 +66,10 @@ export default class ErrorBoundary extends Component {
         const last = Number(sessionStorage.getItem(RELOAD_FLAG) || 0)
         if (Date.now() - last > RELOAD_COOLDOWN_MS) {
           sessionStorage.setItem(RELOAD_FLAG, String(Date.now()))
-          window.location.reload()
+          recoverFromChunkError()
         }
       } catch {
-        window.location.reload()
+        recoverFromChunkError()
       }
     }
   }
@@ -90,7 +85,13 @@ export default class ErrorBoundary extends Component {
   }
 
   handleReload = () => {
-    // Hard reload so any broken lazy chunk gets a fresh network fetch.
+    // If the boundary caught a stale-chunk failure, a plain reload would be
+    // re-served the same broken shell by the service worker — so evict the SW
+    // shell first, then reload. Otherwise a normal hard reload is enough.
+    if (isChunkLoadError(this.state.error)) {
+      recoverFromChunkError()
+      return
+    }
     window.location.reload()
   }
 
