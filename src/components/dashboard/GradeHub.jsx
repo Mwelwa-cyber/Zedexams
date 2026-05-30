@@ -248,13 +248,18 @@ function DashboardActionCard({
 // "X topics · Y quizzes" stats line, and a coloured progress bar fed by
 // per-subject performance. Topic count is free (in-memory curriculum);
 // quiz count is optional — passes through `quizCount` when known.
-function SubjectCardRich({ subject, grade, perf, quizCount, dimmed = false, locked = false, ctaHref, ctaLabel = 'Practise' }) {
+function SubjectCardRich({ subject, grade, perf, quizCount, demoCount = 0, dimmed = false, locked = false, ctaHref, ctaLabel = 'Practise' }) {
   const topicCount = getTopics(subject.id, grade).length
   const tone = SUBJECT_TONES[subject.id] || SUBJECT_TONES.mathematics
   const score = typeof perf === 'number' ? perf : 0
   // Drill-down course map — opens a dedicated page for the subject with
   // quizzes grouped by Topic (audit: SubjectDrillDown).
   const quizPath = ctaHref || `/practise/${grade}/${subject.id}`
+  // Quiz-count badges mirror the Quiz Library's subject tiles: a "N quizzes"
+  // pill (or "Coming soon" when the subject has none yet) plus a demo pill.
+  // quizCount is undefined until the count fetch resolves — keep the row out
+  // of the layout entirely so we don't flash "Coming soon" while loading.
+  const countsKnown = typeof quizCount === 'number'
 
   return (
     <div className={`zx-card theme-card rounded-2xl p-4 transition-all hover:shadow-md ${dimmed ? 'opacity-70' : ''}`}>
@@ -269,8 +274,23 @@ function SubjectCardRich({ subject, grade, perf, quizCount, dimmed = false, lock
           </div>
           <p className="theme-text-muted text-[11px] font-bold mt-0.5">
             {topicCount} Topic{topicCount === 1 ? '' : 's'}
-            {typeof quizCount === 'number' ? ` · ${quizCount} Quiz${quizCount === 1 ? '' : 'zes'}` : ''}
           </p>
+          {countsKnown && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${
+                quizCount === 0
+                  ? 'theme-bg-subtle theme-text-muted'
+                  : 'bg-slate-900 text-white'
+              }`}>
+                {quizCount === 0 ? 'Coming soon' : `${quizCount} Quiz${quizCount === 1 ? '' : 'zes'}`}
+              </span>
+              {demoCount > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-emerald-700">
+                  <Icon as={Sparkles} size="xs" strokeWidth={2.4} /> {demoCount} Demo
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -451,7 +471,7 @@ function NotificationPanel({ notifications, unreadCount, onClose }) {
 
 export default function GradeHub() {
   const { currentUser, userProfile, logout, isAdmin, isTeacher } = useAuth()
-  const { getUserResults, getWeaknessAnalysis } = useFirestore()
+  const { getUserResults, getWeaknessAnalysis, getQuizzes } = useFirestore()
   const { earned: earnedBadges, loading: badgesLoading } = useBadges(currentUser?.uid)
   const { dataSaver }                        = useDataSaver()
   const navigate                             = useNavigate()
@@ -488,6 +508,15 @@ export default function GradeHub() {
   // grade. `total` = subjects with an exam scheduled today; `done` = how
   // many of those have been submitted. Hidden when total === 0.
   const [dailyGoal, setDailyGoal] = useState({ done: 0, total: 0 })
+
+  // Per-grade published-quiz counts so the subject cards mirror the Quiz
+  // Library (/quizzes). Without this the hub only knew the static topic
+  // count and was blind to which subjects actually have quizzes — the
+  // library showed "16 quizzes / 1 demo" while the matching hub card showed
+  // nothing. Shape: { [grade]: { [subjectLabel]: { total, demo } } }. A grade
+  // key is present only once its fetch resolves, which lets the card tell
+  // "still loading" apart from "genuinely zero (coming soon)".
+  const [quizCounts, setQuizCounts] = useState({})
 
   useEffect(() => {
     if (!currentUser) {
@@ -638,7 +667,59 @@ export default function GradeHub() {
     if (activeTab === 'challenge' && !showChallenge) setActiveTab('myGrade')
   }, [activeTab, showChallenge])
 
+  // Load published practice-quiz counts for the grades the hub can show
+  // (the learner's own grade + the next-level preview grade). Reuses the
+  // very same getQuizzes() query the Quiz Library runs, so the per-subject
+  // tallies stay identical between the two surfaces. getQuizzes wants the
+  // grade as the wire string ('7'), matching how the library passes it.
+  useEffect(() => {
+    const grades = []
+    if (userGrade) grades.push(userGrade)
+    if (hasNextGrade && nextGrade) grades.push(nextGrade)
+    if (!grades.length) { setQuizCounts({}); return undefined }
+
+    let cancelled = false
+    Promise.all(
+      grades.map(g => getQuizzes({ grade: String(g) }).then(rows => [g, rows])),
+    ).then(pairs => {
+      if (cancelled) return
+      const out = {}
+      for (const [g, rows] of pairs) {
+        const bySubject = {}
+        for (const quiz of rows) {
+          // Match the library exactly: group by the quiz's subject wire value
+          // (the canonical label, e.g. "Integrated Science"). total counts
+          // every published practice quiz; demo is the subset flagged isDemo.
+          const key = quiz.subject
+          if (!key) continue
+          bySubject[key] ??= { total: 0, demo: 0 }
+          bySubject[key].total += 1
+          if (quiz.isDemo) bySubject[key].demo += 1
+        }
+        out[g] = bySubject
+      }
+      setQuizCounts(out)
+    }).catch(err => {
+      if (cancelled) return
+      console.error('GradeHub quiz counts:', err)
+      setQuizCounts({})
+    })
+    return () => { cancelled = true }
+  }, [userGrade, nextGrade, hasNextGrade, getQuizzes])
+
   const { accessBadge, isDemoOnly } = useSubscription()
+
+  // Resolve the Quiz-Library-style counts for one subject card. Returns
+  // quizCount=undefined while that grade is still loading so the card shows
+  // no badge (rather than a premature "Coming soon"); once loaded a subject
+  // with no quizzes resolves to 0 → "Coming soon", matching the library.
+  function subjectCounts(grade, subject) {
+    const gradeStats = quizCounts[grade]
+    if (!gradeStats) return { quizCount: undefined, demoCount: 0 }
+    const stat = gradeStats[subject.label]
+    return { quizCount: stat?.total ?? 0, demoCount: stat?.demo ?? 0 }
+  }
+
   const firstName = userProfile?.displayName?.split(' ')[0] ?? 'Learner'
   const latestResult = recentResults[0] || null
   const notifications = [
@@ -1149,6 +1230,7 @@ export default function GradeHub() {
                       subject={subject}
                       grade={userGrade}
                       perf={perfBySubject[subject.id]}
+                      {...subjectCounts(userGrade, subject)}
                     />
                   ))}
                 </div>
@@ -1188,6 +1270,7 @@ export default function GradeHub() {
                     perf={nextLevelUnlocked ? perfBySubject[subject.id] : 0}
                     dimmed={!nextLevelUnlocked}
                     locked={!nextLevelUnlocked}
+                    {...subjectCounts(nextGrade, subject)}
                   />
                 ))}
               </div>
@@ -1228,6 +1311,7 @@ export default function GradeHub() {
                     perf={perfBySubject[subject.id]}
                     ctaLabel="Start Challenge"
                     ctaHref={`/practise/${userGrade}/${subject.id}`}
+                    {...subjectCounts(userGrade, subject)}
                   />
                 ))}
               </div>
