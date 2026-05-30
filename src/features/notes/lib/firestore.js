@@ -14,7 +14,7 @@ import {
   serverTimestamp, onSnapshot,
 } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
-import { NOTE_STATUS, NOTE_FORMAT } from '../../../config/curriculum'
+import { NOTE_STATUS, NOTE_FORMAT, normalizeSubject } from '../../../config/curriculum'
 
 const NOTES = 'lessons'
 
@@ -105,7 +105,10 @@ export async function createNote(data) {
 
   const payload = {
     title:        String(data.title).trim(),
-    subject:      data.subject,
+    // Repair a stray curriculum slug ("mathematics") to its display label
+    // ("Mathematics"). The note editor only offers labels today, so this is
+    // defensive — it future-proofs against any importer that writes a slug.
+    subject:      normalizeSubject(data.subject),
     grade:        toGrade(data.grade),
     noteFormat,
     content:      noteFormat === NOTE_FORMAT.RICH_TEXT ? (data.content || '') : '',
@@ -144,6 +147,7 @@ export async function updateNote(id, patch) {
   }
 
   const safe = { ...patch, updatedAt: serverTimestamp() }
+  if ('subject' in safe) safe.subject = normalizeSubject(safe.subject)
   if ('grade' in safe) safe.grade = toGrade(safe.grade)
   if ('term'  in safe) safe.term  = toString(safe.term)
   if ('week'  in safe) safe.week  = toString(safe.week)

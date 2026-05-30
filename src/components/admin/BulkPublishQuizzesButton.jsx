@@ -30,6 +30,7 @@ import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
 import { generateAIQuizQuestions } from '../../utils/aiAssistant'
+import { normalizeSubject, SUBJECT_LABELS } from '../../config/curriculum.js'
 
 const MAX_BATCH = 10
 const QUESTIONS_PER_QUIZ = 5
@@ -50,11 +51,19 @@ function gradeForLearnerCollection(grade) {
 }
 
 function subjectForLearnerCollection(subject) {
-  // The KB stores subject as a lowercase key ('mathematics'); the
-  // learner-facing list expects the display label ('Mathematics').
-  // We do the simplest mapping here — title-case the first letter, swap
-  // underscores for spaces — so 'integrated_science' → 'Integrated Science'.
-  return String(subject || '')
+  // The KB stores subject as a lowercase key ('mathematics', 'expressive_arts',
+  // 'integrated_science'); the learner-facing list filters on the canonical
+  // display label ('Mathematics', 'Expressive Art', 'Integrated Science').
+  // Route the KB key through normalizeSubject — its SUBJECT_SLUG_TO_LABEL map
+  // covers the underscore variants and the integrated_science alias, so e.g.
+  // 'expressive_arts' resolves to 'Expressive Art' (singular) rather than the
+  // naive title-cased 'Expressive Arts' that would never match the filter.
+  const key = String(subject || '')
+  const normalized = normalizeSubject(key)
+  if (SUBJECT_LABELS.includes(normalized)) return normalized
+  // Unrecognised key: fall back to the old title-case heuristic so we never
+  // write an empty subject.
+  return key
     .replace(/_/g, ' ')
     .replace(/\b\w/g, (c) => c.toUpperCase())
 }

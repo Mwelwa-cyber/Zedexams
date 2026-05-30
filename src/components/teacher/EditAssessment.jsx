@@ -18,6 +18,7 @@ import { richTextHasContent } from '../../utils/quizRichText.js'
 import { clampInt } from '../../utils/inputs.js'
 import { getErrorMessage } from '../../utils/errors.js'
 import { validateStandaloneQuestion as sharedValidateStandaloneQuestion } from '../../utils/quizValidation.js'
+import { normalizeSubject } from '../../config/curriculum.js'
 import QuizSectionsEditor from '../quiz/QuizSectionsEditor'
 import QuizEditorPreviewPanel from '../quiz/QuizEditorPreviewPanel'
 import ImportReviewBanner from '../quiz/ImportReviewBanner'
@@ -210,7 +211,7 @@ export default function EditAssessment() {
 
       setForm({
         title: assessment.title ?? '',
-        subject: assessment.subject ?? 'Mathematics',
+        subject: normalizeSubject(assessment.subject ?? 'Mathematics'),
         grade: assessment.grade ?? '5',
         term: assessment.term ?? '1',
         duration: assessment.duration ?? 60,

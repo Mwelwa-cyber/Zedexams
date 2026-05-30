@@ -122,6 +122,13 @@ export async function saveScore({ game, score, accuracy, timeSpent, correct, wro
   const payload = {
     userId: user.uid,
     gameId: game.id,
+    // INTENTIONAL DIVERGENCE: game scores store grade as a Number and subject
+    // lowercased. This is self-consistent — every games read query writes and
+    // reads the same shape (and filters subject client-side). These fields are
+    // NOT the canonical quiz/lesson wire values (string grade + display-label
+    // subject via normalizeSubject). Do NOT cross-join scores with
+    // quizzes/lessons on `grade`/`subject`, and do NOT "normalize" them here —
+    // that would silently break the working leaderboard/score queries.
     grade: Number(game.grade),
     subject: String(game.subject || '').toLowerCase(),
     score: Number(score) || 0,
