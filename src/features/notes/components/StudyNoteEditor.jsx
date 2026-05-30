@@ -16,6 +16,7 @@ import {
   STUDY_BLOCK_LABELS, STUDY_BLOCK_TYPES, newStudyBlock, linesFrom,
 } from '../lib/studyBlocks'
 import { StudyNoteReader } from './StudyNoteReader'
+import { QuizPicker } from './QuizPicker'
 
 const inputCls    = 'w-full rounded-lg border border-neutral-200 px-2.5 py-1.5 text-sm text-neutral-900 focus:outline-none focus:border-[var(--accent)] focus:ring-2 focus:ring-[var(--accent)]/20'
 const textareaCls = inputCls + ' leading-relaxed resize-y'
@@ -80,7 +81,44 @@ function ImageBlockFields({ block, patch, ownerUid, assetBatchId }) {
   )
 }
 
-function BlockFields({ block, patch, ownerUid, assetBatchId }) {
+function QuizBlockFields({ block, patch, subject, grade }) {
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const linked = !!(block.quizId && String(block.quizId).trim())
+  return (
+    <div className="space-y-2">
+      {linked ? (
+        <div className="rounded-lg border border-neutral-200 bg-neutral-50 p-3">
+          <div className="flex items-start gap-2">
+            <span aria-hidden>🧪</span>
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-semibold text-neutral-900 truncate">{block.quizTitle || 'Linked quiz'}</div>
+              <div className="text-xs text-neutral-500 truncate">{block.questionCount ? `${block.questionCount} questions · ` : ''}id: {block.quizId}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-3 mt-2">
+            <button type="button" onClick={() => setPickerOpen(true)} className="text-xs px-2.5 py-1.5 rounded-md border border-neutral-200 hover:bg-white text-neutral-700">Change quiz</button>
+            <button type="button" onClick={() => patch({ quizId: '', quizTitle: '', questionCount: null })} className="text-xs text-red-600 hover:underline">Unlink</button>
+          </div>
+        </div>
+      ) : (
+        <div>
+          <button type="button" onClick={() => setPickerOpen(true)} className="text-sm px-3 py-2 rounded-lg border border-dashed border-neutral-300 hover:border-[var(--accent)] hover:text-[var(--accent)] text-neutral-700 inline-flex items-center gap-1.5">🧪 Link a practice quiz</button>
+          <p className="text-[11px] text-neutral-400 mt-1">Pick a published Grade {grade || '?'} {subject || ''} quiz — learners open it from the note.</p>
+        </div>
+      )}
+      <QuizPicker
+        open={pickerOpen}
+        grade={grade}
+        subject={subject}
+        currentQuizId={block.quizId}
+        onPick={(sel) => { patch(sel); setPickerOpen(false) }}
+        onClose={() => setPickerOpen(false)}
+      />
+    </div>
+  )
+}
+
+function BlockFields({ block, patch, ownerUid, assetBatchId, subject, grade }) {
   const t = block.type
 
   if (['objectives', 'bullets', 'numbers', 'summary'].includes(t)) {
@@ -204,26 +242,12 @@ function BlockFields({ block, patch, ownerUid, assetBatchId }) {
     )
   }
   if (t === 'quiz') {
-    // Phase 1: manual link. The grade/subject quiz picker arrives in the
-    // quiz-linking phase; these fields keep the block functional until then.
-    return (
-      <div className="space-y-2">
-        <Field label="Quiz ID" hint="Paste the id of a published quiz (from its /admin/quizzes/:id/edit URL). A grade-aware picker is coming.">
-          <input className={inputCls} value={block.quizId || ''} onChange={e => patch({ quizId: e.target.value.trim() })} />
-        </Field>
-        <Field label="Quiz title (shown on the card)">
-          <input className={inputCls} value={block.quizTitle || ''} onChange={e => patch({ quizTitle: e.target.value })} />
-        </Field>
-        <Field label="Number of questions (optional)">
-          <input className={inputCls} type="number" min="0" value={block.questionCount ?? ''} onChange={e => patch({ questionCount: e.target.value === '' ? null : Number(e.target.value) })} />
-        </Field>
-      </div>
-    )
+    return <QuizBlockFields block={block} patch={patch} subject={subject} grade={grade} />
   }
   return null
 }
 
-function BlockCard({ block, idx, total, patch, onMove, onRemove, ownerUid, assetBatchId }) {
+function BlockCard({ block, idx, total, patch, onMove, onRemove, ownerUid, assetBatchId, subject, grade }) {
   return (
     <div className="rounded-xl border border-neutral-200 bg-white overflow-hidden">
       <div className="flex items-center gap-2 bg-neutral-50 px-3 py-2 border-b border-neutral-100">
@@ -237,13 +261,13 @@ function BlockCard({ block, idx, total, patch, onMove, onRemove, ownerUid, asset
           className="w-7 h-7 inline-flex items-center justify-center rounded-md border border-neutral-200 text-neutral-500 hover:bg-red-50 hover:text-red-600 hover:border-red-200"><Trash2 size={13} /></button>
       </div>
       <div className="p-3 space-y-2">
-        <BlockFields block={block} patch={patch} ownerUid={ownerUid} assetBatchId={assetBatchId} />
+        <BlockFields block={block} patch={patch} ownerUid={ownerUid} assetBatchId={assetBatchId} subject={subject} grade={grade} />
       </div>
     </div>
   )
 }
 
-export function StudyNoteEditor({ value, onChange, ownerUid, assetBatchId }) {
+export function StudyNoteEditor({ value, onChange, ownerUid, assetBatchId, subject, grade }) {
   const blocks = Array.isArray(value) ? value : []
 
   const patchBlock = (idx, patch) => onChange(blocks.map((b, i) => (i === idx ? { ...b, ...patch } : b)))
@@ -273,6 +297,7 @@ export function StudyNoteEditor({ value, onChange, ownerUid, assetBatchId }) {
             patch={(p) => patchBlock(idx, p)}
             onMove={moveBlock} onRemove={removeBlock}
             ownerUid={ownerUid} assetBatchId={assetBatchId}
+            subject={subject} grade={grade}
           />
         ))}
         <div className="flex flex-wrap gap-1.5 pt-1">
