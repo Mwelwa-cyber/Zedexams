@@ -1,0 +1,4867 @@
+{
+  "version": 1,
+  "generatedFrom": "standalone Notes Studio (Grade 7 Integrated Science)",
+  "notes": [
+    {
+      "seedKey": "g7sci_n_tips",
+      "title": "How to Study & Exam Tips",
+      "subject": "Integrated Science",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "paragraph",
+          "text": "Good revision is not just reading — it is **doing**. These tips will help you remember more and score better in Grade 7 Integrated Science (ECZ)."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Before you start"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Make a simple timetable and study a little every day, not everything the night before.",
+            "Find a quiet, well-lit place and keep your phone away.",
+            "Gather what you need: your notes, a pen, and blank paper for practice."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "While studying a topic"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Read a section, then **cover it and say or write** the main points from memory.",
+            "Turn headings into questions and try to answer them.",
+            "Draw and label the diagrams yourself — flowers, the digestive system, circuits, eclipses.",
+            "Make your own short lists and tables; the act of writing them helps you remember."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Memory tricks"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Use a made-up sentence (mnemonic) to remember an order, e.g. the planets or the parts of the gut.",
+            "Group facts: viral vs bacterial diseases; metals vs non-metals; series vs parallel.",
+            "Always learn one clear **example** for each idea."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Practising questions"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Do the quiz for each subtopic, then check your answers and re-read anything you got wrong.",
+            "In multiple-choice, read all four options before choosing.",
+            "Cross out the answers you know are wrong first, then choose from what is left.",
+            "Watch for the words NOT, EXCEPT and TRUE/FALSE — they change the meaning."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "In the exam"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Read each question slowly; underline the key word.",
+            "Answer the easy questions first, then come back to the hard ones.",
+            "Do not leave blanks — make your best choice.",
+            "Check your work if there is time."
+          ]
+        },
+        {
+          "type": "note",
+          "lines": [
+            "Health reminder: sleep well and eat before an exam. A rested brain remembers far more than a tired one."
+          ]
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Study a little each day and test yourself from memory.",
+            "Draw the diagrams and make your own tables.",
+            "Practise past questions and learn from your mistakes.",
+            "In the exam, read carefully, do the easy ones first, and never leave blanks."
+          ]
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_n_1_1",
+      "title": "1.1 The Digestive System",
+      "subject": "Integrated Science",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Describe digestion.",
+            "Identify the organs of the digestive system.",
+            "Identify where digested food is absorbed.",
+            "Explain what happens to undigested food."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "What happens to the food you eat after you swallow it?",
+            "Why can't the body use food without changing it first?"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "We eat food so that our bodies can stay healthy and strong, but food cannot help the body directly — it first has to be broken down. **Digestion** is the chemical breaking down of food into simple substances the body can absorb. It takes place in the **digestive system** (also called the alimentary canal or gut), a long tube from the mouth to the anus."
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Digestion",
+              "def": "The chemical break-down of food into simple substances the body can absorb."
+            },
+            {
+              "term": "Ingestion",
+              "def": "Taking food into the mouth."
+            },
+            {
+              "term": "Absorption",
+              "def": "Passing of digested food into the bloodstream."
+            },
+            {
+              "term": "Egestion (voiding)",
+              "def": "Removing undigested food as faeces through the anus."
+            },
+            {
+              "term": "Alimentary canal",
+              "def": "The long tube from the mouth to the anus where digestion happens."
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Organs of the alimentary canal and what they do"
+        },
+        {
+          "type": "table",
+          "headers": [
+            "Organ",
+            "What happens there"
+          ],
+          "rows": [
+            {
+              "cells": [
+                "Mouth",
+                "Teeth mash food; the tongue rolls it for swallowing. Starch begins to be broken into glucose."
+              ]
+            },
+            {
+              "cells": [
+                "Oesophagus (gullet)",
+                "Carries swallowed food to the stomach. No digestion here."
+              ]
+            },
+            {
+              "cells": [
+                "Stomach",
+                "Gastric juices begin to break down proteins; hydrochloric acid kills germs."
+              ]
+            },
+            {
+              "cells": [
+                "Small intestine",
+                "Made of the duodenum and ileum. Digestion is completed and food is absorbed into the blood."
+              ]
+            },
+            {
+              "cells": [
+                "Large intestine",
+                "Made of the colon and rectum. Water and mineral salts are absorbed; the rectum stores faeces."
+              ]
+            },
+            {
+              "cells": [
+                "Anus",
+                "Undigested food (faeces) leaves the body here — egestion."
+              ]
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Helper organs (make juices but food does not pass through them)"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "**Liver** — produces bile, which breaks down fats and oils. Bile is stored in the gall bladder.",
+            "**Pancreas** — produces pancreatic juice that further breaks down proteins and carbohydrates."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Diagram of the digestive system"
+        },
+        {
+          "type": "image",
+          "url": "/notes/q_digestive_system.png",
+          "caption": "The human digestive system (labelled A–H)"
+        },
+        {
+          "type": "note",
+          "lines": [
+            "Path of food: Mouth → Oesophagus → Stomach → Small intestine → Large intestine → Anus.",
+            "Undigested food (mostly fibre) is stored in the rectum, then removed through the anus as faeces."
+          ]
+        },
+        {
+          "type": "tip",
+          "lines": [
+            "Remember the order of the gut with a sentence you invent, e.g. 'My Old Stomach Slowly Lets Air' = Mouth, Oesophagus, Stomach, Small intestine, Large intestine, Anus.",
+            "Be ready to point to the stomach, small intestine and liver on a diagram."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "Where does the digestion of starch begin?",
+          "a": "In the mouth.",
+          "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "In which organ is digestion completed and food absorbed?",
+          "a": "The small intestine.",
+          "level": "Medium"
+        },
+        {
+          "type": "mistake",
+          "wrong": "Food is absorbed in the stomach.",
+          "correct": "Most digested food is absorbed in the small intestine."
+        },
+        {
+          "type": "exam",
+          "q": "State where the digestion of proteins begins.",
+          "a": "Proteins are first digested in the stomach, where gastric juices act on them."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Digestion breaks food into substances the body can absorb.",
+            "Starch digestion begins in the mouth; protein digestion begins in the stomach.",
+            "Food is absorbed in the small intestine; water in the large intestine.",
+            "The liver makes bile (stored in the gall bladder); the pancreas makes pancreatic juice."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "1.1 The Digestive System",
+          "quizTitle": "1.1 The Digestive System — Practice Quiz",
+          "questionCount": 12
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_n_2_1",
+      "title": "2.1 Diseases",
+      "subject": "Integrated Science",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Distinguish between a virus and a bacterium.",
+            "Explain how viruses and bacteria affect health.",
+            "Identify common diseases of the skin.",
+            "Explain how health services affect how common diseases are."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "Have you or someone you know ever had cholera or measles?",
+            "Do you think all tiny germs are harmful?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Virus",
+              "def": "A tiny, non-living germ that causes disease; most have no cure."
+            },
+            {
+              "term": "Bacteria",
+              "def": "Tiny living germs; some cause disease, many can be treated with antibiotics."
+            },
+            {
+              "term": "Immunisation",
+              "def": "Giving a vaccine to protect against a disease."
+            },
+            {
+              "term": "Antibiotics",
+              "def": "Medicines that treat diseases caused by bacteria."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "We stay healthy through good hygiene, a balanced diet and clean surroundings. Many diseases are caused by tiny **micro-organisms**. Two important ones are **viruses** and **bacteria**. Both can only be seen with a powerful microscope and both multiply very fast. (Remember: bacterium = one; bacteria = many.)"
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Differences between a virus and a bacterium"
+        },
+        {
+          "type": "table",
+          "headers": [
+            "Virus",
+            "Bacterium"
+          ],
+          "rows": [
+            {
+              "cells": [
+                "Usually smaller.",
+                "Usually slightly larger."
+              ]
+            },
+            {
+              "cells": [
+                "Cannot live on their own.",
+                "Can live and survive on their own."
+              ]
+            },
+            {
+              "cells": [
+                "Thought to be non-living.",
+                "Living organisms."
+              ]
+            },
+            {
+              "cells": [
+                "Most viral diseases have no cure.",
+                "Not all bacteria cause disease — some are useful."
+              ]
+            },
+            {
+              "cells": [
+                "Hard to control.",
+                "Many controlled by immunisation and antibiotics."
+              ]
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "How germs get into the body"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Bites from insects (mostly bacteria).",
+            "Through the nose, by breathing contaminated air.",
+            "Through the mouth, by eating or drinking contaminated food or water.",
+            "Through the skin, or by body-to-body contact with an infected person."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Common diseases"
+        },
+        {
+          "type": "table",
+          "headers": [
+            "Disease (cause)",
+            "Spread / symptoms",
+            "Treatment / prevention"
+          ],
+          "rows": [
+            {
+              "cells": [
+                "Cholera (bacteria)",
+                "Waterborne. Vomiting, diarrhoea, dehydration; can kill.",
+                "Antibiotics; oral rehydration; clean water, hygiene."
+              ]
+            },
+            {
+              "cells": [
+                "Typhoid (bacteria)",
+                "Dirty food and water. Fever, stomach pains, red spots.",
+                "Antibiotics; vaccination, hygiene, boil water."
+              ]
+            },
+            {
+              "cells": [
+                "Tuberculosis, TB (bacteria)",
+                "Airborne. Attacks lungs: cough with sputum, weight loss.",
+                "Antibiotics; immunisation at birth; ventilation."
+              ]
+            },
+            {
+              "cells": [
+                "HIV and AIDS (virus)",
+                "Unprotected sex, infected blood, needles, mother to child.",
+                "No cure/vaccine. ARVs control it; safe behaviour."
+              ]
+            },
+            {
+              "cells": [
+                "Measles (virus)",
+                "Airborne. Fever, cough, red eyes, rash behind ears.",
+                "No cure; vaccinate at about 9 months."
+              ]
+            },
+            {
+              "cells": [
+                "Polio (virus)",
+                "Airborne. Fever, sore muscles, paralysis of legs.",
+                "No cure; oral polio vaccine; good sanitation."
+              ]
+            },
+            {
+              "cells": [
+                "Chicken pox (virus)",
+                "Very infectious, children. Itchy rash, fever.",
+                "Vaccination."
+              ]
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Common skin diseases"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "**Ringworm** — caused by a fungus; inflamed patch, spread by contact.",
+            "**Scabies** — contagious rash caused by mites that burrow into the skin.",
+            "**Scurvy** — deficiency disease from lack of Vitamin C; gums swell and bleed.",
+            "**Chicken pox & warts** — caused by viruses.",
+            "**Skin cancer** — from too much UV radiation from the sun; prevent with sunscreen."
+          ]
+        },
+        {
+          "type": "note",
+          "lines": [
+            "Most viral diseases cannot be cured but can be prevented by immunisation. Most bacterial diseases can be treated with antibiotics. AIDS = Acquired Immune Deficiency Syndrome, caused by HIV."
+          ]
+        },
+        {
+          "type": "tip",
+          "lines": [
+            "First decide if a disease is viral (usually no cure, prevented by vaccine) or bacterial (often treated with antibiotics) — it answers many questions.",
+            "Learn which diseases are waterborne (cholera, typhoid) and which are airborne (TB, measles, flu, polio)."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "Name the virus that causes AIDS.",
+          "a": "HIV (Human Immunodeficiency Virus).",
+          "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Is cholera caused by a virus or by bacteria?",
+          "a": "Bacteria.",
+          "level": "Medium"
+        },
+        {
+          "type": "mistake",
+          "wrong": "Antibiotics can cure viral diseases like measles.",
+          "correct": "Antibiotics treat bacterial diseases; most viral diseases are prevented by immunisation, not cured by antibiotics."
+        },
+        {
+          "type": "exam",
+          "q": "State two ways HIV can be transmitted.",
+          "a": "Through unprotected sex with an infected person and through infected blood transfusion. (Also sharing needles, or mother to child.)"
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Viruses are non-living and mostly have no cure; bacteria are living and many are treatable.",
+            "Cholera and typhoid are waterborne; TB, measles, flu and polio are airborne.",
+            "Skin diseases: ringworm (fungus), scabies (mites), scurvy (lack of Vitamin C).",
+            "More health facilities reduce the spread of disease."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "2.1 Diseases",
+          "quizTitle": "2.1 Diseases — Practice Quiz",
+          "questionCount": 15
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_n_2_2",
+      "title": "2.2 Fruits",
+      "subject": "Integrated Science",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Identify fruits and seeds used as food.",
+            "State the importance of fruits in improving health."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "Which fruits grow naturally near your home?",
+            "Why do you feel healthier when you eat fruit?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Indigenous fruit",
+              "def": "A fruit that grows naturally in the wild."
+            },
+            {
+              "term": "Exotic fruit",
+              "def": "A fruit brought from another country but grown locally."
+            },
+            {
+              "term": "Legume",
+              "def": "A crop with seeds in pods, rich in protein (e.g. beans)."
+            },
+            {
+              "term": "Cereal",
+              "def": "A grain crop rich in carbohydrates (e.g. maize)."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "After a flower's ovary is fertilised it becomes a **fruit**; the ovules inside become seeds. Fruits are an important part of our diet because they contain many useful nutrients. Most are eaten raw, so we get all the minerals."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Fruits used as food"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "**Indigenous fruits** grow naturally in the wild — e.g. masuku, murula, mawi (monkey orange), manego (snot apple), mubuyu (baobab).",
+            "**Exotic fruits** come from other countries but are grown locally — e.g. mangoes, avocados, oranges, pawpaws, bananas, pineapples."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Seeds used as food"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "**Legumes** bear seeds in pods and have root nodules that fix nitrogen into the soil. Examples: beans, cowpeas, groundnuts, soya beans. Rich in **proteins**.",
+            "**Cereals (grain crops)** are grown for grains rich in **carbohydrates**. Examples: maize, sorghum, millet, rice, wheat."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Why fruits keep us healthy"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Carbohydrates (fruit sugars) give energy.",
+            "Vitamins and minerals protect the body from disease.",
+            "Proteins build and repair cells.",
+            "Fibre helps digestion and prevents constipation.",
+            "Citrus fruits (oranges) are rich in Vitamin C, which prevents scurvy.",
+            "They are low in fat and contain a lot of water."
+          ]
+        },
+        {
+          "type": "note",
+          "lines": [
+            "Sick people, especially those who are HIV positive, should eat plenty of fruit — it tastes nice and is easy to eat even with a poor appetite."
+          ]
+        },
+        {
+          "type": "tip",
+          "lines": [
+            "Learn one clear example for each group: an indigenous fruit, an exotic fruit, a legume and a cereal — questions often ask you to pick the odd one out."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "Which vitamin in oranges prevents scurvy?",
+          "a": "Vitamin C.",
+          "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Name the two main groups of seeds eaten as food.",
+          "a": "Legumes and cereals.",
+          "level": "Medium"
+        },
+        {
+          "type": "mistake",
+          "wrong": "An orange is a cereal.",
+          "correct": "An orange is a fruit; cereals are grain crops like maize and millet."
+        },
+        {
+          "type": "exam",
+          "q": "State the main nutrient found in legumes.",
+          "a": "Legumes are a good source of proteins, which build and repair the body."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "A fruit develops from the ovary; seeds develop from ovules.",
+            "Indigenous fruits grow in the wild; exotic fruits come from other countries.",
+            "Legumes give mainly proteins; cereals give mainly carbohydrates.",
+            "Fruits supply energy, vitamins, minerals, proteins, fibre and water."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "2.2 Fruits",
+          "quizTitle": "2.2 Fruits — Practice Quiz",
+          "questionCount": 10
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_n_3_1",
+      "title": "3.1 Separating Substances",
+      "subject": "Integrated Science",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Separate an insoluble solid from water.",
+            "Separate a soluble substance from water.",
+            "Separate magnetic from non-magnetic materials."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "If salt and sand were mixed in water, how would you separate them?",
+            "Why does sand sink but salt seems to disappear?"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "When a **soluble** solid is put in a liquid it dissolves until it cannot be seen. Some solids do not dissolve; they are **insoluble**. The method we use to separate a mixture depends on the properties of the substances in it."
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Solute",
+              "def": "The solid that dissolves in a liquid."
+            },
+            {
+              "term": "Solvent",
+              "def": "The liquid in which a solid dissolves."
+            },
+            {
+              "term": "Solution",
+              "def": "The mixture formed when a solute dissolves in a solvent."
+            },
+            {
+              "term": "Soluble solid",
+              "def": "A solid that dissolves in a liquid (e.g. salt)."
+            },
+            {
+              "term": "Insoluble solid",
+              "def": "A solid that does not dissolve (e.g. sand)."
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Methods of separation"
+        },
+        {
+          "type": "table",
+          "headers": [
+            "Method",
+            "Separates",
+            "How it works"
+          ],
+          "rows": [
+            {
+              "cells": [
+                "Decantation",
+                "Insoluble solid from water",
+                "Let the solid settle, then pour off the clear liquid."
+              ]
+            },
+            {
+              "cells": [
+                "Filtration",
+                "Insoluble solid from water",
+                "Pour through a filter; solid (residue) stays, water passes through."
+              ]
+            },
+            {
+              "cells": [
+                "Evaporation",
+                "Soluble solid from water",
+                "Heat until all water evaporates, leaving the solid behind."
+              ]
+            },
+            {
+              "cells": [
+                "Using a magnet",
+                "Magnetic from non-magnetic",
+                "A magnet attracts the iron filings, leaving the sand."
+              ]
+            }
+          ]
+        },
+        {
+          "type": "picture",
+          "caption": "Separating sand from water by decantation",
+          "lines": [
+            "Sand and water are stirred in a cup, then left to stand.",
+            "The heavier sand settles at the bottom, leaving clear water on top.",
+            "The cup is tilted slowly and the clear water is poured off, leaving the sand behind."
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Magnetic materials (attracted by a magnet) include iron nails, office pins and coins. Most materials are non-magnetic, e.g. rubber, pencils, plastic and clothes."
+        },
+        {
+          "type": "tip",
+          "lines": [
+            "Match the method to the clue word: dissolves → evaporation; does not dissolve → decantation or filtration; magnetic → magnet."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "How do you recover salt from salty water?",
+          "a": "By evaporation.",
+          "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Which tool separates iron filings from sand?",
+          "a": "A magnet.",
+          "level": "Easy"
+        },
+        {
+          "type": "mistake",
+          "wrong": "Salt can be removed from water by filtration.",
+          "correct": "Salt is dissolved (soluble), so it passes through a filter; use evaporation."
+        },
+        {
+          "type": "exam",
+          "q": "Name the method used to separate an insoluble solid like sand from water.",
+          "a": "Decantation (or filtration)."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Soluble solids dissolve to form a solution; insoluble solids do not.",
+            "Insoluble solids (sand) are separated by decantation or filtration.",
+            "Soluble solids (salt) are separated by evaporation.",
+            "A magnet separates magnetic materials (iron filings) from non-magnetic ones (sand)."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "3.1 Separating Substances",
+          "quizTitle": "3.1 Separating Substances — Practice Quiz",
+          "questionCount": 10
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_n_3_2",
+      "title": "3.2 Water Supply Systems",
+      "subject": "Integrated Science",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Identify sources of water in villages and towns.",
+            "Identify types of water treatment.",
+            "State the importance of water treatment.",
+            "Describe ways of conserving water."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "Where does the water in your home come from?",
+            "Why must water be treated before we drink it?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Water treatment",
+              "def": "Making water safe to drink."
+            },
+            {
+              "term": "Chlorination",
+              "def": "Adding chlorine to water to kill germs."
+            },
+            {
+              "term": "Distillation",
+              "def": "Boiling water and cooling the vapour to get pure water."
+            },
+            {
+              "term": "Water conservation",
+              "def": "Preventing water from being lost, wasted or polluted."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Water makes up streams, rivers, lakes and oceans, and falls as rain. Most of the Earth's water is salty; only a small part is fresh, and most of that is locked up as ice and underground water."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Sources of water"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "**In villages:** wells, boreholes, springs; upland lakes and dams; rivers and streams; rain water.",
+            "**In towns:** the same sources, but water is transported (road or pipes), stored in tanks, and treated before use."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Methods of water treatment"
+        },
+        {
+          "type": "table",
+          "headers": [
+            "Method",
+            "What it does (and its limit)"
+          ],
+          "rows": [
+            {
+              "cells": [
+                "Boiling",
+                "Kills germs, but does not remove chemicals."
+              ]
+            },
+            {
+              "cells": [
+                "Filtration",
+                "Removes solid particles; germs and chemicals remain."
+              ]
+            },
+            {
+              "cells": [
+                "Decantation",
+                "Lets mud settle; germs and chemicals remain."
+              ]
+            },
+            {
+              "cells": [
+                "Carbon filters",
+                "Remove germs, colour and smell; chemicals remain."
+              ]
+            },
+            {
+              "cells": [
+                "Distillation",
+                "Boil then cool the vapour. Removes chemicals, germs and minerals."
+              ]
+            },
+            {
+              "cells": [
+                "Chlorination",
+                "Add chlorine products (e.g. waterguard) to kill germs."
+              ]
+            },
+            {
+              "cells": [
+                "Ultra-violet (UV)",
+                "Clear bottles in the sun; the sun's rays kill most germs."
+              ]
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Urban water treatment — stages in order"
+        },
+        {
+          "type": "numbers",
+          "items": [
+            "Pumping from the source.",
+            "Storage in large tanks.",
+            "Screening to remove debris.",
+            "Pre-chlorination to kill germs.",
+            "Coagulation and flocculation (tiny particles clump).",
+            "Sedimentation and decantation.",
+            "Filtration of remaining particles.",
+            "Neutralising (adjust acidity; add fluoride for teeth).",
+            "Removal of excess mineral salts.",
+            "Disinfection (final chlorination).",
+            "Distribution to consumers."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Ways of conserving water"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "**Recycling** — treat used water and use it again.",
+            "**Reusing** — use water again for another job.",
+            "**Using sparingly** — bath from a basin, drip irrigation, turn off taps, fix leaks.",
+            "**Mulching** — cover soil with dry grass to reduce evaporation.",
+            "**Harvesting rain water** — collect rain from roof gutters.",
+            "**Afforestation** — plant trees to protect catchment areas."
+          ]
+        },
+        {
+          "type": "note",
+          "lines": [
+            "To get truly clean water you usually need two or more methods. Store treated water in clean, closed containers."
+          ]
+        },
+        {
+          "type": "tip",
+          "lines": [
+            "Learn the treatment stages as a flow chart and practise drawing it from memory — the order is a common question."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "Which treatment method kills germs but not chemicals?",
+          "a": "Boiling.",
+          "level": "Medium"
+        },
+        {
+          "type": "quickcheck",
+          "q": "What is added to treated water to protect teeth?",
+          "a": "Fluoride.",
+          "level": "Medium"
+        },
+        {
+          "type": "mistake",
+          "wrong": "Boiling water removes poisonous chemicals.",
+          "correct": "Boiling kills germs but does not remove dissolved chemicals."
+        },
+        {
+          "type": "exam",
+          "q": "State two ways of conserving water at home.",
+          "a": "Reusing water (e.g. washing water to flush the toilet) and fixing leaking taps. (Also using a basin, harvesting rain.)"
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Town water must be treated to be safe.",
+            "Boiling kills germs; distillation removes chemicals, germs and minerals.",
+            "Water treatment protects us from disease.",
+            "Conserve water by recycling, reusing, using sparingly, mulching, harvesting rain and planting trees."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "3.2 Water Supply Systems",
+          "quizTitle": "3.2 Water Supply Systems — Practice Quiz",
+          "questionCount": 12
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_n_4_1",
+      "title": "4.1 The Flower",
+      "subject": "Integrated Science",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Identify the parts of a flower.",
+            "Explain the functions of the parts of a flower."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "Have you ever looked closely inside a flower?",
+            "Which parts do you think help the plant make seeds?"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "A flower is the **reproductive organ** of a plant — through it the plant produces seeds that grow into new plants. A flower has male parts, female parts, and other parts that are neither."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Diagram of a flower"
+        },
+        {
+          "type": "image",
+          "url": "/notes/q_flower_parts.png",
+          "caption": "The parts of a flower"
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Male, female and other parts"
+        },
+        {
+          "type": "table",
+          "headers": [
+            "Group",
+            "Parts",
+            "Together called"
+          ],
+          "rows": [
+            {
+              "cells": [
+                "Male parts",
+                "Anthers, filaments, pollen grains",
+                "Stamen"
+              ]
+            },
+            {
+              "cells": [
+                "Female parts",
+                "Stigma, style, ovary, ovules",
+                "Pistil"
+              ]
+            },
+            {
+              "cells": [
+                "Other parts",
+                "Petals, sepals, stalk",
+                "—"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Anthers",
+              "def": "Produce pollen grains (the male reproductive cells)."
+            },
+            {
+              "term": "Stigma",
+              "def": "Receives pollen grains during pollination."
+            },
+            {
+              "term": "Style",
+              "def": "Tube joining the stigma to the ovary; the pollen tube grows down it."
+            },
+            {
+              "term": "Ovary",
+              "def": "Produces and protects the ovules; becomes a fruit after fertilisation."
+            },
+            {
+              "term": "Ovules",
+              "def": "The female reproductive cells; become seeds after fertilisation."
+            },
+            {
+              "term": "Petals (corolla)",
+              "def": "Often brightly coloured to attract insects."
+            },
+            {
+              "term": "Sepals (calyx)",
+              "def": "Protect the bud and make food for the young flower."
+            }
+          ]
+        },
+        {
+          "type": "note",
+          "lines": [
+            "In a maize plant the male parts (tassels) are separate from the female parts. In a pawpaw plant the male and female flowers are on different plants."
+          ]
+        },
+        {
+          "type": "tip",
+          "lines": [
+            "Draw and label a flower from memory. Remember: stamen = male, pistil = female. The ovary becomes the fruit."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "Which part receives pollen during pollination?",
+          "a": "The stigma.",
+          "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "What does the ovary become after fertilisation?",
+          "a": "A fruit.",
+          "level": "Medium"
+        },
+        {
+          "type": "mistake",
+          "wrong": "The stamen is the female part of a flower.",
+          "correct": "The stamen is the male part; the pistil is the female part."
+        },
+        {
+          "type": "exam",
+          "q": "Name the male parts of a flower.",
+          "a": "The anthers, filaments and pollen grains, together called the stamen."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "A flower is the reproductive organ of a plant.",
+            "Male parts = stamen; female parts = pistil.",
+            "The stigma receives pollen; the ovary becomes a fruit and ovules become seeds.",
+            "Petals attract insects; sepals protect the bud."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "4.1 The Flower",
+          "quizTitle": "4.1 The Flower — Practice Quiz",
+          "questionCount": 12
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_n_4_2",
+      "title": "4.2 Pollination and Fertilisation",
+      "subject": "Integrated Science",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Describe pollination and identify its agents.",
+            "Describe fertilisation in flowering plants."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "How does pollen get from one flower to another?",
+            "What do you think bees do for flowers?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Pollination",
+              "def": "The transfer of pollen from the anther to the stigma."
+            },
+            {
+              "term": "Cross-pollination",
+              "def": "Pollen carried to a different plant of the same kind."
+            },
+            {
+              "term": "Fertilisation",
+              "def": "The joining of a pollen grain and an ovule."
+            },
+            {
+              "term": "Pollen tube",
+              "def": "The tube that carries the male cells to the ovary."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "**Pollination** is the transfer of pollen grains from the anthers to the stigma of a flower."
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "**Self-pollination** — pollen moves to the stigma of the same flower (or same plant).",
+            "**Cross-pollination** — pollen moves to the stigma of a different plant of the same kind."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Agents of pollination"
+        },
+        {
+          "type": "paragraph",
+          "text": "Agents carry pollen from the anthers to the stigma: **wind, water,** and **animals** such as insects and birds. Animals are attracted by bright petals and scent, and visit for nectar; pollen sticks to them and is carried to other flowers."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Fertilisation"
+        },
+        {
+          "type": "paragraph",
+          "text": "**Fertilisation** is the joining (fusion) of a pollen grain and an ovule to form a **zygote**, which grows into a seed. It happens in the ovary. After pollen lands on the stigma, a pollen tube grows down through the style to the ovary."
+        },
+        {
+          "type": "picture",
+          "caption": "Pollen tube growing to the ovary",
+          "lines": [
+            "A pollen grain rests on the stigma at the top.",
+            "A pollen tube grows down through the style towards the ovary.",
+            "Inside the ovary are the ovules, which the pollen grains reach and fertilise."
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "After fertilisation: the ovule becomes a seed and the ovary becomes a fruit. The petals, style, filament, stigma and anthers drop off; the sepals dry up later."
+        },
+        {
+          "type": "tip",
+          "lines": [
+            "Do not confuse the two: pollination (pollen to stigma) happens FIRST; fertilisation (pollen + ovule) happens after, inside the ovary."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "What is pollination?",
+          "a": "The transfer of pollen grains from the anther to the stigma.",
+          "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Where does fertilisation take place in a plant?",
+          "a": "In the ovary.",
+          "level": "Medium"
+        },
+        {
+          "type": "mistake",
+          "wrong": "Pollination and fertilisation are the same thing.",
+          "correct": "Pollination (pollen to stigma) happens first; fertilisation (pollen joins the ovule) happens after."
+        },
+        {
+          "type": "exam",
+          "q": "Name three agents of pollination.",
+          "a": "Wind, water and animals (such as insects and birds)."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Pollination = transfer of pollen from anther to stigma (self or cross).",
+            "Agents of pollination: wind, water, animals.",
+            "Fertilisation = fusion of a pollen grain and an ovule to form a zygote, in the ovary.",
+            "After fertilisation: ovule → seed, ovary → fruit."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "4.2 Pollination and Fertilisation",
+          "quizTitle": "4.2 Pollination and Fertilisation — Practice Quiz",
+          "questionCount": 10
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_n_4_3",
+      "title": "4.3 Fruits and Seeds",
+      "subject": "Integrated Science",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Explain how fruits and seeds are produced.",
+            "Explain the importance of improving seed varieties."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "Why does a mango have one seed but a pawpaw has many?",
+            "What is the difference between a fruit and a seed?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Fruit",
+              "def": "The part that develops from the ovary after fertilisation."
+            },
+            {
+              "term": "Seed",
+              "def": "The part that develops from a fertilised ovule."
+            },
+            {
+              "term": "Pericarp",
+              "def": "The outer covering of a fruit."
+            },
+            {
+              "term": "Testa",
+              "def": "The seed coat (outer covering of a seed)."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "After fertilisation the ovary becomes a **fruit** and the ovules become **seeds**. Plants make many seeds so that those landing in good conditions can grow; this stops a species from becoming extinct. Seeds are also food for people and animals."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Differences between a fruit and a seed"
+        },
+        {
+          "type": "table",
+          "headers": [
+            "Fruit",
+            "Seed"
+          ],
+          "rows": [
+            {
+              "cells": [
+                "Develops from the ovary.",
+                "Develops from a fertilised ovule."
+              ]
+            },
+            {
+              "cells": [
+                "Has two scars.",
+                "Has one scar."
+              ]
+            },
+            {
+              "cells": [
+                "Outer covering is the pericarp.",
+                "Outer covering is the testa (seed coat)."
+              ]
+            },
+            {
+              "cells": [
+                "Large; protects the seeds inside.",
+                "Small; found inside the fruit."
+              ]
+            },
+            {
+              "cells": [
+                "Most are juicy.",
+                "Most are dry."
+              ]
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Importance of improving seed varieties"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Improve yields (more profitable to farmers).",
+            "Withstand harsh conditions such as drought.",
+            "Produce crops of higher nutritional value.",
+            "Resist crop diseases.",
+            "Mature earlier than the parent seeds."
+          ]
+        },
+        {
+          "type": "tip",
+          "lines": [
+            "Remember the scar trick: a fruit has two scars; a seed has one. Fruit from the ovary, seed from the ovule."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "How many scars does a seed have?",
+          "a": "One scar.",
+          "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "A seed develops from which part of the flower?",
+          "a": "A fertilised ovule.",
+          "level": "Medium"
+        },
+        {
+          "type": "mistake",
+          "wrong": "A fruit and a seed are the same thing.",
+          "correct": "A fruit develops from the ovary (two scars); a seed develops from an ovule (one scar)."
+        },
+        {
+          "type": "exam",
+          "q": "Give two benefits of improving seed varieties.",
+          "a": "They give higher yields and resist drought (also resist disease, or mature early)."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "The ovary becomes a fruit and ovules become seeds.",
+            "A fruit has two scars and is juicy; a seed has one scar and is dry.",
+            "Seeds propagate the next generation and prevent extinction.",
+            "Improved seeds give higher yields, resist drought and disease, and mature early."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "4.3 Fruits and Seeds",
+          "quizTitle": "4.3 Fruits and Seeds — Practice Quiz",
+          "questionCount": 10
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_n_4_4",
+      "title": "4.4 Seed Dispersal",
+      "subject": "Integrated Science",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Describe what seed dispersal is.",
+            "Describe the ways in which seeds are dispersed.",
+            "Explain the importance of seed dispersal."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "How do seeds travel far from the parent plant?",
+            "Why is it bad for all seeds to fall in one place?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Seed dispersal",
+              "def": "Moving seeds away from the parent plant."
+            },
+            {
+              "term": "Wind dispersal",
+              "def": "Seeds carried by wind (light, often winged)."
+            },
+            {
+              "term": "Self-dispersal",
+              "def": "Pods bursting open to throw out their seeds."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "**Seed dispersal** is moving seeds away from the parent plant. This avoids overcrowding and competition for light, water and nutrients, and helps plants spread to new areas. Seeds are only dispersed when mature."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Ways of seed dispersal"
+        },
+        {
+          "type": "table",
+          "headers": [
+            "Way",
+            "Features / examples"
+          ],
+          "rows": [
+            {
+              "cells": [
+                "By wind",
+                "Seeds small and light; some have wings (jacaranda) or tiny hairs (dandelion)."
+              ]
+            },
+            {
+              "cells": [
+                "By water",
+                "Seeds light, with air spaces so they float; e.g. coconut, water lily."
+              ]
+            },
+            {
+              "cells": [
+                "By animals",
+                "Seeds with hooks (black jack) catch on fur; or animals eat fruits (guava) and drop seeds far away."
+              ]
+            },
+            {
+              "cells": [
+                "Self (explosive)",
+                "Pods burst open and throw out seeds; e.g. peas, beans, balsam."
+              ]
+            }
+          ]
+        },
+        {
+          "type": "picture",
+          "caption": "A pod bursting open (self-dispersal)",
+          "lines": [
+            "A dry seed pod has lines of weakness along its sides.",
+            "Heat from the sun (or being stepped on) makes the pod split suddenly.",
+            "The seeds are flung out, away from the parent plant."
+          ]
+        },
+        {
+          "type": "tip",
+          "lines": [
+            "For each method, picture one example: wind–jacaranda, water–coconut, animal–black jack, explosion–beans."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "How are jacaranda seeds dispersed?",
+          "a": "By wind.",
+          "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Give one seed dispersed by explosion.",
+          "a": "Beans (or peas, balsam).",
+          "level": "Medium"
+        },
+        {
+          "type": "mistake",
+          "wrong": "Coconuts are dispersed by wind.",
+          "correct": "Coconuts float, so they are dispersed by water."
+        },
+        {
+          "type": "exam",
+          "q": "State two ways seeds are dispersed by animals.",
+          "a": "Seeds with hooks attach to animal fur; and animals eat fruits and drop the seeds far away."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Seed dispersal moves mature seeds away from the parent plant.",
+            "Methods: wind (light, winged), water (floating), animals (hooks or eaten), self/explosive (bursting pods).",
+            "Dispersal reduces competition and spreads plants to new areas."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "4.4 Seed Dispersal",
+          "quizTitle": "4.4 Seed Dispersal — Practice Quiz",
+          "questionCount": 10
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_n_4_5",
+      "title": "4.5 Propagation",
+      "subject": "Integrated Science",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Explain what plant propagation is.",
+            "Describe propagation by seeds.",
+            "Describe methods of vegetative propagation."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "Have you seen a small banana plant growing beside a big one?",
+            "Can a new plant grow without a seed?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Propagation",
+              "def": "Producing new plants."
+            },
+            {
+              "term": "Vegetative propagation",
+              "def": "Growing new plants from parts of a plant."
+            },
+            {
+              "term": "Cutting",
+              "def": "A piece of stem, leaf or root used to grow a new plant."
+            },
+            {
+              "term": "Grafting",
+              "def": "Joining a twig (scion) onto another plant."
+            },
+            {
+              "term": "Sucker",
+              "def": "A small plant growing beside the parent."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "**Plant propagation** is the production of new plants. It can be done from seeds or from parts of existing plants (vegetative propagation)."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Propagation by seeds"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "**Row planting** — seeds planted in rows, e.g. maize, beans.",
+            "**Broadcasting** — seeds scattered over the field, then covered, e.g. millet, sorghum."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Vegetative propagation"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "**Cuttings** — grow a new plant from a stem, leaf or root, e.g. cassava, sugarcane, sweet potatoes.",
+            "**Grafting** — join a twig (scion) onto the stem (stock) of another plant, e.g. oranges, mangoes.",
+            "**Layering (marcotting)** — peg a branch into the soil to grow roots, then cut it off, e.g. passion fruit.",
+            "**Budding** — a form of grafting where a bud is joined to a rootstock.",
+            "**Suckers** — small plantlets beside the parent (e.g. banana) are separated and replanted."
+          ]
+        },
+        {
+          "type": "note",
+          "lines": [
+            "Grafting joins a scion onto a stock so the two grow as one plant. It improves the quality and yield of a plant that was formerly poor."
+          ]
+        },
+        {
+          "type": "tip",
+          "lines": [
+            "Link each method to a plant: cuttings–cassava, grafting–mango, suckers–banana, broadcasting–millet, row planting–maize."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "How is cassava usually grown?",
+          "a": "From stem cuttings.",
+          "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "What is the small plant growing beside a banana called?",
+          "a": "A sucker.",
+          "level": "Medium"
+        },
+        {
+          "type": "mistake",
+          "wrong": "All plants can only grow from seeds.",
+          "correct": "Many plants grow vegetatively from cuttings, suckers, grafting or layering."
+        },
+        {
+          "type": "exam",
+          "q": "Name two methods of vegetative propagation.",
+          "a": "Cuttings and grafting (also layering, budding, suckers)."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Propagation is the production of new plants — from seeds or vegetatively.",
+            "Seed methods: row planting (maize, beans) and broadcasting (millet, sorghum).",
+            "Vegetative methods: cuttings, grafting, layering, budding and suckers."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "4.5 Propagation",
+          "quizTitle": "4.5 Propagation — Practice Quiz",
+          "questionCount": 10
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_n_5_1",
+      "title": "5.1 Energy",
+      "subject": "Integrated Science",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Explain what energy is and identify different types.",
+            "Explain how energy is converted from one form to another."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "What gives you the energy to run and play?",
+            "Can energy ever disappear completely?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Energy",
+              "def": "The ability to do work."
+            },
+            {
+              "term": "Kinetic energy",
+              "def": "The energy of a moving object."
+            },
+            {
+              "term": "Potential energy",
+              "def": "Stored energy due to position or state."
+            },
+            {
+              "term": "Energy conversion",
+              "def": "Changing energy from one form to another."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "**Energy** is the ability to do work. We use energy when we walk, lift, dig, sweep or wash."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Types of energy"
+        },
+        {
+          "type": "table",
+          "headers": [
+            "Type",
+            "Description / source"
+          ],
+          "rows": [
+            {
+              "cells": [
+                "Mechanical",
+                "Energy due to motion and position; sum of kinetic and potential energy."
+              ]
+            },
+            {
+              "cells": [
+                "Kinetic",
+                "Energy in a moving object (wind, running water)."
+              ]
+            },
+            {
+              "cells": [
+                "Potential",
+                "Stored energy due to position or state (a stretched rubber band)."
+              ]
+            },
+            {
+              "cells": [
+                "Electrical",
+                "From batteries, generators/dynamos and solar panels."
+              ]
+            },
+            {
+              "cells": [
+                "Sound",
+                "Produced when objects vibrate."
+              ]
+            },
+            {
+              "cells": [
+                "Chemical",
+                "Stored in fuels, food and batteries; released when burnt or used."
+              ]
+            },
+            {
+              "cells": [
+                "Thermal (heat)",
+                "Energy related to temperature; main source is the Sun."
+              ]
+            },
+            {
+              "cells": [
+                "Light",
+                "Lets us see. Natural: Sun, fireflies. Artificial: torch, bulb."
+              ]
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Energy conversion"
+        },
+        {
+          "type": "paragraph",
+          "text": "**Energy conversion** is changing energy from one form to another. The **law of conservation of energy** says energy cannot be created or destroyed — only changed from one form to another."
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Torch: chemical → electrical → heat → light.",
+            "Burning wood: chemical → heat → light.",
+            "Striking a match: chemical → mechanical → heat and light."
+          ]
+        },
+        {
+          "type": "tip",
+          "lines": [
+            "Practise writing energy-change chains with arrows. Many questions show a device and ask for the energy change — the torch and the bulb are favourites."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "What is energy?",
+          "a": "The ability to do work.",
+          "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Energy in a moving object is called?",
+          "a": "Kinetic energy.",
+          "level": "Medium"
+        },
+        {
+          "type": "mistake",
+          "wrong": "Energy can be created and destroyed.",
+          "correct": "Energy cannot be created or destroyed; it only changes from one form to another."
+        },
+        {
+          "type": "exam",
+          "q": "State the energy changes that happen in a torch.",
+          "a": "Chemical to electrical to heat to light."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Energy is the ability to do work.",
+            "Types include kinetic, potential, chemical, electrical, sound, heat and light.",
+            "Energy cannot be created or destroyed, only converted from one form to another."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "5.1 Energy",
+          "quizTitle": "5.1 Energy — Practice Quiz",
+          "questionCount": 12
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_n_5_2",
+      "title": "5.2 Electric Current and Circuits",
+      "subject": "Integrated Science",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Explain what an electric current does.",
+            "Construct a simple electric circuit.",
+            "Distinguish between series and parallel circuits.",
+            "Describe the action of a switch."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "What makes a bulb light up in a torch?",
+            "Why do some string lights all go off when one bulb breaks?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Electric current",
+              "def": "The flow of charge (electrons) in a circuit."
+            },
+            {
+              "term": "Circuit",
+              "def": "The path that lets the current flow."
+            },
+            {
+              "term": "Series circuit",
+              "def": "One path; bulbs share voltage and all go off if one is removed."
+            },
+            {
+              "term": "Parallel circuit",
+              "def": "Separate paths; bulbs stay bright and work independently."
+            },
+            {
+              "term": "Conductor",
+              "def": "A material that lets electricity pass through."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "An **electric current** is the flow of charge (electrons) from the positive to the negative terminal of a cell. An **electric circuit** is the pathway (usually a wire) that lets the current flow. For current to flow, the circuit must be complete."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Parts of a simple circuit"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "**Dry cell / battery** — the source of electrical energy (stores chemical energy).",
+            "**Conductor / wire** — allows the current to flow.",
+            "**Converter** — changes electrical energy into another form, e.g. a bulb (to heat and light).",
+            "**Switch** — opens (breaks) or closes (completes) the circuit."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Series and parallel circuits"
+        },
+        {
+          "type": "image",
+          "url": "/notes/q_bulbs_series.png",
+          "caption": "Bulbs connected in series"
+        },
+        {
+          "type": "image",
+          "url": "/notes/q_bulbs_parallel.png",
+          "caption": "Bulbs connected in parallel"
+        },
+        {
+          "type": "table",
+          "headers": [
+            "Series circuit",
+            "Parallel circuit"
+          ],
+          "rows": [
+            {
+              "cells": [
+                "Bulbs are in one line, one switch.",
+                "Bulbs are in separate lines, each can have its own switch."
+              ]
+            },
+            {
+              "cells": [
+                "If one bulb is removed, the others go off.",
+                "If one bulb goes off, the others keep lighting."
+              ]
+            },
+            {
+              "cells": [
+                "Bulbs share the voltage — they light dimly.",
+                "Bulbs do not share voltage — they light fully."
+              ]
+            },
+            {
+              "cells": [
+                "Cells in series: voltages add up, do not last long.",
+                "Cells in parallel: voltage like one cell, last longer."
+              ]
+            }
+          ]
+        },
+        {
+          "type": "note",
+          "lines": [
+            "A switch controls the current. Open switch = gap = incomplete circuit = bulb off. Closed switch = complete circuit = bulb on."
+          ]
+        },
+        {
+          "type": "tip",
+          "lines": [
+            "Series = one path, dim, all go off together. Parallel = many paths, bright, independent. Practise drawing both and predicting what happens if one bulb is removed."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "What must a circuit be for current to flow?",
+          "a": "Complete (closed).",
+          "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "In which circuit do the other bulbs stay on if one is removed?",
+          "a": "Parallel.",
+          "level": "Exam Level"
+        },
+        {
+          "type": "mistake",
+          "wrong": "In a series circuit the others stay on if one bulb is removed.",
+          "correct": "In series, removing one bulb breaks the circuit and all go off; in parallel they stay on."
+        },
+        {
+          "type": "exam",
+          "q": "Explain one advantage of a parallel circuit over a series circuit.",
+          "a": "In parallel, each bulb lights at full brightness and the others keep working if one fails."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Current is the flow of charge from positive to negative; the circuit must be complete.",
+            "A simple circuit has a cell, wires, a converter (bulb) and a switch.",
+            "Series: share voltage, dim, all go off if one is removed. Parallel: full brightness, others stay on."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "5.2 Electric Current and Circuits",
+          "quizTitle": "5.2 Electric Current and Circuits — Practice Quiz",
+          "questionCount": 12
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_n_5_3",
+      "title": "5.3 Lightning",
+      "subject": "Integrated Science",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Identify the causes of lightning.",
+            "Explain its effects on people, plants, animals and buildings.",
+            "Demonstrate how to prevent damage from lightning.",
+            "State the importance of lightning in farming."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "Have you ever seen lightning during a thunderstorm?",
+            "What do you think causes it?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Lightning",
+              "def": "A flash of bright light caused by electricity in the clouds."
+            },
+            {
+              "term": "Static electricity",
+              "def": "Electric charge that builds up on objects or in clouds."
+            },
+            {
+              "term": "Lightning arrester",
+              "def": "A metal (copper) rod that protects buildings from lightning."
+            },
+            {
+              "term": "Nitrates",
+              "def": "Substances formed when lightning fixes nitrogen; plants use them to make proteins."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "**Lightning** is a flash of bright light caused by an electric spark — a sudden, powerful flow of electricity between charged clouds during thunderstorms. It is caused by **static electricity** that builds up as rain falls through the air."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Effects of lightning"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "**People** — burns, heart and breathing problems, paralysis, even death.",
+            "**Plants** — strikes the tallest trees; a major cause of forest fires.",
+            "**Animals** — direct strikes or ground currents can kill many at once; thunder can damage eardrums.",
+            "**Buildings** — structural damage, fires, and damage to electronics."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Preventing damage"
+        },
+        {
+          "type": "paragraph",
+          "text": "Tall buildings are fitted with a **lightning arrester** (Franklin's rod) — a thick **copper** wire with a pointed metal rod that carries the lightning charge safely to the ground."
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Do not lean on walls or stand in water.",
+            "Wear thick rubber-soled shoes.",
+            "Avoid sharp metal objects.",
+            "Do not shelter under trees or walk in open fields; do not swim.",
+            "Indoors, stay away from windows and appliances and do not use the phone."
+          ]
+        },
+        {
+          "type": "note",
+          "lines": [
+            "Importance in farming: a lightning flash breaks nitrogen in the air into nitrates, which are washed into the soil. Plants use nitrates to make proteins."
+          ]
+        },
+        {
+          "type": "tip",
+          "lines": [
+            "Two things examiners love: a lightning arrester is made of thick COPPER, and lightning's farming benefit is fixing NITROGEN into the soil as nitrates."
+          ]
+        },
+        {
+          "type": "picture",
+          "caption": "A lightning strike and a lightning arrester",
+          "lines": [
+            "Cloud with negative charges at the bottom",
+            "Positive charges on the ground below",
+            "The bright lightning flash between cloud and ground",
+            "A lightning arrester (pointed copper rod) on the building",
+            "The earth wire running down to the ground"
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "What causes lightning?",
+          "a": "Lightning is caused by static electricity that builds up in clouds during thunderstorms.",
+          "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Why are lightning arresters made of copper?",
+          "a": "Copper is a very good conductor, so it carries the charge safely to the ground.",
+          "level": "Exam Level"
+        },
+        {
+          "type": "mistake",
+          "wrong": "Lightning is caused by fire in the sky.",
+          "correct": "Lightning is caused by static electricity."
+        },
+        {
+          "type": "exam",
+          "q": "State one importance of lightning in farming.",
+          "a": "Lightning helps to change nitrogen in the air into nitrates, which plants use to make proteins."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Lightning is caused by static electricity in clouds and strikes the tallest objects.",
+            "It can harm people, plants, animals and buildings.",
+            "A lightning arrester (thick copper wire) carries the charge safely to the ground.",
+            "Lightning fixes nitrogen into the soil as nitrates, which plants use to make proteins."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "5.3 Lightning",
+          "quizTitle": "5.3 Lightning — Practice Quiz",
+          "questionCount": 10
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_n_5_4",
+      "title": "5.4 The Solar System",
+      "subject": "Integrated Science",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Describe the solar system and the difference between the Sun and its planets.",
+            "State the reasons for seasons and day & night.",
+            "Compare the movements of the Earth and the Moon.",
+            "Describe solar and lunar eclipses, and the uses of solar energy."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "Why do we have day and night?",
+            "Why is it hotter in some months than in others?"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "The **solar system** is the **Sun** at the centre, the eight planets and their moons, plus comets, asteroids and constellations. The Sun is a **star** — it produces its own light and heat (it is **luminous**). Planets are **non-luminous**: they only reflect light from the Sun."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "The eight planets (in order from the Sun)"
+        },
+        {
+          "type": "table",
+          "headers": [
+            "Planet",
+            "Key facts"
+          ],
+          "rows": [
+            {
+              "cells": [
+                "Mercury",
+                "Closest to the Sun; smallest; no moon; shortest orbit."
+              ]
+            },
+            {
+              "cells": [
+                "Venus",
+                "Brightest planet ('morning/evening star'); no moon."
+              ]
+            },
+            {
+              "cells": [
+                "Earth",
+                "Third from the Sun; only planet known to support life; has 1 moon."
+              ]
+            },
+            {
+              "cells": [
+                "Mars",
+                "Reddish; has 2 small moons."
+              ]
+            },
+            {
+              "cells": [
+                "Jupiter",
+                "Fifth planet; the largest; many moons."
+              ]
+            },
+            {
+              "cells": [
+                "Saturn",
+                "Sixth; second largest; has rings of rock and ice."
+              ]
+            },
+            {
+              "cells": [
+                "Uranus",
+                "Seventh; very cold; third largest."
+              ]
+            },
+            {
+              "cells": [
+                "Neptune",
+                "Eighth and farthest; coldest; longest orbit."
+              ]
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Day & night and the seasons"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "**Day and night** are caused by the Earth spinning (rotating) on its own axis every 24 hours.",
+            "**Seasons** are caused by the **tilt** of the Earth's axis as it revolves around the Sun — NOT by distance from the Sun."
+          ]
+        },
+        {
+          "type": "note",
+          "lines": [
+            "The Earth takes about 365¼ days (one year) to revolve around the Sun; the extra ¼ day gives a leap year every four years. The Moon is a natural satellite of the Earth and takes about 28 days to orbit it."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Eclipses"
+        },
+        {
+          "type": "image",
+          "url": "/notes/q_solar_eclipse.png",
+          "caption": "Formation of a solar eclipse"
+        },
+        {
+          "type": "table",
+          "headers": [
+            "Type",
+            "What happens"
+          ],
+          "rows": [
+            {
+              "cells": [
+                "Solar eclipse",
+                "The Moon comes between the Sun and the Earth and blocks the Sun's light. Happens only at new moon."
+              ]
+            },
+            {
+              "cells": [
+                "Lunar eclipse",
+                "The Earth comes between the Sun and the Moon; the Earth's shadow falls on the Moon. Happens only at full moon."
+              ]
+            }
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Umbra",
+              "def": "The dark, total shadow formed during a total eclipse."
+            },
+            {
+              "term": "Penumbra",
+              "def": "The lighter, partial shadow formed during a partial eclipse."
+            }
+          ]
+        },
+        {
+          "type": "tip",
+          "lines": [
+            "Remember: day/night = rotation (spinning), seasons = tilt. Solar eclipse = Moon in the middle; lunar eclipse = Earth in the middle. Umbra = total (dark), penumbra = partial."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "What causes day and night?",
+          "a": "The Earth spinning (rotating) on its axis.",
+          "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "What causes the seasons?",
+          "a": "The tilt of the Earth's axis as it orbits the Sun.",
+          "level": "Exam Level"
+        },
+        {
+          "type": "mistake",
+          "wrong": "Seasons are caused by the Earth's distance from the Sun.",
+          "correct": "Seasons are caused by the tilt of the Earth's axis."
+        },
+        {
+          "type": "exam",
+          "q": "Explain the difference between a solar and a lunar eclipse.",
+          "a": "A solar eclipse happens when the Moon comes between the Sun and the Earth. A lunar eclipse happens when the Earth comes between the Sun and the Moon."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "The Sun (a luminous star) is at the centre; the planets are non-luminous and reflect its light.",
+            "Day and night come from rotation; seasons come from the tilt of the axis.",
+            "Earth orbits the Sun in ~365¼ days; the Moon orbits Earth in ~28 days.",
+            "Solar eclipse: Moon between Sun and Earth. Lunar eclipse: Earth between Sun and Moon."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "5.4 The Solar System",
+          "quizTitle": "5.4 The Solar System — Practice Quiz",
+          "questionCount": 14
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_n_5_5",
+      "title": "5.5 Metals and Non-metals",
+      "subject": "Integrated Science",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Give examples and uses of common metals and non-metals.",
+            "Explain alloys, conductors and insulators."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "Why are cooking pots made of metal but their handles of plastic?",
+            "Which materials let electricity pass through them?"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Substances can be classified as **metals** or **non-metals**, and their properties decide how they are used. Most metals conduct electricity and heat (good conductors); most non-metals do not (insulators)."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Common metals and their uses"
+        },
+        {
+          "type": "table",
+          "headers": [
+            "Metal",
+            "Uses (because of its properties)"
+          ],
+          "rows": [
+            {
+              "cells": [
+                "Aluminium",
+                "Light but strong: aeroplane bodies, power lines, pots, foil."
+              ]
+            },
+            {
+              "cells": [
+                "Copper",
+                "Excellent conductor; does not rust easily: cables, coins, water pipes."
+              ]
+            },
+            {
+              "cells": [
+                "Iron",
+                "Strong: tools, nails, roofing sheets; alloyed with carbon to make steel."
+              ]
+            },
+            {
+              "cells": [
+                "Zinc",
+                "Coats (galvanises) iron to stop rust; battery cases."
+              ]
+            },
+            {
+              "cells": [
+                "Silver",
+                "Best conductor of electricity; cutlery, jewellery."
+              ]
+            },
+            {
+              "cells": [
+                "Gold",
+                "Conducts well, does not tarnish: jewellery, electrical parts."
+              ]
+            },
+            {
+              "cells": [
+                "Mercury",
+                "The only metal that is liquid at room temperature: thermometers."
+              ]
+            }
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Non-metals and their uses"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "**Wood** — strong, light; tool handles, fuel, building.",
+            "**Glass** — transparent, poor conductor; window panes, insulators.",
+            "**Plastic & rubber** — light, do not rust or conduct; insulators on handles and wires."
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Alloy",
+              "def": "A mixture of two or more metals; e.g. brass (copper + zinc), bronze (copper + tin)."
+            },
+            {
+              "term": "Conductor",
+              "def": "A material that lets electricity (or heat) pass through it — most metals."
+            },
+            {
+              "term": "Insulator",
+              "def": "A material that does not let electricity pass through it — most non-metals."
+            }
+          ]
+        },
+        {
+          "type": "tip",
+          "lines": [
+            "Learn the odd ones out: mercury is the only liquid metal, silver is the best conductor, and brass/bronze are the common alloys."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "Which metal is liquid at room temperature?",
+          "a": "Mercury.",
+          "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Brass is an alloy of which two metals?",
+          "a": "Copper and zinc.",
+          "level": "Medium"
+        },
+        {
+          "type": "mistake",
+          "wrong": "All non-metals conduct electricity.",
+          "correct": "Most non-metals are insulators; metals are the good conductors."
+        },
+        {
+          "type": "exam",
+          "q": "Define an alloy and give one example.",
+          "a": "An alloy is a mixture of two or more metals, for example brass (copper + zinc)."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Metals are good conductors; non-metals are insulators.",
+            "Mercury is the only liquid metal; silver is the best conductor of electricity.",
+            "An alloy is a mixture of metals: brass = copper + zinc, bronze = copper + tin."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "5.5 Metals and Non-metals",
+          "quizTitle": "5.5 Metals and Non-metals — Practice Quiz",
+          "questionCount": 10
+        }
+      ]
+    },
+    {
+      "seedKey": "g7sci_n_5_6",
+      "title": "5.6 Mining",
+      "subject": "Integrated Science",
+      "grade": "7",
+      "blocks": [
+        {
+          "type": "objectives",
+          "items": [
+            "Identify minerals mined in Zambia and the properties of copper.",
+            "Explain how copper is extracted and refined.",
+            "Describe the impact of mining on the environment."
+          ]
+        },
+        {
+          "type": "think",
+          "lines": [
+            "Which minerals have you heard are mined in Zambia?",
+            "Why is copper so important to our country?"
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Mining",
+              "def": "Getting minerals (ores) from underground."
+            },
+            {
+              "term": "Ore",
+              "def": "A rock containing minerals mixed with impurities."
+            },
+            {
+              "term": "Smelting",
+              "def": "Heating copper concentrate to melt and separate the copper."
+            },
+            {
+              "term": "Electrolysis",
+              "def": "Using electricity to refine copper to 100% purity."
+            },
+            {
+              "term": "Refining",
+              "def": "Removing the last impurities to get pure metal."
+            }
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "**Mining** is the process of getting mineral **ores** from underground. An ore is a rock that contains minerals mixed with impurities. Deep ores are mined by the **shaft** method; ores near the surface by the **open-cast** method."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Minerals mined in Zambia"
+        },
+        {
+          "type": "image",
+          "url": "/notes/q_zambia_minerals_map.png",
+          "caption": "Map of Zambia showing where minerals are mined"
+        },
+        {
+          "type": "paragraph",
+          "text": "Copper (the most important, mined on the Copperbelt and at Kansanshi and Lumwana in Solwezi), cobalt, iron, gold, lead, zinc, tin, coal (at Maamba), manganese and uranium. **Copper is Zambia's highest export earner.**"
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Properties of copper"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "A very good conductor of electricity and heat.",
+            "Resists corrosion — does not rust easily (used in water pipes).",
+            "Malleable — can be hammered into shape.",
+            "Ductile — can be stretched into wires.",
+            "Shiny; mixes easily to form alloys (brass, bronze)."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Extraction of copper (three stages)"
+        },
+        {
+          "type": "numbers",
+          "items": [
+            "Crushing — the ore is broken up and crushed into powder in a ball mill.",
+            "Floatation — the powder is mixed with water and oil; air is blown through and copper floats (about 96% pure).",
+            "Smelting — the concentrate is heated in a furnace to melt and separate the copper (about 98% pure)."
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "**Refining** is the last stage — removing the remaining impurities to get 100% pure copper, using **electrolysis**. The impure copper is the anode and pure copper the cathode; pure copper builds up on the cathode and impurities sink as sludge."
+        },
+        {
+          "type": "paragraph",
+          "text": "Making copper items in Zambia creates jobs, brings foreign exchange and raises government revenue. But mining harms the environment: it destroys the landscape, clears vegetation and habitats, pollutes air, land and water (acid rain), and uses huge amounts of electricity and water."
+        },
+        {
+          "type": "tip",
+          "lines": [
+            "Memorise copper extraction in three steps — Crushing, Floatation, Smelting — then Refining by electrolysis. Remember copper is Zambia's top export earner."
+          ]
+        },
+        {
+          "type": "quickcheck",
+          "q": "What are the three stages of copper extraction?",
+          "a": "Crushing, floatation and smelting.",
+          "level": "Medium"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Which process gives 100% pure copper?",
+          "a": "Refining by electrolysis.",
+          "level": "Exam Level"
+        },
+        {
+          "type": "mistake",
+          "wrong": "Diamond is one of the main minerals mined in Zambia.",
+          "correct": "Diamond is not mined in Zambia; copper is the main mineral."
+        },
+        {
+          "type": "exam",
+          "q": "State two ways mining harms the environment.",
+          "a": "It pollutes air, land and water, and it destroys vegetation and animal habitats."
+        },
+        {
+          "type": "summary",
+          "items": [
+            "Mining gets mineral ores from underground (shaft or open-cast methods).",
+            "Copper is the most mined mineral and Zambia's highest export earner.",
+            "Copper extraction: crushing, floatation, smelting; refined by electrolysis.",
+            "Mining brings jobs and revenue but pollutes air, land and water and destroys habitats."
+          ]
+        },
+        {
+          "type": "quiz",
+          "quizKey": "5.6 Mining",
+          "quizTitle": "5.6 Mining — Practice Quiz",
+          "questionCount": 12
+        }
+      ]
+    }
+  ],
+  "quizzes": {
+    "1.1 The Digestive System": [
+      {
+        "q": "Digestion is best defined as",
+        "options": [
+          "the breaking down of food into simple substances the body can absorb",
+          "the removal of undigested food from the body",
+          "the taking in of food through the mouth",
+          "the movement of food along the gut"
+        ],
+        "answer": 0,
+        "explanation": "Digestion is the chemical break-down of food into simple substances that can be absorbed.",
+        "image": ""
+      },
+      {
+        "q": "Taking food into the mouth is called",
+        "options": [
+          "egestion",
+          "ingestion",
+          "absorption",
+          "digestion"
+        ],
+        "answer": 1,
+        "explanation": "Ingestion is the taking in of food through the mouth.",
+        "image": ""
+      },
+      {
+        "q": "Starch is first broken down (into glucose) in the",
+        "options": [
+          "stomach",
+          "mouth",
+          "small intestine",
+          "liver"
+        ],
+        "answer": 1,
+        "explanation": "Starch begins to be broken down into glucose in the mouth.",
+        "image": ""
+      },
+      {
+        "q": "The digestion of proteins begins in the",
+        "options": [
+          "mouth",
+          "stomach",
+          "ileum",
+          "colon"
+        ],
+        "answer": 1,
+        "explanation": "Gastric juices in the stomach begin to break down proteins.",
+        "image": ""
+      },
+      {
+        "q": "Hydrochloric acid in the stomach helps to",
+        "options": [
+          "digest fats",
+          "kill germs in the food",
+          "absorb water",
+          "produce bile"
+        ],
+        "answer": 1,
+        "explanation": "Hydrochloric acid in the stomach kills germs that may be in the food.",
+        "image": ""
+      },
+      {
+        "q": "Bile, which breaks down fats and oils, is produced by the",
+        "options": [
+          "pancreas",
+          "stomach",
+          "liver",
+          "gall bladder"
+        ],
+        "answer": 2,
+        "explanation": "The liver produces bile.",
+        "image": ""
+      },
+      {
+        "q": "Bile is stored in the",
+        "options": [
+          "liver",
+          "gall bladder",
+          "pancreas",
+          "duodenum"
+        ],
+        "answer": 1,
+        "explanation": "After it is produced, bile is stored in the gall bladder.",
+        "image": ""
+      },
+      {
+        "q": "The two parts of the small intestine are the",
+        "options": [
+          "colon and rectum",
+          "duodenum and ileum",
+          "mouth and stomach",
+          "liver and pancreas"
+        ],
+        "answer": 1,
+        "explanation": "The small intestine is made up of the duodenum and the ileum.",
+        "image": ""
+      },
+      {
+        "q": "Study the diagram of the digestive system. The part labelled B is the",
+        "options": [
+          "liver",
+          "stomach",
+          "small intestine",
+          "oesophagus"
+        ],
+        "answer": 1,
+        "explanation": "B points to the J-shaped stomach.",
+        "image": "q_digestive_system.png"
+      },
+      {
+        "q": "In the diagram, the part labelled A is the",
+        "options": [
+          "windpipe",
+          "oesophagus (gullet)",
+          "small intestine",
+          "rectum"
+        ],
+        "answer": 1,
+        "explanation": "A points to the oesophagus, the tube from the mouth to the stomach.",
+        "image": "q_digestive_system.png"
+      },
+      {
+        "q": "In the diagram, which labelled part produces bile?",
+        "options": [
+          "A",
+          "B",
+          "C",
+          "F"
+        ],
+        "answer": 3,
+        "explanation": "F is the liver, which produces bile.",
+        "image": "q_digestive_system.png"
+      },
+      {
+        "q": "In the diagram, digestion of food is completed in the part labelled",
+        "options": [
+          "A",
+          "B",
+          "C",
+          "E"
+        ],
+        "answer": 2,
+        "explanation": "C is the small intestine, where digestion is completed.",
+        "image": "q_digestive_system.png"
+      }
+    ],
+    "2.1 Diseases": [
+      {
+        "q": "Viruses and bacteria can only be seen using a",
+        "options": [
+          "hand lens",
+          "powerful microscope",
+          "telescope",
+          "periscope"
+        ],
+        "answer": 1,
+        "explanation": "Both are tiny and can only be seen with a powerful microscope.",
+        "image": ""
+      },
+      {
+        "q": "Which statement about viruses is correct?",
+        "options": [
+          "They are living things",
+          "They can live on their own",
+          "Most viral diseases have no cure",
+          "They are larger than bacteria"
+        ],
+        "answer": 2,
+        "explanation": "Most viral diseases have no cure; viruses are non-living and cannot live on their own.",
+        "image": ""
+      },
+      {
+        "q": "Which disease is caused by a virus?",
+        "options": [
+          "Cholera",
+          "Typhoid",
+          "Measles",
+          "Tuberculosis"
+        ],
+        "answer": 2,
+        "explanation": "Measles is a viral disease; the others listed are bacterial.",
+        "image": ""
+      },
+      {
+        "q": "Which disease is caused by bacteria?",
+        "options": [
+          "Measles",
+          "Cholera",
+          "Polio",
+          "Influenza"
+        ],
+        "answer": 1,
+        "explanation": "Cholera is caused by bacteria.",
+        "image": ""
+      },
+      {
+        "q": "Cholera is mainly transmitted through",
+        "options": [
+          "contaminated air droplets",
+          "drinking contaminated water",
+          "insect bites",
+          "body contact"
+        ],
+        "answer": 1,
+        "explanation": "Cholera is a waterborne disease spread by drinking contaminated water.",
+        "image": ""
+      },
+      {
+        "q": "Which of the following is a waterborne disease?",
+        "options": [
+          "Tuberculosis",
+          "Measles",
+          "Typhoid",
+          "Influenza"
+        ],
+        "answer": 2,
+        "explanation": "Typhoid is carried in contaminated water and food.",
+        "image": ""
+      },
+      {
+        "q": "Tuberculosis (TB) mainly attacks the",
+        "options": [
+          "liver",
+          "lungs",
+          "kidneys",
+          "heart"
+        ],
+        "answer": 1,
+        "explanation": "TB attacks and damages the lungs.",
+        "image": ""
+      },
+      {
+        "q": "AIDS is caused by",
+        "options": [
+          "bacteria",
+          "a fungus",
+          "HIV (a virus)",
+          "mites"
+        ],
+        "answer": 2,
+        "explanation": "AIDS is caused by the Human Immunodeficiency Virus (HIV).",
+        "image": ""
+      },
+      {
+        "q": "Which is NOT a way HIV is transmitted?",
+        "options": [
+          "Unprotected sex",
+          "Sharing needles",
+          "Shaking hands",
+          "Infected blood transfusion"
+        ],
+        "answer": 2,
+        "explanation": "HIV is not spread by ordinary contact such as shaking hands.",
+        "image": ""
+      },
+      {
+        "q": "The letters AIDS stand for",
+        "options": [
+          "Acquired Immune Deficiency Syndrome",
+          "Acute Internal Disease Syndrome",
+          "Acquired Infection of the Digestive System",
+          "Active Immune Defence System"
+        ],
+        "answer": 0,
+        "explanation": "AIDS = Acquired Immune Deficiency Syndrome.",
+        "image": ""
+      },
+      {
+        "q": "Drugs that help to control HIV and AIDS are called",
+        "options": [
+          "antibiotics",
+          "antiretrovirals (ARVs)",
+          "vaccines",
+          "painkillers"
+        ],
+        "answer": 1,
+        "explanation": "ARVs help control HIV and AIDS and give the patient a better life.",
+        "image": ""
+      },
+      {
+        "q": "Scurvy is a disease caused by lack of",
+        "options": [
+          "Vitamin A",
+          "Vitamin C",
+          "protein",
+          "water"
+        ],
+        "answer": 1,
+        "explanation": "Scurvy is a deficiency disease caused by lack of Vitamin C.",
+        "image": ""
+      },
+      {
+        "q": "Ringworm is caused by a",
+        "options": [
+          "virus",
+          "bacterium",
+          "fungus",
+          "mite"
+        ],
+        "answer": 2,
+        "explanation": "Ringworm is a fungal skin disease spread by contact.",
+        "image": ""
+      },
+      {
+        "q": "Which of the following is a disease of the skin?",
+        "options": [
+          "Cholera",
+          "Scabies",
+          "Typhoid",
+          "Polio"
+        ],
+        "answer": 1,
+        "explanation": "Scabies is a contagious skin disease caused by mites.",
+        "image": ""
+      },
+      {
+        "q": "Most viral diseases are best prevented by",
+        "options": [
+          "antibiotics",
+          "immunisation (vaccination)",
+          "ARVs",
+          "surgery"
+        ],
+        "answer": 1,
+        "explanation": "Most viral diseases cannot be cured but can be prevented by immunisation.",
+        "image": ""
+      }
+    ],
+    "2.2 Fruits": [
+      {
+        "q": "A fruit develops from the",
+        "options": [
+          "ovule",
+          "ovary",
+          "stigma",
+          "anther"
+        ],
+        "answer": 1,
+        "explanation": "After fertilisation, the ovary enlarges to become a fruit.",
+        "image": ""
+      },
+      {
+        "q": "An indigenous fruit is one that",
+        "options": [
+          "is imported from other countries",
+          "grows naturally in the wild",
+          "is always canned",
+          "is grown only in greenhouses"
+        ],
+        "answer": 1,
+        "explanation": "Indigenous fruits grow naturally in the wild.",
+        "image": ""
+      },
+      {
+        "q": "Which of the following is an indigenous fruit?",
+        "options": [
+          "Mango",
+          "Orange",
+          "Snot apple (manego)",
+          "Pineapple"
+        ],
+        "answer": 2,
+        "explanation": "Snot apple (manego) is an indigenous fruit; the others are exotic.",
+        "image": ""
+      },
+      {
+        "q": "Which of the following is an exotic fruit?",
+        "options": [
+          "Masuku",
+          "Baobab (mubuyu)",
+          "Monkey orange",
+          "Mango"
+        ],
+        "answer": 3,
+        "explanation": "Mangoes are exotic (originally from other countries) but grown locally.",
+        "image": ""
+      },
+      {
+        "q": "Crops that bear their seeds in pods and have root nodules are",
+        "options": [
+          "cereals",
+          "legumes",
+          "tubers",
+          "fungi"
+        ],
+        "answer": 1,
+        "explanation": "Legumes bear seeds in pods and have nitrogen-fixing root nodules.",
+        "image": ""
+      },
+      {
+        "q": "Legumes are an especially good source of",
+        "options": [
+          "carbohydrates",
+          "proteins",
+          "water",
+          "fats only"
+        ],
+        "answer": 1,
+        "explanation": "Legume seeds are a very good source of proteins.",
+        "image": ""
+      },
+      {
+        "q": "Cereals (grain crops) are rich in",
+        "options": [
+          "proteins",
+          "fats",
+          "carbohydrates",
+          "minerals only"
+        ],
+        "answer": 2,
+        "explanation": "Cereal grains contain a lot of carbohydrates, giving high energy.",
+        "image": ""
+      },
+      {
+        "q": "Which of the following is a cereal crop?",
+        "options": [
+          "Beans",
+          "Groundnuts",
+          "Maize",
+          "Soya beans"
+        ],
+        "answer": 2,
+        "explanation": "Maize is a cereal; the others are legumes.",
+        "image": ""
+      },
+      {
+        "q": "Oranges are a good source of",
+        "options": [
+          "Vitamin A",
+          "fats",
+          "Vitamin C",
+          "proteins"
+        ],
+        "answer": 2,
+        "explanation": "Citrus fruits such as oranges are rich in Vitamin C.",
+        "image": ""
+      },
+      {
+        "q": "Fibre obtained from fruits helps the body by",
+        "options": [
+          "giving energy",
+          "preventing constipation and aiding digestion",
+          "building muscles",
+          "killing germs"
+        ],
+        "answer": 1,
+        "explanation": "Fibre helps digestion and prevents constipation.",
+        "image": ""
+      }
+    ],
+    "3.1 Separating Substances": [
+      {
+        "q": "A solid that dissolves in a liquid is said to be",
+        "options": [
+          "insoluble",
+          "soluble",
+          "magnetic",
+          "solid"
+        ],
+        "answer": 1,
+        "explanation": "A soluble solid dissolves in a liquid.",
+        "image": ""
+      },
+      {
+        "q": "The liquid in which a solid dissolves is called the",
+        "options": [
+          "solute",
+          "solution",
+          "solvent",
+          "residue"
+        ],
+        "answer": 2,
+        "explanation": "The solvent is the liquid in which the solute dissolves.",
+        "image": ""
+      },
+      {
+        "q": "The solid that dissolves to form a solution is the",
+        "options": [
+          "solvent",
+          "solute",
+          "residue",
+          "filtrate"
+        ],
+        "answer": 1,
+        "explanation": "The solute is the solid that dissolves.",
+        "image": ""
+      },
+      {
+        "q": "Sand can be separated from water by",
+        "options": [
+          "evaporation",
+          "decantation",
+          "using a magnet",
+          "melting"
+        ],
+        "answer": 1,
+        "explanation": "Sand is insoluble; it settles and the water is decanted (poured off). Filtration also works.",
+        "image": ""
+      },
+      {
+        "q": "The best method to recover salt from salty water is",
+        "options": [
+          "filtration",
+          "decantation",
+          "evaporation",
+          "using a magnet"
+        ],
+        "answer": 2,
+        "explanation": "Salt is soluble; heating the solution evaporates the water and leaves the salt.",
+        "image": ""
+      },
+      {
+        "q": "Iron filings can be separated from sand using a",
+        "options": [
+          "sieve",
+          "magnet",
+          "filter",
+          "cup of water"
+        ],
+        "answer": 1,
+        "explanation": "A magnet attracts the magnetic iron filings and leaves the sand.",
+        "image": ""
+      },
+      {
+        "q": "Which of the following is a magnetic material?",
+        "options": [
+          "Rubber",
+          "Plastic",
+          "Iron nail",
+          "Pencil"
+        ],
+        "answer": 2,
+        "explanation": "Iron nails are magnetic; the others are non-magnetic.",
+        "image": ""
+      },
+      {
+        "q": "In filtration, the solid left behind on the filter is called the",
+        "options": [
+          "solvent",
+          "residue",
+          "solution",
+          "solute"
+        ],
+        "answer": 1,
+        "explanation": "The solid trapped by the filter is the residue.",
+        "image": ""
+      },
+      {
+        "q": "Salt is an example of a",
+        "options": [
+          "insoluble solid",
+          "soluble solid",
+          "magnetic material",
+          "gas"
+        ],
+        "answer": 1,
+        "explanation": "Salt dissolves in water, so it is a soluble solid.",
+        "image": ""
+      },
+      {
+        "q": "To separate office pins from flour you would use a",
+        "options": [
+          "magnet",
+          "filter",
+          "cup of water",
+          "fire"
+        ],
+        "answer": 0,
+        "explanation": "Pins are magnetic, so a magnet picks them out of the flour.",
+        "image": ""
+      }
+    ],
+    "3.2 Water Supply Systems": [
+      {
+        "q": "Most of the water on Earth is",
+        "options": [
+          "fresh",
+          "salty",
+          "ice only",
+          "rain"
+        ],
+        "answer": 1,
+        "explanation": "About 97% of the Earth's water is salty (in seas and oceans).",
+        "image": ""
+      },
+      {
+        "q": "An underground source of water is a",
+        "options": [
+          "river",
+          "borehole or well",
+          "dam",
+          "ocean"
+        ],
+        "answer": 1,
+        "explanation": "Wells, boreholes and springs are underground water sources.",
+        "image": ""
+      },
+      {
+        "q": "Before water reaches homes in town it must be",
+        "options": [
+          "frozen",
+          "treated",
+          "coloured",
+          "salted"
+        ],
+        "answer": 1,
+        "explanation": "Town water must be treated to make it safe for use.",
+        "image": ""
+      },
+      {
+        "q": "Which method of treating water kills germs but does not remove chemicals?",
+        "options": [
+          "boiling",
+          "distillation",
+          "carbon filter",
+          "coagulation"
+        ],
+        "answer": 0,
+        "explanation": "Boiling kills germs but does not remove dissolved poisonous chemicals.",
+        "image": ""
+      },
+      {
+        "q": "The treatment method that removes chemicals, germs and even useful minerals is",
+        "options": [
+          "boiling",
+          "filtration",
+          "distillation",
+          "decantation"
+        ],
+        "answer": 2,
+        "explanation": "Distillation boils water and collects the pure vapour, removing chemicals, germs and minerals.",
+        "image": ""
+      },
+      {
+        "q": "Treating water by adding chlorine products such as waterguard is called",
+        "options": [
+          "filtration",
+          "chlorination",
+          "distillation",
+          "sedimentation"
+        ],
+        "answer": 1,
+        "explanation": "Chlorination uses chlorine-containing products to treat water.",
+        "image": ""
+      },
+      {
+        "q": "The first stage in urban water treatment is",
+        "options": [
+          "distribution",
+          "pumping from the source",
+          "disinfection",
+          "filtration"
+        ],
+        "answer": 1,
+        "explanation": "Treatment begins with pumping water from the source.",
+        "image": ""
+      },
+      {
+        "q": "At the coagulation and flocculation stage, chemicals are added to",
+        "options": [
+          "add colour",
+          "make tiny particles clump together",
+          "add minerals",
+          "cool the water"
+        ],
+        "answer": 1,
+        "explanation": "Coagulation and flocculation make suspended particles clump so they can settle.",
+        "image": ""
+      },
+      {
+        "q": "Fluoride is added to treated water to",
+        "options": [
+          "kill germs",
+          "protect teeth from decay",
+          "soften the water",
+          "remove colour"
+        ],
+        "answer": 1,
+        "explanation": "Fluoride is added during neutralising to prevent tooth decay.",
+        "image": ""
+      },
+      {
+        "q": "Treating used water from sewage or factories so it can be used again is called",
+        "options": [
+          "reusing",
+          "recycling",
+          "mulching",
+          "shading"
+        ],
+        "answer": 1,
+        "explanation": "Water recycling removes wastes and germs from used water so it can be used again.",
+        "image": ""
+      },
+      {
+        "q": "Covering soil around plants with dry grass or leaves to reduce evaporation is",
+        "options": [
+          "shading",
+          "mulching",
+          "recycling",
+          "chlorination"
+        ],
+        "answer": 1,
+        "explanation": "Mulching covers the soil to reduce loss of moisture by evaporation.",
+        "image": ""
+      },
+      {
+        "q": "Which statement best describes water conservation?",
+        "options": [
+          "Preventing loss, wastage and pollution of water",
+          "Boiling all water",
+          "Adding chlorine to water",
+          "Building dams only"
+        ],
+        "answer": 0,
+        "explanation": "Water conservation means preventing water from being lost, wasted or polluted.",
+        "image": ""
+      }
+    ],
+    "4.1 The Flower": [
+      {
+        "q": "A flower is the ___ organ of a plant.",
+        "options": [
+          "feeding",
+          "reproductive",
+          "breathing",
+          "supporting"
+        ],
+        "answer": 1,
+        "explanation": "The flower is the reproductive organ of a plant.",
+        "image": ""
+      },
+      {
+        "q": "The male parts of a flower are together called the",
+        "options": [
+          "pistil",
+          "stamen",
+          "calyx",
+          "corolla"
+        ],
+        "answer": 1,
+        "explanation": "The stamen is made up of the anthers, filaments and pollen grains.",
+        "image": ""
+      },
+      {
+        "q": "The female parts of a flower are together called the",
+        "options": [
+          "stamen",
+          "pistil",
+          "corolla",
+          "calyx"
+        ],
+        "answer": 1,
+        "explanation": "The pistil is made up of the stigma, style, ovary and ovules.",
+        "image": ""
+      },
+      {
+        "q": "Which of the following is a male part of a flower?",
+        "options": [
+          "Stigma",
+          "Ovary",
+          "Anther",
+          "Style"
+        ],
+        "answer": 2,
+        "explanation": "The anther is a male part; it produces pollen grains.",
+        "image": ""
+      },
+      {
+        "q": "Pollen grains are produced by the",
+        "options": [
+          "stigma",
+          "anther",
+          "ovary",
+          "sepal"
+        ],
+        "answer": 1,
+        "explanation": "The anthers produce pollen grains.",
+        "image": ""
+      },
+      {
+        "q": "The part that receives pollen grains during pollination is the",
+        "options": [
+          "anther",
+          "stigma",
+          "ovary",
+          "filament"
+        ],
+        "answer": 1,
+        "explanation": "The stigma receives pollen grains during pollination.",
+        "image": ""
+      },
+      {
+        "q": "Ovules are found inside the",
+        "options": [
+          "anther",
+          "stigma",
+          "ovary",
+          "petal"
+        ],
+        "answer": 2,
+        "explanation": "The ovary produces and contains the ovules.",
+        "image": ""
+      },
+      {
+        "q": "A group of petals is called the",
+        "options": [
+          "calyx",
+          "corolla",
+          "stamen",
+          "pistil"
+        ],
+        "answer": 1,
+        "explanation": "A collection of petals is called the corolla.",
+        "image": ""
+      },
+      {
+        "q": "A group of sepals is called the",
+        "options": [
+          "corolla",
+          "calyx",
+          "pistil",
+          "stamen"
+        ],
+        "answer": 1,
+        "explanation": "A group of sepals is called the calyx.",
+        "image": ""
+      },
+      {
+        "q": "Brightly coloured petals mainly help to",
+        "options": [
+          "make food",
+          "attract insects for pollination",
+          "protect the ovules",
+          "hold the flower up"
+        ],
+        "answer": 1,
+        "explanation": "Bright petals attract insects (and birds) that help in pollination.",
+        "image": ""
+      },
+      {
+        "q": "Study the diagram of a flower. Which labelled part develops into a fruit after fertilisation?",
+        "options": [
+          "stigma",
+          "anther",
+          "ovary",
+          "petal"
+        ],
+        "answer": 2,
+        "explanation": "After fertilisation the ovary develops into a fruit.",
+        "image": "q_flower_parts.png"
+      },
+      {
+        "q": "In the flower shown, the part that produces the male reproductive cells (pollen) is the",
+        "options": [
+          "anther",
+          "ovary",
+          "stigma",
+          "ovule"
+        ],
+        "answer": 0,
+        "explanation": "The anther produces pollen grains, the male reproductive cells.",
+        "image": "q_flower_parts.png"
+      }
+    ],
+    "4.2 Pollination and Fertilisation": [
+      {
+        "q": "Pollination is the transfer of pollen grains from the anther to the",
+        "options": [
+          "ovary",
+          "stigma",
+          "ovule",
+          "petal"
+        ],
+        "answer": 1,
+        "explanation": "Pollination is the transfer of pollen from the anther to the stigma.",
+        "image": ""
+      },
+      {
+        "q": "The transfer of pollen to the stigma of the same flower is called",
+        "options": [
+          "cross-pollination",
+          "self-pollination",
+          "fertilisation",
+          "germination"
+        ],
+        "answer": 1,
+        "explanation": "Self-pollination involves the same flower (or same plant).",
+        "image": ""
+      },
+      {
+        "q": "The transfer of pollen to a different plant of the same kind is called",
+        "options": [
+          "self-pollination",
+          "cross-pollination",
+          "dispersal",
+          "propagation"
+        ],
+        "answer": 1,
+        "explanation": "Cross-pollination is between different plants of the same kind.",
+        "image": ""
+      },
+      {
+        "q": "Which of the following is an agent of pollination?",
+        "options": [
+          "Soil",
+          "Wind",
+          "Heat",
+          "Gravity"
+        ],
+        "answer": 1,
+        "explanation": "Wind, water and animals are agents of pollination.",
+        "image": ""
+      },
+      {
+        "q": "Insects are attracted to flowers mainly by the",
+        "options": [
+          "roots",
+          "bright petals, scent and nectar",
+          "sepals",
+          "stalk"
+        ],
+        "answer": 1,
+        "explanation": "Bright petals, scent and nectar attract insects to flowers.",
+        "image": ""
+      },
+      {
+        "q": "Fertilisation is the joining of a pollen grain and an",
+        "options": [
+          "anther",
+          "ovule",
+          "stigma",
+          "sepal"
+        ],
+        "answer": 1,
+        "explanation": "Fertilisation is the fusion of a pollen grain and an ovule to form a zygote.",
+        "image": ""
+      },
+      {
+        "q": "Fertilisation in a plant takes place in the",
+        "options": [
+          "stigma",
+          "style",
+          "ovary",
+          "anther"
+        ],
+        "answer": 2,
+        "explanation": "Fertilisation takes place in the ovary.",
+        "image": ""
+      },
+      {
+        "q": "After pollination, the pollen tube grows down towards the ovary through the",
+        "options": [
+          "filament",
+          "style",
+          "sepal",
+          "petal"
+        ],
+        "answer": 1,
+        "explanation": "The pollen tube grows through the style to reach the ovary.",
+        "image": ""
+      },
+      {
+        "q": "After fertilisation, an ovule becomes a",
+        "options": [
+          "fruit",
+          "seed",
+          "flower",
+          "petal"
+        ],
+        "answer": 1,
+        "explanation": "Each fertilised ovule develops into a seed.",
+        "image": ""
+      },
+      {
+        "q": "Which part does NOT fall off after fertilisation?",
+        "options": [
+          "Petals",
+          "Anthers",
+          "Ovary",
+          "Stigma"
+        ],
+        "answer": 2,
+        "explanation": "The ovary remains and becomes the fruit; petals, anthers, stigma, style and filament fall off.",
+        "image": ""
+      }
+    ],
+    "4.3 Fruits and Seeds": [
+      {
+        "q": "After fertilisation, the ovary becomes a",
+        "options": [
+          "seed",
+          "fruit",
+          "flower",
+          "root"
+        ],
+        "answer": 1,
+        "explanation": "The ovary develops into a fruit after fertilisation.",
+        "image": ""
+      },
+      {
+        "q": "A seed develops from a fertilised",
+        "options": [
+          "ovary",
+          "ovule",
+          "stigma",
+          "anther"
+        ],
+        "answer": 1,
+        "explanation": "Seeds develop from fertilised ovules.",
+        "image": ""
+      },
+      {
+        "q": "The outer covering of a seed is called the",
+        "options": [
+          "pericarp",
+          "testa",
+          "cotyledon",
+          "calyx"
+        ],
+        "answer": 1,
+        "explanation": "The seed coat is called the testa (the fruit covering is the pericarp).",
+        "image": ""
+      },
+      {
+        "q": "A fruit usually has ___ scars while a seed has one.",
+        "options": [
+          "one",
+          "two",
+          "three",
+          "no"
+        ],
+        "answer": 1,
+        "explanation": "Fruits have two scars while seeds have only one scar.",
+        "image": ""
+      },
+      {
+        "q": "Compared with seeds, most fruits are",
+        "options": [
+          "dry",
+          "juicy",
+          "very small",
+          "hard"
+        ],
+        "answer": 1,
+        "explanation": "Most fruits are juicy, while most seeds are dry.",
+        "image": ""
+      },
+      {
+        "q": "Plants produce many seeds mainly to",
+        "options": [
+          "look attractive",
+          "make sure some grow into new plants",
+          "feed insects only",
+          "make the plant heavy"
+        ],
+        "answer": 1,
+        "explanation": "Producing many seeds ensures that some will find favourable conditions and grow.",
+        "image": ""
+      },
+      {
+        "q": "The production of new plants is called plant",
+        "options": [
+          "pollination",
+          "propagation",
+          "dispersal",
+          "digestion"
+        ],
+        "answer": 1,
+        "explanation": "Plant propagation is the production of new plants.",
+        "image": ""
+      },
+      {
+        "q": "An improved seed variety is one that",
+        "options": [
+          "gives higher yields than the original",
+          "always gives lower yields",
+          "dies more quickly",
+          "never resists disease"
+        ],
+        "answer": 0,
+        "explanation": "Improved varieties give higher yields and other benefits.",
+        "image": ""
+      },
+      {
+        "q": "Which of the following is a benefit of improved seed varieties?",
+        "options": [
+          "Late maturity",
+          "Resistance to drought",
+          "Lower nutrition",
+          "Weaker crops"
+        ],
+        "answer": 1,
+        "explanation": "Improved seeds can resist drought and disease, mature early and give higher yields.",
+        "image": ""
+      },
+      {
+        "q": "Seeds are important to plants because they",
+        "options": [
+          "protect and continue the plant species",
+          "only feed animals",
+          "have no real use",
+          "cause plant diseases"
+        ],
+        "answer": 0,
+        "explanation": "Seeds propagate the next generation and stop a species from becoming extinct.",
+        "image": ""
+      }
+    ],
+    "4.4 Seed Dispersal": [
+      {
+        "q": "Seed dispersal is the",
+        "options": [
+          "joining of pollen and ovule",
+          "moving of seeds away from the parent plant",
+          "transfer of pollen to the stigma",
+          "making of food by the plant"
+        ],
+        "answer": 1,
+        "explanation": "Seed dispersal is moving seeds away from the parent plant.",
+        "image": ""
+      },
+      {
+        "q": "Seeds that are dispersed by wind are usually",
+        "options": [
+          "heavy and large",
+          "light and small",
+          "juicy",
+          "covered in hooks"
+        ],
+        "answer": 1,
+        "explanation": "Wind-dispersed seeds are small and light, sometimes with wings or hairs.",
+        "image": ""
+      },
+      {
+        "q": "Jacaranda seeds are mainly dispersed by",
+        "options": [
+          "water",
+          "wind",
+          "animals",
+          "explosion"
+        ],
+        "answer": 1,
+        "explanation": "Jacaranda seeds have wing-like structures and are dispersed by wind.",
+        "image": ""
+      },
+      {
+        "q": "A coconut is dispersed by",
+        "options": [
+          "wind",
+          "water",
+          "explosion",
+          "birds only"
+        ],
+        "answer": 1,
+        "explanation": "Coconuts are light and have air spaces, so they float and are dispersed by water.",
+        "image": ""
+      },
+      {
+        "q": "Seeds with hooks, such as the black jack, are dispersed by",
+        "options": [
+          "wind",
+          "water",
+          "animals",
+          "explosion"
+        ],
+        "answer": 2,
+        "explanation": "Hooked seeds attach to the fur of animals and are carried away.",
+        "image": ""
+      },
+      {
+        "q": "When a dry pod bursts open to throw out its seeds, this is",
+        "options": [
+          "wind dispersal",
+          "self (explosive) dispersal",
+          "animal dispersal",
+          "water dispersal"
+        ],
+        "answer": 1,
+        "explanation": "Self-dispersal is when pods burst open to release seeds.",
+        "image": ""
+      },
+      {
+        "q": "Which of the following seeds are dispersed by explosion?",
+        "options": [
+          "Coconut",
+          "Jacaranda",
+          "Beans and peas",
+          "Black jack"
+        ],
+        "answer": 2,
+        "explanation": "Peas and beans have pods that burst open (explosive dispersal).",
+        "image": ""
+      },
+      {
+        "q": "A guava eaten by a bird and its seeds dropped far away is an example of dispersal by",
+        "options": [
+          "wind",
+          "water",
+          "animals",
+          "explosion"
+        ],
+        "answer": 2,
+        "explanation": "Animals eat fruits and pass or drop the seeds far from the parent plant.",
+        "image": ""
+      },
+      {
+        "q": "Seeds that float and contain air spaces are dispersed by",
+        "options": [
+          "wind",
+          "water",
+          "animals",
+          "explosion"
+        ],
+        "answer": 1,
+        "explanation": "Air spaces help seeds float, so they are dispersed by water.",
+        "image": ""
+      },
+      {
+        "q": "Seed dispersal is important because it",
+        "options": [
+          "reduces overcrowding and competition",
+          "kills the parent plant",
+          "stops seeds from germinating",
+          "removes water from seeds"
+        ],
+        "answer": 0,
+        "explanation": "Dispersal spreads seeds out, reducing competition for light, water and nutrients.",
+        "image": ""
+      }
+    ],
+    "4.5 Propagation": [
+      {
+        "q": "Growing new plants from parts of an existing plant is called ___ propagation.",
+        "options": [
+          "sexual",
+          "vegetative",
+          "seed",
+          "natural"
+        ],
+        "answer": 1,
+        "explanation": "Vegetative propagation uses parts of an existing plant.",
+        "image": ""
+      },
+      {
+        "q": "Planting seeds in lines is called",
+        "options": [
+          "broadcasting",
+          "row planting",
+          "grafting",
+          "layering"
+        ],
+        "answer": 1,
+        "explanation": "Row planting places seeds in rows, e.g. maize and beans.",
+        "image": ""
+      },
+      {
+        "q": "Scattering seeds over a field is called",
+        "options": [
+          "row planting",
+          "broadcasting",
+          "budding",
+          "layering"
+        ],
+        "answer": 1,
+        "explanation": "Broadcasting scatters seeds, which are then covered with soil.",
+        "image": ""
+      },
+      {
+        "q": "Millet and sorghum are usually propagated by",
+        "options": [
+          "row planting",
+          "broadcasting",
+          "grafting",
+          "cuttings"
+        ],
+        "answer": 1,
+        "explanation": "Millet and sorghum are commonly broadcast.",
+        "image": ""
+      },
+      {
+        "q": "Cassava and sugarcane are commonly grown from",
+        "options": [
+          "seeds",
+          "stem cuttings",
+          "grafting",
+          "budding"
+        ],
+        "answer": 1,
+        "explanation": "These plants are grown from stem cuttings.",
+        "image": ""
+      },
+      {
+        "q": "Joining a twig (scion) onto the stem of another plant of the same type is called",
+        "options": [
+          "layering",
+          "grafting",
+          "budding",
+          "cutting"
+        ],
+        "answer": 1,
+        "explanation": "Grafting joins a scion to a stock.",
+        "image": ""
+      },
+      {
+        "q": "In grafting, the rooted plant onto which the scion is joined is called the",
+        "options": [
+          "scion",
+          "stock",
+          "sucker",
+          "bud"
+        ],
+        "answer": 1,
+        "explanation": "The stock is the rooted plant that receives the scion.",
+        "image": ""
+      },
+      {
+        "q": "Pegging a branch into the soil so it grows roots, then cutting it off, is called",
+        "options": [
+          "budding",
+          "layering (marcotting)",
+          "grafting",
+          "broadcasting"
+        ],
+        "answer": 1,
+        "explanation": "Layering (marcotting) induces roots on a branch still attached to the parent.",
+        "image": ""
+      },
+      {
+        "q": "Small plantlets that grow beside a banana plant are called",
+        "options": [
+          "suckers",
+          "cuttings",
+          "scions",
+          "buds"
+        ],
+        "answer": 0,
+        "explanation": "Suckers are plantlets that grow beside the parent and can be separated.",
+        "image": ""
+      },
+      {
+        "q": "Grafting is mainly done to",
+        "options": [
+          "reduce a plant's yield",
+          "improve the quality and yield of a plant",
+          "kill the plant",
+          "make more seeds"
+        ],
+        "answer": 1,
+        "explanation": "Grafting improves the quality and yield of a plant that was formerly poor.",
+        "image": ""
+      }
+    ],
+    "5.1 Energy": [
+      {
+        "q": "Energy is the ability to",
+        "options": [
+          "move only",
+          "do work",
+          "grow",
+          "eat"
+        ],
+        "answer": 1,
+        "explanation": "Energy is the ability to do work.",
+        "image": ""
+      },
+      {
+        "q": "The energy in a moving object is called",
+        "options": [
+          "potential energy",
+          "kinetic energy",
+          "chemical energy",
+          "sound energy"
+        ],
+        "answer": 1,
+        "explanation": "Kinetic energy is the energy of a moving object.",
+        "image": ""
+      },
+      {
+        "q": "Energy stored in an object because of its position or state is called",
+        "options": [
+          "kinetic energy",
+          "potential energy",
+          "light energy",
+          "sound energy"
+        ],
+        "answer": 1,
+        "explanation": "Potential energy is stored energy due to position or state.",
+        "image": ""
+      },
+      {
+        "q": "The energy stored in fuels and food is",
+        "options": [
+          "light energy",
+          "chemical energy",
+          "sound energy",
+          "kinetic energy"
+        ],
+        "answer": 1,
+        "explanation": "Fuels and food store chemical energy, released when burnt or used.",
+        "image": ""
+      },
+      {
+        "q": "Sound energy is produced when objects",
+        "options": [
+          "melt",
+          "vibrate",
+          "freeze",
+          "dissolve"
+        ],
+        "answer": 1,
+        "explanation": "Vibrating objects produce sound energy.",
+        "image": ""
+      },
+      {
+        "q": "The main natural source of light and heat energy is the",
+        "options": [
+          "Moon",
+          "Sun",
+          "nearest star",
+          "fire"
+        ],
+        "answer": 1,
+        "explanation": "The Sun is the main source of light and heat energy.",
+        "image": ""
+      },
+      {
+        "q": "Which of the following is a natural source of light?",
+        "options": [
+          "Candle",
+          "Torch",
+          "Firefly",
+          "Bulb"
+        ],
+        "answer": 2,
+        "explanation": "Fireflies are natural sources of light; candles, torches and bulbs are artificial.",
+        "image": ""
+      },
+      {
+        "q": "Which of the following is an artificial source of light?",
+        "options": [
+          "Sun",
+          "Lightning",
+          "Firefly",
+          "Torch"
+        ],
+        "answer": 3,
+        "explanation": "A torch is an artificial (man-made) source of light.",
+        "image": ""
+      },
+      {
+        "q": "The law of conservation of energy states that energy can be",
+        "options": [
+          "created",
+          "destroyed",
+          "changed from one form to another",
+          "stored only"
+        ],
+        "answer": 2,
+        "explanation": "Energy cannot be created or destroyed, only changed from one form to another.",
+        "image": ""
+      },
+      {
+        "q": "In a torch, chemical energy is finally changed into",
+        "options": [
+          "sound energy",
+          "light (and heat) energy",
+          "magnetic energy",
+          "nuclear energy"
+        ],
+        "answer": 1,
+        "explanation": "Chemical to electrical to heat, and finally to light in the bulb.",
+        "image": ""
+      },
+      {
+        "q": "When wood burns, the energy change is",
+        "options": [
+          "chemical to heat to light",
+          "light to heat to chemical",
+          "heat to chemical to light",
+          "sound to heat to light"
+        ],
+        "answer": 0,
+        "explanation": "Burning wood changes chemical energy into heat and then light.",
+        "image": ""
+      },
+      {
+        "q": "A stretched rubber band has ___ energy.",
+        "options": [
+          "kinetic",
+          "potential",
+          "sound",
+          "light"
+        ],
+        "answer": 1,
+        "explanation": "A stretched rubber band stores potential energy.",
+        "image": ""
+      }
+    ],
+    "5.2 Electric Current and Circuits": [
+      {
+        "q": "An electric current is the flow of",
+        "options": [
+          "water",
+          "charges (electrons)",
+          "air",
+          "heat only"
+        ],
+        "answer": 1,
+        "explanation": "An electric current is the flow of charges (electrons) in a conductor.",
+        "image": ""
+      },
+      {
+        "q": "Current flows from the ___ terminal to the negative terminal of a cell.",
+        "options": [
+          "positive",
+          "middle",
+          "switch",
+          "bulb"
+        ],
+        "answer": 0,
+        "explanation": "Current flows from the positive to the negative terminal of a cell.",
+        "image": ""
+      },
+      {
+        "q": "For an electric current to flow, the circuit must be",
+        "options": [
+          "open",
+          "broken",
+          "complete",
+          "wet"
+        ],
+        "answer": 2,
+        "explanation": "Current only flows when the circuit is complete.",
+        "image": ""
+      },
+      {
+        "q": "Which part is the source of energy in a simple circuit?",
+        "options": [
+          "Wire",
+          "Bulb",
+          "Dry cell",
+          "Switch"
+        ],
+        "answer": 2,
+        "explanation": "The dry cell (which stores chemical energy) is the source of electrical energy.",
+        "image": ""
+      },
+      {
+        "q": "A bulb changes electrical energy mainly into",
+        "options": [
+          "sound",
+          "heat and light",
+          "chemical energy",
+          "magnetic energy"
+        ],
+        "answer": 1,
+        "explanation": "The bulb converts electrical energy into heat and light.",
+        "image": ""
+      },
+      {
+        "q": "The part used to open or close a circuit is the",
+        "options": [
+          "cell",
+          "bulb",
+          "switch",
+          "wire"
+        ],
+        "answer": 2,
+        "explanation": "A switch opens or closes the circuit to control the current.",
+        "image": ""
+      },
+      {
+        "q": "When a switch is open, the bulb",
+        "options": [
+          "lights brightly",
+          "does not light",
+          "becomes hot",
+          "explodes"
+        ],
+        "answer": 1,
+        "explanation": "An open switch leaves a gap, so the circuit is incomplete and the bulb does not light.",
+        "image": ""
+      },
+      {
+        "q": "In a series circuit, if one bulb is removed the other bulbs",
+        "options": [
+          "stay on",
+          "go off",
+          "become brighter",
+          "keep blinking"
+        ],
+        "answer": 1,
+        "explanation": "In series, removing one bulb breaks the circuit and the others go off.",
+        "image": ""
+      },
+      {
+        "q": "Bulbs that share the cell's voltage and light dimly are connected in",
+        "options": [
+          "parallel",
+          "series",
+          "a switch",
+          "a battery"
+        ],
+        "answer": 1,
+        "explanation": "Bulbs in series share the voltage and light dimly.",
+        "image": ""
+      },
+      {
+        "q": "Bulbs that each light at full brightness, and stay on if one fails, are connected in",
+        "options": [
+          "series",
+          "parallel",
+          "one line",
+          "a single cell"
+        ],
+        "answer": 1,
+        "explanation": "In parallel, each bulb lights fully and the others stay on if one fails.",
+        "image": ""
+      },
+      {
+        "q": "Study the circuit shown. The bulbs are connected in",
+        "options": [
+          "series",
+          "parallel",
+          "an open circuit",
+          "a short circuit"
+        ],
+        "answer": 0,
+        "explanation": "The three bulbs are in one line (one loop), so they are in series.",
+        "image": "q_bulbs_series.png"
+      },
+      {
+        "q": "Study the circuit shown. The bulbs are connected in",
+        "options": [
+          "series",
+          "parallel",
+          "a broken circuit",
+          "one line"
+        ],
+        "answer": 1,
+        "explanation": "Each bulb is on its own branch (separate line), so they are in parallel.",
+        "image": "q_bulbs_parallel.png"
+      }
+    ],
+    "5.3 Lightning": [
+      {
+        "q": "Lightning is caused by",
+        "options": [
+          "moving water",
+          "static electricity",
+          "current electricity from dry cells",
+          "magnets"
+        ],
+        "answer": 1,
+        "explanation": "Lightning is a result of static electricity that builds up in clouds.",
+        "image": ""
+      },
+      {
+        "q": "Lightning is a flash of bright light caused by an electric",
+        "options": [
+          "cell",
+          "spark",
+          "bulb",
+          "wire"
+        ],
+        "answer": 1,
+        "explanation": "Lightning is a flash of bright light caused by an electric spark.",
+        "image": ""
+      },
+      {
+        "q": "Lightning usually strikes the ___ objects on its path.",
+        "options": [
+          "shortest",
+          "tallest",
+          "red",
+          "smallest"
+        ],
+        "answer": 1,
+        "explanation": "Lightning strikes the tallest objects, such as tall trees and buildings.",
+        "image": ""
+      },
+      {
+        "q": "Lightning is a major cause of",
+        "options": [
+          "forest fires",
+          "floods",
+          "earthquakes",
+          "droughts"
+        ],
+        "answer": 0,
+        "explanation": "Lightning striking trees is a major cause of forest fires.",
+        "image": ""
+      },
+      {
+        "q": "The device fitted on tall buildings to carry lightning safely to the ground is a",
+        "options": [
+          "lightning arrester",
+          "switch",
+          "fuse",
+          "dynamo"
+        ],
+        "answer": 0,
+        "explanation": "A lightning arrester (Franklin's rod) conducts the charge to the ground.",
+        "image": ""
+      },
+      {
+        "q": "A lightning arrester is made of thick",
+        "options": [
+          "rubber",
+          "copper wire",
+          "timber",
+          "plastic"
+        ],
+        "answer": 1,
+        "explanation": "A lightning arrester is a thick copper wire/rod.",
+        "image": ""
+      },
+      {
+        "q": "During a thunderstorm, you should",
+        "options": [
+          "shelter under a tall tree",
+          "wear shoes with thick rubber soles",
+          "go swimming",
+          "carry sharp metal objects"
+        ],
+        "answer": 1,
+        "explanation": "Thick rubber soles help protect you; the other actions are dangerous.",
+        "image": ""
+      },
+      {
+        "q": "Which of the following should you avoid during a thunderstorm?",
+        "options": [
+          "Staying indoors",
+          "Using a phone",
+          "Wearing rubber shoes",
+          "Closing the windows"
+        ],
+        "answer": 1,
+        "explanation": "You should not use the phone during a thunderstorm.",
+        "image": ""
+      },
+      {
+        "q": "In farming, lightning is useful because it",
+        "options": [
+          "waters the crops",
+          "fixes nitrogen in the air into nitrates in the soil",
+          "kills all pests",
+          "warms the soil"
+        ],
+        "answer": 1,
+        "explanation": "Lightning breaks nitrogen into nitrates that enrich the soil.",
+        "image": ""
+      },
+      {
+        "q": "Plants use the nitrates formed by lightning to make",
+        "options": [
+          "water",
+          "proteins",
+          "carbohydrates",
+          "oxygen"
+        ],
+        "answer": 1,
+        "explanation": "Plants use nitrates to make proteins for healthy growth.",
+        "image": ""
+      }
+    ],
+    "5.4 The Solar System": [
+      {
+        "q": "At the centre of the solar system is the",
+        "options": [
+          "Earth",
+          "Moon",
+          "Sun",
+          "Jupiter"
+        ],
+        "answer": 2,
+        "explanation": "The Sun is at the centre of the solar system.",
+        "image": ""
+      },
+      {
+        "q": "The Sun is a",
+        "options": [
+          "planet",
+          "star",
+          "satellite",
+          "comet"
+        ],
+        "answer": 1,
+        "explanation": "The Sun is a star that produces its own light and heat.",
+        "image": ""
+      },
+      {
+        "q": "An object that produces its own light is said to be",
+        "options": [
+          "non-luminous",
+          "luminous",
+          "opaque",
+          "transparent"
+        ],
+        "answer": 1,
+        "explanation": "A luminous object produces its own light, like the Sun.",
+        "image": ""
+      },
+      {
+        "q": "We can see the planets because they",
+        "options": [
+          "produce their own light",
+          "reflect light from the Sun",
+          "are very hot",
+          "are stars"
+        ],
+        "answer": 1,
+        "explanation": "Planets are non-luminous; they reflect the Sun's light.",
+        "image": ""
+      },
+      {
+        "q": "The planet closest to the Sun is",
+        "options": [
+          "Venus",
+          "Earth",
+          "Mercury",
+          "Mars"
+        ],
+        "answer": 2,
+        "explanation": "Mercury is the closest planet to the Sun.",
+        "image": ""
+      },
+      {
+        "q": "The largest planet in the solar system is",
+        "options": [
+          "Saturn",
+          "Earth",
+          "Jupiter",
+          "Neptune"
+        ],
+        "answer": 2,
+        "explanation": "Jupiter is the largest planet.",
+        "image": ""
+      },
+      {
+        "q": "The only planet known to support life is",
+        "options": [
+          "Mars",
+          "Venus",
+          "Earth",
+          "Mercury"
+        ],
+        "answer": 2,
+        "explanation": "Earth is the only planet known to support life.",
+        "image": ""
+      },
+      {
+        "q": "Day and night are caused by the Earth",
+        "options": [
+          "revolving round the Sun",
+          "spinning (rotating) on its own axis",
+          "tilting",
+          "moving closer to the Sun"
+        ],
+        "answer": 1,
+        "explanation": "Day and night are caused by the Earth spinning on its axis every 24 hours.",
+        "image": ""
+      },
+      {
+        "q": "The seasons are caused by the",
+        "options": [
+          "distance of the Earth from the Sun",
+          "tilt of the Earth's axis",
+          "spinning of the Moon",
+          "shape of the Earth"
+        ],
+        "answer": 1,
+        "explanation": "The tilt of the Earth's axis causes the seasons as it revolves round the Sun.",
+        "image": ""
+      },
+      {
+        "q": "The Earth takes about ___ to revolve once round the Sun.",
+        "options": [
+          "24 hours",
+          "28 days",
+          "365 1/4 days",
+          "one week"
+        ],
+        "answer": 2,
+        "explanation": "The Earth takes about 365 1/4 days (one year) to orbit the Sun.",
+        "image": ""
+      },
+      {
+        "q": "The Moon takes about ___ to orbit the Earth.",
+        "options": [
+          "24 hours",
+          "28 days",
+          "365 days",
+          "12 hours"
+        ],
+        "answer": 1,
+        "explanation": "The Moon takes about 28 days (one month) to orbit the Earth.",
+        "image": ""
+      },
+      {
+        "q": "A solar eclipse happens when the ___ comes between the Sun and the Earth.",
+        "options": [
+          "Moon",
+          "Earth",
+          "a star",
+          "a comet"
+        ],
+        "answer": 0,
+        "explanation": "In a solar eclipse the Moon comes between the Sun and the Earth.",
+        "image": ""
+      },
+      {
+        "q": "Study the diagram. It shows the formation of a",
+        "options": [
+          "lunar eclipse",
+          "solar eclipse",
+          "full moon",
+          "day and night"
+        ],
+        "answer": 1,
+        "explanation": "The Moon is between the Sun and the Earth, blocking the Sun's light: a solar eclipse.",
+        "image": "q_solar_eclipse.png"
+      },
+      {
+        "q": "The total (dark) shadow formed during an eclipse is called the",
+        "options": [
+          "penumbra",
+          "umbra",
+          "orbit",
+          "crater"
+        ],
+        "answer": 1,
+        "explanation": "The umbra is the total shadow; the penumbra is the partial shadow.",
+        "image": ""
+      }
+    ],
+    "5.5 Metals and Non-metals": [
+      {
+        "q": "Most metals are ___ of electricity.",
+        "options": [
+          "bad conductors",
+          "good conductors",
+          "insulators",
+          "non-conductors"
+        ],
+        "answer": 1,
+        "explanation": "Most metals are good conductors of electricity and heat.",
+        "image": ""
+      },
+      {
+        "q": "Most non-metals are",
+        "options": [
+          "good conductors",
+          "insulators (bad conductors)",
+          "magnets",
+          "always shiny"
+        ],
+        "answer": 1,
+        "explanation": "Most non-metals do not conduct electricity; they are insulators.",
+        "image": ""
+      },
+      {
+        "q": "The only metal that is liquid at room temperature is",
+        "options": [
+          "iron",
+          "mercury",
+          "copper",
+          "zinc"
+        ],
+        "answer": 1,
+        "explanation": "Mercury is the only metal that is liquid at room temperature.",
+        "image": ""
+      },
+      {
+        "q": "The best conductor of electricity is",
+        "options": [
+          "copper",
+          "silver",
+          "iron",
+          "gold"
+        ],
+        "answer": 1,
+        "explanation": "Silver is the best conductor of electricity, followed by copper.",
+        "image": ""
+      },
+      {
+        "q": "A substance made from a mixture of two or more metals is called an",
+        "options": [
+          "ore",
+          "alloy",
+          "element",
+          "acid"
+        ],
+        "answer": 1,
+        "explanation": "An alloy is a mixture of two or more metals (or a metal with another element).",
+        "image": ""
+      },
+      {
+        "q": "Brass is an alloy of copper and",
+        "options": [
+          "tin",
+          "zinc",
+          "iron",
+          "silver"
+        ],
+        "answer": 1,
+        "explanation": "Brass is a mixture of copper and zinc (bronze is copper and tin).",
+        "image": ""
+      },
+      {
+        "q": "Which metal is light but strong and is used for aeroplane bodies?",
+        "options": [
+          "Lead",
+          "Aluminium",
+          "Gold",
+          "Mercury"
+        ],
+        "answer": 1,
+        "explanation": "Aluminium is light and strong, so it is used for aeroplane bodies.",
+        "image": ""
+      },
+      {
+        "q": "Iron is coated (galvanised) with ___ to prevent it from rusting.",
+        "options": [
+          "gold",
+          "zinc",
+          "silver",
+          "copper"
+        ],
+        "answer": 1,
+        "explanation": "Zinc is used to coat iron to prevent rusting.",
+        "image": ""
+      },
+      {
+        "q": "Which of the following is a non-metal?",
+        "options": [
+          "Copper",
+          "Iron",
+          "Oxygen",
+          "Zinc"
+        ],
+        "answer": 2,
+        "explanation": "Oxygen is a non-metal; the others are metals.",
+        "image": ""
+      },
+      {
+        "q": "Glass is used for window panes because it is",
+        "options": [
+          "a good conductor",
+          "transparent and a poor conductor",
+          "magnetic",
+          "a metal"
+        ],
+        "answer": 1,
+        "explanation": "Glass is transparent and a poor conductor of heat and electricity.",
+        "image": ""
+      }
+    ],
+    "5.6 Mining": [
+      {
+        "q": "Mining is the process of getting ___ from underground.",
+        "options": [
+          "water",
+          "minerals (ores)",
+          "air",
+          "plants"
+        ],
+        "answer": 1,
+        "explanation": "Mining is the process of getting mineral ores from underground.",
+        "image": ""
+      },
+      {
+        "q": "A rock that contains minerals mixed with impurities is called an",
+        "options": [
+          "alloy",
+          "ore",
+          "element",
+          "acid"
+        ],
+        "answer": 1,
+        "explanation": "An ore is a rock that contains minerals together with impurities.",
+        "image": ""
+      },
+      {
+        "q": "Ores found deep in the earth are mined by the ___ method.",
+        "options": [
+          "open-cast",
+          "shaft",
+          "floatation",
+          "drip"
+        ],
+        "answer": 1,
+        "explanation": "Deep ores are mined using the shaft method.",
+        "image": ""
+      },
+      {
+        "q": "The most commonly mined mineral in Zambia is",
+        "options": [
+          "gold",
+          "coal",
+          "copper",
+          "zinc"
+        ],
+        "answer": 2,
+        "explanation": "Copper is the most commonly mined mineral and the highest export earner.",
+        "image": ""
+      },
+      {
+        "q": "Copper in Zambia is mainly mined on the",
+        "options": [
+          "Copperbelt",
+          "coast",
+          "Eastern plateau",
+          "Barotse plain"
+        ],
+        "answer": 0,
+        "explanation": "Most copper is mined in the Copperbelt towns.",
+        "image": ""
+      },
+      {
+        "q": "Which of the following is a property of copper?",
+        "options": [
+          "Poor conductor of electricity",
+          "Good conductor of electricity",
+          "Magnetic",
+          "Liquid at room temperature"
+        ],
+        "answer": 1,
+        "explanation": "Copper is a very good conductor of electricity.",
+        "image": ""
+      },
+      {
+        "q": "The three stages of copper extraction are crushing, floatation and",
+        "options": [
+          "refining",
+          "smelting",
+          "electrolysis",
+          "casting"
+        ],
+        "answer": 1,
+        "explanation": "The three extraction stages are crushing, floatation and smelting.",
+        "image": ""
+      },
+      {
+        "q": "The last process that gives 100% pure copper is",
+        "options": [
+          "crushing",
+          "floatation",
+          "smelting",
+          "refining"
+        ],
+        "answer": 3,
+        "explanation": "Refining (by electrolysis) removes the last impurities to give pure copper.",
+        "image": ""
+      },
+      {
+        "q": "Copper is refined using a process called",
+        "options": [
+          "boiling",
+          "electrolysis",
+          "filtration",
+          "distillation"
+        ],
+        "answer": 1,
+        "explanation": "Refining of copper is done by electrolysis.",
+        "image": ""
+      },
+      {
+        "q": "Which of the following minerals is NOT mined in Zambia?",
+        "options": [
+          "Cobalt",
+          "Coal",
+          "Diamond",
+          "Zinc"
+        ],
+        "answer": 2,
+        "explanation": "Diamond is not among the minerals mined in Zambia.",
+        "image": ""
+      },
+      {
+        "q": "A harmful effect of mining on the environment is",
+        "options": [
+          "creating jobs",
+          "pollution of air, land and water",
+          "earning foreign exchange",
+          "paying taxes"
+        ],
+        "answer": 1,
+        "explanation": "Mining pollutes air, land and water; the others are benefits.",
+        "image": ""
+      },
+      {
+        "q": "Study the map of Zambia. Copper is mostly mined in the province named",
+        "options": [
+          "Western",
+          "Copperbelt",
+          "Eastern",
+          "Southern"
+        ],
+        "answer": 1,
+        "explanation": "The map and key show copper is mined mainly in the Copperbelt Province.",
+        "image": "q_zambia_minerals_map.png"
+      }
+    ]
+  }
+}

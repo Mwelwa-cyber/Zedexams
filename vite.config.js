@@ -89,10 +89,11 @@ export default defineConfig(({ mode }) => {
           // after the first successful load. globPatterns are scoped to
           // dist/ at build time, not the public/ directory at runtime.
           globPatterns: ['**/*.{js,css,html,svg,woff,woff2,ttf,png,webmanifest,ico}'],
-          // Don't cache the PDF.js worker (2.3 MB) by default — it's only
-          // ever loaded when a learner opens a past paper, and pre-caching
-          // it would balloon the install size for everyone else.
-          globIgnores: ['**/pdf.worker*.{js,mjs}'],
+          // Don't pre-cache the PDF.js worker (2.3 MB, past papers only) or the
+          // note diagrams (public/notes/*.png) — pre-caching either would balloon
+          // the install size for everyone. The worker loads on demand; note
+          // diagrams are runtime-cached on first view (see runtimeCaching below).
+          globIgnores: ['**/pdf.worker*.{js,mjs}', '**/notes/*.png'],
           // Default is 2 MB. Bump so our largest hashed chunks (vendor,
           // index, react-vendor) all fit under the cache-eligible cap.
           maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
@@ -140,6 +141,18 @@ export default defineConfig(({ mode }) => {
               options: {
                 cacheName: 'firebase-storage',
                 expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
+                cacheableResponse: { statuses: [0, 200] },
+              },
+            },
+            // Same-origin note diagrams (public/notes/*.png). Excluded from the
+            // precache so they don't bloat install for everyone; cached on first
+            // view so re-opening a study note works offline.
+            {
+              urlPattern: /\/notes\/[^/]+\.(?:png|jpe?g|webp|gif)$/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'note-diagrams',
+                expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 60 },
                 cacheableResponse: { statuses: [0, 200] },
               },
             },

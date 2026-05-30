@@ -9,6 +9,7 @@ import { Plus, Sparkles } from '../../../components/ui/icons'
 import { useAdminNotes } from '../hooks/useAdminNotes'
 import { NoteFilters } from '../components/NoteFilters'
 import { NoteCard } from '../components/NoteCard'
+import { SeedImportPanel } from '../components/SeedImportPanel'
 import SeoHelmet from '../../../components/seo/SeoHelmet'
 import '../styles/notes.css'
 
@@ -37,6 +38,7 @@ export function AdminNotesList() {
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
+            <SeedImportPanel />
             <button
               onClick={() => navigate('/admin/lessons/visual/new')}
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-white text-sm font-medium transition hover:scale-[1.02] active:scale-[0.98] shadow-sm bg-violet-600"
