@@ -16,12 +16,23 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
+import { getFunctions, httpsCallable } from 'firebase/functions'
 import {
   ArrowLeft, Save, FileText, Upload, Trash2, Check, Clock, Loader2, Layout,
   Sparkles,
 } from '../../../components/ui/icons'
 import { useAuth } from '../../../contexts/AuthContext'
 import { NOTE_FORMAT, NOTE_STATUS } from '../../../config/curriculum'
+import app from '../../../firebase/config'
+
+// generateNotePictures can take several minutes per note (sequential image
+// generation + Storage uploads) — give it a generous client-side timeout.
+const functionsInstance = getFunctions(app, 'us-central1')
+const generateNotePicturesCallable = httpsCallable(
+  functionsInstance,
+  'generateNotePictures',
+  { timeout: 600_000 },
+)
 
 import { useNote } from '../hooks/useNote'
 import { createNote, updateNote, deleteNote } from '../lib/firestore'
@@ -74,6 +85,10 @@ export function AdminNoteEditor() {
 
   const [saveState,  setSaveState]  = useState('idle')   // idle | saving | saved | error
   const [saveError,  setSaveError]  = useState(null)
+
+  // Picture generation state: 'idle' | 'generating' | 'done' | 'error'
+  const [picState,   setPicState]   = useState('idle')
+  const [picResult,  setPicResult]  = useState(null)  // { succeeded, failed, skipped }
 
   const isLegacySlides = noteFormat === NOTE_FORMAT.SLIDES
     || (note && !note.noteFormat && Array.isArray(note.slides) && note.slides.length > 0)
@@ -210,6 +225,31 @@ export function AdminNoteEditor() {
     }
   }
 
+  const hasPictureBlocks = noteFormat === NOTE_FORMAT.STUDY &&
+    blocks.some(b => b && b.type === 'picture')
+
+  const handleGeneratePictures = async () => {
+    if (!docId || !hasPictureBlocks) return
+    if (!window.confirm(
+      'Generate illustrations for all picture blocks in this note?\n\n' +
+      'This may take a minute or two per block. Blocks that already have an image will be skipped.'
+    )) return
+    setPicState('generating')
+    setPicResult(null)
+    try {
+      const res = await generateNotePicturesCallable({ noteId: docId })
+      const data = res.data || {}
+      setPicResult(data)
+      setPicState('done')
+      // Reload the note to reflect the new block.url values written by the function.
+      window.location.reload()
+    } catch (err) {
+      console.error('generateNotePictures failed', err)
+      setPicState('error')
+      setPicResult({ error: err?.message || 'Unknown error' })
+    }
+  }
+
   if (!isNew && loading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-neutral-500">
@@ -261,6 +301,30 @@ export function AdminNoteEditor() {
               >
                 <Sparkles size={14} /> Create quiz from these notes
               </button>
+            )}
+
+            {!isNew && hasPictureBlocks && (
+              <button
+                onClick={handleGeneratePictures}
+                disabled={picState === 'generating'}
+                className="text-sm px-3 py-1.5 rounded-lg border border-violet-200 text-violet-700 hover:bg-violet-50 transition inline-flex items-center gap-1.5 disabled:opacity-50"
+                title="Generate an AI illustration for each picture block in this note"
+              >
+                {picState === 'generating'
+                  ? <><Loader2 size={14} className="animate-spin" /> Generating…</>
+                  : <>🍌 Generate pictures (nano banana)</>}
+              </button>
+            )}
+            {picState === 'done' && picResult && (
+              <span className="text-xs text-emerald-700">
+                {picResult.succeeded ?? 0} generated
+                {picResult.failed ? `, ${picResult.failed} failed` : ''}
+              </span>
+            )}
+            {picState === 'error' && picResult && (
+              <span className="text-xs text-red-600" title={picResult.error}>
+                Picture generation failed
+              </span>
             )}
 
             {!isNew && (

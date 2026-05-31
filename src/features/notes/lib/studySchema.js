@@ -34,7 +34,7 @@ const blockSchemas = {
   // Firestore forbids arrays-of-arrays, so rows are maps, not [term, def] / cell tuples.
   keyterms:   z.object({ id: str.optional(), type: z.literal('keyterms'),   rows: z.array(z.object({ term: str, def: str.optional().default('') })) }),
   table:      z.object({ id: str.optional(), type: z.literal('table'),      headers: strArr, rows: z.array(z.object({ cells: strArr })) }),
-  picture:    z.object({ id: str.optional(), type: z.literal('picture'),    caption: str, lines: strArr }),
+  picture:    z.object({ id: str.optional(), type: z.literal('picture'),    caption: str, lines: strArr, url: str.optional(), prompt: str.optional() }),
   image:      z.object({ id: str.optional(), type: z.literal('image'),      url: str, caption: str.optional().default('') }),
   quickcheck: z.object({ id: str.optional(), type: z.literal('quickcheck'), q: str, a: str, level: str.optional().default('') }),
   exam:       z.object({ id: str.optional(), type: z.literal('exam'),       q: str, a: str }),

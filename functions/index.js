@@ -89,6 +89,10 @@ const {
 const {
   createGenerateDiagram,
 } = require("./teacherTools/generateDiagram");
+// Teacher Tools — Note Pictures (Gemini/OpenAI illustrations for picture blocks).
+const {
+  createGenerateNotePictures,
+} = require("./teacherTools/generateNotePictures");
 // Teacher Tools — Suggest Answer (per-question AI answer hint for the studio).
 const {
   createSuggestAnswer,
@@ -1860,6 +1864,12 @@ exports.generateQuiz = createGenerateQuiz(anthropicApiKey);
 // for line-art. The factory takes both secrets so the handler can route
 // per-request at runtime.
 exports.generateDiagram = createGenerateDiagram(recraftApiKey, openaiApiKey);
+
+// Teacher Tools — Note Pictures (admin-only). Generates a flat illustration
+// for each `picture` block in a published study note. Tries Gemini 2.5 Flash
+// Image first; falls back to OpenAI gpt-image-1 per block on Gemini failure.
+// Needs at least one of GEMINI_API_KEY or OPENAI_API_KEY.
+exports.generateNotePictures = createGenerateNotePictures(geminiApiKey, openaiApiKey);
 
 // Teacher Tools — Suggest Answer (per-question AI answer hint, Haiku).
 // When GEMINI_API_KEY is set, suggestAnswer routes image-bearing questions
