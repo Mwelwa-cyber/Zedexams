@@ -12,6 +12,7 @@ const {
   runScannedQuizImport,
   parseGeminiNumbers,
   computeMissingNumbers,
+  expectedBatchNumbers,
   extractedNumberSet,
   flattenSectionQuestions,
   buildReaskMessages,
@@ -153,6 +154,40 @@ const claudeSections = (nums) => ({
       },
     );
     assert.equal(claudeCalls, 1 + MAX_REASK_ROUNDS, "1 initial + capped re-asks");
+  });
+
+  await test("expectedBatchNumbers fills contiguous gaps both models missed", () => {
+    // First pass caught 25,26,28,29 (missed 27); Gemini saw none of them.
+    const exp = expectedBatchNumbers([], new Set([25, 26, 28, 29]));
+    assert.deepEqual(exp, [25, 26, 27, 28, 29]);
+    assert.deepEqual(computeMissingNumbers(exp, new Set([25, 26, 28, 29])), [27]);
+  });
+
+  await test("expectedBatchNumbers unions Gemini numbers with the contiguous range", () => {
+    assert.deepEqual(expectedBatchNumbers([1, 2, 3, 4, 5], new Set([1, 2, 3])), [1, 2, 3, 4, 5]);
+  });
+
+  await test("expectedBatchNumbers guards against a single misread huge number", () => {
+    // 25 and 400 would span a 375-wide range — the guard drops it.
+    assert.deepEqual(expectedBatchNumbers([], new Set([25, 400])), []);
+  });
+
+  await test("orchestrator recovers a gap NEITHER model enumerated (contiguous)", async () => {
+    let claudeCalls = 0;
+    const result = await runScannedQuizImport(
+      {pages: [page(1)], anthropicKey: "k", geminiKey: "g"},
+      {
+        // Gemini also misses Q3 (same long-list weakness) — it is NOT in the list.
+        callGemini: async () => '{"questionNumbers":[1,2,4,5]}',
+        callClaude: async () => {
+          claudeCalls += 1;
+          if (claudeCalls === 1) return claudeSections([1, 2, 4, 5]); // missed 3
+          return claudeSections([3]); // re-ask recovers the gap
+        },
+      },
+    );
+    assert.equal(result.recovered, 1, "recovered the gap Gemini never listed");
+    assert.deepEqual([...extractedNumberSet(result.sections)].sort((a, b) => a - b), [1, 2, 3, 4, 5]);
   });
 
   console.log("\nscannedQuizReask: " + passed + " passed" + (fails.length ? ", " + fails.length + " FAILED" : ""));
