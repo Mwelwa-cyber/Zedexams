@@ -174,6 +174,20 @@ function Block({ block }) {
         </Callout>
       )
     case 'picture':
+      // When the picture has been generated, show the image (same figure/
+      // figcaption pattern as the 'image' block below). When there's no url
+      // yet, fall back to the text callout so unpopulated notes still read
+      // cleanly.
+      if (block.url) {
+        return (
+          <figure className="my-2">
+            <div className="rounded-2xl overflow-hidden bg-white border border-neutral-200">
+              <img src={block.url} alt={block.caption || ''} loading="lazy" className="w-full h-auto object-contain" />
+            </div>
+            {block.caption && <figcaption className="font-display-italic text-sm text-neutral-500 text-center mt-2">{block.caption}</figcaption>}
+          </figure>
+        )
+      }
       return (
         <Callout tone="blue" title={`🖼 Picture: ${block.caption || ''}`}>
           {(block.lines || []).map((l, i) => <p key={i} className="italic"><Inline text={l} /></p>)}
