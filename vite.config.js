@@ -110,6 +110,10 @@ export default defineConfig(({ mode }) => {
             /^https?:\/\/.*googleapis\.com/,
             /^https?:\/\/.*firebaseio\.com/,
             /^https?:\/\/identitytoolkit\.googleapis\.com/,
+            // Static files opened in a new tab (e.g. the bundled exam
+            // timetable PDF) are navigation requests — without this the SW
+            // would serve index.html and the SPA would 404 the unknown route.
+            /^\/timetables\//,
           ],
           runtimeCaching: [
             // Google Fonts — short cache for the CSS (font URLs change
