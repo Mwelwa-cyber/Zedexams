@@ -24,10 +24,12 @@
 import { createStandaloneSection, createPassageSection } from '../../utils/quizSections.js'
 import { importMarkupToRichHtml, importMarkupToOptionHtml } from './importRichText.js'
 
-// Pages per server call. The callable caps at 8; 5 + a 1-page overlap keeps
-// each Claude vision response inside its output-token budget while letting a
-// passage/map that crosses a boundary be captured whole in one batch.
-export const SCANNED_BATCH_SIZE = 5
+// Pages per server call. Smaller batches make the vision model enumerate
+// every numbered question far more reliably — large batches tempt it to
+// "summarise" a long run of items and silently skip some (the English
+// missing-questions bug). 4 pages + a 1-page overlap keeps each call light
+// while still capturing a passage/map that crosses a boundary whole.
+export const SCANNED_BATCH_SIZE = 4
 export const SCANNED_BATCH_OVERLAP = 1
 // Hard ceiling on pages we OCR in one import, to bound cost/latency. ECZ
 // papers are ≤ ~16 pages; longer uploads are almost always the wrong file.
@@ -273,6 +275,43 @@ export function countLocalQuestions(sections = []) {
     if (section?.kind === 'passage') return total + (section.passage?.questions?.length || 0)
     return total + 1
   }, 0)
+}
+
+/**
+ * Find printed question numbers that are missing from the extracted set.
+ * The vision model returns each question's printed `sourceQuestionNumber`; if
+ * the paper runs 1..N but a number in that range never came back, the model
+ * dropped it. Returns the sorted list of missing numbers (e.g. [21, 47]).
+ *
+ * Works on the RAW merged vision sections (before the local-numbering
+ * fallback), so it reflects the paper's real numbering, not display order.
+ */
+export function findMissingQuestionNumbers(rawSections = []) {
+  const seen = new Set()
+  const collect = (q) => {
+    const n = Number(q?.sourceQuestionNumber)
+    if (Number.isInteger(n) && n > 0 && n <= 500) seen.add(n)
+  }
+  rawSections.forEach(section => {
+    if (section?.kind === 'passage') (section.questions || []).forEach(collect)
+    else collect(section?.question || section)
+  })
+  // Need a few real numbers before we trust the sequence (avoids false alarms
+  // on papers the model numbered sparsely).
+  if (seen.size < 3) return []
+  const max = Math.max(...seen)
+  const missing = []
+  for (let n = 1; n <= max; n += 1) {
+    if (!seen.has(n)) missing.push(n)
+  }
+  return missing
+}
+
+/** Human-readable "21, 22, 47 and 3 more" for a list of missing numbers. */
+export function formatMissingList(numbers = [], limit = 8) {
+  if (!numbers.length) return ''
+  if (numbers.length <= limit) return numbers.join(', ')
+  return `${numbers.slice(0, limit).join(', ')} and ${numbers.length - limit} more`
 }
 
 /**
@@ -532,6 +571,16 @@ export async function runScannedImport({
   if (!sections.length) {
     warnings.push('No questions could be read from this scanned paper.')
   } else {
+    // Gap check: if the paper is numbered 1..N but some numbers never came
+    // back, tell the admin exactly which are missing so they can re-import the
+    // affected pages or add those questions by hand.
+    const missing = findMissingQuestionNumbers(merged.sections)
+    if (missing.length) {
+      warnings.unshift(
+        `${missing.length} question${missing.length === 1 ? '' : 's'} appear to be missing (${formatMissingList(missing)}). ` +
+        'Re-import (it may catch them on a second pass) or add them by hand.',
+      )
+    }
     warnings.unshift('Answers were left blank — set the correct answer for each question before publishing.')
   }
 
