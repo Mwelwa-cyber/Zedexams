@@ -41,6 +41,8 @@ import QuizEditorPreviewPanel from './QuizEditorPreviewPanel'
 import QuizVerifyModal from './QuizVerifyModal'
 import BulkAnswerKey from './BulkAnswerKey'
 import { collectAnswerableQuestions, applyAnswerKeyToSections, collectAiAnswerTargets } from './answerKeyUtils'
+import ReviewPanel from './ReviewPanel'
+import { collectReviewItems } from './reviewUtils'
 import { getRichPlainText } from '../../editor/RichContent.jsx'
 import { suggestQuizAnswers } from '../../utils/aiAssistant'
 import ImportReviewBanner from './ImportReviewBanner'
@@ -511,6 +513,20 @@ export default function EditQuizV2() {
     applyAnswerKeyMap({ [localId]: index })
   }
   const answerableQuestions = useMemo(() => collectAnswerableQuestions(sections), [sections])
+
+  // Review panel: list questions still needing attention and scroll to one
+  // when its row is clicked. Read-only — the data-question-id anchors live on
+  // the question cards in QuizSectionsEditor; this never mutates state.
+  const reviewData = useMemo(() => collectReviewItems(sections), [sections])
+  function scrollToQuestion(localId) {
+    if (!localId || typeof document === 'undefined') return
+    const selector = `[data-question-id="${(typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(localId) : localId}"]`
+    const el = document.querySelector(selector)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.classList.add('ring-2', 'ring-amber-400')
+    setTimeout(() => el.classList.remove('ring-2', 'ring-amber-400'), 1600)
+  }
 
   // AI suggest-all: answer every still-blank MCQ in one batched call, then
   // apply via the same identity-preserving path as the manual answer key.
@@ -1815,6 +1831,23 @@ export default function EditQuizV2() {
                 onApplyMany={applyAnswerKeyMap}
                 onSuggest={handleSuggestAnswers}
                 suggesting={suggestingAnswers}
+              />
+            </div>
+          </details>
+          {/* Review panel (collapsible). Jump straight to questions that still
+              need an answer, a flagged-extraction check, or alt text. */}
+          <details className="theme-card theme-border overflow-hidden rounded-2xl border" open={reviewData.items.length > 0}>
+            <summary className="flex cursor-pointer items-center justify-between gap-3 p-4">
+              <span className="theme-text font-black">🔎 Needs review</span>
+              <span className="theme-text-muted text-xs font-bold">
+                {reviewData.items.length ? `${reviewData.items.length} to check` : 'All clear'}
+              </span>
+            </summary>
+            <div className="border-t theme-border p-4">
+              <ReviewPanel
+                items={reviewData.items}
+                total={reviewData.total}
+                onJump={scrollToQuestion}
               />
             </div>
           </details>

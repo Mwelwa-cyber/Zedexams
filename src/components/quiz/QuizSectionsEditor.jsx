@@ -465,6 +465,7 @@ function StandaloneQuestionCard({
 
   return (
     <div
+      data-question-id={question.localId}
       className={joinClasses(
         'theme-card theme-text space-y-4 rounded-2xl border-2 p-5 shadow-sm transition-colors',
         isNew ? joinClasses(theme.cardBorder, 'ring-2', theme.ring) : 'theme-border',
@@ -1116,7 +1117,7 @@ function PassageQuestionCard({
   const optionsAsTextarea = subtype === 'sentence_ordering'
 
   return (
-    <div className="theme-card theme-border theme-text space-y-4 rounded-2xl border p-4 shadow-sm">
+    <div data-question-id={question.localId} className="theme-card theme-border theme-text space-y-4 rounded-2xl border p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <span className="theme-accent-bg theme-accent-text rounded-full px-3 py-1 text-xs font-black">
