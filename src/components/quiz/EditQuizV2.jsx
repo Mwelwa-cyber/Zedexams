@@ -43,6 +43,7 @@ import BulkAnswerKey from './BulkAnswerKey'
 import { collectAnswerableQuestions, applyAnswerKeyToSections, collectAiAnswerTargets } from './answerKeyUtils'
 import ReviewPanel from './ReviewPanel'
 import { collectReviewItems } from './reviewUtils'
+import ImageCropModal from './ImageCropModal'
 import { getRichPlainText } from '../../editor/RichContent.jsx'
 import { suggestQuizAnswers } from '../../utils/aiAssistant'
 import ImportReviewBanner from './ImportReviewBanner'
@@ -526,6 +527,31 @@ export default function EditQuizV2() {
     el.scrollIntoView({ behavior: 'smooth', block: 'center' })
     el.classList.add('ring-2', 'ring-amber-400')
     setTimeout(() => el.classList.remove('ring-2', 'ring-amber-400'), 1600)
+  }
+
+  // In-editor image crop. Opening sets the target; the modal returns a cropped
+  // Blob that we run through the SAME upload path as a normal image, so the
+  // cropped picture replaces the original. Cancel changes nothing.
+  const [cropTarget, setCropTarget] = useState(null)
+  function requestStandaloneImageCrop(sectionIndex, imageUrl) {
+    if (!imageUrl) return
+    setCropTarget({ kind: 'standalone', sectionIndex, imageUrl })
+  }
+  function requestPassageImageCrop(sectionIndex, imageUrl) {
+    if (!imageUrl) return
+    setCropTarget({ kind: 'passage', sectionIndex, imageUrl })
+  }
+  async function handleCroppedImage(blob) {
+    const target = cropTarget
+    setCropTarget(null)
+    if (!target || !blob) return
+    // Give the blob a filename + type the upload path expects.
+    const file = new File([blob], 'cropped.jpg', { type: 'image/jpeg' })
+    if (target.kind === 'standalone') {
+      await uploadStandaloneQuestionImage(target.sectionIndex, file)
+    } else if (target.kind === 'passage') {
+      await uploadPassageImage(target.sectionIndex, file)
+    }
   }
 
   // AI suggest-all: answer every still-blank MCQ in one batched call, then
@@ -1864,6 +1890,7 @@ export default function EditQuizV2() {
             onStandaloneMove={moveSection}
             onStandaloneImageUpload={uploadStandaloneQuestionImage}
             onStandaloneImageRemove={removeStandaloneQuestionImage}
+            onStandaloneImageCrop={requestStandaloneImageCrop}
             onStandaloneOptionImageUpload={uploadStandaloneOptionImage}
             onStandaloneOptionImageRemove={removeStandaloneOptionImage}
             onPassageChange={updatePassage}
@@ -1872,6 +1899,7 @@ export default function EditQuizV2() {
             onPassageMove={moveSection}
             onPassageImageUpload={uploadPassageImage}
             onPassageImageRemove={removePassageImage}
+            onPassageImageCrop={requestPassageImageCrop}
             onPassageQuestionChange={updatePassageQuestion}
             onPassageQuestionRemove={removePassageQuestion}
             onPassageQuestionMove={movePassageQuestion}
@@ -1994,6 +2022,14 @@ export default function EditQuizV2() {
           ) : null}
         </div>
       </div>
+
+      {cropTarget && (
+        <ImageCropModal
+          imageUrl={cropTarget.imageUrl}
+          onCropped={handleCroppedImage}
+          onCancel={() => setCropTarget(null)}
+        />
+      )}
 
       <QuizVerifyModal
         open={verifyOpen}

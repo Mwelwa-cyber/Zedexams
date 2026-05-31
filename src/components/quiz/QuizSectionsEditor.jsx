@@ -89,6 +89,7 @@ function ImageUpload({
   uploadStep,
   onFileSelect,
   onRemove,
+  onCrop,
   onPickDiagram,
   onRemoveDiagram,
   theme,
@@ -167,6 +168,15 @@ function ImageUpload({
           }}
         />
         <div className="absolute right-2 top-2 flex gap-1.5 opacity-90 transition-opacity group-hover:opacity-100">
+          {onCrop && (
+            <button
+              type="button"
+              onClick={onCrop}
+              className="theme-card theme-border theme-text hover:theme-card-hover min-h-0 rounded-lg border px-3 py-1.5 text-xs font-bold shadow"
+            >
+              Crop
+            </button>
+          )}
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
@@ -397,6 +407,7 @@ function StandaloneQuestionCard({
   onMove,
   onImageUpload,
   onImageRemove,
+  onImageCrop,
   onOptionImageUpload,
   onOptionImageRemove,
   onAssignToPart,
@@ -673,6 +684,7 @@ function StandaloneQuestionCard({
           onImageUpload(sectionIndex, file)
         }}
         onRemove={() => onImageRemove(sectionIndex)}
+        onCrop={onImageCrop && question.imageUrl ? () => onImageCrop(sectionIndex, question.imageUrl) : undefined}
         onPickDiagram={() => setDiagramTarget({ kind: 'question' })}
         onRemoveDiagram={() => set('imageDiagram', null)}
         theme={theme}
@@ -1389,6 +1401,7 @@ function PassageSectionCard({
   onPassageMove,
   onPassageImageUpload,
   onPassageImageRemove,
+  onPassageImageCrop,
   onPassageQuestionChange,
   onPassageQuestionRemove,
   onPassageQuestionMove,
@@ -1570,6 +1583,7 @@ function PassageSectionCard({
                 uploadStep={passage.imageUploadStep}
                 onFileSelect={file => onPassageImageUpload(sectionIndex, file)}
                 onRemove={() => onPassageImageRemove(sectionIndex)}
+                onCrop={onPassageImageCrop && passage.imageUrl ? () => onPassageImageCrop(sectionIndex, passage.imageUrl) : undefined}
                 theme={theme}
               />
             </div>
@@ -1877,6 +1891,7 @@ export default function QuizSectionsEditor({
   onStandaloneMove,
   onStandaloneImageUpload,
   onStandaloneImageRemove,
+  onStandaloneImageCrop,
   onStandaloneOptionImageUpload,
   onStandaloneOptionImageRemove,
   onPassageChange,
@@ -1885,6 +1900,7 @@ export default function QuizSectionsEditor({
   onPassageMove,
   onPassageImageUpload,
   onPassageImageRemove,
+  onPassageImageCrop,
   onPassageQuestionChange,
   onPassageQuestionRemove,
   onPassageQuestionMove,
@@ -1994,6 +2010,7 @@ export default function QuizSectionsEditor({
           onPassageMove={onPassageMove}
           onPassageImageUpload={onPassageImageUpload}
           onPassageImageRemove={onPassageImageRemove}
+          onPassageImageCrop={onPassageImageCrop}
           onPassageQuestionChange={onPassageQuestionChange}
           onPassageQuestionRemove={onPassageQuestionRemove}
           onPassageQuestionMove={onPassageQuestionMove}
@@ -2026,6 +2043,7 @@ export default function QuizSectionsEditor({
         onMove={onStandaloneMove}
         onImageUpload={onStandaloneImageUpload}
         onImageRemove={onStandaloneImageRemove}
+        onImageCrop={onStandaloneImageCrop}
         onOptionImageUpload={onStandaloneOptionImageUpload}
         onOptionImageRemove={onStandaloneOptionImageRemove}
         onAssignToPart={onAssignSectionToPart}
