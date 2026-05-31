@@ -23,19 +23,17 @@ const failures = []
 
 function test(name, fn) {
   try {
-    pass++
     fn()
+    pass++
     console.log(`  ok  ${name}`)
   } catch (err) {
-    fail--
-    pass--
     fail++
     failures.push({ name, err })
     console.log(`  XX  ${name} — ${err.message}`)
   }
 }
 
-// ─── Logic extracted from geminiImageClient.js ────────────────────────────────
+// ─── Logic extracted from geminiImageClient.js ──────────────────────────────────
 // Kept in sync with the real module: if these functions change, update the test.
 
 const DEFAULT_IMAGE_MODEL =
@@ -67,7 +65,7 @@ function parseGeminiImageResponse(data) {
   return null
 }
 
-// ─── Tests ────────────────────────────────────────────────────────────────────
+// ─── Tests ───────────────────────────────────────────────────────────
 
 console.log('\ngeminiImageClient — request shape + response parser')
 
@@ -160,7 +158,7 @@ test('response parser skips inlineData with missing data or mimeType', () => {
   assert.equal(parseGeminiImageResponse(data), null, 'should return null when data or mimeType is absent')
 })
 
-// ─── Summary ──────────────────────────────────────────────────────────────────
+// ─── Summary ───────────────────────────────────────────────────────────
 
 console.log(`\n─── ${pass + fail} tests · ${pass} passed · ${fail} failed ───`)
 if (fail > 0) {
