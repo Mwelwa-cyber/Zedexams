@@ -77,6 +77,14 @@ test('each quiz-linked note references an existing quiz bank (41)', () => {
   assert(linked === 41, `expected 41 linked, got ${linked}`)
 })
 
+test('Social Studies notes carry their diagrams (≥30 image blocks across ≥24 notes)', () => {
+  const ss = bundle.notes.filter((n) => n.subject === 'Social Studies')
+  const withImg = ss.filter((n) => n.blocks.some((b) => b.type === 'image' && b.url))
+  const totalImg = ss.reduce((s, n) => s + n.blocks.filter((b) => b.type === 'image' && b.url).length, 0)
+  assert(totalImg >= 30, `Social Studies image blocks=${totalImg} (expected ≥30)`)
+  assert(withImg.length >= 24, `Social Studies notes with a diagram=${withImg.length} (expected ≥24)`)
+})
+
 test('all referenced diagrams exist in public/notes/', () => {
   const imgs = new Set()
   for (const n of bundle.notes) for (const b of n.blocks) if (b.type === 'image' && b.url) imgs.add(b.url)
