@@ -40,7 +40,9 @@ import QuizSectionsEditor from './QuizSectionsEditor'
 import QuizEditorPreviewPanel from './QuizEditorPreviewPanel'
 import QuizVerifyModal from './QuizVerifyModal'
 import BulkAnswerKey from './BulkAnswerKey'
-import { collectAnswerableQuestions, applyAnswerKeyToSections } from './answerKeyUtils'
+import { collectAnswerableQuestions, applyAnswerKeyToSections, collectAiAnswerTargets } from './answerKeyUtils'
+import { getRichPlainText } from '../../editor/RichContent.jsx'
+import { suggestQuizAnswers } from '../../utils/aiAssistant'
 import ImportReviewBanner from './ImportReviewBanner'
 import PastPaperReferenceBanner from './PastPaperReferenceBanner'
 import QuizEditorActionBar from './QuizEditorActionBar'
@@ -509,6 +511,37 @@ export default function EditQuizV2() {
     applyAnswerKeyMap({ [localId]: index })
   }
   const answerableQuestions = useMemo(() => collectAnswerableQuestions(sections), [sections])
+
+  // AI suggest-all: answer every still-blank MCQ in one batched call, then
+  // apply via the same identity-preserving path as the manual answer key.
+  // Suggestions only — questions stay flagged for the admin to verify.
+  const [suggestingAnswers, setSuggestingAnswers] = useState(false)
+  async function handleSuggestAnswers() {
+    if (suggestingAnswers) return
+    const targets = collectAiAnswerTargets(sections, getRichPlainText, { onlyUnanswered: true })
+    if (!targets.length) {
+      show('Every multiple-choice question already has an answer set.')
+      return
+    }
+    setSuggestingAnswers(true)
+    try {
+      const { answers, count } = await suggestQuizAnswers({
+        questions: targets,
+        subject: form.subject || '',
+        grade: form.grade || '',
+      })
+      if (count > 0) {
+        applyAnswerKeyMap(answers)
+        show(`AI suggested ${count} answer${count === 1 ? '' : 's'} — please verify each before publishing.`)
+      } else {
+        show('The AI could not confidently answer these questions. Set them manually.', true)
+      }
+    } catch (error) {
+      show(`Could not suggest answers: ${getErrorMessage(error, 'AI is unavailable right now.')}`, true)
+    } finally {
+      setSuggestingAnswers(false)
+    }
+  }
 
   function moveSection(sectionIndex, direction) {
     setSections(currentSections => {
@@ -1780,6 +1813,8 @@ export default function EditQuizV2() {
                 questions={answerableQuestions}
                 onSetOne={handleSetOneAnswer}
                 onApplyMany={applyAnswerKeyMap}
+                onSuggest={handleSuggestAnswers}
+                suggesting={suggestingAnswers}
               />
             </div>
           </details>

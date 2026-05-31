@@ -7,12 +7,14 @@
  *   questions  — from collectAnswerableQuestions(sections)
  *   onSetOne(localId, index|'')        — set/clear a single answer
  *   onApplyMany({ localId: index })    — apply a parsed paste in one pass
+ *   onSuggest()                        — (optional) ask AI to fill blank answers
+ *   suggesting                         — (optional) AI request in flight
  */
 
 import { useState } from 'react'
 import { ANSWER_LETTERS, parseAnswerKey, countUnansweredQuestions } from './answerKeyUtils'
 
-export default function BulkAnswerKey({ questions = [], onSetOne, onApplyMany }) {
+export default function BulkAnswerKey({ questions = [], onSetOne, onApplyMany, onSuggest, suggesting = false }) {
   const [pasteText, setPasteText] = useState('')
   const [pasteNote, setPasteNote] = useState('')
 
@@ -44,11 +46,24 @@ export default function BulkAnswerKey({ questions = [], onSetOne, onApplyMany })
         <p className="theme-text text-sm font-bold leading-relaxed">
           Tap a letter to set each answer, or paste the whole key below.
         </p>
-        <span className={`rounded-full px-2.5 py-1 text-xs font-black ${
-          unanswered ? 'bg-amber-100 text-amber-900' : 'bg-green-100 text-green-900'
-        }`}>
-          {unanswered ? `${unanswered} unanswered` : 'All answered'}
-        </span>
+        <div className="flex items-center gap-2">
+          {onSuggest && (
+            <button
+              type="button"
+              onClick={onSuggest}
+              disabled={suggesting || !unanswered}
+              title={unanswered ? 'Let AI work out the blank answers (verify before publishing)' : 'All answers are already set'}
+              className="rounded-lg border border-purple-300 bg-purple-50 px-2.5 py-1 text-xs font-black text-purple-800 transition-colors hover:bg-purple-100 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {suggesting ? 'Thinking…' : '✨ Suggest with AI'}
+            </button>
+          )}
+          <span className={`rounded-full px-2.5 py-1 text-xs font-black ${
+            unanswered ? 'bg-amber-100 text-amber-900' : 'bg-green-100 text-green-900'
+          }`}>
+            {unanswered ? `${unanswered} unanswered` : 'All answered'}
+          </span>
+        </div>
       </div>
 
       {/* Answer grid */}

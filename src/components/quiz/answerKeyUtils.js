@@ -149,3 +149,35 @@ export function applyAnswerKeyToSections(sections = [], keyToIndex = {}) {
 export function countUnansweredQuestions(questions = []) {
   return questions.filter(q => q.correctIndex == null).length
 }
+
+/**
+ * Build the payload for the AI "suggest answers" callable: one entry per
+ * answerable MCQ with its stem + options as plain text. `toPlainText` is
+ * injected (the editor passes its rich→text helper) so this stays pure and
+ * testable. With `onlyUnanswered`, questions that already have an answer are
+ * skipped — so re-running only fills the gaps and never overwrites a set one.
+ */
+export function collectAiAnswerTargets(sections = [], toPlainText = (v) => String(v ?? ''), { onlyUnanswered = true } = {}) {
+  const out = []
+
+  const push = (question) => {
+    if (!question || !isAnswerableType(question.type)) return
+    if (onlyUnanswered && correctIndexOf(question) != null) return
+    const localId = question.localId
+    if (!localId) return
+    const text = toPlainText(question.text).trim()
+    const options = (Array.isArray(question.options) ? question.options : []).map(o => toPlainText(o).trim())
+    if (!text || options.length < 2) return
+    out.push({ id: localId, text, options })
+  }
+
+  sections.forEach(section => {
+    if (section?.kind === 'passage') {
+      (section.passage?.questions || []).forEach(push)
+    } else if (section?.kind === 'standalone') {
+      push(section.question)
+    }
+  })
+
+  return out
+}

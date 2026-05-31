@@ -11,6 +11,7 @@ import {
   parseAnswerKey,
   applyAnswerKeyToSections,
   countUnansweredQuestions,
+  collectAiAnswerTargets,
 } from './answerKeyUtils.js'
 
 let passed = 0
@@ -158,6 +159,35 @@ test('counts questions still missing an answer', () => {
     { correctIndex: null },
   ]
   assert.equal(countUnansweredQuestions(list), 2)
+})
+
+// ── collectAiAnswerTargets ───────────────────────────────────────────────────
+
+const plain = (v) => String(v ?? '').replace(/<[^>]+>/g, '')
+
+test('collectAiAnswerTargets returns id+text+options for unanswered MCQs only', () => {
+  const sections = [
+    standalone(mcq({ localId: 'a', text: '<p>2+2?</p>', options: ['<p>3</p>', '<p>4</p>'], correctAnswer: '' })),
+    standalone(mcq({ localId: 'b', text: '3+3?', options: ['5', '6'], correctAnswer: 1 })), // answered → skipped
+    passage([mcq({ localId: 'c', text: 'Who?', options: ['x', 'y'], correctAnswer: '' })]),
+  ]
+  const targets = collectAiAnswerTargets(sections, plain, { onlyUnanswered: true })
+  assert.deepEqual(targets.map(t => t.id), ['a', 'c'])
+  assert.deepEqual(targets[0], { id: 'a', text: '2+2?', options: ['3', '4'] })
+})
+
+test('collectAiAnswerTargets can include already-answered questions', () => {
+  const sections = [standalone(mcq({ localId: 'b', text: 'q', options: ['5', '6'], correctAnswer: 1 }))]
+  assert.equal(collectAiAnswerTargets(sections, plain, { onlyUnanswered: false }).length, 1)
+})
+
+test('collectAiAnswerTargets skips non-MCQ, empty-stem, and <2-option questions', () => {
+  const sections = [
+    standalone(mcq({ localId: 'a', type: 'short_answer', text: 'open', options: [] })),
+    standalone(mcq({ localId: 'b', text: '', options: ['a', 'b'] })),
+    standalone(mcq({ localId: 'c', text: 'one option', options: ['a'] })),
+  ]
+  assert.equal(collectAiAnswerTargets(sections, plain).length, 0)
 })
 
 console.log(`\nanswerKeyUtils: ${passed} passed`)
