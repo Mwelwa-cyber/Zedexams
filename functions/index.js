@@ -34,6 +34,9 @@ const {callGemini} = require("./geminiClient");
 // Scanned-paper OCR import — dual-model (Claude vision + Gemini assist) used
 // by the Quiz Editor when a teacher uploads an image-only PDF past paper.
 const {runScannedQuizImport} = require("./scannedQuizImport");
+// Bulk "suggest answers" — answers a batch of imported MCQs in one Claude call
+// so the editor can fill blank answer keys in a single pass.
+const {runSuggestQuizAnswers} = require("./suggestQuizAnswers");
 const {applyCors} = require("./cors");
 
 // Teacher Tools — Lesson Plan Generator (Zambian CBC).
@@ -1540,6 +1543,52 @@ exports.structureScannedQuiz = onCall(
       gradeHint: cleanAiString(request.data?.gradeHint, 20),
       anthropicKey: getAnthropicApiKey(anthropicApiKey),
       geminiKey: geminiApiKey.value() || process.env.GEMINI_API_KEY || "",
+      uid: request.auth.uid,
+    });
+  },
+);
+
+// Bulk "suggest answers" for the Quiz Editor's answer-key tools. Answers a
+// batch of MCQs in one Claude call; the admin verifies before publishing.
+exports.suggestQuizAnswers = onCall(
+  {
+    secrets: [anthropicApiKey],
+    region: "us-central1",
+    timeoutSeconds: 120,
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Please sign in first.");
+    }
+    recordAppCheckCallable(request, "suggestQuizAnswers");
+
+    const role = await getUserRole(request.auth.uid);
+    if (!isStaffRole(role)) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only teachers and admins can suggest answers.",
+      );
+    }
+
+    const questions = Array.isArray(request.data?.questions) ?
+      request.data.questions : [];
+    if (!questions.length) {
+      throw new HttpsError(
+        "invalid-argument",
+        "No questions were supplied for answer suggestion.",
+      );
+    }
+
+    // One AI action for the whole batch.
+    await assertDailyLimit(request.auth.uid, role, "suggestAnswers");
+
+    return runSuggestQuizAnswers({
+      questions,
+      subject: cleanAiString(request.data?.subject, 80),
+      grade: cleanAiString(request.data?.grade, 20),
+      anthropicKey: getAnthropicApiKey(anthropicApiKey),
       uid: request.auth.uid,
     });
   },

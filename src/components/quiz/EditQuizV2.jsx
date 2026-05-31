@@ -39,6 +39,10 @@ import ImportQuizPanel from './ImportQuizPanel'
 import QuizSectionsEditor from './QuizSectionsEditor'
 import QuizEditorPreviewPanel from './QuizEditorPreviewPanel'
 import QuizVerifyModal from './QuizVerifyModal'
+import BulkAnswerKey from './BulkAnswerKey'
+import { collectAnswerableQuestions, applyAnswerKeyToSections, collectAiAnswerTargets } from './answerKeyUtils'
+import { getRichPlainText } from '../../editor/RichContent.jsx'
+import { suggestQuizAnswers } from '../../utils/aiAssistant'
 import ImportReviewBanner from './ImportReviewBanner'
 import PastPaperReferenceBanner from './PastPaperReferenceBanner'
 import QuizEditorActionBar from './QuizEditorActionBar'
@@ -491,6 +495,52 @@ export default function EditQuizV2() {
         [field]: value,
       },
     }))
+  }
+
+  // Bulk answer-key entry. Applies a { localId: optionIndex } map across every
+  // section in one pass (pure helper), addressing questions by stable localId
+  // so nothing reorders and only matched questions change. Routes through the
+  // normal dirty -> autosave path; no separate save logic.
+  function applyAnswerKeyMap(keyToIndex) {
+    if (!keyToIndex || !Object.keys(keyToIndex).length) return
+    setSections(current => applyAnswerKeyToSections(current, keyToIndex).sections)
+    setDirty(true)
+  }
+  function handleSetOneAnswer(localId, index) {
+    if (!localId) return
+    applyAnswerKeyMap({ [localId]: index })
+  }
+  const answerableQuestions = useMemo(() => collectAnswerableQuestions(sections), [sections])
+
+  // AI suggest-all: answer every still-blank MCQ in one batched call, then
+  // apply via the same identity-preserving path as the manual answer key.
+  // Suggestions only — questions stay flagged for the admin to verify.
+  const [suggestingAnswers, setSuggestingAnswers] = useState(false)
+  async function handleSuggestAnswers() {
+    if (suggestingAnswers) return
+    const targets = collectAiAnswerTargets(sections, getRichPlainText, { onlyUnanswered: true })
+    if (!targets.length) {
+      show('Every multiple-choice question already has an answer set.')
+      return
+    }
+    setSuggestingAnswers(true)
+    try {
+      const { answers, count } = await suggestQuizAnswers({
+        questions: targets,
+        subject: form.subject || '',
+        grade: form.grade || '',
+      })
+      if (count > 0) {
+        applyAnswerKeyMap(answers)
+        show(`AI suggested ${count} answer${count === 1 ? '' : 's'} — please verify each before publishing.`)
+      } else {
+        show('The AI could not confidently answer these questions. Set them manually.', true)
+      }
+    } catch (error) {
+      show(`Could not suggest answers: ${getErrorMessage(error, 'AI is unavailable right now.')}`, true)
+    } finally {
+      setSuggestingAnswers(false)
+    }
   }
 
   function moveSection(sectionIndex, direction) {
@@ -1748,6 +1798,23 @@ export default function EditQuizV2() {
                 intro={form.linkedPaperId
                   ? 'Upload the past paper (.doc, .docx, or .pdf). ZedExams will extract questions, options, and image-based items into editable cards. You can also re-import a different version any time.'
                   : 'Upload a .doc, .docx, or .pdf file. ZedExams will extract questions, options, short answers, and image-based questions into editable cards, then use smart cleanup on tricky formatting when available.'}
+              />
+            </div>
+          </details>
+          {/* Bulk answer-key entry (collapsible). Especially useful after a
+              scanned import, where every answer lands blank. */}
+          <details className="theme-card theme-border overflow-hidden rounded-2xl border">
+            <summary className="flex cursor-pointer items-center justify-between gap-3 p-4">
+              <span className="theme-text font-black">🔑 Answer key</span>
+              <span className="theme-text-muted text-xs font-bold">Set every answer fast</span>
+            </summary>
+            <div className="border-t theme-border p-4">
+              <BulkAnswerKey
+                questions={answerableQuestions}
+                onSetOne={handleSetOneAnswer}
+                onApplyMany={applyAnswerKeyMap}
+                onSuggest={handleSuggestAnswers}
+                suggesting={suggestingAnswers}
               />
             </div>
           </details>
