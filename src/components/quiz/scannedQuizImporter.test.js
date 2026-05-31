@@ -120,6 +120,108 @@ test('mergeSectionBatches keeps two different maps on different pages apart', ()
   assert.equal(sections.length, 2)
 })
 
+// ── English ECZ paper: comprehension passage spanning the batch overlap ──────
+// Regression for the English import bug: a long comprehension passage whose
+// questions straddle the batch boundary must produce the full question count
+// with zero duplicates and zero dropped questions.
+
+test('mergeSectionBatches: English comprehension spanning overlap — no questions dropped, no duplicates', () => {
+  // Simulate a 16-page English paper split into batches [1-5],[5-9],[9-13],[13-16].
+  // The main comprehension passage (Section A) has 20 questions across pages 3-6.
+  // Batch 1 sees Q1-Q15 under the passage.
+  // Batch 2 (overlap on page 5) sees the same passage title + Q13-Q20.
+  // Q13-Q15 are the overlap duplicates; Q16-Q20 are new in batch 2.
+  const makeQ = (n) => mcq({ text: `What does paragraph ${n} show?`, options: [`Opt${n}A`, `Opt${n}B`, `Opt${n}C`, `Opt${n}D`] })
+  const allQ = Array.from({ length: 20 }, (_, i) => makeQ(i + 1))
+
+  const passageBase = {
+    kind: 'passage',
+    passageKind: 'comprehension',
+    title: 'The Generous Farmer',
+    passageText: 'A long story about a generous farmer in Zambia who shared his harvest with neighbours...',
+  }
+
+  const batch1 = {
+    sections: [
+      { ...passageBase, questions: allQ.slice(0, 15) },                 // Q1-Q15
+      { kind: 'standalone', question: mcq({ text: 'Standalone S1' }) }, // unrelated Q
+    ],
+  }
+  const batch2 = {
+    sections: [
+      { ...passageBase, questions: allQ.slice(12, 20) },                // Q13-Q20 (overlap Q13-Q15 + new Q16-Q20)
+      { kind: 'standalone', question: mcq({ text: 'Standalone S2' }) }, // next section standalone
+    ],
+  }
+
+  const { sections } = mergeSectionBatches([batch1, batch2])
+
+  const passageSections = sections.filter(s => s.kind === 'passage')
+  const standaloneSections = sections.filter(s => s.kind === 'standalone')
+
+  // The comprehension passage must appear exactly once.
+  assert.equal(passageSections.length, 1, 'passage must not be duplicated')
+
+  // All 20 questions must be present (Q1-Q15 from batch1 + Q16-Q20 new from batch2).
+  const questionTexts = passageSections[0].questions.map(q => q.text)
+  assert.equal(
+    questionTexts.length,
+    20,
+    `expected 20 passage questions, got ${questionTexts.length}: ${JSON.stringify(questionTexts)}`,
+  )
+
+  // No duplicates: each question text appears exactly once.
+  const unique = new Set(questionTexts)
+  assert.equal(unique.size, 20, 'no duplicate comprehension questions')
+
+  // The overlap standalones should both be present (different stems).
+  assert.equal(standaloneSections.length, 2)
+  assert.deepEqual(
+    standaloneSections.map(s => s.question.text),
+    ['Standalone S1', 'Standalone S2'],
+  )
+})
+
+test('mergeSectionBatches: English paper with two separate comprehension passages — both kept intact', () => {
+  // English papers sometimes have two comprehension passages (Section A + C).
+  // Both must survive the merge without losing questions.
+  const makeQ = (label) => mcq({ text: `Question about ${label}`, options: ['A', 'B', 'C', 'D'] })
+
+  const passageA = {
+    kind: 'passage', passageKind: 'comprehension', title: 'Section A: The Harvest',
+    passageText: 'Story about the harvest...',
+    questions: Array.from({ length: 10 }, (_, i) => makeQ(`harvest-${i + 1}`)),
+  }
+  const passageB = {
+    kind: 'passage', passageKind: 'comprehension', title: 'Section C: The Market',
+    passageText: 'Story about the market...',
+    questions: Array.from({ length: 8 }, (_, i) => makeQ(`market-${i + 1}`)),
+  }
+
+  const batch1 = { sections: [passageA] }
+  const batch2 = { sections: [passageB] } // different passage, no overlap
+
+  const { sections } = mergeSectionBatches([batch1, batch2])
+
+  assert.equal(sections.length, 2, 'both passages must be kept')
+  assert.equal(sections[0].questions.length, 10, 'passage A question count')
+  assert.equal(sections[1].questions.length, 8, 'passage B question count')
+})
+
+test('mergeSectionBatches: overlap does not produce extra standalone duplicates', () => {
+  // Batch overlap page can cause the same standalone question to appear in two
+  // consecutive batches with slightly different OCR whitespace. Both must
+  // deduplicate to exactly one after merge.
+  const q = mcq({ text: 'In the sentence "The dog barked loudly", what type of adverb is "loudly"?', options: ['Manner', 'Place', 'Time', 'Degree'] })
+  const qTrimVariant = { ...q, text: q.text.replace('  ', ' ') } // same after trim
+
+  const { sections } = mergeSectionBatches([
+    { sections: [{ kind: 'standalone', question: q }] },
+    { sections: [{ kind: 'standalone', question: qTrimVariant }] },
+  ])
+  assert.equal(sections.length, 1, 'duplicate standalone from overlap must be deduped to one')
+})
+
 // ── visionSectionsToLocal ────────────────────────────────────────────────────
 
 test('visionSectionsToLocal forces blank answers + review on every question', () => {

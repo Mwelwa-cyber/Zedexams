@@ -523,11 +523,15 @@ async function runScannedQuizImport(
   }
 
   // Primary pass (Claude vision) — authoritative structured extraction.
+  // maxTokens: English papers include long comprehension passageText (800+
+  // words) which balloons the tool-call JSON well past 8 000 output tokens.
+  // 16 000 comfortably fits the largest ECZ English batch; Sonnet supports up
+  // to 64 K output tokens so this is nowhere near the model ceiling.
   const result = await callClaude(anthropicKey, {
     systemPrompt: CLAUDE_SYSTEM_PROMPT,
     messages: buildClaudeMessages(pages, hints, geminiDraft),
     model: VISION_MODEL,
-    maxTokens: 8000,
+    maxTokens: 16000,
     temperature: 0.1,
     mode: "tool",
     toolName: "return_sections",
@@ -535,6 +539,23 @@ async function runScannedQuizImport(
       "Return every passage, map/diagram group and question on the pages.",
     toolInputSchema: SCANNED_TOOL_SCHEMA,
   });
+
+  // Surface truncation immediately — a max_tokens stop in tool mode means
+  // the tail sections were silently dropped. The tool input is still a valid
+  // (but incomplete) JSON object so callClaude does not throw; we must check
+  // stopReason ourselves.
+  if (result?.stopReason === "max_tokens") {
+    warnings.push(
+      "The AI hit its output-token limit on this batch — some questions at " +
+      "the end of these pages may be missing. Try importing fewer pages at " +
+      "once (reduce the batch if that option is available) or re-import the " +
+      "affected pages separately.",
+    );
+    console.warn("[scannedQuizImport] max_tokens stop — batch may be truncated", {
+      model: result?.model,
+      usage: result?.usage,
+    });
+  }
 
   const sections = normaliseScannedSections(
     result?.parsed?.sections,
