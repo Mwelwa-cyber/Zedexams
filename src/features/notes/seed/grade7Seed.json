@@ -1,6 +1,6 @@
 {
-  "version": 1,
-  "generatedFrom": "standalone Notes Studio (Grade 7: Integrated Science + Social Studies)",
+  "version": 2,
+  "generatedFrom": "Grade-7 DOCX pack (Integrated Science + Social Studies) — notes + CSV quiz banks",
   "notes": [
     {
       "seedKey": "g7sci_n_tips",
@@ -2666,25 +2666,93 @@
         {
           "type": "objectives",
           "items": [
-            "Describe democracy and mention its characteristics.",
-            "Explain how democracy protects human rights.",
-            "Describe ways women and girls are not treated equally.",
-            "Explain forms of child abuse and child labour."
+            "Explain what democracy means and describe its main features.",
+            "Describe the different ways people take part in a democracy.",
+            "Explain how elections work and who is allowed to vote in Zambia.",
+            "Explain how a democracy protects human rights.",
+            "Explain discrimination, child abuse and child labour, and why they are wrong."
           ]
         },
         {
           "type": "think",
           "lines": [
             "Who chooses the leaders of your country?",
-            "What do you think would happen if people could not choose their leaders?"
+            "What do you think would happen if ordinary people could NOT choose their leaders?"
           ]
+        },
+        {
+          "type": "paragraph",
+          "text": "The word democracy comes from two old Greek words: demos (the people) and kratos (rule). Put together, democracy means 'rule by the people'. In a democracy the country is not run by one king or one group who can never be removed. Instead, the people choose their leaders, and they can change those leaders if they are not doing a good job."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "How people take part in a democracy"
+        },
+        {
+          "type": "paragraph",
+          "text": "Democracy is not only about voting once every few years. People take part in many ways: by voting in elections, by finding out about and discussing the issues that affect them, by attending community meetings, by joining a political party, club or union, and by paying taxes so the government has money to work with. The more people take part, the stronger the democracy."
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-1-1-1.png",
+          "caption": "Many of the ways a citizen can take part in a democracy"
+        },
+        {
+          "type": "note",
+          "lines": [
+            "Zambia became a multi-party democracy in 1991. Before that, from 1973, only one political party was allowed by law. Today many parties can stand, so voters have a real choice."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Elections"
+        },
+        {
+          "type": "paragraph",
+          "text": "Elections are held every few years so that people can keep good leaders and replace those who are not serving them well. Voting is done by secret ballot: each voter makes a private mark on a ballot paper and drops it into a locked ballot box, so nobody can see how they voted or force them to vote a certain way. This is what makes an election free and fair."
+        },
+        {
+          "type": "paragraph",
+          "text": "Not everyone is allowed to vote. To vote in Zambia you must meet three conditions: you must be 18 years or older, you must be a Zambian citizen with a green National Registration Card (NRC), and you must be a registered voter whose name is on the voters' roll."
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-1-1-2.png",
+          "caption": "The three things you must be to vote in Zambia"
+        },
+        {
+          "type": "note",
+          "lines": [
+            "Q: Why do you think people vote in secret instead of by raising their hands?",
+            "Answer: So that no one can see how they voted and nobody can threaten or bribe them — this keeps the election free and fair."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Political parties and the opposition"
+        },
+        {
+          "type": "paragraph",
+          "text": "Members of parliament who share the same ideas form groups called political parties. After an election, the party with the most votes forms the government. A party with fewer votes becomes a minority party, also called the opposition. In a true democracy the opposition is important: its different ideas must still be heard, and it watches the government to make sure it serves the people."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Democracy and human rights"
+        },
+        {
+          "type": "paragraph",
+          "text": "A democracy protects human rights — the basic rights that every person should have just for being human. On 10 December 1948 the United Nations proclaimed the Universal Declaration of Human Rights. These rights include the right to vote, to move freely, to speak freely, to follow any religion, to own property, and to be treated equally by the law."
         },
         {
           "type": "keyterms",
           "rows": [
             {
               "term": "Democracy",
-              "def": "Rule by the people."
+              "def": "Rule by the people, through free and fair elections."
             },
             {
               "term": "Election",
@@ -2695,40 +2763,21 @@
               "def": "The paper on which a voter makes a secret mark."
             },
             {
-              "term": "Discrimination",
-              "def": "Treating people unequally and unfairly."
+              "term": "Secret ballot",
+              "def": "Voting privately so no one knows your choice."
+            },
+            {
+              "term": "Opposition",
+              "def": "The minority parties that did not win, but whose views must be heard."
             },
             {
               "term": "Human rights",
               "def": "The basic rights every person should have."
+            },
+            {
+              "term": "Discrimination",
+              "def": "Treating people unequally and unfairly."
             }
-          ]
-        },
-        {
-          "type": "paragraph",
-          "text": "**Democracy** means 'rule by the people'. In a democracy the people take part in government by voting in elections, finding out about and discussing issues, attending community meetings and paying taxes."
-        },
-        {
-          "type": "heading",
-          "level": 3,
-          "text": "Elections"
-        },
-        {
-          "type": "paragraph",
-          "text": "Elections are held every few years so people can change leaders who are not serving them well. To vote in Zambia you must be **18 or older, a Zambian citizen with a green National Registration Card, and a registered voter**. Voting is by **secret ballot** placed in a locked ballot box, so elections are free and fair."
-        },
-        {
-          "type": "heading",
-          "level": 3,
-          "text": "Political parties and human rights"
-        },
-        {
-          "type": "bullets",
-          "items": [
-            "Members of parliament form groups called **parties**; the party with the most votes forms the government.",
-            "A party with fewer votes is a **minority party** or the **opposition**, whose different ideas must still be heard.",
-            "A democracy protects human rights. The **United Nations** proclaimed the Universal Declaration of Human Rights on 10 December 1948.",
-            "Rights include voting, free movement, free speech, freedom of religion, owning property and being treated equally by the law."
           ]
         },
         {
@@ -2737,12 +2786,17 @@
           "text": "Discrimination, child abuse and child labour"
         },
         {
-          "type": "bullets",
-          "items": [
-            "**Discrimination** is unequal treatment — e.g. unequal pay, or girls not being sent to school.",
-            "Zambia has two laws: **statutory law** (written, passed by government) and **customary law** (followed by tradition, often unwritten).",
-            "**Child abuse** includes neglect, beating, rape and human trafficking.",
-            "**Child labour** is forcing children to work instead of going to school."
+          "type": "paragraph",
+          "text": "Discrimination means treating people unequally and unfairly — for example, paying a woman less than a man for the same job, or sending boys to school but keeping girls at home. Zambia has two kinds of law that affect how people are treated: statutory law (written laws passed by the government) and customary law (rules followed by tradition, often unwritten)."
+        },
+        {
+          "type": "paragraph",
+          "text": "Children have rights too. Child abuse is any harm done to a child — including neglect, beating, rape and human trafficking. Child labour is forcing children to work instead of going to school. Both are wrong and against children's rights, and they should be reported to a teacher, the police or the social welfare office."
+        },
+        {
+          "type": "note",
+          "lines": [
+            "Democracy is more than voting. It is a whole way of running a country in which power belongs to the people, leaders can be changed peacefully, and everyone's rights are protected equally — including women, children and the opposition."
           ]
         },
         {
@@ -2753,26 +2807,34 @@
         },
         {
           "type": "quickcheck",
-          "q": "Name the three things you must be to vote in Zambia.",
-          "a": "18 or older, a Zambian citizen with a green NRC, and a registered voter.",
+          "q": "Name the three things you must be in order to vote in Zambia.",
+          "a": "18 years or older, a Zambian citizen with a green NRC, and a registered voter.",
           "level": "Medium"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Why must the opposition be allowed to speak in a democracy?",
+          "a": "Because democracy protects the right to different opinions, and the opposition checks that the government serves the people.",
+          "level": "Exam Level"
         },
         {
           "type": "mistake",
           "wrong": "In a democracy only the ruling party is allowed to speak.",
-          "correct": "The opposition (minority parties) must also be heard — democracy protects the right to different opinions."
+          "correct": "The opposition (minority parties) must also be heard — democracy protects the right to hold and share different opinions."
         },
         {
           "type": "exam",
-          "q": "State three ways people take part in a democracy.",
-          "a": "By voting in elections, discussing and finding out about issues, attending community meetings and paying taxes (any three)."
+          "q": "State three ways in which people take part in a democracy.",
+          "a": "By voting in elections; by finding out about and discussing issues; by attending community meetings; by joining a party, club or union; and by paying taxes (any three)."
         },
         {
           "type": "summary",
           "items": [
-            "Democracy is rule by the people, through free and fair elections.",
-            "Human rights are protected; the UN declared the Universal Declaration of Human Rights in 1948.",
-            "Discrimination, child abuse and child labour are wrong and against children's rights."
+            "Democracy means 'rule by the people', through free and fair elections.",
+            "People take part by voting, discussing issues, attending meetings and paying taxes.",
+            "To vote in Zambia you must be 18+, a citizen with a green NRC, and registered; voting is by secret ballot.",
+            "The party with the most votes forms the government; the opposition's views must still be heard.",
+            "Democracy protects human rights (UN Declaration, 1948); discrimination, child abuse and child labour are wrong."
           ]
         },
         {
@@ -2792,17 +2854,67 @@
         {
           "type": "objectives",
           "items": [
-            "Identify the three organs (branches) of government.",
-            "Explain the functions of the legislature, executive and judiciary.",
-            "Explain why the branches must stay separate."
+            "Identify the three branches (organs) of government.",
+            "Explain the work of the legislature, executive and judiciary.",
+            "Explain why the three branches must stay separate.",
+            "Describe the different levels of courts in Zambia."
           ]
         },
         {
           "type": "think",
           "lines": [
-            "Who makes the laws, and who makes sure people obey them?",
-            "Should one person be allowed to do all three?"
+            "Who makes the laws in your country, and who makes sure people obey them?",
+            "Should one person or one group be allowed to do all of that? Why might that be dangerous?"
           ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Government is how a country is run and how its people are looked after. To do this fairly, the work of government is shared among three branches (also called organs) - like a tree with three big branches. Each branch has its own job, and no single branch is allowed to do everything. This sharing keeps power balanced, so that leaders serve the people instead of ruling over them."
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-1-2-1.png",
+          "caption": "The three branches of government"
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "1. The Legislature - makes the laws"
+        },
+        {
+          "type": "paragraph",
+          "text": "The legislature is the law-making branch. In Zambia it is called Parliament, and it is made up of the National Assembly (the Members of Parliament, or MPs) and the president. MPs are elected by the people, so when you vote you help to choose who makes the laws. A new law starts as a bill, which the MPs debate and vote on. It only becomes a law if more than half of the MPs agree."
+        },
+        {
+          "type": "note",
+          "lines": [
+            "A law cannot be changed unless more than half of the Members of Parliament vote for the change. That is one reason MPs join groups called political parties - so they can win enough votes."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "2. The Executive - carries out the laws"
+        },
+        {
+          "type": "paragraph",
+          "text": "The executive puts the laws into action and runs the country every day. It is led by the president (the head of government), the vice-president, and the cabinet ministers the president chooses. Each minister runs a ministry, such as Education or Health. The real work - teaching, nursing, policing, building roads - is done by civil servants, who are paid from the taxes people pay."
+        },
+        {
+          "type": "note",
+          "lines": [
+            "Q: Which branch carries out the laws, and who leads it?",
+            "Answer: The executive; it is led by the president, with the vice-president and cabinet ministers."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "3. The Judiciary - applies the laws"
+        },
+        {
+          "type": "paragraph",
+          "text": "The judiciary is the branch of courts. Judges and magistrates listen to cases and decide whether someone has broken the law, making sure the law is applied fairly to everyone. Because the courts are separate from the other branches, they can be fair even towards powerful people."
         },
         {
           "type": "keyterms",
@@ -2813,98 +2925,85 @@
             },
             {
               "term": "Executive",
-              "def": "The branch that carries out laws."
+              "def": "The branch that carries out the laws."
             },
             {
               "term": "Judiciary",
-              "def": "The branch of courts that enforces laws."
+              "def": "The branch of courts that applies the law."
+            },
+            {
+              "term": "Bill",
+              "def": "A proposed law being debated in Parliament."
             },
             {
               "term": "Appeal",
-              "def": "Asking a higher court to hear a case again."
+              "def": "Asking a higher court to look at a case again."
             },
             {
               "term": "Civil servant",
-              "def": "A government worker, e.g. a teacher, nurse or police officer."
-            }
-          ]
-        },
-        {
-          "type": "paragraph",
-          "text": "Government has **three branches**, like a tree. Each branch does a different job and is separate from the others."
-        },
-        {
-          "type": "table",
-          "headers": [
-            "Branch",
-            "What it does",
-            "Who is in it"
-          ],
-          "rows": [
-            {
-              "cells": [
-                "Legislature",
-                "Makes laws",
-                "National Assembly (Parliament) and the president"
-              ]
+              "def": "A government worker such as a teacher, nurse or police officer."
             },
             {
-              "cells": [
-                "Executive",
-                "Carries out laws",
-                "President, vice-president and cabinet ministers"
-              ]
-            },
-            {
-              "cells": [
-                "Judiciary",
-                "Makes sure people obey laws",
-                "The law courts (judges and magistrates)"
-              ]
+              "term": "Separation of powers",
+              "def": "Keeping the three branches separate so no branch has too much power."
             }
           ]
-        },
-        {
-          "type": "paragraph",
-          "text": "Each branch is **separate** and does not take orders from another. Only the president can choose cabinet ministers; Parliament and the president cannot tell the courts what to do. This **separation of powers** stops any one branch from having too much power."
         },
         {
           "type": "heading",
           "level": 3,
-          "text": "The courts"
+          "text": "The levels of courts in Zambia"
         },
         {
           "type": "paragraph",
-          "text": "There are four levels of courts in Zambia. If you lose a case you can **appeal** to a higher court. The **Supreme Court** is the highest court and its decisions are final."
+          "text": "Zambia has different levels of courts. If someone loses a case in a lower court and believes the decision was wrong, they can appeal to a higher court to look at it again."
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-1-2-2.png",
+          "caption": "The courts of Zambia, from lowest to highest"
+        },
+        {
+          "type": "note",
+          "lines": [
+            "The three branches are kept separate - this is called the separation of powers. The president cannot tell the courts how to judge a case, and the courts cannot make laws. This balance stops any one branch from having too much power."
+          ]
         },
         {
           "type": "quickcheck",
-          "q": "Name the three branches of government and what each does.",
-          "a": "Legislature (makes laws), Executive (carries out laws), Judiciary (enforces laws).",
+          "q": "Name the three branches of government and what each one does.",
+          "a": "Legislature (makes laws), Executive (carries out laws) and Judiciary (applies the law in the courts).",
           "level": "Exam Level"
         },
         {
           "type": "quickcheck",
           "q": "Which is the highest court in Zambia?",
-          "a": "The Supreme Court.",
+          "a": "The Supreme Court - its decisions are final.",
           "level": "Easy"
+        },
+        {
+          "type": "note",
+          "lines": [
+            "A person cannot belong to all three branches at the same time. Keeping different people in each branch is one more way of making sure nobody gets too much power."
+          ]
         },
         {
           "type": "mistake",
           "wrong": "The president can tell the courts what to decide.",
-          "correct": "The branches are separate — the president and Parliament cannot tell the courts what to do."
+          "correct": "The branches are separate, so the president and Parliament cannot tell the courts what to do."
         },
         {
           "type": "exam",
           "q": "Why is it important that the three branches of government stay separate?",
-          "a": "So that no single branch gets too much power, and each can check that the others do their job well."
+          "a": "So that no single branch gets too much power, and each branch can check that the others are doing their job well - which keeps government fair and focused on serving the people."
         },
         {
           "type": "summary",
           "items": [
-            "Government has three branches: legislature, executive and judiciary.",
-            "They are separate (separation of powers) so no branch has too much power.",
-            "The Supreme Court is the highest court; you can appeal to a higher court."
+            "Government has three branches (organs): legislature, executive and judiciary.",
+            "The legislature (Parliament) makes laws; the executive (president and ministers) carries them out; the judiciary (courts) applies them.",
+            "The branches are kept separate (the separation of powers) so no branch has too much power.",
+            "Zambia's courts run from local and magistrates' courts up to the Supreme Court, the highest court."
           ]
         },
         {
@@ -2924,21 +3023,59 @@
         {
           "type": "objectives",
           "items": [
-            "Explain the work of the executive branch.",
-            "Explain how government serves the people.",
-            "Explain how government is paid for (taxes and revenue)."
+            "Explain the work of the executive branch of government.",
+            "Describe the services government provides for the people.",
+            "Explain how government is paid for, through taxes and revenue.",
+            "Explain how tax money flows back to help citizens."
           ]
         },
         {
           "type": "think",
           "lines": [
             "Who builds the schools, hospitals and roads in your area?",
-            "Where does the government get the money to do this?"
+            "Where do you think the government gets the money to pay for all of this?"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "The executive is the branch of government that carries out the laws and runs the country every day. At the top are the president (the head of government), the vice-president (who stands in for the president when needed), and the cabinet ministers the president chooses. Each minister is in charge of one part of the country's work, such as Education or Health."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "The services government provides"
+        },
+        {
+          "type": "paragraph",
+          "text": "Government does not just make rules — it serves the people. It builds and runs schools, clinics and hospitals, makes and repairs roads and bridges, brings clean water and electricity, and keeps people safe through the police. To do all this work it employs civil servants — teachers, nurses, doctors, police officers and many others. Their salaries are paid from taxes."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Where the money comes from"
+        },
+        {
+          "type": "paragraph",
+          "text": "All of this costs money. The government collects taxes from citizens and from businesses — for example, a small part of what workers earn and a part of the price of goods in shops. The money collected is called revenue. The Ministry of Finance plans how to spend the revenue, but the National Assembly (Parliament) must approve the plan before the money can be used. This way the people's representatives check how their money is spent."
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-1-3-1.png",
+          "caption": "How tax money flows: people pay taxes, government provides services, and the people benefit"
+        },
+        {
+          "type": "note",
+          "lines": [
+            "Zambia earns a large part of its money from copper. When the world price of copper is high the government has more revenue for schools and hospitals; when it falls, there is less to spend. That is why people say Zambia's economy depends on copper."
           ]
         },
         {
           "type": "keyterms",
           "rows": [
+            {
+              "term": "Executive",
+              "def": "The branch that carries out the laws and runs the country."
+            },
             {
               "term": "President",
               "def": "The head of government."
@@ -2948,35 +3085,22 @@
               "def": "A leader chosen by the president to run a ministry."
             },
             {
-              "term": "Civil service",
-              "def": "The people employed to do government work."
+              "term": "Civil servant",
+              "def": "A government worker such as a teacher, nurse or police officer."
+            },
+            {
+              "term": "Tax",
+              "def": "Money people and businesses pay to the government."
             },
             {
               "term": "Revenue",
-              "def": "Money the government collects, mainly from taxes."
+              "def": "The money the government collects, mainly from taxes."
             }
           ]
         },
         {
-          "type": "paragraph",
-          "text": "The **executive** carries out the laws and runs the country. At the top are the **president** (head of government), the **vice-president** (who stands in for the president), and the **cabinet ministers** the president chooses."
-        },
-        {
-          "type": "paragraph",
-          "text": "Government provides services such as building schools and hospitals. It employs **civil servants** — teachers, police officers, doctors and nurses — to do this work. Their salaries are paid from **taxes**."
-        },
-        {
-          "type": "heading",
-          "level": 3,
-          "text": "Where the money comes from"
-        },
-        {
-          "type": "bullets",
-          "items": [
-            "Government collects **taxes** from citizens and businesses.",
-            "This money is called **revenue**.",
-            "The **Ministry of Finance** decides how to spend the revenue, but the National Assembly must approve the plan."
-          ]
+          "type": "keyidea",
+          "text": "Government works like a circle: citizens pay taxes, the government turns that revenue into services, and those services — schools, clinics, roads, safety — benefit the citizens. When everyone pays their fair share, everyone gains."
         },
         {
           "type": "quickcheck",
@@ -2986,26 +3110,34 @@
         },
         {
           "type": "quickcheck",
-          "q": "Name two civil servants paid from taxes.",
+          "q": "Name two civil servants who are paid from taxes.",
           "a": "Any two: teachers, police officers, doctors, nurses.",
           "level": "Easy"
         },
         {
+          "type": "quickcheck",
+          "q": "Why must the National Assembly approve how revenue is spent?",
+          "a": "Because the money belongs to the people, so their elected representatives must check and agree on the spending plan.",
+          "level": "Exam Level"
+        },
+        {
           "type": "mistake",
           "wrong": "The government's money comes from the president's own pocket.",
-          "correct": "Government money (revenue) comes mainly from taxes paid by citizens and businesses."
+          "correct": "Government money (revenue) comes mainly from taxes paid by citizens and businesses, not from the president."
         },
         {
           "type": "exam",
-          "q": "How does the government get the money to pay civil servants?",
-          "a": "It collects taxes from citizens and businesses; this revenue is used to pay salaries and provide services."
+          "q": "Explain how the government gets the money to pay civil servants and provide services.",
+          "a": "It collects taxes from citizens and businesses; this money, called revenue, is planned by the Ministry of Finance and approved by Parliament, then used to pay salaries and provide services like schools and hospitals."
         },
         {
           "type": "summary",
           "items": [
-            "The executive (president, vice-president, ministers) carries out laws and runs services.",
-            "Civil servants such as teachers and nurses do government work.",
-            "Government is funded by taxes (revenue); the Ministry of Finance plans the spending."
+            "The executive (president, vice-president and ministers) carries out laws and runs the country.",
+            "Government provides services — schools, hospitals, roads, water, safety — using civil servants.",
+            "Civil servants and services are paid for by taxes; the money collected is called revenue.",
+            "The Ministry of Finance plans the spending and the National Assembly must approve it.",
+            "Tax money flows in a circle: people pay, government serves, and the people benefit."
           ]
         },
         {
@@ -3025,42 +3157,31 @@
         {
           "type": "objectives",
           "items": [
-            "Explain what a ministry is.",
-            "Identify the main government ministries and what each does."
+            "Explain what a government ministry is.",
+            "Identify the main government ministries and the work each one does.",
+            "Match a real-life problem to the ministry that should deal with it."
           ]
         },
         {
           "type": "think",
           "lines": [
-            "If a road is broken, which part of government should fix it?",
-            "Why is government divided into different ministries?"
-          ]
-        },
-        {
-          "type": "keyterms",
-          "rows": [
-            {
-              "term": "Ministry",
-              "def": "A national department run by a cabinet minister."
-            },
-            {
-              "term": "Ministry of Finance",
-              "def": "Collects taxes and decides how to spend them."
-            },
-            {
-              "term": "Ministry of Home Affairs",
-              "def": "Keeps records of people and issues passports and NRCs."
-            }
+            "If the road to your school is broken, which part of government should fix it?",
+            "Why is government divided into many different ministries instead of one big office?"
           ]
         },
         {
           "type": "paragraph",
-          "text": "The president chooses **cabinet ministers**, who are part of the executive. Each minister runs a different national department called a **ministry**."
+          "text": "The work of running a whole country is far too big for one person. So the president chooses cabinet ministers, who are part of the executive, and divides the work among them. Each minister is in charge of one national department called a ministry. A ministry is like one department in a very large school — each has its own job, and together they keep everything running."
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-1-4-1.png",
+          "caption": "Some of the main government ministries and the work each one does"
         },
         {
           "type": "heading",
           "level": 3,
-          "text": "Some important ministries"
+          "text": "Some important ministries and their work"
         },
         {
           "type": "table",
@@ -3072,31 +3193,31 @@
             {
               "cells": [
                 "Education",
-                "Manages education from pre-school to university."
+                "Manages education from pre-school all the way to university."
               ]
             },
             {
               "cells": [
                 "Health",
-                "Supplies medicines, doctors, nurses, hospitals and clinics."
+                "Supplies medicines, doctors and nurses; runs hospitals and clinics."
               ]
             },
             {
               "cells": [
                 "Home Affairs",
-                "Records of citizens; issues NRCs, birth/death records and passports; prisons."
+                "Keeps records of citizens; issues NRCs, birth and death records and passports; runs the prisons."
               ]
             },
             {
               "cells": [
                 "Defence",
-                "Controls the army and air force; keeps people safe from outside danger."
+                "Controls the army and air force; keeps the country safe from outside danger."
               ]
             },
             {
               "cells": [
                 "Finance",
-                "Collects taxes and decides how to spend them."
+                "Collects taxes and decides how the country's money is spent."
               ]
             },
             {
@@ -3108,7 +3229,7 @@
             {
               "cells": [
                 "Agriculture and Livestock",
-                "Looks after the food supply."
+                "Looks after farming and the country's food supply."
               ]
             },
             {
@@ -3120,6 +3241,41 @@
           ]
         },
         {
+          "type": "note",
+          "lines": [
+            "Ministers can be moved, and ministries can be joined together or split apart, when a new government is formed. So the exact names sometimes change — but the work (health, education, roads, money) still has to be done."
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Ministry",
+              "def": "A national department run by a cabinet minister."
+            },
+            {
+              "term": "Cabinet",
+              "def": "The team of ministers chosen by the president."
+            },
+            {
+              "term": "Ministry of Finance",
+              "def": "Collects taxes and plans how to spend them."
+            },
+            {
+              "term": "Ministry of Home Affairs",
+              "def": "Keeps records of people; issues NRCs and passports."
+            },
+            {
+              "term": "Ministry of Defence",
+              "def": "Controls the army and air force."
+            }
+          ]
+        },
+        {
+          "type": "keyidea",
+          "text": "Each ministry takes one part of the government's huge job. Together the ministries let the executive put the laws into action and serve the people in every area of life — health, learning, safety, food, money and travel."
+        },
+        {
           "type": "quickcheck",
           "q": "Which ministry issues passports and national registration cards?",
           "a": "The Ministry of Home Affairs.",
@@ -3127,9 +3283,15 @@
         },
         {
           "type": "quickcheck",
-          "q": "Which ministry looks after the food supply?",
+          "q": "Which ministry looks after farming and the food supply?",
           "a": "The Ministry of Agriculture and Livestock.",
           "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "A new clinic is needed in a village. Which ministry should build and staff it?",
+          "a": "The Ministry of Health.",
+          "level": "Medium"
         },
         {
           "type": "mistake",
@@ -3138,15 +3300,16 @@
         },
         {
           "type": "exam",
-          "q": "Name the ministry responsible for collecting taxes, and one responsible for roads.",
-          "a": "Finance collects taxes; Transport, Works, Supply and Communications looks after roads."
+          "q": "Name the ministry responsible for collecting taxes, and the one responsible for roads.",
+          "a": "The Ministry of Finance collects taxes; the Ministry of Transport, Works, Supply and Communications looks after roads."
         },
         {
           "type": "summary",
           "items": [
             "A ministry is a national department run by a cabinet minister.",
-            "Key ministries: Education, Health, Home Affairs, Defence, Finance, Agriculture, Transport.",
-            "Ministries help the president put laws into action and serve the people."
+            "Key ministries include Education, Health, Home Affairs, Defence, Finance, Justice, Agriculture and Transport.",
+            "Each ministry does one part of the work; together they help the executive serve the people.",
+            "Ministry names can change when a new government is formed, but the work still has to be done."
           ]
         },
         {
@@ -3167,37 +3330,26 @@
           "type": "objectives",
           "items": [
             "State what a constitution is and why it is important.",
-            "State the main things the Zambian constitution says.",
-            "Name the types of elections and how the constitution is changed."
+            "Describe the main things the Zambian constitution says.",
+            "Name the types of elections in Zambia.",
+            "Explain how the constitution can be changed."
           ]
         },
         {
           "type": "think",
           "lines": [
             "What are the most important rules for your country?",
-            "Who should the rules apply to — only ordinary people, or the leaders too?"
-          ]
-        },
-        {
-          "type": "keyterms",
-          "rows": [
-            {
-              "term": "Constitution",
-              "def": "The set of written rules for a country; the supreme law."
-            },
-            {
-              "term": "Referendum",
-              "def": "A vote where citizens say Yes or No to a change."
-            },
-            {
-              "term": "By-election",
-              "def": "An election to replace a leader who dies, steps down or loses their job."
-            }
+            "Should the rules apply only to ordinary people, or to the leaders too?"
           ]
         },
         {
           "type": "paragraph",
-          "text": "A **constitution** is a set of written rules for a country. It tells the people in government how to rule, and it is the **most important law in the land**."
+          "text": "A constitution is the set of written rules for a country. It tells the people in government how they may rule, it lists the rights and duties of citizens, and it explains how leaders are chosen. Because every other law must agree with it, the constitution is the supreme law — the most important law in the land. Even the president must obey it."
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-1-5-1.png",
+          "caption": "The main jobs the constitution does for the country"
         },
         {
           "type": "heading",
@@ -3207,31 +3359,83 @@
         {
           "type": "bullets",
           "items": [
-            "Zambia is a Christian country, but everyone is free to choose their own religion.",
+            "Zambia is declared a Christian nation, but everyone is free to choose their own religion.",
             "The people must choose their government leaders.",
             "The government must protect human rights and answer to the citizens.",
             "Men and women must be treated equally.",
-            "The government must be honest and help improve people's lives."
+            "The government must be honest and work to improve people's lives."
+          ]
+        },
+        {
+          "type": "note",
+          "lines": [
+            "Zambia's constitution has been changed several times since independence in 1964 — for example, the big amendments of 1991 (which brought back multi-party democracy) and of 2016. A constitution can grow and improve as a country learns."
           ]
         },
         {
           "type": "heading",
           "level": 3,
-          "text": "Elections and changing the constitution"
+          "text": "Elections in Zambia"
+        },
+        {
+          "type": "paragraph",
+          "text": "The constitution says how often and in what way leaders are chosen. There are three main kinds of election:"
         },
         {
           "type": "bullets",
           "items": [
-            "**General elections** every five years elect the president and members of parliament.",
-            "**Local government elections** elect councillors.",
-            "**By-elections** replace a leader who dies, steps down or loses their job.",
-            "To change a law, **two-thirds of parliament** must agree. If a change affects citizens' rights, there must be a **referendum**."
+            "General elections, held every five years, choose the president and the members of parliament.",
+            "Local government elections choose the councillors who run towns and districts.",
+            "By-elections are held to replace one leader who has died, stepped down or lost their job."
           ]
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-1-5-2.png",
+          "caption": "The main steps in a national election"
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Changing the constitution"
+        },
+        {
+          "type": "paragraph",
+          "text": "Because the constitution is so important, it is not easy to change — and that is on purpose. To change a part of it, two-thirds of the members of parliament must agree. If the change would affect citizens' rights, that is not enough on its own: there must also be a referendum, in which citizens themselves vote Yes or No."
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Constitution",
+              "def": "The written rules for a country; the supreme (most important) law."
+            },
+            {
+              "term": "Supreme law",
+              "def": "The highest law, which all other laws must agree with."
+            },
+            {
+              "term": "General election",
+              "def": "An election every five years for president and MPs."
+            },
+            {
+              "term": "By-election",
+              "def": "An election to replace a leader who dies, steps down or loses their job."
+            },
+            {
+              "term": "Referendum",
+              "def": "A vote where citizens say Yes or No to a change."
+            }
+          ]
+        },
+        {
+          "type": "keyidea",
+          "text": "The constitution limits the power of leaders and protects the people. Because it can only be changed by a two-thirds vote (and a referendum for rights), no leader can quietly change the rules to suit themselves."
         },
         {
           "type": "quickcheck",
           "q": "What is a constitution?",
-          "a": "The set of written rules for a country; it is the most important (supreme) law.",
+          "a": "The set of written rules for a country; it is the supreme (most important) law.",
           "level": "Easy"
         },
         {
@@ -3241,21 +3445,28 @@
           "level": "Medium"
         },
         {
+          "type": "quickcheck",
+          "q": "Why is the constitution made hard to change?",
+          "a": "So that no leader can change the rules easily for their own benefit; big changes need wide agreement (two-thirds of parliament, and a referendum for rights).",
+          "level": "Exam Level"
+        },
+        {
           "type": "mistake",
           "wrong": "The constitution can be changed easily by one minister.",
           "correct": "Changing it needs two-thirds of parliament to agree, and a referendum if citizens' rights are affected."
         },
         {
           "type": "exam",
-          "q": "Name two ways the constitution of Zambia can be changed.",
-          "a": "A two-thirds vote of members of parliament, and a referendum where citizens vote Yes or No (when rights are affected)."
+          "q": "Name two ways in which the constitution of Zambia can be changed.",
+          "a": "By a two-thirds vote of the members of parliament, and by a referendum in which citizens vote Yes or No (required when the change affects citizens' rights)."
         },
         {
           "type": "summary",
           "items": [
-            "A constitution is the supreme written law of a country.",
-            "Zambia's constitution is democratic: it protects rights and equality and makes government accountable.",
-            "Elections: general, local government and by-elections. Changing it needs two-thirds of parliament (and a referendum for rights)."
+            "A constitution is the supreme written law of a country; even leaders must obey it.",
+            "Zambia's constitution protects rights and equality and makes government answer to the people.",
+            "Three kinds of election: general (every 5 years), local government, and by-elections.",
+            "Changing it needs two-thirds of parliament, plus a referendum when citizens' rights are affected."
           ]
         },
         {
@@ -3275,8 +3486,9 @@
         {
           "type": "objectives",
           "items": [
-            "Name the seven continents.",
-            "Compare the continents by size and population.",
+            "Name the seven continents of the world.",
+            "Compare the continents by size and by population.",
+            "Say where the continents are, and which line crosses them.",
             "Locate the continents on a world map."
           ]
         },
@@ -3284,8 +3496,46 @@
           "type": "think",
           "lines": [
             "How many continents can you name without looking?",
-            "Which one do you live on?"
+            "Which one do you live on — and which do you think is the biggest?"
           ]
+        },
+        {
+          "type": "paragraph",
+          "text": "A continent is one of the seven huge landmasses of the world. The world has seven continents: Africa, Asia, Europe, North America, South America, Antarctica and Australia. Between the continents lie the great oceans, which separate one landmass from another."
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-2-1-1.png",
+          "caption": "The seven continents, with one key fact about each"
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Comparing the continents by size"
+        },
+        {
+          "type": "paragraph",
+          "text": "The continents are not the same size. Asia is by far the largest — it covers about 30% of all the world's land — and it also has the most people (more than 4 billion). Africa is the second largest. The smallest is Australia. Look at how the sizes compare:"
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-2-1-2.png",
+          "caption": "How much of the world's land each continent covers"
+        },
+        {
+          "type": "note",
+          "lines": [
+            "Antarctica has no towns and no permanent people — only scientists who visit to do research. It is the coldest place on Earth and is almost completely covered in thick ice."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Where the continents are"
+        },
+        {
+          "type": "paragraph",
+          "text": "The equator is an imaginary line around the middle of the Earth. It passes through Africa and South America, which is why those continents have hot, tropical weather near the middle. Antarctica is at the very bottom of the Earth (the South Pole), which is why it is so cold."
         },
         {
           "type": "keyterms",
@@ -3305,67 +3555,20 @@
             {
               "term": "Equator",
               "def": "An imaginary line around the middle of the Earth."
+            },
+            {
+              "term": "Ocean",
+              "def": "A very large body of salt water between the continents."
             }
           ]
         },
         {
-          "type": "paragraph",
-          "text": "The world has **seven continents**: Africa, Asia, Europe, North America, South America, Antarctica and Australia."
-        },
-        {
-          "type": "table",
-          "headers": [
-            "Continent",
-            "Key facts"
-          ],
-          "rows": [
-            {
-              "cells": [
-                "Asia",
-                "The largest continent (about 30% of land) and the most people (about 4.3 billion)."
-              ]
-            },
-            {
-              "cells": [
-                "Africa",
-                "The second largest; home to famous wildlife."
-              ]
-            },
-            {
-              "cells": [
-                "North America",
-                "About 17% of the world's land; joined to South America by a narrow strip."
-              ]
-            },
-            {
-              "cells": [
-                "South America",
-                "The equator passes through it; has the Andes, the world's longest mountain range."
-              ]
-            },
-            {
-              "cells": [
-                "Antarctica",
-                "The coldest and least populated; includes the South Pole; covered in ice."
-              ]
-            },
-            {
-              "cells": [
-                "Europe",
-                "One of the smallest, but densely populated."
-              ]
-            },
-            {
-              "cells": [
-                "Australia",
-                "The smallest continent."
-              ]
-            }
-          ]
+          "type": "keyidea",
+          "text": "Remember the seven continents and their extremes: Asia is the largest and most crowded, Australia is the smallest, and Antarctica is the coldest and emptiest."
         },
         {
           "type": "quickcheck",
-          "q": "Which is the largest continent and which has the most people?",
+          "q": "Which is the largest continent, and which has the most people?",
           "a": "Asia is both the largest and the most populated.",
           "level": "Easy"
         },
@@ -3374,6 +3577,12 @@
           "q": "Which continent is the coldest and least populated?",
           "a": "Antarctica.",
           "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Through which two continents does the equator pass?",
+          "a": "Africa and South America.",
+          "level": "Medium"
         },
         {
           "type": "mistake",
@@ -3388,9 +3597,9 @@
         {
           "type": "summary",
           "items": [
-            "There are seven continents.",
-            "Asia is the largest and most populated; Antarctica is the coldest and least populated.",
-            "The equator passes through South America and Africa."
+            "There are seven continents, separated by oceans.",
+            "Asia is the largest and most populated; Australia is the smallest; Antarctica is the coldest and least populated.",
+            "The equator passes through Africa and South America."
           ]
         },
         {
@@ -3410,16 +3619,66 @@
         {
           "type": "objectives",
           "items": [
-            "Identify the main physical features of the world.",
-            "Describe rivers, lakes, mountains, deserts, plains and plateaus.",
-            "Give examples of each feature."
+            "Say what a physical feature is.",
+            "Describe rivers, lakes, oceans, mountains, deserts, plains, plateaus and valleys.",
+            "Give a real example of each feature.",
+            "Tell the difference between features that are alike (e.g. a river and a lake)."
           ]
         },
         {
           "type": "think",
           "lines": [
-            "What different landforms have you seen — hills, rivers, plains?",
-            "How do you think mountains were made?"
+            "What different landforms have you seen — hills, rivers, flat plains?",
+            "How do you think tall mountains were made?"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "A physical feature is a natural landform — something on the Earth's surface that nature made, not people. There are two big groups: water features (rivers, lakes, oceans and seas) and land features (mountains, plateaus, plains, valleys and deserts). Often you can see many of them in one view, like this:"
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-2-2-1.png",
+          "caption": "Many physical features shown together in one landscape"
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Water features"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "A river is flowing water that moves across the land towards the sea.",
+            "A lake is a body of water with land all around it. Lake Victoria is Africa's largest lake.",
+            "There are four oceans — huge bodies of salt water. A sea is smaller and is often bordered by land (for example the Red Sea).",
+            "An island is land with water all around it — from tiny ones to large ones like Madagascar."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Land features"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Mountains are the most common feature. Fold mountains were pushed up when the continents slowly shifted — examples are the Atlas, Andes, Alps, Rockies and Drakensberg. The Himalayas are the highest range in the world.",
+            "Deserts are very dry land and cover about one-third of the Earth — hot deserts like the Sahara and Kalahari, and some cold deserts too.",
+            "A valley is low land between hills or mountains. The huge Great Rift Valley runs through East Africa.",
+            "A plain is a large area of low, flat grassland used for crops and grazing (such as the prairies and the steppes).",
+            "A plateau is high, flat land (a 'tableland'). Much of southern Africa is the Great African Plateau."
+          ]
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-2-2-2.png",
+          "caption": "The main physical features and an example of each"
+        },
+        {
+          "type": "note",
+          "lines": [
+            "The Great Rift Valley is so large that it can be seen from space. It was formed over millions of years as the Earth's surface slowly pulled apart in East Africa."
           ]
         },
         {
@@ -3431,7 +3690,7 @@
             },
             {
               "term": "Fold mountain",
-              "def": "A mountain pushed up when continents shifted."
+              "def": "A mountain pushed up when the continents shifted."
             },
             {
               "term": "Plateau",
@@ -3440,35 +3699,20 @@
             {
               "term": "Plain",
               "def": "A large area of low, flat land, often grassland."
+            },
+            {
+              "term": "Valley",
+              "def": "Low land between hills or mountains."
+            },
+            {
+              "term": "Island",
+              "def": "Land with water all around it."
             }
           ]
         },
         {
-          "type": "heading",
-          "level": 3,
-          "text": "Water features"
-        },
-        {
-          "type": "bullets",
-          "items": [
-            "**Rivers** flow across the land. A **lake** is water surrounded by land; **Lake Victoria** is Africa's largest lake.",
-            "There are **four oceans**; seas are smaller and often bordered by land (e.g. the Red Sea).",
-            "**Islands** vary from tiny atolls to large ones like Madagascar."
-          ]
-        },
-        {
-          "type": "heading",
-          "level": 3,
-          "text": "Land features"
-        },
-        {
-          "type": "bullets",
-          "items": [
-            "**Mountains** are the most common feature; **fold mountains** include the Atlas, Andes, Alps, Rockies and Drakensberg. The **Himalayas** are the highest range.",
-            "**Deserts** cover about one-third of the Earth — hot deserts like the Sahara and Kalahari, and cold deserts.",
-            "**Valleys and lowlands**: the **Great Rift Valley** runs through East Africa. **Plains** (like the prairies and steppes) are grasslands used for crops.",
-            "**Plateaus** are high flat lands; much of southern Africa is the **Great African Plateau**."
-          ]
+          "type": "keyidea",
+          "text": "Group the features in your mind: water features (river, lake, sea, ocean, island) and land features (mountain, plateau, plain, valley, desert). A river flows, but a lake stays still with land all around it."
         },
         {
           "type": "quickcheck",
@@ -3483,21 +3727,28 @@
           "level": "Medium"
         },
         {
+          "type": "quickcheck",
+          "q": "What is the difference between a plateau and a plain?",
+          "a": "A plateau is high, flat land (a tableland); a plain is low, flat land.",
+          "level": "Exam Level"
+        },
+        {
           "type": "mistake",
           "wrong": "A lake and a river are the same thing.",
-          "correct": "A river flows; a lake is a body of water surrounded by land and does not flow."
+          "correct": "A river flows across the land; a lake is a body of water surrounded by land and does not flow."
         },
         {
           "type": "exam",
           "q": "Explain the difference between a river and a lake.",
-          "a": "A river flows across the land, while a lake is an area of water surrounded by land that does not flow."
+          "a": "A river flows across the land towards the sea, while a lake is an area of water surrounded by land that does not flow."
         },
         {
           "type": "summary",
           "items": [
-            "Physical features include rivers, lakes, mountains, deserts, plains and plateaus.",
-            "The Himalayas are the highest mountains; the Sahara and Kalahari are hot deserts.",
-            "The Great Rift Valley and the Great African Plateau are important features of Africa."
+            "A physical feature is a natural landform; the two groups are water features and land features.",
+            "Water features: rivers, lakes (Lake Victoria), four oceans, seas and islands (Madagascar).",
+            "Land features: mountains (Himalayas highest), deserts (Sahara, Kalahari), valleys (Great Rift Valley), plains and plateaus (Great African Plateau).",
+            "A river flows; a lake is still water surrounded by land."
           ]
         },
         {
@@ -3517,9 +3768,9 @@
         {
           "type": "objectives",
           "items": [
-            "Explain the reasons for rapid population growth.",
+            "Explain the reasons why populations grow quickly.",
             "Describe the effects of rapid population growth.",
-            "Suggest solutions."
+            "Suggest solutions to the problems it causes."
           ]
         },
         {
@@ -3527,6 +3778,66 @@
           "lines": [
             "Is your town more crowded than it was a few years ago?",
             "What problems happen when too many people live in one place?"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "The population is the number of people living in a place. The world's population is growing faster than ever before — it has more than doubled since 1950. When the number of people grows much faster than the food, schools, jobs and hospitals can keep up, we call it overpopulation."
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-3-1-1.png",
+          "caption": "The world's population has grown very quickly over the years"
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Why populations grow"
+        },
+        {
+          "type": "paragraph",
+          "text": "A population grows when the birth rate (births per thousand people each year) is higher than the death rate (deaths per thousand people each year). Several things push the numbers up:"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Better science and technology means more food can be grown.",
+            "Better health care means people live longer and fewer children die.",
+            "Early marriages and poor family planning lead to large families.",
+            "Polygamy and improved sanitation also raise the population."
+          ]
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-3-1-2.png",
+          "caption": "The causes, effects and solutions of rapid population growth"
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Effects of rapid growth"
+        },
+        {
+          "type": "paragraph",
+          "text": "When a population grows too fast there are not enough hospitals, schools or jobs. This leads to disease, unemployment, crime, slums (shanty compounds), food shortages and environmental problems such as deforestation and pollution."
+        },
+        {
+          "type": "note",
+          "lines": [
+            "It took until about 1800 for the world to reach its first billion people. It now adds another billion in only about 12 years — that is how fast modern population growth is."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Solutions"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Family planning and education so families can choose their size.",
+            "Better farming methods to grow more food on the same land.",
+            "New industries to create more jobs."
           ]
         },
         {
@@ -3545,46 +3856,18 @@
               "def": "Too many people for the resources available."
             },
             {
+              "term": "Family planning",
+              "def": "Choosing how many children to have and when."
+            },
+            {
               "term": "Industrialised",
               "def": "When a country's economy moves from farming to factories."
             }
           ]
         },
         {
-          "type": "heading",
-          "level": 3,
-          "text": "Why populations grow"
-        },
-        {
-          "type": "bullets",
-          "items": [
-            "Better science and technology means more food can be grown.",
-            "Better health care means people live longer and fewer children die.",
-            "Early marriages and poor family planning lead to large families.",
-            "Polygamy (one man with many wives) and improved sanitation also raise the population."
-          ]
-        },
-        {
-          "type": "heading",
-          "level": 3,
-          "text": "Effects of rapid growth"
-        },
-        {
-          "type": "paragraph",
-          "text": "When a population grows too fast there are **not enough hospitals, schools or jobs**. This leads to disease, unemployment, crime, **slums (shanty compounds)**, food shortages and environmental problems like deforestation and pollution."
-        },
-        {
-          "type": "heading",
-          "level": 3,
-          "text": "Solutions"
-        },
-        {
-          "type": "bullets",
-          "items": [
-            "Family planning and education.",
-            "Better farming methods to grow more food.",
-            "New industries to create jobs."
-          ]
+          "type": "keyidea",
+          "text": "Population grows for good reasons (more food, better health) but too‑fast growth strains a country's resources. The answer is not fewer people overnight, but family planning, better farming and more jobs."
         },
         {
           "type": "quickcheck",
@@ -3599,9 +3882,15 @@
           "level": "Medium"
         },
         {
+          "type": "quickcheck",
+          "q": "Why can better health care actually make a population grow?",
+          "a": "Because fewer people die and they live longer, so the death rate falls while births continue.",
+          "level": "Exam Level"
+        },
+        {
           "type": "mistake",
           "wrong": "Population grows only because more babies are born.",
-          "correct": "It also grows because people live longer (lower death rate) thanks to better health care."
+          "correct": "It also grows because people live longer (a lower death rate) thanks to better health care."
         },
         {
           "type": "exam",
@@ -3635,7 +3924,7 @@
           "items": [
             "Explain what corruption is.",
             "Discuss the causes and effects of corruption.",
-            "Give examples of corruption."
+            "Give examples of corruption, large and small."
           ]
         },
         {
@@ -3643,6 +3932,45 @@
           "lines": [
             "Have you heard the phrase 'paying under the table'?",
             "Why is it unfair when an official takes a bribe?"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Corruption is when people in positions of power behave dishonestly for their own benefit. Because the government decides how to spend public money and who gets services, officials have power — and some people try to bribe them, paying money 'under the table' where no one can see."
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-3-2-1.png",
+          "caption": "Common forms of corruption"
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Examples of corruption"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Bribing an official to get an NRC or a driving licence.",
+            "Bribing a school principal to accept a child.",
+            "Bribing a teacher to leak an exam paper (called rigging an exam).",
+            "Bribing a police officer to free a criminal.",
+            "Bribing officials to win large government contracts, or stealing public money."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Why corruption is harmful"
+        },
+        {
+          "type": "paragraph",
+          "text": "Corruption is unfair: it lets some people get what they have not earned, while honest people lose out. It wastes public money that should build schools and clinics, and it makes people lose trust in their leaders. In Zambia the Anti‑Corruption Commission (ACC) works to stop it, and citizens are encouraged to report it."
+        },
+        {
+          "type": "note",
+          "lines": [
+            "Even a small bribe — a few kwacha to jump a queue or get a form stamped — is corruption. Corruption is not only about huge sums of money."
           ]
         },
         {
@@ -3657,29 +3985,18 @@
               "def": "Money or favours given to make someone act dishonestly."
             },
             {
+              "term": "Rigging",
+              "def": "Cheating to fix a result, e.g. leaking an exam paper."
+            },
+            {
               "term": "Accountable",
               "def": "Taking responsibility for what you say and do."
             }
           ]
         },
         {
-          "type": "paragraph",
-          "text": "**Corruption** is when people in positions of power behave dishonestly. Because governments decide how to spend public money, officials have power, so people try to **bribe** them — paying money 'under the table' where no one can see."
-        },
-        {
-          "type": "heading",
-          "level": 3,
-          "text": "Examples of corruption"
-        },
-        {
-          "type": "bullets",
-          "items": [
-            "Bribing an official to get an NRC or a driving licence.",
-            "Bribing a school principal to accept a child.",
-            "Bribing a teacher to leak an exam paper (called **rigging** an exam).",
-            "Bribing a police officer to free a criminal.",
-            "Bribing officials to win large government contracts."
-          ]
+          "type": "keyidea",
+          "text": "Corruption is the misuse of power for private gain. It can be big or small, and it hurts everyone because it wastes shared resources and treats people unequally."
         },
         {
           "type": "quickcheck",
@@ -3692,6 +4009,12 @@
           "q": "What is it called when an exam paper is leaked through bribery?",
           "a": "Rigging an exam.",
           "level": "Medium"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Why does corruption hurt people who are not even involved?",
+          "a": "It wastes public money meant for schools and clinics, and gives unfair advantages, so honest people lose out.",
+          "level": "Exam Level"
         },
         {
           "type": "mistake",
@@ -3708,7 +4031,7 @@
           "items": [
             "Corruption is dishonest behaviour by people in power, often through bribes.",
             "It happens on a large or small scale.",
-            "It is unfair because it lets some people get what they should not, at the expense of others."
+            "It is unfair and wasteful; the Anti‑Corruption Commission works to stop it."
           ]
         },
         {
@@ -3741,25 +4064,13 @@
           ]
         },
         {
-          "type": "keyterms",
-          "rows": [
-            {
-              "term": "Food security",
-              "def": "Making sure there is enough food now and in the future."
-            },
-            {
-              "term": "Malnutrition",
-              "def": "Illness caused by not getting enough good food."
-            },
-            {
-              "term": "Cash crop",
-              "def": "A crop grown to sell for money rather than to eat."
-            },
-            {
-              "term": "Drought",
-              "def": "A long period with little or no rain."
-            }
-          ]
+          "type": "paragraph",
+          "text": "A food shortage is when there is not enough food for the people who need it. Many things can cause it — some are natural, like the weather, and some are caused by people."
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-3-3-1.png",
+          "caption": "The main causes of food shortages"
         },
         {
           "type": "heading",
@@ -3784,7 +4095,42 @@
         },
         {
           "type": "paragraph",
-          "text": "**Food security** means making sure there is enough food for everyone now and in the future. Too little food causes **malnutrition**, so people are weak and cannot work. Governments can help by promoting good farming, supplying seeds and fertilisers, irrigating dry areas, improving storage and creating markets for crops."
+          "text": "Food security means making sure there is enough food for everyone now and in the future. Too little food causes malnutrition, so people are weak and cannot work or learn well. Governments can help by promoting good farming, supplying seeds and fertilisers, irrigating dry areas, improving storage and creating markets for crops."
+        },
+        {
+          "type": "note",
+          "lines": [
+            "Irrigation — bringing water to fields through canals or pipes — lets farmers grow food even in the dry season, instead of waiting for the rains. It is one of the best ways to fight food shortages."
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Food security",
+              "def": "Making sure there is enough food now and in the future."
+            },
+            {
+              "term": "Malnutrition",
+              "def": "Illness caused by not getting enough good food."
+            },
+            {
+              "term": "Cash crop",
+              "def": "A crop grown to sell for money rather than to eat."
+            },
+            {
+              "term": "Drought",
+              "def": "A long period with little or no rain."
+            },
+            {
+              "term": "Irrigation",
+              "def": "Bringing water to crops through canals or pipes."
+            }
+          ]
+        },
+        {
+          "type": "keyidea",
+          "text": "Food shortages have natural causes (drought, floods) and human causes (overpopulation, war, poor farming). Food security is the goal: enough good food for everyone, today and tomorrow."
         },
         {
           "type": "quickcheck",
@@ -3797,6 +4143,12 @@
           "q": "Name two causes of food shortages.",
           "a": "Any two: overpopulation, drought/floods, deforestation, overgrazing, soil erosion, poor farming, wars, diseases, cash crops.",
           "level": "Medium"
+        },
+        {
+          "type": "quickcheck",
+          "q": "How can irrigation improve food security?",
+          "a": "It brings water to fields so crops can grow even when there is little rain.",
+          "level": "Exam Level"
         },
         {
           "type": "mistake",
@@ -3834,7 +4186,8 @@
           "type": "objectives",
           "items": [
             "Explain why HIV and AIDS is a global challenge.",
-            "Describe how HIV and AIDS affects food security and the economy."
+            "Describe how HIV and AIDS affects food security and the economy.",
+            "Explain why it is everyone's concern, not only the sick person's."
           ]
         },
         {
@@ -3842,6 +4195,35 @@
           "lines": [
             "How can illness in a community affect how much food is grown?",
             "Why is HIV and AIDS a challenge for the whole country, not just the sick person?"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "HIV is the virus that causes AIDS (Acquired Immune Deficiency Syndrome), which weakens the body's defences against disease. HIV and AIDS is one of the world's great challenges. It affects not only health, but also food security and the economy of a whole country."
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-3-4-1.png",
+          "caption": "HIV and AIDS affects health, food and the economy"
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "How it affects food and the economy"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "People who are sick with AIDS cannot work as hard, so less food is produced.",
+            "Families may leave their small farms when members fall ill, threatening food security.",
+            "Money and time are spent caring for the sick instead of on development.",
+            "The workplace loses skilled workers, which slows the economy."
+          ]
+        },
+        {
+          "type": "note",
+          "lines": [
+            "People living with HIV can now stay healthy and keep working for many years by taking ARV (antiretroviral) medicines, which are given free at government clinics in Zambia."
           ]
         },
         {
@@ -3856,34 +4238,30 @@
               "def": "Acquired Immune Deficiency Syndrome; it weakens the body's defences."
             },
             {
+              "term": "ARVs",
+              "def": "Antiretroviral medicines that keep people with HIV healthy."
+            },
+            {
               "term": "Economy",
               "def": "How a country produces, sells and uses goods, services and money."
             }
           ]
         },
         {
-          "type": "paragraph",
-          "text": "HIV and AIDS is one of the world's great challenges. It affects not only health but also **food security and the economy**."
-        },
-        {
-          "type": "heading",
-          "level": 3,
-          "text": "How it affects food and the economy"
-        },
-        {
-          "type": "bullets",
-          "items": [
-            "People who are sick with AIDS **cannot work as hard**, so less food is produced.",
-            "Families may leave their small farms when members fall ill, threatening food security.",
-            "Money and time are spent caring for the sick instead of on development.",
-            "The workplace loses skilled workers, which slows the economy."
-          ]
+          "type": "keyidea",
+          "text": "HIV and AIDS is more than a health problem. Because it removes healthy workers and farmers, it weakens food production and the economy of the whole nation."
         },
         {
           "type": "quickcheck",
           "q": "How does HIV and AIDS affect food production?",
           "a": "Sick people cannot work as hard, so less food is grown; families may leave their farms.",
           "level": "Exam Level"
+        },
+        {
+          "type": "quickcheck",
+          "q": "What do ARV medicines do?",
+          "a": "They keep people living with HIV healthy so they can continue to work and live normally.",
+          "level": "Medium"
         },
         {
           "type": "mistake",
@@ -3900,7 +4278,7 @@
           "items": [
             "HIV and AIDS is a global challenge that goes beyond health.",
             "It reduces food production because sick people cannot work.",
-            "It harms the economy by removing healthy, skilled workers."
+            "It harms the economy by removing healthy, skilled workers; ARVs help people stay well."
           ]
         },
         {
@@ -3933,6 +4311,44 @@
           ]
         },
         {
+          "type": "paragraph",
+          "text": "Pollution is when harmful substances make the environment dirty and unhealthy. There are four main forms — air, water, soil and noise pollution — and most of them come from the way people live and work."
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-3-5-1.png",
+          "caption": "The four forms of pollution and where they come from"
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Forms of pollution"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Air pollution — burning fossil fuels in power stations, factories and cars.",
+            "Soil pollution — rubbish, human waste, pesticides and soil erosion.",
+            "Noise pollution — vehicles, machinery, aircraft and loud music.",
+            "Water pollution — factory waste, sewage, oil spills and fertilisers (which make algae use up the oxygen so fish die)."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Effects"
+        },
+        {
+          "type": "paragraph",
+          "text": "Air pollution damages lungs and eyes and causes acid rain, which kills trees and eats into rocks and buildings. Water pollution causes diseases like cholera and harms fish and seabirds. Pollution also adds to global warming."
+        },
+        {
+          "type": "note",
+          "lines": [
+            "When fertiliser washes into a lake it feeds tiny green algae that spread fast and use up the water's oxygen — so the fish suffocate and die. This shows how one kind of pollution can harm a whole food chain."
+          ]
+        },
+        {
           "type": "keyterms",
           "rows": [
             {
@@ -3954,27 +4370,8 @@
           ]
         },
         {
-          "type": "heading",
-          "level": 3,
-          "text": "Forms of pollution"
-        },
-        {
-          "type": "bullets",
-          "items": [
-            "**Air pollution** — burning fossil fuels in power stations, factories and cars.",
-            "**Soil pollution** — rubbish, human waste, pesticides and soil erosion.",
-            "**Noise pollution** — vehicles, machinery, aircraft and loud music.",
-            "**Water pollution** — factory waste, sewage, oil spills and fertilisers (which make algae use up the oxygen so fish die)."
-          ]
-        },
-        {
-          "type": "heading",
-          "level": 3,
-          "text": "Effects"
-        },
-        {
-          "type": "paragraph",
-          "text": "Air pollution damages lungs and eyes and causes **acid rain**, which kills trees and eats into rocks and buildings. Water pollution causes diseases like cholera, and harms fish and seabirds. Pollution also causes **global warming**."
+          "type": "keyidea",
+          "text": "Remember the four forms: air, water, soil and noise. Most pollution comes from burning fossil fuels and dumping waste, so the cures are cleaner fuels, less waste and careful disposal."
         },
         {
           "type": "quickcheck",
@@ -3986,6 +4383,12 @@
           "type": "quickcheck",
           "q": "What causes acid rain?",
           "a": "Gases from factories and vehicles that mix with moisture in the air.",
+          "level": "Exam Level"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Why do fish die when fertiliser washes into a lake?",
+          "a": "It feeds algae that use up the oxygen in the water, so the fish cannot breathe.",
           "level": "Exam Level"
         },
         {
@@ -4024,6 +4427,7 @@
           "type": "objectives",
           "items": [
             "Identify other world challenges such as war, global warming and poverty.",
+            "Explain how each one harms people.",
             "Suggest solutions to these challenges."
           ]
         },
@@ -4032,6 +4436,48 @@
           "lines": [
             "Why do people sometimes have to leave their homes and country?",
             "What does it mean to be poor?"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Besides the challenges already studied, the world faces three more big ones: war, global warming and poverty. They are connected — war and global warming can both make people poorer."
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-3-6-1.png",
+          "caption": "Three more big challenges facing the world"
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "War and refugees"
+        },
+        {
+          "type": "paragraph",
+          "text": "War forces people to leave their homes; these people are called refugees and often live in camps with too little food, water or schools. The United Nations (UN) and the African Union (AU) help fighting groups make peace, and the International Court of Justice helps solve conflicts."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Global warming"
+        },
+        {
+          "type": "paragraph",
+          "text": "Burning fossil fuels releases greenhouse gases that trap the Sun's heat and make the Earth warmer. This melts ice caps, raises sea levels, causes droughts and disturbs natural habitats."
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Poverty"
+        },
+        {
+          "type": "paragraph",
+          "text": "Poverty is not having enough money for basic needs. Poor people often cannot afford education, so they remain illiterate and cannot get well‑paid jobs. Education is the key to ending poverty, which is why Zambia provides basic education for all children."
+        },
+        {
+          "type": "note",
+          "lines": [
+            "The United Nations has set goals for the whole world — including ending extreme poverty and hunger — known as the Sustainable Development Goals. Many countries, including Zambia, are working towards them."
           ]
         },
         {
@@ -4056,31 +4502,8 @@
           ]
         },
         {
-          "type": "heading",
-          "level": 3,
-          "text": "War and refugees"
-        },
-        {
-          "type": "paragraph",
-          "text": "War forces people to leave their homes; these people are called **refugees** and often live in camps with too little food, water or schools. The **United Nations (UN)** and the **African Union (AU)** help fighting groups make peace; the International Court of Justice also helps solve conflicts."
-        },
-        {
-          "type": "heading",
-          "level": 3,
-          "text": "Global warming"
-        },
-        {
-          "type": "paragraph",
-          "text": "Burning **fossil fuels** releases greenhouse gases that trap the Sun's heat and make the Earth warmer. This melts ice caps, raises sea levels, causes droughts and disturbs natural habitats."
-        },
-        {
-          "type": "heading",
-          "level": 3,
-          "text": "Poverty"
-        },
-        {
-          "type": "paragraph",
-          "text": "**Poverty** is not having enough money for basic needs. Poor people often cannot afford education, so they remain **illiterate** and cannot get well-paid jobs. **Education** is the key to ending poverty, which is why Zambia provides basic education for all children."
+          "type": "keyidea",
+          "text": "War, global warming and poverty are global problems — too big for one country alone — so nations work together through bodies like the UN and the AU, and education helps people lift themselves out of poverty."
         },
         {
           "type": "quickcheck",
@@ -4095,6 +4518,12 @@
           "level": "Medium"
         },
         {
+          "type": "quickcheck",
+          "q": "Which two organisations help fighting groups make peace?",
+          "a": "The United Nations (UN) and the African Union (AU).",
+          "level": "Medium"
+        },
+        {
           "type": "mistake",
           "wrong": "Global warming is caused by the Earth moving closer to the Sun.",
           "correct": "Global warming is caused by greenhouse gases from burning fossil fuels trapping the Sun's heat."
@@ -4102,7 +4531,7 @@
         {
           "type": "exam",
           "q": "Explain how global warming can affect cities near the sea.",
-          "a": "Global warming melts the ice caps, raising sea levels, which can flood low-lying cities near the sea."
+          "a": "Global warming melts the ice caps, raising sea levels, which can flood low‑lying cities near the sea."
         },
         {
           "type": "summary",
@@ -4130,8 +4559,8 @@
           "type": "objectives",
           "items": [
             "Explain the importance of family life in Zambia.",
-            "Discuss different types of families.",
-            "Explain how family life provides security, love and care."
+            "Describe the different types of families.",
+            "Explain how family life gives security, love and care."
           ]
         },
         {
@@ -4139,6 +4568,49 @@
           "lines": [
             "Who looks after you and teaches you right from wrong?",
             "What does the saying 'It takes a village to raise a child' mean?"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "A family is a group of people related by blood, marriage or adoption. Families are the building blocks of society — it is within our family that we first learn the values and traditions of our culture. Our parents feed, clothe and care for us until we are old enough to look after ourselves."
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-4-1-1.png",
+          "caption": "The many things a family gives a child"
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Why family life is important"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Children receive security, protection, love and care.",
+            "Family members support each other — the weak, sick, old and orphaned are cared for.",
+            "Children are taught religious beliefs and moral values.",
+            "Children raised in caring families tend to be healthier and to have better relationships as adults."
+          ]
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Types of families"
+        },
+        {
+          "type": "paragraph",
+          "text": "Families come in different shapes. The two most common are the nuclear family (a mother, father and their children) and the extended family, which also includes grandparents, uncles, aunts and cousins. There are also single‑parent families and families caring for orphans or adopted children."
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-4-1-2.png",
+          "caption": "Four common types of family"
+        },
+        {
+          "type": "note",
+          "lines": [
+            "In the African saying, 'It takes a village to raise a child.' In Zambian tradition the whole extended family and community — not just the parents — help to raise, teach and protect a child."
           ]
         },
         {
@@ -4157,42 +4629,18 @@
               "def": "Parents, children and other relatives such as grandparents, uncles and aunts."
             },
             {
+              "term": "Single‑parent family",
+              "def": "A family with one parent raising the children."
+            },
+            {
               "term": "Orphan",
               "def": "A child whose parents have died."
             }
           ]
         },
         {
-          "type": "paragraph",
-          "text": "Families are the **building blocks of society**. It is within our family that we first learn the values and traditions of our culture. Our parents feed, clothe and care for us until we can look after ourselves."
-        },
-        {
-          "type": "heading",
-          "level": 3,
-          "text": "Why family life is important"
-        },
-        {
-          "type": "bullets",
-          "items": [
-            "Children receive security, protection, love and care.",
-            "Family members support each other; the weak, sick, old and orphaned are cared for.",
-            "Children are taught religious beliefs and moral values.",
-            "Children raised in families tend to be healthier and have better relationships as adults."
-          ]
-        },
-        {
-          "type": "heading",
-          "level": 3,
-          "text": "Types of families"
-        },
-        {
-          "type": "bullets",
-          "items": [
-            "**Nuclear family** — parents and their children.",
-            "**Extended family** — also includes grandparents, uncles, aunts and cousins.",
-            "**Single-parent family** — one parent (through death, divorce or never marrying).",
-            "**Orphans** are cared for by grandparents or older siblings; **adopted children** are raised by people who are not their birth parents."
-          ]
+          "type": "keyidea",
+          "text": "The family is the first and most important group a child belongs to. It provides not just food and shelter, but love, security, values and support that shape the kind of adult a child becomes."
         },
         {
           "type": "quickcheck",
@@ -4204,6 +4652,12 @@
           "type": "quickcheck",
           "q": "Complete the saying: 'It takes a ___ to raise a ___.'",
           "a": "It takes a village to raise a child.",
+          "level": "Medium"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Why might a child be raised by grandparents or an older brother or sister?",
+          "a": "Because they are an orphan whose parents have died, or from a single‑parent family.",
           "level": "Medium"
         },
         {
@@ -4221,7 +4675,7 @@
           "items": [
             "Families are the building blocks of society and teach us values.",
             "Family life gives security, love, care and support.",
-            "Types include nuclear, extended, single-parent and families with orphans or adopted children."
+            "Types include nuclear, extended, single‑parent and families with orphans or adopted children."
           ]
         },
         {
@@ -4254,6 +4708,43 @@
           ]
         },
         {
+          "type": "paragraph",
+          "text": "In Zambian tradition, family ties are very strong, and there are two systems of family belonging. In matrilineal tribes (such as the Tonga and Bemba) children belong more to the mother's side. In patrilineal tribes (such as the Lozi and Ngoni) children belong to the father's side. The system decides which relatives a child is closest to and how property and names are passed on."
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-4-2-1.png",
+          "caption": "The two Zambian family systems"
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Duties of parents and children"
+        },
+        {
+          "type": "paragraph",
+          "text": "The bond between parents and children is a two‑way relationship: each has duties to the other."
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-4-2-2.png",
+          "caption": "Parents and children both have duties"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Parents love and care for their children and train them in the skills they will need in adult life.",
+            "Children are expected to respect and obey their parents — for example, kneeling to show respect.",
+            "Children must care for their parents in old age, bury them when they die and look after their graves, and may name their own children after them."
+          ]
+        },
+        {
+          "type": "note",
+          "lines": [
+            "In many Zambian homes a child kneels when handing something to a parent or elder. This small action is a sign of deep respect that is taught from a young age."
+          ]
+        },
+        {
           "type": "keyterms",
           "rows": [
             {
@@ -4263,25 +4754,16 @@
             {
               "term": "Patrilineal",
               "def": "A family system where children belong to the father's side (e.g. Lozi, Ngoni)."
+            },
+            {
+              "term": "Respect",
+              "def": "Treating parents and elders with honour and obedience."
             }
           ]
         },
         {
-          "type": "paragraph",
-          "text": "In Zambian tradition, **family ties are very strong**. There are two systems of family belonging: in **matrilineal** tribes (such as the Tonga and Bemba) children belong more to the mother's side, while in **patrilineal** tribes (such as the Lozi and Ngoni) children belong to the father's side."
-        },
-        {
-          "type": "heading",
-          "level": 3,
-          "text": "Duties of parents and children"
-        },
-        {
-          "type": "bullets",
-          "items": [
-            "Parents love and care for their children and **train them in the skills they will need** in adult life.",
-            "Children are expected to **respect and obey** their parents — for example, kneeling to show respect.",
-            "Children must care for their parents in old age, bury them when they die and look after their graves, and may name their own children after them."
-          ]
+          "type": "keyidea",
+          "text": "Zambian families are built on strong ties and mutual duty. Parents raise and train their children; in return children respect, obey and later care for their parents. Whether a child belongs to the mother's or father's side depends on whether the tribe is matrilineal or patrilineal."
         },
         {
           "type": "quickcheck",
@@ -4296,6 +4778,12 @@
           "level": "Easy"
         },
         {
+          "type": "quickcheck",
+          "q": "In a patrilineal tribe, to which side does a child mainly belong?",
+          "a": "The father's side.",
+          "level": "Medium"
+        },
+        {
           "type": "mistake",
           "wrong": "In matrilineal tribes children belong to the father's side.",
           "correct": "In matrilineal tribes children belong to the mother's side; in patrilineal tribes they belong to the father's side."
@@ -4308,7 +4796,7 @@
         {
           "type": "summary",
           "items": [
-            "Zambian families have strong ties.",
+            "Zambian families have strong ties and a two‑way relationship of duties.",
             "Matrilineal tribes trace children through the mother; patrilineal through the father.",
             "Parents train and care for children; children respect, obey and later care for their parents."
           ]
@@ -4331,7 +4819,8 @@
           "type": "objectives",
           "items": [
             "Say where the Prairies are and what the word means.",
-            "Describe the climate, vegetation and farming of the Prairies."
+            "Describe the climate, vegetation and farming of the Prairies.",
+            "Explain why the Prairies needed special ploughs."
           ]
         },
         {
@@ -4342,25 +4831,22 @@
           ]
         },
         {
-          "type": "keyterms",
-          "rows": [
-            {
-              "term": "Prairie",
-              "def": "A large area of temperate grassland in North America."
-            },
-            {
-              "term": "Biodiversity",
-              "def": "The variety of living things in an area."
-            },
-            {
-              "term": "Temperate",
-              "def": "A mild climate, not very hot or very cold."
-            }
-          ]
+          "type": "paragraph",
+          "text": "This unit looks at the world's great temperate grasslands — huge plains of grass on five different continents. Each has its own name. Here are all five at a glance before we study the first one:"
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-5-1-1.png",
+          "caption": "The five great grasslands and where they are"
         },
         {
           "type": "paragraph",
-          "text": "The **Prairies** are temperate grasslands in **North America**. The word 'prairie' means grassland/meadow. They can be wet (rich soil, good for farming), mesic (good drainage and soil) or dry (may suffer drought)."
+          "text": "The Prairies are the temperate grasslands of North America. The word 'prairie' means grassland or meadow. Some parts are wet (rich soil, good for farming), some mesic (good drainage and soil) and some dry (and may suffer drought)."
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-5-1-2.png",
+          "caption": "The Prairies — climate, crops and conservation"
         },
         {
           "type": "heading",
@@ -4370,12 +4856,39 @@
         {
           "type": "bullets",
           "items": [
-            "Originally tall, mixed and short grass with **few trees**, because regular fires killed the trees.",
-            "The soil was so thick with roots that strong **iron (steel) ploughs** had to be invented to break it.",
+            "Originally tall, mixed and short grass with few trees, because regular fires killed off the trees.",
+            "The soil was so thick with roots that strong iron (steel) ploughs had to be invented to break it.",
             "Today vast fields grow maize, soya beans, sorghum, barley, oats, sugar beet, cotton, sunflower and groundnuts.",
-            "In 2012 the USA prairies produced about **36% of the world's maize**.",
-            "Farming has reduced the natural **biodiversity**, so some land is being conserved."
+            "In 2012 the USA prairies produced about 36% of the world's maize.",
+            "Farming has reduced the natural biodiversity, so some land is now being conserved."
           ]
+        },
+        {
+          "type": "note",
+          "lines": [
+            "The Prairie soil was packed so tightly with grass roots that ordinary wooden ploughs simply bounced off it. In the 1830s John Deere invented a strong steel plough that could finally cut through — and it opened up the Prairies to farming."
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Prairie",
+              "def": "A large area of temperate grassland in North America."
+            },
+            {
+              "term": "Temperate",
+              "def": "A mild climate, not very hot or very cold."
+            },
+            {
+              "term": "Biodiversity",
+              "def": "The variety of living things in an area."
+            }
+          ]
+        },
+        {
+          "type": "keyidea",
+          "text": "The Prairies are North America's grain basket: flat temperate grassland with deep, rich soil that — once steel ploughs broke it — became some of the best farmland on Earth, though at the cost of much wild biodiversity."
         },
         {
           "type": "quickcheck",
@@ -4388,6 +4901,12 @@
           "q": "Why were steel ploughs invented for the Prairie?",
           "a": "Because the soil was so thickly matted with roots that wooden ploughs could not break it.",
           "level": "Exam Level"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Why did the Prairies have so few trees naturally?",
+          "a": "Regular grass fires killed young trees, so only grass survived.",
+          "level": "Medium"
         },
         {
           "type": "mistake",
@@ -4425,7 +4944,8 @@
           "type": "objectives",
           "items": [
             "Say where the Pampas are and what the word means.",
-            "Describe the climate and farming of the Pampas."
+            "Describe the climate and farming of the Pampas.",
+            "Explain why the Pampas are an endangered habitat."
           ]
         },
         {
@@ -4433,6 +4953,34 @@
           "lines": [
             "Where in South America might you find huge grassy plains?",
             "What animals would do well on rich grazing land?"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "The Pampas are fertile plains covering large parts of Argentina, Uruguay and parts of Brazil — about 750,000 km². The word 'pampas' means 'plain'. They lie in a temperate region with regular rainfall, which makes them one of the world's richest grazing lands."
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-5-2-1.png",
+          "caption": "The Pampas — location, farming and threats"
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Farming and threats"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "At first the Pampas were used mainly for raising cattle and horses.",
+            "Today the rich soil grows maize, wheat, flax and alfalfa, and high‑quality cattle and sheep are raised; it is also good for dairy, wine and vegetables.",
+            "Threats include pollution from fertilisers and pesticides and overgrazing, so little of the original grassland remains — it is an endangered habitat."
+          ]
+        },
+        {
+          "type": "note",
+          "lines": [
+            "The famous cattle herders of the Pampas are called gauchos — the South American cowboys. Argentine beef from the Pampas is sold all over the world."
           ]
         },
         {
@@ -4447,27 +4995,18 @@
               "def": "Farm animals such as cattle and sheep."
             },
             {
+              "term": "Overgrazing",
+              "def": "When too many animals eat the grass faster than it can grow back."
+            },
+            {
               "term": "Endangered habitat",
               "def": "A natural area at risk of being destroyed."
             }
           ]
         },
         {
-          "type": "paragraph",
-          "text": "The **Pampas** are fertile plains covering large parts of **Argentina, Uruguay and parts of Brazil** — about 750,000 km². The word 'pampas' means **'plain'**. They lie in a **temperate region with regular rainfall**, making them one of the world's richest grazing lands."
-        },
-        {
-          "type": "heading",
-          "level": 3,
-          "text": "Farming and threats"
-        },
-        {
-          "type": "bullets",
-          "items": [
-            "At first the Pampas were used for raising **cattle and horses**.",
-            "Today the rich soil grows maize, wheat, flax and alfalfa, and high-quality **cattle and sheep** are raised; it is also good for dairy, wine and vegetables.",
-            "Threats include pollution from fertilisers and pesticides and **overgrazing**, so little of the original grassland remains — it is an **endangered habitat**."
-          ]
+          "type": "keyidea",
+          "text": "The Pampas are South America's grazing land: deep soil and regular rain grow lush grass for world‑famous cattle and sheep — but pollution and overgrazing now put this habitat at risk."
         },
         {
           "type": "quickcheck",
@@ -4480,6 +5019,12 @@
           "q": "What two things threaten the Pampas?",
           "a": "Pollution (fertilisers and pesticides) and overgrazing by livestock.",
           "level": "Exam Level"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Why do the Pampas grow such good grass for animals?",
+          "a": "They are temperate with regular rainfall and deep, rich soil.",
+          "level": "Medium"
         },
         {
           "type": "mistake",
@@ -4517,7 +5062,8 @@
           "type": "objectives",
           "items": [
             "Say where the Downs are.",
-            "Describe the climate, soil and farming of the Darling Downs."
+            "Describe the climate, soil and farming of the Darling Downs.",
+            "Explain where the Downs get their irrigation water."
           ]
         },
         {
@@ -4528,25 +5074,13 @@
           ]
         },
         {
-          "type": "keyterms",
-          "rows": [
-            {
-              "term": "Darling Downs",
-              "def": "A farming region in Queensland, Australia."
-            },
-            {
-              "term": "Great Artesian Basin",
-              "def": "The world's largest underground body of water, used for irrigation."
-            },
-            {
-              "term": "Pasture",
-              "def": "Grassland used for grazing animals."
-            }
-          ]
+          "type": "paragraph",
+          "text": "The Downs (the Darling Downs) is a farming region in Queensland, Australia, on the western slopes of the Great Dividing Range. It has a humid sub‑tropical climate with rainfall of about 600–1000 mm a year."
         },
         {
-          "type": "paragraph",
-          "text": "The **Downs** (the **Darling Downs**) is a farming region in **Queensland, Australia**, on the western slopes of the Great Dividing Range. It has a **humid sub-tropical climate** with rainfall of 600–1000 mm."
+          "type": "image",
+          "url": "/notes/g7-ss-5-3-1.png",
+          "caption": "The Downs — location, farming and its underground water"
         },
         {
           "type": "heading",
@@ -4556,11 +5090,38 @@
         {
           "type": "bullets",
           "items": [
-            "The soil is **rich and black**, with rolling hills covered by **pastures**.",
+            "The soil is rich and black, with rolling hills covered by pastures.",
             "Crops include vegetables, legumes, cotton, wheat, barley and sorghum.",
-            "Livestock includes **beef and dairy cattle, pigs and sheep**.",
-            "Irrigation water is pumped from underground — the **Great Artesian Basin**, the largest underground water body in the world."
+            "Livestock includes beef and dairy cattle, pigs and sheep.",
+            "Irrigation water is pumped from underground — the Great Artesian Basin, the largest underground body of water in the world."
           ]
+        },
+        {
+          "type": "note",
+          "lines": [
+            "The Great Artesian Basin lies under about one‑fifth of the whole of Australia. Without this underground water, much of the Downs would be far too dry to farm."
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Darling Downs",
+              "def": "A farming region in Queensland, Australia."
+            },
+            {
+              "term": "Pasture",
+              "def": "Grassland used for grazing animals."
+            },
+            {
+              "term": "Great Artesian Basin",
+              "def": "The world's largest underground body of water, used for irrigation."
+            }
+          ]
+        },
+        {
+          "type": "keyidea",
+          "text": "The Downs show how underground water can turn grassland into rich farmland: black soil plus water from the Great Artesian Basin make Queensland's Downs one of Australia's best farming regions."
         },
         {
           "type": "quickcheck",
@@ -4573,6 +5134,12 @@
           "q": "Where does the irrigation water for the Downs come from?",
           "a": "Underground, from the Great Artesian Basin.",
           "level": "Exam Level"
+        },
+        {
+          "type": "quickcheck",
+          "q": "What colour and quality is the soil of the Downs?",
+          "a": "Rich and black.",
+          "level": "Easy"
         },
         {
           "type": "mistake",
@@ -4588,7 +5155,7 @@
           "type": "summary",
           "items": [
             "The Downs (Darling Downs) is a farming region in Queensland, Australia.",
-            "It has humid sub-tropical climate, rich black soil and pastures.",
+            "It has a humid sub‑tropical climate, rich black soil and pastures.",
             "It grows wheat, cotton and sorghum and raises cattle, pigs and sheep, using water from the Great Artesian Basin."
           ]
         },
@@ -4611,7 +5178,7 @@
           "items": [
             "Say where the Steppes are.",
             "Explain why there is little farming on the Steppes.",
-            "Describe the natural vegetation."
+            "Describe the natural vegetation of the Steppes."
           ]
         },
         {
@@ -4619,6 +5186,34 @@
           "lines": [
             "What happens to land that is far from the sea and high near mountains?",
             "Would you expect much rain there?"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "The Steppes are dry, cold grasslands that usually lie between forests and deserts. They are found mostly in Mongolia, Siberia, Tibet and China, and similar land in the USA is called dry prairie. Together Europe and Asia make up Eurasia, where most of the steppes are."
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-5-4-1.png",
+          "caption": "The Steppes — location, climate and farming"
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Climate and vegetation"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "The air is dry because the Steppes are far from the ocean and close to mountains, which block the rain.",
+            "There is little farming because the soil is poor and the climate is cold; rainfall is only about 250–750 mm.",
+            "The natural plants are mostly grasses — tall grass near the forest, short grass near the desert, and mixed grass in between."
+          ]
+        },
+        {
+          "type": "note",
+          "lines": [
+            "Mountains can create dry grassland: as wind rises over a mountain it drops its rain on one side, leaving the far side in a dry 'rain shadow'. This is one reason the steppes are so dry."
           ]
         },
         {
@@ -4631,25 +5226,16 @@
             {
               "term": "Eurasia",
               "def": "The combined landmass of Europe and Asia."
+            },
+            {
+              "term": "Rain shadow",
+              "def": "The dry side of a mountain, where little rain falls."
             }
           ]
         },
         {
-          "type": "paragraph",
-          "text": "The **Steppes** are **dry, cold grasslands** that usually lie between forests and deserts. They are found mostly in **Mongolia, Siberia, Tibet, China and the USA** (where they are called dry prairies)."
-        },
-        {
-          "type": "heading",
-          "level": 3,
-          "text": "Climate and vegetation"
-        },
-        {
-          "type": "bullets",
-          "items": [
-            "The air is **dry** because the Steppes are far from the ocean and close to mountains.",
-            "There is **little farming** because the soil is poor and the climate is cold; rainfall is only 250–750 mm.",
-            "The natural plants are mostly **grasses** — tall grass near the forest, short grass near the desert, and mixed grass in between."
-          ]
+          "type": "keyidea",
+          "text": "The Steppes are the opposite of the Prairies and Pampas: being far from the sea and shut off by mountains makes them dry and cold, with poor soil and little farming — just grass that feeds grazing herds."
         },
         {
           "type": "quickcheck",
@@ -4661,6 +5247,12 @@
           "type": "quickcheck",
           "q": "Name two places where Steppes are found.",
           "a": "Any two: Mongolia, Siberia, Tibet, China, the USA.",
+          "level": "Medium"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Why are the Steppes so dry?",
+          "a": "They are far from the ocean and near mountains, which block the rain.",
           "level": "Medium"
         },
         {
@@ -4699,7 +5291,8 @@
           "type": "objectives",
           "items": [
             "Explain what the veld is and name its main types.",
-            "Describe the farming done on each type of veld."
+            "Describe the farming done on each type of veld.",
+            "Say which type of veld is found in parts of Zambia."
           ]
         },
         {
@@ -4710,29 +5303,13 @@
           ]
         },
         {
-          "type": "keyterms",
-          "rows": [
-            {
-              "term": "Veld",
-              "def": "Open grassland in southern Africa."
-            },
-            {
-              "term": "Highveld",
-              "def": "High plateau veld (1500–2100 m) used for commercial farming."
-            },
-            {
-              "term": "Lowveld",
-              "def": "Lower, warmer veld (below 500 m) with a wetter climate."
-            },
-            {
-              "term": "Thornveld",
-              "def": "Veld covered with grass and thorny acacia trees."
-            }
-          ]
+          "type": "paragraph",
+          "text": "The veld is the open grassland of southern Africa — our own region's grassland, just as the Prairies belong to North America. There are three main types, which differ mainly by height above the sea and climate."
         },
         {
-          "type": "paragraph",
-          "text": "The **veld** is the open grassland of **southern Africa**. There are three main types:"
+          "type": "image",
+          "url": "/notes/g7-ss-5-5-1.png",
+          "caption": "The three main types of veld and their farming"
         },
         {
           "type": "table",
@@ -4767,7 +5344,38 @@
         },
         {
           "type": "paragraph",
-          "text": "Parts of Zambia are covered by **bushveld/thornveld**, which suits cattle farming."
+          "text": "Parts of Zambia are covered by bushveld / thornveld, which suits cattle farming."
+        },
+        {
+          "type": "note",
+          "lines": [
+            "The 'thorn' in thornveld comes from the acacia tree, whose long sharp thorns protect it from being eaten by animals. Cattle graze the grass between the thorn trees."
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Veld",
+              "def": "Open grassland in southern Africa."
+            },
+            {
+              "term": "Highveld",
+              "def": "High plateau veld (1500–2100 m) used for commercial farming."
+            },
+            {
+              "term": "Lowveld",
+              "def": "Lower, warmer veld (below 500 m) with a wetter climate."
+            },
+            {
+              "term": "Thornveld",
+              "def": "Veld covered with grass and thorny acacia trees."
+            }
+          ]
+        },
+        {
+          "type": "keyidea",
+          "text": "The veld is southern Africa's grassland. Its type depends on altitude: the cool highveld grows cereals and livestock, the warm lowveld grows fruit, tea and game, and the thornveld (found in parts of Zambia) is for cattle."
         },
         {
           "type": "quickcheck",
@@ -4780,6 +5388,12 @@
           "q": "Which type of veld is best for cattle farming?",
           "a": "The thornveld.",
           "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Which type of veld is highest and coolest, and what is grown there?",
+          "a": "The highveld (1500–2100 m); cereals and livestock.",
+          "level": "Exam Level"
         },
         {
           "type": "mistake",
@@ -4817,7 +5431,8 @@
           "type": "objectives",
           "items": [
             "Explain the aims of SADC and COMESA.",
-            "Explain how working together improves trade."
+            "Explain how working together improves trade.",
+            "Say what a free trade zone is."
           ]
         },
         {
@@ -4825,6 +5440,34 @@
           "lines": [
             "Why might countries agree to work together?",
             "How could removing border taxes help trade?"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "No country can do everything on its own, so African countries join groups that help them work together. Two important ones are SADC and COMESA."
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-6-1-1.png",
+          "caption": "SADC and COMESA — two ways African countries work together"
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "SADC and COMESA"
+        },
+        {
+          "type": "paragraph",
+          "text": "SADC (the Southern African Development Community) is a group of southern African countries that work together on infrastructure — roads, railways, power, water and electricity — to improve their economies."
+        },
+        {
+          "type": "paragraph",
+          "text": "COMESA (the Common Market for Eastern and Southern Africa) is a free trade zone of about 20 countries that remove customs controls and taxes on goods moving between them. This lets goods travel freely, making transport quicker and cheaper and improving trade."
+        },
+        {
+          "type": "note",
+          "lines": [
+            "Zambia is a landlocked country — it has no coastline of its own. So good roads and railways through its neighbours, and trade groups like SADC and COMESA, are especially important for getting Zambian goods to the sea and on to the world."
           ]
         },
         {
@@ -4849,12 +5492,8 @@
           ]
         },
         {
-          "type": "paragraph",
-          "text": "**SADC** (the Southern African Development Community) is a group of southern African countries that work together on **infrastructure** — roads, railways, power, water and electricity — to improve their economies."
-        },
-        {
-          "type": "paragraph",
-          "text": "**COMESA** (the Common Market for Eastern and Southern Africa) is a **free trade zone** of 20 countries that **remove customs controls and taxes** on goods moving between them. This lets goods travel freely, making transport quicker and cheaper and improving trade."
+          "type": "keyidea",
+          "text": "SADC shares infrastructure (roads, rail, power); COMESA removes trade barriers (customs and taxes). Both help African countries trade more easily and grow their economies together."
         },
         {
           "type": "quickcheck",
@@ -4866,6 +5505,12 @@
           "type": "quickcheck",
           "q": "What is a free trade zone?",
           "a": "A group of countries that remove customs controls and taxes on goods moving between them.",
+          "level": "Medium"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Why is trade especially important for Zambia?",
+          "a": "Zambia is landlocked, so it depends on its neighbours' roads, railways and trade agreements to reach the sea and world markets.",
           "level": "Medium"
         },
         {
@@ -4882,8 +5527,8 @@
           "type": "summary",
           "items": [
             "SADC members cooperate on infrastructure to improve their economies.",
-            "COMESA is a free trade zone of 20 countries that removes customs and taxes.",
-            "Working together makes trade quicker, cheaper and easier."
+            "COMESA is a free trade zone of about 20 countries that removes customs and taxes.",
+            "Working together makes trade quicker, cheaper and easier — important for landlocked Zambia."
           ]
         },
         {
@@ -4904,7 +5549,8 @@
           "type": "objectives",
           "items": [
             "Name the five types of transport systems.",
-            "Describe road and air transport and their importance."
+            "Describe road and air transport and their importance.",
+            "Explain why roads are the basis of all transport."
           ]
         },
         {
@@ -4912,6 +5558,33 @@
           "lines": [
             "How do goods get from a farm to a town, or to another country?",
             "Which way of travelling is fastest?"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "A transport system is a way of moving people and goods from place to place. There are five of them: road, air, rail, shipping and pipelines. Each suits different needs — some are cheap, some are fast, some carry very heavy loads."
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-6-2-1.png",
+          "caption": "The five transport systems"
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Road and air transport"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Roads are the basis of all transport systems — even goods that travel by rail, ship or air begin and end their journey on a road. Vehicles include trucks, buses, cars, bicycles, ox‑carts and farm vehicles. Where rural roads are poor, people use bicycles and ox‑carts.",
+            "Air transport is the quickest but most expensive. It uses aeroplanes and airfields. It lets fresh farm produce (such as peas or flowers) reach Europe within hours, creating new industries and jobs."
+          ]
+        },
+        {
+          "type": "note",
+          "lines": [
+            "A pipeline can carry fuel for hundreds of kilometres without a single truck. The Tazama pipeline brings oil all the way from Dar es Salaam in Tanzania to the refinery at Ndola in Zambia."
           ]
         },
         {
@@ -4924,24 +5597,16 @@
             {
               "term": "Infrastructure",
               "def": "The roads, railways and facilities transport needs."
+            },
+            {
+              "term": "Pipeline",
+              "def": "A long pipe that carries oil, fuel, gas or water over long distances."
             }
           ]
         },
         {
-          "type": "paragraph",
-          "text": "There are **five types of transport systems**: **road, air, rail, shipping and pipelines**."
-        },
-        {
-          "type": "heading",
-          "level": 3,
-          "text": "Road and air transport"
-        },
-        {
-          "type": "bullets",
-          "items": [
-            "**Roads** are the basis of all transport systems. Vehicles include trucks, buses, cars, bicycles, ox-carts and farm vehicles. Some rural areas have poor roads, so people use bicycles and ox-carts.",
-            "**Air transport** is the **quickest but most expensive**. It uses aeroplanes and airfields. It lets fresh farm produce (e.g. peas or flowers) reach Europe within hours, creating new industries."
-          ]
+          "type": "keyidea",
+          "text": "Five transport systems — road, air, rail, shipping, pipelines — each have a job. Roads link them all together; air is fastest but dearest; pipelines quietly move fuel and water over long distances."
         },
         {
           "type": "quickcheck",
@@ -4954,6 +5619,12 @@
           "q": "Which transport system is the quickest but most expensive?",
           "a": "Air transport.",
           "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Why are roads called the basis of all transport?",
+          "a": "Because goods carried by rail, ship or air still begin and end their journey by road.",
+          "level": "Exam Level"
         },
         {
           "type": "mistake",
@@ -4969,7 +5640,7 @@
           "type": "summary",
           "items": [
             "The five transport systems are road, air, rail, shipping and pipelines.",
-            "Roads are the basis of transport; bicycles and ox-carts help in rural areas.",
+            "Roads are the basis of transport; bicycles and ox‑carts help in rural areas.",
             "Air transport is quickest but most expensive, and lets fresh produce be exported."
           ]
         },
@@ -4991,8 +5662,8 @@
           "type": "objectives",
           "items": [
             "Identify the main communication systems.",
-            "Compare fixed lines, fibre-optic cables and radio.",
-            "Explain communication and commerce."
+            "Compare fixed lines, fibre‑optic cables and radio.",
+            "Explain how communication helps commerce."
           ]
         },
         {
@@ -5003,25 +5674,18 @@
           ]
         },
         {
-          "type": "keyterms",
-          "rows": [
-            {
-              "term": "Fixed line",
-              "def": "Copper wires on telephone poles that carry an electrical signal."
-            },
-            {
-              "term": "Fibre-optic cable",
-              "def": "Glass or plastic cable that carries light signals; very fast."
-            },
-            {
-              "term": "Commerce",
-              "def": "Buying and selling goods and services."
-            }
-          ]
+          "type": "paragraph",
+          "text": "Communication is the sending of messages from one place to another. The main systems are fixed lines, fibre‑optic cables and radio. Electronic communication has largely replaced writing letters, because it is much faster — a message can cross the world in seconds."
         },
         {
-          "type": "paragraph",
-          "text": "Communication systems include **fixed lines, fibre-optic cables and radio**. Electronic communication has largely replaced writing letters because it is much faster."
+          "type": "image",
+          "url": "/notes/g7-ss-6-3-1.png",
+          "caption": "The three main communication systems"
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "How each system works"
         },
         {
           "type": "table",
@@ -5038,7 +5702,7 @@
             },
             {
               "cells": [
-                "Fibre-optic cables",
+                "Fibre‑optic cables",
                 "Glass or plastic cables that carry light signals; faster and carry more data than copper."
               ]
             },
@@ -5051,13 +5715,49 @@
           ]
         },
         {
+          "type": "heading",
+          "level": 3,
+          "text": "Communication and commerce"
+        },
+        {
           "type": "paragraph",
-          "text": "These days we use the **internet** for **commerce** — buying and selling goods worldwide (for example buying a book online and paying through an electronic payment system), so buyers and sellers no longer need to be in the same place."
+          "text": "These days we use the internet for commerce — buying and selling goods worldwide (for example, buying a book online and paying through an electronic payment system). Buyers and sellers no longer need to be in the same place, which has changed the way the whole world does business."
+        },
+        {
+          "type": "note",
+          "lines": [
+            "A signal in a fibre‑optic cable travels as flashes of light — close to the speed of light. That is how a video call can reach the other side of the world almost instantly."
+          ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Fixed line",
+              "def": "Copper wires on telephone poles that carry an electrical signal."
+            },
+            {
+              "term": "Fibre‑optic cable",
+              "def": "Glass or plastic cable that carries light signals; very fast."
+            },
+            {
+              "term": "Radio",
+              "def": "Communication using microwave towers and satellites."
+            },
+            {
+              "term": "Commerce",
+              "def": "Buying and selling goods and services."
+            }
+          ]
+        },
+        {
+          "type": "keyidea",
+          "text": "Fixed lines use electricity in copper, fibre‑optic cables use light in glass (fastest, most data), and radio uses towers and satellites through the air. Together they power the internet and worldwide commerce."
         },
         {
           "type": "quickcheck",
-          "q": "What is the difference between a fixed line and a fibre-optic cable?",
-          "a": "A fixed line is copper wire carrying an electrical signal; a fibre-optic cable is glass/plastic carrying light signals, and is faster with more data.",
+          "q": "What is the difference between a fixed line and a fibre‑optic cable?",
+          "a": "A fixed line is copper wire carrying an electrical signal; a fibre‑optic cable is glass/plastic carrying light signals, and is faster with more data.",
           "level": "Exam Level"
         },
         {
@@ -5067,19 +5767,25 @@
           "level": "Medium"
         },
         {
+          "type": "quickcheck",
+          "q": "How does the internet help commerce?",
+          "a": "It lets buyers and sellers trade and pay from anywhere, without being in the same place.",
+          "level": "Medium"
+        },
+        {
           "type": "mistake",
-          "wrong": "Fixed lines carry more data faster than fibre-optic cables.",
-          "correct": "Fibre-optic cables are faster and carry far more data than copper fixed lines."
+          "wrong": "Fixed lines carry more data faster than fibre‑optic cables.",
+          "correct": "Fibre‑optic cables are faster and carry far more data than copper fixed lines."
         },
         {
           "type": "exam",
-          "q": "Why are fibre-optic cables important for global communication?",
+          "q": "Why are fibre‑optic cables important for global communication?",
           "a": "They carry large amounts of data as light signals at very high speed, which copper fixed lines cannot do."
         },
         {
           "type": "summary",
           "items": [
-            "Communication systems: fixed lines (copper/electrical), fibre-optic cables (glass/light, fast) and radio (towers and satellites).",
+            "Communication systems: fixed lines (copper/electrical), fibre‑optic cables (glass/light, fast) and radio (towers and satellites).",
             "Electronic communication is faster than letters.",
             "The internet allows commerce between buyers and sellers anywhere."
           ]
@@ -5109,34 +5815,23 @@
         {
           "type": "think",
           "lines": [
-            "Do you ride or have you seen a bicycle?",
+            "Do you ride, or have you seen, a bicycle?",
             "Which part keeps you balanced and steering?"
           ]
         },
         {
-          "type": "keyterms",
-          "rows": [
-            {
-              "term": "Frame",
-              "def": "The tubular steel body of the bicycle."
-            },
-            {
-              "term": "Handle bars",
-              "def": "Used to steer the bicycle."
-            },
-            {
-              "term": "Saddle",
-              "def": "The seat of the bicycle (adjustable)."
-            },
-            {
-              "term": "Luggage rack",
-              "def": "A strong holder for carrying things."
-            }
-          ]
+          "type": "paragraph",
+          "text": "A bicycle is a common and cheap form of transport, especially useful where roads are poor. It is made of many parts, each with its own job. Study the labelled bicycle below."
         },
         {
-          "type": "paragraph",
-          "text": "A bicycle is a common form of transport made of many parts."
+          "type": "image",
+          "url": "/notes/g7-ss-6-4-1.png",
+          "caption": "A bicycle and its main parts"
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "The parts and what they do"
         },
         {
           "type": "table",
@@ -5165,8 +5860,26 @@
             },
             {
               "cells": [
+                "Pedals & chain",
+                "Turned by the feet to drive the rear wheel."
+              ]
+            },
+            {
+              "cells": [
+                "Brakes",
+                "Stop the bicycle (for example, the coaster/pedal brake)."
+              ]
+            },
+            {
+              "cells": [
+                "Wheels & spokes",
+                "Carry the bicycle along; the spokes keep the wheel strong."
+              ]
+            },
+            {
+              "cells": [
                 "Luggage rack",
-                "A strong holder for carrying goods or passengers."
+                "A strong holder for carrying goods or a passenger."
               ]
             },
             {
@@ -5174,32 +5887,39 @@
                 "Bicycle stand",
                 "Holds the bicycle up so it does not fall over."
               ]
-            },
-            {
-              "cells": [
-                "Pedals & chain",
-                "Turned by the feet to drive the wheels."
-              ]
-            },
-            {
-              "cells": [
-                "Brakes",
-                "Stop the bicycle (e.g. the coaster/pedal brake)."
-              ]
             }
           ]
         },
         {
-          "type": "picture",
-          "caption": "A bicycle and its main parts",
+          "type": "note",
           "lines": [
-            "The frame (tubular steel body) in the middle",
-            "Handle bars at the front for steering",
-            "The saddle (seat) on top",
-            "Pedals and chain that drive the rear wheel",
-            "Brakes, spokes and wheel rims on the wheels",
-            "A luggage rack and stand at the back"
+            "A bicycle is one of the most efficient machines ever made: with just the energy of your legs it can carry you and a load many kilometres — using no fuel and causing no pollution."
           ]
+        },
+        {
+          "type": "keyterms",
+          "rows": [
+            {
+              "term": "Frame",
+              "def": "The tubular steel body of the bicycle."
+            },
+            {
+              "term": "Handle bars",
+              "def": "Used to steer the bicycle."
+            },
+            {
+              "term": "Saddle",
+              "def": "The seat of the bicycle (adjustable)."
+            },
+            {
+              "term": "Luggage rack",
+              "def": "A strong holder for carrying things."
+            }
+          ]
+        },
+        {
+          "type": "keyidea",
+          "text": "Each part has a job: the frame carries the weight, the handle bars steer, the pedals and chain drive the wheel, and the brakes stop it. Knowing the parts helps you ride and look after a bicycle safely."
         },
         {
           "type": "quickcheck",
@@ -5212,6 +5932,12 @@
           "q": "What are the handle bars used for?",
           "a": "To steer the bicycle.",
           "level": "Easy"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Which parts work together to make the rear wheel turn?",
+          "a": "The pedals and the chain.",
+          "level": "Medium"
         },
         {
           "type": "mistake",
@@ -5228,7 +5954,7 @@
           "items": [
             "A bicycle's main parts are the frame, handle bars, saddle, pedals, chain, brakes, spokes, rims, luggage rack and stand.",
             "The frame is tubular steel; handle bars steer; the saddle is the adjustable seat.",
-            "Bicycles carry people and goods, especially where roads are poor."
+            "Bicycles carry people and goods cheaply, especially where roads are poor."
           ]
         },
         {
@@ -5249,7 +5975,8 @@
           "type": "objectives",
           "items": [
             "Explain how alcohol and drugs affect road safety.",
-            "State the rules a cyclist must obey to be safe."
+            "State the rules a cyclist must obey to be safe.",
+            "Explain why being visible matters."
           ]
         },
         {
@@ -5257,6 +5984,36 @@
           "lines": [
             "Why is it dangerous to cycle on a busy road?",
             "What could make a driver fail to see a cyclist at night?"
+          ]
+        },
+        {
+          "type": "paragraph",
+          "text": "Roads are getting busier, so there are more accidents. Alcohol and drugs slow people's reactions and judgement and cause many accidents, so cyclists and drivers must never use them on the road. Cyclists should also not use earphones, because then they cannot hear the traffic around them."
+        },
+        {
+          "type": "image",
+          "url": "/notes/g7-ss-6-5-1.png",
+          "caption": "The rules for safe cycling"
+        },
+        {
+          "type": "heading",
+          "level": 3,
+          "text": "Rules of the road for cyclists"
+        },
+        {
+          "type": "bullets",
+          "items": [
+            "Ride on the left‑hand side of the road, with the flow of traffic.",
+            "Always observe what is happening around you; do not assume drivers have seen you.",
+            "Make sure you can be seen — use reflectors and wear bright colours, especially at night.",
+            "Use hand signals to show what you intend to do.",
+            "Do not use earphones while cycling."
+          ]
+        },
+        {
+          "type": "note",
+          "lines": [
+            "Most cycling accidents happen because a driver did not see the cyclist. That is why reflectors, lights and bright clothing save lives — being seen is being safe."
           ]
         },
         {
@@ -5269,32 +6026,21 @@
             {
               "term": "Hand signal",
               "def": "Using your hand to show what you intend to do."
+            },
+            {
+              "term": "Reactions",
+              "def": "How quickly your body responds — slowed by alcohol and drugs."
             }
           ]
         },
         {
-          "type": "paragraph",
-          "text": "Roads are getting busier, so there are more accidents. **Alcohol and drugs** slow people's reactions and judgement and cause many accidents, so cyclists and drivers must never use them on the road. Cyclists should also not use **earphones**, because they cannot hear traffic."
-        },
-        {
-          "type": "heading",
-          "level": 3,
-          "text": "Rules of the road for cyclists"
-        },
-        {
-          "type": "bullets",
-          "items": [
-            "Ride on the **left-hand side** of the road, with the flow of traffic.",
-            "Always observe what is happening around you; do not assume drivers have seen you.",
-            "Make sure you can be seen — use **reflectors** and wear **bright colours**, especially at night.",
-            "Use **hand signals** to show what you intend to do.",
-            "Do not use earphones while cycling."
-          ]
+          "type": "keyidea",
+          "text": "Stay safe by being sober, seen and signalling: never cycle after alcohol or drugs, make yourself visible with reflectors and bright colours, ride on the left, and use hand signals while staying alert."
         },
         {
           "type": "quickcheck",
           "q": "On which side of the road should a cyclist ride in Zambia?",
-          "a": "On the left-hand side, with the flow of traffic.",
+          "a": "On the left‑hand side, with the flow of traffic.",
           "level": "Easy"
         },
         {
@@ -5302,6 +6048,12 @@
           "q": "Why should a cyclist not wear earphones on the road?",
           "a": "Because they cannot hear the traffic around them.",
           "level": "Medium"
+        },
+        {
+          "type": "quickcheck",
+          "q": "Why do reflectors and bright colours help keep a cyclist safe?",
+          "a": "Because most accidents happen when a driver does not see the cyclist; being visible prevents them.",
+          "level": "Exam Level"
         },
         {
           "type": "mistake",

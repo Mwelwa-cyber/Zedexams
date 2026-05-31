@@ -16,7 +16,7 @@ import { createNote, updateNote, publishNote } from '../lib/firestore'
 
 const STATUS_META = {
   created:  { icon: '✓', cls: 'text-emerald-600' },
-  relinked: { icon: '↻', cls: 'text-blue-600' },
+  updated:  { icon: '↻', cls: 'text-blue-600' },
   skipped:  { icon: '↷', cls: 'text-neutral-400' },
   failed:   { icon: '✗', cls: 'text-red-600' },
 }
@@ -116,9 +116,9 @@ export function SeedImportPanel() {
                   ) : (
                     <p className="text-neutral-800">
                       <Check size={14} className="inline text-emerald-600" /> Done — <strong>{result.created}</strong> created
-                      {result.relinked ? <>, <strong>{result.relinked}</strong> quiz-linked</> : ''}
+                      {result.updated ? <>, <strong>{result.updated}</strong> updated</> : ''}
                       {', '}{result.skipped} skipped{result.failed ? <>, <span className="text-red-600">{result.failed} failed</span></> : ''}
-                      {' '}· {result.quizzes} quizzes created.
+                      {result.quizzes ? <> · {result.quizzes} quizzes created</> : ''}.
                     </p>
                   )}
                 </div>

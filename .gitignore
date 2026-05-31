@@ -179,3 +179,4 @@ scripts/demo-credentials.csv
 scripts/demo-credentials*.csv
 scripts/demo-names.local.txt
 scripts/demo-names.*.local.txt
+.tmp/

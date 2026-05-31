@@ -54,74 +54,94 @@ async function createNoteQuiz(note, quizKey, { createQuiz, saveQuestions, curren
   return { quizId, count: questions.length }
 }
 
+// Recursively sort object keys so two semantically-equal blocks serialise the
+// same regardless of field order.
+function sortKeys(v) {
+  if (Array.isArray(v)) return v.map(sortKeys)
+  if (v && typeof v === 'object') {
+    return Object.keys(v).sort().reduce((o, k) => { o[k] = sortKeys(v[k]); return o }, {})
+  }
+  return v
+}
+
+// Content fingerprint that ignores quiz-linkage churn (quizId/quizKey/title/
+// count) so a note only counts as "changed" when its actual teaching content
+// (text, diagrams, tables…) differs. Quiz linking is handled separately.
+function contentFingerprint(blocks) {
+  return JSON.stringify((blocks || []).map((b) => (b.type === 'quiz' ? { type: 'quiz' } : sortKeys(b))))
+}
+
 /**
  * Run the import. `deps` supplies the write functions (useFirestore + notes lib)
  * and `findBySeedKey(key)` → the existing note doc `{ id, ...data }` or null.
  *
- * Per note:
- *   - new (no seedKey match)                       → create note + quiz, publish → 'created'
- *   - exists, its quiz block isn't linked yet, and the bundle has a quiz for it
- *     → create + link the quiz (updateNote)                                      → 'relinked'
- *   - exists + already linked, or has no quiz                                    → 'skipped'
+ * Per note (convergent + idempotent — safe to re-run):
+ *   - new (no seedKey match)        → create note + quiz, publish        → 'created'
+ *   - exists, content differs from the bundle (e.g. new diagrams), or its
+ *     quiz still needs linking        → updateNote with refreshed blocks  → 'updated'
+ *   - exists, identical content + already linked                          → 'skipped'
  *
- * Convergent + idempotent: re-running backfills quizzes for notes that were
- * imported before their quiz banks existed, without duplicating anything.
+ * Existing quiz links are reused (never duplicated): a note that already has a
+ * linked quiz keeps it; only a missing link triggers quiz creation.
  */
 export async function importGrade7Seed({
   createQuiz, saveQuestions, createNote, updateNote, publishNote, findBySeedKey, currentUid, onProgress,
 }) {
   const deps = { createQuiz, saveQuestions, currentUid }
-  const summary = { total: (seed.notes || []).length, created: 0, relinked: 0, skipped: 0, failed: 0, quizzes: 0 }
+  const summary = { total: (seed.notes || []).length, created: 0, updated: 0, skipped: 0, failed: 0, quizzes: 0 }
 
   for (const note of seed.notes || []) {
     try {
       const existing = await findBySeedKey(note.seedKey)
 
-      if (existing) {
-        // Backfill a quiz onto an already-imported note that isn't linked yet.
-        const bundleQuiz = (note.blocks || []).find((b) => b.type === 'quiz' && b.quizKey)
-        const existingBlocks = Array.isArray(existing.blocks) ? existing.blocks : []
-        const existingQuiz = existingBlocks.find((b) => b.type === 'quiz')
-        const alreadyLinked = existingQuiz && existingQuiz.quizId && String(existingQuiz.quizId).trim()
-        if (bundleQuiz && existingQuiz && !alreadyLinked) {
-          const made = await createNoteQuiz(note, bundleQuiz.quizKey, deps)
+      // Desired blocks from the bundle (deep-cloned so a retry stays pristine).
+      const blocks = JSON.parse(JSON.stringify(note.blocks || []))
+      const quizBlock = blocks.find((b) => b.type === 'quiz')
+
+      // Resolve the quiz link: reuse an existing one, else create from the bank.
+      let createdQuiz = false
+      if (quizBlock) {
+        const existingQuiz = Array.isArray(existing?.blocks) ? existing.blocks.find((b) => b.type === 'quiz') : null
+        const existingQuizId = existingQuiz?.quizId ? String(existingQuiz.quizId).trim() : ''
+        if (existingQuizId) {
+          quizBlock.quizId = existingQuizId
+          quizBlock.quizTitle = existingQuiz.quizTitle || quizBlock.quizTitle || `${note.title} — Practice Quiz`
+          if (existingQuiz.questionCount != null) quizBlock.questionCount = existingQuiz.questionCount
+        } else if (quizBlock.quizKey && seed.quizzes[quizBlock.quizKey]) {
+          const made = await createNoteQuiz(note, quizBlock.quizKey, deps)
           if (made) {
-            const newBlocks = existingBlocks.map((b) => (b.type === 'quiz'
-              ? { ...b, quizId: made.quizId, quizTitle: `${note.title} — Practice Quiz`, questionCount: made.count }
-              : b))
-            await updateNote(existing.id, { blocks: newBlocks })
-            summary.relinked++; summary.quizzes++
-            onProgress?.({ seedKey: note.seedKey, title: note.title, status: 'relinked', quizId: made.quizId })
-            continue
+            quizBlock.quizId = made.quizId
+            quizBlock.quizTitle = `${note.title} — Practice Quiz`
+            quizBlock.questionCount = made.count
+            summary.quizzes++; createdQuiz = true
           }
         }
-        summary.skipped++
-        onProgress?.({ seedKey: note.seedKey, title: note.title, status: 'skipped' })
+        if (quizBlock.quizId == null) quizBlock.quizId = ''
+        delete quizBlock.quizKey
+      }
+
+      if (!existing) {
+        const noteId = await createNote({
+          title: note.title, subject: note.subject, grade: note.grade,
+          noteFormat: 'study', blocks, seedKey: note.seedKey, createdBy: currentUid,
+        })
+        await publishNote(noteId)
+        summary.created++
+        onProgress?.({ seedKey: note.seedKey, title: note.title, status: 'created', quizId: quizBlock?.quizId })
         continue
       }
 
-      // New note → create note + quiz, publish. Deep-clone so a retry is pristine.
-      const blocks = JSON.parse(JSON.stringify(note.blocks || []))
-      const quizBlock = blocks.find((b) => b.type === 'quiz' && b.quizKey)
-      let quizId = null
-      if (quizBlock) {
-        const made = await createNoteQuiz(note, quizBlock.quizKey, deps)
-        if (made) {
-          quizId = made.quizId
-          quizBlock.quizId = made.quizId
-          quizBlock.quizTitle = `${note.title} — Practice Quiz`
-          quizBlock.questionCount = made.count
-          summary.quizzes++
-        }
-        delete quizBlock.quizKey
+      // Existing note: update only when teaching content changed or a quiz was
+      // just linked — otherwise leave it (and its updatedAt) untouched.
+      const changed = createdQuiz || contentFingerprint(existing.blocks) !== contentFingerprint(blocks)
+      if (changed) {
+        await updateNote(existing.id, { blocks })
+        summary.updated++
+        onProgress?.({ seedKey: note.seedKey, title: note.title, status: 'updated', quizId: quizBlock?.quizId })
+      } else {
+        summary.skipped++
+        onProgress?.({ seedKey: note.seedKey, title: note.title, status: 'skipped' })
       }
-      const noteId = await createNote({
-        title: note.title, subject: note.subject, grade: note.grade,
-        noteFormat: 'study', blocks, seedKey: note.seedKey, createdBy: currentUid,
-      })
-      await publishNote(noteId)
-      summary.created++
-      onProgress?.({ seedKey: note.seedKey, title: note.title, status: 'created', quizId })
     } catch (err) {
       summary.failed++
       onProgress?.({ seedKey: note.seedKey, title: note.title, status: 'failed', error: err?.message || String(err) })
