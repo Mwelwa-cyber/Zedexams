@@ -698,7 +698,12 @@ export default function GradeHub() {
     const grades = []
     if (userGrade) grades.push(userGrade)
     if (hasNextGrade && nextGrade) grades.push(nextGrade)
-    if (!grades.length) { setQuizCounts({}); return undefined }
+    // No grade yet (profile still loading, or a transient auth/profile blip
+    // that briefly nulls userProfile). Do NOT clear quizCounts here: this
+    // effect re-runs whenever the grade flickers, and wiping good counts on a
+    // momentary null is exactly what made the cards go blank on a long-open
+    // dashboard until a full reload. Leave the last good map in place.
+    if (!grades.length) return undefined
 
     let cancelled = false
     Promise.all(
@@ -706,7 +711,9 @@ export default function GradeHub() {
     ).then(pairs => {
       if (cancelled) return
       const out = {}
+      let totalRows = 0
       for (const [g, rows] of pairs) {
+        totalRows += rows.length
         const bySubject = {}
         for (const quiz of rows) {
           // Match the library exactly: group by the quiz's subject wire value
@@ -720,11 +727,25 @@ export default function GradeHub() {
         }
         out[g] = bySubject
       }
-      setQuizCounts(out)
+      // getQuizzes() swallows Firestore errors and returns [] (see
+      // useFirestore.js), so a failed read is indistinguishable from a real
+      // "zero quizzes" result here. A long-lived dashboard re-runs this in the
+      // background (e.g. on the ~hourly auth-token refresh); if that read
+      // transiently fails we'd cache an all-empty map and every card would
+      // flip to "Coming soon" until reload. Guard: when the whole fetch comes
+      // back empty but we already have populated counts, keep the good ones.
+      setQuizCounts(prev => {
+        const hadCounts = Object.values(prev).some(
+          g => g && Object.keys(g).length > 0,
+        )
+        if (totalRows === 0 && hadCounts) return prev
+        return out
+      })
     }).catch(err => {
       if (cancelled) return
+      // A genuine rejection (not the swallowed-empty path above). Keep the
+      // last good counts rather than blanking the cards.
       console.error('GradeHub quiz counts:', err)
-      setQuizCounts({})
     })
     return () => { cancelled = true }
   }, [userGrade, nextGrade, hasNextGrade, getQuizzes])
