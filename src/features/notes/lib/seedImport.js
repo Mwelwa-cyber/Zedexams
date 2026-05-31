@@ -36,51 +36,85 @@ export function buildSeedQuestions(items, topic) {
   }).filter((r) => r.status !== 'error').map((r) => r.question)
 }
 
+/** Create a published practice quiz for `note` from bundle bank `quizKey`.
+ *  Returns { quizId, count } or null when the bank yields no valid questions. */
+async function createNoteQuiz(note, quizKey, { createQuiz, saveQuestions, currentUid }) {
+  const questions = buildSeedQuestions(seed.quizzes[quizKey], note.title)
+  if (!questions.length) return null
+  const quizId = await createQuiz({
+    title: `${note.title} — Practice Quiz`,
+    subject: note.subject, grade: note.grade, term: '', description: '',
+    passages: [], parts: [], passageCount: 0,
+    totalMarks: questions.reduce((s, q) => s + (q.marks || 1), 0),
+    questionCount: questions.length,
+    isPublished: true, status: 'published',
+    createdBy: currentUid, quizType: 'practice', mode: 'seed_import',
+  })
+  await saveQuestions(quizId, questions)
+  return { quizId, count: questions.length }
+}
+
 /**
- * Run the import. `deps` supplies the write functions (from useFirestore + the
- * notes lib) and an existence check so the caller owns all Firestore access.
- * Returns a summary; calls onProgress({ seedKey, title, status, quizId?, error? })
- * per note ('created' | 'skipped' | 'failed').
+ * Run the import. `deps` supplies the write functions (useFirestore + notes lib)
+ * and `findBySeedKey(key)` → the existing note doc `{ id, ...data }` or null.
+ *
+ * Per note:
+ *   - new (no seedKey match)                       → create note + quiz, publish → 'created'
+ *   - exists, its quiz block isn't linked yet, and the bundle has a quiz for it
+ *     → create + link the quiz (updateNote)                                      → 'relinked'
+ *   - exists + already linked, or has no quiz                                    → 'skipped'
+ *
+ * Convergent + idempotent: re-running backfills quizzes for notes that were
+ * imported before their quiz banks existed, without duplicating anything.
  */
 export async function importGrade7Seed({
-  createQuiz, saveQuestions, createNote, publishNote, findBySeedKey, currentUid, onProgress,
+  createQuiz, saveQuestions, createNote, updateNote, publishNote, findBySeedKey, currentUid, onProgress,
 }) {
-  const summary = { total: (seed.notes || []).length, created: 0, skipped: 0, failed: 0, quizzes: 0 }
+  const deps = { createQuiz, saveQuestions, currentUid }
+  const summary = { total: (seed.notes || []).length, created: 0, relinked: 0, skipped: 0, failed: 0, quizzes: 0 }
 
   for (const note of seed.notes || []) {
     try {
-      if (await findBySeedKey(note.seedKey)) {
+      const existing = await findBySeedKey(note.seedKey)
+
+      if (existing) {
+        // Backfill a quiz onto an already-imported note that isn't linked yet.
+        const bundleQuiz = (note.blocks || []).find((b) => b.type === 'quiz' && b.quizKey)
+        const existingBlocks = Array.isArray(existing.blocks) ? existing.blocks : []
+        const existingQuiz = existingBlocks.find((b) => b.type === 'quiz')
+        const alreadyLinked = existingQuiz && existingQuiz.quizId && String(existingQuiz.quizId).trim()
+        if (bundleQuiz && existingQuiz && !alreadyLinked) {
+          const made = await createNoteQuiz(note, bundleQuiz.quizKey, deps)
+          if (made) {
+            const newBlocks = existingBlocks.map((b) => (b.type === 'quiz'
+              ? { ...b, quizId: made.quizId, quizTitle: `${note.title} — Practice Quiz`, questionCount: made.count }
+              : b))
+            await updateNote(existing.id, { blocks: newBlocks })
+            summary.relinked++; summary.quizzes++
+            onProgress?.({ seedKey: note.seedKey, title: note.title, status: 'relinked', quizId: made.quizId })
+            continue
+          }
+        }
         summary.skipped++
         onProgress?.({ seedKey: note.seedKey, title: note.title, status: 'skipped' })
         continue
       }
 
-      // Deep-clone so a retry starts from the pristine bundle.
+      // New note → create note + quiz, publish. Deep-clone so a retry is pristine.
       const blocks = JSON.parse(JSON.stringify(note.blocks || []))
       const quizBlock = blocks.find((b) => b.type === 'quiz' && b.quizKey)
       let quizId = null
-
       if (quizBlock) {
-        const questions = buildSeedQuestions(seed.quizzes[quizBlock.quizKey], note.title)
-        if (questions.length) {
-          quizId = await createQuiz({
-            title: `${note.title} — Practice Quiz`,
-            subject: note.subject, grade: note.grade, term: '', description: '',
-            passages: [], parts: [], passageCount: 0,
-            totalMarks: questions.reduce((s, q) => s + (q.marks || 1), 0),
-            questionCount: questions.length,
-            isPublished: true, status: 'published',
-            createdBy: currentUid, quizType: 'practice', mode: 'seed_import',
-          })
-          await saveQuestions(quizId, questions)
-          quizBlock.quizId = quizId
+        const made = await createNoteQuiz(note, quizBlock.quizKey, deps)
+        if (made) {
+          quizId = made.quizId
+          quizBlock.quizId = made.quizId
           quizBlock.quizTitle = `${note.title} — Practice Quiz`
-          quizBlock.questionCount = questions.length
+          quizBlock.questionCount = made.count
           summary.quizzes++
         }
         delete quizBlock.quizKey
       }
-
       const noteId = await createNote({
         title: note.title, subject: note.subject, grade: note.grade,
         noteFormat: 'study', blocks, seedKey: note.seedKey, createdBy: currentUid,

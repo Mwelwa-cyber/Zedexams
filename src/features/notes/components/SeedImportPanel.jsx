@@ -12,12 +12,13 @@ import { db } from '../../../firebase/config'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useFirestore } from '../../../hooks/useFirestore'
 import { Sparkles, Loader2, Check, X as XIcon } from '../../../components/ui/icons'
-import { createNote, publishNote } from '../lib/firestore'
+import { createNote, updateNote, publishNote } from '../lib/firestore'
 
 const STATUS_META = {
-  created: { icon: '✓', cls: 'text-emerald-600' },
-  skipped: { icon: '↷', cls: 'text-neutral-400' },
-  failed:  { icon: '✗', cls: 'text-red-600' },
+  created:  { icon: '✓', cls: 'text-emerald-600' },
+  relinked: { icon: '↻', cls: 'text-blue-600' },
+  skipped:  { icon: '↷', cls: 'text-neutral-400' },
+  failed:   { icon: '✗', cls: 'text-red-600' },
 }
 
 export function SeedImportPanel() {
@@ -39,7 +40,7 @@ export function SeedImportPanel() {
 
   const findBySeedKey = async (key) => {
     const snap = await getDocs(query(collection(db, 'lessons'), where('seedKey', '==', key), limit(1)))
-    return !snap.empty
+    return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() }
   }
 
   const run = async () => {
@@ -47,7 +48,7 @@ export function SeedImportPanel() {
     setRunning(true); setLog([]); setResult(null)
     try {
       const res = await modRef.current.importGrade7Seed({
-        createQuiz, saveQuestions, createNote, publishNote, findBySeedKey,
+        createQuiz, saveQuestions, createNote, updateNote, publishNote, findBySeedKey,
         currentUid: currentUser.uid,
         onProgress: (evt) => setLog((l) => [...l, evt]),
       })
@@ -114,9 +115,10 @@ export function SeedImportPanel() {
                     <p className="text-red-600">Import failed: {result.error}</p>
                   ) : (
                     <p className="text-neutral-800">
-                      <Check size={14} className="inline text-emerald-600" /> Done — <strong>{result.created}</strong> created,
-                      {' '}{result.skipped} skipped{result.failed ? <>, <span className="text-red-600">{result.failed} failed</span></> : ''}
-                      {' '}· {result.quizzes} quizzes linked.
+                      <Check size={14} className="inline text-emerald-600" /> Done — <strong>{result.created}</strong> created
+                      {result.relinked ? <>, <strong>{result.relinked}</strong> quiz-linked</> : ''}
+                      {', '}{result.skipped} skipped{result.failed ? <>, <span className="text-red-600">{result.failed} failed</span></> : ''}
+                      {' '}· {result.quizzes} quizzes created.
                     </p>
                   )}
                 </div>
