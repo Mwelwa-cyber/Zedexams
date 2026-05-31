@@ -19,8 +19,10 @@ import {
   Battery,
   Bell,
   BookOpen,
+  CalendarDays,
   CheckCircleIcon,
   ChevronRight,
+  Download,
   FileText,
   Files,
   FireIcon,
@@ -251,6 +253,49 @@ function DashboardActionCard({
           className="absolute bottom-0 right-1 z-0 sm:right-3"
         />
       </Link>
+    </section>
+  )
+}
+
+// Temporary, Grade-7-only banner card for the 2026 Primary School Leaving
+// Examination (PSLE) timetable. Bundled as a static asset under
+// public/timetables/, so it opens in a new tab where the learner can read
+// it inline and use the browser's built-in download. Rendered only when the
+// learner's grade is 7 (see the gate in the action-card stack below).
+// TEMPORARY: remove this component, its render site, and the bundled PDF
+// once the 2026 exams are over.
+const GRADE7_TIMETABLE_PDF = '/timetables/grade-7-2026-exam-timetable.pdf'
+
+function ExamTimetableCard() {
+  return (
+    <section>
+      <a
+        href={GRADE7_TIMETABLE_PDF}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="zx-card group relative block min-h-[128px] overflow-hidden rounded-3xl border-2 border-rose-300 bg-[linear-gradient(135deg,#FFE4E6_0%,#FDA4AF_55%,#E11D48_100%)] shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+      >
+        <div className="relative z-10 flex min-h-[128px] items-center gap-3 p-4 sm:gap-4 sm:p-5">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-600 text-white shadow-sm">
+            <Icon as={CalendarDays} size="lg" strokeWidth={2.1} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-black uppercase tracking-widest text-rose-800">
+              Grade 7 · ECZ 2026
+            </p>
+            <h3 className="mt-0.5 text-base font-black leading-tight text-rose-950">
+              2026 Exam Timetable
+            </h3>
+            <p className="mt-0.5 hidden text-xs font-bold text-rose-900/80 sm:block">
+              Primary School Leaving Examination dates — tap to read or download the PDF
+            </p>
+          </div>
+          <div className="hidden shrink-0 items-center gap-1 rounded-full bg-rose-700 px-3 py-1.5 text-xs font-black text-white shadow-sm transition-transform group-hover:translate-x-0.5 sm:flex">
+            View
+            <Icon as={Download} size="xs" />
+          </div>
+        </div>
+      </a>
     </section>
   )
 }
@@ -1129,6 +1174,11 @@ export default function GradeHub() {
         {/* Audit A5.1 — daily-reminder push opt-in. Self-gated to learners
             with streak ≥ 2; renders nothing otherwise. */}
         <PushPermissionPrompt streak={stats.streak} />
+
+        {/* TEMPORARY (2026 exams) — Grade-7-only PSLE timetable. Surfaced
+            first so the exam cohort sees it on arrival. Remove with the
+            ExamTimetableCard component + bundled PDF when exams close. */}
+        {userGrade === 7 && <ExamTimetableCard />}
 
         <DashboardActionCard
           to="/exams"
