@@ -39,6 +39,8 @@ import ImportQuizPanel from './ImportQuizPanel'
 import QuizSectionsEditor from './QuizSectionsEditor'
 import QuizEditorPreviewPanel from './QuizEditorPreviewPanel'
 import QuizVerifyModal from './QuizVerifyModal'
+import BulkAnswerKey from './BulkAnswerKey'
+import { collectAnswerableQuestions, applyAnswerKeyToSections } from './answerKeyUtils'
 import ImportReviewBanner from './ImportReviewBanner'
 import PastPaperReferenceBanner from './PastPaperReferenceBanner'
 import QuizEditorActionBar from './QuizEditorActionBar'
@@ -492,6 +494,21 @@ export default function EditQuizV2() {
       },
     }))
   }
+
+  // Bulk answer-key entry. Applies a { localId: optionIndex } map across every
+  // section in one pass (pure helper), addressing questions by stable localId
+  // so nothing reorders and only matched questions change. Routes through the
+  // normal dirty -> autosave path; no separate save logic.
+  function applyAnswerKeyMap(keyToIndex) {
+    if (!keyToIndex || !Object.keys(keyToIndex).length) return
+    setSections(current => applyAnswerKeyToSections(current, keyToIndex).sections)
+    setDirty(true)
+  }
+  function handleSetOneAnswer(localId, index) {
+    if (!localId) return
+    applyAnswerKeyMap({ [localId]: index })
+  }
+  const answerableQuestions = useMemo(() => collectAnswerableQuestions(sections), [sections])
 
   function moveSection(sectionIndex, direction) {
     setSections(currentSections => {
@@ -1748,6 +1765,21 @@ export default function EditQuizV2() {
                 intro={form.linkedPaperId
                   ? 'Upload the past paper (.doc, .docx, or .pdf). ZedExams will extract questions, options, and image-based items into editable cards. You can also re-import a different version any time.'
                   : 'Upload a .doc, .docx, or .pdf file. ZedExams will extract questions, options, short answers, and image-based questions into editable cards, then use smart cleanup on tricky formatting when available.'}
+              />
+            </div>
+          </details>
+          {/* Bulk answer-key entry (collapsible). Especially useful after a
+              scanned import, where every answer lands blank. */}
+          <details className="theme-card theme-border overflow-hidden rounded-2xl border">
+            <summary className="flex cursor-pointer items-center justify-between gap-3 p-4">
+              <span className="theme-text font-black">🔑 Answer key</span>
+              <span className="theme-text-muted text-xs font-bold">Set every answer fast</span>
+            </summary>
+            <div className="border-t theme-border p-4">
+              <BulkAnswerKey
+                questions={answerableQuestions}
+                onSetOne={handleSetOneAnswer}
+                onApplyMany={applyAnswerKeyMap}
               />
             </div>
           </details>
