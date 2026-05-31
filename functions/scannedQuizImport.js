@@ -56,6 +56,9 @@ const VISION_MODEL =
 const MAX_PAGES_PER_CALL = 8;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // per page, decoded
 const MAX_QUESTIONS_PER_CALL = 60;
+// Targeted re-ask rounds when Claude's first pass missed printed numbers
+// Gemini saw. Bounded to cap cost/latency.
+const MAX_REASK_ROUNDS = 2;
 const ALLOWED_IMAGE_MIME = new Set([
   "image/jpeg",
   "image/png",
@@ -442,17 +445,68 @@ function reconcileCounts(claudeCount, geminiCount) {
   );
 }
 
+// Parse the printed question numbers Gemini reports for a batch. Returns a
+// sorted, de-duplicated list of positive integers. This is the EXPECTED set we
+// hold Claude's extraction against, so we can re-ask for any number it missed.
+function parseGeminiNumbers(text) {
+  try {
+    const match = String(text || "").match(/\{[\s\S]*\}/);
+    if (!match) return [];
+    const parsed = JSON.parse(match[0]);
+    const arr = Array.isArray(parsed.questionNumbers) ? parsed.questionNumbers : [];
+    const nums = arr
+      .map((n) => Number.parseInt(n, 10))
+      .filter((n) => Number.isInteger(n) && n > 0 && n <= 500);
+    return [...new Set(nums)].sort((a, b) => a - b);
+  } catch {
+    return [];
+  }
+}
+
 function parseGeminiCount(text) {
+  const nums = parseGeminiNumbers(text);
+  if (nums.length) return nums.length;
   try {
     const match = String(text || "").match(/\{[\s\S]*\}/);
     if (!match) return 0;
     const parsed = JSON.parse(match[0]);
-    if (Array.isArray(parsed.questionNumbers)) return parsed.questionNumbers.length;
-    if (Number.isFinite(parsed.count)) return Number(parsed.count);
-    return 0;
+    return Number.isFinite(parsed.count) ? Number(parsed.count) : 0;
   } catch {
     return 0;
   }
+}
+
+// Flatten every question (standalone + passage children) out of normalised
+// sections, in order.
+function flattenSectionQuestions(sections = []) {
+  const out = [];
+  sections.forEach((section) => {
+    if (section?.kind === "passage") {
+      (section.questions || []).forEach((q) => out.push(q));
+    } else if (section?.question) {
+      out.push(section.question);
+    }
+  });
+  return out;
+}
+
+// Set of printed question numbers present in normalised sections.
+function extractedNumberSet(sections = []) {
+  const set = new Set();
+  flattenSectionQuestions(sections).forEach((q) => {
+    if (Number.isInteger(q?.sourceQuestionNumber) && q.sourceQuestionNumber > 0) {
+      set.add(q.sourceQuestionNumber);
+    }
+  });
+  return set;
+}
+
+// Printed numbers Gemini saw that Claude did not return (sorted). Capped so a
+// hallucinated Gemini list can't trigger an unbounded re-ask.
+function computeMissingNumbers(expected = [], extractedSet = new Set()) {
+  return expected
+    .filter((n) => !extractedSet.has(n))
+    .slice(0, 40);
 }
 
 function buildClaudeMessages(pages, hints, geminiDraft) {
@@ -483,6 +537,36 @@ function buildGeminiImages(pages) {
   return pages.map((page) => ({mimeType: page.mediaType, data: page.data}));
 }
 
+// Targeted re-ask: the first pass missed these printed question numbers, so we
+// send the same page images back and ask ONLY for those questions. Re-asking
+// for a short, explicit list is far more reliable than the model
+// self-enumerating a long run, which is how questions go missing in the first
+// place (especially English Section A lists and post-passage questions).
+function buildReaskMessages(pages, hints, missingNumbers) {
+  const content = [];
+  pages.forEach((page, idx) => {
+    content.push({type: "text", text: `--- Page ${idx + 1} (paper page ${page.pageNumber}) ---`});
+    content.push({
+      type: "image",
+      source: {type: "base64", media_type: page.mediaType, data: page.data},
+    });
+  });
+  const tail = [
+    "You already read these pages, but these printed question numbers were " +
+    `MISSED: ${missingNumbers.join(", ")}.`,
+    "Transcribe ONLY those questions, exactly as printed, each as a 'standalone'",
+    "section using the tool and the same rules (options without A/B/C/D labels,",
+    "correctAnswer always null, maths/table markup preserved).",
+    "Set each one's sourceQuestionNumber to its printed number.",
+    "If a listed number is actually a worked Example or not a real",
+    "multiple-choice question, simply omit it — do not invent anything.",
+    hints?.subject ? `Subject: ${hints.subject}` : "",
+    hints?.grade ? `Grade: ${hints.grade}` : "",
+  ].filter(Boolean).join("\n");
+  content.push({type: "text", text: tail});
+  return [{role: "user", content}];
+}
+
 // ─── Orchestrator ─────────────────────────────────────────────────────────────
 
 async function runScannedQuizImport(
@@ -507,6 +591,7 @@ async function runScannedQuizImport(
   // Assist pass (Gemini) — cheap recall. Best-effort: a failure here only
   // costs us the count cross-check, never the import itself.
   let geminiCount = 0;
+  let geminiNumbers = [];
   let geminiDraft = "";
   if (geminiKey) {
     try {
@@ -520,7 +605,8 @@ async function runScannedQuizImport(
         maxTokens: 1200,
         temperature: 0,
       });
-      geminiCount = parseGeminiCount(text);
+      geminiNumbers = parseGeminiNumbers(text);
+      geminiCount = geminiNumbers.length || parseGeminiCount(text);
       geminiDraft = clampString(text, 600);
     } catch (err) {
       console.warn("[scannedQuizImport] Gemini assist failed", {
@@ -568,6 +654,60 @@ async function runScannedQuizImport(
     result?.parsed?.sections,
     pageNumbers,
   );
+
+  // Number-driven completeness: hold Claude's first pass against the printed
+  // numbers Gemini saw, and re-ask specifically for any it missed. Re-asking a
+  // short explicit list is far more reliable than the model self-enumerating a
+  // long run, so this recovers the questions that otherwise go missing.
+  let recovered = 0;
+  if (geminiNumbers.length) {
+    const extracted = extractedNumberSet(sections);
+    let missing = computeMissingNumbers(geminiNumbers, extracted);
+    let round = 0;
+    while (missing.length && round < MAX_REASK_ROUNDS) {
+      round += 1;
+      let reask;
+      try {
+        reask = await callClaude(anthropicKey, {
+          systemPrompt: CLAUDE_SYSTEM_PROMPT,
+          messages: buildReaskMessages(pages, hints, missing),
+          model: VISION_MODEL,
+          maxTokens: 8000,
+          temperature: 0.1,
+          mode: "tool",
+          toolName: "return_sections",
+          toolDescription: "Return only the requested missing questions.",
+          toolInputSchema: SCANNED_TOOL_SCHEMA,
+        });
+      } catch (err) {
+        console.warn("[scannedQuizImport] re-ask round failed", {
+          message: err?.message?.slice(0, 200),
+        });
+        break;
+      }
+      const reaskSections = normaliseScannedSections(reask?.parsed?.sections, pageNumbers);
+      const wanted = new Set(missing);
+      let added = 0;
+      flattenSectionQuestions(reaskSections).forEach((q) => {
+        const n = q?.sourceQuestionNumber;
+        if (Number.isInteger(n) && wanted.has(n) && !extracted.has(n)) {
+          sections.push({kind: "standalone", question: q});
+          extracted.add(n);
+          added += 1;
+        }
+      });
+      recovered += added;
+      if (!added) break; // model recovered nothing this round — stop
+      missing = computeMissingNumbers(geminiNumbers, extracted);
+    }
+    if (recovered > 0) {
+      console.warn("[scannedQuizImport] recovered missing questions via re-ask", {
+        recovered,
+        rounds: round,
+      });
+    }
+  }
+
   const extractedCount = countSectionQuestions(sections);
 
   const countWarning = reconcileCounts(extractedCount, geminiCount);
@@ -579,6 +719,7 @@ async function runScannedQuizImport(
     pageNumbers,
     detectedCount: geminiCount,
     extractedCount,
+    recovered,
     model: result?.model || VISION_MODEL,
     usage: result?.usage || null,
     fileName: clampString(fileName, 180),
@@ -596,6 +737,12 @@ module.exports = {
   sanitiseOptionBoxes,
   reconcileCounts,
   parseGeminiCount,
+  parseGeminiNumbers,
+  flattenSectionQuestions,
+  extractedNumberSet,
+  computeMissingNumbers,
+  buildReaskMessages,
+  MAX_REASK_ROUNDS,
   buildClaudeMessages,
   buildGeminiImages,
   CLAUDE_SYSTEM_PROMPT,
