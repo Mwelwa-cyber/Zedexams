@@ -710,6 +710,12 @@ export default function GradeHub() {
   const nextGrade = userGrade ? userGrade + 1 : null
   const hasNextGrade = nextGrade !== null && nextGrade <= 7
 
+  // TEMPORARY (2026 exams) — who sees the Grade-7 PSLE timetable card:
+  // Grade 7 learners, plus learners who haven't set a grade yet (so an empty
+  // profile doesn't hide it). A learner explicitly in another grade won't see it.
+  const hasGradeSet = userProfile?.grade != null && String(userProfile.grade).trim() !== ''
+  const showExamTimetable = userGrade === 7 || !hasGradeSet
+
   // Average across the 7 CBC subjects, using only those with recorded scores.
   const subjectScoreList = SUBJECTS
     .map(s => perfBySubject[s.label])
@@ -1175,10 +1181,11 @@ export default function GradeHub() {
             with streak ≥ 2; renders nothing otherwise. */}
         <PushPermissionPrompt streak={stats.streak} />
 
-        {/* TEMPORARY (2026 exams) — Grade-7-only PSLE timetable. Surfaced
-            first so the exam cohort sees it on arrival. Remove with the
-            ExamTimetableCard component + bundled PDF when exams close. */}
-        {userGrade === 7 && <ExamTimetableCard />}
+        {/* TEMPORARY (2026 exams) — Grade-7 PSLE timetable, also shown to
+            learners with no grade set. Surfaced first so the exam cohort
+            sees it on arrival. Remove with the ExamTimetableCard component +
+            bundled PDF when exams close. */}
+        {showExamTimetable && <ExamTimetableCard />}
 
         <DashboardActionCard
           to="/exams"
