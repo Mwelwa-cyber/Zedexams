@@ -509,6 +509,25 @@ function computeMissingNumbers(expected = [], extractedSet = new Set()) {
     .slice(0, 40);
 }
 
+// The expected set of printed numbers for a batch: the numbers Gemini saw,
+// UNION the contiguous range the first pass already spans. ECZ papers are
+// numbered with no gaps, so if a batch caught Q25 and Q29 then 26-28 must
+// exist too — even when BOTH models skipped them (which is why Gemini-only
+// recovery left questions missing). A size guard stops a single misread
+// number from inflating the range.
+function expectedBatchNumbers(geminiNumbers = [], extractedSet = new Set()) {
+  const expected = new Set(geminiNumbers);
+  const nums = [...extractedSet].filter((n) => Number.isInteger(n) && n > 0);
+  if (nums.length >= 2) {
+    const lo = Math.min(...nums);
+    const hi = Math.max(...nums);
+    if (hi - lo <= 80) {
+      for (let n = lo; n <= hi; n += 1) expected.add(n);
+    }
+  }
+  return [...expected].sort((a, b) => a - b);
+}
+
 function buildClaudeMessages(pages, hints, geminiDraft) {
   const content = [];
   pages.forEach((page, idx) => {
@@ -660,9 +679,10 @@ async function runScannedQuizImport(
   // short explicit list is far more reliable than the model self-enumerating a
   // long run, so this recovers the questions that otherwise go missing.
   let recovered = 0;
-  if (geminiNumbers.length) {
+  {
     const extracted = extractedNumberSet(sections);
-    let missing = computeMissingNumbers(geminiNumbers, extracted);
+    const expected = expectedBatchNumbers(geminiNumbers, extracted);
+    let missing = computeMissingNumbers(expected, extracted);
     let round = 0;
     while (missing.length && round < MAX_REASK_ROUNDS) {
       round += 1;
@@ -698,7 +718,7 @@ async function runScannedQuizImport(
       });
       recovered += added;
       if (!added) break; // model recovered nothing this round — stop
-      missing = computeMissingNumbers(geminiNumbers, extracted);
+      missing = computeMissingNumbers(expected, extracted);
     }
     if (recovered > 0) {
       console.warn("[scannedQuizImport] recovered missing questions via re-ask", {
@@ -741,6 +761,7 @@ module.exports = {
   flattenSectionQuestions,
   extractedNumberSet,
   computeMissingNumbers,
+  expectedBatchNumbers,
   buildReaskMessages,
   MAX_REASK_ROUNDS,
   buildClaudeMessages,
