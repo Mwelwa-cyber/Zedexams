@@ -7,7 +7,7 @@
     "dev": "vite",
     "build": "vite build",
     "test:importer": "node src/components/quiz/documentQuizParserCore.test.js && node src/components/quiz/documentQuizTableBlocks.test.js && node src/components/quiz/documentQuizParagraphRuns.test.js",
-    "test:scanned-import": "node functions/scannedQuizImport.test.js && node src/components/quiz/scannedQuizImporter.test.js",
+    "test:scanned-import": "node functions/scannedQuizImport.test.js && node functions/scannedQuizReask.test.js && node src/components/quiz/scannedQuizImporter.test.js",
     "test:answer-key": "node src/components/quiz/answerKeyUtils.test.js",
     "test:suggest-answers": "node functions/suggestQuizAnswers.test.js",
     "test:review-utils": "node src/components/quiz/reviewUtils.test.js",
