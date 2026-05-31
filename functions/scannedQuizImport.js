@@ -123,9 +123,16 @@ const CLAUDE_SYSTEM_PROMPT = [
   "  | CARTOON | ▭ |",
   "  Apply this markup inside prompt, options and passageText.",
   "",
+  "COMPLETENESS IS CRITICAL. Transcribe EVERY numbered question printed on",
+  "these pages — do not skip, merge, abbreviate, or summarise items in a long",
+  "run. A page typically holds about 6 questions, and a Section A / Part 1 can",
+  "list 20 short numbered items in a row; return ALL of them, each as its own",
+  "entry, even when consecutive items look similar. Before you finish, scan the",
+  "printed numbers and make sure every number you can see has a matching entry",
+  "(no gaps in the sequence on these pages).",
+  "",
   "Skip ONLY the cover/instructions page and any worked 'Example'. Skip",
   "free-response items (essays, 'explain why'). Do not invent questions.",
-  "Accuracy over coverage, but do not drop readable questions.",
 ].join("\n");
 
 const SCANNED_TOOL_SCHEMA = {

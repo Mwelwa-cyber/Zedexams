@@ -19,6 +19,8 @@ import {
   countLocalQuestions,
   buildScannedSummary,
   planOptionImageCrops,
+  findMissingQuestionNumbers,
+  formatMissingList,
 } from './scannedQuizImporter.js'
 
 let passed = 0
@@ -380,6 +382,48 @@ test('buildScannedSummary reports counts, passages, images + review state', () =
   assert.equal(summary.scanned, true)
   assert.equal(summary.importStatus, 'needs_review')
   assert.equal(summary.pageCount, 11)
+})
+
+// ── findMissingQuestionNumbers / formatMissingList ──────────────────────────
+
+const rawStandalone = (n) => ({ kind: 'standalone', question: { sourceQuestionNumber: n } })
+const rawPassage = (...ns) => ({ kind: 'passage', questions: ns.map(n => ({ sourceQuestionNumber: n })) })
+
+test('findMissingQuestionNumbers reports gaps in the printed sequence', () => {
+  // 1..10 present except 4 and 7.
+  const present = [1, 2, 3, 5, 6, 8, 9, 10]
+  const missing = findMissingQuestionNumbers(present.map(rawStandalone))
+  assert.deepEqual(missing, [4, 7])
+})
+
+test('findMissingQuestionNumbers spans standalone + passage questions', () => {
+  const sections = [
+    rawStandalone(1),
+    rawPassage(2, 3, 5), // 4 missing
+    rawStandalone(6),
+  ]
+  assert.deepEqual(findMissingQuestionNumbers(sections), [4])
+})
+
+test('findMissingQuestionNumbers returns [] for a complete 1..N run', () => {
+  const sections = Array.from({ length: 12 }, (_, i) => rawStandalone(i + 1))
+  assert.deepEqual(findMissingQuestionNumbers(sections), [])
+})
+
+test('findMissingQuestionNumbers stays quiet when too few numbers to trust', () => {
+  assert.deepEqual(findMissingQuestionNumbers([rawStandalone(40)]), [])
+  assert.deepEqual(findMissingQuestionNumbers([]), [])
+})
+
+test('findMissingQuestionNumbers ignores questions with no printed number', () => {
+  const sections = [rawStandalone(1), rawStandalone(2), rawStandalone(3), { kind: 'standalone', question: {} }]
+  assert.deepEqual(findMissingQuestionNumbers(sections), [])
+})
+
+test('formatMissingList truncates a long list with a count', () => {
+  assert.equal(formatMissingList([4, 7]), '4, 7')
+  assert.equal(formatMissingList([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 8), '1, 2, 3, 4, 5, 6, 7, 8 and 2 more')
+  assert.equal(formatMissingList([]), '')
 })
 
 console.log(`\nscannedQuizImporter: ${passed} passed`)
