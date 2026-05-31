@@ -25,6 +25,7 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { studyBlocksWriteSchema } from '../src/features/notes/lib/studySchema.js'
+import { parseCsv } from '../src/utils/csvQuizImport.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const REPO = join(__dirname, '..')
@@ -45,6 +46,39 @@ function loadAssigned(path, marker, open, close) {
 
 const SEED = loadAssigned(join(STANDALONE, 'Notes Studio', 'seed.js'), 'window.SEED', '[', ']')
 const QUIZZES = loadAssigned(join(STANDALONE, 'Quizzes (Web)', 'quizzes.js'), 'window.QUIZZES', '{', '}')
+
+// Social Studies quizzes live in a CSV (Subtopic,Question,OptionA-D,CorrectAnswer,Explanation),
+// keyed by Subtopic = the note's "<code> <name>". Parse + merge into the quiz map so the
+// Social Studies notes' quiz blocks get wired exactly like the Integrated Science ones.
+// Question items match the standalone shape ({q, options[4], answer 0-based, explanation, image}).
+function loadSocialStudiesCsv(path) {
+  let text
+  try { text = readFileSync(path, 'utf8') } catch { return {} }
+  const rows = parseCsv(text)
+  if (rows.length < 2) return {}
+  const header = rows[0].map((h) => String(h ?? '').trim())
+  const col = (name) => header.indexOf(name)
+  const ci = {
+    sub: col('Subtopic'), q: col('Question'),
+    a: col('OptionA'), b: col('OptionB'), c: col('OptionC'), d: col('OptionD'),
+    ans: col('CorrectAnswer'), exp: col('Explanation'),
+  }
+  const out = {}
+  for (const r of rows.slice(1)) {
+    const sub = String(r[ci.sub] ?? '').trim()
+    if (!sub) continue
+    const ans = 'ABCD'.indexOf(String(r[ci.ans] ?? '').trim().toUpperCase())
+    ;(out[sub] ||= []).push({
+      q: String(r[ci.q] ?? '').trim(),
+      options: [r[ci.a], r[ci.b], r[ci.c], r[ci.d]].map((x) => String(x ?? '').trim()),
+      answer: ans < 0 ? 0 : ans,
+      explanation: String(r[ci.exp] ?? '').trim(),
+      image: '',
+    })
+  }
+  return out
+}
+Object.assign(QUIZZES, loadSocialStudiesCsv(join(STANDALONE, 'Social Studies Quizzes', 'Grade7_SocialStudies_Quizzes.csv')))
 
 const S = (v) => (v == null ? '' : String(v))
 const arr = (v) => (Array.isArray(v) ? v : [])
@@ -138,4 +172,8 @@ console.log(`  notes: ${notes.length} (${withQuiz} link a quiz)`)
 console.log(`  quizzes: ${quizCount} banks · ${qTotal} questions`)
 console.log(`  blocks dropped (unknown type): ${dropped}`)
 console.log(`  schema validation failures: ${failures}`)
+// Flag any quiz bank whose key doesn't match a note title (likely a Subtopic typo).
+const noteTitles = new Set(notes.map((n) => n.title))
+const orphanBanks = Object.keys(QUIZZES).filter((k) => !noteTitles.has(k))
+if (orphanBanks.length) console.warn(`  ⚠ quiz banks with no matching note: ${orphanBanks.join(' | ')}`)
 if (failures > 0) process.exit(1)
