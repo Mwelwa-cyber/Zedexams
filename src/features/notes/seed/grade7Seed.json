@@ -2777,9 +2777,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "1.1 What is Democracy?",
+          "quizTitle": "1.1 What is Democracy? — Practice Quiz",
+          "questionCount": 8
         }
       ]
     },
@@ -2909,9 +2909,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "1.2 How Government Works",
+          "quizTitle": "1.2 How Government Works — Practice Quiz",
+          "questionCount": 8
         }
       ]
     },
@@ -3010,9 +3010,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "1.3 What Government Does",
+          "quizTitle": "1.3 What Government Does — Practice Quiz",
+          "questionCount": 7
         }
       ]
     },
@@ -3151,9 +3151,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "1.4 Government Ministries",
+          "quizTitle": "1.4 Government Ministries — Practice Quiz",
+          "questionCount": 7
         }
       ]
     },
@@ -3260,9 +3260,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "1.5 The Constitution",
+          "quizTitle": "1.5 The Constitution — Practice Quiz",
+          "questionCount": 7
         }
       ]
     },
@@ -3395,9 +3395,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "2.1 The Continents",
+          "quizTitle": "2.1 The Continents — Practice Quiz",
+          "questionCount": 8
         }
       ]
     },
@@ -3502,9 +3502,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "2.2 Physical Features of the World",
+          "quizTitle": "2.2 Physical Features of the World — Practice Quiz",
+          "questionCount": 8
         }
       ]
     },
@@ -3618,9 +3618,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "3.1 Population Growth",
+          "quizTitle": "3.1 Population Growth — Practice Quiz",
+          "questionCount": 7
         }
       ]
     },
@@ -3713,9 +3713,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "3.2 Corruption",
+          "quizTitle": "3.2 Corruption — Practice Quiz",
+          "questionCount": 7
         }
       ]
     },
@@ -3818,9 +3818,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "3.3 Food Shortages",
+          "quizTitle": "3.3 Food Shortages — Practice Quiz",
+          "questionCount": 7
         }
       ]
     },
@@ -3905,9 +3905,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "3.4 HIV and AIDS",
+          "quizTitle": "3.4 HIV and AIDS — Practice Quiz",
+          "questionCount": 6
         }
       ]
     },
@@ -4008,9 +4008,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "3.5 Pollution",
+          "quizTitle": "3.5 Pollution — Practice Quiz",
+          "questionCount": 7
         }
       ]
     },
@@ -4114,9 +4114,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "3.6 Other World Challenges",
+          "quizTitle": "3.6 Other World Challenges — Practice Quiz",
+          "questionCount": 7
         }
       ]
     },
@@ -4226,9 +4226,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "4.1 Family Ties",
+          "quizTitle": "4.1 Family Ties — Practice Quiz",
+          "questionCount": 7
         }
       ]
     },
@@ -4315,9 +4315,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "4.2 Parents and Children",
+          "quizTitle": "4.2 Parents and Children — Practice Quiz",
+          "questionCount": 7
         }
       ]
     },
@@ -4409,9 +4409,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "5.1 The Prairies",
+          "quizTitle": "5.1 The Prairies — Practice Quiz",
+          "questionCount": 7
         }
       ]
     },
@@ -4501,9 +4501,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "5.2 The Pampas",
+          "quizTitle": "5.2 The Pampas — Practice Quiz",
+          "questionCount": 7
         }
       ]
     },
@@ -4594,9 +4594,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "5.3 The Downs",
+          "quizTitle": "5.3 The Downs — Practice Quiz",
+          "questionCount": 7
         }
       ]
     },
@@ -4683,9 +4683,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "5.4 The Steppes",
+          "quizTitle": "5.4 The Steppes — Practice Quiz",
+          "questionCount": 7
         }
       ]
     },
@@ -4801,9 +4801,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "5.5 The Veld",
+          "quizTitle": "5.5 The Veld — Practice Quiz",
+          "questionCount": 7
         }
       ]
     },
@@ -4888,9 +4888,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "6.1 Building Africa Together",
+          "quizTitle": "6.1 Building Africa Together — Practice Quiz",
+          "questionCount": 6
         }
       ]
     },
@@ -4975,9 +4975,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "6.2 Transport Systems",
+          "quizTitle": "6.2 Transport Systems — Practice Quiz",
+          "questionCount": 6
         }
       ]
     },
@@ -5086,9 +5086,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "6.3 Communication Systems",
+          "quizTitle": "6.3 Communication Systems — Practice Quiz",
+          "questionCount": 6
         }
       ]
     },
@@ -5233,9 +5233,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "6.4 Road Safety (the Bicycle)",
+          "quizTitle": "6.4 Road Safety (the Bicycle) — Practice Quiz",
+          "questionCount": 7
         }
       ]
     },
@@ -5323,9 +5323,9 @@
         },
         {
           "type": "quiz",
-          "quizKey": "",
-          "quizTitle": "",
-          "questionCount": null
+          "quizKey": "6.5 Safe Cycling",
+          "quizTitle": "6.5 Safe Cycling — Practice Quiz",
+          "questionCount": 6
         }
       ]
     }
@@ -7533,6 +7533,2144 @@
         "answer": 1,
         "explanation": "The map and key show copper is mined mainly in the Copperbelt Province.",
         "image": "q_zambia_minerals_map.png"
+      }
+    ],
+    "1.1 What is Democracy?": [
+      {
+        "q": "The word 'democracy' means",
+        "options": [
+          "rule by the king",
+          "rule by the people",
+          "rule by the army",
+          "rule by the rich"
+        ],
+        "answer": 1,
+        "explanation": "Democracy means rule by the people.",
+        "image": ""
+      },
+      {
+        "q": "To vote in Zambia you must be at least",
+        "options": [
+          "16 years old",
+          "18 years old",
+          "21 years old",
+          "25 years old"
+        ],
+        "answer": 1,
+        "explanation": "Voters must be 18 or older.",
+        "image": ""
+      },
+      {
+        "q": "A voter marks their secret choice on a",
+        "options": [
+          "ballot",
+          "licence",
+          "passport",
+          "receipt"
+        ],
+        "answer": 0,
+        "explanation": "A ballot is the paper on which a voter makes a secret mark.",
+        "image": ""
+      },
+      {
+        "q": "A party with fewer votes than the ruling party is called the",
+        "options": [
+          "cabinet",
+          "opposition",
+          "judiciary",
+          "civil service"
+        ],
+        "answer": 1,
+        "explanation": "A minority party is the opposition.",
+        "image": ""
+      },
+      {
+        "q": "Which document lists the rights every person should have?",
+        "options": [
+          "The Universal Declaration of Human Rights",
+          "The National Budget",
+          "The school timetable",
+          "The ballot box"
+        ],
+        "answer": 0,
+        "explanation": "The UN proclaimed the Universal Declaration of Human Rights in 1948.",
+        "image": ""
+      },
+      {
+        "q": "Treating people unequally and unfairly is called",
+        "options": [
+          "democracy",
+          "discrimination",
+          "election",
+          "registration"
+        ],
+        "answer": 1,
+        "explanation": "Discrimination is unequal, unfair treatment.",
+        "image": ""
+      },
+      {
+        "q": "Forcing children to work instead of going to school is called",
+        "options": [
+          "child labour",
+          "child care",
+          "education",
+          "voting"
+        ],
+        "answer": 0,
+        "explanation": "Child labour is forcing children to work without proper pay.",
+        "image": ""
+      },
+      {
+        "q": "Laws passed by the government and written down are called",
+        "options": [
+          "customary laws",
+          "statutory laws",
+          "family laws",
+          "school rules"
+        ],
+        "answer": 1,
+        "explanation": "Statutory laws are written laws passed by government.",
+        "image": ""
+      }
+    ],
+    "1.2 How Government Works": [
+      {
+        "q": "Which branch of government makes laws?",
+        "options": [
+          "The executive",
+          "The legislature",
+          "The judiciary",
+          "The army"
+        ],
+        "answer": 1,
+        "explanation": "The legislature (Parliament) makes laws.",
+        "image": ""
+      },
+      {
+        "q": "Which branch carries out the laws?",
+        "options": [
+          "The executive",
+          "The legislature",
+          "The judiciary",
+          "The police only"
+        ],
+        "answer": 0,
+        "explanation": "The executive carries out laws.",
+        "image": ""
+      },
+      {
+        "q": "The branch that makes sure people obey the law is the",
+        "options": [
+          "legislature",
+          "executive",
+          "judiciary",
+          "cabinet"
+        ],
+        "answer": 2,
+        "explanation": "The judiciary (courts) enforces the law.",
+        "image": ""
+      },
+      {
+        "q": "The highest court in Zambia is the",
+        "options": [
+          "Local Court",
+          "Magistrates' Court",
+          "High Court",
+          "Supreme Court"
+        ],
+        "answer": 3,
+        "explanation": "The Supreme Court is the highest; its decisions are final.",
+        "image": ""
+      },
+      {
+        "q": "Asking a higher court to hear a case again is called an",
+        "options": [
+          "appeal",
+          "election",
+          "appointment",
+          "arrest"
+        ],
+        "answer": 0,
+        "explanation": "An appeal is asking a higher court to rule on a case.",
+        "image": ""
+      },
+      {
+        "q": "Why must the branches of government stay separate?",
+        "options": [
+          "So one branch does not get too much power",
+          "So the president can rule alone",
+          "So courts can make laws",
+          "So Parliament can judge cases"
+        ],
+        "answer": 0,
+        "explanation": "Separation of powers stops any branch having too much power.",
+        "image": ""
+      },
+      {
+        "q": "Teachers, nurses and police officers are part of the",
+        "options": [
+          "cabinet",
+          "civil service",
+          "opposition",
+          "judiciary"
+        ],
+        "answer": 1,
+        "explanation": "They are civil servants.",
+        "image": ""
+      },
+      {
+        "q": "Parliament is made up of the National Assembly and the",
+        "options": [
+          "chief justice",
+          "president",
+          "army",
+          "council"
+        ],
+        "answer": 1,
+        "explanation": "Parliament = National Assembly and the president.",
+        "image": ""
+      }
+    ],
+    "1.3 What Government Does": [
+      {
+        "q": "The head of government is the",
+        "options": [
+          "chief justice",
+          "president",
+          "speaker",
+          "mayor"
+        ],
+        "answer": 1,
+        "explanation": "The president is the head of government.",
+        "image": ""
+      },
+      {
+        "q": "Money the government collects, mainly from taxes, is called",
+        "options": [
+          "revenue",
+          "profit",
+          "salary",
+          "a bribe"
+        ],
+        "answer": 0,
+        "explanation": "Tax money collected is called revenue.",
+        "image": ""
+      },
+      {
+        "q": "Civil servants' salaries are paid from",
+        "options": [
+          "bank loans",
+          "taxes",
+          "donations only",
+          "fines only"
+        ],
+        "answer": 1,
+        "explanation": "Salaries are paid from taxes (revenue).",
+        "image": ""
+      },
+      {
+        "q": "Who stands in for the president when he or she is away?",
+        "options": [
+          "The vice-president",
+          "The chief justice",
+          "The speaker",
+          "A magistrate"
+        ],
+        "answer": 0,
+        "explanation": "The vice-president stands in for the president.",
+        "image": ""
+      },
+      {
+        "q": "Which ministry decides how to spend the government's revenue?",
+        "options": [
+          "Health",
+          "Finance",
+          "Defence",
+          "Education"
+        ],
+        "answer": 1,
+        "explanation": "The Ministry of Finance plans the spending.",
+        "image": ""
+      },
+      {
+        "q": "Cabinet ministers are chosen by the",
+        "options": [
+          "people",
+          "president",
+          "courts",
+          "army"
+        ],
+        "answer": 1,
+        "explanation": "The president chooses cabinet ministers.",
+        "image": ""
+      },
+      {
+        "q": "Which is an example of a service the government provides?",
+        "options": [
+          "Building hospitals",
+          "Selling cars privately",
+          "Running a market stall",
+          "Mining for a private owner"
+        ],
+        "answer": 0,
+        "explanation": "Government provides services such as hospitals and schools.",
+        "image": ""
+      }
+    ],
+    "1.4 Government Ministries": [
+      {
+        "q": "A national department run by a cabinet minister is called a",
+        "options": [
+          "ministry",
+          "council",
+          "court",
+          "party"
+        ],
+        "answer": 0,
+        "explanation": "A ministry is a national department run by a minister.",
+        "image": ""
+      },
+      {
+        "q": "Which ministry issues passports and national registration cards?",
+        "options": [
+          "Health",
+          "Home Affairs",
+          "Agriculture",
+          "Tourism"
+        ],
+        "answer": 1,
+        "explanation": "Home Affairs keeps records and issues passports and NRCs.",
+        "image": ""
+      },
+      {
+        "q": "Which ministry controls the army and air force?",
+        "options": [
+          "Defence",
+          "Finance",
+          "Education",
+          "Justice"
+        ],
+        "answer": 0,
+        "explanation": "The Ministry of Defence controls the army and air force.",
+        "image": ""
+      },
+      {
+        "q": "Which ministry looks after the food supply?",
+        "options": [
+          "Agriculture and Livestock",
+          "Mines",
+          "Justice",
+          "Home Affairs"
+        ],
+        "answer": 0,
+        "explanation": "Agriculture and Livestock looks after the food supply.",
+        "image": ""
+      },
+      {
+        "q": "Which ministry manages schools and universities?",
+        "options": [
+          "Health",
+          "Education",
+          "Defence",
+          "Lands"
+        ],
+        "answer": 1,
+        "explanation": "The Ministry of Education manages education.",
+        "image": ""
+      },
+      {
+        "q": "Which ministry supplies medicines, doctors and hospitals?",
+        "options": [
+          "Health",
+          "Finance",
+          "Defence",
+          "Transport"
+        ],
+        "answer": 0,
+        "explanation": "The Ministry of Health supplies medicines and runs hospitals.",
+        "image": ""
+      },
+      {
+        "q": "Roads and public buildings are looked after by the Ministry of",
+        "options": [
+          "Transport, Works, Supply and Communications",
+          "Tourism and Arts",
+          "Justice",
+          "Gender"
+        ],
+        "answer": 0,
+        "explanation": "That ministry looks after roads, public buildings and communications.",
+        "image": ""
+      }
+    ],
+    "1.5 The Constitution": [
+      {
+        "q": "A constitution is",
+        "options": [
+          "a set of written rules for a country",
+          "a type of election",
+          "a government ministry",
+          "a court"
+        ],
+        "answer": 0,
+        "explanation": "A constitution is the country's set of written rules.",
+        "image": ""
+      },
+      {
+        "q": "In Zambia the constitution is the",
+        "options": [
+          "least important law",
+          "most important law",
+          "same as a school rule",
+          "a customary law"
+        ],
+        "answer": 1,
+        "explanation": "The constitution is the supreme (most important) law.",
+        "image": ""
+      },
+      {
+        "q": "General elections in Zambia are held every",
+        "options": [
+          "year",
+          "two years",
+          "five years",
+          "ten years"
+        ],
+        "answer": 2,
+        "explanation": "General elections are held every five years.",
+        "image": ""
+      },
+      {
+        "q": "An election to replace a leader who dies or steps down is a",
+        "options": [
+          "general election",
+          "by-election",
+          "referendum",
+          "local election"
+        ],
+        "answer": 1,
+        "explanation": "A by-election replaces a leader who dies, steps down or loses their job.",
+        "image": ""
+      },
+      {
+        "q": "To change a law, how many members of parliament must agree?",
+        "options": [
+          "One quarter",
+          "Half",
+          "Two-thirds",
+          "All of them"
+        ],
+        "answer": 2,
+        "explanation": "A two-thirds majority of parliament is needed.",
+        "image": ""
+      },
+      {
+        "q": "A vote where citizens say 'Yes' or 'No' to a change is a",
+        "options": [
+          "referendum",
+          "census",
+          "budget",
+          "appeal"
+        ],
+        "answer": 0,
+        "explanation": "A referendum is held when a change affects citizens' rights.",
+        "image": ""
+      },
+      {
+        "q": "According to the constitution, Zambia is a",
+        "options": [
+          "Christian country where all may choose their religion",
+          "country with no religion allowed",
+          "country with one compulsory religion",
+          "country ruled by chiefs only"
+        ],
+        "answer": 0,
+        "explanation": "Zambia is a Christian country but everyone may choose their religion.",
+        "image": ""
+      }
+    ],
+    "2.1 The Continents": [
+      {
+        "q": "How many continents are there?",
+        "options": [
+          "Five",
+          "Six",
+          "Seven",
+          "Eight"
+        ],
+        "answer": 2,
+        "explanation": "There are seven continents.",
+        "image": ""
+      },
+      {
+        "q": "The largest continent is",
+        "options": [
+          "Africa",
+          "Asia",
+          "Europe",
+          "Australia"
+        ],
+        "answer": 1,
+        "explanation": "Asia is the largest continent.",
+        "image": ""
+      },
+      {
+        "q": "Which continent has the most people?",
+        "options": [
+          "Africa",
+          "Asia",
+          "Europe",
+          "North America"
+        ],
+        "answer": 1,
+        "explanation": "Asia has the most people (about 4.3 billion).",
+        "image": ""
+      },
+      {
+        "q": "The coldest and least populated continent is",
+        "options": [
+          "Africa",
+          "Australia",
+          "Antarctica",
+          "Europe"
+        ],
+        "answer": 2,
+        "explanation": "Antarctica is the coldest and least populated.",
+        "image": ""
+      },
+      {
+        "q": "The smallest continent is",
+        "options": [
+          "Europe",
+          "Australia",
+          "Antarctica",
+          "South America"
+        ],
+        "answer": 1,
+        "explanation": "Australia is the smallest continent.",
+        "image": ""
+      },
+      {
+        "q": "The equator passes through which continent?",
+        "options": [
+          "South America",
+          "Europe",
+          "Antarctica",
+          "Australia"
+        ],
+        "answer": 0,
+        "explanation": "The equator passes through South America (and Africa).",
+        "image": ""
+      },
+      {
+        "q": "The longest mountain range in the world, the Andes, is in",
+        "options": [
+          "Asia",
+          "Africa",
+          "South America",
+          "Europe"
+        ],
+        "answer": 2,
+        "explanation": "The Andes, the longest range, are in South America.",
+        "image": ""
+      },
+      {
+        "q": "About what percentage of the world's land is Africa's neighbour Asia?",
+        "options": [
+          "10%",
+          "17%",
+          "30%",
+          "50%"
+        ],
+        "answer": 2,
+        "explanation": "Asia covers about 30% of the Earth's land.",
+        "image": ""
+      }
+    ],
+    "2.2 Physical Features of the World": [
+      {
+        "q": "A large area of water surrounded by land is a",
+        "options": [
+          "river",
+          "lake",
+          "sea",
+          "ocean"
+        ],
+        "answer": 1,
+        "explanation": "A lake is water surrounded by land.",
+        "image": ""
+      },
+      {
+        "q": "The largest lake in Africa is",
+        "options": [
+          "Lake Tanganyika",
+          "Lake Victoria",
+          "Lake Malawi",
+          "Lake Kariba"
+        ],
+        "answer": 1,
+        "explanation": "Lake Victoria is Africa's largest lake.",
+        "image": ""
+      },
+      {
+        "q": "The highest mountain range in the world is the",
+        "options": [
+          "Alps",
+          "Andes",
+          "Himalayas",
+          "Drakensberg"
+        ],
+        "answer": 2,
+        "explanation": "The Himalayas are the highest range.",
+        "image": ""
+      },
+      {
+        "q": "Mountains pushed up as the continents shifted are called",
+        "options": [
+          "volcanic mountains",
+          "fold mountains",
+          "plateaus",
+          "valleys"
+        ],
+        "answer": 1,
+        "explanation": "Most mountains are fold mountains formed by shifting continents.",
+        "image": ""
+      },
+      {
+        "q": "The Sahara and Kalahari are examples of",
+        "options": [
+          "hot deserts",
+          "cold deserts",
+          "lakes",
+          "plateaus"
+        ],
+        "answer": 0,
+        "explanation": "The Sahara and Kalahari are hot, sandy deserts in Africa.",
+        "image": ""
+      },
+      {
+        "q": "A large area of high, flat land is called a",
+        "options": [
+          "valley",
+          "plain",
+          "plateau",
+          "delta"
+        ],
+        "answer": 2,
+        "explanation": "A plateau is high, flat land (a tableland).",
+        "image": ""
+      },
+      {
+        "q": "How much of the Earth's surface is desert?",
+        "options": [
+          "one-tenth",
+          "one-third",
+          "one-half",
+          "all of it"
+        ],
+        "answer": 1,
+        "explanation": "Deserts make up about one-third of the Earth.",
+        "image": ""
+      },
+      {
+        "q": "The Great Rift Valley is found in",
+        "options": [
+          "West Africa",
+          "East Africa",
+          "North America",
+          "Europe"
+        ],
+        "answer": 1,
+        "explanation": "The Great Rift Valley runs through East Africa.",
+        "image": ""
+      }
+    ],
+    "3.1 Population Growth": [
+      {
+        "q": "The number of births per thousand people per year is the",
+        "options": [
+          "death rate",
+          "birth rate",
+          "growth rate",
+          "tax rate"
+        ],
+        "answer": 1,
+        "explanation": "The birth rate is births per thousand per year.",
+        "image": ""
+      },
+      {
+        "q": "Which is a reason for rapid population growth?",
+        "options": [
+          "Better health care so people live longer",
+          "Fewer hospitals",
+          "Less food",
+          "More wars"
+        ],
+        "answer": 0,
+        "explanation": "Better health care lowers the death rate, so population grows.",
+        "image": ""
+      },
+      {
+        "q": "Too many people for the available resources is called",
+        "options": [
+          "overpopulation",
+          "migration",
+          "industrialisation",
+          "urbanisation"
+        ],
+        "answer": 0,
+        "explanation": "Overpopulation is too many people for the resources.",
+        "image": ""
+      },
+      {
+        "q": "Overcrowded poor settlements that grow in cities are called",
+        "options": [
+          "suburbs",
+          "slums (shanty compounds)",
+          "farms",
+          "factories"
+        ],
+        "answer": 1,
+        "explanation": "Rapid growth leads to slums or shanty compounds.",
+        "image": ""
+      },
+      {
+        "q": "Which helps to solve rapid population growth?",
+        "options": [
+          "Family planning and education",
+          "Closing schools",
+          "Banning farming",
+          "Stopping industries"
+        ],
+        "answer": 0,
+        "explanation": "Family planning and education help control growth.",
+        "image": ""
+      },
+      {
+        "q": "When a country's economy moves from farms to factories it is said to be",
+        "options": [
+          "industrialised",
+          "colonised",
+          "flooded",
+          "democratic"
+        ],
+        "answer": 0,
+        "explanation": "Such a country is industrialised.",
+        "image": ""
+      },
+      {
+        "q": "An effect of rapid population growth is",
+        "options": [
+          "not enough jobs and more crime",
+          "plenty of jobs for all",
+          "less disease",
+          "more empty land"
+        ],
+        "answer": 0,
+        "explanation": "Too-fast growth means too few jobs, more unemployment and crime.",
+        "image": ""
+      }
+    ],
+    "3.2 Corruption": [
+      {
+        "q": "Corruption means",
+        "options": [
+          "dishonest behaviour by people in power",
+          "honest hard work",
+          "paying your taxes",
+          "voting in an election"
+        ],
+        "answer": 0,
+        "explanation": "Corruption is dishonest behaviour by people in power.",
+        "image": ""
+      },
+      {
+        "q": "Money or favours given to make someone act dishonestly is a",
+        "options": [
+          "salary",
+          "bribe",
+          "tax",
+          "fine"
+        ],
+        "answer": 1,
+        "explanation": "A bribe is money or favours to make someone act dishonestly.",
+        "image": ""
+      },
+      {
+        "q": "Leaking an exam paper through bribery is called",
+        "options": [
+          "rigging an exam",
+          "passing an exam",
+          "marking an exam",
+          "setting an exam"
+        ],
+        "answer": 0,
+        "explanation": "Bribing to leak a paper is rigging an exam.",
+        "image": ""
+      },
+      {
+        "q": "Paying money secretly so no-one can see is called paying",
+        "options": [
+          "under the table",
+          "at the bank",
+          "in church",
+          "at school"
+        ],
+        "answer": 0,
+        "explanation": "A secret bribe is paid 'under the table'.",
+        "image": ""
+      },
+      {
+        "q": "Which is an example of corruption?",
+        "options": [
+          "Bribing an official for a driving licence",
+          "Studying for a test",
+          "Queuing for service",
+          "Paying the correct price"
+        ],
+        "answer": 0,
+        "explanation": "Bribing for a document is corruption.",
+        "image": ""
+      },
+      {
+        "q": "Officials have power to be corrupt because they",
+        "options": [
+          "decide how to spend public money",
+          "own all the land",
+          "are the oldest",
+          "cannot be replaced"
+        ],
+        "answer": 0,
+        "explanation": "Officials control public money, so people try to bribe them.",
+        "image": ""
+      },
+      {
+        "q": "Taking responsibility for what you do is being",
+        "options": [
+          "accountable",
+          "corrupt",
+          "wealthy",
+          "powerful"
+        ],
+        "answer": 0,
+        "explanation": "Being accountable is taking responsibility for your actions.",
+        "image": ""
+      }
+    ],
+    "3.3 Food Shortages": [
+      {
+        "q": "Making sure there is enough food now and in future is called",
+        "options": [
+          "food security",
+          "food shortage",
+          "malnutrition",
+          "famine"
+        ],
+        "answer": 0,
+        "explanation": "Food security means enough food now and in future.",
+        "image": ""
+      },
+      {
+        "q": "Illness caused by not getting enough good food is called",
+        "options": [
+          "malnutrition",
+          "corruption",
+          "pollution",
+          "drought"
+        ],
+        "answer": 0,
+        "explanation": "Malnutrition is caused by lack of good food.",
+        "image": ""
+      },
+      {
+        "q": "A crop grown to sell for money rather than to eat is a",
+        "options": [
+          "food crop",
+          "cash crop",
+          "cover crop",
+          "weed"
+        ],
+        "answer": 1,
+        "explanation": "A cash crop is grown to sell, not to eat.",
+        "image": ""
+      },
+      {
+        "q": "Which is a cause of food shortages?",
+        "options": [
+          "Drought and floods",
+          "Good rains",
+          "Good farming",
+          "Peace"
+        ],
+        "answer": 0,
+        "explanation": "Droughts, floods and disasters cause food shortages.",
+        "image": ""
+      },
+      {
+        "q": "Allowing animals to eat all the grass, turning land to desert, is",
+        "options": [
+          "overgrazing",
+          "irrigation",
+          "afforestation",
+          "fertilising"
+        ],
+        "answer": 0,
+        "explanation": "Overgrazing turns farmland into desert.",
+        "image": ""
+      },
+      {
+        "q": "Which helps make sure there is enough food in future?",
+        "options": [
+          "Irrigating dry areas and using good farming",
+          "Cutting down all trees",
+          "Overgrazing the land",
+          "Importing all food"
+        ],
+        "answer": 0,
+        "explanation": "Good farming, irrigation and storage improve food security.",
+        "image": ""
+      },
+      {
+        "q": "A long period with little or no rain is a",
+        "options": [
+          "flood",
+          "drought",
+          "harvest",
+          "season"
+        ],
+        "answer": 1,
+        "explanation": "A drought is a long period with little or no rain.",
+        "image": ""
+      }
+    ],
+    "3.4 HIV and AIDS": [
+      {
+        "q": "AIDS is caused by",
+        "options": [
+          "bacteria",
+          "a virus called HIV",
+          "a fungus",
+          "poor food only"
+        ],
+        "answer": 1,
+        "explanation": "AIDS is caused by HIV, the Human Immunodeficiency Virus.",
+        "image": ""
+      },
+      {
+        "q": "How does HIV and AIDS affect food production?",
+        "options": [
+          "Sick people cannot farm, so less food is grown",
+          "More food is grown",
+          "It has no effect",
+          "It improves the soil"
+        ],
+        "answer": 0,
+        "explanation": "Sick people cannot work, so less food is produced.",
+        "image": ""
+      },
+      {
+        "q": "HIV and AIDS is described as a",
+        "options": [
+          "local sports event",
+          "global challenge",
+          "type of food",
+          "kind of weather"
+        ],
+        "answer": 1,
+        "explanation": "HIV and AIDS is one of the world's great challenges.",
+        "image": ""
+      },
+      {
+        "q": "A country's system of producing, selling and using goods and money is its",
+        "options": [
+          "economy",
+          "constitution",
+          "ministry",
+          "climate"
+        ],
+        "answer": 0,
+        "explanation": "The economy is how a country produces and uses goods and money.",
+        "image": ""
+      },
+      {
+        "q": "When skilled workers fall ill with AIDS, the economy",
+        "options": [
+          "slows down",
+          "grows faster",
+          "stays the same",
+          "becomes richer"
+        ],
+        "answer": 0,
+        "explanation": "Losing healthy, skilled workers slows the economy.",
+        "image": ""
+      },
+      {
+        "q": "Families affected by HIV and AIDS may",
+        "options": [
+          "leave their small farms",
+          "grow more crops",
+          "build more schools",
+          "pay less tax"
+        ],
+        "answer": 0,
+        "explanation": "Families may abandon small farms, threatening food security.",
+        "image": ""
+      }
+    ],
+    "3.5 Pollution": [
+      {
+        "q": "Pollution is",
+        "options": [
+          "harmful substances that make the environment dirty",
+          "clean fresh air",
+          "good farming",
+          "a type of law"
+        ],
+        "answer": 0,
+        "explanation": "Pollution is harmful substances that dirty the environment.",
+        "image": ""
+      },
+      {
+        "q": "Burning coal, oil and gas in cars and factories causes",
+        "options": [
+          "water pollution",
+          "air pollution",
+          "noise pollution",
+          "none"
+        ],
+        "answer": 1,
+        "explanation": "Burning fossil fuels causes air pollution.",
+        "image": ""
+      },
+      {
+        "q": "Loud machines, vehicles and music cause",
+        "options": [
+          "air pollution",
+          "noise pollution",
+          "soil pollution",
+          "water pollution"
+        ],
+        "answer": 1,
+        "explanation": "Loud sounds cause noise pollution.",
+        "image": ""
+      },
+      {
+        "q": "Rain made acidic by factory and vehicle gases is called",
+        "options": [
+          "acid rain",
+          "fresh rain",
+          "snow",
+          "dew"
+        ],
+        "answer": 0,
+        "explanation": "Acid rain forms when gases mix with moisture in the air.",
+        "image": ""
+      },
+      {
+        "q": "Human body waste that pollutes water is called",
+        "options": [
+          "sewage",
+          "fertiliser",
+          "plankton",
+          "algae"
+        ],
+        "answer": 0,
+        "explanation": "Sewage is human body waste.",
+        "image": ""
+      },
+      {
+        "q": "Fertilisers in water make algae grow, which",
+        "options": [
+          "use up the oxygen so fish die",
+          "clean the water",
+          "feed the fish",
+          "stop pollution"
+        ],
+        "answer": 0,
+        "explanation": "Algae use up the oxygen so fish cannot breathe.",
+        "image": ""
+      },
+      {
+        "q": "Coal, oil and natural gas are examples of",
+        "options": [
+          "fossil fuels",
+          "metals",
+          "crops",
+          "minerals only"
+        ],
+        "answer": 0,
+        "explanation": "Coal, oil and gas are fossil fuels.",
+        "image": ""
+      }
+    ],
+    "3.6 Other World Challenges": [
+      {
+        "q": "A person who flees their home because of war is a",
+        "options": [
+          "refugee",
+          "tourist",
+          "farmer",
+          "soldier"
+        ],
+        "answer": 0,
+        "explanation": "A refugee flees home, usually because of war.",
+        "image": ""
+      },
+      {
+        "q": "The warming of the Earth caused by greenhouse gases is",
+        "options": [
+          "global warming",
+          "an ice age",
+          "a drought",
+          "an eclipse"
+        ],
+        "answer": 0,
+        "explanation": "Greenhouse gases cause global warming.",
+        "image": ""
+      },
+      {
+        "q": "Global warming is caused mainly by",
+        "options": [
+          "burning fossil fuels",
+          "planting trees",
+          "drinking water",
+          "reading books"
+        ],
+        "answer": 0,
+        "explanation": "Burning fossil fuels releases greenhouse gases.",
+        "image": ""
+      },
+      {
+        "q": "As the Earth warms, the ice caps melt and",
+        "options": [
+          "sea levels rise",
+          "seas dry up",
+          "mountains grow",
+          "deserts freeze"
+        ],
+        "answer": 0,
+        "explanation": "Melting ice raises sea levels and floods low areas.",
+        "image": ""
+      },
+      {
+        "q": "Not having enough money for basic needs is called",
+        "options": [
+          "poverty",
+          "wealth",
+          "corruption",
+          "democracy"
+        ],
+        "answer": 0,
+        "explanation": "Poverty is lacking money for basic needs.",
+        "image": ""
+      },
+      {
+        "q": "The main key to ending poverty is",
+        "options": [
+          "education",
+          "more wars",
+          "more taxes",
+          "ignoring it"
+        ],
+        "answer": 0,
+        "explanation": "Education is the key to a well-paid job and ending poverty.",
+        "image": ""
+      },
+      {
+        "q": "Which body helps fighting groups make peace?",
+        "options": [
+          "The United Nations",
+          "A football club",
+          "A bank",
+          "A market"
+        ],
+        "answer": 0,
+        "explanation": "The UN (and AU) help fighting groups make peace.",
+        "image": ""
+      }
+    ],
+    "4.1 Family Ties": [
+      {
+        "q": "A family of a mother, father and their children is a",
+        "options": [
+          "nuclear family",
+          "extended family",
+          "single-parent family",
+          "village"
+        ],
+        "answer": 0,
+        "explanation": "A nuclear family is parents and their children.",
+        "image": ""
+      },
+      {
+        "q": "A family that also includes grandparents, uncles and aunts is an",
+        "options": [
+          "extended family",
+          "nuclear family",
+          "orphan",
+          "adopted family"
+        ],
+        "answer": 0,
+        "explanation": "An extended family includes other relatives.",
+        "image": ""
+      },
+      {
+        "q": "A child whose parents have died is an",
+        "options": [
+          "orphan",
+          "adopted child",
+          "cousin",
+          "refugee"
+        ],
+        "answer": 0,
+        "explanation": "An orphan is a child whose parents have died.",
+        "image": ""
+      },
+      {
+        "q": "The saying 'It takes a ___ to raise a child' is completed by",
+        "options": [
+          "village",
+          "school",
+          "city",
+          "factory"
+        ],
+        "answer": 0,
+        "explanation": "It takes a village to raise a child.",
+        "image": ""
+      },
+      {
+        "q": "Families are important because they give children",
+        "options": [
+          "security, love and care",
+          "money only",
+          "no rules",
+          "no support"
+        ],
+        "answer": 0,
+        "explanation": "Families give security, protection, love and care.",
+        "image": ""
+      },
+      {
+        "q": "A family with only one parent is a",
+        "options": [
+          "single-parent family",
+          "extended family",
+          "nuclear family",
+          "large family"
+        ],
+        "answer": 0,
+        "explanation": "A single-parent family has one parent.",
+        "image": ""
+      },
+      {
+        "q": "Children raised by people who are not their birth parents are",
+        "options": [
+          "adopted",
+          "orphaned",
+          "fostered chiefs",
+          "refugees"
+        ],
+        "answer": 0,
+        "explanation": "Such children are adopted children.",
+        "image": ""
+      }
+    ],
+    "4.2 Parents and Children": [
+      {
+        "q": "In matrilineal tribes, children belong more to the",
+        "options": [
+          "mother's side",
+          "father's side",
+          "chief's side",
+          "school"
+        ],
+        "answer": 0,
+        "explanation": "In matrilineal tribes children belong to the mother's side.",
+        "image": ""
+      },
+      {
+        "q": "In patrilineal tribes, children belong to the",
+        "options": [
+          "mother's side",
+          "father's side",
+          "government",
+          "village head"
+        ],
+        "answer": 1,
+        "explanation": "In patrilineal tribes children belong to the father's side.",
+        "image": ""
+      },
+      {
+        "q": "Which tribes are given as examples of matrilineal tribes?",
+        "options": [
+          "Tonga and Bemba",
+          "Lozi and Ngoni",
+          "Chewa and Lunda",
+          "Luvale and Kaonde"
+        ],
+        "answer": 0,
+        "explanation": "The book gives Tonga and Bemba as matrilineal.",
+        "image": ""
+      },
+      {
+        "q": "Which tribes are given as examples of patrilineal tribes?",
+        "options": [
+          "Lozi and Ngoni",
+          "Tonga and Bemba",
+          "Bisa and Lala",
+          "Ila and Soli"
+        ],
+        "answer": 0,
+        "explanation": "The book gives Lozi and Ngoni as patrilineal.",
+        "image": ""
+      },
+      {
+        "q": "One way Zambian children show respect to parents is by",
+        "options": [
+          "kneeling when giving something",
+          "shouting",
+          "ignoring them",
+          "arguing"
+        ],
+        "answer": 0,
+        "explanation": "Kneeling shows respect when giving something to a parent.",
+        "image": ""
+      },
+      {
+        "q": "Society expects children to care for their parents",
+        "options": [
+          "when the parents are old",
+          "never",
+          "only when paid",
+          "only as babies"
+        ],
+        "answer": 0,
+        "explanation": "Children care for parents in old age and bury them.",
+        "image": ""
+      },
+      {
+        "q": "Parents are expected to train their children in",
+        "options": [
+          "skills they will need as adults",
+          "nothing at all",
+          "only games",
+          "only dancing"
+        ],
+        "answer": 0,
+        "explanation": "Parents train children in the skills they will need in adult life.",
+        "image": ""
+      }
+    ],
+    "5.1 The Prairies": [
+      {
+        "q": "The Prairies are temperate grasslands found in",
+        "options": [
+          "North America",
+          "Africa",
+          "Australia",
+          "Europe"
+        ],
+        "answer": 0,
+        "explanation": "The Prairies are in North America.",
+        "image": ""
+      },
+      {
+        "q": "The word 'prairie' refers to",
+        "options": [
+          "desert",
+          "grassland",
+          "forest",
+          "mountain"
+        ],
+        "answer": 1,
+        "explanation": "Prairie means grassland/meadow.",
+        "image": ""
+      },
+      {
+        "q": "The Prairie had few trees because of",
+        "options": [
+          "regular fires",
+          "too much rain",
+          "deep snow",
+          "too many animals"
+        ],
+        "answer": 0,
+        "explanation": "Regular fires killed trees, leaving grassland.",
+        "image": ""
+      },
+      {
+        "q": "Steel (iron) ploughs were invented for the Prairie because",
+        "options": [
+          "the soil was thick with roots",
+          "the land was sandy",
+          "there was no water",
+          "the soil was soft"
+        ],
+        "answer": 0,
+        "explanation": "The root-matted soil needed strong steel ploughs.",
+        "image": ""
+      },
+      {
+        "q": "Which crop is grown a great deal on the Prairies?",
+        "options": [
+          "Maize",
+          "Coffee",
+          "Tea",
+          "Cocoa"
+        ],
+        "answer": 0,
+        "explanation": "Maize (and soya, wheat, etc.) is grown on the Prairies.",
+        "image": ""
+      },
+      {
+        "q": "Farming has reduced the Prairie's",
+        "options": [
+          "biodiversity",
+          "rainfall",
+          "size on the map",
+          "temperature"
+        ],
+        "answer": 0,
+        "explanation": "Farming reduced the natural biodiversity.",
+        "image": ""
+      },
+      {
+        "q": "The variety of living things in an area is called",
+        "options": [
+          "biodiversity",
+          "population",
+          "climate",
+          "habitat loss"
+        ],
+        "answer": 0,
+        "explanation": "Biodiversity is the variety of living things.",
+        "image": ""
+      }
+    ],
+    "5.2 The Pampas": [
+      {
+        "q": "The Pampas are found in",
+        "options": [
+          "South America",
+          "North America",
+          "Asia",
+          "Africa"
+        ],
+        "answer": 0,
+        "explanation": "The Pampas are in South America.",
+        "image": ""
+      },
+      {
+        "q": "The word 'pampas' means",
+        "options": [
+          "mountain",
+          "plain",
+          "desert",
+          "forest"
+        ],
+        "answer": 1,
+        "explanation": "Pampas means 'plain'.",
+        "image": ""
+      },
+      {
+        "q": "The Pampas are one of the world's richest",
+        "options": [
+          "grazing lands",
+          "deserts",
+          "forests",
+          "ice fields"
+        ],
+        "answer": 0,
+        "explanation": "The humid pampas is one of the richest grazing lands.",
+        "image": ""
+      },
+      {
+        "q": "Which animals are raised on the Pampas?",
+        "options": [
+          "Cattle and sheep",
+          "Camels",
+          "Reindeer",
+          "Penguins"
+        ],
+        "answer": 0,
+        "explanation": "High-quality cattle and sheep are raised.",
+        "image": ""
+      },
+      {
+        "q": "Two threats to the Pampas are",
+        "options": [
+          "pollution and overgrazing",
+          "snow and ice",
+          "too many trees",
+          "too much rain"
+        ],
+        "answer": 0,
+        "explanation": "Pollution and overgrazing threaten the Pampas.",
+        "image": ""
+      },
+      {
+        "q": "The Pampas cover parts of Argentina, Uruguay and",
+        "options": [
+          "Brazil",
+          "Egypt",
+          "India",
+          "Canada"
+        ],
+        "answer": 0,
+        "explanation": "They cover Argentina, Uruguay and parts of Brazil.",
+        "image": ""
+      },
+      {
+        "q": "The Pampas are described as a/an",
+        "options": [
+          "endangered habitat",
+          "frozen desert",
+          "busy city",
+          "high mountain"
+        ],
+        "answer": 0,
+        "explanation": "Little original grassland remains; it is endangered.",
+        "image": ""
+      }
+    ],
+    "5.3 The Downs": [
+      {
+        "q": "The Darling Downs is a farming region in",
+        "options": [
+          "Australia",
+          "Africa",
+          "Asia",
+          "Europe"
+        ],
+        "answer": 0,
+        "explanation": "The Downs (Darling Downs) is in Queensland, Australia.",
+        "image": ""
+      },
+      {
+        "q": "The Downs has soil that is",
+        "options": [
+          "rich and black",
+          "sandy and white",
+          "frozen",
+          "salty"
+        ],
+        "answer": 0,
+        "explanation": "The Downs has rich, black soil.",
+        "image": ""
+      },
+      {
+        "q": "Irrigation water for the Downs comes from",
+        "options": [
+          "the Great Artesian Basin underground",
+          "a large lake",
+          "the ocean",
+          "rain only"
+        ],
+        "answer": 0,
+        "explanation": "Water is pumped from the underground Great Artesian Basin.",
+        "image": ""
+      },
+      {
+        "q": "The Great Artesian Basin is the world's largest",
+        "options": [
+          "underground body of water",
+          "desert",
+          "forest",
+          "mountain"
+        ],
+        "answer": 0,
+        "explanation": "It is the largest, deepest underground body of water.",
+        "image": ""
+      },
+      {
+        "q": "Which is farmed on the Downs?",
+        "options": [
+          "Beef and dairy cattle",
+          "Reindeer",
+          "Camels",
+          "Penguins"
+        ],
+        "answer": 0,
+        "explanation": "Beef and dairy cattle, pigs and sheep are farmed.",
+        "image": ""
+      },
+      {
+        "q": "The Downs has a climate that is",
+        "options": [
+          "humid sub-tropical",
+          "very cold",
+          "desert dry",
+          "polar"
+        ],
+        "answer": 0,
+        "explanation": "The Darling Downs has a humid sub-tropical climate.",
+        "image": ""
+      },
+      {
+        "q": "Which crop is grown on the Downs?",
+        "options": [
+          "Cotton",
+          "Cocoa",
+          "Coffee only",
+          "Rubber"
+        ],
+        "answer": 0,
+        "explanation": "Crops include cotton, wheat, barley and sorghum.",
+        "image": ""
+      }
+    ],
+    "5.4 The Steppes": [
+      {
+        "q": "The Steppes are",
+        "options": [
+          "dry, cold grasslands",
+          "hot, wet forests",
+          "sandy deserts",
+          "frozen oceans"
+        ],
+        "answer": 0,
+        "explanation": "The Steppes are dry, cold grasslands.",
+        "image": ""
+      },
+      {
+        "q": "The Steppes usually lie between",
+        "options": [
+          "forests and deserts",
+          "two oceans",
+          "two cities",
+          "two rivers"
+        ],
+        "answer": 0,
+        "explanation": "They lie between forests and deserts.",
+        "image": ""
+      },
+      {
+        "q": "There is little farming on the Steppes because",
+        "options": [
+          "the soil is poor and the climate cold",
+          "there is too much rain",
+          "the land is too flat",
+          "there are too many trees"
+        ],
+        "answer": 0,
+        "explanation": "Poor soil and a cold, dry climate limit farming.",
+        "image": ""
+      },
+      {
+        "q": "In America the Steppes are called",
+        "options": [
+          "dry prairies",
+          "wet pampas",
+          "veld",
+          "downs"
+        ],
+        "answer": 0,
+        "explanation": "In the USA the Steppes are called dry prairies.",
+        "image": ""
+      },
+      {
+        "q": "The natural plant life of the Steppes is mostly",
+        "options": [
+          "grasses",
+          "tall trees",
+          "cactus only",
+          "seaweed"
+        ],
+        "answer": 0,
+        "explanation": "The Steppes are covered mainly by grasses.",
+        "image": ""
+      },
+      {
+        "q": "The Steppes are found mostly in",
+        "options": [
+          "Mongolia, Siberia and China",
+          "Brazil and Peru",
+          "Egypt and Libya",
+          "France and Spain"
+        ],
+        "answer": 0,
+        "explanation": "They are found in Mongolia, Siberia, Tibet, China and the USA.",
+        "image": ""
+      },
+      {
+        "q": "The air on the Steppes is dry because they are",
+        "options": [
+          "far from the ocean and near mountains",
+          "beside the sea",
+          "in a rainforest",
+          "at the equator"
+        ],
+        "answer": 0,
+        "explanation": "Being far from the ocean and near mountains makes the air dry.",
+        "image": ""
+      }
+    ],
+    "5.5 The Veld": [
+      {
+        "q": "The veld is the grassland of",
+        "options": [
+          "southern Africa",
+          "North America",
+          "Australia",
+          "Asia"
+        ],
+        "answer": 0,
+        "explanation": "The veld is southern African grassland.",
+        "image": ""
+      },
+      {
+        "q": "The three main types of veld are",
+        "options": [
+          "highveld, lowveld and thornveld",
+          "wet, dry and mesic",
+          "tall, short and mixed",
+          "hot, warm and cold"
+        ],
+        "answer": 0,
+        "explanation": "The types are highveld, lowveld and thornveld.",
+        "image": ""
+      },
+      {
+        "q": "The highveld is used mainly for",
+        "options": [
+          "commercial farming of cereals and livestock",
+          "fishing",
+          "mining gold only",
+          "ice farming"
+        ],
+        "answer": 0,
+        "explanation": "The highveld is used for cereals, livestock and market gardening.",
+        "image": ""
+      },
+      {
+        "q": "The thornveld is best suited to",
+        "options": [
+          "cattle farming",
+          "tea farming",
+          "rice farming",
+          "reindeer farming"
+        ],
+        "answer": 0,
+        "explanation": "The thornveld supports cattle farming.",
+        "image": ""
+      },
+      {
+        "q": "The lowveld has a climate that is",
+        "options": [
+          "wetter and more temperate",
+          "very cold",
+          "desert dry",
+          "polar"
+        ],
+        "answer": 0,
+        "explanation": "The lowveld is wetter and warmer than the highveld.",
+        "image": ""
+      },
+      {
+        "q": "Veld covered with grass and thorny acacia trees is the",
+        "options": [
+          "thornveld",
+          "highveld",
+          "lowveld",
+          "desert"
+        ],
+        "answer": 0,
+        "explanation": "The thornveld has grass and thorny acacia trees.",
+        "image": ""
+      },
+      {
+        "q": "Parts of Zambia are covered by",
+        "options": [
+          "bushveld/thornveld",
+          "frozen tundra",
+          "hot desert",
+          "ocean"
+        ],
+        "answer": 0,
+        "explanation": "Parts of Zambia are bushveld/thornveld, suited to cattle.",
+        "image": ""
+      }
+    ],
+    "6.1 Building Africa Together": [
+      {
+        "q": "SADC stands for the",
+        "options": [
+          "Southern African Development Community",
+          "South Asian Defence Council",
+          "Sahara Africa Desert Council",
+          "Southern Africa Dancing Club"
+        ],
+        "answer": 0,
+        "explanation": "SADC = Southern African Development Community.",
+        "image": ""
+      },
+      {
+        "q": "COMESA stands for the Common Market for",
+        "options": [
+          "Eastern and Southern Africa",
+          "Europe and South America",
+          "Central and North Africa",
+          "Asia and Australia"
+        ],
+        "answer": 0,
+        "explanation": "COMESA = Common Market for Eastern and Southern Africa.",
+        "image": ""
+      },
+      {
+        "q": "A free trade zone is a group of countries that",
+        "options": [
+          "remove customs and taxes on goods between them",
+          "close their borders",
+          "stop all trade",
+          "share one army"
+        ],
+        "answer": 0,
+        "explanation": "A free trade zone removes customs controls and taxes.",
+        "image": ""
+      },
+      {
+        "q": "Roads, railways and power supplies are called",
+        "options": [
+          "infrastructure",
+          "agriculture",
+          "livestock",
+          "ministries"
+        ],
+        "answer": 0,
+        "explanation": "Infrastructure is roads, railways and power a country needs.",
+        "image": ""
+      },
+      {
+        "q": "SADC members work together mainly to",
+        "options": [
+          "improve their economies",
+          "start wars",
+          "stop farming",
+          "close schools"
+        ],
+        "answer": 0,
+        "explanation": "They cooperate on infrastructure to improve their economies.",
+        "image": ""
+      },
+      {
+        "q": "Removing taxes between countries makes transport of goods",
+        "options": [
+          "quicker and cheaper",
+          "slower and dearer",
+          "impossible",
+          "illegal"
+        ],
+        "answer": 0,
+        "explanation": "Free trade makes transport quicker and cheaper, improving trade.",
+        "image": ""
+      }
+    ],
+    "6.2 Transport Systems": [
+      {
+        "q": "The five transport systems are road, air, rail, shipping and",
+        "options": [
+          "pipelines",
+          "walking",
+          "swimming",
+          "flying birds"
+        ],
+        "answer": 0,
+        "explanation": "The five systems are road, air, rail, shipping and pipelines.",
+        "image": ""
+      },
+      {
+        "q": "The basis of all transport systems is",
+        "options": [
+          "road transport",
+          "air transport",
+          "shipping",
+          "pipelines"
+        ],
+        "answer": 0,
+        "explanation": "Roads are the basis of all transport systems.",
+        "image": ""
+      },
+      {
+        "q": "The quickest but most expensive transport is",
+        "options": [
+          "air transport",
+          "road transport",
+          "rail transport",
+          "shipping"
+        ],
+        "answer": 0,
+        "explanation": "Air transport is quickest but most expensive.",
+        "image": ""
+      },
+      {
+        "q": "In rural areas with bad roads, useful transport includes",
+        "options": [
+          "bicycles and ox-carts",
+          "aeroplanes",
+          "ships",
+          "trains"
+        ],
+        "answer": 0,
+        "explanation": "Bicycles and ox-carts are useful where roads are poor.",
+        "image": ""
+      },
+      {
+        "q": "Air transport allows farmers to",
+        "options": [
+          "sell fresh produce far away quickly",
+          "grow more rain",
+          "build roads",
+          "mine copper"
+        ],
+        "answer": 0,
+        "explanation": "Fresh produce can be flown and sold fresh far away.",
+        "image": ""
+      },
+      {
+        "q": "Which vehicle is used mainly to transport goods and equipment?",
+        "options": [
+          "Trucks",
+          "Bicycles only",
+          "Aeroplanes only",
+          "Canoes"
+        ],
+        "answer": 0,
+        "explanation": "Trucks transport goods and equipment by road.",
+        "image": ""
+      }
+    ],
+    "6.3 Communication Systems": [
+      {
+        "q": "Fixed lines are",
+        "options": [
+          "copper wires that carry an electrical signal",
+          "glass cables that carry light",
+          "radio waves",
+          "ocean cables only"
+        ],
+        "answer": 0,
+        "explanation": "Fixed lines are copper wires carrying electrical signals.",
+        "image": ""
+      },
+      {
+        "q": "Fibre-optic cables carry",
+        "options": [
+          "light signals",
+          "electrical signals only",
+          "water",
+          "sound waves only"
+        ],
+        "answer": 0,
+        "explanation": "Fibre-optic cables carry light signals.",
+        "image": ""
+      },
+      {
+        "q": "Which carries more data at faster speeds?",
+        "options": [
+          "Fibre-optic cables",
+          "Copper fixed lines",
+          "Letters",
+          "Smoke signals"
+        ],
+        "answer": 0,
+        "explanation": "Fibre-optic cables are faster and carry more data than copper.",
+        "image": ""
+      },
+      {
+        "q": "Radio communication uses",
+        "options": [
+          "microwave towers and satellites",
+          "copper wires only",
+          "rivers",
+          "roads"
+        ],
+        "answer": 0,
+        "explanation": "Radio uses microwave towers and satellites.",
+        "image": ""
+      },
+      {
+        "q": "Buying and selling goods over the internet is part of",
+        "options": [
+          "commerce",
+          "farming",
+          "mining",
+          "fishing"
+        ],
+        "answer": 0,
+        "explanation": "Internet buying and selling is commerce.",
+        "image": ""
+      },
+      {
+        "q": "Electronic communication has largely replaced",
+        "options": [
+          "writing letters",
+          "speaking",
+          "reading",
+          "walking"
+        ],
+        "answer": 0,
+        "explanation": "It is much faster than writing letters.",
+        "image": ""
+      }
+    ],
+    "6.4 Road Safety (the Bicycle)": [
+      {
+        "q": "The frame of a bicycle is made of",
+        "options": [
+          "tubular steel",
+          "glass",
+          "paper",
+          "rubber"
+        ],
+        "answer": 0,
+        "explanation": "The frame is tubular steel, strong enough to carry the rider.",
+        "image": ""
+      },
+      {
+        "q": "The part used to steer a bicycle is the",
+        "options": [
+          "handle bars",
+          "saddle",
+          "pedals",
+          "chain"
+        ],
+        "answer": 0,
+        "explanation": "The handle bars steer the bicycle.",
+        "image": ""
+      },
+      {
+        "q": "The seat of a bicycle is the",
+        "options": [
+          "saddle",
+          "frame",
+          "rim",
+          "spoke"
+        ],
+        "answer": 0,
+        "explanation": "The saddle is the seat (adjustable).",
+        "image": ""
+      },
+      {
+        "q": "A strong holder for carrying things on a bicycle is the",
+        "options": [
+          "luggage rack",
+          "handle bar",
+          "brake",
+          "spoke"
+        ],
+        "answer": 0,
+        "explanation": "The luggage rack carries goods or passengers.",
+        "image": ""
+      },
+      {
+        "q": "The part that stops a bicycle is the",
+        "options": [
+          "brake",
+          "saddle",
+          "frame",
+          "rim"
+        ],
+        "answer": 0,
+        "explanation": "The brakes (e.g. coaster brake) stop the bicycle.",
+        "image": ""
+      },
+      {
+        "q": "The pedals and chain are used to",
+        "options": [
+          "drive the wheels",
+          "steer",
+          "carry luggage",
+          "ring the bell"
+        ],
+        "answer": 0,
+        "explanation": "Pedals and chain drive the wheels.",
+        "image": ""
+      },
+      {
+        "q": "A bicycle stand is used to",
+        "options": [
+          "keep the bicycle from falling over",
+          "steer",
+          "brake",
+          "carry a passenger"
+        ],
+        "answer": 0,
+        "explanation": "The stand holds the bicycle upright.",
+        "image": ""
+      }
+    ],
+    "6.5 Safe Cycling": [
+      {
+        "q": "A cyclist should ride on which side of the road in Zambia?",
+        "options": [
+          "Left, with the flow of traffic",
+          "Right, against traffic",
+          "The middle",
+          "The pavement"
+        ],
+        "answer": 0,
+        "explanation": "Ride on the left with the flow of traffic.",
+        "image": ""
+      },
+      {
+        "q": "Why should a cyclist not wear earphones?",
+        "options": [
+          "They cannot hear the traffic",
+          "They look untidy",
+          "They are too heavy",
+          "They are illegal everywhere"
+        ],
+        "answer": 0,
+        "explanation": "Earphones stop a cyclist from hearing traffic.",
+        "image": ""
+      },
+      {
+        "q": "Alcohol and drugs affect a cyclist's",
+        "options": [
+          "reactions and judgement",
+          "clothes",
+          "bicycle colour",
+          "luggage"
+        ],
+        "answer": 0,
+        "explanation": "Alcohol and drugs slow reactions and judgement, causing accidents.",
+        "image": ""
+      },
+      {
+        "q": "To be seen at night a cyclist should use",
+        "options": [
+          "reflectors and bright colours",
+          "dark clothes",
+          "no lights",
+          "earphones"
+        ],
+        "answer": 0,
+        "explanation": "Reflectors and bright colours make a cyclist visible.",
+        "image": ""
+      },
+      {
+        "q": "To show drivers what they intend to do, cyclists should use",
+        "options": [
+          "hand signals",
+          "earphones",
+          "loud music",
+          "sunglasses"
+        ],
+        "answer": 0,
+        "explanation": "Hand signals show drivers the cyclist's intentions.",
+        "image": ""
+      },
+      {
+        "q": "A cyclist should assume that",
+        "options": [
+          "drivers may NOT have seen them",
+          "all drivers have seen them",
+          "the road is empty",
+          "rules do not apply"
+        ],
+        "answer": 0,
+        "explanation": "Always assume drivers may not have seen you; stay alert.",
+        "image": ""
       }
     ]
   }

@@ -36,12 +36,12 @@ function itemToRow(it, topic) {
 
 console.log('\ngrade-7 seed bundle')
 
-test('42 notes (17 Science + 25 Social Studies), 16 quiz banks', () => {
+test('42 notes (17 Science + 25 Social Studies), 41 quiz banks', () => {
   assert(bundle.notes.length === 42, `notes=${bundle.notes.length}`)
   const bySubject = bundle.notes.reduce((m, n) => ((m[n.subject] = (m[n.subject] || 0) + 1), m), {})
   assert(bySubject['Integrated Science'] === 17, `Integrated Science=${bySubject['Integrated Science']}`)
   assert(bySubject['Social Studies'] === 25, `Social Studies=${bySubject['Social Studies']}`)
-  assert(Object.keys(bundle.quizzes).length === 16, `quizzes=${Object.keys(bundle.quizzes).length}`)
+  assert(Object.keys(bundle.quizzes).length === 41, `quizzes=${Object.keys(bundle.quizzes).length}`)
 })
 
 test('every note has Firestore-safe study blocks (write schema)', () => {
@@ -51,7 +51,7 @@ test('every note has Firestore-safe study blocks (write schema)', () => {
   }
 })
 
-test('every quiz item converts cleanly — no dropped questions (181 total)', () => {
+test('every quiz item converts cleanly — no dropped questions (355 total)', () => {
   let total = 0
   for (const [key, items] of Object.entries(bundle.quizzes)) {
     for (const it of items) {
@@ -61,10 +61,10 @@ test('every quiz item converts cleanly — no dropped questions (181 total)', ()
       total++
     }
   }
-  assert(total === 181, `expected 181 questions, got ${total}`)
+  assert(total === 355, `expected 355 questions, got ${total}`)
 })
 
-test('each quiz-linked note references an existing quiz bank (16)', () => {
+test('each quiz-linked note references an existing quiz bank (41)', () => {
   let linked = 0
   for (const n of bundle.notes) {
     for (const b of n.blocks) {
@@ -74,7 +74,7 @@ test('each quiz-linked note references an existing quiz bank (16)', () => {
       }
     }
   }
-  assert(linked === 16, `expected 16 linked, got ${linked}`)
+  assert(linked === 41, `expected 41 linked, got ${linked}`)
 })
 
 test('all referenced diagrams exist in public/notes/', () => {
