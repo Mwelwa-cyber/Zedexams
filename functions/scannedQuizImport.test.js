@@ -402,4 +402,88 @@ test("runScannedQuizImport works with no Gemini key (Claude-only)", async () => 
   assert.equal(result.extractedCount, 1);
 });
 
+// ── output-token truncation (regression for English ECZ paper import) ──────────
+// When Claude hits max_tokens in tool mode the Anthropic API returns
+// stop_reason:"max_tokens" with a partial (or empty) tool input. callClaude
+// does NOT throw in this case — it returns the partial parsed object plus the
+// stop reason. runScannedQuizImport MUST surface a user-visible warning so the
+// teacher knows that tail questions may be missing; it must also return whatever
+// sections DID arrive (not crash).
+
+test("runScannedQuizImport surfaces a warning when callClaude returns stopReason='max_tokens'", async () => {
+  // Simulate the partial-output scenario: Claude returned 3 sections before
+  // being cut off (the remaining sections on the batch were lost).
+  const result = await runScannedQuizImport(
+    {pages: [{pageNumber: 1, dataUrl: dataUrl()}, {pageNumber: 2, dataUrl: dataUrl()}], anthropicKey: "k", geminiKey: ""},
+    {
+      callGemini: async () => "{}",
+      callClaude: async () => ({
+        parsed: {
+          sections: [
+            {kind: "standalone", question: mcq({prompt: "Q1"})},
+            {
+              kind: "passage",
+              passageKind: "comprehension",
+              title: "The Generous Farmer",
+              passageText: "Once upon a time in Zambia...",
+              questions: [mcq({prompt: "Q2"}), mcq({prompt: "Q3"})],
+            },
+            // Q4…Q20 were never emitted because the token budget ran out
+          ],
+        },
+        stopReason: "max_tokens",
+        model: "test-model",
+        usage: {inputTokens: 2000, outputTokens: 8000},
+      }),
+    },
+  );
+
+  // The partial sections that arrived must still be returned.
+  assert.equal(result.extractedCount, 3, "partial sections must be returned, not discarded");
+  assert.equal(result.sections.length, 2);
+
+  // A clear user-visible warning must be surfaced.
+  assert.ok(
+    result.warnings.some((w) => /token limit|output-token|token budget/i.test(w)),
+    `expected a max_tokens warning, got: ${JSON.stringify(result.warnings)}`,
+  );
+});
+
+test("runScannedQuizImport does NOT warn about max_tokens when stopReason is 'tool_use' (normal)", async () => {
+  const result = await runScannedQuizImport(
+    {pages: [{pageNumber: 1, dataUrl: dataUrl()}], anthropicKey: "k", geminiKey: ""},
+    {
+      callGemini: async () => "{}",
+      callClaude: async () => ({
+        parsed: {sections: [{kind: "standalone", question: mcq({prompt: "Q1"})}]},
+        stopReason: "tool_use",
+        model: "test-model",
+      }),
+    },
+  );
+  assert.equal(result.extractedCount, 1);
+  assert.ok(
+    !result.warnings.some((w) => /token limit|output-token|token budget/i.test(w)),
+    "no max_tokens warning when stop was normal",
+  );
+});
+
+test("runScannedQuizImport uses maxTokens 16000 in the callClaude call", async () => {
+  let capturedMaxTokens;
+  await runScannedQuizImport(
+    {pages: [{pageNumber: 1, dataUrl: dataUrl()}], anthropicKey: "k", geminiKey: ""},
+    {
+      callGemini: async () => "{}",
+      callClaude: async (_key, opts) => {
+        capturedMaxTokens = opts.maxTokens;
+        return {parsed: {sections: []}, stopReason: "tool_use", model: "test-model"};
+      },
+    },
+  );
+  assert.ok(
+    capturedMaxTokens >= 16000,
+    `maxTokens must be >= 16000 to avoid truncation on English batches (got ${capturedMaxTokens})`,
+  );
+});
+
 console.log(`\nscannedQuizImport: ${passed} passed`);
