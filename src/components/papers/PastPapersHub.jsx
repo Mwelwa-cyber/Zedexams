@@ -29,7 +29,7 @@ import {
   listPublishedPapers,
   paperYearsFromList,
 } from '../../utils/pastPapers'
-import { SUBJECTS } from '../../config/curriculum'
+import { PAPER_SUBJECTS } from '../../config/curriculum'
 import SeoHelmet from '../seo/SeoHelmet'
 import Logo from '../ui/Logo'
 import Skeleton from '../ui/Skeleton'
@@ -53,7 +53,7 @@ function FilterChip({ active, onClick, children }) {
 }
 
 function PaperCard({ paper }) {
-  const subjectMeta = SUBJECTS.find((s) => s.id === paper.subject)
+  const subjectMeta = PAPER_SUBJECTS.find((s) => s.id === paper.subject)
   const subjectLabel = subjectMeta?.label || paper.subject
   const subjectIcon = subjectMeta?.icon || '📄'
   const hasQuiz = Boolean(paper.quizId)
@@ -170,7 +170,7 @@ export default function PastPapersHub() {
   )
   const availableSubjects = useMemo(() => {
     const ids = new Set(papers.map((p) => p.subject))
-    return SUBJECTS.filter((s) => ids.has(s.id))
+    return PAPER_SUBJECTS.filter((s) => ids.has(s.id))
   }, [papers])
   const availableYears = useMemo(() => paperYearsFromList(papers), [papers])
 

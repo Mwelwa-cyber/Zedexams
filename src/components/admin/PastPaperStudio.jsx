@@ -39,7 +39,7 @@ import {
   updatePaper,
   uploadPaperAsset,
 } from '../../utils/pastPapers'
-import { SUBJECTS } from '../../config/curriculum'
+import { PAPER_SUBJECTS } from '../../config/curriculum'
 import { db } from '../../firebase/config'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import {
@@ -186,7 +186,7 @@ export default function PastPaperStudio() {
   const [details, setDetails] = useState({
     title: '',
     grade: '7',
-    subject: SUBJECTS[0].id,
+    subject: PAPER_SUBJECTS[0].id,
     year: CURRENT_YEAR - 1,
     paperNumber: '',
     examBoard: 'ECZ',
@@ -219,7 +219,7 @@ export default function PastPaperStudio() {
             fields: {
               title: 'Untitled past paper',
               grade: '7',
-              subject: SUBJECTS[0].id,
+              subject: PAPER_SUBJECTS[0].id,
               year: CURRENT_YEAR - 1,
               status: PAPER_STATUSES.DRAFT,
               examBoard: 'ECZ',
@@ -240,7 +240,7 @@ export default function PastPaperStudio() {
           setDetails({
             title: row.title || '',
             grade: row.grade || '7',
-            subject: row.subject || SUBJECTS[0].id,
+            subject: row.subject || PAPER_SUBJECTS[0].id,
             year: row.year || CURRENT_YEAR - 1,
             paperNumber: row.paperNumber ? String(row.paperNumber) : '',
             examBoard: row.examBoard || 'ECZ',
@@ -946,7 +946,7 @@ function DetailsStep({ details, setDetail }) {
         </FieldRow>
         <FieldRow label="Subject">
           <select value={details.subject} onChange={(e) => setDetail('subject', e.target.value)} className={inputCls()}>
-            {SUBJECTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+            {PAPER_SUBJECTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
           </select>
         </FieldRow>
         <FieldRow label="Year">
@@ -1049,7 +1049,7 @@ function QuizStep({
 }
 
 function PublishStep({ paperId, details, assets, quizId, quizCount }) {
-  const subjectMeta = useMemo(() => SUBJECTS.find((s) => s.id === details.subject), [details.subject])
+  const subjectMeta = useMemo(() => PAPER_SUBJECTS.find((s) => s.id === details.subject), [details.subject])
   return (
     <section className="space-y-4">
       <div className="theme-card border theme-border rounded-radius-md p-5">

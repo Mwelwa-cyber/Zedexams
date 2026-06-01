@@ -30,7 +30,7 @@ import {
   resetCounter,
 } from '../../utils/pastPaperQuiz'
 import { paywall } from '../../utils/paywall'
-import { SUBJECTS } from '../../config/curriculum'
+import { PAPER_SUBJECTS } from '../../config/curriculum'
 import SeoHelmet from '../seo/SeoHelmet'
 import Logo from '../ui/Logo'
 import Skeleton from '../ui/Skeleton'
@@ -234,7 +234,7 @@ export default function PublicQuizRunner() {
 
   const question = questions[currentIndex] || null
   const total = questions.length
-  const subjectMeta = paper && SUBJECTS.find((s) => s.id === paper.subject)
+  const subjectMeta = paper && PAPER_SUBJECTS.find((s) => s.id === paper.subject)
 
   function handleSelect(idx) {
     if (revealed) return

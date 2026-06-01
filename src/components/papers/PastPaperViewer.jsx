@@ -14,7 +14,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useDataSaver } from '../../contexts/DataSaverContext'
 import { getPaper, recordPaperEvent, resolvePaperUrl } from '../../utils/pastPapers'
-import { SUBJECTS } from '../../config/curriculum'
+import { PAPER_SUBJECTS } from '../../config/curriculum'
 import SeoHelmet from '../seo/SeoHelmet'
 import Logo from '../ui/Logo'
 import Skeleton from '../ui/Skeleton'
@@ -271,7 +271,7 @@ export default function PastPaperViewer() {
     )
   }
 
-  const subjectMeta = SUBJECTS.find((s) => s.id === paper.subject)
+  const subjectMeta = PAPER_SUBJECTS.find((s) => s.id === paper.subject)
   const subjectLabel = subjectMeta?.label || paper.subject
   const quizAvailable = Boolean(paper.quizId)
   const timedExamAvailable = Boolean(currentUser)
