@@ -28,6 +28,7 @@ import { useFirestore }     from '../../hooks/useFirestore'
 import { useSubscription }  from '../../hooks/useSubscription'
 import { useAuth }          from '../../contexts/AuthContext'
 import { SUBJECT_MAP, getTopics, getSubtopics, getTopicLabel } from '../../config/curriculum'
+import { matchName }         from '../../utils/courseMapMatch'
 import Icon                 from '../ui/Icon'
 import Skeleton             from '../ui/Skeleton'
 import SeoHelmet            from '../seo/SeoHelmet'
@@ -332,25 +333,27 @@ export default function SubjectDrillDown() {
   }, [subject, grade, getQuizzes])
 
   // Group by topic, preserving canonical order. When the subject/grade has a
-  // subtopic tree (e.g. Grade 7 Science), quizzes match by quiz.topic ===
-  // subtopic name; otherwise they match against the flat topic list. Any
-  // quiz that doesn't match falls into the "Other quizzes" bucket.
+  // subtopic tree (e.g. Grade 7 Science), quizzes match by subtopic name;
+  // otherwise they match against the flat topic list. Matching is fuzzy
+  // (see utils/courseMapMatch) so author-entered topics/titles like
+  // "1.1 The Digestive System — Practice Quiz" still land under the
+  // "Digestive System" subtopic instead of falling into "Other quizzes".
   const grouped = useMemo(() => {
     if (hasSubtopicTree) {
       const buckets = new Map()
-      const subtopicToTopic = new Map()
+      const subtopicNames = []
       canonicalTopics.forEach(t => {
         const subs = topicSubtopics.get(t) || []
         subs.forEach(s => {
           buckets.set(s, [])
-          subtopicToTopic.set(s, t)
+          subtopicNames.push(s)
         })
       })
       const extras = []
       for (const quiz of quizzes) {
-        const t = quiz.topic?.trim()
-        if (t && buckets.has(t)) {
-          buckets.get(t).push(quiz)
+        const match = matchName(quiz, subtopicNames)
+        if (match && buckets.has(match)) {
+          buckets.get(match).push(quiz)
         } else {
           extras.push(quiz)
         }
@@ -366,9 +369,9 @@ export default function SubjectDrillDown() {
     canonicalTopics.forEach(t => map.set(t, []))
     const extras = []
     for (const quiz of quizzes) {
-      const t = quiz.topic?.trim()
-      if (t && map.has(t)) {
-        map.get(t).push(quiz)
+      const match = matchName(quiz, canonicalTopics)
+      if (match && map.has(match)) {
+        map.get(match).push(quiz)
       } else {
         extras.push(quiz)
       }
