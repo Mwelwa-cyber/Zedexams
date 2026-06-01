@@ -14,6 +14,7 @@ import Skeleton from '../ui/Skeleton'
 import SeoHelmet from '../seo/SeoHelmet'
 import ProgressWidget from './ProgressWidget'
 import StreakXpCard from './StreakXpCard'
+import TodayStudyPlan from './TodayStudyPlan'
 
 const STARS = [
   { top: '10%', left:  '7%',  delay: '0s',    dur: '3.2s', emoji: '⭐', cls: 'text-xl opacity-70' },
@@ -194,6 +195,15 @@ export default function StudentDashboard() {
         results={results}
         streak={userProfile?.currentStreak ?? 0}
         loading={loading}
+      />
+
+      <TodayStudyPlan
+        results={results}
+        weakTopics={weakness}
+        grade={userProfile?.grade}
+        streak={userProfile?.currentStreak ?? 0}
+        loading={loading}
+        aiNotesOn={aiNotesOn}
       />
 
       {/* AI practice quizzes banner — feature-flagged via
