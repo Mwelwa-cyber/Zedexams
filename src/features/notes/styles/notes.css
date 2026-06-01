@@ -48,6 +48,6 @@
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide                   { scrollbar-width: none; }
 
-/* Study notes: inline **bold**/*italic* emitted by mdInline inside blocks. */
+/* Study notes: inline bold + italic emitted by mdInline inside blocks. */
 .study-note strong { font-weight: 600; color: #0a0a0a; }
 .study-note em      { font-style: italic; }
