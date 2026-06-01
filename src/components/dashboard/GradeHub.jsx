@@ -35,6 +35,7 @@ import {
   User,
 } from '../ui/icons'
 import { useAuth }              from '../../contexts/AuthContext'
+import { usePlatformSettings }  from '../../contexts/PlatformSettingsContext'
 import { useFirestore }         from '../../hooks/useFirestore'
 import { useBadges }            from '../../hooks/useBadges'
 import { useDataSaver }         from '../../contexts/DataSaverContext'
@@ -49,6 +50,7 @@ import PushPermissionPrompt     from '../ui/PushPermissionPrompt'
 import VerifyEmailBanner        from '../ui/VerifyEmailBanner'
 import AssignmentsCard          from './AssignmentsCard'
 import ClassesQuickCard         from './ClassesQuickCard'
+import TodayStudyPlan           from './TodayStudyPlan'
 import Icon                     from '../ui/Icon'
 import Button                   from '../ui/Button'
 import Skeleton                 from '../ui/Skeleton'
@@ -451,6 +453,7 @@ function NotificationPanel({ notifications, unreadCount, onClose }) {
 
 export default function GradeHub() {
   const { currentUser, userProfile, logout, isAdmin, isTeacher } = useAuth()
+  const { settings: platformSettings } = usePlatformSettings()
   const { getUserResults, getWeaknessAnalysis } = useFirestore()
   const { earned: earnedBadges, loading: badgesLoading } = useBadges(currentUser?.uid)
   const { dataSaver }                        = useDataSaver()
@@ -639,6 +642,8 @@ export default function GradeHub() {
   }, [activeTab, showChallenge])
 
   const { accessBadge, isDemoOnly } = useSubscription()
+  const aiNotesOn = !!(platformSettings && platformSettings.learnerAi &&
+    platformSettings.learnerAi.showAiNotesToLearners)
   const firstName = userProfile?.displayName?.split(' ')[0] ?? 'Learner'
   const latestResult = recentResults[0] || null
   const notifications = [
@@ -1002,6 +1007,15 @@ export default function GradeHub() {
         {/* "My classes" surface — exposes /classes/join from the
             dashboard so learners can paste a teacher invite code. */}
         <ClassesQuickCard />
+        <TodayStudyPlan
+          results={recentResults}
+          weakTopics={weakTopics}
+          grade={userGrade}
+          streak={stats.streak}
+          dailyGoal={dailyGoal}
+          loading={loading}
+          aiNotesOn={aiNotesOn}
+        />
         {/* Audit A5.1 — daily-reminder push opt-in. Self-gated to learners
             with streak ≥ 2; renders nothing otherwise. */}
         <PushPermissionPrompt streak={stats.streak} />
