@@ -179,6 +179,61 @@ export const SUBJECTS = [
   },
 ]
 
+/**
+ * Past-paper-only subject categories.
+ *
+ * The ECZ archive carries a few exam categories that aren't CBC learning
+ * areas — most notably the Grade 7 PSLE "Special Paper 1" (a composite
+ * paper). These must be selectable when an admin uploads a past paper and
+ * must render with a friendly label/icon in the learner-facing archive, but
+ * they are deliberately kept OUT of {@link SUBJECTS} so they never leak into
+ * quiz/lesson/dashboard subject dropdowns or CBC topic lookups.
+ *
+ * Use {@link PAPER_SUBJECTS} (CBC subjects + these) anywhere the past-paper
+ * surfaces need the full set of selectable/displayable subjects.
+ */
+export const SPECIAL_PAPER_SUBJECTS = [
+  {
+    id: 'special-paper-1',
+    label: 'Special Paper 1',
+    shortLabel: 'Special Paper 1',
+    icon: '📝',
+    iconKey: 'DocumentText',
+    pastel: '#e0e7ff',
+    color: 'indigo',
+    tailwind: {
+      bg:     'bg-indigo-600',
+      light:  'bg-indigo-50',
+      text:   'text-indigo-700',
+      border: 'border-indigo-200',
+    },
+  },
+  {
+    id: 'creative-technology-studies',
+    label: 'Creative and Technology Studies',
+    shortLabel: 'Creative & Tech',
+    icon: '🛠️',
+    iconKey: 'WrenchScrewdriver',
+    pastel: '#ccfbf1',
+    color: 'teal',
+    tailwind: {
+      bg:     'bg-teal-600',
+      light:  'bg-teal-50',
+      text:   'text-teal-700',
+      border: 'border-teal-200',
+    },
+  },
+]
+
+/**
+ * Full subject universe for the past-paper surfaces: the eight CBC learning
+ * areas plus the special-paper categories above. The Past Paper Studio's
+ * subject dropdown and the public archive's filter/label lookups read from
+ * this so "Special Paper 1" is both uploadable and displayed with a proper
+ * label + icon instead of falling back to the raw id.
+ */
+export const PAPER_SUBJECTS = [...SUBJECTS, ...SPECIAL_PAPER_SUBJECTS]
+
 /** Subject ID → Subject object lookup */
 export const SUBJECT_MAP = Object.fromEntries(SUBJECTS.map(s => [s.id, s]))
 
