@@ -102,13 +102,13 @@ function TaskRow({ task }) {
   return (
     <Link
       to={task.to}
-      className="group flex items-start gap-3 py-3 transition-colors hover:theme-bg-subtle sm:-mx-2 sm:rounded-2xl sm:px-2"
+      className="group flex items-center gap-3 rounded-2xl py-3 transition-colors hover:theme-bg-subtle sm:-mx-2 sm:px-2"
     >
-      <div className={`mt-0.5 flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-2xl ring-1 ${task.done ? 'bg-emerald-100 text-emerald-700 ring-emerald-200' : tone}`}>
+      <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl ring-1 ${task.done ? 'bg-emerald-100 text-emerald-700 ring-emerald-200' : tone}`}>
         <Icon as={task.done ? CheckCircleIcon : task.icon} size="sm" strokeWidth={2.2} />
       </div>
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
           <p className="theme-text text-sm font-black leading-snug">{task.title}</p>
           {task.badge && (
             <span className={`rounded-full px-2 py-0.5 text-[10px] font-black ${tone}`}>
@@ -118,8 +118,8 @@ function TaskRow({ task }) {
         </div>
         <p className="theme-text-muted mt-0.5 text-xs font-bold leading-relaxed">{task.detail}</p>
       </div>
-      <span className="mt-1 inline-flex flex-shrink-0 items-center gap-1 text-xs font-black theme-accent-text transition-transform group-hover:translate-x-0.5">
-        {task.action}
+      <span className="inline-flex flex-shrink-0 items-center gap-1 self-center rounded-full theme-bg-subtle px-2.5 py-1.5 text-xs font-black theme-accent-text transition-transform group-hover:translate-x-0.5">
+        <span className="hidden sm:inline">{task.action}</span>
         <Icon as={ChevronRight} size="xs" strokeWidth={2.4} />
       </span>
     </Link>
@@ -270,9 +270,9 @@ export default function TodayStudyPlan({
           </div>
         </div>
 
-        <div className="mt-4 h-2 overflow-hidden rounded-full bg-white/70 ring-1 ring-white/80">
+        <div className="mt-4 h-2 overflow-hidden rounded-full bg-current/10">
           <div
-            className="h-2 rounded-full bg-gradient-to-r from-emerald-500 to-sky-500 transition-[width] duration-500"
+            className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-sky-500 transition-[width] duration-500"
             style={{ width: `${progress}%` }}
           />
         </div>
