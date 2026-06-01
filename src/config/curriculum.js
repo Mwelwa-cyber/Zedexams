@@ -208,6 +208,21 @@ export const SPECIAL_PAPER_SUBJECTS = [
       border: 'border-indigo-200',
     },
   },
+  {
+    id: 'creative-technology-studies',
+    label: 'Creative and Technology Studies',
+    shortLabel: 'Creative & Tech',
+    icon: '🛠️',
+    iconKey: 'WrenchScrewdriver',
+    pastel: '#ccfbf1',
+    color: 'teal',
+    tailwind: {
+      bg:     'bg-teal-600',
+      light:  'bg-teal-50',
+      text:   'text-teal-700',
+      border: 'border-teal-200',
+    },
+  },
 ]
 
 /**
