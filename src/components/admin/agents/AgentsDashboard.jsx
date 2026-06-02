@@ -32,6 +32,14 @@ const CONTENT_PHASES = [
 
 const SCHEDULED_JOBS = [
   {
+    id: 'hourlyMonitor',
+    label: 'Hourly site monitor',
+    schedule: 'Every hour',
+    timezone: 'Africa/Lusaka',
+    agent: 'vigil',
+    runType: 'hourly-monitor',
+  },
+  {
     id: 'nightlyQaSmoke',
     label: 'Nightly QA smoke',
     schedule: 'Every day 02:00',
@@ -79,6 +87,7 @@ const AGENT_DOT = {
   rex:    '#ec4899',
   ledger: '#60a5fa',
   mendi:  '#f43f5e',
+  vigil:  '#34d399',
 }
 
 function fmtRel(ts) {

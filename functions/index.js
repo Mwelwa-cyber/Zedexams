@@ -158,6 +158,7 @@ const {
 const {
   nightlyQaSmoke: nightlyQaSmokeCron,
   weeklyCbcAlignmentAudit: weeklyCbcAlignmentAuditCron,
+  hourlyMonitor: hourlyMonitorCron,
 } = require("./agents/cron");
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 const {dailyStreakReminders: dailyStreakRemindersCron} = require("./dailyReminders");
@@ -2115,6 +2116,11 @@ exports.nightlyQaSmoke = nightlyQaSmokeCron;
 // Cala — weekly CBC-alignment audit (Africa/Lusaka Sunday 03:00).
 // Re-runs Cala over a sample of recent aiGenerations to catch drift.
 exports.weeklyCbcAlignmentAudit = weeklyCbcAlignmentAuditCron;
+
+// Vigil — hourly site monitor. Checks pages, Firebase, images, and quizzes;
+// on failure suggests fixes (Haiku) and escalates via email + GitHub bug
+// issue (which Mendi can pick up). Writes an agentJobs rollup each run.
+exports.hourlyMonitor = hourlyMonitorCron;
 
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 // Targets learners who practised yesterday but not today, sends a friendly
