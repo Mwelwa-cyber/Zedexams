@@ -41,6 +41,7 @@ while a human owner approves what reaches learners and teachers.
    │  Reva   (Review) │                       │  Ledger (Releases) │
    │  Pubo   (Publish)│                       │  Vex    (Quiz QA)  │
    │                  │                       │  Mendi  (Bug Fix)  │
+   │                  │                       │  Vigil  (Monitor)  │
    └──────────────────┘                       └────────────────────┘
 ```
 
@@ -128,6 +129,26 @@ scope until the queue and approval flow are proven.
   edit, and verify, which a queued runner can't provide. Every change still
   lands behind human review as a draft PR.
 
+#### Vigil — Site Monitor
+- **Mission:** Every hour, sweep four surfaces and catch breakage before a
+  learner does: **pages** (hosting origin + key routes respond, not 5xx),
+  **Firebase** (Firestore reads + Storage bucket reachable), **images** (a
+  sample of content image URLs resolve), and **quizzes** (a sample of
+  published quizzes pass the same structural checks Vex enforces).
+- **Trigger:** Scheduled Cloud Function `hourlyMonitor` (`every 1 hours`,
+  Africa/Lusaka).
+- **Outputs:** An `agentJobs` rollup (`output.vigil`) the `/admin/agents`
+  dashboard surfaces. On failure it asks Haiku for likely causes + fixes,
+  then escalates — **de-duplicated to once per failure per 24h** — via an
+  alert email to `ADMIN_EMAILS` and a GitHub **`bug`** issue, which **Mendi**
+  can pick up and turn into a draft fix PR.
+- **Wraps:** `functions/agents/runners/monitor.js`; Anthropic Haiku 4.5 for
+  the (failure-only) fix suggestions. Deterministic checks run free every
+  hour; tokens are spent only when something is actually wrong.
+- **Notable exception:** like the other QA/Eng agents that need to reach out
+  of Firestore, Vigil runs as a cron rather than through the `agentJobs`
+  queue, but it still writes its result there for visibility.
+
 #### Vex — Quiz Verifier
 - **Mission:** Pre-publish quality check on quizzes — answer accuracy,
   grade fit, clarity, grammar, options quality, and CBC alignment.
@@ -175,7 +196,7 @@ teacher submits brief
 | App (teacher-facing brief form) | Posts to `agentJobs` collection; dispatcher does the rest. |
 | GitHub PR (Rex) | Opens automatically on PR open / sync. |
 | GitHub issue (Mendi) | Add the `bug` label, or comment `/mendi`. Opens a draft fix PR. |
-| Cron (Quill, weekly Cala audit) | Scheduled Firebase Function. |
+| Cron (Quill nightly, weekly Cala audit, Vigil hourly) | Scheduled Firebase Function. |
 
 ## Escalation Paths
 
@@ -200,6 +221,7 @@ teacher submits brief
 | PR reviews | Rex | Eng lead |
 | `docs/CHANGELOG.md` | Ledger | Eng lead |
 | Bug fixes (draft PRs) | Mendi | Eng lead |
+| Site health (pages, Firebase, images, quizzes) | Vigil | Eng lead |
 
 ## Cost Budget (per agent, per day)
 
@@ -213,6 +235,7 @@ teacher submits brief
 | Rex | 200,000 / 50,000 tokens | One review per PR |
 | Ledger | 50,000 / 20,000 tokens | One run per push to main |
 | Mendi | 500,000 / 100,000 tokens | One multi-turn fix per bug issue |
+| Vigil | 50,000 / 20,000 tokens | One small Haiku call only on failed hours |
 | Vex | 100,000 / 30,000 tokens | One Haiku call per Verify & publish |
 
 Caps are enforced via `functions/teacherTools/usageMeter.js` keyed by a
@@ -230,3 +253,8 @@ synthetic ownerUid `agent:<id>` so per-agent spend is auditable in
   `anthropics/claude-code-action` on the `bug` label / `/mendi` comment,
   driven by the existing `.claude/agents/bug-fixer.md` contract; opens a
   draft fix PR for human review.
+- **2026-06-02** — Vigil (Site Monitor) added to QA / Eng. Hourly
+  `hourlyMonitor` cron checks pages, Firebase, images, and quizzes; suggests
+  fixes (Haiku) and escalates failures via email + a GitHub `bug` issue
+  (→ Mendi), de-duplicated to once per failure per 24h. Closes the
+  detect → fix loop.
