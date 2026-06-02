@@ -19,7 +19,7 @@ import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { SUBJECTS } from '../../config/curriculum'
-import { getTodaysExam, checkDailyLock } from '../../utils/examService'
+import { getTodaysExamsBySubject, checkDailyLock } from '../../utils/examService'
 import { getSubjectMascot } from '../games/gamesUi'
 import Navbar from '../layout/Navbar'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -156,12 +156,14 @@ export default function DailyExamsHub() {
     let cancelled = false
 
     async function load() {
+      // One query for the whole day's set, then resolve each subject card
+      // from the normalised map — slug-stored exams still match, and we
+      // avoid a per-subject query (see getTodaysExamsBySubject).
+      const examMap = await getTodaysExamsBySubject(grade)
       const rows = await Promise.all(
         SUBJECTS.map(async subject => {
-          const [exam, lock] = await Promise.all([
-            getTodaysExam(subject.label, grade),
-            checkDailyLock(currentUser.uid, subject.label),
-          ])
+          const exam = examMap.get(subject.label) || null
+          const lock = await checkDailyLock(currentUser.uid, subject.label)
           return { subject, exam, lock }
         }),
       )
