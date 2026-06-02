@@ -275,10 +275,14 @@ async function suggestFixes(apiKey, report) {
 
 const STATE_DOC = "monitorState/vigil";
 const RENOTIFY_MS = 24 * 60 * 60 * 1000;
-const nodemailer = require("nodemailer");
 
 function buildTransporter(smtpUser, smtpPass) {
   if (!smtpUser) return null;
+  // Lazy require: nodemailer is a functions/ dependency, not a repo-root one,
+  // and the test:all runner loads this module against root deps. Requiring it
+  // here keeps the pure-logic tests (which never build a transporter)
+  // dependency-free, while the deployed function resolves it at runtime.
+  const nodemailer = require("nodemailer");
   return nodemailer.createTransport({
     host: "mail.privateemail.com",
     port: 587,
