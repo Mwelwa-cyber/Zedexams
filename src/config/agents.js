@@ -112,6 +112,18 @@ export const AGENTS = [
     invocation: 'Auto when an issue gets the `bug` label, or a maintainer comments /mendi. Manually: invoke the bug-fixer subagent in Claude Code.',
   },
   {
+    id: 'vigil',
+    name: 'Vigil',
+    role: 'Site Monitor',
+    department: 'qaEng',
+    mission: 'Every hour checks pages, Firebase, images, and quizzes; reports failures, suggests fixes, and escalates via email + a GitHub bug issue (which Mendi can pick up).',
+    inputs: 'cron schedule (hourly)',
+    outputs: 'agentJobs rollup (output.vigil) + alert email + bug issues',
+    wraps: 'functions/agents/runners/monitor.js; Anthropic Haiku for fix suggestions',
+    runtime: ['cloud-function'],
+    invocation: 'Cron: every hour. Reports to /admin/agents; alerts ADMIN_EMAILS and files bug issues on failure.',
+  },
+  {
     id: 'vex',
     name: 'Vex',
     role: 'Quiz Verifier',

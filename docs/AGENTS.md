@@ -9,7 +9,7 @@ How to operate the ZedExams agent stack day-to-day. For the *why*
 |---|---|---|
 | Claude Code subagents | `.claude/agents/*.md` | Manual, dev-time invocation from your terminal |
 | Cloud Functions runners | `functions/agents/runners/*.js` *(Phase 2)* | Auto-run when a job lands in `agentJobs` |
-| Cron Functions | `functions/agents/cron.js` *(Phase 2/3)* | `nightlyQaSmoke`, `weeklyCbcAlignmentAudit` |
+| Cron Functions | `functions/agents/cron.js` *(Phase 2/3)* | `nightlyQaSmoke`, `weeklyCbcAlignmentAudit`, `hourlyMonitor` (Vigil) |
 | GitHub Actions | `.github/workflows/agent-*.yml` *(Phase 3)* | PR review (Rex), changelog (Ledger), bug fixes (Mendi), CBC audit |
 | Admin dashboard | `src/components/admin/agents/` | Approve/reject jobs, pause agents, view runs |
 
@@ -71,13 +71,25 @@ subagent to verify it.
    few minutes the **Agent — Mendi bug fixer** workflow runs and, if it
    produces a fix, opens a draft PR linked back on the issue. Close the
    issue / PR afterwards if it was only a smoke test.
+4. Trigger `hourlyMonitor` (Vigil) manually:
+   ```
+   gcloud scheduler jobs run firebase-schedule-hourlyMonitor
+   ```
+   Confirm a `vigil` summary `agentJobs` doc appears (visible in the
+   `/admin/agents` Scheduled-jobs panel). On a clean run it's `done` with no
+   AI spend; on failure it carries `output.vigil.failures` + `suggestions`,
+   emails `ADMIN_EMAILS`, and (if `GITHUB_BOT_TOKEN` is set) files `bug`
+   issues — de-duplicated to once per failure per 24h via `monitorState/vigil`.
 
 ## Secrets & keys
 
 | Name | Where | Used by |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | Firebase secret (`defineSecret`) | Aria, Cala (resolve), Reva |
+| `ANTHROPIC_API_KEY` | Firebase secret (`defineSecret`) | Aria, Cala (resolve), Reva, Vigil (fix suggestions) |
 | `ANTHROPIC_API_KEY` | GitHub repo secret | Rex (PR review), Ledger, Mendi (bug fixer) |
+| `EMAIL_SMTP_USER` / `EMAIL_SMTP_PASSWORD` | Firebase secret | AI-cost summary, Vigil alert email |
+| `ADMIN_EMAILS` | Functions env var | Recipients for Vigil + cost alerts |
+| `GITHUB_BOT_TOKEN` | Firebase secret *(optional)* | Vigil files `bug` issues → Mendi. Unset = issue-filing skipped gracefully. |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Local dev only | `scripts/seed-agent-jobs.mjs` |
 
 Never echo raw Anthropic responses in logs. `aiService.callAnthropic`
