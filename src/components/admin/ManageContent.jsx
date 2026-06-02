@@ -3,6 +3,9 @@ import { Link, useNavigate } from 'react-router-dom'
 import {
   Search, Plus, Download, X, ChevronRight, ChevronDown, Sparkles,
   FileText, BookOpen, ListChecks, Check, FolderOpen,
+  Eye, PencilLine, Clock, AlertTriangle, Bot,
+  EyeOff, Layers, Calendar, Trash2,
+  CheckCircleIcon as CheckCircle, TrophyIcon as Trophy,
 } from '../ui/icons'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
@@ -72,6 +75,23 @@ const LS = {
   banners: 'zed:cl:banners',
 }
 
+// Shared surface + control styling. Softer than the old "sticker" look: white
+// cards, hairline navy border, a whisper of shadow — orange is reserved for the
+// one primary action so it reads as the call-to-action, not decoration.
+const SOFT_CARD  = 'rounded-2xl border border-[#0F1B2D]/[0.08] bg-white shadow-[0_1px_2px_rgba(15,27,45,0.05)]'
+const SELECT_CLS = 'w-full sm:w-auto rounded-xl border border-[#0F1B2D]/15 bg-white px-3 py-2 text-sm font-bold text-[#0F1B2D] focus:border-[#FF7A1A] focus:outline-none focus:ring-2 focus:ring-[#FF7A1A]/20 transition'
+
+// Tinted icon chips for the stat cards. The "warning" tone is also applied to
+// the whole card so "Needs Review" stands out without shouting.
+const STAT_TONES = {
+  slate:   { chip: 'bg-[#0F1B2D]/[0.07] text-[#0F1B2D]' },
+  green:   { chip: 'bg-emerald-100 text-emerald-700' },
+  amber:   { chip: 'bg-amber-100 text-amber-700' },
+  blue:    { chip: 'bg-blue-100 text-blue-700' },
+  pink:    { chip: 'bg-pink-100 text-pink-700' },
+  warning: { chip: 'bg-amber-200 text-amber-800', card: 'border-amber-300 bg-amber-50 shadow-[0_1px_2px_rgba(180,83,9,0.08)]' },
+}
+
 // ── helpers ────────────────────────────────────────────────────────────────
 // Topics are often numbered in CBC style ("6.1 Building Africa Together").
 // Parse the leading dotted code so a subject section reads top-to-bottom in
@@ -89,6 +109,21 @@ function editedAt(item) {
   const ts = item?.updatedAt ?? item?.createdAt
   const d = ts?.toDate?.() ?? (ts ? new Date(ts) : null)
   return d && !Number.isNaN(d.getTime()) ? d.getTime() : 0
+}
+// Short "x ago" label for the card's last-updated line.
+function relativeTime(item) {
+  const t = editedAt(item)
+  if (!t) return null
+  const min = Math.floor((Date.now() - t) / 60000)
+  if (min < 1)  return 'just now'
+  if (min < 60) return `${min}m ago`
+  const hr = Math.floor(min / 60)
+  if (hr < 24)  return `${hr}h ago`
+  const d = Math.floor(hr / 24)
+  if (d < 30)   return `${d}d ago`
+  const mo = Math.floor(d / 30)
+  if (mo < 12)  return `${mo}mo ago`
+  return `${Math.floor(mo / 12)}y ago`
 }
 function paperSubjectLabel(p) {
   return CURRICULUM_SUBJECTS.find(s => s.id === p?.subject)?.label || p?.subject || 'Other'
@@ -139,7 +174,7 @@ function Box({ checked, onClick, label }) {
       aria-pressed={checked}
       onClick={onClick}
       className={`h-[18px] w-[18px] flex-shrink-0 grid place-items-center rounded-[5px] border-2 transition-colors ${
-        checked ? 'bg-[#FF7A1A] border-[#0F1B2D]' : 'bg-white border-[#0F1B2D]/30 hover:border-[#FF7A1A]'
+        checked ? 'bg-[#FF7A1A] border-[#FF7A1A]' : 'bg-white border-[#0F1B2D]/25 hover:border-[#FF7A1A]'
       }`}
     >
       {checked && <Check className="h-3 w-3 text-white" strokeWidth={3} />}
@@ -147,16 +182,26 @@ function Box({ checked, onClick, label }) {
   )
 }
 
-function MenuItem({ onClick, danger, children }) {
+// Three-dot glyph for the "More" trigger — no lucide MoreVertical in our set.
+function DotsIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true">
+      <circle cx="12" cy="5" r="1.9" /><circle cx="12" cy="12" r="1.9" /><circle cx="12" cy="19" r="1.9" />
+    </svg>
+  )
+}
+
+function MenuItem({ onClick, danger, icon, children }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-[13px] font-bold transition-colors hover:bg-amber-50 ${
-        danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700'
+      className={`flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-[13px] font-bold transition-colors ${
+        danger ? 'text-red-600 hover:bg-red-50' : 'text-gray-700 hover:bg-[#FBF7EF]'
       }`}
     >
-      {children}
+      {icon && <Icon as={icon} size="sm" className={danger ? 'text-red-500' : 'text-[#4A5A6E]'} />}
+      <span className="flex-1">{children}</span>
     </button>
   )
 }
@@ -184,8 +229,12 @@ function DailyExamModal({ quiz, onSave, onClose }) {
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40" onClick={onClose}>
       <div className="bg-white rounded-3xl shadow-xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="font-black text-gray-800 text-base">🏆 Set as Daily Exam</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">✕</button>
+          <h2 className="font-black text-gray-800 text-base flex items-center gap-2">
+            <Icon as={Trophy} size="sm" className="text-[#FF7A1A]" /> Set as Daily Exam
+          </h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600" aria-label="Close">
+            <Icon as={X} size="md" />
+          </button>
         </div>
         <p className="text-xs text-gray-500 mb-4 font-bold line-clamp-2">{quiz.title}</p>
         <div className="space-y-3">
@@ -202,7 +251,7 @@ function DailyExamModal({ quiz, onSave, onClose }) {
               className="w-full border-2 border-gray-200 rounded-xl px-3 py-2 text-sm focus:border-amber-500 focus:outline-none" />
             <p className="text-xs text-gray-400 mt-1">Tip: 45–60 min for 50+ question papers</p>
           </div>
-          <div className="rounded-xl border-2 theme-border bg-gray-50 px-3 py-2.5">
+          <div className="rounded-xl border-2 border-gray-200 bg-gray-50 px-3 py-2.5">
             <label className="flex cursor-pointer items-center justify-between gap-3">
               <div className="min-w-0">
                 <p className="text-xs font-black text-gray-700">Mark as Demo Exam</p>
@@ -223,7 +272,7 @@ function DailyExamModal({ quiz, onSave, onClose }) {
         <div className="flex gap-2 mt-5">
           <button onClick={handleSave} disabled={saving || !date}
             className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-black text-sm rounded-xl py-2.5 disabled:opacity-50 transition-colors">
-            {saving ? 'Saving…' : '🏆 Confirm Daily Exam'}
+            {saving ? 'Saving…' : 'Confirm Daily Exam'}
           </button>
           <button onClick={onClose}
             className="px-4 py-2.5 rounded-xl border-2 border-gray-200 text-gray-600 text-sm font-bold hover:bg-gray-50">
@@ -235,13 +284,36 @@ function DailyExamModal({ quiz, onSave, onClose }) {
   )
 }
 
+// ── compact status banner ───────────────────────────────────────────────────
+// Soft, low-profile alert: a tinted icon chip, a one-line title + short
+// explanation, and a single action button on the right.
+const BANNER_TONES = {
+  info:    { wrap: 'border-sky-200 bg-sky-50',     chip: 'bg-sky-100 text-sky-700',     title: 'text-sky-900',   text: 'text-sky-700' },
+  warning: { wrap: 'border-amber-200 bg-amber-50', chip: 'bg-amber-100 text-amber-700', title: 'text-amber-900', text: 'text-amber-700' },
+}
+function StatusBanner({ tone = 'info', icon, title, desc, action }) {
+  const t = BANNER_TONES[tone] ?? BANNER_TONES.info
+  return (
+    <div className={`flex items-center gap-3 rounded-xl border ${t.wrap} px-3 py-2.5`}>
+      <span className={`grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg ${t.chip}`}>
+        <Icon as={icon} size="sm" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className={`text-[13px] font-black leading-tight ${t.title}`}>{title}</p>
+        {desc && <p className={`mt-0.5 text-[11.5px] font-semibold leading-snug ${t.text}`}>{desc}</p>}
+      </div>
+      {action && <div className="flex-shrink-0">{action}</div>}
+    </div>
+  )
+}
+
 // Long quizzes (≥ EXAM_ONLY_QUESTION_THRESHOLD questions) are exam-only — they
 // never appear in the /quizzes practice library and the daily auto-picker
 // skips them. Admins pin them as Daily Exam manually. isExamOnly / the
 // threshold live in utils/quizClassification.js so the in-editor publish path
 // stays in sync.
 
-// ── compact row ─────────────────────────────────────────────────────────────
+// ── compact item card ─────────────────────────────────────────────────────
 function Row({ tab, item, selected, onSelect, menuOpen, onMenu, actions, busy }) {
   const id = item.id || item._id || ''
   const code = tab === 'pastpapers' ? '' : parseTopicCode(item)
@@ -258,17 +330,17 @@ function Row({ tab, item, selected, onSelect, menuOpen, onMenu, actions, busy })
     const qCount = item.questionCount ?? '?'
     const duration = item.durationMinutes || item.duration || '?'
     editTo = id ? `/admin/quizzes/${id}/edit` : '/admin/content'
-    preview = id ? { href: `/quiz/${id}`, label: item.isPublished ? '👁 Preview' : '👁 Test draft' } : null
-    meta = `${qCount}Q · ${duration}m`
+    preview = id ? { href: `/quiz/${id}`, label: item.isPublished ? 'Preview' : 'Test draft' } : null
+    meta = `${qCount} Q · ${duration}m`
     badges = (
       <>
         {quizType === 'daily_exam' && <Pill color="bg-amber-100 text-amber-700">🏆 Daily · {item.dailyExamDate}</Pill>}
-        {quizType !== 'daily_exam' && examOnly && item.isPublished && <Pill color="bg-amber-100 text-amber-700">🏆 Exam-only</Pill>}
-        {quizType === 'practice' && !examOnly && <Pill color="bg-green-100 text-green-700">📝 Practice</Pill>}
-        {!quizType && !examOnly && <Pill color="bg-gray-100 text-gray-500">⚠ Unclassified</Pill>}
-        {!quizType && examOnly && !item.isPublished && <Pill color="bg-gray-100 text-gray-500">⚠ Unpublished</Pill>}
-        {item.isDemo && <Pill color="bg-sky-100 text-sky-700">🎁 Demo</Pill>}
-        {item.sourcePastPaperId && <Pill color="bg-violet-100 text-violet-700">📄 From paper</Pill>}
+        {quizType !== 'daily_exam' && examOnly && item.isPublished && <Pill color="bg-amber-100 text-amber-700">Exam-only</Pill>}
+        {quizType === 'practice' && !examOnly && <Pill color="bg-green-100 text-green-700">Practice</Pill>}
+        {!quizType && !examOnly && <Pill color="bg-gray-100 text-gray-500">Unclassified</Pill>}
+        {!quizType && examOnly && !item.isPublished && <Pill color="bg-gray-100 text-gray-500">Unpublished</Pill>}
+        {item.isDemo && <Pill color="bg-sky-100 text-sky-700">Demo</Pill>}
+        {item.sourcePastPaperId && <Pill color="bg-violet-100 text-violet-700">From paper</Pill>}
         <ImportReviewBadge record={item} />
       </>
     )
@@ -282,7 +354,7 @@ function Row({ tab, item, selected, onSelect, menuOpen, onMenu, actions, busy })
     const status = item.status || PAPER_STATUSES.DRAFT
     const ms = splitAssetsByRole(item.assets).markScheme.length > 0 || item.markSchemePath
     editTo = id ? `/admin/papers/${id}/edit` : '/admin/content'
-    preview = id ? { href: `/papers/${id}`, label: '👁 Preview' } : null
+    preview = id ? { href: `/papers/${id}`, label: 'Preview' } : null
     meta = `${item.views || 0} views · ${item.downloads || 0} dl`
     badges = (
       <>
@@ -297,53 +369,71 @@ function Row({ tab, item, selected, onSelect, menuOpen, onMenu, actions, busy })
   }
 
   const title = item.title || (tab === 'pastpapers' ? `${paperSubjectLabel(item)} ${item.year || ''}`.trim() : 'Untitled')
-  const grade = item.grade ? `G${item.grade}` : null
+  const grade = item.grade ? `Grade ${item.grade}` : null
   const subject = tab === 'pastpapers' ? paperSubjectLabel(item) : item.subject
+  const updated = relativeTime(item)
+
+  // small visible action buttons — Preview, Edit, More (everything else lives
+  // in the More menu so the card stays uncluttered)
+  const btnBase = 'inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-[12px] font-bold transition'
 
   return (
     <div
-      className={`group flex items-center gap-2.5 px-3 sm:px-4 py-2.5 border-t border-[#0F1B2D]/8 transition-colors ${
-        selected ? 'bg-[#FFF4EA] shadow-[inset_3px_0_0_#FF7A1A]' : 'hover:bg-[#FBF7EF]'
+      className={`group flex items-center gap-3 rounded-xl px-3 py-2.5 transition-colors ${
+        selected
+          ? 'bg-[#FFF4EA] ring-2 ring-[#FF7A1A]/60'
+          : 'bg-white ring-1 ring-[#0F1B2D]/[0.06] hover:ring-[#0F1B2D]/15'
       }`}
     >
       <span className={selected ? 'opacity-100' : 'opacity-40 group-hover:opacity-100 transition-opacity'}>
         <Box checked={selected} onClick={e => onSelect(id, e.shiftKey)} label={`Select ${title}`} />
       </span>
 
-      {code && (
-        <span className="hidden sm:inline font-mono text-[11px] font-bold text-gray-600 bg-[#F4F0E7] border border-[#0F1B2D]/15 rounded-md px-1.5 py-0.5 flex-shrink-0">
-          {code}
-        </span>
-      )}
-
-      <div className="flex-1 min-w-0 flex flex-wrap items-center gap-1.5">
-        <span className="font-black text-gray-800 text-[13.5px] leading-tight truncate max-w-full sm:max-w-[340px]" title={title}>
-          {title}
-        </span>
-        {subject && <Pill color={SUBJECT_COLORS[subject] ?? 'bg-gray-100 text-gray-700'}>{subject}</Pill>}
-        {grade && <Pill color="bg-indigo-100 text-indigo-700">{grade}</Pill>}
-        {meta && <span className="text-[11px] font-semibold text-gray-400">{meta}</span>}
-        {badges}
+      <div className="flex-1 min-w-0">
+        {/* line 1 — code + title + status badges */}
+        <div className="flex flex-wrap items-center gap-1.5">
+          {code && (
+            <span className="font-mono text-[10.5px] font-bold text-gray-500 bg-[#F4F0E7] border border-[#0F1B2D]/10 rounded-md px-1.5 py-px flex-shrink-0">
+              {code}
+            </span>
+          )}
+          <span className="font-extrabold text-[#0F1B2D] text-[13.5px] leading-tight truncate max-w-full sm:max-w-[300px]" title={title}>
+            {title}
+          </span>
+          {badges}
+        </div>
+        {/* line 2 — subject · grade · questions · updated */}
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1">
+          {subject && <Pill color={SUBJECT_COLORS[subject] ?? 'bg-gray-100 text-gray-700'}>{subject}</Pill>}
+          {grade && <Pill color="bg-indigo-100 text-indigo-700">{grade}</Pill>}
+          {meta && <span className="text-[11px] font-semibold text-gray-400">{meta}</span>}
+          {updated && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-gray-400">
+              <Icon as={Clock} size="xs" /> {updated}
+            </span>
+          )}
+        </div>
       </div>
 
       <div className="flex items-center gap-1.5 flex-shrink-0">
-        <Link
-          to={editTo}
-          aria-disabled={!id}
-          className="inline-flex items-center gap-1 text-[12px] font-bold px-2.5 py-1.5 rounded-lg bg-[#FFEDD5] text-[#C2410C] hover:brightness-95 transition"
-        >
-          ✏️<span className="hidden sm:inline">Edit</span>
-        </Link>
         {preview && (
           <a
             href={preview.href}
             target="_blank"
             rel="noopener noreferrer"
-            className="hidden sm:inline-flex items-center gap-1 text-[12px] font-bold px-2.5 py-1.5 rounded-lg border border-sky-300 text-sky-700 hover:bg-sky-50 transition"
+            className={`${btnBase} border border-[#0F1B2D]/12 bg-white text-[#4A5A6E] hover:bg-[#FBF7EF]`}
+            title={preview.label}
           >
-            {preview.label}
+            <Icon as={Eye} size="sm" /><span className="hidden sm:inline">{preview.label}</span>
           </a>
         )}
+        <Link
+          to={editTo}
+          aria-disabled={!id}
+          className={`${btnBase} bg-[#FFEDD5] text-[#C2410C] hover:brightness-95`}
+        >
+          <Icon as={PencilLine} size="sm" /><span className="hidden sm:inline">Edit</span>
+        </Link>
         <div className="relative">
           <button
             type="button"
@@ -353,46 +443,47 @@ function Row({ tab, item, selected, onSelect, menuOpen, onMenu, actions, busy })
             aria-expanded={menuOpen}
             className="grid h-8 w-8 place-items-center rounded-lg text-gray-500 hover:bg-gray-100 transition"
           >
-            <span className="text-lg leading-none" aria-hidden="true">⋮</span>
+            <DotsIcon />
           </button>
           {menuOpen && (
-            <div role="menu" className="absolute right-0 top-[calc(100%+4px)] z-50 min-w-[184px] rounded-xl border-2 border-[#0F1B2D] bg-white p-1.5 shadow-[0_12px_34px_rgba(15,27,45,0.18)]">
+            <div role="menu" className="absolute right-0 top-[calc(100%+4px)] z-50 min-w-[200px] rounded-xl border border-[#0F1B2D]/10 bg-white p-1.5 shadow-[0_12px_34px_rgba(15,27,45,0.16)]">
               {tab === 'quizzes' && (
                 <>
                   {!item.isPublished && (
-                    <MenuItem onClick={() => { onMenu(null); actions.publish(item) }}>✅ Publish</MenuItem>
+                    <MenuItem icon={CheckCircle} onClick={() => { onMenu(null); actions.publish(item) }}>Publish</MenuItem>
                   )}
                   {item.quizType !== 'daily_exam' && (
-                    <MenuItem onClick={() => { onMenu(null); actions.daily(item) }}>🏆 Set as Daily Exam</MenuItem>
+                    <MenuItem icon={Trophy} onClick={() => { onMenu(null); actions.daily(item) }}>Assign to Daily Exam</MenuItem>
                   )}
                   {(item.quizType || item.isPublished) && (
-                    <MenuItem onClick={() => { onMenu(null); actions.unassign(item) }}>📌 Unassign</MenuItem>
+                    <MenuItem icon={EyeOff} onClick={() => { onMenu(null); actions.unassign(item) }}>Unassign</MenuItem>
                   )}
+                  <MenuItem icon={Layers} onClick={() => { onMenu(null); actions.classify(item) }}>Classify</MenuItem>
                   <div className="my-1 h-px bg-gray-100" />
-                  <MenuItem danger onClick={() => { onMenu(null); actions.remove(item) }}>🗑 Delete</MenuItem>
+                  <MenuItem icon={Trash2} danger onClick={() => { onMenu(null); actions.remove(item) }}>Delete</MenuItem>
                 </>
               )}
               {tab === 'lessons' && (
                 <>
-                  <MenuItem onClick={() => { onMenu(null); actions.togglePublish(item) }}>
-                    {item.isPublished ? '📦 Unpublish' : '✅ Publish'}
+                  <MenuItem icon={item.isPublished ? EyeOff : CheckCircle} onClick={() => { onMenu(null); actions.togglePublish(item) }}>
+                    {item.isPublished ? 'Unpublish' : 'Publish'}
                   </MenuItem>
                   <div className="my-1 h-px bg-gray-100" />
-                  <MenuItem danger onClick={() => { onMenu(null); actions.remove(item) }}>🗑 Delete</MenuItem>
+                  <MenuItem icon={Trash2} danger onClick={() => { onMenu(null); actions.remove(item) }}>Delete</MenuItem>
                 </>
               )}
               {tab === 'pastpapers' && (
                 <>
                   {item.pdfPath && (
-                    <MenuItem onClick={() => { onMenu(null); actions.convert(item) }} >
-                      {busy === item.id ? '… converting' : '✨ Convert to quiz'}
+                    <MenuItem icon={Sparkles} onClick={() => { onMenu(null); actions.convert(item) }}>
+                      {busy === item.id ? 'Converting…' : 'Convert to quiz'}
                     </MenuItem>
                   )}
-                  <MenuItem onClick={() => { onMenu(null); actions.togglePublish(item) }}>
-                    {item.status === 'published' ? '📦 Unpublish' : '✅ Publish'}
+                  <MenuItem icon={item.status === 'published' ? EyeOff : CheckCircle} onClick={() => { onMenu(null); actions.togglePublish(item) }}>
+                    {item.status === 'published' ? 'Unpublish' : 'Publish'}
                   </MenuItem>
                   <div className="my-1 h-px bg-gray-100" />
-                  <MenuItem danger onClick={() => { onMenu(null); actions.remove(item) }}>🗑 Delete</MenuItem>
+                  <MenuItem icon={Trash2} danger onClick={() => { onMenu(null); actions.remove(item) }}>Delete</MenuItem>
                 </>
               )}
             </div>
@@ -609,6 +700,13 @@ export default function ManageContent() {
   // ── Bulk actions ────────────────────────────────────────────────────────
   function clearSelection() { setSelected(new Set()); setClassifyMode(false); lastIndexRef.current = null }
 
+  // Per-item "Classify": select just this quiz and open the classify chooser
+  // in the bulk bar so the admin can tag it Practice or Exam-only.
+  function classifyItem(item) {
+    setSelected(new Set([item.id]))
+    setClassifyMode(true)
+  }
+
   async function bulkClassify(type) {
     const ids = [...selected]
     if (!ids.length) return
@@ -762,25 +860,30 @@ export default function ManageContent() {
   }
 
   // ── Stats ───────────────────────────────────────────────────────────────
+  const totalNeedsReview = useMemo(
+    () => quizzes.filter(q => summarizeImportReview(q).needsReview).length,
+    [quizzes],
+  )
+
   const stats = useMemo(() => {
     if (tab === 'quizzes') return [
-      { label: 'Total',         value: quizzes.length, t: 't-purple' },
-      { label: '📝 Practice',   value: quizzes.filter(q => q.quizType === 'practice' && !isExamOnly(q)).length, t: 't-mint' },
-      { label: '🏆 Exam-only',  value: quizzes.filter(q => isExamOnly(q) && q.isPublished && q.quizType !== 'daily_exam').length, t: 't-amber' },
-      { label: '🏆 Daily',      value: quizzes.filter(q => q.quizType === 'daily_exam').length, t: 't-amber' },
-      { label: '⚠ Unpublished', value: quizzes.filter(q => !q.isPublished).length, t: 't-pink' },
+      { label: 'Total',       value: quizzes.length, icon: Layers,        tone: 'slate' },
+      { label: 'Practice',    value: quizzes.filter(q => q.quizType === 'practice' && !isExamOnly(q)).length, icon: PencilLine, tone: 'green' },
+      { label: 'Exam-only',   value: quizzes.filter(q => isExamOnly(q) && q.isPublished && q.quizType !== 'daily_exam').length, icon: Trophy, tone: 'amber' },
+      { label: 'Daily',       value: quizzes.filter(q => q.quizType === 'daily_exam').length, icon: Calendar, tone: 'blue' },
+      { label: 'Needs Review', value: totalNeedsReview, icon: AlertTriangle, tone: 'warning' },
     ]
     if (tab === 'lessons') return [
-      { label: 'Total',         value: lessons.length, t: 't-purple' },
-      { label: '✅ Published',  value: lessons.filter(l => l.isPublished).length, t: 't-mint' },
-      { label: '⚠ Unpublished', value: lessons.filter(l => !l.isPublished).length, t: 't-pink' },
+      { label: 'Total',       value: lessons.length, icon: Layers, tone: 'slate' },
+      { label: 'Published',   value: lessons.filter(l => l.isPublished).length, icon: CheckCircle, tone: 'green' },
+      { label: 'Unpublished', value: lessons.filter(l => !l.isPublished).length, icon: EyeOff, tone: 'pink' },
     ]
     return [
-      { label: 'Total',       value: papers.length, t: 't-purple' },
-      { label: '✅ Published', value: papers.filter(p => p.status === 'published').length, t: 't-mint' },
-      { label: '📝 Drafts',    value: papers.filter(p => (p.status || 'draft') !== 'published').length, t: 't-amber' },
+      { label: 'Total',     value: papers.length, icon: Layers, tone: 'slate' },
+      { label: 'Published', value: papers.filter(p => p.status === 'published').length, icon: CheckCircle, tone: 'green' },
+      { label: 'Drafts',    value: papers.filter(p => (p.status || 'draft') !== 'published').length, icon: PencilLine, tone: 'amber' },
     ]
-  }, [tab, quizzes, lessons, papers])
+  }, [tab, quizzes, lessons, papers, totalNeedsReview])
 
   const needsReviewCount = useMemo(() => quizzes.reduce((count, q) => {
     if (!summarizeImportReview(q).needsReview) return count
@@ -798,12 +901,11 @@ export default function ManageContent() {
     publish: publishQuiz,
     daily: q => setDailyQuiz(q),
     unassign: unassignQuiz,
+    classify: classifyItem,
     togglePublish: tab === 'lessons' ? toggleLessonPublish : togglePaperPublish,
     convert: convertPaper,
     remove: item => requestDelete(tab === 'quizzes' ? 'quiz' : tab === 'lessons' ? 'lesson' : 'paper', item),
   }
-
-  const selectStyle = 'border-2 border-gray-200 rounded-xl px-3 py-2 text-sm font-bold focus:border-amber-500 focus:outline-none bg-white'
 
   return (
     <div className="space-y-5">
@@ -856,25 +958,29 @@ export default function ManageContent() {
       )}
 
       {/* Header */}
-      <div className="flex items-start justify-between gap-3 flex-wrap">
-        <div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="min-w-0">
           <span className="admin-game-eyebrow">Library</span>
-          <h1 className="admin-game-display text-gray-800 mt-1 flex items-center gap-2" style={{ fontSize: 30 }}>
-            <Icon as={FolderOpen} className="text-[#FF7A1A]" /> Content Library
+          <h1 className="admin-game-display text-[#0F1B2D] mt-1 flex items-center gap-2.5" style={{ fontSize: 30 }}>
+            <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#FFEDD5] text-[#C2410C]">
+              <Icon as={FolderOpen} size="md" />
+            </span>
+            Content Library
           </h1>
-          <p className="text-sm text-gray-500 mt-1 font-semibold">Edit, publish & organise lessons, quizzes and past papers.</p>
+          <p className="text-sm text-[#4A5A6E] mt-1.5 font-semibold">Manage quizzes, lessons, past papers, and published learning content.</p>
         </div>
-        <div className="flex gap-2 flex-wrap">
-          <Button as={Link} to="/admin/quizzes/new?mode=ai" variant="primary" size="md" leadingIcon={<Icon as={Sparkles} size="sm" />}>AI Quiz</Button>
-          <Button as={Link} to="/admin/quizzes/new?mode=import" variant="secondary" size="md" leadingIcon={<Icon as={Download} size="sm" />}>Import (Word/PDF)</Button>
-          <Button as={Link} to="/admin/quizzes/new" variant="secondary" size="md" leadingIcon={<Icon as={Plus} size="sm" />}>Manual quiz</Button>
-          <Button as={Link} to="/admin/papers/new" variant="secondary" size="md" leadingIcon={<Icon as={FileText} size="sm" />}>Past paper</Button>
-          <Button as={Link} to="/admin/lessons/new" variant="secondary" size="md" leadingIcon={<Icon as={BookOpen} size="sm" />}>Lesson</Button>
+        <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:justify-end">
+          <Button as={Link} to="/admin/quizzes/new?mode=ai" variant="primary" size="md" className="w-full sm:w-auto" leadingIcon={<Icon as={Sparkles} size="sm" />}>AI Quiz</Button>
+          <Button as={Link} to="/admin/quizzes/new?mode=import" variant="secondary" size="md" className="w-full sm:w-auto" leadingIcon={<Icon as={Download} size="sm" />}>Import Word/PDF</Button>
+          <Button as={Link} to="/admin/quizzes/new" variant="secondary" size="md" className="w-full sm:w-auto" leadingIcon={<Icon as={Plus} size="sm" />}>Manual Quiz</Button>
+          <Button as={Link} to="/admin/lessons/new" variant="secondary" size="md" className="w-full sm:w-auto" leadingIcon={<Icon as={BookOpen} size="sm" />}>Lesson</Button>
+          <Button as={Link} to="/admin/papers/new" variant="secondary" size="md" className="w-full sm:w-auto" leadingIcon={<Icon as={FileText} size="sm" />}>Past Paper</Button>
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="inline-flex flex-wrap gap-1.5 rounded-2xl border-2 border-[#0F1B2D] bg-white p-1.5 shadow-[0_2px_0_#0F1B2D]">
+      {/* Tabs — segmented control. Active = white pill on a soft track, not a
+          bright fill, so it reads professional. */}
+      <div className="inline-flex flex-wrap gap-1 rounded-2xl bg-[#0F1B2D]/[0.05] p-1">
         {TABS.map(t => {
           const active = tab === t.id
           return (
@@ -882,14 +988,14 @@ export default function ManageContent() {
               key={t.id}
               onClick={() => setTab(t.id)}
               aria-pressed={active}
-              className={`inline-flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-black transition-all ${
+              className={`inline-flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-bold transition-all ${
                 active
-                  ? (t.id === 'pastpapers' ? 'bg-[#1E5FA8] text-white' : 'bg-[#10864E] text-white')
-                  : 'text-gray-600 hover:bg-gray-100'
+                  ? 'bg-white text-[#0F1B2D] shadow-[0_1px_3px_rgba(15,27,45,0.12)]'
+                  : 'text-[#4A5A6E] hover:text-[#0F1B2D]'
               }`}
             >
-              <Icon as={t.icon} size="sm" /> {t.label}
-              <span className={`ml-0.5 rounded-full px-1.5 text-[11px] font-black ${active ? 'bg-white/25 text-white' : 'bg-gray-200 text-gray-600'}`}>
+              <Icon as={t.icon} size="sm" className={active ? 'text-[#FF7A1A]' : ''} /> {t.label}
+              <span className={`ml-0.5 rounded-full px-1.5 text-[11px] font-black ${active ? 'bg-[#FFEDD5] text-[#C2410C]' : 'bg-[#0F1B2D]/8 text-[#4A5A6E]'}`}>
                 {counts[t.id]}
               </span>
             </button>
@@ -897,128 +1003,148 @@ export default function ManageContent() {
         })}
       </div>
 
-      {/* Banners (quizzes only) */}
+      {/* Status banners (quizzes only) */}
       {tab === 'quizzes' && !loading && !bannersOff.has('picker') && (
-        <div className="flex items-start gap-3 rounded-2xl border-2 border-amber-200 bg-amber-50 px-4 py-3">
-          <span aria-hidden="true">🤖</span>
-          <p className="text-amber-800 text-xs leading-snug flex-1">
-            <b className="text-sm">Daily Exam auto-picker is on.</b> Every morning (Lusaka time) one short quiz per grade is promoted to today's Daily Exam, then sent back to Practice the next day. Quizzes with {EXAM_ONLY_QUESTION_THRESHOLD}+ questions are exam-only — they never auto-rotate, you pin those manually with 🏆 Set as Daily Exam.
-          </p>
-          <button onClick={() => setBannersOff(s => new Set(s).add('picker'))} aria-label="Dismiss" className="text-amber-700 hover:text-amber-900 flex-shrink-0">
-            <Icon as={X} size="sm" />
-          </button>
-        </div>
+        <StatusBanner
+          tone="info"
+          icon={Bot}
+          title="Daily Exam Auto-Picker · Active"
+          desc={`Each morning (Lusaka time) one short quiz per grade is promoted to today's Daily Exam, then returned to Practice the next day. Quizzes with ${EXAM_ONLY_QUESTION_THRESHOLD}+ questions are exam-only — pin those manually.`}
+          action={
+            <button
+              onClick={() => setBannersOff(s => new Set(s).add('picker'))}
+              className="rounded-lg px-3 py-1.5 text-xs font-bold text-sky-700 hover:bg-sky-100 transition-colors"
+            >
+              Dismiss
+            </button>
+          }
+        />
       )}
       {tab === 'quizzes' && !loading && legacyQuizzes.length > 0 && (
-        <div className="flex items-center justify-between gap-4 rounded-2xl border-2 border-orange-300 bg-orange-50 px-4 py-3">
-          <div>
-            <p className="font-black text-orange-800 text-sm">⚠ {legacyQuizzes.length} quiz{legacyQuizzes.length !== 1 ? 'zes' : ''} need classification</p>
-            <p className="text-orange-700 text-xs mt-0.5">Tag as Practice or Exam-only — or select them below and use the bulk bar.</p>
-          </div>
-          <button onClick={migrateLegacyQuizzes} disabled={migrating}
-            className="flex-shrink-0 bg-orange-500 hover:bg-orange-600 text-white font-black text-xs rounded-xl px-4 py-2 disabled:opacity-50 transition-colors whitespace-nowrap">
-            {migrating ? 'Classifying…' : '📝 Classify all'}
-          </button>
-        </div>
+        <StatusBanner
+          tone="warning"
+          icon={AlertTriangle}
+          title={`${legacyQuizzes.length} quiz${legacyQuizzes.length !== 1 ? 'zes' : ''} need classification`}
+          desc="Tag each as Practice or Exam-only — or select them below and use the bulk bar."
+          action={
+            <button
+              onClick={migrateLegacyQuizzes}
+              disabled={migrating}
+              className="rounded-lg bg-amber-500 px-3.5 py-1.5 text-xs font-black text-white hover:bg-amber-600 disabled:opacity-50 transition-colors whitespace-nowrap"
+            >
+              {migrating ? 'Classifying…' : 'Classify all'}
+            </button>
+          }
+        />
       )}
 
-      {/* Stats */}
+      {/* Stats — compact dashboard cards */}
       {!loading && (
-        <div className="stats-row stagger">
-          {stats.map(s => (
-            <div key={s.label} className={`stat-tile ${s.t} animate-slide-in-soft`}>
-              <span className="stat-num">{s.value}</span>
-              <span className="stat-label">{s.label}</span>
-            </div>
-          ))}
+        <div className={`grid grid-cols-2 gap-3 ${stats.length === 5 ? 'sm:grid-cols-3 lg:grid-cols-5' : 'sm:grid-cols-3'}`}>
+          {stats.map(s => {
+            const tone = STAT_TONES[s.tone] ?? STAT_TONES.slate
+            return (
+              <div key={s.label} className={`flex items-center gap-3 rounded-2xl border p-3 ${tone.card || 'border-[#0F1B2D]/[0.08] bg-white shadow-[0_1px_2px_rgba(15,27,45,0.05)]'}`}>
+                <span className={`grid h-9 w-9 flex-shrink-0 place-items-center rounded-xl ${tone.chip}`}>
+                  <Icon as={s.icon} size="sm" />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xl font-extrabold leading-none text-[#0F1B2D]">{s.value}</p>
+                  <p className="mt-1 text-[10.5px] font-bold uppercase tracking-wide text-[#4A5A6E] truncate">{s.label}</p>
+                </div>
+              </div>
+            )
+          })}
         </div>
       )}
 
-      {/* Toolbar */}
-      <div className="flex gap-2 flex-wrap items-center">
-        <div className="relative flex-1 min-w-[180px]">
-          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><Icon as={Search} size="sm" /></span>
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Search title, subject, topic…"
-            aria-label="Search content"
-            className="w-full border-2 border-gray-200 rounded-xl pl-9 pr-3 py-2 text-sm focus:border-amber-500 focus:outline-none"
-          />
+      {/* Filters — one search bar + dropdowns; stacks on mobile */}
+      <div className={`${SOFT_CARD} p-3`}>
+        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="relative w-full sm:flex-1 sm:min-w-[200px]">
+            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"><Icon as={Search} size="sm" /></span>
+            <input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Search title, subject, topic…"
+              aria-label="Search content"
+              className="w-full rounded-xl border border-[#0F1B2D]/15 bg-white pl-9 pr-3 py-2 text-sm focus:border-[#FF7A1A] focus:outline-none focus:ring-2 focus:ring-[#FF7A1A]/20 transition"
+            />
+          </div>
+          <select value={gradeF} onChange={e => setGradeF(e.target.value)} className={SELECT_CLS} aria-label="Filter by grade">
+            <option value="">All Grades</option>
+            {gradeOptions.map(g => <option key={g} value={g}>Grade {g}</option>)}
+          </select>
+          <select value={subjectF} onChange={e => setSubjectF(e.target.value)} className={SELECT_CLS} aria-label="Filter by subject">
+            {SUBJECTS.map(s => <option key={s} value={s}>{s || 'All Subjects'}</option>)}
+          </select>
+          {tab === 'quizzes' && (
+            <select value={quizTypeF} onChange={e => setQuizTypeF(e.target.value)} className={SELECT_CLS} aria-label="Filter by type">
+              <option value="">All Types</option>
+              <option value="practice">Practice</option>
+              <option value="exam_only">Exam only</option>
+              <option value="daily_exam">Daily Exam</option>
+              <option value="unclassified">Unclassified</option>
+              <option value="unpublished">Unpublished</option>
+              <option value="from_past_paper">From past paper</option>
+            </select>
+          )}
+          {tab === 'pastpapers' && (
+            <select value={paperStatusF} onChange={e => setPaperStatusF(e.target.value)} className={SELECT_CLS} aria-label="Filter by status">
+              <option value="">All Statuses</option>
+              <option value="published">Published</option>
+              <option value="draft">Draft</option>
+              <option value="archived">Archived</option>
+            </select>
+          )}
+          {tab === 'quizzes' && (
+            <button
+              type="button"
+              onClick={() => setNeedsReviewOnly(v => !v)}
+              aria-pressed={needsReviewOnly}
+              disabled={!needsReviewOnly && needsReviewCount === 0}
+              className={`inline-flex items-center justify-center gap-1.5 rounded-xl border px-3 py-2 text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto ${
+                needsReviewOnly ? 'border-amber-400 bg-amber-100 text-amber-800' : 'border-[#0F1B2D]/15 bg-white text-[#4A5A6E] hover:border-amber-300'
+              }`}
+              title={needsReviewOnly ? 'Click to show all imports' : needsReviewCount > 0 ? `${needsReviewCount} imported draft(s) flagged` : 'No imports need review'}
+            >
+              <Icon as={AlertTriangle} size="sm" /> Needs review
+              {needsReviewCount > 0 && (
+                <span className="inline-flex items-center justify-center rounded-full bg-amber-500 px-1.5 text-[11px] font-black text-white min-w-[20px]">{needsReviewCount}</span>
+              )}
+            </button>
+          )}
+          <select value={sortBy} onChange={e => setSortBy(e.target.value)} className={SELECT_CLS} title="Sort within each subject" aria-label="Sort">
+            {SORTS.map(s => <option key={s.id} value={s.id}>Sort: {s.label}</option>)}
+          </select>
+          {hasFilters && (
+            <Button variant="ghost" size="sm" className="w-full sm:w-auto" leadingIcon={<Icon as={X} size="sm" />}
+              onClick={() => { setSearch(''); setGradeF(''); setSubjectF(''); setQuizTypeF(''); setPaperStatusF(''); setNeedsReviewOnly(false) }}>
+              Clear
+            </Button>
+          )}
         </div>
-        <select value={gradeF} onChange={e => setGradeF(e.target.value)} className={selectStyle}>
-          <option value="">All Grades</option>
-          {gradeOptions.map(g => <option key={g} value={g}>Grade {g}</option>)}
-        </select>
-        <select value={subjectF} onChange={e => setSubjectF(e.target.value)} className={selectStyle}>
-          {SUBJECTS.map(s => <option key={s} value={s}>{s || 'All Subjects'}</option>)}
-        </select>
-        {tab === 'quizzes' && (
-          <select value={quizTypeF} onChange={e => setQuizTypeF(e.target.value)} className={selectStyle}>
-            <option value="">All Types</option>
-            <option value="practice">📝 Practice</option>
-            <option value="exam_only">🏆 Exam only</option>
-            <option value="daily_exam">🏆 Daily Exam</option>
-            <option value="unclassified">⚠ Unclassified</option>
-            <option value="unpublished">⚠ Unpublished</option>
-            <option value="from_past_paper">📄 From past paper</option>
-          </select>
-        )}
-        {tab === 'pastpapers' && (
-          <select value={paperStatusF} onChange={e => setPaperStatusF(e.target.value)} className={selectStyle}>
-            <option value="">All Statuses</option>
-            <option value="published">Published</option>
-            <option value="draft">Draft</option>
-            <option value="archived">Archived</option>
-          </select>
-        )}
-        {tab === 'quizzes' && (
-          <button
-            type="button"
-            onClick={() => setNeedsReviewOnly(v => !v)}
-            aria-pressed={needsReviewOnly}
-            disabled={!needsReviewOnly && needsReviewCount === 0}
-            className={`rounded-xl border-2 px-3 py-2 text-sm font-bold transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-              needsReviewOnly ? 'border-amber-500 bg-amber-100 text-amber-800' : 'border-gray-200 bg-white text-gray-700 hover:border-amber-300'
-            }`}
-            title={needsReviewOnly ? 'Click to show all imports' : needsReviewCount > 0 ? `${needsReviewCount} imported draft(s) flagged` : 'No imports need review'}
-          >
-            ⚠️ Needs review
-            {needsReviewCount > 0 && (
-              <span className="ml-1.5 inline-flex items-center justify-center rounded-full bg-amber-500 px-1.5 text-[11px] font-black text-white min-w-[20px]">{needsReviewCount}</span>
-            )}
-          </button>
-        )}
-        <select value={sortBy} onChange={e => setSortBy(e.target.value)} className={selectStyle} title="Sort within each subject">
-          {SORTS.map(s => <option key={s.id} value={s.id}>Sort: {s.label}</option>)}
-        </select>
-        {hasFilters && (
-          <Button variant="ghost" size="sm" leadingIcon={<Icon as={X} size="sm" />}
-            onClick={() => { setSearch(''); setGradeF(''); setSubjectF(''); setQuizTypeF(''); setPaperStatusF(''); setNeedsReviewOnly(false) }}>
-            Clear
-          </Button>
-        )}
       </div>
 
       {/* Bulk bar */}
       {selected.size > 0 && (
-        <div className="flex flex-wrap items-center gap-2 rounded-2xl border-2 border-[#F4C7A6] bg-[#FCEADF] px-4 py-2.5">
+        <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-[#F4C7A6] bg-[#FCEADF] px-4 py-2.5">
           <span className="font-black text-[#C2410C] text-sm">{selected.size} selected</span>
           <div className="flex-1" />
           {classifyMode && tab === 'quizzes' ? (
             <>
               <span className="text-xs font-bold text-[#C2410C]">Mark as:</span>
-              <button onClick={() => bulkClassify('practice')} disabled={bulkBusy} className="rounded-lg border-2 border-green-300 bg-green-50 px-3 py-1.5 text-xs font-black text-green-700 disabled:opacity-50">📝 Practice</button>
-              <button onClick={() => bulkClassify('exam')} disabled={bulkBusy} className="rounded-lg border-2 border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-black text-amber-700 disabled:opacity-50">🏆 Exam-only</button>
+              <button onClick={() => bulkClassify('practice')} disabled={bulkBusy} className="rounded-lg border border-green-300 bg-green-50 px-3 py-1.5 text-xs font-black text-green-700 disabled:opacity-50">Practice</button>
+              <button onClick={() => bulkClassify('exam')} disabled={bulkBusy} className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-black text-amber-700 disabled:opacity-50">Exam-only</button>
               <button onClick={() => setClassifyMode(false)} className="rounded-lg px-3 py-1.5 text-xs font-bold text-gray-500">Cancel</button>
             </>
           ) : (
             <>
               {tab === 'quizzes' && (
-                <button onClick={() => setClassifyMode(true)} disabled={bulkBusy} className="rounded-lg border-2 border-[#F4C7A6] bg-white px-3 py-1.5 text-xs font-black text-[#C2410C] disabled:opacity-50">✏️ Classify</button>
+                <button onClick={() => setClassifyMode(true)} disabled={bulkBusy} className="rounded-lg border border-[#F4C7A6] bg-white px-3 py-1.5 text-xs font-black text-[#C2410C] disabled:opacity-50">Classify</button>
               )}
-              <button onClick={bulkPublish} disabled={bulkBusy} className="rounded-lg border-2 border-[#F4C7A6] bg-white px-3 py-1.5 text-xs font-black text-green-700 disabled:opacity-50">✅ Publish</button>
-              <button onClick={() => setPendingBulkDelete(true)} disabled={bulkBusy} className="rounded-lg border-2 border-[#F4C7A6] bg-white px-3 py-1.5 text-xs font-black text-red-600 disabled:opacity-50">🗑 Delete</button>
+              <button onClick={bulkPublish} disabled={bulkBusy} className="rounded-lg border border-[#F4C7A6] bg-white px-3 py-1.5 text-xs font-black text-green-700 disabled:opacity-50">Publish</button>
+              <button onClick={() => setPendingBulkDelete(true)} disabled={bulkBusy} className="rounded-lg border border-[#F4C7A6] bg-white px-3 py-1.5 text-xs font-black text-red-600 disabled:opacity-50">Delete</button>
               <button onClick={clearSelection} className="rounded-lg px-3 py-1.5 text-xs font-bold text-gray-500">Clear</button>
             </>
           )}
@@ -1028,10 +1154,10 @@ export default function ManageContent() {
       {/* List */}
       {loading ? (
         <div className="space-y-2">
-          {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} height={48} className="rounded-xl" />)}
+          {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} height={56} className="rounded-xl" />)}
         </div>
       ) : groups.length === 0 ? (
-        <div className="text-center py-14 bg-white rounded-2xl border-2 border-[#0F1B2D]/15">
+        <div className={`text-center py-14 ${SOFT_CARD}`}>
           <div className="text-4xl mb-2" aria-hidden="true">📭</div>
           <p className="font-black text-gray-700 text-base">
             {filtered.length === 0 && !hasFilters ? `No ${tab === 'pastpapers' ? 'past papers' : tab} yet` : 'Nothing matches these filters'}
@@ -1065,36 +1191,41 @@ export default function ManageContent() {
             </button>
           </div>
 
-          <div className="rounded-2xl border-2 border-[#0F1B2D] bg-white overflow-hidden shadow-[0_2px_0_#0F1B2D]">
-            {groups.map(([subject, items], gi) => {
+          <div className="space-y-4">
+            {groups.map(([subject, items]) => {
               const isCol = collapsed.has(subject)
               const grpSel = items.length > 0 && items.every(i => selected.has(i.id))
               return (
-                <div key={subject} className={gi ? 'border-t-2 border-[#0F1B2D]/10' : ''}>
+                <div key={subject}>
+                  {/* lightweight subject header */}
                   <div
-                    className="flex items-center gap-2.5 px-3 sm:px-4 py-2.5 bg-[#FAF6EE] cursor-pointer hover:bg-[#F6F1E7] transition-colors"
+                    className="flex items-center gap-2.5 px-1 py-1.5 cursor-pointer select-none"
                     onClick={() => toggleCollapse(subject)}
                   >
                     <span onClick={e => { e.stopPropagation(); toggleGroup(items) }}>
                       <Box checked={grpSel} onClick={() => {}} label={`Select all in ${subject}`} />
                     </span>
-                    <Icon as={isCol ? ChevronRight : ChevronDown} size="sm" className="text-gray-500" />
-                    <span className="font-black text-gray-800 text-sm">{subject}</span>
-                    <span className="text-[11px] font-black text-gray-500 bg-white border border-[#0F1B2D]/15 rounded-full px-2 py-px">{items.length}</span>
+                    <Icon as={isCol ? ChevronRight : ChevronDown} size="sm" className="text-gray-400" />
+                    <span className="font-black text-[#0F1B2D] text-sm">{subject}</span>
+                    <span className="text-[11px] font-black text-[#4A5A6E] bg-[#0F1B2D]/[0.06] rounded-full px-2 py-px">{items.length}</span>
                   </div>
-                  {!isCol && items.map(item => (
-                    <Row
-                      key={item.id}
-                      tab={tab}
-                      item={item}
-                      selected={selected.has(item.id)}
-                      onSelect={onSelect}
-                      menuOpen={openMenu === item.id}
-                      onMenu={setOpenMenu}
-                      actions={rowActions}
-                      busy={converting}
-                    />
-                  ))}
+                  {!isCol && (
+                    <div className="space-y-2">
+                      {items.map(item => (
+                        <Row
+                          key={item.id}
+                          tab={tab}
+                          item={item}
+                          selected={selected.has(item.id)}
+                          onSelect={onSelect}
+                          menuOpen={openMenu === item.id}
+                          onMenu={setOpenMenu}
+                          actions={rowActions}
+                          busy={converting}
+                        />
+                      ))}
+                    </div>
+                  )}
                 </div>
               )
             })}
