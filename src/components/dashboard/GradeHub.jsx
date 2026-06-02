@@ -52,7 +52,7 @@ import PushPermissionPrompt     from '../ui/PushPermissionPrompt'
 import VerifyEmailBanner        from '../ui/VerifyEmailBanner'
 import AssignmentsCard          from './AssignmentsCard'
 import ClassesQuickCard         from './ClassesQuickCard'
-import TodayStudyPlan           from './TodayStudyPlan'
+import StudyPlanCard            from './StudyPlanCard'
 import Icon                     from '../ui/Icon'
 import Button                   from '../ui/Button'
 import Skeleton                 from '../ui/Skeleton'
@@ -1182,11 +1182,10 @@ export default function GradeHub() {
         {/* "My classes" surface — exposes /classes/join from the
             dashboard so learners can paste a teacher invite code. */}
         <ClassesQuickCard />
-        <TodayStudyPlan
+        <StudyPlanCard
           results={recentResults}
           weakTopics={weakTopics}
           grade={userGrade}
-          streak={stats.streak}
           dailyGoal={dailyGoal}
           loading={loading}
           aiNotesOn={aiNotesOn}

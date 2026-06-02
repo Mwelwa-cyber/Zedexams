@@ -126,13 +126,13 @@ function TaskRow({ task }) {
   )
 }
 
-export default function TodayStudyPlan({
+// Builds the task list + progress shared by the full plan card and the
+// compact dashboard summary, so both surfaces stay in lock-step.
+export function buildStudyPlan({
   results = [],
   weakTopics = [],
   grade,
-  streak = 0,
   dailyGoal = { done: 0, total: 0 },
-  loading = false,
   aiNotesOn = false,
 }) {
   const weakFocus = getWeakFocus(weakTopics)
@@ -212,6 +212,25 @@ export default function TodayStudyPlan({
 
   const doneCount = tasks.filter(task => task.done).length
   const progress = Math.round((doneCount / tasks.length) * 100)
+  return { tasks, countdown, doneCount, total: tasks.length, progress }
+}
+
+export default function TodayStudyPlan({
+  results = [],
+  weakTopics = [],
+  grade,
+  streak = 0,
+  dailyGoal = { done: 0, total: 0 },
+  loading = false,
+  aiNotesOn = false,
+}) {
+  const { tasks, countdown, doneCount, progress } = buildStudyPlan({
+    results,
+    weakTopics,
+    grade,
+    dailyGoal,
+    aiNotesOn,
+  })
 
   if (loading) {
     return (
