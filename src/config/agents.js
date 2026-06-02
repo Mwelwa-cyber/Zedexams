@@ -100,6 +100,18 @@ export const AGENTS = [
     invocation: 'Auto on push to main. Manually: invoke the release-notes subagent.',
   },
   {
+    id: 'mendi',
+    name: 'Mendi',
+    role: 'Bug Fixer',
+    department: 'qaEng',
+    mission: 'Reproduces a reported bug, fixes the root cause, adds a regression test, verifies lint/build/tests, and opens a draft PR. Never pushes to main.',
+    inputs: 'A bug-labelled issue (or /mendi comment)',
+    outputs: 'Draft PR with the fix + regression test',
+    wraps: 'anthropics/claude-code-action via GitHub Action; .claude/agents/bug-fixer.md',
+    runtime: ['subagent', 'github-action'],
+    invocation: 'Auto when an issue gets the `bug` label, or a maintainer comments /mendi. Manually: invoke the bug-fixer subagent in Claude Code.',
+  },
+  {
     id: 'vex',
     name: 'Vex',
     role: 'Quiz Verifier',

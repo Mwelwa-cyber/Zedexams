@@ -78,6 +78,7 @@ const AGENT_DOT = {
   quill:  '#facc15',
   rex:    '#ec4899',
   ledger: '#60a5fa',
+  mendi:  '#f43f5e',
 }
 
 function fmtRel(ts) {

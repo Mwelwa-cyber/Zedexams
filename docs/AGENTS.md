@@ -10,7 +10,7 @@ How to operate the ZedExams agent stack day-to-day. For the *why*
 | Claude Code subagents | `.claude/agents/*.md` | Manual, dev-time invocation from your terminal |
 | Cloud Functions runners | `functions/agents/runners/*.js` *(Phase 2)* | Auto-run when a job lands in `agentJobs` |
 | Cron Functions | `functions/agents/cron.js` *(Phase 2/3)* | `nightlyQaSmoke`, `weeklyCbcAlignmentAudit` |
-| GitHub Actions | `.github/workflows/agent-*.yml` *(Phase 3)* | PR review (Rex), changelog (Ledger), CBC audit |
+| GitHub Actions | `.github/workflows/agent-*.yml` *(Phase 3)* | PR review (Rex), changelog (Ledger), bug fixes (Mendi), CBC audit |
 | Admin dashboard | `src/components/admin/agents/` | Approve/reject jobs, pause agents, view runs |
 
 ## Day-to-day: as the human owner
@@ -67,13 +67,17 @@ subagent to verify it.
    ```
    Confirm `.auth-qa-report.json` updates and a summary `agentJobs` doc
    appears.
+3. Open a test issue, add the `bug` label (or comment `/mendi`). Within a
+   few minutes the **Agent — Mendi bug fixer** workflow runs and, if it
+   produces a fix, opens a draft PR linked back on the issue. Close the
+   issue / PR afterwards if it was only a smoke test.
 
 ## Secrets & keys
 
 | Name | Where | Used by |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | Firebase secret (`defineSecret`) | Aria, Cala (resolve), Reva |
-| `ANTHROPIC_API_KEY` | GitHub repo secret | Rex (PR review), Ledger |
+| `ANTHROPIC_API_KEY` | GitHub repo secret | Rex (PR review), Ledger, Mendi (bug fixer) |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Local dev only | `scripts/seed-agent-jobs.mjs` |
 
 Never echo raw Anthropic responses in logs. `aiService.callAnthropic`
