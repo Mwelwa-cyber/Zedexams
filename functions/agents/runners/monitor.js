@@ -289,17 +289,66 @@ function buildTransporter(smtpUser, smtpPass) {
   });
 }
 
-async function fileBugIssue({githubToken, githubRepo, failure, suggestions}) {
+const crypto = require("node:crypto");
+
+/**
+ * Mint a short-lived RS256 JWT for a GitHub App (built-in crypto, no dep).
+ * `iat` is backdated 60s to tolerate clock skew; `exp` stays under GitHub's
+ * 10-minute ceiling.
+ */
+function makeAppJwt(appId, privateKey) {
+  const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64url");
+  const now = Math.floor(Date.now() / 1000);
+  const header = b64({alg: "RS256", typ: "JWT"});
+  const payload = b64({iat: now - 60, exp: now + 9 * 60, iss: String(appId)});
+  const signingInput = `${header}.${payload}`;
+  // Secret Manager often stores the PEM with literal "\n" — normalise back.
+  const pem = String(privateKey).replace(/\\n/g, "\n");
+  const signature = crypto.sign("RSA-SHA256", Buffer.from(signingInput), pem).toString("base64url");
+  return `${signingInput}.${signature}`;
+}
+
+/** Exchange the App JWT for a 1-hour installation token scoped to the repo. */
+async function getInstallationToken({appId, privateKey, installationId}) {
+  const jwt = makeAppJwt(appId, privateKey);
+  const res = await fetchWithTimeout(
+      `https://api.github.com/app/installations/${installationId}/access_tokens`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${jwt}`,
+          "Accept": "application/vnd.github+json",
+          "User-Agent": "zedexams-vigil",
+        },
+      });
+  if (!res.ok) throw new Error(`installation token failed: ${res.status}`);
+  const data = await res.json();
+  return data.token;
+}
+
+/**
+ * Resolve a usable GitHub token for issue filing. Prefers a GitHub App
+ * installation token (no expiry to babysit); falls back to a PAT. Returns
+ * null when neither is configured. Throws only on a genuine auth failure.
+ */
+async function resolveGithubToken(github = {}) {
+  const {appId, privateKey, installationId, pat} = github;
+  if (appId && privateKey && installationId) {
+    return await getInstallationToken({appId, privateKey, installationId});
+  }
+  return pat || null;
+}
+
+async function fileBugIssue({token, repo, failure, suggestions}) {
   const body =
     `**Vigil** (hourly monitor) detected a failure on the \`${failure.check}\` check.\n\n` +
     `> ${failure.message}\n\n` +
     (failure.ref ? `Reference: \`${failure.ref}\`\n\n` : "") +
     (suggestions ? `### Suggested fix\n\n${suggestions}\n\n` : "") +
     `_Filed automatically. If this is a real bug, it can be picked up by Mendi._`;
-  const res = await fetchWithTimeout(`https://api.github.com/repos/${githubRepo}/issues`, {
+  const res = await fetchWithTimeout(`https://api.github.com/repos/${repo}/issues`, {
     method: "POST",
     headers: {
-      "Authorization": `Bearer ${githubToken}`,
+      "Authorization": `Bearer ${token}`,
       "Accept": "application/vnd.github+json",
       "User-Agent": "zedexams-vigil",
       "Content-Type": "application/json",
@@ -321,7 +370,7 @@ async function fileBugIssue({githubToken, githubRepo, failure, suggestions}) {
  * escalated failure. Mutates nothing it isn't given; persists de-dup state to
  * Firestore. Every channel degrades gracefully when its secret is missing.
  */
-async function notifyFailures({db, report, smtpUser, smtpPass, adminEmails, githubToken, githubRepo}) {
+async function notifyFailures({db, report, smtpUser, smtpPass, adminEmails, github = {}}) {
   const now = Date.now();
   const stateRef = db.doc(STATE_DOC);
   const prev = (await stateRef.get().catch(() => null))?.data()?.failures || {};
@@ -341,23 +390,33 @@ async function notifyFailures({db, report, smtpUser, smtpPass, adminEmails, gith
     if (due) newlyEscalated.push({f, key});
   }
 
-  const out = {emailed: false, issuesFiled: [], skipped: {}};
+  const out = {emailed: false, issuesFiled: [], githubAuth: null, skipped: {}};
 
-  // GitHub issues → Mendi. One per newly escalated failure.
-  if (githubToken && githubRepo && newlyEscalated.length) {
-    for (const {f, key} of newlyEscalated) {
-      try {
-        const num = await fileBugIssue({githubToken, githubRepo, failure: f, suggestions: report.suggestions});
-        if (num) {
-          next[key].issueNumber = num;
-          out.issuesFiled.push(num);
-        }
-      } catch (err) {
-        out.skipped.github = String(err?.message || err);
-      }
+  // GitHub issues → Mendi. Resolve one token per run (App installation token,
+  // else PAT), then file one issue per newly escalated failure.
+  if (newlyEscalated.length) {
+    let githubToken = null;
+    try {
+      githubToken = await resolveGithubToken(github);
+      out.githubAuth = github.appId && github.privateKey && github.installationId ? "app" : (githubToken ? "pat" : "none");
+    } catch (err) {
+      out.skipped.github = `auth failed: ${String(err?.message || err)}`;
     }
-  } else if (newlyEscalated.length && !githubToken) {
-    out.skipped.github = "GITHUB_BOT_TOKEN not set";
+    if (githubToken && github.repo) {
+      for (const {f, key} of newlyEscalated) {
+        try {
+          const num = await fileBugIssue({token: githubToken, repo: github.repo, failure: f, suggestions: report.suggestions});
+          if (num) {
+            next[key].issueNumber = num;
+            out.issuesFiled.push(num);
+          }
+        } catch (err) {
+          out.skipped.github = String(err?.message || err);
+        }
+      }
+    } else if (!out.skipped.github) {
+      out.skipped.github = "no GitHub App or PAT configured";
+    }
   }
 
   // One summary email for this run's newly escalated failures.
@@ -404,4 +463,6 @@ module.exports = {
   failureKey,
   suggestFixes,
   notifyFailures,
+  makeAppJwt,
+  resolveGithubToken,
 };

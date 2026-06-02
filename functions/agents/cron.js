@@ -23,13 +23,18 @@ const {runCala} = require("./runners/cala");
 const {runMonitorChecks, suggestFixes, notifyFailures} = require("./runners/monitor");
 
 // Vigil needs the Anthropic key for fix suggestions, the SMTP secrets for the
-// alert email, and a GitHub token to file bug issues. defineSecret is keyed by
-// name, so these are the same secrets already defined elsewhere; each channel
-// degrades gracefully when its secret is unset.
+// alert email, and GitHub credentials to file bug issues. For GitHub it prefers
+// a GitHub App (App id + private key + installation id → a no-expiry-to-babysit
+// installation token) and falls back to a PAT. defineSecret is keyed by name,
+// so shared secrets are the same ones defined elsewhere; each channel degrades
+// gracefully when its secret is unset.
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const emailSmtpUser = defineSecret("EMAIL_SMTP_USER");
 const emailSmtpPassword = defineSecret("EMAIL_SMTP_PASSWORD");
 const githubBotToken = defineSecret("GITHUB_BOT_TOKEN");
+const githubAppId = defineSecret("GITHUB_APP_ID");
+const githubAppPrivateKey = defineSecret("GITHUB_APP_PRIVATE_KEY");
+const githubAppInstallationId = defineSecret("GITHUB_APP_INSTALLATION_ID");
 
 function getAdminEmails() {
   return (process.env.ADMIN_EMAILS || "")
@@ -190,7 +195,10 @@ const HOURLY_MONITOR_OPTS = {
   region: "us-central1",
   timeoutSeconds: 300,
   memory: "256MiB",
-  secrets: [anthropicApiKey, emailSmtpUser, emailSmtpPassword, githubBotToken],
+  secrets: [
+    anthropicApiKey, emailSmtpUser, emailSmtpPassword,
+    githubBotToken, githubAppId, githubAppPrivateKey, githubAppInstallationId,
+  ],
 };
 
 const hourlyMonitor = onSchedule(HOURLY_MONITOR_OPTS, async () => {
@@ -233,8 +241,13 @@ const hourlyMonitor = onSchedule(HOURLY_MONITOR_OPTS, async () => {
         smtpUser: String(emailSmtpUser.value() || "").trim(),
         smtpPass: emailSmtpPassword.value(),
         adminEmails: getAdminEmails(),
-        githubToken: String(githubBotToken.value() || "").trim(),
-        githubRepo: process.env.GITHUB_REPO || "Mwelwa-cyber/Zedexams",
+        github: {
+          repo: process.env.GITHUB_REPO || "Mwelwa-cyber/Zedexams",
+          appId: String(githubAppId.value() || "").trim(),
+          privateKey: githubAppPrivateKey.value() || "",
+          installationId: String(githubAppInstallationId.value() || "").trim(),
+          pat: String(githubBotToken.value() || "").trim(),
+        },
       });
     } catch (err) {
       report.notifyError = String(err && err.message || err).slice(0, 300);
