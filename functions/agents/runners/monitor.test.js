@@ -9,7 +9,8 @@
  */
 
 const assert = require("node:assert");
-const {runStructuralChecks, extractPlainText, failureKey} = require("./monitor");
+const crypto = require("node:crypto");
+const {runStructuralChecks, extractPlainText, failureKey, makeAppJwt, resolveGithubToken} = require("./monitor");
 
 let passed = 0;
 function test(name, fn) {
@@ -108,6 +109,62 @@ test("failureKey differs across checks", () => {
       failureKey({check: "pages", id: "/"}),
       failureKey({check: "images", id: "/"}),
   );
+});
+
+// ── GitHub App JWT minting ───────────────────────────────────────────
+test("makeAppJwt produces a verifiable RS256 JWT", () => {
+  const {privateKey, publicKey} = crypto.generateKeyPairSync("rsa", {
+    modulusLength: 2048,
+    publicKeyEncoding: {type: "spki", format: "pem"},
+    privateKeyEncoding: {type: "pkcs8", format: "pem"},
+  });
+  const jwt = makeAppJwt("123456", privateKey);
+  const [header, payload, signature] = jwt.split(".");
+  assert.ok(header && payload && signature, "JWT has three parts");
+
+  // Signature verifies against the public key.
+  const ok = crypto.verify(
+      "RSA-SHA256",
+      Buffer.from(`${header}.${payload}`),
+      publicKey,
+      Buffer.from(signature, "base64url"),
+  );
+  assert.strictEqual(ok, true);
+
+  // Claims are well-formed: iss = app id, exp within GitHub's 10-min ceiling.
+  const claims = JSON.parse(Buffer.from(payload, "base64url").toString());
+  assert.strictEqual(claims.iss, "123456");
+  assert.ok(claims.exp - claims.iat <= 600);
+});
+
+test("makeAppJwt normalises an escaped-newline PEM", () => {
+  const {privateKey, publicKey} = crypto.generateKeyPairSync("rsa", {
+    modulusLength: 2048,
+    publicKeyEncoding: {type: "spki", format: "pem"},
+    privateKeyEncoding: {type: "pkcs8", format: "pem"},
+  });
+  // Simulate a Secret Manager value with literal \n sequences.
+  const escaped = privateKey.replace(/\n/g, "\\n");
+  const jwt = makeAppJwt("99", escaped);
+  const [header, payload, signature] = jwt.split(".");
+  const ok = crypto.verify(
+      "RSA-SHA256",
+      Buffer.from(`${header}.${payload}`),
+      publicKey,
+      Buffer.from(signature, "base64url"),
+  );
+  assert.strictEqual(ok, true);
+});
+
+// ── resolveGithubToken precedence ────────────────────────────────────
+test("resolveGithubToken falls back to the PAT when no App creds", async () => {
+  const token = await resolveGithubToken({pat: "ghp_test", repo: "o/r"});
+  assert.strictEqual(token, "ghp_test");
+});
+
+test("resolveGithubToken returns null when nothing is configured", async () => {
+  const token = await resolveGithubToken({repo: "o/r"});
+  assert.strictEqual(token, null);
 });
 
 console.log(`\n✓ monitor.test.js — ${passed} checks passed`);

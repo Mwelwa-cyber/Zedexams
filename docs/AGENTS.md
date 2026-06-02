@@ -89,7 +89,8 @@ subagent to verify it.
 | `ANTHROPIC_API_KEY` | GitHub repo secret | Rex (PR review), Ledger, Mendi (bug fixer) |
 | `EMAIL_SMTP_USER` / `EMAIL_SMTP_PASSWORD` | Firebase secret | AI-cost summary, Vigil alert email |
 | `ADMIN_EMAILS` | Functions env var | Recipients for Vigil + cost alerts |
-| `GITHUB_BOT_TOKEN` | Firebase secret *(optional)* | Vigil files `bug` issues → Mendi. Unset = issue-filing skipped gracefully. |
+| `GITHUB_APP_ID` / `GITHUB_APP_PRIVATE_KEY` / `GITHUB_APP_INSTALLATION_ID` | Firebase secret *(preferred)* | Vigil files `bug` issues → Mendi via a GitHub App installation token (no expiry to babysit). |
+| `GITHUB_BOT_TOKEN` | Firebase secret *(PAT fallback)* | Used for issue filing only if no App is configured. All unset = issue-filing skipped gracefully. |
 | `GOOGLE_APPLICATION_CREDENTIALS` | Local dev only | `scripts/seed-agent-jobs.mjs` |
 
 Never echo raw Anthropic responses in logs. `aiService.callAnthropic`
