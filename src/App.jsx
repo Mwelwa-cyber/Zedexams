@@ -58,6 +58,7 @@ const Register = lazy(() => import('./components/auth/Register'))
 const AuthAction = lazy(() => import('./components/auth/AuthAction'))
 const StudentDashboard = lazy(() => import('./components/dashboard/StudentDashboard'))
 const GradeHub = lazy(() => import('./components/dashboard/GradeHub'))
+const StudyPlanPage = lazy(() => import('./components/dashboard/StudyPlanPage'))
 const LearnerCalendar = lazy(() => import('./components/dashboard/LearnerCalendar'))
 const SubjectDrillDown = lazy(() => import('./components/dashboard/SubjectDrillDown'))
 const QuizList = lazy(() => import('./components/quiz/QuizList'))
@@ -422,6 +423,7 @@ export default function App() {
           <Route path="/dashboard-preview" element={<ProtectedRoute><LearnerOnlyRoute><GradeHub /></LearnerOnlyRoute></ProtectedRoute>} />
           {/* Legacy stats page (kept for admin/teacher reference) */}
           <Route path="/my-stats"          element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><StudentDashboard /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/study-plan"        element={<ProtectedRoute><LearnerOnlyRoute><StudyPlanPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/calendar"          element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerCalendar /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/exams"                        element={<ProtectedRoute><LearnerOnlyRoute><DailyExamsHub /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/exams/leaderboard"           element={<ProtectedRoute><LearnerOnlyRoute><ExamLeaderboardPage /></LearnerOnlyRoute></ProtectedRoute>} />

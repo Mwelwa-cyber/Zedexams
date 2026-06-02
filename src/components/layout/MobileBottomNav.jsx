@@ -1,17 +1,18 @@
 import { NavLink } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { BarChart3, BookOpen, FileText, Home, PencilLine } from '../ui/icons'
+import { BarChart3, BookOpen, CalendarDays, FileText, Home, PencilLine } from '../ui/icons'
 import Icon from '../ui/Icon'
 
-// 5 items at ~20% width each. Notes Studio replaces the slide-builder for new
+// 6 items at ~16.6% width each. Notes Studio replaces the slide-builder for new
 // content; Lessons stays for legacy slide-built lessons until those are gone.
 // Labels resolve via i18n (audit A7) — `nav.*` keys, English fallback.
 const MOBILE_NAV_ITEMS = [
-  { to: '/dashboard', icon: Home,       labelKey: 'nav.dashboard', end: true },
-  { to: '/notes',     icon: FileText,   labelKey: 'nav.notes',     end: false },
-  { to: '/quizzes',   icon: PencilLine, labelKey: 'nav.quizzes',   end: false },
-  { to: '/lessons',   icon: BookOpen,   labelKey: 'nav.lessons',   end: false },
-  { to: '/my-results',icon: BarChart3,  labelKey: 'nav.results',   end: false },
+  { to: '/dashboard',  icon: Home,         labelKey: 'nav.dashboard', end: true },
+  { to: '/study-plan', icon: CalendarDays, labelKey: 'nav.studyPlan', end: false },
+  { to: '/notes',      icon: FileText,     labelKey: 'nav.notes',     end: false },
+  { to: '/quizzes',    icon: PencilLine,   labelKey: 'nav.quizzes',   end: false },
+  { to: '/lessons',    icon: BookOpen,     labelKey: 'nav.lessons',   end: false },
+  { to: '/my-results', icon: BarChart3,    labelKey: 'nav.results',   end: false },
 ]
 
 export default function MobileBottomNav({ mode = 'fixed', className = '' }) {

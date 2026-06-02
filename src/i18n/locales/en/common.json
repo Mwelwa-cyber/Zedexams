@@ -24,6 +24,7 @@
   },
   "nav": {
     "dashboard": "Home",
+    "studyPlan": "Plan",
     "lessons": "Lessons",
     "notes": "Notes",
     "quizzes": "Quizzes",
