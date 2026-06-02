@@ -37,6 +37,8 @@ const SCHEDULED_JOBS = [
     schedule: 'Every day 02:00',
     timezone: 'Africa/Lusaka',
     agent: 'quill',
+    // Matches the agentJobs doc the cron writes (functions/agents/cron.js).
+    runType: 'nightly-smoke',
   },
   {
     id: 'weeklyCbcAlignmentAudit',
@@ -44,6 +46,7 @@ const SCHEDULED_JOBS = [
     schedule: 'Every Sunday 03:00',
     timezone: 'Africa/Lusaka',
     agent: 'cala',
+    runType: 'weekly-cbc-audit',
   },
 ]
 
@@ -75,6 +78,7 @@ const AGENT_DOT = {
   quill:  '#facc15',
   rex:    '#ec4899',
   ledger: '#60a5fa',
+  mendi:  '#f43f5e',
 }
 
 function fmtRel(ts) {
@@ -91,6 +95,89 @@ function fmtAbs(ts) {
   if (!ts) return '—'
   const d = ts.toDate ? ts.toDate() : new Date(ts)
   return d.toLocaleString('en-GB', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+}
+
+function tsMs(ts) {
+  if (!ts) return 0
+  return ts.toDate?.()?.getTime() || (ts ? new Date(ts).getTime() : 0)
+}
+
+const SEVEN_DAYS_MS = 7 * 24 * 3600 * 1000
+
+// Turn the raw jobs window into one plain-English verdict, so an admin can
+// tell "alive but idle" from "actually broken" at a glance. Jobs are ordered
+// createdAt desc, so jobs[0] is the most recent. Derived purely from the data
+// already on the page — no extra backend call. The deeper signals (Anthropic
+// reachability, paused agents, missing agentControl docs) live in the
+// PlatformHealthPanel directly below this banner.
+function computeVerdict(jobs) {
+  if (!jobs.length) {
+    return {
+      level: 'idle',
+      label: 'Idle',
+      message: 'No agent jobs yet. Agents run on demand — they only act when a teacher submits a brief, when a nightly/weekly cron fires, or when you click "Run sample job" in Platform health below. An empty pipeline is normal, not a failure.',
+    }
+  }
+
+  const last = jobs[0]
+  const lastAt = tsMs(last.createdAt)
+  const cutoff = Date.now() - SEVEN_DAYS_MS
+  const recent = jobs.filter(j => tsMs(j.createdAt) >= cutoff)
+  const active = jobs.some(j => j.status === 'queued' || j.status === 'running')
+
+  if (lastAt && lastAt < cutoff) {
+    return {
+      level: 'idle',
+      label: 'Idle',
+      message: `No agent activity in over 7 days (last run ${fmtRel(last.createdAt)}). Agents run on demand — submit a teacher brief or use "Run sample job" below to wake the pipeline. Idle does not mean broken.`,
+    }
+  }
+
+  const terminal = recent.filter(j => j.status === 'done' || j.status === 'failed')
+  const failed = terminal.filter(j => j.status === 'failed').length
+  if (terminal.length >= 3 && failed / terminal.length >= 0.5) {
+    return {
+      level: 'failing',
+      label: 'Degraded',
+      message: `${failed} of the last ${terminal.length} finished jobs failed. Check Platform health below — the usual causes are a paused agent, a missing ANTHROPIC_API_KEY secret, or an exhausted daily AI cap.`,
+    }
+  }
+
+  if (active) {
+    return {
+      level: 'active',
+      label: 'Working',
+      message: `Pipeline active — jobs in flight right now. Last job ${fmtRel(last.createdAt)}.`,
+    }
+  }
+
+  return {
+    level: 'healthy',
+    label: 'Healthy',
+    message: `Pipeline healthy — ${recent.length} job${recent.length === 1 ? '' : 's'} in the last 7 days, last run ${fmtRel(last.createdAt)}.`,
+  }
+}
+
+const VERDICT_STYLE = {
+  idle:    { badge: 'bg-sky-500/15 text-sky-300 ring-sky-500/30',         dot: 'bg-sky-400',     banner: 'border-sky-500/30 bg-sky-500/10 text-sky-100' },
+  active:  { badge: 'bg-blue-500/15 text-blue-300 ring-blue-500/30',      dot: 'bg-blue-400 animate-pulse', banner: 'border-blue-500/30 bg-blue-500/10 text-blue-100' },
+  healthy: { badge: 'bg-emerald-500/15 text-emerald-300 ring-emerald-500/30', dot: 'bg-emerald-400 animate-pulse', banner: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-100' },
+  failing: { badge: 'bg-rose-500/15 text-rose-300 ring-rose-500/30',      dot: 'bg-rose-400',    banner: 'border-rose-500/30 bg-rose-500/10 text-rose-100' },
+}
+
+function VerdictBanner({ verdict }) {
+  const style = VERDICT_STYLE[verdict.level] || VERDICT_STYLE.healthy
+  return (
+    <div className={`rounded-2xl border p-3 sm:p-4 ${style.banner}`} role="status">
+      <div className="flex items-start gap-2.5">
+        <span className={`mt-1 h-2.5 w-2.5 flex-shrink-0 rounded-full ${style.dot}`} />
+        <div className="min-w-0">
+          <p className="text-xs font-black uppercase tracking-wider">{verdict.label}</p>
+          <p className="mt-0.5 text-xs leading-relaxed opacity-90">{verdict.message}</p>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // ── widgets ──────────────────────────────────────────────────────────
@@ -460,7 +547,22 @@ function WorkloadDonut({ jobs }) {
   )
 }
 
-function ScheduledJobs() {
+function ScheduledJobs({ jobs }) {
+  // Each cron writes its run into agentJobs (createdBy: "system", with a
+  // matching input.runType — see functions/agents/cron.js). Surface the most
+  // recent matching run per schedule so an admin can see the autonomous
+  // agents are actually firing, not just that the cron is declared.
+  const lastRuns = useMemo(() => {
+    const out = {}
+    jobs.forEach(j => {
+      const rt = j.input?.runType
+      if (!rt) return
+      const prev = out[rt]
+      if (!prev || tsMs(j.createdAt) > tsMs(prev.createdAt)) out[rt] = j
+    })
+    return out
+  }, [jobs])
+
   return (
     <section className="rounded-2xl border border-slate-700/50 bg-slate-800/40 p-4 sm:p-5 shadow-lg shadow-slate-950/30">
       <header className="mb-3 flex items-baseline justify-between">
@@ -471,6 +573,7 @@ function ScheduledJobs() {
         {SCHEDULED_JOBS.map(s => {
           const agent = AGENTS_BY_ID[s.agent]
           const dot = AGENT_DOT[s.agent] || '#94a3b8'
+          const last = lastRuns[s.runType]
           return (
             <li key={s.id} className="flex items-center gap-3 rounded-lg bg-slate-700/30 px-3 py-2">
               <span className="h-7 w-7 flex-shrink-0 rounded-lg text-[10px] font-black text-slate-900 grid place-items-center" style={{ backgroundColor: dot }}>
@@ -479,6 +582,18 @@ function ScheduledJobs() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-xs font-black text-slate-100">{s.label}</p>
                 <p className="truncate text-[10px] text-slate-400">{s.schedule} · {s.timezone}</p>
+              </div>
+              <div className="flex-shrink-0 text-right">
+                {last ? (
+                  <Link to={`/admin/agents/jobs/${last.id}`} className="block no-underline">
+                    <span className={`inline-block px-1.5 py-0.5 rounded-full text-[9px] font-black ${STATUS_COLORS[last.status] || 'bg-slate-700 text-slate-300'}`}>
+                      {STATUS_LABEL[last.status] || last.status}
+                    </span>
+                    <p className="mt-0.5 text-[10px] text-slate-500">{fmtRel(last.createdAt)}</p>
+                  </Link>
+                ) : (
+                  <span className="text-[10px] text-slate-500">No run yet</span>
+                )}
               </div>
             </li>
           )
@@ -546,6 +661,9 @@ export default function AgentsDashboard() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
+  const verdict = useMemo(() => computeVerdict(jobs), [jobs])
+  const verdictBadge = VERDICT_STYLE[verdict.level] || VERDICT_STYLE.healthy
+
   useEffect(() => {
     setLoading(true)
     const q = query(
@@ -578,9 +696,9 @@ export default function AgentsDashboard() {
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          <span className="rounded-full bg-emerald-500/15 px-3 py-1 text-[10px] font-black uppercase tracking-wider text-emerald-300 ring-1 ring-emerald-500/30">
-            <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            System nominal
+          <span className={`rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-wider ring-1 ${verdictBadge.badge}`}>
+            <span className={`mr-1 inline-block h-1.5 w-1.5 rounded-full ${verdictBadge.dot}`} />
+            {verdict.label}
           </span>
           <Link
             to="/admin/agents/jobs"
@@ -604,6 +722,10 @@ export default function AgentsDashboard() {
         </div>
       ) : (
         <div className="space-y-4">
+          {/* One plain-English verdict up top: idle vs working vs degraded,
+              so an empty pipeline doesn't read as a broken one. */}
+          <VerdictBanner verdict={verdict} />
+
           {/* Stats row */}
           <StatsRow jobs={jobs} />
 
@@ -622,7 +744,7 @@ export default function AgentsDashboard() {
             <div className="lg:col-span-2"><AgentsTable jobs={jobs} /></div>
             <div className="space-y-4">
               <WorkloadDonut jobs={jobs} />
-              <ScheduledJobs />
+              <ScheduledJobs jobs={jobs} />
             </div>
           </div>
 

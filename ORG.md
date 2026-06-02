@@ -40,6 +40,7 @@ while a human owner approves what reaches learners and teachers.
    │  Cala   (CBC)    │                       │  Rex    (Code Rev) │
    │  Reva   (Review) │                       │  Ledger (Releases) │
    │  Pubo   (Publish)│                       │  Vex    (Quiz QA)  │
+   │                  │                       │  Mendi  (Bug Fix)  │
    └──────────────────┘                       └────────────────────┘
 ```
 
@@ -111,6 +112,22 @@ scope until the queue and approval flow are proven.
   `docs/CHANGELOG.md`.
 - **Wraps:** `@octokit/rest` (already a `functions/` dep).
 
+#### Mendi — Bug Fixer
+- **Mission:** Turn a reported breakage into a permanent fix plus the
+  regression test that stops it recurring. Fixes the root cause, never the
+  symptom; leaves the codebase more defensive than it was found.
+- **Trigger:** GitHub Action on `issues: [labeled]` (the `bug` label) or a
+  `/mendi` comment from a maintainer.
+- **Outputs:** A **draft** PR with the fix + a regression test, linked back
+  on the issue. Never pushes to `main`.
+- **Wraps:** `anthropics/claude-code-action` (Sonnet) driven by the
+  `.claude/agents/bug-fixer.md` contract, with `ANTHROPIC_API_KEY` GitHub
+  repo secret.
+- **Notable exception:** like Rex and Ledger, Mendi runs in CI rather than
+  through the `agentJobs` queue — it needs real file/Bash tools to reproduce,
+  edit, and verify, which a queued runner can't provide. Every change still
+  lands behind human review as a draft PR.
+
 #### Vex — Quiz Verifier
 - **Mission:** Pre-publish quality check on quizzes — answer accuracy,
   grade fit, clarity, grammar, options quality, and CBC alignment.
@@ -157,6 +174,7 @@ teacher submits brief
 | Claude Code (dev workstation) | `Use the content-author subagent to draft a Grade 6 Maths lesson on fractions.` |
 | App (teacher-facing brief form) | Posts to `agentJobs` collection; dispatcher does the rest. |
 | GitHub PR (Rex) | Opens automatically on PR open / sync. |
+| GitHub issue (Mendi) | Add the `bug` label, or comment `/mendi`. Opens a draft fix PR. |
 | Cron (Quill, weekly Cala audit) | Scheduled Firebase Function. |
 
 ## Escalation Paths
@@ -181,6 +199,7 @@ teacher submits brief
 | `.auth-qa-report.json`, `.authoring-qa-report.json` | Quill | Eng lead |
 | PR reviews | Rex | Eng lead |
 | `docs/CHANGELOG.md` | Ledger | Eng lead |
+| Bug fixes (draft PRs) | Mendi | Eng lead |
 
 ## Cost Budget (per agent, per day)
 
@@ -193,6 +212,7 @@ teacher submits brief
 | Quill | 50,000 / 10,000 tokens | Mostly script orchestration |
 | Rex | 200,000 / 50,000 tokens | One review per PR |
 | Ledger | 50,000 / 20,000 tokens | One run per push to main |
+| Mendi | 500,000 / 100,000 tokens | One multi-turn fix per bug issue |
 | Vex | 100,000 / 30,000 tokens | One Haiku call per Verify & publish |
 
 Caps are enforced via `functions/teacherTools/usageMeter.js` keyed by a
@@ -206,3 +226,7 @@ synthetic ownerUid `agent:<id>` so per-agent spend is auditable in
 - **2026-05-09** — Vex (Quiz Verifier) added to QA / Eng. Synchronous
   pre-publish quality check on quizzes; explicitly off the `agentJobs`
   pipeline so teachers get Grammarly-style instant feedback.
+- **2026-06-02** — Mendi (Bug Fixer) wired into QA / Eng. Runs in CI via
+  `anthropics/claude-code-action` on the `bug` label / `/mendi` comment,
+  driven by the existing `.claude/agents/bug-fixer.md` contract; opens a
+  draft fix PR for human review.
