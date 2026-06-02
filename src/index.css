@@ -1946,6 +1946,29 @@ select option {
     background: transparent;
   }
 
+  /* Phone-only: keep the nav strips colourless so page content stays
+     visible while you scroll. The desktop website is untouched — this is
+     scoped below Tailwind's md breakpoint (768px). We drop the
+     saturate(180%) boost (which amplifies whatever colour sits behind the
+     glass) and use a neutral translucent white, keeping a light blur so the
+     nav labels stay readable. */
+  @media (max-width: 767.98px) {
+    .zx-glass-nav,
+    .zx-glass-bottom {
+      background: rgba(255, 255, 255, 0.6);
+      -webkit-backdrop-filter: blur(18px);
+      backdrop-filter: blur(18px);
+    }
+    /* Midnight (dark) theme keeps its neutral dark card tint, minus the
+       colour-boosting saturate(). */
+    body.theme-midnight .zx-glass-nav,
+    body.theme-midnight .zx-glass-bottom {
+      background: color-mix(in srgb, var(--card) 72%, transparent);
+      -webkit-backdrop-filter: blur(18px);
+      backdrop-filter: blur(18px);
+    }
+  }
+
   /* — Recent activity table — */
   .ra-title {
     font-size: 10px; font-weight: 700;
