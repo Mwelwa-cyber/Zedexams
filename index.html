@@ -8,7 +8,22 @@
     <title>ZedExams</title>
     <meta name="description" content="ZedExams — Zambian CBC exam prep." />
     <meta name="author" content="ZedExams" />
-    <link rel="canonical" href="https://zedexams.com/" />
+    <!--
+      No static canonical link element here, on purpose.
+
+      This file is the single shell for every SPA route, so a hardcoded
+      canonical declares "https://zedexams.com/" on /pricing, /papers,
+      /blog/*, etc. Googlebot reads raw HTML on its first crawl pass
+      (before it renders JS), so every page told Google it was a duplicate
+      of the homepage — which kept everything but / out of the index and
+      surfaced as "Alternate page with proper canonical tag" in Search
+      Console. react-helmet-async also *adds* its own canonical at runtime,
+      so the static tag produced two conflicting canonicals after hydration.
+
+      Per-route canonicals are set by <SeoHelmet path="..."> instead
+      (src/components/seo/SeoHelmet.jsx). Routes without SeoHelmet
+      self-canonicalise to the fetched URL, which is correct. Do not
+      re-add a static canonical without per-route prerendering. -->
 
     <!-- Viewport + theme -->
     <!--
