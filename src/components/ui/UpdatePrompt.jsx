@@ -1,4 +1,6 @@
 import { usePwaUpdate } from '../../hooks/usePwaUpdate'
+import Icon from './Icon'
+import { RefreshCw, XMarkIcon } from './icons'
 
 /**
  * UpdatePrompt — toast that appears in the bottom-right when a new
@@ -27,31 +29,42 @@ export default function UpdatePrompt() {
     <div
       role="status"
       aria-live="polite"
-      className="fixed bottom-4 right-4 z-50 max-w-sm theme-card theme-border rounded-radius-md border p-4 shadow-elev-md flex items-center gap-3 sm:gap-4"
+      data-print="hide"
+      className="fixed inset-x-3 bottom-3 z-[90] sm:inset-x-auto sm:right-4 sm:bottom-4 sm:w-[360px] theme-card theme-border rounded-radius-md border p-4 shadow-elev-lg"
     >
-      <div className="flex-1 min-w-0">
-        <p className="theme-text font-black text-sm flex items-center gap-2">
-          <span aria-hidden="true">✨</span>
-          New version available
-        </p>
-        <p className="theme-text-muted text-xs mt-1 leading-snug">
-          Refresh to load the latest changes. Your progress will be saved.
-        </p>
-      </div>
-      <div className="flex shrink-0 flex-col gap-1.5">
-        <button
-          type="button"
-          onClick={update}
-          className="theme-accent-fill theme-on-accent rounded-full px-3 py-1.5 text-xs font-bold shadow-sm hover:opacity-90"
-        >
-          Update
-        </button>
+      <div className="flex items-start gap-3">
+        <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-radius-sm bg-[color:var(--accent-bg)] text-[color:var(--accent)]">
+          <Icon as={RefreshCw} size="sm" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="theme-text text-sm font-black">New version available</p>
+          <p className="theme-text-muted mt-1 text-xs leading-snug">
+            Refresh when you are ready to load the latest ZedExams update.
+          </p>
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={update}
+              className="theme-accent-fill theme-on-accent rounded-full px-3 py-1.5 text-xs font-bold shadow-sm transition hover:opacity-90 active:scale-[0.98]"
+            >
+              Refresh now
+            </button>
+            <button
+              type="button"
+              onClick={dismiss}
+              className="rounded-full theme-text-muted px-3 py-1.5 text-xs font-bold transition hover:theme-text hover:theme-bg-subtle active:scale-[0.98]"
+            >
+              Later
+            </button>
+          </div>
+        </div>
         <button
           type="button"
           onClick={dismiss}
-          className="rounded-full theme-text-muted hover:theme-text px-3 py-1.5 text-xs font-bold"
+          aria-label="Dismiss update prompt"
+          className="-mr-1 -mt-1 rounded-full p-1.5 theme-text-muted transition hover:theme-text hover:theme-bg-subtle active:scale-[0.98]"
         >
-          Later
+          <Icon as={XMarkIcon} size="sm" />
         </button>
       </div>
     </div>
