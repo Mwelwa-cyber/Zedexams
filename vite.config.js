@@ -67,21 +67,16 @@ export default defineConfig(({ mode }) => {
       // to generate a service worker that pre-caches the app shell and
       // applies sensible runtime caching to fonts + Firebase Storage assets.
       //
-      // registerType: 'autoUpdate' — a new SW activates and reloads the
-      // app automatically on the next open, no user prompt. This is what
-      // makes HTML/meta changes (e.g. theme-color) actually reach returning
-      // users instead of sitting behind a stale precached index.html. Only
-      // the changed hashed assets download, in the background, and the
-      // precache still serves the app offline — so slow connections aren't
-      // penalised. onNeedRefresh never fires in this mode, so <UpdatePrompt />
-      // simply never renders (left in place; harmless).
+      // registerType: 'prompt' — a new SW waits until the user accepts the
+      // update from <UpdatePrompt />. This prevents surprise reloads while a
+      // learner is mid-quiz, mid-payment, or working on a slow connection.
       //
       // Capacitor: src/main.jsx skips registerSW() on native platforms
       // because Capacitor already serves bundled assets locally — a SW
       // there is dead weight and the file:// protocol blocks it anyway.
       VitePWA({
         strategies: 'generateSW',
-        registerType: 'autoUpdate',
+        registerType: 'prompt',
         manifest: false,            // already shipped at /manifest.webmanifest
         injectRegister: false,      // we register manually from main.jsx
         workbox: {
@@ -161,10 +156,11 @@ export default defineConfig(({ mode }) => {
               },
             },
           ],
-          // autoUpdate: take over open clients and activate immediately so
-          // a deploy reaches users on next open without a manual tap.
+          // The UI calls skipWaiting via virtual:pwa-register only after the
+          // user taps Update. Claim the page after activation so the refresh
+          // lands on the newest cached shell.
           clientsClaim: true,
-          skipWaiting: true,
+          skipWaiting: false,
           // Purge precaches from older SW revisions (incl. the stale
           // index.html that held the old theme-color) on activate.
           cleanupOutdatedCaches: true,
