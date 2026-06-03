@@ -10,11 +10,13 @@ import SeoHelmet from '../seo/SeoHelmet'
 const UpgradeModal = lazy(() => import('../subscription/UpgradeModal'))
 
 // One row per grade we have a product for. Keys match the URL slug
-// (/grade-7, /grade-9, /grade-12). When a grade's content isn't ready
-// yet we can either omit it from this map (404) or set `available:
-// false` to show a "coming soon" page that still collects email
-// signups. For now Grade 7 is the only live product per Mwelwa's
-// "ship Grade 7 first" call.
+// (/grade-7, /grade-12) and each gets an explicit <Route> in App.jsx.
+// When a grade's content isn't ready we set `available: false` to show
+// a "coming soon" page that still collects WhatsApp signups.
+//
+// Grade 9 was phased out of the Zambian curriculum (ECZ no longer runs
+// the Grade 9 exam), so there is no Grade 9 pack — /grade-9 404s, which
+// is correct. ECZ exam grades are now Grade 7 and Grade 12.
 const GRADE_PACKS = {
   '7': {
     grade: 7,
@@ -31,22 +33,6 @@ const GRADE_PACKS = {
     ],
     examMonth: 'October–November',
     available: true,
-  },
-  '9': {
-    grade: 9,
-    title: 'Grade 9 ECZ Exam Pack',
-    eyebrow: 'Junior secondary',
-    monthlyPlanId: 'grade9_monthly',
-    termlyPlanId: null,
-    subjects: [
-      'English',
-      'Mathematics',
-      'Integrated Science',
-      'Social Studies',
-      'Civic Education',
-    ],
-    examMonth: 'November',
-    available: false,
   },
   '12': {
     grade: 12,
@@ -153,8 +139,13 @@ function ComingSoon({ pack }) {
   )
 }
 
-export default function GradePackLanding() {
-  const { gradeSlug } = useParams()
+// `gradeSlug` is passed explicitly by the per-grade routes in App.jsx
+// (React Router v6 can't match a partial dynamic segment like
+// `/grade-:slug`). The useParams() fallback keeps the component usable
+// from a conventional `:gradeSlug` route too.
+export default function GradePackLanding({ gradeSlug: gradeSlugProp } = {}) {
+  const params = useParams()
+  const gradeSlug = gradeSlugProp ?? params.gradeSlug
   const pack = GRADE_PACKS[gradeSlug]
   const { currentUser } = useAuth()
   const navigate = useNavigate()

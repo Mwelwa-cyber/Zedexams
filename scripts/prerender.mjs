@@ -75,15 +75,14 @@ function discoverBlogSlugs() {
  * Static, content-only public routes. The homepage is intentionally absent
  * (it stays the neutral SPA fallback — see header).
  *
- * The /grade-N marketing pages are deliberately excluded: the route pattern
- * `/grade-:gradeSlug` is a partial dynamic segment that React Router v6 does
- * not match, so those URLs currently render the 404 page. Prerendering them
- * would bake a "not found" screen into a real file. They're not in the
- * sitemap either. Add them back here once the routing is fixed.
+ * Grade landing pages: ECZ exam grades are Grade 7 (live) and Grade 12
+ * (coming soon); Grade 9 was phased out and has no route. These mirror the
+ * explicit /grade-N routes in src/App.jsx and the GRADE_PACKS keys.
  */
 function buildRouteList() {
   const routes = ['/pricing', '/privacy', '/terms', '/blog']
   for (const slug of discoverBlogSlugs()) routes.push(`/blog/${slug}`)
+  for (const grade of ['7', '12']) routes.push(`/grade-${grade}`)
   return routes
 }
 
