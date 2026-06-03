@@ -74,21 +74,26 @@ function contentFingerprint(blocks) {
 /**
  * Run the import. `deps` supplies the write functions (useFirestore + notes lib)
  * and `findBySeedKey(key)` → the existing note doc `{ id, ...data }` or null.
+ * `getQuizById(id)` (optional, admin-readable) is used to VERIFY a note's linked
+ * quiz is a real, published quiz; if it's missing or unpublished the quiz is
+ * re-created from the bank so learners can actually open it.
  *
  * Per note (convergent + idempotent — safe to re-run):
  *   - new (no seedKey match)        → create note + quiz, publish        → 'created'
- *   - exists, content differs from the bundle (e.g. new diagrams), or its
- *     quiz still needs linking        → updateNote with refreshed blocks  → 'updated'
- *   - exists, identical content + already linked                          → 'skipped'
+ *   - exists, content differs (e.g. new diagrams) or its quiz link was
+ *     broken/unpublished and got re-created → updateNote refreshed blocks → 'updated'
+ *   - exists, identical content + a healthy published quiz               → 'skipped'
  *
- * Existing quiz links are reused (never duplicated): a note that already has a
- * linked quiz keeps it; only a missing link triggers quiz creation.
+ * A healthy existing quiz link is reused (never duplicated); a broken one
+ * (missing doc or isPublished:false) is repaired by creating a fresh published
+ * quiz and relinking — this is what fixes the Social Studies notes whose linked
+ * quizzes never became learner-readable.
  */
 export async function importGrade7Seed({
-  createQuiz, saveQuestions, createNote, updateNote, publishNote, findBySeedKey, currentUid, onProgress,
+  createQuiz, saveQuestions, createNote, updateNote, publishNote, findBySeedKey, getQuizById, currentUid, onProgress,
 }) {
   const deps = { createQuiz, saveQuestions, currentUid }
-  const summary = { total: (seed.notes || []).length, created: 0, updated: 0, skipped: 0, failed: 0, quizzes: 0 }
+  const summary = { total: (seed.notes || []).length, created: 0, updated: 0, skipped: 0, failed: 0, quizzes: 0, repaired: 0 }
 
   for (const note of seed.notes || []) {
     try {
@@ -98,12 +103,21 @@ export async function importGrade7Seed({
       const blocks = JSON.parse(JSON.stringify(note.blocks || []))
       const quizBlock = blocks.find((b) => b.type === 'quiz')
 
-      // Resolve the quiz link: reuse an existing one, else create from the bank.
+      // Resolve the quiz link: reuse a HEALTHY existing quiz, else (re)create it.
       let createdQuiz = false
       if (quizBlock) {
         const existingQuiz = Array.isArray(existing?.blocks) ? existing.blocks.find((b) => b.type === 'quiz') : null
         const existingQuizId = existingQuiz?.quizId ? String(existingQuiz.quizId).trim() : ''
+
+        // A link is only healthy if the quiz doc exists AND is published — an
+        // orphaned or unpublished id renders as "Quiz not found" for learners.
+        let healthy = false
         if (existingQuizId) {
+          if (!getQuizById) { healthy = true } // no checker → trust it (back-compat)
+          else { let live = null; try { live = await getQuizById(existingQuizId) } catch { live = null } healthy = !!(live && live.isPublished) }
+        }
+
+        if (existingQuizId && healthy) {
           quizBlock.quizId = existingQuizId
           quizBlock.quizTitle = existingQuiz.quizTitle || quizBlock.quizTitle || `${note.title} — Practice Quiz`
           if (existingQuiz.questionCount != null) quizBlock.questionCount = existingQuiz.questionCount
@@ -114,7 +128,12 @@ export async function importGrade7Seed({
             quizBlock.quizTitle = `${note.title} — Practice Quiz`
             quizBlock.questionCount = made.count
             summary.quizzes++; createdQuiz = true
+            if (existingQuizId) summary.repaired++ // had a (broken) link before
+          } else {
+            quizBlock.quizId = existingQuizId || ''
           }
+        } else {
+          quizBlock.quizId = existingQuizId || ''
         }
         if (quizBlock.quizId == null) quizBlock.quizId = ''
         delete quizBlock.quizKey

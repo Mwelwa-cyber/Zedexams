@@ -23,7 +23,7 @@ const STATUS_META = {
 
 export function SeedImportPanel() {
   const { currentUser } = useAuth()
-  const { createQuiz, saveQuestions } = useFirestore()
+  const { createQuiz, saveQuestions, getQuizById } = useFirestore()
   const [open, setOpen] = useState(false)
   const [summary, setSummary] = useState(null)
   const [running, setRunning] = useState(false)
@@ -48,7 +48,7 @@ export function SeedImportPanel() {
     setRunning(true); setLog([]); setResult(null)
     try {
       const res = await modRef.current.importGrade7Seed({
-        createQuiz, saveQuestions, createNote, updateNote, publishNote, findBySeedKey,
+        createQuiz, saveQuestions, getQuizById, createNote, updateNote, publishNote, findBySeedKey,
         currentUid: currentUser.uid,
         onProgress: (evt) => setLog((l) => [...l, evt]),
       })
@@ -118,7 +118,7 @@ export function SeedImportPanel() {
                       <Check size={14} className="inline text-emerald-600" /> Done — <strong>{result.created}</strong> created
                       {result.updated ? <>, <strong>{result.updated}</strong> updated</> : ''}
                       {', '}{result.skipped} skipped{result.failed ? <>, <span className="text-red-600">{result.failed} failed</span></> : ''}
-                      {result.quizzes ? <> · {result.quizzes} quizzes created</> : ''}.
+                      {result.quizzes ? <> · {result.quizzes} quizzes created{result.repaired ? <> ({result.repaired} relinked)</> : ''}</> : ''}.
                     </p>
                   )}
                 </div>
