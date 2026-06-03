@@ -10,10 +10,10 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans:    ['Nunito', 'sans-serif'],
+        sans:    ['Plus Jakarta Sans', 'Nunito', 'sans-serif'],
         // Phase 0 — display font for headlines, body for reading copy
-        display: ['Outfit', 'Nunito', 'sans-serif'],
-        body:    ['Nunito', 'sans-serif'],
+        display: ['Outfit', 'Plus Jakarta Sans', 'sans-serif'],
+        body:    ['Plus Jakarta Sans', 'Nunito', 'sans-serif'],
       },
       colors: {
         zambia: {

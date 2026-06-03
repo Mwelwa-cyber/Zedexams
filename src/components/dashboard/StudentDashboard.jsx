@@ -12,31 +12,19 @@ import Mascot from '../ui/Mascot'
 import Button from '../ui/Button'
 import Skeleton from '../ui/Skeleton'
 import SeoHelmet from '../seo/SeoHelmet'
+import Icon from '../ui/Icon'
+import {
+  BarChart3,
+  BookOpen,
+  CalendarDays,
+  ClipboardList,
+  PencilLine,
+  Target,
+  TrophyIcon,
+} from '../ui/icons'
 import ProgressWidget from './ProgressWidget'
 import StreakXpCard from './StreakXpCard'
 import StudyPlanCard from './StudyPlanCard'
-
-const STARS = [
-  { top: '10%', left:  '7%',  delay: '0s',    dur: '3.2s', emoji: '⭐', cls: 'text-xl opacity-70' },
-  { top: '68%', left: '88%',  delay: '0.6s',  dur: '2.8s', emoji: '✨', cls: 'text-sm opacity-50' },
-  { top: '22%', left: '80%',  delay: '1.1s',  dur: '3.7s', emoji: '🌟', cls: 'text-base opacity-55' },
-  { top: '78%', left: '11%',  delay: '0.3s',  dur: '3.0s', emoji: '⭐', cls: 'text-xs opacity-45' },
-  { top: '42%', left: '93%',  delay: '1.7s',  dur: '2.6s', emoji: '✨', cls: 'text-sm opacity-40' },
-  { top: '55%', left:  '3%',  delay: '0.9s',  dur: '3.4s', emoji: '🌟', cls: 'text-base opacity-50' },
-]
-
-function FloatingStars() {
-  return (
-    <div className="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-      {STARS.map((s, i) => (
-        <span key={i} className={`absolute ${s.cls}`}
-          style={{ top: s.top, left: s.left, animation: `float ${s.dur} ease-in-out infinite`, animationDelay: s.delay }}>
-          {s.emoji}
-        </span>
-      ))}
-    </div>
-  )
-}
 
 const subjectBadge = {
   English:               'bg-violet-100 text-violet-700',
@@ -67,10 +55,10 @@ function pctColor(p) {
 }
 
 const QUICK_ACTIONS = [
-  { icon: '✏️', label: 'Take a Quiz',     sub: 'Test your knowledge',   to: '/quizzes',    accent: 'accent-mint'  },
-  { icon: '📚', label: 'Lessons',         sub: 'Read study notes',      to: '/lessons',    accent: 'accent-blue'  },
-  { icon: '📊', label: 'My Results',      sub: 'View your history',     to: '/my-results', accent: 'accent-amber' },
-  { icon: '📅', label: 'School Calendar', sub: 'Terms & holidays',      to: '/calendar',   accent: 'accent-pink'  },
+  { icon: PencilLine,   label: 'Practice quiz',   sub: 'CBC questions by topic', to: '/quizzes',    accent: 'accent-mint'  },
+  { icon: BookOpen,     label: 'Lessons',         sub: 'Revise one topic',       to: '/lessons',    accent: 'accent-blue'  },
+  { icon: BarChart3,    label: 'Results',         sub: 'Review score history',   to: '/my-results', accent: 'accent-amber' },
+  { icon: CalendarDays, label: 'School calendar', sub: 'Terms and holidays',     to: '/calendar',   accent: 'accent-pink'  },
 ]
 
 export default function StudentDashboard() {
@@ -131,18 +119,17 @@ export default function StudentDashboard() {
       )}
 
       {/* Welcome hero */}
-      <section className="hero min-h-[130px]">
-        <FloatingStars />
-        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
-        {/* Owl mascot peeking from the right */}
-        <div className="absolute bottom-0 right-4 pointer-events-none">
+      <section className="hero dashboard-hero min-h-[152px]">
+        <div className="absolute inset-0 dashboard-hero-map" aria-hidden="true" />
+        <div className="absolute bottom-0 right-3 sm:right-5 pointer-events-none">
           <Mascot size={100} mood={avgScore >= 70 ? 'star' : 'happy'} />
         </div>
-        <div className="relative pr-24 sm:pr-28">
-          <p className="hero-eyebrow">{greeting} 👋</p>
-          <h1 className="hero-title">{userProfile?.displayName ?? 'Learner'}!</h1>
-          <p className="hero-sub">Ready to ace your exams today?</p>
+        <div className="relative pr-24 sm:pr-32">
+          <p className="hero-eyebrow">{greeting}</p>
+          <h1 className="hero-title">
+            Keep your exam plan moving, {userProfile?.displayName ?? 'Learner'}
+          </h1>
+          <p className="hero-sub">One quiz, one correction, one topic mastered.</p>
           <div className="relative flex items-center gap-2 mt-2 flex-wrap">
             {userProfile?.grade && (
               <span className="bg-white/20 text-white/90 text-xs font-bold px-2.5 py-1 rounded-full">
@@ -155,8 +142,8 @@ export default function StudentDashboard() {
               </span>
             )}
             {isPremium && (
-              <span className="bg-yellow-400 text-yellow-900 text-xs font-black px-2.5 py-1 rounded-full animate-bounce-slow">
-                ⭐ Premium
+              <span className="bg-yellow-400 text-yellow-950 text-xs font-black px-2.5 py-1 rounded-full">
+                Premium
               </span>
             )}
           </div>
@@ -178,12 +165,14 @@ export default function StudentDashboard() {
       {/* Stats */}
       <div className="stats-row stats-row-3">
         {[
-          { icon: '📝', label: 'Quizzes Done', val: loading ? '…' : totalQuizzes,                         t: 't-purple', delay: '0ms'   },
-          { icon: '🎯', label: 'Avg Score',    val: loading ? '…' : totalQuizzes > 0 ? `${avgScore}%` : '—', t: 't-mint',   delay: '80ms'  },
-          { icon: '🏆', label: 'Passed',       val: loading ? '…' : passed,                               t: 't-amber',  delay: '160ms' },
+          { icon: ClipboardList, label: 'Quizzes done', val: loading ? '...' : totalQuizzes,                         t: 't-purple', delay: '0ms'   },
+          { icon: Target,        label: 'Average score', val: loading ? '...' : totalQuizzes > 0 ? `${avgScore}%` : '-', t: 't-mint',   delay: '80ms'  },
+          { icon: TrophyIcon,    label: 'Passed',        val: loading ? '...' : passed,                               t: 't-amber',  delay: '160ms' },
         ].map(s => (
           <div key={s.label} className={`stat-tile ${s.t} animate-pop`} style={{ animationDelay: s.delay }}>
-            <div className="stat-tile-icon" aria-hidden="true"><span className="text-base">{s.icon}</span></div>
+            <div className="stat-tile-icon" aria-hidden="true">
+              <Icon as={s.icon} size="sm" />
+            </div>
             <div className="stat-num">{s.val}</div>
             <div className="stat-label">{s.label}</div>
           </div>
@@ -259,13 +248,15 @@ export default function StudentDashboard() {
 
       {/* Quick actions */}
       <div>
-        <h2 className="qa-title">⚡ Quick Actions</h2>
+        <h2 className="qa-title">Quick actions</h2>
         <div className="qa-grid">
           {QUICK_ACTIONS.map((a, i) => (
             <Link key={a.to} to={a.to}
               className={`qa-card ${a.accent} hover-lift press-feedback animate-pop`}
               style={{ animationDelay: `${i * 60}ms` }}>
-              <span className="qa-icon" aria-hidden="true"><span className="text-base">{a.icon}</span></span>
+              <span className="qa-icon" aria-hidden="true">
+                <Icon as={a.icon} size="sm" />
+              </span>
               <div className="qa-text">
                 <p className="qa-name">{a.label}</p>
                 <p className="qa-desc">{a.sub}</p>
