@@ -123,15 +123,6 @@ const NAV_SECTIONS = [
       { to: '/admin/app-check', icon: ShieldCheck, label: 'App Check' },
     ],
   },
-  {
-    label: 'Preview',
-    items: [
-      // External links so they open in a new tab — admins viewing live
-      // learner/teacher surfaces without losing their admin context.
-      { to: '/quizzes', icon: Eye, label: 'View as learner', external: true },
-      { to: '/teacher', icon: Eye, label: 'View as teacher', external: true },
-    ],
-  },
 ]
 
 const VIEW_AS_KEY = 'zedexams.adminViewAs'
