@@ -113,24 +113,6 @@ export const PLANS = {
     locked: [],
   },
 
-  grade9_monthly: {
-    id: 'grade9_monthly',
-    name: 'Grade 9 ECZ Pack',
-    tagline: 'Junior secondary · 30 days',
-    priceZMW: 100,
-    durationDays: 30,
-    dailyQuizLimit: Infinity,
-    weaknessAnalysis: true,
-    examMode: true,
-    badge: '📗',
-    features: [
-      'All Grade 9 ECZ subjects',
-      'Past papers with solutions',
-      'Auto-marked practice quizzes',
-      'Exam strategy guide',
-    ],
-    locked: [],
-  },
   grade12_monthly: {
     id: 'grade12_monthly',
     name: 'Grade 12 ECZ Pack',

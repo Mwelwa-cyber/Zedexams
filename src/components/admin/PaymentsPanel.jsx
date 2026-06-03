@@ -14,7 +14,6 @@ import RevenueTrendCard from './RevenueTrendCard'
 const GRANT_PLAN_IDS = [
   'grade7_monthly',
   'grade7_termly',
-  'grade9_monthly',
   'grade12_monthly',
   'full_platform_termly',
   'single_subject_monthly',

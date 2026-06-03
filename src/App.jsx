@@ -373,10 +373,14 @@ export default function App() {
           <Route path="/welcome"  element={<Navigate to="/" replace />} />
           <Route path="/pricing"  element={<Plans />} />
           <Route path="/plans"    element={<Navigate to="/pricing" replace />} />
-          {/* Grade-specific landing pages — the URLs to share in
-              WhatsApp posts. Slug = grade number; data lives in
-              GradePackLanding's GRADE_PACKS map. */}
-          <Route path="/grade-:gradeSlug" element={<GradePackLanding />} />
+          {/* Grade-specific landing pages — the URLs to share in WhatsApp
+              posts. React Router v6 can't match a partial dynamic segment
+              (`/grade-:slug`), so each live grade gets an explicit route and
+              passes its slug to GradePackLanding. ECZ exam grades are Grade 7
+              and Grade 12; Grade 9 was phased out, so /grade-9 has no route
+              and correctly 404s. */}
+          <Route path="/grade-7"  element={<GradePackLanding gradeSlug="7" />} />
+          <Route path="/grade-12" element={<GradePackLanding gradeSlug="12" />} />
           <Route path="/privacy"  element={<PrivacyPolicy />} />
           <Route path="/terms"    element={<Terms />} />
           {/* Audit A2 — public ECZ past-paper archive. Hub is no-auth so
