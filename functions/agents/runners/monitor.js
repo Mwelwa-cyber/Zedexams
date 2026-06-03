@@ -31,6 +31,10 @@ const QUIZ_SAMPLE = 10;        // published quizzes to structurally validate
 const IMAGE_SAMPLE = 20;       // image URLs to HEAD-check per run
 const QUESTIONS_PER_QUIZ = 30; // cap questions read per sampled quiz
 const FETCH_TIMEOUT_MS = 8000;
+const MAX_ISSUES_PER_RUN = 3;  // ceiling on bug issues filed in one run
+// Only code/infra failures are plausibly fixable by a code-fixer agent;
+// content/data failures (images, quizzes) are reported but not routed to Mendi.
+const MENDI_CHECKS = new Set(["pages", "firebase"]);
 
 // ── small helpers ────────────────────────────────────────────────────
 
@@ -110,6 +114,11 @@ function runStructuralChecks(questions) {
 /** Stable identity for a failure, so we can de-dup notifications across runs. */
 function failureKey(f) {
   return `${f.check}:${f.id}`;
+}
+
+/** Whether a failure should be routed to Mendi (code/infra only, not content). */
+function isMendiEligible(failure) {
+  return MENDI_CHECKS.has(failure?.check);
 }
 
 // ── individual checks ────────────────────────────────────────────────
@@ -193,12 +202,17 @@ async function checkQuizzes(db) {
   const failures = [];
   let checked = 0;
   try {
+    // Order by createdAt only (a single field is always indexed) and filter
+    // isPublished in code. A where("isPublished").orderBy("createdAt") query
+    // would need an isPublished+createdAt composite index that doesn't exist,
+    // making the query throw every run.
     const snap = await db.collection("quizzes")
-        .where("isPublished", "==", true)
         .orderBy("createdAt", "desc")
-        .limit(QUIZ_SAMPLE)
+        .limit(QUIZ_SAMPLE * 3)
         .get();
     for (const doc of snap.docs) {
+      if (checked >= QUIZ_SAMPLE) break;
+      if (!doc.data()?.isPublished) continue;
       checked += 1;
       const qs = await doc.ref.collection("questions").limit(QUESTIONS_PER_QUIZ).get().catch(() => null);
       const questions = qs ? qs.docs.map((d) => d.data()) : [];
@@ -370,9 +384,10 @@ async function fileBugIssue({token, repo, failure, suggestions}) {
 
 /**
  * Report failures with de-duplication: a given failure is escalated at most
- * once per 24h. Sends one summary email and files a `bug` issue per newly
- * escalated failure. Mutates nothing it isn't given; persists de-dup state to
- * Firestore. Every channel degrades gracefully when its secret is missing.
+ * once per 24h. Sends one summary email covering all newly escalated failures,
+ * and files `bug` issues (→ Mendi) for the code/infra ones only, capped per
+ * run. Persists de-dup state to Firestore. Every channel degrades gracefully
+ * when its secret is missing.
  */
 async function notifyFailures({db, report, smtpUser, smtpPass, adminEmails, github = {}}) {
   const now = Date.now();
@@ -396,9 +411,16 @@ async function notifyFailures({db, report, smtpUser, smtpPass, adminEmails, gith
 
   const out = {emailed: false, issuesFiled: [], githubAuth: null, skipped: {}};
 
-  // GitHub issues → Mendi. Resolve one token per run (App installation token,
-  // else PAT), then file one issue per newly escalated failure.
-  if (newlyEscalated.length) {
+  // GitHub issues → Mendi. Only code/infra failures (pages, firebase) are
+  // plausibly fixable by a code-fixer; content/data failures (images, quizzes)
+  // are reported in the dashboard + email but not handed to Mendi. Cap the
+  // number filed per run, criticals first, so a bad first run can't open a
+  // flood of issues (each of which would trigger a Mendi run).
+  const mendiCandidates = newlyEscalated
+      .filter(({f}) => isMendiEligible(f))
+      .sort((a, b) => (a.f.severity === "critical" ? 0 : 1) - (b.f.severity === "critical" ? 0 : 1))
+      .slice(0, MAX_ISSUES_PER_RUN);
+  if (mendiCandidates.length) {
     let githubToken = null;
     try {
       githubToken = await resolveGithubToken(github);
@@ -407,7 +429,7 @@ async function notifyFailures({db, report, smtpUser, smtpPass, adminEmails, gith
       out.skipped.github = `auth failed: ${String(err?.message || err)}`;
     }
     if (githubToken && github.repo) {
-      for (const {f, key} of newlyEscalated) {
+      for (const {f, key} of mendiCandidates) {
         try {
           const num = await fileBugIssue({token: githubToken, repo: github.repo, failure: f, suggestions: report.suggestions});
           if (num) {
@@ -465,6 +487,7 @@ module.exports = {
   runStructuralChecks,
   extractPlainText,
   failureKey,
+  isMendiEligible,
   suggestFixes,
   notifyFailures,
   makeAppJwt,

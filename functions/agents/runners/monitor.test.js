@@ -10,7 +10,7 @@
 
 const assert = require("node:assert");
 const crypto = require("node:crypto");
-const {runStructuralChecks, extractPlainText, failureKey, makeAppJwt, resolveGithubToken} = require("./monitor");
+const {runStructuralChecks, extractPlainText, failureKey, isMendiEligible, makeAppJwt, resolveGithubToken} = require("./monitor");
 
 let passed = 0;
 function test(name, fn) {
@@ -109,6 +109,18 @@ test("failureKey differs across checks", () => {
       failureKey({check: "pages", id: "/"}),
       failureKey({check: "images", id: "/"}),
   );
+});
+
+// ── Mendi routing ────────────────────────────────────────────────────
+test("code/infra failures are Mendi-eligible", () => {
+  assert.strictEqual(isMendiEligible({check: "pages"}), true);
+  assert.strictEqual(isMendiEligible({check: "firebase"}), true);
+});
+
+test("content/data failures are NOT routed to Mendi", () => {
+  assert.strictEqual(isMendiEligible({check: "images"}), false);
+  assert.strictEqual(isMendiEligible({check: "quizzes"}), false);
+  assert.strictEqual(isMendiEligible({}), false);
 });
 
 // ── GitHub App JWT minting ───────────────────────────────────────────
