@@ -8,6 +8,7 @@
   },
   "hosting": {
     "public": "dist",
+    "trailingSlash": false,
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -16,7 +17,7 @@
     ],
     "headers": [
       {
-        "source": "/index.html",
+        "source": "**/*.html",
         "headers": [
           { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
         ]
