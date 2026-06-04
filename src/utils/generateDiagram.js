@@ -39,6 +39,18 @@ function messageFromError(error) {
   if (code.includes('resource-exhausted') && /openai image api is rate-limited/i.test(msg)) {
     return msg
   }
+  if (code.includes('failed-precondition') && /colour illustrations are not available|kie api key is not configured/i.test(msg)) {
+    return 'Colour illustrations are currently unavailable. Switch to Line art and try again.'
+  }
+  if (code.includes('failed-precondition') && /kie key looks invalid/i.test(msg)) {
+    return msg
+  }
+  if (code.includes('resource-exhausted') && /kie image api is rate-limited/i.test(msg)) {
+    return msg
+  }
+  if (/kie image request failed/i.test(msg)) {
+    return 'Could not generate that colour illustration — try a simpler prompt.'
+  }
   if (code.includes('resource-exhausted')) {
     return 'Monthly diagram limit reached. Upgrade your plan or try again next month.'
   }
