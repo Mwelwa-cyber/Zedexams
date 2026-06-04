@@ -220,6 +220,11 @@ const geminiApiKey = defineSecret("GEMINI_API_KEY");
 // still the default for B&W line art (cleaner on photocopiers). When
 // unset, the photoreal toggle is hidden and Recraft handles everything.
 const openaiApiKey = defineSecret("OPENAI_API_KEY");
+// Optional. When set, generateDiagram exposes a "colour illustration" style
+// that routes through the Kie.ai image API (Nano Banana et al.) for bright,
+// friendly worksheet illustrations. When unset, the toggle is hidden and the
+// other providers (Recraft line-art / OpenAI photoreal) handle everything.
+const kieApiKey = defineSecret("KIE_API_KEY");
 const MAX_LEN = {
   question: 1200,
   correctAnswer: 600,
@@ -1871,7 +1876,7 @@ exports.generateExamPaper = createGenerateExamPaper(anthropicApiKey);
 // toggle that routes through gpt-image-1. Recraft remains the default
 // for line-art. The factory takes both secrets so the handler can route
 // per-request at runtime.
-exports.generateDiagram = createGenerateDiagram(recraftApiKey, openaiApiKey);
+exports.generateDiagram = createGenerateDiagram(recraftApiKey, openaiApiKey, kieApiKey);
 
 // Teacher Tools — Note Pictures (admin-only). Generates a flat illustration
 // for each `picture` block in a published study note. Tries Gemini 2.5 Flash

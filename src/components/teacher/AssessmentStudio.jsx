@@ -824,11 +824,11 @@ export default function AssessmentStudio() {
       if (view !== 'builder') changeView('builder')
     } catch (error) {
       const raw = error?.message || ''
-      const isOpenAiKeyIssue = provider === 'openai'
-        && /openai|photoreal|OPENAI_API_KEY/i.test(raw)
+      const isUpgradeStyleKeyIssue = (provider === 'openai' || provider === 'kie')
+        && /openai|photoreal|colour illustration|kie|OPENAI_API_KEY|KIE_API_KEY/i.test(raw)
         && /(invalid|not configured|not available|unavailable|rotate)/i.test(raw)
-      const message = isOpenAiKeyIssue
-        ? 'Photoreal is currently unavailable. Switch to Line art and try again.'
+      const message = isUpgradeStyleKeyIssue
+        ? `${provider === 'kie' ? 'Colour' : 'Photoreal'} is currently unavailable. Switch to Line art and try again.`
         : (raw || 'Diagram generation failed.')
       showToast(message, true)
     } finally {
@@ -4543,6 +4543,14 @@ function DiagramGeneratorAction({ disabled, onGenerate }) {
                 style={{ flex: 1, padding: '6px 10px', border: `1px solid ${provider === 'openai' ? 'var(--sv-primary)' : 'var(--sv-border)'}`, borderRadius: 'var(--sv-r-sm)', background: provider === 'openai' ? 'var(--sv-tinted)' : 'var(--sv-paper)', cursor: disabled ? 'default' : 'pointer', fontSize: 12, color: 'var(--sv-text)' }}
               >
                 📷 Photoreal<small style={{ display: 'block', color: 'var(--sv-muted)', fontSize: 10, marginTop: 2 }}>Photographs of real things</small>
+              </button>
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => setProvider('kie')}
+                style={{ flex: 1, padding: '6px 10px', border: `1px solid ${provider === 'kie' ? 'var(--sv-primary)' : 'var(--sv-border)'}`, borderRadius: 'var(--sv-r-sm)', background: provider === 'kie' ? 'var(--sv-tinted)' : 'var(--sv-paper)', cursor: disabled ? 'default' : 'pointer', fontSize: 12, color: 'var(--sv-text)' }}
+              >
+                🎨 Colour<small style={{ display: 'block', color: 'var(--sv-muted)', fontSize: 10, marginTop: 2 }}>Bright illustrations</small>
               </button>
             </div>
           </div>
