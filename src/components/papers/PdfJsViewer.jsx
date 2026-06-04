@@ -47,13 +47,26 @@ async function loadPdfJs() {
   return pdfjsLoader
 }
 
-async function fetchPdfBuffer(url) {
-  const res = await fetch(url, { mode: 'cors' })
-  if (!res.ok) throw new Error(`PDF fetch failed: ${res.status}`)
-  return res.arrayBuffer()
+async function fetchPdfBuffer(url, { retries = 1 } = {}) {
+  let lastErr
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    try {
+      const res = await fetch(url, { mode: 'cors' })
+      if (!res.ok) throw new Error(`PDF fetch failed: ${res.status}`)
+      return await res.arrayBuffer()
+    } catch (err) {
+      lastErr = err
+      // A cross-origin / transient network hiccup throws a bare
+      // "Failed to fetch". Retry once before surfacing the error — a
+      // freshly uploaded file occasionally isn't reachable on the very
+      // first request.
+      if (attempt < retries) await new Promise((r) => setTimeout(r, 400))
+    }
+  }
+  throw lastErr || new Error('PDF fetch failed')
 }
 
-export default function PdfJsViewer({ url, title }) {
+export default function PdfJsViewer({ url, blob, title }) {
   const canvasRef = useRef(null)
   const containerRef = useRef(null)
   const renderTaskRef = useRef(null)
@@ -63,9 +76,12 @@ export default function PdfJsViewer({ url, title }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  // Load + parse the PDF once per URL change.
+  // Load + parse the PDF whenever the source (URL or in-memory blob)
+  // changes. A `blob` is preferred when present — e.g. a file the admin
+  // just uploaded — so the preview renders from local bytes and skips
+  // the cross-origin Storage fetch entirely.
   useEffect(() => {
-    if (!url) return
+    if (!url && !blob) return
     let cancelled = false
     setLoading(true)
     setError(null)
@@ -75,7 +91,7 @@ export default function PdfJsViewer({ url, title }) {
       try {
         const [{ getDocument }, buffer] = await Promise.all([
           loadPdfJs(),
-          fetchPdfBuffer(url),
+          blob ? blob.arrayBuffer() : fetchPdfBuffer(url),
         ])
         if (cancelled) return
         const doc = await getDocument({ data: buffer }).promise
@@ -94,7 +110,7 @@ export default function PdfJsViewer({ url, title }) {
     return () => {
       cancelled = true
     }
-  }, [url])
+  }, [url, blob])
 
   // Render the current page when pdf / pageIndex / zoom change.
   useEffect(() => {
@@ -253,9 +269,23 @@ export default function PdfJsViewer({ url, title }) {
           <p className="theme-text-muted text-sm py-12">Loading paper…</p>
         )}
         {!loading && error && (
-          <p role="alert" className="text-rose-700 font-bold text-sm py-12 text-center">
-            {error}
-          </p>
+          <div role="alert" className="py-12 text-center space-y-3">
+            <p className="text-rose-700 font-bold text-sm">{error}</p>
+            {url && (
+              // Inline rendering can be blocked (cross-origin fetch, iOS
+              // Safari, App Check) even when the file itself is fine.
+              // A plain link isn't subject to those limits, so the reader
+              // can still open the paper in the browser's native viewer.
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block theme-accent-fill theme-on-accent rounded-full px-4 py-2 text-xs font-black hover:opacity-90"
+              >
+                Open PDF in a new tab
+              </a>
+            )}
+          </div>
         )}
         <canvas
           ref={canvasRef}
