@@ -8,7 +8,6 @@ import {
   formatDate,
   bucketIntoTree,
   librarySectionForGeneration,
-  TOOL_META,
 } from '../../../utils/teacherLibraryService'
 import {
   LIBRARY_SECTIONS,
@@ -22,6 +21,33 @@ import {
 } from '../../../config/library'
 import { classifyForLibrary } from '../../../utils/libraryClassification'
 import SeoHelmet from '../../seo/SeoHelmet'
+import Icon from '../../ui/Icon'
+import {
+  AlertTriangle,
+  BarChart3,
+  BookOpen,
+  CalendarDays,
+  ClipboardCheckList,
+  ClipboardList,
+  Clock,
+  ComputerDesktop,
+  DocumentTextIcon,
+  FileText,
+  FolderOpen,
+  Globe,
+  GraduationCap,
+  Language,
+  Layers,
+  Loader2,
+  MusicalNote,
+  Palette,
+  PencilLine,
+  Sprout,
+  Target,
+  TrophyIcon,
+  Calculator,
+  BeakerIcon,
+} from '../../ui/icons'
 
 /**
  * Hierarchical Library Browser.
@@ -52,65 +78,76 @@ const COLORS = {
 }
 
 /* ── Per-tile icons ────────────────────────────────────────────── */
-// Every tile inside a picker used to share one icon (all grades a
-// schoolbag, all subjects a blue book, …). Distinct icons make a folder
-// of siblings scannable.
+// Distinct SVG icons make folder choices scannable without relying on
+// platform-specific emoji rendering.
+
+const SECTION_ICON = {
+  [LIBRARY_TYPES.SCHEMES_OF_WORK]:  CalendarDays,
+  [LIBRARY_TYPES.WEEKLY_FORECASTS]: Clock,
+  [LIBRARY_TYPES.SYLLABI]:          BookOpen,
+  [LIBRARY_TYPES.LESSON_PLANS]:     PencilLine,
+  [LIBRARY_TYPES.NOTES]:            DocumentTextIcon,
+  [LIBRARY_TYPES.ASSESSMENTS]:      BarChart3,
+}
+
+const TOOL_ICON = {
+  lesson_plan:    PencilLine,
+  scheme_of_work: CalendarDays,
+  worksheet:      FileText,
+  flashcards:     Layers,
+  rubric:         ClipboardCheckList,
+  notes:          DocumentTextIcon,
+  assessment:     BarChart3,
+  assessments:    BarChart3,
+  quiz:           ClipboardList,
+}
 
 const SYLLABUS_ICON = {
-  CBC:       '🌱',
-  CDC:       '📜',
-  Secondary: '🎓',
+  CBC:       Sprout,
+  CDC:       DocumentTextIcon,
+  Secondary: GraduationCap,
 }
 
 const TERM_ICON = {
-  'Term 1': '🌤️',
-  'Term 2': '🌧️',
-  'Term 3': '☀️',
+  'Term 1': CalendarDays,
+  'Term 2': Clock,
+  'Term 3': Target,
 }
 
 const ASSESSMENT_ICON = {
-  topic:       '🎯',
-  monthly:     '🗓️',
-  midterm:     '📊',
-  end_of_term: '🏁',
+  topic:       Target,
+  monthly:     CalendarDays,
+  midterm:     BarChart3,
+  end_of_term: TrophyIcon,
 }
 
-const GRADE_KEYCAPS = ['0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣']
-
-// Grade/Form → numbered keycap (Grade 4 → 4️⃣, Form 1 → 1️⃣).
 function gradeFormIcon(value) {
-  const m = String(value || '').match(/(\d+)/)
-  if (m) {
-    const n = Number(m[1])
-    if (n === 10) return '🔟'
-    if (n >= 0 && n <= 9) return GRADE_KEYCAPS[n]
-  }
-  return /form/i.test(String(value)) ? '🎓' : '🎒'
+  return /form/i.test(String(value)) ? GraduationCap : BookOpen
 }
 
 const SUBJECT_ICON = {
-  'Mathematics':                                     '🔢',
-  'Mathematics and Science':                         '🧮',
-  'English Language':                                '📖',
-  'Literacy and Language':                           '🔤',
-  'Zambian Language':                                '🗣️',
-  'Integrated Science':                              '🔬',
-  'Social Studies':                                  '🌍',
-  'History':                                         '🏛️',
-  'Geography':                                       '🗺️',
-  'Religious Education':                              '⛪',
-  'Technology Studies':                              '🔧',
-  'Creative and Technology Studies':                 '🎨',
-  'Home Economics':                                  '🍳',
-  'Expressive Arts':                                 '🎭',
-  'Physics':                                         '⚛️',
-  'Chemistry':                                       '🧪',
-  'Principles of Accounting':                        '💰',
-  'Information and Communication Technology (ICT)':  '💻',
+  'Mathematics':                                     Calculator,
+  'Mathematics and Science':                         Calculator,
+  'English Language':                                BookOpen,
+  'Literacy and Language':                           Language,
+  'Zambian Language':                                Language,
+  'Integrated Science':                              BeakerIcon,
+  'Social Studies':                                  Globe,
+  'History':                                         Clock,
+  'Geography':                                       Globe,
+  'Religious Education':                             BookOpen,
+  'Technology Studies':                              ComputerDesktop,
+  'Creative and Technology Studies':                 Palette,
+  'Home Economics':                                  FileText,
+  'Expressive Arts':                                 MusicalNote,
+  'Physics':                                         BeakerIcon,
+  'Chemistry':                                       BeakerIcon,
+  'Principles of Accounting':                        BarChart3,
+  'Information and Communication Technology (ICT)':  ComputerDesktop,
 }
 
 function subjectIcon(value) {
-  return SUBJECT_ICON[value] || '📘'
+  return SUBJECT_ICON[value] || BookOpen
 }
 
 export default function TeacherLibrary() {
@@ -452,7 +489,7 @@ function SectionPicker({ tree, onPick }) {
         return (
           <Tile
             key={s.id}
-            icon={s.icon}
+            icon={SECTION_ICON[s.id] || FolderOpen}
             accent={s.accent}
             title={s.label}
             subtitle={`${count} saved ${count === 1 ? 'item' : 'items'}`}
@@ -474,7 +511,7 @@ function SyllabusPicker({ tree, onPick }) {
         return (
           <Tile
             key={opt.value}
-            icon={SYLLABUS_ICON[opt.value] || '📚'}
+            icon={SYLLABUS_ICON[opt.value] || BookOpen}
             accent="#fde2c4"
             title={opt.label}
             subtitle={count > 0 ? `${count} item${count === 1 ? '' : 's'}` : 'Empty'}
@@ -528,7 +565,7 @@ function TermPicker({ subTree, onPick }) {
         return (
           <Tile
             key={t.value}
-            icon={TERM_ICON[t.value] || '📅'}
+            icon={TERM_ICON[t.value] || CalendarDays}
             accent="#faecb8"
             title={t.label}
             subtitle={count > 0 ? `${count} item${count === 1 ? '' : 's'}` : 'Empty'}
@@ -583,7 +620,7 @@ function AssessmentTypePicker({ syllabus, gradeForm, subTree, onPick }) {
         return (
           <Tile
             key={t.value}
-            icon={ASSESSMENT_ICON[t.value] || '📝'}
+            icon={ASSESSMENT_ICON[t.value] || ClipboardList}
             accent="#e8d8f0"
             title={t.label}
             subtitle={count > 0 ? `${count} item${count === 1 ? '' : 's'}` : 'Empty'}
@@ -603,7 +640,7 @@ function AssessmentTypePicker({ syllabus, gradeForm, subTree, onPick }) {
 function DocumentList({ items, section }) {
   if (!items || items.length === 0) {
     return (
-      <div className="rounded-2xl border-2 border-dashed py-10 px-4 text-center" style={{ background: COLORS.card, borderColor: COLORS.border }}>
+      <div className="rounded-lg border-2 border-dashed py-10 px-4 text-center" style={{ background: COLORS.card, borderColor: COLORS.border }}>
         <p style={{ fontSize: 13, color: COLORS.faint, margin: 0 }}>
           {section.emptyHint}
         </p>
@@ -622,18 +659,15 @@ function DocumentList({ items, section }) {
 function DocumentCard({ item, section }) {
   const title = item.__title || titleForGeneration(item)
   const linkTo = item.__linkTo || `/teacher/library/${item.id}`
-  // Per-item icon (e.g. ✨ for lesson plans, 📓 for notes) so a mixed
-  // folder of saved tools is visually distinguishable. Falls back to the
-  // section icon when the tool is unknown (e.g. saved assessments).
-  const itemIcon = TOOL_META[item.tool]?.icon || section.icon
+  const itemIcon = TOOL_ICON[item.tool] || SECTION_ICON[section.id] || DocumentTextIcon
   return (
     <Link
       to={linkTo}
-      className="block no-underline rounded-2xl border-2 p-4 transition-all hover:-translate-y-0.5"
+      className="block no-underline rounded-lg border-2 p-4 transition-all hover:-translate-y-0.5"
       style={{ background: COLORS.card, borderColor: COLORS.ink, minHeight: 140, color: COLORS.ink }}
     >
-      <div style={{ width: 40, height: 40, borderRadius: 11, background: section.accent, display: 'grid', placeItems: 'center', fontSize: 20, marginBottom: 10, flexShrink: 0 }}>
-        {itemIcon}
+      <div style={{ width: 40, height: 40, borderRadius: 8, background: section.accent, display: 'grid', placeItems: 'center', fontSize: 20, marginBottom: 10, flexShrink: 0 }}>
+        <Icon as={itemIcon} size="md" />
       </div>
       <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 15, color: COLORS.ink, margin: '0 0 4px', lineHeight: 1.25 }} className="line-clamp-2">
         {title}
@@ -653,15 +687,16 @@ function DocumentCard({ item, section }) {
 /* ── Bits & helpers ────────────────────────────────────────────── */
 
 function Tile({ icon, accent, title, subtitle, onClick }) {
+  const IconComponent = typeof icon === 'string' ? null : icon
   return (
     <button
       type="button"
       onClick={onClick}
-      className="text-left block rounded-2xl border-2 p-5 transition-all hover:-translate-y-0.5 cursor-pointer"
+      className="text-left block rounded-lg border-2 p-5 transition-all hover:-translate-y-0.5 cursor-pointer"
       style={{ background: COLORS.card, borderColor: COLORS.ink, minHeight: 150, color: COLORS.ink }}
     >
-      <div style={{ width: 52, height: 52, borderRadius: 14, background: accent, display: 'grid', placeItems: 'center', fontSize: 26, marginBottom: 14 }}>
-        {icon}
+      <div style={{ width: 52, height: 52, borderRadius: 8, background: accent, display: 'grid', placeItems: 'center', fontSize: 26, marginBottom: 14 }}>
+        {IconComponent ? <Icon as={IconComponent} size="lg" /> : icon}
       </div>
       <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 18, color: COLORS.ink, margin: '0 0 6px', lineHeight: 1.2 }}>
         {title}
@@ -679,7 +714,7 @@ function Tile({ icon, accent, title, subtitle, onClick }) {
 function OrphanTile({ label, count, onClick }) {
   return (
     <Tile
-      icon="🗂️"
+      icon={FolderOpen}
       accent="#e5e0d2"
       title={label === 'Unsorted' ? 'Unsorted' : label}
       subtitle={count > 0 ? `${count} item${count === 1 ? '' : 's'}` : 'Empty'}
@@ -690,7 +725,7 @@ function OrphanTile({ label, count, onClick }) {
 
 function EmptyHint({ text }) {
   return (
-    <div className="rounded-2xl border-2 border-dashed py-10 px-4 text-center" style={{ background: COLORS.card, borderColor: COLORS.border }}>
+    <div className="rounded-lg border-2 border-dashed py-10 px-4 text-center" style={{ background: COLORS.card, borderColor: COLORS.border }}>
       <p style={{ fontSize: 13, color: COLORS.faint, margin: 0 }}>{text}</p>
     </div>
   )
@@ -698,8 +733,10 @@ function EmptyHint({ text }) {
 
 function LoadingState() {
   return (
-    <div className="rounded-2xl border-2 border-dashed p-12 text-center" style={{ background: COLORS.card, borderColor: COLORS.border }}>
-      <div className="text-4xl mb-3 animate-bounce">📚</div>
+    <div className="rounded-lg border-2 border-dashed p-12 text-center" style={{ background: COLORS.card, borderColor: COLORS.border }}>
+      <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl" style={{ background: '#fde2c4', color: COLORS.ink }}>
+        <Icon as={Loader2} size="lg" className="animate-spin" />
+      </div>
       <p style={{ fontSize: 13, color: COLORS.faint }}>Loading your library…</p>
     </div>
   )
@@ -707,8 +744,10 @@ function LoadingState() {
 
 function ErrorState({ message }) {
   return (
-    <div className="rounded-2xl border-2 border-dashed p-12 text-center" style={{ background: COLORS.card, borderColor: COLORS.border }}>
-      <div className="text-4xl mb-3">⚠️</div>
+    <div className="rounded-lg border-2 border-dashed p-12 text-center" style={{ background: COLORS.card, borderColor: COLORS.border }}>
+      <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl" style={{ background: '#fee2e2', color: '#b91c1c' }}>
+        <Icon as={AlertTriangle} size="lg" />
+      </div>
       <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 16, color: COLORS.ink, marginBottom: 6 }}>
         Could not load your library
       </p>
