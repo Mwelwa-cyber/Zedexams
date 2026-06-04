@@ -5,10 +5,12 @@ import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
 import { storage } from '../../firebase/config'
 import {
+  collectSectionFirestoreIds,
   createPartGroup,
   createPassageSection,
   createStandaloneSection,
   emptyPassageQuestion,
+  getPassageQuestionFirestoreId,
   getQuestionKey,
   hasOnlyEmptyStarterSection,
   hydrateQuizSections,
@@ -137,12 +139,8 @@ function buildQuestionNumberMap(questions = []) {
   return Object.fromEntries(questions.map((question, index) => [getQuestionKey(question), index + 1]))
 }
 
-function collectQuestionIds(section) {
-  if (section.kind === 'passage') {
-    return (section.passage.questions || []).map(question => question._id).filter(Boolean)
-  }
-  return section.question?._id ? [section.question._id] : []
-}
+// Local alias so existing call-sites don't need to change.
+const collectQuestionIds = collectSectionFirestoreIds
 
 function hasUploadingAssets(sections = []) {
   return sections.some(section => {
@@ -291,10 +289,49 @@ export default function EditQuizV2() {
   // Other edits keep it collapsed so it doesn't clutter the page.
   const [importPanelOpen, setImportPanelOpen] = useState(false)
 
-  const serializedPreview = serializeQuizSections(sections, parts)
-  const questionNumbers = buildQuestionNumberMap(serializedPreview.questions)
+  // Memoised: serializeQuizSections walks every section and returns a fresh
+  // object each call. Recomputing it on every keystroke (and the question-number
+  // map derived from it) handed PassageSectionCard a new `questionNumbers`
+  // identity each render, defeating its React.memo. Recompute only when the
+  // underlying sections/parts actually change.
+  const serializedPreview = useMemo(
+    () => serializeQuizSections(sections, parts),
+    [sections, parts],
+  )
+  // Stable identity: the numbering map's *values* only change when questions
+  // are added/removed/reordered — never while typing. Keep the previous object
+  // reference when the contents are unchanged so memoised passage cards (which
+  // receive the whole map) don't re-render on every keystroke.
+  const questionNumbersRef = useRef({})
+  const questionNumbers = useMemo(() => {
+    const next = buildQuestionNumberMap(serializedPreview.questions)
+    const prev = questionNumbersRef.current
+    const prevKeys = Object.keys(prev)
+    const sameContents = prevKeys.length === Object.keys(next).length
+      && prevKeys.every(key => prev[key] === next[key])
+    if (sameContents) return prev
+    questionNumbersRef.current = next
+    return next
+  }, [serializedPreview])
   const questionCount = serializedPreview.questionCount
   const totalMarks = serializedPreview.totalMarks
+
+  // Mirror the latest `sections` into a ref so event handlers (delete/remove)
+  // can read the current snapshot without listing `sections` in their
+  // useCallback deps. That keeps their identity stable across keystrokes
+  // (so memoised cards don't re-render) AND lets us call setDeletedIds OUTSIDE
+  // the setSections updater — an updater that calls another setState is impure,
+  // which StrictMode double-invokes in dev, double-queuing the deleted ids.
+  const sectionsRef = useRef(sections)
+  sectionsRef.current = sections
+
+  // Stable object identity: only changes when subject or grade actually changes,
+  // not on every keystroke. Prevents every card from re-rendering just because
+  // the parent rendered.
+  const quizContext = useMemo(
+    () => ({ subject: form.subject, grade: form.grade }),
+    [form.subject, form.grade],
+  )
   const passageCount = serializedPreview.passages.length
   const newCount = serializedPreview.questions.filter(question => !question._id).length
   const imagesCount = countImages(sections)
@@ -320,10 +357,10 @@ export default function EditQuizV2() {
     ? DURATIONS
     : [...DURATIONS, Number(form.duration)].sort((a, b) => a - b)
 
-  function show(message, isErr = false) {
+  const show = useCallback(function show(message, isErr = false) {
     setToast({ message, isErr })
     setTimeout(() => setToast(null), 4000)
-  }
+  }, [])
 
   // Bump the "last edited" timestamp whenever any editable state changes.
   // The auto-save effect debounces against this — we save 25 s after the
@@ -483,22 +520,21 @@ export default function EditQuizV2() {
     setChecklistOpen(true)
   }, [loading, form.importStatus, form.mode, errorCount])
 
-  function updateSection(sectionIndex, updater) {
+  const updateSection = useCallback(function updateSection(sectionIndex, updater) {
     setSections(currentSections => currentSections.map((section, index) => (
       index === sectionIndex ? updater(section) : section
     )))
     setDirty(true)
-  }
+  }, [])
 
-  function updateStandaloneQuestion(sectionIndex, field, value) {
-    updateSection(sectionIndex, section => ({
-      ...section,
-      question: {
-        ...section.question,
-        [field]: value,
-      },
-    }))
-  }
+  const updateStandaloneQuestion = useCallback(function updateStandaloneQuestion(sectionIndex, field, value) {
+    setSections(currentSections => currentSections.map((section, index) => (
+      index === sectionIndex
+        ? { ...section, question: { ...section.question, [field]: value } }
+        : section
+    )))
+    setDirty(true)
+  }, [])
 
   // Bulk answer-key entry. Applies a { localId: optionIndex } map across every
   // section in one pass (pure helper), addressing questions by stable localId
@@ -533,14 +569,14 @@ export default function EditQuizV2() {
   // Blob that we run through the SAME upload path as a normal image, so the
   // cropped picture replaces the original. Cancel changes nothing.
   const [cropTarget, setCropTarget] = useState(null)
-  function requestStandaloneImageCrop(sectionIndex, imageUrl) {
+  const requestStandaloneImageCrop = useCallback(function requestStandaloneImageCrop(sectionIndex, imageUrl) {
     if (!imageUrl) return
     setCropTarget({ kind: 'standalone', sectionIndex, imageUrl })
-  }
-  function requestPassageImageCrop(sectionIndex, imageUrl) {
+  }, [])
+  const requestPassageImageCrop = useCallback(function requestPassageImageCrop(sectionIndex, imageUrl) {
     if (!imageUrl) return
     setCropTarget({ kind: 'passage', sectionIndex, imageUrl })
-  }
+  }, [])
   async function handleCroppedImage(blob) {
     const target = cropTarget
     setCropTarget(null)
@@ -585,7 +621,7 @@ export default function EditQuizV2() {
     }
   }
 
-  function moveSection(sectionIndex, direction) {
+  const moveSection = useCallback(function moveSection(sectionIndex, direction) {
     setSections(currentSections => {
       const nextSections = [...currentSections]
       const targetIndex = sectionIndex + direction
@@ -594,24 +630,24 @@ export default function EditQuizV2() {
       return nextSections
     })
     setDirty(true)
-  }
+  }, [])
 
-  function handleShuffleSections() {
+  const handleShuffleSections = useCallback(function handleShuffleSections() {
     setSections(currentSections => shuffleQuizSections(currentSections))
     setDirty(true)
-  }
+  }, [])
 
-  function handleAutoGroupComprehension() {
+  const handleAutoGroupComprehension = useCallback(function handleAutoGroupComprehension() {
     setSections(currentSections => regroupComprehensionSections(currentSections).sections)
     setDirty(true)
     show('Comprehension questions re-grouped by passage.')
-  }
+  }, [show])
 
-  function handleMoveQuestionToPassage(fromSectionId, questionLocalId, toSectionId) {
+  const handleMoveQuestionToPassage = useCallback(function handleMoveQuestionToPassage(fromSectionId, questionLocalId, toSectionId) {
     setSections(currentSections =>
       moveQuestionToPassage(currentSections, fromSectionId, questionLocalId, toSectionId))
     setDirty(true)
-  }
+  }, [])
 
   // Reset the whole editor back to an empty quiz: clears the title,
   // details, and every question. Saved questions are queued for
@@ -652,22 +688,22 @@ export default function EditQuizV2() {
   }
 
   // ── Parts (PRISCA mock-paper section groups) ─────────────────────
-  function addPart() {
+  const addPart = useCallback(function addPart() {
     setParts(currentParts => [
       ...currentParts,
       createPartGroup({ order: currentParts.length, title: '' }),
     ])
     setDirty(true)
-  }
+  }, [])
 
-  function updatePart(partId, field, value) {
+  const updatePart = useCallback(function updatePart(partId, field, value) {
     setParts(currentParts => currentParts.map(part => (
       part.id === partId ? { ...part, [field]: value } : part
     )))
     setDirty(true)
-  }
+  }, [])
 
-  function movePart(partId, direction) {
+  const movePart = useCallback(function movePart(partId, direction) {
     setParts(currentParts => {
       const sorted = [...currentParts].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
       const index = sorted.findIndex(part => part.id === partId)
@@ -677,9 +713,9 @@ export default function EditQuizV2() {
       return sorted.map((part, i) => ({ ...part, order: i }))
     })
     setDirty(true)
-  }
+  }, [])
 
-  function removePart(partId) {
+  const removePart = useCallback(function removePart(partId) {
     setParts(currentParts => currentParts
       .filter(part => part.id !== partId)
       .map((part, i) => ({ ...part, order: i })))
@@ -703,9 +739,9 @@ export default function EditQuizV2() {
       return section
     }))
     setDirty(true)
-  }
+  }, [])
 
-  function assignSectionToPart(sectionId, partId) {
+  const assignSectionToPart = useCallback(function assignSectionToPart(sectionId, partId) {
     setSections(currentSections => currentSections.map(section => {
       if (section.id !== sectionId) return section
       if (section.kind === 'passage') {
@@ -721,54 +757,46 @@ export default function EditQuizV2() {
       return { ...section, question: { ...section.question, partId: partId || null } }
     }))
     setDirty(true)
-  }
+  }, [])
 
-  function removeStandaloneSection(sectionIndex) {
-    setDeletedIds(current => [...current, ...collectQuestionIds(sections[sectionIndex])])
+  const removeStandaloneSection = useCallback(function removeStandaloneSection(sectionIndex) {
+    // Read the current snapshot from the ref (never a stale closure over
+    // `sections`), so the handler identity stays stable. setDeletedIds runs
+    // outside the setSections updater to keep that updater pure.
+    const ids = collectQuestionIds(sectionsRef.current[sectionIndex])
+    if (ids.length) setDeletedIds(current => [...current, ...ids])
     setSections(currentSections => currentSections.filter((_, index) => index !== sectionIndex))
     setDirty(true)
-  }
+  }, [])
 
-  function updatePassage(sectionIndex, field, value) {
-    updateSection(sectionIndex, section => ({
-      ...section,
-      passage: {
-        ...section.passage,
-        [field]: value,
-      },
-    }))
-  }
+  const updatePassage = useCallback(function updatePassage(sectionIndex, field, value) {
+    setSections(currentSections => currentSections.map((section, index) => (
+      index === sectionIndex
+        ? { ...section, passage: { ...section.passage, [field]: value } }
+        : section
+    )))
+    setDirty(true)
+  }, [])
 
-  function togglePassage(sectionIndex) {
-    updateSection(sectionIndex, section => ({
-      ...section,
-      passage: {
-        ...section.passage,
-        collapsed: !section.passage.collapsed,
-      },
-    }))
-  }
+  const togglePassage = useCallback(function togglePassage(sectionIndex) {
+    setSections(currentSections => currentSections.map((section, index) => (
+      index === sectionIndex
+        ? { ...section, passage: { ...section.passage, collapsed: !section.passage.collapsed } }
+        : section
+    )))
+    setDirty(true)
+  }, [])
 
-  function removePassageSection(sectionIndex) {
-    setDeletedIds(current => [...current, ...collectQuestionIds(sections[sectionIndex])])
+  const removePassageSection = useCallback(function removePassageSection(sectionIndex) {
+    // Read the current snapshot from the ref; setDeletedIds outside the
+    // updater keeps the setSections updater pure (StrictMode-safe).
+    const ids = collectQuestionIds(sectionsRef.current[sectionIndex])
+    if (ids.length) setDeletedIds(current => [...current, ...ids])
     setSections(currentSections => currentSections.filter((_, index) => index !== sectionIndex))
     setDirty(true)
-  }
+  }, [])
 
-  function addPassageQuestion(sectionIndex) {
-    updateSection(sectionIndex, section => ({
-      ...section,
-      passage: {
-        ...section.passage,
-        questions: [
-          ...section.passage.questions,
-          emptyPassageQuestion({ passageId: section.passage.id }),
-        ],
-      },
-    }))
-  }
-
-  function updatePassageQuestion(sectionIndex, questionIndex, field, value) {
+  const updatePassageQuestion = useCallback(function updatePassageQuestion(sectionIndex, questionIndex, field, value) {
     updateSection(sectionIndex, section => ({
       ...section,
       passage: {
@@ -778,23 +806,27 @@ export default function EditQuizV2() {
         )),
       },
     }))
-  }
+  }, [updateSection])
 
-  function removePassageQuestion(sectionIndex, questionIndex) {
-    const question = sections[sectionIndex]?.passage?.questions?.[questionIndex]
-    if (question?._id) {
-      setDeletedIds(current => [...current, question._id])
-    }
-    updateSection(sectionIndex, section => ({
-      ...section,
-      passage: {
-        ...section.passage,
-        questions: section.passage.questions.filter((_, index) => index !== questionIndex),
-      },
+  const removePassageQuestion = useCallback(function removePassageQuestion(sectionIndex, questionIndex) {
+    // Read the current snapshot from the ref; setDeletedIds outside the
+    // updater keeps the setSections updater pure (StrictMode-safe).
+    const id = getPassageQuestionFirestoreId(sectionsRef.current, sectionIndex, questionIndex)
+    if (id) setDeletedIds(current => [...current, id])
+    setSections(currentSections => currentSections.map((s, i) => {
+      if (i !== sectionIndex) return s
+      return {
+        ...s,
+        passage: {
+          ...s.passage,
+          questions: s.passage.questions.filter((_, qi) => qi !== questionIndex),
+        },
+      }
     }))
-  }
+    setDirty(true)
+  }, [])
 
-  function movePassageQuestion(sectionIndex, questionIndex, direction) {
+  const movePassageQuestion = useCallback(function movePassageQuestion(sectionIndex, questionIndex, direction) {
     updateSection(sectionIndex, section => {
       const nextQuestions = [...section.passage.questions]
       const targetIndex = questionIndex + direction
@@ -808,27 +840,40 @@ export default function EditQuizV2() {
         },
       }
     })
-  }
+  }, [updateSection])
 
-  function addStandaloneSectionHandler() {
+  const addPassageQuestion = useCallback(function addPassageQuestion(sectionIndex) {
+    updateSection(sectionIndex, section => ({
+      ...section,
+      passage: {
+        ...section.passage,
+        questions: [
+          ...section.passage.questions,
+          emptyPassageQuestion({ passageId: section.passage.id }),
+        ],
+      },
+    }))
+  }, [updateSection])
+
+  const addStandaloneSectionHandler = useCallback(function addStandaloneSectionHandler() {
     setSections(currentSections => [...currentSections, createStandaloneSection()])
     setDirty(true)
     setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 50)
-  }
+  }, [])
 
-  function addPassageSectionHandler() {
+  const addPassageSectionHandler = useCallback(function addPassageSectionHandler() {
     setSections(currentSections => [...currentSections, createPassageSection()])
     setDirty(true)
     setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 50)
-  }
+  }, [])
 
-  function addMapSectionHandler() {
+  const addMapSectionHandler = useCallback(function addMapSectionHandler() {
     setSections(currentSections => [...currentSections, createPassageSection({ passageKind: 'map' })])
     setDirty(true)
     setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 50)
-  }
+  }, [])
 
-  async function uploadStandaloneQuestionImage(sectionIndex, file) {
+  const uploadStandaloneQuestionImage = useCallback(async function uploadStandaloneQuestionImage(sectionIndex, file) {
     if (!ALLOWED_TYPES.includes(file.type)) {
       show('Only JPG, PNG, and WEBP images are allowed.', true)
       return
@@ -877,9 +922,9 @@ export default function EditQuizV2() {
       }))
       show(`Upload failed: ${error.message}`, true)
     }
-  }
+  }, [show, updateSection, updateStandaloneQuestion, currentUser])
 
-  function removeStandaloneQuestionImage(sectionIndex) {
+  const removeStandaloneQuestionImage = useCallback(function removeStandaloneQuestionImage(sectionIndex) {
     updateSection(sectionIndex, section => ({
       ...section,
       question: {
@@ -888,9 +933,9 @@ export default function EditQuizV2() {
         imageAssetId: '',
       },
     }))
-  }
+  }, [updateSection])
 
-  async function uploadPassageImage(sectionIndex, file) {
+  const uploadPassageImage = useCallback(async function uploadPassageImage(sectionIndex, file) {
     if (!ALLOWED_TYPES.includes(file.type)) {
       show('Only JPG, PNG, and WEBP images are allowed.', true)
       return
@@ -943,9 +988,9 @@ export default function EditQuizV2() {
       }))
       show(`Upload failed: ${error.message}`, true)
     }
-  }
+  }, [show, updateSection, currentUser])
 
-  function removePassageImage(sectionIndex) {
+  const removePassageImage = useCallback(function removePassageImage(sectionIndex) {
     updateSection(sectionIndex, section => ({
       ...section,
       passage: {
@@ -953,7 +998,7 @@ export default function EditQuizV2() {
         imageUrl: '',
       },
     }))
-  }
+  }, [updateSection])
 
   function buildOptionMediaSlots(question) {
     const existing = Array.isArray(question.optionMedia) ? question.optionMedia : []
@@ -961,7 +1006,7 @@ export default function EditQuizV2() {
     return Array.from({ length: optionCount }, (_, i) => existing[i] ?? null)
   }
 
-  async function uploadStandaloneOptionImage(sectionIndex, optionIndex, file) {
+  const uploadStandaloneOptionImage = useCallback(async function uploadStandaloneOptionImage(sectionIndex, optionIndex, file) {
     if (!ALLOWED_TYPES.includes(file.type)) {
       show('Only JPG, PNG, and WEBP images are allowed.', true)
       return
@@ -1013,9 +1058,9 @@ export default function EditQuizV2() {
       }))
       show(`Upload failed: ${error.message}`, true)
     }
-  }
+  }, [show, updateSection, updateStandaloneQuestion, currentUser])
 
-  function removeStandaloneOptionImage(sectionIndex, optionIndex) {
+  const removeStandaloneOptionImage = useCallback(function removeStandaloneOptionImage(sectionIndex, optionIndex) {
     updateSection(sectionIndex, section => {
       const next = buildOptionMediaSlots(section.question)
       next[optionIndex] = null
@@ -1027,9 +1072,9 @@ export default function EditQuizV2() {
         },
       }
     })
-  }
+  }, [updateSection])
 
-  async function uploadPassageQuestionOptionImage(sectionIndex, questionIndex, optionIndex, file) {
+  const uploadPassageQuestionOptionImage = useCallback(async function uploadPassageQuestionOptionImage(sectionIndex, questionIndex, optionIndex, file) {
     if (!ALLOWED_TYPES.includes(file.type)) {
       show('Only JPG, PNG, and WEBP images are allowed.', true)
       return
@@ -1081,9 +1126,9 @@ export default function EditQuizV2() {
       }))
       show(`Upload failed: ${error.message}`, true)
     }
-  }
+  }, [show, updateSection, currentUser])
 
-  function removePassageQuestionOptionImage(sectionIndex, questionIndex, optionIndex) {
+  const removePassageQuestionOptionImage = useCallback(function removePassageQuestionOptionImage(sectionIndex, questionIndex, optionIndex) {
     updateSection(sectionIndex, section => ({
       ...section,
       passage: {
@@ -1096,7 +1141,7 @@ export default function EditQuizV2() {
         }),
       },
     }))
-  }
+  }, [updateSection])
 
   function validateStandaloneQuestion(question, label) {
     return sharedValidateStandaloneQuestion(question, label, {
@@ -1881,7 +1926,7 @@ export default function EditQuizV2() {
             variant="edit"
             sections={sections}
             parts={parts}
-            quizContext={{ subject: form.subject, grade: form.grade }}
+            quizContext={quizContext}
             questionNumbers={questionNumbers}
             issueCountsByLocalId={issueCountsByLocalId}
             totalQuestions={questionCount}

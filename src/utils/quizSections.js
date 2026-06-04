@@ -973,3 +973,48 @@ export function buildQuizDisplaySections(questions = [], passages = []) {
     questions: orderedQuestions,
   }
 }
+
+/**
+ * Collect all Firestore `_id`s that would need to be deleted when a whole
+ * section (standalone question or passage with its sub-questions) is removed
+ * from the editor. Returns only ids that are already persisted (non-empty
+ * strings), so freshly-created questions that have never been saved are
+ * correctly skipped.
+ *
+ * Used by the quiz editor's remove handlers and extractable here so the
+ * deletion logic can be unit-tested independently of the React component.
+ *
+ * @param {object} section — a section from the editor's `sections` state array
+ * @returns {string[]} array of Firestore question document ids
+ */
+export function collectSectionFirestoreIds(section) {
+  if (!section) return []
+  if (section.kind === 'passage') {
+    return (section.passage?.questions || [])
+      .map(q => q._id)
+      .filter(id => typeof id === 'string' && id.length > 0)
+  }
+  const id = section.question?._id
+  return typeof id === 'string' && id.length > 0 ? [id] : []
+}
+
+/**
+ * Return the Firestore `_id` of a single passage sub-question identified by
+ * its section and question index, or `null` if the question has never been
+ * saved (i.e. `_id` is absent or empty).
+ *
+ * Extracted alongside `collectSectionFirestoreIds` so the
+ * `removePassageQuestion` handler in the quiz editor can be tested without
+ * relying on React state.
+ *
+ * @param {object[]} sections — current sections array snapshot
+ * @param {number}   sectionIndex  — index of the passage section
+ * @param {number}   questionIndex — index of the sub-question within the passage
+ * @returns {string|null}
+ */
+export function getPassageQuestionFirestoreId(sections, sectionIndex, questionIndex) {
+  const section = sections?.[sectionIndex]
+  const question = section?.passage?.questions?.[questionIndex]
+  const id = question?._id
+  return typeof id === 'string' && id.length > 0 ? id : null
+}
