@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { memo, useCallback, useMemo, useRef, useState } from 'react'
 import { QUESTION_LETTERS } from '../../utils/quizSections.js'
 import { clampInt } from '../../utils/inputs.js'
 import DiagramSvg from '../diagrams/DiagramSvg.jsx'
@@ -61,6 +61,11 @@ const THEMES = {
 }
 
 const SMALL_FIELD_BASE = 'theme-input w-full rounded-lg border px-2.5 py-2 text-xs placeholder:text-gray-400 outline-none transition-colors'
+
+// Stable empty array used as the `parts` prop for cards when no Parts are
+// available. Avoids creating a new `[]` literal on every render, which would
+// defeat React.memo's shallow-equality check on card props.
+const EMPTY_PARTS = []
 
 function joinClasses(...parts) {
   return parts.filter(Boolean).join(' ')
@@ -390,7 +395,7 @@ const IMAGE_POSITION_OPTIONS = [
   { value: 'inline', label: 'Image inline with text' },
 ]
 
-function StandaloneQuestionCard({
+const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
   question,
   questionNumber,
   totalQuestions,
@@ -1063,9 +1068,9 @@ function StandaloneQuestionCard({
       </div>
     </div>
   )
-}
+})
 
-function PassageQuestionCard({
+const PassageQuestionCard = memo(function PassageQuestionCard({
   question,
   questionIndex,
   questionNumber,
@@ -1384,9 +1389,9 @@ function PassageQuestionCard({
       </div>
     </div>
   )
-}
+})
 
-function PassageSectionCard({
+const PassageSectionCard = memo(function PassageSectionCard({
   section,
   sectionIndex,
   totalSections,
@@ -1645,7 +1650,7 @@ function PassageSectionCard({
       )}
     </div>
   )
-}
+})
 
 // Sticky bulk-action toolbar surfaced when ≥1 standalone question is
 // selected. Sits above the question list and exposes the two bulk actions
@@ -1926,7 +1931,10 @@ export default function QuizSectionsEditor({
   emptyStateDescription = 'Click "Add Question" below to start building this quiz.',
 }) {
   const theme = THEMES[variant] || THEMES.create
-  const sortedParts = [...(parts || [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+  const sortedParts = useMemo(
+    () => [...(parts || [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    [parts],
+  )
   const partsAvailable = sortedParts.length > 0 && Boolean(onAssignSectionToPart)
 
   // Bulk-select state. Only standalone questions participate — passage
@@ -1935,17 +1943,17 @@ export default function QuizSectionsEditor({
   // Stale ids (after a single-card delete) are filtered out at the
   // render/action sites rather than fighting React effects.
   const [selectedIds, setSelectedIds] = useState(() => new Set())
-  function toggleSelect(sectionId) {
+  const toggleSelect = useCallback(function toggleSelect(sectionId) {
     setSelectedIds(prev => {
       const next = new Set(prev)
       if (next.has(sectionId)) next.delete(sectionId)
       else next.add(sectionId)
       return next
     })
-  }
-  function clearSelection() {
+  }, [])
+  const clearSelection = useCallback(function clearSelection() {
     setSelectedIds(new Set())
-  }
+  }, [])
 
   // Build a stable iteration order: ungrouped sections first (preserving the
   // sections[] order), then each Part with its members in sections[] order.
@@ -1982,12 +1990,26 @@ export default function QuizSectionsEditor({
   // Passage options for the per-question "Linked passage" dropdown. Only
   // comprehension passages (not maps) participate, labelled by their title or a
   // "Passage N" fallback so a teacher can move a question to the right text.
-  const comprehensionPassages = allInOrder
-    .filter(section => section.kind === 'passage' && (section.passage?.passageKind ?? 'comprehension') !== 'map')
-    .map(section => ({
+  // Built from a content signature (id + title + story number per passage) so
+  // PassageSectionCard receives a STABLE array identity while typing question
+  // text — it only changes when a passage is added/removed/retitled/reordered.
+  // Keying on `sections` directly would hand a new array every keystroke and
+  // defeat the passage cards' React.memo.
+  const comprehensionSource = allInOrder.filter(
+    section => section.kind === 'passage' && (section.passage?.passageKind ?? 'comprehension') !== 'map',
+  )
+  const comprehensionSignature = comprehensionSource
+    .map(section => `${section.id}:${storyNumberById.get(section.id)}:${String(section.passage?.title ?? '').trim()}`)
+    .join('|')
+  const comprehensionPassages = useMemo(
+    () => comprehensionSource.map(section => ({
       id: section.id,
       label: String(section.passage?.title ?? '').trim() || `Passage ${storyNumberById.get(section.id)}`,
-    }))
+    })),
+    // comprehensionSignature captures every input that affects the output.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [comprehensionSignature],
+  )
   const canAutoGroup = Boolean(onAutoGroupComprehension) && comprehensionPassages.length >= 2
 
   function renderSection(section) {
@@ -2002,7 +2024,7 @@ export default function QuizSectionsEditor({
           totalQuestions={totalQuestions}
           questionNumbers={questionNumbers}
           storyNumber={storyNumberById.get(section.id)}
-          parts={partsAvailable ? sortedParts : []}
+          parts={partsAvailable ? sortedParts : EMPTY_PARTS}
           theme={theme}
           onPassageChange={onPassageChange}
           onPassageToggle={onPassageToggle}
@@ -2033,7 +2055,7 @@ export default function QuizSectionsEditor({
         sectionIndex={sectionIndex}
         totalSections={sections.length}
         sectionId={section.id}
-        parts={partsAvailable ? sortedParts : []}
+        parts={partsAvailable ? sortedParts : EMPTY_PARTS}
         isNew={!section.question._id}
         isSelected={selectedIds.has(section.id)}
         onToggleSelect={toggleSelect}
@@ -2067,7 +2089,7 @@ export default function QuizSectionsEditor({
   }
   const liveSelectedCount = selectedStandaloneIndexes().length
 
-  function bulkDelete() {
+  const bulkDelete = useCallback(function bulkDelete() {
     const indexes = selectedStandaloneIndexes()
     if (!indexes.length || !onStandaloneRemove) return
     if (typeof window !== 'undefined' && !window.confirm(
@@ -2079,16 +2101,18 @@ export default function QuizSectionsEditor({
     // each call, so a desc sort gives a correct cumulative result.
     indexes.sort((a, b) => b - a).forEach(idx => onStandaloneRemove(idx))
     clearSelection()
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sections, selectedIds, onStandaloneRemove, clearSelection])
 
-  function bulkSetMarks(value) {
+  const bulkSetMarks = useCallback(function bulkSetMarks(value) {
     const indexes = selectedStandaloneIndexes()
     if (!indexes.length || !onStandaloneChange) return
     indexes.forEach(idx => onStandaloneChange(idx, 'marks', value))
     clearSelection()
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sections, selectedIds, onStandaloneChange, clearSelection])
 
-  function handleShuffleClick() {
+  const handleShuffleClick = useCallback(function handleShuffleClick() {
     if (!onShuffleSections) return
     if (totalQuestions < 2) return
     const ok = typeof window === 'undefined'
@@ -2102,11 +2126,11 @@ export default function QuizSectionsEditor({
       )
     if (!ok) return
     onShuffleSections()
-  }
+  }, [onShuffleSections, totalQuestions])
 
   const canShuffle = Boolean(onShuffleSections) && totalQuestions >= 2
 
-  function handleAutoGroupClick() {
+  const handleAutoGroupClick = useCallback(function handleAutoGroupClick() {
     if (!onAutoGroupComprehension) return
     const ok = typeof window === 'undefined'
       ? true
@@ -2115,11 +2139,11 @@ export default function QuizSectionsEditor({
           + '• Each question in a set of passages is matched to the passage it '
           + 'refers to (by keywords in the question, options, and answer).\n'
           + '• Original question numbers and order are preserved.\n'
-          + '\nYou can still fine-tune with each question’s "Linked passage" dropdown.',
+          + "\nYou can still fine-tune with each question's \"Linked passage\" dropdown.",
       )
     if (!ok) return
     onAutoGroupComprehension()
-  }
+  }, [onAutoGroupComprehension])
 
   return (
     <div className="space-y-4">
