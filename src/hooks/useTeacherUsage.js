@@ -11,6 +11,7 @@ const TOOL_TO_FEATURE = {
   worksheet:      'worksheets',
   notes:          'notes',
   quiz:           'assessments',
+  exam_paper:     'exams',
   scheme_of_work: 'schemes',
 }
 
