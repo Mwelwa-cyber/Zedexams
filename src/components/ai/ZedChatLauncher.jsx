@@ -87,7 +87,7 @@ export default function ZedChatLauncher() {
         onClick={() => setOpen(true)}
         aria-label="Open Zed AI study chat"
         aria-expanded={open}
-        className="fixed bottom-20 md:bottom-4 right-4 z-40 rounded-full theme-accent-fill theme-on-accent shadow-elev-md hover:shadow-elev-lg transition-shadow w-14 h-14 flex items-center justify-center border-4 border-white"
+        className="fixed bottom-20 lg:bottom-4 right-4 z-40 rounded-full theme-accent-fill theme-on-accent shadow-elev-md hover:shadow-elev-lg transition-shadow w-14 h-14 flex items-center justify-center border-4 border-white"
       >
         <ProfessorPako size={48} animate={false} />
         <span className="sr-only">Ask Zed</span>

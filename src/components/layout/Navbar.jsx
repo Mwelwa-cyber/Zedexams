@@ -113,7 +113,7 @@ export default function Navbar() {
         </Link>
 
         {/* Desktop nav links */}
-        <div className="hidden md:flex items-center gap-1 flex-1 justify-center">
+        <div className="hidden lg:flex items-center gap-1 flex-1 justify-center">
           {navLinks.map(l => (
             <NavLink key={l.to} to={l.to} className={linkClass}>
               <Icon as={l.icon} size="sm" />
@@ -139,7 +139,7 @@ export default function Navbar() {
         </div>
 
         {/* Right side — desktop */}
-        <div className="hidden md:flex items-center gap-2 flex-shrink-0">
+        <div className="hidden lg:flex items-center gap-2 flex-shrink-0">
           {/* Access badge */}
           <span className={`inline-flex items-center gap-1 font-black text-xs px-2.5 py-1 rounded-full border ${badgeClass}`}>
             <Icon as={Sparkles} size="xs" strokeWidth={2.1} /> {accessBadge.label}
@@ -171,7 +171,7 @@ export default function Navbar() {
         </div>
 
         {/* Mobile right — avatar + hamburger */}
-        <div className="flex md:hidden items-center gap-2">
+        <div className="flex lg:hidden items-center gap-2">
           <Link
             to="/profile"
             aria-label="Open your profile"
@@ -192,7 +192,7 @@ export default function Navbar() {
 
       {/* Mobile drawer */}
       {open && (
-        <div className="md:hidden border-t theme-border theme-card shadow-elev-lg animate-slide-up max-h-[calc(100dvh-5rem)] overflow-y-auto overscroll-contain">
+        <div className="lg:hidden border-t theme-border theme-card shadow-elev-lg animate-slide-up max-h-[calc(100dvh-5rem)] overflow-y-auto overscroll-contain">
           <div className="max-w-5xl mx-auto px-4 py-3 pb-24">
             {/* User info — also a shortcut into the profile page */}
             <Link

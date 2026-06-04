@@ -43,7 +43,7 @@ export function LearnerNoteRead() {
 
   if (loading) {
     return (
-      <div className="notes-studio min-h-screen pb-24 md:pb-8" style={{ backgroundColor: '#FAFAF7' }}>
+      <div className="notes-studio min-h-screen pb-24 lg:pb-8" style={{ backgroundColor: '#FAFAF7' }}>
         <SeoHelmet title="Note" path={`/notes/${id}`} noIndex />
         <div className="min-h-[50vh] flex items-center justify-center text-neutral-500">
           <Loader2 size={20} className="animate-spin" />
@@ -54,7 +54,7 @@ export function LearnerNoteRead() {
 
   if (error || !note) {
     return (
-      <div className="notes-studio min-h-screen pb-24 md:pb-8" style={{ backgroundColor: '#FAFAF7' }}>
+      <div className="notes-studio min-h-screen pb-24 lg:pb-8" style={{ backgroundColor: '#FAFAF7' }}>
         <SeoHelmet title="Note not found" path={`/notes/${id}`} noIndex />
         <div className="max-w-xl mx-auto px-4 sm:px-5 py-16 text-center">
           <h1 className="font-display text-3xl mb-2 text-neutral-900">Note not found</h1>
@@ -83,7 +83,7 @@ export function LearnerNoteRead() {
   const studyBlocks = note.noteFormat === NOTE_FORMAT.STUDY ? coerceStudyBlocks(note.blocks) : null
 
   return (
-    <div className="notes-studio min-h-screen pb-24 md:pb-8" style={{ backgroundColor: '#FAFAF7' }}>
+    <div className="notes-studio min-h-screen pb-24 lg:pb-8" style={{ backgroundColor: '#FAFAF7' }}>
       <SeoHelmet title={note.title || 'Note'} path={`/notes/${id}`} noIndex />
       <main className="max-w-2xl mx-auto px-4 sm:px-5 py-8">
         <button

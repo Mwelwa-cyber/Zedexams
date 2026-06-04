@@ -18,8 +18,8 @@ const MOBILE_NAV_ITEMS = [
 export default function MobileBottomNav({ mode = 'fixed', className = '' }) {
   const { t } = useTranslation()
   const positionClass = mode === 'static'
-    ? 'md:hidden zx-glass-bottom safe-area-bottom'
-    : 'md:hidden fixed bottom-0 left-0 right-0 z-30 zx-glass-bottom safe-area-bottom'
+    ? 'lg:hidden zx-glass-bottom safe-area-bottom'
+    : 'lg:hidden fixed bottom-0 left-0 right-0 z-30 zx-glass-bottom safe-area-bottom'
 
   return (
     <nav className={`${positionClass} ${className}`} aria-label="Primary mobile navigation">
