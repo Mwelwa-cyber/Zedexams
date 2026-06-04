@@ -17,8 +17,15 @@ import { setSentryUser, clearSentryUser } from '../utils/sentry'
 import { capture, identifyUser, resetAnalytics } from '../utils/analytics'
 import { refreshTokenIfGranted } from '../utils/fcm'
 import { mintAndPersistReferralCode, readPendingReferral, clearPendingReferral } from '../utils/referrals'
+import { useAuthRecovery } from '../hooks/useAuthRecovery'
 
 const AuthContext = createContext(null)
+
+// One-shot breadcrumb so the Login page can explain *why* the user landed
+// back on it after a session was force-expired (stale/revoked token on
+// resume). Read-and-cleared by Login; survives the signOut → redirect hop
+// because it lives in sessionStorage, not React state.
+export const SESSION_EXPIRED_KEY = 'auth:sessionExpired'
 const functions = getFunctions(app, 'us-central1')
 const bootstrapUserProfileCallable = httpsCallable(functions, 'bootstrapUserProfile')
 const sendPasswordResetEmailCallable = httpsCallable(functions, 'sendPasswordResetEmail')
@@ -72,6 +79,14 @@ export function AuthProvider({ children }) {
   const [loading, setLoading]         = useState(true)
   const [profileIssue, setProfileIssue] = useState(null)
   const bootstrapInFlightRef = useRef(new Map())
+  // Tracks effect teardown so async recovery paths (forced token refresh,
+  // bootstrap) can bail after unmount. A ref rather than a closure boolean
+  // because expireSession + the recovery hook live outside the effect.
+  const disposedRef = useRef(false)
+  // Lets useAuthRecovery re-attach the profile snapshot after a resume — the
+  // effect publishes a re-subscribe closure here so the hook can call it
+  // without the subscription internals leaking out of the effect.
+  const subscribeProfileRef = useRef(null)
 
   async function register(email, password, displayName, grade, school, role = ROLES.LEARNER, extras = {}) {
     const isTeacherSignup = role === ROLES.TEACHER
@@ -271,20 +286,128 @@ export function AuthProvider({ children }) {
   // Full content access: admin always, paid teachers, or premium learners.
   const canAccessFullContent = isAdmin || isPaidTeacher || isPremium
 
+  // Force-end the session. Used by terminal token-refresh failures on resume
+  // and by snapshot auth errors that survive a refresh attempt. Drops a
+  // breadcrumb for the Login page, tears down state, and signs out — which
+  // flips currentUser to null so ProtectedRoute redirects to /login. No
+  // separate router bridge needed.
+  const expireSession = useCallback((reason) => {
+    if (disposedRef.current) return
+    console.warn('[auth] session expired:', reason)
+    try { sessionStorage.setItem(SESSION_EXPIRED_KEY, '1') } catch { /* private mode / quota */ }
+    setUserProfile(null)
+    setProfileIssue(null)
+    signOut(auth).catch((e) => console.error('signOut after expiry failed:', e))
+  }, [])
+
   useEffect(() => {
     let unsubProfile = null
-    let disposed = false
+    disposedRef.current = false
     // Watchdog: if Firebase auth + Firestore profile snapshot don't resolve
     // within this window, drop the loading gate so the user sees *something*.
     // 5 s gives slower Zambian networks enough time to complete the round-trip
     // before we fall back to the generic "loading your workspace…" screen.
     const timeout = setTimeout(() => {
-      if (!disposed) setLoading(false)
+      if (!disposedRef.current) setLoading(false)
     }, 5000)
+
+    // (Re-)attach the profile snapshot for `user`. Factored out of the
+    // onAuthStateChanged callback so useAuthRecovery can call it again after a
+    // resume, replacing a listener that may have gone silent while the tab
+    // slept. Always tears down the previous listener first.
+    const subscribeProfile = (user) => {
+      if (unsubProfile) {
+        try { unsubProfile() } catch { /* listener already torn down */ }
+        unsubProfile = null
+      }
+      unsubProfile = onSnapshot(
+        doc(db, 'users', user.uid),
+        (snap) => {
+          if (disposedRef.current) return
+          if (snap.exists()) {
+            const profile = toUserProfile(user.uid, snap.data())
+            // Soft-suspend: if an admin has flipped status to
+            // 'suspended' or 'deleted', sign the user out immediately
+            // and surface a clear message via window.alert. The
+            // ProtectedRoute layer would otherwise let them keep
+            // navigating until the session expires.
+            const status = profile?.status || 'active'
+            if (status === 'suspended' || status === 'deleted') {
+              setUserProfile(null)
+              setProfileIssue(null)
+              setLoading(false)
+              signOut(auth).catch(() => null)
+              if (typeof window !== 'undefined') {
+                setTimeout(() => {
+                  window.alert(
+                    status === 'suspended'
+                      ? 'Your account has been suspended. Please contact support.'
+                      : 'This account is no longer active.',
+                  )
+                }, 50)
+              }
+              return
+            }
+            setUserProfile(profile)
+            setProfileIssue(null)
+            setLoading(false)
+            // Audit B2 — identify with uid + role only (no email).
+            // Safe to call repeatedly; PostHog dedupes on uid.
+            identifyUser(user.uid, profile?.role)
+            return
+          }
+
+          void (async () => {
+            const repairedProfile = await bootstrapMissingProfile(user)
+            if (disposedRef.current) return
+            if (repairedProfile) {
+              setUserProfile(repairedProfile)
+              setProfileIssue(null)
+              identifyUser(user.uid, repairedProfile?.role)
+            } else {
+              setUserProfile(null)
+              setProfileIssue('missing')
+            }
+            setLoading(false)
+          })()
+        },
+        async (e) => {
+          if (disposedRef.current) return
+          console.error('profile subscription:', e)
+          // Stale-token recovery: a tab idle for hours can wake with an
+          // expired ID token, which Firestore surfaces as permission-denied
+          // / unauthenticated even though the account is fine. Try ONE forced
+          // refresh + re-subscribe before giving up; only a refresh failure
+          // means the session is genuinely gone.
+          if (e?.code === 'permission-denied' || e?.code === 'unauthenticated') {
+            try {
+              await user.getIdToken(true)
+              if (disposedRef.current) return
+              subscribeProfile(user)
+              return
+            } catch (refreshErr) {
+              if (disposedRef.current) return
+              expireSession(`snapshot-${e.code}:${refreshErr?.code || 'unknown'}`)
+              return
+            }
+          }
+          // Transient / network errors: surface a recoverable state rather
+          // than nuking the session. The recovery hook retries on resume.
+          setUserProfile(null)
+          setProfileIssue('unreadable')
+          setLoading(false)
+        },
+      )
+    }
+
+    subscribeProfileRef.current = () => {
+      if (auth.currentUser) subscribeProfile(auth.currentUser)
+    }
+
     const unsub = onAuthStateChanged(auth, (user) => {
       clearTimeout(timeout)
       if (unsubProfile) {
-        unsubProfile()
+        try { unsubProfile() } catch { /* listener already torn down */ }
         unsubProfile = null
       }
       setCurrentUser(user)
@@ -312,65 +435,7 @@ export function AuthProvider({ children }) {
       }
       if (user) {
         setLoading(true)
-        unsubProfile = onSnapshot(
-          doc(db, 'users', user.uid),
-          (snap) => {
-            if (disposed) return
-            if (snap.exists()) {
-              const profile = toUserProfile(user.uid, snap.data())
-              // Soft-suspend: if an admin has flipped status to
-              // 'suspended' or 'deleted', sign the user out immediately
-              // and surface a clear message via window.alert. The
-              // ProtectedRoute layer would otherwise let them keep
-              // navigating until the session expires.
-              const status = profile?.status || 'active'
-              if (status === 'suspended' || status === 'deleted') {
-                setUserProfile(null)
-                setProfileIssue(null)
-                setLoading(false)
-                signOut(auth).catch(() => null)
-                if (typeof window !== 'undefined') {
-                  setTimeout(() => {
-                    window.alert(
-                      status === 'suspended'
-                        ? 'Your account has been suspended. Please contact support.'
-                        : 'This account is no longer active.',
-                    )
-                  }, 50)
-                }
-                return
-              }
-              setUserProfile(profile)
-              setProfileIssue(null)
-              setLoading(false)
-              // Audit B2 — identify with uid + role only (no email).
-              // Safe to call repeatedly; PostHog dedupes on uid.
-              identifyUser(user.uid, profile?.role)
-              return
-            }
-
-            void (async () => {
-              const repairedProfile = await bootstrapMissingProfile(user)
-              if (disposed) return
-              if (repairedProfile) {
-                setUserProfile(repairedProfile)
-                setProfileIssue(null)
-                identifyUser(user.uid, repairedProfile?.role)
-              } else {
-                setUserProfile(null)
-                setProfileIssue('missing')
-              }
-              setLoading(false)
-            })()
-          },
-          (e) => {
-            console.error('profile subscription:', e)
-            if (disposed) return
-            setUserProfile(null)
-            setProfileIssue('unreadable')
-            setLoading(false)
-          },
-        )
+        subscribeProfile(user)
       } else {
         setUserProfile(null)
         setProfileIssue(null)
@@ -378,12 +443,26 @@ export function AuthProvider({ children }) {
       }
     })
     return () => {
-      disposed = true
+      disposedRef.current = true
       clearTimeout(timeout)
-      if (unsubProfile) unsubProfile()
+      subscribeProfileRef.current = null
+      if (unsubProfile) {
+        try { unsubProfile() } catch { /* already torn down */ }
+      }
       unsub()
     }
-  }, [bootstrapMissingProfile])
+  }, [bootstrapMissingProfile, expireSession])
+
+  // On tab/app resume, force an ID-token refresh and re-establish the profile
+  // snapshot if it was dropped. If the session is genuinely dead, expire it
+  // (→ signOut → ProtectedRoute redirects to /login with a notice). Disables
+  // itself automatically once there's no signed-in user.
+  useAuthRecovery({
+    currentUser,
+    enabled: !!currentUser,
+    onResubscribe: () => subscribeProfileRef.current?.(),
+    onSessionExpired: (reason) => expireSession(`resume-${reason}`),
+  })
 
   return (
     <AuthContext.Provider value={{

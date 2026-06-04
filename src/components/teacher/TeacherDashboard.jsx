@@ -83,6 +83,16 @@ const STUDIOS = [
     meta: 'Quick assessment',
   },
   {
+    icon: GraduationCap,
+    tone: 'indigo',
+    badge: 'NEW',
+    libraryKey: 'exam_paper',
+    title: 'Exam Studio',
+    tagline: 'Generate fresh ECZ Grade 7-style exam questions with an answer key.',
+    to: '/teacher/generate/exam',
+    meta: 'Exam practice',
+  },
+  {
     icon: Layers,
     tone: 'yellow',
     badge: 'NEW',
@@ -150,6 +160,7 @@ const TOOL_META = {
   notes: { icon: DocumentTextIcon, accent: '#dbe7f4', label: 'Teacher Notes' },
   assessments: { icon: BarChart3, accent: '#e8d8f0', label: 'Assessment' },
   quiz: { icon: ClipboardList, accent: '#cfe9f5', label: 'Quiz' },
+  exam_paper: { icon: GraduationCap, accent: '#dbdcf7', label: 'Exam Paper' },
 }
 
 function SectionLabel({ children }) {

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { fetchSignInMethodsForEmail } from 'firebase/auth'
 import { ArrowLeft, EnvelopeIcon as Mail } from '../ui/icons'
-import { useAuth } from '../../contexts/AuthContext'
+import { useAuth, SESSION_EXPIRED_KEY } from '../../contexts/AuthContext'
 import { auth } from '../../firebase/config'
 import { getRoleLandingPath } from '../../utils/navigation'
 import Logo from '../ui/Logo'
@@ -69,6 +69,18 @@ export default function Login() {
   const [loading, setLoading]     = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
   const [error, setError]         = useState('')
+  // True when AuthContext force-expired a stale/revoked session and bounced
+  // the user here. Read-once breadcrumb so a normal visit to /login stays
+  // clean. Cleared immediately so a refresh doesn't re-show it.
+  const [sessionExpired] = useState(() => {
+    try {
+      if (sessionStorage.getItem(SESSION_EXPIRED_KEY)) {
+        sessionStorage.removeItem(SESSION_EXPIRED_KEY)
+        return true
+      }
+    } catch { /* private mode / quota — no notice, no harm */ }
+    return false
+  })
 
   // Forgot password flow
   const [forgotMode, setForgotMode]       = useState(false)
@@ -250,6 +262,15 @@ export default function Login() {
               <h2 className="text-[20px] font-bold text-[#1A1F2E]">Welcome back</h2>
               <p className="text-[13px] text-[#888] mt-1">Sign in to your account</p>
             </div>
+
+            {sessionExpired && (
+              <p
+                aria-live="polite"
+                className="text-[13px] text-center rounded-xl px-4 py-2.5 mb-4 bg-amber-50 text-amber-800 border border-amber-200"
+              >
+                Your session ended for security. Please sign in again to continue.
+              </p>
+            )}
 
             <div className="animate-slide-up">
               <GoogleSignInButton

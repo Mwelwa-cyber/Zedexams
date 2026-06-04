@@ -405,6 +405,19 @@ export const TOPICS = {
     6: ['Advanced Cooking', 'Clothing & Textiles', 'Home Design', 'Entrepreneurship Basics', 'Family Health', 'Budgeting & Finance'],
     7: ['Food Preservation', 'Sewing & Garment Care', 'Hospitality Skills', 'Home Economics Enterprise', 'Health & First Aid', 'Consumer Rights'],
   },
+  // Creative & Technology Studies (CTS) is the integrated upper-primary
+  // learning area examined as one ECZ Grade 7 PSLE paper. It is NOT one of
+  // the eight learner-dashboard SUBJECTS (which split it into Expressive
+  // Arts / Technology / Home Economics), so it lives here only as a topic
+  // catalogue keyed by the SPECIAL_PAPER_SUBJECTS id 'creative-technology-
+  // studies', and is reached via the teacher-subject bridge below.
+  //
+  // Provisional Grade 7 coverage — derived from the CBC CTS strands and the
+  // topic spread seen in the 2022-2024 ECZ Grade 7 CTS papers. Verify against
+  // the official CTS syllabus before treating as authoritative.
+  'creative-technology-studies': {
+    7: ['Design and Technology', 'Textiles and Needlework', 'Art and Design', 'Music and Dance', 'Food and Nutrition', 'Agriculture and Home Management', 'Entrepreneurship', 'ICT and Technology'],
+  },
 }
 
 /**
@@ -566,6 +579,59 @@ export const SUBTOPICS = {
       ],
     },
   },
+  // Provisional CTS Grade 7 sub-topics — see the TOPICS note above.
+  'creative-technology-studies': {
+    7: {
+      'Design and Technology': [
+        'Tools and Materials',
+        'Carving',
+        'Joining and Construction',
+        'Workshop Safety',
+      ],
+      'Textiles and Needlework': [
+        'Weaving',
+        'Plaiting',
+        'Knotting',
+        'Tie and Dye',
+        'Embroidery and Crocheting',
+        'Sewing',
+      ],
+      'Art and Design': [
+        'Drawing and Shading',
+        'Colour and Painting',
+        'Pottery and Modelling',
+        'Decoration and Pattern',
+      ],
+      'Music and Dance': [
+        'Tonic Sol-fa and Notation',
+        'Musical Instruments',
+        'Songs and Performance',
+        'Traditional Dance',
+      ],
+      'Food and Nutrition': [
+        'Balanced Diet',
+        'Food Preparation',
+        'Food Preservation',
+        'Kitchen Hygiene and Safety',
+      ],
+      'Agriculture and Home Management': [
+        'Crop Production',
+        'Keeping Animals',
+        'Home Care and Cleaning',
+      ],
+      'Entrepreneurship': [
+        'Business Ideas',
+        'Profit and Loss',
+        'Marketing and Selling',
+        'Record Keeping',
+      ],
+      'ICT and Technology': [
+        'Parts of a Computer',
+        'Using the Internet',
+        'Communication Technology',
+      ],
+    },
+  },
 }
 
 /** Grade meta — colour themes + taglines */
@@ -651,6 +717,60 @@ export function getTopics(subjectId, grade) {
 /** Helper — return subtopics for a specific topic within a grade + subject */
 export function getSubtopics(subjectId, grade, topic) {
   return SUBTOPICS[subjectId]?.[grade]?.[topic] ?? []
+}
+
+/**
+ * Bridge: the teacher-tools subject ids (underscore slugs shared with the
+ * Cloud Functions, e.g. 'social_studies', 'creative_and_technology_studies')
+ * → the curriculum topic-catalogue keys above (the SUBJECTS / SPECIAL_PAPER
+ * hyphen ids). The teacher generation studios (and the backend KB) speak the
+ * underscore vocabulary; the TOPICS/SUBTOPICS catalogues here are keyed by the
+ * learner-dashboard hyphen ids. This map lets a studio resolve topic lists for
+ * the subject the teacher picked without every caller hard-coding the spelling.
+ *
+ * Subjects with no catalogue entry simply resolve to `null` → callers fall
+ * back to a free-text topic field.
+ */
+export const TEACHER_SUBJECT_TO_CURRICULUM = {
+  english: 'english',
+  mathematics: 'mathematics',
+  integrated_science: 'science',
+  social_studies: 'social-studies',
+  expressive_arts: 'expressive-arts',
+  technology_studies: 'technology',
+  home_economics: 'home-economics',
+  cinyanja: 'cinyanja',
+  creative_and_technology_studies: 'creative-technology-studies',
+}
+
+/**
+ * Normalise a teacher grade code ('G7', 'g7', 7, '7') to the numeric key used
+ * by the TOPICS/SUBTOPICS catalogues (4-7). Returns null when out of range so
+ * callers degrade to free text rather than guessing.
+ */
+export function gradeCodeToNumber(grade) {
+  const n = Number(String(grade ?? '').replace(/[^0-9]/g, ''))
+  return Number.isFinite(n) && n >= 4 && n <= 7 ? n : null
+}
+
+/**
+ * Topics for a teacher-tools subject id + grade code (e.g.
+ * getTopicsForTeacherSubject('social_studies', 'G7')). Returns [] when the
+ * combination has no catalogue data so the studio shows a free-text field.
+ */
+export function getTopicsForTeacherSubject(teacherSubjectId, grade) {
+  const subjectKey = TEACHER_SUBJECT_TO_CURRICULUM[teacherSubjectId]
+  const gradeNum = gradeCodeToNumber(grade)
+  if (!subjectKey || gradeNum == null) return []
+  return getTopics(subjectKey, gradeNum)
+}
+
+/** Sub-topics for a teacher-tools subject id + grade code + topic. */
+export function getSubtopicsForTeacherSubject(teacherSubjectId, grade, topic) {
+  const subjectKey = TEACHER_SUBJECT_TO_CURRICULUM[teacherSubjectId]
+  const gradeNum = gradeCodeToNumber(grade)
+  if (!subjectKey || gradeNum == null) return []
+  return getSubtopics(subjectKey, gradeNum, topic)
 }
 
 /** Helper — return the topic-level label (e.g. "topic" / "unit") for a subject + grade */
