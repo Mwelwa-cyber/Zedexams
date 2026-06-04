@@ -324,6 +324,12 @@ export function titleForGeneration(gen) {
     const grade = out?.header?.grade || gen.inputs?.grade || ''
     return [`Teacher notes — ${topic}`, grade].filter(Boolean).join(' · ')
   }
+  if (gen.tool === 'exam_paper') {
+    if (out?.header?.title) return out.header.title
+    const g = gen.inputs?.grade || out?.header?.grade || ''
+    const s = gen.inputs?.subject || out?.header?.subject || ''
+    return `${g} ${s} exam questions`.trim() || 'Exam questions'
+  }
   return gen.inputs?.topic || 'Generation'
 }
 
