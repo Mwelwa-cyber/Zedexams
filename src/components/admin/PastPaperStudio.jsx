@@ -195,6 +195,11 @@ export default function PastPaperStudio() {
     totalMarks: '',
   })
   const [assets, setAssets] = useState([])
+  // In-memory File for each just-uploaded asset, keyed by Storage path.
+  // Lets the preview render from local bytes instead of round-tripping
+  // through Storage (which can fail on a cross-origin fetch). Empty for
+  // assets loaded from an existing draft — those fall back to the URL.
+  const [localFiles, setLocalFiles] = useState({})
   // Linked quiz: question authoring happens in the Quiz Editor, not in
   // the Studio. We keep the id + question count here so step 3 can
   // surface "N questions in the quiz" and a one-click handoff.
@@ -304,6 +309,7 @@ export default function PastPaperStudio() {
     setUploading(true)
     const baseIndex = assets.length
     const next = [...assets]
+    const nextFiles = { ...localFiles }
     try {
       for (let i = 0; i < files.length; i += 1) {
         const file = files[i]
@@ -322,8 +328,12 @@ export default function PastPaperStudio() {
           index: baseIndex + i,
         })
         next.push(result)
+        // Keep the local File so the preview renders instantly from
+        // memory rather than re-downloading what we just uploaded.
+        nextFiles[result.path] = file
       }
       setAssets(next)
+      setLocalFiles(nextFiles)
       const assetType = inferAssetType(next)
       await updatePaper(paperId, { assets: next, assetType })
     } catch (err) {
@@ -344,6 +354,12 @@ export default function PastPaperStudio() {
       await deletePaperPdf(removed.path).catch(() => {})
       await updatePaper(paperId, { assets: next, assetType: inferAssetType(next) })
       setAssets(next)
+      setLocalFiles((prev) => {
+        if (!(removed.path in prev)) return prev
+        const copy = { ...prev }
+        delete copy[removed.path]
+        return copy
+      })
     } catch (err) {
       console.error('[PastPaperStudio] remove failed', err)
       setError('Could not remove that file.')
@@ -638,6 +654,7 @@ export default function PastPaperStudio() {
       {step === 1 && (
         <UploadStep
           assets={assets}
+          localFiles={localFiles}
           uploading={uploading}
           onAddFiles={handleAddFiles}
           onRemove={handleRemoveAsset}
@@ -735,7 +752,7 @@ function RolePill({ active, onClick, children }) {
   )
 }
 
-function UploadStep({ assets, uploading, onAddFiles, onRemove, onMove, onSetRole }) {
+function UploadStep({ assets, localFiles, uploading, onAddFiles, onRemove, onMove, onSetRole }) {
   return (
     <section className="space-y-4">
       <DropZone disabled={uploading} onFiles={onAddFiles} />
@@ -796,7 +813,7 @@ function UploadStep({ assets, uploading, onAddFiles, onRemove, onMove, onSetRole
           No files uploaded yet. Drag a PDF, Word doc, or one or more scanned-page images above to start.
         </p>
       )}
-      {assets.length > 0 && <AssetPreviews assets={assets} />}
+      {assets.length > 0 && <AssetPreviews assets={assets} localFiles={localFiles} />}
     </section>
   )
 }
@@ -817,14 +834,29 @@ function UploadStep({ assets, uploading, onAddFiles, onRemove, onMove, onSetRole
  * the same place they fix typos in filenames or reorder pages. No
  * round-trip through "publish, navigate, find the bug, come back."
  */
-function AssetPreviews({ assets }) {
+function AssetPreviews({ assets, localFiles = {} }) {
   const [urls, setUrls] = useState({})
   useEffect(() => {
     let cancelled = false
     const next = {}
-    // Resolve every URL in parallel; failures fall back to null so the
-    // preview shows an "unavailable" placeholder instead of crashing.
+    const objectUrls = []
+    // Resolve a preview source for every asset in parallel. Prefer the
+    // in-memory File we just uploaded — PDFs render from it via the
+    // viewer's `blob` prop (no Storage fetch), and images get a local
+    // object URL. Only assets without a local File hit Storage; failures
+    // fall back to null so the preview shows an "unavailable" placeholder
+    // instead of crashing.
     Promise.all(assets.map(async (a) => {
+      const local = localFiles[a.path]
+      if (local && a.contentType === 'application/pdf') {
+        return // rendered straight from the blob; no URL needed
+      }
+      if (local && a.contentType?.startsWith('image/')) {
+        const objUrl = URL.createObjectURL(local)
+        objectUrls.push(objUrl)
+        next[a.path] = objUrl
+        return
+      }
       try {
         next[a.path] = await resolvePaperUrl(a.path)
       } catch (err) {
@@ -834,15 +866,20 @@ function AssetPreviews({ assets }) {
     }))
       .then(() => { if (!cancelled) setUrls(next) })
       .catch(() => { /* per-asset errors already swallowed above */ })
-    return () => { cancelled = true }
-  }, [assets])
+    return () => {
+      cancelled = true
+      objectUrls.forEach((u) => { try { URL.revokeObjectURL(u) } catch { /* ignore */ } })
+    }
+  }, [assets, localFiles])
 
   const { paper: paperAssets, markScheme: msAssets } = splitAssetsByRole(assets)
 
   function renderAsset(a, idx) {
     const url = urls[a.path]
+    const localFile = localFiles[a.path]
     const isPdf = a.contentType === 'application/pdf'
     const isImg = a.contentType?.startsWith('image/')
+    const hasLocalPdf = isPdf && Boolean(localFile)
     return (
       <figure
         key={a.path}
@@ -851,7 +888,15 @@ function AssetPreviews({ assets }) {
         <figcaption className="theme-bg-subtle text-xs font-black theme-text-muted uppercase tracking-widest px-3 py-2 border-b theme-border">
           {idx + 1}. {a.filename}
         </figcaption>
-        {url === undefined ? (
+        {hasLocalPdf ? (
+          <Suspense fallback={
+            <div className="h-[60vh] flex items-center justify-center theme-text-muted text-sm">
+              Loading PDF viewer…
+            </div>
+          }>
+            <PdfJsViewer blob={localFile} title={a.filename} />
+          </Suspense>
+        ) : url === undefined ? (
           <div className="h-40 flex items-center justify-center theme-text-muted text-sm">
             Loading preview…
           </div>
