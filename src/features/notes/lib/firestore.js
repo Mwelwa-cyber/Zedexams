@@ -129,6 +129,8 @@ export async function createNote(data) {
     term:         toString(data.term),
     week:         toString(data.week),
     assetBatchId: data.assetBatchId || null,
+    // Optional 16:9 cover illustration shown on the learner note card.
+    coverImage:   data.coverImage || null,
     // Stable key for idempotent seed imports (skip a note that's already seeded).
     seedKey:      data.seedKey || null,
     createdBy:    data.createdBy,

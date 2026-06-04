@@ -19,12 +19,24 @@ const isNewThisWeek = (publishedAt) => {
 export function LearnerNoteCard({ note, onClick }) {
   const isNew = isNewThisWeek(note.publishedAt)
   const isFile = note.noteFormat === NOTE_FORMAT.FILE
+  const cover = typeof note.coverImage === 'string' ? note.coverImage.trim() : ''
 
   return (
     <button
       onClick={() => onClick?.(note)}
-      className="group text-left bg-white rounded-xl border border-neutral-200 p-5 hover:border-neutral-400 transition-all w-full"
+      className="group text-left bg-white rounded-xl border border-neutral-200 overflow-hidden hover:border-neutral-400 transition-all w-full flex flex-col"
     >
+      {cover && (
+        <div className="aspect-[16/9] w-full overflow-hidden bg-neutral-100">
+          <img
+            src={cover}
+            alt=""
+            loading="lazy"
+            className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+          />
+        </div>
+      )}
+      <div className="p-5">
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <span className="inline-flex items-center gap-1 text-[11px] font-medium text-neutral-600 bg-neutral-100 px-2 py-0.5 rounded-full">
           Grade {note.grade}
@@ -57,6 +69,7 @@ export function LearnerNoteCard({ note, onClick }) {
         <span className="inline-flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: '#047857' }}>
           Read <ArrowRight size={12} />
         </span>
+      </div>
       </div>
     </button>
   )
