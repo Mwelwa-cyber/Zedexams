@@ -12,181 +12,194 @@ import UpgradeModal from '../subscription/UpgradeModal'
 import UsageMeter from './UsageMeter'
 import SeoHelmet from '../seo/SeoHelmet'
 import TeacherOnboardingTour from './TeacherOnboardingTour'
+import Icon from '../ui/Icon'
+import {
+  ArrowRight,
+  BarChart3,
+  BookOpen,
+  CalendarDays,
+  ClipboardCheckList,
+  ClipboardList,
+  Clock,
+  DocumentTextIcon,
+  FileText,
+  FolderOpen,
+  GraduationCap,
+  Layers,
+  PencilLine,
+  Sparkles,
+  Target,
+} from '../ui/icons'
 
 const STUDIOS = [
   {
-    emoji: '🦁',
-    mascotBg: '#faecb8',
+    icon: CalendarDays,
+    tone: 'amber',
     badge: 'NEW',
     libraryKey: 'scheme-of-work',
     title: 'Schemes of Work',
-    tagline: 'Plan your whole term — week-by-week subject pacing.',
+    tagline: 'Map term pacing, outcomes, and weekly checkpoints.',
     to: '/teacher/generate/scheme-of-work',
-    mascot: 'Adventure Lion',
+    meta: 'Term planning',
   },
   {
-    emoji: '🦊',
-    mascotBg: '#fde2c4',
+    icon: PencilLine,
+    tone: 'orange',
     badge: null,
     libraryKey: 'lesson-plan',
     title: 'Lesson Plans',
-    tagline: 'Day-by-day CBC plans with stages, materials, and assessment.',
+    tagline: 'Prepare CBC lessons with stages, resources, and assessment.',
     to: '/teacher/generate/lesson-plan',
-    mascot: 'Plan Fox',
+    meta: 'Daily prep',
   },
   {
-    emoji: '🦉',
-    mascotBg: '#dbe7f4',
+    icon: DocumentTextIcon,
+    tone: 'blue',
     badge: 'NEW',
     libraryKey: 'notes',
     title: 'Notes Studio',
-    tagline: 'Teacher delivery notes built from your lesson plans.',
+    tagline: 'Turn a lesson plan into delivery notes and examples.',
     to: '/teacher/generate/notes',
-    mascot: 'Story Owl',
+    meta: 'Instruction support',
   },
   {
-    emoji: '🐢',
-    mascotBg: '#d8ecd0',
+    icon: FileText,
+    tone: 'green',
     badge: 'NEW',
     libraryKey: 'worksheet',
     title: 'Worksheets',
-    tagline: 'Practice activities and exercises for pupils.',
+    tagline: 'Create classroom practice, exercises, and consolidation tasks.',
     to: '/teacher/generate/worksheet',
-    mascot: 'Practice Turtle',
+    meta: 'Practice material',
   },
   {
-    emoji: '✏️',
-    mascotBg: '#cfe9f5',
+    icon: ClipboardList,
+    tone: 'cyan',
     badge: 'NEW',
     libraryKey: 'quiz',
     title: 'Quizzes',
-    tagline: 'CBC-aligned quizzes drafted from a topic — review before publishing.',
+    tagline: 'Draft review-ready questions from a topic or outcome.',
     to: '/teacher/generate/quiz',
-    mascot: 'Quiz Owl',
+    meta: 'Quick assessment',
   },
   {
-    emoji: '🎴',
-    mascotBg: '#fde9b8',
+    icon: Layers,
+    tone: 'yellow',
     badge: 'NEW',
     libraryKey: 'flashcards',
     title: 'Flashcards',
-    tagline: 'Bite-size revision cards built from any CBC topic.',
+    tagline: 'Build short revision prompts for recall and practice.',
     to: '/teacher/generate/flashcards',
-    mascot: 'Memory Robin',
+    meta: 'Revision',
   },
   {
-    emoji: '📋',
-    mascotBg: '#f0d6e0',
+    icon: ClipboardCheckList,
+    tone: 'rose',
     badge: 'NEW',
     libraryKey: 'rubric',
     title: 'Rubrics',
-    tagline: 'Marking guides with criteria and performance levels.',
+    tagline: 'Define criteria, levels, and marking guidance.',
     to: '/teacher/generate/rubric',
-    mascot: 'Marking Mole',
+    meta: 'Marking guide',
   },
   {
-    emoji: '🦅',
-    mascotBg: '#e8d8f0',
+    icon: BarChart3,
+    tone: 'violet',
     badge: 'NEW',
     title: 'Assessments',
-    tagline: 'Topic, weekly, monthly, mid-term & end-of-term assessments.',
+    tagline: 'Manage topic, monthly, mid-term, and end-of-term assessments.',
     to: '/teacher/assessments',
-    mascot: 'Sharp Eagle',
+    meta: 'Assessment bank',
   },
   {
-    emoji: '📚',
-    mascotBg: '#e3dcc8',
+    icon: FolderOpen,
+    tone: 'slate',
     badge: null,
     isLibrary: true,
     title: 'Library',
-    tagline: 'All your saved lesson plans, schemes, notes, worksheets, and assessments.',
+    tagline: 'Browse saved plans, notes, worksheets, rubrics, and assessments.',
     to: '/teacher/library',
-    mascot: 'Your saved work',
+    meta: 'Saved work',
   },
   {
-    emoji: '📅',
-    mascotBg: '#e8e1f6',
+    icon: CalendarDays,
+    tone: 'indigo',
     badge: 'NEW',
     title: 'School Calendar',
-    tagline: 'Zambian MoE term dates, public holidays, and working days for 2026–2030.',
+    tagline: 'Check MoE terms, public holidays, and working days.',
     to: '/teacher/calendar',
-    mascot: 'Term Tracker',
+    meta: 'Academic year',
   },
   {
-    emoji: '📘',
-    mascotBg: '#d9ecff',
+    icon: BookOpen,
+    tone: 'sky',
     badge: 'NEW',
     title: 'Syllabi Studio',
-    tagline: 'Browse all 20 CBC subjects — topics, competences, activities, and standards in one workspace.',
+    tagline: 'Browse CBC subjects, topics, competences, and standards.',
     to: '/teacher/syllabi',
-    mascot: 'Curriculum Shelf',
+    meta: 'Curriculum reference',
   },
 ]
 
 const TOOL_META = {
-  lesson_plan: { icon: '🦊', accent: '#fde2c4', label: 'Lesson Plan' },
-  scheme_of_work: { icon: '🦁', accent: '#faecb8', label: 'Scheme of Work' },
-  worksheet: { icon: '🐢', accent: '#d8ecd0', label: 'Worksheet' },
-  flashcards: { icon: '🎴', accent: '#fde9b8', label: 'Flashcards' },
-  rubric: { icon: '📋', accent: '#f0d6e0', label: 'Rubric' },
-  notes: { icon: '🦉', accent: '#dbe7f4', label: 'Teacher Notes' },
-  assessments: { icon: '🦅', accent: '#e8d8f0', label: 'Assessment' },
-  quiz: { icon: '✏️', accent: '#cfe9f5', label: 'Quiz' },
+  lesson_plan: { icon: PencilLine, accent: '#fde2c4', label: 'Lesson Plan' },
+  scheme_of_work: { icon: CalendarDays, accent: '#faecb8', label: 'Scheme of Work' },
+  worksheet: { icon: FileText, accent: '#d8ecd0', label: 'Worksheet' },
+  flashcards: { icon: Layers, accent: '#fde9b8', label: 'Flashcards' },
+  rubric: { icon: ClipboardCheckList, accent: '#f0d6e0', label: 'Rubric' },
+  notes: { icon: DocumentTextIcon, accent: '#dbe7f4', label: 'Teacher Notes' },
+  assessments: { icon: BarChart3, accent: '#e8d8f0', label: 'Assessment' },
+  quiz: { icon: ClipboardList, accent: '#cfe9f5', label: 'Quiz' },
 }
 
 function SectionLabel({ children }) {
   return (
-    <div className="flex items-center gap-2.5 mb-2" style={{ fontSize: 11, fontWeight: 700, letterSpacing: '1.4px', textTransform: 'uppercase', color: '#ff7a2e' }}>
-      <span style={{ width: 32, height: 3, background: '#ff7a2e', borderRadius: 2, display: 'inline-block', flexShrink: 0 }} />
+    <div className="teacher-dashboard-eyebrow">
       {children}
     </div>
   )
 }
 
-function StudioCard({ emoji, mascotBg, badge, libraryKey, isLibrary, title, tagline, mascot, to, librarySummary }) {
+function StudioCard({ icon, tone, badge, libraryKey, isLibrary, title, tagline, meta, to, librarySummary }) {
   const isSoon = badge === 'SOON'
   const count = libraryKey
     ? (librarySummary?.byTool?.[libraryKey] ?? 0)
     : isLibrary
     ? (librarySummary?.total ?? 0)
     : null
-  const badgeText = badge !== null ? badge : `${count} SAVED`
-  const badgeStyle = badge === 'FREE'
-    ? { background: '#10864e', color: '#fff' }
+  const badgeText = badge !== null ? badge : `${count} saved`
+  const badgeClass = badge === 'FREE'
+    ? 'teacher-studio-card__badge--success'
     : badge === 'SOON'
-    ? { background: '#e7e1cf', color: '#7a6a4a' }
+    ? 'teacher-studio-card__badge--muted'
     : badge === 'NEW'
-    ? { background: '#ff7a2e', color: '#fff' }
-    : { background: '#0e2a32', color: '#fde9b8' }
-
-  const cardOpacity = isSoon ? 0.62 : 1
-  const cardBorder = isSoon ? '#cdc4ad' : '#0e2a32'
-  const cardBg = isSoon ? '#faf6ea' : '#fff'
+    ? 'teacher-studio-card__badge--accent'
+    : 'teacher-studio-card__badge--saved'
+  const cardClass = [
+    'teacher-studio-card',
+    `teacher-studio-card--${tone || 'slate'}`,
+    isSoon ? 'is-disabled' : '',
+  ].filter(Boolean).join(' ')
 
   const inner = (
     <>
-      <div className="flex items-start justify-between mb-3">
-        <div
-          style={{
-            width: 58, height: 58, borderRadius: 14, background: mascotBg,
-            display: 'grid', placeItems: 'center', fontSize: 32, flexShrink: 0,
-            filter: isSoon ? 'grayscale(.5)' : 'none',
-          }}
-        >
-          {emoji}
-        </div>
-        <span style={{ ...badgeStyle, padding: '4px 10px', borderRadius: 99, fontSize: 10, fontWeight: 700, letterSpacing: '.5px', whiteSpace: 'nowrap' }}>
+      <div className="teacher-studio-card__top">
+        <span className="teacher-studio-card__icon">
+          <Icon as={icon} size="lg" />
+        </span>
+        <span className={`teacher-studio-card__badge ${badgeClass}`}>
           {badgeText}
         </span>
       </div>
-      <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 17, color: '#0e2a32', margin: '0 0 5px', lineHeight: 1.2 }}>
+      <p className="teacher-studio-card__title">
         {title}
       </p>
-      <p style={{ fontSize: 12.5, color: '#566f76', lineHeight: 1.45, flex: 1, margin: 0 }}>
+      <p className="teacher-studio-card__text">
         {tagline}
       </p>
-      <p style={{ fontSize: 11, color: '#566f76', marginTop: 12, fontWeight: 600, margin: '12px 0 0' }}>
-        {isSoon ? 'Coming soon' : mascot}
+      <p className="teacher-studio-card__meta">
+        {isSoon ? 'Coming soon' : meta}
+        {!isSoon && <Icon as={ArrowRight} size="xs" />}
       </p>
     </>
   )
@@ -194,10 +207,9 @@ function StudioCard({ emoji, mascotBg, badge, libraryKey, isLibrary, title, tagl
   if (isSoon) {
     return (
       <div
-        className="flex flex-col p-5 rounded-[18px] border-2 border-dashed"
-        style={{ background: cardBg, borderColor: cardBorder, minHeight: 210, opacity: cardOpacity, cursor: 'not-allowed' }}
+        className={cardClass}
         aria-disabled="true"
-        title={`${title} — coming soon`}
+        title={`${title} - coming soon`}
       >
         {inner}
       </div>
@@ -208,10 +220,7 @@ function StudioCard({ emoji, mascotBg, badge, libraryKey, isLibrary, title, tagl
     return (
       <Link
         to={to}
-        className="flex flex-col p-5 rounded-[18px] border-2 transition-all duration-200 no-underline hover:-translate-y-1"
-        style={{ background: cardBg, borderColor: cardBorder, minHeight: 210, boxShadow: 'none' }}
-        onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 10px 24px rgba(14,42,50,.12)' }}
-        onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none' }}
+        className={cardClass}
       >
         {inner}
       </Link>
@@ -220,8 +229,7 @@ function StudioCard({ emoji, mascotBg, badge, libraryKey, isLibrary, title, tagl
 
   return (
     <div
-      className="flex flex-col p-5 rounded-[18px] border-2"
-      style={{ background: '#fff', borderColor: '#b8ad96', minHeight: 210, opacity: 0.78, cursor: 'default' }}
+      className={`${cardClass} is-inactive`}
     >
       {inner}
     </div>
@@ -231,16 +239,16 @@ function StudioCard({ emoji, mascotBg, badge, libraryKey, isLibrary, title, tagl
 function StatPill({ value, label, accent }) {
   return (
     <div
-      className="flex-1 min-w-[130px] rounded-2xl px-4 py-3 border-2"
-      style={{ background: '#fff', borderColor: '#0e2a32' }}
+      className="teacher-stat-pill"
+      style={{ '--pill-accent': accent || '#ff7a2e' }}
     >
       <div className="flex items-center gap-2">
-        <span style={{ width: 6, height: 24, borderRadius: 3, background: accent || '#ff7a2e', display: 'inline-block', flexShrink: 0 }} />
+        <span className="teacher-stat-pill__bar" />
         <div>
-          <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 22, color: '#0e2a32', margin: 0, lineHeight: 1 }}>
+          <p className="teacher-stat-pill__value">
             {value}
           </p>
-          <p style={{ fontSize: 11.5, color: '#566f76', margin: '2px 0 0', fontWeight: 600 }}>
+          <p className="teacher-stat-pill__label">
             {label}
           </p>
         </div>
@@ -376,112 +384,112 @@ export default function TeacherDashboard() {
   }, [generations, quizzes])
 
   return (
-    <div>
+    <div className="teacher-dashboard-surface">
       <SeoHelmet title="Teacher dashboard" noIndex />
       <TeacherOnboardingTour />
       {!isPremium && (
         <div
-          className="flex items-center justify-between gap-4 mb-5 px-5 py-3.5 rounded-2xl"
-          style={{ background: '#fff5e6', border: '1.5px solid #ff7a2e' }}
+          className="teacher-subscription-banner"
         >
           <div>
-            <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 14, color: '#0e2a32', margin: '0 0 2px' }}>
+            <p className="teacher-subscription-banner__title">
               Activate your teacher subscription
             </p>
-            <p style={{ fontSize: 12, color: '#566f76', margin: 0 }}>
+            <p className="teacher-subscription-banner__text">
               Pay with MTN MoMo and unlock AI lesson plan tools automatically.
             </p>
           </div>
           <button
             onClick={() => setShowUpgrade(true)}
-            className="flex-shrink-0 rounded-xl font-bold text-sm transition-colors"
-            style={{ background: '#ff7a2e', color: '#fff', border: 'none', cursor: 'pointer', padding: '9px 16px' }}
+            className="teacher-subscription-banner__button"
           >
             Pay with MTN
           </button>
         </div>
       )}
 
-      <div
-        className="rounded-3xl p-7 sm:p-9 mb-8 flex items-center gap-6 flex-wrap"
-        style={{ background: 'linear-gradient(135deg, #0e2a32 0%, #16505d 100%)', color: '#fff', boxShadow: '0 12px 32px rgba(14,42,50,.18)' }}
-      >
-        <div style={{ flex: 1, minWidth: 260 }}>
-          <span
-            className="inline-flex items-center gap-2 mb-3 rounded-full text-xs font-bold uppercase tracking-wider"
-            style={{ background: '#ff7a2e', color: '#fff', padding: '7px 14px' }}
-          >
-            ✨ Today's Workspace
+      <section className="teacher-dashboard-hero">
+        <div className="teacher-dashboard-hero__content">
+          <span className="teacher-dashboard-hero__eyebrow">
+            <Icon as={Sparkles} size="sm" />
+            Today's workspace
           </span>
-          <h1 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 36, lineHeight: 1.05, margin: '0 0 8px', letterSpacing: '-.3px' }}>
+          <h1 className="teacher-dashboard-hero__title">
             {lastLessonPlan ? 'Welcome back' : 'Plan with confidence'}
           </h1>
-          <p style={{ fontSize: 14.5, opacity: .88, marginBottom: 16, maxWidth: 520, lineHeight: 1.55 }}>
+          <p className="teacher-dashboard-hero__text">
             {lastLessonPlan ? (
               <>
-                Pick up where you left off — your last plan was{' '}
-                <strong style={{ fontWeight: 700 }}>
+                Pick up where you left off. Your last plan was{' '}
+                <strong>
                   {lastLessonPlan.inputs?.subject ? formatSubject(lastLessonPlan.inputs.subject) : 'a lesson plan'}
                 </strong>
                 {lastLessonPlan.inputs?.grade && (
-                  <> for <strong style={{ fontWeight: 700 }}>{lastLessonPlan.inputs.grade}</strong></>
+                  <> for <strong>{lastLessonPlan.inputs.grade}</strong></>
                 )}
                 {lastLessonPlan.output?.header?.topic && (
                   <>: {lastLessonPlan.output.header.topic}</>
                 )}.
               </>
             ) : (
-              <>Build CBC-aligned lesson plans, schemes of work, teaching notes, and worksheets — all from one place.</>
+              <>Build CBC-aligned lesson plans, schemes of work, teacher notes, and worksheets from one reliable workspace.</>
             )}
           </p>
           {lastLessonPlan ? (
-            <div className="flex gap-4 flex-wrap mb-5" style={{ fontSize: 13, opacity: .78, fontWeight: 500 }}>
-              <span>🕐 {formatDate(lastLessonPlan.createdAt)}</span>
-              {lastLessonPlan.inputs?.subject && <span>📘 {formatSubject(lastLessonPlan.inputs.subject)}</span>}
-              {lastLessonPlan.inputs?.grade && <span>🎓 {lastLessonPlan.inputs.grade}</span>}
+            <div className="teacher-dashboard-hero__facts">
+              <span><Icon as={Clock} size="sm" /> {formatDate(lastLessonPlan.createdAt)}</span>
+              {lastLessonPlan.inputs?.subject && <span><Icon as={BookOpen} size="sm" /> {formatSubject(lastLessonPlan.inputs.subject)}</span>}
+              {lastLessonPlan.inputs?.grade && <span><Icon as={GraduationCap} size="sm" /> {lastLessonPlan.inputs.grade}</span>}
             </div>
           ) : (
-            <div className="flex gap-4 flex-wrap mb-5" style={{ fontSize: 13, opacity: .78, fontWeight: 500 }}>
-              <span>📚 Zambian CBC</span>
-              <span>📋 New &amp; Old syllabi</span>
-              <span>⭐ 7 grades</span>
+            <div className="teacher-dashboard-hero__facts">
+              <span><Icon as={BookOpen} size="sm" /> Zambian CBC</span>
+              <span><Icon as={ClipboardList} size="sm" /> New and old syllabi</span>
+              <span><Icon as={Target} size="sm" /> 7 grades</span>
             </div>
           )}
           <Link
             to={lastLessonPlan ? `/teacher/library/${lastLessonPlan.id}` : '/teacher/generate/lesson-plan'}
-            className="inline-flex items-center gap-2.5 rounded-2xl font-bold no-underline transition-colors"
-            style={{ background: '#ff7a2e', color: '#fff', padding: '13px 22px', fontSize: 14.5 }}
-            onMouseEnter={e => { e.currentTarget.style.background = '#e6651a' }}
-            onMouseLeave={e => { e.currentTarget.style.background = '#ff7a2e' }}
+            className="teacher-dashboard-hero__cta"
           >
-            ▶ {lastLessonPlan ? 'Continue your latest plan' : 'Start a new plan'}
+            <Icon as={PencilLine} size="sm" />
+            {lastLessonPlan ? 'Continue latest plan' : 'Start a new plan'}
+            <Icon as={ArrowRight} size="sm" />
           </Link>
         </div>
-        <div
-          className="flex-shrink-0 hidden sm:grid place-items-center"
-          style={{ width: 150, height: 150, borderRadius: '50%', background: '#fff', fontSize: 68, boxShadow: '0 8px 28px rgba(0,0,0,.25)' }}
-        >
-          🦊
+        <div className="teacher-dashboard-hero__panel">
+          <div>
+            <span>{librarySummary.total + quizzes.length}</span>
+            <p>Saved resources</p>
+          </div>
+          <div>
+            <span>{recentItems.length}</span>
+            <p>Recent items</p>
+          </div>
+          <div>
+            <span>{isPremium ? 'Pro' : 'Free'}</span>
+            <p>Current plan</p>
+          </div>
         </div>
-      </div>
+      </section>
 
       <UsageMeter />
 
       {!loading && <ProgressWidget generations={generations} quizzes={quizzes} />}
 
-      <SectionLabel>Studios</SectionLabel>
-      <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 28, color: '#0e2a32', margin: '0 0 16px' }}>
-        Pick your studio
+      <SectionLabel>Tools</SectionLabel>
+      <h2 className="teacher-dashboard-heading">
+        Choose a workspace
       </h2>
-      <div className="grid gap-4 mb-10" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
+      <div className="teacher-studio-grid">
         {STUDIOS.map(s => (
           <StudioCard key={s.title} {...s} librarySummary={librarySummary} />
         ))}
       </div>
 
-      <SectionLabel>🕒 Recents</SectionLabel>
+      <SectionLabel>Recents</SectionLabel>
       <div className="flex justify-between items-end mb-4">
-        <h2 style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 28, color: '#0e2a32', margin: 0 }}>
+        <h2 className="teacher-dashboard-heading teacher-dashboard-heading--compact">
           Continue where you left off
         </h2>
       </div>
@@ -490,42 +498,40 @@ export default function TeacherDashboard() {
         <div style={{ height: 80 }} />
       ) : recentItems.length === 0 ? (
         <div
-          className="text-center py-10 rounded-2xl border-2 border-dashed"
-          style={{ background: '#fff', borderColor: '#b8ad96' }}
+          className="teacher-empty-state"
         >
-          <div style={{ fontSize: 40, marginBottom: 12, opacity: .5 }}>📂</div>
-          <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 17, color: '#0e2a32', marginBottom: 6 }}>
+          <span className="teacher-empty-state__icon">
+            <Icon as={FolderOpen} size="xl" />
+          </span>
+          <p className="teacher-empty-state__title">
             Nothing recent yet
           </p>
-          <p style={{ fontSize: 13, color: '#8a9aa1', margin: 0 }}>
-            Pick a studio above — your most recent items will appear here.
+          <p className="teacher-empty-state__text">
+            Choose a workspace above. Your most recent items will appear here.
           </p>
         </div>
       ) : (
-        <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))' }}>
+        <div className="teacher-recent-grid">
           {recentItems.map(item => {
-            const meta = TOOL_META[item.tool] || { icon: '📄', accent: '#f0eee8', label: 'Item' }
+            const meta = TOOL_META[item.tool] || { icon: DocumentTextIcon, accent: '#f0eee8', label: 'Item' }
             return (
               <Link
                 key={`${item.kind}-${item.id}`}
                 to={item.to}
-                className="flex items-center gap-3 p-4 rounded-2xl border-2 transition-all no-underline hover:-translate-y-0.5"
-                style={{ background: '#fff', borderColor: '#0e2a32' }}
-                onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 20px rgba(14,42,50,.1)' }}
-                onMouseLeave={e => { e.currentTarget.style.boxShadow = 'none' }}
+                className="teacher-recent-card"
               >
-                <div style={{ width: 44, height: 44, borderRadius: 12, background: meta.accent, display: 'grid', placeItems: 'center', fontSize: 22, flexShrink: 0 }}>
-                  {meta.icon}
-                </div>
+                <span className="teacher-recent-card__icon" style={{ '--recent-bg': meta.accent }}>
+                  <Icon as={meta.icon} size="md" />
+                </span>
                 <div className="flex-1 min-w-0">
-                  <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 14, color: '#0e2a32', margin: '0 0 3px', lineHeight: 1.25 }} className="line-clamp-1">
+                  <p className="teacher-recent-card__title line-clamp-1">
                     {item.title}
                   </p>
-                  <p style={{ fontSize: 11.5, color: '#566f76', margin: 0 }} className="line-clamp-1">
+                  <p className="teacher-recent-card__meta line-clamp-1">
                     {meta.label}{item.subtitle ? ` · ${item.subtitle}` : ''} · {formatDate(item.timestamp)}
                   </p>
                 </div>
-                <span style={{ fontSize: 18, color: '#566f76', flexShrink: 0 }}>→</span>
+                <Icon as={ArrowRight} size="sm" className="teacher-recent-card__arrow" />
               </Link>
             )
           })}
