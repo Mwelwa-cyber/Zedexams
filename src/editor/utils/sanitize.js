@@ -1,4 +1,5 @@
 import DOMPurify from 'dompurify'
+import { stripImportJunkChars } from '../../utils/textJunk.js'
 
 /* ────────────────────────────────────────────────────────────────────────────
  * Editor (Tiptap) output
@@ -54,7 +55,13 @@ const EDITOR_ALLOWED_ATTR = [
 
 export function sanitizeHTML(html) {
   if (!html || typeof html !== 'string') return ''
-  return DOMPurify.sanitize(html, {
+  // Strip DOCX-to-text garbage (replacement char, zero-width / control chars,
+  // soft hyphen, ...) so content already stored in Firestore renders cleanly
+  // through the HTML path (RichContent -> toHTML -> sanitizeHTML) without a
+  // data migration. These chars never carry meaning in HTML text. See
+  // src/utils/textJunk.js.
+  const cleaned = stripImportJunkChars(html)
+  return DOMPurify.sanitize(cleaned, {
     ALLOWED_TAGS: EDITOR_ALLOWED_TAGS,
     ALLOWED_ATTR: EDITOR_ALLOWED_ATTR,
     KEEP_CONTENT: true,
@@ -130,7 +137,9 @@ const QUIZ_RICH_ALLOWED_ATTR = [
 
 export function sanitizeQuizRichHTML(html) {
   if (!html || typeof html !== 'string') return ''
-  return DOMPurify.sanitize(html, {
+  // Strip DOCX-to-text garbage so already-stored quiz/past-paper content
+  // renders cleanly without a data migration. See src/utils/textJunk.js.
+  return DOMPurify.sanitize(stripImportJunkChars(html), {
     ALLOWED_TAGS: QUIZ_RICH_ALLOWED_TAGS,
     ALLOWED_ATTR: QUIZ_RICH_ALLOWED_ATTR,
     // Only allow the two data-* attributes listed above, not every data-* key.

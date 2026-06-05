@@ -1,5 +1,6 @@
 import { createPartGroup, createPassageSection, createStandaloneSection } from '../../utils/quizSections.js'
 import { extractKeywords, keywordsForQuestion, assignByKeywords } from '../../utils/comprehensionGrouping.js'
+import { stripImportJunkChars } from '../../utils/textJunk.js'
 
 // Each entry maps a detectable label (used in doc headers) to the curriculum
 // subject ID used by the form and Firestore. Must stay in sync with
@@ -120,7 +121,12 @@ const COMP_INSTRUCTION_RE = /\b(?:read\s+(?:the\s+)?(?:following|passage|story|t
 const PASSAGE_LABEL_RE = /^(?:story|passage|text|extract|article|reading(?:\s+comprehension)?|comprehension)\s*(?:\d+|[IVX]+|[A-Z])?\s*(?:[:.,-]\s*.*)?$/i
 
 export function cleanImportedText(value) {
-  return String(value || '')
+  // Strip DOCX-to-text garbage (replacement char, zero-width / control chars,
+  // soft hyphen, ...) first -- see src/utils/textJunk.js for the full set and
+  // rationale -- then apply whitespace normalisation. U+00A0 (non-breaking
+  // space) is intentionally NOT stripped by the helper; we normalise it to a
+  // real space here instead.
+  return stripImportJunkChars(value)
     .replace(/\u00a0/g, ' ')
     .replace(/([a-z0-9])([.?!:;])([A-Z])/g, '$1$2 $3')
     .replace(/[ \t]+/g, ' ')
@@ -128,7 +134,6 @@ export function cleanImportedText(value) {
     .replace(/\n{3,}/g, '\n\n')
     .trim()
 }
-
 function splitLines(text) {
   return cleanImportedText(text)
     .split(/\r?\n/)

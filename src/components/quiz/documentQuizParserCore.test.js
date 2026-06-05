@@ -960,4 +960,133 @@ function runG7PastPaperMappingTest() {
 
 runG7PastPaperMappingTest()
 
+// ─── Stray-symbol cleaning (Expressive Arts paper regression) ─────────────
+// Grade 7 Expressive Arts (and any paper converted from a Word document with
+// encoding issues) may contain garbage Unicode characters that render as
+// visible "symbols" in the browser:
+//
+//   U+FFFD  Unicode replacement character — encoding error artifact
+//   U+FEFF  BOM / zero-width no-break space
+//   U+200B–U+200D, U+2060–U+2064  zero-width / invisible chars
+//   U+00AD  soft hyphen (renders as '-' in some browsers)
+//   U+0000–U+001F (except tab/LF/CR)  C0 control characters
+//   U+0080–U+009F  C1 control characters (Windows-1252 range)
+//
+// The fix adds a stripping pass at the top of cleanImportedText so newly
+// imported papers never store these chars. The render-time path in
+// richTextToPlainText also strips them so existing Firestore data is fixed
+// without a migration.
+function runGarbageSymbolCleanTest() {
+  // Helper: feed raw text through the full parser and find the given question.
+  function parseAndFind(rawText, questionNumber) {
+    const warnings = []
+    const { sections } = processImportedQuestionBlocks(
+      [block(rawText)],
+      warnings,
+    )
+    return allQuestionsFromSections(sections).find(
+      q => String(q?.sourceQuestionNumber) === String(questionNumber),
+    )
+  }
+
+  // 1. U+FFFD replacement char in a question stem.
+  const q1 = parseAndFind(
+    '1. Which instrument is used in �Expressive Arts class?',
+    1,
+  )
+  assert.ok(q1, 'Q1 with U+FFFD must parse')
+  assert.doesNotMatch(plainRichText(q1.text), /\ufffd/,
+    'U+FFFD (replacement char) must be stripped from question text')
+  assert.match(plainRichText(q1.text), /Expressive Arts class/,
+    'surrounding text must be preserved after U+FFFD removal')
+
+  // 2. U+200B zero-width space inside an option.
+  const q2Blocks = [
+    block('2. What is the primary colour?'),
+    block('A. Red'),
+    block('B. Green​'),
+    block('C. Blue'),
+    block('D. Yellow'),
+  ]
+  const { sections: s2 } = processImportedQuestionBlocks(q2Blocks, [])
+  const q2 = allQuestionsFromSections(s2).find(q => String(q?.sourceQuestionNumber) === '2')
+  assert.ok(q2, 'Q2 with U+200B in option must parse')
+  assert.ok(q2.options.every(opt => !/[\u200b-\u200d]/.test(opt)),
+    'zero-width space must be stripped from all options')
+
+  // 3. U+FEFF BOM at the start of a question.
+  const q3 = parseAndFind(
+    '﻿3. Name a traditional Zambian musical instrument.',
+    3,
+  )
+  assert.ok(q3, 'Q3 with U+FEFF BOM must parse')
+  assert.doesNotMatch(plainRichText(q3.text), /\ufeff/,
+    'U+FEFF BOM must be stripped')
+  assert.match(plainRichText(q3.text), /Zambian musical instrument/,
+    'question text must survive BOM removal')
+
+  // 4. Soft hyphen U+00AD inside "Expressive Arts" (the exact subject name
+  //    that appeared in the reported bug — ECZ docs emit soft hyphens after
+  //    long compound words when the doc had auto-hyphenation enabled).
+  const q4 = parseAndFind(
+    '4. Ex­pressive Arts is taught in which term?',
+    4,
+  )
+  assert.ok(q4, 'Q4 with soft hyphen must parse')
+  assert.doesNotMatch(plainRichText(q4.text), /\u00ad/,
+    'soft hyphen (U+00AD) must be stripped')
+  assert.match(plainRichText(q4.text), /Expressive Arts/,
+    'word must be joined after soft-hyphen removal')
+
+  // 5. C0 control chars (e.g. U+0007 BEL, U+001F US) in question text.
+  const q5 = parseAndFind(
+    '5. Identify\u0007 the correct\u001f rhythm.',
+    5,
+  )
+  assert.ok(q5, 'Q5 with C0 control chars must parse')
+  // eslint-disable-next-line no-control-regex
+  assert.doesNotMatch(plainRichText(q5.text), /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/,
+    'C0 control chars must be stripped (except tab/LF/CR)')
+  assert.match(plainRichText(q5.text), /Identify the correct rhythm/,
+    'surrounding words must survive C0 stripping')
+
+  // 6. C1 control chars (e.g. U+0082 BPH, U+009F APC) in question text.
+  const q6 = parseAndFind(
+    '6. What is a tempo?',
+    6,
+  )
+  assert.ok(q6, 'Q6 with C1 control chars must parse')
+  assert.doesNotMatch(plainRichText(q6.text), /[\u0080-\u009f]/,
+    'C1 control chars must be stripped')
+  assert.match(plainRichText(q6.text), /What is a tempo/,
+    'words must survive C1 stripping')
+
+  // 7. Mixed garbage burst — multiple junk chars in a single question, plus
+  //    real non-ASCII chars (Cinyanja phrase) that MUST be preserved.
+  const q7Blocks = [
+    block('7. �ANsonga​ ya ﻿uluzi­ ndiani?'),
+    block('A. Nsonga yoyamba'),
+    block('B. Nsonga yachiwiri'),
+    block('C. Nsonga yachitatu'),
+    block('D. Nsonga yachineyi'),
+  ]
+  const { sections: s7 } = processImportedQuestionBlocks(q7Blocks, [])
+  const q7 = allQuestionsFromSections(s7).find(q => String(q?.sourceQuestionNumber) === '7')
+  assert.ok(q7, 'Q7 with mixed garbage in Cinyanja question must parse')
+  // Junk stripped:
+  assert.doesNotMatch(plainRichText(q7.text), /\ufffd/, 'replacement char stripped')
+  assert.doesNotMatch(plainRichText(q7.text), /\u200b/, 'zero-width space stripped')
+  assert.doesNotMatch(plainRichText(q7.text), /\ufeff/, 'BOM stripped')
+  assert.doesNotMatch(plainRichText(q7.text), /\u00ad/, 'soft hyphen stripped')
+  // Legitimate Cinyanja text preserved:
+  assert.match(plainRichText(q7.text), /Nsonga/,
+    'Cinyanja word "Nsonga" must not be destroyed')
+  assert.match(plainRichText(q7.text), /uluzi/,
+    'Cinyanja word "uluzi" must not be destroyed')
+  assert.equal(q7.options.length, 4, 'all four options must survive')
+}
+
+runGarbageSymbolCleanTest()
+console.log('documentQuizParserCore garbage-symbol cleaning test passed')
+
 console.log('documentQuizParserCore regression test passed')

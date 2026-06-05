@@ -96,6 +96,33 @@ eq('non-doc JSON string passes through', getRichPlainText('{"a":1}'), '{"a":1}')
   eq('nested stringified doc unwraps to inner text', extractPlainText(unwrapped), 'Lusaka')
 }
 
+// ── Garbage chars stripped at render time (already-stored data, no migration) ─
+// extractPlainText is the plain-text fallback used by PublicQuizRunner /
+// QuizRunnerV2 when a question has no Tiptap JSON. It must drop DOCX-to-text
+// garbage so e.g. Grade 7 Expressive Arts Q17 reads cleanly. Junk chars are
+// built with String.fromCharCode so this file stays pure ASCII.
+{
+  const FFFD = String.fromCharCode(0xfffd)
+  const ZWSP = String.fromCharCode(0x200b)
+  const SHY = String.fromCharCode(0x00ad)
+  const BEL = String.fromCharCode(0x0007)
+  const NEL = String.fromCharCode(0x0085)
+  const BOM = String.fromCharCode(0xfeff)
+
+  eq('replacement char stripped from plain string', extractPlainText(`Name the${FFFD} drum`), 'Name the drum')
+  eq('zero-width space stripped', extractPlainText(`A${ZWSP}B`), 'AB')
+  eq('soft hyphen stripped (Expressive Arts)', extractPlainText(`Ex${SHY}pressive`), 'Expressive')
+  eq('C0 + C1 controls + BOM stripped', extractPlainText(`${BOM}Test${BEL}${NEL}After`), 'TestAfter')
+  // Junk inside a stringified Tiptap doc is also cleaned.
+  const dirtyDoc = JSON.stringify({
+    type: 'doc',
+    content: [{ type: 'paragraph', content: [{ type: 'text', text: `Mfumu${FFFD} ya${ZWSP} chinyanja` }] }],
+  })
+  eq('junk inside Tiptap doc text stripped', extractPlainText(dirtyDoc), 'Mfumu ya chinyanja')
+  // Legitimate non-ASCII is preserved.
+  eq('accented + em-dash + musical preserved', extractPlainText('café — ♪'), 'café — ♪')
+}
+
 // ── Summary ───────────────────────────────────────────────────────────────
 if (failures.length) {
   console.error(`\n❌ rich-plain-text: ${failures.length} assertion(s) failed:`)

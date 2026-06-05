@@ -16,6 +16,8 @@
  * That is exactly the "answer options showing raw JSON" bug this guards.
  */
 
+import { stripImportJunkChars } from '../utils/textJunk.js'
+
 // Recursively peel off layers of stringified Tiptap docs that earlier save
 // bugs left in Firestore (a doc whose only paragraph holds a single text node
 // containing another stringified doc). Bounded so we never loop on adversarial
@@ -69,7 +71,7 @@ function extractFromDoc(doc) {
   return doc.content.map(extractFromNode).join(' ').trim()
 }
 
-export function extractPlainText(value) {
+function extractPlainTextRaw(value) {
   if (!value) return ''
   if (typeof value === 'string') {
     try {
@@ -80,6 +82,14 @@ export function extractPlainText(value) {
   }
   if (typeof value === 'object' && value.type === 'doc') return extractFromDoc(unwrapNestedTiptapDoc(value))
   return ''
+}
+
+export function extractPlainText(value) {
+  // Strip DOCX-to-text garbage (replacement char, zero-width / control chars,
+  // soft hyphen, ...) at render time so past-paper / quiz content already
+  // stored in Firestore displays cleanly without a data migration. See
+  // src/utils/textJunk.js.
+  return stripImportJunkChars(extractPlainTextRaw(value))
 }
 
 export function getRichPlainText(value) {
