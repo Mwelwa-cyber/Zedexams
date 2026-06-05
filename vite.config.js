@@ -67,16 +67,29 @@ export default defineConfig(({ mode }) => {
       // to generate a service worker that pre-caches the app shell and
       // applies sensible runtime caching to fonts + Firebase Storage assets.
       //
-      // registerType: 'prompt' — a new SW waits until the user accepts the
-      // update from <UpdatePrompt />. This prevents surprise reloads while a
-      // learner is mid-quiz, mid-payment, or working on a slow connection.
+      // registerType: 'autoUpdate' — a new SW activates and reloads the
+      // app automatically on the next open, no user prompt. This is what
+      // makes HTML/meta changes (e.g. theme-color) actually reach returning
+      // users instead of sitting behind a stale precached index.html. Only
+      // the changed hashed assets download, in the background, and the
+      // precache still serves the app offline — so slow connections aren't
+      // penalised. onNeedRefresh never fires in this mode, so <UpdatePrompt />
+      // simply never renders (left in place; harmless).
+      //
+      // NOTE: do NOT switch this back to 'prompt' (it was, briefly, in #778).
+      // In prompt mode a new build sits in the SW "waiting" state until the
+      // user taps a toast — so returning users freeze on whatever bundle they
+      // already have. That is exactly how the live site appeared to "revert":
+      // the exam timetable, the removed admin previews, and the compact
+      // study-plan card all shipped but never reached users still holding the
+      // old precache. autoUpdate is the documented, intended behaviour.
       //
       // Capacitor: src/main.jsx skips registerSW() on native platforms
       // because Capacitor already serves bundled assets locally — a SW
       // there is dead weight and the file:// protocol blocks it anyway.
       VitePWA({
         strategies: 'generateSW',
-        registerType: 'prompt',
+        registerType: 'autoUpdate',
         manifest: false,            // already shipped at /manifest.webmanifest
         injectRegister: false,      // we register manually from main.jsx
         workbox: {
@@ -156,11 +169,10 @@ export default defineConfig(({ mode }) => {
               },
             },
           ],
-          // The UI calls skipWaiting via virtual:pwa-register only after the
-          // user taps Update. Claim the page after activation so the refresh
-          // lands on the newest cached shell.
+          // autoUpdate: take over open clients and activate immediately so
+          // the next open lands on the newest cached shell without a prompt.
           clientsClaim: true,
-          skipWaiting: false,
+          skipWaiting: true,
           // Purge precaches from older SW revisions (incl. the stale
           // index.html that held the old theme-color) on activate.
           cleanupOutdatedCaches: true,

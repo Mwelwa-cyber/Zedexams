@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -24,8 +24,6 @@ import {
   Bell,
   ChartBarIcon,
   Search,
-  ChevronDown,
-  Eye,
 } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import Icon from '../ui/Icon'
@@ -125,8 +123,6 @@ const NAV_SECTIONS = [
   },
 ]
 
-const VIEW_AS_KEY = 'zedexams.adminViewAs'
-
 function useAdminBadges() {
   const [badges, setBadges] = useState({ content: 0, agents: 0, payments: 0 })
   useEffect(() => {
@@ -165,63 +161,6 @@ function NavBadge({ count }) {
     >
       {count > 99 ? '99+' : count}
     </span>
-  )
-}
-
-function ViewAsMenu() {
-  const [viewAs, setViewAs] = useState(() => {
-    try { return localStorage.getItem(VIEW_AS_KEY) || '' } catch { return '' }
-  })
-  const [open, setOpen] = useState(false)
-
-  const apply = useCallback((target) => {
-    setOpen(false)
-    if (target === 'teacher') {
-      localStorage.setItem(VIEW_AS_KEY, 'teacher')
-      setViewAs('teacher')
-      window.location.href = '/teacher'
-    } else if (target === 'learner') {
-      localStorage.setItem(VIEW_AS_KEY, 'learner')
-      setViewAs('learner')
-      window.location.href = '/dashboard'
-    } else {
-      localStorage.removeItem(VIEW_AS_KEY)
-      setViewAs('')
-    }
-  }, [])
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className="admin-game-btn-ghost inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-bold"
-        aria-haspopup="menu"
-        aria-expanded={open}
-      >
-        <Icon as={Eye} size="xs" />
-        View as
-        <Icon as={ChevronDown} size="xs" />
-      </button>
-      {open && (
-        <div role="menu" className="absolute right-0 top-full mt-2 z-50 w-44 theme-card border theme-border rounded-xl shadow-xl overflow-hidden">
-          <button role="menuitem" onClick={() => apply('admin')} className="w-full text-left px-3 py-2 text-sm font-bold theme-text hover:theme-bg-subtle">
-            Admin (default)
-          </button>
-          <button role="menuitem" onClick={() => apply('teacher')} className="w-full text-left px-3 py-2 text-sm font-bold theme-text hover:theme-bg-subtle">
-            Teacher dashboard
-          </button>
-          <button role="menuitem" onClick={() => apply('learner')} className="w-full text-left px-3 py-2 text-sm font-bold theme-text hover:theme-bg-subtle">
-            Learner dashboard
-          </button>
-        </div>
-      )}
-      {viewAs && (
-        <span className="ml-2 text-[10px] font-black uppercase tracking-wider theme-text-muted">
-          Previewing
-        </span>
-      )}
-    </div>
   )
 }
 
@@ -432,13 +371,14 @@ export default function AdminLayout({ children }) {
 
       {/* ── Main Content ────────────────────────────────── */}
       <main className="flex-1 min-w-0 md:pt-0 pt-16">
-        {/* Top utility bar — theme picker + view-as toggle. Hidden on
-            mobile because the mobile header already carries the brand. */}
+        {/* Top utility bar — theme picker. The Teacher/Learner view switch
+            lives in the sidebar "Quick switch" section, so no separate
+            view-as control is needed here. Hidden on mobile because the
+            mobile header already carries the brand. */}
         <div
           className="hidden md:flex items-center justify-end gap-3 px-6 py-3"
           style={{ background: '#FFFAF0', borderBottom: '2px solid #0F1B2D' }}
         >
-          <ViewAsMenu />
           <ThemeSelector />
         </div>
         <div className="app-container py-6 pb-28">
