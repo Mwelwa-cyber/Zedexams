@@ -15,7 +15,10 @@
  * issue list separating publish-blocking errors from advisory warnings.
  */
 
-const {callAnthropic} = require("../../aiService");
+// Lazily required inside runVex (the only consumer). Keeping it out of the
+// module's top-level load means the deterministic structural checks — and
+// their unit tests — can require this module without pulling in the
+// firebase-functions runtime, which isn't installed in the root test env.
 
 const MODEL = "claude-haiku-4-5-20251001";
 
@@ -273,7 +276,7 @@ function runStructuralChecks(questions) {
       return;
     }
 
-    if (options.some((o) => !String(o || "").trim())) {
+    if (options.some((o) => !extractPlainText(o).trim())) {
       blockers.push({
         questionIndex: i,
         severity: "blocker",
@@ -286,7 +289,11 @@ function runStructuralChecks(questions) {
 
     const seen = new Map();
     options.forEach((o, idx) => {
-      const key = String(o || "").trim().toLowerCase();
+      // Options can be rich-text (TipTap doc objects / JSON-encoded docs), not
+      // just plain strings. Compare their flattened text — a raw String(o) on a
+      // doc object yields "[object Object]" for every option, which would block
+      // publishing by reporting every distinct option as a duplicate.
+      const key = extractPlainText(o).trim().toLowerCase();
       if (!key) return;
       if (seen.has(key)) {
         blockers.push({
@@ -492,6 +499,8 @@ async function runVex({input, anthropicApiKeySecret}) {
   }
 
   const userContent = buildUserContent({input});
+
+  const {callAnthropic} = require("../../aiService");
 
   let raw;
   try {

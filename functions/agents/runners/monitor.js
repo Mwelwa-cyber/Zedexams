@@ -89,12 +89,16 @@ function runStructuralChecks(questions) {
       problems.push({questionIndex: i, field: "options", message: `Question ${i + 1} has fewer than two options.`});
       return;
     }
-    if (options.some((o) => !String(o || "").trim())) {
+    if (options.some((o) => !extractPlainText(o).trim())) {
       problems.push({questionIndex: i, field: "options", message: `Question ${i + 1} has an empty option.`});
     }
     const seen = new Map();
     options.forEach((o, idx) => {
-      const key = String(o || "").trim().toLowerCase();
+      // Options can be rich-text (TipTap doc objects / JSON-encoded docs), not
+      // just plain strings. Compare their flattened text — a raw String(o) on a
+      // doc object yields "[object Object]" for every option, which collapses
+      // distinct options into false "duplicate" reports.
+      const key = extractPlainText(o).trim().toLowerCase();
       if (!key) return;
       if (seen.has(key)) {
         problems.push({questionIndex: i, field: "options", message: `Question ${i + 1} has duplicate options (${seen.get(key) + 1} and ${idx + 1}).`});
