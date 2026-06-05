@@ -30,9 +30,16 @@ const {runReva} = require("./runners/reva");
 const {runPubo} = require("./runners/pubo");
 const {getUserRole, assertDailyLimit} = require("../aiService");
 
+// Firestore-triggered functions must be collocated with the database to
+// avoid a cross-region Eventarc hop on every event. The project's
+// (default) Firestore database lives in africa-south1, so the trigger is
+// created there regardless of where the function runs; pinning the
+// function to africa-south1 too keeps compute next to the trigger
+// (lower latency + no cross-region egress). HTTP/callable functions have
+// no regional trigger and stay in us-central1 — see firebase.json.
 const TRIGGER_OPTS = {
   document: "agentJobs/{jobId}",
-  region: "us-central1",
+  region: "africa-south1",
   timeoutSeconds: 300,
   memory: "512MiB",
 };
