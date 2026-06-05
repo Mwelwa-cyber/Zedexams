@@ -64,6 +64,13 @@
           { "key": "Cache-Control", "value": "public, max-age=3600" },
           { "key": "Content-Disposition", "value": "inline" }
         ]
+      },
+      {
+        "source": "/timetables/**",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=3600" },
+          { "key": "Content-Disposition", "value": "inline" }
+        ]
       }
     ],
     "redirects": [
