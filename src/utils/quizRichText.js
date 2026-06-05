@@ -1,4 +1,5 @@
 import { sanitizeQuizRichHTML } from '../editor/utils/sanitize.js'
+import { stripImportJunkChars } from './textJunk.js'
 import {
   toHTML as tiptapJsonToHtml,
   hydrateVerticalArithmetic,
@@ -413,8 +414,10 @@ export function richTextToPlainText(value) {
 
   Array.from(doc.body.childNodes).forEach(walk)
 
-  return pieces
-    .join('')
+  // Strip DOCX-to-text garbage here too (not just at import) so content
+  // already stored in Firestore renders cleanly without a data migration.
+  // See src/utils/textJunk.js. U+00A0 is normalised to a real space after.
+  return stripImportJunkChars(pieces.join(''))
     .replace(/\u00a0/g, ' ')
     .replace(/[ \t]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
