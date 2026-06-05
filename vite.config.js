@@ -173,6 +173,12 @@ export default defineConfig(({ mode }) => {
           // the next open lands on the newest cached shell without a prompt.
           clientsClaim: true,
           skipWaiting: true,
+          // Imported at the top of the generated SW. Adds an activate-time
+          // handler that reloads open tabs when a NEW build takes over, so a
+          // device frozen on an old precache crosses over automatically on its
+          // next visit — no manual cache clear. Shipped from public/ and
+          // served no-cache (see firebase.json) so the import is never stale.
+          importScripts: ['/sw-reload-clients.js'],
           // Purge precaches from older SW revisions (incl. the stale
           // index.html that held the old theme-color) on activate.
           cleanupOutdatedCaches: true,
