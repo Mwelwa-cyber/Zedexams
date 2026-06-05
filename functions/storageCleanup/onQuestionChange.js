@@ -18,8 +18,12 @@ const {onDocumentDeleted, onDocumentUpdated} =
 
 const {collectQuestionImagePaths, safeDelete} = require("./helpers");
 
+// Collocated with the (default) Firestore database in africa-south1 so the
+// Eventarc trigger and the function compute share a region — no cross-region
+// hop per delete/update event. The Storage bucket these handlers sweep is
+// also africa-south1, so the blob deletes stay in-region too.
 const COMMON_OPTS = {
-  region: "us-central1",
+  region: "africa-south1",
   timeoutSeconds: 60,
   memory: "256MiB",
 };
