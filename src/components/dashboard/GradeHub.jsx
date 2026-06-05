@@ -86,8 +86,8 @@ const NOTIFICATION_STORAGE_PREFIX = 'zedexams:notifications:seen:v1'
 // the browser can reserve space and avoid CLS as images load.
 const DASHBOARD_CHARACTERS = {
   hero:  { src: '/images/characters/zed-zara-reading.webp?v=1', width: 1402, height: 1122 },
-  exams: { src: '/images/characters/lina-study.webp?v=1',       width: 1313, height: 1198 },
-  games: { src: '/images/characters/max-gaming.webp?v=1',       width: 1254, height: 1254 },
+  exams: { src: '/images/characters/todays-exams.webp?v=1',     width: 1075, height: 971 },
+  games: { src: '/images/characters/zed-games.webp?v=1',        width: 1140, height: 866 },
   notes:     { src: '/images/characters/notes-notebook.webp?v=1',       width: 822, height: 887 },
   papers:    { src: '/images/characters/past-papers-clipboard.webp?v=1', width: 896, height: 924 },
   timetable: { src: '/images/characters/exam-calendar.webp?v=1',         width: 962, height: 914 },
@@ -1294,7 +1294,7 @@ export default function GradeHub() {
           action="Start"
           actionClassName="bg-amber-600 text-white"
           image={DASHBOARD_CHARACTERS.exams}
-          imageAlt="Lina studying"
+          imageAlt="Exam clipboard with trophy, clock and books"
           imageVariant="card"
         />
 
@@ -1312,7 +1312,7 @@ export default function GradeHub() {
           action="Play"
           actionClassName="bg-emerald-600 text-white"
           image={DASHBOARD_CHARACTERS.games}
-          imageAlt="Max playing a learning game"
+          imageAlt="Game controller with trophy and learning blocks"
           imageVariant="games"
         />
 
