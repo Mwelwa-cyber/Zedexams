@@ -192,22 +192,23 @@ function ImportQuizPanel({ importing, importSummary, onImport }) {
     <div className="theme-accent-bg theme-border space-y-4 rounded-2xl border p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="theme-text font-black">Import Quiz (Word/PDF)</h2>
+          <h2 className="theme-text font-black">Import Quiz (Word / PDF / Pictures)</h2>
           <p className="theme-text mt-1 max-w-3xl text-sm font-bold leading-relaxed">
-            Upload a .doc, .docx, or .pdf file. ZedExams will extract questions, options, short answers, and image-based questions into editable cards, then use smart cleanup on tricky formatting when available.
+            Upload a .doc, .docx, or .pdf — or pictures (JPG/PNG/WEBP) of a paper. ZedExams will extract questions, options, short answers, and image-based questions into editable cards, then use smart cleanup on tricky formatting when available. You can select several pictures at once (one per page).
           </p>
         </div>
         <label className="theme-accent-fill theme-on-accent cursor-pointer rounded-xl px-4 py-2.5 text-sm font-black">
-          {importing ? 'Importing...' : 'Choose File'}
+          {importing ? 'Importing...' : 'Choose File(s)'}
           <input
             key={inputKey}
             type="file"
             accept={QUIZ_DOCUMENT_ACCEPT}
+            multiple
             className="hidden"
             disabled={importing}
             onChange={event => {
-              const file = event.target.files?.[0]
-              if (file) onImport(file, { preserveNumbering, groupComprehension })
+              const files = Array.from(event.target.files || []).filter(Boolean)
+              if (files.length) onImport(files.length === 1 ? files[0] : files, { preserveNumbering, groupComprehension })
               setInputKey(current => current + 1)
             }}
           />
@@ -787,7 +788,12 @@ export default function CreateQuizV2() {
     }
   }
 
-  async function handleImportDocument(file, importOptions = {}) {
+  async function handleImportDocument(fileOrFiles, importOptions = {}) {
+    const files = Array.isArray(fileOrFiles) ? fileOrFiles.filter(Boolean) : (fileOrFiles ? [fileOrFiles] : [])
+    if (!files.length) return
+    const file = files.length > 1
+      ? { name: `${files[0].name} (+${files.length - 1} more)` }
+      : files[0]
     const hasExistingWork = !hasOnlyEmptyStarterSection(sections)
     if (hasExistingWork && !window.confirm('Replace the current questions with questions extracted from this document?')) {
       return
@@ -795,7 +801,7 @@ export default function CreateQuizV2() {
 
     setImportingDocument(true)
     try {
-      const imported = await importQuizDocument(file, importOptions)
+      const imported = await importQuizDocument(files, importOptions)
       setImportedAssets(assetsById(imported.imageAssets))
       setForm(current => ({
         ...current,

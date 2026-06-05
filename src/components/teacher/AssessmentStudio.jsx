@@ -837,12 +837,17 @@ export default function AssessmentStudio() {
   }
 
   /* ------------ document import ------------ */
-  async function handleImportDocument(file, importOptions = {}) {
+  async function handleImportDocument(fileOrFiles, importOptions = {}) {
+    const files = Array.isArray(fileOrFiles) ? fileOrFiles.filter(Boolean) : (fileOrFiles ? [fileOrFiles] : [])
+    if (!files.length) return
+    const file = files.length > 1
+      ? { name: `${files[0].name} (+${files.length - 1} more)` }
+      : files[0]
     const hasExistingWork = !hasOnlyEmptyStarterSection(sections)
     if (hasExistingWork && !window.confirm('Replace the current questions with questions extracted from this document?')) return
     setImportingDocument(true)
     try {
-      const imported = await importQuizDocument(file, importOptions)
+      const imported = await importQuizDocument(files, importOptions)
       setImportedAssets(assetsById(imported.imageAssets))
       setForm(current => ({
         ...current,
@@ -2109,7 +2114,7 @@ function HeaderBlock({ form, setF, onUploadLogo, onRemoveLogo, importing, onImpo
 
       <div style={{ marginTop: 'var(--sv-s4)', padding: 'var(--sv-s3)', background: 'var(--sv-tinted)', borderRadius: 'var(--sv-r)', display: 'flex', gap: 'var(--sv-s2)', alignItems: 'center', flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12.5, color: 'var(--sv-muted)' }}>
-          Have an existing paper? Import a Word or PDF file.
+          Have an existing paper? Import a Word, PDF, or pictures of it.
         </span>
         <button
           className="sv-btn sv-btn-outline sv-btn-sm"
@@ -2117,16 +2122,17 @@ function HeaderBlock({ form, setF, onUploadLogo, onRemoveLogo, importing, onImpo
           disabled={importing}
           style={{ marginLeft: 'auto' }}
         >
-          {importing ? 'Importing…' : '📥 Import .doc / .pdf'}
+          {importing ? 'Importing…' : '📥 Import .doc / .pdf / pictures'}
         </button>
         <input
           ref={docInputRef}
           type="file"
           accept={QUIZ_DOCUMENT_ACCEPT}
+          multiple
           style={{ display: 'none' }}
           onChange={e => {
-            const file = e.target.files?.[0]
-            if (file) onImportDocument(file, { preserveNumbering, groupComprehension })
+            const files = Array.from(e.target.files || []).filter(Boolean)
+            if (files.length) onImportDocument(files.length === 1 ? files[0] : files, { preserveNumbering, groupComprehension })
             e.target.value = ''
           }}
         />
@@ -4456,15 +4462,16 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNu
             disabled={importing}
           >
             <div className="sv-ic">📥</div>
-            <div><strong>{importing ? 'Importing…' : 'Import Word / PDF'}</strong><small>Convert an existing paper into editable blocks</small></div>
+            <div><strong>{importing ? 'Importing…' : 'Import Word / PDF / Pictures'}</strong><small>Convert an existing paper (or photos of it) into editable blocks</small></div>
             <input
               ref={docInputRef}
               type="file"
               accept={QUIZ_DOCUMENT_ACCEPT}
+              multiple
               style={{ display: 'none' }}
               onChange={e => {
-                const file = e.target.files?.[0]
-                if (file) onImport(file)
+                const files = Array.from(e.target.files || []).filter(Boolean)
+                if (files.length) onImport(files.length === 1 ? files[0] : files)
                 e.target.value = ''
               }}
             />

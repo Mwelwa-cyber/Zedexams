@@ -37,8 +37,45 @@ export const SCANNED_MAX_PAGES = 40
 // Below this many extracted characters per sampled page, a PDF is treated as
 // a scanned image (no usable text layer).
 const SCANNED_TEXT_CHARS_PER_PAGE = 40
+// Hard ceiling on how many photos/screenshots we OCR in one import. Each image
+// is one "page" through the same vision pipeline; more than this is almost
+// always the wrong selection (and would blow the daily AI meter).
+export const SCANNED_MAX_IMAGES = SCANNED_MAX_PAGES
+
+// Picture formats the editor can rasterise + OCR. HEIC (the iPhone default) is
+// deliberately excluded — browsers can't decode it to a canvas, so it would
+// fail silently; teachers should export/share as JPEG instead.
+export const IMAGE_IMPORT_EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp']
+const IMAGE_IMPORT_MIME = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
 // ─── Pure helpers ────────────────────────────────────────────────────────────
+
+/**
+ * True when a picked file is a picture we can OCR (photo/screenshot of a paper),
+ * as opposed to a Word/PDF document. Checks the MIME type first, then falls back
+ * to the extension (phone photos sometimes arrive with an empty/odd MIME).
+ */
+export function isImageImportFile(file) {
+  if (!file) return false
+  const type = String(file.type || '').toLowerCase()
+  if (type) return IMAGE_IMPORT_MIME.has(type)
+  const ext = String(file.name || '').toLowerCase().split('.').pop() || ''
+  return IMAGE_IMPORT_EXTENSIONS.includes(ext)
+}
+
+/**
+ * Normalise the importer entry argument (a single File, a FileList, or an array)
+ * into a clean array of files. Lets the importer accept several photographed
+ * pages in one go while staying backward-compatible with the single-File calls.
+ */
+export function normalizeImportInput(input) {
+  if (!input) return []
+  if (Array.isArray(input)) return input.filter(Boolean)
+  if (typeof FileList !== 'undefined' && input instanceof FileList) {
+    return Array.from(input).filter(Boolean)
+  }
+  return [input]
+}
 
 /**
  * Decide whether a PDF is a scanned image paper (no text layer) from a cheap
@@ -349,6 +386,13 @@ function canvasToDataUrl(canvas, quality = 0.72) {
   return canvas.toDataURL('image/jpeg', quality)
 }
 
+// Guard URL.revokeObjectURL — global `URL` exists in Node (so a bare
+// `typeof URL` check passes), but revokeObjectURL only exists in the browser.
+// Checking the method keeps the pure pipeline test runnable under plain node.
+function canRevokeObjectUrl() {
+  return typeof URL !== 'undefined' && typeof URL.revokeObjectURL === 'function'
+}
+
 function dataUrlToBlob(dataUrl) {
   const [, mime, b64] = dataUrl.match(/^data:([^;]+);base64,(.*)$/) || []
   if (!b64) return null
@@ -510,25 +554,86 @@ export async function renderPdfPagesForVision(pdf, { maxPages = SCANNED_MAX_PAGE
 }
 
 /**
- * Full scanned-import orchestration. Renders pages, calls the vision callable
- * batch-by-batch, merges, and maps to editor sections. `callVision` is the
+ * Rasterise one uploaded picture (photo/screenshot) onto a canvas at an
+ * OCR-friendly width and return its JPEG data URL + blob. Large phone photos are
+ * scaled down to the target width; small screenshots are scaled up to at most 2×
+ * so text stays legible — mirroring the scanned-PDF page heuristic.
+ */
+async function rasterizeImageFile(file, targetWidth = 1500) {
+  const url = URL.createObjectURL(file)
+  try {
+    const img = await loadImage(url)
+    const W = img.naturalWidth || img.width
+    const H = img.naturalHeight || img.height
+    if (!W || !H) throw new Error('Image had no readable dimensions.')
+    const scale = Math.min(2, targetWidth / W)
+    const canvas = document.createElement('canvas')
+    canvas.width = Math.max(1, Math.round(W * scale))
+    canvas.height = Math.max(1, Math.round(H * scale))
+    const ctx = canvas.getContext('2d', { alpha: false })
+    ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+    const dataUrl = canvasToDataUrl(canvas)
+    return { dataUrl, blob: dataUrlToBlob(dataUrl) }
+  } finally {
+    if (canRevokeObjectUrl()) URL.revokeObjectURL(url)
+  }
+}
+
+/**
+ * Turn uploaded picture files into the same { pageImages, assetByPage } shape
+ * the scanned-PDF path produces, so both feed the shared vision pipeline. Each
+ * image becomes one page (in selection order). `onProgress({ phase, current,
+ * total })` reports rasterising progress for the UI.
+ */
+export async function renderImageFilesForVision(files, { maxImages = SCANNED_MAX_IMAGES, onProgress, targetWidth = 1500 } = {}) {
+  const list = normalizeImportInput(files)
+  const total = Math.min(list.length, maxImages)
+  const pageImages = []
+  const assetByPage = {}
+  const warnings = []
+  if (list.length > maxImages) {
+    warnings.push(`Only the first ${maxImages} images were read; import the rest separately if needed.`)
+  }
+
+  for (let i = 0; i < total; i += 1) {
+    const pageNumber = i + 1
+    try {
+      const { dataUrl, blob } = await rasterizeImageFile(list[i], targetWidth)
+      pageImages.push({ pageNumber, dataUrl })
+      if (blob) assetByPage[pageNumber] = makePageAsset(blob, pageNumber)
+    } catch {
+      warnings.push(`Could not read "${list[i]?.name || `image ${pageNumber}`}" for import.`)
+    }
+    onProgress?.({ phase: 'rendering', current: pageNumber, total })
+  }
+
+  return { pageImages, assetByPage, warnings }
+}
+
+/**
+ * Source-agnostic vision import: given pre-rendered page images (from a scanned
+ * PDF or from uploaded photos), call the vision callable batch-by-batch, merge
+ * the results, and map them onto editor sections. `callVision` is the
  * `structureScannedQuiz` client wrapper (injected for testing).
  *
- * Returns { sections, imageAssets, warnings, summary, pageCount }.
+ * `pageImages` is [{ pageNumber, dataUrl }] and `assetByPage` maps a page
+ * number to its in-memory image asset (for attaching diagrams/maps). `sourceNoun`
+ * tunes the "nothing read" message ("scanned paper" vs "image"). Returns
+ * { sections, imageAssets, warnings, summary, pageCount }.
  */
-export async function runScannedImport({
-  pdf,
+export async function runVisionImport({
+  pageImages = [],
+  assetByPage = {},
+  renderWarnings = [],
   file,
   subjectHint = '',
   gradeHint = '',
   callVision,
   onProgress,
+  sourceNoun = 'scanned paper',
 } = {}) {
-  const { pageImages, assetByPage, warnings: renderWarnings } =
-    await renderPdfPagesForVision(pdf, { onProgress })
-
   if (!pageImages.length) {
-    throw new Error('None of the PDF pages could be read for import.')
+    throw new Error(`None of the ${sourceNoun} pages could be read for import.`)
   }
 
   const batches = chunkPages(pageImages)
@@ -562,14 +667,14 @@ export async function runScannedImport({
     ...optionCropAssets,
   ]
   Object.values(assetByPage).forEach(asset => {
-    if (!usedAssetIds.has(asset.id) && asset.objectUrl && typeof URL !== 'undefined') {
+    if (!usedAssetIds.has(asset.id) && asset.objectUrl && canRevokeObjectUrl()) {
       URL.revokeObjectURL(asset.objectUrl)
     }
   })
 
   const warnings = [...new Set([...renderWarnings, ...merged.warnings])]
   if (!sections.length) {
-    warnings.push('No questions could be read from this scanned paper.')
+    warnings.push(`No questions could be read from this ${sourceNoun}.`)
   } else {
     // Gap check: if the paper is numbered 1..N but some numbers never came
     // back, tell the admin exactly which are missing so they can re-import the
@@ -596,4 +701,71 @@ export async function runScannedImport({
       warnings,
     }),
   }
+}
+
+/**
+ * Full scanned-PDF import orchestration: rasterise the PDF pages, then run the
+ * shared vision pipeline. `callVision` is the `structureScannedQuiz` client
+ * wrapper (injected for testing).
+ */
+export async function runScannedImport({
+  pdf,
+  file,
+  subjectHint = '',
+  gradeHint = '',
+  callVision,
+  onProgress,
+} = {}) {
+  const { pageImages, assetByPage, warnings: renderWarnings } =
+    await renderPdfPagesForVision(pdf, { onProgress })
+
+  if (!pageImages.length) {
+    throw new Error('None of the PDF pages could be read for import.')
+  }
+
+  return runVisionImport({
+    pageImages,
+    assetByPage,
+    renderWarnings,
+    file,
+    subjectHint,
+    gradeHint,
+    callVision,
+    onProgress,
+    sourceNoun: 'scanned paper',
+  })
+}
+
+/**
+ * Full picture import orchestration: rasterise the uploaded photos/screenshots
+ * (one image per page), then run the shared vision pipeline. Used when a teacher
+ * imports questions from pictures instead of a Word/PDF document.
+ */
+export async function runImageImport({
+  files,
+  file,
+  subjectHint = '',
+  gradeHint = '',
+  callVision,
+  onProgress,
+} = {}) {
+  const list = normalizeImportInput(files)
+  const { pageImages, assetByPage, warnings: renderWarnings } =
+    await renderImageFilesForVision(list, { onProgress })
+
+  if (!pageImages.length) {
+    throw new Error('None of the images could be read for import.')
+  }
+
+  return runVisionImport({
+    pageImages,
+    assetByPage,
+    renderWarnings,
+    file: file || list[0],
+    subjectHint,
+    gradeHint,
+    callVision,
+    onProgress,
+    sourceNoun: list.length > 1 ? 'images' : 'image',
+  })
 }

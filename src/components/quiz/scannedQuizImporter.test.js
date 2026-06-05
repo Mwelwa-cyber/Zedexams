@@ -21,11 +21,20 @@ import {
   planOptionImageCrops,
   findMissingQuestionNumbers,
   formatMissingList,
+  isImageImportFile,
+  normalizeImportInput,
+  runVisionImport,
 } from './scannedQuizImporter.js'
 
 let passed = 0
 function test(name, fn) {
   fn()
+  passed += 1
+  console.log(`  ✓ ${name}`)
+}
+
+async function testAsync(name, fn) {
+  await fn()
   passed += 1
   console.log(`  ✓ ${name}`)
 }
@@ -424,6 +433,90 @@ test('formatMissingList truncates a long list with a count', () => {
   assert.equal(formatMissingList([4, 7]), '4, 7')
   assert.equal(formatMissingList([1, 2, 3, 4, 5, 6, 7, 8, 9, 10], 8), '1, 2, 3, 4, 5, 6, 7, 8 and 2 more')
   assert.equal(formatMissingList([]), '')
+})
+
+// ── isImageImportFile / normalizeImportInput (picture import routing) ────────
+
+test('isImageImportFile detects pictures by MIME and by extension', () => {
+  assert.equal(isImageImportFile({ type: 'image/jpeg', name: 'q.jpg' }), true)
+  assert.equal(isImageImportFile({ type: 'image/png', name: 'q.png' }), true)
+  assert.equal(isImageImportFile({ type: 'image/webp', name: 'q.webp' }), true)
+  // Phone photos sometimes arrive with no MIME — fall back to the extension.
+  assert.equal(isImageImportFile({ type: '', name: 'IMG_0042.JPG' }), true)
+  // Documents and unsupported pictures are not image imports.
+  assert.equal(isImageImportFile({ type: 'application/pdf', name: 'paper.pdf' }), false)
+  assert.equal(isImageImportFile({ type: '', name: 'paper.docx' }), false)
+  assert.equal(isImageImportFile({ type: '', name: 'photo.heic' }), false)
+  assert.equal(isImageImportFile(null), false)
+})
+
+test('normalizeImportInput wraps a single file, filters falsy, passes arrays', () => {
+  const f = { name: 'a.jpg' }
+  assert.deepEqual(normalizeImportInput(f), [f])
+  assert.deepEqual(normalizeImportInput([f, null, undefined]), [f])
+  assert.deepEqual(normalizeImportInput(null), [])
+  assert.deepEqual(normalizeImportInput([]), [])
+})
+
+// ── runVisionImport (shared scanned-PDF + picture pipeline) ─────────────────
+
+await testAsync('runVisionImport batches, blanks answers, and flags for review', async () => {
+  const calls = []
+  const callVision = async (payload) => {
+    calls.push(payload)
+    return {
+      detectedCount: 2,
+      sections: [
+        { kind: 'standalone', question: mcq({ text: 'What is 2+2?', sourceQuestionNumber: 1, correctAnswer: 2 }) },
+        { kind: 'standalone', question: mcq({ text: 'Capital of Zambia?', sourceQuestionNumber: 2, correctAnswer: 0 }) },
+      ],
+    }
+  }
+
+  const progress = []
+  const out = await runVisionImport({
+    pageImages: [{ pageNumber: 1, dataUrl: 'data:image/jpeg;base64,AAAA' }],
+    assetByPage: {},
+    file: { name: 'photo.jpg' },
+    callVision,
+    onProgress: e => progress.push(e),
+    sourceNoun: 'image',
+  })
+
+  // One page → one batch → one vision call carrying the page + file name.
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].fileName, 'photo.jpg')
+  assert.equal(calls[0].pages.length, 1)
+
+  assert.equal(out.sections.length, 2)
+  // Answers are always blanked regardless of what the model returned.
+  assert.equal(out.sections[0].question.correctAnswer, '')
+  assert.equal(out.sections[0].question.requiresReview, true)
+  assert.equal(out.pageCount, 1)
+  assert.equal(out.summary.scanned, true)
+  assert.equal(out.summary.questions, 2)
+  assert.ok(out.warnings.some(w => /Answers were left blank/i.test(w)))
+  assert.ok(progress.some(e => e.phase === 'reading'))
+})
+
+await testAsync('runVisionImport reports the source noun when nothing is read', async () => {
+  const callVision = async () => ({ detectedCount: 0, sections: [] })
+  const out = await runVisionImport({
+    pageImages: [{ pageNumber: 1, dataUrl: 'data:image/jpeg;base64,AAAA' }],
+    assetByPage: {},
+    file: { name: 'blank.png' },
+    callVision,
+    sourceNoun: 'image',
+  })
+  assert.equal(out.sections.length, 0)
+  assert.ok(out.warnings.some(w => /No questions could be read from this image/i.test(w)))
+})
+
+await testAsync('runVisionImport throws when there are no page images', async () => {
+  await assert.rejects(
+    () => runVisionImport({ pageImages: [], callVision: async () => ({ sections: [] }), sourceNoun: 'image' }),
+    /image pages could be read/i,
+  )
 })
 
 console.log(`\nscannedQuizImporter: ${passed} passed`)

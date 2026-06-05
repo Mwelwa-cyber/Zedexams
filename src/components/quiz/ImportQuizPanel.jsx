@@ -26,11 +26,12 @@ function extractSmartImportReason(warnings = []) {
     .trim()
 }
 
-// Human-readable label for the scanned-PDF vision-import progress phases.
+// Human-readable label for the vision-import progress phases (scanned PDFs and
+// imported pictures share the same pipeline).
 function progressLabel(progress) {
   if (!progress || !progress.total) return ''
   if (progress.phase === 'rendering') {
-    return `Rendering scanned page ${progress.current} of ${progress.total}…`
+    return `Preparing page ${progress.current} of ${progress.total}…`
   }
   if (progress.phase === 'reading') {
     return `Reading questions — batch ${progress.current} of ${progress.total}…`
@@ -44,13 +45,13 @@ export default function ImportQuizPanel({
   importSummary,
   onImport,
   intro,
-  title = 'Import Quiz (Word/PDF)',
+  title = 'Import Quiz (Word / PDF / Pictures)',
 }) {
   // Bump the input key after each pick so re-selecting the same file
   // still fires onChange — without this, a teacher who chose the wrong
   // file would have to refresh to retry the same path.
   const [inputKey, setInputKey] = useState(0)
-  // Cache the last-picked File so the "Retry smart import" button can
+  // Cache the last-picked file(s) so the "Retry smart import" button can
   // re-run the importer without making the teacher re-pick the file
   // (which is annoying after smart import quietly fell back).
   const lastFileRef = useRef(null)
@@ -64,17 +65,21 @@ export default function ImportQuizPanel({
     return { preserveNumbering, groupComprehension }
   }
 
-  function handlePick(file) {
-    if (!file) return
-    lastFileRef.current = file
-    onImport(file, currentOptions())
+  function handlePick(fileList) {
+    const files = Array.from(fileList || []).filter(Boolean)
+    if (!files.length) return
+    // A single document stays a single File; several pictures pass through as
+    // an array (the importer accepts both).
+    const picked = files.length === 1 ? files[0] : files
+    lastFileRef.current = picked
+    onImport(picked, currentOptions())
     setInputKey(current => current + 1)
   }
 
   function handleRetrySmartImport() {
-    const file = lastFileRef.current
-    if (!file || importing) return
-    onImport(file, currentOptions())
+    const picked = lastFileRef.current
+    if (!picked || importing) return
+    onImport(picked, currentOptions())
   }
 
   // Smart-import fell back to the standard parser when smartApplied is
@@ -93,18 +98,19 @@ export default function ImportQuizPanel({
         <div>
           <h2 className="theme-text font-black">{title}</h2>
           <p className="theme-text mt-1 max-w-3xl text-sm font-bold leading-relaxed">
-            {intro || 'Upload a .doc, .docx, or .pdf file. ZedExams will extract questions, options, short answers, and image-based questions into editable cards, then use smart cleanup on tricky formatting when available.'}
+            {intro || 'Upload a .doc, .docx, or .pdf — or pictures (JPG/PNG/WEBP) of a paper. ZedExams will extract questions, options, short answers, and image-based questions into editable cards, then use smart cleanup on tricky formatting when available. You can select several pictures at once (one per page).'}
           </p>
         </div>
         <label className="theme-accent-fill theme-on-accent cursor-pointer rounded-xl px-4 py-2.5 text-sm font-black">
-          {importing ? 'Importing...' : 'Choose File'}
+          {importing ? 'Importing...' : 'Choose File(s)'}
           <input
             key={inputKey}
             type="file"
             accept={QUIZ_DOCUMENT_ACCEPT}
+            multiple
             className="hidden"
             disabled={importing}
-            onChange={event => handlePick(event.target.files?.[0])}
+            onChange={event => handlePick(event.target.files)}
           />
         </label>
       </div>
@@ -118,15 +124,15 @@ export default function ImportQuizPanel({
           <p className="theme-text mt-1 text-xs font-bold leading-relaxed">DOCX images and PDF snapshots attach to matching questions and upload when you save.</p>
         </div>
         <div className="theme-card theme-border rounded-xl border p-3">
-          <p className="theme-accent-text text-xs font-black uppercase tracking-wide">Scanned papers</p>
-          <p className="theme-text mt-1 text-xs font-bold leading-relaxed">Image-only PDFs (photographed past papers) are read with AI vision. Answers are left blank for you to set.</p>
+          <p className="theme-accent-text text-xs font-black uppercase tracking-wide">Scans &amp; pictures</p>
+          <p className="theme-text mt-1 text-xs font-bold leading-relaxed">Image-only PDFs and photos/screenshots of a paper are read with AI vision. Answers are left blank for you to set.</p>
         </div>
       </div>
 
       {importing && importProgress && progressLabel(importProgress) && (
         <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-blue-900">
           <p className="text-sm font-black">
-            <span aria-hidden="true">📷</span> Reading scanned paper…
+            <span aria-hidden="true">📷</span> Reading with AI vision…
           </p>
           <p className="mt-1 text-xs font-bold leading-relaxed">{progressLabel(importProgress)}</p>
           <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-blue-100">
