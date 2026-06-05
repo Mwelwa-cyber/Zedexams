@@ -15,7 +15,10 @@
  * issue list separating publish-blocking errors from advisory warnings.
  */
 
-const {callAnthropic} = require("../../aiService");
+// Lazily required inside runVex (the only consumer). Keeping it out of the
+// module's top-level load means the deterministic structural checks — and
+// their unit tests — can require this module without pulling in the
+// firebase-functions runtime, which isn't installed in the root test env.
 
 const MODEL = "claude-haiku-4-5-20251001";
 
@@ -496,6 +499,8 @@ async function runVex({input, anthropicApiKeySecret}) {
   }
 
   const userContent = buildUserContent({input});
+
+  const {callAnthropic} = require("../../aiService");
 
   let raw;
   try {
