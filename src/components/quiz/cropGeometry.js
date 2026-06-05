@@ -45,6 +45,46 @@ export function rectFromPoints(a = {}, b = {}) {
   })
 }
 
+/**
+ * Move a crop rect by a fractional delta, keeping it fully inside [0,1] without
+ * shrinking it. Used when the user drags inside the selection to reposition it.
+ */
+export function moveCropRect(rect = {}, dx = 0, dy = 0) {
+  const w = Math.min(1, Math.max(MIN_CROP_FRACTION, Number.isFinite(rect.w) ? rect.w : 1))
+  const h = Math.min(1, Math.max(MIN_CROP_FRACTION, Number.isFinite(rect.h) ? rect.h : 1))
+  const ddx = Number.isFinite(dx) ? dx : 0
+  const ddy = Number.isFinite(dy) ? dy : 0
+  const x = Math.min(1 - w, Math.max(0, clamp01(rect.x) + ddx))
+  const y = Math.min(1 - h, Math.max(0, clamp01(rect.y) + ddy))
+  return { x, y, w, h }
+}
+
+const HANDLES = new Set(['nw', 'n', 'ne', 'e', 'se', 's', 'sw', 'w'])
+
+/**
+ * Resize a crop rect by dragging one of the 8 handles to `point` ({x,y} in
+ * 0..1). The opposite edge/corner stays anchored; corner handles move both
+ * axes, edge handles only one. The result is clamped and never smaller than
+ * MIN_CROP_FRACTION on the dragged axes.
+ */
+export function resizeCropRect(rect = {}, handle, point = {}) {
+  if (!HANDLES.has(handle)) return clampCropRect(rect)
+  // Current edges.
+  let left = clamp01(rect.x)
+  let top = clamp01(rect.y)
+  let right = clamp01(rect.x + (Number.isFinite(rect.w) ? rect.w : 0))
+  let bottom = clamp01(rect.y + (Number.isFinite(rect.h) ? rect.h : 0))
+  const px = clamp01(point.x)
+  const py = clamp01(point.y)
+
+  if (handle.includes('w')) left = Math.min(px, right - MIN_CROP_FRACTION)
+  if (handle.includes('e')) right = Math.max(px, left + MIN_CROP_FRACTION)
+  if (handle.includes('n')) top = Math.min(py, bottom - MIN_CROP_FRACTION)
+  if (handle.includes('s')) bottom = Math.max(py, top + MIN_CROP_FRACTION)
+
+  return clampCropRect({ x: left, y: top, w: right - left, h: bottom - top })
+}
+
 /** Convert a fractional rect to integer source-pixel box for drawImage. */
 export function cropRectToPixels(rect, naturalW, naturalH) {
   const r = clampCropRect(rect)
