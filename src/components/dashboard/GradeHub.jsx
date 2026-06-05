@@ -88,6 +88,9 @@ const DASHBOARD_CHARACTERS = {
   hero:  { src: '/images/characters/zed-zara-reading.webp?v=1', width: 1402, height: 1122 },
   exams: { src: '/images/characters/lina-study.webp?v=1',       width: 1313, height: 1198 },
   games: { src: '/images/characters/max-gaming.webp?v=1',       width: 1254, height: 1254 },
+  notes:     { src: '/images/characters/notes-notebook.webp?v=1',       width: 822, height: 887 },
+  papers:    { src: '/images/characters/past-papers-clipboard.webp?v=1', width: 896, height: 924 },
+  timetable: { src: '/images/characters/exam-calendar.webp?v=1',         width: 962, height: 914 },
 }
 
 // Subject palette tuned for the light surfaces shown in the product
@@ -329,7 +332,7 @@ function ExamTimetableCard() {
         rel="noopener noreferrer"
         className="zx-card group relative block min-h-[128px] overflow-hidden rounded-3xl border-2 border-rose-300 bg-[linear-gradient(135deg,#FFE4E6_0%,#FDA4AF_55%,#E11D48_100%)] shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
       >
-        <div className="relative z-10 flex min-h-[128px] flex-wrap items-center gap-3 p-4 sm:gap-4 sm:p-5">
+        <div className="relative z-10 flex min-h-[128px] flex-wrap items-center gap-3 p-4 pr-24 sm:gap-4 sm:p-5 sm:pr-32">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-600 text-white shadow-sm">
             <Icon as={CalendarDays} size="lg" strokeWidth={2.1} />
           </div>
@@ -368,6 +371,12 @@ function ExamTimetableCard() {
             <CountdownUnit value={seconds} label="Sec" />
           </div>
         )}
+        <DashboardCharacter
+          image={DASHBOARD_CHARACTERS.timetable}
+          alt="Wall calendar with a clock"
+          variant="card"
+          className="absolute top-1 right-2 z-0"
+        />
       </a>
     </section>
   )
@@ -1320,6 +1329,9 @@ export default function GradeHub() {
           bodyClassName="text-sky-900/80"
           action="Read"
           actionClassName="bg-sky-600 text-white"
+          image={DASHBOARD_CHARACTERS.notes}
+          imageAlt="Open notebook with a pen"
+          imageVariant="card"
         />
 
         <DashboardActionCard
@@ -1335,6 +1347,9 @@ export default function GradeHub() {
           bodyClassName="text-violet-900/80"
           action="Browse"
           actionClassName="bg-violet-600 text-white"
+          image={DASHBOARD_CHARACTERS.papers}
+          imageAlt="Exam clipboard with a checklist and award badge"
+          imageVariant="card"
         />
 
         {/* ── GRADE-PERSONALISED HUB ──────────────────────────────
