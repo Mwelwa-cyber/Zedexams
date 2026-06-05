@@ -28,6 +28,13 @@ export function usePwaUpdate() {
   useEffect(() => {
     if (isNativePlatform()) return
     let cancelled = false
+    // Proactive update plumbing — torn down on unmount. With autoUpdate the
+    // plugin activates + reloads on its own once a new SW is found; these only
+    // make sure a long-open / idle tab *finds* the new SW promptly instead of
+    // waiting for a fresh navigation (browsers otherwise auto-check ~daily).
+    let pollId = null
+    let onVisible = null
+    let onFocus = null
     import('virtual:pwa-register')
       .then(({ registerSW }) => {
         if (cancelled) return
@@ -39,6 +46,20 @@ export function usePwaUpdate() {
           },
           onOfflineReady() {
             console.info('[pwa] app ready to work offline')
+          },
+          onRegisteredSW(swScriptUrl, registration) {
+            // registration is undefined if the browser refused to register.
+            if (cancelled || !registration) return
+            const check = () => { registration.update().catch(() => {}) }
+            // Re-check on a timer so a tab left open for hours still picks up
+            // a deploy without the user touching anything.
+            pollId = setInterval(check, 30 * 60 * 1000)
+            // And the instant the tab regains focus, so coming back to an
+            // already-open app after a deploy lands the new build right away.
+            onVisible = () => { if (document.visibilityState === 'visible') check() }
+            onFocus = check
+            document.addEventListener('visibilitychange', onVisible)
+            window.addEventListener('focus', onFocus)
           },
           onRegisterError(err) {
             console.warn('[pwa] SW registration failed:', err)
@@ -61,7 +82,12 @@ export function usePwaUpdate() {
       .catch((err) => {
         console.warn('[pwa] failed to load registerSW:', err)
       })
-    return () => { cancelled = true }
+    return () => {
+      cancelled = true
+      if (pollId) clearInterval(pollId)
+      if (onVisible) document.removeEventListener('visibilitychange', onVisible)
+      if (onFocus) window.removeEventListener('focus', onFocus)
+    }
   }, [])
 
   return {
