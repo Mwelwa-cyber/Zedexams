@@ -76,6 +76,42 @@ test("duplicate options are flagged (case-insensitive)", () => {
   assert.ok(problems.some((p) => /duplicate/i.test(p.message)));
 });
 
+test("distinct rich-text (TipTap) options are NOT flagged as duplicates", () => {
+  // Regression: options stored as TipTap doc objects (rich text) were compared
+  // with String(o), which renders every doc as "[object Object]" — collapsing
+  // distinct options into false "duplicate options" warnings (and false empty
+  // options). See the false positive Vigil filed for quiz qP7RYG8v3loytqfyitf7.
+  const richOption = (label) => ({
+    type: "doc",
+    content: [{type: "paragraph", content: [{type: "text", text: label}]}],
+  });
+  const problems = runStructuralChecks([
+    {
+      type: "mcq",
+      text: richOption("Posters are usually decorated with bright colours to…"),
+      options: [
+        richOption("make them look more attractive."),
+        richOption("make them look very expensive."),
+        richOption("prevent people from seeing them."),
+        richOption("prevent people from stealing them."),
+      ],
+      correctAnswer: 0,
+    },
+  ]);
+  assert.strictEqual(problems.length, 0, JSON.stringify(problems));
+});
+
+test("genuinely duplicate rich-text options are still flagged", () => {
+  const richOption = (label) => ({
+    type: "doc",
+    content: [{type: "paragraph", content: [{type: "text", text: label}]}],
+  });
+  const problems = runStructuralChecks([
+    {type: "mcq", text: richOption("Q"), options: [richOption("Lusaka"), richOption("lusaka")], correctAnswer: 0},
+  ]);
+  assert.ok(problems.some((p) => /duplicate/i.test(p.message)));
+});
+
 test("out-of-range correctAnswer is flagged", () => {
   const problems = runStructuralChecks([
     {type: "mcq", text: "Q", options: ["a", "b"], correctAnswer: 5},

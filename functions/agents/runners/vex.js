@@ -273,7 +273,7 @@ function runStructuralChecks(questions) {
       return;
     }
 
-    if (options.some((o) => !String(o || "").trim())) {
+    if (options.some((o) => !extractPlainText(o).trim())) {
       blockers.push({
         questionIndex: i,
         severity: "blocker",
@@ -286,7 +286,11 @@ function runStructuralChecks(questions) {
 
     const seen = new Map();
     options.forEach((o, idx) => {
-      const key = String(o || "").trim().toLowerCase();
+      // Options can be rich-text (TipTap doc objects / JSON-encoded docs), not
+      // just plain strings. Compare their flattened text — a raw String(o) on a
+      // doc object yields "[object Object]" for every option, which would block
+      // publishing by reporting every distinct option as a duplicate.
+      const key = extractPlainText(o).trim().toLowerCase();
       if (!key) return;
       if (seen.has(key)) {
         blockers.push({
