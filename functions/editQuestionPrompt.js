@@ -10,6 +10,8 @@
  * an HttpsError) so the Cloud Function keeps its friendly error message.
  */
 
+const {buildQuestionImageBlocks} = require("./aiImageBlocks");
+
 // Minimal local copies of the two text helpers (kept tiny and stable). They
 // intentionally mirror aiService.cleanString / stripJsonFences; the edit tests
 // pin their behaviour so drift is caught.
@@ -49,12 +51,17 @@ const EDIT_QUESTION_ACTIONS = {
     "Reword the question to read more clearly, WITHOUT changing its meaning, " +
     "difficulty, options, or correct answer.",
   suggest_answer:
-    "Work out the correct answer to this question. Return the correct option " +
-    "LETTER and a short explanation. Do NOT change the question text or options.",
+    "Work out the correct answer. Read the question and EVERY option carefully " +
+    "(and any attached picture/diagram). Reason step by step internally, " +
+    "eliminate the options that are wrong, then double-check the one that " +
+    "remains before committing. Return the correct option LETTER and a short " +
+    "explanation that says why it is right and why the most tempting wrong " +
+    "option is wrong. Do NOT change the question text or options.",
   explain:
-    "Write a short, kind explanation (under 80 words) of why the correct " +
-    "answer is correct, for a Zambian learner. Do NOT change the question or " +
-    "options.",
+    "Write a short, kind explanation (under 90 words) for a Zambian learner: " +
+    "say why the correct answer is correct, and briefly why at least one other " +
+    "option is wrong. Use any attached picture/diagram. Do NOT change the " +
+    "question or options.",
 };
 
 function isEditQuestionAction(action) {
@@ -82,12 +89,45 @@ function buildEditQuestionMessages(payload) {
     options.map((opt, i) => `${String.fromCharCode(65 + i)}. ${opt}`).join("\n") :
     "(no options — this is a short-answer / numeric question)";
 
+  // Vision blocks for the question's picture(s). When present, the user turn
+  // becomes a content array (text + images) instead of a plain string.
+  const imageBlocks = buildQuestionImageBlocks({
+    imageUrl: payload.imageUrl,
+    optionImages: payload.optionImages,
+    passageImageUrl: payload.passageImageUrl,
+  });
+
+  const userText = [
+    context ? `Context: ${context}` : "",
+    `Task: ${EDIT_QUESTION_ACTIONS[action] || EDIT_QUESTION_ACTIONS.rephrase}`,
+    "",
+    `Question: ${question}`,
+    "Options:",
+    optionLines,
+    correctAnswer ? `Current correct answer: ${correctAnswer}` : "",
+    imageBlocks.length ?
+      "The picture(s) below belong to this question — study them and base your " +
+      "answer on what they actually show. Never say you cannot see them." : "",
+    "",
+    "Return JSON with ONLY the fields you actually changed:",
+    "{\"text\":\"revised stem\",\"options\":[\"A\",\"B\",\"C\",\"D\"],",
+    "\"correctAnswer\":\"B\",\"explanation\":\"...\",\"note\":\"one short",
+    "sentence telling the teacher what you did\"}",
+    "- Omit text and options if you did not change them.",
+    "- correctAnswer must be the LETTER of the correct option (A, B, C…).",
+    "- Keep the option count the same when you rewrite options.",
+    "- Use the maths markup above for any fraction, sum, or table.",
+  ].filter(Boolean).join("\n");
+
   return [
     {
       role: "system",
       content: [
         "You help Zambian CBC teachers improve a single quiz question.",
         "Keep everything appropriate for the given grade and subject.",
+        "Think carefully and accurately: read the whole question and every",
+        "option before deciding, and when a picture or diagram is attached,",
+        "base your answer on what it shows — never claim you cannot see it.",
         "Preserve mathematics with this markup so the editor renders it as",
         "real fractions, column sums, maths and tables: fractions as",
         "\\frac{3}{4} (mixed: 1\\frac{1}{3}); other inline maths in $...$ e.g.",
@@ -100,24 +140,9 @@ function buildEditQuestionMessages(payload) {
     },
     {
       role: "user",
-      content: [
-        context ? `Context: ${context}` : "",
-        `Task: ${EDIT_QUESTION_ACTIONS[action] || EDIT_QUESTION_ACTIONS.rephrase}`,
-        "",
-        `Question: ${question}`,
-        "Options:",
-        optionLines,
-        correctAnswer ? `Current correct answer: ${correctAnswer}` : "",
-        "",
-        "Return JSON with ONLY the fields you actually changed:",
-        "{\"text\":\"revised stem\",\"options\":[\"A\",\"B\",\"C\",\"D\"],",
-        "\"correctAnswer\":\"B\",\"explanation\":\"...\",\"note\":\"one short",
-        "sentence telling the teacher what you did\"}",
-        "- Omit text and options if you did not change them.",
-        "- correctAnswer must be the LETTER of the correct option (A, B, C…).",
-        "- Keep the option count the same when you rewrite options.",
-        "- Use the maths markup above for any fraction, sum, or table.",
-      ].filter(Boolean).join("\n"),
+      content: imageBlocks.length ?
+        [{type: "text", text: userText}, ...imageBlocks] :
+        userText,
     },
   ];
 }

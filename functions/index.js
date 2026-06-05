@@ -1193,6 +1193,12 @@ exports.editQuizQuestion = onCall(
         subject: request.data?.subject,
         grade: request.data?.grade,
         topic: request.data?.topic,
+        // Picture(s) so the model can SEE the diagram instead of guessing.
+        // buildQuestionImageBlocks drops anything that isn't an https URL.
+        imageUrl: request.data?.imageUrl,
+        optionImages: Array.isArray(request.data?.optionImages) ?
+          request.data.optionImages.slice(0, 6) : [],
+        passageImageUrl: request.data?.passageImageUrl,
       }),
     );
     const raw = await callAnthropic(getAnthropicApiKey(anthropicApiKey), {

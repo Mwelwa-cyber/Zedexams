@@ -19,6 +19,8 @@
  *   question  — the question object ({ text, options, correctAnswer, type })
  *   subject   — quiz subject (for grade/subject-appropriate edits)
  *   grade     — quiz grade
+ *   passageImageUrl — optional shared diagram for the comprehension/map passage
+ *               this question belongs to (so the AI can see it too)
  *   onApply   — function(editorPatch) where editorPatch may contain
  *               { text, options, correctAnswer, explanation } in editor format
  */
@@ -56,7 +58,14 @@ function optionPlainText(opt) {
   return getRichPlainText(opt)
 }
 
-export default function QuestionAiAssistant({ question, subject, grade, onApply }) {
+// Keep only fetchable https picture URLs (Firebase Storage download URLs);
+// drop blank/blob: values the server-side AI call can't read.
+function httpImageUrl(value) {
+  const url = typeof value === 'string' ? value.trim() : ''
+  return /^https:\/\//i.test(url) ? url : ''
+}
+
+export default function QuestionAiAssistant({ question, subject, grade, passageImageUrl = '', onApply }) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [loadingAction, setLoadingAction] = useState(null)
   const [error, setError] = useState('')
@@ -94,6 +103,11 @@ export default function QuestionAiAssistant({ question, subject, grade, onApply 
         typeof question?.correctAnswer === 'number' && options.length
           ? String.fromCharCode(65 + question.correctAnswer)
           : ''
+      // Picture(s) attached to this question, so the AI can SEE the diagram
+      // rather than replying that it cannot. optionImages is parallel to
+      // options; passageImageUrl is the shared diagram for the set, if any.
+      const optionImages = (Array.isArray(question?.optionMedia) ? question.optionMedia : [])
+        .map(slot => httpImageUrl(slot && typeof slot === 'object' ? slot.imageUrl : ''))
       const { patch } = await aiEditQuizQuestion({
         action,
         question: getRichPlainText(question?.text) || '',
@@ -102,6 +116,9 @@ export default function QuestionAiAssistant({ question, subject, grade, onApply 
         subject: subject || '',
         grade: grade || '',
         topic: question?.topic || '',
+        imageUrl: httpImageUrl(question?.imageUrl),
+        optionImages: optionImages.some(Boolean) ? optionImages : [],
+        passageImageUrl: httpImageUrl(passageImageUrl),
       })
       if (!patch || !Object.keys(patch).length) {
         setError('The AI did not suggest any changes.')

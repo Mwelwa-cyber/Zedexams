@@ -160,7 +160,7 @@ export function countUnansweredQuestions(questions = []) {
 export function collectAiAnswerTargets(sections = [], toPlainText = (v) => String(v ?? ''), { onlyUnanswered = true } = {}) {
   const out = []
 
-  const push = (question) => {
+  const push = (question, passageImageUrl = '') => {
     if (!question || !isAnswerableType(question.type)) return
     if (onlyUnanswered && correctIndexOf(question) != null) return
     const localId = question.localId
@@ -168,16 +168,34 @@ export function collectAiAnswerTargets(sections = [], toPlainText = (v) => Strin
     const text = toPlainText(question.text).trim()
     const options = (Array.isArray(question.options) ? question.options : []).map(o => toPlainText(o).trim())
     if (!text || options.length < 2) return
-    out.push({ id: localId, text, options })
+    const target = { id: localId, text, options }
+    // Attach picture URLs so the AI can see diagram questions. Only included
+    // when present, so picture-free questions keep their minimal payload.
+    const imageUrl = httpImageUrl(question.imageUrl)
+    if (imageUrl) target.imageUrl = imageUrl
+    const optionImages = (Array.isArray(question.optionMedia) ? question.optionMedia : [])
+      .map(slot => httpImageUrl(slot && typeof slot === 'object' ? slot.imageUrl : ''))
+    if (optionImages.some(Boolean)) target.optionImages = optionImages
+    const passageImg = httpImageUrl(passageImageUrl)
+    if (passageImg) target.passageImageUrl = passageImg
+    out.push(target)
   }
 
   sections.forEach(section => {
     if (section?.kind === 'passage') {
-      (section.passage?.questions || []).forEach(push)
+      const passageImageUrl = section.passage?.imageUrl || ''
+      ;(section.passage?.questions || []).forEach(q => push(q, passageImageUrl))
     } else if (section?.kind === 'standalone') {
       push(section.question)
     }
   })
 
   return out
+}
+
+// Keep only real https picture URLs (Firebase Storage download URLs). Drops
+// blank/blob: values that can't be fetched by the server-side AI call.
+function httpImageUrl(value) {
+  const url = typeof value === 'string' ? value.trim() : ''
+  return /^https:\/\//i.test(url) ? url : ''
 }

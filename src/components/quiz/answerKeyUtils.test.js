@@ -181,6 +181,26 @@ test('collectAiAnswerTargets can include already-answered questions', () => {
   assert.equal(collectAiAnswerTargets(sections, plain, { onlyUnanswered: false }).length, 1)
 })
 
+test('collectAiAnswerTargets attaches https picture urls (question, options, passage)', () => {
+  const img = 'https://firebasestorage.googleapis.com/v0/b/x/o/d.png?alt=media&token=z'
+  const passageSection = passage([mcq({ localId: 'c', text: 'from map?', options: ['x', 'y'], correctAnswer: '' })])
+  passageSection.passage.imageUrl = img // shared diagram for the set
+  const sections = [
+    standalone(mcq({ localId: 'a', text: 'shape?', options: ['x', 'y'], correctAnswer: '', imageUrl: img, optionMedia: [{ imageUrl: img }, null] })),
+    standalone(mcq({ localId: 'b', text: 'plain?', options: ['x', 'y'], correctAnswer: '' })), // no pictures
+    passageSection,
+  ]
+  const targets = collectAiAnswerTargets(sections, plain, { onlyUnanswered: true })
+  const a = targets.find(t => t.id === 'a')
+  const b = targets.find(t => t.id === 'b')
+  const c = targets.find(t => t.id === 'c')
+  assert.equal(a.imageUrl, img)
+  assert.deepEqual(a.optionImages, [img, ''])
+  assert.equal(c.passageImageUrl, img)
+  // a picture-free question keeps its minimal { id, text, options } shape
+  assert.deepEqual(b, { id: 'b', text: 'plain?', options: ['x', 'y'] })
+})
+
 test('collectAiAnswerTargets skips non-MCQ, empty-stem, and <2-option questions', () => {
   const sections = [
     standalone(mcq({ localId: 'a', type: 'short_answer', text: 'open', options: [] })),

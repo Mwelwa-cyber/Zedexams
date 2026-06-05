@@ -15,6 +15,13 @@
  * deps), matching scannedQuizImport.js.
  */
 
+const {
+  sanitizeImageUrl,
+  sanitizeOptionImages,
+  buildQuestionImageBlocks,
+  hasQuestionImages,
+} = require("./aiImageBlocks");
+
 function httpsError(code, message) {
   try {
     const {HttpsError} = require("firebase-functions/v2/https");
@@ -58,9 +65,14 @@ const ANSWERS_TOOL_SCHEMA = {
 const SYSTEM_PROMPT = [
   "You are a Zambian ECZ examiner answering primary-school multiple-choice",
   "questions. For each question you are given an id, the stem, and the options",
-  "in order. Choose the single best option and return its 0-based index via the",
-  "tool. If a question is genuinely unanswerable (missing a needed diagram, or",
-  "two options look equally correct), return index null rather than guessing.",
+  "in order. Some questions also have a picture or diagram attached inline",
+  "below the question — when one is present, study it and base your answer on",
+  "what it shows; never claim you cannot see it.",
+  "Work carefully: read every option, eliminate the ones that are clearly",
+  "wrong, then pick the single best remaining option and return its 0-based",
+  "index via the tool. If a question is genuinely unanswerable (it needs a",
+  "diagram that is NOT attached, or two options are equally correct), return",
+  "index null rather than guessing.",
   "Answer using standard Zambian CBC knowledge. Return one entry per id.",
 ].join(" ");
 
@@ -91,25 +103,52 @@ function sanitiseSuggestInput(rawQuestions) {
     if (!id || !text || options.length < 2) continue;
     if (optionCountById.has(id)) continue; // ids must be unique
     optionCountById.set(id, options.length);
-    questions.push({id, text, options});
+
+    // Pictures so the model can actually see diagram questions instead of
+    // returning null. Non-https junk is dropped by the sanitisers; image
+    // fields are only attached when something usable survives.
+    const item = {id, text, options};
+    const imageUrl = sanitizeImageUrl(raw?.imageUrl);
+    if (imageUrl) item.imageUrl = imageUrl;
+    const passageImageUrl = sanitizeImageUrl(raw?.passageImageUrl);
+    if (passageImageUrl) item.passageImageUrl = passageImageUrl;
+    const optionImages = sanitizeOptionImages(raw?.optionImages);
+    if (optionImages.some(Boolean)) item.optionImages = optionImages;
+    questions.push(item);
   }
   return {questions, optionCountById};
 }
 
+function questionBlock(q) {
+  const opts = q.options
+    .map((o, i) => `   ${String.fromCharCode(65 + i)}. ${o || "(picture option)"}`)
+    .join("\n");
+  return `id: ${q.id}\n${q.text}\n${opts}`;
+}
+
 function buildSuggestMessages(questions, hints = {}) {
-  const lines = questions.map((q) => {
-    const opts = q.options
-      .map((o, i) => `   ${String.fromCharCode(65 + i)}. ${o || "(picture option)"}`)
-      .join("\n");
-    return `id: ${q.id}\n${q.text}\n${opts}`;
-  });
   const header = [
     hints.subject ? `Subject: ${hints.subject}` : "",
     hints.grade ? `Grade: ${hints.grade}` : "",
     "Answer every question below. Return the 0-based index of the best option",
     "for each id via the tool (null only when truly unanswerable).",
   ].filter(Boolean).join("\n");
-  return [{role: "user", content: `${header}\n\n${lines.join("\n\n")}`}];
+
+  // Plain-text path (no pictures anywhere) — one string message, unchanged.
+  if (!questions.some((q) => hasQuestionImages(q))) {
+    const lines = questions.map(questionBlock);
+    return [{role: "user", content: `${header}\n\n${lines.join("\n\n")}`}];
+  }
+
+  // Vision path — interleave each question's text with its picture blocks so
+  // the model knows which diagram belongs to which id.
+  const content = [{type: "text", text: header}];
+  for (const q of questions) {
+    content.push({type: "text", text: questionBlock(q)});
+    const imageBlocks = buildQuestionImageBlocks(q, `id: ${q.id}`);
+    for (const block of imageBlocks) content.push(block);
+  }
+  return [{role: "user", content}];
 }
 
 /**

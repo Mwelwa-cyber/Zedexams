@@ -322,7 +322,11 @@ function toAnthropicShape(openAiMessages = []) {
     if (m.role === "system") {
       if (m.content) systemParts.push(String(m.content));
     } else if (m.role === "user" || m.role === "assistant") {
-      rest.push({role: m.role, content: String(m.content || "")});
+      // Preserve array content (text + image blocks for vision); only coerce
+      // plain string/other content to a string.
+      const content = Array.isArray(m.content) ?
+        m.content : String(m.content || "");
+      rest.push({role: m.role, content});
     }
   }
   // Drop any leading assistant messages (Anthropic requires user first).

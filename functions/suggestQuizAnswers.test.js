@@ -72,6 +72,32 @@ const q = (id, over = {}) => ({ id, text: `Question ${id}`, options: ["a", "b", 
     assert.ok(/Maths/.test(msg.content));
   });
 
+  const HTTPS_IMG = "https://firebasestorage.googleapis.com/v0/b/x/o/d.png?alt=media&token=z";
+
+  test("sanitiseSuggestInput keeps https picture urls and drops junk", () => {
+    const { questions } = sanitiseSuggestInput([
+      q("a", { imageUrl: HTTPS_IMG, optionImages: ["", HTTPS_IMG], passageImageUrl: "blob:nope" }),
+    ]);
+    assert.equal(questions[0].imageUrl, HTTPS_IMG);
+    assert.deepEqual(questions[0].optionImages, ["", HTTPS_IMG]);
+    assert.ok(!("passageImageUrl" in questions[0]));
+  });
+
+  test("buildSuggestMessages stays a plain string when no pictures", () => {
+    const [msg] = buildSuggestMessages([q("a")], {});
+    assert.equal(typeof msg.content, "string");
+  });
+
+  test("buildSuggestMessages goes multimodal when any question has a picture", () => {
+    const { questions } = sanitiseSuggestInput([q("a"), q("b", { imageUrl: HTTPS_IMG })]);
+    const [msg] = buildSuggestMessages(questions, {});
+    assert.ok(Array.isArray(msg.content));
+    assert.ok(msg.content.some(b => b.type === "image" && b.source.url === HTTPS_IMG));
+    // every id still appears as a text block
+    const text = msg.content.filter(b => b.type === "text").map(b => b.text).join("\n");
+    assert.ok(/id: a/.test(text) && /id: b/.test(text));
+  });
+
   // ── parseSuggestOutput ─────────────────────────────────────────────────────
 
   test("parseSuggestOutput maps valid in-range answers only", () => {
