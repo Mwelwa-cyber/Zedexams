@@ -11,7 +11,12 @@ import { useEffect, useState } from 'react'
 //   fallbackText — caption shown when the image fails to load (e.g. the
 //                  question's diagramText). Prevents the broken-icon UX when
 //                  a Storage URL 404s or a stale blob: URL slipped through.
-export default function ZoomableImage({ src, alt, className = '', wrapperClassName = '', fallbackText = '' }) {
+//   priority   — when true (the question/passage image the learner is
+//                  actively looking at), load eagerly with a high fetch
+//                  priority instead of `loading="lazy"`. Lazy-loading the
+//                  primary on-screen illustration just delays the very
+//                  content the learner is waiting on.
+export default function ZoomableImage({ src, alt, className = '', wrapperClassName = '', fallbackText = '', priority = false }) {
   const [open, setOpen] = useState(false)
   const [failed, setFailed] = useState(false)
 
@@ -61,7 +66,15 @@ export default function ZoomableImage({ src, alt, className = '', wrapperClassNa
         aria-label={`Open ${alt || 'image'} full size`}
         className={`group block w-full cursor-zoom-in border-0 bg-transparent p-0 text-left ${wrapperClassName}`}
       >
-        <img src={src} alt={alt} className={className} loading="lazy" onError={() => setFailed(true)} />
+        <img
+          src={src}
+          alt={alt}
+          className={className}
+          loading={priority ? 'eager' : 'lazy'}
+          fetchPriority={priority ? 'high' : 'auto'}
+          decoding="async"
+          onError={() => setFailed(true)}
+        />
       </button>
 
       {open && (

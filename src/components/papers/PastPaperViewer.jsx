@@ -128,17 +128,44 @@ export default function PastPaperViewer() {
       return
     }
     let cancelled = false
+    const { assets } = previewSource
     setImageAssetsLoading(true)
     setDownloadError('')
     setFailedPages({})
     setLoadedPages({})
     setRetryNonces({})
-    Promise.all(previewSource.assets.map((a) => resolvePaperUrl(a.path).catch((err) => {
-      console.warn('[PastPaperViewer] image url failed', a.path, err)
-      return null
-    })))
-      .then((urls) => { if (!cancelled) setImageAssetUrls(urls) })
-      .finally(() => { if (!cancelled) setImageAssetsLoading(false) })
+    // Seed a stable, index-aligned slot array so each signed URL can drop
+    // into place as it resolves. `validImagePages` filters out the nulls,
+    // so pages appear progressively instead of waiting on the slowest one.
+    setImageAssetUrls(new Array(assets.length).fill(null))
+    // Resolve every page's download URL independently rather than gating
+    // the whole paper on a single Promise.all — a multi-page paper needs
+    // one getDownloadURL round-trip per page, and the old code blocked the
+    // first page on the last one finishing. Now page 1 paints the moment
+    // its URL lands. The full-screen "Loading paper…" gate clears as soon
+    // as the first URL resolves successfully, or once every page has
+    // settled (so an all-failed paper still surfaces its error state
+    // instead of spinning forever).
+    let settled = 0
+    assets.forEach((a, idx) => {
+      resolvePaperUrl(a.path)
+        .then((url) => {
+          if (cancelled || !url) return
+          setImageAssetUrls((prev) => {
+            const next = [...prev]
+            next[idx] = url
+            return next
+          })
+          setImageAssetsLoading(false)
+        })
+        .catch((err) => {
+          console.warn('[PastPaperViewer] image url failed', a.path, err)
+        })
+        .finally(() => {
+          settled += 1
+          if (!cancelled && settled === assets.length) setImageAssetsLoading(false)
+        })
+    })
     return () => { cancelled = true }
   }, [paper, currentUser, previewSource?.kind, previewSource?.assets])
 
