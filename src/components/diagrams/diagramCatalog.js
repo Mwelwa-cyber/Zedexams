@@ -67,6 +67,30 @@ export const DIAGRAM_CATALOG = {
     render: (p, col) => `<svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" width="240"><circle cx="120" cy="120" r="90" fill="${col}" fill-opacity=".1" stroke="${col}" stroke-width="2.2"/><line x1="120" y1="120" x2="210" y2="120" stroke="${col}" stroke-width="1.6" stroke-dasharray="4 3"/><circle cx="120" cy="120" r="3.5" fill="#1c1612"/><text x="115" y="115" font-family="Lora,serif" font-size="14" font-weight="700" text-anchor="end" fill="#1c1612">${esc(p.center)}</text><text x="165" y="113" font-family="Lora,serif" font-style="italic" font-size="13" fill="#3a2f25">${esc(p.radius)}</text></svg>` },
   angle: { cat: 'Shapes 2D', name: 'Angle', defaults: { label: 'θ', cap: 'Angle θ' }, fields: [['label', 'Angle label'], ['cap', 'Caption']],
     render: (p, col) => `<svg viewBox="0 0 280 220" xmlns="http://www.w3.org/2000/svg" width="280"><line x1="40" y1="180" x2="240" y2="180" stroke="#1c1612" stroke-width="2"/><line x1="40" y1="180" x2="220" y2="50" stroke="#1c1612" stroke-width="2"/><path d="M 90,180 A 50,50 0 0,0 78,150" fill="none" stroke="${col}" stroke-width="2"/><text x="100" y="170" font-family="Lora,serif" font-style="italic" font-size="16" fill="${col}">${esc(p.label)}</text></svg>` },
+  triangleangle: { cat: 'Shapes 2D', name: 'Triangle (angle)', defaults: { angle: 'c', a: '', b: '', cc: '', cap: 'Angle marked c' }, fields: [['angle', 'Angle label'], ['a', 'Apex vertex'], ['b', 'Bottom-left vertex'], ['cc', 'Bottom-right vertex'], ['cap', 'Caption']],
+    render: (p, col) => {
+      // Apex at (160,40); base from (60,200) to (260,200). Angle arc sits at the apex.
+      const ax = 160, ay = 40
+      // Unit directions from the apex down each side, for the arc + label placement.
+      const lLen = Math.hypot(60 - ax, 200 - ay), rLen = Math.hypot(260 - ax, 200 - ay)
+      const lUx = (60 - ax) / lLen, lUy = (200 - ay) / lLen
+      const rUx = (260 - ax) / rLen, rUy = (200 - ay) / rLen
+      const aR = 34
+      const arc = `<path d="M ${ax + lUx * aR},${ay + lUy * aR} A ${aR},${aR} 0 0,1 ${ax + rUx * aR},${ay + rUy * aR}" fill="none" stroke="${col}" stroke-width="2"/>`
+      const lblX = ax + (lUx + rUx) / 2 * (aR + 22), lblY = ay + (lUy + rUy) / 2 * (aR + 22) + 5
+      const vtx = (x, y, anchor, t) => t ? `<text x="${x}" y="${y}" font-family="Lora,serif" font-size="15" font-weight="700" text-anchor="${anchor}" fill="#1c1612">${esc(t)}</text>` : ''
+      return `<svg viewBox="0 0 320 240" xmlns="http://www.w3.org/2000/svg" width="320"><polygon points="${ax},${ay} 60,200 260,200" fill="${col}" fill-opacity=".1" stroke="#1c1612" stroke-width="2.2"/>${arc}<text x="${lblX}" y="${lblY}" font-family="Lora,serif" font-style="italic" font-size="16" font-weight="700" text-anchor="middle" fill="${col}">${esc(p.angle)}</text>${vtx(ax, ay - 8, 'middle', p.a)}${vtx(50, 214, 'end', p.b)}${vtx(270, 214, 'start', p.cc)}</svg>`
+    } },
+  parallelogramh: { cat: 'Shapes 2D', name: 'Parallelogram (base × height)', defaults: { base: 'b', height: 'h', cap: 'Parallelogram' }, fields: [['base', 'Base'], ['height', 'Height'], ['cap', 'Caption']],
+    render: (p, col) => {
+      // Slanted parallelogram; dashed perpendicular (vertical) height to the base.
+      // Outline: TL(110,50) TR(290,50) BR(230,180) BL(50,180). The base is
+      // horizontal (y=180) so the height is a vertical drop; right-angle marker
+      // at the foot. footX=150 sits under the top edge (110..290) and on the
+      // base segment (50..230).
+      const footX = 150, topY = 50, baseY = 180
+      return `<svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg" width="320"><polygon points="110,50 290,50 230,180 50,180" fill="${col}" fill-opacity=".1" stroke="${col}" stroke-width="2.2"/><line x1="${footX}" y1="${topY}" x2="${footX}" y2="${baseY}" stroke="${col}" stroke-width="1.4" stroke-dasharray="4 3"/><rect x="${footX}" y="${baseY - 14}" width="14" height="14" fill="none" stroke="${col}" stroke-width="1.3"/><text x="140" y="${baseY + 22}" font-family="Lora,serif" font-style="italic" font-size="14" text-anchor="middle" fill="#3a2f25">${esc(p.base)}</text><text x="${footX + 8}" y="120" font-family="Lora,serif" font-style="italic" font-size="14" fill="#3a2f25">${esc(p.height)}</text></svg>`
+    } },
 
   // ============ SHAPES 3D ============
   cube: { cat: 'Shapes 3D', name: 'Cube', defaults: { side: 'a', cap: 'Cube' }, fields: [['side', 'Side label'], ['cap', 'Caption']],
@@ -164,6 +188,21 @@ export const DIAGRAM_CATALOG = {
     render: (p, c) => `<svg viewBox="0 0 360 220" xmlns="http://www.w3.org/2000/svg" width="360"><circle cx="135" cy="110" r="80" fill="${c}" fill-opacity=".22" stroke="${c}" stroke-width="2"/><circle cx="225" cy="110" r="80" fill="${c}" fill-opacity=".22" stroke="${c}" stroke-width="2"/><text x="90" y="115" font-family="Lora,serif" font-size="16" font-weight="700" text-anchor="middle" fill="#1c1612">${esc(p.a)}</text><text x="270" y="115" font-family="Lora,serif" font-size="16" font-weight="700" text-anchor="middle" fill="#1c1612">${esc(p.b)}</text><text x="180" y="115" font-family="Lora,serif" font-size="14" font-weight="600" text-anchor="middle" fill="#1c1612">A∩B</text></svg>` },
   venn3: { cat: 'Graphs', name: '3-Set Venn', defaults: { a: 'A', b: 'B', c: 'C', cap: 'Venn of three sets' }, fields: [['a', 'Set A'], ['b', 'Set B'], ['c', 'Set C'], ['cap', 'Caption']],
     render: (p, col) => `<svg viewBox="0 0 360 320" xmlns="http://www.w3.org/2000/svg" width="360"><circle cx="140" cy="130" r="80" fill="${col}" fill-opacity=".22" stroke="${col}" stroke-width="2"/><circle cx="220" cy="130" r="80" fill="${col}" fill-opacity=".22" stroke="${col}" stroke-width="2"/><circle cx="180" cy="200" r="80" fill="${col}" fill-opacity=".22" stroke="${col}" stroke-width="2"/><text x="80" y="100" font-family="Lora,serif" font-size="16" font-weight="700" text-anchor="middle" fill="#1c1612">${esc(p.a)}</text><text x="280" y="100" font-family="Lora,serif" font-size="16" font-weight="700" text-anchor="middle" fill="#1c1612">${esc(p.b)}</text><text x="180" y="290" font-family="Lora,serif" font-size="16" font-weight="700" text-anchor="middle" fill="#1c1612">${esc(p.c)}</text></svg>` },
+  vennelements: { cat: 'Graphs', name: 'Venn (with elements)', defaults: { a: 'A', b: 'B', onlyA: '', both: '', onlyB: '', outside: '', cap: 'Venn diagram' }, fields: [['a', 'Set A name'], ['b', 'Set B name'], ['onlyA', 'In A only'], ['both', 'In A∩B'], ['onlyB', 'In B only'], ['outside', 'Outside both'], ['cap', 'Caption']],
+    render: (p, c) => {
+      // Two overlapping circles inside a universal-set rectangle. Elements are
+      // comma-separated; each region's items wrap onto stacked <tspan> rows so a
+      // handful of numbers stay readable. Region anchors: A-only ~x95, A∩B ~x180,
+      // B-only ~x265, outside near the top-left corner of the rectangle.
+      const rows = (raw, cx, cy, anchor) => {
+        const items = String(raw ?? '').split(',').map(s => s.trim()).filter(Boolean)
+        if (!items.length) return ''
+        const lh = 16, startY = cy - ((items.length - 1) * lh) / 2
+        const spans = items.map((it, i) => `<tspan x="${cx}" y="${startY + i * lh}">${esc(it)}</tspan>`).join('')
+        return `<text font-family="Lora,serif" font-size="13" text-anchor="${anchor}" fill="#1c1612">${spans}</text>`
+      }
+      return `<svg viewBox="0 0 360 250" xmlns="http://www.w3.org/2000/svg" width="360"><rect x="8" y="8" width="344" height="234" rx="6" fill="none" stroke="#1c1612" stroke-width="1.4"/><text x="20" y="26" font-family="Lora,serif" font-size="13" font-weight="700" fill="#1c1612">E</text><circle cx="140" cy="125" r="85" fill="${c}" fill-opacity=".16" stroke="${c}" stroke-width="2"/><circle cx="230" cy="125" r="85" fill="${c}" fill-opacity=".16" stroke="${c}" stroke-width="2"/><text x="78" y="55" font-family="Lora,serif" font-size="15" font-weight="700" text-anchor="middle" fill="#1c1612">${esc(p.a)}</text><text x="292" y="55" font-family="Lora,serif" font-size="15" font-weight="700" text-anchor="middle" fill="#1c1612">${esc(p.b)}</text>${rows(p.onlyA, 95, 125, 'middle')}${rows(p.both, 185, 125, 'middle')}${rows(p.onlyB, 275, 125, 'middle')}${rows(p.outside, 36, 60, 'start')}</svg>`
+    } },
 
   // ============ SCIENCE ============
   plantcell: { cat: 'Science', name: 'Plant Cell', defaults: { cap: 'Plant cell' }, fields: [['cap', 'Caption']],
@@ -203,6 +242,30 @@ export const DIAGRAM_CATALOG = {
     } },
   flowchart: { cat: 'Organisers', name: 'Flowchart', defaults: { a: 'Start', b: 'Process', c: 'Decide?', d: 'End', cap: 'Flowchart' }, fields: [['a', 'Step 1'], ['b', 'Step 2'], ['c', 'Step 3'], ['d', 'Step 4'], ['cap', 'Caption']],
     render: (p, col) => `<svg viewBox="0 0 200 360" xmlns="http://www.w3.org/2000/svg" width="200"><g font-family="Lora,serif" font-size="13" font-weight="600">${[p.a, p.b, p.c, p.d].map((t, i) => `<rect x="20" y="${20 + i * 84}" width="160" height="50" rx="${i === 2 ? 0 : 14}" fill="${col}" fill-opacity=".15" stroke="${col}" stroke-width="2" transform="${i === 2 ? `rotate(45 100 ${45 + i * 84})` : ''}" /><text x="100" y="${50 + i * 84}" text-anchor="middle" fill="#1c1612">${esc(t)}</text>`).join('')}${[0, 1, 2].map(i => `<line x1="100" y1="${72 + i * 84}" x2="100" y2="${102 + i * 84}" stroke="#1c1612" stroke-width="2"/><polygon points="100,${108 + i * 84} 95,${100 + i * 84} 105,${100 + i * 84}" fill="#1c1612"/>`).join('')}</g></svg>` },
+  mapping: { cat: 'Organisers', name: 'Mapping / Relation', defaults: { left: '1,2,3', right: '2,3,6', links: '1>1,2>2,3>3', cap: 'Mapping diagram' }, fields: [['left', 'Left items (comma list)'], ['right', 'Right items (comma list)'], ['links', 'Arrows e.g. 1>2,2>2'], ['cap', 'Caption']],
+    render: (p, col) => {
+      // Two columns of ovals (domain → co-domain) with arrowed lines between them.
+      // `links` is a comma list of "L>R" using 1-based row indices into each column.
+      const left = String(p.left ?? '').split(',').map(s => s.trim()).filter(Boolean)
+      const right = String(p.right ?? '').split(',').map(s => s.trim()).filter(Boolean)
+      const links = String(p.links ?? '').split(',').map(s => s.trim()).filter(Boolean)
+      const rowH = 54, padTop = 36, lx = 90, rx = 290, rxW = 56, rxH = 20
+      const h = padTop + Math.max(left.length, right.length, 1) * rowH
+      const colY = (n, i) => padTop + i * rowH + ((Math.max(left.length, right.length) - n) * rowH) / 2
+      const ovals = (items, cx, n) => items.map((t, i) => {
+        const cy = colY(n, i)
+        return `<ellipse cx="${cx}" cy="${cy}" rx="${rxW}" ry="${rxH}" fill="${col}" fill-opacity=".1" stroke="${col}" stroke-width="1.8"/><text x="${cx}" y="${cy + 5}" font-family="Lora,serif" font-size="14" font-weight="600" text-anchor="middle" fill="#1c1612">${esc(t)}</text>`
+      }).join('')
+      const arrows = links.map(link => {
+        const [a, b] = link.split('>').map(s => parseInt(s, 10))
+        if (!a || !b || a > left.length || b > right.length) return ''
+        const y1 = colY(left.length, a - 1), y2 = colY(right.length, b - 1)
+        const x1 = lx + rxW + 2, x2 = rx - rxW - 2
+        const tipX = x2 - 9
+        return `<line x1="${x1}" y1="${y1}" x2="${tipX}" y2="${y2}" stroke="#1c1612" stroke-width="1.6"/><polygon points="${x2},${y2} ${tipX - 1},${y2 - 5} ${tipX - 1},${y2 + 5}" fill="#1c1612"/>`
+      }).join('')
+      return `<svg viewBox="0 0 380 ${h}" xmlns="http://www.w3.org/2000/svg" width="380"><ellipse cx="${lx}" cy="${h / 2 + 4}" rx="74" ry="${h / 2 - 6}" fill="none" stroke="${col}" stroke-width="1.2" stroke-dasharray="5 4"/><ellipse cx="${rx}" cy="${h / 2 + 4}" rx="74" ry="${h / 2 - 6}" fill="none" stroke="${col}" stroke-width="1.2" stroke-dasharray="5 4"/>${arrows}${ovals(left, lx, left.length)}${ovals(right, rx, right.length)}</svg>`
+    } },
 }
 
 const DEFAULT_COLOR = '#7c2d12'

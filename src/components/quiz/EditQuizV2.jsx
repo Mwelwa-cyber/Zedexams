@@ -102,7 +102,12 @@ function withCurrentOption(options, currentValue) {
   return [...options, normalized]
 }
 
-function compressImage(file, maxWidth = 1200, quality = 0.85) {
+// Prepare an upload blob without degrading the picture. PNG sources (diagrams,
+// scanned line-art, cropped figures) stay lossless PNG; everything else is
+// encoded as high-quality JPEG. The width cap is generous so fine detail and
+// text in figures survive. Returns a Blob whose `.type` tells the caller which
+// format/extension to store.
+function compressImage(file, { maxWidth = 1600, quality = 0.92 } = {}) {
   return new Promise((resolve, reject) => {
     const image = new Image()
     const objectUrl = URL.createObjectURL(file)
@@ -115,14 +120,19 @@ function compressImage(file, maxWidth = 1200, quality = 0.85) {
         width = maxWidth
       }
 
+      const lossless = file.type === 'image/png'
+      const mime = lossless ? 'image/png' : 'image/jpeg'
       const canvas = document.createElement('canvas')
       canvas.width = width
       canvas.height = height
-      canvas.getContext('2d').drawImage(image, 0, 0, width, height)
+      const ctx = canvas.getContext('2d', { alpha: lossless })
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = 'high'
+      ctx.drawImage(image, 0, 0, width, height)
       canvas.toBlob(
         blob => (blob ? resolve(blob) : reject(new Error('Canvas compression failed'))),
-        'image/jpeg',
-        quality,
+        mime,
+        lossless ? undefined : quality,
       )
     }
 
@@ -133,6 +143,14 @@ function compressImage(file, maxWidth = 1200, quality = 0.85) {
 
     image.src = objectUrl
   })
+}
+
+// Derive the storage extension + contentType from a processed upload blob so
+// lossless PNG crops keep their format end-to-end (no silent re-encode to JPEG).
+function uploadFormat(blob) {
+  return blob?.type === 'image/png'
+    ? { ext: 'png', contentType: 'image/png' }
+    : { ext: 'jpg', contentType: 'image/jpeg' }
 }
 
 function buildQuestionNumberMap(questions = []) {
@@ -581,8 +599,8 @@ export default function EditQuizV2() {
     const target = cropTarget
     setCropTarget(null)
     if (!target || !blob) return
-    // Give the blob a filename + type the upload path expects.
-    const file = new File([blob], 'cropped.jpg', { type: 'image/jpeg' })
+    // The crop modal returns a lossless PNG; keep it PNG through the upload path.
+    const file = new File([blob], 'cropped.png', { type: blob.type || 'image/png' })
     if (target.kind === 'standalone') {
       await uploadStandaloneQuestionImage(target.sectionIndex, file)
     } else if (target.kind === 'passage') {
@@ -896,9 +914,10 @@ export default function EditQuizV2() {
 
     try {
       const compressed = await compressImage(file)
+      const { ext, contentType } = uploadFormat(compressed)
       updateStandaloneQuestion(sectionIndex, 'imageUploadStep', 'uploading')
-      const path = `quiz-images/${currentUser.uid}/${Date.now()}-standalone-${sectionIndex}.jpg`
-      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType: 'image/jpeg' })
+      const path = `quiz-images/${currentUser.uid}/${Date.now()}-standalone-${sectionIndex}.${ext}`
+      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType })
       const imageUrl = await getDownloadURL(snapshot.ref)
       updateSection(sectionIndex, section => ({
         ...section,
@@ -964,8 +983,9 @@ export default function EditQuizV2() {
           imageUploadStep: 'uploading',
         },
       }))
-      const path = `quiz-images/${currentUser.uid}/${Date.now()}-passage-${sectionIndex}.jpg`
-      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType: 'image/jpeg' })
+      const { ext, contentType } = uploadFormat(compressed)
+      const path = `quiz-images/${currentUser.uid}/${Date.now()}-passage-${sectionIndex}.${ext}`
+      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType })
       const imageUrl = await getDownloadURL(snapshot.ref)
       updateSection(sectionIndex, section => ({
         ...section,
@@ -1027,9 +1047,10 @@ export default function EditQuizV2() {
 
     try {
       const compressed = await compressImage(file)
+      const { ext, contentType } = uploadFormat(compressed)
       updateStandaloneQuestion(sectionIndex, 'optionImageUploadStep', 'uploading')
-      const path = `quiz-images/${currentUser.uid}/${Date.now()}-standalone-${sectionIndex}-opt-${optionIndex}.jpg`
-      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType: 'image/jpeg' })
+      const path = `quiz-images/${currentUser.uid}/${Date.now()}-standalone-${sectionIndex}-opt-${optionIndex}.${ext}`
+      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType })
       const imageUrl = await getDownloadURL(snapshot.ref)
 
       updateSection(sectionIndex, section => {
@@ -1102,9 +1123,10 @@ export default function EditQuizV2() {
 
     try {
       const compressed = await compressImage(file)
+      const { ext, contentType } = uploadFormat(compressed)
       patchQuestion(() => ({ optionImageUploadStep: 'uploading' }))
-      const path = `quiz-images/${currentUser.uid}/${Date.now()}-passage-${sectionIndex}-q-${questionIndex}-opt-${optionIndex}.jpg`
-      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType: 'image/jpeg' })
+      const path = `quiz-images/${currentUser.uid}/${Date.now()}-passage-${sectionIndex}-q-${questionIndex}-opt-${optionIndex}.${ext}`
+      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType })
       const imageUrl = await getDownloadURL(snapshot.ref)
 
       patchQuestion(question => {
