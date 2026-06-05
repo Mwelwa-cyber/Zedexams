@@ -1309,14 +1309,21 @@ export default function EditQuizV2() {
         : `Document ${verb} into editable quiz sections.`)
   }
 
-  async function handleImportDocument(file, importOptions = {}) {
-    if (!file) return
+  async function handleImportDocument(fileOrFiles, importOptions = {}) {
+    const files = Array.isArray(fileOrFiles) ? fileOrFiles.filter(Boolean) : (fileOrFiles ? [fileOrFiles] : [])
+    if (!files.length) return
     if (importingDocument) return
+
+    // A name-only stand-in for summary/diff display when several pictures are
+    // imported at once (the real Files are passed to the importer below).
+    const file = files.length > 1
+      ? { name: `${files[0].name} (+${files.length - 1} more)` }
+      : files[0]
 
     setImportingDocument(true)
     setImportProgress(null)
     try {
-      const imported = await importQuizDocument(file, {
+      const imported = await importQuizDocument(files, {
         ...importOptions,
         onProgress: setImportProgress,
       })

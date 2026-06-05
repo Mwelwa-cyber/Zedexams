@@ -11,7 +11,14 @@ import { regroupComprehensionSections } from '../../utils/comprehensionGrouping.
 import { consolidateOptionImageRuns } from './documentQuizParagraphRuns.js'
 import { importMarkupToRichHtml, importMarkupToOptionHtml } from './importRichText.js'
 import { structureImportedQuiz, structureScannedQuiz } from '../../utils/aiAssistant'
-import { isLikelyScannedPdf, runScannedImport } from './scannedQuizImporter.js'
+import {
+  isLikelyScannedPdf,
+  runScannedImport,
+  runImageImport,
+  isImageImportFile,
+  normalizeImportInput,
+  IMAGE_IMPORT_EXTENSIONS,
+} from './scannedQuizImporter.js'
 
 let pdfjsLoader = null
 
@@ -29,9 +36,13 @@ export const QUIZ_DOCUMENT_ACCEPT = [
   '.doc',
   '.docx',
   '.pdf',
+  ...IMAGE_IMPORT_EXTENSIONS.map(ext => `.${ext}`),
   'application/pdf',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
 ].join(',')
 
 const IMAGE_MIME = {
@@ -976,6 +987,52 @@ async function importScannedPdfQuiz({ pdf, file, importOptions }) {
   }
 }
 
+// Picture import. A teacher photographs or screenshots a paper; each image is
+// treated as one page and fed through the same dual-model vision OCR pipeline as
+// scanned PDFs. Several images can be imported at once (one per page). Returns
+// the same output shape as importQuizDocument so the editor handles it the same.
+async function importImageQuiz({ files, importOptions }) {
+  const list = normalizeImportInput(files)
+  const primary = list[0]
+  const metadata = buildImportMetadata('', primary.name)
+  const onProgress = typeof importOptions.onProgress === 'function' ? importOptions.onProgress : null
+
+  const result = await runImageImport({
+    files: list,
+    subjectHint: metadata.subject || '',
+    gradeHint: metadata.grade || '',
+    callVision: structureScannedQuiz,
+    onProgress,
+  })
+
+  const warnings = result.warnings || []
+  const importStatus = 'needs_review'
+  const contentType = primary.type
+    || IMAGE_MIME[extensionFromPath(primary.name)]
+    || 'image/jpeg'
+
+  return {
+    quiz: {
+      ...metadata,
+      mode: 'imported_document',
+      importStatus,
+      sourceFileName: list.length > 1 ? `${primary.name} (+${list.length - 1} more)` : primary.name,
+      sourceContentType: contentType,
+      importWarnings: warnings,
+    },
+    sections: result.sections,
+    parts: [],
+    questions: [],
+    documentInstruction: '',
+    imageAssets: result.imageAssets,
+    importStatus,
+    warnings,
+    smartApplied: true,
+    scanned: true,
+    summary: result.summary,
+  }
+}
+
 // Import options surfaced in the UI (ImportQuizPanel), both default ON:
 //   preserveNumbering  — keep each question's original number from the doc.
 //   groupComprehension — attach comprehension questions to their passage.
@@ -987,11 +1044,28 @@ export const DEFAULT_IMPORT_OPTIONS = {
   groupComprehension: true,
 }
 
-export async function importQuizDocument(file, options = {}) {
-  if (!file) throw new Error('Choose a Word or PDF file first.')
+export async function importQuizDocument(input, options = {}) {
+  // Accept a single File (Word/PDF/image) or several image Files at once.
+  const files = normalizeImportInput(input)
+  if (!files.length) throw new Error('Choose a Word, PDF, or image file first.')
 
   const importOptions = { ...DEFAULT_IMPORT_OPTIONS, ...options }
 
+  // Picture import: any selected image routes to the vision OCR pipeline. We
+  // don't mix pictures and documents in one import — the parsers are different.
+  if (files.some(isImageImportFile)) {
+    const images = files.filter(isImageImportFile)
+    if (images.length !== files.length) {
+      throw new Error('Import pictures on their own, or a single Word/PDF document — not both at once.')
+    }
+    return await importImageQuiz({ files: images, importOptions })
+  }
+
+  if (files.length > 1) {
+    throw new Error('Import one Word or PDF document at a time.')
+  }
+
+  const file = files[0]
   const lowerName = file.name.toLowerCase()
   let extracted
   let isWord = false
@@ -1013,7 +1087,7 @@ export async function importQuizDocument(file, options = {}) {
     }
     extracted = await extractPdf(file, preloaded)
   } else {
-    throw new Error('Please upload a .doc, .docx, or .pdf file.')
+    throw new Error('Please upload a .doc, .docx, .pdf, or image (JPG/PNG/WEBP) file.')
   }
 
   const local = processImportedQuestionBlocks(extracted.blocks, extracted.warnings, importOptions)
