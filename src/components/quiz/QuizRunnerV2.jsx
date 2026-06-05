@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
+import { useDataSaver } from '../../contexts/DataSaverContext'
 import { useSubscription } from '../../hooks/useSubscription'
 import { buildQuizDisplaySections, shuffleQuizSections } from '../../utils/quizSections.js'
 import UpgradeModal from '../subscription/UpgradeModal'
@@ -32,6 +33,30 @@ function isNumericType(type) {
 
 function isHotspotType(type) {
   return type === 'hotspot'
+}
+
+// Gathers every learner-facing image URL in a display section (passage
+// illustration, question illustrations, and any per-option images) so the
+// next section's pictures can be warmed in the browser cache before the
+// learner navigates to it — no more waiting on a cold fetch after pressing
+// "Next".
+function collectSectionImageUrls(section) {
+  if (!section) return []
+  const urls = []
+  const pushQuestion = (q) => {
+    if (!q) return
+    if (q.imageUrl) urls.push(q.imageUrl)
+    if (Array.isArray(q.optionMedia)) {
+      q.optionMedia.forEach((m) => { if (m?.imageUrl) urls.push(m.imageUrl) })
+    }
+  }
+  if (section.kind === 'passage') {
+    if (section.passage?.imageUrl) urls.push(section.passage.imageUrl)
+    ;(section.questions || []).forEach(pushQuestion)
+  } else {
+    pushQuestion(section.question)
+  }
+  return urls
 }
 
 // Maps the subject string stored on a quiz (e.g. "Integrated Science",
@@ -93,6 +118,7 @@ function OptionButton({ label, selected, revealed, correct, wrong, onClick, imag
             src={imageUrl}
             alt={imageAlt || ''}
             className="quiz-option-image"
+            decoding="async"
             onError={event => {
               // Stay tappable, just hide the broken icon — the option text
               // below still names the choice so the learner can pick it.
@@ -208,6 +234,7 @@ export default function QuizRunnerV2() {
   const { currentUser } = useAuth()
   const { getQuizById, getQuestions, saveResult } = useFirestore()
   const { canUseExamMode, canAccessFullContent } = useSubscription()
+  const { dataSaver } = useDataSaver()
 
   const [quiz, setQuiz] = useState(null)
   const [sections, setSections] = useState([])
@@ -319,6 +346,27 @@ export default function QuizRunnerV2() {
     load()
     return () => clearInterval(timerRef.current)
   }, [quizId, getQuizById, getQuestions, canAccessFullContent, navigate, currentUser, difficultyFilter, shuffleParam])
+
+  // Warm the next section's images in the browser cache while the learner
+  // is still on the current one, so advancing shows the picture instantly
+  // instead of kicking off a cold fetch. Skipped under Data Saver — that
+  // mode deliberately avoids speculative downloads on metered connections.
+  useEffect(() => {
+    if (dataSaver || !sections.length) return
+    if (typeof window === 'undefined' || typeof Image === 'undefined') return
+    const nextSection = sections[activeSectionIndex + 1]
+    const urls = collectSectionImageUrls(nextSection)
+    if (!urls.length) return
+    // Hold references until unmount so the GC can't reclaim the in-flight
+    // requests before the bytes land in cache.
+    const loaders = urls.map((url) => {
+      const img = new Image()
+      img.decoding = 'async'
+      img.src = url
+      return img
+    })
+    return () => { loaders.forEach((img) => { img.src = '' }) }
+  }, [sections, activeSectionIndex, dataSaver])
 
   function handleStart(nextMode) {
     if (nextMode === 'exam' && !canUseExamMode) {
@@ -638,6 +686,7 @@ export default function QuizRunnerV2() {
                 src={question.imageUrl}
                 alt="Question illustration"
                 fallbackText={question.diagramText}
+                priority
                 className="mx-auto max-h-[80vh] w-full rounded-xl object-contain"
               />
             </div>
@@ -728,6 +777,8 @@ export default function QuizRunnerV2() {
                       src={question.imageUrl}
                       alt="Click the answer"
                       draggable={false}
+                      decoding="async"
+                      fetchPriority="high"
                       className="block w-full select-none object-contain"
                     />
                     {hasTap && (
@@ -1149,6 +1200,7 @@ export default function QuizRunnerV2() {
                       src={activeSection.passage.imageUrl}
                       alt="Passage illustration"
                       fallbackText={activeSection.passage.diagramText || activeSection.passage.title || ''}
+                      priority
                       className="mx-auto max-h-[80vh] w-full rounded-2xl object-contain"
                     />
                   </div>
