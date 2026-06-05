@@ -268,7 +268,59 @@ function DashboardActionCard({
 // once the 2026 exams are over.
 const GRADE7_TIMETABLE_PDF = '/timetables/grade-7-2026-exam-timetable.pdf'
 
+// First day of the 2026 Grade 7 Primary School Leaving Examination. The
+// countdown on the timetable card ticks down to this moment (local time).
+// TEMPORARY: update or remove alongside ExamTimetableCard once the 2026
+// exams are over.
+const GRADE7_EXAM_START = new Date('2026-10-26T08:00:00')
+
+// Breaks the milliseconds until the exam into whole days/hours/minutes/seconds.
+// Returns `over: true` once the start moment has passed so the card can swap
+// its message instead of showing a negative countdown.
+function getCountdownParts(targetMs, nowMs) {
+  const diff = targetMs - nowMs
+  if (diff <= 0) {
+    return { over: true, days: 0, hours: 0, minutes: 0, seconds: 0 }
+  }
+  const totalSeconds = Math.floor(diff / 1000)
+  return {
+    over: false,
+    days: Math.floor(totalSeconds / 86400),
+    hours: Math.floor((totalSeconds % 86400) / 3600),
+    minutes: Math.floor((totalSeconds % 3600) / 60),
+    seconds: totalSeconds % 60,
+  }
+}
+
+// Live countdown to the exam, refreshed every second while mounted.
+function useExamCountdown(target) {
+  const targetMs = target.getTime()
+  const [parts, setParts] = useState(() => getCountdownParts(targetMs, Date.now()))
+  useEffect(() => {
+    const tick = () => setParts(getCountdownParts(targetMs, Date.now()))
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [targetMs])
+  return parts
+}
+
+// Single time unit shown in the countdown row (value + label).
+function CountdownUnit({ value, label }) {
+  return (
+    <div className="flex min-w-[2.5rem] flex-col items-center rounded-xl bg-white/85 px-2 py-1 shadow-sm ring-1 ring-rose-200">
+      <span className="text-base font-black tabular-nums leading-none text-rose-700 sm:text-lg">
+        {String(value).padStart(2, '0')}
+      </span>
+      <span className="text-[9px] font-black uppercase tracking-wider text-rose-500">
+        {label}
+      </span>
+    </div>
+  )
+}
+
 function ExamTimetableCard() {
+  const { over, days, hours, minutes, seconds } = useExamCountdown(GRADE7_EXAM_START)
   return (
     <section>
       <a
@@ -277,7 +329,7 @@ function ExamTimetableCard() {
         rel="noopener noreferrer"
         className="zx-card group relative block min-h-[128px] overflow-hidden rounded-3xl border-2 border-rose-300 bg-[linear-gradient(135deg,#FFE4E6_0%,#FDA4AF_55%,#E11D48_100%)] shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
       >
-        <div className="relative z-10 flex min-h-[128px] items-center gap-3 p-4 sm:gap-4 sm:p-5">
+        <div className="relative z-10 flex min-h-[128px] flex-wrap items-center gap-3 p-4 sm:gap-4 sm:p-5">
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-600 text-white shadow-sm">
             <Icon as={CalendarDays} size="lg" strokeWidth={2.1} />
           </div>
@@ -288,15 +340,34 @@ function ExamTimetableCard() {
             <h3 className="mt-0.5 text-base font-black leading-tight text-rose-950">
               2026 Exam Timetable
             </h3>
-            <p className="mt-0.5 hidden text-xs font-bold text-rose-900/80 sm:block">
-              Primary School Leaving Examination dates — tap to read or download the PDF
-            </p>
+            {over ? (
+              <p className="mt-0.5 text-xs font-bold text-rose-900/80">
+                Exams have started — best of luck! Tap to view the timetable.
+              </p>
+            ) : (
+              <p className="mt-0.5 hidden text-xs font-bold text-rose-900/80 sm:block">
+                {days === 0
+                  ? 'Exams start today — tap to read or download the PDF'
+                  : `${days} ${days === 1 ? 'day' : 'days'} until exams — tap to read or download the PDF`}
+              </p>
+            )}
           </div>
           <div className="hidden shrink-0 items-center gap-1 rounded-full bg-rose-700 px-3 py-1.5 text-xs font-black text-white shadow-sm transition-transform group-hover:translate-x-0.5 sm:flex">
             View
             <Icon as={Download} size="xs" />
           </div>
         </div>
+        {!over && (
+          <div className="relative z-10 -mt-1 flex items-center gap-1.5 px-4 pb-4 sm:gap-2 sm:px-5 sm:pb-5">
+            <span className="mr-0.5 text-[10px] font-black uppercase tracking-wider text-rose-700/90">
+              Starts in
+            </span>
+            <CountdownUnit value={days} label="Days" />
+            <CountdownUnit value={hours} label="Hrs" />
+            <CountdownUnit value={minutes} label="Min" />
+            <CountdownUnit value={seconds} label="Sec" />
+          </div>
+        )}
       </a>
     </section>
   )
