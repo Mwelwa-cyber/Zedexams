@@ -51,6 +51,25 @@ ok("user prompt includes the grade/subject context", /Grade 7, Mathematics, Frac
 const fallback = buildEditQuestionMessages({action: "", question: "Q", options: []});
 ok("missing action still builds messages", Array.isArray(fallback) && fallback.length === 2);
 
+// Picture-free questions keep a plain-string user turn (back-compat).
+ok("user content is a plain string without images", typeof messages[1].content === "string");
+
+// ── Vision: a question with a picture builds a multimodal user turn ─────────
+const HTTPS_IMG = "https://firebasestorage.googleapis.com/v0/b/x/o/diagram.png?alt=media&token=z";
+const withImage = buildEditQuestionMessages({
+  action: "suggest_answer",
+  question: "Which shape is shown?",
+  options: ["Circle", "Square", "Triangle", "Star"],
+  imageUrl: HTTPS_IMG,
+  optionImages: ["", HTTPS_IMG],
+  passageImageUrl: "blob:should-be-dropped",
+});
+ok("user content becomes an array when a picture is attached", Array.isArray(withImage[1].content));
+ok("first block is the question text", withImage[1].content[0].type === "text" && /Which shape/.test(withImage[1].content[0].text));
+ok("text block warns the model not to claim it cannot see", /cannot see them/i.test(withImage[1].content[0].text));
+ok("an image block uses an https url source", withImage[1].content.some(b => b.type === "image" && b.source.url === HTTPS_IMG));
+ok("blob: passage url is dropped", !withImage[1].content.some(b => b.type === "image" && b.source.url.startsWith("blob:")));
+
 // ── Response parser ───────────────────────────────────────────────────────
 const full = parseEditedQuestion(JSON.stringify({
   text: "What is \\frac{3}{4} of 200?",

@@ -1085,6 +1085,7 @@ const PassageQuestionCard = memo(function PassageQuestionCard({
   passageOptions = null,
   currentSectionId = null,
   onMoveToPassage,
+  passageImageUrl = '',
   quizContext = {},
   theme,
 }) {
@@ -1151,6 +1152,7 @@ const PassageQuestionCard = memo(function PassageQuestionCard({
             question={question}
             subject={quizContext.subject}
             grade={quizContext.grade}
+            passageImageUrl={passageImageUrl}
             onApply={applyAiPatch}
           />
           <select
@@ -1639,6 +1641,7 @@ const PassageSectionCard = memo(function PassageSectionCard({
                     passageOptions={isMap ? null : comprehensionPassages}
                     currentSectionId={section.id}
                     onMoveToPassage={isMap ? null : onMoveQuestionToPassage}
+                    passageImageUrl={passage.imageUrl || ''}
                     quizContext={quizContext}
                     theme={theme}
                   />
