@@ -7,6 +7,7 @@
 import { ArrowRight, FileType, Sparkles } from '../../../components/ui/icons'
 import { NOTE_FORMAT } from '../../../config/curriculum'
 import { formatDate } from '../lib/format'
+import { resolveNoteCover } from '../lib/noteCovers'
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
 
@@ -19,15 +20,16 @@ const isNewThisWeek = (publishedAt) => {
 export function LearnerNoteCard({ note, onClick }) {
   const isNew = isNewThisWeek(note.publishedAt)
   const isFile = note.noteFormat === NOTE_FORMAT.FILE
-  const cover = typeof note.coverImage === 'string' ? note.coverImage.trim() : ''
+  const explicitCover = typeof note.coverImage === 'string' ? note.coverImage.trim() : ''
+  const cover = explicitCover || resolveNoteCover(note)
 
   return (
     <button
       onClick={() => onClick?.(note)}
-      className="group text-left bg-white rounded-xl border border-neutral-200 overflow-hidden hover:border-neutral-400 transition-all w-full flex flex-col"
+      className="group text-left bg-white rounded-xl border border-neutral-200 overflow-hidden hover:border-neutral-400 transition-all w-full flex items-stretch"
     >
       {cover && (
-        <div className="aspect-[16/9] w-full overflow-hidden bg-neutral-100">
+        <div className="shrink-0 w-24 sm:w-28 self-stretch overflow-hidden bg-neutral-50">
           <img
             src={cover}
             alt=""
@@ -36,7 +38,7 @@ export function LearnerNoteCard({ note, onClick }) {
           />
         </div>
       )}
-      <div className="p-5">
+      <div className="flex-1 min-w-0 p-4 sm:p-5">
       <div className="flex items-center gap-2 mb-3 flex-wrap">
         <span className="inline-flex items-center gap-1 text-[11px] font-medium text-neutral-600 bg-neutral-100 px-2 py-0.5 rounded-full">
           Grade {note.grade}
@@ -56,7 +58,7 @@ export function LearnerNoteCard({ note, onClick }) {
         )}
       </div>
 
-      <h3 className="font-display text-2xl leading-tight mb-2 tracking-tight text-neutral-900 group-hover:text-emerald-700 transition-colors">
+      <h3 className="font-display text-xl sm:text-2xl leading-tight mb-2 tracking-tight text-neutral-900 group-hover:text-emerald-700 transition-colors">
         {note.title}
       </h3>
 
