@@ -51,7 +51,23 @@ async function fetchWithTimeout(url, opts = {}) {
 /** Flatten a TipTap doc (or plain string) to its text content. */
 function extractPlainText(node) {
   if (!node) return "";
-  if (typeof node === "string") return node;
+  if (typeof node === "string") {
+    // Options/text are sometimes persisted as a JSON-encoded TipTap doc
+    // string (e.g. '{"type":"doc","content":[{"type":"paragraph"}]}'). Decode
+    // it so an *empty* doc flattens to "" instead of being treated as a
+    // non-empty literal — otherwise blank options all share the same JSON
+    // string and get mislabelled as "duplicate" rather than "empty".
+    const trimmed = node.trim();
+    if (trimmed.startsWith("{") && trimmed.includes("\"type\"") && trimmed.includes("\"doc\"")) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (parsed && parsed.type === "doc") return extractPlainText(parsed.content);
+      } catch (err) {
+        /* not valid JSON — fall through to the raw string */
+      }
+    }
+    return node;
+  }
   if (Array.isArray(node)) return node.map(extractPlainText).join(" ");
   if (typeof node === "object") {
     let s = typeof node.text === "string" ? node.text : "";
@@ -219,7 +235,10 @@ async function checkQuizzes(db) {
       if (!doc.data()?.isPublished) continue;
       checked += 1;
       const qs = await doc.ref.collection("questions").limit(QUESTIONS_PER_QUIZ).get().catch(() => null);
-      const questions = qs ? qs.docs.map((d) => d.data()) : [];
+      // Sort by the `order` field so "Question N" in a failure matches the
+      // editor's numbering. Without this the docs arrive in document-id order,
+      // so the reported question number points an admin at the wrong question.
+      const questions = qs ? qs.docs.map((d) => d.data()).sort((a, b) => (Number(a?.order ?? 0)) - (Number(b?.order ?? 0))) : [];
       if (questions.length === 0) {
         failures.push({check: "quizzes", id: `${doc.id}:empty`, severity: "warning", message: `Published quiz "${doc.data()?.title || doc.id}" has no questions.`, ref: doc.id});
         continue;

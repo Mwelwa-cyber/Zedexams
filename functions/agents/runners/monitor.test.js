@@ -40,6 +40,18 @@ test("extractPlainText returns empty for nullish", () => {
   assert.strictEqual(extractPlainText(undefined).trim(), "");
 });
 
+test("extractPlainText decodes a JSON-encoded TipTap doc string", () => {
+  // Options are sometimes persisted as a JSON string of a TipTap doc.
+  const withText = "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"text\",\"text\":\"Lusaka\"}]}]}";
+  assert.strictEqual(extractPlainText(withText).trim(), "Lusaka");
+});
+
+test("extractPlainText flattens an EMPTY JSON-encoded TipTap doc to nothing", () => {
+  // The real-world failure: a scanned-import option saved as an empty doc.
+  const emptyDoc = "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"textAlign\":null}}]}";
+  assert.strictEqual(extractPlainText(emptyDoc).trim(), "");
+});
+
 // ── runStructuralChecks ──────────────────────────────────────────────
 test("a well-formed MCQ produces no problems", () => {
   const problems = runStructuralChecks([
@@ -110,6 +122,21 @@ test("genuinely duplicate rich-text options are still flagged", () => {
     {type: "mcq", text: richOption("Q"), options: [richOption("Lusaka"), richOption("lusaka")], correctAnswer: 0},
   ]);
   assert.ok(problems.some((p) => /duplicate/i.test(p.message)));
+});
+
+test("blank JSON-encoded-doc options are flagged EMPTY, not duplicate", () => {
+  // Regression for quiz qP7RYG8v3loytqfyitf7 Q8 ("Which of the following is
+  // not a carved item?"): a scanned import left all four options as the same
+  // empty TipTap doc string. The raw JSON strings are identical, so the old
+  // String(o) comparison mislabelled them as "duplicate options" when the real
+  // problem is that every option is blank. After decoding, they flatten to ""
+  // → caught as empty, and the (empty) duplicate keys are skipped.
+  const emptyDoc = "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"attrs\":{\"textAlign\":null}}]}";
+  const problems = runStructuralChecks([
+    {type: "mcq", text: "Which of the following is not a carved item?", options: [emptyDoc, emptyDoc, emptyDoc, emptyDoc], correctAnswer: 3},
+  ]);
+  assert.ok(problems.some((p) => /empty option/i.test(p.message)), "should flag an empty option");
+  assert.ok(!problems.some((p) => /duplicate/i.test(p.message)), "should NOT flag duplicates");
 });
 
 test("out-of-range correctAnswer is flagged", () => {
