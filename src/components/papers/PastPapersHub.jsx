@@ -41,7 +41,6 @@ import SeoHelmet from '../seo/SeoHelmet'
 import Logo from '../ui/Logo'
 import Skeleton from '../ui/Skeleton'
 import {
-  Bell,
   BookOpen,
   BookmarkSquareIcon,
   Calculator,
@@ -536,14 +535,6 @@ export default function PastPapersHub() {
               className="grid place-items-center w-9 h-9 rounded-full theme-text-muted hover:theme-text hover:theme-bg-subtle transition"
             >
               <Search size={20} strokeWidth={2.2} />
-            </button>
-            <button
-              type="button"
-              aria-label="Notifications"
-              className="relative grid place-items-center w-9 h-9 rounded-full theme-text-muted hover:theme-text hover:theme-bg-subtle transition"
-            >
-              <Bell size={20} strokeWidth={2.2} />
-              <span className="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-orange-500 ring-2 ring-white" />
             </button>
             <Link
               to={currentUser ? '/my-papers' : '/login'}
