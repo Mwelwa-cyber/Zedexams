@@ -12,7 +12,37 @@
 .notes-studio {
   font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
   color: #0a0a0a;
+  /* Cream canvas, matching the admin "sticker" theme. */
+  background-color: #F5EFE1;
 }
+
+/* ─── Chrome theme ────────────────────────────────────────────────────────
+   The surfaces *around* a note — the library list, note cards, reader header
+   and footer — adopt the admin sticker-card look: a white surface with a 2px
+   navy border and a hard offset shadow so each card pops off the cream canvas.
+   The note body itself (.prose-note / .study-note above) keeps its editorial
+   serif styling untouched. */
+.notes-card {
+  background: #FFFFFF;
+  border: 2px solid #0F1B2D;
+  border-radius: 18px;
+  box-shadow: 0 2px 0 #0F1B2D;
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+.notes-card.is-pressable:hover {
+  transform: translateY(1px);
+  box-shadow: 0 1px 0 #0F1B2D, 0 10px 24px -16px rgba(15, 27, 45, 0.4);
+}
+.notes-card.is-pressable:active {
+  transform: translateY(2px);
+  box-shadow: 0 0 0 #0F1B2D;
+}
+/* Solid navy pill (chips, "GO"-style accents) with the same hard border. */
+.notes-chip {
+  border: 2px solid #0F1B2D;
+  transition: transform .12s ease, box-shadow .12s ease, background .15s ease;
+}
+.notes-chip-shadow { box-shadow: 0 2px 0 #0F1B2D; }
 
 .font-display        { font-family: 'Instrument Serif', Georgia, serif; font-weight: 400; }
 .font-display-italic { font-family: 'Instrument Serif', Georgia, serif; font-style: italic; font-weight: 400; }

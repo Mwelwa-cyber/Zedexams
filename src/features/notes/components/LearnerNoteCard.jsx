@@ -26,10 +26,10 @@ export function LearnerNoteCard({ note, onClick }) {
   return (
     <button
       onClick={() => onClick?.(note)}
-      className="group text-left bg-white rounded-xl border border-neutral-200 overflow-hidden hover:border-neutral-400 transition-all w-full flex items-stretch"
+      className="notes-card is-pressable group text-left overflow-hidden w-full flex items-stretch"
     >
       {cover && (
-        <div className="shrink-0 w-24 sm:w-28 self-stretch overflow-hidden bg-neutral-50">
+        <div className="shrink-0 w-24 sm:w-28 self-stretch overflow-hidden bg-neutral-50 border-r-2 border-[#0F1B2D]">
           <img
             src={cover}
             alt=""
@@ -40,7 +40,7 @@ export function LearnerNoteCard({ note, onClick }) {
       )}
       <div className="flex-1 min-w-0 p-4 sm:p-5">
       <div className="flex items-center gap-2 mb-3 flex-wrap">
-        <span className="inline-flex items-center gap-1 text-[11px] font-medium text-neutral-600 bg-neutral-100 px-2 py-0.5 rounded-full">
+        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-[#0F1B2D] bg-[#F5EFE1] px-2 py-0.5 rounded-full border border-[#0F1B2D]">
           Grade {note.grade}
         </span>
         {isFile && (
@@ -50,7 +50,7 @@ export function LearnerNoteCard({ note, onClick }) {
         )}
         {isNew && (
           <span
-            className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full"
+            className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full border border-[#0F1B2D]"
             style={{ backgroundColor: '#FEF3C7', color: '#92400E' }}
           >
             <Sparkles size={10} /> New
@@ -58,7 +58,7 @@ export function LearnerNoteCard({ note, onClick }) {
         )}
       </div>
 
-      <h3 className="font-display text-xl sm:text-2xl leading-tight mb-2 tracking-tight text-neutral-900 group-hover:text-emerald-700 transition-colors">
+      <h3 className="font-display text-xl sm:text-2xl leading-tight mb-2 tracking-tight text-[#0F1B2D] group-hover:text-[#C2410C] transition-colors">
         {note.title}
       </h3>
 
@@ -68,7 +68,7 @@ export function LearnerNoteCard({ note, onClick }) {
 
       <div className="flex items-center justify-between text-[11px] text-neutral-500">
         <span>Published {formatDate(note.publishedAt)}</span>
-        <span className="inline-flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: '#047857' }}>
+        <span className="inline-flex items-center gap-1 group-hover:gap-2 transition-all font-semibold" style={{ color: '#C2410C' }}>
           Read <ArrowRight size={12} />
         </span>
       </div>
