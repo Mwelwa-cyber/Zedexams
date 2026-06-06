@@ -23,8 +23,6 @@ const ROOT = path.resolve(__dirname, '..')
 
 const TARGETS = [
   'public/images/characters/zed-zara-reading.png',
-  'public/images/characters/lina-study.png',
-  'public/images/characters/max-gaming.png',
   'public/images/characters/zedbot-help.png',
   'public/zedexams-logo.png',
 ]
