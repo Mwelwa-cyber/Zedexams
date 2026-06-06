@@ -10,10 +10,19 @@
  * appeared to "revert" (old study-plan card, removed admin previews) for
  * returning users.
  *
- * So when a newly-installed SW activates as an UPDATE (it is replacing an
- * existing worker), reload every open tab onto the freshly-activated precache.
- * A first-ever install (no prior worker) is skipped, so a brand-new visitor
- * never sees a redundant double-load. Any failure is swallowed — a reload
+ * When a newly-installed SW activates as an UPDATE (it is replacing an
+ * existing worker), notify every open tab so it can reload onto the
+ * freshly-activated precache at a safe moment.  We do NOT call
+ * client.navigate() directly here because that is a hard, immediate reload
+ * that interrupts any in-progress async operation (e.g. a document-quiz
+ * import that may take 15-30 s on a slow connection).  Instead we
+ * postMessage({ type: 'SW_RELOAD_REQUEST' }) so the page can schedule the
+ * reload after its current operation finishes.  The page's usePwaUpdate hook
+ * receives this message and surfaces the existing "New version available"
+ * prompt; users on frozen old tabs will still cross over — just gracefully.
+ *
+ * A first-ever install (no prior worker) is skipped so a brand-new visitor
+ * never sees a redundant prompt. Any failure is swallowed — a messaging
  * hiccup must never wedge SW activation.
  */
 (function () {
@@ -35,13 +44,16 @@
       (async function () {
         try {
           await self.clients.claim()
-          // Only force a reload when crossing over from a previous build.
+          // Only notify when crossing over from a previous build.
           if (!replacingExisting) return
           var windows = await self.clients.matchAll({ type: 'window' })
           await Promise.all(
             windows.map(function (client) {
-              // navigate() reloads the controlled tab to the new shell.
-              return client.navigate(client.url).catch(function () {})
+              // Ask the page to reload at a safe moment rather than
+              // navigating immediately — prevents interrupting long-running
+              // async operations such as document-quiz imports.
+              return client.postMessage({ type: 'SW_RELOAD_REQUEST' })
+                .catch(function () {})
             })
           )
         } catch (e) {
