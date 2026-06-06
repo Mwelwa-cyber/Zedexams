@@ -11,7 +11,7 @@
 
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Lock } from '../../../components/ui/icons'
+import { Search, Lock, BookOpen } from '../../../components/ui/icons'
 import { useLearnerProfile }   from '../hooks/useLearnerProfile'
 import { useLearnerNotes }     from '../hooks/useLearnerNotes'
 import { LearnerNoteCard }     from '../components/LearnerNoteCard'
@@ -47,16 +47,21 @@ export function LearnerNotesList() {
     <div className="notes-studio min-h-screen pb-24 lg:pb-8" style={{ backgroundColor: '#F5EFE1' }}>
       <SeoHelmet title="Notes" path="/notes" noIndex />
       <main className="max-w-5xl mx-auto px-4 sm:px-5 py-8">
-        <div className="mb-6">
-          <div className="inline-flex items-center gap-2 text-[10.5px] font-extrabold tracking-[0.16em] uppercase text-[#053541] mb-2 before:content-[''] before:w-[22px] before:h-[3px] before:rounded-sm before:bg-[#FF7A1A]">Your notes</div>
-          <h1 className="font-display text-4xl sm:text-5xl tracking-tight mb-2 text-[#0F1B2D]">
-            Welcome back, <span className="font-display-italic">{firstName}.</span>
-          </h1>
-          <p className="text-base text-[#4A5A6E]">
-            {allNotes.length === 0
-              ? `Notes for Grade ${grade} are on the way.`
-              : `${allNotes.length} note${allNotes.length === 1 ? '' : 's'} published for Grade ${grade}.`}
-          </p>
+        <div className="mb-6 flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 text-[10.5px] font-extrabold tracking-[0.16em] uppercase text-[#053541] mb-2 before:content-[''] before:w-[22px] before:h-[3px] before:rounded-sm before:bg-[#FF7A1A]">Your notes</div>
+            <h1 className="font-display text-4xl sm:text-5xl tracking-tight mb-2 text-[#0F1B2D]">
+              Welcome back, <span className="font-display-italic">{firstName}.</span>
+            </h1>
+            <p className="text-base text-[#4A5A6E]">
+              {allNotes.length === 0
+                ? `Notes for Grade ${grade} are on the way.`
+                : `${allNotes.length} note${allNotes.length === 1 ? '' : 's'} published for Grade ${grade}.`}
+            </p>
+          </div>
+          {allNotes.length > 0 && (
+            <NotesProgressPanel total={allNotes.length} completed={0} />
+          )}
         </div>
 
         {allNotes.length > 0 && (
@@ -131,6 +136,27 @@ export function LearnerNotesList() {
           </p>
         </div>
       </main>
+    </div>
+  )
+}
+
+function NotesProgressPanel({ total, completed }) {
+  const percent = total > 0 ? Math.round((completed / total) * 100) : 0
+  return (
+    <div className="notes-card p-4 w-full lg:w-72 shrink-0">
+      <div className="flex items-center gap-2.5 mb-3">
+        <span className="w-9 h-9 rounded-xl grid place-items-center border-2 border-[#0F1B2D] bg-[#FFEDD5]" style={{ boxShadow: '0 2px 0 #0F1B2D' }}>
+          <BookOpen size={16} className="text-[#C2410C]" />
+        </span>
+        <div>
+          <div className="text-sm font-bold text-[#0F1B2D] leading-tight">Notes progress</div>
+          <div className="text-[11px] text-[#4A5A6E]">{percent}% completed</div>
+        </div>
+      </div>
+      <div className="h-2 rounded-full bg-[#F5EFE1] border border-[#0F1B2D]/15 overflow-hidden">
+        <div className="h-full rounded-full" style={{ width: `${percent}%`, backgroundColor: '#FF7A1A' }} />
+      </div>
+      <div className="mt-2 text-[11px] text-[#4A5A6E]">{completed} of {total} notes completed</div>
     </div>
   )
 }
