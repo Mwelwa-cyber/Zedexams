@@ -43,7 +43,7 @@ export default function ThemeSelector({ compact = false, onDark = false, quizSty
   const current = THEMES.find(t => t.id === theme) || THEMES[0]
 
   const triggerClass = dashboardStyle
-    ? 'theme-card theme-border theme-text-muted border shadow-elev-sm hover:theme-accent-bg hover:theme-accent-text'
+    ? 'zx-card theme-card theme-border learner-chrome-icon shadow-elev-sm hover:theme-accent-bg hover:theme-accent-text'
     : quizStyle
     ? 'theme-accent-fill theme-on-accent border-transparent shadow-md hover:opacity-90'
     : onDark
