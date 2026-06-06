@@ -290,13 +290,22 @@ function BlockCard({ block, idx, total, patch, onMove, onRemove, ownerUid, asset
 export function StudyNoteEditor({ value, onChange, ownerUid, assetBatchId, subject, grade }) {
   const blocks = Array.isArray(value) ? value : []
 
-  const patchBlock = (idx, patch) => onChange(blocks.map((b, i) => (i === idx ? { ...b, ...patch } : b)))
-  const addBlock   = (type) => onChange([...blocks, newStudyBlock(type)])
-  const removeBlock = (idx) => onChange(blocks.filter((_, i) => i !== idx))
+  // Patches resolve against the LATEST blocks, not the render closure that
+  // created the handler. An image/picture upload is async: if the author edits
+  // the same block's caption/description while it's uploading, the awaited
+  // patch({ url }) must merge into their newest edits rather than overwrite
+  // them with a stale snapshot.
+  const blocksRef = useRef(blocks)
+  blocksRef.current = blocks
+
+  const patchBlock = (idx, patch) => onChange(blocksRef.current.map((b, i) => (i === idx ? { ...b, ...patch } : b)))
+  const addBlock   = (type) => onChange([...blocksRef.current, newStudyBlock(type)])
+  const removeBlock = (idx) => onChange(blocksRef.current.filter((_, i) => i !== idx))
   const moveBlock  = (idx, dir) => {
+    const cur = blocksRef.current
     const j = idx + dir
-    if (j < 0 || j >= blocks.length) return
-    const next = blocks.slice()
+    if (j < 0 || j >= cur.length) return
+    const next = cur.slice()
     ;[next[idx], next[j]] = [next[j], next[idx]]
     onChange(next)
   }
