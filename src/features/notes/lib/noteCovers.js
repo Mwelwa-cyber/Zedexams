@@ -35,6 +35,14 @@ const GRADE7_SOCIAL_STUDIES = {
   '1.5': '/notes/covers/g7-ss-1-5-cover.webp', // The Constitution
   '2.1': '/notes/covers/g7-ss-2-1-cover.webp', // The Continents
   '3.1': '/notes/covers/g7-ss-3-1-cover.webp', // Population Growth
+  '3.2': '/notes/covers/g7-ss-3-2-cover.webp', // Corruption
+  '3.3': '/notes/covers/g7-ss-3-3-cover.webp', // Food Shortages
+  '3.4': '/notes/covers/g7-ss-3-4-cover.webp', // HIV and AIDS
+  '3.5': '/notes/covers/g7-ss-3-5-cover.webp', // Pollution
+  '4.2': '/notes/covers/g7-ss-4-2-cover.webp', // Parents and Children
+  '5.1': '/notes/covers/g7-ss-5-1-cover.webp', // The Prairies
+  '5.2': '/notes/covers/g7-ss-5-2-cover.webp', // The Pampas
+  '5.3': '/notes/covers/g7-ss-5-3-cover.webp', // The Downs
 }
 
 // Registry of curated cover sets, keyed by "<grade>|<subject>". Matched on the
