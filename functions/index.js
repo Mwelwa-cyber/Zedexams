@@ -143,6 +143,9 @@ const {
 } = require("./teacherTools/cbcKnowledge");
 // Vex — Quiz Verifier runner (synchronous, not part of the agentJobs pipeline).
 const {runVex} = require("./agents/runners/vex");
+// Learner "AI Summary + Key Points" for a note — generated once per note and
+// cached in noteInsights/{noteId}.
+const {runNoteInsights} = require("./noteInsights");
 // Daily Exam auto-picker — promotes one short-quiz per grade into the
 // day's Daily Exam slot every morning so the admin no longer has to
 // click "Daily Exam" by hand for routine rotation.
@@ -1137,6 +1140,41 @@ exports.explainAnswer = onCall(
     });
 
     return {explanation};
+  },
+);
+
+// Learner-facing "AI Summary + Key Points" for a published note. Cached per
+// note (noteInsights/{noteId}), so a cache hit costs nothing and the daily
+// limit only bites on first-generation spam. Any signed-in user may call it;
+// the runner enforces that the note is published.
+exports.generateNoteInsights = onCall(
+  {
+    secrets: [anthropicApiKey],
+    region: "us-central1",
+    timeoutSeconds: 45,
+    memory: "256MiB",
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Please sign in first.");
+    }
+    recordAppCheckCallable(request, "generateNoteInsights");
+
+    const noteId = cleanAiString(request.data?.noteId, 80);
+    if (!noteId) {
+      throw new HttpsError("invalid-argument", "A note id is required.");
+    }
+
+    const role = await getUserRole(request.auth.uid);
+    await assertDailyLimit(request.auth.uid, role, "noteInsights");
+
+    return await runNoteInsights({
+      noteId,
+      uid: request.auth.uid,
+      apiKey: getAnthropicApiKey(anthropicApiKey),
+    });
   },
 );
 

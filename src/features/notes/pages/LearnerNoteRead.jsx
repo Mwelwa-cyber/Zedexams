@@ -9,7 +9,7 @@
 // if a learner lands here with a slide-based id we redirect to the
 // lessons viewer instead of showing a fallback message.
 
-import { useNavigate, useParams, Navigate } from 'react-router-dom'
+import { useNavigate, useParams, Navigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Calendar, Download, FileType, Loader2 } from '../../../components/ui/icons'
 
 import { useNote }            from '../hooks/useNote'
@@ -20,6 +20,7 @@ import { sanitizeNoteHTML }   from '../../../editor/utils/sanitize.js'
 import { SlideNotesReader }   from '../components/SlideNotesReader'
 import { StudyNoteReader }    from '../components/StudyNoteReader'
 import { ReaderControls }     from '../components/ReaderControls'
+import { NoteInsights }       from '../components/NoteInsights'
 import { coerceStudyBlocks }  from '../lib/studySchema'
 import SeoHelmet              from '../../../components/seo/SeoHelmet'
 import '../styles/notes.css'
@@ -40,6 +41,8 @@ const subjectStyle = (subject) =>
 export function LearnerNoteRead() {
   const { id } = useParams()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const wantsInsights = searchParams.get('insights') === '1'
   const { note, loading, error } = useNote(id)
 
   // Records opened / scroll-% / completed for the signed-in learner. No-ops
@@ -125,6 +128,10 @@ export function LearnerNoteRead() {
           )}
 
           <hr className="my-8 border-0 border-t-2 border-dashed border-[#D8D0BC]" />
+
+          {note.noteFormat !== NOTE_FORMAT.FILE && (
+            <NoteInsights noteId={id} autoOpen={wantsInsights} />
+          )}
 
           {note.noteFormat === NOTE_FORMAT.FILE ? (
             <FileDownload note={note} />
