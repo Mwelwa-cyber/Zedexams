@@ -3220,34 +3220,23 @@ body.theme-midnight .learner-game-theme .theme-bg-subtle {
   color: #64748b;
 }
 
-/* ── Learner dashboard hero banner ───────────────────────────────────────
-   The welcome card carries the learner's themed hero gradient (orange on the
-   default theme). The character art sits on the right as a large background
-   illustration; a left-to-right "wash" repaints that same gradient over the
-   text column so the white copy stays readable, then fades out to let the art
-   blend into the card rather than look pasted on top. Theme-aware: the wash
-   reads var(--hero-gradient), so it tracks whatever palette the learner picks. */
-.zx-hero-banner.zx-card,
-.learner-game-theme .zx-hero-banner.zx-card {
-  /* Soften the game-style hard near-black sticker edge to a thin, soft border
-     with a gentle drop shadow. */
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  box-shadow: 0 18px 40px -24px rgba(15, 23, 42, 0.45);
-}
-.learner-game-theme .zx-hero-banner.zx-card:hover {
-  box-shadow: 0 22px 48px -26px rgba(15, 23, 42, 0.5);
-}
-
+/* ── Learner dashboard welcome card art ──────────────────────────────────
+   The welcome/hero card keeps its existing themed background and border
+   untouched. The character art is enlarged into a background-style
+   illustration anchored to the card's bottom-right; the text and buttons stay
+   above it via z-index. The optional wash repaints the card's *own*
+   var(--hero-gradient) over the text column so the copy stays readable and the
+   art blends in — no fixed colours are introduced, so every theme is honoured. */
 .zx-hero-bg {
   position: absolute;
-  right: -6px;
+  right: -8px;
   bottom: 0;
-  width: 52%;
+  width: 54%;
   height: 100%;
   object-fit: contain;
   object-position: bottom right;
-  opacity: 0.9;
-  z-index: 0;
+  opacity: 0.85;
+  z-index: 1;
   pointer-events: none;
   user-select: none;
   -webkit-user-select: none;
@@ -3256,7 +3245,7 @@ body.theme-midnight .learner-game-theme .theme-bg-subtle {
 .zx-hero-wash {
   position: absolute;
   inset: 0;
-  z-index: 1;
+  z-index: 2;
   pointer-events: none;
   background: var(--hero-gradient);
   -webkit-mask-image: linear-gradient(
@@ -3275,42 +3264,29 @@ body.theme-midnight .learner-game-theme .theme-bg-subtle {
   );
 }
 
-/* Data-saver paints a flat accent fill instead of the gradient, so match the
-   wash to that solid colour for a seamless left column. */
-body.data-saver .zx-hero-wash {
-  background: var(--accent);
-}
-
 @media (max-width: 640px) {
-  /* On small phones the art slides further right and sits behind the text at a
-     lower opacity, and the wash holds its solid column wider so the copy keeps
-     the most contrast. */
+  /* Very small screens: keep the art large but nudge it further right and drop
+     the opacity a touch so it never fights the copy. Stays within ~45-55%. */
   .zx-hero-bg {
-    width: 62%;
-    right: -18px;
-    opacity: 0.7;
+    width: 50%;
+    right: -16px;
+    opacity: 0.78;
   }
   .zx-hero-wash {
     -webkit-mask-image: linear-gradient(
       90deg,
       #000 0%,
-      #000 48%,
-      rgba(0, 0, 0, 0.7) 68%,
+      #000 46%,
+      rgba(0, 0, 0, 0.6) 64%,
       transparent 100%
     );
     mask-image: linear-gradient(
       90deg,
       #000 0%,
-      #000 48%,
-      rgba(0, 0, 0, 0.7) 68%,
+      #000 46%,
+      rgba(0, 0, 0, 0.6) 64%,
       transparent 100%
     );
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .zx-hero-bg {
-    transition: opacity 200ms ease;
   }
 }
 

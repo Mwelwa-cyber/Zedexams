@@ -1164,7 +1164,7 @@ export default function GradeHub() {
 
         {/* ── HERO / WELCOME BANNER ───────────────────────────── */}
         <section
-          className={`zx-card zx-hero-banner relative overflow-hidden rounded-3xl ${
+          className={`zx-card relative overflow-hidden rounded-3xl ${
             dataSaver
               ? 'theme-accent-fill p-5'
               : 'theme-hero p-5 sm:p-6'
@@ -1196,7 +1196,7 @@ export default function GradeHub() {
             </>
           )}
 
-          <div className="relative z-10 max-w-[62%] min-w-0 sm:max-w-[56%]">
+          <div className="relative z-10 max-w-[58%] min-w-0">
             <p className="mb-1.5 text-eyebrow text-white/75" style={{ color: 'rgba(255,255,255,0.75)' }}>
               Welcome back
             </p>
