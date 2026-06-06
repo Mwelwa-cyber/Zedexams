@@ -43,6 +43,13 @@ const GRADE7_SOCIAL_STUDIES = {
   '5.1': '/notes/covers/g7-ss-5-1-cover.webp', // The Prairies
   '5.2': '/notes/covers/g7-ss-5-2-cover.webp', // The Pampas
   '5.3': '/notes/covers/g7-ss-5-3-cover.webp', // The Downs
+  '5.4': '/notes/covers/g7-ss-5-4-cover.webp', // The Steppes
+  '5.5': '/notes/covers/g7-ss-5-5-cover.webp', // The Veld
+  '6.1': '/notes/covers/g7-ss-6-1-cover.webp', // Building Africa Together
+  '6.2': '/notes/covers/g7-ss-6-2-cover.webp', // Transport Systems
+  '6.3': '/notes/covers/g7-ss-6-3-cover.webp', // Communication Systems
+  '6.4': '/notes/covers/g7-ss-6-4-cover.webp', // Road Safety (the Bicycle)
+  '6.5': '/notes/covers/g7-ss-6-5-cover.webp', // Safe Cycling
 }
 
 // Registry of curated cover sets, keyed by "<grade>|<subject>". Matched on the
