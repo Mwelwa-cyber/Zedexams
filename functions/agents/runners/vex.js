@@ -195,6 +195,36 @@ function walkTiptapNode(node, out) {
     out.push("\n");
     return;
   }
+  // Editor leaf nodes carry their value in `attrs`, not a child text node.
+  // Without these a maths option (e.g. ½ stored as a mathFraction) flattens
+  // to "" and the structural checks below raise a FALSE "empty option"
+  // blocker, wrongly blocking a valid maths quiz from publishing. Kept in
+  // sync with src/editor/richPlainText.js#extractFromNode.
+  if (type === "math" || type === "inlineMath" || type === "mathBlock" || type === "mathInline") {
+    const latex = node.attrs?.latex || node.attrs?.["data-latex"] || "";
+    if (latex) out.push(`${latex} `);
+    return;
+  }
+  if (type === "mathFraction") {
+    const w = node.attrs?.whole || "";
+    const n = node.attrs?.num || "";
+    const d = node.attrs?.den || "";
+    out.push(`${w ? `${w} ` : ""}${n}/${d}`.trim() + " ");
+    return;
+  }
+  if (type === "numberBase") {
+    const n = node.attrs?.number || "";
+    const b = node.attrs?.base || "";
+    out.push(b ? `${n}_${b} ` : `${n} `);
+    return;
+  }
+  if (type === "verticalArithmetic") {
+    const op = node.attrs?.operator || "+";
+    const lines = Array.isArray(node.attrs?.lines) ? node.attrs.lines : [];
+    const ans = node.attrs?.answer || "";
+    out.push(`\n${lines.join(` ${op} `)} = ${ans || "___"}\n`);
+    return;
+  }
   const isBlock = type === "paragraph" || type === "heading" ||
     type === "blockquote" || type === "bulletList" ||
     type === "orderedList" || type === "listItem" || type === "codeBlock";
