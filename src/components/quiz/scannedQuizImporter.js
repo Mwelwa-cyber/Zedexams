@@ -105,7 +105,14 @@ export function chunkPages(pages = [], size = SCANNED_BATCH_SIZE, overlap = SCAN
 function questionKey(q) {
   const stem = String(q?.text || '').trim().toLowerCase()
   const opts = (Array.isArray(q?.options) ? q.options : []).join('|').toLowerCase()
-  return `${stem}::${opts}`
+  // When the vision model returns a printed question number, two questions with
+  // different numbers are by definition distinct — even when OCR drift makes
+  // their stems or options look identical (common in math papers where many
+  // questions share the same small numeric option set like "1|2|3|4").
+  // Without this, Q11 and Q21 both rendered as "3 × 8 = ?" with options
+  // "24|28|32|36" collapse to one question and are silently dropped.
+  const num = Number.isFinite(q?.sourceQuestionNumber) ? `#${q.sourceQuestionNumber}` : ''
+  return `${num}${stem}::${opts}`
 }
 
 function passageKey(section) {
@@ -137,7 +144,14 @@ export function mergeSectionBatches(batchResults = []) {
     const kept = []
     list.forEach(q => {
       const stem = String(q?.text || '').trim()
-      if (!stem) return
+      const hasNumber = Number.isFinite(q?.sourceQuestionNumber) && q.sourceQuestionNumber > 0
+      // A question with no text AND no printed number carries nothing the teacher
+      // can act on — skip it. A question whose OCR returned an empty stem but
+      // that still carries a printed question number (common for diagram/equation-
+      // only math questions) must be kept so no numbered question is silently
+      // dropped; it will be flagged requiresReview so the teacher can fill in
+      // the wording.
+      if (!stem && !hasNumber) return
       const key = questionKey(q)
       if (seenQuestions.has(key)) return
       seenQuestions.add(key)
@@ -217,8 +231,18 @@ function mapVisionQuestion(q, order, options, deps) {
   const usedAssetIds = options.usedAssetIds
 
   const opts = (Array.isArray(q?.options) ? q.options : []).map(opt => toOption(String(opt ?? '')))
+  const rawStem = String(q?.text ?? '').trim()
+  const stemHtml = toRichPreservingBreaks(rawStem, toRich)
+  // An empty stem means the OCR couldn't read this question (diagram/equation-
+  // only question, or poor scan quality). Keep the question so the teacher can
+  // type the wording; add a specific review note so the gap is obvious.
+  const reviewNotes = ['Imported from a scanned paper — set the correct answer and check the wording.']
+  if (!rawStem) {
+    reviewNotes.push('Question text could not be read from the scan — please type the question here.')
+  }
+
   const overrides = {
-    text: toRichPreservingBreaks(q?.text, toRich),
+    text: stemHtml,
     sharedInstruction: q?.sharedInstruction ? toRichPreservingBreaks(q.sharedInstruction, toRich) : '',
     options: opts.length ? opts : ['', '', '', ''],
     correctAnswer: '', // blank — teacher fills in
@@ -228,7 +252,7 @@ function mapVisionQuestion(q, order, options, deps) {
     marks: 1,
     order,
     requiresReview: true,
-    reviewNotes: ['Imported from a scanned paper — set the correct answer and check the wording.'],
+    reviewNotes,
     sourceQuestionNumber: Number.isFinite(q?.sourceQuestionNumber) ? q.sourceQuestionNumber : order + 1,
     sourcePage: q?.sourcePage ?? null,
   }
