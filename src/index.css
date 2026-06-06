@@ -3220,6 +3220,76 @@ body.theme-midnight .learner-game-theme .theme-bg-subtle {
   color: #64748b;
 }
 
+/* ── Learner dashboard welcome card art ──────────────────────────────────
+   The welcome/hero card keeps its existing themed background and border
+   untouched. The character art is enlarged into a background-style
+   illustration anchored to the card's bottom-right; the text and buttons stay
+   above it via z-index. The optional wash repaints the card's *own*
+   var(--hero-gradient) over the text column so the copy stays readable and the
+   art blends in — no fixed colours are introduced, so every theme is honoured. */
+.zx-hero-bg {
+  position: absolute;
+  right: -8px;
+  bottom: 0;
+  width: 54%;
+  height: 100%;
+  object-fit: contain;
+  object-position: bottom right;
+  opacity: 0.85;
+  z-index: 1;
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.zx-hero-wash {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: var(--hero-gradient);
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    #000 0%,
+    #000 40%,
+    rgba(0, 0, 0, 0.55) 60%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    90deg,
+    #000 0%,
+    #000 40%,
+    rgba(0, 0, 0, 0.55) 60%,
+    transparent 100%
+  );
+}
+
+@media (max-width: 640px) {
+  /* Very small screens: keep the art large but nudge it further right and drop
+     the opacity a touch so it never fights the copy. Stays within ~45-55%. */
+  .zx-hero-bg {
+    width: 50%;
+    right: -16px;
+    opacity: 0.78;
+  }
+  .zx-hero-wash {
+    -webkit-mask-image: linear-gradient(
+      90deg,
+      #000 0%,
+      #000 46%,
+      rgba(0, 0, 0, 0.6) 64%,
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      90deg,
+      #000 0%,
+      #000 46%,
+      rgba(0, 0, 0, 0.6) 64%,
+      transparent 100%
+    );
+  }
+}
+
 body.theme-lavender .learner-page-heading {
   color: #312e81;
 }
