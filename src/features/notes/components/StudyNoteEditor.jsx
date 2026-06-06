@@ -6,8 +6,9 @@
 // array, every edit calls `onChange(nextBlocks)`. Stable block ids are used as
 // React keys so inputs keep focus across the parent's re-render.
 //
-// Image blocks upload through Firebase Storage (reusing uploadInlineImage, the
-// same path NoteEditor uses), so docs stay small — only the URL is stored.
+// Image blocks — and the optional picture on a 'picture' block — upload through
+// Firebase Storage (reusing uploadInlineImage, the same path NoteEditor uses),
+// so docs stay small — only the URL is stored.
 
 import { useRef, useState } from 'react'
 import { ImageIcon, Loader2, Trash2, ChevronUp, ChevronDown } from '../../../components/ui/icons'
@@ -32,7 +33,11 @@ function Field({ label, hint, children }) {
   )
 }
 
-function ImageBlockFields({ block, patch, ownerUid, assetBatchId }) {
+// Shared "upload an image to Firebase Storage and store its url on the block"
+// control. Used by the 'image' block and the optional picture on a 'picture'
+// block. Uploads are disabled until the note is saved (it needs ownerUid +
+// assetBatchId to scope the Storage path).
+function ImageUploadField({ block, patch, ownerUid, assetBatchId, label = 'Picture', hint }) {
   const fileRef = useRef(null)
   const [uploading, setUploading] = useState(false)
   const [err, setErr] = useState(null)
@@ -55,7 +60,7 @@ function ImageBlockFields({ block, patch, ownerUid, assetBatchId }) {
 
   return (
     <div className="space-y-2">
-      <Field label="Picture" hint={canUpload ? 'Upload your own diagram or photo. Only the image URL is stored on the note.' : 'Save the note first to enable image uploads.'}>
+      <Field label={label} hint={canUpload ? hint : 'Save the note first to enable image uploads.'}>
         <div className="flex items-center gap-2">
           <button
             type="button"
@@ -74,6 +79,17 @@ function ImageBlockFields({ block, patch, ownerUid, assetBatchId }) {
         <input ref={fileRef} type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden onChange={onPick} />
       </Field>
       {block.url && <img src={block.url} alt="" className="max-h-44 rounded-lg border border-neutral-200" />}
+    </div>
+  )
+}
+
+function ImageBlockFields({ block, patch, ownerUid, assetBatchId }) {
+  return (
+    <div className="space-y-2">
+      <ImageUploadField
+        block={block} patch={patch} ownerUid={ownerUid} assetBatchId={assetBatchId}
+        hint="Upload your own diagram or photo. Only the image URL is stored on the note."
+      />
       <Field label="Caption">
         <input className={inputCls} value={block.caption || ''} onChange={e => patch({ caption: e.target.value })} />
       </Field>
@@ -192,10 +208,14 @@ function BlockFields({ block, patch, ownerUid, assetBatchId, subject, grade }) {
   if (t === 'picture') {
     return (
       <div className="space-y-2">
+        <ImageUploadField
+          block={block} patch={patch} ownerUid={ownerUid} assetBatchId={assetBatchId}
+          hint="Upload a real picture for this spot. If you leave it empty, the description below is shown as a placeholder instead."
+        />
         <Field label="Caption (what the picture shows)">
           <input className={inputCls} value={block.caption || ''} onChange={e => patch({ caption: e.target.value })} />
         </Field>
-        <Field label="Description — one line each">
+        <Field label="Description — one line each" hint="Shown only when no picture is uploaded.">
           <textarea className={textareaCls} rows={3} value={(block.lines || []).join('\n')}
             onChange={e => patch({ lines: linesFrom(e.target.value) })} />
         </Field>
