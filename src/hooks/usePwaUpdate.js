@@ -10,7 +10,7 @@ import { isNativePlatform } from '../utils/runtime'
  *   - update():     trigger the swap (skipWaiting + reload).
  *   - dismiss():    hide the prompt for this session — useful if the user
  *                   is mid-task and doesn't want to lose state. The next
- *                   firing of onNeedRefresh (e.g. on next deploy) will
+ *                   SW_RELOAD_REQUEST message (e.g. on next deploy) will
  *                   re-show.
  *
  * Skipped entirely on native (Capacitor): the wrapper bundles assets at
@@ -19,6 +19,22 @@ import { isNativePlatform } from '../utils/runtime'
  * The dynamic import means the virtual:pwa-register module isn't loaded
  * inside the Capacitor wrapper at all — keeps the bundle a hair smaller
  * and avoids a console warning when the virtual module errors out.
+ *
+ * Update detection strategy:
+ *   1. A 30-minute poll via setInterval ensures a long-open tab finds a
+ *      new build without the user touching anything.
+ *   2. A visibilitychange listener re-checks when the user switches away
+ *      from the tab and back (covers the "reopened PWA" case).
+ *   3. sw-reload-clients.js posts SW_RELOAD_REQUEST when a new SW
+ *      activates; we surface the "New version available" prompt so the
+ *      user can reload at a safe moment.
+ *
+ * The focus event is intentionally NOT used as an update trigger. Opening
+ * an OS file picker (e.g. during document import) fires focus/blur on the
+ * browser window; if the update check found a waiting SW at that moment it
+ * would activate + reload the page mid-import, destroying the operation.
+ * The visibilitychange + 30-min timer are sufficient for freshness without
+ * that risk.
  */
 export function usePwaUpdate() {
   const [updateReady, setUpdateReady] = useState(false)
@@ -29,12 +45,15 @@ export function usePwaUpdate() {
     if (isNativePlatform()) return
     let cancelled = false
     // Proactive update plumbing — torn down on unmount. With autoUpdate the
-    // plugin activates + reloads on its own once a new SW is found; these only
-    // make sure a long-open / idle tab *finds* the new SW promptly instead of
+    // plugin activates on its own once a new SW is found; these only make
+    // sure a long-open / idle tab *finds* the new SW promptly instead of
     // waiting for a fresh navigation (browsers otherwise auto-check ~daily).
     let pollId = null
     let onVisible = null
-    let onFocus = null
+    // Handle SW_RELOAD_REQUEST from sw-reload-clients.js. The SW posts this
+    // when a new build activates so the page can reload at a safe moment
+    // rather than being hard-navigated mid-operation.
+    let onSwMessage = null
     import('virtual:pwa-register')
       .then(({ registerSW }) => {
         if (cancelled) return
@@ -51,15 +70,35 @@ export function usePwaUpdate() {
             // registration is undefined if the browser refused to register.
             if (cancelled || !registration) return
             const check = () => { registration.update().catch(() => {}) }
-            // Re-check on a timer so a tab left open for hours still picks up
-            // a deploy without the user touching anything.
+            // Re-check on a 30-minute timer so a tab left open for hours
+            // still picks up a deploy without the user touching anything.
             pollId = setInterval(check, 30 * 60 * 1000)
-            // And the instant the tab regains focus, so coming back to an
-            // already-open app after a deploy lands the new build right away.
+            // And when the tab becomes visible again after being hidden
+            // (user switched away and came back). This covers the main
+            // "reopened PWA / returned to idle tab" case without the risk
+            // of firing during file-picker open/close cycles.
+            // NOTE: the focus event is deliberately NOT used — it fires
+            // when an OS file picker closes and returns control to the
+            // browser window. Triggering a SW update check at that moment
+            // can cause an in-progress document import to be interrupted
+            // by a page reload if a new SW was found and activated.
             onVisible = () => { if (document.visibilityState === 'visible') check() }
-            onFocus = check
             document.addEventListener('visibilitychange', onVisible)
-            window.addEventListener('focus', onFocus)
+
+            // Listen for SW_RELOAD_REQUEST from sw-reload-clients.js so
+            // the page can show "New version available" and reload when
+            // no long-running operation is in flight.
+            if (navigator.serviceWorker) {
+              onSwMessage = (event) => {
+                if (cancelled) return
+                if (event.data?.type === 'SW_RELOAD_REQUEST') {
+                  console.info('[pwa] SW requested reload — surfacing update prompt')
+                  setUpdateReady(true)
+                  setDismissed(false)
+                }
+              }
+              navigator.serviceWorker.addEventListener('message', onSwMessage)
+            }
           },
           onRegisterError(err) {
             console.warn('[pwa] SW registration failed:', err)
@@ -86,7 +125,9 @@ export function usePwaUpdate() {
       cancelled = true
       if (pollId) clearInterval(pollId)
       if (onVisible) document.removeEventListener('visibilitychange', onVisible)
-      if (onFocus) window.removeEventListener('focus', onFocus)
+      if (onSwMessage && navigator.serviceWorker) {
+        navigator.serviceWorker.removeEventListener('message', onSwMessage)
+      }
     }
   }, [])
 
