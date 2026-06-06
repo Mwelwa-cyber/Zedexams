@@ -5,6 +5,14 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-06-06
+
+### Added
+- Admin panel now shows actionable agent alignment status and controls. (#583)
+
+### Fixed
+- Cala agent alignment system now properly tracks and enforces behavioral constraints. (#583)
+
 ## 2026-05-24
 
 ### Added
