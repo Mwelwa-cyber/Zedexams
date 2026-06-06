@@ -1670,16 +1670,19 @@ select option {
   .marketing-rank-bars i:nth-child(3) { height: 4.8rem; }
 
   @media (max-width: 860px) {
+    /* Mobile stacks the hero text full-width, so a horizontal (left-dark)
+       gradient can't separate text from art. Use a vertical wash instead:
+       dark at the top to keep the heading legible, lighter toward the bottom
+       so the illustration reads through. */
     .marketing-hero::after {
       background:
-        linear-gradient(90deg, rgba(15,27,45,0.94) 0%, rgba(15,27,45,0.78) 64%, rgba(15,27,45,0.46) 100%),
-        linear-gradient(0deg, rgba(15,27,45,0.40), transparent 36%);
+        linear-gradient(180deg, rgba(15,27,45,0.88) 0%, rgba(15,27,45,0.62) 42%, rgba(15,27,45,0.34) 100%);
     }
     .marketing-hero-art {
-      right: -10rem;
-      bottom: -1.5rem;
-      width: 720px;
-      opacity: 0.34;
+      right: -3rem;
+      bottom: -1rem;
+      width: min(82vw, 480px);
+      opacity: 0.6;
     }
     .marketing-proof-grid {
       grid-template-columns: 1fr;
