@@ -12,6 +12,7 @@
 const GRADE7_INTEGRATED_SCIENCE = {
   '1.1': '/notes/covers/g7-sci-1-1-cover.webp', // The Digestive System
   '2.1': '/notes/covers/g7-sci-2-1-cover.webp', // Diseases
+  '2.2': '/notes/covers/g7-sci-2-2-cover.webp', // Fruits
   '3.1': '/notes/covers/g7-sci-3-1-cover.webp', // Separating Substances
   '3.2': '/notes/covers/g7-sci-3-2-cover.webp', // Water Supply Systems
   '4.1': '/notes/covers/g7-sci-4-1-cover.webp', // The Flower
@@ -21,6 +22,10 @@ const GRADE7_INTEGRATED_SCIENCE = {
   '4.5': '/notes/covers/g7-sci-4-5-cover.webp', // Propagation
   '5.1': '/notes/covers/g7-sci-5-1-cover.webp', // Energy
   '5.2': '/notes/covers/g7-sci-5-2-cover.webp', // Electric Current and Circuits
+  '5.3': '/notes/covers/g7-sci-5-3-cover.webp', // Lightning
+  '5.4': '/notes/covers/g7-sci-5-4-cover.webp', // The Solar System
+  '5.5': '/notes/covers/g7-sci-5-5-cover.webp', // Metals and Non-metals
+  '5.6': '/notes/covers/g7-sci-5-6-cover.webp', // Mining
 }
 
 // Registry of curated cover sets, keyed by "<grade>|<subject>".
