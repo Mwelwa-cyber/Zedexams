@@ -65,4 +65,26 @@ test("an empty rich-text option is still blocked", () => {
   assert.ok(blockers.some((b) => /empty option/i.test(b.message)));
 });
 
+test("maths options (fractions) do NOT block publishing", () => {
+  // Regression: a fraction option (½) is a leaf node carrying its value in
+  // `attrs`, with no child text node. The walker read only `node.text`, so it
+  // flattened to "" and a valid maths quiz was BLOCKED with a false "empty
+  // option" blocker. Mirrors src/editor/richPlainText.js.
+  const frac = (num, den) =>
+    `{"type":"doc","content":[{"type":"paragraph","content":[{"type":"mathFraction","attrs":{"num":"${num}","den":"${den}"}}]}]}`;
+  const blockers = runStructuralChecks([
+    {type: "mcq", text: "Which fraction is the largest?", options: [frac(1, 2), frac(1, 3), frac(1, 4), frac(3, 4)], correctAnswer: 3},
+  ]);
+  assert.strictEqual(blockers.length, 0, JSON.stringify(blockers));
+});
+
+test("number-base and inline-maths options do NOT block publishing", () => {
+  const numberBase = (n, b) =>
+    `{"type":"doc","content":[{"type":"paragraph","content":[{"type":"numberBase","attrs":{"number":"${n}","base":"${b}"}}]}]}`;
+  const blockers = runStructuralChecks([
+    {type: "mcq", text: "Which equals 5 in base 10?", options: [numberBase(101, 2), numberBase(12, 3), numberBase(11, 2)], correctAnswer: 0},
+  ]);
+  assert.strictEqual(blockers.length, 0, JSON.stringify(blockers));
+});
+
 console.log(`\n✓ vex.test.js — ${passed} checks passed`);
