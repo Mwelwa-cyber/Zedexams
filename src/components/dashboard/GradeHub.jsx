@@ -916,7 +916,7 @@ export default function GradeHub() {
       : null,
     stats.streak >= 2
       ? {
-          id: `streak:${stats.streak}`,
+          id: 'streak',
           icon: FireIcon,
           title: `${stats.streak}-day learning streak`,
           body: 'Keep practising daily to protect your streak and unlock more badges.',
