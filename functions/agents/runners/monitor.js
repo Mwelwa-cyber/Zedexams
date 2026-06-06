@@ -48,7 +48,18 @@ async function fetchWithTimeout(url, opts = {}) {
   }
 }
 
-/** Flatten a TipTap doc (or plain string) to its text content. */
+/**
+ * Flatten a TipTap doc (or plain string) to its text content.
+ *
+ * Mirrors the canonical, DOM-free extractor in src/editor/richPlainText.js so
+ * Vigil agrees with what a learner actually sees. Crucially it must resolve the
+ * editor's *non-text* leaf nodes — fractions, number bases, vertical
+ * arithmetic, inline maths — to their readable value. Those nodes carry their
+ * content in `attrs`, not in a child `text` node, so a naive walker that only
+ * reads `node.text` flattens a maths option (e.g. ½ stored as a `mathFraction`)
+ * to "" and Vigil then falsely reports it as an empty/duplicate option. On a
+ * maths-heavy CBC platform that mislabels most maths quizzes every run.
+ */
 function extractPlainText(node) {
   if (!node) return "";
   if (typeof node === "string") {
@@ -70,6 +81,30 @@ function extractPlainText(node) {
   }
   if (Array.isArray(node)) return node.map(extractPlainText).join(" ");
   if (typeof node === "object") {
+    const type = node.type;
+    const attrs = node.attrs || {};
+    // Editor leaf nodes whose value lives in attrs, not in a child text node.
+    // Kept in sync with src/editor/richPlainText.js#extractFromNode.
+    if (type === "math" || type === "inlineMath" || type === "mathBlock" || type === "mathInline") {
+      return attrs.latex || attrs["data-latex"] || "";
+    }
+    if (type === "mathFraction") {
+      const w = attrs.whole || "";
+      const n = attrs.num || "";
+      const d = attrs.den || "";
+      return `${w ? `${w} ` : ""}${n}/${d}`.trim();
+    }
+    if (type === "numberBase") {
+      const n = attrs.number || "";
+      const b = attrs.base || "";
+      return b ? `${n}_${b}` : n;
+    }
+    if (type === "verticalArithmetic") {
+      const op = attrs.operator || "+";
+      const lines = Array.isArray(attrs.lines) ? attrs.lines : [];
+      const ans = attrs.answer || "";
+      return `${lines.join(` ${op} `)} = ${ans || "___"}`;
+    }
     let s = typeof node.text === "string" ? node.text : "";
     if (node.content) s += " " + extractPlainText(node.content);
     return s;
