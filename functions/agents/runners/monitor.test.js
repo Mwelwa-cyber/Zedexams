@@ -52,6 +52,42 @@ test("extractPlainText flattens an EMPTY JSON-encoded TipTap doc to nothing", ()
   assert.strictEqual(extractPlainText(emptyDoc).trim(), "");
 });
 
+test("extractPlainText resolves a mathFraction node to its value", () => {
+  // Regression: a fraction option (½) is stored as a leaf node carrying its
+  // value in `attrs`, with no child text node. The old walker read only
+  // `node.text`, flattening it to "" — so Vigil reported every maths option as
+  // an empty option. Mirrors src/editor/richPlainText.js.
+  const half = {type: "doc", content: [{type: "paragraph", content: [{type: "mathFraction", attrs: {num: "1", den: "2"}}]}]};
+  assert.strictEqual(extractPlainText(half).trim(), "1/2");
+});
+
+test("extractPlainText resolves numberBase and verticalArithmetic nodes", () => {
+  const base = {type: "doc", content: [{type: "paragraph", content: [{type: "numberBase", attrs: {number: "101", base: "2"}}]}]};
+  assert.strictEqual(extractPlainText(base).trim(), "101_2");
+  const vmath = {type: "doc", content: [{type: "paragraph", content: [{type: "verticalArithmetic", attrs: {operator: "+", lines: ["12", "34"], answer: "46"}}]}]};
+  assert.ok(extractPlainText(vmath).includes("12 + 34 = 46"));
+});
+
+test("a maths MCQ with fraction options is NOT flagged as empty/duplicate", () => {
+  // The user-reported false positive: maths quizzes whose options are distinct
+  // fractions were reported as "has an empty option" because each fraction node
+  // flattened to "". Now they flatten to distinct readable values.
+  const frac = (num, den) =>
+    `{"type":"doc","content":[{"type":"paragraph","content":[{"type":"mathFraction","attrs":{"num":"${num}","den":"${den}"}}]}]}`;
+  const problems = runStructuralChecks([
+    {type: "mcq", text: "Which fraction is the largest?", options: [frac(1, 2), frac(1, 3), frac(1, 4), frac(3, 4)], correctAnswer: 3},
+  ]);
+  assert.strictEqual(problems.length, 0, JSON.stringify(problems));
+});
+
+test("a fraction-only question stem is NOT flagged as missing text", () => {
+  const stem = "{\"type\":\"doc\",\"content\":[{\"type\":\"paragraph\",\"content\":[{\"type\":\"mathFraction\",\"attrs\":{\"num\":\"3\",\"den\":\"5\"}}]}]}";
+  const problems = runStructuralChecks([
+    {type: "mcq", text: stem, options: ["a", "b"], correctAnswer: 0},
+  ]);
+  assert.ok(!problems.some((p) => p.field === "text"), JSON.stringify(problems));
+});
+
 // ── runStructuralChecks ──────────────────────────────────────────────
 test("a well-formed MCQ produces no problems", () => {
   const problems = runStructuralChecks([
