@@ -1164,40 +1164,46 @@ export default function GradeHub() {
 
         {/* ── HERO / WELCOME BANNER ───────────────────────────── */}
         <section
-          className={`zx-card relative overflow-hidden rounded-3xl ${
+          className={`zx-card zx-hero-banner relative overflow-hidden rounded-3xl ${
             dataSaver
               ? 'theme-accent-fill p-5'
               : 'theme-hero p-5 sm:p-6'
           }`}
           data-bg-gradient={!dataSaver ? 'true' : undefined}
         >
+          {/* Large character art blended into the hero as a background layer.
+              Skipped in data-saver so the image never downloads on metered
+              connections. The wash re-paints the themed gradient over the text
+              column for contrast, then fades out so the art melts into the
+              card on the right instead of looking pasted on top. */}
           {!dataSaver && (
             <>
-              <FloatingStar style={{ top: '12%', left: '6%',  fontSize: 18, animationDelay: '0s'  }} />
-              <FloatingStar style={{ top: '65%', left: '2%',  fontSize: 12, animationDelay: '1s'  }} />
-              <FloatingStar style={{ top: '25%', left: '45%', fontSize: 10, animationDelay: '2s'  }} />
-              <FloatingStar style={{ top: '80%', left: '52%', fontSize: 8,  animationDelay: '0.5s'}} />
+              <img
+                src={DASHBOARD_CHARACTERS.hero.src}
+                alt=""
+                aria-hidden="true"
+                width={DASHBOARD_CHARACTERS.hero.width}
+                height={DASHBOARD_CHARACTERS.hero.height}
+                loading="eager"
+                decoding="async"
+                className="zx-hero-bg"
+              />
+              <div className="zx-hero-wash" aria-hidden="true" />
+              <FloatingStar style={{ top: '12%', left: '6%',  fontSize: 18, animationDelay: '0s',   zIndex: 2 }} />
+              <FloatingStar style={{ top: '65%', left: '2%',  fontSize: 12, animationDelay: '1s',   zIndex: 2 }} />
+              <FloatingStar style={{ top: '25%', left: '45%', fontSize: 10, animationDelay: '2s',   zIndex: 2 }} />
+              <FloatingStar style={{ top: '80%', left: '52%', fontSize: 8,  animationDelay: '0.5s', zIndex: 2 }} />
             </>
           )}
 
-          <div className="relative">
-            <DashboardCharacter
-              image={DASHBOARD_CHARACTERS.hero}
-              alt="Zed and Zara reading together"
-              variant="hero"
-              loading="eager"
-              className="absolute -top-1 right-0 z-0 max-w-[42%] sm:max-w-[40%]"
-            />
+          <div className="relative z-10 max-w-[62%] min-w-0 sm:max-w-[56%]">
+            <p className="mb-1.5 text-eyebrow text-white/75" style={{ color: 'rgba(255,255,255,0.75)' }}>
+              Welcome back
+            </p>
+            <h1 className="text-display-xl text-white">{firstName}!</h1>
+            <p className="theme-hero-muted mt-1 text-body-sm italic">Practise smart with ZedExams.</p>
 
-            <div className="relative z-10 max-w-[58%] min-w-0 sm:max-w-[60%]">
-              <p className="mb-1.5 text-eyebrow text-white/75" style={{ color: 'rgba(255,255,255,0.75)' }}>
-                Welcome back
-              </p>
-              <h1 className="text-display-xl text-white">{firstName}!</h1>
-              <p className="theme-hero-muted mt-1 text-body-sm italic">Practise smart with ZedExams.</p>
-            </div>
-
-            <div className="relative z-10 mt-3 flex flex-wrap items-center gap-4">
+            <div className="mt-3 flex flex-wrap items-center gap-4">
               <div>
                 <p className="text-xl font-black leading-none text-white">{stats.quizzes}</p>
                 <p className="theme-hero-muted text-xs font-bold">Quizzes</p>
@@ -1215,7 +1221,7 @@ export default function GradeHub() {
               )}
             </div>
 
-            <div className="relative z-10 mt-3 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               <Link
                 to="/quizzes"
                 className="flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs font-black theme-accent-text transition-colors hover:bg-white"
@@ -1232,7 +1238,7 @@ export default function GradeHub() {
               </Link>
             </div>
 
-            <div className="relative z-10 mt-3 flex flex-wrap items-center gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               {userProfile?.grade && (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/20 px-2.5 py-1 text-xs font-black text-white">
                   <Icon as={BookOpen} size="xs" strokeWidth={2.1} />
