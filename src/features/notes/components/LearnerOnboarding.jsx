@@ -34,23 +34,23 @@ export function LearnerOnboarding({ user, onDone }) {
   }
 
   return (
-    <div className="notes-studio min-h-screen flex items-center justify-center px-5 py-10" style={{ backgroundColor: '#FAFAF7' }}>
+    <div className="notes-studio min-h-screen flex items-center justify-center px-5 py-10" style={{ backgroundColor: '#F5EFE1' }}>
       <div className="max-w-md w-full">
         <div className="text-center mb-8">
-          <div className="w-12 h-12 rounded-2xl mx-auto mb-4 flex items-center justify-center" style={{ backgroundColor: '#059669' }}>
+          <div className="w-12 h-12 rounded-2xl mx-auto mb-4 flex items-center justify-center border-2 border-[#0F1B2D]" style={{ backgroundColor: '#FF7A1A', boxShadow: '0 2px 0 #0F1B2D' }}>
             <BookOpen size={20} className="text-white" strokeWidth={2.5} />
           </div>
-          <div className="text-xs tracking-[0.2em] uppercase text-neutral-500 mb-2">Welcome to ZedExams Notes</div>
-          <h1 className="font-display text-4xl tracking-tight text-neutral-900 mb-3">
+          <div className="text-[10.5px] font-extrabold tracking-[0.16em] uppercase text-[#053541] mb-2">Welcome to ZedExams Notes</div>
+          <h1 className="font-display text-4xl tracking-tight text-[#0F1B2D] mb-3">
             Hi {firstName(user)}, <span className="font-display-italic">pick your grade</span>
           </h1>
-          <p className="text-sm text-neutral-600 max-w-sm mx-auto">
+          <p className="text-sm text-[#4A5A6E] max-w-sm mx-auto">
             We'll show you only the notes for your grade. You can change this later from your profile.
           </p>
         </div>
 
-        <div className="bg-white rounded-2xl border border-neutral-200 p-5">
-          <div className="text-[10px] tracking-[0.15em] uppercase text-neutral-500 mb-3 inline-flex items-center gap-1.5">
+        <div className="notes-card p-5">
+          <div className="text-[10px] tracking-[0.15em] uppercase text-[#4A5A6E] mb-3 inline-flex items-center gap-1.5">
             <GraduationCap size={12} /> Active grades · {BAND_LABELS.primary}
           </div>
           <div className="grid grid-cols-2 gap-2 mb-5">
@@ -64,7 +64,7 @@ export function LearnerOnboarding({ user, onDone }) {
             ))}
           </div>
 
-          <div className="text-[10px] tracking-[0.15em] uppercase text-neutral-500 mb-3 inline-flex items-center gap-1.5">
+          <div className="text-[10px] tracking-[0.15em] uppercase text-[#4A5A6E] mb-3 inline-flex items-center gap-1.5">
             <Lock size={12} /> Coming soon · {BAND_LABELS.junior_secondary} & {BAND_LABELS.senior_secondary}
           </div>
           <div className="grid grid-cols-3 gap-2 mb-2">
@@ -87,8 +87,8 @@ export function LearnerOnboarding({ user, onDone }) {
         <button
           onClick={handleSubmit}
           disabled={!grade || busy}
-          className="w-full mt-5 py-3 rounded-full text-white text-sm font-medium transition hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
-          style={{ backgroundColor: '#0a0a0a' }}
+          className="notes-chip notes-chip-shadow w-full mt-5 py-3 rounded-xl text-white text-sm font-bold transition enabled:hover:-translate-y-px disabled:opacity-40 disabled:cursor-not-allowed inline-flex items-center justify-center gap-2"
+          style={{ backgroundColor: '#0F1B2D' }}
         >
           {busy ? (
             <><Loader2 size={15} className="animate-spin" /> Saving…</>
@@ -97,7 +97,7 @@ export function LearnerOnboarding({ user, onDone }) {
           )}
         </button>
 
-        <p className="text-xs text-neutral-400 text-center mt-4">
+        <p className="text-xs text-[#4A5A6E] text-center mt-4">
           Signed in as {user?.email}
         </p>
       </div>
@@ -114,7 +114,7 @@ function GradeButton({ grade, selected, disabled, onClick }) {
         aria-disabled="true"
         aria-label={`Grade ${grade} — coming soon`}
         title="Coming soon"
-        className="text-center py-3 rounded-lg border border-dashed border-neutral-200 text-neutral-400 cursor-not-allowed"
+        className="text-center py-3 rounded-xl border-2 border-dashed border-[#D8D0BC] text-[#4A5A6E]/70 cursor-not-allowed"
       >
         <div className="text-[10px] uppercase tracking-wider">Grade</div>
         <div className="font-display text-2xl">{grade}</div>
@@ -126,10 +126,10 @@ function GradeButton({ grade, selected, disabled, onClick }) {
       type="button"
       onClick={onClick}
       aria-pressed={selected}
-      className={`text-center py-3 rounded-lg border transition ${
+      className={`notes-chip text-center py-3 rounded-xl ${
         selected
-          ? 'border-neutral-900 bg-neutral-900 text-white shadow-sm'
-          : 'border-neutral-200 text-neutral-700 hover:border-neutral-400'
+          ? 'bg-[#0F1B2D] text-white notes-chip-shadow'
+          : 'bg-white text-[#0F1B2D] hover:-translate-y-px hover:notes-chip-shadow'
       }`}
     >
       <div className={`text-[10px] uppercase tracking-wider ${selected ? 'opacity-80' : 'opacity-60'}`}>Grade</div>

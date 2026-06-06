@@ -52,11 +52,11 @@ export function ReaderControls({ blocks, title }) {
   }
 
   return (
-    <div className="sticky top-0 z-10 -mx-4 sm:-mx-5 px-4 sm:px-5 py-2 mb-5 bg-[#FAFAF7]/90 backdrop-blur border-b border-neutral-100">
-      <div className="h-1 rounded-full bg-neutral-200 overflow-hidden">
-        <div className="h-full bg-[var(--accent)] transition-[width] duration-150" style={{ width: `${pct}%` }} />
+    <div className="sticky top-0 z-10 -mx-4 sm:-mx-5 px-4 sm:px-5 py-2 mb-5 bg-[#F5EFE1]/90 backdrop-blur border-b-2 border-[#0F1B2D]">
+      <div className="h-1.5 rounded-full bg-white border border-[#0F1B2D] overflow-hidden">
+        <div className="h-full bg-[#FF7A1A] transition-[width] duration-150" style={{ width: `${pct}%` }} />
       </div>
-      <div className="flex items-center gap-2 mt-2 text-xs font-medium text-neutral-500">
+      <div className="flex items-center gap-2 mt-2 text-xs font-medium text-[#4A5A6E]">
         <span>⏱ {minutes} min read</span>
         <span className="text-neutral-300">•</span>
         <span>{pct}% read</span>
@@ -65,8 +65,8 @@ export function ReaderControls({ blocks, title }) {
           <button
             type="button"
             onClick={toggleSpeak}
-            className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-semibold transition ${
-              speaking ? 'bg-[var(--accent)] text-white' : 'bg-neutral-900 text-white hover:opacity-90'
+            className={`notes-chip notes-chip-shadow inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-semibold transition ${
+              speaking ? 'bg-[#FF7A1A] text-white' : 'bg-[#0F1B2D] text-white hover:-translate-y-px'
             }`}
           >
             {speaking ? '⏹ Stop' : '🔊 Listen'}
