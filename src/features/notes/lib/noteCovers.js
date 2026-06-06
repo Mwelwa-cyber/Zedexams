@@ -30,15 +30,19 @@ const GRADE7_INTEGRATED_SCIENCE = {
 
 const GRADE7_SOCIAL_STUDIES = {
   '1.1': '/notes/covers/g7-ss-1-1-cover.webp', // What is Democracy?
+  '1.2': '/notes/covers/g7-ss-1-2-cover.webp', // How Government Works
   '1.3': '/notes/covers/g7-ss-1-3-cover.webp', // What Government Does
   '1.4': '/notes/covers/g7-ss-1-4-cover.webp', // Government Ministries
   '1.5': '/notes/covers/g7-ss-1-5-cover.webp', // The Constitution
   '2.1': '/notes/covers/g7-ss-2-1-cover.webp', // The Continents
+  '2.2': '/notes/covers/g7-ss-2-2-cover.webp', // Physical Features of the World
   '3.1': '/notes/covers/g7-ss-3-1-cover.webp', // Population Growth
   '3.2': '/notes/covers/g7-ss-3-2-cover.webp', // Corruption
   '3.3': '/notes/covers/g7-ss-3-3-cover.webp', // Food Shortages
   '3.4': '/notes/covers/g7-ss-3-4-cover.webp', // HIV and AIDS
   '3.5': '/notes/covers/g7-ss-3-5-cover.webp', // Pollution
+  '3.6': '/notes/covers/g7-ss-3-6-cover.webp', // Other World Challenges
+  '4.1': '/notes/covers/g7-ss-4-1-cover.webp', // Family Ties
   '4.2': '/notes/covers/g7-ss-4-2-cover.webp', // Parents and Children
   '5.1': '/notes/covers/g7-ss-5-1-cover.webp', // The Prairies
   '5.2': '/notes/covers/g7-ss-5-2-cover.webp', // The Pampas
