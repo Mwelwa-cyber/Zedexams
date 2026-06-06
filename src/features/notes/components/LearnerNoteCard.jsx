@@ -111,6 +111,16 @@ export function LearnerNoteCard({ note, onClick, progress }) {
         {/* Actions */}
         <div className="mt-auto pt-3 flex items-center gap-2">
           <PrimaryAction status={status} onClick={open} />
+          {!isFile && (
+            <button
+              type="button"
+              onClick={() => navigate(`/notes/${note.id}?insights=1`)}
+              className="inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl border-2 border-[#0F1B2D] text-[#0F1B2D] bg-white hover:-translate-y-px transition shrink-0"
+              title="AI summary & key points"
+            >
+              <Sparkles size={13} /> AI Summary
+            </button>
+          )}
           {quiz && (
             <button
               type="button"

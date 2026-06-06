@@ -838,6 +838,16 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ── noteInsights (AI Summary + Key Points, one doc per note) ──────
+    // Generated + cached server-side by the generateNoteInsights callable
+    // (admin SDK bypasses these rules). Readable by any signed-in user —
+    // the content is a study aid for an already-published note, not private
+    // data. Clients never write these directly.
+    match /noteInsights/{noteId} {
+      allow read:   if isAuthed();
+      allow write:  if false;
+    }
+
     // ── shares (public read-only snapshots of teacher generations) ─
     // Teachers publish a plan to the web via a share button. The doc is
     // keyed by a random token (doc ID = token) and contains a snapshot
