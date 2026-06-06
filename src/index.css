@@ -3223,19 +3223,22 @@ body.theme-midnight .learner-game-theme .theme-bg-subtle {
 /* ── Learner dashboard welcome card art ──────────────────────────────────
    The welcome/hero card keeps its existing themed background and border
    untouched. The character art is enlarged into a background-style
-   illustration anchored to the card's bottom-right; the text and buttons stay
-   above it via z-index. The optional wash repaints the card's *own*
-   var(--hero-gradient) over the text column so the copy stays readable and the
-   art blends in — no fixed colours are introduced, so every theme is honoured. */
+   illustration that fills the right side and sits vertically centred (nudged
+   up a touch), not glued to the bottom. The text and buttons stay above it via
+   z-index. The wash repaints the card's *own* var(--hero-gradient) over the
+   text column so the copy stays readable and the art blends in — no fixed
+   colours are introduced, so every theme is honoured. */
 .zx-hero-bg {
   position: absolute;
-  right: -8px;
-  bottom: 0;
-  width: 54%;
-  height: 100%;
+  right: -18px;
+  top: 48%;
+  transform: translateY(-50%);
+  width: 62%;
+  max-width: 360px;
+  height: auto;
   object-fit: contain;
-  object-position: bottom right;
-  opacity: 0.85;
+  object-position: center right;
+  opacity: 0.9;
   z-index: 1;
   pointer-events: none;
   user-select: none;
@@ -3265,12 +3268,15 @@ body.theme-midnight .learner-game-theme .theme-bg-subtle {
 }
 
 @media (max-width: 640px) {
-  /* Very small screens: keep the art large but nudge it further right and drop
-     the opacity a touch so it never fights the copy. Stays within ~45-55%. */
+  /* Phones: keep the art large (within ~58-65%) and high, nudged a little
+     further right so it never sits on the copy. Slightly lower opacity for
+     readability. */
   .zx-hero-bg {
-    width: 50%;
-    right: -16px;
-    opacity: 0.78;
+    width: 64%;
+    max-width: 300px;
+    right: -22px;
+    top: 46%;
+    opacity: 0.85;
   }
   .zx-hero-wash {
     -webkit-mask-image: linear-gradient(

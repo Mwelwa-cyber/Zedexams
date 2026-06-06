@@ -1196,7 +1196,7 @@ export default function GradeHub() {
             </>
           )}
 
-          <div className="relative z-10 max-w-[58%] min-w-0">
+          <div className="relative z-10 max-w-[64%] min-w-0 sm:max-w-[58%]">
             <p className="mb-1.5 text-eyebrow text-white/75" style={{ color: 'rgba(255,255,255,0.75)' }}>
               Welcome back
             </p>
