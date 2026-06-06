@@ -23,7 +23,7 @@ const exists = async (p) => {
   try { await access(p); return true } catch { return false }
 }
 
-const { NOTE_COVER_REGISTRY, resolveNoteCover } = await import(
+const { NOTE_COVER_REGISTRY, NOTE_COVER_BY_TITLE, resolveNoteCover } = await import(
   path.join(REPO_ROOT, 'src/features/notes/lib/noteCovers.js')
 )
 
@@ -71,7 +71,25 @@ for (const [key, set] of Object.entries(NOTE_COVER_REGISTRY)) {
   }
 }
 
-// 5. A note without a registered cover resolves to '' (graceful text-only card).
+// 5. Title-matched covers (un-coded authored notes, e.g. provinces). These
+//    notes aren't in the committed seed, so we only guard the image file +
+//    that the resolver returns the path for a note with that exact title.
+const seenTitleFiles = new Set()
+for (const [title, urlPath] of Object.entries(NOTE_COVER_BY_TITLE)) {
+  assert(title === title.trim().toLowerCase().replace(/\s+/g, ' '),
+    `title key must be normalised (trim/lower/single-spaced): "${title}"`)
+  assert(urlPath.startsWith('/notes/covers/'), `title cover "${title}" must live under /notes/covers/: ${urlPath}`)
+  assert(!seenTitleFiles.has(urlPath), `duplicate title cover file: ${urlPath}`)
+  seenTitleFiles.add(urlPath)
+  const filePath = path.join(REPO_ROOT, 'public', urlPath.replace(/^\//, ''))
+  assert(await exists(filePath), `missing title cover image file: public${urlPath}`)
+  // Resolves regardless of grade/subject, and is case/space-insensitive.
+  assert(resolveNoteCover({ title: `  ${title.toUpperCase()}  ` }) === urlPath,
+    `resolveNoteCover by title "${title}" did not return "${urlPath}"`)
+  checked++
+}
+
+// 6. A note without a registered cover resolves to '' (graceful text-only card).
 assert(
   resolveNoteCover({ grade: '7', subject: 'Integrated Science', title: '9.9 Nonexistent' }) === '',
   'unregistered note should resolve to an empty cover',
