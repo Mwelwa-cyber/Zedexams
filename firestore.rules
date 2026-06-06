@@ -804,6 +804,40 @@ service cloud.firestore {
       allow delete:         if isAdmin();
     }
 
+    // ── noteProgress (per-learner reading progress for /notes) ────────
+    // One doc per learner+note, id `{uid}_{noteId}`. The learner records
+    // their own opened / %-read / completed state from the reader; the
+    // notes library reads it back to show Resume / Completed states and the
+    // "Notes progress" summary. Owner-only (the `uid` field is pinned to the
+    // caller); admin may read for support, only the server-side cleanup
+    // (admin) may delete.
+    //
+    // Document shape:
+    //   { uid, noteId, grade?, subject?, title?,
+    //     status: 'not-started'|'in-progress'|'completed',
+    //     percent: 0..100, startedAt?, lastOpenedAt?, completedAt?, updatedAt }
+    function validNoteProgressFields() {
+      return (!('uid' in incoming())     || (incoming().uid is string && incoming().uid.size() <= 64))
+        && (!('noteId' in incoming())    || (incoming().noteId is string && incoming().noteId.size() <= 64))
+        && (!('grade' in incoming())     || incoming().grade == null   || (incoming().grade is string && incoming().grade.size() <= 8))
+        && (!('subject' in incoming())   || incoming().subject == null || (incoming().subject is string && incoming().subject.size() <= 80))
+        && (!('title' in incoming())     || incoming().title == null   || (incoming().title is string && incoming().title.size() <= 300))
+        && (!('status' in incoming())    || (incoming().status is string && incoming().status in ['not-started', 'in-progress', 'completed']))
+        && (!('percent' in incoming())   || (incoming().percent is number && incoming().percent >= 0 && incoming().percent <= 100));
+    }
+    match /noteProgress/{progressId} {
+      allow read:   if isAuthed() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create: if isAuthed()
+                    && incoming().uid == request.auth.uid
+                    && incoming().keys().hasAll(['uid', 'noteId'])
+                    && validNoteProgressFields();
+      allow update: if isAuthed()
+                    && resource.data.uid == request.auth.uid
+                    && incoming().uid == request.auth.uid
+                    && validNoteProgressFields();
+      allow delete: if isAdmin();
+    }
+
     // ── shares (public read-only snapshots of teacher generations) ─
     // Teachers publish a plan to the web via a share button. The doc is
     // keyed by a random token (doc ID = token) and contains a snapshot

@@ -14,6 +14,8 @@ import { useNavigate } from 'react-router-dom'
 import { Search, Lock, BookOpen } from '../../../components/ui/icons'
 import { useLearnerProfile }   from '../hooks/useLearnerProfile'
 import { useLearnerNotes }     from '../hooks/useLearnerNotes'
+import { useNoteProgressMap }  from '../hooks/useNoteProgressMap'
+import { NOTE_PROGRESS_STATUS } from '../lib/progress'
 import { LearnerNoteCard }     from '../components/LearnerNoteCard'
 import { getSubjectsForGrade } from '../../../config/curriculum'
 import SeoHelmet               from '../../../components/seo/SeoHelmet'
@@ -29,6 +31,13 @@ export function LearnerNotesList() {
 
   const { notes, allNotes, countsBySubject, loading } =
     useLearnerNotes({ grade, subject: activeSubject, search })
+
+  const { progressById } = useNoteProgressMap()
+
+  const completedCount = useMemo(
+    () => allNotes.filter(n => progressById[n.id]?.status === NOTE_PROGRESS_STATUS.COMPLETED).length,
+    [allNotes, progressById],
+  )
 
   const subjects = useMemo(() => getSubjectsForGrade(grade), [grade])
   const firstName = user?.displayName?.split(' ')[0] || 'there'
@@ -60,7 +69,7 @@ export function LearnerNotesList() {
             </p>
           </div>
           {allNotes.length > 0 && (
-            <NotesProgressPanel total={allNotes.length} completed={0} />
+            <NotesProgressPanel total={allNotes.length} completed={completedCount} />
           )}
         </div>
 
@@ -111,6 +120,7 @@ export function LearnerNotesList() {
                     <LearnerNoteCard
                       key={note.id}
                       note={note}
+                      progress={progressById[note.id]}
                       onClick={() => navigate(`/notes/${note.id}`)}
                     />
                   ))}
