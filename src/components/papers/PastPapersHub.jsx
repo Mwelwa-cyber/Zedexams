@@ -213,8 +213,8 @@ function PaperCard({ paper, saved, onToggleSave, onOpen, featured = false }) {
     <article
       className={`theme-card rounded-radius-md p-4 flex flex-col gap-3 transition-shadow ${
         featured
-          ? 'border-2 border-orange-300 shadow-elev-md'
-          : 'border theme-border shadow-elev-sm hover:shadow-elev-md'
+          ? 'border-2 border-orange-400 shadow-elev-md'
+          : 'border-2 theme-border shadow-elev-sm hover:shadow-elev-md'
       }`}
     >
       <div className="flex items-start gap-3">
@@ -273,7 +273,7 @@ function PaperCard({ paper, saved, onToggleSave, onOpen, featured = false }) {
 function YearGroup({ year, papers, open, onToggle, savedIds, onToggleSave, onOpen }) {
   const quizzes = papers.filter((p) => p.quizId).length
   return (
-    <section className="theme-card border theme-border rounded-radius-md shadow-elev-sm overflow-hidden">
+    <section className="theme-card border-2 theme-border rounded-radius-md shadow-elev-sm overflow-hidden">
       <button
         type="button"
         onClick={onToggle}
@@ -511,7 +511,7 @@ export default function PastPapersHub() {
   }
 
   return (
-    <div className="min-h-screen theme-bg pb-24">
+    <div className="admin-game-theme min-h-screen theme-bg theme-text pb-24">
       <SeoHelmet
         title="ECZ Past Papers — Grade 7 & Grade 12 archive"
         description="Browse the official ECZ past-paper archive — Grade 7 and Grade 12 papers across every CBC subject. Sign in to download papers and take linked quizzes."
@@ -616,7 +616,7 @@ export default function PastPapersHub() {
 
         {/* 5 — Filter panel */}
         {showFilters && (
-          <div className="mt-4 theme-card border theme-border rounded-radius-md p-4 shadow-elev-sm space-y-4">
+          <div className="mt-4 theme-card border-2 theme-border rounded-radius-md p-4 shadow-elev-sm space-y-4">
             <div className="space-y-2">
               <p className="text-[11px] font-black theme-text-muted uppercase tracking-widest">Grade</p>
               <div className="flex flex-wrap gap-2">
@@ -757,7 +757,7 @@ export default function PastPapersHub() {
               </div>
 
               {grouped.length === 0 ? (
-                <div className="theme-card border theme-border rounded-radius-md p-8 text-center shadow-elev-sm">
+                <div className="theme-card border-2 theme-border rounded-radius-md p-8 text-center shadow-elev-sm">
                   <div className="mx-auto w-12 h-12 rounded-2xl theme-bg-subtle grid place-items-center mb-3">
                     <Search size={24} strokeWidth={2} className="theme-text-muted" />
                   </div>
