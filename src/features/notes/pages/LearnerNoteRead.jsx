@@ -13,6 +13,7 @@ import { useNavigate, useParams, Navigate } from 'react-router-dom'
 import { ArrowLeft, Calendar, Download, FileType, Loader2 } from '../../../components/ui/icons'
 
 import { useNote }            from '../hooks/useNote'
+import { useRecordNoteProgress } from '../hooks/useRecordNoteProgress'
 import { NOTE_FORMAT }        from '../../../config/curriculum'
 import { formatDate }         from '../lib/format'
 import { sanitizeNoteHTML }   from '../../../editor/utils/sanitize.js'
@@ -40,6 +41,10 @@ export function LearnerNoteRead() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { note, loading, error } = useNote(id)
+
+  // Records opened / scroll-% / completed for the signed-in learner. No-ops
+  // until the note has loaded; ignores legacy slide docs (they redirect away).
+  useRecordNoteProgress(note?.noteFormat ? note : null)
 
   if (loading) {
     return (
