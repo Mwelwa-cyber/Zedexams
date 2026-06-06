@@ -28,9 +28,19 @@ const GRADE7_INTEGRATED_SCIENCE = {
   '5.6': '/notes/covers/g7-sci-5-6-cover.webp', // Mining
 }
 
+const GRADE7_SOCIAL_STUDIES = {
+  '1.1': '/notes/covers/g7-ss-1-1-cover.webp', // What is Democracy?
+  '1.3': '/notes/covers/g7-ss-1-3-cover.webp', // What Government Does
+  '1.4': '/notes/covers/g7-ss-1-4-cover.webp', // Government Ministries
+  '1.5': '/notes/covers/g7-ss-1-5-cover.webp', // The Constitution
+  '2.1': '/notes/covers/g7-ss-2-1-cover.webp', // The Continents
+  '3.1': '/notes/covers/g7-ss-3-1-cover.webp', // Population Growth
+}
+
 // Registry of curated cover sets, keyed by "<grade>|<subject>".
 export const NOTE_COVER_REGISTRY = {
   '7|Integrated Science': GRADE7_INTEGRATED_SCIENCE,
+  '7|Social Studies': GRADE7_SOCIAL_STUDIES,
 }
 
 // The "1.1" / "4.3" unit code at the start of a note title.

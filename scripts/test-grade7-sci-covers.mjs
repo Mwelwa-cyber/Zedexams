@@ -77,7 +77,7 @@ assert(
   'unregistered note should resolve to an empty cover',
 )
 assert(
-  resolveNoteCover({ grade: '7', subject: 'Social Studies', title: '1.1 What is Democracy?' }) === '',
+  resolveNoteCover({ grade: '7', subject: 'Mathematics', title: '1.1 Whole Numbers' }) === '',
   'subjects without a cover set should resolve to an empty cover',
 )
 assert(resolveNoteCover(null) === '', 'resolveNoteCover(null) should be safe and return ""')
