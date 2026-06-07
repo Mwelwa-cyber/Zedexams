@@ -55,4 +55,34 @@ function parseHighlights(raw) {
   return { highlights, warnings }
 }
 
-module.exports = { buildHighlightMessages, parseHighlights, HIGHLIGHTABLE, MAX_PER_BLOCK }
+function buildSummaryMessages({ blocks }) {
+  const items = (blocks || [])
+    .filter(b => b && b.id && (b.type === 'heading' || HIGHLIGHTABLE.has(b.type)))
+    .map(b => ({ id: b.id, type: b.type, level: b.level, text: blockText(b) }))
+  const system = `You write a short summary for each SECTION of a study note.
+A section starts at a level-2 heading (type "heading", level 2) and includes the blocks under it until the next level-2 heading.
+- For each level-2 heading, write a 1-2 sentence plain-English TL;DR (max ~40 words) of what that section teaches — what a learner would read before the section.
+- Key each summary by the EXACT id of its level-2 heading block. Do NOT summarize level-3 sub-headings.
+- Use clear Zambian-English. Output ONLY JSON: { "summaries": { "<exact level-2 heading id>": "summary" }, "warnings": ["..."] }.`
+  const user = `Blocks (JSON):\n${JSON.stringify(items).slice(0, 50000)}`
+  return [{ role: 'system', content: system }, { role: 'user', content: user }]
+}
+
+function parseSummaries(raw) {
+  const text = stripFences(raw)
+  let data
+  try { data = JSON.parse(text) } catch {
+    const span = text.match(/\{[\s\S]*\}/)
+    if (!span) throw new Error('Could not parse a summaries JSON object.')
+    data = JSON.parse(span[0])
+  }
+  const src = data && typeof data.summaries === 'object' && data.summaries ? data.summaries : {}
+  const summaries = {}
+  for (const [id, s] of Object.entries(src)) {
+    if (typeof s === 'string' && s.trim().length >= 8) summaries[id] = s.trim()
+  }
+  const warnings = Array.isArray(data?.warnings) ? data.warnings.filter(w => typeof w === 'string') : []
+  return { summaries, warnings }
+}
+
+module.exports = { buildHighlightMessages, parseHighlights, buildSummaryMessages, parseSummaries, HIGHLIGHTABLE, MAX_PER_BLOCK }
