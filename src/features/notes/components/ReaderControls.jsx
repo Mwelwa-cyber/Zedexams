@@ -8,7 +8,7 @@
 import { useEffect, useState } from 'react'
 import { studyReadingTime, studySpeechText } from '../lib/studyBlocks'
 
-export function ReaderControls({ blocks, title }) {
+export function ReaderControls({ blocks, title, highlightsOn, onToggleHighlights, hasHighlights }) {
   const [pct, setPct] = useState(0)
   const [speaking, setSpeaking] = useState(false)
   const minutes = studyReadingTime(blocks)
@@ -61,6 +61,17 @@ export function ReaderControls({ blocks, title }) {
         <span className="text-neutral-300">•</span>
         <span>{pct}% read</span>
         <span className="flex-1" />
+        {hasHighlights && (
+          <button
+            type="button"
+            onClick={onToggleHighlights}
+            className={`notes-chip notes-chip-shadow inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 font-semibold transition ${
+              highlightsOn ? 'bg-[#FF7A1A] text-white' : 'bg-white text-[#0F1B2D]'
+            }`}
+          >
+            ✦ Highlights {highlightsOn ? 'on' : 'off'}
+          </button>
+        )}
         {canSpeak && (
           <button
             type="button"
