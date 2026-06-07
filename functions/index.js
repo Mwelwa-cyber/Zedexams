@@ -148,6 +148,8 @@ const {runVex} = require("./agents/runners/vex");
 const {runNoteInsights} = require("./noteInsights");
 // Staff-only AI auto-highlights for a study note — cached in noteSmart/{noteId}.
 const {runGenerateNoteSmart} = require("./noteSmart");
+// Notes document import — AI structuring (text → study blocks) and OCR (scanned pages → text).
+const {runNoteImport, runNoteOcr} = require("./noteImport");
 // Daily Exam auto-picker — promotes one short-quiz per grade into the
 // day's Daily Exam slot every morning so the admin no longer has to
 // click "Daily Exam" by hand for routine rotation.
@@ -1644,6 +1646,92 @@ exports.structureScannedQuiz = onCall(
       gradeHint: cleanAiString(request.data?.gradeHint, 20),
       anthropicKey: getAnthropicApiKey(anthropicApiKey),
       geminiKey: geminiApiKey.value() || process.env.GEMINI_API_KEY || "",
+      uid: request.auth.uid,
+    });
+  },
+);
+
+// Notes document import — converts raw document text into structured `study`
+// note blocks via Claude. Staff-only, app-check enforced, daily-capped.
+exports.structureImportedNote = onCall(
+  {
+    secrets: [anthropicApiKey],
+    region: "us-central1",
+    timeoutSeconds: 120,
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Please sign in first.");
+    }
+    recordAppCheckCallable(request, "structureImportedNote");
+    const role = await getUserRole(request.auth.uid);
+    if (!isStaffRole(role)) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only teachers and admins can import notes.",
+      );
+    }
+    const fileName = cleanAiString(request.data?.fileName, LIMITS.importFileName);
+    const documentText = cleanAiString(
+      request.data?.documentText,
+      LIMITS.importDocumentText,
+    );
+    if (!documentText || documentText.length < 80) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Not enough document text was available to build a note.",
+      );
+    }
+    await assertDailyLimit(request.auth.uid, role, "importNote");
+    return runNoteImport({
+      documentText,
+      fileName,
+      apiKey: getAnthropicApiKey(anthropicApiKey),
+      uid: request.auth.uid,
+    });
+  },
+);
+
+// Notes scanned-PDF OCR — client batches rendered page images here; each call
+// returns a plain-text transcription that the structureImportedNote callable
+// then converts into study blocks. Staff-only, app-check enforced, daily-capped.
+exports.ocrNotePages = onCall(
+  {
+    secrets: [anthropicApiKey],
+    region: "us-central1",
+    timeoutSeconds: 240,
+    memory: "1GiB",
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Please sign in first.");
+    }
+    recordAppCheckCallable(request, "ocrNotePages");
+    const role = await getUserRole(request.auth.uid);
+    if (!isStaffRole(role)) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only teachers and admins can import notes.",
+      );
+    }
+    const pages = Array.isArray(request.data?.pages) ? request.data.pages : [];
+    if (!pages.length) {
+      throw new HttpsError("invalid-argument", "No page images were supplied.");
+    }
+    if (pages.length > 8) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Too many pages in one OCR call (max 8).",
+      );
+    }
+    await assertDailyLimit(request.auth.uid, role, "importNote");
+    return runNoteOcr({
+      pages,
+      apiKey: getAnthropicApiKey(anthropicApiKey),
       uid: request.auth.uid,
     });
   },

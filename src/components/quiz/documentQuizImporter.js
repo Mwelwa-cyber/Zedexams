@@ -314,7 +314,7 @@ function tableRows(table, relationships, zipEntries, warnings) {
     }))
 }
 
-async function extractDocx(file) {
+export async function extractDocx(file) {
   const warnings = []
   const buffer = await file.arrayBuffer()
   const zipEntries = unzipSync(new Uint8Array(buffer))
@@ -439,7 +439,7 @@ function textContentToLineRecords(textContent) {
     .filter(row => row.text)
 }
 
-async function renderPdfPageSnapshot(page, pageNumber, warnings) {
+export async function renderPdfPageSnapshot(page, pageNumber, warnings) {
   try {
     const baseViewport = page.getViewport({ scale: 1 })
     const scale = Math.min(1.8, 1100 / baseViewport.width)
@@ -701,7 +701,7 @@ function pickFigureForLineY(figures, lineY, consumed) {
 // Load a PDF once and hand back both the document and the pdfjs module so
 // callers can reuse them (scanned-detection + extraction) without decoding
 // the file twice.
-async function loadPdfDocument(file) {
+export async function loadPdfDocument(file) {
   const buffer = await file.arrayBuffer()
   const pdfjsLib = await loadPdfjs()
   const pdf = await pdfjsLib.getDocument({ data: buffer }).promise
@@ -727,7 +727,7 @@ async function detectScannedPdf(pdf) {
   return { sampledPages, sampledChars, scanned: isLikelyScannedPdf({ sampledChars, sampledPages }) }
 }
 
-async function extractPdf(file, preloaded = null) {
+export async function extractPdf(file, preloaded = null) {
   const warnings = [
     'PDF import extracts text and attaches per-figure crops (or full-page snapshots when figures cannot be isolated) to diagram-style questions. Review cropping before publishing.',
   ]

@@ -9,6 +9,8 @@ const explainAnswerCallable = httpsCallable(functions, 'explainAnswer')
 const generateQuizCallable = httpsCallable(functions, 'generateQuizQuestions')
 const structureImportedQuizCallable = httpsCallable(functions, 'structureImportedQuiz')
 const structureScannedQuizCallable = httpsCallable(functions, 'structureScannedQuiz')
+const structureImportedNoteCallable = httpsCallable(functions, 'structureImportedNote')
+const ocrNotePagesCallable = httpsCallable(functions, 'ocrNotePages')
 const suggestQuizAnswersCallable = httpsCallable(functions, 'suggestQuizAnswers')
 const editQuizQuestionCallable = httpsCallable(functions, 'editQuizQuestion')
 // Client timeouts are intentionally a bit longer than the matching Cloud
@@ -466,6 +468,43 @@ export async function structureScannedQuiz(payload) {
       detectedCount: Number(data.detectedCount) || 0,
       extractedCount: Number(data.extractedCount) || 0,
     }
+  } catch (error) {
+    throw new Error(messageFromError(error))
+  }
+}
+
+// Note document import — text-based (pasted text, DOCX, text-PDF). `payload`
+// contains { documentText, fileName }. Returns { blocks, warnings } where
+// blocks is the AI-structured study note content (validated by the caller via
+// coerceStudyBlocks) and warnings is a human-readable list of caveats.
+export async function structureImportedNote(payload) {
+  try {
+    const response = await withTimeout(
+      structureImportedNoteCallable(payload),
+      AI_IMPORT_TIMEOUT_MS,
+      'Note import is taking too long. Please try again.',
+    )
+    return {
+      blocks: Array.isArray(response.data?.blocks) ? response.data.blocks : [],
+      warnings: Array.isArray(response.data?.warnings) ? response.data.warnings : [],
+    }
+  } catch (error) {
+    throw new Error(messageFromError(error))
+  }
+}
+
+// Note OCR — one batch of scanned PDF page snapshots ({ pageNumber, dataUrl }).
+// The caller batches a long document and calls this once per batch, then
+// concatenates the returned text before passing it to structureImportedNote.
+// Returns { text } — the raw OCR transcript for this batch.
+export async function ocrNotePages(payload) {
+  try {
+    const response = await withTimeout(
+      ocrNotePagesCallable(payload),
+      AI_SCANNED_IMPORT_TIMEOUT_MS,
+      'OCR is taking too long. Please try a smaller file or try again.',
+    )
+    return { text: String(response.data?.text || '') }
   } catch (error) {
     throw new Error(messageFromError(error))
   }
