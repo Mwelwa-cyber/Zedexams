@@ -5,7 +5,7 @@
 
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Plus, Sparkles } from '../../../components/ui/icons'
+import { Plus, Sparkles, Upload } from '../../../components/ui/icons'
 import { useAdminNotes } from '../hooks/useAdminNotes'
 import { NoteFilters } from '../components/NoteFilters'
 import { NoteCard } from '../components/NoteCard'
@@ -44,6 +44,12 @@ export function AdminNotesList() {
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-white text-sm font-medium transition hover:scale-[1.02] active:scale-[0.98] shadow-sm bg-violet-600"
             >
               <Sparkles size={16} /> Generate visual notes
+            </button>
+            <button
+              onClick={() => navigate('/admin/lessons/import')}
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-full text-white text-sm font-medium transition hover:scale-[1.02] active:scale-[0.98] shadow-sm bg-emerald-700"
+            >
+              <Upload size={16} /> Import document
             </button>
             <button
               onClick={() => navigate('/admin/lessons/new')}
