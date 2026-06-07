@@ -16,7 +16,10 @@ export async function fetchNoteSmart(noteId) {
   const snap = await getDoc(doc(db, 'noteSmart', noteId))
   if (!snap.exists()) return null
   const d = snap.data()
-  return { highlights: d?.highlights && typeof d.highlights === 'object' ? d.highlights : {} }
+  return {
+    highlights: d?.highlights && typeof d.highlights === 'object' ? d.highlights : {},
+    sections: Array.isArray(d?.sections) ? d.sections : [],
+  }
 }
 
 /** Admin-only: (re)generate highlights for a note. */
