@@ -121,7 +121,7 @@ function QuizCard({ block }) {
   )
 }
 
-function Block({ block }) {
+function Block({ block, anchorId }) {
   switch (block.type) {
     case 'objectives':
       return (
@@ -195,8 +195,8 @@ function Block({ block }) {
       )
     case 'heading':
       return block.level === 2
-        ? <h2 className="font-display text-2xl sm:text-3xl text-neutral-900 mt-4"><Inline text={block.text} /></h2>
-        : <h3 className="font-display text-xl sm:text-2xl text-neutral-900 mt-2"><Inline text={block.text} /></h3>
+        ? <h2 id={anchorId} className="font-display text-2xl sm:text-3xl text-neutral-900 mt-4 scroll-mt-24"><Inline text={block.text} /></h2>
+        : <h3 id={anchorId} className="font-display text-xl sm:text-2xl text-neutral-900 mt-2 scroll-mt-24"><Inline text={block.text} /></h3>
     case 'paragraph':
       return <Inline as="p" className="text-[15px] leading-relaxed text-neutral-800" text={block.text} />
     case 'bullets':
@@ -271,13 +271,13 @@ function Block({ block }) {
   }
 }
 
-export function StudyNoteReader({ blocks }) {
+export function StudyNoteReader({ blocks, anchorByIndex }) {
   if (!Array.isArray(blocks) || blocks.length === 0) {
     return <p className="text-sm text-neutral-500">This note has no content yet.</p>
   }
   return (
     <div className="study-note space-y-5">
-      {blocks.map((block, i) => <Block key={block.id || i} block={block} />)}
+      {blocks.map((block, i) => <Block key={block.id || i} block={block} anchorId={anchorByIndex?.get(i)} />)}
     </div>
   )
 }
