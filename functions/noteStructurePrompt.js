@@ -11,6 +11,8 @@
 const BLOCK_SPEC = `
 Allowed block objects (emit a JSON array of these, in reading order):
 - { "type":"heading", "level":2|3, "text": "..." }   // level 2 = section, 3 = sub-section
+- { "type":"objectives", "items": ["...","..."] }   // 🎯 learning objectives — good as the FIRST block
+- { "type":"think", "lines": ["a real-life hook question","what you already know"] }  // 💭 think first
 - { "type":"paragraph", "text": "... use **bold** for key terms ..." }
 - { "type":"bullets", "items": ["...","..."] }
 - { "type":"numbers", "items": ["...","..."] }
