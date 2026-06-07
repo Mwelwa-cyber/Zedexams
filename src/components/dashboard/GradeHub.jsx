@@ -1224,14 +1224,14 @@ export default function GradeHub() {
             <div className="mt-3 flex flex-wrap gap-2">
               <Link
                 to="/quizzes"
-                className="flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs font-black theme-accent-text transition-colors hover:bg-white"
+                className="inline-flex w-fit items-center gap-1.5 whitespace-nowrap rounded-full bg-white/95 px-2.5 py-1.5 text-xs font-black theme-accent-text transition-colors hover:bg-white"
               >
                 <Icon as={PencilLine} size="xs" strokeWidth={2.1} />
                 Start Quiz
               </Link>
               <Link
                 to="/my-results"
-                className="flex items-center gap-1.5 rounded-full border border-white/40 bg-white/30 px-3 py-1.5 text-xs font-black text-white transition-colors hover:bg-white/40"
+                className="inline-flex w-fit items-center gap-1.5 whitespace-nowrap rounded-full border border-white/40 bg-white/30 px-2.5 py-1.5 text-xs font-black text-white transition-colors hover:bg-white/40"
               >
                 <Icon as={BarChart3} size="xs" strokeWidth={2.1} />
                 My Results
