@@ -189,3 +189,23 @@ export function studySpeechText(blocks, title = '') {
   }
   return parts.filter(Boolean).join('. ')
 }
+
+// ─── size guard ───────────────────────────────────────────────────────
+
+// Keep a study note safely under Firestore's ~1 MB per-document limit. The
+// importer (Phase 2) and the admin editor both check this before writing so a
+// book-length note fails with a friendly message instead of an opaque
+// "document too large" Firestore error.
+export const STUDY_BLOCKS_MAX_BYTES = 700 * 1024 // ~700 KB, margin under 1 MB
+
+/** UTF-8 byte length of the serialized blocks. */
+export function studyBlocksByteSize(blocks) {
+  const json = JSON.stringify(blocks || [])
+  if (typeof TextEncoder !== 'undefined') return new TextEncoder().encode(json).length
+  return json.length
+}
+
+/** True when the blocks would serialize past the safe size cap. */
+export function isStudyBlocksOverSize(blocks) {
+  return studyBlocksByteSize(blocks) > STUDY_BLOCKS_MAX_BYTES
+}
