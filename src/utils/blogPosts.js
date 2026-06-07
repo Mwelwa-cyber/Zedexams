@@ -29,13 +29,12 @@
 import { marked } from 'marked'
 
 // Sensible defaults: GitHub-style line breaks, no smartypants. We
-// rely on DOMPurify-via-marked for sanitisation since we author the
-// posts (no UGC), but raw HTML in markdown is parsed too.
+// author the posts (no UGC), but raw HTML in markdown is parsed too.
+// (`headerIds`/`mangle` were removed from marked in v8 — they were
+// already no-ops here, so they're dropped on the v18 bump.)
 marked.setOptions({
   gfm: true,
   breaks: false,
-  headerIds: true,
-  mangle: false,
 })
 
 const RAW_POSTS = import.meta.glob('../../content/blog/*.md', {
