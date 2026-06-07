@@ -35,6 +35,7 @@ const generateNotePicturesCallable = httpsCallable(
 )
 
 import { useNote } from '../hooks/useNote'
+import { generateNoteSmart, smartErrorMessage } from '../lib/smart'
 import { createNote, updateNote, deleteNote } from '../lib/firestore'
 import { buildExcerpt } from '../lib/format'
 import { blankStudyBlocks, buildStudyExcerpt, isStudyBlocksOverSize } from '../lib/studyBlocks'
@@ -89,6 +90,10 @@ export function AdminNoteEditor() {
   // Picture generation state: 'idle' | 'generating' | 'done' | 'error'
   const [picState,   setPicState]   = useState('idle')
   const [picResult,  setPicResult]  = useState(null)  // { succeeded, failed, skipped }
+
+  // AI highlights generation state: 'idle' | 'loading' | 'done' | 'error'
+  const [smartState, setSmartState] = useState('idle')
+  const [smartMsg,   setSmartMsg]   = useState('')
 
   const isLegacySlides = noteFormat === NOTE_FORMAT.SLIDES
     || (note && !note.noteFormat && Array.isArray(note.slides) && note.slides.length > 0)
@@ -258,6 +263,16 @@ export function AdminNoteEditor() {
     }
   }
 
+  const onGenerateHighlights = async () => {
+    if (!docId) { setSmartMsg('Save the note first.'); setSmartState('error'); return }
+    setSmartState('loading'); setSmartMsg('')
+    try {
+      const { highlights } = await generateNoteSmart(docId)
+      const n = highlights ? Object.keys(highlights).length : 0
+      setSmartMsg(`Highlights generated for ${n} block${n === 1 ? '' : 's'}.`); setSmartState('done')
+    } catch (e) { setSmartMsg(smartErrorMessage(e)); setSmartState('error') }
+  }
+
   if (!isNew && loading) {
     return (
       <div className="min-h-screen flex items-center justify-center text-neutral-500">
@@ -333,6 +348,25 @@ export function AdminNoteEditor() {
               <span className="text-xs text-red-600" title={picResult.error}>
                 Picture generation failed
               </span>
+            )}
+
+            {!isNew && noteFormat === NOTE_FORMAT.STUDY && (
+              <div className="inline-flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onGenerateHighlights}
+                  disabled={smartState === 'loading' || !docId}
+                  className="text-sm px-3 py-1.5 rounded-lg border border-neutral-200 hover:bg-neutral-50 inline-flex items-center gap-1.5 text-neutral-800 disabled:opacity-50"
+                  title="Generate AI highlights for this study note"
+                >
+                  <Sparkles size={14} /> {smartState === 'loading' ? 'Generating…' : 'Generate AI highlights'}
+                </button>
+                {smartMsg && (
+                  <span className={`text-xs ${smartState === 'error' ? 'text-red-600' : 'text-emerald-700'}`}>
+                    {smartMsg}
+                  </span>
+                )}
+              </div>
             )}
 
             {!isNew && (
