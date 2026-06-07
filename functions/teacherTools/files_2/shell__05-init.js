@@ -1,2 +1,0 @@
-// Initial hub render
-renderHub();
