@@ -13,12 +13,14 @@ import { uploadImportedAssets } from '../../../utils/quizDocumentImport.js'
 import { structureImportedNote, ocrNotePages } from '../../../utils/aiAssistant'
 import { coerceStudyBlocks } from './studySchema'
 import { storage } from '../../../firebase/config'
-import { IMAGE_MARKER_RE, buildDocumentTextWithMarkers, resolveImageBlocks } from './noteImportCore.js'
+import { buildDocumentTextWithMarkers, resolveImageBlocks } from './noteImportCore.js'
 
 export { IMAGE_MARKER_RE, buildDocumentTextWithMarkers, resolveImageBlocks } from './noteImportCore.js'
 
 const OCR_BATCH = 6      // pages per ocrNotePages call (server caps at 8)
 const MAX_OCR_PAGES = 40 // bound total scanned pages per import
+// Global so .replace() strips EVERY marker (not just the first).
+const IMAGE_MARKER_GLOBAL_RE = /\[\[IMAGE:[A-Za-z0-9_-]+\]\]/g
 
 // Collect the flat {id: asset} map referenced by markers in `blocks`.
 function assetMapFor(extractedBlocks) {
@@ -27,6 +29,14 @@ function assetMapFor(extractedBlocks) {
     for (const a of b?.assets || []) if (a?.id) map[a.id] = a
   }
   return map
+}
+
+// Release object URLs created by the extractor so they don't leak for the tab's
+// lifetime once the import is done (success or failure).
+function revokeAssets(assets) {
+  for (const a of Object.values(assets || {})) {
+    if (a?.objectUrl) { try { URL.revokeObjectURL(a.objectUrl) } catch { /* ignore */ } }
+  }
 }
 
 async function extractTextNote(file) {
@@ -50,11 +60,13 @@ async function ocrScannedPdf(file, onProgress) {
     }
   }
   let text = ''
+  let done = 0
   for (let i = 0; i < pageImages.length; i += OCR_BATCH) {
-    onProgress?.({ phase: 'reading', current: i, total: pageImages.length })
     const batch = pageImages.slice(i, i + OCR_BATCH)
     const res = await ocrNotePages({ pages: batch })
     text += '\n\n' + (res.text || '')
+    done += batch.length
+    onProgress?.({ phase: 'reading', current: done, total: pageImages.length })
   }
   return { documentText: text.trim(), assets: {}, warnings: [] }
 }
@@ -73,7 +85,7 @@ function blobToDataUrl(blob) {
 async function looksScanned(file) {
   try {
     const extracted = await extractPdf(file)
-    const txt = buildDocumentTextWithMarkers(extracted.blocks).replace(IMAGE_MARKER_RE, '').trim()
+    const txt = buildDocumentTextWithMarkers(extracted.blocks).replace(IMAGE_MARKER_GLOBAL_RE, '').trim()
     return txt.length < 200
   } catch {
     return true
@@ -90,30 +102,34 @@ export async function importNoteDocument({ kind, file, text, uid, onProgress }) 
   let assets = {}
   let warnings = []
 
-  if (kind === 'paste') {
-    documentText = String(text || '')
-  } else if (file) {
-    const isScanned = /\.pdf$/i.test(file.name) && (await looksScanned(file))
-    const r = isScanned ? await ocrScannedPdf(file, onProgress) : await extractTextNote(file)
-    documentText = r.documentText; assets = r.assets; warnings = r.warnings
-  }
+  try {
+    if (kind === 'paste') {
+      documentText = String(text || '')
+    } else if (file) {
+      const isScanned = /\.pdf$/i.test(file.name) && (await looksScanned(file))
+      const r = isScanned ? await ocrScannedPdf(file, onProgress) : await extractTextNote(file)
+      documentText = r.documentText; assets = r.assets; warnings = r.warnings
+    }
 
-  if (!documentText || documentText.trim().length < 80) {
-    throw new Error('Not enough readable text was found in this document.')
-  }
+    if (!documentText || documentText.trim().length < 80) {
+      throw new Error('Not enough readable text was found in this document.')
+    }
 
-  const structured = await structureImportedNote({ fileName: file?.name || 'pasted text', documentText })
-  warnings = warnings.concat(structured.warnings || [])
+    const structured = await structureImportedNote({ fileName: file?.name || 'pasted text', documentText })
+    warnings = warnings.concat(structured.warnings || [])
 
-  // Resolve any [[IMAGE]] blocks the model emitted.
-  const referenced = new Set(structured.blocks.filter(b => b?.type === 'image' && b.assetRef).map(b => b.assetRef))
-  let urlById = new Map()
-  if (referenced.size > 0 && Object.keys(assets).length > 0) {
-    urlById = await uploadImportedAssets({
-      storage, uid, assets, assetIds: [...referenced], kindSlug: 'note',
-      sourceFileName: file?.name || '',
-    })
+    // Resolve any [[IMAGE]] blocks the model emitted.
+    const referenced = new Set(structured.blocks.filter(b => b?.type === 'image' && b.assetRef).map(b => b.assetRef))
+    let urlById = new Map()
+    if (referenced.size > 0 && Object.keys(assets).length > 0) {
+      urlById = await uploadImportedAssets({
+        storage, uid, assets, assetIds: [...referenced], kindSlug: 'note',
+        sourceFileName: file?.name || '',
+      })
+    }
+    const resolved = resolveImageBlocks(structured.blocks, urlById)
+    return { blocks: coerceStudyBlocks(resolved), warnings }
+  } finally {
+    revokeAssets(assets)
   }
-  const resolved = resolveImageBlocks(structured.blocks, urlById)
-  return { blocks: coerceStudyBlocks(resolved), warnings }
 }
