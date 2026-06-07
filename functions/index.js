@@ -1189,6 +1189,7 @@ exports.generateNoteSmart = onCall(
     secrets: [anthropicApiKey],
     region: "us-central1",
     timeoutSeconds: 90,
+    memory: "256MiB",
     enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
     consumeAppCheckToken: true,
   },

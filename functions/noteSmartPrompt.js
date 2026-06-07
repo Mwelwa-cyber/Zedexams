@@ -24,7 +24,8 @@ function buildHighlightMessages({ blocks }) {
 For each block, pick the few VERBATIM sentences or list items that are the key things to remember (definitions, key facts, exam-critical points).
 - Quote EXACTLY from the block's text — copy the sentence/item word for word, no paraphrasing.
 - At most ${MAX_PER_BLOCK} per block; only the genuinely important ones (skip filler/examples).
-- Output ONLY JSON: { "highlights": { "<blockId>": ["exact excerpt", ...] }, "warnings": ["..."] }.`
+- Each key MUST be copied exactly from an "id" field in the input array — never invent, rename, or shorten ids; if a block has nothing worth highlighting, omit its id entirely.
+- Output ONLY JSON: { "highlights": { "<exact id from input>": ["exact excerpt", ...] }, "warnings": ["..."] }.`
   const user = `Blocks (JSON):\n${JSON.stringify(items).slice(0, 50000)}`
   return [{ role: 'system', content: system }, { role: 'user', content: user }]
 }
