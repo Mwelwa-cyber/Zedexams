@@ -9,6 +9,7 @@
 // if a learner lands here with a slide-based id we redirect to the
 // lessons viewer instead of showing a fallback message.
 
+import { useMemo } from 'react'
 import { useNavigate, useParams, Navigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Calendar, Download, FileType, Loader2 } from '../../../components/ui/icons'
 
@@ -22,6 +23,10 @@ import { StudyNoteReader }    from '../components/StudyNoteReader'
 import { ReaderControls }     from '../components/ReaderControls'
 import { NoteInsights }       from '../components/NoteInsights'
 import { coerceStudyBlocks }  from '../lib/studySchema'
+import { buildToc }           from '../lib/toc'
+import { useActiveSection }   from '../hooks/useActiveSection'
+import { NoteToc }            from '../components/NoteToc'
+import { BackToTop }          from '../components/BackToTop'
 import SeoHelmet              from '../../../components/seo/SeoHelmet'
 import '../styles/notes.css'
 
@@ -48,6 +53,16 @@ export function LearnerNoteRead() {
   // Records opened / scroll-% / completed for the signed-in learner. No-ops
   // until the note has loaded; ignores legacy slide docs (they redirect away).
   useRecordNoteProgress(note?.noteFormat ? note : null)
+
+  // Derived study data + TOC. Computed as hooks (unconditionally, before the
+  // early returns) so hook order is stable. Safe when `note` is null/loading.
+  const studyData = useMemo(
+    () => (note?.noteFormat === NOTE_FORMAT.STUDY ? coerceStudyBlocks(note.blocks) : null),
+    [note],
+  )
+  const toc = useMemo(() => buildToc(studyData || []), [studyData])
+  const anchorByIndex = useMemo(() => new Map(toc.map(e => [e.index, e.id])), [toc])
+  const activeKey = useActiveSection(toc)
 
   if (loading) {
     return (
@@ -88,7 +103,7 @@ export function LearnerNoteRead() {
   }
 
   const s = subjectStyle(note.subject)
-  const studyBlocks = note.noteFormat === NOTE_FORMAT.STUDY ? coerceStudyBlocks(note.blocks) : null
+  const studyBlocks = studyData
 
   return (
     <div className="notes-studio min-h-screen pb-24 lg:pb-8" style={{ backgroundColor: '#F5EFE1' }}>
@@ -140,7 +155,7 @@ export function LearnerNoteRead() {
           ) : note.noteFormat === NOTE_FORMAT.STUDY ? (
             <>
               <ReaderControls blocks={studyBlocks} title={note.title} />
-              <StudyNoteReader blocks={studyBlocks} />
+              <StudyNoteReader blocks={studyBlocks} anchorByIndex={anchorByIndex} />
             </>
           ) : (
             <div
@@ -166,6 +181,12 @@ export function LearnerNoteRead() {
             )}
           </div>
         </article>
+        {note.noteFormat === NOTE_FORMAT.STUDY && (
+          <>
+            <NoteToc toc={toc} activeKey={activeKey} />
+            <BackToTop />
+          </>
+        )}
       </main>
     </div>
   )

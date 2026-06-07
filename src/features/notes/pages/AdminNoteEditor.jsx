@@ -37,7 +37,7 @@ const generateNotePicturesCallable = httpsCallable(
 import { useNote } from '../hooks/useNote'
 import { createNote, updateNote, deleteNote } from '../lib/firestore'
 import { buildExcerpt } from '../lib/format'
-import { blankStudyBlocks, buildStudyExcerpt } from '../lib/studyBlocks'
+import { blankStudyBlocks, buildStudyExcerpt, isStudyBlocksOverSize } from '../lib/studyBlocks'
 import { coerceStudyBlocks } from '../lib/studySchema'
 
 import { NoteMetaPanel } from '../components/NoteMetaPanel'
@@ -165,6 +165,14 @@ export function AdminNoteEditor() {
         storagePath: noteFormat === NOTE_FORMAT.FILE ? (fileMeta?.storagePath || null) : null,
         fileSize:    noteFormat === NOTE_FORMAT.FILE ? (fileMeta?.size || null) : null,
         assetBatchId: batchId,
+      }
+
+      // Block a write that would exceed Firestore's per-document limit. The
+      // helper measures the same coerced blocks we're about to save.
+      if (noteFormat === NOTE_FORMAT.STUDY && isStudyBlocksOverSize(payload.blocks)) {
+        setSaveError(new Error('This note is too large to save (over ~700 KB). Split it into more than one note or shorten the content.'))
+        setSaveState('error')
+        return
       }
 
       if (!docId) {

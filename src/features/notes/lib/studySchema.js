@@ -14,7 +14,7 @@
 
 import { z } from 'zod'
 
-export const MAX_STUDY_BLOCKS = 200
+export const MAX_STUDY_BLOCKS = 600
 
 const str   = z.string()
 const strArr = z.array(z.string())

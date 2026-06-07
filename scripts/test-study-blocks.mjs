@@ -12,6 +12,7 @@
 const {
   blankStudyBlocks, newStudyBlock, STUDY_BLOCK_TYPES,
   buildStudyExcerpt, studyReadingTime, studySpeechText,
+  studyBlocksByteSize, isStudyBlocksOverSize, STUDY_BLOCKS_MAX_BYTES,
 } = await import('../src/features/notes/lib/studyBlocks.js')
 const { studyBlocksWriteSchema, coerceStudyBlocks } = await import('../src/features/notes/lib/studySchema.js')
 
@@ -80,6 +81,18 @@ test('helpers: excerpt is a string, reading time >= 1, speech includes the title
   assert(typeof buildStudyExcerpt(blocks) === 'string', 'excerpt must be a string')
   assert(studyReadingTime(blocks) >= 1, 'reading time must be >= 1')
   assert(studySpeechText(blocks, 'My Topic').includes('My Topic'), 'speech text must include the title')
+})
+
+test('studyBlocksByteSize grows with content and is > 0', () => {
+  const empty = studyBlocksByteSize([])
+  const some  = studyBlocksByteSize(blankStudyBlocks())
+  assert(empty >= 0 && some > empty, `expected size to grow: empty=${empty} some=${some}`)
+})
+
+test('isStudyBlocksOverSize is false for small notes, true past the cap', () => {
+  assert(isStudyBlocksOverSize(blankStudyBlocks()) === false, 'a blank note must not be over size')
+  const huge = [{ id: 'big', type: 'paragraph', text: 'x'.repeat(STUDY_BLOCKS_MAX_BYTES + 1000) }]
+  assert(isStudyBlocksOverSize(huge) === true, 'a note past the byte cap must be flagged')
 })
 
 console.log(`\n─── ${pass + fail} tests · ${pass} passed · ${fail} failed ───`)
