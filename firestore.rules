@@ -151,7 +151,7 @@ service cloud.firestore {
         && (!('excerpt' in incoming()) || (incoming().excerpt is string && incoming().excerpt.size() <= 500))
         // Study-note blocks: null or a bounded list. Per-element shape is
         // enforced by the Zod schema (studySchema.js) client-side before write.
-        && (!('blocks' in incoming()) || incoming().blocks == null || (incoming().blocks is list && incoming().blocks.size() <= 200))
+        && (!('blocks' in incoming()) || incoming().blocks == null || (incoming().blocks is list && incoming().blocks.size() <= 600))
         && (!('fileUrl' in incoming()) || incoming().fileUrl == null || (incoming().fileUrl is string && incoming().fileUrl.size() <= 2000))
         && (!('fileName' in incoming()) || incoming().fileName == null || (incoming().fileName is string && incoming().fileName.size() <= 200))
         && (!('storagePath' in incoming()) || incoming().storagePath == null || (incoming().storagePath is string && incoming().storagePath.size() <= 500))

@@ -198,6 +198,17 @@ test('gamification collections enforce field validators', () => {
   )
 })
 
+// ── validLessonFields blocks cap ───────────────────────────────────────
+
+console.log('\nvalidLessonFields blocks cap')
+
+test('lessons rule allows up to 600 study blocks (book-length notes)', () => {
+  assert(
+    rules.includes('incoming().blocks.size() <= 600'),
+    'lessons blocks cap is not 600 — study notes longer than the cap will be rejected by rules',
+  )
+})
+
 // ── validLessonFields keeps every NOTE_FORMAT learners can be served ──
 
 console.log('\nvalidLessonFields whitelists every saveable note format')
