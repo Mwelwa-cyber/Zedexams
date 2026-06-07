@@ -38,7 +38,7 @@ const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
 const {assertAndIncrement} = require("./usageMeter");
 const {runGenerateDiagram} = require("./generateDiagram");
 
-const SLIDE_NOTES_MODEL = process.env.SLIDE_NOTES_MODEL || "claude-sonnet-4-5";
+const SLIDE_NOTES_MODEL = process.env.SLIDE_NOTES_MODEL || "claude-sonnet-4-6";
 
 // Recraft charges ~$0.04 per image; mirror that for the per-deck cost estimate.
 const IMAGE_COST_CENTS = 4;

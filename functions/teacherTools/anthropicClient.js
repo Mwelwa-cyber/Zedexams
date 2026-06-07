@@ -25,7 +25,7 @@ const {anthropicFetch} = require("../anthropicFetch");
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
-const DEFAULT_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-5";
+const DEFAULT_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
 
 function buildSystemBlocks(systemPrompt, cbcContextBlock) {
   if (!systemPrompt) return undefined;

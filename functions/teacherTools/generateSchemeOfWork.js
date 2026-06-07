@@ -110,7 +110,7 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
     inputs,
     output: null,
     outputText: "",
-    modelUsed: "claude-sonnet-4-5",
+    modelUsed: "claude-sonnet-4-6",
     promptVersion: PROMPT_VERSION,
     kbVersion,
     tokensIn: 0,
