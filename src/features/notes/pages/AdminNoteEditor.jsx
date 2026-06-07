@@ -267,9 +267,10 @@ export function AdminNoteEditor() {
     if (!docId) { setSmartMsg('Save the note first.'); setSmartState('error'); return }
     setSmartState('loading'); setSmartMsg('')
     try {
-      const { highlights } = await generateNoteSmart(docId)
-      const n = highlights ? Object.keys(highlights).length : 0
-      setSmartMsg(`Highlights generated for ${n} block${n === 1 ? '' : 's'}.`); setSmartState('done')
+      const { highlights, sections } = await generateNoteSmart(docId)
+      const nB = highlights ? Object.keys(highlights).length : 0
+      const nS = Array.isArray(sections) ? sections.length : 0
+      setSmartMsg(`Generated highlights for ${nB} block${nB === 1 ? '' : 's'} and summaries for ${nS} section${nS === 1 ? '' : 's'}.`); setSmartState('done')
     } catch (e) { setSmartMsg(smartErrorMessage(e)); setSmartState('error') }
   }
 
