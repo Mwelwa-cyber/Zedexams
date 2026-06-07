@@ -141,6 +141,52 @@ because they're all signed with the same release keystore.
 
 ---
 
+## Releasing to Google Play (AAB)
+
+Play Console needs an **`.aab`** (Android App Bundle), not an APK, for its
+internal / closed / production tracks. The `android-play-release.yml` workflow
+builds a signed AAB.
+
+**Run it:** GitHub → Actions → **Android Play Release (AAB)** → Run workflow.
+
+Inputs:
+- `version_name` — e.g. `1.1.2` (blank = `build.gradle` default). `versionCode`
+  is always the git commit count, and Play requires it to be **strictly higher**
+  than your last upload on any track.
+- `upload_to_play` — leave **false** to just get a downloadable `.aab` artifact
+  (then upload it by hand in Play Console). Set **true** to auto-publish.
+- `track` / `release_status` — used only when `upload_to_play = true`
+  (defaults: `internal`, `draft`).
+
+The signed AAB is always attached as the `app-release-aab-run<N>` artifact
+(30-day retention). The "Verify AAB signature" step prints the signer
+certificate — it must match **Play → App integrity → Upload key certificate**.
+
+### Building the AAB locally instead
+
+```powershell
+$env:ZED_RELEASE_STORE_FILE      = "M:\Claude\zedexams.com\zedexams-release.keystore"
+$env:ZED_RELEASE_STORE_PASSWORD  = "<store password>"
+$env:ZED_RELEASE_KEY_ALIAS       = "zedexams"
+$env:ZED_RELEASE_KEY_PASSWORD    = "<key password>"
+npm run build; npx cap sync android; cd android; .\gradlew bundleRelease
+# Output: android\app\build\outputs\bundle\release\app-release.aab
+```
+
+### Auto-upload to Play (optional one-time setup)
+
+To make `upload_to_play = true` actually publish, add a Play service account:
+
+1. Google Play Console → **Users and permissions** → invite a service account
+   and grant it **Release to testing tracks** (plus Production if desired).
+2. In Google Cloud Console, create a **JSON key** for that service account.
+3. Add the entire JSON as the GitHub Actions secret **`PLAY_SERVICE_ACCOUNT_JSON`**.
+
+Until that secret exists, `upload_to_play` is a safe no-op — the workflow logs a
+warning and still produces the downloadable artifact.
+
+---
+
 ## Debug build (local sideload — no signing needed)
 
 For testing your own changes on your own phone:
