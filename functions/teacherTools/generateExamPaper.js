@@ -28,7 +28,7 @@ const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
   require("./examPaperPrompt");
 const {assertAndIncrement} = require("./usageMeter");
 
-const EXAM_PAPER_MODEL = process.env.EXAM_PAPER_MODEL || "claude-sonnet-4-5";
+const EXAM_PAPER_MODEL = process.env.EXAM_PAPER_MODEL || "claude-sonnet-4-6";
 
 // Permissive tool shape — the prompt describes the schema in full and the
 // post-call validateExamPaper() does the strict checks. The win is that

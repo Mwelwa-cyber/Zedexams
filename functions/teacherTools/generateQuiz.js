@@ -25,7 +25,7 @@ const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
 const {assertAndIncrement} = require("./usageMeter");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
 
-const QUIZ_MODEL = process.env.QUIZ_MODEL || "claude-sonnet-4-5";
+const QUIZ_MODEL = process.env.QUIZ_MODEL || "claude-sonnet-4-6";
 const LE_VALUES = new Set(LEARNING_ENVIRONMENT_VALUES);
 
 const QUIZ_TOOL_SCHEMA = {
