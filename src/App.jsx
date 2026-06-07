@@ -327,12 +327,7 @@ function MissingProfileRecovery() {
 
 export default function App() {
   return (
-    <BrowserRouter
-      future={{
-        v7_startTransition: true,
-        v7_relativeSplatPath: true,
-      }}
-    >
+    <BrowserRouter>
       <PlatformSettingsProvider>
       {/* First focusable element on every page — keyboard users press Tab
           once and can jump past the navbar straight into route content.
