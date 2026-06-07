@@ -13,10 +13,13 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { mdInline } from '../lib/studyBlocks'
+import { mdInlineHighlighted } from '../lib/highlight'
 
 // Inline **bold**/*italic* → escaped HTML. Safe: mdInline escapes before adding tags.
-function Inline({ text, as: Tag = 'span', className }) {
-  return <Tag className={className} dangerouslySetInnerHTML={{ __html: mdInline(text) }} />
+// When highlights (string[]) are provided, matched sentences are wrapped in <mark>.
+function Inline({ text, as: Tag = 'span', className, highlights }) {
+  const html = highlights && highlights.length ? mdInlineHighlighted(text, highlights) : mdInline(text)
+  return <Tag className={className} dangerouslySetInnerHTML={{ __html: html }} />
 }
 
 // Tone palette for callout cards — semantic, consistent with the app.
@@ -121,41 +124,41 @@ function QuizCard({ block }) {
   )
 }
 
-function Block({ block, anchorId }) {
+function Block({ block, anchorId, hl }) {
   switch (block.type) {
     case 'objectives':
       return (
         <Callout tone="green" title="🎯 Learning objectives — by the end you should be able to:">
           <ul className="list-disc pl-5 space-y-1">
-            {(block.items || []).map((it, i) => <li key={i}><Inline text={it} /></li>)}
+            {(block.items || []).map((it, i) => <li key={i}><Inline text={it} highlights={hl} /></li>)}
           </ul>
         </Callout>
       )
     case 'think':
       return (
         <Callout tone="blue" title="💭 Think first">
-          {(block.lines || []).map((l, i) => <p key={i}><Inline text={l} /></p>)}
+          {(block.lines || []).map((l, i) => <p key={i}><Inline text={l} highlights={hl} /></p>)}
         </Callout>
       )
     case 'keyidea':
-      return <Callout tone="amber" title="⚡ Key idea"><p><Inline text={block.text} /></p></Callout>
+      return <Callout tone="amber" title="⚡ Key idea"><p><Inline text={block.text} highlights={hl} /></p></Callout>
     case 'note':
       return (
         <Callout tone="amber" title="🧠 Remember">
-          {(block.lines || []).map((l, i) => <p key={i}><Inline text={l} /></p>)}
+          {(block.lines || []).map((l, i) => <p key={i}><Inline text={l} highlights={hl} /></p>)}
         </Callout>
       )
     case 'tip':
       return (
         <Callout tone="amber" title="💡 Study tip">
-          {(block.lines || []).map((l, i) => <p key={i}><Inline text={l} /></p>)}
+          {(block.lines || []).map((l, i) => <p key={i}><Inline text={l} highlights={hl} /></p>)}
         </Callout>
       )
     case 'summary':
       return (
         <Callout tone="green" title="✅ Summary — key points">
           <ul className="list-disc pl-5 space-y-1">
-            {(block.items || []).map((it, i) => <li key={i}><Inline text={it} /></li>)}
+            {(block.items || []).map((it, i) => <li key={i}><Inline text={it} highlights={hl} /></li>)}
           </ul>
         </Callout>
       )
@@ -198,17 +201,17 @@ function Block({ block, anchorId }) {
         ? <h2 id={anchorId} className="font-display text-2xl sm:text-3xl text-neutral-900 mt-4 scroll-mt-24"><Inline text={block.text} /></h2>
         : <h3 id={anchorId} className="font-display text-xl sm:text-2xl text-neutral-900 mt-2 scroll-mt-24"><Inline text={block.text} /></h3>
     case 'paragraph':
-      return <Inline as="p" className="text-[15px] leading-relaxed text-neutral-800" text={block.text} />
+      return <Inline as="p" className="text-[15px] leading-relaxed text-neutral-800" text={block.text} highlights={hl} />
     case 'bullets':
       return (
         <ul className="list-disc pl-6 space-y-1 text-[15px] leading-relaxed text-neutral-800">
-          {(block.items || []).map((it, i) => <li key={i}><Inline text={it} /></li>)}
+          {(block.items || []).map((it, i) => <li key={i}><Inline text={it} highlights={hl} /></li>)}
         </ul>
       )
     case 'numbers':
       return (
         <ol className="list-decimal pl-6 space-y-1 text-[15px] leading-relaxed text-neutral-800">
-          {(block.items || []).map((it, i) => <li key={i}><Inline text={it} /></li>)}
+          {(block.items || []).map((it, i) => <li key={i}><Inline text={it} highlights={hl} /></li>)}
         </ol>
       )
     case 'keyterms':
@@ -271,13 +274,20 @@ function Block({ block, anchorId }) {
   }
 }
 
-export function StudyNoteReader({ blocks, anchorByIndex }) {
+export function StudyNoteReader({ blocks, anchorByIndex, highlightsByBlock, highlightsOn }) {
   if (!Array.isArray(blocks) || blocks.length === 0) {
     return <p className="text-sm text-neutral-500">This note has no content yet.</p>
   }
   return (
     <div className="study-note space-y-5">
-      {blocks.map((block, i) => <Block key={block.id || i} block={block} anchorId={anchorByIndex?.get(i)} />)}
+      {blocks.map((block, i) => (
+        <Block
+          key={block.id || i}
+          block={block}
+          anchorId={anchorByIndex?.get(i)}
+          hl={highlightsOn && block.id ? (highlightsByBlock?.[block.id] || null) : null}
+        />
+      ))}
     </div>
   )
 }
