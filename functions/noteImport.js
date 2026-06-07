@@ -32,13 +32,21 @@ async function runNoteImport({ documentText, fileName = '', apiKey, uid }) {
 // Image content shape mirrors scannedQuizImport.js buildClaudeMessages (lines 536-538):
 //   { type: "image", source: { type: "base64", media_type, data } }
 // This is the standard Anthropic vision content block that callAnthropic passes through.
+// Vision input guards, matching scannedQuizImport.js: only image types
+// Anthropic accepts, and a per-image byte cap to avoid abuse.
+const OCR_ALLOWED_MIME = new Set(['image/jpeg', 'image/png', 'image/webp', 'image/gif'])
+const OCR_MAX_IMAGE_BYTES = 5 * 1024 * 1024 // ~5 MB decoded per page
+
 async function runNoteOcr({ pages, apiKey, uid }) {
   const content = []
   for (const p of pages) {
     const m = String(p?.dataUrl || '').match(/^data:(image\/[a-z0-9.+-]+);base64,([a-z0-9+/=\s]+)$/i)
     if (!m) continue
     const mediaType = m[1].toLowerCase()
+    if (!OCR_ALLOWED_MIME.has(mediaType)) continue
     const data = m[2].replace(/\s+/g, '')
+    // base64 decodes to ~3/4 of its length; skip pages over the cap.
+    if (data.length * 0.75 > OCR_MAX_IMAGE_BYTES) continue
     content.push({ type: 'text', text: `Page ${p.pageNumber}` })
     content.push({ type: 'image', source: { type: 'base64', media_type: mediaType, data } })
   }
