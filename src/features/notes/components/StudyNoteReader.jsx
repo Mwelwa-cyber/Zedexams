@@ -85,6 +85,21 @@ function QuickCheck({ block }) {
   )
 }
 
+// Collapsible per-section TL;DR shown under a level-2 heading.
+function SectionSummary({ summary }) {
+  const [open, setOpen] = useState(false)
+  if (!summary) return null
+  return (
+    <div className="not-prose -mt-1 mb-1">
+      <button type="button" onClick={() => setOpen(o => !o)} aria-expanded={open}
+        className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-[#6D28D9]">
+        ✦ Section summary <span className="text-[#9CA3AF] text-[9px]">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && <p className="mt-1 text-[13px] leading-relaxed text-neutral-600 font-display-italic">{summary}</p>}
+    </div>
+  )
+}
+
 function QuizCard({ block }) {
   const linked = !!(block.quizId && String(block.quizId).trim())
   return (
@@ -124,7 +139,7 @@ function QuizCard({ block }) {
   )
 }
 
-function Block({ block, anchorId, hl }) {
+function Block({ block, anchorId, hl, summary }) {
   switch (block.type) {
     case 'objectives':
       return (
@@ -198,7 +213,7 @@ function Block({ block, anchorId, hl }) {
       )
     case 'heading':
       return block.level === 2
-        ? <h2 id={anchorId} className="font-display text-2xl sm:text-3xl text-neutral-900 mt-4 scroll-mt-24"><Inline text={block.text} /></h2>
+        ? <><h2 id={anchorId} className="font-display text-2xl sm:text-3xl text-neutral-900 mt-4 scroll-mt-24"><Inline text={block.text} /></h2><SectionSummary summary={summary} /></>
         : <h3 id={anchorId} className="font-display text-xl sm:text-2xl text-neutral-900 mt-2 scroll-mt-24"><Inline text={block.text} /></h3>
     case 'paragraph':
       return <Inline as="p" className="text-[15px] leading-relaxed text-neutral-800" text={block.text} highlights={hl} />
@@ -274,7 +289,7 @@ function Block({ block, anchorId, hl }) {
   }
 }
 
-export function StudyNoteReader({ blocks, anchorByIndex, highlightsByBlock, highlightsOn }) {
+export function StudyNoteReader({ blocks, anchorByIndex, highlightsByBlock, highlightsOn, summaryByBlockId }) {
   if (!Array.isArray(blocks) || blocks.length === 0) {
     return <p className="text-sm text-neutral-500">This note has no content yet.</p>
   }
@@ -286,6 +301,7 @@ export function StudyNoteReader({ blocks, anchorByIndex, highlightsByBlock, high
           block={block}
           anchorId={anchorByIndex?.get(i)}
           hl={highlightsOn && block.id ? (highlightsByBlock?.[block.id] || null) : null}
+          summary={block.type === 'heading' && block.level === 2 && block.id ? (summaryByBlockId?.[block.id] || null) : null}
         />
       ))}
     </div>
