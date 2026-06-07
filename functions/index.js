@@ -146,6 +146,8 @@ const {runVex} = require("./agents/runners/vex");
 // Learner "AI Summary + Key Points" for a note — generated once per note and
 // cached in noteInsights/{noteId}.
 const {runNoteInsights} = require("./noteInsights");
+// Staff-only AI auto-highlights for a study note — cached in noteSmart/{noteId}.
+const {runGenerateNoteSmart} = require("./noteSmart");
 // Notes document import — AI structuring (text → study blocks) and OCR (scanned pages → text).
 const {runNoteImport, runNoteOcr} = require("./noteImport");
 // Daily Exam auto-picker — promotes one short-quiz per grade into the
@@ -1177,6 +1179,47 @@ exports.generateNoteInsights = onCall(
       uid: request.auth.uid,
       apiKey: getAnthropicApiKey(anthropicApiKey),
     });
+  },
+);
+
+// Staff-only: generate AI auto-highlights for a study note and cache them in
+// noteSmart/{noteId}. Mirrors generateNoteInsights but restricted to staff
+// (teachers/admins) because highlight generation is admin-triggered, not
+// lazy-on-first-view.
+exports.generateNoteSmart = onCall(
+  {
+    secrets: [anthropicApiKey],
+    region: "us-central1",
+    timeoutSeconds: 90,
+    memory: "256MiB",
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Please sign in first.");
+    }
+    recordAppCheckCallable(request, "generateNoteSmart");
+    const role = await getUserRole(request.auth.uid);
+    if (!isStaffRole(role)) {
+      throw new HttpsError("permission-denied", "Only teachers and admins can generate highlights.");
+    }
+    const noteId = cleanAiString(request.data?.noteId, 200);
+    if (!noteId) {
+      throw new HttpsError("invalid-argument", "noteId is required.");
+    }
+    await assertDailyLimit(request.auth.uid, role, "noteSmart");
+    try {
+      return await runGenerateNoteSmart({
+        noteId,
+        uid: request.auth.uid,
+        apiKey: getAnthropicApiKey(anthropicApiKey),
+      });
+    } catch (e) {
+      if (e.code === "not-found") throw new HttpsError("not-found", e.message);
+      if (e.code === "failed-precondition") throw new HttpsError("failed-precondition", e.message);
+      throw new HttpsError("internal", "Could not generate highlights. Please try again.");
+    }
   },
 );
 

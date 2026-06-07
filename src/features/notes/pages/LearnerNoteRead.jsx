@@ -9,7 +9,7 @@
 // if a learner lands here with a slide-based id we redirect to the
 // lessons viewer instead of showing a fallback message.
 
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { useNavigate, useParams, Navigate, useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Calendar, Download, FileType, Loader2 } from '../../../components/ui/icons'
 
@@ -24,6 +24,7 @@ import { ReaderControls }     from '../components/ReaderControls'
 import { NoteInsights }       from '../components/NoteInsights'
 import { coerceStudyBlocks }  from '../lib/studySchema'
 import { buildToc }           from '../lib/toc'
+import { fetchNoteSmart }     from '../lib/smart'
 import { useActiveSection }   from '../hooks/useActiveSection'
 import { NoteToc }            from '../components/NoteToc'
 import { BackToTop }          from '../components/BackToTop'
@@ -63,6 +64,24 @@ export function LearnerNoteRead() {
   const toc = useMemo(() => buildToc(studyData || []), [studyData])
   const anchorByIndex = useMemo(() => new Map(toc.map(e => [e.index, e.id])), [toc])
   const activeKey = useActiveSection(toc)
+
+  const [highlightsOn, setHighlightsOn] = useState(() => {
+    try { return localStorage.getItem('notes:hl') !== '0' } catch { return true }
+  })
+  const [highlightsByBlock, setHighlightsByBlock] = useState(null)
+  useEffect(() => {
+    let cancelled = false
+    if (id && note?.noteFormat === NOTE_FORMAT.STUDY) {
+      fetchNoteSmart(id).then(r => { if (!cancelled) setHighlightsByBlock(r?.highlights || null) }).catch(() => {})
+    }
+    return () => { cancelled = true }
+  }, [id, note])
+  const toggleHighlights = () => setHighlightsOn(v => {
+    const next = !v
+    try { localStorage.setItem('notes:hl', next ? '1' : '0') } catch { /* ignore */ }
+    return next
+  })
+  const hasHighlights = !!highlightsByBlock && Object.keys(highlightsByBlock).length > 0
 
   if (loading) {
     return (
@@ -154,8 +173,10 @@ export function LearnerNoteRead() {
             <SlideNotesReader deck={note.deck} />
           ) : note.noteFormat === NOTE_FORMAT.STUDY ? (
             <>
-              <ReaderControls blocks={studyBlocks} title={note.title} />
-              <StudyNoteReader blocks={studyBlocks} anchorByIndex={anchorByIndex} />
+              <ReaderControls blocks={studyBlocks} title={note.title}
+                highlightsOn={highlightsOn} onToggleHighlights={toggleHighlights} hasHighlights={hasHighlights} />
+              <StudyNoteReader blocks={studyBlocks} anchorByIndex={anchorByIndex}
+                highlightsByBlock={highlightsByBlock} highlightsOn={highlightsOn} />
             </>
           ) : (
             <div

@@ -232,6 +232,14 @@ for (const f of REQUIRED_NOTE_FORMATS) {
   })
 }
 
+test('noteSmart is learner-readable and server-write-only', () => {
+  assert(rules.includes('match /noteSmart/{'), 'no noteSmart rule block found')
+  const block = rules.match(/match \/noteSmart\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
+  assert(block, 'noteSmart match block not found or incorrectly indented')
+  assert(/allow read:\s*if isAuthed\(\)/.test(block[1]), 'noteSmart is not readable by authenticated users')
+  assert(/allow write:\s*if false/.test(block[1]), 'noteSmart write is not locked to server-only (if false)')
+})
+
 // ── Report ──────────────────────────────────────────────────────
 
 console.log('')
