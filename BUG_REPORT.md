@@ -1,20 +1,21 @@
 # ZedExams — Bug & Cleanup Report
 
+> Snapshot as of 2026-06-07 — verify before acting.
+
 **Original audit:** 2026-04-18
-**Re-verified:** 2026-05-29 — almost everything below has shipped. Read "Current status" before acting on anything; the original audit's line/file references have drifted.
+**Re-verified:** 2026-06-07 — almost everything below has shipped. Read "Current status" before acting on anything; the original audit's line/file references have drifted.
 
 ---
 
-## Current status (2026-05-29)
+## Current status (2026-06-07)
 
-The 2026-04-18 audit found **no P0/P1 issues** and a list of P2 hardening + P3 cleanup items. On re-verification against the current tree, **every P2 item is resolved** and **most P3 cleanup is done**. Two non-blocking items remain (one cosmetic, one auth-resilience hardening gap).
+The 2026-04-18 audit found **no P0/P1 issues** and a list of P2 hardening + P3 cleanup items. On re-verification against the current tree, **every P2 item is resolved** and **most P3 cleanup is done**. One non-blocking cosmetic item remains.
 
 ### Still open
 
-1. **One `console.log` in a test** — `src/components/quiz/documentQuizParserCore.test.js` logs a "regression test passed" line. Test-only, excluded from the production bundle. Cosmetic; optional.
-2. **Auth: no session recovery for backgrounded tabs** — `src/contexts/AuthContext.jsx` doesn't force an ID-token refresh or re-establish dropped Firestore `onSnapshot` listeners on `visibilitychange` / `pageshow` / `online`. A tab or PWA backgrounded for hours can wake into a dead-listener state (stale token, profile stops updating) — relevant for mobile / flaky-network users. A working prototype (`useAuthRecovery` hook + `NetworkBanner` + session-expiry UX) lives on the **`salvage/auth-recovery`** branch (PR #705, closed); it predates `main`'s soft-suspend handling + analytics inside the auth effect, so it must be **rebuilt and login-tested on current `main`**, not merged as-is.
+1. **`console.log` lines in a test** — `src/components/quiz/documentQuizParserCore.test.js` logs a few "test passed" lines. Test-only, excluded from the production bundle. Cosmetic; optional.
 
-_(The two orphaned editor files — `src/editor/QuizEditor.jsx` and `src/editor/QuizViewer.jsx` — were deleted in this change; see P3-1 below. They're recoverable from git history if the Tiptap-editor switch in [EDITOR_UPLOAD_REPORT.md](EDITOR_UPLOAD_REPORT.md) is ever revived.)_
+_(The two orphaned editor files — `src/editor/QuizEditor.jsx` and `src/editor/QuizViewer.jsx` — were deleted on 2026-05-29; see P3-1 below. They're recoverable from git history if the Tiptap-editor switch is ever revived.)_
 
 ### Resolved since 2026-04-18
 
@@ -27,6 +28,7 @@ _(The two orphaned editor files — `src/editor/QuizEditor.jsx` and `src/editor/
 | P2-5 · Two sanitizer paths | `src/utils/quizRichText.js` now runs a final DOMPurify pass via `sanitizeQuizRichHTML` from `editor/utils/sanitize.js` — one allow-list source of truth |
 | P2-6 · UpgradeModal close button | `aria-label="Close upgrade dialog"` added |
 | P2-7 · 2.5 s auth watchdog | Extended to 5 s in `src/contexts/AuthContext.jsx` |
+| Auth session recovery for backgrounded tabs (was "still open" #2) | Shipped on `main`: `useAuthRecovery` (token refresh + Firestore listener re-attach on `visibilitychange`/`pageshow`/`online`) wired into `AuthContext`, `expireSession` redirect on terminal auth failure, plus `OfflineBanner` + `useNetworkStatus`. Covered by `test:auth-recovery` + `test:sw-recovery` |
 | P3-1 · 9 orphan files | All 9 deleted — the last 2 (`src/editor/QuizEditor.jsx`, `QuizViewer.jsx`) removed in this change |
 | P3-2 · `VITE_OPENAI_API_KEY` in `.env` | No code reads it (`src/` has zero references). The `.env` line is local/gitignored — verify + remove on the workstation if it's still there |
 | P3-6 · Rollup chunk-size advisory | `chunkSizeWarningLimit` raised to 900 with a documented rationale |
