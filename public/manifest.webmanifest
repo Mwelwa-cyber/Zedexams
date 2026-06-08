@@ -1,7 +1,7 @@
 {
   "name": "ZedExams",
   "short_name": "ZedExams",
-  "description": "Zambian CBC exam prep — daily exams, quizzes, lessons, games and AI study help for Grade 1–12 learners, plus printable lesson tools for teachers.",
+  "description": "Zambian CBC exam prep — daily exams, quizzes, lessons, games and AI study help for Grade 4–7 learners, plus printable lesson tools for teachers.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

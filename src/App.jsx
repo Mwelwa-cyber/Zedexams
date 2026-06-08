@@ -370,6 +370,14 @@ export default function App() {
           <Route path="/welcome"  element={<Navigate to="/" replace />} />
           <Route path="/pricing"  element={<Plans />} />
           <Route path="/plans"    element={<Navigate to="/pricing" replace />} />
+          {/* Legacy teacher-funnel URLs (/teachers, /teachers/samples, …) that old
+              launch docs reference and Google may have indexed, but the public
+              teacher landing was never built — so they 404'd. Send them to /pricing
+              (the live public teacher entry point). 301'd at the hosting layer
+              (firebase.json); these client-side redirects are the dev-server
+              fallback. Replace with a real landing if the teacher funnel ships. */}
+          <Route path="/teachers"   element={<Navigate to="/pricing" replace />} />
+          <Route path="/teachers/*" element={<Navigate to="/pricing" replace />} />
           {/* Grade-specific landing pages — the URLs to share in WhatsApp
               posts. React Router v6 can't match a partial dynamic segment
               (`/grade-:slug`), so each live grade gets an explicit route and
