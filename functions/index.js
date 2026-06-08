@@ -2296,6 +2296,13 @@ exports.onAssessmentQuestionUpdated = storageCleanup.onAssessmentQuestionUpdated
 exports.onUserDeleted = storageCleanup.onUserDeleted;
 exports.orphanStorageReaper = storageCleanup.orphanStorageReaper;
 
+// Past-papers published-list index. Maintains pastPapersIndex/published —
+// a single lightweight doc the /papers hub reads instead of fetching the
+// whole archive (heavy assets[] arrays and all) on every visit.
+const pastPapersIndex = require("./pastPapersIndex");
+exports.pastPapersIndexOnWrite = pastPapersIndex.pastPapersIndexOnWrite;
+exports.rebuildPastPapersIndexCron = pastPapersIndex.rebuildPastPapersIndexCron;
+
 // Quill — nightly QA smoke (Africa/Lusaka 02:00). Writes a summary
 // agentJobs doc the /admin/agents dashboard surfaces in QA / Eng.
 exports.nightlyQaSmoke = nightlyQaSmokeCron;
