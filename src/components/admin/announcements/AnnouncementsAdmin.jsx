@@ -7,6 +7,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import PageHeader from '../../ui/PageHeader'
 import Card from '../../ui/Card'
 import Button from '../../ui/Button'
+import { useToast } from '../../ui/Toast'
 
 const SEVERITIES = ['info', 'warn', 'success']
 const AUDIENCES = ['all', 'learners', 'teachers', 'admins']
@@ -30,6 +31,7 @@ const EMPTY = {
 
 export default function AnnouncementsAdmin() {
   const { currentUser } = useAuth()
+  const toast = useToast()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState(EMPTY)
@@ -103,7 +105,7 @@ export default function AnnouncementsAdmin() {
       await updateDoc(doc(db, 'announcements', item.id), { active: !item.active })
       reload()
     } catch (err) {
-      window.alert(err.message || err)
+      toast.error(err.message || err)
     }
   }
 
@@ -113,7 +115,7 @@ export default function AnnouncementsAdmin() {
       await deleteDoc(doc(db, 'announcements', item.id))
       reload()
     } catch (err) {
-      window.alert(err.message || err)
+      toast.error(err.message || err)
     }
   }
 

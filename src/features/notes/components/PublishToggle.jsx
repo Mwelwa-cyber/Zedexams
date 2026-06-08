@@ -7,8 +7,10 @@ import { useState } from 'react'
 import { Sparkles, EyeOff } from '../../../components/ui/icons'
 import { publishNote, unpublishNote } from '../lib/firestore'
 import { NOTE_STATUS } from '../../../config/curriculum'
+import { useToast } from '../../../components/ui/Toast'
 
 export function PublishToggle({ noteId, status, disabled, onChange }) {
+  const toast = useToast()
   const [busy, setBusy]       = useState(false)
   const [confirm, setConfirm] = useState(false)
 
@@ -22,7 +24,7 @@ export function PublishToggle({ noteId, status, disabled, onChange }) {
       onChange?.(NOTE_STATUS.PUBLISHED)
     } catch (err) {
       console.error('publishNote failed', err)
-      window.alert('Could not publish this note. Please try again.')
+      toast.error('Could not publish this note. Please try again.')
     } finally { setBusy(false) }
   }
 
@@ -36,7 +38,7 @@ export function PublishToggle({ noteId, status, disabled, onChange }) {
       setConfirm(false)
     } catch (err) {
       console.error('unpublishNote failed', err)
-      window.alert('Could not unpublish this note. Please try again.')
+      toast.error('Could not unpublish this note. Please try again.')
     } finally { setBusy(false) }
   }
 

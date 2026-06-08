@@ -48,6 +48,7 @@ import { NoteUploader }  from '../components/NoteUploader'
 import { PublishToggle } from '../components/PublishToggle'
 import { SlideNotesReader } from '../components/SlideNotesReader'
 import SeoHelmet         from '../../../components/seo/SeoHelmet'
+import { useToast }      from '../../../components/ui/Toast'
 import '../styles/notes.css'
 
 const AUTOSAVE_DELAY_MS = 1500
@@ -65,6 +66,7 @@ export function AdminNoteEditor() {
   const isNew = !id
 
   const { currentUser } = useAuth()
+  const toast = useToast()
   const { note, loading } = useNote(id)
 
   // ── form state ──────────────────────────────────────────────────────
@@ -234,7 +236,7 @@ export function AdminNoteEditor() {
       navigate('/admin/lessons')
     } catch (err) {
       console.error('delete failed', err)
-      window.alert('Could not delete the note. Try again.')
+      toast.error('Could not delete the note. Try again.')
     }
   }
 
@@ -453,7 +455,7 @@ export function AdminNoteEditor() {
                   setFileMeta({ ...meta, updatedAt: new Date() })
                   markDirty()
                 }}
-                onError={(err) => window.alert(err.message)}
+                onError={(err) => toast.error(err.message)}
               />
             )}
 

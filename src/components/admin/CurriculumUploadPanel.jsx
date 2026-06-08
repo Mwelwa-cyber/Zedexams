@@ -32,6 +32,7 @@ import {
 import app, { storage, db } from '../../firebase/config'
 import { useAuth } from '../../contexts/AuthContext'
 import { TEACHER_GRADES, TEACHER_SUBJECTS } from '../../utils/teacherTools'
+import { useToast } from '../ui/Toast'
 
 const functions = getFunctions(app, 'us-central1')
 const uploadCallable = httpsCallable(functions, 'uploadCurriculumModule', {
@@ -99,6 +100,7 @@ function formatTimestamp(ts) {
 
 export default function CurriculumUploadPanel() {
   const { currentUser } = useAuth()
+  const toast = useToast()
   const [file, setFile] = useState(null)
   const [grade, setGrade] = useState('G6')
   const [subject, setSubject] = useState('mathematics')
@@ -237,7 +239,7 @@ export default function CurriculumUploadPanel() {
     try {
       await deleteCallable({ id: uploadId })
     } catch (e) {
-      window.alert(`Delete failed: ${e?.message || 'unknown error'}`)
+      toast.error(`Delete failed: ${e?.message || 'unknown error'}`)
     } finally {
       setDeletingId(null)
     }

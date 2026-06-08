@@ -14,12 +14,14 @@ import {
   TEACHER_SUBJECTS,
 } from '../../utils/teacherTools'
 import SeoHelmet from '../seo/SeoHelmet'
+import { useToast } from '../ui/Toast'
 
 /**
  * Admin-only ops page at /admin/generations.
  * See what teachers are generating, spot problems, export for review.
  */
 export default function GenerationsAdmin() {
+  const toast = useToast()
   const [rows, setRows] = useState([])
   const [status, setStatus] = useState('loading')
   const [errorMessage, setErrorMessage] = useState('')
@@ -94,7 +96,7 @@ export default function GenerationsAdmin() {
     if (!confirmed) return
     const ok = await deleteGeneration(row.id)
     if (ok) setRows((rs) => rs.filter((r) => r.id !== row.id))
-    else window.alert('Delete failed. Check console for details.')
+    else toast.error('Delete failed. Check console for details.')
   }
 
   function onExport() {

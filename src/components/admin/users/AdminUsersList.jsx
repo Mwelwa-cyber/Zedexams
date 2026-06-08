@@ -11,6 +11,7 @@ import { Search, Download, ChevronRight } from '../../ui/icons'
 import UserStatusBadge from './UserStatusBadge'
 import { adminSetUserStatus } from '../../../utils/adminUsersService'
 import { ADMIN_QUERY_LIMIT } from '../../../hooks/useFirestore'
+import { useToast } from '../../ui/Toast'
 
 const ROLE_LABELS = { admin: 'Admin', teacher: 'Teacher', learner: 'Learner', student: 'Learner' }
 
@@ -48,6 +49,7 @@ function fmtDate(ts) {
  */
 export default function AdminUsersList({ defaultRole = 'all' }) {
   const { currentUser } = useAuth()
+  const toast = useToast()
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -106,7 +108,7 @@ export default function AdminUsersList({ defaultRole = 'all' }) {
   async function handleSuspend(uid, current) {
     if (busy[uid]) return
     if (uid === currentUser?.uid) {
-      window.alert("You can't suspend your own account from here.")
+      toast.error("You can't suspend your own account from here.")
       return
     }
     const goal = current === 'suspended' ? 'active' : 'suspended'
@@ -118,7 +120,7 @@ export default function AdminUsersList({ defaultRole = 'all' }) {
       await adminSetUserStatus({ uid, status: goal, reason })
       setUsers(prev => prev.map(u => u.id === uid ? { ...u, status: goal, suspendReason: reason } : u))
     } catch (e) {
-      window.alert(`Could not update status: ${e.message || e}`)
+      toast.error(`Could not update status: ${e.message || e}`)
     } finally {
       setBusy(b => ({ ...b, [uid]: false }))
     }
@@ -127,7 +129,7 @@ export default function AdminUsersList({ defaultRole = 'all' }) {
   async function handleSoftDelete(uid) {
     if (busy[uid]) return
     if (uid === currentUser?.uid) {
-      window.alert("You can't soft-delete your own account from here.")
+      toast.error("You can't soft-delete your own account from here.")
       return
     }
     if (!window.confirm('Soft-delete this user? They will lose access immediately. The record stays for audit; reverse with status=active.')) return
@@ -136,7 +138,7 @@ export default function AdminUsersList({ defaultRole = 'all' }) {
       await adminSetUserStatus({ uid, status: 'deleted', reason: 'soft delete by admin' })
       setUsers(prev => prev.map(u => u.id === uid ? { ...u, status: 'deleted' } : u))
     } catch (e) {
-      window.alert(`Could not delete: ${e.message || e}`)
+      toast.error(`Could not delete: ${e.message || e}`)
     } finally {
       setBusy(b => ({ ...b, [uid]: false }))
     }

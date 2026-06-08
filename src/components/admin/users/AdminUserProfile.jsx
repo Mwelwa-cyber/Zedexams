@@ -10,6 +10,7 @@ import Icon from '../../ui/Icon'
 import { ArrowLeft } from '../../ui/icons'
 import UserStatusBadge from './UserStatusBadge'
 import { adminSetUserStatus, adminSetUserRole } from '../../../utils/adminUsersService'
+import { useToast } from '../../ui/Toast'
 
 function fmt(ts) {
   if (!ts) return '—'
@@ -23,6 +24,7 @@ function fmt(ts) {
 export default function AdminUserProfile() {
   const { userId } = useParams()
   const { currentUser } = useAuth()
+  const toast = useToast()
   const isSelf = !!currentUser?.uid && currentUser.uid === userId
   const [profile, setProfile] = useState(null)
   const [results, setResults] = useState([])
@@ -64,7 +66,7 @@ export default function AdminUserProfile() {
 
   async function changeStatus(target) {
     if (isSelf) {
-      window.alert("You can't change your own account status from here.")
+      toast.error("You can't change your own account status from here.")
       return
     }
     setBusy(true)
@@ -75,7 +77,7 @@ export default function AdminUserProfile() {
       await adminSetUserStatus({ uid: userId, status: target, reason })
       setProfile(p => ({ ...p, status: target, suspendReason: reason }))
     } catch (e) {
-      window.alert(`Could not update status: ${e.message || e}`)
+      toast.error(`Could not update status: ${e.message || e}`)
     } finally {
       setBusy(false)
     }
@@ -83,7 +85,7 @@ export default function AdminUserProfile() {
 
   async function changeRole(target) {
     if (isSelf) {
-      window.alert("You can't change your own role from here.")
+      toast.error("You can't change your own role from here.")
       return
     }
     if (!window.confirm(`Change role to ${target}? This affects what the user can do across the platform.`)) return
@@ -92,7 +94,7 @@ export default function AdminUserProfile() {
       await adminSetUserRole({ uid: userId, role: target })
       setProfile(p => ({ ...p, role: target }))
     } catch (e) {
-      window.alert(`Could not update role: ${e.message || e}`)
+      toast.error(`Could not update role: ${e.message || e}`)
     } finally {
       setBusy(false)
     }

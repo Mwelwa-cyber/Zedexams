@@ -27,11 +27,13 @@ import { downloadNotesDocx } from '../../../utils/notesToDocx'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
 import { publishShare } from '../../../utils/shareService'
 import { useAuth } from '../../../contexts/AuthContext'
+import { useToast } from '../../ui/Toast'
 
 export default function LibraryItemDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { currentUser, userProfile, isAdmin } = useAuth()
+  const toast = useToast()
   const [item, setItem] = useState(null)
   const [status, setStatus] = useState('loading')
   const [showAnswers, setShowAnswers] = useState(false)
@@ -109,14 +111,14 @@ export default function LibraryItemDetail() {
     if (ok) {
       navigate('/teacher/library')
     } else {
-      window.alert('Could not delete this item. Please try again.')
+      toast.error('Could not delete this item. Please try again.')
     }
   }
 
   async function onExport() {
     if (!item?.output) return
     if (!permissions.canDownload) {
-      window.alert(
+      toast.error(
         permissions.level === LIBRARY_ACCESS.PRO
           ? 'Downloads of library documents you didn\'t create are reserved for Premium accounts.'
           : 'Sign in to a paid plan to download library documents.',
@@ -187,7 +189,7 @@ export default function LibraryItemDetail() {
       setItem((prev) => ({ ...prev, output: nextOutput, teacherEdited: true }))
       setEditingHeader(false)
     } else {
-      window.alert('Could not save changes. Please try again.')
+      toast.error('Could not save changes. Please try again.')
     }
     setSavingEdit(false)
   }
