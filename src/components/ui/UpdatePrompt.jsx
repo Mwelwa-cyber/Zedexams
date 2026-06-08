@@ -1,27 +1,49 @@
+import { useEffect, useRef } from 'react'
+import { useLocation } from 'react-router-dom'
 import { usePwaUpdate } from '../../hooks/usePwaUpdate'
+import { pwaReloadOnNavigate } from '../../hooks/pwaAutoReload'
 import Icon from './Icon'
 import { RefreshCw, XMarkIcon } from './icons'
 
 /**
- * UpdatePrompt — toast that appears in the bottom-right when a new
- * service worker is waiting (audit A1.2).
+ * UpdatePrompt — surfaces a new service-worker build to the user (audit A1.2).
  *
- * The PWA SW is registered with `registerType: 'prompt'` (vite.config.js)
- * so a new build doesn't auto-claim open tabs — instead vite-plugin-pwa
- * fires `onNeedRefresh` and we ask the user. Auto-claiming would risk
- * tearing the page mid-quiz, mid-edit, or mid-payment, which is exactly
- * the kind of thing learners on flaky 3G can't tolerate.
+ * The PWA SW uses `registerType: 'autoUpdate'` (vite.config.js): a new build's
+ * SW activates + claims clients automatically, and public/sw-reload-clients.js
+ * posts SW_RELOAD_REQUEST so usePwaUpdate flips `updateReady`. We deliberately
+ * do NOT hard-reload the instant that happens — a reload mid-operation (e.g. a
+ * 15-30 s document import) would destroy the work. So crossover happens two
+ * ways, both at safe moments:
+ *   1. Auto: on the user's NEXT in-app navigation (a route teardown point) —
+ *      see the pwaReloadOnNavigate effect below. This reaches returning users
+ *      without any tap. Long-running ops don't navigate, so they're safe.
+ *   2. Manual: this toast ("Refresh now") for users who stay on one screen.
  *
- * The toast is dismissible — pressing "Later" hides it for the session
- * but the next deploy will re-show. The user can also reload manually at
- * any time, which has the same effect as accepting.
+ * The toast is dismissible — "Later" hides it for the session (and also opts
+ * out of the auto-reload, since updateReady goes false); the next deploy
+ * re-shows it.
  *
  * Mounted inside <App /> so it renders on every route, but inert (returns
- * null) until updateReady flips. Capacitor users never see this — the
- * hook short-circuits to no-op on native.
+ * null) until updateReady flips. Capacitor users never see this — the hook
+ * short-circuits to no-op on native.
  */
 export default function UpdatePrompt() {
   const { updateReady, update, dismiss } = usePwaUpdate()
+  const location = useLocation()
+
+  // Latest update() in a ref so the navigation effect never closes over a
+  // stale value and doesn't need `update` in its dependency array.
+  const updateRef = useRef(update)
+  updateRef.current = update
+  const armedRef = useRef(false)
+
+  // Apply a pending update on the next in-app navigation. Arms at the location
+  // where the update became ready, then reloads on the following route change.
+  useEffect(() => {
+    const { armed, reload } = pwaReloadOnNavigate({ armed: armedRef.current, updateReady })
+    armedRef.current = armed
+    if (reload) updateRef.current()
+  }, [updateReady, location.pathname])
 
   if (!updateReady) return null
 
