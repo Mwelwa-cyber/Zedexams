@@ -6,10 +6,24 @@
 //
 // No React, no Firestore: imported by LearnerNoteCard and unit-testable.
 
-import { NOTE_FORMAT } from '../../../config/curriculum'
-import { studyReadingTime } from './studyBlocks'
+import { NOTE_FORMAT } from '../../../config/curriculum.js'
+import { studyReadingTime } from './studyBlocks.js'
 
 const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000
+
+/**
+ * True for the "How to Study & Exam Tips" note. This is general study advice
+ * rather than a syllabus topic, so the learner notes list pins it to the top.
+ * Identified by its seed key suffix (`*_tips`) with a title fallback so it still
+ * resolves for notes created before the seed key was recorded.
+ */
+export function isStudyTipsNote(note) {
+  if (!note) return false
+  const seedKey = typeof note.seedKey === 'string' ? note.seedKey.toLowerCase() : ''
+  if (seedKey.endsWith('_tips')) return true
+  const title = typeof note.title === 'string' ? note.title.toLowerCase() : ''
+  return title.includes('how to study')
+}
 
 /** True for notes published within the last 7 days. */
 export function isNewThisWeek(publishedAt) {

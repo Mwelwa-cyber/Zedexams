@@ -108,8 +108,9 @@ export function LearnerNoteCard({ note, onClick, progress }) {
         {/* Progress strip */}
         <ProgressStrip status={status} percent={percent} progress={progress} />
 
-        {/* Actions */}
-        <div className="mt-auto pt-3 flex items-center gap-2">
+        {/* Actions — wrap so the secondary buttons never get clipped on
+            narrow (mobile / two-up) cards. */}
+        <div className="mt-auto pt-3 flex flex-wrap items-center gap-2">
           <PrimaryAction status={status} onClick={open} />
           {!isFile && (
             <button
