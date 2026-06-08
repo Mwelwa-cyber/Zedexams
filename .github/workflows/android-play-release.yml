@@ -33,6 +33,10 @@ on:
         description: "versionName for this release (e.g. 1.1.2). Blank = build.gradle default."
         required: false
         default: ""
+      version_code:
+        description: "Override versionCode (integer). Blank = git commit count. Set this when re-running on the same commit — Play requires a unique, higher code."
+        required: false
+        default: ""
       upload_to_play:
         description: "Publish to Play after building? (needs PLAY_SERVICE_ACCOUNT_JSON)"
         type: boolean
@@ -149,14 +153,15 @@ jobs:
           IN_STATUS: ${{ github.event.inputs.release_status }}
           IN_VERSION: ${{ github.event.inputs.version_name }}
           IN_FRACTION: ${{ github.event.inputs.user_fraction }}
+          IN_VERSIONCODE: ${{ github.event.inputs.version_code }}
         run: |
           set -euo pipefail
           if [ "$EVENT" = "push" ]; then
             # Tag push → auto-promote to testers: internal track, live, version from tag.
-            upload=true; track=internal; status=completed; version="${TAG#v}"; fraction=""
+            upload=true; track=internal; status=completed; version="${TAG#v}"; fraction=""; code=""
           else
             upload="${IN_UPLOAD:-false}"; track="${IN_TRACK:-internal}"; status="${IN_STATUS:-draft}"
-            version="${IN_VERSION:-}"; fraction="${IN_FRACTION:-}"
+            version="${IN_VERSION:-}"; fraction="${IN_FRACTION:-}"; code="${IN_VERSIONCODE:-}"
           fi
           # Staged rollout only applies to production with a fraction; otherwise ignore it.
           if [ "$track" = "production" ] && [ -n "$fraction" ]; then
@@ -173,7 +178,10 @@ jobs:
           if [ -n "$version" ]; then
             echo "ZED_VERSION_NAME=$version" >> "$GITHUB_ENV"
           fi
-          echo "Effective release → upload=$upload track=$track status=$status fraction=${fraction:-<full>} version=${version:-<gradle default>}"
+          if [ -n "$code" ]; then
+            echo "ZED_VERSION_CODE=$code" >> "$GITHUB_ENV"
+          fi
+          echo "Effective release → upload=$upload track=$track status=$status fraction=${fraction:-<full>} versionName=${version:-<gradle default>} versionCode=${code:-<commit count>}"
 
       - name: Build web bundle
         env:
