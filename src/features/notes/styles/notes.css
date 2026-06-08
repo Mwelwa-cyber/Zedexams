@@ -4,7 +4,7 @@
    Pairs with Tailwind for layout — these styles only handle prose + math.
 */
 
-@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Lora:ital,wght@0,400;0,500;0,600;1,400&display=swap');
 
 .notes-studio,
 .notes-studio * { box-sizing: border-box; }
@@ -88,4 +88,53 @@
   color: inherit;
   border-radius: 2px;
   padding: 0 0.05em;
+}
+
+/* ─── Reader preferences ──────────────────────────────────────────────────
+   Learner-chosen reading comfort (see hooks/useReaderPrefs.js). A .note-body
+   wrapper carries the text-size + typeface choice; the page background lives on
+   the .notes-studio page container (note-page-*). Persisted per device.
+*/
+
+/* Text size — scales the body copy. prose-note inherits the wrapper font-size
+   directly; study-note states its copy in fixed px via Tailwind utilities, so
+   we rescale those here (escaped-class selectors outrank the single-class
+   utilities, and we re-base them on --note-scale). Headings, pills and meta
+   text keep their authored sizes so the layout rhythm stays intact. */
+.note-body                { --note-scale: 1; font-size: calc(16px * var(--note-scale)); }
+.note-body.note-size-sm   { --note-scale: 0.92; }
+.note-body.note-size-base { --note-scale: 1; }
+.note-body.note-size-lg   { --note-scale: 1.15; }
+.note-body.note-size-xl   { --note-scale: 1.32; }
+.note-body.note-size-xxl  { --note-scale: 1.5; }
+
+/* prose-note copy has no fixed size, so it inherits the scaled wrapper directly;
+   only the fixed-rem heading needs an explicit rescale. */
+.note-body .prose-note h2   { font-size: calc(1.75rem * var(--note-scale)); }
+
+.note-body .study-note               { font-size: calc(16px * var(--note-scale)); }
+.note-body .study-note .text-\[15px\] { font-size: calc(15px * var(--note-scale)); }
+.note-body .study-note .text-\[14px\] { font-size: calc(14px * var(--note-scale)); }
+
+/* Typeface — swaps the body font only; display/serif headings keep their
+   editorial look. Falls back to system fonts if the web fonts haven't loaded. */
+.note-font-sans  { font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif; }
+.note-font-serif { font-family: 'Lora', Georgia, 'Times New Roman', serif; }
+.note-font-book  { font-family: Georgia, 'Iowan Old Style', 'Palatino Linotype', Palatino, 'Book Antiqua', serif; }
+.note-font-mono  { font-family: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', 'Courier New', monospace; }
+
+/* Page background — painted on the .notes-studio page container. These all keep
+   the dark editorial text readable, so no per-element colour overrides needed. */
+.notes-studio.note-page-cream { background-color: #F5EFE1; }
+.notes-studio.note-page-white { background-color: #FFFFFF; }
+.notes-studio.note-page-sepia { background-color: #F4ECD8; }
+.notes-studio.note-page-lined {
+  background-color: #FFFFFF;
+  background-image: repeating-linear-gradient(
+    to bottom,
+    transparent 0,
+    transparent 31px,
+    #D7E3F0 31px,
+    #D7E3F0 32px
+  );
 }
