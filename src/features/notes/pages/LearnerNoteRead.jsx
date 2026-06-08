@@ -69,13 +69,19 @@ export function LearnerNoteRead() {
     try { return localStorage.getItem('notes:hl') !== '0' } catch { return true }
   })
   const [highlightsByBlock, setHighlightsByBlock] = useState(null)
+  const [sectionSummaries, setSectionSummaries] = useState(null)
   useEffect(() => {
     let cancelled = false
     if (id && note?.noteFormat === NOTE_FORMAT.STUDY) {
-      fetchNoteSmart(id).then(r => { if (!cancelled) setHighlightsByBlock(r?.highlights || null) }).catch(() => {})
+      fetchNoteSmart(id).then(r => { if (!cancelled) { setHighlightsByBlock(r?.highlights || null); setSectionSummaries(r?.sections || null) } }).catch(() => {})
     }
     return () => { cancelled = true }
   }, [id, note])
+  const summaryByBlockId = useMemo(() => {
+    const m = {}
+    for (const s of sectionSummaries || []) { if (s?.key && s?.summary) m[s.key] = s.summary }
+    return m
+  }, [sectionSummaries])
   const toggleHighlights = () => setHighlightsOn(v => {
     const next = !v
     try { localStorage.setItem('notes:hl', next ? '1' : '0') } catch { /* ignore */ }
@@ -176,7 +182,7 @@ export function LearnerNoteRead() {
               <ReaderControls blocks={studyBlocks} title={note.title}
                 highlightsOn={highlightsOn} onToggleHighlights={toggleHighlights} hasHighlights={hasHighlights} />
               <StudyNoteReader blocks={studyBlocks} anchorByIndex={anchorByIndex}
-                highlightsByBlock={highlightsByBlock} highlightsOn={highlightsOn} />
+                highlightsByBlock={highlightsByBlock} highlightsOn={highlightsOn} summaryByBlockId={summaryByBlockId} />
             </>
           ) : (
             <div
@@ -204,7 +210,7 @@ export function LearnerNoteRead() {
         </article>
         {note.noteFormat === NOTE_FORMAT.STUDY && (
           <>
-            <NoteToc toc={toc} activeKey={activeKey} />
+            <NoteToc toc={toc} activeKey={activeKey} summaryByKey={summaryByBlockId} />
             <BackToTop />
           </>
         )}

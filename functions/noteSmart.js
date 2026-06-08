@@ -9,7 +9,7 @@
 
 const admin = require("firebase-admin");
 const {callAnthropic} = require("./aiService");
-const {buildHighlightMessages, parseHighlights} = require("./noteSmartPrompt");
+const {buildHighlightMessages, parseHighlights, buildSummaryMessages, parseSummaries} = require("./noteSmartPrompt");
 
 const SMART_MODEL = process.env.NOTE_SMART_MODEL || undefined;
 
@@ -59,15 +59,38 @@ async function runGenerateNoteSmart({noteId, uid, apiKey}) {
   });
   const {highlights, warnings} = parseHighlights(raw);
 
+  // Second pass: a 1-2 sentence summary per section (level-2 heading).
+  let sections = [];
+  try {
+    const sumMsgs = buildSummaryMessages({blocks});
+    const rawSum = await callAnthropic(apiKey, {
+      systemPrompt: sumMsgs[0].content,
+      messages: [{role: "user", content: sumMsgs[1].content}],
+      maxTokens: 2000,
+      temperature: 0.3,
+      json: true,
+      model: SMART_MODEL,
+      track: {uid, tool: "generateNoteSmart"},
+    });
+    const {summaries} = parseSummaries(rawSum);
+    sections = blocks
+      .filter((b) => b?.type === "heading" && b.level === 2 && b.id)
+      .map((b) => ({key: String(b.id), title: String(b.text || ""), summary: summaries[b.id] || ""}))
+      .filter((s) => s.summary);
+  } catch (e) {
+    warnings.push("Section summaries could not be generated.");
+  }
+
   await db.collection("noteSmart").doc(noteId).set({
     highlights,
+    sections,
     warnings,
     contentHash: contentHash(blocks),
     model: SMART_MODEL || "default",
     generatedAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
-  return {highlights, warnings};
+  return {highlights, sections, warnings};
 }
 
 module.exports = {runGenerateNoteSmart, contentHash};
