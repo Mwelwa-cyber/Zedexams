@@ -34,7 +34,8 @@ import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import {
   PAPER_GRADES,
-  listPublishedPapers,
+  getCachedPublishedPapers,
+  listPublishedPapersCached,
 } from '../../utils/pastPapers'
 import { PAPER_SUBJECTS } from '../../config/curriculum'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -359,8 +360,13 @@ export default function PastPapersHub() {
   const [searchParams] = useSearchParams()
   const searchRef = useRef(null)
 
-  const [loaded, setLoaded] = useState([])
-  const [loading, setLoading] = useState(true)
+  // Seed from the per-tab / sessionStorage cache so a revisit to /papers
+  // paints instantly instead of waiting on a cold full-archive read.
+  const cachedOnMount = getCachedPublishedPapers()
+  const [loaded, setLoaded] = useState(() =>
+    cachedOnMount ? cachedOnMount.filter((p) => PAPER_GRADES.includes(String(p.grade))) : [],
+  )
+  const [loading, setLoading] = useState(() => !cachedOnMount)
   const [usingSample, setUsingSample] = useState(false)
 
   const [query, setQuery] = useState('')
@@ -378,12 +384,15 @@ export default function PastPapersHub() {
   const [recentIds, setRecentIds] = useState(() => readStored(RECENT_KEY))
   const [expandedYears, setExpandedYears] = useState(() => new Set())
 
-  // Load live papers; fall back to the curated sample if empty/error so
-  // the surface is never blank (and the redesign is fully visible).
+  // Revalidate against live Firestore. When the cache already painted
+  // a list we refresh in the background (no spinner, and a transient
+  // failure keeps the cached rows on screen). Fall back to the curated
+  // sample only when there's nothing cached to show.
   useEffect(() => {
     let cancelled = false
-    setLoading(true)
-    listPublishedPapers({})
+    const hadCache = Boolean(getCachedPublishedPapers())
+    if (!hadCache) setLoading(true)
+    listPublishedPapersCached({})
       .then((rows) => {
         if (cancelled) return
         const visible = rows.filter((p) => PAPER_GRADES.includes(String(p.grade)))
@@ -397,7 +406,9 @@ export default function PastPapersHub() {
       })
       .catch((err) => {
         console.warn('[PastPapersHub] list failed', err)
-        if (!cancelled) {
+        // Keep cached rows on a refresh failure; only show the sample
+        // when we had nothing to begin with.
+        if (!cancelled && !hadCache) {
           setLoaded(SAMPLE_PAPERS)
           setUsingSample(true)
         }
