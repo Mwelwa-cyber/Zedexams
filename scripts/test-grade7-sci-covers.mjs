@@ -10,7 +10,7 @@
 
 import { readFile, access } from 'node:fs/promises'
 import path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const REPO_ROOT = path.resolve(__dirname, '..')
@@ -23,8 +23,10 @@ const exists = async (p) => {
   try { await access(p); return true } catch { return false }
 }
 
+// On Windows, ESM dynamic-import refuses bare absolute paths ("M:\..."). Wrap
+// the joined path in a file:// URL, which works on both Windows and POSIX.
 const { NOTE_COVER_REGISTRY, NOTE_COVER_BY_TITLE, resolveNoteCover } = await import(
-  path.join(REPO_ROOT, 'src/features/notes/lib/noteCovers.js')
+  pathToFileURL(path.join(REPO_ROOT, 'src/features/notes/lib/noteCovers.js')).href
 )
 
 const seed = JSON.parse(

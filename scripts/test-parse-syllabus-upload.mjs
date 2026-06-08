@@ -19,7 +19,7 @@
  * Run: npm run test:parse-syllabus-upload  (also via npm run test:all)
  */
 
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { dirname, join } from 'node:path'
 import Module from 'node:module'
 
@@ -27,6 +27,9 @@ const __dirname = dirname(fileURLToPath(import.meta.url))
 const PARSER_PATH = join(
   __dirname, '..', 'functions', 'teacherTools', 'parseSyllabusUpload.js',
 )
+// On Windows, ESM dynamic-import refuses bare absolute paths ("M:\..."). Use
+// the file:// URL form, which works on both Windows and POSIX.
+const PARSER_URL = pathToFileURL(PARSER_PATH).href
 
 // The parser pulls in firebase-functions/v2/storage + firebase-admin at
 // module load (for the trigger registration), but the pure helpers we
@@ -76,7 +79,7 @@ Module._load = function (request, parent, ...rest) {
   return origLoad.call(this, request, parent, ...rest)
 }
 
-const mod = await import(PARSER_PATH)
+const mod = await import(PARSER_URL)
 Module._load = origLoad
 
 const {

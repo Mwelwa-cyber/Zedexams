@@ -22,7 +22,7 @@
  */
 
 import { createRequire } from "node:module";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { dirname, join } from "node:path";
 import Module from "node:module";
 
@@ -73,7 +73,10 @@ const {
   rowsWithPropagatedTopic,
   syllabiToKbTopics,
   studioSubjectToKbSubject,
-} = await import(join(ROOT, "src/utils/syllabusMapping.js"));
+  // On Windows, ESM dynamic-import refuses bare absolute paths ("M:\..."); the
+  // file:// URL form works on both Windows and POSIX. (require() above is fine
+  // with OS paths — only import() needs the URL.)
+} = await import(pathToFileURL(join(ROOT, "src/utils/syllabusMapping.js")).href);
 
 let passed = 0;
 let failed = 0;
