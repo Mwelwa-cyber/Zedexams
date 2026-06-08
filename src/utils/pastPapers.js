@@ -176,6 +176,44 @@ export async function listPublishedPapersCached(opts = {}) {
   return papers
 }
 
+// Single denormalised doc maintained server-side (pastPapersIndexOnWrite
+// trigger + 6-hourly cron). Holds only the lightweight fields the hub
+// renders, so reading it is one tiny doc fetch instead of pulling every
+// pastPapers doc with its heavy assets[] array.
+const INDEX_DOC_PATH = ['pastPapersIndex', 'published']
+
+/**
+ * Read the published-papers index doc. Returns the lightweight papers
+ * array, or null when the doc doesn't exist yet (e.g. before the first
+ * server-side rebuild) so the caller can fall back to a direct query.
+ */
+export async function getPublishedPapersIndex() {
+  try {
+    const snap = await getDoc(doc(db, ...INDEX_DOC_PATH))
+    if (!snap.exists()) return null
+    const papers = snap.data()?.papers
+    return Array.isArray(papers) && papers.length ? papers : null
+  } catch (err) {
+    console.warn('[pastPapers] index read failed', err)
+    return null
+  }
+}
+
+/**
+ * The hub's published-list loader. Prefers the lightweight index doc
+ * (one small read); falls back to the full collection query when the
+ * index hasn't been built yet. Writes the result to the cache either
+ * way so a revisit paints instantly.
+ */
+export async function loadPublishedPapers() {
+  const fromIndex = await getPublishedPapersIndex()
+  if (fromIndex) {
+    writePublishedCache(fromIndex)
+    return fromIndex
+  }
+  return listPublishedPapersCached({})
+}
+
 /** Admin-side list — includes drafts + archived. Sorted updatedAt desc. */
 export async function listAllPapersForAdmin({ limit = 200 } = {}) {
   const q = query(
