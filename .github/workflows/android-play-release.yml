@@ -8,8 +8,8 @@ name: Android Play Release (AAB)
 #
 # Two ways to run:
 #   • Push a tag  v*.*.*  → auto-builds and AUTO-PROMOTES to TESTERS: uploads to
-#     the `internal` track as a LIVE (completed) release, versionName from the
-#     tag (v1.2.3 → 1.2.3). (Note: a tag also triggers android-release.yml's
+#     the closed-testing `alpha` track as a LIVE (completed) release, versionName
+#     from the tag (v1.2.3 → 1.2.3). (Note: a tag also triggers android-release.yml's
 #     Firebase App Distribution build — both run.)
 #   • Manual "Run workflow" (workflow_dispatch) → full control: pick the track
 #     (incl. production), draft vs completed, optional staged-rollout fraction.
@@ -43,10 +43,10 @@ on:
         required: false
         default: false
       track:
-        description: "Play track (only used when upload_to_play = true)"
+        description: "Play track (only used when upload_to_play = true). alpha = Closed testing."
         type: choice
         required: false
-        default: internal
+        default: alpha
         options: [internal, alpha, beta, production]
       release_status:
         description: "draft = upload only (you roll out); completed = live to that track's testers/users"
@@ -157,10 +157,10 @@ jobs:
         run: |
           set -euo pipefail
           if [ "$EVENT" = "push" ]; then
-            # Tag push → auto-promote to testers: internal track, live, version from tag.
-            upload=true; track=internal; status=completed; version="${TAG#v}"; fraction=""; code=""
+            # Tag push → auto-promote to testers: closed (alpha) track, live, version from tag.
+            upload=true; track=alpha; status=completed; version="${TAG#v}"; fraction=""; code=""
           else
-            upload="${IN_UPLOAD:-false}"; track="${IN_TRACK:-internal}"; status="${IN_STATUS:-draft}"
+            upload="${IN_UPLOAD:-false}"; track="${IN_TRACK:-alpha}"; status="${IN_STATUS:-draft}"
             version="${IN_VERSION:-}"; fraction="${IN_FRACTION:-}"; code="${IN_VERSIONCODE:-}"
           fi
           # Staged rollout only applies to production with a fraction; otherwise ignore it.
