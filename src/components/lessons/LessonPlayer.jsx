@@ -11,6 +11,7 @@ import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
 import SeoHelmet from '../seo/SeoHelmet'
+import { useToast } from '../ui/Toast'
 
 function AnswersPanel({ answers }) {
   if (!answers.length) {
@@ -44,6 +45,7 @@ export default function LessonPlayer() {
   const navigate = useNavigate()
   const deckRef = useRef(null)
   const { getLessonById } = useFirestore()
+  const toast = useToast()
 
   const [lesson, setLesson] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -203,7 +205,7 @@ export default function LessonPlayer() {
             <Button
               variant="secondary"
               size="sm"
-              onClick={() => alert('Read-aloud support is prepared for a future text-to-speech integration.')}
+              onClick={() => toast.info('Read-aloud support is coming soon.')}
               leadingIcon={<Icon as={Volume2} size="sm" />}
             >
               Read Aloud

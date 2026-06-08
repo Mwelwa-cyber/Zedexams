@@ -7,6 +7,7 @@ import { printAssessmentAsPdf } from '../../utils/assessmentToPdf'
 import { summarizeImportReview } from '../../utils/importReviewSummary.js'
 import ImportReviewBadge from '../quiz/ImportReviewBadge'
 import SeoHelmet from '../seo/SeoHelmet'
+import { useToast } from '../ui/Toast'
 
 const ASSESSMENT_TYPE_LABELS = {
   weekly: 'Weekly test',
@@ -143,6 +144,7 @@ export default function AssessmentList() {
   const { currentUser } = useAuth()
   const { getMyAssessments, getAssessmentQuestions, deleteAssessment } = useFirestore()
   const navigate = useNavigate()
+  const toast = useToast()
 
   const [assessments, setAssessments] = useState([])
   const [loading, setLoading] = useState(true)
@@ -178,7 +180,7 @@ export default function AssessmentList() {
       await deleteAssessment(assessment.id)
       setAssessments(curr => curr.filter(a => a.id !== assessment.id))
     } catch (err) {
-      alert(`Delete failed: ${err.message || 'unexpected error'}`)
+      toast.error(`Delete failed: ${err.message || 'unexpected error'}`)
     } finally {
       setBusyId(null)
     }
