@@ -17,6 +17,7 @@ import { useLearnerNotes }     from '../hooks/useLearnerNotes'
 import { useNoteProgressMap }  from '../hooks/useNoteProgressMap'
 import { NOTE_PROGRESS_STATUS } from '../lib/progress'
 import { LearnerNoteCard }     from '../components/LearnerNoteCard'
+import { isStudyTipsNote }     from '../lib/noteMeta'
 import { getSubjectsForGrade } from '../../../config/curriculum'
 import SeoHelmet               from '../../../components/seo/SeoHelmet'
 import '../styles/notes.css'
@@ -42,15 +43,28 @@ export function LearnerNotesList() {
   const subjects = useMemo(() => getSubjectsForGrade(grade), [grade])
   const firstName = user?.displayName?.split(' ')[0] || 'there'
 
-  const grouped = useMemo(() => (
-    activeSubject === 'all'
+  // "How to Study & Exam Tips" is general study advice, not a syllabus topic —
+  // pin it to the top of the list (regardless of the active subject) and keep
+  // it out of the per-subject sections so it never reads as "buried".
+  const tipsNote = useMemo(() => allNotes.find(isStudyTipsNote) || null, [allNotes])
+  const tipsMatchesSearch = useMemo(() => {
+    if (!tipsNote) return false
+    const q = search.trim().toLowerCase()
+    if (!q) return true
+    return tipsNote.title?.toLowerCase().includes(q)
+  }, [tipsNote, search])
+  const showTips = !!tipsNote && tipsMatchesSearch
+
+  const grouped = useMemo(() => {
+    const visible = notes.filter(n => !isStudyTipsNote(n))
+    return activeSubject === 'all'
       ? subjects.reduce((acc, s) => {
-          const list = notes.filter(n => n.subject === s)
+          const list = visible.filter(n => n.subject === s)
           if (list.length) acc[s] = list
           return acc
         }, {})
-      : { [activeSubject]: notes }
-  ), [activeSubject, notes, subjects])
+      : { [activeSubject]: visible }
+  }, [activeSubject, notes, subjects])
 
   return (
     <div className="notes-studio min-h-screen pb-24 lg:pb-8" style={{ backgroundColor: '#F5EFE1' }}>
@@ -107,6 +121,20 @@ export function LearnerNotesList() {
           <EmptyState grade={grade} />
         )}
 
+        {!loading && showTips && (
+          <section className="mb-10">
+            <div className="flex items-center gap-3 mb-4">
+              <h2 className="font-display text-2xl tracking-tight text-[#0F1B2D]">Start here</h2>
+              <span className="text-xs text-[#4A5A6E]">Study smarter</span>
+            </div>
+            <LearnerNoteCard
+              note={tipsNote}
+              progress={progressById[tipsNote.id]}
+              onClick={() => navigate(`/notes/${tipsNote.id}`)}
+            />
+          </section>
+        )}
+
         {!loading && Object.keys(grouped).length > 0 && (
           <div className="space-y-10">
             {Object.entries(grouped).map(([subject, list]) => (
@@ -130,7 +158,7 @@ export function LearnerNotesList() {
           </div>
         )}
 
-        {!loading && allNotes.length > 0 && Object.keys(grouped).length === 0 && (
+        {!loading && allNotes.length > 0 && Object.keys(grouped).length === 0 && !showTips && (
           <div className="text-center py-16 text-[#4A5A6E] text-sm">
             {search ? `No notes match "${search}".` : 'No notes yet for this subject.'}
           </div>
