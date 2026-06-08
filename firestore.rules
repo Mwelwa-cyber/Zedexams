@@ -1302,6 +1302,19 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
+    // ── pastPapersIndex (perf — denormalised published-papers list) ──
+    // One document (pastPapersIndex/published) rebuilt by the
+    // pastPapersIndexOnWrite trigger + 6-hourly cron (admin SDK). It
+    // holds only the lightweight fields the /papers hub renders, so the
+    // public hub reads this single small doc instead of pulling every
+    // pastPapers doc (with its heavy assets[] array) on each visit.
+    // Public-read to match the pastPapers published list; no client
+    // writes.
+    match /pastPapersIndex/{docId} {
+      allow read: if true;
+      allow create, update, delete: if false;
+    }
+
     // ── publicStats (audit C4 — marketing-page social proof) ──────────
     // One document (publicStats/global) refreshed every 30 minutes by
     // the updatePublicStats Cloud Function (admin SDK). Public-read so

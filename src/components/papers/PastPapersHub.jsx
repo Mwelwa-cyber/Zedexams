@@ -35,7 +35,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import {
   PAPER_GRADES,
   getCachedPublishedPapers,
-  listPublishedPapersCached,
+  loadPublishedPapers,
 } from '../../utils/pastPapers'
 import { PAPER_SUBJECTS } from '../../config/curriculum'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -392,7 +392,7 @@ export default function PastPapersHub() {
     let cancelled = false
     const hadCache = Boolean(getCachedPublishedPapers())
     if (!hadCache) setLoading(true)
-    listPublishedPapersCached({})
+    loadPublishedPapers()
       .then((rows) => {
         if (cancelled) return
         const visible = rows.filter((p) => PAPER_GRADES.includes(String(p.grade)))
