@@ -147,16 +147,31 @@ Play Console needs an **`.aab`** (Android App Bundle), not an APK, for its
 internal / closed / production tracks. The `android-play-release.yml` workflow
 builds a signed AAB.
 
-**Run it:** GitHub → Actions → **Android Play Release (AAB)** → Run workflow.
+**Two ways to run:**
 
-Inputs:
-- `version_name` — e.g. `1.1.2` (blank = `build.gradle` default). `versionCode`
-  is always the git commit count, and Play requires it to be **strictly higher**
-  than your last upload on any track.
-- `upload_to_play` — leave **false** to just get a downloadable `.aab` artifact
-  (then upload it by hand in Play Console). Set **true** to auto-publish.
-- `track` / `release_status` — used only when `upload_to_play = true`
-  (defaults: `internal`, `draft`).
+**A) Tag → auto-release to testers (the shortcut).** Push a SemVer tag; CI builds
+and publishes to the **internal** track as a **live** release, `versionName` from
+the tag — testers get it automatically:
+
+```bash
+git tag v1.1.2 && git push origin v1.1.2
+```
+
+(A tag also triggers `android-release.yml`'s Firebase App Distribution build, so
+both run. If you'd rather Play be the sole tester channel, drop the tag trigger
+from that workflow.)
+
+**B) Manual — GitHub → Actions → Android Play Release (AAB) → Run workflow.** Inputs:
+- `version_name` — e.g. `1.1.2` (blank = `build.gradle` default). `versionCode` is
+  always the git commit count and must be **strictly higher** than your last upload.
+- `upload_to_play` — **false** = just produce the downloadable `.aab`; **true** = publish.
+- `track` — `internal` / `alpha` / `beta` / `production`.
+- `release_status` — `draft` (upload only, you roll out) or `completed` (live to that track).
+- `user_fraction` — **production** staged rollout, e.g. `0.1` = 10% (blank = full;
+  when set, the release publishes as `inProgress`).
+
+**Ship to production:** Run workflow → `upload_to_play=true`, `track=production`,
+`release_status=completed` (add `user_fraction=0.1` for a staged 10% rollout).
 
 The signed AAB is always attached as the `app-release-aab-run<N>` artifact
 (30-day retention). The "Verify AAB signature" step prints the signer
@@ -173,9 +188,14 @@ npm run build; npx cap sync android; cd android; .\gradlew bundleRelease
 # Output: android\app\build\outputs\bundle\release\app-release.aab
 ```
 
-### Auto-upload to Play (optional one-time setup)
+### Auto-upload to Play (already configured)
 
-To make `upload_to_play = true` actually publish, add a Play service account:
+> Snapshot as of 2026-06-08 — verify before acting. Auto-upload is **live**: the
+> `firebase-deploy@examsprepzambia.iam.gserviceaccount.com` service account is
+> granted "Release to testing tracks" and its key is stored in the
+> `PLAY_SERVICE_ACCOUNT_JSON` secret. The steps below are for reference / rotation.
+
+To (re)configure the Play service account:
 
 1. Google Play Console → **Users and permissions** → invite a service account
    and grant it **Release to testing tracks** (plus Production if desired).
