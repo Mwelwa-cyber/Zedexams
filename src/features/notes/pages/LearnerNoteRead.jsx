@@ -21,6 +21,8 @@ import { sanitizeNoteHTML }   from '../../../editor/utils/sanitize.js'
 import { SlideNotesReader }   from '../components/SlideNotesReader'
 import { StudyNoteReader }    from '../components/StudyNoteReader'
 import { ReaderControls }     from '../components/ReaderControls'
+import { ReaderPrefsMenu }    from '../components/ReaderPrefsMenu'
+import { useReaderPrefs }     from '../hooks/useReaderPrefs'
 import { NoteInsights }       from '../components/NoteInsights'
 import { coerceStudyBlocks }  from '../lib/studySchema'
 import { buildToc }           from '../lib/toc'
@@ -50,6 +52,9 @@ export function LearnerNoteRead() {
   const [searchParams] = useSearchParams()
   const wantsInsights = searchParams.get('insights') === '1'
   const { note, loading, error } = useNote(id)
+
+  // Learner reading-comfort: text size, typeface, page background (persisted).
+  const prefs = useReaderPrefs()
 
   // Records opened / scroll-% / completed for the signed-in learner. No-ops
   // until the note has loaded; ignores legacy slide docs (they redirect away).
@@ -91,7 +96,7 @@ export function LearnerNoteRead() {
 
   if (loading) {
     return (
-      <div className="notes-studio min-h-screen pb-24 lg:pb-8" style={{ backgroundColor: '#F5EFE1' }}>
+      <div className={`notes-studio ${prefs.pageClass} min-h-screen pb-24 lg:pb-8`}>
         <SeoHelmet title="Note" path={`/notes/${id}`} noIndex />
         <div className="min-h-[50vh] flex items-center justify-center text-neutral-500">
           <Loader2 size={20} className="animate-spin" />
@@ -102,7 +107,7 @@ export function LearnerNoteRead() {
 
   if (error || !note) {
     return (
-      <div className="notes-studio min-h-screen pb-24 lg:pb-8" style={{ backgroundColor: '#F5EFE1' }}>
+      <div className={`notes-studio ${prefs.pageClass} min-h-screen pb-24 lg:pb-8`}>
         <SeoHelmet title="Note not found" path={`/notes/${id}`} noIndex />
         <div className="max-w-xl mx-auto px-4 sm:px-5 py-16 text-center">
           <h1 className="font-display text-3xl mb-2 text-[#0F1B2D]">Note not found</h1>
@@ -131,7 +136,7 @@ export function LearnerNoteRead() {
   const studyBlocks = studyData
 
   return (
-    <div className="notes-studio min-h-screen pb-24 lg:pb-8" style={{ backgroundColor: '#F5EFE1' }}>
+    <div className={`notes-studio ${prefs.pageClass} min-h-screen pb-24 lg:pb-8`}>
       <SeoHelmet title={note.title || 'Note'} path={`/notes/${id}`} noIndex />
       <main className="max-w-2xl mx-auto px-4 sm:px-5 py-8">
         <button
@@ -179,16 +184,24 @@ export function LearnerNoteRead() {
             <SlideNotesReader deck={note.deck} />
           ) : note.noteFormat === NOTE_FORMAT.STUDY ? (
             <>
+              <ReaderPrefsMenu {...prefs} />
               <ReaderControls blocks={studyBlocks} title={note.title}
                 highlightsOn={highlightsOn} onToggleHighlights={toggleHighlights} hasHighlights={hasHighlights} />
-              <StudyNoteReader blocks={studyBlocks} anchorByIndex={anchorByIndex}
-                highlightsByBlock={highlightsByBlock} highlightsOn={highlightsOn} summaryByBlockId={summaryByBlockId} />
+              <div className={prefs.bodyClass}>
+                <StudyNoteReader blocks={studyBlocks} anchorByIndex={anchorByIndex}
+                  highlightsByBlock={highlightsByBlock} highlightsOn={highlightsOn} summaryByBlockId={summaryByBlockId} />
+              </div>
             </>
           ) : (
-            <div
-              className="prose-note"
-              dangerouslySetInnerHTML={{ __html: sanitizeNoteHTML(note.content) || '<p>This note has no content yet.</p>' }}
-            />
+            <>
+              <ReaderPrefsMenu {...prefs} />
+              <div className={prefs.bodyClass}>
+                <div
+                  className="prose-note"
+                  dangerouslySetInnerHTML={{ __html: sanitizeNoteHTML(note.content) || '<p>This note has no content yet.</p>' }}
+                />
+              </div>
+            </>
           )}
 
           <hr className="my-10 border-0 border-t-2 border-dashed border-[#D8D0BC]" />
