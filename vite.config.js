@@ -67,14 +67,21 @@ export default defineConfig(({ mode }) => {
       // to generate a service worker that pre-caches the app shell and
       // applies sensible runtime caching to fonts + Firebase Storage assets.
       //
-      // registerType: 'autoUpdate' — a new SW activates and reloads the
-      // app automatically on the next open, no user prompt. This is what
-      // makes HTML/meta changes (e.g. theme-color) actually reach returning
-      // users instead of sitting behind a stale precached index.html. Only
-      // the changed hashed assets download, in the background, and the
-      // precache still serves the app offline — so slow connections aren't
-      // penalised. onNeedRefresh never fires in this mode, so <UpdatePrompt />
-      // simply never renders (left in place; harmless).
+      // registerType: 'autoUpdate' — a new SW activates + claims clients
+      // automatically once found. This is what makes HTML/meta changes (e.g.
+      // theme-color) actually reach returning users instead of sitting behind
+      // a stale precached index.html. Only the changed hashed assets download,
+      // in the background, and the precache still serves the app offline — so
+      // slow connections aren't penalised.
+      //
+      // The PAGE already rendered with the old chunks doesn't refresh itself,
+      // so crossover happens at two safe moments (never a hard reload mid-op):
+      //   • public/sw-reload-clients.js posts SW_RELOAD_REQUEST on activation,
+      //     which usePwaUpdate turns into <UpdatePrompt />'s "Refresh now" toast;
+      //   • <UpdatePrompt /> also auto-applies the update on the user's next
+      //     in-app navigation (src/hooks/pwaAutoReload.js) so returning users
+      //     cross over without tapping anything. Long-running ops (imports)
+      //     don't navigate, so they're never interrupted.
       //
       // NOTE: do NOT switch this back to 'prompt' (it was, briefly, in #778).
       // In prompt mode a new build sits in the SW "waiting" state until the
