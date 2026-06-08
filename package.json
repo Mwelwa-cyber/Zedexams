@@ -119,6 +119,7 @@
     "*.{js,jsx,mjs,cjs,ts,tsx,json,md,mdx,html,css,scss}": "node scripts/check-file-integrity.mjs"
   },
   "dependencies": {
+    "@capacitor-firebase/authentication": "^8.3.0",
     "@capacitor/android": "^8.0.0",
     "@capacitor/app": "^8.0.0",
     "@capacitor/core": "^8.0.0",

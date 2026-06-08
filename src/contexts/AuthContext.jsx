@@ -4,6 +4,8 @@ import {
   sendEmailVerification,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithCredential,
+  GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
   updateProfile,
@@ -11,6 +13,7 @@ import {
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
 import app, { auth, db, googleProvider } from '../firebase/config'
+import { isNativePlatform } from '../utils/runtime'
 import { ROLES, hasPremiumAccess, hasLearnerPortalAccess } from '../utils/subscriptionConfig'
 import { isSuperAdmin as isSuperAdminRole, resolvePermissionFlags } from '../utils/permissions'
 import { setSentryUser, clearSentryUser } from '../utils/sentry'
@@ -71,6 +74,77 @@ function defaultUserRecord({ displayName, email, role = ROLES.LEARNER, grade = n
     referralCredits: 0,
     createdAt: serverTimestamp(),
   }
+}
+
+// Native Google sign-in via @capacitor-firebase/authentication. The plugin is
+// looked up through Capacitor's runtime registry rather than a static
+// `import('@capacitor-firebase/authentication')` so the web build never has to
+// resolve the native specifier — the same package-agnostic pattern App Check
+// uses in firebase/config.js. The plugin is configured with
+// `skipNativeAuth: true` (capacitor.config.json), so it performs only the
+// OAuth handshake and returns a credential; we complete sign-in on the JS SDK
+// with signInWithCredential so the app's auth state matches the web flow.
+async function signInWithGoogleNative() {
+  const { Capacitor } = await import('@capacitor/core').catch(() => ({}))
+  const FirebaseAuthentication = Capacitor?.Plugins?.FirebaseAuthentication || null
+  if (!FirebaseAuthentication) {
+    // Plugin not registered — the native build is missing
+    // @capacitor-firebase/authentication or hasn't been `cap sync`-ed.
+    const err = new Error('Google sign-in is not available in this app build.')
+    err.code = 'auth/operation-not-supported-in-this-environment'
+    throw err
+  }
+  let result
+  try {
+    result = await FirebaseAuthentication.signInWithGoogle()
+  } catch (err) {
+    // Normalise a user-cancelled native sheet (Google code 12501 / "canceled"
+    // message) to the same code the popup flow uses, so Login/Register treat
+    // it as a silent no-op rather than a "sign-in failed" error.
+    const msg = String(err?.message || err || '')
+    if (err?.code === '12501' || /cancel/i.test(msg)) {
+      const cancelled = new Error('Google sign-in was cancelled.')
+      cancelled.code = 'auth/cancelled-popup-request'
+      throw cancelled
+    }
+    throw err
+  }
+  const idToken = result?.credential?.idToken
+  if (!idToken) {
+    const err = new Error('Google did not return an ID token.')
+    err.code = 'auth/invalid-credential'
+    throw err
+  }
+  const credential = GoogleAuthProvider.credential(idToken, result?.credential?.accessToken)
+  return signInWithCredential(auth, credential)
+}
+
+// Shared first-time-profile bootstrap for both the popup (web) and native
+// Google flows. New users get a default profile + referral mint; existing
+// users keep their saved doc untouched.
+async function ensureGoogleUserProfile(cred, targetRole) {
+  const userRef = doc(db, 'users', cred.user.uid)
+  const snap = await getDoc(userRef)
+  if (snap.exists()) return
+  // Audit C7 — same referral mint + capture as the email path.
+  let referralCode = null
+  try {
+    referralCode = await mintAndPersistReferralCode(cred.user.uid)
+  } catch (err) {
+    console.warn('[loginWithGoogle] referral code mint failed', err)
+  }
+  const referredBy = readPendingReferral()
+  await setDoc(userRef, defaultUserRecord({
+    displayName: cred.user.displayName ?? '',
+    email: cred.user.email ?? '',
+    role: targetRole,
+    referralCode,
+    referredBy,
+  }))
+  if (referredBy) clearPendingReferral()
+  // Audit B2 — only emit on the first-time path so Google sign-IN by an
+  // existing user doesn't get counted as a signup.
+  capture('signup_completed', { role: targetRole, provider: 'google' })
 }
 
 export function AuthProvider({ children }) {
@@ -144,35 +218,23 @@ export function AuthProvider({ children }) {
     return signInWithEmailAndPassword(auth, email, password)
   }
 
-  // Google sign-in. New users get a default profile; the caller can pass
-  // `role` (used only on first sign-in) so the Register page can honour the
-  // selected Learner/Teacher tab. Existing users keep their saved role.
+  // Google sign-in. Web uses an OAuth popup; the native Android shell can't
+  // open one — and Google blocks its sign-in pages inside embedded WebViews
+  // ("this browser or app may not be secure"), so even a redirect fails. The
+  // native path goes through @capacitor-firebase/authentication, which drives
+  // Android's native Google Sign-In and hands the resulting credential back to
+  // the Firebase JS SDK via signInWithCredential so the rest of the app sees
+  // the same auth state it does on web.
+  //
+  // New users get a default profile; the caller can pass `role` (used only on
+  // first sign-in) so the Register page can honour the selected
+  // Learner/Teacher tab. Existing users keep their saved role.
   async function loginWithGoogle({ role } = {}) {
     const targetRole = role === ROLES.TEACHER ? ROLES.TEACHER : ROLES.LEARNER
-    const cred = await signInWithPopup(auth, googleProvider)
-    const userRef = doc(db, 'users', cred.user.uid)
-    const snap = await getDoc(userRef)
-    if (!snap.exists()) {
-      // Audit C7 — same referral mint + capture as the email path.
-      let referralCode = null
-      try {
-        referralCode = await mintAndPersistReferralCode(cred.user.uid)
-      } catch (err) {
-        console.warn('[loginWithGoogle] referral code mint failed', err)
-      }
-      const referredBy = readPendingReferral()
-      await setDoc(userRef, defaultUserRecord({
-        displayName: cred.user.displayName ?? '',
-        email: cred.user.email ?? '',
-        role: targetRole,
-        referralCode,
-        referredBy,
-      }))
-      if (referredBy) clearPendingReferral()
-      // Audit B2 — only emit on the first-time path so Google
-      // sign-IN by an existing user doesn't get counted as a signup.
-      capture('signup_completed', { role: targetRole, provider: 'google' })
-    }
+    const cred = isNativePlatform()
+      ? await signInWithGoogleNative()
+      : await signInWithPopup(auth, googleProvider)
+    await ensureGoogleUserProfile(cred, targetRole)
     return cred
   }
 
