@@ -29,7 +29,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 
-const ZOOM_LEVELS = [0.6, 0.75, 0.9, 1.0, 1.25, 1.5, 1.75, 2.0]
+const ZOOM_LEVELS = [0.6, 0.75, 0.9, 1.0, 1.25, 1.5, 1.75, 2.0, 2.5, 3.0]
 const DEFAULT_ZOOM_INDEX = 3 // 1.0
 
 let pdfjsLoader = null
@@ -137,7 +137,7 @@ export default function PdfJsViewer({ url, blob, title }) {
         const containerWidth = Math.max(220, container.clientWidth - 4)
         const fitScale = containerWidth / baseViewport.width
         const userScale = ZOOM_LEVELS[zoomIndex]
-        const finalScale = Math.max(0.4, Math.min(4, fitScale * userScale))
+        const finalScale = Math.max(0.4, Math.min(6, fitScale * userScale))
         const viewport = page.getViewport({ scale: finalScale * dpr })
 
         canvas.width = viewport.width
@@ -262,14 +262,14 @@ export default function PdfJsViewer({ url, blob, title }) {
         ref={containerRef}
         tabIndex={0}
         onKeyDown={handleKey}
-        className="w-full overflow-auto theme-bg flex items-start justify-center p-3"
+        className="w-full overflow-auto theme-bg flex p-3"
         style={{ minHeight: '60vh', maxHeight: '85vh', touchAction: 'pinch-zoom' }}
       >
         {loading && (
-          <p className="theme-text-muted text-sm py-12">Loading paper…</p>
+          <p className="theme-text-muted text-sm py-12 m-auto">Loading paper…</p>
         )}
         {!loading && error && (
-          <div role="alert" className="py-12 text-center space-y-3">
+          <div role="alert" className="py-12 text-center space-y-3 m-auto">
             <p className="text-rose-700 font-bold text-sm">{error}</p>
             {url && (
               // Inline rendering can be blocked (cross-origin fetch, iOS
@@ -290,7 +290,7 @@ export default function PdfJsViewer({ url, blob, title }) {
         <canvas
           ref={canvasRef}
           aria-label={title || 'PDF page'}
-          className={loading || error ? 'hidden' : 'block max-w-full shadow-elev-sm'}
+          className={loading || error ? 'hidden' : 'block m-auto shadow-elev-sm'}
         />
       </div>
     </div>
