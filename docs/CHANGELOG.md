@@ -5,6 +5,14 @@ on every push to `main`. Newest entries at the top.
 
 ## Unreleased
 
+## 2026-06-09
+
+### Added
+- Admin interface for managing AI agents with actionable controls. (#583)
+
+### Fixed
+- CALA CBC alignment to ensure proper integration. (#583)
+
 ## 2026-05-24
 
 ### Added
