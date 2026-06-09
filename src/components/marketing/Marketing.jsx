@@ -72,7 +72,7 @@ const AUDIENCES = [
       'Build rubrics aligned to the CBC syllabus in seconds',
       'Export everything to DOCX or PDF — print and go',
     ],
-    cta: { label: 'Try teacher beta', to: '/register' },
+    cta: { label: 'Start free', to: '/register' },
   },
 ]
 
@@ -88,10 +88,10 @@ const PRICING = [
   },
   {
     title: 'Teachers',
-    price: 'Free in beta',
-    note: 'Fair-use limits',
+    price: 'Free, then K79/mo',
+    note: 'Pro · 10 generations a day',
     bullets: ['AI lesson plans', 'Worksheets & rubrics', 'DOCX / PDF export'],
-    cta: { label: 'Try teacher beta', to: '/register' },
+    cta: { label: 'See teacher plans', to: '/pricing' },
     primary: false,
   },
   {
@@ -115,7 +115,7 @@ const FAQ = [
   },
   {
     q: 'How much does it cost?',
-    a: "Pricing for learners is being finalised — message us on WhatsApp or email support@zedexams.com and we'll let you know the moment paid plans launch. Teachers in beta use the full AI toolset free with fair-use limits.",
+    a: "Learners start with a free demo. The Grade 7 ECZ exam pack is K75/month (or K200 for a full term), with more grade packs on the way. Teachers get the AI toolset free — 2 generations a day — with Pro at K79/month for 10 a day and Max at K199/month for heavy users. Pay with Airtel Money or MTN MoMo, confirm on WhatsApp, and you're live within 30 minutes.",
   },
   {
     q: 'Is ZedExams safe for children?',
@@ -567,7 +567,7 @@ export default function Marketing() {
               ))}
             </ul>
             <Button as={Link} to="/register" variant="primary" size="lg">
-              Try teacher beta
+              Start free
             </Button>
           </div>
           <div className="lg:col-span-7">
@@ -586,8 +586,8 @@ export default function Marketing() {
             Free demo. Clear from day one.
           </h2>
           <p className="theme-text-muted text-lg max-w-2xl mx-auto">
-            Learners can start with a free demo and selected practice. Teachers can try AI tools
-            during beta with fair-use limits.
+            Learners can start with a free demo and selected practice. Teachers get the AI tools
+            free to start, then Pro or Max when they need more.
             Schools work with us on a custom plan.
           </p>
         </div>
