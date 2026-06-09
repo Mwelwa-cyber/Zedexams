@@ -22,8 +22,9 @@
  *   1. Pick the BCP-47 tag (Bemba: 'bem', Tonga: 'toi', Lozi: 'loz').
  *   2. Mirror the English file structure under
  *      `src/i18n/locales/{tag}/{namespace}.json`.
- *   3. Register the tag in `SUPPORTED_LANGUAGES` below + add a label.
- *   4. The language toggle picks it up automatically.
+ *   3. Register the tag in `ALL_LANGUAGES` below with `ready: false` until a
+ *      Zambian native speaker signs off; flip `ready: true` to expose it.
+ *   4. The language toggle picks up every `ready` locale automatically.
  */
 
 import i18next from 'i18next'
@@ -35,10 +36,22 @@ import enDashboard from './locales/en/dashboard.json'
 import nyCommon from './locales/ny/common.json'
 import nyDashboard from './locales/ny/dashboard.json'
 
-export const SUPPORTED_LANGUAGES = [
-  { code: 'en', label: 'English',          nativeLabel: 'English' },
-  { code: 'ny', label: 'Nyanja (preview)', nativeLabel: 'Chinyanja' },
+// Every locale the runtime knows about, including ones still in progress.
+// Used to register i18next resources + supportedLngs so a half-finished locale
+// still resolves (falling back to English) for anyone who had it selected.
+const ALL_LANGUAGES = [
+  { code: 'en', label: 'English', nativeLabel: 'English', ready: true },
+  // Nyanja UI strings are placeholders awaiting a Zambian native-speaker review
+  // (locales/ny/*.json currently fall back to English). The scaffold ships, but
+  // it is hidden from the language switcher until reviewed so production does
+  // not feel half-finished. To re-expose it once the strings are signed off:
+  // flip `ready` to true — no other change needed.
+  { code: 'ny', label: 'Nyanja (preview)', nativeLabel: 'Chinyanja', ready: false },
 ]
+
+// User-facing languages — only locales cleared for production appear in the
+// LanguageToggle. English-only today, so the toggle hides itself entirely.
+export const SUPPORTED_LANGUAGES = ALL_LANGUAGES.filter((l) => l.ready)
 
 export const DEFAULT_LANGUAGE = 'en'
 
@@ -53,7 +66,7 @@ i18next
       ny: { common: nyCommon, dashboard: nyDashboard },
     },
     fallbackLng: DEFAULT_LANGUAGE,
-    supportedLngs: SUPPORTED_LANGUAGES.map((l) => l.code),
+    supportedLngs: ALL_LANGUAGES.map((l) => l.code),
     defaultNS: 'common',
     ns: ['common', 'dashboard'],
     interpolation: {
