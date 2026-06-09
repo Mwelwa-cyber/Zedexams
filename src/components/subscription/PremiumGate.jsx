@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Lock, Sparkles, X } from '../ui/icons'
 import { useSubscription } from '../../hooks/useSubscription'
+import { PLANS } from '../../utils/subscriptionConfig'
 import UpgradeModal from './UpgradeModal'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
@@ -78,6 +79,12 @@ export function UpgradeBanner({ onUpgradeClick }) {
   const [show, setShow] = useState(true)
   if (canAccessFullContent || !show) return null
 
+  // Entry price = the cheapest plan the learner upgrade modal actually sells
+  // (the Grade-7 pack). Pulled from config so the banner can't drift from what
+  // checkout charges — the old hardcoded "From K50" referenced a legacy plan
+  // that's no longer purchasable, undercutting the real K75 price.
+  const entryPriceZMW = PLANS.grade7_monthly?.priceZMW ?? 75
+
   return (
     <div className="theme-card border-2 theme-border rounded-2xl p-4 flex items-center justify-between gap-3 shadow-elev-sm">
       <div>
@@ -86,7 +93,7 @@ export function UpgradeBanner({ onUpgradeClick }) {
       </div>
       <div className="flex items-center gap-2 flex-shrink-0">
         <Button variant="primary" size="sm" onClick={onUpgradeClick}>
-          From K50/mo
+          From K{entryPriceZMW}/mo
         </Button>
         <button
           onClick={() => setShow(false)}
