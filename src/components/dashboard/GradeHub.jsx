@@ -267,10 +267,6 @@ function DashboardActionCard({
 // public/timetables/, so it opens in a new tab where the learner can read
 // it inline and use the browser's built-in download. Rendered only when the
 // learner's grade is 7 (see the gate in the action-card stack below).
-// TEMPORARY: remove this component, its render site, and the bundled PDF
-// once the 2026 exams are over.
-const GRADE7_TIMETABLE_PDF = '/timetables/grade-7-2026-exam-timetable.pdf'
-
 // First day of the 2026 Grade 7 Primary School Leaving Examination. The
 // countdown on the timetable card ticks down to this moment (local time).
 // TEMPORARY: update or remove alongside ExamTimetableCard once the 2026
@@ -326,10 +322,8 @@ function ExamTimetableCard() {
   const { over, days, hours, minutes, seconds } = useExamCountdown(GRADE7_EXAM_START)
   return (
     <section>
-      <a
-        href={GRADE7_TIMETABLE_PDF}
-        target="_blank"
-        rel="noopener noreferrer"
+      <Link
+        to="/timetable"
         className="zx-card group relative block min-h-[128px] overflow-hidden rounded-3xl border-2 border-rose-300 bg-[linear-gradient(135deg,#FFE4E6_0%,#FDA4AF_55%,#E11D48_100%)] shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
       >
         <div className="relative z-10 flex min-h-[128px] flex-wrap items-center gap-3 p-4 pr-24 sm:gap-4 sm:p-5 sm:pr-32">
@@ -350,8 +344,8 @@ function ExamTimetableCard() {
             ) : (
               <p className="mt-0.5 hidden text-xs font-bold text-rose-900/80 sm:block">
                 {days === 0
-                  ? 'Exams start today — tap to read or download the PDF'
-                  : `${days} ${days === 1 ? 'day' : 'days'} until exams — tap to read or download the PDF`}
+                  ? 'Exams start today — tap to view the timetable'
+                  : `${days} ${days === 1 ? 'day' : 'days'} until exams — tap to view the timetable`}
               </p>
             )}
           </div>
@@ -377,7 +371,7 @@ function ExamTimetableCard() {
           variant="card"
           className="absolute top-1 right-2 z-0"
         />
-      </a>
+      </Link>
     </section>
   )
 }
