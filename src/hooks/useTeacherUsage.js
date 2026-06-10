@@ -15,12 +15,11 @@ const TOOL_TO_FEATURE = {
   scheme_of_work: 'schemes',
 }
 
-// Plan id → display label / chip the widget understands. Accepts both the
-// canonical free / pro / max ids and the legacy free / individual / school ids
-// that functions/teacherTools/usageMeter.js still writes — where, per that
-// file, individual = Pro and school = Max. (The old client mapped school → Pro,
-// which mislabelled a K199 Max teacher as "Pro".) When the server is migrated
-// to write pro / max directly, the legacy aliases below can be dropped.
+// Plan id → display label / chip the widget understands. The server
+// (functions/teacherTools/usageMeter.js) writes the canonical free / pro /
+// max ids since 2026-06; meter docs from earlier periods still carry the
+// legacy individual / school ids (individual = Pro, school = Max), so the
+// aliases below must stay until those historical docs no longer matter.
 const PLAN_VIEW = {
   free:       { id: 'free', label: 'Free', daily: 2 },
   pro:        { id: 'pro',  label: 'Pro',  daily: 10 },

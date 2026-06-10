@@ -8,70 +8,9 @@
 
 const admin = require("firebase-admin");
 const {HttpsError} = require("firebase-functions/v2/https");
-
-// Plan → tool → monthly limit. Keep in sync with TEACHER_TOOLS_ARCHITECTURE.md §10
-// and the marketing copy in src/components/marketing/Plans.jsx.
-//
-// Plan key mapping (backend → marketing tier):
-//   free       → Free
-//   individual → Pro       (K79/mo, "for the everyday teacher")
-//   school     → Max       (K199/mo, "unlimited" with fair-use ceiling)
-const PLAN_LIMITS = {
-  free: {
-    lesson_plan: 5,
-    worksheet: 3,
-    flashcards: 20,
-    quiz: 0,
-    rubric: 0,
-    scheme_of_work: 0,
-    notes: 3,
-    full_lesson: 2,
-    homework: 3,
-    assessment: 1,
-    exam_paper: 1,
-    diagram: 3,
-    slide_notes: 0,
-    slide_notes_images: 0,
-    suggest_answer: 30,
-    revise_question: 30,
-  },
-  individual: {
-    lesson_plan: 40,
-    worksheet: 25,
-    flashcards: 200,
-    quiz: 8,
-    rubric: 8,
-    scheme_of_work: 2,
-    notes: 25,
-    full_lesson: 20,
-    homework: 30,
-    assessment: 15,
-    exam_paper: 10,
-    diagram: 30,
-    slide_notes: 5,
-    slide_notes_images: 60,
-    suggest_answer: 500,
-    revise_question: 300,
-  },
-  school: {
-    lesson_plan: 200,
-    worksheet: 200,
-    flashcards: 200,
-    quiz: 200,
-    rubric: 200,
-    scheme_of_work: 200,
-    notes: 200,
-    full_lesson: 200,
-    homework: 200,
-    assessment: 200,
-    exam_paper: 200,
-    diagram: 200,
-    slide_notes: 100,
-    slide_notes_images: 1200,
-    suggest_answer: 2000,
-    revise_question: 1500,
-  },
-};
+// Plan ids, per-tool monthly limits and legacy-id normalisation live in the
+// dependency-free catalogue so the repo-root test suite can cover them.
+const {PLAN_LIMITS, PLAN_LABELS, normalizeTeacherPlan} = require("./teacherPlans");
 
 function yyyymm(d = new Date()) {
   const y = d.getUTCFullYear();
@@ -102,11 +41,13 @@ async function getUserTeacherPlan(uid) {
   // tool without hitting per-month quotas during testing or moderation.
   // No expiry check — the role itself is the entitlement.
   if (isSuperAdminRole(data.role)) {
-    return "school";
+    return "max";
   }
 
-  const plan = data.teacherPlan;
-  if (plan === "individual" || plan === "school") {
+  // Accepts canonical ids (pro/max) and the pre-2026-06 legacy ids
+  // (individual/school) still present on older users docs.
+  const plan = normalizeTeacherPlan(data.teacherPlan);
+  if (plan === "pro" || plan === "max") {
     // honour expiry if present
     const exp = data.teacherPlanExpiresAt;
     if (exp && typeof exp.toDate === "function" && exp.toDate() < new Date()) {
@@ -145,7 +86,7 @@ async function assertAndIncrement(uid, tool) {
       throw new HttpsError(
         "failed-precondition",
         `You have used ${used}/${limit} ${tool.replace(/_/g, " ")}s on the ` +
-        `${plan} plan this month. Upgrade to continue.`,
+        `${PLAN_LABELS[plan] || plan} plan this month. Upgrade to continue.`,
       );
     }
 
