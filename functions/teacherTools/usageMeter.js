@@ -18,6 +18,14 @@ function yyyymm(d = new Date()) {
   return `${y}${m}`;
 }
 
+// UTC day key for the rolling daily counter — same convention as the
+// month key above (Zambia is UTC+2, so the "day" rolls at 02:00 local;
+// acceptable for a soft display meter, same property as the month edge).
+function yyyymmdd(d = new Date()) {
+  const day = String(d.getUTCDate()).padStart(2, "0");
+  return `${yyyymm(d)}${day}`;
+}
+
 function periodBounds(period) {
   const y = Number(period.slice(0, 4));
   const m = Number(period.slice(4, 6));
@@ -90,12 +98,21 @@ async function assertAndIncrement(uid, tool) {
       );
     }
 
+    // Rolling daily counter ({date, count}) — display-only, read by the
+    // dashboard UsageMeter widget ("Today: N of M generations"). Resets
+    // implicitly when the stored date no longer matches today. Not an
+    // enforcement mechanism; monthly per-tool limits above are the gate.
+    const dayKey = yyyymmdd();
+    const prevDaily = existing.daily || {};
+    const todayUsed = prevDaily.date === dayKey ? Number(prevDaily.count || 0) : 0;
+
     const next = {
       uid,
       periodStart: admin.firestore.Timestamp.fromDate(start),
       periodEnd: admin.firestore.Timestamp.fromDate(end),
       plan,
       counters: {...counters, [tool]: used + 1},
+      daily: {date: dayKey, count: todayUsed + 1},
       limits: PLAN_LIMITS[plan],
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
