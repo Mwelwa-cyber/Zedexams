@@ -101,6 +101,7 @@
 .official-meta.two-col{display:grid;grid-template-columns:1fr 1fr;gap:3px 26px}
 .official-meta .om-item{margin:2px 0;line-height:1.4}
 .official-meta .om-item strong{font-weight:700;letter-spacing:.02em}
+.official-meta.two-col .om-item.om-wide{grid-column:1/-1}
 @media print,(max-width:600px){.official-meta.two-col{grid-template-columns:1fr 1fr}}
 /* ── Official black-and-white scope (Classic CBC + Classic 2) ──────────────
    The CDC module sample lesson plans are plain black-on-white documents:
@@ -138,6 +139,9 @@
 .plan-official .callout-line strong{color:#000}
 .plan-official ul,.plan-official ol,.plan-official p{color:#000}
 .plan-official .meta-compact .item .lbl,.plan-official .meta-table td.k{text-transform:uppercase;font-size:9.5pt}
+.plan-official .meta-compact .item{align-items:baseline;flex-wrap:wrap}
+.plan-official .meta-compact .item .val{white-space:normal;overflow:visible;text-overflow:clip}
+.plan-official .meta-compact .item:first-child{grid-column:1/-1}
 
 
 @media print,(max-width:600px){.meta-compact{grid-template-columns:1fr 1fr}}
@@ -183,6 +187,7 @@
 .stage-table th.col-head{background:var(--paper-2);color:var(--ink);font:700 10pt/1.2 var(--font-body);letter-spacing:.04em;text-transform:uppercase;text-align:left;padding:5px 10px;width:50%;border-top:1px solid var(--ink-2)}
 .stage-table td{padding:7px 10px;vertical-align:top;border-top:1px solid var(--line);width:50%}
 .stage-table td + td{border-left:1px solid var(--line)}
+.m-stage-table th.col-head,.m-stage-table td{width:33.33%}
 .progression-title{font:700 12pt/1.2 var(--font-display);margin:12px 0 6px;letter-spacing:.04em}
 .lp-table{width:calc(100% - 16px);border-collapse:collapse;margin:8px 0 16px 16px;font-size:10.5pt}
 .lp-table th,.lp-table td{padding:6px 8px;vertical-align:top;text-align:left}

@@ -191,17 +191,20 @@ function renderMeta(meta) {
 // puts one per line.
 function renderOfficialHeader(meta) {
   const pairs = [];
-  pairs.push(['NAME OF TEACHER', esc(meta.teacher || '') + (meta.tsno ? ' (TS ' + esc(meta.tsno) + ')' : '')]);
+  pairs.push(['NAME OF TEACHER', esc(meta.teacher || '') + (meta.tsno ? ' (TS ' + esc(meta.tsno) + ')' : ''), 'wide']);
   pairs.push(['DATE', esc(meta.date || '')]);
-  pairs.push(['CLASS', esc(meta.klass || '')]);
   pairs.push(['TIME', esc(meta.time || '')]);
+  pairs.push(['CLASS', esc(meta.klass || '')]);
   pairs.push(['DURATION', esc(meta.duration) + ' minutes']);
   pairs.push(['TERM &amp; WEEK', esc(meta.termWeek || '')]);
-  if (meta.showEnrolment) pairs.push(['TOTAL ENROLMENT', 'Boys: ____ Girls: ____ Total: ____']);
-  if (meta.showAttendance) pairs.push(['TOTAL ATTENDANCE', 'Boys: ____ Girls: ____ Total: ____']);
-  pairs.push(['SUBJECT', esc(meta.subject || '')]);
-  if (meta.multiLesson) pairs.push(['LESSON', `${esc(meta.lessonsCurrent)} of ${esc(meta.lessonsTotal)}` + (meta.lessonFocus ? ' — ' + esc(meta.lessonFocus) : '')]);
-  const line = ([k, v]) => `<div class="om-item"><strong>${k}:</strong> ${v}</div>`;
+  // Enrolment/attendance get a full-width row each (grid-column 1/-1, like
+  // the official modules) — squeezed into a half column the "Total" blank
+  // wraps untidily onto a second line.
+  if (meta.showEnrolment) pairs.push(['TOTAL ENROLMENT', 'Boys: ______ Girls: ______ Total: ______', 'wide']);
+  if (meta.showAttendance) pairs.push(['TOTAL ATTENDANCE', 'Boys: ______ Girls: ______ Total: ______', 'wide']);
+  pairs.push(['SUBJECT', esc(meta.subject || ''), 'wide']);
+  if (meta.multiLesson) pairs.push(['LESSON', `${esc(meta.lessonsCurrent)} of ${esc(meta.lessonsTotal)}` + (meta.lessonFocus ? ' — ' + esc(meta.lessonFocus) : ''), 'wide']);
+  const line = ([k, v, wide]) => `<div class="om-item${wide ? ' om-wide' : ''}"><strong>${k}:</strong> ${v}</div>`;
   return `<div class="official-meta${meta.compactMeta ? ' two-col' : ''}">${pairs.map(line).join('')}</div>`;
 }
 
@@ -304,29 +307,28 @@ function renderLessonEvaluation(data, meta) {
   }
   if (!meta.showReflection) return extras.join('');
   // Underscore runs (not CSS borders) so the blanks survive the Word export
-  // (10-export.js → html-docx-js drops borders on plain divs). overflow-wrap
-  // lets the run break anywhere instead of pushing past the page edge.
-  const blank = (n) => `<div class="field-line" style="overflow-wrap:anywhere">${'_'.repeat(n)}</div>`;
+  // (10-export.js → html-docx-js drops borders on plain divs). Runs are kept
+  // short enough to never wrap (a wrapped run leaves an ugly dangling "__").
+  const blank = (n) => `<div class="field-line">${'_'.repeat(n)}</div>`;
   const prompt = (label, hint) =>
-    `<div class="field-line" style="overflow-wrap:anywhere"><strong>${label}</strong> (${hint}): ${'_'.repeat(30)}</div>`;
+    `<div class="field-line"><strong>${label}</strong> (${hint}): ${'_'.repeat(18)}</div>`;
   return `${extras.join('')}
     <div class="field-line" style="margin-top:14px"><strong>LESSON EVALUATION:</strong></div>
     ${prompt('Successes', 'competences achieved')}
-    ${blank(70)}
+    ${blank(58)}
     ${prompt('Challenges', 'competences not achieved and why')}
-    ${blank(70)}
+    ${blank(58)}
     ${prompt('Way forward', 'including remedial work if applicable')}
-    ${blank(70)}`;
+    ${blank(58)}`;
 }
 
 function renderModern(data, meta) {
   const list = (arr) => asList(arr).map(x => `<li>${esc(stripPrefix(x))}</li>`).join('');
   const stages = ensureStages(data.stages).map(s => `
-    <div class="stage-block"><table class="stage-table">
-      <tr><td colspan="2" class="stage-head">${esc(s.name)}${s.duration ? `<span class="duration">${esc(s.duration)}</span>` : ''}</td></tr>
-      <tr><th class="col-head">Teacher's Activities</th><th class="col-head">Learners' Activities</th></tr>
-      <tr><td>${formatProse(s.teacher)}</td><td>${formatProse(s.pupils)}</td></tr>
-      ${s.assessment ? `<tr><td colspan="2"><strong>Assessment criteria:</strong> ${esc(s.assessment)}</td></tr>` : ''}
+    <div class="stage-block"><table class="stage-table m-stage-table">
+      <tr><td colspan="3" class="stage-head">${esc(s.name)}${s.duration ? `<span class="duration">${esc(s.duration)}</span>` : ''}</td></tr>
+      <tr><th class="col-head">TEACHER'S ACTIVITIES</th><th class="col-head">LEARNERS' ACTIVITIES</th><th class="col-head">ASSESSMENT CRITERIA</th></tr>
+      <tr><td>${formatProse(s.teacher)}</td><td>${formatProse(s.pupils)}</td><td>${formatProse(s.assessment || '')}</td></tr>
     </table></div>`).join('');
   const vocab = meta.showVocabulary && asList(data.keyVocabulary).length
     ? `<h2 class="sec">Key Vocabulary</h2><ul>${list(data.keyVocabulary)}</ul>` : '';
