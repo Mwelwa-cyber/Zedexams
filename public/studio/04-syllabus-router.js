@@ -234,6 +234,34 @@ function updateSubtopics() {
 function __studioInitSyllabus() {
   if (!$('#f-class')) return;
 
+  // The three format cards mean different documents per syllabus, so the
+  // names/descriptions swap with the toggle ("Classic CBC" would be
+  // nonsense on an old-curriculum plan).
+  const FORMAT_CARD_LABELS = {
+    new: {
+      modern: ['Modern Clean', 'Sectioned layout · per-stage tables with Teacher/Learner Activities and Assessment Criteria · Lesson Evaluation.'],
+      classic2: ['Classic 2', "Per-stage tables — Teacher's Role, Learners' Role, Assessment Criteria."],
+      classic: ['Classic CBC', "Official module layout — single ruled table: Stages, Teacher's Activities, Learners' Activities, Assessment Criteria."],
+    },
+    old: {
+      modern: ['Simple (Primary)', 'The familiar primary template — Stages/Time, Teaching Activities, Learning Activities · single Evaluation.'],
+      classic2: ['Classic (No Content)', "Single ruled table — Stage/Time, Teacher's Activity, Pupils' Activity, Methods."],
+      classic: ['Classic (Full)', "Single ruled table with the Content column — Stage/Time, Content, Teacher's Activity, Pupils' Activity, Methods."],
+    },
+  };
+  function refreshFormatCardLabels() {
+    const labels = FORMAT_CARD_LABELS[syllabusVersion === 'old' ? 'old' : 'new'];
+    document.querySelectorAll('#format-cards .format-card[data-format]').forEach(card => {
+      const pair = labels[card.dataset.format];
+      if (!pair) return;
+      const nameEl = card.querySelector('.name');
+      const descEl = card.querySelector('.desc');
+      if (nameEl) nameEl.textContent = pair[0];
+      if (descEl) descEl.textContent = pair[1];
+    });
+  }
+  refreshFormatCardLabels();
+
   document.querySelectorAll('#syllabus-toggle .seg').forEach(btn => {
     // Reflect the current syllabusVersion in the segmented toggle UI
     btn.classList.toggle('active', btn.dataset.version === syllabusVersion);
@@ -242,6 +270,7 @@ function __studioInitSyllabus() {
       if (newVersion === syllabusVersion) return;
       syllabusVersion = newVersion;
       document.querySelectorAll('#syllabus-toggle .seg').forEach(b => b.classList.toggle('active', b === btn));
+      refreshFormatCardLabels();
       populateClasses();
       updateSubjects().catch(err => console.warn('updateSubjects failed', err));
     });

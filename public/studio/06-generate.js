@@ -130,14 +130,15 @@ IMPORTANT: The topic and sub-topic MUST fit within the ${i.klass} syllabus scope
 Return JSON only.`;
 }
 
-function renderHeader(meta) {
+function renderHeader(meta, titleText) {
   let h = '<div class="doc-head">';
   if (meta.headerLine) h += `<div class="header-line">${esc(meta.headerLine)}</div>`;
   h += `<div class="school">${esc(meta.school || 'School Name')}</div>`;
   if (meta.department) h += `<div class="department">${esc(meta.department)}</div>`;
-  h += `<div class="lp-title">Lesson Plan</div></div>`;
+  h += `<div class="lp-title">${esc(titleText || 'Lesson Plan')}</div></div>`;
   return h;
 }
+
 
 function renderMetaTable(meta) {
   const rows = [];
@@ -403,6 +404,163 @@ function renderClassic2(data, meta) {
     ${renderLessonEvaluation(data, meta)}</div>`;
 }
 
+// ── OLD curriculum (2013) renderers ───────────────────────────────────────────
+//
+// Outcomes-based format from the official 2013 samples (Grade 4 template,
+// Grade 4 I-Science, Grade 10 Computer Studies, Lesson Study Teaching
+// Skills Book): header lines → RATIONALE → PRE-REQUISITE KNOWLEDGE →
+// SPECIFIC OUTCOMES (LSBAT) → [Stage/Time | Content | Teacher's Activity |
+// Pupils' Activity | Methods] with INTRODUCTION → DEVELOPMENT → CONCLUSION
+// → HOMEWORK → PUPIL EVALUATION + TEACHER EVALUATION blanks.
+
+const OLD_STAGES = ['INTRODUCTION', 'DEVELOPMENT', 'CONCLUSION'];
+function ensureOldStages(stages) {
+  const list = Array.isArray(stages) ? stages.filter(s => s && (s.name || s.teacher || s.pupils || s.content)) : [];
+  if (list.length > 0) return list;
+  return OLD_STAGES.map(name => ({name, duration: '', content: '', teacher: '', pupils: '', methods: ''}));
+}
+
+// Official header lines for the old format. TOPIC/SUB-TOPIC/T-L AIDS/
+// REFERENCES live in the header block itself (unlike the new format).
+function renderOldHeader(meta, data) {
+  const pairs = [];
+  pairs.push(['NAME OF TEACHER', esc(meta.teacher || '') + (meta.tsno ? ' (TS ' + esc(meta.tsno) + ')' : ''), 'wide']);
+  pairs.push(['DATE', esc(meta.date || '')]);
+  pairs.push(['TIME', esc(meta.time || '')]);
+  pairs.push(['SUBJECT', esc(meta.subject || '')]);
+  pairs.push(['DURATION', esc(meta.duration) + ' minutes']);
+  pairs.push(['GRADE', esc(meta.klass || '')]);
+  pairs.push(['TERM &amp; WEEK', esc(meta.termWeek || '')]);
+  pairs.push(['TOPIC', esc(data.topic || meta.topic || ''), 'wide']);
+  pairs.push(['SUB-TOPIC', esc(data.subtopic || meta.subtopic || ''), 'wide']);
+  if (meta.showEnrolment) pairs.push(['NO. OF PUPILS', 'Boys: ______ Girls: ______ Total: ______', 'wide']);
+  if (meta.showAttendance) pairs.push(['ATTENDANCE', 'Boys: ______ Girls: ______ Total: ______', 'wide']);
+  pairs.push(['T/L AIDS', esc(joinList(data.tlAids || data.materials, ', ')), 'wide']);
+  pairs.push(['REFERENCES', esc(joinList(data.references, '; ')), 'wide']);
+  if (meta.multiLesson) pairs.push(['LESSON', `${esc(meta.lessonsCurrent)} of ${esc(meta.lessonsTotal)}` + (meta.lessonFocus ? ' — ' + esc(meta.lessonFocus) : ''), 'wide']);
+  const line = ([k, v, wide]) => `<div class="om-item${wide ? ' om-wide' : ''}"><strong>${k}:</strong> ${v}</div>`;
+  return `<div class="official-meta${meta.compactMeta ? ' two-col' : ''}">${pairs.map(line).join('')}</div>`;
+}
+
+// RATIONALE → PRE-REQUISITE → SPECIFIC OUTCOMES (LSBAT) section lines.
+function renderOldFieldLines(data) {
+  const outcomes = asList(data.specificOutcomes);
+  const outcomesHtml = outcomes.length
+    ? `<div class="field-line" style="margin-top:8px"><strong>SPECIFIC OUTCOMES (LSBAT):</strong> By the end of this lesson, pupils should be able to:</div>` +
+      outcomes.map((o, i) => `<div class="field-line" style="padding-left:18px">${romanNum(i + 1)}. ${esc(stripPrefix(o))}</div>`).join('')
+    : '';
+  return `
+    <div class="field-line" style="margin-top:8px"><strong>RATIONALE:</strong> ${esc(data.rationale || '')}</div>
+    <div class="field-line"><strong>PRE-REQUISITE KNOWLEDGE:</strong> ${esc(data.prerequisiteKnowledge || data.priorKnowledge || '')}</div>
+    ${outcomesHtml}`;
+}
+
+function romanNum(n) {
+  const map = ['i', 'ii', 'iii', 'iv', 'v', 'vi', 'vii', 'viii', 'ix', 'x'];
+  return `(${map[n - 1] || n})`;
+}
+
+// HOMEWORK + the official double evaluation blanks (PUPIL EVALUATION and
+// TEACHER EVALUATION) — gated by the evaluation toggle like the new format.
+function renderOldClosing(data, meta) {
+  const parts = [];
+  if (data.homework) {
+    parts.push(`<div class="field-line" style="margin-top:10px"><strong>HOMEWORK / EXERCISE:</strong> ${esc(data.homework)}</div>`);
+  }
+  if (!meta.showReflection) return parts.join('');
+  const blank = (n) => `<div class="field-line">${'_'.repeat(n)}</div>`;
+  parts.push(`
+    <div class="field-line" style="margin-top:14px"><strong>PUPIL EVALUATION:</strong></div>
+    ${blank(58)}
+    ${blank(58)}
+    <div class="field-line" style="margin-top:10px"><strong>TEACHER EVALUATION:</strong></div>
+    ${blank(58)}
+    ${blank(58)}`);
+  return parts.join('');
+}
+
+function renderOldClassic(data, meta) {
+  const stagesHtml = ensureOldStages(data.stages).map(s => `<tr>
+    <td class="stage" style="${OFFICIAL_TD}">${esc(s.name).replace(/\s*\/\s*/g, '<br>')}${s.duration ? `<br><span class="duration">(${esc(s.duration)})</span>` : ''}</td>
+    <td style="${OFFICIAL_TD}">${formatProse(s.content || '')}</td>
+    <td style="${OFFICIAL_TD}">${formatProse(s.teacher)}</td>
+    <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}</td>
+    <td style="${OFFICIAL_TD}">${formatProse(s.methods || '')}</td></tr>`).join('');
+  return `<div class="plan-official">${renderHeader(meta)}${renderOldHeader(meta, data)}
+    ${renderOldFieldLines(data)}
+    <table class="lp-table official-table" border="1" style="border-collapse:collapse;border:1px solid #000;width:100%;margin-top:10px">
+      <thead><tr><th style="width:11%;${OFFICIAL_TH}">STAGE/TIME</th><th style="width:30%;${OFFICIAL_TH}">CONTENT</th><th style="width:22%;${OFFICIAL_TH}">TEACHER'S ACTIVITY</th><th style="width:22%;${OFFICIAL_TH}">PUPILS' ACTIVITY</th><th style="width:15%;${OFFICIAL_TH}">METHODS</th></tr></thead>
+      <tbody>${stagesHtml}</tbody>
+    </table>
+    ${renderOldClosing(data, meta)}</div>`;
+}
+
+// Classic 2 (old) — the simpler primary-template variant: ONE ruled table
+// like the Classic format but WITHOUT the CONTENT column (matches the
+// Grade 4 "STAGES/TIME | TEACHING ACTIVITIES | LEARNING ACTIVITIES"
+// template, plus the METHODS column).
+function renderOldClassic2(data, meta) {
+  const stagesHtml = ensureOldStages(data.stages).map(s => `<tr>
+    <td class="stage" style="${OFFICIAL_TD}">${esc(s.name).replace(/\s*\/\s*/g, '<br>')}${s.duration ? `<br><span class="duration">(${esc(s.duration)})</span>` : ''}</td>
+    <td style="${OFFICIAL_TD}">${formatProse(s.teacher)}</td>
+    <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}</td>
+    <td style="${OFFICIAL_TD}">${formatProse(s.methods || '')}</td></tr>`).join('');
+  return `<div class="plan-official">${renderHeader(meta)}${renderOldHeader(meta, data)}
+    ${renderOldFieldLines(data)}
+    <table class="lp-table official-table" border="1" style="border-collapse:collapse;border:1px solid #000;width:100%;margin-top:10px">
+      <thead><tr><th style="width:14%;${OFFICIAL_TH}">STAGE/TIME</th><th style="width:34%;${OFFICIAL_TH}">TEACHER'S ACTIVITY</th><th style="width:34%;${OFFICIAL_TH}">PUPILS' ACTIVITY</th><th style="width:18%;${OFFICIAL_TH}">METHODS</th></tr></thead>
+      <tbody>${stagesHtml}</tbody>
+    </table>
+    ${renderOldClosing(data, meta)}</div>`;
+}
+
+// Format 3 (old) — faithful replica of the simple primary template
+// ("Lesson Plan 3.docx"): NAME/DATE, SUBJECT/DURATION, TOPIC/NO. OF
+// PUPILS, SUB-TOPIC, T/L MATERIALS, REFERENCE, RATIONALE, OUTCOMES
+// (LSBAT), PRE-REQUISITE, then the 3-column table [STAGES/TIME |
+// TEACHING ACTIVITIES | LEARNING ACTIVITIES] and a single EVALUATION.
+function renderOldModern(data, meta) {
+  const outcomes = asList(data.specificOutcomes);
+  const outcomesHtml = outcomes.length
+    ? outcomes.map((o, i) => `<div class="field-line" style="padding-left:18px">${romanNum(i + 1)}. ${esc(stripPrefix(o))}</div>`).join('')
+    : '';
+  const headerPairs = [
+    ['NAME', esc(meta.teacher || '') + (meta.tsno ? ' (TS ' + esc(meta.tsno) + ')' : '')],
+    ['DATE', esc(meta.date || '')],
+    ['SUBJECT', esc(meta.subject || '')],
+    ['DURATION', esc(meta.duration) + ' minutes'],
+    ['TOPIC', esc(data.topic || meta.topic || '')],
+    ['NO. OF PUPILS', 'Boys: ______ Girls: ______ Total: ______'],
+    ['SUB-TOPIC', esc(data.subtopic || meta.subtopic || ''), 'wide'],
+  ];
+  if (meta.showAttendance) headerPairs.push(['ATTENDANCE', 'Boys: ______ Girls: ______ Total: ______', 'wide']);
+  const line = ([k, v, wide]) => `<div class="om-item${wide ? ' om-wide' : ''}"><strong>${k}:</strong> ${v}</div>`;
+  const stagesHtml = ensureOldStages(data.stages).map(s => `<tr>
+    <td class="stage" style="${OFFICIAL_TD}">${esc(s.name).replace(/\s*\/\s*/g, '<br>')}${s.duration ? `<br><span class="duration">(${esc(s.duration)})</span>` : ''}</td>
+    <td style="${OFFICIAL_TD}">${formatProse(s.teacher)}</td>
+    <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}</td></tr>`).join('');
+  const blank = (n) => `<div class="field-line">${'_'.repeat(n)}</div>`;
+  const evaluation = meta.showReflection ? `
+    <div class="field-line" style="margin-top:14px"><strong>EVALUATION:</strong></div>
+    ${blank(58)}
+    ${blank(58)}
+    ${blank(58)}` : '';
+  return `<div class="plan-official">${renderHeader(meta)}
+    <div class="official-meta${meta.compactMeta ? ' two-col' : ''}">${headerPairs.map(line).join('')}</div>
+    <div class="field-line"><strong>T/L MATERIALS:</strong> ${esc(joinList(data.tlAids || data.materials, ', '))}</div>
+    <div class="field-line"><strong>REFERENCE:</strong> ${esc(joinList(data.references, '; '))}</div>
+    <div class="field-line" style="margin-top:8px"><strong>RATIONALE:</strong> ${esc(data.rationale || '')}</div>
+    <div class="field-line" style="margin-top:8px"><strong>OUTCOMES:</strong> By the end of this lesson, LSBAT;</div>
+    ${outcomesHtml}
+    <div class="field-line" style="margin-top:8px"><strong>PRE-REQUISITE:</strong> ${esc(data.prerequisiteKnowledge || data.priorKnowledge || '')}</div>
+    <table class="lp-table official-table" border="1" style="border-collapse:collapse;border:1px solid #000;width:100%;margin-top:10px">
+      <thead><tr><th style="width:16%;${OFFICIAL_TH}">STAGES/TIME</th><th style="width:42%;${OFFICIAL_TH}">TEACHING ACTIVITIES</th><th style="width:42%;${OFFICIAL_TH}">LEARNING ACTIVITIES</th></tr></thead>
+      <tbody>${stagesHtml}</tbody>
+    </table>
+    ${data.homework ? `<div class="field-line" style="margin-top:10px"><strong>HOMEWORK:</strong> ${esc(data.homework)}</div>` : ''}
+    ${evaluation}</div>`;
+}
+
 // ── Generate button ────────────────────────────────────────────────────────────
 
 // Restore the generate button's label after a run. The planner owns the
@@ -455,8 +613,14 @@ async function __studioGenerateOneLesson({ i, lessonNumber, totalLessons, lesson
     lessonsCurrent: lessonNumber,
     lessonFocus: lessonFocus || '',
   });
-  const html = i.format === 'classic' ? renderClassic(data, renderMeta)
-    : (i.format === 'classic2' ? renderClassic2(data, renderMeta) : renderModern(data, renderMeta));
+  // The old (2013) syllabus has its own outcomes-based renderers; the new
+  // (2023) syllabus uses the official CDC module renderers.
+  const isOld = syllabusVersion === 'old';
+  const html = i.format === 'classic'
+    ? (isOld ? renderOldClassic(data, renderMeta) : renderClassic(data, renderMeta))
+    : (i.format === 'classic2'
+      ? (isOld ? renderOldClassic2(data, renderMeta) : renderClassic2(data, renderMeta))
+      : (isOld ? renderOldModern(data, renderMeta) : renderModern(data, renderMeta)));
   $('#doc').innerHTML = html;
   if (editing) setTimeout(enableAllTableResize, 50);
 
@@ -510,7 +674,9 @@ async function __studioOnGenerateClick() {
     btn.innerHTML = `<span>${total > 1 ? `Composing lesson plans…` : 'Composing your lesson plan…'}</span>`;
   }
 
-  const sysPrompt = i.format === 'classic' ? sysClassic : (i.format === 'classic2' ? sysClassic2 : sysModern);
+  const sysPrompt = syllabusVersion === 'old'
+    ? (i.format === 'classic' ? sysOldClassic : (i.format === 'classic2' ? sysOldClassic2 : sysOldModern))
+    : (i.format === 'classic' ? sysClassic : (i.format === 'classic2' ? sysClassic2 : sysModern));
   let madeCount = 0;
   try {
     for (const lessonNumber of indices) {
