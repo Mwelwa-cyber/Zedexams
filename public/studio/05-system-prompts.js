@@ -90,7 +90,18 @@ General rules:
 - lessonGoal must be SMART and use action verbs (identify, describe, demonstrate, practise) — never "know" or "understand".
 - rationale MUST end by stating the lesson's position in its series, e.g. "This is lesson 1 in a series of 5."
 - Use Zambian English spelling (colour, practise as verb, programme).
-- All prose substantive but plain text. Use plain text fractions like "1/2" — NOT unicode glyphs like ½. No markdown.`;
+- All prose substantive but plain text. Use plain text fractions like "1/2" — NOT unicode glyphs like ½. No markdown.
+
+PROFESSIONAL WRITING STANDARDS — this document is inspected by head teachers and standards officers, so the writing must be flawless:
+- Complete, grammatically correct sentences ending with a full stop. No fragments, no trailing "..." and no double spaces.
+- Teacher activities are imperative and start with a strong verb ("Ask learners...", "Demonstrate...", "Guide learners to..."). Learner activities are present-tense responses ("Share their experiences...", "Discuss...", "Draw...").
+- Keep tense, person and voice consistent within each cell. Never mix "pupils" and "learners" — use "learners" throughout.
+- Number multi-step tasks 1. 2. 3. consistently; never mix numbering styles within one cell.
+- No contractions (write "do not", not "don't"), no slang, no first person ("I/we"), no rhetorical filler.
+- Capitalise proper nouns correctly (Zambia, Lusaka, Kwacha) and use subject-correct terminology from the syllabus.
+- Include expected answers in brackets where natural, e.g. (Expected answers: soil, water, grass).
+- Times are written as "5 min" in stage durations and "30 minutes" in prose. Spell out numbers one to nine in prose except in maths content.
+- Every list item is parallel in structure to its siblings. Nothing is left empty: if a field genuinely does not apply, write a sensible professional default rather than placeholder text like "N/A" or "TBD".`;
 
 // All three formats share the canonical contract. The short preamble names
 // the presentation so the model knows what the output will look like, but
