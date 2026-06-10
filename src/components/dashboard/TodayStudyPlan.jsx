@@ -205,7 +205,9 @@ export function buildStudyPlan({
         : 'A short reading session makes the next quiz feel easier.',
       badge: '10 min',
       action: 'Read',
-      to: aiNotesOn ? '/ai-notes' : '/lessons',
+      // /ai-notes was deleted with the learnerAi pipeline (PR #713); the
+      // live AI study notes reader is /notes (Notes Studio, LearnerGate'd).
+      to: aiNotesOn ? '/notes' : '/lessons',
       done: false,
     },
   ]
