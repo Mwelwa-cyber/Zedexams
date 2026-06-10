@@ -117,7 +117,7 @@ usageMeters/{uid}/periods/{yyyymm}
 │   rubric: number,
 │   scheme_of_work: number
 │ }
-├── plan: "free" | "individual" | "school"
+├── plan: "free" | "pro" | "max"        // docs written before 2026-06 may carry legacy "individual"/"school"
 ├── totalCostUsdCents: number
 └── updatedAt: timestamp
 ```
@@ -195,7 +195,7 @@ Add fields (all optional; no rule changes needed beyond allowing admin to set th
 
 ```
 users/{uid} (additions)
-├── teacherPlan: "free" | "individual" | "school" | null
+├── teacherPlan: "free" | "pro" | "max" | null   // legacy "individual"/"school" still honoured (normalizeTeacherPlan in functions/teacherTools/teacherPlans.js)
 ├── teacherPlanExpiresAt: timestamp | null
 ├── teacherPlanActivatedAt: timestamp | null
 ├── schoolLicenceId: string | null
@@ -634,9 +634,11 @@ await db.runTransaction(async (tx) => {
 });
 ```
 
-Plan → limits mapping (matches marketing copy in `src/components/marketing/Plans.jsx`):
+Plan → limits mapping (matches marketing copy in `src/components/marketing/Plans.jsx`;
+canonical plan ids are `free` / `pro` / `max` — see `functions/teacherTools/teacherPlans.js`,
+which still normalises the pre-2026-06 legacy ids `individual` → `pro`, `school` → `max`):
 
-| Tool            | Free | Individual (Pro) | School (Max, per teacher) |
+| Tool            | Free | Pro              | Max (per teacher)          |
 |-----------------|------|------------------|----------------------------|
 | lesson_plan     | 5    | 40               | 200 (fair-use)             |
 | worksheet       | 3    | 25               | 200 (fair-use)             |
