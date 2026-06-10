@@ -42,6 +42,21 @@ function yyyymm(d = new Date()) {
   return `${y}${m}`
 }
 
+// UTC day key — must match functions/teacherTools/usageMeter.js yyyymmdd()
+// so the rolling daily counter the server writes resolves to "today" here.
+function yyyymmdd(d = new Date()) {
+  const day = String(d.getUTCDate()).padStart(2, '0')
+  return `${yyyymm(d)}${day}`
+}
+
+// Server writes daily as {date, count}; a stale date (or a legacy doc with
+// no daily field at all) means nothing has been generated today.
+function todayCount(meterData) {
+  const daily = meterData?.daily
+  if (!daily || daily.date !== yyyymmdd()) return 0
+  return Number(daily.count || 0)
+}
+
 function daysUntilMonthReset(now = new Date()) {
   const next = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1))
   return Math.max(1, Math.ceil((next - now) / (1000 * 60 * 60 * 24)))
@@ -66,7 +81,7 @@ function project(meterData) {
     used,
     caps,
     daily: planView.daily,
-    today: 0,                          // daily counter not yet tracked per-doc
+    today: todayCount(meterData),
     resetDays: daysUntilMonthReset(),
   }
 }
@@ -90,7 +105,7 @@ function projectAdmin(meterData) {
     used,
     caps,
     daily: ADMIN_DAILY_CAP,
-    today: 0,
+    today: todayCount(meterData),
     resetDays: daysUntilMonthReset(),
   }
 }
