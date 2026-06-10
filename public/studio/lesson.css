@@ -498,3 +498,21 @@
   .format-preview-scale .doc-head .school{font-size:16pt}
   .format-preview-scale .doc-head .lp-title{font-size:13pt}
 }
+
+/* ── Print: only the lesson plan, never the studio chrome ──────────────────
+   A plain browser Ctrl+P on the studio would otherwise print the whole app
+   (sidebar form, topbar, planner, format cards). Hide all of it and let the
+   document fill the page. The Export → PDF button uses its own clean popup
+   (10-export.js); this covers teachers who just press Ctrl+P. */
+@media print {
+  #view-plans .sidebar,
+  #view-plans .topbar,
+  #view-plans .scrim,
+  #view-plans #loader { display: none !important; }
+  #view-plans .app { display: block !important; }
+  #view-plans .main { min-height: 0 !important; }
+  #view-plans .doc-wrap { max-width: none !important; margin: 0 !important; box-shadow: none !important; border-radius: 0 !important; }
+  #view-plans .doc-wrap::before { display: none !important; }
+  #view-plans .doc { padding: 0 !important; min-height: 0 !important; }
+  @page { size: A4; margin: 14mm 15mm; }
+}
