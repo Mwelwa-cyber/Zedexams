@@ -108,10 +108,90 @@
     progressNotes: ''
   };
 
-  function titleFor(format) {
-    if (format === 'classic') return 'Classic CBC — preview';
-    if (format === 'classic2') return 'Classic 2 — preview';
-    return 'Modern Clean — preview';
+  // Old (2013) sample — adapted from the Grade 10 Computer Studies sample
+  // lesson plan (Careers in ICT), reshaped into the old-curriculum studio
+  // contract. Shown when the syllabus toggle is on Old (2013).
+  const sampleDataOld = {
+    topic: 'Computer Career Opportunities',
+    subtopic: 'Careers in information and communication technology',
+    tlAids: ['Chalk board', 'Ruler', 'Charts'],
+    references: ["Longman Computer Studies Pupils' Book 10 (R. Banda, B. Dill & S. Nunkumar, 3rd ed., 2016)"],
+    rationale: 'This is a lesson on careers in information and communication technology. Teacher exposition, question and answer and class discussion methods will be used. The lesson will develop pupils\' knowledge of careers in ICT and the skill of identifying careers in relation to ICT, and they will gain the value of awareness of different opportunities. This lesson is number 1 in the series of 2.',
+    prerequisiteKnowledge: 'Pupils have ideas about the use of computers in everyday life.',
+    specificOutcomes: [
+      'Describe different careers in ICT.',
+      'Identify opportunities for further education in ICT.'
+    ],
+    stages: [
+      {
+        name: 'INTRODUCTION',
+        duration: '5 min',
+        content: 'The nature of careers in the computer industry. There are very few careers today that do not involve the use of computer technology.',
+        teacher: 'Ask pupils: "Which jobs in our community use computers?"\nExplain the importance of the topic.',
+        pupils: 'Pupils answer the question and listen to the explanation.',
+        methods: 'Question & Answer'
+      },
+      {
+        name: 'DEVELOPMENT — Step 1: Computer jobs and careers',
+        duration: '12 min',
+        content: 'Jobs directly linked to computer technology include: computer software trainer, helpdesk support, computer and network technicians, network administrators, software and web developers, mobile app developers and security experts.',
+        teacher: 'Jot the main points on the board.\nPut pupils in groups to identify careers they know.',
+        pupils: 'Pupils listen and copy brief notes in their books.\nPupils discuss in groups and bring out points.',
+        methods: 'Teacher Exposition / Group Work'
+      },
+      {
+        name: 'DEVELOPMENT — Step 2: Training opportunities',
+        duration: '13 min',
+        content: 'Qualifications can be obtained through accredited computer training institutions, international online services or a university degree. Common qualifications include a degree in computer studies, A+ and N+ certification, MCSE, CCIE and ICDL.',
+        teacher: 'Give examples of common computer qualifications.\nGuide the class discussion.',
+        pupils: 'Pupils participate in the discussion and ask questions.',
+        methods: 'Class Discussion'
+      },
+      {
+        name: 'CONCLUSION',
+        duration: '10 min',
+        content: 'Summary of the main points of the lesson.',
+        teacher: 'Emphasise the main points of the lesson.\nAsk random questions to check on pupils\' understanding.',
+        pupils: 'Pupils answer the teacher\'s questions.',
+        methods: 'Individual Work'
+      }
+    ],
+    homework: 'Briefly identify careers and jobs directly linked to computer technology. (Expected answers: computer software trainer, helpdesk support, computer and network technicians, network administrators, software and web developers, mobile app developers, security experts.)'
+  };
+
+  const sampleMetaOld = {
+    headerLine: 'Ministry of Education · Republic of Zambia',
+    school: 'Kabwe Secondary School',
+    department: '',
+    teacher: 'Mr B. Banda',
+    tsno: '20158502',
+    klass: 'Grade 10',
+    subject: 'Computer Studies',
+    duration: 40,
+    date: '22 March 2026',
+    time: '07:30',
+    term: '1',
+    week: '5',
+    termWeek: 'Term 1, Week 5',
+    topic: 'Computer Career Opportunities',
+    subtopic: 'Careers in information and communication technology',
+    compactMeta: true,
+    showAttendance: true,
+    showEnrolment: true,
+    showReflection: true,
+    showVocabulary: false,
+    learningEnvironments: [],
+    multiLesson: false,
+    lessonsTotal: 1,
+    lessonsCurrent: 1,
+    progressNotes: ''
+  };
+
+  function titleFor(format, isOld) {
+    const era = isOld ? ' (Old 2013)' : '';
+    if (format === 'classic') return `Classic${era} — preview`;
+    if (format === 'classic2') return `Classic 2${era} — preview`;
+    return `Modern Clean${era} — preview`;
   }
 
   function openPreview(format) {
@@ -120,9 +200,14 @@
     const bodyEl = document.getElementById('format-preview-body');
     if (!modal || !titleEl || !bodyEl) return;
 
-    const renderer = format === 'classic'
-      ? window.renderClassic
-      : (format === 'classic2' ? window.renderClassic2 : window.renderModern);
+    const isOld = window.syllabusVersion === 'old';
+    const renderer = isOld
+      ? (format === 'classic'
+        ? window.renderOldClassic
+        : (format === 'classic2' ? window.renderOldClassic2 : window.renderOldModern))
+      : (format === 'classic'
+        ? window.renderClassic
+        : (format === 'classic2' ? window.renderClassic2 : window.renderModern));
     if (typeof renderer !== 'function') {
       if (typeof window.toast === 'function') window.toast('Preview not ready yet — try again in a moment.');
       return;
@@ -134,16 +219,17 @@
       const el = document.getElementById(id);
       return el ? el.dataset.on === 'true' : fallback;
     };
-    const meta = Object.assign({}, sampleMeta, {
+    const baseMeta = isOld ? sampleMetaOld : sampleMeta;
+    const meta = Object.assign({}, baseMeta, {
       format,
-      showEnrolment: liveToggle('t-enrolment', sampleMeta.showEnrolment),
-      showAttendance: liveToggle('t-attendance', sampleMeta.showAttendance),
-      showReflection: liveToggle('t-reflection', sampleMeta.showReflection),
-      showVocabulary: liveToggle('t-vocab', sampleMeta.showVocabulary),
-      compactMeta: liveToggle('t-compact', sampleMeta.compactMeta),
+      showEnrolment: liveToggle('t-enrolment', baseMeta.showEnrolment),
+      showAttendance: liveToggle('t-attendance', baseMeta.showAttendance),
+      showReflection: liveToggle('t-reflection', baseMeta.showReflection),
+      showVocabulary: liveToggle('t-vocab', baseMeta.showVocabulary),
+      compactMeta: liveToggle('t-compact', baseMeta.compactMeta),
     });
 
-    titleEl.textContent = titleFor(format);
+    titleEl.textContent = titleFor(format, isOld);
     // Wrap the rendered HTML in the same .doc-wrap / .doc structure the
     // workspace uses so all the studio CSS (tables, headings, accent bar)
     // applies automatically. The outer .format-preview-scale shrinks the
@@ -151,7 +237,7 @@
     bodyEl.innerHTML =
       '<div class="format-preview-scale">' +
         '<div class="doc-wrap"><div class="doc">' +
-          renderer(sampleData, meta) +
+          renderer(isOld ? sampleDataOld : sampleData, meta) +
         '</div></div>' +
       '</div>';
 
