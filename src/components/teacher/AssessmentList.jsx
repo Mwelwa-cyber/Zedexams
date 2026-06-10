@@ -8,6 +8,7 @@ import { summarizeImportReview } from '../../utils/importReviewSummary.js'
 import ImportReviewBadge from '../quiz/ImportReviewBadge'
 import SeoHelmet from '../seo/SeoHelmet'
 import { useToast } from '../ui/Toast'
+import ConfirmDialog from '../ui/ConfirmDialog'
 
 const ASSESSMENT_TYPE_LABELS = {
   weekly: 'Weekly test',
@@ -154,6 +155,8 @@ export default function AssessmentList() {
   // the list to imports the parser flagged for review. Off by default so
   // a teacher landing here still sees everything.
   const [needsReviewOnly, setNeedsReviewOnly] = useState(false)
+  // Assessment queued for deletion — drives the ConfirmDialog.
+  const [pendingDelete, setPendingDelete] = useState(null)
 
   useEffect(() => {
     if (!currentUser?.uid) return
@@ -173,8 +176,9 @@ export default function AssessmentList() {
     return () => { cancelled = true }
   }, [currentUser?.uid, getMyAssessments])
 
-  async function handleDelete(assessment) {
-    if (!window.confirm(`Delete "${assessment.title || 'this assessment'}" permanently? This cannot be undone.`)) return
+  async function confirmDelete() {
+    const assessment = pendingDelete
+    if (!assessment) return
     setBusyId(assessment.id)
     try {
       await deleteAssessment(assessment.id)
@@ -183,6 +187,7 @@ export default function AssessmentList() {
       toast.error(`Delete failed: ${err.message || 'unexpected error'}`)
     } finally {
       setBusyId(null)
+      setPendingDelete(null)
     }
   }
 
@@ -365,7 +370,7 @@ export default function AssessmentList() {
                 <AssessmentRow
                   key={a.id}
                   assessment={a}
-                  onDelete={handleDelete}
+                  onDelete={setPendingDelete}
                   onExport={handleExport}
                   busy={busyId === a.id}
                 />
@@ -379,6 +384,17 @@ export default function AssessmentList() {
           </>
         )
       })()}
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title="Delete this assessment?"
+        message={<>You're about to permanently delete <strong className="theme-text">"{pendingDelete?.title || 'this assessment'}"</strong>. This cannot be undone.</>}
+        confirmLabel="Delete"
+        variant="danger"
+        loading={Boolean(pendingDelete) && busyId === pendingDelete.id}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   )
 }

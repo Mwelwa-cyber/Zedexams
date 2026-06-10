@@ -24,6 +24,7 @@ import { getClass, leaveClass } from '../../utils/classes'
 import { SUBJECTS } from '../../config/curriculum'
 import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
+import ConfirmDialog from '../ui/ConfirmDialog'
 
 async function fetchMemberDisplayNames(uids) {
   if (!uids || uids.length === 0) return []
@@ -64,6 +65,8 @@ export default function LearnerClassDetail() {
   const [busy, setBusy] = useState(false)
   const [feedback, setFeedback] = useState(null)
   const [redirectAway, setRedirectAway] = useState(false)
+  // "Leave class" awaiting confirmation — drives the ConfirmDialog.
+  const [confirmingLeave, setConfirmingLeave] = useState(false)
 
   const refresh = useCallback(async () => {
     try {
@@ -99,8 +102,7 @@ export default function LearnerClassDetail() {
 
   useEffect(() => { refresh() }, [refresh])
 
-  async function handleLeave() {
-    if (!window.confirm('Leave this class? Your teacher can re-add you, but your class assignments will disappear from your dashboard.')) return
+  async function confirmLeave() {
     setBusy(true)
     setFeedback(null)
     try {
@@ -113,6 +115,7 @@ export default function LearnerClassDetail() {
       setFeedback({ kind: 'err', text: err?.message || 'Could not leave the class.' })
     } finally {
       setBusy(false)
+      setConfirmingLeave(false)
     }
   }
 
@@ -237,7 +240,7 @@ export default function LearnerClassDetail() {
         <section className="border-t theme-border pt-4 flex justify-end">
           <button
             type="button"
-            onClick={handleLeave}
+            onClick={() => setConfirmingLeave(true)}
             disabled={busy}
             className="text-xs font-bold text-rose-700 hover:underline disabled:opacity-50"
           >
@@ -245,6 +248,19 @@ export default function LearnerClassDetail() {
           </button>
         </section>
       </div>
+
+      <ConfirmDialog
+        open={confirmingLeave}
+        title={klass._membership === 'pending' ? 'Cancel your join request?' : 'Leave this class?'}
+        message={klass._membership === 'pending'
+          ? 'Your request will be withdrawn. You can join again with the invite code.'
+          : 'Your teacher can re-add you, but your class assignments will disappear from your dashboard.'}
+        confirmLabel={klass._membership === 'pending' ? 'Cancel request' : 'Leave class'}
+        variant="danger"
+        loading={busy}
+        onConfirm={confirmLeave}
+        onCancel={() => setConfirmingLeave(false)}
+      />
     </div>
   )
 }
