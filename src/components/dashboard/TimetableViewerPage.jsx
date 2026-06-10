@@ -5,44 +5,60 @@
  * Exists specifically because Android/Capacitor WebViews cannot open a
  * `<a href=".pdf" target="_blank">` link — the external-browser intent
  * is intercepted, and the user sees nothing.  Rendering the PDF inside
- * the app via PdfJsViewer avoids that entirely, and also works on web.
+ * the app avoids that entirely, and also works on web.
  *
- * TEMPORARY: remove this file, its route in App.jsx, and the bundled
- * PDF (/public/timetables/grade-7-2026-exam-timetable.pdf) once the
- * 2026 exams conclude.
+ * Uses the continuous PdfScrollViewer (not the page-by-page PdfJsViewer):
+ * the timetable is only a few pages, so it should open like a native PDF
+ * — full-bleed on a phone, scroll straight down through the pages.
+ *
+ * TEMPORARY: remove this file, its route in App.jsx, the PdfScrollViewer
+ * if unused elsewhere, and the bundled PDF
+ * (/public/timetables/grade-7-2026-exam-timetable.pdf) once the 2026
+ * exams conclude.
  */
 
 import { Link } from 'react-router-dom'
-import Navbar from '../layout/Navbar'
 import SeoHelmet from '../seo/SeoHelmet'
-import PdfJsViewer from '../papers/PdfJsViewer'
+import PdfScrollViewer from '../papers/PdfScrollViewer'
 
 const TIMETABLE_PDF_URL = '/timetables/grade-7-2026-exam-timetable.pdf'
 
 export default function TimetableViewerPage() {
   return (
-    <div className="theme-bg theme-text min-h-screen">
+    <div className="theme-bg theme-text min-h-screen flex flex-col">
       <SeoHelmet title="2026 Exam Timetable" path="/timetable" noIndex />
-      <Navbar />
-      <div className="mx-auto max-w-3xl px-4 pb-16 pt-6">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-black uppercase tracking-widest text-rose-700">
+
+      {/* Compact sticky header so the timetable itself gets the screen.
+          Back link stays reachable while scrolling through the pages. */}
+      <header className="sticky top-0 z-10 theme-bg border-b theme-border">
+        <div className="mx-auto max-w-3xl px-4 py-2.5 flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-[10px] font-black uppercase tracking-widest text-rose-700">
               Grade 7 · ECZ 2026
             </p>
-            <h1 className="mt-0.5 text-xl font-black text-slate-900">
-              2026 Primary School Leaving Examination — Timetable
+            <h1 className="truncate text-sm font-black theme-text">
+              2026 PSLE Exam Timetable
             </h1>
           </div>
-          <Link to="/dashboard" className="text-[11px] font-bold text-slate-700 hover:text-slate-900 shrink-0">
+          <Link
+            to="/dashboard"
+            className="shrink-0 text-[11px] font-bold theme-text-muted hover:theme-text"
+          >
             ← Dashboard
           </Link>
         </div>
-        <PdfJsViewer
-          url={TIMETABLE_PDF_URL}
-          title="2026 PSLE Exam Timetable"
-        />
-      </div>
+      </header>
+
+      {/* Full-bleed on phones (edge-to-edge), centred with a readable max
+          width on larger screens. The pages stack and the page scrolls. */}
+      <main className="flex-1 w-full">
+        <div className="mx-auto max-w-3xl px-0 sm:px-4 py-3 sm:py-4">
+          <PdfScrollViewer
+            url={TIMETABLE_PDF_URL}
+            title="2026 PSLE Exam Timetable"
+          />
+        </div>
+      </main>
     </div>
   )
 }
