@@ -28,6 +28,7 @@ import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl
 import { publishShare } from '../../../utils/shareService'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useToast } from '../../ui/Toast'
+import ConfirmDialog from '../../ui/ConfirmDialog'
 
 export default function LibraryItemDetail() {
   const { id } = useParams()
@@ -42,6 +43,9 @@ export default function LibraryItemDetail() {
   const [sharing, setSharing] = useState(false)
   const [shareInfo, setShareInfo] = useState(null)
   const [shareError, setShareError] = useState('')
+  // Delete flow — confirmingDelete drives the ConfirmDialog, deleting its spinner.
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   // Pro vs Premium access — Pro can download own generations only,
   // Premium can download / print / export everything.
@@ -101,13 +105,17 @@ export default function LibraryItemDetail() {
       })
   }, [id])
 
-  async function onDelete() {
+  function onDelete() {
     if (!item) return
-    const confirmed = window.confirm(
-      'Delete this generation? This cannot be undone.',
-    )
-    if (!confirmed) return
+    setConfirmingDelete(true)
+  }
+
+  async function confirmDelete() {
+    if (!item) return
+    setDeleting(true)
     const ok = await deleteGeneration(item.id)
+    setDeleting(false)
+    setConfirmingDelete(false)
     if (ok) {
       navigate('/teacher/library')
     } else {
@@ -422,6 +430,17 @@ export default function LibraryItemDetail() {
           onSave={onSaveHeaderEdits}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="Delete this generation?"
+        message="It will disappear from your library for good. This cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmingDelete(false)}
+      />
     </div>
   )
 }
