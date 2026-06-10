@@ -384,8 +384,10 @@ function DailyExamRunnerInner() {
               flagged[question.id] ? 'bg-amber-300' : 'bg-white'
             }`}
             title={flagged[question.id] ? 'Unflag' : 'Flag for review'}
+            aria-label={flagged[question.id] ? 'Unflag this question' : 'Flag this question for review'}
+            aria-pressed={Boolean(flagged[question.id])}
           >
-            🚩
+            <span aria-hidden="true">🚩</span>
           </button>
         </div>
 
@@ -478,6 +480,7 @@ function DailyExamRunnerInner() {
                   setAnswers(prev => ({ ...prev, [question.id]: val === '' ? undefined : val }))
                 }}
                 placeholder="e.g. 3.14"
+                aria-label="Numeric answer"
                 className="w-full bg-transparent text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
               />
             </div>
@@ -498,6 +501,7 @@ function DailyExamRunnerInner() {
                   setAnswers(prev => ({ ...prev, [question.id]: val || undefined }))
                 }}
                 placeholder="Type your answer here…"
+                aria-label="Your answer"
                 className="w-full bg-transparent text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
               />
             </div>
@@ -586,7 +590,7 @@ function DailyExamRunnerInner() {
           <div className="zx-card-shared flex items-start gap-3 bg-amber-50 px-4 py-3 text-slate-900">
             <span className="mt-0.5 text-lg">⚠️</span>
             <p className="flex-1 text-sm font-bold leading-snug">{actionError}</p>
-            <button type="button" onClick={() => setActionError('')} className="min-h-0 bg-transparent p-0 text-lg text-slate-700 shadow-none">×</button>
+            <button type="button" onClick={() => setActionError('')} aria-label="Dismiss message" className="min-h-0 bg-transparent p-0 text-lg text-slate-700 shadow-none"><span aria-hidden="true">×</span></button>
           </div>
         </div>
       )}

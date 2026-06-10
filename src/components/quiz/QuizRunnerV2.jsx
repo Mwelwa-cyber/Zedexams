@@ -655,8 +655,10 @@ export default function QuizRunnerV2() {
               flagged[question.id] ? 'bg-amber-300' : 'bg-white'
             }`}
             title={flagged[question.id] ? 'Unflag' : 'Flag for review'}
+            aria-label={flagged[question.id] ? 'Unflag this question' : 'Flag this question for review'}
+            aria-pressed={Boolean(flagged[question.id])}
           >
-            🚩
+            <span aria-hidden="true">🚩</span>
           </button>
         </div>
 
@@ -902,6 +904,7 @@ export default function QuizRunnerV2() {
                     if (event.key === 'Enter' && typed.trim() && !numericChecked) checkNumeric(question.id)
                   }}
                   placeholder="Type a number…"
+                  aria-label="Numeric answer"
                   className="flex-1 bg-transparent text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
                 />
                 {numericChecked && mode === 'practice' && <span className="text-xl">{numericResult.correct ? '✅' : '❌'}</span>}
@@ -965,6 +968,7 @@ export default function QuizRunnerV2() {
                   }}
                   disabled={checking}
                   placeholder="Type your answer here..."
+                  aria-label="Your answer"
                   className="flex-1 bg-transparent text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
                 />
                 {checking && <div className="h-5 w-5 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />}
