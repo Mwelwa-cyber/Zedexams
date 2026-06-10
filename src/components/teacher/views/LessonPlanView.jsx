@@ -3,7 +3,10 @@
  * Used by the Lesson Plan Generator, the Library detail view, and the
  * public share viewer.
  *
- * Supports both schemas:
+ * Supports three schemas:
+ *   • v3 (official CDC module structure) — stages array (INTRODUCTION →
+ *     LESSON DEVELOPMENT → EXERCISE/ASSESSMENT → HOMEWORK → CONCLUSION),
+ *     generalCompetences, specificCompetence, rationale, expectedStandard.
  *   • v2 (Bernard Tito CBC) — lessonProgression (5E), lessonGoal,
  *     lessonCompetencies, methodology, learningEnvironment, etc.
  *   • v1 (legacy) — lessonDevelopment (Introduction/Development/Conclusion),
@@ -15,8 +18,116 @@ import { renderText } from '../../../utils/mathRender'
 
 export default function LessonPlanView({ plan }) {
   if (!plan) return null
+  const isV3 = Array.isArray(plan.stages) || plan.schemaVersion === '3.0'
+  if (isV3) return <LessonPlanViewV3 plan={plan} />
   const isV2 = !!plan.lessonProgression || !!plan.lessonCompetencies || plan.schemaVersion === '2.0'
   return isV2 ? <LessonPlanViewV2 plan={plan} /> : <LessonPlanViewV1 plan={plan} />
+}
+
+/**
+ * v3 — mirrors the SAMPLE LESSON PLAN appendix of the official CDC
+ * teaching modules: field sections in the official order, then the
+ * lesson progression as one block per stage with teacher activities,
+ * learner activities and assessment criteria, closing with remedial
+ * work / extension and the blank LESSON EVALUATION.
+ */
+function LessonPlanViewV3({ plan }) {
+  const le = plan.learningEnvironment || {}
+  return (
+    <article className="space-y-6 print:space-y-4">
+      <HeaderBlock header={plan.header} />
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <MiniSection title="General Competences" items={plan.generalCompetences} />
+        <div className="rounded-xl border theme-border p-3">
+          <h4 className="font-bold text-sm mb-2 theme-text">Specific Competence</h4>
+          {plan.specificCompetence
+            ? <p className="text-sm theme-text">{renderText(plan.specificCompetence)}</p>
+            : <p className="text-sm theme-text-secondary italic">—</p>}
+        </div>
+      </div>
+
+      {plan.lessonGoal && (
+        <Section title="Lesson Goal">
+          <p className="text-sm theme-text leading-relaxed">{renderText(plan.lessonGoal)}</p>
+        </Section>
+      )}
+
+      {plan.rationale && (
+        <Section title="Rationale">
+          <p className="text-sm theme-text leading-relaxed">{renderText(plan.rationale)}</p>
+        </Section>
+      )}
+
+      {plan.priorKnowledge && (
+        <Section title="Prior Knowledge">
+          <p className="text-sm theme-text leading-relaxed">{renderText(plan.priorKnowledge)}</p>
+        </Section>
+      )}
+
+      {plan.references?.length > 0 && (
+        <Section title="References">
+          <UnorderedList items={plan.references} />
+        </Section>
+      )}
+
+      <Section title="Learning Environment">
+        <div className="text-sm space-y-1">
+          <p className="theme-text"><span className="font-bold">Natural: </span>{le.natural ? renderText(le.natural) : '—'}</p>
+          <p className="theme-text"><span className="font-bold">Artificial: </span>{le.artificial ? renderText(le.artificial) : '—'}</p>
+          <p className="theme-text"><span className="font-bold">Technological: </span>{le.technological ? renderText(le.technological) : '—'}</p>
+        </div>
+      </Section>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <MiniSection title="Teaching and Learning Materials/Resources" items={plan.materials} />
+        <div className="rounded-xl border theme-border p-3">
+          <h4 className="font-bold text-sm mb-2 theme-text">Expected Standard</h4>
+          {plan.expectedStandard
+            ? <p className="text-sm theme-text">{renderText(plan.expectedStandard)}</p>
+            : <p className="text-sm theme-text-secondary italic">—</p>}
+        </div>
+      </div>
+
+      {plan.keyVocabulary?.length > 0 && (
+        <Section title="Key Vocabulary">
+          <UnorderedList items={plan.keyVocabulary} />
+        </Section>
+      )}
+
+      <Section title="Lesson Progression">
+        {(plan.stages || []).map((s, i) => (
+          <PhaseBlock
+            key={i}
+            phase={s.name || 'STAGE'}
+            minutes={s.durationMinutes > 0 ? s.durationMinutes : null}
+            teacher={s.teacherActivities}
+            pupils={s.learnerActivities}
+            criteria={s.assessmentCriteria}
+          />
+        ))}
+      </Section>
+
+      {(plan.remedialWork || plan.extensionActivity) && (
+        <Section title="Remedial Work & Extension">
+          <div className="text-sm space-y-1">
+            {plan.remedialWork && (
+              <p className="theme-text"><span className="font-bold">Remedial work: </span>{renderText(plan.remedialWork)}</p>
+            )}
+            {plan.extensionActivity && (
+              <p className="theme-text"><span className="font-bold">Extension activity: </span>{renderText(plan.extensionActivity)}</p>
+            )}
+          </div>
+        </Section>
+      )}
+
+      <Section title="Lesson Evaluation (fill in after teaching)">
+        <div className="text-sm theme-text-secondary italic">
+          — Successes (competences achieved) · Challenges (competences not achieved and why) · Way forward (including remedial work if applicable)
+        </div>
+      </Section>
+    </article>
+  )
 }
 
 function LessonPlanViewV2({ plan }) {
