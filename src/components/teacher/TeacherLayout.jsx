@@ -55,7 +55,7 @@ export default function TeacherLayout({ children }) {
     <div className="studio-theme theme-bg theme-text min-h-screen flex">
       {/* ── Desktop Sidebar (lg+) ─────────────────────────── */}
       <aside
-        className="theme-border shadow-elev-md hidden w-60 flex-shrink-0 flex-col border-r lg:flex"
+        className="theme-border shadow-elev-md hidden w-60 flex-shrink-0 flex-col border-r lg:flex lg:sticky lg:top-0 lg:h-screen lg:self-start"
         style={{ backgroundColor: '#ffffff' }}
       >
         <div
@@ -78,7 +78,7 @@ export default function TeacherLayout({ children }) {
           </div>
         </div>
 
-        <nav className="flex-1 p-3 space-y-1">
+        <nav className="flex-1 min-h-0 overflow-y-auto p-3 space-y-1">
           {isAdmin && (
             <>
               <Link
