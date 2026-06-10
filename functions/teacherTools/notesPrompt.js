@@ -40,6 +40,17 @@ function summariseLessonPlan(plan) {
   if (h.durationMinutes) lines.push(`Duration: ${h.durationMinutes} min`);
   if (plan.lessonGoal) lines.push(`SMART goal: ${plan.lessonGoal}`);
 
+  // v3 (official CDC module structure) fields.
+  if (plan.specificCompetence) {
+    lines.push(`Specific competence: ${plan.specificCompetence}`);
+  }
+  if (Array.isArray(plan.generalCompetences) && plan.generalCompetences.length) {
+    lines.push(`General competences: ${plan.generalCompetences.join("; ")}`);
+  }
+  if (plan.expectedStandard) lines.push(`Expected standard: ${plan.expectedStandard}`);
+
+  // v2 (legacy 5E) fields — kept so notes can still be generated from
+  // plans saved before the v3 upgrade.
   const lc = plan.lessonCompetencies || {};
   const comps = [lc.competency1, lc.competency2, lc.competency3].filter(Boolean);
   if (comps.length) lines.push(`Lesson competencies: ${comps.join(" | ")}`);
@@ -48,29 +59,40 @@ function summariseLessonPlan(plan) {
     lines.push(`Broad competences: ${plan.broadCompetences.join("; ")}`);
   }
 
-  if (Array.isArray(plan.teachingLearningMaterials) && plan.teachingLearningMaterials.length) {
-    lines.push(`Materials: ${plan.teachingLearningMaterials.join("; ")}`);
+  const materials = Array.isArray(plan.materials) && plan.materials.length ?
+    plan.materials : plan.teachingLearningMaterials;
+  if (Array.isArray(materials) && materials.length) {
+    lines.push(`Materials: ${materials.join("; ")}`);
   }
 
-  if (Array.isArray(plan.prerequisiteKnowledge) && plan.prerequisiteKnowledge.length) {
-    lines.push(`Prior knowledge: ${plan.prerequisiteKnowledge.join("; ")}`);
-  }
+  const prior = plan.priorKnowledge ||
+    (Array.isArray(plan.prerequisiteKnowledge) && plan.prerequisiteKnowledge.length ?
+      plan.prerequisiteKnowledge.join("; ") : "");
+  if (prior) lines.push(`Prior knowledge: ${prior}`);
 
-  const lp = plan.lessonProgression || {};
-  const phaseSummary = [];
-  for (const [phaseKey, label] of [
-    ["engagement", "Engagement"],
-    ["exploration", "Exploration"],
-    ["explanation", "Explanation"],
-    ["synthesis", "Synthesis"],
-    ["evaluation", "Evaluation"],
-  ]) {
-    const p = lp[phaseKey];
-    if (!p) continue;
-    const t = Array.isArray(p.teacherActivities) ? p.teacherActivities.slice(0, 2).join("; ") : "";
-    if (t) phaseSummary.push(`${label}: ${t}`);
+  const stageSummary = [];
+  if (Array.isArray(plan.stages)) {
+    // v3 — official stages array.
+    for (const s of plan.stages) {
+      const t = Array.isArray(s.teacherActivities) ? s.teacherActivities.slice(0, 2).join("; ") : "";
+      if (s.name && t) stageSummary.push(`${s.name}: ${t}`);
+    }
+  } else {
+    const lp = plan.lessonProgression || {};
+    for (const [phaseKey, label] of [
+      ["engagement", "Engagement"],
+      ["exploration", "Exploration"],
+      ["explanation", "Explanation"],
+      ["synthesis", "Synthesis"],
+      ["evaluation", "Evaluation"],
+    ]) {
+      const p = lp[phaseKey];
+      if (!p) continue;
+      const t = Array.isArray(p.teacherActivities) ? p.teacherActivities.slice(0, 2).join("; ") : "";
+      if (t) stageSummary.push(`${label}: ${t}`);
+    }
   }
-  if (phaseSummary.length) lines.push(`5E plan summary: ${phaseSummary.join(" || ")}`);
+  if (stageSummary.length) lines.push(`Lesson plan summary: ${stageSummary.join(" || ")}`);
 
   return lines.join("\n");
 }

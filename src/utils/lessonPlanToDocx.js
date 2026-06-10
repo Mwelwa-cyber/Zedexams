@@ -413,11 +413,161 @@ function buildV1Body(plan) {
   return children
 }
 
+/* ────────────────────────────────────────────────────────────────────
+ * v3 — official CDC teaching-module layout: CAPS labels, black ruled
+ * LESSON PROGRESSION table, REMEDIAL WORK / EXTENSION ACTIVITY and a
+ * blank LESSON EVALUATION the teacher fills in after teaching.
+ * ─────────────────────────────────────────────────────────────────── */
+
+const BLACK_BORDER = {
+  top:    { style: BorderStyle.SINGLE, size: 6, color: '000000' },
+  bottom: { style: BorderStyle.SINGLE, size: 6, color: '000000' },
+  left:   { style: BorderStyle.SINGLE, size: 6, color: '000000' },
+  right:  { style: BorderStyle.SINGLE, size: 6, color: '000000' },
+}
+
+function fieldLine(label, value) {
+  return new Paragraph({
+    children: [
+      text(`${label}: `, { bold: true, size: 20 }),
+      text(value == null ? '' : String(value), { size: 20 }),
+    ],
+    spacing: { after: 80 },
+  })
+}
+
+function v3HeaderCell(label, widthPct) {
+  return new TableCell({
+    children: [para(text(label, { bold: true, size: 20 }), { spacing: { after: 0 } })],
+    width: { size: widthPct, type: WidthType.PERCENTAGE },
+    borders: BLACK_BORDER,
+  })
+}
+
+function v3StageCell(children, widthPct) {
+  return new TableCell({
+    children,
+    width: { size: widthPct, type: WidthType.PERCENTAGE },
+    borders: BLACK_BORDER,
+  })
+}
+
+function buildV3Body(plan) {
+  const h = plan.header || {}
+  const le = plan.learningEnvironment || {}
+  const children = []
+
+  // Header block — official CAPS label lines.
+  if (h.school) children.push(fieldLine('SCHOOL', h.school))
+  children.push(fieldLine('NAME OF TEACHER', h.teacherName || ''))
+  children.push(fieldLine('DATE', h.date || ''))
+  if (h.time) children.push(fieldLine('TIME', h.time))
+  children.push(fieldLine('CLASS', h.class || ''))
+  children.push(fieldLine('DURATION', h.durationMinutes ? `${h.durationMinutes} minutes` : ''))
+  if (h.termAndWeek) children.push(fieldLine('TERM & WEEK', h.termAndWeek))
+  const hasAttendance = h.boysPresent != null || h.girlsPresent != null || h.totalPupils != null
+  if (hasAttendance) {
+    children.push(fieldLine(
+      'TOTAL ATTENDANCE',
+      `Boys: ${h.boysPresent ?? '____'}   Girls: ${h.girlsPresent ?? '____'}   Total: ${h.totalPupils ?? h.numberOfPupils ?? '____'}`,
+    ))
+  }
+  children.push(fieldLine('SUBJECT', h.subject || ''))
+  children.push(fieldLine('TOPIC', h.topic || ''))
+  children.push(fieldLine('SUB-TOPIC', h.subtopic || ''))
+
+  // Official field sections.
+  children.push(fieldLine('GENERAL COMPETENCES', (plan.generalCompetences || []).join(', ')))
+  children.push(fieldLine('SPECIFIC COMPETENCE', plan.specificCompetence || ''))
+  children.push(fieldLine('LESSON GOAL', plan.lessonGoal || ''))
+  children.push(fieldLine('RATIONALE', plan.rationale || ''))
+  children.push(fieldLine('PRIOR KNOWLEDGE', plan.priorKnowledge || ''))
+  if (plan.references?.length) {
+    children.push(para(text('REFERENCES:', { bold: true, size: 20 })))
+    children.push(...bulletList(plan.references))
+  }
+  children.push(para(text('LEARNING ENVIRONMENT:', { bold: true, size: 20 })))
+  children.push(fieldLine('I. Natural', le.natural || ''))
+  children.push(fieldLine('II. Artificial', le.artificial || ''))
+  children.push(fieldLine('III. Technological', le.technological || ''))
+  if (plan.materials?.length) {
+    children.push(para(text('TEACHING AND LEARNING MATERIALS/RESOURCES:', { bold: true, size: 20 })))
+    children.push(...bulletList(plan.materials))
+  }
+  children.push(fieldLine('EXPECTED STANDARD', plan.expectedStandard || ''))
+  if (plan.keyVocabulary?.length) {
+    children.push(para(text('KEY VOCABULARY:', { bold: true, size: 20 })))
+    children.push(...bulletList(plan.keyVocabulary))
+  }
+
+  // LESSON PROGRESSION — one black ruled table, exactly like the modules.
+  children.push(new Paragraph({
+    children: [text('LESSON PROGRESSION', { bold: true, size: 22 })],
+    spacing: { before: 160, after: 120 },
+  }))
+  const headerRow = new TableRow({
+    children: [
+      v3HeaderCell('STAGES', 15),
+      v3HeaderCell("TEACHER'S ACTIVITIES", 31),
+      v3HeaderCell("LEARNERS' ACTIVITIES", 30),
+      v3HeaderCell('ASSESSMENT CRITERIA', 24),
+    ],
+  })
+  const stageRows = (plan.stages || []).map((s) => new TableRow({
+    children: [
+      v3StageCell([
+        para(text(s.name || '', { bold: true, size: 18 }), { spacing: { after: 40 } }),
+        ...(s.durationMinutes > 0
+          ? [para(text(`(${s.durationMinutes} min)`, { italics: true, size: 16 }), { spacing: { after: 0 } })]
+          : []),
+      ], 15),
+      v3StageCell(bulletList(s.teacherActivities), 31),
+      v3StageCell(bulletList(s.learnerActivities), 30),
+      v3StageCell(bulletList(s.assessmentCriteria), 24),
+    ],
+  }))
+  children.push(new Table({
+    width: { size: 100, type: WidthType.PERCENTAGE },
+    rows: [headerRow, ...stageRows],
+  }))
+  children.push(para([]))
+
+  // Closing block.
+  if (plan.remedialWork) children.push(fieldLine('REMEDIAL WORK', plan.remedialWork))
+  if (plan.extensionActivity) children.push(fieldLine('EXTENSION ACTIVITY', plan.extensionActivity))
+  children.push(new Paragraph({
+    children: [text('LESSON EVALUATION:', { bold: true, size: 20 })],
+    spacing: { before: 160, after: 80 },
+  }))
+  const blank = '_'.repeat(60)
+  children.push(fieldLine('Successes (competences achieved)', '_'.repeat(18)))
+  children.push(para(text(blank, { size: 20 })))
+  children.push(fieldLine('Challenges (competences not achieved and why)', '_'.repeat(18)))
+  children.push(para(text(blank, { size: 20 })))
+  children.push(fieldLine('Way forward (including remedial work if applicable)', '_'.repeat(18)))
+  children.push(para(text(blank, { size: 20 })))
+  return children
+}
+
 /**
  * Build a docx Document from a lesson plan JSON object.
  * Detects schema version by field presence so older saved plans still export.
  */
 export function buildLessonPlanDocument(plan) {
+  const isV3 = Array.isArray(plan.stages) || plan.schemaVersion === '3.0'
+  if (isV3) {
+    return new Document({
+      creator: 'zedexams.com',
+      title: `Lesson Plan — ${plan.header?.subject || ''} — ${plan.header?.topic || ''}`,
+      description: 'Generated by ZedExams Teacher Tools',
+      styles: {
+        default: {
+          document: { run: { font: 'Calibri', size: 20 } },
+        },
+      },
+      sections: [{ children: [h1('LESSON PLAN'), ...buildV3Body(plan)] }],
+    })
+  }
   const isV2 = !!plan.lessonProgression || !!plan.lessonCompetencies || plan.schemaVersion === '2.0'
 
   const children = []

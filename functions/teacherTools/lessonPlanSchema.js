@@ -1,17 +1,37 @@
 /**
  * Zambian CBC Lesson Plan — runtime validator (no external deps).
  *
- * Schema v2.0 — rebuilt to match Bernard Tito's CBC Lesson Plan Template
- * (Preliminary Information 1.1–1.21, 5E Lesson Progression 2.1–2.5,
- * Competence Continuity and Strategy 3). Backward compatible with v1.0
- * plans saved before the upgrade: legacy fields are kept and older docs
- * render through a shim in LessonPlanGenerator.
+ * Schema v3.0 — rebuilt to match the SAMPLE LESSON PLAN appendices of the
+ * official 2023-curriculum CDC teaching modules: general competences,
+ * coded specific competence, lesson goal, rationale, prior knowledge,
+ * references, learning environment (natural/artificial/technological),
+ * materials, expected standard, key vocabulary, and a stages array using
+ * the official progression (INTRODUCTION → LESSON DEVELOPMENT →
+ * EXERCISE / ASSESSMENT → HOMEWORK → CONCLUSION), closing with remedial
+ * work / extension activity.
+ *
+ * validateLessonPlan() only runs on NEW generations, so it validates v3
+ * exclusively. Older stored documents (v2 5E lessonProgression, v1
+ * lessonDevelopment) are never re-validated — they are detected via
+ * detectSchemaVersion() and rendered through their own UI shims.
  *
  * Intentionally not using `ajv` to keep the Functions bundle small.
  */
 
-const SCHEMA_VERSION = "2.0";
+const SCHEMA_VERSION = "3.0";
+const V2_SCHEMA_VERSION = "2.0";
 const LEGACY_SCHEMA_VERSION = "1.0";
+
+// The five official stage names from the CDC module samples. LESSON
+// DEVELOPMENT may appear as several "LESSON DEVELOPMENT — Activity k: ..."
+// entries, so matching is by prefix after normalisation.
+const OFFICIAL_STAGES = [
+  "INTRODUCTION",
+  "LESSON DEVELOPMENT",
+  "EXERCISE / ASSESSMENT",
+  "HOMEWORK",
+  "CONCLUSION",
+];
 
 function isNonEmptyString(v) {
   return typeof v === "string" && v.trim().length > 0;
@@ -25,17 +45,20 @@ function isPositiveNumber(v) {
 function isNonNegativeInt(v) {
   return typeof v === "number" && Number.isInteger(v) && v >= 0;
 }
+function cleanStringArray(v) {
+  return Array.isArray(v) ?
+    v.filter(isNonEmptyString).map((s) => s.trim()) : [];
+}
 
-function normalisePhase(input = {}, defaultMinutes) {
+function normaliseStage(input = {}, fallbackName) {
   return {
+    name: isNonEmptyString(input.name) ?
+      input.name.trim().toUpperCase() : fallbackName,
     durationMinutes: isPositiveNumber(input.durationMinutes) ?
-      Math.round(input.durationMinutes) : defaultMinutes,
-    teacherActivities: isStringArray(input.teacherActivities) ?
-      input.teacherActivities : [],
-    learnerActivities: isStringArray(input.learnerActivities) ?
-      input.learnerActivities : [],
-    assessmentCriteria: isStringArray(input.assessmentCriteria) ?
-      input.assessmentCriteria : [],
+      Math.round(input.durationMinutes) : 0,
+    teacherActivities: cleanStringArray(input.teacherActivities),
+    learnerActivities: cleanStringArray(input.learnerActivities),
+    assessmentCriteria: cleanStringArray(input.assessmentCriteria),
   };
 }
 
@@ -52,7 +75,7 @@ function validateLessonPlan(input) {
     return {ok: false, errors: ["Top-level payload must be an object."]};
   }
 
-  // ── header (1.1–1.9 admin) ─────────────────────────────────────────
+  // ── header ─────────────────────────────────────────────────────────
   const h = input.header || {};
   const boysPresent = isNonNegativeInt(h.boysPresent) ? h.boysPresent : null;
   const girlsPresent = isNonNegativeInt(h.girlsPresent) ? h.girlsPresent : null;
@@ -72,7 +95,6 @@ function validateLessonPlan(input) {
     termAndWeek: isNonEmptyString(h.termAndWeek) ? h.termAndWeek : "",
     mediumOfInstruction: isNonEmptyString(h.mediumOfInstruction) ?
       h.mediumOfInstruction : "English",
-    // NEW — attendance breakdown required by the CBC template
     boysPresent,
     girlsPresent,
     totalPupils: isNonNegativeInt(h.totalPupils) ? h.totalPupils : totalFromParts,
@@ -84,151 +106,78 @@ function validateLessonPlan(input) {
   if (!out.header.topic) errors.push("header.topic is required");
   if (!out.header.class) errors.push("header.class is required");
 
-  // ── 1.10 SMART lesson goal ─────────────────────────────────────────
+  // ── pre-table sections (official order) ────────────────────────────
+  out.generalCompetences = cleanStringArray(input.generalCompetences);
+  if (out.generalCompetences.length === 0) {
+    errors.push("generalCompetences must list 3-5 CBC competences");
+  }
+
+  out.specificCompetence = isNonEmptyString(input.specificCompetence) ?
+    input.specificCompetence.trim() : "";
+  if (!out.specificCompetence) {
+    errors.push("specificCompetence is required (with its syllabus code)");
+  }
+
   out.lessonGoal = isNonEmptyString(input.lessonGoal) ? input.lessonGoal : "";
   if (!out.lessonGoal) errors.push("lessonGoal is required (a SMART statement)");
 
-  // ── 1.11–1.13 Competences (three tiers) ────────────────────────────
-  out.broadCompetences = isStringArray(input.broadCompetences) ?
-    input.broadCompetences : [];
-  out.expectedTargetCompetence = isNonEmptyString(input.expectedTargetCompetence) ?
-    input.expectedTargetCompetence : "";
-  const lc = input.lessonCompetencies || {};
-  out.lessonCompetencies = {
-    competency1: isNonEmptyString(lc.competency1) ? lc.competency1 : "",
-    competency2: isNonEmptyString(lc.competency2) ? lc.competency2 : "",
-    competency3: isNonEmptyString(lc.competency3) ? lc.competency3 : "",
-  };
-  if (!out.lessonCompetencies.competency1 ||
-      !out.lessonCompetencies.competency2 ||
-      !out.lessonCompetencies.competency3) {
-    errors.push(
-        "lessonCompetencies must include competency1, competency2 (thinking process), and competency3 (tangible skill-based output)",
-    );
+  out.rationale = isNonEmptyString(input.rationale) ? input.rationale : "";
+  if (!out.rationale) {
+    errors.push("rationale is required (content, value, methods, position)");
   }
 
-  // Legacy fields preserved for v1 docs and for backward-compatible rendering
-  out.specificOutcomes = isStringArray(input.specificOutcomes) ?
-    input.specificOutcomes : [];
-  out.keyCompetencies = isStringArray(input.keyCompetencies) ?
-    input.keyCompetencies : [];
-  out.values = isStringArray(input.values) ? input.values : [];
+  out.priorKnowledge = isNonEmptyString(input.priorKnowledge) ?
+    input.priorKnowledge : "";
 
-  // ── 1.14 Methodology and strategies ────────────────────────────────
-  const m = input.methodology || {};
-  out.methodology = {
-    approach: isNonEmptyString(m.approach) ? m.approach : "",
-    strategies: isStringArray(m.strategies) ? m.strategies : [],
-  };
+  out.references = cleanStringArray(input.references);
 
-  // ── 1.15–1.17 Assessment strategies ────────────────────────────────
-  const a = input.assessment || {};
-  const s = a.summative || {};
-  out.assessment = {
-    formative: isStringArray(a.formative) ? a.formative : [],
-    summative: {
-      description: isNonEmptyString(s.description) ? s.description : "",
-      successCriteria: isNonEmptyString(s.successCriteria) ?
-        s.successCriteria : "",
-    },
-  };
-
-  // ── 1.18 Learning / teaching materials ─────────────────────────────
-  out.teachingLearningMaterials = isStringArray(input.teachingLearningMaterials) ?
-    input.teachingLearningMaterials : [];
-
-  // ── 1.19 Learning environment (Natural/Artificial/Technological/Classroom) ─
   const le = input.learningEnvironment || {};
-  const validCats = ["natural", "artificial", "technological", "classroom"];
   out.learningEnvironment = {
-    category: validCats.includes(le.category) ? le.category : "classroom",
-    specific: isNonEmptyString(le.specific) ? le.specific : "",
-    rationale: isNonEmptyString(le.rationale) ? le.rationale : "",
+    natural: isNonEmptyString(le.natural) ? le.natural : "",
+    artificial: isNonEmptyString(le.artificial) ? le.artificial : "",
+    technological: isNonEmptyString(le.technological) ? le.technological : "",
   };
 
-  // ── 1.20 Prior knowledge ───────────────────────────────────────────
-  out.prerequisiteKnowledge = isStringArray(input.prerequisiteKnowledge) ?
-    input.prerequisiteKnowledge : [];
-
-  // ── 1.21 Interdisciplinary connections ─────────────────────────────
-  out.interdisciplinaryConnections = Array.isArray(input.interdisciplinaryConnections) ?
-    input.interdisciplinaryConnections
-        .filter((c) => c && typeof c === "object")
-        .map((c) => ({
-          subject: isNonEmptyString(c.subject) ? c.subject : "",
-          connection: isNonEmptyString(c.connection) ? c.connection : "",
-        }))
-        .filter((c) => c.subject && c.connection) :
-    [];
-
-  // ── references (publisher + pages) ─────────────────────────────────
-  out.references = Array.isArray(input.references) ?
-    input.references
-        .filter((r) => r && typeof r === "object")
-        .map((r) => ({
-          title: isNonEmptyString(r.title) ? r.title : "",
-          publisher: isNonEmptyString(r.publisher) ? r.publisher : "",
-          pages: isNonEmptyString(r.pages) ? r.pages : "",
-        }))
-        .filter((r) => r.title) :
-    [];
-
-  // ── Section 2: 5E Lesson Progression ───────────────────────────────
-  const lp = input.lessonProgression || {};
-  out.lessonProgression = {
-    engagement: normalisePhase(lp.engagement, 5),
-    exploration: normalisePhase(lp.exploration, 15),
-    explanation: normalisePhase(lp.explanation, 10),
-    synthesis: normalisePhase(lp.synthesis, 10),
-    evaluation: normalisePhase(lp.evaluation, 5),
-  };
-  const anyPhaseHasActivities = ["engagement", "exploration", "explanation",
-    "synthesis", "evaluation"].some((k) =>
-    out.lessonProgression[k].teacherActivities.length > 0 ||
-    out.lessonProgression[k].learnerActivities.length > 0,
-  );
-  if (!anyPhaseHasActivities) {
-    errors.push("lessonProgression must populate at least one phase with activities");
+  out.materials = cleanStringArray(input.materials);
+  if (out.materials.length === 0) {
+    errors.push("materials must list the teaching and learning materials");
   }
 
-  // Legacy v1 3-phase structure preserved so old docs still render.
-  if (input.lessonDevelopment) {
-    out.lessonDevelopment = input.lessonDevelopment;
+  out.expectedStandard = isNonEmptyString(input.expectedStandard) ?
+    input.expectedStandard : "";
+  if (!out.expectedStandard) {
+    errors.push("expectedStandard is required (passive voice, from the syllabus)");
   }
 
-  // ── Section 3: Competence Continuity and Strategy ──────────────────
-  const cc = input.competenceContinuity || {};
-  out.competenceContinuity = {
-    longTermProjects: isStringArray(cc.longTermProjects) ?
-      cc.longTermProjects : [],
-    homeworkExtensions: isStringArray(cc.homeworkExtensions) ?
-      cc.homeworkExtensions : [],
-    upcomingConnections: isStringArray(cc.upcomingConnections) ?
-      cc.upcomingConnections : [],
-    teacherActions: isStringArray(cc.teacherActions) ? cc.teacherActions : [],
-  };
+  out.keyVocabulary = cleanStringArray(input.keyVocabulary);
 
-  // ── differentiation ────────────────────────────────────────────────
-  const d = input.differentiation || {};
-  out.differentiation = {
-    forStruggling: isStringArray(d.forStruggling) ? d.forStruggling : [],
-    forAdvanced: isStringArray(d.forAdvanced) ? d.forAdvanced : [],
-  };
+  // ── LESSON PROGRESSION (official stages) ───────────────────────────
+  const rawStages = Array.isArray(input.stages) ? input.stages : [];
+  out.stages = rawStages
+      .filter((s) => s && typeof s === "object")
+      .map((s) => normaliseStage(s, "LESSON DEVELOPMENT"));
+  if (out.stages.length === 0) {
+    errors.push("stages must contain the official lesson progression");
+  } else {
+    const names = out.stages.map((s) => s.name);
+    const missing = OFFICIAL_STAGES.filter((official) =>
+      !names.some((n) => n.replace(/\s+/g, " ").replace(/\s*\/\s*/g, " / ")
+          .startsWith(official.split(" — ")[0])));
+    if (missing.length > 0) {
+      errors.push(`stages is missing the official stage(s): ${missing.join(", ")}`);
+    }
+    const anyStageHasActivities = out.stages.some((s) =>
+      s.teacherActivities.length > 0 || s.learnerActivities.length > 0);
+    if (!anyStageHasActivities) {
+      errors.push("stages must populate teacher and learner activities");
+    }
+  }
 
-  // ── homework ───────────────────────────────────────────────────────
-  const hw = input.homework || {};
-  out.homework = {
-    description: isNonEmptyString(hw.description) ? hw.description : "",
-    estimatedMinutes: isPositiveNumber(hw.estimatedMinutes) ?
-      Math.round(hw.estimatedMinutes) : 0,
-  };
-
-  // ── teacher reflection (blank at generation time) ──────────────────
-  out.teacherReflection = {
-    whatWentWell: "",
-    whatToImprove: "",
-    pupilsWhoNeedFollowUp: [],
-  };
+  // ── closing block ──────────────────────────────────────────────────
+  out.remedialWork = isNonEmptyString(input.remedialWork) ?
+    input.remedialWork : "";
+  out.extensionActivity = isNonEmptyString(input.extensionActivity) ?
+    input.extensionActivity : "";
 
   // ── coveredContent ─────────────────────────────────────────────────
   // Short bullets of what THIS lesson actually taught — feeds the
@@ -244,19 +193,22 @@ function validateLessonPlan(input) {
 
 /**
  * Detect which schema version a stored plan was written against. Used
- * by the UI shim so we can render both shapes from the same viewer.
+ * by the UI shims so we can render all shapes from the same viewer.
  */
 function detectSchemaVersion(plan) {
   if (!plan || typeof plan !== "object") return LEGACY_SCHEMA_VERSION;
   if (plan.schemaVersion) return plan.schemaVersion;
-  if (plan.lessonProgression) return SCHEMA_VERSION;
+  if (Array.isArray(plan.stages)) return SCHEMA_VERSION;
+  if (plan.lessonProgression) return V2_SCHEMA_VERSION;
   if (plan.lessonDevelopment) return LEGACY_SCHEMA_VERSION;
   return LEGACY_SCHEMA_VERSION;
 }
 
 module.exports = {
   SCHEMA_VERSION,
+  V2_SCHEMA_VERSION,
   LEGACY_SCHEMA_VERSION,
+  OFFICIAL_STAGES,
   validateLessonPlan,
   detectSchemaVersion,
 };

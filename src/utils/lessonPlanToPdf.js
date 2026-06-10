@@ -53,7 +53,116 @@ export function printLessonPlanAsPdf(plan, titleForDocument = 'CBC Lesson Plan')
  * HTML template
  * ─────────────────────────────────────────────────────────────────── */
 
-function buildPrintableHtml(plan, title) {
+// Exported for the plain-node export tests — pure string builder, no DOM.
+export function buildPrintableHtml(plan, title) {
+  const isV3 = Array.isArray(plan.stages) || plan.schemaVersion === '3.0'
+  if (isV3) return buildPrintableHtmlV3(plan, title)
+  return buildPrintableHtmlLegacy(plan, title)
+}
+
+/* v3 — official CDC teaching-module layout: plain black-and-white A4,
+ * CAPS labels, one black ruled LESSON PROGRESSION table, blank LESSON
+ * EVALUATION. Mirrors the studio's Classic CBC format. */
+function buildPrintableHtmlV3(plan, title) {
+  const h = plan.header || {}
+  const le = plan.learningEnvironment || {}
+  const safe = (v) => (v == null ? '' : escapeHtml(String(v)))
+  const list = (items) => (items || []).length
+    ? `<ul>${items.map(i => `<li>${safe(i)}</li>`).join('')}</ul>`
+    : ''
+  const line = (label, value) => value
+    ? `<p class="fl"><strong>${label}:</strong> ${safe(value)}</p>`
+    : ''
+  const cellList = (items) => (items || []).length
+    ? items.map(i => `<p class="cl">${safe(i)}</p>`).join('')
+    : ''
+  const hasAttendance = h.boysPresent != null || h.girlsPresent != null || h.totalPupils != null
+  const stageRows = (plan.stages || []).map(s => `
+    <tr>
+      <td class="stage"><strong>${safe(s.name)}</strong>${s.durationMinutes > 0 ? `<br><em>(${safe(s.durationMinutes)} min)</em>` : ''}</td>
+      <td>${cellList(s.teacherActivities)}</td>
+      <td>${cellList(s.learnerActivities)}</td>
+      <td>${cellList(s.assessmentCriteria)}</td>
+    </tr>`).join('')
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>${safe(title)}</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{font-family:"Times New Roman",Georgia,serif;color:#000;background:#fff;font-size:11pt;line-height:1.45}
+  body{padding:20px 28px;max-width:210mm;margin:0 auto}
+  h1{font-size:15pt;font-weight:800;text-align:center;letter-spacing:.12em;border-top:1.5px solid #000;border-bottom:1.5px solid #000;display:table;margin:0 auto 14px;padding:4px 18px}
+  .fl{margin:3px 0}
+  .fl strong{font-weight:700}
+  ul{margin:3px 0 6px 22px}
+  li{margin:2px 0}
+  .pt{font-weight:700;font-size:11.5pt;letter-spacing:.04em;margin:12px 0 6px}
+  table{width:100%;border-collapse:collapse;margin:4px 0 12px;border:1px solid #000}
+  th,td{border:1px solid #000;padding:5px 7px;text-align:left;vertical-align:top;font-size:10.5pt}
+  th{font-weight:700}
+  td.stage{width:15%;font-size:9pt}
+  .cl{margin:0 0 5px}
+  .rule{border-bottom:1px solid #000;height:1.3em;margin:0 0 6px}
+  @media print{ body{padding:14mm 16mm;max-width:none} table{page-break-inside:auto} tr{page-break-inside:avoid} }
+</style>
+</head>
+<body>
+  ${h.school ? `<p class="fl" style="text-align:center;font-weight:700;font-size:13pt;margin-bottom:4px">${safe(h.school)}</p>` : ''}
+  <h1>LESSON PLAN</h1>
+  ${line('NAME OF TEACHER', h.teacherName)}
+  ${line('DATE', h.date)}
+  ${line('TIME', h.time)}
+  ${line('CLASS', h.class)}
+  ${line('DURATION', h.durationMinutes ? `${h.durationMinutes} minutes` : '')}
+  ${line('TERM & WEEK', h.termAndWeek)}
+  ${hasAttendance ? line('TOTAL ATTENDANCE', `Boys: ${h.boysPresent ?? '____'}   Girls: ${h.girlsPresent ?? '____'}   Total: ${h.totalPupils ?? h.numberOfPupils ?? '____'}`) : ''}
+  ${line('SUBJECT', h.subject)}
+  ${line('TOPIC', h.topic)}
+  ${line('SUB-TOPIC', h.subtopic)}
+  ${line('GENERAL COMPETENCES', (plan.generalCompetences || []).join(', '))}
+  ${line('SPECIFIC COMPETENCE', plan.specificCompetence)}
+  ${line('LESSON GOAL', plan.lessonGoal)}
+  ${line('RATIONALE', plan.rationale)}
+  ${line('PRIOR KNOWLEDGE', plan.priorKnowledge)}
+  ${plan.references?.length ? `<p class="fl"><strong>REFERENCES:</strong></p>${list(plan.references)}` : ''}
+  <p class="fl"><strong>LEARNING ENVIRONMENT:</strong></p>
+  ${line('I. Natural', le.natural)}
+  ${line('II. Artificial', le.artificial)}
+  ${line('III. Technological', le.technological)}
+  ${plan.materials?.length ? `<p class="fl"><strong>TEACHING AND LEARNING MATERIALS/RESOURCES:</strong></p>${list(plan.materials)}` : ''}
+  ${line('EXPECTED STANDARD', plan.expectedStandard)}
+  ${plan.keyVocabulary?.length ? `<p class="fl"><strong>KEY VOCABULARY:</strong></p>${list(plan.keyVocabulary)}` : ''}
+
+  <p class="pt">LESSON PROGRESSION</p>
+  <table>
+    <thead>
+      <tr>
+        <th style="width:15%">STAGES</th>
+        <th style="width:31%">TEACHER'S ACTIVITIES</th>
+        <th style="width:30%">LEARNERS' ACTIVITIES</th>
+        <th style="width:24%">ASSESSMENT CRITERIA</th>
+      </tr>
+    </thead>
+    <tbody>${stageRows}</tbody>
+  </table>
+
+  ${line('REMEDIAL WORK', plan.remedialWork)}
+  ${line('EXTENSION ACTIVITY', plan.extensionActivity)}
+  <p class="pt">LESSON EVALUATION:</p>
+  <p class="fl"><strong>Successes</strong> (competences achieved): __________________</p>
+  <div class="rule"></div>
+  <p class="fl"><strong>Challenges</strong> (competences not achieved and why): __________________</p>
+  <div class="rule"></div>
+  <p class="fl"><strong>Way forward</strong> (including remedial work if applicable): __________________</p>
+  <div class="rule"></div>
+</body>
+</html>`
+}
+
+function buildPrintableHtmlLegacy(plan, title) {
   const header = plan.header || {}
   const safe = (v) => (v == null ? '' : escapeHtml(String(v)))
 
