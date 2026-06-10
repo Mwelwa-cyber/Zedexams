@@ -15,6 +15,7 @@ import UpdatePrompt from './components/ui/UpdatePrompt'
 import CookieConsentBanner from './components/ui/CookieConsentBanner'
 import ZedChatLauncher from './components/ai/ZedChatLauncher'
 import ErrorBoundary from './components/ui/ErrorBoundary'
+import ScrollToTop from './components/ui/ScrollToTop'
 
 // Auth/legal routes always render in the brand-default theme so a
 // visitor's previously-saved preference (e.g. Vivid's deep violet bg)
@@ -362,6 +363,9 @@ export default function App() {
           default. Self-hides once a decision is recorded. */}
       <CookieConsentBanner />
       <ThemeApplicator />
+      {/* Reset scroll to the top on every client-side navigation so new
+          pages don't inherit the previous page's scroll offset. */}
+      <ScrollToTop />
       <div id="main" tabIndex={-1}>
         <Suspense fallback={<PageLoader />}>
           <RouteErrorBoundary>
