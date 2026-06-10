@@ -245,7 +245,7 @@ export default function AdminLayout({ children }) {
     <div className="admin-game-theme theme-bg theme-text min-h-screen flex">
       {/* ── Desktop Sidebar ─────────────────────────────── */}
       <aside
-        className="hidden w-64 flex-shrink-0 flex-col md:flex"
+        className="hidden w-64 flex-shrink-0 flex-col md:flex md:sticky md:top-0 md:h-screen md:self-start"
         style={{ backgroundColor: '#FFFFFF', borderRight: '2px solid #0F1B2D', boxShadow: '2px 0 0 #0F1B2D' }}
       >
         <div className="px-4 py-5" style={{ backgroundColor: '#F5EFE1', borderBottom: '2px solid #0F1B2D' }}>
@@ -266,7 +266,7 @@ export default function AdminLayout({ children }) {
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto p-2">
+        <nav className="flex-1 min-h-0 overflow-y-auto p-2">
           {NAV_SECTIONS.map(section => renderSection(section, false))}
           <div className="theme-border my-3 border-t" />
           <p className="px-3 pt-1 pb-1 text-[10px] font-black uppercase tracking-[0.14em] theme-text-muted">
