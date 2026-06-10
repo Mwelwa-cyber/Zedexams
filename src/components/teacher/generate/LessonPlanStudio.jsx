@@ -703,7 +703,11 @@ export default function LessonPlanStudio() {
                     <div className="toggle-switch"></div>
                   </div>
                   <div className="toggle-row on" id="t-reflection" data-on="true">
-                    <div className="lbl">Include Teacher's Reflection<small>Modern Clean format only</small></div>
+                    <div className="lbl">Include Lesson Evaluation<small>Successes, challenges &amp; way forward — all formats</small></div>
+                    <div className="toggle-switch"></div>
+                  </div>
+                  <div className="toggle-row" id="t-vocab" data-on="false">
+                    <div className="lbl">Include Key Vocabulary<small>4–8 terms with learner-friendly meanings</small></div>
                     <div className="toggle-switch"></div>
                   </div>
                 </div>
