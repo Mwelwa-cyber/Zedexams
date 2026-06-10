@@ -5,106 +5,103 @@
 // output for real content. No API call, no Firestore write.
 
 (function () {
-  // Sample lesson plan content. Realistic enough that the teacher sees how
-  // headings, tables, columns, evaluations and reflection sections look.
-  // The classic / classic2 formats need extra fields (generalCompetences,
-  // lessonGoal, etc.) so we include them all on the same object — the
-  // modern renderer ignores what it doesn't use.
+  // Sample lesson plan content — adapted from the SAMPLE LESSON PLAN in the
+  // official Creative and Technology Studies Grade 2 teaching module
+  // (Term 1 & 2, Appendix 1: "Tourism — Attraction sites"), reshaped into
+  // the canonical studio contract from 05-system-prompts.js. All three
+  // formats render this same object; only the presentation differs.
   const sampleData = {
-    topic: 'Plants',
-    subtopic: 'Photosynthesis',
-    specificOutcomes: [
-      'Describe how green plants make their own food.',
-      'State the requirements for photosynthesis.',
-      'Explain the importance of photosynthesis to living things.'
-    ],
-    keyCompetencies: ['Observation', 'Critical thinking', 'Communication'],
-    values: ['Curiosity', 'Respect for nature', 'Teamwork'],
-    prerequisiteKnowledge: [
-      'Parts of a flowering plant.',
-      'Functions of the leaf.',
-      'Sources of energy in the environment.'
-    ],
-    materials: [
-      'Live potted plant',
-      'Chart of a leaf with labelled parts',
-      'Iodine solution and a starch-tested leaf'
-    ],
+    topic: '2.10 Tourism',
+    subtopic: '2.10.1 Attraction Sites',
+    generalCompetences: ['Citizenship', 'Communication', 'Environmental Sustainability'],
+    specificCompetence: '2.10.1.1 Explore local attraction sites',
+    lessonGoal: 'To enable learners explore local attraction sites and appreciate their importance to the community.',
+    rationale: 'This lesson will focus on tourism attraction sites such as museums, waterfalls and parks. Learners will explore local attraction sites and appreciate their importance to the community. To enhance understanding, learners will be engaged in group work and discovery methods. This is lesson 1 in a series of 2.',
+    priorKnowledge: 'Learners have visited or watched a trading place, city, waterfalls, show grounds or museums.',
     references: [
-      "Integrated Science Pupil's Book 6 (Ministry of Education).",
-      "Teacher's Guide Grade 6 — Plants unit."
+      'Lower Primary Syllabus, Creative and Technology Studies, page 87.',
+      'Creative and Technology Studies Teaching Module Grade 2, page 87.'
+    ],
+    learningEnvironment: {
+      natural: 'School surroundings and the local community.',
+      artificial: 'Classroom with a tourism corner.',
+      technological: 'Video clip of a local attraction site shown on a phone or projector.'
+    },
+    materials: [
+      'Pictures of local attraction sites',
+      'Video clip of an attraction site',
+      'Brochures from local tourism centres'
+    ],
+    expectedStandard: 'Local attraction sites explored accordingly.',
+    keyVocabulary: [
+      'Tourism: visiting interesting places to learn and enjoy.',
+      'Attraction site: a place many people like to visit, such as a waterfall or museum.',
+      'Museum: a building where important old things are kept and shown.',
+      'Heritage: the special places and traditions a community keeps and protects.'
     ],
     stages: [
       {
-        name: 'Introduction',
+        name: 'INTRODUCTION',
         duration: '5 min',
-        teacher: 'Greets the pupils.\nReviews parts of a plant through quick oral questions.',
-        pupils: 'Respond to greetings.\nName parts of a plant from a chart.',
-        assessment: 'Oral answers identifying leaf, stem and root.'
+        teacher: 'Ask learners: "Have you ever visited a park, waterfall or museum?"\n"What did you see there?"\nShow learners brochures or pictures of local attraction sites.',
+        pupils: 'Share their experiences of places they have visited.\nRelate what they see in the pictures to their own experience.',
+        assessment: 'Learners appropriately relate what they see in the pictures to their experience.'
       },
       {
-        name: 'Lesson Development',
-        duration: '25 min',
-        teacher: 'Explains photosynthesis using a labelled chart.\nDemonstrates the iodine test on a leaf.\nLeads pupils through the word equation.',
-        pupils: 'Listen and take notes.\nObserve the iodine test results.\nCopy the word equation into their books.',
-        assessment: 'Pupils correctly write the word equation for photosynthesis.'
+        name: 'LESSON DEVELOPMENT',
+        duration: '15 min',
+        teacher: 'Show learners a video of an attraction site (virtual educational visit).\nAsk learners to observe activities at the site.\nAfter the virtual visit, ask learners to draw or talk about what they saw.\nDiscuss how to behave responsibly at attraction sites (no littering, respect rules, protect property).',
+        pupils: 'Describe the environment and the activities taking place at the site.\nDraw what they saw or share their experience.\nDiscuss responsible behaviour at an attraction site.',
+        assessment: 'Learners describe the environment and activities on attraction sites accordingly.\nLearners draw what they saw with less difficulty.'
       },
       {
-        name: 'Conclusion',
-        duration: '10 min',
-        teacher: 'Summarises the lesson.\nGives a short oral quiz.\nAssigns homework.',
-        pupils: 'Respond to the quiz.\nWrite down the homework task.',
-        assessment: 'Correct oral answers to summary questions.'
+        name: 'EXERCISE / ASSESSMENT',
+        duration: '5 min',
+        teacher: 'Ask learners to:\n1. Identify local attraction sites.\n2. Describe features of the attraction sites mentioned.\n3. Demonstrate how to behave when visiting an attraction site.',
+        pupils: '1. Correctly mention local attraction sites.\n2. Describe features of attraction sites clearly.\n3. Demonstrate appropriate behaviour when visiting sites.',
+        assessment: 'Learners show ability to recall and share their experience accordingly.'
+      },
+      {
+        name: 'HOMEWORK',
+        duration: '2 min',
+        teacher: 'Task learners: with the help of a parent, explore a nearby attraction site in your locality (a physical visit or pictures/videos may be used).',
+        pupils: 'Copy the homework task and complete it at home with a family member.',
+        assessment: 'Learners copy the homework task correctly.'
+      },
+      {
+        name: 'CONCLUSION',
+        duration: '3 min',
+        teacher: 'Guide the learners to bring out the main points of the lesson learnt:\n- Tourism helps people learn about their environment and culture.\n- Attraction sites such as parks, dams, waterfalls and museums are important places in the community.',
+        pupils: 'Bring out the key points of the lesson (what they learnt from the tour).',
+        assessment: 'Learners clearly state what they saw and learnt, mention the important ideas and explain them in their own simple words.'
       }
     ],
-    assessment: {
-      formative: ['Oral questioning during the lesson.', 'Quick written check at the end of the lesson.'],
-      summative: 'Short end-of-week written test on photosynthesis.',
-      successCriteria: 'Pupil can state the requirements and word equation for photosynthesis.'
-    },
-    differentiation: {
-      struggling: ['Pair with a stronger learner.', 'Use simpler diagrams and local examples.'],
-      advanced: ['Research the balanced chemical equation.', 'Explain limiting factors for photosynthesis.']
-    },
-    homework: 'Draw and label a leaf, then describe in two sentences where photosynthesis takes place.',
-    // Fields used only by Classic / Classic 2:
-    generalCompetences: 'Critical thinking; Communication; Co-operation',
-    specificCompetence: 'Describes how green plants make food through photosynthesis.',
-    majorLearningPoint: 'Photosynthesis is the process by which green plants use sunlight to make food.',
-    lessonGoal: 'By the end of the lesson, pupils should be able to describe photosynthesis and state its requirements.',
-    rationale: 'Understanding photosynthesis is the foundation for food chains, ecology and human dependence on plants.',
-    priorKnowledge: 'Pupils know the parts of a plant and the functions of the leaf.',
-    learningEnvironment: {
-      natural: 'School garden where pupils observe living leaves.',
-      artificial: 'Classroom chart and iodine-test demonstration.',
-      technological: 'Short video clip on photosynthesis (if available).'
-    },
-    // NOTE: the classic renderer expects `materials` and `references` as
-    // strings, not arrays. Override on render below for the classic formats.
-    expectedStandards: 'Pupils correctly explain photosynthesis using a word equation and name its requirements.'
+    remedialWork: 'Learners who struggled review the picture cards with the teacher and name two attraction sites.',
+    extensionActivity: 'Fast finishers design a small poster inviting visitors to one local attraction site.'
   };
 
   const sampleMeta = {
     headerLine: 'Ministry of Education · Republic of Zambia',
-    school: 'Jemareen Primary School',
-    department: 'Science Department',
-    teacher: 'Mr. Mwelwa',
+    school: 'Mwelu Mantimpa Primary School',
+    department: '',
+    teacher: 'Mwamba Chanda',
     tsno: '20158502',
-    klass: 'Grade 6',
-    subject: 'Integrated Science',
-    duration: 40,
-    date: '25 May 2026',
-    time: '10:00',
-    term: '2',
+    klass: 'Grade 2',
+    subject: 'Creative and Technology Studies',
+    duration: 30,
+    date: '22 March 2026',
+    time: '07:30',
+    term: '1',
     week: '5',
-    termWeek: 'Term 2, Week 5',
-    topic: 'Plants',
-    subtopic: 'Photosynthesis',
+    termWeek: 'Term 1, Week 5',
+    topic: '2.10 Tourism',
+    subtopic: '2.10.1 Attraction Sites',
     compactMeta: true,
     showAttendance: true,
-    showEnrolment: false,
+    showEnrolment: true,
     showReflection: true,
-    learningEnvironments: ['Natural', 'Artificial'],
+    showVocabulary: false,
+    learningEnvironments: ['Natural', 'Artificial', 'Technological'],
     multiLesson: false,
     lessonsTotal: 1,
     lessonsCurrent: 1,
@@ -115,16 +112,6 @@
     if (format === 'classic') return 'Classic CBC — preview';
     if (format === 'classic2') return 'Classic 2 — preview';
     return 'Modern Clean — preview';
-  }
-
-  function dataFor(format) {
-    // The classic renderers concatenate materials/references with esc()
-    // (string), while modern expects arrays. Reshape for each.
-    if (format === 'modern') return sampleData;
-    return Object.assign({}, sampleData, {
-      materials: 'Live potted plant; chart of a labelled leaf; iodine solution.',
-      references: "Integrated Science Pupil's Book 6 (MoE); Teacher's Guide Grade 6."
-    });
   }
 
   function openPreview(format) {
@@ -141,6 +128,21 @@
       return;
     }
 
+    // Honour the live toggle state so the preview reflects what the teacher
+    // has switched on (vocabulary, evaluation, enrolment, attendance).
+    const liveToggle = (id, fallback) => {
+      const el = document.getElementById(id);
+      return el ? el.dataset.on === 'true' : fallback;
+    };
+    const meta = Object.assign({}, sampleMeta, {
+      format,
+      showEnrolment: liveToggle('t-enrolment', sampleMeta.showEnrolment),
+      showAttendance: liveToggle('t-attendance', sampleMeta.showAttendance),
+      showReflection: liveToggle('t-reflection', sampleMeta.showReflection),
+      showVocabulary: liveToggle('t-vocab', sampleMeta.showVocabulary),
+      compactMeta: liveToggle('t-compact', sampleMeta.compactMeta),
+    });
+
     titleEl.textContent = titleFor(format);
     // Wrap the rendered HTML in the same .doc-wrap / .doc structure the
     // workspace uses so all the studio CSS (tables, headings, accent bar)
@@ -149,7 +151,7 @@
     bodyEl.innerHTML =
       '<div class="format-preview-scale">' +
         '<div class="doc-wrap"><div class="doc">' +
-          renderer(dataFor(format), Object.assign({}, sampleMeta, { format })) +
+          renderer(sampleData, meta) +
         '</div></div>' +
       '</div>';
 

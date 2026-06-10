@@ -57,6 +57,8 @@ function gatherInput() {
     showEnrolment: $('#t-enrolment').dataset.on === 'true',
     showAttendance: $('#t-attendance').dataset.on === 'true',
     showReflection: $('#t-reflection').dataset.on === 'true',
+    // Optional toggle — older studio DOMs may not have the row yet.
+    showVocabulary: (() => { const el = $('#t-vocab'); return !!el && el.dataset.on === 'true'; })(),
     compactMeta: $('#t-compact').dataset.on === 'true',
     format: formatChoice,
     learningEnvironments: $$('#learning-env .le-pill')
@@ -148,8 +150,8 @@ function renderMetaTable(meta) {
   if (meta.topic) rows.push(['Topic', esc(meta.topic)]);
   if (meta.subtopic) rows.push(['Sub-topic', esc(meta.subtopic)]);
   if (meta.termWeek) rows.push(['Term &amp; Week', esc(meta.termWeek)]);
-  if (meta.showEnrolment) rows.push(['Enrolment', 'Boys: _____ &nbsp;&nbsp; Girls: _____']);
-  if (meta.showAttendance) rows.push(['Attendance', 'Boys: _____ &nbsp;&nbsp; Girls: _____']);
+  if (meta.showEnrolment) rows.push(['Total Enrolment', 'Boys: _____ &nbsp;&nbsp; Girls: _____ &nbsp;&nbsp; Total: _____']);
+  if (meta.showAttendance) rows.push(['Total Attendance', 'Boys: _____ &nbsp;&nbsp; Girls: _____ &nbsp;&nbsp; Total: _____']);
   if (meta.learningEnvironments && meta.learningEnvironments.length) rows.push(['Learning Environment', esc(meta.learningEnvironments.join(', '))]);
   if (meta.multiLesson) {
     rows.push(['Lesson Sequence', `Lesson ${esc(meta.lessonsCurrent)} of ${esc(meta.lessonsTotal)}`]);
@@ -170,8 +172,8 @@ function renderMetaCompact(meta) {
   if (meta.termWeek) items.push(['Term &amp; Week', esc(meta.termWeek)]);
   if (meta.topic) items.push(['Topic', esc(meta.topic)]);
   if (meta.subtopic) items.push(['Sub-topic', esc(meta.subtopic)]);
-  if (meta.showEnrolment) items.push(['Enrolment', 'B: ___ G: ___']);
-  if (meta.showAttendance) items.push(['Attendance', 'B: ___ G: ___']);
+  if (meta.showEnrolment) items.push(['Enrolment', 'B: ___ G: ___ T: ___']);
+  if (meta.showAttendance) items.push(['Attendance', 'B: ___ G: ___ T: ___']);
   if (meta.learningEnvironments && meta.learningEnvironments.length) items.push(['Learning Environment', esc(meta.learningEnvironments.join(', '))]);
   if (meta.multiLesson) {
     items.push(['Lesson Sequence', `Lesson ${esc(meta.lessonsCurrent)} of ${esc(meta.lessonsTotal)}`]);
@@ -186,6 +188,14 @@ function renderMeta(meta) {
 
 function stripPrefix(s) { return String(s || '').replace(/^\s*\d+[.)]\s*/, ''); }
 
+// The canonical contract sends arrays for list-ish fields, but be tolerant
+// of strings (older saved data, model drift) — split on ; or newline.
+function asList(v) {
+  if (Array.isArray(v)) return v.map(x => String(x || '').trim()).filter(Boolean);
+  return String(v || '').split(/\n|;\s*/).map(s => s.trim()).filter(Boolean);
+}
+function joinList(v, sep) { return asList(v).join(sep || '; '); }
+
 function formatProse(text) {
   if (!text) return '';
   const t = String(text).trim();
@@ -198,73 +208,139 @@ function formatProse(text) {
 }
 
 // ── Renderers ─────────────────────────────────────────────────────────────────
+//
+// All three formats render the SAME canonical data contract (see
+// 05-system-prompts.js) extracted from the official CDC teaching-module
+// sample lesson plans. Only the presentation differs:
+//   modern   — sectioned layout, one mini-table per stage (2 activity
+//              columns + an assessment-criteria row)
+//   classic  — the official module replica: field lines + ONE progression
+//              table [Stages | Teacher's Activities | Learners' Activities |
+//              Assessment Criteria]
+//   classic2 — per-stage tables with Teacher's Role / Learners' Role /
+//              Assessment Criteria columns (Maths-module style naming)
 
-function renderModern(data, meta) {
-  const list = (arr) => (arr || []).map(x => `<li>${esc(x)}</li>`).join('');
-  const outcomes = (data.specificOutcomes || []).map(o => `<li>${esc(stripPrefix(o))}</li>`).join('');
-  const stages = (data.stages || []).map(s => `
-    <div class="stage-block"><table class="stage-table">
-      <tr><td colspan="2" class="stage-head">${esc(s.name)}${s.duration ? `<span class="duration">${esc(s.duration)}</span>` : ''}</td></tr>
-      <tr><th class="col-head">Teacher's Activities</th><th class="col-head">Pupils' Activities</th></tr>
-      <tr><td>${formatProse(s.teacher)}</td><td>${formatProse(s.pupils)}</td></tr>
-    </table></div>`).join('');
-  const reflection = meta.showReflection ? `
-    <h2 class="sec">Teacher's Reflection</h2>
-    <div class="callout-line"><strong>What went well?</strong><span class="blank"></span></div>
-    <div class="callout-line"><strong>What to improve next time?</strong><span class="blank"></span></div>
-    <div class="callout-line"><strong>Pupils who need follow-up:</strong><span class="blank"></span></div>` : '';
-
-  return `${renderHeader(meta)}${renderMeta(meta)}
-    <h2 class="sec">Specific Outcomes</h2><ol class="outcomes-list">${outcomes}</ol>
-    <h2 class="sec">Key Competencies</h2><ul>${list(data.keyCompetencies)}</ul>
-    <h2 class="sec">Values</h2><ul>${list(data.values)}</ul>
-    <h2 class="sec">Prerequisite Knowledge</h2><ul>${list(data.prerequisiteKnowledge)}</ul>
-    <h2 class="sec">Teaching &amp; Learning Materials</h2><ul>${list(data.materials)}</ul>
-    <h2 class="sec">References</h2><ul>${list(data.references)}</ul>
-    <h2 class="sec">Lesson Development</h2>${stages}
-    <h2 class="sec">Assessment</h2>
-    <p><strong>Formative:</strong></p><ul>${list(data.assessment?.formative)}</ul>
-    <p><strong>Summative:</strong> ${esc(data.assessment?.summative || '')}</p>
-    <p><strong>Success criteria:</strong> ${esc(data.assessment?.successCriteria || '')}</p>
-    <h2 class="sec">Differentiation</h2>
-    <p><strong>For struggling pupils:</strong></p><ul>${list(data.differentiation?.struggling)}</ul>
-    <p><strong>For advanced pupils:</strong></p><ul>${list(data.differentiation?.advanced)}</ul>
-    <h2 class="sec">Homework</h2><p>${formatProse(data.homework || '')}</p>
-    ${reflection}`;
-}
-
-function renderClassic(data, meta) {
-  const stagesHtml = (data.stages || []).map(s => `<tr>
-    <td class="stage">${esc(s.name).replace(/\s*\/\s*/g, '<br>')}</td>
-    <td>${formatProse(s.teacher)}</td>
-    <td>${formatProse(s.pupils)}</td>
-    <td>${formatProse(s.assessment || '')}</td></tr>`).join('');
-  return `${renderHeader(meta)}${renderMeta(meta)}
+// Canonical pre-table field lines (classic + classic2). Mirrors the
+// official order: Topic → Sub-topic → General Competences → Specific
+// Competence → Lesson Goal → Rationale → Prior Knowledge → References →
+// Learning Environment → Materials → Expected Standard [→ Key Vocabulary].
+function renderFieldLines(data, meta) {
+  const refs = asList(data.references);
+  const refsHtml = refs.length > 1
+    ? `<div class="field-line"><strong>References:</strong></div>` +
+      refs.map(r => `<div class="field-line" style="padding-left:18px">&bull; ${esc(r)}</div>`).join('')
+    : `<div class="field-line"><strong>References:</strong> ${esc(refs[0] || '')}</div>`;
+  const mats = asList(data.materials);
+  const matsHtml = mats.length > 1
+    ? `<div class="field-line" style="margin-top:8px"><strong>Teaching and Learning Materials/Resources:</strong></div>` +
+      mats.map(m => `<div class="field-line" style="padding-left:18px">&bull; ${esc(m)}</div>`).join('')
+    : `<div class="field-line" style="margin-top:8px"><strong>Teaching and Learning Materials/Resources:</strong> ${esc(mats[0] || '')}</div>`;
+  const vocab = meta.showVocabulary ? asList(data.keyVocabulary) : [];
+  const vocabHtml = vocab.length
+    ? `<div class="field-line" style="margin-top:8px"><strong>Key Vocabulary:</strong></div>` +
+      vocab.map(v => `<div class="field-line" style="padding-left:18px">&bull; ${esc(v)}</div>`).join('')
+    : '';
+  return `
     <div class="field-line"><strong>Topic:</strong> ${esc(data.topic)}</div>
     <div class="field-line"><strong>Sub-topic:</strong> ${esc(data.subtopic)}</div>
-    <div class="field-line"><strong>General Competences:</strong> ${esc(data.generalCompetences || '')}</div>
+    <div class="field-line"><strong>General Competences:</strong> ${esc(joinList(data.generalCompetences, ', '))}</div>
     <div class="field-line"><strong>Specific Competence:</strong> ${esc(data.specificCompetence || '')}</div>
-    <div class="field-line"><strong>Major Learning Point / Activity:</strong> ${esc(data.majorLearningPoint || '')}</div>
     <div class="field-line" style="margin-top:8px"><strong>Lesson Goal:</strong> ${esc(data.lessonGoal || '')}</div>
     <div class="field-line"><strong>Rationale:</strong> ${esc(data.rationale || '')}</div>
     <div class="field-line"><strong>Prior Knowledge:</strong> ${esc(data.priorKnowledge || '')}</div>
-    <div class="field-line"><strong>References:</strong> ${esc(data.references || '')}</div>
+    ${refsHtml}
     <div class="field-line" style="margin-top:8px"><strong>Learning Environment:</strong></div>
     <div class="field-line" style="padding-left:18px">I. <strong>Natural:</strong> ${esc(data.learningEnvironment?.natural || '')}</div>
     <div class="field-line" style="padding-left:18px">II. <strong>Artificial:</strong> ${esc(data.learningEnvironment?.artificial || '')}</div>
     <div class="field-line" style="padding-left:18px">III. <strong>Technological:</strong> ${esc(data.learningEnvironment?.technological || '')}</div>
-    <div class="field-line" style="margin-top:8px"><strong>Teaching &amp; Learning Materials:</strong> ${esc(data.materials || '')}</div>
-    <div class="field-line"><strong>Expected Standards:</strong> ${esc(data.expectedStandards || '')}</div>
+    ${matsHtml}
+    <div class="field-line"><strong>Expected Standard:</strong> ${esc(data.expectedStandard || data.expectedStandards || '')}</div>
+    ${vocabHtml}`;
+}
+
+// Official closing block: LESSON EVALUATION left blank for the teacher,
+// with the guidance every module prints (successes / challenges / way
+// forward), plus HEH-style Remedial Work + Extension Activity when the AI
+// supplied them. Gated by the teacher's reflection toggle.
+function renderLessonEvaluation(data, meta) {
+  const extras = [];
+  if (data.remedialWork) {
+    extras.push(`<div class="field-line" style="margin-top:10px"><strong>Remedial Work:</strong> ${esc(data.remedialWork)}</div>`);
+  }
+  if (data.extensionActivity) {
+    extras.push(`<div class="field-line"${data.remedialWork ? '' : ' style="margin-top:10px"'}><strong>Extension Activity:</strong> ${esc(data.extensionActivity)}</div>`);
+  }
+  if (!meta.showReflection) return extras.join('');
+  // Underscore runs (not CSS borders) so the blanks survive the Word export
+  // (10-export.js → html-docx-js drops borders on plain divs). overflow-wrap
+  // lets the run break anywhere instead of pushing past the page edge.
+  const blank = (n) => `<div class="field-line" style="overflow-wrap:anywhere">${'_'.repeat(n)}</div>`;
+  const prompt = (label, hint) =>
+    `<div class="field-line" style="overflow-wrap:anywhere"><strong>${label}</strong> (${hint}): ${'_'.repeat(30)}</div>`;
+  return `${extras.join('')}
+    <div class="field-line" style="margin-top:14px"><strong>LESSON EVALUATION:</strong></div>
+    ${prompt('Successes', 'competences achieved')}
+    ${blank(70)}
+    ${prompt('Challenges', 'competences not achieved and why')}
+    ${blank(70)}
+    ${prompt('Way forward', 'including remedial work if applicable')}
+    ${blank(70)}`;
+}
+
+function renderModern(data, meta) {
+  const list = (arr) => asList(arr).map(x => `<li>${esc(stripPrefix(x))}</li>`).join('');
+  const stages = (data.stages || []).map(s => `
+    <div class="stage-block"><table class="stage-table">
+      <tr><td colspan="2" class="stage-head">${esc(s.name)}${s.duration ? `<span class="duration">${esc(s.duration)}</span>` : ''}</td></tr>
+      <tr><th class="col-head">Teacher's Activities</th><th class="col-head">Learners' Activities</th></tr>
+      <tr><td>${formatProse(s.teacher)}</td><td>${formatProse(s.pupils)}</td></tr>
+      ${s.assessment ? `<tr><td colspan="2"><strong>Assessment criteria:</strong> ${esc(s.assessment)}</td></tr>` : ''}
+    </table></div>`).join('');
+  const vocab = meta.showVocabulary && asList(data.keyVocabulary).length
+    ? `<h2 class="sec">Key Vocabulary</h2><ul>${list(data.keyVocabulary)}</ul>` : '';
+  const support = (data.remedialWork || data.extensionActivity) ? `
+    <h2 class="sec">Remedial Work &amp; Extension</h2>
+    ${data.remedialWork ? `<p><strong>Remedial work:</strong> ${esc(data.remedialWork)}</p>` : ''}
+    ${data.extensionActivity ? `<p><strong>Extension activity:</strong> ${esc(data.extensionActivity)}</p>` : ''}` : '';
+  const evaluation = meta.showReflection ? `
+    <h2 class="sec">Lesson Evaluation</h2>
+    <div class="callout-line"><strong>Successes (competences achieved):</strong><span class="blank"></span></div>
+    <div class="callout-line"><strong>Challenges (competences not achieved and why):</strong><span class="blank"></span></div>
+    <div class="callout-line"><strong>Way forward (including remedial work if applicable):</strong><span class="blank"></span></div>` : '';
+
+  return `${renderHeader(meta)}${renderMeta(meta)}
+    <h2 class="sec">General Competences</h2><ul>${list(data.generalCompetences)}</ul>
+    <h2 class="sec">Specific Competence</h2><p>${esc(data.specificCompetence || '')}</p>
+    <h2 class="sec">Lesson Goal</h2><p>${esc(data.lessonGoal || '')}</p>
+    <h2 class="sec">Rationale</h2><p>${esc(data.rationale || '')}</p>
+    <h2 class="sec">Prior Knowledge</h2><p>${esc(data.priorKnowledge || '')}</p>
+    <h2 class="sec">References</h2><ul>${list(data.references)}</ul>
+    <h2 class="sec">Learning Environment</h2>
+    <p><strong>Natural:</strong> ${esc(data.learningEnvironment?.natural || '')}</p>
+    <p><strong>Artificial:</strong> ${esc(data.learningEnvironment?.artificial || '')}</p>
+    <p><strong>Technological:</strong> ${esc(data.learningEnvironment?.technological || '')}</p>
+    <h2 class="sec">Teaching &amp; Learning Materials</h2><ul>${list(data.materials)}</ul>
+    <h2 class="sec">Expected Standard</h2><p>${esc(data.expectedStandard || data.expectedStandards || '')}</p>
+    ${vocab}
+    <h2 class="sec">Lesson Progression</h2>${stages}
+    ${support}
+    ${evaluation}`;
+}
+
+function renderClassic(data, meta) {
+  const stagesHtml = (data.stages || []).map(s => `<tr>
+    <td class="stage">${esc(s.name).replace(/\s*\/\s*/g, '<br>')}${s.duration ? `<br><span class="duration">(${esc(s.duration)})</span>` : ''}</td>
+    <td>${formatProse(s.teacher)}</td>
+    <td>${formatProse(s.pupils)}</td>
+    <td>${formatProse(s.assessment || '')}</td></tr>`).join('');
+  return `${renderHeader(meta)}${renderMeta(meta)}
+    ${renderFieldLines(data, meta)}
     <div class="progression-title">Lesson Progression</div>
     <table class="lp-table">
-      <thead><tr><th style="width:15%">Stages</th><th style="width:31%">Teacher's Role</th><th style="width:30%">Learners' Role</th><th style="width:24%">Assessment Criteria</th></tr></thead>
+      <thead><tr><th style="width:14%">Stages</th><th style="width:32%">Teacher's Activities</th><th style="width:30%">Learners' Activities</th><th style="width:24%">Assessment Criteria</th></tr></thead>
       <tbody>${stagesHtml}</tbody>
     </table>
-    <div class="field-line" style="margin-top:14px"><strong>Teacher's Evaluation:</strong> ____________________________________________</div>
-    <div class="field-line">__________________________________________________________________________________</div>
-    <div class="field-line" style="margin-top:10px"><strong>Learners' Evaluation:</strong> ____________________________________________</div>
-    <div class="field-line">__________________________________________________________________________________</div>
-    <div class="field-line">__________________________________________________________________________________</div>`;
+    ${renderLessonEvaluation(data, meta)}`;
 }
 
 function renderClassic2(data, meta) {
@@ -283,28 +359,9 @@ function renderClassic2(data, meta) {
       </tr>
     </table></div>`).join('');
   return `${renderHeader(meta)}${renderMeta(meta)}
-    <div class="field-line"><strong>Topic:</strong> ${esc(data.topic)}</div>
-    <div class="field-line"><strong>Sub-topic:</strong> ${esc(data.subtopic)}</div>
-    <div class="field-line"><strong>General Competences:</strong> ${esc(data.generalCompetences || '')}</div>
-    <div class="field-line"><strong>Specific Competence:</strong> ${esc(data.specificCompetence || '')}</div>
-    <div class="field-line"><strong>Major Learning Point / Activity:</strong> ${esc(data.majorLearningPoint || '')}</div>
-    <div class="field-line" style="margin-top:8px"><strong>Lesson Goal:</strong> ${esc(data.lessonGoal || '')}</div>
-    <div class="field-line"><strong>Rationale:</strong> ${esc(data.rationale || '')}</div>
-    <div class="field-line"><strong>Prior Knowledge:</strong> ${esc(data.priorKnowledge || '')}</div>
-    <div class="field-line"><strong>References:</strong> ${esc(data.references || '')}</div>
-    <div class="field-line" style="margin-top:8px"><strong>Learning Environment:</strong></div>
-    <div class="field-line" style="padding-left:18px">I. <strong>Natural:</strong> ${esc(data.learningEnvironment?.natural || '')}</div>
-    <div class="field-line" style="padding-left:18px">II. <strong>Artificial:</strong> ${esc(data.learningEnvironment?.artificial || '')}</div>
-    <div class="field-line" style="padding-left:18px">III. <strong>Technological:</strong> ${esc(data.learningEnvironment?.technological || '')}</div>
-    <div class="field-line" style="margin-top:8px"><strong>Teaching &amp; Learning Materials:</strong> ${esc(data.materials || '')}</div>
-    <div class="field-line"><strong>Expected Standards:</strong> ${esc(data.expectedStandards || '')}</div>
-    <h2 class="sec">Lesson Development</h2>${stages}
-    <div class="field-line" style="margin-top:14px"><strong>Teacher's Evaluation:</strong> ____________________________________________</div>
-    <div class="field-line">__________________________________________________________________________________</div>
-    <div class="field-line">__________________________________________________________________________________</div>
-    <div class="field-line" style="margin-top:10px"><strong>Learners' Evaluation:</strong> ____________________________________________</div>
-    <div class="field-line">__________________________________________________________________________________</div>
-    <div class="field-line">__________________________________________________________________________________</div>`;
+    ${renderFieldLines(data, meta)}
+    <h2 class="sec">Lesson Progression</h2>${stages}
+    ${renderLessonEvaluation(data, meta)}`;
 }
 
 // ── Generate button ────────────────────────────────────────────────────────────
