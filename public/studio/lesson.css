@@ -82,21 +82,64 @@
 @media(max-width:720px){.doc{padding:18mm 12mm}}
 .doc:focus{outline:none}
 .doc[contenteditable="true"]{outline:2px dashed var(--accent);outline-offset:-8px}
-.doc-head{text-align:center;margin-bottom:18px;padding-bottom:14px}
+.doc-head{text-align:center;margin-bottom:10px;padding-bottom:8px}
 .doc-head .header-line{font:600 10pt/1.2 var(--font-body);letter-spacing:.18em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
 .doc-head .school{font:700 22pt/1.1 var(--font-display);color:var(--ink);margin:0 0 4px;letter-spacing:-.005em}
 .doc-head .department{font:italic 500 11pt/1.3 var(--font-doc);color:var(--ink-2);margin-bottom:14px}
 .doc-head .lp-title{font:700 18pt/1 var(--font-display);letter-spacing:.14em;text-transform:uppercase;color:var(--accent);display:inline-block;padding:6px 0 4px;margin-top:6px;border-top:1.5px solid var(--accent);border-bottom:1.5px solid var(--accent)}
-.meta-table{width:100%;border-collapse:collapse;margin:14px 0 18px;font-size:10.5pt}
+.meta-table{width:100%;border-collapse:collapse;margin:10px 0 12px;font-size:10.5pt}
 .meta-table tr{border-bottom:1px solid var(--line)}
 .meta-table tr:first-child{border-top:1px solid var(--line)}
-.meta-table td{padding:6px 10px;vertical-align:top}
+.meta-table td{padding:4px 10px;vertical-align:top}
 .meta-table td.k{font-weight:700;color:var(--ink);width:32%;background:var(--paper)}
 .meta-table td.v{color:var(--ink-2)}
-.meta-compact{margin:14px 0 18px;padding:12px 0;border-top:1.5px solid var(--ink);border-bottom:1.5px solid var(--ink);font-size:10.5pt;display:grid;grid-template-columns:1fr 1fr;gap:6px 30px}
+.meta-compact{margin:10px 0 12px;padding:8px 0;border-top:1.5px solid var(--ink);border-bottom:1.5px solid var(--ink);font-size:10.5pt;display:grid;grid-template-columns:1fr 1fr;gap:6px 30px}
 .meta-compact .item{display:flex;gap:6px;align-items:baseline;min-width:0}
 .meta-compact .item .lbl{font-weight:700;color:var(--ink);white-space:nowrap;flex-shrink:0}
 .meta-compact .item .val{color:var(--ink-2);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.official-meta{margin:8px 0 10px;padding:8px 0;border-top:1.5px solid var(--ink);border-bottom:1.5px solid var(--ink);font-size:10.5pt}
+.official-meta.two-col{display:grid;grid-template-columns:1fr 1fr;gap:3px 26px}
+.official-meta .om-item{margin:2px 0;line-height:1.4}
+.official-meta .om-item strong{font-weight:700;letter-spacing:.02em}
+@media print,(max-width:600px){.official-meta.two-col{grid-template-columns:1fr 1fr}}
+/* ── Official black-and-white scope (Classic CBC + Classic 2) ──────────────
+   The CDC module sample lesson plans are plain black-on-white documents:
+   no accent colours, CAPITAL labels, fully ruled black tables. Everything
+   inside .plan-official renders print-faithful. */
+.doc-wrap:has(.plan-official)::before{display:none}
+.plan-official{color:#000}
+.plan-official .doc-head{margin-bottom:8px;padding-bottom:6px}
+.plan-official .doc-head .header-line{color:#000}
+.plan-official .doc-head .school{color:#000;font-size:16pt}
+.plan-official .doc-head .department{color:#000}
+.plan-official .doc-head .lp-title{color:#000;border-top-color:#000;border-bottom-color:#000;font-size:14pt}
+.plan-official .official-meta{border-top-color:#000;border-bottom-color:#000}
+.plan-official .field-line,.plan-official .om-item{color:#000}
+.plan-official .progression-title{color:#000;letter-spacing:.05em}
+.plan-official .lp-table{margin:6px 0 12px}
+.plan-official .lp-table .stage{font-size:8.5pt;font-weight:700;color:#000}
+.plan-official .lp-table .stage .duration{font-weight:400;font-style:italic;font-size:8pt}
+.plan-official .stage-block{margin:8px 0 10px}
+.plan-official .stage-table .stage-head{background:#fff;color:#000;font-weight:700;letter-spacing:.03em}
+.plan-official .stage-table .stage-head .duration{color:#000;opacity:1}
+.plan-official .stage-table th.col-head{background:#fff;color:#000}
+.plan-official h2.sec{color:#000;border-bottom-color:#000}
+.plan-official h2.sec::before{background:#000}
+.plan-official .meta-table tr{border-bottom-color:#999}
+.plan-official .meta-table tr:first-child{border-top-color:#000}
+.plan-official .meta-table td.k{background:#f4f4f4;color:#000}
+.plan-official .meta-table td.v{color:#000}
+.plan-official .meta-compact{border-top-color:#000;border-bottom-color:#000}
+.plan-official .meta-compact .item .lbl,.plan-official .meta-compact .item .val{color:#000}
+.plan-official .stage-table{border-color:#000}
+.plan-official .stage-table td,.plan-official .stage-table th.col-head{border-color:#000}
+.plan-official .stage-table td + td{border-left-color:#000}
+.plan-official .callout-line .blank{border-bottom:1px solid #000}
+.plan-official .callout-line strong{color:#000}
+.plan-official ul,.plan-official ol,.plan-official p{color:#000}
+.plan-official .meta-compact .item .lbl,.plan-official .meta-table td.k{text-transform:uppercase;font-size:9.5pt}
+
+
 @media print,(max-width:600px){.meta-compact{grid-template-columns:1fr 1fr}}
 .symbol-cat{margin-bottom:14px}
 .symbol-cat-name{font:600 11px/1.2 var(--font-body);text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-bottom:6px}
@@ -120,29 +163,29 @@
 .frac{display:inline-flex;flex-direction:column;vertical-align:middle;line-height:1;text-align:center;padding:0 2px;font-size:.92em}
 .frac > .num{border-bottom:1.2px solid currentColor;padding:0 4px 1px}
 .frac > .den{padding:1px 4px 0}
-.doc h2.sec{font:700 13pt/1.2 var(--font-display);margin:22px 0 8px;color:var(--ink);padding-bottom:4px;border-bottom:1px solid var(--line)}
+.doc h2.sec{font:700 13pt/1.2 var(--font-display);margin:14px 0 6px;color:var(--ink);padding-bottom:4px;border-bottom:1px solid var(--line)}
 .doc h2.sec::before{content:'';display:inline-block;width:14px;height:2px;background:var(--accent);vertical-align:middle;margin-right:10px;transform:translateY(-3px)}
-.doc ol,.doc ul{padding-left:22px;margin:6px 0 10px}
-.doc li{margin:4px 0;line-height:1.5}
-.doc p{margin:6px 0}
-.doc .field-line{margin:5px 0}
+.doc ol,.doc ul{padding-left:22px;margin:4px 0 6px}
+.doc li{margin:2px 0;line-height:1.45}
+.doc p{margin:4px 0}
+.doc .field-line{margin:3px 0;line-height:1.45}
 .doc .field-line strong{font-weight:700}
 .outcomes-list{padding-left:0;list-style:none;counter-reset:outcome}
 .outcomes-list li{padding-left:28px;position:relative;margin:6px 0;counter-increment:outcome}
 .outcomes-list li::before{content:counter(outcome) ".";position:absolute;left:0;top:0;font:700 11pt/1.5 var(--font-display);color:var(--accent)}
-.callout-line{display:grid;grid-template-columns:max-content 1fr;gap:10px;margin:8px 0;align-items:end}
+.callout-line{display:grid;grid-template-columns:max-content 1fr;gap:10px;margin:6px 0;align-items:end}
 .callout-line strong{font-weight:700;color:var(--ink)}
 .callout-line .blank{border-bottom:1px dotted var(--line-2);height:1.4em}
-.stage-block{margin:14px 0 18px;page-break-inside:avoid;break-inside:avoid}
+.stage-block{margin:10px 0 12px;page-break-inside:avoid;break-inside:avoid}
 .stage-table{width:100%;border-collapse:collapse;border:1.5px solid var(--ink-2);font-size:10.5pt}
-.stage-table .stage-head{background:var(--accent);color:#fff;font:600 11pt/1.2 var(--font-display);text-align:left;padding:8px 12px;letter-spacing:.02em}
+.stage-table .stage-head{background:var(--accent);color:#fff;font:600 11pt/1.2 var(--font-display);text-align:left;padding:6px 10px;letter-spacing:.02em}
 .stage-table .stage-head .duration{float:right;font-weight:500;opacity:.85;font-size:10pt;font-style:italic}
-.stage-table th.col-head{background:var(--paper-2);color:var(--ink);font:700 10pt/1.2 var(--font-body);letter-spacing:.04em;text-transform:uppercase;text-align:left;padding:8px 12px;width:50%;border-top:1px solid var(--ink-2)}
-.stage-table td{padding:10px 12px;vertical-align:top;border-top:1px solid var(--line);width:50%}
+.stage-table th.col-head{background:var(--paper-2);color:var(--ink);font:700 10pt/1.2 var(--font-body);letter-spacing:.04em;text-transform:uppercase;text-align:left;padding:5px 10px;width:50%;border-top:1px solid var(--ink-2)}
+.stage-table td{padding:7px 10px;vertical-align:top;border-top:1px solid var(--line);width:50%}
 .stage-table td + td{border-left:1px solid var(--line)}
-.progression-title{font:700 12pt/1.2 var(--font-display);margin:18px 0 8px;letter-spacing:.04em}
+.progression-title{font:700 12pt/1.2 var(--font-display);margin:12px 0 6px;letter-spacing:.04em}
 .lp-table{width:calc(100% - 16px);border-collapse:collapse;margin:8px 0 16px 16px;font-size:10.5pt}
-.lp-table th,.lp-table td{padding:9px 10px;vertical-align:top;text-align:left}
+.lp-table th,.lp-table td{padding:6px 8px;vertical-align:top;text-align:left}
 .lp-table .stage{overflow-wrap:break-word;line-height:1.25;font-size:7.5pt;padding:8px 5px 8px 6px;letter-spacing:.01em}
 .lp-table thead th:first-child{padding-left:6px;padding-right:5px}
 #view-plans[data-table-style="bordered"] .lp-table{border:1.5px solid var(--ink)}

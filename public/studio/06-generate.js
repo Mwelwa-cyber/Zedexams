@@ -152,7 +152,6 @@ function renderMetaTable(meta) {
   if (meta.termWeek) rows.push(['Term &amp; Week', esc(meta.termWeek)]);
   if (meta.showEnrolment) rows.push(['Total Enrolment', 'Boys: _____ &nbsp;&nbsp; Girls: _____ &nbsp;&nbsp; Total: _____']);
   if (meta.showAttendance) rows.push(['Total Attendance', 'Boys: _____ &nbsp;&nbsp; Girls: _____ &nbsp;&nbsp; Total: _____']);
-  if (meta.learningEnvironments && meta.learningEnvironments.length) rows.push(['Learning Environment', esc(meta.learningEnvironments.join(', '))]);
   if (meta.multiLesson) {
     rows.push(['Lesson Sequence', `Lesson ${esc(meta.lessonsCurrent)} of ${esc(meta.lessonsTotal)}`]);
     if (meta.lessonFocus) rows.push(['Lesson Focus', esc(meta.lessonFocus)]);
@@ -174,7 +173,6 @@ function renderMetaCompact(meta) {
   if (meta.subtopic) items.push(['Sub-topic', esc(meta.subtopic)]);
   if (meta.showEnrolment) items.push(['Enrolment', 'B: ___ G: ___ T: ___']);
   if (meta.showAttendance) items.push(['Attendance', 'B: ___ G: ___ T: ___']);
-  if (meta.learningEnvironments && meta.learningEnvironments.length) items.push(['Learning Environment', esc(meta.learningEnvironments.join(', '))]);
   if (meta.multiLesson) {
     items.push(['Lesson Sequence', `Lesson ${esc(meta.lessonsCurrent)} of ${esc(meta.lessonsTotal)}`]);
     if (meta.lessonFocus) items.push(['Lesson Focus', esc(meta.lessonFocus)]);
@@ -184,6 +182,38 @@ function renderMetaCompact(meta) {
 
 function renderMeta(meta) {
   return meta.compactMeta ? renderMetaCompact(meta) : renderMetaTable(meta);
+}
+
+// Official module header for the classic formats — tight "LABEL: value"
+// lines exactly like the SAMPLE LESSON PLAN appendices (no boxed meta
+// table, no duplicated Topic/Sub-topic/Learning Environment: those live in
+// the field lines that follow). compactMeta pairs two entries per row, off
+// puts one per line.
+function renderOfficialHeader(meta) {
+  const pairs = [];
+  pairs.push(['NAME OF TEACHER', esc(meta.teacher || '') + (meta.tsno ? ' (TS ' + esc(meta.tsno) + ')' : '')]);
+  pairs.push(['DATE', esc(meta.date || '')]);
+  pairs.push(['CLASS', esc(meta.klass || '')]);
+  pairs.push(['TIME', esc(meta.time || '')]);
+  pairs.push(['DURATION', esc(meta.duration) + ' minutes']);
+  pairs.push(['TERM &amp; WEEK', esc(meta.termWeek || '')]);
+  if (meta.showEnrolment) pairs.push(['TOTAL ENROLMENT', 'Boys: ____ Girls: ____ Total: ____']);
+  if (meta.showAttendance) pairs.push(['TOTAL ATTENDANCE', 'Boys: ____ Girls: ____ Total: ____']);
+  pairs.push(['SUBJECT', esc(meta.subject || '')]);
+  if (meta.multiLesson) pairs.push(['LESSON', `${esc(meta.lessonsCurrent)} of ${esc(meta.lessonsTotal)}` + (meta.lessonFocus ? ' — ' + esc(meta.lessonFocus) : '')]);
+  const line = ([k, v]) => `<div class="om-item"><strong>${k}:</strong> ${v}</div>`;
+  return `<div class="official-meta${meta.compactMeta ? ' two-col' : ''}">${pairs.map(line).join('')}</div>`;
+}
+
+// The official progression table must NEVER be missing — if the model
+// under-delivered stages (or an older saved object is re-rendered), fall
+// back to the five official stage names with blank cells the teacher can
+// fill in by hand.
+const OFFICIAL_STAGES = ['INTRODUCTION', 'LESSON DEVELOPMENT', 'EXERCISE / ASSESSMENT', 'HOMEWORK', 'CONCLUSION'];
+function ensureStages(stages) {
+  const list = Array.isArray(stages) ? stages.filter(s => s && (s.name || s.teacher || s.pupils)) : [];
+  if (list.length > 0) return list;
+  return OFFICIAL_STAGES.map(name => ({name, duration: '', teacher: '', pupils: '', assessment: ''}));
 }
 
 function stripPrefix(s) { return String(s || '').replace(/^\s*\d+[.)]\s*/, ''); }
@@ -225,36 +255,38 @@ function formatProse(text) {
 // Competence → Lesson Goal → Rationale → Prior Knowledge → References →
 // Learning Environment → Materials → Expected Standard [→ Key Vocabulary].
 function renderFieldLines(data, meta) {
+  // Labels are literal CAPITALS (not CSS text-transform) so they survive the
+  // Word export — exactly as the official module samples print them.
   const refs = asList(data.references);
   const refsHtml = refs.length > 1
-    ? `<div class="field-line"><strong>References:</strong></div>` +
+    ? `<div class="field-line"><strong>REFERENCES:</strong></div>` +
       refs.map(r => `<div class="field-line" style="padding-left:18px">&bull; ${esc(r)}</div>`).join('')
-    : `<div class="field-line"><strong>References:</strong> ${esc(refs[0] || '')}</div>`;
+    : `<div class="field-line"><strong>REFERENCES:</strong> ${esc(refs[0] || '')}</div>`;
   const mats = asList(data.materials);
   const matsHtml = mats.length > 1
-    ? `<div class="field-line" style="margin-top:8px"><strong>Teaching and Learning Materials/Resources:</strong></div>` +
+    ? `<div class="field-line" style="margin-top:8px"><strong>TEACHING AND LEARNING MATERIALS/RESOURCES:</strong></div>` +
       mats.map(m => `<div class="field-line" style="padding-left:18px">&bull; ${esc(m)}</div>`).join('')
-    : `<div class="field-line" style="margin-top:8px"><strong>Teaching and Learning Materials/Resources:</strong> ${esc(mats[0] || '')}</div>`;
+    : `<div class="field-line" style="margin-top:8px"><strong>TEACHING AND LEARNING MATERIALS/RESOURCES:</strong> ${esc(mats[0] || '')}</div>`;
   const vocab = meta.showVocabulary ? asList(data.keyVocabulary) : [];
   const vocabHtml = vocab.length
-    ? `<div class="field-line" style="margin-top:8px"><strong>Key Vocabulary:</strong></div>` +
+    ? `<div class="field-line" style="margin-top:8px"><strong>KEY VOCABULARY:</strong></div>` +
       vocab.map(v => `<div class="field-line" style="padding-left:18px">&bull; ${esc(v)}</div>`).join('')
     : '';
   return `
-    <div class="field-line"><strong>Topic:</strong> ${esc(data.topic)}</div>
-    <div class="field-line"><strong>Sub-topic:</strong> ${esc(data.subtopic)}</div>
-    <div class="field-line"><strong>General Competences:</strong> ${esc(joinList(data.generalCompetences, ', '))}</div>
-    <div class="field-line"><strong>Specific Competence:</strong> ${esc(data.specificCompetence || '')}</div>
-    <div class="field-line" style="margin-top:8px"><strong>Lesson Goal:</strong> ${esc(data.lessonGoal || '')}</div>
-    <div class="field-line"><strong>Rationale:</strong> ${esc(data.rationale || '')}</div>
-    <div class="field-line"><strong>Prior Knowledge:</strong> ${esc(data.priorKnowledge || '')}</div>
+    <div class="field-line"><strong>TOPIC:</strong> ${esc(data.topic)}</div>
+    <div class="field-line"><strong>SUB-TOPIC:</strong> ${esc(data.subtopic)}</div>
+    <div class="field-line"><strong>GENERAL COMPETENCES:</strong> ${esc(joinList(data.generalCompetences, ', '))}</div>
+    <div class="field-line"><strong>SPECIFIC COMPETENCE:</strong> ${esc(data.specificCompetence || '')}</div>
+    <div class="field-line" style="margin-top:8px"><strong>LESSON GOAL:</strong> ${esc(data.lessonGoal || '')}</div>
+    <div class="field-line"><strong>RATIONALE:</strong> ${esc(data.rationale || '')}</div>
+    <div class="field-line"><strong>PRIOR KNOWLEDGE:</strong> ${esc(data.priorKnowledge || '')}</div>
     ${refsHtml}
-    <div class="field-line" style="margin-top:8px"><strong>Learning Environment:</strong></div>
+    <div class="field-line" style="margin-top:8px"><strong>LEARNING ENVIRONMENT:</strong></div>
     <div class="field-line" style="padding-left:18px">I. <strong>Natural:</strong> ${esc(data.learningEnvironment?.natural || '')}</div>
     <div class="field-line" style="padding-left:18px">II. <strong>Artificial:</strong> ${esc(data.learningEnvironment?.artificial || '')}</div>
     <div class="field-line" style="padding-left:18px">III. <strong>Technological:</strong> ${esc(data.learningEnvironment?.technological || '')}</div>
     ${matsHtml}
-    <div class="field-line"><strong>Expected Standard:</strong> ${esc(data.expectedStandard || data.expectedStandards || '')}</div>
+    <div class="field-line"><strong>EXPECTED STANDARD:</strong> ${esc(data.expectedStandard || data.expectedStandards || '')}</div>
     ${vocabHtml}`;
 }
 
@@ -265,10 +297,10 @@ function renderFieldLines(data, meta) {
 function renderLessonEvaluation(data, meta) {
   const extras = [];
   if (data.remedialWork) {
-    extras.push(`<div class="field-line" style="margin-top:10px"><strong>Remedial Work:</strong> ${esc(data.remedialWork)}</div>`);
+    extras.push(`<div class="field-line" style="margin-top:10px"><strong>REMEDIAL WORK:</strong> ${esc(data.remedialWork)}</div>`);
   }
   if (data.extensionActivity) {
-    extras.push(`<div class="field-line"${data.remedialWork ? '' : ' style="margin-top:10px"'}><strong>Extension Activity:</strong> ${esc(data.extensionActivity)}</div>`);
+    extras.push(`<div class="field-line"${data.remedialWork ? '' : ' style="margin-top:10px"'}><strong>EXTENSION ACTIVITY:</strong> ${esc(data.extensionActivity)}</div>`);
   }
   if (!meta.showReflection) return extras.join('');
   // Underscore runs (not CSS borders) so the blanks survive the Word export
@@ -289,7 +321,7 @@ function renderLessonEvaluation(data, meta) {
 
 function renderModern(data, meta) {
   const list = (arr) => asList(arr).map(x => `<li>${esc(stripPrefix(x))}</li>`).join('');
-  const stages = (data.stages || []).map(s => `
+  const stages = ensureStages(data.stages).map(s => `
     <div class="stage-block"><table class="stage-table">
       <tr><td colspan="2" class="stage-head">${esc(s.name)}${s.duration ? `<span class="duration">${esc(s.duration)}</span>` : ''}</td></tr>
       <tr><th class="col-head">Teacher's Activities</th><th class="col-head">Learners' Activities</th></tr>
@@ -308,7 +340,7 @@ function renderModern(data, meta) {
     <div class="callout-line"><strong>Challenges (competences not achieved and why):</strong><span class="blank"></span></div>
     <div class="callout-line"><strong>Way forward (including remedial work if applicable):</strong><span class="blank"></span></div>` : '';
 
-  return `${renderHeader(meta)}${renderMeta(meta)}
+  return `<div class="plan-official">${renderHeader(meta)}${renderMeta(meta)}
     <h2 class="sec">General Competences</h2><ul>${list(data.generalCompetences)}</ul>
     <h2 class="sec">Specific Competence</h2><p>${esc(data.specificCompetence || '')}</p>
     <h2 class="sec">Lesson Goal</h2><p>${esc(data.lessonGoal || '')}</p>
@@ -324,44 +356,49 @@ function renderModern(data, meta) {
     ${vocab}
     <h2 class="sec">Lesson Progression</h2>${stages}
     ${support}
-    ${evaluation}`;
+    ${evaluation}</div>`;
 }
 
+// Inline border styles (not just CSS classes) so the official black grid
+// survives the html-docx-js Word export unchanged.
+const OFFICIAL_TD = 'border:1px solid #000;padding:5px 7px;vertical-align:top;text-align:left';
+const OFFICIAL_TH = OFFICIAL_TD + ';font-weight:700';
+
 function renderClassic(data, meta) {
-  const stagesHtml = (data.stages || []).map(s => `<tr>
-    <td class="stage">${esc(s.name).replace(/\s*\/\s*/g, '<br>')}${s.duration ? `<br><span class="duration">(${esc(s.duration)})</span>` : ''}</td>
-    <td>${formatProse(s.teacher)}</td>
-    <td>${formatProse(s.pupils)}</td>
-    <td>${formatProse(s.assessment || '')}</td></tr>`).join('');
-  return `${renderHeader(meta)}${renderMeta(meta)}
+  const stagesHtml = ensureStages(data.stages).map(s => `<tr>
+    <td class="stage" style="${OFFICIAL_TD}">${esc(s.name).replace(/\s*\/\s*/g, '<br>')}${s.duration ? `<br><span class="duration">(${esc(s.duration)})</span>` : ''}</td>
+    <td style="${OFFICIAL_TD}">${formatProse(s.teacher)}</td>
+    <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}</td>
+    <td style="${OFFICIAL_TD}">${formatProse(s.assessment || '')}</td></tr>`).join('');
+  return `<div class="plan-official">${renderHeader(meta)}${renderOfficialHeader(meta)}
     ${renderFieldLines(data, meta)}
-    <div class="progression-title">Lesson Progression</div>
-    <table class="lp-table">
-      <thead><tr><th style="width:14%">Stages</th><th style="width:32%">Teacher's Activities</th><th style="width:30%">Learners' Activities</th><th style="width:24%">Assessment Criteria</th></tr></thead>
+    <div class="progression-title">LESSON PROGRESSION</div>
+    <table class="lp-table official-table" border="1" style="border-collapse:collapse;border:1px solid #000;width:100%">
+      <thead><tr><th style="width:15%;${OFFICIAL_TH}">STAGES</th><th style="width:31%;${OFFICIAL_TH}">TEACHER'S ACTIVITIES</th><th style="width:30%;${OFFICIAL_TH}">LEARNERS' ACTIVITIES</th><th style="width:24%;${OFFICIAL_TH}">ASSESSMENT CRITERIA</th></tr></thead>
       <tbody>${stagesHtml}</tbody>
     </table>
-    ${renderLessonEvaluation(data, meta)}`;
+    ${renderLessonEvaluation(data, meta)}</div>`;
 }
 
 function renderClassic2(data, meta) {
-  const stages = (data.stages || []).map(s => `
-    <div class="stage-block"><table class="stage-table c2-stage-table">
-      <tr><td colspan="3" class="stage-head">${esc(s.name)}${s.duration ? `<span class="duration">${esc(s.duration)}</span>` : ''}</td></tr>
+  const stages = ensureStages(data.stages).map(s => `
+    <div class="stage-block"><table class="stage-table c2-stage-table official-table" border="1" style="border-collapse:collapse;border:1px solid #000;width:100%">
+      <tr><td colspan="3" class="stage-head" style="${OFFICIAL_TH}">${esc(s.name)}${s.duration ? `<span class="duration">${esc(s.duration)}</span>` : ''}</td></tr>
       <tr>
-        <th class="col-head">Teacher's Role</th>
-        <th class="col-head">Learners' Role</th>
-        <th class="col-head">Assessment Criteria</th>
+        <th class="col-head" style="width:33%;${OFFICIAL_TH}">TEACHER'S ROLE</th>
+        <th class="col-head" style="width:33%;${OFFICIAL_TH}">LEARNERS' ROLE</th>
+        <th class="col-head" style="width:34%;${OFFICIAL_TH}">ASSESSMENT CRITERIA</th>
       </tr>
       <tr>
-        <td>${formatProse(s.teacher)}</td>
-        <td>${formatProse(s.pupils)}</td>
-        <td>${formatProse(s.assessment || '')}</td>
+        <td style="${OFFICIAL_TD}">${formatProse(s.teacher)}</td>
+        <td style="${OFFICIAL_TD}">${formatProse(s.pupils)}</td>
+        <td style="${OFFICIAL_TD}">${formatProse(s.assessment || '')}</td>
       </tr>
     </table></div>`).join('');
-  return `${renderHeader(meta)}${renderMeta(meta)}
+  return `<div class="plan-official">${renderHeader(meta)}${renderOfficialHeader(meta)}
     ${renderFieldLines(data, meta)}
-    <h2 class="sec">Lesson Progression</h2>${stages}
-    ${renderLessonEvaluation(data, meta)}`;
+    <div class="progression-title">LESSON PROGRESSION</div>${stages}
+    ${renderLessonEvaluation(data, meta)}</div>`;
 }
 
 // ── Generate button ────────────────────────────────────────────────────────────
