@@ -64,8 +64,6 @@ const QUICK_ACTIONS = [
 export default function StudentDashboard() {
   const { userProfile }  = useAuth()
   const { settings: platformSettings } = usePlatformSettings()
-  const aiPracticeOn = !!(platformSettings && platformSettings.learnerAi &&
-    platformSettings.learnerAi.showAiPracticeQuizzesToLearners)
   const aiNotesOn = !!(platformSettings && platformSettings.learnerAi &&
     platformSettings.learnerAi.showAiNotesToLearners)
   const { getUserResults, getWeaknessAnalysis } = useFirestore()
@@ -194,31 +192,9 @@ export default function StudentDashboard() {
         aiNotesOn={aiNotesOn}
       />
 
-      {/* AI practice quizzes banner — feature-flagged via
-          settings/global.learnerAi.showAiPracticeQuizzesToLearners.
-          Silent when off; never alters existing flows. */}
-      {aiPracticeOn && (
-        <Link
-          to="/ai-practice"
-          className="block rounded-2xl border-2 border-blue-300 bg-gradient-to-br from-blue-50 to-violet-50 p-4 hover-lift press-feedback"
-        >
-          <div className="flex items-start gap-3">
-            <span className="text-3xl shrink-0" aria-hidden="true">🤖</span>
-            <div className="flex-1 min-w-0">
-              <div className="text-sm font-bold text-slate-900">
-                AI practice quizzes
-              </div>
-              <div className="text-xs text-slate-600 mt-0.5 leading-snug">
-                Personalised practice for Grade {userProfile?.grade ?? '—'}.
-                Auto-marked + tips refresh after each attempt.
-              </div>
-            </div>
-            <span className="text-blue-600 font-bold text-sm shrink-0">
-              Open →
-            </span>
-          </div>
-        </Link>
-      )}
+      {/* The AI practice banner that used to sit here linked to /ai-practice,
+          a route deleted with the learnerAi pipeline in PR #713 — removed so
+          the showAiPracticeQuizzesToLearners flag can't surface a dead link. */}
 
       {/* AI notes banner — feature-flagged via
           settings/global.learnerAi.showAiNotesToLearners. Same silent
