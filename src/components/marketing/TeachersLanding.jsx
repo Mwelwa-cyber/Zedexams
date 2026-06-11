@@ -21,6 +21,7 @@ import LessonPlanView from '../teacher/views/LessonPlanView'
 import LessonPlanOfficialTable from './LessonPlanOfficialTable'
 import WorksheetView from '../teacher/views/WorksheetView'
 import SchemeOfWorkOfficialTable from './SchemeOfWorkOfficialTable'
+import WeeklyForecastOfficialTable from './WeeklyForecastOfficialTable'
 import FlashcardsView from '../teacher/views/FlashcardsView'
 
 function Section({ children, className = '', id }) {
@@ -85,6 +86,8 @@ function SampleRenderer({ sample, showAnswers, planLayout }) {
       return <WorksheetView worksheet={sample.artifact} showAnswers={showAnswers} />
     case 'scheme_of_work':
       return <SchemeOfWorkOfficialTable scheme={sample.artifact} />
+    case 'weekly_forecast':
+      return <WeeklyForecastOfficialTable forecast={sample.artifact} />
     case 'flashcards':
       return <FlashcardsView flashcards={sample.artifact} />
     default:
@@ -278,7 +281,7 @@ export default function TeachersLanding() {
     <>
       <SeoHelmet
         title="AI lesson plans, worksheets & schemes for Zambian teachers"
-        description="Generate CBC-aligned lesson plans, worksheets, schemes of work and flashcards in about a minute. See real samples, start free — no card required."
+        description="Generate CBC-aligned lesson plans, worksheets, schemes of work, weekly forecasts and flashcards in about a minute. See real samples, start free — no card required."
         path="/teachers"
       />
       <div className="min-h-screen theme-bg theme-text font-body">
@@ -318,7 +321,7 @@ export default function TeachersLanding() {
               Sunday-night planning, done in about a minute.
             </h1>
             <p className="text-lg text-white/80 max-w-xl">
-              CBC-aligned lesson plans, worksheets, schemes of work and flashcards —
+              CBC-aligned lesson plans, worksheets, schemes of work, weekly forecasts and flashcards —
               generated from the official syllabus, edited by you, exported to DOCX or PDF.
             </p>
             <div className="mt-7 flex flex-wrap items-center gap-3">
