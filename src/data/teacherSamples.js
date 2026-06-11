@@ -40,6 +40,7 @@ const COAT_OF_ARMS_MARKERS = [
 export const TEACHER_SAMPLES = [
   {
     id: 'lesson-plan',
+    exports: 'DOCX & PDF',
     tool: 'lesson_plan',
     label: 'Lesson plan',
     icon: '📖',
@@ -203,6 +204,7 @@ export const TEACHER_SAMPLES = [
 
   {
     id: 'worksheet',
+    exports: 'DOCX + answer key',
     tool: 'worksheet',
     label: 'Worksheet',
     icon: '📝',
@@ -323,6 +325,7 @@ export const TEACHER_SAMPLES = [
 
   {
     id: 'scheme-of-work',
+    exports: 'DOCX',
     tool: 'scheme_of_work',
     label: 'Scheme of work',
     icon: '🗓️',
@@ -484,6 +487,7 @@ export const TEACHER_SAMPLES = [
 
   {
     id: 'weekly-forecast',
+    exports: 'DOCX',
     tool: 'weekly_forecast',
     label: 'Weekly forecast',
     icon: '📅',
@@ -560,6 +564,7 @@ export const TEACHER_SAMPLES = [
 
   {
     id: 'term-tests',
+    exports: 'DOCX & PDF',
     tool: 'term_test',
     label: 'Term test',
     icon: '📋',
@@ -690,6 +695,7 @@ export const TEACHER_SAMPLES = [
 
   {
     id: 'mark-schedule',
+    exports: 'DOCX, Excel & report cards',
     tool: 'mark_schedule',
     label: 'Mark schedule',
     icon: '🧮',
@@ -785,6 +791,7 @@ export const TEACHER_SAMPLES = [
 
   {
     id: 'flashcards',
+    exports: 'DOCX',
     tool: 'flashcards',
     label: 'Flashcards',
     icon: '🃏',
