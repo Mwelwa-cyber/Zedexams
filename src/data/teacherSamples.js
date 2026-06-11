@@ -496,7 +496,6 @@ export const TEACHER_SAMPLES = [
     // REMARKS). Rendered by WeeklyForecastOfficialTable. Content is Week 1
     // of the real Grade 4 Integrated Science Term 1 2026 forecast.
     blurb: 'The official weekly-forecast document — the week broken down day by day, with a progress-remarks column to annotate after each lesson. One is generated per week.',
-    comingSoon: true,
     layout: 'official-table',
     artifact: {
       schemaVersion: 'forecast-table-1.0',

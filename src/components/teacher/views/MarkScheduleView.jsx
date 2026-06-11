@@ -31,6 +31,7 @@ const pct = (mark, max) => (max > 0 ? Math.round((mark / max) * 100) : 0)
 export default function MarkScheduleView({ schedule, mode = 'marks' }) {
   if (!schedule) return null
   const h = schedule.header || {}
+  const gradeLabel = String(h.grade || '').replace(/^G/i, '')
   const subjects = schedule.subjects || []
   const maxTotal = subjects.reduce((sum, s) => sum + (s.max || 0), 0)
   const isPercent = mode === 'percent'
@@ -47,7 +48,7 @@ export default function MarkScheduleView({ schedule, mode = 'marks' }) {
       <div className="text-center">
         <div className="text-base font-bold uppercase">{h.school}</div>
         <div className="mt-1 border-y border-black py-1 text-sm font-bold tracking-[0.12em] uppercase">
-          Grade {h.grade} · Term {h.term} Mark Schedule — {h.year}
+          Grade {gradeLabel} · Term {h.term} Mark Schedule — {h.year}
         </div>
       </div>
 

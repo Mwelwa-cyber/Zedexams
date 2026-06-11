@@ -1,5 +1,5 @@
 /**
- * WeeklyForecastOfficialTable — the official weekly-forecast document
+ * WeeklyForecastView — the official weekly-forecast document
  * Zambian teachers fill in for the coming week: a per-day plan with a
  * progress-remarks column they annotate after each lesson.
  *
@@ -7,7 +7,8 @@
  *   LEARNING ACTIVITY | EXPECTED STANDARD | T/L RESOURCES |
  *   REMARKS / COMMENTS ON PROGRESS
  *
- * Reads a `days[]` artifact (see src/data/teacherSamples.js). Serif on
+ * Shared by the Weekly Forecast studio, the /teachers sample library
+ * and the teacher library detail view. Reads a `days[]` artifact. Serif on
  * white with a black grid so it reads as the printed/exported page,
  * mirroring LessonPlanOfficialTable / SchemeOfWorkOfficialTable.
  */
@@ -26,9 +27,10 @@ function CellList({ items }) {
   )
 }
 
-export default function WeeklyForecastOfficialTable({ forecast }) {
+export default function WeeklyForecastView({ forecast }) {
   if (!forecast) return null
   const h = forecast.header || {}
+  const gradeLabel = String(h.grade || '').replace(/^G/i, '')
   const subject = (h.subject || '').toUpperCase()
   const days = forecast.days || []
 
@@ -40,7 +42,7 @@ export default function WeeklyForecastOfficialTable({ forecast }) {
       {/* Document head */}
       <div className="text-center">
         <div className="text-base font-bold tracking-[0.08em] uppercase">
-          Grade {h.grade} {subject} Weekly Forecast
+          Grade {gradeLabel} {subject} Weekly Forecast
         </div>
         <div className="mt-1 text-[12px] font-bold">
           TERM {h.term} &nbsp;·&nbsp; YEAR: {h.year}
