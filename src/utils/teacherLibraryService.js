@@ -202,24 +202,19 @@ export async function attachLibraryToGeneration(generationId, classification) {
 }
 
 /**
- * Save a mark schedule into the library. Mark schedules are the one
- * client-CREATED generation (pure client-side maths, no Cloud Function) —
- * firestore.rules pins the create to tool='mark_schedule' with exactly
- * this field set, so don't add top-level fields here without updating
- * the rule. First save creates the doc; later saves patch output+library
- * (within the update rule's changedKeys allowlist).
+ * Save a client-side tool's document into the library. Mark schedules and
+ * weekly forecasts are the only client-CREATED generations (pure
+ * client-side derivation, no Cloud Function) — firestore.rules pins the
+ * create to those tools with exactly this field set, so don't add
+ * top-level fields here without updating the rule. First save creates
+ * the doc; later saves patch output+library (within the update rule's
+ * changedKeys allowlist).
  *
  * Returns the generation id, or throws with a user-presentable message.
  */
-export async function saveMarkScheduleGeneration({ uid, existingId, artifact }) {
+async function saveClientToolGeneration({ uid, existingId, tool, artifact, inputs, classification }) {
   if (!uid) throw new Error('Sign in again to save to your library.')
-  if (!artifact?.pupils?.length) throw new Error('Add at least one pupil before saving.')
-  const header = artifact.header || {}
-  const library = classifyForLibrary({
-    libraryType: LIBRARY_TYPES.MARK_SCHEDULES,
-    grade: header.grade,
-    term: header.term,
-  })
+  const library = classifyForLibrary(classification)
   if (existingId) {
     await updateDoc(doc(db, 'aiGenerations', existingId), {
       output: artifact,
@@ -229,20 +224,60 @@ export async function saveMarkScheduleGeneration({ uid, existingId, artifact }) 
   }
   const ref = await addDoc(collection(db, 'aiGenerations'), {
     ownerUid: uid,
-    tool: 'mark_schedule',
+    tool,
     status: 'complete',
     visibility: 'private',
     createdAt: serverTimestamp(),
+    inputs,
+    output: artifact,
+    ...(library ? { library } : {}),
+  })
+  return ref.id
+}
+
+export async function saveMarkScheduleGeneration({ uid, existingId, artifact }) {
+  if (!artifact?.pupils?.length) throw new Error('Add at least one pupil before saving.')
+  const header = artifact.header || {}
+  return saveClientToolGeneration({
+    uid,
+    existingId,
+    tool: 'mark_schedule',
+    artifact,
     inputs: {
       grade: header.grade || null,
       term: header.term != null ? String(header.term) : null,
       subject: null,
       topic: `Term ${header.term ?? ''} mark schedule`.trim(),
     },
-    output: artifact,
-    ...(library ? { library } : {}),
+    classification: {
+      libraryType: LIBRARY_TYPES.MARK_SCHEDULES,
+      grade: header.grade,
+      term: header.term,
+    },
   })
-  return ref.id
+}
+
+export async function saveWeeklyForecastGeneration({ uid, existingId, artifact }) {
+  if (!artifact?.days?.length) throw new Error('Build the week before saving.')
+  const header = artifact.header || {}
+  return saveClientToolGeneration({
+    uid,
+    existingId,
+    tool: 'weekly_forecast',
+    artifact,
+    inputs: {
+      grade: header.grade || null,
+      term: header.term != null ? String(header.term) : null,
+      subject: header.subject || null,
+      topic: `Week ${header.weekNumber ?? ''} forecast`.trim(),
+    },
+    classification: {
+      libraryType: LIBRARY_TYPES.WEEKLY_FORECASTS,
+      grade: header.grade,
+      term: header.term,
+      subject: header.subject,
+    },
+  })
 }
 
 /**
@@ -294,6 +329,12 @@ export const TOOL_META = {
     route: '/teacher/generate/scheme-of-work',
     colour: 'teal',
   },
+  weekly_forecast: {
+    label: 'Weekly Forecast',
+    icon: '📅',
+    route: '/teacher/generate/weekly-forecast',
+    colour: 'cyan',
+  },
   mark_schedule: {
     label: 'Mark Schedule',
     icon: '🧮',
@@ -330,6 +371,7 @@ export const TOOL_FILTER_OPTIONS = [
   {value: '', label: 'All tools'},
   {value: 'lesson_plan', label: 'Lesson plans'},
   {value: 'scheme_of_work', label: 'Schemes of work'},
+  {value: 'weekly_forecast', label: 'Weekly forecasts'},
   {value: 'mark_schedule', label: 'Mark schedules'},
   {value: 'worksheet', label: 'Worksheets'},
   {value: 'flashcards', label: 'Flashcards'},
@@ -364,6 +406,14 @@ export function titleForGeneration(gen) {
     const s = out?.header?.subject || gen.inputs?.subject || ''
     const t = out?.header?.term || gen.inputs?.term || ''
     return `${g} ${s} — Term ${t} Scheme of Work`.trim()
+  }
+  if (gen.tool === 'weekly_forecast') {
+    const g = String(out?.header?.grade || gen.inputs?.grade || '').replace(/^G/i, '')
+    const subj = out?.header?.subject || ''
+    const w = out?.header?.weekNumber || ''
+    const t = out?.header?.term || gen.inputs?.term || ''
+    return [`${g ? `Grade ${g}` : ''} ${subj}`.trim(), `Term ${t} Week ${w} Forecast`.trim()]
+      .filter(Boolean).join(' — ')
   }
   if (gen.tool === 'mark_schedule') {
     const g = out?.header?.grade || gen.inputs?.grade || ''

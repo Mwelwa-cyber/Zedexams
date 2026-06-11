@@ -44,6 +44,16 @@ const STUDIOS = [
     meta: 'Term planning',
   },
   {
+    icon: Clock,
+    tone: 'blue',
+    badge: 'NEW',
+    libraryKey: 'weekly-forecast',
+    title: 'Weekly Forecast',
+    tagline: "Pull a week from your scheme and plan it day by day.",
+    to: '/teacher/generate/weekly-forecast',
+    meta: 'Weekly prep',
+  },
+  {
     icon: Calculator,
     tone: 'green',
     badge: 'NEW',

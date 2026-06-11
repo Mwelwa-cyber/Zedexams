@@ -240,15 +240,19 @@ test('noteSmart is learner-readable and server-write-only', () => {
   assert(/allow write:\s*if false/.test(block[1]), 'noteSmart write is not locked to server-only (if false)')
 })
 
-test('aiGenerations client create stays locked to mark_schedule only', () => {
+test('aiGenerations client create stays locked to the client-side tools', () => {
   const block = rules.match(/match \/aiGenerations\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
   assert(block, 'aiGenerations match block not found')
   const create = block[1].match(/allow create:[\s\S]*?;/)
   assert(create, 'aiGenerations create rule not found')
   assert(
-    /incoming\(\)\.tool == 'mark_schedule'/.test(create[0]),
-    'aiGenerations create is no longer pinned to mark_schedule — AI tools must stay server-created so cost/token fields cannot be forged',
+    /incoming\(\)\.tool in \['mark_schedule', 'weekly_forecast'\]/.test(create[0]),
+    "aiGenerations create tool list changed — only the client-side (non-AI) tools mark_schedule + weekly_forecast may be client-created; AI tools must stay server-created so cost/token fields cannot be forged",
   )
+  const AI_TOOLS = ['lesson_plan', 'worksheet', 'scheme_of_work', 'notes', 'flashcards', 'rubric', 'quiz', 'assessment', 'exam_paper']
+  AI_TOOLS.forEach((t) => {
+    assert(!create[0].includes(`'${t}'`), `aiGenerations create now lists AI tool '${t}' — that tool must stay server-created`)
+  })
   assert(
     /incoming\(\)\.ownerUid == request\.auth\.uid/.test(create[0]),
     'aiGenerations create no longer requires ownerUid == auth.uid',
