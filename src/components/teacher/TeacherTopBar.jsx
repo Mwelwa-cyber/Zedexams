@@ -14,7 +14,6 @@ import {
   X,
   PencilLine,
   BookOpen,
-  Presentation,
   FileText,
   Sparkles,
   FolderOpen,
@@ -25,7 +24,6 @@ const QUICK_CREATE = [
   { to: '/teacher/generate/lesson-plan', icon: BookOpen,    label: 'Lesson Plan',    accent: '#fde2c4' },
   { to: '/teacher/generate/notes',       icon: FileText,    label: 'Teacher Notes',  accent: '#dbe7f4' },
   { to: '/teacher/assessments/new',      icon: PencilLine,  label: 'Assessment',     accent: '#e8d8f0' },
-  { to: '/teacher/lessons/new',          icon: Presentation, label: 'Lesson Slide',  accent: '#fde9b8' },
   { to: '/teacher/generate/flashcards',  icon: Sparkles,    label: 'Flashcards',     accent: '#fde9b8' },
 ]
 

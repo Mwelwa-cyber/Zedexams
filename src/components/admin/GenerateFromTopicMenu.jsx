@@ -22,7 +22,7 @@ import { useAuth } from '../../contexts/AuthContext'
 // functions/agents/runners/aria.js RUNNERS map). Quiz is intentionally
 // not in this list — it's a synchronous studio (no agent pipeline) and
 // gets its own button at the bottom of the popover that opens the
-// QuizStudio with the topic pre-filled via URL params.
+// admin quiz editor with the topic pre-filled via URL params.
 const TOOLS = [
   { key: 'lesson_plan',    label: 'Lesson Plan',    icon: '🦊', hint: 'Single-period CBC lesson plan' },
   { key: 'worksheet',      label: 'Worksheet',      icon: '🐢', hint: 'Pupil practice activities' },

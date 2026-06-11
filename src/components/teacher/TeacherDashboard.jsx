@@ -94,14 +94,14 @@ const STUDIOS = [
     meta: 'Practice material',
   },
   {
-    icon: ClipboardList,
+    icon: Sparkles,
     tone: 'cyan',
     badge: 'NEW',
-    libraryKey: 'quiz',
-    title: 'Quizzes',
-    tagline: 'Draft review-ready questions from a topic or outcome.',
-    to: '/teacher/generate/quiz',
-    meta: 'Quick assessment',
+    libraryKey: 'full-lesson',
+    title: 'Lessons',
+    tagline: 'A complete, ready-to-teach lesson — content, worked examples, practice and homework.',
+    to: '/teacher/generate/full-lesson',
+    meta: 'Full lesson',
   },
   {
     icon: GraduationCap,
@@ -180,7 +180,9 @@ const TOOL_META = {
   rubric: { icon: ClipboardCheckList, accent: '#f0d6e0', label: 'Rubric' },
   notes: { icon: DocumentTextIcon, accent: '#dbe7f4', label: 'Teacher Notes' },
   assessments: { icon: BarChart3, accent: '#e8d8f0', label: 'Assessment' },
+  // 'quiz' stays for generations saved before the studio was retired (#909).
   quiz: { icon: ClipboardList, accent: '#cfe9f5', label: 'Quiz' },
+  full_lesson: { icon: Sparkles, accent: '#cfe9f5', label: 'Full Lesson' },
   exam_paper: { icon: GraduationCap, accent: '#dbdcf7', label: 'Exam Paper' },
 }
 
