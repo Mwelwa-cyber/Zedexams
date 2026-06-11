@@ -1,22 +1,28 @@
 /**
- * Scheme of Work prompt — v1.
+ * Scheme of Work prompt — v2: the official 9-column CDC format.
  *
- * A scheme of work is a term-level plan that maps every teaching week to
- * topics, outcomes, materials and assessment. Zambian head teachers review
- * these at the start of each term. Format matches CDC expectations.
+ * Zambian schools moved to a flat landscape grid (one row per week):
+ *   WEEK | TOPIC | SUBTOPIC | SPECIFIC COMPETENCES | LEARNING ACTIVITIES |
+ *   EXPECTED STANDARD | METHODS | T/L AIDS | REF
+ * v1 produced the older outcomes/materials/assessment layout; saved v1
+ * documents still render via the legacy branch of SchemeOfWorkView.
  */
 
-const PROMPT_VERSION = "scheme_of_work.v1";
+const PROMPT_VERSION = "scheme_of_work.v2";
 
-const SYSTEM_PROMPT = `You are an expert Zambian teacher and CDC curriculum specialist. You write term-level Schemes of Work that match the Zambian Competence-Based Curriculum (CBC) format exactly as a Zambian head teacher or school inspector would expect them.
+const SYSTEM_PROMPT = `You are an expert Zambian teacher and CDC curriculum specialist. You write term-level Schemes of Work in the official CDC 9-column format exactly as a Zambian head teacher or school inspector expects them in the Competence-Based Curriculum (CBC).
 
 Your schemes of work MUST:
-- Use authentic Zambian CDC terminology (Specific Outcomes, Key Competencies, Values, Teaching/Learning Activities, Assessment).
-- Map cleanly across the requested number of weeks — one or two topics per week, logically sequenced from simpler to more complex.
-- Be concrete — each week's entry should be something a teacher could plan lessons from.
-- Reference the appropriate Zambian pupil's book and teacher's guide (CDC publisher) in materials.
-- Cover topics typical of the Zambian syllabus for the grade, subject and term requested. Do not invent topics that wouldn't be found in CDC material.
-- If the teacher requests a specific overall theme, weight the weeks around it.
+- Use one row per teaching week with these columns: WEEK, TOPIC, SUBTOPIC, SPECIFIC COMPETENCES, LEARNING ACTIVITIES, EXPECTED STANDARD, METHODS, T/L AIDS, REF.
+- Use authentic syllabus numbering. Topics carry their syllabus code in capitals (e.g. "4.1 THE HUMAN BODY"), subtopics carry theirs (e.g. "4.1.1 The Respiratory System"), and specific competences carry full codes (e.g. "4.1.1.1 Demonstrate understanding of the respiratory system in the human body"). When a topic continues into the next week, mark the subtopic "(cont.)".
+- Write LEARNING ACTIVITIES as pupil-centred gerund phrases ("Describing...", "Investigating...", "Drawing and labelling...", "Role-playing...").
+- Write EXPECTED STANDARD as one short passive CDC-register sentence ("... demonstrated satisfactorily", "... identified and classified correctly").
+- Draw METHODS from the standard Zambian methods vocabulary: Exposition, Q & A, Group work, Pair work, Demonstration, Practical, Discussion, Role play, Research, Field work, Project work, Sorting activity, Revision, Examination.
+- List concrete T/L AIDS a Zambian classroom can actually source (charts, models, real objects, the subject Module, locally available materials).
+- Reference the syllabus page and the CDC pupil's book / module for the grade in REF.
+- Cover topics typical of the Zambian syllabus for the grade, subject and term requested, sequenced from simpler to more complex. Do not invent topics that wouldn't be found in CDC material.
+- Schedule assessment the way schools do: note "CLASS TEST administered" in the EXPECTED STANDARD at the mid-term checkpoint weeks, and make the final week "REVISION & EXAMINATION" covering all term topics with the End-of-Term Examination administered.
+- If the teacher requests a specific emphasis, weight the weeks around it.
 
 Your output MUST be a single valid JSON object matching the schema given. No prose, no markdown fences, no commentary outside the JSON.`;
 
@@ -38,7 +44,7 @@ function buildUserPrompt(inputs) {
   } = inputs;
 
   return [
-    "Produce a Zambian CBC Scheme of Work for the following:",
+    "Produce a Zambian CBC Scheme of Work in the official 9-column format for the following:",
     "",
     `- Grade / Class: ${grade}`,
     `- Subject: ${subject}`,
@@ -53,27 +59,25 @@ function buildUserPrompt(inputs) {
     "",
     "{",
     '  "header": {',
-    '    "school": string, "teacherName": string, "class": string,',
-    '    "subject": string, "term": number, "numberOfWeeks": number,',
-    '    "academicYear": string (e.g. "2026"), "mediumOfInstruction": string',
-    "  },",
-    '  "overview": {',
-    '    "termTheme": string,               // one-line summary of what this term covers',
-    '    "overallCompetencies": [string, ...],  // 3-4 key CBC competencies developed across the term',
-    '    "overallValues": [string, ...]        // 2-3 values emphasised',
+    '    "school": string, "teacherName": string,',
+    '    "grade": string,        // as printed on the document, e.g. "4" for Grade 4, "ECE" for ECE',
+    '    "subject": string,      // human-readable, e.g. "Integrated Science"',
+    '    "term": number, "numberOfWeeks": number,',
+    '    "year": string,          // academic year, e.g. "2026"',
+    '    "periodsPerWeek": string, // standard CDC allocation, e.g. "6 periods × 40 minutes"; "" if unsure',
+    '    "mediumOfInstruction": string',
     "  },",
     '  "weeks": [',
     "    {",
-    '      "weekNumber": 1,',
-    '      "topic": string,                     // the main topic for this week',
-    '      "subtopics": [string, ...],          // 2-4 sub-topics',
-    '      "specificOutcomes": [string, ...],   // 2-3 outcomes for the week',
-    '      "keyCompetencies": [string, ...],    // 1-3 competencies emphasised',
-    '      "values": [string, ...],             // 1-2 values emphasised',
-    '      "teachingLearningActivities": [string, ...],  // 3-4 activity descriptions',
-    '      "materials": [string, ...],          // 2-3 materials/resources',
-    '      "assessment": string,                // one sentence on how the week is assessed',
-    '      "references": string                 // Pupil\'s Book pages or other CDC references',
+    '      "week": 1,',
+    '      "topic": string,                    // syllabus-coded, in capitals, e.g. "4.1 THE HUMAN BODY"',
+    '      "subtopic": string,                 // syllabus-coded, e.g. "4.1.1 The Respiratory System"; "(cont.)" when continuing',
+    '      "specificCompetences": [string, ...],  // 1-2 full-coded competences for the week',
+    '      "learningActivities": [string, ...],   // 3-4 pupil-centred gerund phrases',
+    '      "expectedStandard": string,         // one CDC-register sentence; include "CLASS TEST administered" on test weeks',
+    '      "methods": [string, ...],           // 3-5 from the standard methods vocabulary',
+    '      "tlAids": [string, ...],            // 3-5 concrete teaching/learning aids',
+    '      "references": string                // syllabus page + module/pupil\'s book, e.g. "Grade 4 Science Syllabus p.1; Grade 4 Science Module"',
     "    },",
     "    ...  // exactly " + numberOfWeeks + " weeks",
     "  ]",
@@ -81,9 +85,10 @@ function buildUserPrompt(inputs) {
     "",
     "Rules:",
     "- Produce EXACTLY " + numberOfWeeks + " week entries, numbered 1 to " + numberOfWeeks + ".",
-    "- Sequence topics logically — start with foundational/review material, build complexity, end with assessment/revision.",
-    "- If the term has standard CDC topics for this grade+subject, cover them in a sensible order.",
-    "- Each week's Specific Outcomes must be observable and measurable (use verbs like 'identify', 'calculate', 'explain', 'apply', NOT 'know' or 'understand').",
+    "- Sequence topics logically — start with foundational material, build complexity.",
+    "- Note \"CLASS TEST administered\" in expectedStandard at the mid-term checkpoint weeks (roughly every 4th week).",
+    "- Make week " + numberOfWeeks + " \"REVISION & EXAMINATION\" — revise all term topics and administer the End-of-Term " + term + " Examination.",
+    "- Specific competences must be observable and measurable (verbs like 'demonstrate', 'classify', 'identify', 'practise', NOT 'know' or 'understand' on their own).",
     "- Use Zambian English spelling.",
     "- Return ONLY the JSON object. No markdown fences. No commentary.",
   ].filter(Boolean).join("\n");

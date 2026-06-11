@@ -45,6 +45,18 @@ function norm(v) {
   return String(v == null ? "" : v).toLowerCase().replace(/\s+/g, " ").trim();
 }
 
+/** Week number for either scheme shape (v1 weekNumber, v2 week). */
+function weekNum(w) {
+  const n = Number(w && (w.weekNumber != null ? w.weekNumber : w.week));
+  return Number.isFinite(n) ? n : null;
+}
+
+/** v2 official 9-column scheme week? (mirrors the client-side predicate) */
+function isOfficialWeek(w) {
+  return Boolean(w) && (w.subtopic !== undefined ||
+    w.specificCompetences !== undefined || w.tlAids !== undefined);
+}
+
 /**
  * Does a saved generation doc cover the same grade + subject + term as the
  * lesson being generated? Prefers the canonical `library` coords (academic
@@ -92,7 +104,7 @@ function pickWeek(weeks, want) {
   if (!Array.isArray(weeks) || weeks.length === 0) return null;
 
   if (want.week) {
-    const byNum = weeks.find((w) => Number(w && w.weekNumber) === want.week);
+    const byNum = weeks.find((w) => weekNum(w) === want.week);
     if (byNum) return byNum;
   }
 
@@ -104,8 +116,9 @@ function pickWeek(weeks, want) {
     for (const w of weeks) {
       if (!w || typeof w !== "object") continue;
       const wTopic = norm(w.topic);
-      const hay = norm([w.topic, ...(Array.isArray(w.subtopics) ?
-        w.subtopics : [])].join(" "));
+      const subs = Array.isArray(w.subtopics) ? w.subtopics :
+        (w.subtopic ? [w.subtopic] : []);
+      const hay = norm([w.topic, ...subs].join(" "));
       let score = 0;
       if (tp && wTopic && (hay.includes(tp) || tp.includes(wTopic))) score += 2;
       if (st && hay.includes(st)) score += 1;
@@ -128,22 +141,41 @@ function bullets(arr, max) {
 }
 
 function renderWeek(label, w) {
-  const lines = [`${label} — Week ${w.weekNumber}`];
+  const lines = [`${label} — Week ${weekNum(w) || "?"}`];
   if (w.topic) lines.push(`Topic: ${w.topic}`);
-  const sub = bullets(w.subtopics, 12);
-  if (sub) lines.push("Sub-topics:", sub);
-  const so = bullets(w.specificOutcomes, 10);
-  if (so) lines.push("Specific outcomes:", so);
-  const kc = bullets(w.keyCompetencies, 8);
-  if (kc) lines.push("Key competencies:", kc);
-  const vals = bullets(w.values, 8);
-  if (vals) lines.push("Values:", vals);
-  const acts = bullets(w.teachingLearningActivities, 10);
-  if (acts) lines.push("Teaching/learning activities:", acts);
-  const mats = bullets(w.materials, 10);
-  if (mats) lines.push("Materials:", mats);
-  if (typeof w.assessment === "string" && w.assessment.trim()) {
-    lines.push(`Assessment: ${w.assessment.trim()}`);
+  if (isOfficialWeek(w)) {
+    // v2 official 9-column shape.
+    if (typeof w.subtopic === "string" && w.subtopic.trim()) {
+      lines.push(`Sub-topic: ${w.subtopic.trim()}`);
+    }
+    const sc = bullets(w.specificCompetences, 10);
+    if (sc) lines.push("Specific competences:", sc);
+    const acts = bullets(w.learningActivities, 10);
+    if (acts) lines.push("Learning activities:", acts);
+    if (typeof w.expectedStandard === "string" && w.expectedStandard.trim()) {
+      lines.push(`Expected standard: ${w.expectedStandard.trim()}`);
+    }
+    const meth = bullets(w.methods, 8);
+    if (meth) lines.push("Methods:", meth);
+    const aids = bullets(w.tlAids, 10);
+    if (aids) lines.push("T/L aids:", aids);
+  } else {
+    // v1 shape.
+    const sub = bullets(w.subtopics, 12);
+    if (sub) lines.push("Sub-topics:", sub);
+    const so = bullets(w.specificOutcomes, 10);
+    if (so) lines.push("Specific outcomes:", so);
+    const kc = bullets(w.keyCompetencies, 8);
+    if (kc) lines.push("Key competencies:", kc);
+    const vals = bullets(w.values, 8);
+    if (vals) lines.push("Values:", vals);
+    const acts = bullets(w.teachingLearningActivities, 10);
+    if (acts) lines.push("Teaching/learning activities:", acts);
+    const mats = bullets(w.materials, 10);
+    if (mats) lines.push("Materials:", mats);
+    if (typeof w.assessment === "string" && w.assessment.trim()) {
+      lines.push(`Assessment: ${w.assessment.trim()}`);
+    }
   }
   if (typeof w.references === "string" && w.references.trim()) {
     lines.push(`References: ${w.references.trim()}`);
@@ -153,16 +185,43 @@ function renderWeek(label, w) {
 
 function renderSequence(weeks) {
   const rows = (Array.isArray(weeks) ? weeks : [])
-      .filter((w) => w && (w.topic || w.weekNumber))
+      .filter((w) => w && (w.topic || weekNum(w)))
       .slice(0, MAX_SEQUENCE_WEEKS)
       .map((w) => {
         const t = String(w.topic || "").trim().slice(0, 80);
-        return `  Week ${w.weekNumber}: ${t || "(no topic)"}`;
+        return `  Week ${weekNum(w) || "?"}: ${t || "(no topic)"}`;
       });
   return rows.join("\n");
 }
 
-function renderBlock({scheme, schemeWeek, forecast, forecastWeek}) {
+/**
+ * Render a client-saved Weekly Forecast (forecast-table-1.0: header +
+ * days[], no weeks[]) — the week's plan day by day.
+ */
+function renderForecastDays(out) {
+  const h = (out && out.header) || {};
+  const days = Array.isArray(out && out.days) ? out.days : [];
+  const lines = [`Forecast week ${h.weekNumber || "?"} — day by day:`];
+  for (const d of days.slice(0, 5)) {
+    if (!d || typeof d !== "object") continue;
+    const head = [`Day ${d.day || "?"}:`, d.topic, d.subtopic]
+        .filter((s) => typeof s === "string" ? s.trim() : s)
+        .join(" — ");
+    lines.push(head);
+    if (typeof d.specificCompetence === "string" && d.specificCompetence.trim()) {
+      lines.push(`  Competence: ${d.specificCompetence.trim()}`);
+    }
+    const acts = (Array.isArray(d.learningActivities) ?
+      d.learningActivities : []).filter((s) => typeof s === "string" && s.trim());
+    if (acts.length) lines.push(`  Activities: ${acts.join("; ")}`);
+    if (typeof d.expectedStandard === "string" && d.expectedStandard.trim()) {
+      lines.push(`  Expected standard: ${d.expectedStandard.trim()}`);
+    }
+  }
+  return lines.join("\n");
+}
+
+function renderBlock({scheme, schemeWeek, forecast, forecastWeek, forecastDays}) {
   const lines = [
     "<teacher_plans>",
     "This teacher has their OWN saved planning documents for this class,",
@@ -175,9 +234,10 @@ function renderBlock({scheme, schemeWeek, forecast, forecastWeek}) {
   if (scheme) {
     const h = scheme.header || {};
     const o = scheme.overview || {};
+    const classLabel = h.class || (h.grade ? `Grade ${h.grade}` : "");
     lines.push(
         "",
-        `SCHEME OF WORK — ${h.class || ""} ${h.subject || ""} ` +
+        `SCHEME OF WORK — ${classLabel} ${h.subject || ""} ` +
         `Term ${h.term || ""} (${h.numberOfWeeks ||
           (scheme.weeks || []).length} weeks)`.replace(/\s+/g, " ").trim(),
     );
@@ -206,6 +266,8 @@ function renderBlock({scheme, schemeWeek, forecast, forecastWeek}) {
     lines.push("", "WEEKLY FORECAST (teacher's plan for the week ahead):");
     if (forecastWeek) {
       lines.push(renderWeek("Forecast week", forecastWeek));
+    } else if (forecastDays) {
+      lines.push(renderForecastDays(forecastDays));
     } else if (typeof forecast.outputText === "string" &&
                forecast.outputText.trim()) {
       lines.push(forecast.outputText.trim().slice(0, 1500));
@@ -266,6 +328,14 @@ async function resolveTeacherPlanContext({
 
     const schemeOut = scheme && scheme.output;
     const forecastOut = forecast && forecast.output;
+    // Client-saved forecasts (forecast-table-1.0) are one week of days[],
+    // not weeks[]. Only ground on one when it IS the lesson's week — a
+    // forecast for a different week would mislead the model.
+    const fHead = (forecastOut && forecastOut.header) || {};
+    const fWeekNo = Number(fHead.weekNumber);
+    const daysMatch = forecastOut && Array.isArray(forecastOut.days) &&
+      forecastOut.days.length > 0 &&
+      (!want.week || !Number.isFinite(fWeekNo) || fWeekNo === want.week);
     return renderBlock({
       scheme: schemeOut || null,
       schemeWeek: schemeOut ?
@@ -273,6 +343,7 @@ async function resolveTeacherPlanContext({
       forecast: forecast || null,
       forecastWeek: forecastOut ?
         pickWeek(forecastOut.weeks, want) : null,
+      forecastDays: daysMatch ? forecastOut : null,
     });
   } catch (err) {
     console.error("resolveTeacherPlanContext failed", err);
