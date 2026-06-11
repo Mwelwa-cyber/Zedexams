@@ -110,6 +110,17 @@ export function buildCurriculumAssessmentDocument(asmt) {
         ],
         spacing: { before: 80, after: 40 },
       }))
+      if (q.diagram) {
+        children.push(new Paragraph({
+          children: [text(`[Diagram: ${q.diagram}]`, { italics: true, size: 18, color: '666666' })],
+          indent: { left: 480 }, spacing: { after: 20 },
+        }))
+        // Blank drawing space where the teacher pastes or draws the figure.
+        children.push(new Paragraph({
+          children: [text(' ', { size: 20 })],
+          spacing: { after: 240 },
+        }))
+      }
       if ((q.type === 'multiple_choice' || q.type === 'true_false') &&
           Array.isArray(q.options)) {
         q.options.forEach((opt, i) => {

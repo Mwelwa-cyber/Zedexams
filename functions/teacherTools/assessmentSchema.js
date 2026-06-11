@@ -4,7 +4,7 @@
  * key. Heavier than a worksheet (marks, marking guide per question).
  */
 
-const SCHEMA_VERSION = "1.0";
+const SCHEMA_VERSION = "1.1";
 
 const ALLOWED_TYPES = new Set([
   "multiple_choice",
@@ -83,6 +83,10 @@ function validateAssessment(input) {
                       (options && options.length >= 2 ? options : null) :
                       null,
                     marks,
+                    // Optional brief of a figure the teacher should attach
+                    // (v1.1). Coerces to null for absent/garbage values so
+                    // old payloads and clients are unaffected.
+                    diagram: str(q.diagram, 500) || null,
                     answer: str(q.answer, 2000),
                     markingGuide: str(q.markingGuide, 2000),
                   };

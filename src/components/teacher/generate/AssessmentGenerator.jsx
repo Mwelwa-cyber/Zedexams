@@ -30,6 +30,7 @@ export default function AssessmentGenerator() {
   const [form, setForm] = useState(() => ({
     grade: 'G5',
     subject: 'mathematics',
+    assessmentType: 'topic_test',
     topic: '',
     subtopic: '',
     term: '',
@@ -88,7 +89,7 @@ export default function AssessmentGenerator() {
         libraryType: LIBRARY_TYPES.ASSESSMENTS,
         grade: form.grade,
         subject: form.subject,
-        assessmentType: 'topic',
+        assessmentType: form.assessmentType,
       }).catch(() => {})
     }
   }
@@ -122,6 +123,9 @@ export default function AssessmentGenerator() {
               options={TEACHER_GRADES} onChange={(v) => set('grade', v)} />
             <FieldSelect label="Subject" value={form.subject}
               options={subjectOptions} onChange={(v) => set('subject', v)} />
+            <FieldSelect label="Assessment type" value={form.assessmentType}
+              options={ASSESSMENT_TYPE_OPTIONS}
+              onChange={(v) => set('assessmentType', v)} />
             <TopicSubtopicPicker
               grade={form.grade}
               subject={form.subject}
@@ -294,6 +298,15 @@ function Centered({ emoji, title, body, action }) {
   )
 }
 
+// Mirrors ASSESSMENT_TYPES in functions/teacherTools/assessmentFormats.js —
+// the server whitelists these values and falls back to topic_test.
+const ASSESSMENT_TYPE_OPTIONS = [
+  { value: 'exercise', label: 'Exercise (short practice)' },
+  { value: 'topic_test', label: 'Topic test' },
+  { value: 'end_of_term', label: 'End of term test' },
+  { value: 'mock_exam', label: 'Mock examination' },
+]
+
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F']
 
 function AssessmentView({ a, showAnswers }) {
@@ -328,6 +341,16 @@ function AssessmentView({ a, showAnswers }) {
                 <span className="font-black theme-text shrink-0">{q.number}.</span>
                 <div className="flex-1">
                   <p className="theme-text">{q.prompt}</p>
+                  {q.diagram && (
+                    <div className="mt-2 rounded-lg border-2 border-dashed p-3 text-sm"
+                      style={{ borderColor: '#d9cfb8', color: '#566f76' }}>
+                      🖼 <span className="font-bold">Diagram needed: </span>
+                      {q.diagram}
+                      <span className="block text-xs italic mt-1">
+                        Attach or draw this figure before printing.
+                      </span>
+                    </div>
+                  )}
                   {(q.type === 'multiple_choice' || q.type === 'true_false') &&
                     q.options?.length > 0 && (
                     <ul className="mt-1 space-y-0.5">
