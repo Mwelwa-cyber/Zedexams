@@ -496,6 +496,7 @@ export const TEACHER_SAMPLES = [
     // REMARKS). Rendered by WeeklyForecastOfficialTable. Content is Week 1
     // of the real Grade 4 Integrated Science Term 1 2026 forecast.
     blurb: 'The official weekly-forecast document — the week broken down day by day, with a progress-remarks column to annotate after each lesson. One is generated per week.',
+    comingSoon: true,
     layout: 'official-table',
     artifact: {
       schemaVersion: 'forecast-table-1.0',
@@ -685,6 +686,102 @@ export const TEACHER_SAMPLES = [
           },
         ],
       },
+    },
+  },
+
+  {
+    id: 'mark-schedule',
+    tool: 'mark_schedule',
+    label: 'Mark schedule',
+    icon: '🧮',
+    grade: 'Grade 3',
+    subject: 'All subjects',
+    topic: 'Term 2',
+    // Mirrors the school mark-schedule format (SN | PUPIL'S NAME | subject
+    // columns | TOTAL | POSITION) with the studio's value-add: totals,
+    // positions (dense ranking, ties share a place) and per-band suggested
+    // comments are computed automatically. Pupils are FICTIONAL — the
+    // reference XLSX contains real learner names that must never ship.
+    blurb: 'Enter the marks — totals, class positions and report comments fill themselves in. Ties share a position, and every comment is editable.',
+    comingSoon: true,
+    layout: 'official-table',
+    artifact: {
+      schemaVersion: 'mark-schedule-1.0',
+      header: {
+        school: 'Chilenje Primary School',
+        grade: '3',
+        term: 2,
+        year: '2026',
+      },
+      subjects: [
+        { key: 'maths', label: 'MATHS', max: 25 },
+        { key: 'english', label: 'ENGLISH', max: 25 },
+        { key: 'science', label: 'SCIENCE', max: 26 },
+        { key: 'social', label: 'SOCIAL STUDIES', max: 26 },
+        { key: 'cts', label: 'C.T.S', max: 25 },
+      ],
+      pupils: [
+        {
+          sn: 1, name: 'Natasha Zulu',
+          marks: { maths: 23, english: 21, science: 24, social: 22, cts: 20 },
+          total: 110, position: 1,
+          comment: 'Excellent work — top of the class. Keep it up!',
+        },
+        {
+          sn: 2, name: 'Emmanuel Tembo',
+          marks: { maths: 20, english: 22, science: 23, social: 21, cts: 21 },
+          total: 107, position: 2,
+          comment: 'Very good performance. The top spot is within reach.',
+        },
+        {
+          sn: 3, name: 'Chimwemwe Banda',
+          marks: { maths: 19, english: 23, science: 20, social: 24, cts: 18 },
+          total: 104, position: 3,
+          comment: 'Very good — strong and consistent across subjects.',
+        },
+        {
+          sn: 4, name: 'Joseph Mwewa',
+          marks: { maths: 21, english: 18, science: 22, social: 20, cts: 23 },
+          total: 104, position: 3,
+          comment: 'Very good work. A little more care in English will lift you higher.',
+        },
+        {
+          sn: 5, name: 'Lushomo Hamoonga',
+          marks: { maths: 18, english: 20, science: 21, social: 19, cts: 20 },
+          total: 98, position: 4,
+          comment: 'Good effort — steady progress. Keep practising Mathematics.',
+        },
+        {
+          sn: 6, name: 'Grace Mulenga',
+          marks: { maths: 17, english: 19, science: 18, social: 21, cts: 17 },
+          total: 92, position: 5,
+          comment: 'Good progress. More reading practice will improve English and Science.',
+        },
+        {
+          sn: 7, name: 'Kondwani Sakala',
+          marks: { maths: 16, english: 15, science: 19, social: 18, cts: 20 },
+          total: 88, position: 6,
+          comment: 'Fair performance. Extra practice in English is needed.',
+        },
+        {
+          sn: 8, name: 'Thandiwe Ngoma',
+          marks: { maths: 14, english: 18, science: 16, social: 17, cts: 18 },
+          total: 83, position: 7,
+          comment: 'Fair. Needs more practice in Mathematics.',
+        },
+        {
+          sn: 9, name: 'Mapalo Kabwe',
+          marks: { maths: 15, english: 13, science: 17, social: 16, cts: 15 },
+          total: 76, position: 8,
+          comment: 'Below average — remedial support in English recommended.',
+        },
+        {
+          sn: 10, name: 'Chanda Mwansa',
+          marks: { maths: 12, english: 14, science: 13, social: 15, cts: 14 },
+          total: 68, position: 9,
+          comment: 'Needs close support across subjects. A remedial plan is advised.',
+        },
+      ],
     },
   },
 
