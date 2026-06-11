@@ -3,11 +3,15 @@
  *
  * Lesson plan, worksheet and flashcards render through the studios' own
  * presenter components (LessonPlanView / LessonPlanOfficialTable,
- * WorksheetView, FlashcardsView). The scheme of work uses the new official
- * 9-column CDC table (SchemeOfWorkOfficialTable): its `layout:
- * 'official-table'` artifact carries a flat `weeks[]` of { week, topic,
- * subtopic, specificCompetences[], learningActivities[], expectedStandard,
- * methods[], tlAids[], references }.
+ * WorksheetView, FlashcardsView). The scheme of work and weekly forecast
+ * use the new official CDC tables (SchemeOfWorkOfficialTable,
+ * WeeklyForecastOfficialTable), keyed by `layout: 'official-table'`:
+ *   • scheme  — flat `weeks[]` of { week, topic, subtopic,
+ *     specificCompetences[], learningActivities[], expectedStandard,
+ *     methods[], tlAids[], references }.
+ *   • forecast — `header` (weekNumber, weekBeginning, weekEnding…) plus a
+ *     `days[]` of { day, topic, subtopic, specificCompetence,
+ *     learningActivities[], expectedStandard, resources[], remarks }.
  *
  * Editing/swapping a sample: paste the `output` field of any aiGenerations
  * doc over the matching `artifact` here and adjust the card meta. Keep the
@@ -456,6 +460,82 @@ export const TEACHER_SAMPLES = [
         tlAids: ["Revision charts", "Examination papers", "Past exercises"],
         references: "Grade 4 Science Syllabus; Grade 4 Science Module",
       },
+      ],
+    },
+  },
+
+  {
+    id: 'weekly-forecast',
+    tool: 'weekly_forecast',
+    label: 'Weekly forecast',
+    icon: '📅',
+    grade: 'Grade 4',
+    subject: 'Integrated Science',
+    topic: 'Week 1',
+    // Official weekly-forecast format — the per-day plan teachers fill in
+    // for the coming week (WEEK | DAY | TOPIC | SUB-TOPIC | SPECIFIC
+    // COMPETENCE | LEARNING ACTIVITY | EXPECTED STANDARD | T/L RESOURCES |
+    // REMARKS). Rendered by WeeklyForecastOfficialTable. Content is Week 1
+    // of the real Grade 4 Integrated Science Term 1 2026 forecast.
+    blurb: 'The official weekly-forecast document — the week broken down day by day, with a progress-remarks column to annotate after each lesson. One is generated per week.',
+    layout: 'official-table',
+    artifact: {
+      schemaVersion: 'forecast-table-1.0',
+      header: {
+        subject: 'Integrated Science',
+        grade: '4',
+        term: 1,
+        year: '2026',
+        weekNumber: 1,
+        weekBeginning: '12 Jan 2026',
+        weekEnding: '16 Jan 2026',
+      },
+      days: [
+        {
+          day: '1',
+          topic: '4.1 THE HUMAN BODY',
+          subtopic: '4.1.1 The Respiratory System',
+          specificCompetence: '4.1.1.1 Demonstrate understanding of the respiratory system in the human body',
+          learningActivities: [
+            'Describing the respiratory system in humans',
+            'Analysing the main parts: nose, trachea, bronchi and lungs',
+            'Drawing the human respiratory system',
+            'Making models/charts illustrating movement of air into and out of the lungs',
+          ],
+          expectedStandard: 'Understanding of the respiratory system demonstrated satisfactorily',
+          resources: ['Charts', 'Models', 'Diagrams', 'Real objects', 'Science Module', 'CDC Syllabus Grade 4–7'],
+          remarks: '',
+        },
+        {
+          day: '2',
+          topic: '4.1 THE HUMAN BODY',
+          subtopic: '4.1.1 The Respiratory System',
+          specificCompetence: '4.1.1.1 Demonstrate understanding of the respiratory system in the human body',
+          learningActivities: [
+            'Describing the respiratory system in humans',
+            'Analysing the main parts: nose, trachea, bronchi and lungs',
+            'Drawing the human respiratory system',
+            'Making models/charts illustrating movement of air into and out of the lungs',
+          ],
+          expectedStandard: 'Understanding of the respiratory system demonstrated satisfactorily',
+          resources: ['Charts', 'Models', 'Diagrams', 'Real objects', 'Science Module', 'CDC Syllabus Grade 4–7'],
+          remarks: '',
+        },
+        {
+          day: '3',
+          topic: '4.1 THE HUMAN BODY',
+          subtopic: '4.1.1 The Respiratory System',
+          specificCompetence: '4.1.1.1 Demonstrate understanding of the respiratory system in the human body',
+          learningActivities: [
+            'Describing the respiratory system in humans',
+            'Analysing the main parts: nose, trachea, bronchi and lungs',
+            'Drawing the human respiratory system',
+            'Making models/charts illustrating movement of air into and out of the lungs',
+          ],
+          expectedStandard: 'Understanding of the respiratory system demonstrated satisfactorily',
+          resources: ['Charts', 'Models', 'Diagrams', 'Real objects', 'Science Module', 'CDC Syllabus Grade 4–7'],
+          remarks: '',
+        },
       ],
     },
   },
