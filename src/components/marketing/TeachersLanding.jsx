@@ -18,6 +18,7 @@ import SeoHelmet from '../seo/SeoHelmet'
 import { PLAN_PRICES } from '../../config/teacherPlanPricing'
 import { TEACHER_SAMPLES } from '../../data/teacherSamples'
 import LessonPlanView from '../teacher/views/LessonPlanView'
+import LessonPlanOfficialTable from './LessonPlanOfficialTable'
 import WorksheetView from '../teacher/views/WorksheetView'
 import SchemeOfWorkView from '../teacher/views/SchemeOfWorkView'
 import FlashcardsView from '../teacher/views/FlashcardsView'
@@ -72,10 +73,14 @@ const TEACHER_FAQ = [
   },
 ]
 
-function SampleRenderer({ sample, showAnswers }) {
+function SampleRenderer({ sample, showAnswers, planLayout }) {
   switch (sample.tool) {
     case 'lesson_plan':
-      return <LessonPlanView plan={sample.artifact} />
+      // 'table' mirrors the studio's printed/exported document; 'app' is
+      // the in-app library view of the same artifact.
+      return planLayout === 'table'
+        ? <LessonPlanOfficialTable plan={sample.artifact} />
+        : <LessonPlanView plan={sample.artifact} />
     case 'worksheet':
       return <WorksheetView worksheet={sample.artifact} showAnswers={showAnswers} />
     case 'scheme_of_work':
@@ -91,6 +96,8 @@ function SampleLibrary() {
   const [activeId, setActiveId] = useState(TEACHER_SAMPLES[0].id)
   const [showAnswers, setShowAnswers] = useState(false)
   const [expanded, setExpanded] = useState(false)
+  // Lesson plan layout: 'table' (the studio's printed document) | 'app'.
+  const [planLayout, setPlanLayout] = useState('table')
   const active = TEACHER_SAMPLES.find((s) => s.id === activeId) || TEACHER_SAMPLES[0]
   // Flashcards are a compact grid — collapsing them just hides half the fun.
   const collapsible = active.tool !== 'flashcards'
@@ -100,6 +107,7 @@ function SampleLibrary() {
     setActiveId(id)
     setExpanded(false)
     setShowAnswers(false)
+    setPlanLayout('table')
   }
 
   return (
@@ -168,12 +176,31 @@ function SampleLibrary() {
                 {showAnswers ? '✓ Answer key shown' : 'Show answer key'}
               </button>
             )}
+            {active.tool === 'lesson_plan' && (
+              <div className="shrink-0 inline-flex gap-1 rounded-full theme-card border theme-border p-1" role="group" aria-label="Lesson plan layout">
+                {[['table', 'Official table'], ['app', 'App view']].map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setPlanLayout(key)}
+                    aria-pressed={planLayout === key}
+                    className={`rounded-full px-3.5 py-1.5 text-xs font-black transition-all ${
+                      planLayout === key
+                        ? 'theme-accent-fill theme-on-accent'
+                        : 'theme-text-muted hover:theme-text'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Document */}
           <div className="relative mt-4">
             <div className={isCollapsed ? 'max-h-[520px] overflow-hidden' : ''}>
-              <SampleRenderer sample={active} showAnswers={showAnswers} />
+              <SampleRenderer sample={active} showAnswers={showAnswers} planLayout={planLayout} />
             </div>
             {isCollapsed && (
               <div
