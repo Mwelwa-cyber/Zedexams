@@ -703,7 +703,6 @@ export const TEACHER_SAMPLES = [
     // comments are computed automatically. Pupils are FICTIONAL — the
     // reference XLSX contains real learner names that must never ship.
     blurb: 'Enter the marks — totals and class positions fill themselves in, and suggested report comments print on their own sheet (the A4 schedule stays clean, even for classes of 80+).',
-    comingSoon: true,
     layout: 'official-table',
     artifact: {
       schemaVersion: 'mark-schedule-1.0',

@@ -23,7 +23,7 @@ import WorksheetView from '../teacher/views/WorksheetView'
 import SchemeOfWorkOfficialTable from './SchemeOfWorkOfficialTable'
 import WeeklyForecastOfficialTable from './WeeklyForecastOfficialTable'
 import TestPaperOfficial from './TestPaperOfficial'
-import MarkScheduleOfficialTable from './MarkScheduleOfficialTable'
+import MarkScheduleView from '../teacher/views/MarkScheduleView'
 import FlashcardsView from '../teacher/views/FlashcardsView'
 
 function Section({ children, className = '', id }) {
@@ -93,7 +93,7 @@ function SampleRenderer({ sample, showAnswers, planLayout, testVariant, schedule
     case 'term_test':
       return <TestPaperOfficial paper={sample.artifact[testVariant] || sample.artifact.midterm} />
     case 'mark_schedule':
-      return <MarkScheduleOfficialTable schedule={sample.artifact} mode={scheduleMode} />
+      return <MarkScheduleView schedule={sample.artifact} mode={scheduleMode} />
     case 'flashcards':
       return <FlashcardsView flashcards={sample.artifact} />
     default:

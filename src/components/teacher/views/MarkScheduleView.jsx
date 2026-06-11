@@ -1,11 +1,14 @@
 /**
- * MarkScheduleOfficialTable — the class mark schedule teachers compile
+ * MarkScheduleView — the class mark schedule teachers compile
  * after a test cycle: one row per pupil with per-subject marks, an
  * auto-computed total, the class position (ties share a position), and
  * a suggested report comment per position band — the three things the
  * upcoming Mark Schedule studio automates.
  *
- * Reads a `schedule` artifact (see src/data/teacherSamples.js):
+ * Shared by the Mark Schedule studio, the /teachers sample library
+ * and (later) the teacher library detail view.
+ *
+ * Reads a `schedule` artifact:
  *   header   — { school, grade, term, year }
  *   subjects — [{ key, label, max }]
  *   pupils   — [{ sn, name, marks: { [key]: n }, total, position, comment }]
@@ -25,7 +28,7 @@ const TD = 'border border-black p-1.5 align-top'
 
 const pct = (mark, max) => (max > 0 ? Math.round((mark / max) * 100) : 0)
 
-export default function MarkScheduleOfficialTable({ schedule, mode = 'marks' }) {
+export default function MarkScheduleView({ schedule, mode = 'marks' }) {
   if (!schedule) return null
   const h = schedule.header || {}
   const subjects = schedule.subjects || []
