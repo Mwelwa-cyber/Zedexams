@@ -5,14 +5,11 @@ import Logo from '../ui/Logo'
 import Button from '../ui/Button'
 import Card from '../ui/Card'
 import SeoHelmet from '../seo/SeoHelmet'
+// Prices live in src/config/teacherPlanPricing.js so /pricing and the
+// /teachers landing can never drift apart on the numbers.
+import { PLAN_PRICES } from '../../config/teacherPlanPricing'
 
 const UpgradeModal = lazy(() => import('../subscription/UpgradeModal'))
-
-const PLAN_PRICES = {
-  free:  { monthly: 0,   annual: 0 },
-  pro:   { monthly: 79,  annual: 65 },
-  max:   { monthly: 199, annual: 165 },
-}
 
 const FAQ = [
   {
@@ -129,7 +126,7 @@ function PlanCard({ plan, billing, popular = false, onCta }) {
         size="lg"
         fullWidth
         onClick={onCta}
-        className={popular ? 'bg-white !text-[color:var(--accent-fg)] hover:bg-white' : ''}
+        className={popular ? '!bg-white !text-[color:var(--accent-fg)] hover:!bg-white' : ''}
       >
         {plan.cta}
       </Button>
@@ -422,7 +419,7 @@ export default function Plans() {
               variant="primary"
               size="lg"
               onClick={handleFreeCta}
-              className="bg-white !text-[color:var(--accent-fg)] hover:bg-white"
+              className="!bg-white !text-[color:var(--accent-fg)] hover:!bg-white"
             >
               ▶ Start with Free
             </Button>

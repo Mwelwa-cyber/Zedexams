@@ -29,7 +29,7 @@ import ScrollToTop from './components/ui/ScrollToTop'
 // resolves to the brand default via resolveInitialTheme().
 const PUBLIC_THEME_PATHS = new Set([
   '/login', '/register', '/auth/action',
-  '/pricing', '/privacy', '/terms', '/status',
+  '/pricing', '/teachers', '/privacy', '/terms', '/status',
   '/papers',
 ])
 function isPublicThemePath(pathname) {
@@ -98,6 +98,7 @@ const PaywallHost = lazy(() => import('./components/subscription/PaywallHost'))
 const NotFound = lazy(() => import('./components/ui/NotFound'))
 const Marketing = lazy(() => import('./components/marketing/Marketing'))
 const Plans = lazy(() => import('./components/marketing/Plans'))
+const TeachersLanding = lazy(() => import('./components/marketing/TeachersLanding'))
 const GradePackLanding = lazy(() => import('./components/marketing/GradePackLanding'))
 const PrivacyPolicy = lazy(() => import('./components/marketing/PrivacyPolicy'))
 const Terms = lazy(() => import('./components/marketing/Terms'))
@@ -379,14 +380,12 @@ export default function App() {
           <Route path="/welcome"  element={<Navigate to="/" replace />} />
           <Route path="/pricing"  element={<Plans />} />
           <Route path="/plans"    element={<Navigate to="/pricing" replace />} />
-          {/* Legacy teacher-funnel URLs (/teachers, /teachers/samples, …) that old
-              launch docs reference and Google may have indexed, but the public
-              teacher landing was never built — so they 404'd. Send them to /pricing
-              (the live public teacher entry point). 301'd at the hosting layer
-              (firebase.json); these client-side redirects are the dev-server
-              fallback. Replace with a real landing if the teacher funnel ships. */}
-          <Route path="/teachers"   element={<Navigate to="/pricing" replace />} />
-          <Route path="/teachers/*" element={<Navigate to="/pricing" replace />} />
+          {/* Public teacher landing — sample library + funnel into /register.
+              Legacy sub-paths (/teachers/samples from old launch docs)
+              canonicalise to the landing itself: 301'd at the hosting layer
+              (firebase.json); the splat <Navigate> is the dev-server fallback. */}
+          <Route path="/teachers"   element={<TeachersLanding />} />
+          <Route path="/teachers/*" element={<Navigate to="/teachers" replace />} />
           {/* Grade-specific landing pages — the URLs to share in WhatsApp
               posts. React Router v6 can't match a partial dynamic segment
               (`/grade-:slug`), so each live grade gets an explicit route and

@@ -105,8 +105,9 @@ console.log('\nredirect integrity (legacy/parked marketing URLs → canonical)')
 const HOSTING_REDIRECTS = [
   { source: '/welcome', destination: '/' },
   { source: '/plans', destination: '/pricing' },
-  { source: '/teachers', destination: '/pricing' },
-  { source: '/teachers/**', destination: '/pricing' },
+  // /teachers is a real landing page now (#851 parked it at /pricing until
+  // it shipped); legacy sub-paths like /teachers/samples canonicalise onto it.
+  { source: '/teachers/**', destination: '/teachers' },
 ]
 const redirects = firebaseJson?.hosting?.redirects || []
 for (const r of HOSTING_REDIRECTS) {
@@ -122,21 +123,19 @@ for (const r of HOSTING_REDIRECTS) {
 }
 
 // SPA-layer fallback for the dev server, where firebase.json redirects don't run.
-for (const p of ['/teachers', '/teachers/*']) {
-  test(`App.jsx <Navigate> fallback for ${p} -> /pricing`, () => {
-    const r = byPath(p)
-    assert(r, `App.jsx has no <Route path="${p}">`)
-    assert(
-      r.redirect && r.redirectTo === '/pricing',
-      `App.jsx ${p} does not <Navigate to="/pricing"> (got ${r.redirectTo || 'no <Navigate>'})`,
-    )
-  })
-}
+test('App.jsx <Navigate> fallback for /teachers/* -> /teachers', () => {
+  const r = byPath('/teachers/*')
+  assert(r, 'App.jsx has no <Route path="/teachers/*">')
+  assert(
+    r.redirect && r.redirectTo === '/teachers',
+    `App.jsx /teachers/* does not <Navigate to="/teachers"> (got ${r.redirectTo || 'no <Navigate>'})`,
+  )
+})
 
 // ── 2. Public routes stay public ────────────────────────────────────
 console.log('\npublic routes are reachable without auth')
 const PUBLIC_ROUTES = [
-  '/', '/pricing', '/grade-7', '/grade-12', '/privacy', '/terms',
+  '/', '/pricing', '/teachers', '/grade-7', '/grade-12', '/privacy', '/terms',
   '/papers', '/blog', '/status', '/login', '/register',
   '/games', '/games/leaderboard',
 ]
@@ -207,9 +206,16 @@ for (const loc of locs) {
 }
 
 // Redirect SOURCES must never be advertised as canonical sitemap URLs.
+// Exception: a splat redirect INTO its own base ("/teachers/**" -> "/teachers")
+// is canonicalisation of sub-paths, not a parked URL — the base itself is a
+// real page and may be advertised.
 const redirectSources = new Set([
-  ...redirects.map((r) => r.source.replace(/\/\*\*$/, '')),
-  ...routes.filter((r) => r.redirect).map((r) => r.path.replace(/\/\*$/, '')),
+  ...redirects
+    .filter((r) => r.destination !== r.source.replace(/\/\*\*$/, ''))
+    .map((r) => r.source.replace(/\/\*\*$/, '')),
+  ...routes
+    .filter((r) => r.redirect && r.redirectTo !== r.path.replace(/\/\*$/, ''))
+    .map((r) => r.path.replace(/\/\*$/, '')),
 ])
 test('sitemap does not advertise any redirect source', () => {
   const bad = locs.filter((l) => redirectSources.has(l))
