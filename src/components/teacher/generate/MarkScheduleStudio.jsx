@@ -20,6 +20,7 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { TEACHER_GRADES } from '../../../utils/teacherTools'
 import { buildSchedule, suggestComment, rankPupils } from '../../../utils/markSchedule'
 import { downloadMarkScheduleDocx } from '../../../utils/markScheduleToDocx'
+import { downloadMarkScheduleXlsx } from '../../../utils/markScheduleToXlsx'
 import { saveMarkScheduleGeneration } from '../../../utils/teacherLibraryService'
 import { clampInt } from '../../../utils/inputs.js'
 import { Link } from 'react-router-dom'
@@ -197,6 +198,18 @@ export default function MarkScheduleStudio() {
     } catch (err) {
       console.error('[MarkScheduleStudio] docx export failed', err)
       toast.error('Could not build the Word file. Please try again.')
+    }
+  }
+
+  async function onExportXlsx() {
+    if (!artifact) return
+    const name = `${header.grade}_term${header.term}_${header.year}_mark-schedule.xlsx`
+    try {
+      await downloadMarkScheduleXlsx(artifact, name)
+      toast.success('Excel workbook downloaded — totals and positions stay live when you edit marks.')
+    } catch (err) {
+      console.error('[MarkScheduleStudio] xlsx export failed', err)
+      toast.error('Could not build the Excel file. Please try again.')
     }
   }
 
@@ -403,6 +416,9 @@ export default function MarkScheduleStudio() {
                   className="studio-btn-ghost disabled:opacity-50"
                 >
                   {saving ? 'Saving…' : generationId ? (dirtySinceSave ? '💾 Update in library' : '✓ Saved') : '💾 Save to library'}
+                </button>
+                <button type="button" onClick={onExportXlsx} disabled={!artifact} className="studio-btn-ghost disabled:opacity-50">
+                  📊 Download .xlsx (live formulas)
                 </button>
                 <button type="button" onClick={onExportDocx} disabled={!artifact} className="studio-btn-primary disabled:opacity-50">
                   📄 Download .docx (landscape)
