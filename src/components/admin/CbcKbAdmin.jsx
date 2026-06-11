@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import SeoHelmet from '../seo/SeoHelmet'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import SyllabusPdfUploadPanel from './SyllabusPdfUploadPanel'
 import BulkGenerateButton from './BulkGenerateButton'
 import BulkPublishQuizzesButton from './BulkPublishQuizzesButton'
@@ -163,6 +164,10 @@ export default function CbcKbAdmin() {
   const [editing, setEditing] = useState(null) // { studioSubject, sheet, mode, original?, cells }
   const [editingCustom, setEditingCustom] = useState(null) // KB-shape topic, or 'new'
   const [toast, setToast] = useState('')
+  // Delete awaiting ConfirmDialog approval —
+  // { kind: 'row', payload } | { kind: 'custom', topic }.
+  const [pendingDelete, setPendingDelete] = useState(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
 
   const flashToast = useCallback((msg, ms = 5000) => {
     setToast(msg)
@@ -292,14 +297,21 @@ export default function CbcKbAdmin() {
     return true
   }
 
-  async function onDeleteRow({ studioSubject, sheet, topic, subtopic }) {
-    if (!window.confirm(`Delete this row?\n\nTopic: ${topic || '—'}\nSub-topic: ${subtopic || '—'}\n\nIt will be hidden from teachers and the AI generators.`)) {
-      return
+  function onDeleteRow(payload) {
+    setPendingDelete({ kind: 'row', payload })
+  }
+
+  async function performDeleteRow(payload) {
+    setDeleteBusy(true)
+    try {
+      const res = await removeSyllabusRow(payload)
+      if (!res.ok) { flashToast(`Delete failed: ${res.error}`); return }
+      flashToast('Row deleted. Use "View overrides" to restore.')
+      await load()
+    } finally {
+      setDeleteBusy(false)
+      setPendingDelete(null)
     }
-    const res = await removeSyllabusRow({ studioSubject, sheet, topic, subtopic })
-    if (!res.ok) { flashToast(`Delete failed: ${res.error}`); return }
-    flashToast('Row deleted. Use "View overrides" to restore.')
-    await load()
   }
 
   async function onRestoreRow({ studioSubject, sheet, topic, subtopic }) {
@@ -324,16 +336,23 @@ export default function CbcKbAdmin() {
     }
   }
 
-  async function onDeleteCustomTopic(topic) {
-    if (!window.confirm(`Delete custom topic "${topic.topic}" (${topic.grade} ${topic.subject})?`)) {
-      return
-    }
-    const ok = await deleteCbcTopic(topic.id)
-    if (ok) {
-      flashToast('Topic deleted.')
-      await load()
-    } else {
-      flashToast('Delete failed — check console.')
+  function onDeleteCustomTopic(topic) {
+    setPendingDelete({ kind: 'custom', topic })
+  }
+
+  async function performDeleteCustomTopic(topic) {
+    setDeleteBusy(true)
+    try {
+      const ok = await deleteCbcTopic(topic.id)
+      if (ok) {
+        flashToast('Topic deleted.')
+        await load()
+      } else {
+        flashToast('Delete failed — check console.')
+      }
+    } finally {
+      setDeleteBusy(false)
+      setPendingDelete(null)
     }
   }
 
@@ -498,6 +517,29 @@ export default function CbcKbAdmin() {
           onSave={onSaveCustomTopic}
         />
       )}
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title={pendingDelete?.kind === 'row' ? 'Delete this row?' : 'Delete this custom topic?'}
+        message={pendingDelete?.kind === 'row' ? (
+          <>
+            <p>Topic: <strong className="theme-text">{pendingDelete?.payload?.topic || '—'}</strong></p>
+            <p>Sub-topic: <strong className="theme-text">{pendingDelete?.payload?.subtopic || '—'}</strong></p>
+            <p className="mt-2">It will be hidden from teachers and the AI generators.</p>
+          </>
+        ) : (
+          <>You're about to delete <strong className="theme-text">"{pendingDelete?.topic?.topic}"</strong> ({pendingDelete?.topic?.grade} {pendingDelete?.topic?.subject}).</>
+        )}
+        confirmLabel="Delete"
+        variant="danger"
+        loading={deleteBusy}
+        onConfirm={() => {
+          if (!pendingDelete) return
+          if (pendingDelete.kind === 'row') performDeleteRow(pendingDelete.payload)
+          else performDeleteCustomTopic(pendingDelete.topic)
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
     </section>
   )
 }

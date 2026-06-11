@@ -32,6 +32,7 @@ import {
 import app, { storage, db } from '../../firebase/config'
 import { useAuth } from '../../contexts/AuthContext'
 import { TEACHER_GRADES, TEACHER_SUBJECTS } from '../../utils/teacherTools'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import { useToast } from '../ui/Toast'
 
 const functions = getFunctions(app, 'us-central1')
@@ -114,6 +115,8 @@ export default function CurriculumUploadPanel() {
   const [uploads, setUploads] = useState([])
   const [uploadsLoading, setUploadsLoading] = useState(true)
   const [deletingId, setDeletingId] = useState(null)
+  // Upload id awaiting ConfirmDialog approval before the delete callable runs.
+  const [pendingDeleteId, setPendingDeleteId] = useState(null)
   const inputRef = useRef(null)
 
   // Subscribe to the last 30 uploads so the table refreshes when a new
@@ -228,13 +231,12 @@ export default function CurriculumUploadPanel() {
     }
   }
 
-  async function handleDelete(uploadId) {
+  function handleDelete(uploadId) {
     if (!uploadId) return
-    const confirmDelete = window.confirm(
-      'Remove this curriculum upload? It will be deleted from search ' +
-        'results immediately.',
-    )
-    if (!confirmDelete) return
+    setPendingDeleteId(uploadId)
+  }
+
+  async function performDelete(uploadId) {
     setDeletingId(uploadId)
     try {
       await deleteCallable({ id: uploadId })
@@ -242,6 +244,7 @@ export default function CurriculumUploadPanel() {
       toast.error(`Delete failed: ${e?.message || 'unknown error'}`)
     } finally {
       setDeletingId(null)
+      setPendingDeleteId(null)
     }
   }
 
@@ -496,6 +499,17 @@ export default function CurriculumUploadPanel() {
           </div>
         )}
       </section>
+
+      <ConfirmDialog
+        open={Boolean(pendingDeleteId)}
+        title="Remove this curriculum upload?"
+        message="It will be deleted from search results immediately."
+        confirmLabel="Remove"
+        variant="danger"
+        loading={Boolean(deletingId)}
+        onConfirm={() => performDelete(pendingDeleteId)}
+        onCancel={() => setPendingDeleteId(null)}
+      />
     </div>
   )
 }

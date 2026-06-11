@@ -5,6 +5,7 @@ import { useFirestore } from '../../hooks/useFirestore'
 import { LESSON_GRADES, LESSON_SUBJECTS } from './lessonConstants'
 import Button from '../ui/Button'
 import Skeleton from '../ui/Skeleton'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import SeoHelmet from '../seo/SeoHelmet'
 
 const STATUS = {
@@ -130,6 +131,8 @@ export default function LessonDashboard() {
   const [loading, setLoading] = useState(true)
   const [busyId, setBusyId] = useState(null)
   const [toast, setToast] = useState(null)
+  // Lesson awaiting ConfirmDialog approval before delete.
+  const [pendingDelete, setPendingDelete] = useState(null)
   const [filters, setFilters] = useState({ search: '', grade: '', subject: '', topic: '', status: '' })
 
   function show(message, error = false) {
@@ -218,17 +221,22 @@ export default function LessonDashboard() {
     }
   }
 
-  async function removeLesson(lesson) {
-    if (!window.confirm(`Delete "${lesson.title}"? This cannot be undone.`)) return
-    setBusyId(lesson.id)
+  function removeLesson(lesson) {
+    setPendingDelete(lesson)
+  }
+
+  async function performRemoveLesson() {
+    if (!pendingDelete) return
+    setBusyId(pendingDelete.id)
     try {
-      await deleteLesson(lesson.id)
+      await deleteLesson(pendingDelete.id)
       show('Lesson deleted.')
       await loadLessons()
     } catch (error) {
       show(error.message || 'Could not delete lesson.', true)
     } finally {
       setBusyId(null)
+      setPendingDelete(null)
     }
   }
 
@@ -314,6 +322,17 @@ export default function LessonDashboard() {
           ))
         )}
       </div>
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title="Delete this lesson?"
+        message={<>You're about to delete <strong className="theme-text">"{pendingDelete?.title}"</strong>. This cannot be undone.</>}
+        confirmLabel="Delete"
+        variant="danger"
+        loading={Boolean(pendingDelete) && busyId === pendingDelete?.id}
+        onConfirm={performRemoveLesson}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   )
 }

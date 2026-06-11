@@ -48,6 +48,7 @@ import { NoteUploader }  from '../components/NoteUploader'
 import { PublishToggle } from '../components/PublishToggle'
 import { SlideNotesReader } from '../components/SlideNotesReader'
 import SeoHelmet         from '../../../components/seo/SeoHelmet'
+import ConfirmDialog     from '../../../components/ui/ConfirmDialog'
 import { useToast }      from '../../../components/ui/Toast'
 import '../styles/notes.css'
 
@@ -96,6 +97,10 @@ export function AdminNoteEditor() {
   // AI highlights generation state: 'idle' | 'loading' | 'done' | 'error'
   const [smartState, setSmartState] = useState('idle')
   const [smartMsg,   setSmartMsg]   = useState('')
+
+  // Which action awaits ConfirmDialog approval — 'delete' | 'pictures' | null.
+  const [pendingConfirm, setPendingConfirm] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   const isLegacySlides = noteFormat === NOTE_FORMAT.SLIDES
     || (note && !note.noteFormat && Array.isArray(note.slides) && note.slides.length > 0)
@@ -228,27 +233,35 @@ export function AdminNoteEditor() {
     navigate(`/admin/quizzes/new?${params.toString()}`)
   }
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!docId) { navigate('/admin/lessons'); return }
-    if (!window.confirm('Delete this note? This cannot be undone.')) return
+    setPendingConfirm('delete')
+  }
+
+  const performDelete = async () => {
+    setDeleting(true)
     try {
       await deleteNote(docId)
       navigate('/admin/lessons')
     } catch (err) {
       console.error('delete failed', err)
       toast.error('Could not delete the note. Try again.')
+    } finally {
+      setDeleting(false)
+      setPendingConfirm(null)
     }
   }
 
   const hasPictureBlocks = noteFormat === NOTE_FORMAT.STUDY &&
     blocks.some(b => b && b.type === 'picture')
 
-  const handleGeneratePictures = async () => {
+  const handleGeneratePictures = () => {
     if (!docId || !hasPictureBlocks) return
-    if (!window.confirm(
-      'Generate illustrations for all picture blocks in this note?\n\n' +
-      'This may take a minute or two per block. Blocks that already have an image will be skipped.'
-    )) return
+    setPendingConfirm('pictures')
+  }
+
+  const performGeneratePictures = async () => {
+    setPendingConfirm(null)
     setPicState('generating')
     setPicResult(null)
     try {
@@ -467,6 +480,22 @@ export function AdminNoteEditor() {
           </>
         )}
       </main>
+
+      <ConfirmDialog
+        open={Boolean(pendingConfirm)}
+        title={pendingConfirm === 'delete' ? 'Delete this note?' : 'Generate illustrations?'}
+        message={pendingConfirm === 'delete'
+          ? 'This cannot be undone.'
+          : 'Illustrations are generated for every picture block in this note. This may take a minute or two per block; blocks that already have an image are skipped.'}
+        confirmLabel={pendingConfirm === 'delete' ? 'Delete' : 'Generate'}
+        variant={pendingConfirm === 'delete' ? 'danger' : 'primary'}
+        loading={deleting}
+        onConfirm={() => {
+          if (pendingConfirm === 'delete') performDelete()
+          else performGeneratePictures()
+        }}
+        onCancel={() => setPendingConfirm(null)}
+      />
     </div>
   )
 }

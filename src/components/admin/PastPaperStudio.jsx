@@ -23,6 +23,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import {
   ALLOWED_PAPER_MIME,
   ASSET_ROLES,
@@ -209,6 +210,10 @@ export default function PastPaperStudio() {
   const [uploading, setUploading] = useState(false)
   const [importing, setImporting] = useState(false)
   const [linkingQuiz, setLinkingQuiz] = useState(false)
+  // AI import over a non-empty quiz waits on ConfirmDialog — { quizId }.
+  const [pendingImport, setPendingImport] = useState(null)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
+  const [discarding, setDiscarding] = useState(false)
 
   // ── Bootstrap: create a draft doc (new) or load existing ─────────
   useEffect(() => {
@@ -506,10 +511,14 @@ export default function PastPaperStudio() {
     }
     const quizId = await ensureLinkedQuiz()
     if (!quizId) return
-    if (quizCount > 0 && typeof window !== 'undefined' &&
-        !window.confirm(`This will replace all ${quizCount} existing questions with the AI-extracted ones. Continue?`)) {
+    if (quizCount > 0) {
+      setPendingImport({ quizId })
       return
     }
+    runImport(quizId)
+  }
+
+  async function runImport(quizId) {
     setError('')
     setInfo('')
     setImporting(true)
@@ -530,6 +539,7 @@ export default function PastPaperStudio() {
       setError(err?.message || 'AI import failed.')
     } finally {
       setImporting(false)
+      setPendingImport(null)
     }
   }
 
@@ -579,15 +589,22 @@ export default function PastPaperStudio() {
     }
   }
 
-  async function discardDraft() {
+  function discardDraft() {
     if (!paperId || originalStatus === PAPER_STATUSES.PUBLISHED) return
-    if (typeof window !== 'undefined' && !window.confirm('Discard this draft? Uploaded files will be deleted.')) return
+    setConfirmDiscard(true)
+  }
+
+  async function performDiscard() {
+    setDiscarding(true)
     try {
       await deletePaper(paperId, assets.map((a) => a.path))
       navigate('/admin/papers')
     } catch (err) {
       console.error('[PastPaperStudio] discard failed', err)
       setError('Could not discard. Try again.')
+    } finally {
+      setDiscarding(false)
+      setConfirmDiscard(false)
     }
   }
 
@@ -729,6 +746,28 @@ export default function PastPaperStudio() {
           </button>
         )}
       </div>
+
+      <ConfirmDialog
+        open={Boolean(pendingImport)}
+        title="Replace existing questions?"
+        message={`This will replace all ${quizCount} existing question${quizCount === 1 ? '' : 's'} with the AI-extracted ones.`}
+        confirmLabel="Replace questions"
+        variant="danger"
+        loading={importing}
+        onConfirm={() => pendingImport && runImport(pendingImport.quizId)}
+        onCancel={() => setPendingImport(null)}
+      />
+
+      <ConfirmDialog
+        open={confirmDiscard}
+        title="Discard this draft?"
+        message="Uploaded files will be deleted."
+        confirmLabel="Discard draft"
+        variant="danger"
+        loading={discarding}
+        onConfirm={performDiscard}
+        onCancel={() => setConfirmDiscard(false)}
+      />
     </div>
   )
 }
