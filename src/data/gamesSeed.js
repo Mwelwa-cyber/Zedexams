@@ -946,6 +946,106 @@ const NUMBER_TARGET_G6 = {
 }
 
 /* ────────────────────────────────────────────────────────────────────
+ *  SORTING FACTORY — classification arcade (type: "sorting_factory")
+ *  questions[] = { question: item to sort, answer: bin label }.
+ *  Bins are derived from the unique answers (2–4 bins).
+ * ──────────────────────────────────────────────────────────────────── */
+const SORTING_LIVING_G3 = {
+  id: 'science_sorting_living_g3',
+  title: 'Sorting Factory: Living or Not?',
+  subject: 'science',
+  grade: 3,
+  type: 'sorting_factory',
+  difficulty: 'easy',
+  description: 'Flick each item into the right bin — living thing or non-living thing. Build a combo for bonus points!',
+  timer: 0,
+  points: 10,
+  active: true,
+  cbc_topic: 'Living and Non-living Things',
+  isDemo: true,
+  questions: [
+    { question: '🐐 Goat',         answer: 'Living' },
+    { question: '🪨 Rock',         answer: 'Non-living' },
+    { question: '🌽 Maize plant',  answer: 'Living' },
+    { question: '🚲 Bicycle',      answer: 'Non-living' },
+    { question: '🦅 Fish eagle',   answer: 'Living' },
+    { question: '🪑 Chair',        answer: 'Non-living' },
+    { question: '🍄 Mushroom',     answer: 'Living' },
+    { question: '🥁 Drum',         answer: 'Non-living' },
+    { question: '🐕 Dog',          answer: 'Living' },
+    { question: '☀️ The sun',      answer: 'Non-living' },
+    { question: '🥭 Mango tree',   answer: 'Living' },
+    { question: '🍲 Cooking pot',  answer: 'Non-living' },
+    { question: '🐔 Chicken',      answer: 'Living' },
+    { question: '🧱 Brick',        answer: 'Non-living' },
+    { question: '🌿 Grass',        answer: 'Living' },
+    { question: '💧 Water',        answer: 'Non-living' },
+  ],
+}
+
+const SORTING_WORD_TYPES_G5 = {
+  id: 'english_sorting_word_types_g5',
+  title: 'Sorting Factory: Word Types',
+  subject: 'english',
+  grade: 5,
+  type: 'sorting_factory',
+  difficulty: 'medium',
+  description: 'Noun, verb or adjective? Sort the words before the clock runs out and keep your combo alive.',
+  timer: 75,
+  points: 12,
+  active: true,
+  cbc_topic: 'Parts of Speech',
+  questions: [
+    { question: 'school',    answer: 'Noun' },
+    { question: 'run',       answer: 'Verb' },
+    { question: 'beautiful', answer: 'Adjective' },
+    { question: 'teacher',   answer: 'Noun' },
+    { question: 'sing',      answer: 'Verb' },
+    { question: 'tall',      answer: 'Adjective' },
+    { question: 'river',     answer: 'Noun' },
+    { question: 'dance',     answer: 'Verb' },
+    { question: 'clever',    answer: 'Adjective' },
+    { question: 'market',    answer: 'Noun' },
+    { question: 'write',     answer: 'Verb' },
+    { question: 'brave',     answer: 'Adjective' },
+    { question: 'lesson',    answer: 'Noun' },
+    { question: 'jump',      answer: 'Verb' },
+    { question: 'happy',     answer: 'Adjective' },
+  ],
+}
+
+const SORTING_STATES_G6 = {
+  id: 'science_sorting_states_g6',
+  title: 'Sorting Factory: States of Matter',
+  subject: 'science',
+  grade: 6,
+  type: 'sorting_factory',
+  difficulty: 'medium',
+  description: 'Solid, liquid or gas? Sort everyday things into the right state of matter at top speed.',
+  timer: 75,
+  points: 12,
+  active: true,
+  cbc_topic: 'States of Matter',
+  questions: [
+    { question: '🧊 Ice block',         answer: 'Solid' },
+    { question: '🥛 Milk',              answer: 'Liquid' },
+    { question: '♨️ Steam',             answer: 'Gas' },
+    { question: '🪨 Stone',             answer: 'Solid' },
+    { question: '⛽ Petrol',            answer: 'Liquid' },
+    { question: '💨 Air',               answer: 'Gas' },
+    { question: '🧱 Brick',             answer: 'Solid' },
+    { question: '🛢️ Cooking oil',       answer: 'Liquid' },
+    { question: '🫧 Oxygen',            answer: 'Gas' },
+    { question: '🔩 Iron nail',         answer: 'Solid' },
+    { question: '💧 Water',             answer: 'Liquid' },
+    { question: '🌫️ Smoke',             answer: 'Gas' },
+    { question: '🪵 Charcoal',          answer: 'Solid' },
+    { question: '🧃 Juice',             answer: 'Liquid' },
+    { question: '🎈 Air in a balloon',  answer: 'Gas' },
+  ],
+}
+
+/* ────────────────────────────────────────────────────────────────────
  *  Manifest
  * ──────────────────────────────────────────────────────────────────── */
 const DEFAULT_DEMO_GAME_IDS = new Set([
@@ -978,6 +1078,7 @@ export const GAMES_SEED = [
   SIGHT_WORDS_G2,
   SPELL_IT_RIGHT_G2,
   TIMES_TABLES_G3,
+  SORTING_LIVING_G3,
   WORD_BUILDER_G3,
   SPELL_IT_RIGHT_G3,
 
@@ -994,6 +1095,7 @@ export const GAMES_SEED = [
   DIGESTIVE_SYSTEM_G5,
   DECIMALS_G5,
   SPELL_IT_RIGHT_G5,
+  SORTING_WORD_TYPES_G5,
   ZAMBIA_PROVINCES_G5,
   ZAMBIA_PROVINCE_SHAPES_G5,
   AFRICA_CAPITALS_G5,        // active:false in the const above (deactivated)
@@ -1004,6 +1106,7 @@ export const GAMES_SEED = [
   GRAMMAR_G6,
   SPELL_IT_RIGHT_G6,
   SOLAR_SYSTEM_G6,
+  SORTING_STATES_G6,
   ZAMBIA_HISTORY_G6,
 
   // ── Outside primary CBC scope — kept in seed so admin can flip active=true if needed ──
