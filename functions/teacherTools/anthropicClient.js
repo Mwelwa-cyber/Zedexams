@@ -97,6 +97,23 @@ async function callClaude(apiKey, opts = {}) {
     outputConfig,
   } = opts;
 
+  // Monthly spend ceiling. No-op unless AI_MONTHLY_BUDGET_USD is set on the
+  // runtime; fails open so an accounting glitch never blocks a generation.
+  try {
+    const {getBudgetStatus} = require("../aiCostTracking");
+    const status = await getBudgetStatus();
+    if (status && status.overBudget) {
+      throw new HttpsError(
+          "resource-exhausted",
+          "The monthly AI budget has been reached. AI features are paused " +
+          "until the next billing month or until an admin raises the limit.",
+      );
+    }
+  } catch (err) {
+    if (err instanceof HttpsError) throw err;
+    console.warn("[anthropicClient] budget check failed (allowing call)", err);
+  }
+
   const sharedArgs = {
     apiKey, systemPrompt, cbcContextBlock, messages,
     maxTokens, temperature, model, thinking, outputConfig,

@@ -24,6 +24,13 @@ const {defineSecret} = require("firebase-functions/params");
 const nodemailer = require("nodemailer");
 const crypto = require("node:crypto");
 
+const {
+  getMonthlyBudgetUsd,
+  getMonthToDateCostUsd,
+  evaluateBudget,
+  monthKeyUtc,
+} = require("./aiCostTracking");
+
 const REGION = "us-central1";
 const ANOMALY_MULTIPLIER = 2;
 const HISTORY_DAYS = 7;
@@ -76,6 +83,96 @@ function getAdminEmails() {
       .split(",")
       .map((e) => e.trim().toLowerCase())
       .filter(Boolean);
+}
+
+/**
+ * Email the admin list when month-to-date AI spend approaches (80%) or
+ * reaches (100%) the configured monthly ceiling. No-op when the ceiling
+ * is unset or spend is comfortably under it. Runs daily, so while spend
+ * sits in the warn/over band the admin is nudged once a day.
+ */
+async function maybeSendBudgetAlert() {
+  const budgetUsd = getMonthlyBudgetUsd();
+  if (!budgetUsd) return;
+
+  let monthCostUsd = 0;
+  try {
+    monthCostUsd = await getMonthToDateCostUsd();
+  } catch (err) {
+    console.warn("[aiCostDailySummary] month-to-date read failed", err);
+    return;
+  }
+
+  const status = evaluateBudget({monthCostUsd, budgetUsd});
+  if (!status.warning && !status.overBudget) return;
+
+  const adminEmails = getAdminEmails();
+  const transporter = getTransporter();
+  const senderEmail = String(emailSmtpUser.value() || "").trim();
+  if (!transporter || !senderEmail || adminEmails.length === 0) {
+    console.warn(
+        "[aiCostDailySummary] budget threshold crossed but email not configured",
+        {monthCostUsd, budgetUsd, overBudget: status.overBudget},
+    );
+    return;
+  }
+
+  const month = monthKeyUtc();
+  const pct = Math.round(status.ratio * 100);
+  const senderDomain = senderEmail.split("@")[1] || "zedexams.com";
+  const headline = status.overBudget ?
+    "AI monthly budget REACHED — app AI calls are now paused" :
+    "AI monthly budget at " + pct + "% — heads up";
+
+  const text = [
+    headline + ".",
+    "",
+    `Month (${month}) so far: ${fmtUsd(monthCostUsd)}`,
+    `Ceiling:                ${fmtUsd(budgetUsd)}`,
+    `Used:                   ${pct}%`,
+    "",
+    status.overBudget ?
+      "App-side AI features are paused until next month or until an admin " +
+      "raises AI_MONTHLY_BUDGET_USD." :
+      "No action needed yet — this is an early warning.",
+    "",
+    "Note: this ceiling only covers the app's own Anthropic spend. " +
+    "Claude Code / managed-agent (Opus) usage on the same key is governed " +
+    "by the org spend limit in the Anthropic console, not by this alert.",
+    "",
+    "Dashboard: https://zedexams.com/admin/ai-costs",
+    "",
+    "— ZedExams ops",
+  ].join("\n");
+
+  const html = `<p><strong>${headline}.</strong></p>
+<table role="presentation" style="border-collapse:collapse;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px;">
+  <tr><td style="padding:4px 12px 4px 0;color:#4B6280;">Month (${month}) so far</td><td style="padding:4px 0;font-weight:bold;">${fmtUsd(monthCostUsd)}</td></tr>
+  <tr><td style="padding:4px 12px 4px 0;color:#4B6280;">Ceiling</td><td style="padding:4px 0;font-weight:bold;">${fmtUsd(budgetUsd)}</td></tr>
+  <tr><td style="padding:4px 12px 4px 0;color:#4B6280;">Used</td><td style="padding:4px 0;font-weight:bold;">${pct}%</td></tr>
+</table>
+<p style="margin-top:16px;">${status.overBudget ?
+    "App-side AI features are <strong>paused</strong> until next month or until an admin raises <code>AI_MONTHLY_BUDGET_USD</code>." :
+    "No action needed yet — this is an early warning."}</p>
+<p style="margin-top:16px;color:#4B6280;font-size:13px;">This ceiling only covers the app's own Anthropic spend. Claude Code / managed-agent (Opus) usage on the same key is governed by the org spend limit in the Anthropic console, not by this alert.</p>
+<p style="margin-top:16px;">Dashboard: <a href="https://zedexams.com/admin/ai-costs">/admin/ai-costs</a></p>
+<p style="color:#4B6280;">— ZedExams ops</p>`;
+
+  try {
+    await transporter.sendMail({
+      from: `ZedExams ops <${senderEmail}>`,
+      sender: senderEmail,
+      to: adminEmails.join(", "),
+      replyTo: senderEmail,
+      subject: `[ZedExams] ${status.overBudget ? "AI budget reached" : "AI budget at " + pct + "%"} — ${month} (${fmtUsd(monthCostUsd)} / ${fmtUsd(budgetUsd)})`,
+      text,
+      html,
+      messageId: `<ai-budget-${month}-${pct}-${crypto.randomUUID()}@${senderDomain}>`,
+      headers: {"X-Auto-Response-Suppress": "All"},
+    });
+  } catch (err) {
+    console.warn("[aiCostDailySummary] budget alert email failed", err);
+  }
 }
 
 const aiCostDailySummary = onSchedule({
@@ -173,6 +270,12 @@ const aiCostDailySummary = onSchedule({
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
     runMs: Date.now() - start,
   }).catch((err) => console.warn("[aiCostDailySummary] rollup write failed", err));
+
+  // ── Monthly budget ceiling alert ──────────────────────────────
+  // Independent of the relative anomaly check: warns at 80% of the
+  // configured ceiling and alarms at 100% (when the gate has begun
+  // pausing app-side AI). No-op unless AI_MONTHLY_BUDGET_USD is set.
+  await maybeSendBudgetAlert();
 
   if (!anomaly) return;
 
