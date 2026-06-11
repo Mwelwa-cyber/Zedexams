@@ -3,6 +3,7 @@ import {
 } from 'react'
 
 import SeoHelmet from '../seo/SeoHelmet'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import {
   activateVersion,
   auditArchivedData,
@@ -49,6 +50,8 @@ export default function CurriculumReplaceStudio() {
   const [toast, setToast] = useState('')
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [rollbackConfirmOpen, setRollbackConfirmOpen] = useState(false)
+  // Permanent-delete flows confirm through ConfirmDialog — 'rag' | 'version'.
+  const [pendingDanger, setPendingDanger] = useState(null)
   const [expandedSubject, setExpandedSubject] = useState(null)
 
   // Workspace tab — separates the sequential workflow from versions/audit
@@ -298,12 +301,11 @@ export default function CurriculumReplaceStudio() {
     }
   }
 
-  async function onDeleteRag() {
-    if (!window.confirm(
-      'PERMANENTLY DELETE the legacy RAG data (curriculum/* + rag_chunks/*)?\n\n' +
-      'This is irreversible. The server will also refuse if RAG fallback ' +
-      'is still on (usePrivateCurriculum=true on _meta).',
-    )) return
+  function onDeleteRag() {
+    setPendingDanger('rag')
+  }
+
+  async function performDeleteRag() {
     setBusy(true)
     try {
       const result = await deleteArchivedRag()
@@ -320,21 +322,20 @@ export default function CurriculumReplaceStudio() {
       }
     } finally {
       setBusy(false)
+      setPendingDanger(null)
     }
   }
 
-  async function onDeleteVersion() {
+  function onDeleteVersion() {
     if (!deleteVersionInput.trim()) return
     if (deleteVersionInput !== deleteVersionConfirm) {
       flashToast('Type the same version id in both fields to confirm.')
       return
     }
-    if (!window.confirm(
-      `PERMANENTLY DELETE cbcKnowledgeBase/${deleteVersionInput}/topics/* ` +
-      'and every lessons subcollection beneath it?\n\n' +
-      'This is irreversible. The server refuses if this version is the ' +
-      'current active or current rollback target.',
-    )) return
+    setPendingDanger('version')
+  }
+
+  async function performDeleteVersion() {
     setBusy(true)
     try {
       const result = await deleteOldVersion({
@@ -355,6 +356,7 @@ export default function CurriculumReplaceStudio() {
       }
     } finally {
       setBusy(false)
+      setPendingDanger(null)
     }
   }
 
@@ -1135,6 +1137,31 @@ export default function CurriculumReplaceStudio() {
           </div>
         </div>
       )}
+
+      {/* Permanent-delete confirms (legacy RAG data / old KB version) */}
+      <ConfirmDialog
+        open={Boolean(pendingDanger)}
+        title={pendingDanger === 'rag' ? 'Permanently delete legacy RAG data?' : `Permanently delete "${deleteVersionInput}"?`}
+        message={pendingDanger === 'rag' ? (
+          <>
+            <p>This deletes <code>curriculum/*</code> and <code>rag_chunks/*</code>. It is irreversible.</p>
+            <p className="mt-2">The server will refuse if RAG fallback is still on (<code>usePrivateCurriculum=true</code> on <code>_meta</code>).</p>
+          </>
+        ) : (
+          <>
+            <p>This deletes <code>cbcKnowledgeBase/{deleteVersionInput}/topics/*</code> and every lessons subcollection beneath it. It is irreversible.</p>
+            <p className="mt-2">The server refuses if this version is the current active or current rollback target.</p>
+          </>
+        )}
+        confirmLabel="Delete permanently"
+        variant="danger"
+        loading={busy}
+        onConfirm={() => {
+          if (pendingDanger === 'rag') performDeleteRag()
+          else if (pendingDanger === 'version') performDeleteVersion()
+        }}
+        onCancel={() => setPendingDanger(null)}
+      />
     </div>
   )
 }
