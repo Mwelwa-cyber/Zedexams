@@ -133,7 +133,8 @@ function commentsTable(schedule) {
 
 export function buildMarkScheduleDocument(schedule, { mode = 'marks' } = {}) {
   const h = schedule.header || {}
-  const heading = `GRADE ${h.grade ?? ''} · TERM ${h.term ?? ''} MARK SCHEDULE — ${h.year ?? ''}`
+  const gradeLabel = String(h.grade ?? '').replace(/^G/i, '')
+  const heading = `GRADE ${gradeLabel} · TERM ${h.term ?? ''} MARK SCHEDULE — ${h.year ?? ''}`
 
   return new Document({
     sections: [
