@@ -136,6 +136,28 @@ async function assertDailyLimit(uid, role, action) {
   });
 }
 
+// Monthly spend ceiling. No-op unless AI_MONTHLY_BUDGET_USD is set on the
+// runtime. When the month-to-date app spend has hit the ceiling, refuse
+// the call so a runaway can't keep burning credit. Fails open — a budget
+// read error must never block a legitimate request.
+const MONTHLY_BUDGET_MESSAGE =
+  "The monthly AI budget has been reached. AI features are paused until " +
+  "the next billing month or until an admin raises the limit.";
+
+async function assertAiBudget() {
+  let status;
+  try {
+    const {getBudgetStatus} = require("./aiCostTracking");
+    status = await getBudgetStatus();
+  } catch (err) {
+    console.warn("[aiService] budget check failed (allowing call)", err);
+    return;
+  }
+  if (status && status.overBudget) {
+    throw new HttpsError("resource-exhausted", MONTHLY_BUDGET_MESSAGE);
+  }
+}
+
 async function callOpenAI(apiKey, {
   messages,
   maxTokens = 500,
@@ -203,6 +225,7 @@ async function callAnthropic(apiKey, {
   tools,
   toolChoice,
 }) {
+  await assertAiBudget();
   let res;
   try {
     res = await anthropicFetch(ANTHROPIC_URL, {
@@ -1124,6 +1147,7 @@ async function callAnthropicStream(apiKey, {
   // it and fire recordAiUsage after the stream completes.
   track = null,
 }, onToken) {
+  await assertAiBudget();
   let res;
   try {
     res = await anthropicFetch(ANTHROPIC_URL, {
