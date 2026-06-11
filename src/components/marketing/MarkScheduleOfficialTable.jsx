@@ -36,19 +36,19 @@ export default function MarkScheduleOfficialTable({ schedule }) {
         </div>
       </div>
 
-      {/* Schedule grid */}
+      {/* Schedule grid — the clean A4 schedule, no comment column: with
+          five subjects (and classes of 80+) the page has no room for one. */}
       <div className="mt-4 overflow-x-auto">
-        <table className="w-full border-collapse border border-black min-w-[760px]">
+        <table className="w-full border-collapse border border-black min-w-[620px]">
           <thead>
             <tr className="align-bottom">
-              <th className={`${TD} font-bold text-left w-[4%]`}>SN</th>
-              <th className={`${TD} font-bold text-left w-[20%]`}>PUPIL'S NAME</th>
+              <th className={`${TD} font-bold text-left w-[5%]`}>SN</th>
+              <th className={`${TD} font-bold text-left w-[26%]`}>PUPIL'S NAME</th>
               {subjects.map((s) => (
                 <th key={s.key} className={`${TD} font-bold text-center`}>{s.label}</th>
               ))}
               <th className={`${TD} font-bold text-center`}>TOTAL</th>
               <th className={`${TD} font-bold text-center`}>POSITION</th>
-              <th className={`${TD} font-bold text-left w-[24%]`}>COMMENT</th>
             </tr>
             {/* Max-marks row, exactly like the printed schedule */}
             <tr className="italic">
@@ -58,7 +58,6 @@ export default function MarkScheduleOfficialTable({ schedule }) {
                 <td key={s.key} className={`${TD} text-center`}>{s.max}</td>
               ))}
               <td className={`${TD} text-center font-bold`}>{maxTotal}</td>
-              <td className={TD} />
               <td className={TD} />
             </tr>
           </thead>
@@ -72,16 +71,51 @@ export default function MarkScheduleOfficialTable({ schedule }) {
                 ))}
                 <td className={`${TD} text-center font-bold`}>{p.total}</td>
                 <td className={`${TD} text-center font-bold`}>{p.position}</td>
-                <td className={`${TD} text-[11px]`}>{p.comment}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
 
+      {/* Page 2 — the report comments sheet. The schedule stays clean;
+          the suggested comments print on their own sheet, one line per
+          pupil, ready to copy into report books. */}
+      <div className="mt-6 pt-5 border-t-2 border-dashed border-black/30">
+        <div className="text-center">
+          <div className="text-[10px] font-bold tracking-[0.2em] uppercase text-black/50">Page 2</div>
+          <div className="mt-1 border-y border-black py-1 text-sm font-bold tracking-[0.12em] uppercase inline-block px-6">
+            Report Comments Sheet
+          </div>
+        </div>
+        <div className="mt-3 overflow-x-auto">
+          <table className="w-full border-collapse border border-black min-w-[520px]">
+            <thead>
+              <tr>
+                <th className={`${TD} font-bold text-left w-[6%]`}>SN</th>
+                <th className={`${TD} font-bold text-left w-[26%]`}>PUPIL'S NAME</th>
+                <th className={`${TD} font-bold text-center w-[10%]`}>POSITION</th>
+                <th className={`${TD} font-bold text-left`}>SUGGESTED COMMENT</th>
+              </tr>
+            </thead>
+            <tbody>
+              {(schedule.pupils || []).map((p) => (
+                <tr key={p.sn}>
+                  <td className={`${TD} text-center`}>{p.sn}</td>
+                  <td className={`${TD} font-bold uppercase`}>{p.name}</td>
+                  <td className={`${TD} text-center font-bold`}>{p.position}</td>
+                  <td className={TD}>{p.comment}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <p className="mt-3 text-[11px] italic text-black/70">
-        Totals, positions and comments are filled in automatically — ties share a
-        position, and every comment can be edited before printing.
+        Totals and positions are calculated automatically — ties share a position.
+        Suggested comments print on their own sheet so the A4 schedule stays clean
+        even for classes of 80+, ready to copy into report books. Every comment is
+        editable.
       </p>
     </article>
   )

@@ -702,7 +702,7 @@ export const TEACHER_SAMPLES = [
     // positions (dense ranking, ties share a place) and per-band suggested
     // comments are computed automatically. Pupils are FICTIONAL — the
     // reference XLSX contains real learner names that must never ship.
-    blurb: 'Enter the marks — totals, class positions and report comments fill themselves in. Ties share a position, and every comment is editable.',
+    blurb: 'Enter the marks — totals and class positions fill themselves in, and suggested report comments print on their own sheet (the A4 schedule stays clean, even for classes of 80+).',
     comingSoon: true,
     layout: 'official-table',
     artifact: {
