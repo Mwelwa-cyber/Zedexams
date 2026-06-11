@@ -20,7 +20,7 @@ import { TEACHER_SAMPLES } from '../../data/teacherSamples'
 import LessonPlanView from '../teacher/views/LessonPlanView'
 import LessonPlanOfficialTable from './LessonPlanOfficialTable'
 import WorksheetView from '../teacher/views/WorksheetView'
-import SchemeOfWorkView from '../teacher/views/SchemeOfWorkView'
+import SchemeOfWorkOfficialTable from './SchemeOfWorkOfficialTable'
 import FlashcardsView from '../teacher/views/FlashcardsView'
 
 function Section({ children, className = '', id }) {
@@ -84,7 +84,7 @@ function SampleRenderer({ sample, showAnswers, planLayout }) {
     case 'worksheet':
       return <WorksheetView worksheet={sample.artifact} showAnswers={showAnswers} />
     case 'scheme_of_work':
-      return <SchemeOfWorkView scheme={sample.artifact} />
+      return <SchemeOfWorkOfficialTable scheme={sample.artifact} />
     case 'flashcards':
       return <FlashcardsView flashcards={sample.artifact} />
     default:
