@@ -107,7 +107,7 @@ function PlanCard({ plan, billing, popular = false, onCta }) {
       className={`relative flex flex-col ${popular ? '' : 'theme-text'}`}
     >
       {popular && (
-        <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-white/20 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-white">
+        <span className="absolute -top-3 left-1/2 -translate-x-1/2 z-10 rounded-full bg-white px-3 py-1 text-[11px] font-black uppercase tracking-wider text-[color:var(--accent-fg)] shadow-elev-sm ring-1 ring-black/5">
           Most popular
         </span>
       )}
