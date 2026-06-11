@@ -1046,6 +1046,88 @@ const SORTING_STATES_G6 = {
 }
 
 /* ────────────────────────────────────────────────────────────────────
+ *  SENTENCE SCRAMBLE — ordering engine (type: "sentence_scramble")
+ *  answer = sentence (tiles are words) OR steps separated by '|'
+ *  (tiles are the ordered steps). question = optional clue.
+ * ──────────────────────────────────────────────────────────────────── */
+const SENTENCE_SCRAMBLE_G2 = {
+  id: 'english_sentence_scramble_g2',
+  title: 'Sentence Builder',
+  subject: 'english',
+  grade: 2,
+  type: 'sentence_scramble',
+  difficulty: 'easy',
+  description: 'The words are jumbled! Tap them in the right order to build the sentence.',
+  timer: 0,
+  points: 10,
+  active: true,
+  cbc_topic: 'Sentence Construction',
+  isDemo: true,
+  questions: [
+    { question: '', answer: 'The goat eats grass.' },
+    { question: '', answer: 'I go to school.' },
+    { question: '', answer: 'Mum cooks nshima.' },
+    { question: '', answer: 'The sun is hot.' },
+    { question: '', answer: 'We play football.' },
+    { question: '', answer: 'The dog runs fast.' },
+    { question: '', answer: 'I like my teacher.' },
+    { question: '', answer: 'Birds fly in the sky.' },
+    { question: '', answer: 'Dad reads a book.' },
+    { question: '', answer: 'The fish swims in water.' },
+  ],
+}
+
+const SENTENCE_SCRAMBLE_G5 = {
+  id: 'english_sentence_scramble_g5',
+  title: 'Sentence Scramble',
+  subject: 'english',
+  grade: 5,
+  type: 'sentence_scramble',
+  difficulty: 'medium',
+  description: 'Longer sentences, trickier word order. Rebuild each one perfectly on the first try for bonus points.',
+  timer: 0,
+  points: 12,
+  active: true,
+  cbc_topic: 'Sentence Construction',
+  questions: [
+    { question: '', answer: 'Lusaka is the capital city of Zambia.' },
+    { question: '', answer: 'The farmers planted maize before the rains.' },
+    { question: '', answer: 'My sister always finishes her homework early.' },
+    { question: '', answer: 'The mighty Zambezi flows over Victoria Falls.' },
+    { question: '', answer: 'We visited the market to buy fresh vegetables.' },
+    { question: '', answer: 'The clever pupil answered every question correctly.' },
+    { question: '', answer: 'Heavy rain fell during the night.' },
+    { question: '', answer: 'Our teacher told us an interesting story.' },
+    { question: '', answer: 'The bus leaves the station at seven.' },
+    { question: '', answer: 'Everyone clapped when the choir finished singing.' },
+  ],
+}
+
+const ORDER_THE_STEPS_G6 = {
+  id: 'science_order_steps_g6',
+  title: 'Order the Steps',
+  subject: 'science',
+  grade: 6,
+  type: 'sentence_scramble',
+  difficulty: 'medium',
+  description: 'Nature works in order — water cycles, life cycles, farming seasons. Put each process back in sequence.',
+  timer: 0,
+  points: 12,
+  active: true,
+  cbc_topic: 'Natural Cycles',
+  questions: [
+    { question: 'Put the stages of the water cycle in order.',            answer: 'Evaporation|Condensation|Rainfall|Collection' },
+    { question: 'Order the life cycle of a butterfly.',                   answer: 'Egg|Caterpillar|Pupa|Butterfly' },
+    { question: 'Order the life cycle of a frog.',                        answer: 'Egg|Tadpole|Froglet|Adult frog' },
+    { question: 'Trace food through the digestive system.',               answer: 'Mouth|Gullet|Stomach|Intestines' },
+    { question: 'Order how a bean seed grows.',                           answer: 'Seed|Roots grow|Shoot appears|Leaves open' },
+    { question: 'Put a maize farming season in order.',                   answer: 'Plough the field|Plant the seeds|Weed the crop|Harvest the maize' },
+    { question: 'Order a day from start to finish.',                      answer: 'Sunrise|Morning|Afternoon|Sunset' },
+    { question: 'Order the stages of a mosquito’s life.',            answer: 'Egg|Larva|Pupa|Adult mosquito' },
+  ],
+}
+
+/* ────────────────────────────────────────────────────────────────────
  *  Manifest
  * ──────────────────────────────────────────────────────────────────── */
 const DEFAULT_DEMO_GAME_IDS = new Set([
@@ -1075,6 +1157,7 @@ export const GAMES_SEED = [
   SPELL_IT_RIGHT_G1,
   ADD_SUB_G2,
   NUMBER_TARGET_G2,
+  SENTENCE_SCRAMBLE_G2,
   SIGHT_WORDS_G2,
   SPELL_IT_RIGHT_G2,
   TIMES_TABLES_G3,
@@ -1096,6 +1179,7 @@ export const GAMES_SEED = [
   DECIMALS_G5,
   SPELL_IT_RIGHT_G5,
   SORTING_WORD_TYPES_G5,
+  SENTENCE_SCRAMBLE_G5,
   ZAMBIA_PROVINCES_G5,
   ZAMBIA_PROVINCE_SHAPES_G5,
   AFRICA_CAPITALS_G5,        // active:false in the const above (deactivated)
@@ -1107,6 +1191,7 @@ export const GAMES_SEED = [
   SPELL_IT_RIGHT_G6,
   SOLAR_SYSTEM_G6,
   SORTING_STATES_G6,
+  ORDER_THE_STEPS_G6,
   ZAMBIA_HISTORY_G6,
 
   // ── Outside primary CBC scope — kept in seed so admin can flip active=true if needed ──

@@ -2,6 +2,7 @@ import {
   CalculatorIcon,
   BookOpenIcon,
   InboxStackIcon,
+  QueueListIcon,
   BeakerIcon,
   GlobeAltIcon,
   PuzzlePieceIcon,
@@ -141,6 +142,7 @@ const GAME_TYPE_META = {
   map:          { icon: MapIcon,          label: 'Map Explorer' },
   number_target: { icon: CalculatorIcon,  label: 'Number Target' },
   sorting_factory: { icon: InboxStackIcon, label: 'Sorting' },
+  sentence_scramble: { icon: QueueListIcon, label: 'Scramble' },
 }
 
 export function gameTypeMeta(type) {
