@@ -10,6 +10,12 @@
  *   subjects — [{ key, label, max }]
  *   pupils   — [{ sn, name, marks: { [key]: n }, total, position, comment }]
  *
+ * `mode` is 'marks' (raw, out of each subject's max) or 'percent' —
+ * the percentage view is DERIVED here from the same marks (each subject
+ * converted to % of its max, plus an AVERAGE % column), demonstrating
+ * the studio's switch-and-everything-recalculates behaviour. Positions
+ * are the official ones from the raw totals in both views.
+ *
  * Serif on white with a black grid, mirroring the other official
  * documents.
  */
@@ -17,11 +23,17 @@
 const DOC_FONT = { fontFamily: "Georgia, 'Times New Roman', serif" }
 const TD = 'border border-black p-1.5 align-top'
 
-export default function MarkScheduleOfficialTable({ schedule }) {
+const pct = (mark, max) => (max > 0 ? Math.round((mark / max) * 100) : 0)
+
+export default function MarkScheduleOfficialTable({ schedule, mode = 'marks' }) {
   if (!schedule) return null
   const h = schedule.header || {}
   const subjects = schedule.subjects || []
   const maxTotal = subjects.reduce((sum, s) => sum + (s.max || 0), 0)
+  const isPercent = mode === 'percent'
+  const averagePct = (p) => Math.round(
+    subjects.reduce((sum, s) => sum + pct(p.marks?.[s.key] ?? 0, s.max), 0) / (subjects.length || 1),
+  )
 
   return (
     <article
@@ -45,9 +57,11 @@ export default function MarkScheduleOfficialTable({ schedule }) {
               <th className={`${TD} font-bold text-left w-[5%]`}>SN</th>
               <th className={`${TD} font-bold text-left w-[26%]`}>PUPIL'S NAME</th>
               {subjects.map((s) => (
-                <th key={s.key} className={`${TD} font-bold text-center`}>{s.label}</th>
+                <th key={s.key} className={`${TD} font-bold text-center`}>
+                  {s.label}{isPercent && ' %'}
+                </th>
               ))}
-              <th className={`${TD} font-bold text-center`}>TOTAL</th>
+              <th className={`${TD} font-bold text-center`}>{isPercent ? 'AVERAGE %' : 'TOTAL'}</th>
               <th className={`${TD} font-bold text-center`}>POSITION</th>
             </tr>
             {/* Max-marks row, exactly like the printed schedule */}
@@ -55,9 +69,9 @@ export default function MarkScheduleOfficialTable({ schedule }) {
               <td className={TD} />
               <td className={`${TD} text-right pr-2`}>Out of</td>
               {subjects.map((s) => (
-                <td key={s.key} className={`${TD} text-center`}>{s.max}</td>
+                <td key={s.key} className={`${TD} text-center`}>{isPercent ? 100 : s.max}</td>
               ))}
-              <td className={`${TD} text-center font-bold`}>{maxTotal}</td>
+              <td className={`${TD} text-center font-bold`}>{isPercent ? 100 : maxTotal}</td>
               <td className={TD} />
             </tr>
           </thead>
@@ -67,9 +81,11 @@ export default function MarkScheduleOfficialTable({ schedule }) {
                 <td className={`${TD} text-center`}>{p.sn}</td>
                 <td className={`${TD} font-bold uppercase`}>{p.name}</td>
                 {subjects.map((s) => (
-                  <td key={s.key} className={`${TD} text-center`}>{p.marks?.[s.key] ?? '—'}</td>
+                  <td key={s.key} className={`${TD} text-center`}>
+                    {isPercent ? pct(p.marks?.[s.key] ?? 0, s.max) : (p.marks?.[s.key] ?? '—')}
+                  </td>
                 ))}
-                <td className={`${TD} text-center font-bold`}>{p.total}</td>
+                <td className={`${TD} text-center font-bold`}>{isPercent ? averagePct(p) : p.total}</td>
                 <td className={`${TD} text-center font-bold`}>{p.position}</td>
               </tr>
             ))}
@@ -112,7 +128,9 @@ export default function MarkScheduleOfficialTable({ schedule }) {
       </div>
 
       <p className="mt-3 text-[11px] italic text-black/70">
-        Totals and positions are calculated automatically — ties share a position.
+        {isPercent
+          ? 'Every subject converts to a percentage of its maximum, with the average per pupil — switch views any time, nothing is retyped. Positions follow the official raw totals; ties share a position. '
+          : 'Totals and positions are calculated automatically — ties share a position. '}
         Suggested comments print on their own sheet so the A4 schedule stays clean
         even for classes of 80+, ready to copy into report books. Every comment is
         editable.
