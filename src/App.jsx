@@ -178,10 +178,8 @@ const AssessmentList = lazy(() => import('./components/teacher/AssessmentList'))
 // Teacher — AI Generators
 const LessonPlanStudio = lazy(() => import('./components/teacher/generate/LessonPlanStudio'))
 const LessonPlanGenerator = lazy(() => import('./components/teacher/generate/LessonPlanGenerator'))
-const FullLessonStudio = lazy(() => import('./components/teacher/generate/FullLessonStudio'))
 const HomeworkStudio = lazy(() => import('./components/teacher/generate/HomeworkStudio'))
 const AssessmentGenerator = lazy(() => import('./components/teacher/generate/AssessmentGenerator'))
-const ExamStudio = lazy(() => import('./components/teacher/generate/ExamStudio'))
 const WorksheetGenerator = lazy(() => import('./components/teacher/generate/WorksheetGenerator'))
 const FlashcardGenerator = lazy(() => import('./components/teacher/generate/FlashcardGenerator'))
 const SchemeOfWorkGenerator = lazy(() => import('./components/teacher/generate/SchemeOfWorkGenerator'))
@@ -557,10 +555,8 @@ export default function App() {
           <Route path="/teacher/lessons/:lessonId/edit"  element={<TeacherRoute><LessonEditor /></TeacherRoute>} />
           <Route path="/teacher/generate/lesson-plan"    element={<ProtectedRoute requiredRole="teacher"><LessonPlanStudio /></ProtectedRoute>} />
           <Route path="/teacher/generate/lesson-plan-cbc" element={<TeacherRoute><LessonPlanGenerator /></TeacherRoute>} />
-          <Route path="/teacher/generate/full-lesson"    element={<TeacherRoute><FullLessonStudio /></TeacherRoute>} />
           <Route path="/teacher/generate/homework"       element={<TeacherRoute><HomeworkStudio /></TeacherRoute>} />
           <Route path="/teacher/generate/assessment"     element={<TeacherRoute><AssessmentGenerator /></TeacherRoute>} />
-          <Route path="/teacher/generate/exam"           element={<TeacherRoute><ExamStudio /></TeacherRoute>} />
           <Route path="/teacher/generate/worksheet"      element={<TeacherRoute><WorksheetGenerator /></TeacherRoute>} />
           <Route path="/teacher/generate/flashcards"     element={<TeacherRoute><FlashcardGenerator /></TeacherRoute>} />
           <Route path="/teacher/generate/scheme-of-work" element={<TeacherRoute><SchemeOfWorkGenerator /></TeacherRoute>} />

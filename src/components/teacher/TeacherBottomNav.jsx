@@ -1,11 +1,10 @@
 import { NavLink } from 'react-router-dom'
-import { BookOpen, FolderOpen, Home, PencilLine, Users } from '../ui/icons'
+import { FolderOpen, Home, PencilLine, Users } from '../ui/icons'
 import Icon from '../ui/Icon'
 
 const TEACHER_NAV_ITEMS = [
   { to: '/teacher',             icon: Home,       label: 'Home',        end: true  },
   { to: '/teacher/library',     icon: FolderOpen, label: 'Library',     end: false },
-  { to: '/teacher/generate/full-lesson', icon: BookOpen, label: 'Lessons', end: false },
   { to: '/teacher/assessments', icon: PencilLine, label: 'Assessments', end: false },
   { to: '/teacher/classes',     icon: Users,      label: 'My Classes',  end: false },
 ]

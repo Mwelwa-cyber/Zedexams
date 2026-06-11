@@ -228,7 +228,7 @@ export default function LibraryItemDetail() {
   function onRegenerate() {
     if (!item) return
     const meta = TOOL_META[item.tool]
-    if (!meta) return
+    if (!meta?.route) return
     // Build a query string from the original inputs so the target generator
     // pre-fills its form via useFormDefaultsFromUrl().
     const qs = buildGeneratorQueryString(item.inputs || {})
@@ -406,9 +406,11 @@ export default function LibraryItemDetail() {
                 ✏️ Edit details
               </button>
             )}
-            <button onClick={onRegenerate} className="studio-btn-ghost">
-              🔁 Generate similar
-            </button>
+            {meta.route && (
+              <button onClick={onRegenerate} className="studio-btn-ghost">
+                🔁 Generate similar
+              </button>
+            )}
             {item.tool === 'lesson_plan' && (
               <button
                 onClick={() => navigate(`/teacher/generate/notes?lessonPlanId=${item.id}`)}
