@@ -450,4 +450,9 @@ function createImportPastPaperQuestions(anthropicApiKeySecret) {
   );
 }
 
-module.exports = {createImportPastPaperQuestions, runPastPaperImport};
+module.exports = {
+  createImportPastPaperQuestions, runPastPaperImport,
+  // Source loaders reused by extractAssessmentFormat (same download,
+  // size-cap and DOCX→text handling for sample assessment papers).
+  loadPaperOrThrow, pickSources, buildMessageBlocks,
+};
