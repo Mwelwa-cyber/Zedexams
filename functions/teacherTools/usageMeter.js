@@ -1,16 +1,28 @@
 /**
  * Per-tool, per-month usage metering for the teacher tools.
  *
- * Separate from aiService.assertDailyLimit (which is a daily cap on total AI
- * calls). This one enforces monthly per-tool quotas tied to the teacher's
- * plan.
+ * Separate from aiService.assertDailyLimit (which gates the chat / explain /
+ * import surfaces). This module gates the teacher studio tools: monthly
+ * per-tool quotas plus the plan's total daily generation cap, both tied to
+ * the teacher's plan.
+ *
+ * Plan and limits are read once before the transaction; only the counters
+ * are read transactionally. A plan change racing a generation call can
+ * apply the old limits to that one call — accepted, same exposure as the
+ * pre-existing monthly check.
  */
 
 const admin = require("firebase-admin");
 const {HttpsError} = require("firebase-functions/v2/https");
-// Plan ids, per-tool monthly limits and legacy-id normalisation live in the
-// dependency-free catalogue so the repo-root test suite can cover them.
-const {PLAN_LIMITS, PLAN_LABELS, normalizeTeacherPlan} = require("./teacherPlans");
+// Plan ids, per-tool monthly limits, daily caps and legacy-id normalisation
+// live in the dependency-free catalogue so the repo-root test suite covers them.
+const {
+  PLAN_LIMITS,
+  PLAN_LABELS,
+  DAILY_LIMITS,
+  normalizeTeacherPlan,
+  isDailyCountedTool,
+} = require("./teacherPlans");
 
 function yyyymm(d = new Date()) {
   const y = d.getUTCFullYear();
@@ -41,15 +53,16 @@ function isSuperAdminRole(role) {
   return role === "admin" || role === "superAdmin";
 }
 
-async function getUserTeacherPlan(uid) {
+async function getUserPlanContext(uid) {
   const snap = await admin.firestore().doc(`users/${uid}`).get();
   const data = snap.exists ? (snap.data() || {}) : {};
 
   // Super admins always get the highest tier so they can exercise every
   // tool without hitting per-month quotas during testing or moderation.
-  // No expiry check — the role itself is the entitlement.
+  // No expiry check — the role itself is the entitlement. They also skip
+  // the daily cap (bulk content sessions would hit 30/day immediately).
   if (isSuperAdminRole(data.role)) {
-    return "max";
+    return {plan: "max", isSuperAdmin: true};
   }
 
   // Accepts canonical ids (pro/max) and the pre-2026-06 legacy ids
@@ -59,11 +72,15 @@ async function getUserTeacherPlan(uid) {
     // honour expiry if present
     const exp = data.teacherPlanExpiresAt;
     if (exp && typeof exp.toDate === "function" && exp.toDate() < new Date()) {
-      return "free";
+      return {plan: "free", isSuperAdmin: false};
     }
-    return plan;
+    return {plan, isSuperAdmin: false};
   }
-  return "free";
+  return {plan: "free", isSuperAdmin: false};
+}
+
+async function getUserTeacherPlan(uid) {
+  return (await getUserPlanContext(uid)).plan;
 }
 
 /**
@@ -79,8 +96,12 @@ async function assertAndIncrement(uid, tool) {
   }
   const period = yyyymm();
   const {start, end} = periodBounds(period);
-  const plan = await getUserTeacherPlan(uid);
+  const {plan, isSuperAdmin} = await getUserPlanContext(uid);
   const limit = PLAN_LIMITS[plan][tool];
+  const dailyLimit = DAILY_LIMITS[plan];
+  // Micro tools (suggest_answer, revise_question, slide_notes_images) have
+  // monthly allowances far above the daily cap and don't count against it.
+  const countsDaily = isDailyCountedTool(tool);
 
   const meterRef = admin.firestore().doc(`usageMeters/${uid}/periods/${period}`);
 
@@ -98,13 +119,23 @@ async function assertAndIncrement(uid, tool) {
       );
     }
 
-    // Rolling daily counter ({date, count}) — display-only, read by the
-    // dashboard UsageMeter widget ("Today: N of M generations"). Resets
-    // implicitly when the stored date no longer matches today. Not an
-    // enforcement mechanism; monthly per-tool limits above are the gate.
+    // Rolling daily counter ({date, count}) — backs the "Daily cap of
+    // 2/10/30 generations" sold on /pricing and the dashboard widget's
+    // "Today: N of M". Resets implicitly when the stored date no longer
+    // matches today. Super admins skip the gate, but their daily-counted
+    // generations still increment so the widget stays truthful.
     const dayKey = yyyymmdd();
     const prevDaily = existing.daily || {};
     const todayUsed = prevDaily.date === dayKey ? Number(prevDaily.count || 0) : 0;
+
+    if (countsDaily && !isSuperAdmin && todayUsed >= dailyLimit) {
+      throw new HttpsError(
+        "failed-precondition",
+        `You have used ${todayUsed}/${dailyLimit} generations today on the ` +
+        `${PLAN_LABELS[plan] || plan} plan. Your daily allowance resets ` +
+        `tomorrow${plan === "max" ? "" : " — or upgrade for a higher cap"}.`,
+      );
+    }
 
     const next = {
       uid,
@@ -112,10 +143,13 @@ async function assertAndIncrement(uid, tool) {
       periodEnd: admin.firestore.Timestamp.fromDate(end),
       plan,
       counters: {...counters, [tool]: used + 1},
-      daily: {date: dayKey, count: todayUsed + 1},
       limits: PLAN_LIMITS[plan],
       updatedAt: admin.firestore.FieldValue.serverTimestamp(),
     };
+    if (countsDaily) {
+      // Omitted for micro tools — {merge:true} preserves the existing value.
+      next.daily = {date: dayKey, count: todayUsed + 1};
+    }
     tx.set(meterRef, next, {merge: true});
     return {used: used + 1, limit, plan, period};
   });

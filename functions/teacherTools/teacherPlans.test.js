@@ -13,8 +13,11 @@ const assert = require("node:assert");
 const {
   PLAN_LIMITS,
   PLAN_LABELS,
+  DAILY_LIMITS,
+  DAILY_COUNTED_TOOLS,
   LEGACY_PLAN_ALIASES,
   normalizeTeacherPlan,
+  isDailyCountedTool,
 } = require("./teacherPlans");
 
 let passed = 0;
@@ -122,6 +125,61 @@ test("free limits match the published marketing numbers", () => {
   assert.strictEqual(PLAN_LIMITS.free.lesson_plan, 5);
   assert.strictEqual(PLAN_LIMITS.free.worksheet, 3);
   assert.strictEqual(PLAN_LIMITS.free.notes, 3);
+});
+
+// ── daily caps (marketing: "Daily cap of 2/10/30 generations") ───────
+test("daily limits cover exactly the canonical plans", () => {
+  assert.deepStrictEqual(Object.keys(DAILY_LIMITS).sort(), ["free", "max", "pro"]);
+});
+
+test("daily limits match the published marketing numbers", () => {
+  assert.strictEqual(DAILY_LIMITS.free, 2);
+  assert.strictEqual(DAILY_LIMITS.pro, 10);
+  assert.strictEqual(DAILY_LIMITS.max, 30);
+});
+
+test("daily limits are positive and rank free < pro < max", () => {
+  assert.ok(DAILY_LIMITS.free > 0);
+  assert.ok(DAILY_LIMITS.pro > DAILY_LIMITS.free);
+  assert.ok(DAILY_LIMITS.max > DAILY_LIMITS.pro);
+});
+
+test("every daily-counted tool is a registered tool", () => {
+  for (const tool of DAILY_COUNTED_TOOLS) {
+    assert.ok(tool in PLAN_LIMITS.free, `${tool} must exist in PLAN_LIMITS`);
+  }
+});
+
+test("studio generators count toward the daily cap", () => {
+  for (const tool of [
+    "lesson_plan", "worksheet", "quiz", "assessment", "exam_paper",
+    "scheme_of_work", "notes", "full_lesson", "homework", "rubric",
+    "flashcards", "diagram", "slide_notes",
+  ]) {
+    assert.ok(isDailyCountedTool(tool), `${tool} should count daily`);
+  }
+});
+
+test("micro tools are exempt from the daily cap", () => {
+  // Their monthly allowances (pro suggest_answer: 500/month ≈ 16/day)
+  // could not coexist with a 10/day total cap.
+  for (const tool of ["suggest_answer", "revise_question", "slide_notes_images"]) {
+    assert.ok(!isDailyCountedTool(tool), `${tool} must NOT count daily`);
+  }
+});
+
+test("exempt micro tools really do exceed the daily cap monthly", () => {
+  // Guards the rationale above: if a future limit change drops a micro
+  // tool's monthly allowance to within the daily cap, revisit its exemption.
+  // ×3 = a tool must allow at least 3 full cap-days' worth per month before
+  // exempting it makes sense (today's smallest: slide_notes_images 60 ≈ 6×).
+  const exempt = Object.keys(PLAN_LIMITS.free).filter((t) => !isDailyCountedTool(t));
+  for (const tool of exempt) {
+    assert.ok(
+        PLAN_LIMITS.pro[tool] > DAILY_LIMITS.pro * 3,
+        `${tool} monthly allowance no longer dwarfs the daily cap — re-check exemption`,
+    );
+  }
 });
 
 console.log(`\nteacherPlans: ${passed} tests passed`);

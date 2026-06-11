@@ -186,7 +186,7 @@ export const PLANS = {
       '40 lesson plans / month',
       '25 worksheets & teacher notes',
       '8 assessments / month',
-      '2 schemes of work / term',
+      '2 schemes of work / month',
       'Daily cap of 10 generations',
       'DOCX + PDF export',
       'Library kept forever',
