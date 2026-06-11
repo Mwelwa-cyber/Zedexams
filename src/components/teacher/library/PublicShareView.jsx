@@ -140,10 +140,10 @@ function RenderPlanByTool({ tool, plan }) {
   if (!plan) return <p className="text-sm text-slate-500 italic">Empty plan.</p>
   switch (tool) {
     case 'lesson_plan':    return <LessonPlanView plan={plan} />
-    case 'worksheet':      return <WorksheetView output={plan} showAnswers={false} />
-    case 'flashcards':     return <FlashcardsView output={plan} />
-    case 'scheme_of_work': return <SchemeOfWorkView output={plan} />
-    case 'rubric':         return <RubricView output={plan} />
+    case 'worksheet':      return <WorksheetView worksheet={plan} showAnswers={false} />
+    case 'flashcards':     return <FlashcardsView flashcards={plan} />
+    case 'scheme_of_work': return <SchemeOfWorkView scheme={plan} />
+    case 'rubric':         return <RubricView rubric={plan} />
     default:
       return <pre className="text-xs whitespace-pre-wrap bg-slate-50 p-3 rounded-lg">{JSON.stringify(plan, null, 2)}</pre>
   }

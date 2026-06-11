@@ -20,7 +20,7 @@ import { TEACHER_SAMPLES } from '../../data/teacherSamples'
 import LessonPlanView from '../teacher/views/LessonPlanView'
 import LessonPlanOfficialTable from './LessonPlanOfficialTable'
 import WorksheetView from '../teacher/views/WorksheetView'
-import SchemeOfWorkOfficialTable from './SchemeOfWorkOfficialTable'
+import SchemeOfWorkView from '../teacher/views/SchemeOfWorkView'
 import WeeklyForecastView from '../teacher/views/WeeklyForecastView'
 import TestPaperOfficial from './TestPaperOfficial'
 import MarkScheduleView from '../teacher/views/MarkScheduleView'
@@ -87,7 +87,7 @@ function SampleRenderer({ sample, showAnswers, planLayout, testVariant, schedule
     case 'worksheet':
       return <WorksheetView worksheet={sample.artifact} showAnswers={showAnswers} />
     case 'scheme_of_work':
-      return <SchemeOfWorkOfficialTable scheme={sample.artifact} />
+      return <SchemeOfWorkView scheme={sample.artifact} />
     case 'weekly_forecast':
       return <WeeklyForecastView forecast={sample.artifact} />
     case 'term_test':

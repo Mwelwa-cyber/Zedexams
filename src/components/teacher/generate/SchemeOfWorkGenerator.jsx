@@ -110,7 +110,7 @@ export default function SchemeOfWorkGenerator() {
         <StudioPageHeader
           eyebrow="Scheme of Work"
           title="Plan your whole term"
-          subtitle="Week-by-week CBC subject pacing — topics, outcomes, activities, and assessment in one printable doc."
+          subtitle="Week-by-week CBC pacing in the official 9-column format — competences, activities, expected standards, methods, and T/L aids in one printable doc."
           emoji="🦁"
         />
 

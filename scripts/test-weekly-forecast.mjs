@@ -12,6 +12,8 @@
 import {
   schemeWeeks,
   weekNumberOf,
+  isOfficialSchemeWeek,
+  isOfficialScheme,
   normalizeSchemeWeek,
   buildForecastDays,
 } from '../src/utils/weeklyForecast.js'
@@ -93,6 +95,21 @@ test('schemeWeeks + weekNumberOf read either shape', () => {
   assert(schemeWeeks({ weeks: [OLD_WEEK, NEW_WEEK] }).length === 2, 'weeks array surfaced')
   assert(schemeWeeks({}).length === 0 && schemeWeeks(null).length === 0, 'no weeks → empty array')
   assert(weekNumberOf(OLD_WEEK) === 3 && weekNumberOf(NEW_WEEK) === 1, 'week numbers from both shapes')
+})
+
+console.log('\nofficial-format detection (shared by SchemeOfWorkView + DOCX export)')
+test('isOfficialSchemeWeek tells the two week shapes apart', () => {
+  assert(isOfficialSchemeWeek(NEW_WEEK) === true, '9-column week detected')
+  assert(isOfficialSchemeWeek(OLD_WEEK) === false, 'app-schema week is not official-shape')
+  assert(isOfficialSchemeWeek(null) === false, 'null is not official-shape')
+})
+test('isOfficialScheme reads schemaVersion fast-paths and falls back to sniffing', () => {
+  assert(isOfficialScheme({ schemaVersion: '2.0', weeks: [] }) === true, 'v2 generator output')
+  assert(isOfficialScheme({ schemaVersion: 'sow-table-1.0', weeks: [NEW_WEEK] }) === true, 'marketing sample version')
+  assert(isOfficialScheme({ schemaVersion: '1.0', weeks: [OLD_WEEK] }) === false, 'v1 generator output stays legacy')
+  assert(isOfficialScheme({ weeks: [NEW_WEEK] }) === true, 'unversioned new-shape sniffed from first week')
+  assert(isOfficialScheme({ weeks: [OLD_WEEK] }) === false, 'unversioned old-shape sniffed from first week')
+  assert(isOfficialScheme(null) === false && isOfficialScheme({}) === false, 'junk is not official')
 })
 
 console.log('\nday splitting')

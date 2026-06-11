@@ -32,6 +32,23 @@ export function weekNumberOf(week) {
   return Number.isFinite(n) ? n : null
 }
 
+/** Is this scheme week in the official 9-column shape? */
+export function isOfficialSchemeWeek(week) {
+  return Boolean(week) && (week.subtopic !== undefined || week.specificCompetences !== undefined || week.tlAids !== undefined)
+}
+
+/**
+ * Is a whole saved scheme output in the official 9-column format?
+ * Covers the v2 generator ("2.0"), the marketing sample ("sow-table-…"),
+ * and shape-sniffs anything unversioned.
+ */
+export function isOfficialScheme(schemeOutput) {
+  if (!schemeOutput) return false
+  const v = String(schemeOutput.schemaVersion || '')
+  if (v === '2.0' || v.startsWith('sow-table')) return true
+  return isOfficialSchemeWeek(schemeWeeks(schemeOutput)[0])
+}
+
 /**
  * Flatten a scheme week (either shape) into the forecast's per-day
  * fields. Old-schema weeks have no expectedStandard — the assessment
@@ -39,8 +56,7 @@ export function weekNumberOf(week) {
  */
 export function normalizeSchemeWeek(week) {
   if (!week) return null
-  const isNewShape = week.subtopic !== undefined || week.specificCompetences !== undefined || week.tlAids !== undefined
-  if (isNewShape) {
+  if (isOfficialSchemeWeek(week)) {
     return {
       weekNumber: weekNumberOf(week),
       topic: String(week.topic || '').trim(),
