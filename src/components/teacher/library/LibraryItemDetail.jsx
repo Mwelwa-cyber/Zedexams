@@ -25,6 +25,8 @@ import { downloadWorksheetDocx } from '../../../utils/worksheetToDocx'
 import { downloadFlashcardsDocx } from '../../../utils/flashcardsToDocx'
 import { downloadSchemeOfWorkDocx } from '../../../utils/schemeOfWorkToDocx'
 import { downloadMarkScheduleDocx } from '../../../utils/markScheduleToDocx'
+import { downloadMarkScheduleXlsx } from '../../../utils/markScheduleToXlsx'
+import { downloadReportCardsDocx } from '../../../utils/reportCardsToDocx'
 import { downloadWeeklyForecastDocx } from '../../../utils/weeklyForecastToDocx'
 import { downloadRubricDocx } from '../../../utils/rubricToDocx'
 import { downloadNotesDocx } from '../../../utils/notesToDocx'
@@ -175,6 +177,34 @@ export default function LibraryItemDetail() {
     }
   }
 
+  async function onExportXlsx() {
+    if (item?.tool !== 'mark_schedule' || !item.output) return
+    if (!permissions.canDownload) return
+    const slug = (s) => String(s || '')
+      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
+    const base = [
+      slug(item.inputs?.grade),
+      slug(item.inputs?.subject),
+      new Date(item.createdAt?.toDate?.() || Date.now()).toISOString().slice(0, 10),
+    ].filter(Boolean).join('_')
+    await downloadMarkScheduleXlsx(item.output, `${base}_mark-schedule.xlsx`)
+    recordExport(item.id, 'xlsx')
+  }
+
+  async function onExportReportCards() {
+    if (item?.tool !== 'mark_schedule' || !item.output) return
+    if (!permissions.canDownload) return
+    const slug = (s) => String(s || '')
+      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
+    const base = [
+      slug(item.inputs?.grade),
+      slug(item.inputs?.subject),
+      new Date(item.createdAt?.toDate?.() || Date.now()).toISOString().slice(0, 10),
+    ].filter(Boolean).join('_')
+    await downloadReportCardsDocx(item.output, `${base}_report-cards.docx`)
+    recordExport(item.id, 'report_cards')
+  }
+
   async function onExportAnswerKey() {
     if (item?.tool !== 'worksheet' || !item.output) return
     if (!permissions.canDownload) return
@@ -323,6 +353,30 @@ export default function LibraryItemDetail() {
             >
               📄 Export .docx
             </button>
+            {item.tool === 'mark_schedule' && (
+              <button
+                onClick={onExportXlsx}
+                disabled={!permissions.canDownload}
+                className="studio-btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
+                title={permissions.canDownload
+                  ? 'Download an Excel workbook with live total and position formulas'
+                  : 'Premium only — upgrade to download library documents'}
+              >
+                📊 Export .xlsx
+              </button>
+            )}
+            {item.tool === 'mark_schedule' && (
+              <button
+                onClick={onExportReportCards}
+                disabled={!permissions.canDownload}
+                className="studio-btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
+                title={permissions.canDownload
+                  ? 'Download per-pupil report cards — one page per pupil'
+                  : 'Premium only — upgrade to download library documents'}
+              >
+                🪪 Report cards
+              </button>
+            )}
             <button
               onClick={onShare}
               disabled={sharing}

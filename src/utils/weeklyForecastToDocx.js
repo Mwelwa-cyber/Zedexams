@@ -106,7 +106,7 @@ export function buildWeeklyForecastDocument(forecast) {
       },
       children: [
         new Paragraph({
-          children: [text(`GRADE ${h.grade ?? ''} ${subject} WEEKLY FORECAST`, { bold: true, size: 28 })],
+          children: [text(`GRADE ${String(h.grade ?? '').replace(/^G/i, '')} ${subject} WEEKLY FORECAST`, { bold: true, size: 28 })],
           alignment: AlignmentType.CENTER,
           spacing: { after: 60 },
         }),

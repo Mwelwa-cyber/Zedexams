@@ -29,6 +29,27 @@ const AuthContext = createContext(null)
 // resume). Read-and-cleared by Login; survives the signOut → redirect hop
 // because it lives in sessionStorage, not React state.
 export const SESSION_EXPIRED_KEY = 'auth:sessionExpired'
+
+// Persisted "this device has a signed-in user" hint. Firebase restores the
+// auth session from IndexedDB asynchronously on cold start, so for the first
+// frames `auth.currentUser` is null even for a returning logged-in user. We
+// drop this flag on sign-in and clear it on sign-out so the router can tell
+// the two cases apart *synchronously* on the very first render: a returning
+// user sees a loader (then their dashboard) instead of a flash of the public
+// marketing page, while a genuinely signed-out visitor still gets Marketing
+// immediately with no spinner. localStorage (not sessionStorage) so it
+// survives the app being fully closed and reopened.
+export const AUTH_HINT_KEY = 'auth:hasSession'
+export function hasAuthSessionHint() {
+  try { return localStorage.getItem(AUTH_HINT_KEY) === '1' } catch { return false }
+}
+function setAuthSessionHint(present) {
+  try {
+    if (present) localStorage.setItem(AUTH_HINT_KEY, '1')
+    else localStorage.removeItem(AUTH_HINT_KEY)
+  } catch { /* private mode / quota — fall back to the no-hint behaviour */ }
+}
+
 const functions = getFunctions(app, 'us-central1')
 const bootstrapUserProfileCallable = httpsCallable(functions, 'bootstrapUserProfile')
 const sendPasswordResetEmailCallable = httpsCallable(functions, 'sendPasswordResetEmail')
@@ -479,6 +500,10 @@ export function AuthProvider({ children }) {
       // sent — no email or displayName — to keep the PII surface tiny.
       // No-op if Sentry isn't configured (DSN unset).
       if (user) {
+        // Remember that this device has a live session so the next cold
+        // start routes straight to the loader → dashboard instead of
+        // flashing the marketing page (see AUTH_HINT_KEY).
+        setAuthSessionHint(true)
         setSentryUser(user.uid)
         // Audit A5.1 — opportunistically refresh the FCM token if the
         // user has previously granted permission. Silent no-op on
@@ -490,6 +515,9 @@ export function AuthProvider({ children }) {
           console.warn('[push] refresh on sign-in failed:', err)
         })
       } else {
+        // No live session — clear the cold-start hint so a signed-out
+        // visitor gets Marketing immediately on the next open, no spinner.
+        setAuthSessionHint(false)
         clearSentryUser()
         // Audit B2 — clear analytics identity so the next user (e.g.
         // shared phone) doesn't inherit the previous distinct_id.
