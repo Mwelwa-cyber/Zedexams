@@ -76,8 +76,7 @@
     "redirects": [
       { "source": "/welcome", "destination": "/", "type": 301 },
       { "source": "/plans", "destination": "/pricing", "type": 301 },
-      { "source": "/teachers", "destination": "/pricing", "type": 301 },
-      { "source": "/teachers/**", "destination": "/pricing", "type": 301 }
+      { "source": "/teachers/**", "destination": "/teachers", "type": 301 }
     ],
     "rewrites": [
       {
