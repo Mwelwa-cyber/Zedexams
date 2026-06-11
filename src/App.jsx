@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { useAuth } from './contexts/AuthContext'
+import { useAuth, hasAuthSessionHint } from './contexts/AuthContext'
 import { useTheme, applyThemeToBody, DEFAULT_THEME } from './contexts/ThemeContext'
 import { PlatformSettingsProvider } from './contexts/PlatformSettingsContext'
 import MaintenanceBanner from './components/banners/MaintenanceBanner'
@@ -216,7 +216,16 @@ const GamesSeedAdmin = lazy(() => import('./components/admin/GamesSeedAdmin'))
 const EditQuiz = lazy(() => import('./components/quiz/EditQuizV2'))
 
 function RootRedirect() {
-  const { currentUser, userProfile, isAdmin, isTeacher, profileIssue } = useAuth()
+  const { currentUser, userProfile, loading, isAdmin, isTeacher, profileIssue } = useAuth()
+  // Cold-start race: Firebase restores the persisted session asynchronously,
+  // so on the first frames `currentUser` is still null even for a returning
+  // logged-in user. Rendering <Marketing /> here is what made the app flash
+  // the public marketing page for a few seconds before redirecting to the
+  // dashboard. While auth is still resolving AND this device has a known
+  // session, hold on the loader instead of flashing Marketing. A signed-out
+  // visitor (no hint) still falls straight through to Marketing with no
+  // spinner.
+  if (loading && !currentUser && hasAuthSessionHint()) return <PageLoader />
   if (!currentUser) return <Marketing />
   if (profileIssue) return <MissingProfileRecovery />
   if (!userProfile) return <PageLoader />
