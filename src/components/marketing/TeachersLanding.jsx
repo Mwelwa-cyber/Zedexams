@@ -76,7 +76,7 @@ const TEACHER_FAQ = [
   },
 ]
 
-function SampleRenderer({ sample, showAnswers, planLayout, testVariant }) {
+function SampleRenderer({ sample, showAnswers, planLayout, testVariant, scheduleMode }) {
   switch (sample.tool) {
     case 'lesson_plan':
       // 'table' mirrors the studio's printed/exported document; 'app' is
@@ -93,7 +93,7 @@ function SampleRenderer({ sample, showAnswers, planLayout, testVariant }) {
     case 'term_test':
       return <TestPaperOfficial paper={sample.artifact[testVariant] || sample.artifact.midterm} />
     case 'mark_schedule':
-      return <MarkScheduleOfficialTable schedule={sample.artifact} />
+      return <MarkScheduleOfficialTable schedule={sample.artifact} mode={scheduleMode} />
     case 'flashcards':
       return <FlashcardsView flashcards={sample.artifact} />
     default:
@@ -109,6 +109,8 @@ function SampleLibrary() {
   const [planLayout, setPlanLayout] = useState('table')
   // Term-test paper variant: 'midterm' | 'endOfTerm'.
   const [testVariant, setTestVariant] = useState('midterm')
+  // Mark schedule view: 'marks' (raw, out of each subject max) | 'percent'.
+  const [scheduleMode, setScheduleMode] = useState('marks')
   const active = TEACHER_SAMPLES.find((s) => s.id === activeId) || TEACHER_SAMPLES[0]
   // Flashcards are a compact grid — collapsing them just hides half the fun.
   const collapsible = active.tool !== 'flashcards'
@@ -120,6 +122,7 @@ function SampleLibrary() {
     setShowAnswers(false)
     setPlanLayout('table')
     setTestVariant('midterm')
+    setScheduleMode('marks')
   }
 
   return (
@@ -226,12 +229,31 @@ function SampleLibrary() {
                 ))}
               </div>
             )}
+            {active.tool === 'mark_schedule' && (
+              <div className="shrink-0 inline-flex gap-1 rounded-full theme-card border theme-border p-1" role="group" aria-label="Schedule view">
+                {[['marks', 'Raw marks'], ['percent', 'Percentages']].map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setScheduleMode(key)}
+                    aria-pressed={scheduleMode === key}
+                    className={`rounded-full px-3.5 py-1.5 text-xs font-black transition-all ${
+                      scheduleMode === key
+                        ? 'theme-accent-fill theme-on-accent'
+                        : 'theme-text-muted hover:theme-text'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Document */}
           <div className="relative mt-4">
             <div className={isCollapsed ? 'max-h-[520px] overflow-hidden' : ''}>
-              <SampleRenderer sample={active} showAnswers={showAnswers} planLayout={planLayout} testVariant={testVariant} />
+              <SampleRenderer sample={active} showAnswers={showAnswers} planLayout={planLayout} testVariant={testVariant} scheduleMode={scheduleMode} />
             </div>
             {isCollapsed && (
               <div
