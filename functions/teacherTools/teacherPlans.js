@@ -88,6 +88,41 @@ const PLAN_LABELS = {
   max: "Max",
 };
 
+// Total generations allowed per UTC day, across the studio tools below.
+// These are the numbers sold on /pricing ("Daily cap of 2/10/30
+// generations" — src/components/marketing/Plans.jsx) and shown by the
+// dashboard UsageMeter widget ("Today: N of M").
+const DAILY_LIMITS = {
+  free: 2,
+  pro: 10,
+  max: 30,
+};
+
+// Tools that count as a "generation" for the daily cap. Micro actions
+// (per-question answer suggestions / revisions) and sub-counters
+// (slide_notes_images increments once per generated image) are excluded —
+// their monthly allowances (e.g. pro suggest_answer: 500/month ≈ 16/day)
+// could not coexist with a 10/day total cap.
+const DAILY_COUNTED_TOOLS = [
+  "lesson_plan",
+  "worksheet",
+  "flashcards",
+  "quiz",
+  "rubric",
+  "scheme_of_work",
+  "notes",
+  "full_lesson",
+  "homework",
+  "assessment",
+  "exam_paper",
+  "diagram",
+  "slide_notes",
+];
+
+function isDailyCountedTool(tool) {
+  return DAILY_COUNTED_TOOLS.includes(tool);
+}
+
 // users.teacherPlan values written before the 2026-06 pro/max rename.
 const LEGACY_PLAN_ALIASES = {
   individual: "pro",
@@ -111,6 +146,9 @@ function normalizeTeacherPlan(raw) {
 module.exports = {
   PLAN_LIMITS,
   PLAN_LABELS,
+  DAILY_LIMITS,
+  DAILY_COUNTED_TOOLS,
   LEGACY_PLAN_ALIASES,
   normalizeTeacherPlan,
+  isDailyCountedTool,
 };

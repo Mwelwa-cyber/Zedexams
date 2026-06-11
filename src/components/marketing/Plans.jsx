@@ -167,7 +167,7 @@ const PLANS = [
       <><strong>40</strong> lesson plans / month</>,
       <><strong>25</strong> worksheets &amp; teacher notes</>,
       <><strong>8</strong> assessments / month</>,
-      <><strong>2</strong> schemes of work / term</>,
+      <><strong>2</strong> schemes of work / month</>,
       <>Daily cap of <strong>10</strong> generations</>,
       'DOCX + PDF export',
       'Library kept forever',
@@ -343,7 +343,7 @@ export default function Plans() {
                   <Row label="Worksheets" cells={['3', '25', 'Unlimited']} />
                   <Row label="Teacher notes" cells={['3', '25', 'Unlimited']} />
                   <Row label="Assessments" cells={[null, '8', 'Unlimited']} />
-                  <Row label="Schemes of work" cells={[null, '2 / term', 'Unlimited']} />
+                  <Row label="Schemes of work" cells={[null, '2', 'Unlimited']} />
 
                   <tr><td colSpan={4} className="px-5 py-2.5 bg-[color:var(--bg-subtle)] text-xs font-black uppercase tracking-wider theme-accent-text">Limits &amp; quality</td></tr>
                   <Row label="Daily generation cap" cells={['2', '10', '30']} />
