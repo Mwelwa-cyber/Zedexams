@@ -22,7 +22,7 @@ export const TEACHER_SAMPLES = [
     grade: 'Grade 5',
     subject: 'Mathematics',
     topic: 'Fractions & Decimals',
-    blurb: 'Official CDC structure — competences, learning environment, staged progression and assessment criteria, ready to print or export.',
+    blurb: 'The official CDC document the studio prints and exports — CAPS field lines and the bordered LESSON PROGRESSION table, exactly as head teachers expect it.',
     artifact: {
       schemaVersion: '3.0',
       header: {
