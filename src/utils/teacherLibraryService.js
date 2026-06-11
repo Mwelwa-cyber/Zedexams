@@ -250,6 +250,12 @@ export const TOOL_META = {
     route: '/teacher/generate/scheme-of-work',
     colour: 'teal',
   },
+  mark_schedule: {
+    label: 'Mark Schedule',
+    icon: '🧮',
+    route: '/teacher/generate/mark-schedule',
+    colour: 'lime',
+  },
   worksheet: {
     label: 'Worksheet',
     icon: '📝',
