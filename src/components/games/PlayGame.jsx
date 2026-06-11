@@ -17,6 +17,7 @@ import MemoryMatchGame from './MemoryMatchGame'
 import WordBuilderGame from './WordBuilderGame'
 import ProvinceShapesGame from './ProvinceShapesGame'
 import NumberTargetGame from './NumberTargetGame'
+import SortingFactoryGame from './SortingFactoryGame'
 import {
   getGameAccessMeta,
   getGameTypeTheme,
@@ -228,6 +229,7 @@ function GameEngine({ game }) {
   if (game.type === 'word_builder') return <WordBuilderGame game={game} />
   if (game.type === 'province_shapes') return <ProvinceShapesGame game={game} />
   if (game.type === 'number_target') return <NumberTargetGame game={game} />
+  if (game.type === 'sorting_factory') return <SortingFactoryGame game={game} />
 
   return (
     <div className="zx-card rounded-[22px] bg-white p-10 text-center">

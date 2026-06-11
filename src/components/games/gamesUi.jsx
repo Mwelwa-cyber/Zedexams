@@ -11,6 +11,7 @@ import {
   FireIcon,
   GlobeAltIcon,
   HomeIcon,
+  InboxStackIcon,
   LockClosedIcon,
   MapIcon,
   PlayIcon,
@@ -120,6 +121,7 @@ export const GAME_TYPE_THEMES = {
   map_explorer: { label: 'Map Explorer', icon: MapIcon },
   province_shapes: { label: 'Map Quiz', icon: MapIcon },
   number_target: { label: 'Number Target', icon: CalculatorIcon },
+  sorting_factory: { label: 'Sorting', icon: InboxStackIcon },
 }
 
 const DEFAULT_TYPE_THEME = { label: 'Game', icon: PuzzlePieceIcon }
