@@ -172,7 +172,7 @@ const PLANS = [
     ],
   },
   {
-    key: 'max', name: 'Max', mascot: '🦅', meta: 'For HoDs & heavy users',
+    key: 'max', name: 'Max', mascot: '🦅', meta: 'For heavy users',
     note: 'Or K1,990 / year — two months free.', cta: 'Go Max',
     feats: [
       <><strong>Unlimited</strong> plans, notes &amp; worksheets*</>,
