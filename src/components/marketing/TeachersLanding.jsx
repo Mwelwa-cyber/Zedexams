@@ -22,6 +22,7 @@ import LessonPlanOfficialTable from './LessonPlanOfficialTable'
 import WorksheetView from '../teacher/views/WorksheetView'
 import SchemeOfWorkOfficialTable from './SchemeOfWorkOfficialTable'
 import WeeklyForecastOfficialTable from './WeeklyForecastOfficialTable'
+import TestPaperOfficial from './TestPaperOfficial'
 import FlashcardsView from '../teacher/views/FlashcardsView'
 
 function Section({ children, className = '', id }) {
@@ -74,7 +75,7 @@ const TEACHER_FAQ = [
   },
 ]
 
-function SampleRenderer({ sample, showAnswers, planLayout }) {
+function SampleRenderer({ sample, showAnswers, planLayout, testVariant }) {
   switch (sample.tool) {
     case 'lesson_plan':
       // 'table' mirrors the studio's printed/exported document; 'app' is
@@ -88,6 +89,8 @@ function SampleRenderer({ sample, showAnswers, planLayout }) {
       return <SchemeOfWorkOfficialTable scheme={sample.artifact} />
     case 'weekly_forecast':
       return <WeeklyForecastOfficialTable forecast={sample.artifact} />
+    case 'term_test':
+      return <TestPaperOfficial paper={sample.artifact[testVariant] || sample.artifact.midterm} />
     case 'flashcards':
       return <FlashcardsView flashcards={sample.artifact} />
     default:
@@ -101,6 +104,8 @@ function SampleLibrary() {
   const [expanded, setExpanded] = useState(false)
   // Lesson plan layout: 'table' (the studio's printed document) | 'app'.
   const [planLayout, setPlanLayout] = useState('table')
+  // Term-test paper variant: 'midterm' | 'endOfTerm'.
+  const [testVariant, setTestVariant] = useState('midterm')
   const active = TEACHER_SAMPLES.find((s) => s.id === activeId) || TEACHER_SAMPLES[0]
   // Flashcards are a compact grid — collapsing them just hides half the fun.
   const collapsible = active.tool !== 'flashcards'
@@ -111,6 +116,7 @@ function SampleLibrary() {
     setExpanded(false)
     setShowAnswers(false)
     setPlanLayout('table')
+    setTestVariant('midterm')
   }
 
   return (
@@ -198,12 +204,31 @@ function SampleLibrary() {
                 ))}
               </div>
             )}
+            {active.tool === 'term_test' && (
+              <div className="shrink-0 inline-flex gap-1 rounded-full theme-card border theme-border p-1" role="group" aria-label="Test paper">
+                {[['midterm', 'Mid-term'], ['endOfTerm', 'End of term']].map(([key, label]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setTestVariant(key)}
+                    aria-pressed={testVariant === key}
+                    className={`rounded-full px-3.5 py-1.5 text-xs font-black transition-all ${
+                      testVariant === key
+                        ? 'theme-accent-fill theme-on-accent'
+                        : 'theme-text-muted hover:theme-text'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Document */}
           <div className="relative mt-4">
             <div className={isCollapsed ? 'max-h-[520px] overflow-hidden' : ''}>
-              <SampleRenderer sample={active} showAnswers={showAnswers} planLayout={planLayout} />
+              <SampleRenderer sample={active} showAnswers={showAnswers} planLayout={planLayout} testVariant={testVariant} />
             </div>
             {isCollapsed && (
               <div
@@ -224,7 +249,7 @@ function SampleLibrary() {
           {/* Footer strip */}
           <div className="mt-4 pt-4 border-t border-dashed theme-border flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs theme-text-muted">
-              <span aria-hidden="true">{active.icon}</span> Made with the {active.label} studio · exports to DOCX & PDF
+              <span aria-hidden="true">{active.icon}</span> Made with the {active.madeWith || active.label} studio · exports to DOCX & PDF
             </p>
             <Button as={Link} to="/register?role=teacher" variant="primary" size="sm">
               Make one for your class
@@ -281,7 +306,7 @@ export default function TeachersLanding() {
     <>
       <SeoHelmet
         title="AI lesson plans, worksheets & schemes for Zambian teachers"
-        description="Generate CBC-aligned lesson plans, worksheets, schemes of work, weekly forecasts and flashcards in about a minute. See real samples, start free — no card required."
+        description="Generate CBC-aligned lesson plans, worksheets, term tests, schemes of work, weekly forecasts and flashcards in about a minute. See real samples, start free — no card required."
         path="/teachers"
       />
       <div className="min-h-screen theme-bg theme-text font-body">
@@ -321,8 +346,8 @@ export default function TeachersLanding() {
               Sunday-night planning, done in about a minute.
             </h1>
             <p className="text-lg text-white/80 max-w-xl">
-              CBC-aligned lesson plans, worksheets, schemes of work, weekly forecasts and flashcards —
-              generated from the official syllabus, edited by you, exported to DOCX or PDF.
+              CBC-aligned lesson plans, worksheets, term tests, schemes of work, weekly forecasts
+              and flashcards — generated from the official syllabus, edited by you, exported to DOCX or PDF.
             </p>
             <div className="mt-7 flex flex-wrap items-center gap-3">
               <Button as={Link} to="/register?role=teacher" variant="primary" size="lg"
