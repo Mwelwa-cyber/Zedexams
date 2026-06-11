@@ -23,6 +23,7 @@ import WorksheetView from '../teacher/views/WorksheetView'
 import SchemeOfWorkOfficialTable from './SchemeOfWorkOfficialTable'
 import WeeklyForecastOfficialTable from './WeeklyForecastOfficialTable'
 import TestPaperOfficial from './TestPaperOfficial'
+import MarkScheduleOfficialTable from './MarkScheduleOfficialTable'
 import FlashcardsView from '../teacher/views/FlashcardsView'
 
 function Section({ children, className = '', id }) {
@@ -91,6 +92,8 @@ function SampleRenderer({ sample, showAnswers, planLayout, testVariant }) {
       return <WeeklyForecastOfficialTable forecast={sample.artifact} />
     case 'term_test':
       return <TestPaperOfficial paper={sample.artifact[testVariant] || sample.artifact.midterm} />
+    case 'mark_schedule':
+      return <MarkScheduleOfficialTable schedule={sample.artifact} />
     case 'flashcards':
       return <FlashcardsView flashcards={sample.artifact} />
     default:
@@ -249,7 +252,10 @@ function SampleLibrary() {
           {/* Footer strip */}
           <div className="mt-4 pt-4 border-t border-dashed theme-border flex flex-wrap items-center justify-between gap-3">
             <p className="text-xs theme-text-muted">
-              <span aria-hidden="true">{active.icon}</span> Made with the {active.madeWith || active.label} studio · exports to DOCX & PDF
+              <span aria-hidden="true">{active.icon}</span>{' '}
+              {active.comingSoon
+                ? <>{active.label} studio coming soon — your documents will look exactly like this</>
+                : <>Made with the {active.madeWith || active.label} studio · exports to DOCX & PDF</>}
             </p>
             <Button as={Link} to="/register?role=teacher" variant="primary" size="sm">
               Make one for your class
