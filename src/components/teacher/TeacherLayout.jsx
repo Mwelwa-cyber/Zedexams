@@ -2,7 +2,6 @@ import { Link, NavLink, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
   PencilLine,
-  BookOpen,
   FolderOpen,
   GraduationCap,
   LogOut,
@@ -21,7 +20,6 @@ const NAV = [
   { to: '/teacher',                  icon: LayoutDashboard, label: 'My Dashboard', end: true },
   { to: '/teacher/library',          icon: FolderOpen,      label: 'Library'                 },
   { to: '/teacher/assessments',      icon: PencilLine,      label: 'Assessments'             },
-  { to: '/teacher/lessons/new',      icon: BookOpen,        label: 'Create Lesson'           },
   { to: '/teacher/syllabi',          icon: FolderOpen,      label: 'Syllabi Studio'          },
   { to: '/teacher/curriculum',       icon: GraduationCap,   label: 'Curriculum'              },
   { to: '/teacher/classes',          icon: Users,           label: 'Classes'                 },

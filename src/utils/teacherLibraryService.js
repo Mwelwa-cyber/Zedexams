@@ -317,6 +317,12 @@ export async function getLibrarySummary(uid) {
 /* ── UI constants ─────────────────────────────────────────── */
 
 export const TOOL_META = {
+  full_lesson: {
+    label: 'Full Lesson',
+    icon: '✨',
+    route: '/teacher/generate/full-lesson',
+    colour: 'cyan',
+  },
   lesson_plan: {
     label: 'Lesson Plan',
     icon: '✨',
@@ -370,6 +376,7 @@ export const TOOL_META = {
 export const TOOL_FILTER_OPTIONS = [
   {value: '', label: 'All tools'},
   {value: 'lesson_plan', label: 'Lesson plans'},
+  {value: 'full_lesson', label: 'Full lessons'},
   {value: 'scheme_of_work', label: 'Schemes of work'},
   {value: 'weekly_forecast', label: 'Weekly forecasts'},
   {value: 'mark_schedule', label: 'Mark schedules'},
@@ -432,6 +439,13 @@ export function titleForGeneration(gen) {
     const topic = out?.header?.topic || gen.inputs?.topic || 'Notes'
     const grade = out?.header?.grade || gen.inputs?.grade || ''
     return [`Teacher notes — ${topic}`, grade].filter(Boolean).join(' · ')
+  }
+  if (gen.tool === 'full_lesson') {
+    if (out?.header?.title) return out.header.title
+    const topic = out?.header?.topic || gen.inputs?.topic || ''
+    const sub = out?.header?.subtopic || gen.inputs?.subtopic || ''
+    const head = [topic, sub].filter(Boolean).join(' — ')
+    return head ? `Lesson: ${head}` : 'Full lesson'
   }
   if (gen.tool === 'exam_paper') {
     if (out?.header?.title) return out.header.title

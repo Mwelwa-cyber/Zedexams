@@ -27,6 +27,8 @@ import { downloadSchemeOfWorkDocx } from '../../../utils/schemeOfWorkToDocx'
 import { downloadMarkScheduleDocx } from '../../../utils/markScheduleToDocx'
 import { downloadMarkScheduleXlsx } from '../../../utils/markScheduleToXlsx'
 import { downloadReportCardsDocx } from '../../../utils/reportCardsToDocx'
+import { downloadFullLessonDocx } from '../../../utils/fullLessonToDocx'
+import FullLessonView from '../views/FullLessonView'
 import { downloadWeeklyForecastDocx } from '../../../utils/weeklyForecastToDocx'
 import { downloadRubricDocx } from '../../../utils/rubricToDocx'
 import { downloadNotesDocx } from '../../../utils/notesToDocx'
@@ -170,6 +172,9 @@ export default function LibraryItemDetail() {
       recordExport(item.id, 'docx')
     } else if (item.tool === 'mark_schedule') {
       await downloadMarkScheduleDocx(item.output, `${base}_mark-schedule.docx`, { mode: showPercents ? 'percent' : 'marks' })
+      recordExport(item.id, 'docx')
+    } else if (item.tool === 'full_lesson') {
+      await downloadFullLessonDocx(item.output, `${base}_full-lesson.docx`)
       recordExport(item.id, 'docx')
     } else if (item.tool === 'weekly_forecast') {
       await downloadWeeklyForecastDocx(item.output, `${base}_weekly-forecast.docx`)
@@ -494,6 +499,7 @@ export default function LibraryItemDetail() {
           {item.tool === 'weekly_forecast' && item.output && (
             <WeeklyForecastView forecast={item.output} />
           )}
+          {item.tool === 'full_lesson' && <FullLessonView lesson={item.output} />}
           {item.tool === 'rubric' && <RubricView rubric={item.output} />}
           {item.tool === 'notes' && <NotesView notes={item.output} />}
           {!item.output && !(item.tool === 'lesson_plan' && item.html) && (
