@@ -15,6 +15,7 @@ import LessonPlanView from '../views/LessonPlanView'
 import WorksheetView from '../views/WorksheetView'
 import FlashcardsView from '../views/FlashcardsView'
 import SchemeOfWorkView from '../views/SchemeOfWorkView'
+import MarkScheduleView from '../views/MarkScheduleView'
 import RubricView from '../views/RubricView'
 import NotesView from '../views/NotesView'
 import SeoHelmet from '../../seo/SeoHelmet'
@@ -22,6 +23,7 @@ import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
 import { downloadWorksheetDocx } from '../../../utils/worksheetToDocx'
 import { downloadFlashcardsDocx } from '../../../utils/flashcardsToDocx'
 import { downloadSchemeOfWorkDocx } from '../../../utils/schemeOfWorkToDocx'
+import { downloadMarkScheduleDocx } from '../../../utils/markScheduleToDocx'
 import { downloadRubricDocx } from '../../../utils/rubricToDocx'
 import { downloadNotesDocx } from '../../../utils/notesToDocx'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
@@ -38,6 +40,8 @@ export default function LibraryItemDetail() {
   const [item, setItem] = useState(null)
   const [status, setStatus] = useState('loading')
   const [showAnswers, setShowAnswers] = useState(false)
+  // Mark schedules: false = raw marks view, true = percentages view.
+  const [showPercents, setShowPercents] = useState(false)
   const [editingHeader, setEditingHeader] = useState(false)
   const [savingEdit, setSavingEdit] = useState(false)
   const [sharing, setSharing] = useState(false)
@@ -159,6 +163,9 @@ export default function LibraryItemDetail() {
       recordExport(item.id, 'docx')
     } else if (item.tool === 'notes') {
       await downloadNotesDocx(item.output, `${base}_teacher-notes.docx`)
+      recordExport(item.id, 'docx')
+    } else if (item.tool === 'mark_schedule') {
+      await downloadMarkScheduleDocx(item.output, `${base}_mark-schedule.docx`, { mode: showPercents ? 'percent' : 'marks' })
       recordExport(item.id, 'docx')
     }
   }
@@ -290,6 +297,17 @@ export default function LibraryItemDetail() {
                 Show answers
               </label>
             )}
+            {item.tool === 'mark_schedule' && (
+              <label className="flex items-center gap-2 text-sm px-3 py-2 rounded-xl cursor-pointer" style={{ color: '#0e2a32', border: '1.5px solid #d9cfb8' }}>
+                <input
+                  type="checkbox"
+                  checked={showPercents}
+                  onChange={(e) => setShowPercents(e.target.checked)}
+                  style={{ accentColor: '#ff7a2e' }}
+                />
+                Show percentages
+              </label>
+            )}
             <button
               onClick={onExport}
               disabled={!permissions.canDownload}
@@ -411,6 +429,9 @@ export default function LibraryItemDetail() {
           )}
           {item.tool === 'flashcards' && <FlashcardsView flashcards={item.output} />}
           {item.tool === 'scheme_of_work' && <SchemeOfWorkView scheme={item.output} />}
+          {item.tool === 'mark_schedule' && item.output && (
+            <MarkScheduleView schedule={item.output} mode={showPercents ? 'percent' : 'marks'} />
+          )}
           {item.tool === 'rubric' && <RubricView rubric={item.output} />}
           {item.tool === 'notes' && <NotesView notes={item.output} />}
           {!item.output && !(item.tool === 'lesson_plan' && item.html) && (

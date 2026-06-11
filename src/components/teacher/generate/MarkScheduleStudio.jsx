@@ -20,7 +20,9 @@ import { useAuth } from '../../../contexts/AuthContext'
 import { TEACHER_GRADES } from '../../../utils/teacherTools'
 import { buildSchedule, suggestComment, rankPupils } from '../../../utils/markSchedule'
 import { downloadMarkScheduleDocx } from '../../../utils/markScheduleToDocx'
+import { saveMarkScheduleGeneration } from '../../../utils/teacherLibraryService'
 import { clampInt } from '../../../utils/inputs.js'
+import { Link } from 'react-router-dom'
 import MarkScheduleView from '../views/MarkScheduleView'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
@@ -68,6 +70,11 @@ export default function MarkScheduleStudio() {
   const [pupils, setPupils] = useState(() => blankPupils(5))
   const [mode, setMode] = useState('marks')
   const [confirmClear, setConfirmClear] = useState(false)
+  // Library persistence: the saved generation id (create once, then
+  // update) and whether edits happened after the last save.
+  const [generationId, setGenerationId] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [dirtySinceSave, setDirtySinceSave] = useState(false)
   const loadedRef = useRef(false)
 
   // Restore a saved draft once per mount.
@@ -80,18 +87,25 @@ export default function MarkScheduleStudio() {
     if (Array.isArray(draft.subjects) && draft.subjects.length) setSubjects(draft.subjects)
     if (Array.isArray(draft.pupils) && draft.pupils.length) setPupils(draft.pupils)
     if (draft.mode) setMode(draft.mode)
+    if (draft.generationId) setGenerationId(draft.generationId)
   }, [uid])
 
-  // Debounced autosave.
+  // Debounced autosave (the library doc id rides along so "Update in
+  // library" survives a refresh).
   useEffect(() => {
     if (!uid) return undefined
     const t = setTimeout(() => {
       try {
-        localStorage.setItem(draftKey(uid), JSON.stringify({ savedAt: Date.now(), header, subjects, pupils, mode }))
+        localStorage.setItem(draftKey(uid), JSON.stringify({ savedAt: Date.now(), header, subjects, pupils, mode, generationId }))
       } catch { /* storage full/blocked — the editor still works */ }
     }, 800)
     return () => clearTimeout(t)
-  }, [uid, header, subjects, pupils, mode])
+  }, [uid, header, subjects, pupils, mode, generationId])
+
+  // Any data edit marks the library copy stale.
+  useEffect(() => {
+    setDirtySinceSave(true)
+  }, [header, subjects, pupils])
 
   const setH = (field, value) => setHeader((h) => ({ ...h, [field]: value }))
 
@@ -152,9 +166,26 @@ export default function MarkScheduleStudio() {
     setSubjects(DEFAULT_SUBJECTS)
     setPupils(blankPupils(5))
     setMode('marks')
+    setGenerationId(null) // the library copy (if any) stays; a new save creates a fresh entry
     try { localStorage.removeItem(draftKey(uid)) } catch { /* ignore */ }
     setConfirmClear(false)
     toast.info('Cleared. Starting a fresh schedule.')
+  }
+
+  async function onSaveToLibrary() {
+    if (!artifact || saving) return
+    setSaving(true)
+    try {
+      const id = await saveMarkScheduleGeneration({ uid, existingId: generationId, artifact })
+      setGenerationId(id)
+      setDirtySinceSave(false)
+      toast.success(generationId ? 'Library copy updated.' : 'Saved to your library.')
+    } catch (err) {
+      console.error('[MarkScheduleStudio] save failed', err)
+      toast.error(err?.message || 'Could not save to your library. Please try again.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   async function onExportDocx() {
@@ -365,11 +396,24 @@ export default function MarkScheduleStudio() {
                     </button>
                   ))}
                 </div>
+                <button
+                  type="button"
+                  onClick={onSaveToLibrary}
+                  disabled={!artifact || saving || (generationId && !dirtySinceSave)}
+                  className="studio-btn-ghost disabled:opacity-50"
+                >
+                  {saving ? 'Saving…' : generationId ? (dirtySinceSave ? '💾 Update in library' : '✓ Saved') : '💾 Save to library'}
+                </button>
                 <button type="button" onClick={onExportDocx} disabled={!artifact} className="studio-btn-primary disabled:opacity-50">
                   📄 Download .docx (landscape)
                 </button>
               </div>
             </div>
+            {generationId && (
+              <p className="text-xs mb-3 -mt-2" style={{ color: '#566f76' }}>
+                In your library — <Link to={`/teacher/library/${generationId}`} className="font-bold underline">open the saved copy</Link>.
+              </p>
+            )}
 
             {artifact ? (
               <MarkScheduleView schedule={artifact} mode={mode} />

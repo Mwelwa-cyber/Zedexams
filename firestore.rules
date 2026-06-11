@@ -500,8 +500,21 @@ service cloud.firestore {
     // ── aiGenerations (teacher tools) ─────────────────────────
     match /aiGenerations/{genId} {
       allow read:   if isAuthed() && (resource.data.ownerUid == request.auth.uid || isAdmin());
-      // Client never creates these — only the Cloud Function does (admin SDK bypasses rules).
-      allow create: if false;
+      // AI generations are created by Cloud Functions only (admin SDK
+      // bypasses rules). The ONE client-created tool is mark_schedule —
+      // it's pure client-side maths (no AI call, no server runner), so the
+      // studio writes its own doc, tightly constrained: own uid, fixed
+      // tool/status, and no extra top-level fields (notably none of the
+      // server-only cost/token fields).
+      allow create: if isAuthed()
+                       && incoming().ownerUid == request.auth.uid
+                       && incoming().tool == 'mark_schedule'
+                       && incoming().status == 'complete'
+                       && incoming().visibility == 'private'
+                       && incoming().keys().hasOnly([
+                         'ownerUid', 'tool', 'status', 'visibility',
+                         'createdAt', 'inputs', 'output', 'library',
+                       ]);
       // Teachers can update their own generations' output (in-place editing),
       // the teacherEdited / visibility / exportedFormats metadata fields, and
       // the `library` map (canonical Schemes/Forecasts/Lesson Plans/Notes/
