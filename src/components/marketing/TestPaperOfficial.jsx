@@ -43,14 +43,28 @@ function LabelDiagram({ q }) {
         </div>
       )}
       {q.image ? (
-        <img
-          src={q.image}
-          alt={q.imageAlt || q.diagram}
-          width={q.imageWidth || 640}
-          height={q.imageHeight || 381}
-          loading="lazy"
-          className="mt-3 mx-auto w-full max-w-[380px] h-auto"
-        />
+        <div className="mt-3 mx-auto w-full max-w-[420px] relative">
+          <img
+            src={q.image}
+            alt={q.imageAlt || q.diagram}
+            width={q.imageWidth || 640}
+            height={q.imageHeight || 381}
+            loading="lazy"
+            className="w-full h-auto"
+          />
+          {/* Letter callouts pinned on the parts to label — what makes the
+              task answerable. x/y are percentages of the image box. */}
+          {(q.markers || []).map((m) => (
+            <span
+              key={m.letter}
+              className="absolute grid place-items-center w-[22px] h-[22px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-white border-[1.5px] border-black font-bold text-[12px] leading-none shadow-[0_0_0_1.5px_rgba(255,255,255,0.9)]"
+              style={{ left: `${m.x}%`, top: `${m.y}%` }}
+              aria-hidden="true"
+            >
+              {m.letter}
+            </span>
+          ))}
+        </div>
       ) : (
         <div className="mt-2 border border-dashed border-black/60 rounded-sm h-36 grid place-items-center text-black/50 italic">
           [ {q.diagram} ]
