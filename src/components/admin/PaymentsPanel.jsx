@@ -6,6 +6,7 @@ import { resendInvoiceEmail } from '../../utils/invoices'
 import { sendActivationConfirmation, sendExpiryReminders } from '../../utils/whatsapp'
 import Button from '../ui/Button'
 import Skeleton from '../ui/Skeleton'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import SeoHelmet from '../seo/SeoHelmet'
 import RevenueTrendCard from './RevenueTrendCard'
 
@@ -57,6 +58,10 @@ export default function PaymentsPanel() {
   const [loading, setLoading] = useState(true)
   const [actionId, setActionId] = useState(null)
   const [toast, setToast] = useState(null)
+  // One shared ConfirmDialog serves every confirm flow on this panel —
+  // { title, message, confirmLabel, variant, action }.
+  const [pendingConfirm, setPendingConfirm] = useState(null)
+  const [confirmBusy, setConfirmBusy] = useState(false)
 
   const [grantUid, setGrantUid] = useState('')
   const [grantPlan, setGrantPlan] = useState('monthly')
@@ -231,11 +236,18 @@ export default function PaymentsPanel() {
     window.open(url, '_blank', 'noopener,noreferrer')
   }
 
-  async function handleSendReminders() {
+  function handleSendReminders() {
     if (remindersRunning) return
-    if (!window.confirm(
-      "Send WhatsApp renewal reminders to learners expiring in the next 3 days or lapsed in the last 14? Each user receives at most one reminder per 20 hours."
-    )) return
+    setPendingConfirm({
+      title: 'Send renewal reminders?',
+      message: 'WhatsApp renewal reminders go to learners expiring in the next 3 days or lapsed in the last 14. Each user receives at most one reminder per 20 hours.',
+      confirmLabel: 'Send reminders',
+      variant: 'danger',
+      action: doSendReminders,
+    })
+  }
+
+  async function doSendReminders() {
     setRemindersRunning(true)
     try {
       const res = await sendExpiryReminders()
@@ -301,15 +313,24 @@ export default function PaymentsPanel() {
     setActionId(null)
   }
 
-  async function handleReject(p) {
-    if (!window.confirm(`Reject payment from ${p.displayName}?`)) return
+  function handleReject(p) {
+    setPendingConfirm({
+      title: 'Reject this payment?',
+      message: <>You're about to reject the payment from <strong className="theme-text">{p.displayName}</strong>.</>,
+      confirmLabel: 'Reject payment',
+      variant: 'danger',
+      action: () => doReject(p),
+    })
+  }
+
+  async function doReject(p) {
     setActionId(p.id)
     try { await rejectPayment(p.id, currentUser.uid); show('Rejected.'); load() }
     catch (e) { show('❌ ' + e.message) }
     setActionId(null)
   }
 
-  async function handleRoleChange(uid, role) {
+  function handleRoleChange(uid, role) {
     // Promotion to / demotion from admin is one-click and irreversible
     // without a second admin available — confirm before applying.
     const current = users.find(u => u.id === uid)?.role
@@ -317,8 +338,19 @@ export default function PaymentsPanel() {
     if (touchesAdmin) {
       const name = users.find(u => u.id === uid)?.displayName || uid
       const verb = role === 'admin' ? `promote ${name} to admin` : `change ${name} from admin to ${role}`
-      if (!window.confirm(`Are you sure you want to ${verb}?`)) return
+      setPendingConfirm({
+        title: role === 'admin' ? 'Promote to admin?' : 'Remove admin access?',
+        message: `Are you sure you want to ${verb}?`,
+        confirmLabel: 'Change role',
+        variant: 'danger',
+        action: () => applyRoleChange(uid, role),
+      })
+      return
     }
+    applyRoleChange(uid, role)
+  }
+
+  async function applyRoleChange(uid, role) {
     try { await updateUserRole(uid, role); setUsers(u => u.map(x => x.id === uid ? { ...x, role } : x)); show('Role updated.') }
     catch (e) { show('❌ ' + e.message) }
   }
@@ -368,8 +400,17 @@ export default function PaymentsPanel() {
     setRowActionUid(null)
   }
 
-  async function handleRowRevoke(u) {
-    if (!window.confirm(`Revoke premium from ${u.displayName || u.id}?`)) return
+  function handleRowRevoke(u) {
+    setPendingConfirm({
+      title: 'Revoke premium?',
+      message: <><strong className="theme-text">{u.displayName || u.id}</strong> drops back to the free plan immediately.</>,
+      confirmLabel: 'Revoke',
+      variant: 'danger',
+      action: () => doRowRevoke(u),
+    })
+  }
+
+  async function doRowRevoke(u) {
     setRowActionUid(u.id)
     try {
       await revokePremium(u.id)
@@ -811,6 +852,27 @@ export default function PaymentsPanel() {
           </div>}
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(pendingConfirm)}
+        title={pendingConfirm?.title}
+        message={pendingConfirm?.message}
+        confirmLabel={pendingConfirm?.confirmLabel || 'Confirm'}
+        variant={pendingConfirm?.variant || 'danger'}
+        loading={confirmBusy}
+        onConfirm={async () => {
+          // finally: a misbehaving action must never strand the dialog open
+          // with a re-enabled Confirm that did nothing.
+          setConfirmBusy(true)
+          try {
+            await pendingConfirm?.action()
+          } finally {
+            setConfirmBusy(false)
+            setPendingConfirm(null)
+          }
+        }}
+        onCancel={() => setPendingConfirm(null)}
+      />
     </div>
   )
 }

@@ -9,6 +9,7 @@ import Button from '../../ui/Button'
 import Icon from '../../ui/Icon'
 import { ArrowLeft } from '../../ui/icons'
 import UserStatusBadge from './UserStatusBadge'
+import ConfirmDialog from '../../ui/ConfirmDialog'
 import { adminSetUserStatus, adminSetUserRole } from '../../../utils/adminUsersService'
 import { useToast } from '../../ui/Toast'
 
@@ -31,6 +32,12 @@ export default function AdminUserProfile() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [busy, setBusy] = useState(false)
+  // Status/role changes confirm through ConfirmDialog instead of
+  // window.confirm/prompt. pendingStatus is 'suspended' | 'deleted';
+  // restoring to active applies directly (it reverses the other two).
+  const [pendingStatus, setPendingStatus] = useState(null)
+  const [suspendReason, setSuspendReason] = useState('')
+  const [pendingRole, setPendingRole] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -64,18 +71,25 @@ export default function AdminUserProfile() {
     return () => { cancelled = true }
   }, [userId])
 
-  async function changeStatus(target) {
+  function changeStatus(target) {
     if (isSelf) {
       toast.error("You can't change your own account status from here.")
       return
     }
+    if (target === 'active') {
+      applyStatus('active', '')
+      return
+    }
+    setSuspendReason('')
+    setPendingStatus(target)
+  }
+
+  async function applyStatus(target, reason) {
     setBusy(true)
     try {
-      const reason = target === 'suspended'
-        ? (window.prompt('Optional reason for suspension:') || '')
-        : ''
       await adminSetUserStatus({ uid: userId, status: target, reason })
       setProfile(p => ({ ...p, status: target, suspendReason: reason }))
+      setPendingStatus(null)
     } catch (e) {
       toast.error(`Could not update status: ${e.message || e}`)
     } finally {
@@ -83,16 +97,20 @@ export default function AdminUserProfile() {
     }
   }
 
-  async function changeRole(target) {
+  function changeRole(target) {
     if (isSelf) {
       toast.error("You can't change your own role from here.")
       return
     }
-    if (!window.confirm(`Change role to ${target}? This affects what the user can do across the platform.`)) return
+    setPendingRole(target)
+  }
+
+  async function applyRole(target) {
     setBusy(true)
     try {
       await adminSetUserRole({ uid: userId, role: target })
       setProfile(p => ({ ...p, role: target }))
+      setPendingRole(null)
     } catch (e) {
       toast.error(`Could not update role: ${e.message || e}`)
     } finally {
@@ -198,6 +216,50 @@ export default function AdminUserProfile() {
           </div>
         )}
       </Card>
+
+      <ConfirmDialog
+        open={Boolean(pendingStatus)}
+        title={pendingStatus === 'suspended' ? 'Suspend this account?' : 'Soft-delete this account?'}
+        message={pendingStatus === 'suspended' ? (
+          <div className="space-y-3">
+            <p>
+              <strong className="theme-text">{profile.displayName || profile.email || 'This user'}</strong> loses
+              access immediately. You can restore the account later.
+            </p>
+            <label className="block">
+              <span className="block text-xs font-black theme-text-muted mb-1">Reason (optional, logged in the audit trail)</span>
+              <input
+                type="text"
+                value={suspendReason}
+                onChange={e => setSuspendReason(e.target.value)}
+                placeholder="e.g. payment dispute, abuse report"
+                className="theme-input w-full rounded-xl border theme-border px-3 py-2 text-sm"
+              />
+            </label>
+          </div>
+        ) : (
+          <>
+            <strong className="theme-text">{profile.displayName || profile.email || 'This user'}</strong> loses
+            access immediately. The record stays for audit; restore by setting the account active again.
+          </>
+        )}
+        confirmLabel={pendingStatus === 'suspended' ? 'Suspend' : 'Soft delete'}
+        variant="danger"
+        loading={busy}
+        onConfirm={() => applyStatus(pendingStatus, pendingStatus === 'suspended' ? suspendReason.trim() : '')}
+        onCancel={() => setPendingStatus(null)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(pendingRole)}
+        title={`Change role to ${pendingRole}?`}
+        message="This affects what the user can do across the platform."
+        confirmLabel="Change role"
+        variant={pendingRole === 'admin' || profile.role === 'admin' ? 'danger' : 'primary'}
+        loading={busy}
+        onConfirm={() => applyRole(pendingRole)}
+        onCancel={() => setPendingRole(null)}
+      />
     </div>
   )
 }
