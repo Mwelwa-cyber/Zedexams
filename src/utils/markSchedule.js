@@ -151,3 +151,37 @@ export function buildSchedule(pupils, subjects) {
     comment: p.comment?.trim() ? p.comment : suggestComment(p, subjects, lastPosition),
   }))
 }
+
+/**
+ * Per-pupil report cards from a completed schedule artifact (the
+ * destination the schedule's comments were always headed for — the
+ * comments sheet exists because cards, not the A4 schedule, carry
+ * them home). One card per pupil: every subject's mark, out-of and
+ * percentage, the total, average % and class position, plus the class
+ * teacher's comment. Pure data — reportCardsToDocx.js does the layout.
+ */
+export function buildReportCards(schedule) {
+  const subjects = schedule?.subjects || []
+  const pupils = schedule?.pupils || []
+  const classSize = pupils.length
+  const maxTotal = subjects.reduce((sum, s) => sum + (Number(s.max) || 0), 0)
+  return pupils.map((p) => ({
+    sn: p.sn,
+    name: p.name || '',
+    position: p.position,
+    classSize,
+    rows: subjects.map((s) => {
+      const mark = p.marks?.[s.key]
+      return {
+        subject: s.label,
+        mark: mark == null || mark === '' ? '' : Number(mark),
+        max: Number(s.max) || 0,
+        percent: percentFor(mark, s.max),
+      }
+    }),
+    total: p.total,
+    maxTotal,
+    averagePercent: averagePercent(p.marks, subjects),
+    comment: p.comment || '',
+  }))
+}

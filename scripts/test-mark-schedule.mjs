@@ -17,6 +17,7 @@ import {
   bandFor,
   suggestComment,
   buildSchedule,
+  buildReportCards,
 } from '../src/utils/markSchedule.js'
 
 let pass = 0
@@ -134,6 +135,36 @@ test('buildSchedule fills comments but keeps teacher-written ones', () => {
   assert(chanda.comment === 'Spoke with the parents on Friday.', "teacher's own comment is kept")
   const tied = rows.filter((p) => p.total === 104)
   assert(tied.length === 2 && tied.every((p) => p.position === 3), 'tie survives through buildSchedule')
+})
+
+console.log('\nreport cards')
+test('buildReportCards makes one card per pupil with full subject rows', () => {
+  const schedule = {
+    header: { school: 'Kalulu Primary', grade: 'G4', term: 2, year: '2026' },
+    subjects: SUBJECTS,
+    pupils: buildSchedule(PUPILS, SUBJECTS).map((p, i) => ({ ...p, sn: i + 1 })),
+  }
+  const cards = buildReportCards(schedule)
+  assert(cards.length === 6, 'six pupils, six cards')
+  assert(cards.every((c) => c.classSize === 6), 'class size on every card')
+  const natasha = cards.find((c) => c.name === 'Natasha Zulu')
+  assert(natasha.position === 1 && natasha.total === 110, 'position + total carried')
+  assert(natasha.rows.length === 5, 'a row per subject')
+  assert(natasha.rows[0].subject === 'MATHS' && natasha.rows[0].mark === 23 && natasha.rows[0].max === 25 && natasha.rows[0].percent === 92, 'subject row carries mark, max and percent')
+  assert(natasha.maxTotal === 127, 'card knows the grand maximum')
+  assert(natasha.averagePercent === 87, 'card average matches averagePercent')
+  assert(natasha.comment.includes('Natasha'), 'class teacher comment lands on the card')
+})
+test('buildReportCards leaves missing marks blank, not zero', () => {
+  const schedule = {
+    header: {},
+    subjects: SUBJECTS,
+    pupils: buildSchedule([{ sn: 1, name: 'Absent Andy', marks: { maths: 10 } }], SUBJECTS),
+  }
+  const card = buildReportCards(schedule)[0]
+  const english = card.rows.find((r) => r.subject === 'ENGLISH')
+  assert(english.mark === '' && english.percent === 0, 'blank mark stays blank on the card')
+  assert(card.rows.find((r) => r.subject === 'MATHS').mark === 10, 'entered mark intact')
 })
 
 console.log('')

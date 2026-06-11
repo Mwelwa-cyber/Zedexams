@@ -21,6 +21,7 @@ import { TEACHER_GRADES } from '../../../utils/teacherTools'
 import { buildSchedule, suggestComment, rankPupils } from '../../../utils/markSchedule'
 import { downloadMarkScheduleDocx } from '../../../utils/markScheduleToDocx'
 import { downloadMarkScheduleXlsx } from '../../../utils/markScheduleToXlsx'
+import { downloadReportCardsDocx } from '../../../utils/reportCardsToDocx'
 import { saveMarkScheduleGeneration } from '../../../utils/teacherLibraryService'
 import { clampInt } from '../../../utils/inputs.js'
 import { Link } from 'react-router-dom'
@@ -66,6 +67,7 @@ export default function MarkScheduleStudio() {
     grade: 'G4',
     term: 1,
     year: String(new Date().getFullYear()),
+    nextTermOpens: '',
   }))
   const [subjects, setSubjects] = useState(DEFAULT_SUBJECTS)
   const [pupils, setPupils] = useState(() => blankPupils(5))
@@ -163,7 +165,7 @@ export default function MarkScheduleStudio() {
   }, [named, subjects, header])
 
   function clearAll() {
-    setHeader({ school: userProfile?.schoolName || '', grade: 'G4', term: 1, year: String(new Date().getFullYear()) })
+    setHeader({ school: userProfile?.schoolName || '', grade: 'G4', term: 1, year: String(new Date().getFullYear()), nextTermOpens: '' })
     setSubjects(DEFAULT_SUBJECTS)
     setPupils(blankPupils(5))
     setMode('marks')
@@ -213,6 +215,18 @@ export default function MarkScheduleStudio() {
     }
   }
 
+  async function onExportReportCards() {
+    if (!artifact) return
+    const name = `${header.grade}_term${header.term}_${header.year}_report-cards.docx`
+    try {
+      await downloadReportCardsDocx(artifact, name)
+      toast.success(`Report cards downloaded — one page per pupil (${artifact.pupils.length}).`)
+    } catch (err) {
+      console.error('[MarkScheduleStudio] report cards export failed', err)
+      toast.error('Could not build the report cards. Please try again.')
+    }
+  }
+
   return (
     <div className="min-h-screen p-4 sm:p-6 lg:p-8" style={{ background: '#f5efe1' }}>
       <SeoHelmet title="Mark schedule" noIndex />
@@ -253,6 +267,12 @@ export default function MarkScheduleStudio() {
                 <input type="text" value={header.year} maxLength={4}
                   onChange={(e) => setH('year', e.target.value.replace(/[^\d]/g, ''))}
                   className="studio-input" />
+              </div>
+              <div className="col-span-2">
+                <label className="studio-label">Next term opens (printed on report cards, optional)</label>
+                <input type="text" value={header.nextTermOpens || ''} maxLength={40}
+                  onChange={(e) => setH('nextTermOpens', e.target.value)}
+                  placeholder="e.g. Monday 12th January 2027" className="studio-input" />
               </div>
             </div>
 
@@ -419,6 +439,9 @@ export default function MarkScheduleStudio() {
                 </button>
                 <button type="button" onClick={onExportXlsx} disabled={!artifact} className="studio-btn-ghost disabled:opacity-50">
                   📊 Download .xlsx (live formulas)
+                </button>
+                <button type="button" onClick={onExportReportCards} disabled={!artifact} className="studio-btn-ghost disabled:opacity-50">
+                  🪪 Report cards (.docx)
                 </button>
                 <button type="button" onClick={onExportDocx} disabled={!artifact} className="studio-btn-primary disabled:opacity-50">
                   📄 Download .docx (landscape)
