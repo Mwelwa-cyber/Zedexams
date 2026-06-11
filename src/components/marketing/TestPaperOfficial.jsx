@@ -42,9 +42,20 @@ function LabelDiagram({ q }) {
           {q.wordBank.join(' · ')}
         </div>
       )}
-      <div className="mt-2 border border-dashed border-black/60 rounded-sm h-36 grid place-items-center text-black/50 italic">
-        [ {q.diagram} ]
-      </div>
+      {q.image ? (
+        <img
+          src={q.image}
+          alt={q.imageAlt || q.diagram}
+          width={q.imageWidth || 640}
+          height={q.imageHeight || 381}
+          loading="lazy"
+          className="mt-3 mx-auto w-full max-w-[380px] h-auto"
+        />
+      ) : (
+        <div className="mt-2 border border-dashed border-black/60 rounded-sm h-36 grid place-items-center text-black/50 italic">
+          [ {q.diagram} ]
+        </div>
+      )}
       <div className="mt-2 grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-1.5">
         {q.slots.map((letter) => (
           <span key={letter}><strong className="font-bold">{letter}.</strong> ____________________</span>

@@ -19,6 +19,10 @@
  * LESSON DEVELOPMENT → EXERCISE / ASSESSMENT → HOMEWORK → CONCLUSION).
  */
 
+// Extracted from the school's own Grade 4 Social Studies test paper and
+// downscaled to 640px WebP (~49 kB). Used by the term-test labelling task.
+import coatOfArmsImg from '../assets/marketing/zambia-coat-of-arms.webp'
+
 export const TEACHER_SAMPLES = [
   {
     id: 'lesson-plan',
@@ -592,6 +596,8 @@ export const TEACHER_SAMPLES = [
                 n: 1,
                 prompt: 'Label the Zambian Coat of Arms.',
                 diagram: 'Zambian Coat of Arms diagram',
+                image: coatOfArmsImg,
+                imageAlt: 'The Zambian Coat of Arms — eagle, crossed pick and hoe, shield, man and woman supporters, maize cob, mining shaft and zebra above the motto One Zambia One Nation',
                 slots: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'],
               },
               {
@@ -654,6 +660,8 @@ export const TEACHER_SAMPLES = [
                 n: 1,
                 prompt: 'Label the Zambian Coat of Arms.',
                 diagram: 'Zambian Coat of Arms diagram',
+                image: coatOfArmsImg,
+                imageAlt: 'The Zambian Coat of Arms — eagle, crossed pick and hoe, shield, man and woman supporters, maize cob, mining shaft and zebra above the motto One Zambia One Nation',
                 wordBank: ['eagle', 'zebra', 'shield', 'hoe', 'pick', 'mining shaft', 'maize cob', 'man', 'woman'],
                 slots: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'],
               },
