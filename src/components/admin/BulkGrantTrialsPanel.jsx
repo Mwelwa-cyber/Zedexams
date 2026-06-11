@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import app from '../../firebase/config'
 import Button from '../ui/Button'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import SeoHelmet from '../seo/SeoHelmet'
 
 // One callable per page mount — created lazily so SSR / first paint
@@ -85,6 +86,8 @@ export default function BulkGrantTrialsPanel() {
   const [results, setResults] = useState(null)
   const [summary, setSummary] = useState(null)
   const [toast, setToast] = useState(null)
+  // Validated batch awaiting ConfirmDialog approval — { entries, daysNum }.
+  const [pendingGrant, setPendingGrant] = useState(null)
 
   function show(msg) { setToast(msg); setTimeout(() => setToast(null), 4500) }
 
@@ -93,7 +96,7 @@ export default function BulkGrantTrialsPanel() {
     email: email || (slugify(name) ? `${slugify(name)}@zedexams.com` : '(invalid name)'),
   }))
 
-  async function handleGrant(e) {
+  function handleGrant(e) {
     e.preventDefault()
     const entries = parseNamesBlob(namesBlob)
     if (entries.length === 0) {
@@ -111,12 +114,10 @@ export default function BulkGrantTrialsPanel() {
     // Number inputs hand back strings; an emptied field would send 0 days,
     // which would land as a same-instant-expiring trial.
     const daysNum = Math.max(1, Math.min(365, Number(days) || 30))
-    if (!window.confirm(
-      `Create ${entries.length} demo trial account${entries.length === 1 ? '' : 's'}? ` +
-      `Each gets a ${daysNum}-day Premium trial (plan: ${plan}, grade ${grade}). ` +
-      `This action creates real Firebase Auth users.`,
-    )) return
+    setPendingGrant({ entries, daysNum })
+  }
 
+  async function runGrant({ entries, daysNum }) {
     setRunning(true)
     setResults(null)
     setSummary(null)
@@ -306,6 +307,20 @@ export default function BulkGrantTrialsPanel() {
           </p>
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(pendingGrant)}
+        title={`Create ${pendingGrant?.entries?.length ?? 0} demo trial account${pendingGrant?.entries?.length === 1 ? '' : 's'}?`}
+        message={`Each gets a ${pendingGrant?.daysNum}-day Premium trial (plan: ${plan}, grade ${grade}). This creates real Firebase Auth users.`}
+        confirmLabel="Create accounts"
+        variant="primary"
+        onConfirm={() => {
+          const batch = pendingGrant
+          setPendingGrant(null)
+          if (batch) runGrant(batch)
+        }}
+        onCancel={() => setPendingGrant(null)}
+      />
     </div>
   )
 }

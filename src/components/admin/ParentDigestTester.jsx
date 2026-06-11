@@ -23,6 +23,7 @@
 import { useState } from 'react'
 import { triggerWeeklyParentDigest } from '../../utils/parentShares'
 import Button from '../ui/Button'
+import ConfirmDialog from '../ui/ConfirmDialog'
 
 function fmtSummary(summary) {
   if (!summary) return null
@@ -37,6 +38,8 @@ export default function ParentDigestTester() {
   const [busy, setBusy] = useState(false)
   const [result, setResult] = useState(null)
   const [error, setError] = useState(null)
+  // Full-run (all shares) waits on ConfirmDialog approval first.
+  const [confirmRunAll, setConfirmRunAll] = useState(false)
 
   async function handleRun() {
     setError(null)
@@ -62,7 +65,6 @@ export default function ParentDigestTester() {
   }
 
   async function handleRunAll() {
-    if (!window.confirm('Run the digest for ALL active shares (not a dry run, real messages will go out)? This is what the Sunday cron does, just earlier.')) return
     setError(null); setResult(null); setBusy(true)
     try {
       const summary = await triggerWeeklyParentDigest({ force })
@@ -72,6 +74,7 @@ export default function ParentDigestTester() {
       setError(err?.message || 'Trigger failed. See console.')
     } finally {
       setBusy(false)
+      setConfirmRunAll(false)
     }
   }
 
@@ -130,7 +133,7 @@ export default function ParentDigestTester() {
         <Button
           variant="secondary"
           size="md"
-          onClick={handleRunAll}
+          onClick={() => setConfirmRunAll(true)}
           loading={busy}
           disabled={busy}
         >
@@ -191,6 +194,17 @@ export default function ParentDigestTester() {
           </details>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmRunAll}
+        title="Run the full digest now?"
+        message="This is not a dry run — real messages go out to ALL active shares, exactly what the Sunday cron does, just earlier."
+        confirmLabel="Run full digest"
+        variant="danger"
+        loading={busy}
+        onConfirm={handleRunAll}
+        onCancel={() => setConfirmRunAll(false)}
+      />
     </div>
   )
 }

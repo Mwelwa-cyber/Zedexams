@@ -9,6 +9,7 @@ import { db } from '../../firebase/config'
 import Button from '../ui/Button'
 import Icon from '../ui/Icon'
 import Skeleton from '../ui/Skeleton'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import EmptyState from '../ui/EmptyState'
 import SeoHelmet from '../seo/SeoHelmet'
 import ParentDigestTester from './ParentDigestTester'
@@ -94,9 +95,10 @@ export default function AdminDashboard() {
   const [seeding, setSeeding] = useState(false)
   const [clearingSeed, setClearingSeed] = useState(false)
   const [seedMsg, setSeedMsg] = useState('')
+  // Which seed action awaits ConfirmDialog approval — 'seed' | 'clear' | null.
+  const [pendingSeed, setPendingSeed] = useState(null)
 
   async function handleSeed() {
-    if (!window.confirm('This will add sample quizzes to Firestore. Continue?')) return
     setSeeding(true); setSeedMsg('')
     try {
       await seedFirestore(db, currentUser.uid)
@@ -107,7 +109,6 @@ export default function AdminDashboard() {
   }
 
   async function handleClearSeed() {
-    if (!window.confirm('This will remove the seeded sample quizzes created by your account. Continue?')) return
     setClearingSeed(true); setSeedMsg('')
     try {
       const result = await clearSeedFirestore(db, currentUser.uid)
@@ -402,7 +403,7 @@ export default function AdminDashboard() {
                 <Button
                   variant="primary"
                   size="md"
-                  onClick={handleSeed}
+                  onClick={() => setPendingSeed('seed')}
                   loading={seeding}
                   disabled={clearingSeed}
                   leadingIcon={<Icon as={Sprout} size="sm" />}
@@ -414,7 +415,7 @@ export default function AdminDashboard() {
                 <Button
                   variant="secondary"
                   size="md"
-                  onClick={handleClearSeed}
+                  onClick={() => setPendingSeed('clear')}
                   loading={clearingSeed}
                   disabled={seeding}
                   className="shrink-0"
@@ -514,6 +515,23 @@ export default function AdminDashboard() {
           </div>
         )}
       </section>
+
+      <ConfirmDialog
+        open={Boolean(pendingSeed)}
+        title={pendingSeed === 'seed' ? 'Add sample quizzes?' : 'Remove seeded sample quizzes?'}
+        message={pendingSeed === 'seed'
+          ? 'This will add sample quizzes to Firestore.'
+          : 'This will remove the seeded sample quizzes created by your account.'}
+        confirmLabel={pendingSeed === 'seed' ? 'Run seed' : 'Clear seed'}
+        variant={pendingSeed === 'seed' ? 'primary' : 'danger'}
+        onConfirm={() => {
+          const action = pendingSeed
+          setPendingSeed(null)
+          if (action === 'seed') handleSeed()
+          else if (action === 'clear') handleClearSeed()
+        }}
+        onCancel={() => setPendingSeed(null)}
+      />
     </div>
   )
 }
