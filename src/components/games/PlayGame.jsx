@@ -16,6 +16,7 @@ import TimedQuizGame from './TimedQuizGame'
 import MemoryMatchGame from './MemoryMatchGame'
 import WordBuilderGame from './WordBuilderGame'
 import ProvinceShapesGame from './ProvinceShapesGame'
+import NumberTargetGame from './NumberTargetGame'
 import {
   getGameAccessMeta,
   getGameTypeTheme,
@@ -226,6 +227,7 @@ function GameEngine({ game }) {
   if (game.type === 'memory_match') return <MemoryMatchGame game={game} />
   if (game.type === 'word_builder') return <WordBuilderGame game={game} />
   if (game.type === 'province_shapes') return <ProvinceShapesGame game={game} />
+  if (game.type === 'number_target') return <NumberTargetGame game={game} />
 
   return (
     <div className="zx-card rounded-[22px] bg-white p-10 text-center">

@@ -891,6 +891,61 @@ const ZAMBIA_HISTORY_G6 = {
 }
 
 /* ────────────────────────────────────────────────────────────────────
+ *  NUMBER TARGET — Countdown-style maths (type: "number_target")
+ *  Fully procedural: rounds are generated in the engine from the
+ *  difficulty config, so `questions` stays empty. `rounds` overrides
+ *  the per-difficulty default round count.
+ * ──────────────────────────────────────────────────────────────────── */
+const NUMBER_TARGET_G2 = {
+  id: 'math_number_target_g2',
+  title: 'Number Target: Junior',
+  subject: 'mathematics',
+  grade: 2,
+  type: 'number_target',
+  difficulty: 'easy',
+  description: 'Combine number tiles with + and − to make the target number. Every target can be made!',
+  timer: 0,
+  points: 10,
+  active: true,
+  cbc_topic: 'Addition and Subtraction',
+  rounds: 6,
+  questions: [],
+}
+
+const NUMBER_TARGET_G4 = {
+  id: 'math_number_target_g4',
+  title: 'Number Target',
+  subject: 'mathematics',
+  grade: 4,
+  type: 'number_target',
+  difficulty: 'medium',
+  description: 'Mix + − × to build the target number from your tiles. Think like a maths detective!',
+  timer: 0,
+  points: 15,
+  active: true,
+  cbc_topic: 'Number Operations',
+  rounds: 8,
+  questions: [],
+  isDemo: true,
+}
+
+const NUMBER_TARGET_G6 = {
+  id: 'math_number_target_g6',
+  title: 'Number Target: Master',
+  subject: 'mathematics',
+  grade: 6,
+  type: 'number_target',
+  difficulty: 'hard',
+  description: 'Six tiles, all four operations, big targets. Can you crack every one?',
+  timer: 0,
+  points: 20,
+  active: true,
+  cbc_topic: 'Number Operations',
+  rounds: 8,
+  questions: [],
+}
+
+/* ────────────────────────────────────────────────────────────────────
  *  Manifest
  * ──────────────────────────────────────────────────────────────────── */
 const DEFAULT_DEMO_GAME_IDS = new Set([
@@ -919,6 +974,7 @@ export const GAMES_SEED = [
   ABC_WORDS_G1,
   SPELL_IT_RIGHT_G1,
   ADD_SUB_G2,
+  NUMBER_TARGET_G2,
   SIGHT_WORDS_G2,
   SPELL_IT_RIGHT_G2,
   TIMES_TABLES_G3,
@@ -929,6 +985,7 @@ export const GAMES_SEED = [
   // G4
   SPEED_TABLES_G4,
   FRACTION_MATCH_G4,
+  NUMBER_TARGET_G4,
   SPELL_IT_RIGHT_G4,
   PLANT_PARTS_G4,
   ZAMBIA_BASICS_G4,
@@ -942,6 +999,7 @@ export const GAMES_SEED = [
   AFRICA_CAPITALS_G5,        // active:false in the const above (deactivated)
   // G6
   MATH_MEMORY_G6,
+  NUMBER_TARGET_G6,
   PERCENT_G6,
   GRAMMAR_G6,
   SPELL_IT_RIGHT_G6,
