@@ -23,6 +23,20 @@
 // downscaled to 640px WebP (~49 kB). Used by the term-test labelling task.
 import coatOfArmsImg from '../assets/marketing/zambia-coat-of-arms.webp'
 
+// Letter callouts pinned on the Coat of Arms parts (x/y as % of the image)
+// so learners can see exactly which element each blank refers to.
+const COAT_OF_ARMS_MARKERS = [
+  { letter: 'a', x: 50, y: 10 },  // eagle
+  { letter: 'b', x: 40, y: 18 },  // hoe
+  { letter: 'c', x: 60, y: 18 },  // pick
+  { letter: 'd', x: 50, y: 49 },  // shield
+  { letter: 'e', x: 28, y: 45 },  // man
+  { letter: 'f', x: 74, y: 45 },  // woman
+  { letter: 'g', x: 33, y: 72 },  // mining shaft
+  { letter: 'h', x: 62, y: 76 },  // zebra
+  { letter: 'i', x: 50, y: 90 },  // maize cob
+]
+
 export const TEACHER_SAMPLES = [
   {
     id: 'lesson-plan',
@@ -597,6 +611,7 @@ export const TEACHER_SAMPLES = [
                 prompt: 'Label the Zambian Coat of Arms.',
                 diagram: 'Zambian Coat of Arms diagram',
                 image: coatOfArmsImg,
+                markers: COAT_OF_ARMS_MARKERS,
                 imageAlt: 'The Zambian Coat of Arms — eagle, crossed pick and hoe, shield, man and woman supporters, maize cob, mining shaft and zebra above the motto One Zambia One Nation',
                 slots: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'],
               },
@@ -661,6 +676,7 @@ export const TEACHER_SAMPLES = [
                 prompt: 'Label the Zambian Coat of Arms.',
                 diagram: 'Zambian Coat of Arms diagram',
                 image: coatOfArmsImg,
+                markers: COAT_OF_ARMS_MARKERS,
                 imageAlt: 'The Zambian Coat of Arms — eagle, crossed pick and hoe, shield, man and woman supporters, maize cob, mining shaft and zebra above the motto One Zambia One Nation',
                 wordBank: ['eagle', 'zebra', 'shield', 'hoe', 'pick', 'mining shaft', 'maize cob', 'man', 'woman'],
                 slots: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'],
