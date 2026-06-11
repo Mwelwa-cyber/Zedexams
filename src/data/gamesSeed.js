@@ -891,6 +891,161 @@ const ZAMBIA_HISTORY_G6 = {
 }
 
 /* ────────────────────────────────────────────────────────────────────
+ *  NUMBER TARGET — Countdown-style maths (type: "number_target")
+ *  Fully procedural: rounds are generated in the engine from the
+ *  difficulty config, so `questions` stays empty. `rounds` overrides
+ *  the per-difficulty default round count.
+ * ──────────────────────────────────────────────────────────────────── */
+const NUMBER_TARGET_G2 = {
+  id: 'math_number_target_g2',
+  title: 'Number Target: Junior',
+  subject: 'mathematics',
+  grade: 2,
+  type: 'number_target',
+  difficulty: 'easy',
+  description: 'Combine number tiles with + and − to make the target number. Every target can be made!',
+  timer: 0,
+  points: 10,
+  active: true,
+  cbc_topic: 'Addition and Subtraction',
+  rounds: 6,
+  questions: [],
+}
+
+const NUMBER_TARGET_G4 = {
+  id: 'math_number_target_g4',
+  title: 'Number Target',
+  subject: 'mathematics',
+  grade: 4,
+  type: 'number_target',
+  difficulty: 'medium',
+  description: 'Mix + − × to build the target number from your tiles. Think like a maths detective!',
+  timer: 0,
+  points: 15,
+  active: true,
+  cbc_topic: 'Number Operations',
+  rounds: 8,
+  questions: [],
+  isDemo: true,
+}
+
+const NUMBER_TARGET_G6 = {
+  id: 'math_number_target_g6',
+  title: 'Number Target: Master',
+  subject: 'mathematics',
+  grade: 6,
+  type: 'number_target',
+  difficulty: 'hard',
+  description: 'Six tiles, all four operations, big targets. Can you crack every one?',
+  timer: 0,
+  points: 20,
+  active: true,
+  cbc_topic: 'Number Operations',
+  rounds: 8,
+  questions: [],
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ *  SORTING FACTORY — classification arcade (type: "sorting_factory")
+ *  questions[] = { question: item to sort, answer: bin label }.
+ *  Bins are derived from the unique answers (2–4 bins).
+ * ──────────────────────────────────────────────────────────────────── */
+const SORTING_LIVING_G3 = {
+  id: 'science_sorting_living_g3',
+  title: 'Sorting Factory: Living or Not?',
+  subject: 'science',
+  grade: 3,
+  type: 'sorting_factory',
+  difficulty: 'easy',
+  description: 'Flick each item into the right bin — living thing or non-living thing. Build a combo for bonus points!',
+  timer: 0,
+  points: 10,
+  active: true,
+  cbc_topic: 'Living and Non-living Things',
+  isDemo: true,
+  questions: [
+    { question: '🐐 Goat',         answer: 'Living' },
+    { question: '🪨 Rock',         answer: 'Non-living' },
+    { question: '🌽 Maize plant',  answer: 'Living' },
+    { question: '🚲 Bicycle',      answer: 'Non-living' },
+    { question: '🦅 Fish eagle',   answer: 'Living' },
+    { question: '🪑 Chair',        answer: 'Non-living' },
+    { question: '🍄 Mushroom',     answer: 'Living' },
+    { question: '🥁 Drum',         answer: 'Non-living' },
+    { question: '🐕 Dog',          answer: 'Living' },
+    { question: '☀️ The sun',      answer: 'Non-living' },
+    { question: '🥭 Mango tree',   answer: 'Living' },
+    { question: '🍲 Cooking pot',  answer: 'Non-living' },
+    { question: '🐔 Chicken',      answer: 'Living' },
+    { question: '🧱 Brick',        answer: 'Non-living' },
+    { question: '🌿 Grass',        answer: 'Living' },
+    { question: '💧 Water',        answer: 'Non-living' },
+  ],
+}
+
+const SORTING_WORD_TYPES_G5 = {
+  id: 'english_sorting_word_types_g5',
+  title: 'Sorting Factory: Word Types',
+  subject: 'english',
+  grade: 5,
+  type: 'sorting_factory',
+  difficulty: 'medium',
+  description: 'Noun, verb or adjective? Sort the words before the clock runs out and keep your combo alive.',
+  timer: 75,
+  points: 12,
+  active: true,
+  cbc_topic: 'Parts of Speech',
+  questions: [
+    { question: 'school',    answer: 'Noun' },
+    { question: 'run',       answer: 'Verb' },
+    { question: 'beautiful', answer: 'Adjective' },
+    { question: 'teacher',   answer: 'Noun' },
+    { question: 'sing',      answer: 'Verb' },
+    { question: 'tall',      answer: 'Adjective' },
+    { question: 'river',     answer: 'Noun' },
+    { question: 'dance',     answer: 'Verb' },
+    { question: 'clever',    answer: 'Adjective' },
+    { question: 'market',    answer: 'Noun' },
+    { question: 'write',     answer: 'Verb' },
+    { question: 'brave',     answer: 'Adjective' },
+    { question: 'lesson',    answer: 'Noun' },
+    { question: 'jump',      answer: 'Verb' },
+    { question: 'happy',     answer: 'Adjective' },
+  ],
+}
+
+const SORTING_STATES_G6 = {
+  id: 'science_sorting_states_g6',
+  title: 'Sorting Factory: States of Matter',
+  subject: 'science',
+  grade: 6,
+  type: 'sorting_factory',
+  difficulty: 'medium',
+  description: 'Solid, liquid or gas? Sort everyday things into the right state of matter at top speed.',
+  timer: 75,
+  points: 12,
+  active: true,
+  cbc_topic: 'States of Matter',
+  questions: [
+    { question: '🧊 Ice block',         answer: 'Solid' },
+    { question: '🥛 Milk',              answer: 'Liquid' },
+    { question: '♨️ Steam',             answer: 'Gas' },
+    { question: '🪨 Stone',             answer: 'Solid' },
+    { question: '⛽ Petrol',            answer: 'Liquid' },
+    { question: '💨 Air',               answer: 'Gas' },
+    { question: '🧱 Brick',             answer: 'Solid' },
+    { question: '🛢️ Cooking oil',       answer: 'Liquid' },
+    { question: '🫧 Oxygen',            answer: 'Gas' },
+    { question: '🔩 Iron nail',         answer: 'Solid' },
+    { question: '💧 Water',             answer: 'Liquid' },
+    { question: '🌫️ Smoke',             answer: 'Gas' },
+    { question: '🪵 Charcoal',          answer: 'Solid' },
+    { question: '🧃 Juice',             answer: 'Liquid' },
+    { question: '🎈 Air in a balloon',  answer: 'Gas' },
+  ],
+}
+
+/* ────────────────────────────────────────────────────────────────────
  *  Manifest
  * ──────────────────────────────────────────────────────────────────── */
 const DEFAULT_DEMO_GAME_IDS = new Set([
@@ -919,9 +1074,11 @@ export const GAMES_SEED = [
   ABC_WORDS_G1,
   SPELL_IT_RIGHT_G1,
   ADD_SUB_G2,
+  NUMBER_TARGET_G2,
   SIGHT_WORDS_G2,
   SPELL_IT_RIGHT_G2,
   TIMES_TABLES_G3,
+  SORTING_LIVING_G3,
   WORD_BUILDER_G3,
   SPELL_IT_RIGHT_G3,
 
@@ -929,6 +1086,7 @@ export const GAMES_SEED = [
   // G4
   SPEED_TABLES_G4,
   FRACTION_MATCH_G4,
+  NUMBER_TARGET_G4,
   SPELL_IT_RIGHT_G4,
   PLANT_PARTS_G4,
   ZAMBIA_BASICS_G4,
@@ -937,15 +1095,18 @@ export const GAMES_SEED = [
   DIGESTIVE_SYSTEM_G5,
   DECIMALS_G5,
   SPELL_IT_RIGHT_G5,
+  SORTING_WORD_TYPES_G5,
   ZAMBIA_PROVINCES_G5,
   ZAMBIA_PROVINCE_SHAPES_G5,
   AFRICA_CAPITALS_G5,        // active:false in the const above (deactivated)
   // G6
   MATH_MEMORY_G6,
+  NUMBER_TARGET_G6,
   PERCENT_G6,
   GRAMMAR_G6,
   SPELL_IT_RIGHT_G6,
   SOLAR_SYSTEM_G6,
+  SORTING_STATES_G6,
   ZAMBIA_HISTORY_G6,
 
   // ── Outside primary CBC scope — kept in seed so admin can flip active=true if needed ──
