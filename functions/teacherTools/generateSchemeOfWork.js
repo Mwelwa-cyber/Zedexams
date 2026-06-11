@@ -158,6 +158,15 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
 
   const validation = validateSchemeOfWork(parsed);
   const scheme = validation.value;
+  // The form already knows these — never trust the model with them (it
+  // has invented "UNKNOWN" for a blank school and last year's date).
+  scheme.header.school = inputs.school;
+  scheme.header.teacherName = inputs.teacherName;
+  scheme.header.grade = inputs.grade === "ECE" ?
+    "ECE" : inputs.grade.replace(/^G/i, "");
+  scheme.header.term = inputs.term;
+  scheme.header.numberOfWeeks = inputs.numberOfWeeks;
+  scheme.header.year = String(new Date().getUTCFullYear());
   if (!validation.ok) {
     await genRef.update({
       status: "flagged",
