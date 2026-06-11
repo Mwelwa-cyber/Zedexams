@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useFirestore } from '../../../hooks/useFirestore'
@@ -212,7 +212,19 @@ export default function TeacherLibrary() {
   const [status, setStatus] = useState('loading')
   const [errorMessage, setErrorMessage] = useState('')
 
-  const [query, setQuery] = useState('')
+  // The global search in TeacherTopBar lands here as /teacher/library?q=…
+  // Seed the search box from the URL and re-sync whenever the param
+  // changes (e.g. a second top-bar search while already on this page).
+  // Local typing deliberately does NOT write back to the URL.
+  const urlQuery = searchParams.get('q') || ''
+  const [query, setQuery] = useState(urlQuery)
+  const lastUrlQuery = useRef(urlQuery)
+  useEffect(() => {
+    if (urlQuery === lastUrlQuery.current) return
+    lastUrlQuery.current = urlQuery
+    setQuery(urlQuery)
+  }, [urlQuery])
+
   const [filtersOpen, setFiltersOpen] = useState(false)
   const [typeFilter, setTypeFilter] = useState('')
 
