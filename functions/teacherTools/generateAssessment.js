@@ -19,9 +19,13 @@ const {
 const {callClaude} = require("./anthropicClient");
 
 const {resolveCbcContext} = require("./cbcKnowledge");
+const {
+  ASSESSMENT_TYPES,
+  resolveAssessmentFormatContext,
+} = require("./assessmentFormats");
 const {validateAssessment} = require("./assessmentSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
-  require("./assessmentPrompt");
+  require("./assessmentPromptV2");
 const {assertAndIncrement} = require("./usageMeter");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
 
@@ -38,20 +42,8 @@ const ASSESSMENT_TOOL_SCHEMA = {
   },
 };
 
-const ALLOWED_GRADES = new Set([
-  "ECE", "G1", "G2", "G3", "G4", "G5", "G6", "G7",
-  "G8", "G9", "G10", "G11", "G12",
-  "F1", "F2", "F3", "F4",
-]);
-const ALLOWED_SUBJECTS = new Set([
-  "mathematics", "english", "integrated_science", "social_studies",
-  "literacy", "numeracy", "cinyanja", "zambian_language",
-  "creative_and_technology_studies",
-  "physical_education", "religious_education", "civic_education",
-  "biology", "chemistry", "physics", "geography", "history",
-  "environmental_science", "technology_studies", "home_economics",
-  "expressive_arts",
-]);
+const {ALLOWED_GRADES, ALLOWED_SUBJECTS} =
+  require("./assessmentAllowlists");
 const ALLOWED_LANGUAGES = new Set([
   "english", "bemba", "nyanja", "tonga", "lozi", "kaonde", "lunda", "luvale",
 ]);
@@ -64,6 +56,7 @@ function sanitizeInputs(raw = {}) {
   const grade = str(raw.grade, 10).toUpperCase().replace(/\s+/g, "");
   const subject = str(raw.subject, 40).toLowerCase().replace(/[^a-z_]/g, "_");
   const language = str(raw.language || "english", 20).toLowerCase();
+  const assessmentType = str(raw.assessmentType, 30).toLowerCase();
 
   const term = Math.round(num(raw.term, 0));
   const lessonNumber = Math.round(num(raw.lessonNumber, 0));
@@ -87,6 +80,8 @@ function sanitizeInputs(raw = {}) {
         Math.round(num(raw.durationMinutes, 40)))),
     language: ALLOWED_LANGUAGES.has(language) ? language : "english",
     instructions: str(raw.instructions, 500),
+    assessmentType: ASSESSMENT_TYPES.includes(assessmentType) ?
+      assessmentType : "topic_test",
   };
 }
 
@@ -111,7 +106,11 @@ async function runAssessment({uid, rawInputs, apiKey}) {
     throw new HttpsError("invalid-argument", inputErrors.join(" "));
   }
 
-  const [{contextBlock, kbMatch, kbWarning, kbVersion}, usage] = await Promise.all([
+  const [
+    {contextBlock, kbMatch, kbWarning, kbVersion},
+    {formatBlock, formatProfileId, formatSource},
+    usage,
+  ] = await Promise.all([
     resolveCbcContext({
       grade: inputs.grade,
       subject: inputs.subject,
@@ -122,6 +121,11 @@ async function runAssessment({uid, rawInputs, apiKey}) {
       totalLessons: inputs.totalLessons,
       learningEnvironment: inputs.learningEnvironment,
       ownerUid: uid,
+    }),
+    resolveAssessmentFormatContext({
+      grade: inputs.grade,
+      subject: inputs.subject,
+      assessmentType: inputs.assessmentType,
     }),
     assertAndIncrement(uid, "assessment"),
   ]);
@@ -136,6 +140,8 @@ async function runAssessment({uid, rawInputs, apiKey}) {
     modelUsed: ASSESSMENT_MODEL,
     promptVersion: PROMPT_VERSION,
     kbVersion,
+    formatProfileId,
+    formatSource,
     tokensIn: 0,
     tokensOut: 0,
     costUsdCents: 0,
@@ -158,6 +164,7 @@ async function runAssessment({uid, rawInputs, apiKey}) {
     const response = await callClaude(apiKey, {
       systemPrompt: SYSTEM_PROMPT,
       cbcContextBlock: contextBlock,
+      formatContextBlock: formatBlock,
       messages: [{role: "user", content: userPrompt}],
       maxTokens: 5500,
       temperature: 0.4,
@@ -256,4 +263,5 @@ function createGenerateAssessment(anthropicApiKeySecret) {
 
 module.exports = {
   createGenerateAssessment, runAssessment, sanitizeInputs,
+  ALLOWED_SUBJECTS, ALLOWED_GRADES,
 };

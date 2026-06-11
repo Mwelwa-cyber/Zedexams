@@ -8,6 +8,9 @@ import {
   getActiveKbVersion, KB_VERSION,
   listCbcTopics, saveCbcTopic, deleteCbcTopic,
   subtopicName,
+  ASSESSMENT_FORMAT_TYPES, ASSESSMENT_FORMAT_BANDS,
+  listAssessmentFormats, saveAssessmentFormat, deleteAssessmentFormat,
+  importBuiltInAssessmentFormats,
 } from '../../utils/adminCbcKbService'
 import {
   getMergedSyllabi, saveSyllabusRow, removeSyllabusRow, restoreSyllabusRow,
@@ -152,6 +155,8 @@ function countOverrides(rawData) {
 export default function CbcKbAdmin() {
   const [rawData, setRawData] = useState(null)
   const [customTopics, setCustomTopics] = useState([])
+  const [formatProfiles, setFormatProfiles] = useState([])
+  const [editingFormat, setEditingFormat] = useState(null) // profile, or 'new'
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [activeVersion, setActiveVersion] = useState(null)
@@ -178,10 +183,12 @@ export default function CbcKbAdmin() {
     setLoading(true)
     setError('')
     try {
-      const [merged, firestoreTopics] = await Promise.all([
+      const [merged, firestoreTopics, formats] = await Promise.all([
         getMergedSyllabi({ forceOverrides: true }),
         listCbcTopics().catch(() => []),
+        listAssessmentFormats().catch(() => []),
       ])
+      setFormatProfiles(formats)
       setRawData(enrichSubjects(merged))
       // A Firestore topic is "custom" when it doesn't shadow an entry in
       // the syllabi-data layer. The merged-source rebuild already covers
@@ -340,6 +347,48 @@ export default function CbcKbAdmin() {
     setPendingDelete({ kind: 'custom', topic })
   }
 
+  async function onSaveFormatProfile(payload) {
+    try {
+      await saveAssessmentFormat(payload)
+      flashToast(payload._editing ?
+        'Format profile updated. The assessment generator picks it up within ~60 seconds.' :
+        'Format profile added.')
+      setEditingFormat(null)
+      await load()
+      return true
+    } catch (err) {
+      flashToast(`Save failed: ${err?.message || err}`)
+      return false
+    }
+  }
+
+  function onDeleteFormatProfile(profile) {
+    setPendingDelete({ kind: 'format', profile })
+  }
+
+  async function performDeleteFormatProfile(profile) {
+    setDeleteBusy(true)
+    try {
+      const ok = await deleteAssessmentFormat(profile.id)
+      if (ok) {
+        flashToast('Format profile deleted. The built-in seed for this combination (if any) applies again.')
+        await load()
+      } else {
+        flashToast('Delete failed — check console.')
+      }
+    } finally {
+      setDeleteBusy(false)
+      setPendingDelete(null)
+    }
+  }
+
+  async function onImportBuiltInFormats() {
+    const res = await importBuiltInAssessmentFormats()
+    if (!res.ok) { flashToast(`Import failed: ${res.error}`); return }
+    flashToast(`Imported ${res.written} built-in format profiles into ${res.kbVersion}.`)
+    await load()
+  }
+
   async function performDeleteCustomTopic(topic) {
     setDeleteBusy(true)
     try {
@@ -468,6 +517,11 @@ export default function CbcKbAdmin() {
               onEditCustomTopic={(t) => setEditingCustom(t)}
               onAddCustomTopic={() => setEditingCustom('new')}
               onDeleteCustomTopic={onDeleteCustomTopic}
+              formatProfiles={formatProfiles}
+              onAddFormat={() => setEditingFormat('new')}
+              onEditFormat={(p) => setEditingFormat(p)}
+              onDeleteFormat={onDeleteFormatProfile}
+              onImportFormats={onImportBuiltInFormats}
             />
           )}
 
@@ -518,15 +572,27 @@ export default function CbcKbAdmin() {
         />
       )}
 
+      {editingFormat && (
+        <FormatProfileModal
+          profile={editingFormat === 'new' ? null : editingFormat}
+          onCancel={() => setEditingFormat(null)}
+          onSave={onSaveFormatProfile}
+        />
+      )}
+
       <ConfirmDialog
         open={Boolean(pendingDelete)}
-        title={pendingDelete?.kind === 'row' ? 'Delete this row?' : 'Delete this custom topic?'}
+        title={pendingDelete?.kind === 'row' ? 'Delete this row?' :
+          pendingDelete?.kind === 'format' ? 'Delete this format profile?' :
+            'Delete this custom topic?'}
         message={pendingDelete?.kind === 'row' ? (
           <>
             <p>Topic: <strong className="theme-text">{pendingDelete?.payload?.topic || '—'}</strong></p>
             <p>Sub-topic: <strong className="theme-text">{pendingDelete?.payload?.subtopic || '—'}</strong></p>
             <p className="mt-2">It will be hidden from teachers and the AI generators.</p>
           </>
+        ) : pendingDelete?.kind === 'format' ? (
+          <>You're about to delete <strong className="theme-text">"{pendingDelete?.profile?.label}"</strong>. The built-in seed for this combination (if any) applies again.</>
         ) : (
           <>You're about to delete <strong className="theme-text">"{pendingDelete?.topic?.topic}"</strong> ({pendingDelete?.topic?.grade} {pendingDelete?.topic?.subject}).</>
         )}
@@ -536,6 +602,7 @@ export default function CbcKbAdmin() {
         onConfirm={() => {
           if (!pendingDelete) return
           if (pendingDelete.kind === 'row') performDeleteRow(pendingDelete.payload)
+          else if (pendingDelete.kind === 'format') performDeleteFormatProfile(pendingDelete.profile)
           else performDeleteCustomTopic(pendingDelete.topic)
         }}
         onCancel={() => setPendingDelete(null)}
@@ -594,6 +661,7 @@ function HomeView({
   stats, grouped, overrideCounts, customTopics,
   onSelectSubject, onLoaded, flashToast,
   onEditCustomTopic, onAddCustomTopic, onDeleteCustomTopic,
+  formatProfiles, onAddFormat, onEditFormat, onDeleteFormat, onImportFormats,
 }) {
   return (
     <div className="ss-home">
@@ -635,6 +703,14 @@ function HomeView({
         onAdd={onAddCustomTopic}
         onEdit={onEditCustomTopic}
         onDelete={onDeleteCustomTopic}
+      />
+
+      <AssessmentFormatsPanel
+        profiles={formatProfiles}
+        onAdd={onAddFormat}
+        onEdit={onEditFormat}
+        onDelete={onDeleteFormat}
+        onImport={onImportFormats}
       />
 
       {CAT_ORDER.map(cat => {
@@ -790,6 +866,443 @@ function CustomTopicsPanel({ topics, onAdd, onEdit, onDelete }) {
 
 function formatSubject(s) {
   return String(s || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
+}
+
+// ── Assessment format profiles panel ────────────────────────────────────
+// Zambian paper-format conventions (sections, instruction wording,
+// numbering, marks patterns, paraphrased exemplars) that ground the
+// My Assessment generator. Built-in seeds always apply; Firestore docs
+// shown here override the seed with the same id.
+
+const FORMAT_TYPE_LABELS = Object.fromEntries(
+  ASSESSMENT_FORMAT_TYPES.map((t) => [t.value, t.label]),
+)
+const FORMAT_BAND_LABELS = Object.fromEntries(
+  ASSESSMENT_FORMAT_BANDS.map((b) => [b.value, b.label]),
+)
+
+function AssessmentFormatsPanel({ profiles, onAdd, onEdit, onDelete, onImport }) {
+  const [expanded, setExpanded] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const grouped = useMemo(() => {
+    const byType = new Map()
+    for (const p of profiles || []) {
+      const t = String(p.assessmentType || '?')
+      if (!byType.has(t)) byType.set(t, [])
+      byType.get(t).push(p)
+    }
+    return ASSESSMENT_FORMAT_TYPES
+      .map((t) => [t.value, (byType.get(t.value) || []).sort(
+        (a, b) => String(a.id).localeCompare(String(b.id)),
+      )])
+      .filter(([, list]) => list.length > 0)
+  }, [profiles])
+
+  const total = (profiles || []).length
+
+  async function runImport() {
+    setImporting(true)
+    try { await onImport() } finally { setImporting(false) }
+  }
+
+  return (
+    <section className="ss-custom-panel" aria-label="Assessment format profiles">
+      <div className="ss-custom-head">
+        <div>
+          <div className="ss-sh-dash">ZAMBIAN ASSESSMENT FORMATS</div>
+          <h2 className="ss-sh-title">
+            Assessment format profiles
+            {total > 0 && <span className="ss-custom-count">{total}</span>}
+          </h2>
+          <p className="ss-custom-blurb">
+            How Zambian papers look: sections, instruction wording, numbering,
+            marks patterns and paraphrased exemplar questions. The My Assessment
+            generator follows the matching profile (assessment type + grade band
+            + subject). Built-in profiles ship with the code; rows here override
+            them — never paste questions from a real ECZ paper.
+          </p>
+        </div>
+        <div className="ss-custom-actions">
+          <button type="button" className="ss-add-row-btn" onClick={onAdd}>
+            + Add format profile
+          </button>
+          <button
+            type="button"
+            className="ss-tab-btn"
+            onClick={runImport}
+            disabled={importing}
+          >
+            {importing ? 'Importing…' : 'Import built-in formats'}
+          </button>
+          {total > 0 && (
+            <button
+              type="button"
+              className="ss-tab-btn"
+              onClick={() => setExpanded((v) => !v)}
+            >
+              {expanded ? 'Collapse' : 'Show all'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {total === 0 && (
+        <p className="ss-custom-empty">
+          No Firestore overrides yet — the generator is using the built-in
+          seed profiles. Click <strong>Import built-in formats</strong> to copy
+          them here and make them editable, or add a profile manually.
+        </p>
+      )}
+
+      {total > 0 && expanded && (
+        <div className="ss-custom-grid">
+          {grouped.map(([type, list]) => (
+            <div key={type} className="ss-custom-grade-block">
+              <div className="ss-custom-grade-label">
+                {FORMAT_TYPE_LABELS[type] || type}
+              </div>
+              {list.map((p) => (
+                <div key={p.id} className="ss-custom-card">
+                  <div className="ss-custom-card-meta">
+                    {(FORMAT_BAND_LABELS[p.gradeBand] || p.gradeBand)}
+                    {' · '}
+                    {p.subject === '_generic' ? 'All subjects' : formatSubject(p.subject)}
+                  </div>
+                  <div className="ss-custom-card-title">{p.label}</div>
+                  <div className="ss-custom-card-subs">
+                    {(p.paperStructure || []).map((s) => s.name).filter(Boolean).join(' · ')}
+                  </div>
+                  <div className="ss-custom-card-actions">
+                    <button
+                      type="button"
+                      className="ss-row-btn ss-row-edit"
+                      onClick={() => onEdit(p)}
+                    >
+                      edit
+                    </button>
+                    <button
+                      type="button"
+                      className="ss-row-btn ss-row-delete"
+                      onClick={() => onDelete(p)}
+                    >
+                      delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+// ── Format profile edit modal ───────────────────────────────────────────
+
+const FORMAT_QUESTION_TYPES = [
+  'multiple_choice', 'short_answer', 'structured',
+  'calculation', 'true_false', 'essay',
+]
+
+const EMPTY_FORMAT_SECTION = {
+  name: '', heading: '', instructions: '',
+  questionTypes: '', questionCountHint: '', marksShare: 0,
+  marksPerQuestionHint: '',
+}
+const EMPTY_FORMAT_EXEMPLAR = { type: 'short_answer', marks: 1, prompt: '', note: '' }
+
+function FormatProfileModal({ profile, onCancel, onSave }) {
+  const editing = !!profile
+  const [form, setForm] = useState(() => ({
+    assessmentType: profile?.assessmentType || 'end_of_term',
+    gradeBand: profile?.gradeBand || 'upper_primary',
+    subject: profile?.subject || '_generic',
+    label: profile?.label || '',
+    paperStructure: (profile?.paperStructure?.length ? profile.paperStructure : [EMPTY_FORMAT_SECTION])
+      .map((s) => ({ ...s, questionTypes: Array.isArray(s.questionTypes) ? s.questionTypes.join(', ') : (s.questionTypes || '') })),
+    coverInstructions: (profile?.coverInstructions || []).join('\n'),
+    numberingStyle: profile?.numberingStyle || '',
+    phrasingNotes: (profile?.phrasingNotes || []).join('\n'),
+    marksConventions: (profile?.marksConventions || []).join('\n'),
+    diagramConventions: (profile?.diagramConventions || []).join('\n'),
+    exemplarQuestions: profile?.exemplarQuestions?.length ?
+      profile.exemplarQuestions : [{ ...EMPTY_FORMAT_EXEMPLAR }, { ...EMPTY_FORMAT_EXEMPLAR }],
+    sourceNote: profile?.sourceNote || '',
+  }))
+  const [saving, setSaving] = useState(false)
+  const update = (k, v) => setForm((f) => ({ ...f, [k]: v }))
+  const lines = (s) => String(s || '').split('\n').map((x) => x.trim()).filter(Boolean)
+
+  const updateSection = (i, k, v) => update('paperStructure',
+    form.paperStructure.map((s, idx) => (idx === i ? { ...s, [k]: v } : s)))
+  const updateExemplar = (i, k, v) => update('exemplarQuestions',
+    form.exemplarQuestions.map((q, idx) => (idx === i ? { ...q, [k]: v } : q)))
+
+  const shareSum = form.paperStructure
+    .reduce((sum, s) => sum + (Math.round(Number(s.marksShare)) || 0), 0)
+
+  async function submit() {
+    setSaving(true)
+    const ok = await onSave({
+      ...form,
+      paperStructure: form.paperStructure.map((s) => ({
+        ...s,
+        marksShare: Math.round(Number(s.marksShare)) || 0,
+        questionTypes: String(s.questionTypes || '').split(',')
+          .map((t) => t.trim().toLowerCase().replace(/\s+/g, '_'))
+          .filter((t) => FORMAT_QUESTION_TYPES.includes(t)),
+      })),
+      coverInstructions: lines(form.coverInstructions),
+      phrasingNotes: lines(form.phrasingNotes),
+      marksConventions: lines(form.marksConventions),
+      diagramConventions: lines(form.diagramConventions),
+      exemplarQuestions: form.exemplarQuestions.filter((q) => String(q.prompt || '').trim()),
+      _editing: editing,
+    })
+    if (!ok) setSaving(false)
+  }
+
+  return (
+    <div className="ss-modal-backdrop">
+      <div className="ss-modal">
+        <div className="ss-modal-head">
+          <h2>{editing ? 'Edit format profile' : 'Add a format profile'}</h2>
+          <p>
+            Goes into <code>cbcKnowledgeBase/&#123;version&#125;/assessmentFormats</code>.
+            The My Assessment generator follows it for this assessment type +
+            grade band + subject. Write exemplars in the Zambian style but
+            <strong> never copy questions from a real paper</strong>.
+          </p>
+        </div>
+        <div className="ss-modal-body">
+          <div className="ss-ct-grade-row">
+            <div className="ss-field">
+              <label>Assessment type</label>
+              <select
+                value={form.assessmentType}
+                onChange={(e) => update('assessmentType', e.target.value)}
+                disabled={editing}
+              >
+                {ASSESSMENT_FORMAT_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="ss-field">
+              <label>Grade band</label>
+              <select
+                value={form.gradeBand}
+                onChange={(e) => update('gradeBand', e.target.value)}
+                disabled={editing}
+              >
+                {ASSESSMENT_FORMAT_BANDS.map((b) => (
+                  <option key={b.value} value={b.value}>{b.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="ss-field">
+              <label>Subject</label>
+              <select
+                value={form.subject}
+                onChange={(e) => update('subject', e.target.value)}
+                disabled={editing}
+              >
+                <option value="_generic">All subjects (generic)</option>
+                {TEACHER_SUBJECTS.filter((s) => s.value).map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="ss-field">
+            <label>Label</label>
+            <input
+              type="text"
+              value={form.label}
+              onChange={(e) => update('label', e.target.value)}
+              placeholder="e.g. Upper Primary Mathematics — End of Term Test"
+              maxLength={120}
+            />
+          </div>
+
+          <div className="ss-field">
+            <label>
+              Paper sections
+              <span style={{ fontWeight: 400, marginLeft: 8, color: shareSum === 100 ? undefined : '#b91c1c' }}>
+                (marks shares sum to {shareSum}% — must be 100%)
+              </span>
+            </label>
+            {form.paperStructure.map((s, i) => (
+              <div key={i} style={{ border: '1px solid #d9cfb8', borderRadius: 8, padding: 10, marginBottom: 8 }}>
+                <div className="ss-ct-grade-row">
+                  <div className="ss-field">
+                    <label>Name</label>
+                    <input type="text" value={s.name} maxLength={60}
+                      placeholder="SECTION A"
+                      onChange={(e) => updateSection(i, 'name', e.target.value)} />
+                  </div>
+                  <div className="ss-field">
+                    <label>Heading (as printed)</label>
+                    <input type="text" value={s.heading} maxLength={120}
+                      placeholder="SECTION A: MULTIPLE CHOICE"
+                      onChange={(e) => updateSection(i, 'heading', e.target.value)} />
+                  </div>
+                  <div className="ss-field">
+                    <label>% of marks</label>
+                    <input type="number" min={0} max={100} value={s.marksShare}
+                      onChange={(e) => updateSection(i, 'marksShare', e.target.value)} />
+                  </div>
+                </div>
+                <div className="ss-field">
+                  <label>Section instruction text</label>
+                  <input type="text" value={s.instructions} maxLength={400}
+                    placeholder="Answer ALL questions in this section. Circle the letter of the correct answer."
+                    onChange={(e) => updateSection(i, 'instructions', e.target.value)} />
+                </div>
+                <div className="ss-ct-grade-row">
+                  <div className="ss-field">
+                    <label>Question types (comma-separated)</label>
+                    <input type="text" value={s.questionTypes}
+                      placeholder="multiple_choice, short_answer"
+                      onChange={(e) => updateSection(i, 'questionTypes', e.target.value)} />
+                  </div>
+                  <div className="ss-field">
+                    <label>How many questions</label>
+                    <input type="text" value={s.questionCountHint} maxLength={30}
+                      placeholder="8-10"
+                      onChange={(e) => updateSection(i, 'questionCountHint', e.target.value)} />
+                  </div>
+                  <div className="ss-field">
+                    <label>Marks per question</label>
+                    <input type="text" value={s.marksPerQuestionHint} maxLength={120}
+                      placeholder="1 mark each"
+                      onChange={(e) => updateSection(i, 'marksPerQuestionHint', e.target.value)} />
+                  </div>
+                </div>
+                {form.paperStructure.length > 1 && (
+                  <button type="button" className="ss-row-btn ss-row-delete"
+                    onClick={() => update('paperStructure', form.paperStructure.filter((_, idx) => idx !== i))}>
+                    remove section
+                  </button>
+                )}
+              </div>
+            ))}
+            {form.paperStructure.length < 6 && (
+              <button type="button" className="ss-tab-btn"
+                onClick={() => update('paperStructure', [...form.paperStructure, { ...EMPTY_FORMAT_SECTION }])}>
+                + Add section
+              </button>
+            )}
+          </div>
+
+          <div className="ss-field">
+            <label>Front-page instructions (one per line)</label>
+            <textarea rows={4} value={form.coverInstructions}
+              placeholder={'Write your name and class in the spaces provided.\nAnswer ALL questions.'}
+              onChange={(e) => update('coverInstructions', e.target.value)} />
+          </div>
+          <div className="ss-field">
+            <label>Numbering style</label>
+            <textarea rows={3} value={form.numberingStyle} maxLength={600}
+              placeholder="Sections are lettered A, B, C. Questions are numbered continuously…"
+              onChange={(e) => update('numberingStyle', e.target.value)} />
+          </div>
+          <div className="ss-field">
+            <label>Phrasing &amp; register notes (one per line)</label>
+            <textarea rows={3} value={form.phrasingNotes}
+              placeholder="Use ECZ command words: State, Name, List, Calculate…"
+              onChange={(e) => update('phrasingNotes', e.target.value)} />
+          </div>
+          <div className="ss-field">
+            <label>Marks conventions (one per line)</label>
+            <textarea rows={3} value={form.marksConventions}
+              placeholder="Calculations: 1 mark for method + 1 mark for the answer."
+              onChange={(e) => update('marksConventions', e.target.value)} />
+          </div>
+          <div className="ss-field">
+            <label>Diagram conventions (one per line)</label>
+            <textarea rows={2} value={form.diagramConventions}
+              placeholder="Geometry items need labelled figures; describe them in the diagram field."
+              onChange={(e) => update('diagramConventions', e.target.value)} />
+          </div>
+
+          <div className="ss-field">
+            <label>Exemplar questions (2-4, paraphrased — never from a real paper)</label>
+            {form.exemplarQuestions.map((q, i) => (
+              <div key={i} style={{ border: '1px solid #d9cfb8', borderRadius: 8, padding: 10, marginBottom: 8 }}>
+                <div className="ss-ct-grade-row">
+                  <div className="ss-field">
+                    <label>Type</label>
+                    <select value={q.type}
+                      onChange={(e) => updateExemplar(i, 'type', e.target.value)}>
+                      {FORMAT_QUESTION_TYPES.map((t) => (
+                        <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="ss-field">
+                    <label>Marks</label>
+                    <input type="number" min={1} max={20} value={q.marks}
+                      onChange={(e) => updateExemplar(i, 'marks', e.target.value)} />
+                  </div>
+                </div>
+                <div className="ss-field">
+                  <label>Question text</label>
+                  <textarea rows={2} value={q.prompt} maxLength={500}
+                    onChange={(e) => updateExemplar(i, 'prompt', e.target.value)} />
+                </div>
+                <div className="ss-field">
+                  <label>Style note (optional)</label>
+                  <input type="text" value={q.note} maxLength={200}
+                    placeholder="e.g. trailing-ellipsis MCQ stem, ECZ house style"
+                    onChange={(e) => updateExemplar(i, 'note', e.target.value)} />
+                </div>
+                {form.exemplarQuestions.length > 2 && (
+                  <button type="button" className="ss-row-btn ss-row-delete"
+                    onClick={() => update('exemplarQuestions', form.exemplarQuestions.filter((_, idx) => idx !== i))}>
+                    remove exemplar
+                  </button>
+                )}
+              </div>
+            ))}
+            {form.exemplarQuestions.length < 4 && (
+              <button type="button" className="ss-tab-btn"
+                onClick={() => update('exemplarQuestions', [...form.exemplarQuestions, { ...EMPTY_FORMAT_EXEMPLAR }])}>
+                + Add exemplar
+              </button>
+            )}
+          </div>
+
+          <div className="ss-field">
+            <label>Source note (optional — provenance only, e.g. "format of 2024 school mock")</label>
+            <input type="text" value={form.sourceNote} maxLength={300}
+              onChange={(e) => update('sourceNote', e.target.value)} />
+          </div>
+
+          <p className="ss-modal-note">
+            Saves land in Firestore and reach the assessment generator within
+            ~60 seconds. The profile id is derived from type + band + subject,
+            so saving over an existing combination replaces it.
+          </p>
+        </div>
+        <div className="ss-modal-foot">
+          <button type="button" className="ss-btn-ghost" onClick={onCancel} disabled={saving}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="ss-btn-primary"
+            onClick={submit}
+            disabled={saving || !form.label.trim() || shareSum !== 100}
+          >
+            {saving ? 'Saving…' : (editing ? 'Save changes' : 'Add profile')}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // ── Custom topic edit modal ─────────────────────────────────────────────

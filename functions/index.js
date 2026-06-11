@@ -113,6 +113,10 @@ const {
 const {
   importBuiltInCbcTopics,
 } = require("./teacherTools/importBuiltInCbcTopics");
+// Teacher Tools — import built-in assessment format profiles (admin-only).
+const {
+  importBuiltInAssessmentFormats,
+} = require("./teacherTools/importBuiltInAssessmentFormats");
 // Teacher Tools — bulk import lesson-level curriculum modules (admin-only).
 const {
   importCurriculumModules,
@@ -2071,6 +2075,10 @@ exports.reviseQuestion = createReviseQuestion(anthropicApiKey);
 
 // Teacher Tools — admin-only: import the built-in G1-9 topics into Firestore.
 exports.importBuiltInCbcTopics = importBuiltInCbcTopics;
+
+// Teacher Tools — admin-only: import the built-in Zambian assessment format
+// profiles into Firestore so they become editable from the CBC KB page.
+exports.importBuiltInAssessmentFormats = importBuiltInAssessmentFormats;
 
 // Teacher Tools — admin-only: bulk import lesson-level curriculum modules.
 exports.importCurriculumModules = importCurriculumModules;

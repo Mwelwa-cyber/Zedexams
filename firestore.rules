@@ -669,6 +669,19 @@ service cloud.firestore {
         allow read:  if isAuthed();
         allow write: if false;
       }
+      // Assessment format profiles — Zambian paper-format conventions the
+      // assessment generator grounds on (structure, instruction wording,
+      // numbering, marks patterns, paraphrased exemplars). Teacher-read /
+      // admin-write, mirroring topics/.
+      match /assessmentFormats/{formatId} {
+        allow read:  if isAuthed();
+        allow write: if isAdmin();
+      }
+      // Claude-extracted draft format profiles awaiting admin review
+      // before promotion into assessmentFormats/. Admin-only.
+      match /assessmentFormatDrafts/{draftId} {
+        allow read, write: if isAdmin();
+      }
     }
 
     // ── promptTemplates ───────────────────────────────────────

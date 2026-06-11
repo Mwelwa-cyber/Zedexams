@@ -27,10 +27,19 @@ const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
 const DEFAULT_MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6";
 
-function buildSystemBlocks(systemPrompt, cbcContextBlock) {
+// Block order matters for prompt-cache economics: caches hit on stable
+// prefixes left-to-right. The system prompt never changes; the format block
+// has only a few dozen variants (assessment type × grade band × subject);
+// the CBC block varies per topic. Format-before-CBC means the
+// system+format prefix stays cached across requests for the same paper
+// shape even when topics differ.
+function buildSystemBlocks(systemPrompt, cbcContextBlock, formatContextBlock) {
   if (!systemPrompt) return undefined;
   return [
     {type: "text", text: systemPrompt, cache_control: {type: "ephemeral"}},
+    ...(formatContextBlock ? [
+      {type: "text", text: formatContextBlock, cache_control: {type: "ephemeral"}},
+    ] : []),
     ...(cbcContextBlock ? [
       {type: "text", text: cbcContextBlock, cache_control: {type: "ephemeral"}},
     ] : []),
@@ -76,6 +85,7 @@ async function callClaude(apiKey, opts = {}) {
   const {
     systemPrompt,
     cbcContextBlock = null,
+    formatContextBlock = null,
     messages,
     maxTokens = 4000,
     temperature = 0.3,
@@ -115,7 +125,7 @@ async function callClaude(apiKey, opts = {}) {
   }
 
   const sharedArgs = {
-    apiKey, systemPrompt, cbcContextBlock, messages,
+    apiKey, systemPrompt, cbcContextBlock, formatContextBlock, messages,
     maxTokens, temperature, model, thinking, outputConfig,
   };
 
@@ -161,7 +171,7 @@ function buildReasoningFields({thinking, outputConfig}) {
 }
 
 async function callClaudeJson({
-  apiKey, systemPrompt, cbcContextBlock, messages,
+  apiKey, systemPrompt, cbcContextBlock, formatContextBlock, messages,
   maxTokens, temperature, model, thinking, outputConfig,
 }) {
   const body = {
@@ -169,7 +179,8 @@ async function callClaudeJson({
     max_tokens: maxTokens,
     temperature,
     ...(systemPrompt ?
-      {system: buildSystemBlocks(systemPrompt, cbcContextBlock)} : {}),
+      {system: buildSystemBlocks(
+        systemPrompt, cbcContextBlock, formatContextBlock)} : {}),
     messages,
     ...buildReasoningFields({thinking, outputConfig}),
   };
@@ -190,7 +201,7 @@ async function callClaudeJson({
 }
 
 async function callClaudeTool({
-  apiKey, systemPrompt, cbcContextBlock, messages,
+  apiKey, systemPrompt, cbcContextBlock, formatContextBlock, messages,
   maxTokens, temperature, model, thinking, outputConfig,
   toolName, toolDescription, toolInputSchema,
 }) {
@@ -199,7 +210,8 @@ async function callClaudeTool({
     max_tokens: maxTokens,
     temperature,
     ...(systemPrompt ?
-      {system: buildSystemBlocks(systemPrompt, cbcContextBlock)} : {}),
+      {system: buildSystemBlocks(
+        systemPrompt, cbcContextBlock, formatContextBlock)} : {}),
     messages,
     tools: [{
       name: toolName,
@@ -242,7 +254,7 @@ async function callClaudeTool({
 }
 
 async function callClaudeStream({
-  apiKey, systemPrompt, cbcContextBlock, messages,
+  apiKey, systemPrompt, cbcContextBlock, formatContextBlock, messages,
   maxTokens, temperature, model, thinking, outputConfig, onToken,
   toolName, toolDescription, toolInputSchema,
 }) {
@@ -253,7 +265,8 @@ async function callClaudeStream({
     temperature,
     stream: true,
     ...(systemPrompt ?
-      {system: buildSystemBlocks(systemPrompt, cbcContextBlock)} : {}),
+      {system: buildSystemBlocks(
+        systemPrompt, cbcContextBlock, formatContextBlock)} : {}),
     messages,
     ...(wantsTool ? {
       tools: [{

@@ -23,6 +23,7 @@ const {onCall, HttpsError} = require("firebase-functions/v2/https");
 
 const {getUserRole} = require("../aiService");
 const {invalidateKbCache} = require("./cbcKnowledge");
+const {invalidateFormatCache} = require("./assessmentFormats");
 
 exports.invalidateKbCacheCallable = onCall(
   {region: "us-central1", timeoutSeconds: 30, memory: "256MiB"},
@@ -47,6 +48,11 @@ exports.invalidateKbCacheCallable = onCall(
     // observably fresh from the caller's perspective.
     try {
       invalidateKbCache();
+    } catch {
+      // Best effort.
+    }
+    try {
+      invalidateFormatCache();
     } catch {
       // Best effort.
     }

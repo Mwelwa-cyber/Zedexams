@@ -20,6 +20,9 @@ const importBuiltInCbcTopicsCallable = httpsCallable(functions, 'importBuiltInCb
 const importCurriculumModulesCallable = httpsCallable(functions, 'importCurriculumModules', {
   timeout: 120_000,
 })
+const importBuiltInAssessmentFormatsCallable = httpsCallable(functions, 'importBuiltInAssessmentFormats', {
+  timeout: 60_000,
+})
 
 const backfillKbSourceRefsCallable = httpsCallable(functions, 'backfillKbSourceRefs', {
   // Backfill walks every lesson module under the active KB version. With
@@ -397,6 +400,153 @@ export async function deleteLesson(topicId, lessonId) {
   } catch (err) {
     console.error('deleteLesson failed', err)
     return false
+  }
+}
+
+// ── Assessment format profiles ───────────────────────────────────────────
+// Stored under cbcKnowledgeBase/{version}/assessmentFormats/{id} — Zambian
+// paper-format conventions the assessment generator grounds on. Admin-write
+// / teacher-read (firestore.rules). Client mirror of the server-side
+// validation in functions/teacherTools/assessmentFormats.js.
+
+export const ASSESSMENT_FORMAT_TYPES = [
+  { value: 'exercise', label: 'Exercise' },
+  { value: 'topic_test', label: 'Topic Test' },
+  { value: 'end_of_term', label: 'End of Term Test' },
+  { value: 'mock_exam', label: 'Mock Examination' },
+]
+export const ASSESSMENT_FORMAT_BANDS = [
+  { value: 'lower_primary', label: 'Lower Primary (ECE–G3)' },
+  { value: 'upper_primary', label: 'Upper Primary (G4–G7)' },
+  { value: 'junior_secondary', label: 'Junior Secondary (G8–G9, F1–F2)' },
+  { value: 'senior_secondary', label: 'Senior Secondary (G10–G12, F3–F4)' },
+]
+const FORMAT_TYPE_SET = new Set(ASSESSMENT_FORMAT_TYPES.map((t) => t.value))
+const FORMAT_BAND_SET = new Set(ASSESSMENT_FORMAT_BANDS.map((b) => b.value))
+
+/** List all Firestore-stored format profiles. Returns [] on error. */
+export async function listAssessmentFormats() {
+  try {
+    const version = await getActiveKbVersion()
+    const snap = await getDocs(
+      collection(db, 'cbcKnowledgeBase', version, 'assessmentFormats'),
+    )
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+  } catch (err) {
+    console.error('listAssessmentFormats failed', err)
+    return []
+  }
+}
+
+function cleanLines(v, maxItems, maxLen) {
+  return (Array.isArray(v) ? v : [])
+    .map((s) => String(s ?? '').trim()).filter(Boolean)
+    .slice(0, maxItems).map((s) => s.slice(0, maxLen))
+}
+
+/**
+ * Create or replace a format profile. Doc id is always derived from
+ * type+band+subject so the server resolver's deterministic lookup finds it.
+ * Throws with a readable message on invalid input (the admin form surfaces it).
+ */
+export async function saveAssessmentFormat(profile) {
+  const assessmentType = String(profile.assessmentType || '').toLowerCase()
+  const gradeBand = String(profile.gradeBand || '').toLowerCase()
+  const subject = String(profile.subject || '_generic')
+    .toLowerCase().replace(/[^a-z_]/g, '_').slice(0, 60)
+  if (!FORMAT_TYPE_SET.has(assessmentType)) throw new Error('Pick an assessment type.')
+  if (!FORMAT_BAND_SET.has(gradeBand)) throw new Error('Pick a grade band.')
+  const label = String(profile.label || '').trim().slice(0, 120)
+  if (!label) throw new Error('A label is required.')
+
+  const paperStructure = (Array.isArray(profile.paperStructure) ? profile.paperStructure : [])
+    .filter((s) => s && typeof s === 'object')
+    .slice(0, 6)
+    .map((s) => ({
+      name: String(s.name || '').trim().slice(0, 60),
+      heading: String(s.heading || '').trim().slice(0, 120),
+      instructions: String(s.instructions || '').trim().slice(0, 400),
+      questionTypes: cleanLines(s.questionTypes, 6, 30),
+      questionCountHint: String(s.questionCountHint || '').trim().slice(0, 30),
+      marksShare: Math.round(Number(s.marksShare) || 0),
+      marksPerQuestionHint: String(s.marksPerQuestionHint || '').trim().slice(0, 120),
+    }))
+  if (paperStructure.length === 0) throw new Error('Add at least one paper section.')
+  const shareSum = paperStructure.reduce((sum, s) => sum + s.marksShare, 0)
+  if (shareSum !== 100) throw new Error(`Section marks shares must sum to 100 (currently ${shareSum}).`)
+
+  const coverInstructions = cleanLines(profile.coverInstructions, 8, 200)
+  if (coverInstructions.length === 0) throw new Error('Add at least one front-page instruction line.')
+  const numberingStyle = String(profile.numberingStyle || '').trim().slice(0, 600)
+  if (!numberingStyle) throw new Error('Describe the numbering style.')
+
+  const exemplarQuestions = (Array.isArray(profile.exemplarQuestions) ? profile.exemplarQuestions : [])
+    .filter((q) => q && typeof q === 'object' && String(q.prompt || '').trim())
+    .slice(0, 4)
+    .map((q) => ({
+      type: String(q.type || 'short_answer').trim().slice(0, 30),
+      marks: Math.max(1, Math.round(Number(q.marks) || 1)),
+      prompt: String(q.prompt || '').trim().slice(0, 500),
+      note: String(q.note || '').trim().slice(0, 200),
+    }))
+  if (exemplarQuestions.length < 2) {
+    throw new Error('Add 2-4 exemplar questions (paraphrased — never copy a real paper).')
+  }
+
+  const id = `${assessmentType}-${gradeBand}-${subject}`
+  const payload = {
+    id,
+    assessmentType,
+    gradeBand,
+    subject,
+    label,
+    paperStructure,
+    coverInstructions,
+    numberingStyle,
+    phrasingNotes: cleanLines(profile.phrasingNotes, 6, 300),
+    marksConventions: cleanLines(profile.marksConventions, 6, 300),
+    diagramConventions: cleanLines(profile.diagramConventions, 4, 400),
+    exemplarQuestions,
+    status: 'active',
+    origin: profile.origin === 'builtin_seed' ? 'builtin_seed' : 'manual',
+    sourceNote: String(profile.sourceNote || '').trim().slice(0, 300),
+    updatedAt: serverTimestamp(),
+  }
+
+  const version = await getActiveKbVersion()
+  await setDoc(doc(db, 'cbcKnowledgeBase', version, 'assessmentFormats', id), payload)
+  return id
+}
+
+/** Delete a format profile. */
+export async function deleteAssessmentFormat(id) {
+  if (!id) return false
+  try {
+    const version = await getActiveKbVersion()
+    await deleteDoc(doc(db, 'cbcKnowledgeBase', version, 'assessmentFormats', id))
+    return true
+  } catch (err) {
+    console.error('deleteAssessmentFormat failed', err)
+    return false
+  }
+}
+
+/**
+ * One-click admin action: copy the built-in Zambian format profiles into
+ * Firestore so they become editable. Returns { ok, written, totalInCode }.
+ */
+export async function importBuiltInAssessmentFormats() {
+  try {
+    const result = await importBuiltInAssessmentFormatsCallable({})
+    return { ok: true, ...result.data }
+  } catch (err) {
+    console.error('importBuiltInAssessmentFormats failed', err)
+    return {
+      ok: false,
+      error: err?.code === 'permission-denied' ?
+        'Admin only.' :
+        (err?.message || 'Import failed'),
+    }
   }
 }
 
