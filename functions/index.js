@@ -117,6 +117,10 @@ const {
 const {
   importBuiltInAssessmentFormats,
 } = require("./teacherTools/importBuiltInAssessmentFormats");
+// Teacher Tools — extract a format-profile draft from a sample paper.
+const {
+  createExtractAssessmentFormat,
+} = require("./teacherTools/extractAssessmentFormat");
 // Teacher Tools — bulk import lesson-level curriculum modules (admin-only).
 const {
   importCurriculumModules,
@@ -2079,6 +2083,12 @@ exports.importBuiltInCbcTopics = importBuiltInCbcTopics;
 // Teacher Tools — admin-only: import the built-in Zambian assessment format
 // profiles into Firestore so they become editable from the CBC KB page.
 exports.importBuiltInAssessmentFormats = importBuiltInAssessmentFormats;
+
+// Teacher Tools — admin-only: distil a format-profile draft from a sample
+// Zambian paper (past paper or direct .pdf/.docx upload). Drafts await
+// admin review on the CBC KB page before going live.
+exports.extractAssessmentFormat =
+  createExtractAssessmentFormat(anthropicApiKey);
 
 // Teacher Tools — admin-only: bulk import lesson-level curriculum modules.
 exports.importCurriculumModules = importCurriculumModules;

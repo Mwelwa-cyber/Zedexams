@@ -10,7 +10,8 @@ import {
   serverTimestamp, setDoc,
 } from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
-import app, { db } from '../firebase/config'
+import { ref as storageRef, uploadBytes } from 'firebase/storage'
+import app, { db, storage } from '../firebase/config'
 import { LEARNING_ENVIRONMENT_VALUES } from '../config/learningEnvironments'
 
 const functions = getFunctions(app, 'us-central1')
@@ -22,6 +23,11 @@ const importCurriculumModulesCallable = httpsCallable(functions, 'importCurricul
 })
 const importBuiltInAssessmentFormatsCallable = httpsCallable(functions, 'importBuiltInAssessmentFormats', {
   timeout: 60_000,
+})
+const extractAssessmentFormatCallable = httpsCallable(functions, 'extractAssessmentFormat', {
+  // Downloads the sample paper, runs Claude over it and writes the draft;
+  // server-side timeoutSeconds is 300, so match it on the client.
+  timeout: 300_000,
 })
 
 const backfillKbSourceRefsCallable = httpsCallable(functions, 'backfillKbSourceRefs', {
@@ -508,7 +514,8 @@ export async function saveAssessmentFormat(profile) {
     diagramConventions: cleanLines(profile.diagramConventions, 4, 400),
     exemplarQuestions,
     status: 'active',
-    origin: profile.origin === 'builtin_seed' ? 'builtin_seed' : 'manual',
+    origin: ['builtin_seed', 'pdf_extract', 'docx_extract'].includes(profile.origin) ?
+      profile.origin : 'manual',
     sourceNote: String(profile.sourceNote || '').trim().slice(0, 300),
     updatedAt: serverTimestamp(),
   }
@@ -528,6 +535,119 @@ export async function deleteAssessmentFormat(id) {
   } catch (err) {
     console.error('deleteAssessmentFormat failed', err)
     return false
+  }
+}
+
+// ── Format-profile drafts (Phase 2: extract from a sample paper) ─────────
+// extractAssessmentFormat distils a draft profile from an uploaded sample
+// (PDF/DOCX) or an existing pastPapers doc. Drafts live in
+// cbcKnowledgeBase/{version}/assessmentFormatDrafts (admin-only rules) and
+// are ignored by the generator until approved into assessmentFormats/.
+
+const SAMPLE_EXTS = new Set(['pdf', 'docx'])
+const SAMPLE_CONTENT_TYPES = {
+  pdf: 'application/pdf',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+}
+
+/**
+ * Upload a sample paper to assessment-format-samples/{uid}/… and return
+ * the storage path to hand to extractAssessmentFormat. Throws with a
+ * readable message on unsupported files.
+ */
+export async function uploadAssessmentFormatSample(file, uid) {
+  if (!file || !uid) throw new Error('Pick a file first.')
+  const ext = String(file.name || '').split('.').pop().toLowerCase()
+  if (!SAMPLE_EXTS.has(ext)) {
+    throw new Error('Only .pdf and .docx sample papers are supported.')
+  }
+  if (file.size > 25 * 1024 * 1024) {
+    throw new Error('File is over the 25 MB limit.')
+  }
+  const safeName = String(file.name || 'sample')
+    .toLowerCase().replace(/[^a-z0-9._-]+/g, '-').slice(0, 80)
+  const storagePath = `assessment-format-samples/${uid}/${Date.now()}-${safeName}`
+  await uploadBytes(storageRef(storage, storagePath), file, {
+    contentType: SAMPLE_CONTENT_TYPES[ext],
+  })
+  return storagePath
+}
+
+/**
+ * Run the extraction. Pass either { storagePath } (from
+ * uploadAssessmentFormatSample) or { paperId } (a pastPapers doc id),
+ * plus the admin's classification of the paper.
+ * Returns { ok, draftId, draft, validationErrors, warning } or { ok:false, error }.
+ */
+export async function extractAssessmentFormat({ storagePath = null, paperId = null, assessmentType, gradeBand, subject }) {
+  try {
+    const result = await extractAssessmentFormatCallable({
+      storagePath, paperId, assessmentType, gradeBand, subject,
+    })
+    return { ok: true, ...(result?.data || {}) }
+  } catch (err) {
+    console.error('extractAssessmentFormat failed', err)
+    return {
+      ok: false,
+      error: err?.code === 'permission-denied' ?
+        'Admin only.' :
+        (err?.message || 'Extraction failed.'),
+    }
+  }
+}
+
+/** List pending format-profile drafts. Returns [] on error. */
+export async function listAssessmentFormatDrafts() {
+  try {
+    const version = await getActiveKbVersion()
+    const snap = await getDocs(
+      collection(db, 'cbcKnowledgeBase', version, 'assessmentFormatDrafts'),
+    )
+    return snap.docs.map((d) => ({ draftId: d.id, ...d.data() }))
+  } catch (err) {
+    console.error('listAssessmentFormatDrafts failed', err)
+    return []
+  }
+}
+
+/** Delete (reject) a draft. */
+export async function deleteAssessmentFormatDraft(draftId) {
+  if (!draftId) return false
+  try {
+    const version = await getActiveKbVersion()
+    await deleteDoc(doc(db, 'cbcKnowledgeBase', version, 'assessmentFormatDrafts', draftId))
+    return true
+  } catch (err) {
+    console.error('deleteAssessmentFormatDraft failed', err)
+    return false
+  }
+}
+
+/**
+ * Approve a draft: validate + publish through saveAssessmentFormat (the
+ * same path manual profiles take), then remove the draft. Throws the
+ * validation error if the profile still needs fixes.
+ */
+export async function approveAssessmentFormatDraft(draft) {
+  const id = await saveAssessmentFormat(draft)
+  if (draft?.draftId) await deleteAssessmentFormatDraft(draft.draftId)
+  return id
+}
+
+/** Shallow list of past papers for the extraction picker (admin-read). */
+export async function listPastPapersForExtraction() {
+  try {
+    const snap = await getDocs(collection(db, 'pastPapers'))
+    return snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .map((p) => ({
+        id: p.id,
+        label: [p.title, p.grade, p.subject, p.year].filter(Boolean).join(' · ') || p.id,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  } catch (err) {
+    console.error('listPastPapersForExtraction failed', err)
+    return []
   }
 }
 

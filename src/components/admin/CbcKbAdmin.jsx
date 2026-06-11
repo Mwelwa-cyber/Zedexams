@@ -11,7 +11,11 @@ import {
   ASSESSMENT_FORMAT_TYPES, ASSESSMENT_FORMAT_BANDS,
   listAssessmentFormats, saveAssessmentFormat, deleteAssessmentFormat,
   importBuiltInAssessmentFormats,
+  uploadAssessmentFormatSample, extractAssessmentFormat,
+  listAssessmentFormatDrafts, deleteAssessmentFormatDraft,
+  approveAssessmentFormatDraft, listPastPapersForExtraction,
 } from '../../utils/adminCbcKbService'
+import { useAuth } from '../../contexts/AuthContext'
 import {
   getMergedSyllabi, saveSyllabusRow, removeSyllabusRow, restoreSyllabusRow,
   invalidateSyllabiCache,
@@ -153,10 +157,13 @@ function countOverrides(rawData) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function CbcKbAdmin() {
+  const { currentUser } = useAuth()
   const [rawData, setRawData] = useState(null)
   const [customTopics, setCustomTopics] = useState([])
   const [formatProfiles, setFormatProfiles] = useState([])
   const [editingFormat, setEditingFormat] = useState(null) // profile, or 'new'
+  const [formatDrafts, setFormatDrafts] = useState([])
+  const [reviewingDraft, setReviewingDraft] = useState(null) // draft doc under review
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [activeVersion, setActiveVersion] = useState(null)
@@ -183,12 +190,14 @@ export default function CbcKbAdmin() {
     setLoading(true)
     setError('')
     try {
-      const [merged, firestoreTopics, formats] = await Promise.all([
+      const [merged, firestoreTopics, formats, drafts] = await Promise.all([
         getMergedSyllabi({ forceOverrides: true }),
         listCbcTopics().catch(() => []),
         listAssessmentFormats().catch(() => []),
+        listAssessmentFormatDrafts().catch(() => []),
       ])
       setFormatProfiles(formats)
+      setFormatDrafts(drafts)
       setRawData(enrichSubjects(merged))
       // A Firestore topic is "custom" when it doesn't shadow an entry in
       // the syllabi-data layer. The merged-source rebuild already covers
@@ -389,6 +398,68 @@ export default function CbcKbAdmin() {
     await load()
   }
 
+  // Extract a format-profile draft from a sample paper. `intake` is
+  // { file? , paperId?, assessmentType, gradeBand, subject }.
+  async function onExtractFormat(intake) {
+    try {
+      let storagePath = null
+      if (intake.file) {
+        flashToast('Uploading sample paper…', 0)
+        storagePath = await uploadAssessmentFormatSample(intake.file, currentUser?.uid)
+      }
+      flashToast('Reading the paper and distilling its format — this can take a minute…', 0)
+      const res = await extractAssessmentFormat({
+        storagePath,
+        paperId: intake.paperId || null,
+        assessmentType: intake.assessmentType,
+        gradeBand: intake.gradeBand,
+        subject: intake.subject,
+      })
+      if (!res.ok) { flashToast(`Extraction failed: ${res.error}`); return false }
+      flashToast(res.warning ?
+        `Draft created — ${res.warning}` :
+        'Draft created. Review it under "Pending review" below.', 10000)
+      await load()
+      return true
+    } catch (err) {
+      flashToast(`Extraction failed: ${err?.message || err}`)
+      return false
+    }
+  }
+
+  async function onApproveDraft(payload) {
+    try {
+      await approveAssessmentFormatDraft({
+        ...payload,
+        origin: reviewingDraft?.origin,
+        draftId: reviewingDraft?.draftId,
+      })
+      flashToast('Format profile approved and live. The generator picks it up within ~60 seconds.')
+      setReviewingDraft(null)
+      await load()
+      return true
+    } catch (err) {
+      flashToast(`Approve failed: ${err?.message || err}`)
+      return false
+    }
+  }
+
+  function onRejectDraft(draft) {
+    setPendingDelete({ kind: 'draft', draft })
+  }
+
+  async function performRejectDraft(draft) {
+    setDeleteBusy(true)
+    try {
+      const ok = await deleteAssessmentFormatDraft(draft.draftId)
+      flashToast(ok ? 'Draft rejected.' : 'Reject failed — check console.')
+      if (ok) await load()
+    } finally {
+      setDeleteBusy(false)
+      setPendingDelete(null)
+    }
+  }
+
   async function performDeleteCustomTopic(topic) {
     setDeleteBusy(true)
     try {
@@ -522,6 +593,10 @@ export default function CbcKbAdmin() {
               onEditFormat={(p) => setEditingFormat(p)}
               onDeleteFormat={onDeleteFormatProfile}
               onImportFormats={onImportBuiltInFormats}
+              formatDrafts={formatDrafts}
+              onExtractFormat={onExtractFormat}
+              onReviewDraft={(d) => setReviewingDraft(d)}
+              onRejectDraft={onRejectDraft}
             />
           )}
 
@@ -580,11 +655,21 @@ export default function CbcKbAdmin() {
         />
       )}
 
+      {reviewingDraft && (
+        <FormatProfileModal
+          profile={reviewingDraft}
+          reviewing
+          onCancel={() => setReviewingDraft(null)}
+          onSave={onApproveDraft}
+        />
+      )}
+
       <ConfirmDialog
         open={Boolean(pendingDelete)}
         title={pendingDelete?.kind === 'row' ? 'Delete this row?' :
           pendingDelete?.kind === 'format' ? 'Delete this format profile?' :
-            'Delete this custom topic?'}
+            pendingDelete?.kind === 'draft' ? 'Reject this draft?' :
+              'Delete this custom topic?'}
         message={pendingDelete?.kind === 'row' ? (
           <>
             <p>Topic: <strong className="theme-text">{pendingDelete?.payload?.topic || '—'}</strong></p>
@@ -593,6 +678,8 @@ export default function CbcKbAdmin() {
           </>
         ) : pendingDelete?.kind === 'format' ? (
           <>You're about to delete <strong className="theme-text">"{pendingDelete?.profile?.label}"</strong>. The built-in seed for this combination (if any) applies again.</>
+        ) : pendingDelete?.kind === 'draft' ? (
+          <>You're about to reject the extracted draft <strong className="theme-text">"{pendingDelete?.draft?.label}"</strong>. Nothing was published; this just discards it.</>
         ) : (
           <>You're about to delete <strong className="theme-text">"{pendingDelete?.topic?.topic}"</strong> ({pendingDelete?.topic?.grade} {pendingDelete?.topic?.subject}).</>
         )}
@@ -603,6 +690,7 @@ export default function CbcKbAdmin() {
           if (!pendingDelete) return
           if (pendingDelete.kind === 'row') performDeleteRow(pendingDelete.payload)
           else if (pendingDelete.kind === 'format') performDeleteFormatProfile(pendingDelete.profile)
+          else if (pendingDelete.kind === 'draft') performRejectDraft(pendingDelete.draft)
           else performDeleteCustomTopic(pendingDelete.topic)
         }}
         onCancel={() => setPendingDelete(null)}
@@ -662,6 +750,7 @@ function HomeView({
   onSelectSubject, onLoaded, flashToast,
   onEditCustomTopic, onAddCustomTopic, onDeleteCustomTopic,
   formatProfiles, onAddFormat, onEditFormat, onDeleteFormat, onImportFormats,
+  formatDrafts, onExtractFormat, onReviewDraft, onRejectDraft,
 }) {
   return (
     <div className="ss-home">
@@ -711,6 +800,10 @@ function HomeView({
         onEdit={onEditFormat}
         onDelete={onDeleteFormat}
         onImport={onImportFormats}
+        drafts={formatDrafts}
+        onExtract={onExtractFormat}
+        onReviewDraft={onReviewDraft}
+        onRejectDraft={onRejectDraft}
       />
 
       {CAT_ORDER.map(cat => {
@@ -881,9 +974,13 @@ const FORMAT_BAND_LABELS = Object.fromEntries(
   ASSESSMENT_FORMAT_BANDS.map((b) => [b.value, b.label]),
 )
 
-function AssessmentFormatsPanel({ profiles, onAdd, onEdit, onDelete, onImport }) {
+function AssessmentFormatsPanel({
+  profiles, onAdd, onEdit, onDelete, onImport,
+  drafts, onExtract, onReviewDraft, onRejectDraft,
+}) {
   const [expanded, setExpanded] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [showIntake, setShowIntake] = useState(false)
   const grouped = useMemo(() => {
     const byType = new Map()
     for (const p of profiles || []) {
@@ -929,6 +1026,13 @@ function AssessmentFormatsPanel({ profiles, onAdd, onEdit, onDelete, onImport })
           <button
             type="button"
             className="ss-tab-btn"
+            onClick={() => setShowIntake((v) => !v)}
+          >
+            {showIntake ? 'Hide extraction' : 'Extract from a sample paper'}
+          </button>
+          <button
+            type="button"
+            className="ss-tab-btn"
             onClick={runImport}
             disabled={importing}
           >
@@ -945,6 +1049,54 @@ function AssessmentFormatsPanel({ profiles, onAdd, onEdit, onDelete, onImport })
           )}
         </div>
       </div>
+
+      {showIntake && <FormatExtractIntake onExtract={onExtract} />}
+
+      {(drafts || []).length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <div className="ss-custom-grade-label">
+            PENDING REVIEW ({drafts.length})
+          </div>
+          <div className="ss-custom-grid">
+            {drafts.map((d) => (
+              <div key={d.draftId} className="ss-custom-card">
+                <div className="ss-custom-card-meta">
+                  {(FORMAT_TYPE_LABELS[d.assessmentType] || d.assessmentType)}
+                  {' · '}
+                  {(FORMAT_BAND_LABELS[d.gradeBand] || d.gradeBand)}
+                  {' · '}
+                  {d.subject === '_generic' ? 'All subjects' : formatSubject(d.subject)}
+                </div>
+                <div className="ss-custom-card-title">{d.label || '(untitled draft)'}</div>
+                <div className="ss-custom-card-subs">
+                  Extracted from {d.sourceNote || d.sourceKind || 'a sample paper'}.
+                  {Array.isArray(d.validationErrors) && d.validationErrors.length > 0 && (
+                    <span style={{ color: '#b91c1c' }}>
+                      {' '}Needs fixes: {d.validationErrors.join('; ')}
+                    </span>
+                  )}
+                </div>
+                <div className="ss-custom-card-actions">
+                  <button
+                    type="button"
+                    className="ss-row-btn ss-row-edit"
+                    onClick={() => onReviewDraft(d)}
+                  >
+                    review
+                  </button>
+                  <button
+                    type="button"
+                    className="ss-row-btn ss-row-delete"
+                    onClick={() => onRejectDraft(d)}
+                  >
+                    reject
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {total === 0 && (
         <p className="ss-custom-empty">
@@ -998,6 +1150,135 @@ function AssessmentFormatsPanel({ profiles, onAdd, onEdit, onDelete, onImport })
   )
 }
 
+// ── Format extraction intake ─────────────────────────────────────────────
+// Two ways in: upload a sample paper (.pdf/.docx) directly, or pick an
+// already-uploaded past paper. The admin classifies the paper (type /
+// band / subject) because that drives the profile id the draft would
+// publish under — Claude only distils the format.
+
+function FormatExtractIntake({ onExtract }) {
+  const [meta, setMeta] = useState({
+    assessmentType: 'end_of_term',
+    gradeBand: 'upper_primary',
+    subject: '_generic',
+  })
+  const [mode, setMode] = useState('upload') // 'upload' | 'past-paper'
+  const [file, setFile] = useState(null)
+  const [papers, setPapers] = useState(null) // null until loaded
+  const [paperId, setPaperId] = useState('')
+  const [busy, setBusy] = useState(false)
+  const update = (k, v) => setMeta((m) => ({ ...m, [k]: v }))
+
+  useEffect(() => {
+    if (mode !== 'past-paper' || papers !== null) return
+    let cancelled = false
+    listPastPapersForExtraction()
+      .then((list) => {
+        if (!cancelled) setPapers(list)
+      })
+      .catch(() => {
+        if (!cancelled) setPapers([])
+      })
+    return () => { cancelled = true }
+  }, [mode, papers])
+
+  const ready = mode === 'upload' ? Boolean(file) : Boolean(paperId)
+
+  async function run() {
+    setBusy(true)
+    try {
+      const ok = await onExtract({
+        ...meta,
+        file: mode === 'upload' ? file : null,
+        paperId: mode === 'past-paper' ? paperId : null,
+      })
+      if (ok) { setFile(null); setPaperId('') }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div style={{ border: '1px solid #d9cfb8', borderRadius: 10, padding: 14, marginTop: 12 }}>
+      <p className="ss-custom-blurb" style={{ marginTop: 0 }}>
+        Claude reads the paper and distils its <em>format</em> — structure,
+        wording, numbering, marks habits — into a draft profile for your
+        review. It writes fresh paraphrased exemplars and never copies the
+        paper's questions.
+      </p>
+      <div className="ss-ct-grade-row">
+        <div className="ss-field">
+          <label>Assessment type</label>
+          <select value={meta.assessmentType}
+            onChange={(e) => update('assessmentType', e.target.value)}>
+            {ASSESSMENT_FORMAT_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="ss-field">
+          <label>Grade band</label>
+          <select value={meta.gradeBand}
+            onChange={(e) => update('gradeBand', e.target.value)}>
+            {ASSESSMENT_FORMAT_BANDS.map((b) => (
+              <option key={b.value} value={b.value}>{b.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="ss-field">
+          <label>Subject</label>
+          <select value={meta.subject}
+            onChange={(e) => update('subject', e.target.value)}>
+            <option value="_generic">All subjects (generic)</option>
+            {TEACHER_SUBJECTS.filter((s) => s.value).map((s) => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div className="ss-ct-grade-row">
+        <div className="ss-field">
+          <label>Source</label>
+          <select value={mode} onChange={(e) => setMode(e.target.value)}>
+            <option value="upload">Upload a sample paper (.pdf / .docx)</option>
+            <option value="past-paper">Use an uploaded past paper</option>
+          </select>
+        </div>
+        {mode === 'upload' ? (
+          <div className="ss-field">
+            <label>Sample paper file</label>
+            <input
+              type="file"
+              accept=".pdf,.docx"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+            />
+          </div>
+        ) : (
+          <div className="ss-field">
+            <label>Past paper</label>
+            <select value={paperId} onChange={(e) => setPaperId(e.target.value)}>
+              <option value="">
+                {papers === null ? 'Loading…' : 'Pick a paper…'}
+              </option>
+              {(papers || []).map((p) => (
+                <option key={p.id} value={p.id}>{p.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+      <button
+        type="button"
+        className="ss-btn-primary"
+        onClick={run}
+        disabled={busy || !ready}
+      >
+        {busy ? 'Extracting… (about a minute)' : 'Extract format profile'}
+      </button>
+    </div>
+  )
+}
+
 // ── Format profile edit modal ───────────────────────────────────────────
 
 const FORMAT_QUESTION_TYPES = [
@@ -1012,7 +1293,7 @@ const EMPTY_FORMAT_SECTION = {
 }
 const EMPTY_FORMAT_EXEMPLAR = { type: 'short_answer', marks: 1, prompt: '', note: '' }
 
-function FormatProfileModal({ profile, onCancel, onSave }) {
+function FormatProfileModal({ profile, onCancel, onSave, reviewing = false }) {
   const editing = !!profile
   const [form, setForm] = useState(() => ({
     assessmentType: profile?.assessmentType || 'end_of_term',
@@ -1067,13 +1348,28 @@ function FormatProfileModal({ profile, onCancel, onSave }) {
     <div className="ss-modal-backdrop">
       <div className="ss-modal">
         <div className="ss-modal-head">
-          <h2>{editing ? 'Edit format profile' : 'Add a format profile'}</h2>
+          <h2>
+            {reviewing ? 'Review extracted draft' :
+              editing ? 'Edit format profile' : 'Add a format profile'}
+          </h2>
           <p>
             Goes into <code>cbcKnowledgeBase/&#123;version&#125;/assessmentFormats</code>.
             The My Assessment generator follows it for this assessment type +
             grade band + subject. Write exemplars in the Zambian style but
             <strong> never copy questions from a real paper</strong>.
+            {reviewing && (
+              <>
+                {' '}Approving publishes this draft; check the exemplars are
+                paraphrases, not transcriptions.
+              </>
+            )}
           </p>
+          {reviewing && Array.isArray(profile?.validationErrors) &&
+            profile.validationErrors.length > 0 && (
+            <p style={{ color: '#b91c1c' }}>
+              Fix before approving: {profile.validationErrors.join('; ')}
+            </p>
+          )}
         </div>
         <div className="ss-modal-body">
           <div className="ss-ct-grade-row">
@@ -1297,7 +1593,9 @@ function FormatProfileModal({ profile, onCancel, onSave }) {
             onClick={submit}
             disabled={saving || !form.label.trim() || shareSum !== 100}
           >
-            {saving ? 'Saving…' : (editing ? 'Save changes' : 'Add profile')}
+            {saving ? 'Saving…' :
+              reviewing ? 'Approve & publish' :
+                editing ? 'Save changes' : 'Add profile'}
           </button>
         </div>
       </div>
