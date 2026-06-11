@@ -292,7 +292,7 @@ function SampleLibrary() {
 const TIER_BLURBS = {
   free: { name: 'Free', mascot: '🐢', blurb: 'Real generations every day, no card needed. Try every studio properly.' },
   pro:  { name: 'Pro',  mascot: '🦊', blurb: 'For the everyday teacher — full monthly allowances, DOCX + PDF export, premium model.', popular: true },
-  max:  { name: 'Max',  mascot: '🦅', blurb: 'For HoDs and heavy users — effectively unlimited documents and bulk export.' },
+  max:  { name: 'Max',  mascot: '🦅', blurb: 'For heavy users — effectively unlimited documents and bulk export.' },
 }
 
 function PricingStrip() {
