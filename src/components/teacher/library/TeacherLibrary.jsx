@@ -8,6 +8,7 @@ import {
   formatDate,
   bucketIntoTree,
   librarySectionForGeneration,
+  libraryTypeForGeneration,
 } from '../../../utils/teacherLibraryService'
 import {
   LIBRARY_SECTIONS,
@@ -24,29 +25,36 @@ import SeoHelmet from '../../seo/SeoHelmet'
 import Icon from '../../ui/Icon'
 import {
   AlertTriangle,
+  ArrowRight,
   BarChart3,
+  BeakerIcon,
   BookOpen,
+  Calculator,
   CalendarDays,
+  ChevronRight,
   ClipboardCheckList,
   ClipboardList,
   Clock,
   ComputerDesktop,
   DocumentTextIcon,
+  Files,
   FileText,
   FolderOpen,
   Globe,
   GraduationCap,
   Language,
   Layers,
+  ListChecks,
   Loader2,
   MusicalNote,
   Palette,
   PencilLine,
+  Plus,
+  Search,
+  SlidersHorizontal,
   Sprout,
   Target,
   TrophyIcon,
-  Calculator,
-  BeakerIcon,
 } from '../../ui/icons'
 
 /**
@@ -62,19 +70,43 @@ import {
  *   7. Documents
  *
  * Selections are reflected in the URL so back/forward works and links
- * are deep-shareable.
+ * are deep-shareable. Typing in the search bar overlays a flat result
+ * list across the whole library without disturbing the URL selection.
  */
 
 const PARAM_KEYS = ['type', 'syllabus', 'grade', 'term', 'subject', 'assess']
 
 const COLORS = {
-  paper:    '#f5efe1',
+  paper:    '#faf9f5',
   ink:      '#0e2a32',
   inkSoft:  '#566f76',
   faint:    '#8a9aa1',
-  border:   '#d4cab2',
+  border:   '#e7e3d8',
   card:     '#fff',
   orange:   '#ff7a2e',
+}
+
+/* ── Folder palettes ───────────────────────────────────────────── */
+// Soft pastel gradients per library section — folder body fades from
+// `from` (near-white) to `to`, the tab + icon chip sit on `tab`, and
+// `border` keeps the outline a shade darker than the fill.
+
+const NEUTRAL_PALETTE = {
+  from: '#fbfbf9', to: '#edebe4', border: '#dedacd', tab: '#eceadf',
+}
+
+const SECTION_PALETTE = {
+  [LIBRARY_TYPES.SCHEMES_OF_WORK]:  { from: '#fffdf4', to: '#fdeec0', border: '#efdfa9', tab: '#f9ecc2' }, // warm cream
+  [LIBRARY_TYPES.WEEKLY_FORECASTS]: { from: '#f4fbf5', to: '#d9f0de', border: '#c2e2ca', tab: '#ddf1e1' }, // soft mint
+  [LIBRARY_TYPES.SYLLABI]:          { from: '#f4f9fe', to: '#d9e9f8', border: '#c3d9ee', tab: '#dcebf8' }, // soft blue
+  [LIBRARY_TYPES.LESSON_PLANS]:     { from: '#f9f6fe', to: '#e7dcf7', border: '#d7c8ec', tab: '#e9def7' }, // lavender
+  [LIBRARY_TYPES.NOTES]:            { from: '#f2fbfa', to: '#d4f0ec', border: '#bce2dc', tab: '#d8f1ed' }, // soft teal
+  [LIBRARY_TYPES.ASSESSMENTS]:      { from: '#fff6f3', to: '#fcdcd2', border: '#f1c9bc', tab: '#fbded5' }, // soft coral
+  [LIBRARY_TYPES.MARK_SCHEDULES]:   { from: '#fdf6f9', to: '#f8dfeb', border: '#ecc9da', tab: '#f7e1ec' }, // soft rose
+}
+
+function paletteFor(sectionId) {
+  return SECTION_PALETTE[sectionId] || NEUTRAL_PALETTE
 }
 
 /* ── Per-tile icons ────────────────────────────────────────────── */
@@ -82,29 +114,32 @@ const COLORS = {
 // platform-specific emoji rendering.
 
 const SECTION_ICON = {
-  [LIBRARY_TYPES.SCHEMES_OF_WORK]:  CalendarDays,
-  [LIBRARY_TYPES.WEEKLY_FORECASTS]: Clock,
-  [LIBRARY_TYPES.SYLLABI]:          BookOpen,
+  [LIBRARY_TYPES.SCHEMES_OF_WORK]:  BookOpen,
+  [LIBRARY_TYPES.WEEKLY_FORECASTS]: CalendarDays,
+  [LIBRARY_TYPES.SYLLABI]:          Files,
   [LIBRARY_TYPES.LESSON_PLANS]:     PencilLine,
   [LIBRARY_TYPES.NOTES]:            DocumentTextIcon,
   [LIBRARY_TYPES.ASSESSMENTS]:      BarChart3,
+  [LIBRARY_TYPES.MARK_SCHEDULES]:   ListChecks,
 }
 
 const TOOL_ICON = {
-  lesson_plan:    PencilLine,
-  scheme_of_work: CalendarDays,
-  worksheet:      FileText,
-  flashcards:     Layers,
-  rubric:         ClipboardCheckList,
-  notes:          DocumentTextIcon,
-  assessment:     BarChart3,
-  assessments:    BarChart3,
-  quiz:           ClipboardList,
+  lesson_plan:     PencilLine,
+  scheme_of_work:  BookOpen,
+  weekly_forecast: CalendarDays,
+  mark_schedule:   ListChecks,
+  worksheet:       FileText,
+  flashcards:      Layers,
+  rubric:          ClipboardCheckList,
+  notes:           DocumentTextIcon,
+  assessment:      BarChart3,
+  assessments:     BarChart3,
+  quiz:            ClipboardList,
 }
 
 const SYLLABUS_ICON = {
   CBC:       Sprout,
-  CDC:       DocumentTextIcon,
+  OBC:       DocumentTextIcon,
   Secondary: GraduationCap,
 }
 
@@ -150,6 +185,14 @@ function subjectIcon(value) {
   return SUBJECT_ICON[value] || BookOpen
 }
 
+function singularLabel(label) {
+  if (label === 'Schemes of Work') return 'Scheme of Work'
+  return String(label).replace(/s$/, '')
+}
+
+// Folder grids: 2 compact columns on phones, 3 when there's room.
+const FOLDER_GRID_CLASS = 'grid grid-cols-2 lg:grid-cols-3 gap-x-3 gap-y-4 sm:gap-x-4 sm:gap-y-5'
+
 export default function TeacherLibrary() {
   const { currentUser } = useAuth()
   const { getMyAssessments } = useFirestore()
@@ -168,6 +211,10 @@ export default function TeacherLibrary() {
   const [assessments, setAssessments] = useState([])
   const [status, setStatus] = useState('loading')
   const [errorMessage, setErrorMessage] = useState('')
+
+  const [query, setQuery] = useState('')
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const [typeFilter, setTypeFilter] = useState('')
 
   /* ── Data load ─────────────────────────────────────────────── */
   useEffect(() => {
@@ -266,143 +313,139 @@ export default function TeacherLibrary() {
 
   const totalSaved = allRows.length
 
-  /* ── Render decisions ──────────────────────────────────────── */
+  // Most recently created item across studios — powers the
+  // "Continue editing" strip on the landing view.
+  const recentItem = useMemo(() => {
+    let best = null
+    let bestMs = -1
+    for (const r of allRows) {
+      const ts = r.createdAt
+      const ms = typeof ts?.toMillis === 'function' ? ts.toMillis()
+        : ts?.seconds ? ts.seconds * 1000
+        : ts ? new Date(ts).getTime() : 0
+      if (Number.isFinite(ms) && ms > bestMs) { bestMs = ms; best = r }
+    }
+    return best
+  }, [allRows])
+
+  /* ── Search across the whole library ───────────────────────── */
+  const trimmedQuery = query.trim()
+  const searchRows = useMemo(() => {
+    if (!trimmedQuery) return []
+    const needle = trimmedQuery.toLowerCase()
+    return allRows.filter((r) => {
+      if (typeFilter && libraryTypeForGeneration(r) !== typeFilter) return false
+      const title = String(r.__title || titleForGeneration(r)).toLowerCase()
+      const path = String(r.library?.path || '').toLowerCase()
+      return title.includes(needle) || path.includes(needle)
+    })
+  }, [trimmedQuery, typeFilter, allRows])
+
+  /* ── Resolve the current step into a body + heading ────────── */
+  const crumbs = status === 'ready' ? buildCrumbs(sel) : []
+  const section = sel.type ? LIBRARY_SECTION_BY_ID[sel.type] : null
+  const palette = section ? paletteFor(section.id) : NEUTRAL_PALETTE
+
+  let body = null
+  let subtitle = ''
 
   if (status === 'loading') {
-    return (
-      <Shell>
-        <Header />
-        <LoadingState />
-      </Shell>
-    )
-  }
-  if (status === 'error') {
-    return (
-      <Shell>
-        <Header />
-        <ErrorState message={errorMessage} />
-      </Shell>
-    )
-  }
-
-  // Build breadcrumb path from current selection.
-  const crumbs = buildCrumbs(sel)
-
-  // Step 1 — pick a library section.
-  if (!sel.type) {
-    return (
-      <Shell>
-        <Header subtitle={`${totalSaved} saved item${totalSaved === 1 ? '' : 's'} across all studios`} />
+    body = <LoadingState />
+  } else if (status === 'error') {
+    body = <ErrorState message={errorMessage} />
+  } else if (trimmedQuery) {
+    subtitle = `${searchRows.length} result${searchRows.length === 1 ? '' : 's'} for “${trimmedQuery}”`
+    body = <SearchResults rows={searchRows} />
+  } else if (!sel.type) {
+    subtitle = `${totalSaved} saved item${totalSaved === 1 ? '' : 's'} across all studios`
+    body = (
+      <>
+        {recentItem && <RecentStrip item={recentItem} />}
         <SectionPicker tree={tree} onPick={(t) => setStep({ type: t })} />
-      </Shell>
+      </>
     )
-  }
-
-  const section = LIBRARY_SECTION_BY_ID[sel.type]
-  if (!section) {
-    return (
-      <Shell>
-        <Header />
-        <ErrorState message={`Unknown library section: ${sel.type}`} />
-      </Shell>
+  } else if (!section) {
+    body = <ErrorState message={`Unknown library section: ${sel.type}`} />
+  } else if (!sel.syllabus) {
+    subtitle = section.label
+    body = (
+      <SyllabusPicker
+        tree={tree[sel.type] || {}}
+        palette={palette}
+        onPick={(s) => setStep({ syllabus: s })}
+      />
     )
-  }
-
-  // Step 2 — pick syllabus.
-  if (!sel.syllabus) {
-    return (
-      <Shell>
-        <Header subtitle={section.label} crumbs={crumbs} onCrumb={backTo} />
-        <SyllabusPicker tree={tree[sel.type] || {}} onPick={(s) => setStep({ syllabus: s })} />
-      </Shell>
+  } else if (!sel.grade) {
+    subtitle = `${section.label} · ${sel.syllabus}`
+    body = (
+      <GradeFormPicker
+        syllabus={sel.syllabus}
+        subTree={(tree[sel.type] || {})[sel.syllabus] || {}}
+        palette={palette}
+        onPick={(g) => setStep({ grade: g })}
+      />
     )
-  }
-
-  // Step 3 — pick grade / form.
-  if (!sel.grade) {
-    return (
-      <Shell>
-        <Header subtitle={`${section.label} · ${sel.syllabus}`} crumbs={crumbs} onCrumb={backTo} />
-        <GradeFormPicker
-          syllabus={sel.syllabus}
-          subTree={(tree[sel.type] || {})[sel.syllabus] || {}}
-          onPick={(g) => setStep({ grade: g })}
-        />
-      </Shell>
+  } else if (section.hasTerm && !sel.term) {
+    subtitle = `${section.label} · ${sel.syllabus} · ${sel.grade}`
+    body = (
+      <TermPicker
+        subTree={((tree[sel.type] || {})[sel.syllabus] || {})[sel.grade] || {}}
+        palette={palette}
+        onPick={(t) => setStep({ term: t })}
+      />
     )
-  }
-
-  // Step 4 — pick term (skipped for Syllabi).
-  if (section.hasTerm && !sel.term) {
-    return (
-      <Shell>
-        <Header
-          subtitle={`${section.label} · ${sel.syllabus} · ${sel.grade}`}
-          crumbs={crumbs}
-          onCrumb={backTo}
-        />
-        <TermPicker
-          subTree={((tree[sel.type] || {})[sel.syllabus] || {})[sel.grade] || {}}
-          onPick={(t) => setStep({ term: t })}
-        />
-      </Shell>
-    )
-  }
-
-  // Step 5 — pick subject.
-  if (!sel.subject) {
+  } else if (!sel.subject) {
     const branch = section.hasTerm
       ? (((tree[sel.type] || {})[sel.syllabus] || {})[sel.grade] || {})[sel.term] || {}
       : ((tree[sel.type] || {})[sel.syllabus] || {})[sel.grade] || {}
-    return (
-      <Shell>
-        <Header
-          subtitle={[section.label, sel.syllabus, sel.grade, section.hasTerm && sel.term].filter(Boolean).join(' · ')}
-          crumbs={crumbs}
-          onCrumb={backTo}
-        />
-        <SubjectPicker
-          syllabus={sel.syllabus}
-          gradeForm={sel.grade}
-          subTree={branch}
-          onPick={(s) => setStep({ subject: s })}
-        />
-      </Shell>
+    subtitle = [section.label, sel.syllabus, sel.grade, section.hasTerm && sel.term].filter(Boolean).join(' · ')
+    body = (
+      <SubjectPicker
+        syllabus={sel.syllabus}
+        gradeForm={sel.grade}
+        subTree={branch}
+        palette={palette}
+        onPick={(s) => setStep({ subject: s })}
+      />
     )
-  }
-
-  // Step 6 — Assessments only — pick assessment type.
-  if (section.hasAssessmentType && !sel.assess) {
+  } else if (section.hasAssessmentType && !sel.assess) {
     const branch = (((((tree[sel.type] || {})[sel.syllabus] || {})[sel.grade] || {})[sel.term] || {})[sel.subject]) || {}
-    return (
-      <Shell>
-        <Header
-          subtitle={[section.label, sel.syllabus, sel.grade, sel.term, sel.subject].filter(Boolean).join(' · ')}
-          crumbs={crumbs}
-          onCrumb={backTo}
-        />
-        <AssessmentTypePicker
-          syllabus={sel.syllabus}
-          gradeForm={sel.grade}
-          subTree={branch}
-          onPick={(t) => setStep({ assess: t })}
-        />
-      </Shell>
+    subtitle = [section.label, sel.syllabus, sel.grade, sel.term, sel.subject].filter(Boolean).join(' · ')
+    body = (
+      <AssessmentTypePicker
+        syllabus={sel.syllabus}
+        gradeForm={sel.grade}
+        subTree={branch}
+        palette={palette}
+        onPick={(t) => setStep({ assess: t })}
+      />
     )
+  } else {
+    const leaf = readLeaf(tree, sel)
+    subtitle = [section.label, sel.syllabus, sel.grade, section.hasTerm && sel.term, sel.subject, section.hasAssessmentType && labelForAssessment(sel.syllabus, sel.grade, sel.assess)]
+      .filter(Boolean).join(' · ')
+    body = <DocumentList items={leaf} section={section} />
   }
 
-  // Step 7 — leaf documents.
-  const leaf = readLeaf(tree, sel)
+  const showChrome = status === 'ready' && !trimmedQuery
+
   return (
     <Shell>
-      <Header
-        subtitle={[section.label, sel.syllabus, sel.grade, section.hasTerm && sel.term, sel.subject, section.hasAssessmentType && labelForAssessment(sel.syllabus, sel.grade, sel.assess)]
-          .filter(Boolean).join(' · ')}
-        crumbs={crumbs}
-        onCrumb={backTo}
-        section={section}
+      <TopBar
+        query={query}
+        onQueryChange={setQuery}
+        filtersOpen={filtersOpen}
+        onToggleFilters={() => setFiltersOpen((v) => !v)}
+        typeFilter={typeFilter}
+        onTypeFilter={setTypeFilter}
       />
-      <DocumentList items={leaf} section={section} />
+      <PageHeading
+        subtitle={subtitle}
+        crumbs={showChrome ? crumbs : null}
+        onCrumb={backTo}
+        section={showChrome ? section : null}
+      />
+      {body}
     </Shell>
   )
 }
@@ -410,23 +453,174 @@ export default function TeacherLibrary() {
 /* ── Layout chrome ─────────────────────────────────────────────── */
 
 function Shell({ children }) {
+  // Generous bottom padding so the last folder row clears the fixed
+  // bottom navigation on phones/tablets (TeacherLayout adds pb-24 too).
   return (
-    <div className="min-h-screen p-4 sm:p-6 lg:p-8" style={{ background: COLORS.paper }}>
+    <div className="min-h-screen p-4 pb-10 sm:p-6 lg:p-8" style={{ background: COLORS.paper }}>
       <SeoHelmet title="Teacher library" noIndex />
       <div className="max-w-6xl mx-auto">{children}</div>
     </div>
   )
 }
 
-function Header({ subtitle, crumbs, onCrumb, section }) {
+function TopBar({ query, onQueryChange, filtersOpen, onToggleFilters, typeFilter, onTypeFilter }) {
+  const filterActive = filtersOpen || Boolean(typeFilter)
+  return (
+    <div className="mb-5">
+      <div className="flex items-center gap-2.5 sm:gap-3">
+        <div className="relative flex-1 min-w-0">
+          <span className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none" style={{ color: COLORS.faint }}>
+            <Icon as={Search} size="sm" />
+          </span>
+          <input
+            type="search"
+            value={query}
+            onChange={(e) => onQueryChange(e.target.value)}
+            placeholder="Search lessons, notes, assessments..."
+            aria-label="Search your library"
+            className="w-full rounded-full outline-none transition-shadow focus:shadow-md"
+            style={{
+              background: COLORS.card,
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: '0 2px 8px rgba(14,42,50,.04)',
+              padding: '11px 44px 11px 42px',
+              fontSize: 14,
+              color: COLORS.ink,
+            }}
+          />
+          <button
+            type="button"
+            onClick={onToggleFilters}
+            aria-label="Filter by folder"
+            aria-expanded={filtersOpen}
+            className="absolute right-1.5 top-1/2 -translate-y-1/2 grid place-items-center rounded-full cursor-pointer transition-colors"
+            style={{
+              width: 34,
+              height: 34,
+              border: 'none',
+              background: filterActive ? '#fff1e7' : 'transparent',
+              color: filterActive ? COLORS.orange : COLORS.inkSoft,
+            }}
+          >
+            <Icon as={SlidersHorizontal} size="sm" />
+          </button>
+        </div>
+        <CreateMenu />
+      </div>
+      {filtersOpen && (
+        <div className="flex flex-wrap items-center gap-2 mt-3" role="group" aria-label="Filter search results by folder">
+          <FilterChip label="All folders" active={!typeFilter} onClick={() => onTypeFilter('')} />
+          {LIBRARY_SECTIONS.map((s) => (
+            <FilterChip
+              key={s.id}
+              label={s.label}
+              active={typeFilter === s.id}
+              onClick={() => onTypeFilter(typeFilter === s.id ? '' : s.id)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FilterChip({ label, active, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="text-xs font-bold rounded-full px-3 py-1.5 cursor-pointer transition-colors"
+      style={active
+        ? { background: COLORS.ink, border: `1px solid ${COLORS.ink}`, color: '#fff' }
+        : { background: COLORS.card, border: `1px solid ${COLORS.border}`, color: COLORS.inkSoft }}
+    >
+      {label}
+    </button>
+  )
+}
+
+function CreateMenu() {
+  const [open, setOpen] = useState(false)
+  const options = LIBRARY_SECTIONS.filter((s) => s.createTo)
+  return (
+    <div className="relative flex-shrink-0">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        className="inline-flex items-center gap-1 rounded-full font-bold cursor-pointer transition-transform hover:-translate-y-0.5"
+        style={{
+          background: COLORS.orange,
+          color: '#fff',
+          border: 'none',
+          padding: '11px 16px',
+          fontSize: 13.5,
+          boxShadow: '0 6px 14px rgba(255,122,46,.32)',
+        }}
+      >
+        <Icon as={Plus} size="sm" strokeWidth={2.5} />
+        Create
+      </button>
+      {open && (
+        <>
+          <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} aria-hidden />
+          <div
+            role="menu"
+            className="absolute right-0 mt-2 z-40 rounded-2xl overflow-hidden"
+            style={{
+              background: COLORS.card,
+              border: `1px solid ${COLORS.border}`,
+              boxShadow: '0 16px 40px rgba(14,42,50,.16)',
+              minWidth: 232,
+              padding: 6,
+            }}
+          >
+            {options.map((s) => {
+              const SectionIcon = SECTION_ICON[s.id] || FolderOpen
+              const pal = paletteFor(s.id)
+              return (
+                <Link
+                  key={s.id}
+                  role="menuitem"
+                  to={s.createTo}
+                  onClick={() => setOpen(false)}
+                  className="flex items-center gap-3 rounded-xl px-3 py-2.5 no-underline transition-colors hover:bg-stone-50"
+                  style={{ color: COLORS.ink }}
+                >
+                  <span
+                    className="grid place-items-center flex-shrink-0"
+                    style={{ width: 32, height: 32, borderRadius: 10, background: pal.to, color: COLORS.ink }}
+                  >
+                    <Icon as={SectionIcon} size="sm" />
+                  </span>
+                  <span style={{ fontSize: 13.5, fontWeight: 700 }}>New {singularLabel(s.label)}</span>
+                </Link>
+              )
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+function PageHeading({ subtitle, crumbs, onCrumb, section }) {
   return (
     <div className="mb-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <Link
             to="/teacher"
-            className="inline-flex items-center gap-1.5 mb-3 no-underline text-sm font-bold rounded-xl border-2 px-3 py-1.5 transition-colors"
-            style={{ borderColor: COLORS.ink, color: COLORS.ink, background: COLORS.card }}
+            className="inline-flex items-center gap-1.5 mb-3 no-underline font-bold rounded-full transition-colors"
+            style={{
+              border: `1px solid ${COLORS.border}`,
+              color: COLORS.ink,
+              background: COLORS.card,
+              boxShadow: '0 2px 6px rgba(14,42,50,.04)',
+              padding: '7px 14px',
+              fontSize: 13,
+            }}
           >
             ← Home
           </Link>
@@ -442,10 +636,16 @@ function Header({ subtitle, crumbs, onCrumb, section }) {
         {section?.createTo && (
           <Link
             to={section.createTo}
-            className="inline-flex items-center gap-1.5 rounded-xl font-bold no-underline transition-colors"
-            style={{ background: COLORS.ink, color: '#fff', padding: '10px 16px', fontSize: 13 }}
+            className="inline-flex items-center gap-1.5 rounded-full font-bold no-underline transition-transform hover:-translate-y-0.5"
+            style={{
+              background: COLORS.orange,
+              color: '#fff',
+              padding: '10px 16px',
+              fontSize: 13,
+              boxShadow: '0 6px 14px rgba(255,122,46,.32)',
+            }}
           >
-            + New {section.label.replace(/s$/, '')}
+            + New {singularLabel(section.label)}
           </Link>
         )}
       </div>
@@ -455,7 +655,7 @@ function Header({ subtitle, crumbs, onCrumb, section }) {
             type="button"
             onClick={() => onCrumb && onCrumb('type')}
             className="text-xs font-bold rounded-full px-3 py-1.5 cursor-pointer transition-colors"
-            style={{ background: COLORS.card, border: `1.5px solid ${COLORS.border}`, color: COLORS.inkSoft }}
+            style={{ background: COLORS.card, border: `1px solid ${COLORS.border}`, color: COLORS.inkSoft }}
           >
             Library
           </button>
@@ -466,7 +666,7 @@ function Header({ subtitle, crumbs, onCrumb, section }) {
                 type="button"
                 onClick={() => onCrumb && onCrumb(c.level)}
                 className="text-xs font-bold rounded-full px-3 py-1.5 cursor-pointer transition-colors"
-                style={{ background: COLORS.card, border: `1.5px solid ${COLORS.border}`, color: COLORS.ink }}
+                style={{ background: COLORS.card, border: `1px solid ${COLORS.border}`, color: COLORS.ink }}
               >
                 {c.label}
               </button>
@@ -478,19 +678,55 @@ function Header({ subtitle, crumbs, onCrumb, section }) {
   )
 }
 
+/* ── Recent strip ──────────────────────────────────────────────── */
+
+function RecentStrip({ item }) {
+  const title = item.__title || titleForGeneration(item)
+  const to = item.__linkTo || `/teacher/library/${item.id}`
+  return (
+    <Link
+      to={to}
+      className="flex items-center gap-3 mb-6 no-underline rounded-2xl transition-transform hover:-translate-y-0.5"
+      style={{
+        background: COLORS.card,
+        border: `1px solid ${COLORS.border}`,
+        boxShadow: '0 4px 12px rgba(14,42,50,.05)',
+        padding: '12px 16px',
+        color: COLORS.ink,
+      }}
+    >
+      <span
+        className="grid place-items-center flex-shrink-0 rounded-full"
+        style={{ width: 36, height: 36, background: '#fff1e7', color: COLORS.orange }}
+      >
+        <Icon as={Clock} size="sm" />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block" style={{ fontSize: 10.5, fontWeight: 800, letterSpacing: '.07em', textTransform: 'uppercase', color: COLORS.faint }}>
+          Continue editing
+        </span>
+        <span className="block truncate" style={{ fontSize: 14, fontWeight: 700 }}>
+          {title}
+        </span>
+      </span>
+      <Icon as={ChevronRight} size="sm" style={{ color: COLORS.faint, flexShrink: 0 }} />
+    </Link>
+  )
+}
+
 /* ── Step pickers ──────────────────────────────────────────────── */
 
 function SectionPicker({ tree, onPick }) {
   return (
-    <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
+    <div className={FOLDER_GRID_CLASS}>
       {LIBRARY_SECTIONS.map((s) => {
         const branch = tree[s.id] || {}
         const count = countLeaves(branch)
         return (
-          <Tile
+          <FolderCard
             key={s.id}
             icon={SECTION_ICON[s.id] || FolderOpen}
-            accent={s.accent}
+            palette={paletteFor(s.id)}
             title={s.label}
             subtitle={`${count} saved ${count === 1 ? 'item' : 'items'}`}
             onClick={() => onPick(s.id)}
@@ -501,18 +737,18 @@ function SectionPicker({ tree, onPick }) {
   )
 }
 
-function SyllabusPicker({ tree, onPick }) {
+function SyllabusPicker({ tree, palette, onPick }) {
   const extras = extraKeys(tree, SYLLABUS_OPTIONS.map((o) => o.value))
   return (
-    <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
+    <div className={FOLDER_GRID_CLASS}>
       {SYLLABUS_OPTIONS.map((opt) => {
         const branch = tree[opt.value] || {}
         const count = countLeaves(branch)
         return (
-          <Tile
+          <FolderCard
             key={opt.value}
             icon={SYLLABUS_ICON[opt.value] || BookOpen}
-            accent="#fde2c4"
+            palette={palette}
             title={opt.label}
             subtitle={count > 0 ? `${count} item${count === 1 ? '' : 's'}` : 'Empty'}
             onClick={() => onPick(opt.value)}
@@ -520,25 +756,25 @@ function SyllabusPicker({ tree, onPick }) {
         )
       })}
       {extras.map((k) => (
-        <OrphanTile key={k} label={k} count={countLeaves(tree[k])} onClick={() => onPick(k)} />
+        <OrphanFolder key={k} label={k} count={countLeaves(tree[k])} onClick={() => onPick(k)} />
       ))}
     </div>
   )
 }
 
-function GradeFormPicker({ syllabus, subTree, onPick }) {
+function GradeFormPicker({ syllabus, subTree, palette, onPick }) {
   const grades = getActiveGradeForms(syllabus)
   const extras = extraKeys(subTree, grades.map((g) => g.value))
   return (
-    <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
+    <div className={FOLDER_GRID_CLASS}>
       {grades.map((g) => {
         const branch = subTree[g.value] || {}
         const count = countLeaves(branch)
         return (
-          <Tile
+          <FolderCard
             key={g.value}
             icon={gradeFormIcon(g.value)}
-            accent="#dbe7f4"
+            palette={palette}
             title={g.label}
             subtitle={count > 0 ? `${count} item${count === 1 ? '' : 's'}` : 'Empty'}
             onClick={() => onPick(g.value)}
@@ -546,7 +782,7 @@ function GradeFormPicker({ syllabus, subTree, onPick }) {
         )
       })}
       {extras.map((k) => (
-        <OrphanTile key={k} label={k} count={countLeaves(subTree[k])} onClick={() => onPick(k)} />
+        <OrphanFolder key={k} label={k} count={countLeaves(subTree[k])} onClick={() => onPick(k)} />
       ))}
       {grades.length === 0 && extras.length === 0 && (
         <EmptyHint text={`No grades configured for ${syllabus} yet.`} />
@@ -555,18 +791,18 @@ function GradeFormPicker({ syllabus, subTree, onPick }) {
   )
 }
 
-function TermPicker({ subTree, onPick }) {
+function TermPicker({ subTree, palette, onPick }) {
   const extras = extraKeys(subTree, TERMS.map((t) => t.value))
   return (
-    <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
+    <div className={FOLDER_GRID_CLASS}>
       {TERMS.map((t) => {
         const branch = subTree[t.value] || {}
         const count = countLeaves(branch)
         return (
-          <Tile
+          <FolderCard
             key={t.value}
             icon={TERM_ICON[t.value] || CalendarDays}
-            accent="#faecb8"
+            palette={palette}
             title={t.label}
             subtitle={count > 0 ? `${count} item${count === 1 ? '' : 's'}` : 'Empty'}
             onClick={() => onPick(t.value)}
@@ -574,28 +810,28 @@ function TermPicker({ subTree, onPick }) {
         )
       })}
       {extras.map((k) => (
-        <OrphanTile key={k} label={k} count={countLeaves(subTree[k])} onClick={() => onPick(k)} />
+        <OrphanFolder key={k} label={k} count={countLeaves(subTree[k])} onClick={() => onPick(k)} />
       ))}
     </div>
   )
 }
 
-function SubjectPicker({ syllabus, gradeForm, subTree, onPick }) {
+function SubjectPicker({ syllabus, gradeForm, subTree, palette, onPick }) {
   const subjects = getSubjectsForGradeForm(syllabus, gradeForm)
   const extras = extraKeys(subTree, subjects)
   if (subjects.length === 0 && extras.length === 0) {
     return <EmptyHint text={`Subjects for ${syllabus} ${gradeForm} are not configured yet.`} />
   }
   return (
-    <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
+    <div className={FOLDER_GRID_CLASS}>
       {subjects.map((s) => {
         const branch = subTree[s] || {}
         const count = countLeaves(branch)
         return (
-          <Tile
+          <FolderCard
             key={s}
             icon={subjectIcon(s)}
-            accent="#d8ecd0"
+            palette={palette}
             title={s}
             subtitle={count > 0 ? `${count} item${count === 1 ? '' : 's'}` : 'Empty'}
             onClick={() => onPick(s)}
@@ -603,25 +839,25 @@ function SubjectPicker({ syllabus, gradeForm, subTree, onPick }) {
         )
       })}
       {extras.map((k) => (
-        <OrphanTile key={k} label={k} count={countLeaves(subTree[k])} onClick={() => onPick(k)} />
+        <OrphanFolder key={k} label={k} count={countLeaves(subTree[k])} onClick={() => onPick(k)} />
       ))}
     </div>
   )
 }
 
-function AssessmentTypePicker({ syllabus, gradeForm, subTree, onPick }) {
+function AssessmentTypePicker({ syllabus, gradeForm, subTree, palette, onPick }) {
   const types = getAssessmentTypesForGradeForm(syllabus, gradeForm)
   const extras = extraKeys(subTree, types.map((t) => t.value))
   return (
-    <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
+    <div className={FOLDER_GRID_CLASS}>
       {types.map((t) => {
         const branch = subTree[t.value] || []
         const count = Array.isArray(branch) ? branch.length : countLeaves(branch)
         return (
-          <Tile
+          <FolderCard
             key={t.value}
             icon={ASSESSMENT_ICON[t.value] || ClipboardList}
-            accent="#e8d8f0"
+            palette={palette}
             title={t.label}
             subtitle={count > 0 ? `${count} item${count === 1 ? '' : 's'}` : 'Empty'}
             onClick={() => onPick(t.value)}
@@ -629,7 +865,7 @@ function AssessmentTypePicker({ syllabus, gradeForm, subTree, onPick }) {
         )
       })}
       {extras.map((k) => (
-        <OrphanTile key={k} label={k} count={countLeaves(subTree[k])} onClick={() => onPick(k)} />
+        <OrphanFolder key={k} label={k} count={countLeaves(subTree[k])} onClick={() => onPick(k)} />
       ))}
     </div>
   )
@@ -639,13 +875,7 @@ function AssessmentTypePicker({ syllabus, gradeForm, subTree, onPick }) {
 
 function DocumentList({ items, section }) {
   if (!items || items.length === 0) {
-    return (
-      <div className="rounded-lg border-2 border-dashed py-10 px-4 text-center" style={{ background: COLORS.card, borderColor: COLORS.border }}>
-        <p style={{ fontSize: 13, color: COLORS.faint, margin: 0 }}>
-          {section.emptyHint}
-        </p>
-      </div>
-    )
+    return <EmptyHint text={section.emptyHint} />
   }
   return (
     <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
@@ -660,13 +890,23 @@ function DocumentCard({ item, section }) {
   const title = item.__title || titleForGeneration(item)
   const linkTo = item.__linkTo || `/teacher/library/${item.id}`
   const itemIcon = TOOL_ICON[item.tool] || SECTION_ICON[section.id] || DocumentTextIcon
+  const pal = paletteFor(section.id)
   return (
     <Link
       to={linkTo}
-      className="block no-underline rounded-lg border-2 p-4 transition-all hover:-translate-y-0.5"
-      style={{ background: COLORS.card, borderColor: COLORS.ink, minHeight: 140, color: COLORS.ink }}
+      className="block no-underline rounded-2xl p-4 transition-transform hover:-translate-y-0.5"
+      style={{
+        background: COLORS.card,
+        border: `1px solid ${COLORS.border}`,
+        boxShadow: '0 4px 12px rgba(14,42,50,.05)',
+        minHeight: 140,
+        color: COLORS.ink,
+      }}
     >
-      <div style={{ width: 40, height: 40, borderRadius: 8, background: section.accent, display: 'grid', placeItems: 'center', fontSize: 20, marginBottom: 10, flexShrink: 0 }}>
+      <div
+        className="grid place-items-center"
+        style={{ width: 40, height: 40, borderRadius: 999, background: pal.to, marginBottom: 10, flexShrink: 0 }}
+      >
         <Icon as={itemIcon} size="md" />
       </div>
       <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 15, color: COLORS.ink, margin: '0 0 4px', lineHeight: 1.25 }} className="line-clamp-2">
@@ -684,48 +924,116 @@ function DocumentCard({ item, section }) {
   )
 }
 
-/* ── Bits & helpers ────────────────────────────────────────────── */
+/* ── Search results ────────────────────────────────────────────── */
 
-function Tile({ icon, accent, title, subtitle, onClick }) {
-  const IconComponent = typeof icon === 'string' ? null : icon
+function SearchResults({ rows }) {
+  if (!rows || rows.length === 0) {
+    return <EmptyHint text="No saved items match your search. Try a different keyword or clear the folder filter." />
+  }
+  return (
+    <div className="grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))' }}>
+      {rows.map((item) => {
+        const section = librarySectionForGeneration(item) || LIBRARY_SECTION_BY_ID[LIBRARY_TYPES.NOTES]
+        return <DocumentCard key={item.id} item={item} section={section} />
+      })}
+    </div>
+  )
+}
+
+/* ── Folder card ───────────────────────────────────────────────── */
+// Windows-style folder: a small tab pokes above the top-left corner of
+// a soft gradient body. The whole thing lifts slightly on hover.
+
+function FolderCard({ icon, palette, title, subtitle, onClick }) {
+  const IconComponent = icon
   return (
     <button
       type="button"
       onClick={onClick}
-      className="text-left block rounded-lg border-2 p-5 transition-all hover:-translate-y-0.5 cursor-pointer"
-      style={{ background: COLORS.card, borderColor: COLORS.ink, minHeight: 150, color: COLORS.ink }}
+      className="relative block w-full text-left cursor-pointer transition-transform hover:-translate-y-0.5"
+      style={{ background: 'transparent', border: 'none', padding: '10px 0 0', margin: 0 }}
     >
-      <div style={{ width: 52, height: 52, borderRadius: 8, background: accent, display: 'grid', placeItems: 'center', fontSize: 26, marginBottom: 14 }}>
-        {IconComponent ? <Icon as={IconComponent} size="lg" /> : icon}
-      </div>
-      <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 18, color: COLORS.ink, margin: '0 0 6px', lineHeight: 1.2 }}>
-        {title}
-      </p>
-      <p style={{ fontSize: 12, color: COLORS.faint, margin: 0, fontWeight: 600 }}>
-        {subtitle}
-      </p>
+      {/* Folder tab */}
+      <span
+        aria-hidden
+        className="absolute"
+        style={{
+          top: 0,
+          left: 16,
+          width: 64,
+          height: 24,
+          borderRadius: '10px 10px 0 0',
+          background: palette.tab,
+          border: `1px solid ${palette.border}`,
+          borderBottom: 'none',
+        }}
+      />
+      {/* Folder body */}
+      <span
+        className="relative flex items-start justify-between gap-2"
+        style={{
+          background: `linear-gradient(140deg, ${palette.from} 0%, ${palette.to} 100%)`,
+          border: `1px solid ${palette.border}`,
+          borderRadius: 16,
+          boxShadow: '0 5px 14px rgba(14,42,50,.06)',
+          padding: '16px 14px 12px',
+          minHeight: 118,
+        }}
+      >
+        <span className="flex flex-col min-w-0 flex-1 self-stretch">
+          <span
+            className="line-clamp-2"
+            style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 'clamp(15px, 2.2vw, 17px)', color: COLORS.ink, lineHeight: 1.2 }}
+          >
+            {title}
+          </span>
+          <span style={{ fontSize: 12, color: COLORS.inkSoft, fontWeight: 600, marginTop: 4 }}>
+            {subtitle}
+          </span>
+          <span
+            className="inline-flex items-center gap-1"
+            style={{ fontSize: 11.5, color: COLORS.faint, fontWeight: 700, marginTop: 'auto', paddingTop: 10 }}
+          >
+            Open <Icon as={ArrowRight} size={12} />
+          </span>
+        </span>
+        <span
+          className="grid place-items-center flex-shrink-0 rounded-full"
+          style={{
+            width: 38,
+            height: 38,
+            background: 'rgba(255,255,255,.8)',
+            border: `1px solid ${palette.border}`,
+            color: COLORS.ink,
+          }}
+        >
+          <Icon as={IconComponent} size="sm" />
+        </span>
+      </span>
     </button>
   )
 }
 
-// Tile for a folder whose key exists in the saved data but isn't in the
+// Folder for a key that exists in the saved data but isn't in the
 // static taxonomy (e.g. "Unsorted", a legacy subject, or an inactive
 // grade). Without this the item is counted at the parent but unreachable.
-function OrphanTile({ label, count, onClick }) {
+function OrphanFolder({ label, count, onClick }) {
   return (
-    <Tile
+    <FolderCard
       icon={FolderOpen}
-      accent="#e5e0d2"
-      title={label === 'Unsorted' ? 'Unsorted' : label}
+      palette={NEUTRAL_PALETTE}
+      title={label}
       subtitle={count > 0 ? `${count} item${count === 1 ? '' : 's'}` : 'Empty'}
       onClick={onClick}
     />
   )
 }
 
+/* ── States ────────────────────────────────────────────────────── */
+
 function EmptyHint({ text }) {
   return (
-    <div className="rounded-lg border-2 border-dashed py-10 px-4 text-center" style={{ background: COLORS.card, borderColor: COLORS.border }}>
+    <div className="rounded-2xl border border-dashed py-10 px-4 text-center" style={{ background: COLORS.card, borderColor: COLORS.border }}>
       <p style={{ fontSize: 13, color: COLORS.faint, margin: 0 }}>{text}</p>
     </div>
   )
@@ -733,8 +1041,8 @@ function EmptyHint({ text }) {
 
 function LoadingState() {
   return (
-    <div className="rounded-lg border-2 border-dashed p-12 text-center" style={{ background: COLORS.card, borderColor: COLORS.border }}>
-      <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl" style={{ background: '#fde2c4', color: COLORS.ink }}>
+    <div className="rounded-2xl border border-dashed p-12 text-center" style={{ background: COLORS.card, borderColor: COLORS.border }}>
+      <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full" style={{ background: '#fff1e7', color: COLORS.orange }}>
         <Icon as={Loader2} size="lg" className="animate-spin" />
       </div>
       <p style={{ fontSize: 13, color: COLORS.faint }}>Loading your library…</p>
@@ -744,8 +1052,8 @@ function LoadingState() {
 
 function ErrorState({ message }) {
   return (
-    <div className="rounded-lg border-2 border-dashed p-12 text-center" style={{ background: COLORS.card, borderColor: COLORS.border }}>
-      <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-xl" style={{ background: '#fee2e2', color: '#b91c1c' }}>
+    <div className="rounded-2xl border border-dashed p-12 text-center" style={{ background: COLORS.card, borderColor: COLORS.border }}>
+      <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full" style={{ background: '#fee2e2', color: '#b91c1c' }}>
         <Icon as={AlertTriangle} size="lg" />
       </div>
       <p style={{ fontFamily: "'Fraunces', serif", fontWeight: 800, fontSize: 16, color: COLORS.ink, marginBottom: 6 }}>
