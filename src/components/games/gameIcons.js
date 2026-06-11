@@ -138,6 +138,7 @@ const GAME_TYPE_META = {
   reading:      { icon: BookOpenIcon,     label: 'Reading' },
   true_false:   { icon: CheckBadgeIcon,   label: 'True/False' },
   map:          { icon: MapIcon,          label: 'Map Explorer' },
+  number_target: { icon: CalculatorIcon,  label: 'Number Target' },
 }
 
 export function gameTypeMeta(type) {

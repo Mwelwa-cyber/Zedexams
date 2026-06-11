@@ -119,6 +119,7 @@ export const GAME_TYPE_THEMES = {
   true_false: { label: 'True / False', icon: CheckBadgeIcon },
   map_explorer: { label: 'Map Explorer', icon: MapIcon },
   province_shapes: { label: 'Map Quiz', icon: MapIcon },
+  number_target: { label: 'Number Target', icon: CalculatorIcon },
 }
 
 const DEFAULT_TYPE_THEME = { label: 'Game', icon: PuzzlePieceIcon }
