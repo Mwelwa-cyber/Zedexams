@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Navigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useParams } from 'react-router-dom'
 import { SparklesIcon } from '@heroicons/react/24/solid'
 import { getFallbackGames } from '../../data/gamesSeed'
 import {
+  GRADES,
   SUBJECTS,
   getMyHistory,
   gradeByValue,
@@ -67,6 +68,22 @@ export default function SubjectSelector() {
         <div className="flex flex-wrap items-center gap-2">
           <MetaPill icon={SparklesIcon} label={gradeMeta.label} />
           <span className="zx-chip">{totalGames} games available</span>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-1.5">
+          {GRADES.map((g) => (
+            <Link
+              key={g.value}
+              to={`/games/g/${g.value}`}
+              aria-current={g.value === gradeMeta.value ? 'page' : undefined}
+              className={`rounded-full border-[1.5px] border-slate-900 px-3 py-1.5 text-xs font-extrabold transition ${
+                g.value === gradeMeta.value
+                  ? 'bg-slate-900 text-amber-300'
+                  : 'bg-white text-slate-900 hover:bg-slate-50'
+              }`}
+            >
+              G{g.value}
+            </Link>
+          ))}
         </div>
         <GamesSectionHeading
           eyebrow="Pick a subject"

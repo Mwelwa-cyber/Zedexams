@@ -172,6 +172,31 @@ export default function GamesHub() {
           )}
         </Section>
 
+        {/* Grades — every grade gets a lane, lower primary included */}
+        <Section eyebrow="Grades" title="Browse by grade">
+          <div className="grid grid-cols-3 gap-2.5 sm:grid-cols-4 sm:gap-3 lg:grid-cols-7">
+            {GRADES.map((grade) => {
+              const count = state.loading
+                ? null
+                : state.games.filter((g) => Number(g.grade) === grade.value).length
+              return (
+                <Link
+                  key={grade.value}
+                  to={`/games/g/${grade.value}`}
+                  className="zx-card rounded-[16px] bg-white px-2 py-3 text-center transition active:translate-y-[2px] active:shadow-none"
+                >
+                  <div className="font-display text-xl font-bold leading-none text-slate-900 sm:text-2xl">
+                    G{grade.value}
+                  </div>
+                  <div className="mt-1 text-[10px] font-extrabold uppercase tracking-[0.08em] text-slate-500">
+                    {count == null ? '…' : count === 1 ? '1 game' : `${count} games`}
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+        </Section>
+
         {/* Hot games — horizontal scroller (becomes a grid on desktop) */}
         <Section eyebrow="🔥 Hot right now" title="Loved by players" actionLabel="All ›" actionTo="/games">
           {state.loading ? (
