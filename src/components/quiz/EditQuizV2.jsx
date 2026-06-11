@@ -41,6 +41,7 @@ import ImportQuizPanel from './ImportQuizPanel'
 import QuizSectionsEditor from './QuizSectionsEditor'
 import QuizEditorPreviewPanel from './QuizEditorPreviewPanel'
 import QuizVerifyModal from './QuizVerifyModal'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import BulkAnswerKey from './BulkAnswerKey'
 import { collectAnswerableQuestions, applyAnswerKeyToSections, collectAiAnswerTargets } from './answerKeyUtils'
 import ReviewPanel from './ReviewPanel'
@@ -238,6 +239,9 @@ export default function EditQuizV2() {
   const [toast, setToast] = useState(null)
   const [dirty, setDirty] = useState(false)
   const [verifyOpen, setVerifyOpen] = useState(false)
+  // Clear-whole-quiz waits on ConfirmDialog approval (distinct from
+  // pendingImport, which drives the import-diff modal below).
+  const [pendingClearQuiz, setPendingClearQuiz] = useState(false)
   // Imported-image upload progress. Set to { completed, total } while a
   // save flushes the Storage uploads for blob-backed import assets, so
   // the action bar can show "Uploading images… 4 / 32" instead of
@@ -675,13 +679,11 @@ export default function EditQuizV2() {
   // source (and the back button still routes correctly). Guarded
   // behind a confirm because it can't be undone.
   function handleClearForm() {
-    if (typeof window !== 'undefined' && !window.confirm(
-      'Clear the whole quiz?\n\n'
-        + '• The title, topic, and details reset to defaults.\n'
-        + '• Every question is removed.\n'
-        + "• Saved questions are deleted on the next save and this can't be undone.\n"
-        + '\nNavigate away without saving to discard the clear instead.',
-    )) return
+    setPendingClearQuiz(true)
+  }
+
+  function performClearForm() {
+    setPendingClearQuiz(false)
     setDeletedIds(current => [...current, ...sections.flatMap(collectQuestionIds)])
     setForm(current => ({
       title: '',
@@ -2184,6 +2186,23 @@ export default function EditQuizV2() {
           setPendingImport(null)
           setPendingDiff(null)
         }}
+      />
+
+      <ConfirmDialog
+        open={pendingClearQuiz}
+        title="Clear the whole quiz?"
+        message={
+          <ul className="list-disc pl-4 space-y-1">
+            <li>The title, topic, and details reset to defaults.</li>
+            <li>Every question is removed.</li>
+            <li>Saved questions are deleted on the next save and this can't be undone.</li>
+            <li>Navigate away without saving to discard the clear instead.</li>
+          </ul>
+        }
+        confirmLabel="Clear quiz"
+        variant="danger"
+        onConfirm={performClearForm}
+        onCancel={() => setPendingClearQuiz(false)}
       />
     </div>
   )

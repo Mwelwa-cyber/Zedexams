@@ -36,6 +36,7 @@ import { getErrorMessage } from '../../utils/errors.js'
 import { validateStandaloneQuestion as sharedValidateStandaloneQuestion } from '../../utils/quizValidation.js'
 import { assertNoBlobImageUrls } from '../../utils/importedQuizAssets.js'
 import SeoHelmet from '../seo/SeoHelmet'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import {
   QUIZ_DOCUMENT_ACCEPT,
   importQuizDocument,
@@ -321,6 +322,8 @@ export default function AssessmentStudio() {
   const [aiGenerating, setAiGenerating] = useState(false)
   const [generatingDiagram, setGeneratingDiagram] = useState(false)
   const [importingDocument, setImportingDocument] = useState(false)
+  // Import over existing questions waits on ConfirmDialog — { files, importOptions }.
+  const [pendingImportDoc, setPendingImportDoc] = useState(null)
   const [importSummary, setImportSummary] = useState(null)
   const [importedAssets, setImportedAssets] = useState({})
   const [exporting, setExporting] = useState(false)
@@ -837,14 +840,22 @@ export default function AssessmentStudio() {
   }
 
   /* ------------ document import ------------ */
-  async function handleImportDocument(fileOrFiles, importOptions = {}) {
+  function handleImportDocument(fileOrFiles, importOptions = {}) {
     const files = Array.isArray(fileOrFiles) ? fileOrFiles.filter(Boolean) : (fileOrFiles ? [fileOrFiles] : [])
     if (!files.length) return
+    const hasExistingWork = !hasOnlyEmptyStarterSection(sections)
+    if (hasExistingWork) {
+      setPendingImportDoc({ files, importOptions })
+      return
+    }
+    runImportDocument(files, importOptions)
+  }
+
+  async function runImportDocument(files, importOptions = {}) {
     const file = files.length > 1
       ? { name: `${files[0].name} (+${files.length - 1} more)` }
       : files[0]
     const hasExistingWork = !hasOnlyEmptyStarterSection(sections)
-    if (hasExistingWork && !window.confirm('Replace the current questions with questions extracted from this document?')) return
     setImportingDocument(true)
     try {
       const imported = await importQuizDocument(files, importOptions)
@@ -1407,6 +1418,20 @@ export default function AssessmentStudio() {
           {toast.message}
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(pendingImportDoc)}
+        title="Replace current questions?"
+        message="Questions extracted from this document will replace the questions currently in the builder."
+        confirmLabel="Replace questions"
+        variant="danger"
+        onConfirm={() => {
+          const pending = pendingImportDoc
+          setPendingImportDoc(null)
+          if (pending) runImportDocument(pending.files, pending.importOptions)
+        }}
+        onCancel={() => setPendingImportDoc(null)}
+      />
     </div>
   )
 }
