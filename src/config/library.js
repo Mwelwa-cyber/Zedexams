@@ -32,6 +32,7 @@ export const LIBRARY_TYPES = {
   LESSON_PLANS:     'lesson_plans',
   NOTES:            'notes',
   ASSESSMENTS:      'assessments',
+  MARK_SCHEDULES:   'mark_schedules',
 }
 
 export const LIBRARY_SECTIONS = [
@@ -100,6 +101,17 @@ export const LIBRARY_SECTIONS = [
     hasAssessmentType: true,    // extra leaf level: Topic / Monthly / Mid / End
     createTo:  '/teacher/assessments/new',
     emptyHint: 'Create a topic, monthly, midterm or end-of-term assessment.',
+  },
+  {
+    id:        LIBRARY_TYPES.MARK_SCHEDULES,
+    label:     'Mark Schedules',
+    folder:    'Mark Schedules',
+    icon:      '🦓',
+    accent:    '#dcefe2',
+    hasTerm:   true,
+    hasAssessmentType: false,
+    createTo:  '/teacher/generate/mark-schedule',
+    emptyHint: 'Enter marks once — totals, positions and report comments are calculated for you.',
   },
 ]
 

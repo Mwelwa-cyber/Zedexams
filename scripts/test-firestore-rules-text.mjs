@@ -240,6 +240,25 @@ test('noteSmart is learner-readable and server-write-only', () => {
   assert(/allow write:\s*if false/.test(block[1]), 'noteSmart write is not locked to server-only (if false)')
 })
 
+test('aiGenerations client create stays locked to mark_schedule only', () => {
+  const block = rules.match(/match \/aiGenerations\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
+  assert(block, 'aiGenerations match block not found')
+  const create = block[1].match(/allow create:[\s\S]*?;/)
+  assert(create, 'aiGenerations create rule not found')
+  assert(
+    /incoming\(\)\.tool == 'mark_schedule'/.test(create[0]),
+    'aiGenerations create is no longer pinned to mark_schedule — AI tools must stay server-created so cost/token fields cannot be forged',
+  )
+  assert(
+    /incoming\(\)\.ownerUid == request\.auth\.uid/.test(create[0]),
+    'aiGenerations create no longer requires ownerUid == auth.uid',
+  )
+  assert(
+    /keys\(\)\.hasOnly\(/.test(create[0]),
+    'aiGenerations create lost its keys().hasOnly() allowlist — clients could write server-only fields',
+  )
+})
+
 // ── Report ──────────────────────────────────────────────────────
 
 console.log('')

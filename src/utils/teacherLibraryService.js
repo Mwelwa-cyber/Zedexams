@@ -9,8 +9,8 @@
  */
 
 import {
-  collection, doc, getDoc, getDocs, deleteDoc, updateDoc,
-  query, where, orderBy, limit,
+  addDoc, collection, doc, getDoc, getDocs, deleteDoc, updateDoc,
+  query, where, orderBy, limit, serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { LIBRARY_SECTION_BY_ID, LIBRARY_TYPES } from '../config/library'
@@ -202,6 +202,50 @@ export async function attachLibraryToGeneration(generationId, classification) {
 }
 
 /**
+ * Save a mark schedule into the library. Mark schedules are the one
+ * client-CREATED generation (pure client-side maths, no Cloud Function) —
+ * firestore.rules pins the create to tool='mark_schedule' with exactly
+ * this field set, so don't add top-level fields here without updating
+ * the rule. First save creates the doc; later saves patch output+library
+ * (within the update rule's changedKeys allowlist).
+ *
+ * Returns the generation id, or throws with a user-presentable message.
+ */
+export async function saveMarkScheduleGeneration({ uid, existingId, artifact }) {
+  if (!uid) throw new Error('Sign in again to save to your library.')
+  if (!artifact?.pupils?.length) throw new Error('Add at least one pupil before saving.')
+  const header = artifact.header || {}
+  const library = classifyForLibrary({
+    libraryType: LIBRARY_TYPES.MARK_SCHEDULES,
+    grade: header.grade,
+    term: header.term,
+  })
+  if (existingId) {
+    await updateDoc(doc(db, 'aiGenerations', existingId), {
+      output: artifact,
+      ...(library ? { library } : {}),
+    })
+    return existingId
+  }
+  const ref = await addDoc(collection(db, 'aiGenerations'), {
+    ownerUid: uid,
+    tool: 'mark_schedule',
+    status: 'complete',
+    visibility: 'private',
+    createdAt: serverTimestamp(),
+    inputs: {
+      grade: header.grade || null,
+      term: header.term != null ? String(header.term) : null,
+      subject: null,
+      topic: `Term ${header.term ?? ''} mark schedule`.trim(),
+    },
+    output: artifact,
+    ...(library ? { library } : {}),
+  })
+  return ref.id
+}
+
+/**
  * Record that the user exported a generation in a given format. Appends to
  * the `exportedFormats` array (deduped).
  */
@@ -286,6 +330,7 @@ export const TOOL_FILTER_OPTIONS = [
   {value: '', label: 'All tools'},
   {value: 'lesson_plan', label: 'Lesson plans'},
   {value: 'scheme_of_work', label: 'Schemes of work'},
+  {value: 'mark_schedule', label: 'Mark schedules'},
   {value: 'worksheet', label: 'Worksheets'},
   {value: 'flashcards', label: 'Flashcards'},
   {value: 'rubric', label: 'Rubrics'},
@@ -319,6 +364,14 @@ export function titleForGeneration(gen) {
     const s = out?.header?.subject || gen.inputs?.subject || ''
     const t = out?.header?.term || gen.inputs?.term || ''
     return `${g} ${s} — Term ${t} Scheme of Work`.trim()
+  }
+  if (gen.tool === 'mark_schedule') {
+    const g = out?.header?.grade || gen.inputs?.grade || ''
+    const t = out?.header?.term || gen.inputs?.term || ''
+    const y = out?.header?.year || ''
+    const n = out?.pupils?.length
+    const head = `${g ? `Grade ${String(g).replace(/^G/i, '')}` : ''} — Term ${t} Mark Schedule${y ? ` ${y}` : ''}`.trim()
+    return n ? `${head} (${n} pupils)` : head
   }
   if (gen.tool === 'rubric') {
     return out?.header?.title ||
