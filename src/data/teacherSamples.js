@@ -541,6 +541,130 @@ export const TEACHER_SAMPLES = [
   },
 
   {
+    id: 'term-tests',
+    tool: 'term_test',
+    label: 'Term test',
+    icon: '📋',
+    grade: 'Grade 4',
+    subject: 'Social Studies',
+    topic: 'Term 1',
+    // Real Grade 4 Social Studies Term 1 2026 papers (mid-term + end of
+    // term), rendered as the printed test paper (TestPaperOfficial). The
+    // page toggles between the two variants. School name swapped to the
+    // fictional one used across all samples; obvious source typos cleaned.
+    blurb: 'Mid-term and end-of-term papers, ready to print — circle-the-answer sections, true/false, and a label-the-diagram task with a word bank.',
+    madeWith: 'Assessment',
+    layout: 'official-table',
+    artifact: {
+      schemaVersion: 'test-paper-1.0',
+      midterm: {
+        header: {
+          school: 'Chilenje Primary School',
+          title: 'Mid-Term 1 Test — 2026',
+          subject: 'Social Studies',
+          grade: '4',
+        },
+        instructions: 'Answer all the questions in this paper.',
+        sections: [
+          {
+            title: 'Section A',
+            intro: 'Circle the correct answer.',
+            questions: [
+              { type: 'mcq', n: 1, prompt: 'What does the motto "One Zambia One Nation" mean?', options: ['freedom', 'agriculture', 'mining', 'unity'] },
+              { type: 'mcq', n: 2, prompt: 'On the Coat of Arms, what symbol represents mining?', options: ['The pick-axe', 'The hoe', 'The shield', 'The eagle'] },
+              { type: 'mcq', n: 3, prompt: 'On the 24th day of which month do Zambians celebrate their independence?', options: ['May', 'December', 'April', 'October'] },
+              { type: 'mcq', n: 4, prompt: 'A good leader must …………', options: ['insult others', 'fight others', 'lead by example', 'quarrel with others'] },
+              { type: 'mcq', n: 5, prompt: 'How many provinces are in Zambia?', options: ['11', '9', '13', '10'] },
+              { type: 'mcq', n: 6, prompt: 'Who was the first president of Zambia?', options: ['Levy Mwanawasa', 'Rupiah Banda', 'Kenneth Kaunda', 'Fredrick Chiluba'] },
+              { type: 'subhead', text: 'Questions 7 – 10: True or False' },
+              { type: 'mcq', n: 7, prompt: 'A good citizen must not obey the laws of a country.', options: ['True', 'False'] },
+              { type: 'mcq', n: 8, prompt: 'The man and woman symbols represent all the people of Zambia.', options: ['True', 'False'] },
+              { type: 'mcq', n: 9, prompt: 'Citizens should respect and obey the laws of their country.', options: ['True', 'False'] },
+              { type: 'mcq', n: 10, prompt: 'Citizenship is being a member of a country.', options: ['True', 'False'] },
+            ],
+          },
+          {
+            title: 'Section B',
+            intro: '',
+            questions: [
+              {
+                type: 'label-diagram',
+                n: 1,
+                prompt: 'Label the Zambian Coat of Arms.',
+                diagram: 'Zambian Coat of Arms diagram',
+                slots: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'],
+              },
+              {
+                type: 'fill-letters',
+                n: 2,
+                prompt: 'Look at the Coat of Arms above. Which symbol represents:',
+                parts: [
+                  { letter: 'a', text: 'family' },
+                  { letter: 'b', text: 'staple food' },
+                  { letter: 'c', text: 'agriculture' },
+                  { letter: 'd', text: 'wildlife' },
+                  { letter: 'e', text: 'minerals' },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+      endOfTerm: {
+        header: {
+          school: 'Chilenje Primary School',
+          title: 'End of Term 1 Test — 2026',
+          subject: 'Social Studies',
+          grade: '4',
+        },
+        instructions: 'Answer all the questions in this paper.',
+        sections: [
+          {
+            title: 'Section A',
+            intro: 'Circle the correct answer.',
+            questions: [
+              { type: 'mcq', n: 1, prompt: 'What does the motto "One Zambia One Nation" mean?', options: ['freedom', 'agriculture', 'mining', 'unity'] },
+              { type: 'mcq', n: 2, prompt: 'On the Coat of Arms, what symbol represents mining?', options: ['The pick-axe', 'The hoe', 'The shield', 'The eagle'] },
+              { type: 'mcq', n: 3, prompt: 'Which symbol on the Coat of Arms represents agriculture?', options: ['Eagle', 'Hoe', 'Man', 'Zebra'] },
+              { type: 'mcq', n: 4, prompt: '…….. family is made up of father, mother and children.', options: ['An adoptive', 'An extended', 'A foster', 'A nuclear'] },
+              { type: 'mcq', n: 5, prompt: 'Which one of these is NOT a community project?', options: ['feeding the hungry', 'planting trees', 'throwing litter', 'picking up litter'] },
+              { type: 'mcq', n: 6, prompt: 'A good leader must …………', options: ['insult others', 'fight others', 'lead by example', 'quarrel with others'] },
+              { type: 'mcq', n: 7, prompt: 'How many provinces are in Zambia?', options: ['11', '9', '13', '10'] },
+              { type: 'mcq', n: 8, prompt: 'Who was the first president of Zambia?', options: ['Levy Mwanawasa', 'Rupiah Banda', 'Kenneth Kaunda', 'Fredrick Chiluba'] },
+              { type: 'mcq', n: 9, prompt: 'People who are in need should be …………', options: ['helped', 'left alone', 'laughed at', 'beaten'] },
+              { type: 'mcq', n: 10, prompt: 'A group of two or more people that are related by blood is called a …..', options: ['community', 'family', 'friendship', 'relationship'] },
+              { type: 'mcq', n: 11, prompt: "The zebra on the Coat of Arms represents Zambia's ………", options: ['family wealth', 'freedom', 'mineral wealth', 'wildlife'] },
+              { type: 'mcq', n: 12, prompt: 'A family made up of a mother, father and children only is a ……… family.', options: ['Extended', 'Nuclear', 'Orphanage', 'Single'] },
+              { type: 'mcq', n: 13, prompt: 'The highest coin used in Zambia is ……….', options: ['five ngwee', 'one kwacha', 'five kwacha', 'two kwacha'] },
+              { type: 'mcq', n: 14, prompt: 'Colour green on the Zambian flag means …….', options: ['blood', 'vegetation', 'wealth', 'people'] },
+              { type: 'mcq', n: 15, prompt: 'A family provides …….. to its members.', options: ['fear', 'security', 'disobedience', 'indiscipline'] },
+              { type: 'mcq', n: 16, prompt: "Working well with other people in the community shows a citizen's ……..", options: ['duty', 'privilege', 'responsibility', 'right'] },
+              { type: 'mcq', n: 17, prompt: '………. children are brought up by parents who are not biologically theirs.', options: ['Adopted', 'Beautiful', 'Obedient', 'Tolerant'] },
+              { type: 'mcq', n: 18, prompt: 'What is the capital city of Zambia?', options: ['Ndola', 'Lusaka', 'Kitwe', 'Livingstone'] },
+              { type: 'mcq', n: 19, prompt: 'Which of the following is a duty of every citizen?', options: ['Getting educated', 'Moving freely', 'Paying taxes', 'Vandalising property'] },
+              { type: 'mcq', n: 20, prompt: 'On the 24th day of which month do Zambians celebrate their independence?', options: ['May', 'December', 'April', 'October'] },
+            ],
+          },
+          {
+            title: 'Section B',
+            intro: '',
+            questions: [
+              {
+                type: 'label-diagram',
+                n: 1,
+                prompt: 'Label the Zambian Coat of Arms.',
+                diagram: 'Zambian Coat of Arms diagram',
+                wordBank: ['eagle', 'zebra', 'shield', 'hoe', 'pick', 'mining shaft', 'maize cob', 'man', 'woman'],
+                slots: ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i'],
+              },
+            ],
+          },
+        ],
+      },
+    },
+  },
+
+  {
     id: 'flashcards',
     tool: 'flashcards',
     label: 'Flashcards',
