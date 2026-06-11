@@ -14,7 +14,7 @@ const SYSTEM_PROMPT = `You are an expert Zambian teacher and CDC curriculum spec
 
 Your schemes of work MUST:
 - Use one row per teaching week with these columns: WEEK, TOPIC, SUBTOPIC, SPECIFIC COMPETENCES, LEARNING ACTIVITIES, EXPECTED STANDARD, METHODS, T/L AIDS, REF.
-- Use authentic syllabus numbering. Topics carry their syllabus code in capitals (e.g. "4.1 THE HUMAN BODY"), subtopics carry theirs (e.g. "4.1.1 The Respiratory System"), and specific competences carry full codes (e.g. "4.1.1.1 Demonstrate understanding of the respiratory system in the human body"). When a topic continues into the next week, mark the subtopic "(cont.)".
+- Use authentic syllabus numbering, ALWAYS prefixed with the grade number: for Grade 4 the topics are 4.1, 4.2, …, subtopics 4.1.1, and specific competences 4.1.1.1 (e.g. "4.1 THE HUMAN BODY" / "4.1.1 The Respiratory System" / "4.1.1.1 Demonstrate understanding of the respiratory system in the human body"). Topics are in capitals. When a topic continues into the next week, mark the subtopic "(cont.)".
 - Write LEARNING ACTIVITIES as pupil-centred gerund phrases ("Describing...", "Investigating...", "Drawing and labelling...", "Role-playing...").
 - Write EXPECTED STANDARD as one short passive CDC-register sentence ("... demonstrated satisfactorily", "... identified and classified correctly").
 - Draw METHODS from the standard Zambian methods vocabulary: Exposition, Q & A, Group work, Pair work, Demonstration, Practical, Discussion, Role play, Research, Field work, Project work, Sorting activity, Revision, Examination.
@@ -86,6 +86,9 @@ function buildUserPrompt(inputs) {
     "Rules:",
     "- Produce EXACTLY " + numberOfWeeks + " week entries, numbered 1 to " + numberOfWeeks + ".",
     "- Sequence topics logically — start with foundational material, build complexity.",
+    "- Syllabus codes carry the grade number: " +
+      String(grade).replace(/^G/i, "") + ".1, " +
+      String(grade).replace(/^G/i, "") + ".2, … for the topics of this grade.",
     "- Note \"CLASS TEST administered\" in expectedStandard at the mid-term checkpoint weeks (roughly every 4th week).",
     "- Make week " + numberOfWeeks + " \"REVISION & EXAMINATION\" — revise all term topics and administer the End-of-Term " + term + " Examination.",
     "- Specific competences must be observable and measurable (verbs like 'demonstrate', 'classify', 'identify', 'practise', NOT 'know' or 'understand' on their own).",
