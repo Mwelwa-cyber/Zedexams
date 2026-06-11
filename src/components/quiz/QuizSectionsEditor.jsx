@@ -28,6 +28,7 @@ import QuestionAiAssistant from './QuestionAiAssistant.jsx'
 // RichContent is format-aware — handles both legacy HTML and Tiptap JSON.
 // Used wherever we previously showed RichTextContent.
 import RichContent from '../../editor/RichContent'
+import ConfirmDialog from '../ui/ConfirmDialog'
 
 const THEMES = {
   create: {
@@ -1946,6 +1947,9 @@ export default function QuizSectionsEditor({
   // Stale ids (after a single-card delete) are filtered out at the
   // render/action sites rather than fighting React effects.
   const [selectedIds, setSelectedIds] = useState(() => new Set())
+  // Editor-level action awaiting ConfirmDialog approval —
+  // 'bulk-delete' | 'shuffle' | 'autogroup' | null.
+  const [pendingAction, setPendingAction] = useState(null)
   const toggleSelect = useCallback(function toggleSelect(sectionId) {
     setSelectedIds(prev => {
       const next = new Set(prev)
@@ -2095,17 +2099,23 @@ export default function QuizSectionsEditor({
   const bulkDelete = useCallback(function bulkDelete() {
     const indexes = selectedStandaloneIndexes()
     if (!indexes.length || !onStandaloneRemove) return
-    if (typeof window !== 'undefined' && !window.confirm(
-      `Delete ${indexes.length} selected question${indexes.length === 1 ? '' : 's'}? This can't be undone.`,
-    )) return
+    setPendingAction('bulk-delete')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sections, selectedIds, onStandaloneRemove])
+
+  // Selection can't change while the dialog is open (it's modal), so
+  // recomputing the indexes at confirm time matches what was requested.
+  function performBulkDelete() {
+    setPendingAction(null)
+    const indexes = selectedStandaloneIndexes()
+    if (!indexes.length || !onStandaloneRemove) return
     // Delete in DESCENDING index order so earlier deletions don't shift
     // the indices of later targets. React's functional setState (in the
     // parent's removeStandaloneSection) sees the latest sections[] on
     // each call, so a desc sort gives a correct cumulative result.
     indexes.sort((a, b) => b - a).forEach(idx => onStandaloneRemove(idx))
     clearSelection()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sections, selectedIds, onStandaloneRemove, clearSelection])
+  }
 
   const bulkSetMarks = useCallback(function bulkSetMarks(value) {
     const indexes = selectedStandaloneIndexes()
@@ -2118,34 +2128,14 @@ export default function QuizSectionsEditor({
   const handleShuffleClick = useCallback(function handleShuffleClick() {
     if (!onShuffleSections) return
     if (totalQuestions < 2) return
-    const ok = typeof window === 'undefined'
-      ? true
-      : window.confirm(
-        'Shuffle the order of all questions?\n\n'
-          + '• Ungrouped questions and passages will be randomised.\n'
-          + '• Questions inside each Part will be randomised within that Part.\n'
-          + '• Questions inside each comprehension passage will be randomised.\n'
-          + '\nYou can still drag or use the ↑/↓ buttons to fine-tune.',
-      )
-    if (!ok) return
-    onShuffleSections()
+    setPendingAction('shuffle')
   }, [onShuffleSections, totalQuestions])
 
   const canShuffle = Boolean(onShuffleSections) && totalQuestions >= 2
 
   const handleAutoGroupClick = useCallback(function handleAutoGroupClick() {
     if (!onAutoGroupComprehension) return
-    const ok = typeof window === 'undefined'
-      ? true
-      : window.confirm(
-        'Auto-group comprehension questions?\n\n'
-          + '• Each question in a set of passages is matched to the passage it '
-          + 'refers to (by keywords in the question, options, and answer).\n'
-          + '• Original question numbers and order are preserved.\n'
-          + "\nYou can still fine-tune with each question's \"Linked passage\" dropdown.",
-      )
-    if (!ok) return
-    onAutoGroupComprehension()
+    setPendingAction('autogroup')
   }, [onAutoGroupComprehension])
 
   return (
@@ -2248,6 +2238,47 @@ export default function QuizSectionsEditor({
           + Add Part / Section group
         </button>
       )}
+
+      <ConfirmDialog
+        open={Boolean(pendingAction)}
+        title={
+          pendingAction === 'bulk-delete'
+            ? `Delete ${liveSelectedCount} selected question${liveSelectedCount === 1 ? '' : 's'}?`
+            : pendingAction === 'shuffle'
+              ? 'Shuffle the order of all questions?'
+              : 'Auto-group comprehension questions?'
+        }
+        message={
+          pendingAction === 'bulk-delete' ? (
+            "This can't be undone."
+          ) : pendingAction === 'shuffle' ? (
+            <ul className="list-disc pl-4 space-y-1">
+              <li>Ungrouped questions and passages will be randomised.</li>
+              <li>Questions inside each Part will be randomised within that Part.</li>
+              <li>Questions inside each comprehension passage will be randomised.</li>
+              <li>You can still drag or use the ↑/↓ buttons to fine-tune.</li>
+            </ul>
+          ) : (
+            <ul className="list-disc pl-4 space-y-1">
+              <li>Each question in a set of passages is matched to the passage it refers to (by keywords in the question, options, and answer).</li>
+              <li>Original question numbers and order are preserved.</li>
+              <li>You can still fine-tune with each question's "Linked passage" dropdown.</li>
+            </ul>
+          )
+        }
+        confirmLabel={
+          pendingAction === 'bulk-delete' ? 'Delete'
+            : pendingAction === 'shuffle' ? 'Shuffle'
+              : 'Auto-group'
+        }
+        variant={pendingAction === 'bulk-delete' ? 'danger' : 'primary'}
+        onConfirm={() => {
+          if (pendingAction === 'bulk-delete') performBulkDelete()
+          else if (pendingAction === 'shuffle') { setPendingAction(null); onShuffleSections?.() }
+          else if (pendingAction === 'autogroup') { setPendingAction(null); onAutoGroupComprehension?.() }
+        }}
+        onCancel={() => setPendingAction(null)}
+      />
     </div>
   )
 }

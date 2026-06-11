@@ -29,6 +29,7 @@ import { assertNoBlobImageUrls } from '../../utils/importedQuizAssets.js'
 import QuizSectionsEditor from '../quiz/QuizSectionsEditor'
 import QuizEditorPreviewPanel from '../quiz/QuizEditorPreviewPanel'
 import QuizValidationChecklist from '../quiz/QuizValidationChecklist'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import SeoHelmet from '../seo/SeoHelmet'
 import {
   QUIZ_DOCUMENT_ACCEPT,
@@ -342,6 +343,10 @@ export default function CreateQuizV2() {
   const [importingDocument, setImportingDocument] = useState(false)
   const [importSummary, setImportSummary] = useState(null)
   const [importedAssets, setImportedAssets] = useState({})
+  // Destructive editor actions awaiting ConfirmDialog approval. pendingImportDoc
+  // stashes the picked files + options so the import can run after confirm.
+  const [pendingClear, setPendingClear] = useState(false)
+  const [pendingImportDoc, setPendingImportDoc] = useState(null) // { files, importOptions }
 
   // Pre-publish checklist: same `collectQuizIssues` source of truth that
   // EditQuizV2 wires up. Lives here so the create flow gets identical
@@ -464,14 +469,15 @@ export default function CreateQuizV2() {
   // out early (nothing worth saving) and the cleared draft stays cleared.
   function clearAll() {
     const hasWork = !hasOnlyEmptyStarterSection(sections) || form.title.trim()
-    if (
-      hasWork &&
-      !window.confirm(
-        'Clear everything and start over? This wipes the current questions, quiz details, and any auto-saved draft. This cannot be undone.',
-      )
-    ) {
+    if (hasWork) {
+      setPendingClear(true)
       return
     }
+    performClearAll()
+  }
+
+  function performClearAll() {
+    setPendingClear(false)
     revokeImportedQuizAssets(importedAssets)
     setForm({
       title: '',
@@ -788,16 +794,22 @@ export default function CreateQuizV2() {
     }
   }
 
-  async function handleImportDocument(fileOrFiles, importOptions = {}) {
+  function handleImportDocument(fileOrFiles, importOptions = {}) {
     const files = Array.isArray(fileOrFiles) ? fileOrFiles.filter(Boolean) : (fileOrFiles ? [fileOrFiles] : [])
     if (!files.length) return
+    const hasExistingWork = !hasOnlyEmptyStarterSection(sections)
+    if (hasExistingWork) {
+      setPendingImportDoc({ files, importOptions })
+      return
+    }
+    runImportDocument(files, importOptions)
+  }
+
+  async function runImportDocument(files, importOptions = {}) {
     const file = files.length > 1
       ? { name: `${files[0].name} (+${files.length - 1} more)` }
       : files[0]
     const hasExistingWork = !hasOnlyEmptyStarterSection(sections)
-    if (hasExistingWork && !window.confirm('Replace the current questions with questions extracted from this document?')) {
-      return
-    }
 
     setImportingDocument(true)
     try {
@@ -1642,6 +1654,30 @@ export default function CreateQuizV2() {
         onClose={() => setChecklistOpen(false)}
         issues={validationIssues}
         summary={validationSummary}
+      />
+
+      <ConfirmDialog
+        open={pendingClear}
+        title="Clear everything and start over?"
+        message="This wipes the current questions, quiz details, and any auto-saved draft. This cannot be undone."
+        confirmLabel="Clear everything"
+        variant="danger"
+        onConfirm={performClearAll}
+        onCancel={() => setPendingClear(false)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(pendingImportDoc)}
+        title="Replace current questions?"
+        message="Questions extracted from this document will replace the questions currently in the editor."
+        confirmLabel="Replace questions"
+        variant="danger"
+        onConfirm={() => {
+          const pending = pendingImportDoc
+          setPendingImportDoc(null)
+          if (pending) runImportDocument(pending.files, pending.importOptions)
+        }}
+        onCancel={() => setPendingImportDoc(null)}
       />
     </div>
   )
