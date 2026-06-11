@@ -16,6 +16,7 @@ import {
   MapIcon,
   PlayIcon,
   PuzzlePieceIcon,
+  QueueListIcon,
   SparklesIcon,
   Squares2X2Icon,
   StarIcon,
@@ -122,6 +123,7 @@ export const GAME_TYPE_THEMES = {
   province_shapes: { label: 'Map Quiz', icon: MapIcon },
   number_target: { label: 'Number Target', icon: CalculatorIcon },
   sorting_factory: { label: 'Sorting', icon: InboxStackIcon },
+  sentence_scramble: { label: 'Scramble', icon: QueueListIcon },
 }
 
 const DEFAULT_TYPE_THEME = { label: 'Game', icon: PuzzlePieceIcon }
