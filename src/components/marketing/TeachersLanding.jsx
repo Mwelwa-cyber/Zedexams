@@ -24,6 +24,8 @@ import SchemeOfWorkView from '../teacher/views/SchemeOfWorkView'
 import WeeklyForecastView from '../teacher/views/WeeklyForecastView'
 import TestPaperOfficial from './TestPaperOfficial'
 import MarkScheduleView from '../teacher/views/MarkScheduleView'
+import ReportCardView from '../teacher/views/ReportCardView'
+import { buildReportCards } from '../../utils/markSchedule'
 import FlashcardsView from '../teacher/views/FlashcardsView'
 
 function Section({ children, className = '', id }) {
@@ -57,7 +59,7 @@ const STEPS = [
   {
     icon: '🖨️',
     title: 'Edit, export, teach',
-    body: 'Adjust anything, then export to DOCX or PDF, or print straight from the browser. Your library keeps every document you make.',
+    body: 'Adjust anything, then export to Word — plus Excel and per-pupil report cards for mark schedules — or print straight from the browser. Your library keeps every document you make.',
   },
 ]
 
@@ -92,8 +94,22 @@ function SampleRenderer({ sample, showAnswers, planLayout, testVariant, schedule
       return <WeeklyForecastView forecast={sample.artifact} />
     case 'term_test':
       return <TestPaperOfficial paper={sample.artifact[testVariant] || sample.artifact.midterm} />
-    case 'mark_schedule':
-      return <MarkScheduleView schedule={sample.artifact} mode={scheduleMode} />
+    case 'mark_schedule': {
+      if (scheduleMode !== 'card') {
+        return <MarkScheduleView schedule={sample.artifact} mode={scheduleMode} />
+      }
+      // One printed page per pupil — show the top pupil's card, built
+      // live from the same roster the schedule renders.
+      const cards = buildReportCards(sample.artifact)
+      return (
+        <div>
+          <ReportCardView card={cards[0]} header={sample.artifact.header} />
+          <p className="text-center text-xs theme-text-muted mt-3">
+            One page like this prints for each of the {cards.length} pupils — comments already filled in from the schedule.
+          </p>
+        </div>
+      )
+    }
     case 'flashcards':
       return <FlashcardsView flashcards={sample.artifact} />
     default:
@@ -231,7 +247,7 @@ function SampleLibrary() {
             )}
             {active.tool === 'mark_schedule' && (
               <div className="shrink-0 inline-flex gap-1 rounded-full theme-card border theme-border p-1" role="group" aria-label="Schedule view">
-                {[['marks', 'Raw marks'], ['percent', 'Percentages']].map(([key, label]) => (
+                {[['marks', 'Raw marks'], ['percent', 'Percentages'], ['card', 'Report card']].map(([key, label]) => (
                   <button
                     key={key}
                     type="button"
@@ -277,7 +293,7 @@ function SampleLibrary() {
               <span aria-hidden="true">{active.icon}</span>{' '}
               {active.comingSoon
                 ? <>{active.label} studio coming soon — your documents will look exactly like this</>
-                : <>Made with the {active.madeWith || active.label} studio · exports to DOCX & PDF</>}
+                : <>Made with the {active.madeWith || active.label} studio · exports to {active.exports || 'DOCX'}</>}
             </p>
             <Button as={Link} to="/register?role=teacher" variant="primary" size="sm">
               Make one for your class
