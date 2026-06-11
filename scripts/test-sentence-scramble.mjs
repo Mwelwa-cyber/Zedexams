@@ -58,12 +58,19 @@ assert(items[0].question === 'clue' && items[0].tokens.length === 4, 'normalizeI
 /* ── scrambleTokens / isCorrectOrder ─────────────────────────── */
 
 const rand = mulberry32(7)
+const SCRAMBLE_CASES = [
+  ['The', 'goat', 'eats', 'green', 'grass.'],                       // typical sentence
+  ['A', 'B'],                                                       // shortest playable
+  ['the', 'dog', 'bit', 'the', 'man'],                              // duplicate word
+  ['Plough the field', 'Plant the seeds', 'Weed', 'Harvest'],       // steps with spaces
+  ['one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'], // max tiles
+]
 for (let i = 0; i < 200; i++) {
-  const tokens = ['The', 'goat', 'eats', 'green', 'grass.']
+  const tokens = SCRAMBLE_CASES[i % SCRAMBLE_CASES.length]
   const out = scrambleTokens(tokens, rand)
   assert(out.length === tokens.length, `scramble #${i}: keeps every tile`)
-  assert([...out].sort().join('/') === [...tokens].sort().join('/'), `scramble #${i}: same multiset`)
-  assert(out.join(' ') !== tokens.join(' '), `scramble #${i}: differs from the answer`)
+  assert([...out].sort().join('') === [...tokens].sort().join(''), `scramble #${i}: same multiset`)
+  assert(out.some((w, k) => w !== tokens[k]), `scramble #${i}: differs from the answer`)
   assert(!isCorrectOrder(out, tokens), `scramble #${i}: not already solved`)
 }
 assert(isCorrectOrder(['A', 'B'], ['A', 'B']), 'isCorrectOrder accepts the right order')
