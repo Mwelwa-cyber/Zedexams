@@ -213,6 +213,7 @@ export default function MascotAvatar({ slug, className = 'h-full w-full', title 
   return (
     <svg
       viewBox="0 0 64 64"
+      preserveAspectRatio="xMidYMid meet"
       className={className}
       role="img"
       aria-label={label}

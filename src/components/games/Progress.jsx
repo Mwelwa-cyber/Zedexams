@@ -80,7 +80,7 @@ export function LevelMeter({ progress, signedIn = true }) {
                 Sign in to save your progress
               </Link>
             ) : atTop ? (
-              'Top rank reached — keep your streak alive! 🏆'
+              <>Top rank reached — keep your streak alive! <span aria-hidden="true">🏆</span></>
             ) : (
               <>
                 <b className="text-slate-900">{progress.pointsToNext.toLocaleString()} pts</b> to Level {progress.level + 1}
@@ -170,7 +170,7 @@ export function XpProgressBar({ progress, gained }) {
       <div className="mt-1.5 text-[11px] font-semibold text-slate-500">
         {progress.nextRank || progress.pointsToNext > 0
           ? <><b className="text-slate-900">{progress.pointsToNext.toLocaleString()} pts</b> to Level {progress.level + 1}</>
-          : 'Top level reached 🏆'}
+          : <>Top level reached <span aria-hidden="true">🏆</span></>}
       </div>
     </div>
   )
