@@ -132,6 +132,37 @@ console.log('aiPaperToSections')
   ok('skips are reported as warnings', true)
 }
 
+// ── Comprehension passages become passage blocks ─────────────────────────
+{
+  const blocks = aiAssessmentToStudioBlocks({
+    sections: [
+      {
+        title: 'SECTION B: COMPREHENSION',
+        instructions: 'Read the story and answer the questions.',
+        passage: {
+          title: 'Warthog and Lion',
+          text: 'A warthog went into a cave to keep warm. Soon a hungry lion came in…',
+        },
+        questions: [
+          { type: 'short_answer', prompt: 'Why did Warthog hold his tusks against the roof?', marks: 2, answer: 'To pretend the cave was falling.' },
+          { type: 'multiple_choice', prompt: 'Where did Warthog go?', options: ['a cave', 'a river', 'a tree'], marks: 1, answer: 'a cave' },
+        ],
+      },
+    ],
+  })
+  assert.strictEqual(blocks.sections.length, 1)
+  const sec = blocks.sections[0]
+  assert.strictEqual(sec.kind, 'passage')
+  assert.strictEqual(sec.passage.passageKind, 'comprehension')
+  assert.strictEqual(sec.passage.title, 'Warthog and Lion')
+  assert.strictEqual(sec.passage.questions.length, 2)
+  assert.strictEqual(sec.passage.questions[1].correctAnswer, 0)
+  assert.strictEqual(blocks.parts.length, 0, 'passage blocks need no Part wrapper')
+  assert.strictEqual(blocks.questionCount, 2)
+  assert.strictEqual(blocks.totalMarks, 3)
+  ok('AI comprehension sections map to native passage blocks', true)
+}
+
 // ── Garbage input never throws ────────────────────────────────────────────
 {
   for (const junk of [null, undefined, {}, { sections: 'nope' }, []]) {

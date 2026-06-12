@@ -4,7 +4,7 @@
  * key. Heavier than a worksheet (marks, marking guide per question).
  */
 
-const SCHEMA_VERSION = "1.1";
+const SCHEMA_VERSION = "1.2";
 
 const ALLOWED_TYPES = new Set([
   "multiple_choice",
@@ -95,6 +95,15 @@ function validateAssessment(input) {
           return {
             title: str(s.title, 200) || `Section ${sIdx + 1}`,
             instructions: str(s.instructions, 600),
+            // Optional original reading passage (v1.2). Coerces to null
+            // unless a non-empty text is present, so old payloads and
+            // clients are unaffected.
+            passage: s.passage && typeof s.passage === "object" &&
+              isNonEmptyString(s.passage.text) ?
+              {
+                title: str(s.passage.title, 200),
+                text: str(s.passage.text, 6000),
+              } : null,
             questions,
           };
         }) :
