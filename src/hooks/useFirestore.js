@@ -175,6 +175,7 @@ function normalizeQuestionPayload(q, order) {
     detectedType:  q.detectedType || type,
     difficulty:    q.difficulty || undefined,
     imageUrl:      q.imageUrl || null,
+    imageAlt:      String(q.imageAlt ?? '').trim(),
     imageDiagram,
     imagePosition: q.imagePosition || null,
     diagramText:   q.diagramText || null,

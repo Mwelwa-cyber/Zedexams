@@ -245,6 +245,10 @@ export const questionSchema = z
     // ── Misc ──
     passageId: z.string().nullable().default(null),
     imageUrl: z.string().nullable().default(null),
+    // Alt-text description for the question image — read by screen readers in
+    // the exported paper and supplied to the AI marker as context for the
+    // figure. Empty string when no image or no description has been written.
+    imageAlt: z.string().max(2000).default(''),
     // A library-diagram alternative to `imageUrl`. The two are not mutually
     // exclusive at the schema level — the renderer prefers the diagram when
     // both are set. Legacy docs have no `imageDiagram` field; renderer falls
