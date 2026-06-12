@@ -64,6 +64,9 @@ export async function resolvePictureUrl(pic) {
  * keywords), optionally narrowed by subject. Firestore has no full-text
  * search, so we pull the (bounded) active set and filter client-side —
  * fine at bank sizes of a few hundred images.
+ * Returns { rows, error } — error is set when the query itself failed,
+ * so the picker can show "couldn't load" instead of a misleading
+ * "no pictures" message.
  */
 export async function searchActivePictures({ term = '', subject = '' } = {}) {
   try {
@@ -81,10 +84,13 @@ export async function searchActivePictures({ term = '', subject = '' } = {}) {
         return tokens.every((t) => hay.includes(t))
       })
     }
-    return rows.sort((a, b) => String(a.name).localeCompare(String(b.name)))
+    return {
+      rows: rows.sort((a, b) => String(a.name).localeCompare(String(b.name))),
+      error: null,
+    }
   } catch (err) {
     console.error('searchActivePictures failed', err)
-    return []
+    return { rows: [], error: err?.message || 'Could not load the picture bank.' }
   }
 }
 
