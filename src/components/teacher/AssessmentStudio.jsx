@@ -749,11 +749,15 @@ export default function AssessmentStudio() {
         blocks.sections : [...prev, ...blocks.sections]))
       setParts(prev => [...prev, ...newParts])
     }
-    // Fill paper metadata the teacher hasn't set yet.
+    // Fill paper metadata the teacher hasn't set yet — including their
+    // school name/logo from the most recent saved paper, so AI-created
+    // papers print with the school header without re-typing it each time.
     const typeMap = {
       mid_term: 'mid_term', end_of_term: 'end_of_term',
       topic_test: 'topic', mock_exam: 'mock',
     }
+    const lastWithSchool = recentPapers.find(p => (p.schoolName || '').trim())
+    const lastWithLogo = recentPapers.find(p => (p.schoolLogoUrl || '').trim())
     setForm(f => ({
       ...f,
       term: f.term || aiPaperForm.term,
@@ -761,6 +765,8 @@ export default function AssessmentStudio() {
       assessmentType: typeMap[aiPaperForm.assessmentType] || f.assessmentType,
       coverInstructions: f.coverInstructions ||
         String(assessment?.header?.instructions || ''),
+      schoolName: f.schoolName || lastWithSchool?.schoolName || '',
+      schoolLogoUrl: f.schoolLogoUrl || lastWithLogo?.schoolLogoUrl || '',
     }))
     setCreatePaperOpen(false)
     closeSlide()
