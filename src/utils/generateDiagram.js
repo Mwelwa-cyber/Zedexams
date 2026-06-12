@@ -60,6 +60,11 @@ function messageFromError(error) {
   if (code.includes('unauthenticated')) {
     return 'Please sign in to generate diagrams.'
   }
+  if (/not_enough_credits/i.test(msg)) {
+    // Recraft's 400 body for an empty balance — no prompt will ever work,
+    // so don't send the admin off to "simplify" anything.
+    return 'The Recraft account is out of image credits — top up at recraft.ai, then run this again.'
+  }
   if (/recraft request failed/i.test(msg)) {
     // The server includes Recraft's HTTP status: "Recraft request failed
     // (401): …". Surface the account-level causes so an admin sees "rotate
