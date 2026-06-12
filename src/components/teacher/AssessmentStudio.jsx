@@ -1422,6 +1422,11 @@ export default function AssessmentStudio() {
           onImportDocument={handleImportDocument}
           importing={importingDocument}
           importSummary={importSummary}
+          onCreatePaper={() => setCreatePaperOpen(true)}
+          onVerifyPaper={() => setVerifyOpen(true)}
+          onOpenDiagramFix={() => setDiagramFixOpen(true)}
+          diagramsNeeded={countDiagramsNeeded(sections)}
+          onOpenAi={() => openSlide('ai')}
         />
       )}
 
@@ -1756,7 +1761,11 @@ function BuilderView(props) {
     onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion,
     onUpdatePart, onRemovePart, onAssignSectionToPart, onUploadLogo, onRemoveLogo,
     onImportDocument, importing, importSummary,
+    onCreatePaper, onVerifyPaper, onOpenDiagramFix, diagramsNeeded = 0, onOpenAi,
   } = props
+
+  const emptyPaper = hasOnlyEmptyStarterSection(sections)
+  const importInputRef = useRef(null)
 
   // Group sections by their Part membership for rendering Section headers.
   const grouped = useMemo(() => {
@@ -1791,10 +1800,60 @@ function BuilderView(props) {
         <span className="sv-pages mono">📃 Est. {estimatedPages} page{estimatedPages === 1 ? '' : 's'} · A4</span>
       </div>
 
+      {/* The teacher's main tools, always one tap away (they used to live
+          only inside the AI slide-over, which read as "missing"). Wraps on
+          phones; same actions on desktop. */}
+      <div className="sv-builder-bar" style={{ flexWrap: 'wrap', rowGap: 6 }}>
+        <button className="sv-chip" onClick={onCreatePaper}>✨ Create paper with AI</button>
+        <button className="sv-chip" onClick={() => importInputRef.current?.click()} disabled={importing}>
+          {importing ? '⏳ Importing…' : '📥 Import paper'}
+        </button>
+        <button className="sv-chip" onClick={onVerifyPaper} disabled={questionCount === 0}>🔍 Check paper</button>
+        <button className="sv-chip" onClick={onOpenDiagramFix}>
+          🖼 Diagrams{diagramsNeeded > 0 ? ` (${diagramsNeeded})` : ''}
+        </button>
+        <button className="sv-chip" onClick={onOpenAi}>⚡ More AI tools</button>
+        <input
+          ref={importInputRef}
+          type="file"
+          accept={QUIZ_DOCUMENT_ACCEPT}
+          multiple
+          style={{ display: 'none' }}
+          onChange={e => {
+            const files = Array.from(e.target.files || []).filter(Boolean)
+            if (files.length) onImportDocument(files.length === 1 ? files[0] : files)
+            e.target.value = ''
+          }}
+        />
+      </div>
+
       <div className="sv-doc-canvas">
         <SmartWarningsBanner warnings={warnings} />
 
         <HeaderBlock form={form} setF={setF} onUploadLogo={onUploadLogo} onRemoveLogo={onRemoveLogo} footerCode={footerCode} importing={importing} importSummary={importSummary} onImportDocument={onImportDocument} />
+
+        {emptyPaper && (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 10, margin: '12px 0' }}>
+            <button type="button" onClick={onCreatePaper}
+              style={{ border: '2px solid var(--sv-primary)', borderRadius: 14, padding: '18px 14px', background: 'var(--sv-tinted, #fff3e8)', cursor: 'pointer', textAlign: 'center' }}>
+              <div style={{ fontSize: 28 }}>📄</div>
+              <strong style={{ display: 'block', color: 'var(--sv-text)', marginTop: 4 }}>Create paper with AI</strong>
+              <small style={{ color: 'var(--sv-muted)' }}>Grade → subject → topics → a full Zambian paper with marking key</small>
+            </button>
+            <button type="button" onClick={() => importInputRef.current?.click()} disabled={importing}
+              style={{ border: '1.5px dashed var(--sv-border-strong)', borderRadius: 14, padding: '18px 14px', background: 'var(--sv-paper, #fff)', cursor: 'pointer', textAlign: 'center' }}>
+              <div style={{ fontSize: 28 }}>📥</div>
+              <strong style={{ display: 'block', color: 'var(--sv-text)', marginTop: 4 }}>{importing ? 'Importing…' : 'Import an existing paper'}</strong>
+              <small style={{ color: 'var(--sv-muted)' }}>Word, PDF or photos become editable blocks</small>
+            </button>
+            <button type="button" onClick={() => onAddBlock(null)}
+              style={{ border: '1.5px dashed var(--sv-border-strong)', borderRadius: 14, padding: '18px 14px', background: 'var(--sv-paper, #fff)', cursor: 'pointer', textAlign: 'center' }}>
+              <div style={{ fontSize: 28 }}>✍️</div>
+              <strong style={{ display: 'block', color: 'var(--sv-text)', marginTop: 4 }}>Build from scratch</strong>
+              <small style={{ color: 'var(--sv-muted)' }}>Add your first question block yourself</small>
+            </button>
+          </div>
+        )}
 
         <AddHere onAdd={() => onAddBlock(null)} />
 
