@@ -563,6 +563,85 @@ export const TEACHER_SAMPLES = [
   },
 
   {
+    id: 'record-of-work',
+    exports: 'DOCX',
+    tool: 'record_of_work',
+    label: 'Record of work',
+    icon: '🗂️',
+    grade: 'Grade 4',
+    subject: 'Integrated Science',
+    topic: 'Term 1',
+    // Official record-of-work format — the statutory weekly log of what was
+    // ACTUALLY taught (WEEK | WEEK ENDING | TOPIC | SUB-TOPIC | WORK DONE |
+    // REMARKS + the checked-by signature block). Rendered by
+    // RecordOfWorkView. Content continues the Grade 4 Integrated Science
+    // Term 1 2026 thread used by the scheme + forecast samples, mid-term so
+    // the coverage states (full / partial / not yet logged) are visible.
+    blurb: 'The official record of work — what was actually taught each week, with coverage and remarks the head teacher checks against your scheme. Built straight from your saved scheme of work.',
+    layout: 'official-table',
+    artifact: {
+      schemaVersion: 'record-of-work-1.0',
+      header: {
+        subject: 'Integrated Science',
+        grade: '4',
+        term: 1,
+        year: '2026',
+      },
+      weeks: [
+        {
+          week: '1',
+          weekEnding: '16 Jan 2026',
+          topic: '4.1 THE HUMAN BODY',
+          subtopic: '4.1.1 The Respiratory System',
+          workDone: [
+            'Described the respiratory system and its main parts: nose, trachea, bronchi and lungs',
+            'Drew and labelled the human respiratory system',
+            'Made charts showing movement of air into and out of the lungs',
+          ],
+          coverage: 'full',
+          remarks: '',
+        },
+        {
+          week: '2',
+          weekEnding: '23 Jan 2026',
+          topic: '4.1 THE HUMAN BODY',
+          subtopic: '4.1.2 The Circulatory System',
+          workDone: [
+            'Described the circulatory system: the heart, blood and blood vessels',
+            'Drew and labelled the parts of the heart',
+          ],
+          coverage: 'partial',
+          remarks: 'blood vessels carried over to Week 3',
+        },
+        {
+          week: '3',
+          weekEnding: '30 Jan 2026',
+          topic: '4.1 THE HUMAN BODY',
+          subtopic: '4.1.3 The Digestive System',
+          workDone: [
+            'Completed blood vessels from Week 2',
+            'Described the digestive system and the journey food takes through the body',
+            'Identified the main organs: mouth, gullet, stomach and intestines',
+          ],
+          coverage: 'full',
+          remarks: '',
+        },
+        {
+          week: '4',
+          weekEnding: '6 Feb 2026',
+          topic: '4.2 HEALTH',
+          subtopic: '4.2.1 Common Diseases',
+          workDone: [
+            'Discussing common communicable diseases and how to prevent them',
+          ],
+          coverage: '',
+          remarks: '',
+        },
+      ],
+    },
+  },
+
+  {
     id: 'term-tests',
     exports: 'DOCX & PDF',
     tool: 'term_test',
