@@ -82,6 +82,10 @@ function sanitizeInputs(raw = {}) {
     instructions: str(raw.instructions, 500),
     assessmentType: ASSESSMENT_TYPES.includes(assessmentType) ?
       assessmentType : "topic_test",
+    // Curriculum framework the teacher chose: new CBC (default) or the
+    // old 2013 syllabus. resolveCbcContext grounds on the matching
+    // syllabi data file.
+    framework: String(raw.framework) === "2013" ? "2013" : "2023",
   };
 }
 
@@ -120,6 +124,7 @@ async function runAssessment({uid, rawInputs, apiKey}) {
       lessonNumber: inputs.lessonNumber,
       totalLessons: inputs.totalLessons,
       learningEnvironment: inputs.learningEnvironment,
+      framework: inputs.framework,
       ownerUid: uid,
     }),
     resolveAssessmentFormatContext({

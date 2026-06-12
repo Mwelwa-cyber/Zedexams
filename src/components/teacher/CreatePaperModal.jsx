@@ -10,6 +10,7 @@ import { generateAssessment } from '../../utils/teacherTools'
 import { aiAssessmentToStudioBlocks } from '../../utils/aiPaperToSections'
 import {
   useSyllabusTopicOptions, studioGradeToKbGrade, studioSubjectToKey,
+  CURRICULUM_FRAMEWORKS,
 } from './syllabusTopicOptions'
 
 const PAPER_TYPES = [
@@ -56,6 +57,7 @@ const inputStyle = {
 
 export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
   const [form, setForm] = useState(() => ({
+    framework: '2023',
     assessmentType: 'end_of_term',
     term: paperMeta?.term || '1',
     topicInput: '',
@@ -73,7 +75,7 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
 
   const { topics: topicOptions, subtopics: subtopicOptions } =
-    useSyllabusTopicOptions(paperMeta?.grade, paperMeta?.subject, form.topics[0] || form.topicInput)
+    useSyllabusTopicOptions(paperMeta?.grade, paperMeta?.subject, form.topics[0] || form.topicInput, form.framework)
 
   const topicList = useMemo(() => {
     const fromChips = form.topics
@@ -125,6 +127,7 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
     const res = await generateAssessment({
       grade: studioGradeToKbGrade(paperMeta?.grade),
       subject: studioSubjectToKey(paperMeta?.subject),
+      framework: form.framework,
       topic: topicList.join('; ').slice(0, 160),
       subtopic: form.subtopic.trim(),
       term: form.term ? Number(form.term) : null,
@@ -175,6 +178,23 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
 
         {status !== 'done' && (
           <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div>
+              <label style={fieldLabel}>Curriculum</label>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {CURRICULUM_FRAMEWORKS.map((f) => (
+                  <button key={f.value} type="button"
+                    onClick={() => set('framework', f.value)}
+                    style={{
+                      flex: 1, padding: '8px 12px', borderRadius: 10, fontSize: 13, cursor: 'pointer',
+                      border: `1.5px solid ${form.framework === f.value ? 'var(--sv-primary, #ff7a2e)' : 'var(--sv-border, #d9cfb8)'}`,
+                      background: form.framework === f.value ? 'var(--sv-tinted, #fff3e8)' : '#fff',
+                      color: 'var(--sv-text, #0e2a32)', fontWeight: form.framework === f.value ? 700 : 400,
+                    }}>
+                    {f.label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
               <div>
                 <label style={fieldLabel}>Test type</label>

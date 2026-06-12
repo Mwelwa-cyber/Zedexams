@@ -44,6 +44,7 @@ import DiagramFixupPanel, { countDiagramsNeeded } from './DiagramFixupPanel'
 import QuizVerifyModal from '../quiz/QuizVerifyModal'
 import {
   useSyllabusTopicOptions, studioGradeToKbGrade, studioSubjectToKey,
+  CURRICULUM_FRAMEWORKS,
 } from './syllabusTopicOptions'
 import {
   QUIZ_DOCUMENT_ACCEPT,
@@ -326,7 +327,7 @@ export default function AssessmentStudio() {
   const [sections, setSections] = useState(() => [createStandaloneSection()])
   const [parts, setParts] = useState([])
   const [saving, setSaving] = useState(false)
-  const [aiForm, setAiForm] = useState({ topic: '', count: 5, type: 'mcq' })
+  const [aiForm, setAiForm] = useState({ topic: '', count: 5, type: 'mcq', framework: '2023' })
   const [aiGenerating, setAiGenerating] = useState(false)
   const [createPaperOpen, setCreatePaperOpen] = useState(false)
   const [diagramFixOpen, setDiagramFixOpen] = useState(false)
@@ -844,6 +845,7 @@ export default function AssessmentStudio() {
         topic,
         count: aiForm.count,
         type: aiForm.type,
+        framework: aiForm.framework,
       })
       const generatedList = Array.isArray(generated) ? generated : []
       const usable = generatedList.filter(q => {
@@ -4602,7 +4604,7 @@ const AI_COUNT_PRESETS = [5, 10, 15, 20, 25]
 function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNumbers, generating, onGenerate, onImport, importing, onGenerateDiagram, generatingDiagram, onOpenMarkingKey, onCreatePaper, diagramsNeeded = 0, onOpenDiagramFix, onVerifyPaper }) {
   const docInputRef = useRef(null)
   const [customCount, setCustomCount] = useState(false)
-  const { topics: topicOptions } = useSyllabusTopicOptions(form.grade, form.subject, aiForm.topic)
+  const { topics: topicOptions } = useSyllabusTopicOptions(form.grade, form.subject, aiForm.topic, aiForm.framework)
   return (
     <aside className={`sv-slideover ${open ? 'open' : ''}`}>
       <div className="sv-slideover-head">
@@ -4629,6 +4631,17 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNu
           Pick a topic, count and type — I&apos;ll draft them and drop them into the builder. Always review before saving.
         </div>
 
+        <div className="sv-field" style={{ marginBottom: 12 }}>
+          <label>Curriculum</label>
+          <select
+            value={aiForm.framework}
+            onChange={e => setAiForm(prev => ({ ...prev, framework: e.target.value, topic: '' }))}
+          >
+            {CURRICULUM_FRAMEWORKS.map(f => (
+              <option key={f.value} value={f.value}>{f.label}</option>
+            ))}
+          </select>
+        </div>
         <div className="sv-field" style={{ marginBottom: 12 }}>
           <label>Topic</label>
           <input
