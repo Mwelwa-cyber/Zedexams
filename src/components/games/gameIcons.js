@@ -1,4 +1,5 @@
 import {
+  BanknotesIcon,
   CalculatorIcon,
   BookOpenIcon,
   InboxStackIcon,
@@ -143,6 +144,7 @@ const GAME_TYPE_META = {
   number_target: { icon: CalculatorIcon,  label: 'Number Target' },
   sorting_factory: { icon: InboxStackIcon, label: 'Sorting' },
   sentence_scramble: { icon: QueueListIcon, label: 'Scramble' },
+  market_challenge: { icon: BanknotesIcon,  label: 'Market' },
 }
 
 export function gameTypeMeta(type) {
