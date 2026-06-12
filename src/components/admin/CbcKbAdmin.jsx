@@ -473,11 +473,16 @@ export default function CbcKbAdmin() {
   async function onAnalyzeExamPapers(batch) {
     const files = Array.isArray(batch.files) ? batch.files : []
     if (files.length === 0) return false
+    // Each paper is dominated by a ~30s Claude read, so analysing them strictly
+    // one-by-one made big batches painfully slow. Run a small fixed-size pool of
+    // workers instead — same total work, ~PAPER_CONCURRENCY× less wall-clock time,
+    // without hammering the API. One paper failing never stops the others.
+    const PAPER_CONCURRENCY = 3
     let analyzed = 0
+    let done = 0
     const errors = []
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-      flashToast(`Analysing paper ${i + 1} of ${files.length}: ${file.name}…`, 0)
+
+    async function analyzeOne(file) {
       try {
         const storagePath = await uploadAssessmentFormatSample(file, currentUser?.uid)
         const res = await analyzeExamPaper({
@@ -493,8 +498,23 @@ export default function CbcKbAdmin() {
         else errors.push(`${file.name}: ${res.error}`)
       } catch (err) {
         errors.push(`${file.name}: ${err?.message || err}`)
+      } finally {
+        done += 1
+        flashToast(`Analysing papers… ${done} of ${files.length} done`, 0)
       }
     }
+
+    flashToast(`Analysing ${files.length} paper${files.length === 1 ? '' : 's'}…`, 0)
+    let cursor = 0
+    async function worker() {
+      while (cursor < files.length) {
+        const idx = cursor++
+        await analyzeOne(files[idx])
+      }
+    }
+    await Promise.all(
+      Array.from({ length: Math.min(PAPER_CONCURRENCY, files.length) }, () => worker()),
+    )
     await load()
     if (errors.length === 0) {
       flashToast(`Analysed ${analyzed} paper${analyzed === 1 ? '' : 's'} into the library.`, 8000)
