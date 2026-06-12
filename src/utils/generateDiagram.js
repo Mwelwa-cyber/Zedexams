@@ -60,6 +60,11 @@ function messageFromError(error) {
   if (code.includes('unauthenticated')) {
     return 'Please sign in to generate diagrams.'
   }
+  if (/not_enough_credits/i.test(msg)) {
+    // Recraft's 400 body for an empty balance — no prompt will ever work,
+    // so don't send the admin off to "simplify" anything.
+    return 'The Recraft account is out of image credits — top up at recraft.ai, then run this again.'
+  }
   if (/recraft request failed/i.test(msg)) {
     return 'Recraft could not generate that diagram — try a simpler prompt.'
   }
