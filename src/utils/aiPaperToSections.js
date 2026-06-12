@@ -7,6 +7,7 @@
 
 import {
   createPartGroup,
+  createPassageSection,
   createStandaloneSection,
 } from './quizSections.js'
 
@@ -121,6 +122,14 @@ export function mapAiQuestion(q, { partId = null } = {}) {
 /**
  * Convert a whole AI assessment into studio blocks.
  * Returns { sections, parts, questionCount, totalMarks, warnings }.
+ *
+ * Sections WITHOUT a passage become a Part (numbered group heading) of
+ * standalone questions. Sections WITH a passage (schema v1.2 comprehension)
+ * become the studio's native passage block — story on top, questions
+ * attached — which already prints/exports in the Zambian comprehension
+ * layout, so no Part wrapper is added (the passage carries its own title
+ * and instructions).
+ *
  * Never throws on malformed input — skips junk and reports it.
  */
 export function aiAssessmentToStudioBlocks(assessment) {
@@ -129,6 +138,32 @@ export function aiAssessmentToStudioBlocks(assessment) {
   aiSections.forEach((sec, sIdx) => {
     const questions = Array.isArray(sec?.questions) ? sec.questions : []
     if (questions.length === 0) return
+
+    const passageText = String(sec?.passage?.text || '').trim()
+    if (passageText) {
+      const mapped = []
+      for (const q of questions) {
+        if (!q || typeof q !== 'object' || !String(q.prompt || '').trim()) {
+          out.warnings.push('Skipped an empty AI question.')
+          continue
+        }
+        const { overrides, warnings } = mapAiQuestion(q)
+        mapped.push(overrides)
+        out.questionCount += 1
+        out.totalMarks += overrides.marks
+        out.warnings.push(...warnings)
+      }
+      if (mapped.length === 0) return
+      out.sections.push(createPassageSection({
+        title: String(sec?.passage?.title || sec?.title || `Section ${sIdx + 1}`).trim(),
+        instructions: String(sec?.instructions || '').trim(),
+        passageText,
+        passageKind: 'comprehension',
+        questions: mapped,
+      }))
+      return
+    }
+
     const part = createPartGroup({
       title: String(sec?.title || `Section ${sIdx + 1}`).trim(),
       instructions: String(sec?.instructions || '').trim(),
