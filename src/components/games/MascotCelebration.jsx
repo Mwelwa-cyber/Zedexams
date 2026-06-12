@@ -1,4 +1,5 @@
 import { getSubjectMascot } from './gamesUi'
+import MascotAvatar from './MascotAvatar'
 
 const TILE_BG = {
   mathematics: 'bg-orange-100',
@@ -23,11 +24,9 @@ export default function MascotCelebration({ game, accuracy = 0, score = 0 }) {
       <span aria-hidden="true" className="zx-celebrate-spark zx-celebrate-spark-2">⭐</span>
 
       <span
-        role="img"
-        aria-label={mascot.name}
-        className={`zx-celebrate-emoji grid h-16 w-16 shrink-0 place-items-center rounded-[14px] border-2 border-slate-900 text-[2.4rem] leading-none ${tileBg}`}
+        className={`zx-celebrate-emoji grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-[14px] border-2 border-slate-900 ${tileBg}`}
       >
-        {mascot.emoji}
+        <MascotAvatar slug={game?.subject} className="h-full w-full p-1.5" />
       </span>
       <div className="min-w-0">
         <p className="zx-eyebrow">{mascot.name} says</p>

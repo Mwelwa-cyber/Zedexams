@@ -19,6 +19,9 @@ import {
 } from '../../utils/gamesService'
 import DailyChallengeCard from './DailyChallengeCard'
 import GamesShell from './GamesShell'
+import MascotAvatar from './MascotAvatar'
+import { LevelMeter } from './Progress'
+import { levelInfo } from '../../utils/gameProgress'
 import {
   buildSubjectProgress,
   getDurationLabel,
@@ -98,7 +101,8 @@ export default function GamesHub() {
   }, [currentUser])
 
   const totalPoints = state.history.reduce((sum, row) => sum + (Number(row.score) || 0), 0)
-  const level = Math.max(1, Math.floor(totalPoints / 120) + 1)
+  const progress = levelInfo(totalPoints)
+  const level = progress.level
   const currentRank = currentUser
     ? state.leaderboardRows.findIndex((row) => row.userId === currentUser.uid) + 1
     : 0
@@ -145,6 +149,9 @@ export default function GamesHub() {
             </div>
           ))}
         </section>
+
+        {/* Level / rank progress — the goal to chase between sessions */}
+        <LevelMeter progress={progress} signedIn={!!currentUser} />
 
         {/* Hero — Daily Challenge */}
         <DailyChallengeCard
@@ -267,8 +274,8 @@ function SubjectTile({ subject, progress, href }) {
         {progress.totalGames} {progress.totalGames === 1 ? 'game' : 'games'}
       </span>
 
-      <div className={`zx-mascot-tile mb-3 grid h-16 w-16 place-items-center rounded-[18px] border-2 border-slate-900 text-[36px] leading-none sm:h-20 sm:w-20 sm:text-[44px] ${skin.tile}`}>
-        <span aria-hidden="true">{mascot.emoji}</span>
+      <div className={`zx-mascot-tile mb-3 grid h-16 w-16 place-items-center overflow-hidden rounded-[18px] border-2 border-slate-900 sm:h-20 sm:w-20 ${skin.tile}`}>
+        <MascotAvatar slug={subject.slug} className="h-full w-full p-1.5" />
       </div>
 
       <h3 className="font-display text-[19px] font-bold leading-none text-slate-900 sm:text-xl lg:text-[22px]">{subject.label}</h3>

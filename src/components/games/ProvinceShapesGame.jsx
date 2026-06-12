@@ -7,10 +7,10 @@ import {
   MapPinIcon,
 } from '@heroicons/react/24/solid'
 import { useAuth } from '../../contexts/AuthContext'
-import { saveScore, shuffle } from '../../utils/gamesService'
+import { saveScore, shuffle, readRoundBaseline, readRoundOutcome } from '../../utils/gamesService'
 import { evaluateAndAwardGameBadges } from '../../utils/gameBadgesService'
 import { getTodaysChallenge, recordDailyPlay } from '../../utils/dailyChallengeService'
-import { playCorrect, playWrong, playWin, primeSounds } from '../../utils/gameSounds'
+import { playCorrect, playWrong, playWin, playStreak, primeSounds } from '../../utils/gameSounds'
 import { buildStaticMapUrl } from '../../utils/staticMap'
 import { getProvince } from '../../data/zambiaProvinces'
 import Leaderboard from './Leaderboard'
@@ -20,6 +20,10 @@ import Confetti from './Confetti'
 import MascotCelebration from './MascotCelebration'
 import MascotGreeting from './MascotGreeting'
 import SmartFeedback from './SmartFeedback'
+import ComboPill from './ComboPill'
+import ScorePops, { useScorePops } from './ScorePops'
+import { LevelUpBanner, XpProgressBar, PersonalBestBanner } from './Progress'
+import { comboHeat } from './gameFeel'
 import { DoneStat, SaveBanner, StreakBanner } from './DoneBanners'
 import { RatingStars } from './gamesUi'
 
@@ -53,6 +57,10 @@ export default function ProvinceShapesGame({ game }) {
   const [newBadges, setNewBadges] = useState([])
   const [streakResult, setStreakResult] = useState(null)
   const [confettiKey, setConfettiKey] = useState(0)
+  const [shakeAt, setShakeAt] = useState(-1) // pos that got a wrong answer (drives card shake)
+  const [levelChange, setLevelChange] = useState(null)
+  const [personalBest, setPersonalBest] = useState(null)
+  const { pops, pushPop } = useScorePops()
   const startedAtRef = useRef(null)
 
   // Countdown
@@ -111,6 +119,9 @@ export default function ProvinceShapesGame({ game }) {
     setSaveResult(null)
     setNewBadges([])
     setStreakResult(null)
+    setShakeAt(-1)
+    setLevelChange(null)
+    setPersonalBest(null)
     startedAtRef.current = Date.now()
   }
 
@@ -125,6 +136,9 @@ export default function ProvinceShapesGame({ game }) {
       const newStreak = streak + 1
       const bonus = Math.min(5, Math.floor(newStreak / 3))
       const gained = points + bonus
+      const heat = comboHeat(newStreak)
+      if (heat.level > 0) playStreak(heat.level)
+      pushPop(gained)
       setCorrect((c) => c + 1)
       setStreak(newStreak)
       if (newStreak > bestStreak) setBestStreak(newStreak)
@@ -132,6 +146,8 @@ export default function ProvinceShapesGame({ game }) {
     } else {
       playWrong()
       const penalty = Math.max(2, Math.floor(points / 4))
+      pushPop(-penalty)
+      setShakeAt(pos)
       setWrong((w) => w + 1)
       setStreak(0)
       setScore((s) => Math.max(0, s - penalty))
@@ -147,6 +163,10 @@ export default function ProvinceShapesGame({ game }) {
       playWin()
       setConfettiKey((k) => k + 1)
     }
+    // Snapshot progression (windowed total + all-time best for this game)
+    // before saving, so level-up / personal best resolve exactly.
+    const baseline = await readRoundBaseline(game.id)
+
     const result = await saveScore({
       game,
       score,
@@ -159,6 +179,11 @@ export default function ProvinceShapesGame({ game }) {
     setSaveResult(result)
 
     if (result?.ok) {
+      try {
+        const { levelChange: lc, personalBest: pb } = await readRoundOutcome({ score, baseline })
+        if (lc) setLevelChange(lc)
+        if (pb) setPersonalBest(pb)
+      } catch { /* progression is non-critical */ }
       try {
         const { newlyEarned } = await evaluateAndAwardGameBadges({
           game, score, correct, wrong, accuracy, bestStreak,
@@ -204,6 +229,8 @@ export default function ProvinceShapesGame({ game }) {
           saveResult={saveResult}
           newBadges={newBadges}
           streakResult={streakResult}
+          levelChange={levelChange}
+          personalBest={personalBest}
           onRestart={start}
         />
       </>
@@ -220,15 +247,18 @@ export default function ProvinceShapesGame({ game }) {
       <TimerBar timeLeft={timeLeft} pct={pct} />
 
       <div className="grid grid-cols-3 gap-2 sm:gap-3">
-        <Pill label="Score"  value={score}   tone="amber" />
-        <Pill label="Streak" value={streak}  tone="emerald" />
+        <div className="relative">
+          <Pill label="Score" value={score} tone="amber" />
+          <ScorePops pops={pops} />
+        </div>
+        <ComboPill streak={streak} />
         <Pill label="Wrong"  value={wrong}   tone="rose" />
       </div>
 
       <div
-        key={`card-${seed}-${pos}`}
-        className="zx-card rounded-[22px] bg-white p-6 sm:p-8"
-        style={{ animation: 'zx-question-in 0.3s ease-out both' }}
+        key={`card-${seed}-${pos}-${shakeAt === pos ? 'w' : 'q'}`}
+        className={`zx-card rounded-[22px] bg-white p-6 sm:p-8 ${shakeAt === pos ? 'zx-shake' : ''}`}
+        style={shakeAt === pos ? undefined : { animation: 'zx-question-in 0.3s ease-out both' }}
       >
         <p className="zx-eyebrow mb-3">Province {pos + 1} of {totalQuestions}</p>
         <h2 className="font-display text-xl sm:text-2xl font-bold leading-tight mb-4 text-slate-900">
@@ -368,9 +398,11 @@ function ReadyCard({ game, totalQuestions, onStart }) {
   )
 }
 
-function DoneCard({ game, score, correct, wrong, accuracy, bestStreak, saveResult, newBadges, streakResult, onRestart }) {
+function DoneCard({ game, score, correct, wrong, accuracy, bestStreak, saveResult, newBadges, streakResult, levelChange, personalBest, onRestart }) {
   return (
     <div className="space-y-5">
+      {levelChange?.leveledUp && <LevelUpBanner change={levelChange} />}
+      {personalBest?.isBest && <PersonalBestBanner personalBest={personalBest} />}
       {streakResult?.isDaily && <StreakBanner result={streakResult} />}
       {newBadges?.length > 0 && <BadgeToast badges={newBadges} />}
 
@@ -390,6 +422,9 @@ function DoneCard({ game, score, correct, wrong, accuracy, bestStreak, saveResul
           <RatingStars filled={accuracy >= 90 ? 5 : accuracy >= 70 ? 4 : accuracy >= 50 ? 3 : 2} />
         </div>
         <SaveBanner saveResult={saveResult} />
+        {levelChange?.after && (
+          <div className="mt-4"><XpProgressBar progress={levelChange.after} gained={score} /></div>
+        )}
         <SmartFeedback
           game={game}
           result={{ score, accuracy, correct, wrong, bestStreak }}
@@ -454,8 +489,9 @@ function Pill({ label, value, tone = 'slate' }) {
 
 function Choice({ label, letter, picked, isPicked, isAnswer, onClick }) {
   let cls = 'bg-white text-slate-900'
+  let pop = ''
   if (picked !== null) {
-    if (isAnswer) cls = 'bg-emerald-100 text-emerald-900'
+    if (isAnswer) { cls = 'bg-emerald-100 text-emerald-900'; pop = 'zx-correct-pop' }
     else if (isPicked) cls = 'bg-rose-100 text-rose-900'
     else cls = 'bg-slate-50 text-slate-500 opacity-70'
   }
@@ -464,7 +500,7 @@ function Choice({ label, letter, picked, isPicked, isAnswer, onClick }) {
       type="button"
       onClick={onClick}
       disabled={picked !== null}
-      className={`zx-card w-full flex items-center gap-3 text-left p-4 rounded-[14px] font-bold text-lg transition active:translate-y-[2px] active:shadow-none ${cls}`}
+      className={`zx-card w-full flex items-center gap-3 text-left p-4 rounded-[14px] font-bold text-lg transition active:translate-y-[2px] active:shadow-none ${cls} ${pop}`}
     >
       <span className="shrink-0 w-9 h-9 rounded-[10px] border-2 border-slate-900 bg-white flex items-center justify-center font-black text-slate-900">
         {letter}
