@@ -1,12 +1,7 @@
 import { useState } from 'react'
-import { saveScore, getMyHistory } from '../../utils/gamesService'
+import { saveScore, readRoundBaseline, readRoundOutcome } from '../../utils/gamesService'
 import { evaluateAndAwardGameBadges } from '../../utils/gameBadgesService'
 import { getTodaysChallenge, recordDailyPlay } from '../../utils/dailyChallengeService'
-import { levelUpInfo } from '../../utils/gameProgress'
-
-// Same window the games hub sums for its points total, so the level shown on
-// the done screen matches the hub.
-const HISTORY_WINDOW = 40
 
 /**
  * Shared "end of round" plumbing for any game engine.
@@ -53,18 +48,9 @@ export function useGameFinish() {
   async function finish(result) {
     setPhase('done')
 
-    // Snapshot the points total *before* this round so a level-up can be
-    // detected exactly, independent of write propagation. The same history
-    // gives us this game's previous best for the "personal best" celebration.
-    let beforeTotal = null
-    let prevBest = null
-    try {
-      const history = await getMyHistory(HISTORY_WINDOW)
-      beforeTotal = history.reduce((sum, row) => sum + (Number(row.score) || 0), 0)
-      prevBest = bestScoreFor(history, result.game?.id)
-    } catch {
-      /* progression is non-critical — skip if history is unavailable */
-    }
+    // Snapshot progression (windowed total + all-time best for this game)
+    // *before* saving, so a level-up / personal best can be resolved exactly.
+    const baseline = await readRoundBaseline(result.game?.id)
 
     const savePayload = {
       game: result.game,
@@ -80,13 +66,14 @@ export function useGameFinish() {
 
     if (!save?.ok) return
 
-    if (beforeTotal != null) {
-      const after = beforeTotal + (Number(result.score) || 0)
-      setLevelChange(levelUpInfo(beforeTotal, after))
-    }
-    if (prevBest != null && (Number(result.score) || 0) > prevBest) {
-      setPersonalBest({ isBest: true, prevBest })
-    }
+    try {
+      const { levelChange: lc, personalBest: pb } = await readRoundOutcome({
+        score: result.score,
+        baseline,
+      })
+      if (lc) setLevelChange(lc)
+      if (pb) setPersonalBest(pb)
+    } catch { /* progression is non-critical */ }
 
     // Badges
     try {
@@ -119,20 +106,4 @@ export function useGameFinish() {
   }
 
   return { phase, setPhase, saveResult, newBadges, streakResult, levelChange, personalBest, finish, reset }
-}
-
-/**
- * Highest score this player has previously logged for a game, from a history
- * window. Returns null when they have never played it (so a first play isn't
- * mislabelled a "personal best").
- */
-function bestScoreFor(history, gameId) {
-  if (!gameId) return null
-  let best = null
-  for (const row of history) {
-    if (row.gameId !== gameId) continue
-    const s = Number(row.score) || 0
-    if (best == null || s > best) best = s
-  }
-  return best
 }

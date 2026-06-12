@@ -7,10 +7,9 @@ import {
   MapPinIcon,
 } from '@heroicons/react/24/solid'
 import { useAuth } from '../../contexts/AuthContext'
-import { saveScore, shuffle, getMyHistory } from '../../utils/gamesService'
+import { saveScore, shuffle, readRoundBaseline, readRoundOutcome } from '../../utils/gamesService'
 import { evaluateAndAwardGameBadges } from '../../utils/gameBadgesService'
 import { getTodaysChallenge, recordDailyPlay } from '../../utils/dailyChallengeService'
-import { levelUpInfo } from '../../utils/gameProgress'
 import { playCorrect, playWrong, playWin, playStreak, primeSounds } from '../../utils/gameSounds'
 import { buildStaticMapUrl } from '../../utils/staticMap'
 import { getProvince } from '../../data/zambiaProvinces'
@@ -164,18 +163,9 @@ export default function ProvinceShapesGame({ game }) {
       playWin()
       setConfettiKey((k) => k + 1)
     }
-    // Snapshot points before this round so a level-up can be detected exactly;
-    // the same history gives this game's previous best for "personal best".
-    let beforeTotal = null
-    let prevBest = null
-    try {
-      const history = await getMyHistory(40)
-      beforeTotal = history.reduce((sum, row) => sum + (Number(row.score) || 0), 0)
-      prevBest = history
-        .filter((row) => row.gameId === game.id)
-        .reduce((best, row) => Math.max(best, Number(row.score) || 0), -1)
-      if (prevBest < 0) prevBest = null
-    } catch { /* progression is non-critical */ }
+    // Snapshot progression (windowed total + all-time best for this game)
+    // before saving, so level-up / personal best resolve exactly.
+    const baseline = await readRoundBaseline(game.id)
 
     const result = await saveScore({
       game,
@@ -189,12 +179,11 @@ export default function ProvinceShapesGame({ game }) {
     setSaveResult(result)
 
     if (result?.ok) {
-      if (beforeTotal != null) {
-        setLevelChange(levelUpInfo(beforeTotal, beforeTotal + score))
-      }
-      if (prevBest != null && score > prevBest) {
-        setPersonalBest({ isBest: true, prevBest })
-      }
+      try {
+        const { levelChange: lc, personalBest: pb } = await readRoundOutcome({ score, baseline })
+        if (lc) setLevelChange(lc)
+        if (pb) setPersonalBest(pb)
+      } catch { /* progression is non-critical */ }
       try {
         const { newlyEarned } = await evaluateAndAwardGameBadges({
           game, score, correct, wrong, accuracy, bestStreak,

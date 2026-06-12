@@ -25,6 +25,7 @@ import {
 } from 'firebase/firestore'
 import { db, auth } from '../firebase/config'
 import { describeFirestoreReadError, withFirestoreReadTimeout } from './firestoreTimeout'
+import { levelUpInfo } from './gameProgress'
 
 /* ─────────────────────────────────────────────────────────────────
  *  Taxonomy used by the Grade → Subject → Games list UI
@@ -210,6 +211,85 @@ export async function getMyHistory(max = 20) {
     console.warn('getMyHistory failed', err?.code || err?.message)
     return []
   }
+}
+
+/* ─────────────────────────────────────────────────────────────────
+ *  Round progression — level/XP + personal best after a played round
+ *
+ *  Centralised here (rather than copied into each engine) so the level,
+ *  XP, and personal-best logic stays consistent across all game engines.
+ * ───────────────────────────────────────────────────────────────── */
+
+// The window the games hub sums for its "points" total. The level/XP shown on
+// a done screen must be computed the same way so the two never disagree.
+const POINTS_WINDOW = 40
+
+/** Sum of the user's recent scores — the same figure the hub displays. */
+async function sumRecentPoints() {
+  const history = await getMyHistory(POINTS_WINDOW)
+  return history.reduce((sum, row) => sum + (Number(row.score) || 0), 0)
+}
+
+/**
+ * The signed-in user's all-time best score for a single game, or null if they
+ * have never played it. Fails soft (returns null) so a missing index never
+ * surfaces a false "personal best".
+ */
+export async function getMyBestForGame(gameId) {
+  const user = auth.currentUser
+  if (!user || !gameId) return null
+  try {
+    const snap = await getDocs(query(
+      collection(db, 'scores'),
+      where('userId', '==', user.uid),
+      where('gameId', '==', gameId),
+      orderBy('score', 'desc'),
+      fsLimit(1),
+    ))
+    if (snap.empty) return null
+    return Number(snap.docs[0].data().score) || 0
+  } catch (err) {
+    console.warn('getMyBestForGame failed (likely no index yet)', err?.code || err?.message)
+    return null
+  }
+}
+
+/**
+ * Snapshot the progression baseline BEFORE saving a round:
+ *   - beforeTotal: the windowed points total the hub currently shows
+ *   - prevBest:    the user's all-time best for this game (excludes this round,
+ *                  since it is captured before the save)
+ * Call this immediately before saveScore().
+ */
+export async function readRoundBaseline(gameId) {
+  const [beforeTotal, prevBest] = await Promise.all([
+    sumRecentPoints().catch(() => null),
+    getMyBestForGame(gameId),
+  ])
+  return { beforeTotal, prevBest }
+}
+
+/**
+ * After a round is saved, resolve the level change + personal-best result.
+ *
+ * Refetches the windowed total so the level/XP on the done screen matches the
+ * hub exactly — once a user has POINTS_WINDOW saved scores the hub's total
+ * drops its oldest row, which a naive `before + score` would miss. Personal
+ * best compares the round score against the all-time prevBest captured in the
+ * baseline, so an older high score is never overlooked.
+ */
+export async function readRoundOutcome({ score, baseline }) {
+  const gained = Number(score) || 0
+  const before = baseline?.beforeTotal
+  let levelChange = null
+  if (before != null) {
+    let after = before + gained
+    try { after = await sumRecentPoints() } catch { /* fall back to before + gained */ }
+    levelChange = levelUpInfo(before, after)
+  }
+  const prevBest = baseline?.prevBest
+  const personalBest = prevBest != null && gained > prevBest ? { isBest: true, prevBest } : null
+  return { levelChange, personalBest }
 }
 
 /* ─────────────────────────────────────────────────────────────────
