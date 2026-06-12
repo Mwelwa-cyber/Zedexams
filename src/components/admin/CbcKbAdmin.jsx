@@ -1317,7 +1317,7 @@ function FormatExtractIntake({ onExtract }) {
         <div className="ss-field">
           <label>Source</label>
           <select value={mode} onChange={(e) => setMode(e.target.value)}>
-            <option value="upload">Upload a sample paper (.pdf / .docx)</option>
+            <option value="upload">Upload a sample paper (.pdf / .docx / photo)</option>
             <option value="past-paper">Use an uploaded past paper</option>
           </select>
         </div>
@@ -1326,7 +1326,7 @@ function FormatExtractIntake({ onExtract }) {
             <label>Sample paper file</label>
             <input
               type="file"
-              accept=".pdf,.docx"
+              accept=".pdf,.docx,.jpg,.jpeg,.png,.webp"
               onChange={(e) => setFile(e.target.files?.[0] || null)}
             />
           </div>

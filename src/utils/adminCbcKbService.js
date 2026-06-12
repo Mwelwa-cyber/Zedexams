@@ -13,6 +13,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions'
 import { ref as storageRef, uploadBytes } from 'firebase/storage'
 import app, { db, storage } from '../firebase/config'
 import { LEARNING_ENVIRONMENT_VALUES } from '../config/learningEnvironments'
+import { compressImportedImage } from './quizDocumentImport'
 
 const functions = getFunctions(app, 'us-central1')
 const importBuiltInCbcTopicsCallable = httpsCallable(functions, 'importBuiltInCbcTopics', {
@@ -598,31 +599,47 @@ export async function deleteAssessmentFormat(id) {
 // are ignored by the generator until approved into assessmentFormats/.
 
 const SAMPLE_EXTS = new Set(['pdf', 'docx'])
+const SAMPLE_IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp'])
 const SAMPLE_CONTENT_TYPES = {
   pdf: 'application/pdf',
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 }
 
 /**
- * Upload a sample paper to assessment-format-samples/{uid}/… and return
- * the storage path to hand to extractAssessmentFormat. Throws with a
- * readable message on unsupported files.
+ * Upload a sample paper to assessment-format-samples/{uid}/… and return the
+ * storage path to hand to extractAssessmentFormat / analyzeExamPaper. Accepts
+ * .pdf and .docx, plus photos of papers (.jpg/.png/.webp) — phone snaps are
+ * compressed to a readable JPEG (≤2000px wide) so they stay well under the
+ * per-image vision limit while remaining legible. Throws a readable message
+ * on unsupported files.
  */
 export async function uploadAssessmentFormatSample(file, uid) {
   if (!file || !uid) throw new Error('Pick a file first.')
   const ext = String(file.name || '').split('.').pop().toLowerCase()
-  if (!SAMPLE_EXTS.has(ext)) {
-    throw new Error('Only .pdf and .docx sample papers are supported.')
+  const isImage = SAMPLE_IMAGE_EXTS.has(ext)
+  if (!SAMPLE_EXTS.has(ext) && !isImage) {
+    throw new Error('Supported files: .pdf, .docx, or a photo (.jpg/.png/.webp).')
   }
   if (file.size > 25 * 1024 * 1024) {
     throw new Error('File is over the 25 MB limit.')
   }
-  const safeName = String(file.name || 'sample')
-    .toLowerCase().replace(/[^a-z0-9._-]+/g, '-').slice(0, 80)
-  const storagePath = `assessment-format-samples/${uid}/${Date.now()}-${safeName}`
-  await uploadBytes(storageRef(storage, storagePath), file, {
-    contentType: SAMPLE_CONTENT_TYPES[ext],
-  })
+
+  let body = file
+  let contentType = SAMPLE_CONTENT_TYPES[ext]
+  let storageExt = ext
+  if (isImage) {
+    // Re-encode to JPEG; keep enough resolution to read a full page of text.
+    body = await compressImportedImage(file, 2000, 0.82)
+    contentType = 'image/jpeg'
+    storageExt = 'jpg'
+  }
+
+  const baseName = String(file.name || 'sample')
+    .replace(/\.[^.]+$/, '')
+    .toLowerCase().replace(/[^a-z0-9._-]+/g, '-').slice(0, 80) || 'sample'
+  const storagePath =
+    `assessment-format-samples/${uid}/${Date.now()}-${baseName}.${storageExt}`
+  await uploadBytes(storageRef(storage, storagePath), body, { contentType })
   return storagePath
 }
 

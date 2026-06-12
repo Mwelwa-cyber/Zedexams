@@ -21,7 +21,16 @@ const {
 
 const SAMPLE_PATH_PREFIX = "assessment-format-samples/";
 
-const EXT_TO_KIND = Object.freeze({pdf: "pdf", docx: "docx"});
+// Photos of papers (jpg/png/webp) resolve to the "images" source kind so
+// buildMessageBlocks sends them to Claude's vision as page images — same
+// path scanned past papers take.
+const EXT_TO_KIND = Object.freeze({
+  pdf: "pdf", docx: "docx",
+  jpg: "images", jpeg: "images", png: "images", webp: "images",
+});
+const SAMPLE_IMAGE_MIME = Object.freeze({
+  jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png", webp: "image/webp",
+});
 
 const DOCX_MIME =
   "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
@@ -56,10 +65,20 @@ function kindFromPath(storagePath) {
  * size caps and DOCX→text extraction identically to past papers.
  */
 function sourceForSamplePath(storagePath) {
-  const kind = kindFromPath(storagePath);
+  const ext = extOf(storagePath);
+  const kind = EXT_TO_KIND[ext] || null;
   if (kind === "pdf") return {kind: "pdf", path: storagePath, size: null};
   if (kind === "docx") {
     return {kind: "docx", path: storagePath, size: null, mime: DOCX_MIME};
+  }
+  if (kind === "images") {
+    return {
+      kind: "images",
+      items: [{
+        path: storagePath,
+        contentType: SAMPLE_IMAGE_MIME[ext] || "image/jpeg",
+      }],
+    };
   }
   return null;
 }

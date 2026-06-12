@@ -191,10 +191,10 @@ export default function ExamPaperLibraryPanel({
               />
             </div>
             <div className="ss-field">
-              <label>Papers (.pdf / .docx — select many)</label>
+              <label>Papers (.pdf / .docx / photo — select many)</label>
               <input
                 type="file"
-                accept=".pdf,.docx"
+                accept=".pdf,.docx,.jpg,.jpeg,.png,.webp"
                 multiple
                 onChange={(e) => setFiles(Array.from(e.target.files || []))}
               />
@@ -202,7 +202,8 @@ export default function ExamPaperLibraryPanel({
           </div>
           <p className="ss-custom-blurb" style={{ marginTop: 0 }}>
             All selected files share the classification above. Upload one grade
-            and subject at a time for the cleanest corpus.
+            and subject at a time for the cleanest corpus. Photos suit
+            single-page papers; use a PDF for multi-page papers.
           </p>
           <button
             type="button"
