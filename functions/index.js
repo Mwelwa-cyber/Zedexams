@@ -121,6 +121,12 @@ const {
 const {
   createExtractAssessmentFormat,
 } = require("./teacherTools/extractAssessmentFormat");
+// Teacher Tools — Exam Paper Library: analyse real papers + synthesise a
+// consolidated format profile from many of them (admin-only).
+const {
+  createAnalyzeExamPaper,
+  createSynthesizeAssessmentFormat,
+} = require("./teacherTools/examPaperLibrary");
 // Teacher Tools — bulk import lesson-level curriculum modules (admin-only).
 const {
   importCurriculumModules,
@@ -2102,6 +2108,14 @@ exports.importBuiltInAssessmentFormats = importBuiltInAssessmentFormats;
 // admin review on the CBC KB page before going live.
 exports.extractAssessmentFormat =
   createExtractAssessmentFormat(anthropicApiKey);
+
+// Teacher Tools — admin-only: Exam Paper Library. analyzeExamPaper distils
+// one real paper into a stored per-paper analysis; synthesizeAssessmentFormat
+// merges many analysed papers for a (type, band, subject) into a single
+// format-profile draft that awaits the same CBC KB review gate.
+exports.analyzeExamPaper = createAnalyzeExamPaper(anthropicApiKey);
+exports.synthesizeAssessmentFormat =
+  createSynthesizeAssessmentFormat(anthropicApiKey);
 
 // Teacher Tools — admin-only: bulk import lesson-level curriculum modules.
 exports.importCurriculumModules = importCurriculumModules;

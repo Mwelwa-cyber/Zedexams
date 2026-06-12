@@ -4,6 +4,7 @@ import ConfirmDialog from '../ui/ConfirmDialog'
 import SyllabusPdfUploadPanel from './SyllabusPdfUploadPanel'
 import BulkGenerateButton from './BulkGenerateButton'
 import BulkPublishQuizzesButton from './BulkPublishQuizzesButton'
+import ExamPaperLibraryPanel from './ExamPaperLibraryPanel'
 import {
   getActiveKbVersion, KB_VERSION,
   listCbcTopics, saveCbcTopic, deleteCbcTopic,
@@ -14,6 +15,8 @@ import {
   uploadAssessmentFormatSample, extractAssessmentFormat,
   listAssessmentFormatDrafts, deleteAssessmentFormatDraft,
   approveAssessmentFormatDraft, listPastPapersForExtraction,
+  analyzeExamPaper, listExamPaperSamples, deleteExamPaperSample,
+  synthesizeAssessmentFormat,
 } from '../../utils/adminCbcKbService'
 import { useAuth } from '../../contexts/AuthContext'
 import {
@@ -164,6 +167,7 @@ export default function CbcKbAdmin() {
   const [editingFormat, setEditingFormat] = useState(null) // profile, or 'new'
   const [formatDrafts, setFormatDrafts] = useState([])
   const [reviewingDraft, setReviewingDraft] = useState(null) // draft doc under review
+  const [examPaperSamples, setExamPaperSamples] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [activeVersion, setActiveVersion] = useState(null)
@@ -190,14 +194,16 @@ export default function CbcKbAdmin() {
     setLoading(true)
     setError('')
     try {
-      const [merged, firestoreTopics, formats, drafts] = await Promise.all([
+      const [merged, firestoreTopics, formats, drafts, samples] = await Promise.all([
         getMergedSyllabi({ forceOverrides: true }),
         listCbcTopics().catch(() => []),
         listAssessmentFormats().catch(() => []),
         listAssessmentFormatDrafts().catch(() => []),
+        listExamPaperSamples().catch(() => []),
       ])
       setFormatProfiles(formats)
       setFormatDrafts(drafts)
+      setExamPaperSamples(samples)
       setRawData(enrichSubjects(merged))
       // A Firestore topic is "custom" when it doesn't shadow an entry in
       // the syllabi-data layer. The merged-source rebuild already covers
@@ -460,6 +466,61 @@ export default function CbcKbAdmin() {
     }
   }
 
+  // ── Exam Paper Library ────────────────────────────────────────────────
+  // Upload + analyse a batch of real papers (shared classification), then
+  // synthesise a bucket into a format-profile draft for the existing review
+  // flow. `batch` is { files[], grade, subject, assessmentType, year, region }.
+  async function onAnalyzeExamPapers(batch) {
+    const files = Array.isArray(batch.files) ? batch.files : []
+    if (files.length === 0) return false
+    let analyzed = 0
+    const errors = []
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i]
+      flashToast(`Analysing paper ${i + 1} of ${files.length}: ${file.name}…`, 0)
+      try {
+        const storagePath = await uploadAssessmentFormatSample(file, currentUser?.uid)
+        const res = await analyzeExamPaper({
+          storagePath,
+          grade: batch.grade,
+          subject: batch.subject,
+          assessmentType: batch.assessmentType,
+          title: file.name,
+          year: batch.year ? Number(batch.year) : null,
+          region: batch.region || '',
+        })
+        if (res.ok) analyzed += 1
+        else errors.push(`${file.name}: ${res.error}`)
+      } catch (err) {
+        errors.push(`${file.name}: ${err?.message || err}`)
+      }
+    }
+    await load()
+    if (errors.length === 0) {
+      flashToast(`Analysed ${analyzed} paper${analyzed === 1 ? '' : 's'} into the library.`, 8000)
+      return true
+    }
+    flashToast(`Analysed ${analyzed} of ${files.length}. ${errors.length} failed: ${errors[0]}`, 12000)
+    return analyzed > 0
+  }
+
+  async function onDeleteExamPaperSample(sample) {
+    const ok = await deleteExamPaperSample(sample.id)
+    flashToast(ok ? 'Paper removed from the library.' : 'Delete failed — check console.')
+    if (ok) await load()
+  }
+
+  async function onSynthesizeFormat({ assessmentType, gradeBand, subject }) {
+    flashToast('Merging the analysed papers into one format profile…', 0)
+    const res = await synthesizeAssessmentFormat({ assessmentType, gradeBand, subject })
+    if (!res.ok) { flashToast(`Synthesis failed: ${res.error}`); return false }
+    flashToast(res.warning ?
+      `Draft created from ${res.sampleCount} paper(s) — ${res.warning}` :
+      `Draft created from ${res.sampleCount} paper(s). Review it under "Pending review" in Assessment Formats.`, 12000)
+    await load()
+    return true
+  }
+
   async function performDeleteCustomTopic(topic) {
     setDeleteBusy(true)
     try {
@@ -597,6 +658,10 @@ export default function CbcKbAdmin() {
               onExtractFormat={onExtractFormat}
               onReviewDraft={(d) => setReviewingDraft(d)}
               onRejectDraft={onRejectDraft}
+              examPaperSamples={examPaperSamples}
+              onAnalyzeExamPapers={onAnalyzeExamPapers}
+              onDeleteExamPaperSample={onDeleteExamPaperSample}
+              onSynthesizeFormat={onSynthesizeFormat}
             />
           )}
 
@@ -751,6 +816,8 @@ function HomeView({
   onEditCustomTopic, onAddCustomTopic, onDeleteCustomTopic,
   formatProfiles, onAddFormat, onEditFormat, onDeleteFormat, onImportFormats,
   formatDrafts, onExtractFormat, onReviewDraft, onRejectDraft,
+  examPaperSamples, onAnalyzeExamPapers, onDeleteExamPaperSample,
+  onSynthesizeFormat,
 }) {
   return (
     <div className="ss-home">
@@ -804,6 +871,13 @@ function HomeView({
         onExtract={onExtractFormat}
         onReviewDraft={onReviewDraft}
         onRejectDraft={onRejectDraft}
+      />
+
+      <ExamPaperLibraryPanel
+        samples={examPaperSamples}
+        onAnalyzeBatch={onAnalyzeExamPapers}
+        onDelete={onDeleteExamPaperSample}
+        onSynthesize={onSynthesizeFormat}
       />
 
       {CAT_ORDER.map(cat => {

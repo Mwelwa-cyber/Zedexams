@@ -83,6 +83,28 @@ function strList(v, maxItems, maxLen) {
 }
 
 /**
+ * Normalise the optional per-grade nuance map. Keys must be valid grade
+ * codes (ECE, G1-G12, F1-F4); anything else is dropped. This is what lets a
+ * single band-level profile carry the Baby-Class-vs-Grade-3 distinction the
+ * Exam Paper Library learns from real papers.
+ */
+function normalizeGradeNotes(v) {
+  if (!v || typeof v !== "object" || Array.isArray(v)) return {};
+  const out = {};
+  let count = 0;
+  for (const [k, val] of Object.entries(v)) {
+    if (count >= 12) break;
+    const grade = String(k || "").toUpperCase().trim();
+    if (!gradeToBand(grade)) continue;
+    const note = str(val, 400);
+    if (!note) continue;
+    out[grade] = note;
+    count += 1;
+  }
+  return out;
+}
+
+/**
  * Validate + normalise a format profile. Returns {ok, errors, value} in the
  * same style as the generator schemas: `value` is always a usable
  * normalised profile, `errors` lists everything that disqualifies it.
@@ -172,6 +194,11 @@ function validateFormatProfile(input) {
     phrasingNotes: strList(input.phrasingNotes, 6, 300),
     marksConventions: strList(input.marksConventions, 6, 300),
     diagramConventions: strList(input.diagramConventions, 4, 400),
+    // Richer signals the Exam Paper Library distils from many real papers.
+    // All optional — older profiles (seeds, manual edits) simply omit them.
+    answerSpaceConventions: strList(input.answerSpaceConventions, 6, 300),
+    pictureUsage: strList(input.pictureUsage, 6, 400),
+    gradeNotes: normalizeGradeNotes(input.gradeNotes),
     exemplarQuestions,
     status: input.status === "draft" ? "draft" : "active",
     origin: str(input.origin, 30) || "manual",
@@ -259,7 +286,7 @@ const DEFAULT_PROFILE = Object.freeze({
 
 // ── Rendering ────────────────────────────────────────────────────────────
 
-function renderFormatContextBlock(profile) {
+function renderFormatContextBlock(profile, {grade} = {}) {
   const p = profile || DEFAULT_PROFILE;
   const lines = [
     "<assessment_format_context>",
@@ -302,6 +329,25 @@ function renderFormatContextBlock(profile) {
   if (diagrams.length > 0) {
     lines.push("", "Diagrams:");
     for (const d of diagrams) lines.push(`- ${d}`);
+  }
+  const pictures = (p.pictureUsage || []).slice(0, 6);
+  if (pictures.length > 0) {
+    lines.push("", "Pictures, drawings and diagrams (how this paper uses " +
+      "them — request matching diagram briefs where appropriate):");
+    for (const pic of pictures) lines.push(`- ${pic}`);
+  }
+  const answerSpaces = (p.answerSpaceConventions || []).slice(0, 6);
+  if (answerSpaces.length > 0) {
+    lines.push("", "Answer spaces and layout:");
+    for (const a of answerSpaces) lines.push(`- ${a}`);
+  }
+  // Per-grade nuance within the band — surfaced only for the grade being
+  // generated, so a Grade 1 paper reads differently from a Grade 3 one even
+  // though both resolve to the lower_primary profile.
+  const gradeKey = String(grade || "").toUpperCase().trim();
+  const gradeNote = p.gradeNotes && p.gradeNotes[gradeKey];
+  if (gradeNote) {
+    lines.push("", `Grade-specific guidance for ${gradeKey}: ${gradeNote}`);
   }
   const exemplars = (p.exemplarQuestions || []).slice(0, 4);
   if (exemplars.length > 0) {
@@ -386,7 +432,7 @@ async function resolveAssessmentFormatContext({grade, subject, assessmentType} =
   }
   const profile = match || DEFAULT_PROFILE;
   return {
-    formatBlock: renderFormatContextBlock(profile),
+    formatBlock: renderFormatContextBlock(profile, {grade}),
     formatProfileId: profile.id,
     formatSource: match ? (match._source || "seed") : "default",
   };
