@@ -1,13 +1,13 @@
 /**
- * Node test for the v4 assessment prompt + the schema's diagram, passage
- * and matching fields. One suite owns the active prompt and the shared
- * schema.
- * Run: node functions/teacherTools/assessmentPromptV4.test.js
+ * Node test for the v5 assessment prompt + the schema's visual, diagram,
+ * passage and matching fields. One suite owns the ACTIVE prompt and the
+ * shared schema.
+ * Run: node functions/teacherTools/assessmentPromptV5.test.js
  */
 
 const assert = require("node:assert");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
-  require("./assessmentPromptV4");
+  require("./assessmentPromptV5");
 const {validateAssessment, SCHEMA_VERSION} = require("./assessmentSchema");
 
 let passed = 0;
@@ -17,20 +17,23 @@ function ok(name, cond) {
   console.log(`  ok  ${name}`);
 }
 
-console.log("assessmentPromptV4");
+console.log("assessmentPromptV5");
 
 // ── Prompt ────────────────────────────────────────────────────────────────
 {
-  ok("prompt version is assessment.v4", PROMPT_VERSION === "assessment.v4");
+  ok("prompt version is assessment.v5", PROMPT_VERSION === "assessment.v5");
   ok("system prompt explains matching pairs",
     SYSTEM_PROMPT.includes("\"matching\"") &&
     SYSTEM_PROMPT.includes("Column A"));
   ok("system prompt makes the format block authoritative",
     SYSTEM_PROMPT.includes("<assessment_format_context>") &&
     SYSTEM_PROMPT.includes("AUTHORITATIVE"));
-  ok("system prompt has the diagram rule",
-    SYSTEM_PROMPT.includes("\"diagram\"") &&
-    SYSTEM_PROMPT.includes("printed beside it"));
+  ok("system prompt describes the three visual kinds",
+    SYSTEM_PROMPT.includes("stem_figure") &&
+    SYSTEM_PROMPT.includes("labelled_figure") &&
+    SYSTEM_PROMPT.includes("option_images"));
+  ok("system prompt forbids text inside the image",
+    SYSTEM_PROMPT.includes("NEVER CONTAINS TEXT"));
   ok("system prompt demands ORIGINAL comprehension passages",
     SYSTEM_PROMPT.includes("ORIGINAL short passage") &&
     SYSTEM_PROMPT.includes("NEVER copy"));
@@ -42,8 +45,9 @@ console.log("assessmentPromptV4");
     totalMarks: 40,
     assessmentType: "end_of_term",
   });
-  ok("user prompt JSON shape includes the diagram key",
-    prompt.includes("\"diagram\": string|null"));
+  ok("user prompt JSON shape includes the visual object",
+    prompt.includes("\"visual\":") &&
+    prompt.includes("\"kind\": \"stem_figure\"|\"labelled_figure\"|\"option_images\""));
   ok("user prompt JSON shape includes the passage object",
     prompt.includes("\"passage\": {\"title\": string, \"text\": string} | null"));
   ok("user prompt JSON shape includes the matching fields",
@@ -95,7 +99,7 @@ function goodAssessment(sectionExtra = {}, questionExtra = {}) {
 }
 
 {
-  ok("schema version bumped to 1.3", SCHEMA_VERSION === "1.3");
+  ok("schema version bumped to 1.4", SCHEMA_VERSION === "1.4");
 
   const withPassage = validateAssessment(goodAssessment({
     passage: {title: "Warthog and Lion", text: "A warthog went into a cave to keep warm. ".repeat(4)},
@@ -122,15 +126,81 @@ function goodAssessment(sectionExtra = {}, questionExtra = {}) {
   ok("over-long passages clamp to 6,000 chars", true);
 }
 
-// ── Diagram field (unchanged from v1.1 — regression coverage) ────────────
+// ── Visual field (v1.4) ───────────────────────────────────────────────────
 {
-  const res = validateAssessment(goodAssessment());
-  ok("valid diagram string is kept",
-    res.value.sections[0].questions[1].diagram ===
-    "A bean plant with the stem labelled X.");
-  ok("question without a diagram gets null",
-    res.value.sections[0].questions[0].diagram === null);
+  // Legacy bare `diagram` string is kept AND normalised into a stem visual.
+  const legacy = validateAssessment(goodAssessment());
+  const q2 = legacy.value.sections[0].questions[1];
+  ok("legacy diagram string is kept",
+    q2.diagram === "A bean plant with the stem labelled X.");
+  ok("legacy diagram normalises into a stem_figure visual",
+    q2.visual && q2.visual.kind === "stem_figure" &&
+    q2.visual.prompt === "A bean plant with the stem labelled X.");
+  ok("question without any figure gets visual null",
+    legacy.value.sections[0].questions[0].visual === null);
 
+  // labelled_figure with labels + mode
+  const labelled = validateAssessment(goodAssessment({}, {
+    visual: {
+      kind: "labelled_figure",
+      mode: "identify",
+      prompt: "a plastic-bottle water filter",
+      labels: ["Dirty water", "Small stones", "Fine sand", "Cloth", "Clean water"],
+    },
+  }));
+  const lv = labelled.value.sections[0].questions[0].visual;
+  ok("labelled_figure keeps kind, mode and labels",
+    lv.kind === "labelled_figure" && lv.mode === "identify" && lv.labels.length === 5);
+
+  // option_images with per-option briefs
+  const picOpts = validateAssessment(goodAssessment({}, {
+    type: "multiple_choice",
+    options: ["A", "B", "C", "D"],
+    answer: "B",
+    visual: {
+      kind: "option_images",
+      options: [
+        {prompt: "a plastic wash basin"},
+        {prompt: "a dial kitchen weighing scale"},
+        {prompt: "a serving spoon"},
+        {prompt: "a cooking saucepan"},
+      ],
+    },
+  }));
+  const pv = picOpts.value.sections[0].questions[0].visual;
+  ok("option_images keeps four option briefs",
+    pv.kind === "option_images" && pv.options.length === 4 &&
+    pv.options[1].prompt === "a dial kitchen weighing scale");
+
+  // Degradation: unknown kind / too few option images / clamps.
+  const unknown = validateAssessment(goodAssessment({}, {
+    visual: {kind: "hologram", prompt: "spinning 3D model"},
+  }));
+  ok("unknown visual kind with a prompt degrades to a stem_figure",
+    unknown.value.sections[0].questions[0].visual.kind === "stem_figure");
+
+  const tooFew = validateAssessment(goodAssessment({}, {
+    visual: {kind: "option_images", prompt: "fallback", options: [{prompt: "only one"}]},
+  }));
+  ok("option_images with <2 options falls back to a stem_figure",
+    tooFew.value.sections[0].questions[0].visual.kind === "stem_figure");
+
+  const empty = validateAssessment(goodAssessment({}, {visual: {kind: "stem_figure"}}));
+  ok("a visual with no usable prompt coerces to null",
+    empty.value.sections[0].questions[0].visual === null);
+
+  const clampLabels = validateAssessment(goodAssessment({}, {
+    visual: {
+      kind: "labelled_figure", prompt: "x",
+      labels: Array.from({length: 20}, (_, i) => `label ${i}`),
+    },
+  }));
+  assert.ok(clampLabels.value.sections[0].questions[0].visual.labels.length <= 8);
+  ok("labelled_figure clamps to 8 labels", true);
+}
+
+// ── Diagram field (unchanged — regression coverage) ───────────────────────
+{
   const legacy = goodAssessment();
   for (const q of legacy.sections[0].questions) delete q.diagram;
   ok("legacy payloads without diagram keys still validate",
@@ -171,4 +241,4 @@ function goodAssessment(sectionExtra = {}, questionExtra = {}) {
     nonMatching.value.sections[0].questions[0].matching === null);
 }
 
-console.log(`assessmentPromptV4: ${passed} checks passed`);
+console.log(`assessmentPromptV5: ${passed} checks passed`);

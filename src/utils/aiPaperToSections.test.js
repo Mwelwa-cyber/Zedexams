@@ -92,6 +92,86 @@ console.log('aiPaperToSections')
   ok('diagram briefs surface as review notes AND a diagramBrief field', true)
 }
 
+// ── Visual questions (v5): stem / labelled / option_images ────────────────
+{
+  // stem_figure
+  const stem = mapAiQuestion({
+    type: 'multiple_choice',
+    prompt: 'The instrument shown below is mostly used for … music.',
+    options: ['reggae', 'traditional', 'pop', 'jazz'],
+    marks: 1,
+    answer: 'traditional',
+    visual: { kind: 'stem_figure', prompt: 'a traditional African djembe goblet drum, side view' },
+  })
+  assert.strictEqual(stem.overrides.diagramBrief, 'a traditional African djembe goblet drum, side view')
+  assert.strictEqual(stem.overrides.correctAnswer, 1)
+  ok('stem_figure sets a diagramBrief without disturbing MCQ options', true)
+
+  // labelled_figure / identify
+  const labelled = mapAiQuestion({
+    type: 'short_answer',
+    prompt: 'Study the diagram below. Name the parts.',
+    marks: 5,
+    answer: 'See marking guide.',
+    visual: {
+      kind: 'labelled_figure',
+      mode: 'identify',
+      prompt: 'a plastic-bottle water filter with layers of stones, sand and cloth',
+      labels: ['Dirty water', 'Small stones', 'Fine sand', 'Cloth', 'Clean water'],
+    },
+  })
+  assert.strictEqual(labelled.overrides.diagramMode, 'identify')
+  assert.strictEqual(labelled.overrides.diagramLabels.length, 5)
+  assert.strictEqual(labelled.overrides.diagramLabels[0].text, 'Dirty water')
+  assert.ok(labelled.overrides.diagramLabels.every((l) => l.x >= 0 && l.x <= 1 && l.y >= 0 && l.y <= 1))
+  ok('labelled_figure builds diagramLabels + identify mode with in-range positions', true)
+
+  // option_images — picture-based MCQ
+  const picOpts = mapAiQuestion({
+    type: 'multiple_choice',
+    prompt: 'Which equipment measures the correct weight of food?',
+    options: [],
+    marks: 1,
+    answer: 'B',
+    visual: {
+      kind: 'option_images',
+      options: [
+        { prompt: 'a plastic wash basin' },
+        { prompt: 'a dial kitchen weighing scale' },
+        { prompt: 'a serving spoon' },
+        { prompt: 'a cooking saucepan' },
+      ],
+    },
+  })
+  assert.strictEqual(picOpts.overrides.options.length, 4)
+  assert.ok(picOpts.overrides.options.every((o) => o === ''))
+  assert.strictEqual(picOpts.overrides.optionMedia.length, 4)
+  assert.strictEqual(picOpts.overrides.optionMedia[1].diagramBrief, 'a dial kitchen weighing scale')
+  assert.ok(picOpts.overrides.optionMedia[0].alt.length > 0, 'alt seeded from brief')
+  assert.strictEqual(picOpts.overrides.correctAnswer, 1, 'letter answer B → index 1')
+  ok('option_images becomes empty text options + per-option media briefs', true)
+
+  // option_images where the answer is the winning brief text, not a letter
+  const picByText = mapAiQuestion({
+    type: 'multiple_choice',
+    prompt: 'Which item is NOT made by carving?',
+    options: [],
+    marks: 1,
+    answer: 'a metal cooking saucepan',
+    visual: {
+      kind: 'option_images',
+      options: [
+        { prompt: 'a wooden goblet cup' },
+        { prompt: 'a carved wooden walking stick' },
+        { prompt: 'a wooden serving spoon' },
+        { prompt: 'a metal cooking saucepan' },
+      ],
+    },
+  })
+  assert.strictEqual(picByText.overrides.correctAnswer, 3, 'brief-text answer resolves to its option')
+  ok('option_images tolerates a brief-text answer as a fallback', true)
+}
+
 // ── aiAssessmentToStudioBlocks ────────────────────────────────────────────
 {
   const blocks = aiAssessmentToStudioBlocks({

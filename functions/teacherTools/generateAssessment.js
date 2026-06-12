@@ -25,7 +25,7 @@ const {
 } = require("./assessmentFormats");
 const {validateAssessment} = require("./assessmentSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
-  require("./assessmentPromptV4");
+  require("./assessmentPromptV5");
 const {assertAndIncrement} = require("./usageMeter");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
 
