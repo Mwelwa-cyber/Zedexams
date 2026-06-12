@@ -116,6 +116,7 @@ function paletteFor(sectionId) {
 const SECTION_ICON = {
   [LIBRARY_TYPES.SCHEMES_OF_WORK]:  BookOpen,
   [LIBRARY_TYPES.WEEKLY_FORECASTS]: CalendarDays,
+  [LIBRARY_TYPES.RECORDS_OF_WORK]:  ClipboardList,
   [LIBRARY_TYPES.SYLLABI]:          Files,
   [LIBRARY_TYPES.LESSON_PLANS]:     PencilLine,
   [LIBRARY_TYPES.NOTES]:            DocumentTextIcon,
@@ -127,6 +128,7 @@ const TOOL_ICON = {
   lesson_plan:     PencilLine,
   scheme_of_work:  BookOpen,
   weekly_forecast: CalendarDays,
+  record_of_work:  ClipboardList,
   mark_schedule:   ListChecks,
   worksheet:       FileText,
   flashcards:      Layers,
