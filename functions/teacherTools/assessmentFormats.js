@@ -18,10 +18,13 @@
 
 const {FORMAT_PROFILES} = require("./assessmentFormatSeeds");
 
-const ASSESSMENT_TYPES = ["exercise", "topic_test", "end_of_term", "mock_exam"];
+const ASSESSMENT_TYPES = [
+  "exercise", "topic_test", "mid_term", "end_of_term", "mock_exam",
+];
 const ASSESSMENT_TYPE_LABELS = {
   exercise: "Exercise",
   topic_test: "Topic Test",
+  mid_term: "Mid-Term Test",
   end_of_term: "End of Term Test",
   mock_exam: "Mock Examination",
 };

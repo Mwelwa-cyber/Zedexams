@@ -78,13 +78,13 @@ console.log("assessmentFormatSeeds");
 {
   const ids = new Set(FORMAT_PROFILES.map((p) => p.id));
   for (const band of GRADE_BANDS) {
-    for (const type of ["topic_test", "end_of_term"]) {
+    for (const type of ["topic_test", "mid_term", "end_of_term"]) {
       const id = buildFormatId(
         {assessmentType: type, gradeBand: band, subject: GENERIC_SUBJECT});
       assert.ok(ids.has(id), `missing generic backbone profile: ${id}`);
     }
   }
-  ok("generic backbone exists for all bands × topic_test/end_of_term", true);
+  ok("generic backbone exists for all bands × topic/mid-term/end-of-term", true);
 }
 
 // ── Rendered blocks stay within the prompt-size budget ─────────────────────

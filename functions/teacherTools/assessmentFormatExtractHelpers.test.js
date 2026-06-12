@@ -13,6 +13,8 @@ const {
   EXTRACT_SYSTEM_PROMPT,
   buildExtractUserPrompt,
   buildDraftFromExtraction,
+  isLikelyContentImage,
+  buildStagedPictureDoc,
 } = require("./assessmentFormatExtractHelpers");
 const {buildFormatId} = require("./assessmentFormats");
 
@@ -157,6 +159,39 @@ function goodExtraction() {
     sourceKind: "pdf", sourceNote: "",
   });
   ok("invalid assessmentType is rejected outright", Boolean(badMeta.error));
+}
+
+// ── Picture-bank staging filters ──────────────────────────────────────────
+{
+  // Real teaching figures pass…
+  assert.ok(isLikelyContentImage(
+    {name: "word/media/image3.jpg", byteLength: 60 * 1024}));
+  assert.ok(isLikelyContentImage(
+    {name: "word/media/image1.png", byteLength: 5 * 1024}));
+  // …logos/slivers and non-images don't.
+  assert.ok(!isLikelyContentImage(
+    {name: "word/media/image2.png", byteLength: 3 * 1024}),
+  "tiny logo-sized image should be filtered");
+  assert.ok(!isLikelyContentImage(
+    {name: "word/media/oleObject1.bin", byteLength: 80 * 1024}),
+  "non-image media should be filtered");
+  assert.ok(!isLikelyContentImage(
+    {name: "word/media/huge.png", byteLength: 20 * 1024 * 1024}),
+  "oversize image should be filtered");
+  ok("isLikelyContentImage keeps figures, drops logos/junk", true);
+
+  const doc = buildStagedPictureDoc({
+    index: 0, ext: "jpeg", storagePath: "picture-bank/staged/d1/p1.jpeg",
+    subject: "integrated_science", gradeBand: "upper_primary",
+    draftId: "d1", sourceNote: "G4 Science Term 1", uid: "admin1",
+  });
+  assert.strictEqual(doc.status, "staged");
+  assert.strictEqual(doc.source, "extracted");
+  assert.strictEqual(doc.contentType, "image/jpeg");
+  assert.strictEqual(doc.subject, "integrated_science");
+  assert.ok(Array.isArray(doc.keywords) && doc.keywords.length === 0,
+    "staged docs start without keywords — the admin tags them");
+  ok("buildStagedPictureDoc produces a taggable staged doc", true);
 }
 
 console.log(`assessmentFormatExtractHelpers: ${passed} checks passed`);

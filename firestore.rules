@@ -684,6 +684,18 @@ service cloud.firestore {
       }
     }
 
+    // ── pictureBank ───────────────────────────────────────────
+    // Subject-organised, keyword-searchable diagram/picture library for
+    // teachers. Admin-curated: images arrive via admin upload, AI
+    // generation, or extraction from uploaded sample papers (staged for
+    // tagging first). Teachers only ever see status == 'active' docs —
+    // their queries must filter on it; admins see everything.
+    match /pictureBank/{picId} {
+      allow read: if isAdmin() ||
+        (isAuthed() && resource.data.get('status', '') == 'active');
+      allow write: if isAdmin();
+    }
+
     // ── promptTemplates ───────────────────────────────────────
     // Admin-only. Never exposed to non-admin clients.
     match /promptTemplates/{toolId} {

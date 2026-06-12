@@ -418,6 +418,7 @@ export async function deleteLesson(topicId, lessonId) {
 export const ASSESSMENT_FORMAT_TYPES = [
   { value: 'exercise', label: 'Exercise' },
   { value: 'topic_test', label: 'Topic Test' },
+  { value: 'mid_term', label: 'Mid-Term Test' },
   { value: 'end_of_term', label: 'End of Term Test' },
   { value: 'mock_exam', label: 'Mock Examination' },
 ]
