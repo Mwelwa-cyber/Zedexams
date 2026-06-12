@@ -239,36 +239,60 @@ function PastPaperPreviewSection() {
   )
 }
 
-// Mock learner Daily Exam preview — sits beside the hero copy.
+function HeroStat({ value, label }) {
+  return (
+    <div className="marketing-hero-stat">
+      <span>{value}</span>
+      <p>{label}</p>
+    </div>
+  )
+}
+
+// Mock learner Daily Exam preview - grounded product proof under the hero.
 function DailyExamPreview() {
   return (
-    <Card variant="hero" size="lg" className="relative overflow-hidden">
-      <div className="flex items-center justify-between mb-6 text-white/90">
-        <span className="text-sm font-black uppercase tracking-wider">Daily exam</span>
-        <span className="inline-flex items-center gap-1 text-xs font-bold bg-white/15 rounded-full px-2.5 py-1">
+    <Card variant="elevated" size="lg" className="marketing-exam-preview">
+      <div className="marketing-exam-preview-header">
+        <div>
+          <p className="text-eyebrow">Learner dashboard preview</p>
+          <h2 className="font-display font-black text-2xl sm:text-3xl mt-1">
+            Today's Grade 5 exam plan
+          </h2>
+        </div>
+        <span className="marketing-exam-pill">
           <Icon as={Sparkles} size="xs" />
           3-day streak
         </span>
       </div>
-      <div className="space-y-3">
-        {[
-          { subject: 'English',             score: '9 / 10' },
-          { subject: 'Integrated Science',  score: '7 / 10' },
-          { subject: 'Mathematics',         score: '8 / 10' },
-          { subject: 'Social Studies',      score: '10 / 10' },
-        ].map((row) => (
-          <div
-            key={row.subject}
-            className="flex items-center justify-between rounded-xl bg-white/10 px-4 py-3 text-white"
-          >
-            <span className="font-bold">{row.subject}</span>
-            <span className="font-black tabular-nums">{row.score}</span>
+
+      <div className="marketing-proof-grid">
+        <div className="space-y-3">
+          {[
+            { subject: 'English',             score: '9 / 10',  tone: 'green' },
+            { subject: 'Integrated Science',  score: '7 / 10',  tone: 'orange' },
+            { subject: 'Mathematics',         score: '8 / 10',  tone: 'blue' },
+            { subject: 'Social Studies',      score: '10 / 10', tone: 'green' },
+          ].map((row) => (
+            <div key={row.subject} className={`marketing-score-row tone-${row.tone}`}>
+              <span>{row.subject}</span>
+              <strong>{row.score}</strong>
+            </div>
+          ))}
+        </div>
+
+        <div className="marketing-rank-panel">
+          <div className="marketing-rank-icon" aria-hidden="true">
+            <Icon as={TrophyIcon} size="lg" />
           </div>
-        ))}
-      </div>
-      <div className="mt-6 flex items-center gap-3 text-white/85 text-sm">
-        <Icon as={TrophyIcon} size="sm" />
-        <span>Ranked #4 in Grade 5 this week</span>
+          <p className="text-eyebrow">Weekly position</p>
+          <strong>#4</strong>
+          <span>in Grade 5 this week</span>
+          <div className="marketing-rank-bars" aria-hidden="true">
+            <i />
+            <i />
+            <i />
+          </div>
+        </div>
       </div>
     </Card>
   )
@@ -352,11 +376,11 @@ export default function Marketing() {
           <Link to="/" aria-label="ZedExams home" className="flex items-center">
             <Logo size="sm" />
           </Link>
-          <nav className="flex items-center gap-2 sm:gap-3">
-            <Button as={Link} to="/login" variant="ghost" size="sm">
+          <nav className="flex min-w-0 items-center gap-1 sm:gap-3">
+            <Button as={Link} to="/login" variant="ghost" size="sm" className="max-[420px]:hidden">
               Sign in
             </Button>
-            <Button as={Link} to="/register" variant="primary" size="sm">
+            <Button as={Link} to="/register" variant="primary" size="sm" className="shrink-0">
               Get started
             </Button>
           </nav>
@@ -364,24 +388,25 @@ export default function Marketing() {
       </header>
 
       {/* Hero */}
-      <Section className="pt-12 pb-16 sm:pt-20 sm:pb-24">
-        <div className="grid gap-10 lg:grid-cols-12 lg:gap-12 items-center">
-          <div className="lg:col-span-7">
-            <div className="inline-flex items-center gap-2 rounded-full border theme-border theme-card px-3 py-1 text-xs font-bold theme-text-muted mb-5">
-              <span
-                className="inline-block h-2 w-2 rounded-full"
-                style={{ backgroundColor: '#2E7D32' }}
-                aria-hidden="true"
-              />
+      <section className="marketing-hero">
+        <img
+          src="/images/characters/zed-zara-reading.webp"
+          alt=""
+          className="marketing-hero-art"
+          aria-hidden="true"
+        />
+        <Section className="relative z-10 pt-12 pb-16 sm:pt-16 sm:pb-20 lg:pt-20 lg:pb-24">
+          <div className="max-w-3xl">
+            <div className="marketing-kicker">
+              <span aria-hidden="true" />
               Built in Zambia, for the Zambian CBC
             </div>
-            <h1 className="font-display font-black tracking-tight text-4xl sm:text-5xl lg:text-6xl leading-[1.05] mb-5">
-              CBC exam prep that actually fits{' '}
-              <span style={{ color: '#2E7D32' }}>Zambian classrooms</span>.
+            <h1 className="marketing-hero-title">
+              Zambian CBC exam prep
             </h1>
-            <p className="text-lg sm:text-xl theme-text-muted mb-8 max-w-2xl">
-              Daily CBC exams, quizzes, games, and AI study help for Grade 4–7 learners — plus
-              printable lesson tools for Zambian teachers.
+            <p className="marketing-hero-copy">
+              Daily exams, topic quizzes, lessons, games, and AI study help for Grade 4-7
+              learners, with printable tools for teachers who need classroom-ready material.
             </p>
             <div className="flex flex-wrap gap-3">
               <Button as={Link} to="/register" variant="primary" size="lg">
@@ -391,24 +416,17 @@ export default function Marketing() {
                 I already have an account
               </Button>
             </div>
-            <ul className="mt-7 flex flex-wrap gap-x-6 gap-y-2 text-sm theme-text-muted">
-              {[
-                'Free demo available',
-                'Teacher beta with fair-use limits',
-                'No card needed to start',
-              ].map((line) => (
-                <li key={line} className="inline-flex items-center gap-2">
-                  <Icon as={CheckCircleIcon} size="sm" className="text-[color:var(--accent)]" />
-                  {line}
-                </li>
-              ))}
-            </ul>
+            <div className="marketing-hero-stats" aria-label="ZedExams highlights">
+              <HeroStat value="4-7" label="Grades supported now" />
+              <HeroStat value="CBC" label="Mapped to the syllabus" />
+              <HeroStat value="0" label="Card needed to start" />
+            </div>
           </div>
+        </Section>
+      </section>
 
-          <div className="lg:col-span-5">
-            <DailyExamPreview />
-          </div>
-        </div>
+      <Section className="relative z-10 -mt-8 pb-8 sm:-mt-10 sm:pb-10">
+        <DailyExamPreview />
       </Section>
 
       {/* Past-paper quizzes — try-before-signup hook. Renders nothing

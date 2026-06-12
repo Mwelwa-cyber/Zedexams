@@ -26,7 +26,10 @@ export function usePwaUpdate() {
   const [dismissed, setDismissed] = useState(false)
 
   useEffect(() => {
+    // TEMPORARY: Disable SW registration to force fresh content loading
+    // Remove this block once caching issues are resolved
     if (isNativePlatform()) return
+    return  // <- Force early exit; disables SW for web too during debug
     let cancelled = false
     import('virtual:pwa-register')
       .then(({ registerSW }) => {

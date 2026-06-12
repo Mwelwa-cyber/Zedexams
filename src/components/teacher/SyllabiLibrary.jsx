@@ -226,7 +226,6 @@ export default function SyllabiLibrary() {
         if (!cancelled) setLoadingLegacy(false)
       })
     return () => { cancelled = true }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [era, legacyData])
 
   // Inject Playfair Display once — used for the brand serif headings to

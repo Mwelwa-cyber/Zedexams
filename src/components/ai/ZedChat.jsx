@@ -45,7 +45,7 @@ const MAX_HISTORY = 20 // server caps further; this is just for the UI thread.
 // Suggested prompts surfaced on first load. Tuned to be Gr 4–7 friendly
 // and lead with a verb so a younger learner immediately knows what
 // happens when they tap.
-const SUGGESTIONS = [
+const STUDY_SUGGESTIONS = [
   { icon: '📐', label: 'Help me with fractions',         prompt: 'Can you help me understand fractions with a simple example?' },
   { icon: '🌱', label: 'Explain photosynthesis',         prompt: 'Explain photosynthesis to me like I am in Grade 5.' },
   { icon: '📖', label: 'Practise English vocabulary',    prompt: 'Give me five Grade 6 English vocabulary words and use each in a sentence.' },
@@ -202,6 +202,11 @@ export default function ZedChat({ onClose, mode = 'panel' }) {
     cancelStreamRef.current = sendAIChatStream({
       message: text,
       history: toServerHistory(messages), // exclude the just-appended pair
+      context: {
+        area: 'ask_zed',
+        path: typeof window !== 'undefined' ? window.location.pathname : '',
+        pageTitle: 'Ask Zed',
+      },
       onToken: (chunk) => {
         setMessages((prev) => prev.map((m) =>
           m.id === assistantId ? { ...m, text: (m.text || '') + chunk } : m,
@@ -291,6 +296,9 @@ export default function ZedChat({ onClose, mode = 'panel' }) {
     return 'Your friendly CBC study buddy'
   }, [currentUser, listening, streaming])
 
+  const title = 'Ask Zed'
+  const suggestions = STUDY_SUGGESTIONS
+
   return (
     <div className={containerCls} role="region" aria-label="Zed AI study assistant">
       {/* Header */}
@@ -300,7 +308,7 @@ export default function ZedChat({ onClose, mode = 'panel' }) {
         </div>
         <div className="flex-1 min-w-0">
           <p className="theme-text font-black text-base leading-none flex items-center gap-1.5">
-            Ask Zed
+            {title}
             <Icon as={Sparkles} size="xs" strokeWidth={2.1} className="theme-accent-text" />
           </p>
           <p className="theme-text-muted text-xs mt-1 truncate">{headerSubtitle}</p>
@@ -332,13 +340,14 @@ export default function ZedChat({ onClose, mode = 'panel' }) {
         {showSuggestions ? (
           <div className="max-w-md mx-auto text-center pt-4">
             <ProfessorPako size={88} mood="happy" />
-            <h2 className="theme-text font-black text-xl mt-3">Hi! I&apos;m Zed.</h2>
+            <h2 className="theme-text font-black text-xl mt-3">
+              Hi! I&apos;m Zed.
+            </h2>
             <p className="theme-text-muted text-sm mt-2 max-w-xs mx-auto leading-snug">
-              Ask me anything about CBC subjects — fractions, science experiments,
-              English grammar. I&apos;ll explain it your way.
+              Ask me anything about CBC subjects — fractions, science experiments, English grammar. I&apos;ll explain it your way.
             </p>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-6">
-              {SUGGESTIONS.map((s) => (
+              {suggestions.map((s) => (
                 <button
                   key={s.label}
                   type="button"

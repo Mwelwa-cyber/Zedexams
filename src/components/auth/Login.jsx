@@ -141,7 +141,7 @@ export default function Login() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center p-6 relative overflow-hidden"
+      className="min-h-screen flex items-center justify-center p-4 sm:p-6 relative overflow-hidden"
       style={{
         backgroundColor: '#FDF6EC',
         '--accent': '#EA580C',
@@ -163,7 +163,7 @@ export default function Login() {
           style={{ background: 'radial-gradient(circle, var(--accent) 0%, transparent 70%)' }} />
       </div>
 
-      <div className="bg-white rounded-[18px] shadow-xl w-full max-w-[400px] sm:max-w-[520px] px-8 pt-9 pb-8 animate-scale-in relative z-10">
+      <div className="bg-white rounded-[18px] shadow-xl w-full max-w-[calc(100vw-2rem)] sm:max-w-[520px] px-5 sm:px-8 pt-9 pb-8 animate-scale-in relative z-10">
         {/* Logo */}
         <div className="flex flex-col items-center mb-2.5 gap-1">
           <Logo variant="full" size="md" />

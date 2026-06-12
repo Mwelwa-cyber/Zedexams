@@ -11,7 +11,7 @@
  * Run: npm run test:activate-syllabus-version
  */
 
-import {fileURLToPath} from 'node:url'
+import {fileURLToPath, pathToFileURL} from 'node:url'
 import {dirname, join} from 'node:path'
 import Module from 'node:module'
 
@@ -88,14 +88,14 @@ Module._load = function(request, parent, ...rest) {
 }
 
 const activateModule = await import(
-  join(__dirname, '..', 'functions', 'teacherTools', 'activateSyllabusVersion.js')
+  pathToFileURL(join(__dirname, '..', 'functions', 'teacherTools', 'activateSyllabusVersion.js')).href
 )
 Module._load = origLoad
 
 // The module exports the onCall-wrapped function; we need the internal
 // helpers. Re-import buildModuleId for path verification.
 const {buildModuleId} = await import(
-  join(__dirname, '..', 'functions', 'teacherTools', 'curriculumModuleSchema.js')
+  pathToFileURL(join(__dirname, '..', 'functions', 'teacherTools', 'curriculumModuleSchema.js')).href
 )
 
 // ── Test harness ───────────────────────────────────────────────────

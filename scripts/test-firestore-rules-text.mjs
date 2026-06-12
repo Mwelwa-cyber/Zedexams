@@ -198,6 +198,27 @@ test('gamification collections enforce field validators', () => {
   )
 })
 
+test('studyPlanProgress is owner-only and bounded', () => {
+  const block = rules.match(/match \/studyPlanProgress\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
+  assert(block, 'studyPlanProgress match block not found')
+  assert(
+    block[1].includes('validStudyPlanProgressFields(userId)'),
+    'studyPlanProgress create/update no longer calls validStudyPlanProgressFields(userId)',
+  )
+  assert(
+    block[1].includes('isOwner(userId)'),
+    'studyPlanProgress no longer requires document-owner access',
+  )
+  assertContains(
+    'incoming().completedTaskKeys is list && incoming().completedTaskKeys.size() <= 20',
+    'study plan checklist key list must stay bounded',
+  )
+  assertContains(
+    'incoming().updatedAt == request.time',
+    'study plan progress writes must use server time',
+  )
+})
+
 // ── Report ──────────────────────────────────────────────────────
 
 console.log('')

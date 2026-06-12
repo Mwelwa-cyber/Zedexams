@@ -194,6 +194,7 @@ const {backfillReferralCodes} = require("./referralBackfill");
 // Audit C6 — public newsletter signup. List builder; export to a real
 // sending platform (Buttondown / Mailchimp / Beehiiv) when ready.
 const {subscribeToNewsletter} = require("./newsletter");
+const {createGenerateStudyPlan} = require("./studentAgents");
 
 const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
 const emailSmtpUser = defineSecret("EMAIL_SMTP_USER");
@@ -740,6 +741,11 @@ exports.aiChat = onCall(
     return {reply};
   },
 );
+
+exports.generateStudyPlan = createGenerateStudyPlan(anthropicApiKey, {
+  enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+  recordAppCheckCallable,
+});
 
 function httpStatusForError(error) {
   const map = {

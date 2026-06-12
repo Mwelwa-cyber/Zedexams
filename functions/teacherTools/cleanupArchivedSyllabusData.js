@@ -148,9 +148,7 @@ async function runAudit() {
   for (const ref of versionsSnap) {
     // Skip the _meta pointer doc — it's not a version-doc.
     if (ref.id === "_meta") continue;
-    /* eslint-disable no-await-in-loop */
     const topicCount = await countCollection(ref.collection("topics"));
-    /* eslint-enable no-await-in-loop */
     versions.push({version: ref.id, topicCount});
   }
 
@@ -201,7 +199,6 @@ async function recursiveDeleteCollection(db, collectionPath) {
   const col = db.collection(collectionPath);
   let deleted = 0;
   let morePages = true;
-  /* eslint-disable no-await-in-loop */
   while (morePages) {
     const page = await col.limit(BATCH_SIZE).get();
     if (page.empty) {
@@ -214,7 +211,6 @@ async function recursiveDeleteCollection(db, collectionPath) {
     deleted += page.size;
     if (page.size < BATCH_SIZE) morePages = false;
   }
-  /* eslint-enable no-await-in-loop */
   return deleted;
 }
 
@@ -229,7 +225,6 @@ async function deleteVersionTopics(version) {
 
   let deleted = 0;
   const BATCH_SIZE = 400;
-  /* eslint-disable no-await-in-loop */
   let pageStart = null;
   let morePages = true;
   while (morePages) {
@@ -259,8 +254,6 @@ async function deleteVersionTopics(version) {
       pageStart = page.docs[page.docs.length - 1];
     }
   }
-  /* eslint-enable no-await-in-loop */
-
   // Drop the parent-version doc too if it ended up created (idempotent;
   // the doc may not exist if topics were never written here).
   try {
