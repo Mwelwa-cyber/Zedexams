@@ -22,7 +22,7 @@ import { TEACHER_GRADES, TEACHER_SUBJECTS } from '../../../utils/teacherTools'
 import { COVERAGE_OPTIONS, blankRecordWeek, buildRecordWeeks, coverageSummary } from '../../../utils/recordOfWork'
 import { downloadRecordOfWorkDocx } from '../../../utils/recordOfWorkToDocx'
 import {
-  listMyGenerations, titleForGeneration, saveRecordOfWorkGeneration,
+  listMyGenerations, titleForGeneration, saveRecordOfWorkGeneration, isFreePlanTeacher,
 } from '../../../utils/teacherLibraryService'
 import RecordOfWorkView from '../views/RecordOfWorkView'
 import StudioPageHeader from '../StudioPageHeader'
@@ -52,7 +52,7 @@ const linesToList = (text) => String(text || '').split('\n').map((l) => l.trim()
 const listToLines = (list) => (Array.isArray(list) ? list.join('\n') : '')
 
 export default function RecordOfWorkStudio() {
-  const { currentUser, userProfile } = useAuth()
+  const { currentUser, userProfile, isAdmin } = useAuth()
   const toast = useToast()
   const uid = currentUser?.uid
 
@@ -193,7 +193,7 @@ export default function RecordOfWorkStudio() {
     if (!artifact) return
     const name = `${header.grade}_term${header.term}_record-of-work.docx`
     try {
-      await downloadRecordOfWorkDocx(artifact, name)
+      await downloadRecordOfWorkDocx(artifact, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
       toast.success('Record of work downloaded.')
     } catch (err) {
       console.error('[RecordOfWorkStudio] docx export failed', err)

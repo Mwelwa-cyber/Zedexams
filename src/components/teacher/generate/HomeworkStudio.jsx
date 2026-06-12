@@ -15,7 +15,8 @@ import { downloadHomeworkDocx } from '../../../utils/homeworkToDocx'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
-import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
+import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
+import { useAuth } from '../../../contexts/AuthContext'
 import { LIBRARY_TYPES } from '../../../config/library'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
 
@@ -25,6 +26,7 @@ import TopicSubtopicPicker from './TopicSubtopicPicker'
  * everything pre-filled; also usable standalone.
  */
 export default function HomeworkStudio() {
+  const { userProfile, isAdmin } = useAuth()
   const urlDefaults = useFormDefaultsFromUrl()
   const [form, setForm] = useState(() => ({
     grade: 'G5',
@@ -101,7 +103,7 @@ export default function HomeworkStudio() {
       slug(homework.header?.topic || form.topic), 'homework',
       new Date().toISOString().slice(0, 10),
     ].filter(Boolean).join('_')
-    downloadHomeworkDocx(homework, `${name}.docx`)
+    downloadHomeworkDocx(homework, `${name}.docx`, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
   return (

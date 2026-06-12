@@ -24,6 +24,7 @@ import {
   TextRun,
   WidthType,
 } from 'docx'
+import { attributionSection } from './docxAttribution.js'
 
 const CELL_BORDER = {
   top:    { style: BorderStyle.SINGLE, size: 4, color: '888888' },
@@ -553,7 +554,7 @@ function buildV3Body(plan) {
  * Build a docx Document from a lesson plan JSON object.
  * Detects schema version by field presence so older saved plans still export.
  */
-export function buildLessonPlanDocument(plan) {
+export function buildLessonPlanDocument(plan, opts = {}) {
   const isV3 = Array.isArray(plan.stages) || plan.schemaVersion === '3.0'
   if (isV3) {
     return new Document({
@@ -565,7 +566,7 @@ export function buildLessonPlanDocument(plan) {
           document: { run: { font: 'Calibri', size: 20 } },
         },
       },
-      sections: [{ children: [h1('LESSON PLAN'), ...buildV3Body(plan)] }],
+      sections: [{ ...attributionSection(opts), children: [h1('LESSON PLAN'), ...buildV3Body(plan)] }],
     })
   }
   const isV2 = !!plan.lessonProgression || !!plan.lessonCompetencies || plan.schemaVersion === '2.0'
@@ -655,15 +656,15 @@ export function buildLessonPlanDocument(plan) {
         document: { run: { font: 'Calibri', size: 20 } },
       },
     },
-    sections: [{ children }],
+    sections: [{ ...attributionSection(opts), children }],
   })
 }
 
 /**
  * Trigger a browser download of the .docx.
  */
-export async function downloadLessonPlanDocx(plan, filename = 'lesson-plan.docx') {
-  const doc = buildLessonPlanDocument(plan)
+export async function downloadLessonPlanDocx(plan, filename = 'lesson-plan.docx', opts = {}) {
+  const doc = buildLessonPlanDocument(plan, opts)
   const blob = await Packer.toBlob(doc)
 
   // Try file-saver first (nicer cross-browser UX), fall back to anchor click.

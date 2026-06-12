@@ -609,6 +609,15 @@ export function getLibraryAccessLevel({ userProfile, isAdmin = false } = {}) {
 }
 
 /**
+ * Should this viewer's studio exports carry the "Made with ZedExams"
+ * page footer? Free plan only — paid (and admin) documents stay clean.
+ * Consumed by the studios together with docxAttribution.js.
+ */
+export function isFreePlanTeacher({ userProfile, isAdmin = false } = {}) {
+  return getLibraryAccessLevel({ userProfile, isAdmin }) === LIBRARY_ACCESS.FREE
+}
+
+/**
  * Decides what the viewer can do with a single library item.
  *
  *   { canView, canDownload, canPrint, canExport }

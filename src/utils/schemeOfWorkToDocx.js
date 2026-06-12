@@ -22,6 +22,7 @@ import {
   TextRun,
   WidthType,
 } from 'docx'
+import { attributionSection } from './docxAttribution.js'
 import { isOfficialScheme } from './weeklyForecast'
 
 const CELL_BORDER = {
@@ -209,7 +210,7 @@ function officialCell(content, { bold = false, center = false, bullets = false, 
   return new TableCell({ children, borders: BLACK_BORDER })
 }
 
-export function buildOfficialSchemeOfWorkDocument(scheme) {
+export function buildOfficialSchemeOfWorkDocument(scheme, opts = {}) {
   const h = scheme.header || {}
   const subject = String(h.subject || '').toUpperCase()
   const gradeLabel = String(h.grade || '').replace(/^G/i, '')
@@ -280,6 +281,7 @@ export function buildOfficialSchemeOfWorkDocument(scheme) {
       },
     },
     sections: [{
+      ...attributionSection(opts),
       properties: {
         page: {
           // Landscape — nine columns never fit portrait A4.
@@ -293,7 +295,7 @@ export function buildOfficialSchemeOfWorkDocument(scheme) {
 
 /* ── Legacy v1 format ──────────────────────────────────────────────── */
 
-export function buildSchemeOfWorkDocument(scheme) {
+export function buildSchemeOfWorkDocument(scheme, opts = {}) {
   const children = []
 
   children.push(h1('SCHEME OF WORK'))
@@ -332,6 +334,7 @@ export function buildSchemeOfWorkDocument(scheme) {
       },
     },
     sections: [{
+      ...attributionSection(opts),
       properties: {
         page: {
           // Landscape — schemes of work are always wide in CDC format.
@@ -343,10 +346,10 @@ export function buildSchemeOfWorkDocument(scheme) {
   })
 }
 
-export async function downloadSchemeOfWorkDocx(scheme, filename = 'scheme-of-work.docx') {
+export async function downloadSchemeOfWorkDocx(scheme, filename = 'scheme-of-work.docx', opts = {}) {
   const doc = isOfficialScheme(scheme)
-    ? buildOfficialSchemeOfWorkDocument(scheme)
-    : buildSchemeOfWorkDocument(scheme)
+    ? buildOfficialSchemeOfWorkDocument(scheme, opts)
+    : buildSchemeOfWorkDocument(scheme, opts)
   const blob = await Packer.toBlob(doc)
   try {
     const { saveAs } = await import('file-saver')
