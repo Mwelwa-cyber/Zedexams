@@ -37,7 +37,7 @@ const generateHomeworkCallable = httpsCallable(functions, 'generateHomework', {
   timeout: 130_000, // server: 120s
 })
 const generateAssessmentCallable = httpsCallable(functions, 'generateAssessment', {
-  timeout: 130_000, // server: 120s
+  timeout: 250_000, // server: 240s — big mocks stream for several minutes
 })
 const generateQuizCallable = httpsCallable(functions, 'generateQuiz', {
   timeout: 130_000, // server: 120s
@@ -833,7 +833,9 @@ export async function generateAssessment(inputs) {
   try {
     const result = await withTimeout(
       generateAssessmentCallable(inputs),
-      HARD_CLIENT_TIMEOUT_MS,
+      // Big papers legitimately run past the shared 130s safety net; match
+      // the callable's own 250s budget (server timeout is 240s).
+      250_000,
       'generateAssessment',
     )
     console.info('[zedexams] generateAssessment ← ok in',

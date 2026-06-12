@@ -60,8 +60,27 @@ function messageFromError(error) {
   if (code.includes('unauthenticated')) {
     return 'Please sign in to generate diagrams.'
   }
+  if (/not_enough_credits/i.test(msg)) {
+    // Recraft's 400 body for an empty balance — no prompt will ever work,
+    // so don't send the admin off to "simplify" anything.
+    return 'The Recraft account is out of image credits — top up at recraft.ai, then run this again.'
+  }
   if (/recraft request failed/i.test(msg)) {
-    return 'Recraft could not generate that diagram — try a simpler prompt.'
+    // The server includes Recraft's HTTP status: "Recraft request failed
+    // (401): …". Surface the account-level causes so an admin sees "rotate
+    // the key" instead of a misleading "simplify your prompt" when every
+    // single generation is failing.
+    const status = Number((/recraft request failed \((\d{3})\)/i.exec(msg) || [])[1])
+    if (status === 401 || status === 403) {
+      return 'The Recraft API key was rejected (HTTP ' + status + ') — admin needs to rotate RECRAFT_API_KEY.'
+    }
+    if (status === 402) {
+      return 'The Recraft account is out of credits — top it up, or switch to the Colour/Photoreal styles.'
+    }
+    if (status === 429) {
+      return 'Recraft is rate-limiting us — wait a minute and try again.'
+    }
+    return `Recraft could not generate that diagram${status ? ` (HTTP ${status})` : ''} — try a simpler prompt.`
   }
   return msg || 'Diagram generation failed. Please try again.'
 }
