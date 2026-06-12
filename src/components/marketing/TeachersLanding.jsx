@@ -22,6 +22,7 @@ import LessonPlanOfficialTable from './LessonPlanOfficialTable'
 import WorksheetView from '../teacher/views/WorksheetView'
 import SchemeOfWorkView from '../teacher/views/SchemeOfWorkView'
 import WeeklyForecastView from '../teacher/views/WeeklyForecastView'
+import RecordOfWorkView from '../teacher/views/RecordOfWorkView'
 import TestPaperOfficial from './TestPaperOfficial'
 import MarkScheduleView from '../teacher/views/MarkScheduleView'
 import ReportCardView from '../teacher/views/ReportCardView'
@@ -92,6 +93,8 @@ function SampleRenderer({ sample, showAnswers, planLayout, testVariant, schedule
       return <SchemeOfWorkView scheme={sample.artifact} />
     case 'weekly_forecast':
       return <WeeklyForecastView forecast={sample.artifact} />
+    case 'record_of_work':
+      return <RecordOfWorkView record={sample.artifact} />
     case 'term_test':
       return <TestPaperOfficial paper={sample.artifact[testVariant] || sample.artifact.midterm} />
     case 'mark_schedule': {
@@ -350,7 +353,7 @@ export default function TeachersLanding() {
     <>
       <SeoHelmet
         title="AI lesson plans, worksheets & schemes for Zambian teachers"
-        description="Generate CBC-aligned lesson plans, worksheets, term tests, schemes of work, weekly forecasts and flashcards in about a minute. See real samples, start free — no card required."
+        description="Generate CBC-aligned lesson plans, worksheets, term tests, schemes of work, weekly forecasts, records of work and flashcards in about a minute. See real samples, start free — no card required."
         path="/teachers"
       />
       <div className="min-h-screen theme-bg theme-text font-body">
@@ -390,8 +393,8 @@ export default function TeachersLanding() {
               Sunday-night planning, done in about a minute.
             </h1>
             <p className="text-lg text-white/80 max-w-xl">
-              CBC-aligned lesson plans, worksheets, term tests, schemes of work, weekly forecasts
-              and flashcards — generated from the official syllabus, edited by you, exported to DOCX or PDF.
+              CBC-aligned lesson plans, worksheets, term tests, schemes of work, weekly forecasts,
+              records of work and flashcards — generated from the official syllabus, edited by you, exported to DOCX or PDF.
             </p>
             <div className="mt-7 flex flex-wrap items-center gap-3">
               <Button as={Link} to="/register?role=teacher" variant="primary" size="lg"
