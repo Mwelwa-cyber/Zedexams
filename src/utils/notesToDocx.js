@@ -16,6 +16,7 @@ import {
   TextRun,
   WidthType,
 } from 'docx'
+import { attributionSection } from './docxAttribution.js'
 
 const CELL_BORDER = {
   top:    { style: BorderStyle.SINGLE, size: 4, color: '888888' },
@@ -108,7 +109,7 @@ function metadataTable(header) {
   })
 }
 
-export function buildNotesDocument(notes) {
+export function buildNotesDocument(notes, opts = {}) {
   const children = []
   const header = notes.header || {}
 
@@ -244,12 +245,12 @@ export function buildNotesDocument(notes) {
     styles: {
       default: { document: { run: { font: 'Calibri', size: 20 } } },
     },
-    sections: [{ children }],
+    sections: [{ ...attributionSection(opts), children }],
   })
 }
 
-export async function downloadNotesDocx(notes, filename = 'teacher-notes.docx') {
-  const doc = buildNotesDocument(notes)
+export async function downloadNotesDocx(notes, filename = 'teacher-notes.docx', opts = {}) {
+  const doc = buildNotesDocument(notes, opts)
   const blob = await Packer.toBlob(doc)
   try {
     const { saveAs } = await import('file-saver')

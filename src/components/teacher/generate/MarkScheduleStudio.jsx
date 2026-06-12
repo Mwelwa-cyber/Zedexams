@@ -22,7 +22,7 @@ import { buildSchedule, suggestComment, rankPupils } from '../../../utils/markSc
 import { downloadMarkScheduleDocx } from '../../../utils/markScheduleToDocx'
 import { downloadMarkScheduleXlsx } from '../../../utils/markScheduleToXlsx'
 import { downloadReportCardsDocx } from '../../../utils/reportCardsToDocx'
-import { saveMarkScheduleGeneration } from '../../../utils/teacherLibraryService'
+import { saveMarkScheduleGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { clampInt } from '../../../utils/inputs.js'
 import { Link } from 'react-router-dom'
 import MarkScheduleView from '../views/MarkScheduleView'
@@ -58,7 +58,7 @@ function loadDraft(uid) {
 }
 
 export default function MarkScheduleStudio() {
-  const { currentUser, userProfile } = useAuth()
+  const { currentUser, userProfile, isAdmin } = useAuth()
   const toast = useToast()
   const uid = currentUser?.uid
 
@@ -195,7 +195,7 @@ export default function MarkScheduleStudio() {
     if (!artifact) return
     const name = `${header.grade}_term${header.term}_${header.year}_mark-schedule.docx`
     try {
-      await downloadMarkScheduleDocx(artifact, name, { mode })
+      await downloadMarkScheduleDocx(artifact, name, { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
       toast.success('Mark schedule downloaded.')
     } catch (err) {
       console.error('[MarkScheduleStudio] docx export failed', err)
@@ -219,7 +219,7 @@ export default function MarkScheduleStudio() {
     if (!artifact) return
     const name = `${header.grade}_term${header.term}_${header.year}_report-cards.docx`
     try {
-      await downloadReportCardsDocx(artifact, name)
+      await downloadReportCardsDocx(artifact, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
       toast.success(`Report cards downloaded — one page per pupil (${artifact.pupils.length}).`)
     } catch (err) {
       console.error('[MarkScheduleStudio] report cards export failed', err)

@@ -18,6 +18,7 @@ import {
   titleForGeneration,
   formatDate,
   attachLibraryToGeneration,
+  isFreePlanTeacher,
 } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
 import NotesView from '../views/NotesView'
@@ -29,7 +30,7 @@ const MODE_STANDALONE = 'standalone'
 
 export default function NotesStudio() {
   const navigate = useNavigate()
-  const { currentUser, userProfile } = useAuth()
+  const { currentUser, userProfile, isAdmin } = useAuth()
   const urlDefaults = useFormDefaultsFromUrl()
 
   // If a lessonPlanId is in the URL, default to the from-plan tab.
@@ -166,7 +167,7 @@ export default function NotesStudio() {
       slug(notes.header?.topic || form.topic || 'notes'),
       new Date().toISOString().slice(0, 10),
     ].filter(Boolean)
-    downloadNotesDocx(notes, `${parts.join('_')}_teacher-notes.docx`)
+    downloadNotesDocx(notes, `${parts.join('_')}_teacher-notes.docx`, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
   return (

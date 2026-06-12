@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { useFirestore } from '../../hooks/useFirestore'
 import { downloadAssessmentDocx } from '../../utils/assessmentToDocx'
+import { isFreePlanTeacher } from '../../utils/teacherLibraryService'
 import { printAssessmentAsPdf } from '../../utils/assessmentToPdf'
 import { summarizeImportReview } from '../../utils/importReviewSummary.js'
 import ImportReviewBadge from '../quiz/ImportReviewBadge'
@@ -142,7 +143,7 @@ function AssessmentRow({ assessment, onDelete, onExport, busy }) {
 }
 
 export default function AssessmentList() {
-  const { currentUser } = useAuth()
+  const { currentUser, userProfile, isAdmin } = useAuth()
   const { getMyAssessments, getAssessmentQuestions, deleteAssessment } = useFirestore()
   const navigate = useNavigate()
   const toast = useToast()
@@ -199,7 +200,7 @@ export default function AssessmentList() {
       mode === 'paper' ? 'paper' : 'marking-scheme',
     )
     if (format === 'docx') {
-      await downloadAssessmentDocx(assessment, questions, `${filename}.docx`, { mode })
+      await downloadAssessmentDocx(assessment, questions, `${filename}.docx`, { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
     } else {
       printAssessmentAsPdf(assessment, questions, { mode })
     }

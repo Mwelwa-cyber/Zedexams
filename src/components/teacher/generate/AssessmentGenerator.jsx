@@ -15,7 +15,8 @@ import { downloadCurriculumAssessmentDocx } from '../../../utils/curriculumAsses
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
-import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
+import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
+import { useAuth } from '../../../contexts/AuthContext'
 import { LIBRARY_TYPES } from '../../../config/library'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
 
@@ -26,6 +27,7 @@ import TopicSubtopicPicker from './TopicSubtopicPicker'
  * document like the other curriculum studios.
  */
 export default function AssessmentGenerator() {
+  const { userProfile, isAdmin } = useAuth()
   const urlDefaults = useFormDefaultsFromUrl()
   const [form, setForm] = useState(() => ({
     grade: 'G5',
@@ -103,7 +105,7 @@ export default function AssessmentGenerator() {
       slug(assessment.header?.topic || form.topic), 'assessment',
       new Date().toISOString().slice(0, 10),
     ].filter(Boolean).join('_')
-    downloadCurriculumAssessmentDocx(assessment, `${name}.docx`)
+    downloadCurriculumAssessmentDocx(assessment, `${name}.docx`, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
   return (

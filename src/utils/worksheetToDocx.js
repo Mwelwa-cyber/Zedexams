@@ -22,6 +22,7 @@ import {
   TextRun,
   WidthType,
 } from 'docx'
+import { attributionSection } from './docxAttribution.js'
 
 const CELL_BORDER = {
   top:    { style: BorderStyle.SINGLE, size: 4, color: '888888' },
@@ -182,7 +183,7 @@ function renderQuestion(q, {includeAnswer}) {
  * @param {object} worksheet  validated worksheet JSON
  * @param {'worksheet'|'answer_key'} mode
  */
-export function buildWorksheetDocument(worksheet, {mode = 'worksheet'} = {}) {
+export function buildWorksheetDocument(worksheet, {mode = 'worksheet', attribution = false} = {}) {
   const includeAnswer = mode === 'answer_key'
   const children = []
 
@@ -226,7 +227,7 @@ export function buildWorksheetDocument(worksheet, {mode = 'worksheet'} = {}) {
         document: { run: { font: 'Calibri', size: 20 } },
       },
     },
-    sections: [{ children }],
+    sections: [{ ...attributionSection({ attribution }), children }],
   })
 }
 

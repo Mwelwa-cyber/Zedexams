@@ -18,7 +18,7 @@ import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import { printLessonPlanAsPdf } from '../../../utils/lessonPlanToPdf'
 import StudioPageHeader from '../StudioPageHeader'
 import LessonPlanView from '../views/LessonPlanView'
-import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
+import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
 
 /**
@@ -28,7 +28,7 @@ import { LIBRARY_TYPES } from '../../../config/library'
  * On mobile the columns stack.
  */
 export default function LessonPlanGenerator() {
-  const { userProfile } = useAuth()
+  const { userProfile, isAdmin } = useAuth()
   const urlDefaults = useFormDefaultsFromUrl()
   const [form, setForm] = useState(() => ({
     grade: 'G5',
@@ -141,7 +141,7 @@ export default function LessonPlanGenerator() {
   function onExportDocx() {
     if (!lessonPlan) return
     const filename = buildFilename(form, lessonPlan)
-    downloadLessonPlanDocx(lessonPlan, filename)
+    downloadLessonPlanDocx(lessonPlan, filename, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
   function onExportPdf() {

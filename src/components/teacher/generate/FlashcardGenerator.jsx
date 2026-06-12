@@ -13,7 +13,8 @@ import { downloadFlashcardsDocx } from '../../../utils/flashcardsToDocx'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
-import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
+import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
+import { useAuth } from '../../../contexts/AuthContext'
 import { LIBRARY_TYPES } from '../../../config/library'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
 
@@ -22,6 +23,7 @@ import TopicSubtopicPicker from './TopicSubtopicPicker'
  * export for printable cut-out cards.
  */
 export default function FlashcardGenerator() {
+  const { userProfile, isAdmin } = useAuth()
   const urlDefaults = useFormDefaultsFromUrl()
   const [form, setForm] = useState(() => ({
     grade: 'G5',
@@ -147,7 +149,7 @@ export default function FlashcardGenerator() {
 
   function onExport() {
     if (!flashcards) return
-    downloadFlashcardsDocx(flashcards, buildFilename())
+    downloadFlashcardsDocx(flashcards, buildFilename(), { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
   return (

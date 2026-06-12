@@ -10,6 +10,7 @@ import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage
 
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
+import { isFreePlanTeacher } from '../../utils/teacherLibraryService'
 import {
   clearAssessmentDraft,
   loadAssessmentDraft,
@@ -279,7 +280,7 @@ function plainTextWordCount(value) {
 
 export default function AssessmentStudio() {
   const { createAssessment, saveAssessmentQuestions, getMyAssessments } = useFirestore()
-  const { currentUser } = useAuth()
+  const { currentUser, userProfile, isAdmin } = useAuth()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedView = searchParams.get('view')
@@ -1207,7 +1208,7 @@ export default function AssessmentStudio() {
         printAssessmentAsPdf(assessmentDoc, serializedPreview.questions, { mode })
         showToast('PDF dialog opened.')
       } else if (kind === 'docx') {
-        await downloadAssessmentDocx(assessmentDoc, serializedPreview.questions, `${baseFile}${fileSuffix}.docx`, { mode })
+        await downloadAssessmentDocx(assessmentDoc, serializedPreview.questions, `${baseFile}${fileSuffix}.docx`, { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
         showToast('Word download started.')
       } else if (kind === 'print') {
         window.print()

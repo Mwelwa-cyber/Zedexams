@@ -20,6 +20,7 @@ import {
   VerticalMergeType,
   WidthType,
 } from 'docx'
+import { attributionSection } from './docxAttribution.js'
 
 const CELL_BORDER = {
   top:    { style: BorderStyle.SINGLE, size: 4, color: '000000' },
@@ -59,7 +60,7 @@ function cell(content, { bold = false, center = false, bullets = false } = {}) {
   return new TableCell({ children, borders: CELL_BORDER })
 }
 
-export function buildWeeklyForecastDocument(forecast) {
+export function buildWeeklyForecastDocument(forecast, opts = {}) {
   const h = forecast.header || {}
   const days = forecast.days || []
   const subject = String(h.subject || '').toUpperCase()
@@ -100,6 +101,7 @@ export function buildWeeklyForecastDocument(forecast) {
 
   return new Document({
     sections: [{
+      ...attributionSection(opts),
       properties: {
         // Landscape — nine columns never fit portrait A4.
         page: { size: { orientation: PageOrientation.LANDSCAPE } },
@@ -127,8 +129,8 @@ export function buildWeeklyForecastDocument(forecast) {
   })
 }
 
-export async function downloadWeeklyForecastDocx(forecast, filename = 'weekly-forecast.docx') {
-  const doc = buildWeeklyForecastDocument(forecast)
+export async function downloadWeeklyForecastDocx(forecast, filename = 'weekly-forecast.docx', opts = {}) {
+  const doc = buildWeeklyForecastDocument(forecast, opts)
   const blob = await Packer.toBlob(doc)
   try {
     const { saveAs } = await import('file-saver')
