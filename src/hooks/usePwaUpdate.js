@@ -42,10 +42,7 @@ export function usePwaUpdate() {
   const [dismissed, setDismissed] = useState(false)
 
   useEffect(() => {
-    // TEMPORARY: Disable SW registration to force fresh content loading
-    // Remove this block once caching issues are resolved
     if (isNativePlatform()) return
-    return  // <- Force early exit; disables SW for web too during debug
     let cancelled = false
     // Proactive update plumbing — torn down on unmount. With autoUpdate the
     // plugin activates on its own once a new SW is found; these only make
