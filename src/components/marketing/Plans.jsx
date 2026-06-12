@@ -59,7 +59,9 @@ function Price({ planKey, billing, onDark }) {
     <div className="flex items-baseline gap-1.5 mb-1.5">
       <span className={`text-base font-bold ${muted}`}>K</span>
       <span className="font-display font-black text-5xl tracking-tight leading-none">{value}</span>
-      <span className={`text-sm ${muted}`}>/ month</span>
+      <span className={`text-sm ${muted}`}>
+        {billing === 'annual' && value > 0 ? '/ month, billed yearly' : '/ month'}
+      </span>
     </div>
   )
 }
