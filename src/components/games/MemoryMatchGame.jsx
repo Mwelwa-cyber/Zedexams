@@ -18,7 +18,7 @@ import MascotCelebration from './MascotCelebration'
 import MascotGreeting from './MascotGreeting'
 import SmartFeedback from './SmartFeedback'
 import ScorePops, { useScorePops } from './ScorePops'
-import { LevelUpBanner, XpProgressBar } from './Progress'
+import { LevelUpBanner, XpProgressBar, PersonalBestBanner } from './Progress'
 import { RatingStars } from './gamesUi'
 
 /**
@@ -49,7 +49,7 @@ export default function MemoryMatchGame({ game }) {
   const { pops, pushPop } = useScorePops()
   const startRef = useRef(null)
 
-  const { saveResult, newBadges, streakResult, levelChange, finish, reset } = useGameFinish()
+  const { saveResult, newBadges, streakResult, levelChange, personalBest, finish, reset } = useGameFinish()
 
   // stopwatch
   useEffect(() => {
@@ -162,6 +162,7 @@ export default function MemoryMatchGame({ game }) {
           newBadges={newBadges}
           streakResult={streakResult}
           levelChange={levelChange}
+          personalBest={personalBest}
           onRestart={restart}
         />
       </>
@@ -252,11 +253,12 @@ function ReadyCard({ game, pairs, onStart }) {
   )
 }
 
-function DoneCard({ game, score, moves, mismatches, elapsed, efficiency, saveResult, newBadges, streakResult, levelChange, onRestart }) {
+function DoneCard({ game, score, moves, mismatches, elapsed, efficiency, saveResult, newBadges, streakResult, levelChange, personalBest, onRestart }) {
   const stars = efficiency >= 90 ? 5 : efficiency >= 75 ? 4 : efficiency >= 55 ? 3 : 2
   return (
     <div className="space-y-5">
       {levelChange?.leveledUp && <LevelUpBanner change={levelChange} />}
+      {personalBest?.isBest && <PersonalBestBanner personalBest={personalBest} />}
       {streakResult?.isDaily && <StreakBanner result={streakResult} />}
       {newBadges?.length > 0 && <BadgeToast badges={newBadges} />}
 

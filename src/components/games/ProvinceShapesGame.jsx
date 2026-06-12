@@ -23,7 +23,7 @@ import MascotGreeting from './MascotGreeting'
 import SmartFeedback from './SmartFeedback'
 import ComboPill from './ComboPill'
 import ScorePops, { useScorePops } from './ScorePops'
-import { LevelUpBanner, XpProgressBar } from './Progress'
+import { LevelUpBanner, XpProgressBar, PersonalBestBanner } from './Progress'
 import { comboHeat } from './gameFeel'
 import { DoneStat, SaveBanner, StreakBanner } from './DoneBanners'
 import { RatingStars } from './gamesUi'
@@ -60,6 +60,7 @@ export default function ProvinceShapesGame({ game }) {
   const [confettiKey, setConfettiKey] = useState(0)
   const [shakeAt, setShakeAt] = useState(-1) // pos that got a wrong answer (drives card shake)
   const [levelChange, setLevelChange] = useState(null)
+  const [personalBest, setPersonalBest] = useState(null)
   const { pops, pushPop } = useScorePops()
   const startedAtRef = useRef(null)
 
@@ -121,6 +122,7 @@ export default function ProvinceShapesGame({ game }) {
     setStreakResult(null)
     setShakeAt(-1)
     setLevelChange(null)
+    setPersonalBest(null)
     startedAtRef.current = Date.now()
   }
 
@@ -162,11 +164,17 @@ export default function ProvinceShapesGame({ game }) {
       playWin()
       setConfettiKey((k) => k + 1)
     }
-    // Snapshot points before this round so a level-up can be detected exactly.
+    // Snapshot points before this round so a level-up can be detected exactly;
+    // the same history gives this game's previous best for "personal best".
     let beforeTotal = null
+    let prevBest = null
     try {
       const history = await getMyHistory(40)
       beforeTotal = history.reduce((sum, row) => sum + (Number(row.score) || 0), 0)
+      prevBest = history
+        .filter((row) => row.gameId === game.id)
+        .reduce((best, row) => Math.max(best, Number(row.score) || 0), -1)
+      if (prevBest < 0) prevBest = null
     } catch { /* progression is non-critical */ }
 
     const result = await saveScore({
@@ -183,6 +191,9 @@ export default function ProvinceShapesGame({ game }) {
     if (result?.ok) {
       if (beforeTotal != null) {
         setLevelChange(levelUpInfo(beforeTotal, beforeTotal + score))
+      }
+      if (prevBest != null && score > prevBest) {
+        setPersonalBest({ isBest: true, prevBest })
       }
       try {
         const { newlyEarned } = await evaluateAndAwardGameBadges({
@@ -230,6 +241,7 @@ export default function ProvinceShapesGame({ game }) {
           newBadges={newBadges}
           streakResult={streakResult}
           levelChange={levelChange}
+          personalBest={personalBest}
           onRestart={start}
         />
       </>
@@ -397,10 +409,11 @@ function ReadyCard({ game, totalQuestions, onStart }) {
   )
 }
 
-function DoneCard({ game, score, correct, wrong, accuracy, bestStreak, saveResult, newBadges, streakResult, levelChange, onRestart }) {
+function DoneCard({ game, score, correct, wrong, accuracy, bestStreak, saveResult, newBadges, streakResult, levelChange, personalBest, onRestart }) {
   return (
     <div className="space-y-5">
       {levelChange?.leveledUp && <LevelUpBanner change={levelChange} />}
+      {personalBest?.isBest && <PersonalBestBanner personalBest={personalBest} />}
       {streakResult?.isDaily && <StreakBanner result={streakResult} />}
       {newBadges?.length > 0 && <BadgeToast badges={newBadges} />}
 

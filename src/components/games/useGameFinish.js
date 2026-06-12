@@ -39,6 +39,7 @@ export function useGameFinish() {
   const [newBadges, setNewBadges] = useState([])
   const [streakResult, setStreakResult] = useState(null)
   const [levelChange, setLevelChange] = useState(null)
+  const [personalBest, setPersonalBest] = useState(null)
 
   function reset() {
     setPhase('playing')
@@ -46,17 +47,21 @@ export function useGameFinish() {
     setNewBadges([])
     setStreakResult(null)
     setLevelChange(null)
+    setPersonalBest(null)
   }
 
   async function finish(result) {
     setPhase('done')
 
     // Snapshot the points total *before* this round so a level-up can be
-    // detected exactly, independent of write propagation.
+    // detected exactly, independent of write propagation. The same history
+    // gives us this game's previous best for the "personal best" celebration.
     let beforeTotal = null
+    let prevBest = null
     try {
       const history = await getMyHistory(HISTORY_WINDOW)
       beforeTotal = history.reduce((sum, row) => sum + (Number(row.score) || 0), 0)
+      prevBest = bestScoreFor(history, result.game?.id)
     } catch {
       /* progression is non-critical — skip if history is unavailable */
     }
@@ -78,6 +83,9 @@ export function useGameFinish() {
     if (beforeTotal != null) {
       const after = beforeTotal + (Number(result.score) || 0)
       setLevelChange(levelUpInfo(beforeTotal, after))
+    }
+    if (prevBest != null && (Number(result.score) || 0) > prevBest) {
+      setPersonalBest({ isBest: true, prevBest })
     }
 
     // Badges
@@ -110,5 +118,21 @@ export function useGameFinish() {
     }
   }
 
-  return { phase, setPhase, saveResult, newBadges, streakResult, levelChange, finish, reset }
+  return { phase, setPhase, saveResult, newBadges, streakResult, levelChange, personalBest, finish, reset }
+}
+
+/**
+ * Highest score this player has previously logged for a game, from a history
+ * window. Returns null when they have never played it (so a first play isn't
+ * mislabelled a "personal best").
+ */
+function bestScoreFor(history, gameId) {
+  if (!gameId) return null
+  let best = null
+  for (const row of history) {
+    if (row.gameId !== gameId) continue
+    const s = Number(row.score) || 0
+    if (best == null || s > best) best = s
+  }
+  return best
 }

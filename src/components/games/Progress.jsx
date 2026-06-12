@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { ArrowTrendingUpIcon, SparklesIcon } from '@heroicons/react/24/solid'
+import { ArrowTrendingUpIcon, SparklesIcon, TrophyIcon } from '@heroicons/react/24/solid'
 
 /**
  * Progression UI — the visible "goal to chase" built on src/utils/gameProgress.
@@ -117,6 +117,33 @@ export function LevelUpBanner({ change }) {
             {change.newRank
               ? <>New rank unlocked: <b>{change.newRank.title}</b>. Keep climbing!</>
               : <>Nice work — {change.after?.pointsToNext?.toLocaleString?.() ?? change.after?.pointsToNext} pts to Level {change.toLevel + 1}.</>}
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * "You beat your own best" banner — the cheapest competitive hook there is:
+ * the learner racing themselves. Shown on the done screen when this round beat
+ * their previous best for the game.
+ */
+export function PersonalBestBanner({ personalBest }) {
+  if (!personalBest?.isBest) return null
+  return (
+    <div
+      className="zx-card rounded-[18px] bg-amber-100 p-4 text-amber-900"
+      style={{ animation: 'zx-combo-bump 0.4s ease-out' }}
+    >
+      <div className="flex items-start gap-3">
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] border-2 border-slate-900 bg-white text-amber-600">
+          <TrophyIcon className="h-6 w-6" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-black">New personal best! 🎉</p>
+          <p className="mt-1 text-sm leading-6 opacity-90">
+            You beat your previous best of {personalBest.prevBest.toLocaleString()} pts on this game.
           </p>
         </div>
       </div>

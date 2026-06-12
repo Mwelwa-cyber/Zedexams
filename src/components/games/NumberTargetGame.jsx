@@ -12,7 +12,7 @@ import {
 import { playCorrect, playWrong, playWin, playTick, primeSounds } from '../../utils/gameSounds'
 import { useGameFinish } from './useGameFinish'
 import { SaveBanner, StreakBanner, DoneStat } from './DoneBanners'
-import { LevelUpBanner, XpProgressBar } from './Progress'
+import { LevelUpBanner, XpProgressBar, PersonalBestBanner } from './Progress'
 import BadgeToast from './BadgeToast'
 import ShareButton from './ShareButton'
 import Confetti from './Confetti'
@@ -65,7 +65,7 @@ export default function NumberTargetGame({ game }) {
   const startRef = useRef(null)
   const idRef = useRef(0)
 
-  const { saveResult, newBadges, streakResult, levelChange, finish, reset } = useGameFinish()
+  const { saveResult, newBadges, streakResult, levelChange, personalBest, finish, reset } = useGameFinish()
 
   const round = rounds[pos] || null
   const board = history[history.length - 1] || []
@@ -240,6 +240,7 @@ export default function NumberTargetGame({ game }) {
           newBadges={newBadges}
           streakResult={streakResult}
           levelChange={levelChange}
+          personalBest={personalBest}
           onRestart={start}
         />
       </>
@@ -428,10 +429,11 @@ function ReadyCard({ game, cfg, roundCount, points, onStart }) {
   )
 }
 
-function DoneCard({ game, score, solved, total, accuracy, bestStreak, saveResult, newBadges, streakResult, levelChange, onRestart }) {
+function DoneCard({ game, score, solved, total, accuracy, bestStreak, saveResult, newBadges, streakResult, levelChange, personalBest, onRestart }) {
   return (
     <div className="space-y-5">
       {levelChange?.leveledUp && <LevelUpBanner change={levelChange} />}
+      {personalBest?.isBest && <PersonalBestBanner personalBest={personalBest} />}
       {streakResult?.isDaily && <StreakBanner result={streakResult} />}
       {newBadges?.length > 0 && <BadgeToast badges={newBadges} />}
 

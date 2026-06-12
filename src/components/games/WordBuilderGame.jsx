@@ -19,7 +19,7 @@ import MascotCelebration from './MascotCelebration'
 import MascotGreeting from './MascotGreeting'
 import SmartFeedback from './SmartFeedback'
 import ScorePops, { useScorePops } from './ScorePops'
-import { LevelUpBanner, XpProgressBar } from './Progress'
+import { LevelUpBanner, XpProgressBar, PersonalBestBanner } from './Progress'
 import { RatingStars } from './gamesUi'
 
 /**
@@ -51,7 +51,7 @@ export default function WordBuilderGame({ game }) {
   const { pops, pushPop } = useScorePops()
   const startRef = useRef(null)
 
-  const { saveResult, newBadges, streakResult, levelChange, finish, reset } = useGameFinish()
+  const { saveResult, newBadges, streakResult, levelChange, personalBest, finish, reset } = useGameFinish()
 
   const current = words[order[pos] ?? 0] || { question: '', answer: '' }
   const target = String(current.answer || '').toUpperCase()
@@ -168,6 +168,7 @@ export default function WordBuilderGame({ game }) {
           newBadges={newBadges}
           streakResult={streakResult}
           levelChange={levelChange}
+          personalBest={personalBest}
           onRestart={start}
         />
       </>
@@ -306,10 +307,11 @@ function ReadyCard({ game, wordCount, onStart }) {
   )
 }
 
-function DoneCard({ game, score, solved, total, accuracy, mistakes, saveResult, newBadges, streakResult, levelChange, onRestart }) {
+function DoneCard({ game, score, solved, total, accuracy, mistakes, saveResult, newBadges, streakResult, levelChange, personalBest, onRestart }) {
   return (
     <div className="space-y-5">
       {levelChange?.leveledUp && <LevelUpBanner change={levelChange} />}
+      {personalBest?.isBest && <PersonalBestBanner personalBest={personalBest} />}
       {streakResult?.isDaily && <StreakBanner result={streakResult} />}
       {newBadges?.length > 0 && <BadgeToast badges={newBadges} />}
 
