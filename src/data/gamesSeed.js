@@ -1128,6 +1128,57 @@ const ORDER_THE_STEPS_G6 = {
 }
 
 /* ────────────────────────────────────────────────────────────────────
+ *  ZED MARKET CHALLENGE — money & change (type: "market_challenge")
+ *  Fully procedural: customers, prices, and change are generated in the
+ *  engine from the difficulty config, so `questions` stays empty.
+ * ──────────────────────────────────────────────────────────────────── */
+const MARKET_CHALLENGE_G3 = {
+  id: 'math_market_challenge_g3',
+  title: 'Zed Market: First Stall',
+  subject: 'mathematics',
+  grade: 3,
+  type: 'market_challenge',
+  difficulty: 'easy',
+  description: 'Run your own market stall! Add up the goods and give each customer the right change in Kwacha.',
+  timer: 0,
+  points: 12,
+  active: true,
+  cbc_topic: 'Money',
+  isDemo: true,
+  questions: [],
+}
+
+const MARKET_CHALLENGE_G5 = {
+  id: 'math_market_challenge_g5',
+  title: 'Zed Market Challenge',
+  subject: 'mathematics',
+  grade: 5,
+  type: 'market_challenge',
+  difficulty: 'medium',
+  description: 'Bigger orders, bigger notes. Keep your customers happy with fast, correct change.',
+  timer: 0,
+  points: 15,
+  active: true,
+  cbc_topic: 'Money',
+  questions: [],
+}
+
+const MARKET_CHALLENGE_G7 = {
+  id: 'math_market_challenge_g7',
+  title: 'Zed Market: Master Trader',
+  subject: 'mathematics',
+  grade: 7,
+  type: 'market_challenge',
+  difficulty: 'hard',
+  description: 'Ngwee prices, three-item orders, and K100 notes. Only a master trader never gives wrong change.',
+  timer: 0,
+  points: 20,
+  active: true,
+  cbc_topic: 'Money',
+  questions: [],
+}
+
+/* ────────────────────────────────────────────────────────────────────
  *  Manifest
  * ──────────────────────────────────────────────────────────────────── */
 const DEFAULT_DEMO_GAME_IDS = new Set([
@@ -1161,6 +1212,7 @@ export const GAMES_SEED = [
   SIGHT_WORDS_G2,
   SPELL_IT_RIGHT_G2,
   TIMES_TABLES_G3,
+  MARKET_CHALLENGE_G3,
   SORTING_LIVING_G3,
   WORD_BUILDER_G3,
   SPELL_IT_RIGHT_G3,
@@ -1177,6 +1229,7 @@ export const GAMES_SEED = [
   HUMAN_BODY_G5,
   DIGESTIVE_SYSTEM_G5,
   DECIMALS_G5,
+  MARKET_CHALLENGE_G5,
   SPELL_IT_RIGHT_G5,
   SORTING_WORD_TYPES_G5,
   SENTENCE_SCRAMBLE_G5,
@@ -1193,6 +1246,9 @@ export const GAMES_SEED = [
   SORTING_STATES_G6,
   ORDER_THE_STEPS_G6,
   ZAMBIA_HISTORY_G6,
+
+  // G7
+  MARKET_CHALLENGE_G7,
 
   // ── Outside primary CBC scope — kept in seed so admin can flip active=true if needed ──
   INTEGERS_G7,
