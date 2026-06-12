@@ -207,6 +207,20 @@ service firebase.storage {
       allow delete: if isAdmin();
     }
 
+    // Picture bank blobs — teaching figures teachers browse and attach to
+    // assessments. Teacher-read (the picker resolves download URLs from
+    // storagePath); writes come from admins (uploads) and the extraction
+    // Cloud Function (admin SDK bypasses rules).
+    function validPictureBankUpload() {
+      return request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+    match /picture-bank/{allPaths=**} {
+      allow read: if isAuthed();
+      allow create, update: if isAdmin() && validPictureBankUpload();
+      allow delete: if isAdmin();
+    }
+
     // Notes Studio inline images: PNG/JPEG/WebP/GIF up to 5 MB, written by
     // the rich-text editor. Must come BEFORE the whole-note files match
     // since {fileName=**} would otherwise swallow the /inline/ segment.

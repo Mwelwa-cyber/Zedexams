@@ -37,6 +37,7 @@ import { validateStandaloneQuestion as sharedValidateStandaloneQuestion } from '
 import { assertNoBlobImageUrls } from '../../utils/importedQuizAssets.js'
 import SeoHelmet from '../seo/SeoHelmet'
 import ConfirmDialog from '../ui/ConfirmDialog'
+import PictureBankPicker from './PictureBankPicker'
 import {
   QUIZ_DOCUMENT_ACCEPT,
   importQuizDocument,
@@ -2640,6 +2641,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
   const isMatching = type === 'matching'
   const isSequence = type === 'sequence'
   const imageInputRef = useRef(null)
+  const [bankPickerOpen, setBankPickerOpen] = useState(false)
   const [suggesting, setSuggesting] = useState(false)
   const [suggestError, setSuggestError] = useState('')
   // AI suggestion lives in component-local state, NOT on the question
@@ -2928,22 +2930,43 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
             <div>Uploading image…</div>
           </div>
         ) : (
-          <button type="button" className="sv-q-media" onClick={() => imageInputRef.current?.click()}>
-            <div className="sv-ic">🖼</div>
-            <div>Add a diagram or image (optional)</div>
-            <small>JPG, PNG or WEBP · up to 15 MB</small>
-            <input
-              ref={imageInputRef}
-              type="file"
-              accept="image/*"
-              style={{ display: 'none' }}
-              onChange={e => {
-                const file = e.target.files?.[0]
-                if (file) onUploadImage(file)
-                e.target.value = ''
-              }}
-            />
-          </button>
+          <>
+            <button type="button" className="sv-q-media" onClick={() => imageInputRef.current?.click()}>
+              <div className="sv-ic">🖼</div>
+              <div>Add a diagram or image (optional)</div>
+              <small>JPG, PNG or WEBP · up to 15 MB</small>
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={e => {
+                  const file = e.target.files?.[0]
+                  if (file) onUploadImage(file)
+                  e.target.value = ''
+                }}
+              />
+            </button>
+            <button
+              type="button"
+              className="sv-btn sv-btn-ghost"
+              style={{ marginTop: 6, fontSize: 13 }}
+              onClick={() => setBankPickerOpen(true)}
+            >
+              📚 Pick from the picture bank
+            </button>
+            {bankPickerOpen && (
+              <PictureBankPicker
+                subject={paperMeta?.subject || ''}
+                onClose={() => setBankPickerOpen(false)}
+                onSelect={({ url }) => {
+                  updateQuestion('imageUrl', url)
+                  updateQuestion('imageAssetId', '')
+                  setBankPickerOpen(false)
+                }}
+              />
+            )}
+          </>
         )
       )}
 

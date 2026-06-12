@@ -38,6 +38,10 @@ const {
   EXTRACT_SYSTEM_PROMPT,
   buildExtractUserPrompt,
   buildDraftFromExtraction,
+  isLikelyContentImage,
+  buildStagedPictureDoc,
+  extOf,
+  MAX_IMAGES_PER_PAPER,
 } = require("./assessmentFormatExtractHelpers");
 
 const EXTRACT_MODEL =
@@ -64,6 +68,63 @@ async function resolveSource({paperId, storagePath}) {
   }
   const source = sourceForSamplePath(path);
   return {source, sourceNote: path.split("/").pop() || "uploaded sample"};
+}
+
+/**
+ * Pull embedded images out of a DOCX sample and stage them in the
+ * picture bank (status:'staged') for the admin to tag or discard. Best
+ * effort — a failure here never fails the format extraction itself.
+ * Returns the number of images staged.
+ */
+async function stageDocxImages({
+  source, draftId, subject, gradeBand, sourceNote, uid,
+}) {
+  if (!source || source.kind !== "docx") return 0;
+  try {
+    // adm-zip reads the DOCX container directly; mammoth (used for the
+    // text path) doesn't expose raw media entries.
+    const AdmZip = require("adm-zip");
+    const [buf] = await admin.storage().bucket()
+      .file(source.path).download();
+    const zip = new AdmZip(buf);
+    const media = zip.getEntries()
+      .filter((e) => e.entryName.startsWith("word/media/") && !e.isDirectory)
+      .map((e) => ({name: e.entryName, byteLength: e.header.size, entry: e}))
+      .filter(isLikelyContentImage)
+      .slice(0, MAX_IMAGES_PER_PAPER);
+    if (media.length === 0) return 0;
+
+    const db = admin.firestore();
+    const bucket = admin.storage().bucket();
+    let staged = 0;
+    for (let i = 0; i < media.length; i++) {
+      const m = media[i];
+      const ext = extOf(m.name);
+      const docRef = db.collection("pictureBank").doc();
+      const storagePath =
+        `picture-bank/staged/${draftId}/${docRef.id}.${ext}`;
+      const doc = buildStagedPictureDoc({
+        index: i, ext, storagePath, subject, gradeBand, draftId,
+        sourceNote, uid,
+      });
+      await bucket.file(storagePath).save(m.entry.getData(), {
+        contentType: doc.contentType,
+        resumable: false,
+      });
+      await docRef.set({
+        ...doc,
+        id: docRef.id,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      staged += 1;
+    }
+    return staged;
+  } catch (err) {
+    console.warn("[extractAssessmentFormat] image staging failed",
+      err && err.message);
+    return 0;
+  }
 }
 
 async function runExtractAssessmentFormat({uid, data, apiKey}) {
@@ -128,6 +189,18 @@ async function runExtractAssessmentFormat({uid, data, apiKey}) {
     createdAt: admin.firestore.FieldValue.serverTimestamp(),
   });
 
+  // Stage any embedded teaching figures into the picture bank for admin
+  // tagging. DOCX only — PDFs would need rasterising, which is a separate
+  // project. Best effort; never blocks the format draft.
+  const imagesStaged = await stageDocxImages({
+    source,
+    draftId: draftRef.id,
+    subject,
+    gradeBand,
+    sourceNote,
+    uid,
+  });
+
   // Cost tracking + audit trail, same shape as the past-paper importer.
   try {
     await admin.firestore().collection("aiGenerations").add({
@@ -157,11 +230,16 @@ async function runExtractAssessmentFormat({uid, data, apiKey}) {
     warnings.push("The draft needs fixes before it can be approved: " +
       built.validationErrors.join("; "));
   }
+  if (imagesStaged > 0) {
+    warnings.push(`${imagesStaged} embedded image(s) staged in the ` +
+      "picture bank for tagging.");
+  }
 
   return {
     draftId: draftRef.id,
     draft: built.draft,
     validationErrors: built.validationErrors,
+    imagesStaged,
     usage: result.usage || null,
     warning: warnings.length ? warnings.join(" ") : null,
   };

@@ -1038,6 +1038,9 @@ function AssessmentFormatsPanel({
           >
             {importing ? 'Importing…' : 'Import built-in formats'}
           </button>
+          <a href="/admin/picture-bank" className="ss-tab-btn">
+            🖼 Picture bank
+          </a>
           {total > 0 && (
             <button
               type="button"

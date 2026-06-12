@@ -190,9 +190,70 @@ function buildDraftFromExtraction({
   };
 }
 
+// ── Embedded-image extraction (picture bank staging) ─────────────────────
+// DOCX media entries are a mix of real teaching figures (anatomy diagrams,
+// the Coat of Arms, Venn diagrams) and noise (school logos, decorative
+// clipart, drawing-canvas fragments). We can't tell them apart reliably
+// server-side, so we stage everything that *could* be content and let the
+// admin tag or discard each one in the picture-bank review UI.
+
+const IMAGE_EXTS = new Set(["png", "jpg", "jpeg", "gif", "webp"]);
+// Below this, an image is almost always a logo fragment, bullet art or a
+// drawing-canvas sliver rather than a printable teaching figure.
+const MIN_CONTENT_IMAGE_BYTES = 4 * 1024;
+const MAX_CONTENT_IMAGE_BYTES = 10 * 1024 * 1024;
+const MAX_IMAGES_PER_PAPER = 20;
+
+const EXT_TO_CONTENT_TYPE = Object.freeze({
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+});
+
+/**
+ * Decide whether a DOCX media entry looks like a teaching figure worth
+ * staging. `entry` is {name, byteLength}. Pure, so the filter rules are
+ * unit-testable.
+ */
+function isLikelyContentImage(entry) {
+  const ext = extOf(entry && entry.name);
+  if (!IMAGE_EXTS.has(ext)) return false;
+  const size = Number(entry && entry.byteLength) || 0;
+  return size >= MIN_CONTENT_IMAGE_BYTES && size <= MAX_CONTENT_IMAGE_BYTES;
+}
+
+/**
+ * Build the pictureBank doc for one staged image. The admin supplies the
+ * real name + keywords during review; until then the doc carries enough
+ * provenance to render and triage it.
+ */
+function buildStagedPictureDoc({
+  index, ext, storagePath, subject, gradeBand, draftId, sourceNote, uid,
+}) {
+  return {
+    name: `Extracted image ${index + 1}`,
+    nameLower: `extracted image ${index + 1}`,
+    subject: String(subject || "_generic"),
+    gradeBand: String(gradeBand || ""),
+    keywords: [],
+    storagePath,
+    url: null,
+    contentType: EXT_TO_CONTENT_TYPE[ext] || "application/octet-stream",
+    source: "extracted",
+    status: "staged",
+    sourceDraftId: draftId || null,
+    sourceNote: String(sourceNote || "").slice(0, 300),
+    createdBy: uid || null,
+  };
+}
+
 module.exports = {
   SAMPLE_PATH_PREFIX,
   EXT_TO_KIND,
+  EXT_TO_CONTENT_TYPE,
+  MAX_IMAGES_PER_PAPER,
   extOf,
   sanitiseSamplePath,
   kindFromPath,
@@ -201,4 +262,6 @@ module.exports = {
   EXTRACT_SYSTEM_PROMPT,
   buildExtractUserPrompt,
   buildDraftFromExtraction,
+  isLikelyContentImage,
+  buildStagedPictureDoc,
 };

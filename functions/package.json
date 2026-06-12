@@ -19,6 +19,7 @@
   "dependencies": {
     "@google-cloud/text-to-speech": "^6.4.0",
     "@octokit/rest": "^22.0.1",
+    "adm-zip": "^0.5.16",
     "cors": "^2.8.6",
     "exceljs": "^4.4.0",
     "firebase-admin": "^13.6.0",
