@@ -501,15 +501,15 @@ service cloud.firestore {
     match /aiGenerations/{genId} {
       allow read:   if isAuthed() && (resource.data.ownerUid == request.auth.uid || isAdmin());
       // AI generations are created by Cloud Functions only (admin SDK
-      // bypasses rules). The ONLY client-created tools are mark_schedule
-      // and weekly_forecast — both pure client-side derivation (no AI
-      // call, no server runner), so their studios write their own docs,
-      // tightly constrained: own uid, fixed tool/status, and no extra
-      // top-level fields (notably none of the server-only cost/token
-      // fields).
+      // bypasses rules). The ONLY client-created tools are mark_schedule,
+      // weekly_forecast and record_of_work — all pure client-side
+      // derivation (no AI call, no server runner), so their studios write
+      // their own docs, tightly constrained: own uid, fixed tool/status,
+      // and no extra top-level fields (notably none of the server-only
+      // cost/token fields).
       allow create: if isAuthed()
                        && incoming().ownerUid == request.auth.uid
-                       && incoming().tool in ['mark_schedule', 'weekly_forecast']
+                       && incoming().tool in ['mark_schedule', 'weekly_forecast', 'record_of_work']
                        && incoming().status == 'complete'
                        && incoming().visibility == 'private'
                        && incoming().keys().hasOnly([

@@ -17,6 +17,7 @@ import FlashcardsView from '../views/FlashcardsView'
 import SchemeOfWorkView from '../views/SchemeOfWorkView'
 import MarkScheduleView from '../views/MarkScheduleView'
 import WeeklyForecastView from '../views/WeeklyForecastView'
+import RecordOfWorkView from '../views/RecordOfWorkView'
 import RubricView from '../views/RubricView'
 import NotesView from '../views/NotesView'
 import SeoHelmet from '../../seo/SeoHelmet'
@@ -30,6 +31,7 @@ import { downloadReportCardsDocx } from '../../../utils/reportCardsToDocx'
 import { downloadFullLessonDocx } from '../../../utils/fullLessonToDocx'
 import FullLessonView from '../views/FullLessonView'
 import { downloadWeeklyForecastDocx } from '../../../utils/weeklyForecastToDocx'
+import { downloadRecordOfWorkDocx } from '../../../utils/recordOfWorkToDocx'
 import { downloadRubricDocx } from '../../../utils/rubricToDocx'
 import { downloadNotesDocx } from '../../../utils/notesToDocx'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
@@ -178,6 +180,9 @@ export default function LibraryItemDetail() {
       recordExport(item.id, 'docx')
     } else if (item.tool === 'weekly_forecast') {
       await downloadWeeklyForecastDocx(item.output, `${base}_weekly-forecast.docx`)
+      recordExport(item.id, 'docx')
+    } else if (item.tool === 'record_of_work') {
+      await downloadRecordOfWorkDocx(item.output, `${base}_record-of-work.docx`)
       recordExport(item.id, 'docx')
     }
   }
@@ -500,6 +505,9 @@ export default function LibraryItemDetail() {
           )}
           {item.tool === 'weekly_forecast' && item.output && (
             <WeeklyForecastView forecast={item.output} />
+          )}
+          {item.tool === 'record_of_work' && item.output && (
+            <RecordOfWorkView record={item.output} />
           )}
           {item.tool === 'full_lesson' && <FullLessonView lesson={item.output} />}
           {item.tool === 'rubric' && <RubricView rubric={item.output} />}

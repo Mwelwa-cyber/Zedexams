@@ -182,6 +182,7 @@ const FlashcardGenerator = lazy(() => import('./components/teacher/generate/Flas
 const SchemeOfWorkGenerator = lazy(() => import('./components/teacher/generate/SchemeOfWorkGenerator'))
 const MarkScheduleStudio = lazy(() => import('./components/teacher/generate/MarkScheduleStudio'))
 const WeeklyForecastStudio = lazy(() => import('./components/teacher/generate/WeeklyForecastStudio'))
+const RecordOfWorkStudio = lazy(() => import('./components/teacher/generate/RecordOfWorkStudio'))
 const RubricGenerator = lazy(() => import('./components/teacher/generate/RubricGenerator'))
 const NotesStudio = lazy(() => import('./components/teacher/generate/NotesStudio'))
 
@@ -560,6 +561,7 @@ export default function App() {
           <Route path="/teacher/generate/scheme-of-work" element={<TeacherRoute><SchemeOfWorkGenerator /></TeacherRoute>} />
           <Route path="/teacher/generate/mark-schedule" element={<TeacherRoute><MarkScheduleStudio /></TeacherRoute>} />
           <Route path="/teacher/generate/weekly-forecast" element={<TeacherRoute><WeeklyForecastStudio /></TeacherRoute>} />
+          <Route path="/teacher/generate/record-of-work" element={<TeacherRoute><RecordOfWorkStudio /></TeacherRoute>} />
           <Route path="/teacher/generate/rubric"          element={<TeacherRoute><RubricGenerator /></TeacherRoute>} />
           <Route path="/teacher/generate/notes"           element={<TeacherRoute><NotesStudio /></TeacherRoute>} />
           <Route path="/teacher/library"                 element={<TeacherRoute><TeacherLibrary /></TeacherRoute>} />

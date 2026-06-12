@@ -1,0 +1,396 @@
+/**
+ * Record of Work studio — /teacher/generate/record-of-work
+ *
+ * Pure client-side tool (no AI call, no usage meter). The record of
+ * work is the statutory weekly log of what was ACTUALLY taught — head
+ * teachers check it against the scheme of work — so the studio builds
+ * one FROM a saved scheme: pick a scheme from the library and every
+ * week arrives prefilled with its planned work; the teacher then edits
+ * the log, marks coverage, and adds remarks as the term progresses.
+ * Teachers without a saved scheme can start blank.
+ *
+ * Outputs the official document (WEEK | WEEK ENDING | TOPIC | SUB-TOPIC |
+ * WORK DONE | REMARKS, plus the checked-by signature block) on screen
+ * and as landscape DOCX, and saves to the library's Records of Work
+ * section.
+ */
+
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { Link } from 'react-router-dom'
+import { useAuth } from '../../../contexts/AuthContext'
+import { TEACHER_GRADES, TEACHER_SUBJECTS } from '../../../utils/teacherTools'
+import { COVERAGE_OPTIONS, blankRecordWeek, buildRecordWeeks, coverageSummary } from '../../../utils/recordOfWork'
+import { downloadRecordOfWorkDocx } from '../../../utils/recordOfWorkToDocx'
+import {
+  listMyGenerations, titleForGeneration, saveRecordOfWorkGeneration,
+} from '../../../utils/teacherLibraryService'
+import RecordOfWorkView from '../views/RecordOfWorkView'
+import StudioPageHeader from '../StudioPageHeader'
+import SeoHelmet from '../../seo/SeoHelmet'
+import ConfirmDialog from '../../ui/ConfirmDialog'
+import { useToast } from '../../ui/Toast'
+
+const DRAFT_PREFIX = 'examprep:recordofwork:draft:'
+const DRAFT_TTL = 30 * 24 * 60 * 60 * 1000
+const draftKey = (uid) => `${DRAFT_PREFIX}${uid || 'anon'}`
+
+const SUBJECT_LABEL = Object.fromEntries(
+  TEACHER_SUBJECTS.filter((s) => s.value).map((s) => [s.value, s.label]),
+)
+
+function loadDraft(uid) {
+  try {
+    const raw = localStorage.getItem(draftKey(uid))
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed?.savedAt || Date.now() - parsed.savedAt > DRAFT_TTL) return null
+    return parsed
+  } catch { return null }
+}
+
+const linesToList = (text) => String(text || '').split('\n').map((l) => l.trim()).filter(Boolean)
+const listToLines = (list) => (Array.isArray(list) ? list.join('\n') : '')
+
+export default function RecordOfWorkStudio() {
+  const { currentUser, userProfile } = useAuth()
+  const toast = useToast()
+  const uid = currentUser?.uid
+
+  const [header, setHeader] = useState(() => ({
+    school: userProfile?.schoolName || '',
+    teacherName: userProfile?.displayName || '',
+    grade: 'G4',
+    subject: '',
+    term: 1,
+    year: String(new Date().getFullYear()),
+  }))
+  const [weeks, setWeeks] = useState(() => [blankRecordWeek(1)])
+
+  // Scheme source picker.
+  const [schemes, setSchemes] = useState([])
+  const [schemesStatus, setSchemesStatus] = useState('loading')
+  const [schemeId, setSchemeId] = useState('')
+
+  const [confirmClear, setConfirmClear] = useState(false)
+  const [generationId, setGenerationId] = useState(null)
+  const [saving, setSaving] = useState(false)
+  const [dirtySinceSave, setDirtySinceSave] = useState(false)
+  const loadedRef = useRef(false)
+
+  // Saved schemes for the picker — quietly degrades to manual entry.
+  useEffect(() => {
+    if (!uid) return
+    let cancelled = false
+    listMyGenerations({ uid, tool: 'scheme_of_work' })
+      .then((rows) => { if (!cancelled) { setSchemes(rows.filter((r) => r.output)); setSchemesStatus('ready') } })
+      .catch(() => { if (!cancelled) setSchemesStatus('error') })
+    return () => { cancelled = true }
+  }, [uid])
+
+  // Restore the draft once per mount.
+  useEffect(() => {
+    if (loadedRef.current || !uid) return
+    loadedRef.current = true
+    const draft = loadDraft(uid)
+    if (!draft) return
+    if (draft.header) setHeader((h) => ({ ...h, ...draft.header }))
+    if (Array.isArray(draft.weeks) && draft.weeks.length) setWeeks(draft.weeks)
+    if (draft.generationId) setGenerationId(draft.generationId)
+  }, [uid])
+
+  // Debounced autosave.
+  useEffect(() => {
+    if (!uid) return undefined
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(draftKey(uid), JSON.stringify({ savedAt: Date.now(), header, weeks, generationId }))
+      } catch { /* storage full/blocked — the editor still works */ }
+    }, 800)
+    return () => clearTimeout(t)
+  }, [uid, header, weeks, generationId])
+
+  useEffect(() => { setDirtySinceSave(true) }, [header, weeks])
+
+  const setH = (field, value) => setHeader((h) => ({ ...h, [field]: value }))
+
+  const selectedScheme = useMemo(() => schemes.find((s) => s.id === schemeId) || null, [schemes, schemeId])
+
+  function buildFromScheme() {
+    if (!selectedScheme) { toast.error('Pick a saved scheme first.'); return }
+    const built = buildRecordWeeks(selectedScheme.output)
+    if (!built.length) { toast.error('That scheme has no weeks to log.'); return }
+    setWeeks(built)
+    const out = selectedScheme.output || {}
+    setHeader((h) => ({
+      ...h,
+      grade: selectedScheme.inputs?.grade || h.grade,
+      subject: out.header?.subject || SUBJECT_LABEL[selectedScheme.inputs?.subject] || h.subject,
+      term: Number(out.header?.term || selectedScheme.inputs?.term || h.term) || h.term,
+    }))
+    toast.success(`${built.length} weeks loaded — log coverage and remarks as you teach.`)
+  }
+
+  function updateWeek(index, field, value) {
+    setWeeks((list) => list.map((w, i) => (i === index ? { ...w, [field]: value } : w)))
+  }
+
+  function addWeek() {
+    setWeeks((list) => {
+      const last = Number(list[list.length - 1]?.week)
+      const next = Number.isFinite(last) ? last + 1 : list.length + 1
+      return [...list, blankRecordWeek(next)]
+    })
+  }
+
+  function removeWeek(index) {
+    setWeeks((list) => (list.length > 1 ? list.filter((_, i) => i !== index) : list))
+  }
+
+  const artifact = useMemo(() => {
+    const filled = weeks.filter((w) => w.topic.trim() || w.workDone.length)
+    if (!filled.length) return null
+    return {
+      schemaVersion: 'record-of-work-1.0',
+      header,
+      weeks,
+    }
+  }, [weeks, header])
+
+  const summary = useMemo(() => coverageSummary(weeks), [weeks])
+
+  function clearAll() {
+    setHeader({
+      school: userProfile?.schoolName || '',
+      teacherName: userProfile?.displayName || '',
+      grade: 'G4', subject: '', term: 1,
+      year: String(new Date().getFullYear()),
+    })
+    setWeeks([blankRecordWeek(1)])
+    setSchemeId('')
+    setGenerationId(null)
+    try { localStorage.removeItem(draftKey(uid)) } catch { /* ignore */ }
+    setConfirmClear(false)
+    toast.info('Cleared. Starting a fresh record of work.')
+  }
+
+  async function onSaveToLibrary() {
+    if (!artifact || saving) return
+    setSaving(true)
+    try {
+      const id = await saveRecordOfWorkGeneration({ uid, existingId: generationId, artifact })
+      setGenerationId(id)
+      setDirtySinceSave(false)
+      toast.success(generationId ? 'Library copy updated.' : 'Saved to your library.')
+    } catch (err) {
+      console.error('[RecordOfWorkStudio] save failed', err)
+      toast.error(err?.message || 'Could not save to your library. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function onExportDocx() {
+    if (!artifact) return
+    const name = `${header.grade}_term${header.term}_record-of-work.docx`
+    try {
+      await downloadRecordOfWorkDocx(artifact, name)
+      toast.success('Record of work downloaded.')
+    } catch (err) {
+      console.error('[RecordOfWorkStudio] docx export failed', err)
+      toast.error('Could not build the Word file. Please try again.')
+    }
+  }
+
+  return (
+    <div className="min-h-screen p-4 sm:p-6 lg:p-8" style={{ background: '#f5efe1' }}>
+      <SeoHelmet title="Record of work" noIndex />
+      <div className="max-w-7xl mx-auto">
+        <StudioPageHeader
+          eyebrow="Record of Work"
+          title="What you actually taught, week by week"
+          subtitle="Pull the term straight out of your scheme of work, then log coverage and remarks as you teach — ready for the head teacher's check."
+          emoji="🗂️"
+        />
+
+        <div className="space-y-6">
+          {/* ── Build from a scheme ── */}
+          <section className="studio-card p-5 space-y-3">
+            <div>
+              <h2 className="studio-display" style={{ fontSize: 20, color: '#0e2a32', margin: 0 }}>Start from your scheme of work</h2>
+              <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                {schemesStatus === 'ready' && schemes.length === 0
+                  ? 'No saved schemes yet — generate one first, or log the weeks manually below.'
+                  : "Every scheme week arrives prefilled with its planned work; edit each log to record what really happened."}
+              </p>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-[3fr_auto] gap-3 items-end">
+              <div>
+                <label className="studio-label">Saved scheme</label>
+                <select value={schemeId} onChange={(e) => setSchemeId(e.target.value)} className="studio-input" disabled={schemesStatus !== 'ready' || !schemes.length}>
+                  <option value="">{schemesStatus === 'loading' ? 'Loading your schemes…' : schemesStatus === 'error' ? 'Could not load schemes' : schemes.length ? 'Choose a scheme…' : 'No saved schemes'}</option>
+                  {schemes.map((s) => (
+                    <option key={s.id} value={s.id}>{titleForGeneration(s)}</option>
+                  ))}
+                </select>
+              </div>
+              <button type="button" onClick={buildFromScheme} disabled={!schemeId} className="studio-btn-primary disabled:opacity-50">
+                ▶ Build the term
+              </button>
+            </div>
+          </section>
+
+          {/* ── Record details ── */}
+          <section className="studio-card p-5 space-y-4">
+            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+              <div>
+                <label className="studio-label">School</label>
+                <input type="text" value={header.school} maxLength={120} onChange={(e) => setH('school', e.target.value)} placeholder="School name" className="studio-input" />
+              </div>
+              <div>
+                <label className="studio-label">Teacher's name</label>
+                <input type="text" value={header.teacherName} maxLength={80} onChange={(e) => setH('teacherName', e.target.value)} placeholder="Mr / Mrs …" className="studio-input" />
+              </div>
+              <div>
+                <label className="studio-label">Grade</label>
+                <select value={header.grade} onChange={(e) => setH('grade', e.target.value)} className="studio-input">
+                  {TEACHER_GRADES.filter((g) => g.value).map((g) => (
+                    <option key={g.value} value={g.value}>{g.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="studio-label">Subject</label>
+                <input type="text" value={header.subject} maxLength={60} onChange={(e) => setH('subject', e.target.value)} placeholder="e.g. Integrated Science" className="studio-input" />
+              </div>
+              <div>
+                <label className="studio-label">Term</label>
+                <select value={String(header.term)} onChange={(e) => setH('term', Number(e.target.value))} className="studio-input">
+                  {[1, 2, 3].map((t) => <option key={t} value={t}>Term {t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label className="studio-label">Year</label>
+                <input type="text" value={header.year} maxLength={8} onChange={(e) => setH('year', e.target.value)} className="studio-input" />
+              </div>
+            </div>
+          </section>
+
+          {/* ── Week logs ── */}
+          <section className="studio-card p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div>
+                <h2 className="studio-display" style={{ fontSize: 20, color: '#0e2a32', margin: 0 }}>The term, week by week</h2>
+                <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                  One line per item of work done. Mark coverage after each week — remarks are for what to re-teach or carry over.
+                </p>
+              </div>
+              <button type="button" onClick={addWeek} className="studio-btn-ghost">＋ Add week</button>
+            </div>
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              {weeks.map((w, i) => (
+                <div key={i} className="rounded-xl border theme-border bg-white p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-black uppercase tracking-wide" style={{ color: '#0e2a32' }}>Week {w.week || i + 1}</p>
+                    {weeks.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeWeek(i)}
+                        className="text-xs font-bold px-2 py-1 rounded-lg text-rose-700 hover:bg-rose-50"
+                        aria-label={`Remove week ${w.week || i + 1}`}
+                      >
+                        ✕ Remove
+                      </button>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="studio-label">Week number</label>
+                      <input type="text" value={w.week} maxLength={4} onChange={(e) => updateWeek(i, 'week', e.target.value)} className="studio-input !py-1.5 text-sm" />
+                    </div>
+                    <div>
+                      <label className="studio-label">Week ending</label>
+                      <input type="text" value={w.weekEnding} maxLength={20} onChange={(e) => updateWeek(i, 'weekEnding', e.target.value)} placeholder="e.g. 16 Jan 2026" className="studio-input !py-1.5 text-sm" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="studio-label">Topic</label>
+                    <input type="text" value={w.topic} maxLength={120} onChange={(e) => updateWeek(i, 'topic', e.target.value)} className="studio-input !py-1.5 text-sm" />
+                  </div>
+                  <div>
+                    <label className="studio-label">Sub-topic</label>
+                    <input type="text" value={w.subtopic} maxLength={160} onChange={(e) => updateWeek(i, 'subtopic', e.target.value)} className="studio-input !py-1.5 text-sm" />
+                  </div>
+                  <div>
+                    <label className="studio-label">Work done (one per line)</label>
+                    <textarea rows={4} value={listToLines(w.workDone)} onChange={(e) => updateWeek(i, 'workDone', linesToList(e.target.value))} className="studio-input !py-1.5 text-sm resize-none" />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="studio-label">Coverage</label>
+                      <select value={w.coverage} onChange={(e) => updateWeek(i, 'coverage', e.target.value)} className="studio-input !py-1.5 text-sm">
+                        {COVERAGE_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label className="studio-label">Remarks (optional)</label>
+                      <input type="text" value={w.remarks} maxLength={200} onChange={(e) => updateWeek(i, 'remarks', e.target.value)} placeholder="e.g. re-teach carrying tens" className="studio-input !py-1.5 text-sm" />
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          {/* ── Document preview ── */}
+          <section className="studio-card p-5">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <div>
+                <h2 className="studio-display" style={{ fontSize: 20, color: '#0e2a32', margin: 0 }}>Your record of work</h2>
+                <p className="text-xs mt-0.5" style={{ color: '#566f76' }}>
+                  Exactly what prints — with the signature block the head teacher checks.
+                  {artifact && ` Coverage so far: ${summary.full} full · ${summary.partial} partial · ${summary.none} not covered · ${summary.blank} not logged.`}
+                </p>
+              </div>
+              <div className="flex gap-2 flex-wrap items-center">
+                <button type="button" onClick={() => setConfirmClear(true)} className="studio-btn-ghost text-rose-700">Clear all</button>
+                <button
+                  type="button"
+                  onClick={onSaveToLibrary}
+                  disabled={!artifact || saving || (generationId && !dirtySinceSave)}
+                  className="studio-btn-ghost disabled:opacity-50"
+                >
+                  {saving ? 'Saving…' : generationId ? (dirtySinceSave ? '💾 Update in library' : '✓ Saved') : '💾 Save to library'}
+                </button>
+                <button type="button" onClick={onExportDocx} disabled={!artifact} className="studio-btn-primary disabled:opacity-50">
+                  📄 Download .docx (landscape)
+                </button>
+              </div>
+            </div>
+            {generationId && (
+              <p className="text-xs mb-3 -mt-2" style={{ color: '#566f76' }}>
+                In your library — <Link to={`/teacher/library/${generationId}`} className="font-bold underline">open the saved copy</Link>.
+              </p>
+            )}
+            {artifact ? (
+              <RecordOfWorkView record={artifact} />
+            ) : (
+              <div className="rounded-xl border border-dashed theme-border bg-white/60 py-14 text-center text-sm" style={{ color: '#566f76' }}>
+                Build the term from your scheme above, or type a week's topic — the record appears here as you go.
+              </div>
+            )}
+          </section>
+        </div>
+      </div>
+
+      <ConfirmDialog
+        open={confirmClear}
+        title="Clear the whole record?"
+        message="Every week's log is removed and the saved draft is deleted (a copy already saved to your library stays there). This cannot be undone."
+        confirmLabel="Clear everything"
+        variant="danger"
+        onConfirm={clearAll}
+        onCancel={() => setConfirmClear(false)}
+      />
+    </div>
+  )
+}
