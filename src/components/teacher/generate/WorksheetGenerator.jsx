@@ -18,7 +18,8 @@ import { downloadWorksheetDocx } from '../../../utils/worksheetToDocx'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
-import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
+import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
+import { useAuth } from '../../../contexts/AuthContext'
 import { LIBRARY_TYPES } from '../../../config/library'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
 
@@ -26,6 +27,7 @@ import TopicSubtopicPicker from './TopicSubtopicPicker'
  * Worksheet Generator — pupil-facing worksheet + separate answer-key export.
  */
 export default function WorksheetGenerator() {
+  const { userProfile, isAdmin } = useAuth()
   const urlDefaults = useFormDefaultsFromUrl()
   const [form, setForm] = useState(() => ({
     grade: 'G5',
@@ -142,12 +144,12 @@ export default function WorksheetGenerator() {
 
   function onExportPupil() {
     if (!worksheet) return
-    downloadWorksheetDocx(worksheet, buildFilename('worksheet'), { mode: 'worksheet' })
+    downloadWorksheetDocx(worksheet, buildFilename('worksheet'), { mode: 'worksheet', attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
   function onExportAnswerKey() {
     if (!worksheet) return
-    downloadWorksheetDocx(worksheet, buildFilename('answer_key'), { mode: 'answer_key' })
+    downloadWorksheetDocx(worksheet, buildFilename('answer_key'), { mode: 'answer_key', attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
   return (

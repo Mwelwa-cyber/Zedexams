@@ -20,6 +20,7 @@ import {
   WidthType,
 } from 'docx'
 import { printedRemark } from './recordOfWork.js'
+import { attributionSection } from './docxAttribution.js'
 
 const CELL_BORDER = {
   top:    { style: BorderStyle.SINGLE, size: 4, color: '000000' },
@@ -59,7 +60,7 @@ function cell(content, { bold = false, center = false, bullets = false } = {}) {
   return new TableCell({ children, borders: CELL_BORDER })
 }
 
-export function buildRecordOfWorkDocument(record) {
+export function buildRecordOfWorkDocument(record, opts = {}) {
   const h = record.header || {}
   const weeks = record.weeks || []
   const subject = String(h.subject || '').toUpperCase()
@@ -89,6 +90,7 @@ export function buildRecordOfWorkDocument(record) {
 
   return new Document({
     sections: [{
+      ...attributionSection(opts),
       properties: {
         // Landscape — matches the scheme + forecast family and gives the
         // WORK DONE column the room a term's log actually needs.
@@ -123,8 +125,8 @@ export function buildRecordOfWorkDocument(record) {
   })
 }
 
-export async function downloadRecordOfWorkDocx(record, filename = 'record-of-work.docx') {
-  const doc = buildRecordOfWorkDocument(record)
+export async function downloadRecordOfWorkDocx(record, filename = 'record-of-work.docx', opts = {}) {
+  const doc = buildRecordOfWorkDocument(record, opts)
   const blob = await Packer.toBlob(doc)
   try {
     const { saveAs } = await import('file-saver')

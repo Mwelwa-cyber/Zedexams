@@ -79,6 +79,18 @@ export default function BadgesPage() {
           </div>
           {/* Progress ring + numeric — gives a glanceable completion read. */}
           <div className="flex items-center gap-3 self-start sm:self-center">
+            {/* WhatsApp brag — badges are made for showing off; same viral
+                CTA as the quiz/exam results pages. */}
+            {totalEarned > 0 && (
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(`I've earned ${totalEarned} of ${totalPossible} badges on ZedExams! 🏅 Practise with me: https://zedexams.com`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-full bg-white/15 hover:bg-white/25 px-3.5 py-2 text-xs font-black text-white transition-colors"
+              >
+                <span aria-hidden="true">💬</span> Share
+              </a>
+            )}
             <div className="relative h-20 w-20 shrink-0">
               <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
                 <circle

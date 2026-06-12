@@ -23,6 +23,7 @@
 export const STUDIO_SUBJECT_TO_KB = {
   'Early Childhood Education Syllabi (3-5 Years)': 'expressive_arts',
   'Lower Primary Syllabi (Grades 1-3)':            'english',
+  'English Language Syllabus (Grades 4-6)':        'english',
   'Mathematics Syllabus (Grades 4-6)':             'mathematics',
   'Science Syllabus (Grades 4-6)':                 'integrated_science',
   'Social Studies Syllabus (Grades 4-6)':          'social_studies',

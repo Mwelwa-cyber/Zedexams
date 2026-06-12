@@ -13,6 +13,8 @@ const FIELDS = [
   { key: 'maxExamAttemptsPerDay', label: 'Max exam attempts per day', type: 'number', min: 0, max: 20 },
   { key: 'defaultGrade', label: 'Default grade', type: 'select', options: ['4', '5', '6', '7'] },
   { key: 'defaultTheme', label: 'Default theme', type: 'select', options: ['sky', 'lavender', 'midnight', 'oatmeal', 'vivid', 'solar'] },
+  { key: 'androidLatestBuild', label: 'Android latest build (versionCode gradle prints)', type: 'number', min: 0 },
+  { key: 'androidApkUrl', label: 'Android APK download URL', type: 'text' },
 ]
 
 const DEFAULTS = {
@@ -24,6 +26,8 @@ const DEFAULTS = {
   maxExamAttemptsPerDay: 3,
   defaultGrade: '7',
   defaultTheme: 'oatmeal',
+  androidLatestBuild: 0,
+  androidApkUrl: '',
 }
 
 export default function AdminSettings() {
@@ -112,6 +116,17 @@ export default function AdminSettings() {
         <Card variant="elevated" size="md" className="space-y-4">
           <h2 className="text-eyebrow">Limits & defaults</h2>
           {FIELDS.filter(f => ['maxExamAttemptsPerDay', 'defaultGrade', 'defaultTheme'].includes(f.key)).map(field => (
+            <FieldRow key={field.key} field={field} value={form[field.key]} onChange={v => set(field.key, v)} />
+          ))}
+        </Card>
+
+        <Card variant="elevated" size="md" className="space-y-4">
+          <h2 className="text-eyebrow">Android app</h2>
+          <p className="text-xs theme-text-muted -mt-2">
+            After building an APK, enter the versionCode gradle prints and where to
+            download it — older installs then see an in-app update banner.
+          </p>
+          {FIELDS.filter(f => ['androidLatestBuild', 'androidApkUrl'].includes(f.key)).map(field => (
             <FieldRow key={field.key} field={field} value={form[field.key]} onChange={v => set(field.key, v)} />
           ))}
         </Card>

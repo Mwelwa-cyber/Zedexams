@@ -8,6 +8,7 @@ import { getMergedSyllabi } from '../../utils/syllabusKbService'
 const META = {
   'Early Childhood Education Syllabi (3-5 Years)':       { icon: '🌱', cat: 'Early Childhood', short: 'Early Childhood Ed.' },
   'Lower Primary Syllabi (Grades 1-3)':                  { icon: '📚', cat: 'Lower Primary',   short: 'Lower Primary' },
+  'English Language Syllabus (Grades 4-6)':              { icon: '📖', cat: 'Upper Primary',   short: 'English (Gr. 4–6)' },
   'Mathematics Syllabus (Grades 4-6)':                   { icon: '➗', cat: 'Upper Primary',   short: 'Mathematics (Gr. 4–6)' },
   'Science Syllabus (Grades 4-6)':                       { icon: '🔬', cat: 'Upper Primary',   short: 'Science (Gr. 4–6)' },
   'Social Studies Syllabus (Grades 4-6)':                { icon: '🌍', cat: 'Upper Primary',   short: 'Social Studies (Gr. 4–6)' },

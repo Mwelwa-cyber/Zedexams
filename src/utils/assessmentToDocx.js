@@ -27,6 +27,7 @@ import {
   TextRun,
   WidthType,
 } from 'docx'
+import { attributionSection } from './docxAttribution.js'
 import { buildPaperLayout } from './assessmentPaperLayout.js'
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
@@ -782,7 +783,7 @@ async function renderQuestion(b) {
   return out
 }
 
-export async function buildAssessmentDocument(assessment, questions, { mode = 'paper' } = {}) {
+export async function buildAssessmentDocument(assessment, questions, { mode = 'paper', attribution = false } = {}) {
   const blocks = buildPaperLayout(assessment, questions, { mode })
   const children = []
   for (const block of blocks) {
@@ -804,7 +805,7 @@ export async function buildAssessmentDocument(assessment, questions, { mode = 'p
         document: { run: { font: 'Times New Roman', size: 22 } },
       },
     },
-    sections: [{ children }],
+    sections: [{ ...attributionSection({ attribution }), children }],
   })
 }
 
