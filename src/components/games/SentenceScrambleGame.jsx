@@ -11,6 +11,7 @@ import { shuffle } from '../../utils/gamesService'
 import { playCorrect, playWrong, playWin, playTick, primeSounds } from '../../utils/gameSounds'
 import { useGameFinish } from './useGameFinish'
 import { SaveBanner, StreakBanner, DoneStat } from './DoneBanners'
+import { LevelUpBanner, XpProgressBar } from './Progress'
 import BadgeToast from './BadgeToast'
 import ShareButton from './ShareButton'
 import Confetti from './Confetti'
@@ -54,7 +55,7 @@ export default function SentenceScrambleGame({ game }) {
   const [confettiKey, setConfettiKey] = useState(0)
   const startRef = useRef(null)
 
-  const { saveResult, newBadges, streakResult, finish, reset } = useGameFinish()
+  const { saveResult, newBadges, streakResult, levelChange, finish, reset } = useGameFinish()
 
   const items = content.ok ? content.items : []
   const current = items[order[pos] ?? 0] || { question: '', answer: '', tokens: [] }
@@ -184,6 +185,7 @@ export default function SentenceScrambleGame({ game }) {
           saveResult={saveResult}
           newBadges={newBadges}
           streakResult={streakResult}
+          levelChange={levelChange}
           onRestart={start}
         />
       </>
@@ -322,9 +324,10 @@ function ReadyCard({ game, itemCount, points, onStart }) {
   )
 }
 
-function DoneCard({ game, score, solved, total, accuracy, mistakes, saveResult, newBadges, streakResult, onRestart }) {
+function DoneCard({ game, score, solved, total, accuracy, mistakes, saveResult, newBadges, streakResult, levelChange, onRestart }) {
   return (
     <div className="space-y-5">
+      {levelChange?.leveledUp && <LevelUpBanner change={levelChange} />}
       {streakResult?.isDaily && <StreakBanner result={streakResult} />}
       {newBadges?.length > 0 && <BadgeToast badges={newBadges} />}
 
@@ -343,6 +346,9 @@ function DoneCard({ game, score, solved, total, accuracy, mistakes, saveResult, 
           <DoneStat label="Retries"  value={mistakes} tone="rose" />
         </div>
         <SaveBanner saveResult={saveResult} />
+        {levelChange?.after && (
+          <div className="mt-4"><XpProgressBar progress={levelChange.after} gained={score} /></div>
+        )}
         <SmartFeedback
           game={game}
           result={{ score, accuracy, correct: solved, wrong: total - solved, bestStreak: solved }}

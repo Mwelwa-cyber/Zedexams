@@ -7,9 +7,10 @@ import {
   MapPinIcon,
 } from '@heroicons/react/24/solid'
 import { useAuth } from '../../contexts/AuthContext'
-import { saveScore, shuffle } from '../../utils/gamesService'
+import { saveScore, shuffle, getMyHistory } from '../../utils/gamesService'
 import { evaluateAndAwardGameBadges } from '../../utils/gameBadgesService'
 import { getTodaysChallenge, recordDailyPlay } from '../../utils/dailyChallengeService'
+import { levelUpInfo } from '../../utils/gameProgress'
 import { playCorrect, playWrong, playWin, playStreak, primeSounds } from '../../utils/gameSounds'
 import { buildStaticMapUrl } from '../../utils/staticMap'
 import { getProvince } from '../../data/zambiaProvinces'
@@ -22,6 +23,7 @@ import MascotGreeting from './MascotGreeting'
 import SmartFeedback from './SmartFeedback'
 import ComboPill from './ComboPill'
 import ScorePops, { useScorePops } from './ScorePops'
+import { LevelUpBanner, XpProgressBar } from './Progress'
 import { comboHeat } from './gameFeel'
 import { DoneStat, SaveBanner, StreakBanner } from './DoneBanners'
 import { RatingStars } from './gamesUi'
@@ -57,6 +59,7 @@ export default function ProvinceShapesGame({ game }) {
   const [streakResult, setStreakResult] = useState(null)
   const [confettiKey, setConfettiKey] = useState(0)
   const [shakeAt, setShakeAt] = useState(-1) // pos that got a wrong answer (drives card shake)
+  const [levelChange, setLevelChange] = useState(null)
   const { pops, pushPop } = useScorePops()
   const startedAtRef = useRef(null)
 
@@ -117,6 +120,7 @@ export default function ProvinceShapesGame({ game }) {
     setNewBadges([])
     setStreakResult(null)
     setShakeAt(-1)
+    setLevelChange(null)
     startedAtRef.current = Date.now()
   }
 
@@ -158,6 +162,13 @@ export default function ProvinceShapesGame({ game }) {
       playWin()
       setConfettiKey((k) => k + 1)
     }
+    // Snapshot points before this round so a level-up can be detected exactly.
+    let beforeTotal = null
+    try {
+      const history = await getMyHistory(40)
+      beforeTotal = history.reduce((sum, row) => sum + (Number(row.score) || 0), 0)
+    } catch { /* progression is non-critical */ }
+
     const result = await saveScore({
       game,
       score,
@@ -170,6 +181,9 @@ export default function ProvinceShapesGame({ game }) {
     setSaveResult(result)
 
     if (result?.ok) {
+      if (beforeTotal != null) {
+        setLevelChange(levelUpInfo(beforeTotal, beforeTotal + score))
+      }
       try {
         const { newlyEarned } = await evaluateAndAwardGameBadges({
           game, score, correct, wrong, accuracy, bestStreak,
@@ -215,6 +229,7 @@ export default function ProvinceShapesGame({ game }) {
           saveResult={saveResult}
           newBadges={newBadges}
           streakResult={streakResult}
+          levelChange={levelChange}
           onRestart={start}
         />
       </>
@@ -382,9 +397,10 @@ function ReadyCard({ game, totalQuestions, onStart }) {
   )
 }
 
-function DoneCard({ game, score, correct, wrong, accuracy, bestStreak, saveResult, newBadges, streakResult, onRestart }) {
+function DoneCard({ game, score, correct, wrong, accuracy, bestStreak, saveResult, newBadges, streakResult, levelChange, onRestart }) {
   return (
     <div className="space-y-5">
+      {levelChange?.leveledUp && <LevelUpBanner change={levelChange} />}
       {streakResult?.isDaily && <StreakBanner result={streakResult} />}
       {newBadges?.length > 0 && <BadgeToast badges={newBadges} />}
 
@@ -404,6 +420,9 @@ function DoneCard({ game, score, correct, wrong, accuracy, bestStreak, saveResul
           <RatingStars filled={accuracy >= 90 ? 5 : accuracy >= 70 ? 4 : accuracy >= 50 ? 3 : 2} />
         </div>
         <SaveBanner saveResult={saveResult} />
+        {levelChange?.after && (
+          <div className="mt-4"><XpProgressBar progress={levelChange.after} gained={score} /></div>
+        )}
         <SmartFeedback
           game={game}
           result={{ score, accuracy, correct, wrong, bestStreak }}

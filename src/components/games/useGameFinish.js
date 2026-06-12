@@ -1,7 +1,12 @@
 import { useState } from 'react'
-import { saveScore } from '../../utils/gamesService'
+import { saveScore, getMyHistory } from '../../utils/gamesService'
 import { evaluateAndAwardGameBadges } from '../../utils/gameBadgesService'
 import { getTodaysChallenge, recordDailyPlay } from '../../utils/dailyChallengeService'
+import { levelUpInfo } from '../../utils/gameProgress'
+
+// Same window the games hub sums for its points total, so the level shown on
+// the done screen matches the hub.
+const HISTORY_WINDOW = 40
 
 /**
  * Shared "end of round" plumbing for any game engine.
@@ -33,16 +38,29 @@ export function useGameFinish() {
   const [saveResult, setSaveResult] = useState(null)
   const [newBadges, setNewBadges] = useState([])
   const [streakResult, setStreakResult] = useState(null)
+  const [levelChange, setLevelChange] = useState(null)
 
   function reset() {
     setPhase('playing')
     setSaveResult(null)
     setNewBadges([])
     setStreakResult(null)
+    setLevelChange(null)
   }
 
   async function finish(result) {
     setPhase('done')
+
+    // Snapshot the points total *before* this round so a level-up can be
+    // detected exactly, independent of write propagation.
+    let beforeTotal = null
+    try {
+      const history = await getMyHistory(HISTORY_WINDOW)
+      beforeTotal = history.reduce((sum, row) => sum + (Number(row.score) || 0), 0)
+    } catch {
+      /* progression is non-critical — skip if history is unavailable */
+    }
+
     const savePayload = {
       game: result.game,
       score: result.score,
@@ -56,6 +74,11 @@ export function useGameFinish() {
     setSaveResult(save)
 
     if (!save?.ok) return
+
+    if (beforeTotal != null) {
+      const after = beforeTotal + (Number(result.score) || 0)
+      setLevelChange(levelUpInfo(beforeTotal, after))
+    }
 
     // Badges
     try {
@@ -87,5 +110,5 @@ export function useGameFinish() {
     }
   }
 
-  return { phase, setPhase, saveResult, newBadges, streakResult, finish, reset }
+  return { phase, setPhase, saveResult, newBadges, streakResult, levelChange, finish, reset }
 }

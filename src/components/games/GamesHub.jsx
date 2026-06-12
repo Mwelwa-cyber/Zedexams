@@ -19,6 +19,8 @@ import {
 } from '../../utils/gamesService'
 import DailyChallengeCard from './DailyChallengeCard'
 import GamesShell from './GamesShell'
+import { LevelMeter } from './Progress'
+import { levelInfo } from '../../utils/gameProgress'
 import {
   buildSubjectProgress,
   getDurationLabel,
@@ -98,7 +100,8 @@ export default function GamesHub() {
   }, [currentUser])
 
   const totalPoints = state.history.reduce((sum, row) => sum + (Number(row.score) || 0), 0)
-  const level = Math.max(1, Math.floor(totalPoints / 120) + 1)
+  const progress = levelInfo(totalPoints)
+  const level = progress.level
   const currentRank = currentUser
     ? state.leaderboardRows.findIndex((row) => row.userId === currentUser.uid) + 1
     : 0
@@ -145,6 +148,9 @@ export default function GamesHub() {
             </div>
           ))}
         </section>
+
+        {/* Level / rank progress — the goal to chase between sessions */}
+        <LevelMeter progress={progress} signedIn={!!currentUser} />
 
         {/* Hero — Daily Challenge */}
         <DailyChallengeCard
