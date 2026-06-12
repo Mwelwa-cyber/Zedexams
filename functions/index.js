@@ -1366,7 +1366,9 @@ exports.generateQuizQuestions = onCall(
     const raw = await callAnthropic(getAnthropicApiKey(anthropicApiKey), {
       systemPrompt,
       messages,
-      maxTokens: 2000,
+      // Sized for the top of the count range (LIMITS.quizCount = 25
+      // questions with options + explanations); billed only as used.
+      maxTokens: 6000,
       temperature: 0.3,
       json: true,
       track: {uid: request.auth.uid, tool: "generateQuizQuestions"},

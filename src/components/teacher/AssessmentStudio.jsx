@@ -4675,6 +4675,9 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNu
               onChange={e => setAiForm(prev => ({ ...prev, type: e.target.value }))}
             >
               <option value="mcq">Multiple choice</option>
+              <option value="true_false">True / False</option>
+              <option value="short_answer">Short answer</option>
+              <option value="mixed">Mixed (all three)</option>
             </select>
           </div>
         </div>

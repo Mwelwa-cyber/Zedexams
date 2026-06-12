@@ -20,7 +20,9 @@ const LIMITS = {
   subject: 80,
   grade: 20,
   topic: 120,
-  quizCount: 10,
+  // Matches the studio's count dropdown (5/10/15/20/25 + custom). The
+  // callable's maxTokens is sized for the top of this range.
+  quizCount: 25,
   importFileName: 180,
   importDocumentText: 26000,
   importLocalDraft: 12000,
@@ -579,10 +581,105 @@ function buildQuizMessages(payload) {
     LIMITS.quizCount,
   );
 
+  // Question kind requested by the studio: mcq (default) | true_false |
+  // short_answer | mixed. Anything unrecognised falls back to mcq so old
+  // clients keep their exact behaviour.
+  const QUIZ_TYPES = new Set(["mcq", "true_false", "short_answer", "mixed"]);
+  const rawType = cleanString(payload.type, 20).toLowerCase();
+  const quizType = QUIZ_TYPES.has(rawType) ? rawType : "mcq";
+
+  const kindLine = {
+    mcq: `Write ${count} multiple-choice quiz questions for the following lesson:`,
+    true_false:
+      `Write ${count} TRUE/FALSE quiz questions for the following lesson. ` +
+      "Each is a clear statement the learner marks True or False:",
+    short_answer:
+      `Write ${count} SHORT-ANSWER quiz questions for the following lesson. ` +
+      "Each expects a one-word or one-phrase written answer:",
+    mixed:
+      `Write ${count} quiz questions for the following lesson, mixing the ` +
+      "three kinds roughly evenly: multiple-choice, true/false and " +
+      "short-answer:",
+  }[quizType];
+
+  const shapeLines = [];
+  if (quizType === "mcq" || quizType === "mixed") {
+    shapeLines.push(
+      "    { // multiple-choice question",
+      '      "text": "The full question, as the learner reads it. Include units where relevant.",',
+      '      "options": ["First option", "Second option", "Third option", "Fourth option"],',
+      '      "correctAnswer": 0,                // 0-based index into options',
+      '      "explanation": "1-2 sentences explaining WHY the correct option is correct.",',
+      '      "topic": "The sub-topic or Specific Outcome this question tests",',
+      '      "marks": 1,',
+      '      "type": "mcq"',
+      "    },",
+    );
+  }
+  if (quizType === "true_false" || quizType === "mixed") {
+    shapeLines.push(
+      "    { // true/false question",
+      '      "text": "A clear statement that is definitely true or definitely false.",',
+      '      "options": ["True", "False"],      // EXACTLY these two, in this order',
+      '      "correctAnswer": 0,                // 0 = True, 1 = False',
+      '      "explanation": "1-2 sentences explaining why the statement is true/false.",',
+      '      "topic": "The sub-topic this statement tests",',
+      '      "marks": 1,',
+      '      "type": "true_false"',
+      "    },",
+    );
+  }
+  if (quizType === "short_answer" || quizType === "mixed") {
+    shapeLines.push(
+      "    { // short-answer question",
+      '      "text": "The full question. A blank cue like \\"The capital of Zambia is ______.\\" is fine.",',
+      '      "answer": "The expected answer (a word or short phrase)",',
+      '      "explanation": "1-2 sentences a marker can use to judge close answers.",',
+      '      "topic": "The sub-topic this question tests",',
+      '      "marks": 1,',
+      '      "type": "short_answer"',
+      "    },",
+    );
+  }
+
+  const hardRules = [
+    "Hard rules (violations cause the question to be rejected):",
+    ...(quizType === "mcq" ? [
+      "- Exactly 4 options per question, all non-empty, all distinct.",
+      "- correctAnswer is an INTEGER 0-3.",
+      "- Distractors must be plausible but clearly wrong on reflection.",
+      "- No two options may be paraphrases of each other.",
+      "- No 'all of the above', 'none of the above', or 'both A and B'.",
+    ] : []),
+    ...(quizType === "true_false" ? [
+      '- options is EXACTLY ["True", "False"]; correctAnswer is 0 or 1.',
+      "- Statements must be definitively true or false — no opinions,",
+      "  no 'sometimes', no trick ambiguity.",
+      "- Roughly half the statements should be false.",
+    ] : []),
+    ...(quizType === "short_answer" ? [
+      "- Every question has an \"answer\" that is a single word or a short",
+      "  phrase a marker can check at a glance — never a full sentence essay.",
+      "- The question must have ONE clearly correct answer.",
+    ] : []),
+    ...(quizType === "mixed" ? [
+      "- Follow the per-kind shape above exactly for each question's type.",
+      "- MCQs: exactly 4 distinct options, integer correctAnswer 0-3.",
+      '- True/false: options EXACTLY ["True", "False"], correctAnswer 0 or 1.',
+      "- Short answers: a checkable one-word/short-phrase \"answer\".",
+    ] : []),
+    "- The correct answer must be factually correct per the Zambian syllabus.",
+    "- Question text must be at least 25 characters, complete sentence,",
+    "  ending with a question mark OR a fill-in-the-blank cue.",
+    "- Explanation must be at least 15 characters and must NOT simply repeat",
+    "  the question verbatim.",
+    "- No references to things outside the <cbc_context> block.",
+  ];
+
   const userPrompt = [
     cbcContextBlock,
     "",
-    `Write ${count} multiple-choice quiz questions for the following lesson:`,
+    kindLine,
     "",
     `- Grade / Class: ${grade}`,
     `- Subject: ${subject}`,
@@ -602,30 +699,11 @@ function buildQuizMessages(payload) {
     "Return a JSON object in EXACTLY this shape:",
     "{",
     '  "questions": [',
-    "    {",
-    '      "text": "The full question, as the learner reads it. Include units where relevant.",',
-    '      "options": ["First option", "Second option", "Third option", "Fourth option"],',
-    '      "correctAnswer": 0,                // 0-based index into options',
-    '      "explanation": "1-2 sentences explaining WHY the correct option is correct. Name the sub-topic or Specific Outcome where possible.",',
-    '      "topic": "The sub-topic or Specific Outcome this question tests",',
-    '      "marks": 1,',
-    '      "type": "mcq"',
-    "    }",
+    ...shapeLines,
     "  ]",
     "}",
     "",
-    "Hard rules (violations cause the question to be rejected):",
-    "- Exactly 4 options per question, all non-empty, all distinct.",
-    "- correctAnswer is an INTEGER 0-3.",
-    "- The correct option must be factually correct per the Zambian syllabus.",
-    "- Distractors must be plausible but clearly wrong on reflection.",
-    "- Question text must be at least 25 characters, complete sentence,",
-    "  ending with a question mark OR a fill-in-the-blank cue.",
-    "- Explanation must be at least 15 characters and must NOT simply repeat",
-    "  the question verbatim.",
-    "- No two options may be paraphrases of each other.",
-    "- No 'all of the above', 'none of the above', or 'both A and B'.",
-    "- No references to things outside the <cbc_context> block.",
+    ...hardRules,
     "",
     "Return ONLY the JSON object. No markdown fences. No commentary.",
   ].filter(Boolean).join("\n");
@@ -792,11 +870,43 @@ function validateQuizQuestion(q, {topic, subject, subtopic}) {
   const options = q.options || [];
   const correctIdx = q.correctAnswer;
   const explanation = cleanString(q.explanation, 500);
+  const isShortAnswer = q.type === "short_answer";
+  const isTrueFalse = q.kind === "true_false";
 
   if (text.length < 25) reasons.push("question_too_short");
-  if (!/[?…:]$|_{3,}/.test(text)) reasons.push("no_question_cue");
+  // True/false items are statements — a full stop is a valid ending.
+  if (!isTrueFalse && !/[?…:]$|_{3,}/.test(text)) {
+    reasons.push("no_question_cue");
+  }
 
-  if (options.length !== 4) reasons.push("wrong_option_count");
+  // Short answers carry no options: check the model answer instead and
+  // skip every option-shape rule below.
+  if (isShortAnswer) {
+    const answer = cleanString(q.correctAnswer, 200);
+    if (!answer) reasons.push("missing_answer");
+    if (explanation.length < 15) reasons.push("explanation_too_short");
+    if (normaliseForCompare(explanation) === normaliseForCompare(text)) {
+      reasons.push("explanation_restates_question");
+    }
+    const anchorTokens = [
+      ...tokenise(topic),
+      ...tokenise(subtopic),
+      ...tokenise(subject),
+    ];
+    if (anchorTokens.length > 0) {
+      const haystack = normaliseForCompare(
+        `${text} ${answer} ${explanation}`,
+      );
+      const anyMatch = anchorTokens.some((tok) => haystack.includes(tok));
+      if (!anyMatch) reasons.push("topic_drift");
+    }
+    return {valid: reasons.length === 0, reasons};
+  }
+
+  const expectedOptions = isTrueFalse ? 2 : 4;
+  if (options.length !== expectedOptions) {
+    reasons.push("wrong_option_count");
+  }
 
   const normOptions = options.map(normaliseForCompare);
   const uniqueNormOptions = new Set(normOptions);
@@ -832,7 +942,8 @@ function validateQuizQuestion(q, {topic, subject, subtopic}) {
     }
   }
 
-  if (!Number.isInteger(correctIdx) || correctIdx < 0 || correctIdx > 3) {
+  if (!Number.isInteger(correctIdx) || correctIdx < 0 ||
+      correctIdx >= expectedOptions) {
     reasons.push("bad_correct_index");
   }
 
@@ -886,16 +997,48 @@ function parseGeneratedQuiz(raw, fallbackTopic, validationContext = {}) {
     const options = Array.isArray(q.options) ?
       q.options.map((o) => cleanString(o, 160)).filter(Boolean).slice(0, 4) :
       [];
-    return {
+    const rawType = cleanString(q.type, 20).toLowerCase();
+    const base = {
       text: cleanString(q.text, LIMITS.question),
-      options,
-      correctAnswer: normalizeCorrectAnswer(q.correctAnswer, options),
       explanation: cleanString(q.explanation, 500),
       topic: cleanString(q.topic || fallbackTopic, LIMITS.topic),
       marks: Math.min(Math.max(Number(q.marks) || 1, 1), 10),
+    };
+    // Short answers carry a string answer in correctAnswer (the studio's
+    // text-answer shape) and no options.
+    if (rawType === "short_answer" ||
+        (options.length === 0 && cleanString(q.answer, 200))) {
+      return {
+        ...base,
+        options: [],
+        correctAnswer: cleanString(q.answer ?? q.correctAnswer, 200),
+        type: "short_answer",
+      };
+    }
+    // True/false renders as a 2-option MCQ in the studio editor.
+    const looksTrueFalse = options.length === 2 &&
+      options.map((o) => o.toLowerCase()).join("|") === "true|false";
+    if (rawType === "true_false" || looksTrueFalse) {
+      const tfOptions = ["True", "False"];
+      return {
+        ...base,
+        options: tfOptions,
+        correctAnswer: normalizeCorrectAnswer(q.correctAnswer, tfOptions),
+        type: "mcq",
+        kind: "true_false",
+      };
+    }
+    return {
+      ...base,
+      options,
+      correctAnswer: normalizeCorrectAnswer(q.correctAnswer, options),
       type: "mcq",
     };
-  }).filter((q) => q.text && q.options.length === 4);
+  }).filter((q) => q.text && (
+    q.type === "short_answer" ?
+      String(q.correctAnswer || "").trim().length > 0 :
+      q.options.length >= 2
+  ));
 
   const {topic, subject, grade, subtopic} =
     validationContext || {};

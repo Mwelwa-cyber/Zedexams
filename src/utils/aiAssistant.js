@@ -174,8 +174,43 @@ function makeLocalQuizQuestions(payload) {
     },
   ]
 
+  // The fast local draft honours the requested question type so a network
+  // hiccup never silently swaps short-answer/true-false requests for MCQs.
+  const requestedType = String(payload.type || 'mcq').toLowerCase()
+
   return Array.from({ length: count }, (_, index) => {
     const template = templates[index % templates.length]
+    const effectiveType = requestedType === 'mixed'
+      ? ['mcq', 'true_false', 'short_answer'][index % 3]
+      : requestedType
+
+    if (effectiveType === 'short_answer') {
+      return {
+        text: `${template.text} Write your answer in one word or phrase.`,
+        options: [],
+        correctAnswer: template.correct,
+        explanation: `${template.explanation} Review this quick draft before publishing.`,
+        topic,
+        marks: 1,
+        type: 'short_answer',
+        generatedBy: 'fast_draft',
+      }
+    }
+    if (effectiveType === 'true_false') {
+      const statementIsTrue = index % 2 === 0
+      return {
+        text: statementIsTrue
+          ? `True or false: ${template.correct}`
+          : `True or false: ${template.distractors[0]}`,
+        options: ['True', 'False'],
+        correctAnswer: statementIsTrue ? 0 : 1,
+        explanation: `${template.explanation} Review this quick draft before publishing.`,
+        topic,
+        marks: 1,
+        type: 'mcq',
+        generatedBy: 'fast_draft',
+      }
+    }
     const { options, correctAnswer } = rotateQuestionOptions(
       [template.correct, ...template.distractors],
       0,
