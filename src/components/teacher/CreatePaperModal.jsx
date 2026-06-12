@@ -12,6 +12,7 @@ import {
   useSyllabusTopicOptions, studioGradeToKbGrade, studioSubjectToKey,
   CURRICULUM_FRAMEWORKS,
 } from './syllabusTopicOptions'
+import { STUDIO_SUBJECTS, STUDIO_GRADES } from './assessmentStudioMeta'
 
 const PAPER_TYPES = [
   { value: 'exercise', label: 'Exercise (short practice)' },
@@ -57,6 +58,8 @@ const inputStyle = {
 
 export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
   const [form, setForm] = useState(() => ({
+    grade: STUDIO_GRADES.includes(String(paperMeta?.grade)) ? String(paperMeta.grade) : '4',
+    subject: STUDIO_SUBJECTS.includes(paperMeta?.subject) ? paperMeta.subject : STUDIO_SUBJECTS[0],
     framework: '2023',
     assessmentType: 'end_of_term',
     term: paperMeta?.term || '1',
@@ -73,9 +76,14 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
   const [error, setError] = useState('')
   const [result, setResult] = useState(null) // { assessment, blocks, warning }
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
+  // Grade/subject/curriculum changes invalidate the chosen topics — they
+  // belong to a different syllabus page.
+  const setMeta = (k, v) => setForm((f) => ({
+    ...f, [k]: v, topics: [], topicInput: '', subtopic: '',
+  }))
 
   const { topics: topicOptions, subtopics: subtopicOptions } =
-    useSyllabusTopicOptions(paperMeta?.grade, paperMeta?.subject, form.topics[0] || form.topicInput, form.framework)
+    useSyllabusTopicOptions(form.grade, form.subject, form.topics[0] || form.topicInput, form.framework)
 
   const topicList = useMemo(() => {
     const fromChips = form.topics
@@ -125,8 +133,8 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
     setStatus('generating')
     setError('')
     const res = await generateAssessment({
-      grade: studioGradeToKbGrade(paperMeta?.grade),
-      subject: studioSubjectToKey(paperMeta?.subject),
+      grade: studioGradeToKbGrade(form.grade),
+      subject: studioSubjectToKey(form.subject),
       framework: form.framework,
       topic: topicList.join('; ').slice(0, 160),
       subtopic: form.subtopic.trim(),
@@ -166,9 +174,8 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
               📄 Create paper with AI
             </h3>
             <p style={{ margin: '4px 0 0', fontSize: 13, color: 'var(--sv-muted, #566f76)' }}>
-              Grade {paperMeta?.grade} · {paperMeta?.subject}. The paper follows the
-              Zambian format for the chosen test type and lands as editable blocks —
-              review every question before saving.
+              The paper follows the Zambian format for the chosen test type and
+              lands as editable blocks — review every question before saving.
             </p>
           </div>
           <button type="button" onClick={onClose} disabled={status === 'generating'}
@@ -178,12 +185,32 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
 
         {status !== 'done' && (
           <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <div>
+                <label style={fieldLabel}>Grade</label>
+                <select style={inputStyle} value={form.grade}
+                  onChange={(e) => setMeta('grade', e.target.value)}>
+                  {STUDIO_GRADES.map((g) => (
+                    <option key={g} value={g}>Grade {g}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={fieldLabel}>Subject</label>
+                <select style={inputStyle} value={form.subject}
+                  onChange={(e) => setMeta('subject', e.target.value)}>
+                  {STUDIO_SUBJECTS.map((s) => (
+                    <option key={s} value={s}>{s}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
             <div>
               <label style={fieldLabel}>Curriculum</label>
               <div style={{ display: 'flex', gap: 6 }}>
                 {CURRICULUM_FRAMEWORKS.map((f) => (
                   <button key={f.value} type="button"
-                    onClick={() => set('framework', f.value)}
+                    onClick={() => setMeta('framework', f.value)}
                     style={{
                       flex: 1, padding: '8px 12px', borderRadius: 10, fontSize: 13, cursor: 'pointer',
                       border: `1.5px solid ${form.framework === f.value ? 'var(--sv-primary, #ff7a2e)' : 'var(--sv-border, #d9cfb8)'}`,
