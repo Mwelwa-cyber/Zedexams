@@ -46,6 +46,7 @@ import {
   useSyllabusTopicOptions, studioGradeToKbGrade, studioSubjectToKey,
   CURRICULUM_FRAMEWORKS,
 } from './syllabusTopicOptions'
+import { STUDIO_SUBJECTS, STUDIO_GRADES } from './assessmentStudioMeta'
 import {
   QUIZ_DOCUMENT_ACCEPT,
   importQuizDocument,
@@ -92,17 +93,8 @@ const STUDIO_TO_LIBRARY_ASSESSMENT_TYPE = {
   project: 'topic',
 }
 
-const SUBJECTS = [
-  'English',
-  'Integrated Science',
-  'Mathematics',
-  'Social Studies',
-  'Expressive Art',
-  'Technology Studies',
-  'Cinyanja',
-  'Home Economics',
-]
-const GRADES = ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12']
+const SUBJECTS = STUDIO_SUBJECTS
+const GRADES = STUDIO_GRADES
 const GRADE_WORDS = {
   1: 'ONE', 2: 'TWO', 3: 'THREE', 4: 'FOUR', 5: 'FIVE', 6: 'SIX',
   7: 'SEVEN', 8: 'EIGHT', 9: 'NINE', 10: 'TEN', 11: 'ELEVEN', 12: 'TWELVE',
@@ -762,6 +754,10 @@ export default function AssessmentStudio() {
     const lastWithLogo = recentPapers.find(p => (p.schoolLogoUrl || '').trim())
     setForm(f => ({
       ...f,
+      // Grade/subject were chosen explicitly in the modal — the paper
+      // follows them (unlike the fields below, which only backfill).
+      grade: aiPaperForm.grade || f.grade,
+      subject: aiPaperForm.subject || f.subject,
       term: f.term || aiPaperForm.term,
       duration: f.duration || String(aiPaperForm.durationMinutes),
       assessmentType: typeMap[aiPaperForm.assessmentType] || f.assessmentType,
@@ -1490,6 +1486,7 @@ export default function AssessmentStudio() {
         generatingDiagram={generatingDiagram}
         onOpenMarkingKey={() => { closeSlide(); changeView('marking-key') }}
         onCreatePaper={() => setCreatePaperOpen(true)}
+        onUpdatePaperMeta={(k, v) => setF(k, v)}
         diagramsNeeded={countDiagramsNeeded(sections)}
         onOpenDiagramFix={() => { closeSlide(); setDiagramFixOpen(true) }}
         onVerifyPaper={() => { closeSlide(); setVerifyOpen(true) }}
@@ -4601,7 +4598,7 @@ function BlockPickerItem({ icon, title, hint, onClick, disabled, gold }) {
  * ================================================================== */
 const AI_COUNT_PRESETS = [5, 10, 15, 20, 25]
 
-function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNumbers, generating, onGenerate, onImport, importing, onGenerateDiagram, generatingDiagram, onOpenMarkingKey, onCreatePaper, diagramsNeeded = 0, onOpenDiagramFix, onVerifyPaper }) {
+function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNumbers, generating, onGenerate, onImport, importing, onGenerateDiagram, generatingDiagram, onOpenMarkingKey, onCreatePaper, onUpdatePaperMeta, diagramsNeeded = 0, onOpenDiagramFix, onVerifyPaper }) {
   const docInputRef = useRef(null)
   const [customCount, setCustomCount] = useState(false)
   const { topics: topicOptions } = useSyllabusTopicOptions(form.grade, form.subject, aiForm.topic, aiForm.framework)
@@ -4631,6 +4628,30 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNu
           Pick a topic, count and type — I&apos;ll draft them and drop them into the builder. Always review before saving.
         </div>
 
+        <div className="sv-field-grid two" style={{ marginBottom: 12 }}>
+          <div className="sv-field">
+            <label>Grade</label>
+            <select
+              value={form.grade}
+              onChange={e => { onUpdatePaperMeta?.('grade', e.target.value); setAiForm(prev => ({ ...prev, topic: '' })) }}
+            >
+              {STUDIO_GRADES.map(g => (
+                <option key={g} value={g}>Grade {g}</option>
+              ))}
+            </select>
+          </div>
+          <div className="sv-field">
+            <label>Subject</label>
+            <select
+              value={form.subject}
+              onChange={e => { onUpdatePaperMeta?.('subject', e.target.value); setAiForm(prev => ({ ...prev, topic: '' })) }}
+            >
+              {STUDIO_SUBJECTS.map(s => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+          </div>
+        </div>
         <div className="sv-field" style={{ marginBottom: 12 }}>
           <label>Curriculum</label>
           <select

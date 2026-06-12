@@ -17,9 +17,14 @@ export default [
   // Paths to ignore entirely.
   {
     ignores: [
+      '.claude/**',
+      '.tmp-*/**',
       'dist/**',
       'dist_test*/**',
       'Zedexams/**',            // legacy fork, will be deleted
+      'android/app/build/**',
+      'android/app/src/main/assets/**',
+      'android/build/**',
       'node_modules/**',
       'functions/node_modules/**',
       'functions/lib/**',

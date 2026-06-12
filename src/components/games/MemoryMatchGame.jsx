@@ -17,6 +17,8 @@ import Leaderboard from './Leaderboard'
 import MascotCelebration from './MascotCelebration'
 import MascotGreeting from './MascotGreeting'
 import SmartFeedback from './SmartFeedback'
+import ScorePops, { useScorePops } from './ScorePops'
+import { LevelUpBanner, XpProgressBar, PersonalBestBanner } from './Progress'
 import { RatingStars } from './gamesUi'
 
 /**
@@ -43,9 +45,11 @@ export default function MemoryMatchGame({ game }) {
   const [mismatches, setMismatches] = useState(0)
   const [elapsed, setElapsed] = useState(0)
   const [confettiKey, setConfettiKey] = useState(0)
+  const [shakePair, setShakePair] = useState([]) // indices of a mismatched pair, briefly shaken
+  const { pops, pushPop } = useScorePops()
   const startRef = useRef(null)
 
-  const { saveResult, newBadges, streakResult, finish, reset } = useGameFinish()
+  const { saveResult, newBadges, streakResult, levelChange, personalBest, finish, reset } = useGameFinish()
 
   // stopwatch
   useEffect(() => {
@@ -73,6 +77,7 @@ export default function MemoryMatchGame({ game }) {
     setMoves(0)
     setMismatches(0)
     setElapsed(0)
+    setShakePair([])
     startRef.current = Date.now()
   }
 
@@ -90,6 +95,7 @@ export default function MemoryMatchGame({ game }) {
         // match
         setTimeout(() => {
           playCorrect()
+          pushPop(points)
           const newMatched = [...matched, a, b]
           setMatched(newMatched)
           setFlipped([])
@@ -98,7 +104,13 @@ export default function MemoryMatchGame({ game }) {
           }
         }, 380)
       } else {
-        setTimeout(() => { playWrong(); setMismatches((m) => m + 1); setFlipped([]) }, 900)
+        setShakePair([a, b])
+        setTimeout(() => {
+          playWrong()
+          setMismatches((m) => m + 1)
+          setFlipped([])
+          setShakePair([])
+        }, 900)
       }
     }
   }
@@ -149,6 +161,8 @@ export default function MemoryMatchGame({ game }) {
           saveResult={saveResult}
           newBadges={newBadges}
           streakResult={streakResult}
+          levelChange={levelChange}
+          personalBest={personalBest}
           onRestart={restart}
         />
       </>
@@ -158,7 +172,10 @@ export default function MemoryMatchGame({ game }) {
   return (
     <div className="space-y-5">
       <div className="flex gap-2 sm:gap-3">
-        <StatPill label="Matches" value={`${matched.length / 2} / ${pairs.length}`} tone="emerald" />
+        <div className="relative flex-1">
+          <StatPill label="Matches" value={`${matched.length / 2} / ${pairs.length}`} tone="emerald" />
+          <ScorePops pops={pops} />
+        </div>
         <StatPill label="Moves"   value={moves} tone="amber" />
         <StatPill label="Time"    value={formatTime(elapsed)} tone="sky" />
       </div>
@@ -170,6 +187,7 @@ export default function MemoryMatchGame({ game }) {
         {deck.map((card, i) => {
           const faceUp = flipped.includes(i) || matched.includes(i)
           const isMatched = matched.includes(i)
+          const isShaking = shakePair.includes(i)
           return (
             <button
               key={i}
@@ -177,7 +195,7 @@ export default function MemoryMatchGame({ game }) {
               onClick={() => handleFlip(i)}
               disabled={isMatched}
               aria-label={faceUp ? card.label : 'Hidden card'}
-              className="relative aspect-[3/4] w-full rounded-[14px] focus:outline-none focus:ring-4 focus:ring-amber-300"
+              className={`relative aspect-[3/4] w-full rounded-[14px] focus:outline-none focus:ring-4 focus:ring-amber-300 ${isShaking ? 'zx-shake' : ''}`}
             >
               {faceUp ? (
                 <div className={`zx-card w-full h-full rounded-[14px] flex items-center justify-center p-2 text-center font-black ${
@@ -235,10 +253,12 @@ function ReadyCard({ game, pairs, onStart }) {
   )
 }
 
-function DoneCard({ game, score, moves, mismatches, elapsed, efficiency, saveResult, newBadges, streakResult, onRestart }) {
+function DoneCard({ game, score, moves, mismatches, elapsed, efficiency, saveResult, newBadges, streakResult, levelChange, personalBest, onRestart }) {
   const stars = efficiency >= 90 ? 5 : efficiency >= 75 ? 4 : efficiency >= 55 ? 3 : 2
   return (
     <div className="space-y-5">
+      {levelChange?.leveledUp && <LevelUpBanner change={levelChange} />}
+      {personalBest?.isBest && <PersonalBestBanner personalBest={personalBest} />}
       {streakResult?.isDaily && <StreakBanner result={streakResult} />}
       {newBadges?.length > 0 && <BadgeToast badges={newBadges} />}
 
@@ -257,6 +277,9 @@ function DoneCard({ game, score, moves, mismatches, elapsed, efficiency, saveRes
           <DoneStat label="Time"     value={formatTime(elapsed)} tone="sky" />
         </div>
         <SaveBanner saveResult={saveResult} />
+        {levelChange?.after && (
+          <div className="mt-4"><XpProgressBar progress={levelChange.after} gained={score} /></div>
+        )}
         <SmartFeedback
           game={game}
           result={{ score, accuracy: efficiency, correct: moves, wrong: mismatches, bestStreak: 0 }}

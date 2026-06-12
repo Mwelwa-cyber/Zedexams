@@ -18,6 +18,8 @@ import Leaderboard from './Leaderboard'
 import MascotCelebration from './MascotCelebration'
 import MascotGreeting from './MascotGreeting'
 import SmartFeedback from './SmartFeedback'
+import ScorePops, { useScorePops } from './ScorePops'
+import { LevelUpBanner, XpProgressBar, PersonalBestBanner } from './Progress'
 import { RatingStars } from './gamesUi'
 
 /**
@@ -46,9 +48,10 @@ export default function WordBuilderGame({ game }) {
   const [solvedThisWord, setSolvedThisWord] = useState(false)
   const [mistakes, setMistakes] = useState(0)
   const [confettiKey, setConfettiKey] = useState(0)
+  const { pops, pushPop } = useScorePops()
   const startRef = useRef(null)
 
-  const { saveResult, newBadges, streakResult, finish, reset } = useGameFinish()
+  const { saveResult, newBadges, streakResult, levelChange, personalBest, finish, reset } = useGameFinish()
 
   const current = words[order[pos] ?? 0] || { question: '', answer: '' }
   const target = String(current.answer || '').toUpperCase()
@@ -89,6 +92,7 @@ export default function WordBuilderGame({ game }) {
       const guess = nextSlots.map((idx) => nextTiles[idx].letter).join('')
       if (guess === target) {
         playCorrect()
+        pushPop(points)
         setSolvedThisWord(true)
         setSolvedCount((c) => c + 1)
       } else {
@@ -163,6 +167,8 @@ export default function WordBuilderGame({ game }) {
           saveResult={saveResult}
           newBadges={newBadges}
           streakResult={streakResult}
+          levelChange={levelChange}
+          personalBest={personalBest}
           onRestart={start}
         />
       </>
@@ -179,8 +185,9 @@ export default function WordBuilderGame({ game }) {
         <span className="text-[10.5px] font-extrabold uppercase tracking-[0.16em] text-amber-300">
           Word {pos + 1} of {order.length}
         </span>
-        <span className="text-sm font-black text-white">
+        <span className="relative text-sm font-black text-white">
           Solved: <span className="text-amber-300">{solvedCount}</span>
+          <ScorePops pops={pops} />
         </span>
       </div>
 
@@ -192,7 +199,7 @@ export default function WordBuilderGame({ game }) {
           {stripLeadingEmoji(current.question)}
         </p>
 
-        <div className="flex flex-wrap justify-center gap-2 mb-6">
+        <div key={`slots-${pos}-${isWrong ? mistakes : 'ok'}`} className={`flex flex-wrap justify-center gap-2 mb-6 ${isWrong ? 'zx-shake' : ''}`}>
           {slots.map((tileIdx, i) => {
             const letter = tileIdx !== null ? tiles[tileIdx].letter : ''
             const base = 'w-12 h-14 sm:w-14 sm:h-16 rounded-[12px] border-2 border-slate-900 font-black text-2xl sm:text-3xl flex items-center justify-center transition'
@@ -300,9 +307,11 @@ function ReadyCard({ game, wordCount, onStart }) {
   )
 }
 
-function DoneCard({ game, score, solved, total, accuracy, mistakes, saveResult, newBadges, streakResult, onRestart }) {
+function DoneCard({ game, score, solved, total, accuracy, mistakes, saveResult, newBadges, streakResult, levelChange, personalBest, onRestart }) {
   return (
     <div className="space-y-5">
+      {levelChange?.leveledUp && <LevelUpBanner change={levelChange} />}
+      {personalBest?.isBest && <PersonalBestBanner personalBest={personalBest} />}
       {streakResult?.isDaily && <StreakBanner result={streakResult} />}
       {newBadges?.length > 0 && <BadgeToast badges={newBadges} />}
 
@@ -321,6 +330,9 @@ function DoneCard({ game, score, solved, total, accuracy, mistakes, saveResult, 
           <DoneStat label="Mistakes"  value={mistakes} tone="rose" />
         </div>
         <SaveBanner saveResult={saveResult} />
+        {levelChange?.after && (
+          <div className="mt-4"><XpProgressBar progress={levelChange.after} gained={score} /></div>
+        )}
         <SmartFeedback
           game={game}
           result={{ score, accuracy, correct: solved, wrong: total - solved, bestStreak: solved }}

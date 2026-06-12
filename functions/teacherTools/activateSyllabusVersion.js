@@ -262,7 +262,6 @@ exports.activateSyllabusVersion = onCall(
     let morePages = true;
     const PAGE_SIZE = 200; // smaller page so lesson expansion fits in budget
 
-    /* eslint-disable no-await-in-loop */
     while (morePages) {
       let q = draftsCol.orderBy("__name__").limit(PAGE_SIZE);
       if (pageStart) q = q.startAfter(pageStart);
@@ -301,8 +300,6 @@ exports.activateSyllabusVersion = onCall(
         pageStart = page.docs[page.docs.length - 1];
       }
     }
-    /* eslint-enable no-await-in-loop */
-
     await writer.finish();
 
     // 3. Flip the pointer. Single doc write → atomic.

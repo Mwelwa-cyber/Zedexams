@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { saveScore } from '../../utils/gamesService'
+import { saveScore, readRoundBaseline, readRoundOutcome } from '../../utils/gamesService'
 import { evaluateAndAwardGameBadges } from '../../utils/gameBadgesService'
 import { getTodaysChallenge, recordDailyPlay } from '../../utils/dailyChallengeService'
 
@@ -33,16 +33,25 @@ export function useGameFinish() {
   const [saveResult, setSaveResult] = useState(null)
   const [newBadges, setNewBadges] = useState([])
   const [streakResult, setStreakResult] = useState(null)
+  const [levelChange, setLevelChange] = useState(null)
+  const [personalBest, setPersonalBest] = useState(null)
 
   function reset() {
     setPhase('playing')
     setSaveResult(null)
     setNewBadges([])
     setStreakResult(null)
+    setLevelChange(null)
+    setPersonalBest(null)
   }
 
   async function finish(result) {
     setPhase('done')
+
+    // Snapshot progression (windowed total + all-time best for this game)
+    // *before* saving, so a level-up / personal best can be resolved exactly.
+    const baseline = await readRoundBaseline(result.game?.id)
+
     const savePayload = {
       game: result.game,
       score: result.score,
@@ -56,6 +65,15 @@ export function useGameFinish() {
     setSaveResult(save)
 
     if (!save?.ok) return
+
+    try {
+      const { levelChange: lc, personalBest: pb } = await readRoundOutcome({
+        score: result.score,
+        baseline,
+      })
+      if (lc) setLevelChange(lc)
+      if (pb) setPersonalBest(pb)
+    } catch { /* progression is non-critical */ }
 
     // Badges
     try {
@@ -87,5 +105,5 @@ export function useGameFinish() {
     }
   }
 
-  return { phase, setPhase, saveResult, newBadges, streakResult, finish, reset }
+  return { phase, setPhase, saveResult, newBadges, streakResult, levelChange, personalBest, finish, reset }
 }

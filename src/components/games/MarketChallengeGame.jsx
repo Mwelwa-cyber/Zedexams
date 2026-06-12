@@ -13,6 +13,7 @@ import {
 import { playCorrect, playWrong, playWin, playTick, primeSounds } from '../../utils/gameSounds'
 import { useGameFinish } from './useGameFinish'
 import { SaveBanner, StreakBanner, DoneStat } from './DoneBanners'
+import { LevelUpBanner, XpProgressBar, PersonalBestBanner } from './Progress'
 import BadgeToast from './BadgeToast'
 import ShareButton from './ShareButton'
 import Confetti from './Confetti'
@@ -122,7 +123,7 @@ export default function MarketChallengeGame({ game }) {
   const [confettiKey, setConfettiKey] = useState(0)
   const startRef = useRef(null)
 
-  const { saveResult, newBadges, streakResult, finish, reset } = useGameFinish()
+  const { saveResult, newBadges, streakResult, levelChange, personalBest, finish, reset } = useGameFinish()
 
   const customer = customers[pos] || null
   const giving = pile.reduce((sum, d) => sum + d, 0)
@@ -259,6 +260,8 @@ export default function MarketChallengeGame({ game }) {
           saveResult={saveResult}
           newBadges={newBadges}
           streakResult={streakResult}
+          levelChange={levelChange}
+          personalBest={personalBest}
           onRestart={start}
         />
       </>
@@ -486,9 +489,11 @@ function ReadyCard({ game, cfg, points, onStart }) {
   )
 }
 
-function DoneCard({ game, score, served, total, accuracy, bestStreak, saveResult, newBadges, streakResult, onRestart }) {
+function DoneCard({ game, score, served, total, accuracy, bestStreak, saveResult, newBadges, streakResult, levelChange, personalBest, onRestart }) {
   return (
     <div className="space-y-5">
+      {levelChange?.leveledUp && <LevelUpBanner change={levelChange} />}
+      {personalBest?.isBest && <PersonalBestBanner personalBest={personalBest} />}
       {streakResult?.isDaily && <StreakBanner result={streakResult} />}
       {newBadges?.length > 0 && <BadgeToast badges={newBadges} />}
 
@@ -507,6 +512,9 @@ function DoneCard({ game, score, served, total, accuracy, bestStreak, saveResult
           <DoneStat label="Best streak" value={bestStreak} tone="rose" />
         </div>
         <SaveBanner saveResult={saveResult} />
+        {levelChange?.after && (
+          <div className="mt-4"><XpProgressBar progress={levelChange.after} gained={score} /></div>
+        )}
         <SmartFeedback
           game={game}
           result={{ score, accuracy, correct: served, wrong: total - served, bestStreak }}

@@ -108,8 +108,41 @@ export default function GameStickerStyles() {
         50%      { transform: scale(1.15) rotate(2deg); filter: drop-shadow(0 0 8px rgba(255,140,0,0.7)); }
       }
       .zx-flame { animation: zx-flame 1.4s ease-in-out infinite; display: inline-block; }
+      /* Game-feel juice: floating score deltas, answer reactions, combo bump. */
+      @keyframes zx-score-pop {
+        0%   { transform: translateY(6px) scale(0.7); opacity: 0; }
+        25%  { transform: translateY(-4px) scale(1.15); opacity: 1; }
+        100% { transform: translateY(-34px) scale(1); opacity: 0; }
+      }
+      @keyframes zx-combo-bump {
+        0%   { transform: scale(1); }
+        45%  { transform: scale(1.12); }
+        100% { transform: scale(1); }
+      }
+      @keyframes zx-correct-pop {
+        0%   { transform: scale(1); }
+        40%  { transform: scale(1.04); }
+        100% { transform: scale(1); }
+      }
+      .zx-correct-pop { animation: zx-correct-pop 0.32s ease-out; }
+      @keyframes zx-shake {
+        0%, 100% { transform: translateX(0); }
+        20%      { transform: translateX(-7px); }
+        40%      { transform: translateX(6px); }
+        60%      { transform: translateX(-4px); }
+        80%      { transform: translateX(3px); }
+      }
+      .zx-shake { animation: zx-shake 0.4s ease-in-out; }
+      /* Class forms so the reduced-motion block below can disable them
+         (inline-style animations can't be overridden by a media query). */
+      .zx-anim-pop { animation: zx-score-pop 0.9s cubic-bezier(0.22,1,0.36,1) forwards; }
+      .zx-anim-bump { animation: zx-combo-bump 0.34s ease-out; }
       @media (prefers-reduced-motion: reduce) {
         .zx-flame { animation: none !important; }
+        .zx-correct-pop,
+        .zx-shake,
+        .zx-anim-pop,
+        .zx-anim-bump { animation: none !important; }
       }
     `}</style>
   )
