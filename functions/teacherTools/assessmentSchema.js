@@ -4,7 +4,7 @@
  * key. Heavier than a worksheet (marks, marking guide per question).
  */
 
-const SCHEMA_VERSION = "1.2";
+const SCHEMA_VERSION = "1.3";
 
 const ALLOWED_TYPES = new Set([
   "multiple_choice",
@@ -13,6 +13,7 @@ const ALLOWED_TYPES = new Set([
   "calculation",
   "true_false",
   "essay",
+  "matching",
 ]);
 
 function isNonEmptyString(v) {
@@ -64,7 +65,7 @@ function validateAssessment(input) {
             s.questions
                 .filter((q) => q && typeof q === "object")
                 .map((q) => {
-                  const type = ALLOWED_TYPES.has(q.type) ?
+                  let type = ALLOWED_TYPES.has(q.type) ?
                     q.type : "short_answer";
                   const marks = isPositiveNumber(q.marks) ?
                     Math.round(q.marks) : 1;
@@ -74,6 +75,30 @@ function validateAssessment(input) {
                   globalQNum = Math.max(globalQNum + 1, number + 1);
                   const options = Array.isArray(q.options) ?
                     q.options.filter(isNonEmptyString) : null;
+                  // Match-the-columns (v1.3): left/right string columns +
+                  // pairs[i] = index into right that pairs with left[i].
+                  // A malformed matching question degrades to short_answer
+                  // (the model answer still carries the pairs in prose).
+                  let matching = null;
+                  if (type === "matching") {
+                    const left = Array.isArray(q.left) ?
+                      q.left.filter(isNonEmptyString)
+                          .slice(0, 6).map((v) => str(v, 200)) : [];
+                    const right = Array.isArray(q.right) ?
+                      q.right.filter(isNonEmptyString)
+                          .slice(0, 8).map((v) => str(v, 200)) : [];
+                    const pairs = Array.isArray(q.pairs) ?
+                      q.pairs.map((p) => Number(p)) : [];
+                    const valid = left.length >= 2 && right.length >= 2 &&
+                      pairs.length === left.length &&
+                      pairs.every((p) => Number.isInteger(p) &&
+                        p >= 0 && p < right.length);
+                    if (valid) {
+                      matching = {left, right, pairs};
+                    } else {
+                      type = "short_answer";
+                    }
+                  }
                   return {
                     number,
                     type,
@@ -82,6 +107,7 @@ function validateAssessment(input) {
                       type === "true_false") ?
                       (options && options.length >= 2 ? options : null) :
                       null,
+                    matching,
                     marks,
                     // Optional brief of a figure the teacher should attach
                     // (v1.1). Coerces to null for absent/garbage values so

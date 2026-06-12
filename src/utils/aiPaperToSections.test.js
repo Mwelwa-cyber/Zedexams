@@ -132,6 +132,35 @@ console.log('aiPaperToSections')
   ok('skips are reported as warnings', true)
 }
 
+// ── Matching questions ────────────────────────────────────────────────────
+{
+  const good = mapAiQuestion({
+    type: 'matching',
+    prompt: 'Match the animals in Column A with their young ones in Column B.',
+    matching: { left: ['cow', 'dog', 'hen'], right: ['calf', 'puppy', 'chick', 'kid'], pairs: [0, 1, 2] },
+    marks: 3,
+    answer: 'cow-calf, dog-puppy, hen-chick',
+    markingGuide: '1 mark per correct pair.',
+  })
+  assert.strictEqual(good.overrides.type, 'matching')
+  assert.deepStrictEqual(good.overrides.matchingLeft, ['cow', 'dog', 'hen'])
+  assert.deepStrictEqual(good.overrides.matchingRight, ['calf', 'puppy', 'chick', 'kid'])
+  assert.deepStrictEqual(good.overrides.matchingAnswer, [0, 1, 2])
+  assert.ok(!good.overrides.requiresReview)
+  ok('valid matching maps to the studio matching shape', true)
+
+  const broken = mapAiQuestion({
+    type: 'matching',
+    prompt: 'Match these.',
+    matching: null,
+    marks: 2,
+    answer: 'a-b',
+  })
+  assert.strictEqual(broken.overrides.type, 'short_answer')
+  assert.strictEqual(broken.overrides.requiresReview, true)
+  ok('matching without columns degrades to a flagged short answer', true)
+}
+
 // ── Comprehension passages become passage blocks ─────────────────────────
 {
   const blocks = aiAssessmentToStudioBlocks({

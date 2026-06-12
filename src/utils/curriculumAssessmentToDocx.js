@@ -101,6 +101,16 @@ export function buildCurriculumAssessmentDocument(asmt) {
     if (sec.instructions) {
       children.push(para(text(sec.instructions, { italics: true, size: 20 })))
     }
+    // Comprehension passage (schema v1.2) — story printed above its questions.
+    if (sec.passage?.text) {
+      if (sec.passage.title) {
+        children.push(new Paragraph({
+          children: [text(sec.passage.title, { bold: true, size: 20 })],
+          alignment: AlignmentType.CENTER, spacing: { before: 80, after: 60 },
+        }))
+      }
+      children.push(para(text(sec.passage.text, { size: 20 })))
+    }
     ;(sec.questions || []).forEach((q) => {
       children.push(new Paragraph({
         children: [
@@ -129,6 +139,28 @@ export function buildCurriculumAssessmentDocument(asmt) {
             indent: { left: 480 }, spacing: { after: 20 },
           }))
         })
+      }
+      // Match-the-columns (schema v1.3) — Column A numbered, Column B
+      // lettered, printed as aligned rows.
+      if (q.type === 'matching' && q.matching) {
+        const { left = [], right = [] } = q.matching
+        const rows = Math.max(left.length, right.length)
+        children.push(new Paragraph({
+          children: [
+            text('Column A', { bold: true, size: 20 }),
+            text('\t\tColumn B', { bold: true, size: 20 }),
+          ],
+          indent: { left: 480 }, spacing: { after: 20 },
+        }))
+        for (let i = 0; i < rows; i++) {
+          children.push(new Paragraph({
+            children: [
+              text(left[i] != null ? `${i + 1}. ${left[i]}` : '', { size: 20 }),
+              text(right[i] != null ? `\t\t${LETTERS[i] || '•'}. ${right[i]}` : '', { size: 20 }),
+            ],
+            indent: { left: 480 }, spacing: { after: 20 },
+          }))
+        }
       }
     })
   })

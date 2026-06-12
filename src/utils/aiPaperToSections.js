@@ -45,6 +45,7 @@ function mapType(aiType) {
     case 'multiple_choice': return 'mcq'
     case 'true_false': return 'mcq' // True/False renders as a 2-option MCQ
     case 'essay': return 'essay'
+    case 'matching': return 'matching'
     case 'short_answer':
     case 'calculation':
     case 'structured':
@@ -78,7 +79,26 @@ export function mapAiQuestion(q, { partId = null } = {}) {
     partId,
   }
 
-  if (type === 'mcq') {
+  if (type === 'matching') {
+    // assessmentSchema v1.3 guarantees a valid {left, right, pairs} shape
+    // (it degrades broken matching to short_answer before we see it), but
+    // guard anyway for hand-fed payloads.
+    const m = q?.matching
+    const valid = m && Array.isArray(m.left) && Array.isArray(m.right) &&
+      Array.isArray(m.pairs) && m.pairs.length === m.left.length &&
+      m.left.length >= 2
+    if (valid) {
+      overrides.matchingLeft = m.left.map(String)
+      overrides.matchingRight = m.right.map(String)
+      overrides.matchingAnswer = m.pairs.map(Number)
+      overrides.correctAnswer = 0
+    } else {
+      overrides.type = 'short_answer'
+      overrides.detectedType = 'short_answer'
+      overrides.correctAnswer = answer
+      reviewNotes.push('AI matching columns were incomplete — rebuild the pairs or reword as short answer.')
+    }
+  } else if (type === 'mcq') {
     const options = aiType === 'true_false' && !(Array.isArray(q?.options) && q.options.length >= 2) ?
       ['True', 'False'] :
       (Array.isArray(q?.options) ? q.options.map((o) => String(o ?? '').trim()).filter(Boolean) : [])
