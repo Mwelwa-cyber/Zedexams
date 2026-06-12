@@ -88,7 +88,8 @@ console.log('aiPaperToSections')
   })
   assert.strictEqual(withDiagram.overrides.requiresReview, true)
   assert.ok(withDiagram.overrides.reviewNotes.some((n) => n.includes('Diagram needed')))
-  ok('diagram briefs surface as review notes', true)
+  assert.strictEqual(withDiagram.overrides.diagramBrief, 'A bean plant with the stem labelled X.')
+  ok('diagram briefs surface as review notes AND a diagramBrief field', true)
 }
 
 // ── aiAssessmentToStudioBlocks ────────────────────────────────────────────
