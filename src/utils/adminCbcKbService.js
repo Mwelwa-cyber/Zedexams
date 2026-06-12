@@ -13,6 +13,7 @@ import { getFunctions, httpsCallable } from 'firebase/functions'
 import { ref as storageRef, uploadBytes } from 'firebase/storage'
 import app, { db, storage } from '../firebase/config'
 import { LEARNING_ENVIRONMENT_VALUES } from '../config/learningEnvironments'
+import { compressImportedImage } from './quizDocumentImport'
 
 const functions = getFunctions(app, 'us-central1')
 const importBuiltInCbcTopicsCallable = httpsCallable(functions, 'importBuiltInCbcTopics', {
@@ -27,6 +28,13 @@ const importBuiltInAssessmentFormatsCallable = httpsCallable(functions, 'importB
 const extractAssessmentFormatCallable = httpsCallable(functions, 'extractAssessmentFormat', {
   // Downloads the sample paper, runs Claude over it and writes the draft;
   // server-side timeoutSeconds is 300, so match it on the client.
+  timeout: 300_000,
+})
+const analyzeExamPaperCallable = httpsCallable(functions, 'analyzeExamPaper', {
+  // Same download + Claude path as extraction; server timeoutSeconds is 300.
+  timeout: 300_000,
+})
+const synthesizeAssessmentFormatCallable = httpsCallable(functions, 'synthesizeAssessmentFormat', {
   timeout: 300_000,
 })
 
@@ -452,6 +460,46 @@ function cleanLines(v, maxItems, maxLen) {
 }
 
 /**
+ * Client mirror of the server's grade-code → band map (assessmentFormats.js
+ * gradeToBand). Used to group Exam Paper Library samples and to validate the
+ * grade picked for a synthesis. Returns null for unrecognised input.
+ */
+export function gradeToFormatBand(grade) {
+  const g = String(grade || '').toUpperCase().trim()
+  if (g === 'ECE') return 'lower_primary'
+  const m = g.match(/^([GF])(\d{1,2})$/)
+  if (!m) return null
+  const n = Number(m[2])
+  if (m[1] === 'F') {
+    if (n >= 1 && n <= 2) return 'junior_secondary'
+    if (n >= 3 && n <= 4) return 'senior_secondary'
+    return null
+  }
+  if (n >= 1 && n <= 3) return 'lower_primary'
+  if (n >= 4 && n <= 7) return 'upper_primary'
+  if (n >= 8 && n <= 9) return 'junior_secondary'
+  if (n >= 10 && n <= 12) return 'senior_secondary'
+  return null
+}
+
+/** Normalise the optional per-grade nuance map; drops invalid grade keys. */
+function cleanGradeNotes(v) {
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return {}
+  const out = {}
+  let count = 0
+  for (const [k, val] of Object.entries(v)) {
+    if (count >= 12) break
+    const grade = String(k || '').toUpperCase().trim()
+    if (!gradeToFormatBand(grade)) continue
+    const note = String(val ?? '').trim().slice(0, 400)
+    if (!note) continue
+    out[grade] = note
+    count += 1
+  }
+  return out
+}
+
+/**
  * Create or replace a format profile. Doc id is always derived from
  * type+band+subject so the server resolver's deterministic lookup finds it.
  * Throws with a readable message on invalid input (the admin form surfaces it).
@@ -513,9 +561,14 @@ export async function saveAssessmentFormat(profile) {
     phrasingNotes: cleanLines(profile.phrasingNotes, 6, 300),
     marksConventions: cleanLines(profile.marksConventions, 6, 300),
     diagramConventions: cleanLines(profile.diagramConventions, 4, 400),
+    // Richer signals carried over when a profile is synthesised from the
+    // Exam Paper Library. Optional — manual/seed profiles simply omit them.
+    answerSpaceConventions: cleanLines(profile.answerSpaceConventions, 6, 300),
+    pictureUsage: cleanLines(profile.pictureUsage, 6, 400),
+    gradeNotes: cleanGradeNotes(profile.gradeNotes),
     exemplarQuestions,
     status: 'active',
-    origin: ['builtin_seed', 'pdf_extract', 'docx_extract'].includes(profile.origin) ?
+    origin: ['builtin_seed', 'pdf_extract', 'docx_extract', 'library_synthesis'].includes(profile.origin) ?
       profile.origin : 'manual',
     sourceNote: String(profile.sourceNote || '').trim().slice(0, 300),
     updatedAt: serverTimestamp(),
@@ -546,31 +599,47 @@ export async function deleteAssessmentFormat(id) {
 // are ignored by the generator until approved into assessmentFormats/.
 
 const SAMPLE_EXTS = new Set(['pdf', 'docx'])
+const SAMPLE_IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp'])
 const SAMPLE_CONTENT_TYPES = {
   pdf: 'application/pdf',
   docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 }
 
 /**
- * Upload a sample paper to assessment-format-samples/{uid}/… and return
- * the storage path to hand to extractAssessmentFormat. Throws with a
- * readable message on unsupported files.
+ * Upload a sample paper to assessment-format-samples/{uid}/… and return the
+ * storage path to hand to extractAssessmentFormat / analyzeExamPaper. Accepts
+ * .pdf and .docx, plus photos of papers (.jpg/.png/.webp) — phone snaps are
+ * compressed to a readable JPEG (≤2000px wide) so they stay well under the
+ * per-image vision limit while remaining legible. Throws a readable message
+ * on unsupported files.
  */
 export async function uploadAssessmentFormatSample(file, uid) {
   if (!file || !uid) throw new Error('Pick a file first.')
   const ext = String(file.name || '').split('.').pop().toLowerCase()
-  if (!SAMPLE_EXTS.has(ext)) {
-    throw new Error('Only .pdf and .docx sample papers are supported.')
+  const isImage = SAMPLE_IMAGE_EXTS.has(ext)
+  if (!SAMPLE_EXTS.has(ext) && !isImage) {
+    throw new Error('Supported files: .pdf, .docx, or a photo (.jpg/.png/.webp).')
   }
   if (file.size > 25 * 1024 * 1024) {
     throw new Error('File is over the 25 MB limit.')
   }
-  const safeName = String(file.name || 'sample')
-    .toLowerCase().replace(/[^a-z0-9._-]+/g, '-').slice(0, 80)
-  const storagePath = `assessment-format-samples/${uid}/${Date.now()}-${safeName}`
-  await uploadBytes(storageRef(storage, storagePath), file, {
-    contentType: SAMPLE_CONTENT_TYPES[ext],
-  })
+
+  let body = file
+  let contentType = SAMPLE_CONTENT_TYPES[ext]
+  let storageExt = ext
+  if (isImage) {
+    // Re-encode to JPEG; keep enough resolution to read a full page of text.
+    body = await compressImportedImage(file, 2000, 0.82)
+    contentType = 'image/jpeg'
+    storageExt = 'jpg'
+  }
+
+  const baseName = String(file.name || 'sample')
+    .replace(/\.[^.]+$/, '')
+    .toLowerCase().replace(/[^a-z0-9._-]+/g, '-').slice(0, 80) || 'sample'
+  const storagePath =
+    `assessment-format-samples/${uid}/${Date.now()}-${baseName}.${storageExt}`
+  await uploadBytes(storageRef(storage, storagePath), body, { contentType })
   return storagePath
 }
 
@@ -667,6 +736,89 @@ export async function importBuiltInAssessmentFormats() {
       error: err?.code === 'permission-denied' ?
         'Admin only.' :
         (err?.message || 'Import failed'),
+    }
+  }
+}
+
+// ── Exam Paper Library ───────────────────────────────────────────────────
+// Real uploaded Zambian assessment papers, each analysed into a structured
+// per-paper doc at cbcKnowledgeBase/{version}/examPaperSamples/{id}
+// (admin-only rules). The corpus the format synthesiser learns the national
+// assessment style from. Uploads reuse the assessment-format-samples/ path.
+
+/**
+ * Analyse one uploaded paper into the library. Pass either { storagePath }
+ * (from uploadAssessmentFormatSample) or { paperId } (a pastPapers doc id),
+ * plus the admin's classification (precise grade, subject, assessmentType,
+ * and optional title/year/region).
+ * Returns { ok, sampleId, analysis, warning } or { ok:false, error }.
+ */
+export async function analyzeExamPaper({
+  storagePath = null, paperId = null,
+  grade, subject, assessmentType, title = '', year = null, region = '',
+}) {
+  try {
+    const result = await analyzeExamPaperCallable({
+      storagePath, paperId, grade, subject, assessmentType, title, year, region,
+    })
+    return { ok: true, ...(result?.data || {}) }
+  } catch (err) {
+    console.error('analyzeExamPaper failed', err)
+    return {
+      ok: false,
+      error: err?.code === 'permission-denied' ?
+        'Admin only.' :
+        (err?.message || 'Analysis failed.'),
+    }
+  }
+}
+
+/** List all analysed exam-paper samples in the active KB version. */
+export async function listExamPaperSamples() {
+  try {
+    const version = await getActiveKbVersion()
+    const snap = await getDocs(
+      collection(db, 'cbcKnowledgeBase', version, 'examPaperSamples'),
+    )
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+  } catch (err) {
+    console.error('listExamPaperSamples failed', err)
+    return []
+  }
+}
+
+/** Remove one sample from the library. */
+export async function deleteExamPaperSample(id) {
+  if (!id) return false
+  try {
+    const version = await getActiveKbVersion()
+    await deleteDoc(doc(db, 'cbcKnowledgeBase', version, 'examPaperSamples', id))
+    return true
+  } catch (err) {
+    console.error('deleteExamPaperSample failed', err)
+    return false
+  }
+}
+
+/**
+ * Synthesise a consolidated format-profile draft from every analysed sample
+ * for a (assessmentType, gradeBand, subject). Lands in assessmentFormatDrafts
+ * for the same review-and-approve flow as extracted drafts.
+ * Returns { ok, draftId, draft, validationErrors, sampleCount, warning }.
+ */
+export async function synthesizeAssessmentFormat({ assessmentType, gradeBand, subject }) {
+  try {
+    const result = await synthesizeAssessmentFormatCallable({
+      assessmentType, gradeBand, subject,
+    })
+    return { ok: true, ...(result?.data || {}) }
+  } catch (err) {
+    console.error('synthesizeAssessmentFormat failed', err)
+    return {
+      ok: false,
+      error: err?.code === 'permission-denied' ?
+        'Admin only.' :
+        (err?.message || 'Synthesis failed.'),
     }
   }
 }

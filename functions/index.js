@@ -121,6 +121,12 @@ const {
 const {
   createExtractAssessmentFormat,
 } = require("./teacherTools/extractAssessmentFormat");
+// Teacher Tools — Exam Paper Library: analyse real papers + synthesise a
+// consolidated format profile from many of them (admin-only).
+const {
+  createAnalyzeExamPaper,
+  createSynthesizeAssessmentFormat,
+} = require("./teacherTools/examPaperLibrary");
 // Teacher Tools — bulk import lesson-level curriculum modules (admin-only).
 const {
   importCurriculumModules,
@@ -233,8 +239,11 @@ const recraftApiKey = defineSecret("RECRAFT_API_KEY");
 const geminiApiKey = defineSecret("GEMINI_API_KEY");
 // Optional. When set, generateDiagram exposes a "photoreal" style toggle
 // that routes through OpenAI gpt-image-1 instead of Recraft. Recraft is
-// still the default for B&W line art (cleaner on photocopiers). When
-// unset, the photoreal toggle is hidden and Recraft handles everything.
+// still the default for B&W line art (cleaner on photocopiers), but when
+// the Recraft account can't serve (out of credits, bad key) line-art
+// requests automatically fall back to gpt-image-1 with the same B&W
+// prompt. When unset, there is no fallback and the photoreal toggle is
+// hidden.
 const openaiApiKey = defineSecret("OPENAI_API_KEY");
 // Optional. When set, generateDiagram exposes a "colour illustration" style
 // that routes through the Kie.ai image API (Nano Banana et al.) for bright,
@@ -2069,8 +2078,9 @@ exports.generateExamPaper = createGenerateExamPaper(anthropicApiKey);
 
 // Teacher Tools — Diagram Generator (Recraft, B&W line art for assessments).
 // When OPENAI_API_KEY is set, generateDiagram exposes a photoreal style
-// toggle that routes through gpt-image-1. Recraft remains the default
-// for line-art. The factory takes both secrets so the handler can route
+// toggle that routes through gpt-image-1, and line-art requests fall back
+// to gpt-image-1 automatically when Recraft can't serve (out of credits,
+// bad key). The factory takes all three secrets so the handler can route
 // per-request at runtime.
 exports.generateDiagram = createGenerateDiagram(recraftApiKey, openaiApiKey, kieApiKey);
 
@@ -2102,6 +2112,14 @@ exports.importBuiltInAssessmentFormats = importBuiltInAssessmentFormats;
 // admin review on the CBC KB page before going live.
 exports.extractAssessmentFormat =
   createExtractAssessmentFormat(anthropicApiKey);
+
+// Teacher Tools — admin-only: Exam Paper Library. analyzeExamPaper distils
+// one real paper into a stored per-paper analysis; synthesizeAssessmentFormat
+// merges many analysed papers for a (type, band, subject) into a single
+// format-profile draft that awaits the same CBC KB review gate.
+exports.analyzeExamPaper = createAnalyzeExamPaper(anthropicApiKey);
+exports.synthesizeAssessmentFormat =
+  createSynthesizeAssessmentFormat(anthropicApiKey);
 
 // Teacher Tools — admin-only: bulk import lesson-level curriculum modules.
 exports.importCurriculumModules = importCurriculumModules;

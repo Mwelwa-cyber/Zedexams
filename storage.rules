@@ -198,6 +198,11 @@ service firebase.storage {
           || request.resource.contentType ==
             'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
           || request.resource.contentType == 'application/octet-stream'
+          // Photos of papers (Exam Paper Library) — phone snaps of single-page
+          // lower-grade papers. Compressed client-side before upload.
+          || request.resource.contentType == 'image/jpeg'
+          || request.resource.contentType == 'image/png'
+          || request.resource.contentType == 'image/webp'
         );
     }
     match /assessment-format-samples/{ownerUid}/{fileName=**} {

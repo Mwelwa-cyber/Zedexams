@@ -36,6 +36,11 @@ function messageFromError(error) {
     // secret to rotate. Surfaced when OpenAI returns 401 from generateDiagram.
     return msg
   }
+  if (code.includes('failed-precondition') && /openai rejected the image request/i.test(msg)) {
+    // 403 from gpt-image-1 — usually the OpenAI org needs verification.
+    // Account-level, so pass the server's diagnostic through verbatim.
+    return msg
+  }
   if (code.includes('resource-exhausted') && /openai image api is rate-limited/i.test(msg)) {
     return msg
   }
@@ -60,10 +65,13 @@ function messageFromError(error) {
   if (code.includes('unauthenticated')) {
     return 'Please sign in to generate diagrams.'
   }
+  // Recraft errors only reach the client when the server's ChatGPT
+  // (gpt-image-1) fallback was unavailable too — line-art requests fall
+  // back automatically when the Recraft account can't serve.
   if (/not_enough_credits/i.test(msg)) {
     // Recraft's 400 body for an empty balance — no prompt will ever work,
     // so don't send the admin off to "simplify" anything.
-    return 'The Recraft account is out of image credits — top up at recraft.ai, then run this again.'
+    return 'The Recraft account is out of image credits and the ChatGPT fallback is not configured — top up at recraft.ai or set OPENAI_API_KEY.'
   }
   if (/recraft request failed/i.test(msg)) {
     // The server includes Recraft's HTTP status: "Recraft request failed
@@ -75,7 +83,7 @@ function messageFromError(error) {
       return 'The Recraft API key was rejected (HTTP ' + status + ') — admin needs to rotate RECRAFT_API_KEY.'
     }
     if (status === 402) {
-      return 'The Recraft account is out of credits — top it up, or switch to the Colour/Photoreal styles.'
+      return 'The Recraft account is out of credits and the ChatGPT fallback is not configured — top it up, or switch to the Colour/Photoreal styles.'
     }
     if (status === 429) {
       return 'Recraft is rate-limiting us — wait a minute and try again.'
