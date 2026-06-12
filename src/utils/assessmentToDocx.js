@@ -350,34 +350,99 @@ export function detectImageType(bytes) {
   if (b0 === 0xff && b1 === 0xd8 && b2 === 0xff) return 'jpg'
   if (b0 === 0x47 && b1 === 0x49 && b2 === 0x46) return 'gif'
   if (b0 === 0x42 && b1 === 0x4d) return 'bmp'
+  // RIFF....WEBP. docx CANNOT embed WEBP, so callers must transcode it (see
+  // loadImageRun) before building an ImageRun — labelling WEBP bytes as png
+  // would produce a media part Word renders as a broken image.
+  if (bytes.length >= 12 &&
+      b0 === 0x52 && b1 === 0x49 && b2 === 0x46 && b3 === 0x46 &&
+      bytes[8] === 0x57 && bytes[9] === 0x45 && bytes[10] === 0x42 && bytes[11] === 0x50) return 'webp'
   return 'png'
 }
+
+const MIME_BY_TYPE = { png: 'image/png', jpg: 'image/jpeg', gif: 'image/gif', bmp: 'image/bmp', webp: 'image/webp' }
 
 /** Build an ImageRun with the format-detected `type` docx v9 requires. */
 function imageRun(bytes, transformation) {
   return new ImageRun({ type: detectImageType(bytes), data: bytes, transformation })
 }
 
-async function logoParagraph(url, transform = null) {
-  if (!url) return null
+// Fit (w,h) inside a box, preserving aspect ratio (never upscaling). The
+// studio preview scales pictures with `max-width`, so a fixed width×height
+// here would stretch them; this keeps the downloaded paper matching the
+// preview. Falls back to the box when natural dimensions are unknown.
+function fitWithin(width, height, maxWidth, maxHeight) {
+  if (!width || !height) return { width: maxWidth, height: maxHeight }
+  const scale = Math.min(maxWidth / width, maxHeight / height, 1)
+  return { width: Math.max(1, Math.round(width * scale)), height: Math.max(1, Math.round(height * scale)) }
+}
+
+// Decode image bytes in the browser to read natural dimensions and, for
+// formats Word can't embed (WEBP — which the picture bank stores as-is),
+// transcode to PNG. An object URL keeps the canvas same-origin so it is
+// never CORS-tainted. Returns { bytes, width, height } or null when there is
+// no DOM (e.g. the node test harness).
+async function decodeImage(bytes, type) {
+  if (typeof document === 'undefined' || typeof Image === 'undefined' || !globalThis.URL?.createObjectURL) {
+    return null
+  }
+  const objectUrl = URL.createObjectURL(new Blob([bytes], { type: MIME_BY_TYPE[type] || 'application/octet-stream' }))
+  try {
+    const img = await new Promise((resolve, reject) => {
+      const el = new Image()
+      el.onload = () => resolve(el)
+      el.onerror = () => reject(new Error('decode failed'))
+      el.src = objectUrl
+    })
+    const width = img.naturalWidth || img.width || 0
+    const height = img.naturalHeight || img.height || 0
+    let outBytes = bytes
+    if (type === 'webp' && width && height) {
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      canvas.getContext('2d').drawImage(img, 0, 0)
+      const pngBlob = await new Promise((res) => canvas.toBlob(res, 'image/png'))
+      if (pngBlob) outBytes = new Uint8Array(await pngBlob.arrayBuffer())
+    }
+    return { bytes: outBytes, width, height }
+  } catch {
+    return null
+  } finally {
+    URL.revokeObjectURL(objectUrl)
+  }
+}
+
+// Fetch, transcode (WEBP→PNG), and aspect-fit an image, returning a ready
+// ImageRun or null. Centralising this guarantees WEBP is always transcoded
+// before it reaches imageRun — docx would otherwise reject the format.
+async function loadImageRun(url, { width = 360, height = 220 } = {}) {
   const bytes = await fetchImageBytes(url)
   if (!bytes) return null
+  const type = detectImageType(bytes)
+  const decoded = await decodeImage(bytes, type)
+  if (!decoded) {
+    // No DOM (tests): embed jpg/png/gif/bmp as-is; WEBP can't be transcoded
+    // without a canvas, so skip it rather than write a broken media part.
+    if (type === 'webp') return null
+    return imageRun(bytes, { width, height })
+  }
+  return imageRun(decoded.bytes, fitWithin(decoded.width, decoded.height, width, height))
+}
+
+async function logoParagraph(url, transform = null) {
+  if (!url) return null
   // Width applies; offset doesn't translate cleanly to inline Word images,
   // so we clamp to width-only. The studio surfaces this limitation in the
   // LogoAdjuster's hint text.
-  const width = Math.max(40, Math.min(160, Math.round(Number(transform?.width) || 80)))
-  return centeredPara([
-    imageRun(bytes, { width, height: width }),
-  ])
+  const box = Math.max(40, Math.min(160, Math.round(Number(transform?.width) || 80)))
+  const run = await loadImageRun(url, { width: box, height: box })
+  return run ? centeredPara([run]) : null
 }
 
 async function imageParagraph(url, opts = {}) {
   if (!url) return null
-  const bytes = await fetchImageBytes(url)
-  if (!bytes) return null
-  return centeredPara([
-    imageRun(bytes, { width: opts.width || 360, height: opts.height || 220 }),
-  ])
+  const run = await loadImageRun(url, { width: opts.width || 360, height: opts.height || 220 })
+  return run ? centeredPara([run]) : null
 }
 
 async function renderBlock(block) {
@@ -607,12 +672,8 @@ async function renderQuestion(b) {
           const media = b.optionMedia?.[i]
           const cellChildren = []
           if (media?.imageUrl) {
-            const bytes = await fetchImageBytes(media.imageUrl)
-            if (bytes) {
-              cellChildren.push(centeredPara([
-                imageRun(bytes, { width: 140, height: 140 }),
-              ]))
-            }
+            const run = await loadImageRun(media.imageUrl, { width: 140, height: 140 })
+            if (run) cellChildren.push(centeredPara([run]))
           }
           const isCorrect = b.showAnswer && Number(b.correctAnswer) === i
           const labelOpts = { bold: true, size: 20, color: isCorrect ? '047857' : undefined }
@@ -644,9 +705,9 @@ async function renderQuestion(b) {
         const runOpts = { size: 20, color: isCorrect ? '047857' : undefined, bold: isCorrect }
         const runs = [runText(`   ${SECTION_LETTERS[i]}. `, labelOpts)]
         if (media?.imageUrl) {
-          const bytes = await fetchImageBytes(media.imageUrl)
-          if (bytes) {
-            runs.push(imageRun(bytes, { width: 50, height: 50 }))
+          const run = await loadImageRun(media.imageUrl, { width: 50, height: 50 })
+          if (run) {
+            runs.push(run)
             runs.push(runText('  ', { size: 20 }))
           }
         }
