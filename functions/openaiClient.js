@@ -69,15 +69,34 @@ async function callOpenAIImage(apiKey, opts = {}) {
         "OpenAI key looks invalid — admin needs to rotate OPENAI_API_KEY in Firebase Secrets.",
       );
     }
+    if (res.status === 403) {
+      // gpt-image-1 needs the OpenAI organisation to be verified; a 403
+      // here is an account-level problem, not a prompt problem.
+      throw new HttpsError(
+        "failed-precondition",
+        "OpenAI rejected the image request (403) — the OpenAI account may " +
+        "need organisation verification for gpt-image-1.",
+      );
+    }
     if (res.status === 429) {
       throw new HttpsError(
         "resource-exhausted",
         "OpenAI image API is rate-limited. Wait a moment and try again.",
       );
     }
+    // Surface OpenAI's own error message (content-policy rejections, bad
+    // params) so admins aren't debugging a bare status code.
+    let detail = "";
+    try {
+      const parsed = JSON.parse(errBody);
+      const m = parsed && parsed.error && parsed.error.message;
+      if (m) detail = `: ${String(m).slice(0, 160)}`;
+    } catch {
+      // non-JSON body — the status code alone will have to do
+    }
     throw new HttpsError(
       "internal",
-      `OpenAI image request failed (${res.status}). Please try again.`,
+      `OpenAI image request failed (${res.status})${detail}`,
     );
   }
 

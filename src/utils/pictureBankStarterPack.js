@@ -2,9 +2,10 @@
 // figures an admin can batch-generate so teacher searches hit from day
 // one. Each entry feeds generateBankPicture (existing AI pipeline) with a
 // print-friendly style: 'recraft' = B&W line art (default — photocopies
-// crisply), 'kie' = colour illustration for the few items where colour IS
-// the content. Names are what teachers will search; keywords widen the
-// match. Pure data module — node-testable.
+// crisply; the server falls back to ChatGPT gpt-image-1 line art when the
+// Recraft account can't serve), 'kie' = colour illustration for the few
+// items where colour IS the content. Names are what teachers will search;
+// keywords widen the match. Pure data module — node-testable.
 
 export const STARTER_SUBJECTS = Object.freeze([
   '_generic', 'integrated_science', 'mathematics', 'social_studies',
