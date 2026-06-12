@@ -450,6 +450,16 @@ export default function LibraryItemDetail() {
               <button onClick={onCopyShare} className="px-3 py-2 rounded-lg text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700">
                 Copy
               </button>
+              {/* WhatsApp is how Zambian teachers actually pass documents
+                  around — one tap beats copy-switch-paste. */}
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(`${titleForGeneration(item)} — ${shareInfo.url}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black text-white bg-green-600 hover:bg-green-700"
+              >
+                <span aria-hidden="true">💬</span> WhatsApp
+              </a>
             </div>
           </div>
         )}
