@@ -48,7 +48,7 @@ export function printAssessmentAsPdf(assessment, questions, { mode = 'paper' } =
   win.document.write(html)
   win.document.close()
 
-  const ready = () => {
+  const triggerPrint = () => {
     try {
       win.focus()
       win.print()
@@ -56,8 +56,41 @@ export function printAssessmentAsPdf(assessment, questions, { mode = 'paper' } =
       // User can hit Ctrl+P manually.
     }
   }
-  if (win.document.readyState === 'complete') setTimeout(ready, 200)
-  else win.addEventListener('load', () => setTimeout(ready, 200))
+
+  // Wait for every <img> (school logo, question/diagram pictures, MCQ
+  // option images) to finish loading before opening the print dialog.
+  // Previously we printed after a fixed 200ms, which fires before remote
+  // Firebase Storage images have loaded — so pictures that showed fine in
+  // the preview came out blank in the printed/saved PDF. We now resolve
+  // once all images settle (load OR error), with a safety timeout so a
+  // single slow/broken image can never block printing forever.
+  const printWhenImagesReady = () => {
+    const imgs = Array.from(win.document.images || [])
+    const pending = imgs.filter((img) => !img.complete)
+    if (pending.length === 0) {
+      setTimeout(triggerPrint, 120)
+      return
+    }
+    let remaining = pending.length
+    let done = false
+    const finish = () => {
+      if (done) return
+      done = true
+      setTimeout(triggerPrint, 120)
+    }
+    const onSettle = () => {
+      remaining -= 1
+      if (remaining <= 0) finish()
+    }
+    pending.forEach((img) => {
+      img.addEventListener('load', onSettle, { once: true })
+      img.addEventListener('error', onSettle, { once: true })
+    })
+    setTimeout(finish, 6000)
+  }
+
+  if (win.document.readyState === 'complete') printWhenImagesReady()
+  else win.addEventListener('load', printWhenImagesReady)
 }
 
 function buildPrintableHtml(assessment, questions, mode) {

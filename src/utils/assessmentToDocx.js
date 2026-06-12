@@ -21,9 +21,12 @@ import {
   Packer,
   PageBreak,
   Paragraph,
-  Table,
+  Tab,
   TableCell,
   TableRow,
+  Table,
+  TabStopPosition,
+  TabStopType,
   TextRun,
   WidthType,
 } from 'docx'
@@ -326,6 +329,35 @@ async function fetchImageBytes(url) {
   }
 }
 
+/**
+ * Sniff the image format from its leading magic bytes.
+ *
+ * docx v9 made `ImageRun.type` REQUIRED — it builds the embedded media
+ * file name as `${hash}.${type}`, so an undefined type yields a
+ * `word/media/<hash>.undefined` part that Word can't map to an image MIME
+ * and silently drops (the rest of the document still renders). That's why
+ * question pictures were missing from the downloaded paper even though the
+ * preview showed them. We detect the real type here and pass it through.
+ *
+ * docx only embeds jpg/png/gif/bmp; question/diagram images in the studio
+ * are PNG (AI diagrams) or JPEG (compressed uploads), so PNG is a safe
+ * default for the rare unknown header.
+ */
+export function detectImageType(bytes) {
+  if (!bytes || bytes.length < 4) return 'png'
+  const [b0, b1, b2, b3] = bytes
+  if (b0 === 0x89 && b1 === 0x50 && b2 === 0x4e && b3 === 0x47) return 'png'
+  if (b0 === 0xff && b1 === 0xd8 && b2 === 0xff) return 'jpg'
+  if (b0 === 0x47 && b1 === 0x49 && b2 === 0x46) return 'gif'
+  if (b0 === 0x42 && b1 === 0x4d) return 'bmp'
+  return 'png'
+}
+
+/** Build an ImageRun with the format-detected `type` docx v9 requires. */
+function imageRun(bytes, transformation) {
+  return new ImageRun({ type: detectImageType(bytes), data: bytes, transformation })
+}
+
 async function logoParagraph(url, transform = null) {
   if (!url) return null
   const bytes = await fetchImageBytes(url)
@@ -335,7 +367,7 @@ async function logoParagraph(url, transform = null) {
   // LogoAdjuster's hint text.
   const width = Math.max(40, Math.min(160, Math.round(Number(transform?.width) || 80)))
   return centeredPara([
-    new ImageRun({ data: bytes, transformation: { width, height: width } }),
+    imageRun(bytes, { width, height: width }),
   ])
 }
 
@@ -344,10 +376,7 @@ async function imageParagraph(url, opts = {}) {
   const bytes = await fetchImageBytes(url)
   if (!bytes) return null
   return centeredPara([
-    new ImageRun({
-      data: bytes,
-      transformation: { width: opts.width || 360, height: opts.height || 220 },
-    }),
+    imageRun(bytes, { width: opts.width || 360, height: opts.height || 220 }),
   ])
 }
 
@@ -382,35 +411,43 @@ async function renderHeader(b) {
   return out
 }
 
+// Pupil's Name / Date / Class render as plain underlined lines — NOT a
+// bordered table. The old version wrapped them in a Word table with grey
+// cell borders, which printed an ugly box around the name/date section.
+// The studio preview and the PDF export both use borderless fill-in lines,
+// so the Word output now matches them: Name on the left, Date pushed to
+// the right margin via a right tab stop (mirrors the preview's
+// space-between row).
 function renderLearnerFields(b) {
   if (!b.name && !b.date && !b.classField && !b.marks) return []
-  const row1Children = []
-  if (b.name) {
-    row1Children.push(new TableCell({
-      children: [para(runText("Pupil's Name: __________________________________________", { size: 22 }))],
-      borders: BORDER,
-    }))
-  }
-  if (b.date) {
-    row1Children.push(new TableCell({
-      children: [para(runText('Date: ______________', { size: 22 }))],
-      borders: BORDER,
-      width: { size: 30, type: WidthType.PERCENTAGE },
-    }))
-  }
-  const rows = []
-  if (row1Children.length) rows.push(new TableRow({ children: row1Children }))
-  if (b.classField) {
-    rows.push(new TableRow({
-      children: [new TableCell({
-        children: [para(runText('Class: ____________________', { size: 22 }))],
-        borders: BORDER,
-      })],
-    }))
-  }
   const out = []
-  if (rows.length) {
-    out.push(new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows }))
+  if (b.name || b.date) {
+    const children = []
+    if (b.name) {
+      children.push(runText("Pupil's Name: ", { size: 22, bold: true }))
+      children.push(runText('______________________________________', { size: 22 }))
+    }
+    if (b.date) {
+      // Right tab stop at the page margin pushes the date field to the
+      // far right, the way the preview's flex row does.
+      if (b.name) children.push(new Tab())
+      children.push(runText('Date: ', { size: 22, bold: true }))
+      children.push(runText('____________________', { size: 22 }))
+    }
+    out.push(new Paragraph({
+      children,
+      tabStops: [{ type: TabStopType.RIGHT, position: TabStopPosition.MAX }],
+      spacing: { before: 120, after: b.classField ? 80 : 160 },
+    }))
+  }
+  if (b.classField) {
+    out.push(new Paragraph({
+      children: [
+        runText('Class: ', { size: 22, bold: true }),
+        runText('____________________________________', { size: 22 }),
+      ],
+      spacing: { after: 160 },
+    }))
   }
   if (b.marks) {
     out.push(new Paragraph({
@@ -573,7 +610,7 @@ async function renderQuestion(b) {
             const bytes = await fetchImageBytes(media.imageUrl)
             if (bytes) {
               cellChildren.push(centeredPara([
-                new ImageRun({ data: bytes, transformation: { width: 140, height: 140 } }),
+                imageRun(bytes, { width: 140, height: 140 }),
               ]))
             }
           }
@@ -609,7 +646,7 @@ async function renderQuestion(b) {
         if (media?.imageUrl) {
           const bytes = await fetchImageBytes(media.imageUrl)
           if (bytes) {
-            runs.push(new ImageRun({ data: bytes, transformation: { width: 50, height: 50 } }))
+            runs.push(imageRun(bytes, { width: 50, height: 50 }))
             runs.push(runText('  ', { size: 20 }))
           }
         }
