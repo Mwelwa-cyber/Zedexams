@@ -166,14 +166,19 @@ async function runAssessment({uid, rawInputs, apiKey}) {
       cbcContextBlock: contextBlock,
       formatContextBlock: formatBlock,
       messages: [{role: "user", content: userPrompt}],
-      // Big mocks (100 marks, 40-50 questions with options, answers and
-      // marking guides) overflow a small output budget and arrive
-      // truncated/flagged. 16k tokens covers the largest allowed paper;
-      // output tokens are only billed as used.
-      maxTokens: 16000,
+      // Output budget scales with the paper: ~130 tokens covers a question
+      // with options, answer and marking guide; capped at 16k for the
+      // largest allowed 100-mark paper. Output tokens are billed as used.
+      maxTokens: Math.min(16000, 3000 + inputs.totalMarks * 130),
       temperature: 0.4,
       model: ASSESSMENT_MODEL,
-      mode: "tool",
+      // Streamed internally (tool deltas accumulate to the same parsed
+      // object as mode:"tool"). Anthropic drops idle non-streaming
+      // connections on long generations — large max_tokens without
+      // streaming is exactly the case their docs warn about, and big
+      // papers were dying with "AI is temporarily unavailable".
+      mode: "stream",
+      onToken: () => {},
       toolName: "emit_assessment",
       toolDescription:
         "Emit the complete assessment as a single structured object. Do " +
