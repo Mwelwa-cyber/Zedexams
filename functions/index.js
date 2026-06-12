@@ -1347,11 +1347,16 @@ exports.generateQuizQuestions = onCall(
     // human-readable heads-up (e.g. "Nearest verified topics: X, Y") that
     // the UI can surface to the teacher.
     const subtopic = cleanAiString(request.data?.subtopic, LIMITS.topic);
+    // Curriculum framework the studio chose — "2013" grounds on the old
+    // syllabus data file; anything else resolves to the 2023 CBC default.
+    const framework = String(request.data?.framework) === "2013" ?
+      "2013" : "2023";
     const {contextBlock, kbWarning} = await resolveCbcContext({
       grade,
       subject,
       topic,
       subtopic,
+      framework,
     });
 
     const {messages: rawMessages} = buildQuizMessages({
