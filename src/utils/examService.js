@@ -34,6 +34,7 @@ import { coerceQuestion } from '../editor/schema/question.js'
 import { attemptStartSchema, coerceAttempt } from '../schemas/attempt.js'
 import { numericMatches } from './numericGrading.js'
 import { hotspotMatches } from './hotspotGrading.js'
+import { pickExamForSubject, groupExamsBySubject } from './examMatching.js'
 
 // Re-export so callers that already import { numericMatches } from
 // './examService' (QuizRunnerV2, practice quizzes) keep working unchanged.
@@ -105,11 +106,19 @@ export async function getExamWithQuestions(examId, attemptId = null) {
 }
 
 /**
- * Return today's daily exam quiz for a given subject + grade, or null if none.
- * A quiz qualifies when: isDailyExam == true, dailyExamDate == today,
- * subject matches, and isPublished == true.
+ * Fetch ALL of today's daily-exam quizzes in a single query.
+ *
+ * Deliberately does NOT filter by subject. Daily exams are promoted by
+ * autoPickDailyExams (admin SDK) and the admin "set as daily exam" patch,
+ * neither of which runs the quiz write-schema's subject normaliser — so a
+ * legacy quiz whose `subject` is still a slug ("science") gets promoted with
+ * that slug intact. An exact `where('subject','==','Integrated Science')`
+ * then silently misses it and every subject card reads "No exam scheduled".
+ * Today's set is only a handful of docs, so we fetch it whole and match on
+ * the normalised subject client-side (see ./examMatching.js). This uses a
+ * prefix of the (quizType,isDailyExam,dailyExamDate,subject) composite index.
  */
-export async function getTodaysExam(subject, _grade) {
+export async function getTodaysExams() {
   try {
     const snap = await getDocs(
       query(
@@ -117,17 +126,33 @@ export async function getTodaysExam(subject, _grade) {
         where('quizType', '==', 'daily_exam'),
         where('isDailyExam', '==', true),
         where('dailyExamDate', '==', todayString()),
-        where('subject', '==', subject),
-        limit(1),
       ),
     )
-    if (snap.empty) return null
-    const d = snap.docs[0]
-    return coerceQuiz({ id: d.id, ...d.data() })
+    return snap.docs.map(d => coerceQuiz({ id: d.id, ...d.data() })).filter(Boolean)
   } catch (e) {
-    console.error('getTodaysExam:', e)
-    return null
+    console.error('getTodaysExams:', e)
+    return []
   }
+}
+
+/**
+ * Today's daily exams as a Map keyed by canonical subject label, so a hub can
+ * resolve every subject card from one query. When several grades share an
+ * exam for a subject, the learner's own `grade` is preferred.
+ */
+export async function getTodaysExamsBySubject(grade) {
+  return groupExamsBySubject(await getTodaysExams(), grade)
+}
+
+/**
+ * Return today's daily exam quiz for a given subject + grade, or null if none.
+ * A quiz qualifies when: isDailyExam == true, dailyExamDate == today, and its
+ * subject resolves (via normalizeSubject) to the requested subject. Matching
+ * is normalisation-tolerant so a slug-stored subject still resolves; see
+ * getTodaysExams above for why an exact query match was unreliable.
+ */
+export async function getTodaysExam(subject, grade) {
+  return pickExamForSubject(await getTodaysExams(), subject, grade)
 }
 
 // ── Daily lock ────────────────────────────────────────────────────────────────

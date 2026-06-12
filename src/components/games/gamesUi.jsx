@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom'
 import {
+  BanknotesIcon,
   BellIcon,
   BeakerIcon,
   BookOpenIcon,
@@ -11,10 +12,12 @@ import {
   FireIcon,
   GlobeAltIcon,
   HomeIcon,
+  InboxStackIcon,
   LockClosedIcon,
   MapIcon,
   PlayIcon,
   PuzzlePieceIcon,
+  QueueListIcon,
   SparklesIcon,
   Squares2X2Icon,
   StarIcon,
@@ -23,6 +26,7 @@ import {
 } from '@heroicons/react/24/solid'
 import { isDemoGame } from '../../data/gamesSeed'
 import { gradeByValue } from '../../utils/gamesService'
+import { SUBJECT_MASCOTS, getSubjectMascot } from './subjectMascots'
 
 export const NAV_ICON_MAP = {
   dashboard: HomeIcon,
@@ -118,6 +122,10 @@ export const GAME_TYPE_THEMES = {
   true_false: { label: 'True / False', icon: CheckBadgeIcon },
   map_explorer: { label: 'Map Explorer', icon: MapIcon },
   province_shapes: { label: 'Map Quiz', icon: MapIcon },
+  number_target: { label: 'Number Target', icon: CalculatorIcon },
+  sorting_factory: { label: 'Sorting', icon: InboxStackIcon },
+  sentence_scramble: { label: 'Scramble', icon: QueueListIcon },
+  market_challenge: { label: 'Market', icon: BanknotesIcon },
 }
 
 const DEFAULT_TYPE_THEME = { label: 'Game', icon: PuzzlePieceIcon }
@@ -164,22 +172,13 @@ export function getSubjectTheme(subject) {
  * Friendly subject mascots that appear on the discovery cards. Each mascot
  * has a personality and a short tagline so the experience feels like a
  * cast of guides rather than a list of links.
+ *
+ * SUBJECT_MASCOTS and getSubjectMascot live in ./subjectMascots.js (a plain
+ * .js module) so they can be unit-tested in plain Node scripts and imported
+ * by non-React modules (e.g. DailyExamsHub). Re-exported here so existing
+ * callers importing from gamesUi keep working without change.
  */
-export const SUBJECT_MASCOTS = {
-  mathematics: { emoji: '🦊', name: 'Maths Fox',      tagline: 'Numbers are my game!' },
-  english:     { emoji: '🦉', name: 'Story Owl',      tagline: 'Word adventures await.' },
-  science:     { emoji: '🐢', name: 'Science Turtle', tagline: 'Let’s explore the world.' },
-  social:      { emoji: '🦁', name: 'Adventure Lion', tagline: 'Every place has a story.' },
-  technology:  { emoji: '🤖', name: 'Tech Robot',     tagline: 'Tinker, build, repeat.' },
-  home:        { emoji: '🐝', name: 'Home Bee',       tagline: 'Care, cook, create.' },
-  arts:        { emoji: '🎨', name: 'Art Parrot',     tagline: 'Colour your ideas!' },
-}
-
-const DEFAULT_MASCOT = { emoji: '🎮', name: 'Game Pal', tagline: 'Pick a game and play!' }
-
-export function getSubjectMascot(slug) {
-  return SUBJECT_MASCOTS[String(slug || '').toLowerCase()] || DEFAULT_MASCOT
-}
+export { SUBJECT_MASCOTS, getSubjectMascot }
 
 export function getGameTypeTheme(type) {
   return GAME_TYPE_THEMES[String(type || '').toLowerCase()] || DEFAULT_TYPE_THEME

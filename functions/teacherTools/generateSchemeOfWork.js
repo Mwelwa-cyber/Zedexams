@@ -110,7 +110,7 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
     inputs,
     output: null,
     outputText: "",
-    modelUsed: "claude-sonnet-4-5",
+    modelUsed: "claude-sonnet-4-6",
     promptVersion: PROMPT_VERSION,
     kbVersion,
     tokensIn: 0,
@@ -158,6 +158,15 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
 
   const validation = validateSchemeOfWork(parsed);
   const scheme = validation.value;
+  // The form already knows these — never trust the model with them (it
+  // has invented "UNKNOWN" for a blank school and last year's date).
+  scheme.header.school = inputs.school;
+  scheme.header.teacherName = inputs.teacherName;
+  scheme.header.grade = inputs.grade === "ECE" ?
+    "ECE" : inputs.grade.replace(/^G/i, "");
+  scheme.header.term = inputs.term;
+  scheme.header.numberOfWeeks = inputs.numberOfWeeks;
+  scheme.header.year = String(new Date().getUTCFullYear());
   if (!validation.ok) {
     await genRef.update({
       status: "flagged",

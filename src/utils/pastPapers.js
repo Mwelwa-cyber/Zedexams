@@ -108,6 +108,112 @@ export async function listPublishedPapers({ grade, subject, year, limit = 200 } 
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
 }
 
+// ── Published-list cache (stale-while-revalidate) ───────────────────
+// `/papers` is the top public SEO landing page and re-mounts on every
+// navigation back to it. Each visit was paying for a cold getDocs of
+// the whole published archive — and every doc drags its full `assets[]`
+// array (one entry per scanned page on image papers) that the hub list
+// never renders. The web SDK can't project fields away, so instead we
+// cache the unfiltered list per tab (memory) and across mounts
+// (sessionStorage) and let the hub paint instantly from cache while a
+// background re-read refreshes it. TTL is advisory — cache is shown
+// regardless and always revalidated; the timestamp just lets callers
+// skip a refetch when they want to.
+const PUBLISHED_CACHE_KEY = 'zx_published_papers_v1'
+export const PUBLISHED_CACHE_TTL_MS = 10 * 60 * 1000
+let publishedMemoryCache = null // { at: number, papers: [] }
+
+function readPublishedSessionCache() {
+  try {
+    const raw = sessionStorage.getItem(PUBLISHED_CACHE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw)
+    if (!parsed || !Array.isArray(parsed.papers) || !parsed.papers.length) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function writePublishedCache(papers) {
+  // Only cache a non-empty result — an empty read means "archive still
+  // being uploaded", and the hub renders its sample fallback for that.
+  // Caching [] would suppress the fallback and re-show empty on revisit.
+  if (!Array.isArray(papers) || !papers.length) return
+  const entry = { at: Date.now(), papers }
+  publishedMemoryCache = entry
+  try {
+    sessionStorage.setItem(PUBLISHED_CACHE_KEY, JSON.stringify(entry))
+  } catch {
+    /* private mode / quota — the in-memory cache still applies this tab */
+  }
+}
+
+/**
+ * Synchronously return the cached published-papers list (memory first,
+ * then sessionStorage) or null when nothing is cached yet. Lets a
+ * surface paint immediately and revalidate in the background.
+ */
+export function getCachedPublishedPapers() {
+  if (publishedMemoryCache) return publishedMemoryCache.papers
+  const session = readPublishedSessionCache()
+  if (session) {
+    publishedMemoryCache = session
+    return session.papers
+  }
+  return null
+}
+
+/**
+ * listPublishedPapers + cache write. The hub calls this for its
+ * full-archive read so repeat visits in the same tab/session are
+ * instant. Filtered/limited reads should keep using listPublishedPapers
+ * directly so they don't clobber the full-list cache.
+ */
+export async function listPublishedPapersCached(opts = {}) {
+  const papers = await listPublishedPapers(opts)
+  writePublishedCache(papers)
+  return papers
+}
+
+// Single denormalised doc maintained server-side (pastPapersIndexOnWrite
+// trigger + 6-hourly cron). Holds only the lightweight fields the hub
+// renders, so reading it is one tiny doc fetch instead of pulling every
+// pastPapers doc with its heavy assets[] array.
+const INDEX_DOC_PATH = ['pastPapersIndex', 'published']
+
+/**
+ * Read the published-papers index doc. Returns the lightweight papers
+ * array, or null when the doc doesn't exist yet (e.g. before the first
+ * server-side rebuild) so the caller can fall back to a direct query.
+ */
+export async function getPublishedPapersIndex() {
+  try {
+    const snap = await getDoc(doc(db, ...INDEX_DOC_PATH))
+    if (!snap.exists()) return null
+    const papers = snap.data()?.papers
+    return Array.isArray(papers) && papers.length ? papers : null
+  } catch (err) {
+    console.warn('[pastPapers] index read failed', err)
+    return null
+  }
+}
+
+/**
+ * The hub's published-list loader. Prefers the lightweight index doc
+ * (one small read); falls back to the full collection query when the
+ * index hasn't been built yet. Writes the result to the cache either
+ * way so a revisit paints instantly.
+ */
+export async function loadPublishedPapers() {
+  const fromIndex = await getPublishedPapersIndex()
+  if (fromIndex) {
+    writePublishedCache(fromIndex)
+    return fromIndex
+  }
+  return listPublishedPapersCached({})
+}
+
 /** Admin-side list — includes drafts + archived. Sorted updatedAt desc. */
 export async function listAllPapersForAdmin({ limit = 200 } = {}) {
   const q = query(
@@ -165,11 +271,38 @@ export async function uploadPaperPdf({ uid, paperId, kind, file }) {
 }
 
 /**
+ * Read the intrinsic pixel dimensions of an image file before upload.
+ * Used by uploadPaperAsset so the viewer can render `<img width height>`
+ * and reserve the layout slot before the bytes arrive (no jank on
+ * mobile). Returns null on any failure — dimensions are nice-to-have,
+ * never block the upload.
+ */
+async function readImageDimensions(file) {
+  if (typeof window === 'undefined') return null
+  if (!file?.type?.startsWith('image/')) return null
+  const url = URL.createObjectURL(file)
+  try {
+    return await new Promise((resolve) => {
+      const img = new window.Image()
+      img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight })
+      img.onerror = () => resolve(null)
+      img.src = url
+    })
+  } finally {
+    URL.revokeObjectURL(url)
+  }
+}
+
+/**
  * Upload an arbitrary paper asset (PDF or image). Scanned papers come
  * in as JPG/PNG and we accept multiple of them on one paper. Path
  * convention:
  *   papers/{adminUid}/{paperId}/assets/{idx}-{filename}
  * `idx` keeps assets sortable in the order the admin uploaded them.
+ *
+ * For images, captures the intrinsic width/height client-side and
+ * stores them on the asset record so the viewer can reserve layout
+ * space before download completes.
  */
 export async function uploadPaperAsset({ uid, paperId, file, index = 0 }) {
   if (!uid || !paperId || !file) throw new Error('Missing arguments for paper upload')
@@ -181,12 +314,14 @@ export async function uploadPaperAsset({ uid, paperId, file, index = 0 }) {
   }
   const safeName = (file.name || 'asset').replace(/[^a-z0-9._-]+/gi, '_')
   const path = `papers/${uid}/${paperId}/assets/${index}-${safeName}`
+  const dims = await readImageDimensions(file)
   await uploadBytes(storageRef(storage, path), file, { contentType: file.type })
   return {
     path,
     filename: file.name,
     size: file.size,
     contentType: file.type,
+    ...(dims ? { width: dims.width, height: dims.height } : {}),
   }
 }
 

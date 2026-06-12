@@ -14,10 +14,12 @@ import {
   serializeQuizSections,
   shuffleQuizSections,
 } from '../../utils/quizSections.js'
+import { regroupComprehensionSections, moveQuestionToPassage } from '../../utils/comprehensionGrouping.js'
 import { richTextHasContent } from '../../utils/quizRichText.js'
 import { clampInt } from '../../utils/inputs.js'
 import { getErrorMessage } from '../../utils/errors.js'
 import { validateStandaloneQuestion as sharedValidateStandaloneQuestion } from '../../utils/quizValidation.js'
+import { normalizeSubject } from '../../config/curriculum.js'
 import QuizSectionsEditor from '../quiz/QuizSectionsEditor'
 import QuizEditorPreviewPanel from '../quiz/QuizEditorPreviewPanel'
 import ImportReviewBanner from '../quiz/ImportReviewBanner'
@@ -210,7 +212,7 @@ export default function EditAssessment() {
 
       setForm({
         title: assessment.title ?? '',
-        subject: assessment.subject ?? 'Mathematics',
+        subject: normalizeSubject(assessment.subject ?? 'Mathematics'),
         grade: assessment.grade ?? '5',
         term: assessment.term ?? '1',
         duration: assessment.duration ?? 60,
@@ -272,6 +274,18 @@ export default function EditAssessment() {
 
   function handleShuffleSections() {
     setSections(currentSections => shuffleQuizSections(currentSections))
+    setDirty(true)
+  }
+
+  function handleAutoGroupComprehension() {
+    setSections(currentSections => regroupComprehensionSections(currentSections).sections)
+    setDirty(true)
+    show('Comprehension questions re-grouped by passage.')
+  }
+
+  function handleMoveQuestionToPassage(fromSectionId, questionLocalId, toSectionId) {
+    setSections(currentSections =>
+      moveQuestionToPassage(currentSections, fromSectionId, questionLocalId, toSectionId))
     setDirty(true)
   }
 
@@ -1019,6 +1033,7 @@ export default function EditAssessment() {
         variant="edit"
         sections={sections}
         parts={parts}
+        quizContext={{ subject: form.subject, grade: form.grade }}
         questionNumbers={questionNumbers}
         totalQuestions={questionCount}
         onStandaloneChange={updateStandaloneQuestion}
@@ -1049,6 +1064,8 @@ export default function EditAssessment() {
         onPartRemove={removePart}
         onAssignSectionToPart={assignSectionToPart}
         onShuffleSections={handleShuffleSections}
+        onAutoGroupComprehension={handleAutoGroupComprehension}
+        onMoveQuestionToPassage={handleMoveQuestionToPassage}
       />
 
       <QuizEditorPreviewPanel form={form} serializedSections={serializedPreview} />

@@ -146,9 +146,12 @@ service cloud.firestore {
         // as null whenever the note is in rich-text mode (or when the
         // teacher hasn't picked a term/week yet) — matching the same
         // null-or-string pattern used for question imageUrl/diagramText.
-        && (!('noteFormat' in incoming()) || (incoming().noteFormat is string && incoming().noteFormat in ['slides', 'rich_text', 'file']))
+        && (!('noteFormat' in incoming()) || (incoming().noteFormat is string && incoming().noteFormat in ['slides', 'rich_text', 'file', 'visual_slides', 'study']))
         && (!('content' in incoming()) || (incoming().content is string && incoming().content.size() <= 200000))
         && (!('excerpt' in incoming()) || (incoming().excerpt is string && incoming().excerpt.size() <= 500))
+        // Study-note blocks: null or a bounded list. Per-element shape is
+        // enforced by the Zod schema (studySchema.js) client-side before write.
+        && (!('blocks' in incoming()) || incoming().blocks == null || (incoming().blocks is list && incoming().blocks.size() <= 600))
         && (!('fileUrl' in incoming()) || incoming().fileUrl == null || (incoming().fileUrl is string && incoming().fileUrl.size() <= 2000))
         && (!('fileName' in incoming()) || incoming().fileName == null || (incoming().fileName is string && incoming().fileName.size() <= 200))
         && (!('storagePath' in incoming()) || incoming().storagePath == null || (incoming().storagePath is string && incoming().storagePath.size() <= 500))
@@ -497,8 +500,22 @@ service cloud.firestore {
     // ── aiGenerations (teacher tools) ─────────────────────────
     match /aiGenerations/{genId} {
       allow read:   if isAuthed() && (resource.data.ownerUid == request.auth.uid || isAdmin());
-      // Client never creates these — only the Cloud Function does (admin SDK bypasses rules).
-      allow create: if false;
+      // AI generations are created by Cloud Functions only (admin SDK
+      // bypasses rules). The ONLY client-created tools are mark_schedule,
+      // weekly_forecast and record_of_work — all pure client-side
+      // derivation (no AI call, no server runner), so their studios write
+      // their own docs, tightly constrained: own uid, fixed tool/status,
+      // and no extra top-level fields (notably none of the server-only
+      // cost/token fields).
+      allow create: if isAuthed()
+                       && incoming().ownerUid == request.auth.uid
+                       && incoming().tool in ['mark_schedule', 'weekly_forecast', 'record_of_work']
+                       && incoming().status == 'complete'
+                       && incoming().visibility == 'private'
+                       && incoming().keys().hasOnly([
+                         'ownerUid', 'tool', 'status', 'visibility',
+                         'createdAt', 'inputs', 'output', 'library',
+                       ]);
       // Teachers can update their own generations' output (in-place editing),
       // the teacherEdited / visibility / exportedFormats metadata fields, and
       // the `library` map (canonical Schemes/Forecasts/Lesson Plans/Notes/
@@ -652,6 +669,31 @@ service cloud.firestore {
         allow read:  if isAuthed();
         allow write: if false;
       }
+      // Assessment format profiles — Zambian paper-format conventions the
+      // assessment generator grounds on (structure, instruction wording,
+      // numbering, marks patterns, paraphrased exemplars). Teacher-read /
+      // admin-write, mirroring topics/.
+      match /assessmentFormats/{formatId} {
+        allow read:  if isAuthed();
+        allow write: if isAdmin();
+      }
+      // Claude-extracted draft format profiles awaiting admin review
+      // before promotion into assessmentFormats/. Admin-only.
+      match /assessmentFormatDrafts/{draftId} {
+        allow read, write: if isAdmin();
+      }
+    }
+
+    // ── pictureBank ───────────────────────────────────────────
+    // Subject-organised, keyword-searchable diagram/picture library for
+    // teachers. Admin-curated: images arrive via admin upload, AI
+    // generation, or extraction from uploaded sample papers (staged for
+    // tagging first). Teachers only ever see status == 'active' docs —
+    // their queries must filter on it; admins see everything.
+    match /pictureBank/{picId} {
+      allow read: if isAdmin() ||
+        (isAuthed() && resource.data.get('status', '') == 'active');
+      allow write: if isAdmin();
     }
 
     // ── promptTemplates ───────────────────────────────────────
@@ -828,6 +870,60 @@ service cloud.firestore {
       allow read:           if isAuthed() && (isOwner(userId) || isAdmin());
       allow create, update: if isAuthed() && isOwner(userId) && validLearnerStatsFields();
       allow delete:         if isAdmin();
+    }
+
+    // ── noteProgress (per-learner reading progress for /notes) ────────
+    // One doc per learner+note, id `{uid}_{noteId}`. The learner records
+    // their own opened / %-read / completed state from the reader; the
+    // notes library reads it back to show Resume / Completed states and the
+    // "Notes progress" summary. Owner-only (the `uid` field is pinned to the
+    // caller); admin may read for support, only the server-side cleanup
+    // (admin) may delete.
+    //
+    // Document shape:
+    //   { uid, noteId, grade?, subject?, title?,
+    //     status: 'not-started'|'in-progress'|'completed',
+    //     percent: 0..100, startedAt?, lastOpenedAt?, completedAt?, updatedAt }
+    function validNoteProgressFields() {
+      return (!('uid' in incoming())     || (incoming().uid is string && incoming().uid.size() <= 64))
+        && (!('noteId' in incoming())    || (incoming().noteId is string && incoming().noteId.size() <= 64))
+        && (!('grade' in incoming())     || incoming().grade == null   || (incoming().grade is string && incoming().grade.size() <= 8))
+        && (!('subject' in incoming())   || incoming().subject == null || (incoming().subject is string && incoming().subject.size() <= 80))
+        && (!('title' in incoming())     || incoming().title == null   || (incoming().title is string && incoming().title.size() <= 300))
+        && (!('status' in incoming())    || (incoming().status is string && incoming().status in ['not-started', 'in-progress', 'completed']))
+        && (!('percent' in incoming())   || (incoming().percent is number && incoming().percent >= 0 && incoming().percent <= 100));
+    }
+    match /noteProgress/{progressId} {
+      allow read:   if isAuthed() && (resource.data.uid == request.auth.uid || isAdmin());
+      allow create: if isAuthed()
+                    && incoming().uid == request.auth.uid
+                    && incoming().keys().hasAll(['uid', 'noteId'])
+                    && validNoteProgressFields();
+      allow update: if isAuthed()
+                    && resource.data.uid == request.auth.uid
+                    && incoming().uid == request.auth.uid
+                    && validNoteProgressFields();
+      allow delete: if isAdmin();
+    }
+
+    // ── noteInsights (AI Summary + Key Points, one doc per note) ──────
+    // Generated + cached server-side by the generateNoteInsights callable
+    // (admin SDK bypasses these rules). Readable by any signed-in user —
+    // the content is a study aid for an already-published note, not private
+    // data. Clients never write these directly.
+    match /noteInsights/{noteId} {
+      allow read:   if isAuthed();
+      allow write:  if false;
+    }
+
+    // ── noteSmart (AI highlight / annotation layer, one doc per note) ─
+    // Generated server-side by the generateNoteSmart callable
+    // (admin SDK bypasses these rules). Readable by any signed-in user —
+    // the highlights are a study aid for an already-published note, not
+    // private data. Clients never write these directly.
+    match /noteSmart/{noteId} {
+      allow read:   if isAuthed();
+      allow write:  if false;
     }
 
     // ── shares (public read-only snapshots of teacher generations) ─
@@ -1272,6 +1368,19 @@ service cloud.firestore {
         && incoming().uploadedBy == request.auth.uid;
       allow update: if isAdmin() && validPastPaperFields();
       allow delete: if isAdmin();
+    }
+
+    // ── pastPapersIndex (perf — denormalised published-papers list) ──
+    // One document (pastPapersIndex/published) rebuilt by the
+    // pastPapersIndexOnWrite trigger + 6-hourly cron (admin SDK). It
+    // holds only the lightweight fields the /papers hub renders, so the
+    // public hub reads this single small doc instead of pulling every
+    // pastPapers doc (with its heavy assets[] array) on each visit.
+    // Public-read to match the pastPapers published list; no client
+    // writes.
+    match /pastPapersIndex/{docId} {
+      allow read: if true;
+      allow create, update, delete: if false;
     }
 
     // ── publicStats (audit C4 — marketing-page social proof) ──────────

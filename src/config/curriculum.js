@@ -179,8 +179,121 @@ export const SUBJECTS = [
   },
 ]
 
+/**
+ * Past-paper-only subject categories.
+ *
+ * The ECZ archive carries a few exam categories that aren't CBC learning
+ * areas — most notably the Grade 7 PSLE "Special Paper 1" (a composite
+ * paper). These must be selectable when an admin uploads a past paper and
+ * must render with a friendly label/icon in the learner-facing archive, but
+ * they are deliberately kept OUT of {@link SUBJECTS} so they never leak into
+ * quiz/lesson/dashboard subject dropdowns or CBC topic lookups.
+ *
+ * Use {@link PAPER_SUBJECTS} (CBC subjects + these) anywhere the past-paper
+ * surfaces need the full set of selectable/displayable subjects.
+ */
+export const SPECIAL_PAPER_SUBJECTS = [
+  {
+    id: 'special-paper-1',
+    label: 'Special Paper 1',
+    shortLabel: 'Special Paper 1',
+    icon: '📝',
+    iconKey: 'DocumentText',
+    pastel: '#e0e7ff',
+    color: 'indigo',
+    tailwind: {
+      bg:     'bg-indigo-600',
+      light:  'bg-indigo-50',
+      text:   'text-indigo-700',
+      border: 'border-indigo-200',
+    },
+  },
+  {
+    id: 'creative-technology-studies',
+    label: 'Creative and Technology Studies',
+    shortLabel: 'Creative & Tech',
+    icon: '🛠️',
+    iconKey: 'WrenchScrewdriver',
+    pastel: '#ccfbf1',
+    color: 'teal',
+    tailwind: {
+      bg:     'bg-teal-600',
+      light:  'bg-teal-50',
+      text:   'text-teal-700',
+      border: 'border-teal-200',
+    },
+  },
+]
+
+/**
+ * Full subject universe for the past-paper surfaces: the eight CBC learning
+ * areas plus the special-paper categories above. The Past Paper Studio's
+ * subject dropdown and the public archive's filter/label lookups read from
+ * this so "Special Paper 1" is both uploadable and displayed with a proper
+ * label + icon instead of falling back to the raw id.
+ */
+export const PAPER_SUBJECTS = [...SUBJECTS, ...SPECIAL_PAPER_SUBJECTS]
+
 /** Subject ID → Subject object lookup */
 export const SUBJECT_MAP = Object.fromEntries(SUBJECTS.map(s => [s.id, s]))
+
+/**
+ * Canonical display labels for every subject (the wire value stored on
+ * quizzes/lessons/notes and matched against learner-facing filters).
+ */
+export const SUBJECT_LABELS = SUBJECTS.map(s => s.label)
+
+/**
+ * Slug/id → display-label lookup. The document importer and some legacy
+ * docs carry the curriculum *id* (a slug like "mathematics") instead of the
+ * display label ("Mathematics"). Use {@link normalizeSubject} to repair such
+ * values back to the canonical label before saving or matching.
+ *
+ * Includes a lowercased-label alias too, so "MATHEMATICS" or "mathematics"
+ * both resolve regardless of whether the slug or the label was lowercased.
+ */
+const SUBJECT_SLUG_TO_LABEL = (() => {
+  const map = {}
+  for (const s of SUBJECTS) {
+    map[s.id] = s.label
+    map[s.id.toLowerCase()] = s.label
+    map[s.label.toLowerCase()] = s.label
+    // Underscore variant of the slug too — the CBC knowledge base keys
+    // subjects with underscores ("expressive_arts", "social_studies")
+    // while the curriculum ids use hyphens ("expressive-arts"). Without
+    // this, a KB-keyed subject like "expressive_arts" would slip through
+    // normalizeSubject unchanged and never match the learner label
+    // "Expressive Art" (see BulkPublishQuizzesButton).
+    map[s.id.replace(/-/g, '_')] = s.label
+  }
+  // Extra KB-specific aliases that don't follow the slug<->label rule.
+  // "integrated_science" / "integrated science" are how the KB and some
+  // teacher tools name what the curriculum calls id "science" / label
+  // "Integrated Science".
+  map['integrated_science'] = 'Integrated Science'
+  map['integrated science'] = 'Integrated Science'
+  return map
+})()
+
+const SUBJECT_LABEL_SET = new Set(SUBJECT_LABELS)
+
+/**
+ * Repair a subject value to its canonical display label.
+ *
+ * - An already-valid label ("Mathematics") is returned unchanged.
+ * - A curriculum id / slug ("mathematics", "social-studies") is mapped to its
+ *   label.
+ * - Any unrecognised value is returned trimmed-but-unchanged so strict schema
+ *   validation can still reject genuine garbage rather than this helper
+ *   silently swallowing it.
+ */
+export function normalizeSubject(value) {
+  if (value == null) return value
+  const raw = String(value).trim()
+  if (!raw) return raw
+  if (SUBJECT_LABEL_SET.has(raw)) return raw
+  return SUBJECT_SLUG_TO_LABEL[raw.toLowerCase()] ?? raw
+}
 
 /** Competencies per subject — CBC strands */
 export const COMPETENCIES = {
@@ -291,6 +404,19 @@ export const TOPICS = {
     5: ['Nutrition & Meal Planning', 'Cooking Methods', 'Laundry & Clothing Care', 'Home Organisation', 'Consumer Skills', 'First Aid Basics'],
     6: ['Advanced Cooking', 'Clothing & Textiles', 'Home Design', 'Entrepreneurship Basics', 'Family Health', 'Budgeting & Finance'],
     7: ['Food Preservation', 'Sewing & Garment Care', 'Hospitality Skills', 'Home Economics Enterprise', 'Health & First Aid', 'Consumer Rights'],
+  },
+  // Creative & Technology Studies (CTS) is the integrated upper-primary
+  // learning area examined as one ECZ Grade 7 PSLE paper. It is NOT one of
+  // the eight learner-dashboard SUBJECTS (which split it into Expressive
+  // Arts / Technology / Home Economics), so it lives here only as a topic
+  // catalogue keyed by the SPECIAL_PAPER_SUBJECTS id 'creative-technology-
+  // studies', and is reached via the teacher-subject bridge below.
+  //
+  // Provisional Grade 7 coverage — derived from the CBC CTS strands and the
+  // topic spread seen in the 2022-2024 ECZ Grade 7 CTS papers. Verify against
+  // the official CTS syllabus before treating as authoritative.
+  'creative-technology-studies': {
+    7: ['Design and Technology', 'Textiles and Needlework', 'Art and Design', 'Music and Dance', 'Food and Nutrition', 'Agriculture and Home Management', 'Entrepreneurship', 'ICT and Technology'],
   },
 }
 
@@ -453,6 +579,59 @@ export const SUBTOPICS = {
       ],
     },
   },
+  // Provisional CTS Grade 7 sub-topics — see the TOPICS note above.
+  'creative-technology-studies': {
+    7: {
+      'Design and Technology': [
+        'Tools and Materials',
+        'Carving',
+        'Joining and Construction',
+        'Workshop Safety',
+      ],
+      'Textiles and Needlework': [
+        'Weaving',
+        'Plaiting',
+        'Knotting',
+        'Tie and Dye',
+        'Embroidery and Crocheting',
+        'Sewing',
+      ],
+      'Art and Design': [
+        'Drawing and Shading',
+        'Colour and Painting',
+        'Pottery and Modelling',
+        'Decoration and Pattern',
+      ],
+      'Music and Dance': [
+        'Tonic Sol-fa and Notation',
+        'Musical Instruments',
+        'Songs and Performance',
+        'Traditional Dance',
+      ],
+      'Food and Nutrition': [
+        'Balanced Diet',
+        'Food Preparation',
+        'Food Preservation',
+        'Kitchen Hygiene and Safety',
+      ],
+      'Agriculture and Home Management': [
+        'Crop Production',
+        'Keeping Animals',
+        'Home Care and Cleaning',
+      ],
+      'Entrepreneurship': [
+        'Business Ideas',
+        'Profit and Loss',
+        'Marketing and Selling',
+        'Record Keeping',
+      ],
+      'ICT and Technology': [
+        'Parts of a Computer',
+        'Using the Internet',
+        'Communication Technology',
+      ],
+    },
+  },
 }
 
 /** Grade meta — colour themes + taglines */
@@ -538,6 +717,60 @@ export function getTopics(subjectId, grade) {
 /** Helper — return subtopics for a specific topic within a grade + subject */
 export function getSubtopics(subjectId, grade, topic) {
   return SUBTOPICS[subjectId]?.[grade]?.[topic] ?? []
+}
+
+/**
+ * Bridge: the teacher-tools subject ids (underscore slugs shared with the
+ * Cloud Functions, e.g. 'social_studies', 'creative_and_technology_studies')
+ * → the curriculum topic-catalogue keys above (the SUBJECTS / SPECIAL_PAPER
+ * hyphen ids). The teacher generation studios (and the backend KB) speak the
+ * underscore vocabulary; the TOPICS/SUBTOPICS catalogues here are keyed by the
+ * learner-dashboard hyphen ids. This map lets a studio resolve topic lists for
+ * the subject the teacher picked without every caller hard-coding the spelling.
+ *
+ * Subjects with no catalogue entry simply resolve to `null` → callers fall
+ * back to a free-text topic field.
+ */
+export const TEACHER_SUBJECT_TO_CURRICULUM = {
+  english: 'english',
+  mathematics: 'mathematics',
+  integrated_science: 'science',
+  social_studies: 'social-studies',
+  expressive_arts: 'expressive-arts',
+  technology_studies: 'technology',
+  home_economics: 'home-economics',
+  cinyanja: 'cinyanja',
+  creative_and_technology_studies: 'creative-technology-studies',
+}
+
+/**
+ * Normalise a teacher grade code ('G7', 'g7', 7, '7') to the numeric key used
+ * by the TOPICS/SUBTOPICS catalogues (4-7). Returns null when out of range so
+ * callers degrade to free text rather than guessing.
+ */
+export function gradeCodeToNumber(grade) {
+  const n = Number(String(grade ?? '').replace(/[^0-9]/g, ''))
+  return Number.isFinite(n) && n >= 4 && n <= 7 ? n : null
+}
+
+/**
+ * Topics for a teacher-tools subject id + grade code (e.g.
+ * getTopicsForTeacherSubject('social_studies', 'G7')). Returns [] when the
+ * combination has no catalogue data so the studio shows a free-text field.
+ */
+export function getTopicsForTeacherSubject(teacherSubjectId, grade) {
+  const subjectKey = TEACHER_SUBJECT_TO_CURRICULUM[teacherSubjectId]
+  const gradeNum = gradeCodeToNumber(grade)
+  if (!subjectKey || gradeNum == null) return []
+  return getTopics(subjectKey, gradeNum)
+}
+
+/** Sub-topics for a teacher-tools subject id + grade code + topic. */
+export function getSubtopicsForTeacherSubject(teacherSubjectId, grade, topic) {
+  const subjectKey = TEACHER_SUBJECT_TO_CURRICULUM[teacherSubjectId]
+  const gradeNum = gradeCodeToNumber(grade)
+  if (!subjectKey || gradeNum == null) return []
+  return getSubtopics(subjectKey, gradeNum, topic)
 }
 
 /** Helper — return the topic-level label (e.g. "topic" / "unit") for a subject + grade */
@@ -635,9 +868,11 @@ export const NOTE_STATUS = {
 }
 
 export const NOTE_FORMAT = {
-  SLIDES:    'slides',
+  SLIDES:    'slides',         // legacy slide-built lessons (LessonPlayer)
   RICH_TEXT: 'rich_text',
   FILE:      'file',
+  VISUAL:    'visual_slides',  // AI-generated illustrated learner decks
+  STUDY:     'study',          // structured, interactive study notes (blocks[])
 }
 
 export const BAND_LABELS = {

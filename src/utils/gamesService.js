@@ -29,8 +29,14 @@ import { describeFirestoreReadError, withFirestoreReadTimeout } from './firestor
 /* ─────────────────────────────────────────────────────────────────
  *  Taxonomy used by the Grade → Subject → Games list UI
  * ───────────────────────────────────────────────────────────────── */
-// Zambian CBC upper-primary scope — Grades 4-7.
+// Full Zambian CBC primary scope — Grades 1-7. The games library carries
+// content from Grade 1 up (see src/data/gamesSeed.js), so every grade needs
+// a working Grade→Subject→Games page; gradeByValue() returning null makes
+// SubjectSelector/GameList bounce back to /games.
 export const GRADES = [
+  { value: 1, label: 'Grade 1', band: 'lower' },
+  { value: 2, label: 'Grade 2', band: 'lower' },
+  { value: 3, label: 'Grade 3', band: 'lower' },
   { value: 4, label: 'Grade 4', band: 'middle' },
   { value: 5, label: 'Grade 5', band: 'middle' },
   { value: 6, label: 'Grade 6', band: 'middle' },
@@ -122,6 +128,13 @@ export async function saveScore({ game, score, accuracy, timeSpent, correct, wro
   const payload = {
     userId: user.uid,
     gameId: game.id,
+    // INTENTIONAL DIVERGENCE: game scores store grade as a Number and subject
+    // lowercased. This is self-consistent — every games read query writes and
+    // reads the same shape (and filters subject client-side). These fields are
+    // NOT the canonical quiz/lesson wire values (string grade + display-label
+    // subject via normalizeSubject). Do NOT cross-join scores with
+    // quizzes/lessons on `grade`/`subject`, and do NOT "normalize" them here —
+    // that would silently break the working leaderboard/score queries.
     grade: Number(game.grade),
     subject: String(game.subject || '').toLowerCase(),
     score: Number(score) || 0,

@@ -179,3 +179,7 @@ scripts/demo-credentials.csv
 scripts/demo-credentials*.csv
 scripts/demo-names.local.txt
 scripts/demo-names.*.local.txt
+.tmp/
+
+# Locally generated images (e.g. scripts/kie-generate-image.mjs output).
+generated/

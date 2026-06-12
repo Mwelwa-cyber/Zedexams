@@ -15,10 +15,12 @@ import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import RubricView from '../views/RubricView'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
-import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
+import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
+import { useAuth } from '../../../contexts/AuthContext'
 import { LIBRARY_TYPES } from '../../../config/library'
 
 export default function RubricGenerator() {
+  const { userProfile, isAdmin } = useAuth()
   const urlDefaults = useFormDefaultsFromUrl()
   const [form, setForm] = useState(() => ({
     grade: 'G9',
@@ -104,7 +106,7 @@ export default function RubricGenerator() {
       slug(form.taskType),
       new Date().toISOString().slice(0, 10),
     ].filter(Boolean)
-    downloadRubricDocx(rubric, `${parts.join('_')}_rubric.docx`)
+    downloadRubricDocx(rubric, `${parts.join('_')}_rubric.docx`, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
   return (

@@ -23,6 +23,7 @@
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import {
   ALLOWED_PAPER_MIME,
   ASSET_ROLES,
@@ -39,7 +40,7 @@ import {
   updatePaper,
   uploadPaperAsset,
 } from '../../utils/pastPapers'
-import { SUBJECTS } from '../../config/curriculum'
+import { PAPER_SUBJECTS } from '../../config/curriculum'
 import { db } from '../../firebase/config'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import {
@@ -186,7 +187,7 @@ export default function PastPaperStudio() {
   const [details, setDetails] = useState({
     title: '',
     grade: '7',
-    subject: SUBJECTS[0].id,
+    subject: PAPER_SUBJECTS[0].id,
     year: CURRENT_YEAR - 1,
     paperNumber: '',
     examBoard: 'ECZ',
@@ -195,6 +196,11 @@ export default function PastPaperStudio() {
     totalMarks: '',
   })
   const [assets, setAssets] = useState([])
+  // In-memory File for each just-uploaded asset, keyed by Storage path.
+  // Lets the preview render from local bytes instead of round-tripping
+  // through Storage (which can fail on a cross-origin fetch). Empty for
+  // assets loaded from an existing draft — those fall back to the URL.
+  const [localFiles, setLocalFiles] = useState({})
   // Linked quiz: question authoring happens in the Quiz Editor, not in
   // the Studio. We keep the id + question count here so step 3 can
   // surface "N questions in the quiz" and a one-click handoff.
@@ -204,6 +210,10 @@ export default function PastPaperStudio() {
   const [uploading, setUploading] = useState(false)
   const [importing, setImporting] = useState(false)
   const [linkingQuiz, setLinkingQuiz] = useState(false)
+  // AI import over a non-empty quiz waits on ConfirmDialog — { quizId }.
+  const [pendingImport, setPendingImport] = useState(null)
+  const [confirmDiscard, setConfirmDiscard] = useState(false)
+  const [discarding, setDiscarding] = useState(false)
 
   // ── Bootstrap: create a draft doc (new) or load existing ─────────
   useEffect(() => {
@@ -219,7 +229,7 @@ export default function PastPaperStudio() {
             fields: {
               title: 'Untitled past paper',
               grade: '7',
-              subject: SUBJECTS[0].id,
+              subject: PAPER_SUBJECTS[0].id,
               year: CURRENT_YEAR - 1,
               status: PAPER_STATUSES.DRAFT,
               examBoard: 'ECZ',
@@ -240,7 +250,7 @@ export default function PastPaperStudio() {
           setDetails({
             title: row.title || '',
             grade: row.grade || '7',
-            subject: row.subject || SUBJECTS[0].id,
+            subject: row.subject || PAPER_SUBJECTS[0].id,
             year: row.year || CURRENT_YEAR - 1,
             paperNumber: row.paperNumber ? String(row.paperNumber) : '',
             examBoard: row.examBoard || 'ECZ',
@@ -304,6 +314,7 @@ export default function PastPaperStudio() {
     setUploading(true)
     const baseIndex = assets.length
     const next = [...assets]
+    const nextFiles = { ...localFiles }
     try {
       for (let i = 0; i < files.length; i += 1) {
         const file = files[i]
@@ -322,8 +333,12 @@ export default function PastPaperStudio() {
           index: baseIndex + i,
         })
         next.push(result)
+        // Keep the local File so the preview renders instantly from
+        // memory rather than re-downloading what we just uploaded.
+        nextFiles[result.path] = file
       }
       setAssets(next)
+      setLocalFiles(nextFiles)
       const assetType = inferAssetType(next)
       await updatePaper(paperId, { assets: next, assetType })
     } catch (err) {
@@ -344,6 +359,12 @@ export default function PastPaperStudio() {
       await deletePaperPdf(removed.path).catch(() => {})
       await updatePaper(paperId, { assets: next, assetType: inferAssetType(next) })
       setAssets(next)
+      setLocalFiles((prev) => {
+        if (!(removed.path in prev)) return prev
+        const copy = { ...prev }
+        delete copy[removed.path]
+        return copy
+      })
     } catch (err) {
       console.error('[PastPaperStudio] remove failed', err)
       setError('Could not remove that file.')
@@ -490,10 +511,14 @@ export default function PastPaperStudio() {
     }
     const quizId = await ensureLinkedQuiz()
     if (!quizId) return
-    if (quizCount > 0 && typeof window !== 'undefined' &&
-        !window.confirm(`This will replace all ${quizCount} existing questions with the AI-extracted ones. Continue?`)) {
+    if (quizCount > 0) {
+      setPendingImport({ quizId })
       return
     }
+    runImport(quizId)
+  }
+
+  async function runImport(quizId) {
     setError('')
     setInfo('')
     setImporting(true)
@@ -514,6 +539,7 @@ export default function PastPaperStudio() {
       setError(err?.message || 'AI import failed.')
     } finally {
       setImporting(false)
+      setPendingImport(null)
     }
   }
 
@@ -563,15 +589,22 @@ export default function PastPaperStudio() {
     }
   }
 
-  async function discardDraft() {
+  function discardDraft() {
     if (!paperId || originalStatus === PAPER_STATUSES.PUBLISHED) return
-    if (typeof window !== 'undefined' && !window.confirm('Discard this draft? Uploaded files will be deleted.')) return
+    setConfirmDiscard(true)
+  }
+
+  async function performDiscard() {
+    setDiscarding(true)
     try {
       await deletePaper(paperId, assets.map((a) => a.path))
       navigate('/admin/papers')
     } catch (err) {
       console.error('[PastPaperStudio] discard failed', err)
       setError('Could not discard. Try again.')
+    } finally {
+      setDiscarding(false)
+      setConfirmDiscard(false)
     }
   }
 
@@ -638,6 +671,7 @@ export default function PastPaperStudio() {
       {step === 1 && (
         <UploadStep
           assets={assets}
+          localFiles={localFiles}
           uploading={uploading}
           onAddFiles={handleAddFiles}
           onRemove={handleRemoveAsset}
@@ -712,6 +746,28 @@ export default function PastPaperStudio() {
           </button>
         )}
       </div>
+
+      <ConfirmDialog
+        open={Boolean(pendingImport)}
+        title="Replace existing questions?"
+        message={`This will replace all ${quizCount} existing question${quizCount === 1 ? '' : 's'} with the AI-extracted ones.`}
+        confirmLabel="Replace questions"
+        variant="danger"
+        loading={importing}
+        onConfirm={() => pendingImport && runImport(pendingImport.quizId)}
+        onCancel={() => setPendingImport(null)}
+      />
+
+      <ConfirmDialog
+        open={confirmDiscard}
+        title="Discard this draft?"
+        message="Uploaded files will be deleted."
+        confirmLabel="Discard draft"
+        variant="danger"
+        loading={discarding}
+        onConfirm={performDiscard}
+        onCancel={() => setConfirmDiscard(false)}
+      />
     </div>
   )
 }
@@ -735,7 +791,7 @@ function RolePill({ active, onClick, children }) {
   )
 }
 
-function UploadStep({ assets, uploading, onAddFiles, onRemove, onMove, onSetRole }) {
+function UploadStep({ assets, localFiles, uploading, onAddFiles, onRemove, onMove, onSetRole }) {
   return (
     <section className="space-y-4">
       <DropZone disabled={uploading} onFiles={onAddFiles} />
@@ -796,7 +852,7 @@ function UploadStep({ assets, uploading, onAddFiles, onRemove, onMove, onSetRole
           No files uploaded yet. Drag a PDF, Word doc, or one or more scanned-page images above to start.
         </p>
       )}
-      {assets.length > 0 && <AssetPreviews assets={assets} />}
+      {assets.length > 0 && <AssetPreviews assets={assets} localFiles={localFiles} />}
     </section>
   )
 }
@@ -817,14 +873,29 @@ function UploadStep({ assets, uploading, onAddFiles, onRemove, onMove, onSetRole
  * the same place they fix typos in filenames or reorder pages. No
  * round-trip through "publish, navigate, find the bug, come back."
  */
-function AssetPreviews({ assets }) {
+function AssetPreviews({ assets, localFiles = {} }) {
   const [urls, setUrls] = useState({})
   useEffect(() => {
     let cancelled = false
     const next = {}
-    // Resolve every URL in parallel; failures fall back to null so the
-    // preview shows an "unavailable" placeholder instead of crashing.
+    const objectUrls = []
+    // Resolve a preview source for every asset in parallel. Prefer the
+    // in-memory File we just uploaded — PDFs render from it via the
+    // viewer's `blob` prop (no Storage fetch), and images get a local
+    // object URL. Only assets without a local File hit Storage; failures
+    // fall back to null so the preview shows an "unavailable" placeholder
+    // instead of crashing.
     Promise.all(assets.map(async (a) => {
+      const local = localFiles[a.path]
+      if (local && a.contentType === 'application/pdf') {
+        return // rendered straight from the blob; no URL needed
+      }
+      if (local && a.contentType?.startsWith('image/')) {
+        const objUrl = URL.createObjectURL(local)
+        objectUrls.push(objUrl)
+        next[a.path] = objUrl
+        return
+      }
       try {
         next[a.path] = await resolvePaperUrl(a.path)
       } catch (err) {
@@ -834,15 +905,20 @@ function AssetPreviews({ assets }) {
     }))
       .then(() => { if (!cancelled) setUrls(next) })
       .catch(() => { /* per-asset errors already swallowed above */ })
-    return () => { cancelled = true }
-  }, [assets])
+    return () => {
+      cancelled = true
+      objectUrls.forEach((u) => { try { URL.revokeObjectURL(u) } catch { /* ignore */ } })
+    }
+  }, [assets, localFiles])
 
   const { paper: paperAssets, markScheme: msAssets } = splitAssetsByRole(assets)
 
   function renderAsset(a, idx) {
     const url = urls[a.path]
+    const localFile = localFiles[a.path]
     const isPdf = a.contentType === 'application/pdf'
     const isImg = a.contentType?.startsWith('image/')
+    const hasLocalPdf = isPdf && Boolean(localFile)
     return (
       <figure
         key={a.path}
@@ -851,7 +927,15 @@ function AssetPreviews({ assets }) {
         <figcaption className="theme-bg-subtle text-xs font-black theme-text-muted uppercase tracking-widest px-3 py-2 border-b theme-border">
           {idx + 1}. {a.filename}
         </figcaption>
-        {url === undefined ? (
+        {hasLocalPdf ? (
+          <Suspense fallback={
+            <div className="h-[60vh] flex items-center justify-center theme-text-muted text-sm">
+              Loading PDF viewer…
+            </div>
+          }>
+            <PdfJsViewer blob={localFile} title={a.filename} />
+          </Suspense>
+        ) : url === undefined ? (
           <div className="h-40 flex items-center justify-center theme-text-muted text-sm">
             Loading preview…
           </div>
@@ -946,7 +1030,7 @@ function DetailsStep({ details, setDetail }) {
         </FieldRow>
         <FieldRow label="Subject">
           <select value={details.subject} onChange={(e) => setDetail('subject', e.target.value)} className={inputCls()}>
-            {SUBJECTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+            {PAPER_SUBJECTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
           </select>
         </FieldRow>
         <FieldRow label="Year">
@@ -1049,7 +1133,7 @@ function QuizStep({
 }
 
 function PublishStep({ paperId, details, assets, quizId, quizCount }) {
-  const subjectMeta = useMemo(() => SUBJECTS.find((s) => s.id === details.subject), [details.subject])
+  const subjectMeta = useMemo(() => PAPER_SUBJECTS.find((s) => s.id === details.subject), [details.subject])
   return (
     <section className="space-y-4">
       <div className="theme-card border theme-border rounded-radius-md p-5">

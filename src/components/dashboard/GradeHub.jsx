@@ -19,8 +19,10 @@ import {
   Battery,
   Bell,
   BookOpen,
+  CalendarDays,
   CheckCircleIcon,
   ChevronRight,
+  Download,
   FileText,
   Files,
   FireIcon,
@@ -39,7 +41,7 @@ import { usePlatformSettings }  from '../../contexts/PlatformSettingsContext'
 import { useFirestore }         from '../../hooks/useFirestore'
 import { useBadges }            from '../../hooks/useBadges'
 import { useDataSaver }         from '../../contexts/DataSaverContext'
-import { GRADE_META, SUBJECTS, getTopics } from '../../config/curriculum'
+import { GRADE_META, SUBJECTS, getTopics, normalizeSubject } from '../../config/curriculum'
 import ProfessorPako            from '../ui/ProfessorPako'
 import DataSaverToggle          from '../ui/DataSaverToggle'
 import BadgeCard                from '../ui/BadgeCard'
@@ -50,7 +52,7 @@ import PushPermissionPrompt     from '../ui/PushPermissionPrompt'
 import VerifyEmailBanner        from '../ui/VerifyEmailBanner'
 import AssignmentsCard          from './AssignmentsCard'
 import ClassesQuickCard         from './ClassesQuickCard'
-import TodayStudyPlan           from './TodayStudyPlan'
+import StudyPlanCard            from './StudyPlanCard'
 import Icon                     from '../ui/Icon'
 import Button                   from '../ui/Button'
 import Skeleton                 from '../ui/Skeleton'
@@ -60,9 +62,21 @@ import { useSubscription }      from '../../hooks/useSubscription'
 import GameStickerStyles        from '../games/GameStickerStyles'
 import SeoHelmet                from '../seo/SeoHelmet'
 import { computeStreak }        from '../../utils/streak'
-import { getTodaysExam, checkDailyLock } from '../../utils/examService'
+import { getTodaysExamsBySubject, checkDailyLock } from '../../utils/examService'
 
 // ── Sub-components ─────────────────────────────────────────────────────────
+
+// Results, the weakness analysis, and userProfile.performance all key on the
+// subject *label* a quiz was saved with (e.g. "Integrated Science", sometimes
+// a legacy variant like "Science"). Routes (/practise/:grade/:subjectId) and
+// the tone maps below are keyed on the curriculum *id* ("science"). This
+// resolver bridges the two so per-subject progress %, chip colours, and
+// drill-down links all line up regardless of which spelling was stored.
+const SUBJECT_BY_LABEL = Object.fromEntries(SUBJECTS.map(s => [s.label, s]))
+function resolveSubject(value) {
+  if (!value) return null
+  return SUBJECT_BY_LABEL[normalizeSubject(value)] ?? null
+}
 
 const NOTIFICATION_STORAGE_PREFIX = 'zedexams:notifications:seen:v1'
 // Dashboard character art. WebP ships as both the <source> and the <img>
@@ -72,8 +86,11 @@ const NOTIFICATION_STORAGE_PREFIX = 'zedexams:notifications:seen:v1'
 // the browser can reserve space and avoid CLS as images load.
 const DASHBOARD_CHARACTERS = {
   hero:  { src: '/images/characters/zed-zara-reading.webp?v=1', width: 1402, height: 1122 },
-  exams: { src: '/images/characters/lina-study.webp?v=1',       width: 1313, height: 1198 },
-  games: { src: '/images/characters/max-gaming.webp?v=1',       width: 1254, height: 1254 },
+  exams: { src: '/images/characters/todays-exams.webp?v=1',     width: 1075, height: 971 },
+  games: { src: '/images/characters/zed-games.webp?v=1',        width: 1140, height: 866 },
+  notes:     { src: '/images/characters/notes-notebook.webp?v=1',       width: 822, height: 887 },
+  papers:    { src: '/images/characters/past-papers-clipboard.webp?v=1', width: 896, height: 924 },
+  timetable: { src: '/images/characters/exam-calendar.webp?v=1',         width: 962, height: 914 },
 }
 
 // Subject palette tuned for the light surfaces shown in the product
@@ -245,18 +262,137 @@ function DashboardActionCard({
   )
 }
 
+// Temporary, Grade-7-only banner card for the 2026 Primary School Leaving
+// Examination (PSLE) timetable. Bundled as a static asset under
+// public/timetables/, so it opens in a new tab where the learner can read
+// it inline and use the browser's built-in download. Rendered only when the
+// learner's grade is 7 (see the gate in the action-card stack below).
+// First day of the 2026 Grade 7 Primary School Leaving Examination. The
+// countdown on the timetable card ticks down to this moment (local time).
+// TEMPORARY: update or remove alongside ExamTimetableCard once the 2026
+// exams are over.
+const GRADE7_EXAM_START = new Date('2026-10-26T08:00:00')
+
+// Breaks the milliseconds until the exam into whole days/hours/minutes/seconds.
+// Returns `over: true` once the start moment has passed so the card can swap
+// its message instead of showing a negative countdown.
+function getCountdownParts(targetMs, nowMs) {
+  const diff = targetMs - nowMs
+  if (diff <= 0) {
+    return { over: true, days: 0, hours: 0, minutes: 0, seconds: 0 }
+  }
+  const totalSeconds = Math.floor(diff / 1000)
+  return {
+    over: false,
+    days: Math.floor(totalSeconds / 86400),
+    hours: Math.floor((totalSeconds % 86400) / 3600),
+    minutes: Math.floor((totalSeconds % 3600) / 60),
+    seconds: totalSeconds % 60,
+  }
+}
+
+// Live countdown to the exam, refreshed every second while mounted.
+function useExamCountdown(target) {
+  const targetMs = target.getTime()
+  const [parts, setParts] = useState(() => getCountdownParts(targetMs, Date.now()))
+  useEffect(() => {
+    const tick = () => setParts(getCountdownParts(targetMs, Date.now()))
+    tick()
+    const id = setInterval(tick, 1000)
+    return () => clearInterval(id)
+  }, [targetMs])
+  return parts
+}
+
+// Single time unit shown in the countdown row (value + label).
+function CountdownUnit({ value, label }) {
+  return (
+    <div className="flex min-w-[2.5rem] flex-col items-center rounded-xl bg-white/85 px-2 py-1 shadow-sm ring-1 ring-rose-200">
+      <span className="text-base font-black tabular-nums leading-none text-rose-700 sm:text-lg">
+        {String(value).padStart(2, '0')}
+      </span>
+      <span className="text-[9px] font-black uppercase tracking-wider text-rose-500">
+        {label}
+      </span>
+    </div>
+  )
+}
+
+function ExamTimetableCard() {
+  const { over, days, hours, minutes, seconds } = useExamCountdown(GRADE7_EXAM_START)
+  return (
+    <section>
+      <Link
+        to="/timetable"
+        className="zx-card group relative block min-h-[128px] overflow-hidden rounded-3xl border-2 border-rose-300 bg-[linear-gradient(135deg,#FFE4E6_0%,#FDA4AF_55%,#E11D48_100%)] shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+      >
+        <div className="relative z-10 flex min-h-[128px] flex-wrap items-center gap-3 p-4 pr-24 sm:gap-4 sm:p-5 sm:pr-32">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-600 text-white shadow-sm">
+            <Icon as={CalendarDays} size="lg" strokeWidth={2.1} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-black uppercase tracking-widest text-rose-800">
+              Grade 7 · ECZ 2026
+            </p>
+            <h3 className="mt-0.5 text-base font-black leading-tight text-rose-950">
+              2026 Exam Timetable
+            </h3>
+            {over ? (
+              <p className="mt-0.5 text-xs font-bold text-rose-900/80">
+                Exams have started — best of luck! Tap to view the timetable.
+              </p>
+            ) : (
+              <p className="mt-0.5 hidden text-xs font-bold text-rose-900/80 sm:block">
+                {days === 0
+                  ? 'Exams start today — tap to view the timetable'
+                  : `${days} ${days === 1 ? 'day' : 'days'} until exams — tap to view the timetable`}
+              </p>
+            )}
+          </div>
+          <div className="hidden shrink-0 items-center gap-1 rounded-full bg-rose-700 px-3 py-1.5 text-xs font-black text-white shadow-sm transition-transform group-hover:translate-x-0.5 sm:flex">
+            View
+            <Icon as={Download} size="xs" />
+          </div>
+        </div>
+        {!over && (
+          <div className="relative z-10 -mt-1 flex items-center gap-1.5 px-4 pb-4 sm:gap-2 sm:px-5 sm:pb-5">
+            <span className="mr-0.5 text-[10px] font-black uppercase tracking-wider text-rose-700/90">
+              Starts in
+            </span>
+            <CountdownUnit value={days} label="Days" />
+            <CountdownUnit value={hours} label="Hrs" />
+            <CountdownUnit value={minutes} label="Min" />
+            <CountdownUnit value={seconds} label="Sec" />
+          </div>
+        )}
+        <DashboardCharacter
+          image={DASHBOARD_CHARACTERS.timetable}
+          alt="Wall calendar with a clock"
+          variant="card"
+          className="absolute top-1 right-2 z-0"
+        />
+      </Link>
+    </section>
+  )
+}
+
 // Rich subject card used inside the grade-personalised hub. Matches the
 // product mockup: large coloured icon tile, name + percentage chip, a
 // "X topics · Y quizzes" stats line, and a coloured progress bar fed by
 // per-subject performance. Topic count is free (in-memory curriculum);
 // quiz count is optional — passes through `quizCount` when known.
-function SubjectCardRich({ subject, grade, perf, quizCount, dimmed = false, locked = false, ctaHref, ctaLabel = 'Practise' }) {
+function SubjectCardRich({ subject, grade, perf, quizCount, demoCount = 0, dimmed = false, locked = false, ctaHref, ctaLabel = 'Practise' }) {
   const topicCount = getTopics(subject.id, grade).length
   const tone = SUBJECT_TONES[subject.id] || SUBJECT_TONES.mathematics
   const score = typeof perf === 'number' ? perf : 0
   // Drill-down course map — opens a dedicated page for the subject with
   // quizzes grouped by Topic (audit: SubjectDrillDown).
   const quizPath = ctaHref || `/practise/${grade}/${subject.id}`
+  // Quiz-count badges mirror the Quiz Library's subject tiles: a "N quizzes"
+  // pill (or "Coming soon" when the subject has none yet) plus a demo pill.
+  // quizCount is undefined until the count fetch resolves — keep the row out
+  // of the layout entirely so we don't flash "Coming soon" while loading.
+  const countsKnown = typeof quizCount === 'number'
 
   return (
     <div className={`zx-card theme-card rounded-2xl p-4 transition-all hover:shadow-md ${dimmed ? 'opacity-70' : ''}`}>
@@ -271,8 +407,23 @@ function SubjectCardRich({ subject, grade, perf, quizCount, dimmed = false, lock
           </div>
           <p className="theme-text-muted text-[11px] font-bold mt-0.5">
             {topicCount} Topic{topicCount === 1 ? '' : 's'}
-            {typeof quizCount === 'number' ? ` · ${quizCount} Quiz${quizCount === 1 ? '' : 'zes'}` : ''}
           </p>
+          {countsKnown && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-black uppercase tracking-wide ${
+                quizCount === 0
+                  ? 'theme-bg-subtle theme-text-muted'
+                  : 'bg-slate-900 text-white'
+              }`}>
+                {quizCount === 0 ? 'Coming soon' : `${quizCount} Quiz${quizCount === 1 ? '' : 'zes'}`}
+              </span>
+              {demoCount > 0 && (
+                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-emerald-700">
+                  <Icon as={Sparkles} size="xs" strokeWidth={2.4} /> {demoCount} Demo
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -454,7 +605,7 @@ function NotificationPanel({ notifications, unreadCount, onClose }) {
 export default function GradeHub() {
   const { currentUser, userProfile, logout, isAdmin, isTeacher } = useAuth()
   const { settings: platformSettings } = usePlatformSettings()
-  const { getUserResults, getWeaknessAnalysis } = useFirestore()
+  const { getUserResults, getWeaknessAnalysis, getQuizzes } = useFirestore()
   const { earned: earnedBadges, loading: badgesLoading } = useBadges(currentUser?.uid)
   const { dataSaver }                        = useDataSaver()
   const navigate                             = useNavigate()
@@ -469,7 +620,7 @@ export default function GradeHub() {
   // No routing — local state only, content swaps in place.
   const [activeTab, setActiveTab] = useState('myGrade')
 
-  // Per-subject performance keyed by subject.id. Sourced from
+  // Per-subject performance keyed by the canonical subject label. Sourced from
   // userProfile.performance if present (future-proof for a server-side
   // aggregation), otherwise derived from the last 50 quiz results.
   const [perfBySubject, setPerfBySubject] = useState({})
@@ -491,6 +642,15 @@ export default function GradeHub() {
   // grade. `total` = subjects with an exam scheduled today; `done` = how
   // many of those have been submitted. Hidden when total === 0.
   const [dailyGoal, setDailyGoal] = useState({ done: 0, total: 0 })
+
+  // Per-grade published-quiz counts so the subject cards mirror the Quiz
+  // Library (/quizzes). Without this the hub only knew the static topic
+  // count and was blind to which subjects actually have quizzes — the
+  // library showed "16 quizzes / 1 demo" while the matching hub card showed
+  // nothing. Shape: { [grade]: { [subjectLabel]: { total, demo } } }. A grade
+  // key is present only once its fetch resolves, which lets the card tell
+  // "still loading" apart from "genuinely zero (coming soon)".
+  const [quizCounts, setQuizCounts] = useState({})
 
   useEffect(() => {
     if (!currentUser) {
@@ -536,8 +696,17 @@ export default function GradeHub() {
       setPerfBySubject({})
       return undefined
     }
+    // Always re-key onto the canonical subject label so the subject cards
+    // (which read perfBySubject[subject.label]) line up no matter whether the
+    // source keyed by id, label, or a legacy spelling.
     if (userProfile?.performance && typeof userProfile.performance === 'object') {
-      setPerfBySubject(userProfile.performance)
+      const norm = {}
+      Object.entries(userProfile.performance).forEach(([s, v]) => {
+        if (typeof v !== 'number') return
+        const key = resolveSubject(s)?.label ?? s
+        norm[key] = v
+      })
+      setPerfBySubject(norm)
       return undefined
     }
 
@@ -547,9 +716,10 @@ export default function GradeHub() {
       const acc = {}
       results.forEach(r => {
         if (!r.subject || typeof r.percentage !== 'number') return
-        acc[r.subject] ??= { sum: 0, n: 0 }
-        acc[r.subject].sum += r.percentage
-        acc[r.subject].n   += 1
+        const key = resolveSubject(r.subject)?.label ?? r.subject
+        acc[key] ??= { sum: 0, n: 0 }
+        acc[key].sum += r.percentage
+        acc[key].n   += 1
       })
       const out = {}
       Object.entries(acc).forEach(([s, v]) => { out[s] = Math.round(v.sum / v.n) })
@@ -595,13 +765,13 @@ export default function GradeHub() {
     }
     let cancelled = false
     const grade = userProfile?.grade || '5'
-    Promise.all(SUBJECTS.map(async subject => {
-      const [exam, lock] = await Promise.all([
-        getTodaysExam(subject.label, grade),
-        checkDailyLock(currentUser.uid, subject.label),
-      ])
-      return { exam, lock }
-    })).then(rows => {
+    getTodaysExamsBySubject(grade).then(examMap => Promise.all(
+      SUBJECTS.map(async subject => {
+        const exam = examMap.get(subject.label) || null
+        const lock = await checkDailyLock(currentUser.uid, subject.label)
+        return { exam, lock }
+      }),
+    )).then(rows => {
       if (cancelled) return
       const scheduled = rows.filter(r => r.exam)
       const submitted = scheduled.filter(r => r.lock?.status === 'submitted')
@@ -617,16 +787,22 @@ export default function GradeHub() {
   const nextGrade = userGrade ? userGrade + 1 : null
   const hasNextGrade = nextGrade !== null && nextGrade <= 7
 
+  // TEMPORARY (2026 exams) — who sees the Grade-7 PSLE timetable card:
+  // Grade 7 learners, plus learners who haven't set a grade yet (so an empty
+  // profile doesn't hide it). A learner explicitly in another grade won't see it.
+  const hasGradeSet = userProfile?.grade != null && String(userProfile.grade).trim() !== ''
+  const showExamTimetable = userGrade === 7 || !hasGradeSet
+
   // Average across the 7 CBC subjects, using only those with recorded scores.
   const subjectScoreList = SUBJECTS
-    .map(s => perfBySubject[s.id])
+    .map(s => perfBySubject[s.label])
     .filter(v => typeof v === 'number')
   const avgPerformance = subjectScoreList.length
     ? Math.round(subjectScoreList.reduce((a, b) => a + b, 0) / subjectScoreList.length)
     : 0
 
   const nextLevelUnlocked = avgPerformance >= 70 && hasNextGrade
-  const challengeSubjects = SUBJECTS.filter(s => (perfBySubject[s.id] ?? 0) >= 80)
+  const challengeSubjects = SUBJECTS.filter(s => (perfBySubject[s.label] ?? 0) >= 80)
   // Challenge tab APPEARS only when the learner has earned it — per spec,
   // the section is performance-gated rather than always-visible-but-locked.
   const showChallenge = challengeSubjects.length > 0
@@ -641,7 +817,80 @@ export default function GradeHub() {
     if (activeTab === 'challenge' && !showChallenge) setActiveTab('myGrade')
   }, [activeTab, showChallenge])
 
+  // Load published practice-quiz counts for the grades the hub can show
+  // (the learner's own grade + the next-level preview grade). Reuses the
+  // very same getQuizzes() query the Quiz Library runs, so the per-subject
+  // tallies stay identical between the two surfaces. getQuizzes wants the
+  // grade as the wire string ('7'), matching how the library passes it.
+  useEffect(() => {
+    const grades = []
+    if (userGrade) grades.push(userGrade)
+    if (hasNextGrade && nextGrade) grades.push(nextGrade)
+    // No grade yet (profile still loading, or a transient auth/profile blip
+    // that briefly nulls userProfile). Do NOT clear quizCounts here: this
+    // effect re-runs whenever the grade flickers, and wiping good counts on a
+    // momentary null is exactly what made the cards go blank on a long-open
+    // dashboard until a full reload. Leave the last good map in place.
+    if (!grades.length) return undefined
+
+    let cancelled = false
+    Promise.all(
+      grades.map(g => getQuizzes({ grade: String(g) }).then(rows => [g, rows])),
+    ).then(pairs => {
+      if (cancelled) return
+      const out = {}
+      let totalRows = 0
+      for (const [g, rows] of pairs) {
+        totalRows += rows.length
+        const bySubject = {}
+        for (const quiz of rows) {
+          // Match the library exactly: group by the quiz's subject wire value
+          // (the canonical label, e.g. "Integrated Science"). total counts
+          // every published practice quiz; demo is the subset flagged isDemo.
+          const key = quiz.subject
+          if (!key) continue
+          bySubject[key] ??= { total: 0, demo: 0 }
+          bySubject[key].total += 1
+          if (quiz.isDemo) bySubject[key].demo += 1
+        }
+        out[g] = bySubject
+      }
+      // getQuizzes() swallows Firestore errors and returns [] (see
+      // useFirestore.js), so a failed read is indistinguishable from a real
+      // "zero quizzes" result here. A long-lived dashboard re-runs this in the
+      // background (e.g. on the ~hourly auth-token refresh); if that read
+      // transiently fails we'd cache an all-empty map and every card would
+      // flip to "Coming soon" until reload. Guard: when the whole fetch comes
+      // back empty but we already have populated counts, keep the good ones.
+      setQuizCounts(prev => {
+        const hadCounts = Object.values(prev).some(
+          g => g && Object.keys(g).length > 0,
+        )
+        if (totalRows === 0 && hadCounts) return prev
+        return out
+      })
+    }).catch(err => {
+      if (cancelled) return
+      // A genuine rejection (not the swallowed-empty path above). Keep the
+      // last good counts rather than blanking the cards.
+      console.error('GradeHub quiz counts:', err)
+    })
+    return () => { cancelled = true }
+  }, [userGrade, nextGrade, hasNextGrade, getQuizzes])
+
   const { accessBadge, isDemoOnly } = useSubscription()
+
+  // Resolve the Quiz-Library-style counts for one subject card. Returns
+  // quizCount=undefined while that grade is still loading so the card shows
+  // no badge (rather than a premature "Coming soon"); once loaded a subject
+  // with no quizzes resolves to 0 → "Coming soon", matching the library.
+  function subjectCounts(grade, subject) {
+    const gradeStats = quizCounts[grade]
+    if (!gradeStats) return { quizCount: undefined, demoCount: 0 }
+    const stat = gradeStats[subject.label]
+    return { quizCount: stat?.total ?? 0, demoCount: stat?.demo ?? 0 }
+  }
+
   const aiNotesOn = !!(platformSettings && platformSettings.learnerAi &&
     platformSettings.learnerAi.showAiNotesToLearners)
   const firstName = userProfile?.displayName?.split(' ')[0] ?? 'Learner'
@@ -661,7 +910,7 @@ export default function GradeHub() {
       : null,
     stats.streak >= 2
       ? {
-          id: `streak:${stats.streak}`,
+          id: 'streak',
           icon: FireIcon,
           title: `${stats.streak}-day learning streak`,
           body: 'Keep practising daily to protect your streak and unlock more badges.',
@@ -916,33 +1165,39 @@ export default function GradeHub() {
           }`}
           data-bg-gradient={!dataSaver ? 'true' : undefined}
         >
+          {/* Large character art blended into the hero as a background layer.
+              Skipped in data-saver so the image never downloads on metered
+              connections. The wash re-paints the themed gradient over the text
+              column for contrast, then fades out so the art melts into the
+              card on the right instead of looking pasted on top. */}
           {!dataSaver && (
             <>
-              <FloatingStar style={{ top: '12%', left: '6%',  fontSize: 18, animationDelay: '0s'  }} />
-              <FloatingStar style={{ top: '65%', left: '2%',  fontSize: 12, animationDelay: '1s'  }} />
-              <FloatingStar style={{ top: '25%', left: '45%', fontSize: 10, animationDelay: '2s'  }} />
-              <FloatingStar style={{ top: '80%', left: '52%', fontSize: 8,  animationDelay: '0.5s'}} />
+              <img
+                src={DASHBOARD_CHARACTERS.hero.src}
+                alt=""
+                aria-hidden="true"
+                width={DASHBOARD_CHARACTERS.hero.width}
+                height={DASHBOARD_CHARACTERS.hero.height}
+                loading="eager"
+                decoding="async"
+                className="zx-hero-bg"
+              />
+              <div className="zx-hero-wash" aria-hidden="true" />
+              <FloatingStar style={{ top: '12%', left: '6%',  fontSize: 18, animationDelay: '0s',   zIndex: 2 }} />
+              <FloatingStar style={{ top: '65%', left: '2%',  fontSize: 12, animationDelay: '1s',   zIndex: 2 }} />
+              <FloatingStar style={{ top: '25%', left: '45%', fontSize: 10, animationDelay: '2s',   zIndex: 2 }} />
+              <FloatingStar style={{ top: '80%', left: '52%', fontSize: 8,  animationDelay: '0.5s', zIndex: 2 }} />
             </>
           )}
 
-          <div className="relative">
-            <DashboardCharacter
-              image={DASHBOARD_CHARACTERS.hero}
-              alt="Zed and Zara reading together"
-              variant="hero"
-              loading="eager"
-              className="absolute -top-1 right-0 z-0 max-w-[42%] sm:max-w-[40%]"
-            />
+          <div className="relative z-10 max-w-[58%] min-w-0">
+            <p className="mb-1.5 text-eyebrow text-white/75" style={{ color: 'rgba(255,255,255,0.75)' }}>
+              Welcome back
+            </p>
+            <h1 className="text-display-xl text-white">{firstName}!</h1>
+            <p className="theme-hero-muted mt-1 text-body-sm italic">Practise smart with ZedExams.</p>
 
-            <div className="relative z-10 max-w-[58%] min-w-0 sm:max-w-[60%]">
-              <p className="mb-1.5 text-eyebrow text-white/75" style={{ color: 'rgba(255,255,255,0.75)' }}>
-                Welcome back
-              </p>
-              <h1 className="text-display-xl text-white">{firstName}!</h1>
-              <p className="theme-hero-muted mt-1 text-body-sm italic">Practise smart with ZedExams.</p>
-            </div>
-
-            <div className="relative z-10 mt-3 flex flex-wrap items-center gap-4">
+            <div className="mt-3 flex flex-wrap items-center gap-4">
               <div>
                 <p className="text-xl font-black leading-none text-white">{stats.quizzes}</p>
                 <p className="theme-hero-muted text-xs font-bold">Quizzes</p>
@@ -960,24 +1215,24 @@ export default function GradeHub() {
               )}
             </div>
 
-            <div className="relative z-10 mt-3 flex flex-wrap gap-2">
+            <div className="mt-3 flex flex-wrap gap-2">
               <Link
                 to="/quizzes"
-                className="flex items-center gap-1.5 rounded-full bg-white/95 px-3 py-1.5 text-xs font-black theme-accent-text transition-colors hover:bg-white"
+                className="inline-flex w-fit items-center gap-1.5 whitespace-nowrap rounded-full bg-white/95 px-2.5 py-1.5 text-xs font-black theme-accent-text transition-colors hover:bg-white"
               >
                 <Icon as={PencilLine} size="xs" strokeWidth={2.1} />
                 Start Quiz
               </Link>
               <Link
                 to="/my-results"
-                className="flex items-center gap-1.5 rounded-full border border-white/40 bg-white/30 px-3 py-1.5 text-xs font-black text-white transition-colors hover:bg-white/40"
+                className="inline-flex w-fit items-center gap-1.5 whitespace-nowrap rounded-full border border-white/40 bg-white/30 px-2.5 py-1.5 text-xs font-black text-white transition-colors hover:bg-white/40"
               >
                 <Icon as={BarChart3} size="xs" strokeWidth={2.1} />
                 My Results
               </Link>
             </div>
 
-            <div className="relative z-10 mt-3 flex flex-wrap items-center gap-2">
+            <div className="mt-3 flex flex-wrap items-center gap-2">
               {userProfile?.grade && (
                 <span className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/20 px-2.5 py-1 text-xs font-black text-white">
                   <Icon as={BookOpen} size="xs" strokeWidth={2.1} />
@@ -1007,11 +1262,10 @@ export default function GradeHub() {
         {/* "My classes" surface — exposes /classes/join from the
             dashboard so learners can paste a teacher invite code. */}
         <ClassesQuickCard />
-        <TodayStudyPlan
+        <StudyPlanCard
           results={recentResults}
           weakTopics={weakTopics}
           grade={userGrade}
-          streak={stats.streak}
           dailyGoal={dailyGoal}
           loading={loading}
           aiNotesOn={aiNotesOn}
@@ -1019,6 +1273,12 @@ export default function GradeHub() {
         {/* Audit A5.1 — daily-reminder push opt-in. Self-gated to learners
             with streak ≥ 2; renders nothing otherwise. */}
         <PushPermissionPrompt streak={stats.streak} />
+
+        {/* TEMPORARY (2026 exams) — Grade-7 PSLE timetable, also shown to
+            learners with no grade set. Surfaced first so the exam cohort
+            sees it on arrival. Remove with the ExamTimetableCard component +
+            bundled PDF when exams close. */}
+        {showExamTimetable && <ExamTimetableCard />}
 
         <DashboardActionCard
           to="/exams"
@@ -1034,7 +1294,7 @@ export default function GradeHub() {
           action="Start"
           actionClassName="bg-amber-600 text-white"
           image={DASHBOARD_CHARACTERS.exams}
-          imageAlt="Lina studying"
+          imageAlt="Exam clipboard with trophy, clock and books"
           imageVariant="card"
         />
 
@@ -1052,12 +1312,12 @@ export default function GradeHub() {
           action="Play"
           actionClassName="bg-emerald-600 text-white"
           image={DASHBOARD_CHARACTERS.games}
-          imageAlt="Max playing a learning game"
+          imageAlt="Game controller with trophy and learning blocks"
           imageVariant="games"
         />
 
         <DashboardActionCard
-          to="/lessons"
+          to="/notes"
           className="border-sky-300 bg-[linear-gradient(135deg,#E0F2FE_0%,#7DD3FC_55%,#0EA5E9_100%)]"
           icon={FileText}
           iconClassName="bg-sky-600 text-white"
@@ -1069,6 +1329,9 @@ export default function GradeHub() {
           bodyClassName="text-sky-900/80"
           action="Read"
           actionClassName="bg-sky-600 text-white"
+          image={DASHBOARD_CHARACTERS.notes}
+          imageAlt="Open notebook with a pen"
+          imageVariant="card"
         />
 
         <DashboardActionCard
@@ -1084,6 +1347,9 @@ export default function GradeHub() {
           bodyClassName="text-violet-900/80"
           action="Browse"
           actionClassName="bg-violet-600 text-white"
+          image={DASHBOARD_CHARACTERS.papers}
+          imageAlt="Exam clipboard with a checklist and award badge"
+          imageVariant="card"
         />
 
         {/* ── GRADE-PERSONALISED HUB ──────────────────────────────
@@ -1162,7 +1428,8 @@ export default function GradeHub() {
                       key={subject.id}
                       subject={subject}
                       grade={userGrade}
-                      perf={perfBySubject[subject.id]}
+                      perf={perfBySubject[subject.label]}
+                      {...subjectCounts(userGrade, subject)}
                     />
                   ))}
                 </div>
@@ -1199,9 +1466,10 @@ export default function GradeHub() {
                     key={subject.id}
                     subject={subject}
                     grade={nextGrade}
-                    perf={nextLevelUnlocked ? perfBySubject[subject.id] : 0}
+                    perf={nextLevelUnlocked ? perfBySubject[subject.label] : 0}
                     dimmed={!nextLevelUnlocked}
                     locked={!nextLevelUnlocked}
+                    {...subjectCounts(nextGrade, subject)}
                   />
                 ))}
               </div>
@@ -1239,9 +1507,10 @@ export default function GradeHub() {
                     key={subject.id}
                     subject={subject}
                     grade={userGrade}
-                    perf={perfBySubject[subject.id]}
+                    perf={perfBySubject[subject.label]}
                     ctaLabel="Start Challenge"
                     ctaHref={`/practise/${userGrade}/${subject.id}`}
+                    {...subjectCounts(userGrade, subject)}
                   />
                 ))}
               </div>
@@ -1373,9 +1642,14 @@ export default function GradeHub() {
               </p>
               <div className="flex flex-wrap gap-2">
                 {weakTopics.map(topic => {
-                  const tone = SUBJECT_TONES[topic.subject] || SUBJECT_TONES.mathematics
-                  const chipHref = userGrade
-                    ? `/practise/${userGrade}/${topic.subject}`
+                  // topic.subject is the stored subject label; map it back to
+                  // the curriculum id so the chip tone and the drill-down route
+                  // (/practise/:grade/:subjectId) both resolve. Falling back to
+                  // the library keeps the chip clickable for an unknown subject.
+                  const subjectId = resolveSubject(topic.subject)?.id
+                  const tone = SUBJECT_TONES[subjectId] || SUBJECT_TONES.mathematics
+                  const chipHref = userGrade && subjectId
+                    ? `/practise/${userGrade}/${subjectId}`
                     : '/quizzes'
                   return (
                     <Link

@@ -20,7 +20,9 @@ const LIMITS = {
   subject: 80,
   grade: 20,
   topic: 120,
-  quizCount: 10,
+  // Matches the studio's count dropdown (5/10/15/20/25 + custom). The
+  // callable's maxTokens is sized for the top of this range.
+  quizCount: 25,
   importFileName: 180,
   importDocumentText: 26000,
   importLocalDraft: 12000,
@@ -136,6 +138,28 @@ async function assertDailyLimit(uid, role, action) {
   });
 }
 
+// Monthly spend ceiling. No-op unless AI_MONTHLY_BUDGET_USD is set on the
+// runtime. When the month-to-date app spend has hit the ceiling, refuse
+// the call so a runaway can't keep burning credit. Fails open — a budget
+// read error must never block a legitimate request.
+const MONTHLY_BUDGET_MESSAGE =
+  "The monthly AI budget has been reached. AI features are paused until " +
+  "the next billing month or until an admin raises the limit.";
+
+async function assertAiBudget() {
+  let status;
+  try {
+    const {getBudgetStatus} = require("./aiCostTracking");
+    status = await getBudgetStatus();
+  } catch (err) {
+    console.warn("[aiService] budget check failed (allowing call)", err);
+    return;
+  }
+  if (status && status.overBudget) {
+    throw new HttpsError("resource-exhausted", MONTHLY_BUDGET_MESSAGE);
+  }
+}
+
 async function callOpenAI(apiKey, {
   messages,
   maxTokens = 500,
@@ -203,6 +227,7 @@ async function callAnthropic(apiKey, {
   tools,
   toolChoice,
 }) {
+  await assertAiBudget();
   let res;
   try {
     res = await anthropicFetch(ANTHROPIC_URL, {
@@ -322,7 +347,11 @@ function toAnthropicShape(openAiMessages = []) {
     if (m.role === "system") {
       if (m.content) systemParts.push(String(m.content));
     } else if (m.role === "user" || m.role === "assistant") {
-      rest.push({role: m.role, content: String(m.content || "")});
+      // Preserve array content (text + image blocks for vision); only coerce
+      // plain string/other content to a string.
+      const content = Array.isArray(m.content) ?
+        m.content : String(m.content || "");
+      rest.push({role: m.role, content});
     }
   }
   // Drop any leading assistant messages (Anthropic requires user first).
@@ -552,10 +581,105 @@ function buildQuizMessages(payload) {
     LIMITS.quizCount,
   );
 
+  // Question kind requested by the studio: mcq (default) | true_false |
+  // short_answer | mixed. Anything unrecognised falls back to mcq so old
+  // clients keep their exact behaviour.
+  const QUIZ_TYPES = new Set(["mcq", "true_false", "short_answer", "mixed"]);
+  const rawType = cleanString(payload.type, 20).toLowerCase();
+  const quizType = QUIZ_TYPES.has(rawType) ? rawType : "mcq";
+
+  const kindLine = {
+    mcq: `Write ${count} multiple-choice quiz questions for the following lesson:`,
+    true_false:
+      `Write ${count} TRUE/FALSE quiz questions for the following lesson. ` +
+      "Each is a clear statement the learner marks True or False:",
+    short_answer:
+      `Write ${count} SHORT-ANSWER quiz questions for the following lesson. ` +
+      "Each expects a one-word or one-phrase written answer:",
+    mixed:
+      `Write ${count} quiz questions for the following lesson, mixing the ` +
+      "three kinds roughly evenly: multiple-choice, true/false and " +
+      "short-answer:",
+  }[quizType];
+
+  const shapeLines = [];
+  if (quizType === "mcq" || quizType === "mixed") {
+    shapeLines.push(
+      "    { // multiple-choice question",
+      '      "text": "The full question, as the learner reads it. Include units where relevant.",',
+      '      "options": ["First option", "Second option", "Third option", "Fourth option"],',
+      '      "correctAnswer": 0,                // 0-based index into options',
+      '      "explanation": "1-2 sentences explaining WHY the correct option is correct.",',
+      '      "topic": "The sub-topic or Specific Outcome this question tests",',
+      '      "marks": 1,',
+      '      "type": "mcq"',
+      "    },",
+    );
+  }
+  if (quizType === "true_false" || quizType === "mixed") {
+    shapeLines.push(
+      "    { // true/false question",
+      '      "text": "A clear statement that is definitely true or definitely false.",',
+      '      "options": ["True", "False"],      // EXACTLY these two, in this order',
+      '      "correctAnswer": 0,                // 0 = True, 1 = False',
+      '      "explanation": "1-2 sentences explaining why the statement is true/false.",',
+      '      "topic": "The sub-topic this statement tests",',
+      '      "marks": 1,',
+      '      "type": "true_false"',
+      "    },",
+    );
+  }
+  if (quizType === "short_answer" || quizType === "mixed") {
+    shapeLines.push(
+      "    { // short-answer question",
+      '      "text": "The full question. A blank cue like \\"The capital of Zambia is ______.\\" is fine.",',
+      '      "answer": "The expected answer (a word or short phrase)",',
+      '      "explanation": "1-2 sentences a marker can use to judge close answers.",',
+      '      "topic": "The sub-topic this question tests",',
+      '      "marks": 1,',
+      '      "type": "short_answer"',
+      "    },",
+    );
+  }
+
+  const hardRules = [
+    "Hard rules (violations cause the question to be rejected):",
+    ...(quizType === "mcq" ? [
+      "- Exactly 4 options per question, all non-empty, all distinct.",
+      "- correctAnswer is an INTEGER 0-3.",
+      "- Distractors must be plausible but clearly wrong on reflection.",
+      "- No two options may be paraphrases of each other.",
+      "- No 'all of the above', 'none of the above', or 'both A and B'.",
+    ] : []),
+    ...(quizType === "true_false" ? [
+      '- options is EXACTLY ["True", "False"]; correctAnswer is 0 or 1.',
+      "- Statements must be definitively true or false — no opinions,",
+      "  no 'sometimes', no trick ambiguity.",
+      "- Roughly half the statements should be false.",
+    ] : []),
+    ...(quizType === "short_answer" ? [
+      "- Every question has an \"answer\" that is a single word or a short",
+      "  phrase a marker can check at a glance — never a full sentence essay.",
+      "- The question must have ONE clearly correct answer.",
+    ] : []),
+    ...(quizType === "mixed" ? [
+      "- Follow the per-kind shape above exactly for each question's type.",
+      "- MCQs: exactly 4 distinct options, integer correctAnswer 0-3.",
+      '- True/false: options EXACTLY ["True", "False"], correctAnswer 0 or 1.',
+      "- Short answers: a checkable one-word/short-phrase \"answer\".",
+    ] : []),
+    "- The correct answer must be factually correct per the Zambian syllabus.",
+    "- Question text must be at least 25 characters, complete sentence,",
+    "  ending with a question mark OR a fill-in-the-blank cue.",
+    "- Explanation must be at least 15 characters and must NOT simply repeat",
+    "  the question verbatim.",
+    "- No references to things outside the <cbc_context> block.",
+  ];
+
   const userPrompt = [
     cbcContextBlock,
     "",
-    `Write ${count} multiple-choice quiz questions for the following lesson:`,
+    kindLine,
     "",
     `- Grade / Class: ${grade}`,
     `- Subject: ${subject}`,
@@ -575,30 +699,11 @@ function buildQuizMessages(payload) {
     "Return a JSON object in EXACTLY this shape:",
     "{",
     '  "questions": [',
-    "    {",
-    '      "text": "The full question, as the learner reads it. Include units where relevant.",',
-    '      "options": ["First option", "Second option", "Third option", "Fourth option"],',
-    '      "correctAnswer": 0,                // 0-based index into options',
-    '      "explanation": "1-2 sentences explaining WHY the correct option is correct. Name the sub-topic or Specific Outcome where possible.",',
-    '      "topic": "The sub-topic or Specific Outcome this question tests",',
-    '      "marks": 1,',
-    '      "type": "mcq"',
-    "    }",
+    ...shapeLines,
     "  ]",
     "}",
     "",
-    "Hard rules (violations cause the question to be rejected):",
-    "- Exactly 4 options per question, all non-empty, all distinct.",
-    "- correctAnswer is an INTEGER 0-3.",
-    "- The correct option must be factually correct per the Zambian syllabus.",
-    "- Distractors must be plausible but clearly wrong on reflection.",
-    "- Question text must be at least 25 characters, complete sentence,",
-    "  ending with a question mark OR a fill-in-the-blank cue.",
-    "- Explanation must be at least 15 characters and must NOT simply repeat",
-    "  the question verbatim.",
-    "- No two options may be paraphrases of each other.",
-    "- No 'all of the above', 'none of the above', or 'both A and B'.",
-    "- No references to things outside the <cbc_context> block.",
+    ...hardRules,
     "",
     "Return ONLY the JSON object. No markdown fences. No commentary.",
   ].filter(Boolean).join("\n");
@@ -643,6 +748,8 @@ function buildImportStructureMessages(payload) {
         "Use sourceQuestionNumber for every numbered question.",
         "Only set correctAnswer when it is explicitly available from the text",
         "or answer key. Otherwise return an empty string.",
+        "Preserve mathematics and tables using ZedExams import markup",
+        "(described in the rules below) rather than plain prose or placeholders.",
         "Return only valid JSON.",
       ].join(" "),
     },
@@ -674,6 +781,22 @@ function buildImportStructureMessages(payload) {
         "- passageText should contain only the reading text or source text.",
         "- Keep options as plain text without A/B/C/D labels when possible.",
         "- Do not invent new questions or answers.",
+        "- Preserve mathematics and tables with this markup so the ZedExams",
+        "  editor renders them as real fractions, column sums, maths and tables:",
+        "  - Fractions: \\frac{3}{4}  (mixed numbers: 1\\frac{1}{3}).",
+        "  - Other inline maths (roots, powers, symbols, indices): wrap in $...$",
+        "    e.g. $\\sqrt{49}$, $x^2$, $5\\times10^3$, $313_5$.",
+        "  - Vertical / column arithmetic: ONE token on its own line —",
+        "    [[vmath op=- lines=954751,362948 answer=]]",
+        "    where op is one of + - * / , lines are the operands top-to-bottom,",
+        "    and answer is optional (leave empty if the paper does not give it).",
+        "  - Tables: a GitHub-style Markdown table — a header row, then a",
+        "    |---|---| separator row, then one row per line.",
+        "- Apply this markup inside text, options, passageText and explanation.",
+        "  NEVER emit placeholders like '[table here]', 'see diagram', or a",
+        "  bare '1/2' for a fraction — emit the markup above instead.",
+        "- The source may be noisy PDF/OCR text: repair obvious spacing and",
+        "  line-break artefacts when you rebuild a fraction, sum, or table.",
       ].filter(Boolean).join("\n"),
     },
   ];
@@ -747,11 +870,43 @@ function validateQuizQuestion(q, {topic, subject, subtopic}) {
   const options = q.options || [];
   const correctIdx = q.correctAnswer;
   const explanation = cleanString(q.explanation, 500);
+  const isShortAnswer = q.type === "short_answer";
+  const isTrueFalse = q.kind === "true_false";
 
   if (text.length < 25) reasons.push("question_too_short");
-  if (!/[?…:]$|_{3,}/.test(text)) reasons.push("no_question_cue");
+  // True/false items are statements — a full stop is a valid ending.
+  if (!isTrueFalse && !/[?…:]$|_{3,}/.test(text)) {
+    reasons.push("no_question_cue");
+  }
 
-  if (options.length !== 4) reasons.push("wrong_option_count");
+  // Short answers carry no options: check the model answer instead and
+  // skip every option-shape rule below.
+  if (isShortAnswer) {
+    const answer = cleanString(q.correctAnswer, 200);
+    if (!answer) reasons.push("missing_answer");
+    if (explanation.length < 15) reasons.push("explanation_too_short");
+    if (normaliseForCompare(explanation) === normaliseForCompare(text)) {
+      reasons.push("explanation_restates_question");
+    }
+    const anchorTokens = [
+      ...tokenise(topic),
+      ...tokenise(subtopic),
+      ...tokenise(subject),
+    ];
+    if (anchorTokens.length > 0) {
+      const haystack = normaliseForCompare(
+        `${text} ${answer} ${explanation}`,
+      );
+      const anyMatch = anchorTokens.some((tok) => haystack.includes(tok));
+      if (!anyMatch) reasons.push("topic_drift");
+    }
+    return {valid: reasons.length === 0, reasons};
+  }
+
+  const expectedOptions = isTrueFalse ? 2 : 4;
+  if (options.length !== expectedOptions) {
+    reasons.push("wrong_option_count");
+  }
 
   const normOptions = options.map(normaliseForCompare);
   const uniqueNormOptions = new Set(normOptions);
@@ -787,7 +942,8 @@ function validateQuizQuestion(q, {topic, subject, subtopic}) {
     }
   }
 
-  if (!Number.isInteger(correctIdx) || correctIdx < 0 || correctIdx > 3) {
+  if (!Number.isInteger(correctIdx) || correctIdx < 0 ||
+      correctIdx >= expectedOptions) {
     reasons.push("bad_correct_index");
   }
 
@@ -841,16 +997,48 @@ function parseGeneratedQuiz(raw, fallbackTopic, validationContext = {}) {
     const options = Array.isArray(q.options) ?
       q.options.map((o) => cleanString(o, 160)).filter(Boolean).slice(0, 4) :
       [];
-    return {
+    const rawType = cleanString(q.type, 20).toLowerCase();
+    const base = {
       text: cleanString(q.text, LIMITS.question),
-      options,
-      correctAnswer: normalizeCorrectAnswer(q.correctAnswer, options),
       explanation: cleanString(q.explanation, 500),
       topic: cleanString(q.topic || fallbackTopic, LIMITS.topic),
       marks: Math.min(Math.max(Number(q.marks) || 1, 1), 10),
+    };
+    // Short answers carry a string answer in correctAnswer (the studio's
+    // text-answer shape) and no options.
+    if (rawType === "short_answer" ||
+        (options.length === 0 && cleanString(q.answer, 200))) {
+      return {
+        ...base,
+        options: [],
+        correctAnswer: cleanString(q.answer ?? q.correctAnswer, 200),
+        type: "short_answer",
+      };
+    }
+    // True/false renders as a 2-option MCQ in the studio editor.
+    const looksTrueFalse = options.length === 2 &&
+      options.map((o) => o.toLowerCase()).join("|") === "true|false";
+    if (rawType === "true_false" || looksTrueFalse) {
+      const tfOptions = ["True", "False"];
+      return {
+        ...base,
+        options: tfOptions,
+        correctAnswer: normalizeCorrectAnswer(q.correctAnswer, tfOptions),
+        type: "mcq",
+        kind: "true_false",
+      };
+    }
+    return {
+      ...base,
+      options,
+      correctAnswer: normalizeCorrectAnswer(q.correctAnswer, options),
       type: "mcq",
     };
-  }).filter((q) => q.text && q.options.length === 4);
+  }).filter((q) => q.text && (
+    q.type === "short_answer" ?
+      String(q.correctAnswer || "").trim().length > 0 :
+      q.options.length >= 2
+  ));
 
   const {topic, subject, grade, subtopic} =
     validationContext || {};
@@ -988,6 +1176,27 @@ function tryRecoverTruncatedJson(text) {
   }
 }
 
+// Per-question AI edit helpers live in a dependency-free module so their unit
+// test runs under CI's root-only `npm ci` (it must not require firebase-functions
+// / firebase-admin). parseEditedQuestion throws a plain Error there; we wrap it
+// in an HttpsError here so the callable keeps its friendly message.
+const {
+  isEditQuestionAction,
+  buildEditQuestionMessages,
+  parseEditedQuestion: parseEditedQuestionPure,
+} = require("./editQuestionPrompt");
+
+function parseEditedQuestion(raw) {
+  try {
+    return parseEditedQuestionPure(raw);
+  } catch {
+    throw new HttpsError(
+      "internal",
+      "The AI edit could not be read. Please try again.",
+    );
+  }
+}
+
 function parseStructuredImport(raw) {
   const cleanedRaw = stripJsonFences(raw);
   let parsed;
@@ -1081,6 +1290,7 @@ async function callAnthropicStream(apiKey, {
   // it and fire recordAiUsage after the stream completes.
   track = null,
 }, onToken) {
+  await assertAiBudget();
   let res;
   try {
     res = await anthropicFetch(ANTHROPIC_URL, {
@@ -1188,6 +1398,7 @@ module.exports = {
   assertDailyLimit,
   buildAnthropicChat,
   buildChatMessages,
+  buildEditQuestionMessages,
   buildExplainMessages,
   buildImportStructureMessages,
   buildQuizMessages,
@@ -1200,7 +1411,9 @@ module.exports = {
   getAnthropicApiKey,
   getApiKey,
   getUserRole,
+  isEditQuestionAction,
   isStaffRole,
+  parseEditedQuestion,
   parseStructuredImport,
   parseGeneratedQuiz,
   stripJsonFences,

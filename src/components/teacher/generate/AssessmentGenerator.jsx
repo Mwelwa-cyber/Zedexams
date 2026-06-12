@@ -15,7 +15,8 @@ import { downloadCurriculumAssessmentDocx } from '../../../utils/curriculumAsses
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
-import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
+import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
+import { useAuth } from '../../../contexts/AuthContext'
 import { LIBRARY_TYPES } from '../../../config/library'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
 
@@ -26,10 +27,12 @@ import TopicSubtopicPicker from './TopicSubtopicPicker'
  * document like the other curriculum studios.
  */
 export default function AssessmentGenerator() {
+  const { userProfile, isAdmin } = useAuth()
   const urlDefaults = useFormDefaultsFromUrl()
   const [form, setForm] = useState(() => ({
     grade: 'G5',
     subject: 'mathematics',
+    assessmentType: 'topic_test',
     topic: '',
     subtopic: '',
     term: '',
@@ -88,7 +91,7 @@ export default function AssessmentGenerator() {
         libraryType: LIBRARY_TYPES.ASSESSMENTS,
         grade: form.grade,
         subject: form.subject,
-        assessmentType: 'topic',
+        assessmentType: form.assessmentType,
       }).catch(() => {})
     }
   }
@@ -102,7 +105,7 @@ export default function AssessmentGenerator() {
       slug(assessment.header?.topic || form.topic), 'assessment',
       new Date().toISOString().slice(0, 10),
     ].filter(Boolean).join('_')
-    downloadCurriculumAssessmentDocx(assessment, `${name}.docx`)
+    downloadCurriculumAssessmentDocx(assessment, `${name}.docx`, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
   return (
@@ -122,6 +125,9 @@ export default function AssessmentGenerator() {
               options={TEACHER_GRADES} onChange={(v) => set('grade', v)} />
             <FieldSelect label="Subject" value={form.subject}
               options={subjectOptions} onChange={(v) => set('subject', v)} />
+            <FieldSelect label="Assessment type" value={form.assessmentType}
+              options={ASSESSMENT_TYPE_OPTIONS}
+              onChange={(v) => set('assessmentType', v)} />
             <TopicSubtopicPicker
               grade={form.grade}
               subject={form.subject}
@@ -294,6 +300,16 @@ function Centered({ emoji, title, body, action }) {
   )
 }
 
+// Mirrors ASSESSMENT_TYPES in functions/teacherTools/assessmentFormats.js —
+// the server whitelists these values and falls back to topic_test.
+const ASSESSMENT_TYPE_OPTIONS = [
+  { value: 'exercise', label: 'Exercise (short practice)' },
+  { value: 'topic_test', label: 'Topic test' },
+  { value: 'mid_term', label: 'Mid-term test' },
+  { value: 'end_of_term', label: 'End of term test' },
+  { value: 'mock_exam', label: 'Mock examination' },
+]
+
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F']
 
 function AssessmentView({ a, showAnswers }) {
@@ -322,12 +338,30 @@ function AssessmentView({ a, showAnswers }) {
           {sec.instructions && (
             <p className="text-sm italic theme-text-secondary">{sec.instructions}</p>
           )}
+          {sec.passage?.text && (
+            <div className="rounded-xl border theme-border p-3 bg-amber-50/40">
+              {sec.passage.title && (
+                <p className="text-sm font-black theme-text text-center mb-1">{sec.passage.title}</p>
+              )}
+              <p className="text-sm theme-text whitespace-pre-line">{sec.passage.text}</p>
+            </div>
+          )}
           {(sec.questions || []).map((q) => (
             <div key={q.number} className="rounded-xl border theme-border p-3">
               <div className="flex items-start gap-2">
                 <span className="font-black theme-text shrink-0">{q.number}.</span>
                 <div className="flex-1">
                   <p className="theme-text">{q.prompt}</p>
+                  {q.diagram && (
+                    <div className="mt-2 rounded-lg border-2 border-dashed p-3 text-sm"
+                      style={{ borderColor: '#d9cfb8', color: '#566f76' }}>
+                      🖼 <span className="font-bold">Diagram needed: </span>
+                      {q.diagram}
+                      <span className="block text-xs italic mt-1">
+                        Attach or draw this figure before printing.
+                      </span>
+                    </div>
+                  )}
                   {(q.type === 'multiple_choice' || q.type === 'true_false') &&
                     q.options?.length > 0 && (
                     <ul className="mt-1 space-y-0.5">
@@ -337,6 +371,22 @@ function AssessmentView({ a, showAnswers }) {
                         </li>
                       ))}
                     </ul>
+                  )}
+                  {q.type === 'matching' && q.matching && (
+                    <div className="mt-1 grid grid-cols-2 gap-4 text-sm theme-text">
+                      <div>
+                        <p className="font-bold">Column A</p>
+                        {q.matching.left.map((item, i) => (
+                          <p key={i}>{i + 1}. {item}</p>
+                        ))}
+                      </div>
+                      <div>
+                        <p className="font-bold">Column B</p>
+                        {q.matching.right.map((item, i) => (
+                          <p key={i}>{LETTERS[i] || '•'}. {item}</p>
+                        ))}
+                      </div>
+                    </div>
                   )}
                   {showAnswers && (
                     <div className="mt-2 pt-2 border-t theme-border">

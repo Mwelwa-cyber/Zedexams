@@ -1,12 +1,114 @@
 /**
  * Read-only rendering of a validated scheme-of-work JSON object.
- * Shared by the Scheme of Work Generator and the Library detail view.
+ * Shared by the Scheme of Work Generator, the Library detail view, public
+ * shares, and the /teachers sample library.
+ *
+ * Two saved shapes exist:
+ *   • official (v2 generator + sow-table sample): the CDC 9-column grid
+ *     WEEK | TOPIC | SUBTOPIC | SPECIFIC COMPETENCES | LEARNING ACTIVITIES |
+ *     EXPECTED STANDARD | METHODS | T/L AIDS | REF — serif on white with a
+ *     black grid so it reads as the printed page, mirroring
+ *     WeeklyForecastView / LessonPlanOfficialTable.
+ *   • legacy (v1 generator): outcomes/materials/assessment weeks — kept so
+ *     every scheme already in teachers' libraries still renders.
  */
 
 import { renderText } from '../../../utils/mathRender'
+import { isOfficialScheme } from '../../../utils/weeklyForecast'
 
 export default function SchemeOfWorkView({ scheme }) {
   if (!scheme) return null
+  return isOfficialScheme(scheme)
+    ? <OfficialScheme scheme={scheme} />
+    : <LegacyScheme scheme={scheme} />
+}
+
+/* ── Official 9-column CDC format ───────────────────────────── */
+
+const DOC_FONT = { fontFamily: "Georgia, 'Times New Roman', serif" }
+const TD = 'border border-black p-1.5 align-top text-left'
+
+function DocCellList({ items }) {
+  const list = Array.isArray(items) ? items.filter(Boolean) : (items ? [items] : [])
+  if (list.length === 0) return <>—</>
+  if (list.length === 1) return <>{list[0]}</>
+  return (
+    <ul className="list-disc pl-3.5 space-y-0.5">
+      {list.map((item, i) => <li key={i}>{item}</li>)}
+    </ul>
+  )
+}
+
+function OfficialScheme({ scheme }) {
+  const h = scheme.header || {}
+  const subject = (h.subject || '').toUpperCase()
+  const gradeLabel = String(h.grade || '').replace(/^G/i, '')
+
+  return (
+    <article
+      className="bg-white text-black rounded-xl border theme-border px-4 py-5 sm:px-6 text-[12px]"
+      style={DOC_FONT}
+    >
+      {/* Document head */}
+      <div className="text-center">
+        <div className="text-base font-bold tracking-[0.08em] uppercase">
+          {subject} Schemes of Work
+        </div>
+        <div className="mt-1 text-[12px] font-bold">
+          GRADE: {gradeLabel} &nbsp;·&nbsp; TERM {h.term} &nbsp; {h.year}
+          {h.periodsPerWeek ? <> &nbsp;·&nbsp; PERIODS PER WEEK: {h.periodsPerWeek}</> : null}
+        </div>
+      </div>
+
+      {/* School / teacher line — generated schemes carry these; the
+          marketing sample doesn't, so the line only prints when present. */}
+      {(h.school || h.teacherName) && (
+        <div className="mt-3 border-y-[1.5px] border-black py-2 grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-1">
+          <div><strong className="font-bold">NAME OF SCHOOL:</strong> {h.school || '_______________________'}</div>
+          <div><strong className="font-bold">TEACHER&#x2019;S NAME:</strong> {h.teacherName || '_______________________'}</div>
+        </div>
+      )}
+
+      {/* Scheme grid */}
+      <div className="mt-4 overflow-x-auto">
+        <table className="w-full border-collapse border border-black min-w-[860px]">
+          <thead>
+            <tr className="align-bottom">
+              <th className={`${TD} font-bold w-[4%]`}>WEEK</th>
+              <th className={`${TD} font-bold w-[11%]`}>TOPIC</th>
+              <th className={`${TD} font-bold w-[12%]`}>SUBTOPIC</th>
+              <th className={`${TD} font-bold w-[17%]`}>SPECIFIC COMPETENCES</th>
+              <th className={`${TD} font-bold w-[20%]`}>LEARNING ACTIVITIES</th>
+              <th className={`${TD} font-bold w-[13%]`}>EXPECTED STANDARD</th>
+              <th className={`${TD} font-bold w-[9%]`}>METHODS</th>
+              <th className={`${TD} font-bold w-[9%]`}>T/L AIDS</th>
+              <th className={`${TD} font-bold w-[6%]`}>REF</th>
+            </tr>
+          </thead>
+          <tbody>
+            {(scheme.weeks || []).map((w, i) => (
+              <tr key={i}>
+                <td className={`${TD} font-bold text-center`}>{w.week}</td>
+                <td className={`${TD} font-bold`}>{w.topic}</td>
+                <td className={TD}>{w.subtopic}</td>
+                <td className={TD}><DocCellList items={w.specificCompetences} /></td>
+                <td className={TD}><DocCellList items={w.learningActivities} /></td>
+                <td className={TD}>{w.expectedStandard || '—'}</td>
+                <td className={TD}><DocCellList items={w.methods} /></td>
+                <td className={TD}><DocCellList items={w.tlAids} /></td>
+                <td className={`${TD} text-[11px]`}>{w.references || '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </article>
+  )
+}
+
+/* ── Legacy v1 format (outcomes / materials / assessment) ───── */
+
+function LegacyScheme({ scheme }) {
   return (
     <article className="space-y-6">
       <HeaderBlock header={scheme.header} overview={scheme.overview} />

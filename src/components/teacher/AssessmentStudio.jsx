@@ -10,6 +10,7 @@ import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage
 
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
+import { isFreePlanTeacher } from '../../utils/teacherLibraryService'
 import {
   clearAssessmentDraft,
   loadAssessmentDraft,
@@ -36,6 +37,15 @@ import { getErrorMessage } from '../../utils/errors.js'
 import { validateStandaloneQuestion as sharedValidateStandaloneQuestion } from '../../utils/quizValidation.js'
 import { assertNoBlobImageUrls } from '../../utils/importedQuizAssets.js'
 import SeoHelmet from '../seo/SeoHelmet'
+import ConfirmDialog from '../ui/ConfirmDialog'
+import PictureBankPicker from './PictureBankPicker'
+import CreatePaperModal from './CreatePaperModal'
+import DiagramFixupPanel, { countDiagramsNeeded } from './DiagramFixupPanel'
+import QuizVerifyModal from '../quiz/QuizVerifyModal'
+import {
+  useSyllabusTopicOptions, studioGradeToKbGrade, studioSubjectToKey,
+  CURRICULUM_FRAMEWORKS,
+} from './syllabusTopicOptions'
 import {
   QUIZ_DOCUMENT_ACCEPT,
   importQuizDocument,
@@ -271,7 +281,7 @@ function plainTextWordCount(value) {
 
 export default function AssessmentStudio() {
   const { createAssessment, saveAssessmentQuestions, getMyAssessments } = useFirestore()
-  const { currentUser } = useAuth()
+  const { currentUser, userProfile, isAdmin } = useAuth()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedView = searchParams.get('view')
@@ -317,10 +327,15 @@ export default function AssessmentStudio() {
   const [sections, setSections] = useState(() => [createStandaloneSection()])
   const [parts, setParts] = useState([])
   const [saving, setSaving] = useState(false)
-  const [aiForm, setAiForm] = useState({ topic: '', count: 5, type: 'mcq' })
+  const [aiForm, setAiForm] = useState({ topic: '', count: 5, type: 'mcq', framework: '2023' })
   const [aiGenerating, setAiGenerating] = useState(false)
+  const [createPaperOpen, setCreatePaperOpen] = useState(false)
+  const [diagramFixOpen, setDiagramFixOpen] = useState(false)
+  const [verifyOpen, setVerifyOpen] = useState(false)
   const [generatingDiagram, setGeneratingDiagram] = useState(false)
   const [importingDocument, setImportingDocument] = useState(false)
+  // Import over existing questions waits on ConfirmDialog — { files, importOptions }.
+  const [pendingImportDoc, setPendingImportDoc] = useState(null)
   const [importSummary, setImportSummary] = useState(null)
   const [importedAssets, setImportedAssets] = useState({})
   const [exporting, setExporting] = useState(false)
@@ -720,6 +735,80 @@ export default function AssessmentStudio() {
     })
   }
 
+  /* ------------ Create paper with AI ------------ */
+  // Receives { blocks, assessment, form: aiPaperForm, mode } from
+  // CreatePaperModal: blocks are studio-ready sections/parts from
+  // aiPaperToSections. 'replace' swaps the whole paper; 'append' adds
+  // after the existing questions (the empty starter section is dropped).
+  function handleApplyAiPaper({ blocks, assessment, form: aiPaperForm, mode }) {
+    const partOffset = mode === 'append' ? parts.length : 0
+    const newParts = blocks.parts.map((p, i) => ({ ...p, order: partOffset + i }))
+    if (mode === 'replace') {
+      setSections(blocks.sections.length ? blocks.sections : [createStandaloneSection()])
+      setParts(newParts)
+    } else {
+      setSections(prev => (hasOnlyEmptyStarterSection(prev) ?
+        blocks.sections : [...prev, ...blocks.sections]))
+      setParts(prev => [...prev, ...newParts])
+    }
+    // Fill paper metadata the teacher hasn't set yet — including their
+    // school name/logo from the most recent saved paper, so AI-created
+    // papers print with the school header without re-typing it each time.
+    const typeMap = {
+      mid_term: 'mid_term', end_of_term: 'end_of_term',
+      topic_test: 'topic', mock_exam: 'mock',
+    }
+    const lastWithSchool = recentPapers.find(p => (p.schoolName || '').trim())
+    const lastWithLogo = recentPapers.find(p => (p.schoolLogoUrl || '').trim())
+    setForm(f => ({
+      ...f,
+      term: f.term || aiPaperForm.term,
+      duration: f.duration || String(aiPaperForm.durationMinutes),
+      assessmentType: typeMap[aiPaperForm.assessmentType] || f.assessmentType,
+      coverInstructions: f.coverInstructions ||
+        String(assessment?.header?.instructions || ''),
+      schoolName: f.schoolName || lastWithSchool?.schoolName || '',
+      schoolLogoUrl: f.schoolLogoUrl || lastWithLogo?.schoolLogoUrl || '',
+    }))
+    setCreatePaperOpen(false)
+    closeSlide()
+    changeView('builder')
+    const flagged = blocks.warnings.length
+    showToast(
+      `AI paper ${mode === 'replace' ? 'created' : 'added'} — ` +
+      `${blocks.questionCount} questions, ${blocks.totalMarks} marks.` +
+      (flagged ? ` ${flagged} flagged for review.` : ' Review before saving.'),
+    )
+    // Close the diagram loop immediately: if any question needs a figure,
+    // open the fixup panel so the teacher attaches/generates them now
+    // rather than discovering gaps at print time.
+    if (blocks.sections.some(s => s.question?.diagramBrief)) {
+      setDiagramFixOpen(true)
+    }
+  }
+
+  // Attach a picture-bank / AI-generated figure to a diagram-flagged
+  // question and clear its "Diagram needed" review note (un-flagging the
+  // question entirely when that was the only note).
+  function attachDiagramToSection(sectionIndex, url) {
+    if (!url) return
+    updateSection(sectionIndex, section => {
+      const remainingNotes = (section.question.reviewNotes || [])
+        .filter(n => !String(n).startsWith('Diagram needed:'))
+      return {
+        ...section,
+        question: {
+          ...section.question,
+          imageUrl: url,
+          imageAssetId: '',
+          reviewNotes: remainingNotes,
+          requiresReview: remainingNotes.length > 0,
+        },
+      }
+    })
+    showToast('Diagram attached.')
+  }
+
   async function uploadSchoolLogo(file) {
     if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
       showToast('Only JPG, PNG, and WEBP images are allowed.', true)
@@ -756,6 +845,7 @@ export default function AssessmentStudio() {
         topic,
         count: aiForm.count,
         type: aiForm.type,
+        framework: aiForm.framework,
       })
       const generatedList = Array.isArray(generated) ? generated : []
       const usable = generatedList.filter(q => {
@@ -824,11 +914,11 @@ export default function AssessmentStudio() {
       if (view !== 'builder') changeView('builder')
     } catch (error) {
       const raw = error?.message || ''
-      const isOpenAiKeyIssue = provider === 'openai'
-        && /openai|photoreal|OPENAI_API_KEY/i.test(raw)
+      const isUpgradeStyleKeyIssue = (provider === 'openai' || provider === 'kie')
+        && /openai|photoreal|colour illustration|kie|OPENAI_API_KEY|KIE_API_KEY/i.test(raw)
         && /(invalid|not configured|not available|unavailable|rotate)/i.test(raw)
-      const message = isOpenAiKeyIssue
-        ? 'Photoreal is currently unavailable. Switch to Line art and try again.'
+      const message = isUpgradeStyleKeyIssue
+        ? `${provider === 'kie' ? 'Colour' : 'Photoreal'} is currently unavailable. Switch to Line art and try again.`
         : (raw || 'Diagram generation failed.')
       showToast(message, true)
     } finally {
@@ -837,12 +927,25 @@ export default function AssessmentStudio() {
   }
 
   /* ------------ document import ------------ */
-  async function handleImportDocument(file) {
+  function handleImportDocument(fileOrFiles, importOptions = {}) {
+    const files = Array.isArray(fileOrFiles) ? fileOrFiles.filter(Boolean) : (fileOrFiles ? [fileOrFiles] : [])
+    if (!files.length) return
     const hasExistingWork = !hasOnlyEmptyStarterSection(sections)
-    if (hasExistingWork && !window.confirm('Replace the current questions with questions extracted from this document?')) return
+    if (hasExistingWork) {
+      setPendingImportDoc({ files, importOptions })
+      return
+    }
+    runImportDocument(files, importOptions)
+  }
+
+  async function runImportDocument(files, importOptions = {}) {
+    const file = files.length > 1
+      ? { name: `${files[0].name} (+${files.length - 1} more)` }
+      : files[0]
+    const hasExistingWork = !hasOnlyEmptyStarterSection(sections)
     setImportingDocument(true)
     try {
-      const imported = await importQuizDocument(file)
+      const imported = await importQuizDocument(files, importOptions)
       setImportedAssets(assetsById(imported.imageAssets))
       setForm(current => ({
         ...current,
@@ -1113,7 +1216,7 @@ export default function AssessmentStudio() {
         printAssessmentAsPdf(assessmentDoc, serializedPreview.questions, { mode })
         showToast('PDF dialog opened.')
       } else if (kind === 'docx') {
-        await downloadAssessmentDocx(assessmentDoc, serializedPreview.questions, `${baseFile}${fileSuffix}.docx`, { mode })
+        await downloadAssessmentDocx(assessmentDoc, serializedPreview.questions, `${baseFile}${fileSuffix}.docx`, { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
         showToast('Word download started.')
       } else if (kind === 'print') {
         window.print()
@@ -1386,6 +1489,40 @@ export default function AssessmentStudio() {
         onGenerateDiagram={handleGenerateDiagram}
         generatingDiagram={generatingDiagram}
         onOpenMarkingKey={() => { closeSlide(); changeView('marking-key') }}
+        onCreatePaper={() => setCreatePaperOpen(true)}
+        diagramsNeeded={countDiagramsNeeded(sections)}
+        onOpenDiagramFix={() => { closeSlide(); setDiagramFixOpen(true) }}
+        onVerifyPaper={() => { closeSlide(); setVerifyOpen(true) }}
+      />
+      {createPaperOpen && (
+        <CreatePaperModal
+          paperMeta={{ grade: form.grade, subject: form.subject, term: form.term }}
+          onApply={handleApplyAiPaper}
+          onClose={() => setCreatePaperOpen(false)}
+        />
+      )}
+      {diagramFixOpen && (
+        <DiagramFixupPanel
+          sections={sections}
+          subject={studioSubjectToKey(form.subject)}
+          questionNumbers={questionNumbers}
+          onAttach={attachDiagramToSection}
+          onClose={() => setDiagramFixOpen(false)}
+        />
+      )}
+      <QuizVerifyModal
+        open={verifyOpen}
+        quizId=""
+        form={{
+          grade: studioGradeToKbGrade(form.grade),
+          subject: studioSubjectToKey(form.subject),
+          topic: form.topic || '',
+          subtopic: '',
+          difficulty: '',
+        }}
+        sections={sections}
+        parts={parts}
+        onClose={() => setVerifyOpen(false)}
       />
       <EditorSlide
         open={slideover === 'editor'}
@@ -1402,6 +1539,20 @@ export default function AssessmentStudio() {
           {toast.message}
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(pendingImportDoc)}
+        title="Replace current questions?"
+        message="Questions extracted from this document will replace the questions currently in the builder."
+        confirmLabel="Replace questions"
+        variant="danger"
+        onConfirm={() => {
+          const pending = pendingImportDoc
+          setPendingImportDoc(null)
+          if (pending) runImportDocument(pending.files, pending.importOptions)
+        }}
+        onCancel={() => setPendingImportDoc(null)}
+      />
     </div>
   )
 }
@@ -1942,6 +2093,9 @@ function LogoAdjuster({ transform, onChange }) {
 function HeaderBlock({ form, setF, onUploadLogo, onRemoveLogo, importing, onImportDocument }) {
   const fileInputRef = useRef(null)
   const docInputRef = useRef(null)
+  // Import options — both default ON; threaded into the parser via onImportDocument.
+  const [preserveNumbering, setPreserveNumbering] = useState(true)
+  const [groupComprehension, setGroupComprehension] = useState(true)
 
   return (
     <div className="sv-block b-header">
@@ -2106,7 +2260,7 @@ function HeaderBlock({ form, setF, onUploadLogo, onRemoveLogo, importing, onImpo
 
       <div style={{ marginTop: 'var(--sv-s4)', padding: 'var(--sv-s3)', background: 'var(--sv-tinted)', borderRadius: 'var(--sv-r)', display: 'flex', gap: 'var(--sv-s2)', alignItems: 'center', flexWrap: 'wrap' }}>
         <span style={{ fontSize: 12.5, color: 'var(--sv-muted)' }}>
-          Have an existing paper? Import a Word or PDF file.
+          Have an existing paper? Import a Word, PDF, or pictures of it.
         </span>
         <button
           className="sv-btn sv-btn-outline sv-btn-sm"
@@ -2114,19 +2268,30 @@ function HeaderBlock({ form, setF, onUploadLogo, onRemoveLogo, importing, onImpo
           disabled={importing}
           style={{ marginLeft: 'auto' }}
         >
-          {importing ? 'Importing…' : '📥 Import .doc / .pdf'}
+          {importing ? 'Importing…' : '📥 Import .doc / .pdf / pictures'}
         </button>
         <input
           ref={docInputRef}
           type="file"
           accept={QUIZ_DOCUMENT_ACCEPT}
+          multiple
           style={{ display: 'none' }}
           onChange={e => {
-            const file = e.target.files?.[0]
-            if (file) onImportDocument(file)
+            const files = Array.from(e.target.files || []).filter(Boolean)
+            if (files.length) onImportDocument(files.length === 1 ? files[0] : files, { preserveNumbering, groupComprehension })
             e.target.value = ''
           }}
         />
+        <div style={{ flexBasis: '100%', display: 'flex', gap: 'var(--sv-s3)', flexWrap: 'wrap', marginTop: 'var(--sv-s2)' }}>
+          <label style={{ fontSize: 12, color: 'var(--sv-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input type="checkbox" checked={preserveNumbering} disabled={importing} onChange={e => setPreserveNumbering(e.target.checked)} />
+            Preserve original numbering
+          </label>
+          <label style={{ fontSize: 12, color: 'var(--sv-muted)', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <input type="checkbox" checked={groupComprehension} disabled={importing} onChange={e => setGroupComprehension(e.target.checked)} />
+            Group comprehension under passage
+          </label>
+        </div>
       </div>
     </div>
   )
@@ -2596,6 +2761,8 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
   const isMatching = type === 'matching'
   const isSequence = type === 'sequence'
   const imageInputRef = useRef(null)
+  // Picture-bank picker target: null (closed) | 'question' | option index.
+  const [bankTarget, setBankTarget] = useState(null)
   const [suggesting, setSuggesting] = useState(false)
   const [suggestError, setSuggestError] = useState('')
   // AI suggestion lives in component-local state, NOT on the question
@@ -2884,23 +3051,53 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
             <div>Uploading image…</div>
           </div>
         ) : (
-          <button type="button" className="sv-q-media" onClick={() => imageInputRef.current?.click()}>
-            <div className="sv-ic">🖼</div>
-            <div>Add a diagram or image (optional)</div>
-            <small>JPG, PNG or WEBP · up to 15 MB</small>
-            <input
-              ref={imageInputRef}
-              type="file"
-              accept="image/*"
-              style={{ display: 'none' }}
-              onChange={e => {
-                const file = e.target.files?.[0]
-                if (file) onUploadImage(file)
-                e.target.value = ''
-              }}
-            />
-          </button>
+          <>
+            <button type="button" className="sv-q-media" onClick={() => imageInputRef.current?.click()}>
+              <div className="sv-ic">🖼</div>
+              <div>Add a diagram or image (optional)</div>
+              <small>JPG, PNG or WEBP · up to 15 MB</small>
+              <input
+                ref={imageInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={e => {
+                  const file = e.target.files?.[0]
+                  if (file) onUploadImage(file)
+                  e.target.value = ''
+                }}
+              />
+            </button>
+            <button
+              type="button"
+              className="sv-btn sv-btn-ghost"
+              style={{ marginTop: 6, fontSize: 13 }}
+              onClick={() => setBankTarget('question')}
+            >
+              📚 Picture bank / ✨ AI picture
+            </button>
+          </>
         )
+      )}
+
+      {bankTarget !== null && (
+        <PictureBankPicker
+          subject={paperMeta?.subject || ''}
+          onClose={() => setBankTarget(null)}
+          onSelect={({ url }) => {
+            if (bankTarget === 'question') {
+              updateQuestion('imageUrl', url)
+              updateQuestion('imageAssetId', '')
+            } else {
+              const optionCount = Array.isArray(question.options) ? question.options.length : 4
+              const existing = Array.isArray(question.optionMedia) ? question.optionMedia : []
+              const next = Array.from({ length: optionCount }, (_, i) => existing[i] || null)
+              next[bankTarget] = { imageUrl: url, alt: existing[bankTarget]?.alt || '' }
+              updateQuestion('optionMedia', next)
+            }
+            setBankTarget(null)
+          }}
+        />
       )}
 
       {isMcq && (
@@ -2914,6 +3111,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
           onSelectCorrect={(optIndex) => updateQuestion('correctAnswer', optIndex)}
           onUploadOptionImage={onUploadOptionImage}
           onRemoveOptionImage={onRemoveOptionImage}
+          onPickFromBank={(optIndex) => setBankTarget(optIndex)}
         />
       )}
 
@@ -3054,7 +3252,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
   )
 }
 
-function McqOptions({ question, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage }) {
+function McqOptions({ question, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage, onPickFromBank }) {
   const options = Array.isArray(question.options) && question.options.length
     ? question.options
     : ['', '', '', '']
@@ -3075,6 +3273,7 @@ function McqOptions({ question, onChangeOption, onSelectCorrect, onUploadOptionI
             onSelectCorrect={onSelectCorrect}
             onUploadOptionImage={onUploadOptionImage}
             onRemoveOptionImage={onRemoveOptionImage}
+            onPickFromBank={onPickFromBank}
           />
         )
       })}
@@ -3082,7 +3281,7 @@ function McqOptions({ question, onChangeOption, onSelectCorrect, onUploadOptionI
   )
 }
 
-function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage }) {
+function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage, onPickFromBank }) {
   const fileRef = useRef(null)
   return (
     <div
@@ -3113,31 +3312,49 @@ function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSe
           )}
         </div>
       ) : onUploadOptionImage ? (
-        <button
-          type="button"
-          onClick={e => { e.stopPropagation(); fileRef.current?.click() }}
-          title="Add image for this option"
-          style={{
-            width: 32, height: 32, borderRadius: 4,
-            border: '1.5px dashed var(--sv-border-strong)',
-            background: 'transparent', color: 'var(--sv-muted)',
-            display: 'grid', placeItems: 'center', cursor: 'pointer', flexShrink: 0,
-            fontSize: 14,
-          }}
-        >
-          🖼
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            style={{ display: 'none' }}
-            onChange={e => {
-              const file = e.target.files?.[0]
-              if (file && onUploadOptionImage) onUploadOptionImage(optIndex, file)
-              e.target.value = ''
+        <div style={{ display: 'flex', gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            title="Upload an image for this option"
+            style={{
+              width: 32, height: 32, borderRadius: 4,
+              border: '1.5px dashed var(--sv-border-strong)',
+              background: 'transparent', color: 'var(--sv-muted)',
+              display: 'grid', placeItems: 'center', cursor: 'pointer',
+              fontSize: 14,
             }}
-          />
-        </button>
+          >
+            🖼
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={e => {
+                const file = e.target.files?.[0]
+                if (file && onUploadOptionImage) onUploadOptionImage(optIndex, file)
+                e.target.value = ''
+              }}
+            />
+          </button>
+          {onPickFromBank && (
+            <button
+              type="button"
+              onClick={() => onPickFromBank(optIndex)}
+              title="Pick from the picture bank or generate with AI"
+              style={{
+                width: 32, height: 32, borderRadius: 4,
+                border: '1.5px dashed var(--sv-border-strong)',
+                background: 'transparent', color: 'var(--sv-muted)',
+                display: 'grid', placeItems: 'center', cursor: 'pointer',
+                fontSize: 14,
+              }}
+            >
+              📚
+            </button>
+          )}
+        </div>
       ) : <span />}
       <input
         className="sv-opt-text"
@@ -4382,8 +4599,12 @@ function BlockPickerItem({ icon, title, hint, onClick, disabled, gold }) {
 /* ==================================================================
  * AI ASSISTANT SLIDE-OVER
  * ================================================================== */
-function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNumbers, generating, onGenerate, onImport, importing, onGenerateDiagram, generatingDiagram, onOpenMarkingKey }) {
+const AI_COUNT_PRESETS = [5, 10, 15, 20, 25]
+
+function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNumbers, generating, onGenerate, onImport, importing, onGenerateDiagram, generatingDiagram, onOpenMarkingKey, onCreatePaper, diagramsNeeded = 0, onOpenDiagramFix, onVerifyPaper }) {
   const docInputRef = useRef(null)
+  const [customCount, setCustomCount] = useState(false)
+  const { topics: topicOptions } = useSyllabusTopicOptions(form.grade, form.subject, aiForm.topic, aiForm.framework)
   return (
     <aside className={`sv-slideover ${open ? 'open' : ''}`}>
       <div className="sv-slideover-head">
@@ -4391,30 +4612,75 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNu
         <h3 className="serif">✨ Zed AI Assistant<small>Context-aware help for this paper</small></h3>
       </div>
       <div className="sv-slideover-body">
+        <button
+          className="sv-btn sv-btn-primary sv-btn-full"
+          onClick={onCreatePaper}
+          style={{ marginBottom: 12 }}
+        >
+          📄 Create paper with AI
+        </button>
+        <div className="sv-ai-msg" style={{ marginBottom: 16 }}>
+          A full {form.subject} paper for Grade {form.grade} — pick the topics,
+          marks and question types, and it lands here as editable blocks with a
+          marking key.
+        </div>
+
+        <div className="sv-block-cat">Quick questions</div>
         <div className="sv-ai-msg">
           <strong>Generate questions on a CBC topic</strong>
           Pick a topic, count and type — I&apos;ll draft them and drop them into the builder. Always review before saving.
         </div>
 
         <div className="sv-field" style={{ marginBottom: 12 }}>
+          <label>Curriculum</label>
+          <select
+            value={aiForm.framework}
+            onChange={e => setAiForm(prev => ({ ...prev, framework: e.target.value, topic: '' }))}
+          >
+            {CURRICULUM_FRAMEWORKS.map(f => (
+              <option key={f.value} value={f.value}>{f.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="sv-field" style={{ marginBottom: 12 }}>
           <label>Topic</label>
           <input
             type="text"
+            list="ai-slide-topic-options"
             value={aiForm.topic}
             onChange={e => setAiForm(prev => ({ ...prev, topic: e.target.value }))}
-            placeholder={`e.g. ${form.subject === 'Mathematics' ? 'Fractions' : 'Body systems'}`}
+            placeholder={topicOptions[0] ? `e.g. ${topicOptions[0]}` : `e.g. ${form.subject === 'Mathematics' ? 'Fractions' : 'Body systems'}`}
           />
+          <datalist id="ai-slide-topic-options">
+            {topicOptions.map(t => <option key={t} value={t} />)}
+          </datalist>
         </div>
         <div className="sv-field-grid two">
           <div className="sv-field">
-            <label>Count</label>
-            <input
-              type="number"
-              min={1}
-              max={10}
-              value={aiForm.count}
-              onChange={e => setAiForm(prev => ({ ...prev, count: clampInt(e.target.value, 1, 10, 5) }))}
-            />
+            <label>How many questions</label>
+            {customCount ? (
+              <input
+                type="number"
+                min={1}
+                max={25}
+                autoFocus
+                value={aiForm.count}
+                onChange={e => setAiForm(prev => ({ ...prev, count: clampInt(e.target.value, 1, 25, 5) }))}
+              />
+            ) : (
+              <select
+                value={AI_COUNT_PRESETS.includes(Number(aiForm.count)) ? String(aiForm.count) : 'custom'}
+                onChange={e => {
+                  if (e.target.value === 'custom') { setCustomCount(true); return }
+                  setAiForm(prev => ({ ...prev, count: Number(e.target.value) }))
+                }}
+              >
+                {AI_COUNT_PRESETS.map(n => (
+                  <option key={n} value={String(n)}>{n} questions</option>
+                ))}
+                <option value="custom">Custom…</option>
+              </select>
+            )}
           </div>
           <div className="sv-field">
             <label>Type</label>
@@ -4423,6 +4689,9 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNu
               onChange={e => setAiForm(prev => ({ ...prev, type: e.target.value }))}
             >
               <option value="mcq">Multiple choice</option>
+              <option value="true_false">True / False</option>
+              <option value="short_answer">Short answer</option>
+              <option value="mixed">Mixed (all three)</option>
             </select>
           </div>
         </div>
@@ -4443,15 +4712,16 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNu
             disabled={importing}
           >
             <div className="sv-ic">📥</div>
-            <div><strong>{importing ? 'Importing…' : 'Import Word / PDF'}</strong><small>Convert an existing paper into editable blocks</small></div>
+            <div><strong>{importing ? 'Importing…' : 'Import Word / PDF / Pictures'}</strong><small>Convert an existing paper (or photos of it) into editable blocks</small></div>
             <input
               ref={docInputRef}
               type="file"
               accept={QUIZ_DOCUMENT_ACCEPT}
+              multiple
               style={{ display: 'none' }}
               onChange={e => {
-                const file = e.target.files?.[0]
-                if (file) onImport(file)
+                const files = Array.from(e.target.files || []).filter(Boolean)
+                if (files.length) onImport(files.length === 1 ? files[0] : files)
                 e.target.value = ''
               }}
             />
@@ -4459,6 +4729,25 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNu
           <button className="sv-ai-action" onClick={onOpenMarkingKey}>
             <div className="sv-ic">📑</div>
             <div><strong>Open marking key</strong><small>Auto-generated answers + explanations</small></div>
+          </button>
+          <button className="sv-ai-action" onClick={onVerifyPaper} disabled={!questions?.length}>
+            <div className="sv-ic">🔍</div>
+            <div><strong>Check this paper</strong><small>Vex verifies answers, grade fit and clarity before you print</small></div>
+          </button>
+          <button className="sv-ai-action" onClick={onOpenDiagramFix}>
+            <div className="sv-ic">🖼</div>
+            <div>
+              <strong>
+                Fix missing diagrams
+                {diagramsNeeded > 0 && (
+                  <span style={{
+                    marginLeft: 6, background: 'var(--sv-primary)', color: '#fff',
+                    borderRadius: 999, padding: '1px 8px', fontSize: 11, fontWeight: 800,
+                  }}>{diagramsNeeded}</span>
+                )}
+              </strong>
+              <small>Match from the picture bank or generate from the AI&apos;s description</small>
+            </div>
           </button>
           <DiagramGeneratorAction
             disabled={generatingDiagram}
@@ -4530,6 +4819,14 @@ function DiagramGeneratorAction({ disabled, onGenerate }) {
                 style={{ flex: 1, padding: '6px 10px', border: `1px solid ${provider === 'openai' ? 'var(--sv-primary)' : 'var(--sv-border)'}`, borderRadius: 'var(--sv-r-sm)', background: provider === 'openai' ? 'var(--sv-tinted)' : 'var(--sv-paper)', cursor: disabled ? 'default' : 'pointer', fontSize: 12, color: 'var(--sv-text)' }}
               >
                 📷 Photoreal<small style={{ display: 'block', color: 'var(--sv-muted)', fontSize: 10, marginTop: 2 }}>Photographs of real things</small>
+              </button>
+              <button
+                type="button"
+                disabled={disabled}
+                onClick={() => setProvider('kie')}
+                style={{ flex: 1, padding: '6px 10px', border: `1px solid ${provider === 'kie' ? 'var(--sv-primary)' : 'var(--sv-border)'}`, borderRadius: 'var(--sv-r-sm)', background: provider === 'kie' ? 'var(--sv-tinted)' : 'var(--sv-paper)', cursor: disabled ? 'default' : 'pointer', fontSize: 12, color: 'var(--sv-text)' }}
+              >
+                🎨 Colour<small style={{ display: 'block', color: 'var(--sv-muted)', fontSize: 10, marginTop: 2 }}>Bright illustrations</small>
               </button>
             </div>
           </div>

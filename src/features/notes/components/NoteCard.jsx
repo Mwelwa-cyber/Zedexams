@@ -76,6 +76,8 @@ export function NoteCard({ note, onClick }) {
             <><Layout size={12} /> Slides · legacy</>
           ) : note.noteFormat === NOTE_FORMAT.FILE ? (
             <><FileType size={12} /> File · {note.fileName || 'attached'}</>
+          ) : note.noteFormat === NOTE_FORMAT.STUDY ? (
+            <><FileText size={12} /> Study note</>
           ) : (
             <><FileText size={12} /> Rich text</>
           )}

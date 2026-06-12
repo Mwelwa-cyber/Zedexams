@@ -183,6 +183,8 @@ export const TOOL_TO_LIBRARY_TYPE = {
   'lesson-plan':     LIBRARY_TYPES.LESSON_PLANS,
   scheme_of_work:    LIBRARY_TYPES.SCHEMES_OF_WORK,
   weekly_forecast:   LIBRARY_TYPES.WEEKLY_FORECASTS,
+  record_of_work:    LIBRARY_TYPES.RECORDS_OF_WORK,
+  mark_schedule:     LIBRARY_TYPES.MARK_SCHEDULES,
   notes:             LIBRARY_TYPES.NOTES,
   worksheet:         LIBRARY_TYPES.ASSESSMENTS, // worksheets read as assessments
   rubric:            LIBRARY_TYPES.ASSESSMENTS,

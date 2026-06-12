@@ -329,6 +329,27 @@ function WeekPlanRow({ item, completed, saving, onToggle }) {
   )
 }
 
+
+// Compact heuristic summary consumed by <StudyPlanCard> on the dashboard —
+// mirrors this component's own task logic (daily exams, weak-spot practice)
+// without the Firestore-backed checklist, so the card stays a zero-fetch
+// teaser for the full /study-plan page.
+export function buildStudyPlan({ results = [], weakTopics = [], dailyGoal = { done: 0, total: 0 } } = {}) {
+  const countdown = buildCountdown()
+  const todayResults = results.filter((r) => isToday(r.completedAt ?? r.createdAt))
+  const weakFocus = getWeakFocus(weakTopics)
+  const hasWorkedWeakSubject = Boolean(
+    weakFocus?.subject?.id
+      && todayResults.some((r) => normaliseSubject(r.subject)?.id === weakFocus.subject.id),
+  )
+  const hasDailyExamTarget = dailyGoal.total > 0
+  const examDone = hasDailyExamTarget && dailyGoal.done >= dailyGoal.total
+  const done = [hasDailyExamTarget ? examDone : todayResults.length > 0, hasWorkedWeakSubject]
+  const doneCount = done.filter(Boolean).length
+  const total = done.length
+  return { countdown, doneCount, total, progress: total ? Math.round((doneCount / total) * 100) : 0 }
+}
+
 export default function TodayStudyPlan({
   results = [],
   weakTopics = [],

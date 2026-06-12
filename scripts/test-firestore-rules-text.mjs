@@ -219,6 +219,71 @@ test('studyPlanProgress is owner-only and bounded', () => {
   )
 })
 
+// ── validLessonFields blocks cap ───────────────────────────────────────
+
+console.log('\nvalidLessonFields blocks cap')
+
+test('lessons rule allows up to 600 study blocks (book-length notes)', () => {
+  assert(
+    rules.includes('incoming().blocks.size() <= 600'),
+    'lessons blocks cap is not 600 — study notes longer than the cap will be rejected by rules',
+  )
+})
+
+// ── validLessonFields keeps every NOTE_FORMAT learners can be served ──
+
+console.log('\nvalidLessonFields whitelists every saveable note format')
+
+// Mirrors NOTE_FORMAT in src/config/curriculum.js. The lessons create/update
+// rule gates `noteFormat` through this allowlist, so any format the editor can
+// save MUST appear here — otherwise Firestore silently rejects the write and
+// the note (e.g. an admin-published visual deck) never reaches a learner.
+// 'visual_slides' was added in #696 but the rule allowlist wasn't, which is
+// why grade-7 visual notes failed to publish until this line was fixed.
+const REQUIRED_NOTE_FORMATS = ['slides', 'rich_text', 'file', 'visual_slides', 'study']
+
+for (const f of REQUIRED_NOTE_FORMATS) {
+  test(`whitelists noteFormat '${f}'`, () => {
+    const line = rules.split('\n').find(l => l.includes("'noteFormat' in incoming()"))
+    assert(line, 'validLessonFields noteFormat guard not found')
+    assert(
+      line.includes(`'${f}'`),
+      `validLessonFields is missing noteFormat '${f}' — admin/teacher writes for this note format will be rejected by Firestore, so the note never shows for learners`,
+    )
+  })
+}
+
+test('noteSmart is learner-readable and server-write-only', () => {
+  assert(rules.includes('match /noteSmart/{'), 'no noteSmart rule block found')
+  const block = rules.match(/match \/noteSmart\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
+  assert(block, 'noteSmart match block not found or incorrectly indented')
+  assert(/allow read:\s*if isAuthed\(\)/.test(block[1]), 'noteSmart is not readable by authenticated users')
+  assert(/allow write:\s*if false/.test(block[1]), 'noteSmart write is not locked to server-only (if false)')
+})
+
+test('aiGenerations client create stays locked to the client-side tools', () => {
+  const block = rules.match(/match \/aiGenerations\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
+  assert(block, 'aiGenerations match block not found')
+  const create = block[1].match(/allow create:[\s\S]*?;/)
+  assert(create, 'aiGenerations create rule not found')
+  assert(
+    /incoming\(\)\.tool in \['mark_schedule', 'weekly_forecast', 'record_of_work'\]/.test(create[0]),
+    "aiGenerations create tool list changed — only the client-side (non-AI) tools mark_schedule + weekly_forecast + record_of_work may be client-created; AI tools must stay server-created so cost/token fields cannot be forged",
+  )
+  const AI_TOOLS = ['lesson_plan', 'worksheet', 'scheme_of_work', 'notes', 'flashcards', 'rubric', 'quiz', 'assessment', 'exam_paper']
+  AI_TOOLS.forEach((t) => {
+    assert(!create[0].includes(`'${t}'`), `aiGenerations create now lists AI tool '${t}' — that tool must stay server-created`)
+  })
+  assert(
+    /incoming\(\)\.ownerUid == request\.auth\.uid/.test(create[0]),
+    'aiGenerations create no longer requires ownerUid == auth.uid',
+  )
+  assert(
+    /keys\(\)\.hasOnly\(/.test(create[0]),
+    'aiGenerations create lost its keys().hasOnly() allowlist — clients could write server-only fields',
+  )
+})
+
 // ── Report ──────────────────────────────────────────────────────
 
 console.log('')

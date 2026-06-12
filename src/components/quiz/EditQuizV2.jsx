@@ -5,16 +5,19 @@ import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
 import { storage } from '../../firebase/config'
 import {
+  collectSectionFirestoreIds,
   createPartGroup,
   createPassageSection,
   createStandaloneSection,
   emptyPassageQuestion,
+  getPassageQuestionFirestoreId,
   getQuestionKey,
   hasOnlyEmptyStarterSection,
   hydrateQuizSections,
   serializeQuizSections,
   shuffleQuizSections,
 } from '../../utils/quizSections.js'
+import { regroupComprehensionSections, moveQuestionToPassage } from '../../utils/comprehensionGrouping.js'
 import { richTextHasContent } from '../../utils/quizRichText.js'
 import { clampInt } from '../../utils/inputs.js'
 import { getErrorMessage } from '../../utils/errors.js'
@@ -38,6 +41,14 @@ import ImportQuizPanel from './ImportQuizPanel'
 import QuizSectionsEditor from './QuizSectionsEditor'
 import QuizEditorPreviewPanel from './QuizEditorPreviewPanel'
 import QuizVerifyModal from './QuizVerifyModal'
+import ConfirmDialog from '../ui/ConfirmDialog'
+import BulkAnswerKey from './BulkAnswerKey'
+import { collectAnswerableQuestions, applyAnswerKeyToSections, collectAiAnswerTargets } from './answerKeyUtils'
+import ReviewPanel from './ReviewPanel'
+import { collectReviewItems } from './reviewUtils'
+import ImageCropModal from './ImageCropModal'
+import { getRichPlainText } from '../../editor/RichContent.jsx'
+import { suggestQuizAnswers } from '../../utils/aiAssistant'
 import ImportReviewBanner from './ImportReviewBanner'
 import PastPaperReferenceBanner from './PastPaperReferenceBanner'
 import QuizEditorActionBar from './QuizEditorActionBar'
@@ -50,6 +61,7 @@ import QuizStatusBadge from './assignment/QuizStatusBadge'
 import QuizAssignStep from './assignment/QuizAssignStep'
 import QuizPublishStep from './assignment/QuizPublishStep'
 import { deriveQuizStatus, listAssignmentsForResource } from '../../utils/quizAssignments'
+import { normalizeSubject } from '../../config/curriculum.js'
 import SeoHelmet from '../seo/SeoHelmet'
 
 const SUBJECTS = [
@@ -64,7 +76,10 @@ const SUBJECTS = [
   'Special Paper 1',
 ]
 const GRADES = ['4', '5', '6', '7']
-const TERMS = ['1', '2', '3']
+// Common quiz lengths offered in the duration dropdown so admins pick rather
+// than type a free-form number. Any saved value outside this list is still
+// preserved and shown via durationOptions below.
+const DURATIONS = [5, 10, 15, 20, 25, 30, 40, 45, 60, 75, 90, 120, 150, 180]
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
 
 // text-base (16 px) on phones avoids iOS Safari's auto-zoom-on-focus;
@@ -88,7 +103,12 @@ function withCurrentOption(options, currentValue) {
   return [...options, normalized]
 }
 
-function compressImage(file, maxWidth = 1200, quality = 0.85) {
+// Prepare an upload blob without degrading the picture. PNG sources (diagrams,
+// scanned line-art, cropped figures) stay lossless PNG; everything else is
+// encoded as high-quality JPEG. The width cap is generous so fine detail and
+// text in figures survive. Returns a Blob whose `.type` tells the caller which
+// format/extension to store.
+function compressImage(file, { maxWidth = 1600, quality = 0.92 } = {}) {
   return new Promise((resolve, reject) => {
     const image = new Image()
     const objectUrl = URL.createObjectURL(file)
@@ -101,14 +121,19 @@ function compressImage(file, maxWidth = 1200, quality = 0.85) {
         width = maxWidth
       }
 
+      const lossless = file.type === 'image/png'
+      const mime = lossless ? 'image/png' : 'image/jpeg'
       const canvas = document.createElement('canvas')
       canvas.width = width
       canvas.height = height
-      canvas.getContext('2d').drawImage(image, 0, 0, width, height)
+      const ctx = canvas.getContext('2d', { alpha: lossless })
+      ctx.imageSmoothingEnabled = true
+      ctx.imageSmoothingQuality = 'high'
+      ctx.drawImage(image, 0, 0, width, height)
       canvas.toBlob(
         blob => (blob ? resolve(blob) : reject(new Error('Canvas compression failed'))),
-        'image/jpeg',
-        quality,
+        mime,
+        lossless ? undefined : quality,
       )
     }
 
@@ -121,16 +146,20 @@ function compressImage(file, maxWidth = 1200, quality = 0.85) {
   })
 }
 
+// Derive the storage extension + contentType from a processed upload blob so
+// lossless PNG crops keep their format end-to-end (no silent re-encode to JPEG).
+function uploadFormat(blob) {
+  return blob?.type === 'image/png'
+    ? { ext: 'png', contentType: 'image/png' }
+    : { ext: 'jpg', contentType: 'image/jpeg' }
+}
+
 function buildQuestionNumberMap(questions = []) {
   return Object.fromEntries(questions.map((question, index) => [getQuestionKey(question), index + 1]))
 }
 
-function collectQuestionIds(section) {
-  if (section.kind === 'passage') {
-    return (section.passage.questions || []).map(question => question._id).filter(Boolean)
-  }
-  return section.question?._id ? [section.question._id] : []
-}
+// Local alias so existing call-sites don't need to change.
+const collectQuestionIds = collectSectionFirestoreIds
 
 function hasUploadingAssets(sections = []) {
   return sections.some(section => {
@@ -193,7 +222,6 @@ export default function EditQuizV2() {
     title: '',
     subject: 'Mathematics',
     grade: '5',
-    term: '1',
     duration: 30,
     type: 'quiz',
     topic: '',
@@ -211,6 +239,9 @@ export default function EditQuizV2() {
   const [toast, setToast] = useState(null)
   const [dirty, setDirty] = useState(false)
   const [verifyOpen, setVerifyOpen] = useState(false)
+  // Clear-whole-quiz waits on ConfirmDialog approval (distinct from
+  // pendingImport, which drives the import-diff modal below).
+  const [pendingClearQuiz, setPendingClearQuiz] = useState(false)
   // Imported-image upload progress. Set to { completed, total } while a
   // save flushes the Storage uploads for blob-backed import assets, so
   // the action bar can show "Uploading images… 4 / 32" instead of
@@ -269,6 +300,9 @@ export default function EditQuizV2() {
   // questions plus an in-memory map of image blobs keyed by assetId;
   // we hold the blobs here and upload them when the editor saves.
   const [importingDocument, setImportingDocument] = useState(false)
+  // Progress for the scanned-PDF vision import: { phase: 'rendering'|'reading',
+  // current, total }. null at all other times.
+  const [importProgress, setImportProgress] = useState(null)
   const [importSummary, setImportSummary] = useState(null)
   const [importedAssets, setImportedAssets] = useState({})
   // Past-paper quizzes opened with no questions yet land on this
@@ -277,10 +311,49 @@ export default function EditQuizV2() {
   // Other edits keep it collapsed so it doesn't clutter the page.
   const [importPanelOpen, setImportPanelOpen] = useState(false)
 
-  const serializedPreview = serializeQuizSections(sections, parts)
-  const questionNumbers = buildQuestionNumberMap(serializedPreview.questions)
+  // Memoised: serializeQuizSections walks every section and returns a fresh
+  // object each call. Recomputing it on every keystroke (and the question-number
+  // map derived from it) handed PassageSectionCard a new `questionNumbers`
+  // identity each render, defeating its React.memo. Recompute only when the
+  // underlying sections/parts actually change.
+  const serializedPreview = useMemo(
+    () => serializeQuizSections(sections, parts),
+    [sections, parts],
+  )
+  // Stable identity: the numbering map's *values* only change when questions
+  // are added/removed/reordered — never while typing. Keep the previous object
+  // reference when the contents are unchanged so memoised passage cards (which
+  // receive the whole map) don't re-render on every keystroke.
+  const questionNumbersRef = useRef({})
+  const questionNumbers = useMemo(() => {
+    const next = buildQuestionNumberMap(serializedPreview.questions)
+    const prev = questionNumbersRef.current
+    const prevKeys = Object.keys(prev)
+    const sameContents = prevKeys.length === Object.keys(next).length
+      && prevKeys.every(key => prev[key] === next[key])
+    if (sameContents) return prev
+    questionNumbersRef.current = next
+    return next
+  }, [serializedPreview])
   const questionCount = serializedPreview.questionCount
   const totalMarks = serializedPreview.totalMarks
+
+  // Mirror the latest `sections` into a ref so event handlers (delete/remove)
+  // can read the current snapshot without listing `sections` in their
+  // useCallback deps. That keeps their identity stable across keystrokes
+  // (so memoised cards don't re-render) AND lets us call setDeletedIds OUTSIDE
+  // the setSections updater — an updater that calls another setState is impure,
+  // which StrictMode double-invokes in dev, double-queuing the deleted ids.
+  const sectionsRef = useRef(sections)
+  sectionsRef.current = sections
+
+  // Stable object identity: only changes when subject or grade actually changes,
+  // not on every keystroke. Prevents every card from re-rendering just because
+  // the parent rendered.
+  const quizContext = useMemo(
+    () => ({ subject: form.subject, grade: form.grade }),
+    [form.subject, form.grade],
+  )
   const passageCount = serializedPreview.passages.length
   const newCount = serializedPreview.questions.filter(question => !question._id).length
   const imagesCount = countImages(sections)
@@ -300,12 +373,16 @@ export default function EditQuizV2() {
   const canEdit = isAdmin || quizOwner === currentUser?.uid
   const gradeOptions = withCurrentOption(GRADES, form.grade)
   const subjectOptions = withCurrentOption(SUBJECTS, form.subject)
-  const termOptions = withCurrentOption(TERMS, form.term)
+  // Keep any legacy/custom saved duration selectable even if it isn't one of
+  // the preset options, so editing an older quiz never silently rewrites it.
+  const durationOptions = DURATIONS.includes(Number(form.duration))
+    ? DURATIONS
+    : [...DURATIONS, Number(form.duration)].sort((a, b) => a - b)
 
-  function show(message, isErr = false) {
+  const show = useCallback(function show(message, isErr = false) {
     setToast({ message, isErr })
     setTimeout(() => setToast(null), 4000)
-  }
+  }, [])
 
   // Bump the "last edited" timestamp whenever any editable state changes.
   // The auto-save effect debounces against this — we save 25 s after the
@@ -373,13 +450,18 @@ export default function EditQuizV2() {
 
       setForm({
         title: quiz.title ?? '',
-        subject: quiz.subject ?? 'Mathematics',
+        // Repair any legacy/imported subject slug ("mathematics") back to its
+        // canonical display label ("Mathematics") so the <select> matches an
+        // option and the value round-trips through validation + learner filters.
+        subject: normalizeSubject(quiz.subject ?? 'Mathematics'),
         grade: quiz.grade ?? '5',
-        term: quiz.term ?? '1',
         duration: quiz.duration ?? 30,
         type: quiz.type ?? 'quiz',
         topic: quiz.topic ?? '',
         isDemo: quiz.isDemo ?? false,
+        // When ON, the learner runner randomises question order at attempt
+        // time (within Parts/passages). Default OFF preserves document order.
+        shuffleQuestions: quiz.shuffleQuestions ?? false,
         mode: quiz.mode ?? '',
         importStatus: quiz.importStatus ?? '',
         sourceFileName: quiz.sourceFileName ?? '',
@@ -460,24 +542,108 @@ export default function EditQuizV2() {
     setChecklistOpen(true)
   }, [loading, form.importStatus, form.mode, errorCount])
 
-  function updateSection(sectionIndex, updater) {
+  const updateSection = useCallback(function updateSection(sectionIndex, updater) {
     setSections(currentSections => currentSections.map((section, index) => (
       index === sectionIndex ? updater(section) : section
     )))
     setDirty(true)
+  }, [])
+
+  const updateStandaloneQuestion = useCallback(function updateStandaloneQuestion(sectionIndex, field, value) {
+    setSections(currentSections => currentSections.map((section, index) => (
+      index === sectionIndex
+        ? { ...section, question: { ...section.question, [field]: value } }
+        : section
+    )))
+    setDirty(true)
+  }, [])
+
+  // Bulk answer-key entry. Applies a { localId: optionIndex } map across every
+  // section in one pass (pure helper), addressing questions by stable localId
+  // so nothing reorders and only matched questions change. Routes through the
+  // normal dirty -> autosave path; no separate save logic.
+  function applyAnswerKeyMap(keyToIndex) {
+    if (!keyToIndex || !Object.keys(keyToIndex).length) return
+    setSections(current => applyAnswerKeyToSections(current, keyToIndex).sections)
+    setDirty(true)
+  }
+  function handleSetOneAnswer(localId, index) {
+    if (!localId) return
+    applyAnswerKeyMap({ [localId]: index })
+  }
+  const answerableQuestions = useMemo(() => collectAnswerableQuestions(sections), [sections])
+
+  // Review panel: list questions still needing attention and scroll to one
+  // when its row is clicked. Read-only — the data-question-id anchors live on
+  // the question cards in QuizSectionsEditor; this never mutates state.
+  const reviewData = useMemo(() => collectReviewItems(sections), [sections])
+  function scrollToQuestion(localId) {
+    if (!localId || typeof document === 'undefined') return
+    const selector = `[data-question-id="${(typeof CSS !== 'undefined' && CSS.escape) ? CSS.escape(localId) : localId}"]`
+    const el = document.querySelector(selector)
+    if (!el) return
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    el.classList.add('ring-2', 'ring-amber-400')
+    setTimeout(() => el.classList.remove('ring-2', 'ring-amber-400'), 1600)
   }
 
-  function updateStandaloneQuestion(sectionIndex, field, value) {
-    updateSection(sectionIndex, section => ({
-      ...section,
-      question: {
-        ...section.question,
-        [field]: value,
-      },
-    }))
+  // In-editor image crop. Opening sets the target; the modal returns a cropped
+  // Blob that we run through the SAME upload path as a normal image, so the
+  // cropped picture replaces the original. Cancel changes nothing.
+  const [cropTarget, setCropTarget] = useState(null)
+  const requestStandaloneImageCrop = useCallback(function requestStandaloneImageCrop(sectionIndex, imageUrl) {
+    if (!imageUrl) return
+    setCropTarget({ kind: 'standalone', sectionIndex, imageUrl })
+  }, [])
+  const requestPassageImageCrop = useCallback(function requestPassageImageCrop(sectionIndex, imageUrl) {
+    if (!imageUrl) return
+    setCropTarget({ kind: 'passage', sectionIndex, imageUrl })
+  }, [])
+  async function handleCroppedImage(blob) {
+    const target = cropTarget
+    setCropTarget(null)
+    if (!target || !blob) return
+    // The crop modal returns a lossless PNG; keep it PNG through the upload path.
+    const file = new File([blob], 'cropped.png', { type: blob.type || 'image/png' })
+    if (target.kind === 'standalone') {
+      await uploadStandaloneQuestionImage(target.sectionIndex, file)
+    } else if (target.kind === 'passage') {
+      await uploadPassageImage(target.sectionIndex, file)
+    }
   }
 
-  function moveSection(sectionIndex, direction) {
+  // AI suggest-all: answer every still-blank MCQ in one batched call, then
+  // apply via the same identity-preserving path as the manual answer key.
+  // Suggestions only — questions stay flagged for the admin to verify.
+  const [suggestingAnswers, setSuggestingAnswers] = useState(false)
+  async function handleSuggestAnswers() {
+    if (suggestingAnswers) return
+    const targets = collectAiAnswerTargets(sections, getRichPlainText, { onlyUnanswered: true })
+    if (!targets.length) {
+      show('Every multiple-choice question already has an answer set.')
+      return
+    }
+    setSuggestingAnswers(true)
+    try {
+      const { answers, count } = await suggestQuizAnswers({
+        questions: targets,
+        subject: form.subject || '',
+        grade: form.grade || '',
+      })
+      if (count > 0) {
+        applyAnswerKeyMap(answers)
+        show(`AI suggested ${count} answer${count === 1 ? '' : 's'} — please verify each before publishing.`)
+      } else {
+        show('The AI could not confidently answer these questions. Set them manually.', true)
+      }
+    } catch (error) {
+      show(`Could not suggest answers: ${getErrorMessage(error, 'AI is unavailable right now.')}`, true)
+    } finally {
+      setSuggestingAnswers(false)
+    }
+  }
+
+  const moveSection = useCallback(function moveSection(sectionIndex, direction) {
     setSections(currentSections => {
       const nextSections = [...currentSections]
       const targetIndex = sectionIndex + direction
@@ -486,30 +652,78 @@ export default function EditQuizV2() {
       return nextSections
     })
     setDirty(true)
-  }
+  }, [])
 
-  function handleShuffleSections() {
+  const handleShuffleSections = useCallback(function handleShuffleSections() {
     setSections(currentSections => shuffleQuizSections(currentSections))
     setDirty(true)
+  }, [])
+
+  const handleAutoGroupComprehension = useCallback(function handleAutoGroupComprehension() {
+    setSections(currentSections => regroupComprehensionSections(currentSections).sections)
+    setDirty(true)
+    show('Comprehension questions re-grouped by passage.')
+  }, [show])
+
+  const handleMoveQuestionToPassage = useCallback(function handleMoveQuestionToPassage(fromSectionId, questionLocalId, toSectionId) {
+    setSections(currentSections =>
+      moveQuestionToPassage(currentSections, fromSectionId, questionLocalId, toSectionId))
+    setDirty(true)
+  }, [])
+
+  // Reset the whole editor back to an empty quiz: clears the title,
+  // details, and every question. Saved questions are queued for
+  // deletion (mirroring the "replace" import path) so the next save
+  // removes them from Firestore. Past-paper provenance + studio
+  // linkage are preserved so a cleared quiz keeps its tie to its
+  // source (and the back button still routes correctly). Guarded
+  // behind a confirm because it can't be undone.
+  function handleClearForm() {
+    setPendingClearQuiz(true)
+  }
+
+  function performClearForm() {
+    setPendingClearQuiz(false)
+    setDeletedIds(current => [...current, ...sections.flatMap(collectQuestionIds)])
+    setForm(current => ({
+      title: '',
+      subject: 'Mathematics',
+      grade: '5',
+      duration: 30,
+      type: 'quiz',
+      topic: '',
+      isDemo: false,
+      // Preserve provenance + linkage so a cleared quiz stays tied to
+      // its source past paper / studio after the reset.
+      sourcePastPaperId: current.sourcePastPaperId ?? null,
+      sourcePastPaperPdfPath: current.sourcePastPaperPdfPath ?? null,
+      sourceMarkSchemePath: current.sourceMarkSchemePath ?? null,
+      linkedPaperId: current.linkedPaperId ?? null,
+    }))
+    setSections([createStandaloneSection()])
+    setParts([])
+    setWizardStep('create')
+    setDirty(true)
+    show('Quiz cleared. Save to apply, or leave without saving to discard.')
   }
 
   // ── Parts (PRISCA mock-paper section groups) ─────────────────────
-  function addPart() {
+  const addPart = useCallback(function addPart() {
     setParts(currentParts => [
       ...currentParts,
       createPartGroup({ order: currentParts.length, title: '' }),
     ])
     setDirty(true)
-  }
+  }, [])
 
-  function updatePart(partId, field, value) {
+  const updatePart = useCallback(function updatePart(partId, field, value) {
     setParts(currentParts => currentParts.map(part => (
       part.id === partId ? { ...part, [field]: value } : part
     )))
     setDirty(true)
-  }
+  }, [])
 
-  function movePart(partId, direction) {
+  const movePart = useCallback(function movePart(partId, direction) {
     setParts(currentParts => {
       const sorted = [...currentParts].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
       const index = sorted.findIndex(part => part.id === partId)
@@ -519,9 +733,9 @@ export default function EditQuizV2() {
       return sorted.map((part, i) => ({ ...part, order: i }))
     })
     setDirty(true)
-  }
+  }, [])
 
-  function removePart(partId) {
+  const removePart = useCallback(function removePart(partId) {
     setParts(currentParts => currentParts
       .filter(part => part.id !== partId)
       .map((part, i) => ({ ...part, order: i })))
@@ -545,9 +759,9 @@ export default function EditQuizV2() {
       return section
     }))
     setDirty(true)
-  }
+  }, [])
 
-  function assignSectionToPart(sectionId, partId) {
+  const assignSectionToPart = useCallback(function assignSectionToPart(sectionId, partId) {
     setSections(currentSections => currentSections.map(section => {
       if (section.id !== sectionId) return section
       if (section.kind === 'passage') {
@@ -563,54 +777,46 @@ export default function EditQuizV2() {
       return { ...section, question: { ...section.question, partId: partId || null } }
     }))
     setDirty(true)
-  }
+  }, [])
 
-  function removeStandaloneSection(sectionIndex) {
-    setDeletedIds(current => [...current, ...collectQuestionIds(sections[sectionIndex])])
+  const removeStandaloneSection = useCallback(function removeStandaloneSection(sectionIndex) {
+    // Read the current snapshot from the ref (never a stale closure over
+    // `sections`), so the handler identity stays stable. setDeletedIds runs
+    // outside the setSections updater to keep that updater pure.
+    const ids = collectQuestionIds(sectionsRef.current[sectionIndex])
+    if (ids.length) setDeletedIds(current => [...current, ...ids])
     setSections(currentSections => currentSections.filter((_, index) => index !== sectionIndex))
     setDirty(true)
-  }
+  }, [])
 
-  function updatePassage(sectionIndex, field, value) {
-    updateSection(sectionIndex, section => ({
-      ...section,
-      passage: {
-        ...section.passage,
-        [field]: value,
-      },
-    }))
-  }
+  const updatePassage = useCallback(function updatePassage(sectionIndex, field, value) {
+    setSections(currentSections => currentSections.map((section, index) => (
+      index === sectionIndex
+        ? { ...section, passage: { ...section.passage, [field]: value } }
+        : section
+    )))
+    setDirty(true)
+  }, [])
 
-  function togglePassage(sectionIndex) {
-    updateSection(sectionIndex, section => ({
-      ...section,
-      passage: {
-        ...section.passage,
-        collapsed: !section.passage.collapsed,
-      },
-    }))
-  }
+  const togglePassage = useCallback(function togglePassage(sectionIndex) {
+    setSections(currentSections => currentSections.map((section, index) => (
+      index === sectionIndex
+        ? { ...section, passage: { ...section.passage, collapsed: !section.passage.collapsed } }
+        : section
+    )))
+    setDirty(true)
+  }, [])
 
-  function removePassageSection(sectionIndex) {
-    setDeletedIds(current => [...current, ...collectQuestionIds(sections[sectionIndex])])
+  const removePassageSection = useCallback(function removePassageSection(sectionIndex) {
+    // Read the current snapshot from the ref; setDeletedIds outside the
+    // updater keeps the setSections updater pure (StrictMode-safe).
+    const ids = collectQuestionIds(sectionsRef.current[sectionIndex])
+    if (ids.length) setDeletedIds(current => [...current, ...ids])
     setSections(currentSections => currentSections.filter((_, index) => index !== sectionIndex))
     setDirty(true)
-  }
+  }, [])
 
-  function addPassageQuestion(sectionIndex) {
-    updateSection(sectionIndex, section => ({
-      ...section,
-      passage: {
-        ...section.passage,
-        questions: [
-          ...section.passage.questions,
-          emptyPassageQuestion({ passageId: section.passage.id }),
-        ],
-      },
-    }))
-  }
-
-  function updatePassageQuestion(sectionIndex, questionIndex, field, value) {
+  const updatePassageQuestion = useCallback(function updatePassageQuestion(sectionIndex, questionIndex, field, value) {
     updateSection(sectionIndex, section => ({
       ...section,
       passage: {
@@ -620,23 +826,27 @@ export default function EditQuizV2() {
         )),
       },
     }))
-  }
+  }, [updateSection])
 
-  function removePassageQuestion(sectionIndex, questionIndex) {
-    const question = sections[sectionIndex]?.passage?.questions?.[questionIndex]
-    if (question?._id) {
-      setDeletedIds(current => [...current, question._id])
-    }
-    updateSection(sectionIndex, section => ({
-      ...section,
-      passage: {
-        ...section.passage,
-        questions: section.passage.questions.filter((_, index) => index !== questionIndex),
-      },
+  const removePassageQuestion = useCallback(function removePassageQuestion(sectionIndex, questionIndex) {
+    // Read the current snapshot from the ref; setDeletedIds outside the
+    // updater keeps the setSections updater pure (StrictMode-safe).
+    const id = getPassageQuestionFirestoreId(sectionsRef.current, sectionIndex, questionIndex)
+    if (id) setDeletedIds(current => [...current, id])
+    setSections(currentSections => currentSections.map((s, i) => {
+      if (i !== sectionIndex) return s
+      return {
+        ...s,
+        passage: {
+          ...s.passage,
+          questions: s.passage.questions.filter((_, qi) => qi !== questionIndex),
+        },
+      }
     }))
-  }
+    setDirty(true)
+  }, [])
 
-  function movePassageQuestion(sectionIndex, questionIndex, direction) {
+  const movePassageQuestion = useCallback(function movePassageQuestion(sectionIndex, questionIndex, direction) {
     updateSection(sectionIndex, section => {
       const nextQuestions = [...section.passage.questions]
       const targetIndex = questionIndex + direction
@@ -650,27 +860,40 @@ export default function EditQuizV2() {
         },
       }
     })
-  }
+  }, [updateSection])
 
-  function addStandaloneSectionHandler() {
+  const addPassageQuestion = useCallback(function addPassageQuestion(sectionIndex) {
+    updateSection(sectionIndex, section => ({
+      ...section,
+      passage: {
+        ...section.passage,
+        questions: [
+          ...section.passage.questions,
+          emptyPassageQuestion({ passageId: section.passage.id }),
+        ],
+      },
+    }))
+  }, [updateSection])
+
+  const addStandaloneSectionHandler = useCallback(function addStandaloneSectionHandler() {
     setSections(currentSections => [...currentSections, createStandaloneSection()])
     setDirty(true)
     setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 50)
-  }
+  }, [])
 
-  function addPassageSectionHandler() {
+  const addPassageSectionHandler = useCallback(function addPassageSectionHandler() {
     setSections(currentSections => [...currentSections, createPassageSection()])
     setDirty(true)
     setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 50)
-  }
+  }, [])
 
-  function addMapSectionHandler() {
+  const addMapSectionHandler = useCallback(function addMapSectionHandler() {
     setSections(currentSections => [...currentSections, createPassageSection({ passageKind: 'map' })])
     setDirty(true)
     setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 50)
-  }
+  }, [])
 
-  async function uploadStandaloneQuestionImage(sectionIndex, file) {
+  const uploadStandaloneQuestionImage = useCallback(async function uploadStandaloneQuestionImage(sectionIndex, file) {
     if (!ALLOWED_TYPES.includes(file.type)) {
       show('Only JPG, PNG, and WEBP images are allowed.', true)
       return
@@ -693,9 +916,10 @@ export default function EditQuizV2() {
 
     try {
       const compressed = await compressImage(file)
+      const { ext, contentType } = uploadFormat(compressed)
       updateStandaloneQuestion(sectionIndex, 'imageUploadStep', 'uploading')
-      const path = `quiz-images/${currentUser.uid}/${Date.now()}-standalone-${sectionIndex}.jpg`
-      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType: 'image/jpeg' })
+      const path = `quiz-images/${currentUser.uid}/${Date.now()}-standalone-${sectionIndex}.${ext}`
+      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType })
       const imageUrl = await getDownloadURL(snapshot.ref)
       updateSection(sectionIndex, section => ({
         ...section,
@@ -719,9 +943,9 @@ export default function EditQuizV2() {
       }))
       show(`Upload failed: ${error.message}`, true)
     }
-  }
+  }, [show, updateSection, updateStandaloneQuestion, currentUser])
 
-  function removeStandaloneQuestionImage(sectionIndex) {
+  const removeStandaloneQuestionImage = useCallback(function removeStandaloneQuestionImage(sectionIndex) {
     updateSection(sectionIndex, section => ({
       ...section,
       question: {
@@ -730,9 +954,9 @@ export default function EditQuizV2() {
         imageAssetId: '',
       },
     }))
-  }
+  }, [updateSection])
 
-  async function uploadPassageImage(sectionIndex, file) {
+  const uploadPassageImage = useCallback(async function uploadPassageImage(sectionIndex, file) {
     if (!ALLOWED_TYPES.includes(file.type)) {
       show('Only JPG, PNG, and WEBP images are allowed.', true)
       return
@@ -761,8 +985,9 @@ export default function EditQuizV2() {
           imageUploadStep: 'uploading',
         },
       }))
-      const path = `quiz-images/${currentUser.uid}/${Date.now()}-passage-${sectionIndex}.jpg`
-      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType: 'image/jpeg' })
+      const { ext, contentType } = uploadFormat(compressed)
+      const path = `quiz-images/${currentUser.uid}/${Date.now()}-passage-${sectionIndex}.${ext}`
+      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType })
       const imageUrl = await getDownloadURL(snapshot.ref)
       updateSection(sectionIndex, section => ({
         ...section,
@@ -785,9 +1010,9 @@ export default function EditQuizV2() {
       }))
       show(`Upload failed: ${error.message}`, true)
     }
-  }
+  }, [show, updateSection, currentUser])
 
-  function removePassageImage(sectionIndex) {
+  const removePassageImage = useCallback(function removePassageImage(sectionIndex) {
     updateSection(sectionIndex, section => ({
       ...section,
       passage: {
@@ -795,7 +1020,7 @@ export default function EditQuizV2() {
         imageUrl: '',
       },
     }))
-  }
+  }, [updateSection])
 
   function buildOptionMediaSlots(question) {
     const existing = Array.isArray(question.optionMedia) ? question.optionMedia : []
@@ -803,7 +1028,7 @@ export default function EditQuizV2() {
     return Array.from({ length: optionCount }, (_, i) => existing[i] ?? null)
   }
 
-  async function uploadStandaloneOptionImage(sectionIndex, optionIndex, file) {
+  const uploadStandaloneOptionImage = useCallback(async function uploadStandaloneOptionImage(sectionIndex, optionIndex, file) {
     if (!ALLOWED_TYPES.includes(file.type)) {
       show('Only JPG, PNG, and WEBP images are allowed.', true)
       return
@@ -824,9 +1049,10 @@ export default function EditQuizV2() {
 
     try {
       const compressed = await compressImage(file)
+      const { ext, contentType } = uploadFormat(compressed)
       updateStandaloneQuestion(sectionIndex, 'optionImageUploadStep', 'uploading')
-      const path = `quiz-images/${currentUser.uid}/${Date.now()}-standalone-${sectionIndex}-opt-${optionIndex}.jpg`
-      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType: 'image/jpeg' })
+      const path = `quiz-images/${currentUser.uid}/${Date.now()}-standalone-${sectionIndex}-opt-${optionIndex}.${ext}`
+      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType })
       const imageUrl = await getDownloadURL(snapshot.ref)
 
       updateSection(sectionIndex, section => {
@@ -855,9 +1081,9 @@ export default function EditQuizV2() {
       }))
       show(`Upload failed: ${error.message}`, true)
     }
-  }
+  }, [show, updateSection, updateStandaloneQuestion, currentUser])
 
-  function removeStandaloneOptionImage(sectionIndex, optionIndex) {
+  const removeStandaloneOptionImage = useCallback(function removeStandaloneOptionImage(sectionIndex, optionIndex) {
     updateSection(sectionIndex, section => {
       const next = buildOptionMediaSlots(section.question)
       next[optionIndex] = null
@@ -869,9 +1095,9 @@ export default function EditQuizV2() {
         },
       }
     })
-  }
+  }, [updateSection])
 
-  async function uploadPassageQuestionOptionImage(sectionIndex, questionIndex, optionIndex, file) {
+  const uploadPassageQuestionOptionImage = useCallback(async function uploadPassageQuestionOptionImage(sectionIndex, questionIndex, optionIndex, file) {
     if (!ALLOWED_TYPES.includes(file.type)) {
       show('Only JPG, PNG, and WEBP images are allowed.', true)
       return
@@ -899,9 +1125,10 @@ export default function EditQuizV2() {
 
     try {
       const compressed = await compressImage(file)
+      const { ext, contentType } = uploadFormat(compressed)
       patchQuestion(() => ({ optionImageUploadStep: 'uploading' }))
-      const path = `quiz-images/${currentUser.uid}/${Date.now()}-passage-${sectionIndex}-q-${questionIndex}-opt-${optionIndex}.jpg`
-      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType: 'image/jpeg' })
+      const path = `quiz-images/${currentUser.uid}/${Date.now()}-passage-${sectionIndex}-q-${questionIndex}-opt-${optionIndex}.${ext}`
+      const snapshot = await uploadBytes(storageRef(storage, path), compressed, { contentType })
       const imageUrl = await getDownloadURL(snapshot.ref)
 
       patchQuestion(question => {
@@ -923,9 +1150,9 @@ export default function EditQuizV2() {
       }))
       show(`Upload failed: ${error.message}`, true)
     }
-  }
+  }, [show, updateSection, currentUser])
 
-  function removePassageQuestionOptionImage(sectionIndex, questionIndex, optionIndex) {
+  const removePassageQuestionOptionImage = useCallback(function removePassageQuestionOptionImage(sectionIndex, questionIndex, optionIndex) {
     updateSection(sectionIndex, section => ({
       ...section,
       passage: {
@@ -938,7 +1165,7 @@ export default function EditQuizV2() {
         }),
       },
     }))
-  }
+  }, [updateSection])
 
   function validateStandaloneQuestion(question, label) {
     return sharedValidateStandaloneQuestion(question, label, {
@@ -1048,7 +1275,7 @@ export default function EditQuizV2() {
       // span many CBC topics; the teacher should keep their own value or
       // leave the field blank rather than have the title stamped in.
       grade: linkedToPaper ? current.grade : (imported.quiz.grade || current.grade),
-      subject: linkedToPaper ? current.subject : (imported.quiz.subject || current.subject),
+      subject: normalizeSubject(linkedToPaper ? current.subject : (imported.quiz.subject || current.subject)),
       mode: 'imported_document',
       importStatus: imported.importStatus,
       sourceFileName: imported.quiz.sourceFileName,
@@ -1106,13 +1333,24 @@ export default function EditQuizV2() {
         : `Document ${verb} into editable quiz sections.`)
   }
 
-  async function handleImportDocument(file) {
-    if (!file) return
+  async function handleImportDocument(fileOrFiles, importOptions = {}) {
+    const files = Array.isArray(fileOrFiles) ? fileOrFiles.filter(Boolean) : (fileOrFiles ? [fileOrFiles] : [])
+    if (!files.length) return
     if (importingDocument) return
 
+    // A name-only stand-in for summary/diff display when several pictures are
+    // imported at once (the real Files are passed to the importer below).
+    const file = files.length > 1
+      ? { name: `${files[0].name} (+${files.length - 1} more)` }
+      : files[0]
+
     setImportingDocument(true)
+    setImportProgress(null)
     try {
-      const imported = await importQuizDocument(file)
+      const imported = await importQuizDocument(files, {
+        ...importOptions,
+        onProgress: setImportProgress,
+      })
 
       const hasExistingWork = !hasOnlyEmptyStarterSection(sections)
       const incomingSections = imported.sections?.length
@@ -1138,6 +1376,7 @@ export default function EditQuizV2() {
       show(`Import failed: ${getErrorMessage(error, 'Could not read this document.')}`, true)
     } finally {
       setImportingDocument(false)
+      setImportProgress(null)
     }
   }
 
@@ -1261,10 +1500,20 @@ export default function EditQuizV2() {
     setAutoSaveState(AUTO_SAVE.SAVING)
     try {
       const serializedSections = await serializeWithImportedAssetUploads()
+      // Defense in depth: the quiz schema requires title.min(1). An imported
+      // doc whose detected title cleaned down to whitespace would otherwise
+      // throw "Invalid quiz update at title" and silently fail every autosave.
+      // Coerce an empty/whitespace title to a safe default derived from the
+      // source filename so autosave can never fail on title. (We intentionally
+      // do NOT relax the schema's min(1).)
+      const safeTitle = String(form.title || '').trim()
+        || String(form.sourceFileName || '').replace(/\.(docx?|pdf)$/i, '').trim()
+        || 'Untitled quiz'
       const idMap = await updateQuizWithQuestions(
         quizId,
         {
           ...form,
+          title: safeTitle,
           passages: serializedSections.passages,
           parts: serializedSections.parts,
           passageCount: serializedSections.passages.length,
@@ -1570,20 +1819,29 @@ export default function EditQuizV2() {
       />
 
       <div className="surface space-y-4 p-5">
-        <h2 className="text-display-md theme-text flex items-center gap-2" style={{ fontSize: 17 }}>
-          <span aria-hidden="true">📋</span> Quiz details
-        </h2>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 className="text-display-md theme-text flex items-center gap-2" style={{ fontSize: 17 }}>
+            <span aria-hidden="true">📋</span> Quiz details
+          </h2>
+          {canEdit && (
+            <button
+              type="button"
+              onClick={handleClearForm}
+              disabled={saving}
+              className="rounded-full border border-red-200 px-3 py-1.5 text-xs font-black text-red-600 hover:bg-red-50 disabled:opacity-40 disabled:pointer-events-none min-h-0"
+              title="Reset the title, details, and remove every question"
+            >
+              <span aria-hidden="true">🗑️</span> Clear quiz
+            </button>
+          )}
+        </div>
         <div className="space-y-3">
           <input value={form.title} onChange={event => setF('title', event.target.value)} placeholder="Quiz title (e.g. Grade 6 Science - Human Body)" className={FIELD} />
           <input value={form.topic || ''} onChange={event => setF('topic', event.target.value)} placeholder="Topic (optional, e.g. Photosynthesis)" className={FIELD} />
-          <div className="grid gap-3 sm:grid-cols-4">
+          <div className="grid gap-3 sm:grid-cols-3">
             <select value={form.grade} onChange={event => setF('grade', event.target.value)} className={SELECT}>{gradeOptions.map(grade => <option key={grade} value={grade}>Grade {grade}</option>)}</select>
             <select value={form.subject} onChange={event => setF('subject', event.target.value)} className={SELECT}>{subjectOptions.map(subject => <option key={subject} value={subject}>{subject}</option>)}</select>
-            <select value={form.term} onChange={event => setF('term', event.target.value)} className={SELECT}>{termOptions.map(term => <option key={term} value={term}>Term {term}</option>)}</select>
-            <div className="theme-border flex items-center gap-2 rounded-xl border-2 px-3 py-2.5">
-              <span className="theme-text-muted whitespace-nowrap text-xs font-bold">⏱️ Mins</span>
-              <input type="number" min={5} max={180} value={form.duration} onChange={event => setF('duration', clampInt(event.target.value, 5, 180, 30))} className="flex-1 bg-transparent text-base sm:text-sm font-black outline-none" />
-            </div>
+            <select value={Number(form.duration) || 30} onChange={event => setF('duration', clampInt(event.target.value, 5, 180, 30))} className={SELECT} aria-label="Quiz duration in minutes">{durationOptions.map(mins => <option key={mins} value={mins}>⏱️ {mins} minutes</option>)}</select>
           </div>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1602,6 +1860,13 @@ export default function EditQuizV2() {
               <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${form.isDemo ? 'left-5' : 'left-0.5'}`} />
             </button>
             {form.isDemo && <span className="theme-accent-bg theme-accent-text rounded-full px-2 py-0.5 text-xs font-black">Demo</span>}
+          </label>
+          <label className="flex cursor-pointer select-none items-center gap-2" title="Randomise question order for each learner at attempt time (Parts and passages stay grouped)">
+            <span className="theme-text-muted text-xs font-black">Shuffle questions</span>
+            <button type="button" onClick={() => setF('shuffleQuestions', !form.shuffleQuestions)} className={`relative h-5 w-10 min-h-0 rounded-full p-0 shadow-none transition-colors ${form.shuffleQuestions ? 'theme-accent-fill' : 'theme-border theme-bg-subtle border'}`}>
+              <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${form.shuffleQuestions ? 'left-5' : 'left-0.5'}`} />
+            </button>
+            {form.shuffleQuestions && <span className="theme-accent-bg theme-accent-text rounded-full px-2 py-0.5 text-xs font-black">On</span>}
           </label>
         </div>
       </div>
@@ -1644,6 +1909,7 @@ export default function EditQuizV2() {
             <div className="border-t theme-border p-4">
               <ImportQuizPanel
                 importing={importingDocument}
+                importProgress={importProgress}
                 importSummary={importSummary}
                 onImport={handleImportDocument}
                 title={form.linkedPaperId ? 'Import past paper document' : 'Import Quiz (Word/PDF)'}
@@ -1653,10 +1919,45 @@ export default function EditQuizV2() {
               />
             </div>
           </details>
+          {/* Bulk answer-key entry (collapsible). Especially useful after a
+              scanned import, where every answer lands blank. */}
+          <details className="theme-card theme-border overflow-hidden rounded-2xl border">
+            <summary className="flex cursor-pointer items-center justify-between gap-3 p-4">
+              <span className="theme-text font-black">🔑 Answer key</span>
+              <span className="theme-text-muted text-xs font-bold">Set every answer fast</span>
+            </summary>
+            <div className="border-t theme-border p-4">
+              <BulkAnswerKey
+                questions={answerableQuestions}
+                onSetOne={handleSetOneAnswer}
+                onApplyMany={applyAnswerKeyMap}
+                onSuggest={handleSuggestAnswers}
+                suggesting={suggestingAnswers}
+              />
+            </div>
+          </details>
+          {/* Review panel (collapsible). Jump straight to questions that still
+              need an answer, a flagged-extraction check, or alt text. */}
+          <details className="theme-card theme-border overflow-hidden rounded-2xl border" open={reviewData.items.length > 0}>
+            <summary className="flex cursor-pointer items-center justify-between gap-3 p-4">
+              <span className="theme-text font-black">🔎 Needs review</span>
+              <span className="theme-text-muted text-xs font-bold">
+                {reviewData.items.length ? `${reviewData.items.length} to check` : 'All clear'}
+              </span>
+            </summary>
+            <div className="border-t theme-border p-4">
+              <ReviewPanel
+                items={reviewData.items}
+                total={reviewData.total}
+                onJump={scrollToQuestion}
+              />
+            </div>
+          </details>
           <QuizSectionsEditor
             variant="edit"
             sections={sections}
             parts={parts}
+            quizContext={quizContext}
             questionNumbers={questionNumbers}
             issueCountsByLocalId={issueCountsByLocalId}
             totalQuestions={questionCount}
@@ -1665,6 +1966,7 @@ export default function EditQuizV2() {
             onStandaloneMove={moveSection}
             onStandaloneImageUpload={uploadStandaloneQuestionImage}
             onStandaloneImageRemove={removeStandaloneQuestionImage}
+            onStandaloneImageCrop={requestStandaloneImageCrop}
             onStandaloneOptionImageUpload={uploadStandaloneOptionImage}
             onStandaloneOptionImageRemove={removeStandaloneOptionImage}
             onPassageChange={updatePassage}
@@ -1673,6 +1975,7 @@ export default function EditQuizV2() {
             onPassageMove={moveSection}
             onPassageImageUpload={uploadPassageImage}
             onPassageImageRemove={removePassageImage}
+            onPassageImageCrop={requestPassageImageCrop}
             onPassageQuestionChange={updatePassageQuestion}
             onPassageQuestionRemove={removePassageQuestion}
             onPassageQuestionMove={movePassageQuestion}
@@ -1688,6 +1991,8 @@ export default function EditQuizV2() {
             onPartRemove={removePart}
             onAssignSectionToPart={assignSectionToPart}
             onShuffleSections={handleShuffleSections}
+            onAutoGroupComprehension={handleAutoGroupComprehension}
+            onMoveQuestionToPassage={handleMoveQuestionToPassage}
           />
           {deletedIds.length > 0 && (
             <div className="flex items-center gap-2 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -1794,6 +2099,14 @@ export default function EditQuizV2() {
         </div>
       </div>
 
+      {cropTarget && (
+        <ImageCropModal
+          imageUrl={cropTarget.imageUrl}
+          onCropped={handleCroppedImage}
+          onCancel={() => setCropTarget(null)}
+        />
+      )}
+
       <QuizVerifyModal
         open={verifyOpen}
         quizId={quizId}
@@ -1873,6 +2186,23 @@ export default function EditQuizV2() {
           setPendingImport(null)
           setPendingDiff(null)
         }}
+      />
+
+      <ConfirmDialog
+        open={pendingClearQuiz}
+        title="Clear the whole quiz?"
+        message={
+          <ul className="list-disc pl-4 space-y-1">
+            <li>The title, topic, and details reset to defaults.</li>
+            <li>Every question is removed.</li>
+            <li>Saved questions are deleted on the next save and this can't be undone.</li>
+            <li>Navigate away without saving to discard the clear instead.</li>
+          </ul>
+        }
+        confirmLabel="Clear quiz"
+        variant="danger"
+        onConfirm={performClearForm}
+        onCancel={() => setPendingClearQuiz(false)}
       />
     </div>
   )

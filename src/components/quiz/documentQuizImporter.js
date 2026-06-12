@@ -6,8 +6,19 @@ import {
   processImportedQuestionBlocks,
 } from './documentQuizParserCore.js'
 import { buildDocxTableBlocks } from './documentQuizTableBlocks.js'
+import { reconcileSmartSectionOrder, shouldRunSmartImport } from './documentQuizReconcile.js'
+import { regroupComprehensionSections } from '../../utils/comprehensionGrouping.js'
 import { consolidateOptionImageRuns } from './documentQuizParagraphRuns.js'
-import { structureImportedQuiz } from '../../utils/aiAssistant'
+import { importMarkupToRichHtml, importMarkupToOptionHtml } from './importRichText.js'
+import { structureImportedQuiz, structureScannedQuiz } from '../../utils/aiAssistant'
+import {
+  isLikelyScannedPdf,
+  runScannedImport,
+  runImageImport,
+  isImageImportFile,
+  normalizeImportInput,
+  IMAGE_IMPORT_EXTENSIONS,
+} from './scannedQuizImporter.js'
 
 let pdfjsLoader = null
 
@@ -25,9 +36,13 @@ export const QUIZ_DOCUMENT_ACCEPT = [
   '.doc',
   '.docx',
   '.pdf',
+  ...IMAGE_IMPORT_EXTENSIONS.map(ext => `.${ext}`),
   'application/pdf',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
 ].join(',')
 
 const IMAGE_MIME = {
@@ -299,7 +314,7 @@ function tableRows(table, relationships, zipEntries, warnings) {
     }))
 }
 
-async function extractDocx(file) {
+export async function extractDocx(file) {
   const warnings = []
   const buffer = await file.arrayBuffer()
   const zipEntries = unzipSync(new Uint8Array(buffer))
@@ -424,7 +439,7 @@ function textContentToLineRecords(textContent) {
     .filter(row => row.text)
 }
 
-async function renderPdfPageSnapshot(page, pageNumber, warnings) {
+export async function renderPdfPageSnapshot(page, pageNumber, warnings) {
   try {
     const baseViewport = page.getViewport({ scale: 1 })
     const scale = Math.min(1.8, 1100 / baseViewport.width)
@@ -683,13 +698,41 @@ function pickFigureForLineY(figures, lineY, consumed) {
   return best
 }
 
-async function extractPdf(file) {
-  const warnings = [
-    'PDF import extracts text and attaches per-figure crops (or full-page snapshots when figures cannot be isolated) to diagram-style questions. Review cropping before publishing.',
-  ]
+// Load a PDF once and hand back both the document and the pdfjs module so
+// callers can reuse them (scanned-detection + extraction) without decoding
+// the file twice.
+export async function loadPdfDocument(file) {
   const buffer = await file.arrayBuffer()
   const pdfjsLib = await loadPdfjs()
   const pdf = await pdfjsLib.getDocument({ data: buffer }).promise
+  return { pdf, pdfjsLib }
+}
+
+// Cheap scanned-vs-native check: sum the extractable text on the first few
+// pages. A scanned (image-only) paper yields ~0 characters even on text-heavy
+// pages, so a tiny sample is enough and avoids reading every page twice.
+async function detectScannedPdf(pdf) {
+  const sampledPages = Math.min(pdf.numPages, 4)
+  let sampledChars = 0
+  for (let i = 1; i <= sampledPages; i += 1) {
+    try {
+      const page = await pdf.getPage(i)
+      const textContent = await page.getTextContent()
+      sampledChars += (textContent.items || [])
+        .reduce((sum, item) => sum + String(item.str || '').trim().length, 0)
+    } catch {
+      // Unreadable page text only pushes us towards the scanned path.
+    }
+  }
+  return { sampledPages, sampledChars, scanned: isLikelyScannedPdf({ sampledChars, sampledPages }) }
+}
+
+export async function extractPdf(file, preloaded = null) {
+  const warnings = [
+    'PDF import extracts text and attaches per-figure crops (or full-page snapshots when figures cannot be isolated) to diagram-style questions. Review cropping before publishing.',
+  ]
+  const { pdf } = preloaded || await loadPdfDocument(file)
+  const pdfjsLib = preloaded?.pdfjsLib || await loadPdfjs()
   const blocks = []
   const imageAssets = []
   const maxSnapshotPages = 25
@@ -810,13 +853,18 @@ function correctAnswerToIndex(value, options) {
 }
 
 function aiQuestionToLocalOverrides(q) {
-  const options = Array.isArray(q.options) ? q.options : []
-  const type = ['mcq', 'truefalse', 'short_answer', 'diagram'].includes(q.type) ? q.type : (options.length >= 2 ? 'mcq' : 'short_answer')
+  const rawOptions = Array.isArray(q.options) && q.options.length ? q.options : ['', '', '', '']
+  const type = ['mcq', 'truefalse', 'short_answer', 'diagram'].includes(q.type) ? q.type : (rawOptions.length >= 2 ? 'mcq' : 'short_answer')
+  // Resolve the answer index against the ORIGINAL option text (before markup
+  // conversion) so a text-matched correctAnswer still lines up; only then
+  // convert the stored option strings into editor node-HTML (fractions,
+  // inline math). hasImportMarkup gates the converters, so plain options are
+  // passed through byte-for-byte.
   return {
-    text: q.text || '',
-    options: options.length ? options : ['', '', '', ''],
-    correctAnswer: type === 'mcq' ? correctAnswerToIndex(q.correctAnswer, options) : (q.correctAnswer ?? ''),
-    explanation: q.explanation || '',
+    text: importMarkupToRichHtml(q.text || ''),
+    options: rawOptions.map(opt => importMarkupToOptionHtml(opt)),
+    correctAnswer: type === 'mcq' ? correctAnswerToIndex(q.correctAnswer, rawOptions) : (q.correctAnswer ?? ''),
+    explanation: importMarkupToRichHtml(q.explanation || ''),
     type,
     detectedType: type,
   }
@@ -830,8 +878,8 @@ function smartSectionsToLocal(aiSections) {
         if (!questions.length) return null
         return createPassageSection({
           title: section.title || '',
-          instructions: section.instructions || '',
-          passageText: section.passageText || '',
+          instructions: importMarkupToRichHtml(section.instructions || ''),
+          passageText: importMarkupToRichHtml(section.passageText || ''),
           questions,
         })
       }
@@ -840,6 +888,19 @@ function smartSectionsToLocal(aiSections) {
       return createStandaloneSection(aiQuestionToLocalOverrides(q))
     })
     .filter(Boolean)
+}
+
+// Count the questions a section list represents — passage sections own a
+// list of sub-questions, standalone sections own exactly one. Used to compare
+// the AI smart-import result against the deterministic parser so the AI can
+// never silently drop questions (see the reconciliation in importQuizDocument).
+function countSectionQuestions(sections = []) {
+  return sections.reduce((total, section) => {
+    if (section?.kind === 'passage') {
+      return total + (section.passage?.questions?.length || 0)
+    }
+    return total + 1
+  }, 0)
 }
 
 function rawTextFromExtracted(extracted) {
@@ -851,9 +912,13 @@ function rawTextFromExtracted(extracted) {
 }
 
 // Smart import — Gemini + Claude pipeline behind the structureImportedQuiz
-// callable. Only run for Word documents: PDF text extraction is too noisy
-// for the AI to add value (page numbers, broken layouts, OCR drift) and
-// inflates LLM cost on inputs unlikely to improve.
+// callable. Runs for both Word and PDF documents. PDF text is noisier (page
+// numbers, broken layouts, OCR drift), but the smart-import prompts now
+// normalise that noise AND emit fraction / vertical-arithmetic / inline-math /
+// table markup that importRichText converts into real editor nodes — exactly
+// the structure the deterministic parser flattens to plain text. The callable
+// is daily-limited server-side, and any failure falls back to the local
+// parser, so the worst case is "no worse than before".
 async function trySmartImport(extracted, file) {
   const documentText = rawTextFromExtracted(extracted)
   if (documentText.length < 120) return null
@@ -881,9 +946,126 @@ async function trySmartImport(extracted, file) {
   }
 }
 
-export async function importQuizDocument(file) {
-  if (!file) throw new Error('Choose a Word or PDF file first.')
+// Scanned (image-only) PDF import. Bypasses the text parser entirely and runs
+// the dual-model vision OCR pipeline over rendered page images. Returns the
+// same output shape as importQuizDocument so the editor handles it identically.
+async function importScannedPdfQuiz({ pdf, file, importOptions }) {
+  const metadata = buildImportMetadata('', file.name)
+  const onProgress = typeof importOptions.onProgress === 'function' ? importOptions.onProgress : null
 
+  const result = await runScannedImport({
+    pdf,
+    file,
+    subjectHint: metadata.subject || '',
+    gradeHint: metadata.grade || '',
+    callVision: structureScannedQuiz,
+    onProgress,
+  })
+
+  const warnings = result.warnings || []
+  const importStatus = 'needs_review'
+
+  return {
+    quiz: {
+      ...metadata,
+      mode: 'imported_document',
+      importStatus,
+      sourceFileName: file.name,
+      sourceContentType: 'application/pdf',
+      importWarnings: warnings,
+    },
+    sections: result.sections,
+    parts: [],
+    questions: [],
+    documentInstruction: '',
+    imageAssets: result.imageAssets,
+    importStatus,
+    warnings,
+    smartApplied: true,
+    scanned: true,
+    summary: result.summary,
+  }
+}
+
+// Picture import. A teacher photographs or screenshots a paper; each image is
+// treated as one page and fed through the same dual-model vision OCR pipeline as
+// scanned PDFs. Several images can be imported at once (one per page). Returns
+// the same output shape as importQuizDocument so the editor handles it the same.
+async function importImageQuiz({ files, importOptions }) {
+  const list = normalizeImportInput(files)
+  const primary = list[0]
+  const metadata = buildImportMetadata('', primary.name)
+  const onProgress = typeof importOptions.onProgress === 'function' ? importOptions.onProgress : null
+
+  const result = await runImageImport({
+    files: list,
+    subjectHint: metadata.subject || '',
+    gradeHint: metadata.grade || '',
+    callVision: structureScannedQuiz,
+    onProgress,
+  })
+
+  const warnings = result.warnings || []
+  const importStatus = 'needs_review'
+  const contentType = primary.type
+    || IMAGE_MIME[extensionFromPath(primary.name)]
+    || 'image/jpeg'
+
+  return {
+    quiz: {
+      ...metadata,
+      mode: 'imported_document',
+      importStatus,
+      sourceFileName: list.length > 1 ? `${primary.name} (+${list.length - 1} more)` : primary.name,
+      sourceContentType: contentType,
+      importWarnings: warnings,
+    },
+    sections: result.sections,
+    parts: [],
+    questions: [],
+    documentInstruction: '',
+    imageAssets: result.imageAssets,
+    importStatus,
+    warnings,
+    smartApplied: true,
+    scanned: true,
+    summary: result.summary,
+  }
+}
+
+// Import options surfaced in the UI (ImportQuizPanel), both default ON:
+//   preserveNumbering  — keep each question's original number from the doc.
+//   groupComprehension — attach comprehension questions to their passage.
+//   onProgress         — optional ({ phase, current, total }) callback used by
+//                        the scanned-PDF path to drive the import progress UI.
+// Defaults reproduce the correct G7 English behaviour.
+export const DEFAULT_IMPORT_OPTIONS = {
+  preserveNumbering: true,
+  groupComprehension: true,
+}
+
+export async function importQuizDocument(input, options = {}) {
+  // Accept a single File (Word/PDF/image) or several image Files at once.
+  const files = normalizeImportInput(input)
+  if (!files.length) throw new Error('Choose a Word, PDF, or image file first.')
+
+  const importOptions = { ...DEFAULT_IMPORT_OPTIONS, ...options }
+
+  // Picture import: any selected image routes to the vision OCR pipeline. We
+  // don't mix pictures and documents in one import — the parsers are different.
+  if (files.some(isImageImportFile)) {
+    const images = files.filter(isImageImportFile)
+    if (images.length !== files.length) {
+      throw new Error('Import pictures on their own, or a single Word/PDF document — not both at once.')
+    }
+    return await importImageQuiz({ files: images, importOptions })
+  }
+
+  if (files.length > 1) {
+    throw new Error('Import one Word or PDF document at a time.')
+  }
+
+  const file = files[0]
   const lowerName = file.name.toLowerCase()
   let extracted
   let isWord = false
@@ -895,12 +1077,20 @@ export async function importQuizDocument(file) {
     extracted = await extractLegacyDoc(file)
     isWord = true
   } else if (lowerName.endsWith('.pdf') || file.type === 'application/pdf') {
-    extracted = await extractPdf(file)
+    // Decode the PDF once, then branch: image-only (scanned) papers go through
+    // the vision OCR pipeline; PDFs with a real text layer use the existing
+    // text + figure extractor.
+    const preloaded = await loadPdfDocument(file)
+    const { scanned } = await detectScannedPdf(preloaded.pdf)
+    if (scanned) {
+      return await importScannedPdfQuiz({ pdf: preloaded.pdf, file, importOptions })
+    }
+    extracted = await extractPdf(file, preloaded)
   } else {
-    throw new Error('Please upload a .doc, .docx, or .pdf file.')
+    throw new Error('Please upload a .doc, .docx, .pdf, or image (JPG/PNG/WEBP) file.')
   }
 
-  const local = processImportedQuestionBlocks(extracted.blocks, extracted.warnings)
+  const local = processImportedQuestionBlocks(extracted.blocks, extracted.warnings, importOptions)
   const metadata = buildImportMetadata(
     local.processedBlocks.map(block => block.text).join('\n'),
     file.name,
@@ -913,17 +1103,67 @@ export async function importQuizDocument(file) {
   let smartApplied = false
   const warnings = [...extracted.warnings]
 
-  if (isWord) {
+  // Smart import now runs for PDFs too (not just Word). It is the only path
+  // that recovers fractions, vertical arithmetic, and tables as editor nodes
+  // instead of flat text — which is precisely what past-paper PDFs need.
+  //
+  // But it must NOT touch a clean, complete deterministic parse of a plain
+  // prose paper. The LLM re-read does not reliably preserve question order and
+  // can merge or drop a long option — which is exactly the "English paper
+  // imports jumbled, a choice is missing" failure. shouldRunSmartImport keeps
+  // the deterministic result unless the parse needs help OR the document
+  // carries the rich structure smart import exists to recover.
+  const rawDocumentText = rawTextFromExtracted(extracted)
+  if ((isWord || extracted.blocks?.length) && shouldRunSmartImport(local, rawDocumentText)) {
     const smart = await trySmartImport(extracted, file)
     if (smart?.sections) {
-      sections = smart.sections
-      parts = []
-      questions = []
-      summary = { ...local.summary, needsReview: 0, total: smart.sections.length, smartImportSections: smart.sections.length }
-      smartApplied = true
-      if (Array.isArray(smart.warnings)) warnings.push(...smart.warnings)
+      // Reconcile against the deterministic parser before accepting the AI
+      // result. The smart import's value is recovering rich structure
+      // (fractions, vertical arithmetic, tables) — NOT reducing the question
+      // count. A non-deterministic LLM that returns fewer questions than the
+      // parser found has dropped or merged questions, which is exactly the
+      // "questions missing / sitting in the wrong place" failure teachers hit.
+      // In that case we keep the parser's output, which preserves every
+      // numbered question in document order, and surface a warning.
+      const localCount = local.summary?.questions || 0
+      const smartCount = countSectionQuestions(smart.sections)
+      if (smartCount > 0 && smartCount >= localCount) {
+        // Re-anchor the AI's sections to the deterministic parser's document
+        // order and carry the parser's part structure onto them. The smart
+        // import's value is recovering rich structure (fractions, vertical
+        // arithmetic, tables) — NOT deciding question order, which an LLM does
+        // NOT preserve reliably. reconcileSmartSectionOrder matches each smart
+        // section to the parser section it represents *by content* and orders
+        // the result by the parser's document position, so a shuffled, grouped,
+        // or split AI response can no longer jumble the questions.
+        const reconciled = reconcileSmartSectionOrder(local, smart.sections)
+        sections = reconciled.sections
+        parts = reconciled.parts
+        questions = []
+        summary = { ...local.summary, needsReview: 0, total: smart.sections.length, smartImportSections: smart.sections.length }
+        smartApplied = true
+        if (Array.isArray(smart.warnings)) warnings.push(...smart.warnings)
+      } else {
+        warnings.push(
+          `Smart import returned ${smartCount} question${smartCount === 1 ? '' : 's'} but the document parser found ${localCount}; kept the parsed version so no questions were dropped. Please review.`,
+        )
+      }
     } else if (smart?.error) {
       warnings.push(`Smart import unavailable, used standard parser. (${smart.error})`)
+    }
+  }
+
+  // Safety net for the smart-import path: the deterministic parser already
+  // regroups comprehension questions, but reconcileSmartSectionOrder takes its
+  // passage questions from the (LLM) smart sections, which can re-pile every
+  // question onto the last passage. Re-run the keyword regroup on the final
+  // sections — it only acts on degenerate runs (a passage left empty while a
+  // sibling has questions), so correctly-grouped imports pass through unchanged.
+  {
+    const regrouped = regroupComprehensionSections(sections)
+    if (regrouped.changed) {
+      sections = regrouped.sections
+      warnings.push('Comprehension questions were re-grouped by passage — please confirm each text has the right questions.')
     }
   }
 

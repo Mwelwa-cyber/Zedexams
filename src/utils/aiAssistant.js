@@ -9,6 +9,11 @@ const explainAnswerCallable = httpsCallable(functions, 'explainAnswer')
 const generateQuizCallable = httpsCallable(functions, 'generateQuizQuestions')
 const structureImportedQuizCallable = httpsCallable(functions, 'structureImportedQuiz')
 const generateStudyPlanCallable = httpsCallable(functions, 'generateStudyPlan')
+const structureScannedQuizCallable = httpsCallable(functions, 'structureScannedQuiz')
+const structureImportedNoteCallable = httpsCallable(functions, 'structureImportedNote')
+const ocrNotePagesCallable = httpsCallable(functions, 'ocrNotePages')
+const suggestQuizAnswersCallable = httpsCallable(functions, 'suggestQuizAnswers')
+const editQuizQuestionCallable = httpsCallable(functions, 'editQuizQuestion')
 // Client timeouts are intentionally a bit longer than the matching Cloud
 // Function timeoutSeconds — so the server's own error surfaces rather than
 // the client giving up first. Claude Sonnet can easily take 15–25s on a
@@ -18,6 +23,9 @@ const AI_EXPLAIN_TIMEOUT_MS = 35000    // server: 30s
 const AI_QUIZ_TIMEOUT_MS = 50000       // server: 45s
 const AI_IMPORT_TIMEOUT_MS = 95000     // server: 90s (Gemini → Claude pipeline)
 const AI_STUDY_PLAN_TIMEOUT_MS = 50000 // server: 45s
+const AI_SCANNED_IMPORT_TIMEOUT_MS = 245000 // server: 240s (vision OCR over a page batch)
+const AI_SUGGEST_ANSWERS_TIMEOUT_MS = 125000 // server: 120s (batch of MCQs in one call)
+const AI_EDIT_TIMEOUT_MS = 50000       // server: 45s (single-question edit)
 
 function messageFromError(error) {
   const code = error?.code || ''
@@ -51,7 +59,9 @@ function withTimeout(promise, timeoutMs, message) {
 }
 
 function clampQuestionCount(value) {
-  return Math.min(Math.max(Number(value) || 5, 1), 10)
+  // Server-side cap is 25 (generateQuiz.js clamps 3-25); match it here so
+  // the studio's count dropdown isn't silently truncated to 10.
+  return Math.min(Math.max(Number(value) || 5, 1), 25)
 }
 
 function rotateQuestionOptions(options, correctAnswer, offset) {
@@ -166,8 +176,43 @@ function makeLocalQuizQuestions(payload) {
     },
   ]
 
+  // The fast local draft honours the requested question type so a network
+  // hiccup never silently swaps short-answer/true-false requests for MCQs.
+  const requestedType = String(payload.type || 'mcq').toLowerCase()
+
   return Array.from({ length: count }, (_, index) => {
     const template = templates[index % templates.length]
+    const effectiveType = requestedType === 'mixed'
+      ? ['mcq', 'true_false', 'short_answer'][index % 3]
+      : requestedType
+
+    if (effectiveType === 'short_answer') {
+      return {
+        text: `${template.text} Write your answer in one word or phrase.`,
+        options: [],
+        correctAnswer: template.correct,
+        explanation: `${template.explanation} Review this quick draft before publishing.`,
+        topic,
+        marks: 1,
+        type: 'short_answer',
+        generatedBy: 'fast_draft',
+      }
+    }
+    if (effectiveType === 'true_false') {
+      const statementIsTrue = index % 2 === 0
+      return {
+        text: statementIsTrue
+          ? `True or false: ${template.correct}`
+          : `True or false: ${template.distractors[0]}`,
+        options: ['True', 'False'],
+        correctAnswer: statementIsTrue ? 0 : 1,
+        explanation: `${template.explanation} Review this quick draft before publishing.`,
+        topic,
+        marks: 1,
+        type: 'mcq',
+        generatedBy: 'fast_draft',
+      }
+    }
     const { options, correctAnswer } = rotateQuestionOptions(
       [template.correct, ...template.distractors],
       0,
@@ -399,6 +444,28 @@ export async function generateAIQuizQuestions(payload) {
   }
 }
 
+// Per-question AI edit. `payload` = { action, question, options, correctAnswer,
+// subject, grade, topic }. Returns { action, patch } where patch only contains
+// the fields the model changed (text / options / correctAnswer / explanation /
+// note). Maths in the patch comes back as import markup — the caller runs it
+// through importRichText before applying so fractions/sums/tables render.
+export async function aiEditQuizQuestion(payload) {
+  try {
+    const response = await withTimeout(
+      editQuizQuestionCallable(payload),
+      AI_EDIT_TIMEOUT_MS,
+      'The AI editor is taking too long. Please try again.',
+    )
+    const data = response.data || {}
+    return {
+      action: data.action || payload.action,
+      patch: data.patch && typeof data.patch === 'object' ? data.patch : {},
+    }
+  } catch (error) {
+    throw new Error(messageFromError(error))
+  }
+}
+
 export async function structureImportedQuiz(payload) {
   try {
     const response = await withTimeout(
@@ -426,6 +493,86 @@ export async function generateAIStudyPlan(payload = {}) {
       plan: response.data?.plan || null,
       warning: response.data?.warning || '',
     }
+  } catch (error) {
+    throw new Error(messageFromError(error))
+  }
+}
+
+// Bulk "suggest answers" for the editor's answer-key tools. `payload.questions`
+// is [{ id, text, options }]; returns { answers: { id: index }, count, asked }.
+// The answers are AI suggestions the admin still verifies.
+export async function suggestQuizAnswers(payload) {
+  try {
+    const response = await withTimeout(
+      suggestQuizAnswersCallable(payload),
+      AI_SUGGEST_ANSWERS_TIMEOUT_MS,
+      'Suggesting answers is taking too long. Please try again.',
+    )
+    const data = response.data || {}
+    return {
+      answers: data.answers && typeof data.answers === 'object' ? data.answers : {},
+      count: Number(data.count) || 0,
+      asked: Number(data.asked) || 0,
+    }
+  } catch (error) {
+    throw new Error(messageFromError(error))
+  }
+}
+
+// Scanned past-paper OCR import. `payload.pages` is one batch of rendered PDF
+// page images ({ pageNumber, dataUrl }); the caller paginates a long paper and
+// calls this once per batch. Returns blank-answer MCQs flagged for review.
+export async function structureScannedQuiz(payload) {
+  try {
+    const response = await withTimeout(
+      structureScannedQuizCallable(payload),
+      AI_SCANNED_IMPORT_TIMEOUT_MS,
+      'Reading the scanned pages is taking too long. Please try a smaller file or try again.',
+    )
+    const data = response.data || {}
+    return {
+      sections: Array.isArray(data.sections) ? data.sections : [],
+      warnings: Array.isArray(data.warnings) ? data.warnings : [],
+      detectedCount: Number(data.detectedCount) || 0,
+      extractedCount: Number(data.extractedCount) || 0,
+    }
+  } catch (error) {
+    throw new Error(messageFromError(error))
+  }
+}
+
+// Note document import — text-based (pasted text, DOCX, text-PDF). `payload`
+// contains { documentText, fileName }. Returns { blocks, warnings } where
+// blocks is the AI-structured study note content (validated by the caller via
+// coerceStudyBlocks) and warnings is a human-readable list of caveats.
+export async function structureImportedNote(payload) {
+  try {
+    const response = await withTimeout(
+      structureImportedNoteCallable(payload),
+      AI_IMPORT_TIMEOUT_MS,
+      'Note import is taking too long. Please try again.',
+    )
+    return {
+      blocks: Array.isArray(response.data?.blocks) ? response.data.blocks : [],
+      warnings: Array.isArray(response.data?.warnings) ? response.data.warnings : [],
+    }
+  } catch (error) {
+    throw new Error(messageFromError(error))
+  }
+}
+
+// Note OCR — one batch of scanned PDF page snapshots ({ pageNumber, dataUrl }).
+// The caller batches a long document and calls this once per batch, then
+// concatenates the returned text before passing it to structureImportedNote.
+// Returns { text } — the raw OCR transcript for this batch.
+export async function ocrNotePages(payload) {
+  try {
+    const response = await withTimeout(
+      ocrNotePagesCallable(payload),
+      AI_SCANNED_IMPORT_TIMEOUT_MS,
+      'OCR is taking too long. Please try a smaller file or try again.',
+    )
+    return { text: String(response.data?.text || '') }
   } catch (error) {
     throw new Error(messageFromError(error))
   }

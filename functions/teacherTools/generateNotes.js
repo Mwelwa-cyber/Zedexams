@@ -32,7 +32,7 @@ const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
 const {assertAndIncrement} = require("./usageMeter");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
 
-const NOTES_MODEL = process.env.NOTES_MODEL || "claude-sonnet-4-5";
+const NOTES_MODEL = process.env.NOTES_MODEL || "claude-sonnet-4-6";
 const LE_VALUES = new Set(LEARNING_ENVIRONMENT_VALUES);
 
 // Permissive top-level shape — validateNotes() does the strict checking.

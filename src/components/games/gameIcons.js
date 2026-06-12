@@ -1,6 +1,9 @@
 import {
+  BanknotesIcon,
   CalculatorIcon,
   BookOpenIcon,
+  InboxStackIcon,
+  QueueListIcon,
   BeakerIcon,
   GlobeAltIcon,
   PuzzlePieceIcon,
@@ -138,6 +141,10 @@ const GAME_TYPE_META = {
   reading:      { icon: BookOpenIcon,     label: 'Reading' },
   true_false:   { icon: CheckBadgeIcon,   label: 'True/False' },
   map:          { icon: MapIcon,          label: 'Map Explorer' },
+  number_target: { icon: CalculatorIcon,  label: 'Number Target' },
+  sorting_factory: { icon: InboxStackIcon, label: 'Sorting' },
+  sentence_scramble: { icon: QueueListIcon, label: 'Scramble' },
+  market_challenge: { icon: BanknotesIcon,  label: 'Market' },
 }
 
 export function gameTypeMeta(type) {

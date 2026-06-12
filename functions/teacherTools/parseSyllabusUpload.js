@@ -99,9 +99,12 @@ const SUBJECT_NORMALISE = {
 exports.parseSyllabusUpload = onObjectFinalized(
   {
     // Storage triggers MUST live in the same region as the bucket they
-    // watch. The project's default bucket is in africa-south1 (matches
-    // the country we serve); the other Cloud Functions are us-central1
-    // because they're HTTP/callable and have no colocation requirement.
+    // watch. The project's default bucket — and the (default) Firestore
+    // database — are in africa-south1 (matches the country we serve), so
+    // every event-driven trigger (this one, plus the agentJobs + storage
+    // cleanup Firestore triggers) is collocated there to avoid a
+    // cross-region Eventarc hop. HTTP/callable functions stay in
+    // us-central1: they have no regional trigger to collocate with.
     region: "africa-south1",
     memory: "1GiB",
     timeoutSeconds: 540,

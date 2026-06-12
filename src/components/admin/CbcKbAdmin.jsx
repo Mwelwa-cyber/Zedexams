@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import SeoHelmet from '../seo/SeoHelmet'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import SyllabusPdfUploadPanel from './SyllabusPdfUploadPanel'
 import BulkGenerateButton from './BulkGenerateButton'
 import BulkPublishQuizzesButton from './BulkPublishQuizzesButton'
@@ -7,7 +8,14 @@ import {
   getActiveKbVersion, KB_VERSION,
   listCbcTopics, saveCbcTopic, deleteCbcTopic,
   subtopicName,
+  ASSESSMENT_FORMAT_TYPES, ASSESSMENT_FORMAT_BANDS,
+  listAssessmentFormats, saveAssessmentFormat, deleteAssessmentFormat,
+  importBuiltInAssessmentFormats,
+  uploadAssessmentFormatSample, extractAssessmentFormat,
+  listAssessmentFormatDrafts, deleteAssessmentFormatDraft,
+  approveAssessmentFormatDraft, listPastPapersForExtraction,
 } from '../../utils/adminCbcKbService'
+import { useAuth } from '../../contexts/AuthContext'
 import {
   getMergedSyllabi, saveSyllabusRow, removeSyllabusRow, restoreSyllabusRow,
   invalidateSyllabiCache,
@@ -19,6 +27,7 @@ import {
 import {
   TEACHER_GRADES, TEACHER_SUBJECTS,
 } from '../../utils/teacherTools'
+import { normalizeSubject } from '../../config/curriculum.js'
 
 // ── Visual constants (mirrors src/components/teacher/SyllabiLibrary.jsx) ──
 // Subject metadata — long syllabi names get a short label, icon and the
@@ -148,8 +157,13 @@ function countOverrides(rawData) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export default function CbcKbAdmin() {
+  const { currentUser } = useAuth()
   const [rawData, setRawData] = useState(null)
   const [customTopics, setCustomTopics] = useState([])
+  const [formatProfiles, setFormatProfiles] = useState([])
+  const [editingFormat, setEditingFormat] = useState(null) // profile, or 'new'
+  const [formatDrafts, setFormatDrafts] = useState([])
+  const [reviewingDraft, setReviewingDraft] = useState(null) // draft doc under review
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [activeVersion, setActiveVersion] = useState(null)
@@ -162,6 +176,10 @@ export default function CbcKbAdmin() {
   const [editing, setEditing] = useState(null) // { studioSubject, sheet, mode, original?, cells }
   const [editingCustom, setEditingCustom] = useState(null) // KB-shape topic, or 'new'
   const [toast, setToast] = useState('')
+  // Delete awaiting ConfirmDialog approval —
+  // { kind: 'row', payload } | { kind: 'custom', topic }.
+  const [pendingDelete, setPendingDelete] = useState(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
 
   const flashToast = useCallback((msg, ms = 5000) => {
     setToast(msg)
@@ -172,10 +190,14 @@ export default function CbcKbAdmin() {
     setLoading(true)
     setError('')
     try {
-      const [merged, firestoreTopics] = await Promise.all([
+      const [merged, firestoreTopics, formats, drafts] = await Promise.all([
         getMergedSyllabi({ forceOverrides: true }),
         listCbcTopics().catch(() => []),
+        listAssessmentFormats().catch(() => []),
+        listAssessmentFormatDrafts().catch(() => []),
       ])
+      setFormatProfiles(formats)
+      setFormatDrafts(drafts)
       setRawData(enrichSubjects(merged))
       // A Firestore topic is "custom" when it doesn't shadow an entry in
       // the syllabi-data layer. The merged-source rebuild already covers
@@ -291,14 +313,21 @@ export default function CbcKbAdmin() {
     return true
   }
 
-  async function onDeleteRow({ studioSubject, sheet, topic, subtopic }) {
-    if (!window.confirm(`Delete this row?\n\nTopic: ${topic || '—'}\nSub-topic: ${subtopic || '—'}\n\nIt will be hidden from teachers and the AI generators.`)) {
-      return
+  function onDeleteRow(payload) {
+    setPendingDelete({ kind: 'row', payload })
+  }
+
+  async function performDeleteRow(payload) {
+    setDeleteBusy(true)
+    try {
+      const res = await removeSyllabusRow(payload)
+      if (!res.ok) { flashToast(`Delete failed: ${res.error}`); return }
+      flashToast('Row deleted. Use "View overrides" to restore.')
+      await load()
+    } finally {
+      setDeleteBusy(false)
+      setPendingDelete(null)
     }
-    const res = await removeSyllabusRow({ studioSubject, sheet, topic, subtopic })
-    if (!res.ok) { flashToast(`Delete failed: ${res.error}`); return }
-    flashToast('Row deleted. Use "View overrides" to restore.')
-    await load()
   }
 
   async function onRestoreRow({ studioSubject, sheet, topic, subtopic }) {
@@ -323,16 +352,127 @@ export default function CbcKbAdmin() {
     }
   }
 
-  async function onDeleteCustomTopic(topic) {
-    if (!window.confirm(`Delete custom topic "${topic.topic}" (${topic.grade} ${topic.subject})?`)) {
-      return
-    }
-    const ok = await deleteCbcTopic(topic.id)
-    if (ok) {
-      flashToast('Topic deleted.')
+  function onDeleteCustomTopic(topic) {
+    setPendingDelete({ kind: 'custom', topic })
+  }
+
+  async function onSaveFormatProfile(payload) {
+    try {
+      await saveAssessmentFormat(payload)
+      flashToast(payload._editing ?
+        'Format profile updated. The assessment generator picks it up within ~60 seconds.' :
+        'Format profile added.')
+      setEditingFormat(null)
       await load()
-    } else {
-      flashToast('Delete failed — check console.')
+      return true
+    } catch (err) {
+      flashToast(`Save failed: ${err?.message || err}`)
+      return false
+    }
+  }
+
+  function onDeleteFormatProfile(profile) {
+    setPendingDelete({ kind: 'format', profile })
+  }
+
+  async function performDeleteFormatProfile(profile) {
+    setDeleteBusy(true)
+    try {
+      const ok = await deleteAssessmentFormat(profile.id)
+      if (ok) {
+        flashToast('Format profile deleted. The built-in seed for this combination (if any) applies again.')
+        await load()
+      } else {
+        flashToast('Delete failed — check console.')
+      }
+    } finally {
+      setDeleteBusy(false)
+      setPendingDelete(null)
+    }
+  }
+
+  async function onImportBuiltInFormats() {
+    const res = await importBuiltInAssessmentFormats()
+    if (!res.ok) { flashToast(`Import failed: ${res.error}`); return }
+    flashToast(`Imported ${res.written} built-in format profiles into ${res.kbVersion}.`)
+    await load()
+  }
+
+  // Extract a format-profile draft from a sample paper. `intake` is
+  // { file? , paperId?, assessmentType, gradeBand, subject }.
+  async function onExtractFormat(intake) {
+    try {
+      let storagePath = null
+      if (intake.file) {
+        flashToast('Uploading sample paper…', 0)
+        storagePath = await uploadAssessmentFormatSample(intake.file, currentUser?.uid)
+      }
+      flashToast('Reading the paper and distilling its format — this can take a minute…', 0)
+      const res = await extractAssessmentFormat({
+        storagePath,
+        paperId: intake.paperId || null,
+        assessmentType: intake.assessmentType,
+        gradeBand: intake.gradeBand,
+        subject: intake.subject,
+      })
+      if (!res.ok) { flashToast(`Extraction failed: ${res.error}`); return false }
+      flashToast(res.warning ?
+        `Draft created — ${res.warning}` :
+        'Draft created. Review it under "Pending review" below.', 10000)
+      await load()
+      return true
+    } catch (err) {
+      flashToast(`Extraction failed: ${err?.message || err}`)
+      return false
+    }
+  }
+
+  async function onApproveDraft(payload) {
+    try {
+      await approveAssessmentFormatDraft({
+        ...payload,
+        origin: reviewingDraft?.origin,
+        draftId: reviewingDraft?.draftId,
+      })
+      flashToast('Format profile approved and live. The generator picks it up within ~60 seconds.')
+      setReviewingDraft(null)
+      await load()
+      return true
+    } catch (err) {
+      flashToast(`Approve failed: ${err?.message || err}`)
+      return false
+    }
+  }
+
+  function onRejectDraft(draft) {
+    setPendingDelete({ kind: 'draft', draft })
+  }
+
+  async function performRejectDraft(draft) {
+    setDeleteBusy(true)
+    try {
+      const ok = await deleteAssessmentFormatDraft(draft.draftId)
+      flashToast(ok ? 'Draft rejected.' : 'Reject failed — check console.')
+      if (ok) await load()
+    } finally {
+      setDeleteBusy(false)
+      setPendingDelete(null)
+    }
+  }
+
+  async function performDeleteCustomTopic(topic) {
+    setDeleteBusy(true)
+    try {
+      const ok = await deleteCbcTopic(topic.id)
+      if (ok) {
+        flashToast('Topic deleted.')
+        await load()
+      } else {
+        flashToast('Delete failed — check console.')
+      }
+    } finally {
+      setDeleteBusy(false)
+      setPendingDelete(null)
     }
   }
 
@@ -448,6 +588,15 @@ export default function CbcKbAdmin() {
               onEditCustomTopic={(t) => setEditingCustom(t)}
               onAddCustomTopic={() => setEditingCustom('new')}
               onDeleteCustomTopic={onDeleteCustomTopic}
+              formatProfiles={formatProfiles}
+              onAddFormat={() => setEditingFormat('new')}
+              onEditFormat={(p) => setEditingFormat(p)}
+              onDeleteFormat={onDeleteFormatProfile}
+              onImportFormats={onImportBuiltInFormats}
+              formatDrafts={formatDrafts}
+              onExtractFormat={onExtractFormat}
+              onReviewDraft={(d) => setReviewingDraft(d)}
+              onRejectDraft={onRejectDraft}
             />
           )}
 
@@ -497,6 +646,55 @@ export default function CbcKbAdmin() {
           onSave={onSaveCustomTopic}
         />
       )}
+
+      {editingFormat && (
+        <FormatProfileModal
+          profile={editingFormat === 'new' ? null : editingFormat}
+          onCancel={() => setEditingFormat(null)}
+          onSave={onSaveFormatProfile}
+        />
+      )}
+
+      {reviewingDraft && (
+        <FormatProfileModal
+          profile={reviewingDraft}
+          reviewing
+          onCancel={() => setReviewingDraft(null)}
+          onSave={onApproveDraft}
+        />
+      )}
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title={pendingDelete?.kind === 'row' ? 'Delete this row?' :
+          pendingDelete?.kind === 'format' ? 'Delete this format profile?' :
+            pendingDelete?.kind === 'draft' ? 'Reject this draft?' :
+              'Delete this custom topic?'}
+        message={pendingDelete?.kind === 'row' ? (
+          <>
+            <p>Topic: <strong className="theme-text">{pendingDelete?.payload?.topic || '—'}</strong></p>
+            <p>Sub-topic: <strong className="theme-text">{pendingDelete?.payload?.subtopic || '—'}</strong></p>
+            <p className="mt-2">It will be hidden from teachers and the AI generators.</p>
+          </>
+        ) : pendingDelete?.kind === 'format' ? (
+          <>You're about to delete <strong className="theme-text">"{pendingDelete?.profile?.label}"</strong>. The built-in seed for this combination (if any) applies again.</>
+        ) : pendingDelete?.kind === 'draft' ? (
+          <>You're about to reject the extracted draft <strong className="theme-text">"{pendingDelete?.draft?.label}"</strong>. Nothing was published; this just discards it.</>
+        ) : (
+          <>You're about to delete <strong className="theme-text">"{pendingDelete?.topic?.topic}"</strong> ({pendingDelete?.topic?.grade} {pendingDelete?.topic?.subject}).</>
+        )}
+        confirmLabel="Delete"
+        variant="danger"
+        loading={deleteBusy}
+        onConfirm={() => {
+          if (!pendingDelete) return
+          if (pendingDelete.kind === 'row') performDeleteRow(pendingDelete.payload)
+          else if (pendingDelete.kind === 'format') performDeleteFormatProfile(pendingDelete.profile)
+          else if (pendingDelete.kind === 'draft') performRejectDraft(pendingDelete.draft)
+          else performDeleteCustomTopic(pendingDelete.topic)
+        }}
+        onCancel={() => setPendingDelete(null)}
+      />
     </section>
   )
 }
@@ -551,6 +749,8 @@ function HomeView({
   stats, grouped, overrideCounts, customTopics,
   onSelectSubject, onLoaded, flashToast,
   onEditCustomTopic, onAddCustomTopic, onDeleteCustomTopic,
+  formatProfiles, onAddFormat, onEditFormat, onDeleteFormat, onImportFormats,
+  formatDrafts, onExtractFormat, onReviewDraft, onRejectDraft,
 }) {
   return (
     <div className="ss-home">
@@ -592,6 +792,18 @@ function HomeView({
         onAdd={onAddCustomTopic}
         onEdit={onEditCustomTopic}
         onDelete={onDeleteCustomTopic}
+      />
+
+      <AssessmentFormatsPanel
+        profiles={formatProfiles}
+        onAdd={onAddFormat}
+        onEdit={onEditFormat}
+        onDelete={onDeleteFormat}
+        onImport={onImportFormats}
+        drafts={formatDrafts}
+        onExtract={onExtractFormat}
+        onReviewDraft={onReviewDraft}
+        onRejectDraft={onRejectDraft}
       />
 
       {CAT_ORDER.map(cat => {
@@ -749,13 +961,662 @@ function formatSubject(s) {
   return String(s || '').replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
+// ── Assessment format profiles panel ────────────────────────────────────
+// Zambian paper-format conventions (sections, instruction wording,
+// numbering, marks patterns, paraphrased exemplars) that ground the
+// My Assessment generator. Built-in seeds always apply; Firestore docs
+// shown here override the seed with the same id.
+
+const FORMAT_TYPE_LABELS = Object.fromEntries(
+  ASSESSMENT_FORMAT_TYPES.map((t) => [t.value, t.label]),
+)
+const FORMAT_BAND_LABELS = Object.fromEntries(
+  ASSESSMENT_FORMAT_BANDS.map((b) => [b.value, b.label]),
+)
+
+function AssessmentFormatsPanel({
+  profiles, onAdd, onEdit, onDelete, onImport,
+  drafts, onExtract, onReviewDraft, onRejectDraft,
+}) {
+  const [expanded, setExpanded] = useState(false)
+  const [importing, setImporting] = useState(false)
+  const [showIntake, setShowIntake] = useState(false)
+  const grouped = useMemo(() => {
+    const byType = new Map()
+    for (const p of profiles || []) {
+      const t = String(p.assessmentType || '?')
+      if (!byType.has(t)) byType.set(t, [])
+      byType.get(t).push(p)
+    }
+    return ASSESSMENT_FORMAT_TYPES
+      .map((t) => [t.value, (byType.get(t.value) || []).sort(
+        (a, b) => String(a.id).localeCompare(String(b.id)),
+      )])
+      .filter(([, list]) => list.length > 0)
+  }, [profiles])
+
+  const total = (profiles || []).length
+
+  async function runImport() {
+    setImporting(true)
+    try { await onImport() } finally { setImporting(false) }
+  }
+
+  return (
+    <section className="ss-custom-panel" aria-label="Assessment format profiles">
+      <div className="ss-custom-head">
+        <div>
+          <div className="ss-sh-dash">ZAMBIAN ASSESSMENT FORMATS</div>
+          <h2 className="ss-sh-title">
+            Assessment format profiles
+            {total > 0 && <span className="ss-custom-count">{total}</span>}
+          </h2>
+          <p className="ss-custom-blurb">
+            How Zambian papers look: sections, instruction wording, numbering,
+            marks patterns and paraphrased exemplar questions. The My Assessment
+            generator follows the matching profile (assessment type + grade band
+            + subject). Built-in profiles ship with the code; rows here override
+            them — never paste questions from a real ECZ paper.
+          </p>
+        </div>
+        <div className="ss-custom-actions">
+          <button type="button" className="ss-add-row-btn" onClick={onAdd}>
+            + Add format profile
+          </button>
+          <button
+            type="button"
+            className="ss-tab-btn"
+            onClick={() => setShowIntake((v) => !v)}
+          >
+            {showIntake ? 'Hide extraction' : 'Extract from a sample paper'}
+          </button>
+          <button
+            type="button"
+            className="ss-tab-btn"
+            onClick={runImport}
+            disabled={importing}
+          >
+            {importing ? 'Importing…' : 'Import built-in formats'}
+          </button>
+          <a href="/admin/picture-bank" className="ss-tab-btn">
+            🖼 Picture bank
+          </a>
+          {total > 0 && (
+            <button
+              type="button"
+              className="ss-tab-btn"
+              onClick={() => setExpanded((v) => !v)}
+            >
+              {expanded ? 'Collapse' : 'Show all'}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {showIntake && <FormatExtractIntake onExtract={onExtract} />}
+
+      {(drafts || []).length > 0 && (
+        <div style={{ marginTop: 12 }}>
+          <div className="ss-custom-grade-label">
+            PENDING REVIEW ({drafts.length})
+          </div>
+          <div className="ss-custom-grid">
+            {drafts.map((d) => (
+              <div key={d.draftId} className="ss-custom-card">
+                <div className="ss-custom-card-meta">
+                  {(FORMAT_TYPE_LABELS[d.assessmentType] || d.assessmentType)}
+                  {' · '}
+                  {(FORMAT_BAND_LABELS[d.gradeBand] || d.gradeBand)}
+                  {' · '}
+                  {d.subject === '_generic' ? 'All subjects' : formatSubject(d.subject)}
+                </div>
+                <div className="ss-custom-card-title">{d.label || '(untitled draft)'}</div>
+                <div className="ss-custom-card-subs">
+                  Extracted from {d.sourceNote || d.sourceKind || 'a sample paper'}.
+                  {Array.isArray(d.validationErrors) && d.validationErrors.length > 0 && (
+                    <span style={{ color: '#b91c1c' }}>
+                      {' '}Needs fixes: {d.validationErrors.join('; ')}
+                    </span>
+                  )}
+                </div>
+                <div className="ss-custom-card-actions">
+                  <button
+                    type="button"
+                    className="ss-row-btn ss-row-edit"
+                    onClick={() => onReviewDraft(d)}
+                  >
+                    review
+                  </button>
+                  <button
+                    type="button"
+                    className="ss-row-btn ss-row-delete"
+                    onClick={() => onRejectDraft(d)}
+                  >
+                    reject
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {total === 0 && (
+        <p className="ss-custom-empty">
+          No Firestore overrides yet — the generator is using the built-in
+          seed profiles. Click <strong>Import built-in formats</strong> to copy
+          them here and make them editable, or add a profile manually.
+        </p>
+      )}
+
+      {total > 0 && expanded && (
+        <div className="ss-custom-grid">
+          {grouped.map(([type, list]) => (
+            <div key={type} className="ss-custom-grade-block">
+              <div className="ss-custom-grade-label">
+                {FORMAT_TYPE_LABELS[type] || type}
+              </div>
+              {list.map((p) => (
+                <div key={p.id} className="ss-custom-card">
+                  <div className="ss-custom-card-meta">
+                    {(FORMAT_BAND_LABELS[p.gradeBand] || p.gradeBand)}
+                    {' · '}
+                    {p.subject === '_generic' ? 'All subjects' : formatSubject(p.subject)}
+                  </div>
+                  <div className="ss-custom-card-title">{p.label}</div>
+                  <div className="ss-custom-card-subs">
+                    {(p.paperStructure || []).map((s) => s.name).filter(Boolean).join(' · ')}
+                  </div>
+                  <div className="ss-custom-card-actions">
+                    <button
+                      type="button"
+                      className="ss-row-btn ss-row-edit"
+                      onClick={() => onEdit(p)}
+                    >
+                      edit
+                    </button>
+                    <button
+                      type="button"
+                      className="ss-row-btn ss-row-delete"
+                      onClick={() => onDelete(p)}
+                    >
+                      delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  )
+}
+
+// ── Format extraction intake ─────────────────────────────────────────────
+// Two ways in: upload a sample paper (.pdf/.docx) directly, or pick an
+// already-uploaded past paper. The admin classifies the paper (type /
+// band / subject) because that drives the profile id the draft would
+// publish under — Claude only distils the format.
+
+function FormatExtractIntake({ onExtract }) {
+  const [meta, setMeta] = useState({
+    assessmentType: 'end_of_term',
+    gradeBand: 'upper_primary',
+    subject: '_generic',
+  })
+  const [mode, setMode] = useState('upload') // 'upload' | 'past-paper'
+  const [file, setFile] = useState(null)
+  const [papers, setPapers] = useState(null) // null until loaded
+  const [paperId, setPaperId] = useState('')
+  const [busy, setBusy] = useState(false)
+  const update = (k, v) => setMeta((m) => ({ ...m, [k]: v }))
+
+  useEffect(() => {
+    if (mode !== 'past-paper' || papers !== null) return
+    let cancelled = false
+    listPastPapersForExtraction()
+      .then((list) => {
+        if (!cancelled) setPapers(list)
+      })
+      .catch(() => {
+        if (!cancelled) setPapers([])
+      })
+    return () => { cancelled = true }
+  }, [mode, papers])
+
+  const ready = mode === 'upload' ? Boolean(file) : Boolean(paperId)
+
+  async function run() {
+    setBusy(true)
+    try {
+      const ok = await onExtract({
+        ...meta,
+        file: mode === 'upload' ? file : null,
+        paperId: mode === 'past-paper' ? paperId : null,
+      })
+      if (ok) { setFile(null); setPaperId('') }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div style={{ border: '1px solid #d9cfb8', borderRadius: 10, padding: 14, marginTop: 12 }}>
+      <p className="ss-custom-blurb" style={{ marginTop: 0 }}>
+        Claude reads the paper and distils its <em>format</em> — structure,
+        wording, numbering, marks habits — into a draft profile for your
+        review. It writes fresh paraphrased exemplars and never copies the
+        paper's questions.
+      </p>
+      <div className="ss-ct-grade-row">
+        <div className="ss-field">
+          <label>Assessment type</label>
+          <select value={meta.assessmentType}
+            onChange={(e) => update('assessmentType', e.target.value)}>
+            {ASSESSMENT_FORMAT_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>{t.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="ss-field">
+          <label>Grade band</label>
+          <select value={meta.gradeBand}
+            onChange={(e) => update('gradeBand', e.target.value)}>
+            {ASSESSMENT_FORMAT_BANDS.map((b) => (
+              <option key={b.value} value={b.value}>{b.label}</option>
+            ))}
+          </select>
+        </div>
+        <div className="ss-field">
+          <label>Subject</label>
+          <select value={meta.subject}
+            onChange={(e) => update('subject', e.target.value)}>
+            <option value="_generic">All subjects (generic)</option>
+            {TEACHER_SUBJECTS.filter((s) => s.value).map((s) => (
+              <option key={s.value} value={s.value}>{s.label}</option>
+            ))}
+          </select>
+        </div>
+      </div>
+      <div className="ss-ct-grade-row">
+        <div className="ss-field">
+          <label>Source</label>
+          <select value={mode} onChange={(e) => setMode(e.target.value)}>
+            <option value="upload">Upload a sample paper (.pdf / .docx)</option>
+            <option value="past-paper">Use an uploaded past paper</option>
+          </select>
+        </div>
+        {mode === 'upload' ? (
+          <div className="ss-field">
+            <label>Sample paper file</label>
+            <input
+              type="file"
+              accept=".pdf,.docx"
+              onChange={(e) => setFile(e.target.files?.[0] || null)}
+            />
+          </div>
+        ) : (
+          <div className="ss-field">
+            <label>Past paper</label>
+            <select value={paperId} onChange={(e) => setPaperId(e.target.value)}>
+              <option value="">
+                {papers === null ? 'Loading…' : 'Pick a paper…'}
+              </option>
+              {(papers || []).map((p) => (
+                <option key={p.id} value={p.id}>{p.label}</option>
+              ))}
+            </select>
+          </div>
+        )}
+      </div>
+      <button
+        type="button"
+        className="ss-btn-primary"
+        onClick={run}
+        disabled={busy || !ready}
+      >
+        {busy ? 'Extracting… (about a minute)' : 'Extract format profile'}
+      </button>
+    </div>
+  )
+}
+
+// ── Format profile edit modal ───────────────────────────────────────────
+
+const FORMAT_QUESTION_TYPES = [
+  'multiple_choice', 'short_answer', 'structured',
+  'calculation', 'true_false', 'essay',
+]
+
+const EMPTY_FORMAT_SECTION = {
+  name: '', heading: '', instructions: '',
+  questionTypes: '', questionCountHint: '', marksShare: 0,
+  marksPerQuestionHint: '',
+}
+const EMPTY_FORMAT_EXEMPLAR = { type: 'short_answer', marks: 1, prompt: '', note: '' }
+
+function FormatProfileModal({ profile, onCancel, onSave, reviewing = false }) {
+  const editing = !!profile
+  const [form, setForm] = useState(() => ({
+    assessmentType: profile?.assessmentType || 'end_of_term',
+    gradeBand: profile?.gradeBand || 'upper_primary',
+    subject: profile?.subject || '_generic',
+    label: profile?.label || '',
+    paperStructure: (profile?.paperStructure?.length ? profile.paperStructure : [EMPTY_FORMAT_SECTION])
+      .map((s) => ({ ...s, questionTypes: Array.isArray(s.questionTypes) ? s.questionTypes.join(', ') : (s.questionTypes || '') })),
+    coverInstructions: (profile?.coverInstructions || []).join('\n'),
+    numberingStyle: profile?.numberingStyle || '',
+    phrasingNotes: (profile?.phrasingNotes || []).join('\n'),
+    marksConventions: (profile?.marksConventions || []).join('\n'),
+    diagramConventions: (profile?.diagramConventions || []).join('\n'),
+    exemplarQuestions: profile?.exemplarQuestions?.length ?
+      profile.exemplarQuestions : [{ ...EMPTY_FORMAT_EXEMPLAR }, { ...EMPTY_FORMAT_EXEMPLAR }],
+    sourceNote: profile?.sourceNote || '',
+  }))
+  const [saving, setSaving] = useState(false)
+  const update = (k, v) => setForm((f) => ({ ...f, [k]: v }))
+  const lines = (s) => String(s || '').split('\n').map((x) => x.trim()).filter(Boolean)
+
+  const updateSection = (i, k, v) => update('paperStructure',
+    form.paperStructure.map((s, idx) => (idx === i ? { ...s, [k]: v } : s)))
+  const updateExemplar = (i, k, v) => update('exemplarQuestions',
+    form.exemplarQuestions.map((q, idx) => (idx === i ? { ...q, [k]: v } : q)))
+
+  const shareSum = form.paperStructure
+    .reduce((sum, s) => sum + (Math.round(Number(s.marksShare)) || 0), 0)
+
+  async function submit() {
+    setSaving(true)
+    const ok = await onSave({
+      ...form,
+      paperStructure: form.paperStructure.map((s) => ({
+        ...s,
+        marksShare: Math.round(Number(s.marksShare)) || 0,
+        questionTypes: String(s.questionTypes || '').split(',')
+          .map((t) => t.trim().toLowerCase().replace(/\s+/g, '_'))
+          .filter((t) => FORMAT_QUESTION_TYPES.includes(t)),
+      })),
+      coverInstructions: lines(form.coverInstructions),
+      phrasingNotes: lines(form.phrasingNotes),
+      marksConventions: lines(form.marksConventions),
+      diagramConventions: lines(form.diagramConventions),
+      exemplarQuestions: form.exemplarQuestions.filter((q) => String(q.prompt || '').trim()),
+      _editing: editing,
+    })
+    if (!ok) setSaving(false)
+  }
+
+  return (
+    <div className="ss-modal-backdrop">
+      <div className="ss-modal">
+        <div className="ss-modal-head">
+          <h2>
+            {reviewing ? 'Review extracted draft' :
+              editing ? 'Edit format profile' : 'Add a format profile'}
+          </h2>
+          <p>
+            Goes into <code>cbcKnowledgeBase/&#123;version&#125;/assessmentFormats</code>.
+            The My Assessment generator follows it for this assessment type +
+            grade band + subject. Write exemplars in the Zambian style but
+            <strong> never copy questions from a real paper</strong>.
+            {reviewing && (
+              <>
+                {' '}Approving publishes this draft; check the exemplars are
+                paraphrases, not transcriptions.
+              </>
+            )}
+          </p>
+          {reviewing && Array.isArray(profile?.validationErrors) &&
+            profile.validationErrors.length > 0 && (
+            <p style={{ color: '#b91c1c' }}>
+              Fix before approving: {profile.validationErrors.join('; ')}
+            </p>
+          )}
+        </div>
+        <div className="ss-modal-body">
+          <div className="ss-ct-grade-row">
+            <div className="ss-field">
+              <label>Assessment type</label>
+              <select
+                value={form.assessmentType}
+                onChange={(e) => update('assessmentType', e.target.value)}
+                disabled={editing}
+              >
+                {ASSESSMENT_FORMAT_TYPES.map((t) => (
+                  <option key={t.value} value={t.value}>{t.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="ss-field">
+              <label>Grade band</label>
+              <select
+                value={form.gradeBand}
+                onChange={(e) => update('gradeBand', e.target.value)}
+                disabled={editing}
+              >
+                {ASSESSMENT_FORMAT_BANDS.map((b) => (
+                  <option key={b.value} value={b.value}>{b.label}</option>
+                ))}
+              </select>
+            </div>
+            <div className="ss-field">
+              <label>Subject</label>
+              <select
+                value={form.subject}
+                onChange={(e) => update('subject', e.target.value)}
+                disabled={editing}
+              >
+                <option value="_generic">All subjects (generic)</option>
+                {TEACHER_SUBJECTS.filter((s) => s.value).map((s) => (
+                  <option key={s.value} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="ss-field">
+            <label>Label</label>
+            <input
+              type="text"
+              value={form.label}
+              onChange={(e) => update('label', e.target.value)}
+              placeholder="e.g. Upper Primary Mathematics — End of Term Test"
+              maxLength={120}
+            />
+          </div>
+
+          <div className="ss-field">
+            <label>
+              Paper sections
+              <span style={{ fontWeight: 400, marginLeft: 8, color: shareSum === 100 ? undefined : '#b91c1c' }}>
+                (marks shares sum to {shareSum}% — must be 100%)
+              </span>
+            </label>
+            {form.paperStructure.map((s, i) => (
+              <div key={i} style={{ border: '1px solid #d9cfb8', borderRadius: 8, padding: 10, marginBottom: 8 }}>
+                <div className="ss-ct-grade-row">
+                  <div className="ss-field">
+                    <label>Name</label>
+                    <input type="text" value={s.name} maxLength={60}
+                      placeholder="SECTION A"
+                      onChange={(e) => updateSection(i, 'name', e.target.value)} />
+                  </div>
+                  <div className="ss-field">
+                    <label>Heading (as printed)</label>
+                    <input type="text" value={s.heading} maxLength={120}
+                      placeholder="SECTION A: MULTIPLE CHOICE"
+                      onChange={(e) => updateSection(i, 'heading', e.target.value)} />
+                  </div>
+                  <div className="ss-field">
+                    <label>% of marks</label>
+                    <input type="number" min={0} max={100} value={s.marksShare}
+                      onChange={(e) => updateSection(i, 'marksShare', e.target.value)} />
+                  </div>
+                </div>
+                <div className="ss-field">
+                  <label>Section instruction text</label>
+                  <input type="text" value={s.instructions} maxLength={400}
+                    placeholder="Answer ALL questions in this section. Circle the letter of the correct answer."
+                    onChange={(e) => updateSection(i, 'instructions', e.target.value)} />
+                </div>
+                <div className="ss-ct-grade-row">
+                  <div className="ss-field">
+                    <label>Question types (comma-separated)</label>
+                    <input type="text" value={s.questionTypes}
+                      placeholder="multiple_choice, short_answer"
+                      onChange={(e) => updateSection(i, 'questionTypes', e.target.value)} />
+                  </div>
+                  <div className="ss-field">
+                    <label>How many questions</label>
+                    <input type="text" value={s.questionCountHint} maxLength={30}
+                      placeholder="8-10"
+                      onChange={(e) => updateSection(i, 'questionCountHint', e.target.value)} />
+                  </div>
+                  <div className="ss-field">
+                    <label>Marks per question</label>
+                    <input type="text" value={s.marksPerQuestionHint} maxLength={120}
+                      placeholder="1 mark each"
+                      onChange={(e) => updateSection(i, 'marksPerQuestionHint', e.target.value)} />
+                  </div>
+                </div>
+                {form.paperStructure.length > 1 && (
+                  <button type="button" className="ss-row-btn ss-row-delete"
+                    onClick={() => update('paperStructure', form.paperStructure.filter((_, idx) => idx !== i))}>
+                    remove section
+                  </button>
+                )}
+              </div>
+            ))}
+            {form.paperStructure.length < 6 && (
+              <button type="button" className="ss-tab-btn"
+                onClick={() => update('paperStructure', [...form.paperStructure, { ...EMPTY_FORMAT_SECTION }])}>
+                + Add section
+              </button>
+            )}
+          </div>
+
+          <div className="ss-field">
+            <label>Front-page instructions (one per line)</label>
+            <textarea rows={4} value={form.coverInstructions}
+              placeholder={'Write your name and class in the spaces provided.\nAnswer ALL questions.'}
+              onChange={(e) => update('coverInstructions', e.target.value)} />
+          </div>
+          <div className="ss-field">
+            <label>Numbering style</label>
+            <textarea rows={3} value={form.numberingStyle} maxLength={600}
+              placeholder="Sections are lettered A, B, C. Questions are numbered continuously…"
+              onChange={(e) => update('numberingStyle', e.target.value)} />
+          </div>
+          <div className="ss-field">
+            <label>Phrasing &amp; register notes (one per line)</label>
+            <textarea rows={3} value={form.phrasingNotes}
+              placeholder="Use ECZ command words: State, Name, List, Calculate…"
+              onChange={(e) => update('phrasingNotes', e.target.value)} />
+          </div>
+          <div className="ss-field">
+            <label>Marks conventions (one per line)</label>
+            <textarea rows={3} value={form.marksConventions}
+              placeholder="Calculations: 1 mark for method + 1 mark for the answer."
+              onChange={(e) => update('marksConventions', e.target.value)} />
+          </div>
+          <div className="ss-field">
+            <label>Diagram conventions (one per line)</label>
+            <textarea rows={2} value={form.diagramConventions}
+              placeholder="Geometry items need labelled figures; describe them in the diagram field."
+              onChange={(e) => update('diagramConventions', e.target.value)} />
+          </div>
+
+          <div className="ss-field">
+            <label>Exemplar questions (2-4, paraphrased — never from a real paper)</label>
+            {form.exemplarQuestions.map((q, i) => (
+              <div key={i} style={{ border: '1px solid #d9cfb8', borderRadius: 8, padding: 10, marginBottom: 8 }}>
+                <div className="ss-ct-grade-row">
+                  <div className="ss-field">
+                    <label>Type</label>
+                    <select value={q.type}
+                      onChange={(e) => updateExemplar(i, 'type', e.target.value)}>
+                      {FORMAT_QUESTION_TYPES.map((t) => (
+                        <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="ss-field">
+                    <label>Marks</label>
+                    <input type="number" min={1} max={20} value={q.marks}
+                      onChange={(e) => updateExemplar(i, 'marks', e.target.value)} />
+                  </div>
+                </div>
+                <div className="ss-field">
+                  <label>Question text</label>
+                  <textarea rows={2} value={q.prompt} maxLength={500}
+                    onChange={(e) => updateExemplar(i, 'prompt', e.target.value)} />
+                </div>
+                <div className="ss-field">
+                  <label>Style note (optional)</label>
+                  <input type="text" value={q.note} maxLength={200}
+                    placeholder="e.g. trailing-ellipsis MCQ stem, ECZ house style"
+                    onChange={(e) => updateExemplar(i, 'note', e.target.value)} />
+                </div>
+                {form.exemplarQuestions.length > 2 && (
+                  <button type="button" className="ss-row-btn ss-row-delete"
+                    onClick={() => update('exemplarQuestions', form.exemplarQuestions.filter((_, idx) => idx !== i))}>
+                    remove exemplar
+                  </button>
+                )}
+              </div>
+            ))}
+            {form.exemplarQuestions.length < 4 && (
+              <button type="button" className="ss-tab-btn"
+                onClick={() => update('exemplarQuestions', [...form.exemplarQuestions, { ...EMPTY_FORMAT_EXEMPLAR }])}>
+                + Add exemplar
+              </button>
+            )}
+          </div>
+
+          <div className="ss-field">
+            <label>Source note (optional — provenance only, e.g. "format of 2024 school mock")</label>
+            <input type="text" value={form.sourceNote} maxLength={300}
+              onChange={(e) => update('sourceNote', e.target.value)} />
+          </div>
+
+          <p className="ss-modal-note">
+            Saves land in Firestore and reach the assessment generator within
+            ~60 seconds. The profile id is derived from type + band + subject,
+            so saving over an existing combination replaces it.
+          </p>
+        </div>
+        <div className="ss-modal-foot">
+          <button type="button" className="ss-btn-ghost" onClick={onCancel} disabled={saving}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="ss-btn-primary"
+            onClick={submit}
+            disabled={saving || !form.label.trim() || shareSum !== 100}
+          >
+            {saving ? 'Saving…' :
+              reviewing ? 'Approve & publish' :
+                editing ? 'Save changes' : 'Add profile'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ── Custom topic edit modal ─────────────────────────────────────────────
 
 function CustomTopicModal({ topic, onCancel, onSave }) {
   const editing = !!topic
   const [form, setForm] = useState(() => ({
     grade: topic?.grade || 'G10',
-    subject: topic?.subject || 'biology',
+    // 'biology' is not a CBC subject, so a topic missing a subject used to
+    // yield an unreachable quiz (no learner filter matches it). Default to a
+    // real CBC subject and normalize so it resolves to a valid learner label
+    // ('Integrated Science') end-to-end through subjectForLearnerCollection.
+    subject: normalizeSubject(topic?.subject || 'science'),
     topic: topic?.topic || '',
     subtopics: arrFromTopic(topic, 'subtopics', subtopicName),
     specificOutcomes: arrFromTopic(topic, 'specificOutcomes'),

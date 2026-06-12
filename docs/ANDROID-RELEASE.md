@@ -141,6 +141,72 @@ because they're all signed with the same release keystore.
 
 ---
 
+## Releasing to Google Play (AAB)
+
+Play Console needs an **`.aab`** (Android App Bundle), not an APK, for its
+internal / closed / production tracks. The `android-play-release.yml` workflow
+builds a signed AAB.
+
+**Two ways to run:**
+
+**A) Tag → auto-release to testers (the shortcut).** Push a SemVer tag; CI builds
+and publishes to the **internal** track as a **live** release, `versionName` from
+the tag — testers get it automatically:
+
+```bash
+git tag v1.1.2 && git push origin v1.1.2
+```
+
+(A tag also triggers `android-release.yml`'s Firebase App Distribution build, so
+both run. If you'd rather Play be the sole tester channel, drop the tag trigger
+from that workflow.)
+
+**B) Manual — GitHub → Actions → Android Play Release (AAB) → Run workflow.** Inputs:
+- `version_name` — e.g. `1.1.2` (blank = `build.gradle` default). `versionCode` is
+  always the git commit count and must be **strictly higher** than your last upload.
+- `upload_to_play` — **false** = just produce the downloadable `.aab`; **true** = publish.
+- `track` — `internal` / `alpha` / `beta` / `production`.
+- `release_status` — `draft` (upload only, you roll out) or `completed` (live to that track).
+- `user_fraction` — **production** staged rollout, e.g. `0.1` = 10% (blank = full;
+  when set, the release publishes as `inProgress`).
+
+**Ship to production:** Run workflow → `upload_to_play=true`, `track=production`,
+`release_status=completed` (add `user_fraction=0.1` for a staged 10% rollout).
+
+The signed AAB is always attached as the `app-release-aab-run<N>` artifact
+(30-day retention). The "Verify AAB signature" step prints the signer
+certificate — it must match **Play → App integrity → Upload key certificate**.
+
+### Building the AAB locally instead
+
+```powershell
+$env:ZED_RELEASE_STORE_FILE      = "M:\Claude\zedexams.com\zedexams-release.keystore"
+$env:ZED_RELEASE_STORE_PASSWORD  = "<store password>"
+$env:ZED_RELEASE_KEY_ALIAS       = "zedexams"
+$env:ZED_RELEASE_KEY_PASSWORD    = "<key password>"
+npm run build; npx cap sync android; cd android; .\gradlew bundleRelease
+# Output: android\app\build\outputs\bundle\release\app-release.aab
+```
+
+### Auto-upload to Play (already configured)
+
+> Snapshot as of 2026-06-08 — verify before acting. Auto-upload is **live**: the
+> `firebase-deploy@examsprepzambia.iam.gserviceaccount.com` service account is
+> granted "Release to testing tracks" and its key is stored in the
+> `PLAY_SERVICE_ACCOUNT_JSON` secret. The steps below are for reference / rotation.
+
+To (re)configure the Play service account:
+
+1. Google Play Console → **Users and permissions** → invite a service account
+   and grant it **Release to testing tracks** (plus Production if desired).
+2. In Google Cloud Console, create a **JSON key** for that service account.
+3. Add the entire JSON as the GitHub Actions secret **`PLAY_SERVICE_ACCOUNT_JSON`**.
+
+Until that secret exists, `upload_to_play` is a safe no-op — the workflow logs a
+warning and still produces the downloadable artifact.
+
+---
+
 ## Debug build (local sideload — no signing needed)
 
 For testing your own changes on your own phone:

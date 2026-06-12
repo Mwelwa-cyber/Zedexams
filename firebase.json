@@ -8,6 +8,7 @@
   },
   "hosting": {
     "public": "dist",
+    "trailingSlash": false,
     "ignore": [
       "firebase.json",
       "**/.*",
@@ -16,7 +17,31 @@
     ],
     "headers": [
       {
-        "source": "/index.html",
+        "source": "/",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        ]
+      },
+      {
+        "source": "**/*.html",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        ]
+      },
+      {
+        "source": "/sw.js",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        ]
+      },
+      {
+        "source": "/sw-reload-clients.js",
+        "headers": [
+          { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
+        ]
+      },
+      {
+        "source": "/manifest.webmanifest",
         "headers": [
           { "key": "Cache-Control", "value": "no-cache, no-store, must-revalidate" }
         ]
@@ -39,11 +64,19 @@
           { "key": "Cache-Control", "value": "public, max-age=3600" },
           { "key": "Content-Disposition", "value": "inline" }
         ]
+      },
+      {
+        "source": "/timetables/**",
+        "headers": [
+          { "key": "Cache-Control", "value": "public, max-age=3600" },
+          { "key": "Content-Disposition", "value": "inline" }
+        ]
       }
     ],
     "redirects": [
       { "source": "/welcome", "destination": "/", "type": 301 },
-      { "source": "/plans", "destination": "/pricing", "type": 301 }
+      { "source": "/plans", "destination": "/pricing", "type": 301 },
+      { "source": "/teachers/**", "destination": "/teachers", "type": 301 }
     ],
     "rewrites": [
       {

@@ -11,17 +11,22 @@ const TOOL_TO_FEATURE = {
   worksheet:      'worksheets',
   notes:          'notes',
   quiz:           'assessments',
+  exam_paper:     'exams',
   scheme_of_work: 'schemes',
 }
 
-// Live plan id → display label / chip variant the widget understands.
-// The live model still uses free / individual / school; the widget renders
-// using the new free / pro / max vocabulary. Treat individual + school
-// as Pro until the plan model is unified.
+// Plan id → display label / chip the widget understands. The server
+// (functions/teacherTools/usageMeter.js) writes the canonical free / pro /
+// max ids since 2026-06; meter docs from earlier periods still carry the
+// legacy individual / school ids (individual = Pro, school = Max), so the
+// aliases below must stay until those historical docs no longer matter.
 const PLAN_VIEW = {
   free:       { id: 'free', label: 'Free', daily: 2 },
+  pro:        { id: 'pro',  label: 'Pro',  daily: 10 },
+  max:        { id: 'max',  label: 'Max',  daily: 30 },
+  // Legacy aliases still present in older usageMeters docs:
   individual: { id: 'pro',  label: 'Pro',  daily: 10 },
-  school:     { id: 'pro',  label: 'Pro',  daily: 10 },
+  school:     { id: 'max',  label: 'Max',  daily: 30 },
 }
 
 // High finite cap stands in for "unlimited" so the meter widget's
@@ -35,6 +40,21 @@ function yyyymm(d = new Date()) {
   const y = d.getUTCFullYear()
   const m = String(d.getUTCMonth() + 1).padStart(2, '0')
   return `${y}${m}`
+}
+
+// UTC day key — must match functions/teacherTools/usageMeter.js yyyymmdd()
+// so the rolling daily counter the server writes resolves to "today" here.
+function yyyymmdd(d = new Date()) {
+  const day = String(d.getUTCDate()).padStart(2, '0')
+  return `${yyyymm(d)}${day}`
+}
+
+// Server writes daily as {date, count}; a stale date (or a legacy doc with
+// no daily field at all) means nothing has been generated today.
+function todayCount(meterData) {
+  const daily = meterData?.daily
+  if (!daily || daily.date !== yyyymmdd()) return 0
+  return Number(daily.count || 0)
 }
 
 function daysUntilMonthReset(now = new Date()) {
@@ -61,7 +81,7 @@ function project(meterData) {
     used,
     caps,
     daily: planView.daily,
-    today: 0,                          // daily counter not yet tracked per-doc
+    today: todayCount(meterData),
     resetDays: daysUntilMonthReset(),
   }
 }
@@ -85,7 +105,7 @@ function projectAdmin(meterData) {
     used,
     caps,
     daily: ADMIN_DAILY_CAP,
-    today: 0,
+    today: todayCount(meterData),
     resetDays: daysUntilMonthReset(),
   }
 }

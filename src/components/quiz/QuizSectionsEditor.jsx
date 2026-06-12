@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { memo, useCallback, useMemo, useRef, useState } from 'react'
 import { QUESTION_LETTERS } from '../../utils/quizSections.js'
 import { clampInt } from '../../utils/inputs.js'
 import DiagramSvg from '../diagrams/DiagramSvg.jsx'
@@ -24,9 +24,11 @@ function partLabel(index) {
 // way in (legacy quizzes render fine) and emits Tiptap JSON. Saving passes
 // the JSON straight through to Firestore.
 import QuizRichField from './QuizRichField'
+import QuestionAiAssistant from './QuestionAiAssistant.jsx'
 // RichContent is format-aware — handles both legacy HTML and Tiptap JSON.
 // Used wherever we previously showed RichTextContent.
 import RichContent from '../../editor/RichContent'
+import ConfirmDialog from '../ui/ConfirmDialog'
 
 const THEMES = {
   create: {
@@ -61,6 +63,11 @@ const THEMES = {
 
 const SMALL_FIELD_BASE = 'theme-input w-full rounded-lg border px-2.5 py-2 text-xs placeholder:text-gray-400 outline-none transition-colors'
 
+// Stable empty array used as the `parts` prop for cards when no Parts are
+// available. Avoids creating a new `[]` literal on every render, which would
+// defeat React.memo's shallow-equality check on card props.
+const EMPTY_PARTS = []
+
 function joinClasses(...parts) {
   return parts.filter(Boolean).join(' ')
 }
@@ -88,6 +95,7 @@ function ImageUpload({
   uploadStep,
   onFileSelect,
   onRemove,
+  onCrop,
   onPickDiagram,
   onRemoveDiagram,
   theme,
@@ -166,6 +174,15 @@ function ImageUpload({
           }}
         />
         <div className="absolute right-2 top-2 flex gap-1.5 opacity-90 transition-opacity group-hover:opacity-100">
+          {onCrop && (
+            <button
+              type="button"
+              onClick={onCrop}
+              className="theme-card theme-border theme-text hover:theme-card-hover min-h-0 rounded-lg border px-3 py-1.5 text-xs font-bold shadow"
+            >
+              Crop
+            </button>
+          )}
           <button
             type="button"
             onClick={() => inputRef.current?.click()}
@@ -379,7 +396,7 @@ const IMAGE_POSITION_OPTIONS = [
   { value: 'inline', label: 'Image inline with text' },
 ]
 
-function StandaloneQuestionCard({
+const StandaloneQuestionCard = memo(function StandaloneQuestionCard({
   question,
   questionNumber,
   totalQuestions,
@@ -396,18 +413,33 @@ function StandaloneQuestionCard({
   onMove,
   onImageUpload,
   onImageRemove,
+  onImageCrop,
   onOptionImageUpload,
   onOptionImageRemove,
   onAssignToPart,
+  quizContext = {},
   theme,
 }) {
   // Diagram-picker state. `target` is either { kind: 'question' } or
   // { kind: 'option', optionIndex }. Lives on the card so multiple cards on
   // the same page don't fight over a shared modal.
   const [diagramTarget, setDiagramTarget] = useState(null)
+  // Bumped after an AI edit applies new content so the in-place rich-text
+  // editors remount and re-read the patched value (see QuizRichField.resetKey).
+  const [aiResetKey, setAiResetKey] = useState(0)
 
   function set(field, value) {
     onChange(sectionIndex, field, value)
+  }
+
+  // Apply an editor-ready patch from the AI assistant, then force the rich
+  // fields to refresh so the teacher sees the change immediately.
+  function applyAiPatch(patch) {
+    if (patch.text != null) set('text', patch.text)
+    if (Array.isArray(patch.options)) set('options', patch.options)
+    if (patch.correctAnswer != null) set('correctAnswer', patch.correctAnswer)
+    if (patch.explanation != null) set('explanation', patch.explanation)
+    setAiResetKey(k => k + 1)
   }
 
   function setOption(optionIndex, value) {
@@ -450,6 +482,7 @@ function StandaloneQuestionCard({
 
   return (
     <div
+      data-question-id={question.localId}
       className={joinClasses(
         'theme-card theme-text space-y-4 rounded-2xl border-2 p-5 shadow-sm transition-colors',
         isNew ? joinClasses(theme.cardBorder, 'ring-2', theme.ring) : 'theme-border',
@@ -496,6 +529,12 @@ function StandaloneQuestionCard({
           {isNew && <span className="theme-text-muted text-xs font-bold">New question</span>}
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
+          <QuestionAiAssistant
+            question={question}
+            subject={quizContext.subject}
+            grade={quizContext.grade}
+            onApply={applyAiPatch}
+          />
           <select
             value={question.type}
             onChange={event => {
@@ -634,6 +673,7 @@ function StandaloneQuestionCard({
           onChange={nextValue => set('text', nextValue)}
           placeholder={question.imageUrl ? 'Describe what is shown in the image below, or ask your question...' : 'Write your question here...'}
           minHeight={144}
+          resetKey={aiResetKey}
         />
       </div>
 
@@ -650,6 +690,7 @@ function StandaloneQuestionCard({
           onImageUpload(sectionIndex, file)
         }}
         onRemove={() => onImageRemove(sectionIndex)}
+        onCrop={onImageCrop && question.imageUrl ? () => onImageCrop(sectionIndex, question.imageUrl) : undefined}
         onPickDiagram={() => setDiagramTarget({ kind: 'question' })}
         onRemoveDiagram={() => set('imageDiagram', null)}
         theme={theme}
@@ -910,6 +951,7 @@ function StandaloneQuestionCard({
                         minHeight={36}
                         compact
                         toolbarVariant="compact"
+                        resetKey={aiResetKey}
                       />
                     </div>
                   )}
@@ -1002,6 +1044,7 @@ function StandaloneQuestionCard({
             placeholder="Explain the answer, steps, or reasoning..."
             minHeight={112}
             compact
+            resetKey={aiResetKey}
           />
         </div>
         <div className="flex gap-2">
@@ -1026,9 +1069,9 @@ function StandaloneQuestionCard({
       </div>
     </div>
   )
-}
+})
 
-function PassageQuestionCard({
+const PassageQuestionCard = memo(function PassageQuestionCard({
   question,
   questionIndex,
   questionNumber,
@@ -1040,13 +1083,29 @@ function PassageQuestionCard({
   onMove,
   onOptionImageUpload,
   onOptionImageRemove,
+  passageOptions = null,
+  currentSectionId = null,
+  onMoveToPassage,
+  passageImageUrl = '',
+  quizContext = {},
   theme,
 }) {
   // Diagram-picker state local to this passage question.
   const [diagramTarget, setDiagramTarget] = useState(null)
+  // Bumped after an AI edit so the in-place rich-text editors remount and
+  // re-read the patched value (see QuizRichField.resetKey).
+  const [aiResetKey, setAiResetKey] = useState(0)
 
   function set(field, value) {
     onChange(sectionIndex, questionIndex, field, value)
+  }
+
+  function applyAiPatch(patch) {
+    if (patch.text != null) set('text', patch.text)
+    if (Array.isArray(patch.options)) set('options', patch.options)
+    if (patch.correctAnswer != null) set('correctAnswer', patch.correctAnswer)
+    if (patch.explanation != null) set('explanation', patch.explanation)
+    setAiResetKey(k => k + 1)
   }
 
   function setOption(optionIndex, value) {
@@ -1077,7 +1136,7 @@ function PassageQuestionCard({
   const optionsAsTextarea = subtype === 'sentence_ordering'
 
   return (
-    <div className="theme-card theme-border theme-text space-y-4 rounded-2xl border p-4 shadow-sm">
+    <div data-question-id={question.localId} className="theme-card theme-border theme-text space-y-4 rounded-2xl border p-4 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <span className="theme-accent-bg theme-accent-text rounded-full px-3 py-1 text-xs font-black">
@@ -1090,6 +1149,13 @@ function PassageQuestionCard({
           )}
         </div>
         <div className="flex flex-wrap items-center gap-1.5">
+          <QuestionAiAssistant
+            question={question}
+            subject={quizContext.subject}
+            grade={quizContext.grade}
+            passageImageUrl={passageImageUrl}
+            onApply={applyAiPatch}
+          />
           <select
             value={question.subtype ?? ''}
             onChange={event => set('subtype', event.target.value || null)}
@@ -1100,6 +1166,23 @@ function PassageQuestionCard({
               <option key={option.value} value={option.value}>{option.label}</option>
             ))}
           </select>
+          {Array.isArray(passageOptions) && passageOptions.length > 1 && onMoveToPassage && currentSectionId && (
+            <select
+              value={currentSectionId}
+              onChange={event => {
+                const target = event.target.value
+                if (target && target !== currentSectionId) {
+                  onMoveToPassage(currentSectionId, question.localId || question._id, target)
+                }
+              }}
+              className="theme-input rounded-lg border px-2 py-1 text-xs outline-none focus:border-[var(--accent)]"
+              title="Link this question to another passage"
+            >
+              {passageOptions.map(option => (
+                <option key={option.id} value={option.id}>Linked: {option.label}</option>
+              ))}
+            </select>
+          )}
           <button
             type="button"
             onClick={() => onMove(sectionIndex, questionIndex, -1)}
@@ -1134,6 +1217,7 @@ function PassageQuestionCard({
           placeholder="Write the question for this passage..."
           minHeight={128}
           compact
+          resetKey={aiResetKey}
         />
       </div>
 
@@ -1213,6 +1297,7 @@ function PassageQuestionCard({
                       minHeight={36}
                       compact
                       toolbarVariant="compact"
+                      resetKey={aiResetKey}
                     />
                   </div>
                 )}
@@ -1302,13 +1387,14 @@ function PassageQuestionCard({
           placeholder="Add the explanation for this passage question..."
           minHeight={96}
           compact
+          resetKey={aiResetKey}
         />
       </div>
     </div>
   )
-}
+})
 
-function PassageSectionCard({
+const PassageSectionCard = memo(function PassageSectionCard({
   section,
   sectionIndex,
   totalSections,
@@ -1323,6 +1409,7 @@ function PassageSectionCard({
   onPassageMove,
   onPassageImageUpload,
   onPassageImageRemove,
+  onPassageImageCrop,
   onPassageQuestionChange,
   onPassageQuestionRemove,
   onPassageQuestionMove,
@@ -1330,6 +1417,9 @@ function PassageSectionCard({
   onPassageQuestionOptionImageRemove,
   onPassageAddQuestion,
   onAssignToPart,
+  comprehensionPassages = null,
+  onMoveQuestionToPassage,
+  quizContext = {},
 }) {
   const passage = section.passage
   const isMap = passage.passageKind === 'map'
@@ -1501,6 +1591,7 @@ function PassageSectionCard({
                 uploadStep={passage.imageUploadStep}
                 onFileSelect={file => onPassageImageUpload(sectionIndex, file)}
                 onRemove={() => onPassageImageRemove(sectionIndex)}
+                onCrop={onPassageImageCrop && passage.imageUrl ? () => onPassageImageCrop(sectionIndex, passage.imageUrl) : undefined}
                 theme={theme}
               />
             </div>
@@ -1548,6 +1639,11 @@ function PassageSectionCard({
                     onMove={onPassageQuestionMove}
                     onOptionImageUpload={onPassageQuestionOptionImageUpload}
                     onOptionImageRemove={onPassageQuestionOptionImageRemove}
+                    passageOptions={isMap ? null : comprehensionPassages}
+                    currentSectionId={section.id}
+                    onMoveToPassage={isMap ? null : onMoveQuestionToPassage}
+                    passageImageUrl={passage.imageUrl || ''}
+                    quizContext={quizContext}
                     theme={theme}
                   />
                 ))
@@ -1558,7 +1654,7 @@ function PassageSectionCard({
       )}
     </div>
   )
-}
+})
 
 // Sticky bulk-action toolbar surfaced when ≥1 standalone question is
 // selected. Sits above the question list and exposes the two bulk actions
@@ -1789,6 +1885,9 @@ export default function QuizSectionsEditor({
   variant = 'create',
   sections,
   parts = [],
+  // { subject, grade } — passed to each question card so the per-question
+  // "✨ AI" assistant can make grade/subject-appropriate edits.
+  quizContext = {},
   questionNumbers,
   // Map<question.localId, errorCount> — populated when the parent
   // editor wires `collectQuizIssues` into a per-question map. Each card
@@ -1801,6 +1900,7 @@ export default function QuizSectionsEditor({
   onStandaloneMove,
   onStandaloneImageUpload,
   onStandaloneImageRemove,
+  onStandaloneImageCrop,
   onStandaloneOptionImageUpload,
   onStandaloneOptionImageRemove,
   onPassageChange,
@@ -1809,6 +1909,7 @@ export default function QuizSectionsEditor({
   onPassageMove,
   onPassageImageUpload,
   onPassageImageRemove,
+  onPassageImageCrop,
   onPassageQuestionChange,
   onPassageQuestionRemove,
   onPassageQuestionMove,
@@ -1824,11 +1925,20 @@ export default function QuizSectionsEditor({
   onPartRemove,
   onAssignSectionToPart,
   onShuffleSections,
+  // Manual comprehension-grouping controls. Optional — the dropdown + bulk
+  // button only render when the parent wires these in.
+  //   onMoveQuestionToPassage(fromSectionId, questionLocalId, toSectionId)
+  //   onAutoGroupComprehension()  — keyword-regroup every comprehension run
+  onMoveQuestionToPassage,
+  onAutoGroupComprehension,
   emptyStateTitle = 'No questions yet',
   emptyStateDescription = 'Click "Add Question" below to start building this quiz.',
 }) {
   const theme = THEMES[variant] || THEMES.create
-  const sortedParts = [...(parts || [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+  const sortedParts = useMemo(
+    () => [...(parts || [])].sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    [parts],
+  )
   const partsAvailable = sortedParts.length > 0 && Boolean(onAssignSectionToPart)
 
   // Bulk-select state. Only standalone questions participate — passage
@@ -1837,17 +1947,20 @@ export default function QuizSectionsEditor({
   // Stale ids (after a single-card delete) are filtered out at the
   // render/action sites rather than fighting React effects.
   const [selectedIds, setSelectedIds] = useState(() => new Set())
-  function toggleSelect(sectionId) {
+  // Editor-level action awaiting ConfirmDialog approval —
+  // 'bulk-delete' | 'shuffle' | 'autogroup' | null.
+  const [pendingAction, setPendingAction] = useState(null)
+  const toggleSelect = useCallback(function toggleSelect(sectionId) {
     setSelectedIds(prev => {
       const next = new Set(prev)
       if (next.has(sectionId)) next.delete(sectionId)
       else next.add(sectionId)
       return next
     })
-  }
-  function clearSelection() {
+  }, [])
+  const clearSelection = useCallback(function clearSelection() {
     setSelectedIds(new Set())
-  }
+  }, [])
 
   // Build a stable iteration order: ungrouped sections first (preserving the
   // sections[] order), then each Part with its members in sections[] order.
@@ -1881,6 +1994,31 @@ export default function QuizSectionsEditor({
     }
   })
 
+  // Passage options for the per-question "Linked passage" dropdown. Only
+  // comprehension passages (not maps) participate, labelled by their title or a
+  // "Passage N" fallback so a teacher can move a question to the right text.
+  // Built from a content signature (id + title + story number per passage) so
+  // PassageSectionCard receives a STABLE array identity while typing question
+  // text — it only changes when a passage is added/removed/retitled/reordered.
+  // Keying on `sections` directly would hand a new array every keystroke and
+  // defeat the passage cards' React.memo.
+  const comprehensionSource = allInOrder.filter(
+    section => section.kind === 'passage' && (section.passage?.passageKind ?? 'comprehension') !== 'map',
+  )
+  const comprehensionSignature = comprehensionSource
+    .map(section => `${section.id}:${storyNumberById.get(section.id)}:${String(section.passage?.title ?? '').trim()}`)
+    .join('|')
+  const comprehensionPassages = useMemo(
+    () => comprehensionSource.map(section => ({
+      id: section.id,
+      label: String(section.passage?.title ?? '').trim() || `Passage ${storyNumberById.get(section.id)}`,
+    })),
+    // comprehensionSignature captures every input that affects the output.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [comprehensionSignature],
+  )
+  const canAutoGroup = Boolean(onAutoGroupComprehension) && comprehensionPassages.length >= 2
+
   function renderSection(section) {
     const sectionIndex = sectionIndexById.get(section.id) ?? 0
     if (section.kind === 'passage') {
@@ -1893,7 +2031,7 @@ export default function QuizSectionsEditor({
           totalQuestions={totalQuestions}
           questionNumbers={questionNumbers}
           storyNumber={storyNumberById.get(section.id)}
-          parts={partsAvailable ? sortedParts : []}
+          parts={partsAvailable ? sortedParts : EMPTY_PARTS}
           theme={theme}
           onPassageChange={onPassageChange}
           onPassageToggle={onPassageToggle}
@@ -1901,6 +2039,7 @@ export default function QuizSectionsEditor({
           onPassageMove={onPassageMove}
           onPassageImageUpload={onPassageImageUpload}
           onPassageImageRemove={onPassageImageRemove}
+          onPassageImageCrop={onPassageImageCrop}
           onPassageQuestionChange={onPassageQuestionChange}
           onPassageQuestionRemove={onPassageQuestionRemove}
           onPassageQuestionMove={onPassageQuestionMove}
@@ -1908,6 +2047,9 @@ export default function QuizSectionsEditor({
           onPassageQuestionOptionImageRemove={onPassageQuestionOptionImageRemove}
           onPassageAddQuestion={onPassageAddQuestion}
           onAssignToPart={onAssignSectionToPart}
+          comprehensionPassages={comprehensionPassages}
+          onMoveQuestionToPassage={onMoveQuestionToPassage}
+          quizContext={quizContext}
         />
       )
     }
@@ -1920,7 +2062,7 @@ export default function QuizSectionsEditor({
         sectionIndex={sectionIndex}
         totalSections={sections.length}
         sectionId={section.id}
-        parts={partsAvailable ? sortedParts : []}
+        parts={partsAvailable ? sortedParts : EMPTY_PARTS}
         isNew={!section.question._id}
         isSelected={selectedIds.has(section.id)}
         onToggleSelect={toggleSelect}
@@ -1930,9 +2072,11 @@ export default function QuizSectionsEditor({
         onMove={onStandaloneMove}
         onImageUpload={onStandaloneImageUpload}
         onImageRemove={onStandaloneImageRemove}
+        onImageCrop={onStandaloneImageCrop}
         onOptionImageUpload={onStandaloneOptionImageUpload}
         onOptionImageRemove={onStandaloneOptionImageRemove}
         onAssignToPart={onAssignSectionToPart}
+        quizContext={quizContext}
         theme={theme}
       />
     )
@@ -1952,12 +2096,19 @@ export default function QuizSectionsEditor({
   }
   const liveSelectedCount = selectedStandaloneIndexes().length
 
-  function bulkDelete() {
+  const bulkDelete = useCallback(function bulkDelete() {
     const indexes = selectedStandaloneIndexes()
     if (!indexes.length || !onStandaloneRemove) return
-    if (typeof window !== 'undefined' && !window.confirm(
-      `Delete ${indexes.length} selected question${indexes.length === 1 ? '' : 's'}? This can't be undone.`,
-    )) return
+    setPendingAction('bulk-delete')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sections, selectedIds, onStandaloneRemove])
+
+  // Selection can't change while the dialog is open (it's modal), so
+  // recomputing the indexes at confirm time matches what was requested.
+  function performBulkDelete() {
+    setPendingAction(null)
+    const indexes = selectedStandaloneIndexes()
+    if (!indexes.length || !onStandaloneRemove) return
     // Delete in DESCENDING index order so earlier deletions don't shift
     // the indices of later targets. React's functional setState (in the
     // parent's removeStandaloneSection) sees the latest sections[] on
@@ -1966,30 +2117,26 @@ export default function QuizSectionsEditor({
     clearSelection()
   }
 
-  function bulkSetMarks(value) {
+  const bulkSetMarks = useCallback(function bulkSetMarks(value) {
     const indexes = selectedStandaloneIndexes()
     if (!indexes.length || !onStandaloneChange) return
     indexes.forEach(idx => onStandaloneChange(idx, 'marks', value))
     clearSelection()
-  }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sections, selectedIds, onStandaloneChange, clearSelection])
 
-  function handleShuffleClick() {
+  const handleShuffleClick = useCallback(function handleShuffleClick() {
     if (!onShuffleSections) return
     if (totalQuestions < 2) return
-    const ok = typeof window === 'undefined'
-      ? true
-      : window.confirm(
-        'Shuffle the order of all questions?\n\n'
-          + '• Ungrouped questions and passages will be randomised.\n'
-          + '• Questions inside each Part will be randomised within that Part.\n'
-          + '• Questions inside each comprehension passage will be randomised.\n'
-          + '\nYou can still drag or use the ↑/↓ buttons to fine-tune.',
-      )
-    if (!ok) return
-    onShuffleSections()
-  }
+    setPendingAction('shuffle')
+  }, [onShuffleSections, totalQuestions])
 
   const canShuffle = Boolean(onShuffleSections) && totalQuestions >= 2
+
+  const handleAutoGroupClick = useCallback(function handleAutoGroupClick() {
+    if (!onAutoGroupComprehension) return
+    setPendingAction('autogroup')
+  }, [onAutoGroupComprehension])
 
   return (
     <div className="space-y-4">
@@ -2000,25 +2147,45 @@ export default function QuizSectionsEditor({
         onDelete={bulkDelete}
         onSetMarks={bulkSetMarks}
       />
-      {(sections.length > 0 || sortedParts.length > 0) && canShuffle && (
+      {(sections.length > 0 || sortedParts.length > 0) && (canShuffle || canAutoGroup) && (
         <div className="theme-card theme-border flex flex-wrap items-center justify-between gap-2 rounded-2xl border px-4 py-3 shadow-sm">
           <div>
             <p className="theme-text text-sm font-black">Question order</p>
             <p className="theme-text-muted mt-0.5 text-xs font-bold">
-              {totalQuestions} question{totalQuestions === 1 ? '' : 's'} · use Shuffle to randomise the order for fairness.
+              {totalQuestions} question{totalQuestions === 1 ? '' : 's'}
+              {canAutoGroup
+                ? ' · auto-group attaches each comprehension question to the right passage.'
+                : ' · use Shuffle to randomise the order for fairness.'}
             </p>
           </div>
-          <button
-            type="button"
-            onClick={handleShuffleClick}
-            className={joinClasses(
-              'min-h-0 rounded-xl border-2 px-4 py-2 text-sm font-black transition-all hover:-translate-y-px',
-              theme.button,
+          <div className="flex flex-wrap items-center gap-2">
+            {canAutoGroup && (
+              <button
+                type="button"
+                onClick={handleAutoGroupClick}
+                className={joinClasses(
+                  'min-h-0 rounded-xl border-2 px-4 py-2 text-sm font-black transition-all hover:-translate-y-px',
+                  theme.button,
+                )}
+                title="Match each comprehension question to the passage it refers to"
+              >
+                🧩 Auto-group comprehension questions
+              </button>
             )}
-            title="Randomise the order of questions (and within each Part / passage)"
-          >
-            🔀 Shuffle questions
-          </button>
+            {canShuffle && (
+              <button
+                type="button"
+                onClick={handleShuffleClick}
+                className={joinClasses(
+                  'min-h-0 rounded-xl border-2 px-4 py-2 text-sm font-black transition-all hover:-translate-y-px',
+                  theme.button,
+                )}
+                title="Randomise the order of questions (and within each Part / passage)"
+              >
+                🔀 Shuffle questions
+              </button>
+            )}
+          </div>
         </div>
       )}
       {sections.length === 0 && sortedParts.length === 0 ? (
@@ -2071,6 +2238,47 @@ export default function QuizSectionsEditor({
           + Add Part / Section group
         </button>
       )}
+
+      <ConfirmDialog
+        open={Boolean(pendingAction)}
+        title={
+          pendingAction === 'bulk-delete'
+            ? `Delete ${liveSelectedCount} selected question${liveSelectedCount === 1 ? '' : 's'}?`
+            : pendingAction === 'shuffle'
+              ? 'Shuffle the order of all questions?'
+              : 'Auto-group comprehension questions?'
+        }
+        message={
+          pendingAction === 'bulk-delete' ? (
+            "This can't be undone."
+          ) : pendingAction === 'shuffle' ? (
+            <ul className="list-disc pl-4 space-y-1">
+              <li>Ungrouped questions and passages will be randomised.</li>
+              <li>Questions inside each Part will be randomised within that Part.</li>
+              <li>Questions inside each comprehension passage will be randomised.</li>
+              <li>You can still drag or use the ↑/↓ buttons to fine-tune.</li>
+            </ul>
+          ) : (
+            <ul className="list-disc pl-4 space-y-1">
+              <li>Each question in a set of passages is matched to the passage it refers to (by keywords in the question, options, and answer).</li>
+              <li>Original question numbers and order are preserved.</li>
+              <li>You can still fine-tune with each question's "Linked passage" dropdown.</li>
+            </ul>
+          )
+        }
+        confirmLabel={
+          pendingAction === 'bulk-delete' ? 'Delete'
+            : pendingAction === 'shuffle' ? 'Shuffle'
+              : 'Auto-group'
+        }
+        variant={pendingAction === 'bulk-delete' ? 'danger' : 'primary'}
+        onConfirm={() => {
+          if (pendingAction === 'bulk-delete') performBulkDelete()
+          else if (pendingAction === 'shuffle') { setPendingAction(null); onShuffleSections?.() }
+          else if (pendingAction === 'autogroup') { setPendingAction(null); onAutoGroupComprehension?.() }
+        }}
+        onCancel={() => setPendingAction(null)}
+      />
     </div>
   )
 }

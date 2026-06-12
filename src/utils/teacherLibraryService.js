@@ -9,8 +9,8 @@
  */
 
 import {
-  collection, doc, getDoc, getDocs, deleteDoc, updateDoc,
-  query, where, orderBy, limit,
+  addDoc, collection, doc, getDoc, getDocs, deleteDoc, updateDoc,
+  query, where, orderBy, limit, serverTimestamp,
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import { LIBRARY_SECTION_BY_ID, LIBRARY_TYPES } from '../config/library'
@@ -202,6 +202,108 @@ export async function attachLibraryToGeneration(generationId, classification) {
 }
 
 /**
+ * Save a client-side tool's document into the library. Mark schedules and
+ * weekly forecasts are the only client-CREATED generations (pure
+ * client-side derivation, no Cloud Function) — firestore.rules pins the
+ * create to those tools with exactly this field set, so don't add
+ * top-level fields here without updating the rule. First save creates
+ * the doc; later saves patch output+library (within the update rule's
+ * changedKeys allowlist).
+ *
+ * Returns the generation id, or throws with a user-presentable message.
+ */
+async function saveClientToolGeneration({ uid, existingId, tool, artifact, inputs, classification }) {
+  if (!uid) throw new Error('Sign in again to save to your library.')
+  const library = classifyForLibrary(classification)
+  if (existingId) {
+    await updateDoc(doc(db, 'aiGenerations', existingId), {
+      output: artifact,
+      ...(library ? { library } : {}),
+    })
+    return existingId
+  }
+  const ref = await addDoc(collection(db, 'aiGenerations'), {
+    ownerUid: uid,
+    tool,
+    status: 'complete',
+    visibility: 'private',
+    createdAt: serverTimestamp(),
+    inputs,
+    output: artifact,
+    ...(library ? { library } : {}),
+  })
+  return ref.id
+}
+
+export async function saveMarkScheduleGeneration({ uid, existingId, artifact }) {
+  if (!artifact?.pupils?.length) throw new Error('Add at least one pupil before saving.')
+  const header = artifact.header || {}
+  return saveClientToolGeneration({
+    uid,
+    existingId,
+    tool: 'mark_schedule',
+    artifact,
+    inputs: {
+      grade: header.grade || null,
+      term: header.term != null ? String(header.term) : null,
+      subject: null,
+      topic: `Term ${header.term ?? ''} mark schedule`.trim(),
+    },
+    classification: {
+      libraryType: LIBRARY_TYPES.MARK_SCHEDULES,
+      grade: header.grade,
+      term: header.term,
+    },
+  })
+}
+
+export async function saveWeeklyForecastGeneration({ uid, existingId, artifact }) {
+  if (!artifact?.days?.length) throw new Error('Build the week before saving.')
+  const header = artifact.header || {}
+  return saveClientToolGeneration({
+    uid,
+    existingId,
+    tool: 'weekly_forecast',
+    artifact,
+    inputs: {
+      grade: header.grade || null,
+      term: header.term != null ? String(header.term) : null,
+      subject: header.subject || null,
+      topic: `Week ${header.weekNumber ?? ''} forecast`.trim(),
+    },
+    classification: {
+      libraryType: LIBRARY_TYPES.WEEKLY_FORECASTS,
+      grade: header.grade,
+      term: header.term,
+      subject: header.subject,
+    },
+  })
+}
+
+export async function saveRecordOfWorkGeneration({ uid, existingId, artifact }) {
+  if (!artifact?.weeks?.length) throw new Error('Log at least one week before saving.')
+  const header = artifact.header || {}
+  return saveClientToolGeneration({
+    uid,
+    existingId,
+    tool: 'record_of_work',
+    artifact,
+    inputs: {
+      grade: header.grade || null,
+      term: header.term != null ? String(header.term) : null,
+      subject: header.subject || null,
+      topic: `Term ${header.term ?? ''} record of work`.trim(),
+    },
+    classification: {
+      libraryType: LIBRARY_TYPES.RECORDS_OF_WORK,
+      grade: header.grade,
+      term: header.term,
+      subject: header.subject,
+    },
+  })
+}
+
+/**
  * Record that the user exported a generation in a given format. Appends to
  * the `exportedFormats` array (deduped).
  */
@@ -238,6 +340,14 @@ export async function getLibrarySummary(uid) {
 /* ── UI constants ─────────────────────────────────────────── */
 
 export const TOOL_META = {
+  // The Full Lesson generator was retired; the route is intentionally omitted
+  // so the library still renders legacy full_lesson items but cannot regenerate
+  // them (onRegenerate guards on meta.route).
+  full_lesson: {
+    label: 'Full Lesson',
+    icon: '✨',
+    colour: 'cyan',
+  },
   lesson_plan: {
     label: 'Lesson Plan',
     icon: '✨',
@@ -249,6 +359,24 @@ export const TOOL_META = {
     icon: '🗓️',
     route: '/teacher/generate/scheme-of-work',
     colour: 'teal',
+  },
+  weekly_forecast: {
+    label: 'Weekly Forecast',
+    icon: '📅',
+    route: '/teacher/generate/weekly-forecast',
+    colour: 'cyan',
+  },
+  record_of_work: {
+    label: 'Record of Work',
+    icon: '🗂️',
+    route: '/teacher/generate/record-of-work',
+    colour: 'orange',
+  },
+  mark_schedule: {
+    label: 'Mark Schedule',
+    icon: '🧮',
+    route: '/teacher/generate/mark-schedule',
+    colour: 'lime',
   },
   worksheet: {
     label: 'Worksheet',
@@ -279,7 +407,11 @@ export const TOOL_META = {
 export const TOOL_FILTER_OPTIONS = [
   {value: '', label: 'All tools'},
   {value: 'lesson_plan', label: 'Lesson plans'},
+  {value: 'full_lesson', label: 'Full lessons'},
   {value: 'scheme_of_work', label: 'Schemes of work'},
+  {value: 'weekly_forecast', label: 'Weekly forecasts'},
+  {value: 'record_of_work', label: 'Records of work'},
+  {value: 'mark_schedule', label: 'Mark schedules'},
   {value: 'worksheet', label: 'Worksheets'},
   {value: 'flashcards', label: 'Flashcards'},
   {value: 'rubric', label: 'Rubrics'},
@@ -314,6 +446,30 @@ export function titleForGeneration(gen) {
     const t = out?.header?.term || gen.inputs?.term || ''
     return `${g} ${s} — Term ${t} Scheme of Work`.trim()
   }
+  if (gen.tool === 'weekly_forecast') {
+    const g = String(out?.header?.grade || gen.inputs?.grade || '').replace(/^G/i, '')
+    const subj = out?.header?.subject || ''
+    const w = out?.header?.weekNumber || ''
+    const t = out?.header?.term || gen.inputs?.term || ''
+    return [`${g ? `Grade ${g}` : ''} ${subj}`.trim(), `Term ${t} Week ${w} Forecast`.trim()]
+      .filter(Boolean).join(' — ')
+  }
+  if (gen.tool === 'record_of_work') {
+    const g = String(out?.header?.grade || gen.inputs?.grade || '').replace(/^G/i, '')
+    const subj = out?.header?.subject || ''
+    const t = out?.header?.term || gen.inputs?.term || ''
+    const y = out?.header?.year || ''
+    return [`${g ? `Grade ${g}` : ''} ${subj}`.trim(), `Term ${t} Record of Work${y ? ` ${y}` : ''}`.trim()]
+      .filter(Boolean).join(' — ')
+  }
+  if (gen.tool === 'mark_schedule') {
+    const g = out?.header?.grade || gen.inputs?.grade || ''
+    const t = out?.header?.term || gen.inputs?.term || ''
+    const y = out?.header?.year || ''
+    const n = out?.pupils?.length
+    const head = `${g ? `Grade ${String(g).replace(/^G/i, '')}` : ''} — Term ${t} Mark Schedule${y ? ` ${y}` : ''}`.trim()
+    return n ? `${head} (${n} pupils)` : head
+  }
   if (gen.tool === 'rubric') {
     return out?.header?.title ||
       `${gen.inputs?.grade || ''} ${gen.inputs?.subject || ''} — ${gen.inputs?.taskType || 'rubric'}`.trim()
@@ -323,6 +479,19 @@ export function titleForGeneration(gen) {
     const topic = out?.header?.topic || gen.inputs?.topic || 'Notes'
     const grade = out?.header?.grade || gen.inputs?.grade || ''
     return [`Teacher notes — ${topic}`, grade].filter(Boolean).join(' · ')
+  }
+  if (gen.tool === 'full_lesson') {
+    if (out?.header?.title) return out.header.title
+    const topic = out?.header?.topic || gen.inputs?.topic || ''
+    const sub = out?.header?.subtopic || gen.inputs?.subtopic || ''
+    const head = [topic, sub].filter(Boolean).join(' — ')
+    return head ? `Lesson: ${head}` : 'Full lesson'
+  }
+  if (gen.tool === 'exam_paper') {
+    if (out?.header?.title) return out.header.title
+    const g = gen.inputs?.grade || out?.header?.grade || ''
+    const s = gen.inputs?.subject || out?.header?.subject || ''
+    return `${g} ${s} exam questions`.trim() || 'Exam questions'
   }
   return gen.inputs?.topic || 'Generation'
 }
@@ -437,6 +606,15 @@ export function getLibraryAccessLevel({ userProfile, isAdmin = false } = {}) {
     return LIBRARY_ACCESS.PRO
   }
   return LIBRARY_ACCESS.FREE
+}
+
+/**
+ * Should this viewer's studio exports carry the "Made with ZedExams"
+ * page footer? Free plan only — paid (and admin) documents stay clean.
+ * Consumed by the studios together with docxAttribution.js.
+ */
+export function isFreePlanTeacher({ userProfile, isAdmin = false } = {}) {
+  return getLibraryAccessLevel({ userProfile, isAdmin }) === LIBRARY_ACCESS.FREE
 }
 
 /**

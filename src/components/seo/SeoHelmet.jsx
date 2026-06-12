@@ -28,6 +28,7 @@ export default function SeoHelmet({
   image = DEFAULT_IMAGE,
   type = 'website',
   noIndex = false,
+  jsonLd = null,
 }) {
   const fullTitle = title ? `${title} — ZedExams` : 'ZedExams'
   const url = path ? `${SITE}${path}` : SITE
@@ -49,6 +50,12 @@ export default function SeoHelmet({
       <meta name="twitter:image" content={image} />
 
       {noIndex && <meta name="robots" content="noindex" />}
+
+      {jsonLd && (
+        <script type="application/ld+json">
+          {JSON.stringify(jsonLd)}
+        </script>
+      )}
     </Helmet>
   )
 }

@@ -10,11 +10,20 @@
  * imports from here, tests import only this file.
  */
 
-const {
-  curriculumDocId,
-  ragChunkDocId,
-  EMBED_MODEL,
-} = require("../agents/learnerAi/runners/curriculumIngester");
+const crypto = require("crypto");
+
+const EMBED_MODEL = "text-embedding-3-small";
+
+function curriculumDocId(meta) {
+  const hash = crypto.createHash("sha256")
+      .update(String(meta.sourceUrl || meta.url || ""))
+      .digest("hex");
+  return hash.slice(0, 32);
+}
+
+function ragChunkDocId(curriculumId, index) {
+  return `${curriculumId}_${String(index).padStart(4, "0")}`;
+}
 
 // 25 MB matches the existing syllabus uploads — large enough for a
 // full textbook chapter, small enough to keep Storage costs sane.

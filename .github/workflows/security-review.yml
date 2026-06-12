@@ -1,0 +1,54 @@
+name: Security Review
+
+# Anthropic's official AI security reviewer (anthropics/claude-code-security-review).
+# Runs Claude over the PR diff and comments any security findings inline. It is
+# diff-aware (only changed files), language-agnostic, and applies false-positive
+# filtering. Complements agent-pr-review.yml (general review) — this one is
+# security-specialised.
+#
+# Uses the existing ANTHROPIC_API_KEY Actions secret (already wired into
+# agent-bug-fixer.yml / agent-pr-review.yml / agent-release-notes.yml), so no
+# new secret is required. The key must be enabled for both the Claude API and
+# Claude Code usage.
+#
+# SECURITY NOTE: this action is not hardened against prompt injection, so it
+# should only review trusted PRs. `main` is branch-protected and merges are
+# self-served by a maintainer, but if external contributors are ever enabled,
+# turn on "Require approval for all external contributors" in
+# Settings → Actions so the workflow only runs after maintainer review.
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  pull-requests: write   # leave PR comments with findings
+  contents: read
+
+concurrency:
+  group: security-review-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 2
+
+      # Pinning to @main tracks upstream. For stricter supply-chain hygiene,
+      # replace @main with a specific commit SHA and bump it deliberately.
+      - uses: anthropics/claude-code-security-review@main
+        with:
+          claude-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+          # Pin the model: the action otherwise defaults to Opus, which on a
+          # per-PR agentic scan dominated the API bill (≈2M Opus tokens during
+          # the June PR burst). Haiku 4.5 is ~15x cheaper per token and is
+          # ample for diff-scoped security findings.
+          claude-model: claude-haiku-4-5-20251001
+          comment-pr: true
+          # android/ is generated Capacitor native output; not worth scanning.
+          exclude-directories: android,dist

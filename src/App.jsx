@@ -1,10 +1,11 @@
 import { lazy, Suspense, useEffect, useState } from 'react'
 import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
-import { useAuth } from './contexts/AuthContext'
+import { useAuth, hasAuthSessionHint } from './contexts/AuthContext'
 import { useTheme, applyThemeToBody, DEFAULT_THEME } from './contexts/ThemeContext'
 import { PlatformSettingsProvider } from './contexts/PlatformSettingsContext'
 import MaintenanceBanner from './components/banners/MaintenanceBanner'
 import AnnouncementBanner from './components/banners/AnnouncementBanner'
+import AndroidUpdateBanner from './components/banners/AndroidUpdateBanner'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import LearnerOnlyRoute from './components/auth/LearnerOnlyRoute'
 import Navbar from './components/layout/Navbar'
@@ -15,6 +16,7 @@ import UpdatePrompt from './components/ui/UpdatePrompt'
 import CookieConsentBanner from './components/ui/CookieConsentBanner'
 import ZedChatLauncher from './components/ai/ZedChatLauncher'
 import ErrorBoundary from './components/ui/ErrorBoundary'
+import ScrollToTop from './components/ui/ScrollToTop'
 
 // Auth/legal routes always render in the brand-default theme so a
 // visitor's previously-saved preference (e.g. Vivid's deep violet bg)
@@ -28,7 +30,7 @@ import ErrorBoundary from './components/ui/ErrorBoundary'
 // resolves to the brand default via resolveInitialTheme().
 const PUBLIC_THEME_PATHS = new Set([
   '/login', '/register', '/auth/action',
-  '/pricing', '/privacy', '/terms', '/status',
+  '/pricing', '/teachers', '/privacy', '/terms', '/status',
   '/papers',
 ])
 function isPublicThemePath(pathname) {
@@ -60,16 +62,14 @@ const StudentDashboard = lazy(() => import('./components/dashboard/StudentDashbo
 const GradeHub = lazy(() => import('./components/dashboard/GradeHub'))
 const StudyPlanPage = lazy(() => import('./components/dashboard/StudyPlanPage'))
 const LearnerCalendar = lazy(() => import('./components/dashboard/LearnerCalendar'))
+// TEMPORARY (2026 exams): inline PDF viewer for the Grade-7 PSLE timetable.
+// Replaces the <a href target="_blank"> approach in ExamTimetableCard, which
+// does not work on Android/Capacitor because WebViews silently drop external
+// PDF links. Remove with ExamTimetableCard once the 2026 exams are over.
+const TimetableViewerPage = lazy(() => import('./components/dashboard/TimetableViewerPage'))
 const SubjectDrillDown = lazy(() => import('./components/dashboard/SubjectDrillDown'))
 const QuizList = lazy(() => import('./components/quiz/QuizList'))
-// Learner-facing AI-generated practice quizzes (feature-flagged
-// via settings/global.learnerAi.showAiPracticeQuizzesToLearners).
-const AiPracticeQuizList   = lazy(() => import('./components/learnerAi/AiPracticeQuizList'))
-const AiPracticeQuizRunner = lazy(() => import('./components/learnerAi/AiPracticeQuizRunner'))
-// Learner-facing AI-generated notes (feature-flagged via
-// settings/global.learnerAi.showAiNotesToLearners). Read-only.
-const AiNotesList   = lazy(() => import('./components/learnerAi/AiNotesList'))
-const AiNotesReader = lazy(() => import('./components/learnerAi/AiNotesReader'))
+
 const QuizRunner = lazy(() => import('./components/quiz/QuizRunnerV2'))
 const QuizResults = lazy(() => import('./components/quiz/QuizResultsV2'))
 // Slide-based interactive lessons. /lessons is the canonical learner-
@@ -84,6 +84,8 @@ const LearnerLessonsList = lazy(() => import('./features/lessons/pages/LearnerLe
 // Notes Studio admin — replaces the old slide-builder at /admin/lessons
 const AdminNotesList    = lazy(() => import('./features/notes/pages/AdminNotesList').then(m => ({ default: m.AdminNotesList })))
 const AdminNoteEditor   = lazy(() => import('./features/notes/pages/AdminNoteEditor').then(m => ({ default: m.AdminNoteEditor })))
+const AdminNoteImport   = lazy(() => import('./features/notes/pages/AdminNoteImport').then(m => ({ default: m.AdminNoteImport })))
+const AdminVisualNotesGenerator = lazy(() => import('./features/notes/pages/AdminVisualNotesGenerator').then(m => ({ default: m.AdminVisualNotesGenerator })))
 
 // Notes Studio learner — /notes list + reader, gated by LearnerGate
 const LearnerNotesList  = lazy(() => import('./features/notes/pages/LearnerNotesList').then(m => ({ default: m.LearnerNotesList })))
@@ -97,6 +99,7 @@ const PaywallHost = lazy(() => import('./components/subscription/PaywallHost'))
 const NotFound = lazy(() => import('./components/ui/NotFound'))
 const Marketing = lazy(() => import('./components/marketing/Marketing'))
 const Plans = lazy(() => import('./components/marketing/Plans'))
+const TeachersLanding = lazy(() => import('./components/marketing/TeachersLanding'))
 const GradePackLanding = lazy(() => import('./components/marketing/GradePackLanding'))
 const PrivacyPolicy = lazy(() => import('./components/marketing/PrivacyPolicy'))
 const Terms = lazy(() => import('./components/marketing/Terms'))
@@ -127,6 +130,7 @@ const AdminLearners = lazy(() => import('./components/admin/AdminLearners'))
 const AdminLearnerProfile = lazy(() => import('./components/admin/AdminLearnerProfile'))
 const GenerationsAdmin = lazy(() => import('./components/admin/GenerationsAdmin'))
 const CbcKbAdmin = lazy(() => import('./components/admin/CbcKbAdmin'))
+const PictureBankAdmin = lazy(() => import('./components/admin/PictureBankAdmin'))
 const CurriculumReplaceStudio = lazy(() => import('./components/admin/CurriculumReplaceStudio'))
 const CurriculumUploadPanel = lazy(() => import('./components/admin/CurriculumUploadPanel'))
 const AdminAiCosts = lazy(() => import('./components/admin/AdminAiCosts'))
@@ -144,24 +148,7 @@ const AgentsAllJobs   = lazy(() => import('./components/admin/agents/AgentsHome'
 const AgentProfile    = lazy(() => import('./components/admin/agents/AgentsHome').then(m => ({ default: m.AgentProfile })))
 const AgentJobDetail  = lazy(() => import('./components/admin/agents/AgentJobDetail'))
 
-// Learner-AI admin pages (AI Control Centre at /admin/learner-ai).
-const LearnerAiHome           = lazy(() => import('./components/admin/learnerAi/LearnerAiHome'))
-const LearnerAiTaskDetail     = lazy(() => import('./components/admin/learnerAi/TaskDetailPage'))
-const LearnerAiLogs           = lazy(() => import('./components/admin/learnerAi/AgentLogsTable'))
-const LearnerAiCurriculumRpts = lazy(() => import('./components/admin/learnerAi/CurriculumUpdateReports'))
-const LearnerAiStagedModules = lazy(() => import('./components/admin/learnerAi/StagedModulesPanel'))
-const LearnerAiStandards      = lazy(() => import('./components/admin/learnerAi/AssessmentStandardsList'))
-// Phase A content-management tabs.
-const LearnerAiContentType    = lazy(() => import('./components/admin/learnerAi/ContentTypePage'))
-const LearnerAiFailedChecks   = lazy(() => import('./components/admin/learnerAi/FailedChecksPage'))
-const LearnerAiWeakness       = lazy(() => import('./components/admin/learnerAi/WeaknessReportsList'))
-const LearnerAiReports        = lazy(() => import('./components/admin/learnerAi/AgentReports'))
-const LearnerAiSettings       = lazy(() => import('./components/admin/learnerAi/AgentSettings'))
-const LearnerAiExamDetail     = lazy(() => import('./components/admin/learnerAi/ExamDraftDetailPage'))
 
-// Teacher — Agent submissions
-const AgentBriefForm       = lazy(() => import('./components/teacher/AgentBriefForm'))
-const TeacherAgentJobsList = lazy(() => import('./components/teacher/AgentJobsList').then(m => ({ default: m.AgentJobsList })))
 // Audit A10 — teacher classroom roster (foundation PR; quiz assignment + class analytics stack later).
 const TeacherClassesList = lazy(() => import('./components/teacher/classes/TeacherClassesList'))
 const TeacherClassEditor = lazy(() => import('./components/teacher/classes/TeacherClassEditor'))
@@ -172,7 +159,6 @@ const LearnerClassJoin = lazy(() => import('./components/classes/LearnerClassJoi
 const LearnerClassDetail = lazy(() => import('./components/classes/LearnerClassDetail'))
 // Audit A3 PR 1 — parent portal (public read-only progress view).
 const ParentProgressView = lazy(() => import('./components/parent/ParentProgressView'))
-const TeacherAgentJobView  = lazy(() => import('./components/teacher/AgentJobsList').then(m => ({ default: m.AgentJobView })))
 
 // Teacher section
 const TeacherLayout = lazy(() => import('./components/teacher/TeacherLayout'))
@@ -190,14 +176,14 @@ const AssessmentList = lazy(() => import('./components/teacher/AssessmentList'))
 // Teacher — AI Generators
 const LessonPlanStudio = lazy(() => import('./components/teacher/generate/LessonPlanStudio'))
 const LessonPlanGenerator = lazy(() => import('./components/teacher/generate/LessonPlanGenerator'))
-const CurriculumStudio = lazy(() => import('./components/teacher/generate/CurriculumStudio'))
-const FullLessonStudio = lazy(() => import('./components/teacher/generate/FullLessonStudio'))
 const HomeworkStudio = lazy(() => import('./components/teacher/generate/HomeworkStudio'))
 const AssessmentGenerator = lazy(() => import('./components/teacher/generate/AssessmentGenerator'))
-const QuizStudio = lazy(() => import('./components/teacher/generate/QuizStudio'))
 const WorksheetGenerator = lazy(() => import('./components/teacher/generate/WorksheetGenerator'))
 const FlashcardGenerator = lazy(() => import('./components/teacher/generate/FlashcardGenerator'))
 const SchemeOfWorkGenerator = lazy(() => import('./components/teacher/generate/SchemeOfWorkGenerator'))
+const MarkScheduleStudio = lazy(() => import('./components/teacher/generate/MarkScheduleStudio'))
+const WeeklyForecastStudio = lazy(() => import('./components/teacher/generate/WeeklyForecastStudio'))
+const RecordOfWorkStudio = lazy(() => import('./components/teacher/generate/RecordOfWorkStudio'))
 const RubricGenerator = lazy(() => import('./components/teacher/generate/RubricGenerator'))
 const NotesStudio = lazy(() => import('./components/teacher/generate/NotesStudio'))
 
@@ -226,7 +212,16 @@ const GamesSeedAdmin = lazy(() => import('./components/admin/GamesSeedAdmin'))
 const EditQuiz = lazy(() => import('./components/quiz/EditQuizV2'))
 
 function RootRedirect() {
-  const { currentUser, userProfile, isAdmin, isTeacher, profileIssue } = useAuth()
+  const { currentUser, userProfile, loading, isAdmin, isTeacher, profileIssue } = useAuth()
+  // Cold-start race: Firebase restores the persisted session asynchronously,
+  // so on the first frames `currentUser` is still null even for a returning
+  // logged-in user. Rendering <Marketing /> here is what made the app flash
+  // the public marketing page for a few seconds before redirecting to the
+  // dashboard. While auth is still resolving AND this device has a known
+  // session, hold on the loader instead of flashing Marketing. A signed-out
+  // visitor (no hint) still falls straight through to Marketing with no
+  // spinner.
+  if (loading && !currentUser && hasAuthSessionHint()) return <PageLoader />
   if (!currentUser) return <Marketing />
   if (profileIssue) return <MissingProfileRecovery />
   if (!userProfile) return <PageLoader />
@@ -347,12 +342,7 @@ function MissingProfileRecovery() {
 
 export default function App() {
   return (
-    <BrowserRouter
-      future={{
-        v7_startTransition: true,
-        v7_relativeSplatPath: true,
-      }}
-    >
+    <BrowserRouter>
       <PlatformSettingsProvider>
       {/* First focusable element on every page — keyboard users press Tab
           once and can jump past the navbar straight into route content.
@@ -365,6 +355,7 @@ export default function App() {
           don't get hidden under the network indicator. */}
       <MaintenanceBanner />
       <AnnouncementBanner />
+      <AndroidUpdateBanner />
       {/* Offline banner — slides in at the top when navigator.onLine flips
           false. Firestore queues writes locally so the user's progress
           survives the network drop; this is the visible reassurance. */}
@@ -381,6 +372,9 @@ export default function App() {
           default. Self-hides once a decision is recorded. */}
       <CookieConsentBanner />
       <ThemeApplicator />
+      {/* Reset scroll to the top on every client-side navigation so new
+          pages don't inherit the previous page's scroll offset. */}
+      <ScrollToTop />
       <div id="main" tabIndex={-1}>
         <Suspense fallback={<PageLoader />}>
           <RouteErrorBoundary>
@@ -394,10 +388,20 @@ export default function App() {
           <Route path="/welcome"  element={<Navigate to="/" replace />} />
           <Route path="/pricing"  element={<Plans />} />
           <Route path="/plans"    element={<Navigate to="/pricing" replace />} />
-          {/* Grade-specific landing pages — the URLs to share in
-              WhatsApp posts. Slug = grade number; data lives in
-              GradePackLanding's GRADE_PACKS map. */}
-          <Route path="/grade-:gradeSlug" element={<GradePackLanding />} />
+          {/* Public teacher landing — sample library + funnel into /register.
+              Legacy sub-paths (/teachers/samples from old launch docs)
+              canonicalise to the landing itself: 301'd at the hosting layer
+              (firebase.json); the splat <Navigate> is the dev-server fallback. */}
+          <Route path="/teachers"   element={<TeachersLanding />} />
+          <Route path="/teachers/*" element={<Navigate to="/teachers" replace />} />
+          {/* Grade-specific landing pages — the URLs to share in WhatsApp
+              posts. React Router v6 can't match a partial dynamic segment
+              (`/grade-:slug`), so each live grade gets an explicit route and
+              passes its slug to GradePackLanding. ECZ exam grades are Grade 7
+              and Grade 12; Grade 9 was phased out, so /grade-9 has no route
+              and correctly 404s. */}
+          <Route path="/grade-7"  element={<GradePackLanding gradeSlug="7" />} />
+          <Route path="/grade-12" element={<GradePackLanding gradeSlug="12" />} />
           <Route path="/privacy"  element={<PrivacyPolicy />} />
           <Route path="/terms"    element={<Terms />} />
           {/* Audit A2 — public ECZ past-paper archive. Hub is no-auth so
@@ -446,20 +450,15 @@ export default function App() {
           <Route path="/my-stats"          element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><StudentDashboard /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/study-plan"        element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><StudyPlanPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/calendar"          element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerCalendar /></LearnerOnlyRoute></ProtectedRoute>} />
+          {/* TEMPORARY (2026 exams): inline PDF viewer — replaced <a target="_blank"> which
+              does not open on Android/Capacitor. Remove with ExamTimetableCard after exams. */}
+          <Route path="/timetable"         element={<ProtectedRoute><LearnerOnlyRoute><TimetableViewerPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/exams"                        element={<ProtectedRoute><LearnerOnlyRoute><DailyExamsHub /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/exams/leaderboard"           element={<ProtectedRoute><LearnerOnlyRoute><ExamLeaderboardPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/exam/:examId"                element={<ProtectedRoute><LearnerOnlyRoute><DailyExamRunner /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/exam-results/:attemptId"     element={<ProtectedRoute><LearnerOnlyRoute><ExamResultsPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/quizzes"           element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><QuizList /></LearnerOnlyRoute></ProtectedRoute>} />
-          {/* AI-generated practice quizzes. Feature-flagged inside the
-              components (silent redirect to /dashboard when the
-              admin flag is off). */}
-          <Route path="/ai-practice"             element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><AiPracticeQuizList /></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/ai-practice/:contentId"  element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><AiPracticeQuizRunner /></LearnerOnlyRoute></ProtectedRoute>} />
-          {/* AI-generated notes. Same feature-flag pattern as
-              /ai-practice — silent redirect when the admin flag is off. */}
-          <Route path="/ai-notes"                element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><AiNotesList /></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/ai-notes/:contentId"     element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><AiNotesReader /></LearnerOnlyRoute></ProtectedRoute>} />
+
           {/* Course-map drill-down — clicking Practise on a subject card
               lands the learner here, with quizzes grouped by topic. */}
           <Route path="/practise/:grade/:subjectId" element={<ProtectedRoute><LearnerOnlyRoute><SubjectDrillDown /></LearnerOnlyRoute></ProtectedRoute>} />
@@ -491,6 +490,8 @@ export default function App() {
           <Route path="/admin"                          element={<AdminRoute><AdminDashboard /></AdminRoute>} />
           <Route path="/admin/lessons"                  element={<AdminRoute><AdminNotesList /></AdminRoute>} />
           <Route path="/admin/lessons/new"              element={<AdminRoute><AdminNoteEditor /></AdminRoute>} />
+          <Route path="/admin/lessons/import"           element={<AdminRoute><AdminNoteImport /></AdminRoute>} />
+          <Route path="/admin/lessons/visual/new"       element={<AdminRoute><AdminVisualNotesGenerator /></AdminRoute>} />
           <Route path="/admin/lessons/:id/edit"         element={<AdminRoute><AdminNoteEditor /></AdminRoute>} />
           <Route path="/admin/quizzes/new"              element={<AdminRoute><CreateQuiz /></AdminRoute>} />
           <Route path="/admin/quizzes/:quizId/edit"     element={<AdminRoute><EditQuiz /></AdminRoute>} />
@@ -500,6 +501,7 @@ export default function App() {
           <Route path="/admin/generations"              element={<AdminRoute><GenerationsAdmin /></AdminRoute>} />
           <Route path="/admin/generations/:id"          element={<AdminRoute><LibraryItemDetail /></AdminRoute>} />
           <Route path="/admin/cbc-kb"                   element={<AdminRoute><CbcKbAdmin /></AdminRoute>} />
+          <Route path="/admin/picture-bank"             element={<AdminRoute><PictureBankAdmin /></AdminRoute>} />
           <Route path="/admin/curriculum/replace"       element={<AdminRoute><CurriculumReplaceStudio /></AdminRoute>} />
           <Route path="/admin/curriculum-upload"        element={<AdminRoute><CurriculumUploadPanel /></AdminRoute>} />
           {/* Audit B4 — AI cost dashboard. Admin-only per route +
@@ -539,24 +541,6 @@ export default function App() {
           <Route path="/admin/agents/jobs/:jobId"       element={<AdminRoute><AgentJobDetail /></AdminRoute>} />
           <Route path="/admin/agents/:agentId"          element={<AdminRoute><AgentProfile /></AdminRoute>} />
 
-          {/* Learner-AI pipeline (parallel to /admin/agents). */}
-          <Route path="/admin/learner-ai"                        element={<AdminRoute><LearnerAiHome /></AdminRoute>} />
-          <Route path="/admin/learner-ai/tasks/:taskId"          element={<AdminRoute><LearnerAiTaskDetail /></AdminRoute>} />
-          <Route path="/admin/learner-ai/logs"                   element={<AdminRoute><LearnerAiLogs /></AdminRoute>} />
-          <Route path="/admin/learner-ai/curriculum-updates"     element={<AdminRoute><LearnerAiCurriculumRpts /></AdminRoute>} />
-          <Route path="/admin/learner-ai/staged-modules"         element={<AdminRoute><LearnerAiStagedModules /></AdminRoute>} />
-          <Route path="/admin/learner-ai/standards"              element={<AdminRoute><LearnerAiStandards /></AdminRoute>} />
-          {/* Phase A content-management tabs */}
-          <Route path="/admin/learner-ai/practice-quizzes"       element={<AdminRoute><LearnerAiContentType typeFilter="practice_quiz" /></AdminRoute>} />
-          <Route path="/admin/learner-ai/exam-quizzes"           element={<AdminRoute><LearnerAiContentType typeFilter="exam_quiz" /></AdminRoute>} />
-          <Route path="/admin/learner-ai/exams/:contentId"       element={<AdminRoute><LearnerAiExamDetail /></AdminRoute>} />
-          <Route path="/admin/learner-ai/notes-drafts"           element={<AdminRoute><LearnerAiContentType typeFilter="notes" /></AdminRoute>} />
-          <Route path="/admin/learner-ai/study-tips"             element={<AdminRoute><LearnerAiContentType typeFilter="study_tips" /></AdminRoute>} />
-          <Route path="/admin/learner-ai/feedback"               element={<AdminRoute><LearnerAiContentType typeFilter="learner_feedback" /></AdminRoute>} />
-          <Route path="/admin/learner-ai/failed-checks"          element={<AdminRoute><LearnerAiFailedChecks /></AdminRoute>} />
-          <Route path="/admin/learner-ai/weakness"               element={<AdminRoute><LearnerAiWeakness /></AdminRoute>} />
-          <Route path="/admin/learner-ai/reports"                element={<AdminRoute><LearnerAiReports /></AdminRoute>} />
-          <Route path="/admin/learner-ai/settings"               element={<AdminRoute><LearnerAiSettings /></AdminRoute>} />
 
           {/* ── Teacher routes (all wrapped in TeacherLayout) ─── */}
           {/* Post-upgrade celebration page — full-bleed, outside TeacherLayout chrome */}
@@ -572,14 +556,14 @@ export default function App() {
           <Route path="/teacher/lessons/:lessonId/edit"  element={<TeacherRoute><LessonEditor /></TeacherRoute>} />
           <Route path="/teacher/generate/lesson-plan"    element={<ProtectedRoute requiredRole="teacher"><LessonPlanStudio /></ProtectedRoute>} />
           <Route path="/teacher/generate/lesson-plan-cbc" element={<TeacherRoute><LessonPlanGenerator /></TeacherRoute>} />
-          <Route path="/teacher/generate/curriculum-studio" element={<TeacherRoute><CurriculumStudio /></TeacherRoute>} />
-          <Route path="/teacher/generate/full-lesson"    element={<TeacherRoute><FullLessonStudio /></TeacherRoute>} />
           <Route path="/teacher/generate/homework"       element={<TeacherRoute><HomeworkStudio /></TeacherRoute>} />
           <Route path="/teacher/generate/assessment"     element={<TeacherRoute><AssessmentGenerator /></TeacherRoute>} />
-          <Route path="/teacher/generate/quiz"           element={<TeacherRoute><QuizStudio /></TeacherRoute>} />
           <Route path="/teacher/generate/worksheet"      element={<TeacherRoute><WorksheetGenerator /></TeacherRoute>} />
           <Route path="/teacher/generate/flashcards"     element={<TeacherRoute><FlashcardGenerator /></TeacherRoute>} />
           <Route path="/teacher/generate/scheme-of-work" element={<TeacherRoute><SchemeOfWorkGenerator /></TeacherRoute>} />
+          <Route path="/teacher/generate/mark-schedule" element={<TeacherRoute><MarkScheduleStudio /></TeacherRoute>} />
+          <Route path="/teacher/generate/weekly-forecast" element={<TeacherRoute><WeeklyForecastStudio /></TeacherRoute>} />
+          <Route path="/teacher/generate/record-of-work" element={<TeacherRoute><RecordOfWorkStudio /></TeacherRoute>} />
           <Route path="/teacher/generate/rubric"          element={<TeacherRoute><RubricGenerator /></TeacherRoute>} />
           <Route path="/teacher/generate/notes"           element={<TeacherRoute><NotesStudio /></TeacherRoute>} />
           <Route path="/teacher/library"                 element={<TeacherRoute><TeacherLibrary /></TeacherRoute>} />
@@ -589,9 +573,6 @@ export default function App() {
           <Route path="/teacher/curriculum"              element={<TeacherRoute><CurriculumHome /></TeacherRoute>} />
           <Route path="/teacher/curriculum/primary"      element={<TeacherRoute><PrimaryCurriculum /></TeacherRoute>} />
           <Route path="/teacher/curriculum/secondary"    element={<TeacherRoute><SecondaryCurriculum /></TeacherRoute>} />
-          <Route path="/teacher/agents"                  element={<TeacherRoute><TeacherAgentJobsList /></TeacherRoute>} />
-          <Route path="/teacher/agents/new"              element={<TeacherRoute><AgentBriefForm /></TeacherRoute>} />
-          <Route path="/teacher/agents/:jobId"           element={<TeacherRoute><TeacherAgentJobView /></TeacherRoute>} />
           {/* Audit A10 — class roster foundation. Quiz-assignment +
               class analytics surfaces stack onto these in follow-ups. */}
           <Route path="/teacher/classes"                 element={<TeacherRoute><TeacherClassesList /></TeacherRoute>} />

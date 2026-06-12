@@ -7,6 +7,8 @@ import { useAuth } from '../../../contexts/AuthContext'
 import PageHeader from '../../ui/PageHeader'
 import Card from '../../ui/Card'
 import Button from '../../ui/Button'
+import ConfirmDialog from '../../ui/ConfirmDialog'
+import { useToast } from '../../ui/Toast'
 
 const SEVERITIES = ['info', 'warn', 'success']
 const AUDIENCES = ['all', 'learners', 'teachers', 'admins']
@@ -30,12 +32,16 @@ const EMPTY = {
 
 export default function AnnouncementsAdmin() {
   const { currentUser } = useAuth()
+  const toast = useToast()
   const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [form, setForm] = useState(EMPTY)
   const [saving, setSaving] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [msg, setMsg] = useState('')
+  // Announcement awaiting ConfirmDialog approval before deleteDoc.
+  const [pendingDelete, setPendingDelete] = useState(null)
+  const [deleting, setDeleting] = useState(false)
 
   async function reload() {
     setLoading(true)
@@ -103,17 +109,21 @@ export default function AnnouncementsAdmin() {
       await updateDoc(doc(db, 'announcements', item.id), { active: !item.active })
       reload()
     } catch (err) {
-      window.alert(err.message || err)
+      toast.error(err.message || err)
     }
   }
 
-  async function handleDelete(item) {
-    if (!window.confirm(`Delete "${item.title}"?`)) return
+  async function confirmDelete() {
+    if (!pendingDelete) return
+    setDeleting(true)
     try {
-      await deleteDoc(doc(db, 'announcements', item.id))
+      await deleteDoc(doc(db, 'announcements', pendingDelete.id))
       reload()
     } catch (err) {
-      window.alert(err.message || err)
+      toast.error(err.message || err)
+    } finally {
+      setDeleting(false)
+      setPendingDelete(null)
     }
   }
 
@@ -196,12 +206,23 @@ export default function AnnouncementsAdmin() {
                   {item.active ? 'Deactivate' : 'Activate'}
                 </Button>
                 <Button variant="secondary" size="sm" onClick={() => startEdit(item)}>Edit</Button>
-                <Button variant="secondary" size="sm" onClick={() => handleDelete(item)}>Delete</Button>
+                <Button variant="secondary" size="sm" onClick={() => setPendingDelete(item)}>Delete</Button>
               </div>
             </div>
           ))
         )}
       </Card>
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title="Delete this announcement?"
+        message={<>You're about to delete <strong className="theme-text">"{pendingDelete?.title}"</strong>. This cannot be undone.</>}
+        confirmLabel="Delete"
+        variant="danger"
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   )
 }

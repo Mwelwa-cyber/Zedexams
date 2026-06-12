@@ -14,12 +14,15 @@ import {
   TEACHER_SUBJECTS,
 } from '../../utils/teacherTools'
 import SeoHelmet from '../seo/SeoHelmet'
+import ConfirmDialog from '../ui/ConfirmDialog'
+import { useToast } from '../ui/Toast'
 
 /**
  * Admin-only ops page at /admin/generations.
  * See what teachers are generating, spot problems, export for review.
  */
 export default function GenerationsAdmin() {
+  const toast = useToast()
   const [rows, setRows] = useState([])
   const [status, setStatus] = useState('loading')
   const [errorMessage, setErrorMessage] = useState('')
@@ -27,6 +30,9 @@ export default function GenerationsAdmin() {
     tool: '', status: '', grade: '', subject: '', search: '',
   })
   const [savingIds, setSavingIds] = useState(new Set())
+  // Generation row awaiting ConfirmDialog approval before permanent delete.
+  const [pendingDelete, setPendingDelete] = useState(null)
+  const [deleteBusy, setDeleteBusy] = useState(false)
 
   async function load() {
     setStatus('loading')
@@ -87,14 +93,21 @@ export default function GenerationsAdmin() {
     setSavingIds((s) => { const n = new Set(s); n.delete(row.id); return n })
   }
 
-  async function onDelete(row) {
-    const confirmed = window.confirm(
-      `Delete generation ${row.id}? This is permanent.`,
-    )
-    if (!confirmed) return
-    const ok = await deleteGeneration(row.id)
-    if (ok) setRows((rs) => rs.filter((r) => r.id !== row.id))
-    else window.alert('Delete failed. Check console for details.')
+  function onDelete(row) {
+    setPendingDelete(row)
+  }
+
+  async function performDelete() {
+    if (!pendingDelete) return
+    setDeleteBusy(true)
+    try {
+      const ok = await deleteGeneration(pendingDelete.id)
+      if (ok) setRows((rs) => rs.filter((r) => r.id !== pendingDelete.id))
+      else toast.error('Delete failed. Check console for details.')
+    } finally {
+      setDeleteBusy(false)
+      setPendingDelete(null)
+    }
   }
 
   function onExport() {
@@ -280,6 +293,17 @@ export default function GenerationsAdmin() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title="Delete this generation?"
+        message={<>You're about to permanently delete generation <strong className="theme-text">{pendingDelete?.id}</strong>.</>}
+        confirmLabel="Delete"
+        variant="danger"
+        loading={deleteBusy}
+        onConfirm={performDelete}
+        onCancel={() => setPendingDelete(null)}
+      />
     </div>
   )
 }

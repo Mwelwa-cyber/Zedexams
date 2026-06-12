@@ -20,6 +20,13 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# puppeteer (a devDependency, used only by `npm run prerender` in the hosting
+# deploy) downloads a ~150 MB Chromium in its postinstall. None of the jobs
+# here prerender, so skip that download to keep `npm ci` fast. The deploy
+# workflow deliberately does NOT set this, so it gets the browser it needs.
+env:
+  PUPPETEER_SKIP_DOWNLOAD: "true"
+
 jobs:
   lint:
     name: Lint

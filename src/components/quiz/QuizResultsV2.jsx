@@ -269,7 +269,7 @@ export default function QuizResultsV2() {
   }
 
   return (
-    <div className="theme-text mx-auto max-w-4xl px-4 py-6 pb-28 md:pb-8 animate-slide-up">
+    <div className="theme-text mx-auto max-w-4xl px-4 py-6 pb-28 lg:pb-8 animate-slide-up">
       <SeoHelmet
         title={`${result.percentage ?? 0}% on ${result.subject || 'a quiz'}`}
         path={`/results/${resultId}`}

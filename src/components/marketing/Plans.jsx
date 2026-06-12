@@ -5,14 +5,11 @@ import Logo from '../ui/Logo'
 import Button from '../ui/Button'
 import Card from '../ui/Card'
 import SeoHelmet from '../seo/SeoHelmet'
+// Prices live in src/config/teacherPlanPricing.js so /pricing and the
+// /teachers landing can never drift apart on the numbers.
+import { PLAN_PRICES } from '../../config/teacherPlanPricing'
 
 const UpgradeModal = lazy(() => import('../subscription/UpgradeModal'))
-
-const PLAN_PRICES = {
-  free:  { monthly: 0,   annual: 0 },
-  pro:   { monthly: 79,  annual: 65 },
-  max:   { monthly: 199, annual: 165 },
-}
 
 const FAQ = [
   {
@@ -62,7 +59,9 @@ function Price({ planKey, billing, onDark }) {
     <div className="flex items-baseline gap-1.5 mb-1.5">
       <span className={`text-base font-bold ${muted}`}>K</span>
       <span className="font-display font-black text-5xl tracking-tight leading-none">{value}</span>
-      <span className={`text-sm ${muted}`}>/ month</span>
+      <span className={`text-sm ${muted}`}>
+        {billing === 'annual' && value > 0 ? '/ month, billed yearly' : '/ month'}
+      </span>
     </div>
   )
 }
@@ -110,7 +109,7 @@ function PlanCard({ plan, billing, popular = false, onCta }) {
       className={`relative flex flex-col ${popular ? '' : 'theme-text'}`}
     >
       {popular && (
-        <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-white/20 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-white">
+        <span className="absolute -top-3 left-1/2 -translate-x-1/2 z-10 rounded-full bg-white px-3 py-1 text-[11px] font-black uppercase tracking-wider text-[color:var(--accent-fg)] shadow-elev-sm ring-1 ring-black/5">
           Most popular
         </span>
       )}
@@ -129,7 +128,7 @@ function PlanCard({ plan, billing, popular = false, onCta }) {
         size="lg"
         fullWidth
         onClick={onCta}
-        className={popular ? 'bg-white !text-[color:var(--accent-fg)] hover:bg-white' : ''}
+        className={popular ? '!bg-white !text-[color:var(--accent-fg)] hover:!bg-white' : ''}
       >
         {plan.cta}
       </Button>
@@ -167,7 +166,7 @@ const PLANS = [
       <><strong>40</strong> lesson plans / month</>,
       <><strong>25</strong> worksheets &amp; teacher notes</>,
       <><strong>8</strong> assessments / month</>,
-      <><strong>2</strong> schemes of work / term</>,
+      <><strong>2</strong> schemes of work / month</>,
       <>Daily cap of <strong>10</strong> generations</>,
       'DOCX + PDF export',
       'Library kept forever',
@@ -175,7 +174,7 @@ const PLANS = [
     ],
   },
   {
-    key: 'max', name: 'Max', mascot: '🦅', meta: 'For HoDs & heavy users',
+    key: 'max', name: 'Max', mascot: '🦅', meta: 'For heavy users',
     note: 'Or K1,990 / year — two months free.', cta: 'Go Max',
     feats: [
       <><strong>Unlimited</strong> plans, notes &amp; worksheets*</>,
@@ -343,7 +342,7 @@ export default function Plans() {
                   <Row label="Worksheets" cells={['3', '25', 'Unlimited']} />
                   <Row label="Teacher notes" cells={['3', '25', 'Unlimited']} />
                   <Row label="Assessments" cells={[null, '8', 'Unlimited']} />
-                  <Row label="Schemes of work" cells={[null, '2 / term', 'Unlimited']} />
+                  <Row label="Schemes of work" cells={[null, '2', 'Unlimited']} />
 
                   <tr><td colSpan={4} className="px-5 py-2.5 bg-[color:var(--bg-subtle)] text-xs font-black uppercase tracking-wider theme-accent-text">Limits &amp; quality</td></tr>
                   <Row label="Daily generation cap" cells={['2', '10', '30']} />
@@ -422,7 +421,7 @@ export default function Plans() {
               variant="primary"
               size="lg"
               onClick={handleFreeCta}
-              className="bg-white !text-[color:var(--accent-fg)] hover:bg-white"
+              className="!bg-white !text-[color:var(--accent-fg)] hover:!bg-white"
             >
               ▶ Start with Free
             </Button>

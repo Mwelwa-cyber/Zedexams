@@ -4,6 +4,8 @@ import {
   sendEmailVerification,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithCredential,
+  GoogleAuthProvider,
   signOut,
   onAuthStateChanged,
   updateProfile,
@@ -11,14 +13,43 @@ import {
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import { doc, setDoc, getDoc, updateDoc, serverTimestamp, onSnapshot } from 'firebase/firestore'
 import app, { auth, db, googleProvider } from '../firebase/config'
+import { isNativePlatform } from '../utils/runtime'
 import { ROLES, hasPremiumAccess, hasLearnerPortalAccess } from '../utils/subscriptionConfig'
 import { isSuperAdmin as isSuperAdminRole, resolvePermissionFlags } from '../utils/permissions'
 import { setSentryUser, clearSentryUser } from '../utils/sentry'
 import { capture, identifyUser, resetAnalytics } from '../utils/analytics'
 import { refreshTokenIfGranted } from '../utils/fcm'
 import { mintAndPersistReferralCode, readPendingReferral, clearPendingReferral } from '../utils/referrals'
+import { useAuthRecovery } from '../hooks/useAuthRecovery'
 
 const AuthContext = createContext(null)
+
+// One-shot breadcrumb so the Login page can explain *why* the user landed
+// back on it after a session was force-expired (stale/revoked token on
+// resume). Read-and-cleared by Login; survives the signOut → redirect hop
+// because it lives in sessionStorage, not React state.
+export const SESSION_EXPIRED_KEY = 'auth:sessionExpired'
+
+// Persisted "this device has a signed-in user" hint. Firebase restores the
+// auth session from IndexedDB asynchronously on cold start, so for the first
+// frames `auth.currentUser` is null even for a returning logged-in user. We
+// drop this flag on sign-in and clear it on sign-out so the router can tell
+// the two cases apart *synchronously* on the very first render: a returning
+// user sees a loader (then their dashboard) instead of a flash of the public
+// marketing page, while a genuinely signed-out visitor still gets Marketing
+// immediately with no spinner. localStorage (not sessionStorage) so it
+// survives the app being fully closed and reopened.
+export const AUTH_HINT_KEY = 'auth:hasSession'
+export function hasAuthSessionHint() {
+  try { return localStorage.getItem(AUTH_HINT_KEY) === '1' } catch { return false }
+}
+function setAuthSessionHint(present) {
+  try {
+    if (present) localStorage.setItem(AUTH_HINT_KEY, '1')
+    else localStorage.removeItem(AUTH_HINT_KEY)
+  } catch { /* private mode / quota — fall back to the no-hint behaviour */ }
+}
+
 const functions = getFunctions(app, 'us-central1')
 const bootstrapUserProfileCallable = httpsCallable(functions, 'bootstrapUserProfile')
 const sendPasswordResetEmailCallable = httpsCallable(functions, 'sendPasswordResetEmail')
@@ -66,12 +97,91 @@ function defaultUserRecord({ displayName, email, role = ROLES.LEARNER, grade = n
   }
 }
 
+// Native Google sign-in via @capacitor-firebase/authentication. The plugin is
+// looked up through Capacitor's runtime registry rather than a static
+// `import('@capacitor-firebase/authentication')` so the web build never has to
+// resolve the native specifier — the same package-agnostic pattern App Check
+// uses in firebase/config.js. The plugin is configured with
+// `skipNativeAuth: true` (capacitor.config.json), so it performs only the
+// OAuth handshake and returns a credential; we complete sign-in on the JS SDK
+// with signInWithCredential so the app's auth state matches the web flow.
+async function signInWithGoogleNative() {
+  const { Capacitor } = await import('@capacitor/core').catch(() => ({}))
+  const FirebaseAuthentication = Capacitor?.Plugins?.FirebaseAuthentication || null
+  if (!FirebaseAuthentication) {
+    // Plugin not registered — the native build is missing
+    // @capacitor-firebase/authentication or hasn't been `cap sync`-ed.
+    const err = new Error('Google sign-in is not available in this app build.')
+    err.code = 'auth/operation-not-supported-in-this-environment'
+    throw err
+  }
+  let result
+  try {
+    result = await FirebaseAuthentication.signInWithGoogle()
+  } catch (err) {
+    // Normalise a user-cancelled native sheet (Google code 12501 / "canceled"
+    // message) to the same code the popup flow uses, so Login/Register treat
+    // it as a silent no-op rather than a "sign-in failed" error.
+    const msg = String(err?.message || err || '')
+    if (err?.code === '12501' || /cancel/i.test(msg)) {
+      const cancelled = new Error('Google sign-in was cancelled.')
+      cancelled.code = 'auth/cancelled-popup-request'
+      throw cancelled
+    }
+    throw err
+  }
+  const idToken = result?.credential?.idToken
+  if (!idToken) {
+    const err = new Error('Google did not return an ID token.')
+    err.code = 'auth/invalid-credential'
+    throw err
+  }
+  const credential = GoogleAuthProvider.credential(idToken, result?.credential?.accessToken)
+  return signInWithCredential(auth, credential)
+}
+
+// Shared first-time-profile bootstrap for both the popup (web) and native
+// Google flows. New users get a default profile + referral mint; existing
+// users keep their saved doc untouched.
+async function ensureGoogleUserProfile(cred, targetRole) {
+  const userRef = doc(db, 'users', cred.user.uid)
+  const snap = await getDoc(userRef)
+  if (snap.exists()) return
+  // Audit C7 — same referral mint + capture as the email path.
+  let referralCode = null
+  try {
+    referralCode = await mintAndPersistReferralCode(cred.user.uid)
+  } catch (err) {
+    console.warn('[loginWithGoogle] referral code mint failed', err)
+  }
+  const referredBy = readPendingReferral()
+  await setDoc(userRef, defaultUserRecord({
+    displayName: cred.user.displayName ?? '',
+    email: cred.user.email ?? '',
+    role: targetRole,
+    referralCode,
+    referredBy,
+  }))
+  if (referredBy) clearPendingReferral()
+  // Audit B2 — only emit on the first-time path so Google sign-IN by an
+  // existing user doesn't get counted as a signup.
+  capture('signup_completed', { role: targetRole, provider: 'google' })
+}
+
 export function AuthProvider({ children }) {
   const [currentUser, setCurrentUser] = useState(null)
   const [userProfile, setUserProfile] = useState(null)
   const [loading, setLoading]         = useState(true)
   const [profileIssue, setProfileIssue] = useState(null)
   const bootstrapInFlightRef = useRef(new Map())
+  // Tracks effect teardown so async recovery paths (forced token refresh,
+  // bootstrap) can bail after unmount. A ref rather than a closure boolean
+  // because expireSession + the recovery hook live outside the effect.
+  const disposedRef = useRef(false)
+  // Lets useAuthRecovery re-attach the profile snapshot after a resume — the
+  // effect publishes a re-subscribe closure here so the hook can call it
+  // without the subscription internals leaking out of the effect.
+  const subscribeProfileRef = useRef(null)
 
   async function register(email, password, displayName, grade, school, role = ROLES.LEARNER, extras = {}) {
     const isTeacherSignup = role === ROLES.TEACHER
@@ -129,35 +239,23 @@ export function AuthProvider({ children }) {
     return signInWithEmailAndPassword(auth, email, password)
   }
 
-  // Google sign-in. New users get a default profile; the caller can pass
-  // `role` (used only on first sign-in) so the Register page can honour the
-  // selected Learner/Teacher tab. Existing users keep their saved role.
+  // Google sign-in. Web uses an OAuth popup; the native Android shell can't
+  // open one — and Google blocks its sign-in pages inside embedded WebViews
+  // ("this browser or app may not be secure"), so even a redirect fails. The
+  // native path goes through @capacitor-firebase/authentication, which drives
+  // Android's native Google Sign-In and hands the resulting credential back to
+  // the Firebase JS SDK via signInWithCredential so the rest of the app sees
+  // the same auth state it does on web.
+  //
+  // New users get a default profile; the caller can pass `role` (used only on
+  // first sign-in) so the Register page can honour the selected
+  // Learner/Teacher tab. Existing users keep their saved role.
   async function loginWithGoogle({ role } = {}) {
     const targetRole = role === ROLES.TEACHER ? ROLES.TEACHER : ROLES.LEARNER
-    const cred = await signInWithPopup(auth, googleProvider)
-    const userRef = doc(db, 'users', cred.user.uid)
-    const snap = await getDoc(userRef)
-    if (!snap.exists()) {
-      // Audit C7 — same referral mint + capture as the email path.
-      let referralCode = null
-      try {
-        referralCode = await mintAndPersistReferralCode(cred.user.uid)
-      } catch (err) {
-        console.warn('[loginWithGoogle] referral code mint failed', err)
-      }
-      const referredBy = readPendingReferral()
-      await setDoc(userRef, defaultUserRecord({
-        displayName: cred.user.displayName ?? '',
-        email: cred.user.email ?? '',
-        role: targetRole,
-        referralCode,
-        referredBy,
-      }))
-      if (referredBy) clearPendingReferral()
-      // Audit B2 — only emit on the first-time path so Google
-      // sign-IN by an existing user doesn't get counted as a signup.
-      capture('signup_completed', { role: targetRole, provider: 'google' })
-    }
+    const cred = isNativePlatform()
+      ? await signInWithGoogleNative()
+      : await signInWithPopup(auth, googleProvider)
+    await ensureGoogleUserProfile(cred, targetRole)
     return cred
   }
 
@@ -271,20 +369,128 @@ export function AuthProvider({ children }) {
   // Full content access: admin always, paid teachers, or premium learners.
   const canAccessFullContent = isAdmin || isPaidTeacher || isPremium
 
+  // Force-end the session. Used by terminal token-refresh failures on resume
+  // and by snapshot auth errors that survive a refresh attempt. Drops a
+  // breadcrumb for the Login page, tears down state, and signs out — which
+  // flips currentUser to null so ProtectedRoute redirects to /login. No
+  // separate router bridge needed.
+  const expireSession = useCallback((reason) => {
+    if (disposedRef.current) return
+    console.warn('[auth] session expired:', reason)
+    try { sessionStorage.setItem(SESSION_EXPIRED_KEY, '1') } catch { /* private mode / quota */ }
+    setUserProfile(null)
+    setProfileIssue(null)
+    signOut(auth).catch((e) => console.error('signOut after expiry failed:', e))
+  }, [])
+
   useEffect(() => {
     let unsubProfile = null
-    let disposed = false
+    disposedRef.current = false
     // Watchdog: if Firebase auth + Firestore profile snapshot don't resolve
     // within this window, drop the loading gate so the user sees *something*.
     // 5 s gives slower Zambian networks enough time to complete the round-trip
     // before we fall back to the generic "loading your workspace…" screen.
     const timeout = setTimeout(() => {
-      if (!disposed) setLoading(false)
+      if (!disposedRef.current) setLoading(false)
     }, 5000)
+
+    // (Re-)attach the profile snapshot for `user`. Factored out of the
+    // onAuthStateChanged callback so useAuthRecovery can call it again after a
+    // resume, replacing a listener that may have gone silent while the tab
+    // slept. Always tears down the previous listener first.
+    const subscribeProfile = (user) => {
+      if (unsubProfile) {
+        try { unsubProfile() } catch { /* listener already torn down */ }
+        unsubProfile = null
+      }
+      unsubProfile = onSnapshot(
+        doc(db, 'users', user.uid),
+        (snap) => {
+          if (disposedRef.current) return
+          if (snap.exists()) {
+            const profile = toUserProfile(user.uid, snap.data())
+            // Soft-suspend: if an admin has flipped status to
+            // 'suspended' or 'deleted', sign the user out immediately
+            // and surface a clear message via window.alert. The
+            // ProtectedRoute layer would otherwise let them keep
+            // navigating until the session expires.
+            const status = profile?.status || 'active'
+            if (status === 'suspended' || status === 'deleted') {
+              setUserProfile(null)
+              setProfileIssue(null)
+              setLoading(false)
+              signOut(auth).catch(() => null)
+              if (typeof window !== 'undefined') {
+                setTimeout(() => {
+                  window.alert(
+                    status === 'suspended'
+                      ? 'Your account has been suspended. Please contact support.'
+                      : 'This account is no longer active.',
+                  )
+                }, 50)
+              }
+              return
+            }
+            setUserProfile(profile)
+            setProfileIssue(null)
+            setLoading(false)
+            // Audit B2 — identify with uid + role only (no email).
+            // Safe to call repeatedly; PostHog dedupes on uid.
+            identifyUser(user.uid, profile?.role)
+            return
+          }
+
+          void (async () => {
+            const repairedProfile = await bootstrapMissingProfile(user)
+            if (disposedRef.current) return
+            if (repairedProfile) {
+              setUserProfile(repairedProfile)
+              setProfileIssue(null)
+              identifyUser(user.uid, repairedProfile?.role)
+            } else {
+              setUserProfile(null)
+              setProfileIssue('missing')
+            }
+            setLoading(false)
+          })()
+        },
+        async (e) => {
+          if (disposedRef.current) return
+          console.error('profile subscription:', e)
+          // Stale-token recovery: a tab idle for hours can wake with an
+          // expired ID token, which Firestore surfaces as permission-denied
+          // / unauthenticated even though the account is fine. Try ONE forced
+          // refresh + re-subscribe before giving up; only a refresh failure
+          // means the session is genuinely gone.
+          if (e?.code === 'permission-denied' || e?.code === 'unauthenticated') {
+            try {
+              await user.getIdToken(true)
+              if (disposedRef.current) return
+              subscribeProfile(user)
+              return
+            } catch (refreshErr) {
+              if (disposedRef.current) return
+              expireSession(`snapshot-${e.code}:${refreshErr?.code || 'unknown'}`)
+              return
+            }
+          }
+          // Transient / network errors: surface a recoverable state rather
+          // than nuking the session. The recovery hook retries on resume.
+          setUserProfile(null)
+          setProfileIssue('unreadable')
+          setLoading(false)
+        },
+      )
+    }
+
+    subscribeProfileRef.current = () => {
+      if (auth.currentUser) subscribeProfile(auth.currentUser)
+    }
+
     const unsub = onAuthStateChanged(auth, (user) => {
       clearTimeout(timeout)
       if (unsubProfile) {
-        unsubProfile()
+        try { unsubProfile() } catch { /* listener already torn down */ }
         unsubProfile = null
       }
       setCurrentUser(user)
@@ -294,6 +500,10 @@ export function AuthProvider({ children }) {
       // sent — no email or displayName — to keep the PII surface tiny.
       // No-op if Sentry isn't configured (DSN unset).
       if (user) {
+        // Remember that this device has a live session so the next cold
+        // start routes straight to the loader → dashboard instead of
+        // flashing the marketing page (see AUTH_HINT_KEY).
+        setAuthSessionHint(true)
         setSentryUser(user.uid)
         // Audit A5.1 — opportunistically refresh the FCM token if the
         // user has previously granted permission. Silent no-op on
@@ -305,6 +515,9 @@ export function AuthProvider({ children }) {
           console.warn('[push] refresh on sign-in failed:', err)
         })
       } else {
+        // No live session — clear the cold-start hint so a signed-out
+        // visitor gets Marketing immediately on the next open, no spinner.
+        setAuthSessionHint(false)
         clearSentryUser()
         // Audit B2 — clear analytics identity so the next user (e.g.
         // shared phone) doesn't inherit the previous distinct_id.
@@ -312,65 +525,7 @@ export function AuthProvider({ children }) {
       }
       if (user) {
         setLoading(true)
-        unsubProfile = onSnapshot(
-          doc(db, 'users', user.uid),
-          (snap) => {
-            if (disposed) return
-            if (snap.exists()) {
-              const profile = toUserProfile(user.uid, snap.data())
-              // Soft-suspend: if an admin has flipped status to
-              // 'suspended' or 'deleted', sign the user out immediately
-              // and surface a clear message via window.alert. The
-              // ProtectedRoute layer would otherwise let them keep
-              // navigating until the session expires.
-              const status = profile?.status || 'active'
-              if (status === 'suspended' || status === 'deleted') {
-                setUserProfile(null)
-                setProfileIssue(null)
-                setLoading(false)
-                signOut(auth).catch(() => null)
-                if (typeof window !== 'undefined') {
-                  setTimeout(() => {
-                    window.alert(
-                      status === 'suspended'
-                        ? 'Your account has been suspended. Please contact support.'
-                        : 'This account is no longer active.',
-                    )
-                  }, 50)
-                }
-                return
-              }
-              setUserProfile(profile)
-              setProfileIssue(null)
-              setLoading(false)
-              // Audit B2 — identify with uid + role only (no email).
-              // Safe to call repeatedly; PostHog dedupes on uid.
-              identifyUser(user.uid, profile?.role)
-              return
-            }
-
-            void (async () => {
-              const repairedProfile = await bootstrapMissingProfile(user)
-              if (disposed) return
-              if (repairedProfile) {
-                setUserProfile(repairedProfile)
-                setProfileIssue(null)
-                identifyUser(user.uid, repairedProfile?.role)
-              } else {
-                setUserProfile(null)
-                setProfileIssue('missing')
-              }
-              setLoading(false)
-            })()
-          },
-          (e) => {
-            console.error('profile subscription:', e)
-            if (disposed) return
-            setUserProfile(null)
-            setProfileIssue('unreadable')
-            setLoading(false)
-          },
-        )
+        subscribeProfile(user)
       } else {
         setUserProfile(null)
         setProfileIssue(null)
@@ -378,12 +533,26 @@ export function AuthProvider({ children }) {
       }
     })
     return () => {
-      disposed = true
+      disposedRef.current = true
       clearTimeout(timeout)
-      if (unsubProfile) unsubProfile()
+      subscribeProfileRef.current = null
+      if (unsubProfile) {
+        try { unsubProfile() } catch { /* already torn down */ }
+      }
       unsub()
     }
-  }, [bootstrapMissingProfile])
+  }, [bootstrapMissingProfile, expireSession])
+
+  // On tab/app resume, force an ID-token refresh and re-establish the profile
+  // snapshot if it was dropped. If the session is genuinely dead, expire it
+  // (→ signOut → ProtectedRoute redirects to /login with a notice). Disables
+  // itself automatically once there's no signed-in user.
+  useAuthRecovery({
+    currentUser,
+    enabled: !!currentUser,
+    onResubscribe: () => subscribeProfileRef.current?.(),
+    onSessionExpired: (reason) => expireSession(`resume-${reason}`),
+  })
 
   return (
     <AuthContext.Provider value={{

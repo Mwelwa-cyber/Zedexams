@@ -6,6 +6,7 @@ import { AuthProvider } from './contexts/AuthContext'
 import { DataSaverProvider } from './contexts/DataSaverContext'
 import { ThemeProvider } from './contexts/ThemeContext'
 import ErrorBoundary from './components/ui/ErrorBoundary'
+import { ToastProvider } from './components/ui/Toast'
 import { initNativeShell } from './utils/nativeShell'
 import { initSentry } from './utils/sentry'
 import { initAnalytics, capture as captureAnalytics } from './utils/analytics'
@@ -49,7 +50,9 @@ ReactDOM.createRoot(document.getElementById('root')).render(
         <ThemeProvider>
           <DataSaverProvider>
             <AuthProvider>
-              <App />
+              <ToastProvider>
+                <App />
+              </ToastProvider>
             </AuthProvider>
           </DataSaverProvider>
         </ThemeProvider>

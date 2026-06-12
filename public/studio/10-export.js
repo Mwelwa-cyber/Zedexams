@@ -22,7 +22,46 @@ window.__studioRebinders.push(__studioInitExport);
 function gatherStyles() {
   return Array.from(document.styleSheets).map(s => { try { return Array.from(s.cssRules).map(r => r.cssText).join('\n'); } catch (e) { return ''; } }).join('\n');
 }
-function exportPDF() { if (editing) doc.contentEditable = false; window.print(); if (editing) doc.contentEditable = true; }
+function exportPDF() {
+  // A bare window.print() prints the WHOLE studio page — the sidebar form,
+  // planner, format cards and all — so the teacher ends up with several
+  // pages of UI before their plan (the bug behind the "saving gave me this
+  // PDF" report). Instead open a clean popup that contains ONLY the
+  // rendered document + the studio styles, and print that, so the PDF is
+  // the lesson plan alone.
+  if (editing) doc.contentEditable = false;
+  const restore = () => { if (editing) doc.contentEditable = true; };
+  let win = null;
+  try { win = window.open('', '_blank', 'width=900,height=1100'); } catch (e) { win = null; }
+  if (!win) {
+    // Pop-up blocked — fall back to the old behaviour so export still works.
+    if (typeof toast === 'function') toast('Allow pop-ups for a clean PDF of just the plan.');
+    window.print();
+    restore();
+    return;
+  }
+  const styles = gatherStyles();
+  const html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' +
+    currentFilename() + '</title>' +
+    '<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700;800&family=Lora:wght@400;600;700&display=swap" rel="stylesheet">' +
+    '<style>' + styles +
+    // Print-only overrides: fill the page, no screen shadow/accent bar.
+    '@page{size:A4;margin:14mm 15mm}' +
+    'html,body{background:#fff;margin:0;padding:0}' +
+    '.doc-wrap{max-width:none;margin:0;box-shadow:none;border-radius:0}' +
+    '.doc-wrap::before{display:none}' +
+    '.doc{padding:0;min-height:0}' +
+    '</style></head><body><div class="doc-wrap"><div class="doc">' +
+    doc.innerHTML + '</div></div></body></html>';
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
+  const triggerPrint = () => { try { win.focus(); win.print(); } catch (e) { /* user can Ctrl+P */ } };
+  // Let the new window lay out and load fonts before printing.
+  if (win.document.readyState === 'complete') setTimeout(triggerPrint, 350);
+  else win.addEventListener('load', () => setTimeout(triggerPrint, 350));
+  restore();
+}
 function exportHTML() {
   const styles = gatherStyles();
   const body = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Lesson Plan</title><link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700;800&family=Lora:wght@400;600;700&display=swap" rel="stylesheet"><style>${styles}</style></head><body><div class="doc-wrap" style="max-width:794px;margin:24px auto"><div class="doc">${doc.innerHTML}</div></div></body></html>`;

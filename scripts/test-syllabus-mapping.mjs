@@ -73,6 +73,9 @@ const {
   rowsWithPropagatedTopic,
   syllabiToKbTopics,
   studioSubjectToKbSubject,
+  // On Windows, ESM dynamic-import refuses bare absolute paths ("M:\..."); the
+  // file:// URL form works on both Windows and POSIX. (require() above is fine
+  // with OS paths — only import() needs the URL.)
 } = await import(pathToFileURL(join(ROOT, "src/utils/syllabusMapping.js")).href);
 
 let passed = 0;

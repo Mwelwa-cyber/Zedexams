@@ -30,11 +30,13 @@ import {
   resetCounter,
 } from '../../utils/pastPaperQuiz'
 import { paywall } from '../../utils/paywall'
-import { SUBJECTS } from '../../config/curriculum'
+import { PAPER_SUBJECTS } from '../../config/curriculum'
 import SeoHelmet from '../seo/SeoHelmet'
 import Logo from '../ui/Logo'
 import Skeleton from '../ui/Skeleton'
 import RichContent, { getRichPlainText } from '../../editor/RichContent'
+import DiagramSvg from '../diagrams/DiagramSvg'
+import ZoomableImage from '../quiz/ZoomableImage'
 
 function plainTextFromQuestion(q) {
   // Prefer Tiptap JSON, fall back to legacy HTML/plain text.
@@ -43,10 +45,27 @@ function plainTextFromQuestion(q) {
 
 function plainTextFromOption(opt) {
   if (opt == null) return ''
-  if (typeof opt === 'string') return opt
+  if (typeof opt === 'string') {
+    // An option may be a plain string ("117 kg"), legacy HTML, OR a
+    // stringified Tiptap doc ('{"type":"doc",...}'). getRichPlainText handles
+    // all three — for a stringified doc it extracts the readable text (e.g.
+    // "1/32"), for a plain string it returns it unchanged. Routing strings
+    // through it is what stops raw JSON leaking into the option label.
+    return getRichPlainText(opt) || opt
+  }
   if (typeof opt === 'object') {
     return getRichPlainText(opt.textJSON ?? opt.text ?? '') || opt.text || ''
   }
+  return String(opt)
+}
+
+// The value to hand <RichContent> for an option, so it renders with real
+// stacked fractions / KaTeX like the question stem instead of plain text.
+// Mirrors plainTextFromOption's shape handling.
+function richOptionValue(opt) {
+  if (opt == null) return ''
+  if (typeof opt === 'string') return opt
+  if (typeof opt === 'object') return opt.textJSON ?? opt.text ?? ''
   return String(opt)
 }
 
@@ -95,7 +114,7 @@ function Progress({ value, max }) {
   )
 }
 
-function OptionButton({ label, index, selected, revealed, correct, onClick, disabled }) {
+function OptionButton({ label, optionValue, index, selected, revealed, correct, onClick, disabled, imageUrl, diagram }) {
   let cls = 'theme-card border-2 theme-border'
   if (revealed) {
     if (correct) cls = 'border-2 border-emerald-500 bg-emerald-50 text-emerald-900'
@@ -104,6 +123,7 @@ function OptionButton({ label, index, selected, revealed, correct, onClick, disa
   } else if (selected) {
     cls = 'theme-accent-fill theme-on-accent border-2 border-transparent'
   }
+  const hasVisual = Boolean(diagram?.libraryKey) || Boolean(imageUrl)
   return (
     <button
       type="button"
@@ -114,7 +134,33 @@ function OptionButton({ label, index, selected, revealed, correct, onClick, disa
       <span className="flex-shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-xs font-black bg-white/30 border border-current">
         {String.fromCharCode(65 + index)}
       </span>
-      <span className="flex-1 whitespace-pre-wrap">{label}</span>
+      <span className="flex-1 min-w-0">
+        {hasVisual && (
+          <span className="block mb-2 rounded-md overflow-hidden border theme-border bg-white">
+            {diagram?.libraryKey ? (
+              <DiagramSvg
+                libraryKey={diagram.libraryKey}
+                params={diagram.params}
+                alt={`Option ${String.fromCharCode(65 + index)} diagram`}
+                className="mx-auto flex max-h-48 w-full items-center justify-center p-2"
+              />
+            ) : (
+              <img
+                src={imageUrl}
+                alt={`Option ${String.fromCharCode(65 + index)}`}
+                className="mx-auto block max-h-48 w-full object-contain"
+              />
+            )}
+          </span>
+        )}
+        {/* Render the option as rich content (stacked fractions, KaTeX) just
+            like the stem. RichContent handles Tiptap JSON, a stringified
+            Tiptap doc, legacy HTML, and plain strings; the plain-text label
+            is the fallback so an option is never blank or shows raw JSON. */}
+        {optionValue
+          ? <RichContent value={optionValue} className="block whitespace-pre-wrap" fallback={label ? <span className="block whitespace-pre-wrap">{label}</span> : null} />
+          : (label && <span className="block whitespace-pre-wrap">{label}</span>)}
+      </span>
       {revealed && correct && <span aria-hidden="true">✓</span>}
       {revealed && selected && !correct && <span aria-hidden="true">✗</span>}
     </button>
@@ -188,7 +234,7 @@ export default function PublicQuizRunner() {
 
   const question = questions[currentIndex] || null
   const total = questions.length
-  const subjectMeta = paper && SUBJECTS.find((s) => s.id === paper.subject)
+  const subjectMeta = paper && PAPER_SUBJECTS.find((s) => s.id === paper.subject)
 
   function handleSelect(idx) {
     if (revealed) return
@@ -397,10 +443,40 @@ export default function PublicQuizRunner() {
             <Progress value={currentIndex + (revealed ? 1 : 0)} max={total} />
           </div>
 
+          {/* Stem image / diagram — mirrors the editor preview. Library
+              diagrams (imageDiagram.libraryKey) win; uploaded photos
+              (imageUrl) are the fallback. Without this block the
+              trapezium/figure questions show only their text and the
+              learner can't actually answer them. */}
+          {question.imageDiagram?.libraryKey ? (
+            <div className="overflow-hidden rounded-radius-md border theme-border bg-white p-3">
+              <DiagramSvg
+                libraryKey={question.imageDiagram.libraryKey}
+                params={question.imageDiagram.params}
+                alt="Question diagram"
+                className="mx-auto flex max-h-[60vh] w-full items-center justify-center"
+              />
+            </div>
+          ) : question.imageUrl ? (
+            <div className="overflow-hidden rounded-radius-md border theme-border bg-white p-3">
+              <ZoomableImage
+                src={question.imageUrl}
+                alt="Question illustration"
+                fallbackText={question.diagramText}
+                className="mx-auto max-h-[60vh] w-full rounded-xl object-contain"
+              />
+            </div>
+          ) : null}
+          {question.diagramText && !question.imageDiagram?.libraryKey && !question.imageUrl && (
+            <p className="whitespace-pre-line rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold leading-relaxed text-slate-700">
+              {question.diagramText}
+            </p>
+          )}
+
           {/* Question prompt */}
           <div className="theme-text font-black text-base sm:text-lg leading-snug">
             {question.textJSON
-              ? <RichContent content={question.textJSON} />
+              ? <RichContent value={question.textJSON} fallback={<p>{plainTextFromQuestion(question)}</p>} />
               : <p>{plainTextFromQuestion(question)}</p>}
           </div>
 
@@ -408,11 +484,15 @@ export default function PublicQuizRunner() {
           <div className="space-y-2.5">
             {options.map((opt, idx) => {
               const label = plainTextFromOption(opt)
+              const optObj = (opt && typeof opt === 'object') ? opt : null
               return (
                 <OptionButton
                   key={idx}
                   index={idx}
-                  label={label || `Option ${idx + 1}`}
+                  label={label}
+                  optionValue={richOptionValue(opt)}
+                  imageUrl={optObj?.imageUrl}
+                  diagram={optObj?.diagram}
                   selected={selection === idx}
                   revealed={revealed}
                   correct={isCorrectChoice(question, idx)}
@@ -436,7 +516,7 @@ export default function PublicQuizRunner() {
               </p>
               <div className="theme-text text-sm">
                 {question.explanationJSON
-                  ? <RichContent content={question.explanationJSON} />
+                  ? <RichContent value={question.explanationJSON} fallback={<p>{getRichPlainText(question.explanation) || question.explanation}</p>} />
                   : <p>{getRichPlainText(question.explanation) || question.explanation}</p>}
               </div>
             </div>

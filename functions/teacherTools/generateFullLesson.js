@@ -29,7 +29,7 @@ const {assertAndIncrement} = require("./usageMeter");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
 
 const FULL_LESSON_MODEL =
-  process.env.FULL_LESSON_MODEL || "claude-sonnet-4-5";
+  process.env.FULL_LESSON_MODEL || "claude-sonnet-4-6";
 const LE_VALUES = new Set(LEARNING_ENVIRONMENT_VALUES);
 
 // Permissive top-level shape — validateFullLesson() does strict checking.

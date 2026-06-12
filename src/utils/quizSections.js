@@ -294,6 +294,21 @@ function hydrateRichField(value) {
   return value
 }
 
+// Answer options are serialised the same way rich fields are: a Tiptap JSON
+// option (rich math choice) is stored as a JSON string via serializeOptions.
+// On load they must be hydrated back into objects — otherwise the option
+// editor receives the literal `{"type":"doc",…}` string, RichEditor's
+// migrateContent() treats it as plain text, and the raw JSON renders verbatim
+// inside the answer box. Plain-string options (simple text/number choices)
+// and empty slots pass straight through unchanged.
+function hydrateOptions(options) {
+  if (!Array.isArray(options)) return options
+  return options.map((opt) => {
+    if (opt == null || opt === '') return opt
+    return hydrateRichField(opt)
+  })
+}
+
 // When a question has both an HTML mirror (e.g. `text`) and a JSON mirror
 // (e.g. `textJSON`), prefer the JSON. This rescues quizzes saved by an
 // earlier build whose normaliser corrupted the HTML mirror by escaping the
@@ -474,7 +489,7 @@ export function serializeQuizSections(sections = [], parts = []) {
         title: String(passage.title ?? '').trim(),
         instructions: serializeRichField(passage.instructions),
         passageText: serializeRichField(passage.passageText),
-        imageUrl: passage.imageUrl || null,
+        imageUrl: passage.imageUrl || '',
         // Carried so the save pass can swap in a Firebase Storage download URL
         // before the doc reaches Firestore. Cleared on save when the upload
         // succeeds; never persisted long-term.
@@ -581,7 +596,7 @@ function hydrateStandaloneQuestion(question = {}) {
     options: isTextAnswer
       ? []
       : Array.isArray(question.options) && question.options.length
-        ? question.options
+        ? hydrateOptions(question.options)
         : ['', '', '', ''],
     // optionMedia is parallel to options; persist it through the load so a
     // teacher reopening a draft sees the images they uploaded earlier.
@@ -670,7 +685,7 @@ function hydratePassageQuestion(question = {}, passageId, partId = null) {
     sharedInstruction: hydrateRichField(pickRichField(question.sharedInstructionJSON, question.sharedInstruction)),
     text: hydrateRichField(pickRichField(question.textJSON, question.text)),
     options: Array.isArray(question.options) && question.options.length
-      ? question.options
+      ? hydrateOptions(question.options)
       : ['', '', '', ''],
     // Persist optionMedia so image options survive a reload — same reasoning
     // as in hydrateStandaloneQuestion above.
@@ -789,6 +804,42 @@ export function hydrateQuizSections(questions = [], passages = [], parts = [], p
       order: typeof part.order === 'number' ? part.order : index,
     }))
     .sort((left, right) => (left.order ?? 0) - (right.order ?? 0))
+
+  // Recovery pass: if parts exist but every question has partId=null (caused
+  // by a pre-fix save that stripped partId), try to re-infer assignments from
+  // number ranges encoded in part titles ("Questions 1 - 20", "21 - 25", …).
+  // Only activates when ALL parts have parseable ranges so we don't make
+  // partial/wrong assignments.
+  const RANGE_RE = /\b(\d+)\s*[-–—]\s*(\d+)\b/
+  const namedHydratedParts = hydratedParts.filter(p => String(p.title ?? '').trim())
+  const partsBroken = namedHydratedParts.length > 0 && sections.every(s => {
+    if (s.kind === 'standalone') return !s.question?.partId
+    if (s.kind === 'passage') return !s.partId
+    return true
+  })
+  if (partsBroken) {
+    const partRanges = namedHydratedParts.map(p => {
+      const m = p.title.match(RANGE_RE)
+      return m ? { id: p.id, low: Number(m[1]), high: Number(m[2]) } : null
+    })
+    if (partRanges.every(Boolean)) {
+      let qOrder = 0
+      const recovered = sections.map(s => {
+        if (s.kind === 'pagebreak') return s
+        if (s.kind === 'passage') {
+          const qCount = s.passage?.questions?.length || 0
+          qOrder += qCount
+          const mid = qOrder - Math.floor(qCount / 2)
+          const match = partRanges.find(r => mid >= r.low && mid <= r.high)
+          return match ? { ...s, partId: match.id } : s
+        }
+        qOrder++
+        const match = partRanges.find(r => qOrder >= r.low && qOrder <= r.high)
+        return match ? { ...s, question: { ...s.question, partId: match.id } } : s
+      })
+      return { sections: recovered, parts: namedHydratedParts }
+    }
+  }
 
   return { sections, parts: hydratedParts }
 }
@@ -921,4 +972,49 @@ export function buildQuizDisplaySections(questions = [], passages = []) {
     sections: numberedSections,
     questions: orderedQuestions,
   }
+}
+
+/**
+ * Collect all Firestore `_id`s that would need to be deleted when a whole
+ * section (standalone question or passage with its sub-questions) is removed
+ * from the editor. Returns only ids that are already persisted (non-empty
+ * strings), so freshly-created questions that have never been saved are
+ * correctly skipped.
+ *
+ * Used by the quiz editor's remove handlers and extractable here so the
+ * deletion logic can be unit-tested independently of the React component.
+ *
+ * @param {object} section — a section from the editor's `sections` state array
+ * @returns {string[]} array of Firestore question document ids
+ */
+export function collectSectionFirestoreIds(section) {
+  if (!section) return []
+  if (section.kind === 'passage') {
+    return (section.passage?.questions || [])
+      .map(q => q._id)
+      .filter(id => typeof id === 'string' && id.length > 0)
+  }
+  const id = section.question?._id
+  return typeof id === 'string' && id.length > 0 ? [id] : []
+}
+
+/**
+ * Return the Firestore `_id` of a single passage sub-question identified by
+ * its section and question index, or `null` if the question has never been
+ * saved (i.e. `_id` is absent or empty).
+ *
+ * Extracted alongside `collectSectionFirestoreIds` so the
+ * `removePassageQuestion` handler in the quiz editor can be tested without
+ * relying on React state.
+ *
+ * @param {object[]} sections — current sections array snapshot
+ * @param {number}   sectionIndex  — index of the passage section
+ * @param {number}   questionIndex — index of the sub-question within the passage
+ * @returns {string|null}
+ */
+export function getPassageQuestionFirestoreId(sections, sectionIndex, questionIndex) {
+  const section = sections?.[sectionIndex]
+  const question = section?.passage?.questions?.[questionIndex]
+  const id = question?._id
+  return typeof id === 'string' && id.length > 0 ? id : null
 }

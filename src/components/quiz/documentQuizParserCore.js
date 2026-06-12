@@ -1,16 +1,21 @@
 import { createPartGroup, createPassageSection, createStandaloneSection } from '../../utils/quizSections.js'
+import { extractKeywords, keywordsForQuestion, assignByKeywords } from '../../utils/comprehensionGrouping.js'
+import { stripImportJunkChars } from '../../utils/textJunk.js'
 
+// Each entry maps a detectable label (used in doc headers) to the curriculum
+// subject ID used by the form and Firestore. Must stay in sync with
+// src/config/curriculum.js SUBJECTS[].id.
 const SUBJECTS = [
-  'English',
-  'Integrated Science',
-  'Science',
-  'Mathematics',
-  'Social Studies',
-  'Expressive Art',
-  'Expressive Arts',
-  'Technology Studies',
-  'Cinyanja',
-  'Home Economics',
+  { label: 'English',            id: 'english' },
+  { label: 'Integrated Science', id: 'science' },
+  { label: 'Science',            id: 'science' },
+  { label: 'Mathematics',        id: 'mathematics' },
+  { label: 'Social Studies',     id: 'social-studies' },
+  { label: 'Expressive Art',     id: 'expressive-arts' },
+  { label: 'Expressive Arts',    id: 'expressive-arts' },
+  { label: 'Technology Studies', id: 'technology' },
+  { label: 'Cinyanja',           id: 'cinyanja' },
+  { label: 'Home Economics',     id: 'home-economics' },
 ]
 
 const QUESTION_RE = /^(?:q(?:uestion)?\s*)?(\d{1,3})\s*[).:-]\s*(.+)$/i
@@ -27,6 +32,23 @@ const PARA_ORDER_INSTRUCTION_RE = /each question has four paragraphs|sentences i
 const PARA_ORDER_DO_Q_RE = /\bnow\s+do\s+questions?\s+(\d{1,3})/i
 const PARA_ORDER_QUESTION_ONLY_RE = /^\d{1,3}$/
 const QUESTION_RANGE_HEADING_RE = /^(?:(?:comprehension\s+)?questions?\s+\d{1,3}\s*[–-]\s*\d{1,3}|now\s+do\s+questions?\s+\d{1,3}\s*[–-]\s*\d{1,3}|look\s+at\s+questions?\s+\d{1,3}(?:\s*[–-]\s*\d{1,3})?)$/i
+// A shared "now do questions N – M" / "answer questions N to M" instruction that
+// introduces a run of comprehension questions. Unlike QUESTION_RANGE_HEADING_RE
+// this tolerates trailing punctuation ("Now do questions 46 – 60.") and the
+// "to" word form, so it does not leak into the passage text or the first
+// question's stem. It is captured as a comprehension instruction instead.
+const COMP_RANGE_INSTRUCTION_RE = /^(?:now\s+do|answer|attempt|do)\s+(?:the\s+)?questions?\s+\d{1,3}\s*(?:[–-]|to)\s*\d{1,3}\b\s*[.:;]?\s*$/i
+function isComprehensionRangeInstruction(line) {
+  return COMP_RANGE_INSTRUCTION_RE.test(cleanImportedText(line))
+}
+// Strip a leading "now do questions N – M" phrase off a question stem so an
+// imported Q46 reads "According to the text, why was …" rather than
+// "Now do questions 46 – 60. According to the text, why was …".
+function stripLeadingRangeInstruction(text) {
+  return cleanImportedText(
+    String(text || '').replace(/^(?:now\s+do|answer|attempt|do)\s+(?:the\s+)?questions?\s+\d{1,3}\s*(?:[–-]|to)\s*\d{1,3}\b\s*[.:;-]?\s*/i, ''),
+  )
+}
 // Verbs that, when they lead a non-numbered line, almost always mean the line
 // is a teacher instruction rather than a question stem or an answer/explanation.
 // Kept conservative — common question stems like "Find the value of x" stay
@@ -99,7 +121,12 @@ const COMP_INSTRUCTION_RE = /\b(?:read\s+(?:the\s+)?(?:following|passage|story|t
 const PASSAGE_LABEL_RE = /^(?:story|passage|text|extract|article|reading(?:\s+comprehension)?|comprehension)\s*(?:\d+|[IVX]+|[A-Z])?\s*(?:[:.,-]\s*.*)?$/i
 
 export function cleanImportedText(value) {
-  return String(value || '')
+  // Strip DOCX-to-text garbage (replacement char, zero-width / control chars,
+  // soft hyphen, ...) first -- see src/utils/textJunk.js for the full set and
+  // rationale -- then apply whitespace normalisation. U+00A0 (non-breaking
+  // space) is intentionally NOT stripped by the helper; we normalise it to a
+  // real space here instead.
+  return stripImportJunkChars(value)
     .replace(/\u00a0/g, ' ')
     .replace(/([a-z0-9])([.?!:;])([A-Z])/g, '$1$2 $3')
     .replace(/[ \t]+/g, ' ')
@@ -107,7 +134,6 @@ export function cleanImportedText(value) {
     .replace(/\n{3,}/g, '\n\n')
     .trim()
 }
-
 function splitLines(text) {
   return cleanImportedText(text)
     .split(/\r?\n/)
@@ -116,11 +142,24 @@ function splitLines(text) {
 }
 
 function titleFromFileName(name = '') {
-  return String(name || 'Imported Quiz')
+  const cleaned = String(name || 'Imported Quiz')
     .replace(/\.(docx?|pdf)$/i, '')
+    // Strip a leading hex/hash/upload-id prefix that download pipelines bolt
+    // onto the original filename, e.g. "053d6115-G7 English 2023 Answers2"
+    // or "a1b2c3d4e5f6_G7_English". Only strips a clearly-id-shaped prefix
+    // (8+ hex chars or a long alnum token) followed by a separator so real
+    // titles like "2023 English" are left intact.
+    .replace(/^[0-9a-f]{6,}[-_\s]+/i, '')
     .replace(/[_-]+/g, ' ')
     .replace(/\s+/g, ' ')
-    .trim() || 'Imported Quiz'
+    .trim()
+  // Normalise "G7" / "Grade7" / "Grade 7" tokens to a tidy "Grade 7" so an
+  // imported "G7 English 2023" reads as "Grade 7 English 2023".
+  const normalized = cleaned
+    .replace(/\bg(?:rade)?\s*([1-9]|1[0-2])\b/i, 'Grade $1')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return normalized || 'Imported Quiz'
 }
 
 function normalizeParaOrderInstruction(text) {
@@ -187,6 +226,16 @@ function isPassageLabel(line) {
 
 function isQuestionRangeHeading(line) {
   return QUESTION_RANGE_HEADING_RE.test(cleanImportedText(line))
+}
+
+// A "Reading Comprehension" banner that introduces the comprehension section
+// of a paper (e.g. "Reading Comprehension — Questions 46 – 60"). It is NOT a
+// single passage label (those are "Story 1", "Text 2") — it groups the
+// passages that follow under one Part. Matched broadly so the trailing
+// "— Questions N – M" range, an em-dash, or a colon don't defeat it.
+const READING_COMPREHENSION_HEADING_RE = /^reading\s+comprehension\b/i
+function isReadingComprehensionHeading(line) {
+  return READING_COMPREHENSION_HEADING_RE.test(cleanImportedText(line))
 }
 
 function questionMatch(line) {
@@ -374,15 +423,24 @@ export function metadataFromText(text, fileName) {
         : ''
 
   const headerText = [title, ...firstLines].join(' ')
-  const subject = SUBJECTS.find(s => new RegExp(`\\b${s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(headerText))
-    || SUBJECTS.find(s => new RegExp(`\\b${s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text))
-    || ''
+  const escape = str => str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const matchSubject = haystack =>
+    SUBJECTS.find(s => new RegExp(`\\b${escape(s.label)}\\b`, 'i').test(haystack))
+  const matched = matchSubject(headerText) || matchSubject(text)
+  const subject = matched?.id || ''
 
   // Topic is intentionally omitted from imported metadata — imported papers
   // span many CBC topics and the teacher should pick (or leave blank) rather
   // than have the title silently stamped as the topic.
+  // Guarantee a non-empty, trimmed title. A header line that cleans down to
+  // whitespace (e.g. a logo-only first paragraph) used to yield '' and fail
+  // the quiz schema's title.min(1) on autosave — fall back to the filename.
+  const cleanedTitle = cleanImportedText(title)
+  const safeTitle = cleanedTitle.trim()
+    ? cleanedTitle.slice(0, 90).trim()
+    : titleFromFileName(fileName)
   return {
-    title: cleanImportedText(title).slice(0, 90) || titleFromFileName(fileName),
+    title: safeTitle || 'Imported Quiz',
     grade,
     subject,
   }
@@ -500,7 +558,7 @@ function questionFromCurrent(current, answerKey = new Map()) {
   if (!current) return null
 
   const reviewNotes = [...current.reviewNotes]
-  const text = cleanImportedText(current.textParts.join(' '))
+  const text = stripLeadingRangeInstruction(cleanImportedText(current.textParts.join(' ')))
   const sharedInstruction = cleanImportedText(current.sharedInstruction)
   const optionAssetsArr = Array.isArray(current.optionAssets) ? current.optionAssets : []
   // Phase 3: the table-block builder synthesises "(image)" as the option text
@@ -840,6 +898,11 @@ function buildParaOrderBlocks(lineObjects, instruction) {
   let currentOpt = ''
   let optTexts = { A: [], B: [], C: [], D: [] }
   let firstBlock = null
+  // Inline "Answer: D — …" line that sits right after a para-order question's
+  // options. ECZ answer-key documents place it inline rather than in a
+  // trailing answer-key table. We capture it and re-emit it on the synthetic
+  // block so the main parser's ANSWER_RE resolves the correct option.
+  let answerRaw = ''
   const OPT_ORDER = ['A', 'B', 'C', 'D']
 
   function flushQuestion() {
@@ -849,6 +912,7 @@ function buildParaOrderBlocks(lineObjects, instruction) {
       const sentences = optTexts[letter] || []
       if (sentences.length) lines.push(`${letter}. ${sentences.join(' ')}`)
     }
+    if (answerRaw) lines.push(`Answer: ${answerRaw}`)
     output.push({
       text: lines.join('\n'),
       assets: firstBlock?.assets || [],
@@ -860,6 +924,7 @@ function buildParaOrderBlocks(lineObjects, instruction) {
     currentOpt = ''
     optTexts = { A: [], B: [], C: [], D: [] }
     firstBlock = null
+    answerRaw = ''
   }
 
   function startQuestion(num, block) {
@@ -875,6 +940,15 @@ function buildParaOrderBlocks(lineObjects, instruction) {
 
     if (/^example$/i.test(text) || /^the answer is\b/i.test(text)) continue
 
+    // Inline answer line ("Answer: D — …") for the active question. Captured
+    // here so parseRawParaOrderOptionLine below doesn't mistake "Answer…" for
+    // an option labelled "A".
+    const inlineAnswer = text.match(ANSWER_RE)
+    if (inlineAnswer) {
+      if (qNum) answerRaw = inlineAnswer[1]
+      continue
+    }
+
     const doQMatch = text.match(PARA_ORDER_DO_Q_RE)
     if (doQMatch) {
       const inlineStart = text.match(/(\d{1,3})\s*A(?:[).:-]\s*|\s+)?(.*)$/)
@@ -887,9 +961,12 @@ function buildParaOrderBlocks(lineObjects, instruction) {
       continue
     }
 
-    const questionOnlyMatch = text.match(PARA_ORDER_QUESTION_ONLY_RE)
+    // A question-number marker on its own line. ECZ Word exports write these
+    // as `39.` (with a trailing period); the bare `39` form also occurs. Both
+    // start a new para-order question.
+    const questionOnlyMatch = text.match(/^(\d{1,3})\s*[.):]?$/)
     if (questionOnlyMatch) {
-      startQuestion(questionOnlyMatch[0], block)
+      startQuestion(questionOnlyMatch[1], block)
       continue
     }
 
@@ -1076,6 +1153,15 @@ function parseQuestionsFromBlocks(blocks, warnings) {
   let pendingDiagramCaptions = []
   let inAnswerKey = false
   let sharedInstruction = ''
+  // Standing instruction for a run of "number-only stem" questions — e.g. an
+  // ECZ punctuation section where the heading is "Choose the sentence which is
+  // correctly punctuated." and every question is just a number (`26.`, `27.`)
+  // followed by full-sentence A–D options on their own lines. Unlike
+  // `sharedInstruction` (consumed by the first question), this persists across
+  // the whole run so every numbered question in the section keeps the prompt
+  // as its stem. Cleared whenever a normal numbered question, a new
+  // instruction, a section/passage break, or the answer key arrives.
+  let numberStemInstruction = ''
   let compActive = false
   let compInstructions = []
   let compTitle = ''
@@ -1146,6 +1232,10 @@ function parseQuestionsFromBlocks(blocks, warnings) {
       importWarnings: reviewNotes,
       sourcePage: null,
       sourceQuestionNumber: null,
+      // Stamp the active Part heading (e.g. "Reading Comprehension") so
+      // buildImportedSections groups the passage under that part rather than
+      // the document default part.
+      partTitle: currentPartTitle || '',
       imageUploading: false,
       imageUploadStep: '',
     })
@@ -1260,6 +1350,7 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         finalizeStandaloneQuestion()
         inAnswerKey = true
         sharedInstruction = ''
+        numberStemInstruction = ''
         currentPartTitle = ''
         return
       }
@@ -1288,6 +1379,16 @@ function parseQuestionsFromBlocks(blocks, warnings) {
       const explicitInstruction = /^instructions?\s*[:.-]/i.test(line)
 
       if (compActive) {
+        // "Now do questions 46 – 60." after the passages: capture it as a
+        // shared comprehension instruction instead of letting it fall through
+        // to the passage-text accumulator (which would bury it inside the last
+        // passage) or onto Q46's stem.
+        if (isComprehensionRangeInstruction(line) && !detectedQuestion) {
+          finalizeSubQuestion()
+          compInstructions.push(cleanImportedText(line).replace(/\s*[.:;]\s*$/, ''))
+          return
+        }
+
         if (isInstruction && !detectedQuestion) {
           if (compPassageParts.length > 0 || compSubQuestions.length > 0 || current) {
             finalizeComprehension()
@@ -1394,13 +1495,31 @@ function parseQuestionsFromBlocks(blocks, warnings) {
 
       if (explicitInstruction && !detectedQuestion) {
         finalizeStandaloneQuestion()
+        numberStemInstruction = ''
         sharedInstruction = stripInstructionPrefix(line)
+        return
+      }
+
+      // "Reading Comprehension — Questions 46 – 60" banner: open a Reading
+      // Comprehension PART so the Story 1/2/3 passages and Q46–60 that follow
+      // are grouped under it (requirement #3/#4). It is NOT itself a passage
+      // label ("Story N") nor a comprehension instruction ("read the passage
+      // …") — it only stamps the part title. The passages open their own
+      // comprehension blocks via isPassLabel below and inherit this partId
+      // because currentPartTitle stays set.
+      if (isReadingComprehensionHeading(line) && !detectedQuestion) {
+        finalizeStandaloneQuestion()
+        sharedInstruction = ''
+        numberStemInstruction = ''
+        if (lineAssets.length) pendingAssets.push(...lineAssets)
+        currentPartTitle = 'Reading Comprehension'
         return
       }
 
       if (isInstruction && !detectedQuestion) {
         finalizeStandaloneQuestion()
         sharedInstruction = ''
+        numberStemInstruction = ''
         compActive = true
         compInstructions.push(line)
         if (lineAssets.length) pendingAssets.push(...lineAssets)
@@ -1411,12 +1530,41 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         if (lineAssets.length) pendingAssets.push(...lineAssets)
         finalizeStandaloneQuestion()
         sharedInstruction = ''
-        // Section heading (PART A / SECTION B / UNIT 3 / etc.) opens a new
-        // Part group. Passage labels ("Story 1") do NOT — those belong to
-        // a comprehension passage that may live inside the active Part.
+        numberStemInstruction = ''
+        // A bare passage label ("Story 1", "Passage B", "Text 2") with no
+        // preceding "read the passage and answer the questions that follow"
+        // instruction still opens a comprehension block. Without this, a
+        // story that isn't introduced by a comprehension instruction (common
+        // in ECZ English papers where each story is headed only by
+        // "Story N") never activates comprehension mode: its passage text is
+        // dropped and every question under it is emitted as a bare standalone
+        // — exactly the "stories are not there, only the questions" failure.
+        // Section headings (PART A / SECTION B / UNIT 3) take precedence and
+        // open a Part group instead, since a passage can live inside a Part.
         if (isSectionBreak) {
           currentPartTitle = cleanImportedText(line)
+          return
         }
+        compActive = true
+        compTitle = cleanImportedText(line)
+        return
+      }
+
+      // A range heading ("Questions 21 – 25", "Questions 39 – 45") is a PART
+      // boundary in the standalone path: finalize the current question and
+      // start a fresh part so the questions that follow group under it.
+      // Checked BEFORE isStandaloneInstruction because STANDALONE_INSTRUCTION_RE
+      // also matches "questions N – M" and would otherwise swallow the heading
+      // into a sharedInstruction, never creating the part.
+      // (Comprehension mode handles range headings separately above — it
+      // keeps ignoring them so a "Questions 46 – 60" banner mid-passage
+      // doesn't split a story.)
+      if (isQuestionRangeHeading(line) && !detectedQuestion) {
+        finalizeStandaloneQuestion()
+        sharedInstruction = ''
+        numberStemInstruction = ''
+        if (lineAssets.length) pendingAssets.push(...lineAssets)
+        currentPartTitle = cleanImportedText(line)
         return
       }
 
@@ -1434,11 +1582,10 @@ function parseQuestionsFromBlocks(blocks, warnings) {
           return
         }
         finalizeStandaloneQuestion()
+        numberStemInstruction = ''
         sharedInstruction = stripInstructionPrefix(line)
         return
       }
-
-      if (isQuestionRangeHeading(line) && !detectedQuestion) return
 
       if (sharedInstruction && PARA_ORDER_INSTRUCTION_RE.test(sharedInstruction) && numberOnlyQuestion) {
         startQuestion(
@@ -1461,7 +1608,23 @@ function parseQuestionsFromBlocks(blocks, warnings) {
         return
       }
 
+      // Number-only stem: a line that is just `26.` / `27)` with the actual
+      // answer choices on the following lines (full-sentence A–D options).
+      // Common in ECZ "Choose the correctly punctuated sentence" sections.
+      // We only treat it as a question when a section instruction is standing
+      // — otherwise a stray page number would spawn a phantom question. The
+      // instruction is latched into numberStemInstruction so every numbered
+      // question in the run keeps the same prompt as its stem.
+      const numberStemMatch = line.match(/^(\d{1,3})\s*[.):]?$/)
+      if (numberStemMatch && !detectedQuestion && (numberStemInstruction || sharedInstruction)) {
+        if (!numberStemInstruction && sharedInstruction) numberStemInstruction = sharedInstruction
+        const stem = numberStemInstruction || sharedInstruction
+        startQuestion(stem, { ...block, assets: lineAssets, sharedInstruction: stem }, numberStemMatch[1], false)
+        return
+      }
+
       if (detectedQuestion) {
+        numberStemInstruction = ''
         startQuestion(detectedQuestion.text, { ...block, assets: lineAssets }, detectedQuestion.number, false)
         return
       }
@@ -1637,7 +1800,7 @@ function buildImportedSections(questions = [], documentInstruction = '') {
     orderedParts.push(defaultPart)
   }
 
-  const sections = questions.map(question => {
+  const sections = questions.map((question, index) => {
     const partTitle = question.passageTitle && question.partTitle
       ? question.partTitle
       : question.partTitle || ''
@@ -1651,26 +1814,70 @@ function buildImportedSections(questions = [], documentInstruction = '') {
         instructions: question.instructions ?? question.text ?? '',
         passageText: question.passage ?? '',
         imageUrl: question.imageUrl ?? '',
-        questions: (question.subQuestions || []).map(subQuestion => ({
+        questions: (question.subQuestions || []).map((subQuestion, subIndex) => ({
           ...subQuestion,
           type: 'mcq',
           detectedType: 'mcq',
           passageId: null,
           partId,
+          // Sequential in-memory ordering aid for the passage's sub-questions.
+          orderIndex: subIndex,
         })),
       })
       passageSection.partId = partId
+      // Stable integer document-order key. In-memory only — persistence uses
+      // the `order` field written by serializeQuizSections; the Zod quiz
+      // schema is .passthrough() so an extra field never hard-fails a save.
+      passageSection.orderIndex = index
       return passageSection
     }
 
     const section = createStandaloneSection({ ...question, partId })
+    section.orderIndex = index
     return section
   })
 
   return { sections, parts: orderedParts }
 }
 
-function summarizeImportedSections(sections = []) {
+// Per-part question/passage counts for the import preview. Returns one entry
+// per part (named parts plus the untitled default part, in document order),
+// each with the questions/passages it owns. Sections whose partId matches no
+// supplied part fall into a synthetic "(no part)" bucket so the preview still
+// accounts for every question. `hasZeroQuestionPart` flags parts the teacher
+// should look at before saving.
+function buildPartBreakdown(sections = [], parts = []) {
+  const byId = new Map()
+  const order = []
+  const ensure = (id, title) => {
+    const key = id ?? '__none__'
+    if (!byId.has(key)) {
+      const entry = { partId: id ?? null, title: title ?? '', questions: 0, passages: 0 }
+      byId.set(key, entry)
+      order.push(entry)
+    }
+    return byId.get(key)
+  }
+
+  // Seed in part order so empty parts still surface (a 0-question part is
+  // exactly what the warning is for).
+  ;(parts || []).forEach(part => ensure(part.id, part.title))
+
+  sections.forEach(section => {
+    if (section.kind === 'passage') {
+      const entry = ensure(section.partId ?? null)
+      entry.passages += 1
+      entry.questions += (section.passage?.questions || []).length
+      return
+    }
+    const entry = ensure(section.question?.partId ?? null)
+    entry.questions += 1
+  })
+
+  return order
+}
+
+function summarizeImportedSections(sections = [], parts = []) {
   let questionCount = 0
   let images = 0
   let needsReview = 0
@@ -1693,15 +1900,115 @@ function summarizeImportedSections(sections = []) {
     if (section.question?.requiresReview) needsReview += 1
   })
 
+  const partBreakdown = buildPartBreakdown(sections, parts)
+  const zeroQuestionParts = partBreakdown.filter(p => String(p.title || '').trim() && p.questions === 0)
+
   return {
     questions: questionCount,
     images,
     needsReview,
     passages,
+    sections: sections.length,
+    partBreakdown,
+    zeroQuestionParts,
   }
 }
 
-export function processImportedQuestionBlocks(blocks = [], warnings = []) {
+function isComprehensionBlock(question) {
+  return Boolean(question
+    && (question.type === 'comprehension' || question.detectedType === 'comprehension'))
+}
+
+// Repair degenerate comprehension grouping. When a paper lays out several
+// passages ("Text 1", "Text 2", "Text 3") and *then* a shared run of questions
+// ("Now do questions 46 – 60"), the line-by-line parser attaches that whole run
+// to the LAST passage, leaving the earlier passages with zero sub-questions.
+// This pass finds each maximal run of consecutive comprehension blocks; if some
+// passage in the run has no questions while the run as a whole does, it pools
+// every sub-question and reattaches each to the passage it actually refers to
+// by keyword overlap. Correctly-interleaved papers (every passage already has
+// its own questions) are left untouched.
+function regroupComprehensionBlocks(questions = []) {
+  const result = [...questions]
+  let i = 0
+  while (i < result.length) {
+    if (!isComprehensionBlock(result[i])) {
+      i += 1
+      continue
+    }
+    let j = i
+    while (j < result.length && isComprehensionBlock(result[j])) j += 1
+    const run = result.slice(i, j)
+    if (run.length >= 2) {
+      const counts = run.map(block => (block.subQuestions || []).length)
+      const total = counts.reduce((sum, n) => sum + n, 0)
+      const hasEmpty = counts.some(n => n === 0)
+      if (total > 0 && hasEmpty) {
+        const passageKeywordLists = run.map(block =>
+          extractKeywords(`${block.passageTitle ?? ''} \n ${block.passage ?? ''}`))
+        const pool = run.flatMap(block => block.subQuestions || [])
+        const assignments = assignByKeywords(passageKeywordLists, pool.map(keywordsForQuestion))
+        const buckets = run.map(() => [])
+        pool.forEach((subQuestion, idx) => {
+          buckets[assignments[idx] ?? 0].push(subQuestion)
+        })
+        buckets.forEach(bucket => bucket.sort((a, b) =>
+          (Number(a.sourceQuestionNumber) || 0) - (Number(b.sourceQuestionNumber) || 0)))
+        run.forEach((block, passageIndex) => {
+          const bucket = buckets[passageIndex]
+          block.subQuestions = bucket
+          block.marks = Math.max(1, bucket.reduce((sum, q) => sum + (q.marks || 1), 0))
+          // Refresh the "no sub-questions" review note now the counts changed.
+          const notes = (block.reviewNotes || []).filter(note =>
+            note !== 'No sub-questions were found for this comprehension block.')
+          if (bucket.length === 0) {
+            notes.push('No sub-questions were found for this comprehension block.')
+          }
+          block.reviewNotes = notes
+          block.importWarnings = notes
+          block.requiresReview = notes.length > 0 || bucket.some(q => q.requiresReview)
+        })
+      }
+    }
+    i = j
+  }
+  return result
+}
+
+// When "group comprehension" is OFF, flatten each comprehension block into
+// standalone questions so Q46–60 are emitted as ordinary questions instead of
+// attaching to their passage. Preserves document order and source numbers.
+function flattenComprehensionQuestions(questions = []) {
+  const out = []
+  questions.forEach(question => {
+    if (question.type === 'comprehension' || question.detectedType === 'comprehension') {
+      ;(question.subQuestions || []).forEach(subQuestion => {
+        out.push({
+          ...subQuestion,
+          type: subQuestion.type === 'comprehension' ? 'mcq' : (subQuestion.type || 'mcq'),
+          detectedType: subQuestion.detectedType || subQuestion.type || 'mcq',
+          // Carry the passage's part membership onto the now-standalone question
+          // so it still lands in the right Part.
+          partTitle: subQuestion.partTitle || question.partTitle || '',
+        })
+      })
+      return
+    }
+    out.push(question)
+  })
+  return out
+}
+
+// `options`:
+//   preserveNumbering  (default true)  — keep each question's
+//     sourceQuestionNumber. When false, renumber sequentially 1..N in
+//     document order.
+//   groupComprehension (default true)  — attach Q46–60 to their Story/Text
+//     passages. When false, emit them as standalone questions.
+export function processImportedQuestionBlocks(blocks = [], warnings = [], options = {}) {
+  const preserveNumbering = options.preserveNumbering !== false
+  const groupComprehension = options.groupComprehension !== false
+
   // Run mergeOrphanQuestionNumbers FIRST so the rest of the pipeline sees
   // `6. 954 751` instead of two stray blocks `6.` + `954 751`. Past papers
   // that lay vertical arithmetic out as separate paragraphs were dropping
@@ -1713,7 +2020,7 @@ export function processImportedQuestionBlocks(blocks = [], warnings = []) {
   // any numbered question, so we can hoist it to parts[0].instructions
   // instead of stamping it onto Q1 only.
   const documentInstruction = extractDocumentInstruction(processedBlocks)
-  const questions = parseQuestionsFromBlocks(processedBlocks, warnings)
+  let questions = parseQuestionsFromBlocks(processedBlocks, warnings)
 
   // The parser still sets sharedInstruction on the first question because
   // the legacy stamping path runs unconditionally. Strip the doc-level
@@ -1726,8 +2033,35 @@ export function processImportedQuestionBlocks(blocks = [], warnings = []) {
     }
   }
 
+  if (groupComprehension) {
+    // Fix the "all questions on the last passage, earlier passages empty" bug
+    // before sections are built so the editor and runner both see the right
+    // grouping.
+    questions = regroupComprehensionBlocks(questions)
+  } else {
+    questions = flattenComprehensionQuestions(questions)
+  }
+
+  // Renumber sequentially only when the teacher opted OUT of preserving the
+  // original numbering. The default (preserveNumbering = true) leaves every
+  // sourceQuestionNumber exactly as the document had it.
+  if (!preserveNumbering) {
+    let n = 0
+    questions.forEach(question => {
+      if (question.type === 'comprehension' || question.detectedType === 'comprehension') {
+        ;(question.subQuestions || []).forEach(subQuestion => {
+          n += 1
+          subQuestion.sourceQuestionNumber = n
+        })
+        return
+      }
+      n += 1
+      question.sourceQuestionNumber = n
+    })
+  }
+
   const { sections, parts } = buildImportedSections(questions, documentInstruction)
-  const summary = summarizeImportedSections(sections)
+  const summary = summarizeImportedSections(sections, parts)
 
   return {
     processedBlocks,

@@ -24,10 +24,12 @@
   },
   "nav": {
     "dashboard": "Home",
+    "studyPlan": "Plan",
     "lessons": "Lessons",
     "notes": "Notes",
     "quizzes": "Quizzes",
     "results": "Results",
+    "papers": "Papers",
     "profile": "Profile",
     "settings": "Settings"
   },

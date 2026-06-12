@@ -9,11 +9,13 @@
 // layout. Keeping these here instead of inline so the feature owns its
 // own route list.
 
-import { AdminNotesList }  from '../pages/AdminNotesList'
-import { AdminNoteEditor } from '../pages/AdminNoteEditor'
+import { AdminNotesList }   from '../pages/AdminNotesList'
+import { AdminNoteEditor }  from '../pages/AdminNoteEditor'
+import { AdminNoteImport }  from '../pages/AdminNoteImport'
 
 export const adminNoteRouteDefs = [
   { path: '/admin/lessons',             element: <AdminNotesList /> },
   { path: '/admin/lessons/new',         element: <AdminNoteEditor /> },
+  { path: '/admin/lessons/import',      element: <AdminNoteImport /> },
   { path: '/admin/lessons/:id/edit',    element: <AdminNoteEditor /> },
 ]

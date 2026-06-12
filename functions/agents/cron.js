@@ -9,13 +9,39 @@
  *     Samples up to 20 of the most recent `aiGenerations`, re-runs Cala
  *     on each, and writes a summary `agentJobs` doc with aggregate
  *     alignment results. Catches drift if the KB or prompts change.
+ *   - hourlyMonitor (Vigil) — every hour. Checks pages, Firebase, images,
+ *     and quizzes; on failure asks Haiku for fixes and escalates (email +
+ *     GitHub bug issue → Mendi), de-duplicated to once per failure per 24h.
  */
 
 const admin = require("firebase-admin");
 const {onSchedule} = require("firebase-functions/v2/scheduler");
+const {defineSecret} = require("firebase-functions/params");
 
 const {runQuill} = require("./runners/quill");
 const {runCala} = require("./runners/cala");
+const {runMonitorChecks, suggestFixes, notifyFailures} = require("./runners/monitor");
+
+// Vigil needs the Anthropic key for fix suggestions, the SMTP secrets for the
+// alert email, and GitHub credentials to file bug issues. For GitHub it prefers
+// a GitHub App (App id + private key + installation id → a no-expiry-to-babysit
+// installation token) and falls back to a PAT. defineSecret is keyed by name,
+// so shared secrets are the same ones defined elsewhere; each channel degrades
+// gracefully when its secret is unset.
+const anthropicApiKey = defineSecret("ANTHROPIC_API_KEY");
+const emailSmtpUser = defineSecret("EMAIL_SMTP_USER");
+const emailSmtpPassword = defineSecret("EMAIL_SMTP_PASSWORD");
+const githubBotToken = defineSecret("GITHUB_BOT_TOKEN");
+const githubAppId = defineSecret("GITHUB_APP_ID");
+const githubAppPrivateKey = defineSecret("GITHUB_APP_PRIVATE_KEY");
+const githubAppInstallationId = defineSecret("GITHUB_APP_INSTALLATION_ID");
+
+function getAdminEmails() {
+  return (process.env.ADMIN_EMAILS || "")
+      .split(",")
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+}
 
 const NIGHTLY_QA_OPTS = {
   schedule: "every day 02:00",
@@ -161,4 +187,83 @@ const weeklyCbcAlignmentAudit = onSchedule(WEEKLY_AUDIT_OPTS, async () => {
   });
 });
 
-module.exports = {nightlyQaSmoke, weeklyCbcAlignmentAudit};
+// Vigil — hourly health sweep. Runs the deterministic checks for free; only
+// spends Anthropic tokens (Haiku) to suggest fixes when something fails.
+const HOURLY_MONITOR_OPTS = {
+  schedule: "every 1 hours",
+  timeZone: "Africa/Lusaka",
+  region: "us-central1",
+  timeoutSeconds: 300,
+  memory: "256MiB",
+  secrets: [
+    anthropicApiKey, emailSmtpUser, emailSmtpPassword,
+    githubBotToken, githubAppId, githubAppPrivateKey, githubAppInstallationId,
+  ],
+};
+
+const hourlyMonitor = onSchedule(HOURLY_MONITOR_OPTS, async () => {
+  const db = admin.firestore();
+  const start = Date.now();
+
+  let report;
+  try {
+    report = await runMonitorChecks(db);
+  } catch (err) {
+    console.error("Vigil failed", err);
+    await db.collection("agentJobs").add({
+      agentId: "vigil",
+      department: "qaEng",
+      status: "failed",
+      input: {runType: "hourly-monitor"},
+      error: String(err && err.message || err).slice(0, 500),
+      createdBy: "system",
+      createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      runMs: Date.now() - start,
+    });
+    return;
+  }
+
+  // Only on failure: ask Haiku for fixes, then escalate (email + bug issue),
+  // de-duplicated so an unresolved problem is raised at most once per 24h.
+  if (!report.ok) {
+    const apiKey = anthropicApiKey.value() || process.env.ANTHROPIC_API_KEY;
+    if (apiKey) {
+      try {
+        report.suggestions = await suggestFixes(apiKey, report);
+      } catch (err) {
+        report.suggestionsError = String(err && err.message || err).slice(0, 300);
+      }
+    }
+    try {
+      report.notified = await notifyFailures({
+        db,
+        report,
+        smtpUser: String(emailSmtpUser.value() || "").trim(),
+        smtpPass: emailSmtpPassword.value(),
+        adminEmails: getAdminEmails(),
+        github: {
+          repo: process.env.GITHUB_REPO || "Mwelwa-cyber/Zedexams",
+          appId: String(githubAppId.value() || "").trim(),
+          privateKey: githubAppPrivateKey.value() || "",
+          installationId: String(githubAppInstallationId.value() || "").trim(),
+          pat: String(githubBotToken.value() || "").trim(),
+        },
+      });
+    } catch (err) {
+      report.notifyError = String(err && err.message || err).slice(0, 300);
+    }
+  }
+
+  await db.collection("agentJobs").add({
+    agentId: "vigil",
+    department: "qaEng",
+    status: report.ok ? "done" : "awaiting_approval",
+    input: {runType: "hourly-monitor"},
+    output: {vigil: report},
+    createdBy: "system",
+    createdAt: admin.firestore.FieldValue.serverTimestamp(),
+    runMs: Date.now() - start,
+  });
+});
+
+module.exports = {nightlyQaSmoke, weeklyCbcAlignmentAudit, hourlyMonitor};

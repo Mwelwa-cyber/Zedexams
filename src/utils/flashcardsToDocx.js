@@ -16,6 +16,7 @@ import {
   TextRun,
   WidthType,
 } from 'docx'
+import { attributionSection } from './docxAttribution.js'
 
 const DASH_BORDER = {
   top:    { style: BorderStyle.DASHED, size: 6, color: '9ca3af' },
@@ -65,7 +66,7 @@ function cardCell(content, {isFront}) {
   })
 }
 
-export function buildFlashcardsDocument(flashcards, {mode = 'cutout'} = {}) {
+export function buildFlashcardsDocument(flashcards, {mode = 'cutout', attribution = false} = {}) {
   const cards = flashcards.cards || []
   const children = []
 
@@ -147,7 +148,7 @@ export function buildFlashcardsDocument(flashcards, {mode = 'cutout'} = {}) {
     styles: {
       default: { document: { run: { font: 'Calibri', size: 20 } } },
     },
-    sections: [{ children }],
+    sections: [{ ...attributionSection({ attribution }), children }],
   })
 }
 

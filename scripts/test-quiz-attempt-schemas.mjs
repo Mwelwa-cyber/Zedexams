@@ -102,6 +102,40 @@ test('passages with valid shape pass', () => {
   assert(parsed.success, parsed.error?.issues?.[0]?.message)
 })
 
+test('passage with null imageUrl coerces to "" instead of rejecting', () => {
+  // Regression: serializeQuizSections used to emit `imageUrl: ... || null`
+  // for image-less passages, and `z.string().default('')` only fills in for
+  // `undefined` — so a null threw `Invalid quiz payload at
+  // "passages.0.imageUrl": Invalid input` and blocked the whole save.
+  const parsed = quizWriteSchema.safeParse({
+    ...validQuiz(),
+    passages: [{ id: 'p1', passageText: 'No image here', imageUrl: null, order: 0 }],
+  })
+  assert(parsed.success, parsed.error?.issues?.[0]?.message)
+  assert(parsed.data.passages[0].imageUrl === '', 'null imageUrl should normalise to ""')
+})
+
+test('passage with null text fields coerces to "" instead of rejecting', () => {
+  const parsed = quizWriteSchema.safeParse({
+    ...validQuiz(),
+    passages: [
+      { id: 'p1', title: null, instructions: null, passageText: null, passageKind: null, order: 0 },
+    ],
+  })
+  assert(parsed.success, parsed.error?.issues?.[0]?.message)
+  const p = parsed.data.passages[0]
+  assert(p.title === '' && p.instructions === '' && p.passageText === '' && p.passageKind === '',
+    'null passage strings should normalise to ""')
+})
+
+test('passage imageUrl still enforces the max length', () => {
+  const parsed = quizWriteSchema.safeParse({
+    ...validQuiz(),
+    passages: [{ id: 'p1', imageUrl: 'x'.repeat(2001), order: 0 }],
+  })
+  assert(!parsed.success, 'over-length imageUrl should still reject')
+})
+
 console.log('\nquizWriteSchema (rejection cases)')
 
 test('rejects missing title', () => {

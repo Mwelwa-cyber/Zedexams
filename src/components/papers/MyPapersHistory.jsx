@@ -17,7 +17,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import { listMyPaperAttempts } from '../../utils/pastPapers'
-import { SUBJECTS } from '../../config/curriculum'
+import { PAPER_SUBJECTS } from '../../config/curriculum'
 import SeoHelmet from '../seo/SeoHelmet'
 import Skeleton from '../ui/Skeleton'
 
@@ -45,7 +45,7 @@ function fmtRelative(ts) {
 
 function PaperGroupCard({ group }) {
   const { paper, attempts, bestSeconds, lastAt } = group
-  const subjectMeta = SUBJECTS.find((s) => s.id === paper.subject)
+  const subjectMeta = PAPER_SUBJECTS.find((s) => s.id === paper.subject)
   return (
     <article className="theme-card border theme-border rounded-radius-md p-4 flex items-start gap-3">
       <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-xl theme-bg-subtle">

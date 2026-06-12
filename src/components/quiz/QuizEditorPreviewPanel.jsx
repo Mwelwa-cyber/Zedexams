@@ -127,7 +127,6 @@ export default function QuizEditorPreviewPanel({ form, serializedSections }) {
       title: form.title,
       subject: form.subject,
       grade: form.grade,
-      term: form.term,
       duration: form.duration,
       topic: form.topic,
       type: form.type,
@@ -175,7 +174,7 @@ export default function QuizEditorPreviewPanel({ form, serializedSections }) {
             <div className="flex flex-wrap items-center gap-2 text-xs font-black uppercase tracking-wide">
               <span className="theme-accent-bg theme-accent-text rounded-full px-2.5 py-1">{form.subject || 'Subject'}</span>
               <span className="theme-card theme-border rounded-full border px-2.5 py-1">Grade {form.grade || '—'}</span>
-              <span className="theme-card theme-border rounded-full border px-2.5 py-1">Term {form.term || '—'}</span>
+              <span className="theme-card theme-border rounded-full border px-2.5 py-1">{form.duration || 30} min</span>
               <span className="theme-card theme-border rounded-full border px-2.5 py-1">{deferredSections.questionCount || 0} Questions</span>
             </div>
             <h3 className="theme-text mt-3 text-2xl font-black">{form.title || 'Untitled quiz'}</h3>

@@ -3,6 +3,7 @@ import {
 } from 'react'
 
 import SeoHelmet from '../seo/SeoHelmet'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import {
   activateVersion,
   auditArchivedData,
@@ -18,6 +19,7 @@ import {
   suggestNextVersionId,
   uploadSyllabusFile,
 } from '../../utils/syllabusReplaceService'
+import { expandKbLessons } from '../../utils/adminCbcKbService'
 
 const ACCEPT_XLSX = '.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
 
@@ -48,6 +50,8 @@ export default function CurriculumReplaceStudio() {
   const [toast, setToast] = useState('')
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [rollbackConfirmOpen, setRollbackConfirmOpen] = useState(false)
+  // Permanent-delete flows confirm through ConfirmDialog — 'rag' | 'version'.
+  const [pendingDanger, setPendingDanger] = useState(null)
   const [expandedSubject, setExpandedSubject] = useState(null)
 
   // Workspace tab — separates the sequential workflow from versions/audit
@@ -59,6 +63,9 @@ export default function CurriculumReplaceStudio() {
   const [audit, setAudit] = useState(null)
   const [deleteVersionInput, setDeleteVersionInput] = useState('')
   const [deleteVersionConfirm, setDeleteVersionConfirm] = useState('')
+  const [expandingLessons, setExpandingLessons] = useState(false)
+  const [expandResult, setExpandResult] = useState(null)
+  const [expandError, setExpandError] = useState(null)
 
   // Phase 3 — session-only activity log fed by flashToast. Resets on
   // page reload; not persisted to Firestore.
@@ -294,12 +301,11 @@ export default function CurriculumReplaceStudio() {
     }
   }
 
-  async function onDeleteRag() {
-    if (!window.confirm(
-      'PERMANENTLY DELETE the legacy RAG data (curriculum/* + rag_chunks/*)?\n\n' +
-      'This is irreversible. The server will also refuse if RAG fallback ' +
-      'is still on (usePrivateCurriculum=true on _meta).',
-    )) return
+  function onDeleteRag() {
+    setPendingDanger('rag')
+  }
+
+  async function performDeleteRag() {
     setBusy(true)
     try {
       const result = await deleteArchivedRag()
@@ -316,21 +322,20 @@ export default function CurriculumReplaceStudio() {
       }
     } finally {
       setBusy(false)
+      setPendingDanger(null)
     }
   }
 
-  async function onDeleteVersion() {
+  function onDeleteVersion() {
     if (!deleteVersionInput.trim()) return
     if (deleteVersionInput !== deleteVersionConfirm) {
       flashToast('Type the same version id in both fields to confirm.')
       return
     }
-    if (!window.confirm(
-      `PERMANENTLY DELETE cbcKnowledgeBase/${deleteVersionInput}/topics/* ` +
-      'and every lessons subcollection beneath it?\n\n' +
-      'This is irreversible. The server refuses if this version is the ' +
-      'current active or current rollback target.',
-    )) return
+    setPendingDanger('version')
+  }
+
+  async function performDeleteVersion() {
     setBusy(true)
     try {
       const result = await deleteOldVersion({
@@ -351,6 +356,7 @@ export default function CurriculumReplaceStudio() {
       }
     } finally {
       setBusy(false)
+      setPendingDanger(null)
     }
   }
 
@@ -374,6 +380,28 @@ export default function CurriculumReplaceStudio() {
       }
     } finally {
       setBusy(false)
+    }
+  }
+
+  async function onExpandLessons() {
+    setExpandingLessons(true)
+    setExpandResult(null)
+    setExpandError(null)
+    try {
+      const result = await expandKbLessons({ version: activeMeta?.version || null })
+      if (result.ok) {
+        setExpandResult(result)
+        flashToast(
+          `✓ Expanded lessons on "${result.version}": ` +
+          `${result.lessonsWritten} lesson docs written across ${result.topicsScanned} topics.`,
+          10_000,
+        )
+      } else {
+        setExpandError(result.error || 'Expand failed.')
+        flashToast(`Expand lessons failed: ${result.error}`, 10_000)
+      }
+    } finally {
+      setExpandingLessons(false)
     }
   }
 
@@ -747,6 +775,47 @@ export default function CurriculumReplaceStudio() {
         aria-labelledby="tab-versions"
         className="space-y-5"
       >
+
+        {/* Expand lessons — one-click maintenance to write lessons/ subcollection docs
+            from the subtopics[] array on every live topic. Safe to run on an already-active
+            version: uses merge:true so richer existing lesson data is never overwritten. */}
+        <section className="rounded-2xl border-2 theme-border bg-white p-4 space-y-3">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="min-w-0">
+              <p className="text-xs uppercase tracking-wide theme-text-muted font-bold">
+                Expand lessons on active version
+              </p>
+              <p className="text-sm theme-text-muted mt-1">
+                Writes individual lesson docs (one per subtopic per term) so AI agents
+                can resolve subtopics exactly. Run this once after activating any
+                version uploaded before this feature existed. Safe to re-run — never
+                overwrites richer existing lesson data.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={onExpandLessons}
+              disabled={expandingLessons || !activeMeta?.version}
+              className="shrink-0 px-3 py-2 rounded-lg border-2 theme-border font-bold text-sm hover:theme-card-hover disabled:opacity-40"
+            >
+              {expandingLessons ? 'Expanding…' : '📖 Expand lessons'}
+            </button>
+          </div>
+          {expandResult && (
+            <div className="rounded-lg bg-emerald-50 border border-emerald-200 p-3 text-xs font-mono text-emerald-900">
+              ✓ Version: <strong>{expandResult.version}</strong> ·{' '}
+              {expandResult.topicsScanned} topics scanned ·{' '}
+              <strong>{expandResult.lessonsWritten}</strong> lesson docs written
+              {expandResult.skipped > 0 && ` · ${expandResult.skipped} topics skipped (grade/subject filter)`}
+            </div>
+          )}
+          {expandError && (
+            <div className="rounded-lg bg-rose-50 border border-rose-200 p-3 text-xs text-rose-700">
+              {expandError}
+            </div>
+          )}
+        </section>
+
         <section className="rounded-2xl border-2 theme-border bg-white p-4 space-y-3">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div>
@@ -1068,6 +1137,31 @@ export default function CurriculumReplaceStudio() {
           </div>
         </div>
       )}
+
+      {/* Permanent-delete confirms (legacy RAG data / old KB version) */}
+      <ConfirmDialog
+        open={Boolean(pendingDanger)}
+        title={pendingDanger === 'rag' ? 'Permanently delete legacy RAG data?' : `Permanently delete "${deleteVersionInput}"?`}
+        message={pendingDanger === 'rag' ? (
+          <>
+            <p>This deletes <code>curriculum/*</code> and <code>rag_chunks/*</code>. It is irreversible.</p>
+            <p className="mt-2">The server will refuse if RAG fallback is still on (<code>usePrivateCurriculum=true</code> on <code>_meta</code>).</p>
+          </>
+        ) : (
+          <>
+            <p>This deletes <code>cbcKnowledgeBase/{deleteVersionInput}/topics/*</code> and every lessons subcollection beneath it. It is irreversible.</p>
+            <p className="mt-2">The server refuses if this version is the current active or current rollback target.</p>
+          </>
+        )}
+        confirmLabel="Delete permanently"
+        variant="danger"
+        loading={busy}
+        onConfirm={() => {
+          if (pendingDanger === 'rag') performDeleteRag()
+          else if (pendingDanger === 'version') performDeleteVersion()
+        }}
+        onCancel={() => setPendingDanger(null)}
+      />
     </div>
   )
 }

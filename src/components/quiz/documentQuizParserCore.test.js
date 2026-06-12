@@ -197,6 +197,210 @@ function runRegressionTest() {
 
 runRegressionTest()
 
+// ─── Real-world ECZ Word layout ───────────────────────────────────────────
+// The fixture above uses idealised one-line / bare-number formats. Real ECZ
+// .docx exports (e.g. G7 English) use two layouts the parser used to silently
+// drop:
+//   1. "Number-only stem" — the question is just `26.` on its own line and the
+//      A–D answer choices are full sentences on the following lines, with an
+//      inline `Answer: B  —  …` line. The section heading supplies the stem.
+//   2. Paragraph-ordering markers written as `39.` (trailing period), not the
+//      bare `39` the old code required, also with inline answers.
+// This regression locks both in so a clean 60-question paper imports whole.
+function numberOnlyStemQuestion(number, options, answerLetter) {
+  const answerText = options['ABCD'.indexOf(answerLetter)]
+  return [
+    block(`${number}.`),
+    block(`A   ${options[0]}`),
+    block(`B   ${options[1]}`),
+    block(`C   ${options[2]}`),
+    block(`D   ${options[3]}`),
+    block(`Answer: ${answerLetter}  —  ${answerText}`),
+  ]
+}
+
+function paraOrderQuestionWithPeriod(number, options, answerLetter) {
+  const answerText = options['ABCD'.indexOf(answerLetter)]
+  return [
+    block(`${number}.`),
+    block(`A   ${options[0]}`),
+    block(`B   ${options[1]}`),
+    block(`C   ${options[2]}`),
+    block(`D   ${options[3]}`),
+    block(`Answer: ${answerLetter}  —  ${answerText}`),
+  ]
+}
+
+function runRealWorldLayoutTest() {
+  const punctuationInstr = 'Choose the sentence which is correctly punctuated.'
+  const paragraphInstr = 'Choose the paragraph which has the sentences in the best order.'
+
+  const blocks = [
+    block('Part 3: Questions 26 – 30'),
+    block(punctuationInstr),
+    ...numberOnlyStemQuestion(26, [
+      'The Bible was translated into Chitonga Cinyanja Luvale and Icibemba.',
+      'The Bible was translated into, Chitonga Cinyanja Luvale and Icibemba.',
+      'The Bible, was translated into Chitonga Cinyanja Luvale and Icibemba.',
+      'The Bible was translated into Chitonga, Cinyanja, Luvale and Icibemba.',
+    ], 'D'),
+    ...numberOnlyStemQuestion(27, [
+      "The First Lady's Independence Day attire was nice.",
+      'The First Ladys Independence Day attire was nice.',
+      "The First Lady's, Independence Day attire was nice.",
+      "The First Ladys' Independence Day attire was nice.",
+    ], 'A'),
+    ...numberOnlyStemQuestion(28, [
+      'take this map in case you lose your way.',
+      'Take this map in case you lose your way?',
+      'Take this map in case you lose your way.',
+      'take this map in case you lose your way!',
+    ], 'C'),
+    ...numberOnlyStemQuestion(29, [
+      "Your mother is very dear to you, isn't she?",
+      "Your mother is very dear, to you isn't she?",
+      "Your mother is very dear to you! isn't she?",
+      "Your mother is very dear to you, isn't she?",
+    ], 'A'),
+    ...numberOnlyStemQuestion(30, [
+      'Aha! There comes our teacher! said Patra.',
+      'Aha! There comes our teacher. said Patra.',
+      'Aha! There comes our teacher, said Patra.',
+      'Aha! There comes our teacher, said Patra.',
+    ], 'A'),
+    block('SECTION B — Part 1: Questions 39 – 45'),
+    block(paragraphInstr),
+    ...paraOrderQuestionWithPeriod(39, [
+      'First sentence one. Then sentence two. Finally sentence three.',
+      'Then sentence two. Finally sentence three. First sentence one.',
+      'Finally sentence three. First sentence one. Then sentence two.',
+      'First sentence one. Then sentence two. Finally sentence three again.',
+    ], 'A'),
+    ...paraOrderQuestionWithPeriod(45, [
+      'Football is played all over the world. It is run by FIFA.',
+      'It is run by FIFA. Football is played all over the world.',
+      'FIFA runs football. Football is played everywhere.',
+      'Everywhere football is played. FIFA is the body.',
+    ], 'B'),
+  ]
+
+  const warnings = []
+  const { sections, summary } = processImportedQuestionBlocks(blocks, warnings)
+
+  // All 7 questions present (5 punctuation + 2 paragraph-ordering).
+  assert.equal(summary.questions, 7, `expected 7 questions, got ${summary.questions}`)
+
+  const numbers = allQuestionsFromSections(sections)
+    .map(q => Number(q.sourceQuestionNumber))
+    .sort((a, b) => a - b)
+  assert.deepEqual(numbers, [26, 27, 28, 29, 30, 39, 45])
+
+  // Number-only stems: each carries the section instruction as its stem,
+  // four options, and the inline answer resolved to the right index.
+  const q26 = findQuestion(sections, 26)
+  assert.match(plainRichText(q26.text), /correctly punctuated/i)
+  assert.equal(q26.options.length, 4)
+  assert.equal(q26.type, 'mcq')
+  assert.equal(q26.correctAnswer, 3) // D
+
+  const q27 = findQuestion(sections, 27)
+  assert.equal(q27.correctAnswer, 0) // A
+  const q28 = findQuestion(sections, 28)
+  assert.equal(q28.correctAnswer, 2) // C — option ending in "?" must not be misread
+
+  // Paragraph-ordering markers with a trailing period (`39.`) parse, keep four
+  // options, and resolve their inline answers.
+  const q39 = findQuestion(sections, 39)
+  assert.ok(q39, 'Q39 (paragraph-ordering, "39." marker) must not be dropped')
+  assert.equal(q39.options.length, 4)
+  assert.equal(q39.correctAnswer, 0) // A
+  const q45 = findQuestion(sections, 45)
+  assert.ok(q45, 'Q45 must not be dropped')
+  assert.equal(q45.correctAnswer, 1) // B
+}
+
+runRealWorldLayoutTest()
+console.log('documentQuizParserCore real-world ECZ layout test passed')
+
+// ─── Bare "Story N" comprehension passages ────────────────────────────────
+// Real ECZ G7 English papers head each reading passage with just "Story 1",
+// "Story 2", "Story 3" and NO "read the passage and answer the questions that
+// follow" instruction — the section is introduced only by a "Reading
+// Comprehension — Questions 46 – 60" range heading. The parser used to need a
+// comprehension instruction (or a passage-internal "answer the questions that
+// follow" line) to enter comprehension mode, so a bare "Story N" label was
+// discarded: the passage text vanished and every question under it landed as a
+// bare standalone. The visible symptom was "after importing, the stories are
+// not there — only the questions." This locks the passages in.
+function comprehensionQuestionWithInlineAnswer(number, stem, options, answerLetter) {
+  const answerText = options['ABCD'.indexOf(answerLetter)]
+  return [
+    block(`${number}.  ${stem}`),
+    block(`A   ${options[0]}`),
+    block(`B   ${options[1]}`),
+    block(`C   ${options[2]}`),
+    block(`D   ${options[3]}`),
+    block(`Answer: ${answerLetter}  —  ${answerText}`),
+  ]
+}
+
+function runBareStoryLabelTest() {
+  const blocks = [
+    block('Reading Comprehension — Questions 46 – 60'),
+    // Story 1 — introduced by a bare label, no comprehension instruction.
+    block('Story 1'),
+    block('Once upon a time, the grandson of a headman developed a bad cough. The people called in a witchdoctor to cure him.'),
+    block('The witchdoctor chewed some roots and danced around the child, then took a small calabash and made it appear to speak.'),
+    ...comprehensionQuestionWithInlineAnswer(46, 'According to the text, why was the ancestor angry with the villagers? They …',
+      ['bewitched the boy.', 'did not give him some beer.', 'misunderstood the calabash.', 'offered him some beer.'], 'B'),
+    ...comprehensionQuestionWithInlineAnswer(47, 'Which of the following was not done by the witchdoctor?',
+      ['Carrying him outside.', 'Dancing around him.', 'Giving him medicine.', 'Spitting on his face.'], 'C'),
+    // Story 2 — another bare label; must close Story 1 and open a new passage.
+    block('Story 2'),
+    block('Crocodiles are large semiaquatic reptiles that live throughout the tropics. The crocodile has the most powerful bite ever measured for living animals.'),
+    block("The crocodile's jaw is also incredibly sensitive to touch, even more sensitive than the human fingertip."),
+    ...comprehensionQuestionWithInlineAnswer(51, 'According to the passage, the word hatchlings means young animals that have recently emerged from the …',
+      ['womb.', 'water.', 'leaves.', 'eggs.'], 'D'),
+    ...comprehensionQuestionWithInlineAnswer(52, "The crocodile's jaw has a high sense of …",
+      ['touch.', 'taste.', 'smell.', 'sight.'], 'A'),
+  ]
+
+  const warnings = []
+  const { sections, summary } = processImportedQuestionBlocks(blocks, warnings)
+
+  assert.equal(summary.passages, 2, `expected 2 passages, got ${summary.passages}`)
+  assert.equal(summary.questions, 4, `expected 4 questions, got ${summary.questions}`)
+
+  const passageSections = sections.filter(section => section.kind === 'passage')
+  assert.deepEqual(
+    passageSections.map(section => section.passage.title),
+    ['Story 1', 'Story 2'],
+  )
+
+  // Each story keeps its own passage text and its own two questions — the
+  // story is not swallowed into a previous question and the questions are not
+  // emitted as bare standalones.
+  assert.match(plainRichText(passageSections[0].passage.passageText), /grandson of a headman/i)
+  assert.match(plainRichText(passageSections[0].passage.passageText), /witchdoctor chewed some roots/i)
+  assert.equal(passageSections[0].passage.questions.length, 2)
+
+  assert.match(plainRichText(passageSections[1].passage.passageText), /Crocodiles are large semiaquatic reptiles/i)
+  // Story 1's text must NOT leak into Story 2's passage.
+  assert.doesNotMatch(plainRichText(passageSections[1].passage.passageText), /grandson of a headman/i)
+  assert.equal(passageSections[1].passage.questions.length, 2)
+
+  // Inline answers resolve against the right option for grouped questions.
+  const q46 = findQuestion(sections, 46)
+  assert.ok(q46, 'Q46 must be grouped under Story 1, not dropped')
+  assert.equal(q46.correctAnswer, 1) // B
+  const q51 = findQuestion(sections, 51)
+  assert.ok(q51, 'Q51 must be grouped under Story 2, not dropped')
+  assert.equal(q51.correctAnswer, 3) // D
+}
+
+runBareStoryLabelTest()
+console.log('documentQuizParserCore bare "Story N" comprehension test passed')
+
 /**
  * Past-paper regression: G7 Mathematics 2023 (and any docx that opens
  * with a "Answer ALL N questions. Choose the BEST answer." intro and
@@ -696,8 +900,8 @@ function runG7PastPaperMappingTest() {
     'title should prefer the paper-y header line, not the institution name')
   assert.equal(metadata.grade, '7',
     'grade should be derived from the header "GRADE SEVEN", not "Grade 8" inside a later question')
-  assert.equal(metadata.subject, 'Mathematics',
-    'subject should still match the dedicated header line')
+  assert.equal(metadata.subject, 'mathematics',
+    'subject should return the curriculum ID, not the display label')
   assert.equal(metadata.topic, undefined,
     'topic must not be present on imported metadata')
 
@@ -755,5 +959,134 @@ function runG7PastPaperMappingTest() {
 }
 
 runG7PastPaperMappingTest()
+
+// ─── Stray-symbol cleaning (Expressive Arts paper regression) ─────────────
+// Grade 7 Expressive Arts (and any paper converted from a Word document with
+// encoding issues) may contain garbage Unicode characters that render as
+// visible "symbols" in the browser:
+//
+//   U+FFFD  Unicode replacement character — encoding error artifact
+//   U+FEFF  BOM / zero-width no-break space
+//   U+200B–U+200D, U+2060–U+2064  zero-width / invisible chars
+//   U+00AD  soft hyphen (renders as '-' in some browsers)
+//   U+0000–U+001F (except tab/LF/CR)  C0 control characters
+//   U+0080–U+009F  C1 control characters (Windows-1252 range)
+//
+// The fix adds a stripping pass at the top of cleanImportedText so newly
+// imported papers never store these chars. The render-time path in
+// richTextToPlainText also strips them so existing Firestore data is fixed
+// without a migration.
+function runGarbageSymbolCleanTest() {
+  // Helper: feed raw text through the full parser and find the given question.
+  function parseAndFind(rawText, questionNumber) {
+    const warnings = []
+    const { sections } = processImportedQuestionBlocks(
+      [block(rawText)],
+      warnings,
+    )
+    return allQuestionsFromSections(sections).find(
+      q => String(q?.sourceQuestionNumber) === String(questionNumber),
+    )
+  }
+
+  // 1. U+FFFD replacement char in a question stem.
+  const q1 = parseAndFind(
+    '1. Which instrument is used in �Expressive Arts class?',
+    1,
+  )
+  assert.ok(q1, 'Q1 with U+FFFD must parse')
+  assert.doesNotMatch(plainRichText(q1.text), /\ufffd/,
+    'U+FFFD (replacement char) must be stripped from question text')
+  assert.match(plainRichText(q1.text), /Expressive Arts class/,
+    'surrounding text must be preserved after U+FFFD removal')
+
+  // 2. U+200B zero-width space inside an option.
+  const q2Blocks = [
+    block('2. What is the primary colour?'),
+    block('A. Red'),
+    block('B. Green​'),
+    block('C. Blue'),
+    block('D. Yellow'),
+  ]
+  const { sections: s2 } = processImportedQuestionBlocks(q2Blocks, [])
+  const q2 = allQuestionsFromSections(s2).find(q => String(q?.sourceQuestionNumber) === '2')
+  assert.ok(q2, 'Q2 with U+200B in option must parse')
+  assert.ok(q2.options.every(opt => !/[\u200b-\u200d]/.test(opt)),
+    'zero-width space must be stripped from all options')
+
+  // 3. U+FEFF BOM at the start of a question.
+  const q3 = parseAndFind(
+    '﻿3. Name a traditional Zambian musical instrument.',
+    3,
+  )
+  assert.ok(q3, 'Q3 with U+FEFF BOM must parse')
+  assert.doesNotMatch(plainRichText(q3.text), /\ufeff/,
+    'U+FEFF BOM must be stripped')
+  assert.match(plainRichText(q3.text), /Zambian musical instrument/,
+    'question text must survive BOM removal')
+
+  // 4. Soft hyphen U+00AD inside "Expressive Arts" (the exact subject name
+  //    that appeared in the reported bug — ECZ docs emit soft hyphens after
+  //    long compound words when the doc had auto-hyphenation enabled).
+  const q4 = parseAndFind(
+    '4. Ex­pressive Arts is taught in which term?',
+    4,
+  )
+  assert.ok(q4, 'Q4 with soft hyphen must parse')
+  assert.doesNotMatch(plainRichText(q4.text), /\u00ad/,
+    'soft hyphen (U+00AD) must be stripped')
+  assert.match(plainRichText(q4.text), /Expressive Arts/,
+    'word must be joined after soft-hyphen removal')
+
+  // 5. C0 control chars (e.g. U+0007 BEL, U+001F US) in question text.
+  const q5 = parseAndFind(
+    '5. Identify\u0007 the correct\u001f rhythm.',
+    5,
+  )
+  assert.ok(q5, 'Q5 with C0 control chars must parse')
+  // eslint-disable-next-line no-control-regex
+  assert.doesNotMatch(plainRichText(q5.text), /[\u0000-\u0008\u000b\u000c\u000e-\u001f]/,
+    'C0 control chars must be stripped (except tab/LF/CR)')
+  assert.match(plainRichText(q5.text), /Identify the correct rhythm/,
+    'surrounding words must survive C0 stripping')
+
+  // 6. C1 control chars (e.g. U+0082 BPH, U+009F APC) in question text.
+  const q6 = parseAndFind(
+    '6. What is a tempo?',
+    6,
+  )
+  assert.ok(q6, 'Q6 with C1 control chars must parse')
+  assert.doesNotMatch(plainRichText(q6.text), /[\u0080-\u009f]/,
+    'C1 control chars must be stripped')
+  assert.match(plainRichText(q6.text), /What is a tempo/,
+    'words must survive C1 stripping')
+
+  // 7. Mixed garbage burst — multiple junk chars in a single question, plus
+  //    real non-ASCII chars (Cinyanja phrase) that MUST be preserved.
+  const q7Blocks = [
+    block('7. �ANsonga​ ya ﻿uluzi­ ndiani?'),
+    block('A. Nsonga yoyamba'),
+    block('B. Nsonga yachiwiri'),
+    block('C. Nsonga yachitatu'),
+    block('D. Nsonga yachineyi'),
+  ]
+  const { sections: s7 } = processImportedQuestionBlocks(q7Blocks, [])
+  const q7 = allQuestionsFromSections(s7).find(q => String(q?.sourceQuestionNumber) === '7')
+  assert.ok(q7, 'Q7 with mixed garbage in Cinyanja question must parse')
+  // Junk stripped:
+  assert.doesNotMatch(plainRichText(q7.text), /\ufffd/, 'replacement char stripped')
+  assert.doesNotMatch(plainRichText(q7.text), /\u200b/, 'zero-width space stripped')
+  assert.doesNotMatch(plainRichText(q7.text), /\ufeff/, 'BOM stripped')
+  assert.doesNotMatch(plainRichText(q7.text), /\u00ad/, 'soft hyphen stripped')
+  // Legitimate Cinyanja text preserved:
+  assert.match(plainRichText(q7.text), /Nsonga/,
+    'Cinyanja word "Nsonga" must not be destroyed')
+  assert.match(plainRichText(q7.text), /uluzi/,
+    'Cinyanja word "uluzi" must not be destroyed')
+  assert.equal(q7.options.length, 4, 'all four options must survive')
+}
+
+runGarbageSymbolCleanTest()
+console.log('documentQuizParserCore garbage-symbol cleaning test passed')
 
 console.log('documentQuizParserCore regression test passed')

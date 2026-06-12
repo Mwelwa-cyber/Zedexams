@@ -1,6 +1,7 @@
 import { createElement, forwardRef } from 'react'
 import {
   AcademicCapIcon,
+  AdjustmentsHorizontalIcon,
   ArrowDownTrayIcon,
   ArrowLeftIcon,
   ArrowPathIcon,
@@ -231,6 +232,7 @@ const List = withSize(ListBulletIcon)
 const Lock = withSize(LockClosedIcon)
 const LockClosed = withSize(LockClosedIcon)
 const Search = withSize(MagnifyingGlassIcon)
+const SlidersHorizontal = withSize(AdjustmentsHorizontalIcon)
 const Mic = withSize(MicrophoneIcon)
 const MicOff = withSize(NoSymbolIcon)
 const ListOrdered = withSize(NumberedListIcon)
@@ -356,6 +358,7 @@ export {
   Lock,
   LockClosed as LockClosedIcon,
   Search,
+  SlidersHorizontal,
   Mic,
   MicOff,
   ListOrdered,

@@ -15,11 +15,11 @@ import SchemeOfWorkView from '../views/SchemeOfWorkView'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
 import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
-import { attachLibraryToGeneration } from '../../../utils/teacherLibraryService'
+import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
 
 export default function SchemeOfWorkGenerator() {
-  const { userProfile } = useAuth()
+  const { userProfile, isAdmin } = useAuth()
   const urlDefaults = useFormDefaultsFromUrl()
   const [form, setForm] = useState(() => ({
     grade: 'G5',
@@ -100,7 +100,7 @@ export default function SchemeOfWorkGenerator() {
       `term${form.term}`,
       new Date().toISOString().slice(0, 10),
     ].filter(Boolean)
-    downloadSchemeOfWorkDocx(scheme, `${parts.join('_')}_scheme-of-work.docx`)
+    downloadSchemeOfWorkDocx(scheme, `${parts.join('_')}_scheme-of-work.docx`, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
   return (
@@ -110,7 +110,7 @@ export default function SchemeOfWorkGenerator() {
         <StudioPageHeader
           eyebrow="Scheme of Work"
           title="Plan your whole term"
-          subtitle="Week-by-week CBC subject pacing — topics, outcomes, activities, and assessment in one printable doc."
+          subtitle="Week-by-week CBC pacing in the official 9-column format — competences, activities, expected standards, methods, and T/L aids in one printable doc."
           emoji="🦁"
         />
 

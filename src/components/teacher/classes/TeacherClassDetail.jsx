@@ -41,6 +41,7 @@ import { SUBJECTS } from '../../../config/curriculum'
 import SeoHelmet from '../../seo/SeoHelmet'
 import Skeleton from '../../ui/Skeleton'
 import SubjectIcon from '../../ui/SubjectIcon'
+import ConfirmDialog from '../../ui/ConfirmDialog'
 import ClassAssignmentPicker from './ClassAssignmentPicker'
 import ClassAnalytics from './ClassAnalytics'
 
@@ -100,6 +101,9 @@ export default function TeacherClassDetail() {
   const [errored, setErrored] = useState(false)
   const [busy, setBusy] = useState(false)
   const [feedback, setFeedback] = useState(null) // {kind, text}
+  // Destructive action awaiting confirmation — {title, message, confirmLabel, action}.
+  // One dialog serves all four flows (remove assignment / decline / remove / delete).
+  const [pendingConfirm, setPendingConfirm] = useState(null)
 
   const refresh = useCallback(async () => {
     try {
@@ -127,19 +131,25 @@ export default function TeacherClassDetail() {
     }
   }, [classId])
 
-  async function handleRemoveAssignment(assignmentId) {
-    if (!window.confirm('Remove this assignment from the class? Learners will no longer see it.')) return
-    setBusy(true); setFeedback(null)
-    try {
-      await removeClassAssignment(assignmentId)
-      setFeedback({ kind: 'ok', text: 'Assignment removed.' })
-      await refresh()
-    } catch (err) {
-      console.error('[TeacherClassDetail] remove assignment failed', err)
-      setFeedback({ kind: 'err', text: err?.message || 'Could not remove the assignment.' })
-    } finally {
-      setBusy(false)
-    }
+  function handleRemoveAssignment(assignmentId) {
+    setPendingConfirm({
+      title: 'Remove this assignment?',
+      message: 'Learners will no longer see it in this class.',
+      confirmLabel: 'Remove',
+      action: async () => {
+        setBusy(true); setFeedback(null)
+        try {
+          await removeClassAssignment(assignmentId)
+          setFeedback({ kind: 'ok', text: 'Assignment removed.' })
+          await refresh()
+        } catch (err) {
+          console.error('[TeacherClassDetail] remove assignment failed', err)
+          setFeedback({ kind: 'err', text: err?.message || 'Could not remove the assignment.' })
+        } finally {
+          setBusy(false)
+        }
+      },
+    })
   }
 
   useEffect(() => { refresh() }, [refresh])
@@ -172,34 +182,46 @@ export default function TeacherClassDetail() {
     }
   }
 
-  async function handleDeclineLearner(learnerUid) {
-    if (!window.confirm('Decline this join request? The learner will be removed from the pending list.')) return
-    setBusy(true); setFeedback(null)
-    try {
-      await declineLearner({ classId, learnerUid })
-      setFeedback({ kind: 'ok', text: 'Join request declined.' })
-      await refresh()
-    } catch (err) {
-      console.error('[TeacherClassDetail] decline learner failed', err)
-      setFeedback({ kind: 'err', text: err?.message || 'Could not decline the request.' })
-    } finally {
-      setBusy(false)
-    }
+  function handleDeclineLearner(learnerUid) {
+    setPendingConfirm({
+      title: 'Decline this join request?',
+      message: 'The learner will be removed from the pending list. They can request to join again with the invite code.',
+      confirmLabel: 'Decline',
+      action: async () => {
+        setBusy(true); setFeedback(null)
+        try {
+          await declineLearner({ classId, learnerUid })
+          setFeedback({ kind: 'ok', text: 'Join request declined.' })
+          await refresh()
+        } catch (err) {
+          console.error('[TeacherClassDetail] decline learner failed', err)
+          setFeedback({ kind: 'err', text: err?.message || 'Could not decline the request.' })
+        } finally {
+          setBusy(false)
+        }
+      },
+    })
   }
 
-  async function handleRemoveLearner(learnerUid) {
-    if (!window.confirm('Remove this learner from the class?')) return
-    setBusy(true); setFeedback(null)
-    try {
-      await removeLearnerFromClassFallback({ classId, learnerUid })
-      setFeedback({ kind: 'ok', text: 'Learner removed.' })
-      await refresh()
-    } catch (err) {
-      console.error('[TeacherClassDetail] remove learner failed', err)
-      setFeedback({ kind: 'err', text: err?.message || 'Could not remove the learner.' })
-    } finally {
-      setBusy(false)
-    }
+  function handleRemoveLearner(learnerUid) {
+    setPendingConfirm({
+      title: 'Remove this learner?',
+      message: 'They will leave the class immediately. You can re-add them later with the invite code.',
+      confirmLabel: 'Remove',
+      action: async () => {
+        setBusy(true); setFeedback(null)
+        try {
+          await removeLearnerFromClassFallback({ classId, learnerUid })
+          setFeedback({ kind: 'ok', text: 'Learner removed.' })
+          await refresh()
+        } catch (err) {
+          console.error('[TeacherClassDetail] remove learner failed', err)
+          setFeedback({ kind: 'err', text: err?.message || 'Could not remove the learner.' })
+        } finally {
+          setBusy(false)
+        }
+      },
+    })
   }
 
   async function handleArchiveToggle() {
@@ -216,16 +238,23 @@ export default function TeacherClassDetail() {
     }
   }
 
-  async function handleHardDelete() {
-    if (!window.confirm('Permanently delete this class? Member assignments and history references will lose their link. This cannot be undone.')) return
-    setBusy(true)
-    try {
-      await hardDeleteClass(classId)
-      navigate('/teacher/classes')
-    } catch (err) {
-      setFeedback({ kind: 'err', text: 'Could not delete the class.' })
-      setBusy(false)
-    }
+  function handleHardDelete() {
+    setPendingConfirm({
+      title: 'Permanently delete this class?',
+      message: 'Member assignments and history references will lose their link. This cannot be undone.',
+      confirmLabel: 'Delete class',
+      action: async () => {
+        setBusy(true)
+        try {
+          await hardDeleteClass(classId)
+          navigate('/teacher/classes')
+        } catch (err) {
+          setFeedback({ kind: 'err', text: 'Could not delete the class.' })
+        } finally {
+          setBusy(false)
+        }
+      },
+    })
   }
 
   if (loading) {
@@ -533,6 +562,25 @@ export default function TeacherClassDetail() {
           })
           refresh()
         }}
+      />
+
+      <ConfirmDialog
+        open={Boolean(pendingConfirm)}
+        title={pendingConfirm?.title}
+        message={pendingConfirm?.message}
+        confirmLabel={pendingConfirm?.confirmLabel || 'Confirm'}
+        variant="danger"
+        loading={busy}
+        onConfirm={async () => {
+          // finally: a misbehaving action must never strand the dialog open
+          // with a re-enabled Confirm that did nothing.
+          try {
+            await pendingConfirm?.action()
+          } finally {
+            setPendingConfirm(null)
+          }
+        }}
+        onCancel={() => setPendingConfirm(null)}
       />
     </div>
   )

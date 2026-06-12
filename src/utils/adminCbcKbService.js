@@ -10,7 +10,8 @@ import {
   serverTimestamp, setDoc,
 } from 'firebase/firestore'
 import { getFunctions, httpsCallable } from 'firebase/functions'
-import app, { db } from '../firebase/config'
+import { ref as storageRef, uploadBytes } from 'firebase/storage'
+import app, { db, storage } from '../firebase/config'
 import { LEARNING_ENVIRONMENT_VALUES } from '../config/learningEnvironments'
 
 const functions = getFunctions(app, 'us-central1')
@@ -20,9 +21,15 @@ const importBuiltInCbcTopicsCallable = httpsCallable(functions, 'importBuiltInCb
 const importCurriculumModulesCallable = httpsCallable(functions, 'importCurriculumModules', {
   timeout: 120_000,
 })
-const preflightCurriculumRefCallable = httpsCallable(functions, 'preflightCurriculumRef', {
-  timeout: 20_000,
+const importBuiltInAssessmentFormatsCallable = httpsCallable(functions, 'importBuiltInAssessmentFormats', {
+  timeout: 60_000,
 })
+const extractAssessmentFormatCallable = httpsCallable(functions, 'extractAssessmentFormat', {
+  // Downloads the sample paper, runs Claude over it and writes the draft;
+  // server-side timeoutSeconds is 300, so match it on the client.
+  timeout: 300_000,
+})
+
 const backfillKbSourceRefsCallable = httpsCallable(functions, 'backfillKbSourceRefs', {
   // Backfill walks every lesson module under the active KB version. With
   // hundreds of modules this can comfortably take a minute on a cold
@@ -30,30 +37,12 @@ const backfillKbSourceRefsCallable = httpsCallable(functions, 'backfillKbSourceR
   // the client-side cancel budget.
   timeout: 540_000,
 })
+const expandKbLessonsCallable = httpsCallable(functions, 'expandKbLessons', {
+  timeout: 540_000,
+})
 
 const LE_SET = new Set(LEARNING_ENVIRONMENT_VALUES)
 
-/**
- * Ask the server-side strict resolver whether a given subtopic will be
- * accepted by the learner-AI dispatcher before queueing a task.
- * Returns { ok, reason?, message? }.
- */
-export async function preflightCurriculumRef({ grade, subject, topic, subtopic, term }) {
-  try {
-    const result = await preflightCurriculumRefCallable({
-      grade, subject, topic, subtopic, term,
-    })
-    const data = (result && result.data) || {}
-    if (data.ok) return { ok: true }
-    return { ok: false, reason: data.reason || 'unknown', message: data.message || null }
-  } catch (err) {
-    return {
-      ok: false,
-      reason: err?.code === 'permission-denied' ? 'permission_denied' : 'callable_error',
-      message: err?.message || 'Preflight failed',
-    }
-  }
-}
 
 /**
  * Run the strict-resolver source-doc-ref backfill from the admin UI.
@@ -74,6 +63,27 @@ export async function backfillKbSourceRefs({ dryRun = true, grade = null, subjec
       error: err?.code === 'permission-denied' ?
         'Admin only.' :
         (err?.message || 'Backfill failed.'),
+    }
+  }
+}
+
+/**
+ * Expand subtopics[] on every live KB topic into lessons/ subcollection docs.
+ * Safe to run on an already-active version — uses merge:true so richer
+ * existing lesson data is never overwritten. Pass dryRun=true to get counts
+ * without writing.
+ */
+export async function expandKbLessons({ version = null, grade = null, subject = null, dryRun = false } = {}) {
+  try {
+    const result = await expandKbLessonsCallable({ version, grade, subject, dryRun })
+    return { ok: true, ...(result?.data || {}) }
+  } catch (err) {
+    console.error('expandKbLessons failed', err)
+    return {
+      ok: false,
+      error: err?.code === 'permission-denied' ?
+        'Admin only.' :
+        (err?.message || 'Expand lessons failed.'),
     }
   }
 }
@@ -396,6 +406,268 @@ export async function deleteLesson(topicId, lessonId) {
   } catch (err) {
     console.error('deleteLesson failed', err)
     return false
+  }
+}
+
+// ── Assessment format profiles ───────────────────────────────────────────
+// Stored under cbcKnowledgeBase/{version}/assessmentFormats/{id} — Zambian
+// paper-format conventions the assessment generator grounds on. Admin-write
+// / teacher-read (firestore.rules). Client mirror of the server-side
+// validation in functions/teacherTools/assessmentFormats.js.
+
+export const ASSESSMENT_FORMAT_TYPES = [
+  { value: 'exercise', label: 'Exercise' },
+  { value: 'topic_test', label: 'Topic Test' },
+  { value: 'mid_term', label: 'Mid-Term Test' },
+  { value: 'end_of_term', label: 'End of Term Test' },
+  { value: 'mock_exam', label: 'Mock Examination' },
+]
+export const ASSESSMENT_FORMAT_BANDS = [
+  { value: 'lower_primary', label: 'Lower Primary (ECE–G3)' },
+  { value: 'upper_primary', label: 'Upper Primary (G4–G7)' },
+  { value: 'junior_secondary', label: 'Junior Secondary (G8–G9, F1–F2)' },
+  { value: 'senior_secondary', label: 'Senior Secondary (G10–G12, F3–F4)' },
+]
+const FORMAT_TYPE_SET = new Set(ASSESSMENT_FORMAT_TYPES.map((t) => t.value))
+const FORMAT_BAND_SET = new Set(ASSESSMENT_FORMAT_BANDS.map((b) => b.value))
+
+/** List all Firestore-stored format profiles. Returns [] on error. */
+export async function listAssessmentFormats() {
+  try {
+    const version = await getActiveKbVersion()
+    const snap = await getDocs(
+      collection(db, 'cbcKnowledgeBase', version, 'assessmentFormats'),
+    )
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+  } catch (err) {
+    console.error('listAssessmentFormats failed', err)
+    return []
+  }
+}
+
+function cleanLines(v, maxItems, maxLen) {
+  return (Array.isArray(v) ? v : [])
+    .map((s) => String(s ?? '').trim()).filter(Boolean)
+    .slice(0, maxItems).map((s) => s.slice(0, maxLen))
+}
+
+/**
+ * Create or replace a format profile. Doc id is always derived from
+ * type+band+subject so the server resolver's deterministic lookup finds it.
+ * Throws with a readable message on invalid input (the admin form surfaces it).
+ */
+export async function saveAssessmentFormat(profile) {
+  const assessmentType = String(profile.assessmentType || '').toLowerCase()
+  const gradeBand = String(profile.gradeBand || '').toLowerCase()
+  const subject = String(profile.subject || '_generic')
+    .toLowerCase().replace(/[^a-z_]/g, '_').slice(0, 60)
+  if (!FORMAT_TYPE_SET.has(assessmentType)) throw new Error('Pick an assessment type.')
+  if (!FORMAT_BAND_SET.has(gradeBand)) throw new Error('Pick a grade band.')
+  const label = String(profile.label || '').trim().slice(0, 120)
+  if (!label) throw new Error('A label is required.')
+
+  const paperStructure = (Array.isArray(profile.paperStructure) ? profile.paperStructure : [])
+    .filter((s) => s && typeof s === 'object')
+    .slice(0, 6)
+    .map((s) => ({
+      name: String(s.name || '').trim().slice(0, 60),
+      heading: String(s.heading || '').trim().slice(0, 120),
+      instructions: String(s.instructions || '').trim().slice(0, 400),
+      questionTypes: cleanLines(s.questionTypes, 6, 30),
+      questionCountHint: String(s.questionCountHint || '').trim().slice(0, 30),
+      marksShare: Math.round(Number(s.marksShare) || 0),
+      marksPerQuestionHint: String(s.marksPerQuestionHint || '').trim().slice(0, 120),
+    }))
+  if (paperStructure.length === 0) throw new Error('Add at least one paper section.')
+  const shareSum = paperStructure.reduce((sum, s) => sum + s.marksShare, 0)
+  if (shareSum !== 100) throw new Error(`Section marks shares must sum to 100 (currently ${shareSum}).`)
+
+  const coverInstructions = cleanLines(profile.coverInstructions, 8, 200)
+  if (coverInstructions.length === 0) throw new Error('Add at least one front-page instruction line.')
+  const numberingStyle = String(profile.numberingStyle || '').trim().slice(0, 600)
+  if (!numberingStyle) throw new Error('Describe the numbering style.')
+
+  const exemplarQuestions = (Array.isArray(profile.exemplarQuestions) ? profile.exemplarQuestions : [])
+    .filter((q) => q && typeof q === 'object' && String(q.prompt || '').trim())
+    .slice(0, 4)
+    .map((q) => ({
+      type: String(q.type || 'short_answer').trim().slice(0, 30),
+      marks: Math.max(1, Math.round(Number(q.marks) || 1)),
+      prompt: String(q.prompt || '').trim().slice(0, 500),
+      note: String(q.note || '').trim().slice(0, 200),
+    }))
+  if (exemplarQuestions.length < 2) {
+    throw new Error('Add 2-4 exemplar questions (paraphrased — never copy a real paper).')
+  }
+
+  const id = `${assessmentType}-${gradeBand}-${subject}`
+  const payload = {
+    id,
+    assessmentType,
+    gradeBand,
+    subject,
+    label,
+    paperStructure,
+    coverInstructions,
+    numberingStyle,
+    phrasingNotes: cleanLines(profile.phrasingNotes, 6, 300),
+    marksConventions: cleanLines(profile.marksConventions, 6, 300),
+    diagramConventions: cleanLines(profile.diagramConventions, 4, 400),
+    exemplarQuestions,
+    status: 'active',
+    origin: ['builtin_seed', 'pdf_extract', 'docx_extract'].includes(profile.origin) ?
+      profile.origin : 'manual',
+    sourceNote: String(profile.sourceNote || '').trim().slice(0, 300),
+    updatedAt: serverTimestamp(),
+  }
+
+  const version = await getActiveKbVersion()
+  await setDoc(doc(db, 'cbcKnowledgeBase', version, 'assessmentFormats', id), payload)
+  return id
+}
+
+/** Delete a format profile. */
+export async function deleteAssessmentFormat(id) {
+  if (!id) return false
+  try {
+    const version = await getActiveKbVersion()
+    await deleteDoc(doc(db, 'cbcKnowledgeBase', version, 'assessmentFormats', id))
+    return true
+  } catch (err) {
+    console.error('deleteAssessmentFormat failed', err)
+    return false
+  }
+}
+
+// ── Format-profile drafts (Phase 2: extract from a sample paper) ─────────
+// extractAssessmentFormat distils a draft profile from an uploaded sample
+// (PDF/DOCX) or an existing pastPapers doc. Drafts live in
+// cbcKnowledgeBase/{version}/assessmentFormatDrafts (admin-only rules) and
+// are ignored by the generator until approved into assessmentFormats/.
+
+const SAMPLE_EXTS = new Set(['pdf', 'docx'])
+const SAMPLE_CONTENT_TYPES = {
+  pdf: 'application/pdf',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+}
+
+/**
+ * Upload a sample paper to assessment-format-samples/{uid}/… and return
+ * the storage path to hand to extractAssessmentFormat. Throws with a
+ * readable message on unsupported files.
+ */
+export async function uploadAssessmentFormatSample(file, uid) {
+  if (!file || !uid) throw new Error('Pick a file first.')
+  const ext = String(file.name || '').split('.').pop().toLowerCase()
+  if (!SAMPLE_EXTS.has(ext)) {
+    throw new Error('Only .pdf and .docx sample papers are supported.')
+  }
+  if (file.size > 25 * 1024 * 1024) {
+    throw new Error('File is over the 25 MB limit.')
+  }
+  const safeName = String(file.name || 'sample')
+    .toLowerCase().replace(/[^a-z0-9._-]+/g, '-').slice(0, 80)
+  const storagePath = `assessment-format-samples/${uid}/${Date.now()}-${safeName}`
+  await uploadBytes(storageRef(storage, storagePath), file, {
+    contentType: SAMPLE_CONTENT_TYPES[ext],
+  })
+  return storagePath
+}
+
+/**
+ * Run the extraction. Pass either { storagePath } (from
+ * uploadAssessmentFormatSample) or { paperId } (a pastPapers doc id),
+ * plus the admin's classification of the paper.
+ * Returns { ok, draftId, draft, validationErrors, warning } or { ok:false, error }.
+ */
+export async function extractAssessmentFormat({ storagePath = null, paperId = null, assessmentType, gradeBand, subject }) {
+  try {
+    const result = await extractAssessmentFormatCallable({
+      storagePath, paperId, assessmentType, gradeBand, subject,
+    })
+    return { ok: true, ...(result?.data || {}) }
+  } catch (err) {
+    console.error('extractAssessmentFormat failed', err)
+    return {
+      ok: false,
+      error: err?.code === 'permission-denied' ?
+        'Admin only.' :
+        (err?.message || 'Extraction failed.'),
+    }
+  }
+}
+
+/** List pending format-profile drafts. Returns [] on error. */
+export async function listAssessmentFormatDrafts() {
+  try {
+    const version = await getActiveKbVersion()
+    const snap = await getDocs(
+      collection(db, 'cbcKnowledgeBase', version, 'assessmentFormatDrafts'),
+    )
+    return snap.docs.map((d) => ({ draftId: d.id, ...d.data() }))
+  } catch (err) {
+    console.error('listAssessmentFormatDrafts failed', err)
+    return []
+  }
+}
+
+/** Delete (reject) a draft. */
+export async function deleteAssessmentFormatDraft(draftId) {
+  if (!draftId) return false
+  try {
+    const version = await getActiveKbVersion()
+    await deleteDoc(doc(db, 'cbcKnowledgeBase', version, 'assessmentFormatDrafts', draftId))
+    return true
+  } catch (err) {
+    console.error('deleteAssessmentFormatDraft failed', err)
+    return false
+  }
+}
+
+/**
+ * Approve a draft: validate + publish through saveAssessmentFormat (the
+ * same path manual profiles take), then remove the draft. Throws the
+ * validation error if the profile still needs fixes.
+ */
+export async function approveAssessmentFormatDraft(draft) {
+  const id = await saveAssessmentFormat(draft)
+  if (draft?.draftId) await deleteAssessmentFormatDraft(draft.draftId)
+  return id
+}
+
+/** Shallow list of past papers for the extraction picker (admin-read). */
+export async function listPastPapersForExtraction() {
+  try {
+    const snap = await getDocs(collection(db, 'pastPapers'))
+    return snap.docs
+      .map((d) => ({ id: d.id, ...d.data() }))
+      .map((p) => ({
+        id: p.id,
+        label: [p.title, p.grade, p.subject, p.year].filter(Boolean).join(' · ') || p.id,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  } catch (err) {
+    console.error('listPastPapersForExtraction failed', err)
+    return []
+  }
+}
+
+/**
+ * One-click admin action: copy the built-in Zambian format profiles into
+ * Firestore so they become editable. Returns { ok, written, totalInCode }.
+ */
+export async function importBuiltInAssessmentFormats() {
+  try {
+    const result = await importBuiltInAssessmentFormatsCallable({})
+    return { ok: true, ...result.data }
+  } catch (err) {
+    console.error('importBuiltInAssessmentFormats failed', err)
+    return {
+      ok: false,
+      error: err?.code === 'permission-denied' ?
+        'Admin only.' :
+        (err?.message || 'Import failed'),
+    }
   }
 }
 

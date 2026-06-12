@@ -891,6 +891,294 @@ const ZAMBIA_HISTORY_G6 = {
 }
 
 /* ────────────────────────────────────────────────────────────────────
+ *  NUMBER TARGET — Countdown-style maths (type: "number_target")
+ *  Fully procedural: rounds are generated in the engine from the
+ *  difficulty config, so `questions` stays empty. `rounds` overrides
+ *  the per-difficulty default round count.
+ * ──────────────────────────────────────────────────────────────────── */
+const NUMBER_TARGET_G2 = {
+  id: 'math_number_target_g2',
+  title: 'Number Target: Junior',
+  subject: 'mathematics',
+  grade: 2,
+  type: 'number_target',
+  difficulty: 'easy',
+  description: 'Combine number tiles with + and − to make the target number. Every target can be made!',
+  timer: 0,
+  points: 10,
+  active: true,
+  cbc_topic: 'Addition and Subtraction',
+  rounds: 6,
+  questions: [],
+}
+
+const NUMBER_TARGET_G4 = {
+  id: 'math_number_target_g4',
+  title: 'Number Target',
+  subject: 'mathematics',
+  grade: 4,
+  type: 'number_target',
+  difficulty: 'medium',
+  description: 'Mix + − × to build the target number from your tiles. Think like a maths detective!',
+  timer: 0,
+  points: 15,
+  active: true,
+  cbc_topic: 'Number Operations',
+  rounds: 8,
+  questions: [],
+  isDemo: true,
+}
+
+const NUMBER_TARGET_G6 = {
+  id: 'math_number_target_g6',
+  title: 'Number Target: Master',
+  subject: 'mathematics',
+  grade: 6,
+  type: 'number_target',
+  difficulty: 'hard',
+  description: 'Six tiles, all four operations, big targets. Can you crack every one?',
+  timer: 0,
+  points: 20,
+  active: true,
+  cbc_topic: 'Number Operations',
+  rounds: 8,
+  questions: [],
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ *  SORTING FACTORY — classification arcade (type: "sorting_factory")
+ *  questions[] = { question: item to sort, answer: bin label }.
+ *  Bins are derived from the unique answers (2–4 bins).
+ * ──────────────────────────────────────────────────────────────────── */
+const SORTING_LIVING_G3 = {
+  id: 'science_sorting_living_g3',
+  title: 'Sorting Factory: Living or Not?',
+  subject: 'science',
+  grade: 3,
+  type: 'sorting_factory',
+  difficulty: 'easy',
+  description: 'Flick each item into the right bin — living thing or non-living thing. Build a combo for bonus points!',
+  timer: 0,
+  points: 10,
+  active: true,
+  cbc_topic: 'Living and Non-living Things',
+  isDemo: true,
+  questions: [
+    { question: '🐐 Goat',         answer: 'Living' },
+    { question: '🪨 Rock',         answer: 'Non-living' },
+    { question: '🌽 Maize plant',  answer: 'Living' },
+    { question: '🚲 Bicycle',      answer: 'Non-living' },
+    { question: '🦅 Fish eagle',   answer: 'Living' },
+    { question: '🪑 Chair',        answer: 'Non-living' },
+    { question: '🍄 Mushroom',     answer: 'Living' },
+    { question: '🥁 Drum',         answer: 'Non-living' },
+    { question: '🐕 Dog',          answer: 'Living' },
+    { question: '☀️ The sun',      answer: 'Non-living' },
+    { question: '🥭 Mango tree',   answer: 'Living' },
+    { question: '🍲 Cooking pot',  answer: 'Non-living' },
+    { question: '🐔 Chicken',      answer: 'Living' },
+    { question: '🧱 Brick',        answer: 'Non-living' },
+    { question: '🌿 Grass',        answer: 'Living' },
+    { question: '💧 Water',        answer: 'Non-living' },
+  ],
+}
+
+const SORTING_WORD_TYPES_G5 = {
+  id: 'english_sorting_word_types_g5',
+  title: 'Sorting Factory: Word Types',
+  subject: 'english',
+  grade: 5,
+  type: 'sorting_factory',
+  difficulty: 'medium',
+  description: 'Noun, verb or adjective? Sort the words before the clock runs out and keep your combo alive.',
+  timer: 75,
+  points: 12,
+  active: true,
+  cbc_topic: 'Parts of Speech',
+  questions: [
+    { question: 'school',    answer: 'Noun' },
+    { question: 'run',       answer: 'Verb' },
+    { question: 'beautiful', answer: 'Adjective' },
+    { question: 'teacher',   answer: 'Noun' },
+    { question: 'sing',      answer: 'Verb' },
+    { question: 'tall',      answer: 'Adjective' },
+    { question: 'river',     answer: 'Noun' },
+    { question: 'dance',     answer: 'Verb' },
+    { question: 'clever',    answer: 'Adjective' },
+    { question: 'market',    answer: 'Noun' },
+    { question: 'write',     answer: 'Verb' },
+    { question: 'brave',     answer: 'Adjective' },
+    { question: 'lesson',    answer: 'Noun' },
+    { question: 'jump',      answer: 'Verb' },
+    { question: 'happy',     answer: 'Adjective' },
+  ],
+}
+
+const SORTING_STATES_G6 = {
+  id: 'science_sorting_states_g6',
+  title: 'Sorting Factory: States of Matter',
+  subject: 'science',
+  grade: 6,
+  type: 'sorting_factory',
+  difficulty: 'medium',
+  description: 'Solid, liquid or gas? Sort everyday things into the right state of matter at top speed.',
+  timer: 75,
+  points: 12,
+  active: true,
+  cbc_topic: 'States of Matter',
+  questions: [
+    { question: '🧊 Ice block',         answer: 'Solid' },
+    { question: '🥛 Milk',              answer: 'Liquid' },
+    { question: '♨️ Steam',             answer: 'Gas' },
+    { question: '🪨 Stone',             answer: 'Solid' },
+    { question: '⛽ Petrol',            answer: 'Liquid' },
+    { question: '💨 Air',               answer: 'Gas' },
+    { question: '🧱 Brick',             answer: 'Solid' },
+    { question: '🛢️ Cooking oil',       answer: 'Liquid' },
+    { question: '🫧 Oxygen',            answer: 'Gas' },
+    { question: '🔩 Iron nail',         answer: 'Solid' },
+    { question: '💧 Water',             answer: 'Liquid' },
+    { question: '🌫️ Smoke',             answer: 'Gas' },
+    { question: '🪵 Charcoal',          answer: 'Solid' },
+    { question: '🧃 Juice',             answer: 'Liquid' },
+    { question: '🎈 Air in a balloon',  answer: 'Gas' },
+  ],
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ *  SENTENCE SCRAMBLE — ordering engine (type: "sentence_scramble")
+ *  answer = sentence (tiles are words) OR steps separated by '|'
+ *  (tiles are the ordered steps). question = optional clue.
+ * ──────────────────────────────────────────────────────────────────── */
+const SENTENCE_SCRAMBLE_G2 = {
+  id: 'english_sentence_scramble_g2',
+  title: 'Sentence Builder',
+  subject: 'english',
+  grade: 2,
+  type: 'sentence_scramble',
+  difficulty: 'easy',
+  description: 'The words are jumbled! Tap them in the right order to build the sentence.',
+  timer: 0,
+  points: 10,
+  active: true,
+  cbc_topic: 'Sentence Construction',
+  isDemo: true,
+  questions: [
+    { question: '', answer: 'The goat eats grass.' },
+    { question: '', answer: 'I go to school.' },
+    { question: '', answer: 'Mum cooks nshima.' },
+    { question: '', answer: 'The sun is hot.' },
+    { question: '', answer: 'We play football.' },
+    { question: '', answer: 'The dog runs fast.' },
+    { question: '', answer: 'I like my teacher.' },
+    { question: '', answer: 'Birds fly in the sky.' },
+    { question: '', answer: 'Dad reads a book.' },
+    { question: '', answer: 'The fish swims in water.' },
+  ],
+}
+
+const SENTENCE_SCRAMBLE_G5 = {
+  id: 'english_sentence_scramble_g5',
+  title: 'Sentence Scramble',
+  subject: 'english',
+  grade: 5,
+  type: 'sentence_scramble',
+  difficulty: 'medium',
+  description: 'Longer sentences, trickier word order. Rebuild each one perfectly on the first try for bonus points.',
+  timer: 0,
+  points: 12,
+  active: true,
+  cbc_topic: 'Sentence Construction',
+  questions: [
+    { question: '', answer: 'Lusaka is the capital city of Zambia.' },
+    { question: '', answer: 'The farmers planted maize before the rains.' },
+    { question: '', answer: 'My sister always finishes her homework early.' },
+    { question: '', answer: 'The mighty Zambezi flows over Victoria Falls.' },
+    { question: '', answer: 'We visited the market to buy fresh vegetables.' },
+    { question: '', answer: 'The clever pupil answered every question correctly.' },
+    { question: '', answer: 'Heavy rain fell during the night.' },
+    { question: '', answer: 'Our teacher told us an interesting story.' },
+    { question: '', answer: 'The bus leaves the station at seven.' },
+    { question: '', answer: 'Everyone clapped when the choir finished singing.' },
+  ],
+}
+
+const ORDER_THE_STEPS_G6 = {
+  id: 'science_order_steps_g6',
+  title: 'Order the Steps',
+  subject: 'science',
+  grade: 6,
+  type: 'sentence_scramble',
+  difficulty: 'medium',
+  description: 'Nature works in order — water cycles, life cycles, farming seasons. Put each process back in sequence.',
+  timer: 0,
+  points: 12,
+  active: true,
+  cbc_topic: 'Natural Cycles',
+  questions: [
+    { question: 'Put the stages of the water cycle in order.',            answer: 'Evaporation|Condensation|Rainfall|Collection' },
+    { question: 'Order the life cycle of a butterfly.',                   answer: 'Egg|Caterpillar|Pupa|Butterfly' },
+    { question: 'Order the life cycle of a frog.',                        answer: 'Egg|Tadpole|Froglet|Adult frog' },
+    { question: 'Trace food through the digestive system.',               answer: 'Mouth|Gullet|Stomach|Intestines' },
+    { question: 'Order how a bean seed grows.',                           answer: 'Seed|Roots grow|Shoot appears|Leaves open' },
+    { question: 'Put a maize farming season in order.',                   answer: 'Plough the field|Plant the seeds|Weed the crop|Harvest the maize' },
+    { question: 'Order a day from start to finish.',                      answer: 'Sunrise|Morning|Afternoon|Sunset' },
+    { question: 'Order the stages of a mosquito’s life.',            answer: 'Egg|Larva|Pupa|Adult mosquito' },
+  ],
+}
+
+/* ────────────────────────────────────────────────────────────────────
+ *  ZED MARKET CHALLENGE — money & change (type: "market_challenge")
+ *  Fully procedural: customers, prices, and change are generated in the
+ *  engine from the difficulty config, so `questions` stays empty.
+ * ──────────────────────────────────────────────────────────────────── */
+const MARKET_CHALLENGE_G3 = {
+  id: 'math_market_challenge_g3',
+  title: 'Zed Market: First Stall',
+  subject: 'mathematics',
+  grade: 3,
+  type: 'market_challenge',
+  difficulty: 'easy',
+  description: 'Run your own market stall! Add up the goods and give each customer the right change in Kwacha.',
+  timer: 0,
+  points: 12,
+  active: true,
+  cbc_topic: 'Money',
+  isDemo: true,
+  questions: [],
+}
+
+const MARKET_CHALLENGE_G5 = {
+  id: 'math_market_challenge_g5',
+  title: 'Zed Market Challenge',
+  subject: 'mathematics',
+  grade: 5,
+  type: 'market_challenge',
+  difficulty: 'medium',
+  description: 'Bigger orders, bigger notes. Keep your customers happy with fast, correct change.',
+  timer: 0,
+  points: 15,
+  active: true,
+  cbc_topic: 'Money',
+  questions: [],
+}
+
+const MARKET_CHALLENGE_G7 = {
+  id: 'math_market_challenge_g7',
+  title: 'Zed Market: Master Trader',
+  subject: 'mathematics',
+  grade: 7,
+  type: 'market_challenge',
+  difficulty: 'hard',
+  description: 'Ngwee prices, three-item orders, and K100 notes. Only a master trader never gives wrong change.',
+  timer: 0,
+  points: 20,
+  active: true,
+  cbc_topic: 'Money',
+  questions: [],
+}
+
+/* ────────────────────────────────────────────────────────────────────
  *  Manifest
  * ──────────────────────────────────────────────────────────────────── */
 const DEFAULT_DEMO_GAME_IDS = new Set([
@@ -919,9 +1207,13 @@ export const GAMES_SEED = [
   ABC_WORDS_G1,
   SPELL_IT_RIGHT_G1,
   ADD_SUB_G2,
+  NUMBER_TARGET_G2,
+  SENTENCE_SCRAMBLE_G2,
   SIGHT_WORDS_G2,
   SPELL_IT_RIGHT_G2,
   TIMES_TABLES_G3,
+  MARKET_CHALLENGE_G3,
+  SORTING_LIVING_G3,
   WORD_BUILDER_G3,
   SPELL_IT_RIGHT_G3,
 
@@ -929,6 +1221,7 @@ export const GAMES_SEED = [
   // G4
   SPEED_TABLES_G4,
   FRACTION_MATCH_G4,
+  NUMBER_TARGET_G4,
   SPELL_IT_RIGHT_G4,
   PLANT_PARTS_G4,
   ZAMBIA_BASICS_G4,
@@ -936,17 +1229,26 @@ export const GAMES_SEED = [
   HUMAN_BODY_G5,
   DIGESTIVE_SYSTEM_G5,
   DECIMALS_G5,
+  MARKET_CHALLENGE_G5,
   SPELL_IT_RIGHT_G5,
+  SORTING_WORD_TYPES_G5,
+  SENTENCE_SCRAMBLE_G5,
   ZAMBIA_PROVINCES_G5,
   ZAMBIA_PROVINCE_SHAPES_G5,
   AFRICA_CAPITALS_G5,        // active:false in the const above (deactivated)
   // G6
   MATH_MEMORY_G6,
+  NUMBER_TARGET_G6,
   PERCENT_G6,
   GRAMMAR_G6,
   SPELL_IT_RIGHT_G6,
   SOLAR_SYSTEM_G6,
+  SORTING_STATES_G6,
+  ORDER_THE_STEPS_G6,
   ZAMBIA_HISTORY_G6,
+
+  // G7
+  MARKET_CHALLENGE_G7,
 
   // ── Outside primary CBC scope — kept in seed so admin can flip active=true if needed ──
   INTEGERS_G7,

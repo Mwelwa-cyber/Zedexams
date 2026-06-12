@@ -273,6 +273,131 @@ test('vert-arith / math-frac / num-base classes preserved', () => {
   assertIncludes(out, 'class="num-base"', 'num-base class')
 })
 
+// ── Group 7: garbage-char stripping (render-time, fixes already-stored data) ──
+// Grade 7 Expressive Arts (and any past-paper imported before this fix) may
+// have stray DOCX-artifact characters stored in Firestore. richTextToPlainText
+// strips them at render time so no data migration is required.
+console.log('\ngarbage-char stripping (render-time fix)')
+
+const { richTextToPlainText } = await import('../src/utils/quizRichText.js')
+
+test('U+FFFD replacement char stripped from plain text', () => {
+  const out = richTextToPlainText('Hello�World')
+  assertNotIncludes(out, '�', 'replacement char must be gone')
+  assertIncludes(out, 'HelloWorld', 'surrounding text preserved')
+})
+
+test('U+FEFF BOM stripped from plain text', () => {
+  const out = richTextToPlainText('﻿Title')
+  assertNotIncludes(out, '﻿', 'BOM must be gone')
+  assertIncludes(out, 'Title', 'text preserved')
+})
+
+test('U+200B zero-width space stripped from plain text', () => {
+  const out = richTextToPlainText('A​Content')
+  assertNotIncludes(out, '​', 'zero-width space must be gone')
+  assertIncludes(out, 'AContent', 'words merged cleanly')
+})
+
+test('U+200C zero-width non-joiner stripped', () => {
+  const out = richTextToPlainText('A‌Content')
+  assertNotIncludes(out, '‌', 'zero-width non-joiner stripped')
+})
+
+test('U+200D zero-width joiner stripped', () => {
+  const out = richTextToPlainText('A‍Content')
+  assertNotIncludes(out, '‍', 'zero-width joiner stripped')
+})
+
+test('U+2060 word joiner stripped', () => {
+  const out = richTextToPlainText('A⁠Content')
+  assertNotIncludes(out, '⁠', 'word joiner stripped')
+})
+
+test('U+00AD soft hyphen stripped from plain text', () => {
+  const out = richTextToPlainText('Ex­pressive')
+  assertNotIncludes(out, '­', 'soft hyphen must be gone')
+  assertIncludes(out, 'Expressive', 'word must be intact')
+})
+
+test('C0 control char (U+0007 BEL) stripped from plain text', () => {
+  const out = richTextToPlainText('Test\u0007After')
+  assertNotIncludes(out, '\u0007', 'BEL stripped')
+  assertIncludes(out, 'TestAfter', 'text preserved')
+})
+
+test('C1 control char (U+0085 NEL) stripped from plain text', () => {
+  const out = richTextToPlainText('TestAfter')
+  assertNotIncludes(out, '', 'C1 NEL stripped')
+  assertIncludes(out, 'TestAfter', 'text preserved')
+})
+
+test('garbage chars stripped from HTML rich-text (already-stored path)', () => {
+  const out = richTextToPlainText('<p>Hello�World​</p>')
+  assertNotIncludes(out, '�', 'replacement char stripped from HTML')
+  assertNotIncludes(out, '​', 'zero-width space stripped from HTML')
+  assertIncludes(out, 'HelloWorld', 'plain text preserved')
+})
+
+test('legitimate non-ASCII chars preserved (accented, Cinyanja, em-dash, musical)', () => {
+  // These MUST NOT be touched by the garbage-char stripping pass.
+  const phrase = 'café — Nsonga ya uluzi ♥ ♪'
+  const out = richTextToPlainText(phrase)
+  assertIncludes(out, 'café', 'accented char preserved')
+  assertIncludes(out, '—', 'em-dash preserved')
+  assertIncludes(out, 'Nsonga', 'Cinyanja word preserved')
+  assertIncludes(out, '♥', 'heart symbol preserved')
+  assertIncludes(out, '♪', 'musical note preserved')
+})
+
+// ── Group 8: garbage chars stripped on the HTML render path ──────────────────
+// The Past Paper Studio renders question content through RichContent ->
+// safeRender.toHTML -> sanitizeHTML (Tiptap/HTML path), and quiz rich text
+// through sanitizeQuizRichHTML. Both must drop DOCX-to-text garbage so
+// already-stored content (e.g. Grade 7 Expressive Arts Q17) renders clean
+// without a data migration. Junk chars are built with String.fromCharCode so
+// this test file stays pure ASCII.
+console.log('\ngarbage-char stripping (HTML render path)')
+
+const FFFD = String.fromCharCode(0xfffd)   // replacement char
+const ZWSP = String.fromCharCode(0x200b)   // zero-width space
+const SHY = String.fromCharCode(0x00ad)    // soft hyphen
+const BEL = String.fromCharCode(0x0007)    // C0 control
+const NEL = String.fromCharCode(0x0085)    // C1 control
+const BOM = String.fromCharCode(0xfeff)    // BOM
+
+test('sanitizeHTML strips replacement char + zero-width + soft hyphen', () => {
+  const out = sanitizeHTML(`<p>Name the${FFFD} in${ZWSP}stru${SHY}ment</p>`)
+  assertNotIncludes(out, FFFD, 'replacement char gone')
+  assertNotIncludes(out, ZWSP, 'zero-width space gone')
+  assertNotIncludes(out, SHY, 'soft hyphen gone')
+  assertIncludes(out, 'Name the instrument', 'visible text reads cleanly')
+})
+
+test('sanitizeHTML strips C0/C1 control chars + BOM', () => {
+  const out = sanitizeHTML(`${BOM}<p>Test${BEL}${NEL}After</p>`)
+  assertNotIncludes(out, BEL, 'BEL gone')
+  assertNotIncludes(out, NEL, 'NEL gone')
+  assertNotIncludes(out, BOM, 'BOM gone')
+  assertIncludes(out, 'TestAfter', 'text preserved')
+})
+
+test('sanitizeQuizRichHTML strips garbage chars too', () => {
+  const out = sanitizeQuizRichHTML(`<p>A${FFFD}B${ZWSP}C</p>`)
+  assertNotIncludes(out, FFFD, 'replacement char gone')
+  assertNotIncludes(out, ZWSP, 'zero-width space gone')
+  assertIncludes(out, 'ABC', 'text preserved')
+})
+
+test('HTML sanitizers preserve legitimate non-ASCII', () => {
+  const phrase = '<p>café — Nsonga ♪</p>'
+  for (const out of [sanitizeHTML(phrase), sanitizeQuizRichHTML(phrase)]) {
+    assertIncludes(out, 'café', 'accented char preserved')
+    assertIncludes(out, '—', 'em-dash preserved')
+    assertIncludes(out, '♪', 'musical note preserved')
+  }
+})
+
 // ── Report ───────────────────────────────────────────────────────────
 console.log('')
 console.log(`─── ${pass + fail} tests · ${pass} passed · ${fail} failed ───`)

@@ -20,6 +20,7 @@ import {
   serializeQuizSections,
   shuffleQuizSections,
 } from '../../utils/quizSections.js'
+import { regroupComprehensionSections, moveQuestionToPassage } from '../../utils/comprehensionGrouping.js'
 import { richTextHasContent } from '../../utils/quizRichText.js'
 import { clampInt } from '../../utils/inputs.js'
 import { getErrorMessage } from '../../utils/errors.js'
@@ -28,6 +29,7 @@ import { assertNoBlobImageUrls } from '../../utils/importedQuizAssets.js'
 import QuizSectionsEditor from '../quiz/QuizSectionsEditor'
 import QuizEditorPreviewPanel from '../quiz/QuizEditorPreviewPanel'
 import QuizValidationChecklist from '../quiz/QuizValidationChecklist'
+import ConfirmDialog from '../ui/ConfirmDialog'
 import SeoHelmet from '../seo/SeoHelmet'
 import {
   QUIZ_DOCUMENT_ACCEPT,
@@ -182,30 +184,45 @@ function hasUploadingAssets(sections = []) {
 
 function ImportQuizPanel({ importing, importSummary, onImport }) {
   const [inputKey, setInputKey] = useState(0)
+  // Import options — both default ON. Passed to onImport(file, opts) and
+  // threaded into the parser so they actually gate behaviour.
+  const [preserveNumbering, setPreserveNumbering] = useState(true)
+  const [groupComprehension, setGroupComprehension] = useState(true)
 
   return (
     <div className="theme-accent-bg theme-border space-y-4 rounded-2xl border p-5">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="theme-text font-black">Import Quiz (Word/PDF)</h2>
+          <h2 className="theme-text font-black">Import Quiz (Word / PDF / Pictures)</h2>
           <p className="theme-text mt-1 max-w-3xl text-sm font-bold leading-relaxed">
-            Upload a .doc, .docx, or .pdf file. ZedExams will extract questions, options, short answers, and image-based questions into editable cards, then use smart cleanup on tricky formatting when available.
+            Upload a .doc, .docx, or .pdf — or pictures (JPG/PNG/WEBP) of a paper. ZedExams will extract questions, options, short answers, and image-based questions into editable cards, then use smart cleanup on tricky formatting when available. You can select several pictures at once (one per page).
           </p>
         </div>
         <label className="theme-accent-fill theme-on-accent cursor-pointer rounded-xl px-4 py-2.5 text-sm font-black">
-          {importing ? 'Importing...' : 'Choose File'}
+          {importing ? 'Importing...' : 'Choose File(s)'}
           <input
             key={inputKey}
             type="file"
             accept={QUIZ_DOCUMENT_ACCEPT}
+            multiple
             className="hidden"
             disabled={importing}
             onChange={event => {
-              const file = event.target.files?.[0]
-              if (file) onImport(file)
+              const files = Array.from(event.target.files || []).filter(Boolean)
+              if (files.length) onImport(files.length === 1 ? files[0] : files, { preserveNumbering, groupComprehension })
               setInputKey(current => current + 1)
             }}
           />
+        </label>
+      </div>
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-6">
+        <label className="theme-text flex items-center gap-2 text-xs font-bold">
+          <input type="checkbox" checked={preserveNumbering} disabled={importing} onChange={event => setPreserveNumbering(event.target.checked)} className="h-4 w-4" />
+          Preserve original numbering
+        </label>
+        <label className="theme-text flex items-center gap-2 text-xs font-bold">
+          <input type="checkbox" checked={groupComprehension} disabled={importing} onChange={event => setGroupComprehension(event.target.checked)} className="h-4 w-4" />
+          Group comprehension questions under passage
         </label>
       </div>
       <div className="grid gap-3 md:grid-cols-3">
@@ -326,6 +343,10 @@ export default function CreateQuizV2() {
   const [importingDocument, setImportingDocument] = useState(false)
   const [importSummary, setImportSummary] = useState(null)
   const [importedAssets, setImportedAssets] = useState({})
+  // Destructive editor actions awaiting ConfirmDialog approval. pendingImportDoc
+  // stashes the picked files + options so the import can run after confirm.
+  const [pendingClear, setPendingClear] = useState(false)
+  const [pendingImportDoc, setPendingImportDoc] = useState(null) // { files, importOptions }
 
   // Pre-publish checklist: same `collectQuizIssues` source of truth that
   // EditQuizV2 wires up. Lives here so the create flow gets identical
@@ -439,6 +460,51 @@ export default function CreateQuizV2() {
     setTimeout(() => window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' }), 50)
   }
 
+  // Escape hatch for "I refreshed and a draft I didn't want got restored":
+  // wipe the editor back to a blank slate AND drop the auto-saved draft.
+  // Clearing React state alone is not enough — the debounced auto-save would
+  // just rewrite the draft on the next keystroke — so we also remove the
+  // localStorage draft via clearCreateQuizDraft. The reset state is the same
+  // empty starter the editor mounts with, so the post-clear auto-save bails
+  // out early (nothing worth saving) and the cleared draft stays cleared.
+  function clearAll() {
+    const hasWork = !hasOnlyEmptyStarterSection(sections) || form.title.trim()
+    if (hasWork) {
+      setPendingClear(true)
+      return
+    }
+    performClearAll()
+  }
+
+  function performClearAll() {
+    setPendingClear(false)
+    revokeImportedQuizAssets(importedAssets)
+    setForm({
+      title: '',
+      subject: prefillSubject,
+      grade: prefillGrade,
+      term: '1',
+      duration: 30,
+      type: 'quiz',
+      topic: '',
+      isDemo: false,
+      mode: '',
+      importStatus: '',
+      sourceFileName: '',
+      sourceContentType: '',
+      importWarnings: [],
+    })
+    setSections([createStandaloneSection()])
+    setParts([])
+    setImportedAssets({})
+    setImportSummary(null)
+    setChecklistOpen(false)
+    checklistAutoOpenedRef.current = false
+    clearCreateQuizDraft(currentUser?.uid)
+    show('Cleared. Starting fresh.')
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   function chooseCreationMode(mode) {
     setCreationMode(mode)
     const nextParams = new URLSearchParams(searchParams)
@@ -475,6 +541,16 @@ export default function CreateQuizV2() {
 
   function handleShuffleSections() {
     setSections(currentSections => shuffleQuizSections(currentSections))
+  }
+
+  function handleAutoGroupComprehension() {
+    setSections(currentSections => regroupComprehensionSections(currentSections).sections)
+    show('Comprehension questions re-grouped by passage.')
+  }
+
+  function handleMoveQuestionToPassage(fromSectionId, questionLocalId, toSectionId) {
+    setSections(currentSections =>
+      moveQuestionToPassage(currentSections, fromSectionId, questionLocalId, toSectionId))
   }
 
   // ── Parts (PRISCA mock-paper section groups) ─────────────────────
@@ -718,15 +794,26 @@ export default function CreateQuizV2() {
     }
   }
 
-  async function handleImportDocument(file) {
+  function handleImportDocument(fileOrFiles, importOptions = {}) {
+    const files = Array.isArray(fileOrFiles) ? fileOrFiles.filter(Boolean) : (fileOrFiles ? [fileOrFiles] : [])
+    if (!files.length) return
     const hasExistingWork = !hasOnlyEmptyStarterSection(sections)
-    if (hasExistingWork && !window.confirm('Replace the current questions with questions extracted from this document?')) {
+    if (hasExistingWork) {
+      setPendingImportDoc({ files, importOptions })
       return
     }
+    runImportDocument(files, importOptions)
+  }
+
+  async function runImportDocument(files, importOptions = {}) {
+    const file = files.length > 1
+      ? { name: `${files[0].name} (+${files.length - 1} more)` }
+      : files[0]
+    const hasExistingWork = !hasOnlyEmptyStarterSection(sections)
 
     setImportingDocument(true)
     try {
-      const imported = await importQuizDocument(file)
+      const imported = await importQuizDocument(files, importOptions)
       setImportedAssets(assetsById(imported.imageAssets))
       setForm(current => ({
         ...current,
@@ -1315,13 +1402,23 @@ export default function CreateQuizV2() {
             </p>
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => navigate(-1)}
-          className="btn-secondary font-bold"
-        >
-          ← Back
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={clearAll}
+            className="rounded-xl border border-red-300 bg-red-50 px-4 py-2 text-sm font-bold text-red-700 hover:bg-red-100"
+            title="Wipe the editor and delete any auto-saved draft"
+          >
+            🗑 Clear all
+          </button>
+          <button
+            type="button"
+            onClick={() => navigate(-1)}
+            className="btn-secondary font-bold"
+          >
+            ← Back
+          </button>
+        </div>
       </div>
 
       {/* Dark brand hero */}
@@ -1471,6 +1568,7 @@ export default function CreateQuizV2() {
         variant="create"
         sections={sections}
         parts={parts}
+        quizContext={{ subject: form.subject, grade: form.grade }}
         questionNumbers={questionNumbers}
         issueCountsByLocalId={issueCountsByLocalId}
         totalQuestions={questionCount}
@@ -1502,6 +1600,8 @@ export default function CreateQuizV2() {
         onPartRemove={removePart}
         onAssignSectionToPart={assignSectionToPart}
         onShuffleSections={handleShuffleSections}
+        onAutoGroupComprehension={handleAutoGroupComprehension}
+        onMoveQuestionToPassage={handleMoveQuestionToPassage}
       />
 
       <QuizEditorPreviewPanel form={form} serializedSections={serializedPreview} />
@@ -1554,6 +1654,30 @@ export default function CreateQuizV2() {
         onClose={() => setChecklistOpen(false)}
         issues={validationIssues}
         summary={validationSummary}
+      />
+
+      <ConfirmDialog
+        open={pendingClear}
+        title="Clear everything and start over?"
+        message="This wipes the current questions, quiz details, and any auto-saved draft. This cannot be undone."
+        confirmLabel="Clear everything"
+        variant="danger"
+        onConfirm={performClearAll}
+        onCancel={() => setPendingClear(false)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(pendingImportDoc)}
+        title="Replace current questions?"
+        message="Questions extracted from this document will replace the questions currently in the editor."
+        confirmLabel="Replace questions"
+        variant="danger"
+        onConfirm={() => {
+          const pending = pendingImportDoc
+          setPendingImportDoc(null)
+          if (pending) runImportDocument(pending.files, pending.importOptions)
+        }}
+        onCancel={() => setPendingImportDoc(null)}
       />
     </div>
   )

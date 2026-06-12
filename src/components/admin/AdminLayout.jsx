@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, NavLink, useLocation, useNavigate } from 'react-router-dom'
 import {
   LayoutDashboard,
@@ -24,8 +24,6 @@ import {
   Bell,
   ChartBarIcon,
   Search,
-  ChevronDown,
-  Eye,
 } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
 import Icon from '../ui/Icon'
@@ -97,7 +95,6 @@ const NAV_SECTIONS = [
     items: [
       { to: '/admin/approvals', icon: BellRing, label: 'Content queue', badgeKey: 'content' },
       { to: '/admin/agents', icon: Bot, label: 'AI agents', badgeKey: 'agents' },
-      { to: '/admin/learner-ai', icon: Sparkles, label: 'Learner AI', badgeKey: 'learnerAi' },
       { to: '/admin/generations', icon: Sparkles, label: 'AI generations' },
     ],
   },
@@ -124,42 +121,24 @@ const NAV_SECTIONS = [
       { to: '/admin/app-check', icon: ShieldCheck, label: 'App Check' },
     ],
   },
-  {
-    label: 'Preview',
-    items: [
-      // External links so they open in a new tab — admins viewing live
-      // learner/teacher surfaces without losing their admin context.
-      { to: '/quizzes', icon: Eye, label: 'View as learner', external: true },
-      { to: '/teacher', icon: Eye, label: 'View as teacher', external: true },
-    ],
-  },
 ]
 
-const VIEW_AS_KEY = 'zedexams.adminViewAs'
-
 function useAdminBadges() {
-  const [badges, setBadges] = useState({ content: 0, agents: 0, learnerAi: 0, payments: 0 })
+  const [badges, setBadges] = useState({ content: 0, agents: 0, payments: 0 })
   useEffect(() => {
     let cancelled = false
     async function load() {
       try {
-        const [pendingQuiz, pendingLesson, awaitingApproval, awaitingLearnerAi, pendingPayments] = await Promise.all([
+        const [pendingQuiz, pendingLesson, awaitingApproval, pendingPayments] = await Promise.all([
           getCountFromServer(query(collection(db, 'quizzes'), where('status', '==', 'pending'))).catch(() => null),
           getCountFromServer(query(collection(db, 'lessons'), where('status', '==', 'pending'))).catch(() => null),
           getCountFromServer(query(collection(db, 'agentJobs'), where('status', '==', 'awaiting_approval'))).catch(() => null),
-          // Parallel counter for the learner-AI v2 pipeline. Kept as a
-          // separate query (NOT folded into the existing agentJobs
-          // counter) so teacher + learner queues stay visually
-          // distinct. v2 status is 'needs_review' (not the v1
-          // 'awaiting_approval').
-          getCountFromServer(query(collection(db, 'aiAgentTasks'), where('status', '==', 'needs_review'))).catch(() => null),
           getCountFromServer(query(collection(db, 'payments'), where('status', '==', 'pending'))).catch(() => null),
         ])
         if (cancelled) return
         setBadges({
           content: (pendingQuiz?.data()?.count ?? 0) + (pendingLesson?.data()?.count ?? 0),
           agents: awaitingApproval?.data()?.count ?? 0,
-          learnerAi: awaitingLearnerAi?.data()?.count ?? 0,
           payments: pendingPayments?.data()?.count ?? 0,
         })
       } catch {
@@ -182,63 +161,6 @@ function NavBadge({ count }) {
     >
       {count > 99 ? '99+' : count}
     </span>
-  )
-}
-
-function ViewAsMenu() {
-  const [viewAs, setViewAs] = useState(() => {
-    try { return localStorage.getItem(VIEW_AS_KEY) || '' } catch { return '' }
-  })
-  const [open, setOpen] = useState(false)
-
-  const apply = useCallback((target) => {
-    setOpen(false)
-    if (target === 'teacher') {
-      localStorage.setItem(VIEW_AS_KEY, 'teacher')
-      setViewAs('teacher')
-      window.location.href = '/teacher'
-    } else if (target === 'learner') {
-      localStorage.setItem(VIEW_AS_KEY, 'learner')
-      setViewAs('learner')
-      window.location.href = '/dashboard'
-    } else {
-      localStorage.removeItem(VIEW_AS_KEY)
-      setViewAs('')
-    }
-  }, [])
-
-  return (
-    <div className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen(o => !o)}
-        className="admin-game-btn-ghost inline-flex items-center gap-1.5 rounded-xl px-2.5 py-1.5 text-xs font-bold"
-        aria-haspopup="menu"
-        aria-expanded={open}
-      >
-        <Icon as={Eye} size="xs" />
-        View as
-        <Icon as={ChevronDown} size="xs" />
-      </button>
-      {open && (
-        <div role="menu" className="absolute right-0 top-full mt-2 z-50 w-44 theme-card border theme-border rounded-xl shadow-xl overflow-hidden">
-          <button role="menuitem" onClick={() => apply('admin')} className="w-full text-left px-3 py-2 text-sm font-bold theme-text hover:theme-bg-subtle">
-            Admin (default)
-          </button>
-          <button role="menuitem" onClick={() => apply('teacher')} className="w-full text-left px-3 py-2 text-sm font-bold theme-text hover:theme-bg-subtle">
-            Teacher dashboard
-          </button>
-          <button role="menuitem" onClick={() => apply('learner')} className="w-full text-left px-3 py-2 text-sm font-bold theme-text hover:theme-bg-subtle">
-            Learner dashboard
-          </button>
-        </div>
-      )}
-      {viewAs && (
-        <span className="ml-2 text-[10px] font-black uppercase tracking-wider theme-text-muted">
-          Previewing
-        </span>
-      )}
-    </div>
   )
 }
 
@@ -323,7 +245,7 @@ export default function AdminLayout({ children }) {
     <div className="admin-game-theme theme-bg theme-text min-h-screen flex">
       {/* ── Desktop Sidebar ─────────────────────────────── */}
       <aside
-        className="hidden w-64 flex-shrink-0 flex-col md:flex"
+        className="hidden w-64 flex-shrink-0 flex-col md:flex md:sticky md:top-0 md:h-screen md:self-start"
         style={{ backgroundColor: '#FFFFFF', borderRight: '2px solid #0F1B2D', boxShadow: '2px 0 0 #0F1B2D' }}
       >
         <div className="px-4 py-5" style={{ backgroundColor: '#F5EFE1', borderBottom: '2px solid #0F1B2D' }}>
@@ -344,7 +266,7 @@ export default function AdminLayout({ children }) {
           </div>
         </div>
 
-        <nav className="flex-1 overflow-y-auto p-2">
+        <nav className="flex-1 min-h-0 overflow-y-auto p-2">
           {NAV_SECTIONS.map(section => renderSection(section, false))}
           <div className="theme-border my-3 border-t" />
           <p className="px-3 pt-1 pb-1 text-[10px] font-black uppercase tracking-[0.14em] theme-text-muted">
@@ -449,13 +371,14 @@ export default function AdminLayout({ children }) {
 
       {/* ── Main Content ────────────────────────────────── */}
       <main className="flex-1 min-w-0 md:pt-0 pt-16">
-        {/* Top utility bar — theme picker + view-as toggle. Hidden on
-            mobile because the mobile header already carries the brand. */}
+        {/* Top utility bar — theme picker. The Teacher/Learner view switch
+            lives in the sidebar "Quick switch" section, so no separate
+            view-as control is needed here. Hidden on mobile because the
+            mobile header already carries the brand. */}
         <div
           className="hidden md:flex items-center justify-end gap-3 px-6 py-3"
           style={{ background: '#FFFAF0', borderBottom: '2px solid #0F1B2D' }}
         >
-          <ViewAsMenu />
           <ThemeSelector />
         </div>
         <div className="app-container py-6 pb-28">

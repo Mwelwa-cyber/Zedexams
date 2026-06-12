@@ -15,6 +15,9 @@ import LessonPlanView from '../views/LessonPlanView'
 import WorksheetView from '../views/WorksheetView'
 import FlashcardsView from '../views/FlashcardsView'
 import SchemeOfWorkView from '../views/SchemeOfWorkView'
+import MarkScheduleView from '../views/MarkScheduleView'
+import WeeklyForecastView from '../views/WeeklyForecastView'
+import RecordOfWorkView from '../views/RecordOfWorkView'
 import RubricView from '../views/RubricView'
 import NotesView from '../views/NotesView'
 import SeoHelmet from '../../seo/SeoHelmet'
@@ -22,24 +25,39 @@ import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
 import { downloadWorksheetDocx } from '../../../utils/worksheetToDocx'
 import { downloadFlashcardsDocx } from '../../../utils/flashcardsToDocx'
 import { downloadSchemeOfWorkDocx } from '../../../utils/schemeOfWorkToDocx'
+import { downloadMarkScheduleDocx } from '../../../utils/markScheduleToDocx'
+import { downloadMarkScheduleXlsx } from '../../../utils/markScheduleToXlsx'
+import { downloadReportCardsDocx } from '../../../utils/reportCardsToDocx'
+import { downloadFullLessonDocx } from '../../../utils/fullLessonToDocx'
+import FullLessonView from '../views/FullLessonView'
+import { downloadWeeklyForecastDocx } from '../../../utils/weeklyForecastToDocx'
+import { downloadRecordOfWorkDocx } from '../../../utils/recordOfWorkToDocx'
 import { downloadRubricDocx } from '../../../utils/rubricToDocx'
 import { downloadNotesDocx } from '../../../utils/notesToDocx'
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
 import { publishShare } from '../../../utils/shareService'
 import { useAuth } from '../../../contexts/AuthContext'
+import { useToast } from '../../ui/Toast'
+import ConfirmDialog from '../../ui/ConfirmDialog'
 
 export default function LibraryItemDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { currentUser, userProfile, isAdmin } = useAuth()
+  const toast = useToast()
   const [item, setItem] = useState(null)
   const [status, setStatus] = useState('loading')
   const [showAnswers, setShowAnswers] = useState(false)
+  // Mark schedules: false = raw marks view, true = percentages view.
+  const [showPercents, setShowPercents] = useState(false)
   const [editingHeader, setEditingHeader] = useState(false)
   const [savingEdit, setSavingEdit] = useState(false)
   const [sharing, setSharing] = useState(false)
   const [shareInfo, setShareInfo] = useState(null)
   const [shareError, setShareError] = useState('')
+  // Delete flow — confirmingDelete drives the ConfirmDialog, deleting its spinner.
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
   // Pro vs Premium access — Pro can download own generations only,
   // Premium can download / print / export everything.
@@ -99,24 +117,28 @@ export default function LibraryItemDetail() {
       })
   }, [id])
 
-  async function onDelete() {
+  function onDelete() {
     if (!item) return
-    const confirmed = window.confirm(
-      'Delete this generation? This cannot be undone.',
-    )
-    if (!confirmed) return
+    setConfirmingDelete(true)
+  }
+
+  async function confirmDelete() {
+    if (!item) return
+    setDeleting(true)
     const ok = await deleteGeneration(item.id)
+    setDeleting(false)
+    setConfirmingDelete(false)
     if (ok) {
       navigate('/teacher/library')
     } else {
-      window.alert('Could not delete this item. Please try again.')
+      toast.error('Could not delete this item. Please try again.')
     }
   }
 
   async function onExport() {
     if (!item?.output) return
     if (!permissions.canDownload) {
-      window.alert(
+      toast.error(
         permissions.level === LIBRARY_ACCESS.PRO
           ? 'Downloads of library documents you didn\'t create are reserved for Premium accounts.'
           : 'Sign in to a paid plan to download library documents.',
@@ -150,7 +172,47 @@ export default function LibraryItemDetail() {
     } else if (item.tool === 'notes') {
       await downloadNotesDocx(item.output, `${base}_teacher-notes.docx`)
       recordExport(item.id, 'docx')
+    } else if (item.tool === 'mark_schedule') {
+      await downloadMarkScheduleDocx(item.output, `${base}_mark-schedule.docx`, { mode: showPercents ? 'percent' : 'marks' })
+      recordExport(item.id, 'docx')
+    } else if (item.tool === 'full_lesson') {
+      await downloadFullLessonDocx(item.output, `${base}_full-lesson.docx`)
+      recordExport(item.id, 'docx')
+    } else if (item.tool === 'weekly_forecast') {
+      await downloadWeeklyForecastDocx(item.output, `${base}_weekly-forecast.docx`)
+      recordExport(item.id, 'docx')
+    } else if (item.tool === 'record_of_work') {
+      await downloadRecordOfWorkDocx(item.output, `${base}_record-of-work.docx`)
+      recordExport(item.id, 'docx')
     }
+  }
+
+  async function onExportXlsx() {
+    if (item?.tool !== 'mark_schedule' || !item.output) return
+    if (!permissions.canDownload) return
+    const slug = (s) => String(s || '')
+      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
+    const base = [
+      slug(item.inputs?.grade),
+      slug(item.inputs?.subject),
+      new Date(item.createdAt?.toDate?.() || Date.now()).toISOString().slice(0, 10),
+    ].filter(Boolean).join('_')
+    await downloadMarkScheduleXlsx(item.output, `${base}_mark-schedule.xlsx`)
+    recordExport(item.id, 'xlsx')
+  }
+
+  async function onExportReportCards() {
+    if (item?.tool !== 'mark_schedule' || !item.output) return
+    if (!permissions.canDownload) return
+    const slug = (s) => String(s || '')
+      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40)
+    const base = [
+      slug(item.inputs?.grade),
+      slug(item.inputs?.subject),
+      new Date(item.createdAt?.toDate?.() || Date.now()).toISOString().slice(0, 10),
+    ].filter(Boolean).join('_')
+    await downloadReportCardsDocx(item.output, `${base}_report-cards.docx`)
+    recordExport(item.id, 'report_cards')
   }
 
   async function onExportAnswerKey() {
@@ -171,7 +233,7 @@ export default function LibraryItemDetail() {
   function onRegenerate() {
     if (!item) return
     const meta = TOOL_META[item.tool]
-    if (!meta) return
+    if (!meta?.route) return
     // Build a query string from the original inputs so the target generator
     // pre-fills its form via useFormDefaultsFromUrl().
     const qs = buildGeneratorQueryString(item.inputs || {})
@@ -187,7 +249,7 @@ export default function LibraryItemDetail() {
       setItem((prev) => ({ ...prev, output: nextOutput, teacherEdited: true }))
       setEditingHeader(false)
     } else {
-      window.alert('Could not save changes. Please try again.')
+      toast.error('Could not save changes. Please try again.')
     }
     setSavingEdit(false)
   }
@@ -280,6 +342,17 @@ export default function LibraryItemDetail() {
                 Show answers
               </label>
             )}
+            {item.tool === 'mark_schedule' && (
+              <label className="flex items-center gap-2 text-sm px-3 py-2 rounded-xl cursor-pointer" style={{ color: '#0e2a32', border: '1.5px solid #d9cfb8' }}>
+                <input
+                  type="checkbox"
+                  checked={showPercents}
+                  onChange={(e) => setShowPercents(e.target.checked)}
+                  style={{ accentColor: '#ff7a2e' }}
+                />
+                Show percentages
+              </label>
+            )}
             <button
               onClick={onExport}
               disabled={!permissions.canDownload}
@@ -290,6 +363,30 @@ export default function LibraryItemDetail() {
             >
               📄 Export .docx
             </button>
+            {item.tool === 'mark_schedule' && (
+              <button
+                onClick={onExportXlsx}
+                disabled={!permissions.canDownload}
+                className="studio-btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
+                title={permissions.canDownload
+                  ? 'Download an Excel workbook with live total and position formulas'
+                  : 'Premium only — upgrade to download library documents'}
+              >
+                📊 Export .xlsx
+              </button>
+            )}
+            {item.tool === 'mark_schedule' && (
+              <button
+                onClick={onExportReportCards}
+                disabled={!permissions.canDownload}
+                className="studio-btn-ghost disabled:opacity-50 disabled:cursor-not-allowed"
+                title={permissions.canDownload
+                  ? 'Download per-pupil report cards — one page per pupil'
+                  : 'Premium only — upgrade to download library documents'}
+              >
+                🪪 Report cards
+              </button>
+            )}
             <button
               onClick={onShare}
               disabled={sharing}
@@ -314,9 +411,11 @@ export default function LibraryItemDetail() {
                 ✏️ Edit details
               </button>
             )}
-            <button onClick={onRegenerate} className="studio-btn-ghost">
-              🔁 Generate similar
-            </button>
+            {meta.route && (
+              <button onClick={onRegenerate} className="studio-btn-ghost">
+                🔁 Generate similar
+              </button>
+            )}
             {item.tool === 'lesson_plan' && (
               <button
                 onClick={() => navigate(`/teacher/generate/notes?lessonPlanId=${item.id}`)}
@@ -351,6 +450,16 @@ export default function LibraryItemDetail() {
               <button onClick={onCopyShare} className="px-3 py-2 rounded-lg text-xs font-black text-white bg-emerald-600 hover:bg-emerald-700">
                 Copy
               </button>
+              {/* WhatsApp is how Zambian teachers actually pass documents
+                  around — one tap beats copy-switch-paste. */}
+              <a
+                href={`https://wa.me/?text=${encodeURIComponent(`${titleForGeneration(item)} — ${shareInfo.url}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-black text-white bg-green-600 hover:bg-green-700"
+              >
+                <span aria-hidden="true">💬</span> WhatsApp
+              </a>
             </div>
           </div>
         )}
@@ -401,6 +510,16 @@ export default function LibraryItemDetail() {
           )}
           {item.tool === 'flashcards' && <FlashcardsView flashcards={item.output} />}
           {item.tool === 'scheme_of_work' && <SchemeOfWorkView scheme={item.output} />}
+          {item.tool === 'mark_schedule' && item.output && (
+            <MarkScheduleView schedule={item.output} mode={showPercents ? 'percent' : 'marks'} />
+          )}
+          {item.tool === 'weekly_forecast' && item.output && (
+            <WeeklyForecastView forecast={item.output} />
+          )}
+          {item.tool === 'record_of_work' && item.output && (
+            <RecordOfWorkView record={item.output} />
+          )}
+          {item.tool === 'full_lesson' && <FullLessonView lesson={item.output} />}
           {item.tool === 'rubric' && <RubricView rubric={item.output} />}
           {item.tool === 'notes' && <NotesView notes={item.output} />}
           {!item.output && !(item.tool === 'lesson_plan' && item.html) && (
@@ -420,6 +539,17 @@ export default function LibraryItemDetail() {
           onSave={onSaveHeaderEdits}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmingDelete}
+        title="Delete this generation?"
+        message="It will disappear from your library for good. This cannot be undone."
+        confirmLabel="Delete"
+        variant="danger"
+        loading={deleting}
+        onConfirm={confirmDelete}
+        onCancel={() => setConfirmingDelete(false)}
+      />
     </div>
   )
 }

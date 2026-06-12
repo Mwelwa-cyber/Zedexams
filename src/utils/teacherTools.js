@@ -37,10 +37,13 @@ const generateHomeworkCallable = httpsCallable(functions, 'generateHomework', {
   timeout: 130_000, // server: 120s
 })
 const generateAssessmentCallable = httpsCallable(functions, 'generateAssessment', {
-  timeout: 130_000, // server: 120s
+  timeout: 250_000, // server: 240s — big mocks stream for several minutes
 })
 const generateQuizCallable = httpsCallable(functions, 'generateQuiz', {
   timeout: 130_000, // server: 120s
+})
+const generateExamPaperCallable = httpsCallable(functions, 'generateExamPaper', {
+  timeout: 185_000, // server: 180s — up to 60 questions
 })
 
 // Grades grouped by Zambia CBC phase. Values use the canonical G-prefix the
@@ -830,7 +833,9 @@ export async function generateAssessment(inputs) {
   try {
     const result = await withTimeout(
       generateAssessmentCallable(inputs),
-      HARD_CLIENT_TIMEOUT_MS,
+      // Big papers legitimately run past the shared 130s safety net; match
+      // the callable's own 250s budget (server timeout is 240s).
+      250_000,
       'generateAssessment',
     )
     console.info('[zedexams] generateAssessment ← ok in',
@@ -874,6 +879,44 @@ export async function generateQuiz(inputs) {
     return { ok: true, data: result.data }
   } catch (error) {
     console.error('[zedexams] generateQuiz ← FAILED after',
+      Date.now() - startedAt, 'ms',
+      { code: error?.code, message: error?.message },
+    )
+    return {
+      ok: false,
+      error: messageFromError(error),
+      code: error?.code || 'unknown',
+      rawMessage: error?.message || '',
+    }
+  }
+}
+
+// Exam papers can run to ~60 items, so allow longer than the shared 130s cap.
+const EXAM_PAPER_CLIENT_TIMEOUT_MS = 190_000
+
+/**
+ * Generate fresh ECZ Grade 7 PSLE-style practice questions ("Exam Studio").
+ * Grounded on the stored curriculum module when grade+subject(+topic) resolve
+ * one. Returns { ok, data: { generationId, examPaper, usage, warning } }.
+ */
+export async function generateExamPaper(inputs) {
+  console.info('[zedexams] generateExamPaper →', {
+    grade: inputs?.grade, subject: inputs?.subject,
+    topic: inputs?.topic, count: inputs?.count,
+  })
+  const startedAt = Date.now()
+  try {
+    const result = await withTimeout(
+      generateExamPaperCallable(inputs),
+      EXAM_PAPER_CLIENT_TIMEOUT_MS,
+      'generateExamPaper',
+    )
+    console.info('[zedexams] generateExamPaper ← ok in',
+      Date.now() - startedAt, 'ms',
+      { generationId: result?.data?.generationId, warning: result?.data?.warning })
+    return { ok: true, data: result.data }
+  } catch (error) {
+    console.error('[zedexams] generateExamPaper ← FAILED after',
       Date.now() - startedAt, 'ms',
       { code: error?.code, message: error?.message },
     )

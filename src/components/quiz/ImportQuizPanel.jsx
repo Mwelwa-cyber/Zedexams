@@ -26,33 +26,60 @@ function extractSmartImportReason(warnings = []) {
     .trim()
 }
 
+// Human-readable label for the vision-import progress phases (scanned PDFs and
+// imported pictures share the same pipeline).
+function progressLabel(progress) {
+  if (!progress || !progress.total) return ''
+  if (progress.phase === 'rendering') {
+    return `Preparing page ${progress.current} of ${progress.total}…`
+  }
+  if (progress.phase === 'reading') {
+    return `Reading questions — batch ${progress.current} of ${progress.total}…`
+  }
+  return ''
+}
+
 export default function ImportQuizPanel({
   importing,
+  importProgress,
   importSummary,
   onImport,
   intro,
-  title = 'Import Quiz (Word/PDF)',
+  title = 'Import Quiz (Word / PDF / Pictures)',
 }) {
   // Bump the input key after each pick so re-selecting the same file
   // still fires onChange — without this, a teacher who chose the wrong
   // file would have to refresh to retry the same path.
   const [inputKey, setInputKey] = useState(0)
-  // Cache the last-picked File so the "Retry smart import" button can
+  // Cache the last-picked file(s) so the "Retry smart import" button can
   // re-run the importer without making the teacher re-pick the file
   // (which is annoying after smart import quietly fell back).
   const lastFileRef = useRef(null)
 
-  function handlePick(file) {
-    if (!file) return
-    lastFileRef.current = file
-    onImport(file)
+  // Import options — both default ON. They are passed to onImport(file, opts)
+  // and threaded down to the parser so they actually gate behaviour.
+  const [preserveNumbering, setPreserveNumbering] = useState(true)
+  const [groupComprehension, setGroupComprehension] = useState(true)
+
+  function currentOptions() {
+    return { preserveNumbering, groupComprehension }
+  }
+
+  function handlePick(fileList) {
+    const files = Array.from(fileList || []).filter(Boolean)
+    if (!files.length) return
+    // A single document stays a single File; several pictures pass through as
+    // an array (the importer accepts both).
+    const picked = files.length === 1 ? files[0] : files
+    lastFileRef.current = picked
+    onImport(picked, currentOptions())
     setInputKey(current => current + 1)
   }
 
   function handleRetrySmartImport() {
-    const file = lastFileRef.current
-    if (!file || importing) return
-    onImport(file)
+    const picked = lastFileRef.current
+    if (!picked || importing) return
+    onImport(picked, currentOptions())
   }
 
   // Smart-import fell back to the standard parser when smartApplied is
@@ -71,18 +98,19 @@ export default function ImportQuizPanel({
         <div>
           <h2 className="theme-text font-black">{title}</h2>
           <p className="theme-text mt-1 max-w-3xl text-sm font-bold leading-relaxed">
-            {intro || 'Upload a .doc, .docx, or .pdf file. ZedExams will extract questions, options, short answers, and image-based questions into editable cards, then use smart cleanup on tricky formatting when available.'}
+            {intro || 'Upload a .doc, .docx, or .pdf — or pictures (JPG/PNG/WEBP) of a paper. ZedExams will extract questions, options, short answers, and image-based questions into editable cards, then use smart cleanup on tricky formatting when available. You can select several pictures at once (one per page).'}
           </p>
         </div>
         <label className="theme-accent-fill theme-on-accent cursor-pointer rounded-xl px-4 py-2.5 text-sm font-black">
-          {importing ? 'Importing...' : 'Choose File'}
+          {importing ? 'Importing...' : 'Choose File(s)'}
           <input
             key={inputKey}
             type="file"
             accept={QUIZ_DOCUMENT_ACCEPT}
+            multiple
             className="hidden"
             disabled={importing}
-            onChange={event => handlePick(event.target.files?.[0])}
+            onChange={event => handlePick(event.target.files)}
           />
         </label>
       </div>
@@ -96,9 +124,47 @@ export default function ImportQuizPanel({
           <p className="theme-text mt-1 text-xs font-bold leading-relaxed">DOCX images and PDF snapshots attach to matching questions and upload when you save.</p>
         </div>
         <div className="theme-card theme-border rounded-xl border p-3">
-          <p className="theme-accent-text text-xs font-black uppercase tracking-wide">Needs review</p>
-          <p className="theme-text mt-1 text-xs font-bold leading-relaxed">Unclear answers, diagrams, and imperfect extraction are marked before publishing.</p>
+          <p className="theme-accent-text text-xs font-black uppercase tracking-wide">Scans &amp; pictures</p>
+          <p className="theme-text mt-1 text-xs font-bold leading-relaxed">Image-only PDFs and photos/screenshots of a paper are read with AI vision. Answers are left blank for you to set.</p>
         </div>
+      </div>
+
+      {importing && importProgress && progressLabel(importProgress) && (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-blue-900">
+          <p className="text-sm font-black">
+            <span aria-hidden="true">📷</span> Reading with AI vision…
+          </p>
+          <p className="mt-1 text-xs font-bold leading-relaxed">{progressLabel(importProgress)}</p>
+          <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-blue-100">
+            <div
+              className="h-full rounded-full bg-blue-500 transition-all"
+              style={{ width: `${Math.round((importProgress.current / Math.max(1, importProgress.total)) * 100)}%` }}
+            />
+          </div>
+        </div>
+      )}
+
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:gap-6">
+        <label className="theme-text flex items-center gap-2 text-xs font-bold">
+          <input
+            type="checkbox"
+            checked={preserveNumbering}
+            disabled={importing}
+            onChange={event => setPreserveNumbering(event.target.checked)}
+            className="h-4 w-4"
+          />
+          Preserve original numbering
+        </label>
+        <label className="theme-text flex items-center gap-2 text-xs font-bold">
+          <input
+            type="checkbox"
+            checked={groupComprehension}
+            disabled={importing}
+            onChange={event => setGroupComprehension(event.target.checked)}
+            className="h-4 w-4"
+          />
+          Group comprehension questions under passage
+        </label>
       </div>
 
       {smartFellBack && (
@@ -154,6 +220,38 @@ export default function ImportQuizPanel({
                 <li key={`${warning}-${index}`} className="text-xs font-bold leading-relaxed">{warning}</li>
               ))}
             </ul>
+          ) : null}
+
+          {/* Import preview — detected parts (in order) and per-part counts,
+              plus a warning for any part that ended up with no questions.
+              Shown before the quiz is committed so the teacher can spot a
+              mis-detected section. */}
+          {Array.isArray(importSummary.partBreakdown) && importSummary.partBreakdown.length ? (
+            <div className="mt-3 border-t border-current/10 pt-2">
+              <p className="text-xs font-black uppercase tracking-wide">Detected structure</p>
+              <ul className="mt-1 space-y-0.5">
+                {importSummary.partBreakdown.map((part, index) => {
+                  const label = String(part.title || '').trim() || 'Unsectioned questions'
+                  const empty = String(part.title || '').trim() && part.questions === 0
+                  return (
+                    <li
+                      key={part.partId || `part-${index}`}
+                      className={`text-xs font-bold leading-relaxed ${empty ? 'text-red-700' : ''}`}
+                    >
+                      {label}: {part.questions} question{part.questions === 1 ? '' : 's'}
+                      {part.passages ? ` · ${part.passages} passage${part.passages === 1 ? '' : 's'}` : ''}
+                      {empty ? ' ⚠️ no questions detected' : ''}
+                    </li>
+                  )
+                })}
+              </ul>
+              {importSummary.zeroQuestionParts?.length ? (
+                <p className="mt-2 text-xs font-black text-red-700">
+                  ⚠️ {importSummary.zeroQuestionParts.length} part
+                  {importSummary.zeroQuestionParts.length === 1 ? '' : 's'} detected with no questions — review before saving.
+                </p>
+              ) : null}
+            </div>
           ) : null}
         </div>
       )}

@@ -84,7 +84,9 @@ export default function Register() {
     confirm: '',
     grade: '',
     school: '',
-    role: 'learner',
+    // ?role=teacher (used by the /teachers landing CTAs) preselects the
+    // teacher account type; anything else falls back to learner.
+    role: searchParams.get('role') === 'teacher' ? 'teacher' : 'learner',
     province: '',
     subject: '',
   })

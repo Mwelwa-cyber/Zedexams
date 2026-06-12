@@ -2,8 +2,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
+import { useDataSaver } from '../../contexts/DataSaverContext'
 import { useSubscription } from '../../hooks/useSubscription'
-import { buildQuizDisplaySections } from '../../utils/quizSections.js'
+import { buildQuizDisplaySections, shuffleQuizSections } from '../../utils/quizSections.js'
 import UpgradeModal from '../subscription/UpgradeModal'
 import QuizTip from './QuizTip'
 import ZoomableImage from './ZoomableImage'
@@ -32,6 +33,30 @@ function isNumericType(type) {
 
 function isHotspotType(type) {
   return type === 'hotspot'
+}
+
+// Gathers every learner-facing image URL in a display section (passage
+// illustration, question illustrations, and any per-option images) so the
+// next section's pictures can be warmed in the browser cache before the
+// learner navigates to it — no more waiting on a cold fetch after pressing
+// "Next".
+function collectSectionImageUrls(section) {
+  if (!section) return []
+  const urls = []
+  const pushQuestion = (q) => {
+    if (!q) return
+    if (q.imageUrl) urls.push(q.imageUrl)
+    if (Array.isArray(q.optionMedia)) {
+      q.optionMedia.forEach((m) => { if (m?.imageUrl) urls.push(m.imageUrl) })
+    }
+  }
+  if (section.kind === 'passage') {
+    if (section.passage?.imageUrl) urls.push(section.passage.imageUrl)
+    ;(section.questions || []).forEach(pushQuestion)
+  } else {
+    pushQuestion(section.question)
+  }
+  return urls
 }
 
 // Maps the subject string stored on a quiz (e.g. "Integrated Science",
@@ -93,6 +118,7 @@ function OptionButton({ label, selected, revealed, correct, wrong, onClick, imag
             src={imageUrl}
             alt={imageAlt || ''}
             className="quiz-option-image"
+            decoding="async"
             onError={event => {
               // Stay tappable, just hide the broken icon — the option text
               // below still names the choice so the learner can pick it.
@@ -200,9 +226,15 @@ export default function QuizRunnerV2() {
   // Challenge Mode entry point: GradeHub passes ?difficulty=hard to surface
   // only the hardest questions for learners performing ≥ 80% in the subject.
   const difficultyFilter = (searchParams.get('difficulty') || '').toLowerCase()
+  // Shuffle escape hatch: an assigned quiz launched with ?shuffle=1 randomises
+  // question order. Derived at component scope (like difficultyFilter) so the
+  // load effect can depend on the stable string rather than the searchParams
+  // object.
+  const shuffleParam = (searchParams.get('shuffle') || '').toLowerCase()
   const { currentUser } = useAuth()
   const { getQuizById, getQuestions, saveResult } = useFirestore()
   const { canUseExamMode, canAccessFullContent } = useSubscription()
+  const { dataSaver } = useDataSaver()
 
   const [quiz, setQuiz] = useState(null)
   const [sections, setSections] = useState([])
@@ -272,7 +304,19 @@ export default function QuizRunnerV2() {
 
         const built = buildQuizDisplaySections(activeQuestionDocs, quizDoc.passages || [])
         setQuiz(quizDoc)
-        setSections(built.sections)
+        // Shuffle ONLY when shuffle is explicitly enabled — either the quiz
+        // doc carries a truthy `shuffleQuestions` flag (set when an assignment
+        // requested shuffling) or the launch URL passes `?shuffle=1`. By
+        // default we preserve the document order the parser produced.
+        // shuffleQuizSections keeps Parts and passages intact (it only
+        // reorders within those boundaries), so the section structure stays
+        // correct while the questions a learner sees are randomised.
+        const shuffleEnabled = Boolean(quizDoc.shuffleQuestions)
+          || ['1', 'true', 'yes'].includes(shuffleParam)
+        const displaySections = shuffleEnabled
+          ? shuffleQuizSections(built.sections)
+          : built.sections
+        setSections(displaySections)
         setQuestions(built.questions)
 
         // Auto-resume any in-progress session saved in localStorage
@@ -301,7 +345,28 @@ export default function QuizRunnerV2() {
 
     load()
     return () => clearInterval(timerRef.current)
-  }, [quizId, getQuizById, getQuestions, canAccessFullContent, navigate, currentUser, difficultyFilter])
+  }, [quizId, getQuizById, getQuestions, canAccessFullContent, navigate, currentUser, difficultyFilter, shuffleParam])
+
+  // Warm the next section's images in the browser cache while the learner
+  // is still on the current one, so advancing shows the picture instantly
+  // instead of kicking off a cold fetch. Skipped under Data Saver — that
+  // mode deliberately avoids speculative downloads on metered connections.
+  useEffect(() => {
+    if (dataSaver || !sections.length) return
+    if (typeof window === 'undefined' || typeof Image === 'undefined') return
+    const nextSection = sections[activeSectionIndex + 1]
+    const urls = collectSectionImageUrls(nextSection)
+    if (!urls.length) return
+    // Hold references until unmount so the GC can't reclaim the in-flight
+    // requests before the bytes land in cache.
+    const loaders = urls.map((url) => {
+      const img = new Image()
+      img.decoding = 'async'
+      img.src = url
+      return img
+    })
+    return () => { loaders.forEach((img) => { img.src = '' }) }
+  }, [sections, activeSectionIndex, dataSaver])
 
   function handleStart(nextMode) {
     if (nextMode === 'exam' && !canUseExamMode) {
@@ -590,8 +655,10 @@ export default function QuizRunnerV2() {
               flagged[question.id] ? 'bg-amber-300' : 'bg-white'
             }`}
             title={flagged[question.id] ? 'Unflag' : 'Flag for review'}
+            aria-label={flagged[question.id] ? 'Unflag this question' : 'Flag this question for review'}
+            aria-pressed={Boolean(flagged[question.id])}
           >
-            🚩
+            <span aria-hidden="true">🚩</span>
           </button>
         </div>
 
@@ -621,6 +688,7 @@ export default function QuizRunnerV2() {
                 src={question.imageUrl}
                 alt="Question illustration"
                 fallbackText={question.diagramText}
+                priority
                 className="mx-auto max-h-[80vh] w-full rounded-xl object-contain"
               />
             </div>
@@ -711,6 +779,8 @@ export default function QuizRunnerV2() {
                       src={question.imageUrl}
                       alt="Click the answer"
                       draggable={false}
+                      decoding="async"
+                      fetchPriority="high"
                       className="block w-full select-none object-contain"
                     />
                     {hasTap && (
@@ -834,6 +904,7 @@ export default function QuizRunnerV2() {
                     if (event.key === 'Enter' && typed.trim() && !numericChecked) checkNumeric(question.id)
                   }}
                   placeholder="Type a number…"
+                  aria-label="Numeric answer"
                   className="flex-1 bg-transparent text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
                 />
                 {numericChecked && mode === 'practice' && <span className="text-xl">{numericResult.correct ? '✅' : '❌'}</span>}
@@ -897,6 +968,7 @@ export default function QuizRunnerV2() {
                   }}
                   disabled={checking}
                   placeholder="Type your answer here..."
+                  aria-label="Your answer"
                   className="flex-1 bg-transparent text-base font-semibold text-slate-900 outline-none placeholder:text-slate-400"
                 />
                 {checking && <div className="h-5 w-5 animate-spin rounded-full border-2 border-orange-500 border-t-transparent" />}
@@ -989,17 +1061,17 @@ export default function QuizRunnerV2() {
                   {userAnswer === question.correctAnswer ? (
                     <>
                       <p className="text-lg font-black text-green-700">🌟 Excellent! Well done!</p>
-                      <p className="mt-1 text-sm text-green-700">The answer is <strong>{question.options[question.correctAnswer]}</strong></p>
+                      <p className="mt-1 text-sm text-green-700">The answer is <strong><RichContent value={question.options[question.correctAnswer]} className="rich-option" fallback={<span />} /></strong></p>
                     </>
                   ) : userAnswer === undefined ? (
                     <>
                       <p className="theme-text text-lg font-black">⏭️ Skipped</p>
-                      <p className="theme-text-muted mt-1 text-sm">Correct: <strong>{question.options[question.correctAnswer]}</strong></p>
+                      <p className="theme-text-muted mt-1 text-sm">Correct: <strong><RichContent value={question.options[question.correctAnswer]} className="rich-option" fallback={<span />} /></strong></p>
                     </>
                   ) : (
                     <>
                       <p className="text-lg font-black text-orange-700">💡 Not quite — you can do it!</p>
-                      <p className="mt-1 text-sm text-orange-700">Correct answer: <strong>{question.options[question.correctAnswer]}</strong></p>
+                      <p className="mt-1 text-sm text-orange-700">Correct answer: <strong><RichContent value={question.options[question.correctAnswer]} className="rich-option" fallback={<span />} /></strong></p>
                     </>
                   )}
                 </div>
@@ -1132,6 +1204,7 @@ export default function QuizRunnerV2() {
                       src={activeSection.passage.imageUrl}
                       alt="Passage illustration"
                       fallbackText={activeSection.passage.diagramText || activeSection.passage.title || ''}
+                      priority
                       className="mx-auto max-h-[80vh] w-full rounded-2xl object-contain"
                     />
                   </div>

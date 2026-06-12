@@ -57,16 +57,10 @@ function __studioInitUI() {
     });
   });
 
-  // Lesson Progression — reveal the detail fields only when multi-lesson is on.
-  // The generic .toggle-row handler above already flips #t-multilesson's
-  // data-on; this listener runs after it and syncs the fields' visibility.
-  const multiToggle = $('#t-multilesson');
-  const multiFields = $('#multilesson-fields');
-  if (multiToggle && multiFields) {
-    const syncMulti = () => { multiFields.hidden = multiToggle.dataset.on !== 'true'; };
-    multiToggle.addEventListener('click', syncMulti);
-    syncMulti();
-  }
+  // Lesson Progression — the legacy "Subtopic needs multiple lessons" toggle
+  // was replaced in v14 by a full planning-mode selector
+  // (12-lesson-progression.js). That module owns its own bindings; nothing
+  // to wire here.
 
   // Format choice — sync the active card with the persisted formatChoice
   $$('#format-cards .format-card').forEach(c => {

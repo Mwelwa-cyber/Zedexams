@@ -67,14 +67,29 @@ export default defineConfig(({ mode }) => {
       // to generate a service worker that pre-caches the app shell and
       // applies sensible runtime caching to fonts + Firebase Storage assets.
       //
-      // registerType: 'autoUpdate' — a new SW activates and reloads the
-      // app automatically on the next open, no user prompt. This is what
-      // makes HTML/meta changes (e.g. theme-color) actually reach returning
-      // users instead of sitting behind a stale precached index.html. Only
-      // the changed hashed assets download, in the background, and the
-      // precache still serves the app offline — so slow connections aren't
-      // penalised. onNeedRefresh never fires in this mode, so <UpdatePrompt />
-      // simply never renders (left in place; harmless).
+      // registerType: 'autoUpdate' — a new SW activates + claims clients
+      // automatically once found. This is what makes HTML/meta changes (e.g.
+      // theme-color) actually reach returning users instead of sitting behind
+      // a stale precached index.html. Only the changed hashed assets download,
+      // in the background, and the precache still serves the app offline — so
+      // slow connections aren't penalised.
+      //
+      // The PAGE already rendered with the old chunks doesn't refresh itself,
+      // so crossover happens at two safe moments (never a hard reload mid-op):
+      //   • public/sw-reload-clients.js posts SW_RELOAD_REQUEST on activation,
+      //     which usePwaUpdate turns into <UpdatePrompt />'s "Refresh now" toast;
+      //   • <UpdatePrompt /> also auto-applies the update on the user's next
+      //     in-app navigation (src/hooks/pwaAutoReload.js) so returning users
+      //     cross over without tapping anything. Long-running ops (imports)
+      //     don't navigate, so they're never interrupted.
+      //
+      // NOTE: do NOT switch this back to 'prompt' (it was, briefly, in #778).
+      // In prompt mode a new build sits in the SW "waiting" state until the
+      // user taps a toast — so returning users freeze on whatever bundle they
+      // already have. That is exactly how the live site appeared to "revert":
+      // the exam timetable, the removed admin previews, and the compact
+      // study-plan card all shipped but never reached users still holding the
+      // old precache. autoUpdate is the documented, intended behaviour.
       //
       // Capacitor: src/main.jsx skips registerSW() on native platforms
       // because Capacitor already serves bundled assets locally — a SW
@@ -89,10 +104,11 @@ export default defineConfig(({ mode }) => {
           // after the first successful load. globPatterns are scoped to
           // dist/ at build time, not the public/ directory at runtime.
           globPatterns: ['**/*.{js,css,html,svg,woff,woff2,ttf,png,webmanifest,ico}'],
-          // Don't cache the PDF.js worker (2.3 MB) by default — it's only
-          // ever loaded when a learner opens a past paper, and pre-caching
-          // it would balloon the install size for everyone else.
-          globIgnores: ['**/pdf.worker*.{js,mjs}'],
+          // Don't pre-cache the PDF.js worker (2.3 MB, past papers only) or the
+          // note diagrams (public/notes/*.png) — pre-caching either would balloon
+          // the install size for everyone. The worker loads on demand; note
+          // diagrams are runtime-cached on first view (see runtimeCaching below).
+          globIgnores: ['**/pdf.worker*.{js,mjs}', '**/notes/*.png'],
           // Default is 2 MB. Bump so our largest hashed chunks (vendor,
           // index, react-vendor) all fit under the cache-eligible cap.
           maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
@@ -109,6 +125,10 @@ export default defineConfig(({ mode }) => {
             /^https?:\/\/.*googleapis\.com/,
             /^https?:\/\/.*firebaseio\.com/,
             /^https?:\/\/identitytoolkit\.googleapis\.com/,
+            // Static files opened in a new tab (e.g. the bundled exam
+            // timetable PDF) are navigation requests — without this the SW
+            // would serve index.html and the SPA would 404 the unknown route.
+            /^\/timetables\//,
           ],
           runtimeCaching: [
             // Google Fonts — short cache for the CSS (font URLs change
@@ -143,11 +163,29 @@ export default defineConfig(({ mode }) => {
                 cacheableResponse: { statuses: [0, 200] },
               },
             },
+            // Same-origin note diagrams (public/notes/*.png). Excluded from the
+            // precache so they don't bloat install for everyone; cached on first
+            // view so re-opening a study note works offline.
+            {
+              urlPattern: /\/notes\/[^/]+\.(?:png|jpe?g|webp|gif)$/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'note-diagrams',
+                expiration: { maxEntries: 60, maxAgeSeconds: 60 * 60 * 24 * 60 },
+                cacheableResponse: { statuses: [0, 200] },
+              },
+            },
           ],
           // autoUpdate: take over open clients and activate immediately so
-          // a deploy reaches users on next open without a manual tap.
+          // the next open lands on the newest cached shell without a prompt.
           clientsClaim: true,
           skipWaiting: true,
+          // Imported at the top of the generated SW. Adds an activate-time
+          // handler that reloads open tabs when a NEW build takes over, so a
+          // device frozen on an old precache crosses over automatically on its
+          // next visit — no manual cache clear. Shipped from public/ and
+          // served no-cache (see firebase.json) so the import is never stale.
+          importScripts: ['/sw-reload-clients.js'],
           // Purge precaches from older SW revisions (incl. the stale
           // index.html that held the old theme-color) on activate.
           cleanupOutdatedCaches: true,

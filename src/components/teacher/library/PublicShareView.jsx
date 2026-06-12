@@ -6,6 +6,8 @@ import LessonPlanView from '../views/LessonPlanView'
 import WorksheetView from '../views/WorksheetView'
 import FlashcardsView from '../views/FlashcardsView'
 import SchemeOfWorkView from '../views/SchemeOfWorkView'
+import WeeklyForecastView from '../views/WeeklyForecastView'
+import RecordOfWorkView from '../views/RecordOfWorkView'
 import RubricView from '../views/RubricView'
 import Logo from '../../ui/Logo'
 import SeoHelmet from '../../seo/SeoHelmet'
@@ -140,10 +142,12 @@ function RenderPlanByTool({ tool, plan }) {
   if (!plan) return <p className="text-sm text-slate-500 italic">Empty plan.</p>
   switch (tool) {
     case 'lesson_plan':    return <LessonPlanView plan={plan} />
-    case 'worksheet':      return <WorksheetView output={plan} showAnswers={false} />
-    case 'flashcards':     return <FlashcardsView output={plan} />
-    case 'scheme_of_work': return <SchemeOfWorkView output={plan} />
-    case 'rubric':         return <RubricView output={plan} />
+    case 'worksheet':      return <WorksheetView worksheet={plan} showAnswers={false} />
+    case 'flashcards':     return <FlashcardsView flashcards={plan} />
+    case 'scheme_of_work': return <SchemeOfWorkView scheme={plan} />
+    case 'weekly_forecast': return <WeeklyForecastView forecast={plan} />
+    case 'record_of_work': return <RecordOfWorkView record={plan} />
+    case 'rubric':         return <RubricView rubric={plan} />
     default:
       return <pre className="text-xs whitespace-pre-wrap bg-slate-50 p-3 rounded-lg">{JSON.stringify(plan, null, 2)}</pre>
   }

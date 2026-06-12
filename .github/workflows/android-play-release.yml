@@ -1,0 +1,262 @@
+name: Android Play Release (AAB)
+
+# Builds a SIGNED release Android App Bundle (.aab) for Google Play Console.
+#
+# Counterpart to android-release.yml (which ships a debug-track APK to Firebase
+# App Distribution); THIS one produces the .aab Play needs for its
+# internal/closed/production tracks, and can publish via the Play Developer API.
+#
+# Two ways to run:
+#   • Push a tag  v*.*.*  → auto-builds and AUTO-PROMOTES to TESTERS: uploads to
+#     the closed-testing `alpha` track as a LIVE (completed) release, versionName
+#     from the tag (v1.2.3 → 1.2.3). (Note: a tag also triggers android-release.yml's
+#     Firebase App Distribution build — both run.)
+#   • Manual "Run workflow" (workflow_dispatch) → full control: pick the track
+#     (incl. production), draft vs completed, optional staged-rollout fraction.
+#
+# Either way: the signed .aab is always saved as a downloadable artifact, the
+# signature is verified, and versionCode is the git commit count (auto-incrementing).
+#
+# Required secrets (shared with android-release.yml):
+#   ZED_RELEASE_KEYSTORE_BASE64, ZED_RELEASE_STORE_PASSWORD,
+#   ZED_RELEASE_KEY_ALIAS, ZED_RELEASE_KEY_PASSWORD, VITE_FIREBASE_*.
+# Required for any Play upload:
+#   PLAY_SERVICE_ACCOUNT_JSON — service-account key with "Release to testing
+#   tracks" (and Production, if you publish there). See docs/ANDROID-RELEASE.md.
+
+on:
+  push:
+    tags: ["v*.*.*"]
+  workflow_dispatch:
+    inputs:
+      version_name:
+        description: "versionName for this release (e.g. 1.1.2). Blank = build.gradle default."
+        required: false
+        default: ""
+      version_code:
+        description: "Override versionCode (integer). Blank = git commit count. Set this when re-running on the same commit — Play requires a unique, higher code."
+        required: false
+        default: ""
+      upload_to_play:
+        description: "Publish to Play after building? (needs PLAY_SERVICE_ACCOUNT_JSON)"
+        type: boolean
+        required: false
+        default: false
+      track:
+        description: "Play track (only used when upload_to_play = true). alpha = Closed testing."
+        type: choice
+        required: false
+        default: alpha
+        options: [internal, alpha, beta, production]
+      release_status:
+        description: "draft = upload only (you roll out); completed = live to that track's testers/users"
+        type: choice
+        required: false
+        default: draft
+        options: [draft, completed]
+      user_fraction:
+        description: "Production staged-rollout fraction, e.g. 0.1 = 10% (track=production only; blank = full)"
+        required: false
+        default: ""
+
+concurrency:
+  group: android-play-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-aab:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v5
+        with:
+          # Full history so build.gradle can derive versionCode from
+          # `git rev-list --count HEAD`.
+          fetch-depth: 0
+
+      - name: Verify required secrets
+        env:
+          VITE_FIREBASE_API_KEY: ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN: ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID: ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET: ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID: ${{ secrets.VITE_FIREBASE_APP_ID }}
+          ZED_RELEASE_KEYSTORE_BASE64: ${{ secrets.ZED_RELEASE_KEYSTORE_BASE64 }}
+          ZED_RELEASE_STORE_PASSWORD: ${{ secrets.ZED_RELEASE_STORE_PASSWORD }}
+          ZED_RELEASE_KEY_ALIAS: ${{ secrets.ZED_RELEASE_KEY_ALIAS }}
+          ZED_RELEASE_KEY_PASSWORD: ${{ secrets.ZED_RELEASE_KEY_PASSWORD }}
+        run: |
+          missing=()
+          for v in \
+            VITE_FIREBASE_API_KEY VITE_FIREBASE_AUTH_DOMAIN VITE_FIREBASE_PROJECT_ID \
+            VITE_FIREBASE_STORAGE_BUCKET VITE_FIREBASE_MESSAGING_SENDER_ID VITE_FIREBASE_APP_ID \
+            ZED_RELEASE_KEYSTORE_BASE64 ZED_RELEASE_STORE_PASSWORD ZED_RELEASE_KEY_ALIAS ZED_RELEASE_KEY_PASSWORD; do
+            [ -z "${!v}" ] && missing+=("$v")
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing repository secrets: ${missing[*]}"
+            echo "::error::Add them at Settings ▸ Secrets and variables ▸ Actions. See docs/ANDROID-RELEASE.md."
+            exit 1
+          fi
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v5
+        with:
+          # Capacitor CLI requires Node >= 22 (cap sync aborts on 20).
+          node-version: "22"
+          cache: "npm"
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: "temurin"
+          java-version: "21"
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          # Must match android/variables.gradle (compileSdk/targetSdk = 36).
+          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Decode release keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ZED_RELEASE_KEYSTORE_BASE64 }}
+        run: |
+          set -euo pipefail
+          keystore="$RUNNER_TEMP/zedexams-release.keystore"
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$keystore"
+          size=$(stat -c%s "$keystore")
+          if [ "$size" -lt 256 ]; then
+            echo "::error::Decoded keystore is only ${size} bytes — ZED_RELEASE_KEYSTORE_BASE64 looks invalid."
+            exit 1
+          fi
+          echo "ZED_RELEASE_STORE_FILE=$keystore" >> "$GITHUB_ENV"
+
+      - name: Compute release parameters
+        id: cfg
+        # Inputs come in via env (never interpolated into the script) to avoid
+        # any shell-injection from free-text fields.
+        env:
+          EVENT: ${{ github.event_name }}
+          TAG: ${{ github.ref_name }}
+          IN_UPLOAD: ${{ github.event.inputs.upload_to_play }}
+          IN_TRACK: ${{ github.event.inputs.track }}
+          IN_STATUS: ${{ github.event.inputs.release_status }}
+          IN_VERSION: ${{ github.event.inputs.version_name }}
+          IN_FRACTION: ${{ github.event.inputs.user_fraction }}
+          IN_VERSIONCODE: ${{ github.event.inputs.version_code }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT" = "push" ]; then
+            # Tag push → auto-promote to testers: closed (alpha) track, live, version from tag.
+            upload=true; track=alpha; status=completed; version="${TAG#v}"; fraction=""; code=""
+          else
+            upload="${IN_UPLOAD:-false}"; track="${IN_TRACK:-alpha}"; status="${IN_STATUS:-draft}"
+            version="${IN_VERSION:-}"; fraction="${IN_FRACTION:-}"; code="${IN_VERSIONCODE:-}"
+          fi
+          # Staged rollout only applies to production with a fraction; otherwise ignore it.
+          if [ "$track" = "production" ] && [ -n "$fraction" ]; then
+            status=inProgress
+          else
+            fraction=""
+          fi
+          {
+            echo "upload=$upload"
+            echo "track=$track"
+            echo "status=$status"
+            echo "user_fraction=$fraction"
+          } >> "$GITHUB_OUTPUT"
+          if [ -n "$version" ]; then
+            echo "ZED_VERSION_NAME=$version" >> "$GITHUB_ENV"
+          fi
+          if [ -n "$code" ]; then
+            echo "ZED_VERSION_CODE=$code" >> "$GITHUB_ENV"
+          fi
+          echo "Effective release → upload=$upload track=$track status=$status fraction=${fraction:-<full>} versionName=${version:-<gradle default>} versionCode=${code:-<commit count>}"
+
+      - name: Build web bundle
+        env:
+          # Firebase config — required for the JS SDK to initialise on launch.
+          VITE_FIREBASE_API_KEY:            ${{ secrets.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN:        ${{ secrets.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID:         ${{ secrets.VITE_FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET:     ${{ secrets.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID: ${{ secrets.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID:             ${{ secrets.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_MEASUREMENT_ID:     ${{ secrets.VITE_FIREBASE_MEASUREMENT_ID }}
+          VITE_FIREBASE_VAPID_KEY:          ${{ secrets.VITE_FIREBASE_VAPID_KEY }}
+          VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY: ${{ secrets.VITE_FIREBASE_APPCHECK_RECAPTCHA_KEY }}
+          VITE_SENTRY_DSN:                  ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_APP_VERSION:                 ${{ secrets.VITE_APP_VERSION }}
+          VITE_POSTHOG_KEY:                 ${{ secrets.VITE_POSTHOG_KEY }}
+          VITE_POSTHOG_HOST:                ${{ secrets.VITE_POSTHOG_HOST }}
+          VITE_GOOGLE_MAPS_STATIC_KEY:      ${{ secrets.VITE_GOOGLE_MAPS_STATIC_KEY }}
+        run: npm run build
+
+      - name: Sync Capacitor Android assets
+        run: npx cap sync android
+
+      - name: Build release AAB
+        working-directory: android
+        env:
+          ZED_RELEASE_STORE_FILE: ${{ env.ZED_RELEASE_STORE_FILE }}
+          ZED_RELEASE_STORE_PASSWORD: ${{ secrets.ZED_RELEASE_STORE_PASSWORD }}
+          ZED_RELEASE_KEY_ALIAS: ${{ secrets.ZED_RELEASE_KEY_ALIAS }}
+          ZED_RELEASE_KEY_PASSWORD: ${{ secrets.ZED_RELEASE_KEY_PASSWORD }}
+        run: |
+          chmod +x ./gradlew
+          ./gradlew bundleRelease --no-daemon --stacktrace
+
+      - name: Verify AAB signature
+        run: |
+          set -euo pipefail
+          aab="android/app/build/outputs/bundle/release/app-release.aab"
+          if [ ! -f "$aab" ]; then
+            echo "::error::Expected AAB not found at $aab"
+            exit 1
+          fi
+          jarsigner -verify "$aab" | head -1
+          echo "Signer certificate (match this against Play ▸ App integrity ▸ Upload key):"
+          unzip -p "$aab" 'META-INF/*.RSA' | keytool -printcert | grep -iE 'Owner:|SHA256:' || true
+
+      - name: Upload AAB as workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-aab-run${{ github.run_number }}
+          path: android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Check Play upload prerequisites
+        id: play
+        env:
+          PLAY_SA: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: |
+          if [ -n "$PLAY_SA" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          fi
+          if [ "${{ steps.cfg.outputs.upload }}" = "true" ] && [ -z "$PLAY_SA" ]; then
+            echo "::warning::Play upload requested but PLAY_SERVICE_ACCOUNT_JSON is not set — skipping. The AAB artifact is still available above."
+          fi
+
+      - name: Publish to Google Play
+        if: ${{ steps.cfg.outputs.upload == 'true' && steps.play.outputs.ready == 'true' }}
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.zedexams.android
+          releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
+          track: ${{ steps.cfg.outputs.track }}
+          status: ${{ steps.cfg.outputs.status }}
+          userFraction: ${{ steps.cfg.outputs.user_fraction }}

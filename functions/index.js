@@ -12,6 +12,7 @@ const {
   LIMITS,
   assertDailyLimit,
   buildAnthropicChat,
+  buildEditQuestionMessages,
   buildExplainMessages,
   buildImportStructureMessages,
   buildQuizMessages,
@@ -20,7 +21,9 @@ const {
   cleanString: cleanAiString,
   getAnthropicApiKey,
   getUserRole,
+  isEditQuestionAction,
   isStaffRole,
+  parseEditedQuestion,
   parseGeneratedQuiz,
   parseStructuredImport,
   stripJsonFences,
@@ -28,6 +31,12 @@ const {
 } = require("./aiService");
 // Gemini REST client — used by the structureImportedQuiz pipeline.
 const {callGemini} = require("./geminiClient");
+// Scanned-paper OCR import — dual-model (Claude vision + Gemini assist) used
+// by the Quiz Editor when a teacher uploads an image-only PDF past paper.
+const {runScannedQuizImport} = require("./scannedQuizImport");
+// Bulk "suggest answers" — answers a batch of imported MCQs in one Claude call
+// so the editor can fill blank answer keys in a single pass.
+const {runSuggestQuizAnswers} = require("./suggestQuizAnswers");
 const {applyCors} = require("./cors");
 
 // Teacher Tools — Lesson Plan Generator (Zambian CBC).
@@ -60,6 +69,10 @@ const {
 const {
   createGenerateNotes,
 } = require("./teacherTools/generateNotes");
+// Teacher Tools — Visual Slide-Notes (learner-facing illustrated deck).
+const {
+  createGenerateSlideNotes,
+} = require("./teacherTools/generateSlideNotes");
 const {
   createGenerateFullLesson,
 } = require("./teacherTools/generateFullLesson");
@@ -72,10 +85,18 @@ const {
 const {
   createGenerateQuiz,
 } = require("./teacherTools/generateQuiz");
+// Teacher Tools — Exam Studio (ECZ Grade 7-style practice questions).
+const {
+  createGenerateExamPaper,
+} = require("./teacherTools/generateExamPaper");
 // Teacher Tools — Diagram Generator (Recraft, B&W line art for assessments).
 const {
   createGenerateDiagram,
 } = require("./teacherTools/generateDiagram");
+// Teacher Tools — Note Pictures (Gemini/OpenAI illustrations for picture blocks).
+const {
+  createGenerateNotePictures,
+} = require("./teacherTools/generateNotePictures");
 // Teacher Tools — Suggest Answer (per-question AI answer hint for the studio).
 const {
   createSuggestAnswer,
@@ -92,31 +113,27 @@ const {
 const {
   importBuiltInCbcTopics,
 } = require("./teacherTools/importBuiltInCbcTopics");
+// Teacher Tools — import built-in assessment format profiles (admin-only).
+const {
+  importBuiltInAssessmentFormats,
+} = require("./teacherTools/importBuiltInAssessmentFormats");
+// Teacher Tools — extract a format-profile draft from a sample paper.
+const {
+  createExtractAssessmentFormat,
+} = require("./teacherTools/extractAssessmentFormat");
 // Teacher Tools — bulk import lesson-level curriculum modules (admin-only).
 const {
   importCurriculumModules,
 } = require("./teacherTools/importCurriculumModules");
-// Teacher Tools — admin-only callables that surface modules staged by
-// the curriculumWatcher ingester and promote them into cbcKnowledgeBase.
-const {
-  listStagedCurriculumModules,
-  promoteIngestedCurriculumModule,
-  promoteIngestedCurriculumModuleWithAi,
-  rejectIngestedCurriculumModule,
-  runCurriculumWatcherNow,
-} = require("./teacherTools/promoteIngestedCurriculumModule");
-// Teacher Tools — admin-only preflight that asks the strict learner-AI
-// resolver whether a given grade/subject/topic/subtopic/term would be
-// accepted before the admin queues a task in the Live AI Monitor.
-const {
-  preflightCurriculumRef,
-} = require("./teacherTools/preflightCurriculumRef");
 // Teacher Tools — admin-only one-click linker that runs the same logic
 // as scripts/backfill-kb-source-refs.mjs from the Live AI Monitor, so
 // admins can attach approvedSyllabi to lesson modules without a shell.
 const {
   backfillKbSourceRefs,
 } = require("./teacherTools/backfillKbSourceRefs");
+const {
+  expandKbLessons,
+} = require("./teacherTools/expandKbLessons");
 // Teacher Tools — admin-only callables that let the CBC KB editor
 // upsert / delete / restore individual rows of the Syllabi Studio
 // curriculum data. Edits land in syllabusOverrides/* and are applied
@@ -134,6 +151,13 @@ const {
 } = require("./teacherTools/cbcKnowledge");
 // Vex — Quiz Verifier runner (synchronous, not part of the agentJobs pipeline).
 const {runVex} = require("./agents/runners/vex");
+// Learner "AI Summary + Key Points" for a note — generated once per note and
+// cached in noteInsights/{noteId}.
+const {runNoteInsights} = require("./noteInsights");
+// Staff-only AI auto-highlights for a study note — cached in noteSmart/{noteId}.
+const {runGenerateNoteSmart} = require("./noteSmart");
+// Notes document import — AI structuring (text → study blocks) and OCR (scanned pages → text).
+const {runNoteImport, runNoteOcr} = require("./noteImport");
 // Daily Exam auto-picker — promotes one short-quiz per grade into the
 // day's Daily Exam slot every morning so the admin no longer has to
 // click "Daily Exam" by hand for routine rotation.
@@ -153,6 +177,7 @@ const {
 const {
   nightlyQaSmoke: nightlyQaSmokeCron,
   weeklyCbcAlignmentAudit: weeklyCbcAlignmentAuditCron,
+  hourlyMonitor: hourlyMonitorCron,
 } = require("./agents/cron");
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 const {dailyStreakReminders: dailyStreakRemindersCron} = require("./dailyReminders");
@@ -211,6 +236,11 @@ const geminiApiKey = defineSecret("GEMINI_API_KEY");
 // still the default for B&W line art (cleaner on photocopiers). When
 // unset, the photoreal toggle is hidden and Recraft handles everything.
 const openaiApiKey = defineSecret("OPENAI_API_KEY");
+// Optional. When set, generateDiagram exposes a "colour illustration" style
+// that routes through the Kie.ai image API (Nano Banana et al.) for bright,
+// friendly worksheet illustrations. When unset, the toggle is hidden and the
+// other providers (Recraft line-art / OpenAI photoreal) handle everything.
+const kieApiKey = defineSecret("KIE_API_KEY");
 const MAX_LEN = {
   question: 1200,
   correctAnswer: 600,
@@ -1131,6 +1161,156 @@ exports.explainAnswer = onCall(
   },
 );
 
+// Learner-facing "AI Summary + Key Points" for a published note. Cached per
+// note (noteInsights/{noteId}), so a cache hit costs nothing and the daily
+// limit only bites on first-generation spam. Any signed-in user may call it;
+// the runner enforces that the note is published.
+exports.generateNoteInsights = onCall(
+  {
+    secrets: [anthropicApiKey],
+    region: "us-central1",
+    timeoutSeconds: 45,
+    memory: "256MiB",
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Please sign in first.");
+    }
+    recordAppCheckCallable(request, "generateNoteInsights");
+
+    const noteId = cleanAiString(request.data?.noteId, 80);
+    if (!noteId) {
+      throw new HttpsError("invalid-argument", "A note id is required.");
+    }
+
+    const role = await getUserRole(request.auth.uid);
+    await assertDailyLimit(request.auth.uid, role, "noteInsights");
+
+    return await runNoteInsights({
+      noteId,
+      uid: request.auth.uid,
+      apiKey: getAnthropicApiKey(anthropicApiKey),
+    });
+  },
+);
+
+// Staff-only: generate AI auto-highlights for a study note and cache them in
+// noteSmart/{noteId}. Mirrors generateNoteInsights but restricted to staff
+// (teachers/admins) because highlight generation is admin-triggered, not
+// lazy-on-first-view.
+exports.generateNoteSmart = onCall(
+  {
+    secrets: [anthropicApiKey],
+    region: "us-central1",
+    timeoutSeconds: 90,
+    memory: "256MiB",
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Please sign in first.");
+    }
+    recordAppCheckCallable(request, "generateNoteSmart");
+    const role = await getUserRole(request.auth.uid);
+    if (!isStaffRole(role)) {
+      throw new HttpsError("permission-denied", "Only teachers and admins can generate highlights.");
+    }
+    const noteId = cleanAiString(request.data?.noteId, 200);
+    if (!noteId) {
+      throw new HttpsError("invalid-argument", "noteId is required.");
+    }
+    await assertDailyLimit(request.auth.uid, role, "noteSmart");
+    try {
+      return await runGenerateNoteSmart({
+        noteId,
+        uid: request.auth.uid,
+        apiKey: getAnthropicApiKey(anthropicApiKey),
+      });
+    } catch (e) {
+      if (e.code === "not-found") throw new HttpsError("not-found", e.message);
+      if (e.code === "failed-precondition") throw new HttpsError("failed-precondition", e.message);
+      throw new HttpsError("internal", "Could not generate highlights. Please try again.");
+    }
+  },
+);
+
+// Per-question AI edit — powers the "✨ AI" button on every question in the
+// quiz editor (Simplify / Easier / Harder / Rephrase / Suggest answer /
+// Write explanation). Staff-only; returns a patch the editor previews before
+// applying. Maths in the patch comes back as import markup so the same
+// importRichText converter renders fractions, column sums, and tables.
+exports.editQuizQuestion = onCall(
+  {
+    secrets: [anthropicApiKey],
+    region: "us-central1",
+    timeoutSeconds: 45,
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Please sign in first.");
+    }
+    recordAppCheckCallable(request, "editQuizQuestion");
+
+    const action = cleanAiString(request.data?.action, 30);
+    if (!isEditQuestionAction(action)) {
+      throw new HttpsError("invalid-argument", "Unknown AI edit action.");
+    }
+    const question = cleanAiString(request.data?.question, LIMITS.question);
+    if (!question) {
+      throw new HttpsError(
+        "invalid-argument",
+        "There is no question text to work with yet.",
+      );
+    }
+
+    const role = await getUserRole(request.auth.uid);
+    if (!isStaffRole(role)) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only teachers and admins can use the AI question editor.",
+      );
+    }
+    await assertDailyLimit(request.auth.uid, role, "editQuestion");
+
+    const options = Array.isArray(request.data?.options) ?
+      request.data.options.slice(0, 6).map((opt) => cleanAiString(opt, 300)) :
+      [];
+
+    const {systemPrompt, messages} = toAnthropicShape(
+      buildEditQuestionMessages({
+        action,
+        question,
+        options,
+        correctAnswer: cleanAiString(request.data?.correctAnswer, 40),
+        subject: request.data?.subject,
+        grade: request.data?.grade,
+        topic: request.data?.topic,
+        // Picture(s) so the model can SEE the diagram instead of guessing.
+        // buildQuestionImageBlocks drops anything that isn't an https URL.
+        imageUrl: request.data?.imageUrl,
+        optionImages: Array.isArray(request.data?.optionImages) ?
+          request.data.optionImages.slice(0, 6) : [],
+        passageImageUrl: request.data?.passageImageUrl,
+      }),
+    );
+    const raw = await callAnthropic(getAnthropicApiKey(anthropicApiKey), {
+      systemPrompt,
+      messages,
+      maxTokens: 900,
+      temperature: action === "suggest_answer" ? 0.1 : 0.4,
+      json: true,
+      track: {uid: request.auth.uid, tool: "editQuizQuestion"},
+    });
+
+    return {action, patch: parseEditedQuestion(raw)};
+  },
+);
+
 exports.generateQuizQuestions = onCall(
   {
     secrets: [anthropicApiKey],
@@ -1173,11 +1353,16 @@ exports.generateQuizQuestions = onCall(
     // human-readable heads-up (e.g. "Nearest verified topics: X, Y") that
     // the UI can surface to the teacher.
     const subtopic = cleanAiString(request.data?.subtopic, LIMITS.topic);
+    // Curriculum framework the studio chose — "2013" grounds on the old
+    // syllabus data file; anything else resolves to the 2023 CBC default.
+    const framework = String(request.data?.framework) === "2013" ?
+      "2013" : "2023";
     const {contextBlock, kbWarning} = await resolveCbcContext({
       grade,
       subject,
       topic,
       subtopic,
+      framework,
     });
 
     const {messages: rawMessages} = buildQuizMessages({
@@ -1192,7 +1377,9 @@ exports.generateQuizQuestions = onCall(
     const raw = await callAnthropic(getAnthropicApiKey(anthropicApiKey), {
       systemPrompt,
       messages,
-      maxTokens: 2000,
+      // Sized for the top of the count range (LIMITS.quizCount = 25
+      // questions with options + explanations); billed only as used.
+      maxTokens: 6000,
       temperature: 0.3,
       json: true,
       track: {uid: request.auth.uid, tool: "generateQuizQuestions"},
@@ -1368,8 +1555,15 @@ exports.structureImportedQuiz = onCall(
             "Prefer recall over precision — include any uncertain candidates;",
             "a downstream CBC reviewer will refine and drop bad ones.",
             "For each question, group passages with their child questions.",
+            "Preserve mathematics and tables with this markup (do not flatten",
+            "them to prose or placeholders): fractions as \\frac{3}{4} (mixed:",
+            "1\\frac{1}{3}); other inline maths wrapped in $...$ e.g. $\\sqrt{49}$,",
+            "$x^2$; vertical/column arithmetic as one token on its own line",
+            "[[vmath op=- lines=954751,362948 answer=]] (op = + - * /, lines are",
+            "the operands top-to-bottom); and any table as a GitHub-style",
+            "Markdown table (header row, |---| separator, then data rows).",
             "Do NOT invent questions or answers. Return only the JSON object",
-            "described below — no markdown, no preamble.",
+            "described below — no markdown fences, no preamble.",
           ].join(" "),
           userPrompt: [
             fileName ? `File name: ${fileName}` : "",
@@ -1424,6 +1618,189 @@ exports.structureImportedQuiz = onCall(
     });
 
     return parseStructuredImport(raw);
+  },
+);
+
+// Scanned past-paper import for the Quiz Editor. The client rasterises an
+// image-only PDF into page images and sends them here in batches; each call
+// runs the dual-model OCR pipeline (Claude vision primary + Gemini assist)
+// and returns blank-answer MCQs flagged for review. Higher memory + timeout
+// than structureImportedQuiz because page images are large and vision is slow.
+exports.structureScannedQuiz = onCall(
+  {
+    secrets: [anthropicApiKey, geminiApiKey],
+    region: "us-central1",
+    timeoutSeconds: 240,
+    memory: "1GiB",
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Please sign in first.");
+    }
+    recordAppCheckCallable(request, "structureScannedQuiz");
+
+    const role = await getUserRole(request.auth.uid);
+    if (!isStaffRole(role)) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only teachers and admins can import scanned papers.",
+      );
+    }
+
+    const pages = Array.isArray(request.data?.pages) ? request.data.pages : [];
+    if (!pages.length) {
+      throw new HttpsError(
+        "invalid-argument",
+        "No page images were supplied for scanned import.",
+      );
+    }
+
+    // Counts as one AI action per page batch (same meter as smart import).
+    await assertDailyLimit(request.auth.uid, role, "scannedImport");
+
+    return runScannedQuizImport({
+      pages,
+      fileName: cleanAiString(request.data?.fileName, LIMITS.importFileName),
+      subjectHint: cleanAiString(request.data?.subjectHint, 80),
+      gradeHint: cleanAiString(request.data?.gradeHint, 20),
+      anthropicKey: getAnthropicApiKey(anthropicApiKey),
+      geminiKey: geminiApiKey.value() || process.env.GEMINI_API_KEY || "",
+      uid: request.auth.uid,
+    });
+  },
+);
+
+// Notes document import — converts raw document text into structured `study`
+// note blocks via Claude. Staff-only, app-check enforced, daily-capped.
+exports.structureImportedNote = onCall(
+  {
+    secrets: [anthropicApiKey],
+    region: "us-central1",
+    timeoutSeconds: 120,
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Please sign in first.");
+    }
+    recordAppCheckCallable(request, "structureImportedNote");
+    const role = await getUserRole(request.auth.uid);
+    if (!isStaffRole(role)) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only teachers and admins can import notes.",
+      );
+    }
+    const fileName = cleanAiString(request.data?.fileName, LIMITS.importFileName);
+    const documentText = cleanAiString(
+      request.data?.documentText,
+      LIMITS.importDocumentText,
+    );
+    if (!documentText || documentText.length < 80) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Not enough document text was available to build a note.",
+      );
+    }
+    await assertDailyLimit(request.auth.uid, role, "importNote");
+    return runNoteImport({
+      documentText,
+      fileName,
+      apiKey: getAnthropicApiKey(anthropicApiKey),
+      uid: request.auth.uid,
+    });
+  },
+);
+
+// Notes scanned-PDF OCR — client batches rendered page images here; each call
+// returns a plain-text transcription that the structureImportedNote callable
+// then converts into study blocks. Staff-only, app-check enforced, daily-capped.
+exports.ocrNotePages = onCall(
+  {
+    secrets: [anthropicApiKey],
+    region: "us-central1",
+    timeoutSeconds: 240,
+    memory: "1GiB",
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Please sign in first.");
+    }
+    recordAppCheckCallable(request, "ocrNotePages");
+    const role = await getUserRole(request.auth.uid);
+    if (!isStaffRole(role)) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only teachers and admins can import notes.",
+      );
+    }
+    const pages = Array.isArray(request.data?.pages) ? request.data.pages : [];
+    if (!pages.length) {
+      throw new HttpsError("invalid-argument", "No page images were supplied.");
+    }
+    if (pages.length > 8) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Too many pages in one OCR call (max 8).",
+      );
+    }
+    await assertDailyLimit(request.auth.uid, role, "importNote");
+    return runNoteOcr({
+      pages,
+      apiKey: getAnthropicApiKey(anthropicApiKey),
+      uid: request.auth.uid,
+    });
+  },
+);
+
+// Bulk "suggest answers" for the Quiz Editor's answer-key tools. Answers a
+// batch of MCQs in one Claude call; the admin verifies before publishing.
+exports.suggestQuizAnswers = onCall(
+  {
+    secrets: [anthropicApiKey],
+    region: "us-central1",
+    timeoutSeconds: 120,
+    enforceAppCheck: APPCHECK_ENFORCE_CALLABLE,
+    consumeAppCheckToken: true,
+  },
+  async (request) => {
+    if (!request.auth) {
+      throw new HttpsError("unauthenticated", "Please sign in first.");
+    }
+    recordAppCheckCallable(request, "suggestQuizAnswers");
+
+    const role = await getUserRole(request.auth.uid);
+    if (!isStaffRole(role)) {
+      throw new HttpsError(
+        "permission-denied",
+        "Only teachers and admins can suggest answers.",
+      );
+    }
+
+    const questions = Array.isArray(request.data?.questions) ?
+      request.data.questions : [];
+    if (!questions.length) {
+      throw new HttpsError(
+        "invalid-argument",
+        "No questions were supplied for answer suggestion.",
+      );
+    }
+
+    // One AI action for the whole batch.
+    await assertDailyLimit(request.auth.uid, role, "suggestAnswers");
+
+    return runSuggestQuizAnswers({
+      questions,
+      subject: cleanAiString(request.data?.subject, 80),
+      grade: cleanAiString(request.data?.grade, 20),
+      anthropicKey: getAnthropicApiKey(anthropicApiKey),
+      uid: request.auth.uid,
+    });
   },
 );
 
@@ -1668,6 +2045,13 @@ exports.generateRubric = createGenerateRubric(anthropicApiKey);
 // Teacher Tools — Notes Studio (teacher delivery notes).
 exports.generateNotes = createGenerateNotes(anthropicApiKey);
 
+// Teacher Tools — Visual Slide-Notes (learner-facing illustrated deck).
+// Two-pass: Claude emits the deck + image prompts, then images are drawn one
+// per prompt. Prefers ChatGPT/gpt-image-1 (colour) when the OpenAI key is set,
+// falling back to Recraft line-art. Needs the Anthropic + (OpenAI/Recraft) keys.
+exports.generateVisualNotes =
+  createGenerateSlideNotes(anthropicApiKey, recraftApiKey, openaiApiKey);
+
 // Teacher Tools — Full Lesson (complete, ready-to-deliver CBC lesson).
 exports.generateFullLesson = createGenerateFullLesson(anthropicApiKey);
 
@@ -1680,12 +2064,21 @@ exports.generateAssessment = createGenerateAssessment(anthropicApiKey);
 // Teacher Tools — Quiz (short curriculum-grounded formative quiz).
 exports.generateQuiz = createGenerateQuiz(anthropicApiKey);
 
+// Teacher Tools — Exam Studio (ECZ Grade 7 PSLE-style practice questions).
+exports.generateExamPaper = createGenerateExamPaper(anthropicApiKey);
+
 // Teacher Tools — Diagram Generator (Recraft, B&W line art for assessments).
 // When OPENAI_API_KEY is set, generateDiagram exposes a photoreal style
 // toggle that routes through gpt-image-1. Recraft remains the default
 // for line-art. The factory takes both secrets so the handler can route
 // per-request at runtime.
-exports.generateDiagram = createGenerateDiagram(recraftApiKey, openaiApiKey);
+exports.generateDiagram = createGenerateDiagram(recraftApiKey, openaiApiKey, kieApiKey);
+
+// Teacher Tools — Note Pictures (admin-only). Generates a flat illustration
+// for each `picture` block in a published study note. Tries Gemini 2.5 Flash
+// Image first; falls back to OpenAI gpt-image-1 per block on Gemini failure.
+// Needs at least one of GEMINI_API_KEY or OPENAI_API_KEY.
+exports.generateNotePictures = createGenerateNotePictures(geminiApiKey, openaiApiKey);
 
 // Teacher Tools — Suggest Answer (per-question AI answer hint, Haiku).
 // When GEMINI_API_KEY is set, suggestAnswer routes image-bearing questions
@@ -1700,32 +2093,33 @@ exports.reviseQuestion = createReviseQuestion(anthropicApiKey);
 // Teacher Tools — admin-only: import the built-in G1-9 topics into Firestore.
 exports.importBuiltInCbcTopics = importBuiltInCbcTopics;
 
+// Teacher Tools — admin-only: import the built-in Zambian assessment format
+// profiles into Firestore so they become editable from the CBC KB page.
+exports.importBuiltInAssessmentFormats = importBuiltInAssessmentFormats;
+
+// Teacher Tools — admin-only: distil a format-profile draft from a sample
+// Zambian paper (past paper or direct .pdf/.docx upload). Drafts await
+// admin review on the CBC KB page before going live.
+exports.extractAssessmentFormat =
+  createExtractAssessmentFormat(anthropicApiKey);
+
 // Teacher Tools — admin-only: bulk import lesson-level curriculum modules.
 exports.importCurriculumModules = importCurriculumModules;
 
-// Teacher Tools — admin-only: surface modules staged by curriculumWatcher
-// and promote them (one click) into cbcKnowledgeBase. See
-// teacherTools/promoteIngestedCurriculumModule.js for the doc rules.
-exports.listStagedCurriculumModules = listStagedCurriculumModules;
-exports.promoteIngestedCurriculumModule = promoteIngestedCurriculumModule;
-exports.promoteIngestedCurriculumModuleWithAi = promoteIngestedCurriculumModuleWithAi;
-exports.rejectIngestedCurriculumModule = rejectIngestedCurriculumModule;
-// Manual trigger so admins can verify ingestion without waiting for
-// curriculumUpdateCheckerScheduled's 02:00 UTC cron.
-exports.runCurriculumWatcherNow = runCurriculumWatcherNow;
-
-// Teacher Tools — admin-only: preflight a (grade, subject, topic,
-// subtopic, term) tuple against the strict learner-AI curriculum
-// resolver. Used by the Live AI Monitor's batch-generate form to
-// disable subtopics that would fail the no_source_doc_ref / no
-// _curriculum_match gate before the admin presses Queue.
-exports.preflightCurriculumRef = preflightCurriculumRef;
 
 // Teacher Tools — admin-only: backfill sourceDocId on every lesson
 // module under the active KB version by matching against approvedSyllabi
 // rows. Surfaced as the "Backfill syllabus links" button on the Live
 // AI Monitor when the preflight grid is dominated by no_source_doc_ref.
 exports.backfillKbSourceRefs = backfillKbSourceRefs;
+
+// Teacher Tools — admin-only: expand subtopics[] on every live KB topic
+// into individual lessons/{slug}-t{1|2|3} subcollection docs so the
+// strict curriculum resolver gets subtopic_exact hits. Run this once
+// after activating a syllabus version uploaded before lesson expansion
+// was added to activateSyllabusVersion. Surfaced as the "Expand lessons"
+// button in Syllabi Studio → Versions & audit.
+exports.expandKbLessons = expandKbLessons;
 
 // Syllabi Studio edit pipeline — admin-only row-level CRUD over the
 // curriculum-data.json the CBC KB editor renders. Edits land as
@@ -1918,30 +2312,6 @@ exports.retryAgentJob = onCall(
   },
 );
 
-// Learner-AI agents — a parallel pipeline for learner-facing artifacts
-// (practice quizzes, exam drafts, notes, study tips, weakness reports,
-// feedback). Runs off the `aiAgentTasks` collection, never writes to
-// the existing `quizzes` collection, requires admin approval before
-// any artifact's visibility flips to published. The two reference
-// agents (Supervisor + Curriculum Reader) are fully implemented; the
-// other nine ship as wired stubs that produce real artifacts so the
-// pipeline is observable end-to-end today.
-const {
-  createAiAgentTasksOnCreate,
-  createAiAgentTasksOnApproved,
-} = require("./agents/learnerAi/dispatcher");
-const {
-  createAiAgentHealthCheckScheduled,
-  createCurriculumUpdateCheckerScheduled,
-} = require("./agents/learnerAi/healthCheck");
-const {
-  createCurriculumUpdateReportsOnApproved,
-} = require("./agents/learnerAi/curriculumApprover");
-exports.aiAgentTasksOnCreate = createAiAgentTasksOnCreate();
-exports.aiAgentTasksOnApproved = createAiAgentTasksOnApproved();
-exports.aiAgentHealthCheckScheduled = createAiAgentHealthCheckScheduled();
-exports.curriculumUpdateCheckerScheduled = createCurriculumUpdateCheckerScheduled();
-exports.curriculumUpdateReportsOnApproved = createCurriculumUpdateReportsOnApproved();
 
 // Storage cleanup — cascade-deletes Storage blobs when their parent
 // Firestore docs are deleted, removes orphans left by image/file swaps,
@@ -1957,6 +2327,13 @@ exports.onAssessmentQuestionUpdated = storageCleanup.onAssessmentQuestionUpdated
 exports.onUserDeleted = storageCleanup.onUserDeleted;
 exports.orphanStorageReaper = storageCleanup.orphanStorageReaper;
 
+// Past-papers published-list index. Maintains pastPapersIndex/published —
+// a single lightweight doc the /papers hub reads instead of fetching the
+// whole archive (heavy assets[] arrays and all) on every visit.
+const pastPapersIndex = require("./pastPapersIndex");
+exports.pastPapersIndexOnWrite = pastPapersIndex.pastPapersIndexOnWrite;
+exports.rebuildPastPapersIndexCron = pastPapersIndex.rebuildPastPapersIndexCron;
+
 // Quill — nightly QA smoke (Africa/Lusaka 02:00). Writes a summary
 // agentJobs doc the /admin/agents dashboard surfaces in QA / Eng.
 exports.nightlyQaSmoke = nightlyQaSmokeCron;
@@ -1964,6 +2341,11 @@ exports.nightlyQaSmoke = nightlyQaSmokeCron;
 // Cala — weekly CBC-alignment audit (Africa/Lusaka Sunday 03:00).
 // Re-runs Cala over a sample of recent aiGenerations to catch drift.
 exports.weeklyCbcAlignmentAudit = weeklyCbcAlignmentAuditCron;
+
+// Vigil — hourly site monitor. Checks pages, Firebase, images, and quizzes;
+// on failure suggests fixes (Haiku) and escalates via email + GitHub bug
+// issue (which Mendi can pick up). Writes an agentJobs rollup each run.
+exports.hourlyMonitor = hourlyMonitorCron;
 
 // Audit A5.2 — daily streak-reminder push (Africa/Lusaka 16:00).
 // Targets learners who practised yesterday but not today, sends a friendly

@@ -76,33 +76,6 @@ export default function CurriculumHome() {
         </div>
       </section>
 
-      {/* Generate-from-curriculum CTA */}
-      <Link
-        to="/teacher/generate/curriculum-studio"
-        className="group mb-4 flex items-center gap-4 rounded-3xl border theme-border theme-card p-5 shadow-elev-md no-underline transition-transform duration-fast hover:-translate-y-0.5 hover:theme-card-hover"
-      >
-        <div
-          className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl text-white shadow-elev-inner-hl"
-          style={{ background: ZAMBIA_RED }}
-          aria-hidden
-        >
-          <Icon as={ArrowRight} size="md" strokeWidth={2.1} />
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="text-[11px] font-black uppercase tracking-[0.14em] theme-text-muted">
-            Curriculum Studio
-          </div>
-          <h2 className="mt-0.5 text-xl font-black theme-text">
-            Generate from a verified module
-          </h2>
-          <p className="mt-1 text-sm theme-text-muted">
-            Pick a stored CBC sub-topic module and the AI builds the lesson
-            plan / exercise on it — no guessing.
-          </p>
-        </div>
-        <Icon as={ArrowRight} size="sm" className="theme-text-muted transition-transform group-hover:translate-x-1" />
-      </Link>
-
       {/* Level cards */}
       <div className="grid gap-4 sm:grid-cols-2">
         {LEVELS.map(level => (

@@ -43,17 +43,6 @@ const SCENARIOS = {
     primaryAction: 'upgrade',
     compare: 'free-vs-pro',
   },
-  'coming-soon': {
-    tag: '✨ Coming soon',
-    title: (ctx) => `${ctx.feature || 'Schemes of Work'} is launching soon`,
-    sub: () => "Be first in line. Upgrade to Pro and we'll unlock it the moment it ships — no extra charge.",
-    mascot: '🦁',
-    primary: 'Upgrade & get early access',
-    primaryAction: 'upgrade',
-    secondary: 'Just notify me',
-    secondaryAction: 'notify',
-    compare: 'free-vs-pro',
-  },
 }
 
 const COMPARE = {
@@ -155,8 +144,6 @@ export default function PaywallHost() {
       setUpgradeReason(state?.reason || null)
       paywall.hide()
       setShowUpgrade(true)
-    } else if (action === 'notify') {
-      paywall.hide()
     }
   }
 

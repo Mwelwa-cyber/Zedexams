@@ -19,14 +19,18 @@ const {
 const {callClaude} = require("./anthropicClient");
 
 const {resolveCbcContext} = require("./cbcKnowledge");
+const {
+  ASSESSMENT_TYPES,
+  resolveAssessmentFormatContext,
+} = require("./assessmentFormats");
 const {validateAssessment} = require("./assessmentSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
-  require("./assessmentPrompt");
+  require("./assessmentPromptV4");
 const {assertAndIncrement} = require("./usageMeter");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
 
 const ASSESSMENT_MODEL =
-  process.env.ASSESSMENT_MODEL || "claude-sonnet-4-5";
+  process.env.ASSESSMENT_MODEL || "claude-sonnet-4-6";
 const LE_VALUES = new Set(LEARNING_ENVIRONMENT_VALUES);
 
 const ASSESSMENT_TOOL_SCHEMA = {
@@ -38,20 +42,8 @@ const ASSESSMENT_TOOL_SCHEMA = {
   },
 };
 
-const ALLOWED_GRADES = new Set([
-  "ECE", "G1", "G2", "G3", "G4", "G5", "G6", "G7",
-  "G8", "G9", "G10", "G11", "G12",
-  "F1", "F2", "F3", "F4",
-]);
-const ALLOWED_SUBJECTS = new Set([
-  "mathematics", "english", "integrated_science", "social_studies",
-  "literacy", "numeracy", "cinyanja", "zambian_language",
-  "creative_and_technology_studies",
-  "physical_education", "religious_education", "civic_education",
-  "biology", "chemistry", "physics", "geography", "history",
-  "environmental_science", "technology_studies", "home_economics",
-  "expressive_arts",
-]);
+const {ALLOWED_GRADES, ALLOWED_SUBJECTS} =
+  require("./assessmentAllowlists");
 const ALLOWED_LANGUAGES = new Set([
   "english", "bemba", "nyanja", "tonga", "lozi", "kaonde", "lunda", "luvale",
 ]);
@@ -64,6 +56,7 @@ function sanitizeInputs(raw = {}) {
   const grade = str(raw.grade, 10).toUpperCase().replace(/\s+/g, "");
   const subject = str(raw.subject, 40).toLowerCase().replace(/[^a-z_]/g, "_");
   const language = str(raw.language || "english", 20).toLowerCase();
+  const assessmentType = str(raw.assessmentType, 30).toLowerCase();
 
   const term = Math.round(num(raw.term, 0));
   const lessonNumber = Math.round(num(raw.lessonNumber, 0));
@@ -87,6 +80,12 @@ function sanitizeInputs(raw = {}) {
         Math.round(num(raw.durationMinutes, 40)))),
     language: ALLOWED_LANGUAGES.has(language) ? language : "english",
     instructions: str(raw.instructions, 500),
+    assessmentType: ASSESSMENT_TYPES.includes(assessmentType) ?
+      assessmentType : "topic_test",
+    // Curriculum framework the teacher chose: new CBC (default) or the
+    // old 2013 syllabus. resolveCbcContext grounds on the matching
+    // syllabi data file.
+    framework: String(raw.framework) === "2013" ? "2013" : "2023",
   };
 }
 
@@ -111,7 +110,11 @@ async function runAssessment({uid, rawInputs, apiKey}) {
     throw new HttpsError("invalid-argument", inputErrors.join(" "));
   }
 
-  const [{contextBlock, kbMatch, kbWarning, kbVersion}, usage] = await Promise.all([
+  const [
+    {contextBlock, kbMatch, kbWarning, kbVersion},
+    {formatBlock, formatProfileId, formatSource},
+    usage,
+  ] = await Promise.all([
     resolveCbcContext({
       grade: inputs.grade,
       subject: inputs.subject,
@@ -121,7 +124,13 @@ async function runAssessment({uid, rawInputs, apiKey}) {
       lessonNumber: inputs.lessonNumber,
       totalLessons: inputs.totalLessons,
       learningEnvironment: inputs.learningEnvironment,
+      framework: inputs.framework,
       ownerUid: uid,
+    }),
+    resolveAssessmentFormatContext({
+      grade: inputs.grade,
+      subject: inputs.subject,
+      assessmentType: inputs.assessmentType,
     }),
     assertAndIncrement(uid, "assessment"),
   ]);
@@ -136,6 +145,8 @@ async function runAssessment({uid, rawInputs, apiKey}) {
     modelUsed: ASSESSMENT_MODEL,
     promptVersion: PROMPT_VERSION,
     kbVersion,
+    formatProfileId,
+    formatSource,
     tokensIn: 0,
     tokensOut: 0,
     costUsdCents: 0,
@@ -158,11 +169,21 @@ async function runAssessment({uid, rawInputs, apiKey}) {
     const response = await callClaude(apiKey, {
       systemPrompt: SYSTEM_PROMPT,
       cbcContextBlock: contextBlock,
+      formatContextBlock: formatBlock,
       messages: [{role: "user", content: userPrompt}],
-      maxTokens: 5500,
+      // Output budget scales with the paper: ~130 tokens covers a question
+      // with options, answer and marking guide; capped at 16k for the
+      // largest allowed 100-mark paper. Output tokens are billed as used.
+      maxTokens: Math.min(16000, 3000 + inputs.totalMarks * 130),
       temperature: 0.4,
       model: ASSESSMENT_MODEL,
-      mode: "tool",
+      // Streamed internally (tool deltas accumulate to the same parsed
+      // object as mode:"tool"). Anthropic drops idle non-streaming
+      // connections on long generations — large max_tokens without
+      // streaming is exactly the case their docs warn about, and big
+      // papers were dying with "AI is temporarily unavailable".
+      mode: "stream",
+      onToken: () => {},
       toolName: "emit_assessment",
       toolDescription:
         "Emit the complete assessment as a single structured object. Do " +
@@ -236,7 +257,7 @@ async function runAssessment({uid, rawInputs, apiKey}) {
 
 function createGenerateAssessment(anthropicApiKeySecret) {
   return onCall(
-      {secrets: [anthropicApiKeySecret], timeoutSeconds: 120,
+      {secrets: [anthropicApiKeySecret], timeoutSeconds: 240,
         memory: "512MiB"},
       async (request) => {
         const uid = request.auth && request.auth.uid;
@@ -256,4 +277,5 @@ function createGenerateAssessment(anthropicApiKeySecret) {
 
 module.exports = {
   createGenerateAssessment, runAssessment, sanitizeInputs,
+  ALLOWED_SUBJECTS, ALLOWED_GRADES,
 };

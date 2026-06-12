@@ -14,7 +14,7 @@ import {
   serverTimestamp, onSnapshot,
 } from 'firebase/firestore'
 import { db } from '../../../firebase/config'
-import { NOTE_STATUS, NOTE_FORMAT } from '../../../config/curriculum'
+import { NOTE_STATUS, NOTE_FORMAT, normalizeSubject } from '../../../config/curriculum'
 
 const NOTES = 'lessons'
 
@@ -105,11 +105,20 @@ export async function createNote(data) {
 
   const payload = {
     title:        String(data.title).trim(),
-    subject:      data.subject,
+    // Repair a stray curriculum slug ("mathematics") to its display label
+    // ("Mathematics"). The note editor only offers labels today, so this is
+    // defensive — it future-proofs against any importer that writes a slug.
+    subject:      normalizeSubject(data.subject),
     grade:        toGrade(data.grade),
     noteFormat,
     content:      noteFormat === NOTE_FORMAT.RICH_TEXT ? (data.content || '') : '',
     excerpt:      data.excerpt || '',
+    // Visual slide-notes carry their whole deck ({header, theme, slides[]})
+    // and a link back to the aiGenerations draft they were generated from.
+    deck:             noteFormat === NOTE_FORMAT.VISUAL ? (data.deck || null) : null,
+    sourceGenerationId: noteFormat === NOTE_FORMAT.VISUAL ? (data.sourceGenerationId || null) : null,
+    // Structured study notes store their block array (parallel to `deck`).
+    blocks:           noteFormat === NOTE_FORMAT.STUDY ? (Array.isArray(data.blocks) ? data.blocks : []) : null,
     fileUrl:      noteFormat === NOTE_FORMAT.FILE ? (data.fileUrl || null) : null,
     fileName:     noteFormat === NOTE_FORMAT.FILE ? (data.fileName || null) : null,
     storagePath:  noteFormat === NOTE_FORMAT.FILE ? (data.storagePath || null) : null,
@@ -120,6 +129,10 @@ export async function createNote(data) {
     term:         toString(data.term),
     week:         toString(data.week),
     assetBatchId: data.assetBatchId || null,
+    // Optional 16:9 cover illustration shown on the learner note card.
+    coverImage:   data.coverImage || null,
+    // Stable key for idempotent seed imports (skip a note that's already seeded).
+    seedKey:      data.seedKey || null,
     createdBy:    data.createdBy,
     createdAt:    serverTimestamp(),
     updatedAt:    serverTimestamp(),
@@ -140,6 +153,7 @@ export async function updateNote(id, patch) {
   }
 
   const safe = { ...patch, updatedAt: serverTimestamp() }
+  if ('subject' in safe) safe.subject = normalizeSubject(safe.subject)
   if ('grade' in safe) safe.grade = toGrade(safe.grade)
   if ('term'  in safe) safe.term  = toString(safe.term)
   if ('week'  in safe) safe.week  = toString(safe.week)

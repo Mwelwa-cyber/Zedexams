@@ -9,8 +9,10 @@ import Button from '../../ui/Button'
 import Icon from '../../ui/Icon'
 import { Search, Download, ChevronRight } from '../../ui/icons'
 import UserStatusBadge from './UserStatusBadge'
+import ConfirmDialog from '../../ui/ConfirmDialog'
 import { adminSetUserStatus } from '../../../utils/adminUsersService'
 import { ADMIN_QUERY_LIMIT } from '../../../hooks/useFirestore'
+import { useToast } from '../../ui/Toast'
 
 const ROLE_LABELS = { admin: 'Admin', teacher: 'Teacher', learner: 'Learner', student: 'Learner' }
 
@@ -48,6 +50,7 @@ function fmtDate(ts) {
  */
 export default function AdminUsersList({ defaultRole = 'all' }) {
   const { currentUser } = useAuth()
+  const toast = useToast()
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -56,6 +59,10 @@ export default function AdminUsersList({ defaultRole = 'all' }) {
   const [params] = useSearchParams()
   const [statusFilter, setStatusFilter] = useState(params.get('status') || 'all')
   const [busy, setBusy] = useState({})
+  // Suspend/soft-delete confirm through ConfirmDialog instead of
+  // window.confirm/prompt — { kind: 'suspend' | 'delete', uid, name }.
+  const [pendingAction, setPendingAction] = useState(null)
+  const [suspendReason, setSuspendReason] = useState('')
   const location = useLocation()
 
   useEffect(() => {
@@ -103,40 +110,50 @@ export default function AdminUsersList({ defaultRole = 'all' }) {
     })
   }, [users, roleFilter, statusFilter, search, defaultRole])
 
-  async function handleSuspend(uid, current) {
-    if (busy[uid]) return
-    if (uid === currentUser?.uid) {
-      window.alert("You can't suspend your own account from here.")
+  function handleSuspend(u, current) {
+    if (busy[u.id]) return
+    if (u.id === currentUser?.uid) {
+      toast.error("You can't suspend your own account from here.")
       return
     }
-    const goal = current === 'suspended' ? 'active' : 'suspended'
-    const reason = goal === 'suspended'
-      ? (window.prompt('Optional reason for suspension (logged in the audit trail):') || '')
-      : ''
+    if (current === 'suspended') {
+      performStatusChange(u.id, 'active', '')
+      return
+    }
+    setSuspendReason('')
+    setPendingAction({ kind: 'suspend', uid: u.id, name: u.displayName || u.email || 'this user' })
+  }
+
+  async function performStatusChange(uid, goal, reason) {
     setBusy(b => ({ ...b, [uid]: true }))
     try {
       await adminSetUserStatus({ uid, status: goal, reason })
       setUsers(prev => prev.map(u => u.id === uid ? { ...u, status: goal, suspendReason: reason } : u))
+      setPendingAction(null)
     } catch (e) {
-      window.alert(`Could not update status: ${e.message || e}`)
+      toast.error(`Could not update status: ${e.message || e}`)
     } finally {
       setBusy(b => ({ ...b, [uid]: false }))
     }
   }
 
-  async function handleSoftDelete(uid) {
-    if (busy[uid]) return
-    if (uid === currentUser?.uid) {
-      window.alert("You can't soft-delete your own account from here.")
+  function handleSoftDelete(u) {
+    if (busy[u.id]) return
+    if (u.id === currentUser?.uid) {
+      toast.error("You can't soft-delete your own account from here.")
       return
     }
-    if (!window.confirm('Soft-delete this user? They will lose access immediately. The record stays for audit; reverse with status=active.')) return
+    setPendingAction({ kind: 'delete', uid: u.id, name: u.displayName || u.email || 'this user' })
+  }
+
+  async function performSoftDelete(uid) {
     setBusy(b => ({ ...b, [uid]: true }))
     try {
       await adminSetUserStatus({ uid, status: 'deleted', reason: 'soft delete by admin' })
       setUsers(prev => prev.map(u => u.id === uid ? { ...u, status: 'deleted' } : u))
+      setPendingAction(null)
     } catch (e) {
-      window.alert(`Could not delete: ${e.message || e}`)
+      toast.error(`Could not delete: ${e.message || e}`)
     } finally {
       setBusy(b => ({ ...b, [uid]: false }))
     }
@@ -248,7 +265,7 @@ export default function AdminUsersList({ defaultRole = 'all' }) {
                   </Link>
                   {!isSelf && status !== 'deleted' && (
                     <button
-                      onClick={() => handleSuspend(u.id, status)}
+                      onClick={() => handleSuspend(u, status)}
                       disabled={!!busy[u.id]}
                       className="bg-amber-100 text-amber-800 hover:bg-amber-200 rounded-lg px-2.5 py-1 text-xs font-bold disabled:opacity-50"
                     >
@@ -257,7 +274,7 @@ export default function AdminUsersList({ defaultRole = 'all' }) {
                   )}
                   {!isSelf && status !== 'deleted' && (
                     <button
-                      onClick={() => handleSoftDelete(u.id)}
+                      onClick={() => handleSoftDelete(u)}
                       disabled={!!busy[u.id]}
                       className="bg-red-100 text-red-700 hover:bg-red-200 rounded-lg px-2.5 py-1 text-xs font-bold disabled:opacity-50"
                     >
@@ -275,6 +292,43 @@ export default function AdminUsersList({ defaultRole = 'all' }) {
         Showing up to {ADMIN_QUERY_LIMIT} users at a time.
         For larger queries use the dedicated Reports section or the CSV export.
       </p>
+
+      <ConfirmDialog
+        open={Boolean(pendingAction)}
+        title={pendingAction?.kind === 'suspend' ? 'Suspend this account?' : 'Soft-delete this user?'}
+        message={pendingAction?.kind === 'suspend' ? (
+          <div className="space-y-3">
+            <p>
+              <strong className="theme-text">{pendingAction?.name}</strong> loses access immediately.
+              You can unsuspend the account later.
+            </p>
+            <label className="block">
+              <span className="block text-xs font-black theme-text-muted mb-1">Reason (optional, logged in the audit trail)</span>
+              <input
+                type="text"
+                value={suspendReason}
+                onChange={e => setSuspendReason(e.target.value)}
+                placeholder="e.g. payment dispute, abuse report"
+                className="theme-input w-full rounded-xl border theme-border px-3 py-2 text-sm"
+              />
+            </label>
+          </div>
+        ) : (
+          <>
+            <strong className="theme-text">{pendingAction?.name}</strong> loses access immediately.
+            The record stays for audit; reverse by setting the account active again.
+          </>
+        )}
+        confirmLabel={pendingAction?.kind === 'suspend' ? 'Suspend' : 'Soft delete'}
+        variant="danger"
+        loading={Boolean(pendingAction && busy[pendingAction.uid])}
+        onConfirm={() => {
+          if (!pendingAction) return
+          if (pendingAction.kind === 'suspend') performStatusChange(pendingAction.uid, 'suspended', suspendReason.trim())
+          else performSoftDelete(pendingAction.uid)
+        }}
+        onCancel={() => setPendingAction(null)}
+      />
     </div>
   )
 }

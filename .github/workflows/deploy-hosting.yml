@@ -114,6 +114,16 @@ jobs:
           VITE_POSTHOG_HOST:                ${{ secrets.VITE_POSTHOG_HOST }}
         run: npm run build
 
+      # Static prerendering (SEO) — snapshot the content-only public routes
+      # (/pricing, /privacy, /terms, /blog + posts) to dist/<route>/index.html
+      # so crawlers get real HTML + the correct per-route canonical on first
+      # fetch. Boots the built app in the Chromium that `npm ci` downloaded
+      # with puppeteer. The homepage stays the neutral SPA fallback on
+      # purpose — see scripts/prerender.mjs. Fails the deploy if any route
+      # renders an empty/crash shell or the wrong canonical.
+      - name: Prerender public routes
+        run: npm run prerender
+
       - name: Deploy to Firebase Hosting
         env:
           FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}

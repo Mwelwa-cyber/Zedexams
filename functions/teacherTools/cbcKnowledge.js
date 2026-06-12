@@ -22,6 +22,9 @@ const {getLearningEnvironment} = require("./learningEnvironments");
 const {
   getCurriculumDataTopics,
   invalidateCache: invalidateSyllabiCache,
+  normalizeFramework,
+  DEFAULT_FRAMEWORK,
+  VALID_FRAMEWORKS,
 } = require("./syllabiCurriculumData");
 
 // Default ("seed") KB version. Used as the fallback active version when
@@ -32,9 +35,76 @@ const {
 const KB_VERSION = "cbc-kb-2026-04-seed";
 const KB_DEFAULT_VERSION = KB_VERSION;
 
+// ── 2023 CBC framework structure ─────────────────────────────────────────
+// The Zambian 2023 curriculum framework groups grades into bands. The 2013
+// framework used a different split (Lower Primary G1-4, Middle Primary G5-7).
+// We expose both pieces of metadata so the AI prompt can name the band the
+// teacher is teaching, and so we can flag subjects that aren't part of a
+// given grade's syllabus (e.g. RE/Creative Arts at G4 in the 2023 framework).
+const CBC_2023_BANDS = Object.freeze({
+  ECE: "Lower Primary (Pre-Primary)",
+  G1: "Lower Primary",
+  G2: "Lower Primary",
+  G3: "Lower Primary",
+  G4: "Upper Primary",
+  G5: "Upper Primary",
+  G6: "Upper Primary",
+  G7: "Upper Primary",
+  G8: "Junior Secondary",
+  G9: "Junior Secondary",
+  G10: "Senior Secondary",
+  G11: "Senior Secondary",
+  G12: "Senior Secondary",
+});
+
+// Canonical subject keys (matching normalizeSubject output) for each grade
+// under the 2023 framework. Only grades the project owner has explicitly
+// confirmed are listed — generators only enforce the "not in this grade's
+// syllabus" warning for grades present here, so the system never invents
+// rules for grades that haven't been verified.
+const CBC_2023_GRADE_SUBJECTS = Object.freeze({
+  G4: Object.freeze([
+    "english",
+    "mathematics",
+    "integrated_science",
+    "social_studies",
+    "technology_studies",
+    "home_economics",
+    "expressive_arts",
+  ]),
+});
+
+function getGradeBand(grade) {
+  const g = normalizeGrade(grade);
+  return CBC_2023_BANDS[g] || null;
+}
+
+function getOfficialSubjectsForGrade(grade) {
+  const g = normalizeGrade(grade);
+  return CBC_2023_GRADE_SUBJECTS[g] || null;
+}
+
+/**
+ * Classify a (grade, subject) pair against the 2023 framework. Returns:
+ *   'in_syllabus'  — subject IS part of this grade's syllabus
+ *   'not_in_grade' — subject is NOT part of this grade's syllabus
+ *   'unknown'      — we don't have an authoritative list for this grade
+ *
+ * `unknown` is the safe default for any grade we haven't verified yet, so
+ * adding a new grade to CBC_2023_GRADE_SUBJECTS opts it into validation
+ * without retroactively breaking anything.
+ */
+function classifySubjectForGrade(grade, subject) {
+  const official = getOfficialSubjectsForGrade(grade);
+  if (!official) return "unknown";
+  const subjectNorm = normalizeSubject(subject);
+  if (!subjectNorm) return "unknown";
+  return official.includes(subjectNorm) ? "in_syllabus" : "not_in_grade";
+}
+
 // Module-level cache to avoid hitting Firestore on every generation.
-let _cache = null;
-let _cacheAt = 0;
+// One slot per framework so 2013 and 2023 lookups don't trample each other.
+const _cacheByFramework = new Map();
 const CACHE_TTL_MS = 60_000;
 
 // ── Active KB pointer ────────────────────────────────────────────────────
@@ -90,8 +160,7 @@ async function getActiveKbState() {
     // Cross-container cache invalidation: when cacheBust ticks up since
     // we last observed it, treat the topic-set + RAG caches as stale.
     if (_lastSeenCacheBust !== null && next.cacheBust !== _lastSeenCacheBust) {
-      _cache = null;
-      _cacheAt = 0;
+      _cacheByFramework.clear();
       try {
         invalidatePrivateCurriculumCache();
       } catch {
@@ -147,13 +216,15 @@ async function fetchFirestoreTopics() {
  *   3. Firestore overlay — admin edits via the CBC KB admin page. Wins
  *      over everything so a hand-edit always takes effect.
  */
-async function getAllTopics() {
+async function getAllTopics(opts = {}) {
+  const framework = normalizeFramework(opts.framework);
   const now = Date.now();
-  if (_cache && (now - _cacheAt) < CACHE_TTL_MS) return _cache;
+  const cached = _cacheByFramework.get(framework);
+  if (cached && (now - cached.at) < CACHE_TTL_MS) return cached.value;
 
   const version = await getActiveKbVersion();
   const [fromSyllabi, fromFirestore] = await Promise.all([
-    getCurriculumDataTopics(version).catch((err) => {
+    getCurriculumDataTopics(version, {framework}).catch((err) => {
       console.error("getCurriculumDataTopics failed", err);
       return [];
     }),
@@ -161,20 +232,31 @@ async function getAllTopics() {
   ]);
   const byKey = new Map();
   // Base — syllabi-data rows (broadest coverage, thinnest grounding).
+  // Already filtered by framework upstream.
   for (const t of fromSyllabi) {
     byKey.set(topicKey(t), {...t, _source: "syllabi_studio"});
   }
-  // Seed — curated outcomes/competencies override syllabi base.
+  // Seed — curated outcomes/competencies. The seed is a mixed bag (its
+  // header comment says "Based on the 2013 Zambia Education" but it has
+  // been edited over years and contains entries valid for both eras).
+  // Until each entry is individually audited and tagged, we keep the seed
+  // available to BOTH frameworks so callers that depend on its grounding
+  // (e.g. the Cala matcher) don't regress when the 2023 path is taken.
   for (const t of SEED_TOPICS) {
     byKey.set(topicKey(t), {...t, _source: "seed"});
   }
-  // Firestore — admin edits win.
+  // Firestore — admin edits win. Stamp the requested framework so callers
+  // that filter on `t.framework` still see them.
   for (const t of fromFirestore) {
-    byKey.set(topicKey(t), {...t, _source: "firestore"});
+    byKey.set(topicKey(t), {
+      ...t,
+      framework: t.framework || framework,
+      _source: "firestore",
+    });
   }
-  _cache = Array.from(byKey.values());
-  _cacheAt = now;
-  return _cache;
+  const value = Array.from(byKey.values());
+  _cacheByFramework.set(framework, {at: now, value});
+  return value;
 }
 
 function topicKey(t) {
@@ -202,8 +284,7 @@ function subtopicName(s) {
 
 /** Force the next getAllTopics() call to bypass the cache. Used after writes. */
 function invalidateKbCache() {
-  _cache = null;
-  _cacheAt = 0;
+  _cacheByFramework.clear();
   _activeStateCache = null;
   _activeStateAt = 0;
   _lastSeenCacheBust = null;
@@ -230,12 +311,12 @@ const TOPICS = SEED_TOPICS;
  *
  * Now async — pulls merged topic set (Firestore + seed).
  */
-async function lookupTopic({grade, subject, topic}) {
+async function lookupTopic({grade, subject, topic, framework}) {
   if (!grade || !subject || !topic) return null;
   const gradeNorm = normalizeGrade(grade);
   const subjectNorm = String(subject).toLowerCase().replace(/[^a-z]/g, "_");
   const topicNorm = String(topic).toLowerCase().trim();
-  const allTopics = await getAllTopics();
+  const allTopics = await getAllTopics({framework});
   const candidates = allTopics.filter((t) =>
     String(t.grade || "").toUpperCase() === gradeNorm &&
     String(t.subject || "").toLowerCase() === subjectNorm,
@@ -284,10 +365,10 @@ async function lookupTopic({grade, subject, topic}) {
  * Suggest up to 5 topic strings for a grade + subject. Used when we can't
  * find a confident match — teacher sees: "Did you mean one of these?"
  */
-async function suggestTopics({grade, subject}) {
+async function suggestTopics({grade, subject, framework}) {
   const gradeNorm = normalizeGrade(grade);
   const subjectNorm = String(subject || "").toLowerCase().replace(/[^a-z]/g, "_");
-  const allTopics = await getAllTopics();
+  const allTopics = await getAllTopics({framework});
   return allTopics
     .filter((t) =>
       String(t.grade || "").toUpperCase() === gradeNorm &&
@@ -339,31 +420,91 @@ function renderContextBlock(entry) {
  * rejecting the request, give Claude a structured brief that leans on its
  * general knowledge of the Zambian CBC.
  */
-function renderFallbackContext({grade, subject, topic, subtopic}) {
-  return [
+function renderFallbackContext({grade, subject, topic, subtopic, framework}) {
+  const fw = normalizeFramework(framework);
+  const band = getGradeBand(grade);
+  // Subject-validity check only applies to the 2023 framework — 2013 has
+  // a different subject list and isn't covered by CBC_2023_GRADE_SUBJECTS.
+  const official = fw === "2023" ? getOfficialSubjectsForGrade(grade) : null;
+  const classification = fw === "2023" ?
+    classifySubjectForGrade(grade, subject) : "unknown";
+
+  const lines = [
     "<cbc_context>",
     `Grade: ${grade}`,
     `Subject: ${subject}`,
     `Topic: ${topic}`,
     subtopic ? `Sub-topic: ${subtopic}` : "",
     "",
-    "NOTE: This specific topic is not in our curated Zambian CBC topic list",
-    "yet. Produce the lesson plan using your expert knowledge of the Zambian",
-    "Competence-Based Curriculum (2013 framework, CDC) for this grade and",
-    "subject. Guidelines:",
+    fw === "2013" ?
+      "Framework: Zambian Competence-Based Curriculum (CBC/CDC), 2013 " +
+      "legacy framework. The 2013 framework predates the 2023 reform and " +
+      "uses Specific Outcomes / Knowledge / Skills / Values column headings." :
+      "Framework: Zambian Competence-Based Curriculum (CBC/CDC), 2023 " +
+      "framework. The 2023 framework groups grades as:",
+  ];
+  if (fw === "2023") {
+    lines.push(
+      "  - Lower Primary: ECE → Grade 3",
+      "  - Upper Primary: Grade 4 → Grade 7",
+      "  - Junior Secondary: Grade 8 → Grade 9 (Forms 1-2)",
+      "  - Senior Secondary: Grade 10 → Grade 12 (Forms 3-5)",
+    );
+  }
+
+  if (band) {
+    lines.push(`This grade falls under: ${band}.`);
+  }
+
+  if (official && classification === "not_in_grade") {
+    lines.push(
+      "",
+      `IMPORTANT: "${subject}" is NOT one of the official subjects in the`,
+      `Grade ${String(grade).replace(/^G/i, "")} 2023 syllabus. The official`,
+      `subjects for this grade are: ${official.join(", ")}.`,
+      "",
+      "Do NOT fabricate a Grade-level syllabus for a subject that doesn't",
+      "exist at this grade. Instead, produce content that:",
+      "  - Is honest that this subject isn't part of the official grade",
+      "    syllabus, and",
+      "  - Falls back to age-appropriate CBC-aligned material that maps to",
+      "    the closest official learning area for this grade.",
+    );
+  } else if (official && classification === "in_syllabus") {
+    lines.push(
+      "",
+      `"${subject}" IS part of the official Grade ${String(grade).replace(/^G/i, "")}`,
+      "2023 syllabus, but the specific topic above isn't in our verified",
+      "topic list yet. Stay within what the official syllabus would cover",
+      "for this subject at this grade.",
+    );
+  } else {
+    lines.push(
+      "",
+      "NOTE: This specific topic isn't in our verified syllabus list yet.",
+      `Produce the content using your expert knowledge of the Zambian CBC ${
+        fw === "2013" ? "(2013 legacy framework)" : "(2023 framework)"
+      }`,
+      "for this grade and subject.",
+    );
+  }
+
+  lines.push(
     "",
+    "Guidelines:",
     "- Use authentic Zambian CDC terminology: Specific Outcomes, Key",
     "  Competencies, Values, Pupils' Activities, Teacher's Activities,",
     "  Teacher's Reflection.",
-    "- Align Specific Outcomes, Key Competencies and Values with what CDC",
-    "  typically emphasises at this grade level.",
-    "- If you are unsure whether this exact topic is part of the official",
-    "  Zambian syllabus at this grade, still produce a usable lesson plan,",
-    "  adapting the sub-topic breakdown to the closest CBC-aligned concept.",
-    "- Cite the appropriate grade-and-subject Pupil's Book (CDC) when listing",
-    "  teaching materials.",
+    `- Align Specific Outcomes, Key Competencies and Values with what CDC ${
+      fw === "2013" ?
+        "emphasised at this grade level under the 2013 framework." :
+        "typically emphasises at this grade level under the 2023 framework."
+    }`,
+    "- Cite the appropriate grade-and-subject Pupil's Book (CDC) when",
+    "  listing teaching materials.",
     "</cbc_context>",
-  ].filter(Boolean).join("\n");
+  );
+  return lines.filter(Boolean).join("\n");
 }
 
 // ── Lesson-level curriculum modules (source of truth) ────────────────────
@@ -662,7 +803,7 @@ function renderPreviouslyCovered(coverage) {
  */
 async function resolveCbcContext({
   grade, subject, topic, subtopic, term, ownerUid,
-  lessonNumber, totalLessons, learningEnvironment,
+  lessonNumber, totalLessons, learningEnvironment, framework,
 } = {}) {
   // Read the runtime active-version pointer once per call. Every return
   // path carries kbVersion forward so generators can stamp it on their
@@ -672,6 +813,7 @@ async function resolveCbcContext({
   // a stored sub-topic module.
   const activeState = await getActiveKbState();
   const kbVersion = activeState.version;
+  const fw = normalizeFramework(framework);
 
   const leDirective = renderLearningEnvironmentDirective(learningEnvironment);
   const priorBlock = renderPreviouslyCovered(
@@ -681,7 +823,7 @@ async function resolveCbcContext({
   );
   const extras = [leDirective, priorBlock].filter(Boolean).join("\n\n");
   const decorate = (res) => {
-    const withVersion = {...res, kbVersion};
+    const withVersion = {...res, kbVersion, framework: fw};
     return extras ?
       {...withVersion, contextBlock: `${withVersion.contextBlock}\n\n${extras}`} :
       withVersion;
@@ -722,8 +864,8 @@ async function resolveCbcContext({
     }
   }
 
-  // 3. Editable topic KB (unchanged).
-  const match = await lookupTopic({grade, subject, topic});
+  // 3. Editable topic KB (framework-aware).
+  const match = await lookupTopic({grade, subject, topic, framework: fw});
   if (match) {
     return decorate({
       contextBlock: renderContextBlock(match),
@@ -732,25 +874,67 @@ async function resolveCbcContext({
     });
   }
 
-  // 4. General CBC fallback (unchanged).
-  const suggestions = await suggestTopics({grade, subject});
-  return decorate({
-    contextBlock: renderFallbackContext({grade, subject, topic, subtopic}),
-    kbMatch: null,
-    kbWarning: suggestions.length ?
+  // 4. General CBC fallback.
+  // When we have an authoritative subject list for the grade (2023
+  // framework), surface a sharper warning so teachers immediately see
+  // whether the gap is "subject not in this grade's syllabus" vs "subject
+  // valid, just not uploaded yet" — instead of all gaps reading the same.
+  // Subject-validity rules only apply when the caller is on the 2023
+  // framework — the 2013 framework has its own (very different) subject
+  // list and isn't covered by CBC_2023_GRADE_SUBJECTS.
+  const suggestions = await suggestTopics({grade, subject, framework: fw});
+  const classification = fw === "2023" ?
+    classifySubjectForGrade(grade, subject) : "unknown";
+  const official = fw === "2023" ?
+    getOfficialSubjectsForGrade(grade) : null;
+  const gradeLabel = String(grade || "").replace(/^G/i, "");
+
+  let kbWarning;
+  if (classification === "not_in_grade" && official) {
+    kbWarning =
+      `"${subject}" isn't part of the Grade ${gradeLabel} syllabus in the ` +
+      `2023 CBC framework. Official subjects for Grade ${gradeLabel}: ` +
+      `${official.join(", ")}. Used general CBC knowledge.`;
+  } else if (classification === "in_syllabus") {
+    kbWarning =
+      `"${subject}" is a valid Grade ${gradeLabel} subject, but the syllabus ` +
+      `for it hasn't been uploaded yet — used general CBC knowledge. ` +
+      (suggestions.length ?
+        `Nearby verified topics: ${suggestions.join(", ")}.` :
+        "");
+  } else if (suggestions.length) {
+    kbWarning =
       `"${topic}" isn't in our verified syllabus list yet — used general ` +
       `CBC knowledge. Nearby verified topics for this grade+subject: ` +
-      `${suggestions.join(", ")}.` :
-      `"${topic}" used general CBC knowledge (no verified syllabus data for ` +
-      `this grade+subject yet).`,
+      `${suggestions.join(", ")}.`;
+  } else {
+    kbWarning =
+      `"${topic}" used general CBC knowledge (no verified syllabus data ` +
+      `for this grade+subject yet).`;
+  }
+
+  return decorate({
+    contextBlock: renderFallbackContext({
+      grade, subject, topic, subtopic, framework: fw,
+    }),
+    kbMatch: null,
+    kbWarning,
   });
 }
 
 module.exports = {
   KB_VERSION,
   KB_DEFAULT_VERSION,
+  CBC_2023_BANDS,
+  CBC_2023_GRADE_SUBJECTS,
+  VALID_FRAMEWORKS,
+  DEFAULT_FRAMEWORK,
+  normalizeFramework,
   getActiveKbVersion,
   getActiveKbState,
+  getGradeBand,
+  getOfficialSubjectsForGrade,
+  classifySubjectForGrade,
   lookupTopic,
   suggestTopics,
   renderContextBlock,

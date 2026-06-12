@@ -31,6 +31,22 @@
  */
 
 import { z } from 'zod'
+import { normalizeSubject } from '../config/curriculum.js'
+
+// ── Field helpers ─────────────────────────────────────────────────
+
+/**
+ * A bounded string field that treats `null`/`undefined` as the empty string.
+ *
+ * Plain `z.string().default('')` only fills in for `undefined` — a `null`
+ * still fails with Zod's "Invalid input". The serializer writes
+ * `passage.imageUrl || null` for image-less passages, so without this the
+ * whole quiz save throws `Invalid quiz payload at "passages.0.imageUrl"`.
+ * Read-side `coercePassage` already normalises null→'', so accepting it here
+ * keeps the write and read boundaries symmetric.
+ */
+const emptyableString = (max) =>
+  z.preprocess((v) => (v == null ? '' : v), z.string().max(max))
 
 // ── Embedded shapes ───────────────────────────────────────────────
 
@@ -42,11 +58,11 @@ import { z } from 'zod'
 export const passageSchema = z
   .object({
     id: z.string().min(1).max(100),
-    title: z.string().max(500).default(''),
-    instructions: z.string().max(10000).default(''),
-    passageText: z.string().max(50000).default(''),
-    imageUrl: z.string().max(2000).default(''),
-    passageKind: z.string().max(40).default(''),
+    title: emptyableString(500),
+    instructions: emptyableString(10000),
+    passageText: emptyableString(50000),
+    imageUrl: emptyableString(2000),
+    passageKind: emptyableString(40),
     order: z.number().int().min(0).max(10000).default(0),
   })
   .passthrough()
@@ -82,7 +98,15 @@ export const quizWriteSchema = z
   .object({
     // ── Identity & meta ──
     title: z.string().min(1).max(200),
-    subject: z.string().min(1).max(100),
+    // Repair a stray curriculum slug ("mathematics") into its canonical
+    // display label ("Mathematics") before validating, so an imported or
+    // legacy slug never hard-fails the save. The string bound stays the
+    // source of truth for length/type — normalizeSubject only rewrites
+    // recognised slugs and leaves everything else untouched.
+    subject: z.preprocess(
+      (v) => (typeof v === 'string' ? normalizeSubject(v) : v),
+      z.string().min(1).max(100),
+    ),
     // Grade can be a string ('5') or number (5) depending on the form; both
     // are accepted, the canonical normaliser below coerces to string.
     grade: z.union([z.string().max(20), z.number().int().min(0).max(20)]),
@@ -117,15 +141,41 @@ export const quizWriteSchema = z
     isDailyExam: z.boolean().optional(),
     dailyExamDate: z.string().max(10).nullable().optional(),
     durationMinutes: z.number().int().min(1).max(600).optional(),
+    // The editor writes the active quiz length as `duration` (minutes); it
+    // previously rode through on `.passthrough()` unvalidated, so a bad value
+    // only blew up at the Firestore rule (duration int 5..180) with an opaque
+    // permission error. Validate it client-side instead, giving a named error
+    // on create. The update path relaxes this (see quizUpdateSchema) so editing
+    // a legacy quiz whose stored duration is outside 5..180 never hard-fails.
+    duration: z.number().int().min(5).max(180).optional(),
     isDemo: z.boolean().optional(),
+    // When true, the learner runner randomises question order at attempt time
+    // (within Parts/passages). Absent/false preserves document order.
+    shuffleQuestions: z.boolean().optional(),
   })
   .passthrough()
 
 /**
  * Partial variant for updateDoc(). Every field is optional, but typed values
  * are still validated when present. Use for `updateQuiz(id, patch)`.
+ *
+ * `duration` is overridden to be lenient: EditQuizV2 deliberately keeps a
+ * legacy/custom saved duration selectable even when it falls outside the
+ * 5..180 dropdown range (durationOptions), and re-saves it verbatim on an
+ * unrelated edit. A strict bound here would block that edit with a confusing
+ * "Invalid quiz update at duration" error, so on the update path we clamp the
+ * value into 5..180 rather than reject it. A genuinely fresh out-of-range
+ * value still gets corrected before it can fail the Firestore rule.
  */
-export const quizUpdateSchema = quizWriteSchema.partial()
+export const quizUpdateSchema = quizWriteSchema.partial().extend({
+  duration: z.preprocess(
+    (v) => {
+      if (typeof v !== 'number' || !Number.isFinite(v)) return v
+      return Math.min(180, Math.max(5, Math.round(v)))
+    },
+    z.number().int().min(5).max(180).optional(),
+  ),
+})
 
 // ── Coerce helpers (read-side, never throw) ──────────────────────
 

@@ -12,6 +12,10 @@ const DEFAULTS = {
   defaultGrade: '7',
   defaultTheme: 'oatmeal',
   featureFlags: {},
+  // Android in-app update nudge — see AndroidUpdateBanner.jsx.
+  androidLatestBuild: 0,
+  androidApkUrl: '',
+  androidUpdateMessage: '',
 }
 
 const PlatformSettingsContext = createContext({ settings: DEFAULTS, loaded: false })

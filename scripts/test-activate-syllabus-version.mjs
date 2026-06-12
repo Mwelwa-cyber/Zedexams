@@ -87,6 +87,8 @@ Module._load = function(request, parent, ...rest) {
   return origLoad.call(this, request, parent, ...rest)
 }
 
+// On Windows, ESM dynamic-import refuses bare absolute paths ("M:\..."). Wrap
+// the joined path in a file:// URL, which works on both Windows and POSIX.
 const activateModule = await import(
   pathToFileURL(join(__dirname, '..', 'functions', 'teacherTools', 'activateSyllabusVersion.js')).href
 )

@@ -1,0 +1,79 @@
+{
+  "$schema": "https://aka.ms/codetour-schema",
+  "title": "Agent Pipeline — New Joiner Tour",
+  "description": "How the internal Content agent pipeline works: a teacher brief becomes an agentJobs doc, Firestore triggers drive Aria → Cala → Reva to awaiting_approval, and on admin approval Pubo publishes. Covers the circuit breaker and region collocation gotchas.",
+  "ref": "main",
+  "steps": [
+    {
+      "directory": "functions/agents",
+      "title": "1. Where the pipeline lives",
+      "description": "Situation: this is the whole 'AI company'. `dispatcher.js` is the brain; `runners/` holds one file per agent (aria, cala, reva, pubo, plus the standalone monitor/quill/vex).\n\nMechanism: nothing here is an HTTP endpoint — the pipeline is driven entirely by Firestore document triggers on the `agentJobs` collection.\n\nImplication: to trace a job you follow Firestore status transitions, not a call stack.\n\nGotcha: `vex.js` lives here but is NOT part of this pipeline — it's a synchronous quiz-verify callable. Ignore it for this tour."
+    },
+    {
+      "file": "functions/agents/dispatcher.js",
+      "selection": { "start": { "line": 1, "character": 0 }, "end": { "line": 21, "character": 0 } },
+      "title": "2. The two triggers (read this first)",
+      "description": "Situation: the file header is the spec. There are exactly two triggers.\n\nMechanism: (1) `agentJobsOnCreate` runs Aria → Cala → Reva sequentially in ONE execution, then parks the job at `status='awaiting_approval'`. (2) `agentJobsOnApproved` fires when an admin flips status to `approved`, runs Pubo, and sets `status='done'`.\n\nImplication: there is a deliberate human gate in the middle. Three agents run automatically; publishing never does without approval.\n\nGotcha: `rejected` is terminal and does nothing — Pubo never touches a rejected job."
+    },
+    {
+      "file": "functions/agents/dispatcher.js",
+      "selection": { "start": { "line": 33, "character": 0 }, "end": { "line": 45, "character": 0 } },
+      "title": "3. Region collocation — the latency gotcha",
+      "description": "Situation: `TRIGGER_OPTS` pins these functions to `africa-south1`.\n\nMechanism: the (default) Firestore database lives in africa-south1, so the Eventarc trigger is created there. Pinning compute to the same region avoids a cross-region hop on every event.\n\nImplication: these are the ONE set of functions not in us-central1. HTTP/callable functions (Zed chat, generators) stay in us-central1 — see firebase.json.\n\nGotcha: if you copy this trigger pattern elsewhere, keep the region matched to Firestore or you pay cross-region egress on every write."
+    },
+    {
+      "file": "functions/agents/dispatcher.js",
+      "line": 69,
+      "title": "4. The circuit breaker",
+      "description": "Situation: `isAgentPaused(agentId)` is the per-agent kill switch, backed by `agentControl/{agentId}.paused` in Firestore.\n\nMechanism: results are cached for 60s (`PAUSED_CACHE_TTL_MS`) because each content job checks 3 agents — without the cache that's 3 Firestore reads per job in a hot path.\n\nImplication: an admin (or the auto-breaker after 3 failures in an hour) can stop any single agent without redeploying.\n\nGotcha: up to 60s of staleness is intentional. A freshly-paused agent may still run one more job."
+    },
+    {
+      "file": "functions/agents/dispatcher.js",
+      "selection": { "start": { "line": 284, "character": 0 }, "end": { "line": 295, "character": 0 } },
+      "title": "5. Trigger 1 — what actually starts a job",
+      "description": "Situation: inside `createAgentJobsOnCreate`, four guards decide whether a new `agentJobs` doc runs.\n\nMechanism: the job only proceeds if `department === 'content'`, `agentId === 'aria'`, `status === 'queued'`, and it is not a `seed` doc. Everything else returns early.\n\nImplication: the pipeline is rooted at Aria. A teacher brief is written as a queued, content, aria-rooted doc — that write is the trigger.\n\nGotcha: `seed === true` docs exist purely for UI development and are skipped here — don't expect them to run."
+    },
+    {
+      "file": "functions/agents/dispatcher.js",
+      "selection": { "start": { "line": 130, "character": 0 }, "end": { "line": 155, "character": 0 } },
+      "title": "6. Step 1 — Aria (author)",
+      "description": "Situation: `runContentChain` starts the sequential chain. Aria is first.\n\nMechanism: pause-check → set `status='running'` → `runAria()` → write `output.aria` plus a `publishedRefs` pointer to a reserved (still-private) `aiGenerations` doc.\n\nImplication: the artifact's home in `aiGenerations` is reserved up front; Pubo later just flips it public.\n\nGotcha: every step follows the same shape — pause-check, run, catch→`status='failed'` with a truncated error string. If Aria throws, the job stops here."
+    },
+    {
+      "file": "functions/agents/runners/aria.js",
+      "line": 42,
+      "title": "7. Inside a runner — runAria",
+      "description": "Situation: `runAria` is a representative runner.\n\nMechanism: runners are plain async functions that take the job, call Anthropic via the shared `aiService.callAnthropic`, and return a structured output object. They do NOT manage status — the dispatcher owns all Firestore writes.\n\nImplication: to change what an agent produces, edit its runner; to change orchestration, edit the dispatcher. Clean separation.\n\nGotcha: the runner returns data; it never sets job status. Don't add status writes inside runners."
+    },
+    {
+      "file": "functions/agents/dispatcher.js",
+      "selection": { "start": { "line": 157, "character": 0 }, "end": { "line": 203, "character": 0 } },
+      "title": "8. Steps 2 & 3 — Cala, Reva, then the human gate",
+      "description": "Situation: Cala (CBC-alignment) and Reva (content review) run back-to-back, then the chain ends.\n\nMechanism: note the asymmetry — if Cala or Reva is *paused*, the job goes to `awaiting_approval` (let a human take over), but if they *throw*, it goes to `failed`. After Reva succeeds, status is set to `awaiting_approval`.\n\nImplication: this is where automation hands off to the admin in /admin/agents.\n\nGotcha: `readJob()` is re-called before Cala/Reva so each runner sees the latest doc, not the stale in-memory `jobData` from trigger time."
+    },
+    {
+      "file": "functions/agents/dispatcher.js",
+      "selection": { "start": { "line": 303, "character": 0 }, "end": { "line": 347, "character": 0 } },
+      "title": "9. Trigger 2 — approval",
+      "description": "Situation: `createAgentJobsOnApproved` is the onUpdate trigger.\n\nMechanism: it first writes an audit-log entry for any approve/reject transition (before doing work, so a later failure still records the decision), then proceeds only on the `→ approved` edge for content, non-seed jobs.\n\nImplication: approve/reject is fully audited and idempotent — re-firing on an already-approved doc returns early.\n\nGotcha: the audit write is wrapped in try/catch and only warns on failure — it must never block publishing."
+    },
+    {
+      "file": "functions/agents/dispatcher.js",
+      "selection": { "start": { "line": 351, "character": 0 }, "end": { "line": 372, "character": 0 } },
+      "title": "10. Step 4 — Pubo publishes",
+      "description": "Situation: the final step, gated by the same pause check (`isAgentPaused('pubo')`).\n\nMechanism: `runPubo()` flips the reserved `aiGenerations` doc from private to public and stamps approval metadata; the dispatcher then sets `status='done'`.\n\nImplication: publishing is the only irreversible side effect, and it lives behind both human approval and a circuit breaker.\n\nGotcha: if Pubo is paused, the job goes to `failed` with a 'publish manually' message — the admin must finish by hand."
+    },
+    {
+      "file": "functions/agents/runners/pubo.js",
+      "line": 21,
+      "title": "11. Inside runPubo",
+      "description": "Situation: Pubo is the smallest runner — it's a state flip, not a generation.\n\nMechanism: it takes the job (which carries `publishedRefs` from Aria's step) and makes the reserved artifact public.\n\nImplication: because Aria reserved the doc id early, publishing is a cheap, deterministic update rather than a fresh create.\n\nGotcha: Pubo is the ONLY agent allowed to publish. Don't replicate its write elsewhere."
+    },
+    {
+      "file": "functions/index.js",
+      "line": 2027,
+      "title": "12. Where it's wired up + next steps",
+      "description": "Situation: the two triggers are exported here so Firebase deploys them; the factories are imported from `./agents/dispatcher` near the top of index.js.\n\nMechanism: `agentJobsOnCreate` gets the Anthropic API key secret; `agentJobsOnApproved` needs none (Pubo only moves Firestore data).\n\nYou can now trace a job end to end: teacher brief → queued agentJobs doc → onCreate → Aria/Cala/Reva → awaiting_approval → admin Approve → onApproved → Pubo → done.\n\nNext: read ORG.md for the agent org chart and cost budgets, and skim runners/cala.js + runners/reva.js to see how alignment and review differ from authoring."
+    }
+  ]
+}

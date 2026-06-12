@@ -30,7 +30,7 @@ const {
 } = require("../aiService");
 const {callClaude} = require("./anthropicClient");
 
-const IMPORT_MODEL = process.env.PAST_PAPER_IMPORT_MODEL || "claude-sonnet-4-5";
+const IMPORT_MODEL = process.env.PAST_PAPER_IMPORT_MODEL || "claude-sonnet-4-6";
 
 const MAX_PDF_BYTES = 32 * 1024 * 1024;
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
@@ -450,4 +450,9 @@ function createImportPastPaperQuestions(anthropicApiKeySecret) {
   );
 }
 
-module.exports = {createImportPastPaperQuestions, runPastPaperImport};
+module.exports = {
+  createImportPastPaperQuestions, runPastPaperImport,
+  // Source loaders reused by extractAssessmentFormat (same download,
+  // size-cap and DOCX→text handling for sample assessment papers).
+  loadPaperOrThrow, pickSources, buildMessageBlocks,
+};

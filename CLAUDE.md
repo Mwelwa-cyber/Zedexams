@@ -93,7 +93,7 @@ src/
     games/                      — Games hub + engines (TimedQuizGame, MemoryMatchGame, WordBuilderGame, ProvinceShapesGame, …)
     lessons/                    — Lesson library + slide player + editor; src/features/notes/ holds Notes Studio (admin authoring + learner reader gated by LearnerGate)
     quiz/                       — QuizList, EditQuizV2, QuizRunnerV2, QuizResultsV2, document-quiz importer; QuizVerifyModal calls Vex
-    teacher/                    — TeacherDashboard + studios (lesson plan / worksheet / flashcards / scheme of work / rubric / notes / full lesson / homework / assessment); AgentBriefForm + AgentJobsList for the agent pipeline
+    teacher/                    — TeacherDashboard + studios (lesson plan / worksheet / flashcards / scheme of work / rubric / notes / full lesson / homework / assessment). NOTE: the teacher-facing agent-submission surface (AgentBriefForm + AgentJobsList at /teacher/agents) was removed in 2026-06 — it duplicated the direct studios behind a human-approval gate nobody staffed. The server-side agentJobs pipeline + the /admin/agents approval UI remain.
     papers/                     — Past papers viewer + practice + history
     parent/                     — Parent portal pages
     classes/                    — Class management UI
@@ -162,7 +162,7 @@ Per-agent circuit breaker: `agentControl/{agentId}.paused`. Three failures in on
 
 ### Service worker
 
-VitePWA `generateSW` with `registerType: 'autoUpdate'` — the new SW activates on next open without a prompt, so HTML/meta changes reach returning users. `<UpdatePrompt />` is left in place but never fires in this mode. `vite.config.js` has a post-build `firebaseMessagingSwConfig` plugin that substitutes `__FIREBASE_*__` tokens in `dist/firebase-messaging-sw.js` because the SW context can't read `import.meta.env`. On Capacitor the SW is not registered.
+VitePWA `generateSW` with `registerType: 'autoUpdate'` — the new SW activates + claims clients automatically. The already-rendered page crosses over at two safe moments (never a hard reload mid-operation): `public/sw-reload-clients.js` posts `SW_RELOAD_REQUEST` on activation → `usePwaUpdate` shows `<UpdatePrompt />`'s "Refresh now" toast; AND `<UpdatePrompt />` auto-applies the update on the user's next in-app navigation (`src/hooks/pwaAutoReload.js` — a route teardown point; imports/long ops don't navigate so they're never interrupted). `vite.config.js` has a post-build `firebaseMessagingSwConfig` plugin that substitutes `__FIREBASE_*__` tokens in `dist/firebase-messaging-sw.js` because the SW context can't read `import.meta.env`. On Capacitor the SW is not registered.
 
 ### App Check
 
@@ -188,6 +188,7 @@ Quiz/attempt/result Zod schemas live in `src/schemas/`. There's also a parallel 
 - **`<NavLink>` / `Navigate` use `getRoleLandingPath`** (`src/utils/navigation.js`) to send each role to the right landing page after auth.
 - **Public theme paths** are pinned to the brand default theme in `App.jsx` (`PUBLIC_THEME_PATHS` + `isPublicThemePath`). Adding a new always-public route may need an entry here so it doesn't inherit a saved learner theme.
 - **CBC topic + grade lists are in `src/config/curriculum.js`** for the client. The server-side authoritative KB is `functions/teacherTools/cbcKnowledge.js` / `cbcTopics.js`. They have to stay in sync.
+- **Don't accrete one-off report docs.** Audit reports, debug runbooks, feasibility writeups, and launch/polish plans rot fast — by 2026-05 most root `*.md` reports were ~90% stale (cleaned up in #702). So: (1) don't commit a standalone report/plan `*.md` to the repo root unless asked — put findings in the conversation or the PR description; (2) any status/plan/audit doc that *is* committed gets a `> Snapshot as of YYYY-MM-DD — verify before acting` header from the start; (3) `BUG_REPORT.md` is the single curated "what's broken now" doc — prune resolved items there rather than spawning new snapshots; (4) when a branch merges, remove its worktree (`git worktree remove`) — merged worktrees linger and pile up.
 
 ## Repo notes
 
