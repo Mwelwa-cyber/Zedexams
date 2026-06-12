@@ -361,7 +361,7 @@ function StarterPackPanel({ pictures, uid, flash, onDone }) {
             Body systems, plant parts, the water cycle, Zambia's provinces,
             shapes, Venn templates, domestic animals and more — generated with
             AI, named and keyworded so teacher searches hit immediately.
-            Roughly 4 US cents per image.
+            Roughly 4–6 US cents per image.
           </p>
         </div>
         <button
