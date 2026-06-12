@@ -794,6 +794,25 @@ service cloud.firestore {
         && (!('lastSession' in incoming()) || (incoming().lastSession is map && incoming().lastSession.keys().size() <= 50))
         && (!('dailyGoal' in incoming()) || incoming().dailyGoal == null || (incoming().dailyGoal is map && incoming().dailyGoal.keys().size() <= 50));
     }
+    function validStudyPlanProgressFields(userId) {
+      return incoming().keys().hasOnly([
+          'userId', 'dateKey', 'weekKey', 'completedTaskKeys',
+          'planStreak', 'longestPlanStreak', 'lastCompletedDate', 'updatedAt',
+        ])
+        && incoming().keys().hasAll([
+          'userId', 'dateKey', 'weekKey', 'completedTaskKeys',
+          'planStreak', 'longestPlanStreak', 'lastCompletedDate', 'updatedAt',
+        ])
+        && incoming().userId == request.auth.uid
+        && incoming().userId == userId
+        && incoming().dateKey is string && incoming().dateKey.size() <= 10
+        && incoming().weekKey is string && incoming().weekKey.size() <= 10
+        && incoming().completedTaskKeys is list && incoming().completedTaskKeys.size() <= 20
+        && incoming().planStreak is int && incoming().planStreak >= 0 && incoming().planStreak <= 100000
+        && incoming().longestPlanStreak is int && incoming().longestPlanStreak >= 0 && incoming().longestPlanStreak <= 100000
+        && (incoming().lastCompletedDate == null || (incoming().lastCompletedDate is string && incoming().lastCompletedDate.size() <= 10))
+        && incoming().updatedAt == request.time;
+    }
 
     // ── badges (per-user earned badges) ───────────────────────
     // Self-awarded game badges are OK — the client evaluates against the
@@ -830,6 +849,16 @@ service cloud.firestore {
       allow read:          if isAuthed() && (isOwner(userId) || isAdmin());
       allow create, update: if isAuthed() && isOwner(userId) && validLearnerProfileFields();
       allow delete:        if isAdmin();
+    }
+
+    // ── studyPlanProgress (per-user checklist + study-plan streak) ──
+    // Single doc per learner. The dashboard writes compact task keys for
+    // the active week plus a private streak counter when today's plan is
+    // completed.
+    match /studyPlanProgress/{userId} {
+      allow read:           if isAuthed() && (isOwner(userId) || isAdmin());
+      allow create, update: if isAuthed() && isOwner(userId) && validStudyPlanProgressFields(userId);
+      allow delete:         if isAdmin();
     }
 
     // ── learnerStats (gamification: XP, levels, streaks, personal bests) ──

@@ -8,6 +8,7 @@ const aiChatCallable = httpsCallable(functions, 'aiChat')
 const explainAnswerCallable = httpsCallable(functions, 'explainAnswer')
 const generateQuizCallable = httpsCallable(functions, 'generateQuizQuestions')
 const structureImportedQuizCallable = httpsCallable(functions, 'structureImportedQuiz')
+const generateStudyPlanCallable = httpsCallable(functions, 'generateStudyPlan')
 const structureScannedQuizCallable = httpsCallable(functions, 'structureScannedQuiz')
 const structureImportedNoteCallable = httpsCallable(functions, 'structureImportedNote')
 const ocrNotePagesCallable = httpsCallable(functions, 'ocrNotePages')
@@ -21,6 +22,7 @@ const AI_CHAT_TIMEOUT_MS = 35000       // server: 30s
 const AI_EXPLAIN_TIMEOUT_MS = 35000    // server: 30s
 const AI_QUIZ_TIMEOUT_MS = 50000       // server: 45s
 const AI_IMPORT_TIMEOUT_MS = 95000     // server: 90s (Gemini → Claude pipeline)
+const AI_STUDY_PLAN_TIMEOUT_MS = 50000 // server: 45s
 const AI_SCANNED_IMPORT_TIMEOUT_MS = 245000 // server: 240s (vision OCR over a page batch)
 const AI_SUGGEST_ANSWERS_TIMEOUT_MS = 125000 // server: 120s (batch of MCQs in one call)
 const AI_EDIT_TIMEOUT_MS = 50000       // server: 45s (single-question edit)
@@ -237,7 +239,15 @@ function makeLocalQuizQuestions(payload) {
  * Falls back to the buffered callable path in DEV so the dev server works
  * without needing a running Cloud Functions emulator.
  */
-export function sendAIChatStream({ message, context, history = [], systemPrompt, onToken, onDone, onError }) {
+export function sendAIChatStream({
+  message,
+  context,
+  history = [],
+  systemPrompt,
+  onToken,
+  onDone,
+  onError,
+}) {
   const payload = { message, context, history }
   if (systemPrompt) payload.systemPrompt = systemPrompt
 
@@ -348,7 +358,12 @@ export function sendAIChatStream({ message, context, history = [], systemPrompt,
   return () => { cancelled = true }
 }
 
-export async function sendAIChat({ message, context, history = [], systemPrompt }) {
+export async function sendAIChat({
+  message,
+  context,
+  history = [],
+  systemPrompt,
+}) {
   const payload = { message, context, history }
   if (systemPrompt) payload.systemPrompt = systemPrompt
 
@@ -461,6 +476,22 @@ export async function structureImportedQuiz(payload) {
     return {
       sections: Array.isArray(response.data?.sections) ? response.data.sections : [],
       warnings: Array.isArray(response.data?.warnings) ? response.data.warnings : [],
+    }
+  } catch (error) {
+    throw new Error(messageFromError(error))
+  }
+}
+
+export async function generateAIStudyPlan(payload = {}) {
+  try {
+    const response = await withTimeout(
+      generateStudyPlanCallable(payload),
+      AI_STUDY_PLAN_TIMEOUT_MS,
+      'Study planner is taking too long. Please try again.',
+    )
+    return {
+      plan: response.data?.plan || null,
+      warning: response.data?.warning || '',
     }
   } catch (error) {
     throw new Error(messageFromError(error))

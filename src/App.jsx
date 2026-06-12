@@ -448,7 +448,7 @@ export default function App() {
           <Route path="/dashboard-preview" element={<ProtectedRoute><LearnerOnlyRoute><GradeHub /></LearnerOnlyRoute></ProtectedRoute>} />
           {/* Legacy stats page (kept for admin/teacher reference) */}
           <Route path="/my-stats"          element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><StudentDashboard /></LearnerOnlyRoute></ProtectedRoute>} />
-          <Route path="/study-plan"        element={<ProtectedRoute><LearnerOnlyRoute><StudyPlanPage /></LearnerOnlyRoute></ProtectedRoute>} />
+          <Route path="/study-plan"        element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><StudyPlanPage /></LearnerOnlyRoute></ProtectedRoute>} />
           <Route path="/calendar"          element={<ProtectedRoute><LearnerOnlyRoute><Navbar /><LearnerCalendar /></LearnerOnlyRoute></ProtectedRoute>} />
           {/* TEMPORARY (2026 exams): inline PDF viewer — replaced <a target="_blank"> which
               does not open on Android/Capacitor. Remove with ExamTimetableCard after exams. */}

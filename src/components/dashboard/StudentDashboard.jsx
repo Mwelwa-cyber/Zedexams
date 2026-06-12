@@ -19,6 +19,7 @@ import {
   CalendarDays,
   ClipboardList,
   PencilLine,
+  Sparkles,
   Target,
   TrophyIcon,
 } from '../ui/icons'
@@ -57,6 +58,7 @@ function pctColor(p) {
 const QUICK_ACTIONS = [
   { icon: PencilLine,   label: 'Practice quiz',   sub: 'CBC questions by topic', to: '/quizzes',    accent: 'accent-mint'  },
   { icon: BookOpen,     label: 'Lessons',         sub: 'Revise one topic',       to: '/lessons',    accent: 'accent-blue'  },
+  { icon: Sparkles,     label: 'Study plan',      sub: 'AI weekly revision',     to: '/study-plan', accent: 'accent-amber' },
   { icon: BarChart3,    label: 'Results',         sub: 'Review score history',   to: '/my-results', accent: 'accent-amber' },
   { icon: CalendarDays, label: 'School calendar', sub: 'Terms and holidays',     to: '/calendar',   accent: 'accent-pink'  },
 ]
