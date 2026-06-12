@@ -5,6 +5,7 @@ import { useTheme, applyThemeToBody, DEFAULT_THEME } from './contexts/ThemeConte
 import { PlatformSettingsProvider } from './contexts/PlatformSettingsContext'
 import MaintenanceBanner from './components/banners/MaintenanceBanner'
 import AnnouncementBanner from './components/banners/AnnouncementBanner'
+import AndroidUpdateBanner from './components/banners/AndroidUpdateBanner'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import LearnerOnlyRoute from './components/auth/LearnerOnlyRoute'
 import Navbar from './components/layout/Navbar'
@@ -148,9 +149,6 @@ const AgentProfile    = lazy(() => import('./components/admin/agents/AgentsHome'
 const AgentJobDetail  = lazy(() => import('./components/admin/agents/AgentJobDetail'))
 
 
-// Teacher — Agent submissions
-const AgentBriefForm       = lazy(() => import('./components/teacher/AgentBriefForm'))
-const TeacherAgentJobsList = lazy(() => import('./components/teacher/AgentJobsList').then(m => ({ default: m.AgentJobsList })))
 // Audit A10 — teacher classroom roster (foundation PR; quiz assignment + class analytics stack later).
 const TeacherClassesList = lazy(() => import('./components/teacher/classes/TeacherClassesList'))
 const TeacherClassEditor = lazy(() => import('./components/teacher/classes/TeacherClassEditor'))
@@ -161,7 +159,6 @@ const LearnerClassJoin = lazy(() => import('./components/classes/LearnerClassJoi
 const LearnerClassDetail = lazy(() => import('./components/classes/LearnerClassDetail'))
 // Audit A3 PR 1 — parent portal (public read-only progress view).
 const ParentProgressView = lazy(() => import('./components/parent/ParentProgressView'))
-const TeacherAgentJobView  = lazy(() => import('./components/teacher/AgentJobsList').then(m => ({ default: m.AgentJobView })))
 
 // Teacher section
 const TeacherLayout = lazy(() => import('./components/teacher/TeacherLayout'))
@@ -186,6 +183,7 @@ const FlashcardGenerator = lazy(() => import('./components/teacher/generate/Flas
 const SchemeOfWorkGenerator = lazy(() => import('./components/teacher/generate/SchemeOfWorkGenerator'))
 const MarkScheduleStudio = lazy(() => import('./components/teacher/generate/MarkScheduleStudio'))
 const WeeklyForecastStudio = lazy(() => import('./components/teacher/generate/WeeklyForecastStudio'))
+const RecordOfWorkStudio = lazy(() => import('./components/teacher/generate/RecordOfWorkStudio'))
 const RubricGenerator = lazy(() => import('./components/teacher/generate/RubricGenerator'))
 const NotesStudio = lazy(() => import('./components/teacher/generate/NotesStudio'))
 
@@ -357,6 +355,7 @@ export default function App() {
           don't get hidden under the network indicator. */}
       <MaintenanceBanner />
       <AnnouncementBanner />
+      <AndroidUpdateBanner />
       {/* Offline banner — slides in at the top when navigator.onLine flips
           false. Firestore queues writes locally so the user's progress
           survives the network drop; this is the visible reassurance. */}
@@ -564,6 +563,7 @@ export default function App() {
           <Route path="/teacher/generate/scheme-of-work" element={<TeacherRoute><SchemeOfWorkGenerator /></TeacherRoute>} />
           <Route path="/teacher/generate/mark-schedule" element={<TeacherRoute><MarkScheduleStudio /></TeacherRoute>} />
           <Route path="/teacher/generate/weekly-forecast" element={<TeacherRoute><WeeklyForecastStudio /></TeacherRoute>} />
+          <Route path="/teacher/generate/record-of-work" element={<TeacherRoute><RecordOfWorkStudio /></TeacherRoute>} />
           <Route path="/teacher/generate/rubric"          element={<TeacherRoute><RubricGenerator /></TeacherRoute>} />
           <Route path="/teacher/generate/notes"           element={<TeacherRoute><NotesStudio /></TeacherRoute>} />
           <Route path="/teacher/library"                 element={<TeacherRoute><TeacherLibrary /></TeacherRoute>} />
@@ -573,9 +573,6 @@ export default function App() {
           <Route path="/teacher/curriculum"              element={<TeacherRoute><CurriculumHome /></TeacherRoute>} />
           <Route path="/teacher/curriculum/primary"      element={<TeacherRoute><PrimaryCurriculum /></TeacherRoute>} />
           <Route path="/teacher/curriculum/secondary"    element={<TeacherRoute><SecondaryCurriculum /></TeacherRoute>} />
-          <Route path="/teacher/agents"                  element={<TeacherRoute><TeacherAgentJobsList /></TeacherRoute>} />
-          <Route path="/teacher/agents/new"              element={<TeacherRoute><AgentBriefForm /></TeacherRoute>} />
-          <Route path="/teacher/agents/:jobId"           element={<TeacherRoute><TeacherAgentJobView /></TeacherRoute>} />
           {/* Audit A10 — class roster foundation. Quiz-assignment +
               class analytics surfaces stack onto these in follow-ups. */}
           <Route path="/teacher/classes"                 element={<TeacherRoute><TeacherClassesList /></TeacherRoute>} />

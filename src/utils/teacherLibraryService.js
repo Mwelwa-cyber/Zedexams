@@ -280,6 +280,29 @@ export async function saveWeeklyForecastGeneration({ uid, existingId, artifact }
   })
 }
 
+export async function saveRecordOfWorkGeneration({ uid, existingId, artifact }) {
+  if (!artifact?.weeks?.length) throw new Error('Log at least one week before saving.')
+  const header = artifact.header || {}
+  return saveClientToolGeneration({
+    uid,
+    existingId,
+    tool: 'record_of_work',
+    artifact,
+    inputs: {
+      grade: header.grade || null,
+      term: header.term != null ? String(header.term) : null,
+      subject: header.subject || null,
+      topic: `Term ${header.term ?? ''} record of work`.trim(),
+    },
+    classification: {
+      libraryType: LIBRARY_TYPES.RECORDS_OF_WORK,
+      grade: header.grade,
+      term: header.term,
+      subject: header.subject,
+    },
+  })
+}
+
 /**
  * Record that the user exported a generation in a given format. Appends to
  * the `exportedFormats` array (deduped).
@@ -343,6 +366,12 @@ export const TOOL_META = {
     route: '/teacher/generate/weekly-forecast',
     colour: 'cyan',
   },
+  record_of_work: {
+    label: 'Record of Work',
+    icon: '🗂️',
+    route: '/teacher/generate/record-of-work',
+    colour: 'orange',
+  },
   mark_schedule: {
     label: 'Mark Schedule',
     icon: '🧮',
@@ -381,6 +410,7 @@ export const TOOL_FILTER_OPTIONS = [
   {value: 'full_lesson', label: 'Full lessons'},
   {value: 'scheme_of_work', label: 'Schemes of work'},
   {value: 'weekly_forecast', label: 'Weekly forecasts'},
+  {value: 'record_of_work', label: 'Records of work'},
   {value: 'mark_schedule', label: 'Mark schedules'},
   {value: 'worksheet', label: 'Worksheets'},
   {value: 'flashcards', label: 'Flashcards'},
@@ -422,6 +452,14 @@ export function titleForGeneration(gen) {
     const w = out?.header?.weekNumber || ''
     const t = out?.header?.term || gen.inputs?.term || ''
     return [`${g ? `Grade ${g}` : ''} ${subj}`.trim(), `Term ${t} Week ${w} Forecast`.trim()]
+      .filter(Boolean).join(' — ')
+  }
+  if (gen.tool === 'record_of_work') {
+    const g = String(out?.header?.grade || gen.inputs?.grade || '').replace(/^G/i, '')
+    const subj = out?.header?.subject || ''
+    const t = out?.header?.term || gen.inputs?.term || ''
+    const y = out?.header?.year || ''
+    return [`${g ? `Grade ${g}` : ''} ${subj}`.trim(), `Term ${t} Record of Work${y ? ` ${y}` : ''}`.trim()]
       .filter(Boolean).join(' — ')
   }
   if (gen.tool === 'mark_schedule') {
@@ -568,6 +606,15 @@ export function getLibraryAccessLevel({ userProfile, isAdmin = false } = {}) {
     return LIBRARY_ACCESS.PRO
   }
   return LIBRARY_ACCESS.FREE
+}
+
+/**
+ * Should this viewer's studio exports carry the "Made with ZedExams"
+ * page footer? Free plan only — paid (and admin) documents stay clean.
+ * Consumed by the studios together with docxAttribution.js.
+ */
+export function isFreePlanTeacher({ userProfile, isAdmin = false } = {}) {
+  return getLibraryAccessLevel({ userProfile, isAdmin }) === LIBRARY_ACCESS.FREE
 }
 
 /**

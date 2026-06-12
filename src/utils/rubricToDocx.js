@@ -17,6 +17,7 @@ import {
   TextRun,
   WidthType,
 } from 'docx'
+import { attributionSection } from './docxAttribution.js'
 
 const CELL_BORDER = {
   top:    { style: BorderStyle.SINGLE, size: 4, color: '888888' },
@@ -152,7 +153,7 @@ function gradeBandsTable(bands = []) {
   })
 }
 
-export function buildRubricDocument(rubric) {
+export function buildRubricDocument(rubric, opts = {}) {
   const children = []
 
   children.push(h1(rubric.header?.title || 'Assessment Rubric'))
@@ -187,6 +188,7 @@ export function buildRubricDocument(rubric) {
       default: { document: { run: { font: 'Calibri', size: 20 } } },
     },
     sections: [{
+      ...attributionSection(opts),
       properties: {
         page: { size: { orientation: PageOrientation.LANDSCAPE } },
       },
@@ -195,8 +197,8 @@ export function buildRubricDocument(rubric) {
   })
 }
 
-export async function downloadRubricDocx(rubric, filename = 'rubric.docx') {
-  const doc = buildRubricDocument(rubric)
+export async function downloadRubricDocx(rubric, filename = 'rubric.docx', opts = {}) {
+  const doc = buildRubricDocument(rubric, opts)
   const blob = await Packer.toBlob(doc)
   try {
     const { saveAs } = await import('file-saver')

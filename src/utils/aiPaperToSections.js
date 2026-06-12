@@ -7,6 +7,7 @@
 
 import {
   createPartGroup,
+  createPassageSection,
   createStandaloneSection,
 } from './quizSections.js'
 
@@ -44,6 +45,7 @@ function mapType(aiType) {
     case 'multiple_choice': return 'mcq'
     case 'true_false': return 'mcq' // True/False renders as a 2-option MCQ
     case 'essay': return 'essay'
+    case 'matching': return 'matching'
     case 'short_answer':
     case 'calculation':
     case 'structured':
@@ -77,7 +79,26 @@ export function mapAiQuestion(q, { partId = null } = {}) {
     partId,
   }
 
-  if (type === 'mcq') {
+  if (type === 'matching') {
+    // assessmentSchema v1.3 guarantees a valid {left, right, pairs} shape
+    // (it degrades broken matching to short_answer before we see it), but
+    // guard anyway for hand-fed payloads.
+    const m = q?.matching
+    const valid = m && Array.isArray(m.left) && Array.isArray(m.right) &&
+      Array.isArray(m.pairs) && m.pairs.length === m.left.length &&
+      m.left.length >= 2
+    if (valid) {
+      overrides.matchingLeft = m.left.map(String)
+      overrides.matchingRight = m.right.map(String)
+      overrides.matchingAnswer = m.pairs.map(Number)
+      overrides.correctAnswer = 0
+    } else {
+      overrides.type = 'short_answer'
+      overrides.detectedType = 'short_answer'
+      overrides.correctAnswer = answer
+      reviewNotes.push('AI matching columns were incomplete — rebuild the pairs or reword as short answer.')
+    }
+  } else if (type === 'mcq') {
     const options = aiType === 'true_false' && !(Array.isArray(q?.options) && q.options.length >= 2) ?
       ['True', 'False'] :
       (Array.isArray(q?.options) ? q.options.map((o) => String(o ?? '').trim()).filter(Boolean) : [])
@@ -102,6 +123,10 @@ export function mapAiQuestion(q, { partId = null } = {}) {
 
   const diagram = String(q?.diagram || '').trim()
   if (diagram) {
+    // Carried as a first-class field so the DiagramFixupPanel can find the
+    // question and auto-match/generate the figure; the review note is the
+    // human-readable fallback on the question card.
+    overrides.diagramBrief = diagram
     reviewNotes.push(`Diagram needed: ${diagram} — attach it from the picture bank or generate one.`)
   }
 
@@ -117,6 +142,14 @@ export function mapAiQuestion(q, { partId = null } = {}) {
 /**
  * Convert a whole AI assessment into studio blocks.
  * Returns { sections, parts, questionCount, totalMarks, warnings }.
+ *
+ * Sections WITHOUT a passage become a Part (numbered group heading) of
+ * standalone questions. Sections WITH a passage (schema v1.2 comprehension)
+ * become the studio's native passage block — story on top, questions
+ * attached — which already prints/exports in the Zambian comprehension
+ * layout, so no Part wrapper is added (the passage carries its own title
+ * and instructions).
+ *
  * Never throws on malformed input — skips junk and reports it.
  */
 export function aiAssessmentToStudioBlocks(assessment) {
@@ -125,6 +158,32 @@ export function aiAssessmentToStudioBlocks(assessment) {
   aiSections.forEach((sec, sIdx) => {
     const questions = Array.isArray(sec?.questions) ? sec.questions : []
     if (questions.length === 0) return
+
+    const passageText = String(sec?.passage?.text || '').trim()
+    if (passageText) {
+      const mapped = []
+      for (const q of questions) {
+        if (!q || typeof q !== 'object' || !String(q.prompt || '').trim()) {
+          out.warnings.push('Skipped an empty AI question.')
+          continue
+        }
+        const { overrides, warnings } = mapAiQuestion(q)
+        mapped.push(overrides)
+        out.questionCount += 1
+        out.totalMarks += overrides.marks
+        out.warnings.push(...warnings)
+      }
+      if (mapped.length === 0) return
+      out.sections.push(createPassageSection({
+        title: String(sec?.passage?.title || sec?.title || `Section ${sIdx + 1}`).trim(),
+        instructions: String(sec?.instructions || '').trim(),
+        passageText,
+        passageKind: 'comprehension',
+        questions: mapped,
+      }))
+      return
+    }
+
     const part = createPartGroup({
       title: String(sec?.title || `Section ${sIdx + 1}`).trim(),
       instructions: String(sec?.instructions || '').trim(),

@@ -54,6 +54,16 @@ const STUDIOS = [
     meta: 'Weekly prep',
   },
   {
+    icon: ClipboardList,
+    tone: 'cyan',
+    badge: 'NEW',
+    libraryKey: 'record-of-work',
+    title: 'Record of Work',
+    tagline: 'Log what you actually taught each week, checked against your scheme.',
+    to: '/teacher/generate/record-of-work',
+    meta: 'Weekly log',
+  },
+  {
     icon: Calculator,
     tone: 'green',
     badge: 'NEW',
@@ -176,8 +186,11 @@ function SectionLabel({ children }) {
 
 function StudioCard({ icon, tone, badge, libraryKey, isLibrary, title, tagline, meta, to, librarySummary }) {
   const isSoon = badge === 'SOON'
+  // STUDIOS uses dash-cased libraryKeys ('lesson-plan') but byTool is keyed
+  // by the snake_cased Firestore tool ids ('lesson_plan') — normalize or the
+  // saved count never matches.
   const count = libraryKey
-    ? (librarySummary?.byTool?.[libraryKey] ?? 0)
+    ? (librarySummary?.byTool?.[libraryKey.replace(/-/g, '_')] ?? 0)
     : isLibrary
     ? (librarySummary?.total ?? 0)
     : null

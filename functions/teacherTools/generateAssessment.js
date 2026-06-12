@@ -25,7 +25,7 @@ const {
 } = require("./assessmentFormats");
 const {validateAssessment} = require("./assessmentSchema");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
-  require("./assessmentPromptV2");
+  require("./assessmentPromptV4");
 const {assertAndIncrement} = require("./usageMeter");
 const {LEARNING_ENVIRONMENT_VALUES} = require("./learningEnvironments");
 
@@ -166,7 +166,11 @@ async function runAssessment({uid, rawInputs, apiKey}) {
       cbcContextBlock: contextBlock,
       formatContextBlock: formatBlock,
       messages: [{role: "user", content: userPrompt}],
-      maxTokens: 5500,
+      // Big mocks (100 marks, 40-50 questions with options, answers and
+      // marking guides) overflow a small output budget and arrive
+      // truncated/flagged. 16k tokens covers the largest allowed paper;
+      // output tokens are only billed as used.
+      maxTokens: 16000,
       temperature: 0.4,
       model: ASSESSMENT_MODEL,
       mode: "tool",
@@ -243,7 +247,7 @@ async function runAssessment({uid, rawInputs, apiKey}) {
 
 function createGenerateAssessment(anthropicApiKeySecret) {
   return onCall(
-      {secrets: [anthropicApiKeySecret], timeoutSeconds: 120,
+      {secrets: [anthropicApiKeySecret], timeoutSeconds: 240,
         memory: "512MiB"},
       async (request) => {
         const uid = request.auth && request.auth.uid;

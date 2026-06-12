@@ -17,6 +17,7 @@ import {
   TextRun,
   WidthType,
 } from 'docx'
+import { attributionSection } from './docxAttribution.js'
 import { percentFor, averagePercent } from './markSchedule.js'
 
 // Solid black grid — the schedule is a formal school record.
@@ -131,7 +132,7 @@ function commentsTable(schedule) {
   return new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [headerRow, ...rows] })
 }
 
-export function buildMarkScheduleDocument(schedule, { mode = 'marks' } = {}) {
+export function buildMarkScheduleDocument(schedule, { mode = 'marks', attribution = false } = {}) {
   const h = schedule.header || {}
   const gradeLabel = String(h.grade ?? '').replace(/^G/i, '')
   const heading = `GRADE ${gradeLabel} · TERM ${h.term ?? ''} MARK SCHEDULE — ${h.year ?? ''}`
@@ -139,6 +140,7 @@ export function buildMarkScheduleDocument(schedule, { mode = 'marks' } = {}) {
   return new Document({
     sections: [
       {
+        ...attributionSection({ attribution }),
         properties: {
           // Landscape: with five-plus subject columns the grid is wide,
           // exactly like the printed schedules schools keep.
@@ -150,6 +152,7 @@ export function buildMarkScheduleDocument(schedule, { mode = 'marks' } = {}) {
         ],
       },
       {
+        ...attributionSection({ attribution }),
         properties: {
           page: { size: { orientation: PageOrientation.LANDSCAPE } },
         },

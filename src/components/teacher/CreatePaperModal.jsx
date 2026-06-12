@@ -25,6 +25,7 @@ const QUESTION_TYPE_OPTIONS = [
   { key: 'true/false', label: 'True / False' },
   { key: 'short answer', label: 'Short answer' },
   { key: 'fill-in-the-blank', label: 'Fill in the blank' },
+  { key: 'matching (match Column A with Column B)', label: 'Matching' },
   { key: 'structured (multi-part)', label: 'Structured' },
   { key: 'calculation (show working)', label: 'Calculation' },
   { key: 'essay/composition', label: 'Essay / Composition' },

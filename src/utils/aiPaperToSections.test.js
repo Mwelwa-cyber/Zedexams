@@ -88,7 +88,8 @@ console.log('aiPaperToSections')
   })
   assert.strictEqual(withDiagram.overrides.requiresReview, true)
   assert.ok(withDiagram.overrides.reviewNotes.some((n) => n.includes('Diagram needed')))
-  ok('diagram briefs surface as review notes', true)
+  assert.strictEqual(withDiagram.overrides.diagramBrief, 'A bean plant with the stem labelled X.')
+  ok('diagram briefs surface as review notes AND a diagramBrief field', true)
 }
 
 // ── aiAssessmentToStudioBlocks ────────────────────────────────────────────
@@ -129,6 +130,66 @@ console.log('aiPaperToSections')
   ok('questions carry their AI section’s partId', true)
   assert.ok(blocks.warnings.length >= 1)
   ok('skips are reported as warnings', true)
+}
+
+// ── Matching questions ────────────────────────────────────────────────────
+{
+  const good = mapAiQuestion({
+    type: 'matching',
+    prompt: 'Match the animals in Column A with their young ones in Column B.',
+    matching: { left: ['cow', 'dog', 'hen'], right: ['calf', 'puppy', 'chick', 'kid'], pairs: [0, 1, 2] },
+    marks: 3,
+    answer: 'cow-calf, dog-puppy, hen-chick',
+    markingGuide: '1 mark per correct pair.',
+  })
+  assert.strictEqual(good.overrides.type, 'matching')
+  assert.deepStrictEqual(good.overrides.matchingLeft, ['cow', 'dog', 'hen'])
+  assert.deepStrictEqual(good.overrides.matchingRight, ['calf', 'puppy', 'chick', 'kid'])
+  assert.deepStrictEqual(good.overrides.matchingAnswer, [0, 1, 2])
+  assert.ok(!good.overrides.requiresReview)
+  ok('valid matching maps to the studio matching shape', true)
+
+  const broken = mapAiQuestion({
+    type: 'matching',
+    prompt: 'Match these.',
+    matching: null,
+    marks: 2,
+    answer: 'a-b',
+  })
+  assert.strictEqual(broken.overrides.type, 'short_answer')
+  assert.strictEqual(broken.overrides.requiresReview, true)
+  ok('matching without columns degrades to a flagged short answer', true)
+}
+
+// ── Comprehension passages become passage blocks ─────────────────────────
+{
+  const blocks = aiAssessmentToStudioBlocks({
+    sections: [
+      {
+        title: 'SECTION B: COMPREHENSION',
+        instructions: 'Read the story and answer the questions.',
+        passage: {
+          title: 'Warthog and Lion',
+          text: 'A warthog went into a cave to keep warm. Soon a hungry lion came in…',
+        },
+        questions: [
+          { type: 'short_answer', prompt: 'Why did Warthog hold his tusks against the roof?', marks: 2, answer: 'To pretend the cave was falling.' },
+          { type: 'multiple_choice', prompt: 'Where did Warthog go?', options: ['a cave', 'a river', 'a tree'], marks: 1, answer: 'a cave' },
+        ],
+      },
+    ],
+  })
+  assert.strictEqual(blocks.sections.length, 1)
+  const sec = blocks.sections[0]
+  assert.strictEqual(sec.kind, 'passage')
+  assert.strictEqual(sec.passage.passageKind, 'comprehension')
+  assert.strictEqual(sec.passage.title, 'Warthog and Lion')
+  assert.strictEqual(sec.passage.questions.length, 2)
+  assert.strictEqual(sec.passage.questions[1].correctAnswer, 0)
+  assert.strictEqual(blocks.parts.length, 0, 'passage blocks need no Part wrapper')
+  assert.strictEqual(blocks.questionCount, 2)
+  assert.strictEqual(blocks.totalMarks, 3)
+  ok('AI comprehension sections map to native passage blocks', true)
 }
 
 // ── Garbage input never throws ────────────────────────────────────────────

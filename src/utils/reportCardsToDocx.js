@@ -22,6 +22,7 @@ import {
   TextRun,
   WidthType,
 } from 'docx'
+import { attributionSection } from './docxAttribution.js'
 import { buildReportCards } from './markSchedule.js'
 
 const CELL_BORDER = {
@@ -132,7 +133,7 @@ function cardChildren(card, header, { first }) {
   ]
 }
 
-export function buildReportCardsDocument(schedule) {
+export function buildReportCardsDocument(schedule, opts = {}) {
   const cards = buildReportCards(schedule)
   const children = cards.flatMap((card, i) =>
     cardChildren(card, schedule.header, { first: i === 0 }))
@@ -146,12 +147,12 @@ export function buildReportCardsDocument(schedule) {
       },
     },
     // Portrait A4 — one card (page) per pupil.
-    sections: [{ children }],
+    sections: [{ ...attributionSection(opts), children }],
   })
 }
 
-export async function downloadReportCardsDocx(schedule, filename = 'report-cards.docx') {
-  const doc = buildReportCardsDocument(schedule)
+export async function downloadReportCardsDocx(schedule, filename = 'report-cards.docx', opts = {}) {
+  const doc = buildReportCardsDocument(schedule, opts)
   const blob = await Packer.toBlob(doc)
   try {
     const { saveAs } = await import('file-saver')

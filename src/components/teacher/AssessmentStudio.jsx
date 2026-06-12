@@ -10,6 +10,7 @@ import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage
 
 import { useFirestore } from '../../hooks/useFirestore'
 import { useAuth } from '../../contexts/AuthContext'
+import { isFreePlanTeacher } from '../../utils/teacherLibraryService'
 import {
   clearAssessmentDraft,
   loadAssessmentDraft,
@@ -39,7 +40,11 @@ import SeoHelmet from '../seo/SeoHelmet'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import PictureBankPicker from './PictureBankPicker'
 import CreatePaperModal from './CreatePaperModal'
-import { useSyllabusTopicOptions } from './syllabusTopicOptions'
+import DiagramFixupPanel, { countDiagramsNeeded } from './DiagramFixupPanel'
+import QuizVerifyModal from '../quiz/QuizVerifyModal'
+import {
+  useSyllabusTopicOptions, studioGradeToKbGrade, studioSubjectToKey,
+} from './syllabusTopicOptions'
 import {
   QUIZ_DOCUMENT_ACCEPT,
   importQuizDocument,
@@ -275,7 +280,7 @@ function plainTextWordCount(value) {
 
 export default function AssessmentStudio() {
   const { createAssessment, saveAssessmentQuestions, getMyAssessments } = useFirestore()
-  const { currentUser } = useAuth()
+  const { currentUser, userProfile, isAdmin } = useAuth()
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedView = searchParams.get('view')
@@ -324,6 +329,8 @@ export default function AssessmentStudio() {
   const [aiForm, setAiForm] = useState({ topic: '', count: 5, type: 'mcq' })
   const [aiGenerating, setAiGenerating] = useState(false)
   const [createPaperOpen, setCreatePaperOpen] = useState(false)
+  const [diagramFixOpen, setDiagramFixOpen] = useState(false)
+  const [verifyOpen, setVerifyOpen] = useState(false)
   const [generatingDiagram, setGeneratingDiagram] = useState(false)
   const [importingDocument, setImportingDocument] = useState(false)
   // Import over existing questions waits on ConfirmDialog — { files, importOptions }.
@@ -743,11 +750,15 @@ export default function AssessmentStudio() {
         blocks.sections : [...prev, ...blocks.sections]))
       setParts(prev => [...prev, ...newParts])
     }
-    // Fill paper metadata the teacher hasn't set yet.
+    // Fill paper metadata the teacher hasn't set yet — including their
+    // school name/logo from the most recent saved paper, so AI-created
+    // papers print with the school header without re-typing it each time.
     const typeMap = {
       mid_term: 'mid_term', end_of_term: 'end_of_term',
       topic_test: 'topic', mock_exam: 'mock',
     }
+    const lastWithSchool = recentPapers.find(p => (p.schoolName || '').trim())
+    const lastWithLogo = recentPapers.find(p => (p.schoolLogoUrl || '').trim())
     setForm(f => ({
       ...f,
       term: f.term || aiPaperForm.term,
@@ -755,6 +766,8 @@ export default function AssessmentStudio() {
       assessmentType: typeMap[aiPaperForm.assessmentType] || f.assessmentType,
       coverInstructions: f.coverInstructions ||
         String(assessment?.header?.instructions || ''),
+      schoolName: f.schoolName || lastWithSchool?.schoolName || '',
+      schoolLogoUrl: f.schoolLogoUrl || lastWithLogo?.schoolLogoUrl || '',
     }))
     setCreatePaperOpen(false)
     closeSlide()
@@ -765,6 +778,34 @@ export default function AssessmentStudio() {
       `${blocks.questionCount} questions, ${blocks.totalMarks} marks.` +
       (flagged ? ` ${flagged} flagged for review.` : ' Review before saving.'),
     )
+    // Close the diagram loop immediately: if any question needs a figure,
+    // open the fixup panel so the teacher attaches/generates them now
+    // rather than discovering gaps at print time.
+    if (blocks.sections.some(s => s.question?.diagramBrief)) {
+      setDiagramFixOpen(true)
+    }
+  }
+
+  // Attach a picture-bank / AI-generated figure to a diagram-flagged
+  // question and clear its "Diagram needed" review note (un-flagging the
+  // question entirely when that was the only note).
+  function attachDiagramToSection(sectionIndex, url) {
+    if (!url) return
+    updateSection(sectionIndex, section => {
+      const remainingNotes = (section.question.reviewNotes || [])
+        .filter(n => !String(n).startsWith('Diagram needed:'))
+      return {
+        ...section,
+        question: {
+          ...section.question,
+          imageUrl: url,
+          imageAssetId: '',
+          reviewNotes: remainingNotes,
+          requiresReview: remainingNotes.length > 0,
+        },
+      }
+    })
+    showToast('Diagram attached.')
   }
 
   async function uploadSchoolLogo(file) {
@@ -1173,7 +1214,7 @@ export default function AssessmentStudio() {
         printAssessmentAsPdf(assessmentDoc, serializedPreview.questions, { mode })
         showToast('PDF dialog opened.')
       } else if (kind === 'docx') {
-        await downloadAssessmentDocx(assessmentDoc, serializedPreview.questions, `${baseFile}${fileSuffix}.docx`, { mode })
+        await downloadAssessmentDocx(assessmentDoc, serializedPreview.questions, `${baseFile}${fileSuffix}.docx`, { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
         showToast('Word download started.')
       } else if (kind === 'print') {
         window.print()
@@ -1447,6 +1488,9 @@ export default function AssessmentStudio() {
         generatingDiagram={generatingDiagram}
         onOpenMarkingKey={() => { closeSlide(); changeView('marking-key') }}
         onCreatePaper={() => setCreatePaperOpen(true)}
+        diagramsNeeded={countDiagramsNeeded(sections)}
+        onOpenDiagramFix={() => { closeSlide(); setDiagramFixOpen(true) }}
+        onVerifyPaper={() => { closeSlide(); setVerifyOpen(true) }}
       />
       {createPaperOpen && (
         <CreatePaperModal
@@ -1455,6 +1499,29 @@ export default function AssessmentStudio() {
           onClose={() => setCreatePaperOpen(false)}
         />
       )}
+      {diagramFixOpen && (
+        <DiagramFixupPanel
+          sections={sections}
+          subject={studioSubjectToKey(form.subject)}
+          questionNumbers={questionNumbers}
+          onAttach={attachDiagramToSection}
+          onClose={() => setDiagramFixOpen(false)}
+        />
+      )}
+      <QuizVerifyModal
+        open={verifyOpen}
+        quizId=""
+        form={{
+          grade: studioGradeToKbGrade(form.grade),
+          subject: studioSubjectToKey(form.subject),
+          topic: form.topic || '',
+          subtopic: '',
+          difficulty: '',
+        }}
+        sections={sections}
+        parts={parts}
+        onClose={() => setVerifyOpen(false)}
+      />
       <EditorSlide
         open={slideover === 'editor'}
         onClose={closeSlide}
@@ -4532,7 +4599,7 @@ function BlockPickerItem({ icon, title, hint, onClick, disabled, gold }) {
  * ================================================================== */
 const AI_COUNT_PRESETS = [5, 10, 15, 20, 25]
 
-function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNumbers, generating, onGenerate, onImport, importing, onGenerateDiagram, generatingDiagram, onOpenMarkingKey, onCreatePaper }) {
+function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNumbers, generating, onGenerate, onImport, importing, onGenerateDiagram, generatingDiagram, onOpenMarkingKey, onCreatePaper, diagramsNeeded = 0, onOpenDiagramFix, onVerifyPaper }) {
   const docInputRef = useRef(null)
   const [customCount, setCustomCount] = useState(false)
   const { topics: topicOptions } = useSyllabusTopicOptions(form.grade, form.subject, aiForm.topic)
@@ -4609,6 +4676,9 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNu
               onChange={e => setAiForm(prev => ({ ...prev, type: e.target.value }))}
             >
               <option value="mcq">Multiple choice</option>
+              <option value="true_false">True / False</option>
+              <option value="short_answer">Short answer</option>
+              <option value="mixed">Mixed (all three)</option>
             </select>
           </div>
         </div>
@@ -4646,6 +4716,25 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNu
           <button className="sv-ai-action" onClick={onOpenMarkingKey}>
             <div className="sv-ic">📑</div>
             <div><strong>Open marking key</strong><small>Auto-generated answers + explanations</small></div>
+          </button>
+          <button className="sv-ai-action" onClick={onVerifyPaper} disabled={!questions?.length}>
+            <div className="sv-ic">🔍</div>
+            <div><strong>Check this paper</strong><small>Vex verifies answers, grade fit and clarity before you print</small></div>
+          </button>
+          <button className="sv-ai-action" onClick={onOpenDiagramFix}>
+            <div className="sv-ic">🖼</div>
+            <div>
+              <strong>
+                Fix missing diagrams
+                {diagramsNeeded > 0 && (
+                  <span style={{
+                    marginLeft: 6, background: 'var(--sv-primary)', color: '#fff',
+                    borderRadius: 999, padding: '1px 8px', fontSize: 11, fontWeight: 800,
+                  }}>{diagramsNeeded}</span>
+                )}
+              </strong>
+              <small>Match from the picture bank or generate from the AI&apos;s description</small>
+            </div>
           </button>
           <DiagramGeneratorAction
             disabled={generatingDiagram}

@@ -15,6 +15,7 @@ import {
   listBankPictures, activateBankPicture, deleteBankPicture,
   uploadBankPicture, generateBankPicture, resolvePictureUrl,
 } from '../../utils/pictureBankService'
+import { STARTER_PACK } from '../../utils/pictureBankStarterPack'
 
 const SUBJECT_OPTIONS = [
   { value: '_generic', label: 'All subjects (generic)' },
@@ -127,6 +128,8 @@ export default function PictureBankAdmin() {
       )}
 
       <IntakePanels uid={currentUser?.uid} flash={flash} onDone={load} />
+
+      <StarterPackPanel pictures={pictures} uid={currentUser?.uid} flash={flash} onDone={load} />
 
       {loading ? (
         <p className="text-sm text-gray-500">Loading pictures…</p>
@@ -287,6 +290,101 @@ function StagedCard({ pic, url, onActivate, onDiscard }) {
         </button>
       </div>
     </div>
+  )
+}
+
+// Batch-generates the curated starter figures (pictureBankStarterPack)
+// that aren't in the bank yet, sequentially — each image costs money and
+// shares a rate limit, and three consecutive failures abort the run so a
+// provider outage doesn't burn the whole batch.
+function StarterPackPanel({ pictures, uid, flash, onDone }) {
+  const [running, setRunning] = useState(false)
+  const [progress, setProgress] = useState(null) // { done, total, current }
+
+  const missing = useMemo(() => {
+    const have = new Set((pictures || []).map((p) => p.nameLower || String(p.name || '').toLowerCase()))
+    return STARTER_PACK.filter((item) => !have.has(item.name.toLowerCase()))
+  }, [pictures])
+
+  async function run() {
+    setRunning(true)
+    let generated = 0
+    let consecutiveFailures = 0
+    try {
+      for (let i = 0; i < missing.length; i++) {
+        const item = missing[i]
+        setProgress({ done: i, total: missing.length, current: item.name })
+        try {
+          await generateBankPicture({
+            prompt: item.prompt,
+            name: item.name,
+            keywords: item.keywords,
+            subject: item.subject,
+            provider: item.provider,
+            uid,
+          })
+          generated += 1
+          consecutiveFailures = 0
+        } catch (err) {
+          consecutiveFailures += 1
+          console.warn('starter pack item failed', item.name, err?.message)
+          if (consecutiveFailures >= 3) {
+            flash(`Stopped after repeated failures (${err?.message || 'generation error'}). ${generated} generated — run again later for the rest.`, 10000)
+            return
+          }
+        }
+      }
+      flash(`Starter pack done — ${generated} picture(s) added and live for teachers.`, 10000)
+    } finally {
+      setRunning(false)
+      setProgress(null)
+      await onDone()
+    }
+  }
+
+  if (missing.length === 0 && !running) {
+    return (
+      <section className="border border-gray-200 rounded-2xl p-4 bg-white text-sm text-gray-600">
+        ✅ Starter pack complete — all {STARTER_PACK.length} core curriculum figures are in the bank.
+      </section>
+    )
+  }
+
+  return (
+    <section className="border border-gray-200 rounded-2xl p-4 bg-white">
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex-1 min-w-[240px]">
+          <h2 className="text-base font-black text-gray-900 m-0">
+            🎒 Starter pack — {missing.length} core figures missing
+          </h2>
+          <p className="text-sm text-gray-600 mt-1">
+            Body systems, plant parts, the water cycle, Zambia's provinces,
+            shapes, Venn templates, domestic animals and more — generated with
+            AI, named and keyworded so teacher searches hit immediately.
+            Roughly 4 US cents per image.
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={run}
+          disabled={running}
+          className="bg-emerald-600 text-white rounded-lg px-5 py-2 text-sm font-bold disabled:opacity-50"
+        >
+          {running ? 'Generating…' : `Generate ${missing.length} missing`}
+        </button>
+      </div>
+      {progress && (
+        <div className="mt-3">
+          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div className="h-full bg-emerald-500 transition-all"
+              style={{ width: `${Math.round((progress.done / Math.max(1, progress.total)) * 100)}%` }} />
+          </div>
+          <p className="text-xs text-gray-500 mt-1">
+            {progress.done}/{progress.total} · now drawing: {progress.current}
+          </p>
+        </div>
+      )}
+    </section>
   )
 }
 

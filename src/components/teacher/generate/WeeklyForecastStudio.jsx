@@ -21,7 +21,7 @@ import { TEACHER_GRADES, TEACHER_SUBJECTS } from '../../../utils/teacherTools'
 import { schemeWeeks, weekNumberOf, normalizeSchemeWeek, buildForecastDays } from '../../../utils/weeklyForecast'
 import { downloadWeeklyForecastDocx } from '../../../utils/weeklyForecastToDocx'
 import {
-  listMyGenerations, titleForGeneration, saveWeeklyForecastGeneration,
+  listMyGenerations, titleForGeneration, saveWeeklyForecastGeneration, isFreePlanTeacher,
 } from '../../../utils/teacherLibraryService'
 import { clampInt } from '../../../utils/inputs.js'
 import WeeklyForecastView from '../views/WeeklyForecastView'
@@ -63,7 +63,7 @@ const linesToList = (text) => String(text || '').split('\n').map((l) => l.trim()
 const listToLines = (list) => (Array.isArray(list) ? list.join('\n') : '')
 
 export default function WeeklyForecastStudio() {
-  const { currentUser, userProfile } = useAuth()
+  const { currentUser, userProfile, isAdmin } = useAuth()
   const toast = useToast()
   const uid = currentUser?.uid
 
@@ -216,7 +216,7 @@ export default function WeeklyForecastStudio() {
     if (!artifact) return
     const name = `${header.grade}_term${header.term}_week${header.weekNumber}_weekly-forecast.docx`
     try {
-      await downloadWeeklyForecastDocx(artifact, name)
+      await downloadWeeklyForecastDocx(artifact, name, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
       toast.success('Weekly forecast downloaded.')
     } catch (err) {
       console.error('[WeeklyForecastStudio] docx export failed', err)

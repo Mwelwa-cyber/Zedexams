@@ -1,9 +1,9 @@
 /**
- * Export a weekly forecast as a Word (.docx) file in landscape: the
- * official per-day grid (WEEK | DAY | TOPIC | SUB-TOPIC | SPECIFIC
- * COMPETENCE | LEARNING ACTIVITY | EXPECTED STANDARD | T/L RESOURCES |
- * REMARKS) with the school / teacher / week-dates fill-in header —
- * mirroring src/components/teacher/views/WeeklyForecastView.jsx.
+ * Export a record of work as a Word (.docx) file in landscape: the
+ * official weekly log grid (WEEK | WEEK ENDING | TOPIC | SUB-TOPIC |
+ * WORK DONE | REMARKS) with the school / teacher fill-in header and the
+ * teacher + checked-by signature block — mirroring
+ * src/components/teacher/views/RecordOfWorkView.jsx.
  */
 
 import {
@@ -17,9 +17,9 @@ import {
   TableCell,
   TableRow,
   TextRun,
-  VerticalMergeType,
   WidthType,
 } from 'docx'
+import { printedRemark } from './recordOfWork.js'
 import { attributionSection } from './docxAttribution.js'
 
 const CELL_BORDER = {
@@ -60,42 +60,31 @@ function cell(content, { bold = false, center = false, bullets = false } = {}) {
   return new TableCell({ children, borders: CELL_BORDER })
 }
 
-export function buildWeeklyForecastDocument(forecast, opts = {}) {
-  const h = forecast.header || {}
-  const days = forecast.days || []
+export function buildRecordOfWorkDocument(record, opts = {}) {
+  const h = record.header || {}
+  const weeks = record.weeks || []
   const subject = String(h.subject || '').toUpperCase()
 
   const headerRow = new TableRow({
     tableHeader: true,
     children: [
       headCell('WEEK', 5),
-      headCell('DAY', 5),
-      headCell('TOPIC', 10),
-      headCell('SUB-TOPIC / TO BE DONE', 12),
-      headCell('SPECIFIC COMPETENCE', 15),
-      headCell('LEARNING ACTIVITY', 21),
-      headCell('EXPECTED STANDARD', 12),
-      headCell('T/L RESOURCES', 10),
-      headCell('REMARKS / COMMENTS ON PROGRESS', 10),
+      headCell('WEEK ENDING', 10),
+      headCell('TOPIC', 16),
+      headCell('SUB-TOPIC', 16),
+      headCell('WORK DONE', 33),
+      headCell('REMARKS', 20),
     ],
   })
 
-  const dayRows = days.map((d, i) => new TableRow({
+  const weekRows = weeks.map((w) => new TableRow({
     children: [
-      // WEEK number merges down the week's days, like the printed form.
-      new TableCell({
-        children: i === 0 ? [para(text(h.weekNumber, { bold: true }), { alignment: AlignmentType.CENTER })] : [para(text(''))],
-        verticalMerge: i === 0 ? VerticalMergeType.RESTART : VerticalMergeType.CONTINUE,
-        borders: CELL_BORDER,
-      }),
-      cell(d.day, { center: true }),
-      cell(d.topic, { bold: true }),
-      cell(d.subtopic),
-      cell(d.specificCompetence),
-      cell(d.learningActivities, { bullets: true }),
-      cell(d.expectedStandard),
-      cell(d.resources, { bullets: true }),
-      cell(d.remarks || ''),
+      cell(w.week, { bold: true, center: true }),
+      cell(w.weekEnding || ''),
+      cell(w.topic, { bold: true }),
+      cell(w.subtopic),
+      cell(w.workDone, { bullets: true }),
+      cell(printedRemark(w)),
     ],
   }))
 
@@ -103,12 +92,13 @@ export function buildWeeklyForecastDocument(forecast, opts = {}) {
     sections: [{
       ...attributionSection(opts),
       properties: {
-        // Landscape — nine columns never fit portrait A4.
+        // Landscape — matches the scheme + forecast family and gives the
+        // WORK DONE column the room a term's log actually needs.
         page: { size: { orientation: PageOrientation.LANDSCAPE } },
       },
       children: [
         new Paragraph({
-          children: [text(`GRADE ${String(h.grade ?? '').replace(/^G/i, '')} ${subject} WEEKLY FORECAST`, { bold: true, size: 28 })],
+          children: [text(`GRADE ${String(h.grade ?? '').replace(/^G/i, '')} ${subject} RECORD OF WORK`, { bold: true, size: 28 })],
           alignment: AlignmentType.CENTER,
           spacing: { after: 60 },
         }),
@@ -120,17 +110,23 @@ export function buildWeeklyForecastDocument(forecast, opts = {}) {
         para([
           text('NAME OF SCHOOL: ', { bold: true }), text(h.school || '____________________'),
           text('    TEACHER’S NAME: ', { bold: true }), text(h.teacherName || '____________________'),
-          text('    WEEK BEG: ', { bold: true }), text(h.weekBeginning || '__________'),
-          text('    WEEK END: ', { bold: true }), text(h.weekEnding || '__________'),
         ], { spacing: { after: 160 } }),
-        new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [headerRow, ...dayRows] }),
+        new Table({ width: { size: 100, type: WidthType.PERCENTAGE }, rows: [headerRow, ...weekRows] }),
+        para([
+          text('TEACHER’S SIGNATURE: ', { bold: true }), text('______________________'),
+          text('    DATE: ', { bold: true }), text('____________'),
+        ], { spacing: { before: 240, after: 80 } }),
+        para([
+          text('CHECKED BY (H.O.D / HEAD TEACHER): ', { bold: true }), text('______________________'),
+          text('    DATE: ', { bold: true }), text('____________'),
+        ]),
       ],
     }],
   })
 }
 
-export async function downloadWeeklyForecastDocx(forecast, filename = 'weekly-forecast.docx', opts = {}) {
-  const doc = buildWeeklyForecastDocument(forecast, opts)
+export async function downloadRecordOfWorkDocx(record, filename = 'record-of-work.docx', opts = {}) {
+  const doc = buildRecordOfWorkDocument(record, opts)
   const blob = await Packer.toBlob(doc)
   try {
     const { saveAs } = await import('file-saver')
