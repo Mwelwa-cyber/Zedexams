@@ -18,6 +18,8 @@ import WordBuilderGame from './WordBuilderGame'
 import ProvinceShapesGame from './ProvinceShapesGame'
 import NumberTargetGame from './NumberTargetGame'
 import SortingFactoryGame from './SortingFactoryGame'
+import SentenceScrambleGame from './SentenceScrambleGame'
+import MarketChallengeGame from './MarketChallengeGame'
 import {
   getGameAccessMeta,
   getGameTypeTheme,
@@ -230,6 +232,8 @@ function GameEngine({ game }) {
   if (game.type === 'province_shapes') return <ProvinceShapesGame game={game} />
   if (game.type === 'number_target') return <NumberTargetGame game={game} />
   if (game.type === 'sorting_factory') return <SortingFactoryGame game={game} />
+  if (game.type === 'sentence_scramble') return <SentenceScrambleGame game={game} />
+  if (game.type === 'market_challenge') return <MarketChallengeGame game={game} />
 
   return (
     <div className="zx-card rounded-[22px] bg-white p-10 text-center">

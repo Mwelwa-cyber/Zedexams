@@ -315,7 +315,7 @@ function WorksheetPreview() {
               Generated in 6 seconds
             </p>
             <h3 className="font-display font-black text-lg leading-tight">
-              Grade 5 Maths · Fractions worksheet
+              Grade 9 Maths · Percentages &amp; Money worksheet
             </h3>
           </div>
         </div>
@@ -327,14 +327,26 @@ function WorksheetPreview() {
       <div className="rounded-2xl border theme-border bg-[color:var(--bg-subtle)] p-5 sm:p-6 space-y-4 font-body text-sm">
         <p className="font-black theme-text">Name: ____________________   Date: __________</p>
         <ol className="list-decimal pl-5 space-y-2.5 theme-text">
-          <li>Write <span className="font-bold">3/4</span> as a decimal.</li>
           <li>
-            Mukuka ate <span className="font-bold">2/8</span> of a pizza and Chola ate{' '}
-            <span className="font-bold">3/8</span>. How much pizza is left?
+            A shop marks up a bag of mealie-meal that costs{' '}
+            <span className="font-bold">K180</span> by <span className="font-bold">25%</span>.
+            Find the selling price.
           </li>
-          <li>Compare: 5/6 ___ 4/5  (use &lt;, &gt; or =)</li>
-          <li>Add: 1/3 + 1/6 = ____</li>
-          <li>Bana shared 12 mangoes equally among 4 friends. What fraction did each get?</li>
+          <li>
+            Mwila deposits <span className="font-bold">K2 500</span> at{' '}
+            <span className="font-bold">8%</span> simple interest per year. How much interest
+            does she earn after 3 years?
+          </li>
+          <li>
+            A phone costs <span className="font-bold">K3 200</span> cash, or a{' '}
+            <span className="font-bold">K400</span> deposit plus 8 monthly payments of{' '}
+            <span className="font-bold">K380</span>. How much more is the hire-purchase price?
+          </li>
+          <li>Chanda scored 45 out of 60 in a test. Express this as a percentage.</li>
+          <li>
+            The price of a chitenge rose from <span className="font-bold">K90</span> to{' '}
+            <span className="font-bold">K117</span>. Calculate the percentage increase.
+          </li>
         </ol>
         <p className="theme-text-muted text-xs italic">…3 more questions on the printable page</p>
       </div>
@@ -551,14 +563,14 @@ export default function Marketing() {
               Generate a worksheet in seconds.
             </h2>
             <p className="theme-text-muted text-lg mb-6">
-              Tell ZedExams the grade, subject, and topic. Get a CBC-aligned worksheet drafted by
-              AI, ready to edit in Word or print as PDF — same lesson, less prep.
+              Tell ZedExams the grade, subject, and topic. Get a CBC-aligned document drafted by
+              AI, ready to edit in Word — same lesson, less prep.
             </p>
             <ul className="space-y-2.5 theme-text-muted mb-7">
               {[
-                'Lesson plans, worksheets, flashcards, schemes of work, rubrics',
+                'Lesson plans, schemes of work, weekly forecasts, worksheets, term tests, flashcards and rubrics',
+                'Mark schedules that rank the class and turn into per-pupil report cards',
                 'Locally relevant examples (kwacha, Zambian names, local context)',
-                'Editable DOCX so you can tweak before printing',
               ].map((b) => (
                 <li key={b} className="flex gap-2.5">
                   <Icon as={CheckCircleIcon} size="sm" className="mt-0.5 shrink-0 text-[color:var(--accent)]" />
@@ -566,9 +578,14 @@ export default function Marketing() {
                 </li>
               ))}
             </ul>
-            <Button as={Link} to="/register" variant="primary" size="lg">
-              Start free
-            </Button>
+            <div className="flex flex-wrap gap-3">
+              <Button as={Link} to="/register" variant="primary" size="lg">
+                Start free
+              </Button>
+              <Button as={Link} to="/teachers" variant="secondary" size="lg">
+                See real samples
+              </Button>
+            </div>
           </div>
           <div className="lg:col-span-7">
             <WorksheetPreview />

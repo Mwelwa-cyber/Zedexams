@@ -29,8 +29,14 @@ import { describeFirestoreReadError, withFirestoreReadTimeout } from './firestor
 /* ─────────────────────────────────────────────────────────────────
  *  Taxonomy used by the Grade → Subject → Games list UI
  * ───────────────────────────────────────────────────────────────── */
-// Zambian CBC upper-primary scope — Grades 4-7.
+// Full Zambian CBC primary scope — Grades 1-7. The games library carries
+// content from Grade 1 up (see src/data/gamesSeed.js), so every grade needs
+// a working Grade→Subject→Games page; gradeByValue() returning null makes
+// SubjectSelector/GameList bounce back to /games.
 export const GRADES = [
+  { value: 1, label: 'Grade 1', band: 'lower' },
+  { value: 2, label: 'Grade 2', band: 'lower' },
+  { value: 3, label: 'Grade 3', band: 'lower' },
   { value: 4, label: 'Grade 4', band: 'middle' },
   { value: 5, label: 'Grade 5', band: 'middle' },
   { value: 6, label: 'Grade 6', band: 'middle' },
