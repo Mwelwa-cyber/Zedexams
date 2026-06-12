@@ -6,7 +6,6 @@ import {
   GraduationCap,
   LogOut,
   Settings,
-  Bot,
   Users,
 } from '../ui/icons'
 import { useAuth } from '../../contexts/AuthContext'
@@ -23,7 +22,6 @@ const NAV = [
   { to: '/teacher/syllabi',          icon: FolderOpen,      label: 'Syllabi Studio'          },
   { to: '/teacher/curriculum',       icon: GraduationCap,   label: 'Curriculum'              },
   { to: '/teacher/classes',          icon: Users,           label: 'Classes'                 },
-  { to: '/teacher/agents',           icon: Bot,             label: 'Agent Submissions'       },
   { to: '/settings',                 icon: Settings,        label: 'Settings'                },
 ]
 
