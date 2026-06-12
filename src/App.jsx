@@ -5,6 +5,7 @@ import { useTheme, applyThemeToBody, DEFAULT_THEME } from './contexts/ThemeConte
 import { PlatformSettingsProvider } from './contexts/PlatformSettingsContext'
 import MaintenanceBanner from './components/banners/MaintenanceBanner'
 import AnnouncementBanner from './components/banners/AnnouncementBanner'
+import AndroidUpdateBanner from './components/banners/AndroidUpdateBanner'
 import ProtectedRoute from './components/layout/ProtectedRoute'
 import LearnerOnlyRoute from './components/auth/LearnerOnlyRoute'
 import Navbar from './components/layout/Navbar'
@@ -354,6 +355,7 @@ export default function App() {
           don't get hidden under the network indicator. */}
       <MaintenanceBanner />
       <AnnouncementBanner />
+      <AndroidUpdateBanner />
       {/* Offline banner — slides in at the top when navigator.onLine flips
           false. Firestore queues writes locally so the user's progress
           survives the network drop; this is the visible reassurance. */}
