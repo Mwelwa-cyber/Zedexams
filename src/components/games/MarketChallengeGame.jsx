@@ -28,8 +28,66 @@ import {
   generateCustomer,
 } from './marketChallengeCore'
 
-const CUSTOMER_EMOJI = ['🧒', '👧', '👦', '👩', '👨', '👵', '👴', '🧑']
+const CUSTOMER_EMOJI = ['🧒🏾', '👧🏾', '👦🏾', '👩🏾', '👨🏾', '👵🏾', '👴🏾', '🧑🏾']
 const MAX_HEARTS = 3
+
+/**
+ * Banknote skins per denomination (ngwee). Loosely inspired by real ZMW
+ * notes — every one carries the fish eagle, like the real thing. K1 and
+ * 50n render as metal coins instead.
+ */
+const NOTE_SKINS = {
+  10000: { label: 'K100', bg: 'linear-gradient(135deg, #b45309, #f59e0b)' },
+  5000:  { label: 'K50',  bg: 'linear-gradient(135deg, #6d28d9, #a78bfa)' },
+  2000:  { label: 'K20',  bg: 'linear-gradient(135deg, #047857, #34d399)' },
+  1000:  { label: 'K10',  bg: 'linear-gradient(135deg, #1d4ed8, #60a5fa)' },
+  500:   { label: 'K5',   bg: 'linear-gradient(135deg, #c2410c, #fb923c)' },
+  200:   { label: 'K2',   bg: 'linear-gradient(135deg, #4d7c0f, #a3e635)' },
+}
+
+const COIN_SKINS = {
+  100: { label: 'K1',  bg: 'radial-gradient(circle at 35% 30%, #fde68a, #d97706 75%)' },
+  50:  { label: '50n', bg: 'radial-gradient(circle at 35% 30%, #f1f5f9, #94a3b8 75%)' },
+}
+
+/** A tappable banknote or coin, drawn entirely in CSS. */
+function MoneyPiece({ denom, size = 'tray', onClick, disabled }) {
+  const note = NOTE_SKINS[denom]
+  const coin = COIN_SKINS[denom]
+  const small = size === 'pile'
+  if (note) {
+    return (
+      <button
+        type="button"
+        onClick={onClick}
+        disabled={disabled}
+        className={`zx-money-note relative shrink-0 overflow-hidden rounded-[8px] border-2 border-slate-900 text-white shadow-[2px_2px_0_rgba(15,23,42,0.85)] transition active:translate-y-[2px] active:shadow-none ${
+          small ? 'h-9 w-16 text-[10px]' : 'h-12 w-[5.25rem] text-xs'
+        }`}
+        style={{ background: note.bg }}
+      >
+        <span className="absolute left-1 top-0.5 font-black drop-shadow">{note.label}</span>
+        <span className="absolute bottom-0.5 right-1 font-black drop-shadow">{note.label}</span>
+        <span className={`absolute left-1/2 top-1/2 grid -translate-x-1/2 -translate-y-1/2 place-items-center rounded-full bg-white/30 ${small ? 'h-6 w-6 text-sm' : 'h-8 w-8 text-lg'}`}>
+          🦅
+        </span>
+      </button>
+    )
+  }
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`relative grid shrink-0 place-items-center rounded-full border-2 border-slate-900 font-black text-slate-900 shadow-[2px_2px_0_rgba(15,23,42,0.85)] transition active:translate-y-[2px] active:shadow-none ${
+        small ? 'h-9 w-9 text-[10px]' : 'h-12 w-12 text-xs'
+      }`}
+      style={{ background: coin?.bg }}
+    >
+      {coin?.label}
+    </button>
+  )
+}
 
 /**
  * Engine for any `type: "market_challenge"` game document — Zed Market
@@ -208,7 +266,6 @@ export default function MarketChallengeGame({ game }) {
   }
 
   // Playing
-  const isNote = (d) => d >= 200 // K2 and above are notes, K1 and ngwee are coins
   return (
     <div className="space-y-5">
       <div className="zx-card-dark flex items-center justify-between rounded-[22px] px-4 py-3">
@@ -226,100 +283,135 @@ export default function MarketChallengeGame({ game }) {
         </span>
       </div>
 
-      <div className="zx-card rounded-[22px] bg-white p-5 sm:p-7">
-        {/* Customer + speech bubble */}
-        <div className="flex items-start gap-3">
-          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-[14px] border-2 border-slate-900 bg-amber-100 text-3xl">
-            {CUSTOMER_EMOJI[pos % CUSTOMER_EMOJI.length]}
-          </span>
-          <div className="zx-card relative flex-1 rounded-[16px] bg-sky-50 px-4 py-3">
-            <p className="font-bold text-slate-900">{customer ? customerLine(customer) : ''}</p>
+      <div className="zx-card overflow-hidden rounded-[22px] bg-white">
+        {/* Market scene — sky, canopy, stall counter with the goods */}
+        <div className="zx-market-sky relative px-4 pt-4">
+          <span aria-hidden="true" className="absolute right-4 top-3 text-3xl">☀️</span>
+          <span aria-hidden="true" className="absolute left-1/3 top-2 text-xl opacity-80">⛅</span>
+          <div className="relative mx-auto flex max-w-md items-end justify-center gap-1 pt-6">
+            <span aria-hidden="true" className="text-4xl sm:text-5xl">{'🧑🏾‍🌾'}</span>
           </div>
+          <div className="zx-market-canopy mx-auto -mb-px max-w-lg rounded-t-[12px] border-2 border-b-0 border-slate-900" />
         </div>
-
-        {/* Order panel */}
-        <div className="zx-card mt-4 rounded-[16px] bg-orange-50 p-4">
-          <p className="text-[10.5px] font-extrabold uppercase tracking-[0.16em] text-slate-500">On the counter</p>
-          <ul className="mt-2 space-y-1.5">
+        <div className="zx-market-wood border-y-2 border-slate-900 px-4 py-3">
+          <div className="mx-auto flex max-w-lg flex-wrap items-center justify-center gap-x-4 gap-y-2">
             {customer?.items.map((item, i) => (
-              <li key={i} className="flex items-center justify-between font-bold text-slate-800">
-                <span>{item.emoji} {item.name}</span>
-                <span className="rounded-full border-[1.5px] border-slate-900 bg-white px-2 py-0.5 text-sm font-black">
+              <span key={i} className="inline-flex items-center gap-1.5">
+                <span className="text-2xl sm:text-3xl" aria-hidden="true">{item.emoji}</span>
+                <span className="rounded-full border-[1.5px] border-slate-900 bg-amber-50 px-2 py-0.5 text-xs font-black text-slate-900 sm:text-sm">
                   {formatKwacha(item.price)}
                 </span>
-              </li>
+              </span>
             ))}
-          </ul>
-          {showTotal && customer && (
-            <p className="mt-2 border-t border-dashed border-slate-300 pt-2 text-right font-black text-slate-900">
-              Total: {formatKwacha(customer.total)}
-            </p>
-          )}
-        </div>
-
-        {/* Change being given */}
-        <div className="zx-card mt-4 min-h-[4.5rem] rounded-[16px] bg-emerald-50 p-3">
-          <div className="flex items-center justify-between">
-            <p className="text-[10.5px] font-extrabold uppercase tracking-[0.16em] text-slate-500">Change you are giving</p>
-            <p className="font-black text-slate-900">{giving > 0 ? formatKwacha(giving) : '—'}</p>
-          </div>
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {pile.map((d, i) => (
-              <button
-                key={i}
-                type="button"
-                onClick={() => removeMoney(i)}
-                className={`border-2 border-slate-900 font-black text-xs transition active:translate-y-[1px] ${
-                  isNote(d)
-                    ? 'rounded-[8px] bg-emerald-200 px-2.5 py-1.5'
-                    : 'rounded-full bg-amber-200 px-2 py-1.5'
-                }`}
-              >
-                {formatKwacha(d)}
-              </button>
-            ))}
-            {!pile.length && (
-              <span className="text-xs font-bold text-slate-400">Tap money below to add it here.</span>
+            {showTotal && customer && (
+              <span className="rounded-full border-2 border-slate-900 bg-slate-900 px-2.5 py-0.5 text-xs font-black text-amber-300 sm:text-sm">
+                Total {formatKwacha(customer.total)}
+              </span>
             )}
           </div>
         </div>
 
-        {/* Money tray */}
-        <p className="mt-4 text-center text-[10.5px] font-extrabold uppercase tracking-[0.16em] text-slate-500">Money tray</p>
-        <div className="mt-2 flex flex-wrap justify-center gap-2">
-          {cfg.tray.map((d) => (
-            <button
-              key={d}
-              type="button"
-              onClick={() => addMoney(d)}
-              disabled={outcome === 'correct'}
-              className={`zx-card font-black transition active:translate-y-[2px] active:shadow-none ${
-                isNote(d)
-                  ? 'rounded-[10px] bg-emerald-100 px-3.5 py-2.5 text-base'
-                  : 'rounded-full bg-amber-100 px-3 py-2.5 text-sm'
-              }`}
-            >
-              {formatKwacha(d)}
-            </button>
-          ))}
+        <div className="p-5 sm:p-7">
+          {/* Customer + speech bubble */}
+          <div className="flex items-start gap-3">
+            <span className="zx-market-customer shrink-0 text-5xl leading-none sm:text-6xl" aria-hidden="true">
+              {CUSTOMER_EMOJI[pos % CUSTOMER_EMOJI.length]}
+            </span>
+            <div className="zx-speech relative flex-1 rounded-[16px] border-2 border-slate-900 bg-white px-4 py-3 shadow-[3px_3px_0_rgba(15,23,42,0.85)]">
+              <p className="font-bold text-slate-900">{customer ? customerLine(customer) : ''}</p>
+            </div>
+          </div>
+
+          {/* Change being given */}
+          <div className="zx-card mt-4 min-h-[4.5rem] rounded-[16px] bg-emerald-50 p-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[10.5px] font-extrabold uppercase tracking-[0.16em] text-slate-500">Change you are giving</p>
+              <p className="font-black text-slate-900">{giving > 0 ? formatKwacha(giving) : '—'}</p>
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              {pile.map((d, i) => (
+                <MoneyPiece key={i} denom={d} size="pile" onClick={() => removeMoney(i)} />
+              ))}
+              {!pile.length && (
+                <span className="text-xs font-bold text-slate-400">Tap money below to add it here.</span>
+              )}
+            </div>
+          </div>
+
+          {/* Money tray */}
+          <div className="zx-market-tray mt-4 rounded-[16px] border-2 border-slate-900 p-3">
+            <p className="text-center text-[10.5px] font-extrabold uppercase tracking-[0.16em] text-amber-100">Money tray</p>
+            <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
+              {cfg.tray.map((d) => (
+                <MoneyPiece key={d} denom={d} onClick={() => addMoney(d)} disabled={outcome === 'correct'} />
+              ))}
+            </div>
+          </div>
+
+          {outcome === 'correct' && customer && (
+            <div className="zx-card mt-4 rounded-[14px] bg-emerald-100 p-4 text-center font-bold text-emerald-900">
+              <span className="inline-flex items-center gap-2">
+                <CheckBadgeIcon className="h-5 w-5" />
+                ✨ Perfect change — {formatKwacha(customer.change)}! The customer is happy. 🎉
+              </span>
+            </div>
+          )}
+          {outcome === 'wrong' && (
+            <div className="zx-card mt-4 rounded-[14px] bg-rose-100 p-4 text-center font-bold text-rose-900">
+              <span className="inline-flex items-center gap-2">
+                <XCircleIcon className="h-5 w-5" />
+                That is not the right change — count again!
+              </span>
+            </div>
+          )}
         </div>
 
-        {outcome === 'correct' && customer && (
-          <div className="zx-card mt-4 rounded-[14px] bg-emerald-100 p-4 text-center font-bold text-emerald-900">
-            <span className="inline-flex items-center gap-2">
-              <CheckBadgeIcon className="h-5 w-5" />
-              Perfect change — {formatKwacha(customer.change)}! The customer is happy.
-            </span>
-          </div>
-        )}
-        {outcome === 'wrong' && (
-          <div className="zx-card mt-4 rounded-[14px] bg-rose-100 p-4 text-center font-bold text-rose-900">
-            <span className="inline-flex items-center gap-2">
-              <XCircleIcon className="h-5 w-5" />
-              That is not the right change — count again!
-            </span>
-          </div>
-        )}
+        <style>{`
+          .zx-market-sky {
+            background: linear-gradient(180deg, #7dd3fc 0%, #bae6fd 55%, #e0f2fe 100%);
+          }
+          .zx-market-canopy {
+            height: 1.1rem;
+            background: repeating-linear-gradient(90deg, #ef4444 0 18px, #fff7ed 18px 36px);
+          }
+          .zx-market-wood {
+            background:
+              repeating-linear-gradient(180deg, rgba(15,23,42,0.08) 0 2px, transparent 2px 11px),
+              linear-gradient(180deg, #b45309, #92400e);
+          }
+          .zx-market-tray {
+            background: linear-gradient(180deg, #78350f, #57290b);
+          }
+          .zx-speech::before {
+            content: '';
+            position: absolute;
+            left: -9px;
+            top: 18px;
+            width: 14px;
+            height: 14px;
+            background: inherit;
+            border-left: 2px solid #0f172a;
+            border-bottom: 2px solid #0f172a;
+            transform: rotate(45deg);
+          }
+          .zx-market-customer {
+            animation: zx-market-bob 3.2s ease-in-out infinite;
+            transform-origin: bottom center;
+          }
+          .zx-money-note::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.25) 45%, transparent 60%);
+          }
+          @keyframes zx-market-bob {
+            0%, 100% { transform: translateY(0) rotate(-1deg); }
+            50%      { transform: translateY(-3px) rotate(1deg); }
+          }
+          @media (prefers-reduced-motion: reduce) {
+            .zx-market-customer { animation: none !important; }
+          }
+        `}</style>
       </div>
 
       <div className="flex flex-wrap justify-between gap-3">
