@@ -3033,6 +3033,476 @@
       ]
     }
   },
+  "English Language Syllabus (Grades 4-6)": {
+    "Grade 4": {
+      "title": "ENGLISH LANGUAGE SYLLABUS — GRADE 4",
+      "columns": [
+        "TOPIC",
+        "SUB-TOPIC",
+        "SPECIFIC COMPETENCES",
+        "LEARNING ACTIVITIES",
+        "EXPECTED STANDARD"
+      ],
+      "rows": [
+        {
+          "type": "section",
+          "label": "TERM 1 — UNIT 1: NATIONAL VALUES AND PRINCIPLES"
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.1.1 DIALOGUES",
+            "SUB-TOPIC": "4.1.1.1 Personal Information",
+            "SPECIFIC COMPETENCES": "4.1.1.1.1 Share personal information in a conversation.",
+            "LEARNING ACTIVITIES": "• Sharing personal information in a dialogue\n• Role-playing sharing of personal information in a dialogue",
+            "EXPECTED STANDARD": "Personal information shared accordingly."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.2.1 LISTENING COMPREHENSION",
+            "SUB-TOPIC": "4.2.1.1 Oral Comprehension",
+            "SPECIFIC COMPETENCES": "4.2.1.1.1 Comprehend spoken language.",
+            "LEARNING ACTIVITIES": "• Listening to a passage and performing follow-up activities",
+            "EXPECTED STANDARD": "Spoken language comprehended accordingly."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.2.2 READING COMPREHENSION",
+            "SUB-TOPIC": "4.2.2.1 Intensive Reading",
+            "SPECIFIC COMPETENCES": "4.2.2.1.1 Read a variety of texts with comprehension.",
+            "LEARNING ACTIVITIES": "• Reading passages with understanding\n• Retrieving information from a given text using skimming and scanning skills",
+            "EXPECTED STANDARD": "A variety of texts read with comprehension."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.3.1 NARRATIVES",
+            "SUB-TOPIC": "4.3.1.1 Story Writing",
+            "SPECIFIC COMPETENCES": "4.3.1.1.1 Write stories.",
+            "LEARNING ACTIVITIES": "• Rearranging jumbled sentences and paragraphs of a narrative\n• Composing narrative stories based on picture strips\n• Writing narrative stories",
+            "EXPECTED STANDARD": "Stories written correctly."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.4.1 TENSES",
+            "SUB-TOPIC": "4.4.1.1 Present and Past Tenses",
+            "SPECIFIC COMPETENCES": "4.4.1.1.1 Change word forms to suitable tenses.",
+            "LEARNING ACTIVITIES": "• Identify verb forms in sentences\n• Changing verb forms",
+            "EXPECTED STANDARD": "Word forms change to suitable tenses accordingly."
+          }
+        },
+        {
+          "type": "section",
+          "label": "TERM 1 — UNIT 2: GENDER"
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.1.2 DEBATE",
+            "SUB-TOPIC": "4.1.2.1 Simple Arguments",
+            "SPECIFIC COMPETENCES": "4.1.2.1.1 Use appropriate language to argue for or against a given topic.",
+            "LEARNING ACTIVITIES": "• Choosing position\n• Outlining the points to support their position\n• P resenting arguments on specific topics",
+            "EXPECTED STANDARD": "Language to argue for or against a given."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.2.2 READING COMPREHENSION",
+            "SUB-TOPIC": "4.2.2.2 Extensive Reading",
+            "SPECIFIC COMPETENCES": "4.2.2.2.1 Read a variety of texts for enjoyment.",
+            "LEARNING ACTIVITIES": "• Reading a variety of texts for enjoyment",
+            "EXPECTED STANDARD": "A variety of texts read for enjoyment ."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.2.3 READING FLUENCY",
+            "SUB-TOPIC": "4.2.3.1 Fluency",
+            "SPECIFIC COMPETENCES": "4.2.3.1.1 Learners to read texts with fluency.",
+            "LEARNING ACTIVITIES": "• R ead the given passages silently\n• Discussing areas needing specific expressions in a read passage\n• Reading given texts aloud fluently",
+            "EXPECTED STANDARD": "texts read fluently."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.3.2 DESCRIPTIVE WRITING",
+            "SUB-TOPIC": "4.3.2.1 Descriptive Composition",
+            "SPECIFIC COMPETENCES": "4.3.2.1.1 Use descriptive language to write a composition.",
+            "LEARNING ACTIVITIES": "• Identify words that are used to describe people, places and things\n• Describe people, places and things using identified words",
+            "EXPECTED STANDARD": "Descriptive language used correctly in writing a composition."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.4.2 TYPES OF NOUNS",
+            "SUB-TOPIC": "4.4.2.1 Common Nouns",
+            "SPECIFIC COMPETENCES": "4.4.2.1.1 Use common nouns in sentences.",
+            "LEARNING ACTIVITIES": "• Identifying common nouns in texts\n• Making sentences using common nouns",
+            "EXPECTED STANDARD": "Common nouns used correctly in sentences."
+          }
+        },
+        {
+          "type": "section",
+          "label": "TERM 1 — UNIT 3: LIFE SKILLS AND HEALTH EDUCATION"
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.1.3 LANGUAGE USE IN SOCIAL SETTING",
+            "SUB-TOPIC": "4.1.3.1 Polite Expressions",
+            "SPECIFIC COMPETENCES": "4.1.3.1.1 Use polite expressions in different social settings",
+            "LEARNING ACTIVITIES": "• Requesting help using appropriate vocabulary\n• Expressing apologies to different people in different situations\n• Offering help using appropriate vocabulary",
+            "EXPECTED STANDARD": "Polite expressions used appropriately in different social settings."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.2.3 READING FLUENCY",
+            "SUB-TOPIC": "4.2.3.1 Fluency",
+            "SPECIFIC COMPETENCES": "4.2.3.1.1 Read texts with fluency",
+            "LEARNING ACTIVITIES": "• R ead the given passages s ilently\n• Reading given texts aloud fluently\n• Playing games to practice key vocabulary from the reading",
+            "EXPECTED STANDARD": "T exts read fluently."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.2.4 SHARED READING",
+            "SUB-TOPIC": "4.2.4.1 Fiction and Non-Fiction",
+            "SPECIFIC COMPETENCES": "4.2.4.1.1 Read fiction and non-fiction stories",
+            "LEARNING ACTIVITIES": "• Reading a variety of texts\n• Answering questions based on the text read in",
+            "EXPECTED STANDARD": "Fiction and non-fiction stories read fluently."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.3.3 EXPOSITORY WRITING",
+            "SUB-TOPIC": "4.3.3.1 Expository Composition",
+            "SPECIFIC COMPETENCES": "4.3.3.1.1 Write factual information on different topics",
+            "LEARNING ACTIVITIES": "• Writing simple expositions on given topics\n• Sequencing using appropriate language in a process",
+            "EXPECTED STANDARD": "Factual information on different."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.4.2 TYPES OF NOUNS",
+            "SUB-TOPIC": "4.4.2.1 Proper Nouns",
+            "SPECIFIC COMPETENCES": "4.4.2.2.1 Use proper nouns in sentences",
+            "LEARNING ACTIVITIES": "• Identifying proper nouns in text\n• Constructing sentences with proper nouns",
+            "EXPECTED STANDARD": "Use proper nouns correctly in the sentences given."
+          }
+        },
+        {
+          "type": "section",
+          "label": "TERM 1 — UNIT 4: GOVERNANCE"
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.1.3 LANGUAGE IN A SOCIAL SETTING",
+            "SUB-TOPIC": "4.1.3.2 Proverbs",
+            "SPECIFIC COMPETENCES": "4.1.3.2.1 Use proverbs in different contexts .",
+            "LEARNING ACTIVITIES": "• Giving examples of proverbs\n• Using proverbs in applicable contexts\n• Explaining the meaning of proverbs",
+            "EXPECTED STANDARD": "Proverbs used in different contexts correctly ."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.2.5 REFERENCE BOOKS",
+            "SUB-TOPIC": "4.2.5.1 The Dictionary",
+            "SPECIFIC COMPETENCES": "4.2.5.1.1 Use a dictionary .",
+            "LEARNING ACTIVITIES": "• Searching for information\n• Carrying out follow - up activities",
+            "EXPECTED STANDARD": "Dictionary used correctly."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.2.6 EXTRACTING INFORMATION",
+            "SUB-TOPIC": "4.2.6.1 Print Resources",
+            "SPECIFIC COMPETENCES": "4.2.6.1.1 Interpret information from print resources",
+            "LEARNING ACTIVITIES": "• Extracting information from print resources\n• Interpreting extracted information from print resources",
+            "EXPECTED STANDARD": "Information from print resources interpreted correctly."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.3.4 LETTER WRITING",
+            "SUB-TOPIC": "4.3.4.1 Informal Letter",
+            "SPECIFIC COMPETENCES": "4.3.4.1.1 W rite informal letters",
+            "LEARNING ACTIVITIES": "• Outlining the layout of an informal letter\n• Discussing vocabulary of an informal letter, informal expressions\n• Writing an informal letter",
+            "EXPECTED STANDARD": "Informal letters written correctly."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.4.2 TYPES OF NOUNS",
+            "SUB-TOPIC": "4.4.2.3 Countable Nouns",
+            "SPECIFIC COMPETENCES": "4.4.2.3.1 Use countable nouns in sentences",
+            "LEARNING ACTIVITIES": "• Constructing sentences using countable nouns",
+            "EXPECTED STANDARD": "Countable nouns used correctly in sentences."
+          }
+        },
+        {
+          "type": "section",
+          "label": "TERM 1 — UNIT 5: CORRUPTION"
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.1.4 PROCESSES",
+            "SUB-TOPIC": "4.1.4.1 Simple Processes",
+            "SPECIFIC COMPETENCES": "4.1.4.1.1 Use appropriate language to describe simple processes.",
+            "LEARNING ACTIVITIES": "• Describing Simple Processes Using Active Verbs\n• S equencing using appropriate language in a process",
+            "EXPECTED STANDARD": "Language to describe simple processes used appropriately."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.2.1 LISTENING COMPREHENSION",
+            "SUB-TOPIC": "4.2.1.1 Oral Comprehension",
+            "SPECIFIC COMPETENCES": "4.2.1.1.1 Comprehend spoken language.",
+            "LEARNING ACTIVITIES": "• Listen ing to a passage and performing follow up activities",
+            "EXPECTED STANDARD": "Spoken language comprehended accordingly."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.2.2 READING COMPREHENSION",
+            "SUB-TOPIC": "4.2.2.1 Intensive Reading",
+            "SPECIFIC COMPETENCES": "4.2.2.1.1 Read a variety of texts with comprehension.",
+            "LEARNING ACTIVITIES": "• Reading passages with understanding\n• Retrieving information from a given text using skimming and scanning skills",
+            "EXPECTED STANDARD": "A variety of texts read with comprehension."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.3.4 LETTER WRITING",
+            "SUB-TOPIC": "4.3.4.1 Informal Letter",
+            "SPECIFIC COMPETENCES": "4.3.4.1.1 W rite informal letters",
+            "LEARNING ACTIVITIES": "• Outlining layout of an informal letter\n• Discussing vocabulary of an informal letter\n• Writing an informal letter",
+            "EXPECTED STANDARD": "Informal letters written correctly."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.4.2 TYPES OF NOUNS",
+            "SUB-TOPIC": "4.4.2.4 Uncountable Nouns",
+            "SPECIFIC COMPETENCES": "4.4.2.4.1 Use uncountable nouns in sentences.",
+            "LEARNING ACTIVITIES": "• Identifying uncountable nouns in sentences\n• Using uncountable nouns in sentences",
+            "EXPECTED STANDARD": "Uncountable nouns used correctly."
+          }
+        },
+        {
+          "type": "section",
+          "label": "TERM 2 — UNIT 6: ENTREPRENEURSHIP EDUCATION"
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.1.5 THE CALENDAR",
+            "SUB-TOPIC": "4.1.5.1 Calendar Vocabulary",
+            "SPECIFIC COMPETENCES": "4.1.5.1.1 Use appropriate calendar vocabulary",
+            "LEARNING ACTIVITIES": "• Using calendar vocabulary\n• Role-playing daily routines and events associated with specific dates",
+            "EXPECTED STANDARD": "Calendar vocabulary used appropriately."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.2.2 READING COMPREHENSION",
+            "SUB-TOPIC": "4.2.2.2 Extensive Reading",
+            "SPECIFIC COMPETENCES": "4.2.2.2.1 Read a variety of texts for enjoyment",
+            "LEARNING ACTIVITIES": "• Reading a variety of texts for enjoyment",
+            "EXPECTED STANDARD": "A variety of texts read for enjoyment ."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.2.3 READING FLUENCY",
+            "SUB-TOPIC": "4.2.3.1 Fluency",
+            "SPECIFIC COMPETENCES": "4.2.3.1.1 Read texts with fluency",
+            "LEARNING ACTIVITIES": "• Reading given passage silently Misumbi’s Small Business Misumbi was in grade 4 at Undi Primary School\n• Discussing areas needing specific expressions in a read passage",
+            "EXPECTED STANDARD": "Read text fluently."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.3.5 SUMMARY",
+            "SUB-TOPIC": "4.3.5.1 Note-taking",
+            "SPECIFIC COMPETENCES": "4.3.5.1.1 Write",
+            "LEARNING ACTIVITIES": "• Discussing shorthand skills for note-taking\n• Writing notes from oral sources",
+            "EXPECTED STANDARD": "Notes from oral sources written correctly."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.4.3 PREPOSITIONS",
+            "SUB-TOPIC": "4.4.3.1 Prepositions",
+            "SPECIFIC COMPETENCES": "4.4.3.1.1 Use prepositions appropriately in various contexts",
+            "LEARNING ACTIVITIES": "• Identifying prepositions in sentences\n• Construct sentences using prepositions",
+            "EXPECTED STANDARD": "Prepositions used in sentences correctly."
+          }
+        },
+        {
+          "type": "section",
+          "label": "TERM 2 — UNIT 7: HUMAN RIGHTS AND FREEDOMS"
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.1.6 STORIES",
+            "SUB-TOPIC": "4.1.6.1 STORY ANALYSIS",
+            "SPECIFIC COMPETENCES": "4.1.6.1.1 Analyse simple stories orally.",
+            "LEARNING ACTIVITIES": "• Analysing the plot of a story\n• Interpreting the theme/s and title of a story\n• Analysing characters in a story",
+            "EXPECTED STANDARD": "Simple stories analyzed correctly."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.2.3 READING FLUENCY",
+            "SUB-TOPIC": "4.2.3.1 Fluency",
+            "SPECIFIC COMPETENCES": "4.2.3.1.1 Read texts with fluency",
+            "LEARNING ACTIVITIES": "• Reading given passages silently \n• Discuss areas needing specific expressions in a read passage\n• Reading given texts aloud fluently\n• Playing games to practice key vocabulary from the reading",
+            "EXPECTED STANDARD": "Texts read fluently."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.2.3 READING FLUENCY",
+            "SUB-TOPIC": "4.3.5.2 Note Making",
+            "SPECIFIC COMPETENCES": "4.3.5.2.1 Make",
+            "LEARNING ACTIVITIES": "• Writing main points from written sources\n• Making notes from written sources ",
+            "EXPECTED STANDARD": "Notes from oral sources written correctly ."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.4.4 CONJUNCTIONS",
+            "SUB-TOPIC": "4.4.4.1 Connecting Phrases",
+            "SPECIFIC COMPETENCES": "4.4.4.1.1 Use conjunctions to connect phrases",
+            "LEARNING ACTIVITIES": "• Discussing conjunctions\n• Joining phrases using conjunctions - because, since, and, yet",
+            "EXPECTED STANDARD": "Phrases joined correctly using conjunctions."
+          }
+        },
+        {
+          "type": "section",
+          "label": "TERM 2 — UNIT 8: HEALTH AND NUTRITION"
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.1.6 STORIES",
+            "SUB-TOPIC": "4.1.6.2 Storytelling",
+            "SPECIFIC COMPETENCES": "4.1.6.2.1 Telling stories in logical order.",
+            "LEARNING ACTIVITIES": "• Retelling stories\n• T elling one's own stories",
+            "EXPECTED STANDARD": "stories told in logical order."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.2.4 SHARED READING",
+            "SUB-TOPIC": "4.2.4.1 Fiction and Non-Fiction",
+            "SPECIFIC COMPETENCES": "4.2.4.1.1 Read fiction and non-fiction stories",
+            "LEARNING ACTIVITIES": "• Reading a variety of texts\n• Answering questions based on the text read in",
+            "EXPECTED STANDARD": "Fiction and non-fiction stories read fluently."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.3.7 SPELLINGS",
+            "SUB-TOPIC": "4.3.7.2 Dictation",
+            "SPECIFIC COMPETENCES": "4.3.7.2.1 Take dictation",
+            "LEARNING ACTIVITIES": "• Writing dictated words\n• Writing dictated phrases",
+            "EXPECTED STANDARD": "dictated words, phrases, sentences and paragraphs written correctly."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.4.5 VERBS",
+            "SUB-TOPIC": "4.4.5.1 Action Verbs",
+            "SPECIFIC COMPETENCES": "4.4.5.1.1 Use action verbs in sentences.",
+            "LEARNING ACTIVITIES": "• Discuss action verbs\n• Using different types of action verbs in sentences",
+            "EXPECTED STANDARD": "Action verbs used correctly."
+          }
+        },
+        {
+          "type": "section",
+          "label": "TERM 2 — UNIT 9: EDUCATION FOR SUSTAINABLE DEVELOPMENT"
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.1.6 STORIES",
+            "SUB-TOPIC": "4.1.6.2 Story Telling",
+            "SPECIFIC COMPETENCES": "4.1.6.2.1 Tell stories in logical order.",
+            "LEARNING ACTIVITIES": "• Sequencing jumbled pictures to make a story\n• Telling stories logically using pictures\n• Retelling stories\n• Telling own stories",
+            "EXPECTED STANDARD": "Stories told in logical order."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.2.5 REFERENCE BOOKS",
+            "SUB-TOPIC": "4.2.5.1 The Dictionary",
+            "SPECIFIC COMPETENCES": "4.2.5.1.1 Use a dictionary",
+            "LEARNING ACTIVITIES": "• Searching for information\n• Carrying out follow-up activities",
+            "EXPECTED STANDARD": "Dictionary used correctly."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.3.7 SPELLING",
+            "SUB-TOPIC": "4.3.7.2 Dictation",
+            "SPECIFIC COMPETENCES": "4.3.7.2.1 Take dictation.",
+            "LEARNING ACTIVITIES": "• Writing dictated words\n• Writing dictated phrases\n• Writing dictated sentences\n• Writing dictated paragraphs",
+            "EXPECTED STANDARD": "Dictated words, phrases, sentences and paragraphs written correctl y."
+          }
+        },
+        {
+          "type": "data",
+          "cells": {
+            "TOPIC": "4.4.5 VERBS",
+            "SUB-TOPIC": "4.4.5.2.1 Linking Verbs",
+            "SPECIFIC COMPETENCES": "4.4.5.2.1 Use linking verbs in sentences .",
+            "LEARNING ACTIVITIES": "• Discussing linking verbs\n• Using linking verbs in sentences",
+            "EXPECTED STANDARD": "Linking verbs used correctly."
+          }
+        }
+      ]
+    }
+  },
   "Fashion & Fabrics Syllabus (Forms 1-4)": {
     "Form 1": {
       "title": "FASHION AND FABRICS SYLLABUS  —  FORM 1",
