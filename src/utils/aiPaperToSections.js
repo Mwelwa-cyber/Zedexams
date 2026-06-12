@@ -102,6 +102,10 @@ export function mapAiQuestion(q, { partId = null } = {}) {
 
   const diagram = String(q?.diagram || '').trim()
   if (diagram) {
+    // Carried as a first-class field so the DiagramFixupPanel can find the
+    // question and auto-match/generate the figure; the review note is the
+    // human-readable fallback on the question card.
+    overrides.diagramBrief = diagram
     reviewNotes.push(`Diagram needed: ${diagram} — attach it from the picture bank or generate one.`)
   }
 
