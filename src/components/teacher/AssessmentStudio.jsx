@@ -38,6 +38,8 @@ import { assertNoBlobImageUrls } from '../../utils/importedQuizAssets.js'
 import SeoHelmet from '../seo/SeoHelmet'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import PictureBankPicker from './PictureBankPicker'
+import CreatePaperModal from './CreatePaperModal'
+import { useSyllabusTopicOptions } from './syllabusTopicOptions'
 import {
   QUIZ_DOCUMENT_ACCEPT,
   importQuizDocument,
@@ -321,6 +323,7 @@ export default function AssessmentStudio() {
   const [saving, setSaving] = useState(false)
   const [aiForm, setAiForm] = useState({ topic: '', count: 5, type: 'mcq' })
   const [aiGenerating, setAiGenerating] = useState(false)
+  const [createPaperOpen, setCreatePaperOpen] = useState(false)
   const [generatingDiagram, setGeneratingDiagram] = useState(false)
   const [importingDocument, setImportingDocument] = useState(false)
   // Import over existing questions waits on ConfirmDialog — { files, importOptions }.
@@ -722,6 +725,46 @@ export default function AssessmentStudio() {
       next[optionIndex] = null
       return { ...section, question: { ...section.question, optionMedia: next } }
     })
+  }
+
+  /* ------------ Create paper with AI ------------ */
+  // Receives { blocks, assessment, form: aiPaperForm, mode } from
+  // CreatePaperModal: blocks are studio-ready sections/parts from
+  // aiPaperToSections. 'replace' swaps the whole paper; 'append' adds
+  // after the existing questions (the empty starter section is dropped).
+  function handleApplyAiPaper({ blocks, assessment, form: aiPaperForm, mode }) {
+    const partOffset = mode === 'append' ? parts.length : 0
+    const newParts = blocks.parts.map((p, i) => ({ ...p, order: partOffset + i }))
+    if (mode === 'replace') {
+      setSections(blocks.sections.length ? blocks.sections : [createStandaloneSection()])
+      setParts(newParts)
+    } else {
+      setSections(prev => (hasOnlyEmptyStarterSection(prev) ?
+        blocks.sections : [...prev, ...blocks.sections]))
+      setParts(prev => [...prev, ...newParts])
+    }
+    // Fill paper metadata the teacher hasn't set yet.
+    const typeMap = {
+      mid_term: 'mid_term', end_of_term: 'end_of_term',
+      topic_test: 'topic', mock_exam: 'mock',
+    }
+    setForm(f => ({
+      ...f,
+      term: f.term || aiPaperForm.term,
+      duration: f.duration || String(aiPaperForm.durationMinutes),
+      assessmentType: typeMap[aiPaperForm.assessmentType] || f.assessmentType,
+      coverInstructions: f.coverInstructions ||
+        String(assessment?.header?.instructions || ''),
+    }))
+    setCreatePaperOpen(false)
+    closeSlide()
+    changeView('builder')
+    const flagged = blocks.warnings.length
+    showToast(
+      `AI paper ${mode === 'replace' ? 'created' : 'added'} — ` +
+      `${blocks.questionCount} questions, ${blocks.totalMarks} marks.` +
+      (flagged ? ` ${flagged} flagged for review.` : ' Review before saving.'),
+    )
   }
 
   async function uploadSchoolLogo(file) {
@@ -1403,7 +1446,15 @@ export default function AssessmentStudio() {
         onGenerateDiagram={handleGenerateDiagram}
         generatingDiagram={generatingDiagram}
         onOpenMarkingKey={() => { closeSlide(); changeView('marking-key') }}
+        onCreatePaper={() => setCreatePaperOpen(true)}
       />
+      {createPaperOpen && (
+        <CreatePaperModal
+          paperMeta={{ grade: form.grade, subject: form.subject, term: form.term }}
+          onApply={handleApplyAiPaper}
+          onClose={() => setCreatePaperOpen(false)}
+        />
+      )}
       <EditorSlide
         open={slideover === 'editor'}
         onClose={closeSlide}
@@ -2641,7 +2692,8 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
   const isMatching = type === 'matching'
   const isSequence = type === 'sequence'
   const imageInputRef = useRef(null)
-  const [bankPickerOpen, setBankPickerOpen] = useState(false)
+  // Picture-bank picker target: null (closed) | 'question' | option index.
+  const [bankTarget, setBankTarget] = useState(null)
   const [suggesting, setSuggesting] = useState(false)
   const [suggestError, setSuggestError] = useState('')
   // AI suggestion lives in component-local state, NOT on the question
@@ -2951,23 +3003,32 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
               type="button"
               className="sv-btn sv-btn-ghost"
               style={{ marginTop: 6, fontSize: 13 }}
-              onClick={() => setBankPickerOpen(true)}
+              onClick={() => setBankTarget('question')}
             >
-              📚 Pick from the picture bank
+              📚 Picture bank / ✨ AI picture
             </button>
-            {bankPickerOpen && (
-              <PictureBankPicker
-                subject={paperMeta?.subject || ''}
-                onClose={() => setBankPickerOpen(false)}
-                onSelect={({ url }) => {
-                  updateQuestion('imageUrl', url)
-                  updateQuestion('imageAssetId', '')
-                  setBankPickerOpen(false)
-                }}
-              />
-            )}
           </>
         )
+      )}
+
+      {bankTarget !== null && (
+        <PictureBankPicker
+          subject={paperMeta?.subject || ''}
+          onClose={() => setBankTarget(null)}
+          onSelect={({ url }) => {
+            if (bankTarget === 'question') {
+              updateQuestion('imageUrl', url)
+              updateQuestion('imageAssetId', '')
+            } else {
+              const optionCount = Array.isArray(question.options) ? question.options.length : 4
+              const existing = Array.isArray(question.optionMedia) ? question.optionMedia : []
+              const next = Array.from({ length: optionCount }, (_, i) => existing[i] || null)
+              next[bankTarget] = { imageUrl: url, alt: existing[bankTarget]?.alt || '' }
+              updateQuestion('optionMedia', next)
+            }
+            setBankTarget(null)
+          }}
+        />
       )}
 
       {isMcq && (
@@ -2981,6 +3042,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
           onSelectCorrect={(optIndex) => updateQuestion('correctAnswer', optIndex)}
           onUploadOptionImage={onUploadOptionImage}
           onRemoveOptionImage={onRemoveOptionImage}
+          onPickFromBank={(optIndex) => setBankTarget(optIndex)}
         />
       )}
 
@@ -3121,7 +3183,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
   )
 }
 
-function McqOptions({ question, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage }) {
+function McqOptions({ question, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage, onPickFromBank }) {
   const options = Array.isArray(question.options) && question.options.length
     ? question.options
     : ['', '', '', '']
@@ -3142,6 +3204,7 @@ function McqOptions({ question, onChangeOption, onSelectCorrect, onUploadOptionI
             onSelectCorrect={onSelectCorrect}
             onUploadOptionImage={onUploadOptionImage}
             onRemoveOptionImage={onRemoveOptionImage}
+            onPickFromBank={onPickFromBank}
           />
         )
       })}
@@ -3149,7 +3212,7 @@ function McqOptions({ question, onChangeOption, onSelectCorrect, onUploadOptionI
   )
 }
 
-function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage }) {
+function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage, onPickFromBank }) {
   const fileRef = useRef(null)
   return (
     <div
@@ -3180,31 +3243,49 @@ function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSe
           )}
         </div>
       ) : onUploadOptionImage ? (
-        <button
-          type="button"
-          onClick={e => { e.stopPropagation(); fileRef.current?.click() }}
-          title="Add image for this option"
-          style={{
-            width: 32, height: 32, borderRadius: 4,
-            border: '1.5px dashed var(--sv-border-strong)',
-            background: 'transparent', color: 'var(--sv-muted)',
-            display: 'grid', placeItems: 'center', cursor: 'pointer', flexShrink: 0,
-            fontSize: 14,
-          }}
-        >
-          🖼
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            style={{ display: 'none' }}
-            onChange={e => {
-              const file = e.target.files?.[0]
-              if (file && onUploadOptionImage) onUploadOptionImage(optIndex, file)
-              e.target.value = ''
+        <div style={{ display: 'flex', gap: 4, flexShrink: 0 }} onClick={e => e.stopPropagation()}>
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            title="Upload an image for this option"
+            style={{
+              width: 32, height: 32, borderRadius: 4,
+              border: '1.5px dashed var(--sv-border-strong)',
+              background: 'transparent', color: 'var(--sv-muted)',
+              display: 'grid', placeItems: 'center', cursor: 'pointer',
+              fontSize: 14,
             }}
-          />
-        </button>
+          >
+            🖼
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={e => {
+                const file = e.target.files?.[0]
+                if (file && onUploadOptionImage) onUploadOptionImage(optIndex, file)
+                e.target.value = ''
+              }}
+            />
+          </button>
+          {onPickFromBank && (
+            <button
+              type="button"
+              onClick={() => onPickFromBank(optIndex)}
+              title="Pick from the picture bank or generate with AI"
+              style={{
+                width: 32, height: 32, borderRadius: 4,
+                border: '1.5px dashed var(--sv-border-strong)',
+                background: 'transparent', color: 'var(--sv-muted)',
+                display: 'grid', placeItems: 'center', cursor: 'pointer',
+                fontSize: 14,
+              }}
+            >
+              📚
+            </button>
+          )}
+        </div>
       ) : <span />}
       <input
         className="sv-opt-text"
@@ -4449,8 +4530,12 @@ function BlockPickerItem({ icon, title, hint, onClick, disabled, gold }) {
 /* ==================================================================
  * AI ASSISTANT SLIDE-OVER
  * ================================================================== */
-function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNumbers, generating, onGenerate, onImport, importing, onGenerateDiagram, generatingDiagram, onOpenMarkingKey }) {
+const AI_COUNT_PRESETS = [5, 10, 15, 20, 25]
+
+function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNumbers, generating, onGenerate, onImport, importing, onGenerateDiagram, generatingDiagram, onOpenMarkingKey, onCreatePaper }) {
   const docInputRef = useRef(null)
+  const [customCount, setCustomCount] = useState(false)
+  const { topics: topicOptions } = useSyllabusTopicOptions(form.grade, form.subject, aiForm.topic)
   return (
     <aside className={`sv-slideover ${open ? 'open' : ''}`}>
       <div className="sv-slideover-head">
@@ -4458,6 +4543,20 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNu
         <h3 className="serif">✨ Zed AI Assistant<small>Context-aware help for this paper</small></h3>
       </div>
       <div className="sv-slideover-body">
+        <button
+          className="sv-btn sv-btn-primary sv-btn-full"
+          onClick={onCreatePaper}
+          style={{ marginBottom: 12 }}
+        >
+          📄 Create paper with AI
+        </button>
+        <div className="sv-ai-msg" style={{ marginBottom: 16 }}>
+          A full {form.subject} paper for Grade {form.grade} — pick the topics,
+          marks and question types, and it lands here as editable blocks with a
+          marking key.
+        </div>
+
+        <div className="sv-block-cat">Quick questions</div>
         <div className="sv-ai-msg">
           <strong>Generate questions on a CBC topic</strong>
           Pick a topic, count and type — I&apos;ll draft them and drop them into the builder. Always review before saving.
@@ -4467,21 +4566,41 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNu
           <label>Topic</label>
           <input
             type="text"
+            list="ai-slide-topic-options"
             value={aiForm.topic}
             onChange={e => setAiForm(prev => ({ ...prev, topic: e.target.value }))}
-            placeholder={`e.g. ${form.subject === 'Mathematics' ? 'Fractions' : 'Body systems'}`}
+            placeholder={topicOptions[0] ? `e.g. ${topicOptions[0]}` : `e.g. ${form.subject === 'Mathematics' ? 'Fractions' : 'Body systems'}`}
           />
+          <datalist id="ai-slide-topic-options">
+            {topicOptions.map(t => <option key={t} value={t} />)}
+          </datalist>
         </div>
         <div className="sv-field-grid two">
           <div className="sv-field">
-            <label>Count</label>
-            <input
-              type="number"
-              min={1}
-              max={10}
-              value={aiForm.count}
-              onChange={e => setAiForm(prev => ({ ...prev, count: clampInt(e.target.value, 1, 10, 5) }))}
-            />
+            <label>How many questions</label>
+            {customCount ? (
+              <input
+                type="number"
+                min={1}
+                max={25}
+                autoFocus
+                value={aiForm.count}
+                onChange={e => setAiForm(prev => ({ ...prev, count: clampInt(e.target.value, 1, 25, 5) }))}
+              />
+            ) : (
+              <select
+                value={AI_COUNT_PRESETS.includes(Number(aiForm.count)) ? String(aiForm.count) : 'custom'}
+                onChange={e => {
+                  if (e.target.value === 'custom') { setCustomCount(true); return }
+                  setAiForm(prev => ({ ...prev, count: Number(e.target.value) }))
+                }}
+              >
+                {AI_COUNT_PRESETS.map(n => (
+                  <option key={n} value={String(n)}>{n} questions</option>
+                ))}
+                <option value="custom">Custom…</option>
+              </select>
+            )}
           </div>
           <div className="sv-field">
             <label>Type</label>

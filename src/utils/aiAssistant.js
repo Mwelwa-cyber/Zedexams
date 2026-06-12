@@ -57,7 +57,9 @@ function withTimeout(promise, timeoutMs, message) {
 }
 
 function clampQuestionCount(value) {
-  return Math.min(Math.max(Number(value) || 5, 1), 10)
+  // Server-side cap is 25 (generateQuiz.js clamps 3-25); match it here so
+  // the studio's count dropdown isn't silently truncated to 10.
+  return Math.min(Math.max(Number(value) || 5, 1), 25)
 }
 
 function rotateQuestionOptions(options, correctAnswer, offset) {
