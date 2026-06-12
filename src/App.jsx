@@ -148,9 +148,6 @@ const AgentProfile    = lazy(() => import('./components/admin/agents/AgentsHome'
 const AgentJobDetail  = lazy(() => import('./components/admin/agents/AgentJobDetail'))
 
 
-// Teacher — Agent submissions
-const AgentBriefForm       = lazy(() => import('./components/teacher/AgentBriefForm'))
-const TeacherAgentJobsList = lazy(() => import('./components/teacher/AgentJobsList').then(m => ({ default: m.AgentJobsList })))
 // Audit A10 — teacher classroom roster (foundation PR; quiz assignment + class analytics stack later).
 const TeacherClassesList = lazy(() => import('./components/teacher/classes/TeacherClassesList'))
 const TeacherClassEditor = lazy(() => import('./components/teacher/classes/TeacherClassEditor'))
@@ -161,7 +158,6 @@ const LearnerClassJoin = lazy(() => import('./components/classes/LearnerClassJoi
 const LearnerClassDetail = lazy(() => import('./components/classes/LearnerClassDetail'))
 // Audit A3 PR 1 — parent portal (public read-only progress view).
 const ParentProgressView = lazy(() => import('./components/parent/ParentProgressView'))
-const TeacherAgentJobView  = lazy(() => import('./components/teacher/AgentJobsList').then(m => ({ default: m.AgentJobView })))
 
 // Teacher section
 const TeacherLayout = lazy(() => import('./components/teacher/TeacherLayout'))
@@ -575,9 +571,6 @@ export default function App() {
           <Route path="/teacher/curriculum"              element={<TeacherRoute><CurriculumHome /></TeacherRoute>} />
           <Route path="/teacher/curriculum/primary"      element={<TeacherRoute><PrimaryCurriculum /></TeacherRoute>} />
           <Route path="/teacher/curriculum/secondary"    element={<TeacherRoute><SecondaryCurriculum /></TeacherRoute>} />
-          <Route path="/teacher/agents"                  element={<TeacherRoute><TeacherAgentJobsList /></TeacherRoute>} />
-          <Route path="/teacher/agents/new"              element={<TeacherRoute><AgentBriefForm /></TeacherRoute>} />
-          <Route path="/teacher/agents/:jobId"           element={<TeacherRoute><TeacherAgentJobView /></TeacherRoute>} />
           {/* Audit A10 — class roster foundation. Quiz-assignment +
               class analytics surfaces stack onto these in follow-ups. */}
           <Route path="/teacher/classes"                 element={<TeacherRoute><TeacherClassesList /></TeacherRoute>} />

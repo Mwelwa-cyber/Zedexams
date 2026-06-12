@@ -333,27 +333,34 @@ export default function QuizVerifyModal({
             onClick={onClose}
             className="theme-card theme-border theme-text rounded-xl border-2 px-3 py-2 text-sm font-black hover:border-[var(--accent)] sm:px-4 sm:text-base"
           >
-            Cancel
+            {onPublish ? 'Cancel' : 'Close'}
           </button>
-          <button
-            type="button"
-            onClick={onFixIssues}
-            disabled={loading}
-            className="rounded-xl border-2 border-amber-400 bg-amber-50 px-3 py-2 text-sm font-black text-amber-800 hover:bg-amber-100 disabled:opacity-40 sm:px-4 sm:text-base"
-          >
-            Fix Issues
-          </button>
-          <button
-            type="button"
-            onClick={onPublish}
-            disabled={!canPublish}
-            title={blockers.length
-              ? 'Vex flagged blockers. Review them, but you can still publish.'
-              : ''}
-            className="theme-accent-fill theme-on-accent rounded-xl px-3 py-2 text-sm font-black shadow-elev-sm disabled:cursor-not-allowed disabled:opacity-40 sm:px-4 sm:text-base"
-          >
-            {loading ? 'Verifying…' : 'Publish anyway'}
-          </button>
+          {onFixIssues && (
+            <button
+              type="button"
+              onClick={onFixIssues}
+              disabled={loading}
+              className="rounded-xl border-2 border-amber-400 bg-amber-50 px-3 py-2 text-sm font-black text-amber-800 hover:bg-amber-100 disabled:opacity-40 sm:px-4 sm:text-base"
+            >
+              Fix Issues
+            </button>
+          )}
+          {/* The publish CTA only makes sense for the quiz editor; the
+              Assessment Studio reuses this modal as a pure pre-print check
+              and passes no onPublish. */}
+          {onPublish && (
+            <button
+              type="button"
+              onClick={onPublish}
+              disabled={!canPublish}
+              title={blockers.length
+                ? 'Vex flagged blockers. Review them, but you can still publish.'
+                : ''}
+              className="theme-accent-fill theme-on-accent rounded-xl px-3 py-2 text-sm font-black shadow-elev-sm disabled:cursor-not-allowed disabled:opacity-40 sm:px-4 sm:text-base"
+            >
+              {loading ? 'Verifying…' : 'Publish anyway'}
+            </button>
+          )}
         </div>
       </div>
     </div>
