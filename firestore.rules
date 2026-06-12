@@ -682,6 +682,14 @@ service cloud.firestore {
       match /assessmentFormatDrafts/{draftId} {
         allow read, write: if isAdmin();
       }
+      // Exam Paper Library — per-paper analyses of real uploaded Zambian
+      // assessment papers. The corpus the format synthesiser learns the
+      // national assessment style from. Admin-curated reference material;
+      // the generator reads it server-side via the admin SDK during
+      // synthesis, so no teacher-read is needed. Admin-only.
+      match /examPaperSamples/{sampleId} {
+        allow read, write: if isAdmin();
+      }
     }
 
     // ── pictureBank ───────────────────────────────────────────

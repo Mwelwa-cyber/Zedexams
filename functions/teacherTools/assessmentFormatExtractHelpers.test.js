@@ -34,13 +34,19 @@ console.log("assessmentFormatExtractHelpers");
   assert.strictEqual(
     sanitiseSamplePath(`${SAMPLE_PATH_PREFIX}uid123/test.docx`),
     `${SAMPLE_PATH_PREFIX}uid123/test.docx`);
-  ok("accepts .pdf and .docx under the sample prefix", true);
+  // Photos of papers (Exam Paper Library) are accepted too.
+  for (const ext of ["jpg", "jpeg", "png", "webp"]) {
+    const p = `${SAMPLE_PATH_PREFIX}uid123/photo.${ext}`;
+    assert.strictEqual(sanitiseSamplePath(p), p, `accepts .${ext}`);
+  }
+  ok("accepts .pdf, .docx and photo (.jpg/.png/.webp) under the prefix", true);
 
   const bad = [
     "curriculum-uploads/uid/x.pdf",          // wrong prefix
     `${SAMPLE_PATH_PREFIX}uid/../secret.pdf`, // traversal
     `${SAMPLE_PATH_PREFIX}uid/x.xlsx`,        // unsupported extension
     `${SAMPLE_PATH_PREFIX}uid/x.doc`,         // legacy .doc rejected
+    `${SAMPLE_PATH_PREFIX}uid/x.gif`,         // unsupported image type
     `${SAMPLE_PATH_PREFIX}uid/x`,             // no extension
     "", null, undefined,
   ];
@@ -55,6 +61,8 @@ console.log("assessmentFormatExtractHelpers");
 {
   assert.strictEqual(kindFromPath("a/b.pdf"), "pdf");
   assert.strictEqual(kindFromPath("a/b.docx"), "docx");
+  assert.strictEqual(kindFromPath("a/b.jpg"), "images");
+  assert.strictEqual(kindFromPath("a/b.png"), "images");
   assert.strictEqual(kindFromPath("a/b.txt"), null);
   ok("kindFromPath maps extensions", true);
 
@@ -64,6 +72,14 @@ console.log("assessmentFormatExtractHelpers");
   assert.strictEqual(docx.kind, "docx");
   assert.ok(docx.mime.includes("wordprocessingml"),
     "docx source carries the mime buildMessageBlocks branches on");
+  // A photo resolves to the "images" source kind buildMessageBlocks sends to
+  // Claude's vision — one item with a sniffed image mime.
+  const img = sourceForSamplePath(`${SAMPLE_PATH_PREFIX}u/p.png`);
+  assert.strictEqual(img.kind, "images");
+  assert.strictEqual(img.items.length, 1);
+  assert.strictEqual(img.items[0].contentType, "image/png");
+  const jpg = sourceForSamplePath(`${SAMPLE_PATH_PREFIX}u/p.jpeg`);
+  assert.strictEqual(jpg.items[0].contentType, "image/jpeg");
   ok("sourceForSamplePath builds pastPaperImport-compatible sources", true);
 }
 
