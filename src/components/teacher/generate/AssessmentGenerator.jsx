@@ -336,6 +336,14 @@ function AssessmentView({ a, showAnswers }) {
           {sec.instructions && (
             <p className="text-sm italic theme-text-secondary">{sec.instructions}</p>
           )}
+          {sec.passage?.text && (
+            <div className="rounded-xl border theme-border p-3 bg-amber-50/40">
+              {sec.passage.title && (
+                <p className="text-sm font-black theme-text text-center mb-1">{sec.passage.title}</p>
+              )}
+              <p className="text-sm theme-text whitespace-pre-line">{sec.passage.text}</p>
+            </div>
+          )}
           {(sec.questions || []).map((q) => (
             <div key={q.number} className="rounded-xl border theme-border p-3">
               <div className="flex items-start gap-2">
@@ -361,6 +369,22 @@ function AssessmentView({ a, showAnswers }) {
                         </li>
                       ))}
                     </ul>
+                  )}
+                  {q.type === 'matching' && q.matching && (
+                    <div className="mt-1 grid grid-cols-2 gap-4 text-sm theme-text">
+                      <div>
+                        <p className="font-bold">Column A</p>
+                        {q.matching.left.map((item, i) => (
+                          <p key={i}>{i + 1}. {item}</p>
+                        ))}
+                      </div>
+                      <div>
+                        <p className="font-bold">Column B</p>
+                        {q.matching.right.map((item, i) => (
+                          <p key={i}>{LETTERS[i] || '•'}. {item}</p>
+                        ))}
+                      </div>
+                    </div>
                   )}
                   {showAnswers && (
                     <div className="mt-2 pt-2 border-t theme-border">

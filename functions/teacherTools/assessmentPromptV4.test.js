@@ -1,13 +1,13 @@
 /**
- * Node test for the v3 assessment prompt + the schema's diagram and
- * passage fields. Supersedes assessmentPromptV2.test.js (v3 is the
- * active prompt; the schema is shared, so one test owns both).
- * Run: node functions/teacherTools/assessmentPromptV3.test.js
+ * Node test for the v4 assessment prompt + the schema's diagram, passage
+ * and matching fields. One suite owns the active prompt and the shared
+ * schema.
+ * Run: node functions/teacherTools/assessmentPromptV4.test.js
  */
 
 const assert = require("node:assert");
 const {PROMPT_VERSION, SYSTEM_PROMPT, buildUserPrompt} =
-  require("./assessmentPromptV3");
+  require("./assessmentPromptV4");
 const {validateAssessment, SCHEMA_VERSION} = require("./assessmentSchema");
 
 let passed = 0;
@@ -17,11 +17,14 @@ function ok(name, cond) {
   console.log(`  ok  ${name}`);
 }
 
-console.log("assessmentPromptV3");
+console.log("assessmentPromptV4");
 
 // ── Prompt ────────────────────────────────────────────────────────────────
 {
-  ok("prompt version is assessment.v3", PROMPT_VERSION === "assessment.v3");
+  ok("prompt version is assessment.v4", PROMPT_VERSION === "assessment.v4");
+  ok("system prompt explains matching pairs",
+    SYSTEM_PROMPT.includes("\"matching\"") &&
+    SYSTEM_PROMPT.includes("Column A"));
   ok("system prompt makes the format block authoritative",
     SYSTEM_PROMPT.includes("<assessment_format_context>") &&
     SYSTEM_PROMPT.includes("AUTHORITATIVE"));
@@ -43,6 +46,9 @@ console.log("assessmentPromptV3");
     prompt.includes("\"diagram\": string|null"));
   ok("user prompt JSON shape includes the passage object",
     prompt.includes("\"passage\": {\"title\": string, \"text\": string} | null"));
+  ok("user prompt JSON shape includes the matching fields",
+    prompt.includes("\"left\": [string, ...]") &&
+    prompt.includes("\"pairs\": [number, ...]"));
   ok("user prompt names the assessment type",
     prompt.includes("- Assessment type: End of Term Test"));
 }
@@ -89,7 +95,7 @@ function goodAssessment(sectionExtra = {}, questionExtra = {}) {
 }
 
 {
-  ok("schema version bumped to 1.2", SCHEMA_VERSION === "1.2");
+  ok("schema version bumped to 1.3", SCHEMA_VERSION === "1.3");
 
   const withPassage = validateAssessment(goodAssessment({
     passage: {title: "Warthog and Lion", text: "A warthog went into a cave to keep warm. ".repeat(4)},
@@ -135,4 +141,34 @@ function goodAssessment(sectionExtra = {}, questionExtra = {}) {
   ok("over-long diagram briefs clamp to 500 chars", true);
 }
 
-console.log(`assessmentPromptV3: ${passed} checks passed`);
+// ── Matching questions (v1.3) ─────────────────────────────────────────────
+{
+  const good = validateAssessment(goodAssessment({}, {
+    type: "matching",
+    left: ["cow", "dog", "hen"],
+    right: ["calf", "puppy", "chick", "kid"],
+    pairs: [0, 1, 2],
+  }));
+  const q = good.value.sections[0].questions[0];
+  ok("valid matching question keeps its columns and pairs",
+    q.type === "matching" &&
+    q.matching.left.length === 3 &&
+    q.matching.right.length === 4 &&
+    q.matching.pairs.join(",") === "0,1,2");
+
+  const badPairs = validateAssessment(goodAssessment({}, {
+    type: "matching",
+    left: ["a", "b"],
+    right: ["x", "y"],
+    pairs: [0, 9], // out of range
+  }));
+  const q2 = badPairs.value.sections[0].questions[0];
+  ok("broken matching degrades to short_answer",
+    q2.type === "short_answer" && q2.matching === null);
+
+  const nonMatching = validateAssessment(goodAssessment());
+  ok("non-matching questions carry matching: null",
+    nonMatching.value.sections[0].questions[0].matching === null);
+}
+
+console.log(`assessmentPromptV4: ${passed} checks passed`);
