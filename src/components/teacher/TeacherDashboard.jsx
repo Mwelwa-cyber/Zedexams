@@ -54,6 +54,16 @@ const STUDIOS = [
     meta: 'Weekly prep',
   },
   {
+    icon: ClipboardList,
+    tone: 'cyan',
+    badge: 'NEW',
+    libraryKey: 'record-of-work',
+    title: 'Record of Work',
+    tagline: 'Log what you actually taught each week, checked against your scheme.',
+    to: '/teacher/generate/record-of-work',
+    meta: 'Weekly log',
+  },
+  {
     icon: Calculator,
     tone: 'green',
     badge: 'NEW',

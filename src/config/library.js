@@ -5,6 +5,7 @@
  *   Library
  *   ├── Schemes of Work
  *   ├── Weekly Forecasts
+ *   ├── Records of Work
  *   ├── Syllabi              (no Term — covers the whole year)
  *   ├── Lesson Plans
  *   ├── Notes
@@ -28,6 +29,7 @@
 export const LIBRARY_TYPES = {
   SCHEMES_OF_WORK:  'schemes_of_work',
   WEEKLY_FORECASTS: 'weekly_forecasts',
+  RECORDS_OF_WORK:  'records_of_work',
   SYLLABI:          'syllabi',
   LESSON_PLANS:     'lesson_plans',
   NOTES:            'notes',
@@ -57,6 +59,17 @@ export const LIBRARY_SECTIONS = [
     hasAssessmentType: false,
     createTo:  '/teacher/generate/weekly-forecast',
     emptyHint: 'Forecast the week ahead — topics, materials and timings.',
+  },
+  {
+    id:        LIBRARY_TYPES.RECORDS_OF_WORK,
+    label:     'Records of Work',
+    folder:    'Records of Work',
+    icon:      '🦒',
+    accent:    '#f3dede',
+    hasTerm:   true,
+    hasAssessmentType: false,
+    createTo:  '/teacher/generate/record-of-work',
+    emptyHint: 'Log what you actually taught each week — checked against your scheme.',
   },
   {
     id:        LIBRARY_TYPES.SYLLABI,
