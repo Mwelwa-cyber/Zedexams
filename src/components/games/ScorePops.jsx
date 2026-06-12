@@ -41,10 +41,9 @@ export default function ScorePops({ pops }) {
       {pops.map((p) => (
         <span
           key={p.id}
-          className={`absolute font-display text-2xl font-black tabular-nums drop-shadow-sm ${
+          className={`zx-anim-pop absolute font-display text-2xl font-black tabular-nums drop-shadow-sm ${
             p.tone === 'gain' ? 'text-emerald-600' : 'text-rose-600'
           }`}
-          style={{ animation: 'zx-score-pop 0.9s cubic-bezier(0.22,1,0.36,1) forwards' }}
         >
           {p.text}
         </span>

@@ -133,10 +133,16 @@ export default function GameStickerStyles() {
         80%      { transform: translateX(3px); }
       }
       .zx-shake { animation: zx-shake 0.4s ease-in-out; }
+      /* Class forms so the reduced-motion block below can disable them
+         (inline-style animations can't be overridden by a media query). */
+      .zx-anim-pop { animation: zx-score-pop 0.9s cubic-bezier(0.22,1,0.36,1) forwards; }
+      .zx-anim-bump { animation: zx-combo-bump 0.34s ease-out; }
       @media (prefers-reduced-motion: reduce) {
         .zx-flame { animation: none !important; }
         .zx-correct-pop,
-        .zx-shake { animation: none !important; }
+        .zx-shake,
+        .zx-anim-pop,
+        .zx-anim-bump { animation: none !important; }
       }
     `}</style>
   )

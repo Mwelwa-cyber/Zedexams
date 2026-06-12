@@ -101,10 +101,7 @@ export function LevelUpBanner({ change }) {
   if (!change?.leveledUp) return null
   const t = tone(change.rank)
   return (
-    <div
-      className={`zx-card rounded-[18px] p-4 ${t.soft}`}
-      style={{ animation: 'zx-combo-bump 0.4s ease-out' }}
-    >
+    <div className={`zx-anim-bump zx-card rounded-[18px] p-4 ${t.soft}`}>
       <div className="flex items-start gap-3">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] border-2 border-slate-900 bg-white">
           <ArrowTrendingUpIcon className="h-6 w-6 text-slate-900" />
@@ -132,10 +129,7 @@ export function LevelUpBanner({ change }) {
 export function PersonalBestBanner({ personalBest }) {
   if (!personalBest?.isBest) return null
   return (
-    <div
-      className="zx-card rounded-[18px] bg-amber-100 p-4 text-amber-900"
-      style={{ animation: 'zx-combo-bump 0.4s ease-out' }}
-    >
+    <div className="zx-anim-bump zx-card rounded-[18px] bg-amber-100 p-4 text-amber-900">
       <div className="flex items-start gap-3">
         <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] border-2 border-slate-900 bg-white text-amber-600">
           <TrophyIcon className="h-6 w-6" />
@@ -155,12 +149,13 @@ export function PersonalBestBanner({ personalBest }) {
 export function XpProgressBar({ progress, gained }) {
   if (!progress) return null
   const t = tone(progress.rank)
+  const pts = Number(gained) || 0
   return (
     <div className="zx-card rounded-[14px] bg-white p-3.5 text-left">
       <div className="flex items-center justify-between gap-2">
         <span className="inline-flex items-center gap-1.5 text-[12px] font-extrabold text-slate-900">
           <SparklesIcon className="h-4 w-4 text-amber-500" />
-          {gained > 0 ? `+${gained} XP` : 'XP earned'}
+          {pts > 0 ? `+${pts} XP` : 'XP earned'}
         </span>
         <span className="text-[11px] font-bold text-slate-500">
           Level {progress.level} · {progress.rank.title}

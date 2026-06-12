@@ -204,7 +204,7 @@ export default function MascotAvatar({ slug, className = 'h-full w-full', title 
   if (!Art) {
     // Unknown subject — keep the existing emoji so nothing renders blank.
     return (
-      <span role="img" aria-label={label} className={`grid place-items-center ${className}`} style={{ fontSize: '2.2rem', lineHeight: 1 }}>
+      <span role="img" aria-label={label} className={`grid place-items-center text-4xl leading-none ${className}`}>
         {mascot.emoji}
       </span>
     )
