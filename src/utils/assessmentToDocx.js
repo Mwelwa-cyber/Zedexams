@@ -32,6 +32,8 @@ import {
 } from 'docx'
 import { attributionSection } from './docxAttribution.js'
 import { buildPaperLayout } from './assessmentPaperLayout.js'
+import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
+import { svgToPngBytes } from './svgRasterizer.js'
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
@@ -362,8 +364,16 @@ export function detectImageType(bytes) {
 const MIME_BY_TYPE = { png: 'image/png', jpg: 'image/jpeg', gif: 'image/gif', bmp: 'image/bmp', webp: 'image/webp' }
 
 /** Build an ImageRun with the format-detected `type` docx v9 requires. */
-function imageRun(bytes, transformation) {
-  return new ImageRun({ type: detectImageType(bytes), data: bytes, transformation })
+function imageRun(bytes, transformation, alt = '') {
+  const altText = String(alt || '').trim()
+  return new ImageRun({
+    type: detectImageType(bytes),
+    data: bytes,
+    transformation,
+    // Word screen-readers read the description; supply name/title too so the
+    // alt text is exposed everywhere Word looks for it.
+    ...(altText ? { altText: { name: altText, title: altText, description: altText } } : {}),
+  })
 }
 
 // Fit (w,h) inside a box, preserving aspect ratio (never upscaling). The
@@ -415,7 +425,7 @@ async function decodeImage(bytes, type) {
 // Fetch, transcode (WEBP→PNG), and aspect-fit an image, returning a ready
 // ImageRun or null. Centralising this guarantees WEBP is always transcoded
 // before it reaches imageRun — docx would otherwise reject the format.
-async function loadImageRun(url, { width = 360, height = 220 } = {}) {
+async function loadImageRun(url, { width = 360, height = 220, alt = '' } = {}) {
   const bytes = await fetchImageBytes(url)
   if (!bytes) return null
   const type = detectImageType(bytes)
@@ -424,9 +434,38 @@ async function loadImageRun(url, { width = 360, height = 220 } = {}) {
     // No DOM (tests): embed jpg/png/gif/bmp as-is; WEBP can't be transcoded
     // without a canvas, so skip it rather than write a broken media part.
     if (type === 'webp') return null
-    return imageRun(bytes, { width, height })
+    return imageRun(bytes, { width, height }, alt)
   }
-  return imageRun(decoded.bytes, fitWithin(decoded.width, decoded.height, width, height))
+  return imageRun(decoded.bytes, fitWithin(decoded.width, decoded.height, width, height), alt)
+}
+
+// Read the intrinsic aspect ratio from an SVG's viewBox so the rasterized PNG
+// isn't squashed. Falls back to 4:3.
+function svgAspect(svg) {
+  const m = /viewBox="[\d.]+ [\d.]+ ([\d.]+) ([\d.]+)"/.exec(svg || '')
+  const w = m ? parseFloat(m[1]) : 0
+  const h = m ? parseFloat(m[2]) : 0
+  return w > 0 && h > 0 ? w / h : 4 / 3
+}
+
+// Render a deterministic library diagram ({libraryKey, params}) to an embedded
+// ImageRun by rasterizing its SVG to PNG. Browser-only (canvas); returns null
+// in a DOM-less context (node tests) so the caller falls back to alt text.
+async function diagramImageRun(diagram, { maxWidth = 360, maxHeight = 220 } = {}) {
+  if (!diagram || !diagram.libraryKey) return null
+  const svg = renderDiagramSvg(diagram.libraryKey, diagram.params || {}, '#1c1612')
+  if (!svg) return null
+  const aspect = svgAspect(svg)
+  // Rasterize at ~2× the embed size for a crisp print, fitting the box.
+  let width = maxWidth
+  let height = Math.round(maxWidth / aspect)
+  if (height > maxHeight) { height = maxHeight; width = Math.round(maxHeight * aspect) }
+  try {
+    const bytes = await svgToPngBytes(svg, width * 2, height * 2)
+    return imageRun(bytes, { width, height })
+  } catch {
+    return null
+  }
 }
 
 async function logoParagraph(url, transform = null) {
@@ -441,7 +480,7 @@ async function logoParagraph(url, transform = null) {
 
 async function imageParagraph(url, opts = {}) {
   if (!url) return null
-  const run = await loadImageRun(url, { width: opts.width || 360, height: opts.height || 220 })
+  const run = await loadImageRun(url, { width: opts.width || 360, height: opts.height || 220, alt: opts.alt || '' })
   return run ? centeredPara([run]) : null
 }
 
@@ -565,7 +604,7 @@ async function renderPassage(b) {
     })
   }
   if (b.imageUrl) {
-    const img = await imageParagraph(b.imageUrl, { width: 380, height: 220 })
+    const img = await imageParagraph(b.imageUrl, { width: 380, height: 220, alt: b.imageAlt || b.title || '' })
     if (img) out.push(img)
   }
   out.push(new Paragraph({ children: [runText('')], spacing: { after: 100 } }))
@@ -602,7 +641,7 @@ async function renderQuestion(b) {
   }
 
   if (b.imageUrl) {
-    const img = await imageParagraph(b.imageUrl)
+    const img = await imageParagraph(b.imageUrl, { alt: b.imageAlt || '' })
     if (img) out.push(img)
     const labels = Array.isArray(b.diagramLabels) ? b.diagramLabels : []
     const isIdentify = b.diagramMode === 'identify'
@@ -630,6 +669,10 @@ async function renderQuestion(b) {
         ]))
       }
     }
+  }
+  if (b.imageDiagram?.libraryKey) {
+    const run = await diagramImageRun(b.imageDiagram, { maxWidth: 360, maxHeight: 240 })
+    if (run) out.push(centeredPara([run]))
   }
   if (b.tableData) {
     const headers = Array.isArray(b.tableData.headers) ? b.tableData.headers : []
@@ -671,8 +714,11 @@ async function renderQuestion(b) {
           if (i >= opts.length) break
           const media = b.optionMedia?.[i]
           const cellChildren = []
-          if (media?.imageUrl) {
-            const run = await loadImageRun(media.imageUrl, { width: 140, height: 140 })
+          if (media?.diagram?.libraryKey) {
+            const run = await diagramImageRun(media.diagram, { maxWidth: 150, maxHeight: 150 })
+            if (run) cellChildren.push(centeredPara([run]))
+          } else if (media?.imageUrl) {
+            const run = await loadImageRun(media.imageUrl, { width: 140, height: 140, alt: media.alt || '' })
             if (run) cellChildren.push(centeredPara([run]))
           }
           const isCorrect = b.showAnswer && Number(b.correctAnswer) === i
@@ -704,8 +750,14 @@ async function renderQuestion(b) {
         const labelOpts = { bold: true, size: 20, color: isCorrect ? '047857' : undefined }
         const runOpts = { size: 20, color: isCorrect ? '047857' : undefined, bold: isCorrect }
         const runs = [runText(`   ${SECTION_LETTERS[i]}. `, labelOpts)]
-        if (media?.imageUrl) {
-          const run = await loadImageRun(media.imageUrl, { width: 50, height: 50 })
+        if (media?.diagram?.libraryKey) {
+          const run = await diagramImageRun(media.diagram, { maxWidth: 60, maxHeight: 60 })
+          if (run) {
+            runs.push(run)
+            runs.push(runText('  ', { size: 20 }))
+          }
+        } else if (media?.imageUrl) {
+          const run = await loadImageRun(media.imageUrl, { width: 50, height: 50, alt: media.alt || '' })
           if (run) {
             runs.push(run)
             runs.push(runText('  ', { size: 20 }))

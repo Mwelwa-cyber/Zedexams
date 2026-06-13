@@ -219,6 +219,38 @@ test('studyPlanProgress is owner-only and bounded', () => {
   )
 })
 
+test('questionBank is owner-scoped and not admin-readable', () => {
+  const block = rules.match(/match \/questionBank\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
+  assert(block, 'questionBank match block not found')
+  assert(
+    block[1].includes('resource.data.ownerId == request.auth.uid'),
+    'questionBank reads/deletes must be gated on the document owner',
+  )
+  assert(
+    block[1].includes('incoming().ownerId == request.auth.uid'),
+    'questionBank create must pin ownerId to the caller',
+  )
+  // Saved questions are private teacher content — no admin backdoor.
+  assert(
+    !block[1].includes('isAdmin()'),
+    'questionBank must not grant admin access to private saved questions',
+  )
+})
+
+test('assessmentDrafts is strictly owner-only', () => {
+  const block = rules.match(/match \/assessmentDrafts\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
+  assert(block, 'assessmentDrafts match block not found')
+  assert(
+    block[1].includes('isOwner(uid)'),
+    'assessmentDrafts must require document-owner access',
+  )
+  // A teacher's unsaved draft is private — it must NOT be readable by admins.
+  assert(
+    !block[1].includes('isAdmin()'),
+    'assessmentDrafts must not grant admin access to private drafts',
+  )
+})
+
 // ── validLessonFields blocks cap ───────────────────────────────────────
 
 console.log('\nvalidLessonFields blocks cap')
