@@ -1,6 +1,7 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../../../contexts/AuthContext'
+import AiGenerationProgress from '../../ui/AiGenerationProgress'
 import { getFunctions, httpsCallable } from 'firebase/functions'
 import {
   getFirestore, collection, addDoc, serverTimestamp,
@@ -21,7 +22,7 @@ const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerat
 
 // Bump this when /public/studio/* is changed so phones / CDNs refetch
 // instead of serving the cached old file.
-const STUDIO_ASSET_VERSION = 'v15'
+const STUDIO_ASSET_VERSION = 'v16'
 
 // Sequential script loader — each script must finish before the next starts
 // because the studio scripts rely on globals set by earlier ones.
@@ -41,6 +42,11 @@ export default function LessonPlanStudio() {
   const { currentUser, userProfile } = useAuth()
   const db = getFirestore(app)
 
+  // Generation state for the React <AiGenerationProgress> overlay. The vanilla
+  // studio scripts (public/studio/06-generate.js) drive this through the
+  // window.__studioSetGenerating bridge registered below.
+  const [genState, setGenState] = useState(null)
+
   useEffect(() => {
     // Studio scripts are loaded once (cached in <head>), but their DOM
     // bindings need to be re-applied every time React mounts a fresh copy
@@ -49,6 +55,10 @@ export default function LessonPlanStudio() {
 
     // ---- Bridge: navigation ----
     window.__studioNavigateHome = () => navigate('/teacher')
+
+    // ---- Bridge: generation progress ----
+    // 06-generate.js calls this to show/hide the shared AI progress tracker.
+    window.__studioSetGenerating = (s) => setGenState(s && s.running ? s : null)
 
     // ---- Bridge: Firestore save ----
     window.saveToLibrary = async ({ meta, data, html, studioFormat }) => {
@@ -390,6 +400,7 @@ export default function LessonPlanStudio() {
 
     return () => {
       delete window.__studioNavigateHome
+      delete window.__studioSetGenerating
       delete window.__studioCallClaude
       delete window.__studioGetAuth
       delete window.__studioFetchSyllabusTopics
@@ -846,15 +857,25 @@ export default function LessonPlanStudio() {
 
             <div className="workspace">
               <div className="doc-wrap" id="doc-wrap">
-                {/* Loading overlay — toggled by 06-generate.js via classList.add/remove('show') */}
-                <div id="loader" style={{display:'none',position:'absolute',inset:0,zIndex:10,background:'rgba(250,246,239,0.85)',alignItems:'center',justifyContent:'center',borderRadius:'inherit'}}>
-                  <div style={{textAlign:'center',color:'var(--muted,#7a6d5d)'}}>
-                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" style={{animation:'spin 1s linear infinite'}}>
-                      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-                    </svg>
-                    <div style={{marginTop:'10px',fontSize:'13px'}}>Generating…</div>
+                {/* AI progress overlay — the shared <AiGenerationProgress>, driven
+                    by 06-generate.js through the window.__studioSetGenerating bridge. */}
+                {genState?.running && (
+                  <div
+                    style={{
+                      position: 'absolute', inset: 0, zIndex: 10,
+                      background: 'var(--paper, #faf6ef)',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      borderRadius: 'inherit', overflow: 'auto',
+                    }}
+                  >
+                    <AiGenerationProgress
+                      variant="card"
+                      preset="lessonPlan"
+                      running
+                      title={genState.title || 'Composing your lesson plan…'}
+                    />
                   </div>
-                </div>
+                )}
                 <div className="doc" id="doc">
                   <div className="empty-state">
                     <div className="glyph">
@@ -908,9 +929,6 @@ export default function LessonPlanStudio() {
         </div>
       </div>
       <div className="toast" id="toast">Saved</div>
-
-      {/* Loader overlay + spinner animation */}
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}} #loader.show{display:flex!important}`}</style>
     </>
   )
 }
