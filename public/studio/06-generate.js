@@ -817,9 +817,20 @@ async function __studioOnGenerateClick() {
   }
 }
 
+// The real generation loop, exposed so the Review step (13-review.js) can fire
+// it once the teacher confirms. Kept stable so 06 works standalone too.
+window.__studioConfirmGenerate = __studioOnGenerateClick;
+
 function __studioInitGenerate() {
   const btn = $('#btn-generate');
-  if (btn) btn.addEventListener('click', __studioOnGenerateClick);
+  if (!btn) return;
+  // Generate now opens the Review & Generate confirmation first. When the
+  // review module isn't loaded (older cached bundle) fall straight through to
+  // a direct run so generation never breaks.
+  btn.addEventListener('click', () => {
+    if (typeof window.__studioOpenReview === 'function') window.__studioOpenReview();
+    else __studioOnGenerateClick();
+  });
 }
 
 window.__studioRebinders = window.__studioRebinders || [];
