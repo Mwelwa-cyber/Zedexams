@@ -18,7 +18,7 @@ const ALLOWED_SUBJECTS = new Set([
   "physical_education", "religious_education", "civic_education",
   "biology", "chemistry", "physics", "geography", "history",
   "environmental_science", "technology_studies", "home_economics",
-  "expressive_arts",
+  "expressive_arts", "accounts",
 ]);
 
 module.exports = {ALLOWED_GRADES, ALLOWED_SUBJECTS};
