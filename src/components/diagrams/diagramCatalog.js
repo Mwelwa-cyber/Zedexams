@@ -118,6 +118,40 @@ export const DIAGRAM_CATALOG = {
       const hl = (!isNaN(h) && h >= min && h <= max) ? `<circle cx="${inX(h)}" cy="${axisY}" r="6" fill="${col}"/>` : ''
       return `<svg viewBox="0 0 ${w} 90" xmlns="http://www.w3.org/2000/svg" width="${w}"><line x1="${m - 4}" y1="${axisY}" x2="${w - m + 4}" y2="${axisY}" stroke="#1c1612" stroke-width="1.6"/><polygon points="${m - 10},${axisY} ${m - 4},${axisY - 5} ${m - 4},${axisY + 5}" fill="#1c1612"/><polygon points="${w - m + 10},${axisY} ${w - m + 4},${axisY - 5} ${w - m + 4},${axisY + 5}" fill="#1c1612"/>${ticks}${hl}</svg>`
     } },
+  numberlinejump: { cat: 'Graphs', name: 'Number Line (jumps)', defaults: { min: '-5', max: '5', step: '1', jumps: '-3>2,2>-1', cap: 'Number line jumps' }, fields: [['min', 'Min'], ['max', 'Max'], ['step', 'Step'], ['jumps', 'Jumps e.g. -3>2,2>5'], ['cap', 'Caption']],
+    render: (p, col) => {
+      // Integer arithmetic shown as directional hops over a number line, e.g.
+      // start at -3, jump +5 to land on 2. `jumps` is a comma list of "from>to"
+      // pairs using values on the line. The axis sits low so arcs have room
+      // above; deltas (+5 / -3) are computed from the numeric endpoints so no
+      // author text is rendered (ticks + deltas are all numeric → injection-safe).
+      const min = parseFloat(p.min), max = parseFloat(p.max), step = parseFloat(p.step) || 1
+      const w = 540, m = 30, axisY = 110
+      const inX = v => m + ((v - min) / (max - min)) * (w - 2 * m)
+      let ticks = ''
+      for (let v = min; v <= max + 0.0001; v += step) {
+        const x = inX(v)
+        ticks += `<line x1="${x}" y1="${axisY - 7}" x2="${x}" y2="${axisY + 7}" stroke="#1c1612" stroke-width="1.2"/><text x="${x}" y="${axisY + 24}" font-family="Lora,serif" font-size="12" text-anchor="middle" fill="#1c1612">${+v.toFixed(2)}</text>`
+      }
+      const jumps = String(p.jumps ?? '').split(',').map(s => s.trim()).filter(Boolean)
+      let arcs = ''
+      const dots = new Set()
+      for (const jump of jumps) {
+        const [a, b] = jump.split('>').map(s => parseFloat(s))
+        if (isNaN(a) || isNaN(b) || a < min || a > max || b < min || b > max) continue
+        const x1 = inX(a), x2 = inX(b), midX = (x1 + x2) / 2
+        const apexY = axisY - Math.min(80, 28 + Math.abs(x2 - x1) * 0.32)
+        arcs += `<path d="M ${x1},${axisY} Q ${midX},${apexY} ${x2},${axisY}" fill="none" stroke="${col}" stroke-width="2"/>`
+        // Arrowhead landing on the axis at the destination.
+        arcs += `<polygon points="${x2},${axisY} ${x2 - 5},${axisY - 9} ${x2 + 5},${axisY - 9}" fill="${col}"/>`
+        const d = b - a
+        const label = (d >= 0 ? '+' : '-') + (+Math.abs(d).toFixed(2))
+        arcs += `<text x="${midX}" y="${apexY - 5}" font-family="Lora,serif" font-size="13" font-weight="700" text-anchor="middle" fill="${col}">${label}</text>`
+        dots.add(a); dots.add(b)
+      }
+      const dotSvg = [...dots].map(v => `<circle cx="${inX(v)}" cy="${axisY}" r="5" fill="#1c1612"/>`).join('')
+      return `<svg viewBox="0 0 ${w} 150" xmlns="http://www.w3.org/2000/svg" width="${w}"><line x1="${m - 4}" y1="${axisY}" x2="${w - m + 4}" y2="${axisY}" stroke="#1c1612" stroke-width="1.6"/><polygon points="${m - 10},${axisY} ${m - 4},${axisY - 5} ${m - 4},${axisY + 5}" fill="#1c1612"/><polygon points="${w - m + 10},${axisY} ${w - m + 4},${axisY - 5} ${w - m + 4},${axisY + 5}" fill="#1c1612"/>${ticks}${arcs}${dotSvg}</svg>`
+    } },
   coordgrid: { cat: 'Graphs', name: 'Coordinate Grid', defaults: { range: '5', cap: 'Cartesian plane' }, fields: [['range', 'Range (±)'], ['cap', 'Caption']],
     render: (p, _col) => {
       const r = parseInt(p.range, 10) || 5, size = 320, m = 20, ax = (size - 2 * m) / (2 * r)

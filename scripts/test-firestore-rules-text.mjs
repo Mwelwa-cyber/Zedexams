@@ -237,6 +237,20 @@ test('questionBank is owner-scoped and not admin-readable', () => {
   )
 })
 
+test('assessmentDrafts is strictly owner-only', () => {
+  const block = rules.match(/match \/assessmentDrafts\/\{[^}]+\}\s*\{([\s\S]*?)\n {4}\}/)
+  assert(block, 'assessmentDrafts match block not found')
+  assert(
+    block[1].includes('isOwner(uid)'),
+    'assessmentDrafts must require document-owner access',
+  )
+  // A teacher's unsaved draft is private — it must NOT be readable by admins.
+  assert(
+    !block[1].includes('isAdmin()'),
+    'assessmentDrafts must not grant admin access to private drafts',
+  )
+})
+
 // ── validLessonFields blocks cap ───────────────────────────────────────
 
 console.log('\nvalidLessonFields blocks cap')
