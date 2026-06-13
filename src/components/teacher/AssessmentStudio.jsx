@@ -18,6 +18,7 @@ import {
   saveAssessmentDraft,
   saveAssessmentDraftRemote,
 } from '../../hooks/useAssessmentDraft'
+import { useUndoRedo } from '../../hooks/useUndoRedo'
 import { storage } from '../../firebase/config'
 import { generateAIQuizQuestions } from '../../utils/aiAssistant'
 import { generateDiagram } from '../../utils/generateDiagram'
@@ -494,6 +495,41 @@ export default function AssessmentStudio() {
   }, [form, sections, parts, view, currentUser?.uid])
 
   useEffect(() => () => revokeImportedQuizAssets(importedAssets), [importedAssets])
+
+  /* ------------ paper-level undo / redo ------------ */
+  // TipTap handles undo *inside* each text field; this covers structural
+  // edits — add/remove/reorder questions & parts, header fields, type
+  // switches — over the whole paper's form + sections + parts.
+  const undoableValue = useMemo(() => ({ form, sections, parts }), [form, sections, parts])
+  const applyUndoable = useCallback((snap) => {
+    if (!snap) return
+    setForm(snap.form)
+    setSections(snap.sections)
+    setParts(snap.parts)
+  }, [])
+  const { undo, redo, canUndo, canRedo } = useUndoRedo(undoableValue, applyUndoable)
+
+  // Global keyboard shortcuts. We deliberately let the browser/TipTap handle
+  // Ctrl+Z while focus is in a text field so typing-level undo keeps working;
+  // only when focus is outside an editable element do we drive paper undo.
+  useEffect(() => {
+    function onKeyDown(e) {
+      const key = e.key.toLowerCase()
+      if (key !== 'z' && key !== 'y') return
+      if (!(e.ctrlKey || e.metaKey)) return
+      const el = e.target
+      const tag = el?.tagName
+      const editable = tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' ||
+        el?.isContentEditable
+      if (editable) return
+      const wantRedo = key === 'y' || (key === 'z' && e.shiftKey)
+      e.preventDefault()
+      if (wantRedo) redo()
+      else undo()
+    }
+    window.addEventListener('keydown', onKeyDown)
+    return () => window.removeEventListener('keydown', onKeyDown)
+  }, [undo, redo])
 
   /* ------------ recent papers (home view) ------------ */
   useEffect(() => {
@@ -1499,6 +1535,10 @@ export default function AssessmentStudio() {
         title={autoTitle}
         savingDraft={Boolean(saving)}
         draftSavedAt={draftSavedAt}
+        canUndo={canUndo}
+        canRedo={canRedo}
+        onUndo={undo}
+        onRedo={redo}
         onBack={() => navigate('/teacher/assessments')}
         onAi={() => openSlide('ai')}
       />
@@ -1719,7 +1759,7 @@ export default function AssessmentStudio() {
 /* ==================================================================
  * TOP BAR
  * ================================================================== */
-function TopBar({ title, savingDraft, draftSavedAt, onBack, onAi }) {
+function TopBar({ title, savingDraft, draftSavedAt, canUndo, canRedo, onUndo, onRedo, onBack, onAi }) {
   const savedLabel = draftSavedAt
     ? `Saved ${new Date(draftSavedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
     : 'Draft'
@@ -1733,6 +1773,20 @@ function TopBar({ title, savingDraft, draftSavedAt, onBack, onAi }) {
           {savingDraft ? 'Saving…' : savedLabel}
         </span>
       </div>
+      <button
+        className="sv-icon-btn"
+        onClick={onUndo}
+        disabled={!canUndo}
+        aria-label="Undo"
+        title="Undo (Ctrl+Z)"
+      >↶</button>
+      <button
+        className="sv-icon-btn"
+        onClick={onRedo}
+        disabled={!canRedo}
+        aria-label="Redo"
+        title="Redo (Ctrl+Shift+Z)"
+      >↷</button>
       <button className="sv-icon-btn" onClick={onAi} title="AI assistant">✨</button>
     </header>
   )

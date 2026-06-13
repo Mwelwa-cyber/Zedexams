@@ -124,6 +124,8 @@
   transition: background 0.15s;
 }
 .studio-v2 .sv-icon-btn:hover { background: rgba(14,44,48,0.06); }
+.studio-v2 .sv-icon-btn:disabled { opacity: 0.32; cursor: default; }
+.studio-v2 .sv-icon-btn:disabled:hover { background: transparent; }
 .studio-v2 .sv-app-bar-title {
   flex: 1;
   min-width: 0;
