@@ -890,7 +890,9 @@ async function renderQuestion(b) {
     } else if (b.type === 'mcq') {
       const i = Number(b.correctAnswer)
       const letter = SECTION_LETTERS[i] || '?'
-      const opt = b.options?.[i] ?? ''
+      // Plain mirror first so a rich fraction option reads as "1/3" rather than
+      // its literal `<span class="math-frac">` HTML.
+      const opt = b.optionsPlain?.[i] ?? b.options?.[i] ?? ''
       out.push(para([
         runText('Answer: ', { bold: true, size: 20, color: '047857' }),
         runText(`${letter}. ${opt}`, { size: 20, color: '047857' }),

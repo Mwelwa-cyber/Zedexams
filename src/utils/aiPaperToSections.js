@@ -10,6 +10,10 @@ import {
   createPassageSection,
   createStandaloneSection,
 } from './quizSections.js'
+import {
+  importMarkupToRichHtml,
+  importMarkupToOptionHtml,
+} from '../components/quiz/importRichText.js'
 
 const LETTERS = ['A', 'B', 'C', 'D', 'E', 'F']
 
@@ -104,12 +108,16 @@ export function mapAiQuestion(q, { partId = null } = {}) {
   const reviewNotes = []
   const visual = readVisual(q)
 
+  // Convert the lightweight maths markup the generator emits (\frac{a}{b},
+  // $…$, [[vmath …]]) into the editor's node-HTML so fractions stack and sums
+  // print as columns — the same converter the smart-import and AI-edit paths
+  // use. Plain prose passes through untouched (hasImportMarkup gates it).
   const overrides = {
     type,
     detectedType: type,
-    text,
+    text: importMarkupToRichHtml(text),
     marks,
-    explanation,
+    explanation: importMarkupToRichHtml(explanation),
     partId,
   }
 
@@ -122,6 +130,9 @@ export function mapAiQuestion(q, { partId = null } = {}) {
       Array.isArray(m.pairs) && m.pairs.length === m.left.length &&
       m.left.length >= 2
     if (valid) {
+      // Matching columns stay PLAIN: the paper layout and answer key render
+      // them through richTextToPlainText either way, so HTML here would buy
+      // nothing — it matches the document importer, which also leaves them plain.
       overrides.matchingLeft = m.left.map(String)
       overrides.matchingRight = m.right.map(String)
       overrides.matchingAnswer = m.pairs.map(Number)
@@ -190,8 +201,11 @@ export function mapAiQuestion(q, { partId = null } = {}) {
     const options = aiType === 'true_false' && !(Array.isArray(q?.options) && q.options.length >= 2) ?
       ['True', 'False'] :
       (Array.isArray(q?.options) ? q.options.map((o) => String(o ?? '').trim()).filter(Boolean) : [])
-    overrides.options = options.length >= 2 ? options : ['', '', '', '']
-    const idx = matchAnswerIndex(answer, overrides.options)
+    // Match the answer against the PLAIN option text before converting maths
+    // markup, so a `\frac{8}{15}` answer still lines up with its option.
+    const plainOptions = options.length >= 2 ? options : ['', '', '', '']
+    overrides.options = plainOptions.map(importMarkupToOptionHtml)
+    const idx = matchAnswerIndex(answer, plainOptions)
     if (idx >= 0) {
       overrides.correctAnswer = idx
     } else {
