@@ -4802,7 +4802,7 @@ function PaperQuestionBlock({ block }) {
     <div className="sv-paper-q">
       <div className="sv-qline">
         <strong>{block.number}.</strong> {block.text || '(no question text)'}
-        {marks > 1 && <em className="sv-qmarks">({marks}&nbsp;marks)</em>}
+        {marks >= 1 && <em className="sv-qmarks">({marks}&nbsp;mark{marks === 1 ? '' : 's'})</em>}
       </div>
       {block.imageUrl && (
         <>
@@ -4834,7 +4834,7 @@ function PaperQuestionBlock({ block }) {
               </span>
             ))}
           </div>
-          {block.diagramMode === 'identify' && (block.diagramLabels?.length > 0) && (
+          {block.diagramMode === 'identify' && block.type !== 'mcq' && (block.diagramLabels?.length > 0) && (
             <ol style={{ margin: '8px 0 0 18pt', padding: 0 }}>
               {block.diagramLabels.map((_, i) => (
                 <li key={i} style={{ marginBottom: 4 }}>
@@ -4909,6 +4909,10 @@ function PaperQuestionBlock({ block }) {
 
 function PaperMcqOptions({ block }) {
   const correct = Number(block.correctAnswer)
+  // Use the readable plain mirror, not the raw stored option: options can hold
+  // math markup (`<span class="mnode" data-latex="…">`) which would otherwise
+  // print as escaped HTML in this text preview.
+  const optText = (i) => block.optionsPlain?.[i] ?? block.options?.[i] ?? ''
   if (block.optionsMode === 'image') {
     return (
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 8, margin: '8px 0' }}>
@@ -4925,7 +4929,7 @@ function PaperMcqOptions({ block }) {
                     : <span style={{ fontSize: 24, color: '#999' }}>?</span>}
               </div>
               <div style={{ fontSize: 12, fontWeight: 700, color: isCorrect ? '#047857' : undefined }}>
-                {SECTION_LETTERS[i]}.{opt ? ` ${opt}` : ''}{isCorrect ? ' ✓' : ''}
+                {SECTION_LETTERS[i]}.{optText(i) ? ` ${optText(i)}` : ''}{isCorrect ? ' ✓' : ''}
               </div>
             </div>
           )
@@ -4948,7 +4952,7 @@ function PaperMcqOptions({ block }) {
                   ? <img src={media.imageUrl} alt={media.alt || ''} style={{ width: 40, height: 40, objectFit: 'contain' }} />
                   : <span style={{ width: 40, height: 40, display: 'inline-block' }} />}
               <span style={{ color: isCorrect ? '#047857' : undefined, fontWeight: isCorrect ? 700 : 400 }}>
-                {opt}{isCorrect ? ' ✓' : ''}
+                {optText(i)}{isCorrect ? ' ✓' : ''}
               </span>
             </div>
           )
@@ -4956,7 +4960,7 @@ function PaperMcqOptions({ block }) {
       </div>
     )
   }
-  const long = (block.options || []).some(o => String(o).length > 18)
+  const long = (block.options || []).some((_, i) => String(optText(i)).length > 18)
   // Paper-level layout overrides the long-option auto-stack when the
   // teacher has picked one. Horizontal lays the options out in an N-column
   // row matching the choice count.
@@ -4974,7 +4978,7 @@ function PaperMcqOptions({ block }) {
         const isCorrect = block.showAnswer && correct === i
         return (
           <div key={i} style={isCorrect ? { color: '#047857', fontWeight: 700 } : undefined}>
-            <span className="sv-opt-letter">{SECTION_LETTERS[i]}.</span> {opt}{isCorrect ? '  ✓' : ''}
+            <span className="sv-opt-letter">{SECTION_LETTERS[i]}.</span> {optText(i)}{isCorrect ? '  ✓' : ''}
           </div>
         )
       })}

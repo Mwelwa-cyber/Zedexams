@@ -74,6 +74,62 @@ function plain(value) {
 }
 
 /**
+ * Drop an option-letter prefix the author (or the AI generator) baked into
+ * the option text, e.g. "A. digestive system" stored at index 0. Every
+ * renderer prepends its own A/B/C/D label, so without this the paper shows
+ * "A. A. digestive system". Only strips when the leading letter matches the
+ * expected label for that slot and is followed by a real delimiter, so legit
+ * content like "Arteries" or "A car is faster" is never touched.
+ */
+function stripOptionLabel(value, index) {
+  if (typeof value !== 'string') return value
+  const expected = SECTION_LETTERS[index]
+  if (!expected) return value
+  const m = value.match(/^\s*([A-Za-z])\s*[.):\-–—]\s+/)
+  if (m && m[1].toUpperCase() === expected) return value.slice(m[0].length)
+  return value
+}
+
+/**
+ * Strip a leading "SECTION A:" / "PART 1 —" label the author or generator put
+ * in the part title. The renderers always render "Section <letter> — <title>",
+ * so a baked-in label produced "Section A — SECTION A: Multiple choice".
+ * Requires a clear delimiter (or the label standing alone) so a real title
+ * such as "Sections of a plant" survives.
+ */
+function stripSectionLabel(title) {
+  const t = String(title || '').trim()
+  if (!t) return ''
+  // "SECTION A: Foo" | "PART 1 - Foo" | "SECTION A. Foo" | "SECTION A — Foo"
+  const labelled = t.match(/^(?:section|part)\b\s*(?:[a-z]|[ivx]{1,4}|\d{1,3})?\s*[:.)\-–—]+\s*(.*)$/i)
+  if (labelled) return labelled[1].trim()
+  // Bare label with no title after it ("SECTION A", "PART 1").
+  if (/^(?:section|part)\b\s*(?:[a-z]|[ivx]{1,4}|\d{1,3})?\s*$/i.test(t)) return ''
+  return t
+}
+
+/**
+ * Some generated papers stuffed a full name/date/marks header into the cover
+ * instructions ("NAME: ___ DATE: ___ TOTAL MARKS: ___ INSTRUCTIONS: Answer
+ * ALL questions."), which then printed twice because the learner-fields block
+ * already draws those lines. When the text before an "Instructions:" marker is
+ * just field labels, drop it and keep the real instruction prose.
+ */
+function cleanCoverInstructions(text) {
+  const t = String(text || '').trim()
+  if (!t) return ''
+  const m = t.match(/^(.*?)\binstructions?\b\s*[:\-–—]\s*(.+)$/is)
+  if (m) {
+    const preamble = m[1]
+    const rest = m[2].trim()
+    if (rest && /\b(?:pupil'?s?\s*name|name|date|class|total\s*marks|marks)\b\s*[:_]/i.test(preamble)) {
+      return rest
+    }
+  }
+  return t
+}
+
+/**
  * Build paper-ready HTML for a rich-text value (Tiptap JSON, JSON string,
  * or legacy HTML). Returns '' when the value has no content. The result is
  * pre-hydrated for Grade-7 math blocks so the PDF print window — which
@@ -310,7 +366,7 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
   blocks.push({ kind: 'learnerFields', ...nameFieldsConfig })
 
   // 3. Instructions
-  const instructions = plain(assessment.coverInstructions)
+  const instructions = cleanCoverInstructions(plain(assessment.coverInstructions))
   if (instructions || includeAnswers) {
     blocks.push({
       kind: 'instructions',
@@ -350,7 +406,7 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
       blocks.push({
         kind: 'sectionHeader',
         letter,
-        title: plain(group.title),
+        title: stripSectionLabel(plain(group.title)),
         marks: partMarks,
         instructions: plain(group.instructions),
       })
@@ -440,6 +496,11 @@ function buildQuestionBlock(q, number, includeAnswer, mcqOpts = {}) {
   if (type === 'mcq' && mcqCount && options.length > mcqCount) {
     options = options.slice(0, mcqCount)
     optionMedia = optionMedia.slice(0, mcqCount)
+  }
+  // Drop any letter prefix baked into the option text ("A. digestive system")
+  // so the renderers' own A/B/C/D labels don't double up ("A. A. …").
+  if (type === 'mcq') {
+    options = options.map((o, i) => stripOptionLabel(o, i))
   }
   // optionsMode: 'text', 'image', or 'mixed'. Tells the renderer how to draw.
   let optionsMode = 'text'

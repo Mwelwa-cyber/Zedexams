@@ -211,18 +211,28 @@ function richHtmlToDocxParagraphs(html, baseOpts = { size: 22 }, opts = {}) {
 
   /** Accumulate runs into the current paragraph; spill into `out` on block. */
   const out = []
-  let currentRuns = [...prefixRuns]
+  // The prefix (e.g. the "12. " question number) is held separately and
+  // prepended to the FIRST paragraph that actually has content. Block-level
+  // wrappers flush on entry, so preloading the prefix into currentRuns put a
+  // leading `<p>` question stem on its own line ("12." then "Work out:" below).
+  let pendingPrefix = [...prefixRuns]
+  let currentRuns = []
   let isFirstParagraph = true
+  // Track the last emitted paragraph's runs so a trailing suffix (the marks
+  // tag) can be re-attached to it inline instead of dropping onto its own line.
+  let lastEmitted = null
 
   const flush = () => {
-    if (currentRuns.length) {
-      const spacing = isFirstParagraph && firstParaSpacing
-        ? firstParaSpacing
-        : { after: 80 }
-      out.push(new Paragraph({ children: currentRuns, spacing }))
-      currentRuns = []
-      isFirstParagraph = false
-    }
+    if (!currentRuns.length) return
+    const children = [...pendingPrefix, ...currentRuns]
+    pendingPrefix = []
+    const spacing = isFirstParagraph && firstParaSpacing
+      ? firstParaSpacing
+      : { after: 80 }
+    out.push(new Paragraph({ children, spacing }))
+    lastEmitted = { children, spacing, index: out.length - 1 }
+    currentRuns = []
+    isFirstParagraph = false
   }
 
   const walk = (node, marks = {}) => {
@@ -315,11 +325,18 @@ function richHtmlToDocxParagraphs(html, baseOpts = { size: 22 }, opts = {}) {
   }
 
   Array.from(doc.body.childNodes).forEach((node) => walk(node, {}))
-  // Append suffix runs to the last paragraph (or current pending one).
-  if (suffixRuns.length) {
-    currentRuns.push(...suffixRuns)
+  // Append suffix runs (the marks tag) to the last line of content. If the
+  // content ended on a block boundary, re-open the last emitted paragraph so
+  // the tag stays inline rather than starting a new paragraph.
+  if (suffixRuns.length && !currentRuns.length && lastEmitted) {
+    out[lastEmitted.index] = new Paragraph({
+      children: [...lastEmitted.children, ...suffixRuns],
+      spacing: lastEmitted.spacing,
+    })
+  } else {
+    if (suffixRuns.length) currentRuns.push(...suffixRuns)
+    flush()
   }
-  flush()
   return out.length ? out : [para([...prefixRuns, runText('', baseOpts), ...suffixRuns], firstParaSpacing || {})]
 }
 
@@ -617,7 +634,7 @@ async function renderPassage(b) {
 async function renderQuestion(b) {
   const out = []
   const marks = b.marks ?? 1
-  const marksTag = marks > 1 ? `  (${marks} marks)` : ''
+  const marksTag = marks >= 1 ? `  (${marks} mark${marks === 1 ? '' : 's'})` : ''
 
   // When the question carries pre-hydrated rich HTML, walk it so the
   // Grade-7 math blocks (vertical sums, fractions, number bases) come
@@ -649,17 +666,18 @@ async function renderQuestion(b) {
     const labels = Array.isArray(b.diagramLabels) ? b.diagramLabels : []
     const isIdentify = b.diagramMode === 'identify'
     if (labels.length) {
-      if (isIdentify) {
+      if (isIdentify && b.type !== 'mcq') {
         // Identify mode: emit numbered blank-answer lines below the image
         // for the student to fill in. The expected answers go into the
-        // marking key paragraph (below, in the showAnswer branch).
+        // marking key paragraph (below, in the showAnswer branch). Skipped
+        // for MCQs, whose A/B/C/D options already are the answer space.
         for (let i = 0; i < labels.length; i += 1) {
           out.push(para([
             runText(`${i + 1}. `, { bold: true, size: 20 }),
             runText('______________________________________________________', { size: 20 }),
           ]))
         }
-      } else {
+      } else if (!isIdentify) {
         // Word can't reliably overlay positioned labels on top of an
         // inline image, so we drop the labels as a numbered text list
         // below — same information, ordered top-to-bottom then
