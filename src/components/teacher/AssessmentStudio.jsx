@@ -76,8 +76,8 @@ import {
 } from '../quiz/documentQuizImporter'
 import { LIBRARY_TYPES } from '../../config/library'
 import { classifyForLibrary } from '../../utils/libraryClassification'
-import { printAssessmentAsPdf } from '../../utils/assessmentToPdf'
-import { downloadAssessmentDocx } from '../../utils/assessmentToDocx'
+import { printAssessmentAsPdf, printAnswerSheetAsPdf } from '../../utils/assessmentToPdf'
+import { downloadAssessmentDocx, downloadAnswerSheetDocx } from '../../utils/assessmentToDocx'
 import { buildPaperLayout, computeSmartWarnings } from '../../utils/assessmentPaperLayout'
 import { SUBJECTS as CBC_SUBJECTS, COMPETENCIES } from '../../config/curriculum'
 
@@ -1393,6 +1393,18 @@ export default function AssessmentStudio() {
     setExporting(true)
     try {
       const baseFile = (assessmentDoc.title || 'assessment').replace(/[^a-z0-9-]+/gi, '-').toLowerCase()
+      // Standalone answer sheet (bubble grid) — its own builder, not the
+      // full-paper layout.
+      if (mode === 'answersheet') {
+        if (kind === 'pdf') {
+          printAnswerSheetAsPdf(assessmentDoc, serializedPreview.questions)
+          showToast('Answer sheet PDF opened.')
+        } else if (kind === 'docx') {
+          await downloadAnswerSheetDocx(assessmentDoc, serializedPreview.questions, `${baseFile}-answer-sheet.docx`, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+          showToast('Answer sheet download started.')
+        }
+        return
+      }
       const fileSuffix = mode === 'scheme' ? '-marking-key' : ''
       if (kind === 'pdf') {
         printAssessmentAsPdf(assessmentDoc, serializedPreview.questions, { mode })
@@ -1662,6 +1674,7 @@ export default function AssessmentStudio() {
           assessment={assessmentDoc}
           changeView={changeView}
           onExport={(kind) => handleExport(kind, 'paper')}
+          onExportAnswerSheet={(kind) => handleExport(kind, 'answersheet')}
           onSave={handleSave}
           saving={saving}
           exporting={exporting}
@@ -3079,6 +3092,7 @@ function ReviseQuestionPopover({
             style={{ border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: '4px 6px', fontSize: 12, background: 'var(--sv-paper)' }}
           >
             <option value="">— none —</option>
+            <option value="polish">Polish (grammar & clarity)</option>
             <option value="easier">Make easier</option>
             <option value="harder">Make harder</option>
             <option value="simpler">Simpler vocabulary</option>
@@ -3201,13 +3215,15 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
     setDiagramTarget(null)
   }
 
-  async function handleRevise() {
+  // Shared runner so the popover (handleRevise) and the one-click "Improve"
+  // button (handleImprove) hit the same call without depending on async state.
+  async function runRevise({ toGrade, modifier }) {
     const text = String(question.text || '').trim()
     if (!text) {
       setReviseError('Add the question text first, then ask AI to revise it.')
       return
     }
-    if (!reviseTargetGrade && !reviseModifier) {
+    if (!toGrade && !modifier) {
       setReviseError('Pick a target grade or modifier first.')
       return
     }
@@ -3217,10 +3233,10 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
       const result = await reviseQuestionCall({
         text,
         fromGrade: paperMeta?.grade,
-        toGrade: reviseTargetGrade,
+        toGrade,
         subject: paperMeta?.subject,
         language: paperMeta?.language,
-        modifier: reviseModifier,
+        modifier,
       })
       if (!mountedRef.current) return
       setRevisedPreview(result.text)
@@ -3229,6 +3245,20 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
     } finally {
       if (mountedRef.current) setRevising(false)
     }
+  }
+
+  function handleRevise() {
+    return runRevise({ toGrade: reviseTargetGrade, modifier: reviseModifier })
+  }
+
+  // One-click polish: fix grammar + clarity at the SAME grade/difficulty. Opens
+  // the revise panel (so the Apply/Discard preview shows) pre-set to 'polish'
+  // and runs immediately.
+  function handleImprove() {
+    setReviseOpen(true)
+    setReviseTargetGrade('')
+    setReviseModifier('polish')
+    return runRevise({ modifier: 'polish' })
   }
 
   function applyRevision() {
@@ -3389,6 +3419,26 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
           {suggesting
             ? '⏳ Thinking…'
             : (isEssay ? '✨ Suggest marking notes' : '✨ Suggest answer')}
+        </button>
+        <button
+          type="button"
+          onClick={handleImprove}
+          disabled={revising}
+          title="Fix grammar & clarity at the same grade and difficulty"
+          style={{
+            background: 'var(--sv-paper)',
+            border: '1px solid var(--sv-border)',
+            borderRadius: 'var(--sv-r-sm)',
+            padding: '3px 10px',
+            fontSize: 11.5,
+            cursor: revising ? 'default' : 'pointer',
+            color: 'var(--sv-text)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+        >
+          ✨ Improve
         </button>
         <button
           type="button"
@@ -4553,7 +4603,7 @@ function FooterBlock({ form, setF, footerCode }) {
  * matches the PDF and DOCX exports pixel-for-pixel. The `mode` prop
  * switches between the printable paper and the marking key.
  * ================================================================== */
-function PaperRenderView({ mode, blocks, assessment, changeView, onExport, onSave, saving, exporting, showSave }) {
+function PaperRenderView({ mode, blocks, assessment, changeView, onExport, onExportAnswerSheet, onSave, saving, exporting, showSave }) {
   const isKey = mode === 'scheme'
   return (
     <section className="sv-view">
@@ -4579,6 +4629,16 @@ function PaperRenderView({ mode, blocks, assessment, changeView, onExport, onSav
           <button className="sv-btn sv-btn-outline" onClick={() => onExport('print')}>
             🖨 Print
           </button>
+          {onExportAnswerSheet && (
+            <button
+              className="sv-btn sv-btn-outline"
+              onClick={() => onExportAnswerSheet('pdf')}
+              disabled={exporting}
+              title="A bubble answer sheet (PDF) students fill in instead of writing on the paper"
+            >
+              🫧 Answer sheet
+            </button>
+          )}
           {showSave && (
             <button className="sv-btn sv-btn-primary" onClick={onSave} disabled={saving} style={{ marginLeft: 'auto' }}>
               {saving ? 'Saving…' : `💾 Save · ${assessment.totalMarks || 0} marks`}
