@@ -21,7 +21,7 @@
  * so they can be unit tested without pulling in Firebase.
  */
 
-import { doc, getDoc, setDoc, deleteDoc, serverTimestamp } from 'firebase/firestore'
+import { doc, getDoc, deleteDoc, serverTimestamp, runTransaction } from 'firebase/firestore'
 import { db } from '../firebase/config'
 import {
   REMOTE_MAX_CHARS,
@@ -75,16 +75,28 @@ function remoteDraftRef(userId) {
 
 // Mirror the draft to Firestore as a single JSON string. Best-effort — any
 // failure leaves localStorage as the source of truth.
+//
+// Guarded by a transaction so a *newer* remote draft is never clobbered by an
+// older one: with last-write-wins, a write only lands when its savedAt is at
+// least the stored one. This also defuses the offline-replay hazard — unlike a
+// queued setDoc, a transaction needs connectivity, so a stale draft can't be
+// silently replayed over a fresher one when a device comes back online.
 export async function saveAssessmentDraftRemote(userId, payload) {
   if (!userId || !payload) return
   try {
     const built = buildDraftPayload(payload)
     const data = JSON.stringify(built)
     if (data.length > REMOTE_MAX_CHARS) return
-    await setDoc(remoteDraftRef(userId), {
-      data,
-      savedAt: built.savedAt,
-      updatedAt: serverTimestamp(),
+    const ref = remoteDraftRef(userId)
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref)
+      const storedSavedAt = snap.exists() ? Number(snap.data()?.savedAt) || 0 : 0
+      if (storedSavedAt > built.savedAt) return // a newer draft already won
+      tx.set(ref, {
+        data,
+        savedAt: built.savedAt,
+        updatedAt: serverTimestamp(),
+      })
     })
   } catch {
     // Offline / rules / quota — non-fatal, localStorage still holds the draft.
