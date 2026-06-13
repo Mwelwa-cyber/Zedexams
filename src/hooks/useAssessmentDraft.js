@@ -76,9 +76,10 @@ function remoteDraftRef(userId) {
 // Mirror the draft to Firestore as a single JSON string. Best-effort — any
 // failure leaves localStorage as the source of truth.
 //
-// Guarded by a transaction so a *newer* remote draft is never clobbered by an
-// older one: with last-write-wins, a write only lands when its savedAt is at
-// least the stored one. This also defuses the offline-replay hazard — unlike a
+// Guarded by a transaction so a *newer* remote draft is almost never clobbered
+// by an older one: a write only lands when its savedAt is at least the stored
+// one (an exact-millisecond tie lets the later write win, which is harmless for
+// a single-user draft). This also defuses the offline-replay hazard — unlike a
 // queued setDoc, a transaction needs connectivity, so a stale draft can't be
 // silently replayed over a fresher one when a device comes back online.
 export async function saveAssessmentDraftRemote(userId, payload) {

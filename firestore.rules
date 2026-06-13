@@ -604,7 +604,12 @@ service cloud.firestore {
     // millisecond timestamp; it is deleted once the paper is saved to the
     // library.
     match /assessmentDrafts/{uid} {
-      allow read, write, delete: if isAuthed() && isOwner(uid);
+      allow read, delete: if isAuthed() && isOwner(uid);
+      // Reject an oversized draft server-side too (not only via the client's
+      // REMOTE_MAX_CHARS guard). Firestore's hard document limit is 1 MiB
+      // (1,048,576 bytes); we cap the single JSON 'data' string below it.
+      allow write: if isAuthed() && isOwner(uid)
+        && (!('data' in incoming()) || (incoming().data is string && incoming().data.size() < 1000000));
     }
 
     // ── usageMeters ───────────────────────────────────────────
