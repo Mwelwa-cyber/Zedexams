@@ -79,6 +79,7 @@ import { classifyForLibrary } from '../../utils/libraryClassification'
 import { printAssessmentAsPdf, printAnswerSheetAsPdf } from '../../utils/assessmentToPdf'
 import { downloadAssessmentDocx, downloadAnswerSheetDocx } from '../../utils/assessmentToDocx'
 import { buildPaperLayout, computeSmartWarnings } from '../../utils/assessmentPaperLayout'
+import { estimatePaperMinutes } from '../../utils/assessmentTiming'
 import { SUBJECTS as CBC_SUBJECTS, COMPETENCIES } from '../../config/curriculum'
 
 import './studio/assessmentStudio.css'
@@ -407,6 +408,10 @@ export default function AssessmentStudio() {
   const questionCount = serializedPreview.questionCount
   const totalMarks = serializedPreview.totalMarks
   const estimatedPages = Math.max(1, Math.ceil((questionCount + totalMarks * 0.4) / 8))
+  const estimatedMinutes = useMemo(
+    () => estimatePaperMinutes(serializedPreview.questions),
+    [serializedPreview.questions],
+  )
   const autoTitle = form.title.trim() || buildTitleFromForm(form)
   const footerCode = buildFooterCode(form)
 
@@ -1630,6 +1635,7 @@ export default function AssessmentStudio() {
           questionCount={questionCount}
           totalMarks={totalMarks}
           estimatedPages={estimatedPages}
+          estimatedMinutes={estimatedMinutes}
           autoTitle={autoTitle}
           footerCode={footerCode}
           warnings={warnings}
@@ -2032,7 +2038,7 @@ function formatAgo(date) {
 function BuilderView(props) {
   const {
     form, setF, sections, parts, questionNumbers, questionCount, totalMarks,
-    estimatedPages, footerCode, changeView, warnings = [],
+    estimatedPages, estimatedMinutes, footerCode, changeView, warnings = [],
     onAddBlock, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onSaveToBank,
     onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage,
     onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage,
@@ -2178,6 +2184,7 @@ function BuilderView(props) {
         <span>📊 <strong>{totalMarks}</strong> marks</span>
         <span>📑 <strong>{parts.length}</strong> sections</span>
         <span>📃 <strong>{estimatedPages}</strong> pages</span>
+        {estimatedMinutes > 0 && <span>⏱ <strong>~{estimatedMinutes}</strong> min</span>}
       </div>
     </section>
   )
