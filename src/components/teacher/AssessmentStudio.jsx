@@ -1,5 +1,4 @@
 // Assessment Studio v2 — block-based, parchment + oxblood design.
-// Visual reference: /assessment-studio-preview.html (HTML mockup).
 // Data model is unchanged — sections[] + parts[] still flow through
 // serializeQuizSections / saveAssessmentQuestions exactly as before,
 // so this view is drop-in compatible with EditAssessment + exports.
@@ -38,8 +37,9 @@ import { richTextHasContent, richTextToPlainText, richTextHasFormatting } from '
 import RichEditor from '../../editor/components/RichEditor.jsx'
 import { clampInt } from '../../utils/inputs.js'
 import { getErrorMessage } from '../../utils/errors.js'
-import { validateStandaloneQuestion as sharedValidateStandaloneQuestion } from '../../utils/quizValidation.js'
+import { collectQuizIssues } from '../../utils/quizValidation.js'
 import { assertNoBlobImageUrls } from '../../utils/importedQuizAssets.js'
+import QuizValidationChecklist from '../quiz/QuizValidationChecklist'
 import SeoHelmet from '../seo/SeoHelmet'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import AiGenerationProgress from '../ui/AiGenerationProgress'
@@ -379,6 +379,17 @@ export default function AssessmentStudio() {
   // Wall-clock time of the last successful draft autosave, surfaced in the
   // top bar so the teacher can see their work is being kept ("Saved 14:32").
   const [draftSavedAt, setDraftSavedAt] = useState(null)
+  // Edits made since the last autosave landed. Drives the "Unsaved changes"
+  // vs "Saved on this device" status so the teacher always knows whether
+  // their typing has been captured yet.
+  const [dirty, setDirty] = useState(false)
+  // Flips true once the paper has been written to the teacher's library
+  // (createAssessment succeeded). Distinct from the local-device autosave —
+  // this is the durable, cross-device copy.
+  const [savedToLibrary, setSavedToLibrary] = useState(false)
+  // Pre-publish checklist modal. Replaces the old "first error → toast →
+  // bail" save flow so the teacher sees every issue at once.
+  const [checklistOpen, setChecklistOpen] = useState(false)
   const [aiForm, setAiForm] = useState({ topic: '', count: 5, type: 'mcq', framework: '2023' })
   const [aiGenerating, setAiGenerating] = useState(false)
   const [createPaperOpen, setCreatePaperOpen] = useState(false)
@@ -461,6 +472,25 @@ export default function AssessmentStudio() {
     [assessmentDoc, serializedPreview.questions],
   )
 
+  // Pre-publish validation — every blocking issue at once, fed to the
+  // QuizValidationChecklist instead of the old "Save → toast → fix → repeat"
+  // loop. The paper title is auto-generated (buildTitleFromForm), so we hand
+  // the checker the resolved autoTitle rather than the raw (often blank)
+  // form.title; that keeps the title check from firing on a paper whose name
+  // the studio derives automatically.
+  const validationResult = useMemo(
+    () => collectQuizIssues({
+      form: { title: autoTitle, subject: form.subject, grade: form.grade },
+      sections,
+      parts,
+      questionNumbers,
+    }),
+    [autoTitle, form.subject, form.grade, sections, parts, questionNumbers],
+  )
+  const validationIssues = validationResult.issues
+  const validationSummary = validationResult.summary
+  const errorCount = validationIssues.filter((i) => i.severity !== 'warn').length
+
   /* ------------ helpers ------------ */
   const showToast = useCallback((message, isErr = false) => {
     setToast({ message, isErr })
@@ -542,9 +572,23 @@ export default function AssessmentStudio() {
       // Fire-and-forget; failures fall back to the local copy.
       saveAssessmentDraftRemote(currentUser.uid, payload)
       setDraftSavedAt(Date.now())
+      // The autosave has captured the latest edits — clear the "unsaved" flag.
+      setDirty(false)
     }, 800)
     return () => clearTimeout(timer)
   }, [form, sections, parts, view, currentUser?.uid])
+
+  // Mark the paper "dirty" the moment its content changes, so the status badge
+  // can show "Unsaved changes" until the debounced autosave above clears it.
+  // The first run (initial mount + async draft restore) is skipped so an
+  // untouched paper never reads as unsaved; a real library save also clears it.
+  const dirtyTrackingReadyRef = useRef(false)
+  useEffect(() => {
+    if (!dirtyTrackingReadyRef.current) { dirtyTrackingReadyRef.current = true; return }
+    if (hasOnlyEmptyStarterSection(sections) && !form.title.trim() && !form.schoolName.trim()) return
+    setDirty(true)
+    setSavedToLibrary(false)
+  }, [form, sections, parts])
 
   useEffect(() => () => revokeImportedQuizAssets(importedAssets), [importedAssets])
 
@@ -1174,56 +1218,10 @@ export default function AssessmentStudio() {
   }
 
   /* ------------ validation + save ------------ */
-  function validateStandaloneQuestion(question, label) {
-    return sharedValidateStandaloneQuestion(question, label, {
-      onError: message => showToast(message, true),
-    })
-  }
-  function validate() {
-    if (!autoTitle.trim()) {
-      showToast('Set a school name + grade so the title can be generated.', true)
-      return false
-    }
-    if (!String(form.subject || '').trim()) {
-      showToast('Subject is required — every paper must show its subject.', true)
-      return false
-    }
-    if (questionCount === 0) {
-      showToast('Add at least one question before saving.', true)
-      return false
-    }
-    for (const part of parts) {
-      if (!String(part.title ?? '').trim()) {
-        showToast('Every section needs a title (e.g. "Section A — Multiple Choice").', true)
-        return false
-      }
-    }
-    for (const section of sections) {
-      if (section.kind === 'passage') {
-        const passage = section.passage
-        if (passage.imageUploading) {
-          showToast('A passage image is still uploading. Please wait.', true)
-          return false
-        }
-        if (!richTextHasContent(passage.passageText) && !passage.imageUrl) {
-          showToast('Each passage needs text or an image before saving.', true)
-          return false
-        }
-        if (!passage.questions.length) {
-          showToast('Each passage needs at least one linked question.', true)
-          return false
-        }
-        for (const q of passage.questions) {
-          const label = `Passage question ${questionNumbers[q.localId]}`
-          if (!validateStandaloneQuestion(q, label)) return false
-        }
-        continue
-      }
-      const q = section.question
-      if (!validateStandaloneQuestion(q, `Question ${questionNumbers[q.localId]}`)) return false
-    }
-    return true
-  }
+  // Every blocking issue is gathered up-front by `collectQuizIssues`
+  // (see validationResult above) and shown together in the
+  // QuizValidationChecklist, so the teacher fixes them in one pass instead
+  // of the old "Save → toast → fix → Save → toast → fix" loop.
 
   // Uploads in-memory imported image blobs (produced by documentQuizImporter)
   // to Firebase Storage and returns a Map<assetId, downloadUrl>. The kindSlug
@@ -1320,7 +1318,13 @@ export default function AssessmentStudio() {
   }
 
   async function handleSave() {
-    if (!validate()) return
+    // Show the full pre-publish checklist if anything is missing, instead of
+    // bailing on the first error with a toast. The teacher sees — and fixes —
+    // every issue in one pass.
+    if (errorCount > 0) {
+      setChecklistOpen(true)
+      return
+    }
     setSaving(true)
     try {
       const serialized = serializeQuizSections(sections, parts)
@@ -1380,6 +1384,9 @@ export default function AssessmentStudio() {
       setImportedAssets({})
       clearAssessmentDraft(currentUser.uid)
       clearAssessmentDraftRemote(currentUser.uid)
+      // The durable library copy now exists — reflect that in the status badge.
+      setDirty(false)
+      setSavedToLibrary(true)
       showToast('Saved to your library!')
       setTimeout(() => navigate('/teacher/assessments'), 900)
     } catch (error) {
@@ -1599,8 +1606,10 @@ export default function AssessmentStudio() {
 
       <TopBar
         title={autoTitle}
-        savingDraft={Boolean(saving)}
+        saving={Boolean(saving)}
+        dirty={dirty}
         draftSavedAt={draftSavedAt}
+        savedToLibrary={savedToLibrary}
         canUndo={canUndo}
         canRedo={canRedo}
         onUndo={undo}
@@ -1670,6 +1679,10 @@ export default function AssessmentStudio() {
           onOpenDiagramFix={() => setDiagramFixOpen(true)}
           diagramsNeeded={countDiagramsNeeded(sections)}
           onOpenAi={() => openSlide('ai')}
+          onSave={handleSave}
+          saving={saving}
+          errorCount={errorCount}
+          onShowChecklist={() => setChecklistOpen(true)}
         />
       )}
 
@@ -1783,6 +1796,15 @@ export default function AssessmentStudio() {
         parts={parts}
         onClose={() => setVerifyOpen(false)}
       />
+      {/* Pre-publish checklist — opened when Save is attempted with unresolved
+          issues, or from the "X to fix" pill in the builder's tools bar. Shows
+          every blocking issue at once. */}
+      <QuizValidationChecklist
+        open={checklistOpen}
+        onClose={() => setChecklistOpen(false)}
+        issues={validationIssues}
+        summary={validationSummary}
+      />
       <EditorSlide
         open={slideover === 'editor'}
         onClose={closeSlide}
@@ -1827,18 +1849,52 @@ export default function AssessmentStudio() {
 /* ==================================================================
  * TOP BAR
  * ================================================================== */
-function TopBar({ title, savingDraft, draftSavedAt, canUndo, canRedo, onUndo, onRedo, onBack, onAi }) {
-  const savedLabel = draftSavedAt
-    ? `Saved ${new Date(draftSavedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-    : 'Draft'
+// Maps the studio's save flags to a single status badge. Priority:
+// durable library copy → in-flight library save → unsaved edits →
+// local autosave → brand-new draft. `savedToLibrary` wins over `saving`
+// because handleSave deliberately keeps `saving` true through the
+// post-save navigation delay (to keep the button disabled) — at that
+// point the save is already done, so we show the success state.
+function describeSaveStatus({ saving, dirty, draftSavedAt, savedToLibrary }) {
+  if (savedToLibrary) {
+    return { text: '✓ Saved to library', title: 'This paper is saved in your library — available across your devices.', cls: 'is-library', dot: 'var(--sv-sage)', ring: 'rgba(62,123,90,0.20)' }
+  }
+  if (saving) {
+    return { text: 'Saving…', title: 'Saving to your library…', cls: 'is-saving', dot: 'var(--sv-muted-2)', ring: 'rgba(163,157,142,0.18)' }
+  }
+  if (dirty) {
+    return {
+      text: '● Unsaved changes',
+      title: 'Your latest edits haven’t been auto-saved yet — they save to this device a moment after you stop typing.',
+      cls: 'is-unsaved', dot: 'var(--sv-gold)', ring: 'rgba(200,146,61,0.20)',
+    }
+  }
+  if (draftSavedAt) {
+    const t = new Date(draftSavedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    return {
+      text: `✓ Saved locally · ${t}`,
+      title: 'Auto-saved to this device and the cloud draft. Use “Save to library” to keep a durable, shareable copy.',
+      cls: 'is-local', dot: 'var(--sv-sage)', ring: 'rgba(62,123,90,0.18)',
+    }
+  }
+  return { text: 'Draft', title: 'Not saved yet — start typing and your work auto-saves.', cls: 'is-idle', dot: 'var(--sv-muted-2)', ring: 'rgba(163,157,142,0.18)' }
+}
+
+function TopBar({ title, saving, dirty, draftSavedAt, savedToLibrary, canUndo, canRedo, onUndo, onRedo, onBack, onAi }) {
+  // Three distinct, honest states so the teacher always knows where their
+  // work lives:
+  //   • Unsaved changes   — edits not yet captured by the autosave debounce
+  //   • Saved on device   — auto-saved locally + to the cloud draft
+  //   • Saved to library  — the durable, shareable library copy exists
+  const status = describeSaveStatus({ saving, dirty, draftSavedAt, savedToLibrary })
   return (
     <header className="sv-app-bar">
       <button className="sv-icon-btn" onClick={onBack} aria-label="Back">←</button>
       <div className="sv-app-bar-title">
-        <span className="sv-status-dot" aria-hidden="true" />
+        <span className="sv-status-dot" aria-hidden="true" style={{ background: status.dot, boxShadow: `0 0 0 3px ${status.ring}` }} />
         {title}
-        <span className="sv-badge-mini" title="Your work is auto-saved to this device">
-          {savingDraft ? 'Saving…' : savedLabel}
+        <span className={`sv-badge-mini ${status.cls}`} title={status.title}>
+          {status.text}
         </span>
       </div>
       <button
@@ -1944,7 +2000,6 @@ function HomeView({ recentPapers, onNewPaper, onOpenPaper, onAi, onLibrary }) {
           <Stat value={recentPapers.length} label="Papers" />
           <Stat value={draftCount} label="Need review" />
           <Stat value={totalQuestions} label="Questions saved" />
-          <Stat value="—" label="Diagrams" hint="soon" />
         </div>
 
         <div className="sv-eyebrow">
@@ -1981,11 +2036,11 @@ function HomeView({ recentPapers, onNewPaper, onOpenPaper, onAi, onLibrary }) {
   )
 }
 
-function Stat({ value, label, hint }) {
+function Stat({ value, label }) {
   return (
     <div className="sv-stat">
       <div className="sv-stat-v">{value}</div>
-      <div className="sv-stat-l">{label}{hint ? ` · ${hint}` : ''}</div>
+      <div className="sv-stat-l">{label}</div>
     </div>
   )
 }
@@ -2046,6 +2101,7 @@ function BuilderView(props) {
     onUpdatePart, onRemovePart, onAssignSectionToPart, onUploadLogo, onRemoveLogo,
     onImportDocument, importing, importSummary,
     onCreatePaper, onVerifyPaper, onOpenDiagramFix, diagramsNeeded = 0, onOpenAi,
+    onSave, saving = false, errorCount = 0, onShowChecklist,
   } = props
 
   const emptyPaper = hasOnlyEmptyStarterSection(sections)
@@ -2097,6 +2153,30 @@ function BuilderView(props) {
           🖼 Diagrams{diagramsNeeded > 0 ? ` (${diagramsNeeded})` : ''}
         </button>
         <button className="sv-chip" onClick={onOpenAi}>⚡ More AI tools</button>
+        {/* Save to the teacher's library straight from the builder — no need
+            to detour through Preview to find it. Pushed to the right; on a
+            phone the bar wraps and it drops to the next row. The "X to fix"
+            pill (hidden on a blank canvas) opens the full pre-publish
+            checklist so issues can be fixed in one pass. */}
+        {!emptyPaper && errorCount > 0 && (
+          <button
+            className="sv-chip sv-chip-warn"
+            onClick={onShowChecklist}
+            style={{ marginLeft: 'auto' }}
+            title="See everything that still needs fixing before saving"
+          >
+            ⚠ {errorCount} to fix
+          </button>
+        )}
+        <button
+          className="sv-chip sv-chip-save"
+          onClick={onSave}
+          disabled={saving || questionCount === 0}
+          style={(!emptyPaper && errorCount > 0) ? undefined : { marginLeft: 'auto' }}
+          title="Save this paper to your library"
+        >
+          {saving ? '⏳ Saving…' : '💾 Save draft'}
+        </button>
         <input
           ref={importInputRef}
           type="file"

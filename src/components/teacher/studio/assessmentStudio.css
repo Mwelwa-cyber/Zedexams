@@ -158,7 +158,12 @@
   background: var(--sv-canvas-2);
   border-radius: 99px;
   margin-left: var(--sv-s2);
+  white-space: nowrap;
 }
+/* Save-status tones — see describeSaveStatus() in AssessmentStudio.jsx. */
+.studio-v2 .sv-badge-mini.is-unsaved { color: #7A5A1F; background: var(--sv-gold-soft); }
+.studio-v2 .sv-badge-mini.is-local,
+.studio-v2 .sv-badge-mini.is-library { color: #2C5A41; background: var(--sv-sage-soft); }
 
 /* ============================================================
    COMPACT DOCK + FAB (replaces the chunky bottom bar)
@@ -703,6 +708,24 @@
   color: var(--sv-canvas);
   border-color: var(--sv-ink);
 }
+/* Primary "Save draft" chip — the one durable action in the tools bar. */
+.studio-v2 .sv-chip.sv-chip-save {
+  background: var(--sv-primary);
+  color: #fff;
+  border-color: var(--sv-primary);
+  font-weight: 600;
+}
+.studio-v2 .sv-chip.sv-chip-save:hover { background: var(--sv-primary-dark); }
+.studio-v2 .sv-chip.sv-chip-save:disabled { opacity: 0.45; cursor: default; }
+.studio-v2 .sv-chip.sv-chip-save:disabled:hover { background: var(--sv-primary); }
+/* "X to fix" chip — opens the pre-publish checklist. */
+.studio-v2 .sv-chip.sv-chip-warn {
+  background: var(--sv-gold-soft);
+  color: #7A5A1F;
+  border-color: rgba(200,146,61,0.35);
+  font-weight: 600;
+}
+.studio-v2 .sv-chip.sv-chip-warn:hover { background: #efdcb4; }
 .studio-v2 .sv-builder-bar .sv-pages {
   margin-left: auto;
   font-family: 'Geist Mono', monospace;
