@@ -101,6 +101,9 @@ export const diagramRef = z
 
 const QUESTION_TYPES = ['mcq', 'tf', 'short_answer', 'diagram', 'fill', 'short', 'numeric', 'hotspot']
 const DIFFICULTIES = ['easy', 'medium', 'hard']
+// Bloom's revised taxonomy, lower-order → higher-order. An optional cognitive
+// level the teacher tags so the studio can show the spread of thinking skills.
+const BLOOM_LEVELS = ['remember', 'understand', 'apply', 'analyze', 'evaluate', 'create']
 // MCQ subtypes mirror the Zambian PRISCA exam-paper categories. They are a
 // PURE display/preset hint — the underlying answer model is still 4-option MCQ.
 const SUBTYPES = ['vocab', 'spelling', 'punctuation', 'sentence_ordering']
@@ -134,6 +137,9 @@ export const questionSchema = z
     // value inside this range for typed input and `[N marks]` text matches.
     marks: z.number().int().min(1).max(20),
     difficulty: z.enum(DIFFICULTIES).optional(),
+    // Optional Bloom's cognitive level the teacher tags (no inference — a
+    // question is only counted as a level once explicitly set).
+    bloom: z.enum(BLOOM_LEVELS).optional(),
     order: z.number().int().min(0).max(10000),
 
     // ── Rich-text: HTML (legacy, kept for read-path compat) ──
@@ -424,4 +430,5 @@ export function coerceQuestion(raw) {
 
 export const QUESTION_TYPES_LIST = QUESTION_TYPES
 export const DIFFICULTIES_LIST = DIFFICULTIES
+export const BLOOM_LEVELS_LIST = BLOOM_LEVELS
 export const SUBTYPES_LIST = SUBTYPES
