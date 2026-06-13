@@ -411,7 +411,7 @@ function buildQuestionBlock(q, number, includeAnswer) {
   // optionsMode: 'text', 'image', or 'mixed'. Tells the renderer how to draw.
   let optionsMode = 'text'
   if (type === 'mcq') {
-    const hasImage = optionMedia.some(m => m?.imageUrl)
+    const hasImage = optionMedia.some(m => m?.imageUrl || m?.diagram)
     const hasText = options.some(o => String(o ?? '').trim())
     if (hasImage && hasText) optionsMode = 'mixed'
     else if (hasImage) optionsMode = 'image'
@@ -447,6 +447,11 @@ function buildQuestionBlock(q, number, includeAnswer) {
     correctAnswer: q.correctAnswer,
     explanation: includeAnswer ? plain(q.explanation) : '',
     imageUrl: q.imageUrl || '',
+    // Exact library figure on the stem ({libraryKey, params}); preview/PDF
+    // render it via the diagram catalog, DOCX rasterises it.
+    imageDiagram: q.imageDiagram && q.imageDiagram.libraryKey
+      ? { libraryKey: q.imageDiagram.libraryKey, params: q.imageDiagram.params || {} }
+      : null,
     imageAlt: plain(q.imageAlt) || '',
     diagramText: plain(q.diagramText),
     wordBank: Array.isArray(q.wordBank) ? q.wordBank.filter(Boolean) : (q.wordBank ? String(q.wordBank).split('·').map(s => s.trim()).filter(Boolean) : []),
