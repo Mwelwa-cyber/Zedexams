@@ -126,5 +126,8 @@ export function useSyllabusTopicOptions(grade, subject, topic = '', framework = 
   const topics = inner ? Array.from(inner.keys()).sort() : []
   const subs = inner?.get(String(topic || '').trim())
   const subtopics = subs ? Array.from(subs).sort() : []
-  return { topics, subtopics }
+  // `loading` lets callers distinguish "syllabi still fetching" (empty for
+  // now) from "genuinely no rows for this grade/subject" so a drop-down can
+  // wait rather than prematurely falling back to free text.
+  return { topics, subtopics, loading: lookup == null }
 }

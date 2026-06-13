@@ -5243,10 +5243,43 @@ function BlockPickerItem({ icon, title, hint, onClick, disabled, gold }) {
  * ================================================================== */
 const AI_COUNT_PRESETS = [5, 10, 15, 20, 25]
 
+// "From syllabus / Write my own" segmented toggle for the AI slide's topic
+// field — lets the teacher pick from the syllabus drop-down or type their own.
+function AiTopicModeToggle({ value, onChange, pickDisabled = false }) {
+  const baseBtn = {
+    border: 'none', background: 'none', fontSize: 11, fontWeight: 700,
+    padding: '3px 9px', borderRadius: 999, lineHeight: 1.6, color: '#64748b', cursor: 'pointer',
+  }
+  const onStyle = { background: '#fff', color: '#0f172a', boxShadow: 'inset 0 0 0 1.5px #fb923c' }
+  return (
+    <div style={{ display: 'inline-flex', gap: 2, padding: 2, borderRadius: 999, background: '#f1f5f9' }}>
+      <button type="button"
+        onClick={() => !pickDisabled && onChange('pick')}
+        disabled={pickDisabled}
+        title={pickDisabled ? 'No syllabus topics on file for this selection yet' : undefined}
+        style={{ ...baseBtn, ...(value === 'pick' ? onStyle : null), opacity: pickDisabled ? 0.45 : 1, cursor: pickDisabled ? 'not-allowed' : 'pointer' }}>
+        From syllabus
+      </button>
+      <button type="button"
+        onClick={() => onChange('write')}
+        style={{ ...baseBtn, ...(value === 'write' ? onStyle : null) }}>
+        Write my own
+      </button>
+    </div>
+  )
+}
+
 function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNumbers, generating, onGenerate, onImport, importing, onGenerateDiagram, generatingDiagram, onOpenMarkingKey, onCreatePaper, onUpdatePaperMeta, diagramsNeeded = 0, onOpenDiagramFix, onVerifyPaper }) {
   const docInputRef = useRef(null)
   const [customCount, setCustomCount] = useState(false)
-  const { topics: topicOptions } = useSyllabusTopicOptions(form.grade, form.subject, aiForm.topic, aiForm.framework)
+  // 'pick' = choose from the syllabus drop-down, 'write' = free text.
+  const [topicMode, setTopicMode] = useState('pick')
+  const { topics: topicOptions, loading: topicsLoading } = useSyllabusTopicOptions(form.grade, form.subject, aiForm.topic, aiForm.framework)
+  const topicPickEmpty = !topicsLoading && topicOptions.length === 0
+  // No syllabus rows for this grade/subject → free text is the only option.
+  useEffect(() => {
+    if (topicPickEmpty && topicMode === 'pick') setTopicMode('write')
+  }, [topicPickEmpty, topicMode])
   return (
     <aside className={`sv-slideover ${open ? 'open' : ''}`}>
       <div className="sv-slideover-head">
@@ -5309,17 +5342,46 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNu
           </select>
         </div>
         <div className="sv-field" style={{ marginBottom: 12 }}>
-          <label>Topic</label>
-          <input
-            type="text"
-            list="ai-slide-topic-options"
-            value={aiForm.topic}
-            onChange={e => setAiForm(prev => ({ ...prev, topic: e.target.value }))}
-            placeholder={topicOptions[0] ? `e.g. ${topicOptions[0]}` : `e.g. ${form.subject === 'Mathematics' ? 'Fractions' : 'Body systems'}`}
-          />
-          <datalist id="ai-slide-topic-options">
-            {topicOptions.map(t => <option key={t} value={t} />)}
-          </datalist>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+            <label style={{ marginBottom: 0 }}>Topic</label>
+            <AiTopicModeToggle
+              value={topicMode}
+              onChange={(mode) => {
+                // Drop a custom topic the syllabus doesn't list when switching
+                // to the drop-down, so what's shown is what's sent.
+                if (mode === 'pick' && aiForm.topic && !topicOptions.includes(aiForm.topic)) {
+                  setAiForm(prev => ({ ...prev, topic: '' }))
+                }
+                setTopicMode(mode)
+              }}
+              pickDisabled={topicPickEmpty}
+            />
+          </div>
+          {topicMode === 'pick' ? (
+            <select
+              value={topicOptions.includes(aiForm.topic) ? aiForm.topic : ''}
+              disabled={topicsLoading}
+              onChange={e => setAiForm(prev => ({ ...prev, topic: e.target.value }))}
+            >
+              <option value="">
+                {topicsLoading ? 'Loading syllabus topics…' : 'Choose a topic from the syllabus…'}
+              </option>
+              {topicOptions.map(t => <option key={t} value={t}>{t}</option>)}
+            </select>
+          ) : (
+            <>
+              <input
+                type="text"
+                list="ai-slide-topic-options"
+                value={aiForm.topic}
+                onChange={e => setAiForm(prev => ({ ...prev, topic: e.target.value }))}
+                placeholder={topicOptions[0] ? `e.g. ${topicOptions[0]}` : `e.g. ${form.subject === 'Mathematics' ? 'Fractions' : 'Body systems'}`}
+              />
+              <datalist id="ai-slide-topic-options">
+                {topicOptions.map(t => <option key={t} value={t} />)}
+              </datalist>
+            </>
+          )}
         </div>
         <div className="sv-field-grid two">
           <div className="sv-field">

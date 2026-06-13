@@ -1,20 +1,24 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { getMergedSyllabi } from '../../../utils/syllabusKbService'
 import { syllabiToKbTopics } from '../../../utils/syllabusMapping'
 
 /**
  * Topic + sub-topic picker for the teacher generation studios.
  *
- * Visually two regular text inputs (studio-input class to match the rest
- * of the form), but each is wired to an HTML5 <datalist> populated from
- * the merged syllabi source (curriculum-data.json + admin overrides).
- * The teacher can still type anything they want — datalist is suggestion
- * UX, not a constraint — so generators that need to handle topics not
- * yet in the KB continue to work unchanged.
+ * Each field has a "From syllabus / Write my own" toggle:
+ *   • From syllabus → a <select> drop-down of the merged-syllabi topics
+ *     (curriculum-data.json + admin overrides) for the chosen grade/subject.
+ *   • Write my own  → a free-text input (still with <datalist> suggestions)
+ *     for topics not yet in the syllabus.
+ *
+ * The field defaults to the drop-down, and falls back to "Write my own"
+ * automatically when that grade/subject has no syllabus rows on file (or a
+ * value is already set that the syllabus doesn't know about). Generators
+ * that need to handle off-syllabus topics keep working unchanged.
  *
  * If the syllabi load fails for any reason (offline / unauthenticated /
- * unexpected shape), the datalists are empty and the inputs degrade to
- * plain free-text fields. No spinner, no error, no behaviour change.
+ * unexpected shape), the drop-downs are empty and every field degrades to
+ * a plain free-text input. No error, no behaviour change.
  *
  * API mirrors the local FieldText components each studio uses so the
  * swap is mechanical:
@@ -89,6 +93,9 @@ export default function TopicSubtopicPicker({
   fieldWrapperClassName = '',
 }) {
   const [lookup, setLookup] = useState(_lookupCache)
+  // 'pick' = choose from the syllabus drop-down, 'write' = free text.
+  const [topicMode, setTopicMode] = useState('pick')
+  const [subtopicMode, setSubtopicMode] = useState('pick')
 
   useEffect(() => {
     if (_lookupCache) { setLookup(_lookupCache); return undefined }
@@ -98,6 +105,11 @@ export default function TopicSubtopicPicker({
       .catch(() => { /* loadLookup already swallows + logs; setLookup stays null */ })
     return () => { cancelled = true }
   }, [])
+
+  // null until the merged syllabi resolve — lets us tell "still loading"
+  // apart from "genuinely no rows" so a drop-down can wait rather than
+  // prematurely dropping to free text.
+  const loading = lookup == null
 
   const innerKey = `${grade || ''}|${subject || ''}`
   const innerMap = useMemo(() => {
@@ -112,10 +124,10 @@ export default function TopicSubtopicPicker({
 
   const subtopicOptions = useMemo(() => {
     if (!innerMap) return []
-    // If the teacher's typed topic matches one we know about, narrow the
+    // If the teacher's chosen topic matches one we know about, narrow the
     // sub-topic suggestions to that topic's children. Otherwise offer
     // every sub-topic for the grade+subject so they still get something
-    // useful while typing a custom topic.
+    // useful while entering a custom topic.
     const exact = innerMap.get(topic) ||
       Array.from(innerMap.entries())
         .find(([t]) => t.toLowerCase() === String(topic || '').toLowerCase())?.[1]
@@ -125,6 +137,36 @@ export default function TopicSubtopicPicker({
     return Array.from(all).sort((a, b) => a.localeCompare(b))
   }, [innerMap, topic])
 
+  const topicPickEmpty = !loading && topicOptions.length === 0
+
+  // On first settle, start in "write" for any value the syllabus doesn't
+  // know — so a pre-filled custom topic/sub-topic shows instead of looking
+  // blank in the drop-down. Only runs once, before the teacher interacts.
+  const autoModeApplied = useRef(false)
+  useEffect(() => {
+    if (loading || autoModeApplied.current) return
+    autoModeApplied.current = true
+    if (topic && !topicOptions.includes(topic)) setTopicMode('write')
+    if (subtopic && !subtopicOptions.includes(subtopic)) setSubtopicMode('write')
+  }, [loading, topic, subtopic, topicOptions, subtopicOptions])
+
+  // No syllabus rows at all → the drop-down would be a dead end.
+  useEffect(() => {
+    if (topicPickEmpty && topicMode === 'pick') setTopicMode('write')
+  }, [topicPickEmpty, topicMode])
+
+  // Switching to the drop-down drops a value the syllabus doesn't list, so
+  // what's shown is what's sent (a stale custom value won't hide behind the
+  // placeholder).
+  function changeTopicMode(mode) {
+    if (mode === 'pick' && topic && !topicOptions.includes(topic)) onChangeTopic('')
+    setTopicMode(mode)
+  }
+  function changeSubtopicMode(mode) {
+    if (mode === 'pick' && subtopic && !subtopicOptions.includes(subtopic)) onChangeSubtopic('')
+    setSubtopicMode(mode)
+  }
+
   const topicListId = `tp-topic-${innerKey.replace(/\W/g, '-')}`
   const subtopicListId = `tp-subtopic-${innerKey.replace(/\W/g, '-')}`
   const hasSyllabusMatch = innerMap !== null
@@ -133,27 +175,45 @@ export default function TopicSubtopicPicker({
   return (
     <>
       <div className={fieldWrapperClassName}>
-        <label className={labelClassName}>{topicLabel}</label>
-        <input
-          type="text"
-          value={topic || ''}
-          onChange={(e) => onChangeTopic(e.target.value)}
-          placeholder={topicPlaceholder}
-          maxLength={topicMaxLength}
-          className={inputClassName}
-          list={topicListId}
-          autoComplete="off"
-        />
-        {topicOptions.length > 0 && (
-          <datalist id={topicListId}>
-            {topicOptions.map((t) => <option key={t} value={t} />)}
-          </datalist>
+        <div style={pickerLabelRow}>
+          <label className={labelClassName} style={{ marginBottom: 0 }}>{topicLabel}</label>
+          <ModeToggle value={topicMode} onChange={changeTopicMode} pickDisabled={topicPickEmpty} />
+        </div>
+        {topicMode === 'pick' ? (
+          <select
+            className={inputClassName}
+            value={topicOptions.includes(topic) ? topic : ''}
+            disabled={loading}
+            onChange={(e) => onChangeTopic(e.target.value)}>
+            <option value="">
+              {loading ? 'Loading syllabus topics…' : 'Choose a topic from the syllabus…'}
+            </option>
+            {topicOptions.map((t) => <option key={t} value={t}>{t}</option>)}
+          </select>
+        ) : (
+          <>
+            <input
+              type="text"
+              value={topic || ''}
+              onChange={(e) => onChangeTopic(e.target.value)}
+              placeholder={topicPlaceholder}
+              maxLength={topicMaxLength}
+              className={inputClassName}
+              list={topicListId}
+              autoComplete="off"
+            />
+            {topicOptions.length > 0 && (
+              <datalist id={topicListId}>
+                {topicOptions.map((t) => <option key={t} value={t} />)}
+              </datalist>
+            )}
+          </>
         )}
-        {hasSyllabusMatch && syllabusCount > 0 && (
+        {hasSyllabusMatch && syllabusCount > 0 && topicMode === 'write' && (
           <p className={hintClassName}>
             {syllabusCount} topic{syllabusCount === 1 ? '' : 's'} from the
             verified syllabus for {grade} {formatSubject(subject)} — start
-            typing to filter, or enter your own.
+            typing to filter, or switch to the drop-down.
           </p>
         )}
         {hasSyllabusMatch && syllabusCount === 0 && (
@@ -165,24 +225,73 @@ export default function TopicSubtopicPicker({
       </div>
 
       <div className={fieldWrapperClassName}>
-        <label className={labelClassName}>{subtopicLabel}</label>
-        <input
-          type="text"
-          value={subtopic || ''}
-          onChange={(e) => onChangeSubtopic(e.target.value)}
-          placeholder={subtopicPlaceholder}
-          maxLength={subtopicMaxLength}
-          className={inputClassName}
-          list={subtopicListId}
-          autoComplete="off"
-        />
-        {subtopicOptions.length > 0 && (
-          <datalist id={subtopicListId}>
-            {subtopicOptions.map((s) => <option key={s} value={s} />)}
-          </datalist>
+        <div style={pickerLabelRow}>
+          <label className={labelClassName} style={{ marginBottom: 0 }}>{subtopicLabel}</label>
+          <ModeToggle value={subtopicMode} onChange={changeSubtopicMode} />
+        </div>
+        {subtopicMode === 'pick' ? (
+          <select
+            className={inputClassName}
+            value={subtopicOptions.includes(subtopic) ? subtopic : ''}
+            disabled={loading}
+            onChange={(e) => onChangeSubtopic(e.target.value)}>
+            <option value="">
+              {loading ? 'Loading…' : 'No specific sub-topic'}
+            </option>
+            {subtopicOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+          </select>
+        ) : (
+          <>
+            <input
+              type="text"
+              value={subtopic || ''}
+              onChange={(e) => onChangeSubtopic(e.target.value)}
+              placeholder={subtopicPlaceholder}
+              maxLength={subtopicMaxLength}
+              className={inputClassName}
+              list={subtopicListId}
+              autoComplete="off"
+            />
+            {subtopicOptions.length > 0 && (
+              <datalist id={subtopicListId}>
+                {subtopicOptions.map((s) => <option key={s} value={s} />)}
+              </datalist>
+            )}
+          </>
         )}
       </div>
     </>
+  )
+}
+
+const pickerLabelRow = {
+  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+  gap: 8, marginBottom: 4,
+}
+
+// "From syllabus / Write my own" segmented toggle shown beside each label.
+function ModeToggle({ value, onChange, pickLabel = 'From syllabus', writeLabel = 'Write my own', pickDisabled = false }) {
+  const baseBtn = {
+    border: 'none', background: 'none', fontSize: 11, fontWeight: 700,
+    padding: '3px 9px', borderRadius: 999, lineHeight: 1.6, color: '#64748b',
+    cursor: 'pointer',
+  }
+  const onStyle = { background: '#fff', color: '#0f172a', boxShadow: 'inset 0 0 0 1.5px #fb923c' }
+  return (
+    <div style={{ display: 'inline-flex', gap: 2, padding: 2, borderRadius: 999, background: '#f1f5f9' }}>
+      <button type="button"
+        onClick={() => !pickDisabled && onChange('pick')}
+        disabled={pickDisabled}
+        title={pickDisabled ? 'No syllabus topics on file for this selection yet' : undefined}
+        style={{ ...baseBtn, ...(value === 'pick' ? onStyle : null), opacity: pickDisabled ? 0.45 : 1, cursor: pickDisabled ? 'not-allowed' : 'pointer' }}>
+        {pickLabel}
+      </button>
+      <button type="button"
+        onClick={() => onChange('write')}
+        style={{ ...baseBtn, ...(value === 'write' ? onStyle : null) }}>
+        {writeLabel}
+      </button>
+    </div>
   )
 }
 

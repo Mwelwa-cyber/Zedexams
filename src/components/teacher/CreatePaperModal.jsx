@@ -5,7 +5,7 @@
 // blocks via aiPaperToSections. The teacher reviews/edits before saving
 // — nothing is auto-saved.
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { generateAssessment } from '../../utils/teacherTools'
 import { aiAssessmentToStudioBlocks } from '../../utils/aiPaperToSections'
 import {
@@ -57,6 +57,38 @@ const inputStyle = {
   background: '#fff', fontFamily: 'inherit',
 }
 
+// Small "Pick from syllabus / Write my own" segmented toggle shown next to
+// the topic + sub-topic labels.
+function ModeToggle({ value, onChange, pickLabel = 'From syllabus', writeLabel = 'Write my own', pickDisabled = false }) {
+  const baseBtn = {
+    border: 'none', background: 'none', cursor: 'pointer',
+    fontSize: 11, fontWeight: 700, padding: '3px 9px', borderRadius: 999,
+    lineHeight: 1.6, color: 'var(--sv-muted, #566f76)',
+  }
+  const onStyle = {
+    background: 'var(--sv-tinted, #fff3e8)', color: 'var(--sv-text, #0e2a32)',
+    boxShadow: 'inset 0 0 0 1.5px var(--sv-primary, #ff7a2e)',
+  }
+  return (
+    <div style={{ display: 'inline-flex', gap: 2, padding: 2, borderRadius: 999, background: 'var(--sv-soft, #f3ead5)' }}>
+      <button type="button"
+        onClick={() => !pickDisabled && onChange('pick')}
+        disabled={pickDisabled}
+        title={pickDisabled ? 'No syllabus topics on file for this selection yet' : undefined}
+        style={{ ...baseBtn, ...(value === 'pick' ? onStyle : null), opacity: pickDisabled ? 0.45 : 1, cursor: pickDisabled ? 'not-allowed' : 'pointer' }}>
+        {pickLabel}
+      </button>
+      <button type="button"
+        onClick={() => onChange('write')}
+        style={{ ...baseBtn, ...(value === 'write' ? onStyle : null) }}>
+        {writeLabel}
+      </button>
+    </div>
+  )
+}
+
+const labelRow = { display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 4 }
+
 export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
   const [form, setForm] = useState(() => ({
     grade: STUDIO_GRADES.includes(String(paperMeta?.grade)) ? String(paperMeta.grade) : '4',
@@ -77,6 +109,12 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
   const [status, setStatus] = useState('idle') // idle | generating | done | error
   const [error, setError] = useState('')
   const [result, setResult] = useState(null) // { assessment, blocks, warning }
+  // How the teacher supplies topics / sub-topics: 'pick' = choose from the
+  // syllabus drop-down, 'write' = type their own. Defaults to the syllabus
+  // drop-down; falls back to 'write' automatically when the chosen
+  // grade/subject/framework has no syllabus entries on file.
+  const [topicMode, setTopicMode] = useState('pick') // 'pick' | 'write'
+  const [subtopicMode, setSubtopicMode] = useState('pick') // 'pick' | 'write'
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }))
   // Grade/subject/curriculum changes invalidate the chosen topics — they
   // belong to a different syllabus page.
@@ -84,8 +122,20 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
     ...f, [k]: v, topics: [], topicInput: '', subtopic: '',
   }))
 
-  const { topics: topicOptions, subtopics: subtopicOptions } =
+  const { topics: topicOptions, subtopics: subtopicOptions, loading: syllabiLoading } =
     useSyllabusTopicOptions(form.grade, form.subject, form.topics[0] || form.topicInput, form.framework)
+  // The topic drop-down only makes sense once we know the grade/subject has
+  // rows in the merged syllabi — i.e. after the fetch settles. While loading
+  // we keep "pick" enabled so it can populate.
+  const topicPickEmpty = !syllabiLoading && topicOptions.length === 0
+
+  // When the chosen grade/subject/framework genuinely has no syllabus rows,
+  // the drop-down would be a dead end — drop the teacher into "Write my own".
+  // Their explicit choice is otherwise kept. Guarded by !loading so the
+  // async syllabi fetch doesn't flip the default before data arrives.
+  useEffect(() => {
+    if (topicPickEmpty && topicMode === 'pick') setTopicMode('write')
+  }, [topicPickEmpty, topicMode])
 
   const topicList = useMemo(() => {
     const fromChips = form.topics
@@ -93,10 +143,30 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
     return typed && !fromChips.includes(typed) ? [...fromChips, typed] : fromChips
   }, [form.topics, form.topicInput])
 
-  function addTopic() {
-    const t = form.topicInput.trim().slice(0, 80)
+  // Add a topic chip from either the typed input or the syllabus drop-down.
+  function addTopicValue(value) {
+    const t = String(value || '').trim().slice(0, 80)
     if (!t || form.topics.includes(t) || form.topics.length >= MAX_TOPICS) return
     setForm((f) => ({ ...f, topics: [...f.topics, t], topicInput: '' }))
+  }
+  function addTopic() {
+    addTopicValue(form.topicInput)
+  }
+  // Switching to the drop-down clears any half-typed free text so it can't
+  // silently leak into the generated paper (topicList folds a non-empty
+  // topicInput in as a topic).
+  function changeTopicMode(mode) {
+    if (mode === 'pick') set('topicInput', '')
+    setTopicMode(mode)
+  }
+  function changeSubtopicMode(mode) {
+    // A custom sub-topic that isn't a known option would show as blank in
+    // the drop-down while still being sent — clear it so what's shown is
+    // what's used.
+    if (mode === 'pick' && form.subtopic && !subtopicOptions.includes(form.subtopic)) {
+      set('subtopic', '')
+    }
+    setSubtopicMode(mode)
   }
   function toggleType(key) {
     setForm((f) => ({
@@ -244,9 +314,12 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
             </div>
 
             <div>
-              <label style={fieldLabel}>
-                Topics from the syllabus (up to {MAX_TOPICS}) *
-              </label>
+              <div style={labelRow}>
+                <label style={{ ...fieldLabel, marginBottom: 0 }}>
+                  Topics from the syllabus (up to {MAX_TOPICS}) *
+                </label>
+                <ModeToggle value={topicMode} onChange={changeTopicMode} pickDisabled={topicPickEmpty} />
+              </div>
               {form.topics.length > 0 && (
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 }}>
                   {form.topics.map((t) => (
@@ -263,35 +336,71 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
                   ))}
                 </div>
               )}
-              <div style={{ display: 'flex', gap: 6 }}>
-                <input
-                  style={{ ...inputStyle, flex: 1 }}
-                  list="cpm-topic-options"
-                  value={form.topicInput}
-                  onChange={(e) => set('topicInput', e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTopic() } }}
-                  placeholder={topicOptions[0] ? `e.g. ${topicOptions[0]}` : 'Type a topic'}
-                />
-                <button type="button" className="sv-btn"
-                  onClick={addTopic}
-                  disabled={!form.topicInput.trim() || form.topics.length >= MAX_TOPICS}>
-                  + Add
-                </button>
-              </div>
-              <datalist id="cpm-topic-options">
-                {topicOptions.map((t) => <option key={t} value={t} />)}
-              </datalist>
+              {form.topics.length >= MAX_TOPICS ? (
+                <p style={{ fontSize: 12, color: 'var(--sv-muted, #566f76)', margin: 0 }}>
+                  Maximum of {MAX_TOPICS} topics added — remove one to change it.
+                </p>
+              ) : topicMode === 'pick' ? (
+                <select
+                  style={inputStyle}
+                  value=""
+                  disabled={syllabiLoading}
+                  onChange={(e) => { addTopicValue(e.target.value); e.target.value = '' }}>
+                  <option value="" disabled>
+                    {syllabiLoading
+                      ? 'Loading syllabus topics…'
+                      : form.topics.length > 0 ? 'Add another topic from the syllabus…' : 'Choose a topic from the syllabus…'}
+                  </option>
+                  {topicOptions
+                    .filter((t) => !form.topics.includes(t))
+                    .map((t) => <option key={t} value={t}>{t}</option>)}
+                </select>
+              ) : (
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <input
+                    style={{ ...inputStyle, flex: 1 }}
+                    list="cpm-topic-options"
+                    value={form.topicInput}
+                    onChange={(e) => set('topicInput', e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTopic() } }}
+                    placeholder={topicOptions[0] ? `e.g. ${topicOptions[0]}` : 'Type a topic'}
+                  />
+                  <button type="button" className="sv-btn"
+                    onClick={addTopic}
+                    disabled={!form.topicInput.trim() || form.topics.length >= MAX_TOPICS}>
+                    + Add
+                  </button>
+                  <datalist id="cpm-topic-options">
+                    {topicOptions.map((t) => <option key={t} value={t} />)}
+                  </datalist>
+                </div>
+              )}
             </div>
 
             <div>
-              <label style={fieldLabel}>Sub-topic (optional)</label>
-              <input style={inputStyle} list="cpm-subtopic-options"
-                value={form.subtopic}
-                onChange={(e) => set('subtopic', e.target.value)}
-                placeholder="Narrow to one sub-topic" />
-              <datalist id="cpm-subtopic-options">
-                {subtopicOptions.map((s) => <option key={s} value={s} />)}
-              </datalist>
+              <div style={labelRow}>
+                <label style={{ ...fieldLabel, marginBottom: 0 }}>Sub-topic (optional)</label>
+                <ModeToggle value={subtopicMode} onChange={changeSubtopicMode} />
+              </div>
+              {subtopicMode === 'pick' ? (
+                <select
+                  style={inputStyle}
+                  value={subtopicOptions.includes(form.subtopic) ? form.subtopic : ''}
+                  onChange={(e) => set('subtopic', e.target.value)}>
+                  <option value="">No specific sub-topic</option>
+                  {subtopicOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              ) : (
+                <>
+                  <input style={inputStyle} list="cpm-subtopic-options"
+                    value={form.subtopic}
+                    onChange={(e) => set('subtopic', e.target.value)}
+                    placeholder="Narrow to one sub-topic" />
+                  <datalist id="cpm-subtopic-options">
+                    {subtopicOptions.map((s) => <option key={s} value={s} />)}
+                  </datalist>
+                </>
+              )}
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
