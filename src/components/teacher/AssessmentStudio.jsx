@@ -39,6 +39,8 @@ import { assertNoBlobImageUrls } from '../../utils/importedQuizAssets.js'
 import SeoHelmet from '../seo/SeoHelmet'
 import ConfirmDialog from '../ui/ConfirmDialog'
 import PictureBankPicker from './PictureBankPicker'
+import QuestionBankPicker from './QuestionBankPicker'
+import { saveQuestionToBank } from '../../utils/questionBankService'
 import CreatePaperModal from './CreatePaperModal'
 import DiagramFixupPanel, { countDiagramsNeeded } from './DiagramFixupPanel'
 import QuizVerifyModal from '../quiz/QuizVerifyModal'
@@ -285,6 +287,9 @@ export default function AssessmentStudio() {
   const [slideover, setSlideover] = useState(null) // 'blocks' | 'ai' | 'editor' | null
   const [editorTargetKey, setEditorTargetKey] = useState(null)
   const [insertAfterIndex, setInsertAfterIndex] = useState(null) // for block picker
+  // Question-bank insert modal. afterIndex is captured when the block picker
+  // hands off, because closeSlide() resets insertAfterIndex.
+  const [bankPicker, setBankPicker] = useState({ open: false, afterIndex: null })
   const [toast, setToast] = useState(null)
 
   // Data state (compatible with existing schema)
@@ -1352,6 +1357,12 @@ export default function AssessmentStudio() {
       case 'ai_generate':
         openSlide('ai')
         return
+      case 'question_bank':
+        // Capture the insert position before closeSlide() clears it, then
+        // open the bank picker. Insertion happens on pick.
+        setBankPicker({ open: true, afterIndex: insertAfterIndex })
+        closeSlide()
+        return
       default:
         showToast('That block type is coming soon.', true)
         return
@@ -1361,6 +1372,33 @@ export default function AssessmentStudio() {
       showToast('Block added.')
     }
     closeSlide()
+  }
+
+  // Save the question currently being edited (inline card) into the teacher's
+  // reusable bank. Paper-specific links are stripped in the service.
+  async function handleSaveToBank(question) {
+    if (!currentUser?.uid) { showToast('Sign in to save questions.', true); return }
+    if (!richTextHasContent(question?.text)) {
+      showToast('Add question text before saving to the bank.', true)
+      return
+    }
+    try {
+      await saveQuestionToBank(currentUser.uid, question, {
+        subject: form.subject, grade: form.grade, topic: form.topic,
+      })
+      showToast('Saved to your question bank.')
+    } catch (error) {
+      showToast(`Could not save: ${getErrorMessage(error)}`, true)
+    }
+  }
+
+  // Insert a fresh copy of a banked question at the captured position.
+  function handleInsertBankQuestion(question) {
+    const section = buildStandaloneSection(question)
+    insertSectionAfter(bankPicker.afterIndex, section)
+    setBankPicker({ open: false, afterIndex: null })
+    if (view !== 'builder') changeView('builder')
+    showToast('Question inserted from your bank.')
   }
 
   /* ------------ render ------------ */
@@ -1411,6 +1449,7 @@ export default function AssessmentStudio() {
           onMoveSection={moveSection}
           onRemoveSection={removeSectionAt}
           onDuplicateSection={duplicateSectionAt}
+          onSaveToBank={handleSaveToBank}
           onUpdateStandaloneQuestion={updateStandaloneQuestion}
           onUploadStandaloneImage={uploadStandaloneQuestionImage}
           onRemoveStandaloneImage={removeStandaloneQuestionImage}
@@ -1543,6 +1582,14 @@ export default function AssessmentStudio() {
         onUpdatePassageQuestion={updatePassageQuestion}
         questionNumbers={questionNumbers}
       />
+
+      {bankPicker.open && (
+        <QuestionBankPicker
+          uid={currentUser?.uid}
+          onInsert={handleInsertBankQuestion}
+          onClose={() => setBankPicker({ open: false, afterIndex: null })}
+        />
+      )}
 
       {toast && (
         <div className={`sv-action-toast show ${toast.isErr ? 'err' : ''}`}>
@@ -1768,7 +1815,7 @@ function BuilderView(props) {
   const {
     form, setF, sections, parts, questionNumbers, questionCount, totalMarks,
     estimatedPages, footerCode, changeView, warnings = [],
-    onAddBlock, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection,
+    onAddBlock, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onSaveToBank,
     onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage,
     onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage,
     onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion,
@@ -1885,6 +1932,7 @@ function BuilderView(props) {
             onMoveSection={onMoveSection}
             onRemoveSection={onRemoveSection}
             onDuplicateSection={onDuplicateSection}
+            onSaveToBank={onSaveToBank}
             onUpdateStandaloneQuestion={onUpdateStandaloneQuestion}
             onUploadStandaloneImage={onUploadStandaloneImage}
             onRemoveStandaloneImage={onRemoveStandaloneImage}
@@ -1946,7 +1994,7 @@ function SmartWarningsBanner({ warnings }) {
   )
 }
 
-function BuilderGroup({ group, allParts, questionNumbers, paperMeta, onAddBlock, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage, onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage, onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onUpdatePart, onRemovePart, onAssignSectionToPart }) {
+function BuilderGroup({ group, allParts, questionNumbers, paperMeta, onAddBlock, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onSaveToBank, onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage, onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage, onUpdateSection, onUploadPassageImage, onRemovePassageImage, onUpdatePassageQuestion, onAddPassageQuestion, onRemovePassageQuestion, onUpdatePart, onRemovePart, onAssignSectionToPart }) {
   const partIndex = allParts.findIndex(p => p.id === group.part?.id)
   const letter = partIndex >= 0 ? SECTION_LETTERS[partIndex] || '·' : null
 
@@ -2007,6 +2055,7 @@ function BuilderGroup({ group, allParts, questionNumbers, paperMeta, onAddBlock,
           onMoveSection={onMoveSection}
           onRemoveSection={onRemoveSection}
           onDuplicateSection={onDuplicateSection}
+          onSaveToBank={onSaveToBank}
           onUpdateStandaloneQuestion={onUpdateStandaloneQuestion}
           onUploadStandaloneImage={onUploadStandaloneImage}
           onRemoveStandaloneImage={onRemoveStandaloneImage}
@@ -2424,7 +2473,7 @@ Choose and circle the correct answer from the given options A, B, C, and D."
 function SectionBlock(props) {
   const {
     section, sectionIndex, parts, questionNumbers, paperMeta,
-    onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection,
+    onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onSaveToBank,
     onUpdateStandaloneQuestion, onUploadStandaloneImage, onRemoveStandaloneImage,
     onUploadStandaloneOptionImage, onRemoveStandaloneOptionImage,
     onUpdateSection, onUploadPassageImage, onRemovePassageImage,
@@ -2472,6 +2521,7 @@ function SectionBlock(props) {
       onMoveSection={onMoveSection}
       onRemoveSection={onRemoveSection}
       onDuplicateSection={onDuplicateSection}
+      onSaveToBank={onSaveToBank}
       onUpdateQuestion={(field, value) => onUpdateStandaloneQuestion(sectionIndex, field, value)}
       onUploadImage={file => onUploadStandaloneImage(sectionIndex, file)}
       onRemoveImage={() => onRemoveStandaloneImage(sectionIndex)}
@@ -2830,7 +2880,7 @@ function ReviseQuestionPopover({
   )
 }
 
-function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMeta, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onUpdateQuestion, onUploadImage, onRemoveImage, onUploadOptionImage, onRemoveOptionImage, onAssignSectionToPart }) {
+function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMeta, onEditQuestion, onMoveSection, onRemoveSection, onDuplicateSection, onSaveToBank, onUpdateQuestion, onUploadImage, onRemoveImage, onUploadOptionImage, onRemoveOptionImage, onAssignSectionToPart }) {
   const question = section.question
   const type = question.type || 'mcq'
   const isMcq = type === 'mcq'
@@ -3003,6 +3053,9 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
           <button className="sv-tool" title="Move down" onClick={() => onMoveSection(sectionIndex, 1)}>↓</button>
           <button className="sv-tool" title="Edit in detail" onClick={() => onEditQuestion(question.localId)}>✏</button>
           <button className="sv-tool" title="Duplicate" onClick={() => onDuplicateSection(sectionIndex)}>📋</button>
+          {onSaveToBank && (
+            <button className="sv-tool" title="Save to your question bank" onClick={() => onSaveToBank(question)}>⭐</button>
+          )}
           <button className="sv-tool danger" title="Delete" onClick={() => onRemoveSection(sectionIndex)}>🗑</button>
         </span>
       </div>
@@ -4687,6 +4740,16 @@ function BlockPickerSlide({ open, onClose, onPick }) {
           <BlockPickerItem icon="🗺" title="Map Question" hint="Image-based passage with map questions" onClick={() => onPick('map')} />
           <BlockPickerItem icon="📊" title="Data / Table" hint="Attach a data table to a question" onClick={() => onPick('data_table')} />
           <BlockPickerItem icon="👁" title="Image Identify" hint="Numbered hotspots — students name each part" onClick={() => onPick('image_identify')} />
+        </div>
+
+        <div className="sv-block-cat">Reusable</div>
+        <div className="sv-block-picker-grid">
+          <BlockPickerItem
+            icon="⭐"
+            title="From question bank"
+            hint="Insert a question you saved earlier"
+            onClick={() => onPick('question_bank')}
+          />
         </div>
 
         <div className="sv-block-cat">AI-powered</div>
