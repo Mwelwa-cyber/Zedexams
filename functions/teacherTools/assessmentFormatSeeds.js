@@ -61,6 +61,34 @@ const COVER_MOCK = [
   "Check your work before handing in.",
 ];
 
+// ── Grade 7 national selection exam (ECZ) ────────────────────────────────
+// The Grade 7 paper for every subject is the national selection exam — named
+// the "Composite Examination" through ~2019 and the "Primary School Leaving
+// Examination (PSLE)" under the CBC rollout. Each subject paper is 100%
+// single-best-answer multiple choice (four options A-D) answered by shading
+// an answer sheet. These fragments are grounded on real 2016-2024 G7 papers.
+
+const COVER_G7_PSLE = [
+  "Write your examination number and school number on the answer sheet provided.",
+  "There are … questions in this paper. Answer ALL of them.",
+  "Each question has four answers A, B, C and D, but only ONE is correct. Choose the BEST answer and shade its letter on the answer sheet with an HB pencil.",
+  "If you change an answer, rub out the first shading very neatly. Use any spare time to check your work.",
+];
+
+const NUMBERING_G7_PSLE =
+  "Questions are numbered 1, 2, 3 … continuously to the end (sections, where " +
+  "present, do NOT restart the numbering). Every question has four options " +
+  "labelled A, B, C, D with exactly one correct. Each question is worth 1 " +
+  "mark. Keep options short, parallel in form and sensibly ordered " +
+  "(alphabetical or numeric).";
+
+const PHRASING_G7_PSLE = [
+  "Match the ECZ Grade 7 register: single-best-answer items, one command per question, plain language for an average 12-13 year old Zambian pupil.",
+  "Use the common ECZ shapes: fill-in-the-blank stems that trail off with '…', short scenario stems ('Mr Mbewe sells table mats. …'), direct recall, and an occasional 'except'/NOT item with the cue word emphasised, used sparingly.",
+  "Use Zambian contexts and names throughout: kwacha (K) and ngwee, markets, maize, nshima, buses, clinics, villages, provinces; names like Chanda, Bupe, Luyando, Mutinta, Mr Mbewe, Mrs Phiri.",
+  "Keep distractors plausible but clearly wrong; never use 'All of the above' or 'None of the above'.",
+];
+
 // ── Seed profiles ────────────────────────────────────────────────────────
 
 const FORMAT_PROFILES = [
@@ -1137,6 +1165,363 @@ const FORMAT_PROFILES = [
     status: "active",
     origin: "builtin_seed",
     sourceNote: "Conventions grounded on real Zambian school end-of-term papers (2026).",
+  },
+
+  // ═══ GRADE 7 NATIONAL SELECTION EXAM (PSLE) — per-subject MCQ papers ══
+  {
+    id: "mock_exam-upper_primary-mathematics",
+    assessmentType: "mock_exam",
+    gradeBand: "upper_primary",
+    subject: "mathematics",
+    label: "Grade 7 Mathematics — Primary School Leaving Examination (PSLE)",
+    paperStructure: [
+      {
+        name: "MULTIPLE CHOICE",
+        heading: "MATHEMATICS — Answer ALL questions.",
+        instructions: "For each question, four answers are given but only one is correct. Choose the BEST answer and shade its letter on the answer sheet.",
+        questionTypes: ["multiple_choice"],
+        questionCountHint: "50-60",
+        marksShare: 100,
+        marksPerQuestionHint: "1 mark each",
+      },
+    ],
+    coverInstructions: COVER_G7_PSLE,
+    numberingStyle: NUMBERING_G7_PSLE,
+    phrasingNotes: [
+      ...PHRASING_G7_PSLE,
+      "Cover the whole Grade 7 syllabus: place value and operations on whole numbers, fractions, decimals, percentages, ratio, money in kwacha (K8.50), sets, Roman numerals, number bases (two/five/eight), measures, geometry (perimeter, area, volume, symmetry, nets) and statistics (mode, mean, bar graphs).",
+      "Calculators are NOT used — keep numbers workable by hand. Some items read off a printed bar graph, table, clock face or shape; write a space as the thousands separator (3 745).",
+    ],
+    marksConventions: [
+      "1 mark per item; the answer key lists the correct letter (A-D) for each question. There are no method marks — this is a multiple-choice paper.",
+    ],
+    diagramConventions: [
+      "Geometry, graph, clock and table items refer to a printed figure (e.g. a bar graph of bags sold Monday-Friday, a shaded shape, a net). Describe each in the diagram field and write the stem as if the figure is printed beside it.",
+    ],
+    exemplarQuestions: [
+      {type: "multiple_choice", marks: 1, prompt: "The place value of the digit 8 in 4 837 is …  A units  B tens  C hundreds  D thousands", note: "trailing-ellipsis stem; correct: C"},
+      {type: "multiple_choice", marks: 1, prompt: "Write 0.4 as a percentage.  A 0.4%  B 4%  C 40%  D 400%", note: "decimal-to-percentage recall; correct: C"},
+      {type: "multiple_choice", marks: 1, prompt: "Mutinta bought 3 exercise books at K8.50 each. How much did she pay altogether?  A K11.50  B K24.50  C K25.50  D K28.50", note: "kwacha word problem; correct: C"},
+      {type: "multiple_choice", marks: 1, prompt: "Convert the number 21 in base three to base ten.  A 5  B 7  C 9  D 21", note: "number-base conversion; correct: B"},
+    ],
+    status: "active",
+    origin: "builtin_seed",
+    sourceNote: "Grounded on real ECZ Grade 7 Mathematics papers (2016-2024); exemplars paraphrased, never copied.",
+  },
+  {
+    id: "mock_exam-upper_primary-integrated_science",
+    assessmentType: "mock_exam",
+    gradeBand: "upper_primary",
+    subject: "integrated_science",
+    label: "Grade 7 Integrated Science — Primary School Leaving Examination (PSLE)",
+    paperStructure: [
+      {
+        name: "MULTIPLE CHOICE",
+        heading: "INTEGRATED SCIENCE — Answer ALL questions.",
+        instructions: "For each question, four answers are given but only one is correct. Choose the BEST answer and shade its letter on the answer sheet.",
+        questionTypes: ["multiple_choice"],
+        questionCountHint: "45-50",
+        marksShare: 100,
+        marksPerQuestionHint: "1 mark each",
+      },
+    ],
+    coverInstructions: COVER_G7_PSLE,
+    numberingStyle: NUMBERING_G7_PSLE,
+    phrasingNotes: [
+      ...PHRASING_G7_PSLE,
+      "Cover the Grade 7 syllabus: health and HIV/AIDS, nutrition and deficiency diseases, the human body, plants (photosynthesis, flower parts), classifying living things, soils and the water cycle, air and matter, metals and non-metals, simple machines, energy changes and farming.",
+      "This paper is diagram-heavy: many items say 'Study the diagram below' about a labelled apparatus, the digestive system, a flower, a simple circuit, soil-drainage funnels or an insect's parts. Write the stem as if the figure is printed beside it.",
+    ],
+    marksConventions: [
+      "1 mark per item; the answer key lists the correct letter (A-D) for each question. There are no method marks — this is a multiple-choice paper.",
+    ],
+    diagramConventions: [
+      "Figure-based items reference labelled biology drawings (digestive system, flower, eye, insect), simple apparatus (measuring cylinder, magnet, drainage funnels) or process diagrams (water cycle, energy changes). Describe each in the diagram field, naming the letters or parts referenced.",
+    ],
+    exemplarQuestions: [
+      {type: "multiple_choice", marks: 1, prompt: "Which of these is a way HIV can be passed from one person to another?  A sharing a plate of food  B sharing a razor blade  C hugging  D sharing a desk", note: "health recall; correct: B"},
+      {type: "multiple_choice", marks: 1, prompt: "Study the diagram of the digestive system. In which part is most water absorbed?  A stomach  B small intestine  C large intestine  D liver", note: "diagram-referenced — needs a labelled digestive-system figure; correct: C"},
+      {type: "multiple_choice", marks: 1, prompt: "Green plants make their own food by a process called …  A respiration  B digestion  C photosynthesis  D pollination", note: "trailing-blank recall; correct: C"},
+      {type: "multiple_choice", marks: 1, prompt: "Which simple machine is used to split firewood?  A pulley  B lever  C wedge  D screw", note: "everyday machine; correct: C"},
+    ],
+    status: "active",
+    origin: "builtin_seed",
+    sourceNote: "Grounded on real ECZ Grade 7 Integrated Science papers (2016-2024); exemplars paraphrased, never copied.",
+  },
+  {
+    id: "mock_exam-upper_primary-social_studies",
+    assessmentType: "mock_exam",
+    gradeBand: "upper_primary",
+    subject: "social_studies",
+    label: "Grade 7 Social Studies — Primary School Leaving Examination (PSLE)",
+    paperStructure: [
+      {
+        name: "MULTIPLE CHOICE",
+        heading: "SOCIAL STUDIES — Answer ALL questions.",
+        instructions: "For each question, four answers are given but only one is correct. Choose the BEST answer and shade its letter on the answer sheet.",
+        questionTypes: ["multiple_choice"],
+        questionCountHint: "50-60",
+        marksShare: 100,
+        marksPerQuestionHint: "1 mark each",
+      },
+    ],
+    coverInstructions: COVER_G7_PSLE,
+    numberingStyle: NUMBERING_G7_PSLE,
+    phrasingNotes: [
+      ...PHRASING_G7_PSLE,
+      "Cover the Grade 7 strands: civics and governance, Zambian and African geography (provinces, rivers, oceans, continents), economics (capital, profit, budgeting, saving), history (Bantu migration, David Livingstone), the environment, transport, the family, and religious and moral education.",
+      "A cluster of 4-5 items near the end reads off a printed map of Zambia ('Study the map of Zambia below and answer questions … to …') with provinces, a national park, a town and a lake marked by letters.",
+    ],
+    marksConventions: [
+      "1 mark per item; the answer key lists the correct letter (A-D) for each question. There are no method marks — this is a multiple-choice paper.",
+    ],
+    diagramConventions: [
+      "The Zambia-map cluster needs a simple provincial map with the marked features (provinces, a national park, a town, a lake) lettered; describe it in the diagram field. A few items show the Coat of Arms or national flag.",
+    ],
+    exemplarQuestions: [
+      {type: "multiple_choice", marks: 1, prompt: "The money needed to start a business is called …  A capital  B loss  C profit  D wage", note: "fill-in economics; correct: A"},
+      {type: "multiple_choice", marks: 1, prompt: "The longest river in Africa is the …  A Congo  B Niger  C Nile  D Zambezi", note: "African geography recall; correct: C"},
+      {type: "multiple_choice", marks: 1, prompt: "Study the map of Zambia. Name the province marked C.  A Eastern  B Luapula  C Muchinga  D Northern", note: "map-referenced — needs a lettered Zambia map; correct depends on the figure"},
+      {type: "multiple_choice", marks: 1, prompt: "A good citizen shows love for the country by …  A avoiding elections  B obeying the laws  C refusing to pay tax  D littering the streets", note: "civics; correct: B"},
+    ],
+    status: "active",
+    origin: "builtin_seed",
+    sourceNote: "Grounded on real ECZ Grade 7 Social Studies papers (2016-2024); exemplars paraphrased, never copied.",
+  },
+  {
+    id: "mock_exam-upper_primary-creative_and_technology_studies",
+    assessmentType: "mock_exam",
+    gradeBand: "upper_primary",
+    subject: "creative_and_technology_studies",
+    label: "Grade 7 Creative & Technology Studies — Primary School Leaving Examination (PSLE)",
+    paperStructure: [
+      {
+        name: "SECTION A",
+        heading: "SECTION A: EXPRESSIVE ARTS",
+        instructions: "Answer ALL questions in this section. Choose the BEST answer and shade its letter on the answer sheet.",
+        questionTypes: ["multiple_choice"],
+        questionCountHint: "~20",
+        marksShare: 33,
+        marksPerQuestionHint: "1 mark each",
+      },
+      {
+        name: "SECTION B",
+        heading: "SECTION B: HOME ECONOMICS",
+        instructions: "Answer ALL questions in this section.",
+        questionTypes: ["multiple_choice"],
+        questionCountHint: "~20",
+        marksShare: 33,
+        marksPerQuestionHint: "1 mark each",
+      },
+      {
+        name: "SECTION C",
+        heading: "SECTION C: TECHNOLOGY STUDIES",
+        instructions: "Answer ALL questions in this section.",
+        questionTypes: ["multiple_choice"],
+        questionCountHint: "~20",
+        marksShare: 34,
+        marksPerQuestionHint: "1 mark each",
+      },
+    ],
+    coverInstructions: COVER_G7_PSLE,
+    numberingStyle: NUMBERING_G7_PSLE,
+    phrasingNotes: [
+      ...PHRASING_G7_PSLE,
+      "The three strands carry roughly equal weight: Expressive Arts (music, art, physical education), Home Economics (food and nutrition, stitches, home management, first aid, grooming) and Technology Studies (design, woodwork joints, simple circuits, ICT and entrepreneurship).",
+      "Many items reference a printed picture: an art shading style, a sewing stitch, a circuit with labelled parts, a kitchen scale, the food pyramid, a 2-D vs 3-D shape. Entrepreneurship items use kwacha profit and loss (cost vs selling price).",
+    ],
+    marksConventions: [
+      "1 mark per item; the answer key lists the correct letter (A-D) for each question. There are no method marks — this is a multiple-choice paper.",
+    ],
+    diagramConventions: [
+      "Picture-based items appear across all three strands: art shading samples, sewing stitches, electric/electronic circuits with labelled parts, kitchen utensils and scales, the food pyramid, and 2-D vs 3-D shapes. Describe each in the diagram field.",
+    ],
+    exemplarQuestions: [
+      {type: "multiple_choice", marks: 1, prompt: "In athletics, the high jump is an example of a … event.  A court  B field  C track  D water", note: "Expressive Arts (PE) recall; correct: B"},
+      {type: "multiple_choice", marks: 1, prompt: "A disease caused by lack of protein in the body is …  A beri-beri  B kwashiorkor  C night blindness  D scurvy", note: "Home Economics (nutrition); correct: B"},
+      {type: "multiple_choice", marks: 1, prompt: "Mr Mbewe sells table mats. To know whether his business makes a profit or loss he must …  A please every customer  B display the mats well  C record all his daily sales  D give extras to friends", note: "Technology Studies (entrepreneurship); correct: C"},
+      {type: "multiple_choice", marks: 1, prompt: "Which device is used to store information on a computer?  A hard disk  B keyboard  C mouse  D printer", note: "Technology Studies (ICT); correct: A"},
+    ],
+    status: "active",
+    origin: "builtin_seed",
+    sourceNote: "Grounded on real ECZ Grade 7 Creative & Technology Studies papers (2016-2024); exemplars paraphrased, never copied.",
+  },
+
+  // ═══ GRADE 12 SCHOOL CERTIFICATE / GCE — per-subject structured papers ═
+  // Grounded on real ECZ Grade 12 Paper 2 (structured/theory) papers. The
+  // matching MCQ Paper 1 for each subject is separate; these profiles model
+  // the structured paper, which is the graded "test" teachers most often want.
+  {
+    id: "mock_exam-senior_secondary-mathematics",
+    assessmentType: "mock_exam",
+    gradeBand: "senior_secondary",
+    subject: "mathematics",
+    label: "Grade 12 Mathematics — GCE/School Certificate Paper 2 (ECZ 4024/2)",
+    paperStructure: [
+      {
+        name: "SECTION A",
+        heading: "SECTION A",
+        instructions: "Answer ALL questions in this section.",
+        questionTypes: ["calculation", "structured"],
+        questionCountHint: "~6",
+        marksShare: 52,
+        marksPerQuestionHint: "marks shown in [ ] at the end of each part",
+      },
+      {
+        name: "SECTION B",
+        heading: "SECTION B",
+        instructions: "Answer any FOUR questions from this section. Each question is worth about 12 marks.",
+        questionTypes: ["structured", "calculation"],
+        questionCountHint: "6 (candidates answer any 4)",
+        marksShare: 48,
+        marksPerQuestionHint: "~12 marks each, split across lettered parts",
+      },
+    ],
+    coverInstructions: [
+      "Write your centre number and examination number on every page of the separate answer booklet.",
+      "Section A: answer ALL questions. Section B: answer any FOUR questions.",
+      "Show all essential working — omission of essential working will result in loss of marks.",
+      "Silent non-programmable calculators, geometrical instruments and graph paper may be used. Marks are given in brackets [ ].",
+      "Give answers to 3 significant figures, or to 1 decimal place for angles, unless the question states otherwise.",
+    ],
+    numberingStyle: NUMBERING_FORMAL,
+    phrasingNotes: [
+      ...PHRASING_SECONDARY,
+      "Mathematics command words: Calculate, Solve, Express, Find, Construct, Draw the graph of, Determine, Simplify, Factorise, Hence (or otherwise). A calculator is allowed, so numbers need not be 'nice'.",
+      "Spread items across the syllabus: algebra and graphs, matrices, mensuration and geometry, constructions and loci (on plain paper), trigonometry and earth geometry, statistics and probability, and pseudocode/flowcharts.",
+    ],
+    marksConventions: [
+      "Method and accuracy are marked separately; omission of essential working loses marks. Marks for each part are shown in [ ]. Section B sets more questions than candidates must answer (answer any four).",
+    ],
+    diagramConventions: [
+      "Geometry and construction questions are answered on plain paper; graphs on graph paper; statistics use tables and charts; computing questions use flowcharts. Describe each figure in the diagram field with all given measurements.",
+    ],
+    exemplarQuestions: [
+      {type: "calculation", marks: 4, prompt: "Given the matrix N = [[x, 2], [3x, 8]]: (a) find the value of x for which the determinant of N is 8; (b) hence find the inverse of N.", note: "matrices — determinant + inverse; correct x = 4"},
+      {type: "structured", marks: 5, prompt: "Answer this question on a sheet of plain paper. (a) Construct triangle KLM in which KL = 11 cm, angle LKM = 70° and angle KLM = 50°. (b) Measure and write the length of LM.", note: "construction on plain paper — needs a construction diagram brief"},
+      {type: "structured", marks: 4, prompt: "A bag contains 9 identical cards: 4 Kuhanjika, 3 Landa and 2 Bunda. Two cards are drawn at random, one after the other, without replacement. Find the probability that both cards are of the same type.", note: "probability, Zambian context; without replacement"},
+      {type: "structured", marks: 5, prompt: "The pseudocode reads a value r, and if r is not negative prints r × (r + 1). Construct a flowchart for this pseudocode.", note: "pseudocode → flowchart (CBC computing content) — needs a flowchart diagram brief"},
+    ],
+    status: "active",
+    origin: "builtin_seed",
+    sourceNote: "Grounded on a real ECZ Grade 12 Mathematics 4024/2 (Paper 2) paper. Models the structured paper; the MCQ Paper 1 is separate. Exemplars paraphrased, never copied.",
+  },
+  {
+    id: "mock_exam-senior_secondary-chemistry",
+    assessmentType: "mock_exam",
+    gradeBand: "senior_secondary",
+    subject: "chemistry",
+    label: "Grade 12 Chemistry — School Certificate Theory (ECZ 5070/2)",
+    paperStructure: [
+      {
+        name: "SECTION A",
+        heading: "SECTION A",
+        instructions: "Answer ALL questions in this section. Write your answers in the spaces provided.",
+        questionTypes: ["structured", "short_answer", "calculation"],
+        questionCountHint: "~8",
+        marksShare: 60,
+        marksPerQuestionHint: "varies; marks shown in [ ] at the end of each part",
+      },
+      {
+        name: "SECTION B",
+        heading: "SECTION B",
+        instructions: "Answer any THREE questions from this section. Write your answers in the answer booklet.",
+        questionTypes: ["structured", "calculation", "essay"],
+        questionCountHint: "4 (candidates answer any 3)",
+        marksShare: 40,
+        marksPerQuestionHint: "longer questions split across lettered parts",
+      },
+    ],
+    coverInstructions: [
+      "Write your name, centre number and candidate number in the spaces at the top of the question paper.",
+      "Section A: answer ALL questions in the spaces provided. Section B: answer any THREE questions in the answer booklet.",
+      "Show all your working; marks are given in brackets [ ] at the end of each question or part.",
+      "A copy of the Periodic Table is provided. Non-programmable calculators may be used. Cell phones are not allowed.",
+    ],
+    numberingStyle: NUMBERING_FORMAL,
+    phrasingNotes: [
+      ...PHRASING_SECONDARY,
+      "Chemistry command words: Define, State, Name, Describe, Explain, Calculate, Determine, Write the equation for, Give a test for, Suggest. Require word and balanced symbol equations, mole and percentage-yield calculations, electronic configurations and qualitative tests.",
+      "Spread items across the syllabus: atomic structure and the Periodic Table, bonding, acids/bases/salts, the mole, electrolysis, rates, energetics, organic chemistry, metals and qualitative analysis. Use Zambian industrial context (copper, fertilisers).",
+    ],
+    marksConventions: [
+      "1 mark per valid point or step. Equations and calculations are marked for method and answer separately; full marks for each part are shown in [ ]. Section A is compulsory; Section B offers four questions of which candidates answer any three.",
+    ],
+    diagramConventions: [
+      "Items use labelled apparatus (gas preparation and collection, electrolysis cells, titration), reaction diagrams and the printed Periodic Table. Describe each figure in the diagram field.",
+    ],
+    exemplarQuestions: [
+      {type: "structured", marks: 6, prompt: "Use a copy of the Periodic Table to identify, by name and chemical symbol, the element which: (a) is in Group IV, Period 5; (b) has proton number 91; (c) is the most reactive alkali metal; (d) has the electronic configuration 2, 8, 8, 1.", note: "Periodic-Table identification, 1 mark per part"},
+      {type: "calculation", marks: 3, prompt: "When excess hydrochloric acid reacts with a sample of calcium carbonate, 6.5 dm³ of carbon dioxide is collected. If the theoretical volume is 8.0 dm³, calculate the percentage yield of carbon dioxide.", note: "mole / percentage-yield calculation with working"},
+      {type: "structured", marks: 5, prompt: "(a) Write the word equation for the reaction between zinc and dilute sulphuric acid. (b) Name the gas produced and describe a test for it. (c) State TWO ways the rate of this reaction can be increased.", note: "equation + gas test + rates"},
+      {type: "essay", marks: 10, prompt: "Describe how copper is extracted from its sulphide ore in Zambia, including the main chemical changes that take place.", note: "Section B extended question, Zambian industry"},
+    ],
+    status: "active",
+    origin: "builtin_seed",
+    sourceNote: "Grounded on a real ECZ Grade 12 Chemistry 5070/2 (Paper 2 Theory) paper. Models the structured paper; the MCQ Paper 1 is separate. Exemplars paraphrased, never copied.",
+  },
+  {
+    id: "mock_exam-senior_secondary-geography",
+    assessmentType: "mock_exam",
+    gradeBand: "senior_secondary",
+    subject: "geography",
+    label: "Grade 12 Geography — School Certificate Paper 2 (ECZ 2218/2)",
+    paperStructure: [
+      {
+        name: "SECTION A",
+        heading: "SECTION A",
+        instructions: "Answer ONE question from this section.",
+        questionTypes: ["structured", "essay"],
+        questionCountHint: "3-4 (answer one)",
+        marksShare: 34,
+        marksPerQuestionHint: "about 12 marks, split across lettered parts",
+      },
+      {
+        name: "SECTION B",
+        heading: "SECTION B",
+        instructions: "Answer ONE question from this section.",
+        questionTypes: ["structured", "essay"],
+        questionCountHint: "3-4 (answer one)",
+        marksShare: 33,
+        marksPerQuestionHint: "about 12 marks, split across lettered parts",
+      },
+      {
+        name: "SECTION C",
+        heading: "SECTION C",
+        instructions: "Answer ONE question from this section. A fourth question may be chosen from any section.",
+        questionTypes: ["structured", "essay"],
+        questionCountHint: "3 (answer one)",
+        marksShare: 33,
+        marksPerQuestionHint: "about 12 marks, split across lettered parts",
+      },
+    ],
+    coverInstructions: [
+      "Write your centre number and examination number on the separate answer booklet.",
+      "There are TEN questions. Answer FOUR: one from each of Sections A, B and C, and a fourth from any section.",
+      "Marks are given in brackets [ ] at the end of each question or part. The Insert contains the figures (a map extract and a photograph).",
+      "Draw sketch maps and diagrams wherever they illustrate an answer. Calculators are not allowed.",
+    ],
+    numberingStyle: NUMBERING_FORMAL,
+    phrasingNotes: [
+      ...PHRASING_SECONDARY,
+      "Geography command words: Describe, Explain, Account for, State, Define, 'With the aid of a sketch map/diagram …', 'Study Figure 1 …', 'Using the map/photograph …'.",
+      "Cover the three sections: physical geography and map-work (the Insert map extract — grid references, distances, relief, land use), human and economic geography (population, settlement, agriculture, mining), and the regional geography of Zambia and Africa.",
+    ],
+    marksConventions: [
+      "1 mark per valid point; sketch maps, map measurements and labelled diagrams earn marks. Each question totals about 12 marks split across lettered parts, shown as [Total: 12].",
+    ],
+    diagramConventions: [
+      "Map-work uses the Insert (a 1:50 000 map extract and a photograph); candidates also draw sketch maps and labelled diagrams (river and landform features, climate graphs). Describe the Insert and any required sketch in the diagram field.",
+    ],
+    exemplarQuestions: [
+      {type: "structured", marks: 10, prompt: "Study Figure 1, the 1:50 000 map extract on the Insert. (a) Give the six-figure grid reference of the school. (b) Measure the straight-line distance, in kilometres, between the two bridges. (c) Describe the relief of the area shown.", note: "map-work from the Insert — needs a map-extract figure brief"},
+      {type: "structured", marks: 12, prompt: "(a) Describe THREE types of rural settlement pattern found in Zambia. (b) Explain TWO functions of a named Zambian town. (c) Give ONE reason why there are few settlements along the Luangwa valley.", note: "settlement geography, lettered parts, Zambian context"},
+      {type: "structured", marks: 12, prompt: "(a) Explain how rural-urban migration lowers the quality of life in both rural and urban areas. (b) Suggest TWO measures the government can take to reduce rural-urban migration.", note: "human geography, Zambian context"},
+      {type: "essay", marks: 10, prompt: "With the aid of a sketch map, describe the course of a named river in Zambia and explain THREE ways in which people use it.", note: "regional/physical — requires a candidate sketch map"},
+    ],
+    status: "active",
+    origin: "builtin_seed",
+    sourceNote: "Grounded on a real ECZ Grade 12 Geography 2218/2 (Paper 2) paper. Exemplars paraphrased, never copied.",
   },
 
   // ═══ MID-TERM TEST — a shorter end-of-term covering half the term ═════
