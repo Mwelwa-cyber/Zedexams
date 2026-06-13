@@ -485,6 +485,9 @@ body {
 /* ── Grade-7 math blocks (must match editor.css visually) ── */
 .qbody p { margin: 0; }
 .qbody p + p { margin-top: 4pt; }
+/* Keep the first stem paragraph flowing after the inline question number so
+   a rich-text question doesn't drop "12." onto its own line above the text. */
+.qbody > p:first-child { display: inline; }
 .opt-rich, .opt-rich p { display: inline; margin: 0; }
 .opt-rich .vert-arith, .opt-rich .math-frac, .opt-rich .num-base {
   display: inline-flex;
@@ -721,8 +724,8 @@ function renderPassage(b) {
 
 function renderQuestion(b) {
   const marks = b.marks ?? 1
-  const qmark = marks > 1
-    ? `<em class="qmarks">(${marks}&nbsp;marks)</em>`
+  const qmark = marks >= 1
+    ? `<em class="qmarks">(${marks}&nbsp;mark${marks === 1 ? '' : 's'})</em>`
     : ''
   let body = ''
 
@@ -737,7 +740,7 @@ function renderQuestion(b) {
       return `<span class="${cls}" style="left:${(l.x * 100).toFixed(2)}%;top:${(l.y * 100).toFixed(2)}%">${inner}</span>`
     }).join('')
     body += `<div class="q-image"><div class="q-image-frame"><img src="${escapeHtml(b.imageUrl)}" alt="${escapeHtml(b.imageAlt || '')}">${labelHtml}</div></div>`
-    if (isIdentify && labels.length) {
+    if (isIdentify && labels.length && b.type !== 'mcq') {
       const blanks = labels.map(() => `<li><span class="identify-blank"></span></li>`).join('')
       body += `<ol class="identify-list">${blanks}</ol>`
     }

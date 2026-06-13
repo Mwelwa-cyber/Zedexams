@@ -9,6 +9,7 @@
  */
 
 import { computeSmartWarnings, buildPaperLayout } from './assessmentPaperLayout.js'
+import { latexToReadableText } from './quizRichText.js'
 
 let failures = 0
 function assert(cond, msg) {
@@ -106,6 +107,82 @@ console.log('\nbuildPaperLayout — imageAlt threads onto blocks')
   const passage = blocks.find(b => b.kind === 'passage')
   assert(passage && passage.imageAlt === 'Forest food web', 'passage imageAlt falls back to the title')
 }
+
+console.log('\nbuildPaperLayout — strips baked-in option letter prefixes')
+{
+  // The generator/author sometimes stores "A. Foo" at index 0; every renderer
+  // also prepends its own A/B/C/D, so the paper showed "A. A. Foo".
+  const blocks = buildPaperLayout(baseAssessment, [
+    {
+      localId: 'q1', order: 1, type: 'mcq', marks: 1, correctAnswer: 2,
+      text: 'The system that helps us breathe is the …',
+      options: ['A. digestive system', 'B) circulatory system', 'C: respiratory system', 'D - nervous system'],
+    },
+  ])
+  const q = blocks.find(b => b.kind === 'question')
+  assert(q.options[0] === 'digestive system', 'strips "A. " prefix')
+  assert(q.options[1] === 'circulatory system', 'strips "B) " prefix')
+  assert(q.options[2] === 'respiratory system', 'strips "C: " prefix')
+  assert(q.options[3] === 'nervous system', 'strips "D - " prefix')
+  assert(q.optionsPlain[0] === 'digestive system', 'optionsPlain mirror is also stripped')
+}
+{
+  // Never strip real content that merely starts with a capital letter.
+  const blocks = buildPaperLayout(baseAssessment, [
+    {
+      localId: 'q1', order: 1, type: 'mcq', marks: 1, correctAnswer: 0,
+      text: 'Pick one', options: ['Arteries', 'A car is faster', 'Bring it', 'D'],
+    },
+  ])
+  const q = blocks.find(b => b.kind === 'question')
+  assert(q.options[0] === 'Arteries', 'leaves "Arteries" untouched')
+  assert(q.options[1] === 'A car is faster', 'leaves "A car is faster" untouched (no delimiter)')
+  assert(q.options[3] === 'D', 'leaves a bare letter option untouched')
+}
+
+console.log('\nbuildPaperLayout — strips duplicate SECTION label from part title')
+{
+  const blocks = buildPaperLayout(
+    {
+      ...baseAssessment,
+      parts: [{ id: 'pA', title: 'SECTION A: Multiple Choice' }, { id: 'pB', title: 'Sections of a plant' }],
+    },
+    [
+      { localId: 'q1', order: 1, partId: 'pA', type: 'mcq', marks: 1, text: 'Q1', options: ['x', 'y'], correctAnswer: 0 },
+      { localId: 'q2', order: 2, partId: 'pB', type: 'short_answer', marks: 2, text: 'Q2' },
+    ],
+  )
+  const heads = blocks.filter(b => b.kind === 'sectionHeader')
+  assert(heads[0].title === 'Multiple Choice', 'drops "SECTION A:" leaving "Multiple Choice"')
+  assert(heads[1].title === 'Sections of a plant', 'keeps a real title that merely starts with "Sections"')
+}
+
+console.log('\nbuildPaperLayout — drops duplicated name/date header from instructions')
+{
+  const blocks = buildPaperLayout(
+    { ...baseAssessment, coverInstructions: 'NAME: ______ DATE: ______ TOTAL MARKS: ______ INSTRUCTIONS: Answer ALL the questions.' },
+    [{ localId: 'q1', order: 1, type: 'mcq', marks: 1, text: 'Q', options: ['x', 'y'], correctAnswer: 0 }],
+  )
+  const instr = blocks.find(b => b.kind === 'instructions')
+  assert(instr.text === 'Answer ALL the questions.', 'keeps only the real instruction prose')
+}
+{
+  const blocks = buildPaperLayout(
+    { ...baseAssessment, coverInstructions: 'Answer ALL questions. Show your working.' },
+    [{ localId: 'q1', order: 1, type: 'mcq', marks: 1, text: 'Q', options: ['x', 'y'], correctAnswer: 0 }],
+  )
+  const instr = blocks.find(b => b.kind === 'instructions')
+  assert(instr.text === 'Answer ALL questions. Show your working.', 'leaves normal instructions unchanged')
+}
+
+console.log('\nlatexToReadableText — readable maths for non-JS exports')
+assert(latexToReadableText('18') === '18', 'plain number unchanged')
+assert(latexToReadableText('4 \\div 2 \\times 3') === '4 ÷ 2 × 3', 'div/times → ÷/×')
+assert(latexToReadableText('\\frac{1}{3}') === '(1)/(3)', 'fraction → (1)/(3)')
+assert(latexToReadableText('x^2') === 'x²', 'power → superscript')
+assert(latexToReadableText('H_2O') === 'H₂O', 'subscript → ₂')
+assert(latexToReadableText('5 \\geq 3') === '5 ≥ 3', 'geq → ≥')
+assert(latexToReadableText('') === '', 'empty stays empty')
 
 if (failures > 0) {
   console.error(`\n${failures} assertion(s) failed.`)
