@@ -72,7 +72,7 @@ function bucketStatus(bucket, profileById, draftTuples) {
   // resolves against (exact seed → band-generic seed → default), so the
   // generator IS serving this slot from a built-in profile. Say that rather
   // than implying the slot is unserved.
-  return { tone: 'none', text: 'Built-in seed · not synthesised' }
+  return { tone: 'none', text: 'Built-in seed (not synthesised)' }
 }
 
 const STATUS_STYLES = {
