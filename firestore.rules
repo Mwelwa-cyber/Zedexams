@@ -595,6 +595,18 @@ service cloud.firestore {
       }
     }
 
+    // ── assessmentDrafts ──────────────────────────────────────
+    // One auto-saved Assessment Studio draft per teacher, mirrored from the
+    // browser's localStorage so unsaved work follows the teacher across
+    // devices. Strictly owner-only — a draft is private working content and
+    // is never read by anyone else (not even admins). The client stores the
+    // whole draft as a single JSON string field ('data') plus a 'savedAt'
+    // millisecond timestamp; it is deleted once the paper is saved to the
+    // library.
+    match /assessmentDrafts/{uid} {
+      allow read, write, delete: if isAuthed() && isOwner(uid);
+    }
+
     // ── usageMeters ───────────────────────────────────────────
     match /usageMeters/{uid} {
       allow read: if isAuthed() && (isOwner(uid) || isAdmin());

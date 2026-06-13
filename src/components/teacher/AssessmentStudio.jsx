@@ -13,8 +13,10 @@ import { useAuth } from '../../contexts/AuthContext'
 import { isFreePlanTeacher } from '../../utils/teacherLibraryService'
 import {
   clearAssessmentDraft,
-  loadAssessmentDraft,
+  clearAssessmentDraftRemote,
+  loadAssessmentDraftMerged,
   saveAssessmentDraft,
+  saveAssessmentDraftRemote,
 } from '../../hooks/useAssessmentDraft'
 import { storage } from '../../firebase/config'
 import { generateAIQuizQuestions } from '../../utils/aiAssistant'
@@ -433,17 +435,26 @@ export default function AssessmentStudio() {
   useEffect(() => {
     if (draftRestoredRef.current) return
     if (!currentUser?.uid) return
+    if (!hasOnlyEmptyStarterSection(sections)) { draftRestoredRef.current = true; return }
     draftRestoredRef.current = true
 
-    const draft = loadAssessmentDraft(currentUser.uid)
-    if (!draft) return
-    if (!hasOnlyEmptyStarterSection(sections)) return
-
-    if (draft.form) setForm(current => ({ ...current, ...draft.form }))
-    if (Array.isArray(draft.sections) && draft.sections.length) setSections(draft.sections)
-    if (Array.isArray(draft.parts)) setParts(draft.parts)
-    if (draft.view === 'builder' || draft.view === 'preview') setView(draft.view)
-    showToast('Restored your unsaved draft.')
+    let cancelled = false
+    // Pull the freshest draft across this device + the cloud. A 'remote' win
+    // means the paper was last edited on another device.
+    loadAssessmentDraftMerged(currentUser.uid).then(({ draft, source }) => {
+      if (cancelled || !draft) return
+      // Re-check: don't clobber anything the teacher started typing while the
+      // async cloud read was in flight.
+      if (!hasOnlyEmptyStarterSection(sections)) return
+      if (draft.form) setForm(current => ({ ...current, ...draft.form }))
+      if (Array.isArray(draft.sections) && draft.sections.length) setSections(draft.sections)
+      if (Array.isArray(draft.parts)) setParts(draft.parts)
+      if (draft.view === 'builder' || draft.view === 'preview') setView(draft.view)
+      showToast(source === 'remote'
+        ? 'Restored your draft from another device.'
+        : 'Restored your unsaved draft.')
+    }).catch(() => { /* draft restore is best-effort */ })
+    return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.uid])
 
@@ -452,7 +463,11 @@ export default function AssessmentStudio() {
     if (!draftRestoredRef.current) return
     if (hasOnlyEmptyStarterSection(sections) && !form.title.trim() && !form.schoolName.trim()) return
     const timer = setTimeout(() => {
-      saveAssessmentDraft(currentUser.uid, { form, sections, parts, view })
+      const payload = { form, sections, parts, view }
+      saveAssessmentDraft(currentUser.uid, payload)
+      // Mirror to Firestore so the draft follows the teacher across devices.
+      // Fire-and-forget; failures fall back to the local copy.
+      saveAssessmentDraftRemote(currentUser.uid, payload)
       setDraftSavedAt(Date.now())
     }, 800)
     return () => clearTimeout(timer)
@@ -1196,6 +1211,7 @@ export default function AssessmentStudio() {
       await saveAssessmentQuestions(assessmentId, questionsForSave)
       setImportedAssets({})
       clearAssessmentDraft(currentUser.uid)
+      clearAssessmentDraftRemote(currentUser.uid)
       showToast('Saved to your library!')
       setTimeout(() => navigate('/teacher/assessments'), 900)
     } catch (error) {
