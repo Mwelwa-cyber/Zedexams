@@ -50,19 +50,29 @@ const ORIGIN_SHORT = {
 function bucketStatus(bucket, profileById, draftTuples) {
   const id = `${bucket.assessmentType}-${bucket.gradeBand}-${bucket.subject}`
   const profile = profileById.get(id)
+  // A library-synthesised profile that's already live is the strongest signal:
+  // these papers are in the generator regardless of any newer pending draft.
   if (profile && profile.origin === 'library_synthesis') {
     return { tone: 'live', text: '✓ In the live generator (from this library)' }
+  }
+  // A pending draft means these papers HAVE been synthesised but aren't live
+  // yet — surface that ahead of any unrelated manual/seed profile in the slot,
+  // which would otherwise hide the just-processed draft.
+  if (draftTuples.has(id)) {
+    return { tone: 'draft', text: '⏳ Draft awaiting approval' }
   }
   if (profile) {
     return {
       tone: 'other',
-      text: `Live profile exists (${ORIGIN_SHORT[profile.origin] || profile.origin})`,
+      text: `Live override: ${ORIGIN_SHORT[profile.origin] || profile.origin}`,
     }
   }
-  if (draftTuples.has(id)) {
-    return { tone: 'draft', text: '⏳ Draft awaiting approval' }
-  }
-  return { tone: 'none', text: 'Not synthesised yet' }
+  // No Firestore row for this slot. listAssessmentFormats() returns only the
+  // Firestore overrides, not the in-code seeds the generator still merges and
+  // resolves against (exact seed → band-generic seed → default), so the
+  // generator IS serving this slot from a built-in profile. Say that rather
+  // than implying the slot is unserved.
+  return { tone: 'none', text: 'Built-in seed · not synthesised' }
 }
 
 const STATUS_STYLES = {
