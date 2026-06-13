@@ -499,6 +499,39 @@
   .format-preview-scale .doc-head .lp-title{font-size:13pt}
 }
 
+/* ============ REVIEW & GENERATE MODAL (13-review.js) ============
+   A consolidated confirmation card shown before a generation runs: echoes the
+   teacher's choices and the targeted CBC competence, so they generate with
+   confidence (and don't burn a daily-cap credit on a wrong setup). Styled to
+   sit inside the shared .modal shell. */
+.lp-review{font-family:var(--font-body)}
+.lp-review-banner{background:linear-gradient(135deg,#0e2a32 0%,#13414a 100%);color:#f5ebd9;border-radius:8px;padding:16px 18px;margin-bottom:16px}
+.lp-review-eyebrow{font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#9fc9c2;margin-bottom:6px}
+.lp-review-title{font:700 20px/1.2 var(--font-display);margin-bottom:4px}
+.lp-review-sub{font-size:12.5px;color:#cfe3df}
+.lp-review-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 22px}
+.lp-review-cell-full{grid-column:1/-1}
+.lp-review-k{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9a8b76;margin-bottom:3px}
+.lp-review-v{font-size:13.5px;color:var(--ink);line-height:1.45}
+.lp-review-muted{color:#a89880;font-style:italic}
+.lp-review-chip{display:inline-block;background:rgba(255,122,46,.1);border:1px solid rgba(255,122,46,.28);color:#b8492a;border-radius:20px;padding:2px 10px;font-size:12px;font-weight:600;margin:0 5px 5px 0}
+.lp-review-breakdown{margin-top:16px;border-top:1px solid var(--line);padding-top:14px}
+.lp-review-foci{list-style:none;margin:6px 0 0;padding:0}
+.lp-review-foci li{font-size:13px;color:var(--ink);padding:5px 0;border-bottom:1px dashed var(--line);display:flex;gap:10px;align-items:baseline}
+.lp-review-foci li:last-child{border-bottom:none}
+.lp-review-ln{flex-shrink:0;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#ff7a2e;min-width:64px}
+.lp-review-cbc{margin-top:16px;background:var(--paper-2);border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:8px;padding:13px 15px}
+.lp-review-cbc-label{display:flex;align-items:center;gap:7px;font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:7px}
+.lp-review-comp{font-size:13.5px;color:var(--ink);line-height:1.5}
+.lp-review-standard{font-size:12px;color:#6e6253;margin-top:7px;line-height:1.45}
+.lp-review-actions{display:flex;justify-content:flex-end;gap:10px;padding:16px 22px;border-top:1px solid var(--line);background:var(--paper-2);position:sticky;bottom:0}
+.lp-review-actions .btn-solid{display:inline-flex;align-items:center;gap:7px}
+@media(max-width:600px){
+  .lp-review-grid{grid-template-columns:1fr;gap:12px}
+  .lp-review-actions{flex-direction:column-reverse}
+  .lp-review-actions .btn-solid,.lp-review-actions .btn-outline{width:100%}
+}
+
 /* ── Print: only the lesson plan, never the studio chrome ──────────────────
    A plain browser Ctrl+P on the studio would otherwise print the whole app
    (sidebar form, topbar, planner, format cards). Hide all of it and let the

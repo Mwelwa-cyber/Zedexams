@@ -368,6 +368,7 @@ export default function LessonPlanStudio() {
       `/studio/10-export.js${v}`,
       `/studio/11-diagrams.js${v}`,
       `/studio/12-lesson-progression.js${v}`,
+      `/studio/13-review.js${v}`,
     ]
 
     loadScriptsSequentially(scripts)
@@ -925,6 +926,25 @@ export default function LessonPlanStudio() {
           </div>
           <div className="modal-body modal-body-flush" id="format-preview-body">
             <div className="format-preview-empty">Loading sample lesson plan…</div>
+          </div>
+        </div>
+      </div>
+      {/* Review & Generate — confirmation pass populated by 13-review.js */}
+      <div className="modal-scrim" id="modal-review">
+        <div className="modal">
+          <div className="modal-head">
+            <h3>Review &amp; generate</h3>
+            <button className="close" data-close-modal>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+          <div className="modal-body" id="review-modal-body"></div>
+          <div className="lp-review-actions">
+            <button className="btn-outline" data-close-modal>Back to edit</button>
+            <button className="btn-solid" id="review-generate">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 3v4"/><path d="M19 17v4"/><path d="M3 5h4"/><path d="M17 19h4"/><path d="M9.6 5.6 8 8 5.6 6.4 4 9l2.4 1.6L5 13l3.4-1.4L10 14l1.6-3.4L15 12l-1.6-3.4L17 7l-3.4 1.4L12 5l-1.6 2.4z"/></svg>
+              <span id="review-generate-label">Generate Lesson Plan</span>
+            </button>
           </div>
         </div>
       </div>
