@@ -320,6 +320,9 @@ export default function AssessmentStudio() {
     showDateField: true,
     showMarksField: true,
     showClassField: false,
+    // MCQ option presentation (applies to every multiple-choice question).
+    mcqOptionLayout: 'vertical',      // 'vertical' | 'horizontal'
+    mcqAnswerChoiceCount: 4,          // 2 (A B) | 3 (A B C) | 4 (A B C D)
     endOfPaperText: '— END OF PAPER —',
     mode: '',
     importStatus: '',
@@ -389,6 +392,8 @@ export default function AssessmentStudio() {
     showDateField: form.showDateField,
     showMarksField: form.showMarksField,
     showClassField: form.showClassField,
+    mcqOptionLayout: form.mcqOptionLayout,
+    mcqAnswerChoiceCount: form.mcqAnswerChoiceCount,
     passages: serializedPreview.passages,
     pagebreaks: serializedPreview.pagebreaks,
     parts: serializedPreview.parts,
@@ -1300,6 +1305,8 @@ export default function AssessmentStudio() {
         assessmentDate: form.assessmentDate,
         coverInstructions: form.coverInstructions,
         schoolLogoUrl: form.schoolLogoUrl,
+        mcqOptionLayout: form.mcqOptionLayout,
+        mcqAnswerChoiceCount: form.mcqAnswerChoiceCount,
         endOfPaperText: form.endOfPaperText,
         footerCode,
         passages: passagesForSave,
@@ -2524,6 +2531,31 @@ function HeaderBlock({ form, setF, onUploadLogo, onRemoveLogo, importing, onImpo
         </div>
       </div>
 
+      <div style={{ marginTop: 'var(--sv-s4)' }}>
+        <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--sv-muted)', textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 'var(--sv-s2)' }}>
+          Multiple-choice options (all MCQs)
+        </label>
+        <SegControl
+          label="Layout"
+          value={form.mcqOptionLayout}
+          onChange={v => setF('mcqOptionLayout', v)}
+          options={[
+            { value: 'vertical', label: '☰ Vertical' },
+            { value: 'horizontal', label: '⋯ Horizontal' },
+          ]}
+        />
+        <SegControl
+          label="Answer choices"
+          value={form.mcqAnswerChoiceCount}
+          onChange={v => setF('mcqAnswerChoiceCount', v)}
+          options={[
+            { value: 2, label: 'A B' },
+            { value: 3, label: 'A B C' },
+            { value: 4, label: 'A B C D' },
+          ]}
+        />
+      </div>
+
       <div className="sv-title-preview-card">
         <div className="sv-auto-label">⚡ Auto-generated header</div>
         <div className="sv-school">{(form.schoolName || 'YOUR SCHOOL NAME').toUpperCase()}</div>
@@ -2581,6 +2613,30 @@ function Toggle({ label, on, onChange }) {
         aria-pressed={on}
         aria-label={label}
       />
+    </div>
+  )
+}
+
+// Small segmented button group used for the paper-level MCQ layout / choice
+// count pickers. Compares with == so it works for both string and number
+// option values.
+function SegControl({ label, value, onChange, options }) {
+  return (
+    <div className="sv-seg-row">
+      <div className="sv-lbl">{label}</div>
+      <div className="sv-seg" role="group" aria-label={label}>
+        {options.map(opt => (
+          <button
+            key={String(opt.value)}
+            type="button"
+            className={`sv-seg-btn ${value === opt.value ? 'on' : ''}`}
+            onClick={() => onChange(opt.value)}
+            aria-pressed={value === opt.value}
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
     </div>
   )
 }
@@ -4793,8 +4849,19 @@ function PaperMcqOptions({ block }) {
     )
   }
   const long = (block.options || []).some(o => String(o).length > 18)
+  // Paper-level layout overrides the long-option auto-stack when the
+  // teacher has picked one. Horizontal lays the options out in an N-column
+  // row matching the choice count.
+  const n = (block.options || []).length
+  let stacked = long
+  let colStyle
+  if (block.mcqLayout === 'vertical') stacked = true
+  else if (block.mcqLayout === 'horizontal') {
+    stacked = false
+    colStyle = { gridTemplateColumns: `repeat(${Math.max(1, n)}, minmax(0, 1fr))` }
+  }
   return (
-    <div className={`sv-paper-options ${long ? 'stacked' : ''}`}>
+    <div className={`sv-paper-options ${stacked ? 'stacked' : ''}`} style={colStyle}>
       {(block.options || []).map((opt, i) => {
         const isCorrect = block.showAnswer && correct === i
         return (

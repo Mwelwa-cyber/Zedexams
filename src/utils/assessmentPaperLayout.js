@@ -257,6 +257,20 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
   const sortedQs = [...questions].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
   const groups = groupQuestionsByPart(sortedQs, assessment.parts || [])
 
+  // Paper-level MCQ presentation. Both are optional; when unset the
+  // renderers keep their legacy auto behaviour (4-up grid, auto-stack on
+  // long options, render every stored option).
+  //   mcqOptionLayout      — 'vertical' | 'horizontal' (text options only)
+  //   mcqAnswerChoiceCount — 2 | 3 | 4: cap every MCQ to the first N options
+  const mcqOpts = {
+    mcqLayout: (assessment.mcqOptionLayout === 'vertical' || assessment.mcqOptionLayout === 'horizontal')
+      ? assessment.mcqOptionLayout
+      : null,
+    mcqCount: [2, 3, 4].includes(Number(assessment.mcqAnswerChoiceCount))
+      ? Number(assessment.mcqAnswerChoiceCount)
+      : null,
+  }
+
   const blocks = []
 
   // 1. Header
@@ -368,13 +382,13 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
         })
         for (const q of passageQuestions) {
           runningNumber += 1
-          blocks.push(buildQuestionBlock(q, runningNumber, includeAnswers))
+          blocks.push(buildQuestionBlock(q, runningNumber, includeAnswers, mcqOpts))
         }
       } else if (item.kind === 'pagebreak') {
         blocks.push({ kind: 'pagebreak' })
       } else {
         runningNumber += 1
-        blocks.push(buildQuestionBlock(item.q, runningNumber, includeAnswers))
+        blocks.push(buildQuestionBlock(item.q, runningNumber, includeAnswers, mcqOpts))
       }
     }
   })
@@ -404,10 +418,18 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
   return blocks
 }
 
-function buildQuestionBlock(q, number, includeAnswer) {
+function buildQuestionBlock(q, number, includeAnswer, mcqOpts = {}) {
   const type = q.type || 'mcq'
-  const options = Array.isArray(q.options) ? q.options : []
-  const optionMedia = Array.isArray(q.optionMedia) ? q.optionMedia : []
+  const { mcqLayout = null, mcqCount = null } = mcqOpts
+  let options = Array.isArray(q.options) ? q.options : []
+  let optionMedia = Array.isArray(q.optionMedia) ? q.optionMedia : []
+  // Paper-level "answer choices" cap. When the teacher fixes the whole
+  // paper to 2/3/4 choices we render only the first N — non-destructive,
+  // the stored question keeps every option so switching back restores them.
+  if (type === 'mcq' && mcqCount && options.length > mcqCount) {
+    options = options.slice(0, mcqCount)
+    optionMedia = optionMedia.slice(0, mcqCount)
+  }
   // optionsMode: 'text', 'image', or 'mixed'. Tells the renderer how to draw.
   let optionsMode = 'text'
   if (type === 'mcq') {
@@ -444,6 +466,9 @@ function buildQuestionBlock(q, number, includeAnswer) {
     options,
     optionMedia,
     optionsMode,
+    // Paper-level layout hint for text MCQ options ('vertical' | 'horizontal'
+    // | null). Null means "use the renderer's auto behaviour".
+    mcqLayout: type === 'mcq' ? mcqLayout : null,
     correctAnswer: q.correctAnswer,
     explanation: includeAnswer ? plain(q.explanation) : '',
     imageUrl: q.imageUrl || '',
