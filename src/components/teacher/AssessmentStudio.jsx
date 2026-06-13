@@ -4796,12 +4796,46 @@ function PaperPassageBlock({ block }) {
   )
 }
 
+// Render a question stem or answer option that may carry rich content —
+// stacked fractions, KaTeX, vertical sums, or multi-line / multi-part
+// structure. The PDF and DOCX exports render the pre-hydrated `textHtml` /
+// `optionsHtml` (sanitised paper HTML from richTextToPaperHtml); the preview
+// used to render the FLATTENED plain text instead, so maths vanished or showed
+// as raw markup and multi-part stems collapsed onto one run-on line. Rendering
+// the same rich HTML here keeps the in-studio preview identical to the printed
+// paper. Falls back to plain text for legacy / plain questions with no rich HTML.
+function PaperRichText({ html, plain, fallback = '', className = '' }) {
+  const trimmed = typeof html === 'string' ? html.trim() : ''
+  const isRich = Boolean(trimmed) && trimmed !== '<p></p>'
+  if (isRich) {
+    return (
+      <span
+        className={`sv-rich ${className}`.trim()}
+        dangerouslySetInnerHTML={{ __html: html }}
+        ref={(el) => {
+          if (!el) return
+          // Render KaTeX (the only math nodes richTextToPaperHtml leaves
+          // un-inflated) once the HTML is in the DOM — the same call the PDF
+          // print window makes after load. Idempotent for the fraction /
+          // vertical-arithmetic / number-base blocks already inflated.
+          import('../../editor/utils/safeRender.js')
+            .then(({ hydrateMathContent }) => hydrateMathContent(el))
+            .catch(() => {})
+        }}
+      />
+    )
+  }
+  const text = plain != null && String(plain).length ? String(plain) : fallback
+  return <span className={className || undefined}>{text}</span>
+}
+
 function PaperQuestionBlock({ block }) {
   const marks = block.marks ?? 1
   return (
     <div className="sv-paper-q">
       <div className="sv-qline">
-        <strong>{block.number}.</strong> {block.text || '(no question text)'}
+        <strong>{block.number}.</strong>{' '}
+        <PaperRichText className="sv-qbody" html={block.textHtml} plain={block.text} fallback="(no question text)" />
         {marks > 1 && <em className="sv-qmarks">({marks}&nbsp;marks)</em>}
       </div>
       {block.imageUrl && (
@@ -4925,7 +4959,11 @@ function PaperMcqOptions({ block }) {
                     : <span style={{ fontSize: 24, color: '#999' }}>?</span>}
               </div>
               <div style={{ fontSize: 12, fontWeight: 700, color: isCorrect ? '#047857' : undefined }}>
-                {SECTION_LETTERS[i]}.{opt ? ` ${opt}` : ''}{isCorrect ? ' ✓' : ''}
+                {SECTION_LETTERS[i]}.
+                {(block.optionsPlain?.[i] ?? opt)
+                  ? <>{' '}<PaperRichText className="sv-opt-rich" html={block.optionsHtml?.[i]} plain={block.optionsPlain?.[i] ?? opt} /></>
+                  : null}
+                {isCorrect ? ' ✓' : ''}
               </div>
             </div>
           )
@@ -4948,7 +4986,7 @@ function PaperMcqOptions({ block }) {
                   ? <img src={media.imageUrl} alt={media.alt || ''} style={{ width: 40, height: 40, objectFit: 'contain' }} />
                   : <span style={{ width: 40, height: 40, display: 'inline-block' }} />}
               <span style={{ color: isCorrect ? '#047857' : undefined, fontWeight: isCorrect ? 700 : 400 }}>
-                {opt}{isCorrect ? ' ✓' : ''}
+                <PaperRichText className="sv-opt-rich" html={block.optionsHtml?.[i]} plain={block.optionsPlain?.[i] ?? opt} />{isCorrect ? ' ✓' : ''}
               </span>
             </div>
           )
@@ -4956,7 +4994,11 @@ function PaperMcqOptions({ block }) {
       </div>
     )
   }
-  const long = (block.options || []).some(o => String(o).length > 18)
+  // Length check drives the long-option auto-stack. Use the PLAIN option text
+  // (not the rich HTML, whose tags would inflate every length past 18 and
+  // force needless stacking) — matching the PDF's optLength().
+  const optsPlain = block.optionsPlain || block.options || []
+  const long = optsPlain.some(o => String(o ?? '').length > 18)
   // Paper-level layout overrides the long-option auto-stack when the
   // teacher has picked one. Horizontal lays the options out in an N-column
   // row matching the choice count.
@@ -4974,7 +5016,9 @@ function PaperMcqOptions({ block }) {
         const isCorrect = block.showAnswer && correct === i
         return (
           <div key={i} style={isCorrect ? { color: '#047857', fontWeight: 700 } : undefined}>
-            <span className="sv-opt-letter">{SECTION_LETTERS[i]}.</span> {opt}{isCorrect ? '  ✓' : ''}
+            <span className="sv-opt-letter">{SECTION_LETTERS[i]}.</span>{' '}
+            <PaperRichText className="sv-opt-rich" html={block.optionsHtml?.[i]} plain={block.optionsPlain?.[i] ?? opt} />
+            {isCorrect ? '  ✓' : ''}
           </div>
         )
       })}

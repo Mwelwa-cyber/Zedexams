@@ -1996,6 +1996,18 @@
   color: #000;
   margin-right: 2px;
 }
+/* Rich question/option content in the paper preview. Mirrors the PDF's
+   .qbody / .opt-rich rules (assessmentToPdf.js) so AI-written or imported
+   questions carrying stacked fractions, KaTeX, vertical sums or multi-part
+   structure render in the preview exactly as they print — instead of
+   flattening to one run-on line (the old plain-text path). */
+.studio-v2 .sv-qbody p { margin: 0; }
+.studio-v2 .sv-qbody p + p { margin-top: 4px; }
+.studio-v2 .sv-opt-rich,
+.studio-v2 .sv-opt-rich p { display: inline; margin: 0; }
+.studio-v2 .sv-opt-rich .vert-arith,
+.studio-v2 .sv-opt-rich .math-frac,
+.studio-v2 .sv-opt-rich .num-base { display: inline-flex; vertical-align: middle; }
 .studio-v2 .sv-paper-passage {
   background: #fafafa;
   border: 1px solid #ccc;
