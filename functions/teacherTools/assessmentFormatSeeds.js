@@ -1347,6 +1347,183 @@ const FORMAT_PROFILES = [
     sourceNote: "Grounded on real ECZ Grade 7 Creative & Technology Studies papers (2016-2024); exemplars paraphrased, never copied.",
   },
 
+  // ═══ GRADE 12 SCHOOL CERTIFICATE / GCE — per-subject structured papers ═
+  // Grounded on real ECZ Grade 12 Paper 2 (structured/theory) papers. The
+  // matching MCQ Paper 1 for each subject is separate; these profiles model
+  // the structured paper, which is the graded "test" teachers most often want.
+  {
+    id: "mock_exam-senior_secondary-mathematics",
+    assessmentType: "mock_exam",
+    gradeBand: "senior_secondary",
+    subject: "mathematics",
+    label: "Grade 12 Mathematics — GCE/School Certificate Paper 2 (ECZ 4024/2)",
+    paperStructure: [
+      {
+        name: "SECTION A",
+        heading: "SECTION A",
+        instructions: "Answer ALL questions in this section.",
+        questionTypes: ["calculation", "structured"],
+        questionCountHint: "~6",
+        marksShare: 52,
+        marksPerQuestionHint: "marks shown in [ ] at the end of each part",
+      },
+      {
+        name: "SECTION B",
+        heading: "SECTION B",
+        instructions: "Answer any FOUR questions from this section. Each question is worth about 12 marks.",
+        questionTypes: ["structured", "calculation"],
+        questionCountHint: "6 (candidates answer any 4)",
+        marksShare: 48,
+        marksPerQuestionHint: "~12 marks each, split across lettered parts",
+      },
+    ],
+    coverInstructions: [
+      "Write your centre number and examination number on every page of the separate answer booklet.",
+      "Section A: answer ALL questions. Section B: answer any FOUR questions.",
+      "Show all essential working — omission of essential working will result in loss of marks.",
+      "Silent non-programmable calculators, geometrical instruments and graph paper may be used. Marks are given in brackets [ ].",
+      "Give answers to 3 significant figures, or to 1 decimal place for angles, unless the question states otherwise.",
+    ],
+    numberingStyle: NUMBERING_FORMAL,
+    phrasingNotes: [
+      ...PHRASING_SECONDARY,
+      "Mathematics command words: Calculate, Solve, Express, Find, Construct, Draw the graph of, Determine, Simplify, Factorise, Hence (or otherwise). A calculator is allowed, so numbers need not be 'nice'.",
+      "Spread items across the syllabus: algebra and graphs, matrices, mensuration and geometry, constructions and loci (on plain paper), trigonometry and earth geometry, statistics and probability, and pseudocode/flowcharts.",
+    ],
+    marksConventions: [
+      "Method and accuracy are marked separately; omission of essential working loses marks. Marks for each part are shown in [ ]. Section B sets more questions than candidates must answer (answer any four).",
+    ],
+    diagramConventions: [
+      "Geometry and construction questions are answered on plain paper; graphs on graph paper; statistics use tables and charts; computing questions use flowcharts. Describe each figure in the diagram field with all given measurements.",
+    ],
+    exemplarQuestions: [
+      {type: "calculation", marks: 4, prompt: "Given the matrix N = [[x, 2], [3x, 8]]: (a) find the value of x for which the determinant of N is 8; (b) hence find the inverse of N.", note: "matrices — determinant + inverse; correct x = 4"},
+      {type: "structured", marks: 5, prompt: "Answer this question on a sheet of plain paper. (a) Construct triangle KLM in which KL = 11 cm, angle LKM = 70° and angle KLM = 50°. (b) Measure and write the length of LM.", note: "construction on plain paper — needs a construction diagram brief"},
+      {type: "structured", marks: 4, prompt: "A bag contains 9 identical cards: 4 Kuhanjika, 3 Landa and 2 Bunda. Two cards are drawn at random, one after the other, without replacement. Find the probability that both cards are of the same type.", note: "probability, Zambian context; without replacement"},
+      {type: "structured", marks: 5, prompt: "The pseudocode reads a value r, and if r is not negative prints r × (r + 1). Construct a flowchart for this pseudocode.", note: "pseudocode → flowchart (CBC computing content) — needs a flowchart diagram brief"},
+    ],
+    status: "active",
+    origin: "builtin_seed",
+    sourceNote: "Grounded on a real ECZ Grade 12 Mathematics 4024/2 (Paper 2) paper. Models the structured paper; the MCQ Paper 1 is separate. Exemplars paraphrased, never copied.",
+  },
+  {
+    id: "mock_exam-senior_secondary-chemistry",
+    assessmentType: "mock_exam",
+    gradeBand: "senior_secondary",
+    subject: "chemistry",
+    label: "Grade 12 Chemistry — School Certificate Theory (ECZ 5070/2)",
+    paperStructure: [
+      {
+        name: "SECTION A",
+        heading: "SECTION A",
+        instructions: "Answer ALL questions in this section. Write your answers in the spaces provided.",
+        questionTypes: ["structured", "short_answer", "calculation"],
+        questionCountHint: "~8",
+        marksShare: 60,
+        marksPerQuestionHint: "varies; marks shown in [ ] at the end of each part",
+      },
+      {
+        name: "SECTION B",
+        heading: "SECTION B",
+        instructions: "Answer any THREE questions from this section. Write your answers in the answer booklet.",
+        questionTypes: ["structured", "calculation", "essay"],
+        questionCountHint: "4 (candidates answer any 3)",
+        marksShare: 40,
+        marksPerQuestionHint: "longer questions split across lettered parts",
+      },
+    ],
+    coverInstructions: [
+      "Write your name, centre number and candidate number in the spaces at the top of the question paper.",
+      "Section A: answer ALL questions in the spaces provided. Section B: answer any THREE questions in the answer booklet.",
+      "Show all your working; marks are given in brackets [ ] at the end of each question or part.",
+      "A copy of the Periodic Table is provided. Non-programmable calculators may be used. Cell phones are not allowed.",
+    ],
+    numberingStyle: NUMBERING_FORMAL,
+    phrasingNotes: [
+      ...PHRASING_SECONDARY,
+      "Chemistry command words: Define, State, Name, Describe, Explain, Calculate, Determine, Write the equation for, Give a test for, Suggest. Require word and balanced symbol equations, mole and percentage-yield calculations, electronic configurations and qualitative tests.",
+      "Spread items across the syllabus: atomic structure and the Periodic Table, bonding, acids/bases/salts, the mole, electrolysis, rates, energetics, organic chemistry, metals and qualitative analysis. Use Zambian industrial context (copper, fertilisers).",
+    ],
+    marksConventions: [
+      "1 mark per valid point or step. Equations and calculations are marked for method and answer separately; full marks for each part are shown in [ ]. Section A is compulsory; Section B offers four questions of which candidates answer any three.",
+    ],
+    diagramConventions: [
+      "Items use labelled apparatus (gas preparation and collection, electrolysis cells, titration), reaction diagrams and the printed Periodic Table. Describe each figure in the diagram field.",
+    ],
+    exemplarQuestions: [
+      {type: "structured", marks: 6, prompt: "Use a copy of the Periodic Table to identify, by name and chemical symbol, the element which: (a) is in Group IV, Period 5; (b) has proton number 91; (c) is the most reactive alkali metal; (d) has the electronic configuration 2, 8, 8, 1.", note: "Periodic-Table identification, 1 mark per part"},
+      {type: "calculation", marks: 3, prompt: "When excess hydrochloric acid reacts with a sample of calcium carbonate, 6.5 dm³ of carbon dioxide is collected. If the theoretical volume is 8.0 dm³, calculate the percentage yield of carbon dioxide.", note: "mole / percentage-yield calculation with working"},
+      {type: "structured", marks: 5, prompt: "(a) Write the word equation for the reaction between zinc and dilute sulphuric acid. (b) Name the gas produced and describe a test for it. (c) State TWO ways the rate of this reaction can be increased.", note: "equation + gas test + rates"},
+      {type: "essay", marks: 10, prompt: "Describe how copper is extracted from its sulphide ore in Zambia, including the main chemical changes that take place.", note: "Section B extended question, Zambian industry"},
+    ],
+    status: "active",
+    origin: "builtin_seed",
+    sourceNote: "Grounded on a real ECZ Grade 12 Chemistry 5070/2 (Paper 2 Theory) paper. Models the structured paper; the MCQ Paper 1 is separate. Exemplars paraphrased, never copied.",
+  },
+  {
+    id: "mock_exam-senior_secondary-geography",
+    assessmentType: "mock_exam",
+    gradeBand: "senior_secondary",
+    subject: "geography",
+    label: "Grade 12 Geography — School Certificate Paper 2 (ECZ 2218/2)",
+    paperStructure: [
+      {
+        name: "SECTION A",
+        heading: "SECTION A",
+        instructions: "Answer ONE question from this section.",
+        questionTypes: ["structured", "essay"],
+        questionCountHint: "3-4 (answer one)",
+        marksShare: 34,
+        marksPerQuestionHint: "about 12 marks, split across lettered parts",
+      },
+      {
+        name: "SECTION B",
+        heading: "SECTION B",
+        instructions: "Answer ONE question from this section.",
+        questionTypes: ["structured", "essay"],
+        questionCountHint: "3-4 (answer one)",
+        marksShare: 33,
+        marksPerQuestionHint: "about 12 marks, split across lettered parts",
+      },
+      {
+        name: "SECTION C",
+        heading: "SECTION C",
+        instructions: "Answer ONE question from this section. A fourth question may be chosen from any section.",
+        questionTypes: ["structured", "essay"],
+        questionCountHint: "3 (answer one)",
+        marksShare: 33,
+        marksPerQuestionHint: "about 12 marks, split across lettered parts",
+      },
+    ],
+    coverInstructions: [
+      "Write your centre number and examination number on the separate answer booklet.",
+      "There are TEN questions. Answer FOUR: one from each of Sections A, B and C, and a fourth from any section.",
+      "Marks are given in brackets [ ] at the end of each question or part. The Insert contains the figures (a map extract and a photograph).",
+      "Draw sketch maps and diagrams wherever they illustrate an answer. Calculators are not allowed.",
+    ],
+    numberingStyle: NUMBERING_FORMAL,
+    phrasingNotes: [
+      ...PHRASING_SECONDARY,
+      "Geography command words: Describe, Explain, Account for, State, Define, 'With the aid of a sketch map/diagram …', 'Study Figure 1 …', 'Using the map/photograph …'.",
+      "Cover the three sections: physical geography and map-work (the Insert map extract — grid references, distances, relief, land use), human and economic geography (population, settlement, agriculture, mining), and the regional geography of Zambia and Africa.",
+    ],
+    marksConventions: [
+      "1 mark per valid point; sketch maps, map measurements and labelled diagrams earn marks. Each question totals about 12 marks split across lettered parts, shown as [Total: 12].",
+    ],
+    diagramConventions: [
+      "Map-work uses the Insert (a 1:50 000 map extract and a photograph); candidates also draw sketch maps and labelled diagrams (river and landform features, climate graphs). Describe the Insert and any required sketch in the diagram field.",
+    ],
+    exemplarQuestions: [
+      {type: "structured", marks: 10, prompt: "Study Figure 1, the 1:50 000 map extract on the Insert. (a) Give the six-figure grid reference of the school. (b) Measure the straight-line distance, in kilometres, between the two bridges. (c) Describe the relief of the area shown.", note: "map-work from the Insert — needs a map-extract figure brief"},
+      {type: "structured", marks: 12, prompt: "(a) Describe THREE types of rural settlement pattern found in Zambia. (b) Explain TWO functions of a named Zambian town. (c) Give ONE reason why there are few settlements along the Luangwa valley.", note: "settlement geography, lettered parts, Zambian context"},
+      {type: "structured", marks: 12, prompt: "(a) Explain how rural-urban migration lowers the quality of life in both rural and urban areas. (b) Suggest TWO measures the government can take to reduce rural-urban migration.", note: "human geography, Zambian context"},
+      {type: "essay", marks: 10, prompt: "With the aid of a sketch map, describe the course of a named river in Zambia and explain THREE ways in which people use it.", note: "regional/physical — requires a candidate sketch map"},
+    ],
+    status: "active",
+    origin: "builtin_seed",
+    sourceNote: "Grounded on a real ECZ Grade 12 Geography 2218/2 (Paper 2) paper. Exemplars paraphrased, never copied.",
+  },
+
   // ═══ MID-TERM TEST — a shorter end-of-term covering half the term ═════
   {
     id: "mid_term-lower_primary-_generic",
