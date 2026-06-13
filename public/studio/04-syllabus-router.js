@@ -193,10 +193,12 @@ async function fetchTopicsForCurrentSelection() {
   }
 
   // 2. Manual curriculumTopics map (02b-curriculum-topics.js) — keyed by
-  // grade only. A fallback the user can extend by editing that file when
-  // the KB has no rows for the (grade, subject) pair.
-  if (window.curriculumTopics && window.curriculumTopics[klass]) {
-    return window.curriculumTopics[klass];
+  // grade THEN subject. A fallback the user can extend by editing that file
+  // when the KB has no rows for the (grade, subject) pair. The lookup is
+  // subject-scoped so one grade's topics can't leak into a sibling subject.
+  if (typeof window.curatedTopicsFor === 'function') {
+    const curated = window.curatedTopicsFor(klass, subj);
+    if (curated && Object.keys(curated).length > 0) return curated;
   }
 
   // 3. Legacy hardcoded syllabus.

@@ -92,10 +92,15 @@ function buildPrompt(i, lessonNumber, lessonFocus, totalLessons) {
   const level = activeGradeLevel()[i.klass];
   const legacyTopics = getTopicsForClass(level, i.subject, i.klass);
   // Merge in the clean curriculumTopics map (02b-curriculum-topics.js) for
-  // this grade so Claude recognises topics the teacher picks from the new
-  // dropdown — otherwise it might flag them as "out of syllabus" when the
-  // legacy subject map happens not to list them.
-  const curated = (window.curriculumTopics && window.curriculumTopics[i.klass]) || {};
+  // this grade AND subject so Claude recognises topics the teacher picks from
+  // the new dropdown — otherwise it might flag them as "out of syllabus" when
+  // the legacy subject map happens not to list them. The lookup is
+  // subject-scoped: passing only the grade used to inject one subject's topics
+  // (e.g. Grade 4 Science) into every other subject, so the model rejected
+  // valid topics like "Prepositions" for Grade 4 English.
+  const curated = (typeof window.curatedTopicsFor === 'function')
+    ? window.curatedTopicsFor(i.klass, i.subject)
+    : {};
   const topics = Object.assign({}, legacyTopics, curated);
   const versionLabel = syllabusVersion === 'old' ? '2013 Old CDC Syllabus' : '2023 Zambia ECF';
   let syllabusContext = '';
