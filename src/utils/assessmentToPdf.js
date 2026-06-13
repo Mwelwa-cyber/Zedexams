@@ -13,6 +13,9 @@
 
 import { buildPaperLayout } from './assessmentPaperLayout.js'
 import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
+import { buildAnswerSheet } from './assessmentAnswerSheet.js'
+
+const BUBBLE_LETTERS = 'ABCDEFGH'.split('')
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
@@ -105,6 +108,95 @@ export function printAssessmentAsPdf(assessment, questions, { mode = 'paper' } =
 
   if (win.document.readyState === 'complete') printWhenImagesReady()
   else win.addEventListener('load', printWhenImagesReady)
+}
+
+/**
+ * Print a standalone answer sheet: a bubble grid for MCQs (A, B, C…) plus
+ * write-in lines for non-MCQ questions, with the school header + name/date.
+ * Students mark this instead of writing on the question paper.
+ */
+export function printAnswerSheetAsPdf(assessment, questions) {
+  if (!assessment) throw new Error('No assessment to export.')
+  const win = window.open('', '_blank', 'noopener,noreferrer,width=900,height=1100')
+  if (!win) {
+    throw new Error('Your browser blocked the print window. Please allow pop-ups and try again.')
+  }
+  win.document.open()
+  win.document.write(buildAnswerSheetHtml(assessment, questions || []))
+  win.document.close()
+  const ready = () => { try { win.focus(); win.print() } catch { /* Ctrl+P */ } }
+  if (win.document.readyState === 'complete') setTimeout(ready, 150)
+  else win.addEventListener('load', () => setTimeout(ready, 150))
+}
+
+function buildAnswerSheetHtml(assessment, questions) {
+  const sheet = buildAnswerSheet(assessment, questions)
+  const school = sheet.schoolName || 'YOUR SCHOOL NAME'
+
+  const learnerBits = []
+  if (sheet.name) learnerBits.push('<span>NAME:</span><div class="as-line"></div>')
+  if (sheet.date) learnerBits.push('<span>DATE:</span><div class="as-line" style="max-width:140pt;"></div>')
+  const learnerRow = learnerBits.length ? `<div class="as-learner">${learnerBits.join('')}</div>` : ''
+
+  const rows = sheet.items.map((item) => {
+    if (item.kind === 'mcq') {
+      const bubbles = BUBBLE_LETTERS.slice(0, item.optionCount)
+        .map((letter) => `<span class="as-bubble">${letter}</span>`)
+        .join('')
+      return `<div class="as-row"><span class="as-num">${item.number}.</span><span class="as-bubbles">${bubbles}</span></div>`
+    }
+    return `<div class="as-row as-written"><span class="as-num">${item.number}.</span><span class="as-write"></span></div>`
+  }).join('')
+
+  const body = rows
+    ? `<div class="as-grid">${rows}</div>`
+    : '<p class="as-empty">No questions to answer yet.</p>'
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHtml(sheet.title)} — Answer Sheet</title>
+  <style>
+    @page { size: A4; margin: 16mm 16mm 14mm; }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: #fff; }
+    body { color: #111; font-family: 'Arial', 'Helvetica', sans-serif; font-size: 11pt; }
+    .as-head { text-align: center; border-bottom: 2px solid #000; padding-bottom: 8pt; margin-bottom: 10pt; }
+    .as-head .school { font-weight: 800; font-size: 15pt; text-transform: uppercase; letter-spacing: .4pt; }
+    .as-head .title { font-weight: 700; font-size: 11pt; margin-top: 4pt; }
+    .as-head .subject { font-weight: 800; font-size: 11pt; margin-top: 2pt; }
+    .as-head .tag { font-weight: 700; font-size: 10pt; letter-spacing: 1.5pt; text-transform: uppercase; margin-top: 4pt; color: #444; }
+    .as-learner { display: flex; gap: 16pt; align-items: flex-end; margin: 10pt 0 4pt; font-size: 10.5pt; }
+    .as-learner span { white-space: nowrap; font-weight: 700; }
+    .as-learner .as-line { flex: 1; border-bottom: 1px solid #000; height: 13pt; }
+    .as-instr { font-size: 9.5pt; color: #444; margin: 4pt 0 12pt; }
+    .as-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 5pt 28pt; }
+    .as-row { display: flex; align-items: center; gap: 8pt; padding: 3pt 0; border-bottom: 1px dotted #ccc; page-break-inside: avoid; }
+    .as-num { min-width: 26pt; font-weight: 700; text-align: right; }
+    .as-bubbles { display: flex; gap: 7pt; }
+    .as-bubble {
+      width: 17pt; height: 17pt; border: 1.2pt solid #333; border-radius: 50%;
+      display: inline-grid; place-items: center; font-size: 9pt; color: #333;
+    }
+    .as-written .as-write { flex: 1; border-bottom: 1px solid #000; height: 13pt; }
+    .as-empty { color: #777; font-style: italic; }
+    .as-foot { margin-top: 14pt; font-size: 8.5pt; color: #777; text-align: center; }
+  </style>
+</head>
+<body>
+  <div class="as-head">
+    <div class="school">${escapeHtml(school)}</div>
+    <div class="title">${escapeHtml(sheet.title)}</div>
+    ${sheet.subject ? `<div class="subject">${escapeHtml(sheet.subject)}</div>` : ''}
+    <div class="tag">Answer Sheet</div>
+  </div>
+  ${learnerRow}
+  <div class="as-instr">Shade the circle of your chosen answer completely. Use a dark pen or pencil.</div>
+  ${body}
+  <div class="as-foot">${escapeHtml(sheet.title)}${sheet.totalMarks ? ` · ${sheet.totalMarks} marks` : ''}</div>
+</body>
+</html>`
 }
 
 function buildPrintableHtml(assessment, questions, mode) {
