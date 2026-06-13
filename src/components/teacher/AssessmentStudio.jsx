@@ -42,6 +42,7 @@ import { validateStandaloneQuestion as sharedValidateStandaloneQuestion } from '
 import { assertNoBlobImageUrls } from '../../utils/importedQuizAssets.js'
 import SeoHelmet from '../seo/SeoHelmet'
 import ConfirmDialog from '../ui/ConfirmDialog'
+import AiGenerationProgress from '../ui/AiGenerationProgress'
 import PictureBankPicker from './PictureBankPicker'
 import QuestionBankPicker from './QuestionBankPicker'
 import { saveQuestionToBank } from '../../utils/questionBankService'
@@ -5355,6 +5356,12 @@ function AiSlide({ open, onClose, aiForm, setAiForm, form, questions, questionNu
         >
           {generating ? '✦ Generating…' : '✦ Generate questions'}
         </button>
+
+        {generating && (
+          <div style={{ marginTop: 16 }}>
+            <AiGenerationProgress variant="card" preset="assessment" running title="Writing your questions…" />
+          </div>
+        )}
 
         <div className="sv-block-cat">Other tools</div>
         <div className="sv-ai-action-grid">

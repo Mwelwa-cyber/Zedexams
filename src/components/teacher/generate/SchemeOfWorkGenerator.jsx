@@ -17,6 +17,7 @@ import StudioPageHeader from '../StudioPageHeader'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
+import AiGenerationProgress from '../../ui/AiGenerationProgress'
 
 export default function SchemeOfWorkGenerator() {
   const { userProfile, isAdmin } = useAuth()
@@ -189,7 +190,9 @@ export default function SchemeOfWorkGenerator() {
 
           <section className="studio-card p-5 min-h-[400px]">
             {status === 'idle' && <EmptyState />}
-            {status === 'generating' && <GeneratingState />}
+            {status === 'generating' && (
+              <AiGenerationProgress variant="card" preset="scheme" running title="Planning your term…" />
+            )}
             {status === 'error' && (
               <ErrorState
                 message={errorMessage}
@@ -319,17 +322,6 @@ function EmptyState() {
   )
 }
 
-function GeneratingState() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full py-12 text-center">
-      <div className="text-5xl mb-3 animate-bounce">📅</div>
-      <h3 className="studio-display" style={{ fontSize: 20, color: '#0e2a32' }}>Planning your term…</h3>
-      <p className="text-sm max-w-md mt-1" style={{ color: '#566f76' }}>
-        This is a bigger job — usually 30–60 seconds for a full 12-week scheme.
-      </p>
-    </div>
-  )
-}
 
 function ErrorState({ message, detail, onDismiss }) {
   return (

@@ -13,6 +13,7 @@ import {
   CURRICULUM_FRAMEWORKS,
 } from './syllabusTopicOptions'
 import { STUDIO_SUBJECTS, STUDIO_GRADES } from './assessmentStudioMeta'
+import AiGenerationProgress from '../ui/AiGenerationProgress'
 
 const PAPER_TYPES = [
   { value: 'exercise', label: 'Exercise (short practice)' },
@@ -375,6 +376,19 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
               onClick={onGenerate} disabled={status === 'generating'}>
               {status === 'generating' ? '✦ Writing the paper… (about a minute)' : '✦ Generate paper'}
             </button>
+
+            {status === 'generating' && (
+              <div style={{ marginTop: 14 }}>
+                <AiGenerationProgress
+                  variant="card"
+                  running
+                  title="Writing your paper…"
+                  preset={form.autoDiagrams
+                    ? ['reading', 'curriculum', 'content', 'diagrams', 'answerKey', 'preview']
+                    : ['reading', 'curriculum', 'content', 'answerKey', 'preview']}
+                />
+              </div>
+            )}
           </div>
         )}
 

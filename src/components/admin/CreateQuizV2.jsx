@@ -10,6 +10,7 @@ import {
 } from '../../hooks/useCreateQuizDraft'
 import { storage } from '../../firebase/config'
 import { generateAIQuizQuestions } from '../../utils/aiAssistant'
+import AiGenerationProgress from '../ui/AiGenerationProgress'
 import {
   createPartGroup,
   createPassageSection,
@@ -1561,6 +1562,11 @@ export default function CreateQuizV2() {
           <button type="button" onClick={handleGenerateQuestions} disabled={aiGenerating || saving} className="theme-accent-fill theme-on-accent w-full rounded-xl px-5 py-3 font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md disabled:opacity-60 disabled:pointer-events-none sm:w-auto">
             {aiGenerating ? '✦ Generating…' : '✦ Generate questions'}
           </button>
+          {aiGenerating && (
+            <div className="mt-4">
+              <AiGenerationProgress variant="card" preset="quiz" running title="Writing your questions…" />
+            </div>
+          )}
         </div>
       )}
 

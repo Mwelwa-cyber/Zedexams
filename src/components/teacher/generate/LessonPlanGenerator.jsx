@@ -20,6 +20,8 @@ import StudioPageHeader from '../StudioPageHeader'
 import LessonPlanView from '../views/LessonPlanView'
 import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
 import { LIBRARY_TYPES } from '../../../config/library'
+import AiGenerationProgress from '../../ui/AiGenerationProgress'
+import { mapWorksheetPhaseToStage } from '../../ui/aiGenerationStages'
 
 /**
  * Zambian CBC Lesson Plan Generator — teacher-facing MVP.
@@ -314,7 +316,15 @@ export default function LessonPlanGenerator() {
               <EmptyState />
             )}
             {status === 'generating' && (
-              <GeneratingState progress={progress} onCancel={onCancel} />
+              <AiGenerationProgress
+                variant="card"
+                preset="lessonPlan"
+                running
+                title="Writing your lesson plan…"
+                subtitle={lessonPlanProgressSubtitle(progress)}
+                activeStageId={mapWorksheetPhaseToStage(progress?.phase, { hasAnswerKey: false })}
+                onCancel={onCancel}
+              />
             )}
             {status === 'error' && (
               <ErrorState
@@ -474,46 +484,15 @@ function EmptyState() {
   )
 }
 
-function GeneratingState({ progress, onCancel }) {
-  // progress is null on the very first paint, then {phase, approxOutputTokens?, elapsedMs}
-  // once the SSE stream emits its first event. Translate phase → user-friendly label.
-  const phase = progress?.phase
+// Secondary line under the progress tracker — live token count + elapsed
+// seconds from the real SSE stream when available.
+function lessonPlanProgressSubtitle(progress) {
   const tokens = progress?.approxOutputTokens
   const seconds = progress?.elapsedMs ? Math.round(progress.elapsedMs / 1000) : null
-  const phaseLabel = (() => {
-    if (!phase || phase === 'queued') return 'Loading curriculum context…'
-    if (phase === 'claude_started') return 'Asking the AI to draft your plan…'
-    if (phase === 'token') {
-      return tokens
-        ? `Drafting your plan… ~${tokens.toLocaleString()} tokens written`
-        : 'Drafting your plan…'
-    }
-    if (phase === 'claude_done') return 'Polishing the lesson plan…'
-    return 'Working…'
-  })()
-
-  return (
-    <div className="flex flex-col items-center justify-center h-full py-12 text-center">
-      <div className="text-5xl mb-3 animate-bounce">🧠</div>
-      <h3 className="studio-display" style={{ fontSize: 20, color: '#0e2a32' }}>
-        Writing your lesson plan…
-      </h3>
-      <p className="text-sm max-w-md mt-1" style={{ color: '#566f76' }}>
-        {phaseLabel}
-        {seconds != null && phase !== 'queued' ? ` · ${seconds}s` : ''}
-      </p>
-      {onCancel && (
-        <button
-          type="button"
-          onClick={onCancel}
-          className="mt-4 text-xs underline"
-          style={{ color: '#566f76' }}
-        >
-          Cancel
-        </button>
-      )}
-    </div>
-  )
+  const parts = []
+  if (tokens) parts.push(`~${tokens.toLocaleString()} tokens written`)
+  if (seconds != null && progress?.phase && progress.phase !== 'queued') parts.push(`${seconds}s`)
+  return parts.length ? parts.join(' · ') : undefined
 }
 
 function ErrorState({ message, detail, onDismiss }) {

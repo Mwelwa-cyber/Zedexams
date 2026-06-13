@@ -22,6 +22,8 @@ import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/tea
 import { useAuth } from '../../../contexts/AuthContext'
 import { LIBRARY_TYPES } from '../../../config/library'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
+import AiGenerationProgress from '../../ui/AiGenerationProgress'
+import { mapWorksheetPhaseToStage } from '../../ui/aiGenerationStages'
 
 /**
  * Worksheet Generator — pupil-facing worksheet + separate answer-key export.
@@ -270,7 +272,15 @@ export default function WorksheetGenerator() {
           <section className="studio-card p-5 min-h-[400px]">
             {status === 'idle' && <EmptyState />}
             {status === 'generating' && (
-              <GeneratingState progress={progress} onCancel={onCancel} />
+              <AiGenerationProgress
+                variant="card"
+                preset="worksheet"
+                running
+                title="Writing your worksheet…"
+                subtitle={worksheetProgressSubtitle(progress)}
+                activeStageId={mapWorksheetPhaseToStage(progress?.phase)}
+                onCancel={onCancel}
+              />
             )}
             {status === 'error' && (
               <ErrorState
@@ -400,44 +410,15 @@ function EmptyState() {
   )
 }
 
-function GeneratingState({ progress, onCancel }) {
-  const phase = progress?.phase
+// Secondary line under the progress tracker. Surfaces the live token count and
+// elapsed seconds from the real SSE stream when available.
+function worksheetProgressSubtitle(progress) {
   const tokens = progress?.approxOutputTokens
   const seconds = progress?.elapsedMs ? Math.round(progress.elapsedMs / 1000) : null
-  const phaseLabel = (() => {
-    if (!phase || phase === 'queued') return 'Loading curriculum context…'
-    if (phase === 'claude_started') return 'Asking the AI to draft your worksheet…'
-    if (phase === 'token') {
-      return tokens
-        ? `Writing questions… ~${tokens.toLocaleString()} tokens written`
-        : 'Writing questions…'
-    }
-    if (phase === 'claude_done') return 'Polishing the answer key…'
-    return 'Working…'
-  })()
-
-  return (
-    <div className="flex flex-col items-center justify-center h-full py-12 text-center">
-      <div className="text-5xl mb-3 animate-bounce">✍️</div>
-      <h3 className="studio-display" style={{ fontSize: 20, color: '#0e2a32' }}>
-        Writing questions…
-      </h3>
-      <p className="text-sm max-w-md mt-1" style={{ color: '#566f76' }}>
-        {phaseLabel}
-        {seconds != null && phase !== 'queued' ? ` · ${seconds}s` : ''}
-      </p>
-      {onCancel && (
-        <button
-          type="button"
-          onClick={onCancel}
-          className="mt-4 text-xs underline"
-          style={{ color: '#566f76' }}
-        >
-          Cancel
-        </button>
-      )}
-    </div>
-  )
+  const parts = []
+  if (tokens) parts.push(`~${tokens.toLocaleString()} tokens written`)
+  if (seconds != null && progress?.phase && progress.phase !== 'queued') parts.push(`${seconds}s`)
+  return parts.length ? parts.join(' · ') : undefined
 }
 
 function ErrorState({ message, detail, onDismiss }) {
