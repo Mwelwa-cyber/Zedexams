@@ -3091,6 +3091,7 @@ function ReviseQuestionPopover({
             style={{ border: '1px solid var(--sv-border)', borderRadius: 'var(--sv-r-sm)', padding: '4px 6px', fontSize: 12, background: 'var(--sv-paper)' }}
           >
             <option value="">— none —</option>
+            <option value="polish">Polish (grammar & clarity)</option>
             <option value="easier">Make easier</option>
             <option value="harder">Make harder</option>
             <option value="simpler">Simpler vocabulary</option>
@@ -3213,13 +3214,15 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
     setDiagramTarget(null)
   }
 
-  async function handleRevise() {
+  // Shared runner so the popover (handleRevise) and the one-click "Improve"
+  // button (handleImprove) hit the same call without depending on async state.
+  async function runRevise({ toGrade, modifier }) {
     const text = String(question.text || '').trim()
     if (!text) {
       setReviseError('Add the question text first, then ask AI to revise it.')
       return
     }
-    if (!reviseTargetGrade && !reviseModifier) {
+    if (!toGrade && !modifier) {
       setReviseError('Pick a target grade or modifier first.')
       return
     }
@@ -3229,10 +3232,10 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
       const result = await reviseQuestionCall({
         text,
         fromGrade: paperMeta?.grade,
-        toGrade: reviseTargetGrade,
+        toGrade,
         subject: paperMeta?.subject,
         language: paperMeta?.language,
-        modifier: reviseModifier,
+        modifier,
       })
       if (!mountedRef.current) return
       setRevisedPreview(result.text)
@@ -3241,6 +3244,20 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
     } finally {
       if (mountedRef.current) setRevising(false)
     }
+  }
+
+  function handleRevise() {
+    return runRevise({ toGrade: reviseTargetGrade, modifier: reviseModifier })
+  }
+
+  // One-click polish: fix grammar + clarity at the SAME grade/difficulty. Opens
+  // the revise panel (so the Apply/Discard preview shows) pre-set to 'polish'
+  // and runs immediately.
+  function handleImprove() {
+    setReviseOpen(true)
+    setReviseTargetGrade('')
+    setReviseModifier('polish')
+    return runRevise({ modifier: 'polish' })
   }
 
   function applyRevision() {
@@ -3401,6 +3418,26 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
           {suggesting
             ? '⏳ Thinking…'
             : (isEssay ? '✨ Suggest marking notes' : '✨ Suggest answer')}
+        </button>
+        <button
+          type="button"
+          onClick={handleImprove}
+          disabled={revising}
+          title="Fix grammar & clarity at the same grade and difficulty"
+          style={{
+            background: 'var(--sv-paper)',
+            border: '1px solid var(--sv-border)',
+            borderRadius: 'var(--sv-r-sm)',
+            padding: '3px 10px',
+            fontSize: 11.5,
+            cursor: revising ? 'default' : 'pointer',
+            color: 'var(--sv-text)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 4,
+          }}
+        >
+          ✨ Improve
         </button>
         <button
           type="button"
