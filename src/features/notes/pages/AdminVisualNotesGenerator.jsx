@@ -25,6 +25,7 @@ import { GRADES, SUBJECTS, NOTE_FORMAT } from '../../../config/curriculum'
 import { createNote } from '../lib/firestore'
 import { SlideNotesReader } from '../components/SlideNotesReader'
 import SeoHelmet from '../../../components/seo/SeoHelmet'
+import AiGenerationProgress from '../../../components/ui/AiGenerationProgress'
 import '../styles/notes.css'
 
 // Visual-notes generation runs Claude + up to ~10 sequential Recraft calls, so
@@ -262,9 +263,13 @@ export function AdminVisualNotesGenerator() {
         )}
 
         {phase === 'generating' && (
-          <div className="min-h-[30vh] flex flex-col items-center justify-center text-neutral-500 gap-3">
-            <Loader2 size={28} className="animate-spin" />
-            <p className="text-sm">Writing the deck and drawing the illustrations…</p>
+          <div className="min-h-[30vh]">
+            <AiGenerationProgress
+              variant="card"
+              running
+              title="Building your visual notes…"
+              preset={['reading', 'curriculum', 'content', 'diagrams', 'preview']}
+            />
           </div>
         )}
 

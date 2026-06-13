@@ -17,6 +17,7 @@ import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/tea
 import { useAuth } from '../../../contexts/AuthContext'
 import { LIBRARY_TYPES } from '../../../config/library'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
+import AiGenerationProgress from '../../ui/AiGenerationProgress'
 
 /**
  * Flashcard Generator — grid preview + keyboard-driven study mode + DOCX
@@ -238,7 +239,9 @@ export default function FlashcardGenerator() {
           {/* Output panel */}
           <section className="studio-card p-5 min-h-[400px]">
             {status === 'idle' && <EmptyState />}
-            {status === 'generating' && <GeneratingState />}
+            {status === 'generating' && (
+              <AiGenerationProgress variant="card" preset="flashcards" running title="Building your deck…" />
+            )}
             {status === 'error' && (
               <ErrorState
                 message={errorMessage}
@@ -360,17 +363,6 @@ function EmptyState() {
       <p className="text-sm max-w-md mt-1" style={{ color: '#566f76' }}>
         Pick a topic and you'll get a deck of flashcards you can study on-screen
         or print as cut-outs for class.
-      </p>
-    </div>
-  )
-}
-function GeneratingState() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full py-12 text-center">
-      <div className="text-5xl mb-3 animate-bounce">🎴</div>
-      <h3 className="studio-display" style={{ fontSize: 20, color: '#0e2a32' }}>Building your deck…</h3>
-      <p className="text-sm max-w-md mt-1" style={{ color: '#566f76' }}>
-        Usually takes under 20 seconds.
       </p>
     </div>
   )

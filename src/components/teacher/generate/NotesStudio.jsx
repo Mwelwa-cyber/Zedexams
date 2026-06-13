@@ -23,6 +23,7 @@ import {
 import { LIBRARY_TYPES } from '../../../config/library'
 import NotesView from '../views/NotesView'
 import StudioPageHeader from '../StudioPageHeader'
+import AiGenerationProgress from '../../ui/AiGenerationProgress'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
 
 const MODE_FROM_PLAN = 'from_plan'
@@ -308,7 +309,9 @@ export default function NotesStudio() {
           {/* ── Output panel ────────────────────────────────────── */}
           <section className="studio-card p-5 min-h-[400px]">
             {status === 'idle' && <EmptyState mode={mode} />}
-            {status === 'generating' && <GeneratingState />}
+            {status === 'generating' && (
+              <AiGenerationProgress variant="card" preset="notes" running title="Writing your notes…" />
+            )}
             {status === 'error' && (
               <ErrorState
                 message={errorMessage}
@@ -521,18 +524,6 @@ function EmptyState({ mode }) {
         {mode === MODE_FROM_PLAN
           ? 'Pick one of your saved lesson plans on the left and we\'ll write delivery notes that match it.'
           : 'Tell us the grade, subject and topic on the left and we\'ll write teacher notes you can skim before class.'}
-      </p>
-    </div>
-  )
-}
-
-function GeneratingState() {
-  return (
-    <div className="flex flex-col items-center justify-center h-full py-12 text-center">
-      <div className="text-5xl mb-3 animate-bounce">📝</div>
-      <h3 className="studio-display" style={{ fontSize: 20, color: '#0e2a32' }}>Writing your notes…</h3>
-      <p className="text-sm max-w-md mt-1" style={{ color: '#566f76' }}>
-        Usually takes 20–40 seconds. Please don't refresh the page.
       </p>
     </div>
   )

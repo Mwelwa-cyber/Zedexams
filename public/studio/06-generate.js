@@ -654,6 +654,92 @@ async function __studioGenerateOneLesson({ i, lessonNumber, totalLessons, lesson
   return true;
 }
 
+// ── Staged progress tracker (vanilla port) ──────────────────────────
+// The React studios share <AiGenerationProgress>; the Lesson Plan studio is
+// plain DOM, so this mirrors the same staged look in the preview pane (#doc).
+// Generation here is a single awaited callable (no live phases), so the stage
+// walk is simulated on a time-weighted timeline — and, like the React version,
+// the final stage never auto-completes: it waits for the real result to render
+// over the top of the card.
+const __LP_STAGES = [
+  { id: 'reading',    label: 'Reading your request',    icon: '📖', estMs: 1500 },
+  { id: 'curriculum', label: 'Checking the curriculum',  icon: '📚', estMs: 4000 },
+  { id: 'content',    label: 'Composing the lesson plan', icon: '✍️', estMs: 14000 },
+  { id: 'preview',    label: 'Preparing your preview',   icon: '📄', estMs: 2500 },
+];
+
+const __studioProgress = (() => {
+  let timer = null;
+  let startedAt = 0;
+  let heading = '';
+  let errored = false;
+
+  function activeIndex(elapsedMs) {
+    let acc = 0;
+    for (let k = 0; k < __LP_STAGES.length; k++) {
+      acc += __LP_STAGES[k].estMs;
+      if (elapsedMs < acc) return k;
+    }
+    // While running, hold on the final stage rather than completing it.
+    return __LP_STAGES.length - 1;
+  }
+
+  function percent(elapsedMs, idx) {
+    const total = __LP_STAGES.reduce((s, st) => s + st.estMs, 0);
+    let done = 0;
+    for (let k = 0; k < idx; k++) done += __LP_STAGES[k].estMs;
+    const partial = Math.min(__LP_STAGES[idx].estMs, Math.max(0, elapsedMs - done));
+    return Math.min(96, Math.round(((done + partial) / total) * 100));
+  }
+
+  function render() {
+    const host = $('#doc');
+    if (!host) return;
+    const elapsed = Date.now() - startedAt;
+    const idx = activeIndex(elapsed);
+    const pct = errored ? Math.round((idx / __LP_STAGES.length) * 100) : percent(elapsed, idx);
+    const rows = __LP_STAGES.map((st, k) => {
+      const state = k < idx ? 'done' : (k === idx ? (errored ? 'error' : 'active') : 'pending');
+      const mark = state === 'done' ? '✓' : state === 'error' ? '!' : st.icon;
+      return `<li class="lp-progress-step ${state}">
+        <span class="lp-progress-dot">${mark}</span>
+        <span class="lp-progress-label">${esc(st.label)}</span>
+        ${state === 'active' ? '<span class="lp-progress-tag">Working</span>' : ''}
+      </li>`;
+    }).join('');
+    host.innerHTML = `<div class="lp-progress" role="status" aria-live="polite">
+      <div class="lp-progress-emoji">${errored ? '⚠️' : '✨'}</div>
+      <div class="lp-progress-title">${esc(heading || 'Composing your lesson plan…')}</div>
+      <div class="lp-progress-bar"><div class="lp-progress-bar-fill ${errored ? 'is-error' : ''}" style="width:${pct}%"></div></div>
+      <ul class="lp-progress-steps">${rows}</ul>
+    </div>`;
+  }
+
+  return {
+    start(headingText) {
+      heading = headingText || 'Composing your lesson plan…';
+      startedAt = Date.now();
+      errored = false;
+      render();
+      if (timer) clearInterval(timer);
+      timer = setInterval(render, 250);
+    },
+    setLesson(headingText) {
+      heading = headingText || heading;
+      startedAt = Date.now();
+      render();
+    },
+    error() {
+      errored = true;
+      if (timer) { clearInterval(timer); timer = null; }
+      render();
+    },
+    stop() {
+      if (timer) { clearInterval(timer); timer = null; }
+    },
+  };
+})();
+
 async function __studioOnGenerateClick() {
   const i = gatherInput();
   if (!i.school) { toast('Please add a school name'); $('#f-school').focus(); return; }
@@ -681,8 +767,18 @@ async function __studioOnGenerateClick() {
   try {
     for (const lessonNumber of indices) {
       if (btn) btn.innerHTML = `<span>${total > 1 ? `Composing lesson ${madeCount + 1} of ${indices.length}…` : 'Composing your lesson plan…'}</span>`;
+      // (Re)start the staged card for this lesson; it animates in #doc until the
+      // awaited call renders the real lesson over the top.
+      __studioProgress.start(total > 1 ? `Composing lesson ${madeCount + 1} of ${indices.length}…` : 'Composing your lesson plan…');
       const focus = (i.planner.foci && i.planner.foci[lessonNumber - 1]) || '';
-      const ok = await __studioGenerateOneLesson({ i, lessonNumber, totalLessons: total, lessonFocus: focus, sysPrompt });
+      let ok;
+      try {
+        ok = await __studioGenerateOneLesson({ i, lessonNumber, totalLessons: total, lessonFocus: focus, sysPrompt });
+      } finally {
+        // Stop ticking immediately so it can't overwrite the rendered lesson or
+        // the out-of-syllabus error card (both written into #doc by the call).
+        __studioProgress.stop();
+      }
       if (!ok) break;        // Out-of-syllabus error — stop the series here.
       madeCount += 1;
     }
@@ -706,7 +802,11 @@ async function __studioOnGenerateClick() {
     console.error(err);
     const msg = (err && (err.message || err.code)) || '';
     toast(msg ? `Generation failed: ${msg}` : 'Generation failed — try again');
+    // Surface the failure on the frozen progress card instead of leaving it
+    // stuck mid-stage.
+    __studioProgress.error();
   } finally {
+    __studioProgress.stop();
     if (loader) loader.classList.remove('show');
     __studioRestoreGenerateBtn();
   }

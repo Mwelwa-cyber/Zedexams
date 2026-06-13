@@ -19,6 +19,7 @@ import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/tea
 import { useAuth } from '../../../contexts/AuthContext'
 import { LIBRARY_TYPES } from '../../../config/library'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
+import AiGenerationProgress from '../../ui/AiGenerationProgress'
 
 /**
  * Homework Studio — short take-home practice grounded on the stored
@@ -180,8 +181,7 @@ export default function HomeworkStudio() {
                 body="Pick the grade, subject and (ideally) a stored sub-topic. You'll get questions, an answer key and a parent note." />
             )}
             {status === 'generating' && (
-              <Centered emoji="✍️" title="Setting homework…"
-                body="About half a minute." />
+              <AiGenerationProgress variant="card" preset="homework" running title="Setting homework…" />
             )}
             {status === 'error' && (
               <Centered emoji="⚠️" title="Something went wrong"

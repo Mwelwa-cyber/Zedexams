@@ -19,6 +19,7 @@ import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/tea
 import { useAuth } from '../../../contexts/AuthContext'
 import { LIBRARY_TYPES } from '../../../config/library'
 import TopicSubtopicPicker from './TopicSubtopicPicker'
+import AiGenerationProgress from '../../ui/AiGenerationProgress'
 
 /**
  * Assessment Generator — a formal graded test grounded on the stored
@@ -184,8 +185,7 @@ export default function AssessmentGenerator() {
                 body="Pick the grade, subject and (ideally) a stored sub-topic. You'll get a marked paper with a full marking scheme." />
             )}
             {status === 'generating' && (
-              <Centered emoji="✍️" title="Writing the assessment…"
-                body="About a minute." />
+              <AiGenerationProgress variant="card" preset="assessment" running title="Writing the assessment…" />
             )}
             {status === 'error' && (
               <Centered emoji="⚠️" title="Something went wrong"
