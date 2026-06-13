@@ -34,7 +34,8 @@ import {
   hasOnlyEmptyStarterSection,
   serializeQuizSections,
 } from '../../utils/quizSections.js'
-import { richTextHasContent, richTextToPlainText } from '../../utils/quizRichText.js'
+import { richTextHasContent, richTextToPlainText, richTextHasFormatting } from '../../utils/quizRichText.js'
+import RichEditor from '../../editor/components/RichEditor.jsx'
 import { clampInt } from '../../utils/inputs.js'
 import { getErrorMessage } from '../../utils/errors.js'
 import { validateStandaloneQuestion as sharedValidateStandaloneQuestion } from '../../utils/quizValidation.js'
@@ -171,6 +172,34 @@ function toEditableText(value) {
   }
   if (typeof value === 'object') return richTextToPlainText(value)
   return String(value)
+}
+
+// Question-text field for the inline builder cards. A plain textarea is fine
+// while the content is plain (editing it can't lose formatting that isn't
+// there). But once a question carries formatting — bold, sup/sub, a fraction,
+// a table, etc. (typically from the detailed editor, AI, or an import) — a
+// quick textarea edit would silently flatten it. In that case we show a
+// read-only plain view plus an "edit in detail" affordance, so the rich
+// content is only ever changed in the full RichEditor (which preserves it).
+function CardQuestionText({ value, onChange, onEditDetail, placeholder = 'Question text' }) {
+  if (richTextHasFormatting(value)) {
+    return (
+      <div className="sv-q-text-formatted">
+        <div className="sv-q-text-plain">{toEditableText(value) || <span className="sv-q-text-empty">(formatted question)</span>}</div>
+        <button type="button" className="sv-q-text-editlink" onClick={onEditDetail}>
+          ✦ Formatted — edit in detail to keep formatting
+        </button>
+      </div>
+    )
+  }
+  return (
+    <textarea
+      className="sv-q-text-input"
+      value={toEditableText(value)}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+    />
+  )
 }
 
 function compressImage(file, maxWidth = 1200, quality = 0.85) {
@@ -2908,11 +2937,10 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
               />
             </label>
           </div>
-          <textarea
-            className="sv-q-text-input"
-            value={toEditableText(question.text)}
-            onChange={e => onUpdatePassageQuestion(sectionIndex, qIndex, 'text', e.target.value)}
-            placeholder="Question text"
+          <CardQuestionText
+            value={question.text}
+            onChange={v => onUpdatePassageQuestion(sectionIndex, qIndex, 'text', v)}
+            onEditDetail={() => onEditQuestion(question.localId)}
           />
 
           {(question.type === 'mcq' || !question.type) ? (
@@ -3399,11 +3427,10 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
         />
       )}
 
-      <textarea
-        className="sv-q-text-input"
-        value={toEditableText(question.text)}
-        onChange={e => updateQuestion('text', e.target.value)}
-        placeholder="Question text"
+      <CardQuestionText
+        value={question.text}
+        onChange={v => updateQuestion('text', v)}
+        onEditDetail={() => onEditQuestion(question.localId)}
       />
 
       {(isMcq || isStructured) && (
@@ -5989,11 +6016,13 @@ function EditorSlide({ open, onClose, targetKey, sections, onUpdateStandaloneQue
       </div>
       <div className="sv-slideover-body">
         <div className="sv-field">
-          <label>Question text</label>
-          <textarea
-            value={toEditableText(question.text)}
-            onChange={e => update('text', e.target.value)}
-            rows={4}
+          <RichEditor
+            key={`${targetKey}-text`}
+            label="Question text"
+            initialContent={question.text || null}
+            onChange={json => update('text', json)}
+            placeholder="Type the question — use the toolbar for bold, superscript/subscript, fractions, tables…"
+            minHeight={96}
           />
         </div>
 
@@ -6072,12 +6101,13 @@ function EditorSlide({ open, onClose, targetKey, sections, onUpdateStandaloneQue
         )}
 
         <div className="sv-field" style={{ marginTop: 12 }}>
-          <label>Explanation (optional, for marking key)</label>
-          <textarea
-            value={toEditableText(question.explanation)}
-            onChange={e => update('explanation', e.target.value)}
-            rows={2}
+          <RichEditor
+            key={`${targetKey}-explanation`}
+            label="Explanation (optional, for marking key)"
+            initialContent={question.explanation || null}
+            onChange={json => update('explanation', json)}
             placeholder="Why is this the correct answer?"
+            minHeight={72}
           />
         </div>
       </div>

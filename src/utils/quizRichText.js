@@ -432,6 +432,47 @@ export function richTextHasContent(value) {
   return Boolean(richTextToPlainText(html).replace(/\s+/g, '').trim())
 }
 
+// Tiptap node types that carry NO formatting on their own — a document built
+// only from these (with no marks) is "just plain text".
+const PLAIN_TIPTAP_NODES = new Set(['doc', 'paragraph', 'text', 'hardBreak', 'hard_break'])
+
+function tiptapDocHasFormatting(node) {
+  if (!node || typeof node !== 'object') return false
+  if (Array.isArray(node)) return node.some(tiptapDocHasFormatting)
+  // A special node (fraction, math, number-base, table, image, list…) means
+  // there's formatting/structure a plain textarea would destroy.
+  if (node.type && !PLAIN_TIPTAP_NODES.has(node.type)) return true
+  // Any mark on a text run (bold / italic / underline / sup / sub…).
+  if (Array.isArray(node.marks) && node.marks.length > 0) return true
+  if (Array.isArray(node.content)) return node.content.some(tiptapDocHasFormatting)
+  return false
+}
+
+/**
+ * True when a rich-text value carries formatting (marks or non-paragraph
+ * nodes) that a plain `<textarea>` round-trip would silently destroy.
+ *
+ * Plain text — or a Tiptap/HTML doc that's only paragraphs of unmarked text —
+ * returns false, so the quick builder can safely keep editing it as plain text.
+ * Accepts Tiptap JSON (object or stringified), HTML, or plain strings.
+ */
+export function richTextHasFormatting(value) {
+  if (value == null || value === '') return false
+  if (typeof value === 'object') return tiptapDocHasFormatting(value)
+  if (typeof value !== 'string') return false
+  const s = value.trim()
+  if (!s) return false
+  if (s.startsWith('{') || s.startsWith('[')) {
+    try { return tiptapDocHasFormatting(JSON.parse(s)) } catch { return false }
+  }
+  if (s.startsWith('<')) {
+    // HTML: formatting if any tag other than paragraph / line-break remains.
+    const stripped = s.replace(/<\/?p\b[^>]*>/gi, '').replace(/<br\s*\/?>/gi, '')
+    return /<[a-z!/][^>]*>/i.test(stripped)
+  }
+  return false
+}
+
 // Walk a Tiptap document object and concatenate its visible text. Mirrors the
 // block/inline rules of richTextToPlainText (paragraph → newline, hard_break
 // → newline, table cells separated by tabs, math nodes by their LaTeX source).
