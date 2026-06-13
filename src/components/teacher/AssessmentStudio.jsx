@@ -13,8 +13,10 @@ import { useAuth } from '../../contexts/AuthContext'
 import { isFreePlanTeacher } from '../../utils/teacherLibraryService'
 import {
   clearAssessmentDraft,
-  loadAssessmentDraft,
+  clearAssessmentDraftRemote,
+  loadAssessmentDraftMerged,
   saveAssessmentDraft,
+  saveAssessmentDraftRemote,
 } from '../../hooks/useAssessmentDraft'
 import { useUndoRedo } from '../../hooks/useUndoRedo'
 import { storage } from '../../firebase/config'
@@ -436,21 +438,39 @@ export default function AssessmentStudio() {
   }
 
   /* ------------ draft restore / autosave ------------ */
+  // Live snapshot of "is this paper still untouched?", refreshed every render
+  // so the async draft restore can re-check it AFTER the cloud read completes,
+  // without relying on the stale `sections` captured when the effect first ran
+  // (the effect is keyed only by uid). A ref, not state, because reading it
+  // must not re-run the effect.
+  const isPaperUntouchedRef = useRef(true)
+  isPaperUntouchedRef.current = hasOnlyEmptyStarterSection(sections)
+    && !form.title?.trim() && !form.schoolName?.trim()
+
   const draftRestoredRef = useRef(false)
   useEffect(() => {
     if (draftRestoredRef.current) return
     if (!currentUser?.uid) return
+    if (!hasOnlyEmptyStarterSection(sections)) { draftRestoredRef.current = true; return }
     draftRestoredRef.current = true
 
-    const draft = loadAssessmentDraft(currentUser.uid)
-    if (!draft) return
-    if (!hasOnlyEmptyStarterSection(sections)) return
-
-    if (draft.form) setForm(current => ({ ...current, ...draft.form }))
-    if (Array.isArray(draft.sections) && draft.sections.length) setSections(draft.sections)
-    if (Array.isArray(draft.parts)) setParts(draft.parts)
-    if (draft.view === 'builder' || draft.view === 'preview') setView(draft.view)
-    showToast('Restored your unsaved draft.')
+    let cancelled = false
+    // Pull the freshest draft across this device + the cloud. A 'remote' win
+    // means the paper was last edited on another device.
+    loadAssessmentDraftMerged(currentUser.uid).then(({ draft, source }) => {
+      if (cancelled || !draft) return
+      // Re-check the LIVE state: don't clobber anything the teacher started
+      // typing while the async cloud read was in flight.
+      if (!isPaperUntouchedRef.current) return
+      if (draft.form) setForm(current => ({ ...current, ...draft.form }))
+      if (Array.isArray(draft.sections) && draft.sections.length) setSections(draft.sections)
+      if (Array.isArray(draft.parts)) setParts(draft.parts)
+      if (draft.view === 'builder' || draft.view === 'preview') setView(draft.view)
+      showToast(source === 'remote'
+        ? 'Restored your draft from another device.'
+        : 'Restored your unsaved draft.')
+    }).catch(() => { /* draft restore is best-effort */ })
+    return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.uid])
 
@@ -459,7 +479,11 @@ export default function AssessmentStudio() {
     if (!draftRestoredRef.current) return
     if (hasOnlyEmptyStarterSection(sections) && !form.title.trim() && !form.schoolName.trim()) return
     const timer = setTimeout(() => {
-      saveAssessmentDraft(currentUser.uid, { form, sections, parts, view })
+      const payload = { form, sections, parts, view }
+      saveAssessmentDraft(currentUser.uid, payload)
+      // Mirror to Firestore so the draft follows the teacher across devices.
+      // Fire-and-forget; failures fall back to the local copy.
+      saveAssessmentDraftRemote(currentUser.uid, payload)
       setDraftSavedAt(Date.now())
     }, 800)
     return () => clearTimeout(timer)
@@ -1296,6 +1320,7 @@ export default function AssessmentStudio() {
       await saveAssessmentQuestions(assessmentId, questionsForSave)
       setImportedAssets({})
       clearAssessmentDraft(currentUser.uid)
+      clearAssessmentDraftRemote(currentUser.uid)
       showToast('Saved to your library!')
       setTimeout(() => navigate('/teacher/assessments'), 900)
     } catch (error) {
