@@ -5084,7 +5084,9 @@ function PaperAnswerBlock({ block }) {
   if (block.type === 'mcq') {
     const i = Number(block.correctAnswer)
     const letter = SECTION_LETTERS[i] || '?'
-    const opt = block.options?.[i] ?? ''
+    // Plain mirror first so a rich fraction option reads as "1/3" instead of
+    // its literal `<span class="math-frac">` HTML.
+    const opt = block.optionsPlain?.[i] ?? block.options?.[i] ?? ''
     body = <><strong>Answer:</strong> {letter}. {String(opt)}</>
   } else if (block.type === 'matching') {
     const left = Array.isArray(block.matchingLeft) ? block.matchingLeft : []

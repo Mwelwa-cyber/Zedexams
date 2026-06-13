@@ -941,7 +941,10 @@ function renderAnswerBlock(b) {
   if (b.type === 'mcq') {
     const i = Number(b.correctAnswer)
     const letter = SECTION_LETTERS[i] || '?'
-    const opt = b.options?.[i] ?? ''
+    // Prefer the plain mirror so a rich option (e.g. a stacked fraction stored
+    // as `<span class="math-frac">`) reads as "1/3" here instead of leaking its
+    // literal HTML through escapeHtml.
+    const opt = b.optionsPlain?.[i] ?? b.options?.[i] ?? ''
     body = `<div><span class="label">Answer:</span> ${escapeHtml(letter)}. ${escapeHtml(String(opt))}</div>`
   } else if (b.type === 'numeric') {
     const value = escapeHtml(String(b.correctAnswer ?? ''))

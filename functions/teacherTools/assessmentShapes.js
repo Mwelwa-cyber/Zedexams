@@ -32,6 +32,8 @@ const SHAPE_LIBRARY = {
   circle: {params: ["center", "radius", "cap"], desc: "circle with centre and radius labels"},
   angle: {params: ["label", "cap"], desc: "a single marked angle"},
   triangleangle: {params: ["angle", "a", "b", "cc", "cap"], desc: "triangle with one angle marked (e.g. angle 'c'); a/b/cc are optional vertex labels"},
+  clockface: {params: ["hour", "minute", "cap"], desc: "analogue clock face showing a time; set hour (1-12) and minute (0-59). Use for telling/reading the time."},
+  protractor: {params: ["angle", "cap"], desc: "an angle drawn on a protractor and measured in degrees; set 'angle' to its size, e.g. 60. Use for measuring/naming angles."},
   // 3-D solids
   cube: {params: ["side", "cap"], desc: "cube with a side label"},
   cuboid: {params: ["l", "w", "h", "cap"], desc: "cuboid with length, width and height labels (use for volume)"},
