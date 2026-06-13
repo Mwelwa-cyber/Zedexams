@@ -70,6 +70,7 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
     durationMinutes: 60,
     questionTypes: ['multiple choice', 'short answer', 'structured (multi-part)'],
     comprehension: false,
+    autoDiagrams: true,
     extra: '',
   }))
   const [status, setStatus] = useState('idle') // idle | generating | done | error
@@ -346,6 +347,23 @@ export default function CreatePaperModal({ paperMeta, onApply, onClose }) {
                 onChange={(e) => set('extra', e.target.value)}
                 placeholder="e.g. Focus on word problems about money." />
             </div>
+
+            <label style={{
+              display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer',
+              border: '1px solid var(--sv-border, #d9cfb8)', borderRadius: 10, padding: '10px 12px',
+            }}>
+              <input type="checkbox" checked={form.autoDiagrams}
+                onChange={(e) => set('autoDiagrams', e.target.checked)}
+                style={{ marginTop: 2 }} />
+              <span style={{ fontSize: 13, color: 'var(--sv-text, #0e2a32)' }}>
+                <strong>Draw diagrams automatically</strong>
+                <span style={{ display: 'block', fontSize: 12, color: 'var(--sv-muted, #566f76)', marginTop: 2 }}>
+                  When the paper needs figures (science diagrams, picture options,
+                  shapes), generate black-and-white line art for them right away.
+                  Adds a few seconds per figure; you can still fine-tune or replace any of them.
+                </span>
+              </span>
+            </label>
 
             {status === 'error' && (
               <div style={{ borderRadius: 10, border: '1px solid #fca5a5', background: '#fef2f2', color: '#991b1b', padding: '8px 12px', fontSize: 13 }}>

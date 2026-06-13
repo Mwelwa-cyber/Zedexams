@@ -1,5 +1,6 @@
 import { unzipSync, strFromU8 } from 'fflate'
 import { makeLessonId } from './lessonConstants'
+import { svgToPngBlob } from '../../utils/svgRasterizer'
 
 const PPTX_MIME = {
   png: 'image/png',
@@ -324,46 +325,11 @@ function buildSlideSvg({ slideDoc, relationships, zipEntries, width, height, sca
   `
 }
 
-// Rasterize the generated SVG to PNG via a canvas before upload. Storing SVGs
-// in Firebase Storage exposed two attack surfaces — a malicious .pptx whose
-// shape attributes inject `" onload="..."` into the SVG (the generator escapes
-// text but not numeric attribute values), and direct-URL navigation to the
-// stored .svg which would execute scripts cross-origin against
-// firebasestorage.googleapis.com. PNGs cannot carry script. Canvas rasterizes
-// `<foreignObject>` HTML in modern browsers; the SVG references only data:
-// URIs internally, so the canvas never goes tainted.
-async function svgToPngBlob(svg, width, height) {
-  if (typeof window === 'undefined' || typeof document === 'undefined') {
-    throw new Error('Slide rasterization requires a browser environment.')
-  }
-  const svgBlob  = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' })
-  const objectUrl = URL.createObjectURL(svgBlob)
-  try {
-    const img = new Image()
-    img.decoding = 'async'
-    await new Promise((resolve, reject) => {
-      img.onload  = () => resolve()
-      img.onerror = () => reject(new Error('Browser could not rasterize a slide image.'))
-      img.src = objectUrl
-    })
-    const canvas = document.createElement('canvas')
-    canvas.width  = width
-    canvas.height = height
-    const ctx = canvas.getContext('2d')
-    if (!ctx) throw new Error('Canvas 2D context unavailable.')
-    ctx.fillStyle = '#ffffff'
-    ctx.fillRect(0, 0, width, height)
-    ctx.drawImage(img, 0, 0, width, height)
-    return await new Promise((resolve, reject) => {
-      canvas.toBlob(blob => {
-        if (blob) resolve(blob)
-        else reject(new Error('Canvas could not produce a PNG for this slide.'))
-      }, 'image/png')
-    })
-  } finally {
-    URL.revokeObjectURL(objectUrl)
-  }
-}
+// Slide SVGs are rasterized to PNG before upload — storing SVGs in Storage
+// exposed script-injection surfaces (a malicious .pptx whose shape attributes
+// inject `" onload="..."`, and direct-URL navigation to a stored .svg running
+// cross-origin). PNGs cannot carry script. The canvas rasterizer lives in the
+// shared svgRasterizer util (reused by the assessment DOCX export).
 
 export async function renderPowerPointToImages(file) {
   if (!file) throw new Error('Choose a PowerPoint file first.')
