@@ -34,6 +34,9 @@ export function emptyQuestion(overrides = {}) {
     subtype: null,
     partId: null,
     imageUrl: '',
+    // Alt-text description for the question image — read by screen readers in
+    // the exported paper and given to the AI marker as context for the figure.
+    imageAlt: '',
     imageUploading: false,
     imageUploadStep: '',
     imageAssetId: '',
@@ -185,6 +188,7 @@ export function createPassageSection(passageOverrides = {}) {
     instructions: '',
     passageText: '',
     imageUrl: '',
+    imageAlt: '',
     // imageAssetId points at the in-memory blob produced by documentQuizImporter
     // when a passage carries a diagram in the source document. It's the same
     // shape as question.imageAssetId, and the save pass uploads it to Firebase
@@ -494,6 +498,7 @@ export function serializeQuizSections(sections = [], parts = []) {
         instructions: serializeRichField(passage.instructions),
         passageText: serializeRichField(passage.passageText),
         imageUrl: passage.imageUrl || '',
+        imageAlt: String(passage.imageAlt || '').trim(),
         // Carried so the save pass can swap in a Firebase Storage download URL
         // before the doc reaches Firestore. Cleared on save when the upload
         // succeeds; never persisted long-term.

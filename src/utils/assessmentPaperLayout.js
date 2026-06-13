@@ -208,6 +208,38 @@ export function computeSmartWarnings(assessment, questions = []) {
   if (repeats > 0) {
     warnings.push({ key: 'repeats', severity: 'info', message: `${repeats} possibly repeated question${repeats === 1 ? '' : 's'} detected.` })
   }
+  // MCQ option quality: duplicate options, or option images with no alt text.
+  // The save-time validator already blocks these, but surfacing them as soft
+  // warnings while editing means the teacher fixes them before they hit a
+  // wall at export. We count questions (not options) so the badge stays calm.
+  let dupOptionQs = 0
+  let missingAltQs = 0
+  for (const q of questions) {
+    if ((q?.type || 'mcq') !== 'mcq') continue
+    const opts = Array.isArray(q.options) ? q.options : []
+    const media = Array.isArray(q.optionMedia) ? q.optionMedia : []
+    const seen = new Map()
+    let hasDup = false
+    opts.forEach((opt, i) => {
+      const key = plain(opt).toLowerCase()
+      if (!key) return
+      if (seen.has(key)) hasDup = true
+      else seen.set(key, i)
+    })
+    if (hasDup) dupOptionQs += 1
+    const altMissing = media.some((m) => {
+      const hasMedia = Boolean(m?.imageUrl) || Boolean(m?.diagram && m.diagram.libraryKey)
+      const hasAlt = String(m?.alt || '').trim().length > 0
+      return hasMedia && !hasAlt
+    })
+    if (altMissing) missingAltQs += 1
+  }
+  if (dupOptionQs > 0) {
+    warnings.push({ key: 'dup-options', severity: 'warn', message: `${dupOptionQs} question${dupOptionQs === 1 ? ' has' : 's have'} duplicate answer options.` })
+  }
+  if (missingAltQs > 0) {
+    warnings.push({ key: 'option-alt', severity: 'warn', message: `${missingAltQs} question${missingAltQs === 1 ? ' has an' : 's have'} image option${missingAltQs === 1 ? '' : 's'} missing alt text — add a description so it can be saved.` })
+  }
   return warnings
 }
 
@@ -331,6 +363,7 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
           title: plain(item.passage.title),
           text: plain(item.passage.passageText),
           imageUrl: item.passage.imageUrl || '',
+          imageAlt: plain(item.passage.imageAlt) || plain(item.passage.title) || '',
           passageKind: item.passage.passageKind || 'comprehension',
         })
         for (const q of passageQuestions) {
@@ -355,6 +388,7 @@ export function buildPaperLayout(assessment = {}, questions = [], { mode = 'pape
       title: plain(passage.title),
       text: plain(passage.passageText),
       imageUrl: passage.imageUrl || '',
+      imageAlt: plain(passage.imageAlt) || plain(passage.title) || '',
       passageKind: passage.passageKind || 'comprehension',
     })
   }
@@ -418,6 +452,7 @@ function buildQuestionBlock(q, number, includeAnswer) {
     imageDiagram: q.imageDiagram && q.imageDiagram.libraryKey
       ? { libraryKey: q.imageDiagram.libraryKey, params: q.imageDiagram.params || {} }
       : null,
+    imageAlt: plain(q.imageAlt) || '',
     diagramText: plain(q.diagramText),
     wordBank: Array.isArray(q.wordBank) ? q.wordBank.filter(Boolean) : (q.wordBank ? String(q.wordBank).split('·').map(s => s.trim()).filter(Boolean) : []),
     answerLines: typeof q.answerLines === 'number' ? q.answerLines : null,

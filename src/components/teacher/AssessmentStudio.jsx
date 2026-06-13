@@ -322,6 +322,9 @@ export default function AssessmentStudio() {
   const [sections, setSections] = useState(() => [createStandaloneSection()])
   const [parts, setParts] = useState([])
   const [saving, setSaving] = useState(false)
+  // Wall-clock time of the last successful draft autosave, surfaced in the
+  // top bar so the teacher can see their work is being kept ("Saved 14:32").
+  const [draftSavedAt, setDraftSavedAt] = useState(null)
   const [aiForm, setAiForm] = useState({ topic: '', count: 5, type: 'mcq', framework: '2023' })
   const [aiGenerating, setAiGenerating] = useState(false)
   const [createPaperOpen, setCreatePaperOpen] = useState(false)
@@ -456,6 +459,7 @@ export default function AssessmentStudio() {
     if (hasOnlyEmptyStarterSection(sections) && !form.title.trim() && !form.schoolName.trim()) return
     const timer = setTimeout(() => {
       saveAssessmentDraft(currentUser.uid, { form, sections, parts, view })
+      setDraftSavedAt(Date.now())
     }, 800)
     return () => clearTimeout(timer)
   }, [form, sections, parts, view, currentUser?.uid])
@@ -961,6 +965,9 @@ export default function AssessmentStudio() {
         detectedType: 'diagram',
         text: clean,
         imageUrl: url,
+        // The generation prompt is a ready description of the figure — seed
+        // the alt text with it so the image isn't shipped without one.
+        imageAlt: clean.slice(0, 300),
         marks: 5,
         options: [],
         correctAnswer: '',
@@ -1428,6 +1435,7 @@ export default function AssessmentStudio() {
       <TopBar
         title={autoTitle}
         savingDraft={Boolean(saving)}
+        draftSavedAt={draftSavedAt}
         onBack={() => navigate('/teacher/assessments')}
         onAi={() => openSlide('ai')}
       />
@@ -1639,14 +1647,19 @@ export default function AssessmentStudio() {
 /* ==================================================================
  * TOP BAR
  * ================================================================== */
-function TopBar({ title, savingDraft, onBack, onAi }) {
+function TopBar({ title, savingDraft, draftSavedAt, onBack, onAi }) {
+  const savedLabel = draftSavedAt
+    ? `Saved ${new Date(draftSavedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+    : 'Draft'
   return (
     <header className="sv-app-bar">
       <button className="sv-icon-btn" onClick={onBack} aria-label="Back">←</button>
       <div className="sv-app-bar-title">
         <span className="sv-status-dot" aria-hidden="true" />
         {title}
-        <span className="sv-badge-mini">{savingDraft ? 'Saving' : 'Draft'}</span>
+        <span className="sv-badge-mini" title="Your work is auto-saved to this device">
+          {savingDraft ? 'Saving…' : savedLabel}
+        </span>
       </div>
       <button className="sv-icon-btn" onClick={onAi} title="AI assistant">✨</button>
     </header>
@@ -2627,6 +2640,17 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
                   />
                 </button>
               )}
+              {passage.imageUrl && (
+                <div className="sv-field" style={{ marginTop: 6 }}>
+                  <label>Image description (alt text)</label>
+                  <input
+                    type="text"
+                    value={passage.imageAlt || ''}
+                    onChange={e => onUpdateSection(sectionIndex, s => ({ ...s, passage: { ...s.passage, imageAlt: e.target.value } }))}
+                    placeholder="Describe the map / illustration for screen readers"
+                  />
+                </div>
+              )}
             </div>
           )}
 
@@ -3276,19 +3300,38 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
         onClose={() => setDiagramTarget(null)}
       />
 
+      {(isMcq || isStructured) && question.imageUrl && (
+        <div className="sv-field" style={{ marginTop: 'var(--sv-s2)' }}>
+          <label>Image description (alt text)</label>
+          <input
+            type="text"
+            value={question.imageAlt || ''}
+            onChange={e => updateQuestion('imageAlt', e.target.value)}
+            placeholder="Describe the picture — read by screen readers and the marking AI"
+          />
+        </div>
+      )}
+
       {bankTarget !== null && (
         <PictureBankPicker
           subject={paperMeta?.subject || ''}
           onClose={() => setBankTarget(null)}
-          onSelect={({ url }) => {
+          onSelect={({ url, name }) => {
+            // The bank tile's name is a ready-made alt description — use it as
+            // the default so picked images aren't left without alt text (which
+            // the save-time validator requires for option media).
+            const defaultAlt = String(name || '').trim()
             if (bankTarget === 'question') {
               updateQuestion('imageUrl', url)
               updateQuestion('imageAssetId', '')
+              if (defaultAlt && !String(question.imageAlt || '').trim()) {
+                updateQuestion('imageAlt', defaultAlt)
+              }
             } else {
               const optionCount = Array.isArray(question.options) ? question.options.length : 4
               const existing = Array.isArray(question.optionMedia) ? question.optionMedia : []
               const next = Array.from({ length: optionCount }, (_, i) => existing[i] || null)
-              next[bankTarget] = { imageUrl: url, alt: existing[bankTarget]?.alt || '' }
+              next[bankTarget] = { imageUrl: url, alt: existing[bankTarget]?.alt || defaultAlt }
               updateQuestion('optionMedia', next)
             }
             setBankTarget(null)
@@ -3309,6 +3352,14 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
           onRemoveOptionImage={onRemoveOptionImage}
           onPickFromBank={(optIndex) => setBankTarget(optIndex)}
           onPickDiagram={(optIndex) => setDiagramTarget(optIndex)}
+          onChangeOptionAlt={(optIndex, alt) => {
+            const optionCount = Array.isArray(question.options) ? question.options.length : 4
+            const existing = Array.isArray(question.optionMedia) ? question.optionMedia : []
+            const next = Array.from({ length: optionCount }, (_, i) => existing[i] || null)
+            const slot = next[optIndex] || {}
+            next[optIndex] = { ...slot, imageUrl: slot.imageUrl || '', alt }
+            updateQuestion('optionMedia', next)
+          }}
         />
       )}
 
@@ -3449,7 +3500,7 @@ function QuestionBlock({ section, sectionIndex, parts, questionNumbers, paperMet
   )
 }
 
-function McqOptions({ question, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage, onPickFromBank, onPickDiagram }) {
+function McqOptions({ question, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage, onPickFromBank, onPickDiagram, onChangeOptionAlt }) {
   const options = Array.isArray(question.options) && question.options.length
     ? question.options
     : ['', '', '', '']
@@ -3472,6 +3523,7 @@ function McqOptions({ question, onChangeOption, onSelectCorrect, onUploadOptionI
             onRemoveOptionImage={onRemoveOptionImage}
             onPickFromBank={onPickFromBank}
             onPickDiagram={onPickDiagram}
+            onChangeOptionAlt={onChangeOptionAlt}
           />
         )
       })}
@@ -3479,9 +3531,14 @@ function McqOptions({ question, onChangeOption, onSelectCorrect, onUploadOptionI
   )
 }
 
-function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage, onPickFromBank, onPickDiagram }) {
+function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSelectCorrect, onUploadOptionImage, onRemoveOptionImage, onPickFromBank, onPickDiagram, onChangeOptionAlt }) {
   const fileRef = useRef(null)
+  // A diagram option also counts as media for the alt-text affordance (its alt
+  // is auto-seeded by the converter/picker, so it won't be flagged as missing).
+  const hasImage = Boolean(media?.imageUrl) || Boolean(media?.diagram?.libraryKey)
+  const altMissing = hasImage && !String(media?.alt || '').trim()
   return (
+    <div className="sv-mcq-option-wrap">
     <div
       className={`sv-mcq-option ${isCorrect ? 'correct' : ''}`}
       onClick={() => onSelectCorrect(optIndex)}
@@ -3600,6 +3657,19 @@ function McqOptionRow({ optIndex, option, media, isCorrect, onChangeOption, onSe
         placeholder={media?.imageUrl ? `Optional caption for ${SECTION_LETTERS[optIndex]}` : `Option ${SECTION_LETTERS[optIndex]}`}
       />
       {isCorrect && <div className="sv-check">✓</div>}
+    </div>
+      {hasImage && onChangeOptionAlt && (
+        <div className="sv-opt-alt" onClick={e => e.stopPropagation()}>
+          <input
+            type="text"
+            className={`sv-opt-alt-input ${altMissing ? 'missing' : ''}`}
+            value={media?.alt || ''}
+            onChange={e => onChangeOptionAlt(optIndex, e.target.value)}
+            placeholder={`Describe image ${SECTION_LETTERS[optIndex]} (alt text — required)`}
+            aria-label={`Alt text for option ${SECTION_LETTERS[optIndex]} image`}
+          />
+        </div>
+      )}
     </div>
   )
 }
@@ -4423,7 +4493,7 @@ function PaperPassageBlock({ block }) {
       {block.text && block.text.split('\n\n').map((p, i) => <p key={i}>{p}</p>)}
       {block.imageUrl && (
         <div style={{ marginTop: 8, textAlign: 'center' }}>
-          <img src={block.imageUrl} alt="" style={{ maxWidth: '100%' }} />
+          <img src={block.imageUrl} alt={block.imageAlt || ''} style={{ maxWidth: '100%' }} />
         </div>
       )}
     </div>
@@ -4441,7 +4511,7 @@ function PaperQuestionBlock({ block }) {
       {block.imageUrl && (
         <>
           <div className="sv-paper-diagram" style={{ position: 'relative' }}>
-            <img src={block.imageUrl} alt="" />
+            <img src={block.imageUrl} alt={block.imageAlt || ''} />
             {(block.diagramLabels || []).map((label, i) => (
               <span
                 key={i}

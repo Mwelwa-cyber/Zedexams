@@ -1381,6 +1381,22 @@
 }
 .studio-v2 .sv-mcq-option .sv-check { font-size: 14px; color: var(--sv-sage); }
 
+/* Per-option alt-text row, shown under an option once it carries an image. */
+.studio-v2 .sv-mcq-option-wrap { display: grid; gap: 4px; }
+.studio-v2 .sv-opt-alt { padding-left: 30px; }
+.studio-v2 .sv-opt-alt-input {
+  width: 100%;
+  border: 1px solid var(--sv-border);
+  border-radius: var(--sv-r-sm);
+  padding: 5px 8px;
+  font-size: 12px;
+  background: var(--sv-paper);
+  color: var(--sv-text);
+}
+.studio-v2 .sv-opt-alt-input::placeholder { color: var(--sv-muted); }
+.studio-v2 .sv-opt-alt-input.missing { border-color: var(--sv-tomato, #c0392b); }
+.studio-v2 .sv-opt-alt-input:focus { outline: none; border-color: var(--sv-primary); }
+
 .studio-v2 .sv-answer-lines {
   margin-top: var(--sv-s2);
   padding: var(--sv-s3);
