@@ -1018,6 +1018,44 @@
 .studio-v2 .sv-tg.on { background: var(--sv-sage); }
 .studio-v2 .sv-tg.on::after { left: 17px; }
 
+/* Segmented control — paper-level MCQ layout / choice-count pickers */
+.studio-v2 .sv-seg-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  background: var(--sv-tinted);
+  border-radius: var(--sv-r);
+  font-size: 13.5px;
+  margin-bottom: 6px;
+}
+.studio-v2 .sv-seg-row .sv-lbl { display: flex; align-items: center; gap: 8px; }
+.studio-v2 .sv-seg {
+  display: inline-flex;
+  background: var(--sv-border-strong);
+  border-radius: 8px;
+  padding: 2px;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.studio-v2 .sv-seg-btn {
+  border: none;
+  background: transparent;
+  color: var(--sv-muted);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.studio-v2 .sv-seg-btn.on {
+  background: white;
+  color: var(--sv-ink, #1a1a1a);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.12);
+}
+
 .studio-v2 .sv-preset-row {
   display: flex;
   flex-wrap: wrap;
