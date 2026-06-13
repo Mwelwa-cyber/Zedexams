@@ -93,6 +93,8 @@ export const TEACHER_SUBJECTS = [
   { value: 'geography',        label: 'Geography' },
   { value: 'civic_education',  label: 'Civic Education' },
   { value: 'religious_education', label: 'Religious Education' },
+  { group: 'Business' },
+  { value: 'accounts',         label: 'Principles of Accounts' },
   { group: 'Technical & Creative' },
   { value: 'technology_studies',              label: 'Technology Studies' },
   { value: 'creative_and_technology_studies', label: 'Creative & Technology Studies' },
@@ -131,6 +133,9 @@ const SUBJECT_GRADE_MAP = {
   geography:         ['G8','G9','G10','G11','G12'],
   civic_education:   ['G5','G6','G7','G8','G9','G10','G11','G12'],
   religious_education:['ECE','G1','G2','G3','G4','G5','G6','G7','G8','G9','G10','G11','G12'],
+
+  // Business — commercial subjects offered at senior secondary only.
+  accounts:          ['G10','G11','G12'],
 
   // Technical & creative — Creative & Technology Studies is the primary-
   // level integrated subject; Technology Studies and Home Economics take
