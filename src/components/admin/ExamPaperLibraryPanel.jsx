@@ -36,6 +36,67 @@ function subjectLabel(subject) {
   return hit ? hit.label : String(subject || '').replace(/_/g, ' ')
 }
 
+const ORIGIN_SHORT = {
+  builtin_seed: 'seed', manual: 'manual',
+  pdf_extract: 'sample paper', docx_extract: 'sample paper',
+  library_synthesis: 'library',
+}
+
+// Whether a bucket of real papers has actually reached the assessment
+// generator. The generator grounds on Firestore profiles keyed
+// `${type}-${band}-${subject}` (assessmentFormats.js), so we look the bucket's
+// id up against the live profile list and the pending drafts to answer, per
+// bucket, "are these papers being used yet?".
+function bucketStatus(bucket, profileById, draftTuples) {
+  const id = `${bucket.assessmentType}-${bucket.gradeBand}-${bucket.subject}`
+  const profile = profileById.get(id)
+  // A library-synthesised profile that's already live is the strongest signal:
+  // these papers are in the generator regardless of any newer pending draft.
+  if (profile && profile.origin === 'library_synthesis') {
+    return { tone: 'live', text: '✓ In the live generator (from this library)' }
+  }
+  // A pending draft means these papers HAVE been synthesised but aren't live
+  // yet — surface that ahead of any unrelated manual/seed profile in the slot,
+  // which would otherwise hide the just-processed draft.
+  if (draftTuples.has(id)) {
+    return { tone: 'draft', text: '⏳ Draft awaiting approval' }
+  }
+  if (profile) {
+    return {
+      tone: 'other',
+      text: `Live override: ${ORIGIN_SHORT[profile.origin] || profile.origin}`,
+    }
+  }
+  // No Firestore row for this slot. listAssessmentFormats() returns only the
+  // Firestore overrides, not the in-code seeds the generator still merges and
+  // resolves against (exact seed → band-generic seed → default), so the
+  // generator IS serving this slot from a built-in profile. Say that rather
+  // than implying the slot is unserved.
+  return { tone: 'none', text: 'Built-in seed (not synthesised)' }
+}
+
+const STATUS_STYLES = {
+  live: { bg: '#e7f6ee', fg: '#13683b' },
+  draft: { bg: '#e8eefc', fg: '#1e40af' },
+  other: { bg: '#fef6e7', fg: '#92600a' },
+  none: { bg: '#eef2f7', fg: '#64748b' },
+}
+
+function BucketStatusBadge({ status }) {
+  const s = STATUS_STYLES[status.tone] || STATUS_STYLES.none
+  return (
+    <span
+      style={{
+        display: 'inline-block', fontSize: 11, fontWeight: 600,
+        padding: '2px 9px', borderRadius: 999,
+        background: s.bg, color: s.fg, whiteSpace: 'nowrap',
+      }}
+    >
+      {status.text}
+    </span>
+  )
+}
+
 /**
  * Group stored samples into band → (subject + type) buckets so the admin can
  * see how much corpus backs each paper kind and synthesise per bucket.
@@ -69,7 +130,7 @@ function groupSamples(samples) {
 }
 
 export default function ExamPaperLibraryPanel({
-  samples, onAnalyzeBatch, onDelete, onSynthesize,
+  samples, profiles, drafts, onAnalyzeBatch, onDelete, onSynthesize,
 }) {
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({
@@ -84,6 +145,23 @@ export default function ExamPaperLibraryPanel({
   const total = (samples || []).length
   const grouped = useMemo(() => groupSamples(samples), [samples])
   const update = (k, v) => setForm((f) => ({ ...f, [k]: v }))
+
+  // Live profiles by id + the (type-band-subject) tuples that have a pending
+  // library-synthesis draft — drives the per-bucket "are these used?" badge.
+  const profileById = useMemo(() => {
+    const m = new Map()
+    for (const p of profiles || []) m.set(p.id, p)
+    return m
+  }, [profiles])
+  const draftTuples = useMemo(() => {
+    const s = new Set()
+    for (const d of drafts || []) {
+      if (d.origin === 'library_synthesis') {
+        s.add(`${d.assessmentType}-${d.gradeBand}-${d.subject}`)
+      }
+    }
+    return s
+  }, [drafts])
 
   async function runBatch() {
     if (!files.length || busy) return
@@ -245,16 +323,19 @@ export default function ExamPaperLibraryPanel({
                     {bucket.samples.length}
                   </span>
                 </div>
-                <button
-                  type="button"
-                  className="ss-add-row-btn"
-                  onClick={() => runSynthesis(bucket)}
-                  disabled={synthBusyKey === bucket.key}
-                  title="Merge these papers into one format-profile draft for review"
-                >
-                  {synthBusyKey === bucket.key ?
-                    'Synthesising…' : '✦ Synthesise format profile'}
-                </button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                  <BucketStatusBadge status={bucketStatus(bucket, profileById, draftTuples)} />
+                  <button
+                    type="button"
+                    className="ss-add-row-btn"
+                    onClick={() => runSynthesis(bucket)}
+                    disabled={synthBusyKey === bucket.key}
+                    title="Merge these papers into one format-profile draft for review"
+                  >
+                    {synthBusyKey === bucket.key ?
+                      'Synthesising…' : '✦ Synthesise format profile'}
+                  </button>
+                </div>
               </div>
               <div style={{ marginTop: 8 }}>
                 {bucket.samples.map((s) => {
