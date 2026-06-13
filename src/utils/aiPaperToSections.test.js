@@ -92,6 +92,48 @@ console.log('aiPaperToSections')
   ok('diagram briefs surface as review notes AND a diagramBrief field', true)
 }
 
+// ── Maths markup → stacked fractions / columns (v6) ───────────────────────
+{
+  // An MCQ whose stem AND options are \frac fractions, like the real Grade-7
+  // papers. The converter turns them into the editor's stacked math-frac spans
+  // while the answer still resolves against the plain option text.
+  const frac = mapAiQuestion({
+    type: 'multiple_choice',
+    prompt: 'Work out \\frac{1}{3} + \\frac{2}{5}.',
+    options: ['\\frac{3}{15}', '\\frac{8}{15}', '\\frac{11}{15}', '\\frac{3}{8}'],
+    marks: 1,
+    answer: '\\frac{11}{15}',
+    markingGuide: 'Common denominator 15 gives \\frac{11}{15}.',
+  })
+  assert.ok(frac.overrides.text.includes('math-frac'), 'stem fractions become stacked spans')
+  assert.ok(frac.overrides.text.includes('data-num="1"') && frac.overrides.text.includes('data-den="3"'))
+  assert.ok(frac.overrides.options.every((o) => o.includes('math-frac')), 'each fraction option is stacked')
+  assert.strictEqual(frac.overrides.correctAnswer, 2, '\\frac{11}{15} answer still resolves to its option')
+  assert.ok(frac.overrides.explanation.includes('math-frac'), 'marking guide fractions stack too')
+  assert.ok(!frac.overrides.requiresReview)
+  ok('fraction MCQ stems + options convert to stacked math-frac markup', true)
+
+  // A mixed number and a plain (no-maths) option are untouched / handled.
+  const mixed = mapAiQuestion({
+    type: 'short_answer',
+    prompt: 'A jug holds 2\\frac{1}{4} litres. Write this as an improper fraction.',
+    marks: 1,
+    answer: '\\frac{9}{4}',
+  })
+  assert.ok(mixed.overrides.text.includes('data-whole="2"'), 'mixed number keeps its whole part')
+  ok('mixed numbers convert to a whole + stacked fraction', true)
+
+  // Plain prose with no maths passes straight through unchanged (no <p> wrap).
+  const plain = mapAiQuestion({
+    type: 'short_answer',
+    prompt: 'Name the capital city of Zambia.',
+    marks: 1,
+    answer: 'Lusaka',
+  })
+  assert.strictEqual(plain.overrides.text, 'Name the capital city of Zambia.')
+  ok('non-maths prose is left exactly as-is', true)
+}
+
 // ── Visual questions (v5): stem / labelled / option_images ────────────────
 {
   // stem_figure

@@ -83,6 +83,42 @@ test('numberlinejump draws an arc + delta label per jump', () => {
   assert.equal((skipped.match(/<path/g) || []).length, 0, 'invalid/out-of-range jumps skipped')
 })
 
+test('clockface + protractor exist and render valid <svg>', () => {
+  for (const key of ['clockface', 'protractor']) {
+    const entry = getDiagram(key)
+    assert.ok(entry && typeof entry.render === 'function', `missing entry: ${key}`)
+    const svg = renderDiagramSvg(key, entry.defaults)
+    assert.ok(typeof svg === 'string' && svg.includes('<svg') && svg.trim().endsWith('</svg>'), `${key} not a closed SVG`)
+  }
+})
+
+test('clockface draws two hands from numeric hour/minute (injection-safe)', () => {
+  // Hour/minute are parsed as numbers — a hostile string falls back to a time
+  // and renders no raw author text, so it can never inject markup.
+  const svg = renderDiagramSvg('clockface', { hour: '<script>x</script>', minute: '<script>x</script>' })
+  assert.ok(!svg.includes('<script>'), 'clockface must not echo a hostile label')
+  // Twelve numerals + 60 ticks + 2 hands + centre dot — at least the two hands.
+  assert.ok((svg.match(/<line /g) || []).length >= 62, 'clockface should draw ticks + hands')
+})
+
+test('protractor renders the degree label escaped and an angle arm', () => {
+  const svg = renderDiagramSvg('protractor', { angle: '60' })
+  assert.ok(svg.includes('>60°</text>'), 'protractor should print the degree label')
+  const hostile = renderDiagramSvg('protractor', { angle: '<script>x</script>' })
+  assert.ok(!hostile.includes('<script>'), 'protractor must escape a hostile angle label')
+  assert.ok(hostile.includes('&lt;script&gt;'), 'protractor should HTML-escape the label')
+})
+
+test('barchart + linegraph print a numbered y-axis scale', () => {
+  // max 60 → nice step 20 → tick labels 0, 20, 40, 60 on the axis.
+  for (const key of ['barchart', 'linegraph']) {
+    const svg = renderDiagramSvg(key, { labels: 'a,b,c,d,e', values: '40,50,20,60,30' })
+    for (const t of ['>0</text>', '>20</text>', '>40</text>', '>60</text>']) {
+      assert.ok(svg.includes(t), `${key} missing y-axis label ${t}`)
+    }
+  }
+})
+
 test('renderDiagramSvg still returns null for an unknown key', () => {
   assert.equal(renderDiagramSvg('not-a-real-diagram', {}), null)
 })

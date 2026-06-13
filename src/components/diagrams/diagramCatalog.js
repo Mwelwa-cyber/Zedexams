@@ -43,6 +43,22 @@ function esc(value) {
     .replace(/"/g, '&quot;')
 }
 
+// Pick a "nice" round step for a value axis (1, 2, 5 × a power of ten) so bar
+// and line graphs print a readable numbered y-axis (0, 20, 40, …) the way real
+// primary papers do, instead of an unlabelled axis. Returns the step, the top
+// gridline (a multiple of the step at/above max) and the tick values.
+function niceAxisTicks(max, target = 4) {
+  const m = max > 0 ? max : 1
+  const raw = m / target
+  const pow = Math.pow(10, Math.floor(Math.log10(raw)))
+  const n = raw / pow
+  const step = (n <= 1 ? 1 : n <= 2 ? 2 : n <= 5 ? 5 : 10) * pow
+  const top = Math.max(step, Math.ceil(m / step) * step)
+  const ticks = []
+  for (let v = 0; v <= top + step * 1e-6; v += step) ticks.push(+v.toFixed(6))
+  return { step, top, ticks }
+}
+
 export const DIAGRAM_CATALOG = {
   // ============ SHAPES 2D ============
   triangle: { cat: 'Shapes 2D', name: 'Triangle', defaults: { a: 'A', b: 'B', c: 'C', cap: 'Triangle ABC' }, fields: [['a', 'Vertex A'], ['b', 'Vertex B'], ['c', 'Vertex C'], ['cap', 'Caption']],
@@ -90,6 +106,61 @@ export const DIAGRAM_CATALOG = {
       // base segment (50..230).
       const footX = 150, topY = 50, baseY = 180
       return `<svg viewBox="0 0 320 220" xmlns="http://www.w3.org/2000/svg" width="320"><polygon points="110,50 290,50 230,180 50,180" fill="${col}" fill-opacity=".1" stroke="${col}" stroke-width="2.2"/><line x1="${footX}" y1="${topY}" x2="${footX}" y2="${baseY}" stroke="${col}" stroke-width="1.4" stroke-dasharray="4 3"/><rect x="${footX}" y="${baseY - 14}" width="14" height="14" fill="none" stroke="${col}" stroke-width="1.3"/><text x="140" y="${baseY + 22}" font-family="Lora,serif" font-style="italic" font-size="14" text-anchor="middle" fill="#3a2f25">${esc(p.base)}</text><text x="${footX + 8}" y="120" font-family="Lora,serif" font-style="italic" font-size="14" fill="#3a2f25">${esc(p.height)}</text></svg>`
+    } },
+
+  clockface: { cat: 'Shapes 2D', name: 'Clock face', defaults: { hour: '3', minute: '00', cap: 'Clock face' }, fields: [['hour', 'Hour (1-12)'], ['minute', 'Minute (0-59)'], ['cap', 'Caption']],
+    render: (p, col) => {
+      // Analogue clock for "tell the time" questions. Everything is computed
+      // from the numeric hour/minute (no author text is rendered) so labels
+      // can't inject markup — hour/minute parse to numbers and fall back to a
+      // sensible time when blank.
+      const H = (((parseInt(p.hour, 10) % 12) + 12) % 12)
+      const Mraw = parseInt(p.minute, 10)
+      const M = Number.isFinite(Mraw) ? (((Mraw % 60) + 60) % 60) : 0
+      const cx = 120, cy = 120, R = 92
+      const pt = (deg, len) => [cx + len * Math.sin(deg * Math.PI / 180), cy - len * Math.cos(deg * Math.PI / 180)]
+      let ticks = ''
+      for (let i = 0; i < 60; i++) {
+        const isHour = i % 5 === 0
+        const [x1, y1] = pt(i * 6, R - 3)
+        const [x2, y2] = pt(i * 6, R - (isHour ? 12 : 7))
+        ticks += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="#1c1612" stroke-width="${isHour ? 1.6 : 0.7}"/>`
+      }
+      let nums = ''
+      for (let i = 1; i <= 12; i++) {
+        const [x, y] = pt(i * 30, R - 22)
+        nums += `<text x="${x.toFixed(1)}" y="${(y + 5).toFixed(1)}" font-family="Lora,serif" font-size="15" font-weight="700" text-anchor="middle" fill="#1c1612">${i}</text>`
+      }
+      const [hx, hy] = pt((H + M / 60) * 30, R - 42)
+      const [mx, my] = pt(M * 6, R - 18)
+      return `<svg viewBox="0 0 240 240" xmlns="http://www.w3.org/2000/svg" width="240"><circle cx="${cx}" cy="${cy}" r="${R}" fill="#fff" stroke="${col}" stroke-width="2.4"/>${ticks}${nums}<line x1="${cx}" y1="${cy}" x2="${hx.toFixed(1)}" y2="${hy.toFixed(1)}" stroke="#1c1612" stroke-width="4" stroke-linecap="round"/><line x1="${cx}" y1="${cy}" x2="${mx.toFixed(1)}" y2="${my.toFixed(1)}" stroke="${col}" stroke-width="2.6" stroke-linecap="round"/><circle cx="${cx}" cy="${cy}" r="4" fill="#1c1612"/></svg>`
+    } },
+  protractor: { cat: 'Shapes 2D', name: 'Protractor (angle)', defaults: { angle: '60', cap: 'Angle measured on a protractor' }, fields: [['angle', 'Angle (degrees)'], ['cap', 'Caption']],
+    render: (p, col) => {
+      // An angle shown on a half-disc protractor, read from the right-hand base
+      // (0°) round to the left (180°). The arm angle is computed numerically; the
+      // only author value rendered is the degree label, which is esc()-escaped.
+      const deg = parseFloat(p.angle)
+      const a = Number.isFinite(deg) ? Math.max(0, Math.min(180, deg)) : 60
+      const cx = 150, cy = 150, R = 116
+      const at = (d, r) => [cx + r * Math.cos(d * Math.PI / 180), cy - r * Math.sin(d * Math.PI / 180)]
+      let ticks = ''
+      for (let d = 0; d <= 180; d += 10) {
+        const major = d % 30 === 0
+        const [x1, y1] = at(d, R)
+        const [x2, y2] = at(d, R - (major ? 14 : 8))
+        ticks += `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}" stroke="${col}" stroke-width="${major ? 1.4 : 0.8}"/>`
+        if (major) {
+          const [lx, ly] = at(d, R - 26)
+          ticks += `<text x="${lx.toFixed(1)}" y="${(ly + 4).toFixed(1)}" font-family="Lora,serif" font-size="10" text-anchor="middle" fill="#3a2f25">${d}</text>`
+        }
+      }
+      const [lx, ly] = at(180, R), [rx, ry] = at(0, R)
+      const [ax, ay] = at(a, R)
+      const [arc0x, arc0y] = at(0, 38), [arcAx, arcAy] = at(a, 38)
+      const largeArc = a > 180 ? 1 : 0
+      const [lblx, lbly] = at(a / 2, 60)
+      return `<svg viewBox="0 0 300 184" xmlns="http://www.w3.org/2000/svg" width="300"><path d="M ${lx.toFixed(1)},${ly} A ${R},${R} 0 0,1 ${rx.toFixed(1)},${ry} Z" fill="${col}" fill-opacity=".07" stroke="${col}" stroke-width="2"/>${ticks}<line x1="${cx}" y1="${cy}" x2="${rx.toFixed(1)}" y2="${ry}" stroke="#1c1612" stroke-width="2.2"/><line x1="${cx}" y1="${cy}" x2="${ax.toFixed(1)}" y2="${ay.toFixed(1)}" stroke="#1c1612" stroke-width="2.2"/><path d="M ${arc0x.toFixed(1)},${arc0y.toFixed(1)} A 38,38 0 ${largeArc},0 ${arcAx.toFixed(1)},${arcAy.toFixed(1)}" fill="none" stroke="#1c1612" stroke-width="1.6"/><circle cx="${cx}" cy="${cy}" r="3.5" fill="#1c1612"/><text x="${lblx.toFixed(1)}" y="${lbly.toFixed(1)}" font-family="Lora,serif" font-style="italic" font-size="15" font-weight="700" text-anchor="middle" fill="${col}">${esc(p.angle)}°</text></svg>`
     } },
 
   // ============ SHAPES 3D ============
@@ -177,14 +248,23 @@ export const DIAGRAM_CATALOG = {
     render: (p, col) => {
       const labels = p.labels.split(',').map(s => s.trim())
       const values = p.values.split(',').map(s => parseFloat(s) || 0)
-      const w = 460, h = 240, pad = 36, max = Math.max(...values, 1)
-      const bw = (w - pad * 2) / values.length * 0.65, gap = (w - pad * 2) / values.length * 0.35
+      const w = 460, h = 250, padL = 46, padR = 22, padT = 22, padB = 40
+      const plotW = w - padL - padR, plotH = h - padT - padB, baseY = h - padB
+      const { top, ticks } = niceAxisTicks(Math.max(...values, 1))
+      const yOf = v => baseY - (v / top) * plotH
+      let grid = ''
+      ticks.forEach(t => {
+        const y = yOf(t)
+        if (t !== 0) grid += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${w - padR}" y2="${y.toFixed(1)}" stroke="#e4dccd" stroke-width="1"/>`
+        grid += `<text x="${padL - 6}" y="${(y + 4).toFixed(1)}" font-family="Lora,serif" font-size="11" text-anchor="end" fill="#3a2f25">${t}</text>`
+      })
+      const slot = plotW / values.length, bw = slot * 0.6
       let bars = ''
       values.forEach((v, i) => {
-        const x = pad + i * (bw + gap) + gap / 2, bh = (v / max) * (h - pad * 2), y = h - pad - bh
-        bars += `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="${col}" fill-opacity=".75"/><text x="${x + bw / 2}" y="${y - 6}" font-family="Lora,serif" font-size="11" text-anchor="middle" fill="#1c1612">${v}</text><text x="${x + bw / 2}" y="${h - pad + 16}" font-family="Lora,serif" font-size="11" text-anchor="middle" fill="#3a2f25">${esc(labels[i] || '')}</text>`
+        const x = padL + i * slot + (slot - bw) / 2, y = yOf(v)
+        bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${bw.toFixed(1)}" height="${(baseY - y).toFixed(1)}" fill="${col}" fill-opacity=".75"/><text x="${(x + bw / 2).toFixed(1)}" y="${(y - 6).toFixed(1)}" font-family="Lora,serif" font-size="11" text-anchor="middle" fill="#1c1612">${v}</text><text x="${(x + bw / 2).toFixed(1)}" y="${baseY + 16}" font-family="Lora,serif" font-size="11" text-anchor="middle" fill="#3a2f25">${esc(labels[i] || '')}</text>`
       })
-      return `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" width="${w}"><line x1="${pad}" y1="${pad}" x2="${pad}" y2="${h - pad}" stroke="#1c1612" stroke-width="1.2"/><line x1="${pad}" y1="${h - pad}" x2="${w - pad}" y2="${h - pad}" stroke="#1c1612" stroke-width="1.2"/>${bars}</svg>`
+      return `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" width="${w}">${grid}<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${baseY}" stroke="#1c1612" stroke-width="1.2"/><line x1="${padL}" y1="${baseY}" x2="${w - padR}" y2="${baseY}" stroke="#1c1612" stroke-width="1.2"/>${bars}</svg>`
     } },
   piechart: { cat: 'Graphs', name: 'Pie Chart', defaults: { labels: 'A,B,C,D', values: '30,25,20,25', cap: 'Pie chart' }, fields: [['labels', 'Labels'], ['values', 'Values'], ['cap', 'Caption']],
     render: (p, col) => {
@@ -211,12 +291,22 @@ export const DIAGRAM_CATALOG = {
     render: (p, col) => {
       const labels = p.labels.split(',').map(s => s.trim())
       const values = p.values.split(',').map(s => parseFloat(s) || 0)
-      const w = 460, h = 240, pad = 36, max = Math.max(...values, 1)
-      const step = (w - pad * 2) / (values.length - 1 || 1)
-      const points = values.map((v, i) => `${pad + i * step},${h - pad - (v / max) * (h - pad * 2)}`).join(' ')
-      const dots = values.map((v, i) => `<circle cx="${pad + i * step}" cy="${h - pad - (v / max) * (h - pad * 2)}" r="4" fill="${col}"/>`).join('')
-      const xlabs = labels.map((l, i) => `<text x="${pad + i * step}" y="${h - pad + 16}" font-family="Lora,serif" font-size="11" text-anchor="middle" fill="#3a2f25">${esc(l)}</text>`).join('')
-      return `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" width="${w}"><line x1="${pad}" y1="${pad}" x2="${pad}" y2="${h - pad}" stroke="#1c1612" stroke-width="1.2"/><line x1="${pad}" y1="${h - pad}" x2="${w - pad}" y2="${h - pad}" stroke="#1c1612" stroke-width="1.2"/><polyline points="${points}" fill="none" stroke="${col}" stroke-width="2.5"/>${dots}${xlabs}</svg>`
+      const w = 460, h = 250, padL = 46, padR = 22, padT = 22, padB = 40
+      const plotW = w - padL - padR, plotH = h - padT - padB, baseY = h - padB
+      const { top, ticks } = niceAxisTicks(Math.max(...values, 1))
+      const yOf = v => baseY - (v / top) * plotH
+      const xStep = plotW / (values.length - 1 || 1)
+      const xOf = i => padL + i * xStep
+      let grid = ''
+      ticks.forEach(t => {
+        const y = yOf(t)
+        if (t !== 0) grid += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${w - padR}" y2="${y.toFixed(1)}" stroke="#e4dccd" stroke-width="1"/>`
+        grid += `<text x="${padL - 6}" y="${(y + 4).toFixed(1)}" font-family="Lora,serif" font-size="11" text-anchor="end" fill="#3a2f25">${t}</text>`
+      })
+      const points = values.map((v, i) => `${xOf(i).toFixed(1)},${yOf(v).toFixed(1)}`).join(' ')
+      const dots = values.map((v, i) => `<circle cx="${xOf(i).toFixed(1)}" cy="${yOf(v).toFixed(1)}" r="4" fill="${col}"/>`).join('')
+      const xlabs = labels.map((l, i) => `<text x="${xOf(i).toFixed(1)}" y="${baseY + 16}" font-family="Lora,serif" font-size="11" text-anchor="middle" fill="#3a2f25">${esc(l)}</text>`).join('')
+      return `<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg" width="${w}">${grid}<line x1="${padL}" y1="${padT}" x2="${padL}" y2="${baseY}" stroke="#1c1612" stroke-width="1.2"/><line x1="${padL}" y1="${baseY}" x2="${w - padR}" y2="${baseY}" stroke="#1c1612" stroke-width="1.2"/><polyline points="${points}" fill="none" stroke="${col}" stroke-width="2.5"/>${dots}${xlabs}</svg>`
     } },
   venn2: { cat: 'Graphs', name: '2-Set Venn', defaults: { a: 'Set A', b: 'Set B', cap: 'Venn diagram' }, fields: [['a', 'Set A'], ['b', 'Set B'], ['cap', 'Caption']],
     render: (p, c) => `<svg viewBox="0 0 360 220" xmlns="http://www.w3.org/2000/svg" width="360"><circle cx="135" cy="110" r="80" fill="${c}" fill-opacity=".22" stroke="${c}" stroke-width="2"/><circle cx="225" cy="110" r="80" fill="${c}" fill-opacity=".22" stroke="${c}" stroke-width="2"/><text x="90" y="115" font-family="Lora,serif" font-size="16" font-weight="700" text-anchor="middle" fill="#1c1612">${esc(p.a)}</text><text x="270" y="115" font-family="Lora,serif" font-size="16" font-weight="700" text-anchor="middle" fill="#1c1612">${esc(p.b)}</text><text x="180" y="115" font-family="Lora,serif" font-size="14" font-weight="600" text-anchor="middle" fill="#1c1612">A∩B</text></svg>` },
