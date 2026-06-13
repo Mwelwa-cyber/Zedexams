@@ -172,6 +172,46 @@ console.log('aiPaperToSections')
   ok('option_images tolerates a brief-text answer as a fallback', true)
 }
 
+// ── Exact library shapes: kind "shape" / "shape_options" ──────────────────
+{
+  // stem shape → question.imageDiagram, no diagramBrief (no generation)
+  const shape = mapAiQuestion({
+    type: 'calculation',
+    prompt: 'Calculate the area of the parallelogram below.',
+    marks: 2,
+    answer: '48 cm²',
+    visual: { kind: 'shape', libraryKey: 'parallelogramh', params: { base: '12 cm', height: '4 cm' } },
+  })
+  assert.strictEqual(shape.overrides.imageDiagram.libraryKey, 'parallelogramh')
+  assert.strictEqual(shape.overrides.imageDiagram.params.base, '12 cm')
+  assert.ok(!shape.overrides.diagramBrief, 'a library shape needs no generation brief')
+  ok('shape maps to an exact stem imageDiagram', true)
+
+  // shape_options → empty text options + per-option diagrams, letter answer
+  const shapeOpts = mapAiQuestion({
+    type: 'multiple_choice',
+    prompt: 'Which of the following shapes is a regular hexagon?',
+    options: [],
+    marks: 1,
+    answer: 'C',
+    visual: {
+      kind: 'shape_options',
+      options: [
+        { libraryKey: 'square' },
+        { libraryKey: 'rhombus' },
+        { libraryKey: 'hexagon' },
+        { libraryKey: 'pentagon' },
+      ],
+    },
+  })
+  assert.strictEqual(shapeOpts.overrides.options.length, 4)
+  assert.ok(shapeOpts.overrides.options.every((o) => o === ''))
+  assert.strictEqual(shapeOpts.overrides.optionMedia[2].diagram.libraryKey, 'hexagon')
+  assert.ok(shapeOpts.overrides.optionMedia[0].alt.length > 0, 'option alt seeded for the alt-text check')
+  assert.strictEqual(shapeOpts.overrides.correctAnswer, 2, 'letter answer C → index 2')
+  ok('shape_options maps to per-option exact diagrams', true)
+}
+
 // ── aiAssessmentToStudioBlocks ────────────────────────────────────────────
 {
   const blocks = aiAssessmentToStudioBlocks({

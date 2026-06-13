@@ -32,6 +32,8 @@ import {
 } from 'docx'
 import { attributionSection } from './docxAttribution.js'
 import { buildPaperLayout } from './assessmentPaperLayout.js'
+import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
+import { svgToPngBytes } from './svgRasterizer.js'
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
 
@@ -429,6 +431,35 @@ async function loadImageRun(url, { width = 360, height = 220 } = {}) {
   return imageRun(decoded.bytes, fitWithin(decoded.width, decoded.height, width, height))
 }
 
+// Read the intrinsic aspect ratio from an SVG's viewBox so the rasterized PNG
+// isn't squashed. Falls back to 4:3.
+function svgAspect(svg) {
+  const m = /viewBox="[\d.]+ [\d.]+ ([\d.]+) ([\d.]+)"/.exec(svg || '')
+  const w = m ? parseFloat(m[1]) : 0
+  const h = m ? parseFloat(m[2]) : 0
+  return w > 0 && h > 0 ? w / h : 4 / 3
+}
+
+// Render a deterministic library diagram ({libraryKey, params}) to an embedded
+// ImageRun by rasterizing its SVG to PNG. Browser-only (canvas); returns null
+// in a DOM-less context (node tests) so the caller falls back to alt text.
+async function diagramImageRun(diagram, { maxWidth = 360, maxHeight = 220 } = {}) {
+  if (!diagram || !diagram.libraryKey) return null
+  const svg = renderDiagramSvg(diagram.libraryKey, diagram.params || {}, '#1c1612')
+  if (!svg) return null
+  const aspect = svgAspect(svg)
+  // Rasterize at ~2× the embed size for a crisp print, fitting the box.
+  let width = maxWidth
+  let height = Math.round(maxWidth / aspect)
+  if (height > maxHeight) { height = maxHeight; width = Math.round(maxHeight * aspect) }
+  try {
+    const bytes = await svgToPngBytes(svg, width * 2, height * 2)
+    return imageRun(bytes, { width, height })
+  } catch {
+    return null
+  }
+}
+
 async function logoParagraph(url, transform = null) {
   if (!url) return null
   // Width applies; offset doesn't translate cleanly to inline Word images,
@@ -631,6 +662,10 @@ async function renderQuestion(b) {
       }
     }
   }
+  if (b.imageDiagram?.libraryKey) {
+    const run = await diagramImageRun(b.imageDiagram, { maxWidth: 360, maxHeight: 240 })
+    if (run) out.push(centeredPara([run]))
+  }
   if (b.tableData) {
     const headers = Array.isArray(b.tableData.headers) ? b.tableData.headers : []
     const rows = Array.isArray(b.tableData.rows) ? b.tableData.rows : []
@@ -671,7 +706,10 @@ async function renderQuestion(b) {
           if (i >= opts.length) break
           const media = b.optionMedia?.[i]
           const cellChildren = []
-          if (media?.imageUrl) {
+          if (media?.diagram?.libraryKey) {
+            const run = await diagramImageRun(media.diagram, { maxWidth: 150, maxHeight: 150 })
+            if (run) cellChildren.push(centeredPara([run]))
+          } else if (media?.imageUrl) {
             const run = await loadImageRun(media.imageUrl, { width: 140, height: 140 })
             if (run) cellChildren.push(centeredPara([run]))
           }
@@ -704,7 +742,13 @@ async function renderQuestion(b) {
         const labelOpts = { bold: true, size: 20, color: isCorrect ? '047857' : undefined }
         const runOpts = { size: 20, color: isCorrect ? '047857' : undefined, bold: isCorrect }
         const runs = [runText(`   ${SECTION_LETTERS[i]}. `, labelOpts)]
-        if (media?.imageUrl) {
+        if (media?.diagram?.libraryKey) {
+          const run = await diagramImageRun(media.diagram, { maxWidth: 60, maxHeight: 60 })
+          if (run) {
+            runs.push(run)
+            runs.push(runText('  ', { size: 20 }))
+          }
+        } else if (media?.imageUrl) {
           const run = await loadImageRun(media.imageUrl, { width: 50, height: 50 })
           if (run) {
             runs.push(run)

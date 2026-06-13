@@ -38,6 +38,10 @@ export function emptyQuestion(overrides = {}) {
     imageUploadStep: '',
     imageAssetId: '',
     diagramText: '',
+    // Exact library figure on the question stem: { libraryKey, params }.
+    // Rendered deterministically via the diagram catalog (DiagramSvg) in the
+    // preview/PDF and rasterised for DOCX. null when the stem has no shape.
+    imageDiagram: null,
     requiresReview: false,
     reviewNotes: [],
     importWarnings: [],
@@ -616,6 +620,9 @@ function hydrateStandaloneQuestion(question = {}) {
     imageUrl: question.imageUrl ?? '',
     imageAssetId: question.imageAssetId ?? '',
     diagramText: question.diagramText ?? '',
+    imageDiagram: question.imageDiagram && question.imageDiagram.libraryKey
+      ? { libraryKey: String(question.imageDiagram.libraryKey), params: question.imageDiagram.params || {} }
+      : null,
     requiresReview: Boolean(question.requiresReview),
     reviewNotes: question.reviewNotes ?? [],
     importWarnings: question.importWarnings ?? [],

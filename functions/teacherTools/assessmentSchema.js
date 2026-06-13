@@ -20,12 +20,24 @@ const ALLOWED_TYPES = new Set([
 // describing a figure the studio generates and renders. The legacy string
 // `diagram` is still honoured (treated as a stem_figure) so older payloads
 // and cached generations are unaffected.
+const {isAllowedShape, clampShapeParams} = require("./assessmentShapes");
+
 const VISUAL_KINDS = new Set([
   "stem_figure",      // one illustrative drawing above the question
   "labelled_figure",  // a figure whose parts are named (labels[])
   "option_images",    // an MCQ whose options A-D are each a drawing
+  "shape",            // an EXACT library figure (maths shape/graph) on the stem
+  "shape_options",    // an MCQ whose options A-D are each a library shape
 ]);
 const VISUAL_MODES = new Set(["labeled", "identify"]);
+
+// Validate one library-shape spec ({libraryKey, params}) against the allowlist.
+function normalizeShape(raw) {
+  if (!raw || typeof raw !== "object" || !isAllowedShape(raw.libraryKey)) {
+    return null;
+  }
+  return {libraryKey: raw.libraryKey, params: clampShapeParams(raw.params)};
+}
 
 function isNonEmptyString(v) {
   return typeof v === "string" && v.trim().length > 0;
@@ -56,6 +68,21 @@ function normalizeVisual(q) {
   }
   const kind = VISUAL_KINDS.has(raw.kind) ? raw.kind : null;
   const prompt = str(raw.prompt, 500) || legacy;
+
+  if (kind === "shape") {
+    // Exact library figure on the stem. Falls back to a drawn stem figure when
+    // the libraryKey isn't on the allowlist but a prompt was given.
+    const shape = normalizeShape(raw);
+    if (shape) return {kind: "shape", ...shape};
+    return prompt ? {kind: "stem_figure", prompt} : null;
+  }
+
+  if (kind === "shape_options") {
+    const options = Array.isArray(raw.options) ?
+      raw.options.map(normalizeShape).filter(Boolean).slice(0, 6) : [];
+    if (options.length >= 2) return {kind: "shape_options", options};
+    return prompt ? {kind: "stem_figure", prompt} : null;
+  }
 
   if (kind === "option_images") {
     const options = Array.isArray(raw.options) ?

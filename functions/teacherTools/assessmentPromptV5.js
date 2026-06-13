@@ -23,6 +23,7 @@
 
 const {learningEnvironmentLabel} = require("./learningEnvironments");
 const {ASSESSMENT_TYPE_LABELS} = require("./assessmentFormats");
+const {shapeLibraryReference} = require("./assessmentShapes");
 
 const PROMPT_VERSION = "assessment.v5";
 
@@ -55,6 +56,13 @@ VISUALS — when a question needs a picture, set its "visual" object (else leave
     • mode "labeled" — the labels are printed on the figure (use for maths figures with dimensions). Example — area of a parallelogram: {kind:"labelled_figure", mode:"labeled", prompt:"a parallelogram with a vertical dashed height line and a right-angle mark at the base", labels:["12 cm","4 cm"]}.
   - "option_images": a multiple-choice question whose four options are pictures. Keep "options" as the plain letters or short labels, set type "multiple_choice", and give one drawing brief per option in "visual.options". Set "answer" to the correct option LETTER (A, B, C or D). Example — "Which equipment measures the correct weight of food?" visual = {kind:"option_images", options:[{prompt:"a plastic wash basin"},{prompt:"a dial kitchen weighing scale"},{prompt:"a serving spoon"},{prompt:"a cooking saucepan"}]}, answer "B".
 - Never describe the figure inside the prompt text — write the question as if the figure is printed beside it ("Study the diagram below.", "The instrument shown below is ...").
+
+EXACT MATHS FIGURES — for Mathematics shapes, measurement, solids, Venn diagrams, number lines, coordinate grids, mappings and bar/pie/line graphs, DO NOT use a drawn picture. Use an EXACT library figure so dimensions and labels are precise:
+- "shape": a library figure on the stem — {kind:"shape", libraryKey:"...", params:{...}}.
+- "shape_options": a picture MCQ whose options are library shapes — type "multiple_choice", {kind:"shape_options", options:[{libraryKey,params}, ...]}, "answer" = the correct LETTER.
+Available libraryKeys (use these exact keys and only the params listed):
+${shapeLibraryReference()}
+Examples — area of a parallelogram: {kind:"shape", libraryKey:"parallelogramh", params:{base:"12 cm", height:"4 cm"}}. Volume of a box: {kind:"shape", libraryKey:"cuboid", params:{l:"10 cm", w:"3 cm", h:"2 cm"}}. "Which shape is a regular hexagon?": {kind:"shape_options", options:[{libraryKey:"square"},{libraryKey:"rhombus"},{libraryKey:"hexagon"},{libraryKey:"pentagon"}]}, answer "C". "How many elements are in A∩B?": {kind:"shape", libraryKey:"vennelements", params:{a:"A", b:"B", onlyA:"1,2,3", both:"4,5", onlyB:"6,7,8", outside:"9"}}.
 
 Hard rules:
 - If a verified curriculum module is provided in context, assess ONLY its outcomes/content — nothing beyond it or from later lessons.
@@ -125,12 +133,14 @@ function buildUserPrompt(inputs) {
     '          "right": [string, ...],     // only for matching: Column B (may hold one extra distractor)',
     '          "pairs": [number, ...],     // only for matching: pairs[i] = 0-based index into right matching left[i]',
     '          "marks": number,',
-    '          "visual": {                 // ONLY when the question needs a picture; else null. Image holds NO text.',
-    '            "kind": "stem_figure"|"labelled_figure"|"option_images",',
-    '            "prompt": string,         // what to draw in clean B&W line art (omit for option_images)',
+    '          "visual": {                 // ONLY when the question needs a picture; else null. Drawn images hold NO text.',
+    '            "kind": "stem_figure"|"labelled_figure"|"option_images"|"shape"|"shape_options",',
+    '            "prompt": string,         // drawn kinds: what to draw in clean B&W line art (omit for option_images/shape/shape_options)',
     '            "labels": [string, ...],  // labelled_figure only: the part names / "X","Y" / "1".."4"',
     '            "mode": "labeled"|"identify",   // labelled_figure only',
-    '            "options": [{"prompt": string}, ...]  // option_images only: one drawing brief per MCQ option',
+    '            "libraryKey": string,     // shape only: an EXACT maths library key (see the list in the instructions)',
+    '            "params": {object},       // shape only: the shape\'s label/value params',
+    '            "options": [ {"prompt": string} | {"libraryKey": string, "params": {object}} ]  // option_images: {prompt} each; shape_options: {libraryKey,params} each',
     "          } | null,",
     '          "answer": string,           // for option_images, the correct option LETTER (A-D)',
     '          "markingGuide": string',

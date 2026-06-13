@@ -12,8 +12,22 @@
  */
 
 import { buildPaperLayout } from './assessmentPaperLayout.js'
+import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
 
 const SECTION_LETTERS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('')
+
+// Render a deterministic library diagram ({libraryKey, params}) to an inline,
+// responsive SVG string. We drop the catalog's fixed width attribute and apply
+// a style so it scales within its print box (browsers print inline SVG crisply
+// — no rasterizing needed). Returns '' for an unknown key.
+function diagramSvgHtml(diagram, style) {
+  if (!diagram || !diagram.libraryKey) return ''
+  const svg = renderDiagramSvg(diagram.libraryKey, diagram.params || {}, '#1c1612')
+  if (!svg) return ''
+  return svg
+    .replace(/ width="\d+"/, '')
+    .replace(/<svg /, `<svg preserveAspectRatio="xMidYMid meet" style="${style}" `)
+}
 
 function escapeHtml(s) {
   return String(s ?? '')
@@ -636,6 +650,9 @@ function renderQuestion(b) {
       body += `<ol class="identify-list">${blanks}</ol>`
     }
   }
+  if (b.imageDiagram?.libraryKey) {
+    body += `<div style="margin:6pt 0;text-align:center">${diagramSvgHtml(b.imageDiagram, 'width:100%;max-width:320pt;height:auto')}</div>`
+  }
   if (b.tableData) {
     body += renderDataTable(b.tableData)
   }
@@ -705,9 +722,11 @@ function renderOptionsHtml(b) {
     return `<div class="options-image">
       ${opts.map((opt, i) => {
         const media = b.optionMedia?.[i]
-        const img = media?.imageUrl
-          ? `<img src="${escapeHtml(media.imageUrl)}" alt="${escapeHtml(media.alt || '')}">`
-          : '<span style="font-size:24pt;">?</span>'
+        const img = media?.diagram?.libraryKey
+          ? diagramSvgHtml(media.diagram, 'max-width:100%;max-height:110pt;width:auto;height:auto')
+          : media?.imageUrl
+            ? `<img src="${escapeHtml(media.imageUrl)}" alt="${escapeHtml(media.alt || '')}">`
+            : '<span style="font-size:24pt;">?</span>'
         const correctMark = (b.showAnswer && correct === i) ? ' <span class="correct-mark">✓</span>' : ''
         const labelInner = optsPlain[i] || opt
           ? ` <span class="opt-rich">${optHtml(i)}</span>`
@@ -723,9 +742,11 @@ function renderOptionsHtml(b) {
     return `<div class="options-mixed">
       ${opts.map((opt, i) => {
         const media = b.optionMedia?.[i]
-        const img = media?.imageUrl
-          ? `<img class="img" src="${escapeHtml(media.imageUrl)}" alt="${escapeHtml(media.alt || '')}">`
-          : '<span class="img" style="display:inline-block;width:40pt;height:40pt;"></span>'
+        const img = media?.diagram?.libraryKey
+          ? `<span class="img" style="display:inline-block;width:40pt;height:auto;vertical-align:middle">${diagramSvgHtml(media.diagram, 'width:40pt;height:auto')}</span>`
+          : media?.imageUrl
+            ? `<img class="img" src="${escapeHtml(media.imageUrl)}" alt="${escapeHtml(media.alt || '')}">`
+            : '<span class="img" style="display:inline-block;width:40pt;height:40pt;"></span>'
         const correctMark = (b.showAnswer && correct === i) ? ' <span class="correct-mark">✓</span>' : ''
         return `<div class="item">
           <span class="letter">${SECTION_LETTERS[i]}.</span>

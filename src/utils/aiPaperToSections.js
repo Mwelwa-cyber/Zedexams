@@ -132,6 +132,28 @@ export function mapAiQuestion(q, { partId = null } = {}) {
       overrides.correctAnswer = answer
       reviewNotes.push('AI matching columns were incomplete — rebuild the pairs or reword as short answer.')
     }
+  } else if (type === 'mcq' && visual?.kind === 'shape_options' &&
+    Array.isArray(visual.options) &&
+    visual.options.filter((o) => o && o.libraryKey).length >= 2) {
+    // Picture MCQ whose options are EXACT library shapes — no generation, they
+    // render straight from {libraryKey, params}. Text options stay empty so the
+    // layout builder picks the image grid.
+    const shapes = visual.options.filter((o) => o && o.libraryKey).slice(0, 6)
+    const n = shapes.length
+    overrides.options = Array.from({ length: n }, () => '')
+    overrides.optionMedia = shapes.map((s) => ({
+      diagram: { libraryKey: s.libraryKey, params: s.params || {} },
+      // alt from the shape's caption (or key) so the pre-publish alt-text check
+      // passes without extra typing.
+      alt: String((s.params && s.params.cap) || s.libraryKey),
+    }))
+    const idx = matchAnswerIndex(answer, LETTERS.slice(0, n))
+    overrides.correctAnswer = idx >= 0 ? idx : 0
+    if (idx < 0) {
+      reviewNotes.push(answer ?
+        `AI answer "${answer.slice(0, 80)}" did not match a shape option — set the correct one.` :
+        'AI did not mark the correct shape option.')
+    }
   } else if (type === 'mcq' && visual?.kind === 'option_images' &&
     Array.isArray(visual.options) && visual.options.length >= 2) {
     // Picture-based MCQ: each option A-D is a drawing. The text options stay
@@ -187,11 +209,14 @@ export function mapAiQuestion(q, { partId = null } = {}) {
     if (!answer) reviewNotes.push('AI did not give a model answer.')
   }
 
-  // Stem / labelled figures (NOT option_images, handled above). Carried as a
-  // first-class diagramBrief so the auto-generator + DiagramFixupPanel can
-  // find the question and generate/attach the figure; the review note is the
-  // human-readable fallback on the question card.
-  if (visual && visual.kind !== 'option_images') {
+  // Stem visuals (option_images / shape_options were handled in the MCQ branch).
+  if (visual && visual.kind === 'shape' && visual.libraryKey) {
+    // Exact library figure on the stem — renders straight away, no generation.
+    overrides.imageDiagram = { libraryKey: visual.libraryKey, params: visual.params || {} }
+  } else if (visual && (visual.kind === 'stem_figure' || visual.kind === 'labelled_figure')) {
+    // Drawn figures carry a first-class diagramBrief so the auto-generator +
+    // DiagramFixupPanel can find the question and generate/attach the figure;
+    // the review note is the human-readable fallback on the question card.
     const brief = String(visual.prompt || '').trim()
     if (brief) {
       overrides.diagramBrief = brief

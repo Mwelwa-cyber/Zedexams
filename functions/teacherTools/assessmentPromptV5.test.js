@@ -34,6 +34,10 @@ console.log("assessmentPromptV5");
     SYSTEM_PROMPT.includes("option_images"));
   ok("system prompt forbids text inside the image",
     SYSTEM_PROMPT.includes("NEVER CONTAINS TEXT"));
+  ok("system prompt documents the exact maths-shape kinds + library",
+    SYSTEM_PROMPT.includes("EXACT MATHS FIGURES") &&
+    SYSTEM_PROMPT.includes("shape_options") &&
+    SYSTEM_PROMPT.includes("parallelogramh"));
   ok("system prompt demands ORIGINAL comprehension passages",
     SYSTEM_PROMPT.includes("ORIGINAL short passage") &&
     SYSTEM_PROMPT.includes("NEVER copy"));
@@ -197,6 +201,48 @@ function goodAssessment(sectionExtra = {}, questionExtra = {}) {
   }));
   assert.ok(clampLabels.value.sections[0].questions[0].visual.labels.length <= 8);
   ok("labelled_figure clamps to 8 labels", true);
+}
+
+// ── Exact library shapes (v1.4): kind "shape" / "shape_options" ───────────
+{
+  const shape = validateAssessment(goodAssessment({}, {
+    visual: {kind: "shape", libraryKey: "parallelogramh", params: {base: "12 cm", height: "4 cm"}},
+  }));
+  const sv = shape.value.sections[0].questions[0].visual;
+  ok("shape keeps an allowlisted libraryKey + params",
+    sv.kind === "shape" && sv.libraryKey === "parallelogramh" && sv.params.base === "12 cm");
+
+  const shapeOpts = validateAssessment(goodAssessment({}, {
+    type: "multiple_choice", options: ["A", "B", "C", "D"], answer: "C",
+    visual: {kind: "shape_options", options: [
+      {libraryKey: "square"}, {libraryKey: "rhombus"},
+      {libraryKey: "hexagon"}, {libraryKey: "pentagon"},
+    ]},
+  }));
+  const sov = shapeOpts.value.sections[0].questions[0].visual;
+  ok("shape_options keeps the four allowlisted shapes",
+    sov.kind === "shape_options" && sov.options.length === 4 &&
+    sov.options[2].libraryKey === "hexagon");
+
+  // A libraryKey that isn't on the allowlist degrades (to a stem figure if a
+  // prompt is present, else null).
+  const bogus = validateAssessment(goodAssessment({}, {
+    visual: {kind: "shape", libraryKey: "death_star", prompt: "a drawn fallback"},
+  }));
+  ok("a non-allowlisted shape key degrades (here to stem_figure)",
+    bogus.value.sections[0].questions[0].visual.kind === "stem_figure");
+
+  const bogusNoPrompt = validateAssessment(goodAssessment({}, {
+    visual: {kind: "shape", libraryKey: "death_star"},
+  }));
+  ok("a non-allowlisted shape with no prompt coerces to null",
+    bogusNoPrompt.value.sections[0].questions[0].visual === null);
+
+  const tooFewShapes = validateAssessment(goodAssessment({}, {
+    visual: {kind: "shape_options", prompt: "drawn fallback", options: [{libraryKey: "square"}]},
+  }));
+  ok("shape_options with <2 valid shapes falls back",
+    tooFewShapes.value.sections[0].questions[0].visual.kind === "stem_figure");
 }
 
 // ── Diagram field (unchanged — regression coverage) ───────────────────────
