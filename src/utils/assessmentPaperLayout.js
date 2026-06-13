@@ -12,6 +12,7 @@
 
 import { richTextToPlainText } from './quizRichText.js'
 import { richTextToPaperHtml } from '../editor/utils/safeRender.js'
+import { analyzeTiming } from './assessmentTiming.js'
 
 export const ASSESSMENT_TYPE_LABELS = {
   weekly: 'Weekly Test',
@@ -239,6 +240,16 @@ export function computeSmartWarnings(assessment, questions = []) {
   }
   if (missingAltQs > 0) {
     warnings.push({ key: 'option-alt', severity: 'warn', message: `${missingAltQs} question${missingAltQs === 1 ? ' has an' : 's have'} image option${missingAltQs === 1 ? '' : 's'} missing alt text — add a description so it can be saved.` })
+  }
+  // Timing budget: compare the estimated completion time to the duration set
+  // on the paper. Only fires when a duration is set and questions exist.
+  if (questions.length > 0) {
+    const timing = analyzeTiming(assessment, questions)
+    if (timing.verdict === 'over') {
+      warnings.push({ key: 'timing-over', severity: 'warn', message: `Estimated ~${timing.estimatedMinutes} min to complete, but the paper allows ${timing.duration} min — it may be too long.` })
+    } else if (timing.verdict === 'under') {
+      warnings.push({ key: 'timing-under', severity: 'info', message: `Estimated ~${timing.estimatedMinutes} min — well under the ${timing.duration} min allowed; there's room for more.` })
+    }
   }
   return warnings
 }

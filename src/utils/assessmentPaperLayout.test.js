@@ -64,6 +64,25 @@ console.log('\ncomputeSmartWarnings — option image missing alt')
   assert(!keys(ws).includes('option-alt'), 'does not flag an image option that has alt text')
 }
 
+console.log('\ncomputeSmartWarnings — timing budget')
+{
+  // Five 6-mark essays in a 20-minute slot is far too long.
+  const longPaper = Array.from({ length: 5 }, (_, i) => ({ type: 'essay', marks: 6, text: `Essay ${i}` }))
+  const ws = computeSmartWarnings({ ...baseAssessment, duration: 20 }, longPaper)
+  assert(keys(ws).includes('timing-over'), 'flags a paper that overruns its duration')
+  assert(!keys(ws).includes('timing-under'), 'does not also flag under')
+}
+{
+  // One short MCQ in a 60-minute slot leaves lots of spare time.
+  const ws = computeSmartWarnings({ ...baseAssessment, duration: 60 }, [{ type: 'mcq', marks: 1, options: ['A', 'B', 'C', 'D'], correctAnswer: 0 }])
+  assert(keys(ws).includes('timing-under'), 'flags a paper well under its duration')
+}
+{
+  // No duration set → no timing warning either way.
+  const ws = computeSmartWarnings(baseAssessment, [{ type: 'essay', marks: 6, text: 'x' }])
+  assert(!keys(ws).some(k => k.startsWith('timing-')), 'no duration → no timing warning')
+}
+
 console.log('\nbuildPaperLayout — imageAlt threads onto blocks')
 {
   const blocks = buildPaperLayout(
