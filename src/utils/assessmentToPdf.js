@@ -736,7 +736,17 @@ function renderOptionsHtml(b) {
     </div>`
   }
   const long = opts.some((_, i) => optLength(i) > 18)
-  return `<div class="options-text ${long ? 'stacked' : ''}">
+  // Paper-level layout wins when set: vertical => one option per line,
+  // horizontal => an N-column row. Otherwise fall back to auto-stacking
+  // long options.
+  let textCls = long ? 'stacked' : ''
+  let textStyle = ''
+  if (b.mcqLayout === 'vertical') textCls = 'stacked'
+  else if (b.mcqLayout === 'horizontal') {
+    textCls = ''
+    textStyle = ` style="grid-template-columns: repeat(${Math.max(1, opts.length)}, minmax(0, 1fr));"`
+  }
+  return `<div class="options-text ${textCls}"${textStyle}>
     ${opts.map((opt, i) => {
       const correctMark = (b.showAnswer && correct === i) ? ' <span class="correct-mark">✓</span>' : ''
       return `<div><span class="letter">${SECTION_LETTERS[i]}.</span> <span class="opt-rich">${optHtml(i)}</span>${correctMark}</div>`

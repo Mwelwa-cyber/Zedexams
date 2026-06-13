@@ -715,6 +715,18 @@ async function renderQuestion(b) {
         if (isCorrect) runs.push(runText(' ✓', { bold: true, color: '047857', size: 20 }))
         out.push(para(runs))
       }
+    } else if (b.mcqLayout === 'horizontal') {
+      // All options on one line, e.g. "A. red    B. blue    C. green".
+      const runs = []
+      ;(b.options || []).forEach((opt, i) => {
+        const isCorrect = b.showAnswer && Number(b.correctAnswer) === i
+        const labelOpts = { bold: true, size: 20, color: isCorrect ? '047857' : undefined }
+        const runOpts = { size: 20, color: isCorrect ? '047857' : undefined, bold: isCorrect }
+        runs.push(runText(`${i === 0 ? '   ' : '      '}${SECTION_LETTERS[i]}. `, labelOpts))
+        runs.push(...optionRuns(optsHtml[i], runOpts, optsPlain[i] ?? opt ?? ''))
+        if (isCorrect) runs.push(runText(' ✓', { bold: true, color: '047857', size: 20 }))
+      })
+      out.push(new Paragraph({ children: runs, spacing: { after: 40 } }))
     } else {
       ;(b.options || []).forEach((opt, i) => {
         const isCorrect = b.showAnswer && Number(b.correctAnswer) === i
