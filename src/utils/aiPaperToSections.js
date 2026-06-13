@@ -40,6 +40,39 @@ export function matchAnswerIndex(answer, options) {
   return -1
 }
 
+/**
+ * Read a question's structured visual spec, falling back to the legacy
+ * `diagram` string (a bare stem figure). The server schema already normalises
+ * this, but the converter is also fed hand-built payloads in tests, so we
+ * normalise here too.
+ */
+function readVisual(q) {
+  const v = q?.visual
+  if (v && typeof v === 'object' && v.kind) return v
+  const legacy = String(q?.diagram || '').trim()
+  return legacy ? { kind: 'stem_figure', prompt: legacy } : null
+}
+
+/**
+ * Default placement for a labelled figure's labels: spread evenly down the
+ * right edge. The teacher drags them onto the right spots once the generated
+ * figure is in (x/y are 0..1 ratios of the image, matching diagramLabels).
+ * Deterministic (index-based ids) so the converter stays node-testable.
+ */
+function defaultDiagramLabels(labels) {
+  const arr = (Array.isArray(labels) ? labels : [])
+    .map((s) => String(s ?? '').trim())
+    .filter(Boolean)
+    .slice(0, 8)
+  const n = arr.length
+  return arr.map((text, i) => ({
+    id: `lbl-${i}`,
+    x: 0.82,
+    y: n > 1 ? 0.12 + (0.76 * i) / (n - 1) : 0.5,
+    text,
+  }))
+}
+
 function mapType(aiType) {
   switch (aiType) {
     case 'multiple_choice': return 'mcq'
@@ -69,6 +102,7 @@ export function mapAiQuestion(q, { partId = null } = {}) {
   const answer = String(q?.answer || '').trim()
   const explanation = String(q?.markingGuide || '').trim()
   const reviewNotes = []
+  const visual = readVisual(q)
 
   const overrides = {
     type,
@@ -98,6 +132,60 @@ export function mapAiQuestion(q, { partId = null } = {}) {
       overrides.correctAnswer = answer
       reviewNotes.push('AI matching columns were incomplete — rebuild the pairs or reword as short answer.')
     }
+  } else if (type === 'mcq' && visual?.kind === 'shape_options' &&
+    Array.isArray(visual.options) &&
+    visual.options.filter((o) => o && o.libraryKey).length >= 2) {
+    // Picture MCQ whose options are EXACT library shapes — no generation, they
+    // render straight from {libraryKey, params}. Text options stay empty so the
+    // layout builder picks the image grid.
+    const shapes = visual.options.filter((o) => o && o.libraryKey).slice(0, 6)
+    const n = shapes.length
+    overrides.options = Array.from({ length: n }, () => '')
+    overrides.optionMedia = shapes.map((s) => ({
+      diagram: { libraryKey: s.libraryKey, params: s.params || {} },
+      // alt from the shape's caption (or key) so the pre-publish alt-text check
+      // passes without extra typing.
+      alt: String((s.params && s.params.cap) || s.libraryKey),
+    }))
+    const idx = matchAnswerIndex(answer, LETTERS.slice(0, n))
+    overrides.correctAnswer = idx >= 0 ? idx : 0
+    if (idx < 0) {
+      reviewNotes.push(answer ?
+        `AI answer "${answer.slice(0, 80)}" did not match a shape option — set the correct one.` :
+        'AI did not mark the correct shape option.')
+    }
+  } else if (type === 'mcq' && visual?.kind === 'option_images' &&
+    Array.isArray(visual.options) && visual.options.length >= 2) {
+    // Picture-based MCQ: each option A-D is a drawing. The text options stay
+    // empty (the picture IS the option) so the layout builder renders the
+    // image grid; the per-option drawing briefs ride on optionMedia until the
+    // auto-generator fills imageUrl.
+    const briefs = visual.options
+      .map((o) => String(o?.prompt ?? o ?? '').trim())
+      .filter(Boolean)
+      .slice(0, 6)
+    const n = briefs.length
+    overrides.options = Array.from({ length: n }, () => '')
+    // alt seeded from the brief so the generated picture options satisfy the
+    // pre-publish alt-text check without extra typing; diagramBrief drives
+    // generation and is cleared once the image lands.
+    overrides.optionMedia = briefs.map((brief) => ({
+      imageUrl: '', alt: brief.slice(0, 120), diagramBrief: brief,
+    }))
+    // Resolve the correct option. Match against the briefs first: that path
+    // already handles both an exact brief-text answer AND a bare option letter
+    // (via matchAnswerIndex's letter regex), and crucially avoids mis-reading
+    // a phrase like "a metal saucepan" as option "A". Letters are a last
+    // resort for the empty-brief edge.
+    let idx = matchAnswerIndex(answer, briefs)
+    if (idx < 0) idx = matchAnswerIndex(answer, LETTERS.slice(0, n))
+    overrides.correctAnswer = idx >= 0 ? idx : 0
+    if (idx < 0) {
+      reviewNotes.push(answer ?
+        `AI answer "${answer.slice(0, 80)}" did not match a picture option — set the correct one.` :
+        'AI did not mark the correct picture option.')
+    }
+    reviewNotes.push(`Picture options needed (${n}) — generate them from the briefs or attach from the picture bank.`)
   } else if (type === 'mcq') {
     const options = aiType === 'true_false' && !(Array.isArray(q?.options) && q.options.length >= 2) ?
       ['True', 'False'] :
@@ -121,13 +209,24 @@ export function mapAiQuestion(q, { partId = null } = {}) {
     if (!answer) reviewNotes.push('AI did not give a model answer.')
   }
 
-  const diagram = String(q?.diagram || '').trim()
-  if (diagram) {
-    // Carried as a first-class field so the DiagramFixupPanel can find the
-    // question and auto-match/generate the figure; the review note is the
-    // human-readable fallback on the question card.
-    overrides.diagramBrief = diagram
-    reviewNotes.push(`Diagram needed: ${diagram} — attach it from the picture bank or generate one.`)
+  // Stem visuals (option_images / shape_options were handled in the MCQ branch).
+  if (visual && visual.kind === 'shape' && visual.libraryKey) {
+    // Exact library figure on the stem — renders straight away, no generation.
+    overrides.imageDiagram = { libraryKey: visual.libraryKey, params: visual.params || {} }
+  } else if (visual && (visual.kind === 'stem_figure' || visual.kind === 'labelled_figure')) {
+    // Drawn figures carry a first-class diagramBrief so the auto-generator +
+    // DiagramFixupPanel can find the question and generate/attach the figure;
+    // the review note is the human-readable fallback on the question card.
+    const brief = String(visual.prompt || '').trim()
+    if (brief) {
+      overrides.diagramBrief = brief
+      if (visual.kind === 'labelled_figure') {
+        overrides.diagramMode = visual.mode === 'identify' ? 'identify' : 'labeled'
+        const labels = defaultDiagramLabels(visual.labels)
+        if (labels.length) overrides.diagramLabels = labels
+      }
+      reviewNotes.push(`Diagram needed: ${brief} — attach it from the picture bank or generate one.`)
+    }
   }
 
   if (reviewNotes.length > 0) {

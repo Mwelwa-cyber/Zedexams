@@ -4,7 +4,7 @@
  * key. Heavier than a worksheet (marks, marking guide per question).
  */
 
-const SCHEMA_VERSION = "1.3";
+const SCHEMA_VERSION = "1.4";
 
 const ALLOWED_TYPES = new Set([
   "multiple_choice",
@@ -15,6 +15,29 @@ const ALLOWED_TYPES = new Set([
   "essay",
   "matching",
 ]);
+
+// Visual question support (v1.4). A question may carry a structured `visual`
+// describing a figure the studio generates and renders. The legacy string
+// `diagram` is still honoured (treated as a stem_figure) so older payloads
+// and cached generations are unaffected.
+const {isAllowedShape, clampShapeParams} = require("./assessmentShapes");
+
+const VISUAL_KINDS = new Set([
+  "stem_figure",      // one illustrative drawing above the question
+  "labelled_figure",  // a figure whose parts are named (labels[])
+  "option_images",    // an MCQ whose options A-D are each a drawing
+  "shape",            // an EXACT library figure (maths shape/graph) on the stem
+  "shape_options",    // an MCQ whose options A-D are each a library shape
+]);
+const VISUAL_MODES = new Set(["labeled", "identify"]);
+
+// Validate one library-shape spec ({libraryKey, params}) against the allowlist.
+function normalizeShape(raw) {
+  if (!raw || typeof raw !== "object" || !isAllowedShape(raw.libraryKey)) {
+    return null;
+  }
+  return {libraryKey: raw.libraryKey, params: clampShapeParams(raw.params)};
+}
 
 function isNonEmptyString(v) {
   return typeof v === "string" && v.trim().length > 0;
@@ -27,6 +50,71 @@ function isPositiveNumber(v) {
 }
 function isNonNegativeNumber(v) {
   return typeof v === "number" && Number.isFinite(v) && v >= 0;
+}
+
+// Normalise a question's visual spec. Prefers the structured `visual`, falls
+// back to the legacy `diagram` string (a bare stem figure). Always degrades
+// gracefully — a malformed visual becomes null rather than throwing. Returns
+// one of:
+//   { kind: "stem_figure", prompt }
+//   { kind: "labelled_figure", prompt, labels[], mode }
+//   { kind: "option_images", prompt, options: [{prompt}] }
+//   null
+function normalizeVisual(q) {
+  const raw = q && typeof q.visual === "object" && q.visual ? q.visual : null;
+  const legacy = str(q && q.diagram, 500);
+  if (!raw) {
+    return legacy ? {kind: "stem_figure", prompt: legacy} : null;
+  }
+  const kind = VISUAL_KINDS.has(raw.kind) ? raw.kind : null;
+  const prompt = str(raw.prompt, 500) || legacy;
+
+  if (kind === "shape") {
+    // Exact library figure on the stem. Falls back to a drawn stem figure when
+    // the libraryKey isn't on the allowlist but a prompt was given.
+    const shape = normalizeShape(raw);
+    if (shape) return {kind: "shape", ...shape};
+    return prompt ? {kind: "stem_figure", prompt} : null;
+  }
+
+  if (kind === "shape_options") {
+    const options = Array.isArray(raw.options) ?
+      raw.options.map(normalizeShape).filter(Boolean).slice(0, 6) : [];
+    if (options.length >= 2) return {kind: "shape_options", options};
+    return prompt ? {kind: "stem_figure", prompt} : null;
+  }
+
+  if (kind === "option_images") {
+    const options = Array.isArray(raw.options) ?
+      raw.options
+          .map((o) => (o && typeof o === "object" ?
+            str(o.prompt, 400) : str(o, 400)))
+          .filter(Boolean)
+          .slice(0, 6) : [];
+    // Need at least two pictured options to be a picture-MCQ; otherwise fall
+    // back to a stem figure if there's a usable prompt.
+    if (options.length < 2) {
+      return prompt ? {kind: "stem_figure", prompt} : null;
+    }
+    return {
+      kind: "option_images",
+      prompt,
+      options: options.map((p) => ({prompt: p})),
+    };
+  }
+
+  if (!prompt) return null;
+
+  if (kind === "labelled_figure") {
+    const labels = Array.isArray(raw.labels) ?
+      raw.labels.filter(isNonEmptyString)
+          .map((v) => str(v, 80)).slice(0, 8) : [];
+    const mode = VISUAL_MODES.has(raw.mode) ? raw.mode : "labeled";
+    return {kind: "labelled_figure", prompt, labels, mode};
+  }
+
+  // stem_figure, or an unknown kind that still carries a drawable prompt.
+  return {kind: "stem_figure", prompt};
 }
 
 function validateAssessment(input) {
@@ -111,8 +199,13 @@ function validateAssessment(input) {
                     marks,
                     // Optional brief of a figure the teacher should attach
                     // (v1.1). Coerces to null for absent/garbage values so
-                    // old payloads and clients are unaffected.
+                    // old payloads and clients are unaffected. Kept alongside
+                    // `visual` for backward compatibility.
                     diagram: str(q.diagram, 500) || null,
+                    // Structured figure spec (v1.4): stem_figure /
+                    // labelled_figure / option_images, or null. The studio
+                    // generates the actual image(s) from this.
+                    visual: normalizeVisual(q),
                     answer: str(q.answer, 2000),
                     markingGuide: str(q.markingGuide, 2000),
                   };
