@@ -895,6 +895,8 @@ function HomeView({
 
       <ExamPaperLibraryPanel
         samples={examPaperSamples}
+        profiles={formatProfiles}
+        drafts={formatDrafts}
         onAnalyzeBatch={onAnalyzeExamPapers}
         onDelete={onDeleteExamPaperSample}
         onSynthesize={onSynthesizeFormat}
@@ -1068,6 +1070,36 @@ const FORMAT_BAND_LABELS = Object.fromEntries(
   ASSESSMENT_FORMAT_BANDS.map((b) => [b.value, b.label]),
 )
 
+// Where a profile's house style came from. Surfaced as a badge on each card
+// so an admin can tell at a glance whether the generator is grounded on a
+// hand-written profile, the built-in seed corpus, a one-off extracted sample,
+// or — the green one — a profile distilled from real uploaded papers in the
+// Exam Paper Library. `origin` is set server-side (assessmentFormats.js) and
+// survives draft approval (saveAssessmentFormat).
+const FORMAT_ORIGIN_BADGES = {
+  builtin_seed: { label: 'Built-in seed', bg: '#eef2f7', fg: '#475569' },
+  manual: { label: 'Manual', bg: '#eef2f7', fg: '#475569' },
+  pdf_extract: { label: 'From sample paper', bg: '#fef6e7', fg: '#92600a' },
+  docx_extract: { label: 'From sample paper', bg: '#fef6e7', fg: '#92600a' },
+  library_synthesis: { label: '✦ From paper library', bg: '#e7f6ee', fg: '#13683b' },
+}
+
+function FormatOriginBadge({ origin, sourceNote }) {
+  const meta = FORMAT_ORIGIN_BADGES[origin] || FORMAT_ORIGIN_BADGES.manual
+  return (
+    <span
+      title={sourceNote || undefined}
+      style={{
+        display: 'inline-block', fontSize: 11, fontWeight: 600,
+        padding: '1px 8px', borderRadius: 999,
+        background: meta.bg, color: meta.fg,
+      }}
+    >
+      {meta.label}
+    </span>
+  )
+}
+
 function AssessmentFormatsPanel({
   profiles, onAdd, onEdit, onDelete, onImport,
   drafts, onExtract, onReviewDraft, onRejectDraft,
@@ -1166,12 +1198,17 @@ function AssessmentFormatsPanel({
                 </div>
                 <div className="ss-custom-card-title">{d.label || '(untitled draft)'}</div>
                 <div className="ss-custom-card-subs">
-                  Extracted from {d.sourceNote || d.sourceKind || 'a sample paper'}.
+                  {d.origin === 'library_synthesis' ?
+                    `Synthesised from ${d.synthesizedFromCount || (d.synthesizedFromIds || []).length || 'several'} real papers.` :
+                    `Extracted from ${d.sourceNote || d.sourceKind || 'a sample paper'}.`}
                   {Array.isArray(d.validationErrors) && d.validationErrors.length > 0 && (
                     <span style={{ color: '#b91c1c' }}>
                       {' '}Needs fixes: {d.validationErrors.join('; ')}
                     </span>
                   )}
+                </div>
+                <div style={{ marginTop: 4 }}>
+                  <FormatOriginBadge origin={d.origin} />
                 </div>
                 <div className="ss-custom-card-actions">
                   <button
@@ -1220,6 +1257,9 @@ function AssessmentFormatsPanel({
                   <div className="ss-custom-card-title">{p.label}</div>
                   <div className="ss-custom-card-subs">
                     {(p.paperStructure || []).map((s) => s.name).filter(Boolean).join(' · ')}
+                  </div>
+                  <div style={{ marginTop: 4 }}>
+                    <FormatOriginBadge origin={p.origin} sourceNote={p.sourceNote} />
                   </div>
                   <div className="ss-custom-card-actions">
                     <button
