@@ -75,8 +75,8 @@ import {
 } from '../quiz/documentQuizImporter'
 import { LIBRARY_TYPES } from '../../config/library'
 import { classifyForLibrary } from '../../utils/libraryClassification'
-import { printAssessmentAsPdf } from '../../utils/assessmentToPdf'
-import { downloadAssessmentDocx } from '../../utils/assessmentToDocx'
+import { printAssessmentAsPdf, printAnswerSheetAsPdf } from '../../utils/assessmentToPdf'
+import { downloadAssessmentDocx, downloadAnswerSheetDocx } from '../../utils/assessmentToDocx'
 import { buildPaperLayout, computeSmartWarnings } from '../../utils/assessmentPaperLayout'
 import { SUBJECTS as CBC_SUBJECTS, COMPETENCIES } from '../../config/curriculum'
 
@@ -1392,6 +1392,18 @@ export default function AssessmentStudio() {
     setExporting(true)
     try {
       const baseFile = (assessmentDoc.title || 'assessment').replace(/[^a-z0-9-]+/gi, '-').toLowerCase()
+      // Standalone answer sheet (bubble grid) — its own builder, not the
+      // full-paper layout.
+      if (mode === 'answersheet') {
+        if (kind === 'pdf') {
+          printAnswerSheetAsPdf(assessmentDoc, serializedPreview.questions)
+          showToast('Answer sheet PDF opened.')
+        } else if (kind === 'docx') {
+          await downloadAnswerSheetDocx(assessmentDoc, serializedPreview.questions, `${baseFile}-answer-sheet.docx`, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+          showToast('Answer sheet download started.')
+        }
+        return
+      }
       const fileSuffix = mode === 'scheme' ? '-marking-key' : ''
       if (kind === 'pdf') {
         printAssessmentAsPdf(assessmentDoc, serializedPreview.questions, { mode })
@@ -1661,6 +1673,7 @@ export default function AssessmentStudio() {
           assessment={assessmentDoc}
           changeView={changeView}
           onExport={(kind) => handleExport(kind, 'paper')}
+          onExportAnswerSheet={(kind) => handleExport(kind, 'answersheet')}
           onSave={handleSave}
           saving={saving}
           exporting={exporting}
@@ -4552,7 +4565,7 @@ function FooterBlock({ form, setF, footerCode }) {
  * matches the PDF and DOCX exports pixel-for-pixel. The `mode` prop
  * switches between the printable paper and the marking key.
  * ================================================================== */
-function PaperRenderView({ mode, blocks, assessment, changeView, onExport, onSave, saving, exporting, showSave }) {
+function PaperRenderView({ mode, blocks, assessment, changeView, onExport, onExportAnswerSheet, onSave, saving, exporting, showSave }) {
   const isKey = mode === 'scheme'
   return (
     <section className="sv-view">
@@ -4578,6 +4591,16 @@ function PaperRenderView({ mode, blocks, assessment, changeView, onExport, onSav
           <button className="sv-btn sv-btn-outline" onClick={() => onExport('print')}>
             🖨 Print
           </button>
+          {onExportAnswerSheet && (
+            <button
+              className="sv-btn sv-btn-outline"
+              onClick={() => onExportAnswerSheet('pdf')}
+              disabled={exporting}
+              title="A bubble answer sheet (PDF) students fill in instead of writing on the paper"
+            >
+              🫧 Answer sheet
+            </button>
+          )}
           {showSave && (
             <button className="sv-btn sv-btn-primary" onClick={onSave} disabled={saving} style={{ marginLeft: 'auto' }}>
               {saving ? 'Saving…' : `💾 Save · ${assessment.totalMarks || 0} marks`}
