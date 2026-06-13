@@ -605,9 +605,11 @@ service cloud.firestore {
     // library.
     match /assessmentDrafts/{uid} {
       allow read, delete: if isAuthed() && isOwner(uid);
-      // Reject an oversized draft server-side too (not only via the client's
-      // REMOTE_MAX_CHARS guard). Firestore's hard document limit is 1 MiB
-      // (1,048,576 bytes); we cap the single JSON 'data' string below it.
+      // Server-side backstop for the client's REMOTE_MAX_CHARS guard. We cap
+      // the JSON 'data' string at < 1,000,000 chars — deliberately under
+      // Firestore's 1 MiB (1,048,576-byte) hard document limit, leaving
+      // headroom for the savedAt/updatedAt metadata and any multi-byte chars
+      // (.size() counts characters, the limit is in bytes).
       allow write: if isAuthed() && isOwner(uid)
         && (!('data' in incoming()) || (incoming().data is string && incoming().data.size() < 1000000));
     }

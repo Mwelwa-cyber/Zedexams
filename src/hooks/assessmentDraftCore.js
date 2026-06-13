@@ -8,9 +8,11 @@
 
 export const DRAFT_TTL = 7 * 24 * 60 * 60 * 1000 // 7 days
 export const KEY_PREFIX = 'examprep:assessmentstudio:draft:'
-// Firestore caps a document at 1 MiB (1,048,576 bytes). We stay well under it;
-// a draft bigger than this (huge image-heavy paper) simply isn't mirrored
-// remotely — localStorage still holds it on this device.
+// Primary (client-side) cap on the mirrored draft. Kept at 900 KB —
+// comfortably under Firestore's 1 MiB (1,048,576-byte) document limit, leaving
+// headroom for the JSON wrapper + metadata; the rules enforce a looser
+// server-side backstop. A draft bigger than this (huge image-heavy paper)
+// simply isn't mirrored remotely — localStorage still holds it on this device.
 export const REMOTE_MAX_CHARS = 900 * 1024
 
 export function draftKey(userId) {
