@@ -1312,6 +1312,35 @@
   box-shadow: 0 0 0 3px rgba(139,38,53,0.10);
 }
 
+/* Read-only view shown in the card when a question carries formatting that a
+   plain textarea would flatten. The teacher edits it in the detailed editor. */
+.studio-v2 .sv-q-text-formatted {
+  width: 100%;
+  border: 1px dashed var(--sv-border-strong, var(--sv-border));
+  background: var(--sv-tinted);
+  border-radius: var(--sv-r);
+  padding: 12px 14px;
+}
+.studio-v2 .sv-q-text-plain {
+  font-family: 'Fraunces', serif;
+  font-size: 15px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  color: var(--sv-text);
+}
+.studio-v2 .sv-q-text-empty { color: var(--sv-muted); font-style: italic; }
+.studio-v2 .sv-q-text-editlink {
+  margin-top: 8px;
+  border: none;
+  background: transparent;
+  color: var(--sv-primary);
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+.studio-v2 .sv-q-text-editlink:hover { text-decoration: underline; }
+
 .studio-v2 .sv-q-media {
   background: var(--sv-tinted);
   border: 1.5px dashed var(--sv-border-strong);
