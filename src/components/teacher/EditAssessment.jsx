@@ -15,12 +15,12 @@ import {
   shuffleQuizSections,
 } from '../../utils/quizSections.js'
 import { regroupComprehensionSections, moveQuestionToPassage } from '../../utils/comprehensionGrouping.js'
-import { richTextHasContent } from '../../utils/quizRichText.js'
 import { clampInt } from '../../utils/inputs.js'
 import { getErrorMessage } from '../../utils/errors.js'
-import { validateStandaloneQuestion as sharedValidateStandaloneQuestion } from '../../utils/quizValidation.js'
+import { collectQuizIssues } from '../../utils/quizValidation.js'
 import { normalizeSubject } from '../../config/curriculum.js'
 import QuizSectionsEditor from '../quiz/QuizSectionsEditor'
+import QuizValidationChecklist from '../quiz/QuizValidationChecklist'
 import QuizEditorPreviewPanel from '../quiz/QuizEditorPreviewPanel'
 import ImportReviewBanner from '../quiz/ImportReviewBanner'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -162,10 +162,17 @@ export default function EditAssessment() {
   const [saving, setSaving] = useState(false)
   const [toast, setToast] = useState(null)
   const [dirty, setDirty] = useState(false)
+  // Pre-publish checklist modal — shows every blocking issue at once instead
+  // of the old "Save → toast → fix → repeat" loop.
+  const [checklistOpen, setChecklistOpen] = useState(false)
 
   const serializedPreview = serializeQuizSections(sections, parts)
   const questionNumbers = buildQuestionNumberMap(serializedPreview.questions)
   const questionCount = serializedPreview.questionCount
+  // Every blocking issue gathered up-front, fed to the QuizValidationChecklist.
+  const { issues: validationIssues, summary: validationSummary } =
+    collectQuizIssues({ form, sections, parts, questionNumbers })
+  const errorCount = validationIssues.filter((issue) => issue.severity !== 'warn').length
   const totalMarks = serializedPreview.totalMarks
   const passageCount = serializedPreview.passages.length
   const newCount = serializedPreview.questions.filter(question => !question._id).length
@@ -736,76 +743,10 @@ export default function EditAssessment() {
     }))
   }
 
-  function validateStandaloneQuestion(question, label) {
-    return sharedValidateStandaloneQuestion(question, label, {
-      onError: message => show(message, true),
-    })
-  }
-
-  function validate() {
-    if (!form.title.trim()) {
-      show('Assessment title is required.', true)
-      return false
-    }
-    if (questionCount === 0) {
-      show('Add at least one question before saving.', true)
-      return false
-    }
-
-    for (const part of parts) {
-      if (!String(part.title ?? '').trim()) {
-        show('Every Part needs a title (e.g. "QUESTIONS 1-15").', true)
-        return false
-      }
-      const hasMembers = sections.some(section => {
-        if (section.kind === 'passage') return section.partId === part.id
-        return section.question?.partId === part.id
-      })
-      if (!hasMembers) {
-        show(`Part "${part.title}" has no questions assigned. Move at least one section into it or delete the Part.`, true)
-        return false
-      }
-    }
-
-    for (const section of sections) {
-      if (section.kind === 'passage') {
-        const passage = section.passage
-        const isMap = passage.passageKind === 'map'
-        if (passage.imageUploading) {
-          show(isMap
-            ? 'A map image is still uploading. Please wait.'
-            : 'A passage image is still uploading. Please wait.', true)
-          return false
-        }
-        if (isMap) {
-          if (!passage.imageUrl) {
-            show('Each map section needs a map image before saving.', true)
-            return false
-          }
-        } else if (!richTextHasContent(passage.passageText)) {
-          show('Each comprehension passage needs passage text before saving.', true)
-          return false
-        }
-        if (!passage.questions.length) {
-          show(isMap
-            ? 'Each map section needs at least one linked question.'
-            : 'Each comprehension passage needs at least one linked question.', true)
-          return false
-        }
-        for (const question of passage.questions) {
-          const label = `Passage question ${questionNumbers[question.localId]}`
-          if (!validateStandaloneQuestion(question, label)) return false
-        }
-        continue
-      }
-
-      const question = section.question
-      const label = `Question ${questionNumbers[question.localId]}`
-      if (!validateStandaloneQuestion(question, label)) return false
-    }
-
-    return true
-  }
+  // Validation now runs through the shared collectQuizIssues + the
+  // QuizValidationChecklist (see errorCount / validationIssues above), so
+  // the teacher sees every blocking issue at once rather than fixing them
+  // one toast at a time.
 
   // Phase 9: ImportReviewBanner click handler. Patches the assessment
   // doc to clear the import-review state — Phase 10 extends this to also
@@ -832,7 +773,12 @@ export default function EditAssessment() {
   }
 
   async function handleSave() {
-    if (!validate()) return
+    // Surface the full pre-publish checklist if anything is missing instead of
+    // bailing on the first error — the teacher fixes every issue in one pass.
+    if (errorCount > 0) {
+      setChecklistOpen(true)
+      return
+    }
     setSaving(true)
 
     try {
@@ -1078,6 +1024,16 @@ export default function EditAssessment() {
       )}
 
       <div className="theme-card theme-border space-y-3 rounded-2xl border p-4 shadow-elev-sm">
+        {errorCount > 0 && (
+          <button
+            type="button"
+            onClick={() => setChecklistOpen(true)}
+            className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-rose-200 bg-rose-50 py-2.5 text-sm font-black text-rose-700 transition-colors hover:bg-rose-100"
+          >
+            <span aria-hidden="true">⚠️</span>
+            <span>{errorCount} item{errorCount === 1 ? '' : 's'} to fix before saving — review checklist</span>
+          </button>
+        )}
         <div className="grid gap-3 sm:grid-cols-2">
           <button
             type="button"
@@ -1101,6 +1057,13 @@ export default function EditAssessment() {
           {dirty ? '⚠️ You have unsaved changes.' : '✓ All changes saved.'}
         </p>
       </div>
+
+      <QuizValidationChecklist
+        open={checklistOpen}
+        onClose={() => setChecklistOpen(false)}
+        issues={validationIssues}
+        summary={validationSummary}
+      />
     </div>
   )
 }
