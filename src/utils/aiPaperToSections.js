@@ -130,8 +130,11 @@ export function mapAiQuestion(q, { partId = null } = {}) {
       Array.isArray(m.pairs) && m.pairs.length === m.left.length &&
       m.left.length >= 2
     if (valid) {
-      overrides.matchingLeft = m.left.map((s) => importMarkupToOptionHtml(String(s)))
-      overrides.matchingRight = m.right.map((s) => importMarkupToOptionHtml(String(s)))
+      // Matching columns stay PLAIN: the paper layout and answer key render
+      // them through richTextToPlainText either way, so HTML here would buy
+      // nothing — it matches the document importer, which also leaves them plain.
+      overrides.matchingLeft = m.left.map(String)
+      overrides.matchingRight = m.right.map(String)
       overrides.matchingAnswer = m.pairs.map(Number)
       overrides.correctAnswer = 0
     } else {

@@ -101,12 +101,16 @@ test('clockface draws two hands from numeric hour/minute (injection-safe)', () =
   assert.ok((svg.match(/<line /g) || []).length >= 62, 'clockface should draw ticks + hands')
 })
 
-test('protractor renders the degree label escaped and an angle arm', () => {
-  const svg = renderDiagramSvg('protractor', { angle: '60' })
-  assert.ok(svg.includes('>60°</text>'), 'protractor should print the degree label')
+test('protractor labels with the normalised numeric angle (no raw author text)', () => {
+  assert.ok(renderDiagramSvg('protractor', { angle: '60' }).includes('>60°</text>'), 'prints the degree label')
+  // A raw "60°" param must not double up the degree sign.
+  assert.ok(renderDiagramSvg('protractor', { angle: '60°' }).includes('>60°</text>'), 'no 60°° doubling')
+  // An out-of-range angle clamps the arm AND the label to 180 so they agree.
+  assert.ok(renderDiagramSvg('protractor', { angle: '200' }).includes('>180°</text>'), '200 clamps to 180°')
+  // A hostile / non-numeric angle renders no raw markup — it falls back to 60.
   const hostile = renderDiagramSvg('protractor', { angle: '<script>x</script>' })
-  assert.ok(!hostile.includes('<script>'), 'protractor must escape a hostile angle label')
-  assert.ok(hostile.includes('&lt;script&gt;'), 'protractor should HTML-escape the label')
+  assert.ok(!hostile.includes('<script>'), 'protractor never echoes a hostile angle')
+  assert.ok(hostile.includes('>60°</text>'), 'non-numeric angle falls back to 60°')
 })
 
 test('barchart + linegraph print a numbered y-axis scale', () => {

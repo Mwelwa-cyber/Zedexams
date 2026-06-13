@@ -138,8 +138,8 @@ export const DIAGRAM_CATALOG = {
   protractor: { cat: 'Shapes 2D', name: 'Protractor (angle)', defaults: { angle: '60', cap: 'Angle measured on a protractor' }, fields: [['angle', 'Angle (degrees)'], ['cap', 'Caption']],
     render: (p, col) => {
       // An angle shown on a half-disc protractor, read from the right-hand base
-      // (0°) round to the left (180°). The arm angle is computed numerically; the
-      // only author value rendered is the degree label, which is esc()-escaped.
+      // (0°) round to the left (180°). Both the arm and the label use the same
+      // parsed-and-clamped numeric angle, so no raw author text is rendered.
       const deg = parseFloat(p.angle)
       const a = Number.isFinite(deg) ? Math.max(0, Math.min(180, deg)) : 60
       const cx = 150, cy = 150, R = 116
@@ -160,7 +160,11 @@ export const DIAGRAM_CATALOG = {
       const [arc0x, arc0y] = at(0, 38), [arcAx, arcAy] = at(a, 38)
       const largeArc = a > 180 ? 1 : 0
       const [lblx, lbly] = at(a / 2, 60)
-      return `<svg viewBox="0 0 300 184" xmlns="http://www.w3.org/2000/svg" width="300"><path d="M ${lx.toFixed(1)},${ly} A ${R},${R} 0 0,1 ${rx.toFixed(1)},${ry} Z" fill="${col}" fill-opacity=".07" stroke="${col}" stroke-width="2"/>${ticks}<line x1="${cx}" y1="${cy}" x2="${rx.toFixed(1)}" y2="${ry}" stroke="#1c1612" stroke-width="2.2"/><line x1="${cx}" y1="${cy}" x2="${ax.toFixed(1)}" y2="${ay.toFixed(1)}" stroke="#1c1612" stroke-width="2.2"/><path d="M ${arc0x.toFixed(1)},${arc0y.toFixed(1)} A 38,38 0 ${largeArc},0 ${arcAx.toFixed(1)},${arcAy.toFixed(1)}" fill="none" stroke="#1c1612" stroke-width="1.6"/><circle cx="${cx}" cy="${cy}" r="3.5" fill="#1c1612"/><text x="${lblx.toFixed(1)}" y="${lbly.toFixed(1)}" font-family="Lora,serif" font-style="italic" font-size="15" font-weight="700" text-anchor="middle" fill="${col}">${esc(p.angle)}°</text></svg>`
+      // Label with the SAME normalised angle the arm is drawn at (a), not the
+      // raw param — so "60°" can't become "60°°" and a clamped arm (200 → 180)
+      // never contradicts its label. `a` is numeric, so it needs no escaping.
+      const aLabel = Number.isInteger(a) ? a : +a.toFixed(1)
+      return `<svg viewBox="0 0 300 184" xmlns="http://www.w3.org/2000/svg" width="300"><path d="M ${lx.toFixed(1)},${ly} A ${R},${R} 0 0,1 ${rx.toFixed(1)},${ry} Z" fill="${col}" fill-opacity=".07" stroke="${col}" stroke-width="2"/>${ticks}<line x1="${cx}" y1="${cy}" x2="${rx.toFixed(1)}" y2="${ry}" stroke="#1c1612" stroke-width="2.2"/><line x1="${cx}" y1="${cy}" x2="${ax.toFixed(1)}" y2="${ay.toFixed(1)}" stroke="#1c1612" stroke-width="2.2"/><path d="M ${arc0x.toFixed(1)},${arc0y.toFixed(1)} A 38,38 0 ${largeArc},0 ${arcAx.toFixed(1)},${arcAy.toFixed(1)}" fill="none" stroke="#1c1612" stroke-width="1.6"/><circle cx="${cx}" cy="${cy}" r="3.5" fill="#1c1612"/><text x="${lblx.toFixed(1)}" y="${lbly.toFixed(1)}" font-family="Lora,serif" font-style="italic" font-size="15" font-weight="700" text-anchor="middle" fill="${col}">${aLabel}°</text></svg>`
     } },
 
   // ============ SHAPES 3D ============

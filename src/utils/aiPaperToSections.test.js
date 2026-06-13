@@ -132,6 +132,20 @@ console.log('aiPaperToSections')
   })
   assert.strictEqual(plain.overrides.text, 'Name the capital city of Zambia.')
   ok('non-maths prose is left exactly as-is', true)
+
+  // Matching columns are deliberately left PLAIN (the paper layout + answer key
+  // run them through richTextToPlainText, so HTML there would only risk a
+  // literal span; this matches the document importer).
+  const match = mapAiQuestion({
+    type: 'matching',
+    prompt: 'Match each fraction to its simplest form.',
+    matching: { left: ['\\frac{2}{4}', '\\frac{3}{9}'], right: ['\\frac{1}{2}', '\\frac{1}{3}'], pairs: [0, 1] },
+    marks: 2,
+    answer: 'see guide',
+  })
+  assert.ok(match.overrides.matchingLeft.every((s) => !s.includes('math-frac')), 'matching columns stay plain')
+  assert.strictEqual(match.overrides.matchingLeft[0], '\\frac{2}{4}')
+  ok('matching columns are left plain (no HTML conversion)', true)
 }
 
 // ── Visual questions (v5): stem / labelled / option_images ────────────────
