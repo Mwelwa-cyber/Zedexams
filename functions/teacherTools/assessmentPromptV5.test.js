@@ -38,6 +38,8 @@ console.log("assessmentPromptV5");
     SYSTEM_PROMPT.includes("EXACT MATHS FIGURES") &&
     SYSTEM_PROMPT.includes("shape_options") &&
     SYSTEM_PROMPT.includes("parallelogramh"));
+  ok("system prompt offers the number-line jump shape for integer arithmetic",
+    SYSTEM_PROMPT.includes("numberlinejump"));
   ok("system prompt demands ORIGINAL comprehension passages",
     SYSTEM_PROMPT.includes("ORIGINAL short passage") &&
     SYSTEM_PROMPT.includes("NEVER copy"));

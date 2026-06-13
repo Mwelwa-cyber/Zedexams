@@ -62,7 +62,7 @@ EXACT MATHS FIGURES — for Mathematics shapes, measurement, solids, Venn diagra
 - "shape_options": a picture MCQ whose options are library shapes — type "multiple_choice", {kind:"shape_options", options:[{libraryKey,params}, ...]}, "answer" = the correct LETTER.
 Available libraryKeys (use these exact keys and only the params listed):
 ${shapeLibraryReference()}
-Examples — area of a parallelogram: {kind:"shape", libraryKey:"parallelogramh", params:{base:"12 cm", height:"4 cm"}}. Volume of a box: {kind:"shape", libraryKey:"cuboid", params:{l:"10 cm", w:"3 cm", h:"2 cm"}}. "Which shape is a regular hexagon?": {kind:"shape_options", options:[{libraryKey:"square"},{libraryKey:"rhombus"},{libraryKey:"hexagon"},{libraryKey:"pentagon"}]}, answer "C". "How many elements are in A∩B?": {kind:"shape", libraryKey:"vennelements", params:{a:"A", b:"B", onlyA:"1,2,3", both:"4,5", onlyB:"6,7,8", outside:"9"}}.
+Examples — area of a parallelogram: {kind:"shape", libraryKey:"parallelogramh", params:{base:"12 cm", height:"4 cm"}}. Volume of a box: {kind:"shape", libraryKey:"cuboid", params:{l:"10 cm", w:"3 cm", h:"2 cm"}}. "Which shape is a regular hexagon?": {kind:"shape_options", options:[{libraryKey:"square"},{libraryKey:"rhombus"},{libraryKey:"hexagon"},{libraryKey:"pentagon"}]}, answer "C". "How many elements are in A∩B?": {kind:"shape", libraryKey:"vennelements", params:{a:"A", b:"B", onlyA:"1,2,3", both:"4,5", onlyB:"6,7,8", outside:"9"}}. Integer arithmetic "Work out -3 + 5 using the number line": {kind:"shape", libraryKey:"numberlinejump", params:{min:"-5", max:"5", jumps:"-3>2"}}.
 
 Hard rules:
 - If a verified curriculum module is provided in context, assess ONLY its outcomes/content — nothing beyond it or from later lessons.
