@@ -362,8 +362,16 @@ export function detectImageType(bytes) {
 const MIME_BY_TYPE = { png: 'image/png', jpg: 'image/jpeg', gif: 'image/gif', bmp: 'image/bmp', webp: 'image/webp' }
 
 /** Build an ImageRun with the format-detected `type` docx v9 requires. */
-function imageRun(bytes, transformation) {
-  return new ImageRun({ type: detectImageType(bytes), data: bytes, transformation })
+function imageRun(bytes, transformation, alt = '') {
+  const altText = String(alt || '').trim()
+  return new ImageRun({
+    type: detectImageType(bytes),
+    data: bytes,
+    transformation,
+    // Word screen-readers read the description; supply name/title too so the
+    // alt text is exposed everywhere Word looks for it.
+    ...(altText ? { altText: { name: altText, title: altText, description: altText } } : {}),
+  })
 }
 
 // Fit (w,h) inside a box, preserving aspect ratio (never upscaling). The
@@ -415,7 +423,7 @@ async function decodeImage(bytes, type) {
 // Fetch, transcode (WEBP→PNG), and aspect-fit an image, returning a ready
 // ImageRun or null. Centralising this guarantees WEBP is always transcoded
 // before it reaches imageRun — docx would otherwise reject the format.
-async function loadImageRun(url, { width = 360, height = 220 } = {}) {
+async function loadImageRun(url, { width = 360, height = 220, alt = '' } = {}) {
   const bytes = await fetchImageBytes(url)
   if (!bytes) return null
   const type = detectImageType(bytes)
@@ -424,9 +432,9 @@ async function loadImageRun(url, { width = 360, height = 220 } = {}) {
     // No DOM (tests): embed jpg/png/gif/bmp as-is; WEBP can't be transcoded
     // without a canvas, so skip it rather than write a broken media part.
     if (type === 'webp') return null
-    return imageRun(bytes, { width, height })
+    return imageRun(bytes, { width, height }, alt)
   }
-  return imageRun(decoded.bytes, fitWithin(decoded.width, decoded.height, width, height))
+  return imageRun(decoded.bytes, fitWithin(decoded.width, decoded.height, width, height), alt)
 }
 
 async function logoParagraph(url, transform = null) {
@@ -441,7 +449,7 @@ async function logoParagraph(url, transform = null) {
 
 async function imageParagraph(url, opts = {}) {
   if (!url) return null
-  const run = await loadImageRun(url, { width: opts.width || 360, height: opts.height || 220 })
+  const run = await loadImageRun(url, { width: opts.width || 360, height: opts.height || 220, alt: opts.alt || '' })
   return run ? centeredPara([run]) : null
 }
 
@@ -565,7 +573,7 @@ async function renderPassage(b) {
     })
   }
   if (b.imageUrl) {
-    const img = await imageParagraph(b.imageUrl, { width: 380, height: 220 })
+    const img = await imageParagraph(b.imageUrl, { width: 380, height: 220, alt: b.imageAlt || b.title || '' })
     if (img) out.push(img)
   }
   out.push(new Paragraph({ children: [runText('')], spacing: { after: 100 } }))
@@ -602,7 +610,7 @@ async function renderQuestion(b) {
   }
 
   if (b.imageUrl) {
-    const img = await imageParagraph(b.imageUrl)
+    const img = await imageParagraph(b.imageUrl, { alt: b.imageAlt || '' })
     if (img) out.push(img)
     const labels = Array.isArray(b.diagramLabels) ? b.diagramLabels : []
     const isIdentify = b.diagramMode === 'identify'
@@ -672,7 +680,7 @@ async function renderQuestion(b) {
           const media = b.optionMedia?.[i]
           const cellChildren = []
           if (media?.imageUrl) {
-            const run = await loadImageRun(media.imageUrl, { width: 140, height: 140 })
+            const run = await loadImageRun(media.imageUrl, { width: 140, height: 140, alt: media.alt || '' })
             if (run) cellChildren.push(centeredPara([run]))
           }
           const isCorrect = b.showAnswer && Number(b.correctAnswer) === i
@@ -705,7 +713,7 @@ async function renderQuestion(b) {
         const runOpts = { size: 20, color: isCorrect ? '047857' : undefined, bold: isCorrect }
         const runs = [runText(`   ${SECTION_LETTERS[i]}. `, labelOpts)]
         if (media?.imageUrl) {
-          const run = await loadImageRun(media.imageUrl, { width: 50, height: 50 })
+          const run = await loadImageRun(media.imageUrl, { width: 50, height: 50, alt: media.alt || '' })
           if (run) {
             runs.push(run)
             runs.push(runText('  ', { size: 20 }))

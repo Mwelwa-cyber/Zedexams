@@ -609,7 +609,7 @@ function renderPassage(b) {
   return `<div class="passage">
     ${b.title ? `<strong class="h">${escapeHtml(b.title)}</strong>` : ''}
     ${b.text ? `<div>${b.text.split('\n\n').map(p => `<p>${escapeHtml(p)}</p>`).join('')}</div>` : ''}
-    ${b.imageUrl ? `<div style="margin-top:6pt; text-align:center;"><img src="${escapeHtml(b.imageUrl)}" alt=""></div>` : ''}
+    ${b.imageUrl ? `<div style="margin-top:6pt; text-align:center;"><img src="${escapeHtml(b.imageUrl)}" alt="${escapeHtml(b.imageAlt || '')}"></div>` : ''}
   </div>`
 }
 
@@ -630,7 +630,7 @@ function renderQuestion(b) {
       const cls = isIdentify ? 'diagram-label diagram-label-num' : 'diagram-label'
       return `<span class="${cls}" style="left:${(l.x * 100).toFixed(2)}%;top:${(l.y * 100).toFixed(2)}%">${inner}</span>`
     }).join('')
-    body += `<div class="q-image"><div class="q-image-frame"><img src="${escapeHtml(b.imageUrl)}" alt="">${labelHtml}</div></div>`
+    body += `<div class="q-image"><div class="q-image-frame"><img src="${escapeHtml(b.imageUrl)}" alt="${escapeHtml(b.imageAlt || '')}">${labelHtml}</div></div>`
     if (isIdentify && labels.length) {
       const blanks = labels.map(() => `<li><span class="identify-blank"></span></li>`).join('')
       body += `<ol class="identify-list">${blanks}</ol>`
