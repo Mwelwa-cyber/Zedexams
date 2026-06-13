@@ -15,7 +15,9 @@
  *                     remains the fallback.
  *
  * On load we read both and keep whichever has the newer `savedAt`, so the
- * last device you typed on wins (last-write-wins).
+ * last device you typed on wins (last-write-wins). Remote writes go through a
+ * transaction guarded on `savedAt`, so a stale draft can't overwrite a fresher
+ * one (e.g. a queued offline write replaying after another device saved).
  *
  * The pure helpers (strip/build/validate/merge) live in assessmentDraftCore.js
  * so they can be unit tested without pulling in Firebase.

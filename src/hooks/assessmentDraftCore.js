@@ -8,12 +8,12 @@
 
 export const DRAFT_TTL = 7 * 24 * 60 * 60 * 1000 // 7 days
 export const KEY_PREFIX = 'examprep:assessmentstudio:draft:'
-// Primary (client-side) cap on the mirrored draft. Kept at 900 KB —
-// comfortably under Firestore's 1 MiB (1,048,576-byte) document limit, leaving
-// headroom for the JSON wrapper + metadata; the rules enforce a looser
-// server-side backstop. A draft bigger than this (huge image-heavy paper)
-// simply isn't mirrored remotely — localStorage still holds it on this device.
-export const REMOTE_MAX_CHARS = 900 * 1024
+// Primary (client-side) cap on the mirrored draft: ~900 KiB (921,600 chars).
+// Comfortably under Firestore's 1 MiB (1,048,576-byte) document limit, leaving
+// headroom for the JSON wrapper + metadata; the rules enforce their own
+// server-side cap. A draft bigger than this (huge image-heavy paper) simply
+// isn't mirrored remotely — localStorage still holds it on this device.
+export const REMOTE_MAX_CHARS = 900 * 1024 // 921,600 chars
 
 export function draftKey(userId) {
   return `${KEY_PREFIX}${userId}`

@@ -438,9 +438,10 @@ export default function AssessmentStudio() {
 
   /* ------------ draft restore / autosave ------------ */
   // Live snapshot of "is this paper still untouched?", refreshed every render
-  // so the async draft restore can re-check it without relying on the stale
-  // `sections` captured when the effect first ran (the effect is keyed only by
-  // uid). A ref, not state, because reading it must not re-run the effect.
+  // so the async draft restore can re-check it AFTER the cloud read completes,
+  // without relying on the stale `sections` captured when the effect first ran
+  // (the effect is keyed only by uid). A ref, not state, because reading it
+  // must not re-run the effect.
   const isPaperUntouchedRef = useRef(true)
   isPaperUntouchedRef.current = hasOnlyEmptyStarterSection(sections)
     && !form.title?.trim() && !form.schoolName?.trim()
