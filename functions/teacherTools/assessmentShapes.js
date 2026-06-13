@@ -40,6 +40,7 @@ const SHAPE_LIBRARY = {
   sphere: {params: ["r", "cap"], desc: "sphere with a radius label"},
   // graphs & number work
   numberline: {params: ["min", "max", "step", "highlight", "cap"], desc: "number line from min to max in steps; highlight marks one value"},
+  numberlinejump: {params: ["min", "max", "step", "jumps", "cap"], desc: "number line showing integer jumps for add/subtract; jumps like \"-3>2,2>5\" (each draws a +/- hop arc). Use for integer arithmetic."},
   coordgrid: {params: ["range", "cap"], desc: "Cartesian coordinate grid, axes from -range to +range"},
   fractionbar: {params: ["parts", "shaded", "cap"], desc: "fraction bar split into 'parts' with 'shaded' shaded"},
   barchart: {params: ["labels", "values", "cap"], desc: "bar chart; labels and values are comma lists"},

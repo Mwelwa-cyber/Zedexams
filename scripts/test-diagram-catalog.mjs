@@ -70,6 +70,19 @@ test('vennelements places each region\'s elements as text', () => {
   }
 })
 
+test('numberlinejump draws an arc + delta label per jump', () => {
+  const svg = renderDiagramSvg('numberlinejump', { min: '-5', max: '5', jumps: '-3>2,2>-1' })
+  assert.ok(typeof svg === 'string' && svg.includes('<svg') && svg.trim().endsWith('</svg>'), 'must be a closed SVG')
+  // One quadratic arc <path> per valid jump.
+  assert.equal((svg.match(/<path/g) || []).length, 2, 'one arc per jump')
+  // Delta labels are computed from the numeric endpoints: -3→2 is +5.
+  // (+5 can't come from the tick numbers, which render unsigned.)
+  assert.ok(svg.includes('>+5</text>'), 'positive delta label rendered')
+  // Out-of-range / malformed pairs are skipped (no arc).
+  const skipped = renderDiagramSvg('numberlinejump', { min: '-5', max: '5', jumps: '99>2,foo>bar' })
+  assert.equal((skipped.match(/<path/g) || []).length, 0, 'invalid/out-of-range jumps skipped')
+})
+
 test('renderDiagramSvg still returns null for an unknown key', () => {
   assert.equal(renderDiagramSvg('not-a-real-diagram', {}), null)
 })
