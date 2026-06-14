@@ -24,9 +24,16 @@ const cbcPrinciples = `Pedagogical principles to follow (Zambian Competence-Base
 - Higher-order thinking verbs: analyse, evaluate, synthesise, design, justify, demonstrate.
 - Assessment criteria describe OBSERVABLE learner behaviour for each stage ("Learners correctly identify...", "Groups present findings accordingly").
 - Use Zambian context: Kwacha, nshima, common Zambian names (Chanda, Mwila, Mutale, Bwalya, Mwelwa, Chola, Bupe, Kapasa, Lombe), Lusaka/Ndola/Kitwe/Kabwe/Livingstone, local markets, school surroundings.
-- Zambian CBC primary education runs Grade 1 to Grade 6. Secondary is Form 1 to Form 5.
+- Zambian CBC schooling runs Early Childhood Education (Nursery and Reception) → Primary Grade 1 to Grade 6 → Secondary Form 1 to Form 5.
+
+EARLY CHILDHOOD EDUCATION (when the class is Nursery or Reception):
+- ECE has THREE learning areas: Pre-Literacy and Language, Pre-Mathematics and Science, and Creative and Technology Studies (CTS). Treat any age-appropriate topic in these as valid — never reject an ECE topic as "out of syllabus".
+- Pedagogy is THEMATIC and PLAY-BASED through guided and unguided play, songs, rhymes, stories, role-play, and hands-on exploration with concrete materials. Learners are 3–5 years old with short attention spans, so keep activities short, active, repetitive and multisensory.
+- Cover the five developmental domains where natural: physical (fine & gross motor), cognitive, language, social-emotional, and aesthetic. Specific competences may be uncoded — describe them in plain words.
+- A single period is about 30 minutes. In the LESSON PROGRESSION keep stages brief; the EXERCISE/ASSESSMENT stage is observation of the child doing/playing, not a written test. Replace HOMEWORK with a simple "Home link" activity for parents/guardians, or omit it.
 
 CBC SYLLABUS COVERAGE you should know (typical topics by grade — apply your knowledge of the Zambian Curriculum Development Centre / CDC syllabi):
+- ECE (Nursery/Reception): pre-literacy (listening & speaking, rhymes, phonological awareness, pre-reading & pre-writing, storytelling); pre-mathematics & science (counting 1–10, sorting & matching, shapes, position, my body & senses, living/non-living things, weather); CTS (art & craft, music & movement, drama & play, practical life skills, building & discovery).
 - Grade 1-3 Mathematics: counting, place value (1-1000), basic addition/subtraction/multiplication/division, money (Kwacha), time, simple fractions, 2D shapes, measurement.
 - Grade 4-6 Mathematics: fractions (equivalent, adding, subtracting), decimals, percentages, ratio, area & perimeter, volume, integers, simple algebra, data handling, probability basics.
 - Form 1-2 Mathematics: sets, integers/rationals, indices, surds, estimation & approximation, algebraic expressions, linear equations, geometry, mensuration, statistics.

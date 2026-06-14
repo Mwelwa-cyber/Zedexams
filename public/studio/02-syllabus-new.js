@@ -4,6 +4,7 @@
 let syllabusVersion = 'new';
 
 const gradeLevel = {
+  'Nursery': 'ece', 'Reception': 'ece',
   'Grade 1': 'lp', 'Grade 2': 'lp', 'Grade 3': 'lp',
   'Grade 4': 'up', 'Grade 5': 'up', 'Grade 6': 'up',
   'Form 1': 'js', 'Form 2': 'js', 'Form 3': 'ss', 'Form 4': 'ss', 'Form 5': 'al'
@@ -16,6 +17,7 @@ const oldGradeLevel = {
 };
 
 const newClassOptions = [
+  'Nursery','Reception',
   'Grade 1','Grade 2','Grade 3',
   'Grade 4','Grade 5','Grade 6',
   'Form 1','Form 2','Form 3','Form 4','Form 5'
@@ -28,6 +30,7 @@ const oldClassOptions = [
 ];
 
 const subjectsByLevel = {
+  ece: ['Pre-Literacy and Language','Pre-Mathematics and Science','Creative and Technology Studies'],
   lp: ['Mathematics','English Language','Zambian Languages','Environmental Science','Religious Education','Creative and Technology Studies','Social Studies','Physical Education and Sport'],
   up: ['Mathematics','English Language','Zambian Languages','Integrated Science','Religious Education','Creative and Technology Studies','Social Studies','Physical Education and Sport'],
   js: ['Mathematics','English Language','Zambian Languages','Integrated Science','Religious Education','Creative and Technology Studies','Social Studies','Physical Education and Sport','Civic Education','Computer Studies'],
@@ -39,6 +42,38 @@ const subjectsByLevel = {
 // SYLLABUS TOPICS & SUBTOPICS
 // ============================================================
 const syllabus = {
+
+  // ---- EARLY CHILDHOOD EDUCATION (Nursery 3-4, Reception 4-5) ----
+  // Three learning areas per the 2023 ZECF (Table 2). Topics are flat
+  // (shared by Nursery + Reception) and age-appropriate / thematic — ECE is
+  // play-based, so teachers scope depth to the class. Indicative, not coded.
+  ece: {
+    'Pre-Literacy and Language': {
+      'Listening and Speaking': ['Greetings and courtesy words','Following simple instructions','Naming familiar objects','Talking about myself and my family','Answering simple questions'],
+      'Nursery Rhymes and Songs': ['Singing action songs','Reciting simple rhymes','Clapping syllables','Joining in refrains'],
+      'Pre-Reading Skills': ['Looking at picture books','Telling a story from pictures','Recognising my own name','Left-to-right, top-to-bottom direction','Matching pictures'],
+      'Phonological Awareness': ['Listening to sounds around us','Rhyming words','Initial letter sounds','Clapping word parts'],
+      'Pre-Writing Skills': ['Holding a crayon or pencil','Drawing lines and patterns','Tracing shapes and curves','Colouring within outlines','Mark-making and scribbling'],
+      'Storytelling': ['Listening to folk tales','Retelling a simple story','Acting out a story','Picture sequencing'],
+    },
+    'Pre-Mathematics and Science': {
+      'Number and Counting': ['Counting 1–5','Counting 1–10','Counting objects one-to-one','Recognising numerals 1–5','More and less'],
+      'Sorting and Matching': ['Sorting by colour','Sorting by size','Sorting by shape','Matching pairs','Copying simple patterns (AB, ABB)'],
+      'Shapes and Space': ['Circle, square and triangle','Big and small','Long and short','Position words (in, on, under, behind)'],
+      'Pre-Measurement': ['Heavy and light','Full and empty','Tall and short','Day and night'],
+      'My Body and Senses': ['Parts of the body','The five senses','Keeping clean','Healthy foods'],
+      'Living and Non-living Things': ['Animals around us','Plants around us','Things that are alive','Caring for plants and animals'],
+      'Weather and Environment': ["Today's weather",'Sun, rain and wind','Keeping our surroundings clean','Water and its uses'],
+    },
+    'Creative and Technology Studies': {
+      'Art and Craft': ['Drawing and scribbling','Finger and brush painting','Modelling with clay or dough','Paper tearing and pasting','Threading and beading'],
+      'Music and Movement': ['Singing songs','Moving to rhythm','Playing simple instruments (shakers, drums)','Action and dance games'],
+      'Drama and Play': ['Pretend play in the home corner','Role-play (shop, clinic, market)','Puppet play','Dramatising rhymes'],
+      'Practical Life Skills': ['Dressing and undressing','Packing away toys','Washing hands','Table manners','Helping with simple chores'],
+      'Discovery and Building': ['Building with blocks','Stacking and construction','Simple puzzles','Sand and water play'],
+      'Introduction to Technology': ['Tools we use at home','Switching things on and off','Looking at pictures on a screen','Taking care of our materials'],
+    },
+  },
 
   // ---- LOWER PRIMARY (Grades 1-3) ----
   lp: {
