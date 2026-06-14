@@ -61,6 +61,10 @@ const {
 const {
   createGenerateSchemeOfWork,
 } = require("./teacherTools/generateSchemeOfWork");
+// Teacher Tools — Term module outline (Weekly Forecast module fallback).
+const {
+  getTermModuleOutline,
+} = require("./teacherTools/getTermModuleOutline");
 // Teacher Tools — Rubric Generator.
 const {
   createGenerateRubric,
@@ -2049,6 +2053,7 @@ exports.importPastPaperQuestions =
 
 // Teacher Tools — Zambian CBC Scheme of Work Generator.
 exports.generateSchemeOfWork = createGenerateSchemeOfWork(anthropicApiKey);
+exports.getTermModuleOutline = getTermModuleOutline;
 
 // Teacher Tools — Zambian CBC Rubric Generator.
 exports.generateRubric = createGenerateRubric(anthropicApiKey);
