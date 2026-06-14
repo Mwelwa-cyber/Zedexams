@@ -89,7 +89,7 @@ export default function ClassTimetableStudio() {
 
   const initialGrade = 'G5'
   const [header, setHeader] = useState(() => ({
-    school: userProfile?.schoolName || '',
+    school: userProfile?.school || userProfile?.schoolName || '',
     grade: initialGrade,
     className: '',
     term: '',

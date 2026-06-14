@@ -58,7 +58,7 @@ export default function RecordOfWorkStudio() {
   const uid = currentUser?.uid
 
   const [header, setHeader] = useState(() => ({
-    school: userProfile?.schoolName || '',
+    school: userProfile?.school || userProfile?.schoolName || '',
     teacherName: userProfile?.displayName || '',
     grade: 'G4',
     subject: '',
@@ -161,7 +161,7 @@ export default function RecordOfWorkStudio() {
 
   function clearAll() {
     setHeader({
-      school: userProfile?.schoolName || '',
+      school: userProfile?.school || userProfile?.schoolName || '',
       teacherName: userProfile?.displayName || '',
       grade: 'G4', subject: '', term: 1,
       year: String(new Date().getFullYear()),

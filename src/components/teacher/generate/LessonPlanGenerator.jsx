@@ -45,7 +45,7 @@ export default function LessonPlanGenerator() {
     durationMinutes: 40,
     language: 'english',
     teacherName: userProfile?.displayName || userProfile?.fullName || '',
-    school: userProfile?.schoolName || '',
+    school: userProfile?.school || userProfile?.schoolName || '',
     // Attendance breakdown (CBC template 1.x)
     boysPresent: 0,
     girlsPresent: 0,
