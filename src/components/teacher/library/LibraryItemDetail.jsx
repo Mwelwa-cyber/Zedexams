@@ -55,6 +55,7 @@ const TOOL_DOC_TYPES = {
   class_timetable: 'Class Timetable',
 }
 import { buildGeneratorQueryString } from '../../../utils/useFormDefaultsFromUrl'
+import { resolveGeneration } from '../../../utils/adminGenerationsService'
 import { publishShare } from '../../../utils/shareService'
 import { useAuth } from '../../../contexts/AuthContext'
 import { useToast } from '../../ui/Toast'
@@ -78,6 +79,9 @@ export default function LibraryItemDetail() {
   // Delete flow — confirmingDelete drives the ConfirmDialog, deleting its spinner.
   const [confirmingDelete, setConfirmingDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
+  // Admin-only: acknowledge a failed generation so it drops out of the
+  // dashboard "Needs attention" queue without deleting the audit record.
+  const [resolvingFailure, setResolvingFailure] = useState(false)
 
   // Pro vs Premium access — Pro can download own generations only,
   // Premium can download / print / export everything.
@@ -136,6 +140,18 @@ export default function LibraryItemDetail() {
         setStatus('notfound')
       })
   }, [id])
+
+  async function onResolveFailure() {
+    if (!item) return
+    setResolvingFailure(true)
+    const ok = await resolveGeneration(item.id, true)
+    setResolvingFailure(false)
+    if (ok) {
+      setItem((prev) => ({ ...prev, adminResolved: true }))
+    } else {
+      toast.error('Could not mark this generation resolved. Please try again.')
+    }
+  }
 
   function onDelete() {
     if (!item) return
@@ -546,8 +562,27 @@ export default function LibraryItemDetail() {
 
         {item.status === 'failed' && (
           <div className="mb-4 rounded-xl border border-rose-300 bg-rose-50 text-rose-900 px-4 py-3 text-sm">
-            ⚠️ This generation failed: {item.errorMessage || 'unknown error'}.
-            Try regenerating from the same inputs.
+            <p>
+              ⚠️ This generation failed: {item.errorMessage || 'unknown error'}.
+              Try regenerating from the same inputs.
+            </p>
+            {isAdmin && (
+              <div className="mt-2">
+                {item.adminResolved ? (
+                  <span className="text-xs font-bold text-rose-700/70">
+                    ✓ Marked resolved — cleared from the admin attention queue.
+                  </span>
+                ) : (
+                  <button
+                    onClick={onResolveFailure}
+                    disabled={resolvingFailure}
+                    className="text-xs font-black underline disabled:opacity-50"
+                  >
+                    {resolvingFailure ? 'Resolving…' : 'Mark resolved'}
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
 
