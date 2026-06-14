@@ -64,7 +64,7 @@ export default function MarkScheduleStudio() {
   const uid = currentUser?.uid
 
   const [header, setHeader] = useState(() => ({
-    school: userProfile?.schoolName || '',
+    school: userProfile?.school || userProfile?.schoolName || '',
     grade: 'G4',
     term: 1,
     year: String(new Date().getFullYear()),
@@ -166,7 +166,7 @@ export default function MarkScheduleStudio() {
   }, [named, subjects, header])
 
   function clearAll() {
-    setHeader({ school: userProfile?.schoolName || '', grade: 'G4', term: 1, year: String(new Date().getFullYear()), nextTermOpens: '' })
+    setHeader({ school: userProfile?.school || userProfile?.schoolName || '', grade: 'G4', term: 1, year: String(new Date().getFullYear()), nextTermOpens: '' })
     setSubjects(DEFAULT_SUBJECTS)
     setPupils(blankPupils(5))
     setMode('marks')

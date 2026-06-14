@@ -171,7 +171,7 @@ export default function LessonPlanStudio() {
     window.__studioGetAuth = () => ({
       uid: currentUser && currentUser.uid,
       displayName: userProfile && (userProfile.displayName || userProfile.fullName),
-      school: userProfile && userProfile.schoolName,
+      school: userProfile && (userProfile.school || userProfile.schoolName),
     })
 
     // ---- Bridge: dynamic CBC syllabus from Firestore ----
@@ -406,7 +406,7 @@ export default function LessonPlanStudio() {
         tName.value = userProfile.displayName || userProfile.fullName || ''
       }
       if (tSchool && !tSchool.value && userProfile) {
-        tSchool.value = userProfile.schoolName || ''
+        tSchool.value = userProfile.school || userProfile.schoolName || ''
       }
     }, 600)
 

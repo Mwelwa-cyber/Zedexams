@@ -157,11 +157,7 @@ async function exportWord() {
   try {
     await loadHtmlDocxLib();
     const blob = window.htmlDocx.asBlob(html, { orientation: 'portrait', margins: { top: 1080, right: 960, bottom: 1080, left: 960 } });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = filename;
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    triggerDownload(blob, filename);
     if (typeof toast === 'function') toast('Word document downloaded');
     return;
   } catch (e) {
@@ -180,16 +176,53 @@ function exportWordLegacy() {
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>Lesson Plan</title><!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:Zoom>100</w:Zoom></w:WordDocument></xml><![endif]--><style>@page{size:A4;margin:18mm 16mm}body{font-family:Georgia,serif}${styles}</style></head><body><div class="doc">${doc.innerHTML}</div></body></html>`;
   download(html, currentFilename() + '.doc', 'application/msword');
 }
+// Human-readable download name — "Reception Pre-Mathematics and Science Lesson
+// Plan - Shapes and Space" rather than a slug. Teachers asked for files that say
+// what they are once they leave the app and land in a Downloads folder.
 function currentFilename() {
   const i = gatherInput();
-  const safe = (s) => (s || '').replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '');
-  return ['lesson', safe(i.klass), safe(i.subject), safe(i.topic) || 'plan'].filter(Boolean).join('_').toLowerCase();
+  // Strip only the characters that are illegal in filenames; keep spaces,
+  // hyphens and parentheses so the name still reads naturally.
+  const clean = (s) => String(s || '')
+    .replace(/[\\/:*?"<>|]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const head = [clean(i.klass), clean(i.subject), 'Lesson Plan'].filter(Boolean).join(' ');
+  const topic = clean(i.topic);
+  const name = topic && !head.toLowerCase().includes(topic.toLowerCase())
+    ? `${head} - ${topic}`
+    : head;
+  return (name || 'Lesson Plan').slice(0, 120).trim();
+}
+
+// Trigger a browser download that keeps `filename`.
+//
+// Android Chrome (and Android WebViews) ignore the anchor `download` attribute
+// for `blob:` URLs — they name the saved file after the blob's random UUID,
+// which is the "5fee66fe-…-….docx" teachers were seeing. Converting the blob to
+// a `data:` URL first makes the `download` filename stick on Android while
+// staying an ordinary blob download on desktop.
+function triggerDownload(blob, filename) {
+  const isAndroid = /Android/i.test(navigator.userAgent || '');
+  if (isAndroid && typeof FileReader !== 'undefined') {
+    const reader = new FileReader();
+    reader.onload = () => anchorDownload(reader.result, filename);
+    reader.onerror = () => blobUrlDownload(blob, filename);
+    reader.readAsDataURL(blob);
+    return;
+  }
+  blobUrlDownload(blob, filename);
+}
+function blobUrlDownload(blob, filename) {
+  const url = URL.createObjectURL(blob);
+  anchorDownload(url, filename);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+function anchorDownload(href, filename) {
+  const a = document.createElement('a');
+  a.href = href; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
 }
 function download(content, filename, mime) {
-  const blob = new Blob([content], { type: mime });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = filename;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  triggerDownload(new Blob([content], { type: mime }), filename);
 }

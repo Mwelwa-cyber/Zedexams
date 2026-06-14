@@ -14,6 +14,7 @@ import {
   Users,
 } from '../ui/icons'
 import Icon from '../ui/Icon'
+import Skeleton from '../ui/Skeleton'
 import { SUBJECTS } from '../../config/curriculum'
 import { daysUntil, fmtDate, getActiveTerm, getNextTerm } from '../../utils/moeCalendar'
 import { useAuth } from '../../contexts/AuthContext'
@@ -564,21 +565,21 @@ export default function TodayStudyPlan({
 
   if (loading) {
     return (
-      <section className="zx-card theme-card rounded-3xl border theme-border p-4 shadow-sm animate-pulse">
+      <section className="zx-card theme-card rounded-3xl border theme-border p-4 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <div>
-            <div className="h-4 w-36 rounded bg-current/10" />
-            <div className="mt-2 h-3 w-48 rounded bg-current/10" />
+            <Skeleton height={16} width={144} />
+            <Skeleton height={12} width={192} className="mt-2" />
           </div>
-          <div className="h-10 w-20 rounded-full bg-current/10" />
+          <Skeleton height={40} width={80} className="!rounded-full" />
         </div>
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, index) => (
             <div key={index} className="flex items-center gap-3">
-              <div className="h-9 w-9 rounded-2xl bg-current/10" />
+              <Skeleton width={36} height={36} className="!rounded-2xl" />
               <div className="flex-1 space-y-2">
-                <div className="h-3 w-2/3 rounded bg-current/10" />
-                <div className="h-3 w-full rounded bg-current/10" />
+                <Skeleton height={12} width="66%" />
+                <Skeleton height={12} />
               </div>
             </div>
           ))}

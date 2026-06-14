@@ -51,7 +51,7 @@ export default function NotesStudio() {
     durationMinutes: 40,
     language: 'english',
     teacherName: userProfile?.displayName || userProfile?.fullName || '',
-    school: userProfile?.schoolName || '',
+    school: userProfile?.school || userProfile?.schoolName || '',
     instructions: '',
     lessonPlanId: '',
     ...urlDefaults,

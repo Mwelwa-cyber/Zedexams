@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { getWeeklyChampions } from '../../utils/gamificationService'
+import Skeleton from '../ui/Skeleton'
 
 /**
  * WeeklyChampions — aggregated top scorers across the past 7 daily
@@ -44,7 +45,7 @@ export default function WeeklyChampions({ subject, grade, currentUserId }) {
       {loading ? (
         <div className="space-y-1.5">
           {[0, 1, 2].map(i => (
-            <div key={i} className="h-10 rounded-lg bg-slate-100 animate-pulse" />
+            <Skeleton key={i} height={40} className="!rounded-lg" />
           ))}
         </div>
       ) : rows.length === 0 ? (

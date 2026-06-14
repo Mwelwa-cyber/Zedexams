@@ -9,6 +9,7 @@ import { downloadAssessmentPdf } from '../../utils/assessmentToPdf'
 import { summarizeImportReview } from '../../utils/importReviewSummary.js'
 import ImportReviewBadge from '../quiz/ImportReviewBadge'
 import SeoHelmet from '../seo/SeoHelmet'
+import Skeleton from '../ui/Skeleton'
 import { useToast } from '../ui/Toast'
 import ConfirmDialog from '../ui/ConfirmDialog'
 
@@ -210,7 +211,7 @@ export default function AssessmentList() {
     return (
       <div className="space-y-3">
         {[1, 2, 3].map(n => (
-          <div key={n} className="h-24 animate-pulse rounded-2xl" style={{ background: '#ece4d2', border: '2px solid #d9cfb8' }} />
+          <Skeleton key={n} height={96} className="!rounded-2xl" />
         ))}
       </div>
     )

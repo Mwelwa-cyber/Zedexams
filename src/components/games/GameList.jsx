@@ -12,6 +12,7 @@ import {
   getSubjectMascot,
 } from './gamesUi'
 import SeoHelmet from '../seo/SeoHelmet'
+import Skeleton from '../ui/Skeleton'
 
 const SUBJECT_TILE_BG = {
   mathematics: 'bg-orange-100',
@@ -150,15 +151,15 @@ function SkeletonGrid() {
       {Array.from({ length: 3 }).map((_, index) => (
         <div
           key={index}
-          className={`zx-card animate-pulse rounded-[22px] bg-white p-5 ${index === 0 ? 'lg:col-span-2 sm:p-7' : ''}`}
+          className={`zx-card rounded-[22px] bg-white p-5 ${index === 0 ? 'lg:col-span-2 sm:p-7' : ''}`}
         >
-          <div className="h-12 w-12 rounded-[14px] border-2 border-slate-900 bg-slate-100" />
-          <div className="mt-5 h-7 w-3/4 rounded bg-slate-100" />
-          <div className="mt-3 h-4 w-full rounded bg-slate-100" />
-          <div className="mt-2 h-4 w-5/6 rounded bg-slate-100" />
+          <Skeleton width={48} height={48} className="border-2 border-slate-900 !rounded-[14px]" />
+          <Skeleton width="75%" height={28} className="mt-5 !rounded" />
+          <Skeleton height={16} className="mt-3 !rounded" />
+          <Skeleton width="83%" height={16} className="mt-2 !rounded" />
           <div className="mt-5 flex gap-2">
-            <div className="h-8 w-24 rounded-full bg-slate-100" />
-            <div className="h-8 w-24 rounded-full bg-slate-100" />
+            <Skeleton width={96} height={32} className="!rounded-full" />
+            <Skeleton width={96} height={32} className="!rounded-full" />
           </div>
         </div>
       ))}
