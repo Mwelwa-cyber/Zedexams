@@ -5,7 +5,7 @@ import { useFirestore } from '../../hooks/useFirestore'
 import { downloadAssessmentDocx } from '../../utils/assessmentToDocx'
 import { buildAssessmentName } from '../../utils/downloadFilename'
 import { isFreePlanTeacher } from '../../utils/teacherLibraryService'
-import { printAssessmentAsPdf } from '../../utils/assessmentToPdf'
+import { downloadAssessmentPdf } from '../../utils/assessmentToPdf'
 import { summarizeImportReview } from '../../utils/importReviewSummary.js'
 import ImportReviewBadge from '../quiz/ImportReviewBadge'
 import SeoHelmet from '../seo/SeoHelmet'
@@ -37,12 +37,13 @@ function formatDate(ts) {
   return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
 }
 
-function assessmentFileName(assessment, variant) {
+function assessmentFileName(assessment, variant, ext = 'docx') {
   return buildAssessmentName({
     title: assessment.title,
     grade: assessment.grade,
     subject: assessment.subject,
     variant,
+    ext,
   })
 }
 
@@ -198,11 +199,11 @@ export default function AssessmentList() {
   async function handleExport(assessment, format, mode) {
     // Fetch the full question set on-demand so the list view stays cheap.
     const questions = await getAssessmentQuestions(assessment.id)
-    const filename = assessmentFileName(assessment, mode === 'paper' ? undefined : 'Marking Key')
+    const variant = mode === 'paper' ? undefined : 'Marking Key'
     if (format === 'docx') {
-      await downloadAssessmentDocx(assessment, questions, filename, { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
+      await downloadAssessmentDocx(assessment, questions, assessmentFileName(assessment, variant), { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
     } else {
-      printAssessmentAsPdf(assessment, questions, { mode })
+      await downloadAssessmentPdf(assessment, questions, { mode, filename: assessmentFileName(assessment, variant, 'pdf') })
     }
   }
 

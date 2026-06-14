@@ -40,7 +40,7 @@ import { saveClassTimetableGeneration, isFreePlanTeacher } from '../../../utils/
 import { downloadClassTimetableDocx } from '../../../utils/classTimetableToDocx'
 import { downloadClassTimetableXlsx } from '../../../utils/classTimetableToXlsx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
-import { printClassTimetableAsPdf } from '../../../utils/classTimetableToPdf'
+import { downloadClassTimetablePdf } from '../../../utils/classTimetableToPdf'
 import { clampInt } from '../../../utils/inputs.js'
 import ClassTimetableView from '../views/ClassTimetableView'
 import TimetableUploadPanel from './TimetableUploadPanel'
@@ -328,13 +328,14 @@ export default function ClassTimetableStudio() {
       toast.error('Could not build the Excel file. Please try again.')
     }
   }
-  function onExportPdf() {
+  async function onExportPdf() {
     if (filled === 0) { toast.error('Fill the timetable first.'); return }
     try {
-      printClassTimetableAsPdf(artifact, { attribution })
+      await downloadClassTimetablePdf(artifact, { attribution, filename: fileBase('pdf') })
+      toast.success('Timetable PDF downloaded.')
     } catch (err) {
       console.error('[ClassTimetableStudio] pdf export failed', err)
-      toast.error(err?.message || 'Could not open the print view. Please allow pop-ups.')
+      toast.error(err?.message || 'Could not build the PDF. Please try again.')
     }
   }
 

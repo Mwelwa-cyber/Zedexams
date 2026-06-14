@@ -16,7 +16,7 @@ import {
 import { downloadLessonPlanDocx } from '../../../utils/lessonPlanToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
 import { useFormDefaultsFromUrl } from '../../../utils/useFormDefaultsFromUrl'
-import { printLessonPlanAsPdf } from '../../../utils/lessonPlanToPdf'
+import { downloadLessonPlanPdf } from '../../../utils/lessonPlanToPdf'
 import StudioPageHeader from '../StudioPageHeader'
 import LessonPlanView from '../views/LessonPlanView'
 import { attachLibraryToGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
@@ -147,13 +147,14 @@ export default function LessonPlanGenerator() {
     downloadLessonPlanDocx(lessonPlan, filename, { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
   }
 
-  function onExportPdf() {
+  async function onExportPdf() {
     if (!lessonPlan) return
     try {
-      // The browser's "Save as PDF" dialog defaults the filename to the print
-      // document's title, so give it the same human-readable name as the .docx.
-      const titleForDoc = buildFilename(form, lessonPlan).replace(/\.docx$/, '')
-      printLessonPlanAsPdf(lessonPlan, titleForDoc)
+      // Same human-readable base name as the .docx; downloadLessonPlanPdf adds
+      // the .pdf extension and falls back to the print dialog if rendering
+      // fails (e.g. inside the Android WebView).
+      const base = buildFilename(form, lessonPlan).replace(/\.docx$/, '')
+      await downloadLessonPlanPdf(lessonPlan, base, `${base}.pdf`)
     } catch (err) {
       // The helper only throws when popups are blocked — surface that
       // message inline via the existing error state.

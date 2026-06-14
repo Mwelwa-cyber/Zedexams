@@ -6,6 +6,7 @@
  * call window.print(); the user picks "Save as PDF". Must be invoked
  * directly from a click handler so the popup isn't blocked.
  */
+import { downloadHtmlAsPdf } from './htmlToPdf.js'
 
 const ATTRIBUTION_TEXT =
   'Made with ZedExams — free CBC teacher tools at zedexams.com/teachers'
@@ -31,6 +32,21 @@ function buildTints(timetable) {
     }
   }
   return map
+}
+
+/**
+ * Download the class timetable as a real .pdf file. Falls back to the browser
+ * print dialog if client-side rendering fails.
+ */
+export async function downloadClassTimetablePdf(
+  timetable,
+  { attribution = false, filename = 'class-timetable.pdf' } = {},
+) {
+  if (!timetable) throw new Error('No timetable to export.')
+  const html = buildPrintableHtml(timetable, attribution)
+  return downloadHtmlAsPdf(html, filename, {
+    onFallback: () => printClassTimetableAsPdf(timetable, { attribution }),
+  })
 }
 
 export function printClassTimetableAsPdf(timetable, { attribution = false } = {}) {

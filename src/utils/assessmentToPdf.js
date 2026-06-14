@@ -14,6 +14,7 @@
 import { buildPaperLayout } from './assessmentPaperLayout.js'
 import { renderDiagramSvg } from '../components/diagrams/diagramCatalog.js'
 import { buildAnswerSheet } from './assessmentAnswerSheet.js'
+import { downloadHtmlAsPdf } from './htmlToPdf.js'
 
 const BUBBLE_LETTERS = 'ABCDEFGH'.split('')
 
@@ -50,6 +51,35 @@ function renderInstructionsHtml(text) {
   // Preserve paragraph breaks
   const paras = withBold.split(/\n\s*\n/).map(p => p.replace(/\n/g, ' '))
   return paras.map(p => `<p>${p}</p>`).join('')
+}
+
+/**
+ * Download the assessment as a real .pdf file. Falls back to the browser print
+ * dialog if client-side rendering fails.
+ */
+export async function downloadAssessmentPdf(
+  assessment,
+  questions,
+  { mode = 'paper', filename = 'assessment.pdf' } = {},
+) {
+  if (!assessment) throw new Error('No assessment to export.')
+  const html = buildPrintableHtml(assessment, questions || [], mode)
+  return downloadHtmlAsPdf(html, filename, {
+    onFallback: () => printAssessmentAsPdf(assessment, questions, { mode }),
+  })
+}
+
+/** Download a standalone answer sheet as a real .pdf file. */
+export async function downloadAnswerSheetPdf(
+  assessment,
+  questions,
+  { filename = 'answer-sheet.pdf' } = {},
+) {
+  if (!assessment) throw new Error('No assessment to export.')
+  const html = buildAnswerSheetHtml(assessment, questions || [])
+  return downloadHtmlAsPdf(html, filename, {
+    onFallback: () => printAnswerSheetAsPdf(assessment, questions),
+  })
 }
 
 export function printAssessmentAsPdf(assessment, questions, { mode = 'paper' } = {}) {
