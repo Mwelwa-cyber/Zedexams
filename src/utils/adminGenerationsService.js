@@ -22,9 +22,10 @@
 
 import {
   collection, doc, deleteDoc, getDocs, limit, orderBy, query,
-  updateDoc,
+  serverTimestamp, updateDoc,
 } from 'firebase/firestore'
 import { db } from '../firebase/config'
+import { isUnresolvedFailure, summarizeGenerationRows } from './generationsSummary'
 
 const PAGE_SIZE = 200
 
@@ -76,6 +77,31 @@ export async function setAdminFlag(genId, flagged = true) {
   }
 }
 
+/**
+ * Mark a failed generation as resolved (or reopen it).
+ *
+ * A failed run otherwise sits in the admin dashboard's "Needs attention"
+ * queue forever — the only way to clear it was to delete the record, which
+ * also throws away the error message you might want to keep for debugging.
+ * Resolving sets a flag the dashboard count ignores, without touching the
+ * `status` field, so the failure (and its `errorMessage`) stays auditable.
+ * Admins can write any field on aiGenerations (firestore.rules), so this
+ * needs no rules change.
+ */
+export async function resolveGeneration(genId, resolved = true) {
+  if (!genId) return false
+  try {
+    await updateDoc(doc(db, 'aiGenerations', genId), {
+      adminResolved: resolved,
+      adminResolvedAt: resolved ? serverTimestamp() : null,
+    })
+    return true
+  } catch (err) {
+    console.error('resolveGeneration failed', err)
+    return false
+  }
+}
+
 /** Hard delete a generation. Admin only. */
 export async function deleteGeneration(genId) {
   if (!genId) return false
@@ -88,35 +114,14 @@ export async function deleteGeneration(genId) {
   }
 }
 
+// Pure reducers live in a Firebase-free module so they're unit-testable.
+export { isUnresolvedFailure, summarizeGenerationRows }
+
 /** Summary stats for the admin dashboard. */
 export async function getGenerationsSummary() {
   try {
     const rows = await listAllGenerations()
-    const last24hCutoff = Date.now() - 24 * 60 * 60 * 1000
-
-    let totalCostCents = 0
-    let last24hCount = 0
-    let failedCount = 0
-    let flaggedCount = 0
-    const byTool = {}
-
-    for (const r of rows) {
-      const ts = r.createdAt?.toMillis?.() || r.createdAt?.seconds * 1000 || 0
-      if (ts >= last24hCutoff) last24hCount++
-      totalCostCents += Number(r.costUsdCents || 0)
-      if (r.status === 'failed') failedCount++
-      if (r.status === 'flagged' || r.visibility === 'flagged_for_review') flaggedCount++
-      byTool[r.tool] = (byTool[r.tool] || 0) + 1
-    }
-
-    return {
-      total: rows.length,
-      last24h: last24hCount,
-      failed: failedCount,
-      flagged: flaggedCount,
-      totalCostUsd: (totalCostCents / 100).toFixed(2),
-      byTool,
-    }
+    return summarizeGenerationRows(rows)
   } catch (err) {
     return {
       total: 0, last24h: 0, failed: 0, flagged: 0, totalCostUsd: '0.00', byTool: {},
