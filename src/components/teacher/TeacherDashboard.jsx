@@ -49,7 +49,7 @@ const STUDIOS = [
     badge: 'NEW',
     libraryKey: 'weekly-forecast',
     title: 'Weekly Forecast',
-    tagline: "Pull a week from your scheme and plan it day by day.",
+    tagline: "Plan the week day by day from your scheme, syllabus and timetable.",
     to: '/teacher/generate/weekly-forecast',
     meta: 'Weekly prep',
   },
