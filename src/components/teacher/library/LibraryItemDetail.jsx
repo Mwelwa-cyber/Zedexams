@@ -35,7 +35,7 @@ import { downloadWeeklyForecastDocx } from '../../../utils/weeklyForecastToDocx'
 import { downloadRecordOfWorkDocx } from '../../../utils/recordOfWorkToDocx'
 import { downloadClassTimetableDocx } from '../../../utils/classTimetableToDocx'
 import { downloadClassTimetableXlsx } from '../../../utils/classTimetableToXlsx'
-import { printClassTimetableAsPdf } from '../../../utils/classTimetableToPdf'
+import { downloadClassTimetablePdf } from '../../../utils/classTimetableToPdf'
 import { downloadRubricDocx } from '../../../utils/rubricToDocx'
 import { downloadNotesDocx } from '../../../utils/notesToDocx'
 import { buildDownloadName } from '../../../utils/downloadFilename'
@@ -233,10 +233,18 @@ export default function LibraryItemDetail() {
     recordExport(item.id, 'xlsx')
   }
 
-  function onExportPdf() {
+  async function onExportPdf() {
     if (item?.tool !== 'class_timetable' || !item.output || !permissions.canDownload) return
     try {
-      printClassTimetableAsPdf(item.output)
+      const name = buildDownloadName({
+        docType: TOOL_DOC_TYPES[item.tool] || 'Class Timetable',
+        grade: item.inputs?.grade || item.output?.header?.grade,
+        term: item.inputs?.term ?? item.output?.header?.term,
+        year: item.inputs?.year ?? item.output?.header?.year,
+        extra: item.output?.header?.className,
+        ext: 'pdf',
+      })
+      await downloadClassTimetablePdf(item.output, { filename: name })
       recordExport(item.id, 'pdf')
     } catch (err) {
       console.error('[LibraryItemDetail] timetable pdf failed', err)

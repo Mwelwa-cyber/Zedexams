@@ -22,26 +22,12 @@ window.__studioRebinders.push(__studioInitExport);
 function gatherStyles() {
   return Array.from(document.styleSheets).map(s => { try { return Array.from(s.cssRules).map(r => r.cssText).join('\n'); } catch (e) { return ''; } }).join('\n');
 }
-function exportPDF() {
-  // A bare window.print() prints the WHOLE studio page — the sidebar form,
-  // planner, format cards and all — so the teacher ends up with several
-  // pages of UI before their plan (the bug behind the "saving gave me this
-  // PDF" report). Instead open a clean popup that contains ONLY the
-  // rendered document + the studio styles, and print that, so the PDF is
-  // the lesson plan alone.
-  if (editing) doc.contentEditable = false;
-  const restore = () => { if (editing) doc.contentEditable = true; };
-  let win = null;
-  try { win = window.open('', '_blank', 'width=900,height=1100'); } catch (e) { win = null; }
-  if (!win) {
-    // Pop-up blocked — fall back to the old behaviour so export still works.
-    if (typeof toast === 'function') toast('Allow pop-ups for a clean PDF of just the plan.');
-    window.print();
-    restore();
-    return;
-  }
+// Build the clean, print-ready HTML for the rendered plan ALONE (no sidebar /
+// form / format cards), with the studio styles + print overrides inlined.
+// Shared by the real-PDF path and the print fallback.
+function buildExportHtml() {
   const styles = gatherStyles();
-  const html = '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' +
+  return '<!DOCTYPE html><html><head><meta charset="utf-8"><title>' +
     currentFilename() + '</title>' +
     '<link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;600;700;800&family=Lora:wght@400;600;700&display=swap" rel="stylesheet">' +
     '<style>' + styles +
@@ -53,13 +39,51 @@ function exportPDF() {
     '.doc{padding:0;min-height:0}' +
     '</style></head><body><div class="doc-wrap"><div class="doc">' +
     doc.innerHTML + '</div></div></body></html>';
+}
+
+// Print fallback: open a clean popup with ONLY the plan and call print(), so
+// the user can "Save as PDF" if real PDF generation isn't available. A bare
+// window.print() would print the whole studio UI, so we never use that.
+function printFallback() {
+  let win = null;
+  try { win = window.open('', '_blank', 'width=900,height=1100'); } catch (e) { win = null; }
+  if (!win) {
+    if (typeof toast === 'function') toast('Allow pop-ups, or use the Word / HTML export instead.');
+    try { window.print(); } catch (e) { /* user can Ctrl+P */ }
+    return;
+  }
   win.document.open();
-  win.document.write(html);
+  win.document.write(buildExportHtml());
   win.document.close();
   const triggerPrint = () => { try { win.focus(); win.print(); } catch (e) { /* user can Ctrl+P */ } };
-  // Let the new window lay out and load fonts before printing.
   if (win.document.readyState === 'complete') setTimeout(triggerPrint, 350);
   else win.addEventListener('load', () => setTimeout(triggerPrint, 350));
+}
+
+async function exportPDF() {
+  // Capture the plan HTML now (contentEditable off so edit chrome isn't baked
+  // into the export), then generate a REAL .pdf file via the bundled helper.
+  if (editing) doc.contentEditable = false;
+  const restore = () => { if (editing) doc.contentEditable = true; };
+  const html = buildExportHtml();
+
+  if (typeof window.__zxDownloadPdf === 'function') {
+    if (typeof toast === 'function') toast('Preparing PDF…');
+    try {
+      const ok = await window.__zxDownloadPdf(html, currentFilename() + '.pdf', printFallback);
+      if (typeof toast === 'function') {
+        toast(ok ? 'PDF downloaded' : 'Opened print view — choose “Save as PDF”.');
+      }
+    } catch (e) {
+      printFallback();
+    } finally {
+      restore();
+    }
+    return;
+  }
+
+  // Bridge unavailable (scripts loaded standalone) — print fallback.
+  printFallback();
   restore();
 }
 function exportHTML() {
@@ -68,32 +92,10 @@ function exportHTML() {
   download(body, currentFilename() + '.html', 'text/html');
 }
 
-// Lazy-load html-docx-js (400KB) — only fetched when user first exports to Word
-let _htmlDocxPromise = null;
-function loadHtmlDocxLib() {
-  if (window.htmlDocx) return Promise.resolve();
-  if (_htmlDocxPromise) return _htmlDocxPromise;
-  _htmlDocxPromise = new Promise((resolve, reject) => {
-    const s = document.createElement('script');
-    s.src = 'https://cdn.jsdelivr.net/npm/html-docx-js@0.3.1/dist/html-docx.min.js';
-    s.onload = () => resolve();
-    s.onerror = () => { _htmlDocxPromise = null; reject(new Error('Failed to load Word converter')); };
-    document.head.appendChild(s);
-  });
-  return _htmlDocxPromise;
-}
-
-async function exportWord() {
-  toast('Preparing Word document…');
-  try {
-    await loadHtmlDocxLib();
-  } catch (e) {
-    toast('Could not load Word converter — falling back to .doc');
-    return exportWordLegacy();
-  }
-  const styles = gatherStyles();
-  // html-docx-js requires a complete HTML document with inline styles
-  const html = `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
+// Build the Word-flavoured HTML document (inline print styles + Office
+// namespaces) that the HTML→docx converter turns into a .docx.
+function buildWordHtml() {
+  return `<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">
 <head><meta charset="utf-8"><title>Lesson Plan</title>
 <style>
 @page WordSection1 { size: 21cm 29.7cm; margin: 18mm 16mm 18mm 16mm; }
@@ -126,19 +128,50 @@ li { margin: 2pt 0; }
 strong { font-weight: 700; }
 </style>
 </head><body><div class="WordSection1">${doc.innerHTML}</div></body></html>`;
+}
 
+// Lazy-load the HTML→docx converter. Served locally from /studio/vendor (NOT a
+// CDN): the old CDN fetch silently failed whenever the network / CSP / an ad-
+// blocker got in the way, which is why "Download Word" looked broken. The local
+// copy works offline and inside the Android app.
+let _htmlDocxPromise = null;
+function loadHtmlDocxLib() {
+  if (window.htmlDocx) return Promise.resolve();
+  if (_htmlDocxPromise) return _htmlDocxPromise;
+  _htmlDocxPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = '/studio/vendor/html-docx.min.js';
+    s.onload = () => resolve();
+    s.onerror = () => { _htmlDocxPromise = null; reject(new Error('Failed to load Word converter')); };
+    document.head.appendChild(s);
+  });
+  return _htmlDocxPromise;
+}
+
+async function exportWord() {
+  if (typeof toast === 'function') toast('Preparing Word document…');
+  const html = buildWordHtml();
+  const filename = currentFilename() + '.docx';
+
+  // Primary: real .docx via the locally-vendored converter.
   try {
+    await loadHtmlDocxLib();
     const blob = window.htmlDocx.asBlob(html, { orientation: 'portrait', margins: { top: 1080, right: 960, bottom: 1080, left: 960 } });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url; a.download = currentFilename() + '.docx';
+    a.href = url; a.download = filename;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    toast('Word document downloaded');
+    if (typeof toast === 'function') toast('Word document downloaded');
+    return;
   } catch (e) {
-    console.error('docx export failed:', e);
-    toast('Word export failed — try again');
+    console.error('docx export failed, falling back to .doc:', e);
   }
+
+  // Fallback: a .doc (Word-readable HTML) built from a plain Blob — no network,
+  // no library, opens in Word / Google Docs.
+  if (typeof toast === 'function') toast('Downloading Word (.doc) instead…');
+  exportWordLegacy();
 }
 
 // Legacy .doc fallback (HTML-as-Word) used if html-docx-js fails to load

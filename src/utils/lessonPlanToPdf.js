@@ -19,7 +19,25 @@
  * throw with a message the caller surfaces as a toast.
  */
 
+import { downloadHtmlAsPdf } from './htmlToPdf.js'
+
 const BRAND_PRIMARY = '#059669' // emerald-600, matches the lesson-plan UI
+
+/**
+ * Download the lesson plan as a real .pdf file. Falls back to the browser
+ * print dialog (printLessonPlanAsPdf) if client-side rendering fails.
+ */
+export async function downloadLessonPlanPdf(
+  plan,
+  titleForDocument = 'CBC Lesson Plan',
+  filename = 'lesson-plan.pdf',
+) {
+  if (!plan) throw new Error('No lesson plan to export.')
+  const html = buildPrintableHtml(plan, titleForDocument)
+  return downloadHtmlAsPdf(html, filename, {
+    onFallback: () => printLessonPlanAsPdf(plan, titleForDocument),
+  })
+}
 
 export function printLessonPlanAsPdf(plan, titleForDocument = 'CBC Lesson Plan') {
   if (!plan) throw new Error('No lesson plan to export.')

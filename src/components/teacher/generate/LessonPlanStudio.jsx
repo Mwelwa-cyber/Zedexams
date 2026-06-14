@@ -14,6 +14,7 @@ import { syllabiToKbTopics } from '../../../utils/syllabusMapping'
 import SeoHelmet from '../../seo/SeoHelmet'
 import { LIBRARY_TYPES, SYLLABUS_TYPES } from '../../../config/library'
 import { classifyForLibrary } from '../../../utils/libraryClassification'
+import { downloadHtmlAsPdf } from '../../../utils/htmlToPdf'
 
 const functions = getFunctions(app, 'us-central1')
 const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerateLessonPlan', {
@@ -22,7 +23,7 @@ const studioGenerateLessonPlanCallable = httpsCallable(functions, 'studioGenerat
 
 // Bump this when /public/studio/* is changed so phones / CDNs refetch
 // instead of serving the cached old file.
-const STUDIO_ASSET_VERSION = 'v17'
+const STUDIO_ASSET_VERSION = 'v18'
 
 // Sequential script loader — each script must finish before the next starts
 // because the studio scripts rely on globals set by earlier ones.
@@ -352,6 +353,16 @@ export default function LessonPlanStudio() {
       t._tid = setTimeout(() => t.classList.remove('show'), 3000)
     }
 
+    // ---- Export bridge ----
+    // The vanilla export script (public/studio/10-export.js) used to print()
+    // only (no real PDF file). Hand it the bundled, lazy-loaded PDF helper so
+    // "Download PDF" saves a real .pdf file; it returns a Promise and falls
+    // back to the print dialog on failure. (Word export is handled inside
+    // 10-export.js via the locally-vendored html-docx — that library can't be
+    // bundled, so it can't be passed through this bridge.)
+    window.__zxDownloadPdf = (html, filename, onFallback) =>
+      downloadHtmlAsPdf(html, filename, { onFallback })
+
     // ---- Load scripts in dependency order ----
     const v = `?${STUDIO_ASSET_VERSION}`
     const scripts = [
@@ -412,6 +423,7 @@ export default function LessonPlanStudio() {
       delete window.$$
       delete window.esc
       delete window.toast
+      delete window.__zxDownloadPdf
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 

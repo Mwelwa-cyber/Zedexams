@@ -83,7 +83,7 @@ import {
 } from '../quiz/documentQuizImporter'
 import { LIBRARY_TYPES } from '../../config/library'
 import { classifyForLibrary } from '../../utils/libraryClassification'
-import { printAssessmentAsPdf, printAnswerSheetAsPdf } from '../../utils/assessmentToPdf'
+import { downloadAssessmentPdf, downloadAnswerSheetPdf } from '../../utils/assessmentToPdf'
 import { downloadAssessmentDocx, downloadAnswerSheetDocx } from '../../utils/assessmentToDocx'
 import { buildAssessmentName } from '../../utils/downloadFilename'
 import { buildPaperLayout, computeSmartWarnings } from '../../utils/assessmentPaperLayout'
@@ -1568,18 +1568,19 @@ export default function AssessmentStudio() {
       // Auto-titles (e.g. "Grade 4 Mathematics - Fractions") read well as-is;
       // a custom title gets grade/subject prepended so the file still says
       // what it is. buildAssessmentName handles both.
-      const docName = (variant) => buildAssessmentName({
+      const docName = (variant, ext = 'docx') => buildAssessmentName({
         title: assessmentDoc.title,
         grade: assessmentDoc.grade,
         subject: assessmentDoc.subject,
         variant,
+        ext,
       })
       // Standalone answer sheet (bubble grid) — its own builder, not the
       // full-paper layout.
       if (mode === 'answersheet') {
         if (kind === 'pdf') {
-          printAnswerSheetAsPdf(assessmentDoc, serializedPreview.questions)
-          showToast('Answer sheet PDF opened.')
+          await downloadAnswerSheetPdf(assessmentDoc, serializedPreview.questions, { filename: docName('Answer Sheet', 'pdf') })
+          showToast('Answer sheet PDF downloaded.')
         } else if (kind === 'docx') {
           await downloadAnswerSheetDocx(assessmentDoc, serializedPreview.questions, docName('Answer Sheet'), { attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
           showToast('Answer sheet download started.')
@@ -1587,8 +1588,8 @@ export default function AssessmentStudio() {
         return
       }
       if (kind === 'pdf') {
-        printAssessmentAsPdf(assessmentDoc, serializedPreview.questions, { mode })
-        showToast('PDF dialog opened.')
+        await downloadAssessmentPdf(assessmentDoc, serializedPreview.questions, { mode, filename: docName(mode === 'scheme' ? 'Marking Key' : undefined, 'pdf') })
+        showToast('PDF downloaded.')
       } else if (kind === 'docx') {
         await downloadAssessmentDocx(assessmentDoc, serializedPreview.questions, docName(mode === 'scheme' ? 'Marking Key' : undefined), { mode, attribution: isFreePlanTeacher({ userProfile, isAdmin }) })
         showToast('Word download started.')

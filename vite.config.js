@@ -108,7 +108,10 @@ export default defineConfig(({ mode }) => {
           // note diagrams (public/notes/*.png) — pre-caching either would balloon
           // the install size for everyone. The worker loads on demand; note
           // diagrams are runtime-cached on first view (see runtimeCaching below).
-          globIgnores: ['**/pdf.worker*.{js,mjs}', '**/notes/*.png'],
+          // ...and the vendored html-docx converter (416 kB, teacher-only Word
+          // export) — it's fetched on demand by the Lesson Plan Studio, so
+          // pre-caching it for every learner would just bloat the install.
+          globIgnores: ['**/pdf.worker*.{js,mjs}', '**/notes/*.png', '**/studio/vendor/**'],
           // Default is 2 MB. Bump so our largest hashed chunks (vendor,
           // index, react-vendor) all fit under the cache-eligible cap.
           maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
@@ -287,6 +290,20 @@ export default defineConfig(({ mode }) => {
             // their own chunk so a learner never pays for the docx assembler.
             if (normalizedId.includes('/node_modules/docx/')) return 'docx-vendor'
             if (normalizedId.includes('/node_modules/file-saver/')) return 'docx-vendor'
+
+            // jsPDF + html2canvas power the real one-click PDF export
+            // (src/utils/htmlToPdf.js). They're only reached via dynamic
+            // import() the first time a teacher downloads a PDF, so keep them
+            // in their own lazy chunk — without this rule the catch-all vendor
+            // bucket would pull ~400 kB into the eager initial load.
+            if (
+              normalizedId.includes('/node_modules/jspdf/') ||
+              normalizedId.includes('/node_modules/html2canvas/') ||
+              normalizedId.includes('/node_modules/css-line-break/') ||
+              normalizedId.includes('/node_modules/text-segmentation/')
+            ) {
+              return 'pdf-vendor'
+            }
 
             // Capacitor's native shell only matters inside the Android wrapper
             // but ships to the web too via initNativeShell(). Splitting it keeps
