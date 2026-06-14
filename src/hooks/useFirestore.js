@@ -81,7 +81,9 @@ function normalizeDiagramParams(params) {
  */
 function normalizeQuestionPayload(q, order) {
   const type = q.type || 'mcq'
-  const isShortAnswer = type === 'short_answer' || type === 'diagram'
+  // Short-answer / diagram / essay collect a written response, not an option
+  // list — no options array, correctAnswer is a (possibly blank) string.
+  const isShortAnswer = type === 'short_answer' || type === 'diagram' || type === 'essay'
   // Numeric questions also have no options array — they collect a single
   // typed number from the learner instead. Treated alongside short-answer
   // for option-clearing; correctAnswer normalisation diverges below.
@@ -90,7 +92,12 @@ function normalizeQuestionPayload(q, order) {
   // options array. The "answer" is a normalised (x, y) coordinate, graded
   // against the teacher-placed correctRegion at submit time.
   const isHotspot = type === 'hotspot'
-  const options = isShortAnswer || isNumeric || isHotspot
+  // Matching / sequence carry their answer in dedicated arrays
+  // (matchingAnswer / sequenceAnswer); they have no options either.
+  const isMatching = type === 'matching'
+  const isSequence = type === 'sequence'
+  const noOptions = isShortAnswer || isNumeric || isHotspot || isMatching || isSequence
+  const options = noOptions
     ? []
     : Array.isArray(q.options)
       ? q.options.map(opt => String(opt ?? '').trim())
@@ -100,7 +107,7 @@ function normalizeQuestionPayload(q, order) {
   // truncate or pad with nulls so the parallel arrays stay in lock-step.
   // A slot collapses to null when it has neither an imageUrl nor a diagram.
   const rawMedia = Array.isArray(q.optionMedia) ? q.optionMedia : []
-  const optionMedia = isShortAnswer || isNumeric || isHotspot
+  const optionMedia = noOptions
     ? []
     : options.map((_, i) => {
         const m = rawMedia[i]
@@ -136,7 +143,10 @@ function normalizeQuestionPayload(q, order) {
     passageId:     q.passageId || null,
     partId:        q.partId ?? null,
     subtype:       q.subtype ?? null,
-    correctAnswer: isShortAnswer
+    correctAnswer: isShortAnswer || isMatching || isSequence
+      // Short-answer/essay store the written answer; matching/sequence keep
+      // their correctness in their own arrays below, so correctAnswer is an
+      // (often empty) string for all three.
       ? String(q.correctAnswer ?? '').trim()
       : isNumeric
         // Numeric questions store a real number — Number() converts strings
@@ -147,10 +157,35 @@ function normalizeQuestionPayload(q, order) {
         : Number.isInteger(q.correctAnswer)
           ? q.correctAnswer
           : Number(q.correctAnswer) || 0,
+    // Type-specific answer fields. Spread only for the relevant type so a
+    // plain MCQ never carries empty matching/sequence arrays, and the
+    // schema's .strict() gate never sees an unexpected key.
+    ...(isNumeric ? {
+      numericTolerance: Number.isFinite(Number(q.numericTolerance)) && Number(q.numericTolerance) >= 0
+        ? Number(q.numericTolerance)
+        : 0,
+      numericUnit: String(q.numericUnit ?? '').trim().slice(0, 40),
+    } : {}),
+    ...(isMatching ? {
+      matchingLeft: (Array.isArray(q.matchingLeft) ? q.matchingLeft : []).map(s => String(s ?? '').slice(0, 500)).slice(0, 20),
+      matchingRight: (Array.isArray(q.matchingRight) ? q.matchingRight : []).map(s => String(s ?? '').slice(0, 500)).slice(0, 20),
+      matchingAnswer: (Array.isArray(q.matchingAnswer) ? q.matchingAnswer : [])
+        .map(v => { const n = Number(v); return Number.isInteger(n) && n >= -1 ? n : -1 }).slice(0, 20),
+    } : {}),
+    ...(isSequence ? {
+      sequenceItems: (Array.isArray(q.sequenceItems) ? q.sequenceItems : []).map(s => String(s ?? '').slice(0, 500)).slice(0, 20),
+      sequenceAnswer: (Array.isArray(q.sequenceAnswer) ? q.sequenceAnswer : [])
+        .map(v => { const n = Number(v); return Number.isInteger(n) && n >= 0 ? n : 0 }).slice(0, 20),
+    } : {}),
     // Tolerance only matters for numeric. Stored as null on every other type
-    // so the schema's union-with-null lines up across the board.
+    // so the schema's union-with-null lines up across the board. The learner
+    // quiz runner reads `tolerance`; the assessment studio writes
+    // `numericTolerance` — keep them in lock-step so a numeric question grades
+    // the same whichever surface created it.
     tolerance:    isNumeric
-      ? (Number.isFinite(Number(q.tolerance)) && Number(q.tolerance) >= 0 ? Number(q.tolerance) : 0)
+      ? (Number.isFinite(Number(q.tolerance)) && Number(q.tolerance) >= 0
+          ? Number(q.tolerance)
+          : (Number.isFinite(Number(q.numericTolerance)) && Number(q.numericTolerance) >= 0 ? Number(q.numericTolerance) : 0))
       : null,
     // correctRegion only matters for hotspot. Coerce x/y to [0, 1] and
     // radius to a sensible cap. A teacher who never clicked the image

@@ -509,15 +509,23 @@ export function serializeQuizSections(sections = [], parts = []) {
       })
 
       ;(passage.questions || []).forEach(question => {
+        // Preserve the sub-question's real type. A passage can now hold
+        // short-answer sub-questions alongside MCQ; hard-coding 'mcq' here
+        // (the old behaviour) silently converted them to multiple-choice on
+        // save, corrupting the marking key and the reopened paper.
+        const subType = question.type || 'mcq'
+        const subIsTextAnswer = subType === 'short_answer' || subType === 'diagram' || subType === 'essay'
         questions.push({
           ...question,
           sharedInstruction: serializeRichField(question.sharedInstruction),
           text: serializeRichField(question.text),
           explanation: serializeRichField(question.explanation),
-          options: serializeOptions(question.options),
+          // Text-answer sub-questions carry no options; clear any stale ones
+          // left over from a type switch so they don't round-trip as MCQ.
+          options: subIsTextAnswer ? [] : serializeOptions(question.options),
           passageId,
-          type: 'mcq',
-          detectedType: 'mcq',
+          type: subType,
+          detectedType: question.detectedType ?? subType,
           subtype: question.subtype ?? null,
           partId: passagePartId,
           order: questionOrder,
@@ -595,7 +603,9 @@ function hydrateStandaloneQuestion(question = {}) {
   // `matching` has its own correctness model (matchingAnswer index array)
   // and the legacy correctAnswer is unused, so we also flatten it here.
   // `sequence` rides the same path — correctness lives on sequenceAnswer.
-  const isTextAnswer = type === 'short_answer' || type === 'diagram' || type === 'fill' || type === 'short' || type === 'numeric' || type === 'matching' || type === 'sequence'
+  // `essay` has no options either — the answer is the learner's written
+  // response, graded against an optional sample answer / rubric.
+  const isTextAnswer = type === 'short_answer' || type === 'diagram' || type === 'essay' || type === 'fill' || type === 'short' || type === 'numeric' || type === 'matching' || type === 'sequence'
 
   return emptyQuestion({
     localId: question.id || question._id || question.localId || nextLocalId('question'),
@@ -691,18 +701,29 @@ function hydrateStandaloneQuestion(question = {}) {
 }
 
 function hydratePassageQuestion(question = {}, passageId, partId = null) {
+  // Preserve the sub-question's saved type. Passages can hold short-answer
+  // sub-questions, not just MCQ; hard-coding 'mcq' on reopen (the old
+  // behaviour) made a saved short-answer reopen as an empty multiple-choice.
+  const type = question.type || 'mcq'
+  const isTextAnswer = type === 'short_answer' || type === 'diagram' || type === 'essay'
   return emptyPassageQuestion({
     localId: question.id || question._id || question.localId || nextLocalId('question'),
     _id: question.id || question._id || null,
+    type,
+    detectedType: question.detectedType ?? type,
     sharedInstruction: hydrateRichField(pickRichField(question.sharedInstructionJSON, question.sharedInstruction)),
     text: hydrateRichField(pickRichField(question.textJSON, question.text)),
-    options: Array.isArray(question.options) && question.options.length
-      ? hydrateOptions(question.options)
-      : ['', '', '', ''],
+    options: isTextAnswer
+      ? []
+      : Array.isArray(question.options) && question.options.length
+        ? hydrateOptions(question.options)
+        : ['', '', '', ''],
     // Persist optionMedia so image options survive a reload — same reasoning
     // as in hydrateStandaloneQuestion above.
-    optionMedia: hydrateOptionMedia(question.optionMedia),
-    correctAnswer: question.correctAnswer ?? 0,
+    optionMedia: isTextAnswer ? [] : hydrateOptionMedia(question.optionMedia),
+    correctAnswer: isTextAnswer
+      ? String(question.correctAnswer ?? '')
+      : question.correctAnswer ?? 0,
     explanation: hydrateRichField(pickRichField(question.explanationJSON, question.explanation)),
     topic: question.topic ?? '',
     marks: question.marks ?? 1,

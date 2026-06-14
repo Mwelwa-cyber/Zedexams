@@ -1,10 +1,12 @@
 // Assessment Studio v2 — block-based, parchment + oxblood design.
-// Data model is unchanged — sections[] + parts[] still flow through
-// serializeQuizSections / saveAssessmentQuestions exactly as before,
-// so this view is drop-in compatible with EditAssessment + exports.
+// Backs BOTH /teacher/assessments/new and /teacher/assessments/:id/edit:
+// sections[] + parts[] flow through serializeQuizSections /
+// saveAssessmentQuestions on create and through hydrateQuizSections /
+// updateAssessmentWithQuestions on edit, so a saved paper reopens here in the
+// full builder (the standalone EditAssessment view it replaced is retired).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 
 import { useFirestore } from '../../hooks/useFirestore'
@@ -31,6 +33,8 @@ import {
   emptyPassageQuestion,
   getQuestionKey,
   hasOnlyEmptyStarterSection,
+  hydrateQuizSections,
+  collectSectionFirestoreIds,
   serializeQuizSections,
 } from '../../utils/quizSections.js'
 import { richTextHasContent, richTextToPlainText, richTextHasFormatting } from '../../utils/quizRichText.js'
@@ -80,7 +84,7 @@ import { printAssessmentAsPdf, printAnswerSheetAsPdf } from '../../utils/assessm
 import { downloadAssessmentDocx, downloadAnswerSheetDocx } from '../../utils/assessmentToDocx'
 import { buildPaperLayout, computeSmartWarnings } from '../../utils/assessmentPaperLayout'
 import { estimatePaperMinutes } from '../../utils/assessmentTiming'
-import { SUBJECTS as CBC_SUBJECTS, COMPETENCIES } from '../../config/curriculum'
+import { SUBJECTS as CBC_SUBJECTS, COMPETENCIES, normalizeSubject } from '../../config/curriculum'
 
 import './studio/assessmentStudio.css'
 
@@ -283,6 +287,44 @@ function buildQuestionNumberMap(questions = []) {
   return Object.fromEntries(questions.map((question, index) => [getQuestionKey(question), index + 1]))
 }
 
+// Reverse of the createAssessment payload: map a stored assessment doc back
+// onto the studio's `form` shape so editing reopens with every paper-level
+// field (cover toggles, logo transform, MCQ layout, import metadata) intact.
+// Only defined keys are returned so the caller can spread over form defaults.
+function mapAssessmentToForm(a = {}) {
+  const out = {}
+  const copy = (key, transform) => {
+    if (a[key] !== undefined && a[key] !== null) out[key] = transform ? transform(a[key]) : a[key]
+  }
+  copy('title')
+  if (a.subject != null) out.subject = normalizeSubject(a.subject)
+  copy('grade', String)
+  copy('term', String)
+  copy('year')
+  copy('duration')
+  copy('topic')
+  copy('assessmentType')
+  copy('schoolName')
+  copy('className')
+  copy('paperName')
+  copy('assessmentDate')
+  copy('coverInstructions')
+  copy('schoolLogoUrl')
+  copy('schoolLogoTransform')
+  copy('endOfPaperText')
+  copy('mcqOptionLayout')
+  copy('mcqAnswerChoiceCount')
+  copy('mode')
+  copy('importStatus')
+  copy('sourceFileName')
+  copy('sourceContentType')
+  if (Array.isArray(a.importWarnings)) out.importWarnings = a.importWarnings
+  for (const key of ['showNameField', 'showDateField', 'showMarksField', 'showClassField']) {
+    if (typeof a[key] === 'boolean') out[key] = a[key]
+  }
+  return out
+}
+
 function buildTitleFromForm(form) {
   const gradeWord = GRADE_WORDS[form.grade] || form.grade
   const type = ASSESSMENT_TYPE_LABELS[form.assessmentType] || 'Assessment'
@@ -323,15 +365,25 @@ function plainTextWordCount(value) {
  * ------------------------------------------------------------------ */
 
 export default function AssessmentStudio() {
-  const { createAssessment, saveAssessmentQuestions, getMyAssessments } = useFirestore()
+  const {
+    createAssessment, saveAssessmentQuestions, getMyAssessments,
+    getAssessmentById, getAssessmentQuestions, updateAssessmentWithQuestions,
+  } = useFirestore()
   const { currentUser, userProfile, isAdmin } = useAuth()
   const navigate = useNavigate()
+  const { assessmentId: editId } = useParams()
+  // Edit mode: the same studio now backs both /assessments/new and
+  // /assessments/:id/edit so a saved paper reopens in the full, type-complete
+  // builder instead of the older EditAssessment workflow.
+  const isEditing = Boolean(editId)
   const [searchParams, setSearchParams] = useSearchParams()
   const requestedView = searchParams.get('view')
 
   // View + slide-over state
   const [view, setView] = useState(
-    ['home', 'builder', 'preview', 'marking-key'].includes(requestedView) ? requestedView : 'home',
+    isEditing
+      ? 'builder'
+      : ['home', 'builder', 'preview', 'marking-key'].includes(requestedView) ? requestedView : 'home',
   )
   const [slideover, setSlideover] = useState(null) // 'blocks' | 'ai' | 'editor' | null
   const [editorTargetKey, setEditorTargetKey] = useState(null)
@@ -376,6 +428,11 @@ export default function AssessmentStudio() {
   const [sections, setSections] = useState(() => [createStandaloneSection()])
   const [parts, setParts] = useState([])
   const [saving, setSaving] = useState(false)
+  // Edit mode: load state, ownership guard, and the Firestore ids of
+  // sub-questions removed since load (so the update can delete them).
+  const [editLoading, setEditLoading] = useState(isEditing)
+  const [editError, setEditError] = useState(null) // null | 'notfound' | 'denied'
+  const [deletedIds, setDeletedIds] = useState([])
   // Wall-clock time of the last successful draft autosave, surfaced in the
   // top bar so the teacher can see their work is being kept ("Saved 14:32").
   const [draftSavedAt, setDraftSavedAt] = useState(null)
@@ -534,7 +591,9 @@ export default function AssessmentStudio() {
   isPaperUntouchedRef.current = hasOnlyEmptyStarterSection(sections)
     && !form.title?.trim() && !form.schoolName?.trim()
 
-  const draftRestoredRef = useRef(false)
+  // In edit mode we never restore the "new paper" draft — start as if a draft
+  // was already considered so the restore effect below early-returns.
+  const draftRestoredRef = useRef(isEditing)
   useEffect(() => {
     if (draftRestoredRef.current) return
     if (!currentUser?.uid) return
@@ -563,6 +622,10 @@ export default function AssessmentStudio() {
 
   useEffect(() => {
     if (!currentUser?.uid) return
+    // The cross-device draft is for unsaved NEW papers only. When editing an
+    // existing assessment, the durable copy in Firestore is the source of
+    // truth — don't shadow it with (or restore from) the new-paper draft.
+    if (isEditing) return
     if (!draftRestoredRef.current) return
     if (hasOnlyEmptyStarterSection(sections) && !form.title.trim() && !form.schoolName.trim()) return
     const timer = setTimeout(() => {
@@ -576,7 +639,50 @@ export default function AssessmentStudio() {
       setDirty(false)
     }, 800)
     return () => clearTimeout(timer)
-  }, [form, sections, parts, view, currentUser?.uid])
+  }, [form, sections, parts, view, currentUser?.uid, isEditing])
+
+  // ── Edit mode: load the existing assessment + its questions ──────────
+  // Hydrates the same in-memory shape the builder already uses, so every
+  // block type (incl. essay/numeric/matching/sequence and short-answer
+  // passage sub-questions) reopens exactly as saved.
+  useEffect(() => {
+    if (!isEditing || !editId || !currentUser?.uid) return
+    let cancelled = false
+    setEditLoading(true)
+    setEditError(null)
+    Promise.all([getAssessmentById(editId), getAssessmentQuestions(editId)])
+      .then(([assessment, questions]) => {
+        if (cancelled) return
+        if (!assessment) { setEditError('notfound'); setEditLoading(false); return }
+        if (!isAdmin && assessment.createdBy !== currentUser.uid) {
+          setEditError('denied'); setEditLoading(false); return
+        }
+        setForm(current => ({ ...current, ...mapAssessmentToForm(assessment) }))
+        const hydrated = hydrateQuizSections(
+          questions,
+          assessment.passages || [],
+          assessment.parts || [],
+          assessment.pagebreaks || [],
+        )
+        setSections(hydrated.sections)
+        setParts(hydrated.parts)
+        setDeletedIds([])
+        setView('builder')
+        // The loaded paper is already in the library and not yet edited.
+        setSavedToLibrary(true)
+        setDirty(false)
+        // Don't let the freshly-loaded setState flip the "unsaved" badge or
+        // trigger a draft restore that clobbers it.
+        draftRestoredRef.current = true
+        dirtyTrackingReadyRef.current = false
+        setEditLoading(false)
+      })
+      .catch(() => {
+        if (!cancelled) { setEditError('notfound'); setEditLoading(false) }
+      })
+    return () => { cancelled = true }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editId, isEditing, currentUser?.uid, isAdmin])
 
   // Mark the paper "dirty" the moment its content changes, so the status badge
   // can show "Unsaved changes" until the debounced autosave above clears it.
@@ -664,6 +770,10 @@ export default function AssessmentStudio() {
     })
   }
   function removeSectionAt(sectionIndex) {
+    // Queue any already-saved question ids for deletion so the edit-save
+    // batch removes them from Firestore (no-op for never-saved sections).
+    const removedIds = collectSectionFirestoreIds(sections[sectionIndex])
+    if (removedIds.length) setDeletedIds(prev => [...prev, ...removedIds])
     setSections(prev => {
       const next = prev.filter((_, index) => index !== sectionIndex)
       return next.length ? next : [createStandaloneSection()]
@@ -773,6 +883,8 @@ export default function AssessmentStudio() {
     }))
   }
   function removePassageQuestion(sectionIndex, questionIndex) {
+    const removedId = sections[sectionIndex]?.passage?.questions?.[questionIndex]?._id
+    if (removedId) setDeletedIds(prev => [...prev, removedId])
     updateSection(sectionIndex, section => ({
       ...section,
       passage: {
@@ -1342,11 +1454,15 @@ export default function AssessmentStudio() {
         assessmentType: STUDIO_TO_LIBRARY_ASSESSMENT_TYPE[form.assessmentType] || form.assessmentType,
       })
       const finalTitle = form.title.trim() || autoTitle
-      const assessmentId = await createAssessment({
+      // Shared payload for both create and update so an edited paper round-trips
+      // every field the builder sets — cover toggles, logo transform, page
+      // breaks, MCQ layout and import metadata included.
+      const assessmentPayload = {
         title: finalTitle,
         subject: form.subject,
         grade: form.grade,
         term: form.term,
+        year: form.year,
         duration: form.duration,
         topic: form.topic,
         assessmentType: form.assessmentType,
@@ -1356,11 +1472,17 @@ export default function AssessmentStudio() {
         assessmentDate: form.assessmentDate,
         coverInstructions: form.coverInstructions,
         schoolLogoUrl: form.schoolLogoUrl,
+        schoolLogoTransform: form.schoolLogoTransform ?? null,
+        showNameField: form.showNameField,
+        showDateField: form.showDateField,
+        showMarksField: form.showMarksField,
+        showClassField: form.showClassField,
         mcqOptionLayout: form.mcqOptionLayout,
         mcqAnswerChoiceCount: form.mcqAnswerChoiceCount,
         endOfPaperText: form.endOfPaperText,
         footerCode,
         passages: passagesForSave,
+        pagebreaks: serialized.pagebreaks,
         parts: serialized.parts,
         passageCount: passagesForSave.length,
         totalMarks: totalMarksForSave,
@@ -1377,17 +1499,32 @@ export default function AssessmentStudio() {
         sourceFileName: form.sourceFileName,
         sourceContentType: form.sourceContentType,
         importWarnings: form.importWarnings,
-        createdBy: currentUser.uid,
         library,
-      })
-      await saveAssessmentQuestions(assessmentId, questionsForSave)
+      }
+
+      if (isEditing) {
+        // updateAssessmentWithQuestions upserts changed questions and deletes
+        // the ones removed since load — atomic doc + subcollection update.
+        await updateAssessmentWithQuestions(
+          editId,
+          { ...assessmentPayload, updatedBy: currentUser.uid },
+          questionsForSave,
+          deletedIds,
+        )
+        setDeletedIds([])
+      } else {
+        const newAssessmentId = await createAssessment({ ...assessmentPayload, createdBy: currentUser.uid })
+        await saveAssessmentQuestions(newAssessmentId, questionsForSave)
+        // The freshly-created paper now owns its questions; clear the
+        // new-paper draft so it doesn't resurrect on the next visit.
+        clearAssessmentDraft(currentUser.uid)
+        clearAssessmentDraftRemote(currentUser.uid)
+      }
       setImportedAssets({})
-      clearAssessmentDraft(currentUser.uid)
-      clearAssessmentDraftRemote(currentUser.uid)
-      // The durable library copy now exists — reflect that in the status badge.
+      // The durable library copy now exists / is updated — reflect that.
       setDirty(false)
       setSavedToLibrary(true)
-      showToast('Saved to your library!')
+      showToast(isEditing ? 'Changes saved.' : 'Saved to your library!')
       setTimeout(() => navigate('/teacher/assessments'), 900)
     } catch (error) {
       console.error(error)
@@ -1600,9 +1737,50 @@ export default function AssessmentStudio() {
   }
 
   /* ------------ render ------------ */
+  // Edit mode: hold the builder behind a loader until the saved paper is
+  // hydrated, and short-circuit to a clear message when it's missing or the
+  // teacher doesn't own it (admins can edit any paper).
+  if (isEditing && editLoading) {
+    return (
+      <div className="studio-v2">
+        <SeoHelmet title="Edit assessment" noIndex />
+        <div style={{ padding: '48px 16px' }} className="space-y-4">
+          {[1, 2, 3].map(item => (
+            <div key={item} className="theme-card theme-border theme-bg-subtle h-24 animate-pulse rounded-2xl border p-5" />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (isEditing && editError) {
+    const notFound = editError === 'notfound'
+    return (
+      <div className="studio-v2">
+        <SeoHelmet title="Edit assessment" noIndex />
+        <div className="theme-text py-20 text-center">
+          <div className="mb-3 text-5xl" aria-hidden="true">🔒</div>
+          <h2 className="text-display-xl theme-text mb-2">{notFound ? 'Assessment not found' : 'Access denied'}</h2>
+          <p className="theme-text-muted text-body mb-5">
+            {notFound
+              ? 'This assessment does not exist or has been deleted.'
+              : 'You can only edit assessments you created.'}
+          </p>
+          <button
+            type="button"
+            onClick={() => navigate('/teacher/assessments')}
+            className="theme-accent-fill theme-on-accent rounded-xl px-6 py-2.5 text-sm font-black transition-all duration-fast ease-out shadow-elev-sm shadow-elev-inner-hl hover:-translate-y-px hover:shadow-elev-md"
+          >
+            ← Back to assessments
+          </button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="studio-v2">
-      <SeoHelmet title="Assessment Studio" noIndex />
+      <SeoHelmet title={isEditing ? 'Edit assessment' : 'Assessment Studio'} noIndex />
 
       <TopBar
         title={autoTitle}
@@ -1717,7 +1895,10 @@ export default function AssessmentStudio() {
       <BottomBar
         view={view}
         warnings={warnings}
-        onHome={() => changeView('home')}
+        // While editing a saved paper, "Home" leaves the studio rather than
+        // dropping into the new-paper home view (whose "New paper" reset would
+        // otherwise let a save overwrite the loaded assessment with a blank).
+        onHome={() => (isEditing ? navigate('/teacher/assessments') : changeView('home'))}
         onBuilder={() => changeView('builder')}
         onAdd={() => openSlide('blocks')}
         onPreview={() => changeView('preview')}
@@ -2988,7 +3169,7 @@ function PassageBlock({ section, sectionIndex, parts, questionNumbers, onEditQue
               className="sv-passage-text"
               value={passageText}
               onChange={e => onUpdateSection(sectionIndex, s => ({ ...s, passage: { ...s.passage, passageText: e.target.value } }))}
-              placeholder="Paste or type the passage text here. The Tiptap rich-text editor is available in EditAssessment for richer formatting."
+              placeholder="Paste or type the passage text here."
               rows={6}
             />
           )}
