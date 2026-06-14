@@ -131,4 +131,31 @@ export default [
       'no-unused-vars': 'off',
     },
   },
+
+  // Vitest specs (`*.spec.{js,jsx}`, jsdom). Separate from the `*.test.js`
+  // node scripts above — these run under `npm run test:unit`. Register the
+  // injected test globals (vitest.config.js sets `globals: true`) so specs
+  // don't have to import describe/it/expect/vi by hand, and relax
+  // no-unused-vars as for the other test files.
+  {
+    files: ['**/*.spec.js', '**/*.spec.jsx'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+        ...globals.browser,
+        describe: 'readonly',
+        it: 'readonly',
+        test: 'readonly',
+        expect: 'readonly',
+        vi: 'readonly',
+        beforeAll: 'readonly',
+        afterAll: 'readonly',
+        beforeEach: 'readonly',
+        afterEach: 'readonly',
+      },
+    },
+    rules: {
+      'no-unused-vars': 'off',
+    },
+  },
 ]
