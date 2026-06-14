@@ -6,7 +6,7 @@
 // re-sequences the survivors' order.
 
 const assert = require('node:assert/strict');
-const {dedupeExtractedQuestions} = require('./pastPaperImport');
+const {dedupeExtractedQuestions} = require('./pastPaperImportHelpers');
 
 function q(prompt, options, order) {
   return {prompt, options, correctAnswer: 0, explanation: '', order, requiresReview: true};
