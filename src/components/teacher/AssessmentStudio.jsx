@@ -6,7 +6,7 @@
 // full builder (the standalone EditAssessment view it replaced is retired).
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ref as storageRef, uploadBytes, getDownloadURL } from 'firebase/storage'
 
 import { useFirestore } from '../../hooks/useFirestore'
@@ -41,6 +41,9 @@ import { richTextHasContent, richTextToPlainText, richTextHasFormatting } from '
 import RichEditor from '../../editor/components/RichEditor.jsx'
 import { clampInt } from '../../utils/inputs.js'
 import { getErrorMessage } from '../../utils/errors.js'
+import { compressImage } from '../../utils/imageCompression'
+import { getSchoolProfile } from '../../utils/schoolProfileService'
+import { applySchoolProfileDefaults, brandingForAiPaper } from '../../utils/schoolProfile'
 import { collectQuizIssues } from '../../utils/quizValidation.js'
 import { assertNoBlobImageUrls } from '../../utils/importedQuizAssets.js'
 import QuizValidationChecklist from '../quiz/QuizValidationChecklist'
@@ -206,36 +209,6 @@ function CardQuestionText({ value, onChange, onEditDetail, placeholder = 'Questi
       placeholder={placeholder}
     />
   )
-}
-
-function compressImage(file, maxWidth = 1200, quality = 0.85) {
-  return new Promise((resolve, reject) => {
-    const image = new Image()
-    const objectUrl = URL.createObjectURL(file)
-    image.onload = () => {
-      URL.revokeObjectURL(objectUrl)
-      let { width, height } = image
-      if (width > maxWidth) {
-        height = Math.round((height * maxWidth) / width)
-        width = maxWidth
-      }
-      const canvas = document.createElement('canvas')
-      canvas.width = width
-      canvas.height = height
-      const context = canvas.getContext('2d')
-      context.drawImage(image, 0, 0, width, height)
-      canvas.toBlob(
-        blob => (blob ? resolve(blob) : reject(new Error('Canvas compression failed'))),
-        'image/jpeg',
-        quality,
-      )
-    }
-    image.onerror = () => {
-      URL.revokeObjectURL(objectUrl)
-      reject(new Error('Could not load image'))
-    }
-    image.src = objectUrl
-  })
 }
 
 function safeStorageName(value, fallback = 'asset') {
@@ -463,6 +436,10 @@ export default function AssessmentStudio() {
   const [importedAssets, setImportedAssets] = useState({})
   const [exporting, setExporting] = useState(false)
   const [recentPapers, setRecentPapers] = useState([])
+  // The teacher's saved School Profile (logo / name / default duration +
+  // cover instructions). Loaded once; used to pre-brand a fresh paper and to
+  // backfill the header on AI-created papers.
+  const [schoolProfile, setSchoolProfile] = useState(null)
 
   // Derived
   const serializedPreview = useMemo(
@@ -594,17 +571,29 @@ export default function AssessmentStudio() {
   // In edit mode we never restore the "new paper" draft — start as if a draft
   // was already considered so the restore effect below early-returns.
   const draftRestoredRef = useRef(isEditing)
+  // Flips true once the draft restore has settled (loaded, found nothing, or
+  // failed). The School-Profile seeding below waits on this so it never runs
+  // before a restored draft lands and mistakes the half-restored paper for a
+  // fresh one. It stays false in edit mode (the restore effect early-returns),
+  // so seeding never touches a saved paper that already has its own branding.
+  const [draftSettled, setDraftSettled] = useState(false)
   useEffect(() => {
     if (draftRestoredRef.current) return
     if (!currentUser?.uid) return
-    if (!hasOnlyEmptyStarterSection(sections)) { draftRestoredRef.current = true; return }
+    if (!hasOnlyEmptyStarterSection(sections)) {
+      draftRestoredRef.current = true
+      setDraftSettled(true)
+      return
+    }
     draftRestoredRef.current = true
 
     let cancelled = false
     // Pull the freshest draft across this device + the cloud. A 'remote' win
     // means the paper was last edited on another device.
     loadAssessmentDraftMerged(currentUser.uid).then(({ draft, source }) => {
-      if (cancelled || !draft) return
+      if (cancelled) return
+      setDraftSettled(true)
+      if (!draft) return
       // Re-check the LIVE state: don't clobber anything the teacher started
       // typing while the async cloud read was in flight.
       if (!isPaperUntouchedRef.current) return
@@ -615,10 +604,34 @@ export default function AssessmentStudio() {
       showToast(source === 'remote'
         ? 'Restored your draft from another device.'
         : 'Restored your unsaved draft.')
-    }).catch(() => { /* draft restore is best-effort */ })
+    }).catch(() => { /* draft restore is best-effort */ if (!cancelled) setDraftSettled(true) })
     return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser?.uid])
+
+  // Load the teacher's saved School Profile once.
+  useEffect(() => {
+    if (!currentUser?.uid) return
+    let cancelled = false
+    getSchoolProfile(currentUser.uid)
+      .then(profile => { if (!cancelled && profile) setSchoolProfile(profile) })
+      .catch(() => { /* branding is best-effort — a fresh paper still works */ })
+    return () => { cancelled = true }
+  }, [currentUser?.uid])
+
+  // Pre-brand a FRESH paper from the saved profile (school name + logo +
+  // default duration / cover instructions) so new papers print with the
+  // school header without re-typing it. Runs once, only after the draft
+  // restore has settled and only on an untouched paper — so it never
+  // overwrites a restored draft or anything the teacher has started.
+  const schoolDefaultsAppliedRef = useRef(false)
+  useEffect(() => {
+    if (schoolDefaultsAppliedRef.current) return
+    if (!draftSettled || !schoolProfile) return
+    schoolDefaultsAppliedRef.current = true
+    if (!isPaperUntouchedRef.current) return
+    setForm(f => applySchoolProfileDefaults(f, schoolProfile))
+  }, [draftSettled, schoolProfile])
 
   useEffect(() => {
     if (!currentUser?.uid) return
@@ -1029,29 +1042,39 @@ export default function AssessmentStudio() {
     } else {
       setParts(prev => [...prev, ...newParts])
     }
-    // Fill paper metadata the teacher hasn't set yet — including their
-    // school name/logo from the most recent saved paper, so AI-created
-    // papers print with the school header without re-typing it each time.
+    // Fill paper metadata the teacher hasn't set yet — including their school
+    // name/logo from the saved School Profile (falling back to the most recent
+    // saved paper), so AI-created papers print with the school header without
+    // re-typing it each time.
     const typeMap = {
       mid_term: 'mid_term', end_of_term: 'end_of_term',
       topic_test: 'topic', mock_exam: 'mock',
     }
-    const lastWithSchool = recentPapers.find(p => (p.schoolName || '').trim())
-    const lastWithLogo = recentPapers.find(p => (p.schoolLogoUrl || '').trim())
-    setForm(f => ({
-      ...f,
-      // Grade/subject were chosen explicitly in the modal — the paper
-      // follows them (unlike the fields below, which only backfill).
-      grade: aiPaperForm.grade || f.grade,
-      subject: aiPaperForm.subject || f.subject,
-      term: f.term || aiPaperForm.term,
-      duration: f.duration || String(aiPaperForm.durationMinutes),
-      assessmentType: typeMap[aiPaperForm.assessmentType] || f.assessmentType,
-      coverInstructions: f.coverInstructions ||
-        String(assessment?.header?.instructions || ''),
-      schoolName: f.schoolName || lastWithSchool?.schoolName || '',
-      schoolLogoUrl: f.schoolLogoUrl || lastWithLogo?.schoolLogoUrl || '',
-    }))
+    setForm(f => {
+      const lastWithSchool = recentPapers.find(p => (p.schoolName || '').trim())
+      const lastWithLogo = recentPapers.find(p => (p.schoolLogoUrl || '').trim())
+      const recentBranding = {
+        schoolName: lastWithSchool?.schoolName || '',
+        schoolLogoUrl: lastWithLogo?.schoolLogoUrl || '',
+        schoolLogoTransform: lastWithLogo?.schoolLogoTransform || null,
+      }
+      const branding = brandingForAiPaper(f, schoolProfile, recentBranding)
+      return {
+        ...f,
+        // Grade/subject were chosen explicitly in the modal — the paper
+        // follows them (unlike the fields below, which only backfill).
+        grade: aiPaperForm.grade || f.grade,
+        subject: aiPaperForm.subject || f.subject,
+        term: f.term || aiPaperForm.term,
+        duration: f.duration || String(aiPaperForm.durationMinutes),
+        assessmentType: typeMap[aiPaperForm.assessmentType] || f.assessmentType,
+        coverInstructions: f.coverInstructions ||
+          String(assessment?.header?.instructions || ''),
+        schoolName: branding.schoolName,
+        schoolLogoUrl: branding.schoolLogoUrl,
+        schoolLogoTransform: f.schoolLogoTransform || branding.schoolLogoTransform,
+      }
+    })
     setCreatePaperOpen(false)
     closeSlide()
     changeView('builder')
@@ -2760,6 +2783,13 @@ function HeaderBlock({ form, setF, onUploadLogo, onRemoveLogo, importing, onImpo
               onChange={e => setF('schoolName', e.target.value)}
               placeholder="e.g. Jemareen Academy"
             />
+            <div style={{ fontSize: 11, color: 'var(--sv-muted)', marginTop: 4 }}>
+              New papers fill this in from your{' '}
+              <Link to="/settings?tab=school" style={{ color: 'var(--sv-primary)', fontWeight: 600 }}>
+                School details
+              </Link>
+              .
+            </div>
           </div>
           <div className="sv-field">
             <label>Class (optional)</label>

@@ -638,6 +638,21 @@ service cloud.firestore {
         && (!('data' in incoming()) || (incoming().data is string && incoming().data.size() < 1000000));
     }
 
+    // ── schoolProfiles ────────────────────────────────────────
+    // One saved "school branding" doc per teacher: logo URL, school name, and
+    // the default paper duration + cover instructions, reused as the header
+    // defaults across the Assessment Studio (and other printable outputs).
+    // Owner-only writes; owner + admin reads (admins read for support, like
+    // teacherLibraries). Private working content — never learner-facing. Field
+    // sizes are bounded as a tampered-client backstop (UI caps mirror these).
+    match /schoolProfiles/{uid} {
+      allow read: if isAuthed() && (isOwner(uid) || isAdmin());
+      allow write: if isAuthed() && isOwner(uid)
+        && (!('schoolName' in incoming()) || (incoming().schoolName is string && incoming().schoolName.size() <= 200))
+        && (!('schoolLogoUrl' in incoming()) || (incoming().schoolLogoUrl is string && incoming().schoolLogoUrl.size() <= 2000))
+        && (!('defaultCoverInstructions' in incoming()) || (incoming().defaultCoverInstructions is string && incoming().defaultCoverInstructions.size() <= 2000));
+    }
+
     // ── usageMeters ───────────────────────────────────────────
     match /usageMeters/{uid} {
       allow read: if isAuthed() && (isOwner(uid) || isAdmin());
