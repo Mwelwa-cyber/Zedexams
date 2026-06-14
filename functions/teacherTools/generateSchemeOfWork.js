@@ -21,6 +21,7 @@ const {callClaude, DEFAULT_MODEL} = require("./anthropicClient");
 
 const {
   resolveCbcContext,
+  resolveTermModuleOutline,
   classifySubjectForGrade,
   getOfficialSubjectsForGrade,
 } = require("./cbcKnowledge");
@@ -116,7 +117,7 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
   // curriculum OUTLINE (Syllabi Studio → seed → admin overlay, with uploaded
   // modules folded in) is the authoritative topic list; the context block is
   // the supplemental grounding (and the uploaded-module fallback path).
-  const [{contextBlock, kbMatch, kbWarning, kbVersion}, outline] =
+  const [{contextBlock, kbMatch, kbWarning, kbVersion}, outline, termOutline] =
     await Promise.all([
       resolveCbcContext({
         grade: inputs.grade,
@@ -129,11 +130,26 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
         subject: inputs.subject,
         term: inputs.term,
       }),
+      // Uploaded curriculum modules arranged at term level — the backup
+      // source. The per-sub-topic module lookup can't fire for a whole-term
+      // scheme, so this term-level lookup is how a scheme reaches modules.
+      resolveTermModuleOutline({
+        grade: inputs.grade,
+        subject: inputs.subject,
+        term: inputs.term,
+      }),
     ]);
+
+  // Source precedence (per spec): Syllabi Studio is the MAIN source; an
+  // uploaded module is the BACKUP, used only where the Syllabi outline is
+  // missing. That keeps the prompt from carrying two competing "authoritative"
+  // topic lists for the common case where Syllabi data already covers it.
+  const moduleGrounded = Boolean(termOutline) && outline.topicCount === 0;
 
   // Where the scheme's topics ultimately come from, for the provenance badge.
   const curriculumSource = outline.topicCount > 0 ?
-    "syllabi_studio" : (kbMatch ? "uploaded_module" : "ai_inferred");
+    "syllabi_studio" :
+    ((moduleGrounded || kbMatch) ? "uploaded_module" : "ai_inferred");
 
   // Timetable awareness — pace the term around the teacher's real week.
   const timetableSummary = inputs.timetable ?
@@ -159,9 +175,14 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
     timetableSummary,
   });
 
-  // Outline first (authoritative), supplemental CBC context second.
-  const fullContextBlock = [outline.block, contextBlock]
-      .filter(Boolean).join("\n\n");
+  // Grounding order: Syllabi Studio outline (primary) → supplemental CBC
+  // context → uploaded term-module outline (backup, only when no Syllabi
+  // outline). Everything the model needs so it sequences real topics.
+  const fullContextBlock = [
+    outline.block,
+    contextBlock,
+    moduleGrounded ? termOutline.outlineBlock : "",
+  ].filter(Boolean).join("\n\n");
 
   const usage = await assertAndIncrement(uid, "scheme_of_work");
 
@@ -194,6 +215,7 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
     periodsPerWeek,
     teachingDays,
     hasOutline: outline.topicCount > 0,
+    hasModuleOutline: moduleGrounded,
   });
   let parsed = null;
   let raw = "";
@@ -270,7 +292,7 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
         "Some fields were incomplete — please review.",
         kbWarning,
       ].filter(Boolean).join(" "),
-      kbGrounded: Boolean(kbMatch),
+      kbGrounded: Boolean(kbMatch) || moduleGrounded,
     };
   }
 
@@ -297,7 +319,7 @@ async function runSchemeOfWork({uid, rawInputs, apiKey}) {
     advisories,
     curriculumSource,
     warning: kbWarning || null,
-    kbGrounded: Boolean(kbMatch),
+    kbGrounded: Boolean(kbMatch) || moduleGrounded,
   };
 }
 

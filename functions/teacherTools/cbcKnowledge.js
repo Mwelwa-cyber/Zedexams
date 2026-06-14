@@ -628,13 +628,27 @@ function renderCurriculumModuleBlock(m, framing = {}) {
   const n = Number.isInteger(askedN) && askedN >= 1 && askedN <= total ?
     askedN : null;
 
-  const lines = [
+  // When a syllabus block is shown alongside this module (framing.paired),
+  // the two are reconciled by the <curriculum_sources> directive, so we drop
+  // the "single source of truth" wording that would contradict it.
+  const intro = framing.paired ? [
+    "<curriculum_module>",
+    "This is the VERIFIED Zambian CBC curriculum module (uploaded) for this",
+    "exact grade + sub-topic. It is detailed and authoritative — use it as a",
+    "primary source, reconciled with the syllabus outline above. Do not invent",
+    "outcomes, content or activities that go beyond or contradict these sources.",
+    "",
+  ] : [
     "<curriculum_module>",
     "This is the VERIFIED Zambian CBC curriculum module for this exact",
     "grade + sub-topic. It is the single source of truth. Base ALL generated",
     "content strictly on it. Do not invent outcomes, content or activities",
     "that go beyond or contradict this module.",
     "",
+  ];
+
+  const lines = [
+    ...intro,
     `Grade: ${m.grade}`,
     `Subject: ${m.subject}`,
     `Term: ${m.term}`,
@@ -679,6 +693,186 @@ function renderCurriculumModuleBlock(m, framing = {}) {
   section("Extension activities", m.extensionActivities);
   lines.push("</curriculum_module>");
   return lines.join("\n");
+}
+
+/**
+ * Directive shown when BOTH a syllabus outline (topic KB) and a detailed
+ * uploaded module are available for the same topic. The product decision is
+ * to hand both to the model and let it reconcile them rather than hard-coding
+ * one above the other — the syllabus is canonical for codes/sequence, the
+ * module is usually richer on content/activities.
+ */
+function renderSourceReconciliation() {
+  return [
+    "<curriculum_sources>",
+    "You have TWO complementary Zambian CBC curriculum sources for this topic:",
+    "a syllabus outline (from the Syllabus / Curriculum Studio) below, and a",
+    "detailed uploaded module that follows it. Both are authoritative. Use the",
+    "syllabus for canonical topic/sub-topic naming, codes and sequence, and the",
+    "module for fuller outcomes, activities, materials and assessment. Where",
+    "they overlap, prefer whichever is more complete, specific and",
+    "curriculum-accurate; where only one covers a point, use it. Reconcile them",
+    "into one coherent result and do not invent anything beyond what these",
+    "sources support.",
+    "</curriculum_sources>",
+  ].join("\n");
+}
+
+/**
+ * Look up EVERY stored sub-topic module for a (grade, subject, term) so the
+ * Scheme of Work generator and the Weekly Forecast can see how the curriculum
+ * arranges topics → sub-topics across the term. Reads the topic cards for the
+ * grade+subject (a small, bounded set) then their `lessons` sub-collections,
+ * filtering to the requested term in memory. Querying the parent `topics`
+ * collection (not a `lessons` collection-group) avoids colliding with the
+ * lesson-library `lessons` sub-collection, which shares the same name.
+ *
+ * Returns { topics: [...], weeks: [...], topicsCount, subtopicsCount } or
+ * null when nothing is uploaded for the term. `weeks` are shaped like the
+ * official 9-column scheme week so the Weekly Forecast can reuse its existing
+ * normaliser/day-builder.
+ */
+async function lookupTermModules({grade, subject, term}) {
+  const t = Number(term);
+  if (!grade || !subject || !(Number.isInteger(t) && t >= 1 && t <= 3)) {
+    return null;
+  }
+  const gradeNorm = normalizeGrade(grade);
+  const subjectNorm = String(subject || "").toLowerCase()
+      .replace(/[^a-z_]/g, "_").slice(0, 40);
+  try {
+    const db = admin.firestore();
+    const version = await getActiveKbVersion();
+    const topicsSnap = await db.collection("cbcKnowledgeBase").doc(version)
+        .collection("topics")
+        .where("grade", "==", gradeNorm)
+        .where("subject", "==", subjectNorm)
+        .limit(80)
+        .get();
+    if (topicsSnap.empty) return null;
+
+    const topics = [];
+    for (const topicDoc of topicsSnap.docs) {
+      const td = topicDoc.data() || {};
+      const lessonsSnap = await topicDoc.ref.collection("lessons")
+          .where("term", "==", t)
+          .limit(60)
+          .get();
+      if (lessonsSnap.empty) continue;
+      const subtopics = lessonsSnap.docs
+          .map((d) => ({id: d.id, ...d.data()}))
+          .filter((m) => m && m.subtopic);
+      if (subtopics.length === 0) continue;
+      topics.push({
+        topic: td.topic || subtopics[0].topic || "",
+        subtopics,
+      });
+    }
+    if (topics.length === 0) return null;
+
+    // Stable order: by topic name, then sub-topic name, so schemes sequence
+    // predictably regardless of Firestore doc-id ordering.
+    topics.sort((a, b) => String(a.topic).localeCompare(String(b.topic)));
+    let subtopicsCount = 0;
+    const weeks = [];
+    for (const tp of topics) {
+      tp.subtopics.sort((a, b) =>
+        String(a.subtopic).localeCompare(String(b.subtopic)));
+      for (const m of tp.subtopics) {
+        subtopicsCount += 1;
+        weeks.push({
+          week: weeks.length + 1,
+          topic: tp.topic,
+          subtopic: m.subtopic,
+          specificCompetences: [
+            ...(Array.isArray(m.outcomes) ? m.outcomes : []),
+            ...(Array.isArray(m.competencies) ? m.competencies : []),
+          ].filter(Boolean).slice(0, 6),
+          learningActivities: (Array.isArray(m.learnerActivities) &&
+            m.learnerActivities.length ? m.learnerActivities :
+            (Array.isArray(m.teacherActivities) ? m.teacherActivities : []))
+              .filter(Boolean).slice(0, 6),
+          expectedStandard: (Array.isArray(m.assessmentCriteria) ?
+            m.assessmentCriteria : []).filter(Boolean).join("; "),
+          methods: [],
+          tlAids: (Array.isArray(m.teachingMaterials) ?
+            m.teachingMaterials : []).filter(Boolean).slice(0, 6),
+          references: "",
+        });
+      }
+    }
+    return {topics, weeks, topicsCount: topics.length, subtopicsCount};
+  } catch (err) {
+    console.error("lookupTermModules failed", err);
+    return null;
+  }
+}
+
+/**
+ * Render the term's module arrangement as a compact <term_module_outline>
+ * block for the Scheme of Work prompt: topic → sub-topics, each with its
+ * specific competences / learning activities / expected standard so the model
+ * follows the uploaded curriculum's own ordering rather than inventing one.
+ */
+function renderTermModuleOutline(outline, {grade, subject, term} = {}) {
+  if (!outline || !Array.isArray(outline.topics) || !outline.topics.length) {
+    return "";
+  }
+  const lines = [
+    "<term_module_outline>",
+    "These are the VERIFIED uploaded curriculum modules for this grade +",
+    `subject + Term ${term}. They show how the curriculum arranges topics and`,
+    "sub-topics for the term. Use this arrangement as the backbone for",
+    "sequencing the weeks — keep the topic/sub-topic order and naming, and",
+    "draw each week's competences, activities and standards from here. Do not",
+    "invent topics that are not represented below.",
+    "",
+    `Grade: ${grade || ""}    Subject: ${subject || ""}    Term: ${term || ""}`,
+  ];
+  for (const tp of outline.topics) {
+    lines.push("", `TOPIC: ${tp.topic}`);
+    for (const m of tp.subtopics) {
+      lines.push(`  Sub-topic: ${m.subtopic}`);
+      const comp = [
+        ...(Array.isArray(m.outcomes) ? m.outcomes : []),
+        ...(Array.isArray(m.competencies) ? m.competencies : []),
+      ].filter(Boolean).slice(0, 4);
+      if (comp.length) {
+        lines.push(`    Specific competences: ${comp.join("; ")}`);
+      }
+      const acts = (Array.isArray(m.learnerActivities) &&
+        m.learnerActivities.length ? m.learnerActivities :
+        (Array.isArray(m.teacherActivities) ? m.teacherActivities : []))
+          .filter(Boolean).slice(0, 4);
+      if (acts.length) {
+        lines.push(`    Learning activities: ${acts.join("; ")}`);
+      }
+      const std = (Array.isArray(m.assessmentCriteria) ?
+        m.assessmentCriteria : []).filter(Boolean).slice(0, 2).join("; ");
+      if (std) lines.push(`    Expected standard: ${std}`);
+      const mats = (Array.isArray(m.teachingMaterials) ?
+        m.teachingMaterials : []).filter(Boolean).slice(0, 4);
+      if (mats.length) lines.push(`    T/L materials: ${mats.join("; ")}`);
+    }
+  }
+  lines.push("</term_module_outline>");
+  return lines.join("\n");
+}
+
+/**
+ * High-level term-outline resolver: returns the rendered block plus the
+ * structured weeks (for the Weekly Forecast) or null. Thin wrapper so callers
+ * don't have to know about lookupTermModules / renderTermModuleOutline.
+ */
+async function resolveTermModuleOutline({grade, subject, term} = {}) {
+  const outline = await lookupTermModules({grade, subject, term});
+  if (!outline) return null;
+  return {
+    outlineBlock: renderTermModuleOutline(outline, {grade, subject, term}),
+    weeks: outline.weeks,
+    topicsCount: outline.topicsCount,
+    subtopicsCount: outline.subtopicsCount,
+  };
 }
 
 /**
@@ -831,16 +1025,28 @@ async function resolveCbcContext({
       withVersion;
   };
 
-  // 1. Stored sub-topic curriculum module — outranks everything else.
+  // Editable topic KB / syllabus block — resolved up front so a stored module
+  // can be reconciled WITH the syllabus rather than silently replacing it
+  // (product decision: hand the model both sources and let it reconcile).
+  const match = await lookupTopic({grade, subject, topic, framework: fw});
+  const syllabusBlock = match ? renderContextBlock(match) : "";
+
+  // 1. Stored sub-topic curriculum module — the primary, most detailed source.
+  // When a syllabus block also exists we present BOTH, headed by the
+  // <curriculum_sources> reconciliation directive.
   if (subtopic && term) {
     const moduleMatch = await lookupSubtopicModule({
       grade, subject, topic, subtopic, term,
     });
     if (moduleMatch) {
+      const moduleBlock = renderCurriculumModuleBlock(moduleMatch, {
+        lessonNumber, totalLessons, paired: Boolean(syllabusBlock),
+      });
+      const contextBlock = syllabusBlock ?
+        [renderSourceReconciliation(), syllabusBlock, moduleBlock].join("\n\n") :
+        moduleBlock;
       return decorate({
-        contextBlock: renderCurriculumModuleBlock(moduleMatch, {
-          lessonNumber, totalLessons,
-        }),
+        contextBlock,
         kbMatch: moduleMatch,
         kbWarning: null,
       });
@@ -866,11 +1072,10 @@ async function resolveCbcContext({
     }
   }
 
-  // 3. Editable topic KB (framework-aware).
-  const match = await lookupTopic({grade, subject, topic, framework: fw});
+  // 3. Editable topic KB (framework-aware) — resolved above.
   if (match) {
     return decorate({
-      contextBlock: renderContextBlock(match),
+      contextBlock: syllabusBlock,
       kbMatch: match,
       kbWarning: null,
     });
@@ -943,6 +1148,10 @@ module.exports = {
   renderFallbackContext,
   resolveCbcContext,
   lookupSubtopicModule,
+  lookupTermModules,
+  resolveTermModuleOutline,
+  renderTermModuleOutline,
+  renderSourceReconciliation,
   renderCurriculumModuleBlock,
   renderLearningEnvironmentDirective,
   invalidateKbCache,

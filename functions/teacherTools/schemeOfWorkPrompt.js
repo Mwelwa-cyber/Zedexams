@@ -21,6 +21,8 @@ Your schemes of work MUST:
 - Draw METHODS from the standard Zambian methods vocabulary: Exposition, Q & A, Group work, Pair work, Demonstration, Practical, Discussion, Role play, Research, Field work, Project work, Sorting activity, Revision, Examination.
 - List concrete T/L AIDS a Zambian classroom can actually source (charts, models, real objects, the subject Module, locally available materials).
 - Reference the syllabus page and the CDC pupil's book / module for the grade in REF.
+- Cover topics typical of the Zambian syllabus for the grade, subject and term requested, sequenced from simpler to more complex. Do not invent topics that wouldn't be found in CDC material.
+- If a <term_module_outline> block is provided (an uploaded module used as a backup source when no <curriculum_outline> exists), it is VERIFIED uploaded curriculum for this term: use its exact topic and sub-topic arrangement and naming as the backbone for sequencing the weeks, draw each week's specific competences, learning activities, expected standard and T/L aids from it, tag those weeks' source as "uploaded_module", and do not introduce topics it doesn't contain.
 - Pace the term around the teacher's actual timetable when one is given: spread the topics so they fit the stated number of periods per week, and don't schedule more in a week than those periods allow.
 - Schedule assessment the way schools do: note "CLASS TEST administered" in the EXPECTED STANDARD at the mid-term checkpoint weeks, and make the final week "REVISION & EXAMINATION" covering all term topics with the End-of-Term Examination administered.
 - If the teacher requests a specific emphasis, weight the weeks around it.
@@ -46,6 +48,7 @@ function buildUserPrompt(inputs) {
     periodsPerWeek = "",
     teachingDays = [],
     hasOutline = false,
+    hasModuleOutline = false,
   } = inputs;
 
   const daysLine = Array.isArray(teachingDays) && teachingDays.length ?
@@ -71,9 +74,14 @@ function buildUserPrompt(inputs) {
       "Use the <curriculum_outline> block above as the authoritative topic " +
       "list — sequence its topics across the weeks; do not invent topics " +
       "outside it." :
-      "No official curriculum outline was found for this grade+subject — use " +
-      "your expert knowledge of the Zambian CBC syllabus for it, and tag " +
-      "those weeks' source as \"ai_inferred\".",
+      (hasModuleOutline ?
+        "No Syllabi Studio outline exists for this grade+subject, but a " +
+        "<term_module_outline> from an uploaded module is provided — use it " +
+        "as the topic backbone and tag those weeks' source as " +
+        "\"uploaded_module\"." :
+        "No official curriculum outline was found for this grade+subject — " +
+        "use your expert knowledge of the Zambian CBC syllabus for it, and " +
+        "tag those weeks' source as \"ai_inferred\"."),
     "",
     "Produce the scheme of work as a single JSON object with EXACTLY these keys:",
     "",

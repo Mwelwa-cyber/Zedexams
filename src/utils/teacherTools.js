@@ -45,6 +45,9 @@ const generateQuizCallable = httpsCallable(functions, 'generateQuiz', {
 const generateExamPaperCallable = httpsCallable(functions, 'generateExamPaper', {
   timeout: 185_000, // server: 180s — up to 60 questions
 })
+const getTermModuleOutlineCallable = httpsCallable(functions, 'getTermModuleOutline', {
+  timeout: 35_000, // server: 30s — a couple of small Firestore reads
+})
 
 // Grades grouped by Zambia CBC phase. Values use the canonical G-prefix the
 // backend's ALLOWED_GRADES accepts (ECE, G1–G12). Labels show the
@@ -432,6 +435,29 @@ export async function generateSchemeOfWork(inputs) {
       error: messageFromError(error),
       code: error?.code || 'unknown',
       rawMessage: error?.message || '',
+    }
+  }
+}
+
+/**
+ * Fetch the uploaded curriculum modules for a (grade, subject, term) as
+ * official-scheme-shaped weeks, so the Weekly Forecast studio can build a
+ * forecast straight from modules when the teacher has no saved scheme.
+ * Returns { ok, data: { weeks, topicsCount, subtopicsCount } } or { ok:false }.
+ */
+export async function getTermModuleOutline({ grade, subject, term }) {
+  try {
+    const result = await withTimeout(
+      getTermModuleOutlineCallable({ grade, subject, term }),
+      40_000,
+      'getTermModuleOutline',
+    )
+    return { ok: true, data: result.data }
+  } catch (error) {
+    return {
+      ok: false,
+      error: messageFromError(error),
+      code: error?.code || 'unknown',
     }
   }
 }
