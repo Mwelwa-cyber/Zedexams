@@ -22,6 +22,8 @@ import {
   totalAllocated,
   filledCount,
   buildTimetableArtifact,
+  dayEndTime,
+  lastLessonEndTime,
   DEFAULT_DAYS,
 } from '../src/utils/classTimetable.js'
 import {
@@ -230,6 +232,94 @@ test('buildPeriods emits assembly before Period 1 and closing after the last les
   const last = periods[periods.length - 1]
   assert(last.event === 'closing', 'closing should be the final row')
   assert(lessonPeriods(periods).length === 3, 'still three lesson rows')
+})
+
+/* ── fit-to-knock-off mode ────────────────────────────────────── */
+
+test('fit mode fills the day exactly between report and knock-off times', () => {
+  const periods = buildPeriods({
+    fitToEndTime: true,
+    startTime: '07:00',
+    endTime: '13:00',
+    lessonPeriods: 8,
+    breaks: [],
+  })
+  const lessons = lessonPeriods(periods)
+  assert(lessons.length === 8, `expected 8 lesson rows, got ${lessons.length}`)
+  assert(lessons[0].start === '07:00', `first lesson should start at report time: ${lessons[0].start}`)
+  assert(dayEndTime(periods) === '13:00', `day should end at the knock-off time: ${dayEndTime(periods)}`)
+  // 6 hours / 8 periods = 45-minute periods, every cell contiguous.
+  assert(lessons[0].end === '07:45' && lessons[1].start === '07:45', `periods should be contiguous 45-min: ${lessons[0].end}/${lessons[1].start}`)
+})
+
+test('fit mode drops each break in at the exact clock time the teacher set', () => {
+  const periods = buildPeriods({
+    fitToEndTime: true,
+    startTime: '07:00',
+    endTime: '13:00',
+    lessonPeriods: 6,
+    breaks: [
+      { event: 'break', name: 'BREAK', time: '09:00', minutes: 20 },
+      { event: 'lunch', name: 'LUNCH', time: '11:00', minutes: 40 },
+    ],
+  })
+  const brk = periods.find((p) => p.event === 'break')
+  const lunch = periods.find((p) => p.event === 'lunch')
+  assert(brk && brk.start === '09:00' && brk.end === '09:20', `break should be 09:00–09:20: ${brk?.start}–${brk?.end}`)
+  assert(lunch && lunch.start === '11:00' && lunch.end === '11:40', `lunch should be 11:00–11:40: ${lunch?.start}–${lunch?.end}`)
+  assert(lessonPeriods(periods).length === 6, 'should still place all 6 lesson periods')
+  assert(dayEndTime(periods) === '13:00', `day should still knock off at 13:00: ${dayEndTime(periods)}`)
+})
+
+test('fit mode honours a break-only day (lunch unticked) — government school case', () => {
+  const periods = buildPeriods({
+    fitToEndTime: true,
+    startTime: '07:30',
+    endTime: '12:30',
+    lessonPeriods: 7,
+    breaks: [
+      { event: 'break', name: 'BREAK', time: '10:00', minutes: 30, enabled: true },
+      { event: 'lunch', name: 'LUNCH', time: '12:00', minutes: 40, enabled: false },
+    ],
+  })
+  assert(periods.some((p) => p.event === 'break'), 'the break should appear')
+  assert(!periods.some((p) => p.event === 'lunch'), 'the disabled lunch should be gone')
+  assert(lessonPeriods(periods).length === 7, 'all 7 lesson periods placed')
+  assert(dayEndTime(periods) === '12:30', `day should knock off at 12:30: ${dayEndTime(periods)}`)
+})
+
+test('fit mode keeps assembly and closing as bookends around the knock-off', () => {
+  const periods = buildPeriods({
+    fitToEndTime: true,
+    startTime: '07:00',
+    endTime: '13:00',
+    lessonPeriods: 5,
+    breaks: [
+      { event: 'assembly', name: 'ASSEMBLY', minutes: 15 },
+      { event: 'closing', name: 'CLOSING', minutes: 10 },
+    ],
+  })
+  assert(periods[0].event === 'assembly' && periods[0].start === '07:00' && periods[0].end === '07:15',
+    `assembly should fill 07:00–07:15: ${periods[0].start}–${periods[0].end}`)
+  assert(lessonPeriods(periods)[0].start === '07:15', 'first lesson follows assembly')
+  assert(lastLessonEndTime(periods) === '13:00', `last lesson should end at the 13:00 knock-off: ${lastLessonEndTime(periods)}`)
+  const last = periods[periods.length - 1]
+  assert(last.event === 'closing' && last.start === '13:00' && last.end === '13:10',
+    `closing should trail the knock-off 13:00–13:10: ${last.start}–${last.end}`)
+})
+
+test('fit mode falls back to the fixed builder when the window is degenerate', () => {
+  const periods = buildPeriods({
+    fitToEndTime: true,
+    startTime: '13:00',
+    endTime: '07:00', // knock-off before report — impossible
+    periodMinutes: 40,
+    lessonPeriods: 3,
+    breaks: [],
+  })
+  // Falls back to the fixed forward build from the start time.
+  assert(lessonPeriods(periods).length === 3, 'fixed fallback still produces the lesson rows')
+  assert(lessonPeriods(periods)[0].start === '13:00', 'fixed fallback starts at the report time')
 })
 
 /* ── balanced distribution ────────────────────────────────────── */

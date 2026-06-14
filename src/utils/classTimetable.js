@@ -58,16 +58,27 @@ export function minutesToTime(total) {
 /* ── Period (time row) construction ───────────────────────────── */
 
 export const DEFAULT_TIMING = {
-  startTime: '07:30',
+  startTime: '07:30',     // when the school reports
+  endTime: '13:10',       // when the school knocks off (used in fit mode)
+  // Two ways to time the day:
+  //   fitToEndTime=false → fixed period length; the studio works out when the
+  //     day ends. Breaks are anchored "after period N".
+  //   fitToEndTime=true  → the day is shared evenly between the report and
+  //     knock-off times; period length is derived. Mid-day breaks are anchored
+  //     to the clock time the teacher sets, so they land exactly then.
+  fitToEndTime: false,
   periodMinutes: 40,
   lessonPeriods: 8,
   breaks: [
     // Day bookends: assembly sits before Period 1 (afterPeriod 0), closing
-    // after the last lesson (afterPeriod 'end'). Break and lunch fall mid-day.
-    { afterPeriod: 0,     minutes: 15, name: 'ASSEMBLY', event: 'assembly' },
-    { afterPeriod: 2,     minutes: 20, name: 'BREAK',    event: 'break' },
-    { afterPeriod: 5,     minutes: 40, name: 'LUNCH',    event: 'lunch' },
-    { afterPeriod: 'end', minutes: 10, name: 'CLOSING',  event: 'closing' },
+    // after the last lesson (afterPeriod 'end'). Break and lunch fall mid-day —
+    // positioned by afterPeriod in fixed mode, by `time` (clock) in fit mode.
+    // Many Zambian government schools run a break but no lunch: a teacher just
+    // unticks LUNCH (enabled:false) to drop it.
+    { afterPeriod: 0,     time: '07:30', minutes: 15, name: 'ASSEMBLY', event: 'assembly' },
+    { afterPeriod: 2,     time: '09:30', minutes: 20, name: 'BREAK',    event: 'break' },
+    { afterPeriod: 5,     time: '11:30', minutes: 40, name: 'LUNCH',    event: 'lunch' },
+    { afterPeriod: 'end', time: '',      minutes: 10, name: 'CLOSING',  event: 'closing' },
   ],
 }
 
@@ -85,9 +96,24 @@ function breakAnchor(afterPeriod, count) {
  * Lesson ids are stable ('p1', 'p2', …) so saved grids survive a re-build
  * as long as the lesson count is unchanged.
  *
+ * Two timing modes (see DEFAULT_TIMING): when `fitToEndTime` is set and a
+ * valid `endTime` is given, the day is shared between the report and knock-off
+ * times (period length derived, breaks anchored to their clock time);
+ * otherwise the day is built forward from a fixed period length.
+ *
  * @returns {{id,kind,event?,label,start,end}[]}
  */
 export function buildPeriods(config = {}) {
+  if (config.fitToEndTime) {
+    const fitted = buildPeriodsFitted(config)
+    if (fitted) return fitted // fall through to fixed when the window is degenerate
+  }
+  return buildPeriodsFixed(config)
+}
+
+/* Fixed-length day: forward from the start time, one period length per row,
+ * breaks anchored "after period N". The original, deterministic builder. */
+function buildPeriodsFixed(config = {}) {
   const {
     startTime = DEFAULT_TIMING.startTime,
     periodMinutes = DEFAULT_TIMING.periodMinutes,
@@ -129,6 +155,137 @@ export function buildPeriods(config = {}) {
     emitBreaks(i) // mid-day breaks + closing (anchored at the final lesson)
   }
   return rows
+}
+
+/**
+ * Fit-to-knock-off day: the teacher gives the report time, the knock-off time
+ * and the clock time of each break; the lesson periods share whatever teaching
+ * time is left. Breaks therefore land exactly when the teacher set them.
+ *
+ * Assembly and closing stay bookends (assembly fills the gap before the first
+ * lesson, closing trails the knock-off); mid-day breaks (break / lunch) carve
+ * the teaching window into segments. The lesson periods are spread across the
+ * segments in proportion to each segment's length, uniform within a segment so
+ * every break and the knock-off fall on an exact boundary.
+ *
+ * Returns null when the window can't hold the day (end ≤ start, no teaching
+ * time left) so the caller can fall back to the fixed builder.
+ */
+function buildPeriodsFitted(config = {}) {
+  const {
+    startTime = DEFAULT_TIMING.startTime,
+    endTime = DEFAULT_TIMING.endTime,
+    lessonPeriods = DEFAULT_TIMING.lessonPeriods,
+    breaks = DEFAULT_TIMING.breaks,
+  } = config
+
+  const count = Math.min(14, Math.max(1, Math.round(Number(lessonPeriods) || 1)))
+  const start = timeToMinutes(startTime)
+  const end = timeToMinutes(endTime)
+  if (end <= start) return null
+
+  const enabled = (Array.isArray(breaks) ? breaks : []).filter((b) => b?.enabled !== false)
+  const assembly = enabled.find((b) => b?.event === 'assembly')
+  const closing = enabled.find((b) => b?.event === 'closing')
+  const aDur = assembly ? Math.max(0, Math.round(Number(assembly.minutes) || 0)) : 0
+  const cDur = closing ? Math.max(0, Math.round(Number(closing.minutes) || 0)) : 0
+
+  const teachStart = start + aDur
+  if (end <= teachStart) return null
+
+  // Mid-day breaks anchored to their clock time, inside the teaching window.
+  const mid = enabled
+    .filter((b) => b?.event !== 'assembly' && b?.event !== 'closing')
+    .map((b) => ({
+      time: timeToMinutes(b?.time),
+      minutes: Math.max(0, Math.round(Number(b?.minutes) || 0)),
+      name: (b?.name || 'BREAK').toUpperCase(),
+      event: b?.event || 'break',
+    }))
+    .filter((b) => b.minutes > 0 && b.time > teachStart && b.time < end)
+    .sort((a, b) => a.time - b.time)
+
+  // Carve teaching segments between the breaks; drop any break that overlaps a
+  // previous one or would run past the knock-off.
+  const segments = []  // { start, end }
+  const usedBreaks = []
+  let segStart = teachStart
+  for (const b of mid) {
+    if (b.time <= segStart) continue
+    if (b.time + b.minutes >= end) continue
+    segments.push({ start: segStart, end: b.time })
+    usedBreaks.push(b)
+    segStart = b.time + b.minutes
+  }
+  segments.push({ start: segStart, end })
+
+  const totalTeach = segments.reduce((sum, g) => sum + (g.end - g.start), 0)
+  if (totalTeach <= 0) return null
+
+  // Spread the lesson periods across the segments by length (largest remainder).
+  const counts = segments.map((g) => {
+    const exact = (count * (g.end - g.start)) / totalTeach
+    return { base: Math.floor(exact), frac: exact - Math.floor(exact), min: g.end - g.start }
+  })
+  let assigned = counts.reduce((sum, c) => sum + c.base, 0)
+  const byFrac = counts.map((c, i) => i).sort((a, b) => counts[b].frac - counts[a].frac)
+  for (let k = 0; assigned < count && k < byFrac.length; k += 1) { counts[byFrac[k]].base += 1; assigned += 1 }
+  if (assigned < count) { // all fractions equal — dump the rest in the longest segment
+    let big = 0
+    for (let i = 1; i < counts.length; i += 1) if (counts[i].min > counts[big].min) big = i
+    counts[big].base += count - assigned
+  }
+  // Avoid a teaching segment with no lessons (a time gap) when periods allow.
+  if (count >= segments.length) {
+    for (let i = 0; i < counts.length; i += 1) {
+      if (counts[i].base > 0) continue
+      let donor = -1
+      for (let j = 0; j < counts.length; j += 1) {
+        if (counts[j].base > 1 && (donor < 0 || counts[j].base > counts[donor].base)) donor = j
+      }
+      if (donor >= 0) { counts[donor].base -= 1; counts[i].base += 1 }
+    }
+  }
+
+  const rows = []
+  if (assembly && aDur > 0) {
+    rows.push({ id: `brk-asm-${rows.length}`, kind: 'break', event: 'assembly', label: (assembly.name || 'ASSEMBLY').toUpperCase(), start: minutesToTime(start), end: minutesToTime(teachStart) })
+  }
+  let idx = 0
+  for (let si = 0; si < segments.length; si += 1) {
+    const seg = segments[si]
+    const n = counts[si].base
+    let cursor = seg.start
+    for (let k = 0; k < n; k += 1) {
+      idx += 1
+      const len = Math.round((seg.end - cursor) / (n - k)) // even split, last absorbs rounding
+      const pEnd = k === n - 1 ? seg.end : cursor + len
+      rows.push({ id: `p${idx}`, kind: 'lesson', label: `Period ${idx}`, start: minutesToTime(cursor), end: minutesToTime(pEnd) })
+      cursor = pEnd
+    }
+    if (si < usedBreaks.length) {
+      const b = usedBreaks[si]
+      rows.push({ id: `brk-${b.time}-${rows.length}`, kind: 'break', event: b.event, label: b.name, start: minutesToTime(b.time), end: minutesToTime(b.time + b.minutes) })
+    }
+  }
+  if (closing && cDur > 0) {
+    rows.push({ id: `brk-cls-${rows.length}`, kind: 'break', event: 'closing', label: (closing.name || 'CLOSING').toUpperCase(), start: minutesToTime(end), end: minutesToTime(end + cDur) })
+  }
+  return rows
+}
+
+/** The clock time the day finishes — the end of the last row (the last lesson,
+ * or the closing row when there is one). '' for an empty period list. */
+export function dayEndTime(periods) {
+  const rows = Array.isArray(periods) ? periods : []
+  return rows.length ? rows[rows.length - 1].end : ''
+}
+
+/** The clock time the last lesson ends — the teaching knock-off, ignoring any
+ * trailing closing/assembly row. '' when there are no lesson rows. */
+export function lastLessonEndTime(periods) {
+  const lessons = lessonPeriods(periods)
+  return lessons.length ? lessons[lessons.length - 1].end : ''
 }
 
 /** Just the lesson rows of a period list (the fillable rows). */

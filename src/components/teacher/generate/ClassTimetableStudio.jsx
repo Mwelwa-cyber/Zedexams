@@ -21,6 +21,7 @@ import {
   DEFAULT_DAYS,
   DEFAULT_TIMING,
   buildPeriods,
+  lessonPeriods as lessonRowsOf,
   lessonCapacity,
   curriculumSubjectsForGrade,
   newSubject,
@@ -31,6 +32,8 @@ import {
   totalAllocated,
   filledCount,
   buildTimetableArtifact,
+  dayEndTime,
+  timeToMinutes,
 } from '../../../utils/classTimetable'
 import { getFrameworkForGrade, FRAMEWORK_SOURCE } from '../../../utils/curriculumFramework'
 import { saveClassTimetableGeneration, isFreePlanTeacher } from '../../../utils/teacherLibraryService'
@@ -96,6 +99,8 @@ export default function ClassTimetableStudio() {
   const [days, setDays] = useState(DEFAULT_DAYS)
   const [timing, setTiming] = useState(() => ({
     startTime: DEFAULT_TIMING.startTime,
+    endTime: DEFAULT_TIMING.endTime,
+    fitToEndTime: DEFAULT_TIMING.fitToEndTime,
     periodMinutes: DEFAULT_TIMING.periodMinutes,
     // Right-size the grid to the framework's weekly load for the starting grade.
     lessonPeriods: lessonPeriodsForGrade(initialGrade, DEFAULT_DAYS),
@@ -113,6 +118,22 @@ export default function ClassTimetableStudio() {
 
   const periods = useMemo(() => buildPeriods(timing), [timing])
   const capacity = useMemo(() => lessonCapacity(periods, days), [periods, days])
+
+  /* Timing readouts. In fit mode the period length is derived (shown to the
+   * teacher); in fixed mode the day end is computed and checked against the
+   * teacher's target knock-off time. */
+  const derivedPeriodMinutes = useMemo(() => {
+    if (!timing.fitToEndTime) return 0
+    const lessons = lessonRowsOf(periods)
+    if (!lessons.length) return 0
+    const total = lessons.reduce((sum, p) => sum + (timeToMinutes(p.end) - timeToMinutes(p.start)), 0)
+    return Math.round(total / lessons.length)
+  }, [timing.fitToEndTime, periods])
+  const computedEnd = useMemo(() => dayEndTime(periods), [periods])
+  const knockOffDelta = useMemo(() => {
+    if (timing.fitToEndTime || !computedEnd || !timing.endTime) return null
+    return timeToMinutes(computedEnd) - timeToMinutes(timing.endTime)
+  }, [timing.fitToEndTime, timing.endTime, computedEnd])
   const allocated = useMemo(() => totalAllocated(subjects), [subjects])
   const filled = useMemo(() => filledCount(slots, periods, days), [slots, periods, days])
   const framework = useMemo(() => getFrameworkForGrade(header.grade), [header.grade])
@@ -250,7 +271,9 @@ export default function ClassTimetableStudio() {
   function onUploadExtracted(result) {
     if (!result) return
     if (Array.isArray(result.days) && result.days.length) setDays(result.days)
-    if (result.timing) setTiming((t) => ({ ...t, ...result.timing }))
+    // An uploaded grid carries explicit period lengths, not a knock-off time —
+    // reproduce it with the fixed-length builder.
+    if (result.timing) setTiming((t) => ({ ...t, ...result.timing, fitToEndTime: false }))
     setSubjects(seedSubjects(header.grade))
     setSlots(result.slots || {})
   }
@@ -325,7 +348,7 @@ export default function ClassTimetableStudio() {
         <StudioPageHeader
           eyebrow="Class Timetable"
           title="Build your week from the curriculum"
-          subtitle="Pick a grade and the studio knows the 2023 framework subjects and how many periods each needs. Generate a balanced week in one click — assembly, breaks, lunch and closing included — then fine-tune any cell. Print it, or export to Word, Excel or PDF."
+          subtitle="Pick a grade and the studio knows the 2023 framework subjects and how many periods each needs. Set when school reports and knocks off, with a break and lunch (or just a break), then generate a balanced week in one click and fine-tune any cell. Print it, or export to Word, Excel or PDF."
           emoji="🗓️"
         />
 
@@ -432,22 +455,84 @@ export default function ClassTimetableStudio() {
           {/* ── Period times ── */}
           <section className="studio-card p-5 space-y-4">
             <h2 className="studio-display" style={{ fontSize: 18, color: '#0e2a32', margin: 0 }}>Period times</h2>
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-              <Field label="Day starts">
+
+            {/* How the day is timed: fit between report & knock-off, or fixed length */}
+            <div className="space-y-1.5">
+              <span className="studio-label">How should the day be timed?</span>
+              <div className="inline-flex rounded-xl border theme-border overflow-hidden text-xs font-black">
+                {[
+                  { key: true, label: 'Fit to report & knock-off' },
+                  { key: false, label: 'Fixed period length' },
+                ].map((opt) => {
+                  const on = !!timing.fitToEndTime === opt.key
+                  return (
+                    <button key={String(opt.key)} type="button"
+                      onClick={() => setT('fitToEndTime', opt.key)}
+                      aria-pressed={on}
+                      className={`px-3 py-2 transition-all ${on ? 'theme-accent-fill theme-on-accent' : 'bg-white theme-text-muted hover:theme-text'}`}>
+                      {opt.label}
+                    </button>
+                  )
+                })}
+              </div>
+              <p className="text-xs" style={{ color: '#566f76' }}>
+                {timing.fitToEndTime
+                  ? 'Enter when the school reports and when it knocks off — the studio shares the day evenly across the lessons and drops each break in at the time you set.'
+                  : 'Set a fixed period length — the studio works out what time the day knocks off.'}
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+              <Field label="School reports (start)">
                 <input type="time" value={timing.startTime}
                   onChange={(e) => setT('startTime', e.target.value)} className="studio-input" />
               </Field>
-              <Field label="Period length (minutes)">
-                <input type="number" min={5} max={180} value={timing.periodMinutes}
-                  onChange={(e) => setT('periodMinutes', clampInt(e.target.value, 5, 180))} className="studio-input" />
+              <Field label={timing.fitToEndTime ? 'Knock-off (end)' : 'Knock-off target (optional)'}>
+                <input type="time" value={timing.endTime}
+                  onChange={(e) => setT('endTime', e.target.value)} className="studio-input" />
               </Field>
+              {timing.fitToEndTime ? (
+                <Field label="Period length (auto)">
+                  <div className="studio-input flex items-center font-bold" style={{ background: '#efe9da', color: '#566f76' }} aria-live="polite">
+                    {derivedPeriodMinutes ? `≈ ${derivedPeriodMinutes} min` : '—'}
+                  </div>
+                </Field>
+              ) : (
+                <Field label="Period length (minutes)">
+                  <input type="number" min={5} max={180} value={timing.periodMinutes}
+                    onChange={(e) => setT('periodMinutes', clampInt(e.target.value, 5, 180))} className="studio-input" />
+                </Field>
+              )}
               <Field label="Lesson periods per day">
                 <input type="number" min={1} max={14} value={timing.lessonPeriods}
                   onChange={(e) => setT('lessonPeriods', clampInt(e.target.value, 1, 14))} className="studio-input" />
               </Field>
             </div>
+
+            {/* Knock-off readout / check */}
+            {timing.fitToEndTime ? (
+              <p className="text-xs font-bold" style={{ color: '#566f76' }}>
+                The day runs {timing.startTime}–{timing.endTime}.
+                {derivedPeriodMinutes ? ` Each of the ${timing.lessonPeriods} lesson periods is about ${derivedPeriodMinutes} minutes.` : ''}
+              </p>
+            ) : computedEnd ? (
+              <p className="text-xs font-bold"
+                style={{ color: knockOffDelta && knockOffDelta !== 0 ? '#9a7000' : '#1E8449' }}>
+                {knockOffDelta === null || knockOffDelta === 0
+                  ? `These periods knock off at ${computedEnd}${timing.endTime ? ' — exactly your target.' : '.'}`
+                  : knockOffDelta > 0
+                    ? `⚠ These periods run to ${computedEnd} — ${knockOffDelta} min past your ${timing.endTime} knock-off. Shorten a period or a break, or switch to "Fit to report & knock-off".`
+                    : `These periods knock off at ${computedEnd} — ${-knockOffDelta} min before your ${timing.endTime} target.`}
+              </p>
+            ) : null}
+
             <div className="space-y-2">
-              <span className="studio-label">Assembly, breaks, lunch &amp; closing</span>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="studio-label !mb-0">Assembly, breaks, lunch &amp; closing</span>
+                <span className="text-[11px]" style={{ color: '#8a7f67' }}>
+                  No lunch at your school? Just untick it — many government schools run a break only.
+                </span>
+              </div>
               {timing.breaks.map((b, idx) => {
                 const isBookend = b.event === 'assembly' || b.event === 'closing'
                 return (
@@ -464,6 +549,14 @@ export default function ClassTimetableStudio() {
                       <span className="text-xs theme-text-secondary">
                         {b.event === 'assembly' ? 'before lessons' : 'after last period'}
                       </span>
+                    ) : timing.fitToEndTime ? (
+                      <>
+                        <span className="text-xs theme-text-secondary">at</span>
+                        <input type="time" value={b.time || ''}
+                          aria-label="Break time"
+                          onChange={(e) => updateBreak(idx, 'time', e.target.value)}
+                          className="w-28 text-xs font-bold text-center studio-input !py-1.5" />
+                      </>
                     ) : (
                       <>
                         <span className="text-xs theme-text-secondary">after period</span>
