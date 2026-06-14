@@ -29,6 +29,7 @@ const {
   isStaffRole,
 } = require("../aiService");
 const {callClaude} = require("./anthropicClient");
+const {dedupeExtractedQuestions} = require("./pastPaperImportHelpers");
 
 const IMPORT_MODEL = process.env.PAST_PAPER_IMPORT_MODEL || "claude-sonnet-4-6";
 
@@ -354,10 +355,12 @@ async function runPastPaperImport({uid, paperId, quizId, apiKey}) {
 
   const rawQuestions = Array.isArray(result && result.parsed &&
     result.parsed.questions) ? result.parsed.questions : [];
-  const questions = rawQuestions
-    .slice(0, MAX_QUESTIONS)
-    .map((q, i) => normaliseQuestion(q, i))
-    .filter((q) => q.prompt && q.options.length >= 2);
+  const questions = dedupeExtractedQuestions(
+    rawQuestions
+      .slice(0, MAX_QUESTIONS)
+      .map((q, i) => normaliseQuestion(q, i))
+      .filter((q) => q.prompt && q.options.length >= 2),
+  );
 
   // If a target quizId was supplied, persist the questions directly so
   // the admin can open the Quiz Editor and find them ready for review.
@@ -455,4 +458,7 @@ module.exports = {
   // Source loaders reused by extractAssessmentFormat (same download,
   // size-cap and DOCX→text handling for sample assessment papers).
   loadPaperOrThrow, pickSources, buildMessageBlocks,
+  // Re-exported from pastPaperImportHelpers for callers that already import it
+  // from here; the test imports the helper module directly.
+  dedupeExtractedQuestions,
 };

@@ -1089,4 +1089,69 @@ function runGarbageSymbolCleanTest() {
 runGarbageSymbolCleanTest()
 console.log('documentQuizParserCore garbage-symbol cleaning test passed')
 
+// ── Duplicate-question collapse ──────────────────────────────────────────────
+// Reproduces the "a 60-question paper imports as 64, with some questions
+// appearing twice" report. Three duplication shapes are exercised; the parser
+// must emit only the real questions.
+function runDuplicateImportTest() {
+  // 1. An answer/solutions list whose heading ("Solutions") ANSWER_KEY_HEADING_RE
+  //    doesn't recognise, so each `1. B` row parsed as a brand-new question with
+  //    stem "B" and no options. These must be dropped, not counted.
+  const answerKeyLeak = [
+    block('1. What is 2 + 2?'),
+    block('A. 3'),
+    block('B. 4'),
+    block('C. 5'),
+    block('D. 6'),
+    block('2. What is 3 + 3?'),
+    block('A. 5'),
+    block('B. 6'),
+    block('C. 7'),
+    block('D. 8'),
+    block('Solutions'),
+    block('1. B'),
+    block('2. B'),
+  ]
+  const leakWarnings = []
+  const { sections: leakSections, summary: leakSummary } =
+    processImportedQuestionBlocks(answerKeyLeak, leakWarnings)
+  assert.equal(leakSummary.questions, 2,
+    `answer-key fragments must be dropped, got ${leakSummary.questions}`)
+  const leakNumbers = allQuestionsFromSections(leakSections)
+    .map(q => Number(q.sourceQuestionNumber))
+  assert.deepEqual(leakNumbers, [1, 2], 'only the two real questions survive')
+  assert.ok(leakWarnings.some(w => /duplicate/i.test(w)),
+    'a warning must tell the teacher duplicates were removed')
+
+  // 2. The same numbered question detected twice (a wrapped stem re-triggered a
+  //    new question). The more complete copy — the one that kept its options —
+  //    must be the survivor.
+  const sameNumberTwice = [
+    block('5. What is the capital of Zambia?'),
+    block('A. Lusaka'),
+    block('B. Ndola'),
+    block('C. Kitwe'),
+    block('D. Livingstone'),
+    block('5. What is the capital of Zambia?'),
+  ]
+  const { sections: dupSections } = processImportedQuestionBlocks(sameNumberTwice, [])
+  const fives = allQuestionsFromSections(dupSections)
+    .filter(q => String(q.sourceQuestionNumber) === '5')
+  assert.equal(fives.length, 1, 'a repeated Q5 must collapse to one question')
+  assert.equal(fives[0].options.length, 4, 'the complete copy (with options) wins')
+
+  // 3. Two questions with byte-identical content emitted at different positions
+  //    collapse even when they carry no number.
+  const identicalContent = [
+    block('Which gas do plants absorb? A. Oxygen B. Carbon dioxide C. Nitrogen D. Helium'),
+    block('Which gas do plants absorb? A. Oxygen B. Carbon dioxide C. Nitrogen D. Helium'),
+  ]
+  const { summary: identicalSummary } = processImportedQuestionBlocks(identicalContent, [])
+  assert.equal(identicalSummary.questions, 1,
+    `identical questions must collapse, got ${identicalSummary.questions}`)
+}
+
+runDuplicateImportTest()
+console.log('documentQuizParserCore duplicate-question collapse test passed')
+
 console.log('documentQuizParserCore regression test passed')
