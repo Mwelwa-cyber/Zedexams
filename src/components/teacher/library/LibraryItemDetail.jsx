@@ -329,7 +329,7 @@ export default function LibraryItemDetail() {
   const meta = TOOL_META[item.tool] || { label: item.tool, icon: '📄' }
 
   return (
-    <div className="min-h-screen p-4 sm:p-6 lg:p-8" style={{ background: '#f5efe1' }}>
+    <div className="min-h-screen py-4 sm:py-6 lg:py-8" style={{ background: '#f5efe1' }}>
       <SeoHelmet title={item?.title || meta.label || 'Library item'} noIndex />
       <div className="max-w-5xl mx-auto">
         {/* Breadcrumb */}
