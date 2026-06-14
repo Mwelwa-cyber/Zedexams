@@ -25,7 +25,6 @@ const src = fs.readFileSync(
 // The studio files are plain browser scripts that attach to `window`. Eval the
 // source against a stub window and read the exposed lookup back off it.
 const win = {}
-// eslint-disable-next-line no-new-func
 new Function('window', src)(win)
 
 const curatedTopicsFor = win.curatedTopicsFor

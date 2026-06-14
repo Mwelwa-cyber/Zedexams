@@ -167,7 +167,6 @@ exports.expandKbLessons = onCall(
       let morePages = true;
       const PAGE_SIZE = 200;
 
-      /* eslint-disable no-await-in-loop */
       while (morePages) {
         let q = topicsCol.orderBy("__name__").limit(PAGE_SIZE);
         if (pageStart) q = q.startAfter(pageStart);
@@ -201,7 +200,6 @@ exports.expandKbLessons = onCall(
         if (page.docs.length < PAGE_SIZE) morePages = false;
         else pageStart = page.docs[page.docs.length - 1];
       }
-      /* eslint-enable no-await-in-loop */
 
       if (!dryRun) await writer.finish();
 
